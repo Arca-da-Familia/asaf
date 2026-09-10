@@ -1,0 +1,1 @@
+print("Olá! O sistema da associação está funcionando!")
