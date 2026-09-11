@@ -91,6 +91,19 @@ Créditos de ONG ~US$2.000/ano → teto de **US$100/mês**. Ver detalhamento na 
 
 ## 4. Roteiro de fases e versões
 
+> **Expansão de 2026-09-11**: a pedido do usuário, tudo a partir da **v0.2** foi levado ao nível
+> mais alto que cada fase comporta, com sub-versões criadas onde o detalhe exigia (v0.2.0–v0.2.10,
+> v0.3.1–v0.3.5, v1.0–v1.8, v2.0–v2.9, v3.0–v3.7, v4.0–v4.10, v5.0–v5.5, v6.1–v6.3, v7.0–v7.5,
+> v8.1–v8.5, v9.1–v9.4, v11.1–v11.10, v12.0–v12.10, v13.1–v13.5, v14.1–v14.4, v15.0–v15.6,
+> v16.1–v16.4, v17.1–v17.3, v18.1–v18.4, v19.1–v19.2, v20.1–v20.4). Três regras foram seguidas
+> nessa expansão: **(1)** nenhuma afirmação de pesquisa/legislação já validada foi alterada ou
+> inventada — o que é fundamentado continua marcado como tal, e o que é decisão de desenho está
+> escrito como decisão de desenho; **(2)** cada fase ganhou uma versão "zero" ou equivalente com
+> os **motores compartilhados** dela (presença, inscrição, documento, indicador, catálogo,
+> obrigação), para que módulos futuros reusem em vez de reimplementar; **(3)** todo item novo
+> declara o que fica **fora de escopo de propósito**, porque plano que só cresce em ambição, sem
+> declarar limite, é plano que não se cumpre.
+
 ### FASE 0 — Fundação (infraestrutura, identidade, permissão, painel único)
 
 #### v0.0 — Provisionamento de infraestrutura (Azure + GitHub) — literalmente o primeiro passo ✅ CONCLUÍDO (2026-09-11)
@@ -209,143 +222,597 @@ Créditos de ONG ~US$2.000/ano → teto de **US$100/mês**. Ver detalhamento na 
   Loja do Serpro/Dataprev, análise discricionária de "interesse público" e cobrança comercial por
   volume, inviável para o porte da ASAF.
 
-#### v0.2 — Painel único (substitui `templates/index.html`)
-- [ ] Remover a divisão `/meu-portal` x `/admin` do protótipo atual.
-- [ ] Shell de painel único (SPA React, ver seção 5) com menu montado dinamicamente a partir de
-      `PermissaoSistema` do usuário logado — nenhum módulo hardcoded na navegação.
-- [ ] Módulo "Meu Perfil" dentro do painel (dados cadastrais, trocar senha, meus documentos).
+#### v0.2 — Painel único (expandido ao nível máximo antes de codar)
 
-#### v0.3 — Base de catálogos configuráveis
-- [ ] Catálogos configuráveis sem precisar mexer em código: cargos, categorias de associado,
-      tipos de documento, motivos de desligamento — mesmo espírito de "catálogo configurável"
-      já validado em sistemas de gestão associativa de mercado.
+> **Por que esta versão é grande**: o painel não é "uma tela de menu". Ele é a **casca** que todos
+> os módulos das FASES 1–20 vão habitar pelos próximos 10–20 anos. Erro de fundação aqui (menu
+> hardcoded, permissão só no front, tema preso a uma biblioteca, tabela sem padrão) se paga em
+> retrabalho em cada módulo novo. Por isso a v0.2 vai muito além de "substituir o
+> `templates/index.html`": ela entrega o **shell + o design system + os contratos de front-end**
+> que as fases seguintes só consomem.
 
-### FASE 1 — Associados (ciclo de vida)
+##### v0.2.0 — Fundação do projeto de front-end
+- [ ] Repositório/pasta `painel/` no mesmo repo (monorepo simples, sem ferramenta de monorepo) —
+      Vite + React + TypeScript **strict** (`strict: true`, `noUncheckedIndexedAccess`), nunca
+      TS frouxo que vira JavaScript com enfeite.
+- [ ] Tailwind + shadcn/ui (componentes copiados pro repo, não dependência que some) + Recharts
+      para gráfico + TanStack Query para estado de servidor + React Router.
+- [ ] **Decisão explícita de perpetuidade**: nenhum componente de UI vem de biblioteca paga ou de
+      SaaS com licença por usuário. Tudo que entrar tem que continuar funcionando se a associação
+      parar de pagar qualquer coisa.
+- [ ] ESLint + Prettier + `tsc --noEmit` rodando no CI (workflow novo `deploy-painel.yml`),
+      bloqueando merge quebrado.
+- [ ] Build publicado no Static Web App `asaf-painel` (já provisionado na v0.0) via GitHub Actions
+      com o deploy token que já está no Key Vault (`SWA-PAINEL-DEPLOY-TOKEN`).
 
-#### v1.1 — Cadastro e categorias
-- [ ] Cadastro completo de `Associado` (dados pessoais, endereço, dependentes, documentos) —
-      já modelado, só falta tela/API completa no painel único.
-- [ ] Categorias de associado calculadas (não marcação manual): ativo, inadimplente, em
-      integração/experiência, desligado — a partir de dados reais (tempo de casa, pagamento em
-      dia), nunca campo editável à mão.
-- [ ] Carteirinha digital (QR code na SPA) — item citado como padrão em todo fornecedor nacional
-      de sistema de associação pesquisado; nasce como QR code antes de virar app nativo.
+##### v0.2.1 — Camada de autenticação no cliente (contrato com a v0.1)
+- [ ] Cliente HTTP único (`api.ts`) com interceptor: injeta `Authorization: Bearer`, detecta 401,
+      tenta `POST /auth/refresh` **uma vez**, refaz a requisição original; se o refresh falhar,
+      derruba a sessão e manda pro login. Nunca dois refresh concorrentes (fila de espera de
+      requisições enquanto o refresh está em voo).
+- [ ] Armazenamento do token: access token **em memória** (nunca `localStorage`, que é lido por
+      qualquer XSS); refresh token em cookie `HttpOnly`+`Secure`+`SameSite=Strict` emitido pela
+      API — **muda o contrato da v0.1**, que hoje devolve o refresh no corpo JSON. Registrar como
+      ajuste de API a fazer junto com esta versão (`v0.2.1a`).
+- [ ] `v0.2.1a` (ajuste no backend) — `POST /auth/login` e `/auth/login/mfa` passam a também
+      setar o refresh token como cookie `HttpOnly`; `/auth/refresh` e `/auth/logout` passam a
+      aceitar o token pelo cookie quando o corpo não vier. Compatibilidade mantida com o corpo
+      JSON para clientes de linha de comando/teste.
+- [ ] Tela de login: CPF com máscara e validação de dígito verificador **no cliente** (evita
+      requisição inútil) + segundo passo de TOTP quando a API responder `requer_mfa: true`.
+- [ ] Tratamento explícito do 429 de bloqueio por força bruta (v0.1.2): mensagem clara de "muitas
+      tentativas, tente de novo em X minutos", nunca erro genérico.
 
-#### v1.2 — Importação e exportação
-- [ ] Importação de planilha (Excel/CSV) de associados existentes, com tela de revisão de
-      duplicidade por CPF exato e por similaridade de nome — parsing no navegador (sem subir
-      arquivo bruto pro servidor).
-- [ ] Exportação de rol de associados com seleção de colunas.
+##### v0.2.2 — Onboarding obrigatório de MFA (fecha a pendência registrada na v0.1.4)
+- [ ] `v0.2.2a` (backend) — `NivelAcesso.exige_mfa` (booleano, configurável pelo catálogo da
+      v0.1.5, não hardcoded). Seed: `true` para Presidente e Diretoria, `false` para os demais.
+- [ ] `v0.2.2b` (backend) — `GET /auth/me` passa a devolver `mfa_obrigatorio` (do nível) e
+      `mfa_pendente` (`exige_mfa && !mfa_ativado`).
+- [ ] `v0.2.2c` (front) — se `mfa_pendente`, o roteador trava o painel inteiro numa tela guiada:
+      QR code renderizado a partir do `otpauth_uri` de `/auth/mfa/ativar`, campo do 1º código,
+      confirmação via `/auth/mfa/confirmar`. Só depois libera a navegação.
+- [ ] `v0.2.2d` (backend) — **códigos de recuperação**: 10 códigos de uso único gerados na
+      confirmação do MFA, mostrados **uma única vez**, guardados hasheados (bcrypt) numa tabela
+      `CodigoRecuperacaoMFA`. Aceitos no lugar do TOTP em `/auth/login/mfa`, queimados no uso.
+      Sem isso, perder o celular = perder o acesso de Presidente, o que é um risco operacional
+      real e não teórico.
+- [ ] `v0.2.2e` — reset de MFA por outro administrador (quem tiver `gerenciar_acesso`), sempre
+      registrado em `AuditLog` com `MFA_RESET_POR_TERCEIRO` — jamais reset silencioso.
 
-#### v1.3 — Desligamento e histórico
-- [ ] Registro de causas de desligamento (pedido, inadimplência, exclusão) — catálogo fechado,
-      nunca texto livre solto.
-- [ ] Linha do tempo do associado (histórico de cargos, documentos, participação em eventos —
-      integra direto com a FASE 4).
+##### v0.2.3 — Shell do painel (layout, navegação, estado global)
+- [ ] Layout de três zonas: barra superior (identidade da associação, busca global, perfil,
+      notificações), navegação lateral colapsável, área de conteúdo. Responsivo real: a lateral
+      vira gaveta abaixo de 1024px — a diretoria vai usar isso no celular, não é hipótese.
+- [ ] **Menu montado 100% a partir das permissões** devolvidas por `/auth/me`: cada módulo se
+      registra num manifesto (`modulos.ts`) declarando `{ rota, rótulo, ícone, permissao }`; o
+      shell filtra pelo que o usuário tem. Nenhum `if (nivel === 'Presidente')` em lugar nenhum
+      do código — esse é o antipadrão que o plano está explicitamente evitando.
+- [ ] Guarda de rota por permissão, com página 403 própria (não redireciona em silêncio, explica
+      que falta permissão e qual) — e a mesma permissão checada **de novo no backend**: o front
+      esconde, o backend proíbe.
+- [ ] Barra de "impersonação" visível quando um administrador estiver vendo o sistema como outro
+      papel (v0.2.9) — nunca permitir sessão ambígua.
 
-#### v1.4 — Pessoas além do associado: voluntário e empregado (confirmado por pesquisa legal)
+##### v0.2.4 — Design system e padrões de tela reaproveitáveis
+- [ ] Tokens de design (cores institucionais da ASAF, tipografia, espaçamento, raio, sombra) num
+      único lugar — trocar a identidade visual da associação não pode exigir caçar cor em 40
+      arquivos.
+- [ ] Modo claro/escuro respeitando a preferência do sistema, com opção manual persistida.
+- [ ] **Componentes-padrão que todo módulo futuro reusa** (construídos aqui, uma vez só):
+      `DataTable` (ordenação, filtro, paginação server-side, seleção, densidade), `FormShell`
+      (validação com Zod + react-hook-form, erro de campo vindo do 422 do FastAPI mapeado
+      automaticamente), `ConfirmDialog` (ação destrutiva sempre com confirmação nomeada),
+      `EmptyState`, `SkeletonLoader`, `ErrorBoundary` por módulo, `PageHeader` com trilha de
+      navegação, `Timeline` (histórico/auditoria), `FileUpload` (com barra de progresso e limite
+      de tipo/tamanho), `MoneyInput`/`CpfInput`/`CnpjInput`/`DateInput` com formato brasileiro.
+- [ ] Catálogo vivo dos componentes (Storybook **ou** uma rota `/dev/componentes` no próprio
+      painel, decisão de implementação) — documentação que não apodrece porque é o próprio código.
+
+##### v0.2.5 — Módulo "Meu Perfil" (o único módulo funcional entregue na v0.2)
+- [ ] Dados cadastrais próprios (leitura do `Associado` vinculado; edição entra como **solicitação
+      de alteração** quando o fluxo de aprovação da v13.3 existir — na v0.2 edita direto só campo
+      de contato: telefone, e-mail, endereço).
+- [ ] Troca de senha com política explícita (mínimo 10 caracteres, verificação contra lista de
+      senhas mais comuns, nunca regra decorativa de "1 maiúscula e 1 símbolo" que só gera
+      `Senha@123`) — `v0.2.5a` no backend: `POST /auth/senha/alterar` exigindo a senha atual e
+      revogando **todos os refresh tokens** do usuário exceto o da sessão corrente.
+- [ ] Gestão de MFA (ativar, desativar exigindo senha + TOTP, regerar códigos de recuperação).
+- [ ] **Sessões ativas**: lista de refresh tokens vivos com data de criação, IP e User-Agent, com
+      botão "encerrar esta sessão" e "encerrar todas as outras" — `v0.2.5b` no backend:
+      `TokenAcesso` ganha `ip_origem`, `user_agent`, `criado_em`, `ultimo_uso_em`; endpoints
+      `GET /auth/sessoes` e `DELETE /auth/sessoes/{id}`.
+- [ ] Meus documentos (lista dos `DocumentoAnexo` do próprio associado) — só leitura nesta versão.
+
+##### v0.2.6 — Acessibilidade e internacionalização de base (feito agora, não "depois")
+- [ ] Navegação completa por teclado, foco visível, `aria-label` em ícone sem texto, contraste
+      mínimo AA — auditado com axe-core no CI. Fazer isso na v0.2 custa pouco; retrofitar em 20
+      módulos prontos custa caro (antecipa a FASE 9/v9.1 para o que é estrutural).
+- [ ] Todo texto de interface sai de um arquivo de mensagens (`pt-BR.ts`), mesmo sem plano de
+      traduzir — o ganho imediato é padronizar vocabulário ("associado", nunca "membro"/"usuário"
+      alternando na mesma tela) e permitir revisão de texto sem mexer em componente.
+- [ ] Formatação de data/moeda/número sempre por `Intl`, nunca concatenação manual.
+
+##### v0.2.7 — Robustez operacional do painel
+- [ ] Estado de erro de rede tratado globalmente (API fora do ar → aviso persistente, não tela
+      branca) — relevante porque o Container App tem **scale-to-zero**: a primeira requisição
+      depois de um período ocioso pode demorar. O painel precisa mostrar "acordando o servidor"
+      em vez de parecer quebrado.
+- [ ] Versão do build exibida no rodapé e checagem periódica de `version.json`: quando sai deploy
+      novo, avisa "nova versão disponível, recarregar" — evita usuário preso num bundle velho
+      chamando API nova.
+- [ ] Logs de erro do front enviados ao Application Insights (já provisionado na v0.0) — antecipa
+      o essencial da FASE 18.
+
+##### v0.2.8 — Testes do painel (padrão que vale para todas as fases seguintes)
+- [ ] Vitest + Testing Library para componente e regra de tela; Playwright para os fluxos que não
+      podem quebrar: login, login com MFA, refresh expirado, 403 por falta de permissão.
+- [ ] Teste de contrato: o front valida as respostas da API com os mesmos schemas Zod usados nos
+      formulários — se o backend mudar um campo, o teste quebra antes do usuário descobrir.
+
+##### v0.2.9 — Ferramentas de administração dentro do painel
+- [ ] Tela do catálogo de níveis e permissões (CRUD da v0.1.5, que hoje só existe via API) — com
+      matriz visual nível × permissão, marcando/desmarcando em grade.
+- [ ] Visualizador do `AuditLog` (filtro por usuário, tabela, ação, período) — somente leitura,
+      sem exclusão possível pela interface, nunca.
+- [ ] "Ver o sistema como" (impersonação de papel, **não** de pessoa): administrador visualiza o
+      painel com o conjunto de permissões de outro nível para conferir o que aquele papel enxerga.
+      Sem poder escrever nada nesse modo, com faixa de aviso permanente na tela e registro em
+      `AuditLog`.
+
+##### v0.2.10 — O que fica fora da v0.2, de propósito
+- Nenhum módulo de negócio (associados, financeiro, eventos) — v0.2 entrega **casca, identidade
+  visual e contratos**. Módulo entra a partir da FASE 1, já usando tudo isso pronto.
+- PWA/instalação e push (FASE 9/10): a base do shell já nasce compatível, mas o manifesto e o
+  service worker entram junto com a decisão de PWA, não antes.
+
+#### v0.3 — Base de catálogos configuráveis (o motor que evita deploy por regra de negócio)
+
+> Princípio de perpetuidade: em 15 anos, a ASAF vai querer uma categoria de associado, um motivo
+> de desligamento ou um tipo de documento que ninguém imaginou hoje. Nada disso pode exigir
+> programador. A v0.3 constrói **um motor genérico de catálogo** em vez de 12 CRUDs parecidos.
+
+##### v0.3.1 — Modelo genérico de catálogo
+- [ ] Evoluir a `OpcaoLista` existente para o modelo definitivo: `Catalogo` (chave técnica, nome
+      exibido, descrição, se é editável pelo usuário) + `OpcaoCatalogo` (catálogo, código estável,
+      rótulo, ordem, ativo, cor/ícone opcional, `metadados` JSONB para atributos específicos do
+      catálogo).
+- [ ] **Código estável separado do rótulo**: o código (`DESLIG_INADIMPLENCIA`) nunca muda e é o
+      que o banco referencia; o rótulo ("Desligamento por inadimplência") pode ser reescrito pela
+      diretoria sem quebrar histórico nenhum. Esse desacoplamento é o item mais importante da
+      versão inteira.
+- [ ] **Nunca excluir opção em uso**: opção vira `ativo = false` (some dos formulários novos,
+      continua exibindo corretamente nos registros antigos). Exclusão real só se zero referências,
+      checado pelo backend.
+- [ ] Hierarquia opcional (`id_pai`) — atende plano de contas, tipos com subtipos, estrutura de
+      cargos, sem precisar de tabela nova.
+- [ ] Catálogos **de sistema** (protegidos) x **de usuário**: alguns catálogos têm códigos dos
+      quais o código-fonte depende (ex.: status de cobrança); esses são marcados como de sistema —
+      a diretoria pode renomear o rótulo e reordenar, mas não apagar nem criar código novo.
+
+##### v0.3.2 — Catálogos iniciais semeados
+- [ ] Cargos da diretoria e do conselho; categorias de associado; tipos de documento; motivos de
+      desligamento; tipos de projeto; tipos de evento; formas de pagamento; tipos de protocolo;
+      tipos de requerimento; unidades de medida de indicador. Todos como **semente de exemplo**,
+      explicitamente ajustáveis ao estatuto real da ASAF depois.
+
+##### v0.3.3 — Campos personalizados (custom fields) sem deploy
+- [ ] `DefinicaoCampo` (entidade alvo: associado/projeto/evento/beneficiário; rótulo; tipo:
+      texto, número, data, booleano, seleção ligada a um catálogo, arquivo; obrigatório?; ordem;
+      visível para quais níveis) + `ValorCampo` (registro, definição, valor).
+- [ ] Renderizado automaticamente pelo `FormShell` da v0.2.4 — módulo novo ganha campo extra sem
+      linha de código.
+- [ ] Limite consciente: campo personalizado **não** entra em regra de negócio automatizada
+      (cálculo de mensalidade, quórum) — se virar regra, vira coluna de verdade com migração
+      Alembic. Isso impede que o sistema vire uma planilha disfarçada.
+
+##### v0.3.4 — Configuração institucional central
+- [ ] Evoluir `ConfiguracaoInstitucional` para chave/valor tipado e versionado: nome, CNPJ,
+      endereço, logo, cores, dados bancários, fuso horário, textos padrão de documento, e-mail
+      remetente, parâmetros de regra (prazo de convocação, dias de tolerância de inadimplência,
+      teto de alçada financeira).
+- [ ] Toda alteração registrada em `AuditLog` com valor antes/depois — parâmetro que muda regra de
+      negócio é dado crítico, não "configuração inocente".
+- [ ] Cache em memória com invalidação na escrita (essas chaves são lidas em quase toda requisição
+      de documento; não podem virar consulta a banco repetida).
+
+##### v0.3.5 — Importação/exportação de configuração
+- [ ] Exportar todos os catálogos e configurações em JSON e reimportar — serve de backup lógico da
+      parametrização, de caminho de cópia entre homologação e produção, e de plano de contingência
+      se a base precisar ser recriada.
+
+### FASE 1 — Associados (ciclo de vida completo da pessoa na associação)
+
+> Esta fase deixa de ser "cadastro" e passa a ser **ciclo de vida**: como a pessoa entra, como é
+> aprovada, como muda de categoria, como paga, como sai, como volta, e o que fica registrado de
+> cada transição. Sistema de associação que só tem "cadastro" vira planilha bonita.
+
+#### v1.0 — Modelo de pessoa: uma pessoa, vários papéis
+- [ ] **Decisão estrutural**: a mesma pessoa física pode ser, ao mesmo tempo, associada,
+      voluntária, beneficiária de projeto, aluna, fornecedora pessoa física e participante externa
+      de evento. Modelar isso como cadastros separados é o erro que gera duplicidade eterna.
+- [ ] `Pessoa` como raiz (nome, CPF único, data de nascimento, contatos, endereço, foto) +
+      `Papel` N:N (`associado`, `voluntario`, `beneficiario`, `aluno`, `participante_externo`,
+      `funcionario`, `fornecedor_pf`), cada papel com tabela de atributos próprios quando precisar.
+- [ ] `Associado` passa a referenciar `Pessoa` em vez de duplicar dados pessoais — migração
+      Alembic cuidadosa, com script de conversão dos registros existentes e verificação de
+      contagem antes/depois (o mesmo rigor usado na modularização do `servidor.py`).
+- [ ] Chave de deduplicação: CPF normalizado (só dígitos) é único em `Pessoa`. E-mail e telefone
+      normalizados servem de chave secundária de sugestão, nunca de bloqueio (duas pessoas da
+      mesma família compartilham telefone legitimamente).
+- [ ] CPF **não obrigatório** para todos os papéis (criança beneficiária, participante externo de
+      evento) — nesse caso, chave alternativa: nome + data de nascimento + responsável.
+
+#### v1.1 — Cadastro, categorias e qualificação do dado
+- [ ] Cadastro completo (dados pessoais, endereço com preenchimento por CEP, dependentes,
+      documentos, campos personalizados da v0.3.3).
+- [ ] Validação real: dígito verificador de CPF, CEP existente, e-mail com sintaxe válida,
+      telefone em formato brasileiro, data de nascimento coerente (não futura, idade plausível).
+- [ ] **Categorias calculadas, nunca marcadas à mão**: ativo, inadimplente, em experiência,
+      licenciado, desligado — derivadas de dados reais (tempo de casa, situação financeira,
+      registro de licença). Campo derivado é função, não coluna editável.
+- [ ] `v1.1a` — **materialização com auditoria**: a categoria é calculada na leitura, mas também
+      gravada num campo materializado atualizado por gatilho de evento (pagamento registrado,
+      licença lançada), para permitir consulta/relatório rápido sem recalcular a base inteira.
+      O cálculo continua sendo a fonte da verdade; o campo materializado é cache verificável.
+- [ ] Indicador de completude do cadastro (percentual de campos preenchidos) — dirige o esforço da
+      secretaria para quem está com dado faltando, em vez de auditoria manual.
+- [ ] Carteirinha digital: QR code assinado (JWT curto com `id_pessoa` + validade), verificável
+      por endpoint público `/carteirinha/verificar/{token}` que mostra **só** nome, foto, categoria
+      e validade — nunca CPF, nunca telefone, nunca endereço. Evolução prevista para Apple/Google
+      Wallet na FASE 19, sem app nativo.
+
+#### v1.2 — Filiação: da intenção ao associado efetivo
+- [ ] Formulário público de proposta de filiação no site (FASE 5), caindo numa fila de triagem do
+      painel — nunca criando associado direto.
+- [ ] Fluxo configurável: proposta → conferência documental pela secretaria → (opcional) aprovação
+      pela diretoria ou assembleia, conforme o estatuto → efetivação com número de matrícula
+      sequencial → boas-vindas automáticas.
+- [ ] Cada transição grava quem decidiu, quando e por quê (inclusive recusa, com motivo de
+      catálogo) — é o histórico que protege a associação numa contestação futura.
+- [ ] Termo de filiação assinado eletronicamente (motor da FASE 20/v20.2) e arquivado no cadastro.
+- [ ] Período de experiência/integração configurável (ex.: 90 dias sem direito a voto), com
+      promoção automática ao fim do prazo e aviso à secretaria.
+
+#### v1.3 — Importação e exportação de base existente
+- [ ] Importação de planilha (Excel/CSV) com assistente de 4 passos: envio → mapeamento de coluna
+      → validação linha a linha com relatório de erro → confirmação.
+- [ ] Detecção de duplicidade por CPF exato **e** por similaridade de nome + data de nascimento,
+      com tela de resolução (é a mesma pessoa / são pessoas diferentes / mesclar).
+- [ ] Parsing no navegador (o arquivo bruto não sobe pro servidor), importação em lote idempotente
+      identificada por `lote_id` — permite **desfazer uma importação inteira** que deu errado,
+      requisito que quase todo sistema esquece e que salva uma migração ruim.
+- [ ] Exportação com seleção de colunas, sempre registrada em `AuditLog` (quem exportou, quantas
+      linhas, quais campos) — exportação de base de associados é o maior vetor de vazamento numa
+      associação; ela não pode ser invisível.
+- [ ] Exportação de dado pessoal em massa exige permissão própria (`exportar_dados_pessoais`),
+      separada de "ver associado".
+
+#### v1.4 — Mudança de situação: licença, transferência, desligamento e retorno
+- [ ] Licença temporária (motivo de catálogo, período, efeito sobre voto e mensalidade conforme
+      parâmetro) — hoje resolvido informalmente em quase toda associação, aqui vira registro.
+- [ ] Desligamento com causa de catálogo (pedido do associado, inadimplência, exclusão
+      disciplinar, falecimento), data efetiva, documento de referência e efeitos automáticos:
+      acesso revogado, cobranças futuras canceladas, QR code invalidado.
+- [ ] **Readmissão**: pessoa que volta reaproveita o mesmo `Pessoa`/histórico, com novo período de
+      filiação — nunca cadastro novo. A linha do tempo mostra os dois períodos.
+- [ ] Falecimento tratado com cuidado específico: registro, encerramento das cobranças, retenção
+      do histórico por prazo definido na política de retenção (FASE 7), e supressão da pessoa de
+      qualquer comunicação automática — falha aqui é dano humano, não bug.
+
+#### v1.5 — Linha do tempo e ficha 360º do associado
+- [ ] Uma única tela reunindo: dados, situação financeira resumida, cargos exercidos, participação
+      em projetos/eventos, presença em assembleias, votos computados (sem revelar o voto secreto),
+      documentos, protocolos abertos, comunicações enviadas e recebidas.
+- [ ] Alimentada por um `EventoDeLinhaDoTempo` genérico que cada módulo publica — módulo novo
+      aparece na ficha sem alterar a tela.
+
+#### v1.6 — Pessoas além do associado: voluntário e empregado (base legal confirmada)
 Distinção jurídica real, não só de rótulo: voluntário (Lei 9.608/1998) nunca gera vínculo
-empregatício; empregado CLT tem outro regime inteiro (eSocial, ponto, folha). Misturar os dois
-como "a mesma pessoa com um campo a mais" seria errado — o sistema precisa tratá-los como dois
-modos distintos dentro do mesmo cadastro de pessoa física.
+empregatício; empregado CLT tem outro regime inteiro (eSocial, ponto, folha).
 - [ ] `TermoAdesaoVoluntario` (atividade, carga horária, local, vigência) — documento formal
-      exigido pela Lei 9.608/1998, gerido por pessoa/projeto (integra com a alocação de
-      voluntário da FASE 4).
-- [ ] Se a ASAF tiver (ou vier a ter) empregados CLT: módulo de folha/ponto eletrônico/eSocial
-      fica **fora do escopo deste sistema** por padrão — recomenda-se integrar com um sistema de
-      folha de pagamento especializado já existente no mercado, em vez de reconstruir isso aqui.
-      Confirmar com a diretoria se a ASAF tem empregados antes de decidir se vale a pena um
-      módulo próprio ou só uma integração.
+      exigido pela Lei 9.608/1998, versionado, assinado pelo motor da FASE 20, renovável, com
+      alerta de vencimento. Voluntário sem termo vigente não é alocável em projeto (trava real,
+      não aviso).
+- [ ] Registro de horas de voluntariado e certificado gerado a partir dele (motor único da v4.8).
+- [ ] Voluntário menor de idade: exige autorização de responsável anexada, e o sistema trata o
+      dado como sensível (FASE 7).
+- [ ] Empregados CLT: folha/ponto/eSocial ficam **fora do escopo** por decisão registrada —
+      recomenda-se integrar com sistema de folha especializado. O que fica aqui é só o cadastro da
+      pessoa como `funcionario` e o vínculo com centro de custo, para o financeiro enxergar a
+      despesa. Confirmar com a diretoria se a ASAF tem empregados antes de qualquer integração.
+
+#### v1.7 — Relacionamento familiar e núcleo doméstico
+- [ ] `DependenteFamiliar` evoluído para vínculo entre `Pessoa`s (parentesco de catálogo), o que
+      permite dependente virar associado depois sem recadastro, e permite "cobrança por família"
+      na FASE 3 sem gambiarra.
+
+#### v1.8 — Qualidade permanente da base (o que mantém o cadastro vivo em 15 anos)
+- [ ] Campanha de recadastramento periódica: o associado confirma/atualiza os próprios dados pelo
+      painel, com registro da data da última confirmação — dado "confirmado há 8 anos" é dado
+      duvidoso e o sistema precisa saber disso.
+- [ ] Detector de duplicidade rodando continuamente (não só na importação), gerando fila de
+      revisão para a secretaria, com **mesclagem de cadastros** que preserva o histórico dos dois
+      lados e registra a operação em `AuditLog` (operação irreversível, exige confirmação nomeada).
+- [ ] Higienização de contato: e-mail que volta (bounce) e telefone inválido marcam o contato como
+      suspeito, alimentando a mesma fila de revisão.
 
 ### FASE 2 — Governança (assembleias, diretoria, conselho fiscal)
 
 Base legal confirmada por pesquisa: Código Civil, Arts. 53–61 (associações). O módulo de
 governança segue esses artigos como piso mínimo, não como teto — a FASE 12 trata do que vai além
-deles.
+deles, e a FASE 13 leva assembleia/diretoria ao detalhamento máximo. **A FASE 2 entrega o núcleo
+funcional; a FASE 13 entrega o refinamento.** Esta separação é deliberada: a associação precisa
+conseguir fazer uma assembleia válida bem antes de ter todos os refinamentos.
 
-#### v2.1 — Diretoria e Conselho Fiscal
-- [ ] Cadastro de cargos (Presidente, Vice, Secretário, Tesoureiro, Conselho Fiscal) com mandato
-      e prazo — vencimento calculado na leitura, nunca job/cron.
-- [ ] Segregação de funções desde já prevista aqui (quem lança financeiro não é quem aprova —
-      preparação para a FASE 3, princípio confirmado por pesquisa de mercado como proteção nº1
-      contra fraude em associações).
+#### v2.0 — O estatuto como configuração, não como código
+- [ ] **Decisão de perpetuidade mais importante desta fase**: nenhum número estatutário fica
+      escrito em código. Quórum, prazos, mandatos, quem vota, se cabe procuração — tudo vira
+      parâmetro em `ConfiguracaoInstitucional`/`RegraEstatutaria` (v0.3.4). A ASAF vai reformar o
+      estatuto ao longo de 20 anos; reforma de estatuto não pode virar tarefa de programador.
+- [ ] `RegraEstatutaria` versionada por vigência: cada parâmetro guarda o período em que valeu.
+      Uma assembleia de 2027 continua sendo auditável pelas regras de 2027 mesmo depois da reforma
+      de 2031 — sem isso, todo histórico de governança fica mentiroso.
+- [ ] Documento do estatuto vigente anexado e versionado, com o número de registro em cartório
+      (a eficácia perante terceiros vem do registro, ver v13.4) e link de cada parâmetro ao artigo
+      que o originou — quem for auditar entende de onde saiu cada número.
+
+#### v2.1 — Diretoria, Conselho Fiscal e mandatos
+- [ ] Cadastro de órgãos (Diretoria Executiva, Conselho Fiscal, Conselho Deliberativo se houver) e
+      de cargos dentro de cada órgão, tudo por catálogo (v0.3) — a ASAF pode criar um conselho
+      novo sem deploy.
+- [ ] `Mandato` (pessoa, cargo, órgão, início, fim previsto, fim efetivo, ato que originou —
+      assembleia/eleição de referência) — vencimento **calculado na leitura**, nunca job/cron que
+      pode falhar em silêncio.
+- [ ] Vacância e substituição: renúncia, destituição (Art. 59, parágrafo único — exige assembleia
+      especialmente convocada), impedimento temporário, com sucessão automática conforme a regra
+      estatutária configurada.
+- [ ] **Cargo dá permissão, automaticamente**: assumir "Tesoureiro" concede o conjunto de
+      permissões do cargo enquanto o mandato estiver vigente, e as revoga na data de término, sem
+      intervenção manual. Esse é o ponto que evita o problema clássico de ex-diretor com acesso
+      eterno. Toda concessão/revogação vai para `AuditLog`.
+- [ ] Alerta automático de mandato vencendo (90/30/7 dias) para a diretoria e para a secretaria.
+- [ ] Segregação de funções prevista desde aqui (quem lança financeiro não é quem aprova) —
+      princípio confirmado por pesquisa de mercado como proteção nº 1 contra fraude em associações.
 - [ ] Categorias de associado com vantagens especiais (Art. 55 do Código Civil admite
-      expressamente) — catálogo configurável, não hardcoded (ex.: contribuinte, benemérito,
-      honorário — a definir conforme o estatuto real da ASAF).
+      expressamente) — catálogo configurável, nunca hardcoded.
+- [ ] Declaração de conflito de interesse por dirigente (parente em fornecedor, interesse em
+      contrato), consultada automaticamente pelo fluxo de aprovação financeira da FASE 3.
 
-#### v2.2 — Assembleias e votação
-- [ ] Convocação de assembleia (edital, pauta, prazo mínimo de antecedência configurável).
+#### v2.2 — Assembleias: convocação e habilitação
+- [ ] `Assembleia` (tipo: ordinária/extraordinária, data/hora das convocações, local físico e/ou
+      link remoto, pauta, status) com edital gerado a partir de modelo, respeitando o prazo mínimo
+      de antecedência configurado (v2.0) — o sistema recusa convocar fora do prazo, explicando qual
+      regra foi violada, com possibilidade de override registrado e justificado.
 - [ ] **Convocação por petição de associados** (Art. 60 do Código Civil: 1/5 dos associados tem
-      direito de convocar assembleia) — fluxo de coleta de assinatura/adesão digital até atingir
-      o quórum de petição, disparando a convocação formal automaticamente.
-- [ ] Lista de votantes calculada (associados em dia, sem restrição disciplinar) — nunca marcação
-      manual.
-- [ ] **Quórum diferenciado por tipo de deliberação** (Art. 59: eleição/destituição de
-      administrador e reforma do estatuto são competência privativa da assembleia, com quórum
-      qualificado definido em estatuto) — o motor de votação precisa suportar mais de um tipo de
-      quórum configurável, não um valor único fixo para toda votação.
-- [ ] Votação eletrônica com validade jurídica (voto auditável, mas secreto na exibição pública —
-      identificador único por voto, apuração em tempo real). Confirmado por pesquisa como item de
-      baseline no mercado nacional de sistemas de associação (usado até por grandes clubes).
-- [ ] Ata gerada a partir do resultado (documento, não texto livre solto) — **livro de atas
-      digital** com trilha de auditoria (nunca editável depois de assinado/publicado).
+      direito de convocar assembleia) — coleta de adesão digital assinada (FASE 20), contador de
+      quórum de petição em tempo real, disparo formal da convocação ao atingir o limite.
+- [ ] Publicação do edital simultaneamente no painel, por e-mail/WhatsApp (FASE 11/v11.3) e na
+      área pública do site (FASE 5), com comprovante de publicação arquivado — a prova de que a
+      convocação aconteceu é tão importante quanto a convocação.
+- [ ] **Lista de habilitados calculada** (adimplência, categoria com direito a voto, ausência de
+      suspensão disciplinar, tempo mínimo de filiação) — congelada no momento da convocação,
+      preservada como anexo imutável da assembleia. Nunca marcação manual, nunca recalculada
+      depois do fato.
+- [ ] Procuração/representação como parâmetro estatutário (permitida ou não; limite de procurações
+      por pessoa), com upload do instrumento e conferência pela mesa. Nunca assumida como
+      permitida por padrão.
 
-#### v2.3 — Disciplina (se aplicável ao estatuto da ASAF)
-- [ ] Processo administrativo simples (abertura, defesa, decisão), com suspensão automática de
-      direitos de voto durante o processo — a confirmar com o estatuto real da associação antes
-      de detalhar esta versão (depende de texto normativo que ainda não foi lido nesta conversa).
+#### v2.3 — Condução da sessão (presencial, remota ou híbrida)
+- [ ] Credenciamento por QR code da carteirinha (v1.1) ou busca manual pela secretaria, com
+      registro de horário de entrada e saída — quórum de instalação apurado em tempo real na tela
+      da mesa, por convocação (1ª/2ª/3ª).
+- [ ] Assembleia híbrida como caso de primeira classe: presença remota vale igual, com o mesmo
+      credenciamento; a lista final de presença não distingue direitos, só registra a modalidade.
+- [ ] Painel da mesa: pauta item a item, com controle de abertura/encerramento de votação, tempo
+      de fala opcional e registro de ocorrências.
+- [ ] Registro de presença final assinado eletronicamente (FASE 20) — substitui a lista de
+      presença em papel para efeitos internos, mantendo o limite da v20.2.1 para ato registral.
 
-#### v2.4 — Destinação patrimonial em caso de dissolução (Art. 61 do Código Civil)
+#### v2.4 — Motor de votação
+- [ ] `Votacao` vinculada a um item de pauta, com tipo configurável: aberta/nominal, secreta,
+      aclamação; e escrutínio: maioria simples, maioria absoluta, qualificado (fração
+      configurável, ex. 2/3), ou eleição com chapas/candidatos.
+- [ ] **Quórum de instalação separado do quórum de aprovação**, ambos por item (Art. 59: eleição e
+      destituição de administrador e reforma do estatuto são competência privativa da assembleia,
+      com quórum qualificado definido em estatuto).
+- [ ] Abstenção e voto em branco como categorias próprias de resultado, com regra configurável de
+      entrarem ou não na base de cálculo — essa é a fonte de metade das contestações reais de
+      resultado de assembleia.
+- [ ] **Voto secreto de verdade**: o voto é gravado desacoplado do eleitor (tabela de votos com
+      identificador aleatório + tabela separada de "quem já votou"), de forma que nem um
+      administrador do sistema consiga reconstruir a associação entre pessoa e voto. Em votação
+      aberta/nominal, o vínculo é registrado propositalmente e exibido na ata.
+- [ ] Apuração em tempo real, com resultado congelado e hash SHA-256 do conjunto de votos gerado
+      no fechamento (base para a ancoragem por carimbo de tempo da v15.1.1).
+- [ ] Empate resolvido pela regra estatutária configurada (voto de minerva do presidente,
+      candidato mais antigo, nova votação) — nunca decisão improvisada na hora.
+- [ ] Impugnação de voto e protesto registrados vinculados ao item, com prazo de recurso.
+
+#### v2.5 — Ata, deliberações e efeitos
+- [ ] Ata gerada a partir dos dados da sessão (presença, pauta, votos, ocorrências) em modelo
+      configurável — **não é editor de texto livre**: o corpo é montado do registro, e há espaço
+      controlado para relato textual da secretaria.
+- [ ] Livro de atas digital: numeração sequencial contínua, imutável após assinatura, com trilha
+      de auditoria. Correção posterior só por **ata de retificação**, jamais por edição do
+      documento original — mesma lógica de estorno do financeiro.
+- [ ] `Deliberacao` como registro próprio, com status de execução e responsável — assembleia que
+      delibera e ninguém executa é o padrão de falha mais comum em associação. O sistema cobra:
+      deliberação pendente aparece no painel da diretoria até ser concluída ou formalmente
+      revogada.
+- [ ] Efeitos automáticos da deliberação quando aplicável: eleição concluída cria os `Mandato`s
+      (v2.1); reforma estatutária abre a pendência de registro em cartório (v13.4) e de nova
+      versão de `RegraEstatutaria` (v2.0); aprovação de contas fecha o exercício no financeiro.
+- [ ] Certidão de deliberação (extrato de um item específico da ata) emitida sob demanda e
+      numerada — evita mandar a ata inteira para um banco que só precisa de uma linha.
+
+#### v2.6 — Conselho Fiscal como órgão com poder real no sistema
+- [ ] Acesso de leitura irrestrita ao financeiro (FASE 3) com registro de auditoria de consulta
+      (v15.2) — o conselho precisa ver tudo, e o sistema precisa registrar que viu.
+- [ ] Emissão de parecer sobre prestação de contas (favorável, com ressalva, contrário), vinculado
+      ao exercício e obrigatório antes da assembleia de aprovação de contas.
+- [ ] Fila de questionamentos: conselheiro marca um lançamento com pergunta, tesouraria responde,
+      histórico preservado — transforma controle informal em processo auditável.
+
+#### v2.7 — Disciplina (condicionada ao estatuto real da ASAF)
+- [ ] Processo administrativo com rito configurável: abertura motivada, notificação do associado
+      com prazo de defesa, instrução, decisão pelo órgão competente, recurso à assembleia.
+- [ ] Ampla defesa e contraditório como travas do fluxo (o sistema não permite decisão antes do
+      prazo de defesa correr) — Art. 57 do Código Civil condiciona a exclusão a justa causa
+      reconhecida em procedimento que assegure direito de defesa e de recurso, nos termos do
+      estatuto.
+- [ ] Efeitos automáticos: suspensão de direito de voto durante o processo se o estatuto previr,
+      com reversão automática no arquivamento.
+- [ ] Confidencialidade: processo disciplinar visível só para o órgão julgador e para o próprio
+      interessado — nunca para a diretoria inteira por padrão.
+- [ ] **A confirmar com o estatuto real da ASAF** antes da implementação (ver seção 8).
+
+#### v2.8 — Destinação patrimonial em caso de dissolução (Art. 61 do Código Civil)
 - [ ] Campo estatutário formal: entidade de fins não econômicos designada para receber o
-      patrimônio remanescente em caso de dissolução (ou regra de deliberação pelos associados, se
-      o estatuto for silente) — registro de referência, não uma funcionalidade operacional do
-      dia a dia, mas precisa existir documentado no sistema, ligado ao módulo de patrimônio da
-      FASE 12.
+      patrimônio remanescente (ou regra de deliberação pelos associados, se o estatuto for
+      silente) — registro de referência ligado ao módulo de patrimônio da FASE 12/v12.4.
+- [ ] Roteiro de dissolução documentado no sistema (deliberação, liquidação, destinação, baixa
+      cadastral) — espera-se nunca usar, mas a ausência disso é justamente o que trava uma
+      dissolução quando ela acontece.
+
+#### v2.9 — Calendário institucional
+- [ ] Calendário único com obrigações recorrentes de governança (AGO anual dentro do prazo
+      estatutário, prestação de contas, renovação de mandatos, reuniões periódicas de diretoria e
+      conselho) gerando alertas com antecedência configurável — é o que impede a associação de
+      descobrir em dezembro que devia ter feito uma assembleia em abril.
 
 ### FASE 3 — Financeiro
 
-#### v3.1 — Plano de contas e caixa
-- [ ] `PlanoDeContas` hierárquico configurável (já modelado) — tela própria dentro de
-      Financeiro, não misturado em catálogo genérico.
-- [ ] Lançamentos de entrada/saída com numeração sequencial (equivalente ao "termo nº" de um
-      talão físico) — nunca exclusão real, só cancelamento motivado, preservando a numeração.
+> Módulo mais sensível do sistema: é onde fraude acontece, é o que o Conselho Fiscal audita, e é o
+> que alimenta a contabilidade (FASE 17). Duas regras estruturais valem para tudo que segue:
+> **(1) nada é excluído, só estornado**; **(2) quem registra nunca é quem aprova**.
 
-#### v3.2 — Cobrança de mensalidade (PIX/boleto)
-- [ ] Cadastro de mensalidade por associado, com geração de cobrança PIX (QR code estático,
-      copia-e-cola) — confirmado por pesquisa como baseline de mercado nacional (PIX/boleto com
-      conciliação, diferente do mercado internacional que resolve só via cartão).
-- [ ] Conciliação manual em lote (marcar várias cobranças como pagas de uma vez a partir de um
-      extrato), sem exigir gateway de pagamento algum — mesmo caminho pragmático já usado em
-      sistemas de associação/igreja de referência que evitam processar pagamento diretamente.
+#### v3.0 — Fundamentos contábeis do módulo
+- [ ] Lançamento em **partida dobrada simplificada**: todo lançamento tem origem e destino
+      (conta/centro de custo), o que torna a exportação para a contabilidade (FASE 17) direta em
+      vez de reconstruída depois. Custa pouco agora e é caríssimo de retrofitar.
+- [ ] `Exercicio` (ano contábil) com abertura/fechamento formal. Exercício fechado não aceita
+      lançamento novo — ajuste só por lançamento no exercício corrente, exatamente como na
+      contabilidade real.
+- [ ] Tipos numéricos: **sempre `Numeric`/`Decimal`**, jamais `float` para dinheiro. Erro comum,
+      irreversível quando descoberto tarde.
+- [ ] Imutabilidade: lançamento registrado nunca é editado nem apagado. Correção = estorno
+      motivado + novo lançamento, ambos visíveis, com numeração sequencial preservada.
+- [ ] Toda operação financeira grava `AuditLog` com valores antes/depois — sem exceção, inclusive
+      para quem tem permissão máxima.
 
-#### v3.2.1 — Evolução real: Pix Automático (confirmado, lançado oficialmente em jun/2025)
-- [ ] Migrar a cobrança recorrente de mensalidade do PIX estático (v3.2, associado precisa colar
-      o código todo mês) para **Pix Automático** — recorrência nativa do Banco Central (Resolução
-      BCB nº 402/506), onde o associado autoriza a cobrança **uma única vez** direto no app do
-      banco dele, e a associação dispara as cobranças nas datas programadas depois, sem gateway
-      de terceiro nem taxa de intermediário.
-- [ ] Exige integração direta com uma instituição financeira/PSP habilitado ao Pix Automático (a
-      associação não se conecta direto ao Banco Central) — escolher o banco/fintech parceiro é
-      pré-requisito antes de implementar.
-- [ ] Reduz inadimplência por esquecimento (maior valor real deste item) — v3.2 (PIX estático)
-      continua existindo como alternativa para quem preferir pagar avulso, sem autorizar
-      recorrência.
+#### v3.1 — Plano de contas, centros de custo e caixa
+- [ ] `PlanoDeContas` hierárquico configurável (receita/despesa/ativo/passivo), com conta
+      sintética x analítica (só analítica recebe lançamento) e bloqueio de exclusão de conta com
+      movimento.
+- [ ] `CentroDeCusto` ligado a projeto/evento/área (FASE 4) — permite responder "quanto custou o
+      projeto X" sem planilha paralela, e alimenta a prestação de contas a doador (v12.6).
+- [ ] `ContaFinanceira` (caixa, conta corrente, poupança, conta de aplicação) com saldo calculado
+      a partir dos lançamentos, jamais campo de saldo editável.
+- [ ] Lançamentos com numeração sequencial por exercício (equivalente ao "termo nº" do talão
+      físico), data de competência **separada** da data de caixa — distinção que a contabilidade
+      exige e que sistemas amadores ignoram.
+- [ ] Anexo de comprovante obrigatório por tipo de lançamento (configurável) — despesa sem
+      comprovante é a porta de entrada de todo problema de prestação de contas.
+- [ ] Transferência entre contas como operação própria (não duas entradas soltas que podem
+      divergir).
 
-#### v3.3 — Contas a pagar e segregação de funções
-- [ ] Cadastro de fornecedores com verificação de CPF/CNPJ duplicado.
-- [ ] **Validação automática de situação cadastral do fornecedor via API pública gratuita**
-      (confirmado: serviço "Minha Receita", reorganiza dado público da Receita Federal sem
-      CAPTCHA) — antes de aprovar um pagamento, o sistema consulta automaticamente se o CNPJ do
-      fornecedor está ativo, sem precisar de login manual no site da Receita. Sem SLA garantido
-      pelo serviço gratuito — considerar fallback para a API oficial de dados abertos de CNPJ da
-      Receita Federal em uso crítico.
-- [ ] Fluxo solicitação → aprovação (por alçada de valor) → pagamento — quem solicita nunca
-      aprova a própria solicitação (checado no próprio endpoint, não só por convenção).
+#### v3.2 — Mensalidades e cobrança recorrente
+- [ ] `PlanoDeContribuicao` por categoria de associado (valor, periodicidade, dia de vencimento,
+      reajuste anual por índice configurável, isenção por regra) — reajuste é decisão registrada
+      com data de vigência, nunca edição direta que apaga o histórico.
+- [ ] Geração de `Cobranca` em lote com prévia obrigatória (quantas, para quem, total) antes de
+      efetivar — e idempotência por competência: rodar a geração duas vezes no mesmo mês nunca
+      duplica cobrança.
+- [ ] Isenções e descontos com motivo de catálogo, prazo de vigência e aprovador registrado.
+- [ ] Cobrança por família/núcleo doméstico (v1.7) quando o estatuto previr.
+- [ ] PIX estático (QR code e copia-e-cola) e boleto opcional — confirmado por pesquisa como
+      baseline do mercado nacional (o mercado internacional resolve por cartão; aqui é PIX/boleto
+      com conciliação).
+- [ ] Conciliação manual em lote a partir de extrato (OFX/CSV/colagem), com sugestão automática de
+      correspondência por valor+data+identificador e confirmação humana.
+- [ ] Baixa parcial, pagamento a maior (crédito em conta do associado) e pagamento antecipado
+      tratados explicitamente — são a maior fonte de divergência em cobrança recorrente.
 
-#### v3.4 — Relatórios e prestação de contas
-- [ ] Relatório de prestação de contas em formato público (resumo, sem dado individual de
-      associado) para publicar em `/transparencia/` no site institucional (FASE 5) — puxado do
-      mesmo dado do FastAPI, nunca digitado duas vezes.
+#### v3.2.1 — Pix Automático (confirmado, lançado oficialmente em jun/2025)
+- [ ] Migrar a recorrência do PIX estático para **Pix Automático** — recorrência nativa do Banco
+      Central (Resolução BCB nº 402/506): o associado autoriza **uma única vez** no app do banco e
+      a associação dispara as cobranças nas datas programadas, sem gateway de terceiro nem taxa de
+      intermediário.
+- [ ] Exige integração com uma instituição financeira/PSP habilitado (a associação não se conecta
+      direto ao BCB) — escolher o banco/fintech parceiro é pré-requisito.
+- [ ] Ciclo completo de autorização: criar, consultar, o associado pode cancelar pelo próprio
+      banco a qualquer momento — o sistema precisa **detectar o cancelamento** e reverter o
+      associado para cobrança avulsa automaticamente, sem ficar emitindo cobrança que nunca será
+      paga.
+- [ ] Tratamento de falha por saldo insuficiente com política de retentativa configurada.
+- [ ] v3.2 (PIX estático) continua existindo como alternativa para quem não quiser autorizar
+      recorrência — nunca exigir Pix Automático como único caminho.
+
+#### v3.2.2 — Inadimplência como processo, não como rótulo
+- [ ] Régua de cobrança configurável (lembrete antes do vencimento, aviso no vencimento, avisos
+      escalonados depois), multicanal (FASE 11/v11.3), com histórico de cada tentativa.
+- [ ] Negociação/parcelamento de débito com termo de confissão de dívida assinado (FASE 20),
+      gerando cobranças filhas rastreadas até a origem.
+- [ ] Efeitos estatutários automáticos e **configuráveis** da inadimplência (perde direito a voto,
+      não reserva espaço, não usa benefício) com carência definida — e reversão automática no
+      pagamento, sem depender de alguém lembrar de reativar.
+- [ ] Tratamento humano obrigatório antes de qualquer exclusão por inadimplência: o sistema abre
+      o processo (v2.7), nunca exclui sozinho.
+
+#### v3.3 — Contas a pagar, compras e segregação de funções
+- [ ] Cadastro de fornecedores com verificação de CPF/CNPJ duplicado e dados bancários
+      versionados — **alteração de dados bancários de fornecedor exige segundo aprovador**: é o
+      golpe mais comum contra organizações, e a defesa é processual, não tecnológica.
+- [ ] **Validação automática de situação cadastral via API pública gratuita** (serviço "Minha
+      Receita", que reorganiza dado público da Receita Federal sem CAPTCHA) antes de aprovar
+      pagamento. Sem SLA garantido — prever fallback para a API oficial de dados abertos de CNPJ
+      em uso crítico, e nunca bloquear o processo se o serviço estiver fora (registra "não
+      verificado" e segue com aprovação consciente).
+- [ ] Fluxo solicitação → cotação (quando acima de valor configurado) → aprovação por alçada →
+      pagamento → conciliação, com **quem solicita nunca aprovando a própria solicitação, checado
+      no endpoint**, não por convenção.
+- [ ] Alçadas por valor e por cargo (v13.2), com dupla assinatura acima de um teto e delegação
+      temporária rastreável.
+- [ ] Reembolso de despesa de voluntário/dirigente como fluxo próprio (comprovante obrigatório,
+      aprovação, pagamento) — despesa reembolsada informalmente é o buraco clássico de prestação
+      de contas.
+- [ ] Contas a pagar recorrentes (aluguel, energia, contador) com previsão no fluxo de caixa.
+
+#### v3.4 — Doações, captação e recibos
+- [ ] `Doacao` (pessoa física/jurídica, identificada ou anônima, pontual ou recorrente, com ou sem
+      destinação a projeto) — doação com destinação específica **não pode** ser gasta em outra
+      finalidade: o sistema bloqueia e exige remanejamento formal.
+- [ ] Recibo de doação numerado e emitido automaticamente, com a redação adequada à natureza da
+      entidade.
+- [ ] Doação em espécie/bens (não monetária) com avaliação registrada, alimentando o patrimônio
+      (v12.4).
+- [ ] Campanhas de arrecadação com meta, prazo e barra de progresso publicável no site (FASE 5).
+
+#### v3.5 — Orçamento e fluxo de caixa
+- [ ] `Orcamento` anual por conta e centro de custo, aprovado em assembleia (vinculado à
+      deliberação da v2.5), com acompanhamento realizado x previsto e alerta de estouro.
+- [ ] Fluxo de caixa projetado (cobranças a receber + contas a pagar + recorrentes) com horizonte
+      configurável — a pergunta "tem dinheiro pra pagar o mês que vem?" respondida sem planilha.
+- [ ] Reserva de contingência como conta própria com regra de uso definida.
+
+#### v3.6 — Relatórios, prestação de contas e transparência
+- [ ] Demonstrativos: balancete por período, receitas x despesas por conta e por centro de custo,
+      relatório de inadimplência, extrato por conta financeira, relatório por projeto.
+- [ ] Prestação de contas do exercício em formato apresentável à assembleia, com parecer do
+      Conselho Fiscal (v2.6) anexado e histórico de versões.
+- [ ] Versão pública agregada (sem dado individual de associado) publicada em `/transparencia/`
+      (FASE 5/12.7), puxada do mesmo dado — nunca digitada duas vezes.
+- [ ] Exportação contábil para o contador (FASE 17) já contemplada no desenho desde a v3.0.
+
+#### v3.7 — Controles antifraude (além do mínimo)
+- [ ] Detecção de padrões suspeitos como relatório de exceção mensal para o Conselho Fiscal:
+      lançamentos fora do horário habitual, valores logo abaixo do teto de alçada (fracionamento),
+      fornecedor novo com pagamento alto na primeira operação, sequência de estornos pelo mesmo
+      usuário, pagamento a conta bancária alterada recentemente.
+- [ ] Conciliação obrigatória: saldo do sistema x saldo do extrato bancário, com fechamento mensal
+      assinado por quem conferiu — divergência aberta bloqueia o fechamento do mês.
+- [ ] Nenhum usuário, em nenhum nível, pode apagar lançamento ou log — inclusive o Presidente.
+      Restrição garantida no banco (FASE 15), não só na aplicação.
 
 ### FASE 4 — Projetos, Reserva de Espaço e Eventos (módulo de integração site ↔ sistema)
 
@@ -357,270 +824,595 @@ entidades únicas do FastAPI, com API própria consumida pelo site (leitura púb
 
 Confirmado por pesquisa de mercado (seção 6): **não existe hoje um padrão de mercado maduro e
 único para módulo de Projetos em associação genérica** — a maioria dos sistemas de gestão
-associativa não cobre isso (é resolvido por fora, com ferramenta genérica de projeto), e os
-sistemas que cobrem bem são de terceiro setor assistencial verticalizado. A saída de desenho
-recomendada pela própria pesquisa — e adotada aqui — é um cadastro único e configurável de
-`Projeto`, com um campo `tipo_projeto` que habilita sub-formulários condicionais, em vez de
-modelar qualquer tipo específico de projeto da ASAF direto no código. Isso é deliberado: o
-módulo precisa caber projeto educacional, quadra/espaço, ação assistencial, oficina cultural ou
-qualquer outro tipo que a associação venha a ter — **sem ficar preso ao que a ASAF faz hoje**.
+associativa não cobre isso, e os que cobrem bem são de terceiro setor assistencial verticalizado.
+A saída de desenho recomendada pela própria pesquisa — e adotada aqui — é um cadastro único e
+configurável de `Projeto`, com `tipo_projeto` habilitando sub-formulários condicionais, em vez de
+modelar qualquer tipo específico da ASAF direto no código. Isso é deliberado: o módulo precisa
+caber projeto educacional, quadra/espaço, ação assistencial, oficina cultural ou qualquer outro
+tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
+
+#### v4.0 — Motores compartilhados (construídos uma vez, usados por tudo)
+> Sem esta versão, os mesmos quatro mecanismos seriam reimplementados em projeto, evento, aula e
+> assembleia — quatro versões divergentes da mesma regra é como um sistema envelhece mal.
+- [ ] **Motor de presença/check-in** único: `RegistroPresenca` (pessoa, contexto polimórfico —
+      evento/projeto/turma/assembleia —, data/hora entrada e saída, meio de registro, operador).
+      Consumido pela FASE 2 (assembleia), FASE 4 (projeto/evento) e FASE 14 (aula).
+- [ ] **Motor de inscrição**: `Inscricao` genérica com contexto polimórfico, status
+      (pré-inscrito, confirmado, lista de espera, cancelado, presente, ausente), respostas a
+      formulário dinâmico e vínculo opcional a cobrança.
+- [ ] **Motor de documento gerado**: template com variáveis → PDF (certificado, crachá,
+      declaração, recibo, carteirinha). Um motor só, com numeração e registro do que foi emitido
+      para quem e quando. Certificado de voluntariado, de participação em evento e de conclusão de
+      curso são o mesmo motor com template diferente.
+- [ ] **Motor de indicadores**: `Indicador` (nome, unidade, meta, periodicidade) + `MedicaoIndicador`
+      (valor, período, fonte, quem mediu) aplicável a projeto, evento, área e plano estratégico
+      (v12.9) — nunca fórmula fixa em código.
+- [ ] **Motor de agenda/conflito**: verificação de sobreposição de horário reutilizada por reserva
+      de espaço, aula e evento — regra de conflito escrita uma vez.
 
 #### v4.1 — Projeto como entidade única e configurável
-- [ ] Tabela `Projeto` (nome, descrição, `tipo_projeto` — catálogo configurável, não enum fixo —,
-      responsável, cronograma com marcos/tarefas, status) — API própria (`/api/projetos`).
-- [ ] Catálogo `TipoProjeto` configurável pela diretoria (ex.: Educacional, Espaço/Infraestrutura,
-      Assistencial, Cultural/Oficina, Capacitação — mas nenhum desses fica fixo em código, são só
-      sementes iniciais de exemplo).
-- [ ] Cada `TipoProjeto` liga um conjunto de sub-módulos opcionais (ver v4.2–v4.4) — o formulário
-      de cadastro de projeto muda conforme o tipo escolhido, sem precisar de deploy novo para
-      adicionar um tipo.
-- [ ] `Indicador` por projeto (nome, valor-base, meta, valores medidos ao longo do tempo) —
-      genérico o bastante para "frequência de aluno" ou "famílias atendidas/mês", sem fórmula fixa.
+- [ ] `Projeto` (nome, descrição, `tipo_projeto` de catálogo, responsável, público-alvo, período,
+      status, centro de custo, visibilidade pública ou interna) — API `/api/projetos`.
+- [ ] `TipoProjeto` configurável pela diretoria (Educacional, Espaço/Infraestrutura, Assistencial,
+      Cultural/Oficina, Capacitação como **sementes de exemplo**, nada fixo em código), cada tipo
+      habilitando os sub-módulos das v4.2–v4.4 e campos personalizados (v0.3.3).
+- [ ] Cronograma com marcos e tarefas, responsável e prazo; status derivado do andamento real, não
+      escolhido à mão.
+- [ ] Indicadores do projeto (motor v4.0) — genéricos o bastante para "frequência de aluno" ou
+      "famílias atendidas/mês".
+- [ ] Equipe do projeto (dirigente responsável, coordenador, voluntários, colaboradores) com papel
+      e período — alimenta permissão contextual: coordenador enxerga os beneficiários **do projeto
+      dele**, não de todos (preparação real para o RLS da FASE 15).
+- [ ] Orçamento do projeto ligado ao centro de custo (FASE 3), com realizado x previsto.
+- [ ] Encerramento formal: relatório final (resultados x metas, público atendido, execução
+      financeira) gerado do próprio dado, arquivado e reutilizável em prestação de contas a doador
+      e em edital futuro (v12.6).
 
-#### v4.2 — Beneficiários vinculados a projeto
-- [ ] Tabela `Beneficiario` (pessoa física, pode ou não ser `Associado` — mesma deduplicação por
-      CPF/e-mail da seção 3.5) com vínculo N:N a `Projeto` e papel dentro dele (aluno, atendido,
-      participante de oficina) — nunca um cadastro de pessoa por tipo de projeto.
-- [ ] Frequência/participação registrada por projeto (data, presença), reaproveitando o mesmo
-      mecanismo de check-in que os Eventos vão usar (v4.6) — um só motor de presença, não um por
-      tipo de projeto.
+#### v4.2 — Beneficiários e atendimento
+- [ ] `Beneficiario` como papel de `Pessoa` (v1.0), com vínculo N:N a `Projeto` e papel dentro dele
+      (aluno, atendido, participante de oficina) — nunca um cadastro de pessoa por tipo de projeto.
+- [ ] Núcleo familiar do beneficiário (v1.7) quando o atendimento for por família, e não por
+      indivíduo.
+- [ ] Prontuário de atendimento com registro datado e autor — **dado potencialmente sensível**
+      (saúde, vulnerabilidade social, menor de idade): visível só para a equipe do projeto,
+      consentimento específico registrado (FASE 7), consulta auditada (v15.2). Tratar isso como
+      dado comum seria um erro grave de LGPD.
+- [ ] Frequência/participação pelo motor único de presença (v4.0).
+- [ ] Encaminhamento para rede externa (CRAS, escola, posto de saúde) registrado como
+      acompanhamento, sem o sistema pretender ser prontuário eletrônico de saúde.
 
-#### v4.3 — Reserva de espaço (sub-módulo do tipo "Infraestrutura")
-- [ ] Tabela `Espaco` (quadra, salão, campo, sala) com regra própria de conflito por sobreposição
-      de horário.
-- [ ] `Reserva` (espaço, solicitante, data/hora início-fim, status) com dois fluxos configuráveis
-      por espaço — confirmado por pesquisa como padrão de mercado: **instantânea** (auto-
-      confirmada) ou **solicitação + aprovação manual** pela diretoria.
-- [ ] Diferenciação de tarifa/prioridade por perfil do solicitante (associado adimplente x
-      terceiro/avulso) — associado inadimplente não reserva, checado contra o Financeiro (FASE 3),
-      não por marcação manual.
+#### v4.3 — Reserva de espaço
+- [ ] `Espaco` (quadra, salão, campo, sala) com capacidade, recursos disponíveis, regras de uso,
+      horário de funcionamento e bloqueios (manutenção, feriado, uso institucional).
+- [ ] `Reserva` (espaço, solicitante, início/fim, finalidade, status) com dois fluxos configuráveis
+      por espaço — confirmado por pesquisa como padrão de mercado: **instantânea** (auto-confirmada)
+      ou **solicitação + aprovação manual**.
+- [ ] Conflito impedido no banco, não só na tela: restrição de exclusão por sobreposição
+      (`EXCLUDE USING gist` com `tstzrange` no Postgres) — duas pessoas clicando ao mesmo tempo não
+      podem reservar o mesmo horário, e validação em aplicação não garante isso sob concorrência.
+- [ ] Tarifa e prioridade por perfil (associado adimplente x terceiro/avulso), com integração real
+      ao financeiro: inadimplente não reserva (checado, não marcado à mão), reserva onerosa gera
+      cobrança automaticamente.
+- [ ] Reserva recorrente (toda terça, 19h, por 3 meses) com tratamento individual de exceções.
+- [ ] Política de cancelamento com prazo e eventual cobrança de taxa; histórico de no-show por
+      solicitante, com bloqueio configurável após reincidência.
+- [ ] Checklist de entrega/devolução do espaço com registro de avaria — evita a discussão
+      "quem quebrou" sem prova.
+- [ ] Agenda pública somente-leitura no site (disponibilidade, sem expor quem reservou).
 
 #### v4.4 — Voluntariado vinculado a projeto
-- [ ] `AlocacaoVoluntario` (já existe embrião no `servidor.py`) — turno/horário, habilidades
-      exigidas pelo projeto x habilidades cadastradas do voluntário, horas previstas x realizadas.
-- [ ] Certificado de horas de voluntariado gerado a partir do próprio registro de alocação (nome,
-      projeto, período, horas cumpridas) — mesmo motor de geração de certificado do módulo de
-      Eventos (v4.8), não duplicado.
+- [ ] `AlocacaoVoluntario` (turno/horário, habilidades exigidas x cadastradas, horas previstas x
+      realizadas), exigindo termo de adesão vigente (v1.6) como trava real.
+- [ ] Escala de voluntários com autoatendimento: o voluntário se candidata a um turno pelo painel,
+      o coordenador confirma; troca entre voluntários registrada.
+- [ ] Registro de horas com aprovação do coordenador, alimentando o certificado (motor v4.0) e o
+      score de engajamento (v11.1).
+- [ ] Visibilidade estritamente contida: o voluntário enxerga a própria escala e o próprio
+      histórico, nunca dado de outro voluntário/associado nem dado financeiro (garantido por RLS na
+      v15.4).
 
-#### v4.5 — Evento como entidade única (distinto de Projeto: pontual, com inscrição)
-- [ ] Tabela `Evento` (título, descrição, data/hora, local — pode referenciar um `Espaco` da v4.3
-      ou ser avulso —, responsável, categoria, vagas) — API própria (`/api/eventos`), consumida
-      tanto pelo site quanto pelo painel.
-- [ ] Endpoint público de listagem (site institucional) e endpoint autenticado de gestão
-      (painel) — **o mesmo registro**, nunca duas tabelas.
-- [ ] Site institucional (Astro/Directus) só *lê* o endpoint público do FastAPI para exibir
-      eventos — Directus não guarda evento algum, só pode enriquecer com banner/texto de chamada
-      vinculado por `evento_id` de referência.
+#### v4.5 — Evento como entidade única (pontual, com inscrição)
+- [ ] `Evento` (título, descrição, data/hora, local — `Espaco` da v4.3 ou endereço avulso —,
+      responsável, categoria, vagas, gratuito ou pago, público ou interno) — API `/api/eventos`,
+      consumida pelo site e pelo painel: **o mesmo registro**, nunca duas tabelas.
+- [ ] Evento com múltiplas sessões/atividades (programação) e inscrição por sessão quando fizer
+      sentido, sem exigir criar "vários eventos" para um congresso de um dia.
+- [ ] Edições recorrentes ligadas entre si (a "3ª edição" conhece as anteriores) — permite
+      comparação histórica no painel gerencial (v4.10).
+- [ ] Site institucional (Astro/Directus) só **lê** o endpoint público — o Directus não guarda
+      evento algum, só enriquece com banner/texto de chamada vinculado por `evento_id`.
 
 #### v4.6 — Inscrição pública com deduplicação
-- [ ] Formulário de inscrição no site chama o FastAPI (não o Directus) com CPF + e-mail +
+- [ ] Formulário de inscrição no site chama o FastAPI (não o Directus), com CPF + e-mail +
       telefone.
-- [ ] Deduplicação (seção 3.5): CPF já é `Associado`/`Beneficiario` conhecido → inscrição
-      vinculada ao cadastro existente, sem pedir dado que o sistema já tem. CPF novo → registro de
-      "participante externo", nunca vira `Associado` automaticamente.
-- [ ] Perguntas de inscrição personalizadas por evento (texto curto, texto longo, seleção única/
-      múltipla, número, data) — cada evento define as próprias perguntas, sem campo fixo além de
-      nome/telefone/CPF.
+- [ ] Deduplicação (seção 3.5): CPF já conhecido → inscrição vinculada ao cadastro existente, sem
+      pedir dado que o sistema já tem. CPF novo → "participante externo", que **nunca** vira
+      associado automaticamente.
+- [ ] Perguntas personalizadas por evento (texto curto/longo, seleção única/múltipla, número,
+      data, arquivo), com resposta obrigatória configurável.
+- [ ] Confirmação por e-mail/WhatsApp com código de check-in e possibilidade de autocancelamento
+      pelo link — reduz no-show e trabalho da secretaria.
+- [ ] Proteção do endpoint público: rate limiting por IP, honeypot e (só se necessário) desafio —
+      sem CAPTCHA comercial pago. Consentimento LGPD explícito no formulário, com versão do texto
+      registrada.
 
 #### v4.7 — Vagas, lista de espera e inscrição em grupo
-- [ ] Limite de vagas com trava real (não só informativo) — acima do limite, inscrição vira lista
-      de espera automaticamente, com promoção automática quando alguém desiste ou o limite
-      aumenta.
-- [ ] Inscrição em grupo (família, delegação) — cada nome vira uma inscrição própria (código de
-      check-in individual), telefone/respostas compartilhados pelo grupo quando fizer sentido.
+- [ ] Limite de vagas com trava real sob concorrência (controle transacional no banco, não
+      contagem otimista na aplicação) — acima do limite, vira lista de espera automaticamente, com
+      promoção automática na desistência e prazo para confirmar antes de passar ao próximo.
+- [ ] Cotas por categoria (ex.: X vagas para associados, Y para comunidade externa).
+- [ ] Inscrição em grupo (família, delegação): cada nome vira inscrição própria com código de
+      check-in individual; telefone/respostas compartilhados quando fizer sentido.
 
-#### v4.8 — Check-in, crachá e certificado (motor único, reaproveitado por Projeto e Evento)
-- [ ] Check-in por código curto (gerado na inscrição/alocação) ou por QR code — sem exigir login
-      de quem opera a portaria.
-- [ ] Emissão de crachá e certificado em PDF a partir do mesmo registro de presença — nunca
-      planilha solta ou exportação de lista completa em lote (risco de vazamento identificado nas
-      referências de pesquisa).
+#### v4.8 — Check-in, crachá e certificado
+- [ ] Check-in por código curto, QR code da inscrição ou carteirinha do associado, **sem exigir
+      login de quem opera a portaria** (token de operação com escopo limitado ao evento).
+- [ ] Modo offline resiliente: a portaria continua registrando presença se a internet cair, com
+      sincronização depois — evento acontece em quadra e salão, onde a rede falha de verdade.
+- [ ] Check-out opcional (para cálculo de carga horária real de curso/atividade).
+- [ ] Crachá e certificado em PDF a partir do registro de presença (motor v4.0), com código de
+      verificação público (`/certificado/verificar/{codigo}`) que confirma autenticidade sem expor
+      dado pessoal além do nome e da atividade.
+- [ ] Regra de elegibilidade ao certificado configurável (ex.: 75% de presença) — calculada, nunca
+      concedida à mão.
+- [ ] **Nunca exportação de lista completa em lote** como caminho padrão (risco de vazamento
+      identificado nas referências de pesquisa); exportação existe, mas com permissão própria e
+      registro em auditoria (v1.3).
 
 #### v4.9 — Financeiro de projeto/evento
-- [ ] Cobrança de inscrição/uso de espaço integrada ao módulo financeiro (FASE 3) — valor por
-      faixa (ex.: "associado" x "não associado"), conciliação manual, sem gateway de pagamento.
-- [ ] Fechamento financeiro (relatório automático: inscritos/beneficiários, presentes, valor
-      arrecadado) ao encerrar o projeto/evento — mesma lógica de auditoria do restante do
-      financeiro.
+- [ ] Cobrança de inscrição/uso de espaço integrada à FASE 3, com valor por faixa (associado x não
+      associado x estudante), lote promocional por data, cupom e isenção justificada.
+- [ ] Política de reembolso por cancelamento, com prazo e percentual configuráveis, gerando
+      estorno rastreável (nunca "devolução por fora").
+- [ ] Fechamento financeiro automático ao encerrar (inscritos, presentes, arrecadado, custos,
+      resultado por centro de custo), com a mesma auditoria do restante do financeiro.
 
-#### v4.10 — Painel gerencial (projetos, espaços e eventos)
-- [ ] Tela de inscritos/beneficiários/reservas: busca, filtros, edição, sem exportação de dado
-      pessoal em lote.
-- [ ] Indicadores agregados por projeto (evolução do `Indicador` da v4.1, comparação entre
-      edições de um mesmo evento) — nunca lista individual exposta fora do painel autenticado.
+#### v4.10 — Painel gerencial e avaliação
+- [ ] Telas de inscritos/beneficiários/reservas com busca, filtro e edição, sem exportação em lote
+      como ação corriqueira.
+- [ ] Indicadores agregados por projeto e comparação entre edições de um mesmo evento.
+- [ ] Pesquisa de satisfação pós-evento (link único por inscrito, resposta anônima na exibição),
+      alimentando o indicador de qualidade do evento.
+- [ ] Mapa de calor de ocupação de espaços — subsidia decisão real sobre horário, tarifa e
+      necessidade de nova estrutura.
 
 ### FASE 5 — Site institucional (conteúdo público)
 
+> O site não é folheto: é a porta de entrada de associado, voluntário, doador e beneficiário — e é
+> a face pública da transparência. Tudo que é **dado** vem do FastAPI; só o que é **editorial** vem
+> do Directus. Essa fronteira é o que impede o site de virar um segundo sistema.
+
+#### v5.0 — Fundação técnica do site
+- [ ] Astro com geração estática + ilhas interativas, publicado no Static Web App `asaf-site` (já
+      provisionado), domínio `asaf.org.br` (já configurado na v0.0).
+- [ ] Rebuild automático: webhook do Directus dispara o workflow de publicação quando o conteúdo
+      muda; dado dinâmico do FastAPI (eventos, transparência) é buscado no cliente ou revalidado,
+      para não exigir rebuild a cada inscrição.
+- [ ] Mesmos tokens de design do painel (v0.2.4) — identidade visual única, mantida num lugar só.
+- [ ] SEO técnico desde o início: metadados por página, Open Graph, `sitemap.xml`, `robots.txt`,
+      dados estruturados de organização e de evento (`schema.org/Event`) — evento da ASAF
+      aparecendo corretamente na busca do Google é resultado direto disso.
+- [ ] Meta de performance e acessibilidade auditada no CI (antecipa a FASE 9): sem isso, "a gente
+      melhora depois" nunca acontece.
+
 #### v5.1 — Directus como CMS de conteúdo
-- [ ] Coleções: páginas institucionais, notícias, banners, galeria — só conteúdo público, nunca
-      dado de associado/financeiro/evento em si (eventos são lidos do FastAPI, ver FASE 4).
-- [ ] Site construído em Astro (ou stack equivalente definida na implementação), consumindo a API
-      pública do FastAPI para eventos e a API do Directus para conteúdo editorial.
+- [ ] Coleções: páginas institucionais, notícias, banners, galeria, depoimentos, parceiros,
+      perguntas frequentes — **só conteúdo público**, nunca dado de associado/financeiro.
+- [ ] Fluxo editorial com rascunho → revisão → publicado, agendamento de publicação e histórico de
+      versão com possibilidade de reverter.
+- [ ] Papéis do Directus mapeados à realidade (editor de conteúdo x administrador), sem dar
+      administrador para quem só escreve notícia.
+- [ ] Biblioteca de mídia com texto alternativo **obrigatório** (acessibilidade não é opcional) e
+      geração de tamanhos responsivos.
 
 #### v5.2 — Páginas essenciais
-- [ ] Home, Quem Somos/História, Notícias, Eventos (lendo do FastAPI), Transparência (lendo o
-      relatório da v3.4), Contato, Doações.
+- [ ] Home, Quem Somos/História, Diretoria e Conselho (lendo os mandatos vigentes da FASE 2, nunca
+      digitados de novo), Projetos (lendo os projetos públicos da FASE 4), Notícias, Agenda de
+      Eventos (FastAPI), Transparência (FASE 3/12.7), Como Ajudar/Doe, Seja Voluntário, Seja
+      Associado, Contato com mapa, Política de Privacidade e Termos de Uso versionados (FASE 7).
+- [ ] Página de cada projeto e de cada evento com URL estável e compartilhável.
 
-#### v5.3 — Formulário de voluntariado
-- [ ] Formulário público de interesse em voluntariado — mesma lógica de deduplicação da FASE 4
-      (não cria associado novo, só um registro de interesse vinculado por CPF/e-mail quando já
-      existir cadastro).
+#### v5.3 — Formulários públicos (uma fila única no painel)
+- [ ] Formulário público de voluntariado, de proposta de filiação (v1.2), de contato e de
+      solicitação de titular LGPD (FASE 7) — todos com a mesma deduplicação por CPF/e-mail, todos
+      caindo em **uma fila única de atendimento** no painel, com status e responsável. Formulário
+      que vira e-mail solto é o jeito conhecido de perder gente interessada.
+- [ ] Confirmação automática ao remetente e prazo de resposta acompanhado (liga com o protocolo
+      interno da v13.3).
+
+#### v5.4 — Doação online
+- [ ] PIX com QR code dinâmico por doação (identificação automática do pagamento), doação
+      recorrente via Pix Automático (v3.2.1) quando disponível, e opção de doação anônima.
+- [ ] Recibo automático por e-mail e, para doador identificado, área de acompanhamento das próprias
+      doações.
+- [ ] Transparência do destino: cada campanha mostra quanto arrecadou e em que foi aplicado,
+      puxando do centro de custo real (FASE 3) — não texto escrito à mão.
+
+#### v5.5 — Confiança, privacidade e conformidade do site
+- [ ] Banner de cookies honesto: se o site não usa rastreamento de terceiro, não fingir que usa —
+      preferência por métrica sem cookie (Application Insights ou analytics respeitoso), evitando
+      consentimento desnecessário.
+- [ ] Headers de segurança (CSP, `X-Content-Type-Options`, `X-Frame-Options`, HSTS) configurados no
+      Static Web App.
+- [ ] Página "Transparência" e página "Privacidade" sempre acessíveis a partir do rodapé de
+      qualquer página.
 
 ### FASE 6 — Comunicação e transparência
 
-#### v6.1 — Comunicação interna
-- [ ] Avisos/comunicados no painel, visíveis por nível de permissão.
+#### v6.1 — Comunicação interna no painel
+- [ ] Mural de avisos segmentado por permissão/categoria/projeto, com data de validade e
+      confirmação de leitura quando o aviso for relevante (convocação, mudança de regra).
+- [ ] Comunicados dirigidos a um grupo calculado (ex.: "todos os associados adimplentes do
+      projeto X") — segmento é consulta, nunca lista colada à mão que envelhece.
+- [ ] Caixa de entrada do associado dentro do painel, com histórico de tudo que ele recebeu — o
+      associado consegue provar que foi (ou não foi) avisado.
 
-#### v6.2 — Transparência pública
-- [ ] Publicação automática do relatório financeiro resumido (v3.4) e de documentos institucionais
-      (estatuto, atas de assembleia) em `/transparencia/`.
+#### v6.2 — Central de comunicação multicanal (base para v11.3)
+- [ ] `Comunicacao` (assunto, corpo com variáveis, canal, público-alvo, agendamento, status) com
+      envio por e-mail, notificação no painel e, quando a v11.3 existir, WhatsApp.
+- [ ] Registro de entrega e falha por destinatário, com reprocessamento — mensagem que não chegou
+      precisa ser visível, não silenciosa.
+- [ ] Preferências de contato por pessoa e **descadastro real** de comunicação não essencial
+      (comunicação estatutária obrigatória, como convocação, não é descadastrável, e o sistema
+      deixa essa distinção explícita).
+- [ ] Modelos de mensagem versionados, com pré-visualização e envio de teste antes do disparo.
+- [ ] Limite de segurança: disparo em massa exige permissão própria e confirmação com contagem de
+      destinatários — evita o erro de mandar para 2.000 pessoas por engano.
 
-### FASE 7 — LGPD e Segurança
+#### v6.3 — Transparência pública ativa
+- [ ] Publicação automática do relatório financeiro resumido (FASE 3) e de documentos
+      institucionais (estatuto vigente, atas aprovadas, relatório anual) em `/transparencia/`,
+      gerada do próprio dado — nunca digitada duas vezes.
+- [ ] Cada documento publicado com data, versão e responsável; documento substituído mantém o
+      histórico acessível em vez de sumir.
+- [ ] Relatório anual de atividades montado automaticamente a partir de projetos, indicadores,
+      eventos e financeiro do exercício, com espaço editorial para texto da diretoria — a peça que
+      toda associação faz na correria e que aqui nasce pronta.
 
-#### v7.1 — Consentimento e retenção
-- [ ] Consentimento explícito para dado sensível (foto, dado de menor de idade se houver).
-- [ ] Política de retenção documentada por tipo de dado (associado ativo, inscrito de evento
-      externo, voluntário) — nunca "guardar tudo para sempre" sem justificativa registrada.
+### FASE 7 — LGPD e proteção de dados (programa, não checklist)
 
-#### v7.2 — Direitos do titular
-- [ ] Canal de solicitação de acesso/exclusão/retificação pelo próprio painel (associado) e pelo
-      site (não associado, via formulário de contato com assunto específico).
+> A ASAF trata dado de associado, de criança beneficiária, de voluntário e de doador. A LGPD aqui
+> não é formalidade: é o que evita dano real a pessoas e responsabilização da diretoria. Esta fase
+> vira um **programa de privacidade** com dono, inventário e prova — não um banner de cookies.
 
-#### v7.3 — Segurança de infraestrutura
-- [ ] Headers de segurança HTTP (CSP, `X-Content-Type-Options`, `X-Frame-Options`) no site
-      estático.
-- [ ] Rate limiting nos endpoints públicos (inscrição de evento, contato) — proteção contra spam/
-      abuso sem exigir captcha comercial pago.
+#### v7.0 — Governança de privacidade
+- [ ] Encarregado (DPO) designado e publicado no site com canal de contato — exigência do Art. 41
+      da LGPD, frequentemente ignorada por associações.
+- [ ] **Inventário de dados (ROPA)** vivo: para cada tipo de dado tratado — quem é o titular, qual
+      a finalidade, qual a base legal, quanto tempo fica, com quem é compartilhado, onde está
+      armazenado. Mantido como registro no próprio sistema, não como documento Word esquecido.
+- [ ] Classificação de dado por sensibilidade (comum, pessoal sensível, dado de criança e
+      adolescente) marcada **no modelo de dados**, para que controles técnicos (criptografia,
+      auditoria de consulta, retenção) sejam aplicados por classificação, não caso a caso.
+- [ ] Avaliação de impacto (RIPD) obrigatória antes de ativar qualquer tratamento de alto risco —
+      biometria (v20.3), prontuário de beneficiário (v4.2), perfilamento por score (v11.1).
+
+#### v7.1 — Base legal, consentimento e retenção
+- [ ] Base legal explícita por finalidade: execução do vínculo associativo (não precisa de
+      consentimento para cobrar mensalidade), obrigação legal (contabilidade), e consentimento
+      apenas onde é de fato necessário (foto, comunicação de marketing, biometria). Pedir
+      consentimento para tudo é erro comum e enfraquece o consentimento onde ele importa.
+- [ ] `Consentimento` versionado (titular, finalidade, versão do texto, data, meio, IP, revogação)
+      — prova de quando e a quê a pessoa consentiu, com o texto exato daquela época.
+- [ ] Dado de criança e adolescente (Art. 14): consentimento específico de ao menos um dos pais ou
+      responsável, com registro do vínculo — relevante direto para projetos assistenciais e
+      educacionais da FASE 4/14.
+- [ ] Política de retenção por tipo de dado, implementada como **rotina real** de anonimização/
+      descarte (participante externo de evento: X meses; candidato a voluntário não aprovado: Y
+      meses; associado desligado: prazo legal/contábil), com relatório do que foi descartado.
+      Retenção que só existe no papel não é retenção.
+- [ ] Anonimização preserva estatística (o evento continua sabendo que teve 300 presentes) sem
+      preservar identificação — apagar linha inteira destruiria o histórico institucional.
+
+#### v7.2 — Direitos do titular, operacionalizados
+- [ ] Canal único de solicitação: pelo painel (autenticado) e pelo site (formulário com validação
+      de identidade), gerando protocolo com prazo legal acompanhado.
+- [ ] Atendimento real de cada direito: confirmação de tratamento, acesso, correção,
+      anonimização/eliminação, portabilidade (exportação em formato legível por máquina),
+      informação sobre compartilhamento, e revogação de consentimento.
+- [ ] Limites explicados ao titular quando houver: dado retido por obrigação legal (contábil,
+      fiscal) não é apagável, e o sistema responde isso com fundamento, não com silêncio.
+- [ ] Relatório de atendimento de solicitações (quantas, prazo médio, resultado) para a diretoria.
+
+#### v7.3 — Segurança aplicada à privacidade
+- [ ] Minimização por padrão: cada tela e cada exportação mostram só o necessário; CPF completo
+      exibido apenas para quem tem permissão específica, mascarado para os demais.
+- [ ] Headers de segurança HTTP (CSP, `X-Content-Type-Options`, `X-Frame-Options`, HSTS) no site
+      estático e no painel.
+- [ ] Rate limiting nos endpoints públicos (inscrição de evento, contato, filiação) — proteção
+      contra spam/abuso sem CAPTCHA comercial pago.
+- [ ] Contratos/termos com operadores (Azure, provedor de e-mail, PSP de pagamento, BSP de
+      WhatsApp) registrados no inventário, com a finalidade de cada compartilhamento.
+
+#### v7.4 — Resposta a incidente de segurança
+- [ ] Plano escrito e ensaiado: detecção → contenção → avaliação de risco aos titulares →
+      comunicação à ANPD e aos titulares quando houver risco relevante → registro e lição
+      aprendida. Prazo e canal de comunicação definidos **antes** do incidente, não durante.
+- [ ] Registro de incidentes (mesmo os sem impacto) com ação corretiva — inclui os incidentes
+      reais já vividos no projeto (exposição de senha em transcrição, rotacionada imediatamente),
+      documentados como precedente.
+
+#### v7.5 — Cultura e prova
+- [ ] Treinamento anual curto e registrado para diretoria, secretaria e voluntários com acesso a
+      dado — a maioria dos vazamentos em organização pequena é operacional, não técnica.
+- [ ] Revisão anual do programa (inventário, políticas, retenção, permissões) com relatório à
+      diretoria — privacidade é processo recorrente, não entrega única.
 
 ### FASE 8 — Infraestrutura e Deploy (Azure)
 
-#### v8.1 — Provisionamento
-- [ ] Azure Database for PostgreSQL Flexible Server (Burstable B1ms, ~US$15/mês) — banco único.
-- [ ] FastAPI em Azure Container Apps (plano consumo, ~US$10–20/mês).
-- [ ] Directus em Azure Container Apps (plano consumo, ~US$10–20/mês).
-- [ ] Site institucional + painel (SPA) em Azure Static Web Apps (grátis).
-- [ ] Blob Storage para uploads/anexos (~US$1–5/mês).
-- [ ] Key Vault para segredos, Application Insights para monitoramento (grátis/baixo custo).
-- [ ] Total estimado: ~US$40–60/mês, dentro do teto de US$100/mês definido em 3.6.
+> ✅ Boa parte desta fase **já foi executada na v0.0** (provisionamento real e CI/CD funcionando).
+> O que segue expande o que ainda falta para transformar "está no ar" em "opera bem por 20 anos".
 
-#### v8.2 — CI/CD
-- [ ] GitHub Actions: workflow separado para API (FastAPI), Directus e front-ends (site + painel),
-      cada um publicando no respectivo serviço Azure via OIDC (sem segredo de longa duração salvo
-      no GitHub).
-- [ ] Ambiente de homologação antes de produção para os três componentes.
+#### v8.1 — Provisionamento ✅ concluído na v0.0
+- [x] Azure Database for PostgreSQL Flexible Server (Burstable B1ms, backup 35 dias +
+      geo-redundância) — banco único compartilhado com o Directus, que só possui as tabelas
+      `directus_*`.
+- [x] FastAPI e Directus em Azure Container Apps (plano consumo, scale-to-zero).
+- [x] Site institucional + painel em Azure Static Web Apps, com domínio próprio via Azure DNS.
+- [x] Blob Storage para uploads/anexos (soft delete + versionamento), Key Vault para segredos,
+      Application Insights para monitoramento.
+- [x] Total estimado ~US$40–60/mês, dentro do teto de US$100/mês definido em 3.6, com alerta de
+      orçamento configurado.
+
+#### v8.2 — CI/CD ✅ parcialmente concluído
+- [x] Workflow da API com OIDC (sem segredo de longa duração no GitHub), build via ACR Tasks e
+      atualização do Container App.
+- [ ] Workflows equivalentes para o painel (v0.2.0) e para o site (v5.0).
+- [ ] Migração Alembic executada como **passo explícito do pipeline**, antes do deploy da nova
+      imagem, com falha de migração abortando o deploy — hoje a migração é aplicada manualmente.
+- [ ] Deploy com revisão progressiva do Container App (nova revisão recebendo tráfego aos poucos)
+      e **rollback em um comando** documentado e testado ao menos uma vez.
+- [ ] Ambiente de homologação: por custo, um **slot lógico** (banco separado barato + revisão
+      própria do Container App), não um ambiente inteiro duplicado — decisão consciente de
+      orçamento, registrada.
+
+#### v8.3 — Infraestrutura como código (correção de perpetuidade)
+- [ ] Hoje a infra existe porque foi criada por comandos `az` numa sessão. Em 5 anos, ninguém vai
+      lembrar a sequência. Migrar o provisionamento para **Bicep** (nativo Azure) versionado no
+      repositório, importando o que já existe — não para recriar tudo, mas para que a infra seja
+      **reconstruível e revisável**. Este é o maior débito estrutural remanescente da v0.0.
+- [ ] Configuração de recurso (variáveis de ambiente, escala, probes) declarada no código, não
+      ajustada só pelo Portal.
+
+#### v8.4 — Operação diária
+- [ ] Runbook de operação: como ver log, como reiniciar, como restaurar backup, como rotacionar
+      segredo, o que fazer se o site cair — escrito para quem **não** participou da construção.
+- [ ] Monitoramento sintético (ping externo periódico em site, painel e `/health` da API) com
+      alerta — hoje ninguém saberia de uma queda fora do horário sem isso.
+- [ ] Endpoint `/health` de verdade (verifica banco e storage, não devolve 200 fixo) e
+      `/health/ready` separado, ligados aos probes do Container App — corrige a causa-raiz do
+      incidente de crash-loop de forma definitiva.
+- [ ] Revisão trimestral de custo com registro no plano (o teto de US$100/mês precisa ser vigiado,
+      não presumido).
+- [ ] Rotação periódica de segredos como prática documentada (já estabelecida como rotina), com
+      data da última rotação registrada por segredo.
+
+#### v8.5 — Escala e evolução (o que fazer quando crescer)
+- [ ] Gatilhos de escala escritos antes de precisar: CPU/conexões do Postgres acima de X por
+      período → subir tier (B1ms → B2s → Standard); mais de N usuários simultâneos → aumentar
+      réplicas mínimas do Container App; storage acima de Y → revisar política de retenção de
+      arquivo.
+- [ ] `PgBouncer`/pool de conexão avaliado antes de o número de réplicas crescer — Postgres
+      Burstable tem limite baixo de conexões, e esse é o primeiro gargalo real que aparece.
+- [ ] Índices e consultas revisados com dados reais (`pg_stat_statements`) a cada ano — desempenho
+      degrada silenciosamente conforme a base cresce.
+- [ ] Caminho de saída documentado: como levar banco e arquivos para outro provedor se o crédito
+      Azure acabar. Dependência de nuvem única sem plano de saída é risco de perpetuidade, e a
+      arquitetura (Postgres + contêiner + arquivos em blob) foi escolhida justamente para ser
+      portável.
 
 ### FASE 9 — Experiência, performance e acessibilidade
 
-#### v9.1 — Acessibilidade (WCAG)
-- [ ] Auditoria automatizada (axe-core ou equivalente) no site institucional e no painel.
-- [ ] Modo alto contraste / aumento de fonte no site público.
+#### v9.1 — Acessibilidade (WCAG 2.2 nível AA como meta)
+- [ ] Auditoria automatizada (axe-core) no CI do site e do painel, falhando o build em violação
+      grave — automatizado pega ~40% dos problemas.
+- [ ] Revisão manual do que a ferramenta não pega: navegação só por teclado, leitor de tela nos
+      fluxos críticos (login, inscrição, doação), ordem de foco, rótulo de formulário, mensagem de
+      erro associada ao campo.
+- [ ] Modo alto contraste e aumento de fonte no site público; respeito a `prefers-reduced-motion`.
+- [ ] Linguagem simples nos textos de interface — acessibilidade cognitiva importa tanto quanto a
+      técnica para o público de uma associação comunitária.
+- [ ] Declaração de acessibilidade publicada, com canal para relatar barreira encontrada.
 
 #### v9.2 — Performance
-- [ ] `srcset` responsivo para imagens de capa/galeria.
-- [ ] Cache de longo prazo para assets versionados do build.
+- [ ] Metas medidas, não adjetivos: Core Web Vitals (LCP < 2,5s, INP < 200ms, CLS < 0,1) no site
+      público, e tempo de resposta de API abaixo de 500ms no p95 para as rotas de leitura mais
+      usadas.
+- [ ] Imagens em formato moderno com `srcset` responsivo e carregamento preguiçoso; assets
+      versionados com cache longo.
+- [ ] Paginação server-side obrigatória em toda listagem (nenhuma tela carrega "todos os
+      associados"), com índice de banco correspondente a cada filtro exposto.
+- [ ] Orçamento de performance no CI (tamanho do bundle do painel) — painel que cresce sem
+      vigilância fica lento em 3 anos, em celular modesto, que é o aparelho real do público.
+- [ ] Otimização para conexão ruim: o público da associação acessa por rede móvel instável.
+
+#### v9.3 — Usabilidade validada com gente de verdade
+- [ ] Teste com 3–5 pessoas reais (um dirigente, uma pessoa da secretaria, um associado idoso, um
+      voluntário jovem) antes de considerar cada módulo pronto. Cinco pessoas encontram a maioria
+      dos problemas de usabilidade — é barato e ninguém faz.
+- [ ] Ajuda contextual e tour de primeiro acesso por módulo, no lugar de manual em PDF que
+      ninguém lê.
+- [ ] Canal de feedback dentro do painel ("achei um problema nesta tela") ligado à fila de
+      atendimento — o sistema aprende com o uso.
+
+#### v9.4 — PWA (instalável, offline no essencial)
+- [ ] Manifesto e service worker no painel: instalável na tela inicial, com cache de casca e
+      leitura offline do que faz sentido (carteirinha, próxima escala do voluntário, agenda).
+- [ ] Web Push para lembrete de evento, aviso de mensalidade e convocação de assembleia —
+      confirmado (FASE 19) que iOS suporta push em PWA instalado, sem exigir app nativo.
 
 ### FASE 10 — Expansão futura (registrado, não compromisso)
 
-- [ ] App instalável (PWA) para o painel do associado.
-- [ ] Notificação push para lembrete de evento/mensalidade.
-- [ ] Segunda unidade/sede da associação, se a ASAF vier a ter mais de um endereço — decisão de
-      modelo de dado (unidade única vs. multi-unidade) fica para quando essa necessidade for
-      confirmada, não antes.
+- [ ] Multi-unidade/multi-sede: se a ASAF vier a ter mais de um endereço, a decisão de modelo
+      (unidade única x multi-unidade, com escopo de permissão por unidade) fica para quando a
+      necessidade for confirmada. Registrar desde já que o caminho preferido seria uma coluna
+      `id_unidade` com escopo de permissão, não um banco por unidade.
+- [ ] Federação/rede com outras associações (troca de indicadores da v11.9, reconhecimento mútuo
+      de associado).
+- [ ] Loja/bazar beneficente com controle de estoque simples, se virar atividade relevante.
+- [ ] Integração com contabilidade em tempo real (hoje a FASE 17 prevê exportação, que é
+      suficiente).
+- [ ] API pública documentada para parceiros — só se houver demanda concreta; API pública sem
+      consumidor é manutenção sem retorno.
 
 ### FASE 11 — Diferenciais avançados (além do mercado)
 
 Pedido explícito do usuário: não construir "mais um sistema de associação comum" — ir além do
 que já existe. Pesquisa dedicada (seção 6) trouxe o que sistemas de ponta (CRM, ERP, plataformas
-de engajamento de comunidade) fazem hoje. Esta fase entra **depois** das fundações (FASE 0–9)
+de engajamento de comunidade) fazem hoje. Esta fase entra **depois** das fundações (FASES 0–9)
 estarem de pé — nenhum destes itens tenta substituir o básico, todos dependem dele já existir.
 
-#### v11.1 — Engajamento, score e gamificação
-- [ ] `EngagementScore` calculado por job periódico (peso configurável: presença em evento/
-      projeto, adimplência, participação em votação, uso do portal, indicação de novo associado)
-      — nunca digitado à mão.
-- [ ] Exibição ao associado como "nível" com badges simples (ex.: bronze/prata/ouro) — não é
-      ranking público entre associados, é indicador pessoal de envolvimento.
-- [ ] Programa de indicação (`referred_by` no cadastro) com benefício (desconto ou pontos) para
-      quem indica um novo associado aprovado.
-- [ ] Score usado como gatilho de régua de comunicação: associado com engajamento em queda entra
-      automaticamente numa campanha de reativação (v11.3).
+> **Critério de entrada, aplicado a todo item desta fase**: só entra o que (a) resolve uma dor
+> real observada na operação da ASAF, (b) não cria dependência de fornecedor que inviabilize o
+> sistema se o contrato acabar, e (c) cabe no teto de custo. Diferencial que vira peso morto é
+> pior que ausência de diferencial.
 
-#### v11.2 — IA e automação (com escopo restrito, nunca acesso irrestrito)
-- [ ] Modelo simples de risco de inadimplência (regressão logística/XGBoost leve) treinado com
-      histórico de pagamento + engajamento — alimenta o painel executivo (v11.8), não decide
-      nada sozinho.
-- [ ] Assistente de atendimento ao associado com escopo restrito (RAG sobre estatuto/regimento +
-      ferramentas de consulta aos próprios dados do associado autenticado) — nunca com permissão
-      de escrita irrestrita; fallback para atendimento humano em qualquer fluxo de mais de 2
-      passos.
-- [ ] Rascunho automático de ata de assembleia a partir de transcrição/notas — sempre revisado e
-      assinado por humano antes de virar documento oficial.
+#### v11.1 — Engajamento, score e reconhecimento
+- [ ] `EngagementScore` calculado periodicamente com pesos **configuráveis pela diretoria**
+      (presença em evento/projeto, adimplência, participação em votação, voluntariado, uso do
+      portal, indicação de novo associado) — nunca digitado à mão, nunca peso fixo em código.
+- [ ] Transparência do cálculo: o associado vê **por que** tem o score que tem, e a diretoria vê a
+      fórmula vigente com histórico de alteração. Score opaco gera desconfiança e some do uso.
+- [ ] Exibição como nível pessoal com selos simples (bronze/prata/ouro) — **não é ranking público
+      entre associados**, é indicador pessoal de envolvimento. Ranking público entre pessoas numa
+      associação comunitária é risco social, não gamificação.
+- [ ] Reconhecimento institucional automático: tempo de filiação (5, 10, 20 anos), horas de
+      voluntariado acumuladas, participação em todas as assembleias do ano — com certificado
+      emitido pelo motor da v4.0 e (opcionalmente) homenagem sugerida na assembleia.
+- [ ] Programa de indicação (`indicado_por`) com benefício para quem indica associado aprovado.
+- [ ] Score como gatilho de régua de comunicação: engajamento em queda entra automaticamente numa
+      campanha de reativação (v11.3) — com limite de frequência para não virar perseguição.
+- [ ] **Limite ético registrado**: score nunca restringe direito estatutário (voto, acesso,
+      atendimento). É ferramenta de cuidado com o associado, não de classificação de mérito.
+
+#### v11.2 — IA e automação (escopo restrito, nunca acesso irrestrito)
+- [ ] Princípio transversal: **a IA sugere, a pessoa decide**. Nenhuma decisão sobre pessoa
+      (exclusão, cobrança, benefício, atendimento) é tomada automaticamente por modelo.
+- [ ] Modelo simples de risco de inadimplência (regressão logística ou árvore leve) treinado com
+      histórico próprio — alimenta o painel executivo (v11.8) e a régua de cobrança preventiva;
+      nunca rotula publicamente ninguém como "mau pagador".
+- [ ] Assistente de atendimento ao associado com escopo restrito (RAG sobre estatuto, regimento e
+      perguntas frequentes + consulta **somente leitura** aos dados do próprio associado
+      autenticado), com fallback humano em qualquer fluxo de mais de dois passos e aviso claro de
+      que é um assistente automático.
+- [ ] Rascunho de ata a partir de transcrição/notas — sempre revisado e assinado por humano antes
+      de virar documento oficial (a v2.5 continua sendo a fonte estruturada do conteúdo).
+- [ ] Apoio à secretaria: classificação automática de documento enviado, extração de dados de
+      comprovante/nota para pré-preencher lançamento (sempre com conferência), sugestão de
+      resposta a protocolo recorrente.
+- [ ] Custo e privacidade controlados: preferência por processamento que não envie dado pessoal
+      sensível para serviço externo; quando enviar, registrar no inventário da FASE 7 e
+      pseudonimizar o que for possível. Teto de gasto mensal com IA definido e monitorado.
+- [ ] Avaliação de qualidade antes de liberar: conjunto de perguntas reais com resposta esperada,
+      medido a cada mudança de modelo/prompt — sem isso, o assistente degrada sem ninguém notar.
 
 #### v11.3 — Comunicação institucional via WhatsApp Business (API oficial)
 - [ ] Integração via Meta Cloud API (ou parceiro oficial/BSP) — nunca `wa.me` automatizado nem
       WhatsApp Web programado (viola os termos de uso e gera banimento do número).
       Confirmado por pesquisa: mensagens de categoria "utility" (boleto vencendo, confirmação de
-      inscrição) custam 80–95% menos que "marketing" — usar utility como padrão, marketing só
-      para campanha segmentada deliberada.
-- [ ] Central de notificações multicanal (`notification`, canal preferido por associado: e-mail,
-      push web, WhatsApp) com fallback em cascata se um canal falhar.
+      inscrição) custam 80–95% menos que "marketing" — usar utility como padrão, marketing só para
+      campanha segmentada deliberada.
+- [ ] Gestão dos templates aprovados pela Meta dentro do painel (status de aprovação, variáveis,
+      versão) — template reprovado precisa ser visível antes do disparo, não na hora do erro.
+- [ ] Janela de 24h respeitada pelo próprio sistema: fora dela, só template aprovado.
+- [ ] Recebimento de resposta roteado para a fila única de atendimento (v5.3) — comunicação
+      unilateral gera frustração; se o sistema manda, precisa saber ouvir.
+- [ ] Opt-out honrado em todos os canais simultaneamente, com distinção explícita entre
+      comunicação estatutária obrigatória e comunicação opcional.
+- [ ] Central de notificações multicanal com canal preferido por pessoa e fallback em cascata
+      (WhatsApp → e-mail → notificação no painel), com registro de entrega por canal.
+- [ ] Teto de gasto mensal com mensagens, alerta ao se aproximar, e bloqueio de disparo em massa
+      acima do orçamento sem aprovação explícita.
 
 #### v11.4 — Clube de benefícios (parcerias comerciais para o associado)
-- [ ] `Parceiro`, `Beneficio` (tipo: desconto fixo/percentual/cashback, categoria, vigência),
+- [ ] `Parceiro`, `Beneficio` (desconto fixo/percentual/cashback, categoria, vigência, regras) e
       `ResgateBeneficio` (associado, parceiro, data, valor).
-- [ ] Validação do benefício via carteirinha digital (QR code já existente da FASE 1) — começa
-      simples (lista de parceiros com cupom) e evolui para validação/cashback conforme a demanda
-      real aparecer.
+- [ ] Validação pela carteirinha digital (QR code da FASE 1) com verificação de adimplência em
+      tempo real — o parceiro confere sem precisar de login no sistema.
+- [ ] Portal simples do parceiro (relatório de uso, sem acesso a dado pessoal além do necessário
+      para validar) e contrato de parceria arquivado no módulo de contratos (v12.5).
+- [ ] Começa simples (lista de parceiros com cupom) e só evolui para validação/cashback quando
+      houver demanda real — evita construir marketplace que ninguém usa.
 
-#### v11.5 — Segurança avançada (MFA e SSO)
-- [ ] MFA obrigatório (TOTP, biblioteca `pyotp`) para todo perfil administrativo/financeiro do
-      painel — segredo criptografado em repouso, códigos de backup hasheados.
-- [ ] Avaliar Keycloak como IdP central (OIDC/SAML) para SSO entre os módulos internos, deixando
-      caminho aberto para plugar Azure AD/Entra ID no futuro sem reescrever a aplicação.
-- [ ] Revisão periódica de acesso (trimestral): relatório automático de quem tem qual papel,
-      exigindo confirmação explícita de recondução ou revogação por um gestor — nunca acesso que
-      só cresce e nunca é reavaliado.
+#### v11.5 — Segurança avançada (consolidação; execução detalhada nas FASES 15 e 20)
+- [ ] MFA obrigatório para todo perfil administrativo/financeiro — **implementado na v0.2.2**
+      (TOTP com `pyotp`, segredo protegido, códigos de recuperação hasheados).
+- [ ] Keycloak como IdP central avaliado na FASE 20/v20.1, deixando caminho aberto para plugar
+      Entra ID no futuro sem reescrever a aplicação.
+- [ ] **Revisão periódica de acesso (trimestral)**: relatório automático de quem tem qual papel,
+      exigindo confirmação explícita de recondução ou revogação por um gestor — acesso que só
+      cresce e nunca é reavaliado é o padrão de falha de organizações de longa vida. Acesso não
+      revalidado é suspenso automaticamente ao fim do prazo.
+- [ ] Conta de serviço e integração tratadas como identidade própria (nunca usando credencial de
+      pessoa), com escopo mínimo e rotação registrada.
+- [ ] Teste de segurança periódico: varredura de dependência vulnerável no CI (`pip-audit`/
+      Dependabot) e revisão anual de superfície exposta.
 
 #### v11.6 — Conciliação bancária automática (Open Finance Brasil)
-- [ ] Camada de abstração para agregador bancário (ex.: Pluggy, já usado por ERPs de pequeno
-      porte no Brasil) — associado/gestor financeiro autoriza o consentimento Open Finance uma
-      vez, o sistema recebe extrato via webhook e concilia automaticamente contra o plano de
-      contas (FASE 3), com fallback manual para o que não casar sozinho.
+- [ ] Camada de abstração para agregador bancário (ex.: Pluggy, já usado por ERPs de pequeno porte
+      no Brasil): o gestor financeiro autoriza o consentimento Open Finance uma vez, o sistema
+      recebe extrato por webhook e concilia automaticamente contra o plano de contas (FASE 3), com
+      fallback manual para o que não casar sozinho.
+- [ ] Consentimento Open Finance tem validade limitada e precisa de renovação — o sistema avisa
+      com antecedência, em vez de parar de conciliar em silêncio.
+- [ ] Regras de correspondência automática configuráveis e auditáveis (por valor, data,
+      identificador, histórico) — e nenhuma baixa automática sem registro de qual regra a gerou.
+- [ ] Abstração obrigatória: trocar de agregador não pode exigir reescrever o financeiro.
 
 #### v11.7 — Portal self-service de ponta
-- [ ] Assinatura eletrônica de documentos internos — ver FASE 20 (plataforma própria com trilha
-      de evidência: OTP, metadados, timestamp, hash SHA-256, selo do servidor) — nunca só "aceite"
-      de checkbox para documento com peso jurídico.
-- [ ] Declarações automáticas geradas sob demanda (declaração de associado ativo, comprovante de
-      participação) via template preenchido a partir do próprio cadastro — sem intervenção manual
-      da secretaria para cada pedido.
-- [ ] Extrato de participação no painel do associado (frequência em eventos/projetos, votos,
-      pontos de engajamento acumulados) num só lugar.
+- [ ] Assinatura eletrônica de documentos internos — motor da FASE 20/v20.2 (OTP, metadados,
+      timestamp, hash SHA-256, selo do servidor); nunca só "aceite" de checkbox em documento com
+      peso jurídico.
+- [ ] Declarações automáticas sob demanda (associado ativo, comprovante de participação, horas de
+      voluntariado, quitação anual) via template preenchido do próprio cadastro, numeradas e com
+      código público de verificação — zero intervenção da secretaria por pedido.
+- [ ] Segunda via de documento e de cobrança, atualização cadastral, agendamento de atendimento e
+      abertura de protocolo (v13.3), tudo pelo painel.
+- [ ] Extrato único de participação (frequência, votos computados, contribuições, horas, selos)
+      num só lugar.
+- [ ] Meta explícita: reduzir a dependência de "falar com a secretaria" para o que é rotina, sem
+      nunca eliminar o canal humano para quem precisa dele.
 
 #### v11.8 — BI e painel executivo para a diretoria
-- [ ] Metabase self-hosted (open source, grátis) apontando para o Postgres (ou réplica read-only)
-      — sem depender de ferramenta paga de BI.
-- [ ] 4 dashboards temáticos: financeiro (receita recorrente x inadimplência, fluxo de caixa),
+- [ ] Metabase self-hosted (open source, grátis) apontando para o Postgres — em réplica ou com
+      usuário somente-leitura restrito, nunca com credencial de escrita.
+- [ ] Quatro painéis temáticos: financeiro (receita recorrente x inadimplência, fluxo de caixa),
       engajamento (score médio, participação em eventos/assembleias), crescimento (novos
       associados, churn, conversão de indicação) e compliance (revisões de acesso vencidas,
-      pendência de auditoria).
-- [ ] Alertas nativos do Metabase (ex.: "inadimplência > 8%") notificando a diretoria por e-mail —
-      sem precisar construir motor de alerta próprio.
+      pendências de auditoria, obrigações a vencer).
+- [ ] Alertas nativos do Metabase (ex.: "inadimplência > 8%") por e-mail — sem construir motor de
+      alerta próprio.
+- [ ] **Camada semântica mínima**: as métricas-chave têm definição única e documentada (o que
+      conta como "associado ativo", como se calcula churn) — duas telas divergindo sobre o mesmo
+      número destrói a confiança no sistema inteiro.
+- [ ] Uma página só para a diretoria com os 6–8 números que realmente importam no mês; o resto é
+      aprofundamento sob demanda.
 
-#### v11.9 — Benchmarking entre associações (espaço de diferenciação real, sem produto genérico hoje)
-Achado de pesquisa confirmado: o conceito de associações compartilharem indicadores entre si
-existe e é praticado no Brasil (Vitrine de ONGs — dados financeiros anônimos comparáveis desde
-2020; ABAR — Benchmarking Colaborativo entre agências reguladoras; GIFE — Rede Temática de Gestão
+#### v11.9 — Benchmarking entre associações (inovação real, sem produto genérico hoje)
+Achado de pesquisa confirmado: associações compartilharem indicadores entre si existe e é
+praticado no Brasil (Vitrine de ONGs — dados financeiros anônimos comparáveis desde 2020; ABAR —
+Benchmarking Colaborativo entre agências reguladoras; GIFE — Rede Temática de Gestão
 Institucional) — mas **nenhum desses é um produto de software genérico e comercial** que qualquer
-associação pode simplesmente assinar. É um espaço real de inovação, não hype.
-- [ ] Módulo opcional (participação voluntária, nunca automática) de compartilhamento anônimo de
-      indicadores agregados (ex.: taxa de inadimplência, engajamento médio, crescimento anual)
-      com outras associações parceiras/da mesma rede/federação, para benchmark comparativo — nunca
-      dado individual de associado, só métrica agregada já calculada pelo painel executivo
-      (v11.8).
-- [ ] Fica como visão de médio prazo (não faz parte da fundação do sistema) — depende de outras
-      associações também adotarem um sistema compatível ou um protocolo comum de troca de dado,
-      o que hoje não existe pronto no mercado.
+associação pode simplesmente assinar. É espaço real de inovação, não hype.
+- [ ] Módulo opcional (participação voluntária, jamais automática) de compartilhamento anônimo de
+      indicadores agregados (inadimplência, engajamento médio, crescimento anual) com associações
+      parceiras/da mesma rede — nunca dado individual, só métrica já agregada pelo painel
+      executivo (v11.8), com aprovação explícita da diretoria a cada ciclo de envio.
+- [ ] Definição comum de métrica documentada e versionada — sem isso, comparação entre
+      organizações é ruído.
+- [ ] Visão de médio prazo: depende de outras associações adotarem sistema compatível ou protocolo
+      comum, o que hoje não existe pronto. Fica registrado como oportunidade, não como entrega.
+
+#### v11.10 — Memória institucional e acervo (item novo desta expansão)
+- [ ] Linha do tempo pública da associação (marcos, conquistas, gestões), alimentada por
+      deliberações, projetos e eventos já registrados — a história deixa de depender da lembrança
+      de quem estava lá.
+- [ ] Acervo digital de fotos e documentos históricos com catalogação mínima (data, evento,
+      pessoas quando autorizado, descrição) e política de uso de imagem respeitada (FASE 7).
+- [ ] Relatório "a associação em números" gerado por ano — insumo direto do relatório anual (v6.3)
+      e de qualquer captação futura.
+- [ ] Motivo de estar no plano: uma associação que dura 20 anos perde a própria história em troca
+      de gestão. Registrar isso é barato hoje e irrecuperável depois.
 
 ### FASE 12 — Conformidade legal e governança além do mínimo
 
@@ -629,428 +1421,688 @@ Pedido explícito do usuário: pesquisar a legislação real e ir além do míni
 que organizações de referência do terceiro setor fazem *voluntariamente*, acima da obrigação
 legal — e cobre módulos de gestão que ainda não tinham aparecido no plano.
 
-#### v12.1 — Ativação condicional do módulo de parcerias com poder público (MROSC)
+#### v12.0 — Motor de obrigações e conformidade (base das demais versões desta fase)
+- [ ] `Obrigacao` genérica (nome, base legal, periodicidade, prazo, responsável, condição de
+      aplicabilidade, evidência exigida, status) com calendário e alerta escalonado — em vez de 8
+      lembretes espalhados por 8 módulos diferentes.
+- [ ] **Aplicabilidade condicional**: cada obrigação só aparece se a condição for verdadeira para
+      a ASAF (tem empregado? recebe recurso público? busca CEBAS? tem imóvel próprio?) —
+      respondido num questionário de perfil institucional, revisável a qualquer momento. Isso
+      impede o sistema de afogar a diretoria em exigências que não se aplicam.
+- [ ] Evidência de cumprimento anexada e arquivada por prazo legal — "cumprimos" sem comprovante
+      não vale nada numa fiscalização.
+- [ ] Painel de conformidade com semáforo (em dia, a vencer, vencido) e histórico plurianual.
+
+#### v12.1 — Parcerias com poder público (MROSC) — módulo condicional
 - [ ] A Lei 13.019/2014 só se aplica quando a associação firma Termo de Colaboração, Termo de
-      Fomento ou Acordo de Cooperação com o poder público — **não** se aplica a mensalidade de
-      associado, doação privada ou venda de serviço. Este submódulo fica **desativado por
-      padrão** e só aparece no painel se a diretoria confirmar que a ASAF recebe/pretende receber
-      recurso público.
-- [ ] Quando ativado: plano de trabalho com metas e indicadores, prestação de contas por
-      resultado (não só nota fiscal), publicidade obrigatória da parceria — distinto do módulo
-      financeiro genérico (FASE 3), que continua sendo o financeiro do dia a dia.
+      Fomento ou Acordo de Cooperação com o poder público — **não** se aplica a mensalidade,
+      doação privada ou venda de serviço. Fica **desativado por padrão**, ativado só se a
+      diretoria confirmar que a ASAF recebe ou pretende receber recurso público.
+- [ ] Quando ativado: plano de trabalho com metas e indicadores (reaproveitando o motor de
+      indicadores da v4.0), execução vinculada a centro de custo exclusivo, prestação de contas
+      **por resultado** (não só nota fiscal), e publicidade obrigatória da parceria no portal de
+      transparência (v12.7).
+- [ ] Controles específicos que a lei exige e que sistemas genéricos não têm: conta bancária
+      exclusiva por parceria, rastreabilidade de cada despesa até a meta do plano de trabalho,
+      contrapartida registrada, glosas e devolução de saldo ao fim.
+- [ ] Chamamento público acompanhado (edital, proposta, resultado, recurso) e dossiê montado pelo
+      sistema — o protocolo oficial acontece fora dele (v13.4).
 
-#### v12.2 — Obrigações fiscais de entidade sem fins lucrativos
-- [ ] Painel de situação fiscal: lembrete de obrigações acessórias recorrentes (ECF anual — até
-      isenta precisa declarar para provar a condição —, DCTF quando aplicável) — apoio
-      informativo, não substitui contador.
-- [ ] CEBAS tratado como módulo **condicional**, só relevante se a ASAF atuar em assistência
-      social/saúde/educação e buscar isenção de contribuição patronal — não construir isso sem
-      confirmação de que se aplica à ASAF.
+#### v12.2 — Obrigações fiscais e trabalhistas de entidade sem fins lucrativos
+- [ ] Painel de situação fiscal com as obrigações recorrentes aplicáveis (ECF anual — até entidade
+      isenta precisa declarar para provar a condição; DCTF quando aplicável; obrigações
+      trabalhistas se houver empregado) — apoio informativo, nunca substituto do contador.
+- [ ] Certidões negativas (federal, estadual, municipal, FGTS, trabalhista) com validade
+      controlada e alerta de vencimento — é o que trava convênio e edital quando vence sem
+      ninguém ver.
+- [ ] Imunidade/isenção documentada (fundamento, requisitos que precisam continuar sendo
+      cumpridos, risco de perda) — imunidade tributária depende de conduta contínua, não é
+      atributo permanente.
+- [ ] CEBAS como módulo **condicional**, relevante só se a ASAF atuar em assistência social/saúde/
+      educação e buscar isenção de contribuição patronal — não construir sem confirmação de que se
+      aplica.
 
-#### v12.3 — Compliance além do mínimo legal
+#### v12.3 — Compliance e integridade além do mínimo legal
 - [ ] Código de ética/conduta publicado e versionado (diretoria, associados, voluntários,
-      fornecedores) — aceite registrado por pessoa, com trilha de auditoria de qual versão cada
-      um aceitou (mesmo padrão de "termo com versão" já usado em outros pontos do plano).
-- [ ] Canal de denúncia (whistleblowing) com opção de anonimato real — quem denuncia
-      anonimamente nunca tem identificação gravada no banco, só o relato e o protocolo de
-      acompanhamento (não é redação condicional de exibição, é ausência real do dado).
+      fornecedores), com aceite registrado por pessoa e por versão.
+- [ ] Política antifraude e anticorrupção, política de doação (o que a associação aceita e de
+      quem, evitando doação que comprometa a instituição) e política de conflito de interesse com
+      declaração anual dos dirigentes (v2.1).
+- [ ] **Canal de denúncia com anonimato real**: quem denuncia anonimamente **não tem identificação
+      gravada no banco** — só o relato e um protocolo de acompanhamento consultável por senha
+      gerada localmente. Não é ocultar na exibição, é ausência real do dado.
+- [ ] Fluxo de apuração com comitê definido, prazo, registro de providências e proteção explícita
+      contra retaliação — canal sem apuração destrói a confiança mais do que não ter canal.
 - [ ] Suporte a auditoria externa voluntária: exportação de relatório fechado por período para
-      um auditor externo revisar — vai além da obrigação legal mínima (que não exige auditoria
-      externa para a maioria das associações).
+      auditor externo revisar — acima da obrigação legal mínima da maioria das associações.
 - [ ] Preparação para selos de transparência do terceiro setor (Selo ONG Verificada, Selo Doar,
-      Selo Transparência — três selos distintos e complementares) — o sistema gera os dados que
-      esses selos pedem (prestação de contas, governança, dados abertos) como exportação
-      estruturada, não uma certificação em si.
+      Selo Transparência — três selos distintos e complementares): o sistema gera os dados que
+      cada um pede como exportação estruturada; a certificação em si é externa.
 
 #### v12.4 — Patrimônio e inventário de bens
-- [ ] Cadastro de ativos fixos da associação (bem, valor, localização física, data de aquisição),
-      com etiqueta/QR code para conferência de inventário anual — módulo novo, identificado só
-      nesta pesquisa, ausente do plano anterior.
-- [ ] Vínculo com o financeiro (FASE 3) para depreciação simples, sem duplicar lançamento.
+- [ ] Cadastro de ativos (descrição, número de patrimônio, valor de aquisição, nota fiscal,
+      localização física, responsável, estado de conservação, origem — compra/doação/convênio).
+- [ ] Etiqueta com QR code e **inventário anual assistido**: o conferente percorre a sede lendo os
+      QR codes pelo celular, e o sistema fecha a lista de divergências automaticamente.
+- [ ] Movimentação de bem (transferência entre locais, empréstimo, manutenção) e baixa motivada
+      (venda, doação, perda, obsolescência) com aprovação — baixa de patrimônio é ponto clássico
+      de desvio e precisa de dupla autorização.
+- [ ] Bem adquirido com recurso de convênio marcado como tal (muitas vezes é inalienável ou deve
+      retornar ao ente público ao fim da parceria) — ligação direta com o v12.1.
+- [ ] Depreciação simples vinculada ao financeiro (FASE 3), sem duplicar lançamento.
+- [ ] Imóveis, veículos e seguros com documentação, vencimentos (IPTU, licenciamento, apólice) e
+      alertas no motor de obrigações (v12.0).
 
-#### v12.5 — Contratos e convênios
-- [ ] Repositório central de contratos/convênios (fornecedor, parceiro, poder público) com
-      vigência, alerta de renovação e cláusulas críticas destacadas — distinto de "conta a pagar"
-      (FASE 3): aqui o objeto é o contrato em si, não o lançamento financeiro que ele gera.
+#### v12.5 — Contratos, convênios e fornecedores
+- [ ] Repositório central de contratos (objeto, partes, vigência, valor, reajuste, forma de
+      rescisão, cláusulas críticas destacadas, documento assinado) — distinto de "conta a pagar":
+      aqui o objeto é o contrato em si.
+- [ ] Alerta de renovação/vencimento com antecedência configurável, e vínculo do contrato aos
+      lançamentos financeiros que ele gera (rastreabilidade do gasto até a cláusula).
+- [ ] Aditivos versionados sem apagar a versão anterior; histórico completo do que valeu em cada
+      período.
+- [ ] Homologação de fornecedor (documentação, certidões, avaliação de desempenho após a entrega)
+      — fornecedor mal avaliado exige justificativa para nova contratação.
 
-#### v12.6 — Captação de recursos (fundraising avançado)
-- [ ] Além da doação simples via PIX (já prevista): funil de doador (quem doou, quando, quanto,
-      recorrência), gestão de editais/grants (prazo, valor, status de submissão), relatório de
-      impacto por doador — combinando dado do financeiro com dado de projeto/indicador (FASE 4).
+#### v12.6 — Captação de recursos (fundraising)
+- [ ] Funil de doador (prospect → primeira doação → recorrente → parceiro institucional) com
+      histórico de relacionamento — CRM de doador de verdade, não lista de nomes.
+- [ ] Gestão de editais/grants: oportunidade, prazo, requisitos, documentos exigidos, status de
+      submissão, resultado, e — se aprovado — vínculo ao projeto e ao centro de custo (FASE 3/4).
+- [ ] Biblioteca de documentos institucionais que todo edital pede (estatuto, atas, certidões,
+      relatório anual, comprovante de endereço), sempre na versão vigente — é o que transforma
+      "duas semanas correndo atrás de papel" em dez minutos.
+- [ ] Relatório de impacto por doador/projeto combinando financeiro e indicadores — prestação de
+      contas que renova doação.
+- [ ] Segmentação e régua de relacionamento com doador respeitando LGPD e opt-out (v11.3).
 
 #### v12.7 — Portal de transparência ativa
-- [ ] Página pública dedicada (site institucional, FASE 5) reunindo automaticamente: prestação de
-      contas, atas de assembleia, estatuto vigente, e — quando o v12.1 estiver ativo — relatório
-      de parcerias com poder público. Gerado a partir do próprio dado do sistema, nunca digitado
-      duas vezes.
+- [ ] Página pública dedicada reunindo automaticamente: prestação de contas, atas aprovadas,
+      estatuto vigente, relatório anual de atividades, composição da diretoria e — quando o v12.1
+      estiver ativo — relatório de parcerias com poder público.
+- [ ] Tudo gerado do próprio dado do sistema, nunca digitado duas vezes, com data de atualização
+      visível em cada bloco.
+- [ ] Regra de publicação com revisão prévia: nada vai ao ar sem aprovação de quem tem competência
+      — transparência automática não pode virar vazamento automático.
 
 #### v12.8 — Matriz de riscos institucional
 - [ ] Cadastro de riscos (probabilidade x impacto) vinculados a objetivos estratégicos (v12.9),
-      com plano de mitigação e responsável — ferramenta de gestão para a diretoria, não um
-      processo burocrático solto.
+      com causa, plano de mitigação, responsável e prazo; reavaliação periódica registrada.
+- [ ] Categorias mínimas: financeiro (dependência de poucas fontes de receita), pessoas
+      (dependência de uma única pessoa-chave), conformidade, reputacional, tecnológico (perda de
+      dado, indisponibilidade), patrimonial.
+- [ ] Risco crítico sem mitigação aparece no painel executivo (v11.8) — matriz que vive em
+      planilha nunca é olhada.
 
 #### v12.9 — Planejamento estratégico (metas e indicadores)
-- [ ] Combinação simples de visão de longo prazo (objetivos estratégicos plurianuais) com metas
-      trimestrais de execução — vinculado aos indicadores de projeto já existentes (FASE 4) e ao
-      painel executivo (FASE 11, v11.8), para não duplicar métrica.
+- [ ] Objetivos estratégicos plurianuais desdobrados em metas trimestrais com responsável,
+      vinculados aos indicadores já existentes (v4.0) — sem criar métrica nova paralela.
+- [ ] Acompanhamento em ciclo (revisão trimestral registrada) e ligação com o orçamento (v3.5) —
+      meta sem recurso alocado é declaração de intenção.
+- [ ] Teoria da mudança / cadeia de valor do projeto social (insumo → atividade → produto →
+      resultado → impacto) como estrutura opcional dos indicadores — é a linguagem que
+      financiadores pedem, e sai de graça se o dado já estiver estruturado assim.
 
 #### v12.10 — Sucessão de diretoria e continuidade institucional
 - [ ] Banco de competências do conselho/diretoria (histórico de cargos, formação, disponibilidade
-      futura) — achado de pesquisa: falta de plano de sucessão formal é um risco real e recorrente
-      em associações brasileiras. Cronograma de transição entre gestões, com checklist de
-      continuidade (acesso ao sistema, documentos, contratos vigentes) entregue formalmente ao
-      próximo mandato.
+      futura) — achado de pesquisa: falta de plano de sucessão formal é risco real e recorrente em
+      associações brasileiras.
+- [ ] Cronograma de transição entre gestões com **checklist de continuidade** executado no
+      sistema: transferência de acessos, senhas institucionais rotacionadas, contas bancárias
+      atualizadas, procurações revogadas, contratos vigentes apresentados, pendências entregues
+      formalmente ao próximo mandato, com termo de transmissão assinado.
+- [ ] **Redução de dependência de pessoa única**: o sistema identifica funções com um único
+      responsável habilitado e alerta a diretoria — é a versão institucional do "fator ônibus".
+- [ ] Onboarding do novo dirigente: trilha de primeiro acesso com o que ele precisa saber, e
+      revogação automática dos acessos do mandato anterior na data de término (v2.1).
 
 ### FASE 13 — Assembleia, Diretoria e processos administrativos (detalhamento máximo)
 
-> ✅ **Nota de proveniência atualizada**: os pontos jurídicos centrais desta fase foram
-> revalidados com fonte real numa rodada de pesquisa seguinte (seção 6.2): o registro de ata em
-> RCPJ é confirmado pelo Art. 45 do Código Civil (a existência legal da associação e toda
-> alteração do ato constitutivo dependem de registro/averbação em cartório — sem isso, os
-> dirigentes podem responder pessoalmente por obrigação contraída irregularmente) e reforçado
-> pelo princípio da continuidade da Lei 6.015/1973; o voto por procuração é confirmado como
-> prática comum, mas dependente de previsão estatutária expressa, nunca padrão universal — por
-> isso o sistema trata isso como configuração por associação, nunca valor fixo. A única peça
-> ainda não confirmada é a exigência exata de RCPJ que pode variar por estado — a confirmar com
-> o cartório local da ASAF antes da implementação real do v13.4.
+> ✅ **Nota de proveniência**: os pontos jurídicos centrais desta fase foram revalidados com fonte
+> real (seção 6.2): o registro de ata em RCPJ é confirmado pelo Art. 45 do Código Civil (a
+> existência legal da associação e toda alteração do ato constitutivo dependem de registro/
+> averbação em cartório — sem isso, os dirigentes podem responder pessoalmente por obrigação
+> contraída irregularmente) e reforçado pelo princípio da continuidade da Lei 6.015/1973; o voto
+> por procuração é confirmado como prática comum, mas dependente de previsão estatutária expressa,
+> nunca padrão universal — por isso o sistema trata isso como configuração por associação. A única
+> peça ainda não confirmada é a exigência exata de RCPJ, que pode variar por estado — a confirmar
+> com o cartório local da ASAF antes da implementação real do v13.4.
+>
+> **Relação com a FASE 2**: a FASE 2 entrega assembleia e diretoria funcionando; a FASE 13 leva ao
+> limite os casos difíceis (quóruns simultâneos, procuração, impugnação, delegação de alçada,
+> protocolo). Implementar a 13 antes da 2 seria construir o telhado primeiro.
 
 #### v13.1 — Assembleia Geral no limite máximo
 - [ ] Quóruns simultâneos por matéria: quórum de instalação (1ª/2ª/3ª convocação) separado do
       quórum de aprovação — simples para deliberação comum, qualificado (ex. 2/3) para reforma
-      estatutária, quórum especial para destituição de diretor (Art. 59, parágrafo único, exige
+      estatutária, especial para destituição de diretor (Art. 59, parágrafo único, exige
       assembleia especialmente convocada para esse fim).
 - [ ] Comissão de verificação de poderes/credenciamento: checagem de adimplência antes de liberar
-      o voto (regra configurável, não travada em código — depende do estatuto real permitir ou
-      não associado inadimplente votar).
+      o voto (regra configurável — depende do estatuto real permitir ou não que inadimplente
+      vote).
 - [ ] Mesa diretora dos trabalhos distinta da diretoria eleita (evita conflito quando a pauta é a
       prestação de contas da própria diretoria).
-- [ ] Pauta com itens votáveis separadamente — cada item da ordem do dia é um registro atômico
-      com resultado próprio, nunca um "sim/não" único pra assembleia inteira.
-- [ ] Tipos de votação configuráveis por item de pauta: aberta/nominal, secreta (comum para
-      eleição de cargos), aclamação (chapa única) — com abstenção como categoria própria de
-      resultado, nunca ausência de registro.
-- [ ] Voz sem voto (convidado, categoria de associado sem direito a voto) — compõe presença mas
-      não compõe quórum.
-- [ ] Procuração/representação: campo de configuração **por associação** (permite ou não voto por
-      procuração) — nunca assumir que é permitido; muitos estatutos vedam para preservar o
-      caráter pessoal do voto. Depende do estatuto real da ASAF (ver seção 8).
-- [ ] Impugnação de voto e recurso: registro de protesto vinculado à ata, com prazo estatutário
-      para recurso à assembleia seguinte ou ao Conselho Fiscal.
+- [ ] Pauta com itens votáveis separadamente — cada item da ordem do dia é registro atômico com
+      resultado próprio, nunca um "sim/não" único para a assembleia inteira.
+- [ ] Tipos de votação configuráveis por item: aberta/nominal, secreta (comum para eleição),
+      aclamação (chapa única) — com abstenção como categoria própria de resultado.
+- [ ] Voz sem voto (convidado, categoria sem direito a voto) — compõe presença, não compõe quórum.
+- [ ] Procuração/representação como configuração **por associação** (permite ou não, com limite de
+      procurações por pessoa) — nunca assumida como permitida. Depende do estatuto real da ASAF.
+- [ ] Impugnação de voto e recurso: protesto vinculado à ata, com prazo estatutário para recurso à
+      assembleia seguinte ou ao Conselho Fiscal.
+- [ ] Questões de ordem, pedidos de vista e adiamento de item registrados como ocorrência com
+      efeito real sobre o andamento da pauta.
+- [ ] Eleição com chapas: registro de chapa, prazo de inscrição, impugnação de candidatura,
+      período de campanha e apuração por chapa ou por cargo, conforme o estatuto.
+- [ ] Continuidade da sessão: assembleia suspensa e retomada em outra data mantém o mesmo
+      registro, com quórum reverificado na retomada.
 
 #### v13.2 — Diretoria Executiva: atribuições viram alçada de permissão
 - [ ] Matriz cargo → ação: o que cada cargo pode aprovar/assinar/representar (Presidente
-      representa a associação em juízo e assina contratos; 1º Secretário lavra/assina atas e
-      expede certidões; 1º Tesoureiro assina movimentação financeira, frequentemente em conjunto
-      com o Presidente acima de um teto de valor) — isso não é texto de estatuto solto, é
-      permissão real checada pelo sistema (reforça a segregação de funções da FASE 2/3).
-- [ ] Regra de dupla assinatura configurável (valor-limite acima do qual dois aprovadores
-      distintos são obrigatórios) — já prevista genericamente na FASE 3 (alçada por valor);
-      aqui fica explicitamente ligada ao cargo estatutário, não só ao nível de permissão.
-- [ ] Delegação temporária rastreável (ex.: vice-presidente assume alçada do presidente por
-      período determinado) — com log de início/fim, nunca delegação permanente por engano.
-- [ ] Todo documento gerado pelo sistema carrega o **cargo** de quem assina, não só o nome —
-      documento sobrevive à troca de mandato sem ficar órfão de contexto.
+      representa a associação em juízo e assina contratos; 1º Secretário lavra/assina atas e expede
+      certidões; 1º Tesoureiro assina movimentação financeira, frequentemente em conjunto com o
+      Presidente acima de um teto) — não é texto de estatuto solto, é permissão real checada pelo
+      sistema, reforçando a segregação de funções das FASES 2 e 3.
+- [ ] Regra de dupla assinatura configurável por valor, ligada ao cargo estatutário e não só ao
+      nível de permissão.
+- [ ] Delegação temporária rastreável (vice assume alçada do presidente por período determinado)
+      com log de início/fim e revogação automática — nunca delegação permanente por engano.
+- [ ] Reuniões de diretoria como processo: convocação, pauta, quórum próprio, deliberações com
+      responsável e prazo, ata própria (mesma numeração imutável da v2.5) e acompanhamento das
+      pendências na reunião seguinte.
+- [ ] Todo documento gerado carrega o **cargo** de quem assina, não só o nome — o documento
+      sobrevive à troca de mandato sem ficar órfão de contexto.
+- [ ] Procurações outorgadas pela associação registradas com poderes, prazo e revogação —
+      procuração esquecida é risco jurídico silencioso.
 
-#### v13.3 — Secretaria: credenciamento, QR code e protocolo interno
-- [ ] Fluxo de credenciamento: cadastro inicial → triagem documental pela secretaria → aprovação
-      → emissão de carteirinha/QR code único vinculado ao CPF — reaproveita a carteirinha digital
-      já prevista na FASE 1.
-- [ ] QR code com duplo uso: check-in de presença em assembleia (compõe quórum e frequência) e
-      controle de acesso físico à sede (nega acesso a inadimplente sem bloquear o cadastro em
-      si) — mesmo QR code, dois contextos de leitura.
-- [ ] Atualização cadastral com aprovação: associado solicita alteração → estado "pendente" →
-      secretaria aprova/rejeita com justificativa → log de quem alterou o quê e quando (auditoria
-      da mudança, não só o valor final).
-- [ ] Protocolo interno de requerimento: numeração sequencial única (ex.: `PROT-2026-000123`),
-      tipo (2ª via de documento, declaração de vínculo, reconsideração de decisão, recurso), prazo
-      de resposta configurável por tipo, status (recebido/em análise/respondido/arquivado).
+#### v13.3 — Secretaria: credenciamento, protocolo e atendimento
+- [ ] Fluxo de credenciamento: cadastro inicial → triagem documental → aprovação → emissão de
+      carteirinha/QR code único vinculado ao CPF (reaproveita a carteirinha da FASE 1).
+- [ ] QR code com duplo uso: check-in de presença (compõe quórum e frequência) e controle de
+      acesso físico à sede (nega acesso a inadimplente sem bloquear o cadastro) — mesmo código,
+      dois contextos de leitura.
+- [ ] Atualização cadastral com aprovação: associado solicita → "pendente" → secretaria aprova ou
+      rejeita com justificativa → log do que mudou, quem mudou e quando.
+- [ ] Protocolo interno com numeração sequencial única (`PROT-2026-000123`), tipo de requerimento
+      (2ª via, declaração, reconsideração, recurso, denúncia, solicitação LGPD), prazo de resposta
+      por tipo, responsável, status e histórico de tramitação.
+- [ ] Prazo vencido escala automaticamente para a diretoria; relatório mensal de tempo de resposta
+      por tipo — atendimento sem prazo medido é atendimento que atrasa sem ninguém saber.
+- [ ] Gestão documental: cada documento com tipo, validade, versão e classificação de sigilo;
+      tabela de temporalidade (quanto tempo guardar, o que descartar) ligada à FASE 7; busca por
+      conteúdo nos PDFs (texto extraído) para achar documento antigo sem depender de memória.
+- [ ] Livros obrigatórios em forma digital (atas, matrícula de associados, presença) com
+      integridade garantida e exportação completa para impressão/registro quando necessário.
 
 #### v13.4 — O que o sistema não substitui (registro externo obrigatório)
 - [ ] Ata que altera estatuto, elege diretoria ou precisa valer perante terceiros (banco, Receita
       Federal, CEBAS, fornecedor) **precisa de registro no Cartório de Registro Civil de Pessoas
       Jurídicas (RCPJ)** para ter eficácia perante terceiros — o sistema gera a ata e guarda a
-      referência (número de registro, imagem do documento registrado), mas o ato cartorial em si
-      é sempre externo, manual, com taxa e prazo próprios. Nunca simular essa função.
-- [ ] Termo de fomento/parceria com poder público (quando o v12.1/MROSC estiver ativo) muitas
-      vezes exige protocolo em plataforma oficial do ente público — o sistema prepara o dossiê e
-      gera os anexos, o protocolo oficial acontece fora dele.
+      referência (número de registro, imagem do documento registrado), mas o ato cartorial é
+      sempre externo, manual, com taxa e prazo próprios. Nunca simular essa função.
+- [ ] **Acompanhamento da pendência registral**: toda deliberação que exige registro abre uma
+      pendência com prazo, responsável e status (a protocolar, protocolado, exigência do cartório,
+      registrado) — o erro real das associações é aprovar em assembleia e esquecer de registrar,
+      descobrindo meses depois no banco.
+- [ ] Termo de fomento/parceria com poder público (v12.1) frequentemente exige protocolo em
+      plataforma oficial do ente — o sistema prepara o dossiê e gera os anexos; o protocolo
+      acontece fora.
 - [ ] Ofício formal: o sistema gera o PDF e numera internamente; o envio/protocolo com carimbo de
-      recebimento em órgão público é sempre ato externo.
+      recebimento em órgão público é sempre ato externo, com o comprovante anexado de volta.
+- [ ] Atualizações cadastrais externas decorrentes (Receita Federal/CNPJ, banco, INSS quando
+      aplicável) listadas como checklist pós-registro — a troca de diretoria não termina no
+      cartório.
 
 #### v13.5 — Assinatura eletrônica: descartado gov.br, ver FASE 20
-- [ ] ~~Assinatura eletrônica via gov.br~~ — **descartado, confirmado por pesquisa e pela
-      tentativa real do usuário**: a página oficial do Governo Digital restringe a API de
-      Assinatura Eletrônica gov.br explicitamente a "qualquer órgão público das esferas federal,
-      estadual e municipal" — associação privada não se enquadra, ponto final, não é questão de
-      burocracia extra. A solução real (certificado ICP-Brasil em nuvem, mesma validade jurídica)
-      está detalhada na FASE 20.
+- [ ] ~~Assinatura eletrônica via gov.br~~ — **descartado, confirmado por pesquisa e pela tentativa
+      real do usuário**: a página oficial do Governo Digital restringe a API de Assinatura
+      Eletrônica gov.br explicitamente a "qualquer órgão público das esferas federal, estadual e
+      municipal" — associação privada não se enquadra. A solução real está na FASE 20.
 
 ### FASE 14 — Educação/Aulas (módulo condicional)
 
-Só relevante se a ASAF vier a ter escola, reforço escolar ou curso próprio — não é módulo padrão
-ativo por default, é mais um `tipo_projeto` (FASE 4) com sub-entidades próprias.
+Só relevante se a ASAF vier a ter escola, reforço escolar, oficina regular ou curso próprio — não
+é módulo padrão ativo por default, é um `tipo_projeto` (FASE 4) com sub-entidades próprias.
 
 #### v14.1 — Modelo simples (não é plataforma EAD completa)
-- [ ] `Turma` (nome, período, capacidade, professor responsável).
-- [ ] `Aluno` (pode ou não ser associado/beneficiário já cadastrado — nunca cadastro duplicado,
-      mesma deduplicação por CPF da seção 3.5).
-- [ ] `Matricula` (vínculo aluno-turma, status ativo/trancado/concluído).
-- [ ] `Frequencia` (registro por aula, não só um agregado mensal) — reaproveita o mesmo motor de
-      check-in de presença da FASE 4.
-- [ ] `Avaliacao` (nota ou conceito, critério configurável) — deliberadamente simples, sem tentar
-      reproduzir histórico curricular formal de escola registrada no MEC.
+- [ ] `Turma` (nome, período, capacidade, professor responsável, local — ligado a `Espaco` da
+      v4.3, horário recorrente usando o motor de agenda da v4.0).
+- [ ] `Aluno` como papel de `Pessoa` (v1.0) — nunca cadastro duplicado; pode ser associado,
+      dependente ou beneficiário externo.
+- [ ] `Matricula` (aluno-turma, status ativo/trancado/concluído/desistente, data, responsável
+      legal quando menor).
+- [ ] `Frequencia` por aula (não agregado mensal), pelo motor único de presença (v4.0).
+- [ ] `Avaliacao` com nota ou conceito e critério configurável — deliberadamente simples, sem
+      tentar reproduzir histórico curricular formal de escola registrada no MEC.
+- [ ] Certificado/declaração de conclusão pelo motor de documentos (v4.0), com regra de
+      elegibilidade por frequência e aproveitamento.
+
+#### v14.2 — Operação da turma no dia a dia
+- [ ] Diário de classe do professor (chamada rápida pelo celular, conteúdo da aula, ocorrência),
+      funcionando offline e sincronizando depois — a sala nem sempre tem rede.
+- [ ] Fila de espera e matrícula por período, com critérios de prioridade configuráveis
+      (associado, comunidade do entorno, situação de vulnerabilidade).
+- [ ] Comunicação com responsáveis (ausência recorrente, aviso de aula cancelada) pela central
+      multicanal (v11.3), com registro do que foi enviado.
+- [ ] Mensalidade de curso integrada ao financeiro (FASE 3) quando houver, incluindo bolsa/
+      gratuidade com justificativa registrada — dado relevante para CEBAS educacional (v12.2), se
+      um dia se aplicar.
+
+#### v14.3 — Acompanhamento pedagógico e social
+- [ ] Evolução do aluno ao longo dos períodos (frequência, aproveitamento, observações), com
+      alerta de evasão iminente (queda de frequência) — o valor social do módulo está aqui, não
+      no controle de notas.
+- [ ] Vínculo com o prontuário de beneficiário (v4.2) quando houver acompanhamento social, com as
+      mesmas travas de sensibilidade e auditoria de consulta.
+- [ ] Indicadores da turma alimentando os indicadores do projeto (v4.0) e a prestação de contas a
+      financiador (v12.6).
+
+#### v14.4 — Limites explícitos do módulo
+- Não é AVA/EAD (não hospeda videoaula, não faz prova online, não emite histórico escolar oficial).
+- Se a ASAF vier a operar escola regular com reconhecimento do MEC, o caminho correto é sistema
+  acadêmico especializado, com este módulo servindo apenas de ponte cadastral — decisão registrada
+  para evitar o impulso de "construir tudo aqui".
 
 ### FASE 15 — Segurança da informação em profundidade
 
-Expande o que já estava na FASE 11 (v11.5, MFA/SSO) com defesa em camadas real, necessária porque
-associado, voluntário, diretoria e financeiro dividem o mesmo banco.
+Expande o que já está nas FASES 0, 7 e 11 com defesa em camadas real, necessária porque associado,
+voluntário, diretoria e financeiro dividem o mesmo banco.
+
+#### v15.0 — Modelo de ameaças explícito (o que estamos defendendo, de quem)
+- [ ] Ameaças reais e priorizadas deste sistema, escritas: (1) vazamento da base de associados
+      (CPF, endereço, telefone) por exportação indevida ou conta comprometida; (2) fraude
+      financeira interna por acúmulo de funções; (3) adulteração de resultado de votação; (4)
+      perda de dado por erro operacional; (5) comprometimento de credencial de dirigente por
+      reuso de senha ou phishing; (6) exposição de dado sensível de beneficiário/criança.
+- [ ] Cada ameaça mapeada aos controles que a cobrem, com lacunas visíveis — segurança sem modelo
+      de ameaça vira coleção de controles aleatórios.
+- [ ] Revisão anual do modelo, junto com a revisão do programa de privacidade (v7.5).
 
 #### v15.1 — Isolamento de dado por linha (row-level security)
 - [ ] Row-level security nativo do PostgreSQL — confirmado com fonte oficial (documentação do
-      Postgres, seção "Row Security Policies": `CREATE POLICY`/`ENABLE ROW LEVEL SECURITY`
-      restringe por linha o que cada `role` vê, complementando os grants de tabela) e prática
-      real de produção (documentação da Supabase descreve o mesmo padrão em SaaS multi-tenant,
-      com `auth.uid()` adicionando uma cláusula `WHERE` automática a toda query). Um voluntário
-      só enxerga linhas onde `voluntario_id = usuário atual`, mesmo que a aplicação tenha um bug
-      de autorização — o **banco** recusa a consulta, não só a API.
-- [ ] Papel de aplicação por módulo (o módulo de Educação nunca tem permissão de leitura em
-      tabela financeira) — menor privilégio entre módulos, não só entre pessoas.
+      Postgres, "Row Security Policies": `CREATE POLICY`/`ENABLE ROW LEVEL SECURITY` restringe por
+      linha o que cada `role` vê) e prática real de produção (documentação da Supabase descreve o
+      mesmo padrão em SaaS multi-tenant, adicionando cláusula `WHERE` automática a toda query). Um
+      voluntário só enxerga linhas onde `voluntario_id` é o dele, mesmo que a aplicação tenha um
+      bug de autorização — o **banco** recusa, não só a API.
+- [ ] Implementação prática na stack atual: identidade do usuário propagada por
+      `SET LOCAL app.usuario_id` no início de cada transação (event listener do SQLAlchemy), com
+      as políticas lendo `current_setting('app.usuario_id')`. Requer que **nenhuma** consulta
+      escape do `get_db()` — verificado por teste automatizado.
+- [ ] Papel de aplicação por módulo (o módulo de Educação nunca tem permissão de leitura em tabela
+      financeira) — menor privilégio entre módulos, não só entre pessoas.
+- [ ] Adoção incremental por tabela, começando pelas mais sensíveis (prontuário, financeiro,
+      votação, dado de menor), com teste de regressão provando que cada política bloqueia o acesso
+      indevido e libera o devido. RLS ligado sem teste dá falsa sensação de segurança.
 
 #### v15.1.1 — Ancoragem de auditoria de votação (hipótese de inovação, não confirmada no mercado)
 - [ ] ⚠️ Diferente do restante desta fase, este item **não tem confirmação de adoção real** no
-      nicho associativo (pesquisa dedicada não achou fonte verificável de uso). Proposta a
-      avaliar, não fato estabelecido: hash do resultado de uma votação de assembleia (FASE 13)
-      ancorado por carimbo de tempo RFC 3161 de uma Autoridade de Carimbo do Tempo credenciada
-      ICP-Brasil (que tem base legal sólida no Brasil, diferente de blockchain público) — provaria
-      que o resultado não foi alterado depois da apuração. Tratar como experimento de fase
-      avançada, nunca como recurso já validado por outros sistemas.
+      nicho associativo. Proposta a avaliar, não fato estabelecido: hash do resultado de uma
+      votação (v2.4) ancorado por carimbo de tempo RFC 3161 de uma Autoridade de Carimbo do Tempo
+      credenciada ICP-Brasil (base legal sólida no Brasil, diferente de blockchain público) —
+      provaria que o resultado não foi alterado depois da apuração.
+- [ ] Alternativa de custo zero enquanto não houver ACT contratada: cadeia de hashes encadeados
+      (cada resultado inclui o hash do anterior) publicada no portal de transparência — não tem a
+      mesma força probatória, mas torna adulteração retroativa detectável.
+- [ ] Tratar como experimento de fase avançada, nunca como recurso já validado por outros sistemas.
 
 #### v15.2 — Log de acesso, não só de alteração
-- [ ] Toda leitura de CPF/dado financeiro sensível gera registro de auditoria próprio, separado
-      do log de alteração já previsto (`AuditLog`, FASE 0) — hoje o plano só audita mudança; isso
-      adiciona auditoria de **consulta**.
+- [ ] Toda leitura de CPF, dado financeiro individual e prontuário gera registro próprio, separado
+      do `AuditLog` de alteração — o plano hoje audita mudança; isso adiciona auditoria de
+      **consulta**.
+- [ ] Consulta em volume anômalo (alguém abrindo 200 cadastros em 10 minutos) dispara alerta — é
+      assim que vazamento interno é detectado antes de virar dano.
+- [ ] Log de auditoria com retenção definida e **append-only**: nem administrador do sistema
+      apaga. Idealmente exportado periodicamente para storage imutável (Blob com política de
+      imutabilidade), fora do alcance de quem administra a aplicação.
 
 #### v15.3 — Criptografia de dado sensível em repouso
-- [ ] CPF e dados bancários cifrados em repouso (`pgcrypto` ou coluna cifrada na aplicação) —
-      nunca texto plano, mesmo com row-level security já ativo (camadas independentes, uma não
-      substitui a outra).
+- [ ] CPF, dados bancários e dado sensível de beneficiário cifrados em repouso (`pgcrypto` ou
+      cifra na aplicação) — nunca texto plano, mesmo com RLS ativo: camadas independentes, uma não
+      substitui a outra.
+- [ ] Chave guardada no Key Vault, jamais no banco nem no código, com rotação prevista e
+      procedimento de recifragem documentado (chave rotacionada sem plano de recifragem é dado
+      perdido).
+- [ ] Consciência do custo: coluna cifrada não é pesquisável diretamente — manter hash
+      determinístico separado para busca exata por CPF, e aceitar que busca parcial não funciona
+      nesses campos.
+- [ ] Arquivos sensíveis no Blob Storage servidos só por URL assinada de curta validade, nunca por
+      link público permanente.
 
 #### v15.4 — Isolamento estrito do papel "voluntário"
-- [ ] Voluntário tem login próprio (v1.4), mas visibilidade limitada ao próprio histórico de
+- [ ] Voluntário tem login próprio (v1.6), mas visibilidade limitada ao próprio histórico de
       participação — nunca dado de outro voluntário/associado, nunca dado financeiro da
-      associação. Implementado via row-level security + view dedicada ao papel voluntário, não só
-      por filtro de tela — reforça exatamente o pedido do usuário: "o voluntário não é associado,
-      mas tem que ter acesso pra saber onde se voluntariou" — acesso real, mas estritamente
-      contido ao próprio histórico.
+      associação. Implementado via RLS + view dedicada, não só por filtro de tela — atende
+      exatamente o pedido do usuário: acesso real, mas estritamente contido ao próprio histórico.
+- [ ] O mesmo princípio aplicado a beneficiário, aluno e participante externo que venham a ter
+      acesso: cada papel enxerga o próprio recorte, por padrão negado no banco.
+
+#### v15.5 — Segurança de aplicação e de dependências
+- [ ] Varredura de dependência vulnerável no CI (`pip-audit`, `npm audit`, Dependabot) com
+      política de prazo para corrigir por severidade — e atualização regular como rotina, não como
+      emergência (prática já iniciada na v0.0).
+- [ ] Proteções de aplicação verificadas por teste: SQL injection (ORM parametrizado sempre), XSS
+      no painel e no HTML gerado pelo backend, upload de arquivo (tipo real verificado, tamanho,
+      nome saneado, servido de domínio isolado), SSRF em qualquer integração que aceite URL,
+      IDOR (o teste tenta acessar o recurso de outro usuário e **tem que** receber 403/404).
+- [ ] Secrets scanning no repositório e bloqueio de commit com segredo — o projeto já teve um
+      incidente real de exposição de senha; a defesa precisa ser automática, não só disciplina.
+- [ ] Revisão anual de superfície exposta (portas, endpoints públicos, contas ativas, chaves de
+      API) com desativação do que não é mais usado.
+
+#### v15.6 — Proteção da conta e do processo de recuperação
+- [ ] Recuperação de senha é a porta dos fundos mais explorada: link de uso único com expiração
+      curta, invalidação de todas as sessões ao trocar a senha, notificação ao titular a cada
+      troca e a cada login em dispositivo novo.
+- [ ] Verificação reforçada quando a recuperação vier de alguém com alçada financeira ou de
+      gerenciamento de acesso.
+- [ ] Bloqueio progressivo por tentativa (já implementado na v0.1.2) somado a limite por IP, e
+      monitoramento de tentativa distribuída.
 
 ### FASE 16 — Continuidade de negócio e recuperação de desastres
 
 Dimensionada ao porte real da associação — confirmado por pesquisa (documentação oficial da
-Microsoft) que a maior parte da necessidade já é coberta nativamente pelo Azure, sem precisar de
-infraestrutura paralela cara.
+Microsoft) que a maior parte da necessidade já é coberta nativamente pelo Azure, sem infraestrutura
+paralela cara.
 
-#### v16.1 — Backup e retenção
-- [ ] Retenção de backup do Postgres em **35 dias** (o máximo do tier, custo desprezível — até
-      100% do armazenamento provisionado é gratuito para backup) em vez do padrão de 7 dias.
-- [ ] Geo-redundância de backup ativada **desde a criação do servidor** (só pode ser configurada
-      nesse momento, não depois) — cobre indisponibilidade regional inteira do Azure.
-- [ ] Backup lógico adicional (`pg_dump` periódico) guardado **fora** da mesma assinatura Azure
-      (storage account separado ou repositório externo) — segunda camada de proteção contra o
-      cenário "a assinatura inteira foi excluída/comprometida", que o backup nativo não cobre
-      (confirmado: excluir o servidor apaga os backups automáticos junto).
+#### v16.1 — Backup e retenção ✅ parcialmente concluído na v0.0
+- [x] Retenção de backup do Postgres em **35 dias** (o máximo do tier; até 100% do armazenamento
+      provisionado é gratuito para backup) em vez do padrão de 7 dias.
+- [x] Geo-redundância de backup ativada **desde a criação do servidor** (só configurável nesse
+      momento) — cobre indisponibilidade regional inteira do Azure.
+- [x] Blob Storage com soft delete (7 dias) e versionamento.
+- [ ] Backup lógico adicional (`pg_dump` periódico) guardado **fora** da mesma assinatura Azure —
+      segunda camada contra o cenário "a assinatura foi excluída/comprometida", que o backup
+      nativo não cobre (excluir o servidor apaga os backups automáticos junto). Cifrado, com a
+      chave guardada separadamente do backup.
+- [ ] Backup do que não está no Postgres: arquivos do Blob, configuração do Directus, definição da
+      infraestrutura (v8.3) e a própria parametrização do sistema (v0.3.5). Backup de banco sozinho
+      não restaura o sistema.
 
 #### v16.2 — Metas realistas (RPO/RTO) e teste de restauração
-- [ ] RPO de referência: ~5 minutos (nativo do point-in-time restore do Postgres Flexible
-      Server). RTO de referência: poucas horas (tempo de restauração + reconfiguração manual de
-      firewall/rede, que não é copiada automaticamente no restore).
+- [ ] RPO de referência: ~5 minutos (point-in-time restore nativo do Postgres Flexible Server).
+      RTO de referência: poucas horas (restauração + reconfiguração manual de firewall/rede, que
+      não é copiada automaticamente no restore).
+- [ ] RPO/RTO diferenciados por cenário, escritos: exclusão acidental de registro (minutos, via
+      estorno/histórico), corrupção de dado (horas, via PITR), perda da região (mais longo, via
+      geo-restore), perda da assinatura inteira (dias, via backup externo).
 - [ ] **Teste de restauração completo pelo menos uma vez por ano**, mais teste pontual após
-      qualquer mudança relevante de infraestrutura (upgrade, migração de storage) — prática
-      confirmada como o ponto mais negligenciado e mais barato de corrigir; não há como validar
-      backup sem de fato restaurá-lo.
-- [ ] Registrar cada teste de restauração (data, resultado, tempo gasto) em documento de
-      continuidade — não é suficiente "confiar" que o backup funciona.
+      qualquer mudança relevante de infraestrutura — prática confirmada como o ponto mais
+      negligenciado e mais barato de corrigir; não há como validar backup sem restaurá-lo.
+- [ ] Registrar cada teste (data, cenário, tempo gasto, problemas encontrados, correções) em
+      documento de continuidade — não basta "confiar" que o backup funciona.
+- [ ] Restauração testada **por alguém que não construiu o sistema**, seguindo só o runbook (v8.4)
+      — é o único teste que prova que o procedimento é executável na ausência de quem escreveu.
 
-#### v16.3 — O que fica fora de escopo (evitar over-engineering)
-- [ ] Multi-region ativo-ativo, réplica de leitura dedicada a disaster recovery, e ferramentas de
-      backup de nível empresarial com retenção de anos — só fazem sentido se houver exigência
-      legal de retenção de longo prazo, o que não é o caso padrão de uma associação. Não construir
-      preventivamente.
+#### v16.3 — Continuidade além da tecnologia
+- [ ] Plano para indisponibilidade prolongada: como a associação opera sem o sistema por um dia
+      (assembleia com lista de presença em papel, cobrança adiada, atendimento registrado para
+      lançamento posterior) — simples, escrito, conhecido.
+- [ ] Continuidade de acesso institucional: mais de uma pessoa com acesso administrativo ao Azure,
+      ao domínio, ao repositório e à conta bancária, com procedimento de emergência selado
+      ("envelope lacrado" digital) — o cenário real mais provável não é desastre de nuvem, é a
+      única pessoa que sabia tudo ficar indisponível.
+- [ ] Renovação vigiada de domínio, certificado e contas críticas (no motor de obrigações da
+      v12.0) — domínio expirado derruba site, e-mail e sistema de uma vez só.
+
+#### v16.4 — O que fica fora de escopo (evitar over-engineering)
+- Multi-region ativo-ativo, réplica de leitura dedicada a DR e ferramentas de backup empresarial
+  com retenção de anos — só fazem sentido com exigência legal de retenção de longo prazo, que não
+  é o caso padrão de uma associação. Não construir preventivamente.
 
 ### FASE 17 — Integração contábil (apoio ao contador, não substituição)
 
 #### v17.1 — Obrigações reais confirmadas por pesquisa
 - [ ] Confirmado: associação sem fins lucrativos **não está livre de obrigação acessória só por
-      ser imune/isenta**. ECD (Escrituração Contábil Digital) é obrigatória para entidade
-      imune/isenta com receita anual abaixo de R$ 4.800.000 (a maioria das associações de porte
-      médio/pequeno se enquadra aqui, não na dispensa); ECF é exigida sempre que há receita, mesmo
-      sem lucro tributável; EFD-Contribuições entra quando a soma de contribuições no mês
-      ultrapassa R$ 10.000.
-- [ ] Isso não é opcional de verificar depois — o financeiro (FASE 3) precisa nascer com plano de
-      contas e lançamentos estruturados o bastante para alimentar essas obrigações desde o início,
-      não como retrabalho futuro.
+      ser imune/isenta**. ECD é obrigatória para entidade imune/isenta com receita anual abaixo de
+      R$ 4.800.000 (a maioria das associações de porte médio/pequeno se enquadra aqui, não na
+      dispensa); ECF é exigida sempre que há receita, mesmo sem lucro tributável; EFD-Contribuições
+      entra quando a soma de contribuições no mês ultrapassa R$ 10.000.
+- [ ] Isso não é verificação para depois — o financeiro (FASE 3) nasce com plano de contas e
+      lançamentos estruturados o bastante para alimentar essas obrigações desde o início, não como
+      retrabalho futuro.
 
 #### v17.2 — O que o sistema deve construir (apoio real ao contador)
-- [ ] Exportação de lançamentos contábeis (livro diário/razão) em formato importável por sistema
-      contábil de terceiro (CSV/layout comum) — reduz retrabalho manual do contador terceirizado.
-- [ ] Relatórios de receita/despesa por centro de custo/projeto (útil tanto para prestação de
-      contas a doador quanto para o próprio ECF).
-- [ ] Trilha de auditoria de todo lançamento (já prevista na FASE 0/3) — pré-requisito para
-      qualquer exportação contábil confiável.
+- [ ] Exportação de lançamentos (livro diário/razão) em formato importável por sistema contábil de
+      terceiro (CSV/layout comum), por período fechado e reproduzível — a mesma exportação do
+      mesmo período tem que gerar o mesmo resultado sempre.
+- [ ] Plano de contas com mapeamento para o plano contábil do contador (de-para mantido no
+      sistema) — resolve o atrito clássico entre a nomenclatura operacional e a contábil.
+- [ ] Relatórios de receita/despesa por centro de custo/projeto (úteis tanto para prestação de
+      contas a doador quanto para o ECF).
+- [ ] Trilha de auditoria de todo lançamento (FASES 0 e 3) — pré-requisito de qualquer exportação
+      contábil confiável.
+- [ ] Área de trabalho do contador: acesso somente-leitura com escopo próprio e auditoria de
+      consulta, em vez de "manda a planilha por e-mail todo mês" (que é como dado vaza).
+- [ ] Checklist mensal de fechamento (conciliação bancária feita, comprovantes anexados, exceções
+      resolvidas) — entrega ao contador com qualidade previsível.
 
-#### v17.3 — O que fica sempre com o contador humano (nunca automatizado pelo sistema)
+#### v17.3 — O que fica sempre com o contador humano
 - [ ] Geração e transmissão do arquivo SPED (ECD/ECF) em si — formato com blocos e validações
       fiscais complexas, responsabilidade técnica de contabilista habilitado (CRC). O sistema da
-      ASAF **nunca** se apresenta como substituto de software contábil homologado — só alimenta
-      dado limpo para reduzir o trabalho de quem já faz isso profissionalmente.
+      ASAF **nunca** se apresenta como substituto de software contábil homologado; só alimenta
+      dado limpo para reduzir o trabalho de quem faz isso profissionalmente.
+- [ ] Classificação contábil final, encerramento de exercício contábil e demonstrações assinadas
+      seguem sendo ato do profissional — o sistema fornece o insumo e guarda o resultado.
 
 ### FASE 18 — Qualidade de software e observabilidade em produção
 
 Dimensionada ao porte do sistema: confiável, mas sem o rigor de um sistema financeiro regulado.
+**Esta fase não é "no fim do projeto"** — os padrões que ela define entram junto com o primeiro
+módulo (v0.2.8 já aplica a parte de front-end). Está numerada aqui por ser transversal.
 
 #### v18.1 — Pirâmide de testes (não pirâmide invertida)
 - [ ] Base: muitos testes unitários rápidos cobrindo regra de negócio real (cálculo de
-      mensalidade/elegibilidade, deduplicação por CPF, cálculo de quórum) — nunca testes de UI
-      cobrindo o que um teste unitário resolveria mais rápido.
-- [ ] Meio: testes de integração moderados para os pontos que tocam banco/serviço externo
-      (autenticação, conciliação financeira).
-- [ ] Topo: poucos testes ponta a ponta cobrindo só os 3-5 fluxos que não podem quebrar (login,
-      pagamento de mensalidade, cadastro de associado, inscrição em evento, votação).
+      mensalidade e elegibilidade, deduplicação por CPF, cálculo de quórum e de resultado de
+      votação, alçada de aprovação, conflito de reserva) — nunca teste de UI cobrindo o que um
+      teste unitário resolveria mais rápido.
+- [ ] Meio: testes de integração nos pontos que tocam banco/serviço externo (autenticação,
+      migração Alembic, conciliação financeira, RLS), rodando contra Postgres real em contêiner,
+      nunca SQLite — banco diferente esconde exatamente os bugs que importam.
+- [ ] Topo: poucos testes ponta a ponta cobrindo os fluxos que não podem quebrar (login com MFA,
+      pagamento/baixa de mensalidade, cadastro de associado, inscrição em evento, votação em
+      assembleia).
+- [ ] Testes de segurança como cidadãos de primeira classe: para cada rota protegida, um teste que
+      prova que sem permissão dá 403 — é a única defesa real contra a rota nova que alguém esquece
+      de proteger.
+- [ ] Cobertura usada como sinal, não como meta cega: exigir alta cobertura nos módulos de
+      dinheiro, voto e permissão; não perseguir número global.
+- [ ] Dados de teste sempre sintéticos. **Nunca** copiar base de produção para desenvolvimento —
+      regra rígida, sem exceção (e coerente com a prática já adotada de limpar todo dado de teste
+      criado em produção durante validação).
 
 #### v18.2 — Observabilidade sem ferramenta paga adicional
-- [ ] Azure Application Insights (já previsto na FASE 8) — plano gratuito cobre os primeiros 5
-      GB/mês de log, suficiente para o porte da ASAF sem custo adicional.
-- [ ] O essencial para logar: erro não tratado com stack trace, tempo de resposta de endpoint
+- [ ] Azure Application Insights (já provisionado) — plano gratuito cobre os primeiros 5 GB/mês,
+      suficiente para o porte da ASAF.
+- [ ] O essencial para registrar: erro não tratado com stack trace, tempo de resposta de endpoint
       crítico, falha de autenticação/autorização, e evento de negócio-chave (pagamento
-      processado, e-mail/WhatsApp não entregue).
-- [ ] Alertas nativos do Application Insights (regra de métrica → e-mail) — sem precisar de
-      Datadog/Grafana Cloud ou stack de observabilidade paralela.
+      conciliado, mensagem não entregue, migração aplicada, exportação de dado pessoal).
+- [ ] Log estruturado (JSON) com `request_id` correlacionando front, API e banco — e **nunca**
+      dado pessoal ou segredo em log: CPF mascarado, token jamais registrado. Log é o lugar onde
+      dado sensível vaza sem ninguém perceber.
+- [ ] Alertas nativos (regra de métrica → e-mail) para indisponibilidade, taxa de erro 5xx,
+      lentidão do banco e falha de job — sem Datadog/Grafana Cloud.
+- [ ] Painel operacional simples com o que a diretoria/o mantenedor precisa ver: disponibilidade
+      do mês, erros recentes, uso de recursos x orçamento.
 
-#### v18.3 — O que fica fora de escopo (evitar over-engineering)
-- [ ] Tracing distribuído completo (OpenTelemetry span-by-span em toda a stack) e SLO formal com
-      error budget — nível de rigor de empresa de tecnologia grande, não necessário aqui.
+#### v18.3 — Manutenibilidade de longo prazo (o que sustenta 20 anos)
+- [ ] Convenções escritas e verificadas automaticamente: formatação (`ruff format`), lint
+      (`ruff`), tipagem (`mypy` incremental nos módulos novos), migração sempre por Alembic —
+      código consistente sobrevive à troca de quem mantém.
+- [ ] Registro de decisões de arquitetura (ADR curto: contexto, decisão, consequência) para toda
+      escolha estrutural — é o que explica, em 2036, por que o Directus só tem tabelas
+      `directus_*` ou por que o firewall do Postgres é aberto a serviços Azure.
+- [ ] `ARQUITETURA.md` e o runbook (v8.4) mantidos como parte da definição de pronto de cada
+      módulo, não como tarefa final que nunca acontece.
+- [ ] Política de atualização de dependência: revisão trimestral, atualização de segurança
+      imediata, atualização maior planejada com teste — o oposto do "não mexe que está
+      funcionando" que transforma manutenção em reescrita depois de 5 anos.
+- [ ] Fator ônibus tratado como risco de projeto (v12.8): documentação suficiente para outra
+      pessoa assumir, e pelo menos uma pessoa da associação treinada na operação básica.
+
+#### v18.4 — O que fica fora de escopo (evitar over-engineering)
+- Tracing distribuído completo (OpenTelemetry span a span em toda a stack), SLO formal com error
+  budget, testes de carga contínuos e caos engineering — rigor de empresa de tecnologia grande,
+  desnecessário aqui. Um teste de carga pontual antes de uma assembleia grande é suficiente.
 
 ### FASE 19 — Aplicativo móvel: quando sai do PWA para nativo (condicional)
 
-O plano já decidiu PWA como estratégia principal (FASE 9/10). Esta fase existe só para deixar
-claro **quando** valeria a pena sair disso — não é compromisso de construir app nativo agora.
+O plano já decidiu PWA como estratégia principal (FASES 9 e 10). Esta fase existe para deixar
+claro **quando** valeria a pena sair disso — não é compromisso de construir app nativo.
 
 #### v19.1 — O que o PWA já resolve sozinho (confirmado por pesquisa)
-- [ ] Push notification: iOS já suporta Web Push para PWA instalado na tela inicial (com
-      paridade real — tela bloqueada, central de notificações), desde que o associado instale o
-      atalho — não é motivo suficiente para app nativo.
-- [ ] Carteirinha digital tipo wallet: tanto Google Wallet quanto Apple Wallet **não exigem app
-      nativo** — são emitidos via API do backend e distribuídos por link/e-mail, abrindo direto
-      no wallet do celular. A carteirinha (já prevista na FASE 1) pode evoluir para isso sem
-      nunca precisar de app próprio.
+- [ ] Push notification: iOS já suporta Web Push para PWA instalado na tela inicial (com paridade
+      real — tela bloqueada, central de notificações), desde que o associado instale o atalho —
+      não é motivo suficiente para app nativo.
+- [ ] Carteirinha digital tipo wallet: Google Wallet e Apple Wallet **não exigem app nativo** —
+      são emitidos via API do backend e distribuídos por link/e-mail, abrindo direto no wallet do
+      celular. A carteirinha da FASE 1 pode evoluir para isso sem app próprio.
+- [ ] Câmera (leitura de QR code no check-in), geolocalização aproximada, funcionamento offline do
+      essencial e instalação na tela inicial — tudo disponível no PWA.
 
 #### v19.2 — O único motivo real para considerar app nativo
-- [ ] Biometria como segundo fator de autenticação (Face ID/Touch ID/biometria Android) é o
-      recurso genuinamente exclusivo de app nativo — WebAuthn no navegador tem suporte mais
-      fragmentado. Só reconsiderar app nativo se isso virar requisito não-negociável.
-- [ ] Custo real de manter app nativo (confirmado): Apple Developer Program custa US$99/ano, mas
-      organização sem fins lucrativos pode solicitar isenção — o que reduz a barreira financeira,
-      mas não elimina o custo de manutenção (build separado por plataforma, ciclo de revisão de
-      loja, atualização obrigatória por mudança de SO, QA duplicado).
-- [ ] Decisão registrada: **não construir app nativo nesta fase do projeto** — reavaliar só se
-      biometria virar necessidade real e não apenas "seria legal ter".
+- [ ] Biometria como segundo fator (Face ID/Touch ID/biometria Android) é o recurso genuinamente
+      exclusivo de app nativo — WebAuthn no navegador tem suporte mais fragmentado. Só
+      reconsiderar se isso virar requisito não-negociável.
+- [ ] Custo real de manter app nativo (confirmado): Apple Developer Program custa US$99/ano, com
+      possibilidade de isenção para organização sem fins lucrativos — o que reduz a barreira
+      financeira, mas não elimina o custo de manutenção (build por plataforma, revisão de loja,
+      atualização obrigatória por mudança de SO, QA duplicado).
+- [ ] Custo escondido que decide a questão: app nativo exige **atualização periódica obrigatória**
+      por exigência das lojas, mesmo sem nenhuma mudança de funcionalidade. Para uma associação
+      sem equipe de TI permanente, isso é uma dívida recorrente, não um custo único.
+- [ ] Critérios objetivos para reabrir a decisão: (a) biometria virar exigência, (b) mais de 60%
+      do acesso vir de celular **e** a instalação do PWA se mostrar barreira real medida, (c)
+      existir orçamento e responsável permanente pela manutenção. Sem os três, a resposta continua
+      sendo PWA.
+- [ ] Decisão registrada: **não construir app nativo nesta fase do projeto**.
 
 ### FASE 20 — Autenticação avançada e assinatura eletrônica própria (substitui gov.br)
 
 Nasce da correção confirmada nas FASES 0 e 13: gov.br não é caminho viável para uma associação
 privada (assinatura eletrônica gov.br é restrita por norma a órgão público; login único gov.br
 para app privado exige contrato comercial via Loja do Serpro/Dataprev, com aprovação
-discricionária de "interesse público" — inviável para o porte da ASAF). Esta fase entrega as
-alternativas reais, mantendo tudo **dentro do próprio sistema**, sem redirecionar o associado para
-site de terceiro.
+discricionária de "interesse público"). Esta fase entrega as alternativas reais, mantendo tudo
+**dentro do próprio sistema**, sem redirecionar o associado para site de terceiro.
 
-#### v20.1 — Login único próprio via Keycloak (confirmado como maduro para este porte)
+#### v20.1 — Login único próprio via Keycloak (avaliação e condição de adoção)
 - [ ] Keycloak self-hosted (open source, mantido pela Red Hat, projeto CNCF) como provedor de
-      identidade central (OIDC) para todos os módulos do sistema — já citado na FASE 11 (v11.5)
-      como caminho de SSO/MFA; esta versão o confirma como **substituto direto e suficiente** do
-      gov.br, sem cobrança por usuário ativo (diferente de Auth0/Okta) e sem depender de
-      aprovação de terceiro. O custo é operacional (deploy, patch, backup por conta da própria
-      equipe), não de maturidade técnica — aceitável para o porte do projeto.
-- [ ] Suporta o cenário mencionado pelo usuário: autenticação para chamada/frequência (voluntário
-      ou associado autenticado antes de registrar presença), tudo dentro do mesmo provedor de
-      identidade, sem sistema paralelo.
+      identidade central (OIDC) — confirmado como **substituto direto e suficiente** do gov.br,
+      sem cobrança por usuário ativo (diferente de Auth0/Okta) e sem depender de aprovação de
+      terceiro. O custo é operacional (deploy, patch, backup), não de maturidade técnica.
+- [ ] **Condição honesta de adoção**: a autenticação própria da v0.1 já resolve a necessidade
+      atual com muito menos peça móvel. Keycloak só se justifica quando houver **três ou mais
+      sistemas** compartilhando login (painel + Directus + BI/Metabase + eventual sistema
+      parceiro), ou exigência de federação com Entra ID. Adotar antes disso é adicionar um ponto
+      de falha e um contêiner a manter, sem ganho.
+- [ ] Se adotado: migração de credencial planejada (senhas bcrypt são importáveis), plano de
+      rollback, e o Keycloak nunca vira dono exclusivo do dado de pessoa — `Pessoa`/`Associado`
+      continuam no Postgres da ASAF, o IdP só cuida de autenticação.
+- [ ] Caminho aberto para plugar Entra ID/Azure AD no futuro sem reescrever a aplicação (a
+      aplicação já fala OIDC).
+- [ ] Suporta o cenário mencionado pelo usuário: autenticação para chamada/frequência dentro do
+      mesmo provedor de identidade, sem sistema paralelo.
 
-#### v20.2 — Plataforma própria de assinatura eletrônica (evidence trail completo, sem provedor terceiro pago)
-Decisão do usuário: em vez de assinar contrato com BirdID/Soluti/Clicksign, a ASAF constrói sua
-própria plataforma de assinatura para documentos internos, com trilha de evidência forte o
-bastante para provar autenticidade sem depender de serviço pago de terceiro. A força jurídica de
-uma assinatura eletrônica simples/avançada (Lei 14.063/2020, Art. 4º) vem exatamente da qualidade
-dessa trilha — não é "clicar num botão", é reunir prova suficiente para nunca ser repudiada.
+#### v20.2 — Plataforma própria de assinatura eletrônica (evidence trail completo)
+Decisão do usuário: em vez de contratar BirdID/Soluti/Clicksign, a ASAF constrói a própria
+plataforma de assinatura para documentos internos, com trilha de evidência forte o bastante para
+provar autenticidade sem depender de serviço pago. A força jurídica de uma assinatura eletrônica
+simples/avançada (Lei 14.063/2020, Art. 4º) vem exatamente da qualidade dessa trilha — não é
+"clicar num botão", é reunir prova suficiente para nunca ser repudiada.
 
 **Autenticação do signatário no momento da assinatura**
 - [ ] Segunda etapa obrigatória no ato de assinar (não basta já estar logado): token OTP enviado
-      por e-mail ou WhatsApp institucional (reaproveita a central de notificações multicanal já
-      prevista na FASE 11/v11.3), **ou** confirmação de senha forte do usuário logado — nunca só
-      um clique em botão sem segundo fator.
+      por e-mail ou WhatsApp institucional (central multicanal da v11.3), **ou** confirmação de
+      senha forte — nunca só um clique em botão sem segundo fator.
+- [ ] OTP de uso único, expiração curta, vinculado ao documento específico (o código de um
+      documento não serve para outro) e limite de tentativas.
 
 **Metadados do signatário (capturados no momento exato do aceite)**
-- [ ] Nome completo, CPF, e-mail cadastrado (institucional ou pessoal), endereço IP, User-Agent
-      do navegador e geolocalização aproximada (por IP, sem exigir permissão de GPS do
-      dispositivo) — tudo gravado junto ao evento de assinatura, nunca inferido depois.
+- [ ] Nome completo, CPF, e-mail cadastrado, endereço IP, User-Agent do navegador e geolocalização
+      aproximada por IP (sem exigir GPS) — tudo gravado junto ao evento de assinatura, nunca
+      inferido depois.
+- [ ] Consentimento LGPD específico para essa captura, com o texto da versão vigente registrado.
 
 **Carimbo de tempo confiável**
-- [ ] Data/hora exata com fuso horário, sincronizada via NTP (idealmente contra um servidor NTP.br
-      do Observatório Nacional) — nunca confiar só no relógio do servidor de aplicação sem
-      sincronização, que pode divergir.
+- [ ] Data/hora exata com fuso, sincronizada via NTP (idealmente contra servidor NTP.br do
+      Observatório Nacional) — nunca só o relógio do servidor de aplicação sem sincronização.
+- [ ] Divergência de relógio detectada e registrada — assinatura com horário duvidoso é evidência
+      fraca justamente onde ela mais precisa ser forte.
 
 **Integridade criptográfica do documento**
-- [ ] Hash SHA-256 do arquivo calculado no exato momento do aceite e gravado junto ao registro de
-      assinatura — qualquer alteração posterior no PDF (mesmo um caractere) muda o hash e invalida
-      a correspondência, provando adulteração.
-- [ ] Página de manifesto/autenticação anexada ao PDF final, reunindo todos os itens acima
-      (metadados, timestamp, hash) de forma legível para quem for auditar o documento depois — não
-      basta guardar isso só numa tabela do banco, tem que estar no próprio arquivo.
+- [ ] Hash SHA-256 do arquivo calculado no exato momento do aceite e gravado junto ao registro —
+      qualquer alteração posterior no PDF muda o hash e prova adulteração.
+- [ ] Página de manifesto anexada ao PDF final, reunindo todos os itens acima de forma legível
+      para quem for auditar — não basta guardar isso numa tabela do banco, tem que estar no
+      próprio arquivo.
+- [ ] Código público de verificação (`/documento/verificar/{codigo}`) confirmando autenticidade e
+      integridade a partir do hash, sem expor o conteúdo do documento a quem não tem acesso.
 
 **Selo final do servidor**
-- [ ] O documento final é selado com certificado digital da própria instituição (e-CNPJ em
-      arquivo A1) pelo servidor, garantindo que o PDF não foi modificado depois de processado —
-      camada adicional além do hash SHA-256, não substituta dele.
+- [ ] Documento final selado com certificado digital da própria instituição (e-CNPJ A1) pelo
+      servidor, garantindo que o PDF não foi modificado depois de processado — camada adicional
+      ao hash, não substituta.
+- [ ] O certificado A1 fica no Key Vault, nunca no repositório nem no sistema de arquivos do
+      contêiner, com vencimento anual monitorado pelo motor de obrigações (v12.0) — certificado
+      vencido para a emissão de documento sem aviso prévio.
 
-**Usado para**: termo de adesão de voluntário (FASE 1), ficha de filiação, lista de presença de
-reunião/evento, termo de compromisso, autorização de uso de imagem, e demais controles
-operacionais internos — a lista completa de "onde a solução própria funciona muito bem".
+**Fluxo e operação**
+- [ ] Fluxo multi-signatário com ordem configurável (sequencial ou paralela), prazo para assinar,
+      lembrete automático, recusa motivada e cancelamento — com trilha de cada etapa.
+- [ ] Arquivamento do documento assinado no Blob Storage com versionamento, vinculado ao cadastro
+      da pessoa e ao processo que o originou.
+- [ ] **Usado para**: termo de adesão de voluntário (FASE 1), ficha de filiação, lista de presença
+      de reunião/evento, termo de compromisso, autorização de uso de imagem, confissão de dívida
+      (v3.2.2), termo de transmissão de gestão (v12.10) e demais controles operacionais internos.
 
 #### v20.2.1 — Limite explícito: quando a assinatura própria NÃO basta (ato registral)
 - [ ] Ata de eleição de diretoria, reforma estatutária e venda de imóvel — qualquer documento que
-      precisa ser **levado a registro** em Cartório de Registro Civil de Pessoas Jurídicas (RCPJ)
-      ou Registro de Imóveis — exigem assinatura **qualificada** (certificado ICP-Brasil e-CPF),
-      não a assinatura própria da v20.2. A maioria dos cartórios não aceita assinatura simples
-      para esses atos.
-- [ ] Fluxo real confirmado pelo usuário: esse tipo de documento **não nasce no sistema** (o
-      sistema não tem editor de texto, de propósito — ver FASE 13) — é redigido fora, assinado com
-      certificado qualificado próprio de quem assina (ex.: presidente assina como presidente, via
-      assinador ICP-Brasil como o do ITI), enviado a quem precisar (cartório, órgão público), e só
-      **depois**, se fizer sentido arquivar no sistema, o PDF já assinado é enviado como referência
-      (mesmo padrão já estabelecido na FASE 13/v13.4 — o sistema guarda a referência, nunca
-      substitui o ato externo).
-- [ ] O sistema nunca tenta "imitar" assinatura qualificada para esses casos — a interface deixa
-      claro, no próprio tipo de documento, qual caminho se aplica (assinatura própria vs. "assine
-      fora e envie aqui depois").
+      precisa ser **levado a registro** em RCPJ ou Registro de Imóveis — exigem assinatura
+      **qualificada** (certificado ICP-Brasil e-CPF), não a assinatura própria da v20.2. A maioria
+      dos cartórios não aceita assinatura simples para esses atos.
+- [ ] Fluxo real confirmado pelo usuário: esse tipo de documento **não nasce no sistema** (que não
+      tem editor de texto, de propósito — FASE 13) — é redigido fora, assinado com certificado
+      qualificado de quem assina, enviado a quem precisar (cartório, órgão público) e só **depois**
+      o PDF já assinado é arquivado no sistema como referência (mesmo padrão da v13.4).
+- [ ] O sistema nunca tenta "imitar" assinatura qualificada: a interface deixa claro, no próprio
+      tipo de documento, qual caminho se aplica ("assina aqui" x "assine fora e envie aqui
+      depois"), e a pendência de registro é acompanhada pela v13.4.
+- [ ] Validação de PDF externo recebido: o sistema verifica e registra a assinatura ICP-Brasil do
+      arquivo enviado (validade do certificado na data, integridade), em vez de aceitar qualquer
+      PDF como "documento assinado" — diferença entre arquivar e conferir.
 
-#### v20.3 — Autenticação biométrica para chamada/frequência (avaliação cuidadosa, não implementação imediata)
-- [ ] Viável tecnicamente via Azure AI Face (cadastro de foto de referência + comparação no
-      check-in) — tier gratuito de 30.000 transações/mês, tier pago baixo custo acima disso.
-      **Recurso "Limited Access"**: a Microsoft exige inscrição e aprovação prévia antes de
-      liberar as funções de verificação/identificação facial, mesmo pagando — não é ativação
-      imediata.
-- [ ] **LGPD tratada como bloqueio real, não detalhe**: dado biométrico é dado sensível (Art. 5º,
-      II) — consentimento **específico e destacado** obrigatório (Art. 11), nunca coberto pelo
-      termo de uso geral; a base legal de "legítimo interesse" (mais simples, usada em dado comum)
-      é **expressamente vedada** para dado sensível — sempre precisa de consentimento explícito
-      separado.
+#### v20.3 — Autenticação biométrica para chamada/frequência (avaliação cuidadosa)
+- [ ] Viável tecnicamente via Azure AI Face (foto de referência + comparação no check-in) — tier
+      gratuito de 30.000 transações/mês. **Recurso "Limited Access"**: a Microsoft exige inscrição
+      e aprovação prévia antes de liberar verificação/identificação facial, mesmo pagando.
+- [ ] **LGPD como bloqueio real, não detalhe**: dado biométrico é sensível (Art. 5º, II) —
+      consentimento **específico e destacado** obrigatório (Art. 11), nunca coberto por termo de
+      uso geral; "legítimo interesse" é **expressamente vedado** para dado sensível.
+- [ ] RIPD obrigatória antes de qualquer ativação (v7.0), incluindo avaliação de risco de viés e
+      de falso positivo/negativo — reconhecimento facial erra de forma desigual entre grupos, e
+      numa associação comunitária isso é dano direto a pessoas.
 - [ ] A ANPD está em processo normativo ativo sobre biometria (consulta pública em 2025, notas
-      técnicas específicas sobre reconhecimento facial em eventos) — regulamentação mais específica
-      esperada, ainda não fechada. **Decisão do plano**: reconhecimento facial para chamada entra
-      como opção configurável e **nunca obrigatória** — sempre com alternativa de check-in não
-      biométrico disponível (código/QR já previsto na FASE 4/13), tanto por exigência de bom senso
-      de proteção de dados quanto por já ser a orientação que a própria ANPD está sinalizando.
-- [ ] Não implementar no MVP — registrar como capacidade avaliada e pronta para ativar quando (e
-      se) a associação decidir que o ganho operacional compensa o processo de aprovação da
-      Microsoft e o desenho cuidadoso de consentimento específico.
+      técnicas sobre reconhecimento facial em eventos) — regulamentação mais específica esperada.
+      **Decisão do plano**: biometria para chamada entra como opção configurável e **nunca
+      obrigatória**, sempre com alternativa não biométrica disponível (código/QR das FASES 4 e 13).
+- [ ] Se um dia for ativada: template biométrico cifrado, armazenado separado do cadastro,
+      excluível a pedido, com retenção curta e jamais reutilizado para outra finalidade.
+- [ ] Não implementar no MVP — registrar como capacidade avaliada, pronta para ativar se (e
+      somente se) o ganho operacional compensar o processo de aprovação da Microsoft e o desenho
+      cuidadoso de consentimento.
+
+#### v20.4 — Identidade federada para a diretoria (pedido registrado do usuário)
+- [ ] Pedido original: entrar nos recursos administrativos com a conta Microsoft/Entra ID da
+      própria pessoa, em vez de memorizar senha de banco/serviço. Já é verdade para o **acesso ao
+      Azure** (o Portal usa Entra ID hoje).
+- [ ] Para o **painel da ASAF**, entra como login alternativo ("Entrar com Microsoft") para quem
+      tem conta institucional, mantendo CPF+senha para associado comum — e nunca substituindo o
+      login por CPF, que é a via de acesso da maioria.
+- [ ] Depende do v20.1 (IdP) ou de integração OIDC direta do FastAPI com o Entra ID — a segunda é
+      mais simples e provavelmente suficiente, se for a única federação necessária.
+- [ ] Vínculo obrigatório entre a conta federada e uma `Pessoa` existente (por CPF confirmado) —
+      identidade externa nunca cria cadastro sozinha.
 
 ## 5. Decisão de front-end (painel único)
 
@@ -1176,7 +2228,7 @@ volume alto de usuários simultâneos.
   (FASE 3.2, QR code estático + conciliação manual em lote, sem gateway de pagamento).
 - **Coleções do Directus** (FASE 5.1): confirmado como desenhado — só conteúdo público (páginas,
   notícias, banners, galeria); nenhum dado de associado/financeiro/projeto/evento entra ali.
-- **Estatuto da ASAF** (FASE 2.3, processo disciplinar): segue como item a detalhar quando o
+- **Estatuto da ASAF** (v2.7, processo disciplinar): segue como item a detalhar quando o
   texto normativo real da associação for compartilhado nesta conversa — até lá, o módulo de
   governança (FASE 2) permanece genérico o suficiente para não travar o restante do plano.
 
@@ -1186,7 +2238,7 @@ volume alto de usuários simultâneos.
   prefeitura, estado ou União)? Define se o módulo de MROSC (v12.1) fica ativo desde já ou
   permanece desligado até ser necessário.
 - **A ASAF tem ou terá empregados registrados em CLT**, além de voluntários? Define se o "modo
-  empregado" da v1.4 precisa de módulo próprio ou só de uma integração com sistema de folha de
+  empregado" da v1.6 precisa de módulo próprio ou só de uma integração com sistema de folha de
   pagamento externo especializado.
 - **A ASAF atua em assistência social, saúde ou educação de forma formal?** Define se o CEBAS
   (v12.2) é relevante ou fica de fora do escopo por completo, e se o módulo de Educação (FASE 14)
@@ -1247,6 +2299,13 @@ o que já está bem resolvido e o que precisa de correção real.
       precisa virar rotina periódica (ex.: anual, ou ao trocar de diretoria/pessoa responsável
       pela infraestrutura) — sem isso, o mesmo segredo circula por anos entre pessoas que já
       saíram da gestão.
+- [ ] **Infraestrutura como código (identificado na expansão de 2026-09-11, v8.3)** — hoje a
+      infraestrutura Azure existe porque foi criada por uma sequência de comandos `az` numa
+      sessão de trabalho. Está documentada em `CREDENCIAIS_AZURE.md` e `ARQUITETURA.md`, mas não
+      é **reconstruível** por si só. Este é o maior débito estrutural remanescente da v0.0 para o
+      horizonte de 10–20 anos: migrar o provisionamento para Bicep versionado no repositório
+      (importando o que já existe, sem recriar nada). Não bloqueia a FASE 1; deve entrar antes de
+      a infraestrutura ficar mais complexa do que está.
 - [x] **Revisão de custo/orçamento — avaliada e aprovada pelo usuário.** US$2.000/ano de
       crédito ONG ÷ 12 ≈ US$150/mês de teto real (o plano usa US$100/mês como margem de
       segurança). Confirmado como confortável para a escala hoje e mesmo num cenário de
