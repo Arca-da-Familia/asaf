@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "servidor.py"
+      - "app/**"
       - "requirements.txt"
       - "Dockerfile"
       - "templates/**"
