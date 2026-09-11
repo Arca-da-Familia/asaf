@@ -159,10 +159,13 @@ Créditos de ONG ~US$2.000/ano → teto de **US$100/mês**. Ver detalhamento na 
       (só ativa depois de confirmar o 1º código) + `POST /auth/login/mfa` (2º passo do login,
       token temporário de 5 min entre os dois passos). Testado de ponta a ponta com `pyotp`:
       ativação, código errado rejeitado, código certo libera token completo.
-- [ ] Ativação **obrigatória** por nível (Presidente/Diretoria) ainda não é forçada
-      automaticamente — hoje é opcional pra todo mundo, ativa quem quiser via `/auth/mfa/ativar`.
-      Forçar obrigatoriedade por nível fica para quando o painel (v0.2) tiver uma tela que
-      cobre isso do usuário no primeiro login.
+- [ ] **Decisão confirmada com o usuário (2026-09-11)**: ativação **obrigatória** por nível
+      (Presidente/Diretoria) fica para a v0.2 de propósito, não é esquecimento. Hoje é opcional
+      pra todo mundo (ativa quem quiser via `/auth/mfa/ativar`) porque forçar isso sem uma tela
+      guiada (QR code, confirmação) deixaria a pessoa travada tentando logar sem interface pra
+      configurar — só via Swagger/Postman, experiência ruim. Assim que o painel (v0.2) existir:
+      login detecta `mfa_ativado=false` num nível que exige, mostra a tela de configuração antes
+      de liberar o resto do sistema.
 
 ##### v0.1.5 — Catálogo configurável de `NivelAcesso` e `PermissaoSistema` ✅ IMPLEMENTADO
 - [x] CRUD completo em `app/routers/core.py`, protegido pela permissão `gerenciar_acesso`.
