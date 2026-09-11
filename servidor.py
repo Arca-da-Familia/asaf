@@ -281,7 +281,14 @@ def preparar_banco():
                     tipo_sql = coluna.type.compile(engine.dialect)
                     conn.execute(text(f'ALTER TABLE "{tabela.name}" ADD COLUMN "{coluna.name}" {tipo_sql}'))
 
-preparar_banco()
+# A auditoria de schema (preparar_banco) audita as ~50 tabelas uma a uma a cada start -
+# em produção (Postgres na nuvem) isso passou de 27s e estourou o startup probe do
+# Container App, causando reinício em loop. Roda por padrão em dev local; em produção
+# fica desligada por variável de ambiente até virar um passo de migração explícito
+# separado do boot da aplicação (RUN_DB_MIGRATION=true força rodar mesmo em produção,
+# ex.: logo após alterar um Model).
+if os.environ.get("RUN_DB_MIGRATION", "true").lower() != "false":
+    preparar_banco()
 
 def seed_opcoes_lista():
     """Preenche valores padrão de cada lista configurável, apenas se ela ainda estiver vazia."""
@@ -306,7 +313,8 @@ def seed_opcoes_lista():
     finally:
         db.close()
 
-seed_opcoes_lista()
+if os.environ.get("RUN_DB_MIGRATION", "true").lower() != "false":
+    seed_opcoes_lista()
 
 os.makedirs("uploads/fotos", exist_ok=True)
 
