@@ -132,68 +132,66 @@ Créditos de ONG ~US$2.000/ano → teto de **US$100/mês**. Ver detalhamento na 
 > cima de uma modelagem de tabela que já está certa. Isso muda o v0.1 de "ajuste" pra "módulo
 > novo completo" — daí a expansão abaixo.
 
-##### v0.1.1 — Hash de senha (correção de segurança real, não cosmética)
-- [ ] Trocar SHA-256 sem salt (inseguro — vulnerável a rainbow table, rápido demais pra brute
-      force) por **bcrypt** (`passlib[bcrypt]` ou `bcrypt` direto — padrão da indústria, salt
-      embutido, custo computacional ajustável). Nunca reverter pra hash rápido, mesmo que pareça
-      "mais simples".
-- [ ] `hash_senha(senha: str) -> str` e `verificar_senha(senha: str, hash: str) -> bool` em
-      `app/security.py` (novo módulo, separado de `app/utils.py` que é só HTML/formatação).
+##### v0.1.1 — Hash de senha ✅ IMPLEMENTADO (2026-09-11)
+- [x] Trocado SHA-256 sem salt por **bcrypt** (`bcrypt` direto). `hash_senha`/`verificar_senha`
+      em `app/security.py` (módulo novo, separado de `app/utils.py`).
 
-##### v0.1.2 — Login por CPF + senha, com JWT de verdade (access + refresh)
-- [ ] `POST /auth/login` (CPF + senha): localiza `Associado` pelo CPF → pega o `Usuario`
-      vinculado (`id_usuario`) → verifica senha (bcrypt) → emite **access token JWT** (curto,
-      ~30-60 min, claims: `id_usuario`, `id_associado`, `id_nivel`, `exp`) assinado com o
-      `JWT_SECRET` já gerado no Key Vault — e um **refresh token opaco** (string aleatória,
-      gravado em `TokenAcesso` com `data_expiracao`, ~30 dias) — a tabela já existe exatamente
-      pra isso.
-- [ ] `POST /auth/refresh` (refresh token) → valida contra `TokenAcesso` (existe? não expirou?)
-      → emite novo access token. Rotacionar o refresh token a cada uso é mais seguro (evita reuso
-      de token roubado) — avaliar se compensa a complexidade extra nesta fase.
-- [ ] `POST /auth/logout` (refresh token) → apaga a linha de `TokenAcesso` (revogação real, não
-      só "esquecer" o token no cliente).
-- [ ] `GET /auth/me` → dados de quem está logado (nome, nível, permissões do nível) — usado pelo
-      painel (FASE 0.2) pra montar o menu dinâmico.
-- [ ] **Bloqueio por tentativa de força bruta** — trava por dado (não por memória do processo,
-      que não sobrevive a múltiplas réplicas do Container App): campos `tentativas_falhas` e
-      `bloqueado_ate` no `Usuario`, incrementado a cada senha errada, zerado no login bem
-      sucedido, bloqueio temporário (ex.: 15 min) após N tentativas.
+##### v0.1.2 — Login por CPF + senha, com JWT de verdade (access + refresh) ✅ IMPLEMENTADO
+- [x] `POST /auth/login` — access token JWT (45 min) + refresh token opaco (30 dias, guardado em
+      `TokenAcesso`). Mensagem de erro genérica de propósito ("CPF ou senha inválidos") — nunca
+      revela se o CPF existe, evita enumeração de associado por tentativa de login.
+- [x] `POST /auth/refresh` — valida contra `TokenAcesso`, emite novo access token. Rotação do
+      refresh token a cada uso **não** implementada nesta versão (avaliar depois se compensa).
+- [x] `POST /auth/logout` — apaga a linha de `TokenAcesso` (revogação real, testado: refresh
+      depois do logout falha com 401).
+- [x] `GET /auth/me` — nome, nível, permissões do nível logado.
+- [x] Bloqueio por força bruta guardado no banco (`tentativas_falhas`/`bloqueado_ate` no
+      `Usuario`, funciona entre réplicas do Container App) — testado: 5 tentativas erradas → 429
+      na 6ª.
 
-##### v0.1.3 — Autorização: dependency de permissão por rota
-- [ ] `get_current_user` (dependency FastAPI): decodifica o JWT do header `Authorization`,
-      carrega o `Usuario`, rejeita se expirado/inválido/usuário inativo.
-- [ ] `exigir_permissao(codigo_permissao: str)` (dependency factory): verifica se o `NivelAcesso`
-      do usuário atual tem aquela permissão via `perfil_permissao` — 403 se não tiver. Toda rota
-      sensível (financeiro, admin, edição de associado) passa a declarar isso explicitamente,
-      substituindo a ausência total de controle de acesso que existe hoje nas rotas `/admin/*`.
+##### v0.1.3 — Autorização: dependency de permissão por rota ✅ IMPLEMENTADO
+- [x] `get_current_user` e `exigir_permissao(codigo)` em `app/security.py` — testado: rota
+      protegida (`/api/niveis-acesso/`) dá 401 sem token e 200 com token de nível autorizado.
 
-##### v0.1.4 — MFA (TOTP) para perfil administrativo/financeiro
-Antecipado da FASE 11/v11.5 e FASE 20/v20.1 — pedido do usuário de ir ao nível mais alto possível
-já nesta versão, não deixar só planejado para depois.
-- [ ] `Usuario.mfa_secret` (nullable) + `Usuario.mfa_ativado` (boolean, default false).
-- [ ] `POST /auth/mfa/ativar` — gera segredo TOTP (`pyotp`), devolve URI `otpauth://` (o cliente
-      renderiza o QR code, sem precisar de biblioteca de imagem no backend).
-- [ ] `POST /auth/mfa/confirmar` (código de 6 dígitos) — só marca `mfa_ativado=true` depois de
-      confirmar que o usuário realmente configurou o app autenticador direito.
-- [ ] Login com MFA ativado exige um segundo passo (`POST /auth/login/mfa`, código TOTP) antes de
-      emitir o token — nunca token liberado só com senha se `mfa_ativado=true`.
-- [ ] Ativação **obrigatória** só para `NivelAcesso` de Presidente/Diretoria/Financeiro (a definir
-      exatamente quais, catálogo configurável) — opcional pros demais níveis.
+##### v0.1.4 — MFA (TOTP) ✅ IMPLEMENTADO
+- [x] `Usuario.mfa_secret`/`mfa_ativado` (migração Alembic aplicada em produção).
+- [x] `POST /auth/mfa/ativar` (gera segredo, devolve `otpauth://`) + `POST /auth/mfa/confirmar`
+      (só ativa depois de confirmar o 1º código) + `POST /auth/login/mfa` (2º passo do login,
+      token temporário de 5 min entre os dois passos). Testado de ponta a ponta com `pyotp`:
+      ativação, código errado rejeitado, código certo libera token completo.
+- [ ] Ativação **obrigatória** por nível (Presidente/Diretoria) ainda não é forçada
+      automaticamente — hoje é opcional pra todo mundo, ativa quem quiser via `/auth/mfa/ativar`.
+      Forçar obrigatoriedade por nível fica para quando o painel (v0.2) tiver uma tela que
+      cobre isso do usuário no primeiro login.
 
-##### v0.1.5 — Catálogo configurável de `NivelAcesso` e `PermissaoSistema`
-- [ ] CRUD de `NivelAcesso` (não fixo em código) — seed inicial: Presidente, Diretoria, Conselho
-      Fiscal, Associado, Voluntário Externo (nomes de exemplo, ajustável pela diretoria depois).
-- [ ] CRUD de `PermissaoSistema` (catálogo de permissões existentes no sistema) e de
-      `perfil_permissao` (atribuir/remover permissão de um nível) — tela de administração de
-      acesso, não hardcoded.
+##### v0.1.5 — Catálogo configurável de `NivelAcesso` e `PermissaoSistema` ✅ IMPLEMENTADO
+- [x] CRUD completo em `app/routers/core.py`, protegido pela permissão `gerenciar_acesso`.
+- [x] Seed inicial (`seed_niveis_e_permissoes()` em `app/database.py`): Presidente, Diretoria,
+      Conselho Fiscal, Associado, Voluntário Externo — com permissões básicas por módulo já
+      atribuídas (Presidente recebe todas). Roda sempre no boot (não depende de
+      `RUN_DB_MIGRATION`, ver achado abaixo).
 
-##### v0.1.6 — `AuditLog`
-- [ ] Novo model `AuditLog` (`id_log`, `id_usuario` nullable, `tabela_afetada`,
-      `id_registro_afetado`, `acao` — LOGIN/CREATE/UPDATE/DELETE —, `dados_antes`/`dados_depois`
-      em JSON, `timestamp`, `ip_origem`).
-- [ ] Helper `registrar_auditoria(db, usuario, tabela, id_registro, acao, antes, depois)` chamado
-      em toda alteração sensível — base para LGPD (FASE 7) e segregação de funções do Financeiro
-      (FASE 3). Login/logout também geram entrada (`acao=LOGIN`), não só mutação de dado.
+##### v0.1.6 — `AuditLog` ✅ IMPLEMENTADO
+- [x] Model novo (`app/models/core.py`) + `registrar_auditoria()` em `app/auditoria.py`.
+      Registra hoje: `LOGIN`, `LOGIN_FALHA`, `MFA_ATIVADO`, `BOOTSTRAP_ADMIN`. Uso em mais rotas
+      (financeiro, edição de associado) fica pra quando essas rotas ganharem `exigir_permissao`
+      de verdade (ainda não protegidas — ver pontos em aberto).
+
+##### v0.1.8 — Achado durante a implementação: seeds presos à flag errada
+- [x] `seed_opcoes_lista()` e o novo `seed_niveis_e_permissoes()` estavam (o primeiro já
+      existia assim) condicionados à mesma variável `RUN_DB_MIGRATION` que desliga a auditoria
+      **lenta** de schema (`preparar_banco()`, causa do incidente de crash-loop) — como essa
+      variável está `false` em produção desde aquele incidente, **os seeds nunca tinham rodado
+      de fato em produção**. Corrigido: seeds (rápidos, idempotentes) sempre rodam; só
+      `preparar_banco()` (lento, substituído pelo Alembic) continua condicionado à flag.
+
+##### v0.1.9 — Bootstrap do primeiro administrador
+- [x] `POST /auth/bootstrap-admin` — cria o primeiro `Usuario`/`Associado` com nível Presidente,
+      só funciona enquanto `Usuario` estiver vazio (trava de segurança, testada: 2ª tentativa
+      dá 403). **Pendente**: a diretoria real da ASAF ainda precisa chamar essa rota com os
+      próprios dados (nome, CPF, e-mail, senha) para criar o primeiro acesso de verdade — não
+      foi criado nenhum usuário real nesta sessão, só testado com dado fictício e removido
+      depois.
 
 ##### v0.1.7 — O que fica fora desta versão, de propósito (não é "esquecimento")
 - **Row-level security do Postgres** (FASE 15/v15.1) — só faz sentido pleno quando existir
