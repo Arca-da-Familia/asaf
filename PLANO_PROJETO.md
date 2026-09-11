@@ -104,6 +104,59 @@ Créditos de ONG ~US$2.000/ano → teto de **US$100/mês**. Ver detalhamento na 
 > declara o que fica **fora de escopo de propósito**, porque plano que só cresce em ambição, sem
 > declarar limite, é plano que não se cumpre.
 
+### 4.1 Sistema de pontos de revisão entre fases
+
+> **Por que este sistema existe**: este projeto vai ser trabalhado por diferentes sessões de IA
+> ao longo do tempo — algumas com mais capacidade de raciocínio, outras mais baratas/rápidas e
+> com menos capacidade. Isso é aceitável e esperado. O que **não pode acontecer** é uma sessão de
+> menor capacidade construir uma fase inteira (ou várias) com um problema estrutural que só é
+> percebido muito depois, quando já há código, dado real e outras fases construídas em cima do
+> erro. A correção nesse ponto fica cara e arriscada — exatamente o tipo de retrabalho que este
+> projeto já evitou ao adotar Alembic e modularizar o `servidor.py`, e que não deve se repetir por
+> falta de checagem no meio do caminho.
+
+**Regra padrão**: toda fase (FASE 1 em diante — a FASE 0 já foi concluída e validada por um
+processo equivalente) ganha **pelo menos dois pontos de revisão**: um no **meio** da fase e um no
+**fim**. Cada ponto de revisão é um bloco explícito neste documento, marcado como
+`🔍 Ponto de Revisão`, inserido entre duas sub-versões.
+
+**Regra para fases críticas**: fases que envolvem dinheiro (FASE 3), voto/validade jurídica de
+deliberação (FASES 2, 13, 20), dado sensível em volume (FASE 7), segurança em profundidade
+(FASE 15), ou que são simplesmente muito extensas (FASES 4, 11, 12, com dez ou mais sub-versões)
+ganham **três pontos de revisão**, dividindo a fase em terços em vez de metades. Se, na prática,
+uma fase normal também se revelar mais arriscada do que parecia ao ser planejada, a pessoa/sessão
+que perceber isso deve adicionar um ponto de revisão extra ali mesmo — este número não é um teto
+rígido, é o mínimo.
+
+**O que cada ponto de revisão verifica** (checklist padrão — todo `🔍 Ponto de Revisão` no
+documento aplica esta lista, além dos itens específicos daquele trecho):
+
+1. O que está marcado `[x]` no intervalo revisado foi **de fato implementado e testado** — nunca
+   marcado por otimismo ou por analogia com outra sub-versão parecida.
+2. Testes automatizados desse intervalo existem e passam contra dado/ambiente real (nunca "parece
+   funcionar no manual").
+3. Nenhuma regra de `DECISOES_CONGELADAS.md` foi violada nesse intervalo (trocou banco, trocou
+   framework, reintroduziu checagem de nível hardcoded, etc.).
+4. Nenhum segredo/credencial foi exposto em código, commit ou log (mesmo scan já praticado antes
+   de cada push neste projeto).
+5. Toda ação sensível desse intervalo grava `AuditLog` de verdade — não só no desenho, no
+   comportamento observado.
+6. Toda permissão nova é checada **no backend**, nunca só escondida/desabilitada no front.
+7. Nada foi construído fora do escopo deste intervalo "adiantando" uma fase futura sem registro —
+   isso evita duas sessões de IA diferentes reconstruindo o mesmo módulo de formas incompatíveis.
+8. O `PLANO_PROJETO.md` está atualizado (checkbox, nota de decisão, ressalva) refletindo o que
+   realmente existe — o plano nunca fica desalinhado do código por mais de um ponto de revisão.
+9. A suíte de teste **completa** (não só a do intervalo) continua passando — nada anterior
+   quebrou silenciosamente.
+
+**Quem revisa**: idealmente uma sessão diferente da que implementou (outra janela de contexto, ou
+o usuário revisando antes de autorizar a faixa seguinte) — revisar o próprio trabalho na mesma
+sessão que o produziu é melhor que nada, mas é a opção mais fraca desta lista.
+
+**Se a revisão encontrar problema**: o achado é registrado no próprio bloco de revisão (nunca
+"empurrado" para a frente como pendência vaga), e a fase **não avança** para o próximo intervalo
+até a correção estar feita — o ponto de revisão é um portão, não uma sugestão.
+
 ### FASE 0 — Fundação (infraestrutura, identidade, permissão, painel único)
 
 #### v0.0 — Provisionamento de infraestrutura (Azure + GitHub) — literalmente o primeiro passo ✅ CONCLUÍDO (2026-09-11)
@@ -499,6 +552,12 @@ Créditos de ONG ~US$2.000/ano → teto de **US$100/mês**. Ver detalhamento na 
       do histórico por prazo definido na política de retenção (FASE 7), e supressão da pessoa de
       qualquer comunicação automática — falha aqui é dano humano, não bug.
 
+##### 🔍 Ponto de Revisão — FASE 1 (1/2 — meio, fecha v1.0–v1.4)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- A deduplicação por CPF (v1.0) realmente impede pessoa duplicada — testar com CPF igual, CPF com formatação diferente, e nome parecido sem CPF.
+- Categoria do associado (v1.1) é **calculada**, não existe nenhum campo editável à mão escondido em algum formulário.
+- Fluxo de filiação (v1.2) registra quem decidiu, quando e por quê em toda transição, inclusive recusa.
+
 #### v1.5 — Linha do tempo e ficha 360º do associado
 - [ ] Uma única tela reunindo: dados, situação financeira resumida, cargos exercidos, participação
       em projetos/eventos, presença em assembleias, votos computados (sem revelar o voto secreto),
@@ -535,6 +594,12 @@ empregatício; empregado CLT tem outro regime inteiro (eSocial, ponto, folha).
       lados e registra a operação em `AuditLog` (operação irreversível, exige confirmação nomeada).
 - [ ] Higienização de contato: e-mail que volta (bounce) e telefone inválido marcam o contato como
       suspeito, alimentando a mesma fila de revisão.
+
+##### 🔍 Ponto de Revisão — FASE 1 (2/2 — fim, fecha v1.5–v1.8)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Importação em lote (v1.3) é reversível por `lote_id` — testar desfazer uma importação.
+- Readmissão (v1.4) reaproveita o `Pessoa` existente, nunca cria cadastro novo.
+- Detector de duplicidade contínuo (v1.8) gera fila de revisão, não mescla sozinho.
 
 ### FASE 2 — Governança (assembleias, diretoria, conselho fiscal)
 
@@ -597,6 +662,12 @@ conseguir fazer uma assembleia válida bem antes de ter todos os refinamentos.
       por pessoa), com upload do instrumento e conferência pela mesa. Nunca assumida como
       permitida por padrão.
 
+##### 🔍 Ponto de Revisão — FASE 2 (1/3, fecha v2.0–v2.2)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Nenhum quórum/prazo/mandato está escrito em código — todos vêm de `RegraEstatutaria` (v2.0), com teste que prova isso (mudar o parâmetro muda o comportamento sem deploy).
+- Lista de habilitados a votar (v2.2) é calculada e **congelada** no momento da convocação — testar que ela não recalcula depois do fato.
+- Cargo concede/revoga permissão automaticamente na data de início/fim do mandato (v2.1) — testar a revogação automática, não só a concessão.
+
 #### v2.3 — Condução da sessão (presencial, remota ou híbrida)
 - [ ] Credenciamento por QR code da carteirinha (v1.1) ou busca manual pela secretaria, com
       registro de horário de entrada e saída — quórum de instalação apurado em tempo real na tela
@@ -645,6 +716,12 @@ conseguir fazer uma assembleia válida bem antes de ter todos os refinamentos.
 - [ ] Certidão de deliberação (extrato de um item específico da ata) emitida sob demanda e
       numerada — evita mandar a ata inteira para um banco que só precisa de uma linha.
 
+##### 🔍 Ponto de Revisão — FASE 2 (2/3, fecha v2.3–v2.5)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Voto secreto (v2.4) é **de verdade** desacoplado da identidade no banco — testar que nem uma consulta SQL direta de administrador reconstrói a associação pessoa↔voto em votação secreta.
+- Ata (v2.5) é imutável após assinatura — testar que tentar editar gera erro, e que correção só é possível via ata de retificação.
+- Apuração em tempo real fecha com hash SHA-256 do resultado — testar que o hash muda se qualquer voto for alterado depois.
+
 #### v2.6 — Conselho Fiscal como órgão com poder real no sistema
 - [ ] Acesso de leitura irrestrita ao financeiro (FASE 3) com registro de auditoria de consulta
       (v15.2) — o conselho precisa ver tudo, e o sistema precisa registrar que viu.
@@ -679,6 +756,11 @@ conseguir fazer uma assembleia válida bem antes de ter todos os refinamentos.
       estatutário, prestação de contas, renovação de mandatos, reuniões periódicas de diretoria e
       conselho) gerando alertas com antecedência configurável — é o que impede a associação de
       descobrir em dezembro que devia ter feito uma assembleia em abril.
+
+##### 🔍 Ponto de Revisão — FASE 2 (3/3 — fim, fecha v2.6–v2.9)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Processo disciplinar (v2.7) bloqueia decisão antes do prazo de defesa correr — testar tentativa de decisão prematura.
+- Calendário institucional (v2.9) gera alerta antes do vencimento real de uma obrigação de governança, não só na data.
 
 ### FASE 3 — Financeiro
 
@@ -732,6 +814,12 @@ conseguir fazer uma assembleia válida bem antes de ter todos os refinamentos.
       correspondência por valor+data+identificador e confirmação humana.
 - [ ] Baixa parcial, pagamento a maior (crédito em conta do associado) e pagamento antecipado
       tratados explicitamente — são a maior fonte de divergência em cobrança recorrente.
+
+##### 🔍 Ponto de Revisão — FASE 3 (1/3, fecha v3.0–v3.2)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Todo valor monetário é `Numeric`/`Decimal` — grep no código por `float` perto de campo de dinheiro, deve dar zero resultado.
+- Lançamento é imutável — testar que tentar apagar/editar um lançamento já gravado falha, e que a correção é sempre estorno + novo lançamento.
+- Geração de cobrança em lote (v3.2) é idempotente por competência — rodar duas vezes no mesmo mês não pode duplicar cobrança.
 
 #### v3.2.1 — Pix Automático (confirmado, lançado oficialmente em jun/2025)
 - [ ] Migrar a recorrência do PIX estático para **Pix Automático** — recorrência nativa do Banco
@@ -788,6 +876,12 @@ conseguir fazer uma assembleia válida bem antes de ter todos os refinamentos.
       (v12.4).
 - [ ] Campanhas de arrecadação com meta, prazo e barra de progresso publicável no site (FASE 5).
 
+##### 🔍 Ponto de Revisão — FASE 3 (2/3, fecha v3.2.1–v3.4)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Cancelamento de Pix Automático pelo associado (v3.2.1) é detectado pelo sistema e reverte para cobrança avulsa — não fica emitindo cobrança que nunca será paga.
+- Alteração de dado bancário de fornecedor (v3.3) exige segundo aprovador — testar que um único usuário não consegue fazer isso sozinho.
+- Quem solicita uma compra nunca consegue aprovar a própria solicitação — checado no endpoint, testar tentando forçar via chamada direta à API.
+
 #### v3.5 — Orçamento e fluxo de caixa
 - [ ] `Orcamento` anual por conta e centro de custo, aprovado em assembleia (vinculado à
       deliberação da v2.5), com acompanhamento realizado x previsto e alerta de estouro.
@@ -813,6 +907,11 @@ conseguir fazer uma assembleia válida bem antes de ter todos os refinamentos.
       assinado por quem conferiu — divergência aberta bloqueia o fechamento do mês.
 - [ ] Nenhum usuário, em nenhum nível, pode apagar lançamento ou log — inclusive o Presidente.
       Restrição garantida no banco (FASE 15), não só na aplicação.
+
+##### 🔍 Ponto de Revisão — FASE 3 (3/3 — fim, fecha v3.5–v3.7)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Fechamento mensal (v3.7) bloqueia de fato quando há divergência entre saldo do sistema e extrato bancário — testar tentativa de fechar com divergência aberta.
+- Nenhum usuário, em nenhum nível (inclusive Presidente), consegue apagar lançamento ou log — confirmar isso como restrição de banco, não só de aplicação.
 
 ### FASE 4 — Projetos, Reserva de Espaço e Eventos (módulo de integração site ↔ sistema)
 
@@ -900,6 +999,11 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
       "quem quebrou" sem prova.
 - [ ] Agenda pública somente-leitura no site (disponibilidade, sem expor quem reservou).
 
+##### 🔍 Ponto de Revisão — FASE 4 (1/3, fecha v4.0–v4.3)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Os motores compartilhados (v4.0 — presença, inscrição, documento, indicador) estão sendo **de fato reutilizados** por v4.1–v4.3, não reimplementados por dentro de cada sub-módulo.
+- Reserva de espaço (v4.3): conflito de horário é impedido no **banco** sob concorrência — testar duas reservas simultâneas no mesmo horário/espaço.
+
 #### v4.4 — Voluntariado vinculado a projeto
 - [ ] `AlocacaoVoluntario` (turno/horário, habilidades exigidas x cadastradas, horas previstas x
       realizadas), exigindo termo de adesão vigente (v1.6) como trava real.
@@ -944,6 +1048,12 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
 - [ ] Inscrição em grupo (família, delegação): cada nome vira inscrição própria com código de
       check-in individual; telefone/respostas compartilhados quando fizer sentido.
 
+##### 🔍 Ponto de Revisão — FASE 4 (2/3, fecha v4.4–v4.7)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Voluntário sem termo de adesão vigente (v1.6) realmente não é alocável em projeto — trava real, testar a tentativa.
+- Limite de vagas (v4.7) segura sob concorrência (duas inscrições simultâneas na última vaga não podem ambas passar) — teste de carga simples nisso.
+- Endpoint público de inscrição (v4.6) tem rate limiting e deduplicação por CPF funcionando de verdade.
+
 #### v4.8 — Check-in, crachá e certificado
 - [ ] Check-in por código curto, QR code da inscrição ou carteirinha do associado, **sem exigir
       login de quem opera a portaria** (token de operação com escopo limitado ao evento).
@@ -975,6 +1085,11 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
       alimentando o indicador de qualidade do evento.
 - [ ] Mapa de calor de ocupação de espaços — subsidia decisão real sobre horário, tarifa e
       necessidade de nova estrutura.
+
+##### 🔍 Ponto de Revisão — FASE 4 (3/3 — fim, fecha v4.8–v4.10)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Exportação de lista de inscritos/beneficiários (v4.10) nunca é ação corriqueira sem registro em auditoria.
+- Certificado (v4.8) só é emitido quando a regra de elegibilidade (ex.: 75% de presença) é realmente atingida — testar caso abaixo do limite.
 
 ### FASE 5 — Site institucional (conteúdo público)
 
@@ -1012,6 +1127,11 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
       Associado, Contato com mapa, Política de Privacidade e Termos de Uso versionados (FASE 7).
 - [ ] Página de cada projeto e de cada evento com URL estável e compartilhável.
 
+##### 🔍 Ponto de Revisão — FASE 5 (1/2 — meio, fecha v5.0–v5.2)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Directus não tem, em nenhuma coleção, dado de associado/financeiro/evento — só conteúdo editorial.
+- Auditoria de SEO/acessibilidade (v5.0) está rodando de fato no CI, não só planejada.
+
 #### v5.3 — Formulários públicos (uma fila única no painel)
 - [ ] Formulário público de voluntariado, de proposta de filiação (v1.2), de contato e de
       solicitação de titular LGPD (FASE 7) — todos com a mesma deduplicação por CPF/e-mail, todos
@@ -1037,6 +1157,11 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
 - [ ] Página "Transparência" e página "Privacidade" sempre acessíveis a partir do rodapé de
       qualquer página.
 
+##### 🔍 Ponto de Revisão — FASE 5 (2/2 — fim, fecha v5.3–v5.5)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Todos os formulários públicos (v5.3) caem na mesma fila única de atendimento — testar que nenhum vira e-mail solto por fora do sistema.
+- Headers de segurança (v5.5) presentes de fato na resposta HTTP do site em produção.
+
 ### FASE 6 — Comunicação e transparência
 
 #### v6.1 — Comunicação interna no painel
@@ -1046,6 +1171,10 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
       projeto X") — segmento é consulta, nunca lista colada à mão que envelhece.
 - [ ] Caixa de entrada do associado dentro do painel, com histórico de tudo que ele recebeu — o
       associado consegue provar que foi (ou não foi) avisado.
+
+##### 🔍 Ponto de Revisão — FASE 6 (1/2 — meio, fecha v6.1)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Mural de avisos respeita a segmentação por permissão/categoria — testar que um nível sem permissão não vê aviso restrito.
 
 #### v6.2 — Central de comunicação multicanal (base para v11.3)
 - [ ] `Comunicacao` (assunto, corpo com variáveis, canal, público-alvo, agendamento, status) com
@@ -1068,6 +1197,12 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
 - [ ] Relatório anual de atividades montado automaticamente a partir de projetos, indicadores,
       eventos e financeiro do exercício, com espaço editorial para texto da diretoria — a peça que
       toda associação faz na correria e que aqui nasce pronta.
+
+##### 🔍 Ponto de Revisão — FASE 6 (2/2 — fim, fecha v6.2–v6.3)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Disparo em massa (v6.2) exige confirmação com contagem de destinatários antes de enviar — testar a confirmação, não só o envio.
+- Opt-out (v6.2) é honrado em todos os canais simultaneamente, e comunicação estatutária obrigatória continua sendo entregue mesmo com opt-out de comunicação opcional.
+- Portal de transparência (v6.3) publica dado gerado do sistema, nunca digitado à mão.
 
 ### FASE 7 — LGPD e proteção de dados (programa, não checklist)
 
@@ -1104,6 +1239,11 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
 - [ ] Anonimização preserva estatística (o evento continua sabendo que teve 300 presentes) sem
       preservar identificação — apagar linha inteira destruiria o histórico institucional.
 
+##### 🔍 Ponto de Revisão — FASE 7 (1/3, fecha v7.0–v7.1)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Encarregado (DPO) está de fato nomeado e publicado, não só planejado.
+- Consentimento (v7.1) é versionado com o texto exato da época — testar que reabrir um consentimento antigo mostra o texto que valia então, não o atual.
+
 #### v7.2 — Direitos do titular, operacionalizados
 - [ ] Canal único de solicitação: pelo painel (autenticado) e pelo site (formulário com validação
       de identidade), gerando protocolo com prazo legal acompanhado.
@@ -1124,6 +1264,11 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
 - [ ] Contratos/termos com operadores (Azure, provedor de e-mail, PSP de pagamento, BSP de
       WhatsApp) registrados no inventário, com a finalidade de cada compartilhamento.
 
+##### 🔍 Ponto de Revisão — FASE 7 (2/3, fecha v7.2–v7.3)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Canal de solicitação de titular (v7.2) gera protocolo com prazo legal acompanhado de verdade, não só uma caixa de entrada.
+- CPF é mascarado por padrão em toda tela/exportação (v7.3), visível completo só para quem tem permissão específica — testar com usuário sem essa permissão.
+
 #### v7.4 — Resposta a incidente de segurança
 - [ ] Plano escrito e ensaiado: detecção → contenção → avaliação de risco aos titulares →
       comunicação à ANPD e aos titulares quando houver risco relevante → registro e lição
@@ -1137,6 +1282,11 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
       dado — a maioria dos vazamentos em organização pequena é operacional, não técnica.
 - [ ] Revisão anual do programa (inventário, políticas, retenção, permissões) com relatório à
       diretoria — privacidade é processo recorrente, não entrega única.
+
+##### 🔍 Ponto de Revisão — FASE 7 (3/3 — fim, fecha v7.4–v7.5)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Plano de resposta a incidente (v7.4) tem prazo e canal definidos por escrito, **antes** de qualquer incidente novo acontecer.
+- Treinamento anual de privacidade (v7.5) tem registro de quem participou, não é evento informal sem prova.
 
 ### FASE 8 — Infraestrutura e Deploy (Azure)
 
@@ -1185,6 +1335,10 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
   múltiplos ambientes de homologação automatizados) — ver critério completo em
   `DECISOES_CONGELADAS.md` seção 5.6.
 
+##### 🔍 Ponto de Revisão — FASE 8 (1/2 — meio, fecha v8.1–v8.3 (majoritariamente já concluídos na v0.0))
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- `infra/provisionar.sh` (v8.3) continua batendo com a infraestrutura real — testar ao menos um bloco do script contra um recurso já existente (deve reconhecer/falhar de forma esperada, não silenciosamente divergir).
+
 #### v8.4 — Operação diária
 - [ ] Runbook de operação: como ver log, como reiniciar, como restaurar backup, como rotacionar
       segredo, o que fazer se o site cair — escrito para quem **não** participou da construção.
@@ -1212,6 +1366,12 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
       arquitetura (Postgres + contêiner + arquivos em blob) foi escolhida justamente para ser
       portável.
 
+##### 🔍 Ponto de Revisão — FASE 8 (2/2 — fim, fecha v8.4–v8.5)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Runbook (v8.4) foi seguido por alguém que **não** participou da construção — é o único teste que prova que está realmente escrito para outra pessoa.
+- Endpoint `/health` (v8.4) verifica banco/storage de verdade, não devolve 200 fixo.
+- Gatilhos de escala (v8.5) estão calibrados com dado real de uso, não só valor arbitrário.
+
 ### FASE 9 — Experiência, performance e acessibilidade
 
 #### v9.1 — Acessibilidade (WCAG 2.2 nível AA como meta)
@@ -1237,6 +1397,11 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
       vigilância fica lento em 3 anos, em celular modesto, que é o aparelho real do público.
 - [ ] Otimização para conexão ruim: o público da associação acessa por rede móvel instável.
 
+##### 🔍 Ponto de Revisão — FASE 9 (1/2 — meio, fecha v9.1–v9.2)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Auditoria automatizada de acessibilidade (v9.1) está de fato falhando o build quando encontra violação grave — testar introduzindo uma violação de propósito.
+- Métricas de performance (v9.2) são medidas com ferramenta real (Core Web Vitals), nunca impressão subjetiva de "está rápido".
+
 #### v9.3 — Usabilidade validada com gente de verdade
 - [ ] Teste com 3–5 pessoas reais (um dirigente, uma pessoa da secretaria, um associado idoso, um
       voluntário jovem) antes de considerar cada módulo pronto. Cinco pessoas encontram a maioria
@@ -1252,7 +1417,16 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
 - [ ] Web Push para lembrete de evento, aviso de mensalidade e convocação de assembleia —
       confirmado (FASE 19) que iOS suporta push em PWA instalado, sem exigir app nativo.
 
+##### 🔍 Ponto de Revisão — FASE 9 (2/2 — fim, fecha v9.3–v9.4)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Teste com pessoa real (v9.3) — um dirigente, alguém da secretaria, um associado idoso — foi de fato feito e gerou ajuste, não só planejado.
+- PWA (v9.4) é instalável e funciona offline no essencial — testar em celular real com rede desligada.
+
 ### FASE 10 — Expansão futura (registrado, não compromisso)
+
+> Sem ponto de revisão (seção 4.1): esta fase é só um registro de backlog, nunca implementada
+> como está — quando qualquer item daqui virar trabalho real, ele sai desta lista e vira uma
+> sub-versão de fase própria, aí sim com pontos de revisão.
 
 - [ ] Multi-unidade/multi-sede: se a ASAF vier a ter mais de um endereço, a decisão de modelo
       (unidade única x multi-unidade, com escopo de permissão por unidade) fica para quando a
@@ -1335,6 +1509,12 @@ estarem de pé — nenhum destes itens tenta substituir o básico, todos depende
 - [ ] Teto de gasto mensal com mensagens, alerta ao se aproximar, e bloqueio de disparo em massa
       acima do orçamento sem aprovação explícita.
 
+##### 🔍 Ponto de Revisão — FASE 11 (1/3, fecha v11.1–v11.3)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Score de engajamento (v11.1) nunca restringe direito estatutário — testar que associado com score baixo continua votando/acessando normalmente.
+- IA (v11.2) nunca decide sozinha sobre pessoa (exclusão, cobrança, benefício) — toda sugestão de modelo passa por confirmação humana antes de gerar efeito.
+- Teto de gasto mensal com WhatsApp (v11.3) está de fato bloqueando disparo acima do orçamento sem aprovação explícita.
+
 #### v11.4 — Clube de benefícios (parcerias comerciais para o associado)
 - [ ] `Parceiro`, `Beneficio` (desconto fixo/percentual/cashback, categoria, vigência, regras) e
       `ResgateBeneficio` (associado, parceiro, data, valor).
@@ -1384,6 +1564,11 @@ estarem de pé — nenhum destes itens tenta substituir o básico, todos depende
 - [ ] Meta explícita: reduzir a dependência de "falar com a secretaria" para o que é rotina, sem
       nunca eliminar o canal humano para quem precisa dele.
 
+##### 🔍 Ponto de Revisão — FASE 11 (2/3, fecha v11.4–v11.7)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- MFA obrigatório por nível (v11.5, implementado na v0.2.2) continua funcionando depois de todo o resto construído nesta fase — reteste rápido do fluxo de onboarding de MFA.
+- Revisão trimestral de acesso (v11.5) de fato suspende acesso não revalidado no prazo, não é só relatório informativo.
+
 #### v11.8 — BI e painel executivo para a diretoria
 - [ ] Metabase self-hosted (open source, grátis) apontando para o Postgres — em réplica ou com
       usuário somente-leitura restrito, nunca com credencial de escrita.
@@ -1424,6 +1609,11 @@ associação pode simplesmente assinar. É espaço real de inovação, não hype
       e de qualquer captação futura.
 - [ ] Motivo de estar no plano: uma associação que dura 20 anos perde a própria história em troca
       de gestão. Registrar isso é barato hoje e irrecuperável depois.
+
+##### 🔍 Ponto de Revisão — FASE 11 (3/3 — fim, fecha v11.8–v11.10)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Métricas do painel executivo (v11.8) têm definição única documentada — testar duas telas diferentes mostrando o mesmo número de "associado ativo".
+- Compartilhamento de indicador para benchmark (v11.9) exige aprovação explícita da diretoria a cada ciclo — nunca automático.
 
 ### FASE 12 — Conformidade legal e governança além do mínimo
 
@@ -1490,6 +1680,11 @@ legal — e cobre módulos de gestão que ainda não tinham aparecido no plano.
       Selo Transparência — três selos distintos e complementares): o sistema gera os dados que
       cada um pede como exportação estruturada; a certificação em si é externa.
 
+##### 🔍 Ponto de Revisão — FASE 12 (1/3, fecha v12.0–v12.3)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Módulo MROSC (v12.1) está **desativado por padrão** — confirmar no ambiente que ele só aparece depois de confirmação explícita da diretoria.
+- Canal de denúncia (v12.3) realmente não grava identificação de quem denuncia anonimamente — testar consultando o banco diretamente, não só a tela.
+
 #### v12.4 — Patrimônio e inventário de bens
 - [ ] Cadastro de ativos (descrição, número de patrimônio, valor de aquisição, nota fiscal,
       localização física, responsável, estado de conservação, origem — compra/doação/convênio).
@@ -1536,6 +1731,11 @@ legal — e cobre módulos de gestão que ainda não tinham aparecido no plano.
 - [ ] Regra de publicação com revisão prévia: nada vai ao ar sem aprovação de quem tem competência
       — transparência automática não pode virar vazamento automático.
 
+##### 🔍 Ponto de Revisão — FASE 12 (2/3, fecha v12.4–v12.7)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Baixa de patrimônio (v12.4) exige dupla autorização — testar tentativa de baixa por um único aprovador.
+- Alerta de vencimento de contrato (v12.5) dispara com antecedência real, não só na data do vencimento.
+
 #### v12.8 — Matriz de riscos institucional
 - [ ] Cadastro de riscos (probabilidade x impacto) vinculados a objetivos estratégicos (v12.9),
       com causa, plano de mitigação, responsável e prazo; reavaliação periódica registrada.
@@ -1566,6 +1766,11 @@ legal — e cobre módulos de gestão que ainda não tinham aparecido no plano.
       responsável habilitado e alerta a diretoria — é a versão institucional do "fator ônibus".
 - [ ] Onboarding do novo dirigente: trilha de primeiro acesso com o que ele precisa saber, e
       revogação automática dos acessos do mandato anterior na data de término (v2.1).
+
+##### 🔍 Ponto de Revisão — FASE 12 (3/3 — fim, fecha v12.8–v12.10)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Risco crítico sem mitigação (v12.8) aparece de fato no painel executivo (v11.8), não fica só na matriz isolada.
+- Checklist de transição de gestão (v12.10) revoga o acesso do mandato anterior na data de término — testar a revogação automática.
 
 ### FASE 13 — Assembleia, Diretoria e processos administrativos (detalhamento máximo)
 
@@ -1609,6 +1814,11 @@ legal — e cobre módulos de gestão que ainda não tinham aparecido no plano.
 - [ ] Continuidade da sessão: assembleia suspensa e retomada em outra data mantém o mesmo
       registro, com quórum reverificado na retomada.
 
+##### 🔍 Ponto de Revisão — FASE 13 (1/3, fecha v13.1)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Quóruns simultâneos por matéria (instalação x aprovação x qualificado) calculam certo com pelo menos três casos de teste reais (deliberação comum, reforma estatutária, destituição de diretor).
+- Procuração (v13.1) é configuração por associação — testar com a opção desligada que o sistema recusa voto por procuração.
+
 #### v13.2 — Diretoria Executiva: atribuições viram alçada de permissão
 - [ ] Matriz cargo → ação: o que cada cargo pode aprovar/assinar/representar (Presidente
       representa a associação em juízo e assina contratos; 1º Secretário lavra/assina atas e expede
@@ -1646,6 +1856,11 @@ legal — e cobre módulos de gestão que ainda não tinham aparecido no plano.
 - [ ] Livros obrigatórios em forma digital (atas, matrícula de associados, presença) com
       integridade garantida e exportação completa para impressão/registro quando necessário.
 
+##### 🔍 Ponto de Revisão — FASE 13 (2/3, fecha v13.2–v13.3)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Dupla assinatura por valor (v13.2) está de fato ligada ao cargo estatutário, não só ao nível de permissão genérico.
+- Protocolo interno (v13.3) escala automaticamente para a diretoria quando o prazo vence — testar a escalada, não só o registro do protocolo.
+
 #### v13.4 — O que o sistema não substitui (registro externo obrigatório)
 - [ ] Ata que altera estatuto, elege diretoria ou precisa valer perante terceiros (banco, Receita
       Federal, CEBAS, fornecedor) **precisa de registro no Cartório de Registro Civil de Pessoas
@@ -1670,6 +1885,11 @@ legal — e cobre módulos de gestão que ainda não tinham aparecido no plano.
       real do usuário**: a página oficial do Governo Digital restringe a API de Assinatura
       Eletrônica gov.br explicitamente a "qualquer órgão público das esferas federal, estadual e
       municipal" — associação privada não se enquadra. A solução real está na FASE 20.
+
+##### 🔍 Ponto de Revisão — FASE 13 (3/3 — fim, fecha v13.4–v13.5)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Pendência de registro em cartório (v13.4) é rastreada até o fim (status "registrado"), não só criada e esquecida.
+- Nenhum documento que exige registro externo é tratado pelo sistema como se já tivesse eficácia perante terceiro antes do registro real.
 
 ### FASE 14 — Educação/Aulas (módulo condicional)
 
@@ -1700,6 +1920,10 @@ Só relevante se a ASAF vier a ter escola, reforço escolar, oficina regular ou 
       gratuidade com justificativa registrada — dado relevante para CEBAS educacional (v12.2), se
       um dia se aplicar.
 
+##### 🔍 Ponto de Revisão — FASE 14 (1/2 — meio, fecha v14.1–v14.2)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Confirmado com a diretoria que este módulo condicional se aplica de fato à ASAF antes de continuar (ver seção 8, pontos em aberto).
+
 #### v14.3 — Acompanhamento pedagógico e social
 - [ ] Evolução do aluno ao longo dos períodos (frequência, aproveitamento, observações), com
       alerta de evasão iminente (queda de frequência) — o valor social do módulo está aqui, não
@@ -1714,6 +1938,10 @@ Só relevante se a ASAF vier a ter escola, reforço escolar, oficina regular ou 
 - Se a ASAF vier a operar escola regular com reconhecimento do MEC, o caminho correto é sistema
   acadêmico especializado, com este módulo servindo apenas de ponte cadastral — decisão registrada
   para evitar o impulso de "construir tudo aqui".
+
+##### 🔍 Ponto de Revisão — FASE 14 (2/2 — fim, fecha v14.3–v14.4)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Prontuário/acompanhamento social (v14.3) tem as mesmas travas de sensibilidade e auditoria de consulta do v4.2 — não um controle mais fraco por ser "aula".
 
 ### FASE 15 — Segurança da informação em profundidade
 
@@ -1758,6 +1986,11 @@ voluntário, diretoria e financeiro dividem o mesmo banco.
       mesma força probatória, mas torna adulteração retroativa detectável.
 - [ ] Tratar como experimento de fase avançada, nunca como recurso já validado por outros sistemas.
 
+##### 🔍 Ponto de Revisão — FASE 15 (1/3, fecha v15.0–v15.1)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- RLS (v15.1) testado com caso real de tentativa de acesso indevido — logar como voluntário e tentar consultar dado de outro voluntário deve falhar **no banco**, mesmo simulando um bug de autorização na aplicação.
+- Modelo de ameaças (v15.0) foi de fato escrito e cada ameaça tem controle mapeado — não é lista genérica copiada de outro lugar.
+
 #### v15.2 — Log de acesso, não só de alteração
 - [ ] Toda leitura de CPF, dado financeiro individual e prontuário gera registro próprio, separado
       do `AuditLog` de alteração — o plano hoje audita mudança; isso adiciona auditoria de
@@ -1789,6 +2022,11 @@ voluntário, diretoria e financeiro dividem o mesmo banco.
 - [ ] O mesmo princípio aplicado a beneficiário, aluno e participante externo que venham a ter
       acesso: cada papel enxerga o próprio recorte, por padrão negado no banco.
 
+##### 🔍 Ponto de Revisão — FASE 15 (2/3, fecha v15.2–v15.4)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Log de acesso a CPF/financeiro (v15.2) é append-only de verdade — testar tentativa de apagar uma linha de log, inclusive como administrador do sistema.
+- Dado cifrado em repouso (v15.3) usa chave do Key Vault, nunca do banco/código — confirmar isso inspecionando onde a chave realmente vem.
+
 #### v15.5 — Segurança de aplicação e de dependências
 - [ ] Varredura de dependência vulnerável no CI (`pip-audit`, `npm audit`, Dependabot) com
       política de prazo para corrigir por severidade — e atualização regular como rotina, não como
@@ -1810,6 +2048,11 @@ voluntário, diretoria e financeiro dividem o mesmo banco.
       gerenciamento de acesso.
 - [ ] Bloqueio progressivo por tentativa (já implementado na v0.1.2) somado a limite por IP, e
       monitoramento de tentativa distribuída.
+
+##### 🔍 Ponto de Revisão — FASE 15 (3/3 — fim, fecha v15.5–v15.6)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Varredura de dependência vulnerável (v15.5) está rodando no CI e falhando build em severidade alta — testar com uma dependência propositalmente desatualizada.
+- Recuperação de senha (v15.6) invalida todas as sessões e notifica o titular — testar o fluxo completo, incluindo a notificação.
 
 ### FASE 16 — Continuidade de negócio e recuperação de desastres
 
@@ -1846,6 +2089,10 @@ paralela cara.
 - [ ] Restauração testada **por alguém que não construiu o sistema**, seguindo só o runbook (v8.4)
       — é o único teste que prova que o procedimento é executável na ausência de quem escreveu.
 
+##### 🔍 Ponto de Revisão — FASE 16 (1/2 — meio, fecha v16.1–v16.2)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- **Teste de restauração completo já foi executado ao menos uma vez** (v16.2) e o resultado está registrado — isto não pode ficar como "vamos fazer depois".
+
 #### v16.3 — Continuidade além da tecnologia
 - [ ] Plano para indisponibilidade prolongada: como a associação opera sem o sistema por um dia
       (assembleia com lista de presença em papel, cobrança adiada, atendimento registrado para
@@ -1861,6 +2108,11 @@ paralela cara.
 - Multi-region ativo-ativo, réplica de leitura dedicada a DR e ferramentas de backup empresarial
   com retenção de anos — só fazem sentido com exigência legal de retenção de longo prazo, que não
   é o caso padrão de uma associação. Não construir preventivamente.
+
+##### 🔍 Ponto de Revisão — FASE 16 (2/2 — fim, fecha v16.3–v16.4)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Mais de uma pessoa tem acesso administrativo real (Azure, domínio, repositório, conta bancária) — testar/confirmar, não presumir.
+- Plano de operação sem o sistema por um dia (v16.3) é conhecido por quem precisaria executá-lo, não só documentado.
 
 ### FASE 17 — Integração contábil (apoio ao contador, não substituição)
 
@@ -1889,6 +2141,10 @@ paralela cara.
 - [ ] Checklist mensal de fechamento (conciliação bancária feita, comprovantes anexados, exceções
       resolvidas) — entrega ao contador com qualidade previsível.
 
+##### 🔍 Ponto de Revisão — FASE 17 (1/2 — meio, fecha v17.1–v17.2)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Exportação de lançamentos (v17.2) reproduz o mesmo resultado ao rodar duas vezes para o mesmo período fechado.
+
 #### v17.3 — O que fica sempre com o contador humano
 - [ ] Geração e transmissão do arquivo SPED (ECD/ECF) em si — formato com blocos e validações
       fiscais complexas, responsabilidade técnica de contabilista habilitado (CRC). O sistema da
@@ -1896,6 +2152,10 @@ paralela cara.
       dado limpo para reduzir o trabalho de quem faz isso profissionalmente.
 - [ ] Classificação contábil final, encerramento de exercício contábil e demonstrações assinadas
       seguem sendo ato do profissional — o sistema fornece o insumo e guarda o resultado.
+
+##### 🔍 Ponto de Revisão — FASE 17 (2/2 — fim, fecha v17.3)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- O sistema em nenhum lugar se apresenta como substituto de software contábil homologado — checar textos de tela/relatório exportado.
 
 ### FASE 18 — Qualidade de software e observabilidade em produção
 
@@ -1937,6 +2197,12 @@ módulo (v0.2.8 já aplica a parte de front-end). Está numerada aqui por ser tr
 - [ ] Painel operacional simples com o que a diretoria/o mantenedor precisa ver: disponibilidade
       do mês, erros recentes, uso de recursos x orçamento.
 
+##### 🔍 Ponto de Revisão — FASE 18 (1/2 — meio, fecha v18.1–v18.2)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Testes de integração (v18.1) rodam contra Postgres real em contêiner, nunca SQLite.
+- Nenhum dado de produção foi copiado para ambiente de teste/desenvolvimento — regra sem exceção, confirmar.
+- Log estruturado (v18.2) nunca grava CPF em claro nem token — inspecionar log real.
+
 #### v18.3 — Manutenibilidade de longo prazo (o que sustenta 20 anos)
 - [ ] Convenções escritas e verificadas automaticamente: formatação (`ruff format`), lint
       (`ruff`), tipagem (`mypy` incremental nos módulos novos), migração sempre por Alembic —
@@ -1957,6 +2223,10 @@ módulo (v0.2.8 já aplica a parte de front-end). Está numerada aqui por ser tr
   budget, testes de carga contínuos e caos engineering — rigor de empresa de tecnologia grande,
   desnecessário aqui. Um teste de carga pontual antes de uma assembleia grande é suficiente.
 
+##### 🔍 Ponto de Revisão — FASE 18 (2/2 — fim, fecha v18.3–v18.4)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- ADRs (v18.3) existem para as decisões estruturais tomadas até aqui, não só para as mais antigas.
+
 ### FASE 19 — Aplicativo móvel: quando sai do PWA para nativo (condicional)
 
 O plano já decidiu PWA como estratégia principal (FASES 9 e 10). Esta fase existe para deixar
@@ -1971,6 +2241,10 @@ claro **quando** valeria a pena sair disso — não é compromisso de construir 
       celular. A carteirinha da FASE 1 pode evoluir para isso sem app próprio.
 - [ ] Câmera (leitura de QR code no check-in), geolocalização aproximada, funcionamento offline do
       essencial e instalação na tela inicial — tudo disponível no PWA.
+
+##### 🔍 Ponto de Revisão — FASE 19 (1/2 — meio, fecha v19.1)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Push notification via PWA (v19.1) testado de verdade em iOS instalado na tela inicial, não só em Android.
 
 #### v19.2 — O único motivo real para considerar app nativo
 - [ ] Biometria como segundo fator (Face ID/Touch ID/biometria Android) é o recurso genuinamente
@@ -1988,6 +2262,10 @@ claro **quando** valeria a pena sair disso — não é compromisso de construir 
       existir orçamento e responsável permanente pela manutenção. Sem os três, a resposta continua
       sendo PWA.
 - [ ] Decisão registrada: **não construir app nativo nesta fase do projeto**.
+
+##### 🔍 Ponto de Revisão — FASE 19 (2/2 — fim, fecha v19.2)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Critérios objetivos de reabertura da decisão "não construir app nativo" (v19.2) seguem sem se confirmar — se algum se confirmou, essa decisão precisa voltar à mesa antes de prosseguir, não em silêncio.
 
 ### FASE 20 — Autenticação avançada e assinatura eletrônica própria (substitui gov.br)
 
@@ -2014,6 +2292,10 @@ discricionária de "interesse público"). Esta fase entrega as alternativas reai
       aplicação já fala OIDC).
 - [ ] Suporta o cenário mencionado pelo usuário: autenticação para chamada/frequência dentro do
       mesmo provedor de identidade, sem sistema paralelo.
+
+##### 🔍 Ponto de Revisão — FASE 20 (1/3, fecha v20.1)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Se Keycloak foi de fato adotado: confirmar que a condição registrada (3+ sistemas compartilhando login) realmente se confirmou antes da adoção — não adotado por conveniência.
 
 #### v20.2 — Plataforma própria de assinatura eletrônica (evidence trail completo)
 Decisão do usuário: em vez de contratar BirdID/Soluti/Clicksign, a ASAF constrói a própria
@@ -2083,6 +2365,12 @@ simples/avançada (Lei 14.063/2020, Art. 4º) vem exatamente da qualidade dessa 
       arquivo enviado (validade do certificado na data, integridade), em vez de aceitar qualquer
       PDF como "documento assinado" — diferença entre arquivar e conferir.
 
+##### 🔍 Ponto de Revisão — FASE 20 (2/3, fecha v20.2–v20.2.1)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Trilha de evidência da assinatura (v20.2) testada ponta a ponta: alterar um caractere do PDF já assinado precisa invalidar o hash registrado.
+- Certificado e-CNPJ A1 usado no selo do servidor está com vencimento monitorado, nunca descoberto vencido na hora de emitir um documento.
+- Limite v20.2.1 realmente impede uso da assinatura própria em documento que exige registro em cartório — testar tentativa de uso indevido.
+
 #### v20.3 — Autenticação biométrica para chamada/frequência (avaliação cuidadosa)
 - [ ] Viável tecnicamente via Azure AI Face (foto de referência + comparação no check-in) — tier
       gratuito de 30.000 transações/mês. **Recurso "Limited Access"**: a Microsoft exige inscrição
@@ -2114,6 +2402,12 @@ simples/avançada (Lei 14.063/2020, Art. 4º) vem exatamente da qualidade dessa 
       mais simples e provavelmente suficiente, se for a única federação necessária.
 - [ ] Vínculo obrigatório entre a conta federada e uma `Pessoa` existente (por CPF confirmado) —
       identidade externa nunca cria cadastro sozinha.
+
+##### 🔍 Ponto de Revisão — FASE 20 (3/3 — fim (e revisão final do roteiro de fases), fecha v20.3–v20.4)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Biometria (v20.3) continua desativada por padrão, com alternativa não biométrica sempre disponível.
+- Login federado (v20.4) exige vínculo por CPF confirmado com uma `Pessoa` existente — nunca cria cadastro sozinho.
+- **Revisão de todo o roteiro**: reler a seção 4.1 e confirmar que nenhum ponto de revisão anterior ficou pendente sem correção registrada.
 
 ## 5. Decisão de front-end (painel único)
 
