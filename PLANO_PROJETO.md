@@ -1166,13 +1166,19 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
       própria do Container App), não um ambiente inteiro duplicado — decisão consciente de
       orçamento, registrada.
 
-#### v8.3 — Infraestrutura como código (correção de perpetuidade)
-- [ ] Hoje a infra existe porque foi criada por comandos `az` numa sessão. Em 5 anos, ninguém vai
-      lembrar a sequência. Migrar o provisionamento para **Bicep** (nativo Azure) versionado no
-      repositório, importando o que já existe — não para recriar tudo, mas para que a infra seja
-      **reconstruível e revisável**. Este é o maior débito estrutural remanescente da v0.0.
-- [ ] Configuração de recurso (variáveis de ambiente, escala, probes) declarada no código, não
-      ajustada só pelo Portal.
+#### v8.3 — Reconstruibilidade da infraestrutura ✅ resolvida em 2026-09-11
+- [x] `infra/provisionar.sh` — a sequência real de comandos `az` que criou (e reconstrói, se
+      preciso) toda a infraestrutura, comentada e versionada, sem segredo nenhum no arquivo (toda
+      senha é gerada na hora e enviada direto ao Key Vault). Resolve o problema real ("ninguém vai
+      lembrar a sequência em 5 anos") sem adicionar uma ferramenta de IaC declarativa nova para
+      manter — decisão registrada e justificada em `DECISOES_CONGELADAS.md` seção 5.6.
+- [ ] Configuração de recurso (variáveis de ambiente, escala, probes) hoje só existe no Portal e
+      no próprio script de referência — mover para arquivo de configuração versionado (ex.:
+      `infra/config/*.env` lido pelo workflow de deploy) fica como melhoria incremental, não como
+      débito bloqueante.
+- **Quando reabrir Bicep/Terraform**: só se o número de recursos crescer muito (multi-região,
+  múltiplos ambientes de homologação automatizados) — ver critério completo em
+  `DECISOES_CONGELADAS.md` seção 5.6.
 
 #### v8.4 — Operação diária
 - [ ] Runbook de operação: como ver log, como reiniciar, como restaurar backup, como rotacionar
@@ -2299,13 +2305,13 @@ o que já está bem resolvido e o que precisa de correção real.
       precisa virar rotina periódica (ex.: anual, ou ao trocar de diretoria/pessoa responsável
       pela infraestrutura) — sem isso, o mesmo segredo circula por anos entre pessoas que já
       saíram da gestão.
-- [ ] **Infraestrutura como código (identificado na expansão de 2026-09-11, v8.3)** — hoje a
-      infraestrutura Azure existe porque foi criada por uma sequência de comandos `az` numa
-      sessão de trabalho. Está documentada em `CREDENCIAIS_AZURE.md` e `ARQUITETURA.md`, mas não
-      é **reconstruível** por si só. Este é o maior débito estrutural remanescente da v0.0 para o
-      horizonte de 10–20 anos: migrar o provisionamento para Bicep versionado no repositório
-      (importando o que já existe, sem recriar nada). Não bloqueia a FASE 1; deve entrar antes de
-      a infraestrutura ficar mais complexa do que está.
+- [x] **Reconstruibilidade da infraestrutura — resolvida em 2026-09-11 com `infra/provisionar.sh`.**
+      Correção do enquadramento desta mesma revisão: a infraestrutura Azure não precisava de
+      Bicep/Terraform para deixar de ser risco — precisava só de estar **documentada em ordem
+      executável**, o que já foi feito (script comentado, versionado, sem segredo nenhum). Ver
+      `DECISOES_CONGELADAS.md` seção 5.6 para o porquê de Bicep ter sido avaliado e descartado por
+      ora (complexidade desproporcional ao número de recursos hoje) — fica registrado como opção
+      futura, não como pendência.
 - [x] **Revisão de custo/orçamento — avaliada e aprovada pelo usuário.** US$2.000/ano de
       crédito ONG ÷ 12 ≈ US$150/mês de teto real (o plano usa US$100/mês como margem de
       segurança). Confirmado como confortável para a escala hoje e mesmo num cenário de
