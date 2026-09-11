@@ -14,3 +14,21 @@ class OpcaoCriar(BaseModel):
 class OpcaoAtualizar(BaseModel):
     valor: Optional[str] = None
     ativo: Optional[bool] = None
+
+
+class NivelAcessoCriar(BaseModel):
+    nome_nivel: str
+    descricao: Optional[str] = None
+    is_conselho_fiscal: bool = False
+
+
+class NivelAcessoAtualizar(BaseModel):
+    nome_nivel: Optional[str] = None
+    descricao: Optional[str] = None
+    is_conselho_fiscal: Optional[bool] = None
+
+
+class PermissaoCriar(BaseModel):
+    modulo: str
+    codigo_permissao: str
+    descricao: Optional[str] = None

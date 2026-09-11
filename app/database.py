@@ -75,6 +75,72 @@ def seed_opcoes_lista():
     finally:
         db.close()
 
+def seed_niveis_e_permissoes():
+    """Catálogo inicial de NivelAcesso/PermissaoSistema (v0.1.5 do plano) - só semeia o que
+    ainda não existir, nunca sobrescreve o que a diretoria já tiver ajustado depois."""
+    from app.models.core import NivelAcesso, PermissaoSistema, perfil_permissao  # import local, mesmo motivo do seed acima
+
+    niveis_padrao = [
+        {"nome_nivel": "Presidente", "descricao": "Acesso total ao sistema.", "is_conselho_fiscal": False},
+        {"nome_nivel": "Diretoria", "descricao": "Gestão administrativa e financeira.", "is_conselho_fiscal": False},
+        {"nome_nivel": "Conselho Fiscal", "descricao": "Fiscalização financeira e de atas.", "is_conselho_fiscal": True},
+        {"nome_nivel": "Associado", "descricao": "Autoatendimento do próprio cadastro.", "is_conselho_fiscal": False},
+        {"nome_nivel": "Voluntário Externo", "descricao": "Acesso restrito ao próprio histórico de voluntariado.", "is_conselho_fiscal": False},
+    ]
+    permissoes_padrao = [
+        {"modulo": "core", "codigo_permissao": "gerenciar_acesso", "descricao": "Gerenciar níveis de acesso e permissões."},
+        {"modulo": "associados", "codigo_permissao": "associados", "descricao": "Gerenciar cadastro de associados."},
+        {"modulo": "financeiro", "codigo_permissao": "financeiro", "descricao": "Gerenciar lançamentos e plano de contas."},
+        {"modulo": "governanca", "codigo_permissao": "governanca", "descricao": "Gerenciar assembleias e votações."},
+        {"modulo": "projetos", "codigo_permissao": "projetos", "descricao": "Gerenciar projetos e voluntários."},
+        {"modulo": "core", "codigo_permissao": "auditoria", "descricao": "Consultar a trilha de auditoria."},
+    ]
+    # Nível -> lista de códigos de permissão que ele recebe por padrão (ajustável depois pela
+    # própria tela de administração de acesso, isto aqui é só ponto de partida).
+    atribuicoes_padrao = {
+        "Presidente": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria"],
+        "Diretoria": ["associados", "financeiro", "governanca", "projetos"],
+        "Conselho Fiscal": ["financeiro", "auditoria"],
+        "Associado": [],
+        "Voluntário Externo": [],
+    }
+
+    db = SessaoLocal()
+    try:
+        nome_para_id = {}
+        for dados in niveis_padrao:
+            existente = db.query(NivelAcesso).filter(NivelAcesso.nome_nivel == dados["nome_nivel"]).first()
+            if not existente:
+                existente = NivelAcesso(**dados)
+                db.add(existente)
+                db.flush()
+            nome_para_id[dados["nome_nivel"]] = existente.id_nivel
+
+        codigo_para_id = {}
+        for dados in permissoes_padrao:
+            existente = db.query(PermissaoSistema).filter(PermissaoSistema.codigo_permissao == dados["codigo_permissao"]).first()
+            if not existente:
+                existente = PermissaoSistema(**dados)
+                db.add(existente)
+                db.flush()
+            codigo_para_id[dados["codigo_permissao"]] = existente.id_permissao
+
+        for nome_nivel, codigos in atribuicoes_padrao.items():
+            id_nivel = nome_para_id[nome_nivel]
+            for codigo in codigos:
+                id_permissao = codigo_para_id[codigo]
+                ja_existe = db.execute(
+                    perfil_permissao.select().where(
+                        perfil_permissao.c.id_nivel == id_nivel, perfil_permissao.c.id_permissao == id_permissao
+                    )
+                ).first()
+                if not ja_existe:
+                    db.execute(perfil_permissao.insert().values(id_nivel=id_nivel, id_permissao=id_permissao))
+        db.commit()
+    finally:
+        db.close()
+
+
 def get_db():
     db = SessaoLocal()
     try:

@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Table, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Table, UniqueConstraint, Text
 
 from app.database import Base
 
@@ -51,10 +51,16 @@ class Usuario(Base):
     __tablename__ = "usuarios"
     id_usuario = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
-    senha_hash = Column(String) 
+    senha_hash = Column(String)
     id_nivel = Column(Integer, ForeignKey("niveis_acesso.id_nivel"))
     ativo = Column(Boolean, default=True)
     data_criacao = Column(DateTime, default=datetime.utcnow)
+    # v0.1 - bloqueio por força bruta (guardado no banco, não em memória do processo)
+    tentativas_falhas = Column(Integer, default=0)
+    bloqueado_ate = Column(DateTime, nullable=True)
+    # v0.1 - MFA (TOTP), obrigatório só para níveis administrativos/financeiros (ver plano v0.1.4)
+    mfa_secret = Column(String, nullable=True)
+    mfa_ativado = Column(Boolean, default=False)
 
 class TokenAcesso(Base):
     __tablename__ = "tokens_acesso"
@@ -62,4 +68,19 @@ class TokenAcesso(Base):
     id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"))
     token = Column(String, unique=True, index=True)
     data_expiracao = Column(DateTime)
+
+class AuditLog(Base):
+    """Quem mudou o quê, quando, antes/depois - base para LGPD (FASE 7) e segregação de
+    funções do Financeiro (FASE 3). Login/logout também geram entrada (acao=LOGIN/LOGOUT),
+    não só mutação de dado."""
+    __tablename__ = "audit_log"
+    id_log = Column(Integer, primary_key=True, index=True)
+    id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+    tabela_afetada = Column(String, index=True)
+    id_registro_afetado = Column(Integer, nullable=True)
+    acao = Column(String, index=True)  # LOGIN, LOGOUT, CREATE, UPDATE, DELETE
+    dados_antes = Column(Text, nullable=True)
+    dados_depois = Column(Text, nullable=True)
+    ip_origem = Column(String, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
 

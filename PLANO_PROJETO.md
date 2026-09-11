@@ -121,19 +121,92 @@ Créditos de ONG ~US$2.000/ano → teto de **US$100/mês**. Ver detalhamento na 
       ponta a ponta antes e depois do deploy. `pyjwt` já instalado com antecedência para a
       migração de autenticação da v0.1, e `JWT_SECRET` já gerado no Key Vault.
 
-#### v0.1 — Identidade e permissão
-- [ ] Migrar `Usuario`/`NivelAcesso`/`PermissaoSistema` para o modelo de painel único (matrícula/
-      CPF + senha, sem distinção de rota por nível — a distinção é só de menu).
-- [ ] Catálogo configurável de `NivelAcesso` (Presidente, Diretoria, Conselho Fiscal, Associado,
-      Voluntário Externo) com CRUD e auditoria — nada fixo em código.
-- [ ] `AuditLog` (quem mudou o quê, quando, antes/depois) em toda alteração sensível — base para
-      LGPD (FASE 7) e para a segregação de funções do Financeiro (FASE 3).
-- [ ] ~~Login via gov.br~~ — **descartado, confirmado por pesquisa e pela tentativa real do
-      usuário**: o Login Único gov.br para aplicação privada não é um cadastro aberto — passa por
-      Loja do Serpro/Dataprev, análise discricionária de "interesse público" e cobrança comercial
-      por volume, inviável para o porte da ASAF. Login/SSO próprio fica por conta do Keycloak
-      (ver FASE 20), sem depender de nenhum provedor do governo.
-- [ ] Token de acesso com expiração e renovação (JWT), substituindo o token simples atual.
+#### v0.1 — Identidade e permissão (expandida ao nível mais alto antes de codar, 2026-09-11)
+
+> **Achado ao ler o código antes de começar**: `criptografar_senha()` (SHA-256 sem salt) existe
+> em `app/utils.py` mas **nunca é chamado em nenhuma rota** — não existe login funcional hoje, só
+> o scaffolding de tabelas (`Usuario`, `TokenAcesso`, `NivelAcesso`, `PermissaoSistema`,
+> `perfil_permissao`). `Associado.id_usuario` (FK pra `usuarios.id_usuario`) já existe e confirma
+> o desenho pretendido: login por CPF do `Associado`, senha fica no `Usuario` vinculado — 1:1.
+> Ou seja, v0.1 não é "migrar" nada quebrado, é **construir identidade e permissão do zero** em
+> cima de uma modelagem de tabela que já está certa. Isso muda o v0.1 de "ajuste" pra "módulo
+> novo completo" — daí a expansão abaixo.
+
+##### v0.1.1 — Hash de senha (correção de segurança real, não cosmética)
+- [ ] Trocar SHA-256 sem salt (inseguro — vulnerável a rainbow table, rápido demais pra brute
+      force) por **bcrypt** (`passlib[bcrypt]` ou `bcrypt` direto — padrão da indústria, salt
+      embutido, custo computacional ajustável). Nunca reverter pra hash rápido, mesmo que pareça
+      "mais simples".
+- [ ] `hash_senha(senha: str) -> str` e `verificar_senha(senha: str, hash: str) -> bool` em
+      `app/security.py` (novo módulo, separado de `app/utils.py` que é só HTML/formatação).
+
+##### v0.1.2 — Login por CPF + senha, com JWT de verdade (access + refresh)
+- [ ] `POST /auth/login` (CPF + senha): localiza `Associado` pelo CPF → pega o `Usuario`
+      vinculado (`id_usuario`) → verifica senha (bcrypt) → emite **access token JWT** (curto,
+      ~30-60 min, claims: `id_usuario`, `id_associado`, `id_nivel`, `exp`) assinado com o
+      `JWT_SECRET` já gerado no Key Vault — e um **refresh token opaco** (string aleatória,
+      gravado em `TokenAcesso` com `data_expiracao`, ~30 dias) — a tabela já existe exatamente
+      pra isso.
+- [ ] `POST /auth/refresh` (refresh token) → valida contra `TokenAcesso` (existe? não expirou?)
+      → emite novo access token. Rotacionar o refresh token a cada uso é mais seguro (evita reuso
+      de token roubado) — avaliar se compensa a complexidade extra nesta fase.
+- [ ] `POST /auth/logout` (refresh token) → apaga a linha de `TokenAcesso` (revogação real, não
+      só "esquecer" o token no cliente).
+- [ ] `GET /auth/me` → dados de quem está logado (nome, nível, permissões do nível) — usado pelo
+      painel (FASE 0.2) pra montar o menu dinâmico.
+- [ ] **Bloqueio por tentativa de força bruta** — trava por dado (não por memória do processo,
+      que não sobrevive a múltiplas réplicas do Container App): campos `tentativas_falhas` e
+      `bloqueado_ate` no `Usuario`, incrementado a cada senha errada, zerado no login bem
+      sucedido, bloqueio temporário (ex.: 15 min) após N tentativas.
+
+##### v0.1.3 — Autorização: dependency de permissão por rota
+- [ ] `get_current_user` (dependency FastAPI): decodifica o JWT do header `Authorization`,
+      carrega o `Usuario`, rejeita se expirado/inválido/usuário inativo.
+- [ ] `exigir_permissao(codigo_permissao: str)` (dependency factory): verifica se o `NivelAcesso`
+      do usuário atual tem aquela permissão via `perfil_permissao` — 403 se não tiver. Toda rota
+      sensível (financeiro, admin, edição de associado) passa a declarar isso explicitamente,
+      substituindo a ausência total de controle de acesso que existe hoje nas rotas `/admin/*`.
+
+##### v0.1.4 — MFA (TOTP) para perfil administrativo/financeiro
+Antecipado da FASE 11/v11.5 e FASE 20/v20.1 — pedido do usuário de ir ao nível mais alto possível
+já nesta versão, não deixar só planejado para depois.
+- [ ] `Usuario.mfa_secret` (nullable) + `Usuario.mfa_ativado` (boolean, default false).
+- [ ] `POST /auth/mfa/ativar` — gera segredo TOTP (`pyotp`), devolve URI `otpauth://` (o cliente
+      renderiza o QR code, sem precisar de biblioteca de imagem no backend).
+- [ ] `POST /auth/mfa/confirmar` (código de 6 dígitos) — só marca `mfa_ativado=true` depois de
+      confirmar que o usuário realmente configurou o app autenticador direito.
+- [ ] Login com MFA ativado exige um segundo passo (`POST /auth/login/mfa`, código TOTP) antes de
+      emitir o token — nunca token liberado só com senha se `mfa_ativado=true`.
+- [ ] Ativação **obrigatória** só para `NivelAcesso` de Presidente/Diretoria/Financeiro (a definir
+      exatamente quais, catálogo configurável) — opcional pros demais níveis.
+
+##### v0.1.5 — Catálogo configurável de `NivelAcesso` e `PermissaoSistema`
+- [ ] CRUD de `NivelAcesso` (não fixo em código) — seed inicial: Presidente, Diretoria, Conselho
+      Fiscal, Associado, Voluntário Externo (nomes de exemplo, ajustável pela diretoria depois).
+- [ ] CRUD de `PermissaoSistema` (catálogo de permissões existentes no sistema) e de
+      `perfil_permissao` (atribuir/remover permissão de um nível) — tela de administração de
+      acesso, não hardcoded.
+
+##### v0.1.6 — `AuditLog`
+- [ ] Novo model `AuditLog` (`id_log`, `id_usuario` nullable, `tabela_afetada`,
+      `id_registro_afetado`, `acao` — LOGIN/CREATE/UPDATE/DELETE —, `dados_antes`/`dados_depois`
+      em JSON, `timestamp`, `ip_origem`).
+- [ ] Helper `registrar_auditoria(db, usuario, tabela, id_registro, acao, antes, depois)` chamado
+      em toda alteração sensível — base para LGPD (FASE 7) e segregação de funções do Financeiro
+      (FASE 3). Login/logout também geram entrada (`acao=LOGIN`), não só mutação de dado.
+
+##### v0.1.7 — O que fica fora desta versão, de propósito (não é "esquecimento")
+- **Row-level security do Postgres** (FASE 15/v15.1) — só faz sentido pleno quando existir
+  diferenciação real de acesso por linha (ex.: voluntário vendo só o próprio histórico, FASE 4) —
+  ainda não construído. Implementar RLS agora seria antecipar proteção para um dado que ainda não
+  existe.
+- **Keycloak/SSO externo** (FASE 20/v20.1) — login próprio (v0.1.2) resolve a necessidade
+  imediata; Keycloak entra quando precisar de SSO entre múltiplos sistemas (painel + Directus +
+  outro), não antes.
+- ~~Login via gov.br~~ — **descartado, confirmado por pesquisa e pela tentativa real do
+  usuário**: o Login Único gov.br para aplicação privada não é um cadastro aberto — passa por
+  Loja do Serpro/Dataprev, análise discricionária de "interesse público" e cobrança comercial por
+  volume, inviável para o porte da ASAF.
 
 #### v0.2 — Painel único (substitui `templates/index.html`)
 - [ ] Remover a divisão `/meu-portal` x `/admin` do protótipo atual.

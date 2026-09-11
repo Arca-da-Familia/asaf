@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
-from app.models.core import ConfiguracaoInstitucional, OpcaoLista
-from app.schemas.core import OpcaoCriar, OpcaoAtualizar
+from app.models.core import ConfiguracaoInstitucional, OpcaoLista, NivelAcesso, PermissaoSistema, perfil_permissao
+from app.schemas.core import OpcaoCriar, OpcaoAtualizar, NivelAcessoCriar, NivelAcessoAtualizar, PermissaoCriar
+from app.security import exigir_permissao
 
 router = APIRouter()
 
@@ -58,6 +59,92 @@ def atualizar_opcao(id_opcao: int, dados: OpcaoAtualizar, db: Session = Depends(
         opcao.ativo = dados.ativo
     db.commit()
     return {"mensagem": "Opção atualizada."}
+
+# ==========================================
+# NÍVEIS DE ACESSO E PERMISSÕES (v0.1.5 do plano - catálogo configurável, nada fixo em código)
+# ==========================================
+_permissao_gerenciar_acesso = exigir_permissao("gerenciar_acesso")
+
+
+@router.get("/api/niveis-acesso/", summary="Listar níveis de acesso")
+def listar_niveis_acesso(db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_acesso)):
+    niveis = db.query(NivelAcesso).order_by(NivelAcesso.id_nivel).all()
+    return [
+        {"id_nivel": n.id_nivel, "nome_nivel": n.nome_nivel, "descricao": n.descricao,
+         "is_conselho_fiscal": n.is_conselho_fiscal}
+        for n in niveis
+    ]
+
+
+@router.post("/api/niveis-acesso/", summary="Criar nível de acesso")
+def criar_nivel_acesso(dados: NivelAcessoCriar, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_acesso)):
+    if db.query(NivelAcesso).filter(NivelAcesso.nome_nivel == dados.nome_nivel).first():
+        raise HTTPException(status_code=400, detail="Já existe um nível de acesso com esse nome.")
+    novo = NivelAcesso(**dados.model_dump())
+    db.add(novo)
+    db.commit()
+    db.refresh(novo)
+    return {"id_nivel": novo.id_nivel, "nome_nivel": novo.nome_nivel}
+
+
+@router.put("/api/niveis-acesso/{id_nivel}", summary="Editar nível de acesso")
+def atualizar_nivel_acesso(id_nivel: int, dados: NivelAcessoAtualizar, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_acesso)):
+    nivel = db.query(NivelAcesso).filter(NivelAcesso.id_nivel == id_nivel).first()
+    if not nivel:
+        raise HTTPException(status_code=404, detail="Nível de acesso não encontrado.")
+    for campo, valor in dados.model_dump(exclude_unset=True).items():
+        setattr(nivel, campo, valor)
+    db.commit()
+    return {"mensagem": "Nível de acesso atualizado."}
+
+
+@router.get("/api/permissoes/", summary="Listar permissões do sistema")
+def listar_permissoes(db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_acesso)):
+    permissoes = db.query(PermissaoSistema).order_by(PermissaoSistema.modulo, PermissaoSistema.codigo_permissao).all()
+    return [
+        {"id_permissao": p.id_permissao, "modulo": p.modulo, "codigo_permissao": p.codigo_permissao, "descricao": p.descricao}
+        for p in permissoes
+    ]
+
+
+@router.post("/api/permissoes/", summary="Criar permissão do sistema")
+def criar_permissao(dados: PermissaoCriar, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_acesso)):
+    if db.query(PermissaoSistema).filter(PermissaoSistema.codigo_permissao == dados.codigo_permissao).first():
+        raise HTTPException(status_code=400, detail="Já existe uma permissão com esse código.")
+    nova = PermissaoSistema(**dados.model_dump())
+    db.add(nova)
+    db.commit()
+    db.refresh(nova)
+    return {"id_permissao": nova.id_permissao, "codigo_permissao": nova.codigo_permissao}
+
+
+@router.post("/api/niveis-acesso/{id_nivel}/permissoes/{id_permissao}", summary="Atribuir permissão a um nível")
+def atribuir_permissao(id_nivel: int, id_permissao: int, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_acesso)):
+    if not db.query(NivelAcesso).filter(NivelAcesso.id_nivel == id_nivel).first():
+        raise HTTPException(status_code=404, detail="Nível de acesso não encontrado.")
+    if not db.query(PermissaoSistema).filter(PermissaoSistema.id_permissao == id_permissao).first():
+        raise HTTPException(status_code=404, detail="Permissão não encontrada.")
+    ja_existe = db.execute(
+        perfil_permissao.select().where(
+            perfil_permissao.c.id_nivel == id_nivel, perfil_permissao.c.id_permissao == id_permissao
+        )
+    ).first()
+    if not ja_existe:
+        db.execute(perfil_permissao.insert().values(id_nivel=id_nivel, id_permissao=id_permissao))
+        db.commit()
+    return {"mensagem": "Permissão atribuída."}
+
+
+@router.delete("/api/niveis-acesso/{id_nivel}/permissoes/{id_permissao}", summary="Remover permissão de um nível")
+def remover_permissao(id_nivel: int, id_permissao: int, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_acesso)):
+    db.execute(
+        perfil_permissao.delete().where(
+            perfil_permissao.c.id_nivel == id_nivel, perfil_permissao.c.id_permissao == id_permissao
+        )
+    )
+    db.commit()
+    return {"mensagem": "Permissão removida."}
+
 
 # ==========================================
 # ÁRVORE FAMILIAR (DEPENDENTES)
