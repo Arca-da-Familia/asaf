@@ -4,3 +4,4 @@ sqlalchemy==2.0.52
 psycopg2-binary==2.9.13
 pydantic[email]==2.13.5
 python-multipart==0.0.32
+pyjwt==2.13.0

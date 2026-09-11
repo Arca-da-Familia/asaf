@@ -93,19 +93,33 @@ Créditos de ONG ~US$2.000/ano → teto de **US$100/mês**. Ver detalhamento na 
 
 ### FASE 0 — Fundação (infraestrutura, identidade, permissão, painel único)
 
-#### v0.0 — Provisionamento de infraestrutura (Azure + GitHub) — literalmente o primeiro passo
-- [ ] Criar o repositório no GitHub (público — necessário para ficar dentro da cota gratuita de
-      alguns serviços/integrações; por isso nenhum segredo pode viver nele, ver `.gitignore` e
-      `CREDENCIAIS_AZURE.md`, já criados).
-- [ ] Criar o grupo de recursos no Azure e provisionar, nesta ordem: Postgres → Blob Storage →
-      Container App do FastAPI → Container App do Directus → Static Web Apps (site + painel) →
-      Key Vault → Application Insights (detalhamento técnico completo na FASE 8).
-- [ ] Preencher `CREDENCIAIS_AZURE.md` (arquivo local, gitignored) conforme cada recurso é criado
-      — nunca deixar senha/chave só na memória de quem criou.
-- [ ] Criar o Service Principal usado pelo GitHub Actions (escopado só aos recursos deste
-      projeto, nunca à assinatura inteira) e cadastrar os Secrets correspondentes no GitHub.
-- [ ] Configurar o alerta de orçamento no Azure (aviso por e-mail ao aproximar do teto de
-      US$100/mês, seção 3.6/FASE 8).
+#### v0.0 — Provisionamento de infraestrutura (Azure + GitHub) — literalmente o primeiro passo ✅ CONCLUÍDO (2026-09-11)
+- [x] Criar o repositório no GitHub (`Arca-da-Familia/asaf`, público) — feito, com LICENSE de
+      uso restrito. `.gitignore`/`CREDENCIAIS_AZURE.md` protegendo segredo desde o commit zero.
+- [x] Criar o grupo de recursos no Azure e provisionar: Postgres (`asaf-pg-server`/`asaf_db`,
+      backup 35 dias + geo-redundância) → Blob Storage (`stasafarcadafamilia`, soft delete +
+      versionamento) → Container Registry (`asafregistry`) → Container App do FastAPI
+      (`asaf-api`) → Container App do Directus (`asaf-directus`) → Static Web Apps (site +
+      painel, com domínio próprio `asaf.org.br`/`painel.asaf.org.br`) → Key Vault
+      (`kv-asaf-arca`) → Application Insights (`asaf-appinsights`).
+- [x] `CREDENCIAIS_AZURE.md` preenchido e mantido atualizado a cada recurso criado.
+- [x] Service Principal (`asaf-github-actions`) com OIDC, escopado só ao resource group, com
+      credencial federada — corrigida uma vez em produção (GitHub passou a exigir subject com
+      IDs numéricos de org/repo, não só o nome).
+- [x] Alerta de orçamento de US$100/mês configurado manualmente pelo Portal (a API rejeitou a
+      criação automatizada — limitação real do tipo de assinatura, documentada).
+- [x] **CI/CD completo e testado**: workflow builda a imagem via ACR Tasks e atualiza o
+      Container App a cada push em `main` — dois incidentes reais de produção encontrados e
+      corrigidos nesse processo (ver `CREDENCIAIS_AZURE.md`): (1) o IP "estático" do ambiente
+      Container Apps é só de entrada, não de saída — restringir o firewall do Postgres a ele
+      quebrou tudo; a regra correta para este porte é "Allow Azure services", sem VNET+NAT
+      Gateway; (2) a auto-migração de schema (`preparar_banco()`) levava 27s a cada boot e
+      estourava o startup probe do Container App, causando reinício em loop — agora é opcional
+      via `RUN_DB_MIGRATION`, desligada em produção.
+- [x] Dependências do backend atualizadas para a versão mais recente estável de cada uma
+      (fastapi, uvicorn, sqlalchemy, pydantic, psycopg2-binary, python-multipart), testado de
+      ponta a ponta antes e depois do deploy. `pyjwt` já instalado com antecedência para a
+      migração de autenticação da v0.1, e `JWT_SECRET` já gerado no Key Vault.
 
 #### v0.1 — Identidade e permissão
 - [ ] Migrar `Usuario`/`NivelAcesso`/`PermissaoSistema` para o modelo de painel único (matrícula/
@@ -1109,3 +1123,77 @@ volume alto de usuários simultâneos.
   ferramenta de busca deste ambiente estiver disponível de novo — a rodada mais recente falhou
   por indisponibilidade de infraestrutura, não por falta de informação, e o conteúdo atual não
   tem fontes vivas citadas.
+
+## 9. Revisão de escalabilidade e perpetuidade (o sistema precisa servir daqui a 10, 15, 20 anos)
+
+Pedido explícito do usuário: revisar o plano perguntando "isso vai servir daqui a 10-20 anos, com
+muitos ou poucos associados?" antes de continuar construindo. Avaliação honesta, ponto a ponto —
+o que já está bem resolvido e o que precisa de correção real.
+
+### 9.1 O que já está bem resolvido para o longo prazo
+- **Banco de dados**: Postgres (não SQLite) escala verticalmente (mais vCPU/storage) sem
+  reescrever nada — suporta de dezenas a centenas de milhares de associados/lançamentos sem
+  mudança de arquitetura. Confirmado na prática hoje: 51 tabelas, schema relacional convencional,
+  sem decisão que precise ser desfeita depois.
+- **Infraestrutura sem servidor fixo** (Container Apps consumo): não exige alguém "cuidando de
+  servidor" ano após ano — escala sozinha de zero até o necessário. Bom encaixe pra uma
+  associação que não vai ter equipe de TI dedicada por 20 anos seguidos.
+- **Sem lock-in pesado de fornecedor**: tudo roda em containers Docker padrão + Postgres padrão
+  — migrar de nuvem no futuro (se precisar) é trabalho de reconfiguração, não reescrita. A única
+  configuração específica da Azure é o driver de storage do Directus (troca de poucas linhas se
+  um dia precisar migrar).
+- **Dado nunca fica preso em formato proprietário**: Postgres exporta em SQL padrão; a FASE 7
+  (LGPD) já prevê portabilidade de dado do titular.
+
+### 9.2 Correções reais necessárias antes de continuar construindo
+
+- [ ] **Migração de schema precisa de ferramenta de verdade (Alembic), não o mecanismo atual.**
+      Achado direto desta sessão: `preparar_banco()` (auditoria de todas as tabelas a cada boot)
+      já causou um incidente real de produção (27s de boot, crash-loop). Em 20 anos de evolução
+      de schema, esse mecanismo ad hoc vai piorar, não melhorar — cada tabela nova o deixa mais
+      lento, e não guarda **histórico** de migrações (não dá pra saber, daqui a 10 anos, quando e
+      por que uma coluna foi adicionada). **Correção**: adotar Alembic (padrão do ecossistema
+      SQLAlchemy) como parte da FASE 0/v0.1 — migração versionada, rápida, auditável — substituindo
+      `preparar_banco()` por completo, não só desligando-a em produção (a correção atual, v0.0,
+      é um remendo emergencial válido pra destravar o deploy, não a solução definitiva).
+- [ ] **Modularizar `servidor.py` antes de continuar adicionando código.** O arquivo já tem mais
+      de 3400 linhas e o próprio usuário confirmou que é "conceitual, muito quebrado". Continuar
+      empilhando os módulos das próximas fases (Associados, Financeiro, Eventos, Governança) num
+      arquivo único o tornaria impossível de manter por qualquer pessoa daqui a 10-20 anos,
+      especialmente numa associação onde quem programa muda ao longo do tempo. **Correção**:
+      antes de começar a FASE 1 (Associados) a sério, separar em pacotes por domínio (ex.:
+      `app/associados/`, `app/financeiro/`, `app/eventos/`, `app/shared/`), cada um com seus
+      próprios models/rotas/schemas — usando `APIRouter` do FastAPI, sem inventar framework
+      próprio.
+- [ ] **Documentação técnica de arquitetura para continuidade institucional.** A FASE 12 (v12.10)
+      já cobre sucessão de **diretoria**, mas não sucessão **técnica** — em uma associação que
+      pretende durar décadas, quem programa hoje não é garantidamente quem vai manter o sistema
+      daqui a 10 anos. **Correção**: manter um `ARQUITETURA.md` (ou seção equivalente no README)
+      descrevendo decisões-chave (por que Postgres, por que Container Apps, onde ficam os
+      segredos, como fazer deploy) — não once-and-done, atualizado a cada mudança relevante de
+      infraestrutura, igual o `CREDENCIAIS_AZURE.md` já é para segredos.
+- [ ] **Rotação de segredos como prática contínua, não evento único.** Senha do Postgres,
+      `JWT_SECRET`, tokens do Directus — hoje gerados uma vez. Para 20 anos de operação, isso
+      precisa virar rotina periódica documentada (ex.: anual, ou ao trocar de diretoria/pessoa
+      responsável pela infraestrutura) — sem isso, o mesmo segredo circula por anos entre pessoas
+      que já saíram da gestão.
+- [ ] **Revisão de custo/orçamento como prática periódica, não configuração única.** O teto de
+      US$100/mês (FASE 8) é adequado para o volume de hoje; conforme o número de associados/
+      eventos crescer ao longo dos anos, o consumo de Postgres/Storage/Container Apps cresce
+      proporcionalmente — o alerta de orçamento avisa quando isso acontece, mas alguém precisa
+      periodicamente decidir se vale subir de tier ou otimizar uso, não é automático.
+
+### 9.3 Pergunta em aberto para o usuário
+- **Renovação do domínio `asaf.org.br`**: item puramente operacional (não técnico) mas crítico
+  pra perpetuidade — o domínio precisa ser renovado no Registro.br periodicamente (geralmente
+  anual). Se a pessoa responsável pelo pagamento/renovação mudar ao longo dos anos, o domínio
+  pode expirar e ser perdido. Vale registrar quem é responsável por isso e com que antecedência
+  o Registro.br avisa do vencimento.
+
+**Conclusão desta revisão**: a arquitetura de infraestrutura (Postgres, Container Apps, sem
+servidor fixo) está bem desenhada para durar décadas, com custo que escala junto do uso. O ponto
+real de risco para os próximos 10-20 anos não é a nuvem — é o **código** (mecanismo de migração
+frágil e arquivo único crescendo sem limite) e a **documentação/continuidade institucional**
+(segredo e arquitetura precisam sobreviver à troca de pessoas, não só ao software). As duas
+primeiras correções (Alembic + modularização) devem entrar como pré-requisito da FASE 1, antes
+de continuar adicionando funcionalidade nova por cima do que já existe.
