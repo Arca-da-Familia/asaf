@@ -6,6 +6,10 @@ CREDENCIAIS_AZURE.md
 *.pem
 *.key
 
+# Mapa real da infraestrutura (nomes de recurso, topologia) — local apenas,
+# mesmo tratamento de CREDENCIAIS_AZURE.md (repositório é público)
+infra/provisionar.sh
+
 # Banco de dados local / dados reais
 *.db
 *.sqlite

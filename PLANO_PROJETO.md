@@ -1168,10 +1168,15 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
 
 #### v8.3 — Reconstruibilidade da infraestrutura ✅ resolvida em 2026-09-11
 - [x] `infra/provisionar.sh` — a sequência real de comandos `az` que criou (e reconstrói, se
-      preciso) toda a infraestrutura, comentada e versionada, sem segredo nenhum no arquivo (toda
-      senha é gerada na hora e enviada direto ao Key Vault). Resolve o problema real ("ninguém vai
-      lembrar a sequência em 5 anos") sem adicionar uma ferramenta de IaC declarativa nova para
-      manter — decisão registrada e justificada em `DECISOES_CONGELADAS.md` seção 5.6.
+      preciso) toda a infraestrutura, comentada, sem segredo nenhum no arquivo (toda senha é
+      gerada na hora e enviada direto ao Key Vault). **Não versionado** (gitignored, igual
+      `CREDENCIAIS_AZURE.md`) — nome exato de recurso é mapa de alvo desnecessário de deixar
+      público, mesmo sem credencial nenhuma nele; achado corrigido em 2026-09-11 depois de uma
+      primeira versão ter sido publicada por engano. `infra/provisionar.exemplo.sh` (esse sim
+      versionado) documenta o mesmo padrão com nomes trocados por placeholder. Resolve o problema
+      real ("ninguém vai lembrar a sequência em 5 anos") sem adicionar uma ferramenta de IaC
+      declarativa nova para manter — decisão registrada e justificada em
+      `DECISOES_CONGELADAS.md` seção 5.6.
 - [ ] Configuração de recurso (variáveis de ambiente, escala, probes) hoje só existe no Portal e
       no próprio script de referência — mover para arquivo de configuração versionado (ex.:
       `infra/config/*.env` lido pelo workflow de deploy) fica como melhoria incremental, não como

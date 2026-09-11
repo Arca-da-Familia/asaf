@@ -1,77 +1,63 @@
 #!/usr/bin/env bash
 # ============================================================================
-# provisionar.sh — reconstrução completa da infraestrutura Azure da ASAF
+# provisionar.exemplo.sh — MODELO PÚBLICO do script de provisionamento
 # ============================================================================
 #
-# O QUE É ISTO: a sequência real de comandos `az` usada para criar toda a
-# infraestrutura de produção (Postgres, Container Apps, Storage, Key Vault,
-# Static Web Apps, DNS, Service Principal). Serve para dois propósitos:
+# Este arquivo é a versão SANITIZADA (nomes de recurso trocados por
+# placeholder) do script real que reconstrói a infraestrutura Azure da ASAF.
 #
-#   1. DOCUMENTAÇÃO VIVA — qualquer pessoa (mesmo sem ter participado da
-#      criação original) entende exatamente como cada recurso nasceu, em que
-#      ordem e com que parâmetro, sem depender de memória de quem fez.
-#   2. PLANO DE RECUPERAÇÃO — se a assinatura Azure inteira for perdida
-#      (cancelada, comprometida, migrada de titularidade), este script é o
-#      roteiro para reconstruir tudo do zero, na ordem certa.
+# O script REAL, com os nomes de recurso verdadeiros (servidor Postgres,
+# Key Vault, Storage Account, Service Principal, domínio), é
+# `infra/provisionar.sh` — que NÃO é versionado neste repositório público,
+# pelo mesmo motivo de `CREDENCIAIS_AZURE.md`: mesmo sem conter senha
+# nenhuma, o nome exato de cada recurso é um mapa de alvo que não precisa
+# estar acessível a qualquer pessoa na internet. Fica só localmente, com
+# quem administra a infraestrutura.
 #
-# O QUE ISTO NÃO É: não é Terraform/Bicep (não é declarativo, não é
-# idempotente por padrão, não tem "terraform plan" para conferir antes de
-# aplicar). Essa foi uma escolha deliberada e registrada em
-# DECISOES_CONGELADAS.md — para o porte da ASAF, um script comentado e
-# versionado entrega a maior parte do valor de "infraestrutura documentada
-# e reconstruível" sem adicionar uma ferramenta nova para alguém aprender
-# daqui a 10 anos. Se um dia o número de recursos crescer muito, migrar
-# este script para Bicep é uma evolução possível — não uma dívida atual.
+# Este arquivo público serve para: (1) documentar o PADRÃO seguido (ordem
+# de criação, decisões de configuração, o porquê de cada parâmetro) para
+# quem for entender a arquitetura sem precisar de acesso à infraestrutura
+# real; (2) servir de ponto de partida caso outra associação, com
+# autorização de uso conforme a LICENSE deste projeto, queira provisionar
+# a própria infraestrutura equivalente.
 #
-# NUNCA rodar este script inteiro contra o ambiente de produção existente
-# sem revisar cada bloco antes — ele cria recursos, alguns comandos falham
-# de propósito (com mensagem clara) se o recurso já existir, mas nem todos.
-# Trate como referência a executar bloco a bloco, nunca como `./provisionar.sh`
-# de uma vez só numa assinatura que já tem os recursos.
-#
-# NENHUM SEGREDO fica neste arquivo. Toda senha/connection string é gerada
-# na hora (`openssl rand` / `az` gerando valor aleatório) e enviada direto
-# para o Key Vault — nunca impressa no terminal, nunca gravada em variável
-# de shell que sobreviva ao comando. Ver CREDENCIAIS_AZURE.md (não versionado,
-# só local) para os nomes/endpoints reais já criados.
-#
+# Preencha os placeholders `<...>` com os nomes reais só na sua cópia local
+# de `infra/provisionar.sh` (gitignored) — nunca aqui.
 # ============================================================================
 
 set -euo pipefail
 
 # ----------------------------------------------------------------------------
-# 0. Variáveis — nomes de recursos (não são segredo, mas mantidos como
-#    variável para nunca precisar editar o script em vários lugares).
-#    Preencher/conferir contra CREDENCIAIS_AZURE.md antes de rodar qualquer
-#    bloco. Subscription ID e Tenant ID propositalmente NÃO estão fixados
-#    aqui — vêm do `az login` já autenticado na sessão de quem executa.
+# 0. Variáveis — troque cada placeholder pelo nome real na sua cópia local.
+#    Subscription ID e Tenant ID propositalmente NÃO ficam fixados em
+#    nenhuma versão deste script — vêm do `az login` já autenticado.
 # ----------------------------------------------------------------------------
-RESOURCE_GROUP="Associacao-RG"
+RESOURCE_GROUP="<nome-do-resource-group>"
 LOCATION="brazilsouth"
 LOCATION_SWA="centralus"          # Static Web Apps não está disponível em Brazil South
 
-PG_SERVER="asaf-pg-server"
-PG_DB="asaf_db"
-PG_ADMIN_USER="asafadmin"
+PG_SERVER="<nome-do-servidor-postgres>"
+PG_DB="<nome-do-banco>"
+PG_ADMIN_USER="<usuario-admin-postgres>"
 
-ACR_NAME="asafregistry"
-CONTAINERAPPS_ENV="asaf-env"
-APP_API="asaf-api"
-APP_DIRECTUS="asaf-directus"
+ACR_NAME="<nome-do-container-registry>"
+CONTAINERAPPS_ENV="<nome-do-ambiente-container-apps>"
+APP_API="<nome-do-container-app-api>"
+APP_DIRECTUS="<nome-do-container-app-directus>"
 
-STORAGE_ACCOUNT="stasafarcadafamilia"
-KEY_VAULT="kv-asaf-arca"
-APP_INSIGHTS="asaf-appinsights"
+STORAGE_ACCOUNT="<nome-da-conta-de-storage>"
+KEY_VAULT="<nome-do-key-vault>"
+APP_INSIGHTS="<nome-do-application-insights>"
 
-SWA_SITE="asaf-site"
-SWA_PAINEL="asaf-painel"
+SWA_SITE="<nome-do-static-web-app-site>"
+SWA_PAINEL="<nome-do-static-web-app-painel>"
 
-DOMINIO="asaf.org.br"
+DOMINIO="<seu-dominio.org.br>"
 
-SP_GITHUB="asaf-github-actions"
-GITHUB_ORG_REPO="Arca-da-Familia/asaf"
+SP_GITHUB="<nome-do-service-principal-github-actions>"
+GITHUB_ORG_REPO="<org>/<repositorio>"
 
-echo "Confira as variáveis acima contra CREDENCIAIS_AZURE.md antes de continuar."
+echo "Confira as variáveis acima antes de continuar."
 echo "Assinatura ativa no momento:"
 az account show --query "{nome:name, id:id}" -o table
 
@@ -84,9 +70,8 @@ az group create \
 
 # ----------------------------------------------------------------------------
 # 2. Banco de dados — Azure Database for PostgreSQL Flexible Server
-#    SKU Burstable B1ms, Postgres 16, 32GB, backup 35 dias + geo-redundância
-#    (geo-redundância só é configurável NA CRIAÇÃO, não pode ser ligada
-#    depois — não esquecer este parâmetro numa reconstrução).
+#    SKU Burstable B1ms, backup 35 dias + geo-redundância (só configurável
+#    NA CRIAÇÃO — não pode ser ligada depois, não esquecer numa reconstrução).
 # ----------------------------------------------------------------------------
 PG_SENHA_TEMP="$(openssl rand -base64 24 | tr -d '=+/' | cut -c1-24)A1!"
 az postgres flexible-server create \
@@ -105,10 +90,10 @@ az postgres flexible-server create \
   --public-access 0.0.0.0-0.0.0.0 \
   --yes
 
-# Regra de firewall permanente — ver DECISOES_CONGELADAS.md sobre por que
-# NÃO restringir isto a um IP específico do Container Apps (o "staticIp" do
-# ambiente é só de entrada, não de saída; sem VNET+NAT Gateway não há IP de
-# saída fixo, e VNET+NAT Gateway está fora do orçamento de US$100/mês).
+# Regra de firewall permanente — decisão registrada em DECISOES_CONGELADAS.md
+# seção 5.3: NÃO restringir a um IP específico do Container Apps (o
+# "staticIp" do ambiente é só de entrada, não de saída; sem VNET+NAT Gateway
+# não há IP de saída fixo, e isso fica fora do orçamento previsto).
 az postgres flexible-server firewall-rule create \
   --resource-group "$RESOURCE_GROUP" \
   --name "$PG_SERVER" \
@@ -121,11 +106,8 @@ az postgres flexible-server firewall-rule create \
 az postgres flexible-server microsoft-entra-admin create \
   --resource-group "$RESOURCE_GROUP" \
   --server-name "$PG_SERVER" \
-  --display-name "asaf@arcadafamilia.org" \
+  --display-name "<seu-usuario@seudominio>" \
   --object-id "<object-id-do-usuario-entra-id>"
-
-# A senha gerada acima (PG_SENHA_TEMP) precisa ir DIRETO para o Key Vault
-# no passo 6 — nunca fica de fato "guardada" em lugar nenhum além dele.
 
 # ----------------------------------------------------------------------------
 # 3. Azure Container Registry (build de imagem sem Docker local)
@@ -137,7 +119,7 @@ az acr create \
   --admin-enabled false
 
 # ----------------------------------------------------------------------------
-# 4. Ambiente de Container Apps + as duas aplicações (API e Directus)
+# 4. Ambiente de Container Apps + aplicações (API e CMS)
 #    Plano consumo, escala a zero quando ocioso.
 # ----------------------------------------------------------------------------
 az containerapp env create \
@@ -155,8 +137,8 @@ az containerapp create \
   --min-replicas 0 \
   --max-replicas 2 \
   --system-assigned
-# (a imagem real é publicada depois pelo workflow deploy-api.yml via `az acr
-# build` + `az containerapp update` — aqui só se cria o "esqueleto" do app)
+# (a imagem real é publicada depois pelo workflow de CI/CD via `az acr build`
+# + `az containerapp update` — aqui só se cria o "esqueleto" do app)
 
 az acr login --name "$ACR_NAME"
 az containerapp registry set \
@@ -212,8 +194,6 @@ az keyvault secret set --vault-name "$KEY_VAULT" --name "JWT-SECRET" \
 az keyvault secret set --vault-name "$KEY_VAULT" --name "STORAGE-ACCOUNT-KEY" \
   --value "$(az storage account keys list --account-name "$STORAGE_ACCOUNT" --query '[0].value' -o tsv)"
 
-# Conceder ao Container App da API permissão de leitura do Key Vault via
-# identidade gerenciada (nunca via senha/connection string do Vault):
 az keyvault set-policy \
   --name "$KEY_VAULT" \
   --object-id "$(az containerapp show -g "$RESOURCE_GROUP" -n "$APP_API" --query identity.principalId -o tsv)" \
@@ -247,29 +227,27 @@ az keyvault secret set --vault-name "$KEY_VAULT" --name "SWA-SITE-DEPLOY-TOKEN" 
 az keyvault secret set --vault-name "$KEY_VAULT" --name "SWA-PAINEL-DEPLOY-TOKEN" \
   --value "$(az staticwebapp secrets list --name "$SWA_PAINEL" --query properties.apiKey -o tsv)"
 
-# Domínio customizado (depois de configurar a zona DNS no passo 9):
 az staticwebapp hostname set --name "$SWA_SITE" --hostname "$DOMINIO"
 az staticwebapp hostname set --name "$SWA_PAINEL" --hostname "painel.${DOMINIO}"
 
 # ----------------------------------------------------------------------------
-# 9. DNS — zona Azure DNS para o domínio asaf.org.br
-#    IMPORTANTE numa reconstrução: os registros MX e DKIM do Google Workspace
-#    (e-mail institucional) precisam ser recriados ANTES de trocar o
-#    nameserver no Registro.br, ou o e-mail para de funcionar. Ver
-#    CREDENCIAIS_AZURE.md para os valores exatos de MX/TXT/DKIM já em uso.
+# 9. DNS — zona Azure DNS para o domínio próprio
+#    IMPORTANTE numa reconstrução: registros MX/DKIM de e-mail (se houver
+#    Google Workspace ou similar) precisam ser recriados ANTES de trocar o
+#    nameserver no registrador do domínio, ou o e-mail para de funcionar.
 # ----------------------------------------------------------------------------
 az network dns zone create \
   --resource-group "$RESOURCE_GROUP" \
   --name "$DOMINIO"
 
-# az network dns record-set mx add-record ...       (smtp.google.com)
-# az network dns record-set txt add-record ...       (verificação Google)
-# az network dns record-set cname create/add-record  (google._domainkey)
+# az network dns record-set mx add-record ...       (provedor de e-mail)
+# az network dns record-set txt add-record ...       (verificação de domínio)
+# az network dns record-set cname create/add-record  (DKIM)
 # az network dns record-set a add-record (Alias para o Static Web App do site)
-# az network dns record-set cname add-record (painel.asaf.org.br -> asaf-painel)
+# az network dns record-set cname add-record (subdominio do painel)
 #
-# Depois de conferir que os 3 registros de e-mail estão na zona: trocar os
-# nameservers no painel do Registro.br para os 4 que o Azure DNS informar
+# Depois de conferir que os registros de e-mail estão na zona: trocar os
+# nameservers no registrador para os que o Azure DNS informar
 # (`az network dns zone show --name "$DOMINIO" -g "$RESOURCE_GROUP" --query nameServers`).
 
 # ----------------------------------------------------------------------------
@@ -280,23 +258,22 @@ az ad app create --display-name "$SP_GITHUB"
 APP_ID="$(az ad app list --display-name "$SP_GITHUB" --query '[0].appId' -o tsv)"
 az ad sp create --id "$APP_ID"
 
-# Escopo só ao resource group (nunca à assinatura inteira):
 az role assignment create \
   --assignee "$APP_ID" \
   --role Contributor \
   --scope "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/${RESOURCE_GROUP}"
 
-# Credenciais federadas — o subject precisa bater EXATAMENTE com o formato
-# que o GitHub Actions envia hoje (inclui IDs numéricos de org/repo desde
-# 2024; conferir contra a mensagem de erro AADSTS700213 se falhar):
+# O subject precisa bater EXATAMENTE com o formato que o GitHub Actions envia
+# hoje (inclui IDs numéricos de org/repo desde 2024; conferir contra a
+# mensagem de erro AADSTS700213 se falhar):
 az ad app federated-credential create --id "$APP_ID" --parameters '{
-  "name": "asaf-github-main",
+  "name": "github-main",
   "issuer": "https://token.actions.githubusercontent.com",
   "subject": "repo:'"$GITHUB_ORG_REPO"':ref:refs/heads/main",
   "audiences": ["api://AzureADTokenExchange"]
 }'
 az ad app federated-credential create --id "$APP_ID" --parameters '{
-  "name": "asaf-github-pr",
+  "name": "github-pr",
   "issuer": "https://token.actions.githubusercontent.com",
   "subject": "repo:'"$GITHUB_ORG_REPO"':pull_request",
   "audiences": ["api://AzureADTokenExchange"]
@@ -307,17 +284,15 @@ echo "Tenant ID (AZURE_TENANT_ID) e Subscription ID (AZURE_SUBSCRIPTION_ID):"
 az account show --query "{tenant:tenantId, subscription:id}" -o table
 
 # ----------------------------------------------------------------------------
-# 11. Orçamento — a criação automatizada via API falhou nesta assinatura
-#     (Microsoft Customer Agreement / Individual) em todas as combinações
-#     testadas de endpoint e versão de API — limitação real, não erro de
-#     comando. Configurar manualmente pelo Portal:
-#     Cost Management + Billing → Budgets → Novo orçamento → US$100/mês →
-#     alertas em 80% e 100% para o e-mail da conta administradora.
+# 11. Orçamento — se a criação automatizada via API falhar (limitação comum
+#     em assinaturas Microsoft Customer Agreement/Individual), configurar
+#     manualmente pelo Portal: Cost Management + Billing → Budgets → Novo
+#     orçamento → alertas em 80% e 100% para o e-mail da conta administradora.
 # ----------------------------------------------------------------------------
 
 echo ""
 echo "Provisionamento de referência concluído. Próximos passos manuais:"
-echo "  1. Configurar o orçamento pelo Portal (passo 11 acima)."
+echo "  1. Configurar o orçamento pelo Portal (passo 11 acima), se necessário."
 echo "  2. Rodar 'alembic upgrade head' contra o banco novo para criar o schema."
 echo "  3. Publicar os GitHub Secrets (AZURE_CLIENT_ID/TENANT_ID/SUBSCRIPTION_ID)."
 echo "  4. Fazer o primeiro deploy manual (push em main aciona o CI/CD)."

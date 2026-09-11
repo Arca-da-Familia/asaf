@@ -211,7 +211,12 @@ pedra.
 
 ### 5.6 Infraestrutura versionada como script, não Bicep/Terraform
 - **Decidido**: a reconstrução da infraestrutura é documentada em `infra/provisionar.sh` — um
-  script comentado e versionado, não uma ferramenta declarativa de IaC.
+  script comentado, não uma ferramenta declarativa de IaC. **Não versionado neste repositório
+  público** (mesmo tratamento de `CREDENCIAIS_AZURE.md`): mesmo sem senha nenhuma, o nome exato de
+  cada recurso é um mapa de alvo desnecessário de deixar público. Fica só localmente, com quem
+  administra a infraestrutura. A versão pública, `infra/provisionar.exemplo.sh`, tem o mesmo
+  conteúdo com os nomes de recurso trocados por placeholder — documenta o padrão sem expor o mapa
+  real.
 - **Por que esta é uma decisão consciente, não uma pendência**: Bicep/Terraform dariam
   idempotência e um "plano antes de aplicar", mas custam uma ferramenta nova para alguém aprender
   e manter, para um número de recursos que hoje cabe inteiro num único script legível. Para o
