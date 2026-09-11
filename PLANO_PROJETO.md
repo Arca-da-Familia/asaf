@@ -1147,41 +1147,39 @@ o que já está bem resolvido e o que precisa de correção real.
 
 ### 9.2 Correções reais necessárias antes de continuar construindo
 
-- [ ] **Migração de schema precisa de ferramenta de verdade (Alembic), não o mecanismo atual.**
-      Achado direto desta sessão: `preparar_banco()` (auditoria de todas as tabelas a cada boot)
-      já causou um incidente real de produção (27s de boot, crash-loop). Em 20 anos de evolução
-      de schema, esse mecanismo ad hoc vai piorar, não melhorar — cada tabela nova o deixa mais
-      lento, e não guarda **histórico** de migrações (não dá pra saber, daqui a 10 anos, quando e
-      por que uma coluna foi adicionada). **Correção**: adotar Alembic (padrão do ecossistema
-      SQLAlchemy) como parte da FASE 0/v0.1 — migração versionada, rápida, auditável — substituindo
-      `preparar_banco()` por completo, não só desligando-a em produção (a correção atual, v0.0,
-      é um remendo emergencial válido pra destravar o deploy, não a solução definitiva).
-- [ ] **Modularizar `servidor.py` antes de continuar adicionando código.** O arquivo já tem mais
-      de 3400 linhas e o próprio usuário confirmou que é "conceitual, muito quebrado". Continuar
-      empilhando os módulos das próximas fases (Associados, Financeiro, Eventos, Governança) num
-      arquivo único o tornaria impossível de manter por qualquer pessoa daqui a 10-20 anos,
-      especialmente numa associação onde quem programa muda ao longo do tempo. **Correção**:
-      antes de começar a FASE 1 (Associados) a sério, separar em pacotes por domínio (ex.:
-      `app/associados/`, `app/financeiro/`, `app/eventos/`, `app/shared/`), cada um com seus
-      próprios models/rotas/schemas — usando `APIRouter` do FastAPI, sem inventar framework
-      próprio.
-- [ ] **Documentação técnica de arquitetura para continuidade institucional.** A FASE 12 (v12.10)
-      já cobre sucessão de **diretoria**, mas não sucessão **técnica** — em uma associação que
-      pretende durar décadas, quem programa hoje não é garantidamente quem vai manter o sistema
-      daqui a 10 anos. **Correção**: manter um `ARQUITETURA.md` (ou seção equivalente no README)
-      descrevendo decisões-chave (por que Postgres, por que Container Apps, onde ficam os
-      segredos, como fazer deploy) — não once-and-done, atualizado a cada mudança relevante de
-      infraestrutura, igual o `CREDENCIAIS_AZURE.md` já é para segredos.
-- [ ] **Rotação de segredos como prática contínua, não evento único.** Senha do Postgres,
+- [x] **Migração de schema com ferramenta de verdade — Alembic adotado em 2026-09-11.**
+      Substituiu `preparar_banco()` por completo (não só desligado em produção — a v0.0 tinha
+      sido o remendo emergencial, esta é a solução definitiva). Migração baseline gerada e
+      aplicada (`stamp`) contra o Postgres real: veio **vazia**, confirmando que o schema dos 21
+      models da aplicação já batia exatamente. Configurado com `include_object` pra nunca tocar
+      nas tabelas do Directus (`directus_*`), que dividem o mesmo banco mas são geridas por ele.
+      Daqui pra frente: `alembic revision --autogenerate` + `alembic upgrade head` a cada mudança
+      de model, nunca mais editar tabela direto.
+- [x] **`servidor.py` modularizado em 2026-09-11.** Separado em `app/` com pacotes por domínio
+      (`models/`, `schemas/`, `routers/` — core, associados, financeiro, governanca, projetos,
+      admin_portal), reorganização mecânica sem mudança de lógica. Validado: as mesmas 37 rotas
+      antes/depois (diff idêntico entre o `openapi.json` do servidor antigo e do novo), 51
+      tabelas confirmadas no Postgres real, todos os domínios testados via HTTP com 200 OK.
+- [x] **Documentação técnica de arquitetura criada — `ARQUITETURA.md` em 2026-09-11.** Cobre
+      estrutura do código, por que cada peça de infraestrutura foi escolhida, onde ficam os
+      segredos (nunca o valor, só onde procurar), como rodar localmente e como fazer deploy —
+      mais uma seção explícita de práticas de continuidade (rotação de segredo, revisão de
+      custo) como prática contínua, não configuração única. A FASE 12 (v12.10) continua cobrindo
+      sucessão de diretoria; este documento cobre a sucessão técnica.
+- [ ] **Rotação de segredos como prática contínua, não evento único** — confirmado pelo usuário
+      que isso segue sendo tratado ao longo do projeto (não é bloqueio pra continuar), já
+      documentado como prática recomendada no `ARQUITETURA.md` seção 8. Senha do Postgres,
       `JWT_SECRET`, tokens do Directus — hoje gerados uma vez. Para 20 anos de operação, isso
-      precisa virar rotina periódica documentada (ex.: anual, ou ao trocar de diretoria/pessoa
-      responsável pela infraestrutura) — sem isso, o mesmo segredo circula por anos entre pessoas
-      que já saíram da gestão.
-- [ ] **Revisão de custo/orçamento como prática periódica, não configuração única.** O teto de
-      US$100/mês (FASE 8) é adequado para o volume de hoje; conforme o número de associados/
-      eventos crescer ao longo dos anos, o consumo de Postgres/Storage/Container Apps cresce
-      proporcionalmente — o alerta de orçamento avisa quando isso acontece, mas alguém precisa
-      periodicamente decidir se vale subir de tier ou otimizar uso, não é automático.
+      precisa virar rotina periódica (ex.: anual, ou ao trocar de diretoria/pessoa responsável
+      pela infraestrutura) — sem isso, o mesmo segredo circula por anos entre pessoas que já
+      saíram da gestão.
+- [x] **Revisão de custo/orçamento — avaliada e aprovada pelo usuário.** US$2.000/ano de
+      crédito ONG ÷ 12 ≈ US$150/mês de teto real (o plano usa US$100/mês como margem de
+      segurança). Confirmado como confortável para a escala hoje e mesmo num cenário de
+      crescimento (3.000 a 10.000 associados) — se o sucesso da associação justificar consumo
+      acima disso, já haverá recurso arrecadado pra sustentar o upgrade de tier. Não é um
+      problema a resolver agora; o alerta de orçamento (FASE 8) já avisa quando for hora de
+      reavaliar.
 
 ### 9.3 Pergunta em aberto para o usuário
 - **Renovação do domínio `asaf.org.br`**: item puramente operacional (não técnico) mas crítico
@@ -1190,10 +1188,12 @@ o que já está bem resolvido e o que precisa de correção real.
   pode expirar e ser perdido. Vale registrar quem é responsável por isso e com que antecedência
   o Registro.br avisa do vencimento.
 
-**Conclusão desta revisão**: a arquitetura de infraestrutura (Postgres, Container Apps, sem
-servidor fixo) está bem desenhada para durar décadas, com custo que escala junto do uso. O ponto
-real de risco para os próximos 10-20 anos não é a nuvem — é o **código** (mecanismo de migração
-frágil e arquivo único crescendo sem limite) e a **documentação/continuidade institucional**
-(segredo e arquitetura precisam sobreviver à troca de pessoas, não só ao software). As duas
-primeiras correções (Alembic + modularização) devem entrar como pré-requisito da FASE 1, antes
-de continuar adicionando funcionalidade nova por cima do que já existe.
+**Conclusão desta revisão — atualizada em 2026-09-11, correções já aplicadas**: a arquitetura de
+infraestrutura (Postgres, Container Apps, sem servidor fixo) está bem desenhada para durar
+décadas, com custo que escala junto do uso (aprovado pelo usuário, seção 9.2). Os dois riscos
+reais de código identificados (mecanismo de migração frágil e arquivo único crescendo sem
+limite) **já foram corrigidos** — Alembic adotado com baseline aplicado contra produção, e
+`servidor.py` modularizado em pacotes por domínio, ambos validados de ponta a ponta antes do
+deploy. `ARQUITETURA.md` documenta a continuidade técnica. Rotação de segredo segue como
+prática contínua a manter ao longo do tempo, não um bloqueio. **O plano está liberado para
+avançar para a FASE 1 (Associados) — nenhuma correção de alto padrão pendente.**
