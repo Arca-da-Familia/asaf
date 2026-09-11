@@ -15,8 +15,16 @@ import os
 # ==========================================
 # CONFIGURAÇÃO DO BANCO DE DADOS
 # ==========================================
-URL_BANCO_DADOS = "sqlite:///./erp_asaf.db"
-engine = create_engine(URL_BANCO_DADOS, connect_args={"check_same_thread": False})
+# DATABASE_URL vem do ambiente (Key Vault -> Container App em produção; .env local em dev).
+# Nunca hardcoded aqui - ver CREDENCIAIS_AZURE.md (gitignored) para o valor real.
+URL_BANCO_DADOS = os.environ.get("DATABASE_URL", "sqlite:///./erp_asaf.db")
+
+_engine_kwargs = {}
+if URL_BANCO_DADOS.startswith("sqlite"):
+    # connect_args especifico do SQLite - so aplica em dev local sem Postgres configurado.
+    _engine_kwargs["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(URL_BANCO_DADOS, **_engine_kwargs)
 SessaoLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
