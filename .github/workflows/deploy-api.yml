@@ -1,0 +1,55 @@
+name: Deploy API (FastAPI)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "servidor.py"
+      - "requirements.txt"
+      - "Dockerfile"
+      - "templates/**"
+      - ".github/workflows/deploy-api.yml"
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write   # necessário para login OIDC no Azure (sem senha salva)
+  contents: read
+
+env:
+  RESOURCE_GROUP: Associacao-RG
+  REGISTRY: asafregistry
+  IMAGE_NAME: asaf-api
+  CONTAINER_APP: asaf-api
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login no Azure via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build da imagem no ACR (sem precisar de Docker no runner)
+        run: |
+          az acr build \
+            --registry ${{ env.REGISTRY }} \
+            --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --image ${{ env.IMAGE_NAME }}:latest \
+            .
+
+      - name: Atualiza o Container App com a nova imagem
+        run: |
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Logout
+        if: always()
+        run: az logout
