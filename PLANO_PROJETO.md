@@ -775,6 +775,21 @@ impersonar Associado). No painel: `lint`/`typecheck`/`test`/`build` passando, e 
 visual real com Playwright/Chromium cobrindo os 5 tipos de campo, incluindo o fluxo de erro de
 validação e o envio com sucesso.
 
+> **Achado crítico de infraestrutura, sem relação com campos personalizados em si, encontrado ao
+> testar o endpoint novo em produção (2026-09-12)**: `JWT_SECRET` **nunca esteve configurado**
+> no Container App `asaf-api` — só `DATABASE_URL` e `RUN_DB_MIGRATION` existiam como variável de
+> ambiente. Toda rota autenticada (`get_current_user` → `decodificar_access_token` →
+> `_checar_jwt_secret_configurado()`) falhava com 500 antes mesmo de validar o token — incluindo
+> o próprio `POST /auth/login` no momento de emitir o token após validar a senha. **Ou seja,
+> login nunca funcionou de verdade em produção**, desde sempre, para ninguém — não é uma
+> regressão desta sessão. Corrigido com `az containerapp secret set` (novo secret `jwtsecret`,
+> valor lido do Key Vault `JWT-SECRET`) + `az containerapp update --set-env-vars
+> JWT_SECRET=secretref:jwtsecret`, mesmo padrão já usado pelo `DATABASE_URL`. Confirmado depois:
+> a mesma chamada que antes dava `"JWT_SECRET não configurado no ambiente do servidor"` passou a
+> dar `"Token inválido."` (o erro esperado pra um token malformado) — a validação de verdade
+> agora roda. **Pendência registrada**: `CREDENCIAIS_AZURE.md` ainda não foi atualizado com essa
+> mudança de configuração do Container App; fazer isso na próxima sessão que mexer nesse arquivo.
+
 ##### v0.3.4 — Configuração institucional central
 - [ ] Evoluir `ConfiguracaoInstitucional` para chave/valor tipado e versionado: nome, CNPJ,
       endereço, logo, cores, dados bancários, fuso horário, textos padrão de documento, e-mail
