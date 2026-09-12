@@ -1,0 +1,14 @@
+# Configuração do SOPS (v0.2.6) — criptografia dos segredos locais com chave age.
+# A chave PRIVADA de cada pessoa fica local (~/.config/sops/age/keys.txt) e NUNCA é
+# commitada. Aqui só vão as chaves PÚBLICAS (age1...) de cada colaborador — quando a
+# outra máquina gerar a chave dela, adicione a pública abaixo e rode `sops updatekeys`.
+creation_rules:
+  # .env no formato dotenv: mantém as CHAVES visíveis e cifra apenas os VALORES.
+  - path_regex: ^\.env$
+    age: age1tcc555f5hzy0dv87mkuup56yrghh7c235y2dpfeyy2rqjrv92aaqqtevtn
+
+  # Arquivos de texto "livre" (markdown de credenciais e script de provisionamento):
+  # cifrados por inteiro (ficam como blob JSON cifrado no repo).
+  - path_regex: (CREDENCIAIS_AZURE\.md|provisionar\.sh)$
+    input_type: binary
+    age: age1tcc555f5hzy0dv87mkuup56yrghh7c235y2dpfeyy2rqjrv92aaqqtevtn

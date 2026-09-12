@@ -1,14 +1,11 @@
-# Segredos e credenciais — NUNCA versionar
-.env
+# Segredos e credenciais — cifrados com SOPS (age) e versionados de forma segura.
+# A chave PRIVADA age fica em %APPDATA%\sops\age\keys.txt e NUNCA é versionada.
+# Estes arquivos sobem CIFRADOS (o texto puro é local e nunca deve ser commitado):
+#   .env · CREDENCIAIS_AZURE.md · infra/provisionar.sh
 .env.*
 !.env.example
-CREDENCIAIS_AZURE.md
 *.pem
 *.key
-
-# Mapa real da infraestrutura (nomes de recurso, topologia) — local apenas,
-# mesmo tratamento de CREDENCIAIS_AZURE.md (repositório é público)
-infra/provisionar.sh
 
 # Banco de dados local / dados reais
 *.db
