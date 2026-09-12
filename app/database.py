@@ -58,7 +58,13 @@ def seed_catalogos():
     semeia catálogo que ainda não existe (idempotente, nunca duplica o que a migração já trouxe).
     Os códigos abaixo são os mesmos que a migração deriva do rótulo (mesmo algoritmo de slug) -
     mantidos iguais de propósito, para o código estável ser o mesmo não importa qual caminho o
-    banco passou (seed direto ou migração de dado antigo)."""
+    banco passou (seed direto ou migração de dado antigo).
+
+    v0.3.2 acrescentou os catálogos que ainda não existiam em v0.1/v0.2 (tipo de documento,
+    motivo de desligamento, tipo de projeto/evento/protocolo/requerimento, unidade de medida de
+    indicador) - todos como **semente de exemplo**, `editavel_pelo_usuario=True`: a diretoria
+    ajusta ao estatuto real da associação depois, isto aqui é só ponto de partida (ver
+    PLANO_PROJETO.md v0.3.2)."""
     from app.models.core import Catalogo, OpcaoCatalogo  # import local, mesmo motivo do seed acima
     catalogos_padrao = {
         "categoria_associado": ("Categoria do associado", False, [
@@ -91,6 +97,39 @@ def seed_catalogos():
             ("VICE_TESOUREIRO", "Vice-Tesoureiro"), ("SECRETARIO", "Secretário"), ("VICE_SECRETARIO", "Vice-Secretário"),
             ("CONSELHO_FISCAL", "Conselho Fiscal"), ("DIRETOR_DE_PATRIMONIO", "Diretor de Patrimônio"),
             ("DIRETOR_SOCIAL", "Diretor Social"),
+        ]),
+        # ---- v0.3.2: catálogos novos, sem equivalente em opcoes_lista (v0.1/v0.2) ----
+        "tipo_documento": ("Tipo de documento", True, [
+            ("RG", "RG"), ("CPF", "CPF"), ("COMPROVANTE_RESIDENCIA", "Comprovante de Residência"),
+            ("CERTIDAO_NASCIMENTO", "Certidão de Nascimento"), ("COMPROVANTE_RENDA", "Comprovante de Renda"),
+            ("FOTO_3X4", "Foto 3x4"),
+        ]),
+        "motivo_desligamento": ("Motivo de desligamento", True, [
+            ("INADIMPLENCIA", "Inadimplência"), ("PEDIDO_VOLUNTARIO", "Pedido voluntário"),
+            ("FALECIMENTO", "Falecimento"), ("CONDUTA_INCOMPATIVEL", "Conduta incompatível com o estatuto"),
+            ("MUDANCA_DE_CIDADE", "Mudança de cidade"),
+        ]),
+        "tipo_projeto": ("Tipo de projeto", True, [
+            ("ASSISTENCIAL", "Assistencial"), ("EDUCACIONAL", "Educacional"), ("CULTURAL", "Cultural"),
+            ("ESPORTIVO", "Esportivo"), ("SAUDE", "Saúde"),
+        ]),
+        "tipo_evento": ("Tipo de evento", True, [
+            ("ASSEMBLEIA", "Assembleia"), ("REUNIAO_DE_DIRETORIA", "Reunião de Diretoria"), ("CULTO", "Culto"),
+            ("CONFRATERNIZACAO", "Confraternização"), ("ACAO_SOCIAL", "Ação Social"), ("PALESTRA", "Palestra"),
+        ]),
+        "tipo_protocolo": ("Tipo de protocolo", True, [
+            ("SOLICITACAO_DE_DOCUMENTO", "Solicitação de Documento"), ("RECLAMACAO", "Reclamação"),
+            ("SUGESTAO", "Sugestão"), ("DENUNCIA", "Denúncia"),
+            ("REQUERIMENTO_ADMINISTRATIVO", "Requerimento Administrativo"),
+        ]),
+        "tipo_requerimento": ("Tipo de requerimento", True, [
+            ("ALTERACAO_CADASTRAL", "Alteração Cadastral"), ("SEGUNDA_VIA_DE_CARTEIRINHA", "Segunda Via de Carteirinha"),
+            ("ISENCAO_DE_MENSALIDADE", "Isenção de Mensalidade"), ("LICENCA_TEMPORARIA", "Licença Temporária"),
+            ("DESLIGAMENTO", "Desligamento"),
+        ]),
+        "unidade_medida_indicador": ("Unidade de medida de indicador", True, [
+            ("UNIDADE", "Unidade"), ("PERCENTUAL", "Percentual"), ("REAL", "Real (R$)"),
+            ("QUILOGRAMA", "Quilograma"), ("HORA", "Hora"), ("PESSOA", "Pessoa"),
         ]),
     }
     db = SessaoLocal()

@@ -715,11 +715,24 @@ protótipo antigo continuando no ar. `python -m py_compile` em todos os arquivos
 > re-disparado manualmente só depois da migração confirmada. Testado ao vivo em
 > `https://api.asaf.org.br/api/opcoes/categoria_associado` respondendo no formato de sempre.
 
-##### v0.3.2 — Catálogos iniciais semeados
-- [ ] Cargos da diretoria e do conselho; categorias de associado; tipos de documento; motivos de
-      desligamento; tipos de projeto; tipos de evento; formas de pagamento; tipos de protocolo;
-      tipos de requerimento; unidades de medida de indicador. Todos como **semente de exemplo**,
-      explicitamente ajustáveis ao estatuto real da ASAF depois.
+##### v0.3.2 — Catálogos iniciais semeados ✅ IMPLEMENTADO (2026-09-12)
+- [x] Cargos da diretoria e do conselho, categorias de associado e formas de pagamento **já
+      existiam** (migrados de `opcoes_lista` na v0.3.1 — `titulo_cargo`, `categoria_associado`,
+      `forma_pagamento`). Catálogos novos acrescentados em `seed_catalogos()`
+      (`app/database.py`), todos `editavel_pelo_usuario=True` (semente de exemplo, ajustável):
+      `tipo_documento` (RG, CPF, Comprovante de Residência, Certidão de Nascimento, Comprovante
+      de Renda, Foto 3x4), `motivo_desligamento` (Inadimplência, Pedido voluntário, Falecimento,
+      Conduta incompatível com o estatuto, Mudança de cidade), `tipo_projeto` (Assistencial,
+      Educacional, Cultural, Esportivo, Saúde), `tipo_evento` (Assembleia, Reunião de
+      Diretoria, Culto, Confraternização, Ação Social, Palestra), `tipo_protocolo`
+      (Solicitação de Documento, Reclamação, Sugestão, Denúncia, Requerimento Administrativo),
+      `tipo_requerimento` (Alteração Cadastral, Segunda Via de Carteirinha, Isenção de
+      Mensalidade, Licença Temporária, Desligamento), `unidade_medida_indicador` (Unidade,
+      Percentual, Real (R$), Quilograma, Hora, Pessoa).
+
+Verificação real: backend rodado localmente (SQLite) — os 15 catálogos (8 migrados + 7 novos)
+aparecem em `GET /api/catalogos/`, conteúdo e acentuação conferidos em dois catálogos novos via
+`curl`, e reiniciar o servidor **não duplicou nada** (seed idempotente, testado de propósito).
 
 ##### v0.3.3 — Campos personalizados (custom fields) sem deploy
 - [ ] `DefinicaoCampo` (entidade alvo: associado/projeto/evento/beneficiário; rótulo; tipo:
