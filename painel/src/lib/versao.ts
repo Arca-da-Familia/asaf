@@ -10,7 +10,9 @@ type VersionInfo = { commit: string; buildEm: string }
 
 async function buscarVersao(): Promise<VersionInfo | null> {
   try {
-    const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' })
+    const res = await fetch(`/version.json?t=${Date.now()}`, {
+      cache: 'no-store',
+    })
     if (!res.ok) return null
     return (await res.json()) as VersionInfo
   } catch {

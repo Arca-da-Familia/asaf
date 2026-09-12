@@ -20,7 +20,10 @@ if (connectionString) {
   appInsights.loadAppInsights()
 }
 
-export function registrarErro(erro: unknown, propriedades?: Record<string, string>) {
+export function registrarErro(
+  erro: unknown,
+  propriedades?: Record<string, string>,
+) {
   if (!appInsights) {
     console.error('[monitoramento]', erro, propriedades)
     return

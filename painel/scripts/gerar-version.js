@@ -10,7 +10,9 @@ const dir = path.dirname(fileURLToPath(import.meta.url))
 
 function commitAtual() {
   try {
-    return execSync('git rev-parse --short HEAD', { cwd: dir }).toString().trim()
+    return execSync('git rev-parse --short HEAD', { cwd: dir })
+      .toString()
+      .trim()
   } catch {
     return 'dev'
   }
@@ -21,5 +23,8 @@ const versao = {
   buildEm: new Date().toISOString(),
 }
 
-writeFileSync(path.join(dir, '..', 'public', 'version.json'), JSON.stringify(versao, null, 2))
+writeFileSync(
+  path.join(dir, '..', 'public', 'version.json'),
+  JSON.stringify(versao, null, 2),
+)
 console.log('public/version.json gerado:', versao)

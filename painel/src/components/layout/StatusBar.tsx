@@ -14,7 +14,10 @@ type StatusBarProps = {
 // "quebrou" quando na verdade é o Container App acordando de scale-to-zero, ou a rede caiu, ou
 // simplesmente saiu um deploy novo enquanto a aba estava aberta. `commitAtual`/`novaVersaoDisponivel`
 // vêm do Shell (que já chama `useVersaoBuild` para o rodapé) para não duplicar o polling.
-export function StatusBar({ novaVersaoDisponivel, recarregar }: StatusBarProps) {
+export function StatusBar({
+  novaVersaoDisponivel,
+  recarregar,
+}: StatusBarProps) {
   const estadoRede = useSyncExternalStore(inscrever, obterEstado)
 
   if (estadoRede === 'offline') {
