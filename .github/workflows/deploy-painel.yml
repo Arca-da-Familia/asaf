@@ -106,6 +106,12 @@ jobs:
       - name: Build de produção
         run: npm run build
 
+      # A action de deploy zipa app_location inteiro (painel/) mesmo com skip_app_build: true —
+      # sem isto, node_modules (~330MB) vai junto e estoura o limite de 250MB do plano Free
+      # ("size of the app content was too large"). O build já rodou, node_modules não faz falta.
+      - name: Remove node_modules antes do deploy (evita estourar o limite de tamanho do Free)
+        run: rm -rf node_modules
+
       - name: Publica no Static Web App
         uses: Azure/static-web-apps-deploy@v1
         with:
