@@ -115,10 +115,12 @@ Créditos de ONG ~US$2.000/ano → teto de **US$100/mês**. Ver detalhamento na 
 > projeto já evitou ao adotar Alembic e modularizar o `servidor.py`, e que não deve se repetir por
 > falta de checagem no meio do caminho.
 
-**Regra padrão**: toda fase (FASE 1 em diante — a FASE 0 já foi concluída e validada por um
-processo equivalente) ganha **pelo menos dois pontos de revisão**: um no **meio** da fase e um no
-**fim**. Cada ponto de revisão é um bloco explícito neste documento, marcado como
-`🔍 Ponto de Revisão`, inserido entre duas sub-versões.
+**Regra padrão**: toda fase ganha **pelo menos dois pontos de revisão**: um no **meio** da fase e
+um no **fim**. Cada ponto de revisão é um bloco explícito neste documento, marcado como
+`🔍 Ponto de Revisão`, inserido entre duas sub-versões. (v0.0 e v0.1, dentro da FASE 0, já estavam
+concluídas e validadas por um processo equivalente quando este sistema foi criado — por isso não
+receberam blocos retroativos; a v0.2/v0.3 da mesma fase, ainda em construção, recebem pontos de
+revisão normalmente, como qualquer fase 1-20.)
 
 **Regra para fases críticas**: fases que envolvem dinheiro (FASE 3), voto/validade jurídica de
 deliberação (FASES 2, 13, 20), dado sensível em volume (FASE 7), segurança em profundidade
@@ -285,36 +287,65 @@ até a correção estar feita — o ponto de revisão é um portão, não uma su
 > que as fases seguintes só consomem.
 
 ##### v0.2.0 — Fundação do projeto de front-end
-- [ ] Repositório/pasta `painel/` no mesmo repo (monorepo simples, sem ferramenta de monorepo) —
+- [x] Repositório/pasta `painel/` no mesmo repo (monorepo simples, sem ferramenta de monorepo) —
       Vite + React + TypeScript **strict** (`strict: true`, `noUncheckedIndexedAccess`), nunca
       TS frouxo que vira JavaScript com enfeite.
-- [ ] Tailwind + shadcn/ui (componentes copiados pro repo, não dependência que some) + Recharts
+- [x] Tailwind + shadcn/ui (componentes copiados pro repo, não dependência que some) + Recharts
       para gráfico + TanStack Query para estado de servidor + React Router.
-- [ ] **Decisão explícita de perpetuidade**: nenhum componente de UI vem de biblioteca paga ou de
+- [x] **Decisão explícita de perpetuidade**: nenhum componente de UI vem de biblioteca paga ou de
       SaaS com licença por usuário. Tudo que entrar tem que continuar funcionando se a associação
       parar de pagar qualquer coisa.
-- [ ] ESLint + Prettier + `tsc --noEmit` rodando no CI (workflow novo `deploy-painel.yml`),
+- [x] ESLint + Prettier + `tsc --noEmit` rodando no CI (workflow novo `deploy-painel.yml`),
       bloqueando merge quebrado.
-- [ ] Build publicado no Static Web App `asaf-painel` (já provisionado na v0.0) via GitHub Actions
+- [x] Build publicado no Static Web App `asaf-painel` (já provisionado na v0.0) via GitHub Actions
       com o deploy token que já está no Key Vault (`SWA-PAINEL-DEPLOY-TOKEN`).
 
 ##### v0.2.1 — Camada de autenticação no cliente (contrato com a v0.1)
-- [ ] Cliente HTTP único (`api.ts`) com interceptor: injeta `Authorization: Bearer`, detecta 401,
+- [x] Cliente HTTP único (`api.ts`) com interceptor: injeta `Authorization: Bearer`, detecta 401,
       tenta `POST /auth/refresh` **uma vez**, refaz a requisição original; se o refresh falhar,
       derruba a sessão e manda pro login. Nunca dois refresh concorrentes (fila de espera de
       requisições enquanto o refresh está em voo).
-- [ ] Armazenamento do token: access token **em memória** (nunca `localStorage`, que é lido por
+- [x] Armazenamento do token: access token **em memória** (nunca `localStorage`, que é lido por
       qualquer XSS); refresh token em cookie `HttpOnly`+`Secure`+`SameSite=Strict` emitido pela
       API — **muda o contrato da v0.1**, que hoje devolve o refresh no corpo JSON. Registrar como
       ajuste de API a fazer junto com esta versão (`v0.2.1a`).
-- [ ] `v0.2.1a` (ajuste no backend) — `POST /auth/login` e `/auth/login/mfa` passam a também
+- [x] `v0.2.1a` (ajuste no backend) — `POST /auth/login` e `/auth/login/mfa` passam a também
       setar o refresh token como cookie `HttpOnly`; `/auth/refresh` e `/auth/logout` passam a
-      aceitar o token pelo cookie quando o corpo não vier. Compatibilidade mantida com o corpo
-      JSON para clientes de linha de comando/teste.
-- [ ] Tela de login: CPF com máscara e validação de dígito verificador **no cliente** (evita
+      aceitar o token pelo cookie quando o corpo não vier. **Corrigido no ponto de revisão
+      abaixo**: o corpo JSON de resposta nunca ecoa o valor do refresh token de volta (nem em
+      `/login`, `/login/mfa` nem em `/refresh`) — devolvê-lo ali também anularia a proteção do
+      `HttpOnly` contra XSS. Cliente de linha de comando/teste que precise do valor bruto lê do
+      header `Set-Cookie` da resposta (não acessível a partir de JS do navegador, mas legível
+      por qualquer cliente HTTP fora do navegador).
+- [x] Tela de login: CPF com máscara e validação de dígito verificador **no cliente** (evita
       requisição inútil) + segundo passo de TOTP quando a API responder `requer_mfa: true`.
-- [ ] Tratamento explícito do 429 de bloqueio por força bruta (v0.1.2): mensagem clara de "muitas
+- [x] Tratamento explícito do 429 de bloqueio por força bruta (v0.1.2): mensagem clara de "muitas
       tentativas, tente de novo em X minutos", nunca erro genérico.
+- [x] Bootstrap de sessão no carregamento da aplicação (`bootstrapSession()`, chamado uma vez
+      pelo `AuthProvider`): como o access token só existe em memória, ele não sobrevive a um F5
+      — sem isso, o cookie de refresh de 30 dias nunca teria efeito prático. Enquanto a checagem
+      roda, nenhuma rota redireciona para `/login` (evita o "pisca" de tela de login a cada
+      recarga).
+
+##### 🔍 Ponto de Revisão — FASE 0 / v0.2 (1/3, fecha v0.2.0–v0.2.3) — aplicado em 2026-09-11
+Implementação de v0.2.0–v0.2.1 feita por outra sessão de IA; revisado nesta sessão contra o
+checklist padrão (seção 4.1) antes de aceitar. **Dois problemas reais encontrados e corrigidos**:
+
+1. **(Crítico)** O backend gravava o refresh token no cookie `HttpOnly` **e também** devolvia o
+   mesmo valor em texto no corpo JSON de `/login`, `/login/mfa` e `/refresh` — isso anulava a
+   proteção contra XSS que o `HttpOnly` existe para dar (um script injetado na página não lê o
+   cookie, mas conseguiria ler o valor na resposta da própria chamada de login que o usuário
+   legítimo faz). Violava a decisão congelada 4.2. Corrigido: os três endpoints agora sempre
+   devolvem `refresh_token: null` no corpo depois que o cookie foi gravado/consultado.
+2. O painel não tinha nenhum bootstrap de sessão no carregamento — a marcação `[x]` das
+   sub-versões estava otimista: o cookie de 30 dias existia, mas nada o usava ao recarregar a
+   página, então toda sessão morria em qualquer F5. Corrigido: `bootstrapSession()` +
+   `isBootstrapping` no `AuthProvider`.
+
+Depois da correção: `npm run typecheck`, `npm run lint`, `npm run format:check` e `npm run build`
+rodados manualmente e todos passando; `python -m py_compile` confirmando que o backend segue
+válido. Nenhum teste automatizado existe ainda para este fluxo (a v0.2.8 — Vitest/Playwright —
+ainda não foi implementada); registrar como item a cobrir quando aquela sub-versão for feita.
 
 ##### v0.2.2 — Onboarding obrigatório de MFA (fecha a pendência registrada na v0.1.4)
 - [ ] `v0.2.2a` (backend) — `NivelAcesso.exige_mfa` (booleano, configurável pelo catálogo da
@@ -385,6 +416,15 @@ até a correção estar feita — o ponto de revisão é um portão, não uma su
       alternando na mesma tela) e permitir revisão de texto sem mexer em componente.
 - [ ] Formatação de data/moeda/número sempre por `Intl`, nunca concatenação manual.
 
+##### 🔍 Ponto de Revisão — FASE 0 / v0.2 (2/3, fecha v0.2.4–v0.2.6)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Nenhum componente de UI novo (v0.2.4) veio de biblioteca paga ou SaaS por usuário — confirmar
+  contra `DECISOES_CONGELADAS.md` seção 4.3 antes de aceitar uma dependência nova.
+- Módulo "Meu Perfil" (v0.2.5): troca de senha revoga todos os refresh tokens do usuário exceto
+  o da sessão corrente — testar isso, não só a troca em si.
+- Auditoria automatizada de acessibilidade (v0.2.6) está de fato rodando no CI, não só
+  planejada — testar introduzindo uma violação de propósito.
+
 ##### v0.2.7 — Robustez operacional do painel
 - [ ] Estado de erro de rede tratado globalmente (API fora do ar → aviso persistente, não tela
       branca) — relevante porque o Container App tem **scale-to-zero**: a primeira requisição
@@ -423,6 +463,16 @@ até a correção estar feita — o ponto de revisão é um portão, não uma su
 > Princípio de perpetuidade: em 15 anos, a ASAF vai querer uma categoria de associado, um motivo
 > de desligamento ou um tipo de documento que ninguém imaginou hoje. Nada disso pode exigir
 > programador. A v0.3 constrói **um motor genérico de catálogo** em vez de 12 CRUDs parecidos.
+
+##### 🔍 Ponto de Revisão — FASE 0 / v0.2 (3/3 — fim, fecha v0.2.7–v0.2.10)
+Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
+- Nenhum módulo de negócio foi construído "adiantado" dentro da v0.2 (v0.2.10) — a v0.2 entrega
+  só casca/design system/contratos, módulo de negócio começa na FASE 1.
+- Impersonação de papel (v0.2.9) nunca permite escrita, só leitura, e sempre grava `AuditLog`.
+- Testes automatizados do painel (v0.2.8) existem para os fluxos que não podem quebrar (login,
+  login com MFA, refresh expirado, 403 por falta de permissão) — se ainda não existirem neste
+  ponto, registrar como pendência explícita antes de considerar a v0.2 encerrada, não deixar
+  passar em silêncio.
 
 ##### v0.3.1 — Modelo genérico de catálogo
 - [ ] Evoluir a `OpcaoLista` existente para o modelo definitivo: `Catalogo` (chave técnica, nome

@@ -1,0 +1,114 @@
+name: Deploy Painel (React/Vite)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "painel/**"
+      - ".github/workflows/deploy-painel.yml"
+  pull_request:
+    paths:
+      - "painel/**"
+      - ".github/workflows/deploy-painel.yml"
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write # necessário para login OIDC no Azure (sem senha salva)
+  contents: read
+
+env:
+  KEY_VAULT: kv-asaf-arca
+  SWA_TOKEN_SECRET: SWA-PAINEL-DEPLOY-TOKEN
+
+jobs:
+  # Portões de qualidade: lint + formato + typecheck + build. Rodam em todo PR e
+  # push em main, bloqueando merge de código quebrado (item 4 da v0.2.0).
+  quality:
+    name: Lint, formato e typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: painel
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Configura Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: painel/package-lock.json
+
+      - name: Instala dependências
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Prettier (confere formatação)
+        run: npm run format:check
+
+      - name: Typecheck (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Build de produção
+        run: npm run build
+
+  # Publicação no Static Web App asaf-painel (item 5 da v0.2.0). Só roda em push
+  # na main, depois que os portões de qualidade passaram.
+  deploy:
+    name: Publica no Static Web App asaf-painel
+    needs: quality
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: painel
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Configura Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: painel/package-lock.json
+
+      - name: Login no Azure via OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Busca o deploy token no Key Vault
+        id: kv
+        run: |
+          TOKEN=$(az keyvault secret show \
+            --vault-name "$KEY_VAULT" \
+            --name "$SWA_TOKEN_SECRET" \
+            --query value -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Instala dependências
+        run: npm ci
+
+      - name: Build de produção
+        run: npm run build
+
+      - name: Publica no Static Web App
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.kv.outputs.token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: painel
+          output_location: dist
+          skip_app_build: true
+
+      - name: Logout
+        if: always()
+        run: az logout

@@ -1,5 +1,8 @@
 import pyotp
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from datetime import datetime
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
@@ -19,6 +22,9 @@ from app.schemas.auth import (
 )
 from app.security import (
     ACCESS_TOKEN_MINUTOS,
+    COOKIE_SECURE,
+    REFRESH_COOKIE_NAME,
+    REFRESH_TOKEN_DIAS,
     criar_access_token,
     criar_mfa_pending_token,
     criar_refresh_token,
@@ -49,13 +55,16 @@ def _buscar_usuario_por_cpf(db: Session, cpf: str) -> Usuario:
 
 
 @router.post("/login", response_model=TokenResponse, summary="Login por CPF + senha")
-def login(dados: LoginRequest, request: Request, db: Session = Depends(get_db)):
+def login(dados: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     usuario = _buscar_usuario_por_cpf(db, dados.cpf)
 
     if usuario_esta_bloqueado(usuario):
+        segundos = max(1, int((usuario.bloqueado_ate - datetime.utcnow()).total_seconds()))
+        minutos = max(1, (segundos + 59) // 60)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Muitas tentativas de login. Tente novamente mais tarde.",
+            detail=f"Muitas tentativas de login. Tente novamente em {minutos} min.",
+            headers={"Retry-After": str(segundos)},
         )
 
     if not usuario.ativo or not verificar_senha(dados.senha, usuario.senha_hash or ""):
@@ -80,15 +89,30 @@ def login(dados: LoginRequest, request: Request, db: Session = Depends(get_db)):
         db, usuario, "usuarios", "LOGIN", id_registro_afetado=usuario.id_usuario,
         ip_origem=request.client.host if request.client else None,
     )
+    refresh_token = criar_refresh_token(db, usuario)
+    response.set_cookie(
+        key=REFRESH_COOKIE_NAME,
+        value=refresh_token,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="strict",
+        max_age=REFRESH_TOKEN_DIAS * 24 * 60 * 60,
+    )
+    # O valor NUNCA volta no corpo JSON quando já foi gravado em cookie HttpOnly - devolvê-lo
+    # aqui também anularia a proteção contra XSS que o HttpOnly existe para dar (um script
+    # injetado na página não pode ler o cookie, mas conseguiria ler a resposta desta chamada
+    # se ela também carregasse o token). Cliente de linha de comando/teste que precise do valor
+    # bruto lê do header Set-Cookie da resposta (nunca acessível a partir de JS do navegador,
+    # mas perfeitamente legível por curl/httpx) - ver DECISOES_CONGELADAS.md seção 4.2.
     return TokenResponse(
         access_token=criar_access_token(usuario),
-        refresh_token=criar_refresh_token(db, usuario),
+        refresh_token=None,
         expires_in_minutos=ACCESS_TOKEN_MINUTOS,
     )
 
 
 @router.post("/login/mfa", response_model=TokenResponse, summary="2º passo do login (código TOTP)")
-def login_mfa(dados: LoginMFARequest, request: Request, db: Session = Depends(get_db)):
+def login_mfa(dados: LoginMFARequest, request: Request, response: Response, db: Session = Depends(get_db)):
     payload = decodificar_mfa_pending_token(dados.login_temp_token)
     usuario = db.query(Usuario).filter(Usuario.id_usuario == payload["id_usuario"]).first()
     if usuario is None or not usuario.mfa_ativado or not usuario.mfa_secret:
@@ -104,26 +128,45 @@ def login_mfa(dados: LoginMFARequest, request: Request, db: Session = Depends(ge
         db, usuario, "usuarios", "LOGIN", id_registro_afetado=usuario.id_usuario,
         ip_origem=request.client.host if request.client else None,
     )
+    refresh_token = criar_refresh_token(db, usuario)
+    response.set_cookie(
+        key=REFRESH_COOKIE_NAME,
+        value=refresh_token,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="strict",
+        max_age=REFRESH_TOKEN_DIAS * 24 * 60 * 60,
+    )
+    # Idem à observação em /auth/login - nunca ecoar o valor no corpo já que foi para o cookie.
     return TokenResponse(
         access_token=criar_access_token(usuario),
-        refresh_token=criar_refresh_token(db, usuario),
+        refresh_token=None,
         expires_in_minutos=ACCESS_TOKEN_MINUTOS,
     )
 
 
 @router.post("/refresh", response_model=TokenResponse, summary="Renova o access token")
-def refresh(dados: RefreshRequest, db: Session = Depends(get_db)):
-    usuario = validar_refresh_token(db, dados.refresh_token)
+def refresh(request: Request, dados: Optional[RefreshRequest] = None, db: Session = Depends(get_db)):
+    refresh_token = (dados.refresh_token if dados else None) or request.cookies.get(REFRESH_COOKIE_NAME)
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token ausente.")
+    usuario = validar_refresh_token(db, refresh_token)
+    # O corpo nunca ecoa o refresh token de volta - quem chamou já tem o valor (no próprio
+    # cookie, ou no corpo que acabou de enviar); repeti-lo aqui só ampliaria à toa a superfície
+    # de exposição do token a qualquer script que leia esta resposta.
     return TokenResponse(
         access_token=criar_access_token(usuario),
-        refresh_token=dados.refresh_token,
+        refresh_token=None,
         expires_in_minutos=ACCESS_TOKEN_MINUTOS,
     )
 
 
 @router.post("/logout", summary="Revoga o refresh token (logout real, não só do lado do cliente)")
-def logout(dados: LogoutRequest, db: Session = Depends(get_db)):
-    revogar_refresh_token(db, dados.refresh_token)
+def logout(request: Request, response: Response, dados: Optional[LogoutRequest] = None, db: Session = Depends(get_db)):
+    refresh_token = (dados.refresh_token if dados else None) or request.cookies.get(REFRESH_COOKIE_NAME)
+    if refresh_token:
+        revogar_refresh_token(db, refresh_token)
+    response.delete_cookie(REFRESH_COOKIE_NAME)
     return {"mensagem": "Logout realizado."}
 
 

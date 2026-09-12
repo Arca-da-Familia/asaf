@@ -31,6 +31,15 @@ Tudo hospedado no Azure, grupo de recursos `Associacao-RG`, região Brazil South
 | Build de imagem | Container Registry (ACR Tasks) | Builda a imagem Docker na nuvem — não precisa de Docker instalado localmente |
 | Observabilidade | Application Insights | Log e métrica, plano gratuito cobre o porte deste sistema |
 
+> **Domínio da API (pendência de infraestrutura, necessária para o painel v0.2.1)**: o painel
+> (`painel.asaf.org.br`) guarda o refresh token num cookie `HttpOnly`+`SameSite=Strict` emitido
+> pela API. Cookie `SameSite=Strict` só é enviado em requisições **same-site** — por isso a API
+> precisa responder num domínio sob `asaf.org.br` (ex.: `api.asaf.org.br`), apontando para o
+> Container App `asaf-api`. Enquanto a API responde só em `*.azurecontainerapps.io`, o refresh
+> por cookie não funciona em produção. A criação do subdomínio é feita pelo lado da
+> infraestrutura (Azure CLI/Portal), não pelo código — o código já lê a origem da API de
+> `VITE_API_URL` e não precisa ser reescrito.
+
 ### Por que Postgres, não SQLite
 O protótipo original usava SQLite. Postgres foi escolhido porque escala verticalmente (mais
 CPU/storage) sem reescrever nada, é o que o Directus também precisa, e é a base de dado que
@@ -65,6 +74,11 @@ templates/        HTML estático do protótipo inicial do site (não confundir c
 outro (ex. associados) só por estarem no mesmo arquivo, e qualquer pessoa que for dar
 manutenção daqui a alguns anos precisa conseguir entender um pedaço sem ler o sistema inteiro.
 
+O front-end (painel do associado/admin) vive em `painel/` — Vite + React + TypeScript `strict` +
+Tailwind + shadcn/ui + Recharts + TanStack Query + React Router. É um monorepo simples (mesma
+repo, sem ferramenta de monorepo), conforme a v0.2 do plano; o shell, o design system e os
+contratos de front-end ali construídos são a base que as FASES 1–20 consomem.
+
 ## 4. Migração de banco de dados (Alembic)
 
 Schema é versionado via Alembic — cada mudança de model vira uma migração numerada, revisável,
@@ -89,9 +103,15 @@ Todo push na branch `main` que altere `app/`, `requirements.txt`, `Dockerfile`,
 2. Builda a imagem Docker no ACR Tasks (não precisa de Docker instalado no runner).
 3. Atualiza o Container App pra usar a imagem nova.
 
-Directus e Static Web Apps hoje não têm CI/CD próprio ligado a este repositório — são geridos
-separadamente (Directus é conteúdo, editado pelo próprio painel; o site institucional real
-ainda não foi construído, ver FASE 5 do plano).
+Todo push na branch `main` que altere `painel/` (ou o próprio workflow) dispara
+`.github/workflows/deploy-painel.yml`: ele roda os portões de qualidade (ESLint, Prettier e
+`tsc --noEmit` + build) em todo pull request/push e, só na `main`, publica o build no Static Web
+App `asaf-painel` usando o deploy token `SWA-PAINEL-DEPLOY-TOKEN` que vive no Key Vault
+`kv-asaf-arca`.
+
+Directus hoje não tem CI/CD próprio ligado a este repositório — é gerido separadamente (Directus
+é conteúdo, editado pelo próprio painel; o site institucional real ainda não foi construído, ver
+FASE 5 do plano).
 
 ## 6. Onde estão os segredos
 

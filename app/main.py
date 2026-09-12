@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 import os
@@ -28,6 +29,19 @@ os.makedirs("uploads/fotos", exist_ok=True)
 # ==========================================
 app = FastAPI(title="ERP ASAF - Versão Enterprise", version="2.0")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+# CORS: o painel React (v0.2) chama a API de outra origem. Precisa de origem explícita
+# (nunca "*") + allow_credentials para o cookie HttpOnly de refresh funcionar.
+# Em dev, o Vite faz proxy para o backend; em produção a origem é o painel (asaf.org.br).
+_origens_padrao = "http://localhost:5173,http://127.0.0.1:5173,https://painel.asaf.org.br"
+_origens = [o.strip() for o in os.environ.get("CORS_ORIGINS", _origens_padrao).split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origens,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 app.include_router(auth.router)

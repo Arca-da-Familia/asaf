@@ -27,6 +27,12 @@ REFRESH_TOKEN_DIAS = 30
 MAX_TENTATIVAS_LOGIN = 5
 BLOQUEIO_MINUTOS = 15
 
+# Cookie do refresh token (v0.2.1a): HttpOnly + SameSite=Strict + Secure (em produção).
+# Secure pode ser desligado via COOKIE_SECURE=false apenas para dev local via HTTP (localhost) —
+# um cookie Secure não é gravado pelo navegador em conexão HTTP sem TLS.
+REFRESH_COOKIE_NAME = "asaf_refresh"
+COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "true").lower() != "false"
+
 _bearer_scheme = HTTPBearer(auto_error=False)
 
 

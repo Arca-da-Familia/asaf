@@ -32,11 +32,15 @@ class TokenResponse(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    # Opcional: quando o cliente web usa o cookie HttpOnly, o corpo pode vir vazio
+    # (a API lê o token do cookie). Clientes de linha de comando/teste continuam
+    # enviando no corpo JSON.
+    refresh_token: Optional[str] = None
 
 
 class LogoutRequest(BaseModel):
-    refresh_token: str
+    # Opcional: idem acima — logout via cookie quando o corpo não vier.
+    refresh_token: Optional[str] = None
 
 
 class MFAAtivarResponse(BaseModel):

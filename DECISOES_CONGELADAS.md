@@ -155,6 +155,19 @@ pedra.
   errada e a correção.
 - **Livre dentro disso**: detalhe de implementação do interceptor de renovação.
 
+### 4.3 Perpetuidade do painel: zero dependência paga ou SaaS por usuário
+- **Decidido** (v0.2.0): nenhum componente de UI vem de biblioteca paga nem de SaaS com
+  licença por usuário. Tudo que entra no painel precisa continuar funcionando se a associação
+  parar de pagar qualquer coisa — o custo do painel é só o Static Web App (dentro do crédito
+  nonprofit).
+- **Por que está congelado**: o painel é a casca que os módulos das FASES 1–20 vão habitar por
+  10–20 anos. Uma dependência de UI paga (grid, chart, editor) com licença por usuário vira
+  custo recorrente e risco de lock-in no meio do caminho — trocar depois é refazer componente já
+  espalhado.
+- **Livre dentro disso**: a lista concreta de bibliotecas open-source (hoje: React, Vite,
+  TypeScript, Tailwind, shadcn/ui, Recharts, TanStack Query, React Router, Lucide). Adicionar uma
+  biblioteca nova é aceitável desde que gratuita, open-source e sem contador por usuário.
+
 ---
 
 ## 5. Infraestrutura e deploy
