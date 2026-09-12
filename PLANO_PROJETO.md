@@ -408,13 +408,13 @@ ainda não foi implementada); registrar como item a cobrir quando aquela sub-ver
 - [x] Meus documentos (lista dos `DocumentoAnexo` do próprio associado) — só leitura nesta versão.
 
 ##### v0.2.6 — Acessibilidade e internacionalização de base (feito agora, não "depois")
-- [ ] Navegação completa por teclado, foco visível, `aria-label` em ícone sem texto, contraste
+- [x] Navegação completa por teclado, foco visível, `aria-label` em ícone sem texto, contraste
       mínimo AA — auditado com axe-core no CI. Fazer isso na v0.2 custa pouco; retrofitar em 20
       módulos prontos custa caro (antecipa a FASE 9/v9.1 para o que é estrutural).
-- [ ] Todo texto de interface sai de um arquivo de mensagens (`pt-BR.ts`), mesmo sem plano de
+- [x] Todo texto de interface sai de um arquivo de mensagens (`pt-BR.ts`), mesmo sem plano de
       traduzir — o ganho imediato é padronizar vocabulário ("associado", nunca "membro"/"usuário"
       alternando na mesma tela) e permitir revisão de texto sem mexer em componente.
-- [ ] Formatação de data/moeda/número sempre por `Intl`, nunca concatenação manual.
+- [x] Formatação de data/moeda/número sempre por `Intl`, nunca concatenação manual.
 
 ##### 🔍 Ponto de Revisão — FASE 0 / v0.2 (2/3, fecha v0.2.4–v0.2.6)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:

@@ -16,6 +16,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { logout } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
+import { mensagens } from '@/lib/i18n/pt-BR'
 import { modulos } from '@/lib/modulos'
 import { useTheme } from '@/lib/theme'
 import { useMe } from '@/lib/use-me'
@@ -86,7 +87,7 @@ export function Shell() {
         </Button>
 
         <Link to="/" className="text-lg font-bold tracking-tight">
-          ASAF · Painel
+          {mensagens.app.nome}
         </Link>
 
         {/* Busca global — placeholder nesta versão (a busca funcional entra em versão futura). */}
@@ -153,7 +154,7 @@ export function Shell() {
             onClick={() => setMobileOpen(false)}
           >
             <House className="h-5 w-5 shrink-0" />
-            {!collapsed && <span>Início</span>}
+            {!collapsed && <span>{mensagens.navegacao.inicio}</span>}
           </NavLink>
 
           <NavLink
@@ -162,7 +163,7 @@ export function Shell() {
             onClick={() => setMobileOpen(false)}
           >
             <UserRound className="h-5 w-5 shrink-0" />
-            {!collapsed && <span>Meu perfil</span>}
+            {!collapsed && <span>{mensagens.navegacao.meuPerfil}</span>}
           </NavLink>
 
           {modulosVisiveis.map((m) => (

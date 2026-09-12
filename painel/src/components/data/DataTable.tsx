@@ -21,6 +21,7 @@ import { useState } from 'react'
 
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { Button } from '@/components/ui/button'
+import { mensagens } from '@/lib/i18n/pt-BR'
 import { cn } from '@/lib/utils'
 
 type DataTableProps<T> = {
@@ -114,8 +115,8 @@ export function DataTable<T>({
           <input
             value={filtro}
             onChange={(e) => setFiltro(e.target.value)}
-            placeholder="Filtrar…"
-            aria-label="Filtrar"
+            placeholder={mensagens.tabela.filtroPlaceholder}
+            aria-label={mensagens.tabela.filtrar}
             className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm"
           />
         </div>
@@ -164,8 +165,8 @@ export function DataTable<T>({
                 <td colSpan={colunasFinais.length}>
                   <div className="p-4">
                     <EmptyState
-                      titulo="Nada encontrado"
-                      descricao="Nenhum registro para os filtros atuais."
+                      titulo={mensagens.tabela.nadaEncontrado}
+                      descricao={mensagens.tabela.nadaEncontradoDescricao}
                     />
                   </div>
                 </td>
@@ -201,11 +202,12 @@ export function DataTable<T>({
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>
             {totalRegistros ?? table.getFilteredRowModel().rows.length}{' '}
-            registro(s)
+            {mensagens.tabela.registros}
           </span>
           <select
             value={table.getState().pagination.pageSize}
             onChange={(e) => table.setPageSize(Number(e.target.value))}
+            aria-label="Registros por página"
             className="rounded-md border border-input bg-background px-2 py-1 text-sm"
           >
             {[10, 25, 50].map((n) => (
@@ -221,6 +223,7 @@ export function DataTable<T>({
             size="sm"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
+            aria-label="Página anterior"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -232,6 +235,7 @@ export function DataTable<T>({
             size="sm"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
+            aria-label="Próxima página"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>

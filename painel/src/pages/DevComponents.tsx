@@ -110,8 +110,11 @@ export function DevComponents() {
             {(form) => (
               <>
                 <div>
-                  <label className="text-sm font-medium">Nome</label>
+                  <label htmlFor="nome" className="text-sm font-medium">
+                    Nome
+                  </label>
                   <input
+                    id="nome"
                     {...form.register('nome')}
                     className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                   />
@@ -119,12 +122,15 @@ export function DevComponents() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="text-sm font-medium">CPF</label>
+                    <label htmlFor="cpf" className="text-sm font-medium">
+                      CPF
+                    </label>
                     <Controller
                       control={form.control}
                       name="cpf"
                       render={({ field }) => (
                         <CpfInput
+                          id="cpf"
                           value={field.value}
                           onChange={field.onChange}
                           onBlur={field.onBlur}
@@ -134,12 +140,15 @@ export function DevComponents() {
                     <ErroCampo mensagem={form.formState.errors.cpf?.message} />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">CNPJ</label>
+                    <label htmlFor="cnpj" className="text-sm font-medium">
+                      CNPJ
+                    </label>
                     <Controller
                       control={form.control}
                       name="cnpj"
                       render={({ field }) => (
                         <CnpjInput
+                          id="cnpj"
                           value={field.value}
                           onChange={field.onChange}
                           onBlur={field.onBlur}
@@ -149,12 +158,15 @@ export function DevComponents() {
                     <ErroCampo mensagem={form.formState.errors.cnpj?.message} />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Valor</label>
+                    <label htmlFor="valor" className="text-sm font-medium">
+                      Valor
+                    </label>
                     <Controller
                       control={form.control}
                       name="valor"
                       render={({ field }) => (
                         <MoneyInput
+                          id="valor"
                           value={field.value}
                           onChange={field.onChange}
                         />
@@ -162,12 +174,15 @@ export function DevComponents() {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Data</label>
+                    <label htmlFor="data" className="text-sm font-medium">
+                      Data
+                    </label>
                     <Controller
                       control={form.control}
                       name="data"
                       render={({ field }) => (
                         <DateInput
+                          id="data"
                           value={field.value}
                           onChange={field.onChange}
                         />

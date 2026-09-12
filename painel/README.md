@@ -105,6 +105,15 @@ faz o upload do `dist/`.
   todas as outras".
 - **Meus documentos**: lista dos `DocumentoAnexo` do próprio associado (somente leitura).
 
+## Acessibilidade e i18n (v0.2.6)
+
+- **Acessibilidade**: foco visível global, `aria-label` em ícones sem texto e auditoria com
+  **axe-core no CI** (`npm run test` — Vitest + Testing Library + jest-axe).
+- **Internacionalização**: todo texto visível sai de `src/lib/i18n/pt-BR.ts`, padronizando o
+  vocabulário ("associado", nunca "membro"/"usuário"). A migração dos maiores formulários segue
+  o mesmo padrão.
+- **Formatação por `Intl`**: data/moeda/número em `src/lib/datas.ts`, nunca concatenação manual.
+
 ## Estrutura
 
 ```

@@ -56,6 +56,9 @@ jobs:
       - name: Typecheck (tsc --noEmit)
         run: npm run typecheck
 
+      - name: Testes (axe-core de acessibilidade)
+        run: npm run test
+
       - name: Build de produção
         run: npm run build
 

@@ -138,6 +138,7 @@ export function FileUpload({
         multiple={multiplos}
         disabled={disabled}
         accept={tiposAceitos?.join(',')}
+        aria-label="Selecionar arquivo"
         onChange={(e) => processar(e.target.files)}
       />
 
