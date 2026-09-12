@@ -31,14 +31,13 @@ Tudo hospedado no Azure, grupo de recursos `Associacao-RG`, região Brazil South
 | Build de imagem | Container Registry (ACR Tasks) | Builda a imagem Docker na nuvem — não precisa de Docker instalado localmente |
 | Observabilidade | Application Insights | Log e métrica, plano gratuito cobre o porte deste sistema |
 
-> **Domínio da API (pendência de infraestrutura, necessária para o painel v0.2.1)**: o painel
-> (`painel.asaf.org.br`) guarda o refresh token num cookie `HttpOnly`+`SameSite=Strict` emitido
-> pela API. Cookie `SameSite=Strict` só é enviado em requisições **same-site** — por isso a API
-> precisa responder num domínio sob `asaf.org.br` (ex.: `api.asaf.org.br`), apontando para o
-> Container App `asaf-api`. Enquanto a API responde só em `*.azurecontainerapps.io`, o refresh
-> por cookie não funciona em produção. A criação do subdomínio é feita pelo lado da
-> infraestrutura (Azure CLI/Portal), não pelo código — o código já lê a origem da API de
-> `VITE_API_URL` e não precisa ser reescrito.
+> **Domínio da API — resolvido em 2026-09-11**: o painel (`painel.asaf.org.br`) guarda o refresh
+> token num cookie `HttpOnly`+`SameSite=Strict` emitido pela API, que só é enviado em requisições
+> **same-site**. `api.asaf.org.br` foi criado (registro DNS + hostname vinculado ao Container App
+> `asaf-api` com certificado gerenciado, `bindingType: SniEnabled`) e confirmado respondendo em
+> produção (`https://api.asaf.org.br/docs` → 200 OK). `VITE_API_URL=https://api.asaf.org.br` está
+> definido no workflow `deploy-painel.yml` (valor público, não é segredo, por isso vive no
+> workflow e não no Key Vault) — todo build de produção do painel já aponta pra esse domínio.
 
 ### Por que Postgres, não SQLite
 O protótipo original usava SQLite. Postgres foi escolhido porque escala verticalmente (mais

@@ -19,6 +19,10 @@ permissions:
 env:
   KEY_VAULT: kv-asaf-arca
   SWA_TOKEN_SECRET: SWA-PAINEL-DEPLOY-TOKEN
+  # Origem da API em produção — precisa ser o mesmo site (asaf.org.br) do painel para o
+  # cookie HttpOnly do refresh (SameSite=Strict) ser enviado. Não é segredo (é a URL pública
+  # da API), por isso vive aqui, não no Key Vault.
+  VITE_API_URL: https://api.asaf.org.br
 
 jobs:
   # Portões de qualidade: lint + formato + typecheck + build. Rodam em todo PR e
