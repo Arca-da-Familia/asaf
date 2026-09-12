@@ -734,15 +734,46 @@ Verificação real: backend rodado localmente (SQLite) — os 15 catálogos (8 m
 aparecem em `GET /api/catalogos/`, conteúdo e acentuação conferidos em dois catálogos novos via
 `curl`, e reiniciar o servidor **não duplicou nada** (seed idempotente, testado de propósito).
 
-##### v0.3.3 — Campos personalizados (custom fields) sem deploy
-- [ ] `DefinicaoCampo` (entidade alvo: associado/projeto/evento/beneficiário; rótulo; tipo:
-      texto, número, data, booleano, seleção ligada a um catálogo, arquivo; obrigatório?; ordem;
-      visível para quais níveis) + `ValorCampo` (registro, definição, valor).
-- [ ] Renderizado automaticamente pelo `FormShell` da v0.2.4 — módulo novo ganha campo extra sem
-      linha de código.
-- [ ] Limite consciente: campo personalizado **não** entra em regra de negócio automatizada
-      (cálculo de mensalidade, quórum) — se virar regra, vira coluna de verdade com migração
-      Alembic. Isso impede que o sistema vire uma planilha disfarçada.
+##### v0.3.3 — Campos personalizados (custom fields) sem deploy ✅ IMPLEMENTADO (2026-09-12)
+- [x] `DefinicaoCampo` (entidade: `associado`/`projeto_evento`/`beneficiário` — lista fechada no
+      código, nunca catálogo, porque uma entidade nova sempre exige o modelo/tabela existir;
+      rótulo; tipo: texto/número/data/booleano/seleção-ligada-a-catálogo/arquivo; `id_catalogo`
+      quando seleção; obrigatório; ordem; `niveis_visiveis` — lista de `id_nivel`, vazio = todo
+      mundo vê) + `ValorCampo` (`id_definicao`, `id_registro`, `valor` sempre como texto — o tipo
+      já foi validado na escrita). Migração `e3f4a5b6c7d8`.
+- [x] Backend: `GET/POST/PUT/DELETE /api/campos-personalizados/...` — leitura de definição e
+      valor liberada a qualquer usuário autenticado (filtrada por `niveis_visiveis`, calculado
+      pelo **nível efetivo** — respeita impersonação v0.2.9), escrita de definição exige
+      `gerenciar_acesso`. Validação de valor por tipo no servidor (número/data/booleano/seleção
+      contra o catálogo). Exclusão só com definição já inativa e **zero valor gravado**.
+- [x] Front: `CamposPersonalizadosFields` (renderiza texto/número/data/booleano/seleção/arquivo
+      a partir de `useDefinicoesCampo(entidade)`) + `construirSchemaCamposPersonalizados` (Zod
+      dinâmico, combinável com `.merge()` ao schema fixo do módulo) — um módulo novo só adiciona
+      `<CamposPersonalizadosFields definicoes={...} form={form} />` dentro do `FormShell`,
+      nenhum código por campo. Demonstrado com dado **real** (não estático) em
+      `/dev/componentes`, contra o que estiver cadastrado agora via API.
+- [x] Limite consciente respeitado: nenhuma regra de negócio lê `ValorCampo` — é só
+      apresentação/coleta, exatamente o que a versão pede.
+
+**Achados corrigidos construindo o consumidor real (não só o backend isolado)**:
+- `GET /api/catalogos/` e `GET /api/catalogos/{chave}/opcoes` (v0.3.1) exigiam
+  `gerenciar_acesso` — um campo personalizado tipo "seleção" preenchido por qualquer usuário
+  precisa ler as opções do catálogo. Corrigido: leitura liberada a qualquer autenticado, escrita
+  continua admin-only.
+- O `<label>` do campo personalizado não tinha `htmlFor`/`id` associando ao input (bug de
+  acessibilidade real, pego pelo Playwright falhando ao localizar o campo por label, não por
+  leitura de código) — corrigido.
+- A auditoria de acessibilidade (`acessibilidade.test.tsx`, v0.2.6) quebrou ao ganhar a demo
+  viva (primeiro `useQuery` dentro de `/dev/componentes`) por faltar `QueryClientProvider` no
+  teste — corrigido, com `listarDefinicoesCampo` mockado pra não bater rede de verdade.
+
+Verificação real: backend rodado localmente (SQLite) — criar definição de cada tipo, rejeitar
+seleção sem catálogo, validar valor por tipo (número/data/booleano/seleção, incluindo código
+inexistente), obrigatoriedade, exclusão bloqueada com definição ativa e com valor gravado,
+visibilidade por nível confirmada **com impersonação de verdade** (campo só-Presidente some ao
+impersonar Associado). No painel: `lint`/`typecheck`/`test`/`build` passando, e verificação
+visual real com Playwright/Chromium cobrindo os 5 tipos de campo, incluindo o fluxo de erro de
+validação e o envio com sucesso.
 
 ##### v0.3.4 — Configuração institucional central
 - [ ] Evoluir `ConfiguracaoInstitucional` para chave/valor tipado e versionado: nome, CNPJ,

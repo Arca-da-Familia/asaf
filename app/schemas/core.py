@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 class OpcaoCriar(BaseModel):
     valor: str
@@ -78,3 +78,45 @@ class OpcaoCatalogoAtualizar(BaseModel):
     cor: Optional[str] = None
     icone: Optional[str] = None
     metadados: Optional[dict[str, Any]] = None
+
+
+# v0.3.3 - campos personalizados sem deploy (ver PLANO_PROJETO.md v0.3.3). Uma entidade nova
+# aqui sempre exige código novo (o alvo de id_registro precisa existir) - por isso é uma lista
+# fechada no código, nunca um catálogo que a diretoria edita sozinha.
+EntidadeCampoPersonalizado = Literal["associado", "projeto_evento", "beneficiario"]
+TipoCampoPersonalizado = Literal["texto", "numero", "data", "booleano", "selecao", "arquivo"]
+
+
+class DefinicaoCampoCriar(BaseModel):
+    entidade: EntidadeCampoPersonalizado
+    rotulo: str
+    tipo: TipoCampoPersonalizado
+    id_catalogo: Optional[int] = None
+    obrigatorio: bool = False
+    ordem: int = 0
+    niveis_visiveis: Optional[list[int]] = None
+
+    @field_validator("rotulo")
+    @classmethod
+    def validar_rotulo(cls, v):
+        if not v.strip():
+            raise ValueError("Informe o rótulo do campo.")
+        return v.strip()
+
+
+class DefinicaoCampoAtualizar(BaseModel):
+    rotulo: Optional[str] = None
+    obrigatorio: Optional[bool] = None
+    ordem: Optional[int] = None
+    ativo: Optional[bool] = None
+    niveis_visiveis: Optional[list[int]] = None
+
+
+# Bulk: um form envia todos os campos personalizados do registro de uma vez só.
+class ValorCampoItem(BaseModel):
+    id_definicao: int
+    valor: Optional[str] = None
+
+
+class ValoresCampoDefinir(BaseModel):
+    valores: list[ValorCampoItem]

@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { DataTable } from '@/components/data/DataTable'
 import { Timeline } from '@/components/display/Timeline'
+import { CamposPersonalizadosFields } from '@/components/forms/CamposPersonalizados'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { SkeletonTabela } from '@/components/feedback/SkeletonLoader'
@@ -16,6 +17,11 @@ import { FileUpload } from '@/components/forms/inputs/FileUpload'
 import { MoneyInput } from '@/components/forms/inputs/MoneyInput'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
+import {
+  construirSchemaCamposPersonalizados,
+  useDefinicoesCampo,
+  valoresParaDefaultValues,
+} from '@/lib/campos-personalizados'
 import { validarCpf } from '@/lib/cpf'
 import { validarCnpj } from '@/lib/cnpj'
 import { cores } from '@/lib/tokens'
@@ -56,6 +62,47 @@ function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
       <h2 className="mb-4 font-semibold">{titulo}</h2>
       {children}
     </section>
+  )
+}
+
+// Demonstra o hook + componente de verdade contra a API (v0.3.3) — não é dado estático, é a
+// prova viva de que "cadastrar um campo novo não pede código novo" é real, não só desenhado.
+function CamposPersonalizadosDemo() {
+  const { data: definicoes, isLoading } = useDefinicoesCampo('associado')
+  const [enviado, setEnviado] = useState<string | null>(null)
+
+  if (isLoading)
+    return <p className="text-sm text-muted-foreground">Carregando…</p>
+  if (!definicoes?.length) {
+    return (
+      <EmptyState
+        titulo="Nenhum campo personalizado cadastrado"
+        descricao="Cadastre um em POST /api/campos-personalizados/ pra ver renderizado aqui."
+      />
+    )
+  }
+
+  const schema = construirSchemaCamposPersonalizados(definicoes)
+  return (
+    <FormShell
+      schema={schema}
+      defaultValues={valoresParaDefaultValues(definicoes, {})}
+      onSubmit={(v) => setEnviado(JSON.stringify(v, null, 2))}
+    >
+      {(form) => (
+        <>
+          <CamposPersonalizadosFields definicoes={definicoes} form={form} />
+          <Button type="submit" className="mt-4">
+            Validar (não grava nada)
+          </Button>
+          {enviado && (
+            <pre className="mt-4 rounded-md bg-muted p-3 text-xs">
+              {enviado}
+            </pre>
+          )}
+        </>
+      )}
+    </FormShell>
   )
 }
 
@@ -243,6 +290,16 @@ export function DevComponents() {
             tamanhoMaximoMb={10}
             onArquivosSelecionados={() => {}}
           />
+        </Secao>
+
+        <Secao titulo="Campos personalizados sem deploy (v0.3.3)">
+          <p className="mb-4 text-sm text-muted-foreground">
+            Renderizado a partir do que estiver cadastrado agora em{' '}
+            <code>GET /api/campos-personalizados/associado</code> — não é dado
+            de exemplo fixo. Cadastre um campo novo pela API e ele aparece aqui
+            sem nenhuma mudança de código.
+          </p>
+          <CamposPersonalizadosDemo />
         </Secao>
       </div>
 

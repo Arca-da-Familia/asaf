@@ -520,3 +520,112 @@ export function pararImpersonacao(): Promise<ImpersonarResult> {
     method: 'POST',
   })
 }
+
+// ---------------------------------------------------------------------------
+// Opções de catálogo para preencher seleção (v0.3.1/v0.3.3) — leitura liberada a
+// qualquer usuário autenticado, só CRUD de catálogo é restrito a admin.
+// ---------------------------------------------------------------------------
+export type OpcaoDeCatalogo = {
+  id_opcao: number
+  id_pai: number | null
+  codigo: string
+  rotulo: string
+  ordem: number
+  ativo: boolean
+  cor: string | null
+  icone: string | null
+}
+
+export function listarOpcoesCatalogo(
+  chave: string,
+): Promise<OpcaoDeCatalogo[]> {
+  return apiFetch(`/api/catalogos/${chave}/opcoes`)
+}
+
+// ---------------------------------------------------------------------------
+// Campos personalizados sem deploy (v0.3.3) — a diretoria acrescenta um campo extra num
+// módulo sem precisar de programador; renderizado automaticamente pelo FormShell.
+// ---------------------------------------------------------------------------
+export type EntidadeCampoPersonalizado =
+  'associado' | 'projeto_evento' | 'beneficiario'
+export type TipoCampoPersonalizado =
+  'texto' | 'numero' | 'data' | 'booleano' | 'selecao' | 'arquivo'
+
+export type DefinicaoCampoPersonalizado = {
+  id_definicao: number
+  entidade: EntidadeCampoPersonalizado
+  rotulo: string
+  tipo: TipoCampoPersonalizado
+  id_catalogo: number | null
+  catalogo_chave: string | null
+  obrigatorio: boolean
+  ordem: number
+}
+
+export function listarDefinicoesCampo(
+  entidade: EntidadeCampoPersonalizado,
+): Promise<DefinicaoCampoPersonalizado[]> {
+  return apiFetch(`/api/campos-personalizados/${entidade}`)
+}
+
+export function obterValoresCampo(
+  entidade: EntidadeCampoPersonalizado,
+  idRegistro: number,
+): Promise<Record<number, string | null>> {
+  return apiFetch(
+    `/api/campos-personalizados/${entidade}/${idRegistro}/valores`,
+  )
+}
+
+export function definirValoresCampo(
+  entidade: EntidadeCampoPersonalizado,
+  idRegistro: number,
+  valores: { id_definicao: number; valor: string | null }[],
+): Promise<{ mensagem: string }> {
+  return apiFetch(
+    `/api/campos-personalizados/${entidade}/${idRegistro}/valores`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ valores }),
+    },
+  )
+}
+
+export function criarDefinicaoCampo(dados: {
+  entidade: EntidadeCampoPersonalizado
+  rotulo: string
+  tipo: TipoCampoPersonalizado
+  id_catalogo?: number
+  obrigatorio?: boolean
+  ordem?: number
+  niveis_visiveis?: number[]
+}): Promise<{ id_definicao: number }> {
+  return apiFetch('/api/campos-personalizados/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function atualizarDefinicaoCampo(
+  idDefinicao: number,
+  dados: {
+    rotulo?: string
+    obrigatorio?: boolean
+    ordem?: number
+    ativo?: boolean
+    niveis_visiveis?: number[]
+  },
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/campos-personalizados/${idDefinicao}`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function excluirDefinicaoCampo(
+  idDefinicao: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/campos-personalizados/${idDefinicao}`, {
+    method: 'DELETE',
+  })
+}

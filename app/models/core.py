@@ -89,6 +89,48 @@ class OpcaoCatalogo(Base):
     # um cargo, dias de tolerância de um status) - livre por catálogo, sem migração nova cada vez.
     metadados = Column(_TipoJson, nullable=True)
 
+
+class DefinicaoCampo(Base):
+    """v0.3.3 - campo personalizado sem deploy: a diretoria acrescenta um campo extra num
+    módulo (associado, projeto/evento, beneficiário) sem precisar de programador. Renderizado
+    automaticamente pelo FormShell (v0.2.4) via lib/campos-personalizados.ts no painel.
+    De propósito NUNCA entra em regra de negócio automatizada (cálculo de mensalidade, quórum) -
+    se um campo personalizado vira regra, vira coluna de verdade com migração Alembic; isso
+    impede o sistema de virar uma planilha disfarçada (ver PLANO_PROJETO.md v0.3.3)."""
+    __tablename__ = "definicoes_campo"
+    id_definicao = Column(Integer, primary_key=True, index=True)
+    # Só os valores validados em schemas/core.py (ENTIDADES_CAMPO_PERSONALIZADO) - não é um
+    # catálogo, porque adicionar uma entidade nova sempre exige código novo (a tabela alvo
+    # precisa existir) - nunca é coisa que a diretoria configura sozinha.
+    entidade = Column(String(50), index=True)
+    rotulo = Column(String(200))
+    # texto | numero | data | booleano | selecao | arquivo
+    tipo = Column(String(20))
+    # Só usado quando tipo="selecao" - a opção escolhida referencia um OpcaoCatalogo deste catálogo.
+    id_catalogo = Column(Integer, ForeignKey("catalogos.id_catalogo"), nullable=True)
+    obrigatorio = Column(Boolean, default=False)
+    ordem = Column(Integer, default=0)
+    ativo = Column(Boolean, default=True)
+    # Lista de id_nivel (JSON) que enxergam este campo - vazio/null = todo mundo que acessa o
+    # módulo enxerga. Não é permissão de escrita (isso continua sendo a permissão do módulo),
+    # só visibilidade do campo em si (ex.: um campo só relevante para o Conselho Fiscal).
+    niveis_visiveis = Column(_TipoJson, nullable=True)
+
+
+class ValorCampo(Base):
+    """v0.3.3 - valor de um DefinicaoCampo para um registro específico. `id_registro` é FK "por
+    convenção" (não há FK de banco de verdade - o alvo depende de `DefinicaoCampo.entidade`,
+    que pode ser qualquer tabela). Guardado sempre como texto (o tipo já foi validado na escrita
+    pelo schema Pydantic, conforme `DefinicaoCampo.tipo`) - simples e uniforme, sem precisar de
+    uma coluna por tipo de dado."""
+    __tablename__ = "valores_campo"
+    __table_args__ = (UniqueConstraint("id_definicao", "id_registro", name="uq_valor_campo_registro"),)
+    id_valor = Column(Integer, primary_key=True, index=True)
+    id_definicao = Column(Integer, ForeignKey("definicoes_campo.id_definicao"), index=True)
+    id_registro = Column(Integer, index=True)
+    valor = Column(String, nullable=True)
+
+
 class ModeloDocumento(Base):
     __tablename__ = "modelos_documentos"
     id_modelo = Column(Integer, primary_key=True, index=True)

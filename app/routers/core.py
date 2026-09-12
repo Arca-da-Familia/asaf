@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
 from app.models.associados import Associado
-from app.models.core import ConfiguracaoInstitucional, OpcaoLista, Catalogo, OpcaoCatalogo, NivelAcesso, PermissaoSistema, perfil_permissao, AuditLog, Usuario
+from app.models.core import ConfiguracaoInstitucional, OpcaoLista, Catalogo, OpcaoCatalogo, DefinicaoCampo, ValorCampo, NivelAcesso, PermissaoSistema, perfil_permissao, AuditLog, Usuario
 from app.schemas.core import (
     OpcaoCriar,
     OpcaoAtualizar,
@@ -19,8 +19,11 @@ from app.schemas.core import (
     CatalogoCriar,
     OpcaoCatalogoCriar,
     OpcaoCatalogoAtualizar,
+    DefinicaoCampoCriar,
+    DefinicaoCampoAtualizar,
+    ValoresCampoDefinir,
 )
-from app.security import exigir_permissao
+from app.security import exigir_permissao, get_current_user, nivel_efetivo_id
 
 router = APIRouter()
 
@@ -111,6 +114,10 @@ def atualizar_opcao(id_opcao: int, dados: OpcaoAtualizar, db: Session = Depends(
 
 # ==========================================
 # CATÁLOGO GENÉRICO (v0.3.1) — motor de verdade, usado por código novo daqui pra frente.
+# Leitura (listar catálogos/opções) é liberada a qualquer usuário autenticado — v0.3.3 precisa
+# disso pra renderizar um campo personalizado do tipo "seleção" pra qualquer usuário preenchendo
+# um formulário, não só admin (achado ao construir o consumidor real desta API). Só CRIAR/EDITAR
+# catálogo e opção continua exigindo gerenciar_acesso.
 # ==========================================
 _permissao_gerenciar_catalogos = exigir_permissao("gerenciar_acesso")
 
@@ -132,7 +139,7 @@ def _opcao_em_uso(db: Session, chave_catalogo: str, rotulo: str) -> bool:
 
 
 @router.get("/api/catalogos/", summary="Listar catálogos configuráveis")
-def listar_catalogos(db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_catalogos)):
+def listar_catalogos(db: Session = Depends(get_db), _usuario: Usuario = Depends(get_current_user)):
     catalogos = db.query(Catalogo).order_by(Catalogo.nome_exibido).all()
     return [
         {
@@ -156,7 +163,7 @@ def criar_catalogo(dados: CatalogoCriar, db: Session = Depends(get_db), _=Depend
 
 @router.get("/api/catalogos/{chave}/opcoes", summary="Listar opções de um catálogo")
 def listar_opcoes_catalogo(
-    chave: str, incluir_inativos: bool = False, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_catalogos)
+    chave: str, incluir_inativos: bool = False, db: Session = Depends(get_db), _usuario: Usuario = Depends(get_current_user)
 ):
     catalogo = db.query(Catalogo).filter(Catalogo.chave == chave).first()
     if not catalogo:
@@ -390,6 +397,170 @@ def listar_auditoria(
 def listar_acoes_auditoria(db: Session = Depends(get_db), _=Depends(_permissao_auditoria)):
     linhas = db.query(AuditLog.acao).distinct().order_by(AuditLog.acao).all()
     return [l.acao for l in linhas]
+
+
+# ==========================================
+# CAMPOS PERSONALIZADOS (v0.3.3) — sem deploy, renderizado automaticamente pelo FormShell.
+# Nunca entra em regra de negócio automatizada (ver docstring de DefinicaoCampo).
+# ==========================================
+_permissao_gerenciar_campos = exigir_permissao("gerenciar_acesso")
+
+
+def _campo_visivel_para(definicao: DefinicaoCampo, usuario: Usuario) -> bool:
+    if not definicao.niveis_visiveis:
+        return True
+    return nivel_efetivo_id(usuario) in definicao.niveis_visiveis
+
+
+def _validar_valor(definicao: DefinicaoCampo, valor: Optional[str], db: Session) -> None:
+    if valor is None or valor == "":
+        if definicao.obrigatorio:
+            raise HTTPException(status_code=422, detail=f"Campo '{definicao.rotulo}' é obrigatório.")
+        return
+    if definicao.tipo == "numero":
+        try:
+            float(valor)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Campo '{definicao.rotulo}' precisa ser um número.")
+    elif definicao.tipo == "data":
+        try:
+            datetime.strptime(valor, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Campo '{definicao.rotulo}' precisa ser uma data (AAAA-MM-DD).")
+    elif definicao.tipo == "booleano":
+        if valor not in ("true", "false"):
+            raise HTTPException(status_code=422, detail=f"Campo '{definicao.rotulo}' precisa ser verdadeiro ou falso.")
+    elif definicao.tipo == "selecao":
+        existe = db.query(OpcaoCatalogo).filter(
+            OpcaoCatalogo.id_catalogo == definicao.id_catalogo,
+            OpcaoCatalogo.codigo == valor,
+            OpcaoCatalogo.ativo == True,
+        ).first()
+        if not existe:
+            raise HTTPException(status_code=422, detail=f"Valor inválido para o campo '{definicao.rotulo}'.")
+
+
+@router.get("/api/campos-personalizados/{entidade}", summary="Listar definições de campo de uma entidade")
+def listar_definicoes_campo(
+    entidade: str, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)
+):
+    definicoes = (
+        db.query(DefinicaoCampo)
+        .filter(DefinicaoCampo.entidade == entidade, DefinicaoCampo.ativo == True)
+        .order_by(DefinicaoCampo.ordem, DefinicaoCampo.id_definicao)
+        .all()
+    )
+    # Mapa id_catalogo -> chave: o front usa GET /api/catalogos/{chave}/opcoes pra buscar as
+    # opções de um campo tipo "seleção" - devolver a chave junto evita um round-trip extra
+    # (listar todos os catálogos só pra achar o nome de um).
+    ids_catalogo = {d.id_catalogo for d in definicoes if d.id_catalogo}
+    chave_por_id = {}
+    if ids_catalogo:
+        for c in db.query(Catalogo).filter(Catalogo.id_catalogo.in_(ids_catalogo)).all():
+            chave_por_id[c.id_catalogo] = c.chave
+    return [
+        {
+            "id_definicao": d.id_definicao, "entidade": d.entidade, "rotulo": d.rotulo, "tipo": d.tipo,
+            "id_catalogo": d.id_catalogo, "catalogo_chave": chave_por_id.get(d.id_catalogo),
+            "obrigatorio": d.obrigatorio, "ordem": d.ordem,
+        }
+        for d in definicoes
+        if _campo_visivel_para(d, usuario)
+    ]
+
+
+@router.post("/api/campos-personalizados/", summary="Criar definição de campo personalizado")
+def criar_definicao_campo(
+    dados: DefinicaoCampoCriar, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_campos)
+):
+    if dados.tipo == "selecao" and not dados.id_catalogo:
+        raise HTTPException(status_code=422, detail="Campo do tipo 'seleção' precisa de um catálogo.")
+    nova = DefinicaoCampo(**dados.model_dump())
+    db.add(nova)
+    db.commit()
+    db.refresh(nova)
+    return {"id_definicao": nova.id_definicao}
+
+
+@router.put("/api/campos-personalizados/{id_definicao}", summary="Editar definição de campo (nunca tipo/entidade)")
+def atualizar_definicao_campo(
+    id_definicao: int, dados: DefinicaoCampoAtualizar, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_campos)
+):
+    definicao = db.query(DefinicaoCampo).filter(DefinicaoCampo.id_definicao == id_definicao).first()
+    if not definicao:
+        raise HTTPException(status_code=404, detail="Definição de campo não encontrada.")
+    for campo, valor in dados.model_dump(exclude_unset=True).items():
+        setattr(definicao, campo, valor)
+    db.commit()
+    return {"mensagem": "Definição atualizada."}
+
+
+@router.delete("/api/campos-personalizados/{id_definicao}", summary="Excluir definição (só se já inativa e sem valor gravado)")
+def excluir_definicao_campo(
+    id_definicao: int, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_campos)
+):
+    definicao = db.query(DefinicaoCampo).filter(DefinicaoCampo.id_definicao == id_definicao).first()
+    if not definicao:
+        raise HTTPException(status_code=404, detail="Definição de campo não encontrada.")
+    if definicao.ativo:
+        raise HTTPException(status_code=400, detail="Desative o campo antes de excluir.")
+    if db.query(ValorCampo).filter(ValorCampo.id_definicao == id_definicao).first():
+        raise HTTPException(status_code=409, detail="Campo tem valor gravado em algum registro — não pode ser excluído.")
+    db.delete(definicao)
+    db.commit()
+    return {"mensagem": "Definição excluída."}
+
+
+@router.get(
+    "/api/campos-personalizados/{entidade}/{id_registro}/valores",
+    summary="Ler os valores de campo personalizado de um registro",
+)
+def obter_valores_campo(
+    entidade: str, id_registro: int, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)
+):
+    definicoes = (
+        db.query(DefinicaoCampo)
+        .filter(DefinicaoCampo.entidade == entidade, DefinicaoCampo.ativo == True)
+        .all()
+    )
+    ids_visiveis = {d.id_definicao for d in definicoes if _campo_visivel_para(d, usuario)}
+    valores = (
+        db.query(ValorCampo)
+        .filter(ValorCampo.id_registro == id_registro, ValorCampo.id_definicao.in_(ids_visiveis))
+        .all()
+        if ids_visiveis
+        else []
+    )
+    return {v.id_definicao: v.valor for v in valores}
+
+
+@router.put(
+    "/api/campos-personalizados/{entidade}/{id_registro}/valores",
+    summary="Gravar os valores de campo personalizado de um registro (upsert em lote)",
+)
+def definir_valores_campo(
+    entidade: str, id_registro: int, dados: ValoresCampoDefinir, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)
+):
+    definicoes = {
+        d.id_definicao: d
+        for d in db.query(DefinicaoCampo).filter(DefinicaoCampo.entidade == entidade, DefinicaoCampo.ativo == True).all()
+    }
+    for item in dados.valores:
+        definicao = definicoes.get(item.id_definicao)
+        if not definicao:
+            raise HTTPException(status_code=404, detail=f"Definição de campo {item.id_definicao} não encontrada em '{entidade}'.")
+        _validar_valor(definicao, item.valor, db)
+
+    for item in dados.valores:
+        existente = db.query(ValorCampo).filter(
+            ValorCampo.id_definicao == item.id_definicao, ValorCampo.id_registro == id_registro
+        ).first()
+        if existente:
+            existente.valor = item.valor
+        else:
+            db.add(ValorCampo(id_definicao=item.id_definicao, id_registro=id_registro, valor=item.valor))
+    db.commit()
+    return {"mensagem": "Valores gravados."}
 
 
 # ==========================================
