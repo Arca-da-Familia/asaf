@@ -826,6 +826,25 @@ validação e o envio com sucesso.
 > conta afetada (`id_usuario=2`), rodado pelo usuário fora do Claude Code (o classificador de
 > auto-modo deste ambiente bloqueia o assistente de materializar a `DATABASE_URL`
 > diretamente); MFA reconfigurado do zero em seguida.
+>
+> **Renumeração da conta real para id=1 (2026-09-12)**: a conta Presidente real nasceu com
+> `id_usuario=2`/`id_associado=2` (sequência do Postgres já tinha avançado por causa de um
+> teste fictício de v0.1, criado e apagado antes de qualquer dado real existir — ver nota no
+> início da FASE 0). Decisão: renumerar para 1, e não deixar uma "matrícula fantasma" sem
+> nome no meio da lista de associados. Como `id_usuario`/`id_associado` são chave primária
+> referenciada por FK de verdade (`tokens_acesso`, `codigos_recuperacao_mfa`,
+> `associados.id_usuario`, e qualquer tabela de associado), a troca não é um `UPDATE` simples:
+> script rodado pelo usuário (mesma razão do achado anterior - materializar `DATABASE_URL` é
+> bloqueado para o assistente) que (1) libera `email`/`cpf` da linha antiga (únicos), (2)
+> duplica as linhas de `usuarios`/`associados` com id=1, (3) migra toda FK encontrada via
+> introspecção de `information_schema` (evita depender de listar tabelas manualmente e
+> esquecer alguma), (4) migra `audit_log.id_registro_afetado` (não é FK de verdade, é
+> referência genérica por `tabela_afetada`), (5) apaga as linhas antigas id=2. Rodado primeiro
+> em modo simulação (mesma transação, `ROLLBACK` no final) para validar contra o banco real
+> sem gravar nada; conferido manualmente cada contagem de linha; só depois rodado de novo
+> gravando (`COMMIT`). Verificado depois: login com o mesmo CPF/senha responde com
+> `id_usuario=1` no token. Sessões antigas (token/cookie com `id_usuario=2`) ficaram
+> invalidadas — esperado, exige novo login.
 ##### v0.3.4 — Configuração institucional central
 - [ ] Evoluir `ConfiguracaoInstitucional` para chave/valor tipado e versionado: nome, CNPJ,
       endereço, logo, cores, dados bancários, fuso horário, textos padrão de documento, e-mail
