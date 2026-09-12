@@ -1,5 +1,6 @@
+from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 
 class LoginRequest(BaseModel):
@@ -73,3 +74,64 @@ class MeResponse(BaseModel):
     mfa_obrigatorio: bool = False
     mfa_pendente: bool = False
     permissoes: list[str] = []
+
+
+class AlterarSenhaRequest(BaseModel):
+    senha_atual: str
+    senha_nova: str
+
+
+class EnderecoResponse(BaseModel):
+    cep: Optional[str] = None
+    logradouro: Optional[str] = None
+    numero: Optional[str] = None
+    bairro: Optional[str] = None
+    cidade: Optional[str] = None
+    estado: Optional[str] = None
+
+
+class PerfilResponse(BaseModel):
+    id_associado: Optional[int] = None
+    nome_completo: Optional[str] = None
+    cpf: Optional[str] = None
+    email_contato: Optional[str] = None
+    telefone_whatsapp: Optional[str] = None
+    categoria: Optional[str] = None
+    status_arrolamento: Optional[str] = None
+    data_admissao: Optional[datetime] = None
+    endereco: Optional[EnderecoResponse] = None
+
+
+class PerfilUpdateRequest(BaseModel):
+    email_contato: EmailStr
+    telefone_whatsapp: str
+    cep: Optional[str] = None
+    logradouro: Optional[str] = None
+    numero: Optional[str] = None
+    bairro: Optional[str] = None
+    cidade: Optional[str] = None
+    estado: Optional[str] = None
+
+
+class SessaoResponse(BaseModel):
+    id_token: int
+    criado_em: Optional[datetime] = None
+    ultimo_uso_em: Optional[datetime] = None
+    ip_origem: Optional[str] = None
+    user_agent: Optional[str] = None
+    is_atual: bool = False
+
+
+class DocumentoResponse(BaseModel):
+    id_documento: int
+    tipo_documento: Optional[str] = None
+    data_upload: Optional[datetime] = None
+
+
+class MFADesativarRequest(BaseModel):
+    senha: str
+    codigo_totp: str
+
+
+class MFARegenerarRequest(BaseModel):
+    senha: str

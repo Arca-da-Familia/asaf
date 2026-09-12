@@ -7,10 +7,13 @@ from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
 from app.database import get_db
-from app.models.associados import Associado
-from app.models.core import NivelAcesso, PermissaoSistema, Usuario, perfil_permissao
+from app.models.associados import Associado, DocumentoAnexo, Endereco
+from app.models.core import NivelAcesso, PermissaoSistema, TokenAcesso, Usuario, perfil_permissao
 from app.schemas.auth import (
+    AlterarSenhaRequest,
     BootstrapAdminRequest,
+    DocumentoResponse,
+    EnderecoResponse,
     LoginMFARequest,
     LoginRequest,
     LogoutRequest,
@@ -18,8 +21,13 @@ from app.schemas.auth import (
     MFAAtivarResponse,
     MFAConfirmarRequest,
     MFAConfirmarResponse,
+    MFADesativarRequest,
+    MFARegenerarRequest,
     MFAResetRequest,
+    PerfilResponse,
+    PerfilUpdateRequest,
     RefreshRequest,
+    SessaoResponse,
     TokenResponse,
 )
 from app.security import (
@@ -39,8 +47,10 @@ from app.security import (
     registrar_tentativa_falha,
     revogar_codigos_recuperacao,
     revogar_refresh_token,
+    revogar_tokens_exceto,
     usuario_esta_bloqueado,
     validar_refresh_token,
+    validar_senha_forte,
     verificar_codigo_recuperacao,
     verificar_senha,
 )
@@ -95,7 +105,12 @@ def login(dados: LoginRequest, request: Request, response: Response, db: Session
         db, usuario, "usuarios", "LOGIN", id_registro_afetado=usuario.id_usuario,
         ip_origem=request.client.host if request.client else None,
     )
-    refresh_token = criar_refresh_token(db, usuario)
+    refresh_token = criar_refresh_token(
+        db,
+        usuario,
+        request.client.host if request.client else None,
+        request.headers.get("user-agent"),
+    )
     response.set_cookie(
         key=REFRESH_COOKIE_NAME,
         value=refresh_token,
@@ -143,7 +158,12 @@ def login_mfa(dados: LoginMFARequest, request: Request, response: Response, db: 
         db, usuario, "usuarios", "LOGIN", id_registro_afetado=usuario.id_usuario,
         ip_origem=request.client.host if request.client else None,
     )
-    refresh_token = criar_refresh_token(db, usuario)
+    refresh_token = criar_refresh_token(
+        db,
+        usuario,
+        request.client.host if request.client else None,
+        request.headers.get("user-agent"),
+    )
     response.set_cookie(
         key=REFRESH_COOKIE_NAME,
         value=refresh_token,
@@ -302,3 +322,146 @@ def bootstrap_admin(dados: BootstrapAdminRequest, db: Session = Depends(get_db))
 
     registrar_auditoria(db, usuario, "usuarios", "BOOTSTRAP_ADMIN", id_registro_afetado=usuario.id_usuario)
     return {"mensagem": "Administrador criado com sucesso. Faça login em /auth/login."}
+
+
+# ==========================================
+# MEU PERFIL (v0.2.5)
+# ==========================================
+def _associado_do_usuario(db: Session, usuario: Usuario) -> Associado:
+    associado = db.query(Associado).filter(Associado.id_usuario == usuario.id_usuario).first()
+    if associado is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nenhum associado vinculado a este usuário.")
+    return associado
+
+
+@router.post("/senha/alterar", summary="Troca a própria senha (exige a senha atual)")
+def alterar_senha(dados: AlterarSenhaRequest, request: Request, usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not usuario.senha_hash or not verificar_senha(dados.senha_atual, usuario.senha_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Senha atual incorreta.")
+    erro = validar_senha_forte(dados.senha_nova)
+    if erro:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=erro)
+    usuario.senha_hash = hash_senha(dados.senha_nova)
+    db.commit()
+    # Revoga todos os refresh tokens EXCETO o da sessão corrente (identificado pelo cookie).
+    revogar_tokens_exceto(db, usuario, request.cookies.get(REFRESH_COOKIE_NAME))
+    registrar_auditoria(db, usuario, "usuarios", "SENHA_ALTERADA", id_registro_afetado=usuario.id_usuario)
+    return {"mensagem": "Senha alterada com sucesso."}
+
+
+@router.get("/perfil", response_model=PerfilResponse, summary="Dados cadastrais do próprio associado")
+def perfil(usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+    associado = _associado_do_usuario(db, usuario)
+    endereco = db.query(Endereco).filter(Endereco.id_associado == associado.id_associado).first()
+    return PerfilResponse(
+        id_associado=associado.id_associado,
+        nome_completo=associado.nome_completo,
+        cpf=associado.cpf,
+        email_contato=associado.email_contato,
+        telefone_whatsapp=associado.telefone_whatsapp,
+        categoria=associado.categoria,
+        status_arrolamento=associado.status_arrolamento,
+        data_admissao=associado.data_admissao,
+        endereco=EnderecoResponse(
+            cep=endereco.cep, logradouro=endereco.logradouro, numero=endereco.numero,
+            bairro=endereco.bairro, cidade=endereco.cidade, estado=endereco.estado,
+        ) if endereco else None,
+    )
+
+
+@router.put("/perfil", summary="Atualiza os campos de contato do próprio cadastro")
+def atualizar_perfil(dados: PerfilUpdateRequest, usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+    associado = _associado_do_usuario(db, usuario)
+    associado.email_contato = dados.email_contato
+    associado.telefone_whatsapp = dados.telefone_whatsapp
+    endereco = db.query(Endereco).filter(Endereco.id_associado == associado.id_associado).first()
+    if endereco is None:
+        endereco = Endereco(id_associado=associado.id_associado)
+        db.add(endereco)
+    endereco.cep = dados.cep
+    endereco.logradouro = dados.logradouro
+    endereco.numero = dados.numero
+    endereco.bairro = dados.bairro
+    endereco.cidade = dados.cidade
+    endereco.estado = dados.estado
+    db.commit()
+    registrar_auditoria(db, usuario, "associados", "PERFIL_ATUALIZADO", id_registro_afetado=associado.id_associado)
+    return {"mensagem": "Perfil atualizado com sucesso."}
+
+
+@router.get("/me/documentos", response_model=list[DocumentoResponse], summary="Documentos do próprio associado (somente leitura)")
+def meus_documentos(usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+    associado = _associado_do_usuario(db, usuario)
+    docs = (
+        db.query(DocumentoAnexo)
+        .filter(DocumentoAnexo.id_associado == associado.id_associado)
+        .order_by(DocumentoAnexo.data_upload.desc())
+        .all()
+    )
+    return [
+        DocumentoResponse(id_documento=d.id_documento, tipo_documento=d.tipo_documento, data_upload=d.data_upload)
+        for d in docs
+    ]
+
+
+@router.get("/sessoes", response_model=list[SessaoResponse], summary="Sessões ativas do usuário")
+def sessoes(request: Request, usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+    token_atual = request.cookies.get(REFRESH_COOKIE_NAME)
+    tokens = (
+        db.query(TokenAcesso)
+        .filter(TokenAcesso.id_usuario == usuario.id_usuario)
+        .order_by(TokenAcesso.criado_em.desc())
+        .all()
+    )
+    return [
+        SessaoResponse(
+            id_token=t.id_token,
+            criado_em=t.criado_em,
+            ultimo_uso_em=t.ultimo_uso_em,
+            ip_origem=t.ip_origem,
+            user_agent=t.user_agent,
+            is_atual=(t.token == token_atual),
+        )
+        for t in tokens
+    ]
+
+
+@router.delete("/sessoes/{id_token}", summary="Encerra uma sessão específica")
+def revogar_sessao(id_token: int, request: Request, usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+    registro = db.query(TokenAcesso).filter(
+        TokenAcesso.id_token == id_token,
+        TokenAcesso.id_usuario == usuario.id_usuario,
+    ).first()
+    if registro is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sessão não encontrada.")
+    db.delete(registro)
+    db.commit()
+    registrar_auditoria(db, usuario, "tokens_acesso", "SESSAO_REVOGADA", id_registro_afetado=id_token)
+    return {"mensagem": "Sessão encerrada."}
+
+
+@router.post("/mfa/desativar", summary="Desativa o MFA (exige senha + TOTP)")
+def mfa_desativar(dados: MFADesativarRequest, usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not usuario.mfa_ativado:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="MFA não está ativado.")
+    if not usuario.senha_hash or not verificar_senha(dados.senha, usuario.senha_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Senha incorreta.")
+    if not usuario.mfa_secret or not pyotp.TOTP(usuario.mfa_secret).verify(dados.codigo_totp, valid_window=1):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Código TOTP inválido.")
+    usuario.mfa_ativado = False
+    usuario.mfa_secret = None
+    db.commit()
+    revogar_codigos_recuperacao(db, usuario)
+    registrar_auditoria(db, usuario, "usuarios", "MFA_DESATIVADO", id_registro_afetado=usuario.id_usuario)
+    return {"mensagem": "MFA desativado."}
+
+
+@router.post("/mfa/recuperacao/regenerar", response_model=MFAConfirmarResponse, summary="Regera os códigos de recuperação (exige senha)")
+def mfa_regerar_recuperacao(dados: MFARegenerarRequest, usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not usuario.mfa_ativado:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="MFA não está ativado.")
+    if not usuario.senha_hash or not verificar_senha(dados.senha, usuario.senha_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Senha incorreta.")
+    codigos = gerar_codigos_recuperacao(db, usuario)
+    registrar_auditoria(db, usuario, "usuarios", "MFA_RECUPERACAO_REGERADA", id_registro_afetado=usuario.id_usuario)
+    return MFAConfirmarResponse(mensagem="Códigos de recuperação regerados.", codigos_recuperacao=codigos)

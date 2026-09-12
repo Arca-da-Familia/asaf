@@ -71,6 +71,11 @@ class TokenAcesso(Base):
     id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"))
     token = Column(String, unique=True, index=True)
     data_expiracao = Column(DateTime)
+    # v0.2.5 - metadados de sessão (alimentam a tela "Sessões ativas" do Meu Perfil)
+    ip_origem = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    ultimo_uso_em = Column(DateTime, nullable=True)
 
 class CodigoRecuperacaoMFA(Base):
     """Códigos de recuperação de MFA (v0.2.2d): gerados na ativação, mostrados UMA única vez,

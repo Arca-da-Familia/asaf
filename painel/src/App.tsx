@@ -10,6 +10,7 @@ import { Forbidden } from '@/pages/Forbidden'
 import { Home } from '@/pages/Home'
 import { Login } from '@/pages/Login'
 import { MfaSetup } from '@/pages/MfaSetup'
+import { PerfilPage } from '@/pages/Perfil'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated, isBootstrapping } = useAuth()
@@ -78,6 +79,7 @@ function App() {
       >
         <Route index element={<Home />} />
         <Route path="/dev/componentes" element={<DevComponents />} />
+        <Route path="/perfil" element={<PerfilPage />} />
         <Route path="/403" element={<Forbidden />} />
         <Route
           path="/associados"

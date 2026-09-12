@@ -107,6 +107,36 @@ def revogar_codigos_recuperacao(db: Session, usuario: Usuario):
     db.commit()
 
 
+# Lista das senhas mais comuns (v0.2.5) — verificada na troca de senha. A política é
+# "mínimo 10 caracteres + não estar nesta lista", nunca regra decorativa de "1 maiúscula
+# e 1 símbolo" (que só gera `Senha@123`). Lista derivada de vazamentos públicos conhecidos.
+SENHAS_COMUNS = frozenset({
+    "123456", "123456789", "12345678", "1234567", "1234567890", "password", "password1",
+    "password123", "12345678910", "12345678901", "qwerty", "qwerty123", "abc123", "123123",
+    "111111", "11111111", "222222", "333333", "444444", "555555", "666666", "777777",
+    "888888", "999999", "000000", "senha", "senha123", "senha1234", "senha12345", "senha1",
+    "senha12", "senha@123", "senha@1234", "admin", "admin123", "administrador", "admin12345",
+    "123mudar", "mudar123", "brasil", "brasil123", "futebol", "futebol10", "flamengo",
+    "palmeiras", "corinthians", "santos", "vasco", "gremio", "123456a", "1q2w3e4r", "1q2w3e",
+    "iloveyou", "dragon", "monkey", "letmein", "master", "welcome", "login", "princess",
+    "sunshine", "superman", "batman", "starwars", "passw0rd", "p@ssw0rd", "teste", "teste123",
+    "asdfgh", "asdfghjkl", "zxcvbnm", "qazwsx", "654321", "147258", "147258369", "2580",
+    "112233", "121212", "131313", "159753", "012345", "102030", "a1b2c3", "abcde", "abcdef",
+    "password!", "s3nh4", "101010", "22222222", "99999999", "1234qwer", "123qwe", "qwe123",
+    "associacao", "arcada", "familia", "familia123", "jesus", "jesuscristo", "deusefiel",
+    "amor123", "felicidade", "aleatorio", "temp123", "novasenha", "minhasenha", "eusou",
+})
+
+
+def validar_senha_forte(senha: str) -> Optional[str]:
+    """Retorna uma mensagem de erro se a senha não atende à política, ou None se é aceitável."""
+    if len(senha) < 10:
+        return "A senha deve ter pelo menos 10 caracteres."
+    if senha.lower() in SENHAS_COMUNS:
+        return "Essa senha é muito comum e fácil de adivinhar. Escolha outra."
+    return None
+
+
 # ==========================================
 # BLOQUEIO POR FORÇA BRUTA (guardado no banco, não em memória do processo -
 # funciona igual mesmo com várias réplicas do Container App)
@@ -171,13 +201,21 @@ def decodificar_mfa_pending_token(token: str) -> dict:
     return payload
 
 
-def criar_refresh_token(db: Session, usuario: Usuario) -> str:
+def criar_refresh_token(
+    db: Session,
+    usuario: Usuario,
+    ip_origem: Optional[str] = None,
+    user_agent: Optional[str] = None,
+) -> str:
     token = secrets.token_urlsafe(48)
     db.add(
         TokenAcesso(
             id_usuario=usuario.id_usuario,
             token=token,
             data_expiracao=datetime.utcnow() + timedelta(days=REFRESH_TOKEN_DIAS),
+            ip_origem=ip_origem,
+            user_agent=user_agent,
+            criado_em=datetime.utcnow(),
         )
     )
     db.commit()
@@ -191,11 +229,24 @@ def validar_refresh_token(db: Session, token: str) -> Usuario:
     usuario = db.query(Usuario).filter(Usuario.id_usuario == registro.id_usuario).first()
     if usuario is None or not usuario.ativo:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário inválido ou inativo.")
+    # v0.2.5 - registra o último uso (aparece na tela de Sessões ativas).
+    registro.ultimo_uso_em = datetime.utcnow()
+    db.commit()
     return usuario
 
 
 def revogar_refresh_token(db: Session, token: str):
     db.query(TokenAcesso).filter(TokenAcesso.token == token).delete()
+    db.commit()
+
+
+def revogar_tokens_exceto(db: Session, usuario: Usuario, token_exceto: Optional[str]):
+    """Revoga todos os refresh tokens do usuário, preservando (opcionalmente) a sessão corrente.
+    Usado na troca de senha: derruba todas as outras sessões, mantém a atual."""
+    query = db.query(TokenAcesso).filter(TokenAcesso.id_usuario == usuario.id_usuario)
+    if token_exceto:
+        query = query.filter(TokenAcesso.token != token_exceto)
+    query.delete()
     db.commit()
 
 

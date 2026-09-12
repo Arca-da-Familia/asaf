@@ -24,7 +24,13 @@ export function mascaraData(valor: string): string {
 }
 
 export function formatarData(data: Date | string): string {
-  const d = typeof data === 'string' ? new Date(`${data}T00:00:00`) : data
+  let d: Date
+  if (typeof data === 'string') {
+    // Data-only (yyyy-mm-dd) → força meia-noite local; datetime com hora → usa como está.
+    d = data.includes('T') ? new Date(data) : new Date(`${data}T00:00:00`)
+  } else {
+    d = data
+  }
   return new Intl.DateTimeFormat('pt-BR').format(d)
 }
 

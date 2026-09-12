@@ -226,3 +226,107 @@ export function mfaConfirmar(codigoTotp: string): Promise<MfaConfirmarResult> {
     body: JSON.stringify({ codigo_totp: codigoTotp }),
   })
 }
+
+// ---------------------------------------------------------------------------
+// Meu Perfil (v0.2.5)
+// ---------------------------------------------------------------------------
+export type Endereco = {
+  cep?: string | null
+  logradouro?: string | null
+  numero?: string | null
+  bairro?: string | null
+  cidade?: string | null
+  estado?: string | null
+}
+
+export type Perfil = {
+  id_associado?: number | null
+  nome_completo?: string | null
+  cpf?: string | null
+  email_contato?: string | null
+  telefone_whatsapp?: string | null
+  categoria?: string | null
+  status_arrolamento?: string | null
+  data_admissao?: string | null
+  endereco?: Endereco | null
+}
+
+export type PerfilUpdate = {
+  email_contato: string
+  telefone_whatsapp: string
+  cep?: string
+  logradouro?: string
+  numero?: string
+  bairro?: string
+  cidade?: string
+  estado?: string
+}
+
+export type Sessao = {
+  id_token: number
+  criado_em?: string | null
+  ultimo_uso_em?: string | null
+  ip_origem?: string | null
+  user_agent?: string | null
+  is_atual: boolean
+}
+
+export type Documento = {
+  id_documento: number
+  tipo_documento?: string | null
+  data_upload?: string | null
+}
+
+export function obterPerfil(): Promise<Perfil> {
+  return apiFetch<Perfil>('/auth/perfil')
+}
+
+export function atualizarPerfil(
+  dados: PerfilUpdate,
+): Promise<{ mensagem: string }> {
+  return apiFetch('/auth/perfil', {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function alterarSenha(dados: {
+  senha_atual: string
+  senha_nova: string
+}): Promise<{ mensagem: string }> {
+  return apiFetch('/auth/senha/alterar', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarSessoes(): Promise<Sessao[]> {
+  return apiFetch<Sessao[]>('/auth/sessoes')
+}
+
+export function revogarSessao(idToken: number): Promise<{ mensagem: string }> {
+  return apiFetch(`/auth/sessoes/${idToken}`, { method: 'DELETE' })
+}
+
+export function desativarMfa(dados: {
+  senha: string
+  codigo_totp: string
+}): Promise<{ mensagem: string }> {
+  return apiFetch('/auth/mfa/desativar', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function regenerarRecuperacao(dados: {
+  senha: string
+}): Promise<MfaConfirmarResult> {
+  return apiFetch('/auth/mfa/recuperacao/regenerar', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarDocumentos(): Promise<Documento[]> {
+  return apiFetch<Documento[]>('/auth/me/documentos')
+}

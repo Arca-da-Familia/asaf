@@ -393,19 +393,19 @@ ainda não foi implementada); registrar como item a cobrir quando aquela sub-ver
       painel, decisão de implementação) — documentação que não apodrece porque é o próprio código.
 
 ##### v0.2.5 — Módulo "Meu Perfil" (o único módulo funcional entregue na v0.2)
-- [ ] Dados cadastrais próprios (leitura do `Associado` vinculado; edição entra como **solicitação
+- [x] Dados cadastrais próprios (leitura do `Associado` vinculado; edição entra como **solicitação
       de alteração** quando o fluxo de aprovação da v13.3 existir — na v0.2 edita direto só campo
       de contato: telefone, e-mail, endereço).
-- [ ] Troca de senha com política explícita (mínimo 10 caracteres, verificação contra lista de
+- [x] Troca de senha com política explícita (mínimo 10 caracteres, verificação contra lista de
       senhas mais comuns, nunca regra decorativa de "1 maiúscula e 1 símbolo" que só gera
       `Senha@123`) — `v0.2.5a` no backend: `POST /auth/senha/alterar` exigindo a senha atual e
       revogando **todos os refresh tokens** do usuário exceto o da sessão corrente.
-- [ ] Gestão de MFA (ativar, desativar exigindo senha + TOTP, regerar códigos de recuperação).
-- [ ] **Sessões ativas**: lista de refresh tokens vivos com data de criação, IP e User-Agent, com
+- [x] Gestão de MFA (ativar, desativar exigindo senha + TOTP, regerar códigos de recuperação).
+- [x] **Sessões ativas**: lista de refresh tokens vivos com data de criação, IP e User-Agent, com
       botão "encerrar esta sessão" e "encerrar todas as outras" — `v0.2.5b` no backend:
       `TokenAcesso` ganha `ip_origem`, `user_agent`, `criado_em`, `ultimo_uso_em`; endpoints
       `GET /auth/sessoes` e `DELETE /auth/sessoes/{id}`.
-- [ ] Meus documentos (lista dos `DocumentoAnexo` do próprio associado) — só leitura nesta versão.
+- [x] Meus documentos (lista dos `DocumentoAnexo` do próprio associado) — só leitura nesta versão.
 
 ##### v0.2.6 — Acessibilidade e internacionalização de base (feito agora, não "depois")
 - [ ] Navegação completa por teclado, foco visível, `aria-label` em ícone sem texto, contraste

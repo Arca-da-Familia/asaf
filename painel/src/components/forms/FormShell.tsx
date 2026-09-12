@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 type FormShellProps<T extends FieldValues> = {
   schema: z.ZodType<T>
   defaultValues: DefaultValues<T>
-  onSubmit: (valores: T) => void | Promise<void>
+  onSubmit: (valores: T) => void | Promise<unknown>
   children: (form: UseFormReturn<T>) => ReactNode
   className?: string
 }

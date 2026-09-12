@@ -9,6 +9,7 @@ import {
   Moon,
   Search,
   Sun,
+  UserRound,
 } from 'lucide-react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 
@@ -153,6 +154,15 @@ export function Shell() {
           >
             <House className="h-5 w-5 shrink-0" />
             {!collapsed && <span>Início</span>}
+          </NavLink>
+
+          <NavLink
+            to="/perfil"
+            className={navCls}
+            onClick={() => setMobileOpen(false)}
+          >
+            <UserRound className="h-5 w-5 shrink-0" />
+            {!collapsed && <span>Meu perfil</span>}
           </NavLink>
 
           {modulosVisiveis.map((m) => (

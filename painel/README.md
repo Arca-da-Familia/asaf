@@ -93,6 +93,18 @@ faz o upload do `dist/`.
   `FileUpload` e inputs brasileiros (`MoneyInput`, `CpfInput`, `CnpjInput`, `DateInput`).
 - **Catálogo vivo** na rota `/dev/componentes` — o código é a própria documentação.
 
+## Meu Perfil (v0.2.5)
+
+- **Dados cadastrais**: leitura do `Associado` vinculado e edição dos campos de contato
+  (telefone, e-mail, endereço) — rota `/perfil`.
+- **Troca de senha** (`/auth/senha/alterar`): exige a senha atual, política de mínimo 10
+  caracteres + verificação contra lista de senhas comuns, e revoga todos os refresh tokens
+  exceto o da sessão atual.
+- **Gestão de MFA**: ativar, desativar (senha + TOTP) e regerar códigos de recuperação.
+- **Sessões ativas**: lista com IP/User-Agent/data, botão "encerrar esta sessão" e "encerrar
+  todas as outras".
+- **Meus documentos**: lista dos `DocumentoAnexo` do próprio associado (somente leitura).
+
 ## Estrutura
 
 ```
