@@ -3,10 +3,11 @@ import unicodedata
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
+from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.associados import Associado
 from app.models.core import ConfiguracaoInstitucional, OpcaoLista, Catalogo, OpcaoCatalogo, DefinicaoCampo, ValorCampo, NivelAcesso, PermissaoSistema, perfil_permissao, AuditLog, Usuario
@@ -151,13 +152,19 @@ def listar_catalogos(db: Session = Depends(get_db), _usuario: Usuario = Depends(
 
 
 @router.post("/api/catalogos/", summary="Criar um catálogo novo")
-def criar_catalogo(dados: CatalogoCriar, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_catalogos)):
+def criar_catalogo(
+    dados: CatalogoCriar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_catalogos)
+):
     if db.query(Catalogo).filter(Catalogo.chave == dados.chave).first():
         raise HTTPException(status_code=400, detail="Já existe um catálogo com essa chave.")
     novo = Catalogo(**dados.model_dump())
     db.add(novo)
     db.commit()
     db.refresh(novo)
+    registrar_auditoria(
+        db, usuario, "catalogos", "CREATE", id_registro_afetado=novo.id_catalogo,
+        dados_depois=dados.model_dump(), ip_origem=request.client.host if request.client else None,
+    )
     return {"id_catalogo": novo.id_catalogo, "chave": novo.chave}
 
 
@@ -183,7 +190,7 @@ def listar_opcoes_catalogo(
 
 @router.post("/api/catalogos/{chave}/opcoes", summary="Adicionar opção a um catálogo")
 def criar_opcao_catalogo(
-    chave: str, dados: OpcaoCatalogoCriar, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_catalogos)
+    chave: str, dados: OpcaoCatalogoCriar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_catalogos)
 ):
     catalogo = db.query(Catalogo).filter(Catalogo.chave == chave).first()
     if not catalogo:
@@ -200,24 +207,36 @@ def criar_opcao_catalogo(
         db.rollback()
         raise HTTPException(status_code=400, detail="Já existe uma opção com esse código neste catálogo.")
     db.refresh(nova)
+    registrar_auditoria(
+        db, usuario, "opcoes_catalogo", "CREATE", id_registro_afetado=nova.id_opcao,
+        dados_depois=dados.model_dump(), ip_origem=request.client.host if request.client else None,
+    )
     return {"id_opcao": nova.id_opcao, "codigo": nova.codigo}
 
 
 @router.put("/api/opcoes-catalogo/{id_opcao}", summary="Editar rótulo/ordem/ativo de uma opção (nunca o código)")
 def atualizar_opcao_catalogo(
-    id_opcao: int, dados: OpcaoCatalogoAtualizar, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_catalogos)
+    id_opcao: int, dados: OpcaoCatalogoAtualizar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_catalogos)
 ):
     opcao = db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_opcao == id_opcao).first()
     if not opcao:
         raise HTTPException(status_code=404, detail="Opção não encontrada.")
-    for campo, valor in dados.model_dump(exclude_unset=True).items():
+    antes = {"rotulo": opcao.rotulo, "ordem": opcao.ordem, "ativo": opcao.ativo, "cor": opcao.cor, "icone": opcao.icone}
+    dados_alterados = dados.model_dump(exclude_unset=True)
+    for campo, valor in dados_alterados.items():
         setattr(opcao, campo, valor)
     db.commit()
+    registrar_auditoria(
+        db, usuario, "opcoes_catalogo", "UPDATE", id_registro_afetado=id_opcao,
+        dados_antes=antes, dados_depois=dados_alterados, ip_origem=request.client.host if request.client else None,
+    )
     return {"mensagem": "Opção atualizada."}
 
 
 @router.delete("/api/opcoes-catalogo/{id_opcao}", summary="Excluir opção (só se já inativa e sem uso)")
-def excluir_opcao_catalogo(id_opcao: int, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_catalogos)):
+def excluir_opcao_catalogo(
+    id_opcao: int, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_catalogos)
+):
     opcao = db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_opcao == id_opcao).first()
     if not opcao:
         raise HTTPException(status_code=404, detail="Opção não encontrada.")
@@ -226,8 +245,13 @@ def excluir_opcao_catalogo(id_opcao: int, db: Session = Depends(get_db), _=Depen
     catalogo = db.query(Catalogo).filter(Catalogo.id_catalogo == opcao.id_catalogo).first()
     if catalogo and _opcao_em_uso(db, catalogo.chave, opcao.rotulo):
         raise HTTPException(status_code=409, detail="Opção em uso por registros existentes — não pode ser excluída.")
+    dados_antes = {"codigo": opcao.codigo, "rotulo": opcao.rotulo}
     db.delete(opcao)
     db.commit()
+    registrar_auditoria(
+        db, usuario, "opcoes_catalogo", "DELETE", id_registro_afetado=id_opcao,
+        dados_antes=dados_antes, ip_origem=request.client.host if request.client else None,
+    )
     return {"mensagem": "Opção excluída."}
 
 # ==========================================
@@ -254,24 +278,38 @@ def listar_niveis_acesso(db: Session = Depends(get_db), _=Depends(_permissao_ger
 
 
 @router.post("/api/niveis-acesso/", summary="Criar nível de acesso")
-def criar_nivel_acesso(dados: NivelAcessoCriar, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_acesso)):
+def criar_nivel_acesso(
+    dados: NivelAcessoCriar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_acesso)
+):
     if db.query(NivelAcesso).filter(NivelAcesso.nome_nivel == dados.nome_nivel).first():
         raise HTTPException(status_code=400, detail="Já existe um nível de acesso com esse nome.")
     novo = NivelAcesso(**dados.model_dump())
     db.add(novo)
     db.commit()
     db.refresh(novo)
+    registrar_auditoria(
+        db, usuario, "niveis_acesso", "CREATE", id_registro_afetado=novo.id_nivel,
+        dados_depois=dados.model_dump(), ip_origem=request.client.host if request.client else None,
+    )
     return {"id_nivel": novo.id_nivel, "nome_nivel": novo.nome_nivel}
 
 
 @router.put("/api/niveis-acesso/{id_nivel}", summary="Editar nível de acesso")
-def atualizar_nivel_acesso(id_nivel: int, dados: NivelAcessoAtualizar, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_acesso)):
+def atualizar_nivel_acesso(
+    id_nivel: int, dados: NivelAcessoAtualizar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_acesso)
+):
     nivel = db.query(NivelAcesso).filter(NivelAcesso.id_nivel == id_nivel).first()
     if not nivel:
         raise HTTPException(status_code=404, detail="Nível de acesso não encontrado.")
-    for campo, valor in dados.model_dump(exclude_unset=True).items():
+    antes = {"nome_nivel": nivel.nome_nivel, "descricao": nivel.descricao, "is_conselho_fiscal": nivel.is_conselho_fiscal, "exige_mfa": nivel.exige_mfa}
+    dados_alterados = dados.model_dump(exclude_unset=True)
+    for campo, valor in dados_alterados.items():
         setattr(nivel, campo, valor)
     db.commit()
+    registrar_auditoria(
+        db, usuario, "niveis_acesso", "UPDATE", id_registro_afetado=id_nivel,
+        dados_antes=antes, dados_depois=dados_alterados, ip_origem=request.client.host if request.client else None,
+    )
     return {"mensagem": "Nível de acesso atualizado."}
 
 
@@ -285,18 +323,26 @@ def listar_permissoes(db: Session = Depends(get_db), _=Depends(_permissao_gerenc
 
 
 @router.post("/api/permissoes/", summary="Criar permissão do sistema")
-def criar_permissao(dados: PermissaoCriar, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_acesso)):
+def criar_permissao(
+    dados: PermissaoCriar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_acesso)
+):
     if db.query(PermissaoSistema).filter(PermissaoSistema.codigo_permissao == dados.codigo_permissao).first():
         raise HTTPException(status_code=400, detail="Já existe uma permissão com esse código.")
     nova = PermissaoSistema(**dados.model_dump())
     db.add(nova)
     db.commit()
     db.refresh(nova)
+    registrar_auditoria(
+        db, usuario, "permissoes_sistema", "CREATE", id_registro_afetado=nova.id_permissao,
+        dados_depois=dados.model_dump(), ip_origem=request.client.host if request.client else None,
+    )
     return {"id_permissao": nova.id_permissao, "codigo_permissao": nova.codigo_permissao}
 
 
 @router.post("/api/niveis-acesso/{id_nivel}/permissoes/{id_permissao}", summary="Atribuir permissão a um nível")
-def atribuir_permissao(id_nivel: int, id_permissao: int, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_acesso)):
+def atribuir_permissao(
+    id_nivel: int, id_permissao: int, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_acesso)
+):
     if not db.query(NivelAcesso).filter(NivelAcesso.id_nivel == id_nivel).first():
         raise HTTPException(status_code=404, detail="Nível de acesso não encontrado.")
     if not db.query(PermissaoSistema).filter(PermissaoSistema.id_permissao == id_permissao).first():
@@ -309,17 +355,29 @@ def atribuir_permissao(id_nivel: int, id_permissao: int, db: Session = Depends(g
     if not ja_existe:
         db.execute(perfil_permissao.insert().values(id_nivel=id_nivel, id_permissao=id_permissao))
         db.commit()
+        registrar_auditoria(
+            db, usuario, "perfil_permissao", "CREATE", id_registro_afetado=id_nivel,
+            dados_depois={"id_nivel": id_nivel, "id_permissao": id_permissao},
+            ip_origem=request.client.host if request.client else None,
+        )
     return {"mensagem": "Permissão atribuída."}
 
 
 @router.delete("/api/niveis-acesso/{id_nivel}/permissoes/{id_permissao}", summary="Remover permissão de um nível")
-def remover_permissao(id_nivel: int, id_permissao: int, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_acesso)):
+def remover_permissao(
+    id_nivel: int, id_permissao: int, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_acesso)
+):
     db.execute(
         perfil_permissao.delete().where(
             perfil_permissao.c.id_nivel == id_nivel, perfil_permissao.c.id_permissao == id_permissao
         )
     )
     db.commit()
+    registrar_auditoria(
+        db, usuario, "perfil_permissao", "DELETE", id_registro_afetado=id_nivel,
+        dados_antes={"id_nivel": id_nivel, "id_permissao": id_permissao},
+        ip_origem=request.client.host if request.client else None,
+    )
     return {"mensagem": "Permissão removida."}
 
 
@@ -471,7 +529,7 @@ def listar_definicoes_campo(
 
 @router.post("/api/campos-personalizados/", summary="Criar definição de campo personalizado")
 def criar_definicao_campo(
-    dados: DefinicaoCampoCriar, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_campos)
+    dados: DefinicaoCampoCriar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_campos)
 ):
     if dados.tipo == "selecao" and not dados.id_catalogo:
         raise HTTPException(status_code=422, detail="Campo do tipo 'seleção' precisa de um catálogo.")
@@ -479,25 +537,35 @@ def criar_definicao_campo(
     db.add(nova)
     db.commit()
     db.refresh(nova)
+    registrar_auditoria(
+        db, usuario, "definicoes_campo", "CREATE", id_registro_afetado=nova.id_definicao,
+        dados_depois=dados.model_dump(), ip_origem=request.client.host if request.client else None,
+    )
     return {"id_definicao": nova.id_definicao}
 
 
 @router.put("/api/campos-personalizados/{id_definicao}", summary="Editar definição de campo (nunca tipo/entidade)")
 def atualizar_definicao_campo(
-    id_definicao: int, dados: DefinicaoCampoAtualizar, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_campos)
+    id_definicao: int, dados: DefinicaoCampoAtualizar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_campos)
 ):
     definicao = db.query(DefinicaoCampo).filter(DefinicaoCampo.id_definicao == id_definicao).first()
     if not definicao:
         raise HTTPException(status_code=404, detail="Definição de campo não encontrada.")
-    for campo, valor in dados.model_dump(exclude_unset=True).items():
+    antes = {"rotulo": definicao.rotulo, "obrigatorio": definicao.obrigatorio, "ordem": definicao.ordem, "ativo": definicao.ativo}
+    dados_alterados = dados.model_dump(exclude_unset=True)
+    for campo, valor in dados_alterados.items():
         setattr(definicao, campo, valor)
     db.commit()
+    registrar_auditoria(
+        db, usuario, "definicoes_campo", "UPDATE", id_registro_afetado=id_definicao,
+        dados_antes=antes, dados_depois=dados_alterados, ip_origem=request.client.host if request.client else None,
+    )
     return {"mensagem": "Definição atualizada."}
 
 
 @router.delete("/api/campos-personalizados/{id_definicao}", summary="Excluir definição (só se já inativa e sem valor gravado)")
 def excluir_definicao_campo(
-    id_definicao: int, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_campos)
+    id_definicao: int, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_campos)
 ):
     definicao = db.query(DefinicaoCampo).filter(DefinicaoCampo.id_definicao == id_definicao).first()
     if not definicao:
@@ -506,8 +574,13 @@ def excluir_definicao_campo(
         raise HTTPException(status_code=400, detail="Desative o campo antes de excluir.")
     if db.query(ValorCampo).filter(ValorCampo.id_definicao == id_definicao).first():
         raise HTTPException(status_code=409, detail="Campo tem valor gravado em algum registro — não pode ser excluído.")
+    dados_antes = {"entidade": definicao.entidade, "rotulo": definicao.rotulo, "tipo": definicao.tipo}
     db.delete(definicao)
     db.commit()
+    registrar_auditoria(
+        db, usuario, "definicoes_campo", "DELETE", id_registro_afetado=id_definicao,
+        dados_antes=dados_antes, ip_origem=request.client.host if request.client else None,
+    )
     return {"mensagem": "Definição excluída."}
 
 
@@ -539,7 +612,7 @@ def obter_valores_campo(
     summary="Gravar os valores de campo personalizado de um registro (upsert em lote)",
 )
 def definir_valores_campo(
-    entidade: str, id_registro: int, dados: ValoresCampoDefinir, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)
+    entidade: str, id_registro: int, dados: ValoresCampoDefinir, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)
 ):
     definicoes = {
         d.id_definicao: d
@@ -560,6 +633,11 @@ def definir_valores_campo(
         else:
             db.add(ValorCampo(id_definicao=item.id_definicao, id_registro=id_registro, valor=item.valor))
     db.commit()
+    registrar_auditoria(
+        db, usuario, "valores_campo", "UPDATE", id_registro_afetado=id_registro,
+        dados_depois={"entidade": entidade, "valores": {v.id_definicao: v.valor for v in dados.valores}},
+        ip_origem=request.client.host if request.client else None,
+    )
     return {"mensagem": "Valores gravados."}
 
 

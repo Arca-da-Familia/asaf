@@ -790,6 +790,19 @@ validação e o envio com sucesso.
 > agora roda. **Pendência registrada**: `CREDENCIAIS_AZURE.md` ainda não foi atualizado com essa
 > mudança de configuração do Container App; fazer isso na próxima sessão que mexer nesse arquivo.
 
+> **Segundo achado, encontrado logo em seguida ao criar o primeiro usuário real de verdade em
+> produção (Presidente, 2026-09-12)**: nenhum endpoint de escrita em `routers/core.py` gravava
+> `AuditLog` — nem os de catálogo/opção (v0.3.1), nem os de nível/permissão (v0.2.9/v0.1.5), nem
+> os de campo personalizado (v0.3.3) — apesar do checklist padrão da seção 4.1 (item 5: "toda
+> ação sensível grava AuditLog de verdade") já ter passado por essas versões. `routers/auth.py`
+> sempre fez isso certo; só `routers/core.py` ficou pra trás. Corrigido: `criar/atualizar/excluir
+> catálogo`, `criar/atualizar opção de catálogo`, `criar/atualizar nível de acesso`, `criar
+> permissão`, `atribuir/remover permissão`, `criar/atualizar/excluir definição de campo` e
+> `gravar valor de campo` agora registram `CREATE`/`UPDATE`/`DELETE` com `dados_antes`/
+> `dados_depois`. Testado localmente de ponta a ponta: cada uma dessas ações apareceu na
+> auditoria com a tabela, o registro e o usuário certos (inclusive um caso que pareceu "não
+> logar" na primeira tentativa — na real, a combinação nível/permissão testada já vinha do seed
+> padrão, nada de novo pra logar; confirmado com uma combinação genuinamente nova).
 ##### v0.3.4 — Configuração institucional central
 - [ ] Evoluir `ConfiguracaoInstitucional` para chave/valor tipado e versionado: nome, CNPJ,
       endereço, logo, cores, dados bancários, fuso horário, textos padrão de documento, e-mail
