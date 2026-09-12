@@ -14,6 +14,8 @@ from app.schemas.auth import (
     BootstrapAdminRequest,
     DocumentoResponse,
     EnderecoResponse,
+    ImpersonandoInfo,
+    ImpersonarResponse,
     LoginMFARequest,
     LoginRequest,
     LogoutRequest,
@@ -44,6 +46,7 @@ from app.security import (
     get_current_user,
     hash_senha,
     limpar_tentativas_falhas,
+    nivel_efetivo_id,
     registrar_tentativa_falha,
     revogar_codigos_recuperacao,
     revogar_refresh_token,
@@ -208,25 +211,91 @@ def logout(request: Request, response: Response, dados: Optional[LogoutRequest] 
 @router.get("/me", response_model=MeResponse, summary="Dados de quem está logado")
 def me(usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
     associado = db.query(Associado).filter(Associado.id_usuario == usuario.id_usuario).first()
-    nivel = db.query(NivelAcesso).filter(NivelAcesso.id_nivel == usuario.id_nivel).first()
+    nivel_real = db.query(NivelAcesso).filter(NivelAcesso.id_nivel == usuario.id_nivel).first()
+
+    # v0.2.9 - em modo "ver como", `nivel`/`permissoes` refletem o nível IMPERSONADO (o que o
+    # front usa pra montar menu e checar rota) - é isso que faz o admin "ver o que aquele papel
+    # enxerga" de verdade, não só de fachada. O MFA continua sendo checado pelo nível REAL:
+    # impersonar não pode ser usado pra escapar de uma exigência de MFA da própria conta.
+    id_nivel_efetivo = nivel_efetivo_id(usuario)
+    nivel_efetivo = (
+        nivel_real
+        if id_nivel_efetivo == usuario.id_nivel
+        else db.query(NivelAcesso).filter(NivelAcesso.id_nivel == id_nivel_efetivo).first()
+    )
     permissoes = (
         db.query(PermissaoSistema.codigo_permissao)
         .join(perfil_permissao, perfil_permissao.c.id_permissao == PermissaoSistema.id_permissao)
-        .filter(perfil_permissao.c.id_nivel == usuario.id_nivel)
+        .filter(perfil_permissao.c.id_nivel == id_nivel_efetivo)
         .all()
     )
-    mfa_obrigatorio = bool(nivel.exige_mfa) if nivel else False
+    mfa_obrigatorio = bool(nivel_real.exige_mfa) if nivel_real else False
+
+    impersonando = None
+    if usuario.id_nivel_impersonado and nivel_efetivo and nivel_real:
+        impersonando = ImpersonandoInfo(
+            id_nivel=nivel_efetivo.id_nivel,
+            nome_nivel=nivel_efetivo.nome_nivel,
+            nivel_real=nivel_real.nome_nivel,
+        )
+
     return MeResponse(
         id_usuario=usuario.id_usuario,
         id_associado=associado.id_associado if associado else None,
         nome_completo=associado.nome_completo if associado else None,
         email=usuario.email,
-        nivel=nivel.nome_nivel if nivel else None,
+        nivel=nivel_efetivo.nome_nivel if nivel_efetivo else None,
         mfa_ativado=usuario.mfa_ativado,
         mfa_obrigatorio=mfa_obrigatorio,
         mfa_pendente=mfa_obrigatorio and not usuario.mfa_ativado,
         permissoes=[p[0] for p in permissoes],
+        impersonando=impersonando,
     )
+
+
+@router.post(
+    "/impersonar/parar",
+    response_model=ImpersonarResponse,
+    summary="Encerra o modo 'ver como', volta pro nível real — v0.2.9",
+)
+def parar_impersonacao(request: Request, usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Precisa ser registrada ANTES de /impersonar/{id_nivel}: rota dinâmica casaria com
+    # "parar" como se fosse um id_nivel (Starlette não usa o tipo `int` do parâmetro na hora de
+    # rotear, só na validação depois) e a checagem de permissão errada rodaria primeiro.
+    id_nivel_impersonado = usuario.id_nivel_impersonado
+    token = criar_access_token(usuario)  # sem claim de impersonação -> nível real
+    if id_nivel_impersonado:
+        registrar_auditoria(
+            db, usuario, "niveis_acesso", "IMPERSONACAO_ENCERRADA",
+            id_registro_afetado=id_nivel_impersonado,
+            ip_origem=request.client.host if request.client else None,
+        )
+    return ImpersonarResponse(access_token=token, expires_in_minutos=ACCESS_TOKEN_MINUTOS)
+
+
+@router.post(
+    "/impersonar/{id_nivel}",
+    response_model=ImpersonarResponse,
+    summary="Ver o sistema como outro nível (somente leitura) — v0.2.9",
+)
+def iniciar_impersonacao(
+    id_nivel: int,
+    request: Request,
+    usuario: Usuario = Depends(exigir_permissao("gerenciar_acesso")),
+    db: Session = Depends(get_db),
+):
+    if usuario.id_nivel_impersonado:
+        raise HTTPException(status_code=400, detail="Encerre o modo 'ver como' atual antes de iniciar outro.")
+    nivel = db.query(NivelAcesso).filter(NivelAcesso.id_nivel == id_nivel).first()
+    if not nivel:
+        raise HTTPException(status_code=404, detail="Nível de acesso não encontrado.")
+    token = criar_access_token(usuario, id_nivel_impersonado=id_nivel)
+    registrar_auditoria(
+        db, usuario, "niveis_acesso", "IMPERSONACAO_INICIADA",
+        id_registro_afetado=id_nivel,
+        ip_origem=request.client.host if request.client else None,
+    )
+    return ImpersonarResponse(access_token=token, expires_in_minutos=ACCESS_TOKEN_MINUTOS)
 
 
 @router.post("/mfa/ativar", response_model=MFAAtivarResponse, summary="Inicia a ativação de MFA (TOTP)")

@@ -23,13 +23,22 @@ export function mascaraData(valor: string): string {
   return `${digitos.slice(0, 2)}/${digitos.slice(2, 4)}/${digitos.slice(4)}`
 }
 
-export function formatarData(data: Date | string): string {
+export function formatarData(
+  data: Date | string,
+  opcoes?: { comHora?: boolean },
+): string {
   let d: Date
   if (typeof data === 'string') {
     // Data-only (yyyy-mm-dd) → força meia-noite local; datetime com hora → usa como está.
     d = data.includes('T') ? new Date(data) : new Date(`${data}T00:00:00`)
   } else {
     d = data
+  }
+  if (opcoes?.comHora) {
+    return new Intl.DateTimeFormat('pt-BR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(d)
   }
   return new Intl.DateTimeFormat('pt-BR').format(d)
 }

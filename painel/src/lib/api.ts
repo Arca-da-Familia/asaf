@@ -235,6 +235,12 @@ export async function logout(): Promise<void> {
   }
 }
 
+export type Impersonando = {
+  id_nivel: number
+  nome_nivel: string
+  nivel_real: string
+}
+
 export type Me = {
   id_usuario: number
   id_associado?: number | null
@@ -245,6 +251,7 @@ export type Me = {
   mfa_obrigatorio: boolean
   mfa_pendente: boolean
   permissoes: string[]
+  impersonando?: Impersonando | null
 }
 
 export async function me(): Promise<Me> {
@@ -373,4 +380,143 @@ export function regenerarRecuperacao(dados: {
 
 export function listarDocumentos(): Promise<Documento[]> {
   return apiFetch<Documento[]>('/auth/me/documentos')
+}
+
+// ---------------------------------------------------------------------------
+// Níveis de acesso e permissões — matriz de administração (v0.2.9)
+// ---------------------------------------------------------------------------
+export type NivelAcesso = {
+  id_nivel: number
+  nome_nivel: string
+  descricao?: string | null
+  is_conselho_fiscal: boolean
+  exige_mfa: boolean
+  permissoes: number[]
+}
+
+export type PermissaoSistema = {
+  id_permissao: number
+  modulo: string
+  codigo_permissao: string
+  descricao?: string | null
+}
+
+export function listarNiveisAcesso(): Promise<NivelAcesso[]> {
+  return apiFetch<NivelAcesso[]>('/api/niveis-acesso/')
+}
+
+export function listarPermissoes(): Promise<PermissaoSistema[]> {
+  return apiFetch<PermissaoSistema[]>('/api/permissoes/')
+}
+
+export function criarNivelAcesso(dados: {
+  nome_nivel: string
+  descricao?: string
+  is_conselho_fiscal?: boolean
+  exige_mfa?: boolean
+}): Promise<{ id_nivel: number; nome_nivel: string }> {
+  return apiFetch('/api/niveis-acesso/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function criarPermissao(dados: {
+  modulo: string
+  codigo_permissao: string
+  descricao?: string
+}): Promise<{ id_permissao: number; codigo_permissao: string }> {
+  return apiFetch('/api/permissoes/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function atribuirPermissao(
+  idNivel: number,
+  idPermissao: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/niveis-acesso/${idNivel}/permissoes/${idPermissao}`, {
+    method: 'POST',
+  })
+}
+
+export function removerPermissao(
+  idNivel: number,
+  idPermissao: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/niveis-acesso/${idNivel}/permissoes/${idPermissao}`, {
+    method: 'DELETE',
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Visualizador de auditoria (v0.2.9) — somente leitura, sem exclusão pela interface.
+// ---------------------------------------------------------------------------
+export type EntradaAuditoria = {
+  id_log: number
+  id_usuario?: number | null
+  nome_usuario?: string | null
+  tabela_afetada: string
+  id_registro_afetado?: number | null
+  acao: string
+  dados_antes?: string | null
+  dados_depois?: string | null
+  ip_origem?: string | null
+  timestamp: string
+}
+
+export type FiltroAuditoria = {
+  id_usuario?: number
+  tabela_afetada?: string
+  acao?: string
+  desde?: string
+  ate?: string
+  pagina?: number
+  por_pagina?: number
+}
+
+export type PaginaAuditoria = {
+  total: number
+  pagina: number
+  por_pagina: number
+  entradas: EntradaAuditoria[]
+}
+
+export function listarAuditoria(
+  filtro: FiltroAuditoria = {},
+): Promise<PaginaAuditoria> {
+  const params = new URLSearchParams()
+  for (const [chave, valor] of Object.entries(filtro)) {
+    if (valor !== undefined && valor !== '') params.set(chave, String(valor))
+  }
+  const query = params.toString()
+  return apiFetch<PaginaAuditoria>(`/api/auditoria/${query ? `?${query}` : ''}`)
+}
+
+export function listarAcoesAuditoria(): Promise<string[]> {
+  return apiFetch<string[]>('/api/auditoria/acoes')
+}
+
+// ---------------------------------------------------------------------------
+// "Ver o sistema como" — impersonação de papel, somente leitura (v0.2.9)
+// ---------------------------------------------------------------------------
+export type ImpersonarResult = {
+  access_token: string
+  token_type: string
+  expires_in_minutos: number
+}
+
+export function iniciarImpersonacao(
+  idNivel: number,
+): Promise<ImpersonarResult> {
+  return apiFetch<ImpersonarResult>(`/auth/impersonar/${idNivel}`, {
+    method: 'POST',
+  })
+}
+
+export function pararImpersonacao(): Promise<ImpersonarResult> {
+  return apiFetch<ImpersonarResult>('/auth/impersonar/parar', {
+    method: 'POST',
+  })
 }

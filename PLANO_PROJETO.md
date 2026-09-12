@@ -545,15 +545,55 @@ nesta sessão (18 testes Vitest + 5 Playwright). `vitest.config.ts` ganhou `excl
 — sem isso o Vitest tenta rodar os specs do Playwright e quebra (`test.describe` não é API do
 Vitest). `.gitignore` do painel ganhou `test-results/`/`playwright-report/`.
 
-##### v0.2.9 — Ferramentas de administração dentro do painel
-- [ ] Tela do catálogo de níveis e permissões (CRUD da v0.1.5, que hoje só existe via API) — com
-      matriz visual nível × permissão, marcando/desmarcando em grade.
-- [ ] Visualizador do `AuditLog` (filtro por usuário, tabela, ação, período) — somente leitura,
-      sem exclusão possível pela interface, nunca.
-- [ ] "Ver o sistema como" (impersonação de papel, **não** de pessoa): administrador visualiza o
-      painel com o conjunto de permissões de outro nível para conferir o que aquele papel enxerga.
-      Sem poder escrever nada nesse modo, com faixa de aviso permanente na tela e registro em
-      `AuditLog`.
+##### v0.2.9 — Ferramentas de administração dentro do painel ✅ IMPLEMENTADO (2026-09-12)
+- [x] **Matriz nível × permissão** (`pages/Acesso.tsx`): `GET /api/niveis-acesso/` passou a
+      devolver também os ids de permissão já atribuídos a cada nível (antes só existia via
+      chamada por nível); a grade marca/desmarca célula com efeito imediato
+      (`atribuirPermissao`/`removerPermissao`, sem botão "salvar"). Formulários simples de criar
+      nível/permissão também entraram (CRUD já existia via API desde a v0.1.5, só faltava UI).
+- [x] **Visualizador de `AuditLog`** (`pages/Auditoria.tsx`): novo `GET /api/auditoria/`
+      (filtros: usuário, tabela, ação, período; paginado) e `GET /api/auditoria/acoes` (lista de
+      ações distintas, alimenta o filtro). Resolve o nome do usuário via join com `Associado`
+      direto no backend. Somente leitura de propósito — nenhum botão de exclusão na interface.
+- [x] **"Ver o sistema como"** (impersonação de papel, não de pessoa) — a parte mais delicada
+      desta versão, porque mexe em código de segurança central:
+      - `criar_access_token` ganhou um claim opcional `id_nivel_impersonado`; `usuario_tem_permissao`
+        passou a checar esse nível (via `nivel_efetivo_id`) em vez do nível real quando presente.
+        Nunca eleva privilégio — só permite "ver como" um nível com o que aquele nível já tem.
+      - **Bloqueio de escrita em profundidade**: além da checagem de permissão usar o nível
+        impersonado, um middleware em `main.py` rejeita **toda** requisição POST/PUT/PATCH/DELETE
+        com 403 quando o token carrega o claim de impersonação (exceto `/auth/logout`,
+        `/auth/refresh` e `/auth/impersonar/parar`) — mesmo que uma rota nova esqueça de checar
+        permissão certo, ou que o nível impersonado tivesse permissão de escrita, nada é gravado.
+      - `POST /auth/impersonar/{id_nivel}` (exige `gerenciar_acesso`, rejeita impersonação
+        aninhada) e `POST /auth/impersonar/parar` emitem um novo access token; `GET /auth/me`
+        reflete `nivel`/`permissoes` do papel impersonado (é isso que filtra o menu de verdade) e
+        expõe `impersonando: {id_nivel, nome_nivel, nivel_real}`. MFA obrigatório continua
+        checado pelo **nível real** — impersonar não é brecha para escapar dessa exigência.
+      - Front: `lib/impersonacao.ts` (troca o token em memória, invalida `/auth/me`), faixa de
+        aviso permanente e sempre visível no `Shell` (com "Encerrar"), layout ajusta a altura do
+        topo dinamicamente para nunca sobrepor o header.
+      - **Achado real, corrigido nesta sessão**: `POST /auth/impersonar/parar` foi registrado
+        DEPOIS de `POST /auth/impersonar/{id_nivel}` no router — como o Starlette casa rotas por
+        padrão de caminho (não pelo tipo `int` do parâmetro, isso só é validado depois), "parar"
+        combinava com `{id_nivel}` primeiro e caía na checagem de permissão errada. Corrigido
+        registrando a rota estática antes da dinâmica; testado manualmente contra um backend
+        real rodando localmente (SQLite) que o bug realmente acontecia e que a correção resolveu.
+      - **Limitação conhecida e aceita**: o claim de impersonação vive só no access token (45
+        min), não no refresh token. Se o access token expirar em pleno modo "ver como", o
+        próximo `/auth/refresh` emite um token sem o claim — a sessão volta ao nível real
+        silenciosamente (sem registro de `IMPERSONACAO_ENCERRADA`), mas nunca elevando
+        privilégio nem deixando a UI mostrar informação de nível errada.
+
+**Verificação real, não só leitura de código**: rodei o backend de verdade nesta máquina (Python
++ SQLite local) e testei via `curl` — login, matriz de níveis/permissões, auditoria com nome de
+usuário resolvido, iniciar impersonação, **tentar escrever em modo impersonação (bloqueado com
+403, testado em duas rotas diferentes)**, impersonação aninhada rejeitada, parar impersonação, e
+os dois registros de auditoria (`IMPERSONACAO_INICIADA`/`ENCERRADA`) — foi assim que o bug de
+ordem de rota foi encontrado, não teria aparecido só lendo o código. No painel: `npm run
+lint`/`typecheck`/`test`/`test:e2e`/`build` todos passando (18 testes Vitest + 6 Playwright,
+incluindo um novo E2E de impersonação), e verificação visual real com Playwright/Chromium
+mostrando a matriz, a auditoria e o banner "Vendo como" com o menu corretamente filtrado.
 
 ##### v0.2.10 — O que fica fora da v0.2, de propósito
 - Nenhum módulo de negócio (associados, financeiro, eventos) — v0.2 entrega **casca, identidade

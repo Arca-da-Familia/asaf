@@ -63,6 +63,14 @@ class MFAResetRequest(BaseModel):
     id_usuario: int
 
 
+class ImpersonandoInfo(BaseModel):
+    """v0.2.9 - presente em MeResponse só quando o admin está no modo 'ver como'. `nivel_real`
+    é o nível de verdade da pessoa logada (nunca perdido, usado pra sair do modo)."""
+    id_nivel: int
+    nome_nivel: str
+    nivel_real: str
+
+
 class MeResponse(BaseModel):
     id_usuario: int
     id_associado: Optional[int] = None
@@ -74,6 +82,13 @@ class MeResponse(BaseModel):
     mfa_obrigatorio: bool = False
     mfa_pendente: bool = False
     permissoes: list[str] = []
+    impersonando: Optional[ImpersonandoInfo] = None
+
+
+class ImpersonarResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in_minutos: int
 
 
 class AlterarSenhaRequest(BaseModel):

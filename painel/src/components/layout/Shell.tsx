@@ -16,6 +16,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { logout } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
+import { useImpersonacao } from '@/lib/impersonacao'
 import { mensagens } from '@/lib/i18n/pt-BR'
 import { modulos } from '@/lib/modulos'
 import { useTheme } from '@/lib/theme'
@@ -25,11 +26,43 @@ import { cn } from '@/lib/utils'
 
 import { StatusBar } from './StatusBar'
 
-// Slot reservado para a barra de impersonação (v0.2.9). Enquanto não existir sessão de
-// impersonação, não renderiza nada — mas o shell já reserva o ponto exato onde a faixa de
-// aviso permanente entra, para nunca permitir sessão ambígua sem aviso visível.
-function ImpersonationBar() {
-  return null
+// Altura total da faixa fixa do topo: 64px (barra normal) + 40px a mais quando o aviso
+// permanente do modo "ver como" está visível — aside/main usam o mesmo valor para nunca ficar
+// nem escondidos atrás do header nem com um vão em branco.
+const ALTURA_TOPO_NORMAL = 'h-16'
+const ALTURA_TOPO_IMPERSONANDO = 'h-[6.5rem]' // 104px = 64px + 40px
+
+// Faixa de aviso permanente do modo "ver como" (v0.2.9) — nunca permite sessão ambígua sem
+// aviso visível. Só existe botão de ENCERRAR aqui: nenhuma escrita é possível nesse modo (o
+// backend bloqueia de qualquer forma, isto é só a sinalização visual).
+function ImpersonationBar({
+  impersonando,
+}: {
+  impersonando: NonNullable<ReturnType<typeof useMe>['data']>['impersonando']
+}) {
+  const { parar, pendente } = useImpersonacao()
+  if (!impersonando) return null
+
+  return (
+    <div
+      role="status"
+      className="flex h-10 items-center justify-center gap-3 bg-amber-500 px-4 text-sm font-medium text-amber-950"
+    >
+      <span>
+        Vendo como <strong>{impersonando.nome_nivel}</strong> — modo somente
+        leitura. Seu nível real: {impersonando.nivel_real}.
+      </span>
+      <Button
+        size="sm"
+        variant="outline"
+        className="border-amber-950/30 bg-transparent text-amber-950 hover:bg-amber-950/10"
+        onClick={() => parar()}
+        disabled={pendente}
+      >
+        Encerrar
+      </Button>
+    </div>
+  )
 }
 
 function navCls({ isActive }: { isActive: boolean }) {
@@ -54,6 +87,10 @@ export function Shell() {
   const modulosVisiveis = modulos.filter((m) =>
     permissoes.includes(m.permissao),
   )
+  const emImpersonacao = !!data?.impersonando
+  const alturaTopo = emImpersonacao
+    ? ALTURA_TOPO_IMPERSONANDO
+    : ALTURA_TOPO_NORMAL
 
   async function sair() {
     await logout()
@@ -62,76 +99,82 @@ export function Shell() {
 
   return (
     <div className="min-h-screen bg-background">
-      <ImpersonationBar />
-
-      {/* Barra superior: identidade, busca global, notificações e perfil */}
-      <header className="fixed inset-x-0 top-0 z-30 flex h-16 items-center gap-2 border-b border-border bg-card px-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="lg:hidden"
-          onClick={() => setMobileOpen((v) => !v)}
-          aria-label="Abrir menu"
-        >
-          <Menu className="h-5 w-5" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="hidden lg:inline-flex"
-          onClick={() => setCollapsed((v) => !v)}
-          aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
-        >
-          {collapsed ? (
-            <ChevronRight className="h-5 w-5" />
-          ) : (
-            <ChevronLeft className="h-5 w-5" />
-          )}
-        </Button>
-
-        <Link to="/" className="text-lg font-bold tracking-tight">
-          {mensagens.app.nome}
-        </Link>
-
-        {/* Busca global — placeholder nesta versão (a busca funcional entra em versão futura). */}
-        <div className="relative ml-auto hidden md:block">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            placeholder="Busca global…"
-            aria-label="Busca global"
-            disabled
-            className="h-9 w-56 rounded-md border border-input bg-muted/40 pl-8 pr-3 text-sm disabled:cursor-not-allowed"
-          />
-        </div>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="ml-auto md:ml-0"
-          onClick={alternar}
-          aria-label={ehEscuro ? 'Ativar modo claro' : 'Ativar modo escuro'}
-        >
-          {ehEscuro ? (
-            <Sun className="h-5 w-5" />
-          ) : (
-            <Moon className="h-5 w-5" />
-          )}
-        </Button>
-
-        <Button variant="ghost" size="icon" aria-label="Notificações">
-          <Bell className="h-5 w-5" />
-        </Button>
-
-        <div className="flex items-center gap-2">
-          <span className="hidden text-sm text-muted-foreground sm:block">
-            {data?.nome_completo ?? data?.email ?? 'Usuário'}
-          </span>
-          <Button variant="outline" size="sm" onClick={sair}>
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Sair</span>
+      {/* Barra superior: aviso de impersonação (se houver) + identidade, busca, perfil */}
+      <header
+        className={cn(
+          'fixed inset-x-0 top-0 z-30 flex flex-col border-b border-border bg-card transition-[height] duration-200',
+          alturaTopo,
+        )}
+      >
+        <ImpersonationBar impersonando={data?.impersonando} />
+        <div className="flex h-16 flex-1 items-center gap-2 px-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label="Abrir menu"
+          >
+            <Menu className="h-5 w-5" />
           </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden lg:inline-flex"
+            onClick={() => setCollapsed((v) => !v)}
+            aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+          >
+            {collapsed ? (
+              <ChevronRight className="h-5 w-5" />
+            ) : (
+              <ChevronLeft className="h-5 w-5" />
+            )}
+          </Button>
+
+          <Link to="/" className="text-lg font-bold tracking-tight">
+            {mensagens.app.nome}
+          </Link>
+
+          {/* Busca global — placeholder nesta versão (a busca funcional entra em versão futura). */}
+          <div className="relative ml-auto hidden md:block">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="search"
+              placeholder="Busca global…"
+              aria-label="Busca global"
+              disabled
+              className="h-9 w-56 rounded-md border border-input bg-muted/40 pl-8 pr-3 text-sm disabled:cursor-not-allowed"
+            />
+          </div>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto md:ml-0"
+            onClick={alternar}
+            aria-label={ehEscuro ? 'Ativar modo claro' : 'Ativar modo escuro'}
+          >
+            {ehEscuro ? (
+              <Sun className="h-5 w-5" />
+            ) : (
+              <Moon className="h-5 w-5" />
+            )}
+          </Button>
+
+          <Button variant="ghost" size="icon" aria-label="Notificações">
+            <Bell className="h-5 w-5" />
+          </Button>
+
+          <div className="flex items-center gap-2">
+            <span className="hidden text-sm text-muted-foreground sm:block">
+              {data?.nome_completo ?? data?.email ?? 'Usuário'}
+            </span>
+            <Button variant="outline" size="sm" onClick={sair}>
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Sair</span>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -145,7 +188,8 @@ export function Shell() {
       {/* Navegação lateral colapsável (vira gaveta abaixo de 1024px) */}
       <aside
         className={cn(
-          'fixed bottom-0 left-0 top-16 z-40 flex w-64 flex-col border-r border-border bg-card transition-transform lg:translate-x-0',
+          'fixed bottom-0 left-0 z-40 flex w-64 flex-col border-r border-border bg-card transition-transform lg:translate-x-0',
+          emImpersonacao ? 'top-[6.5rem]' : 'top-16',
           mobileOpen ? 'translate-x-0' : '-translate-x-full',
           collapsed ? 'lg:w-16' : 'lg:w-64',
         )}
@@ -187,7 +231,8 @@ export function Shell() {
       {/* Área de conteúdo */}
       <main
         className={cn(
-          'flex min-h-screen flex-col pt-16 transition-[padding] duration-200',
+          'flex min-h-screen flex-col transition-[padding] duration-200',
+          emImpersonacao ? 'pt-[6.5rem]' : 'pt-16',
           collapsed ? 'lg:pl-16' : 'lg:pl-64',
         )}
       >

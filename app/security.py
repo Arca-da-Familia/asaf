@@ -163,7 +163,10 @@ def limpar_tentativas_falhas(db: Session, usuario: Usuario):
 # ==========================================
 # JWT (access token stateless + refresh token opaco guardado em TokenAcesso)
 # ==========================================
-def criar_access_token(usuario: Usuario) -> str:
+def criar_access_token(usuario: Usuario, id_nivel_impersonado: Optional[int] = None) -> str:
+    """`id_nivel_impersonado` só é usado pelo modo "ver como" (v0.2.9, POST /auth/impersonar):
+    o token continua identificando o USUÁRIO real (id_usuario), só a checagem de permissão passa
+    a olhar para este nível em vez do nível real — nunca o contrário, nunca eleva privilégio."""
     _checar_jwt_secret_configurado()
     agora = datetime.now(timezone.utc)
     payload = {
@@ -173,6 +176,8 @@ def criar_access_token(usuario: Usuario) -> str:
         "exp": agora + timedelta(minutes=ACCESS_TOKEN_MINUTOS),
         "type": "access",
     }
+    if id_nivel_impersonado is not None:
+        payload["id_nivel_impersonado"] = id_nivel_impersonado
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
@@ -263,6 +268,19 @@ def decodificar_access_token(token: str) -> dict:
     return payload
 
 
+def decodificar_access_token_silencioso(token: str) -> Optional[dict]:
+    """Variante de decodificar_access_token que nunca lança - usada pelo middleware que
+    bloqueia escrita em modo impersonação (v0.2.9), que não deve interferir no fluxo normal
+    de autenticação/erro de uma rota (isso é responsabilidade de get_current_user)."""
+    if not JWT_SECRET:
+        return None
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except jwt.InvalidTokenError:
+        return None
+    return payload if payload.get("type") == "access" else None
+
+
 def get_current_user(
     credenciais: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
     db: Session = Depends(get_db),
@@ -273,20 +291,30 @@ def get_current_user(
     usuario = db.query(Usuario).filter(Usuario.id_usuario == payload["id_usuario"]).first()
     if usuario is None or not usuario.ativo:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário inválido ou inativo.")
+    # v0.2.9 - atributo só em memória (nunca persistido): se o token carrega o claim do modo
+    # "ver como", toda checagem de permissão desta requisição usa este nível, não o real.
+    usuario.id_nivel_impersonado = payload.get("id_nivel_impersonado")
     return usuario
 
 
 # ==========================================
 # AUTORIZAÇÃO (permissão por nível de acesso)
 # ==========================================
+def nivel_efetivo_id(usuario: Usuario) -> Optional[int]:
+    """v0.2.9 - nível que vale para checagem de permissão: o impersonado (modo "ver como"),
+    quando presente, senão o real. Nunca o contrário - ver `criar_access_token`."""
+    return getattr(usuario, "id_nivel_impersonado", None) or usuario.id_nivel
+
+
 def usuario_tem_permissao(db: Session, usuario: Usuario, codigo_permissao: str) -> bool:
-    if usuario.id_nivel is None:
+    id_nivel = nivel_efetivo_id(usuario)
+    if id_nivel is None:
         return False
     existe = (
         db.query(PermissaoSistema)
         .join(perfil_permissao, perfil_permissao.c.id_permissao == PermissaoSistema.id_permissao)
         .filter(
-            perfil_permissao.c.id_nivel == usuario.id_nivel,
+            perfil_permissao.c.id_nivel == id_nivel,
             PermissaoSistema.codigo_permissao == codigo_permissao,
         )
         .first()

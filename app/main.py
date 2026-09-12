@@ -1,11 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import os
 
 from app.database import preparar_banco, seed_opcoes_lista, seed_niveis_e_permissoes
 from app.routers import auth, core, associados, financeiro, governanca, projetos, admin_portal
+from app.security import decodificar_access_token_silencioso
 
 # A auditoria de schema (preparar_banco) audita as ~50 tabelas uma a uma a cada start -
 # em produção (Postgres na nuvem) isso passou de 27s e estourou o startup probe do
@@ -42,6 +43,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# v0.2.9 - reforço de "somente leitura" do modo "ver como": mesmo que o nível impersonado
+# tenha alguma permissão de escrita, NENHUMA rota mutante roda enquanto o token carregar o
+# claim de impersonação. Isto é defesa em profundidade além do usuario_tem_permissao já usar o
+# nível impersonado (security.py) - se uma rota nova esquecer de checar permissão certo, ainda
+# assim não escreve nada em modo impersonação.
+_ROTAS_SEMPRE_PERMITIDAS_EM_IMPERSONACAO = {"/auth/logout", "/auth/impersonar/parar", "/auth/refresh"}
+
+
+@app.middleware("http")
+async def bloquear_escrita_em_impersonacao(request: Request, call_next):
+    if (
+        request.method in ("POST", "PUT", "PATCH", "DELETE")
+        and request.url.path not in _ROTAS_SEMPRE_PERMITIDAS_EM_IMPERSONACAO
+    ):
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.lower().startswith("bearer "):
+            payload = decodificar_access_token_silencioso(auth_header[7:])
+            if payload and payload.get("id_nivel_impersonado"):
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "Modo \"ver como\" é somente leitura — nenhuma escrita é permitida."},
+                )
+    return await call_next(request)
 
 
 app.include_router(auth.router)

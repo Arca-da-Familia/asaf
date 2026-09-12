@@ -1,9 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
-from app.models.core import ConfiguracaoInstitucional, OpcaoLista, NivelAcesso, PermissaoSistema, perfil_permissao
+from app.models.associados import Associado
+from app.models.core import ConfiguracaoInstitucional, OpcaoLista, NivelAcesso, PermissaoSistema, perfil_permissao, AuditLog, Usuario
 from app.schemas.core import OpcaoCriar, OpcaoAtualizar, NivelAcessoCriar, NivelAcessoAtualizar, PermissaoCriar
 from app.security import exigir_permissao
 
@@ -66,12 +70,19 @@ def atualizar_opcao(id_opcao: int, dados: OpcaoAtualizar, db: Session = Depends(
 _permissao_gerenciar_acesso = exigir_permissao("gerenciar_acesso")
 
 
-@router.get("/api/niveis-acesso/", summary="Listar níveis de acesso")
+@router.get("/api/niveis-acesso/", summary="Listar níveis de acesso (com a matriz de permissões atribuídas)")
 def listar_niveis_acesso(db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_acesso)):
     niveis = db.query(NivelAcesso).order_by(NivelAcesso.id_nivel).all()
+    # v0.2.9 - a tela de administração é uma MATRIZ nível × permissão: sem os ids de permissão
+    # já atribuídos, o front teria que fazer uma chamada por nível para montar a grade.
+    atribuicoes = db.execute(perfil_permissao.select()).all()
+    permissoes_por_nivel: dict[int, list[int]] = {}
+    for linha in atribuicoes:
+        permissoes_por_nivel.setdefault(linha.id_nivel, []).append(linha.id_permissao)
     return [
         {"id_nivel": n.id_nivel, "nome_nivel": n.nome_nivel, "descricao": n.descricao,
-         "is_conselho_fiscal": n.is_conselho_fiscal, "exige_mfa": n.exige_mfa}
+         "is_conselho_fiscal": n.is_conselho_fiscal, "exige_mfa": n.exige_mfa,
+         "permissoes": permissoes_por_nivel.get(n.id_nivel, [])}
         for n in niveis
     ]
 
@@ -144,6 +155,82 @@ def remover_permissao(id_nivel: int, id_permissao: int, db: Session = Depends(ge
     )
     db.commit()
     return {"mensagem": "Permissão removida."}
+
+
+# ==========================================
+# VISUALIZADOR DE AUDITORIA (v0.2.9 - somente leitura, nunca exclusão pela interface)
+# ==========================================
+_permissao_auditoria = exigir_permissao("auditoria")
+
+
+@router.get("/api/auditoria/", summary="Consultar trilha de auditoria (filtros: usuário, tabela, ação, período)")
+def listar_auditoria(
+    db: Session = Depends(get_db),
+    _=Depends(_permissao_auditoria),
+    id_usuario: Optional[int] = None,
+    tabela_afetada: Optional[str] = None,
+    acao: Optional[str] = None,
+    desde: Optional[datetime] = None,
+    ate: Optional[datetime] = None,
+    pagina: int = Query(1, ge=1),
+    por_pagina: int = Query(50, ge=1, le=200),
+):
+    consulta = db.query(AuditLog)
+    if id_usuario is not None:
+        consulta = consulta.filter(AuditLog.id_usuario == id_usuario)
+    if tabela_afetada:
+        consulta = consulta.filter(AuditLog.tabela_afetada == tabela_afetada)
+    if acao:
+        consulta = consulta.filter(AuditLog.acao == acao)
+    if desde:
+        consulta = consulta.filter(AuditLog.timestamp >= desde)
+    if ate:
+        consulta = consulta.filter(AuditLog.timestamp <= ate)
+
+    total = consulta.count()
+    entradas = (
+        consulta.order_by(AuditLog.timestamp.desc())
+        .offset((pagina - 1) * por_pagina)
+        .limit(por_pagina)
+        .all()
+    )
+
+    ids_usuarios = {e.id_usuario for e in entradas if e.id_usuario is not None}
+    nomes_por_usuario: dict[int, str] = {}
+    if ids_usuarios:
+        for id_u, nome in (
+            db.query(Associado.id_usuario, Associado.nome_completo)
+            .filter(Associado.id_usuario.in_(ids_usuarios))
+            .all()
+        ):
+            nomes_por_usuario[id_u] = nome
+
+    return {
+        "total": total,
+        "pagina": pagina,
+        "por_pagina": por_pagina,
+        "entradas": [
+            {
+                "id_log": e.id_log,
+                "id_usuario": e.id_usuario,
+                "nome_usuario": nomes_por_usuario.get(e.id_usuario),
+                "tabela_afetada": e.tabela_afetada,
+                "id_registro_afetado": e.id_registro_afetado,
+                "acao": e.acao,
+                "dados_antes": e.dados_antes,
+                "dados_depois": e.dados_depois,
+                "ip_origem": e.ip_origem,
+                "timestamp": e.timestamp,
+            }
+            for e in entradas
+        ],
+    }
+
+
+@router.get("/api/auditoria/acoes", summary="Lista de ações distintas já registradas (para o filtro)")
+def listar_acoes_auditoria(db: Session = Depends(get_db), _=Depends(_permissao_auditoria)):
+    linhas = db.query(AuditLog.acao).distinct().order_by(AuditLog.acao).all()
+    return [l.acao for l in linhas]
 
 
 # ==========================================

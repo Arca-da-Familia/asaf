@@ -42,6 +42,13 @@ export const perfilResponseSchema = z.object({
   endereco: enderecoSchema.nullish(),
 })
 
+// v0.2.9 — presente só durante o modo "ver como" (impersonação de papel).
+export const impersonandoSchema = z.object({
+  id_nivel: z.number(),
+  nome_nivel: z.string(),
+  nivel_real: z.string(),
+})
+
 // Resposta de GET /auth/me — usado pelo shell inteiro para montar menu e checar permissão
 // (App.tsx, Shell.tsx). Um campo faltando aqui derruba o roteamento inteiro, por isso é
 // validado antes de qualquer componente confiar no formato.
@@ -55,4 +62,5 @@ export const meResponseSchema = z.object({
   mfa_obrigatorio: z.boolean(),
   mfa_pendente: z.boolean(),
   permissoes: z.array(z.string()),
+  impersonando: impersonandoSchema.nullish(),
 })

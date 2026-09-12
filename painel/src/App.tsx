@@ -5,6 +5,8 @@ import { ErrorBoundary } from '@/components/feedback/ErrorBoundary'
 import { Shell } from '@/components/layout/Shell'
 import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/use-me'
+import { AcessoPage } from '@/pages/Acesso'
+import { AuditoriaPage } from '@/pages/Auditoria'
 import { DevComponents } from '@/pages/DevComponents'
 import { EmConstrucao } from '@/pages/EmConstrucao'
 import { Forbidden } from '@/pages/Forbidden'
@@ -127,7 +129,7 @@ function App() {
           element={
             <RequirePermission permission="gerenciar_acesso">
               <ErrorBoundary tituloModulo="Níveis e permissões">
-                <EmConstrucao modulo="Níveis e permissões" />
+                <AcessoPage />
               </ErrorBoundary>
             </RequirePermission>
           }
@@ -137,7 +139,7 @@ function App() {
           element={
             <RequirePermission permission="auditoria">
               <ErrorBoundary tituloModulo="Auditoria">
-                <EmConstrucao modulo="Auditoria" />
+                <AuditoriaPage />
               </ErrorBoundary>
             </RequirePermission>
           }
