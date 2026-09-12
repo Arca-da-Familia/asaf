@@ -496,6 +496,25 @@ de JS, `/version.json` servido corretamente) — não deu para testar o `StatusB
 dentro do Shell autenticado porque isso exige backend + Postgres rodando, que não existem
 nesta máquina; registrado aqui para quem tiver o backend de pé validar visualmente.
 
+> **Achado de infraestrutura (não é bug de código), corrigido nesta sessão**: acompanhando o
+> deploy real desta versão no GitHub Actions, descobrimos que **o painel nunca tinha sido
+> publicado com sucesso no Static Web App via CI/CD** — todo run de `deploy-painel.yml` desde o
+> primeiro registrado (v0.2.0) falhava na etapa "Busca o deploy token no Key Vault": o Service
+> Principal `asaf-github-actions` não tinha permissão `get`/`list` de segredo no `kv-asaf-arca`
+> (só tinha o login OIDC, nunca ganhou acesso ao cofre). Corrigido com
+> `az keyvault set-policy` concedendo `secrets: get, list` a esse Service Principal. Depois
+> dessa correção, apareceu um **segundo problema, também de infraestrutura**: a action
+> `Azure/static-web-apps-deploy@v1` zipa `app_location` (`painel/`) inteiro para publicar, mesmo
+> com `skip_app_build: true` — como o `npm ci` roda nessa mesma pasta no job, o `node_modules`
+> (~330MB) ia junto e estourava o limite de 250MB do Static Web App no plano Free ("size of the
+> app content was too large"). Um `.swaignore` sozinho não resolveu; a correção efetiva foi um
+> passo `rm -rf node_modules` entre o build e a publicação (o build já está pronto em `dist/`
+> nesse ponto). Confirmado com deploy real, bem-sucedido, em 2026-09-12 —
+> `https://black-smoke-0d66eee10.3.azurestaticapps.net/` responde 200. **Isso significa que
+> nenhuma versão do painel (v0.2.0 até aqui) tinha chegado à produção antes desta correção**,
+> apesar do código estar correto e dos portões de qualidade sempre terem passado — vale revisar
+> se algo do que se assumia "já em produção" precisa ser reconferido.
+
 ##### v0.2.8 — Testes do painel (padrão que vale para todas as fases seguintes)
 - [ ] Vitest + Testing Library para componente e regra de tela; Playwright para os fluxos que não
       podem quebrar: login, login com MFA, refresh expirado, 403 por falta de permissão.
