@@ -1,5 +1,8 @@
+import { z } from 'zod'
+
 import { clearSession, getAccessToken, setAccessToken } from './auth'
 import { finalizarRequisicao, iniciarRequisicao } from './network-status'
+import { meResponseSchema, perfilResponseSchema } from './schemas'
 
 // Em produção, aponte para a origem da API (mesmo site do painel para o cookie SameSite=Strict
 // funcionar — ex.: https://api.asaf.org.br). Em dev, deixe vazio: o Vite faz proxy de /auth.
@@ -48,6 +51,26 @@ async function fetchInstrumentado(
     finalizarRequisicao(false)
     throw erro
   }
+}
+
+// Teste de contrato (v0.2.8): valida a resposta contra o schema Zod ANTES do resto do painel
+// confiar no formato. Se o backend renomear/remover um campo, quebra aqui — com mensagem
+// específica de qual campo — em vez de um `undefined` silencioso estourando em algum componente
+// três telas depois.
+function validarResposta<T>(
+  schema: z.ZodType<T>,
+  dados: unknown,
+  origem: string,
+): T {
+  const resultado = schema.safeParse(dados)
+  if (!resultado.success) {
+    throw new Error(
+      `Resposta de ${origem} não bate com o contrato esperado: ${resultado.error.issues
+        .map((i) => `${i.path.join('.') || '(raiz)'}: ${i.message}`)
+        .join('; ')}`,
+    )
+  }
+  return resultado.data
 }
 
 async function parseError(res: Response): Promise<ApiError> {
@@ -224,8 +247,9 @@ export type Me = {
   permissoes: string[]
 }
 
-export function me(): Promise<Me> {
-  return apiFetch<Me>('/auth/me')
+export async function me(): Promise<Me> {
+  const dados = await apiFetch<Me>('/auth/me')
+  return validarResposta(meResponseSchema, dados, 'GET /auth/me')
 }
 
 export type MfaAtivarResult = { otpauth_uri: string }
@@ -296,8 +320,9 @@ export type Documento = {
   data_upload?: string | null
 }
 
-export function obterPerfil(): Promise<Perfil> {
-  return apiFetch<Perfil>('/auth/perfil')
+export async function obterPerfil(): Promise<Perfil> {
+  const dados = await apiFetch<Perfil>('/auth/perfil')
+  return validarResposta(perfilResponseSchema, dados, 'GET /auth/perfil')
 }
 
 export function atualizarPerfil(

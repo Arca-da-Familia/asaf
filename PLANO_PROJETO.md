@@ -515,11 +515,35 @@ nesta máquina; registrado aqui para quem tiver o backend de pé validar visualm
 > apesar do código estar correto e dos portões de qualidade sempre terem passado — vale revisar
 > se algo do que se assumia "já em produção" precisa ser reconferido.
 
-##### v0.2.8 — Testes do painel (padrão que vale para todas as fases seguintes)
-- [ ] Vitest + Testing Library para componente e regra de tela; Playwright para os fluxos que não
-      podem quebrar: login, login com MFA, refresh expirado, 403 por falta de permissão.
-- [ ] Teste de contrato: o front valida as respostas da API com os mesmos schemas Zod usados nos
-      formulários — se o backend mudar um campo, o teste quebra antes do usuário descobrir.
+##### v0.2.8 — Testes do painel (padrão que vale para todas as fases seguintes) ✅ IMPLEMENTADO (2026-09-12)
+- [x] **Vitest + Testing Library**: `test/form-shell.test.tsx` (o `FormShell` é reaproveitado por
+      todo formulário do painel — validação Zod bloqueia envio inválido, mapeia 422 do backend
+      pro campo certo, mostra erro geral pra falha genérica), `test/app-guards.test.tsx` (as três
+      regras de tela que protegem o roteamento inteiro — `RequireAuth`, `RequireMfa`,
+      `RequirePermission`, exportadas de `App.tsx` propositalmente para isso — testadas
+      isoladas com `useAuth`/`useMe` mockados), `test/api.test.ts` (o interceptor 401→refresh→
+      retry-uma-vez, mapeamento de erro 422, e que falha de transporte de verdade marca o
+      `network-status` como offline).
+- [x] **Playwright** (`e2e/auth.spec.ts`, roda contra a API **mockada via `page.route`** — não
+      existe Postgres nesta máquina, e esses testes validam o comportamento do painel diante de
+      cada resposta possível da API, não o backend em si, que tem sua própria suíte):
+      login sem MFA, login com MFA (segundo fator), CPF inválido bloqueado no cliente sem
+      chamar a API, sessão derrubada quando o refresh falha de verdade (volta pro login), e 403
+      ao acessar um módulo sem a permissão (não o conteúdo do módulo). 5/5 passando localmente.
+      Adicionado ao CI (`deploy-painel.yml`, job `quality`): instala o Chromium do Playwright e
+      roda `npm run test:e2e` como portão, antes do build de produção.
+- [x] **Teste de contrato Zod** (`lib/schemas.ts` + `lib/api.ts`): `meResponseSchema` e
+      `perfilResponseSchema` validam a resposta de `/auth/me` e `/auth/perfil` de verdade em
+      tempo de execução (`.safeParse`, não só tipo TS que desaparece no build) — `perfilEditavelSchema`
+      é literalmente o mesmo schema usado no formulário de "Dados cadastrais"
+      (`pages/Perfil.tsx`), não uma cópia paralela. Testado: um fixture com `mfa_ativado`
+      renomeado para `mfaAtivado` (simulando o backend mudando um campo) faz `me()` rejeitar com
+      mensagem apontando o campo exato — antes de qualquer componente reagir a um `undefined`.
+
+Verificação real: `npm run lint`/`typecheck`/`test`/`test:e2e`/`build` todos rodados e passando
+nesta sessão (18 testes Vitest + 5 Playwright). `vitest.config.ts` ganhou `exclude: ['e2e/**']`
+— sem isso o Vitest tenta rodar os specs do Playwright e quebra (`test.describe` não é API do
+Vitest). `.gitignore` do painel ganhou `test-results/`/`playwright-report/`.
 
 ##### v0.2.9 — Ferramentas de administração dentro do painel
 - [ ] Tela do catálogo de níveis e permissões (CRUD da v0.1.5, que hoje só existe via API) — com

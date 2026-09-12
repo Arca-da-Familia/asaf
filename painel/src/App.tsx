@@ -13,7 +13,7 @@ import { Login } from '@/pages/Login'
 import { MfaSetup } from '@/pages/MfaSetup'
 import { PerfilPage } from '@/pages/Perfil'
 
-function RequireAuth({ children }: { children: ReactNode }) {
+export function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated, isBootstrapping } = useAuth()
   if (isBootstrapping) return null
   if (!isAuthenticated) return <Navigate to="/login" replace />
@@ -22,7 +22,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 // v0.2.2 - trava o painel inteiro numa tela guiada enquanto o MFA obrigatório do nível
 // não estiver ativado. Nenhuma rota de negócio renderiza antes disso.
-function RequireMfa({ children }: { children: ReactNode }) {
+export function RequireMfa({ children }: { children: ReactNode }) {
   const { data, isLoading } = useMe()
   if (isLoading) return null
   if (data?.mfa_pendente) return <Navigate to="/mfa/setup" replace />
@@ -31,7 +31,7 @@ function RequireMfa({ children }: { children: ReactNode }) {
 
 // v0.2.3 - guarda de rota por permissão: o front esconde (menu filtrado) e aqui também
 // proíbe o acesso direto por URL. O backend revalida a mesma permissão (exigir_permissao).
-function RequirePermission({
+export function RequirePermission({
   permission,
   children,
 }: {

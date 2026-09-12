@@ -5,3 +5,7 @@ dist/
 
 # Gerado a cada build por scripts/gerar-version.js (v0.2.7) — nunca fixo, sempre recriado.
 public/version.json
+
+# Artefatos do Playwright (v0.2.8) — relatório e resultados de execução local.
+/test-results/
+/playwright-report/

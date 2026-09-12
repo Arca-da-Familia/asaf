@@ -59,6 +59,12 @@ jobs:
       - name: Testes (axe-core de acessibilidade)
         run: npm run test
 
+      - name: Instala navegador do Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Testes E2E (login, MFA, refresh expirado, 403) — v0.2.8
+        run: npm run test:e2e
+
       - name: Build de produção
         run: npm run build
 

@@ -19,18 +19,14 @@ import {
   type Perfil,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
+import { perfilEditavelSchema } from '@/lib/schemas'
 import { useMe } from '@/lib/use-me'
 
-const schemaPerfil = z.object({
-  email_contato: z.string().email('E-mail inválido.'),
-  telefone_whatsapp: z.string().min(10, 'Informe um telefone válido.'),
-  cep: z.string(),
-  logradouro: z.string(),
-  numero: z.string(),
-  bairro: z.string(),
-  cidade: z.string(),
-  estado: z.string(),
-})
+// Mesmo schema usado para validar a resposta de GET /auth/perfil (lib/api.ts) — ver
+// lib/schemas.ts. Reaproveitar em vez de duplicar é o que faz o "teste de contrato" da v0.2.8
+// significar algo: se o campo mudar de nome no backend, o formulário e a leitura quebram
+// pelo mesmo motivo, não por dois lugares divergentes.
+const schemaPerfil = perfilEditavelSchema
 type PerfilForm = z.infer<typeof schemaPerfil>
 
 const schemaSenha = z
