@@ -117,10 +117,15 @@ def upgrade() -> None:
     id_catalogo_por_chave: dict[str, int] = {}
     for chave in sorted({linha.tipo_lista for linha in linhas}):
         nome_exibido, editavel = _CATALOGOS_MIGRADOS.get(chave, (chave.replace("_", " ").capitalize(), True))
+        # `sa.table()` não carrega metadado de chave primária (é um construto leve, só pra
+        # este script) — `inserted_primary_key` não funciona nele. `.returning()` explícito
+        # não depende disso.
         resultado = conexao.execute(
-            catalogos.insert().values(chave=chave, nome_exibido=nome_exibido, editavel_pelo_usuario=editavel)
+            catalogos.insert()
+            .values(chave=chave, nome_exibido=nome_exibido, editavel_pelo_usuario=editavel)
+            .returning(catalogos.c.id_catalogo)
         )
-        id_catalogo_por_chave[chave] = resultado.inserted_primary_key[0]
+        id_catalogo_por_chave[chave] = resultado.scalar_one()
 
     codigos_usados: dict[int, set[str]] = {}
     for linha in linhas:
