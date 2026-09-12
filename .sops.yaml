@@ -7,10 +7,10 @@
 creation_rules:
   # .env no formato dotenv: mantém as CHAVES visíveis e cifra apenas os VALORES.
   - path_regex: ^\.env$
-    age: age1tcc555f5hzy0dv87mkuup56yrghh7c235y2dpfeyy2rqjrv92aaqqtevtn
+    age: age1tcc555f5hzy0dv87mkuup56yrghh7c235y2dpfeyy2rqjrv92aaqqtevtn,age1xfytqt57gcc3g7su5e0zqtujlcss5gfpzarahs8tsv7a72pf592se6fakw
 
   # Arquivos de texto "livre" (markdown de credenciais e script de provisionamento):
   # cifrados por inteiro (ficam como blob JSON cifrado no repo).
   - path_regex: (CREDENCIAIS_AZURE\.md|provisionar\.sh)$
     input_type: binary
-    age: age1tcc555f5hzy0dv87mkuup56yrghh7c235y2dpfeyy2rqjrv92aaqqtevtn
+    age: age1tcc555f5hzy0dv87mkuup56yrghh7c235y2dpfeyy2rqjrv92aaqqtevtn,age1xfytqt57gcc3g7su5e0zqtujlcss5gfpzarahs8tsv7a72pf592se6fakw
