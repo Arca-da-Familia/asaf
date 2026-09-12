@@ -112,20 +112,19 @@ jobs:
       - name: Build de produção
         run: npm run build
 
-      # A action de deploy zipa app_location inteiro (painel/) mesmo com skip_app_build: true —
-      # sem isto, node_modules (~330MB) vai junto e estoura o limite de 250MB do plano Free
-      # ("size of the app content was too large"). O build já rodou, node_modules não faz falta.
-      - name: Remove node_modules antes do deploy (evita estourar o limite de tamanho do Free)
-        run: rm -rf node_modules
-
       - name: Publica no Static Web App
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ steps.kv.outputs.token }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
-          app_location: painel
-          output_location: dist
+          # Com skip_app_build: true, app_location precisa ser a pasta de SAÍDA do build, não a
+          # pasta fonte com output_location separado — a combinação anterior (app_location:
+          # painel + output_location: dist) fazia a action publicar o painel/index.html BRUTO
+          # (referenciando /src/main.tsx não compilado), não o dist/index.html com os assets
+          # hasheados. O site "no ar" desde os primeiros deploys bem-sucedidos desta sessão
+          # nunca serviu o build de verdade — só descoberto testando a URL de produção depois.
+          app_location: painel/dist
           skip_app_build: true
 
       - name: Logout
