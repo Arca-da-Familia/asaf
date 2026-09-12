@@ -378,18 +378,18 @@ ainda não foi implementada); registrar como item a cobrir quando aquela sub-ver
       papel (v0.2.9) — nunca permitir sessão ambígua.
 
 ##### v0.2.4 — Design system e padrões de tela reaproveitáveis
-- [ ] Tokens de design (cores institucionais da ASAF, tipografia, espaçamento, raio, sombra) num
+- [x] Tokens de design (cores institucionais da ASAF, tipografia, espaçamento, raio, sombra) num
       único lugar — trocar a identidade visual da associação não pode exigir caçar cor em 40
       arquivos.
-- [ ] Modo claro/escuro respeitando a preferência do sistema, com opção manual persistida.
-- [ ] **Componentes-padrão que todo módulo futuro reusa** (construídos aqui, uma vez só):
+- [x] Modo claro/escuro respeitando a preferência do sistema, com opção manual persistida.
+- [x] **Componentes-padrão que todo módulo futuro reusa** (construídos aqui, uma vez só):
       `DataTable` (ordenação, filtro, paginação server-side, seleção, densidade), `FormShell`
       (validação com Zod + react-hook-form, erro de campo vindo do 422 do FastAPI mapeado
       automaticamente), `ConfirmDialog` (ação destrutiva sempre com confirmação nomeada),
       `EmptyState`, `SkeletonLoader`, `ErrorBoundary` por módulo, `PageHeader` com trilha de
       navegação, `Timeline` (histórico/auditoria), `FileUpload` (com barra de progresso e limite
       de tipo/tamanho), `MoneyInput`/`CpfInput`/`CnpjInput`/`DateInput` com formato brasileiro.
-- [ ] Catálogo vivo dos componentes (Storybook **ou** uma rota `/dev/componentes` no próprio
+- [x] Catálogo vivo dos componentes (Storybook **ou** uma rota `/dev/componentes` no próprio
       painel, decisão de implementação) — documentação que não apodrece porque é o próprio código.
 
 ##### v0.2.5 — Módulo "Meu Perfil" (o único módulo funcional entregue na v0.2)

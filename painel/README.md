@@ -81,6 +81,18 @@ faz o upload do `dist/`.
   backend revalida a mesma permissão (`exigir_permissao`).
 - Slot reservado para a **barra de impersonação** (v0.2.9).
 
+## Design system (v0.2.4)
+
+- **Tokens de design** num único lugar: `src/index.css` + `tailwind.config.js` (cores com o azul
+  institucional da ASAF, tipografia, raio e sombra) + `src/lib/tokens.ts` (paleta para gráficos).
+- **Modo claro/escuro**: `ThemeProvider` (`src/lib/theme.ts`) respeita a preferência do sistema e
+  persiste a escolha manual em `localStorage`.
+- **Componentes-padrão** em `src/components/` (ver catálogo): `DataTable` (TanStack Table, com
+  paginação client ou server-side), `FormShell` (Zod + react-hook-form, mapeia o 422 do FastAPI),
+  `ConfirmDialog`, `EmptyState`, `SkeletonLoader`, `ErrorBoundary`, `PageHeader`, `Timeline`,
+  `FileUpload` e inputs brasileiros (`MoneyInput`, `CpfInput`, `CnpjInput`, `DateInput`).
+- **Catálogo vivo** na rota `/dev/componentes` — o código é a própria documentação.
+
 ## Estrutura
 
 ```

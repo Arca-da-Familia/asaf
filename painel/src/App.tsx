@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { Shell } from '@/components/layout/Shell'
 import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/use-me'
+import { DevComponents } from '@/pages/DevComponents'
 import { EmConstrucao } from '@/pages/EmConstrucao'
 import { Forbidden } from '@/pages/Forbidden'
 import { Home } from '@/pages/Home'
@@ -76,6 +77,7 @@ function App() {
         }
       >
         <Route index element={<Home />} />
+        <Route path="/dev/componentes" element={<DevComponents />} />
         <Route path="/403" element={<Forbidden />} />
         <Route
           path="/associados"

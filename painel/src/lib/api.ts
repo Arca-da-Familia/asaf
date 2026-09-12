@@ -4,18 +4,29 @@ import { clearSession, getAccessToken, setAccessToken } from './auth'
 // funcionar — ex.: https://api.asaf.org.br). Em dev, deixe vazio: o Vite faz proxy de /auth.
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
-type ErrorPayload = { detail?: string }
+type ErrorPayload = {
+  detail?: string | { loc: (string | number)[]; msg: string; type: string }[]
+}
+
+export type ErroCampo422 = { campo: string; mensagem: string }
 
 export class ApiError extends Error {
   status: number
   detail: string
   retryAfter?: number
+  errosCampos: ErroCampo422[]
 
-  constructor(status: number, detail: string, retryAfter?: number) {
+  constructor(
+    status: number,
+    detail: string,
+    errosCampos: ErroCampo422[] = [],
+    retryAfter?: number,
+  ) {
     super(detail)
     this.name = 'ApiError'
     this.status = status
     this.detail = detail
+    this.errosCampos = errosCampos
     this.retryAfter = retryAfter
   }
 }
@@ -23,15 +34,29 @@ export class ApiError extends Error {
 async function parseError(res: Response): Promise<ApiError> {
   let detail = `Erro inesperado (${res.status}).`
   const retryAfter = res.headers.get('retry-after')
+  const errosCampos: ErroCampo422[] = []
   try {
     const payload = (await res.json()) as ErrorPayload
-    if (payload.detail) detail = payload.detail
+    if (Array.isArray(payload.detail)) {
+      // Erro 422 do FastAPI: detail é uma lista de { loc, msg, type }. Extrai o campo
+      // (loc sem o prefixo "body") para o FormShell mapear de volta no react-hook-form.
+      errosCampos.push(
+        ...payload.detail.map((d) => ({
+          campo: d.loc.filter((p) => p !== 'body').join('.'),
+          mensagem: d.msg,
+        })),
+      )
+      detail = errosCampos[0]?.mensagem ?? 'Dados inválidos.'
+    } else if (payload.detail) {
+      detail = payload.detail
+    }
   } catch {
     // corpo sem JSON — mantém a mensagem genérica
   }
   return new ApiError(
     res.status,
     detail,
+    errosCampos,
     retryAfter ? Number(retryAfter) : undefined,
   )
 }

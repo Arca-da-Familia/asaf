@@ -6,7 +6,9 @@ import {
   House,
   LogOut,
   Menu,
+  Moon,
   Search,
+  Sun,
 } from 'lucide-react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 
@@ -14,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { logout } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 import { modulos } from '@/lib/modulos'
+import { useTheme } from '@/lib/theme'
 import { useMe } from '@/lib/use-me'
 import { cn } from '@/lib/utils'
 
@@ -36,6 +39,7 @@ function navCls({ isActive }: { isActive: boolean }) {
 export function Shell() {
   const { signOut } = useAuth()
   const { data } = useMe()
+  const { ehEscuro, alternar } = useTheme()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -100,8 +104,17 @@ export function Shell() {
           variant="ghost"
           size="icon"
           className="ml-auto md:ml-0"
-          aria-label="Notificações"
+          onClick={alternar}
+          aria-label={ehEscuro ? 'Ativar modo claro' : 'Ativar modo escuro'}
         >
+          {ehEscuro ? (
+            <Sun className="h-5 w-5" />
+          ) : (
+            <Moon className="h-5 w-5" />
+          )}
+        </Button>
+
+        <Button variant="ghost" size="icon" aria-label="Notificações">
           <Bell className="h-5 w-5" />
         </Button>
 
