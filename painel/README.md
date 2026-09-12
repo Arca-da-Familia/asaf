@@ -63,19 +63,40 @@ faz o upload do `dist/`.
 > `*.azurecontainerapps.io` — para o cookie funcionar em produção é preciso publicar a API num
 > domínio sob `asaf.org.br` e definir `VITE_API_URL` no build (ver `.env.example`).
 
+## MFA obrigatório por nível (v0.2.2)
+
+- `NivelAcesso.exige_mfa` (catálogo v0.1.5): Presidente e Diretoria exigem MFA por padrão.
+- `GET /auth/me` devolve `mfa_obrigatorio` e `mfa_pendente`; quando pendente, o painel trava
+  numa tela guiada (`/mfa/setup`): QR code + confirmação + **códigos de recuperação**.
+- Códigos de recuperação (10, uso único, hasheados com bcrypt) aceitos no login no lugar do TOTP.
+- Reset de MFA por outro admin (`gerenciar_acesso`), sempre auditado (`MFA_RESET_POR_TERCEIRO`).
+
+## Shell do painel (v0.2.3)
+
+- **Layout de três zonas**: barra superior (identidade, busca global, notificações, perfil),
+  navegação lateral colapsável (vira gaveta abaixo de 1024px) e área de conteúdo.
+- **Menu 100% por permissão**: manifesto `src/lib/modulos.ts` (`{ rota, rótulo, ícone, permissao }`)
+  filtrado pelas permissões de `/auth/me` — zero `if (nivel === 'Presidente')`.
+- **Guarda de rota** (`RequirePermission`) + página 403 que explica qual permissão falta; o
+  backend revalida a mesma permissão (`exigir_permissao`).
+- Slot reservado para a **barra de impersonação** (v0.2.9).
+
 ## Estrutura
 
 ```
 painel/
   src/
-    components/ui/   Componentes shadcn/ui copiados para o repo
-    lib/api.ts       Cliente HTTP único (Bearer + interceptor de refresh)
+    components/ui/       Componentes shadcn/ui copiados para o repo
+    components/layout/   Shell (barra superior + navegação + conteúdo)
+    lib/api.ts           Cliente HTTP único (Bearer + interceptor de refresh)
     lib/auth.ts      Access token em memória + callback de sessão expirada
     lib/auth-context.tsx  AuthProvider/useAuth (estado de login na UI)
-    lib/cpf.ts       Máscara + validação de CPF no cliente
-    lib/utils.ts     Helper cn() (clsx + tailwind-merge)
-    pages/           Login (v0.2.1) e Home (sessão autenticada)
-    App.tsx          Shell + rotas protegidas (RequireAuth)
+    lib/cpf.ts           Máscara + validação de CPF no cliente
+    lib/modulos.ts       Manifesto dos módulos (rota/rótulo/ícone/permissão)
+    lib/use-me.ts        Hook do /auth/me (compartilhado entre shell e guards)
+    lib/utils.ts         Helper cn() (clsx + tailwind-merge)
+    pages/               Login, MfaSetup, Home, Forbidden e EmConstrucao
+    App.tsx              Rotas + guards (RequireAuth/RequireMfa/RequirePermission)
     main.tsx         Entrypoint: QueryClientProvider + BrowserRouter + AuthProvider
   components.json    Config do shadcn/ui (para `npx shadcn add` no futuro)
 ```

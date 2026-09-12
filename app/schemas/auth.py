@@ -16,10 +16,12 @@ class BootstrapAdminRequest(BaseModel):
 
 class LoginMFARequest(BaseModel):
     cpf: str
-    codigo_totp: str
     # token temporário emitido pelo /auth/login quando detecta que precisa de MFA,
     # evita ter que reenviar a senha no segundo passo.
     login_temp_token: str
+    # 2º passo aceita TOTP OU um código de recuperação (v0.2.2d) — nunca os dois ao mesmo tempo.
+    codigo_totp: Optional[str] = None
+    codigo_recuperacao: Optional[str] = None
 
 
 class TokenResponse(BaseModel):
@@ -51,6 +53,15 @@ class MFAConfirmarRequest(BaseModel):
     codigo_totp: str
 
 
+class MFAConfirmarResponse(BaseModel):
+    mensagem: str
+    codigos_recuperacao: list[str]
+
+
+class MFAResetRequest(BaseModel):
+    id_usuario: int
+
+
 class MeResponse(BaseModel):
     id_usuario: int
     id_associado: Optional[int] = None
@@ -58,4 +69,7 @@ class MeResponse(BaseModel):
     email: Optional[str] = None
     nivel: Optional[str] = None
     mfa_ativado: bool
+    # v0.2.2 - o nível exige MFA (configurável no catálogo) e o usuário ainda não ativou.
+    mfa_obrigatorio: bool = False
+    mfa_pendente: bool = False
     permissoes: list[str] = []

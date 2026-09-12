@@ -7,6 +7,7 @@ from app.models.core import (
     ModeloDocumento,
     Usuario,
     TokenAcesso,
+    CodigoRecuperacaoMFA,
     AuditLog,
 )
 from app.models.associados import (
@@ -41,6 +42,7 @@ __all__ = [
     "ModeloDocumento",
     "Usuario",
     "TokenAcesso",
+    "CodigoRecuperacaoMFA",
     "AuditLog",
     "Associado",
     "Endereco",

@@ -348,33 +348,33 @@ válido. Nenhum teste automatizado existe ainda para este fluxo (a v0.2.8 — Vi
 ainda não foi implementada); registrar como item a cobrir quando aquela sub-versão for feita.
 
 ##### v0.2.2 — Onboarding obrigatório de MFA (fecha a pendência registrada na v0.1.4)
-- [ ] `v0.2.2a` (backend) — `NivelAcesso.exige_mfa` (booleano, configurável pelo catálogo da
+- [x] `v0.2.2a` (backend) — `NivelAcesso.exige_mfa` (booleano, configurável pelo catálogo da
       v0.1.5, não hardcoded). Seed: `true` para Presidente e Diretoria, `false` para os demais.
-- [ ] `v0.2.2b` (backend) — `GET /auth/me` passa a devolver `mfa_obrigatorio` (do nível) e
+- [x] `v0.2.2b` (backend) — `GET /auth/me` passa a devolver `mfa_obrigatorio` (do nível) e
       `mfa_pendente` (`exige_mfa && !mfa_ativado`).
-- [ ] `v0.2.2c` (front) — se `mfa_pendente`, o roteador trava o painel inteiro numa tela guiada:
+- [x] `v0.2.2c` (front) — se `mfa_pendente`, o roteador trava o painel inteiro numa tela guiada:
       QR code renderizado a partir do `otpauth_uri` de `/auth/mfa/ativar`, campo do 1º código,
       confirmação via `/auth/mfa/confirmar`. Só depois libera a navegação.
-- [ ] `v0.2.2d` (backend) — **códigos de recuperação**: 10 códigos de uso único gerados na
+- [x] `v0.2.2d` (backend) — **códigos de recuperação**: 10 códigos de uso único gerados na
       confirmação do MFA, mostrados **uma única vez**, guardados hasheados (bcrypt) numa tabela
       `CodigoRecuperacaoMFA`. Aceitos no lugar do TOTP em `/auth/login/mfa`, queimados no uso.
       Sem isso, perder o celular = perder o acesso de Presidente, o que é um risco operacional
       real e não teórico.
-- [ ] `v0.2.2e` — reset de MFA por outro administrador (quem tiver `gerenciar_acesso`), sempre
+- [x] `v0.2.2e` — reset de MFA por outro administrador (quem tiver `gerenciar_acesso`), sempre
       registrado em `AuditLog` com `MFA_RESET_POR_TERCEIRO` — jamais reset silencioso.
 
 ##### v0.2.3 — Shell do painel (layout, navegação, estado global)
-- [ ] Layout de três zonas: barra superior (identidade da associação, busca global, perfil,
+- [x] Layout de três zonas: barra superior (identidade da associação, busca global, perfil,
       notificações), navegação lateral colapsável, área de conteúdo. Responsivo real: a lateral
       vira gaveta abaixo de 1024px — a diretoria vai usar isso no celular, não é hipótese.
-- [ ] **Menu montado 100% a partir das permissões** devolvidas por `/auth/me`: cada módulo se
+- [x] **Menu montado 100% a partir das permissões** devolvidas por `/auth/me`: cada módulo se
       registra num manifesto (`modulos.ts`) declarando `{ rota, rótulo, ícone, permissao }`; o
       shell filtra pelo que o usuário tem. Nenhum `if (nivel === 'Presidente')` em lugar nenhum
       do código — esse é o antipadrão que o plano está explicitamente evitando.
-- [ ] Guarda de rota por permissão, com página 403 própria (não redireciona em silêncio, explica
+- [x] Guarda de rota por permissão, com página 403 própria (não redireciona em silêncio, explica
       que falta permissão e qual) — e a mesma permissão checada **de novo no backend**: o front
       esconde, o backend proíbe.
-- [ ] Barra de "impersonação" visível quando um administrador estiver vendo o sistema como outro
+- [x] Barra de "impersonação" visível quando um administrador estiver vendo o sistema como outro
       papel (v0.2.9) — nunca permitir sessão ambígua.
 
 ##### v0.2.4 — Design system e padrões de tela reaproveitáveis

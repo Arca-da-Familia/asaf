@@ -22,6 +22,7 @@ export function Login() {
   const [cpf, setCpf] = useState('')
   const [senha, setSenha] = useState('')
   const [codigoTotp, setCodigoTotp] = useState('')
+  const [modoRecuperacao, setModoRecuperacao] = useState(false)
   const [loginTempToken, setLoginTempToken] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(false)
@@ -67,11 +68,17 @@ export function Login() {
 
     setCarregando(true)
     try {
-      const resposta = await loginMfa({
-        cpf: somenteDigitos(cpf),
-        codigo_totp: somenteDigitos(codigoTotp),
-        login_temp_token: loginTempToken,
-      })
+      const resposta = modoRecuperacao
+        ? await loginMfa({
+            cpf: somenteDigitos(cpf),
+            codigo_recuperacao: codigoTotp,
+            login_temp_token: loginTempToken,
+          })
+        : await loginMfa({
+            cpf: somenteDigitos(cpf),
+            codigo_totp: somenteDigitos(codigoTotp),
+            login_temp_token: loginTempToken,
+          })
       aplicarSessao(resposta)
     } catch (err) {
       setErro(mensagemDeErro(err))
@@ -82,6 +89,13 @@ export function Login() {
 
   function voltar() {
     setLoginTempToken(null)
+    setCodigoTotp('')
+    setModoRecuperacao(false)
+    setErro(null)
+  }
+
+  function alternarModo() {
+    setModoRecuperacao((m) => !m)
     setCodigoTotp('')
     setErro(null)
   }
@@ -141,22 +155,39 @@ export function Login() {
         ) : (
           <form onSubmit={enviarSegundoPasso} className="mt-6 space-y-4">
             <div>
-              <label htmlFor="totp" className="text-sm font-medium">
-                Código TOTP
+              <label htmlFor="codigo" className="text-sm font-medium">
+                {modoRecuperacao ? 'Código de recuperação' : 'Código TOTP'}
               </label>
               <input
-                id="totp"
-                inputMode="numeric"
+                id="codigo"
+                inputMode={modoRecuperacao ? 'text' : 'numeric'}
                 autoComplete="one-time-code"
-                maxLength={6}
+                maxLength={modoRecuperacao ? 14 : 6}
                 value={codigoTotp}
-                onChange={(e) => setCodigoTotp(somenteDigitos(e.target.value))}
-                placeholder="000000"
+                onChange={(e) =>
+                  setCodigoTotp(
+                    modoRecuperacao
+                      ? e.target.value.toUpperCase()
+                      : somenteDigitos(e.target.value),
+                  )
+                }
+                placeholder={modoRecuperacao ? 'XXXX-XXXX-XXXX' : '000000'}
                 className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm tracking-widest"
               />
             </div>
             <Button type="submit" className="w-full" disabled={carregando}>
               {carregando ? 'Verificando…' : 'Verificar'}
+            </Button>
+            <Button
+              type="button"
+              variant="link"
+              className="w-full"
+              onClick={alternarModo}
+              disabled={carregando}
+            >
+              {modoRecuperacao
+                ? 'Usar código do autenticador'
+                : 'Usar código de recuperação'}
             </Button>
             <Button
               type="button"

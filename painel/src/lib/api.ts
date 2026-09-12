@@ -118,8 +118,9 @@ export async function apiFetch<T>(
 export type LoginPayload = { cpf: string; senha: string }
 export type LoginMfaPayload = {
   cpf: string
-  codigo_totp: string
   login_temp_token: string
+  codigo_totp?: string
+  codigo_recuperacao?: string
 }
 
 export type TokenPayload = {
@@ -165,4 +166,38 @@ export async function logout(): Promise<void> {
   } finally {
     setAccessToken(null)
   }
+}
+
+export type Me = {
+  id_usuario: number
+  id_associado?: number | null
+  nome_completo?: string | null
+  email?: string | null
+  nivel?: string | null
+  mfa_ativado: boolean
+  mfa_obrigatorio: boolean
+  mfa_pendente: boolean
+  permissoes: string[]
+}
+
+export function me(): Promise<Me> {
+  return apiFetch<Me>('/auth/me')
+}
+
+export type MfaAtivarResult = { otpauth_uri: string }
+
+export function mfaAtivar(): Promise<MfaAtivarResult> {
+  return apiFetch<MfaAtivarResult>('/auth/mfa/ativar', { method: 'POST' })
+}
+
+export type MfaConfirmarResult = {
+  mensagem: string
+  codigos_recuperacao: string[]
+}
+
+export function mfaConfirmar(codigoTotp: string): Promise<MfaConfirmarResult> {
+  return apiFetch<MfaConfirmarResult>('/auth/mfa/confirmar', {
+    method: 'POST',
+    body: JSON.stringify({ codigo_totp: codigoTotp }),
+  })
 }

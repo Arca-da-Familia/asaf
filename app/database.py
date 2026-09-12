@@ -81,11 +81,11 @@ def seed_niveis_e_permissoes():
     from app.models.core import NivelAcesso, PermissaoSistema, perfil_permissao  # import local, mesmo motivo do seed acima
 
     niveis_padrao = [
-        {"nome_nivel": "Presidente", "descricao": "Acesso total ao sistema.", "is_conselho_fiscal": False},
-        {"nome_nivel": "Diretoria", "descricao": "Gestão administrativa e financeira.", "is_conselho_fiscal": False},
-        {"nome_nivel": "Conselho Fiscal", "descricao": "Fiscalização financeira e de atas.", "is_conselho_fiscal": True},
-        {"nome_nivel": "Associado", "descricao": "Autoatendimento do próprio cadastro.", "is_conselho_fiscal": False},
-        {"nome_nivel": "Voluntário Externo", "descricao": "Acesso restrito ao próprio histórico de voluntariado.", "is_conselho_fiscal": False},
+        {"nome_nivel": "Presidente", "descricao": "Acesso total ao sistema.", "is_conselho_fiscal": False, "exige_mfa": True},
+        {"nome_nivel": "Diretoria", "descricao": "Gestão administrativa e financeira.", "is_conselho_fiscal": False, "exige_mfa": True},
+        {"nome_nivel": "Conselho Fiscal", "descricao": "Fiscalização financeira e de atas.", "is_conselho_fiscal": True, "exige_mfa": False},
+        {"nome_nivel": "Associado", "descricao": "Autoatendimento do próprio cadastro.", "is_conselho_fiscal": False, "exige_mfa": False},
+        {"nome_nivel": "Voluntário Externo", "descricao": "Acesso restrito ao próprio histórico de voluntariado.", "is_conselho_fiscal": False, "exige_mfa": False},
     ]
     permissoes_padrao = [
         {"modulo": "core", "codigo_permissao": "gerenciar_acesso", "descricao": "Gerenciar níveis de acesso e permissões."},

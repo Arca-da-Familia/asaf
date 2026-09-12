@@ -20,12 +20,14 @@ class NivelAcessoCriar(BaseModel):
     nome_nivel: str
     descricao: Optional[str] = None
     is_conselho_fiscal: bool = False
+    exige_mfa: bool = False
 
 
 class NivelAcessoAtualizar(BaseModel):
     nome_nivel: Optional[str] = None
     descricao: Optional[str] = None
     is_conselho_fiscal: Optional[bool] = None
+    exige_mfa: Optional[bool] = None
 
 
 class PermissaoCriar(BaseModel):

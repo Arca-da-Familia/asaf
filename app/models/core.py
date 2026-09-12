@@ -21,6 +21,9 @@ class NivelAcesso(Base):
     id_nivel = Column(Integer, primary_key=True, index=True)
     nome_nivel = Column(String, unique=True, index=True) 
     is_conselho_fiscal = Column(Boolean, default=False)
+    # v0.2.2 - MFA obrigatório configurável por nível (catálogo v0.1.5), nunca hardcoded
+    # no código: /auth/me devolve mfa_pendente quando exige_mfa && !mfa_ativado.
+    exige_mfa = Column(Boolean, default=False)
     descricao = Column(String)
 
 class ConfiguracaoInstitucional(Base):
@@ -68,6 +71,17 @@ class TokenAcesso(Base):
     id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"))
     token = Column(String, unique=True, index=True)
     data_expiracao = Column(DateTime)
+
+class CodigoRecuperacaoMFA(Base):
+    """Códigos de recuperação de MFA (v0.2.2d): gerados na ativação, mostrados UMA única vez,
+    guardados só como hash bcrypt (nunca o valor em texto). Cada um é de uso único - queimado
+    no primeiro uso. Sem isso, perder o celular = perder o acesso de Presidente."""
+    __tablename__ = "codigos_recuperacao_mfa"
+    id_codigo = Column(Integer, primary_key=True, index=True)
+    id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"), index=True)
+    codigo_hash = Column(String, unique=True, index=True)
+    usado = Column(Boolean, default=False)
+    criado_em = Column(DateTime, default=datetime.utcnow)
 
 class AuditLog(Base):
     """Quem mudou o quê, quando, antes/depois - base para LGPD (FASE 7) e segregação de

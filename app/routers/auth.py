@@ -17,6 +17,8 @@ from app.schemas.auth import (
     MeResponse,
     MFAAtivarResponse,
     MFAConfirmarRequest,
+    MFAConfirmarResponse,
+    MFAResetRequest,
     RefreshRequest,
     TokenResponse,
 )
@@ -29,13 +31,17 @@ from app.security import (
     criar_mfa_pending_token,
     criar_refresh_token,
     decodificar_mfa_pending_token,
+    exigir_permissao,
+    gerar_codigos_recuperacao,
     get_current_user,
     hash_senha,
     limpar_tentativas_falhas,
     registrar_tentativa_falha,
+    revogar_codigos_recuperacao,
     revogar_refresh_token,
     usuario_esta_bloqueado,
     validar_refresh_token,
+    verificar_codigo_recuperacao,
     verificar_senha,
 )
 
@@ -111,17 +117,26 @@ def login(dados: LoginRequest, request: Request, response: Response, db: Session
     )
 
 
-@router.post("/login/mfa", response_model=TokenResponse, summary="2º passo do login (código TOTP)")
+@router.post("/login/mfa", response_model=TokenResponse, summary="2º passo do login (código TOTP ou de recuperação)")
 def login_mfa(dados: LoginMFARequest, request: Request, response: Response, db: Session = Depends(get_db)):
     payload = decodificar_mfa_pending_token(dados.login_temp_token)
     usuario = db.query(Usuario).filter(Usuario.id_usuario == payload["id_usuario"]).first()
-    if usuario is None or not usuario.mfa_ativado or not usuario.mfa_secret:
+    if usuario is None or not usuario.mfa_ativado:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="MFA inválido.")
 
-    totp = pyotp.TOTP(usuario.mfa_secret)
-    if not totp.verify(dados.codigo_totp, valid_window=1):
-        registrar_tentativa_falha(db, usuario)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Código TOTP inválido.")
+    if dados.codigo_recuperacao:
+        # Código de recuperação substitui o TOTP (v0.2.2d) - é de uso único, queimado no uso.
+        if not verificar_codigo_recuperacao(db, usuario, dados.codigo_recuperacao):
+            registrar_tentativa_falha(db, usuario)
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Código de recuperação inválido.")
+    else:
+        if not usuario.mfa_secret or not dados.codigo_totp:
+            registrar_tentativa_falha(db, usuario)
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Código TOTP inválido.")
+        totp = pyotp.TOTP(usuario.mfa_secret)
+        if not totp.verify(dados.codigo_totp, valid_window=1):
+            registrar_tentativa_falha(db, usuario)
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Código TOTP inválido.")
 
     limpar_tentativas_falhas(db, usuario)
     registrar_auditoria(
@@ -180,6 +195,7 @@ def me(usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_d
         .filter(perfil_permissao.c.id_nivel == usuario.id_nivel)
         .all()
     )
+    mfa_obrigatorio = bool(nivel.exige_mfa) if nivel else False
     return MeResponse(
         id_usuario=usuario.id_usuario,
         id_associado=associado.id_associado if associado else None,
@@ -187,6 +203,8 @@ def me(usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_d
         email=usuario.email,
         nivel=nivel.nome_nivel if nivel else None,
         mfa_ativado=usuario.mfa_ativado,
+        mfa_obrigatorio=mfa_obrigatorio,
+        mfa_pendente=mfa_obrigatorio and not usuario.mfa_ativado,
         permissoes=[p[0] for p in permissoes],
     )
 
@@ -202,7 +220,7 @@ def mfa_ativar(usuario: Usuario = Depends(get_current_user), db: Session = Depen
     return MFAAtivarResponse(otpauth_uri=uri)
 
 
-@router.post("/mfa/confirmar", summary="Confirma a ativação de MFA com o 1º código gerado")
+@router.post("/mfa/confirmar", response_model=MFAConfirmarResponse, summary="Confirma a ativação de MFA com o 1º código gerado")
 def mfa_confirmar(
     dados: MFAConfirmarRequest,
     usuario: Usuario = Depends(get_current_user),
@@ -215,8 +233,34 @@ def mfa_confirmar(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Código TOTP inválido.")
     usuario.mfa_ativado = True
     db.commit()
+    # Gera os códigos de recuperação (v0.2.2d) e devolve em texto UMA única vez.
+    codigos = gerar_codigos_recuperacao(db, usuario)
     registrar_auditoria(db, usuario, "usuarios", "MFA_ATIVADO", id_registro_afetado=usuario.id_usuario)
-    return {"mensagem": "MFA ativado com sucesso."}
+    return MFAConfirmarResponse(mensagem="MFA ativado com sucesso.", codigos_recuperacao=codigos)
+
+
+@router.post("/mfa/reset", summary="Reseta o MFA de outro usuário (requer gerenciar_acesso)")
+def mfa_reset(
+    dados: MFAResetRequest,
+    admin: Usuario = Depends(exigir_permissao("gerenciar_acesso")),
+    db: Session = Depends(get_db),
+):
+    # Reset por terceiro (v0.2.2e) - sempre auditado, jamais silencioso. Serve para o caso
+    # de um Presidente/Diretoria perder o celular: outro administrador remove o MFA e o
+    # usuário refaz o onboarding na próxima entrada.
+    alvo = db.query(Usuario).filter(Usuario.id_usuario == dados.id_usuario).first()
+    if alvo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado.")
+    alvo.mfa_ativado = False
+    alvo.mfa_secret = None
+    db.commit()
+    revogar_codigos_recuperacao(db, alvo)
+    registrar_auditoria(
+        db, admin, "usuarios", "MFA_RESET_POR_TERCEIRO",
+        id_registro_afetado=alvo.id_usuario,
+        dados_depois={"mfa_ativado": False},
+    )
+    return {"mensagem": "MFA do usuário resetado."}
 
 
 @router.post("/bootstrap-admin", summary="Cria o 1º administrador (só funciona se ainda não existir nenhum usuário)")

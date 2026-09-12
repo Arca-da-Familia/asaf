@@ -71,7 +71,7 @@ def listar_niveis_acesso(db: Session = Depends(get_db), _=Depends(_permissao_ger
     niveis = db.query(NivelAcesso).order_by(NivelAcesso.id_nivel).all()
     return [
         {"id_nivel": n.id_nivel, "nome_nivel": n.nome_nivel, "descricao": n.descricao,
-         "is_conselho_fiscal": n.is_conselho_fiscal}
+         "is_conselho_fiscal": n.is_conselho_fiscal, "exige_mfa": n.exige_mfa}
         for n in niveis
     ]
 

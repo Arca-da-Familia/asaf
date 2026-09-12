@@ -15,7 +15,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.core import NivelAcesso, PermissaoSistema, TokenAcesso, Usuario, perfil_permissao
+from app.models.core import NivelAcesso, PermissaoSistema, TokenAcesso, Usuario, CodigoRecuperacaoMFA, perfil_permissao
 
 # JWT_SECRET vem do ambiente (Key Vault -> Container App em produção), igual DATABASE_URL.
 # Nunca hardcoded - se não estiver configurado, falha alto (nunca assina token com segredo
@@ -59,6 +59,52 @@ def verificar_senha(senha_pura: str, hash_armazenado: str) -> bool:
         # hash_armazenado em formato inválido/antigo (ex.: sha256 legado) - trata como senha errada,
         # nunca deixa passar.
         return False
+
+
+# ==========================================
+# CÓDIGOS DE RECUPERAÇÃO DE MFA (v0.2.2d)
+# ==========================================
+def _normalizar_codigo_recuperacao(codigo: str) -> str:
+    """Aceita o código com ou sem hífens/espaços e em qualquer caixa."""
+    return "".join(ch for ch in codigo.upper() if ch.isalnum())
+
+
+def gerar_codigos_recuperacao(db: Session, usuario: Usuario, quantidade: int = 10) -> list[str]:
+    """Gera N códigos de uso único, grava apenas o hash bcrypt de cada um e devolve os valores
+    em texto puro UMA única vez (quem chama é responsável por exibi-los e nunca mais guardá-los)."""
+    revogar_codigos_recuperacao(db, usuario)
+    codigos = ["-".join(secrets.token_hex(2).upper() for _ in range(3)) for _ in range(quantidade)]
+    for codigo in codigos:
+        db.add(CodigoRecuperacaoMFA(
+            id_usuario=usuario.id_usuario,
+            codigo_hash=hash_senha(_normalizar_codigo_recuperacao(codigo)),
+        ))
+    db.commit()
+    return codigos
+
+
+def verificar_codigo_recuperacao(db: Session, usuario: Usuario, codigo_informado: str) -> bool:
+    """Confere o código contra os hashes pendentes do usuário e, se bater, queima (marca usado)."""
+    normalizado = _normalizar_codigo_recuperacao(codigo_informado)
+    if not normalizado:
+        return False
+    pendentes = (
+        db.query(CodigoRecuperacaoMFA)
+        .filter(CodigoRecuperacaoMFA.id_usuario == usuario.id_usuario, CodigoRecuperacaoMFA.usado == False)
+        .all()
+    )
+    for registro in pendentes:
+        if verificar_senha(normalizado, registro.codigo_hash):
+            registro.usado = True
+            db.commit()
+            return True
+    return False
+
+
+def revogar_codigos_recuperacao(db: Session, usuario: Usuario):
+    """Apaga todos os códigos de recuperação do usuário (reset de MFA e regeração)."""
+    db.query(CodigoRecuperacaoMFA).filter(CodigoRecuperacaoMFA.id_usuario == usuario.id_usuario).delete()
+    db.commit()
 
 
 # ==========================================
