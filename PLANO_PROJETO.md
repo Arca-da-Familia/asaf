@@ -416,14 +416,50 @@ ainda não foi implementada); registrar como item a cobrir quando aquela sub-ver
       alternando na mesma tela) e permitir revisão de texto sem mexer em componente.
 - [x] Formatação de data/moeda/número sempre por `Intl`, nunca concatenação manual.
 
-##### 🔍 Ponto de Revisão — FASE 0 / v0.2 (2/3, fecha v0.2.4–v0.2.6)
-Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
-- Nenhum componente de UI novo (v0.2.4) veio de biblioteca paga ou SaaS por usuário — confirmar
-  contra `DECISOES_CONGELADAS.md` seção 4.3 antes de aceitar uma dependência nova.
-- Módulo "Meu Perfil" (v0.2.5): troca de senha revoga todos os refresh tokens do usuário exceto
-  o da sessão corrente — testar isso, não só a troca em si.
-- Auditoria automatizada de acessibilidade (v0.2.6) está de fato rodando no CI, não só
-  planejada — testar introduzindo uma violação de propósito.
+##### 🔍 Ponto de Revisão — FASE 0 / v0.2 (2/3, fecha v0.2.4–v0.2.6) — aplicado em 2026-09-12
+Revisado nesta sessão contra o checklist padrão (seção 4.1), a partir de uma máquina nova
+recém-configurada (git, SOPS/age, Node e Python instalados só para tornar esta verificação real,
+não de leitura de código). **Nenhum problema bloqueante encontrado** nos três itens específicos:
+
+1. **Nenhuma dependência paga/SaaS** (v0.2.4): `painel/package.json` conferido linha a linha
+   contra `DECISOES_CONGELADAS.md` §4.3 — tudo open-source (Radix UI, TanStack Query/Table,
+   Recharts, lucide-react, qrcode.react, react-hook-form, Zod). Nenhuma licença por usuário.
+2. **Troca de senha revoga sessões** (v0.2.5): confirmado em código
+   (`app/routers/auth.py::alterar_senha` chama `revogar_tokens_exceto` com o cookie da sessão
+   corrente preservado) — bate com o desenho descrito. **Achado**: não existe teste automatizado
+   backend para esse fluxo (nem para nenhum outro — `requirements-dev.txt` lista `pytest`, mas
+   não há um único arquivo `test_*.py` no repositório, e `deploy-api.yml` não roda teste algum).
+   Não é regressão desta revisão — já era esperado (ver v0.2.8, ainda não implementada) — mas
+   fica registrado aqui de novo para não virar pendência silenciosa: **v0.2.8 precisa cobrir
+   isto com prioridade**, é comportamento de segurança, não deveria depender só de leitura de
+   código para ser confiável.
+3. **Auditoria de acessibilidade roda no CI de verdade** (v0.2.6): confirmado lendo
+   `.github/workflows/deploy-painel.yml` (job `quality` roda `npm run test`) e rodando
+   localmente — `acessibilidade.test.tsx` passou contra o catálogo `DevComponents` real. Testado
+   também que o axe **de fato pega violação** (teste temporário com `<img>` sem `alt`, falhou
+   como esperado, removido em seguida) — não é auditoria decorativa.
+
+**Suíte completa do painel rodada de ponta a ponta nesta sessão** (não só o intervalo revisado):
+`npm run lint` (0 erros, 3 avisos pré-existentes de fast-refresh, sem relação com este intervalo),
+`npm run typecheck` (limpo), `npm run test` (1/1 passando), `npm run build` (build de produção
+concluído). `npm run format:check` **acusou 53 arquivos** — investigado e é causado por
+`core.autocrlf=true` desta máquina Windows convertendo LF→CRLF no checkout, não por código fora
+do padrão; o CI roda em `ubuntu-latest` e não sofre disso. Registrado aqui para a próxima sessão
+não se assustar com o mesmo sintoma nem "corrigir" isso commitando CRLF.
+
+**Achado adicional, fora do escopo dos 3 itens específicos mas relevante à seção 4.1 item 4**:
+`npm audit` acusa 7 vulnerabilidades (5 moderadas, 1 alta, 1 crítica) em `vitest`/`esbuild`
+(servidor de dev, não afeta o build estático de produção) e `react-router` (redirecionamento
+aberto, severidade moderada). Nenhuma delas atinge o app publicado — mas a correção exige upgrade
+com breaking change (`npm audit fix --force`); não aplicado nesta revisão para não introduzir
+regressão sem plano de teste. Fica como item de manutenção a agendar, fora deste ponto de revisão.
+
+Backend: `python -m compileall app` rodado, sem erro de sintaxe. Sem suíte de teste backend para
+rodar (ver achado #2 acima). `AuditLog` confirmado gravando de verdade para todas as ações
+sensíveis do intervalo (`SENHA_ALTERADA`, `MFA_DESATIVADO`, `SESSAO_REVOGADA`,
+`PERFIL_ATUALIZADO`, `MFA_RECUPERACAO_REGERADA`) e toda rota de `/auth/perfil`, `/auth/sessoes`,
+`/auth/mfa/*` exige `get_current_user` e filtra pelo `id_usuario` do token — nunca por parâmetro
+vindo do cliente. **Fase liberada para avançar** para v0.2.7–v0.2.10.
 
 ##### v0.2.7 — Robustez operacional do painel
 - [ ] Estado de erro de rede tratado globalmente (API fora do ar → aviso persistente, não tela
