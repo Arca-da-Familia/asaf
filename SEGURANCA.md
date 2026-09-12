@@ -12,6 +12,10 @@ O texto puro **nunca** é commitado — sobe sempre a versão cifrada (AES-256-G
 - **Públicas** (commitadas em `.sops.yaml`): uma linha `age1...` por colaborador.
   A criptografia usa a chave pública de **cada** pessoa; cada uma decifra com a **sua** privada.
 
+> ⚠️ **Cada máquina gera a SUA chave (diferente da outra).** Nunca copie a chave privada
+> de uma máquina para a outra. Se as duas usarem a mesma chave, perde-se a capacidade de
+> revogar o acesso de uma pessoa separadamente, e a chave "passeia" entre máquinas (mais risco).
+
 ## Criptografar / descriptografar / editar
 
 ```bash
@@ -31,7 +35,8 @@ sops CREDENCIAIS_AZURE.md
 
 0. Ativar o pre-commit hook: `git config core.hooksPath .githooks`
 1. Instalar: `winget install FiloSottile.age SecretsOPerationS.SOPS`
-2. Gerar a chave: `age-keygen -o %APPDATA%\sops\age\keys.txt`
+2. Gerar a **SUA** chave (diferente da outra máquina — nunca copie a de lá):
+   `age-keygen -o %APPDATA%\sops\age\keys.txt`
 3. Ver a chave pública: `age-keygen -y %APPDATA%\sops\age\keys.txt`
 4. Adicionar a `age1...` no `.sops.yaml` (junto às demais).
 5. Recifrar para todas as chaves:
