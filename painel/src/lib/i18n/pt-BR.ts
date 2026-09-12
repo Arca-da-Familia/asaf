@@ -65,6 +65,13 @@ export const mensagens = {
       'Não foi possível conectar ao servidor. Tente novamente em instantes.',
     naoFoiPossivelCarregar: 'Não foi possível carregar seus dados.',
   },
+  rede: {
+    acordandoServidor:
+      'Acordando o servidor… a primeira resposta depois de um tempo parado pode demorar alguns segundos.',
+    semConexao: 'Sem conexão com o servidor. Tentando novamente…',
+    novaVersaoDisponivel: 'Uma nova versão do painel está disponível.',
+    recarregar: 'Recarregar',
+  },
   emConstrucao:
     'A navegação e a guarda de permissão já estão funcionando. O conteúdo de negócio deste módulo entra nas fases seguintes do plano (a partir da FASE 1).',
   tabela: {

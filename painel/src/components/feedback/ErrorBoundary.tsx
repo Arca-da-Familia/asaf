@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { registrarErro } from '@/lib/monitoramento'
 
 type ErrorBoundaryProps = {
   children: ReactNode
@@ -10,7 +11,6 @@ type ErrorBoundaryProps = {
 type ErrorBoundaryState = { erro: Error | null }
 
 // Boundary por módulo (v0.2.4): um erro num módulo não derruba o painel inteiro.
-// O envio ao Application Insights entra na v0.2.7.
 export class ErrorBoundary extends Component<
   ErrorBoundaryProps,
   ErrorBoundaryState
@@ -22,7 +22,11 @@ export class ErrorBoundary extends Component<
   }
 
   componentDidCatch(erro: Error, info: ErrorInfo) {
-    console.error('ErrorBoundary:', erro, info.componentStack)
+    registrarErro(erro, {
+      origem: 'ErrorBoundary',
+      modulo: this.props.tituloModulo ?? 'desconhecido',
+      componentStack: info.componentStack ?? '',
+    })
   }
 
   render() {

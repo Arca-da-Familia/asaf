@@ -5,8 +5,11 @@ import { BrowserRouter } from 'react-router-dom'
 
 import App from './App'
 import { AuthProvider } from './lib/auth-context'
+import { inicializarMonitoramentoGlobal } from './lib/monitoramento'
 import { ThemeProvider } from './lib/theme'
 import './index.css'
+
+inicializarMonitoramentoGlobal()
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
+import { ErrorBoundary } from '@/components/feedback/ErrorBoundary'
 import { Shell } from '@/components/layout/Shell'
 import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/use-me'
@@ -85,7 +86,9 @@ function App() {
           path="/associados"
           element={
             <RequirePermission permission="associados">
-              <EmConstrucao modulo="Associados" />
+              <ErrorBoundary tituloModulo="Associados">
+                <EmConstrucao modulo="Associados" />
+              </ErrorBoundary>
             </RequirePermission>
           }
         />
@@ -93,7 +96,9 @@ function App() {
           path="/financeiro"
           element={
             <RequirePermission permission="financeiro">
-              <EmConstrucao modulo="Financeiro" />
+              <ErrorBoundary tituloModulo="Financeiro">
+                <EmConstrucao modulo="Financeiro" />
+              </ErrorBoundary>
             </RequirePermission>
           }
         />
@@ -101,7 +106,9 @@ function App() {
           path="/governanca"
           element={
             <RequirePermission permission="governanca">
-              <EmConstrucao modulo="Governança" />
+              <ErrorBoundary tituloModulo="Governança">
+                <EmConstrucao modulo="Governança" />
+              </ErrorBoundary>
             </RequirePermission>
           }
         />
@@ -109,7 +116,9 @@ function App() {
           path="/projetos"
           element={
             <RequirePermission permission="projetos">
-              <EmConstrucao modulo="Projetos" />
+              <ErrorBoundary tituloModulo="Projetos">
+                <EmConstrucao modulo="Projetos" />
+              </ErrorBoundary>
             </RequirePermission>
           }
         />
@@ -117,7 +126,9 @@ function App() {
           path="/acesso"
           element={
             <RequirePermission permission="gerenciar_acesso">
-              <EmConstrucao modulo="Níveis e permissões" />
+              <ErrorBoundary tituloModulo="Níveis e permissões">
+                <EmConstrucao modulo="Níveis e permissões" />
+              </ErrorBoundary>
             </RequirePermission>
           }
         />
@@ -125,7 +136,9 @@ function App() {
           path="/auditoria"
           element={
             <RequirePermission permission="auditoria">
-              <EmConstrucao modulo="Auditoria" />
+              <ErrorBoundary tituloModulo="Auditoria">
+                <EmConstrucao modulo="Auditoria" />
+              </ErrorBoundary>
             </RequirePermission>
           }
         />

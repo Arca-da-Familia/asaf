@@ -2,3 +2,6 @@ node_modules/
 dist/
 *.local
 .DS_Store
+
+# Gerado a cada build por scripts/gerar-version.js (v0.2.7) — nunca fixo, sempre recriado.
+public/version.json

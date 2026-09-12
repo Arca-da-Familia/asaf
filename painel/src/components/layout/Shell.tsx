@@ -20,7 +20,10 @@ import { mensagens } from '@/lib/i18n/pt-BR'
 import { modulos } from '@/lib/modulos'
 import { useTheme } from '@/lib/theme'
 import { useMe } from '@/lib/use-me'
+import { useVersaoBuild } from '@/lib/versao'
 import { cn } from '@/lib/utils'
+
+import { StatusBar } from './StatusBar'
 
 // Slot reservado para a barra de impersonação (v0.2.9). Enquanto não existir sessão de
 // impersonação, não renderiza nada — mas o shell já reserva o ponto exato onde a faixa de
@@ -42,6 +45,7 @@ export function Shell() {
   const { signOut } = useAuth()
   const { data } = useMe()
   const { ehEscuro, alternar } = useTheme()
+  const { commitAtual, novaVersaoDisponivel, recarregar } = useVersaoBuild()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -183,13 +187,21 @@ export function Shell() {
       {/* Área de conteúdo */}
       <main
         className={cn(
-          'pt-16 transition-[padding] duration-200',
+          'flex min-h-screen flex-col pt-16 transition-[padding] duration-200',
           collapsed ? 'lg:pl-16' : 'lg:pl-64',
         )}
       >
-        <div className="mx-auto max-w-6xl px-6 py-8">
+        <StatusBar
+          novaVersaoDisponivel={novaVersaoDisponivel}
+          recarregar={recarregar}
+        />
+        <div className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
           <Outlet />
         </div>
+        <footer className="border-t border-border px-6 py-3 text-xs text-muted-foreground">
+          {mensagens.app.nome}
+          {commitAtual ? ` · build ${commitAtual}` : null}
+        </footer>
       </main>
     </div>
   )

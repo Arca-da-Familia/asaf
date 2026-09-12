@@ -1,4 +1,5 @@
 import { clearSession, getAccessToken, setAccessToken } from './auth'
+import { finalizarRequisicao, iniciarRequisicao } from './network-status'
 
 // Em produção, aponte para a origem da API (mesmo site do painel para o cookie SameSite=Strict
 // funcionar — ex.: https://api.asaf.org.br). Em dev, deixe vazio: o Vite faz proxy de /auth.
@@ -28,6 +29,24 @@ export class ApiError extends Error {
     this.detail = detail
     this.errosCampos = errosCampos
     this.retryAfter = retryAfter
+  }
+}
+
+// Envolve toda chamada de rede do painel (v0.2.7): alimenta o `network-status` para o
+// `StatusBar` mostrar "acordando o servidor" (scale-to-zero) ou "sem conexão", sem duplicar
+// essa lógica nos três pontos que hoje chamam `fetch` diretamente.
+async function fetchInstrumentado(
+  input: string,
+  init?: RequestInit,
+): Promise<Response> {
+  iniciarRequisicao()
+  try {
+    const res = await fetch(input, init)
+    finalizarRequisicao(true)
+    return res
+  } catch (erro) {
+    finalizarRequisicao(false)
+    throw erro
   }
 }
 
@@ -69,7 +88,7 @@ let refreshInFlight: Promise<boolean> | null = null
 
 async function doRefresh(): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    const res = await fetchInstrumentado(`${API_BASE_URL}/auth/refresh`, {
       method: 'POST',
       credentials: 'include', // envia o cookie HttpOnly do refresh
     })
@@ -114,7 +133,7 @@ export async function apiFetch<T>(
   const token = getAccessToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetchInstrumentado(`${API_BASE_URL}${path}`, {
     ...init,
     headers,
     credentials: 'include',
@@ -160,7 +179,7 @@ export type TokenPayload = {
 async function rawFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   if (init.body) headers.set('Content-Type', 'application/json')
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetchInstrumentado(`${API_BASE_URL}${path}`, {
     ...init,
     headers,
     credentials: 'include',

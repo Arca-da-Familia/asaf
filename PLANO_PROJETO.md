@@ -461,16 +461,40 @@ sensíveis do intervalo (`SENHA_ALTERADA`, `MFA_DESATIVADO`, `SESSAO_REVOGADA`,
 `/auth/mfa/*` exige `get_current_user` e filtra pelo `id_usuario` do token — nunca por parâmetro
 vindo do cliente. **Fase liberada para avançar** para v0.2.7–v0.2.10.
 
-##### v0.2.7 — Robustez operacional do painel
-- [ ] Estado de erro de rede tratado globalmente (API fora do ar → aviso persistente, não tela
-      branca) — relevante porque o Container App tem **scale-to-zero**: a primeira requisição
-      depois de um período ocioso pode demorar. O painel precisa mostrar "acordando o servidor"
-      em vez de parecer quebrado.
-- [ ] Versão do build exibida no rodapé e checagem periódica de `version.json`: quando sai deploy
-      novo, avisa "nova versão disponível, recarregar" — evita usuário preso num bundle velho
-      chamando API nova.
-- [ ] Logs de erro do front enviados ao Application Insights (já provisionado na v0.0) — antecipa
-      o essencial da FASE 18.
+##### v0.2.7 — Robustez operacional do painel ✅ IMPLEMENTADO (2026-09-12)
+- [x] Estado de erro de rede tratado globalmente (`lib/network-status.ts`, um store mínimo
+      assinado via `useSyncExternalStore`): toda chamada HTTP passa por `fetchInstrumentado`
+      em `lib/api.ts`. Requisição em voo por mais de 3s sem resposta → `StatusBar` mostra
+      "acordando o servidor…" (cobre o cold start do scale-to-zero); falha de rede de verdade
+      (fetch lança exceção, ou evento `offline` do navegador) → faixa persistente "sem conexão".
+      Uma resposta HTTP real (mesmo 4xx/5xx) sempre volta o estado a "ok" — só falha de
+      transporte conta como offline, nunca erro de aplicação.
+- [x] `scripts/gerar-version.js` gera `public/version.json` (commit curto + timestamp) antes de
+      `dev`/`build` (`predev`/`prebuild` no `package.json`); Vite copia para `dist/` como
+      qualquer asset de `public/`. `lib/versao.ts` (`useVersaoBuild`) busca esse arquivo com
+      `cache: 'no-store'` a cada 5 min e compara com o commit carregado no início da sessão —
+      diferente, mostra o aviso "nova versão disponível" com botão "Recarregar" no `StatusBar`.
+      Rodapé do `Shell` mostra o commit atual. Testado: build local gerou `version.json` com o
+      commit correto e o Vite serviu `/version.json` de verdade no dev server.
+- [x] `lib/monitoramento.ts` inicializa o Application Insights Web SDK
+      (`@microsoft/applicationinsights-web`) a partir de `VITE_APPINSIGHTS_CONNECTION_STRING` —
+      **sem essa variável configurada, vira no-op** (só `console.error`), nunca quebra o painel
+      por falta de telemetria configurada. Conectado a três fontes de erro: `ErrorBoundary`
+      (`componentDidCatch`, por módulo), `window.onerror` e `unhandledrejection` (globais).
+      **Achado corrigido nesta versão**: o `ErrorBoundary` (construído na v0.2.4) existia mas
+      não estava usado em nenhuma rota — adicionado ao redor de cada módulo de negócio em
+      `App.tsx` (Associados, Financeiro, Governança, Projetos, Acesso, Auditoria), do contrário
+      a auditoria de erro desta versão nunca capturaria um erro de render de módulo de verdade.
+      **Pendência registrada, fora de escopo desta sessão**: ninguém ainda configurou o valor
+      real de `VITE_APPINSIGHTS_CONNECTION_STRING` no `deploy-painel.yml` (não é segredo, mas
+      não adivinhei o nome do secret no Key Vault sem confirmar — fica para quem for ativar a
+      telemetria em produção).
+
+Verificação real feita nesta sessão: `npm run lint`/`typecheck`/`test`/`build` passando, dev
+server rodado de verdade com Playwright/Chromium headless (tela de login renderizada sem erro
+de JS, `/version.json` servido corretamente) — não deu para testar o `StatusBar`/rodapé
+dentro do Shell autenticado porque isso exige backend + Postgres rodando, que não existem
+nesta máquina; registrado aqui para quem tiver o backend de pé validar visualmente.
 
 ##### v0.2.8 — Testes do painel (padrão que vale para todas as fases seguintes)
 - [ ] Vitest + Testing Library para componente e regra de tela; Playwright para os fluxos que não
