@@ -1,0 +1,34 @@
+#!/bin/sh
+# Pre-commit: bloqueia commit de segredos em TEXTO PURO.
+# Os arquivos sensíveis só podem subir cifrados com SOPS/age.
+# (Ativo via: git config core.hooksPath .githooks — ver SEGURANCA.md)
+
+ARQUIVOS=".env CREDENCIAIS_AZURE.md infra/provisionar.sh"
+
+falhou=0
+
+for arquivo in $ARQUIVOS; do
+  # Só checa se o arquivo está no índice (staged para commit).
+  if ! git cat-file -e ":$arquivo" 2>/dev/null; then
+    continue
+  fi
+
+  conteudo=$(git show ":$arquivo")
+
+  # Arquivo cifrado (SOPS) contém o marcador ENC[AES256_GCM ou o metadata "sops".
+  if printf '%s' "$conteudo" | grep -Eq 'ENC\[AES256_GCM|"sops"'; then
+    continue
+  fi
+
+  echo "ERRO: '$arquivo' está em TEXTO PURO no commit."
+  echo "  Cifre antes de commitar: sops -e -i $arquivo"
+  falhou=1
+done
+
+if [ "$falhou" -ne 0 ]; then
+  echo ""
+  echo "Commit bloqueado para não vazar segredos no repositório público."
+  exit 1
+fi
+
+exit 0

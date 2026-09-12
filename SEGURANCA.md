@@ -29,6 +29,7 @@ sops CREDENCIAIS_AZURE.md
 
 ## Nova máquina (colaborador) — uma única vez
 
+0. Ativar o pre-commit hook: `git config core.hooksPath .githooks`
 1. Instalar: `winget install FiloSottile.age SecretsOPerationS.SOPS`
 2. Gerar a chave: `age-keygen -o %APPDATA%\sops\age\keys.txt`
 3. Ver a chave pública: `age-keygen -y %APPDATA%\sops\age\keys.txt`
@@ -36,6 +37,15 @@ sops CREDENCIAIS_AZURE.md
 5. Recifrar para todas as chaves:
    `sops updatekeys .env CREDENCIAIS_AZURE.md infra/provisionar.sh`
 6. Commitar o `.sops.yaml` e os arquivos recifrados.
+
+## Pre-commit hook (proteção automática)
+
+O hook em `.githooks/pre-commit` bloqueia qualquer commit que tente subir `.env`,
+`CREDENCIAIS_AZURE.md` ou `infra/provisionar.sh` em **texto puro**. Ative com:
+
+```
+git config core.hooksPath .githooks
+```
 
 ## Atenção
 
