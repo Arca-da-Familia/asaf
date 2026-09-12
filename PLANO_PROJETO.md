@@ -595,6 +595,26 @@ lint`/`typecheck`/`test`/`test:e2e`/`build` todos passando (18 testes Vitest + 6
 incluindo um novo E2E de impersonação), e verificação visual real com Playwright/Chromium
 mostrando a matriz, a auditoria e o banner "Vendo como" com o menu corretamente filtrado.
 
+> **Achado crítico de infraestrutura, corrigido logo depois desta versão (2026-09-12)**:
+> conferindo a própria URL de produção depois do primeiro deploy bem-sucedido, o painel estava
+> servindo o `index.html` **bruto** (referenciando `/src/main.tsx` não compilado) — não o build
+> de produção. `favicon.svg` e os assets em `/assets/*` respondiam 404 de verdade (arquivo
+> ausente no local servido, não fallback de SPA). Causa: com `skip_app_build: true`, o
+> `app_location` da action `Azure/static-web-apps-deploy@v1` precisa ser a **pasta de saída do
+> build** (`painel/dist`) — a combinação anterior (`app_location: painel` +
+> `output_location: dist`) fazia a action publicar a pasta fonte inteira. Corrigido apontando
+> `app_location: painel/dist` (e removido o passo de `rm -rf node_modules`, que só existia para
+> contornar o sintoma). **Isso significa que nenhum deploy bem-sucedido desta sessão (v0.2.7,
+> v0.2.8, v0.2.9) de fato serviu o app funcional em produção antes desta correção**, apesar do
+> CI reportar sucesso o tempo todo — o "sucesso" do CI media só se o upload aconteceu, não se o
+> conteúdo publicado era o certo. De quebra, faltava `staticwebapp.config.json` com
+> `navigationFallback`: sem ele, acessar uma rota interna direto (ex.: `/perfil`) ou dar F5 nela
+> dava 404 (só `/` batia com um arquivo físico). Adicionado em `painel/public/staticwebapp.config.json`
+> (Vite copia para `dist/` no build), excluindo `/assets/*`, `/favicon.svg` e `/version.json` do
+> fallback. Confirmado em produção depois da correção: `/`, `/perfil`, `/acesso` e uma rota
+> inexistente todos respondem 200; `favicon.svg` e os assets JS/CSS carregam; `version.json`
+> reflete o commit exato do deploy.
+
 ##### v0.2.10 — O que fica fora da v0.2, de propósito
 - Nenhum módulo de negócio (associados, financeiro, eventos) — v0.2 entrega **casca, identidade
   visual e contratos**. Módulo entra a partir da FASE 1, já usando tudo isso pronto.
