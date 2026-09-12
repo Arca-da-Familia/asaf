@@ -51,26 +51,58 @@ def preparar_banco():
                     tipo_sql = coluna.type.compile(engine.dialect)
                     conn.execute(text(f'ALTER TABLE "{tabela.name}" ADD COLUMN "{coluna.name}" {tipo_sql}'))
 
-def seed_opcoes_lista():
-    """Preenche valores padrão de cada lista configurável, apenas se ela ainda estiver vazia."""
-    from app.models.core import OpcaoLista  # import local para evitar import circular com app.models
-    padroes = {
-        "categoria_associado": ["Efetivo", "Contribuinte", "Fundador"],
-        "status_arrolamento": ["Ativo - Em Dia", "Ativo - Inadimplente", "Suspenso (Estatuto)", "Desligado"],
-        "estado_civil": ["Solteiro(a)", "Casado(a)", "Divorciado(a)", "Viúvo(a)", "União Estável"],
-        "grau_parentesco": ["Cônjuge", "Filho(a)", "Pai", "Mãe", "Irmão(ã)", "Neto(a)", "Outro"],
-        "categoria_fornecedor": ["Material de Construção", "Serviços Gráficos", "Alimentação", "Tecnologia", "Manutenção e Reparos", "Transporte", "Outros"],
-        "tipo_conta_contabil": ["Receita", "Despesa"],
-        "forma_pagamento": ["Pix", "Dinheiro", "Cartão", "Transferência Bancária", "Boleto"],
-        "titulo_cargo": ["Presidente", "Vice-Presidente", "Tesoureiro", "Vice-Tesoureiro", "Secretário", "Vice-Secretário", "Conselho Fiscal", "Diretor de Patrimônio", "Diretor Social"],
+def seed_catalogos():
+    """v0.3.1 - semeia Catalogo/OpcaoCatalogo (motor genérico) direto, para banco novo que nunca
+    teve `opcoes_lista` (v0.1/v0.2). Banco que já tinha dado em `opcoes_lista` recebe esse mesmo
+    conteúdo pela migração de dado da revisão d2e3f4a5b6c7, não por aqui - por isso este seed só
+    semeia catálogo que ainda não existe (idempotente, nunca duplica o que a migração já trouxe).
+    Os códigos abaixo são os mesmos que a migração deriva do rótulo (mesmo algoritmo de slug) -
+    mantidos iguais de propósito, para o código estável ser o mesmo não importa qual caminho o
+    banco passou (seed direto ou migração de dado antigo)."""
+    from app.models.core import Catalogo, OpcaoCatalogo  # import local, mesmo motivo do seed acima
+    catalogos_padrao = {
+        "categoria_associado": ("Categoria do associado", False, [
+            ("EFETIVO", "Efetivo"), ("CONTRIBUINTE", "Contribuinte"), ("FUNDADOR", "Fundador"),
+        ]),
+        "status_arrolamento": ("Situação de arrolamento", False, [
+            ("ATIVO_EM_DIA", "Ativo - Em Dia"), ("ATIVO_INADIMPLENTE", "Ativo - Inadimplente"),
+            ("SUSPENSO_ESTATUTO", "Suspenso (Estatuto)"), ("DESLIGADO", "Desligado"),
+        ]),
+        "estado_civil": ("Estado civil", True, [
+            ("SOLTEIRO_A", "Solteiro(a)"), ("CASADO_A", "Casado(a)"), ("DIVORCIADO_A", "Divorciado(a)"),
+            ("VIUVO_A", "Viúvo(a)"), ("UNIAO_ESTAVEL", "União Estável"),
+        ]),
+        "grau_parentesco": ("Grau de parentesco", True, [
+            ("CONJUGE", "Cônjuge"), ("FILHO_A", "Filho(a)"), ("PAI", "Pai"), ("MAE", "Mãe"),
+            ("IRMAO_A", "Irmão(ã)"), ("NETO_A", "Neto(a)"), ("OUTRO", "Outro"),
+        ]),
+        "categoria_fornecedor": ("Categoria de fornecedor", True, [
+            ("MATERIAL_DE_CONSTRUCAO", "Material de Construção"), ("SERVICOS_GRAFICOS", "Serviços Gráficos"),
+            ("ALIMENTACAO", "Alimentação"), ("TECNOLOGIA", "Tecnologia"),
+            ("MANUTENCAO_E_REPAROS", "Manutenção e Reparos"), ("TRANSPORTE", "Transporte"), ("OUTROS", "Outros"),
+        ]),
+        "tipo_conta_contabil": ("Tipo de conta contábil", True, [("RECEITA", "Receita"), ("DESPESA", "Despesa")]),
+        "forma_pagamento": ("Forma de pagamento", True, [
+            ("PIX", "Pix"), ("DINHEIRO", "Dinheiro"), ("CARTAO", "Cartão"),
+            ("TRANSFERENCIA_BANCARIA", "Transferência Bancária"), ("BOLETO", "Boleto"),
+        ]),
+        "titulo_cargo": ("Título de cargo", True, [
+            ("PRESIDENTE", "Presidente"), ("VICE_PRESIDENTE", "Vice-Presidente"), ("TESOUREIRO", "Tesoureiro"),
+            ("VICE_TESOUREIRO", "Vice-Tesoureiro"), ("SECRETARIO", "Secretário"), ("VICE_SECRETARIO", "Vice-Secretário"),
+            ("CONSELHO_FISCAL", "Conselho Fiscal"), ("DIRETOR_DE_PATRIMONIO", "Diretor de Patrimônio"),
+            ("DIRETOR_SOCIAL", "Diretor Social"),
+        ]),
     }
     db = SessaoLocal()
     try:
-        for tipo_lista, valores in padroes.items():
-            if db.query(OpcaoLista).filter(OpcaoLista.tipo_lista == tipo_lista).first():
+        for chave, (nome_exibido, editavel_pelo_usuario, opcoes) in catalogos_padrao.items():
+            if db.query(Catalogo).filter(Catalogo.chave == chave).first():
                 continue
-            for i, valor in enumerate(valores):
-                db.add(OpcaoLista(tipo_lista=tipo_lista, valor=valor, ordem=i))
+            catalogo = Catalogo(chave=chave, nome_exibido=nome_exibido, editavel_pelo_usuario=editavel_pelo_usuario)
+            db.add(catalogo)
+            db.flush()
+            for i, (codigo, rotulo) in enumerate(opcoes):
+                db.add(OpcaoCatalogo(id_catalogo=catalogo.id_catalogo, codigo=codigo, rotulo=rotulo, ordem=i))
         db.commit()
     finally:
         db.close()

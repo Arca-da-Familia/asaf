@@ -4,7 +4,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import os
 
-from app.database import preparar_banco, seed_opcoes_lista, seed_niveis_e_permissoes
+from app.database import preparar_banco, seed_catalogos, seed_niveis_e_permissoes
 from app.routers import auth, core, associados, financeiro, governanca, projetos, admin_portal
 from app.security import decodificar_access_token_silencioso
 
@@ -20,7 +20,7 @@ if os.environ.get("RUN_DB_MIGRATION", "true").lower() != "false":
 # Seeds são rápidos (poucas consultas "já existe?" idempotentes) e SEMPRE rodam, mesmo em
 # produção com RUN_DB_MIGRATION=false - achado real desta sessão: estavam amarrados à mesma
 # flag da auditoria lenta, então nunca tinham rodado de fato contra o banco de produção.
-seed_opcoes_lista()
+seed_catalogos()
 seed_niveis_e_permissoes()
 
 os.makedirs("uploads/fotos", exist_ok=True)

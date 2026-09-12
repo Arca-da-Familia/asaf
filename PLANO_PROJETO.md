@@ -654,23 +654,49 @@ histórico não presumir que "CI verde" sempre significou "está no ar".
 **Fase 0 / v0.2 encerrada.** Nada pendente sem registro; próxima fase é a v0.3 (catálogos
 configuráveis), abaixo.
 
-##### v0.3.1 — Modelo genérico de catálogo
-- [ ] Evoluir a `OpcaoLista` existente para o modelo definitivo: `Catalogo` (chave técnica, nome
-      exibido, descrição, se é editável pelo usuário) + `OpcaoCatalogo` (catálogo, código estável,
-      rótulo, ordem, ativo, cor/ícone opcional, `metadados` JSONB para atributos específicos do
-      catálogo).
-- [ ] **Código estável separado do rótulo**: o código (`DESLIG_INADIMPLENCIA`) nunca muda e é o
-      que o banco referencia; o rótulo ("Desligamento por inadimplência") pode ser reescrito pela
-      diretoria sem quebrar histórico nenhum. Esse desacoplamento é o item mais importante da
-      versão inteira.
-- [ ] **Nunca excluir opção em uso**: opção vira `ativo = false` (some dos formulários novos,
-      continua exibindo corretamente nos registros antigos). Exclusão real só se zero referências,
-      checado pelo backend.
-- [ ] Hierarquia opcional (`id_pai`) — atende plano de contas, tipos com subtipos, estrutura de
-      cargos, sem precisar de tabela nova.
-- [ ] Catálogos **de sistema** (protegidos) x **de usuário**: alguns catálogos têm códigos dos
-      quais o código-fonte depende (ex.: status de cobrança); esses são marcados como de sistema —
-      a diretoria pode renomear o rótulo e reordenar, mas não apagar nem criar código novo.
+##### v0.3.1 — Modelo genérico de catálogo ✅ IMPLEMENTADO (2026-09-12)
+- [x] `Catalogo` (`chave`, `nome_exibido`, `descricao`, `editavel_pelo_usuario`) +
+      `OpcaoCatalogo` (`id_catalogo`, `codigo`, `rotulo`, `ordem`, `ativo`, `cor`, `icone`,
+      `id_pai`, `metadados` — `JSONB` em Postgres, cai pra `JSON` genérico em SQLite de dev via
+      `.with_variant()`) em `app/models/core.py`. Migração Alembic `d2e3f4a5b6c7` cria as tabelas
+      **e migra o dado que já existia em `opcoes_lista`** (derivando um código estável por slug
+      do rótulo em texto livre, com desempate automático em caso de colisão) — `opcoes_lista`
+      **não é apagada**, fica como backup/rollback da migração; nenhuma rota nova lê dela.
+- [x] **Código estável separado do rótulo**: `OpcaoCatalogoAtualizar` (schema de edição) nem
+      aceita o campo `codigo` — só quem cria a opção define o código, e nunca mais muda depois.
+      Testado: `PUT` enviando `codigo` junto com `rotulo` altera só o rótulo, código intocado.
+- [x] **Nunca excluir opção em uso**: `DELETE /api/opcoes-catalogo/{id}` recusa (400) se a opção
+      ainda estiver `ativo=true`; exige desativar primeiro. Com a opção já inativa, checa uso
+      real contra as tabelas de negócio que hoje ainda guardam o rótulo como string solta (não
+      há FK ainda — `_CONSULTAS_USO` em `routers/core.py` documenta isso e cobre os dois
+      catálogos que já têm consumidor conhecido: `categoria_associado`/`status_arrolamento` →
+      `Associado`). Testado de ponta a ponta: opção sem uso excluída com sucesso (200), opção em
+      uso pela conta do próprio admin bloqueada (409).
+- [x] Hierarquia opcional via `id_pai` (self-referencing FK em `opcoes_catalogo`) — sem tabela
+      nova, pronta pra plano de contas/subtipos quando a FASE que precisar disso chegar.
+- [x] Catálogos de sistema x de usuário: `categoria_associado` e `status_arrolamento` marcados
+      `editavel_pelo_usuario=False` (código hoje depende do rótulo específico existir — ver
+      `Associado.status_arrolamento` default e `ConfiguracaoInstitucional.STATUS_ARROLAMENTO_PADRAO`).
+      Testado: `POST` de opção nova num catálogo de sistema recusado com 403.
+
+**Compatibilidade preservada**: `/api/opcoes/{tipo_lista}` (GET/POST) e `/api/opcoes/{id}` (PUT)
+— usadas pelas páginas HTML do protótipo antigo ainda em produção (`/admin/secretaria`,
+`/meu-portal`, `/meu-perfil`, `/minha-familia` em `app/routers/associados.py`) — viraram um shim
+sobre as tabelas novas, mesmo contrato JSON de sempre (`id_opcao`/`valor`/`ativo`). Testado que
+`/admin/secretaria` continua renderizando (200) sem nenhuma mudança visível pro usuário final.
+
+**Achado corrigido durante o teste real**: a primeira versão do seed direto (`seed_catalogos`,
+usado por banco novo que nunca teve `opcoes_lista`) saiu com `editavel_pelo_usuario` **invertido**
+(catálogos de sistema marcados editáveis e vice-versa) — um erro de tradução entre "é sistema"
+e "é editável pelo usuário" ao copiar os mesmos booleanos da migração para o seed. Só apareceu
+rodando o backend de verdade e conferindo a resposta de `GET /api/catalogos/`; corrigido e
+reconfirmado.
+
+Verificação real (não só leitura de código): backend rodado localmente (SQLite), fluxo completo
+testado via `curl` — catálogos semeados corretos, opções do catálogo, shim de compatibilidade
+com o formato antigo, bloqueio de escrita em catálogo de sistema, exclusão bloqueada em opção
+ativa e em opção com uso real, exclusão permitida em opção inativa sem uso, e a página HTML do
+protótipo antigo continuando no ar. `python -m py_compile` em todos os arquivos tocados.
 
 ##### v0.3.2 — Catálogos iniciais semeados
 - [ ] Cargos da diretoria e do conselho; categorias de associado; tipos de documento; motivos de

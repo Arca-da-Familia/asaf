@@ -1,7 +1,12 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Table, UniqueConstraint, Text
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Table, UniqueConstraint, Text, JSON
+from sqlalchemy.dialects.postgresql import JSONB
 
 from app.database import Base
+
+# JSONB de verdade em produção (Postgres), cai para JSON genérico em dev local (SQLite, que não
+# tem tipo JSONB) - mesmo padrão usado em DATABASE_URL (Postgres em produção, sqlite:// de dev).
+_TipoJson = JSONB().with_variant(JSON(), "sqlite")
 
 perfil_permissao = Table(
     'perfil_permissao', Base.metadata,
@@ -33,7 +38,11 @@ class ConfiguracaoInstitucional(Base):
     valor_configuracao = Column(String)
 
 class OpcaoLista(Base):
-    """Valores de listas configuráveis pelo admin (categorias, status, etc.), sem precisar alterar código."""
+    """v0.1-v0.2: valores de lista configurável pelo admin. SUBSTITUÍDO por Catalogo/OpcaoCatalogo
+    na v0.3.1 (motor genérico de verdade, com código estável separado do rótulo - ver
+    DECISOES_CONGELADAS.md 1.5). Tabela e classe mantidas de propósito, sem uso em nenhuma rota
+    nova: é o backup/rollback da migração de dado (nunca apagar dado só porque o código parou de
+    ler). Uma limpeza futura pode dropar isto depois de confirmado estável em produção."""
     __tablename__ = "opcoes_lista"
     __table_args__ = (UniqueConstraint("tipo_lista", "valor", name="uq_opcao_tipo_valor"),)
     id_opcao = Column(Integer, primary_key=True, index=True)
@@ -41,6 +50,44 @@ class OpcaoLista(Base):
     valor = Column(String(100))
     ordem = Column(Integer, default=0)
     ativo = Column(Boolean, default=True)
+
+
+class Catalogo(Base):
+    """v0.3.1 - motor genérico de catálogo: em vez de um enum novo no código toda vez que a
+    associação quer uma categoria/motivo/tipo novo, o valor vive aqui e a diretoria ajusta sem
+    programador (ver DECISOES_CONGELADAS.md 1.5 e PLANO_PROJETO.md v0.3.1)."""
+    __tablename__ = "catalogos"
+    id_catalogo = Column(Integer, primary_key=True, index=True)
+    # Chave técnica estável (ex.: "categoria_associado") - é o que o código usa para achar o
+    # catálogo certo; nunca é exibida à diretoria, que só vê nome_exibido.
+    chave = Column(String(50), unique=True, index=True)
+    nome_exibido = Column(String(100))
+    descricao = Column(String, nullable=True)
+    # Catálogo "de sistema" (False): o código depende de opções específicas existirem (ex.:
+    # status_arrolamento) - a diretoria pode renomear rótulo e reordenar, mas não apagar opção
+    # nem criar código novo por conta própria (ver ROTULO_CATALOGOS_SISTEMA em routers/core.py).
+    editavel_pelo_usuario = Column(Boolean, default=True)
+
+
+class OpcaoCatalogo(Base):
+    """v0.3.1 - uma opção de um Catalogo. `codigo` é o que o banco referencia e NUNCA muda -
+    `rotulo` é só o que a tela mostra e pode ser reescrito livremente pela diretoria sem quebrar
+    nenhum registro histórico que já use este código."""
+    __tablename__ = "opcoes_catalogo"
+    __table_args__ = (UniqueConstraint("id_catalogo", "codigo", name="uq_opcao_catalogo_codigo"),)
+    id_opcao = Column(Integer, primary_key=True, index=True)
+    id_catalogo = Column(Integer, ForeignKey("catalogos.id_catalogo"), index=True)
+    # Hierarquia opcional (plano de contas, tipo com subtipo, estrutura de cargo) - sem tabela nova.
+    id_pai = Column(Integer, ForeignKey("opcoes_catalogo.id_opcao"), nullable=True)
+    codigo = Column(String(100), index=True)
+    rotulo = Column(String(200))
+    ordem = Column(Integer, default=0)
+    ativo = Column(Boolean, default=True)
+    cor = Column(String(20), nullable=True)
+    icone = Column(String(50), nullable=True)
+    # Atributos específicos do catálogo que não merecem coluna própria (ex.: teto de alçada de
+    # um cargo, dias de tolerância de um status) - livre por catálogo, sem migração nova cada vez.
+    metadados = Column(_TipoJson, nullable=True)
 
 class ModeloDocumento(Base):
     __tablename__ = "modelos_documentos"

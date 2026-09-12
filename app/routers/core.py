@@ -1,3 +1,5 @@
+import re
+import unicodedata
 from datetime import datetime
 from typing import Optional
 
@@ -7,11 +9,37 @@ from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
 from app.models.associados import Associado
-from app.models.core import ConfiguracaoInstitucional, OpcaoLista, NivelAcesso, PermissaoSistema, perfil_permissao, AuditLog, Usuario
-from app.schemas.core import OpcaoCriar, OpcaoAtualizar, NivelAcessoCriar, NivelAcessoAtualizar, PermissaoCriar
+from app.models.core import ConfiguracaoInstitucional, OpcaoLista, Catalogo, OpcaoCatalogo, NivelAcesso, PermissaoSistema, perfil_permissao, AuditLog, Usuario
+from app.schemas.core import (
+    OpcaoCriar,
+    OpcaoAtualizar,
+    NivelAcessoCriar,
+    NivelAcessoAtualizar,
+    PermissaoCriar,
+    CatalogoCriar,
+    OpcaoCatalogoCriar,
+    OpcaoCatalogoAtualizar,
+)
 from app.security import exigir_permissao
 
 router = APIRouter()
+
+
+def _slug(valor: str) -> str:
+    """Deriva um código técnico estável a partir de texto livre - mesma lógica da migração
+    d2e3f4a5b6c7 (v0.3.1), usada aqui só quando o chamador não informa `codigo` explicitamente
+    (compatibilidade com a rota legada /api/opcoes/, que só conhecia "valor")."""
+    sem_acento = unicodedata.normalize("NFKD", valor).encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"_+", "_", re.sub(r"[^A-Za-z0-9]+", "_", sem_acento)).strip("_").upper()
+
+
+def _obter_ou_criar_catalogo(db: Session, chave: str) -> Catalogo:
+    catalogo = db.query(Catalogo).filter(Catalogo.chave == chave).first()
+    if catalogo is None:
+        catalogo = Catalogo(chave=chave, nome_exibido=chave.replace("_", " ").capitalize(), editavel_pelo_usuario=True)
+        db.add(catalogo)
+        db.flush()
+    return catalogo
 
 @router.post("/setup-cerebro/", summary="1. Inicializar Cérebro")
 def setup_cerebro(db: Session = Depends(get_db)):
@@ -27,21 +55,37 @@ def setup_cerebro(db: Session = Depends(get_db)):
     return {"mensagem": "Cérebro inicializado com sucesso!"}
 
 
-@router.get("/api/opcoes/{tipo_lista}", summary="Listar valores de uma lista configurável")
+# ==========================================
+# /api/opcoes/* — v0.1/v0.2, mantida por COMPATIBILIDADE com o protótipo antigo
+# (app/routers/associados.py: /admin/secretaria, /meu-portal, /meu-perfil, /minha-familia ainda
+# chamam esta rota). Migrado para ler/escrever em Catalogo/OpcaoCatalogo (v0.3.1) por baixo -
+# nenhum dado novo entra mais em `opcoes_lista`, que fica só como histórico da migração.
+# Uso novo deve chamar /api/catalogos/ diretamente, não esta rota.
+# ==========================================
+@router.get("/api/opcoes/{tipo_lista}", summary="Listar valores de uma lista configurável (compat v0.1/v0.2)")
 def listar_opcoes(tipo_lista: str, incluir_inativos: bool = False, db: Session = Depends(get_db)):
-    consulta = db.query(OpcaoLista).filter(OpcaoLista.tipo_lista == tipo_lista)
+    catalogo = db.query(Catalogo).filter(Catalogo.chave == tipo_lista).first()
+    if catalogo is None:
+        return []
+    consulta = db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_catalogo == catalogo.id_catalogo)
     if not incluir_inativos:
-        consulta = consulta.filter(OpcaoLista.ativo == True)
-    opcoes = consulta.order_by(OpcaoLista.ordem, OpcaoLista.id_opcao).all()
-    return [{"id_opcao": o.id_opcao, "valor": o.valor, "ativo": o.ativo} for o in opcoes]
+        consulta = consulta.filter(OpcaoCatalogo.ativo == True)
+    opcoes = consulta.order_by(OpcaoCatalogo.ordem, OpcaoCatalogo.id_opcao).all()
+    return [{"id_opcao": o.id_opcao, "valor": o.rotulo, "ativo": o.ativo} for o in opcoes]
 
 
-@router.post("/api/opcoes/{tipo_lista}", summary="Adicionar valor a uma lista configurável")
+@router.post("/api/opcoes/{tipo_lista}", summary="Adicionar valor a uma lista configurável (compat v0.1/v0.2)")
 def criar_opcao(tipo_lista: str, dados: OpcaoCriar, db: Session = Depends(get_db)):
-    if db.query(OpcaoLista).filter(OpcaoLista.tipo_lista == tipo_lista, OpcaoLista.valor == dados.valor).first():
+    catalogo = _obter_ou_criar_catalogo(db, tipo_lista)
+    if db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_catalogo == catalogo.id_catalogo, OpcaoCatalogo.rotulo == dados.valor).first():
         raise HTTPException(status_code=400, detail="Esse valor já existe nessa lista.")
-    maior_ordem = db.query(OpcaoLista).filter(OpcaoLista.tipo_lista == tipo_lista).count()
-    nova = OpcaoLista(tipo_lista=tipo_lista, valor=dados.valor, ordem=maior_ordem, ativo=True)
+    maior_ordem = db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_catalogo == catalogo.id_catalogo).count()
+    codigo_base = _slug(dados.valor) or f"OPCAO_{maior_ordem + 1}"
+    codigo, sufixo = codigo_base, 2
+    while db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_catalogo == catalogo.id_catalogo, OpcaoCatalogo.codigo == codigo).first():
+        codigo = f"{codigo_base}_{sufixo}"
+        sufixo += 1
+    nova = OpcaoCatalogo(id_catalogo=catalogo.id_catalogo, codigo=codigo, rotulo=dados.valor, ordem=maior_ordem, ativo=True)
     db.add(nova)
     try:
         db.commit()
@@ -49,20 +93,135 @@ def criar_opcao(tipo_lista: str, dados: OpcaoCriar, db: Session = Depends(get_db
         db.rollback()
         raise HTTPException(status_code=400, detail="Esse valor já existe nessa lista.")
     db.refresh(nova)
-    return {"id_opcao": nova.id_opcao, "valor": nova.valor, "ativo": nova.ativo}
+    return {"id_opcao": nova.id_opcao, "valor": nova.rotulo, "ativo": nova.ativo}
 
 
-@router.put("/api/opcoes/{id_opcao}", summary="Renomear/ativar/desativar valor de lista")
+@router.put("/api/opcoes/{id_opcao}", summary="Renomear/ativar/desativar valor de lista (compat v0.1/v0.2)")
 def atualizar_opcao(id_opcao: int, dados: OpcaoAtualizar, db: Session = Depends(get_db)):
-    opcao = db.query(OpcaoLista).filter(OpcaoLista.id_opcao == id_opcao).first()
+    opcao = db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_opcao == id_opcao).first()
     if not opcao:
         raise HTTPException(status_code=404, detail="Opção não encontrada.")
     if dados.valor is not None:
-        opcao.valor = dados.valor
+        opcao.rotulo = dados.valor
     if dados.ativo is not None:
         opcao.ativo = dados.ativo
     db.commit()
     return {"mensagem": "Opção atualizada."}
+
+
+# ==========================================
+# CATÁLOGO GENÉRICO (v0.3.1) — motor de verdade, usado por código novo daqui pra frente.
+# ==========================================
+_permissao_gerenciar_catalogos = exigir_permissao("gerenciar_acesso")
+
+# Catálogos cujo código o sistema hoje depende de existir com valor específico (ver migração
+# d2e3f4a5b6c7) - além do que `editavel_pelo_usuario=False` já sinaliza, nenhuma coluna de
+# negócio ainda referencia OpcaoCatalogo por FK (as tabelas de FASE 1+ usam string solta), então
+# a checagem de "opção em uso" abaixo é honesta sobre isso: só sabe checar o que já existe hoje.
+_CONSULTAS_USO: dict[str, list] = {
+    "categoria_associado": [(Associado, "categoria")],
+    "status_arrolamento": [(Associado, "status_arrolamento")],
+}
+
+
+def _opcao_em_uso(db: Session, chave_catalogo: str, rotulo: str) -> bool:
+    for modelo, coluna in _CONSULTAS_USO.get(chave_catalogo, []):
+        if db.query(modelo).filter(getattr(modelo, coluna) == rotulo).first():
+            return True
+    return False
+
+
+@router.get("/api/catalogos/", summary="Listar catálogos configuráveis")
+def listar_catalogos(db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_catalogos)):
+    catalogos = db.query(Catalogo).order_by(Catalogo.nome_exibido).all()
+    return [
+        {
+            "id_catalogo": c.id_catalogo, "chave": c.chave, "nome_exibido": c.nome_exibido,
+            "descricao": c.descricao, "editavel_pelo_usuario": c.editavel_pelo_usuario,
+        }
+        for c in catalogos
+    ]
+
+
+@router.post("/api/catalogos/", summary="Criar um catálogo novo")
+def criar_catalogo(dados: CatalogoCriar, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_catalogos)):
+    if db.query(Catalogo).filter(Catalogo.chave == dados.chave).first():
+        raise HTTPException(status_code=400, detail="Já existe um catálogo com essa chave.")
+    novo = Catalogo(**dados.model_dump())
+    db.add(novo)
+    db.commit()
+    db.refresh(novo)
+    return {"id_catalogo": novo.id_catalogo, "chave": novo.chave}
+
+
+@router.get("/api/catalogos/{chave}/opcoes", summary="Listar opções de um catálogo")
+def listar_opcoes_catalogo(
+    chave: str, incluir_inativos: bool = False, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_catalogos)
+):
+    catalogo = db.query(Catalogo).filter(Catalogo.chave == chave).first()
+    if not catalogo:
+        raise HTTPException(status_code=404, detail="Catálogo não encontrado.")
+    consulta = db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_catalogo == catalogo.id_catalogo)
+    if not incluir_inativos:
+        consulta = consulta.filter(OpcaoCatalogo.ativo == True)
+    opcoes = consulta.order_by(OpcaoCatalogo.ordem, OpcaoCatalogo.id_opcao).all()
+    return [
+        {
+            "id_opcao": o.id_opcao, "id_pai": o.id_pai, "codigo": o.codigo, "rotulo": o.rotulo,
+            "ordem": o.ordem, "ativo": o.ativo, "cor": o.cor, "icone": o.icone, "metadados": o.metadados,
+        }
+        for o in opcoes
+    ]
+
+
+@router.post("/api/catalogos/{chave}/opcoes", summary="Adicionar opção a um catálogo")
+def criar_opcao_catalogo(
+    chave: str, dados: OpcaoCatalogoCriar, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_catalogos)
+):
+    catalogo = db.query(Catalogo).filter(Catalogo.chave == chave).first()
+    if not catalogo:
+        raise HTTPException(status_code=404, detail="Catálogo não encontrado.")
+    if not catalogo.editavel_pelo_usuario:
+        raise HTTPException(status_code=403, detail="Catálogo de sistema — não aceita opção nova por aqui.")
+    if db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_catalogo == catalogo.id_catalogo, OpcaoCatalogo.codigo == dados.codigo).first():
+        raise HTTPException(status_code=400, detail="Já existe uma opção com esse código neste catálogo.")
+    nova = OpcaoCatalogo(id_catalogo=catalogo.id_catalogo, **dados.model_dump())
+    db.add(nova)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Já existe uma opção com esse código neste catálogo.")
+    db.refresh(nova)
+    return {"id_opcao": nova.id_opcao, "codigo": nova.codigo}
+
+
+@router.put("/api/opcoes-catalogo/{id_opcao}", summary="Editar rótulo/ordem/ativo de uma opção (nunca o código)")
+def atualizar_opcao_catalogo(
+    id_opcao: int, dados: OpcaoCatalogoAtualizar, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_catalogos)
+):
+    opcao = db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_opcao == id_opcao).first()
+    if not opcao:
+        raise HTTPException(status_code=404, detail="Opção não encontrada.")
+    for campo, valor in dados.model_dump(exclude_unset=True).items():
+        setattr(opcao, campo, valor)
+    db.commit()
+    return {"mensagem": "Opção atualizada."}
+
+
+@router.delete("/api/opcoes-catalogo/{id_opcao}", summary="Excluir opção (só se já inativa e sem uso)")
+def excluir_opcao_catalogo(id_opcao: int, db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_catalogos)):
+    opcao = db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_opcao == id_opcao).first()
+    if not opcao:
+        raise HTTPException(status_code=404, detail="Opção não encontrada.")
+    if opcao.ativo:
+        raise HTTPException(status_code=400, detail="Desative a opção antes de excluir (nunca exclui opção ativa).")
+    catalogo = db.query(Catalogo).filter(Catalogo.id_catalogo == opcao.id_catalogo).first()
+    if catalogo and _opcao_em_uso(db, catalogo.chave, opcao.rotulo):
+        raise HTTPException(status_code=409, detail="Opção em uso por registros existentes — não pode ser excluída.")
+    db.delete(opcao)
+    db.commit()
+    return {"mensagem": "Opção excluída."}
 
 # ==========================================
 # NÍVEIS DE ACESSO E PERMISSÕES (v0.1.5 do plano - catálogo configurável, nada fixo em código)
