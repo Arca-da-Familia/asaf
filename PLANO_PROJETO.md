@@ -627,15 +627,32 @@ mostrando a matriz, a auditoria e o banner "Vendo como" com o menu corretamente 
 > de desligamento ou um tipo de documento que ninguém imaginou hoje. Nada disso pode exigir
 > programador. A v0.3 constrói **um motor genérico de catálogo** em vez de 12 CRUDs parecidos.
 
-##### 🔍 Ponto de Revisão — FASE 0 / v0.2 (3/3 — fim, fecha v0.2.7–v0.2.10)
-Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
-- Nenhum módulo de negócio foi construído "adiantado" dentro da v0.2 (v0.2.10) — a v0.2 entrega
-  só casca/design system/contratos, módulo de negócio começa na FASE 1.
-- Impersonação de papel (v0.2.9) nunca permite escrita, só leitura, e sempre grava `AuditLog`.
-- Testes automatizados do painel (v0.2.8) existem para os fluxos que não podem quebrar (login,
-  login com MFA, refresh expirado, 403 por falta de permissão) — se ainda não existirem neste
-  ponto, registrar como pendência explícita antes de considerar a v0.2 encerrada, não deixar
-  passar em silêncio.
+##### 🔍 Ponto de Revisão — FASE 0 / v0.2 (3/3 — fim, fecha v0.2.7–v0.2.10) — aplicado em 2026-09-12
+- [x] **Nenhum módulo de negócio adiantado**: conferido em `App.tsx` — `/associados`,
+      `/financeiro`, `/governanca` e `/projetos` continuam todos como `<EmConstrucao />`, sem
+      nenhuma lógica de negócio. Só `/acesso` e `/auditoria` viraram páginas reais na v0.2.9 —
+      e ambas são ferramenta de administração do próprio painel (catálogo de permissões,
+      trilha de auditoria), não módulo de negócio das FASES 1+; não viola a v0.2.10.
+- [x] **Impersonação nunca escreve, sempre audita**: testado de verdade contra um backend local
+      na v0.2.9 (não só lido no código) — tentativa de escrita em modo "ver como" bloqueada com
+      403 em duas rotas diferentes (uma delas numa permissão que o nível impersonado nem
+      tinha), e os dois eventos (`IMPERSONACAO_INICIADA`/`ENCERRADA`) confirmados no
+      `AuditLog` via `GET /api/auditoria/`.
+- [x] **Testes automatizados dos fluxos críticos existem**: login sem MFA, login com MFA,
+      refresh expirado (sessão cai e volta pro login) e 403 por falta de permissão — os 5
+      testes Playwright da v0.2.8 (`e2e/auth.spec.ts`) cobrem exatamente isso, rodando no CI a
+      cada push desde então; nenhuma pendência a registrar aqui.
+
+**Achado adicional desta revisão, fora dos três itens específicos mas direto da seção 4.1
+(item 4, nenhum segredo exposto)**: não foi durante este checkpoint que se descobriu, mas vale
+reafirmar aqui porque mudou o resultado prático da v0.2 inteira — o deploy do painel só passou
+a servir o build de produção de verdade **depois** da v0.2.9 (ver nota de infraestrutura na
+v0.2.10 acima). Ou seja, a v0.2 só está de fato em produção, utilizável, a partir do commit
+`06a1d9a` (2026-09-12), não desde o primeiro "sucesso" do CI. Registrado para quem revisar o
+histórico não presumir que "CI verde" sempre significou "está no ar".
+
+**Fase 0 / v0.2 encerrada.** Nada pendente sem registro; próxima fase é a v0.3 (catálogos
+configuráveis), abaixo.
 
 ##### v0.3.1 — Modelo genérico de catálogo
 - [ ] Evoluir a `OpcaoLista` existente para o modelo definitivo: `Catalogo` (chave técnica, nome
