@@ -698,6 +698,23 @@ com o formato antigo, bloqueio de escrita em catálogo de sistema, exclusão blo
 ativa e em opção com uso real, exclusão permitida em opção inativa sem uso, e a página HTML do
 protótipo antigo continuando no ar. `python -m py_compile` em todos os arquivos tocados.
 
+> **Migração aplicada em produção de verdade, no mesmo dia (2026-09-12)** — não só testada
+> localmente. Rodar `alembic upgrade head` contra o Postgres real revelou que a produção estava
+> **duas revisões atrás** (`3cdd1f03f29c`): as migrações de v0.2.2 (`codigos_recuperacao_mfa`) e
+> v0.2.5 (colunas de sessão em `tokens_acesso`) nunca tinham sido aplicadas — ou seja, "códigos
+> de recuperação de MFA" e "sessões ativas" estavam quebrados em produção até este momento,
+> silenciosamente, sem ninguém ter percebido. A primeira tentativa da migração desta versão
+> também falhou (`inserted_primary_key` não funciona com o `sa.table()` leve usado no script de
+> migração) — o Postgres reverteu a transação inteira sozinho, sem deixar nada pela metade;
+> corrigido com `.returning()` explícito, testado isoladamente com dado real (incluindo colisão
+> de slug) antes de tentar de novo. Resultado final, conferido direto no banco de
+> produção: `alembic current` em `d2e3f4a5b6c7` (head), 8 catálogos, 42 opções — **contagem
+> idêntica**, catálogo por catálogo, à `opcoes_lista` original —, `opcoes_lista` com as mesmas
+> 42 linhas de sempre, intacta. Deploy da API cancelado a tempo (`gh run cancel`) antes de subir
+> código que dependia das tabelas novas enquanto elas ainda não existiam em produção, e
+> re-disparado manualmente só depois da migração confirmada. Testado ao vivo em
+> `https://api.asaf.org.br/api/opcoes/categoria_associado` respondendo no formato de sempre.
+
 ##### v0.3.2 — Catálogos iniciais semeados
 - [ ] Cargos da diretoria e do conselho; categorias de associado; tipos de documento; motivos de
       desligamento; tipos de projeto; tipos de evento; formas de pagamento; tipos de protocolo;
