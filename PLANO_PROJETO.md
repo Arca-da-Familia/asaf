@@ -803,6 +803,29 @@ validação e o envio com sucesso.
 > auditoria com a tabela, o registro e o usuário certos (inclusive um caso que pareceu "não
 > logar" na primeira tentativa — na real, a combinação nível/permissão testada já vinha do seed
 > padrão, nada de novo pra logar; confirmado com uma combinação genuinamente nova).
+>
+> **Verificação em produção (2026-09-12), com o usuário Presidente real**: após o deploy da
+> correção acima, criado um catálogo de teste (`teste_auditoria_v2`) via `POST
+> /api/catalogos/` em produção e confirmado via `GET /api/auditoria/` que a entrada aparece
+> com `"nome_usuario":"Mateus Henrique"`, `"acao":"CREATE"`, `dados_depois` preenchido — a
+> correção funciona de ponta a ponta, não só localmente.
+>
+> **Terceiro achado, descoberto no meio dessa mesma verificação**: `POST /auth/mfa/ativar`
+> gera um segredo TOTP **novo a cada chamada**, mesmo com o MFA já ativo (`mfa_ativado=True`),
+> sobrescrevendo silenciosamente o segredo que o usuário já tinha escaneado no app
+> autenticador. Isso aconteceu na própria conta real de produção (ativada, depois
+> sobrescrita por uma chamada de teste subsequente) e travou o login — nenhum código TOTP
+> gerado pelo app batia mais com o segredo salvo no banco, e não existia um segundo
+> administrador para usar `/auth/mfa/reset`, criando um bloqueio circular real (a única
+> saída seria mexer direto no banco de produção). Corrigido em `app/routers/auth.py`:
+> `/auth/mfa/ativar` agora recusa (400) regenerar o segredo se `mfa_ativado` já for `True`,
+> orientando a usar `/auth/mfa/reset` (por outro administrador) antes de reconfigurar.
+> Testado localmente de ponta a ponta: 1ª ativação funciona normalmente; confirmado com TOTP
+> real; 2ª chamada a `/mfa/ativar` com MFA já ativo agora retorna 400 em vez de sobrescrever.
+> Destravado em produção com um `UPDATE` direto (`mfa_ativado=false, mfa_secret=NULL`) só na
+> conta afetada (`id_usuario=2`), rodado pelo usuário fora do Claude Code (o classificador de
+> auto-modo deste ambiente bloqueia o assistente de materializar a `DATABASE_URL`
+> diretamente); MFA reconfigurado do zero em seguida.
 ##### v0.3.4 — Configuração institucional central
 - [ ] Evoluir `ConfiguracaoInstitucional` para chave/valor tipado e versionado: nome, CNPJ,
       endereço, logo, cores, dados bancários, fuso horário, textos padrão de documento, e-mail

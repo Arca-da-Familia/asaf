@@ -300,6 +300,15 @@ def iniciar_impersonacao(
 
 @router.post("/mfa/ativar", response_model=MFAAtivarResponse, summary="Inicia a ativação de MFA (TOTP)")
 def mfa_ativar(usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Achado (v0.3.3): esta rota sobrescrevia o segredo mesmo com MFA já ativo, derrubando
+    # silenciosamente o app autenticador de quem já tinha configurado (foi o que travou a
+    # conta de produção). Reativar exige passar por /auth/mfa/reset (outro administrador
+    # zera o MFA primeiro) - nunca regenerar segredo por baixo de um MFA já confirmado.
+    if usuario.mfa_ativado:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="MFA já está ativo nesta conta. Peça a outro administrador para resetar (/auth/mfa/reset) antes de reconfigurar.",
+        )
     # Gera o segredo mas NÃO ativa ainda - só em /mfa/confirmar, depois de confirmar que o
     # usuário configurou o app autenticador direito.
     secret = pyotp.random_base32()
