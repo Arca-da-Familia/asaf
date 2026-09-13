@@ -1224,19 +1224,71 @@ ignorá-la). Próxima fase é a FASE 1 (Associados), abaixo.
 > proposta → conferir → aprovar cria associado com matrícula 2 e categoria "Em Experiência",
 > catálogo `status_arrolamento` com a opção nova confirmado no banco.
 
-#### v1.3 — Importação e exportação de base existente
-- [ ] Importação de planilha (Excel/CSV) com assistente de 4 passos: envio → mapeamento de coluna
+#### v1.3 — Importação e exportação de base existente ✅ IMPLEMENTADO (2026-09-14, um item com escopo reduzido por segurança)
+- [~] Importação de planilha (Excel/CSV) com assistente de 4 passos: envio → mapeamento de coluna
       → validação linha a linha com relatório de erro → confirmação.
-- [ ] Detecção de duplicidade por CPF exato **e** por similaridade de nome + data de nascimento,
+      > Assistente de 4 passos construído no painel (`painel/src/pages/ImportarAssociados.tsx`),
+      > testado num navegador de verdade (Playwright) de ponta a ponta: upload → mapeamento
+      > (sugestão automática de coluna por nome, ex. "CPF"/"Documento" → `cpf`) → validação +
+      > checagem de duplicidade → confirmação → resultado com opção de desfazer.
+      > **Só CSV, não Excel (.xlsx), decisão consciente de segurança**: a única biblioteca
+      > client-side madura pra `.xlsx` (`xlsx`/SheetJS via npm) tem duas vulnerabilidades de
+      > alta severidade **sem correção disponível** (prototype pollution + ReDoS -
+      > GHSA-4r6h-8v6p-xvw6, GHSA-5pgg-2g8v-p4x9) - exatamente a superfície de ataque de
+      > "parsear arquivo enviado por qualquer um". Instalado e desinstalado na hora (`npm audit`
+      > confirmou as duas vulnerabilidades antes de eu decidir não usar). Usado `papaparse`
+      > (CSV, sem vulnerabilidade conhecida) no lugar - Excel exporta pra CSV nativamente
+      > ("Salvar como"), documentado na própria tela do assistente.
+- [x] Detecção de duplicidade por CPF exato **e** por similaridade de nome + data de nascimento,
       com tela de resolução (é a mesma pessoa / são pessoas diferentes / mesclar).
-- [ ] Parsing no navegador (o arquivo bruto não sobe pro servidor), importação em lote idempotente
+      > `app/services/duplicidade.py`: CPF exato (bloqueio automático) e nome normalizado
+      > (sem acento/maiúsculas) + mesma data de nascimento (sinal, não bloqueio). Tela de
+      > resolução no assistente deixa escolher "ignorar esta linha" ou "criar mesmo assim" por
+      > linha - **"mesclar" não implementado** (juntar o registro novo com um existente é uma
+      > operação bem mais delicada - qual dado prevalece? - fora de escopo aqui; hoje a
+      > resolução possível é aceitar como pessoa nova ou não importar aquela linha).
+- [x] Parsing no navegador (o arquivo bruto não sobe pro servidor), importação em lote idempotente
       identificada por `lote_id` — permite **desfazer uma importação inteira** que deu errado,
       requisito que quase todo sistema esquece e que salva uma migração ruim.
-- [ ] Exportação com seleção de colunas, sempre registrada em `AuditLog` (quem exportou, quantas
+      > `LoteImportacao` (`app/models/importacao.py`) + `Associado.id_lote_importacao`.
+      > `POST /api/associados/importar-lote/{id}/desfazer` remove todos os associados daquele
+      > lote (Pessoa/Papel/Endereco/Documento/HistoricoCargo/DependenteFamiliar em cascata) -
+      > **bloqueado se qualquer um já tiver lançamento financeiro** (nunca apaga dado
+      > financeiro, mesma regra congelada da FASE 3). Cada linha da importação roda em
+      > `SAVEPOINT` próprio (`db.begin_nested()`) - um erro numa linha não desfaz as outras já
+      > gravadas na mesma chamada (achado corrigido durante a implementação: a primeira versão
+      > usava `db.rollback()` direto, que desfaria o lote inteiro, não só a linha com erro).
+- [x] Exportação com seleção de colunas, sempre registrada em `AuditLog` (quem exportou, quantas
       linhas, quais campos) — exportação de base de associados é o maior vetor de vazamento numa
       associação; ela não pode ser invisível.
-- [ ] Exportação de dado pessoal em massa exige permissão própria (`exportar_dados_pessoais`),
+      > `GET /api/associados/exportar?colunas=...` - allowlist explícita de colunas exportáveis
+      > (nunca um `getattr` solto em cima do parâmetro), audita quem/quantas linhas/quais campos
+      > (nunca o conteúdo em si, pra não o próprio `AuditLog` virar um segundo vazamento).
+- [x] Exportação de dado pessoal em massa exige permissão própria (`exportar_dados_pessoais`),
       separada de "ver associado".
+      > Nova permissão, atribuída só ao Presidente por padrão (Diretoria tem `associados` mas
+      > não `exportar_dados_pessoais`) - testado via impersonação que Diretoria recebe 403.
+>
+> Testado: `pytest tests/` — 61/61 (10 novos em `tests/test_importacao.py`); painel: `vitest`
+> 22/22 (4 novos testando `sugerirMapeamento`/`aplicarMapeamento`), `tsc --noEmit` e `eslint`
+> limpos. Testado também num navegador real via Playwright: login → MFA → assistente completo
+> (upload de CSV com 2 linhas reais → mapeamento sugerido automaticamente → validação sem erro →
+> confirmação → "2 criado(s), 0 ignorado(s), 0 erro(s)" → botão de desfazer funcionando).
+>
+> **Achado de infraestrutura, corrigido no caminho**: `painel/vite.config.ts` só tinha proxy de
+> dev pra `/auth` e `/uploads` - `/api/*` (usado por praticamente toda tela construída desde a
+> v0.2.3) nunca tinha sido adicionado, então nenhuma tela que chama a API funcionava contra o
+> backend local via `npm run dev` sem configurar `VITE_API_URL` manualmente. Corrigido
+> adicionando `/api` e `/carteirinha` ao proxy - benefício void pra qualquer trabalho futuro no
+> painel, não só esta versão.
+>
+> **Achado de segurança em dependências pré-existentes, não introduzido por esta versão, mas
+> encontrado rodando `npm audit` durante o trabalho**: `painel/package.json` já tinha
+> `vitest`/`vite`/`react-router-dom` com vulnerabilidades conhecidas (uma delas crítica -
+> `vitest`, path traversal via `@vitest/mocker`). Não corrigido aqui - `npm audit fix --force`
+> instalaria versões com breaking changes (`vitest@5`, `react-router-dom@7`) que exigem teste
+> completo do painel, fora do escopo de "importar associados". Registrado como pendência na
+> FASE 18 (Qualidade de software).
 
 #### v1.4 — Mudança de situação: licença, transferência, desligamento e retorno
 - [ ] Licença temporária (motivo de catálogo, período, efeito sobre voto e mensalidade conforme
@@ -2888,6 +2940,14 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 Dimensionada ao porte do sistema: confiável, mas sem o rigor de um sistema financeiro regulado.
 **Esta fase não é "no fim do projeto"** — os padrões que ela define entram junto com o primeiro
 módulo (v0.2.8 já aplica a parte de front-end). Está numerada aqui por ser transversal.
+
+> **Pendência de segurança registrada pela v1.3 (2026-09-14)**: `painel/package.json` tem
+> `vitest`/`vite`/`react-router-dom` com vulnerabilidades conhecidas no `npm audit` (uma
+> crítica: path traversal via `@vitest/mocker`). Não são vulnerabilidades introduzidas pela
+> v1.3 (já existiam), só encontradas rodando `npm audit` durante o trabalho dela. Corrigir
+> exige `npm audit fix --force` (breaking change: `vitest@5`, `react-router-dom@7`) e reteste
+> completo do painel - fora de escopo pontual de qualquer versão de feature; fazer aqui, como
+> tarefa dedicada, com o painel inteiro testado depois.
 
 #### v18.1 — Pirâmide de testes (não pirâmide invertida)
 - [ ] Base: muitos testes unitários rápidos cobrindo regra de negócio real (cálculo de

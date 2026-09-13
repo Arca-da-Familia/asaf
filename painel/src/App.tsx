@@ -11,6 +11,7 @@ import { DevComponents } from '@/pages/DevComponents'
 import { EmConstrucao } from '@/pages/EmConstrucao'
 import { Forbidden } from '@/pages/Forbidden'
 import { Home } from '@/pages/Home'
+import { ImportarAssociadosPage } from '@/pages/ImportarAssociados'
 import { Login } from '@/pages/Login'
 import { MfaSetup } from '@/pages/MfaSetup'
 import { PerfilPage } from '@/pages/Perfil'
@@ -90,6 +91,16 @@ function App() {
             <RequirePermission permission="associados">
               <ErrorBoundary tituloModulo="Associados">
                 <EmConstrucao modulo="Associados" />
+              </ErrorBoundary>
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/associados/importar"
+          element={
+            <RequirePermission permission="associados">
+              <ErrorBoundary tituloModulo="Importar associados">
+                <ImportarAssociadosPage />
               </ErrorBoundary>
             </RequirePermission>
           }

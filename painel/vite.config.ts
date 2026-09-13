@@ -18,6 +18,8 @@ export default defineConfig({
       // funcionar sem CORS nem TLS. Estenda com as rotas de API que forem usadas.
       '/auth': 'http://localhost:8000',
       '/uploads': 'http://localhost:8000',
+      '/api': 'http://localhost:8000',
+      '/carteirinha': 'http://localhost:8000',
     },
   },
 })

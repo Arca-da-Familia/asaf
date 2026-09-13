@@ -629,3 +629,61 @@ export function excluirDefinicaoCampo(
     method: 'DELETE',
   })
 }
+
+// ---------------------------------------------------------------------------
+// Importação/exportação em massa de associados (v1.3) — o arquivo é parseado no navegador
+// (nunca sobe bruto pro servidor); estas funções só trocam JSON já estruturado.
+// ---------------------------------------------------------------------------
+export type LinhaImportacao = {
+  nome_completo: string
+  cpf: string
+  email_contato?: string
+  telefone_whatsapp?: string
+  data_nascimento?: string
+  categoria?: string
+  resolucao: 'nova' | 'ignorar'
+}
+
+export type VeredictoDuplicidade = {
+  indice: number
+  tipo: 'cpf_exato' | 'nome_e_nascimento' | null
+  id_associado: number | null
+  nome_encontrado: string | null
+}
+
+export function verificarDuplicidade(
+  linhas: { nome_completo: string; cpf: string; data_nascimento?: string }[],
+): Promise<{ resultados: VeredictoDuplicidade[] }> {
+  return apiFetch('/api/associados/verificar-duplicidade', {
+    method: 'POST',
+    body: JSON.stringify({ linhas }),
+  })
+}
+
+export type ResultadoImportacao = {
+  id_lote: number
+  criados: number
+  ignorados: number
+  erros: { indice: number; motivo: string }[]
+}
+
+export function importarLote(
+  linhas: LinhaImportacao[],
+): Promise<ResultadoImportacao> {
+  return apiFetch('/api/associados/importar-lote', {
+    method: 'POST',
+    body: JSON.stringify({ linhas }),
+  })
+}
+
+export function desfazerLote(idLote: number): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/associados/importar-lote/${idLote}/desfazer`, {
+    method: 'POST',
+  })
+}
+
+export function exportarAssociados(
+  colunas: string[],
+): Promise<{ colunas: string[]; linhas: Record<string, unknown>[] }> {
+  return apiFetch(`/api/associados/exportar?colunas=${colunas.join(',')}`)
+}

@@ -166,11 +166,12 @@ def seed_niveis_e_permissoes():
         {"modulo": "governanca", "codigo_permissao": "governanca", "descricao": "Gerenciar assembleias e votações."},
         {"modulo": "projetos", "codigo_permissao": "projetos", "descricao": "Gerenciar projetos e voluntários."},
         {"modulo": "core", "codigo_permissao": "auditoria", "descricao": "Consultar a trilha de auditoria."},
+        {"modulo": "associados", "codigo_permissao": "exportar_dados_pessoais", "descricao": "Exportar dado pessoal de associados em massa (v1.3 - separada de 'associados' de propósito)."},
     ]
     # Nível -> lista de códigos de permissão que ele recebe por padrão (ajustável depois pela
     # própria tela de administração de acesso, isto aqui é só ponto de partida).
     atribuicoes_padrao = {
-        "Presidente": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria"],
+        "Presidente": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria", "exportar_dados_pessoais"],
         "Diretoria": ["associados", "financeiro", "governanca", "projetos"],
         "Conselho Fiscal": ["financeiro", "auditoria"],
         "Associado": [],
