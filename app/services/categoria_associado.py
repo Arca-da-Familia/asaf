@@ -1,15 +1,24 @@
-"""v1.1 - categoria (`status_arrolamento`) deixa de ser editável à mão pelo admin (removida de
-`AssociadoAdminUpdate`): é calculada a partir de dado financeiro real e materializada em
-`Associado.status_arrolamento` a cada evento relevante (novo título, pagamento) - `calcular_categoria`
-é a fonte da verdade (pode ser chamada isolada, sem gravar nada); `recalcular_categoria_associado`
-materializa o resultado só quando muda, sempre auditado.
+"""v1.1/v1.2 - categoria (`status_arrolamento`) deixa de ser editável à mão pelo admin (removida
+de `AssociadoAdminUpdate`): é calculada a partir de dado real e materializada em
+`Associado.status_arrolamento` a cada evento relevante (novo título, pagamento) -
+`calcular_categoria` é a fonte da verdade (pode ser chamada isolada, sem gravar nada);
+`recalcular_categoria_associado` materializa o resultado só quando muda, sempre auditado.
 
-Só sabe transicionar entre os dois estados sustentados por dado real hoje (`Ativo - Em Dia` /
-`Ativo - Inadimplente`, derivados de `TituloFinanceiro` + `DIAS_TOLERANCIA_INADIMPLENCIA`).
+Só sabe transicionar entre os três estados sustentados por dado real hoje (`Em Experiência`,
+enquanto `Associado.data_fim_experiencia` não passou - v1.2; `Ativo - Em Dia` / `Ativo -
+Inadimplente`, derivados de `TituloFinanceiro` + `DIAS_TOLERANCIA_INADIMPLENCIA` - v1.1).
 NUNCA sobrescreve `Suspenso (Estatuto)` ou `Desligado` - esses dependem de fluxo próprio que
-ainda não existe (período de experiência/filiação: v1.2; licença/desligamento: v1.4 - ver
-pendência registrada nessas seções do PLANO_PROJETO.md). Isso é intencional, não uma lacuna
-esquecida: categoria calculada sem o dado que a sustenta seria só fingir precisão que não existe."""
+ainda não existe (licença/desligamento: v1.4 - ver pendência registrada lá). Isso é
+intencional, não uma lacuna esquecida: categoria calculada sem o dado que a sustenta seria só
+fingir precisão que não existe.
+
+**Limitação aceita (mesma da v1.1a)**: a transição de "Em Experiência" pra Ativo/Inadimplente ao
+fim do prazo só é recalculada no PRÓXIMO evento financeiro (lançamento/baixa de título) ou numa
+chamada explícita a `recalcular_categoria_associado` - não existe scheduler/cron neste projeto
+pra recalcular sozinho no instante exato em que o prazo vence. `calcular_categoria` (a fonte da
+verdade) sempre reflete o estado correto na hora que é chamada; só o campo MATERIALIZADO pode
+ficar temporariamente desatualizado - por isso o endpoint `/categoria-calculada` existe, pra
+essa divergência ser visível e auditável em vez de escondida."""
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -20,13 +29,19 @@ from app.config_cache import obter_configuracao
 from app.models.associados import Associado
 from app.models.financeiro import TituloFinanceiro
 
+EM_EXPERIENCIA = "Em Experiência"
 ATIVO_EM_DIA = "Ativo - Em Dia"
 ATIVO_INADIMPLENTE = "Ativo - Inadimplente"
-_ESTADOS_CALCULAVEIS = {ATIVO_EM_DIA, ATIVO_INADIMPLENTE, None, ""}
+_ESTADOS_CALCULAVEIS = {EM_EXPERIENCIA, ATIVO_EM_DIA, ATIVO_INADIMPLENTE, None, ""}
 
 
 def calcular_categoria(db: Session, id_associado: int) -> str:
-    """Fonte da verdade - recalcula do zero a partir do financeiro, sem tocar no banco."""
+    """Fonte da verdade - recalcula do zero a partir do financeiro e do período de experiência,
+    sem tocar no banco."""
+    associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
+    if associado and associado.data_fim_experiencia and datetime.utcnow() < associado.data_fim_experiencia:
+        return EM_EXPERIENCIA
+
     tolerancia_dias = int(obter_configuracao(db, "DIAS_TOLERANCIA_INADIMPLENCIA", "30") or "30")
     limite = datetime.utcnow() - timedelta(days=tolerancia_dias)
     existe_titulo_vencido = (

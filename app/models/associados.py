@@ -25,6 +25,12 @@ class Associado(Base):
     observacoes_gerenciais = Column(String, nullable=True)
     data_admissao = Column(DateTime, default=datetime.utcnow)
     id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+    # v1.2 - matrícula é número sequencial voltado pro humano (carteirinha, ofício, ata), nunca
+    # o PK interno - atribuída na efetivação (ficha master direta ou filiação aprovada).
+    numero_matricula = Column(Integer, unique=True, nullable=True, index=True)
+    # v1.2 - fim do período de experiência configurável (PRAZO_EXPERIENCIA_DIAS); nulo = sem
+    # período de experiência. Ver app/services/categoria_associado.py.
+    data_fim_experiencia = Column(DateTime, nullable=True)
 
     nome_completo = association_proxy("pessoa", "nome_completo", creator=lambda v: Pessoa(nome_completo=v))
     cpf = association_proxy("pessoa", "cpf", creator=lambda v: Pessoa(cpf=v))

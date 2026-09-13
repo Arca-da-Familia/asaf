@@ -25,6 +25,7 @@ from app.schemas.associados import (
 )
 from app.security import criar_token_carteirinha, decodificar_token_carteirinha
 from app.services.categoria_associado import calcular_categoria
+from app.services.matricula import proximo_numero_matricula
 
 router = APIRouter()
 
@@ -39,7 +40,8 @@ def cadastrar_ficha_master(dados: AssociadoMasterCriar, db: Session = Depends(ge
             categoria=dados.categoria,
             data_nascimento=datetime.combine(dados.data_nascimento, datetime.min.time()) if dados.data_nascimento else None,
             estado_civil=dados.estado_civil,
-            profissao=dados.profissao, naturalidade=dados.naturalidade
+            profissao=dados.profissao, naturalidade=dados.naturalidade,
+            numero_matricula=proximo_numero_matricula(db),  # v1.2
         )
         db.add(novo_associado)
         db.commit()

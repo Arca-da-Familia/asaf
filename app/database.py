@@ -73,6 +73,7 @@ def seed_catalogos():
         "status_arrolamento": ("Situação de arrolamento", False, [
             ("ATIVO_EM_DIA", "Ativo - Em Dia"), ("ATIVO_INADIMPLENTE", "Ativo - Inadimplente"),
             ("SUSPENSO_ESTATUTO", "Suspenso (Estatuto)"), ("DESLIGADO", "Desligado"),
+            ("EM_EXPERIENCIA", "Em Experiência"),  # v1.2 - mesmo rótulo inserido via migração b6c7d8e9f0a1
         ]),
         "estado_civil": ("Estado civil", True, [
             ("SOLTEIRO_A", "Solteiro(a)"), ("CASADO_A", "Casado(a)"), ("DIVORCIADO_A", "Divorciado(a)"),
@@ -233,6 +234,7 @@ def seed_configuracoes_institucionais():
         {"chave": "PRAZO_CONVOCACAO_DIAS", "valor": "15", "tipo": "numero", "categoria": "regras", "descricao": "Dias mínimos de antecedência para convocação de assembleia."},
         {"chave": "DIAS_TOLERANCIA_INADIMPLENCIA", "valor": "30", "tipo": "numero", "categoria": "regras", "descricao": "Dias de atraso tolerados antes de marcar associado como inadimplente."},
         {"chave": "TETO_ALCADA_FINANCEIRA", "valor": "1000", "tipo": "numero", "categoria": "regras", "descricao": "Valor máximo (R$) que a Diretoria aprova sem submeter à Assembleia."},
+        {"chave": "PRAZO_EXPERIENCIA_DIAS", "valor": "90", "tipo": "numero", "categoria": "regras", "descricao": "Dias de experiência de um novo associado antes de virar Ativo pleno (0 = sem período de experiência)."},
     ]
     db = SessaoLocal()
     try:

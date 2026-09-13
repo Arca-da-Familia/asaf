@@ -2,10 +2,10 @@
 e o bloqueio de chave desconhecida (chaves são fixas, semeadas - nunca criadas via API)."""
 
 
-def test_listar_configuracoes_traz_as_13_chaves_semeadas(client, auth_headers):
+def test_listar_configuracoes_traz_as_chaves_semeadas(client, auth_headers):
     resposta = client.get("/api/configuracoes/", headers=auth_headers)
     assert resposta.status_code == 200
-    assert len(resposta.json()) == 13
+    assert len(resposta.json()) == 14  # 13 da v0.3.4 + PRAZO_EXPERIENCIA_DIAS (v1.2)
 
 
 def test_atualizar_configuracao_tipo_numero_valido(client, auth_headers):

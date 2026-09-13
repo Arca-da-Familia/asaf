@@ -10,6 +10,7 @@ from app.database import get_db
 from app.models.associados import Associado, DocumentoAnexo, Endereco
 from app.models.core import NivelAcesso, PermissaoSistema, TokenAcesso, Usuario, perfil_permissao
 from app.models.pessoas import Papel
+from app.services.matricula import proximo_numero_matricula
 from app.schemas.auth import (
     AlterarSenhaRequest,
     BootstrapAdminRequest,
@@ -387,6 +388,7 @@ def bootstrap_admin(dados: BootstrapAdminRequest, db: Session = Depends(get_db))
             cpf=dados.cpf,
             email_contato=dados.email,
             categoria="Fundador",
+            numero_matricula=proximo_numero_matricula(db),  # v1.2 - mesma regra de todo Associado novo
         )
         db.add(associado)
         db.flush()

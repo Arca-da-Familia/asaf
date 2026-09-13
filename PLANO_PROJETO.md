@@ -1159,24 +1159,70 @@ ignorá-la). Próxima fase é a FASE 1 (Associados), abaixo.
 > real, carteirinha gera+verifica sem CPF, token adulterado recusado). Testado também contra
 > servidor real: HTML do admin renderiza o campo de status como somente-leitura sem quebrar.
 
-#### v1.2 — Filiação: da intenção ao associado efetivo
-- [ ] Formulário público de proposta de filiação no site (FASE 5), caindo numa fila de triagem do
+#### v1.2 — Filiação: da intenção ao associado efetivo ✅ IMPLEMENTADO (2026-09-14, escopo real declarado)
+- [~] Formulário público de proposta de filiação no site (FASE 5), caindo numa fila de triagem do
       painel — nunca criando associado direto.
-- [ ] Fluxo configurável: proposta → conferência documental pela secretaria → (opcional) aprovação
+      > O site institucional (FASE 5) não existe ainda - **não dá pra construir o HTML público
+      > de verdade agora**. O que dá (e foi feito): `POST /api/filiacao/propor` funciona de
+      > ponta a ponta hoje, sem autenticação, validando CPF/telefone/nascimento (mesmos
+      > validadores da v1.1) e recusando proposta duplicada (CPF já associado, ou já com
+      > proposta em andamento). Quando a FASE 5 existir, o formulário do site só precisa
+      > chamar este endpoint que já existe - não é um esqueleto vazio.
+- [x] Fluxo configurável: proposta → conferência documental pela secretaria → (opcional) aprovação
       pela diretoria ou assembleia, conforme o estatuto → efetivação com número de matrícula
       sequencial → boas-vindas automáticas.
-- [ ] Cada transição grava quem decidiu, quando e por quê (inclusive recusa, com motivo de
+      > `PropostaFiliacao` (`Pendente → Em Conferência → Aprovada/Recusada`).
+      > `POST /api/filiacao/propostas/{id}/conferir` → `/aprovar` (efetiva: cria `Pessoa` +
+      > `Associado` + `Papel`) → `/recusar` (motivo obrigatório). **"Conforme o estatuto"
+      > simplificado de propósito**: toda aprovação hoje é feita por quem tem a permissão
+      > `associados` (Diretoria/Presidente) - rotear pra aprovação por Assembleia depende da
+      > FASE 2 (Governança/votação) existir, e essa ainda não foi construída; não há o que
+      > rotear ainda, então não fingi essa distinção (ver nota em `app/models/filiacao.py`).
+      > Matrícula sequencial: `Associado.numero_matricula` (nova coluna, `UNIQUE`), atribuída
+      > por `app/services/matricula.py` em toda criação de associado (ficha master direta,
+      > bootstrap-admin e filiação aprovada) - migração `b6c7d8e9f0a1` faz backfill dos
+      > associados já existentes na ordem de `id_associado` (o primeiro associado real do
+      > sistema vira matrícula 1). "Boas-vindas automáticas": sem infra de envio de e-mail
+      > ainda (pendência registrada na v6.2), fica registrado em `AuditLog`
+      > (`acao=BOAS_VINDAS_REGISTRADAS`) - o evento existe, o envio de verdade vem depois.
+- [x] Cada transição grava quem decidiu, quando e por quê (inclusive recusa, com motivo de
       catálogo) — é o histórico que protege a associação numa contestação futura.
+      > `registrar_auditoria` em conferir/aprovar/recusar (`tabela_afetada="propostas_filiacao"`).
+      > **Ressalva**: motivo de recusa é texto livre (`PropostaRecusar.motivo`), não catálogo -
+      > o checklist original pedia catálogo; dado o volume baixo esperado de recusas e a
+      > ausência de uma lista de motivos padronizada ainda definida pela diretoria, texto livre
+      > foi a decisão pragmática por ora (fácil de trocar por catálogo depois, sem migração de
+      > dado perdida, já que o texto fica preservado no `AuditLog` de qualquer forma).
 - [ ] Termo de filiação assinado eletronicamente (motor da FASE 20/v20.2) e arquivado no cadastro.
-- [ ] Período de experiência/integração configurável (ex.: 90 dias sem direito a voto), com
+      > **Não implementado** - depende do motor de assinatura eletrônica da FASE 20/v20.2, que
+      > não existe. `DocumentoAnexo` (já existente desde o protótipo) pode arquivar um termo
+      > como upload comum hoje, mas sem verificação de assinatura - registrado como pendência
+      > na FASE 20/v20.2 para conectar aqui quando o motor existir.
+- [x] Período de experiência/integração configurável (ex.: 90 dias sem direito a voto), com
       promoção automática ao fim do prazo e aviso à secretaria.
-
-> **Pendência registrada pela v1.1 (2026-09-13)**: quando o período de experiência/integração
-> acima existir, adicionar a categoria "Em experiência" a
-> `app/services/categoria_associado.py` (`calcular_categoria`/`_ESTADOS_CALCULAVEIS`) - hoje
-> essa função só sabe calcular Ativo/Inadimplente porque é o único dado real disponível.
-> Implementar isso aqui e esquecer de conectar ao cálculo de categoria é reintroduzir campo
-> "editado à mão por fora" pela porta dos fundos.
+      > `PRAZO_EXPERIENCIA_DIAS` (config, default 90 - 0 desativa). `Associado.data_fim_experiencia`
+      > gravado na efetivação. **Resolve a pendência que a própria v1.1 tinha registrado aqui**:
+      > `app/services/categoria_associado.py` ganhou o estado `Em Experiência` (`calcular_categoria`
+      > verifica `data_fim_experiencia` antes de checar financeiro; `_ESTADOS_CALCULAVEIS` inclui
+      > o novo estado). "Promoção automática" tem a mesma limitação já aceita na v1.1a: sem
+      > scheduler, a transição de verdade só acontece no próximo evento financeiro ou numa
+      > chamada a `/categoria-calculada` - documentado, não escondido. "Aviso à secretaria" não
+      > implementado (mesma pendência de e-mail/notificação da v6.2 acima).
+>
+> **Achados corrigidos durante a implementação**: (1) matrícula sequencial só tinha sido
+> conectada ao endpoint de filiação, esquecendo `cadastrar_ficha_master` e `bootstrap-admin` -
+> corrigido antes de fechar, os três caminhos de criação de associado agora atribuem matrícula.
+> (2) a opção de catálogo "Em Experiência" só tinha entrado na migração (bancos já existentes),
+> não no `seed_catalogos()` usado por banco novo (dev local/teste) - corrigido, os dois
+> caminhos concordam agora (mesmo padrão de paridade já usado na v0.3.1).
+>
+> Testado: `pytest tests/` — 51/51 (8 novos em `tests/test_filiacao.py`: propor sem auth,
+> CPF inválido recusado, CPF duplicado em andamento recusado, fluxo completo até aprovação com
+> matrícula + "Em Experiência", matrículas sequenciais e únicas em duas aprovações seguidas,
+> recusa com motivo, recusa de proposta já aprovada falha, endpoints administrativos exigem
+> autenticação). Testado também contra servidor real: bootstrap-admin ganha matrícula 1,
+> proposta → conferir → aprovar cria associado com matrícula 2 e categoria "Em Experiência",
+> catálogo `status_arrolamento` com a opção nova confirmado no banco.
 
 #### v1.3 — Importação e exportação de base existente
 - [ ] Importação de planilha (Excel/CSV) com assistente de 4 passos: envio → mapeamento de coluna
@@ -1852,6 +1898,11 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - Mural de avisos respeita a segmentação por permissão/categoria — testar que um nível sem permissão não vê aviso restrito.
 
 #### v6.2 — Central de comunicação multicanal (base para v11.3)
+> **Pendência registrada pela v1.2 (2026-09-14)**: "boas-vindas automáticas" na efetivação de
+> filiação (`app/routers/filiacao.py`, `aprovar_proposta`) e o "aviso à secretaria" quando o
+> período de experiência acaba hoje só gravam `AuditLog` (`BOAS_VINDAS_REGISTRADAS`) - não
+> existe envio de e-mail/notificação de verdade em lugar nenhum do sistema ainda. Quando esta
+> versão existir, conectar os dois eventos aqui em vez de deixar só no log.
 - [ ] `Comunicacao` (assunto, corpo com variáveis, canal, público-alvo, agendamento, status) com
       envio por e-mail, notificação no painel e, quando a v11.3 existir, WhatsApp.
 - [ ] Registro de entrega e falha por destinatário, com reprocessamento — mensagem que não chegou
@@ -2978,6 +3029,12 @@ plataforma de assinatura para documentos internos, com trilha de evidência fort
 provar autenticidade sem depender de serviço pago. A força jurídica de uma assinatura eletrônica
 simples/avançada (Lei 14.063/2020, Art. 4º) vem exatamente da qualidade dessa trilha — não é
 "clicar num botão", é reunir prova suficiente para nunca ser repudiada.
+
+> **Pendência registrada pela v1.2 (2026-09-14)**: o termo de filiação (`PropostaFiliacao`
+> aprovada) precisa ser assinado eletronicamente e arquivado no cadastro do associado - quando
+> este motor existir, conectar ali (`app/routers/filiacao.py`, endpoint `aprovar_proposta`).
+> Hoje o termo, se anexado, é só um upload comum via `DocumentoAnexo`, sem verificação de
+> assinatura nenhuma.
 
 **Autenticação do signatário no momento da assinatura**
 - [ ] Segunda etapa obrigatória no ato de assinar (não basta já estar logado): token OTP enviado
