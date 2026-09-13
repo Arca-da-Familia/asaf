@@ -2,11 +2,28 @@
 pessoal (association_proxy pra Pessoa). Cobre exatamente o que a migração e o refactor
 poderiam ter quebrado silenciosamente: criação com papel marcado, dedup por CPF, ordenação e
 resolução de nome via join (os dois pontos que association_proxy não resolve sozinho)."""
-import uuid
+import random
+
+from app.validadores import validar_cpf
 
 
 def _cpf_unico() -> str:
-    return str(uuid.uuid4().int)[:11]
+    """CPF com dígito verificador real (v1.1 passou a validar de verdade) - gera uma base
+    aleatória e calcula os dois dígitos com o mesmo algoritmo de app/validadores.py."""
+    def _dv(base: str, peso_inicial: int) -> int:
+        soma = sum(int(d) * peso for d, peso in zip(base, range(peso_inicial, 1, -1)))
+        resto = (soma * 10) % 11
+        return 0 if resto == 10 else resto
+
+    while True:
+        base = "".join(str(random.randint(0, 9)) for _ in range(9))
+        if base == base[0] * 9:
+            continue
+        dv1 = _dv(base, 10)
+        dv2 = _dv(base + str(dv1), 11)
+        cpf = base + str(dv1) + str(dv2)
+        if validar_cpf(cpf):
+            return cpf
 
 
 def test_bootstrap_admin_cria_pessoa_e_papel_associado(client):

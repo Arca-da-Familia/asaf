@@ -9,6 +9,7 @@ from app.utils import esc
 from app.models.associados import Associado
 from app.models.financeiro import PlanoDeContas, Fornecedor, TituloFinanceiro, TransacaoCaixa
 from app.schemas.financeiro import PlanoContaCriar, FornecedorCriar, TituloCriar, BaixarTitulo
+from app.services.categoria_associado import recalcular_categoria_associado
 
 router = APIRouter()
 
@@ -136,6 +137,10 @@ def lancar_titulo(dados: TituloCriar, db: Session = Depends(get_db)):
     db.add(novo_titulo)
     db.commit()
     db.refresh(novo_titulo)
+    if novo_titulo.id_associado:
+        # v1.1 - novo título pode já nascer vencido (lançamento retroativo); recalcula na hora
+        # em vez de esperar o próximo evento.
+        recalcular_categoria_associado(db, novo_titulo.id_associado)
     return {"mensagem": "Título registrado.", "id_titulo": novo_titulo.id_titulo}
 
 
@@ -183,6 +188,9 @@ def baixar_titulo(dados: BaixarTitulo, db: Session = Depends(get_db)):
     )
     db.add(transacao)
     db.commit()
+    if titulo.id_associado:
+        # v1.1 - pagamento é o gatilho principal: pode tirar o associado de Inadimplente.
+        recalcular_categoria_associado(db, titulo.id_associado)
     return {"mensagem": "Transação registrada no Livro-Caixa.", "saldo_restante": titulo.saldo_devedor}
 
 # ==========================================

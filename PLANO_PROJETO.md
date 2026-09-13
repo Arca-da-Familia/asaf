@@ -1094,24 +1094,70 @@ ignorá-la). Próxima fase é a FASE 1 (Associados), abaixo.
 > legado `/admin/secretaria` — confirmado renderizando o nome de dois associados reais
 > (migrados através da `Pessoa`) na tabela HTML, sem nenhuma mudança na página em si.
 
-#### v1.1 — Cadastro, categorias e qualificação do dado
-- [ ] Cadastro completo (dados pessoais, endereço com preenchimento por CEP, dependentes,
+#### v1.1 — Cadastro, categorias e qualificação do dado ✅ IMPLEMENTADO (2026-09-13)
+- [x] Cadastro completo (dados pessoais, endereço com preenchimento por CEP, dependentes,
       documentos, campos personalizados da v0.3.3).
-- [ ] Validação real: dígito verificador de CPF, CEP existente, e-mail com sintaxe válida,
+      > Dados pessoais/endereço/dependentes/documentos já existiam desde o protótipo
+      > (`app/routers/associados.py`) - v1.1 não recriou, só validou de verdade (abaixo).
+      > Campos personalizados: o motor genérico da v0.3.3
+      > (`/api/campos-personalizados/{entidade}/{id_registro}/valores`) já aceita
+      > `entidade="associado"` sem nenhuma mudança - confirmado que funciona por desenho, não
+      > precisou de código novo. CEP: endpoint novo `GET /api/cep/{cep}` (ViaCEP, gratuito, sem
+      > chave) para autopreenchimento - melhor esforço (503 se o serviço externo estiver fora,
+      > nunca trava o cadastro por dependência de terceiro).
+- [x] Validação real: dígito verificador de CPF, CEP existente, e-mail com sintaxe válida,
       telefone em formato brasileiro, data de nascimento coerente (não futura, idade plausível).
-- [ ] **Categorias calculadas, nunca marcadas à mão**: ativo, inadimplente, em experiência,
+      > `app/validadores.py` (módulo 11 pro CPF, portado do mesmo algoritmo já usado no painel
+      > `lib/cpf.ts` - os dois lados concordam), telefone BR (DDD 11-99, celular exige `9` como
+      > 3º dígito), nascimento (não futura, idade 0-130). E-mail já era `EmailStr` desde sempre
+      > (Pydantic). Aplicado em `AssociadoMasterCriar`/`AssociadoAdminUpdate`/
+      > `AssociadoPerfilUpdate`. CEP validado batendo no ViaCEP (`erro: true` → 404).
+- [x] **Categorias calculadas, nunca marcadas à mão**: ativo, inadimplente, em experiência,
       licenciado, desligado — derivadas de dados reais (tempo de casa, situação financeira,
       registro de licença). Campo derivado é função, não coluna editável.
-- [ ] `v1.1a` — **materialização com auditoria**: a categoria é calculada na leitura, mas também
+      > **Escopo real, não fingido**: só Ativo/Inadimplente são calculados hoje, porque só esses
+      > dois têm dado real que os sustente (`TituloFinanceiro` + `DIAS_TOLERANCIA_INADIMPLENCIA`,
+      > v0.3.4). "Em experiência" depende do período de integração da v1.2 (ainda não existe);
+      > "licenciado"/"desligado" dependem da v1.4 (ainda não existe) - pendências registradas
+      > nessas versões acima, para quando cada uma for construída conectar ao mesmo lugar
+      > (`app/services/categoria_associado.py`). `status_arrolamento` **saiu do schema**
+      > `AssociadoAdminUpdate` (não é mais aceito no `PUT` administrativo) e o campo no formulário
+      > HTML virou só exibição (input desabilitado) - decisão consciente de não fingir cálculo
+      > sem o dado que o sustente, em vez de simular as 5 categorias com dado que não existe.
+- [x] `v1.1a` — **materialização com auditoria**: a categoria é calculada na leitura, mas também
       gravada num campo materializado atualizado por gatilho de evento (pagamento registrado,
       licença lançada), para permitir consulta/relatório rápido sem recalcular a base inteira.
       O cálculo continua sendo a fonte da verdade; o campo materializado é cache verificável.
-- [ ] Indicador de completude do cadastro (percentual de campos preenchidos) — dirige o esforço da
+      > `calcular_categoria()` é a fonte da verdade (pura, não grava nada);
+      > `recalcular_categoria_associado()` materializa em `status_arrolamento` só quando o
+      > cálculo muda, e só se o estado atual for um dos dois calculáveis (nunca sobrescreve
+      > Suspenso/Desligado). Disparado nos dois eventos financeiros reais que existem hoje:
+      > lançar título (`POST /titulos/`) e baixar título (`POST /baixar-titulo/`). Toda mudança
+      > efetiva gera `AuditLog` (`acao=CATEGORIA_RECALCULADA`, antes/depois). Endpoint
+      > `GET /api/associados/{id}/categoria-calculada` expõe o cálculo puro ao lado do
+      > materializado, pra auditar se os dois convergem (`desatualizado: true/false`).
+- [x] Indicador de completude do cadastro (percentual de campos preenchidos) — dirige o esforço da
       secretaria para quem está com dado faltando, em vez de auditoria manual.
-- [ ] Carteirinha digital: QR code assinado (JWT curto com `id_pessoa` + validade), verificável
+      > `GET /api/associados/{id}/completude` - 10 campos (9 de `Pessoa` + endereço), percentual
+      > + lista de quais faltam.
+- [x] Carteirinha digital: QR code assinado (JWT curto com `id_pessoa` + validade), verificável
       por endpoint público `/carteirinha/verificar/{token}` que mostra **só** nome, foto, categoria
       e validade — nunca CPF, nunca telefone, nunca endereço. Evolução prevista para Apple/Google
       Wallet na FASE 19, sem app nativo.
+      > `criar_token_carteirinha`/`decodificar_token_carteirinha` em `app/security.py` (mesmo
+      > `JWT_SECRET`/padrão dos outros tokens, `type="carteirinha"` para não ser confundido com
+      > access token). `GET /api/associados/{id}/carteirinha` gera; `GET
+      > /carteirinha/verificar/{token}` (público) confere o papel "associado" ainda ativo e
+      > devolve só nome/foto/categoria/validade - testado que `cpf`/`telefone_whatsapp`/
+      > `endereco` realmente não aparecem na resposta, e que um token adulterado é rejeitado
+      > (400). Geração de imagem QR fica pro painel (frontend), quando a tela existir - o
+      > backend só assina/verifica o conteúdo.
+>
+> Testado: `pytest tests/` — 43/43 (10 novos em `tests/test_v1_1.py`: CPF/telefone/nascimento
+> inválidos recusados, status_arrolamento não editável via schema, categoria vira Inadimplente
+> com título vencido e volta a Em Dia ao pagar, completude, CEP válido/inválido contra o ViaCEP
+> real, carteirinha gera+verifica sem CPF, token adulterado recusado). Testado também contra
+> servidor real: HTML do admin renderiza o campo de status como somente-leitura sem quebrar.
 
 #### v1.2 — Filiação: da intenção ao associado efetivo
 - [ ] Formulário público de proposta de filiação no site (FASE 5), caindo numa fila de triagem do
@@ -1124,6 +1170,13 @@ ignorá-la). Próxima fase é a FASE 1 (Associados), abaixo.
 - [ ] Termo de filiação assinado eletronicamente (motor da FASE 20/v20.2) e arquivado no cadastro.
 - [ ] Período de experiência/integração configurável (ex.: 90 dias sem direito a voto), com
       promoção automática ao fim do prazo e aviso à secretaria.
+
+> **Pendência registrada pela v1.1 (2026-09-13)**: quando o período de experiência/integração
+> acima existir, adicionar a categoria "Em experiência" a
+> `app/services/categoria_associado.py` (`calcular_categoria`/`_ESTADOS_CALCULAVEIS`) - hoje
+> essa função só sabe calcular Ativo/Inadimplente porque é o único dado real disponível.
+> Implementar isso aqui e esquecer de conectar ao cálculo de categoria é reintroduzir campo
+> "editado à mão por fora" pela porta dos fundos.
 
 #### v1.3 — Importação e exportação de base existente
 - [ ] Importação de planilha (Excel/CSV) com assistente de 4 passos: envio → mapeamento de coluna
@@ -1150,6 +1203,15 @@ ignorá-la). Próxima fase é a FASE 1 (Associados), abaixo.
 - [ ] Falecimento tratado com cuidado específico: registro, encerramento das cobranças, retenção
       do histórico por prazo definido na política de retenção (FASE 7), e supressão da pessoa de
       qualquer comunicação automática — falha aqui é dano humano, não bug.
+
+> **Pendência registrada pela v1.1 (2026-09-13)**: quando licença e desligamento existirem de
+> verdade aqui, conectar as duas categorias restantes ("Licenciado"/"Desligado") a
+> `app/services/categoria_associado.py` (hoje `recalcular_categoria_associado` sabe transicionar
+> só entre Ativo - Em Dia/Ativo - Inadimplente e propositalmente NUNCA mexe num associado que já
+> está Suspenso/Desligado - ver `_ESTADOS_CALCULAVEIS` nesse arquivo). Sem essa conexão, um
+> associado que volta de licença ou é desligado por aqui nunca mais teria a categoria
+> recalculada automaticamente por evento financeiro (ficaria "preso" nesse estado até alguém
+> perceber manualmente) - a intenção desta versão é justamente cobrir esse buraco.
 
 ##### 🔍 Ponto de Revisão — FASE 1 (1/2 — meio, fecha v1.0–v1.4)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
@@ -1366,6 +1428,20 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > Módulo mais sensível do sistema: é onde fraude acontece, é o que o Conselho Fiscal audita, e é o
 > que alimenta a contabilidade (FASE 17). Duas regras estruturais valem para tudo que segue:
 > **(1) nada é excluído, só estornado**; **(2) quem registra nunca é quem aprova**.
+
+> **Pendência crítica registrada pela v1.1 (2026-09-13), achado ao conectar categoria calculada
+> ao financeiro**: `app/routers/financeiro.py` **inteiro** (plano de contas, fornecedores,
+> títulos, baixa de título, livro-caixa) não tem **nenhuma** autenticação
+> (`Depends(get_current_user)`/`exigir_permissao`) nem **nenhuma** chamada a
+> `registrar_auditoria` - é código do protótipo v0.1, nunca migrado quando o resto do sistema
+> ganhou login (v0.1) e auditoria (v0.2.9/achado da v0.3.3). Isso é MAIS grave aqui do que em
+> qualquer outro módulo dado o item 4.1 da seção 4 do plano (fases com dinheiro merecem cuidado
+> extra) - hoje qualquer requisição sem token lança título, baixa pagamento e lê o livro-caixa
+> inteiro. Não corrigido na v1.1 de propósito (é reforma de um router inteiro, fora de escopo de
+> "cadastro de associado"; corrigir só os 2 endpoints que a v1.1 passou a chamar
+> internamente - `lancar_titulo`/`baixar_titulo` - seria pior que corrigir nenhum, por deixar o
+> router com posturas de segurança inconsistentes entre endpoints). **Esta fase não pode
+> começar sem resolver isto primeiro** - é o item 0 de fato de qualquer v3.x daqui.
 
 #### v3.0 — Fundamentos contábeis do módulo
 - [ ] Lançamento em **partida dobrada simplificada**: todo lançamento tem origem e destino

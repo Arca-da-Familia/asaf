@@ -2,9 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 import html
 import os
+import re
+
+import httpx
 
 from app.database import get_db
 from app.utils import esc, iniciais, avatar_html
@@ -20,6 +23,8 @@ from app.schemas.associados import (
     HistoricoCargoCriar,
     HistoricoCargoEncerrar,
 )
+from app.security import criar_token_carteirinha, decodificar_token_carteirinha
+from app.services.categoria_associado import calcular_categoria
 
 router = APIRouter()
 
@@ -269,7 +274,8 @@ def admin_editar_associado(id_associado: int, dados: AssociadoAdminUpdate, db: S
     associado.email_contato = dados.email_contato
     associado.telefone_whatsapp = dados.telefone_whatsapp
     associado.categoria = dados.categoria
-    associado.status_arrolamento = dados.status_arrolamento
+    # v1.1 - status_arrolamento saiu do schema de propósito: não é mais editável à mão aqui,
+    # vira função (app/services/categoria_associado.py), disparada por evento financeiro.
     associado.estado_civil = dados.estado_civil
     associado.profissao = dados.profissao
     associado.naturalidade = dados.naturalidade
@@ -320,6 +326,77 @@ def associado_atualizar_perfil(id_associado: int, dados: AssociadoPerfilUpdate, 
 
     db.commit()
     return {"mensagem": "Seus dados foram atualizados com sucesso!"}
+
+
+# ==========================================
+# CATEGORIA CALCULADA E COMPLETUDE DO CADASTRO (v1.1)
+# ==========================================
+@router.get("/api/associados/{id_associado}/categoria-calculada", summary="Recalcular e comparar a categoria de um associado")
+def obter_categoria_calculada(id_associado: int, db: Session = Depends(get_db)):
+    """O cálculo (a partir do financeiro) é a fonte da verdade - `status_arrolamento` no banco
+    é só um cache atualizado por evento. Este endpoint mostra os dois lado a lado, útil pra
+    conferir se o materializado está desatualizado (ex.: passou o prazo de tolerância sem
+    nenhum evento financeiro novo acontecer)."""
+    if not db.query(Associado).filter(Associado.id_associado == id_associado).first():
+        raise HTTPException(status_code=404, detail="Associado não encontrado.")
+    materializada = db.query(Associado.status_arrolamento).filter(Associado.id_associado == id_associado).scalar()
+    calculada_agora = calcular_categoria(db, id_associado)
+    return {
+        "status_arrolamento_materializado": materializada,
+        "categoria_calculada_agora": calculada_agora,
+        "desatualizado": materializada in ("Ativo - Em Dia", "Ativo - Inadimplente", None, "") and materializada != calculada_agora,
+    }
+
+
+@router.get("/api/associados/{id_associado}/completude", summary="Percentual de preenchimento do cadastro")
+def obter_completude_cadastro(id_associado: int, db: Session = Depends(get_db)):
+    associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
+    if not associado:
+        raise HTTPException(status_code=404, detail="Associado não encontrado.")
+    endereco = db.query(Endereco).filter(Endereco.id_associado == id_associado).first()
+
+    campos = {
+        "nome_completo": bool(associado.nome_completo),
+        "cpf": bool(associado.cpf),
+        "email_contato": bool(associado.email_contato),
+        "telefone_whatsapp": bool(associado.telefone_whatsapp),
+        "data_nascimento": bool(associado.data_nascimento),
+        "estado_civil": bool(associado.estado_civil),
+        "profissao": bool(associado.profissao),
+        "naturalidade": bool(associado.naturalidade),
+        "foto": bool(associado.foto),
+        "endereco": bool(endereco and endereco.cep),
+    }
+    preenchidos = sum(campos.values())
+    total = len(campos)
+    return {
+        "percentual": round(100 * preenchidos / total),
+        "campos_faltando": [campo for campo, ok in campos.items() if not ok],
+    }
+
+
+@router.get("/api/cep/{cep}", summary="Consultar endereço por CEP (autopreenchimento)")
+def consultar_cep(cep: str):
+    """v1.1 - autopreenchimento de endereço e validação de "CEP existente". Serviço externo
+    (ViaCEP, gratuito, sem chave) - melhor esforço: se estiver fora do ar, quem chama decide se
+    bloqueia ou deixa o usuário preencher manualmente (não trava o cadastro por causa de um
+    serviço de terceiro fora do ar)."""
+    digitos = re.sub(r"\D", "", cep)
+    if len(digitos) != 8:
+        raise HTTPException(status_code=422, detail="CEP deve conter 8 dígitos.")
+    try:
+        resposta = httpx.get(f"https://viacep.com.br/ws/{digitos}/json/", timeout=5.0)
+        resposta.raise_for_status()
+        dados = resposta.json()
+    except httpx.HTTPError:
+        raise HTTPException(status_code=503, detail="Serviço de CEP indisponível no momento - preencha manualmente.")
+    if dados.get("erro"):
+        raise HTTPException(status_code=404, detail="CEP não encontrado.")
+    return {
+        "cep": digitos, "logradouro": dados.get("logradouro", ""), "bairro": dados.get("bairro", ""),
+        "cidade": dados.get("localidade", ""), "estado": dados.get("uf", ""),
+    }
+
 
 # ==========================================
 # LISTAS CONFIGURÁVEIS (categorias, status, estado civil, parentesco...)
@@ -428,6 +505,43 @@ async def enviar_foto_associado(id_associado: int, foto: UploadFile = File(...),
     associado.foto = f"/uploads/{caminho_relativo}"
     db.commit()
     return {"mensagem": "Foto atualizada com sucesso.", "foto": associado.foto}
+
+
+# ==========================================
+# CARTEIRINHA DIGITAL (v1.1) — QR assinado, verificação pública sem dado sensível.
+# ==========================================
+@router.get("/api/associados/{id_associado}/carteirinha", summary="Gerar token da carteirinha digital")
+def gerar_carteirinha(id_associado: int, db: Session = Depends(get_db)):
+    associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
+    if not associado:
+        raise HTTPException(status_code=404, detail="Associado não encontrado.")
+    token = criar_token_carteirinha(associado.id_pessoa)
+    return {"token": token, "url_verificacao": f"/carteirinha/verificar/{token}"}
+
+
+@router.get("/carteirinha/verificar/{token}", summary="Verificar carteirinha digital (público)")
+def verificar_carteirinha(token: str, db: Session = Depends(get_db)):
+    """Endpoint público de propósito (é o que a portaria/parceiro escaneia) - por isso devolve
+    só o mínimo pra confirmar identidade visual (nome, foto, categoria, validade). Nunca CPF,
+    telefone ou endereço, mesmo que o token seja válido."""
+    payload = decodificar_token_carteirinha(token)
+    pessoa = db.query(Pessoa).filter(Pessoa.id_pessoa == payload["id_pessoa"]).first()
+    if not pessoa:
+        raise HTTPException(status_code=404, detail="Pessoa não encontrada.")
+    papel = db.query(Papel).filter(Papel.id_pessoa == pessoa.id_pessoa, Papel.tipo_papel == "associado", Papel.ativo == True).first()
+    if not papel:
+        raise HTTPException(status_code=404, detail="Papel de associado inativo ou não encontrado.")
+    associado = db.query(Associado).filter(Associado.id_pessoa == pessoa.id_pessoa).first()
+
+    validade = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
+    return {
+        "nome_completo": pessoa.nome_completo,
+        "foto": pessoa.foto,
+        "categoria": associado.status_arrolamento if associado else None,
+        "valido_ate": validade.isoformat(),
+        "valido": validade > datetime.now(timezone.utc),
+    }
+
 
 # ==========================================
 # INTEGRAÇÃO 1: SECRETARIA <-> MEU PERFIL
@@ -671,12 +785,10 @@ def admin_secretaria(db: Session = Depends(get_db)):
                         </div>
                         <div>
                             <label class="text-xs font-bold text-slate-500 uppercase">Status de Arrolamento</label>
-                            <select id="edit_status" class="w-full p-2 border border-slate-300 rounded-lg bg-slate-50">
-                                <option value="Ativo - Em Dia">Ativo - Em Dia</option>
-                                <option value="Ativo - Inadimplente">Ativo - Inadimplente</option>
-                                <option value="Suspenso (Estatuto)">Suspenso (Estatuto)</option>
-                                <option value="Desligado">Desligado</option>
-                            </select>
+                            <!-- v1.1: deixou de ser editável à mão - é calculado a partir do financeiro
+                                 (app/services/categoria_associado.py). Só exibição aqui. -->
+                            <input id="edit_status" type="text" disabled
+                                   class="w-full p-2 border border-slate-300 rounded-lg bg-slate-100 text-slate-500" />
                         </div>
                     </div>
 
@@ -825,7 +937,6 @@ def admin_secretaria(db: Session = Depends(get_db)):
         <script>
             const SELECTS_POR_TIPO = {{
                 categoria_associado: ['novo_cat', 'edit_cat'],
-                status_arrolamento: ['edit_status'],
                 estado_civil: ['novo_estado_civil', 'edit_estado_civil'],
                 grau_parentesco: ['familia_novo_parentesco'],
                 titulo_cargo: ['cargo_novo_titulo']
@@ -961,7 +1072,6 @@ def admin_secretaria(db: Session = Depends(get_db)):
             async function abrirModal(botao) {{
                 await Promise.all([
                     carregarOpcoes('categoria_associado'),
-                    carregarOpcoes('status_arrolamento'),
                     carregarOpcoes('estado_civil')
                 ]);
                 const d = botao.dataset;
@@ -970,7 +1080,8 @@ def admin_secretaria(db: Session = Depends(get_db)):
                 document.getElementById('edit_email').value = d.email;
                 document.getElementById('edit_tel').value = d.tel;
                 definirValorSelect(document.getElementById('edit_cat'), d.cat);
-                definirValorSelect(document.getElementById('edit_status'), d.status);
+                // v1.1 - status_arrolamento é calculado, não editável; só exibição (input desabilitado).
+                document.getElementById('edit_status').value = d.status || '';
                 document.getElementById('edit_cep').value = d.cep;
                 document.getElementById('edit_log').value = d.log;
                 document.getElementById('edit_num').value = d.num;
@@ -1036,7 +1147,6 @@ def admin_secretaria(db: Session = Depends(get_db)):
                     email_contato: document.getElementById('edit_email').value,
                     telefone_whatsapp: document.getElementById('edit_tel').value,
                     categoria: document.getElementById('edit_cat').value,
-                    status_arrolamento: document.getElementById('edit_status').value,
                     cep: document.getElementById('edit_cep').value,
                     logradouro: document.getElementById('edit_log').value,
                     numero: document.getElementById('edit_num').value,

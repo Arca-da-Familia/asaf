@@ -206,6 +206,33 @@ def decodificar_mfa_pending_token(token: str) -> dict:
     return payload
 
 
+def criar_token_carteirinha(id_pessoa: int, dias_validade: int = 365) -> str:
+    """v1.1 - carteirinha digital: token curto, verificável sem autenticação
+    (/carteirinha/verificar/{token}), que carrega só `id_pessoa` + validade - nunca CPF,
+    telefone ou endereço (o endpoint de verificação também nunca devolve esses dados; ver
+    DECISOES_CONGELADAS sobre dado sensível não vazar em endpoint público)."""
+    _checar_jwt_secret_configurado()
+    agora = datetime.now(timezone.utc)
+    payload = {
+        "id_pessoa": id_pessoa,
+        "iat": agora,
+        "exp": agora + timedelta(days=dias_validade),
+        "type": "carteirinha",
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def decodificar_token_carteirinha(token: str) -> dict:
+    _checar_jwt_secret_configurado()
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Carteirinha inválida ou expirada.")
+    if payload.get("type") != "carteirinha":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Carteirinha inválida.")
+    return payload
+
+
 def criar_refresh_token(
     db: Session,
     usuario: Usuario,
