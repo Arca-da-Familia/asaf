@@ -5,7 +5,7 @@ e o bloqueio de chave desconhecida (chaves são fixas, semeadas - nunca criadas 
 def test_listar_configuracoes_traz_as_chaves_semeadas(client, auth_headers):
     resposta = client.get("/api/configuracoes/", headers=auth_headers)
     assert resposta.status_code == 200
-    assert len(resposta.json()) == 14  # 13 da v0.3.4 + PRAZO_EXPERIENCIA_DIAS (v1.2)
+    assert len(resposta.json()) == 15  # 13 v0.3.4 + PRAZO_EXPERIENCIA_DIAS (v1.2) + PRAZO_RETENCAO_DESLIGADO_DIAS (v1.4)
 
 
 def test_atualizar_configuracao_tipo_numero_valido(client, auth_headers):

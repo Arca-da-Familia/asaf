@@ -74,6 +74,7 @@ def seed_catalogos():
             ("ATIVO_EM_DIA", "Ativo - Em Dia"), ("ATIVO_INADIMPLENTE", "Ativo - Inadimplente"),
             ("SUSPENSO_ESTATUTO", "Suspenso (Estatuto)"), ("DESLIGADO", "Desligado"),
             ("EM_EXPERIENCIA", "Em Experiência"),  # v1.2 - mesmo rótulo inserido via migração b6c7d8e9f0a1
+            ("LICENCIADO", "Licenciado"),  # v1.4 - mesmo rótulo inserido via migração d8e9f0a1b2c3
         ]),
         "estado_civil": ("Estado civil", True, [
             ("SOLTEIRO_A", "Solteiro(a)"), ("CASADO_A", "Casado(a)"), ("DIVORCIADO_A", "Divorciado(a)"),
@@ -109,6 +110,11 @@ def seed_catalogos():
             ("INADIMPLENCIA", "Inadimplência"), ("PEDIDO_VOLUNTARIO", "Pedido voluntário"),
             ("FALECIMENTO", "Falecimento"), ("CONDUTA_INCOMPATIVEL", "Conduta incompatível com o estatuto"),
             ("MUDANCA_DE_CIDADE", "Mudança de cidade"),
+        ]),
+        # v1.4 - motivo de licença, mesmo padrão de motivo_desligamento (catálogo editável, não texto livre).
+        "motivo_licenca": ("Motivo de licença", True, [
+            ("SAUDE", "Saúde"), ("MOTIVO_PESSOAL", "Motivo pessoal"),
+            ("MUDANCA_TEMPORARIA", "Mudança temporária de cidade"), ("ESTUDO", "Estudo"),
         ]),
         "tipo_projeto": ("Tipo de projeto", True, [
             ("ASSISTENCIAL", "Assistencial"), ("EDUCACIONAL", "Educacional"), ("CULTURAL", "Cultural"),
@@ -236,6 +242,7 @@ def seed_configuracoes_institucionais():
         {"chave": "DIAS_TOLERANCIA_INADIMPLENCIA", "valor": "30", "tipo": "numero", "categoria": "regras", "descricao": "Dias de atraso tolerados antes de marcar associado como inadimplente."},
         {"chave": "TETO_ALCADA_FINANCEIRA", "valor": "1000", "tipo": "numero", "categoria": "regras", "descricao": "Valor máximo (R$) que a Diretoria aprova sem submeter à Assembleia."},
         {"chave": "PRAZO_EXPERIENCIA_DIAS", "valor": "90", "tipo": "numero", "categoria": "regras", "descricao": "Dias de experiência de um novo associado antes de virar Ativo pleno (0 = sem período de experiência)."},
+        {"chave": "PRAZO_RETENCAO_DESLIGADO_DIAS", "valor": "1825", "tipo": "numero", "categoria": "regras", "descricao": "Dias após o desligamento antes do dado pessoal sensível ser anonimizado (padrão 5 anos - LGPD; ajustar conforme orientação contábil/jurídica real da associação). Nome, matrícula e todo dado financeiro nunca são apagados."},
     ]
     db = SessaoLocal()
     try:

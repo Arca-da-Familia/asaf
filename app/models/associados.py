@@ -34,6 +34,11 @@ class Associado(Base):
     # v1.3 - marca de qual lote de importação em massa esta linha veio (nulo = criado por fora
     # de importação em lote) - permite desfazer o lote inteiro de uma vez.
     id_lote_importacao = Column(Integer, ForeignKey("lotes_importacao.id_lote"), nullable=True)
+    # v1.4 - fim de licença configurável, mesmo mecanismo do período de experiência (v1.2).
+    data_fim_licenca = Column(DateTime, nullable=True)
+    # v1.4 - marco de quando o desligamento ficou efetivo; base do prazo de retenção de dado
+    # pessoal (PRAZO_RETENCAO_DESLIGADO_DIAS) antes da anonimização (app/services/anonimizacao.py).
+    data_desligamento = Column(DateTime, nullable=True)
 
     nome_completo = association_proxy("pessoa", "nome_completo", creator=lambda v: Pessoa(nome_completo=v))
     cpf = association_proxy("pessoa", "cpf", creator=lambda v: Pessoa(cpf=v))

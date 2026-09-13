@@ -9,7 +9,7 @@ def test_exportar_traz_catalogos_e_configuracoes(client, auth_headers):
     assert resposta.status_code == 200
     corpo = resposta.json()
     assert "catalogos" in corpo and "configuracoes" in corpo
-    assert len(corpo["configuracoes"]) == 14
+    assert len(corpo["configuracoes"]) == 15
     assert len(corpo["catalogos"]) > 0
 
 

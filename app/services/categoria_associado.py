@@ -4,13 +4,14 @@ de `AssociadoAdminUpdate`): é calculada a partir de dado real e materializada e
 `calcular_categoria` é a fonte da verdade (pode ser chamada isolada, sem gravar nada);
 `recalcular_categoria_associado` materializa o resultado só quando muda, sempre auditado.
 
-Só sabe transicionar entre os três estados sustentados por dado real hoje (`Em Experiência`,
-enquanto `Associado.data_fim_experiencia` não passou - v1.2; `Ativo - Em Dia` / `Ativo -
-Inadimplente`, derivados de `TituloFinanceiro` + `DIAS_TOLERANCIA_INADIMPLENCIA` - v1.1).
-NUNCA sobrescreve `Suspenso (Estatuto)` ou `Desligado` - esses dependem de fluxo próprio que
-ainda não existe (licença/desligamento: v1.4 - ver pendência registrada lá). Isso é
-intencional, não uma lacuna esquecida: categoria calculada sem o dado que a sustenta seria só
-fingir precisão que não existe.
+Só sabe transicionar entre os estados sustentados por dado real hoje (`Licenciado`, enquanto
+`Associado.data_fim_licenca` não passou - v1.4; `Em Experiência`, enquanto
+`Associado.data_fim_experiencia` não passou - v1.2; `Ativo - Em Dia` / `Ativo - Inadimplente`,
+derivados de `TituloFinanceiro` + `DIAS_TOLERANCIA_INADIMPLENCIA` - v1.1). NUNCA sobrescreve
+`Suspenso (Estatuto)` ou `Desligado` - o primeiro não tem fluxo de saída automático definido
+ainda; o segundo é definitivo até uma READMISSÃO explícita (nunca "expira" sozinho - ver
+`app/routers/situacao.py`). Isso é intencional, não uma lacuna esquecida: categoria calculada
+sem o dado que a sustenta seria só fingir precisão que não existe.
 
 **Limitação aceita (mesma da v1.1a)**: a transição de "Em Experiência" pra Ativo/Inadimplente ao
 fim do prazo só é recalculada no PRÓXIMO evento financeiro (lançamento/baixa de título) ou numa
@@ -29,16 +30,19 @@ from app.config_cache import obter_configuracao
 from app.models.associados import Associado
 from app.models.financeiro import TituloFinanceiro
 
+LICENCIADO = "Licenciado"
 EM_EXPERIENCIA = "Em Experiência"
 ATIVO_EM_DIA = "Ativo - Em Dia"
 ATIVO_INADIMPLENTE = "Ativo - Inadimplente"
-_ESTADOS_CALCULAVEIS = {EM_EXPERIENCIA, ATIVO_EM_DIA, ATIVO_INADIMPLENTE, None, ""}
+_ESTADOS_CALCULAVEIS = {LICENCIADO, EM_EXPERIENCIA, ATIVO_EM_DIA, ATIVO_INADIMPLENTE, None, ""}
 
 
 def calcular_categoria(db: Session, id_associado: int) -> str:
-    """Fonte da verdade - recalcula do zero a partir do financeiro e do período de experiência,
-    sem tocar no banco."""
+    """Fonte da verdade - recalcula do zero a partir do financeiro, licença e período de
+    experiência, sem tocar no banco."""
     associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
+    if associado and associado.data_fim_licenca and datetime.utcnow() < associado.data_fim_licenca:
+        return LICENCIADO
     if associado and associado.data_fim_experiencia and datetime.utcnow() < associado.data_fim_experiencia:
         return EM_EXPERIENCIA
 

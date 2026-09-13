@@ -1290,26 +1290,82 @@ ignorá-la). Próxima fase é a FASE 1 (Associados), abaixo.
 > completo do painel, fora do escopo de "importar associados". Registrado como pendência na
 > FASE 18 (Qualidade de software).
 
-#### v1.4 — Mudança de situação: licença, transferência, desligamento e retorno
-- [ ] Licença temporária (motivo de catálogo, período, efeito sobre voto e mensalidade conforme
+#### v1.4 — Mudança de situação: licença, desligamento e retorno ✅ IMPLEMENTADO (2026-09-14)
+> **"Transferência" removida do escopo em 2026-09-14**: o título original desta versão
+> mencionava "transferência", mas nenhum item da lista abaixo chegou a defini-la, e o sistema
+> não tem (nem tem previsão de ter no curto prazo) o conceito de "outra associação" para
+> transferir alguém - não existe rede entre associações hoje. Fica de fora até existir uma
+> razão concreta para essa funcionalidade.
+- [x] Licença temporária (motivo de catálogo, período, efeito sobre voto e mensalidade conforme
       parâmetro) — hoje resolvido informalmente em quase toda associação, aqui vira registro.
-- [ ] Desligamento com causa de catálogo (pedido do associado, inadimplência, exclusão
+      > `POST /api/associados/{id}/licenca` (motivo validado contra catálogo novo
+      > `motivo_licenca` - Saúde/Motivo pessoal/Mudança temporária/Estudo -, período
+      > `data_inicio`/`data_fim_prevista`, documento de referência). Grava `MudancaSituacao`
+      > (`tipo=licenca`) e materializa `status_arrolamento="Licenciado"` +
+      > `Associado.data_fim_licenca`. **"Efeito sobre voto" não implementado** - não existe
+      > sistema de votação ainda (FASE 2); "efeito sobre mensalidade" também não - ninguém
+      > gera mensalidade automática ainda (isso é FASE 3, lançamento manual de título hoje).
+      > Promoção automática ao fim do prazo tem a mesma limitação já aceita na v1.2 (sem
+      > scheduler - `calcular_categoria` sempre correto na hora que é chamado, materializado
+      > só atualiza no próximo evento).
+- [x] Desligamento com causa de catálogo (pedido do associado, inadimplência, exclusão
       disciplinar, falecimento), data efetiva, documento de referência e efeitos automáticos:
       acesso revogado, cobranças futuras canceladas, QR code invalidado.
-- [ ] **Readmissão**: pessoa que volta reaproveita o mesmo `Pessoa`/histórico, com novo período de
+      > `POST /api/associados/{id}/desligar` (motivo validado contra `motivo_desligamento`,
+      > catálogo já existente da v0.3.2). Efeitos automáticos, testados de ponta a ponta contra
+      > servidor real: `Papel` do associado desativado (invalida a carteirinha digital na hora -
+      > reaproveita a checagem de `Papel.ativo` já existente em `verificar_carteirinha`, v1.1,
+      > sem precisar de nenhum código novo pra isso), `Usuario.ativo=False` (acesso ao sistema
+      > revogado), títulos financeiros `Pendente` com vencimento futuro viram `Cancelado`
+      > (dado financeiro nunca é apagado, só marcado - mesma regra congelada da FASE 3).
+- [x] **Readmissão**: pessoa que volta reaproveita o mesmo `Pessoa`/histórico, com novo período de
       filiação — nunca cadastro novo. A linha do tempo mostra os dois períodos.
-- [ ] Falecimento tratado com cuidado específico: registro, encerramento das cobranças, retenção
+      > `POST /api/associados/{id}/readmitir` reativa o mesmo `Associado`/`Pessoa` (nunca cria
+      > registro novo), reativa `Papel` e `Usuario`, aceita CPF/e-mail/telefone novos pra
+      > repopular campos que tiverem sido anonimizados (ver item de anonimização abaixo) -
+      > testado que a carteirinha volta a verificar depois da readmissão. `MudancaSituacao`
+      > (`tipo=readmissao`) registra o evento. "A linha do tempo mostra os dois períodos": a UI
+      > de linha do tempo em si é v1.5 (ainda não construída) - o DADO já existe
+      > (`GET /api/associados/{id}/historico-situacao` lista todos os eventos em ordem), pronto
+      > pra v1.5 renderizar sem precisar de nenhum modelo novo.
+- [x] Falecimento tratado com cuidado específico: registro, encerramento das cobranças, retenção
       do histórico por prazo definido na política de retenção (FASE 7), e supressão da pessoa de
       qualquer comunicação automática — falha aqui é dano humano, não bug.
-
-> **Pendência registrada pela v1.1 (2026-09-13)**: quando licença e desligamento existirem de
-> verdade aqui, conectar as duas categorias restantes ("Licenciado"/"Desligado") a
-> `app/services/categoria_associado.py` (hoje `recalcular_categoria_associado` sabe transicionar
-> só entre Ativo - Em Dia/Ativo - Inadimplente e propositalmente NUNCA mexe num associado que já
-> está Suspenso/Desligado - ver `_ESTADOS_CALCULAVEIS` nesse arquivo). Sem essa conexão, um
-> associado que volta de licença ou é desligado por aqui nunca mais teria a categoria
-> recalculada automaticamente por evento financeiro (ficaria "preso" nesse estado até alguém
-> perceber manualmente) - a intenção desta versão é justamente cobrir esse buraco.
+      > Usa o mesmo fluxo de desligamento (`motivo=FALECIMENTO`, já existente no catálogo desde
+      > a v0.3.2) - "encerramento das cobranças" já é o efeito automático de cancelar títulos
+      > futuros. "Supressão de comunicação automática": não implementado porque não existe
+      > NENHUM envio automático de comunicação em nenhum lugar do sistema ainda (não é uma
+      > lacuna nova, é ausência total da FASE 6/v6.2) - nada a suprimir hoje; quando v6.2
+      > existir, checar `status_arrolamento` antes de enviar.
+>
+> **A retenção/anonimização de dado (achado da v1.1 registrado acima) foi resolvida agora, não
+> adiada pra FASE 7** - decisão explícita do usuário: dado sensível de quem saiu não pode ficar
+> retido sem justificativa até "algum dia" a FASE 7 chegar. `app/services/anonimizacao.py`:
+> `PRAZO_RETENCAO_DESLIGADO_DIAS` (config, default 1825 dias = 5 anos - **valor de partida, não
+> validado juridicamente**; ajustar quando a associação confirmar o prazo certo com
+> contador/advogado). Zera CPF/e-mail/telefone/nascimento/estado civil/profissão/
+> naturalidade/foto em `Pessoa` - **nome completo e número de matrícula NUNCA são apagados**
+> (é o que sustenta o vínculo com registro financeiro/histórico), e nenhum dado de
+> `TituloFinanceiro`/`TransacaoCaixa` é tocado (fica perpétuo, por exigência contábil,
+> exatamente como o usuário descreveu). `POST /api/associados/{id}/anonimizar` (um só,
+> recusa com a data em que fica elegível se ainda não chegou o prazo) e
+> `POST /api/associados/anonimizar-vencidos` (lote - pensado pra um admin rodar
+> periodicamente até existir scheduler de verdade, FASE 16/18). **Cuidado verificado
+> explicitamente**: o `AuditLog` da anonimização registra QUAIS campos foram apagados, nunca
+> os valores em si - senão o próprio log de auditoria vazaria pra sempre o dado que a
+> anonimização existe pra apagar.
+>
+> Testado: `pytest tests/` — 72/72 (11 novos em `tests/test_situacao.py`: licença muda
+> categoria, desligamento com motivo inválido recusado, desligamento invalida papel e bloqueia
+> carteirinha, desligar duas vezes falha, readmissão reativa papel e a carteirinha volta a
+> funcionar, readmitir quem não está desligado falha, anonimizar antes do prazo é recusado,
+> anonimizar depois do prazo apaga dado sensível mas preserva nome/matrícula, anonimização em
+> lote processa só os vencidos, histórico de situação registra os eventos, endpoints exigem
+> autenticação). Testado também contra servidor real com dado "realista" (CPF/nome de
+> verdade): desligado em 2020 → categoria calculada mostra `Desligado` (nunca recalculada
+> automaticamente) → anonimizado com sucesso (prazo de 5 anos já vencido) → `pessoas` mostra
+> nome preservado e CPF/e-mail/telefone `NULL` → `AuditLog` confirmado sem vazar os valores
+> apagados → readmitido com CPF/e-mail novos → dados repopulados corretamente.
 
 ##### 🔍 Ponto de Revisão — FASE 1 (1/2 — meio, fecha v1.0–v1.4)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
