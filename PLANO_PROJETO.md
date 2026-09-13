@@ -845,6 +845,49 @@ validação e o envio com sucesso.
 > gravando (`COMMIT`). Verificado depois: login com o mesmo CPF/senha responde com
 > `id_usuario=1` no token. Sessões antigas (token/cookie com `id_usuario=2`) ficaram
 > invalidadas — esperado, exige novo login.
+
+##### 🔍 Ponto de Revisão — FASE 0 / v0.3 (1/2, meio, fecha v0.3.1–v0.3.3) — aplicado em 2026-09-13 (retroativo)
+> **Achado do próprio processo, não do conteúdo de v0.3.1-v0.3.3**: este ponto de revisão
+> deveria ter sido inserido ANTES de avançar até a v0.3.5 (regra da seção 4.1: toda fase ganha
+> pelo menos um ponto de revisão no meio) — não foi, e só apareceu ao aplicar a checklist
+> retroativamente depois de fechar a v0.3.5. Aplicando os 9 itens do checklist padrão contra
+> v0.3.1-v0.3.3 agora:
+- [x] **Item 1 (implementado e testado de fato)**: sim — cada versão foi verificada com backend
+      local rodando de verdade (curl), não só lida no código; v0.3.1 também teve migração e
+      dado real conferidos em produção.
+- [ ] → [x] **Item 2 (testes automatizados existem e passam)**: **não existia nenhum** até este
+      ponto de revisão — toda verificação de v0.3.1-v0.3.3 (e do projeto inteiro) era manual via
+      curl, nunca virou suíte repetível, apesar de `pytest` estar em `requirements-dev.txt` desde
+      sempre. **Corrigido nesta revisão**: criada a infraestrutura de teste
+      (`tests/conftest.py` — TestClient + SQLite descartável por sessão, fixture de admin via
+      bootstrap-admin) e os testes reais de `tests/test_catalogos.py` (7 casos: criar catálogo,
+      chave duplicada recusada, catálogo de sistema não aceita opção nova, código da opção nunca
+      muda no update, exclusão de opção ativa recusada, exclusão de opção inativa sem uso
+      permitida, escrita sem autenticação recusada) e `tests/test_campos_personalizados.py` (5
+      casos: criar definição, tipo número recusa não-número, tipo número aceita e lê de volta,
+      campo obrigatório recusa vazio, campo seleção exige catálogo). 12 testes, todos passando.
+- [x] **Item 3 (nenhuma regra congelada violada)**: confirmado — Alembic continua sendo o único
+      caminho de mudança de schema (`DECISOES_CONGELADAS.md` 1.3), RBAC por nível continua sendo
+      o único modelo de permissão (1.3.2 / 3.2).
+- [x] **Item 4 (nenhum segredo exposto)**: nenhum segredo novo introduzido nessas versões.
+- [x] **Item 5 (AuditLog de verdade)**: sim, com uma ressalva já corrigida - o achado registrado
+      no fechamento da v0.3.3 (core.py não gravava `AuditLog` em nenhuma escrita) foi corrigido
+      antes deste ponto de revisão, com verificação em produção.
+- [x] **Item 6 (permissão checada no backend)**: sim - `_permissao_gerenciar_catalogos`/
+      `_permissao_gerenciar_campos` (`exigir_permissao("gerenciar_acesso")`) em toda rota de
+      escrita, nunca só escondido no front; testado (`test_escrita_em_catalogo_sem_autenticacao_falha`).
+- [x] **Item 7 (nada fora de escopo adiantado)**: catálogos/campos personalizados ficaram
+      restritos ao motor genérico - nenhuma regra de negócio de FASE futura embutida (ver
+      docstring de `DefinicaoCampo`).
+- [x] **Item 8 (plano atualizado refletindo a realidade)**: sim, cada versão marcada `[x]` com
+      nota de verificação real na hora.
+- [x] **Item 9 (suíte completa continua passando)**: `pytest tests/` — 12 testes (deste
+      intervalo) passando; suíte completa do projeto até aqui é só esta, criada agora.
+
+**Fase não bloqueada**: o único item que falhava (testes automatizados) foi corrigido dentro
+desta mesma revisão, não empurrado como pendência. v0.3 segue para o segundo ponto de revisão,
+no fim (v0.3.4–v0.3.5), abaixo.
+
 ##### v0.3.4 — Configuração institucional central ✅ IMPLEMENTADO (2026-09-12)
 - [x] Evoluir `ConfiguracaoInstitucional` para chave/valor tipado e versionado: nome, CNPJ,
       endereço, logo, cores, dados bancários, fuso horário, textos padrão de documento, e-mail
@@ -909,10 +952,68 @@ validação e o envio com sucesso.
 > redisparar manualmente" documentado nos achados acima (v0.3.1, v0.3.4) não se aplica mais a
 > partir daqui.
 
-##### v0.3.5 — Importação/exportação de configuração
-- [ ] Exportar todos os catálogos e configurações em JSON e reimportar — serve de backup lógico da
+##### v0.3.5 — Importação/exportação de configuração ✅ IMPLEMENTADO (2026-09-13) — fecha a FASE 0/v0.3
+- [x] Exportar todos os catálogos e configurações em JSON e reimportar — serve de backup lógico da
       parametrização, de caminho de cópia entre homologação e produção, e de plano de contingência
       se a base precisar ser recriada.
+      > `GET /api/configuracoes/exportar` devolve `{catalogos: [{chave, nome_exibido, descricao,
+      > editavel_pelo_usuario, opcoes: [{codigo, rotulo, ordem, ativo}]}], configuracoes: [{chave,
+      > valor, tipo, categoria, descricao}]}`. `POST /api/configuracoes/importar` é **upsert por
+      > chave/código estável, nunca apaga** o que já existe e não está no arquivo (mesmo
+      > raciocínio dos seeds - importar de homologação não pode destruir ajuste feito só em
+      > produção) - catálogo/opção ausente cria; existente atualiza. Configuração institucional
+      > nunca cria chave nova via import (só as 13 canônicas da v0.3.4) - chave desconhecida no
+      > arquivo é ignorada e reportada em `configuracoes_ignoradas`, nunca trava o resto da
+      > importação. Uma entrada de `AuditLog` por importação (`acao=IMPORT`, `dados_depois` com
+      > as contagens), não uma por linha - proporcional ao volume de uma operação em lote.
+      > Permissão `gerenciar_acesso`, mesma reutilizada por catálogos/campos/configurações.
+      >
+      > **Achado de rota durante o teste local**: registrar `GET /api/configuracoes/exportar`
+      > DEPOIS de `GET /api/configuracoes/{chave}` faria o FastAPI casar "exportar" como valor de
+      > `{chave}` primeiro (ordem de registro importa) - devolveria 404 em vez de exportar.
+      > Corrigido registrando exportar/importar ANTES das rotas `{chave}`. Testado localmente de
+      > ponta a ponta: export com dado real (15 catálogos + 42 opções + 13 configs);
+      > import criando catálogo/opção novos, atualizando opção existente e ignorando uma chave de
+      > configuração inexistente (contagens corretas, `AuditLog` com o resumo certo); depois,
+      > teste de round-trip completo - reexportar tudo e reimportar o próprio export de volta é
+      > **idempotente** (tudo reportado como "atualizado", nada duplicado, zero chaves
+      > ignoradas) - confirma que o formato de export é o mesmo aceito de volta pelo import, sem
+      > perda de informação no ciclo.
+
+##### 🔍 Ponto de Revisão — FASE 0 / v0.3 (2/2, fim, fecha v0.3.4–v0.3.5) — aplicado em 2026-09-13
+- [x] **Item 1 (implementado e testado de fato)**: sim — v0.3.4 e v0.3.5 verificadas com backend
+      local e, nas duas, também em produção real (migração aplicada, endpoints testados com o
+      usuário Presidente real, `AuditLog` conferido com o nome dele).
+- [x] **Item 2 (testes automatizados existem e passam)**: `tests/test_configuracoes.py` (8
+      casos: listar as 13 chaves, atualizar tipo número válido/inválido, tipo cor inválida, tipo
+      email inválido, chave inexistente 404, auditoria gerada na escrita, escrita sem
+      autenticação recusada) e `tests/test_import_export.py` (4 casos: exportar traz
+      catálogos+configurações, importar cria catálogo novo e ignora chave de config
+      desconhecida, reimportar o export completo é idempotente, importar sem autenticação
+      recusado). Total da suíte (v0.3 inteira): **27 testes, todos passando**
+      (`pytest tests/ -v`). Adicionado como step no próprio `deploy-api.yml`, rodando ANTES do
+      login no Azure — um push com teste quebrado nunca chega a tocar produção.
+- [x] **Item 3 (nenhuma regra congelada violada)**: confirmado.
+- [x] **Item 4 (nenhum segredo exposto)**: a automação de migração (mudança de processo
+      registrada no fechamento da v0.3.4) busca `DATABASE_URL` do Key Vault e mascara o valor
+      explicitamente (`::add-mask::`) antes de qualquer uso — conferido no log real do primeiro
+      deploy que usou o mecanismo (`DATABASE_URL: ***`).
+- [x] **Item 5 (AuditLog de verdade)**: sim, testado em ambos (`UPDATE` em
+      `configuracoes_institucionais`, `IMPORT` em `catalogos_e_configuracoes`).
+- [x] **Item 6 (permissão checada no backend)**: sim - `_permissao_gerenciar_configuracoes`
+      (mesma `gerenciar_acesso`) em toda escrita, testado (`test_atualizar_configuracao_sem_autenticacao_falha`,
+      `test_importar_sem_autenticacao_falha`).
+- [x] **Item 7 (nada fora de escopo adiantado)**: `ConfiguracaoInstitucional` ficou só com "valor
+      atual + quem mudou/quando" - vigência temporal por período (`RegraEstatutaria`) foi
+      explicitamente deixada de fora, registrada como escopo da v0.7.
+- [x] **Item 8 (plano atualizado)**: sim.
+- [x] **Item 9 (suíte completa continua passando)**: `pytest tests/` - 27/27, incluindo os 12
+      testes do ponto de revisão anterior (v0.3.1-v0.3.3) - nada quebrou entre um ponto e outro.
+
+**Fase 0 encerrada.** v0.0 até v0.3.5 completas, testadas (manualmente em produção real e agora
+também por suíte automatizada), documentadas, e com os dois pontos de revisão da fase aplicados
+(o do meio de forma retroativa, corrigindo a lacuna de processo assim que percebida, em vez de
+ignorá-la). Próxima fase é a FASE 1 (Associados), abaixo.
 
 ### FASE 1 — Associados (ciclo de vida completo da pessoa na associação)
 

@@ -30,6 +30,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        run: pip install -r requirements-dev.txt
+
+      - name: Rodar testes automatizados (achado do Ponto de Revisão FASE 0/v0.3)
+        # tests/conftest.py já define seu próprio DATABASE_URL/JWT_SECRET (sqlite descartável
+        # dedicado a teste) - não depende de nada do ambiente de produção.
+        run: pytest tests/ -v
+
       - name: Login no Azure via OIDC
         uses: azure/login@v3
         with:
@@ -43,15 +56,8 @@ jobs:
           echo "::add-mask::$DB_URL"
           echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
       - name: Aplicar migrações Alembic em produção
-        run: |
-          pip install -r requirements-dev.txt
-          alembic upgrade head
+        run: alembic upgrade head
 
       - name: Build da imagem no ACR (sem precisar de Docker no runner)
         run: |

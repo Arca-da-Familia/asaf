@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator
-from typing import Any, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 class OpcaoCriar(BaseModel):
     valor: str
@@ -41,6 +41,34 @@ class PermissaoCriar(BaseModel):
 # no startup (seed_configuracoes_institucionais) - só o valor é editável.
 class ConfiguracaoAtualizar(BaseModel):
     valor: Optional[str] = None
+
+
+# v0.3.5 - importação/exportação de catálogos e configurações (backup lógico / cópia entre
+# ambientes). Import é upsert por chave/código estável - nunca cria chave de configuração fora
+# das 13 canônicas (mesma regra da v0.3.4), nunca apaga o que não está no arquivo.
+class OpcaoCatalogoImportar(BaseModel):
+    codigo: str
+    rotulo: str
+    ordem: int = 0
+    ativo: bool = True
+
+
+class CatalogoImportar(BaseModel):
+    chave: str
+    nome_exibido: str
+    descricao: Optional[str] = None
+    editavel_pelo_usuario: bool = True
+    opcoes: List[OpcaoCatalogoImportar] = []
+
+
+class ConfiguracaoImportar(BaseModel):
+    chave: str
+    valor: Optional[str] = None
+
+
+class ImportarConfiguracaoRequest(BaseModel):
+    catalogos: List[CatalogoImportar] = []
+    configuracoes: List[ConfiguracaoImportar] = []
 
 
 # v0.3.1 - motor genérico de catálogo (ver DECISOES_CONGELADAS.md 1.5).

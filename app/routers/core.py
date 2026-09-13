@@ -14,6 +14,7 @@ from app.models.associados import Associado
 from app.models.core import ConfiguracaoInstitucional, OpcaoLista, Catalogo, OpcaoCatalogo, DefinicaoCampo, ValorCampo, NivelAcesso, PermissaoSistema, perfil_permissao, AuditLog, Usuario
 from app.schemas.core import (
     ConfiguracaoAtualizar,
+    ImportarConfiguracaoRequest,
     OpcaoCriar,
     OpcaoAtualizar,
     NivelAcessoCriar,
@@ -686,6 +687,111 @@ def listar_configuracoes(db: Session = Depends(get_db), usuario: Usuario = Depen
         }
         for c in configs
     ]
+
+
+# v0.3.5 - importação/exportação de catálogos e configurações. Registradas ANTES das rotas
+# `/api/configuracoes/{chave}` de propósito: "exportar"/"importar" são segmentos literais que
+# `{chave}` casaria primeiro se viessem depois (FastAPI resolve rota por ordem de registro).
+@router.get("/api/configuracoes/exportar", summary="Exportar todos os catálogos e configurações em JSON")
+def exportar_configuracao(db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_configuracoes)):
+    catalogos = db.query(Catalogo).order_by(Catalogo.chave).all()
+    opcoes_por_catalogo: dict[int, list] = {}
+    for o in db.query(OpcaoCatalogo).order_by(OpcaoCatalogo.id_catalogo, OpcaoCatalogo.ordem).all():
+        opcoes_por_catalogo.setdefault(o.id_catalogo, []).append(
+            {"codigo": o.codigo, "rotulo": o.rotulo, "ordem": o.ordem, "ativo": o.ativo}
+        )
+    configs = db.query(ConfiguracaoInstitucional).order_by(ConfiguracaoInstitucional.chave_configuracao).all()
+
+    return {
+        "catalogos": [
+            {
+                "chave": c.chave, "nome_exibido": c.nome_exibido, "descricao": c.descricao,
+                "editavel_pelo_usuario": c.editavel_pelo_usuario,
+                "opcoes": opcoes_por_catalogo.get(c.id_catalogo, []),
+            }
+            for c in catalogos
+        ],
+        "configuracoes": [
+            {
+                "chave": cfg.chave_configuracao, "valor": cfg.valor_configuracao, "tipo": cfg.tipo,
+                "categoria": cfg.categoria, "descricao": cfg.descricao,
+            }
+            for cfg in configs
+        ],
+    }
+
+
+@router.post("/api/configuracoes/importar", summary="Importar catálogos e configurações de um JSON exportado")
+def importar_configuracao(
+    dados: ImportarConfiguracaoRequest, request: Request,
+    db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_configuracoes),
+):
+    # Upsert por chave/código estável - nunca apaga o que já existe e não está no arquivo (mesmo
+    # raciocínio dos seeds: importar de homologação não pode destruir ajuste feito só em
+    # produção). Configuração institucional nunca cria chave nova (só as 13 canônicas da v0.3.4)
+    # - chave desconhecida no arquivo é ignorada e contada à parte, nunca vira erro que trava o
+    # resto da importação.
+    catalogos_criados = catalogos_atualizados = 0
+    opcoes_criadas = opcoes_atualizadas = 0
+    configs_atualizadas = 0
+    configs_ignoradas: list[str] = []
+
+    for c_in in dados.catalogos:
+        catalogo = db.query(Catalogo).filter(Catalogo.chave == c_in.chave).first()
+        if catalogo is None:
+            catalogo = Catalogo(
+                chave=c_in.chave, nome_exibido=c_in.nome_exibido, descricao=c_in.descricao,
+                editavel_pelo_usuario=c_in.editavel_pelo_usuario,
+            )
+            db.add(catalogo)
+            db.flush()
+            catalogos_criados += 1
+        else:
+            catalogo.nome_exibido = c_in.nome_exibido
+            catalogo.descricao = c_in.descricao
+            catalogo.editavel_pelo_usuario = c_in.editavel_pelo_usuario
+            catalogos_atualizados += 1
+
+        for o_in in c_in.opcoes:
+            opcao = db.query(OpcaoCatalogo).filter(
+                OpcaoCatalogo.id_catalogo == catalogo.id_catalogo, OpcaoCatalogo.codigo == o_in.codigo
+            ).first()
+            if opcao is None:
+                db.add(OpcaoCatalogo(
+                    id_catalogo=catalogo.id_catalogo, codigo=o_in.codigo, rotulo=o_in.rotulo,
+                    ordem=o_in.ordem, ativo=o_in.ativo,
+                ))
+                opcoes_criadas += 1
+            else:
+                opcao.rotulo = o_in.rotulo
+                opcao.ordem = o_in.ordem
+                opcao.ativo = o_in.ativo
+                opcoes_atualizadas += 1
+
+    for cfg_in in dados.configuracoes:
+        config = db.query(ConfiguracaoInstitucional).filter(ConfiguracaoInstitucional.chave_configuracao == cfg_in.chave).first()
+        if config is None:
+            configs_ignoradas.append(cfg_in.chave)
+            continue
+        _validar_valor_configuracao(config, cfg_in.valor)
+        config.valor_configuracao = cfg_in.valor
+        config.atualizado_em = datetime.utcnow()
+        config.id_usuario_atualizacao = usuario.id_usuario
+        configs_atualizadas += 1
+        invalidar_cache_configuracao(cfg_in.chave)
+
+    db.commit()
+
+    resumo = {
+        "catalogos_criados": catalogos_criados, "catalogos_atualizados": catalogos_atualizados,
+        "opcoes_criadas": opcoes_criadas, "opcoes_atualizadas": opcoes_atualizadas,
+        "configuracoes_atualizadas": configs_atualizadas, "configuracoes_ignoradas": configs_ignoradas,
+    }
+    registrar_auditoria(
+        db, usuario, "catalogos_e_configuracoes", "IMPORT", dados_depois=resumo,
+        ip_origem=request.client.host if request.client else None,
+    )
+    return resumo
 
 
 @router.get("/api/configuracoes/{chave}", summary="Ler uma configuração institucional")
