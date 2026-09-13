@@ -9,6 +9,7 @@ import os
 from app.database import get_db
 from app.utils import esc, iniciais, avatar_html
 from app.models.associados import Associado, Endereco, DependenteFamiliar, DocumentoAnexo, HistoricoCargo
+from app.models.pessoas import Papel, Pessoa
 from app.models.financeiro import TituloFinanceiro
 from app.schemas.associados import (
     AssociadoMasterCriar,
@@ -38,6 +39,11 @@ def cadastrar_ficha_master(dados: AssociadoMasterCriar, db: Session = Depends(ge
         db.add(novo_associado)
         db.commit()
         db.refresh(novo_associado)
+
+        # v1.0 - toda Pessoa que vira Associado ganha o papel "associado" marcado (N:N -
+        # a mesma pessoa pode acumular outros papéis depois, sem recadastro).
+        db.add(Papel(id_pessoa=novo_associado.id_pessoa, tipo_papel="associado"))
+        db.commit()
 
         novo_endereco = Endereco(
             id_associado=novo_associado.id_associado, cep=dados.cep,
@@ -321,10 +327,12 @@ def associado_atualizar_perfil(id_associado: int, dados: AssociadoPerfilUpdate, 
 
 @router.get("/api/associados/busca-simples", summary="Buscar associados para vincular (seletores)")
 def buscar_associados_simples(excluir: int = None, db: Session = Depends(get_db)):
-    consulta = db.query(Associado)
+    # order_by direto em Associado.nome_completo não funciona - é association_proxy (v1.0), não
+    # coluna de verdade; precisa ordenar pela Pessoa via join.
+    consulta = db.query(Associado).join(Pessoa)
     if excluir is not None:
         consulta = consulta.filter(Associado.id_associado != excluir)
-    associados = consulta.order_by(Associado.nome_completo).all()
+    associados = consulta.order_by(Pessoa.nome_completo).all()
     return [{
         "id_associado": a.id_associado,
         "nome_completo": a.nome_completo,

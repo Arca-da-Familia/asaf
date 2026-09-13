@@ -9,6 +9,7 @@ from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.associados import Associado, DocumentoAnexo, Endereco
 from app.models.core import NivelAcesso, PermissaoSistema, TokenAcesso, Usuario, perfil_permissao
+from app.models.pessoas import Papel
 from app.schemas.auth import (
     AlterarSenhaRequest,
     BootstrapAdminRequest,
@@ -388,6 +389,9 @@ def bootstrap_admin(dados: BootstrapAdminRequest, db: Session = Depends(get_db))
             categoria="Fundador",
         )
         db.add(associado)
+        db.flush()
+        # v1.0 - mesma regra de cadastrar_ficha_master: Associado novo ganha o papel marcado.
+        db.add(Papel(id_pessoa=associado.id_pessoa, tipo_papel="associado"))
         db.flush()
     elif associado.id_usuario is not None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este CPF já tem usuário vinculado.")

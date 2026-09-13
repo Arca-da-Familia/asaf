@@ -1029,21 +1029,70 @@ ignorá-la). Próxima fase é a FASE 1 (Associados), abaixo.
 > aprovada, como muda de categoria, como paga, como sai, como volta, e o que fica registrado de
 > cada transição. Sistema de associação que só tem "cadastro" vira planilha bonita.
 
-#### v1.0 — Modelo de pessoa: uma pessoa, vários papéis
-- [ ] **Decisão estrutural**: a mesma pessoa física pode ser, ao mesmo tempo, associada,
+#### v1.0 — Modelo de pessoa: uma pessoa, vários papéis ✅ IMPLEMENTADO (2026-09-13)
+- [x] **Decisão estrutural**: a mesma pessoa física pode ser, ao mesmo tempo, associada,
       voluntária, beneficiária de projeto, aluna, fornecedora pessoa física e participante externa
       de evento. Modelar isso como cadastros separados é o erro que gera duplicidade eterna.
-- [ ] `Pessoa` como raiz (nome, CPF único, data de nascimento, contatos, endereço, foto) +
-      `Papel` N:N (`associado`, `voluntario`, `beneficiario`, `aluno`, `participante_externo`,
-      `funcionario`, `fornecedor_pf`), cada papel com tabela de atributos próprios quando precisar.
-- [ ] `Associado` passa a referenciar `Pessoa` em vez de duplicar dados pessoais — migração
-      Alembic cuidadosa, com script de conversão dos registros existentes e verificação de
-      contagem antes/depois (o mesmo rigor usado na modularização do `servidor.py`).
-- [ ] Chave de deduplicação: CPF normalizado (só dígitos) é único em `Pessoa`. E-mail e telefone
-      normalizados servem de chave secundária de sugestão, nunca de bloqueio (duas pessoas da
-      mesma família compartilham telefone legitimamente).
-- [ ] CPF **não obrigatório** para todos os papéis (criança beneficiária, participante externo de
-      evento) — nesse caso, chave alternativa: nome + data de nascimento + responsável.
+- [x] `Pessoa` como raiz (nome, CPF único, data de nascimento, contatos, foto — endereço
+      continua em `Endereco` ligado ao papel `Associado`, não em `Pessoa`, ver ressalva abaixo) +
+      `Papel` N:N (`id_pessoa`, `tipo_papel`, `ativo`) em `app/models/pessoas.py`. Só o papel
+      `associado` tem tabela satélite de atributos hoje (`Associado`); os outros seis tipos
+      (`voluntario`, `beneficiario`, `aluno`, `participante_externo`, `funcionario`,
+      `fornecedor_pf`) existem como valor válido de `tipo_papel`, sem tabela satélite ainda —
+      **fora de escopo de propósito aqui**, cada um ganha sua tabela quando a FASE
+      correspondente chegar (voluntário na FASE 4, aluno na FASE 14 etc.).
+- [x] `Associado` passa a referenciar `Pessoa` (`id_pessoa`, NOT NULL) em vez de duplicar dado
+      pessoal. Migração `a5b6c7d8e9f0`: cria `pessoas`/`papeis`, copia `nome_completo`/`cpf`/
+      `email_contato`/`telefone_whatsapp`/`data_nascimento`/`estado_civil`/`profissao`/
+      `naturalidade`/`foto` de cada `Associado` existente para uma `Pessoa` nova + um `Papel`
+      (`tipo_papel="associado"`), e só then remove essas 9 colunas de `associados`. Verificação
+      de contagem embutida na própria migração (aborta com `RuntimeError`, revertendo a
+      transação, se `pessoas`/`papeis` criados ≠ `associados` de origem) — mesmo rigor da
+      migração de catálogo v0.3.1. Testado com simulação de dado real (linha única "Mateus
+      Henrique", formato exato do schema de produção): migração e reversão (`downgrade`)
+      testadas, dado idêntico antes/depois em ambos os sentidos.
+      >
+      > **Compatibilidade via `association_proxy`, não reescrita de todo o código**: em vez de
+      > mudar os ~15 pontos do backend que liam/escreviam `associado.nome_completo`/`cpf`/etc.
+      > (mapeados antes de começar, incluindo o portal HTML legado de 1800 linhas ainda em
+      > produção), os 9 campos viraram `association_proxy("pessoa", campo)` em `Associado` —
+      > leitura, escrita e `Associado(nome_completo=..., cpf=..., ...)` no construtor continuam
+      > funcionando **sem nenhuma mudança de código** nesses call sites (cada proxy tem seu
+      > próprio `creator`, então atribuir qualquer um cria a `Pessoa` na hora se ainda não
+      > existir). Confirmado com teste isolado antes de tocar em qualquer call site real.
+      > **Duas exceções reais, com `NotImplementedError` confirmado e corrigidas**: proxy não
+      > funciona em `order_by()` nem em seleção de coluna solta (`query(Associado.campo)`) — só
+      > em comparação (`filter(Associado.cpf == x)`, que funciona igual a antes). Os dois pontos
+      > afetados (`busca-simples` em `associados.py` e resolução de nome de usuário em
+      > `auditoria` no `core.py`) foram reescritos com `join(Pessoa)` explícito.
+      > **Achado real, corrigido antes de fechar**: a migração cria o `Papel` pras linhas
+      > existentes, mas os dois pontos de CRIAÇÃO de associado (`cadastrar_ficha_master` e
+      > `bootstrap-admin`) não criavam o `Papel` pra associado novo — só percebido testando de
+      > ponta a ponta contra um servidor real (a tabela `papeis` ficou vazia mesmo com
+      > associados novos criados). Corrigido nos dois pontos.
+- [ ] Chave de deduplicação: CPF normalizado (só dígitos) é único em `Pessoa` — **feito**
+      (`Pessoa.cpf`, `unique=True`). E-mail e telefone normalizados como chave secundária de
+      sugestão (nunca bloqueio) — **não implementado nesta versão**, fora de escopo: exige uma
+      tela de resolução de duplicidade que só faz sentido quando existir importação em massa
+      (v1.3) ou mais de uma pessoa real no sistema; hoje o sistema tem uma única pessoa real.
+- [ ] CPF **não obrigatório** para todos os papéis: o **modelo** já suporta (`Pessoa.cpf`
+      `nullable=True`, diferente do antigo `Associado.cpf` que era `NOT NULL`) — mas nenhum
+      endpoint hoje cria um `Papel` sem passar por `AssociadoMasterCriar`/`bootstrap-admin`, que
+      continuam exigindo CPF de 11 dígitos por schema. Criar pessoa sem CPF (chave alternativa
+      nome + nascimento + responsável) só tem sentido quando existir o primeiro papel que
+      realmente dispensa CPF (beneficiário criança, participante externo) — **fora de escopo de
+      propósito aqui**, registrado para quando a FASE correspondente (beneficiário: FASE 6;
+      participante externo de evento: FASE 4) chegar.
+>
+> Testado: `pytest tests/` — 33/33 (6 novos em `tests/test_pessoas.py`: bootstrap cria
+> Pessoa+Papel, ficha master cria Pessoa+Papel, CPF duplicado recusado, ordenação via join
+> funciona de verdade com dois nomes fora de ordem alfabética, edição admin propaga pra
+> `Pessoa`, auditoria resolve nome via join). Testado também contra servidor real rodando
+> localmente (não só pytest): bootstrap-admin, `auth/me`, `auth/perfil` GET/PUT,
+> `associados-master` (criar), `api/associados/{id}` (editar), `api/meu-perfil/{id}`,
+> `api/associados/{id}/foto` (upload), `api/associados/{id}/dependentes`, e o portal HTML
+> legado `/admin/secretaria` — confirmado renderizando o nome de dois associados reais
+> (migrados através da `Pessoa`) na tabela HTML, sem nenhuma mudança na página em si.
 
 #### v1.1 — Cadastro, categorias e qualificação do dado
 - [ ] Cadastro completo (dados pessoais, endereço com preenchimento por CEP, dependentes,

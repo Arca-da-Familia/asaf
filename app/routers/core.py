@@ -11,6 +11,7 @@ from app.auditoria import registrar_auditoria
 from app.config_cache import invalidar_cache_configuracao
 from app.database import get_db
 from app.models.associados import Associado
+from app.models.pessoas import Pessoa
 from app.models.core import ConfiguracaoInstitucional, OpcaoLista, Catalogo, OpcaoCatalogo, DefinicaoCampo, ValorCampo, NivelAcesso, PermissaoSistema, perfil_permissao, AuditLog, Usuario
 from app.schemas.core import (
     ConfiguracaoAtualizar,
@@ -425,8 +426,11 @@ def listar_auditoria(
     ids_usuarios = {e.id_usuario for e in entradas if e.id_usuario is not None}
     nomes_por_usuario: dict[int, str] = {}
     if ids_usuarios:
+        # Associado.nome_completo é association_proxy (v1.0) - não dá pra selecionar como
+        # coluna direto, precisa de join com Pessoa (fonte real do dado agora).
         for id_u, nome in (
-            db.query(Associado.id_usuario, Associado.nome_completo)
+            db.query(Associado.id_usuario, Pessoa.nome_completo)
+            .join(Pessoa, Associado.id_pessoa == Pessoa.id_pessoa)
             .filter(Associado.id_usuario.in_(ids_usuarios))
             .all()
         ):
