@@ -40,8 +40,10 @@ jobs:
 
       - name: Rodar testes automatizados (achado do Ponto de Revisão FASE 0/v0.3)
         # tests/conftest.py já define seu próprio DATABASE_URL/JWT_SECRET (sqlite descartável
-        # dedicado a teste) - não depende de nada do ambiente de produção.
-        run: pytest tests/ -v
+        # dedicado a teste) - não depende de nada do ambiente de produção. `python -m pytest`
+        # (não só `pytest`) é necessário para o diretório do repo entrar no sys.path - senão
+        # `from app.main import app` em conftest.py falha com ModuleNotFoundError no runner.
+        run: python -m pytest tests/ -v
 
       - name: Login no Azure via OIDC
         uses: azure/login@v3
@@ -76,4 +78,4 @@ jobs:
 
       - name: Logout
         if: always()
-        run: az logout
+        run: az logout || true

@@ -993,6 +993,14 @@ no fim (v0.3.4–v0.3.5), abaixo.
       recusado). Total da suíte (v0.3 inteira): **27 testes, todos passando**
       (`pytest tests/ -v`). Adicionado como step no próprio `deploy-api.yml`, rodando ANTES do
       login no Azure — um push com teste quebrado nunca chega a tocar produção.
+      >
+      > **Achado confirmado no primeiro deploy real com o step**: o próprio mecanismo provou seu
+      > valor imediatamente — o step falhou (`ModuleNotFoundError: No module named 'app'`) e
+      > bloqueou o deploy antes de chegar no login do Azure, exatamente como desenhado. Causa:
+      > `pytest tests/ -v` (comando direto) não põe a raiz do repositório no `sys.path` do jeito
+      > que `python -m pytest` põe — `conftest.py` fazendo `from app.main import app` funcionava
+      > local (sempre rodado como `python -m pytest`) mas não no runner do GitHub Actions.
+      > Corrigido trocando para `python -m pytest tests/ -v` no workflow.
 - [x] **Item 3 (nenhuma regra congelada violada)**: confirmado.
 - [x] **Item 4 (nenhum segredo exposto)**: a automação de migração (mudança de processo
       registrada no fechamento da v0.3.4) busca `DATABASE_URL` do Key Vault e mascara o valor
