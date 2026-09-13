@@ -886,6 +886,12 @@ validação e o envio com sucesso.
       > só falha pela limitação do dialeto, não da migração em si - sem Postgres local
       > disponível para testar ponta a ponta antes de aplicar em produção (sem Docker neste
       > ambiente), aplicar com atenção redobrada na hora de rodar contra produção de verdade.
+>
+> **Verificação em produção (2026-09-12)**: migração `f4a5b6c7d8e9` aplicada com sucesso contra
+> o Postgres real (a FK via Postgres funcionou de primeira, confirmando a hipótese acima). Após
+> o redeploy, `GET /api/configuracoes/` com o usuário Presidente real devolveu as 13 chaves
+> semeadas; `PUT /api/configuracoes/CNPJ` gravou o valor e gerou entrada em `AuditLog` com
+> `"nome_usuario":"Mateus Henrique"`, `dados_antes`/`dados_depois` corretos.
 
 ##### v0.3.5 — Importação/exportação de configuração
 - [ ] Exportar todos os catálogos e configurações em JSON e reimportar — serve de backup lógico da
