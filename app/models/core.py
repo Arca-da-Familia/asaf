@@ -32,10 +32,18 @@ class NivelAcesso(Base):
     descricao = Column(String)
 
 class ConfiguracaoInstitucional(Base):
+    """v0.3.4 - chave/valor tipado (era só string livre em v0.1). `tipo` orienta validação e
+    renderização (não guarda histórico completo de vigência - isso é `RegraEstatutaria`, v0.7;
+    aqui é só "o valor atual", com quem mudou e quando, auditado via AuditLog a cada escrita)."""
     __tablename__ = "configuracoes_institucionais"
     id_config = Column(Integer, primary_key=True, index=True)
     chave_configuracao = Column(String, unique=True)
-    valor_configuracao = Column(String)
+    valor_configuracao = Column(String, nullable=True)
+    tipo = Column(String(20), default="texto")  # texto, numero, booleano, email, cor, data
+    categoria = Column(String(50), default="geral")
+    descricao = Column(String, nullable=True)
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id_usuario_atualizacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
 
 class OpcaoLista(Base):
     """v0.1-v0.2: valores de lista configurável pelo admin. SUBSTITUÍDO por Catalogo/OpcaoCatalogo

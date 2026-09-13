@@ -212,6 +212,42 @@ def seed_niveis_e_permissoes():
         db.close()
 
 
+def seed_configuracoes_institucionais():
+    """v0.3.4 - chaves canônicas de configuração institucional, tipadas. Só semeia o que ainda
+    não existir (nunca sobrescreve valor que a diretoria já tiver ajustado); roda sempre, mesmo
+    em produção com RUN_DB_MIGRATION=false (mesmo raciocínio de seed_catalogos/
+    seed_niveis_e_permissoes - achado real desta sessão foi seeds amarrados à flag errada)."""
+    from app.models.core import ConfiguracaoInstitucional  # import local, mesmo motivo dos seeds acima
+
+    configs_padrao = [
+        {"chave": "NOME_INSTITUICAO", "valor": "ASAF - Associação Arca da Família", "tipo": "texto", "categoria": "identidade", "descricao": "Nome oficial da instituição, usado no cabeçalho de documentos."},
+        {"chave": "CNPJ", "valor": "", "tipo": "texto", "categoria": "identidade", "descricao": "CNPJ da instituição."},
+        {"chave": "ENDERECO", "valor": "", "tipo": "texto", "categoria": "identidade", "descricao": "Endereço completo da sede."},
+        {"chave": "LOGO_URL", "valor": "", "tipo": "texto", "categoria": "aparencia", "descricao": "URL do logo institucional."},
+        {"chave": "COR_PRIMARIA", "valor": "#1D4ED8", "tipo": "cor", "categoria": "aparencia", "descricao": "Cor primária de documentos e identidade visual."},
+        {"chave": "COR_SECUNDARIA", "valor": "#64748B", "tipo": "cor", "categoria": "aparencia", "descricao": "Cor secundária de documentos e identidade visual."},
+        {"chave": "DADOS_BANCARIOS", "valor": "", "tipo": "texto", "categoria": "financeiro", "descricao": "Banco, agência e conta para recebimento (texto livre)."},
+        {"chave": "FUSO_HORARIO", "valor": "America/Sao_Paulo", "tipo": "texto", "categoria": "geral", "descricao": "Fuso horário usado em datas de documento e agendamento."},
+        {"chave": "EMAIL_REMETENTE", "valor": "", "tipo": "email", "categoria": "geral", "descricao": "E-mail usado como remetente de notificações do sistema."},
+        {"chave": "TEXTO_PADRAO_DOCUMENTO", "valor": "", "tipo": "texto", "categoria": "documentos", "descricao": "Texto padrão (rodapé/aviso legal) incluído nos documentos gerados."},
+        {"chave": "PRAZO_CONVOCACAO_DIAS", "valor": "15", "tipo": "numero", "categoria": "regras", "descricao": "Dias mínimos de antecedência para convocação de assembleia."},
+        {"chave": "DIAS_TOLERANCIA_INADIMPLENCIA", "valor": "30", "tipo": "numero", "categoria": "regras", "descricao": "Dias de atraso tolerados antes de marcar associado como inadimplente."},
+        {"chave": "TETO_ALCADA_FINANCEIRA", "valor": "1000", "tipo": "numero", "categoria": "regras", "descricao": "Valor máximo (R$) que a Diretoria aprova sem submeter à Assembleia."},
+    ]
+    db = SessaoLocal()
+    try:
+        for c in configs_padrao:
+            if db.query(ConfiguracaoInstitucional).filter(ConfiguracaoInstitucional.chave_configuracao == c["chave"]).first():
+                continue
+            db.add(ConfiguracaoInstitucional(
+                chave_configuracao=c["chave"], valor_configuracao=c["valor"],
+                tipo=c["tipo"], categoria=c["categoria"], descricao=c["descricao"],
+            ))
+        db.commit()
+    finally:
+        db.close()
+
+
 def get_db():
     db = SessaoLocal()
     try:

@@ -8,10 +8,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from app.auditoria import registrar_auditoria
+from app.config_cache import invalidar_cache_configuracao
 from app.database import get_db
 from app.models.associados import Associado
 from app.models.core import ConfiguracaoInstitucional, OpcaoLista, Catalogo, OpcaoCatalogo, DefinicaoCampo, ValorCampo, NivelAcesso, PermissaoSistema, perfil_permissao, AuditLog, Usuario
 from app.schemas.core import (
+    ConfiguracaoAtualizar,
     OpcaoCriar,
     OpcaoAtualizar,
     NivelAcessoCriar,
@@ -639,6 +641,87 @@ def definir_valores_campo(
         ip_origem=request.client.host if request.client else None,
     )
     return {"mensagem": "Valores gravados."}
+
+
+# ==========================================
+# CONFIGURAÇÃO INSTITUCIONAL (v0.3.4) — chave/valor tipado. Chaves são fixas (semeadas em
+# seed_configuracoes_institucionais); esta API só lê e atualiza valor, nunca cria/exclui chave.
+# ==========================================
+_permissao_gerenciar_configuracoes = exigir_permissao("gerenciar_acesso")
+
+
+def _validar_valor_configuracao(config: ConfiguracaoInstitucional, valor: Optional[str]) -> None:
+    if valor is None or valor == "":
+        return
+    if config.tipo == "numero":
+        try:
+            float(valor)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"'{config.chave_configuracao}' precisa ser um número.")
+    elif config.tipo == "booleano":
+        if valor not in ("true", "false"):
+            raise HTTPException(status_code=422, detail=f"'{config.chave_configuracao}' precisa ser verdadeiro ou falso.")
+    elif config.tipo == "email":
+        if "@" not in valor or "." not in valor.split("@")[-1]:
+            raise HTTPException(status_code=422, detail=f"'{config.chave_configuracao}' precisa ser um e-mail válido.")
+    elif config.tipo == "cor":
+        if not re.fullmatch(r"#[0-9A-Fa-f]{6}", valor):
+            raise HTTPException(status_code=422, detail=f"'{config.chave_configuracao}' precisa ser uma cor hexadecimal (#RRGGBB).")
+    elif config.tipo == "data":
+        try:
+            datetime.strptime(valor, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"'{config.chave_configuracao}' precisa ser uma data (AAAA-MM-DD).")
+
+
+@router.get("/api/configuracoes/", summary="Listar configurações institucionais")
+def listar_configuracoes(db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+    configs = db.query(ConfiguracaoInstitucional).order_by(
+        ConfiguracaoInstitucional.categoria, ConfiguracaoInstitucional.chave_configuracao
+    ).all()
+    return [
+        {
+            "chave": c.chave_configuracao, "valor": c.valor_configuracao, "tipo": c.tipo,
+            "categoria": c.categoria, "descricao": c.descricao, "atualizado_em": c.atualizado_em,
+        }
+        for c in configs
+    ]
+
+
+@router.get("/api/configuracoes/{chave}", summary="Ler uma configuração institucional")
+def obter_configuracao_por_chave(chave: str, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+    config = db.query(ConfiguracaoInstitucional).filter(ConfiguracaoInstitucional.chave_configuracao == chave).first()
+    if not config:
+        raise HTTPException(status_code=404, detail="Configuração não encontrada.")
+    return {
+        "chave": config.chave_configuracao, "valor": config.valor_configuracao, "tipo": config.tipo,
+        "categoria": config.categoria, "descricao": config.descricao, "atualizado_em": config.atualizado_em,
+    }
+
+
+@router.put("/api/configuracoes/{chave}", summary="Atualizar o valor de uma configuração institucional")
+def atualizar_configuracao(
+    chave: str, dados: ConfiguracaoAtualizar, request: Request,
+    db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_configuracoes),
+):
+    config = db.query(ConfiguracaoInstitucional).filter(ConfiguracaoInstitucional.chave_configuracao == chave).first()
+    if not config:
+        raise HTTPException(status_code=404, detail="Configuração não encontrada.")
+    _validar_valor_configuracao(config, dados.valor)
+
+    valor_antes = config.valor_configuracao
+    config.valor_configuracao = dados.valor
+    config.atualizado_em = datetime.utcnow()
+    config.id_usuario_atualizacao = usuario.id_usuario
+    db.commit()
+    invalidar_cache_configuracao(chave)
+
+    registrar_auditoria(
+        db, usuario, "configuracoes_institucionais", "UPDATE", id_registro_afetado=config.id_config,
+        dados_antes={"valor": valor_antes}, dados_depois={"valor": dados.valor},
+        ip_origem=request.client.host if request.client else None,
+    )
+    return {"chave": config.chave_configuracao, "valor": config.valor_configuracao}
 
 
 # ==========================================

@@ -36,6 +36,13 @@ class PermissaoCriar(BaseModel):
     descricao: Optional[str] = None
 
 
+# v0.3.4 - configuração institucional tipada (nome, CNPJ, dados bancários, parâmetros de
+# regra). Sem "criar"/"excluir" via API de propósito: as chaves válidas são fixas, semeadas
+# no startup (seed_configuracoes_institucionais) - só o valor é editável.
+class ConfiguracaoAtualizar(BaseModel):
+    valor: Optional[str] = None
+
+
 # v0.3.1 - motor genérico de catálogo (ver DECISOES_CONGELADAS.md 1.5).
 class CatalogoCriar(BaseModel):
     chave: str

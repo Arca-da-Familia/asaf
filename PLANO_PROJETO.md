@@ -845,15 +845,47 @@ validação e o envio com sucesso.
 > gravando (`COMMIT`). Verificado depois: login com o mesmo CPF/senha responde com
 > `id_usuario=1` no token. Sessões antigas (token/cookie com `id_usuario=2`) ficaram
 > invalidadas — esperado, exige novo login.
-##### v0.3.4 — Configuração institucional central
-- [ ] Evoluir `ConfiguracaoInstitucional` para chave/valor tipado e versionado: nome, CNPJ,
+##### v0.3.4 — Configuração institucional central ✅ IMPLEMENTADO (2026-09-12)
+- [x] Evoluir `ConfiguracaoInstitucional` para chave/valor tipado e versionado: nome, CNPJ,
       endereço, logo, cores, dados bancários, fuso horário, textos padrão de documento, e-mail
       remetente, parâmetros de regra (prazo de convocação, dias de tolerância de inadimplência,
       teto de alçada financeira).
-- [ ] Toda alteração registrada em `AuditLog` com valor antes/depois — parâmetro que muda regra de
+      > Adicionadas colunas `tipo` (texto/numero/booleano/email/cor/data), `categoria`,
+      > `descricao`, `atualizado_em`, `id_usuario_atualizacao` (migração
+      > `f4a5b6c7d8e9`). 13 chaves canônicas semeadas via `seed_configuracoes_institucionais()`
+      > (roda sempre, mesmo padrão de `seed_catalogos`/`seed_niveis_e_permissoes`, não amarrado
+      > a `RUN_DB_MIGRATION`). "Versionado" aqui é só quem mudou e quando (`atualizado_em`/
+      > `id_usuario_atualizacao`) - vigência temporal completa por período é `RegraEstatutaria`
+      > (v0.7), propositalmente fora de escopo aqui. `GET /api/configuracoes/` (qualquer
+      > usuário autenticado - essas chaves são lidas amplamente, inclusive por não-admin) e
+      > `PUT /api/configuracoes/{chave}` (permissão `gerenciar_acesso`, mesma reutilizada por
+      > catálogos/campos personalizados - sem criar/excluir chave via API, só as 13 fixas).
+      > Validação de tipo no backend (numero/booleano/email/cor#RRGGBB/data) testada localmente
+      > com valor válido e inválido de cada tipo (422 nos inválidos). Bloqueio de escrita em
+      > modo "ver como" confirmado (403, mesma trava da v0.2.9).
+- [x] Toda alteração registrada em `AuditLog` com valor antes/depois — parâmetro que muda regra de
       negócio é dado crítico, não "configuração inocente".
-- [ ] Cache em memória com invalidação na escrita (essas chaves são lidas em quase toda requisição
+      > Testado localmente: `PUT` de `COR_PRIMARIA` gerou entrada `UPDATE` em
+      > `configuracoes_institucionais` com `dados_antes`/`dados_depois` corretos.
+- [x] Cache em memória com invalidação na escrita (essas chaves são lidas em quase toda requisição
       de documento; não podem virar consulta a banco repetida).
+      > `app/config_cache.py` (`obter_configuracao`/`invalidar_cache_configuracao`), chamado a
+      > partir do endpoint de escrita. Testado diretamente (fora do HTTP): 1ª leitura popula o
+      > cache; alterar a linha no banco sem invalidar continua devolvendo o valor antigo (cache
+      > funcionando); após invalidar, devolve o valor novo. Ainda sem nenhum consumidor real
+      > (geração de documento é fase futura) - a função existe pronta pra quando existir.
+      >
+      > **Achado ao testar a migração `f4a5b6c7d8e9` contra SQLite local**: `op.add_column`
+      > com `sa.ForeignKey` embutido no mesmo passo falha no dialeto SQLite ("No support for
+      > ALTER of constraints" - precisa de "batch mode"). Não é bug da migração: Postgres
+      > (produção) aceita `ALTER TABLE ADD COLUMN ... REFERENCES ...` numa tacada só sem
+      > problema; mesmo assim, separado em dois passos (`add_column` sem FK +
+      > `create_foreign_key` à parte) por ser mais portável e não custar nada em produção.
+      > Confirmado via teste isolado (tabela no formato antigo, stamp no revision anterior,
+      > upgrade) que as 4 colunas sem FK aplicam sem erro no SQLite; a 5ª (`create_foreign_key`)
+      > só falha pela limitação do dialeto, não da migração em si - sem Postgres local
+      > disponível para testar ponta a ponta antes de aplicar em produção (sem Docker neste
+      > ambiente), aplicar com atenção redobrada na hora de rodar contra produção de verdade.
 
 ##### v0.3.5 — Importação/exportação de configuração
 - [ ] Exportar todos os catálogos e configurações em JSON e reimportar — serve de backup lógico da
