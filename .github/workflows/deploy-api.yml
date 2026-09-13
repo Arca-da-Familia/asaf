@@ -5,7 +5,9 @@ on:
     branches: [main]
     paths:
       - "app/**"
+      - "alembic/**"
       - "requirements.txt"
+      - "requirements-dev.txt"
       - "Dockerfile"
       - "templates/**"
       - ".github/workflows/deploy-api.yml"
@@ -34,6 +36,22 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Buscar DATABASE_URL do Key Vault
+        run: |
+          DB_URL=$(az keyvault secret show --vault-name kv-asaf-arca --name DATABASE-URL --query value -o tsv)
+          echo "::add-mask::$DB_URL"
+          echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Aplicar migrações Alembic em produção
+        run: |
+          pip install -r requirements-dev.txt
+          alembic upgrade head
 
       - name: Build da imagem no ACR (sem precisar de Docker no runner)
         run: |
