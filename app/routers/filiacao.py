@@ -16,6 +16,7 @@ from app.models.pessoas import Papel, Pessoa
 from app.schemas.filiacao import PropostaAprovar, PropostaFiliacaoCriar, PropostaRecusar
 from app.security import exigir_permissao, get_current_user
 from app.services.categoria_associado import ATIVO_EM_DIA, EM_EXPERIENCIA, calcular_categoria
+from app.services.linha_do_tempo import publicar_evento_linha_do_tempo
 from app.services.matricula import proximo_numero_matricula
 
 router = APIRouter()
@@ -136,6 +137,10 @@ def aprovar_proposta(
     registrar_auditoria(
         db, usuario, "associados", "BOAS_VINDAS_REGISTRADAS", id_registro_afetado=novo_associado.id_associado,
         ip_origem=request.client.host if request.client else None,
+    )
+    publicar_evento_linha_do_tempo(
+        db, novo_associado.id_associado, "filiacao", "FILIACAO_APROVADA", "Filiação aprovada",
+        descricao=f"Matrícula {novo_associado.numero_matricula} atribuída.",
     )
     return {
         "mensagem": "Associado efetivado com sucesso.",

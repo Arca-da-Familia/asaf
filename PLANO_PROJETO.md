@@ -1488,12 +1488,51 @@ avançar; o único achado (falta de teste explícito pra CPF formatado) foi regi
 pendência de cobertura, não como bug de comportamento. FASE 1 segue para v1.5–v1.8, com o
 segundo ponto de revisão no fim.
 
-#### v1.5 — Linha do tempo e ficha 360º do associado
-- [ ] Uma única tela reunindo: dados, situação financeira resumida, cargos exercidos, participação
+#### v1.5 — Linha do tempo e ficha 360º do associado ✅ IMPLEMENTADO (2026-09-14, escopo real declarado)
+- [~] Uma única tela reunindo: dados, situação financeira resumida, cargos exercidos, participação
       em projetos/eventos, presença em assembleias, votos computados (sem revelar o voto secreto),
       documentos, protocolos abertos, comunicações enviadas e recebidas.
-- [ ] Alimentada por um `EventoDeLinhaDoTempo` genérico que cada módulo publica — módulo novo
+      > **Escopo real, não fingido**: dados/situação financeira resumida/cargos/documentos/linha
+      > do tempo - construídos, com dado de verdade. "Projetos/eventos" (FASE 4), "presença em
+      > assembleias"/"votos computados" (FASE 2), "protocolos abertos" (nenhuma fase ainda define
+      > o que é um protocolo) e "comunicações enviadas e recebidas" (FASE 6) **não têm nenhuma
+      > fase construída ainda** - não há dado real pra mostrar, então não fingi seção vazia
+      > decorativa. Cada um aparece sozinho no dia em que o módulo correspondente existir e
+      > chamar `publicar_evento_linha_do_tempo` (ver item abaixo) - documentado em
+      > `app/services/ficha_360.py`.
+      > **Tela real construída no painel React, não só o endpoint**: a aba "Linha do tempo" em
+      > Meu Perfil (`painel/src/pages/Perfil.tsx`) - situação financeira, cargos e a linha do
+      > tempo juntas, com estado vazio tratado (não erro). **Achado de escopo, registrado**: o
+      > painel React ainda não tem um módulo "Associados" de verdade (`/associados` é
+      > `<EmConstrucao>` - só o portal HTML legado de `associados.py`, não migrado, cobre isso
+      > hoje) - por isso a tela nova é **autoatendimento** (`GET /auth/me/ficha-360`, o associado
+      > vendo a própria ficha), não a versão administrativa (secretaria consultando a ficha de
+      > qualquer um). O endpoint administrativo equivalente
+      > (`GET /api/associados/{id}/ficha-360`, permissão `associados`) **já existe e está
+      > testado** - só falta a tela quando o módulo Associados do painel for construído (fora de
+      > escopo aqui: é um módulo CRUD inteiro, não uma tela isolada).
+- [x] Alimentada por um `EventoLinhaDoTempo` genérico que cada módulo publica — módulo novo
       aparece na ficha sem alterar a tela.
+      > `app/models/linha_do_tempo.py` (tabela `eventos_linha_do_tempo`) +
+      > `app/services/linha_do_tempo.py::publicar_evento_linha_do_tempo`. Publicado hoje em:
+      > filiação aprovada (`filiacao.py`), licença/desligamento/readmissão (`situacao.py`),
+      > anonimização (`anonimizacao.py` - nunca lista os valores apagados, mesmo cuidado do
+      > `AuditLog`) e posse/saída de cargo (`associados.py`). As tabelas de domínio
+      > (`MudancaSituacao`, `HistoricoCargo`, `TituloFinanceiro`) continuam sendo a fonte de
+      > verdade de cada cálculo - esta tabela é só a narrativa unificada que a ficha lê, nunca
+      > recalcula nada a partir dela.
+      > Migração `f0a1b2c3d4e5` faz **backfill** do histórico já existente antes desta versão
+      > (mudanças de situação, filiações já aprovadas, cargos já registrados) - testado
+      > isoladamente contra um banco sintético com dado "pré-v1.5" (upgrade gera os 4 eventos
+      > esperados na ordem certa; downgrade remove a tabela sem erro).
+>
+> Testado: `pytest tests/` - 83/83 (5 novos em `tests/test_ficha_360.py`: exige autenticação,
+> 404 pra associado inexistente, reúne financeiro+cargos+linha do tempo corretamente ordenada,
+> filiação aprovada aparece na linha do tempo com a matrícula certa, autoatendimento e
+> administrativo mostram a mesma ficha para a mesma pessoa). Painel: `tsc --noEmit` e `eslint`
+> limpos, `vitest` 22/22. Testado também em navegador real via Playwright (`e2e/ficha-360.spec.ts`,
+> 2 casos: linha do tempo com dado real e estado vazio tratado sem erro) - suíte e2e completa
+> 10/10.
 
 #### v1.6 — Pessoas além do associado: voluntário e empregado (base legal confirmada)
 Distinção jurídica real, não só de rótulo: voluntário (Lei 9.608/1998) nunca gera vínculo

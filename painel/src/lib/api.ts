@@ -445,6 +445,48 @@ export function listarDocumentos(): Promise<Documento[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Ficha 360º (v1.5) — dados, situação financeira resumida, cargos e linha do tempo unificada.
+// ---------------------------------------------------------------------------
+export type EventoLinhaDoTempo = {
+  id_evento: number
+  modulo_origem: string
+  tipo: string
+  titulo: string
+  descricao?: string | null
+  data_evento: string
+}
+
+export type CargoFicha360 = {
+  id_historico: number
+  titulo_cargo: string
+  data_posse?: string | null
+  data_saida?: string | null
+  atual: boolean
+}
+
+export type Ficha360 = {
+  dados: {
+    id_associado: number
+    nome_completo?: string | null
+    numero_matricula?: number | null
+    categoria?: string | null
+    status_arrolamento?: string | null
+    data_admissao?: string | null
+  }
+  situacao_financeira: {
+    saldo_devedor_total: number
+    quantidade_titulos_pendentes: number
+  }
+  cargos: CargoFicha360[]
+  documentos: Documento[]
+  linha_do_tempo: EventoLinhaDoTempo[]
+}
+
+export function obterMinhaFicha360(): Promise<Ficha360> {
+  return apiFetch<Ficha360>('/auth/me/ficha-360')
+}
+
+// ---------------------------------------------------------------------------
 // Níveis de acesso e permissões — matriz de administração (v0.2.9)
 // ---------------------------------------------------------------------------
 export type NivelAcesso = {

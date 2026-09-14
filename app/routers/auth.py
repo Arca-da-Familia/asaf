@@ -21,6 +21,7 @@ from app.database import get_db
 from app.models.associados import Associado, DocumentoAnexo, Endereco
 from app.models.core import CredencialWebAuthn, NivelAcesso, PermissaoSistema, TokenAcesso, Usuario, perfil_permissao
 from app.models.pessoas import Papel
+from app.services.ficha_360 import montar_ficha_360
 from app.services.matricula import proximo_numero_matricula
 from app.schemas.auth import (
     AlterarSenhaRequest,
@@ -473,6 +474,12 @@ def atualizar_perfil(dados: PerfilUpdateRequest, usuario: Usuario = Depends(get_
     db.commit()
     registrar_auditoria(db, usuario, "associados", "PERFIL_ATUALIZADO", id_registro_afetado=associado.id_associado)
     return {"mensagem": "Perfil atualizado com sucesso."}
+
+
+@router.get("/me/ficha-360", summary="Ficha 360º do próprio associado (v1.5): dados, financeiro resumido, cargos, linha do tempo")
+def minha_ficha_360(usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+    associado = _associado_do_usuario(db, usuario)
+    return montar_ficha_360(db, associado)
 
 
 @router.get("/me/documentos", response_model=list[DocumentoResponse], summary="Documentos do próprio associado (somente leitura)")

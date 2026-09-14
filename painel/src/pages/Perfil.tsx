@@ -15,6 +15,7 @@ import {
   desativarMfa,
   listarDocumentos,
   listarSessoes,
+  obterMinhaFicha360,
   obterPerfil,
   regenerarRecuperacao,
   revogarSessao,
@@ -57,7 +58,7 @@ const schemaRegenerar = z.object({
   senha: z.string().min(1, 'Informe a senha.'),
 })
 
-type Aba = 'dados' | 'seguranca' | 'sessoes' | 'documentos'
+type Aba = 'dados' | 'seguranca' | 'sessoes' | 'documentos' | 'linha-do-tempo'
 
 function DadosForm({ perfil }: { perfil: Perfil }) {
   const queryClient = useQueryClient()
@@ -171,6 +172,7 @@ export function PerfilPage() {
 
   const abas: { id: Aba; rotulo: string }[] = [
     { id: 'dados', rotulo: 'Dados cadastrais' },
+    { id: 'linha-do-tempo', rotulo: 'Linha do tempo' },
     { id: 'seguranca', rotulo: 'Segurança' },
     { id: 'sessoes', rotulo: 'Sessões ativas' },
     { id: 'documentos', rotulo: 'Meus documentos' },
@@ -239,6 +241,7 @@ export function PerfilPage() {
         </section>
       )}
 
+      {aba === 'linha-do-tempo' && <LinhaDoTempoSection />}
       {aba === 'seguranca' && (
         <SegurancaSection
           mfaAtivado={!!me?.mfa_ativado}
@@ -626,6 +629,94 @@ function SessoesSection() {
         />
       )}
     </section>
+  )
+}
+
+function LinhaDoTempoSection() {
+  const { data: ficha, isLoading } = useQuery({
+    queryKey: ['ficha-360'],
+    queryFn: obterMinhaFicha360,
+  })
+
+  if (isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>
+  if (!ficha) {
+    return (
+      <EmptyState
+        titulo="Sem associado vinculado"
+        descricao="Nenhum cadastro de associado está vinculado a este usuário."
+      />
+    )
+  }
+
+  const formatarReais = (valor: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor)
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <section className="rounded-xl border border-border bg-card p-6">
+          <h2 className="mb-1 font-semibold">Situação financeira</h2>
+          <p
+            className={
+              ficha.situacao_financeira.saldo_devedor_total > 0
+                ? 'text-2xl font-bold text-destructive'
+                : 'text-2xl font-bold text-green-600'
+            }
+          >
+            {formatarReais(ficha.situacao_financeira.saldo_devedor_total)}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {ficha.situacao_financeira.quantidade_titulos_pendentes} título(s) pendente(s)
+          </p>
+        </section>
+
+        <section className="rounded-xl border border-border bg-card p-6">
+          <h2 className="mb-1 font-semibold">Cargos</h2>
+          {ficha.cargos.length > 0 ? (
+            <ul className="space-y-1 text-sm">
+              {ficha.cargos.map((c) => (
+                <li key={c.id_historico} className="flex items-center justify-between gap-2">
+                  <span>{c.titulo_cargo}</span>
+                  {c.atual ? (
+                    <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                      atual
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">encerrado</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">Nenhum cargo registrado.</p>
+          )}
+        </section>
+      </div>
+
+      <section className="rounded-xl border border-border bg-card p-6">
+        <h2 className="mb-4 font-semibold">Linha do tempo</h2>
+        {ficha.linha_do_tempo.length > 0 ? (
+          <ol className="space-y-4 border-l border-border pl-4">
+            {ficha.linha_do_tempo.map((e) => (
+              <li key={e.id_evento}>
+                <p className="text-sm font-medium">{e.titulo}</p>
+                {e.descricao && (
+                  <p className="text-xs text-muted-foreground">{e.descricao}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {formatarData(e.data_evento)}
+                </p>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <EmptyState
+            titulo="Nada por aqui ainda"
+            descricao="Assim que algo relevante acontecer (filiação, cargo, mudança de situação), aparece aqui."
+          />
+        )}
+      </section>
+    </div>
   )
 }
 

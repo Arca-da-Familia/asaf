@@ -19,6 +19,8 @@ from app.schemas.situacao import DesligamentoCriar, LicencaCriar, ReadmissaoCria
 from app.security import exigir_permissao
 from app.services.anonimizacao import anonimizar_associado, anonimizar_vencidos, data_elegivel_para_anonimizacao
 from app.services.categoria_associado import ATIVO_EM_DIA, LICENCIADO
+from app.services.ficha_360 import montar_ficha_360
+from app.services.linha_do_tempo import publicar_evento_linha_do_tempo
 
 router = APIRouter()
 _permissao_associados = exigir_permissao("associados")
@@ -67,6 +69,11 @@ def registrar_licenca(
         dados_depois={"motivo": dados.motivo, "data_fim_prevista": dados.data_fim_prevista.isoformat()},
         ip_origem=request.client.host if request.client else None,
     )
+    publicar_evento_linha_do_tempo(
+        db, id_associado, "situacao", "LICENCA_REGISTRADA", "Licença registrada",
+        descricao=f"Motivo: {dados.motivo}. Retorno previsto em {dados.data_fim_prevista.isoformat()}.",
+        data_evento=data_inicio,
+    )
     return {"mensagem": "Licença registrada.", "status_arrolamento": associado.status_arrolamento}
 
 
@@ -111,6 +118,10 @@ def desligar_associado(
         dados_depois={"motivo": dados.motivo, "data_efetiva": dados.data_efetiva.isoformat(), "titulos_cancelados": canceladas},
         ip_origem=request.client.host if request.client else None,
     )
+    publicar_evento_linha_do_tempo(
+        db, id_associado, "situacao", "DESLIGAMENTO", "Desligamento registrado",
+        descricao=f"Motivo: {dados.motivo}.", data_evento=data_efetiva,
+    )
     return {"mensagem": "Desligamento registrado.", "titulos_cancelados": canceladas}
 
 
@@ -153,6 +164,7 @@ def readmitir_associado(
         db, usuario, "associados", "READMITIDO", id_registro_afetado=id_associado,
         ip_origem=request.client.host if request.client else None,
     )
+    publicar_evento_linha_do_tempo(db, id_associado, "situacao", "READMISSAO", "Readmitido como associado")
     return {"mensagem": "Associado readmitido.", "status_arrolamento": associado.status_arrolamento}
 
 
@@ -192,3 +204,12 @@ def anonimizar_um(id_associado: int, request: Request, db: Session = Depends(get
 def anonimizar_lote_vencidos(request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_associados)):
     total = anonimizar_vencidos(db, usuario=usuario, ip_origem=request.client.host if request.client else None)
     return {"mensagem": f"{total} associado(s) anonimizado(s).", "total": total}
+
+
+@router.get(
+    "/api/associados/{id_associado}/ficha-360",
+    summary="Ficha 360º do associado (v1.5): dados, financeiro resumido, cargos, linha do tempo",
+)
+def ficha_360(id_associado: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_associados)):
+    associado = _buscar_associado_ou_404(db, id_associado)
+    return montar_ficha_360(db, associado)

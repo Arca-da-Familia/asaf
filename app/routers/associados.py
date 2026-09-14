@@ -25,6 +25,7 @@ from app.schemas.associados import (
 )
 from app.security import criar_token_carteirinha, decodificar_token_carteirinha
 from app.services.categoria_associado import calcular_categoria
+from app.services.linha_do_tempo import publicar_evento_linha_do_tempo
 from app.services.matricula import proximo_numero_matricula
 
 router = APIRouter()
@@ -87,6 +88,10 @@ def criar_cargo(id_associado: int, dados: HistoricoCargoCriar, db: Session = Dep
     db.add(novo)
     db.commit()
     db.refresh(novo)
+    publicar_evento_linha_do_tempo(
+        db, id_associado, "cargos", "CARGO_INICIADO", f"Assumiu o cargo de {dados.titulo_cargo}",
+        data_evento=novo.data_posse,
+    )
     return {"mensagem": "Posse registrada.", "id_historico": novo.id_historico}
 
 
@@ -97,6 +102,10 @@ def encerrar_cargo(id_historico: int, dados: HistoricoCargoEncerrar, db: Session
         raise HTTPException(status_code=404, detail="Registro de cargo não encontrado.")
     cargo.data_saida = datetime.combine(dados.data_saida, datetime.min.time())
     db.commit()
+    publicar_evento_linha_do_tempo(
+        db, cargo.id_associado, "cargos", "CARGO_ENCERRADO", f"Deixou o cargo de {cargo.titulo_cargo}",
+        data_evento=cargo.data_saida,
+    )
     return {"mensagem": "Saída do cargo registrada."}
 
 

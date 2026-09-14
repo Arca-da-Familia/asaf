@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.auditoria import registrar_auditoria
 from app.config_cache import obter_configuracao
 from app.models.associados import Associado
+from app.services.linha_do_tempo import publicar_evento_linha_do_tempo
 
 CAMPOS_ANONIMIZAVEIS = [
     "cpf", "email_contato", "telefone_whatsapp", "data_nascimento",
@@ -55,6 +56,10 @@ def anonimizar_associado(db: Session, associado: Associado, usuario=None, ip_ori
         db, usuario, "pessoas", "ANONIMIZADO", id_registro_afetado=pessoa.id_pessoa,
         dados_depois={"campos_apagados": CAMPOS_ANONIMIZAVEIS, "id_associado": associado.id_associado},
         ip_origem=ip_origem,
+    )
+    # Nunca listar OS VALORES apagados aqui também - mesmo cuidado do AuditLog acima.
+    publicar_evento_linha_do_tempo(
+        db, associado.id_associado, "situacao", "ANONIMIZADO", "Dado pessoal anonimizado (prazo de retenção vencido)",
     )
     return True
 
