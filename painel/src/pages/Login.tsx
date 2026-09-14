@@ -1,8 +1,16 @@
-import { useState, type FormEvent } from 'react'
+import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
-import { ApiError, login, loginMfa, type TokenPayload } from '@/lib/api'
+import {
+  ApiError,
+  login,
+  loginMfa,
+  webauthnLoginConcluir,
+  webauthnLoginIniciar,
+  type TokenPayload,
+} from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 import { formatarCpf, somenteDigitos, validarCpf } from '@/lib/cpf'
 
@@ -26,10 +34,36 @@ export function Login() {
   const [loginTempToken, setLoginTempToken] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(false)
+  const [passkeySuportada, setPasskeySuportada] = useState(false)
+  const [carregandoPasskey, setCarregandoPasskey] = useState(false)
+
+  useEffect(() => {
+    setPasskeySuportada(browserSupportsWebAuthn())
+  }, [])
 
   function aplicarSessao(token: TokenPayload) {
     signIn(token.access_token)
     navigate('/', { replace: true })
+  }
+
+  async function entrarComPasskey() {
+    setErro(null)
+    setCarregandoPasskey(true)
+    try {
+      const { opcoes, desafio_token } = await webauthnLoginIniciar()
+      const resposta = await startAuthentication({
+        optionsJSON: opcoes as never,
+      })
+      const token = await webauthnLoginConcluir({
+        credencial: resposta as unknown as Record<string, unknown>,
+        desafio_token,
+      })
+      aplicarSessao(token)
+    } catch (err) {
+      setErro(mensagemDeErro(err))
+    } finally {
+      setCarregandoPasskey(false)
+    }
   }
 
   async function enviarPrimeiroPasso(e: FormEvent) {
@@ -151,6 +185,22 @@ export function Login() {
             <Button type="submit" className="w-full" disabled={carregando}>
               {carregando ? 'Entrando…' : 'Entrar'}
             </Button>
+            {passkeySuportada && (
+              <>
+                <div className="relative py-1 text-center text-xs text-muted-foreground">
+                  <span className="bg-card px-2">ou</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={entrarComPasskey}
+                  disabled={carregandoPasskey}
+                >
+                  {carregandoPasskey ? 'Verificando…' : 'Entrar com chave de acesso'}
+                </Button>
+              </>
+            )}
           </form>
         ) : (
           <form onSubmit={enviarSegundoPasso} className="mt-6 space-y-4">
@@ -161,6 +211,7 @@ export function Login() {
               <input
                 id="codigo"
                 inputMode={modoRecuperacao ? 'text' : 'numeric'}
+                enterKeyHint="done"
                 autoComplete="one-time-code"
                 maxLength={modoRecuperacao ? 14 : 6}
                 value={codigoTotp}

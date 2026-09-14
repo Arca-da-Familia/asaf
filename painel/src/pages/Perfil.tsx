@@ -1,3 +1,4 @@
+import { startRegistration } from '@simplewebauthn/browser'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -8,6 +9,7 @@ import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import {
+  ApiError,
   alterarSenha,
   atualizarPerfil,
   desativarMfa,
@@ -16,6 +18,10 @@ import {
   obterPerfil,
   regenerarRecuperacao,
   revogarSessao,
+  webauthnListarCredenciais,
+  webauthnRegistrarConcluir,
+  webauthnRegistrarIniciar,
+  webauthnRemoverCredencial,
   type Perfil,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
@@ -277,7 +283,109 @@ function SegurancaSection({
           <Button onClick={onAtivar}>Ativar MFA</Button>
         )}
       </section>
+
+      <PasskeySection />
     </div>
+  )
+}
+
+function PasskeySection() {
+  const queryClient = useQueryClient()
+  const [erro, setErro] = useState<string | null>(null)
+  const { data: credenciais, isLoading } = useQuery({
+    queryKey: ['webauthn-credenciais'],
+    queryFn: webauthnListarCredenciais,
+  })
+
+  const adicionar = useMutation({
+    mutationFn: async () => {
+      const { opcoes, desafio_token } = await webauthnRegistrarIniciar()
+      const resposta = await startRegistration({ optionsJSON: opcoes as never })
+      const apelido = window.prompt(
+        'Como quer chamar este dispositivo? (ex.: "Notebook do trabalho")',
+      )
+      return webauthnRegistrarConcluir({
+        credencial: resposta as unknown as Record<string, unknown>,
+        desafio_token,
+        apelido: apelido || undefined,
+      })
+    },
+    onSuccess: () => {
+      setErro(null)
+      queryClient.invalidateQueries({ queryKey: ['webauthn-credenciais'] })
+    },
+    onError: (err) => {
+      setErro(err instanceof ApiError ? err.detail : (err as Error).message)
+    },
+  })
+
+  const remover = useMutation({
+    mutationFn: webauthnRemoverCredencial,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['webauthn-credenciais'] }),
+  })
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-6">
+      <h2 className="mb-1 font-semibold">Chaves de acesso (passkey)</h2>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Entre neste sistema usando a biometria ou PIN do próprio dispositivo
+        (Windows Hello, Face ID/Touch ID), sem digitar senha nem código. A
+        chave fica só neste dispositivo — adicione um dispositivo por vez.
+      </p>
+
+      {erro && (
+        <p
+          role="alert"
+          className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          {erro}
+        </p>
+      )}
+
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Carregando…</p>
+      ) : credenciais && credenciais.length > 0 ? (
+        <ul className="mb-4 divide-y divide-border">
+          {credenciais.map((c) => (
+            <li
+              key={c.id_credencial}
+              className="flex items-center justify-between gap-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm">
+                  {c.apelido ?? 'Dispositivo sem nome'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Adicionada em{' '}
+                  {c.criado_em ? formatarData(c.criado_em) : '—'}
+                  {c.ultimo_uso_em &&
+                    ` · último uso em ${formatarData(c.ultimo_uso_em)}`}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => remover.mutate(c.id_credencial)}
+                disabled={remover.isPending}
+              >
+                Remover
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mb-4 text-sm text-muted-foreground">
+          Nenhuma chave de acesso cadastrada ainda.
+        </p>
+      )}
+
+      <Button onClick={() => adicionar.mutate()} disabled={adicionar.isPending}>
+        {adicionar.isPending
+          ? 'Aguardando o dispositivo…'
+          : 'Adicionar este dispositivo'}
+      </Button>
+    </section>
   )
 }
 

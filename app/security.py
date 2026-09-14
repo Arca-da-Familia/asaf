@@ -33,6 +33,15 @@ BLOQUEIO_MINUTOS = 15
 REFRESH_COOKIE_NAME = "asaf_refresh"
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "true").lower() != "false"
 
+# v0.4 - Passkey (WebAuthn). RP_ID precisa ser o domínio exato (ou domínio-pai registrável)
+# de onde o navegador chama navigator.credentials.create()/get() - aqui é o painel React,
+# nunca a API (CORS_ORIGINS acima confirma que painel e API já são origens separadas em
+# produção). ORIGIN é a origem completa (com esquema) que o navegador manda em
+# clientDataJSON - tem que bater exatamente, senão a verificação recusa.
+WEBAUTHN_RP_ID = os.environ.get("WEBAUTHN_RP_ID", "localhost")
+WEBAUTHN_RP_NAME = os.environ.get("WEBAUTHN_RP_NAME", "ASAF")
+WEBAUTHN_ORIGIN = os.environ.get("WEBAUTHN_ORIGIN", "http://localhost:5173")
+
 _bearer_scheme = HTTPBearer(auto_error=False)
 
 
@@ -203,6 +212,37 @@ def decodificar_mfa_pending_token(token: str) -> dict:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token de MFA inválido ou expirado.")
     if payload.get("type") != "mfa_pending":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token de MFA inválido.")
+    return payload
+
+
+def criar_webauthn_pending_token(tipo: str, challenge: bytes, id_usuario: Optional[int] = None) -> str:
+    """v0.4 - carrega o desafio (challenge) do WebAuthn entre 'iniciar' e 'concluir' sem precisar
+    de tabela/estado em memória (mesmo raciocínio de `criar_mfa_pending_token`: stateless, funciona
+    igual com várias réplicas do Container App). `tipo` é "webauthn_registro" ou "webauthn_login" -
+    login usernameless não tem `id_usuario` ainda neste ponto (só é descoberto depois, pela
+    credencial que o navegador devolver)."""
+    _checar_jwt_secret_configurado()
+    agora = datetime.now(timezone.utc)
+    payload = {
+        "challenge": challenge.hex(),
+        "iat": agora,
+        "exp": agora + timedelta(minutes=5),
+        "type": tipo,
+    }
+    if id_usuario is not None:
+        payload["id_usuario"] = id_usuario
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def decodificar_webauthn_pending_token(token: str, tipo_esperado: str) -> dict:
+    _checar_jwt_secret_configurado()
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Desafio de passkey inválido ou expirado.")
+    if payload.get("type") != tipo_esperado:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Desafio de passkey inválido.")
+    payload["challenge"] = bytes.fromhex(payload["challenge"])
     return payload
 
 

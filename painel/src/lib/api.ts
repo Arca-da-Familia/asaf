@@ -278,6 +278,68 @@ export function mfaConfirmar(codigoTotp: string): Promise<MfaConfirmarResult> {
 }
 
 // ---------------------------------------------------------------------------
+// Passkey / WebAuthn (v0.4 - adendo pós-fechamento da FASE 0). `opcoes` é repassado direto
+// para @simplewebauthn/browser (startRegistration/startAuthentication) — o formato de verdade
+// é o do próprio WebAuthn, não vale duplicar campo a campo aqui.
+// ---------------------------------------------------------------------------
+export type WebAuthnOpcoes = {
+  opcoes: Record<string, unknown>
+  desafio_token: string
+}
+
+export type WebAuthnCredencial = {
+  id_credencial: number
+  apelido?: string | null
+  criado_em?: string | null
+  ultimo_uso_em?: string | null
+}
+
+export function webauthnRegistrarIniciar(): Promise<WebAuthnOpcoes> {
+  return apiFetch<WebAuthnOpcoes>('/auth/webauthn/registrar/iniciar', {
+    method: 'POST',
+  })
+}
+
+export function webauthnRegistrarConcluir(dados: {
+  credencial: Record<string, unknown>
+  desafio_token: string
+  apelido?: string
+}): Promise<WebAuthnCredencial> {
+  return apiFetch('/auth/webauthn/registrar/concluir', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function webauthnListarCredenciais(): Promise<WebAuthnCredencial[]> {
+  return apiFetch<WebAuthnCredencial[]>('/auth/webauthn/credenciais')
+}
+
+export function webauthnRemoverCredencial(
+  idCredencial: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/auth/webauthn/credenciais/${idCredencial}`, {
+    method: 'DELETE',
+  })
+}
+
+export function webauthnLoginIniciar(): Promise<WebAuthnOpcoes> {
+  return rawFetch<WebAuthnOpcoes>('/auth/webauthn/login/iniciar', {
+    method: 'POST',
+  })
+}
+
+export function webauthnLoginConcluir(dados: {
+  credencial: Record<string, unknown>
+  desafio_token: string
+}): Promise<TokenPayload> {
+  return rawFetch<TokenPayload>('/auth/webauthn/login/concluir', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Meu Perfil (v0.2.5)
 // ---------------------------------------------------------------------------
 export type Endereco = {

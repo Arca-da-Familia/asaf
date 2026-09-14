@@ -1,14 +1,25 @@
+import json
 import pyotp
 from datetime import datetime
 from typing import Optional
 
+import webauthn
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
+from webauthn.helpers import bytes_to_base64url
+from webauthn.helpers.exceptions import InvalidRegistrationResponse, InvalidAuthenticationResponse
+from webauthn.helpers.structs import (
+    AttestationConveyancePreference,
+    AuthenticatorSelectionCriteria,
+    PublicKeyCredentialDescriptor,
+    ResidentKeyRequirement,
+    UserVerificationRequirement,
+)
 
 from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.associados import Associado, DocumentoAnexo, Endereco
-from app.models.core import NivelAcesso, PermissaoSistema, TokenAcesso, Usuario, perfil_permissao
+from app.models.core import CredencialWebAuthn, NivelAcesso, PermissaoSistema, TokenAcesso, Usuario, perfil_permissao
 from app.models.pessoas import Papel
 from app.services.matricula import proximo_numero_matricula
 from app.schemas.auth import (
@@ -33,16 +44,25 @@ from app.schemas.auth import (
     RefreshRequest,
     SessaoResponse,
     TokenResponse,
+    WebAuthnCredencialResponse,
+    WebAuthnLoginConcluirRequest,
+    WebAuthnOpcoesResponse,
+    WebAuthnRegistrarConcluirRequest,
 )
 from app.security import (
     ACCESS_TOKEN_MINUTOS,
     COOKIE_SECURE,
     REFRESH_COOKIE_NAME,
     REFRESH_TOKEN_DIAS,
+    WEBAUTHN_ORIGIN,
+    WEBAUTHN_RP_ID,
+    WEBAUTHN_RP_NAME,
     criar_access_token,
     criar_mfa_pending_token,
     criar_refresh_token,
+    criar_webauthn_pending_token,
     decodificar_mfa_pending_token,
+    decodificar_webauthn_pending_token,
     exigir_permissao,
     gerar_codigos_recuperacao,
     get_current_user,
@@ -61,6 +81,37 @@ from app.security import (
 )
 
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
+
+
+def _finalizar_login(db: Session, usuario: Usuario, request: Request, response: Response, acao: str = "LOGIN") -> TokenResponse:
+    """Emite a sessão completa (cookie de refresh + access token) e audita - compartilhado por
+    /login, /login/mfa e /webauthn/login/concluir (os três terminam da mesma forma depois de
+    validar a credencial por caminhos diferentes)."""
+    registrar_auditoria(
+        db, usuario, "usuarios", acao, id_registro_afetado=usuario.id_usuario,
+        ip_origem=request.client.host if request.client else None,
+    )
+    refresh_token = criar_refresh_token(
+        db, usuario,
+        request.client.host if request.client else None,
+        request.headers.get("user-agent"),
+    )
+    response.set_cookie(
+        key=REFRESH_COOKIE_NAME,
+        value=refresh_token,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="strict",
+        max_age=REFRESH_TOKEN_DIAS * 24 * 60 * 60,
+    )
+    # Idem à observação original em /auth/login: nunca ecoar o refresh token no corpo já que
+    # foi gravado no cookie HttpOnly - repeti-lo aqui anularia a proteção contra XSS que o
+    # HttpOnly existe para dar.
+    return TokenResponse(
+        access_token=criar_access_token(usuario),
+        refresh_token=None,
+        expires_in_minutos=ACCESS_TOKEN_MINUTOS,
+    )
 
 
 def _buscar_usuario_por_cpf(db: Session, cpf: str) -> Usuario:
@@ -106,35 +157,9 @@ def login(dados: LoginRequest, request: Request, response: Response, db: Session
             login_temp_token=criar_mfa_pending_token(usuario),
         )
 
-    registrar_auditoria(
-        db, usuario, "usuarios", "LOGIN", id_registro_afetado=usuario.id_usuario,
-        ip_origem=request.client.host if request.client else None,
-    )
-    refresh_token = criar_refresh_token(
-        db,
-        usuario,
-        request.client.host if request.client else None,
-        request.headers.get("user-agent"),
-    )
-    response.set_cookie(
-        key=REFRESH_COOKIE_NAME,
-        value=refresh_token,
-        httponly=True,
-        secure=COOKIE_SECURE,
-        samesite="strict",
-        max_age=REFRESH_TOKEN_DIAS * 24 * 60 * 60,
-    )
-    # O valor NUNCA volta no corpo JSON quando já foi gravado em cookie HttpOnly - devolvê-lo
-    # aqui também anularia a proteção contra XSS que o HttpOnly existe para dar (um script
-    # injetado na página não pode ler o cookie, mas conseguiria ler a resposta desta chamada
-    # se ela também carregasse o token). Cliente de linha de comando/teste que precise do valor
-    # bruto lê do header Set-Cookie da resposta (nunca acessível a partir de JS do navegador,
-    # mas perfeitamente legível por curl/httpx) - ver DECISOES_CONGELADAS.md seção 4.2.
-    return TokenResponse(
-        access_token=criar_access_token(usuario),
-        refresh_token=None,
-        expires_in_minutos=ACCESS_TOKEN_MINUTOS,
-    )
+    # NUNCA ecoar o refresh token no corpo (ver DECISOES_CONGELADAS.md seção 4.2) - o header
+    # Set-Cookie já carrega, e devolvê-lo aqui também anularia a proteção do HttpOnly contra XSS.
+    return _finalizar_login(db, usuario, request, response)
 
 
 @router.post("/login/mfa", response_model=TokenResponse, summary="2º passo do login (código TOTP ou de recuperação)")
@@ -159,30 +184,7 @@ def login_mfa(dados: LoginMFARequest, request: Request, response: Response, db: 
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Código TOTP inválido.")
 
     limpar_tentativas_falhas(db, usuario)
-    registrar_auditoria(
-        db, usuario, "usuarios", "LOGIN", id_registro_afetado=usuario.id_usuario,
-        ip_origem=request.client.host if request.client else None,
-    )
-    refresh_token = criar_refresh_token(
-        db,
-        usuario,
-        request.client.host if request.client else None,
-        request.headers.get("user-agent"),
-    )
-    response.set_cookie(
-        key=REFRESH_COOKIE_NAME,
-        value=refresh_token,
-        httponly=True,
-        secure=COOKIE_SECURE,
-        samesite="strict",
-        max_age=REFRESH_TOKEN_DIAS * 24 * 60 * 60,
-    )
-    # Idem à observação em /auth/login - nunca ecoar o valor no corpo já que foi para o cookie.
-    return TokenResponse(
-        access_token=criar_access_token(usuario),
-        refresh_token=None,
-        expires_in_minutos=ACCESS_TOKEN_MINUTOS,
-    )
+    return _finalizar_login(db, usuario, request, response)
 
 
 @router.post("/refresh", response_model=TokenResponse, summary="Renova o access token")
@@ -549,3 +551,210 @@ def mfa_regerar_recuperacao(dados: MFARegenerarRequest, usuario: Usuario = Depen
     codigos = gerar_codigos_recuperacao(db, usuario)
     registrar_auditoria(db, usuario, "usuarios", "MFA_RECUPERACAO_REGERADA", id_registro_afetado=usuario.id_usuario)
     return MFAConfirmarResponse(mensagem="Códigos de recuperação regerados.", codigos_recuperacao=codigos)
+
+
+# ==========================================
+# PASSKEY / WEBAUTHN (v0.4 - adendo pós-fechamento da FASE 0)
+#
+# Substitui senha+MFA por uma credencial atrelada ao dispositivo (Windows Hello, Face ID/
+# Touch ID, chave física) - a chave privada nunca sai do dispositivo, só a pública é guardada
+# aqui. Cadastro exige estar logado (adiciona o dispositivo à própria conta); login é
+# "usernameless"/discoverable (o navegador oferece as credenciais salvas daquele site sem
+# precisar digitar CPF antes) - por isso exige-se `resident_key=REQUIRED` no cadastro. Como o
+# desbloqueio do autenticador (biometria/PIN) já é uma verificação forte do usuário
+# (`user_verification=REQUIRED`, checado nos dois lados - cliente E servidor, nunca só
+# confiado do navegador), o login por passkey substitui senha E o segundo fator (TOTP) na
+# mesma etapa - é assim que Google/Microsoft tratam passkey, não uma "lembrança" frouxa de
+# dispositivo por prazo.
+# ==========================================
+@router.post(
+    "/webauthn/registrar/iniciar",
+    response_model=WebAuthnOpcoesResponse,
+    summary="1º passo: gera as opções para o navegador criar uma passkey neste dispositivo",
+)
+def webauthn_registrar_iniciar(usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+    existentes = db.query(CredencialWebAuthn).filter(CredencialWebAuthn.id_usuario == usuario.id_usuario).all()
+    opcoes = webauthn.generate_registration_options(
+        rp_id=WEBAUTHN_RP_ID,
+        rp_name=WEBAUTHN_RP_NAME,
+        user_id=str(usuario.id_usuario).encode(),
+        user_name=usuario.email,
+        attestation=AttestationConveyancePreference.NONE,
+        authenticator_selection=AuthenticatorSelectionCriteria(
+            resident_key=ResidentKeyRequirement.REQUIRED,
+            user_verification=UserVerificationRequirement.REQUIRED,
+        ),
+        exclude_credentials=[
+            PublicKeyCredentialDescriptor(id=webauthn.base64url_to_bytes(c.credential_id))
+            for c in existentes
+        ],
+    )
+    desafio_token = criar_webauthn_pending_token("webauthn_registro", opcoes.challenge, id_usuario=usuario.id_usuario)
+    return WebAuthnOpcoesResponse(opcoes=json.loads(webauthn.options_to_json(opcoes)), desafio_token=desafio_token)
+
+
+@router.post(
+    "/webauthn/registrar/concluir",
+    response_model=WebAuthnCredencialResponse,
+    summary="2º passo: valida a resposta do autenticador e grava a passkey",
+)
+def webauthn_registrar_concluir(
+    dados: WebAuthnRegistrarConcluirRequest,
+    usuario: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    payload = decodificar_webauthn_pending_token(dados.desafio_token, "webauthn_registro")
+    if payload.get("id_usuario") != usuario.id_usuario:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Desafio de passkey inválido.")
+
+    try:
+        verificado = webauthn.verify_registration_response(
+            credential=dados.credencial,
+            expected_challenge=payload["challenge"],
+            expected_rp_id=WEBAUTHN_RP_ID,
+            expected_origin=WEBAUTHN_ORIGIN,
+            require_user_verification=True,
+        )
+    except InvalidRegistrationResponse as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Não foi possível registrar a passkey: {exc}")
+
+    credential_id = bytes_to_base64url(verificado.credential_id)
+    if db.query(CredencialWebAuthn).filter(CredencialWebAuthn.credential_id == credential_id).first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta passkey já está cadastrada.")
+
+    credencial = CredencialWebAuthn(
+        id_usuario=usuario.id_usuario,
+        credential_id=credential_id,
+        chave_publica_cose=bytes_to_base64url(verificado.credential_public_key),
+        contador_assinatura=verificado.sign_count,
+        apelido=dados.apelido or "Dispositivo sem nome",
+        transports=",".join(dados.credencial.get("response", {}).get("transports") or []) or None,
+    )
+    db.add(credencial)
+    db.commit()
+    db.refresh(credencial)
+    registrar_auditoria(
+        db, usuario, "credenciais_webauthn", "PASSKEY_REGISTRADA",
+        id_registro_afetado=credencial.id_credencial,
+    )
+    return WebAuthnCredencialResponse(
+        id_credencial=credencial.id_credencial, apelido=credencial.apelido,
+        criado_em=credencial.criado_em, ultimo_uso_em=credencial.ultimo_uso_em,
+    )
+
+
+@router.get(
+    "/webauthn/credenciais",
+    response_model=list[WebAuthnCredencialResponse],
+    summary="Lista as passkeys da própria conta",
+)
+def webauthn_listar_credenciais(usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+    credenciais = (
+        db.query(CredencialWebAuthn)
+        .filter(CredencialWebAuthn.id_usuario == usuario.id_usuario)
+        .order_by(CredencialWebAuthn.criado_em.desc())
+        .all()
+    )
+    return [
+        WebAuthnCredencialResponse(
+            id_credencial=c.id_credencial, apelido=c.apelido,
+            criado_em=c.criado_em, ultimo_uso_em=c.ultimo_uso_em,
+        )
+        for c in credenciais
+    ]
+
+
+@router.delete(
+    "/webauthn/credenciais/{id_credencial}",
+    summary="Remove uma passkey (perdeu o dispositivo, ou não quer mais usá-la)",
+)
+def webauthn_remover_credencial(
+    id_credencial: int, usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db),
+):
+    credencial = db.query(CredencialWebAuthn).filter(
+        CredencialWebAuthn.id_credencial == id_credencial,
+        CredencialWebAuthn.id_usuario == usuario.id_usuario,
+    ).first()
+    if credencial is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Passkey não encontrada.")
+    db.delete(credencial)
+    db.commit()
+    registrar_auditoria(db, usuario, "credenciais_webauthn", "PASSKEY_REMOVIDA", id_registro_afetado=id_credencial)
+    return {"mensagem": "Passkey removida."}
+
+
+@router.post(
+    "/webauthn/login/iniciar",
+    response_model=WebAuthnOpcoesResponse,
+    summary="1º passo do login por passkey (sem CPF - o navegador oferece a credencial salva)",
+)
+def webauthn_login_iniciar():
+    # Público de propósito: login por passkey não pede CPF antes (discoverable credential) -
+    # é o próprio navegador que sabe quais credenciais salvas servem para este RP_ID.
+    opcoes = webauthn.generate_authentication_options(
+        rp_id=WEBAUTHN_RP_ID,
+        user_verification=UserVerificationRequirement.REQUIRED,
+    )
+    desafio_token = criar_webauthn_pending_token("webauthn_login", opcoes.challenge)
+    return WebAuthnOpcoesResponse(opcoes=json.loads(webauthn.options_to_json(opcoes)), desafio_token=desafio_token)
+
+
+@router.post(
+    "/webauthn/login/concluir",
+    response_model=TokenResponse,
+    summary="2º passo do login por passkey - substitui senha E o segundo fator na mesma etapa",
+)
+def webauthn_login_concluir(dados: WebAuthnLoginConcluirRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+    payload = decodificar_webauthn_pending_token(dados.desafio_token, "webauthn_login")
+
+    credential_id = dados.credencial.get("id")
+    credencial = db.query(CredencialWebAuthn).filter(CredencialWebAuthn.credential_id == credential_id).first()
+    if credencial is None:
+        # Mensagem genérica de propósito - mesmo raciocínio de _buscar_usuario_por_cpf: nunca
+        # revelar se a credencial existe ou não.
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Passkey inválida.")
+
+    usuario = db.query(Usuario).filter(Usuario.id_usuario == credencial.id_usuario).first()
+    if usuario is None or not usuario.ativo:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Passkey inválida.")
+    if usuario_esta_bloqueado(usuario):
+        segundos = max(1, int((usuario.bloqueado_ate - datetime.utcnow()).total_seconds()))
+        minutos = max(1, (segundos + 59) // 60)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Muitas tentativas de login. Tente novamente em {minutos} min.",
+            headers={"Retry-After": str(segundos)},
+        )
+
+    try:
+        verificado = webauthn.verify_authentication_response(
+            credential=dados.credencial,
+            expected_challenge=payload["challenge"],
+            expected_rp_id=WEBAUTHN_RP_ID,
+            expected_origin=WEBAUTHN_ORIGIN,
+            credential_public_key=webauthn.base64url_to_bytes(credencial.chave_publica_cose),
+            credential_current_sign_count=credencial.contador_assinatura or 0,
+            require_user_verification=True,
+        )
+    except InvalidAuthenticationResponse as exc:
+        registrar_tentativa_falha(db, usuario)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Passkey inválida: {exc}")
+
+    # contador_assinatura detecta autenticador clonado: um valor que não avança (ou recua) em
+    # relação ao guardado é sinal de duas cópias da mesma credencial em uso - autenticadores
+    # de plataforma (Windows Hello/Face ID) tipicamente mantêm o contador zerado (não
+    # incrementam), então só bloqueia quando o valor RECUOU de um patamar que já tinha
+    # avançado, nunca quando os dois lados ficam parados em zero.
+    if verificado.new_sign_count != 0 and verificado.new_sign_count <= (credencial.contador_assinatura or 0):
+        registrar_auditoria(
+            db, usuario, "credenciais_webauthn", "PASSKEY_CONTADOR_SUSPEITO",
+            id_registro_afetado=credencial.id_credencial,
+        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Passkey recusada (contador de uso suspeito).")
+
+    credencial.contador_assinatura = verificado.new_sign_count
+    credencial.ultimo_uso_em = datetime.utcnow()
+    db.commit()
+
+    limpar_tentativas_falhas(db, usuario)
+    return _finalizar_login(db, usuario, request, response, acao="LOGIN_PASSKEY")

@@ -185,6 +185,26 @@ class CodigoRecuperacaoMFA(Base):
     usado = Column(Boolean, default=False)
     criado_em = Column(DateTime, default=datetime.utcnow)
 
+class CredencialWebAuthn(Base):
+    """v0.4 (adendo pós-fechamento da FASE 0) - passkey: credencial FIDO2/WebAuthn atrelada a
+    um dispositivo (Windows Hello, Face ID/Touch ID, chave de segurança física). Guarda só a
+    chave PÚBLICA (`chave_publica_cose`, formato COSE_Key) e o contador de assinatura - a chave
+    privada nunca sai do dispositivo do usuário, é o que torna esse mecanismo mais seguro que
+    senha. `contador_assinatura` detecta clonagem de autenticador (deveria sempre crescer a
+    cada uso; se um valor recebido for menor ou igual ao guardado, é sinal de credencial
+    duplicada/clonada - ver `verificar_autenticacao_webauthn`)."""
+    __tablename__ = "credenciais_webauthn"
+    id_credencial = Column(Integer, primary_key=True, index=True)
+    id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"), index=True, nullable=False)
+    credential_id = Column(String, unique=True, index=True, nullable=False)
+    chave_publica_cose = Column(String, nullable=False)  # bytes da COSE_Key, guardado em base64
+    contador_assinatura = Column(Integer, default=0)
+    apelido = Column(String, nullable=True)  # ex.: "Notebook do trabalho" - o usuário escolhe
+    transports = Column(String, nullable=True)  # CSV: "internal,hybrid" etc., vindo do navegador
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    ultimo_uso_em = Column(DateTime, nullable=True)
+
+
 class AuditLog(Base):
     """Quem mudou o quê, quando, antes/depois - base para LGPD (FASE 7) e segregação de
     funções do Financeiro (FASE 3). Login/logout também geram entrada (acao=LOGIN/LOGOUT),

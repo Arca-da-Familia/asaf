@@ -1023,6 +1023,69 @@ também por suíte automatizada), documentadas, e com os dois pontos de revisão
 (o do meio de forma retroativa, corrigindo a lacuna de processo assim que percebida, em vez de
 ignorá-la). Próxima fase é a FASE 1 (Associados), abaixo.
 
+#### v0.4 — Passkey (WebAuthn): login pelo próprio dispositivo, sem senha nem MFA separado ✅ IMPLEMENTADO (2026-09-14, adendo pós-fechamento)
+> **Fora de sequência, por pedido direto do usuário durante a revisão da FASE 1**: o usuário
+> relatou dois atritos reais no login por MFA (código de 6 dígitos não confirma com Enter em
+> alguns teclados/navegadores; nenhuma forma de "confiar no dispositivo" como Windows Hello/
+> Google faz). O segundo ponto não é um simples "lembrar por 30 dias" - é **passkey/WebAuthn**
+> de verdade (credencial atrelada ao dispositivo, chave privada nunca sai dele). Tecnicamente
+> pertence à FASE 0 (identidade/autenticação), não à FASE 1 (ciclo de vida do associado) - por
+> isso entra aqui como v0.4, mesmo com a fase já formalmente encerrada acima.
+- [x] **Correção do atrito do Enter**: `<input>` do código MFA (`Login.tsx`, `MfaSetup.tsx`)
+      ganhou `enterKeyHint="done"` - sem isso, um `inputMode="numeric"` sozinho não garante
+      tecla de Enter/Ir no teclado virtual de todo navegador/SO. Testado num navegador real
+      (Playwright): preencher o código e apertar Enter (sem clicar em "Verificar") completa o
+      login (`e2e/auth.spec.ts`, "tecla Enter no código do autenticador...").
+- [x] **Passkey (WebAuthn) completo**: `CredencialWebAuthn` (`app/models/core.py`, migração
+      `e9f0a1b2c3d4`) guarda só a chave PÚBLICA (formato COSE) + contador de assinatura por
+      dispositivo - a chave privada nunca sai do notebook/celular do usuário, que é o que torna
+      isso mais seguro que senha. `POST /auth/webauthn/registrar/iniciar` (autenticado) exige
+      `resident_key=REQUIRED` (permite login sem digitar CPF antes - o navegador já sabe quais
+      credenciais salvas servem para este site) e `user_verification=REQUIRED` (o desbloqueio
+      por biometria/PIN do próprio autenticador é obrigatório, checado no servidor também, nunca
+      só confiado do navegador) + `/concluir` (verifica a resposta com a biblioteca `webauthn`,
+      grava a credencial). `GET /auth/webauthn/credenciais` e
+      `DELETE /auth/webauthn/credenciais/{id}` (perdeu o dispositivo, revoga). Login:
+      `POST /auth/webauthn/login/iniciar` (público, sem CPF) e `/concluir` (verifica a
+      assinatura contra a chave pública guardada, checa o contador de uso contra clonagem de
+      autenticador, e finaliza a sessão pelo mesmo caminho de `/auth/login` -
+      `_finalizar_login`, extraído nesta versão para não triplicar a lógica de cookie/token
+      entre login por senha, por MFA e por passkey).
+      > **Por que substitui senha E o segundo fator na mesma etapa**: diferente de "lembrar
+      > este dispositivo por N dias" (que reduziria a segurança por um prazo), a verificação de
+      > usuário exigida pelo WebAuthn (`user_verification=REQUIRED`, exigida nos dois lados) já
+      > É uma prova forte de posse do dispositivo + identidade da pessoa - é assim que
+      > Google/Microsoft tratam passkey. Documentado no próprio código
+      > (`app/routers/auth.py`), não escondido como comportamento implícito.
+      > Desafio (challenge) entre "iniciar" e "concluir" viaja num JWT de vida curta (5 min,
+      > `criar_webauthn_pending_token`) - stateless, mesmo raciocínio de `criar_mfa_pending_token`
+      > (funciona igual com várias réplicas do Container App, sem tabela/estado em memória).
+- [x] `WEBAUTHN_RP_ID=painel.asaf.org.br` e `WEBAUTHN_ORIGIN=https://painel.asaf.org.br`
+      configurados no Container App `asaf-api` de produção (2026-09-14), preservando as
+      variáveis já existentes (`DATABASE_URL`/`RUN_DB_MIGRATION`/`JWT_SECRET`) - confirmado via
+      `az containerapp show` e a API respondendo 200 depois do restart.
+      > **Achado de processo nesta configuração**: a sessão que aplicou isso estava logada por
+      > padrão numa assinatura Azure diferente da que contém `Associacao-RG` (duas assinaturas
+      > com o mesmo nome de exibição, "Azure subscription 1", em tenants diferentes) -
+      > `az account show` sozinho não denunciava isso; só `az account list` + `az group list`
+      > confirmaram qual assinatura tinha o resource group certo. Fica registrado porque é o
+      > tipo de confusão que se repete em qualquer sessão nova que rode comandos Azure aqui.
+>
+> Testado: `pytest tests/` - 78/78 (6 novos em `tests/test_webauthn.py`, com um **autenticador
+> virtual real** construído com `cryptography`+`cbor2` - gera uma chave EC P-256 de verdade,
+> monta `authenticatorData`/`attestationObject` e assina o desafio de autenticação; a suíte
+> confirma criptografia de ponta a ponta, não mock: assinatura adulterada e credencial
+> desconhecida são recusadas de verdade pela biblioteca `webauthn`). Painel: `tsc --noEmit` e
+> `eslint` limpos, `vitest` 22/22. Testado também num navegador real (Playwright, Chromium) com
+> o domínio WebAuthn do Chrome DevTools Protocol simulando um autenticador de plataforma de
+> verdade (`e2e/auth.spec.ts`, "Passkey (WebAuthn) › login usando uma passkey já registrada no
+> dispositivo") - confirma que o painel liga certo as duas pontas (opções do servidor → cerimônia
+> real do navegador → resposta de volta pro servidor), não só que os endpoints funcionam
+> isolados.
+>
+> Migração `e9f0a1b2c3d4` testada isoladamente (upgrade cria a tabela com a FK esperada para
+> `usuarios`; downgrade remove) contra SQLite, mesmo padrão de rigor das migrações anteriores.
+
 ### FASE 1 — Associados (ciclo de vida completo da pessoa na associação)
 
 > Esta fase deixa de ser "cadastro" e passa a ser **ciclo de vida**: como a pessoa entra, como é
@@ -1367,11 +1430,63 @@ ignorá-la). Próxima fase é a FASE 1 (Associados), abaixo.
 > nome preservado e CPF/e-mail/telefone `NULL` → `AuditLog` confirmado sem vazar os valores
 > apagados → readmitido com CPF/e-mail novos → dados repopulados corretamente.
 
-##### 🔍 Ponto de Revisão — FASE 1 (1/2 — meio, fecha v1.0–v1.4)
-Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
-- A deduplicação por CPF (v1.0) realmente impede pessoa duplicada — testar com CPF igual, CPF com formatação diferente, e nome parecido sem CPF.
-- Categoria do associado (v1.1) é **calculada**, não existe nenhum campo editável à mão escondido em algum formulário.
-- Fluxo de filiação (v1.2) registra quem decidiu, quando e por quê em toda transição, inclusive recusa.
+##### 🔍 Ponto de Revisão — FASE 1 (1/2 — meio, fecha v1.0–v1.4) — aplicado em 2026-09-14
+- [x] **Item 1 (implementado e testado de fato)**: sim — v1.0-v1.4 verificadas contra o código
+      real (não por analogia): dedup de CPF, cálculo de categoria, auditoria de filiação e
+      efeitos automáticos de desligamento/readmissão/anonimização foram lidos e conferidos linha
+      a linha nesta revisão, não só relidos no texto do plano.
+- [x] **Item 2 (testes automatizados existem e passam)**: `pytest tests/` — **72/72 passando**,
+      confirmado rodando a suíte completa agora (`test_pessoas.py`, `test_v1_1.py`,
+      `test_filiacao.py`, `test_importacao.py`, `test_situacao.py` entre outros). Só warnings de
+      depreciação (`datetime.utcnow()`), nenhuma falha.
+- [x] **Item 3 (nenhuma regra congelada violada)**: confirmado — Alembic continua o único
+      caminho de mudança de schema, RBAC por permissão (`exigir_permissao`) continua o único
+      modelo de autorização, nenhum dado financeiro (`TituloFinanceiro`/`TransacaoCaixa`) foi
+      apagado por desligamento/anonimização (só marcado/preservado, como já registrado na v1.4).
+- [x] **Item 4 (nenhum segredo exposto)**: `git status` limpo, nenhum segredo novo introduzido
+      por v1.0-v1.4 (tokens de carteirinha usam o `JWT_SECRET` já existente).
+- [x] **Item 5 (AuditLog de verdade)**: confirmado no código, não só no plano —
+      `conferir_proposta`/`recusar_proposta`/`aprovar_proposta` (`app/routers/filiacao.py`) e
+      licença/desligamento/readmissão/anonimização (`app/routers/situacao.py`) chamam
+      `registrar_auditoria` de fato, com motivo/data.
+- [x] **Item 6 (permissão checada no backend)**: confirmado — toda rota de `filiacao.py` e
+      `situacao.py` depende de `exigir_permissao("associados")`, nunca só escondida no front.
+- [x] **Item 7 (nada fora de escopo adiantado)**: confirmado pelas próprias ressalvas já
+      registradas em v1.0-v1.4 (voto/mensalidade de licença, termo assinado eletronicamente,
+      mesclagem de duplicidade) — cada uma aponta pra fase futura em vez de fingir pronto.
+- [x] **Item 8 (plano atualizado refletindo a realidade)**: sim, cada versão já documentada com
+      nota de verificação real na hora da implementação.
+- [x] **Item 9 (suíte completa continua passando)**: mesma execução do item 2 — 72/72, nada
+      anterior quebrou silenciosamente.
+
+**Itens específicos do trecho**:
+- [x] **Deduplicação por CPF (v1.0)**: `test_cpf_duplicado_e_recusado` cobre CPF idêntico (400).
+      CPF com formatação diferente ("111.222.333-44" vs "11122233344") não tem teste explícito,
+      mas é coberto **por construção**: `AssociadoMasterCriar.validar_cpf_campo`
+      (`app/schemas/associados.py:44-49`) normaliza para só-dígitos (`somente_digitos`) antes de
+      qualquer gravação/comparação, e `Pessoa.cpf` é `unique=True` sobre o valor já normalizado —
+      não existe caminho onde um CPF formatado diferente escape da checagem. **Achado registrado,
+      não bloqueante**: falta um teste explícito pra essa formatação — anotado como pendência de
+      cobertura de teste (FASE 18), não como bug. "Nome parecido sem CPF" **não é bloqueado em
+      v1.0 nem deveria ser** — o próprio v1.0 declarou isso fora de escopo (nº 1075 do plano);
+      quem cobre nome+nascimento como sinal (nunca bloqueio) é a v1.3 (`duplicidade.py`), só no
+      assistente de importação, não na criação direta de associado — comportamento como
+      documentado, não uma lacuna nova.
+- [x] **Categoria calculada (v1.1)**: confirmado no código — `status_arrolamento` só é escrito
+      por `app/services/categoria_associado.py`, `app/routers/situacao.py` e
+      `app/routers/filiacao.py` (todos server-side, a partir de evento real). Não existe em
+      nenhum schema de entrada (`AssociadoAdminUpdate`/`AssociadoPerfilUpdate`) e o único `<select
+      id="listas_tipo">` que lista "status_arrolamento" no HTML admin é o gerenciador do
+      **catálogo** de rótulos (renomear/reordenar opção), não uma forma de atribuir a categoria a
+      um associado específico — não é um campo editável disfarçado.
+- [x] **Fluxo de filiação (v1.2)**: confirmado — `conferir`/`recusar`/`aprovar` chamam
+      `registrar_auditoria` cada um, com o usuário autenticado (`usuario=Depends(...)`) como
+      quem decidiu e o motivo obrigatório em `recusar`.
+
+**Fase não bloqueada**: nenhum item do checklist falhou de forma que exija correção antes de
+avançar; o único achado (falta de teste explícito pra CPF formatado) foi registrado como
+pendência de cobertura, não como bug de comportamento. FASE 1 segue para v1.5–v1.8, com o
+segundo ponto de revisão no fim.
 
 #### v1.5 — Linha do tempo e ficha 360º do associado
 - [ ] Uma única tela reunindo: dados, situação financeira resumida, cargos exercidos, participação

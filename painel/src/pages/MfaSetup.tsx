@@ -113,6 +113,7 @@ export function MfaSetup() {
               <input
                 id="codigo"
                 inputMode="numeric"
+                enterKeyHint="done"
                 autoComplete="one-time-code"
                 maxLength={6}
                 value={codigo}

@@ -111,7 +111,7 @@ async function loginComoAdmin(page: Page) {
   await page.goto('/login')
   await page.getByLabel('CPF').fill(CPF_TESTE)
   await page.getByLabel('Senha').fill(SENHA_TESTE)
-  await page.getByRole('button', { name: 'Entrar' }).click()
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Início' })).toBeVisible()
 
   // page.goto faz reload completo (o access token só existe em memória) — simula o cookie de

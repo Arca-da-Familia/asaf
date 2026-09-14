@@ -150,3 +150,34 @@ class MFADesativarRequest(BaseModel):
 
 class MFARegenerarRequest(BaseModel):
     senha: str
+
+
+# ==========================================
+# PASSKEY / WEBAUTHN (v0.4 - adendo pós-fechamento da FASE 0)
+# ==========================================
+class WebAuthnOpcoesResponse(BaseModel):
+    """`opcoes` é o dict devolvido por `webauthn.options_to_json` (já no formato que
+    `@simplewebauthn/browser` espera em `startRegistration`/`startAuthentication`) -
+    passado como `dict` puro (não tipado campo a campo) porque o contrato de verdade é o do
+    navegador/biblioteca JS, não um schema nosso; `desafio_token` carrega o challenge para o
+    passo de conclusão (ver `criar_webauthn_pending_token`)."""
+    opcoes: dict
+    desafio_token: str
+
+
+class WebAuthnRegistrarConcluirRequest(BaseModel):
+    credencial: dict
+    desafio_token: str
+    apelido: Optional[str] = None
+
+
+class WebAuthnLoginConcluirRequest(BaseModel):
+    credencial: dict
+    desafio_token: str
+
+
+class WebAuthnCredencialResponse(BaseModel):
+    id_credencial: int
+    apelido: Optional[str] = None
+    criado_em: Optional[datetime] = None
+    ultimo_uso_em: Optional[datetime] = None
