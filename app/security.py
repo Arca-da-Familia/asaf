@@ -371,10 +371,11 @@ def get_current_user_opcional(
     db: Session = Depends(get_db),
 ) -> Optional[Usuario]:
     """v1.8 - variante de `get_current_user` que devolve `None` em vez de recusar a requisição
-    quando não há token (ou o token é inválido) - usada só nas rotas legadas sem autenticação
-    (ex.: `/associados-master/`, ainda chamada sem token pelo portal HTML antigo) que precisam
-    saber SE existe um usuário autenticado pra checar uma permissão extra (forçar cadastro
-    duplicado), sem exigir login pra todo o resto do fluxo que já funciona sem ele."""
+    quando não há token (ou o token é inválido) - usada em rotas que aceitam chamada sem login
+    (ex.: `/associados-master/`, hoje chamada pelo painel único, mas sem `exigir_permissao` -
+    pendência a revisar, ver achado de 2026-09-15 no PLANO_PROJETO.md) e que precisam saber SE
+    existe um usuário autenticado pra checar uma permissão extra (forçar cadastro duplicado),
+    sem exigir login pra todo o resto do fluxo que já funciona sem ele."""
     if credenciais is None:
         return None
     try:

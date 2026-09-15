@@ -64,11 +64,14 @@ def setup_cerebro(db: Session = Depends(get_db)):
 
 
 # ==========================================
-# /api/opcoes/* — v0.1/v0.2, mantida por COMPATIBILIDADE com o protótipo antigo
-# (app/routers/associados.py: /admin/secretaria, /meu-portal, /meu-perfil, /minha-familia ainda
-# chamam esta rota). Migrado para ler/escrever em Catalogo/OpcaoCatalogo (v0.3.1) por baixo -
-# nenhum dado novo entra mais em `opcoes_lista`, que fica só como histórico da migração.
-# Uso novo deve chamar /api/catalogos/ diretamente, não esta rota.
+# /api/opcoes/* — v0.1/v0.2. As páginas HTML do protótipo antigo que chamavam esta rota
+# (/admin/secretaria, /meu-portal, /meu-perfil, /minha-familia) foram removidas em 2026-09-15
+# (ver PLANO_PROJETO.md - painel único é a única interface daqui em diante), mas a rota
+# continua viva: é a única fonte do RÓTULO de campos que gravam o rótulo como valor (ex.:
+# `Associado.categoria`/`estado_civil`, ver painel/src/lib/api.ts::listarOpcoesLegado) - migrado
+# para ler/escrever em Catalogo/OpcaoCatalogo (v0.3.1) por baixo, nenhum dado novo entra mais em
+# `opcoes_lista`, que fica só como histórico da migração. Uso novo que precisa do CÓDIGO (não do
+# rótulo) deve chamar /api/catalogos/ diretamente, não esta rota.
 # ==========================================
 @router.get("/api/opcoes/{tipo_lista}", summary="Listar valores de uma lista configurável (compat v0.1/v0.2)")
 def listar_opcoes(tipo_lista: str, incluir_inativos: bool = False, db: Session = Depends(get_db)):

@@ -1229,6 +1229,27 @@ ignorá-la). Próxima fase é a FASE 1 (Associados), abaixo.
 > implementada** - depende de escolher provedor de envio de e-mail antes (mesmo padrão de
 > decisão em aberto do PSP do Pix Automático/BSP do WhatsApp, ver DECISOES_CONGELADAS.md seção 7).
 >
+> **v3.0.2 (2026-09-15, mesmo dia)**: primeira tela de negócio real do módulo "Associados" no
+> painel único (`painel.asaf.org.br/associados`) - até aqui era `<EmConstrucao>` (só guarda de
+> permissão, nenhum conteúdo), situação já registrada como pendência nas v1.5/v1.6/v1.7. Entrega
+> listagem (`GET /api/associados/`, nova), cadastro (`/associados/novo`, ligado ao
+> `POST /associados-master/` de sempre) e concessão de acesso por linha (v3.0.1) - tudo dentro
+> do painel único, sem link separado.
+>
+> **Remoção de UI legada, mesmo dia**: as páginas HTML `/admin` (Mega Portal),
+> `/admin/secretaria`, `/meu-portal/{id}`, `/meu-perfil/{id}` (HTML) e `/minha-familia/{id}`
+> (`app/routers/associados.py`, `app/routers/financeiro.py`, `app/routers/admin_portal.py` -
+> este último apagado por inteiro) foram removidas - eram do protótipo pré-plano (servidor
+> Python de +3000 linhas, abas por função numerada, dois painéis soltos em vez de um painel
+> modular), incompatíveis com a decisão congelada 4.1 (painel único React) e nunca deveriam ter
+> sido apontadas como caminho válido, nem reaproveitadas - erro corrigido no mesmo dia em que foi
+> cometido. As rotas JSON reais (`/api/...`) que essas páginas chamavam continuam intactas.
+> **Consequência real, ainda não coberta pelo painel React**: `/admin/secretaria` também tinha
+> edição de associado (com foto), gestão de cargos, gestão de dependentes/família e gestão de
+> listas de catálogo - nenhuma dessas telas foi reconstruída ainda. Editar um associado, gerenciar
+> cargo ou família hoje só é possível via API direta (Swagger/curl), até o módulo Associados do
+> painel ganhar essas telas - mesmo padrão de pendência já registrado em v1.5/v1.6/v1.7.
+>
 > Testado: `pytest tests/` — 43/43 (10 novos em `tests/test_v1_1.py`: CPF/telefone/nascimento
 > inválidos recusados, status_arrolamento não editável via schema, categoria vira Inadimplente
 > com título vencido e volta a Em Dia ao pagar, completude, CEP válido/inválido contra o ViaCEP
