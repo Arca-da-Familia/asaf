@@ -1952,27 +1952,70 @@ conseguir fazer uma assembleia válida bem antes de ter todos os refinamentos.
       > para quando a FASE 3 tiver um fluxo de aprovação para consultar.
 
 #### v2.2 — Assembleias: convocação e habilitação
-- [ ] `Assembleia` (tipo: ordinária/extraordinária, data/hora das convocações, local físico e/ou
+> **Verificação contra o texto real do estatuto antes de codificar (2026-09-15, a pedido do
+> usuário)**: o rascunho original desta versão previa "categoria com direito a voto" e "tempo
+> mínimo de filiação" como critério de habilitados, e tratava a convocação por petição como algo
+> que dependeria "da lei preencher lacuna do estatuto". Nenhuma das duas premissas resistiu à
+> leitura do `ESTATUTO_ASAF.txt`: (1) a convocação por petição (1/5 dos associados) já está
+> **expressa** no próprio estatuto (Art. 8º e Art. 10, Parágrafo Único), não depende da lei
+> suprir lacuna nenhuma — o Art. 60 do Código Civil só reforça, não preenche vazio; (2) o
+> estatuto não tem "categoria com direito a voto" nem "tempo mínimo de filiação" em lugar
+> nenhum — os únicos critérios reais são Art. 13 (caput: direitos, incluindo votar/ser votado,
+> "desde que em dia com suas obrigações") e Art. 4º (Assembleia formada por associados "em pleno
+> gozo de seus direitos associativos"). O usuário confirmou remover as duas condições sem base
+> textual. Também esclarecido: "Licenciado" (`status_arrolamento`, v1.4) **não é conceito do
+> estatuto** — é recurso do próprio sistema para registrar afastamento temporário, sem decisão
+> prévia sobre efeito no voto. O usuário decidiu: pedir licença é abrir mão dos direitos
+> associativos enquanto durar (inclusive votar/ser votado), **independente** de o associado
+> continuar em dia com a mensalidade — não é "licenciado E inadimplente que não vota", é
+> licenciado que não vota, ponto.
+- [x] `Assembleia` (tipo: ordinária/extraordinária, data/hora das convocações, local físico e/ou
       link remoto, pauta, status) com edital gerado a partir de modelo, respeitando o prazo mínimo
       de antecedência configurado (v2.0) — o sistema recusa convocar fora do prazo, explicando qual
       regra foi violada, com possibilidade de override registrado e justificado.
-- [ ] **Convocação por petição de associados** (Art. 60 do Código Civil: 1/5 dos associados tem
+      > `app/models/governanca.py::Assembleia` (substitui o protótipo v0.1/v0.2 do mesmo nome, que
+      > nunca teve migração Alembic própria - nunca existiu de fato em produção). 2ª/3ª
+      > convocação (Art. 6º) calculadas na leitura a partir de `INTERVALO_ENTRE_CONVOCACOES_MINUTOS`
+      > (nova `RegraEstatutaria`, v2.0), nunca gravadas. `POST /api/assembleias/{id}/convocar`
+      > recusa fora do prazo (`PRAZO_CONVOCACAO_DIAS`) com a regra violada na mensagem. "Override
+      > registrado e justificado" **não implementado** - pendência registrada, ninguém pediu ainda
+      > um caso real que precise pular o prazo mínimo.
+- [x] **Convocação por petição de associados** (Art. 60 do Código Civil: 1/5 dos associados tem
       direito de convocar assembleia) — coleta de adesão digital assinada (FASE 20), contador de
       quórum de petição em tempo real, disparo formal da convocação ao atingir o limite.
+      > `PeticaoConvocacao`/`AdesaoPeticao` + `/api/peticoes-convocacao/*`. Contador de quórum em
+      > tempo real (`fracao_adesao_peticao`), disparo automático ao atingir 1/5
+      > (`FRACAO_MINIMA_PETICAO_CONVOCACAO`, v2.0). Depois de atingido, a Diretoria converte em
+      > assembleia a qualquer momento; se `PRAZO_ATENDIMENTO_PEDIDO_CONVOCACAO_DIAS` (Art. 10,
+      > Parágrafo Único) passar sem isso, qualquer aderente pode converter sozinho. "Adesão digital
+      > **assinada**" ainda não - motor de assinatura é FASE 20/v20.2, que não existe; por ora a
+      > adesão é só o vínculo autenticado usuário↔associado, sem assinatura criptográfica.
 - [ ] Publicação do edital simultaneamente no painel, por e-mail/WhatsApp (FASE 11/v11.3) e na
       área pública do site (FASE 5), com comprovante de publicação arquivado — a prova de que a
       convocação aconteceu é tão importante quanto a convocação.
-- [ ] **Lista de habilitados calculada** (adimplência, categoria com direito a voto, ausência de
-      suspensão disciplinar, tempo mínimo de filiação) — congelada no momento da convocação,
-      preservada como anexo imutável da assembleia. Nunca marcação manual, nunca recalculada
-      depois do fato.
-- [ ] Procuração/representação como parâmetro estatutário (`PROCURACAO_PERMITIDA`, v2.0) — **hoje
+      > **Não implementado** - depende de FASE 11 (e-mail/WhatsApp) e FASE 5 (site público),
+      > nenhuma das duas construída ainda. O edital já é gerado e fica disponível via API
+      > (`GET /api/assembleias/{id}/edital`) - falta só publicá-lo nos canais que ainda não existem.
+- [x] **Lista de habilitados calculada** (~~categoria com direito a voto~~, ~~tempo mínimo de
+      filiação~~ removidos por não terem base no estatuto - ver nota acima) — congelada no momento
+      da convocação, preservada como anexo imutável da assembleia. Nunca marcação manual, nunca
+      recalculada depois do fato.
+      > `HabilitadoAssembleia`, calculada em `calcular_lista_habilitados` só na primeira convocação
+      > (idempotente - se já existe lista congelada, devolve a mesma, nunca recalcula). Critério
+      > final: `calcular_categoria` (fonte da verdade, v1.1) resulta em `Ativo - Em Dia` ou `Em
+      > Experiência` (Art. 12 não reconhece período de experiência, associado aprovado já é pleno)
+      > → habilitado; `Ativo - Inadimplente`, `Suspenso`, `Desligado` ou `Licenciado` → não
+      > habilitado, com motivo registrado. Testado (congelamento sobrevive a mudança de situação
+      > depois): `tests/test_assembleia.py`.
+- [x] Procuração/representação como parâmetro estatutário (`PROCURACAO_PERMITIDA`, v2.0) — **hoje
       vedada** pelo Art. 7º do estatuto real da ASAF ("é vedada a representação de um associado
       por outro mesmo que devidamente credenciado para efeito de quórum ou do voto"), então o
       sistema não constrói fluxo de upload/conferência de instrumento de procuração agora (não
       há o que conferir se é sempre proibido) — só garante que o parâmetro existe e que, se uma
       reforma futura do estatuto passar a permitir, o fluxo de upload/conferência entra sem
       precisar de outra versão nova, só ligar o parâmetro.
+      > Nada novo a fazer aqui além do que a v2.0 já entregou (`PROCURACAO_PERMITIDA = "nao"`) -
+      > confirmado que continua correto, sem fluxo de upload/conferência construído de propósito.
 
 ##### 🔍 Ponto de Revisão — FASE 2 (1/3, fecha v2.0–v2.2)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:

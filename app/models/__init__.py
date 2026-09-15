@@ -29,8 +29,9 @@ from app.models.financeiro import (
 )
 from app.models.governanca import (
     Assembleia,
-    RegistroVoto,
-    DocumentoInstitucional,
+    HabilitadoAssembleia,
+    PeticaoConvocacao,
+    AdesaoPeticao,
 )
 from app.models.projetos import (
     ProjetoEvento,
@@ -65,8 +66,9 @@ __all__ = [
     "TituloFinanceiro",
     "TransacaoCaixa",
     "Assembleia",
-    "RegistroVoto",
-    "DocumentoInstitucional",
+    "HabilitadoAssembleia",
+    "PeticaoConvocacao",
+    "AdesaoPeticao",
     "ProjetoEvento",
     "AlocacaoVoluntario",
     "EventoLinhaDoTempo",

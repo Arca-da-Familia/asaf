@@ -352,6 +352,11 @@ def seed_regras_estatutarias():
              "descricao": "Quantidade de associados que devem propor por escrito o pedido de adesão de um novo sócio."},
             {"parametro": "QTD_MENSALIDADES_INADIMPLENCIA_EXCLUSAO", "valor": "6", "tipo": "numero", "artigo_origem": "Art. 16, §1º, V",
              "descricao": "Mensalidades consecutivas em atraso que configuram motivo de abertura de processo disciplinar com possível exclusão (nunca automática - exige processo com ampla defesa, v2.7)."},
+            # v2.2 - intervalo entre convocações da mesma assembleia (1ª->2ª->3ª chamada),
+            # adicionado depois da v2.0 mas seguindo o mesmo seed (idempotente por parâmetro,
+            # não por catálogo inteiro - por isso entra aqui mesmo já existindo produção rodando).
+            {"parametro": "INTERVALO_ENTRE_CONVOCACOES_MINUTOS", "valor": "30", "tipo": "numero", "artigo_origem": "Art. 6º",
+             "descricao": "Minutos entre a 1ª e a 2ª convocação, e entre a 2ª e a 3ª, dentro da mesma sessão de assembleia."},
         ]
 
         for r in regras_padrao:
