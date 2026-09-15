@@ -41,6 +41,7 @@ from app.models.linha_do_tempo import EventoLinhaDoTempo
 from app.models.estatuto import DocumentoEstatuto, RegraEstatutaria
 from app.models.mandatos import DeclaracaoConflitoInteresse, Mandato
 from app.models.sessao_assembleia import Credenciamento, ItemPauta, OcorrenciaSessao
+from app.models.ata import Ata, CertidaoDeliberacao, Deliberacao
 from app.models.votacao import (
     ComprovanteVotoSecreto,
     Impugnacao,
@@ -92,4 +93,7 @@ __all__ = [
     "ComprovanteVotoSecreto",
     "RegistroVotoSecreto",
     "Impugnacao",
+    "Ata",
+    "Deliberacao",
+    "CertidaoDeliberacao",
 ]

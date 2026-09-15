@@ -2205,27 +2205,53 @@ portão, não deixou a fase avançar com o problema em aberto. FASE 2 (1/3) libe
       > auditada.
 
 #### v2.5 — Ata, deliberações e efeitos
-- [ ] Ata gerada a partir dos dados da sessão (presença, pauta, votos, ocorrências) em modelo
+- [x] Ata gerada a partir dos dados da sessão (presença, pauta, votos, ocorrências) em modelo
       configurável — **não é editor de texto livre**: o corpo é montado do registro, e há espaço
       controlado para relato textual da secretaria.
-- [ ] Livro de atas digital: numeração sequencial contínua, imutável após assinatura, com trilha
+      > `gerar_corpo_ata` (`app/services/ata.py`) monta o texto a partir de `Credenciamento`,
+      > `ItemPauta`, `Votacao` (resultado + hash quando encerrada) e `OcorrenciaSessao` - não há
+      > endpoint que edite `Ata.corpo_texto` diretamente. `Ata.relato_secretaria` é o único campo
+      > de texto livre, separado do corpo montado.
+- [x] Livro de atas digital: numeração sequencial contínua, imutável após assinatura, com trilha
       de auditoria. Correção posterior só por **ata de retificação**, jamais por edição do
       documento original — mesma lógica de estorno do financeiro.
-- [ ] `Deliberacao` como registro próprio, com status de execução e responsável — assembleia que
+      > `POST /api/atas/{id}/assinar` atribui `numero_sequencial` (contínuo,
+      > `proximo_numero_ata`) e trava a ata (`status=Assinada`) - não existe rota de edição do
+      > corpo depois disso, então "imutável" é estrutural, não só checagem de status.
+      > `POST /api/atas/{id}/retificar` só aceita ata já assinada e cria uma NOVA `Ata`
+      > (`id_ata_retificada` apontando pra original, que nunca é tocada). Testado em
+      > `tests/test_ata.py::test_retificar_exige_ata_assinada_e_preserva_original`.
+- [x] `Deliberacao` como registro próprio, com status de execução e responsável — assembleia que
       delibera e ninguém executa é o padrão de falha mais comum em associação. O sistema cobra:
       deliberação pendente aparece no painel da diretoria até ser concluída ou formalmente
       revogada.
-- [ ] Efeitos automáticos da deliberação quando aplicável: eleição concluída cria os `Mandato`s
+      > `Deliberacao` + `GET /api/deliberacoes/pendentes` (cross-assembleia, "painel da
+      > diretoria" de verdade - lista toda deliberação `Pendente` de qualquer ata).
+- [x] Efeitos automáticos da deliberação quando aplicável: eleição concluída cria os `Mandato`s
       (v2.1); reforma estatutária abre a pendência de registro em cartório (v13.4) e de nova
       versão de `RegraEstatutaria` (v2.0); aprovação de contas fecha o exercício no financeiro.
-- [ ] Certidão de deliberação (extrato de um item específico da ata) emitida sob demanda e
+      > Eleição: `concluir_deliberacao` aceita `mandatos_criar` (lista) e cria os `Mandato`s de
+      > verdade, reaproveitando `criar_mandato` (v2.1) - testado que o mandato aparece em
+      > `/api/mandatos/` depois. Reforma de estatuto: registra a pendência em `AuditLog` e devolve
+      > nota explícita (registro em cartório + nova `RegraEstatutaria` são manuais - o sistema não
+      > sabe qual parâmetro mudou só pelo texto). **Aprovação de contas fechando o exercício NÃO
+      > implementado de verdade** - `Exercicio` é FASE 3/v3.0, que ainda não existe; a conclusão
+      > devolve a mesma nota de pendência, sem fingir o fechamento.
+- [x] Certidão de deliberação (extrato de um item específico da ata) emitida sob demanda e
       numerada — evita mandar a ata inteira para um banco que só precisa de uma linha.
+      > `CertidaoDeliberacao` (`numero_sequencial` próprio, contínuo, separado do livro de atas) +
+      > `POST /api/deliberacoes/{id}/certidao`.
 
-##### 🔍 Ponto de Revisão — FASE 2 (2/3, fecha v2.3–v2.5)
+##### 🔍 Ponto de Revisão — FASE 2 (2/3, fecha v2.3–v2.5) ✅ FECHADO (2026-09-15)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 - Voto secreto (v2.4) é **de verdade** desacoplado da identidade no banco — testar que nem uma consulta SQL direta de administrador reconstrói a associação pessoa↔voto em votação secreta.
+  > ✅ `ComprovanteVotoSecreto`/`RegistroVotoSecreto` sem coluna em comum (garantia estrutural, não só código) - `tests/test_votacao.py::test_votacao_secreta_desacoplada_de_verdade`.
 - Ata (v2.5) é imutável após assinatura — testar que tentar editar gera erro, e que correção só é possível via ata de retificação.
+  > ✅ Sem rota de edição de `Ata` assinada; retificação testada em `tests/test_ata.py::test_retificar_exige_ata_assinada_e_preserva_original` (original nunca muda de status/conteúdo).
 - Apuração em tempo real fecha com hash SHA-256 do resultado — testar que o hash muda se qualquer voto for alterado depois.
+  > ✅ `tests/test_votacao.py::test_hash_do_resultado_muda_se_um_voto_for_alterado_depois`.
+
+155/155 testes passando (`pytest tests/`), migrations v2.0-v2.5 testadas isoladamente (upgrade + downgrade sobre estado do head anterior).
 
 #### v2.6 — Conselho Fiscal como órgão com poder real no sistema
 - [ ] Acesso de leitura irrestrita ao financeiro (FASE 3) com registro de auditoria de consulta
