@@ -2254,12 +2254,28 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 155/155 testes passando (`pytest tests/`), migrations v2.0-v2.5 testadas isoladamente (upgrade + downgrade sobre estado do head anterior).
 
 #### v2.6 — Conselho Fiscal como órgão com poder real no sistema
-- [ ] Acesso de leitura irrestrita ao financeiro (FASE 3) com registro de auditoria de consulta
+- [x] Acesso de leitura irrestrita ao financeiro (FASE 3) com registro de auditoria de consulta
       (v15.2) — o conselho precisa ver tudo, e o sistema precisa registrar que viu.
-- [ ] Emissão de parecer sobre prestação de contas (favorável, com ressalva, contrário), vinculado
+      > `GET /api/conselho-fiscal/financeiro/titulos` e `/caixa` (permissão `financeiro`, já
+      > concedida a Conselho Fiscal/Diretoria/Presidente desde a v0.1.5) - cada consulta grava
+      > `AuditLog` (`acao=CONSULTA_CONSELHO_FISCAL`). "Irrestrita" é sobre o dado (nada
+      > escondido), não uma trava nova - a auditoria de consulta de verdade em toda a aplicação
+      > (não só aqui) é v15.2, ainda não construída; esta versão só cobre o financeiro, que é o
+      > que o item pedia.
+- [x] Emissão de parecer sobre prestação de contas (favorável, com ressalva, contrário), vinculado
       ao exercício e obrigatório antes da assembleia de aprovação de contas.
-- [ ] Fila de questionamentos: conselheiro marca um lançamento com pergunta, tesouraria responde,
+      > `ParecerPrestacaoContas` - `ano_exercicio` é inteiro solto, não FK para um `Exercicio` de
+      > verdade (FASE 3/v3.0 não existe ainda; fingir a FK seria pior que não ter). Emitir parecer
+      > exige nível com `is_conselho_fiscal=True` (`usuario_e_conselho_fiscal`, segregação de
+      > função: quem fiscaliza não é quem lança). "Obrigatório antes da assembleia de aprovação de
+      > contas" **é travado de verdade**: `Deliberacao` tipo "Aprovação de contas" (v2.5) exige
+      > `ano_exercicio` e o router recusa criar a deliberação se não existir parecer para aquele
+      > ano - testado em `tests/test_conselho_fiscal.py::test_deliberacao_aprovacao_contas_exige_parecer_previo`.
+- [x] Fila de questionamentos: conselheiro marca um lançamento com pergunta, tesouraria responde,
       histórico preservado — transforma controle informal em processo auditável.
+      > `QuestionamentoLancamento` (abrir exige `is_conselho_fiscal`) + `RespostaQuestionamento`
+      > (responder exige permissão `financeiro` - tesouraria) - cada resposta é uma linha nova,
+      > nunca edição, histórico completo preservado mesmo com idas e vindas.
 
 #### v2.7 — Disciplina (condicionada ao estatuto real da ASAF)
 - [ ] Processo administrativo com rito configurável: abertura motivada, notificação do associado

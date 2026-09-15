@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
-from app.models.ata import TIPOS_DELIBERACAO
+from app.models.ata import APROVACAO_CONTAS, TIPOS_DELIBERACAO
 from app.schemas.mandatos import MandatoCriar
 
 
@@ -25,6 +25,9 @@ class DeliberacaoCriar(BaseModel):
     id_votacao: Optional[int] = None
     id_associado_responsavel: Optional[int] = None
     prazo_execucao: Optional[datetime] = None
+    # v2.6 - obrigatório quando tipo="Aprovação de contas": o router confere que já existe
+    # parecer do Conselho Fiscal para este ano antes de aceitar a deliberação.
+    ano_exercicio: Optional[int] = None
 
     @field_validator("tipo")
     @classmethod
@@ -39,6 +42,12 @@ class DeliberacaoCriar(BaseModel):
         if len(v.strip()) < 5:
             raise ValueError("Descreva a deliberação.")
         return v.strip()
+
+    @model_validator(mode="after")
+    def validar_ano_exercicio_para_aprovacao_contas(self):
+        if self.tipo == APROVACAO_CONTAS and self.ano_exercicio is None:
+            raise ValueError("Deliberação de aprovação de contas exige o ano de exercício.")
+        return self
 
 
 class DeliberacaoConcluir(BaseModel):

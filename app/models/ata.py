@@ -45,6 +45,9 @@ class Deliberacao(Base):
     id_ata = Column(Integer, ForeignKey("atas.id_ata"), nullable=False, index=True)
     id_item_pauta = Column(Integer, ForeignKey("itens_pauta.id_item"), nullable=True)
     id_votacao = Column(Integer, ForeignKey("votacoes.id_votacao"), nullable=True)
+    # v2.6 - só usado quando tipo=APROVACAO_CONTAS: exige parecer do Conselho Fiscal já emitido
+    # para este ano antes de a deliberação poder ser criada (ver app/routers/ata.py).
+    ano_exercicio = Column(Integer, nullable=True)
     tipo = Column(String(30), nullable=False)
     texto = Column(Text, nullable=False)
     status_execucao = Column(String(20), default=PENDENTE, index=True)

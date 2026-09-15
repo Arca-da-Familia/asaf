@@ -9,12 +9,13 @@ from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
 from app.database import get_db
-from app.models.ata import ASSINADA, CONCLUIDA, ELEICAO, PENDENTE, RASCUNHO, REVOGADA, Ata, CertidaoDeliberacao, Deliberacao
+from app.models.ata import APROVACAO_CONTAS, ASSINADA, CONCLUIDA, ELEICAO, PENDENTE, RASCUNHO, REVOGADA, Ata, CertidaoDeliberacao, Deliberacao
 from app.models.governanca import Assembleia
 from app.routers.mandatos import criar_mandato
 from app.schemas.ata import AtaRetificar, DeliberacaoConcluir, DeliberacaoCriar, DeliberacaoRevogar
 from app.security import exigir_permissao, get_current_user
 from app.services.ata import aplicar_efeitos_deliberacao, gerar_corpo_ata, proximo_numero_ata, proximo_numero_certidao
+from app.services.conselho_fiscal import parecer_existe_para_ano
 
 router = APIRouter()
 _permissao_governanca = exigir_permissao("governanca")
@@ -105,7 +106,8 @@ def retificar_ata(id_ata: int, dados: AtaRetificar, request: Request, db: Sessio
 def _serializar_deliberacao(d: Deliberacao) -> dict:
     return {
         "id_deliberacao": d.id_deliberacao, "id_ata": d.id_ata, "tipo": d.tipo, "texto": d.texto,
-        "status_execucao": d.status_execucao, "id_associado_responsavel": d.id_associado_responsavel,
+        "ano_exercicio": d.ano_exercicio, "status_execucao": d.status_execucao,
+        "id_associado_responsavel": d.id_associado_responsavel,
         "prazo_execucao": d.prazo_execucao, "concluida_em": d.concluida_em, "observacao_conclusao": d.observacao_conclusao,
     }
 
@@ -113,9 +115,15 @@ def _serializar_deliberacao(d: Deliberacao) -> dict:
 @router.post("/api/atas/{id_ata}/deliberacoes", summary="Registrar deliberação vinculada à ata")
 def criar_deliberacao(id_ata: int, dados: DeliberacaoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_governanca)):
     _buscar_ata_ou_404(db, id_ata)
+    if dados.tipo == APROVACAO_CONTAS and not parecer_existe_para_ano(db, dados.ano_exercicio):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Não existe parecer do Conselho Fiscal para o exercício {dados.ano_exercicio} (v2.6) - "
+                   "obrigatório antes da assembleia de aprovação de contas.",
+        )
     deliberacao = Deliberacao(
         id_ata=id_ata, id_item_pauta=dados.id_item_pauta, id_votacao=dados.id_votacao, tipo=dados.tipo,
-        texto=dados.texto, id_associado_responsavel=dados.id_associado_responsavel,
+        ano_exercicio=dados.ano_exercicio, texto=dados.texto, id_associado_responsavel=dados.id_associado_responsavel,
         prazo_execucao=dados.prazo_execucao, id_usuario_criacao=usuario.id_usuario,
     )
     db.add(deliberacao)
