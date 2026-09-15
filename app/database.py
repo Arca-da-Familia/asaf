@@ -156,6 +156,15 @@ def seed_catalogos():
             ("ISENCAO_DE_MENSALIDADE", "Isenção de Mensalidade"), ("LICENCA_TEMPORARIA", "Licença Temporária"),
             ("DESLIGAMENTO", "Desligamento"),
         ]),
+        # v2.9 - o estatuto não define cadência de reunião de Diretoria/Conselho Fiscal (Art. 20
+        # lista competências, não frequência) - por isso vira categoria de evento genérico
+        # agendável pela diretoria, em vez de uma regra automática inventada.
+        "categoria_evento_calendario": ("Categoria de evento do calendário", True, [
+            ("REUNIAO_DIRETORIA", "Reunião de Diretoria"),
+            ("REUNIAO_CONSELHO_FISCAL", "Reunião do Conselho Fiscal"),
+            ("DATA_INSTITUCIONAL", "Data institucional"),
+            ("OUTRO", "Outro"),
+        ]),
         # v2.7 (Art. 16, §1º do estatuto) - motivos de abertura de processo disciplinar. Catálogo
         # editável - a diretoria pode ajustar o rótulo, nunca remover o que o estatuto já lista.
         "motivo_processo_disciplinar": ("Motivo de processo disciplinar", True, [

@@ -2350,15 +2350,43 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       > documentado como limitação aceita, não escondida.
 
 #### v2.9 — Calendário institucional
-- [ ] Calendário único com obrigações recorrentes de governança (AGO anual dentro do prazo
+> **Escopo ampliado a pedido do usuário (2026-09-15)**: além das obrigações de governança, o
+> calendário também agrega os eventos/ações reais da associação (`ProjetoEvento`, FASE 4) - é a
+> base do que a ASAF vai realizar durante o ano, não só as obrigações estatutárias. Tudo
+> **calculado na leitura a partir de dado que já existe em outro módulo**, nunca duplicado: AGO
+> semestral (Art. 5º, I) e eleição quadrienal (Art. 25) são as únicas datas genuinamente
+> *calculadas* (nenhum registro próprio as sustenta); o resto (assembleia convocada, mandato
+> vencendo, prazo de deliberação, projeto/evento) é leitura direta do que a v2.1-v2.5/FASE 4 já
+> gravam. "Reuniões periódicas de diretoria e conselho" não têm cadência nenhuma no estatuto (Art.
+> 20 lista competências, não frequência) - viraram categoria de evento agendável manualmente
+> (`EventoCalendario`), em vez de uma regra automática inventada sem base textual.
+- [x] Calendário único com obrigações recorrentes de governança (AGO anual dentro do prazo
       estatutário, prestação de contas, renovação de mandatos, reuniões periódicas de diretoria e
       conselho) gerando alertas com antecedência configurável — é o que impede a associação de
       descobrir em dezembro que devia ter feito uma assembleia em abril.
+      > `GET /api/calendario/?dias_antecedencia=N` (`app/services/calendario.py::montar_calendario`)
+      > agrega: AGO fevereiro/agosto calculadas (Art. 5º, I), próxima eleição calculada a partir
+      > do último `Mandato` de Presidente + `DURACAO_MANDATO_ANOS` (Art. 25, reaproveita
+      > `RegraEstatutaria` da v2.0 - sem mandato de Presidente registrado ainda, devolve `None`
+      > em vez de inventar uma data), assembleias convocadas (v2.2), mandatos vencendo (reaproveita
+      > `mandatos_vencendo`, v2.1), deliberações com prazo de execução pendente (v2.5),
+      > `ProjetoEvento` (FASE 4) e `EventoCalendario` (novo, genérico). "Prestação de contas" não
+      > tem data recorrente própria no estatuto - já aparece indiretamente via AGO (Art. 8º, I, c:
+      > "deliberar sobre a previsão orçamentária e a prestação de contas" é competência da AGO).
+      > **Pendência**: `ProjetoEvento`/`app/routers/projetos.py` ainda é protótipo v0.1/v0.2 sem
+      > autenticação (mesma categoria de achado da v2.6 pro financeiro) - fora de escopo aqui,
+      > corrigir é tarefa da FASE 4.
 
-##### 🔍 Ponto de Revisão — FASE 2 (3/3 — fim, fecha v2.6–v2.9)
+##### 🔍 Ponto de Revisão — FASE 2 (3/3 — fim, fecha v2.6–v2.9) ✅ FECHADO (2026-09-15)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 - Processo disciplinar (v2.7) bloqueia decisão antes do prazo de defesa correr — testar tentativa de decisão prematura.
   > ✅ (2026-09-15) `tests/test_disciplina.py::test_nao_pode_decidir_antes_do_prazo_de_defesa_sem_defesa_apresentada`.
+- Calendário institucional (v2.9) gera alerta antes do vencimento real de uma obrigação de governança, não só na data.
+  > ✅ AGO/eleição calculadas com antecedência configurável (`dias_antecedencia`); mandatos
+  > vencendo trazem `dias_restantes` (v2.1); deliberações com prazo trazem a data de execução
+  > pendente antes do vencimento, não só no dia - `tests/test_calendario.py`.
+
+180/180 testes passando (`pytest tests/`). **FASE 2 (Governança) completa: v2.0-v2.9.**
 - Calendário institucional (v2.9) gera alerta antes do vencimento real de uma obrigação de governança, não só na data.
 
 ### FASE 3 — Financeiro
@@ -2550,6 +2578,13 @@ configurável de `Projeto`, com `tipo_projeto` habilitando sub-formulários cond
 modelar qualquer tipo específico da ASAF direto no código. Isso é deliberado: o módulo precisa
 caber projeto educacional, quadra/espaço, ação assistencial, oficina cultural ou qualquer outro
 tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
+
+> **Pendência registrada pela v2.9 (2026-09-15)**: `app/routers/projetos.py` (`criar_projeto`,
+> `alocar_voluntario`) ainda é protótipo v0.1/v0.2 - nenhum endpoint tem
+> `Depends(get_current_user)`/`exigir_permissao` nem chama `registrar_auditoria`, mesma categoria
+> de achado que a v1.1 fez pro financeiro (FASE 3). O calendário institucional (v2.9) já lê
+> `ProjetoEvento.data_inicio` de forma segura (endpoint próprio, autenticado) - mas criar/alterar
+> projeto continua sem proteção nenhuma até esta fase resolver.
 
 #### v4.0 — Motores compartilhados (construídos uma vez, usados por tudo)
 > Sem esta versão, os mesmos quatro mecanismos seriam reimplementados em projeto, evento, aula e
