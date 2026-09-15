@@ -19,8 +19,9 @@ REVOGADA = "Revogada"
 ELEICAO = "Eleição"
 REFORMA_ESTATUTO = "Reforma de estatuto"
 APROVACAO_CONTAS = "Aprovação de contas"
+DISSOLUCAO = "Dissolução"  # v2.8 - Art. 31: 2/3 dos presentes, quórum próprio (v2.0)
 GENERICA = "Genérica"
-TIPOS_DELIBERACAO = {ELEICAO, REFORMA_ESTATUTO, APROVACAO_CONTAS, GENERICA}
+TIPOS_DELIBERACAO = {ELEICAO, REFORMA_ESTATUTO, APROVACAO_CONTAS, DISSOLUCAO, GENERICA}
 
 
 class Ata(Base):

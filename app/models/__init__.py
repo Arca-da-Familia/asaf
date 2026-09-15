@@ -44,6 +44,7 @@ from app.models.sessao_assembleia import Credenciamento, ItemPauta, OcorrenciaSe
 from app.models.ata import Ata, CertidaoDeliberacao, Deliberacao
 from app.models.conselho_fiscal import ParecerPrestacaoContas, QuestionamentoLancamento, RespostaQuestionamento
 from app.models.disciplina import ManifestacaoDiretoria, ProcessoDisciplinar
+from app.models.dissolucao import ProcessoDissolucao
 from app.models.votacao import (
     ComprovanteVotoSecreto,
     Impugnacao,
@@ -103,4 +104,5 @@ __all__ = [
     "RespostaQuestionamento",
     "ProcessoDisciplinar",
     "ManifestacaoDiretoria",
+    "ProcessoDissolucao",
 ]

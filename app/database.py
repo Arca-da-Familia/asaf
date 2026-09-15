@@ -381,6 +381,8 @@ def seed_regras_estatutarias():
              "descricao": "Dias que o associado tem para apresentar defesa após ser notificado de processo disciplinar (Art. 16 exige ampla defesa, mas não define o prazo - decisão operacional confirmada com a diretoria)."},
             {"parametro": "SUSPENSAO_DISCIPLINAR_PADRAO_DIAS", "valor": "30", "tipo": "numero", "artigo_origem": "Art. 17, II",
              "descricao": "Duração padrão da pena de suspensão quando o julgamento não especifica outro valor - o estatuto admite de 30 dias a 1 ano (365 dias); 30 é o piso do próprio artigo, usado como padrão menos gravoso."},
+            {"parametro": "ANOS_MINIMOS_ENTIDADE_DESTINATARIA_PATRIMONIO", "valor": "2", "tipo": "numero", "artigo_origem": "Art. 31, Parágrafo Único",
+             "descricao": "Anos mínimos de existência exigidos da entidade congênere que recebe o patrimônio remanescente em caso de dissolução, além de ter sede/atividade preponderante em Parauapebas/PA e estar credenciada pelos órgãos competentes."},
         ]
 
         for r in regras_padrao:

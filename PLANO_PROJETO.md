@@ -2320,12 +2320,34 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       > que o estatuto não define (prazo de defesa, voto durante processo, quórum decisório).
 
 #### v2.8 — Destinação patrimonial em caso de dissolução (Art. 61 do Código Civil)
-- [ ] Campo estatutário formal: entidade de fins não econômicos designada para receber o
+> **Achado real (2026-09-15)**: o checklist original cogitava "regra de deliberação pelos
+> associados, se o estatuto for silente" - o estatuto real NÃO é silente. Art. 31, Parágrafo
+> Único já define o critério: bens remanescentes vão para uma entidade congênere com sede e
+> atividade preponderante em Parauapebas/PA, mais de 2 anos de existência, devidamente
+> credenciada pelos órgãos competentes. Não é o NOME de uma entidade fixado agora (isso só se
+> escolhe no momento real da dissolução, obedecendo o critério) - é a regra que o sistema precisa
+> impor na hora. O próprio Art. 31 (quórum de dissolução: totalidade/1/3, aprovação 2/3 dos
+> presentes) já tinha sido semeado como `RegraEstatutaria` desde a v2.0.
+- [x] Campo estatutário formal: entidade de fins não econômicos designada para receber o
       patrimônio remanescente (ou regra de deliberação pelos associados, se o estatuto for
       silente) — registro de referência ligado ao módulo de patrimônio da FASE 12/v12.4.
-- [ ] Roteiro de dissolução documentado no sistema (deliberação, liquidação, destinação, baixa
+      > `ProcessoDissolucao.entidade_destinataria_*` (nome, CNPJ, justificativa) + três
+      > confirmações obrigatórias (`confirma_sede_parauapebas`, `confirma_anos_minimos`,
+      > `confirma_credenciada`) - `POST .../destinar-patrimonio` recusa (400, citando o Art. 31)
+      > se qualquer uma faltar. `ANOS_MINIMOS_ENTIDADE_DESTINATARIA_PATRIMONIO` = 2, nova
+      > `RegraEstatutaria` (Art. 31, Parágrafo Único) - nenhum número cru no código. Vínculo com
+      > o módulo de patrimônio (FASE 12/v12.4) **pendente** - essa fase ainda não existe.
+- [x] Roteiro de dissolução documentado no sistema (deliberação, liquidação, destinação, baixa
       cadastral) — espera-se nunca usar, mas a ausência disso é justamente o que trava uma
       dissolução quando ela acontece.
+      > `ProcessoDissolucao` + `/api/processos-dissolucao/*` - cinco etapas sequenciais e
+      > auditadas (Aberto → Deliberada → Liquidação concluída → Patrimônio destinado → Baixa
+      > cadastral concluída), cada uma só aceita a partir da anterior, cancelável a qualquer
+      > momento antes da baixa cadastral. "Deliberar" exige uma `Deliberacao` (v2.5) do novo tipo
+      > `Dissolução` já **concluída** pela Assembleia, vinculando o processo ao registro formal
+      > da decisão. Liquidação do passivo em si continua manual (registro/observação, sem
+      > automação) - depende de um módulo financeiro maduro (FASE 3) que ainda não existe;
+      > documentado como limitação aceita, não escondida.
 
 #### v2.9 — Calendário institucional
 - [ ] Calendário único com obrigações recorrentes de governança (AGO anual dentro do prazo
