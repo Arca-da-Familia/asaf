@@ -15,7 +15,18 @@ import type { ColumnDef } from '@tanstack/react-table'
 // único: listar quem já está cadastrado e, pra quem ainda não tem login, conceder acesso sem
 // sair desta tela.
 const colunas: ColumnDef<AssociadoListagem>[] = [
-  { accessorKey: 'nome_completo', header: 'Nome' },
+  {
+    accessorKey: 'nome_completo',
+    header: 'Nome',
+    cell: ({ row }) => (
+      <Link
+        to={`/associados/${row.original.id_associado}`}
+        className="font-medium hover:underline"
+      >
+        {row.original.nome_completo}
+      </Link>
+    ),
+  },
   { accessorKey: 'cpf', header: 'CPF' },
   { accessorKey: 'categoria', header: 'Categoria' },
   { accessorKey: 'status_arrolamento', header: 'Situação' },
@@ -34,6 +45,17 @@ const colunas: ColumnDef<AssociadoListagem>[] = [
           </Link>
         </Button>
       ),
+  },
+  {
+    id: 'detalhe',
+    header: '',
+    cell: ({ row }) => (
+      <Button asChild variant="ghost" size="sm">
+        <Link to={`/associados/${row.original.id_associado}`}>
+          Ver / editar
+        </Link>
+      </Button>
+    ),
   },
 ]
 

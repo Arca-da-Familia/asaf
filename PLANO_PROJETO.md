@@ -2518,14 +2518,33 @@ testes passando (`pytest tests/`).
 >
 > A FASE 3 (Financeiro, v3.1 em diante) só continua depois do Ponto de Revisão 3/3 desta fase.
 
-#### v2.5.1 — Associados: completar o painel (edição, foto, cargos, família)
-- [ ] Editar associado (dados cadastrais + endereço), reaproveitando `PUT /api/associados/{id}`
+#### v2.5.1 — Associados: completar o painel (edição, foto, cargos, família) ✅ CONCLUÍDO (2026-09-15)
+- [x] Editar associado (dados cadastrais + endereço), reaproveitando `PUT /api/associados/{id}`
       já existente.
-- [ ] Upload de foto (`POST /api/associados/{id}/foto`, já existente).
-- [ ] Histórico de cargos: listar, registrar posse, encerrar (`/api/associados/{id}/cargos`,
+- [x] Upload de foto (`POST /api/associados/{id}/foto`, já existente).
+- [x] Histórico de cargos: listar, registrar posse, encerrar (`/api/associados/{id}/cargos`,
       `/api/cargos/{id}/encerrar`, já existentes).
-- [ ] Dependentes/família (v1.7): listar, adicionar, editar grau de parentesco, remover
+- [x] Dependentes/família (v1.7): listar, adicionar, editar grau de parentesco, remover
       (`/api/pessoas/{id_pessoa_titular}/dependentes` e afins, já existentes).
+      > Tela real em `painel.asaf.org.br/associados/{id}` (abas Dados/foto, Cargos, Família),
+      > acessível pelo link "Ver / editar" na listagem (construída antes desta fase existir,
+      > registrada como v3.0.2). Item 10 do checklist (seção
+      > 4.1) cumprido: confirmado rodando localmente (typecheck/lint/build limpos) antes de
+      > marcar `[x]`.
+      > **Achado 1 (auth)**: `PUT /api/associados/{id}`, `POST /.../foto` e todo o CRUD de
+      > cargos/dependentes (exceto os dois endpoints v1.7 já corrigidos antes) não tinham
+      > nenhuma autenticação - mesma classe de pendência do financeiro v0.1. Corrigidos com
+      > `exigir_permissao("associados")` + `registrar_auditoria`, ao mesmo tempo em que a tela
+      > passou a depender deles.
+      > **Achado 2 (rota nova precisou de `GET /api/associados/{id}`, que não existia)**:
+      > declarada sem conversor de tipo, colidiu com `/api/associados/busca-simples` (e, cross-
+      > router, com `/api/associados/exportar` em `importacao.py`) - FastAPI casa rota por
+      > ordem de registro, e uma string literal bate estruturalmente no padrão genérico
+      > `{id_associado}`. Corrigido com `{id_associado:int}` (conversor Starlette), que restringe
+      > o padrão a dígitos - resolve de vez, não depende de ordem de declaração entre routers.
+      > Pego rodando a suíte completa (item 9 do checklist) antes de fechar a versão - 5 testes
+      > quebraram, todos corrigidos.
+      > Testado: `pytest tests/` - 198/198 (5 novos em `tests/test_associado_detalhe.py`).
 
 #### v2.5.2 — Governança: Assembleias e Sessão
 - [ ] Listar/convocar assembleia, petição de convocação, habilitação de associado.

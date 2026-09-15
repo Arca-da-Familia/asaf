@@ -162,7 +162,7 @@ def conceder_acesso(id_associado: int, dados: ConcederAcessoCriar, db: Session =
 
 
 @router.get("/api/associados/{id_associado}/cargos", summary="Listar histórico de cargos")
-def listar_cargos(id_associado: int, db: Session = Depends(get_db)):
+def listar_cargos(id_associado: int, db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_associados)):
     cargos = db.query(HistoricoCargo).filter(HistoricoCargo.id_associado == id_associado).order_by(HistoricoCargo.data_posse.desc()).all()
     return [{
         "id_historico": c.id_historico,
@@ -173,7 +173,7 @@ def listar_cargos(id_associado: int, db: Session = Depends(get_db)):
 
 
 @router.post("/api/associados/{id_associado}/cargos", summary="Registrar posse em cargo")
-def criar_cargo(id_associado: int, dados: HistoricoCargoCriar, db: Session = Depends(get_db)):
+def criar_cargo(id_associado: int, dados: HistoricoCargoCriar, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_associados)):
     associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
     if not associado:
         raise HTTPException(status_code=404, detail="Associado não encontrado.")
@@ -188,11 +188,12 @@ def criar_cargo(id_associado: int, dados: HistoricoCargoCriar, db: Session = Dep
         db, associado.id_pessoa, "cargos", "CARGO_INICIADO", f"Assumiu o cargo de {dados.titulo_cargo}",
         data_evento=novo.data_posse,
     )
+    registrar_auditoria(db, usuario, "historico_cargos", "CREATE", id_registro_afetado=novo.id_historico, dados_depois={"id_associado": id_associado, "titulo_cargo": dados.titulo_cargo})
     return {"mensagem": "Posse registrada.", "id_historico": novo.id_historico}
 
 
 @router.put("/api/cargos/{id_historico}/encerrar", summary="Registrar saída do cargo")
-def encerrar_cargo(id_historico: int, dados: HistoricoCargoEncerrar, db: Session = Depends(get_db)):
+def encerrar_cargo(id_historico: int, dados: HistoricoCargoEncerrar, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_associados)):
     cargo = db.query(HistoricoCargo).filter(HistoricoCargo.id_historico == id_historico).first()
     if not cargo:
         raise HTTPException(status_code=404, detail="Registro de cargo não encontrado.")
@@ -204,25 +205,34 @@ def encerrar_cargo(id_historico: int, dados: HistoricoCargoEncerrar, db: Session
             db, associado.id_pessoa, "cargos", "CARGO_ENCERRADO", f"Deixou o cargo de {cargo.titulo_cargo}",
             data_evento=cargo.data_saida,
         )
+    registrar_auditoria(db, usuario, "historico_cargos", "UPDATE", id_registro_afetado=id_historico, dados_depois={"data_saida": cargo.data_saida.isoformat()})
     return {"mensagem": "Saída do cargo registrada."}
 
 
 @router.delete("/api/cargos/{id_historico}", summary="Remover registro de cargo")
-def remover_cargo(id_historico: int, db: Session = Depends(get_db)):
+def remover_cargo(id_historico: int, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_associados)):
     cargo = db.query(HistoricoCargo).filter(HistoricoCargo.id_historico == id_historico).first()
     if not cargo:
         raise HTTPException(status_code=404, detail="Registro de cargo não encontrado.")
     db.delete(cargo)
     db.commit()
+    registrar_auditoria(db, usuario, "historico_cargos", "DELETE", id_registro_afetado=id_historico)
     return {"mensagem": "Registro removido."}
 
 
 @router.put("/api/associados/{id_associado}", summary="Admin - Editar Associado")
-def admin_editar_associado(id_associado: int, dados: AssociadoAdminUpdate, db: Session = Depends(get_db)):
+def admin_editar_associado(id_associado: int, dados: AssociadoAdminUpdate, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_associados)):
+    """v2.5.1 (achado 2026-09-15) - este endpoint nunca teve autenticação nem auditoria, mesma
+    classe de pendência já corrigida no financeiro (v3.0, item 0). Corrigido ao construir a tela
+    real de edição no painel único."""
     associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
     if not associado:
         raise HTTPException(status_code=404, detail="Associado não encontrado.")
 
+    dados_antes = {
+        "nome_completo": associado.nome_completo, "email_contato": associado.email_contato,
+        "telefone_whatsapp": associado.telefone_whatsapp, "categoria": associado.categoria,
+    }
     associado.nome_completo = dados.nome_completo
     associado.email_contato = dados.email_contato
     associado.telefone_whatsapp = dados.telefone_whatsapp
@@ -246,6 +256,11 @@ def admin_editar_associado(id_associado: int, dados: AssociadoAdminUpdate, db: S
     endereco.estado = dados.estado
 
     db.commit()
+    registrar_auditoria(
+        db, usuario, "associados", "UPDATE", id_registro_afetado=id_associado,
+        dados_antes=dados_antes,
+        dados_depois={"nome_completo": associado.nome_completo, "email_contato": associado.email_contato, "telefone_whatsapp": associado.telefone_whatsapp, "categoria": associado.categoria},
+    )
     return {"mensagem": "Ficha master atualizada com sucesso!"}
 
 
@@ -370,6 +385,48 @@ def buscar_associados_simples(excluir: int = None, db: Session = Depends(get_db)
     } for a in associados]
 
 
+@router.get("/api/associados/{id_associado:int}", summary="Detalhe de um associado")
+def obter_associado(id_associado: int, db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_associados)):
+    """v2.5.1 - não existia leitura de um associado só (a listagem devolve tudo de todo mundo);
+    a tela de edição do painel precisa disso pra pré-carregar o formulário.
+
+    Achado real ao rodar a suíte completa: sem o conversor `:int` no path, "/api/associados/{id_associado}"
+    também batia estruturalmente em rotas literais deste mesmo prefixo declaradas depois (aqui e
+    em outros routers, ex.: `/api/associados/exportar` em app/routers/importacao.py) - o FastAPI
+    casa rota por ordem de registro, tentava converter a string literal pra `int`, falhava e
+    devolvia 422 no lugar da resposta esperada. O conversor restringe o padrão a dígitos, então
+    nenhuma rota literal deste prefixo colide de novo, não importa a ordem de declaração/inclusão
+    de router."""
+    associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
+    if not associado:
+        raise HTTPException(status_code=404, detail="Associado não encontrado.")
+    endereco = db.query(Endereco).filter(Endereco.id_associado == id_associado).first()
+    return {
+        "id_associado": associado.id_associado,
+        "id_pessoa": associado.id_pessoa,
+        "nome_completo": associado.nome_completo,
+        "cpf": associado.cpf,
+        "email_contato": associado.email_contato,
+        "telefone_whatsapp": associado.telefone_whatsapp,
+        "categoria": associado.categoria,
+        "status_arrolamento": associado.status_arrolamento,
+        "foto": associado.foto,
+        "numero_matricula": associado.numero_matricula,
+        "data_nascimento": associado.data_nascimento.date().isoformat() if associado.data_nascimento else None,
+        "estado_civil": associado.estado_civil,
+        "profissao": associado.profissao,
+        "naturalidade": associado.naturalidade,
+        "endereco": {
+            "cep": endereco.cep if endereco else "",
+            "logradouro": endereco.logradouro if endereco else "",
+            "numero": endereco.numero if endereco else "",
+            "bairro": endereco.bairro if endereco else "",
+            "cidade": endereco.cidade if endereco else "",
+            "estado": endereco.estado if endereco else "",
+        },
+    }
+
+
 # ==========================================
 # DEPENDENTES/FAMÍLIA (v1.7 - vínculo entre Pessoas, não mais entre Associados)
 #
@@ -489,23 +546,25 @@ def criar_dependente_pessoa(
 
 
 @router.put("/api/dependentes/{id_dependente}", summary="Editar grau de parentesco")
-def editar_dependente(id_dependente: int, dados: DependenteAtualizar, db: Session = Depends(get_db)):
+def editar_dependente(id_dependente: int, dados: DependenteAtualizar, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_associados)):
     dep = db.query(DependenteFamiliar).filter(DependenteFamiliar.id_dependente == id_dependente).first()
     if not dep:
         raise HTTPException(status_code=404, detail="Vínculo familiar não encontrado.")
     validar_codigo_em_catalogo(db, "grau_parentesco", dados.grau_parentesco, "Grau de parentesco")
     dep.grau_parentesco = dados.grau_parentesco
     db.commit()
+    registrar_auditoria(db, usuario, "dependentes_familiares", "UPDATE", id_registro_afetado=id_dependente, dados_depois={"grau_parentesco": dados.grau_parentesco})
     return {"mensagem": "Vínculo familiar atualizado."}
 
 
 @router.delete("/api/dependentes/{id_dependente}", summary="Remover vínculo familiar")
-def remover_dependente(id_dependente: int, db: Session = Depends(get_db)):
+def remover_dependente(id_dependente: int, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_associados)):
     dep = db.query(DependenteFamiliar).filter(DependenteFamiliar.id_dependente == id_dependente).first()
     if not dep:
         raise HTTPException(status_code=404, detail="Vínculo familiar não encontrado.")
     db.delete(dep)
     db.commit()
+    registrar_auditoria(db, usuario, "dependentes_familiares", "DELETE", id_registro_afetado=id_dependente)
     return {"mensagem": "Vínculo familiar removido."}
 
 # ==========================================
@@ -516,7 +575,9 @@ TAMANHO_MAXIMO_FOTO = 5 * 1024 * 1024
 
 
 @router.post("/api/associados/{id_associado}/foto", summary="Enviar foto do associado")
-async def enviar_foto_associado(id_associado: int, foto: UploadFile = File(...), db: Session = Depends(get_db)):
+async def enviar_foto_associado(id_associado: int, foto: UploadFile = File(...), db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_associados)):
+    """v2.5.1 (achado 2026-09-15) - mesma correção de autenticação/auditoria do endpoint de
+    edição acima."""
     associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
     if not associado:
         raise HTTPException(status_code=404, detail="Associado não encontrado.")
@@ -535,6 +596,7 @@ async def enviar_foto_associado(id_associado: int, foto: UploadFile = File(...),
 
     associado.foto = f"/uploads/{caminho_relativo}"
     db.commit()
+    registrar_auditoria(db, usuario, "associados", "FOTO_ATUALIZADA", id_registro_afetado=id_associado)
     return {"mensagem": "Foto atualizada com sucesso.", "foto": associado.foto}
 
 

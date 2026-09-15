@@ -6,6 +6,7 @@ import { Shell } from '@/components/layout/Shell'
 import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/use-me'
 import { AcessoPage } from '@/pages/Acesso'
+import { AssociadoDetalhePage } from '@/pages/AssociadoDetalhe'
 import { AssociadoNovoPage } from '@/pages/AssociadoNovo'
 import { AssociadosPage } from '@/pages/Associados'
 import { AuditoriaPage } from '@/pages/Auditoria'
@@ -114,6 +115,16 @@ function App() {
             <RequirePermission permission="associados">
               <ErrorBoundary tituloModulo="Conceder acesso">
                 <ConcederAcessoPage />
+              </ErrorBoundary>
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/associados/:id"
+          element={
+            <RequirePermission permission="associados">
+              <ErrorBoundary tituloModulo="Detalhe do associado">
+                <AssociadoDetalhePage />
               </ErrorBoundary>
             </RequirePermission>
           }

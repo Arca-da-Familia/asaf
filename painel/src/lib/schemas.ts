@@ -44,6 +44,47 @@ export const concederAcessoSchema = z.object({
     .min(8, 'A senha deve ter pelo menos 8 caracteres.'),
 })
 
+// Usado pelo formulário "Editar associado" (pages/AssociadoDetalhe.tsx, v2.5.1) - mesmos campos
+// de associadoMasterSchema, sem CPF (nunca editável depois do cadastro).
+export const associadoEditarSchema = z.object({
+  nome_completo: z.string().min(3, 'Informe o nome completo.'),
+  email_contato: z.string().email('E-mail inválido.'),
+  telefone_whatsapp: z.string().min(10, 'Informe um telefone válido.'),
+  categoria: z.string().min(1, 'Selecione uma categoria.'),
+  cep: z.string().min(8, 'CEP deve ter 8 dígitos.').max(9),
+  logradouro: z.string().min(1, 'Informe o logradouro.'),
+  numero: z.string().min(1, 'Informe o número.'),
+  bairro: z.string().min(1, 'Informe o bairro.'),
+  cidade: z.string().min(1, 'Informe a cidade.'),
+  estado: z.string().length(2, 'UF com 2 letras.'),
+  data_nascimento: z.string().optional(),
+  estado_civil: z.string().optional(),
+  profissao: z.string().optional(),
+  naturalidade: z.string().optional(),
+})
+
+export const cargoCriarSchema = z.object({
+  titulo_cargo: z.string().min(1, 'Informe o cargo.'),
+  data_posse: z.string().min(1, 'Informe a data de posse.'),
+})
+
+export const dependenteCriarSchema = z
+  .object({
+    grau_parentesco: z.string().min(1, 'Selecione o grau de parentesco.'),
+    id_pessoa_vinculada: z.coerce.number().int().optional(),
+    nome_completo: z.string().optional(),
+    data_nascimento: z.string().optional(),
+  })
+  .refine(
+    (d) =>
+      d.id_pessoa_vinculada || (d.nome_completo && d.nome_completo.length >= 3),
+    {
+      message:
+        'Selecione uma pessoa existente ou informe o nome de uma pessoa nova.',
+      path: ['nome_completo'],
+    },
+  )
+
 // Usado pelo formulário "Dados cadastrais" (pages/Perfil.tsx) — os únicos campos editáveis do
 // próprio associado nesta versão.
 export const perfilEditavelSchema = z.object({

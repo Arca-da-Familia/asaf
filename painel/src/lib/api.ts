@@ -151,7 +151,10 @@ export async function apiFetch<T>(
   alreadyRetried = false,
 ): Promise<T> {
   const headers = new Headers(init.headers)
-  if (init.body) headers.set('Content-Type', 'application/json')
+  // FormData (upload de arquivo, v2.5.1) precisa que o navegador defina o Content-Type
+  // sozinho (multipart/form-data + boundary) - forçar application/json aqui quebraria o upload.
+  if (init.body && !(init.body instanceof FormData))
+    headers.set('Content-Type', 'application/json')
 
   const token = getAccessToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
@@ -863,4 +866,158 @@ export function concederAcesso(
     method: 'POST',
     body: JSON.stringify(dados),
   })
+}
+
+// ---------------------------------------------------------------------------
+// Detalhe/edição de associado, cargos e família (v2.5.1, FASE 2.5 - Painel)
+// ---------------------------------------------------------------------------
+export type AssociadoDetalhe = {
+  id_associado: number
+  id_pessoa: number
+  nome_completo: string
+  cpf: string
+  email_contato: string
+  telefone_whatsapp: string
+  categoria: string
+  status_arrolamento: string | null
+  foto: string | null
+  numero_matricula: number | null
+  data_nascimento: string | null
+  estado_civil: string | null
+  profissao: string | null
+  naturalidade: string | null
+  endereco: {
+    cep: string
+    logradouro: string
+    numero: string
+    bairro: string
+    cidade: string
+    estado: string
+  }
+}
+
+export function obterAssociado(idAssociado: number): Promise<AssociadoDetalhe> {
+  return apiFetch(`/api/associados/${idAssociado}`)
+}
+
+export type AssociadoAdminUpdateInput = {
+  nome_completo: string
+  email_contato: string
+  telefone_whatsapp: string
+  categoria: string
+  cep: string
+  logradouro: string
+  numero: string
+  bairro: string
+  cidade: string
+  estado: string
+  data_nascimento?: string
+  estado_civil?: string
+  profissao?: string
+  naturalidade?: string
+}
+
+export function editarAssociado(
+  idAssociado: number,
+  dados: AssociadoAdminUpdateInput,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/associados/${idAssociado}`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function enviarFotoAssociado(
+  idAssociado: number,
+  arquivo: File,
+): Promise<{ mensagem: string; foto: string }> {
+  const formData = new FormData()
+  formData.append('foto', arquivo)
+  return apiFetch(`/api/associados/${idAssociado}/foto`, {
+    method: 'POST',
+    body: formData,
+  })
+}
+
+export type CargoHistorico = {
+  id_historico: number
+  titulo_cargo: string
+  data_posse: string | null
+  data_saida: string | null
+}
+
+export function listarCargos(idAssociado: number): Promise<CargoHistorico[]> {
+  return apiFetch(`/api/associados/${idAssociado}/cargos`)
+}
+
+export function criarCargo(
+  idAssociado: number,
+  dados: { titulo_cargo: string; data_posse: string },
+): Promise<{ mensagem: string; id_historico: number }> {
+  return apiFetch(`/api/associados/${idAssociado}/cargos`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function encerrarCargo(
+  idHistorico: number,
+  dataSaida: string,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/cargos/${idHistorico}/encerrar`, {
+    method: 'PUT',
+    body: JSON.stringify({ data_saida: dataSaida }),
+  })
+}
+
+export function removerCargo(
+  idHistorico: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/cargos/${idHistorico}`, { method: 'DELETE' })
+}
+
+export type DependenteFamiliar = {
+  id_dependente: number
+  grau_parentesco: string
+  id_pessoa_vinculada: number
+  nome_completo: string | null
+  data_nascimento: string | null
+  e_associado: boolean
+}
+
+export function listarDependentesDaPessoa(
+  idPessoaTitular: number,
+): Promise<DependenteFamiliar[]> {
+  return apiFetch(`/api/pessoas/${idPessoaTitular}/dependentes`)
+}
+
+export function adicionarDependente(
+  idPessoaTitular: number,
+  dados: {
+    grau_parentesco: string
+    id_pessoa_vinculada?: number
+    nome_completo?: string
+    data_nascimento?: string
+  },
+): Promise<{ mensagem: string; id_dependente: number }> {
+  return apiFetch(`/api/pessoas/${idPessoaTitular}/dependentes`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function editarDependente(
+  idDependente: number,
+  grauParentesco: string,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/dependentes/${idDependente}`, {
+    method: 'PUT',
+    body: JSON.stringify({ grau_parentesco: grauParentesco }),
+  })
+}
+
+export function removerDependente(
+  idDependente: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/dependentes/${idDependente}`, { method: 'DELETE' })
 }
