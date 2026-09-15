@@ -1261,7 +1261,7 @@ ignorá-la). Próxima fase é a FASE 1 (Associados), abaixo.
       > não existe. `DocumentoAnexo` (já existente desde o protótipo) pode arquivar um termo
       > como upload comum hoje, mas sem verificação de assinatura - registrado como pendência
       > na FASE 20/v20.2 para conectar aqui quando o motor existir.
-- [x] Período de experiência/integração configurável (ex.: 90 dias sem direito a voto), com
+- [x] Período de experiência/integração configurável (ex.: 90 dias ~~sem direito a voto~~), com
       promoção automática ao fim do prazo e aviso à secretaria.
       > `PRAZO_EXPERIENCIA_DIAS` (config, default 90 - 0 desativa). `Associado.data_fim_experiencia`
       > gravado na efetivação. **Resolve a pendência que a própria v1.1 tinha registrado aqui**:
@@ -1271,6 +1271,30 @@ ignorá-la). Próxima fase é a FASE 1 (Associados), abaixo.
       > scheduler, a transição de verdade só acontece no próximo evento financeiro ou numa
       > chamada a `/categoria-calculada` - documentado, não escondido. "Aviso à secretaria" não
       > implementado (mesma pendência de e-mail/notificação da v6.2 acima).
+      > **Contradição corrigida pela v2.2 (2026-09-15)**: "sem direito a voto" era suposição
+      > original deste item, sem base no estatuto (igual "categoria com direito a voto"/"tempo
+      > mínimo de filiação", descartadas na v2.2 pelo mesmo motivo) - o Art. 12 não reconhece
+      > período de experiência, quem foi aprovado já entra no livro de associados como pleno. O
+      > usuário confirmou explicitamente que "Em Experiência" conta como habilitado a votar
+      > (`app/services/assembleia.py::calcular_lista_habilitados`, v2.2). `PRAZO_EXPERIENCIA_DIAS`
+      > continua existindo como controle administrativo interno (categoria/status), só deixou de
+      > ser lido como regra de voto.
+- [ ] **Idade mínima de filiação** (`IDADE_MINIMA_FILIACAO_ANOS` = 18, ou 16 com autorização
+      expressa dos pais/responsáveis - Art. 12, `RegraEstatutaria` já semeada na v2.0). Pendência
+      movida para cá pela v2.0/v2.2 (2026-09-15): nem `PropostaFiliacaoCriar` nem
+      `AssociadoMasterCriar` verificam idade mínima hoje - qualquer idade passa. Falta checar
+      `data_nascimento` contra a regra vigente, exigindo referência de autorização do responsável
+      para 16-17 anos (mesmo padrão de `autorizacao_responsavel_referencia` do voluntariado, v1.6).
+- [ ] **Sócios proponentes da filiação** (`QTD_SOCIOS_PROPONENTES_FILIACAO` = 3, Art. 12,
+      Parágrafo Único, VI, `RegraEstatutaria` já semeada na v2.0). Pendência movida para cá pela
+      v2.0/v2.2 (2026-09-15): `PropostaFiliacaoCriar` não pede nem guarda nenhum proponente hoje.
+      Falta exigir 3 associados identificados (CPF ou id_pessoa de cada um) como proponentes,
+      gravados na proposta e conferíveis pela secretaria antes da aprovação - rastrear QUEM
+      propôs, não um checkbox "sim/não".
+>
+> Os dois itens de idade mínima e sócios proponentes ficaram fora do escopo original desta
+> versão (registrados só depois, na v2.0, quando o estatuto real chegou) - por isso continuam
+> como pendência aberta mesmo com a v1.2 fechada, em vez de reabrir a versão inteira.
 >
 > **Achados corrigidos durante a implementação**: (1) matrícula sequencial só tinha sido
 > conectada ao endpoint de filiação, esquecendo `cadastrar_ficha_master` e `bootstrap-admin` -
@@ -1872,17 +1896,19 @@ conseguir fazer uma assembleia válida bem antes de ter todos os refinamentos.
       - `IDADE_MINIMA_FILIACAO_ANOS` = 18, **ou 16 com autorização expressa dos pais/responsáveis**
         (Art. 12) - **achado real, ainda não implementado em lugar nenhum**: nem
         `PropostaFiliacaoCriar` (v1.2) nem `AssociadoMasterCriar` (v1.0/v1.1) verificam idade
-        mínima hoje - qualquer idade passa. Pendência registrada para v1.2 ou v2.1 conectar aqui
-        (checar `data_nascimento` contra `IDADE_MINIMA_FILIACAO_ANOS`, exigindo referência de
-        autorização do responsável quando for o caso de 16-17 anos - mesmo padrão de
-        `autorizacao_responsavel_referencia` já usado no voluntariado, v1.6).
+        mínima hoje - qualquer idade passa. Pendência **movida para a FASE 1/v1.2** (2026-09-15,
+        onde o código de verdade mora - `app/routers/filiacao.py`), já que a v2.1 (FASE 2) tratou
+        de mandato/cargo, não de filiação: conectar aqui (checar `data_nascimento` contra
+        `IDADE_MINIMA_FILIACAO_ANOS`, exigindo referência de autorização do responsável quando for
+        o caso de 16-17 anos - mesmo padrão de `autorizacao_responsavel_referencia` já usado no
+        voluntariado, v1.6).
       - `QTD_SOCIOS_PROPONENTES_FILIACAO` = 3 (Art. 12, Parágrafo Único, VI: "apresentar o pedido
         de adesão por escrito, devendo ser proposto por 03 (três) sócios") - **achado real, ainda
         não implementado**: `PropostaFiliacaoCriar` (v1.2) não pede nem guarda nenhum
-        proponente. Pendência registrada: quando a v2.0/v2.1 (`RegraEstatutaria`) existir, a
-        filiação passa a exigir 3 associados identificados (ex.: CPF ou id_pessoa de cada um)
-        como proponentes, gravados na proposta, conferíveis pela secretaria antes da aprovação -
-        não é um checkbox "sim/não", é rastrear QUEM propôs.
+        proponente. Pendência **movida para a FASE 1/v1.2** (2026-09-15) agora que
+        `RegraEstatutaria` já existe (v2.0): a filiação passa a exigir 3 associados identificados
+        (ex.: CPF ou id_pessoa de cada um) como proponentes, gravados na proposta, conferíveis
+        pela secretaria antes da aprovação - não é um checkbox "sim/não", é rastrear QUEM propôs.
       - `QTD_MENSALIDADES_INADIMPLENCIA_EXCLUSAO` = 6 mensalidades consecutivas em atraso é
         motivo de abertura de processo disciplinar com possível exclusão (Art. 16, §1º, V) -
         **distinto** do que já existe: `DIAS_TOLERANCIA_INADIMPLENCIA` (v0.3.4) só marca a
@@ -2217,6 +2243,14 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       o processo (v2.7), nunca exclui sozinho.
 
 #### v3.3 — Contas a pagar, compras e segregação de funções
+> **Pendências registradas pela v2.1 (2026-09-15)**, que já entregou a base, mas sem consumidor
+> real (não existia fluxo de aprovação financeira ainda): (1) `DeclaracaoConflitoInteresse`
+> (`app/models/mandatos.py`) já existe e está pronta para consulta - o fluxo de aprovação abaixo
+> precisa checar automaticamente se o aprovador (ou o solicitante) tem declaração ativa
+> envolvendo o fornecedor/contrato em questão, bloqueando ou exigindo segundo aprovador quando
+> houver; (2) segregação de funções já tem a base de permissão por cargo (v2.1,
+> `app.security.usuario_tem_permissao` soma permissão do mandato vigente) - falta só o fluxo em
+> si distinguir explicitamente "quem lança" de "quem aprova" nos códigos de permissão/endpoint.
 - [ ] Cadastro de fornecedores com verificação de CPF/CNPJ duplicado e dados bancários
       versionados — **alteração de dados bancários de fornecedor exige segundo aprovador**: é o
       golpe mais comum contra organizações, e a defesa é processual, não tecnológica.
@@ -2494,7 +2528,16 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       digitados de novo), Projetos (lendo os projetos públicos da FASE 4), Notícias, Agenda de
       Eventos (FastAPI), Transparência (FASE 3/12.7), Como Ajudar/Doe, Seja Voluntário, Seja
       Associado, Contato com mapa, Política de Privacidade e Termos de Uso versionados (FASE 7).
+      > **Pendências registradas pela v2.0/v2.1 (2026-09-15)**, já prontas para esta página
+      > consumir: "Diretoria e Conselho" lê `GET /api/mandatos/?apenas_vigentes=true` (v2.1) -
+      > nenhum nome de dirigente digitado à mão no site. Uma página "Estatuto" (ou seção dentro de
+      > "Quem Somos") pode expor o documento vigente (`DocumentoEstatuto`, v2.0) para download -
+      > hoje só existe `caminho_arquivo="ESTATUTO_ASAF.txt"` apontando pro arquivo na raiz do
+      > repositório, sem rota de upload/servir arquivo dedicada ainda.
 - [ ] Página de cada projeto e de cada evento com URL estável e compartilhável.
+- [ ] **Publicação do edital de assembleia na área pública do site** (pendência da v2.2,
+      2026-09-15): `GET /api/assembleias/{id}/edital` (FASE 2) já gera o texto - falta só a
+      página pública que o exibe e o comprovante de publicação arquivado.
 
 ##### 🔍 Ponto de Revisão — FASE 5 (1/2 — meio, fecha v5.0–v5.2)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
@@ -2874,6 +2917,10 @@ estarem de pé — nenhum destes itens tenta substituir o básico, todos depende
       medido a cada mudança de modelo/prompt — sem isso, o assistente degrada sem ninguém notar.
 
 #### v11.3 — Comunicação institucional via WhatsApp Business (API oficial)
+> **Pendência registrada pela v2.2 (2026-09-15)**: publicação do edital de convocação de
+> assembleia (`GET /api/assembleias/{id}/edital`, FASE 2) por e-mail/WhatsApp, com comprovante de
+> publicação arquivado — a prova de que a convocação aconteceu é tão importante quanto a
+> convocação em si (Art. 9º do estatuto exige o edital, mas não define o canal).
 - [ ] Integração via Meta Cloud API (ou parceiro oficial/BSP) — nunca `wa.me` automatizado nem
       WhatsApp Web programado (viola os termos de uso e gera banimento do número).
       Confirmado por pesquisa: mensagens de categoria "utility" (boleto vencendo, confirmação de
@@ -3699,6 +3746,12 @@ simples/avançada (Lei 14.063/2020, Art. 4º) vem exatamente da qualidade dessa 
 > este motor existir, conectar ali (`app/routers/filiacao.py`, endpoint `aprovar_proposta`).
 > Hoje o termo, se anexado, é só um upload comum via `DocumentoAnexo`, sem verificação de
 > assinatura nenhuma.
+
+> **Pendência registrada pela v2.2 (2026-09-15)**: adesão a petição de convocação de assembleia
+> (`app/routers/governanca.py`, endpoint `aderir_peticao`, Art. 8º/10 do estatuto) hoje só grava
+> o vínculo usuário↔associado autenticado (`AdesaoPeticao`) - quando este motor existir, cada
+> adesão passa a carregar o mesmo evidence trail (OTP, metadados, carimbo de tempo, hash) de
+> qualquer outra assinatura eletrônica, em vez de só "usuário logado clicou em aderir".
 
 **Autenticação do signatário no momento da assinatura**
 - [ ] Segunda etapa obrigatória no ato de assinar (não basta já estar logado): token OTP enviado
