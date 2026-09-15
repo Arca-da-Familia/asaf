@@ -97,7 +97,14 @@ def seed_catalogos():
             ("ALIMENTACAO", "Alimentação"), ("TECNOLOGIA", "Tecnologia"),
             ("MANUTENCAO_E_REPAROS", "Manutenção e Reparos"), ("TRANSPORTE", "Transporte"), ("OUTROS", "Outros"),
         ]),
-        "tipo_conta_contabil": ("Tipo de conta contábil", True, [("RECEITA", "Receita"), ("DESPESA", "Despesa")]),
+        # v3.0 - os cinco tipos contábeis reais (Ativo/Passivo/Patrimônio Líquido/Receita/
+        # Despesa), dos quais deriva a natureza devedora/credora de cada conta (ver
+        # app/services/contabilidade.py::NATUREZA_POR_TIPO) - antes só existia Receita/Despesa,
+        # insuficiente pra validar partida dobrada de verdade.
+        "tipo_conta_contabil": ("Tipo de conta contábil", True, [
+            ("ATIVO", "Ativo"), ("PASSIVO", "Passivo"), ("PATRIMONIO_LIQUIDO", "Patrimônio Líquido"),
+            ("RECEITA", "Receita"), ("DESPESA", "Despesa"),
+        ]),
         "forma_pagamento": ("Forma de pagamento", True, [
             ("PIX", "Pix"), ("DINHEIRO", "Dinheiro"), ("CARTAO", "Cartão"),
             ("TRANSFERENCIA_BANCARIA", "Transferência Bancária"), ("BOLETO", "Boleto"),

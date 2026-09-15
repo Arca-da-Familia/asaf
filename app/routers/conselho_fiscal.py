@@ -13,7 +13,7 @@ from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.associados import Associado
 from app.models.conselho_fiscal import RESPONDIDO, ParecerPrestacaoContas, QuestionamentoLancamento, RespostaQuestionamento
-from app.models.financeiro import TituloFinanceiro, TransacaoCaixa
+from app.models.financeiro import LancamentoContabil, TituloFinanceiro
 from app.schemas.conselho_fiscal import ParecerCriar, QuestionamentoCriar, RespostaCriar
 from app.security import exigir_permissao, get_current_user
 from app.services.conselho_fiscal import usuario_e_conselho_fiscal
@@ -52,17 +52,18 @@ def listar_titulos(status: str = None, db: Session = Depends(get_db), usuario=De
     ]
 
 
-@router.get("/api/conselho-fiscal/financeiro/caixa", summary="Leitura irrestrita do livro-caixa (auditada)")
+@router.get("/api/conselho-fiscal/financeiro/caixa", summary="Leitura irrestrita do razão contábil (auditada)")
 def listar_caixa(db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
-    transacoes = db.query(TransacaoCaixa).order_by(TransacaoCaixa.data_registro_servidor.desc()).all()
-    registrar_auditoria(db, usuario, "livro_caixa_auditoria", "CONSULTA_CONSELHO_FISCAL", dados_depois={"qtd_resultados": len(transacoes)})
+    lancamentos = db.query(LancamentoContabil).order_by(LancamentoContabil.id_exercicio.desc(), LancamentoContabil.numero_sequencial.desc()).all()
+    registrar_auditoria(db, usuario, "lancamentos_contabeis", "CONSULTA_CONSELHO_FISCAL", dados_depois={"qtd_resultados": len(lancamentos)})
     return [
         {
-            "id_transacao": t.id_transacao, "id_titulo": t.id_titulo, "tipo_movimento": t.tipo_movimento,
-            "valor_efetivado": t.valor_efetivado, "data_registro_servidor": t.data_registro_servidor,
-            "forma_pagamento": t.forma_pagamento, "status_auditoria": t.status_auditoria,
+            "id_lancamento": l.id_lancamento, "numero_sequencial": l.numero_sequencial, "id_titulo": l.id_titulo,
+            "historico": l.historico, "data_lancamento": l.data_lancamento, "forma_pagamento": l.forma_pagamento,
+            "estornado": l.estornado,
+            "partidas": [{"id_conta": p.id_conta, "tipo_partida": p.tipo_partida, "valor": p.valor} for p in l.partidas],
         }
-        for t in transacoes
+        for l in lancamentos
     ]
 
 

@@ -1,26 +1,110 @@
-from fastapi import APIRouter, Depends, HTTPException
+"""v3.0 (FASE 3) - fundamentos contábeis do módulo: partida dobrada real (todo lançamento é um
+cabeçalho `LancamentoContabil` com N `PartidaContabil` de débito/crédito, sempre balanceado -
+soma dos débitos = soma dos créditos, nunca confiar em entrada direta, ver
+app/services/contabilidade.py), Exercício contábil com abertura/fechamento formal, valor
+monetário sempre `Numeric`/`Decimal`, imutabilidade do lançamento (correção = estorno + novo
+lançamento) e `AuditLog` em toda operação.
+
+Corrige também a pendência crítica registrada pela v1.1 (2026-09-13): este router inteiro
+(plano de contas, fornecedores, títulos, baixa de título, livro-caixa) nunca teve autenticação
+nem auditoria - é o "item 0" que o cabeçalho da FASE 3 exige antes de qualquer v3.x. Segue o
+mesmo padrão já usado em app/routers/conselho_fiscal.py (`exigir_permissao("financeiro")`,
+`registrar_auditoria` em toda escrita). As páginas HTML `/admin/...` deste router permanecem
+sem Depends de autenticação de propósito, mesmo padrão já usado em `admin_secretaria`
+(app/routers/associados.py) - são a UI legada, substituída pelo painel React (v0.2), que não
+tem como anexar um Bearer token a uma navegação de página; a proteção real está nas rotas
+`/api/...` que essas páginas chamam via fetch."""
+from decimal import Decimal
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from datetime import date
 
+from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.utils import esc
 from app.models.associados import Associado
-from app.models.financeiro import PlanoDeContas, Fornecedor, TituloFinanceiro, TransacaoCaixa
-from app.schemas.financeiro import PlanoContaCriar, FornecedorCriar, TituloCriar, BaixarTitulo
+from app.models.financeiro import Exercicio, LancamentoContabil, PlanoDeContas, Fornecedor, TituloFinanceiro
+from app.schemas.financeiro import (
+    EstornoCriar, ExercicioAbrir, PlanoContaCriar, FornecedorCriar, TituloCriar, BaixarTitulo,
+)
+from app.security import exigir_permissao
+from app.services import contabilidade
 from app.services.categoria_associado import recalcular_categoria_associado
 
 router = APIRouter()
+_permissao_financeiro = exigir_permissao("financeiro")
 
+
+def _ip_origem(request: Request) -> str:
+    return request.client.host if request.client else None
+
+
+# ==========================================
+# EXERCÍCIO CONTÁBIL
+# ==========================================
+@router.get("/api/exercicios/", summary="Listar Exercícios Contábeis")
+def listar_exercicios(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+    exercicios = db.query(Exercicio).order_by(Exercicio.ano.desc()).all()
+    return [
+        {
+            "id_exercicio": e.id_exercicio, "ano": e.ano, "status": e.status,
+            "data_abertura": e.data_abertura, "data_fechamento": e.data_fechamento,
+        }
+        for e in exercicios
+    ]
+
+
+@router.post("/api/exercicios/", summary="Abrir Exercício Contábil")
+def abrir_exercicio(dados: ExercicioAbrir, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    if db.query(Exercicio).filter(Exercicio.status == "Aberto").first():
+        raise HTTPException(status_code=400, detail="Já existe um exercício aberto. Feche-o antes de abrir outro.")
+    if db.query(Exercicio).filter(Exercicio.ano == dados.ano).first():
+        raise HTTPException(status_code=400, detail="Já existe um exercício cadastrado para este ano.")
+    exercicio = Exercicio(ano=dados.ano, status="Aberto", id_usuario_abertura=usuario.id_usuario)
+    db.add(exercicio)
+    db.commit()
+    db.refresh(exercicio)
+    registrar_auditoria(
+        db, usuario, "exercicios_contabeis", "ABERTURA", id_registro_afetado=exercicio.id_exercicio,
+        dados_depois={"ano": exercicio.ano}, ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Exercício aberto.", "id_exercicio": exercicio.id_exercicio}
+
+
+@router.post("/api/exercicios/{id_exercicio}/fechar", summary="Fechar Exercício Contábil")
+def fechar_exercicio(id_exercicio: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    exercicio = db.query(Exercicio).filter(Exercicio.id_exercicio == id_exercicio).first()
+    if not exercicio:
+        raise HTTPException(status_code=404, detail="Exercício não encontrado.")
+    if exercicio.status != "Aberto":
+        raise HTTPException(status_code=400, detail="Este exercício já está fechado.")
+    from datetime import datetime
+    exercicio.status = "Fechado"
+    exercicio.data_fechamento = datetime.utcnow()
+    exercicio.id_usuario_fechamento = usuario.id_usuario
+    db.commit()
+    registrar_auditoria(
+        db, usuario, "exercicios_contabeis", "FECHAMENTO", id_registro_afetado=exercicio.id_exercicio,
+        dados_depois={"ano": exercicio.ano}, ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Exercício fechado."}
+
+
+# ==========================================
+# PLANO DE CONTAS
+# ==========================================
 @router.get("/api/plano-contas/", summary="Listar Plano de Contas")
-def listar_plano_contas(db: Session = Depends(get_db)):
+def listar_plano_contas(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
     contas = db.query(PlanoDeContas).order_by(PlanoDeContas.codigo_contabil).all()
     return [{"id_conta": c.id_conta, "codigo_contabil": c.codigo_contabil, "descricao_conta": c.descricao_conta, "tipo": c.tipo} for c in contas]
 
 
 @router.post("/plano-contas/", summary="3. Cadastrar Plano de Contas")
-def cadastrar_plano_contas(dados: PlanoContaCriar, db: Session = Depends(get_db)):
+def cadastrar_plano_contas(dados: PlanoContaCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    contabilidade.natureza_da_conta(dados.tipo)  # 400 se o tipo não for um dos cinco tipos contábeis reais
     nova_conta = PlanoDeContas(codigo_contabil=dados.codigo_contabil, descricao_conta=dados.descricao_conta, tipo=dados.tipo)
     db.add(nova_conta)
     try:
@@ -29,14 +113,21 @@ def cadastrar_plano_contas(dados: PlanoContaCriar, db: Session = Depends(get_db)
         db.rollback()
         raise HTTPException(status_code=400, detail="Já existe uma conta com esse código contábil.")
     db.refresh(nova_conta)
+    registrar_auditoria(
+        db, usuario, "plano_de_contas", "CREATE", id_registro_afetado=nova_conta.id_conta,
+        dados_depois={"codigo_contabil": nova_conta.codigo_contabil, "descricao_conta": nova_conta.descricao_conta, "tipo": nova_conta.tipo},
+        ip_origem=_ip_origem(request),
+    )
     return {"mensagem": "Conta contábil cadastrada.", "id_conta": nova_conta.id_conta}
 
 
 @router.put("/api/plano-contas/{id_conta}", summary="Editar Plano de Contas")
-def editar_plano_contas(id_conta: int, dados: PlanoContaCriar, db: Session = Depends(get_db)):
+def editar_plano_contas(id_conta: int, dados: PlanoContaCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
     conta = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == id_conta).first()
     if not conta:
         raise HTTPException(status_code=404, detail="Conta contábil não encontrada.")
+    contabilidade.natureza_da_conta(dados.tipo)  # 400 se o tipo não for um dos cinco tipos contábeis reais
+    dados_antes = {"codigo_contabil": conta.codigo_contabil, "descricao_conta": conta.descricao_conta, "tipo": conta.tipo}
     conta.codigo_contabil = dados.codigo_contabil
     conta.descricao_conta = dados.descricao_conta
     conta.tipo = dados.tipo
@@ -45,17 +136,26 @@ def editar_plano_contas(id_conta: int, dados: PlanoContaCriar, db: Session = Dep
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Já existe uma conta com esse código contábil.")
+    registrar_auditoria(
+        db, usuario, "plano_de_contas", "UPDATE", id_registro_afetado=conta.id_conta,
+        dados_antes=dados_antes,
+        dados_depois={"codigo_contabil": conta.codigo_contabil, "descricao_conta": conta.descricao_conta, "tipo": conta.tipo},
+        ip_origem=_ip_origem(request),
+    )
     return {"mensagem": "Conta contábil atualizada."}
 
 
+# ==========================================
+# FORNECEDORES
+# ==========================================
 @router.get("/api/fornecedores/", summary="Listar Fornecedores")
-def listar_fornecedores(db: Session = Depends(get_db)):
+def listar_fornecedores(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
     fornecedores = db.query(Fornecedor).order_by(Fornecedor.razao_social).all()
     return [{"id_fornecedor": f.id_fornecedor, "razao_social": f.razao_social, "cnpj": f.cnpj, "categoria_servico": f.categoria_servico, "telefone": f.telefone} for f in fornecedores]
 
 
 @router.post("/fornecedores/", summary="4. Cadastrar Fornecedor")
-def cadastrar_fornecedor(dados: FornecedorCriar, db: Session = Depends(get_db)):
+def cadastrar_fornecedor(dados: FornecedorCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
     novo_fornecedor = Fornecedor(razao_social=dados.razao_social, cnpj=dados.cnpj, categoria_servico=dados.categoria_servico, telefone=dados.telefone)
     db.add(novo_fornecedor)
     try:
@@ -64,14 +164,20 @@ def cadastrar_fornecedor(dados: FornecedorCriar, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=400, detail="Já existe um fornecedor com esse CNPJ.")
     db.refresh(novo_fornecedor)
+    registrar_auditoria(
+        db, usuario, "fornecedores", "CREATE", id_registro_afetado=novo_fornecedor.id_fornecedor,
+        dados_depois={"razao_social": novo_fornecedor.razao_social, "cnpj": novo_fornecedor.cnpj},
+        ip_origem=_ip_origem(request),
+    )
     return {"mensagem": "Fornecedor cadastrado.", "id_fornecedor": novo_fornecedor.id_fornecedor}
 
 
 @router.put("/api/fornecedores/{id_fornecedor}", summary="Editar Fornecedor")
-def editar_fornecedor(id_fornecedor: int, dados: FornecedorCriar, db: Session = Depends(get_db)):
+def editar_fornecedor(id_fornecedor: int, dados: FornecedorCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
     fornecedor = db.query(Fornecedor).filter(Fornecedor.id_fornecedor == id_fornecedor).first()
     if not fornecedor:
         raise HTTPException(status_code=404, detail="Fornecedor não encontrado.")
+    dados_antes = {"razao_social": fornecedor.razao_social, "cnpj": fornecedor.cnpj, "categoria_servico": fornecedor.categoria_servico, "telefone": fornecedor.telefone}
     fornecedor.razao_social = dados.razao_social
     fornecedor.cnpj = dados.cnpj
     fornecedor.categoria_servico = dados.categoria_servico
@@ -81,11 +187,20 @@ def editar_fornecedor(id_fornecedor: int, dados: FornecedorCriar, db: Session = 
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Já existe um fornecedor com esse CNPJ.")
+    registrar_auditoria(
+        db, usuario, "fornecedores", "UPDATE", id_registro_afetado=fornecedor.id_fornecedor,
+        dados_antes=dados_antes,
+        dados_depois={"razao_social": fornecedor.razao_social, "cnpj": fornecedor.cnpj, "categoria_servico": fornecedor.categoria_servico, "telefone": fornecedor.telefone},
+        ip_origem=_ip_origem(request),
+    )
     return {"mensagem": "Fornecedor atualizado."}
 
 
+# ==========================================
+# TÍTULOS FINANCEIROS (contas a pagar/receber)
+# ==========================================
 @router.get("/api/titulos/", summary="Listar Títulos Financeiros")
-def listar_titulos(status: str = None, tipo_titulo: str = None, db: Session = Depends(get_db)):
+def listar_titulos(status: str = None, tipo_titulo: str = None, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
     consulta = db.query(TituloFinanceiro)
     if status:
         consulta = consulta.filter(TituloFinanceiro.status == status)
@@ -119,10 +234,18 @@ def listar_titulos(status: str = None, tipo_titulo: str = None, db: Session = De
     return resultado
 
 
+_TIPO_CONTA_POR_TIPO_TITULO = {"A Pagar": "Despesa", "A Receber": "Receita"}
+
+
 @router.post("/titulos/", summary="5. Lançar Título Financeiro")
-def lancar_titulo(dados: TituloCriar, db: Session = Depends(get_db)):
-    if not db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == dados.id_conta_contabil).first():
+def lancar_titulo(dados: TituloCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    conta = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == dados.id_conta_contabil).first()
+    if not conta:
         raise HTTPException(status_code=404, detail="Conta contábil não encontrada.")
+    tipo_conta_esperado = _TIPO_CONTA_POR_TIPO_TITULO.get(dados.tipo_titulo)
+    if tipo_conta_esperado is None:
+        raise HTTPException(status_code=400, detail="tipo_titulo precisa ser 'A Pagar' ou 'A Receber'.")
+    contabilidade.exigir_tipo_conta(conta, [tipo_conta_esperado], "A conta contábil de um título")
     if dados.id_associado and not db.query(Associado).filter(Associado.id_associado == dados.id_associado).first():
         raise HTTPException(status_code=404, detail="Associado não encontrado.")
     if dados.id_fornecedor and not db.query(Fornecedor).filter(Fornecedor.id_fornecedor == dados.id_fornecedor).first():
@@ -137,6 +260,11 @@ def lancar_titulo(dados: TituloCriar, db: Session = Depends(get_db)):
     db.add(novo_titulo)
     db.commit()
     db.refresh(novo_titulo)
+    registrar_auditoria(
+        db, usuario, "titulos_financeiros", "CREATE", id_registro_afetado=novo_titulo.id_titulo,
+        dados_depois={"tipo_titulo": novo_titulo.tipo_titulo, "descricao": novo_titulo.descricao, "valor_original": str(novo_titulo.valor_original)},
+        ip_origem=_ip_origem(request),
+    )
     if novo_titulo.id_associado:
         # v1.1 - novo título pode já nascer vencido (lançamento retroativo); recalcula na hora
         # em vez de esperar o próximo evento.
@@ -144,32 +272,60 @@ def lancar_titulo(dados: TituloCriar, db: Session = Depends(get_db)):
     return {"mensagem": "Título registrado.", "id_titulo": novo_titulo.id_titulo}
 
 
-@router.get("/api/livro-caixa/", summary="Extrato do Livro-Caixa")
-def listar_livro_caixa(db: Session = Depends(get_db)):
-    transacoes = db.query(TransacaoCaixa).order_by(TransacaoCaixa.data_registro_servidor).all()
+# ==========================================
+# RAZÃO CONTÁBIL (lançamentos em partida dobrada real, imutáveis)
+# ==========================================
+def _nome_conta(contas: dict, id_conta: int) -> str:
+    conta = contas.get(id_conta)
+    return conta.descricao_conta if conta else ""
+
+
+def _serializar_lancamento(lancamento: LancamentoContabil, contas: dict) -> dict:
+    return {
+        "id_lancamento": lancamento.id_lancamento,
+        "numero_sequencial": lancamento.numero_sequencial,
+        "id_exercicio": lancamento.id_exercicio,
+        "id_titulo": lancamento.id_titulo,
+        "data": lancamento.data_lancamento.date().isoformat() if lancamento.data_lancamento else None,
+        "historico": lancamento.historico,
+        "tipo_origem": lancamento.tipo_origem,
+        "forma_pagamento": lancamento.forma_pagamento,
+        "estornado": lancamento.estornado,
+        "motivo_estorno": lancamento.motivo_estorno,
+        "id_lancamento_estorno": lancamento.id_lancamento_estorno,
+        "partidas": [
+            {
+                "id_conta": p.id_conta, "conta_contabil": _nome_conta(contas, p.id_conta),
+                "tipo_partida": p.tipo_partida, "valor": p.valor,
+            }
+            for p in lancamento.partidas
+        ],
+    }
+
+
+@router.get("/api/livro-caixa/", summary="Extrato do Razão Contábil (partida dobrada)")
+def listar_livro_caixa(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+    lancamentos = db.query(LancamentoContabil).order_by(LancamentoContabil.id_exercicio, LancamentoContabil.numero_sequencial).all()
     contas = {c.id_conta: c for c in db.query(PlanoDeContas).all()}
 
-    saldo = 0.0
+    # v3.0 - "saldo em caixa" só tem sentido definido para contas Ativo (Caixa/Banco formal -
+    # ContaFinanceira - é v3.1); somamos o efeito líquido (débito aumenta, crédito diminui) de
+    # toda partida que toca uma conta Ativo, como indicador enquanto isso não existe.
+    saldo_contas_ativo = Decimal("0")
     resultado = []
-    for t in transacoes:
-        saldo += t.valor_efetivado if t.tipo_movimento == "Entrada" else -t.valor_efetivado
-        conta = contas.get(t.id_conta_contabil)
-        resultado.append({
-            "id_transacao": t.id_transacao,
-            "data": t.data_registro_servidor.date().isoformat() if t.data_registro_servidor else None,
-            "conta_contabil": conta.descricao_conta if conta else "",
-            "tipo_movimento": t.tipo_movimento,
-            "valor_efetivado": t.valor_efetivado,
-            "forma_pagamento": t.forma_pagamento,
-            "status_auditoria": t.status_auditoria,
-            "saldo_apos": round(saldo, 2)
-        })
+    for lancamento in lancamentos:
+        for p in lancamento.partidas:
+            conta = contas.get(p.id_conta)
+            if conta and conta.tipo == "Ativo":
+                saldo_contas_ativo += p.valor if p.tipo_partida == contabilidade.DEBITO else -p.valor
+        resultado.append(_serializar_lancamento(lancamento, contas))
     resultado.reverse()
-    return {"transacoes": resultado, "saldo_atual": round(saldo, 2)}
+    return {"lancamentos": resultado, "saldo_contas_ativo": saldo_contas_ativo}
 
 
-@router.post("/baixar-titulo/", summary="6. Baixar Título / Livro-Caixa")
-def baixar_titulo(dados: BaixarTitulo, db: Session = Depends(get_db)):
+@router.post("/baixar-titulo/", summary="6. Baixar Título / Razão Contábil")
+def baixar_titulo(dados: BaixarTitulo, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    exercicio = contabilidade.exigir_exercicio_aberto(db)
     titulo = db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == dados.id_titulo).first()
     if not titulo:
         raise HTTPException(status_code=404, detail="Título não encontrado.")
@@ -177,24 +333,89 @@ def baixar_titulo(dados: BaixarTitulo, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Este título já está totalmente pago.")
     if dados.valor_pago > titulo.saldo_devedor:
         raise HTTPException(status_code=400, detail=f"Valor pago não pode ser maior que o saldo devedor (R$ {titulo.saldo_devedor:.2f}).")
+    contrapartida = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == dados.id_conta_contabil_contrapartida).first()
+    if not contrapartida:
+        raise HTTPException(status_code=404, detail="Conta contábil de contrapartida não encontrada.")
+    contabilidade.exigir_tipo_conta(contrapartida, ["Ativo"], "A conta de contrapartida de uma baixa (Caixa/Banco)")
+
     titulo.saldo_devedor -= dados.valor_pago
     if titulo.saldo_devedor <= 0:
         titulo.status = "Pago"
-        titulo.saldo_devedor = 0.0
-    tipo_mov = "Saída" if titulo.tipo_titulo == "A Pagar" else "Entrada"
-    transacao = TransacaoCaixa(
-        id_titulo=titulo.id_titulo, id_conta_contabil=titulo.id_conta_contabil,
-        tipo_movimento=tipo_mov, valor_efetivado=dados.valor_pago, forma_pagamento=dados.forma_pagamento
+        titulo.saldo_devedor = Decimal("0")
+
+    # v3.0 - partida dobrada real: "A Pagar" debita a despesa (aumenta) e credita a contrapartida
+    # (Caixa/Banco diminui); "A Receber" debita a contrapartida (Caixa/Banco aumenta) e credita a
+    # receita (aumenta). Ambos os lados sempre com o mesmo valor - ver contabilidade.criar_lancamento.
+    if titulo.tipo_titulo == "A Pagar":
+        partidas = [
+            (titulo.id_conta_contabil, contabilidade.DEBITO, dados.valor_pago),
+            (contrapartida.id_conta, contabilidade.CREDITO, dados.valor_pago),
+        ]
+    else:
+        partidas = [
+            (contrapartida.id_conta, contabilidade.DEBITO, dados.valor_pago),
+            (titulo.id_conta_contabil, contabilidade.CREDITO, dados.valor_pago),
+        ]
+
+    lancamento = contabilidade.criar_lancamento(
+        db, exercicio=exercicio, historico=f"Baixa do título #{titulo.id_titulo} — {titulo.descricao}",
+        tipo_origem="BAIXA_TITULO", partidas=partidas, id_titulo=titulo.id_titulo,
+        id_usuario=usuario.id_usuario, forma_pagamento=dados.forma_pagamento,
     )
-    db.add(transacao)
     db.commit()
+    db.refresh(lancamento)
+    registrar_auditoria(
+        db, usuario, "lancamentos_contabeis", "BAIXA_TITULO", id_registro_afetado=lancamento.id_lancamento,
+        dados_depois={
+            "id_titulo": titulo.id_titulo, "numero_sequencial": lancamento.numero_sequencial,
+            "valor": str(dados.valor_pago), "saldo_devedor_restante": str(titulo.saldo_devedor),
+        },
+        ip_origem=_ip_origem(request),
+    )
     if titulo.id_associado:
         # v1.1 - pagamento é o gatilho principal: pode tirar o associado de Inadimplente.
         recalcular_categoria_associado(db, titulo.id_associado)
-    return {"mensagem": "Transação registrada no Livro-Caixa.", "saldo_restante": titulo.saldo_devedor}
+    return {
+        "mensagem": "Lançamento registrado no razão contábil.", "saldo_restante": titulo.saldo_devedor,
+        "id_lancamento": lancamento.id_lancamento, "numero_sequencial": lancamento.numero_sequencial,
+    }
+
+
+@router.post("/api/lancamentos/{id_lancamento}/estornar", summary="Estornar Lançamento Contábil")
+def estornar_lancamento_endpoint(id_lancamento: int, dados: EstornoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    """v3.0 - imutabilidade: lançamento registrado nunca é editado nem apagado. Correção é
+    estorno motivado (novo lançamento com cada partida invertida, mesmo valor) + o lançamento
+    original marcado `estornado`, nunca removido - ambos ficam visíveis no razão contábil."""
+    original = db.query(LancamentoContabil).filter(LancamentoContabil.id_lancamento == id_lancamento).first()
+    if not original:
+        raise HTTPException(status_code=404, detail="Lançamento não encontrado.")
+
+    valor_original = contabilidade.valor_total_lancamento(original)
+    estorno = contabilidade.estornar_lancamento(db, original=original, motivo=dados.motivo, id_usuario=usuario.id_usuario)
+
+    titulo = None
+    if original.id_titulo:
+        titulo = db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == original.id_titulo).first()
+        if titulo:
+            titulo.saldo_devedor += valor_original
+            if titulo.saldo_devedor > titulo.valor_original:
+                titulo.saldo_devedor = titulo.valor_original
+            titulo.status = "Pendente"
+    db.commit()
+    db.refresh(estorno)
+    registrar_auditoria(
+        db, usuario, "lancamentos_contabeis", "ESTORNO", id_registro_afetado=original.id_lancamento,
+        dados_antes={"estornado": False},
+        dados_depois={"id_lancamento_estorno": estorno.id_lancamento, "numero_sequencial": estorno.numero_sequencial, "motivo": dados.motivo},
+        ip_origem=_ip_origem(request),
+    )
+    if titulo and titulo.id_associado:
+        recalcular_categoria_associado(db, titulo.id_associado)
+    return {"mensagem": "Lançamento estornado.", "id_lancamento_estorno": estorno.id_lancamento, "numero_sequencial": estorno.numero_sequencial}
+
 
 # ==========================================
-# HISTÓRICO DE CARGOS
+# HTML ADMIN (UI legada, ver nota de topo do arquivo)
 # ==========================================
 
 @router.get("/admin/fornecedores", response_class=HTMLResponse, summary="Admin - Fornecedores")
@@ -685,6 +906,10 @@ def admin_titulos(status: str = None, tipo_titulo: str = None, db: Session = Dep
                             <label class="text-xs font-bold text-slate-500 uppercase">Forma de Pagamento</label>
                             <select id="b_forma" class="w-full p-2 border border-slate-300 rounded-lg bg-slate-50"></select>
                         </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 uppercase">Conta de Contrapartida (Caixa/Banco) *</label>
+                            <select id="b_contrapartida" class="w-full p-2 border border-slate-300 rounded-lg bg-slate-50"></select>
+                        </div>
                     </div>
                     <p id="baixa_erro" class="text-red-600 text-sm font-semibold mt-4 hidden"></p>
                     <div class="flex justify-end space-x-3 mt-8">
@@ -764,6 +989,9 @@ def admin_titulos(status: str = None, tipo_titulo: str = None, db: Session = Dep
                 document.getElementById('baixa_erro').classList.add('hidden');
                 const formas = await (await fetch('/api/opcoes/forma_pagamento')).json();
                 preencherSelect(document.getElementById('b_forma'), formas);
+                const contas = await (await fetch('/api/plano-contas/')).json();
+                const contasAtivo = contas.filter(c => c.tipo === 'Ativo');
+                preencherSelect(document.getElementById('b_contrapartida'), contasAtivo, 'id_conta', c => `${{c.codigo_contabil}} — ${{c.descricao_conta}}`);
                 document.getElementById('modalBaixa').classList.remove('hidden');
             }}
 
@@ -774,7 +1002,8 @@ def admin_titulos(status: str = None, tipo_titulo: str = None, db: Session = Dep
                 const dados = {{
                     id_titulo: parseInt(document.getElementById('b_id').value, 10),
                     valor_pago: parseFloat(document.getElementById('b_valor').value),
-                    forma_pagamento: document.getElementById('b_forma').value
+                    forma_pagamento: document.getElementById('b_forma').value,
+                    id_conta_contabil_contrapartida: parseInt(document.getElementById('b_contrapartida').value, 10)
                 }};
                 const resposta = await fetch('/baixar-titulo/', {{
                     method: 'POST',
@@ -797,55 +1026,63 @@ def admin_titulos(status: str = None, tipo_titulo: str = None, db: Session = Dep
     return html_titulos
 
 
-@router.get("/admin/livro-caixa", response_class=HTMLResponse, summary="Admin - Livro-Caixa")
+@router.get("/admin/livro-caixa", response_class=HTMLResponse, summary="Admin - Razão Contábil")
 def admin_livro_caixa(db: Session = Depends(get_db)):
-    transacoes = db.query(TransacaoCaixa).order_by(TransacaoCaixa.data_registro_servidor).all()
+    lancamentos = db.query(LancamentoContabil).order_by(LancamentoContabil.id_exercicio, LancamentoContabil.numero_sequencial).all()
     contas = {c.id_conta: c for c in db.query(PlanoDeContas).all()}
 
-    saldo = 0.0
+    saldo_contas_ativo = Decimal("0")
     linhas_lista = []
-    for t in transacoes:
-        saldo += t.valor_efetivado if t.tipo_movimento == "Entrada" else -t.valor_efetivado
-        conta = contas.get(t.id_conta_contabil)
-        cor = "text-green-600" if t.tipo_movimento == "Entrada" else "text-red-600"
-        sinal = "+" if t.tipo_movimento == "Entrada" else "-"
-        data_fmt = t.data_registro_servidor.strftime("%d/%m/%Y %H:%M") if t.data_registro_servidor else "-"
+    for l in lancamentos:
+        partes_partida = []
+        for p in l.partidas:
+            if contas.get(p.id_conta) and contas[p.id_conta].tipo == "Ativo":
+                saldo_contas_ativo += p.valor if p.tipo_partida == contabilidade.DEBITO else -p.valor
+            sigla = "D" if p.tipo_partida == contabilidade.DEBITO else "C"
+            cor_sigla = "text-blue-600" if p.tipo_partida == contabilidade.DEBITO else "text-amber-700"
+            partes_partida.append(
+                f'<span class="{cor_sigla} font-bold">{sigla}</span> {esc(_nome_conta(contas, p.id_conta))} '
+                f'<span class="text-slate-400">R$ {p.valor:.2f}</span>'
+            )
+        partidas_html = "<br>".join(partes_partida)
+        data_fmt = l.data_lancamento.strftime("%d/%m/%Y %H:%M") if l.data_lancamento else "-"
+        estorno_tag = ' <span class="text-xs font-bold text-red-500">(ESTORNADO)</span>' if l.estornado else ""
+        acao_estorno = "" if l.estornado else f"""<button onclick="estornar({l.id_lancamento})" class="bg-slate-100 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg font-semibold text-xs transition">Estornar</button>"""
         linhas_lista.append(f"""
-        <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+        <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors align-top">
+            <td class="p-4 text-slate-500 font-mono">#{l.numero_sequencial}</td>
             <td class="p-4 text-slate-500">{data_fmt}</td>
-            <td class="p-4 text-slate-700">{esc(conta.descricao_conta if conta else '')}</td>
-            <td class="p-4 font-semibold {cor}">{esc(t.tipo_movimento)}</td>
-            <td class="p-4 font-bold {cor}">{sinal} R$ {t.valor_efetivado:.2f}</td>
-            <td class="p-4 text-slate-500">{esc(t.forma_pagamento)}</td>
-            <td class="p-4 text-slate-500">{esc(t.status_auditoria)}</td>
-            <td class="p-4 font-bold text-slate-800">R$ {saldo:.2f}</td>
+            <td class="p-4 text-slate-700">{esc(l.historico)}{estorno_tag}</td>
+            <td class="p-4 text-slate-700 text-xs leading-relaxed">{partidas_html}</td>
+            <td class="p-4 text-slate-500">{esc(l.forma_pagamento or '-')}</td>
+            <td class="p-4">{acao_estorno}</td>
         </tr>
         """)
     linhas = "".join(reversed(linhas_lista))
-    if not transacoes:
-        linhas = '<tr><td colspan="7" class="p-8 text-center text-slate-400">Nenhuma transação registrada ainda.</td></tr>'
+    if not lancamentos:
+        linhas = '<tr><td colspan="6" class="p-8 text-center text-slate-400">Nenhum lançamento registrado ainda.</td></tr>'
 
-    cor_saldo = "text-emerald-600" if saldo >= 0 else "text-red-600"
+    cor_saldo = "text-emerald-600" if saldo_contas_ativo >= 0 else "text-red-600"
 
     html_livro_caixa = f"""
     <!DOCTYPE html>
     <html lang="pt-BR">
     <head>
         <meta charset="UTF-8">
-        <title>ASAF - Livro-Caixa</title>
+        <title>ASAF - Razão Contábil</title>
         <script src="https://cdn.tailwindcss.com"></script>
     </head>
     <body class="bg-slate-50 p-10 font-sans">
         <div class="max-w-6xl mx-auto">
             <div class="flex justify-between items-center mb-8">
                 <div>
-                    <h1 class="text-3xl font-extrabold text-slate-900">Livro-Caixa</h1>
-                    <p class="text-slate-500">Extrato de todas as movimentações financeiras</p>
+                    <h1 class="text-3xl font-extrabold text-slate-900">Razão Contábil</h1>
+                    <p class="text-slate-500">Lançamentos em partida dobrada (débito/crédito) — cada linha soma zero</p>
                 </div>
                 <div class="flex items-center space-x-4">
                     <div class="bg-white rounded-xl border border-slate-200 px-6 py-3 shadow-sm text-right">
-                        <p class="text-xs font-bold text-slate-400 uppercase">Saldo Atual</p>
-                        <p class="text-2xl font-black {cor_saldo}">R$ {saldo:.2f}</p>
+                        <p class="text-xs font-bold text-slate-400 uppercase">Saldo em Contas Ativo</p>
+                        <p class="text-2xl font-black {cor_saldo}">R$ {saldo_contas_ativo:.2f}</p>
                     </div>
                     <a href="/admin" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-300 transition">&larr; Voltar ao Comando</a>
                 </div>
@@ -855,19 +1092,37 @@ def admin_livro_caixa(db: Session = Depends(get_db)):
                 <table class="w-full text-left border-collapse text-sm">
                     <thead>
                         <tr class="bg-slate-900 text-white text-xs uppercase tracking-wider">
+                            <th class="p-4">Nº</th>
                             <th class="p-4">Data</th>
-                            <th class="p-4">Conta</th>
-                            <th class="p-4">Movimento</th>
-                            <th class="p-4">Valor</th>
+                            <th class="p-4">Histórico</th>
+                            <th class="p-4">Partidas (D/C)</th>
                             <th class="p-4">Forma de Pagamento</th>
-                            <th class="p-4">Auditoria</th>
-                            <th class="p-4">Saldo Após</th>
+                            <th class="p-4">Ação</th>
                         </tr>
                     </thead>
                     <tbody>{linhas}</tbody>
                 </table>
             </div>
         </div>
+
+        <script>
+            async function estornar(idLancamento) {{
+                const motivo = prompt('Motivo do estorno (mínimo 5 caracteres):');
+                if (!motivo) return;
+                const resposta = await fetch(`/api/lancamentos/${{idLancamento}}/estornar`, {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ motivo }})
+                }});
+                if (resposta.ok) {{
+                    window.location.reload();
+                }} else {{
+                    const erro = await resposta.json();
+                    const detalhe = Array.isArray(erro.detail) ? erro.detail.map(d => d.msg).join(", ") : erro.detail;
+                    alert(detalhe || 'Erro ao estornar.');
+                }}
+            }}
+        </script>
     </body>
     </html>
     """

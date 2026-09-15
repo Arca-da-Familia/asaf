@@ -51,13 +51,19 @@ def test_status_arrolamento_nao_e_mais_editavel_no_schema(client, auth_headers):
     assert calculada["status_arrolamento_materializado"] == "Ativo - Em Dia"
 
 
-def test_categoria_calculada_fica_inadimplente_apos_titulo_vencido_e_volta_ao_pagar(client, auth_headers):
+def test_categoria_calculada_fica_inadimplente_apos_titulo_vencido_e_volta_ao_pagar(client, auth_headers, exercicio_financeiro_aberto):
     associado = _criar_associado(client).json()
     id_associado = associado["id_associado"]
 
     conta = client.post(
         "/plano-contas/",
         json={"codigo_contabil": f"C{uuid.uuid4().hex[:8]}", "descricao_conta": "Mensalidade", "tipo": "Receita"},
+        headers=auth_headers,
+    ).json()
+    conta_caixa = client.post(
+        "/plano-contas/",
+        json={"codigo_contabil": f"C{uuid.uuid4().hex[:8]}", "descricao_conta": "Caixa", "tipo": "Ativo"},
+        headers=auth_headers,
     ).json()
 
     titulo = client.post(
@@ -67,12 +73,20 @@ def test_categoria_calculada_fica_inadimplente_apos_titulo_vencido_e_volta_ao_pa
             "descricao": "Mensalidade atrasada", "valor_original": 100.0,
             "data_vencimento": "2020-01-01T00:00:00",  # bem no passado - vencido além de qualquer tolerância
         },
+        headers=auth_headers,
     ).json()
 
     calculada = client.get(f"/api/associados/{id_associado}/categoria-calculada").json()
     assert calculada["status_arrolamento_materializado"] == "Ativo - Inadimplente"
 
-    client.post("/baixar-titulo/", json={"id_titulo": titulo["id_titulo"], "valor_pago": 100.0, "forma_pagamento": "Pix"})
+    client.post(
+        "/baixar-titulo/",
+        json={
+            "id_titulo": titulo["id_titulo"], "valor_pago": 100.0, "forma_pagamento": "Pix",
+            "id_conta_contabil_contrapartida": conta_caixa["id_conta"],
+        },
+        headers=auth_headers,
+    )
 
     calculada_depois = client.get(f"/api/associados/{id_associado}/categoria-calculada").json()
     assert calculada_depois["status_arrolamento_materializado"] == "Ativo - Em Dia"

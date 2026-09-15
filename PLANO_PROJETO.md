@@ -41,7 +41,8 @@ segurança/LGPD → infraestrutura/deploy → experiência/performance → expan
     (permissão por módulo).
   - Associados: `Associado`, `Endereco`, `DependenteFamiliar`, `DocumentoAnexo`,
     `HistoricoCargo`.
-  - Financeiro: `PlanoDeContas`, `Fornecedor`, `TituloFinanceiro`, `TransacaoCaixa`.
+  - Financeiro: `PlanoDeContas`, `Fornecedor`, `Exercicio`, `TituloFinanceiro`,
+    `LancamentoContabil`, `PartidaContabil` (v3.0).
   - Governança: `Assembleia`, `RegistroVoto`, `DocumentoInstitucional`.
   - Projetos/voluntariado: `ProjetoEvento`, `AlocacaoVoluntario` (embrião do módulo de Eventos —
     ver FASE 4).
@@ -1433,8 +1434,8 @@ ignorá-la). Próxima fase é a FASE 1 (Associados), abaixo.
 > contador/advogado). Zera CPF/e-mail/telefone/nascimento/estado civil/profissão/
 > naturalidade/foto em `Pessoa` - **nome completo e número de matrícula NUNCA são apagados**
 > (é o que sustenta o vínculo com registro financeiro/histórico), e nenhum dado de
-> `TituloFinanceiro`/`TransacaoCaixa` é tocado (fica perpétuo, por exigência contábil,
-> exatamente como o usuário descreveu). `POST /api/associados/{id}/anonimizar` (um só,
+> `TituloFinanceiro`/`LancamentoContabil`/`PartidaContabil` (v3.0) é tocado (fica perpétuo, por
+> exigência contábil, exatamente como o usuário descreveu). `POST /api/associados/{id}/anonimizar` (um só,
 > recusa com a data em que fica elegível se ainda não chegou o prazo) e
 > `POST /api/associados/anonimizar-vencidos` (lote - pensado pra um admin rodar
 > periodicamente até existir scheduler de verdade, FASE 16/18). **Cuidado verificado
@@ -2469,36 +2470,92 @@ testes passando (`pytest tests/`).
 > internamente - `lancar_titulo`/`baixar_titulo` - seria pior que corrigir nenhum, por deixar o
 > router com posturas de segurança inconsistentes entre endpoints). **Esta fase não pode
 > começar sem resolver isto primeiro** - é o item 0 de fato de qualquer v3.x daqui.
+>
+> **Item 0 resolvido pela v3.0 (2026-09-15)**: todo endpoint `/api/...` e de escrita de
+> `app/routers/financeiro.py` agora exige `Depends(exigir_permissao("financeiro"))` e grava
+> `registrar_auditoria` em toda operação de escrita, mesmo padrão de
+> `app/routers/conselho_fiscal.py`. As páginas HTML `/admin/...` deste router continuam sem
+> `Depends` de auth de propósito - mesma convenção já usada em `admin_secretaria`
+> (`app/routers/associados.py`): são UI legada substituída pelo painel React (v0.2), sem como
+> anexar Bearer token a uma navegação de página; a proteção real está nas rotas `/api/...` que
+> essas páginas chamam via fetch. Ainda pendente para v3.3: "quem registra nunca é quem aprova"
+> como segregação de função checada no endpoint (hoje só a permissão de módulo é checada).
 
-#### v3.0 — Fundamentos contábeis do módulo
-- [ ] Lançamento em **partida dobrada simplificada**: todo lançamento tem origem e destino
-      (conta/centro de custo), o que torna a exportação para a contabilidade (FASE 17) direta em
-      vez de reconstruída depois. Custa pouco agora e é caríssimo de retrofitar.
-- [ ] `Exercicio` (ano contábil) com abertura/fechamento formal. Exercício fechado não aceita
+#### v3.0 — Fundamentos contábeis do módulo ✅ CONCLUÍDO (2026-09-15)
+> **Revisão de desenho (2026-09-15, mesmo dia)**: a primeira implementação usava um par
+> origem/destino por transação ("partida dobrada simplificada"). Rejeitada antes de fechar a
+> versão: não é partida dobrada de verdade (não valida natureza da conta, não soma zero, não
+> suporta rateio em N contas) e o financeiro é o módulo que mais precisa de rigor real, não de
+> atalho. Redesenhado para o modelo abaixo antes de qualquer dado ter sido gravado em produção.
+
+- [x] Lançamento em **partida dobrada real**: todo `LancamentoContabil` (cabeçalho) tem N
+      `PartidaContabil` (linhas de Débito/Crédito), com a soma dos débitos sempre igual à soma
+      dos créditos - validado em `app/services/contabilidade.py::criar_lancamento`, nunca
+      confiado a quem chama. Suporta desde 2 linhas (baixa simples) até rateio em várias contas
+      na mesma operação, o que torna a exportação para a contabilidade (FASE 17) direta em vez de
+      reconstruída depois.
+      > Cada `PlanoDeContas` tem um `tipo` de um dos cinco tipos contábeis reais (Ativo, Passivo,
+      > Patrimônio Líquido, Receita, Despesa - catálogo `tipo_conta_contabil` ampliado), do qual
+      > deriva a natureza devedora/credora (`NATUREZA_POR_TIPO`, adiantado da v3.1 de propósito -
+      > sem isso débito/crédito não tem como ser validado de verdade). `lancar_titulo` exige que
+      > a conta do título seja do tipo certo (Despesa para "A Pagar", Receita para "A Receber");
+      > `baixar_titulo` exige que a contrapartida seja Ativo (Caixa/Banco - `ContaFinanceira`
+      > formal ainda é v3.1, até lá é uma conta comum do Plano de Contas com esse tipo).
+      > Centro de Custo continua v3.1, ainda não existe.
+- [x] `Exercicio` (ano contábil) com abertura/fechamento formal. Exercício fechado não aceita
       lançamento novo — ajuste só por lançamento no exercício corrente, exatamente como na
       contabilidade real.
-- [ ] Tipos numéricos: **sempre `Numeric`/`Decimal`**, jamais `float` para dinheiro. Erro comum,
+      > `POST/GET /api/exercicios/`, `POST /api/exercicios/{id}/fechar`. Só um exercício aberto
+      > por vez; `baixar_titulo`/estorno exigem exercício aberto
+      > (`contabilidade.exigir_exercicio_aberto`). Cada `LancamentoContabil` já nasce com
+      > `numero_sequencial` único por exercício (adiantado da v3.1 - a numeração formal "termo
+      > nº" com talão físico equivalente ainda é dela; aqui é só a garantia de sequência única).
+- [x] Tipos numéricos: **sempre `Numeric`/`Decimal`**, jamais `float` para dinheiro. Erro comum,
       irreversível quando descoberto tarde.
-- [ ] Imutabilidade: lançamento registrado nunca é editado nem apagado. Correção = estorno
+      > `valor_original`/`saldo_devedor` (títulos) e `valor` (partidas) são `Numeric(14, 2)`
+      > (migração Alembic `1a735681510a`, sem dado real a preservar - módulo ainda não tinha uso
+      > real dado o item 0). Schemas Pydantic usam `Decimal`.
+- [x] Imutabilidade: lançamento registrado nunca é editado nem apagado. Correção = estorno
       motivado + novo lançamento, ambos visíveis, com numeração sequencial preservada.
-- [ ] Toda operação financeira grava `AuditLog` com valores antes/depois — sem exceção, inclusive
+      > `POST /api/lancamentos/{id}/estornar`: cria um novo `LancamentoContabil` com cada
+      > `PartidaContabil` invertida (débito↔crédito, mesmo valor) e marca o original
+      > `estornado=True` + `motivo_estorno` + `id_lancamento_estorno` - nunca edita nem apaga a
+      > linha original. Numeração sequencial de ambos preservada (cada um com seu próprio
+      > `numero_sequencial`, nunca reordenado nem reaproveitado).
+- [x] Toda operação financeira grava `AuditLog` com valores antes/depois — sem exceção, inclusive
       para quem tem permissão máxima.
+      > `registrar_auditoria` em toda escrita (plano de contas, fornecedor, título, baixa,
+      > estorno, abertura/fechamento de exercício), com `dados_antes`/`dados_depois` nas edições.
 
 #### v3.1 — Plano de contas, centros de custo e caixa
-- [ ] `PlanoDeContas` hierárquico configurável (receita/despesa/ativo/passivo), com conta
-      sintética x analítica (só analítica recebe lançamento) e bloqueio de exclusão de conta com
-      movimento.
+> **Já entregue pela v3.0** (revisão de desenho do mesmo dia, ver nota acima): os cinco tipos
+> contábeis (Ativo/Passivo/Patrimônio Líquido/Receita/Despesa) com natureza devedora/credora
+> derivada, e `numero_sequencial` único por exercício em todo `LancamentoContabil`. O que resta
+> aqui é hierarquia (sintética x analítica) e a separação competência x caixa — nunca reabrir a
+> classificação de tipo/natureza, que já está resolvida.
+- [ ] `PlanoDeContas` **hierárquico** (conta sintética x analítica, com `codigo_contabil_pai`) -
+      só a analítica recebe lançamento (`PartidaContabil.id_conta` deve apontar só pra folha da
+      árvore) - e bloqueio de exclusão de conta com movimento.
 - [ ] `CentroDeCusto` ligado a projeto/evento/área (FASE 4) — permite responder "quanto custou o
-      projeto X" sem planilha paralela, e alimenta a prestação de contas a doador (v12.6).
-- [ ] `ContaFinanceira` (caixa, conta corrente, poupança, conta de aplicação) com saldo calculado
-      a partir dos lançamentos, jamais campo de saldo editável.
-- [ ] Lançamentos com numeração sequencial por exercício (equivalente ao "termo nº" do talão
-      físico), data de competência **separada** da data de caixa — distinção que a contabilidade
-      exige e que sistemas amadores ignoram.
+      projeto X" sem planilha paralela, e alimenta a prestação de contas a doador (v12.6). Entra
+      como campo opcional em `PartidaContabil` (a partida sabe a conta E o centro de custo),
+      nunca como tabela paralela que pode divergir do lançamento real.
+- [ ] `ContaFinanceira` (caixa, conta corrente, poupança, conta de aplicação) — uma
+      especialização de `PlanoDeContas` tipo Ativo. Saldo sempre calculado somando
+      `PartidaContabil` daquela conta (débito soma, crédito subtrai - a mesma mecânica que já
+      existe desde a v3.0 para o indicador "saldo em contas Ativo"), jamais campo de saldo
+      editável.
+- [ ] Data de competência **separada** da data de caixa em `LancamentoContabil` (hoje só existe
+      `data_lancamento`, que é as duas coisas ao mesmo tempo) — distinção que a contabilidade
+      exige e que sistemas amadores ignoram. Numeração sequencial ("termo nº") já existe desde a
+      v3.0; falta só o equivalente formal ao talão físico (numeração por tipo de lançamento,
+      se o costume contábil da entidade exigir).
 - [ ] Anexo de comprovante obrigatório por tipo de lançamento (configurável) — despesa sem
       comprovante é a porta de entrada de todo problema de prestação de contas.
 - [ ] Transferência entre contas como operação própria (não duas entradas soltas que podem
-      divergir).
+      divergir) — na prática já é só mais um caso de uso de
+      `contabilidade.criar_lancamento` (débito na conta de destino, crédito na de origem),
+      exposto como endpoint dedicado pra não exigir que quem opera monte a partida na mão.
 
 #### v3.2 — Mensalidades e cobrança recorrente
 - [ ] `PlanoDeContribuicao` por categoria de associado (valor, periodicidade, dia de vencimento,
@@ -2557,7 +2614,10 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > envolvendo o fornecedor/contrato em questão, bloqueando ou exigindo segundo aprovador quando
 > houver; (2) segregação de funções já tem a base de permissão por cargo (v2.1,
 > `app.security.usuario_tem_permissao` soma permissão do mandato vigente) - falta só o fluxo em
-> si distinguir explicitamente "quem lança" de "quem aprova" nos códigos de permissão/endpoint.
+> si distinguir explicitamente "quem lança" de "quem aprova" nos códigos de permissão/endpoint;
+> (3) `LancamentoContabil.id_usuario_lancamento` (v3.0) já grava quem lançou cada partida - a
+> checagem "quem solicita/lança nunca aprova a própria solicitação" desta versão pode comparar
+> direto contra essa coluna, sem precisar reconstruir autoria a partir do `AuditLog`.
 - [ ] Cadastro de fornecedores com verificação de CPF/CNPJ duplicado e dados bancários
       versionados — **alteração de dados bancários de fornecedor exige segundo aprovador**: é o
       golpe mais comum contra organizações, e a defesa é processual, não tecnológica.
@@ -2613,8 +2673,11 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       lançamentos fora do horário habitual, valores logo abaixo do teto de alçada (fracionamento),
       fornecedor novo com pagamento alto na primeira operação, sequência de estornos pelo mesmo
       usuário, pagamento a conta bancária alterada recentemente.
-- [ ] Conciliação obrigatória: saldo do sistema x saldo do extrato bancário, com fechamento mensal
-      assinado por quem conferiu — divergência aberta bloqueia o fechamento do mês.
+- [ ] Conciliação obrigatória: saldo do sistema (soma de `PartidaContabil` da `ContaFinanceira`,
+      v3.1) x saldo do extrato bancário, com fechamento mensal assinado por quem conferiu —
+      divergência aberta bloqueia o fechamento do mês. Fechamento de **exercício** (não só do
+      mês) já existe desde a v3.0 (`POST /api/exercicios/{id}/fechar`) - esta versão é quem
+      acrescenta a trava de conciliação antes de deixar fechar.
 - [ ] Nenhum usuário, em nenhum nível, pode apagar lançamento ou log — inclusive o Presidente.
       Restrição garantida no banco (FASE 15), não só na aplicação.
 

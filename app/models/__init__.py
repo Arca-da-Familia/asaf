@@ -24,8 +24,10 @@ from app.models.associados import (
 from app.models.financeiro import (
     PlanoDeContas,
     Fornecedor,
+    Exercicio,
     TituloFinanceiro,
-    TransacaoCaixa,
+    LancamentoContabil,
+    PartidaContabil,
 )
 from app.models.governanca import (
     Assembleia,
@@ -76,8 +78,10 @@ __all__ = [
     "HistoricoCargo",
     "PlanoDeContas",
     "Fornecedor",
+    "Exercicio",
     "TituloFinanceiro",
-    "TransacaoCaixa",
+    "LancamentoContabil",
+    "PartidaContabil",
     "Assembleia",
     "HabilitadoAssembleia",
     "PeticaoConvocacao",

@@ -66,6 +66,17 @@ def auth_headers(admin_token):
     return {"Authorization": f"Bearer {admin_token}"}
 
 
+@pytest.fixture(scope="session")
+def exercicio_financeiro_aberto(client, admin_token):
+    """v3.0 - todo lançamento no livro-caixa (baixa de título, estorno) exige um Exercício
+    contábil aberto (`_exigir_exercicio_aberto` em app/routers/financeiro.py). Um único
+    exercício por sessão de teste, ano bem no futuro pra nunca colidir com outro teste."""
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    resposta = client.post("/api/exercicios/", json={"ano": 2099}, headers=headers)
+    assert resposta.status_code == 200, resposta.text
+    return 2099
+
+
 @pytest.fixture()
 def db():
     """Sessão direta pro banco de teste - usada só quando o teste precisa manipular algo que
