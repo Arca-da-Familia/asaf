@@ -11,14 +11,23 @@ que a v1.5 do plano descreve, mas nenhuma dessas fases existe ainda - não há d
 mostrar. Cada uma aparece na ficha sozinha, sem exigir nenhuma mudança aqui, no dia em que o
 módulo correspondente existir e chamar `publicar_evento_linha_do_tempo` (é exatamente o que o
 "módulo novo aparece na ficha sem alterar a tela" do plano quer dizer)."""
+from datetime import datetime, timedelta
+
 from sqlalchemy.orm import Session
 
+from app.config_cache import obter_configuracao
 from app.models.associados import Associado, DocumentoAnexo, HistoricoCargo
 from app.models.financeiro import TituloFinanceiro
 from app.models.linha_do_tempo import EventoLinhaDoTempo
 
 
 def montar_ficha_360(db: Session, associado: Associado) -> dict:
+    pessoa = associado.pessoa
+    prazo_dias = int(obter_configuracao(db, "PRAZO_RECADASTRAMENTO_DIAS", "365") or "365")
+    recadastramento_pendente = (
+        pessoa.data_ultima_confirmacao is None
+        or pessoa.data_ultima_confirmacao < datetime.utcnow() - timedelta(days=prazo_dias)
+    )
     titulos_pendentes = (
         db.query(TituloFinanceiro)
         .filter(TituloFinanceiro.id_associado == associado.id_associado, TituloFinanceiro.status == "Pendente")
@@ -55,6 +64,9 @@ def montar_ficha_360(db: Session, associado: Associado) -> dict:
             "categoria": associado.categoria,
             "status_arrolamento": associado.status_arrolamento,
             "data_admissao": associado.data_admissao,
+            "data_ultima_confirmacao": pessoa.data_ultima_confirmacao,
+            "recadastramento_pendente": recadastramento_pendente,
+            "contato_suspeito": bool(pessoa.contato_suspeito),
         },
         "situacao_financeira": {
             "saldo_devedor_total": saldo_devedor_total,

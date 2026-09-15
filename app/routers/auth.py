@@ -471,9 +471,22 @@ def atualizar_perfil(dados: PerfilUpdateRequest, usuario: Usuario = Depends(get_
     endereco.bairro = dados.bairro
     endereco.cidade = dados.cidade
     endereco.estado = dados.estado
+    # v1.8 - editar o próprio perfil conta como confirmação de dado ("recadastramento") - a
+    # pessoa acabou de revisar e corrigir o que estava errado, não faz sentido continuar
+    # marcando o cadastro como desatualizado.
+    associado.pessoa.data_ultima_confirmacao = datetime.utcnow()
     db.commit()
     registrar_auditoria(db, usuario, "associados", "PERFIL_ATUALIZADO", id_registro_afetado=associado.id_associado)
     return {"mensagem": "Perfil atualizado com sucesso."}
+
+
+@router.post("/perfil/confirmar-dados", summary="Confirma que os dados cadastrais continuam corretos, sem alterar nada (v1.8)")
+def confirmar_dados(usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+    associado = _associado_do_usuario(db, usuario)
+    associado.pessoa.data_ultima_confirmacao = datetime.utcnow()
+    db.commit()
+    registrar_auditoria(db, usuario, "pessoas", "DADOS_CONFIRMADOS", id_registro_afetado=associado.id_pessoa)
+    return {"mensagem": "Dados confirmados.", "data_ultima_confirmacao": associado.pessoa.data_ultima_confirmacao}
 
 
 @router.get("/me/ficha-360", summary="Ficha 360º do próprio associado (v1.5): dados, financeiro resumido, cargos, linha do tempo")

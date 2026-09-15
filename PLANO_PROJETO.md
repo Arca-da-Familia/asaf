@@ -1641,15 +1641,66 @@ empregatício; empregado CLT tem outro regime inteiro (eSocial, ponto, folha).
 > **Sem tela no painel React** - mesma situação já registrada nas v1.5/v1.6 (só o portal HTML
 > legado tem UI de família hoje, agora falando com a tabela nova por baixo).
 
-#### v1.8 — Qualidade permanente da base (o que mantém o cadastro vivo em 15 anos)
-- [ ] Campanha de recadastramento periódica: o associado confirma/atualiza os próprios dados pelo
+#### v1.8 — Qualidade permanente da base (o que mantém o cadastro vivo em 15 anos) ✅ IMPLEMENTADO (2026-09-15)
+- [x] Campanha de recadastramento periódica: o associado confirma/atualiza os próprios dados pelo
       painel, com registro da data da última confirmação — dado "confirmado há 8 anos" é dado
       duvidoso e o sistema precisa saber disso.
-- [ ] Detector de duplicidade rodando continuamente (não só na importação), gerando fila de
+      > `Pessoa.data_ultima_confirmacao` (nulo = nunca confirmado). `POST
+      > /auth/perfil/confirmar-dados` (confirma sem alterar nada) e `PUT /auth/perfil` (editar já
+      > conta como confirmação - a pessoa acabou de revisar) atualizam o carimbo. Ficha 360º
+      > (`/api/associados/{id}/ficha-360` e `/auth/me/ficha-360`) expõe
+      > `recadastramento_pendente` (calculado contra `PRAZO_RECADASTRAMENTO_DIAS`, configurável,
+      > default 365 dias - mesmo padrão de configuração de `PRAZO_EXPERIENCIA_DIAS`/
+      > `PRAZO_RETENCAO_DESLIGADO_DIAS`). **"Campanha" (disparo em massa/lembrete) não
+      > implementado** - mesma limitação já aceita repetidamente desde a v1.1a (sem
+      > infraestrutura de notificação, pendência da v6.2); o indicador existe e é consultável
+      > agora, o "empurrão" pra secretaria/associado vem depois.
+- [x] Detector de duplicidade rodando continuamente (não só na importação), gerando fila de
       revisão para a secretaria, com **mesclagem de cadastros** que preserva o histórico dos dois
       lados e registra a operação em `AuditLog` (operação irreversível, exige confirmação nomeada).
-- [ ] Higienização de contato: e-mail que volta (bounce) e telefone inválido marcam o contato como
+      > `FilaRevisaoCadastro` (genérica - carrega tanto par de duplicidade quanto sinal de
+      > contato suspeito, "alimentando a mesma fila" como o item de higienização pede).
+      > `POST /api/pessoas/duplicidade/escanear` (`app/services/duplicidade.py::
+      > escanear_duplicidade_continua`) agrupa TODAS as `Pessoa`s por nome normalizado +
+      > nascimento (não só a linha sendo importada, como a v1.3 já cobria) - idempotente, não
+      > duplica entrada pendente já existente pro mesmo par. **Mesclagem real**
+      > (`app/services/mesclagem.py::mesclar_pessoas`), não um esqueleto: reatribui `Papel`
+      > (descarta duplicata de mesmo tipo), `Associado`, `Funcionario`, `TermoAdesaoVoluntario`
+      > (desativa o da absorvida se a mantida já tiver um ativo - nunca dois ativos ao mesmo
+      > tempo), `EventoLinhaDoTempo` e `DependenteFamiliar` (descarta vínculo que viraria
+      > autorreferência ou duplicata) da pessoa absorvida para a mantida, preenche campos
+      > pessoais vazios da mantida com os da absorvida (nunca sobrescreve o que já existe), grava
+      > `AuditLog` com as contagens movidas por tabela, e só então apaga a `Pessoa` absorvida.
+      > Exige `nome_confirmacao` batendo exatamente com o nome de quem será absorvida - sem isso,
+      > recusado (400). **Limite de segurança deliberado**: se as duas pessoas já são `Associado`
+      > (ou já são `Funcionario`) ao mesmo tempo, a mesclagem automática é recusada (409) - qual
+      > matrícula/vínculo prevalece é decisão de negócio que este serviço não tenta adivinhar.
+      > `POST /api/pessoas/fila-revisao/{id}/ignorar` marca sinal falso; mesclar resolve
+      > automaticamente qualquer entrada pendente que envolvia as duas pessoas.
+- [x] Higienização de contato: e-mail que volta (bounce) e telefone inválido marcam o contato como
       suspeito, alimentando a mesma fila de revisão.
+      > **Telefone**: `POST /api/pessoas/higienizar-contatos`
+      > (`app/services/higienizacao_contato.py::escanear_telefones_invalidos`) varre toda pessoa
+      > com telefone preenchido contra o mesmo validador de formato da v1.1
+      > (`validar_telefone_br`) - marca `Pessoa.contato_suspeito=True` e alimenta a fila.
+      > **E-mail "bounce" não é detectável automaticamente** - não existe nenhuma infraestrutura
+      > de envio de e-mail no sistema (pendência repetida desde a v6.2); sem enviar nada, não há
+      > como saber que algo "voltou". `POST /api/pessoas/{id}/marcar-contato-suspeito` é o
+      > caminho manual - pra quando a secretaria descobre um bounce por fora do sistema,
+      > registrado com motivo, alimentando a mesma fila. Documentado, não fingido.
+>
+> Testado: `pytest tests/` - 105/105 (7 novos em `tests/test_qualidade_cadastro.py`:
+> recadastramento pendente antes/depois de confirmar, detecção de par duplicado por nome+
+> nascimento com variação de caixa/acento, varredura repetida não duplica entrada, ignorar
+> item some da fila pendente, mesclagem preserva histórico e some com a absorvida, mesclagem de
+> dois associados é bloqueada, higienização marca telefone inválido, marcação manual de e-mail
+> suspeito). Três testes pré-existentes (`test_configuracoes`/`test_import_export`/
+> `test_smoke`) tinham a contagem de chaves de configuração hardcoded - atualizados de 15 para
+> 16 (a nova `PRAZO_RECADASTRAMENTO_DIAS`), não é regressão. Migração testada isoladamente
+> (upgrade cria as colunas/tabela esperadas; downgrade remove sem erro).
+>
+> **Sem tela no painel React** - mesma situação já registrada nas v1.5-v1.7 (fila de revisão e
+> mesclagem só existem via API por ora, testadas diretamente).
 
 ##### 🔍 Ponto de Revisão — FASE 1 (2/2 — fim, fecha v1.5–v1.8)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:

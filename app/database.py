@@ -243,6 +243,7 @@ def seed_configuracoes_institucionais():
         {"chave": "TETO_ALCADA_FINANCEIRA", "valor": "1000", "tipo": "numero", "categoria": "regras", "descricao": "Valor máximo (R$) que a Diretoria aprova sem submeter à Assembleia."},
         {"chave": "PRAZO_EXPERIENCIA_DIAS", "valor": "90", "tipo": "numero", "categoria": "regras", "descricao": "Dias de experiência de um novo associado antes de virar Ativo pleno (0 = sem período de experiência)."},
         {"chave": "PRAZO_RETENCAO_DESLIGADO_DIAS", "valor": "1825", "tipo": "numero", "categoria": "regras", "descricao": "Dias após o desligamento antes do dado pessoal sensível ser anonimizado (padrão 5 anos - LGPD; ajustar conforme orientação contábil/jurídica real da associação). Nome, matrícula e todo dado financeiro nunca são apagados."},
+        {"chave": "PRAZO_RECADASTRAMENTO_DIAS", "valor": "365", "tipo": "numero", "categoria": "regras", "descricao": "Dias desde a última confirmação de dados cadastrais antes do cadastro ser sinalizado para recadastramento (v1.8)."},
     ]
     db = SessaoLocal()
     try:

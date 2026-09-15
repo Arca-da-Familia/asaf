@@ -28,6 +28,15 @@ class Pessoa(Base):
     naturalidade = Column(String(100), nullable=True)
     foto = Column(String, nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
+    # v1.8 - qualidade permanente da base. `data_ultima_confirmacao`: quando a própria pessoa
+    # confirmou/atualizou os dados pela última vez pelo painel (nulo = nunca confirmou) - dado
+    # "confirmado há 8 anos" é dado duvidoso, isso é o que permite o sistema saber disso (ver
+    # PRAZO_RECADASTRAMENTO_DIAS). `contato_suspeito`: marcado por
+    # app/services/higienizacao_contato.py quando o telefone tem formato inválido ou um e-mail
+    # é reportado como devolvido (bounce) - nunca calculado silenciosamente, sempre alimenta a
+    # fila de revisão (`FilaRevisaoCadastro`).
+    data_ultima_confirmacao = Column(DateTime, nullable=True)
+    contato_suspeito = Column(Boolean, default=False)
 
 
 class Papel(Base):
