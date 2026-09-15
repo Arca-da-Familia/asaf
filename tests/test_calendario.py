@@ -77,3 +77,20 @@ def test_calendario_ordenado_por_data(client, auth_headers):
     calendario = client.get("/api/calendario/?dias_antecedencia=365", headers=auth_headers).json()
     datas = [datetime.strptime(i["data"], "%Y-%m-%d").date() if isinstance(i["data"], str) else i["data"] for i in calendario]
     assert datas == sorted(datas)
+
+
+def test_ago_le_meses_de_regra_estatutaria_nao_de_texto_fixo(client, auth_headers):
+    """Ponto de Revisão FASE 2 (3/3): achado real - `proximas_ago` tinha os meses (2, 8) fixos em
+    código, ignorando `MESES_AGO_ESTATUTARIA` (Art. 5º, I, v2.0) que passou a existir depois desta
+    revisão. Prova que reformar o parâmetro muda o calendário sem deploy, mesmo padrão já coberto
+    para PROCURACAO_PERMITIDA e QUORUM_1A_CONVOCACAO."""
+    r = client.put("/api/estatuto/regras/MESES_AGO_ESTATUTARIA", headers=auth_headers, json={"valor": "3,9"})
+    assert r.status_code == 200, r.text
+
+    calendario = client.get("/api/calendario/?dias_antecedencia=365", headers=auth_headers).json()
+    ago = [i for i in calendario if i["tipo"] == "AGO_ESTATUTARIA"]
+    assert len(ago) == 2
+    assert {i["titulo"] for i in ago} == {"Assembleia Geral Ordinária (março)", "Assembleia Geral Ordinária (setembro)"}
+
+    r_restaura = client.put("/api/estatuto/regras/MESES_AGO_ESTATUTARIA", headers=auth_headers, json={"valor": "2,8"})
+    assert r_restaura.status_code == 200, r_restaura.text

@@ -392,6 +392,11 @@ def seed_regras_estatutarias():
              "descricao": "Duração padrão da pena de suspensão quando o julgamento não especifica outro valor - o estatuto admite de 30 dias a 1 ano (365 dias); 30 é o piso do próprio artigo, usado como padrão menos gravoso."},
             {"parametro": "ANOS_MINIMOS_ENTIDADE_DESTINATARIA_PATRIMONIO", "valor": "2", "tipo": "numero", "artigo_origem": "Art. 31, Parágrafo Único",
              "descricao": "Anos mínimos de existência exigidos da entidade congênere que recebe o patrimônio remanescente em caso de dissolução, além de ter sede/atividade preponderante em Parauapebas/PA e estar credenciada pelos órgãos competentes."},
+            # v2.9 - achado do Ponto de Revisão FASE 2 (3/3): `proximas_ago` (calendário
+            # institucional) tinha os meses da AGO semestral (fevereiro/agosto) fixos em código,
+            # violando o mesmo princípio de perpetuidade que gerou toda esta lista (v2.0).
+            {"parametro": "MESES_AGO_ESTATUTARIA", "valor": "2,8", "tipo": "texto", "artigo_origem": "Art. 5º, I",
+             "descricao": "Meses (1-12, separados por vírgula) em que a Assembleia Geral Ordinária semestral acontece, primeira quinzena de cada um."},
         ]
 
         for r in regras_padrao:

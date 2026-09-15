@@ -22,11 +22,21 @@ def _janela_quinzena(ano: int, mes: int) -> tuple[date, date]:
     return date(ano, mes, 1), date(ano, mes, 15)
 
 
-def proximas_ago(hoje: date) -> list[dict]:
-    """Art. 5º, I - AGO semestral, primeira quinzena de fevereiro e agosto. Devolve a próxima
-    ocorrência de cada uma a partir de hoje (nunca a do passado)."""
+_NOMES_MES = {
+    1: "janeiro", 2: "fevereiro", 3: "março", 4: "abril", 5: "maio", 6: "junho",
+    7: "julho", 8: "agosto", 9: "setembro", 10: "outubro", 11: "novembro", 12: "dezembro",
+}
+
+
+def proximas_ago(db: Session, hoje: date) -> list[dict]:
+    """Art. 5º, I - AGO semestral, primeira quinzena dos meses definidos em
+    `MESES_AGO_ESTATUTARIA` (`RegraEstatutaria`, v2.0) - nunca fixo em código, mesmo princípio já
+    aplicado a quórum/prazo/mandato: uma reforma futura do Art. 5º muda o parâmetro, não o deploy.
+    Devolve a próxima ocorrência de cada uma a partir de hoje (nunca a do passado)."""
+    meses_csv = obter_regra_vigente(db, "MESES_AGO_ESTATUTARIA", "2,8") or "2,8"
+    meses = [int(m.strip()) for m in meses_csv.split(",")]
     resultado = []
-    for mes in (2, 8):
+    for mes in meses:
         ano = hoje.year
         inicio, fim = _janela_quinzena(ano, mes)
         if fim < hoje:
@@ -34,7 +44,7 @@ def proximas_ago(hoje: date) -> list[dict]:
             inicio, fim = _janela_quinzena(ano, mes)
         resultado.append({
             "tipo": "AGO_ESTATUTARIA",
-            "titulo": f"Assembleia Geral Ordinária ({'fevereiro' if mes == 2 else 'agosto'})",
+            "titulo": f"Assembleia Geral Ordinária ({_NOMES_MES.get(mes, mes)})",
             "data": inicio, "janela_fim": fim, "artigo_origem": "Art. 5º, I",
         })
     return resultado
@@ -68,7 +78,7 @@ def montar_calendario(db: Session, dias_antecedencia: int = 90) -> list[dict]:
     limite = hoje + timedelta(days=dias_antecedencia)
     itens: list[dict] = []
 
-    for ago in proximas_ago(hoje):
+    for ago in proximas_ago(db, hoje):
         if ago["data"] <= limite:
             itens.append({**ago, "dias_restantes": (ago["data"] - hoje).days})
 

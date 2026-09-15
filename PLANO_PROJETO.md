@@ -2377,17 +2377,78 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       > autenticação (mesma categoria de achado da v2.6 pro financeiro) - fora de escopo aqui,
       > corrigir é tarefa da FASE 4.
 
-##### 🔍 Ponto de Revisão — FASE 2 (3/3 — fim, fecha v2.6–v2.9) ✅ FECHADO (2026-09-15)
+##### 🔍 Ponto de Revisão — FASE 2 (3/3 — fim, fecha v2.6–v2.9) — refeito em 2026-09-15
+> **Nota**: este bloco já tinha sido marcado "✅ FECHADO" antes, mas só com os dois itens
+> específicos abaixo verificados — sem o checklist padrão da seção 4.1 item a item, sem re-leitura
+> do código real, e com um artefato de edição (linha duplicada) sobrando no texto. O usuário pediu
+> para refazer por não confiar na revisão anterior. Refeito do zero nesta revisão, contra o código
+> real (`app/routers/conselho_fiscal.py`, `disciplina.py`, `dissolucao.py`, `calendario.py` e os
+> `services`/`models` correspondentes), não só relido no plano.
+
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 - Processo disciplinar (v2.7) bloqueia decisão antes do prazo de defesa correr — testar tentativa de decisão prematura.
-  > ✅ (2026-09-15) `tests/test_disciplina.py::test_nao_pode_decidir_antes_do_prazo_de_defesa_sem_defesa_apresentada`.
 - Calendário institucional (v2.9) gera alerta antes do vencimento real de uma obrigação de governança, não só na data.
-  > ✅ AGO/eleição calculadas com antecedência configurável (`dias_antecedencia`); mandatos
-  > vencendo trazem `dias_restantes` (v2.1); deliberações com prazo trazem a data de execução
-  > pendente antes do vencimento, não só no dia - `tests/test_calendario.py`.
 
-180/180 testes passando (`pytest tests/`). **FASE 2 (Governança) completa: v2.0-v2.9.**
-- Calendário institucional (v2.9) gera alerta antes do vencimento real de uma obrigação de governança, não só na data.
+**Checklist padrão (seção 4.1)**:
+- [x] **Item 1 (implementado e testado de fato)**: v2.6-v2.9 lidas e conferidas contra o código
+      real nesta revisão, não só relidas no texto do plano — inclusive os quatro routers inteiros
+      e os services de disciplina/conselho fiscal/calendário.
+- [x] **Item 2 (testes automatizados existem e passam)**: `pytest tests/` — **181/181 passando**
+      (180/180 antes do achado desta revisão acrescentar um teste novo; suíte completa rodada de
+      verdade nesta revisão, não só o número copiado do bloco anterior).
+- [x] **Item 3 (nenhuma regra congelada violada)**: `alembic heads` mostra uma única head
+      (`b0c1d2e3f4a5`), cadeia completa e linear desde v2.0 — nenhuma tabela nova via
+      `create_all`. Nenhuma checagem de nível hardcoded encontrada (`grep` por
+      `nivel ==`/`== "Presidente"` nos quatro módulos: só uma ocorrência, e é a comparação de
+      `is_conselho_fiscal` vindo do catálogo `NivelAcesso`, não um nome cru).
+- [x] **Item 4 (nenhum segredo exposto)**: `git status` limpo, nenhum segredo novo introduzido.
+- [x] **Item 5 (AuditLog de verdade)**: confirmado no código — `registrar_auditoria` chamado em
+      toda ação sensível: consulta do Conselho Fiscal ao financeiro (`CONSULTA_CONSELHO_FISCAL`,
+      inclusive leitura, não só escrita), emissão de parecer, questionamento/resposta,
+      abertura/defesa/manifestação/decisão/homologação de processo disciplinar, e cada etapa do
+      roteiro de dissolução.
+- [x] **Item 6 (permissão nova checada no backend)**: confirmado — Conselho Fiscal
+      (`financeiro` para leitura + `is_conselho_fiscal` para emitir parecer/questionar, segregado
+      de quem responde), disciplina e dissolução (`exigir_permissao("governanca")` em toda escrita)
+      nunca escondidos só no front.
+- [x] **Item 7 (nada fora de escopo adiantado)**: confirmado pelas próprias ressalvas já
+      registradas em cada versão (vínculo com patrimônio da FASE 12, liquidação financeira manual
+      até a FASE 3, `ProjetoEvento` ainda prototípico até a FASE 4) — cada uma aponta para fase
+      futura, nenhuma fingida como pronta.
+- [x] **Item 8 (plano atualizado refletindo a realidade)**: sim, v2.6-v2.9 já documentadas com
+      nota de verificação real na hora da implementação; o bloco de revisão em si é que estava
+      desatualizado (corrigido agora).
+- [x] **Item 9 (suíte completa continua passando)**: mesma execução do item 2 — 181/181, nada
+      anterior quebrou silenciosamente.
+
+**Itens específicos do trecho**:
+- [x] **Processo disciplinar (v2.7) bloqueia decisão antes do prazo de defesa**: confirmado —
+      `pode_julgar_agora` (`app/services/disciplina.py`) trava manifestação e decisão até a defesa
+      ser apresentada OU o prazo esgotar; `test_nao_pode_decidir_antes_do_prazo_de_defesa_sem_defesa_apresentada`
+      e `test_defesa_apresentada_libera_julgamento_antes_do_prazo_esgotar` confirmados passando
+      (as duas pontas: bloqueio e liberação antecipada por defesa apresentada).
+- [x] **Calendário institucional (v2.9) alerta antes do vencimento, não só na data**: confirmado —
+      `dias_restantes` calculado em toda categoria de item, `dias_antecedencia` configurável por
+      query param (1-730 dias); `test_calendario_traz_as_duas_ago_estatutarias` e
+      `test_calendario_ordenado_por_data` confirmados passando.
+
+**Achado real nesta revisão**: `proximas_ago` (`app/services/calendario.py`, v2.9) tinha os meses
+da AGO semestral (fevereiro/agosto, Art. 5º, I) **escritos direto em código** (`for mes in (2, 8)`)
+— mesma categoria de violação já corrigida na revisão 1/3 (quórum hardcoded no edital), e do
+próprio princípio de perpetuidade da v2.0 ("nenhum número estatutário fica escrito em código").
+**Corrigido nesta revisão**: novo parâmetro `MESES_AGO_ESTATUTARIA` (`RegraEstatutaria`, seed em
+`app/database.py`, valor real `"2,8"`, `artigo_origem` "Art. 5º, I") — sem migração nova, mesmo
+padrão de todo outro parâmetro da lista (tabela genérica já existe desde v2.0, só uma linha de
+seed a mais). `proximas_ago` agora lê o parâmetro via `obter_regra_vigente` em vez do literal;
+teste novo (`test_ago_le_meses_de_regra_estatutaria_nao_de_texto_fixo`) prova que reformar o
+parâmetro muda as AGOs do calendário sem deploy, restaurando o valor real ao final (mesmo cuidado
+de isolamento de estado do teste equivalente da revisão 1/3, já que este banco de teste não faz
+rollback por transação).
+
+**Fase não bloqueada, com correção aplicada**: um achado real (meses da AGO hardcoded) foi
+encontrado, corrigido e coberto por teste nesta mesma revisão. **FASE 2 (Governança) completa:
+v2.0-v2.9, com as três revisões (1/3, 2/3, 3/3) aplicadas de verdade contra o código.** 181/181
+testes passando (`pytest tests/`).
 
 ### FASE 3 — Financeiro
 
