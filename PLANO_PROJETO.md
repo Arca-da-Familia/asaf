@@ -2607,6 +2607,20 @@ testes passando (`pytest tests/`).
 - [ ] Listar/convocar assembleia, petição de convocação, habilitação de associado.
 - [ ] Painel da sessão em andamento: credenciamento, itens de pauta, ocorrências.
 
+      > **v2.5.2 (2026-09-15) - construído, aguardando confirmação visual (item 10 do
+      > checklist).** Backend (FASE 2, v2.2/v2.3) já tinha tudo isso completo e testado desde
+      > antes desta fase - `/governanca` só nunca tinha ganhado tela. Telas novas:
+      > `Assembleias.tsx` (listar), `AssembleiaNova.tsx` (criar rascunho **e** converter petição
+      > em assembleia - mesma tela, `?peticao=<id>` troca o endpoint de destino),
+      > `AssembleiaDetalhe.tsx` (ciclo de vida completo: convocar/cancelar/abrir e encerrar
+      > sessão, ver edital, contagem de habilitados), `PeticoesConvocacao.tsx` (propor, aderir,
+      > converter - Art. 8º/10) e `SessaoAssembleia.tsx` (credenciamento com quórum de instalação
+      > em tempo real - poll de 5s -, itens de pauta com abrir discussão/votação/encerrar,
+      > ocorrências). Cada transição de tela chama exatamente o endpoint que já existia; nenhuma
+      > regra nova foi inventada no painel. Módulo Governança ganhou sub-navegação própria
+      > (mesmo padrão contextual de Associados, v2.5.1d) com 3 itens: Assembleias, Nova
+      > assembleia, Petições de convocação.
+
 #### v2.5.3 — Governança: Votação
 - [ ] Abrir votação (aberta e secreta), acompanhar quórum e apuração em tempo real.
 - [ ] Impugnação de voto e resolução de empate.

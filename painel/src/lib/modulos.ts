@@ -1,8 +1,11 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   BarChart3,
+  CalendarPlus,
   FileUp,
   FolderKanban,
+  Gavel,
+  Handshake,
   Landmark,
   ScrollText,
   ShieldCheck,
@@ -67,6 +70,24 @@ export const modulos: Modulo[] = [
     rotulo: 'Governança',
     permissao: 'governanca',
     icone: Landmark,
+    itens: [
+      {
+        rota: '/governanca',
+        rotulo: 'Assembleias',
+        icone: Gavel,
+        fim: true,
+      },
+      {
+        rota: '/governanca/nova',
+        rotulo: 'Nova assembleia',
+        icone: CalendarPlus,
+      },
+      {
+        rota: '/governanca/peticoes',
+        rotulo: 'Petições de convocação',
+        icone: Handshake,
+      },
+    ],
   },
   {
     rota: '/projetos',

@@ -113,6 +113,42 @@ export const perfilResponseSchema = z.object({
   endereco: enderecoSchema.nullish(),
 })
 
+// Usado por "Nova assembleia" (pages/AssembleiaNova.tsx, v2.5.2) - `tipo` é um enum fechado do
+// estatuto (Art. 5º: Ordinária/Extraordinária/Solene), por isso não vem de catálogo editável.
+export const assembleiaCriarSchema = z.object({
+  tipo: z.string().min(1, 'Selecione o tipo.'),
+  pauta: z.string().min(3, 'Informe a ordem do dia.'),
+  data_hora_convocacao: z
+    .string()
+    .min(1, 'Informe a data e hora da convocação.'),
+  local_fisico: z.string().optional(),
+  link_remoto: z.string().optional(),
+})
+
+// Usado por "Nova petição" (pages/PeticoesConvocacao.tsx, v2.5.2).
+export const peticaoCriarSchema = z.object({
+  pauta_proposta: z.string().min(3, 'Descreva a pauta proposta.'),
+})
+
+// Usado pelo painel da sessão (pages/SessaoAssembleia.tsx, v2.5.2) - credenciamento por busca
+// manual do associado (o QR da carteirinha é outro caminho do mesmo endpoint, sem tela ainda).
+export const credenciarSchema = z.object({
+  id_associado: z.coerce.number().int({ message: 'Selecione um associado.' }),
+  modalidade: z.enum(['Presencial', 'Remoto']),
+})
+
+export const itemPautaCriarSchema = z.object({
+  titulo: z.string().min(2, 'Informe o título do item.'),
+  descricao: z.string().optional(),
+  // Number('') = 0 (não NaN) - campo em branco chega como 0, tratado como "sem tempo definido"
+  // do mesmo jeito que undefined (ver criarItemPauta em lib/api.ts).
+  tempo_fala_minutos: z.coerce.number().int().optional(),
+})
+
+export const ocorrenciaCriarSchema = z.object({
+  descricao: z.string().min(3, 'Descreva a ocorrência.'),
+})
+
 // v0.2.9 — presente só durante o modo "ver como" (impersonação de papel).
 export const impersonandoSchema = z.object({
   id_nivel: z.number(),

@@ -1029,3 +1029,281 @@ export function removerDependente(
 ): Promise<{ mensagem: string }> {
   return apiFetch(`/api/dependentes/${idDependente}`, { method: 'DELETE' })
 }
+
+// ---------------------------------------------------------------------------
+// Governança — Assembleias, petição de convocação e condução de sessão
+// (v2.5.2, FASE 2.5 - Painel). Backend já existia por completo desde a FASE 2
+// (v2.2/v2.3); esta versão só liga o painel único nele.
+// ---------------------------------------------------------------------------
+export type HorariosConvocacao = {
+  primeira_convocacao: string
+  segunda_convocacao: string
+  terceira_convocacao: string
+}
+
+export type Assembleia = HorariosConvocacao & {
+  id_assembleia: number
+  tipo: string
+  pauta: string
+  status: string
+  origem_convocacao: string
+  local_fisico: string | null
+  link_remoto: string | null
+  convocada_em: string | null
+}
+
+export type AssembleiaCriarInput = {
+  tipo: string
+  pauta: string
+  data_hora_convocacao: string
+  local_fisico?: string
+  link_remoto?: string
+}
+
+export function listarAssembleias(status?: string): Promise<Assembleia[]> {
+  return apiFetch(
+    `/api/assembleias/${status ? `?status=${encodeURIComponent(status)}` : ''}`,
+  )
+}
+
+export function obterAssembleia(idAssembleia: number): Promise<Assembleia> {
+  return apiFetch(`/api/assembleias/${idAssembleia}`)
+}
+
+export function criarAssembleia(
+  dados: AssembleiaCriarInput,
+): Promise<Assembleia> {
+  return apiFetch('/api/assembleias/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function convocarAssembleia(idAssembleia: number): Promise<Assembleia> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/convocar`, {
+    method: 'POST',
+  })
+}
+
+export function cancelarAssembleia(
+  idAssembleia: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/cancelar`, {
+    method: 'POST',
+  })
+}
+
+export function abrirSessaoAssembleia(
+  idAssembleia: number,
+): Promise<Assembleia> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/abrir-sessao`, {
+    method: 'POST',
+  })
+}
+
+export function encerrarSessaoAssembleia(
+  idAssembleia: number,
+): Promise<Assembleia> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/encerrar-sessao`, {
+    method: 'POST',
+  })
+}
+
+export function obterEditalAssembleia(
+  idAssembleia: number,
+): Promise<{ edital_texto: string }> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/edital`)
+}
+
+export type Habilitado = {
+  id_associado: number
+  habilitado: boolean
+  motivo_inabilitacao: string | null
+  status_arrolamento_no_momento: string | null
+}
+
+export function listarHabilitados(
+  idAssembleia: number,
+  apenasHabilitados = false,
+): Promise<Habilitado[]> {
+  return apiFetch(
+    `/api/assembleias/${idAssembleia}/habilitados${apenasHabilitados ? '?apenas_habilitados=true' : ''}`,
+  )
+}
+
+export type PeticaoConvocacao = {
+  id_peticao: number
+  pauta_proposta: string
+  status: string
+  data_quorum_atingido: string | null
+  adesoes: number
+  base_associados_ativos: number
+  fracao_atual: number
+  pode_converter_sem_presidente: boolean
+}
+
+export function listarPeticoes(): Promise<PeticaoConvocacao[]> {
+  return apiFetch('/api/peticoes-convocacao/')
+}
+
+export function obterPeticao(idPeticao: number): Promise<PeticaoConvocacao> {
+  return apiFetch(`/api/peticoes-convocacao/${idPeticao}`)
+}
+
+export function proporPeticao(
+  pautaProposta: string,
+): Promise<PeticaoConvocacao> {
+  return apiFetch('/api/peticoes-convocacao/', {
+    method: 'POST',
+    body: JSON.stringify({ pauta_proposta: pautaProposta }),
+  })
+}
+
+export function aderirPeticao(idPeticao: number): Promise<PeticaoConvocacao> {
+  return apiFetch(`/api/peticoes-convocacao/${idPeticao}/aderir`, {
+    method: 'POST',
+  })
+}
+
+export function converterPeticaoEmAssembleia(
+  idPeticao: number,
+  dados: AssembleiaCriarInput,
+): Promise<Assembleia> {
+  return apiFetch(
+    `/api/peticoes-convocacao/${idPeticao}/converter-em-assembleia`,
+    {
+      method: 'POST',
+      body: JSON.stringify(dados),
+    },
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Condução da sessão (v2.3) — credenciamento, quórum em tempo real, itens de
+// pauta e ocorrências. Só vale com a assembleia "Em andamento".
+// ---------------------------------------------------------------------------
+export type Credenciamento = {
+  id_credenciamento: number
+  id_associado: number
+  nome_completo?: string
+  modalidade: string
+  hora_entrada: string
+  hora_saida: string | null
+}
+
+export function credenciar(
+  idAssembleia: number,
+  dados: { id_associado: number; modalidade: string },
+): Promise<Credenciamento> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/credenciamentos`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function registrarSaidaCredenciamento(
+  idAssembleia: number,
+  idCredenciamento: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(
+    `/api/assembleias/${idAssembleia}/credenciamentos/${idCredenciamento}/saida`,
+    { method: 'POST' },
+  )
+}
+
+export function listarCredenciamentos(
+  idAssembleia: number,
+): Promise<Credenciamento[]> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/credenciamentos`)
+}
+
+export type QuorumInstalacao = {
+  convocacao_aplicavel: string
+  quorum_regra: string
+  total_habilitados: number
+  credenciados_habilitados: number
+  minimo_exigido: number
+  quorum_atingido: boolean
+}
+
+export function obterQuorum(idAssembleia: number): Promise<QuorumInstalacao> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/quorum`)
+}
+
+export type ItemPauta = {
+  id_item: number
+  titulo: string
+  descricao: string | null
+  tempo_fala_minutos: number | null
+  ordem: number
+  status: string
+  aberto_em: string | null
+  encerrado_em: string | null
+}
+
+export function listarItensPauta(idAssembleia: number): Promise<ItemPauta[]> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/itens-pauta`)
+}
+
+export function criarItemPauta(
+  idAssembleia: number,
+  dados: { titulo: string; descricao?: string; tempo_fala_minutos?: number },
+): Promise<ItemPauta> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/itens-pauta`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function abrirDiscussaoItem(
+  idAssembleia: number,
+  idItem: number,
+): Promise<ItemPauta> {
+  return apiFetch(
+    `/api/assembleias/${idAssembleia}/itens-pauta/${idItem}/abrir-discussao`,
+    { method: 'POST' },
+  )
+}
+
+export function abrirVotacaoItem(
+  idAssembleia: number,
+  idItem: number,
+): Promise<ItemPauta> {
+  return apiFetch(
+    `/api/assembleias/${idAssembleia}/itens-pauta/${idItem}/abrir-votacao`,
+    { method: 'POST' },
+  )
+}
+
+export function encerrarItemPauta(
+  idAssembleia: number,
+  idItem: number,
+): Promise<ItemPauta> {
+  return apiFetch(
+    `/api/assembleias/${idAssembleia}/itens-pauta/${idItem}/encerrar`,
+    { method: 'POST' },
+  )
+}
+
+export type OcorrenciaSessao = {
+  id_ocorrencia: number
+  id_item_pauta: number | null
+  descricao: string
+  criado_em: string
+}
+
+export function listarOcorrencias(
+  idAssembleia: number,
+): Promise<OcorrenciaSessao[]> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/ocorrencias`)
+}
+
+export function registrarOcorrencia(
+  idAssembleia: number,
+  dados: { descricao: string; id_item_pauta?: number },
+): Promise<{ mensagem: string; id_ocorrencia: number }> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/ocorrencias`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}

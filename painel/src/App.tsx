@@ -6,6 +6,9 @@ import { Shell } from '@/components/layout/Shell'
 import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/use-me'
 import { AcessoPage } from '@/pages/Acesso'
+import { AssembleiaDetalhePage } from '@/pages/AssembleiaDetalhe'
+import { AssembleiaNovoPage } from '@/pages/AssembleiaNova'
+import { AssembleiasPage } from '@/pages/Assembleias'
 import { AssociadoDetalhePage } from '@/pages/AssociadoDetalhe'
 import { AssociadoNovoPage } from '@/pages/AssociadoNovo'
 import { AssociadosGraficosPage } from '@/pages/AssociadosGraficos'
@@ -20,6 +23,8 @@ import { ImportarAssociadosPage } from '@/pages/ImportarAssociados'
 import { Login } from '@/pages/Login'
 import { MfaSetup } from '@/pages/MfaSetup'
 import { PerfilPage } from '@/pages/Perfil'
+import { PeticoesConvocacaoPage } from '@/pages/PeticoesConvocacao'
+import { SessaoAssembleiaPage } from '@/pages/SessaoAssembleia'
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated, isBootstrapping } = useAuth()
@@ -161,12 +166,51 @@ function App() {
           path="/governanca"
           element={
             <RequirePermission permission="governanca">
-              <ErrorBoundary tituloModulo="Governança">
-                <EmConstrucao modulo="Governança" />
-              </ErrorBoundary>
+              <Outlet />
             </RequirePermission>
           }
-        />
+        >
+          <Route
+            index
+            element={
+              <ErrorBoundary tituloModulo="Governança">
+                <AssembleiasPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="nova"
+            element={
+              <ErrorBoundary tituloModulo="Nova assembleia">
+                <AssembleiaNovoPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="peticoes"
+            element={
+              <ErrorBoundary tituloModulo="Petições de convocação">
+                <PeticoesConvocacaoPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path=":id"
+            element={
+              <ErrorBoundary tituloModulo="Detalhe da assembleia">
+                <AssembleiaDetalhePage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path=":id/sessao"
+            element={
+              <ErrorBoundary tituloModulo="Sessão da assembleia">
+                <SessaoAssembleiaPage />
+              </ErrorBoundary>
+            }
+          />
+        </Route>
         <Route
           path="/projetos"
           element={
