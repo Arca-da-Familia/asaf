@@ -33,6 +33,10 @@ class AssociadoMasterCriar(BaseModel):
     estado_civil: Optional[str] = None
     profissao: Optional[str] = None
     naturalidade: Optional[str] = None
+    # v1.8 - só tem efeito se quem chamar tiver a permissão `forcar_cadastro_duplicado`
+    # (Presidente, por padrão); sem essa permissão, um cadastro sinalizado como duplicado
+    # continua recusado mesmo com forcar=True.
+    forcar: bool = False
 
     @field_validator("nome_completo")
     @classmethod

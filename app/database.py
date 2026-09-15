@@ -173,11 +173,12 @@ def seed_niveis_e_permissoes():
         {"modulo": "projetos", "codigo_permissao": "projetos", "descricao": "Gerenciar projetos e voluntários."},
         {"modulo": "core", "codigo_permissao": "auditoria", "descricao": "Consultar a trilha de auditoria."},
         {"modulo": "associados", "codigo_permissao": "exportar_dados_pessoais", "descricao": "Exportar dado pessoal de associados em massa (v1.3 - separada de 'associados' de propósito)."},
+        {"modulo": "associados", "codigo_permissao": "forcar_cadastro_duplicado", "descricao": "Cadastrar associado mesmo quando o sistema sinaliza um cadastro parecido já existente (v1.8 - separada de 'associados' de propósito, só quem decide sobre duplicidade tem)."},
     ]
     # Nível -> lista de códigos de permissão que ele recebe por padrão (ajustável depois pela
     # própria tela de administração de acesso, isto aqui é só ponto de partida).
     atribuicoes_padrao = {
-        "Presidente": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria", "exportar_dados_pessoais"],
+        "Presidente": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria", "exportar_dados_pessoais", "forcar_cadastro_duplicado"],
         "Diretoria": ["associados", "financeiro", "governanca", "projetos"],
         "Conselho Fiscal": ["financeiro", "auditoria"],
         "Associado": [],

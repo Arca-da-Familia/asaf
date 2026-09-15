@@ -9,9 +9,11 @@ import re
 
 import httpx
 
+from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.utils import esc, iniciais, avatar_html
 from app.models.associados import Associado, Endereco, DependenteFamiliar, DocumentoAnexo, HistoricoCargo
+from app.models.core import Usuario
 from app.models.pessoas import Papel, Pessoa
 from app.models.financeiro import TituloFinanceiro
 from app.schemas.associados import (
@@ -24,9 +26,10 @@ from app.schemas.associados import (
     HistoricoCargoCriar,
     HistoricoCargoEncerrar,
 )
-from app.security import criar_token_carteirinha, decodificar_token_carteirinha, exigir_permissao
+from app.security import criar_token_carteirinha, decodificar_token_carteirinha, exigir_permissao, get_current_user_opcional, usuario_tem_permissao
 from app.services.categoria_associado import calcular_categoria
 from app.services.catalogos import validar_codigo_em_catalogo
+from app.services.duplicidade import detectar_cadastro_duplicado
 from app.services.linha_do_tempo import publicar_evento_linha_do_tempo
 from app.services.matricula import proximo_numero_matricula
 
@@ -34,9 +37,36 @@ router = APIRouter()
 _permissao_associados = exigir_permissao("associados")
 
 @router.post("/associados-master/", summary="2. Cadastrar Ficha Master")
-def cadastrar_ficha_master(dados: AssociadoMasterCriar, db: Session = Depends(get_db)):
+def cadastrar_ficha_master(
+    dados: AssociadoMasterCriar, db: Session = Depends(get_db),
+    usuario_opcional: Usuario = Depends(get_current_user_opcional),
+):
     if db.query(Associado).filter(Associado.cpf == dados.cpf).first():
         raise HTTPException(status_code=400, detail="Este CPF já está arrolado.")
+
+    # v1.8 - CPF nunca bate por erro de digitação (por isso o bloqueio acima não pega o caso
+    # real). Nome + pelo menos outro dado pessoal batendo é bloqueio, não sinal - decisão do
+    # usuário de não deixar cadastrar em vez de mesclar depois. Só quem tem a permissão
+    # `forcar_cadastro_duplicado` (Presidente, por padrão) pode passar por cima, de propósito.
+    parecido = detectar_cadastro_duplicado(
+        db, dados.nome_completo, data_nascimento=(
+            datetime.combine(dados.data_nascimento, datetime.min.time()) if dados.data_nascimento else None
+        ),
+        telefone_whatsapp=dados.telefone_whatsapp, email_contato=dados.email_contato,
+    )
+    if parecido:
+        pode_forcar = dados.forcar and usuario_opcional and usuario_tem_permissao(db, usuario_opcional, "forcar_cadastro_duplicado")
+        if not pode_forcar:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Já existe um cadastro parecido: '{parecido.nome_completo}' - confirme que não é a mesma "
+                       "pessoa antes de continuar. Só um Presidente pode forçar este cadastro mesmo assim.",
+            )
+        registrar_auditoria(
+            db, usuario_opcional, "associados", "CADASTRO_DUPLICADO_FORCADO",
+            dados_depois={"nome_completo": dados.nome_completo, "id_pessoa_parecida": parecido.id_pessoa},
+        )
+
     try:
         novo_associado = Associado(
             nome_completo=dados.nome_completo, cpf=dados.cpf,

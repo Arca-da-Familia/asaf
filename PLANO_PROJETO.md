@@ -1702,6 +1702,50 @@ empregatício; empregado CLT tem outro regime inteiro (eSocial, ponto, folha).
 > **Sem tela no painel React** - mesma situação já registrada nas v1.5-v1.7 (fila de revisão e
 > mesclagem só existem via API por ora, testadas diretamente).
 
+#### v1.8a — Adendo (2026-09-15): bloqueio de cadastro duplicado na hora, não mesclagem depois
+> **Origem**: ao revisar a mesclagem acima, o usuário questionou por que mesclar dois
+> `Associado` já existentes é bloqueado (409) em vez de resolvido automaticamente. A discussão
+> chegou a uma alternativa mais simples e mais segura: **impedir o cadastro duplicado na
+> largada**, em vez de detectar e desfazer depois. CPF nunca bate por erro de digitação (é
+> exatamente por isso que o CPF sozinho não pega o caso real) - nome + pelo menos outro dado
+> pessoal batendo (nascimento, telefone ou e-mail) agora **bloqueia o cadastro direto**, não é
+> mais só um sinal que vira tela de revisão depois.
+- [x] `app/services/duplicidade.py::detectar_cadastro_duplicado` - nome normalizado batendo +
+      pelo menos 1 de (nascimento, telefone, e-mail) batendo = bloqueio (409), mostrando qual
+      cadastro parecido já existe. Rodou nos dois pontos onde um `Associado` novo nasce direto
+      (não em lote - a importação v1.3 mantém sinal, nunca bloqueio, por decisão já registrada
+      naquela versão): `POST /associados-master/` (`cadastrar_ficha_master`) e
+      `POST /api/filiacao/propostas/{id}/aprovar` (`aprovar_proposta`).
+- [x] Nova permissão `forcar_cadastro_duplicado` (módulo `associados`), concedida por padrão só
+      ao nível Presidente (mesmo padrão de `exportar_dados_pessoais` da v1.3) - só quem tem essa
+      permissão consegue passar `forcar: true` no corpo da requisição e cadastrar mesmo assim;
+      sem a permissão, `forcar` não tem efeito nenhum. Toda vez que é usado, gera `AuditLog`
+      (`CADASTRO_DUPLICADO_FORCADO`) com o nome e a pessoa parecida - decisão deliberada nunca
+      fica silenciosa.
+      > **Achado de arquitetura corrigido**: `/associados-master/` nunca teve nenhuma
+      > autenticação (herdado do protótipo pré-plano, ainda chamado sem token pelo portal HTML
+      > legado) - não dava pra checar permissão de ninguém ali. Em vez de exigir login (quebraria
+      > o portal antigo em produção, fora de escopo mexer nisso agora), criada
+      > `get_current_user_opcional` (`app/security.py`) - resolve o usuário SE um token válido
+      > vier, sem exigir um se não vier. O portal legado (sem token) nunca consegue forçar
+      > cadastro duplicado; só um cliente autenticado com a permissão certa consegue.
+- [x] `mesclagem.py` (v1.8 original) continua exatamente como estava, agora como **segunda linha
+      de defesa**, não a primeira: cobre o que já existia antes desta trava (dado importado em
+      lote, ou cadastrado antes desta versão existir) - não faz mais sentido ser o caminho
+      principal pra duplicidade nova a partir de agora.
+>
+> Testado: `pytest tests/` - 110/110 (5 novos em `tests/test_cadastro_duplicado.py`: bloqueado
+> mesmo sem forçar, `forcar=true` sem usuário autenticado continua bloqueado, Presidente
+> consegue forçar, nome igual sozinho OU nome+telefone diferente não bloqueia (evita falso
+> positivo com nome comum), aprovação de filiação bloqueia e Presidente força). **Achado nos
+> testes já existentes**: vários arquivos de teste tinham um `_criar_associado` local com nome E
+> telefone fixos, reaproveitados em várias chamadas dentro do mesmo teste/sessão - o novo
+> bloqueio (corretamente) passou a recusar essas chamadas como "mesma pessoa". Corrigido dando
+> nome/e-mail únicos por padrão a cada chamada (usando o mesmo sufixo do CPF já gerado), em
+> `test_qualidade_cadastro.py`, `test_dependentes.py`, `test_ficha_360.py`, `test_situacao.py`,
+> `test_v1_1.py` e `test_filiacao.py` - não é regressão do comportamento, é o teste tendo que
+> criar pessoas de fato distintas quando a intenção é criar pessoas distintas.
+
 ##### 🔍 Ponto de Revisão — FASE 1 (2/2 — fim, fecha v1.5–v1.8)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 - Importação em lote (v1.3) é reversível por `lote_id` — testar desfazer uma importação.
@@ -2303,6 +2347,14 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > período de experiência acaba hoje só gravam `AuditLog` (`BOAS_VINDAS_REGISTRADAS`) - não
 > existe envio de e-mail/notificação de verdade em lugar nenhum do sistema ainda. Quando esta
 > versão existir, conectar os dois eventos aqui em vez de deixar só no log.
+>
+> **Ideia registrada pelo usuário (2026-09-15), ainda não detalhada**: "grupo de comunicação"
+> configurável - um endereço/canal que **só envia, nunca recebe** (o usuário mesmo reconheceu
+> que ainda não sabe como isso funcionaria na prática). Provavelmente equivale a um alias de
+> e-mail de saída (remetente `NOME_DO_GRUPO@...` ou similar) associado a um segmento de público
+> desta mesma v6.2 ("comunicados dirigidos a um grupo calculado"), não uma caixa de entrada
+> nova. Detalhar o desenho quando esta versão for construída - também alimenta a fila de
+> higienização de contato da v1.8 (e-mail que retorna) quando existir.
 - [ ] `Comunicacao` (assunto, corpo com variáveis, canal, público-alvo, agendamento, status) com
       envio por e-mail, notificação no painel e, quando a v11.3 existir, WhatsApp.
 - [ ] Registro de entrega e falha por destinatário, com reprocessamento — mensagem que não chegou

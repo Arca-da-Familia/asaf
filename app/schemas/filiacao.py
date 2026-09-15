@@ -58,3 +58,6 @@ class PropostaRecusar(BaseModel):
 
 class PropostaAprovar(BaseModel):
     categoria: str = "Efetivo"
+    # v1.8 - mesma trava de cadastrar_ficha_master: só tem efeito com a permissão
+    # `forcar_cadastro_duplicado` (Presidente, por padrão).
+    forcar: bool = False

@@ -14,7 +14,10 @@ _PAYLOAD_BASE = {
 
 
 def _criar_associado(client, **overrides):
-    payload = {**_PAYLOAD_BASE, "nome_completo": "Pessoa Teste v1.1", "cpf": _cpf_unico(), **overrides}
+    cpf = _cpf_unico()
+    # v1.8 - nome único por padrão (o bloqueio de cadastro duplicado trataria duas chamadas com
+    # nome+telefone iguais como a mesma pessoa, de propósito).
+    payload = {**_PAYLOAD_BASE, "nome_completo": f"Pessoa Teste v1.1 {cpf[-4:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com", **overrides}
     return client.post("/associados-master/", json=payload)
 
 
@@ -103,7 +106,7 @@ def test_carteirinha_gera_e_verifica_sem_expor_cpf(client, auth_headers):
     verificacao = client.get(carteirinha["url_verificacao"])
     assert verificacao.status_code == 200
     corpo = verificacao.json()
-    assert corpo["nome_completo"] == "Pessoa Teste v1.1"
+    assert corpo["nome_completo"].startswith("Pessoa Teste v1.1")
     assert corpo["valido"] is True
     assert "cpf" not in corpo
     assert "telefone_whatsapp" not in corpo

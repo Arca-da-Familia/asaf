@@ -8,8 +8,11 @@ from tests.test_pessoas import _cpf_unico
 
 
 def _criar_associado(client, **overrides):
+    cpf = _cpf_unico()
     payload = {
-        "nome_completo": "Pessoa Ficha 360", "cpf": _cpf_unico(), "email_contato": "ficha360@x.com",
+        # v1.8 - nome/e-mail únicos por padrão (o bloqueio de cadastro duplicado trataria duas
+        # chamadas com nome+telefone iguais como a mesma pessoa, de propósito).
+        "nome_completo": f"Pessoa Ficha 360 {cpf[-4:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com",
         "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
         "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
         "cidade": "Sao Paulo", "estado": "SP",
@@ -54,7 +57,7 @@ def test_ficha_360_reune_dados_financeiro_cargos_e_linha_do_tempo(client, auth_h
     ficha = r.json()
 
     assert ficha["dados"]["id_associado"] == id_associado
-    assert ficha["dados"]["nome_completo"] == "Pessoa Ficha 360"
+    assert ficha["dados"]["nome_completo"].startswith("Pessoa Ficha 360")
 
     assert ficha["situacao_financeira"]["quantidade_titulos_pendentes"] == 0
     assert ficha["situacao_financeira"]["saldo_devedor_total"] == 0

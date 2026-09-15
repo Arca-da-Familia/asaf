@@ -7,8 +7,11 @@ from tests.test_pessoas import _cpf_unico
 
 
 def _criar_associado(client, **overrides):
+    cpf = _cpf_unico()
     payload = {
-        "nome_completo": "Pessoa Situacao Teste", "cpf": _cpf_unico(), "email_contato": "x@x.com",
+        # v1.8 - nome/e-mail únicos por padrão (o bloqueio de cadastro duplicado trataria duas
+        # chamadas com nome+telefone iguais como a mesma pessoa, de propósito).
+        "nome_completo": f"Pessoa Situacao Teste {cpf[-4:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com",
         "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
         "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
         "cidade": "Sao Paulo", "estado": "SP",
@@ -113,7 +116,7 @@ def test_anonimizar_depois_do_prazo_apaga_dado_sensivel_mas_preserva_nome_e_matr
     assert resposta.status_code == 200, resposta.text
 
     nomes = {a["id_associado"]: a["nome_completo"] for a in client.get("/api/associados/busca-simples").json()}
-    assert nomes[associado["id_associado"]] == "Pessoa Situacao Teste"
+    assert nomes[associado["id_associado"]].startswith("Pessoa Situacao Teste")
 
     perfil = client.get(f"/api/associados/{associado['id_associado']}/completude").json()
     assert "cpf" in perfil["campos_faltando"]

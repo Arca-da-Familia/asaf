@@ -5,9 +5,12 @@ from tests.test_pessoas import _cpf_unico
 
 
 def _propor(client, cpf=None, **overrides):
+    cpf = cpf or _cpf_unico()
+    # v1.8 - nome/e-mail únicos por padrão (o bloqueio de cadastro duplicado na aprovação
+    # trataria duas propostas com nome+telefone iguais como a mesma pessoa, de propósito).
     payload = {
-        "nome_completo": "Candidato Filiação", "cpf": cpf or _cpf_unico(),
-        "email_contato": "candidato@x.com", "telefone_whatsapp": "11900000000",
+        "nome_completo": f"Candidato Filiação {cpf[-4:]}", "cpf": cpf,
+        "email_contato": f"{cpf}@x.com", "telefone_whatsapp": "11900000000",
         **overrides,
     }
     return client.post("/api/filiacao/propor", json=payload)

@@ -14,8 +14,9 @@ from app.models.associados import Associado
 from app.models.filiacao import APROVADA, EM_CONFERENCIA, PENDENTE, RECUSADA, PropostaFiliacao
 from app.models.pessoas import Papel, Pessoa
 from app.schemas.filiacao import PropostaAprovar, PropostaFiliacaoCriar, PropostaRecusar
-from app.security import exigir_permissao, get_current_user
+from app.security import exigir_permissao, get_current_user, usuario_tem_permissao
 from app.services.categoria_associado import ATIVO_EM_DIA, EM_EXPERIENCIA, calcular_categoria
+from app.services.duplicidade import detectar_cadastro_duplicado
 from app.services.linha_do_tempo import publicar_evento_linha_do_tempo
 from app.services.matricula import proximo_numero_matricula
 
@@ -107,6 +108,24 @@ def aprovar_proposta(
     proposta = _buscar_proposta_ou_404(db, id_proposta)
     if proposta.status != EM_CONFERENCIA:
         raise HTTPException(status_code=400, detail=f"Proposta precisa estar '{EM_CONFERENCIA}' antes de aprovar (está '{proposta.status}').")
+
+    # v1.8 - mesma trava de cadastrar_ficha_master: nome + outro dado pessoal batendo bloqueia a
+    # efetivação, a não ser que quem aprove tenha `forcar_cadastro_duplicado` (Presidente).
+    parecido = detectar_cadastro_duplicado(
+        db, proposta.nome_completo, data_nascimento=proposta.data_nascimento,
+        telefone_whatsapp=proposta.telefone_whatsapp, email_contato=proposta.email_contato,
+    )
+    if parecido:
+        if not (dados.forcar and usuario_tem_permissao(db, usuario, "forcar_cadastro_duplicado")):
+            raise HTTPException(
+                status_code=409,
+                detail=f"Já existe um cadastro parecido: '{parecido.nome_completo}' - confirme que não é a mesma "
+                       "pessoa antes de aprovar. Só um Presidente pode forçar mesmo assim.",
+            )
+        registrar_auditoria(
+            db, usuario, "associados", "CADASTRO_DUPLICADO_FORCADO",
+            dados_depois={"nome_completo": proposta.nome_completo, "id_pessoa_parecida": parecido.id_pessoa, "id_proposta": id_proposta},
+        )
 
     prazo_dias = int(obter_configuracao(db, "PRAZO_EXPERIENCIA_DIAS", "90") or "90")
     novo_associado = Associado(

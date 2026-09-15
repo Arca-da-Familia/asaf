@@ -9,8 +9,12 @@ from tests.test_pessoas import _cpf_unico
 
 
 def _criar_associado(client, **overrides):
+    cpf = _cpf_unico()
     payload = {
-        "nome_completo": "Pessoa Qualidade Cadastro", "cpf": _cpf_unico(), "email_contato": "x@x.com",
+        # v1.8 - nome (e e-mail) únicos por padrão: o novo bloqueio de cadastro duplicado
+        # (nome + outro dado pessoal batendo) trataria duas chamadas com o mesmo nome e mesmo
+        # telefone como a mesma pessoa de propósito - é exatamente o que a v1.8 pediu.
+        "nome_completo": f"Pessoa Qualidade Cadastro {cpf[-4:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com",
         "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
         "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
         "cidade": "Sao Paulo", "estado": "SP",

@@ -364,6 +364,28 @@ def get_current_user(
     return usuario
 
 
+def get_current_user_opcional(
+    credenciais: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
+    db: Session = Depends(get_db),
+) -> Optional[Usuario]:
+    """v1.8 - variante de `get_current_user` que devolve `None` em vez de recusar a requisição
+    quando não há token (ou o token é inválido) - usada só nas rotas legadas sem autenticação
+    (ex.: `/associados-master/`, ainda chamada sem token pelo portal HTML antigo) que precisam
+    saber SE existe um usuário autenticado pra checar uma permissão extra (forçar cadastro
+    duplicado), sem exigir login pra todo o resto do fluxo que já funciona sem ele."""
+    if credenciais is None:
+        return None
+    try:
+        payload = decodificar_access_token(credenciais.credentials)
+    except HTTPException:
+        return None
+    usuario = db.query(Usuario).filter(Usuario.id_usuario == payload["id_usuario"]).first()
+    if usuario is None or not usuario.ativo:
+        return None
+    usuario.id_nivel_impersonado = payload.get("id_nivel_impersonado")
+    return usuario
+
+
 # ==========================================
 # AUTORIZAÇÃO (permissão por nível de acesso)
 # ==========================================
