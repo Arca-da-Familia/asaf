@@ -1,0 +1,61 @@
+name: Diagnóstico do banco (só leitura)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  diagnostico:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        run: pip install -r requirements-dev.txt
+
+      - name: Login no Azure via OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Buscar DATABASE_URL do Key Vault
+        run: |
+          DB_URL=$(az keyvault secret show --vault-name kv-asaf-arca --name DATABASE-URL --query value -o tsv)
+          echo "::add-mask::$DB_URL"
+          echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
+
+      - name: alembic current
+        run: alembic current -v
+
+      - name: alembic history (tail)
+        run: alembic history | tail -20
+
+      - name: Listar tabelas e contagem de linhas (só leitura)
+        run: |
+          python - <<'EOF'
+          import os
+          from sqlalchemy import create_engine, text, inspect
+
+          engine = create_engine(os.environ["DATABASE_URL"])
+          insp = inspect(engine)
+          tabelas = sorted(insp.get_table_names())
+          print(f"{len(tabelas)} tabelas:")
+          with engine.connect() as conn:
+              for t in tabelas:
+                  try:
+                      n = conn.execute(text(f'SELECT COUNT(*) FROM "{t}"')).scalar()
+                  except Exception as e:
+                      n = f"erro: {e}"
+                  print(f" - {t}: {n} linha(s)")
+          EOF
