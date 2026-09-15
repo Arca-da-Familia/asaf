@@ -15,7 +15,7 @@ _ISO = "%Y-%m-%dT%H:%M:%S"
 
 
 def _criar_associado(db, nome, status_extra=None) -> Associado:
-    """status_extra: 'licenciado' ou 'inadimplente' - None é 'Ativo - Em Dia' comum."""
+    """status_extra: 'licenciado', 'inadimplente' ou 'suspenso' - None é 'Ativo - Em Dia' comum."""
     nivel = db.query(NivelAcesso).filter(NivelAcesso.nome_nivel == "Associado").first()
     pessoa = Pessoa(nome_completo=nome)
     db.add(pessoa)
@@ -26,6 +26,8 @@ def _criar_associado(db, nome, status_extra=None) -> Associado:
     associado = Associado(id_pessoa=pessoa.id_pessoa, id_usuario=usuario.id_usuario)
     if status_extra == "licenciado":
         associado.data_fim_licenca = datetime.utcnow() + timedelta(days=30)
+    elif status_extra == "suspenso":
+        associado.status_arrolamento = "Suspenso (Estatuto)"
     db.add(associado)
     db.commit()
     db.refresh(associado)
@@ -90,6 +92,25 @@ def test_convocar_assembleia_congela_lista_de_habilitados_pelo_criterio_real_do_
     edital = client.get(f"/api/assembleias/{id_assembleia}/edital", headers=auth_headers).json()["edital_texto"]
     assert "EDITAL DE CONVOCAÇÃO" in edital
     assert "Eleição da Diretoria" in edital
+
+
+def test_associado_suspenso_nunca_e_habilitado_mesmo_em_dia_com_a_mensalidade(client, auth_headers, db):
+    """Achado real (2026-09-15, durante a v2.3): `calcular_categoria` (fonte da verdade do
+    financeiro) não sabe de suspensão - `status_arrolamento="Suspenso (Estatuto)"` é só
+    materializado manualmente, nunca recalculado. Sem checagem explícita, um suspenso em dia com
+    a mensalidade seria contado como habilitado, violando o "pleno gozo dos direitos
+    associativos" do Art. 4º."""
+    suspenso = _criar_associado(db, "Suspenso Assembleia", status_extra="suspenso")  # sem título vencido - "em dia"
+
+    r = client.post(
+        "/api/assembleias/", headers=auth_headers,
+        json={"tipo": "Extraordinária", "pauta": "Pauta suspensão", "data_hora_convocacao": (datetime.utcnow() + timedelta(days=20)).strftime(_ISO)},
+    )
+    id_assembleia = r.json()["id_assembleia"]
+    client.post(f"/api/assembleias/{id_assembleia}/convocar", headers=auth_headers)
+
+    habilitados = {h["id_associado"]: h for h in client.get(f"/api/assembleias/{id_assembleia}/habilitados", headers=auth_headers).json()}
+    assert habilitados[suspenso.id_associado]["habilitado"] is False
 
 
 def test_peticao_atinge_quorum_e_converte_em_assembleia_pela_diretoria(client, auth_headers, db):

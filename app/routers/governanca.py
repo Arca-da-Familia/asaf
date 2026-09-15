@@ -12,8 +12,9 @@ from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.associados import Associado
 from app.models.governanca import (
-    COLETANDO_ADESOES, CONVOCADA, CANCELADA, CONVERTIDA_EM_ASSEMBLEIA, ORIGEM_PETICAO, ORIGEM_PRESIDENTE,
-    QUORUM_ATINGIDO, RASCUNHO, Assembleia, AdesaoPeticao, HabilitadoAssembleia, PeticaoConvocacao,
+    COLETANDO_ADESOES, CONVOCADA, CANCELADA, CONVERTIDA_EM_ASSEMBLEIA, EM_ANDAMENTO, ORIGEM_PETICAO,
+    ORIGEM_PRESIDENTE, QUORUM_ATINGIDO, RASCUNHO, REALIZADA, Assembleia, AdesaoPeticao,
+    HabilitadoAssembleia, PeticaoConvocacao,
 )
 from app.schemas.governanca import AssembleiaCriar, PeticaoConvocacaoCriar
 from app.security import exigir_permissao, get_current_user, usuario_tem_permissao
@@ -138,6 +139,28 @@ def cancelar_assembleia(id_assembleia: int, request: Request, db: Session = Depe
     db.commit()
     registrar_auditoria(db, usuario, "assembleias", "CANCELADA", id_registro_afetado=assembleia.id_assembleia, ip_origem=request.client.host if request.client else None)
     return {"mensagem": "Assembleia cancelada."}
+
+
+@router.post("/api/assembleias/{id_assembleia}/abrir-sessao", summary="Abrir a sessão (v2.3 - credenciamento e condução passam a valer)")
+def abrir_sessao(id_assembleia: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_governanca)):
+    assembleia = _buscar_assembleia_ou_404(db, id_assembleia)
+    if assembleia.status != CONVOCADA:
+        raise HTTPException(status_code=400, detail=f"Assembleia está '{assembleia.status}', só se abre sessão a partir de '{CONVOCADA}'.")
+    assembleia.status = EM_ANDAMENTO
+    db.commit()
+    registrar_auditoria(db, usuario, "assembleias", "SESSAO_ABERTA", id_registro_afetado=assembleia.id_assembleia, ip_origem=request.client.host if request.client else None)
+    return _serializar_assembleia(db, assembleia)
+
+
+@router.post("/api/assembleias/{id_assembleia}/encerrar-sessao", summary="Encerrar a sessão (v2.3)")
+def encerrar_sessao(id_assembleia: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_governanca)):
+    assembleia = _buscar_assembleia_ou_404(db, id_assembleia)
+    if assembleia.status != EM_ANDAMENTO:
+        raise HTTPException(status_code=400, detail=f"Assembleia está '{assembleia.status}', só se encerra sessão a partir de '{EM_ANDAMENTO}'.")
+    assembleia.status = REALIZADA
+    db.commit()
+    registrar_auditoria(db, usuario, "assembleias", "SESSAO_ENCERRADA", id_registro_afetado=assembleia.id_assembleia, ip_origem=request.client.host if request.client else None)
+    return _serializar_assembleia(db, assembleia)
 
 
 # ==========================================

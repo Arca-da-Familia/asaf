@@ -22,6 +22,7 @@ TIPOS_ASSEMBLEIA = {ORDINARIA, EXTRAORDINARIA, SOLENE}
 
 RASCUNHO = "Rascunho"
 CONVOCADA = "Convocada"
+EM_ANDAMENTO = "Em andamento"
 REALIZADA = "Realizada"
 CANCELADA = "Cancelada"
 

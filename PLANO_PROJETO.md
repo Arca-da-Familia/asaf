@@ -2108,15 +2108,43 @@ encontrado, corrigido e coberto por teste nesta mesma revisão — o ponto de re
 portão, não deixou a fase avançar com o problema em aberto. FASE 2 (1/3) liberada para v2.3-v2.5.
 
 #### v2.3 — Condução da sessão (presencial, remota ou híbrida)
-- [ ] Credenciamento por QR code da carteirinha (v1.1) ou busca manual pela secretaria, com
+> **Achado real corrigido durante a implementação (2026-09-15)**: `app/services/categoria_associado.py::calcular_categoria`
+> (fonte da verdade do financeiro) não tem nenhuma noção de "Suspenso (Estatuto)" - é estado só
+> materializado manualmente, nunca recalculado (documentado assim de propósito desde a v1.1/v1.4:
+> "NUNCA sobrescreve Suspenso ou Desligado"). A lista de habilitados da v2.2
+> (`calcular_lista_habilitados`) usava `calcular_categoria` sem checar isso primeiro - um
+> associado suspenso mas em dia com a mensalidade seria contado como habilitado, violando o
+> "pleno gozo dos direitos associativos" do Art. 4º. Corrigido nesta versão (`app/services/assembleia.py`)
+> e coberto por teste de regressão em `tests/test_assembleia.py`.
+- [x] Credenciamento por QR code da carteirinha (v1.1) ou busca manual pela secretaria, com
       registro de horário de entrada e saída — quórum de instalação apurado em tempo real na tela
       da mesa, por convocação (1ª/2ª/3ª).
-- [ ] Assembleia híbrida como caso de primeira classe: presença remota vale igual, com o mesmo
+      > `Credenciamento` (`app/models/sessao_assembleia.py`) + `/api/assembleias/{id}/credenciamentos/*`.
+      > QR reaproveita `decodificar_token_carteirinha` (v1.1) tal e qual; busca manual aceita
+      > `id_associado` direto. `GET /api/assembleias/{id}/quorum` apura em tempo real qual
+      > convocação (1ª/2ª/3ª) está em vigor pelo horário e se o quórum dela foi atingido, contando
+      > só credenciados que também estão na lista de habilitados congelada (v2.2) - presença de
+      > quem não vota nunca conta pro quórum. `avaliar_quorum_minimo` (`app/services/estatuto.py`)
+      > interpreta o valor da `RegraEstatutaria` ("2/3", "1/2+1", "totalidade") sem nenhum número
+      > cru no código.
+- [x] Assembleia híbrida como caso de primeira classe: presença remota vale igual, com o mesmo
       credenciamento; a lista final de presença não distingue direitos, só registra a modalidade.
-- [ ] Painel da mesa: pauta item a item, com controle de abertura/encerramento de votação, tempo
+      > `Credenciamento.modalidade` (Presencial/Remoto) é só metadado de registro - nenhuma regra
+      > de habilitação ou quórum depende dela, os dois contam igual.
+- [x] Painel da mesa: pauta item a item, com controle de abertura/encerramento de votação, tempo
       de fala opcional e registro de ocorrências.
+      > `ItemPauta` (Aguardando → Em discussão → Em votação → Encerrado) +
+      > `/api/assembleias/{id}/itens-pauta/*`; `OcorrenciaSessao` (vinculada a um item ou solta) +
+      > `/api/assembleias/{id}/ocorrencias`. "Abrir votação" aqui só troca o status do item -
+      > nenhum voto é de fato contado ainda, isso é o motor da v2.4 conectando em cima deste
+      > controle de estado. Sessão só aceita essas ações com `Assembleia.status = "Em andamento"`
+      > (novo status, entre "Convocada" e "Realizada" - `POST /api/assembleias/{id}/abrir-sessao`
+      > e `/encerrar-sessao`).
 - [ ] Registro de presença final assinado eletronicamente (FASE 20) — substitui a lista de
       presença em papel para efeitos internos, mantendo o limite da v20.2.1 para ato registral.
+      > **Não implementado** - depende do motor de assinatura da FASE 20/v20.2, que não existe
+      > ainda. `Credenciamento` já registra entrada/saída; falta só a assinatura em si quando o
+      > motor existir (pendência anotada na FASE 20/v20.2, mesmo padrão das demais).
 
 #### v2.4 — Motor de votação
 - [ ] `Votacao` vinculada a um item de pauta, com tipo configurável: aberta/nominal, secreta,
@@ -3804,6 +3832,12 @@ simples/avançada (Lei 14.063/2020, Art. 4º) vem exatamente da qualidade dessa 
 > este motor existir, conectar ali (`app/routers/filiacao.py`, endpoint `aprovar_proposta`).
 > Hoje o termo, se anexado, é só um upload comum via `DocumentoAnexo`, sem verificação de
 > assinatura nenhuma.
+
+> **Pendência registrada pela v2.3 (2026-09-15)**: registro de presença final da sessão de
+> assembleia (`Credenciamento`, `app/routers/sessao_assembleia.py`) precisa de assinatura
+> eletrônica para valer como substituto da lista de papel - hoje só grava entrada/saída
+> autenticada, sem assinatura nenhuma. Conectar aqui quando este motor existir, respeitando o
+> limite da v20.2.1 (não substitui ato registral).
 
 > **Pendência registrada pela v2.2 (2026-09-15)**: adesão a petição de convocação de assembleia
 > (`app/routers/governanca.py`, endpoint `aderir_peticao`, Art. 8º/10 do estatuto) hoje só grava

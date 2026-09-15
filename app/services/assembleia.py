@@ -14,6 +14,7 @@ from app.services.categoria_associado import ATIVO_EM_DIA, EM_EXPERIENCIA, calcu
 from app.services.estatuto import obter_regra_vigente
 
 DESLIGADO = "Desligado"
+SUSPENSO_ESTATUTO = "Suspenso (Estatuto)"
 
 
 def _parse_fracao(valor: str) -> float:
@@ -67,7 +68,14 @@ def calcular_lista_habilitados(db: Session, assembleia: Assembleia) -> list[Habi
     associados = db.query(Associado).filter(Associado.status_arrolamento != DESLIGADO).all()
     linhas = []
     for associado in associados:
-        categoria_real = calcular_categoria(db, associado.id_associado)
+        # "Suspenso (Estatuto)" é estado só materializado, nunca recalculado por
+        # `calcular_categoria` (que não sabe de suspensão - ver categoria_associado.py) - checar
+        # aqui primeiro, senão um suspenso em dia com a mensalidade seria contado como habilitado,
+        # violando o "pleno gozo dos direitos associativos" do Art. 4º.
+        if associado.status_arrolamento == SUSPENSO_ESTATUTO:
+            categoria_real = SUSPENSO_ESTATUTO
+        else:
+            categoria_real = calcular_categoria(db, associado.id_associado)
         habilitado = categoria_real in (ATIVO_EM_DIA, EM_EXPERIENCIA)
         motivo = None if habilitado else f"Situação '{categoria_real}' não está em dia/pleno gozo dos direitos (Art. 13/4º)."
         linha = HabilitadoAssembleia(

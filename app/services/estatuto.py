@@ -5,6 +5,7 @@ que importa é sempre bater no histórico certo, inclusive no passado (`em=<data
 reconstituir a regra vigente numa assembleia antiga) - cache invalidado por escrita teria a
 mesma limitação multi-réplica do config_cache, sem o mesmo ganho (regra estatutária muda bem
 menos vezes que configuração geral)."""
+import math
 from datetime import datetime
 from typing import Optional
 
@@ -31,6 +32,27 @@ def obter_regra_vigente(
         .first()
     )
     return regra.valor if regra else padrao
+
+
+def avaliar_quorum_minimo(valor: str, base: int) -> int:
+    """Converte um valor de `RegraEstatutaria` de quórum ("2/3", "1/2+1", "totalidade", "6") na
+    quantidade mínima de pessoas exigida sobre uma base - usado pela apuração de quórum em tempo
+    real (v2.3) e pelo motor de votação (v2.4). Nunca arredonda pra baixo: fração de gente exige
+    o próximo inteiro (2/3 de 10 = 6,66 → 7) - arredondar pra baixo contaria quórum como atingido
+    um voto antes da hora, o erro mais caro possível aqui."""
+    valor = valor.strip().lower()
+    if valor == "totalidade":
+        return base
+    extra = 0
+    fracao_str = valor
+    if "+" in valor:
+        fracao_str, extra_str = valor.split("+", 1)
+        extra = int(extra_str.strip())
+    if "/" in fracao_str:
+        numerador, denominador = fracao_str.split("/")
+        fracao = int(numerador) / int(denominador)
+        return math.ceil(base * fracao) + extra
+    return int(fracao_str) + extra
 
 
 def reformar_regra(
