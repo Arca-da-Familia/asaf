@@ -42,6 +42,19 @@ jobs:
       # v2.2-v2.9 genuinamente não existem ainda. Nenhuma tabela envolvida tem dado real
       # (confirmado no diagnóstico anterior). Passo único, não deve rodar de novo depois de
       # aplicado - arquivo removido do repositório logo em seguida.
+      - name: Checar dependentes órfãos de assembleias (só leitura)
+        run: |
+          python - <<'EOF'
+          import os
+          from sqlalchemy import create_engine, text
+
+          engine = create_engine(os.environ["DATABASE_URL"])
+          with engine.connect() as conn:
+              for t in ["assembleias", "documentos_institucionais", "registros_votos"]:
+                  n = conn.execute(text(f'SELECT COUNT(*) FROM "{t}"')).scalar()
+                  print(f"{t}: {n} linha(s)")
+          EOF
+
       - name: Reparar drift do Alembic (v2.2-v2.9) e aplicar v3.0
         run: |
           python - <<'EOF'
@@ -50,11 +63,17 @@ jobs:
 
           engine = create_engine(os.environ["DATABASE_URL"])
 
+          # v3.0 - achado ao tentar o DROP simples: `documentos_institucionais` e
+          # `registros_votos` têm FK pra `assembleias` e são, elas próprias, órfãs do mesmo
+          # protótipo pré-Alembic (DocumentoInstitucional/RegistroVoto - nomes que só existem
+          # hoje como comentário histórico no PLANO_PROJETO.md, nenhum model/router atual usa
+          # essas tabelas - confirmado por grep antes deste passo). Cai tudo junto.
           with engine.begin() as conn:
-              linhas = conn.execute(text('SELECT COUNT(*) FROM assembleias')).scalar()
-              assert linhas == 0, f"assembleias tem {linhas} linha(s) - abortando, não é o cenário esperado"
-              conn.execute(text('DROP TABLE assembleias'))
-              print("assembleias (órfã do protótipo) removida.")
+              for t in ["assembleias", "documentos_institucionais", "registros_votos"]:
+                  linhas = conn.execute(text(f'SELECT COUNT(*) FROM "{t}"')).scalar()
+                  assert linhas == 0, f"{t} tem {linhas} linha(s) - abortando, não é o cenário esperado"
+              conn.execute(text('DROP TABLE documentos_institucionais, registros_votos, assembleias'))
+              print("assembleias e órfãs dependentes (protótipo pré-Alembic) removidas.")
 
           from app.database import Base
           import app.models  # garante que todos os modelos estão registrados em Base.metadata
