@@ -14,6 +14,34 @@ export const enderecoSchema = z.object({
   estado: z.string().nullish(),
 })
 
+// Usado pelo formulário "Novo associado" (pages/AssociadoNovo.tsx) — o backend valida de
+// verdade (dígito verificador do CPF, CEP com 8 dígitos, etc.); estas regras aqui são só a
+// primeira barreira, pra dar erro na hora em vez de esperar o round-trip da API.
+export const associadoMasterSchema = z.object({
+  nome_completo: z.string().min(3, 'Informe o nome completo.'),
+  cpf: z.string().min(11, 'CPF deve ter 11 dígitos.').max(14),
+  email_contato: z.string().email('E-mail inválido.'),
+  telefone_whatsapp: z.string().min(10, 'Informe um telefone válido.'),
+  categoria: z.string().min(1, 'Selecione uma categoria.'),
+  cep: z.string().min(8, 'CEP deve ter 8 dígitos.').max(9),
+  logradouro: z.string().min(1, 'Informe o logradouro.'),
+  numero: z.string().min(1, 'Informe o número.'),
+  bairro: z.string().min(1, 'Informe o bairro.'),
+  cidade: z.string().min(1, 'Informe a cidade.'),
+  estado: z.string().length(2, 'UF com 2 letras.'),
+  data_nascimento: z.string().optional(),
+  estado_civil: z.string().optional(),
+  profissao: z.string().optional(),
+  naturalidade: z.string().optional(),
+})
+
+// Usado por "Conceder acesso" (pages/ConcederAcesso.tsx) - o backend também recusa senha curta
+// (validar_senha_forte, mínimo 8 hoje) - repetido aqui só pra feedback imediato no formulário.
+export const concederAcessoSchema = z.object({
+  email: z.string().email('E-mail inválido.'),
+  senha_provisoria: z.string().min(8, 'A senha deve ter pelo menos 8 caracteres.'),
+})
+
 // Usado pelo formulário "Dados cadastrais" (pages/Perfil.tsx) — os únicos campos editáveis do
 // próprio associado nesta versão.
 export const perfilEditavelSchema = z.object({

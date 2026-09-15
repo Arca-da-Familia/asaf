@@ -19,6 +19,24 @@ def _criar_ficha(client, **overrides):
     return resposta.json()["id_associado"], cpf
 
 
+def test_listar_associados_exige_permissao_e_mostra_tem_acesso(client, auth_headers):
+    assert client.get("/api/associados/").status_code == 401
+
+    id_associado, cpf = _criar_ficha(client)
+    listagem = client.get("/api/associados/", headers=auth_headers).json()
+    item = next(a for a in listagem if a["id_associado"] == id_associado)
+    assert item["tem_acesso"] is False
+
+    client.post(
+        f"/api/associados/{id_associado}/conceder-acesso",
+        json={"email": f"{cpf}@lista.example.com", "senha_provisoria": "Provisoria1"},
+        headers=auth_headers,
+    )
+    listagem = client.get("/api/associados/", headers=auth_headers).json()
+    item = next(a for a in listagem if a["id_associado"] == id_associado)
+    assert item["tem_acesso"] is True
+
+
 def test_conceder_acesso_exige_permissao(client):
     id_associado, _ = _criar_ficha(client)
     r = client.post(f"/api/associados/{id_associado}/conceder-acesso", json={"email": "a@a.com", "senha_provisoria": "SenhaOk123"})

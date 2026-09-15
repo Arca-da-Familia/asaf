@@ -100,6 +100,28 @@ def cadastrar_ficha_master(
     return {"mensagem": f"Ficha de {novo_associado.nome_completo} criada com sucesso!", "id_associado": novo_associado.id_associado}
 
 
+@router.get("/api/associados/", summary="Listar associados")
+def listar_associados(db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_associados)):
+    """v3.0.2 (achado 2026-09-15) - o painel React só tinha `/api/associados/busca-simples`
+    (id+nome, pra seletor) e a página HTML legada (`/admin/secretaria`, que não devolve JSON).
+    Esta é a listagem de verdade que alimenta a tela `/associados` do painel único."""
+    associados = db.query(Associado).join(Pessoa).order_by(Pessoa.nome_completo).all()
+    return [
+        {
+            "id_associado": a.id_associado,
+            "nome_completo": a.nome_completo,
+            "cpf": a.cpf,
+            "categoria": a.categoria,
+            "status_arrolamento": a.status_arrolamento,
+            "email_contato": a.email_contato,
+            "telefone_whatsapp": a.telefone_whatsapp,
+            "numero_matricula": a.numero_matricula,
+            "tem_acesso": a.id_usuario is not None,
+        }
+        for a in associados
+    ]
+
+
 @router.post("/api/associados/{id_associado}/conceder-acesso", summary="Conceder acesso (usuário/senha) a um associado")
 def conceder_acesso(id_associado: int, dados: ConcederAcessoCriar, db: Session = Depends(get_db), usuario_secretaria: Usuario = Depends(_permissao_associados)):
     """v3.0 (achado 2026-09-15) - cadastrar a ficha (`/associados-master/`) nunca criou login

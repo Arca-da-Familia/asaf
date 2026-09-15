@@ -646,6 +646,16 @@ export function listarOpcoesCatalogo(
   return apiFetch(`/api/catalogos/${chave}/opcoes`)
 }
 
+// Rota legada de compatibilidade (`/api/opcoes/{tipo}`, mantida desde v0.1/v0.2 - ver
+// app/routers/core.py) - alguns campos antigos (`Associado.categoria`, `Associado.estado_civil`)
+// gravam o RÓTULO como valor (ex.: "Efetivo"), não o código do catálogo novo (ex.: "EFETIVO").
+// Use esta função pra esses campos especificamente, nunca `listarOpcoesCatalogo` no lugar dela.
+export function listarOpcoesLegado(
+  tipo: string,
+): Promise<{ id_opcao: number; valor: string; ativo: boolean }[]> {
+  return apiFetch(`/api/opcoes/${tipo}`)
+}
+
 // ---------------------------------------------------------------------------
 // Campos personalizados sem deploy (v0.3.3) — a diretoria acrescenta um campo extra num
 // módulo sem precisar de programador; renderizado automaticamente pelo FormShell.
@@ -790,4 +800,67 @@ export function exportarAssociados(
   colunas: string[],
 ): Promise<{ colunas: string[]; linhas: Record<string, unknown>[] }> {
   return apiFetch(`/api/associados/exportar?colunas=${colunas.join(',')}`)
+}
+
+// ---------------------------------------------------------------------------
+// Associados — listagem, cadastro e concessão de acesso (v3.0.2, achado 2026-09-15: a aba
+// "Associados" do painel só tinha guarda de permissão, nenhum conteúdo real).
+// ---------------------------------------------------------------------------
+export type AssociadoListagem = {
+  id_associado: number
+  nome_completo: string
+  cpf: string
+  categoria: string | null
+  status_arrolamento: string | null
+  email_contato: string | null
+  telefone_whatsapp: string | null
+  numero_matricula: string | number | null
+  tem_acesso: boolean
+}
+
+export function listarAssociados(): Promise<AssociadoListagem[]> {
+  return apiFetch('/api/associados/')
+}
+
+export type AssociadoMasterCriarInput = {
+  nome_completo: string
+  cpf: string
+  email_contato: string
+  telefone_whatsapp: string
+  categoria: string
+  cep: string
+  logradouro: string
+  numero: string
+  bairro: string
+  cidade: string
+  estado: string
+  data_nascimento?: string
+  estado_civil?: string
+  profissao?: string
+  naturalidade?: string
+}
+
+export function criarAssociadoMaster(
+  dados: AssociadoMasterCriarInput,
+): Promise<{ mensagem: string; id_associado: number }> {
+  return apiFetch('/associados-master/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type ConcederAcessoInput = {
+  email: string
+  senha_provisoria: string
+  id_nivel?: number
+}
+
+export function concederAcesso(
+  idAssociado: number,
+  dados: ConcederAcessoInput,
+): Promise<{ mensagem: string; id_usuario: number }> {
+  return apiFetch(`/api/associados/${idAssociado}/conceder-acesso`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
 }
