@@ -18,7 +18,6 @@ import { logout } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 import { useImpersonacao } from '@/lib/impersonacao'
 import { mensagens } from '@/lib/i18n/pt-BR'
-import { modulos } from '@/lib/modulos'
 import { useTheme } from '@/lib/theme'
 import { useMe } from '@/lib/use-me'
 import { useVersaoBuild } from '@/lib/versao'
@@ -82,11 +81,6 @@ export function Shell() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  // Menu montado 100% a partir das permissões: filtra o manifesto pelo que o usuário tem.
-  const permissoes = data?.permissoes ?? []
-  const modulosVisiveis = modulos.filter((m) =>
-    permissoes.includes(m.permissao),
-  )
   const emImpersonacao = !!data?.impersonando
   const alturaTopo = emImpersonacao
     ? ALTURA_TOPO_IMPERSONANDO
@@ -213,18 +207,6 @@ export function Shell() {
             <UserRound className="h-5 w-5 shrink-0" />
             {!collapsed && <span>{mensagens.navegacao.meuPerfil}</span>}
           </NavLink>
-
-          {modulosVisiveis.map((m) => (
-            <NavLink
-              key={m.rota}
-              to={m.rota}
-              className={navCls}
-              onClick={() => setMobileOpen(false)}
-            >
-              <m.icone className="h-5 w-5 shrink-0" />
-              {!collapsed && <span>{m.rotulo}</span>}
-            </NavLink>
-          ))}
         </nav>
       </aside>
 

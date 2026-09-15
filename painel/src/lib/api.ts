@@ -475,6 +475,8 @@ export type Ficha360 = {
     categoria?: string | null
     status_arrolamento?: string | null
     data_admissao?: string | null
+    recadastramento_pendente?: boolean
+    contato_suspeito?: boolean
   }
   situacao_financeira: {
     saldo_devedor_total: number
@@ -487,6 +489,12 @@ export type Ficha360 = {
 
 export function obterMinhaFicha360(): Promise<Ficha360> {
   return apiFetch<Ficha360>('/auth/me/ficha-360')
+}
+
+// v2.5.1b - mesma ficha, endpoint administrativo (secretaria vendo a ficha de qualquer
+// associado, não a própria) - endpoint já existia e já era testado, só nunca tinha tela.
+export function obterFicha360Associado(idAssociado: number): Promise<Ficha360> {
+  return apiFetch<Ficha360>(`/api/associados/${idAssociado}/ficha-360`)
 }
 
 // ---------------------------------------------------------------------------

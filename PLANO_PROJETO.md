@@ -2545,6 +2545,17 @@ testes passando (`pytest tests/`).
       > Pego rodando a suíte completa (item 9 do checklist) antes de fechar a versão - 5 testes
       > quebraram, todos corrigidos.
       > Testado: `pytest tests/` - 198/198 (5 novos em `tests/test_associado_detalhe.py`).
+      >
+      > **v2.5.1b (mesmo dia) - achado do usuário sobre arquitetura de navegação**: a barra
+      > lateral listava módulo de negócio direto (`Associados`, `Financeiro`, `Governança`,
+      > `Projetos`, `Auditoria`, `Acesso`) - não escala pra 20+ fases, e a página "Início" não
+      > fazia nada (só mostrava nível/permissão). Corrigido: barra lateral agora só tem "Início"
+      > e "Meu Perfil" (uso pessoal); "Início" (`painel/src/pages/Home.tsx`) virou o lançador de
+      > módulos - grade de cards, um por módulo com permissão, igual à referência que o usuário
+      > mostrou. `painel/src/lib/modulos.ts` continua o manifesto único, só muda quem o consome
+      > (Home, não mais o Shell). Acrescentada também a aba "Ficha 360" no detalhe do associado
+      > (`GET /api/associados/{id}/ficha-360` - endpoint da v1.5, já testado, nunca tinha tela),
+      > resolvendo a pergunta concreta "a pessoa pagou a mensalidade?" sem sair do módulo.
 
 #### v2.5.2 — Governança: Assembleias e Sessão
 - [ ] Listar/convocar assembleia, petição de convocação, habilitação de associado.

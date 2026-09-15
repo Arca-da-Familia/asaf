@@ -19,16 +19,18 @@ import {
   listarOpcoesCatalogo,
   listarOpcoesLegado,
   obterAssociado,
+  obterFicha360Associado,
   removerCargo,
   removerDependente,
 } from '@/lib/api'
+import { formatarData } from '@/lib/datas'
 import {
   associadoEditarSchema,
   cargoCriarSchema,
   dependenteCriarSchema,
 } from '@/lib/schemas'
 
-type Aba = 'dados' | 'cargos' | 'familia'
+type Aba = 'dados' | 'ficha360' | 'cargos' | 'familia'
 type AssociadoEditarForm = z.infer<typeof associadoEditarSchema>
 
 // v2.5.1 (FASE 2.5 - Painel) - completa o módulo Associados: editar dados/foto, gerenciar
@@ -47,6 +49,7 @@ export function AssociadoDetalhePage() {
 
   const abas: { id: Aba; rotulo: string }[] = [
     { id: 'dados', rotulo: 'Dados e foto' },
+    { id: 'ficha360', rotulo: 'Ficha 360' },
     { id: 'cargos', rotulo: 'Cargos' },
     { id: 'familia', rotulo: 'Família' },
   ]
@@ -92,6 +95,7 @@ export function AssociadoDetalhePage() {
           {aba === 'dados' && (
             <DadosEFotoTab idAssociado={idAssociado} associado={associado} />
           )}
+          {aba === 'ficha360' && <Ficha360Tab idAssociado={idAssociado} />}
           {aba === 'cargos' && <CargosTab idAssociado={idAssociado} />}
           {aba === 'familia' && (
             <FamiliaTab idPessoaTitular={associado.id_pessoa} />
@@ -357,6 +361,84 @@ function DadosEFotoTab({
             </>
           )}
         </FormShell>
+      </section>
+    </div>
+  )
+}
+
+function Ficha360Tab({ idAssociado }: { idAssociado: number }) {
+  const { data: ficha, isLoading } = useQuery({
+    queryKey: ['ficha-360', idAssociado],
+    queryFn: () => obterFicha360Associado(idAssociado),
+  })
+
+  if (isLoading)
+    return <p className="text-sm text-muted-foreground">Carregando…</p>
+  if (!ficha) return <EmptyState titulo="Não foi possível carregar a ficha." />
+
+  const formatarReais = (valor: number) =>
+    new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(valor)
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <section className="rounded-xl border border-border bg-card p-6">
+          <h2 className="mb-1 font-semibold">Situação financeira</h2>
+          <p
+            className={
+              ficha.situacao_financeira.saldo_devedor_total > 0
+                ? 'text-2xl font-bold text-destructive'
+                : 'text-2xl font-bold text-green-600'
+            }
+          >
+            {formatarReais(ficha.situacao_financeira.saldo_devedor_total)}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {ficha.situacao_financeira.quantidade_titulos_pendentes} título(s)
+            pendente(s)
+          </p>
+        </section>
+
+        <section className="rounded-xl border border-border bg-card p-6">
+          <h2 className="mb-1 font-semibold">Cadastro</h2>
+          <p className="text-sm">
+            {ficha.dados.recadastramento_pendente
+              ? 'Recadastramento pendente'
+              : 'Cadastro em dia'}
+          </p>
+          {ficha.dados.contato_suspeito && (
+            <p className="text-xs text-amber-600">
+              Contato sinalizado como suspeito
+            </p>
+          )}
+        </section>
+      </div>
+
+      <section className="rounded-xl border border-border bg-card p-6">
+        <h2 className="mb-4 font-semibold">Linha do tempo</h2>
+        {ficha.linha_do_tempo.length > 0 ? (
+          <ol className="space-y-4 border-l border-border pl-4">
+            {ficha.linha_do_tempo.map((e) => (
+              <li key={e.id_evento}>
+                <p className="text-sm font-medium">{e.titulo}</p>
+                {e.descricao && (
+                  <p className="text-xs text-muted-foreground">{e.descricao}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {formatarData(e.data_evento)}
+                </p>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <EmptyState
+            titulo="Nada por aqui ainda"
+            descricao="Assim que algo relevante acontecer (filiação, cargo, mudança de situação), aparece aqui."
+          />
+        )}
       </section>
     </div>
   )
