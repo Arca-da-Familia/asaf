@@ -145,3 +145,29 @@ def test_peticao_aderente_nao_pode_converter_antes_do_prazo_do_presidente_esgota
 
     r_tarde = client.post(f"/api/peticoes-convocacao/{id_peticao}/converter-em-assembleia", headers=_headers_para(primeiro_aderente_usuario), json=corpo_conversao)
     assert r_tarde.status_code == 200, r_tarde.text
+
+
+def test_edital_le_quorum_de_regra_estatutaria_nao_de_texto_fixo(client, auth_headers):
+    """Ponto de Revisão FASE 2 (1/3): achado real - `gerar_edital` tinha "2/3"/"1/2 + 1"/"1/4"
+    escritos direto no texto do edital, ignorando `QUORUM_1A/2A/3A_CONVOCACAO` (v2.0). Corrigido
+    para ler `obter_regra_vigente`; este teste prova que reformar o parâmetro muda o edital sem
+    deploy, mesma garantia já coberta para PROCURACAO_PERMITIDA."""
+    r = client.put("/api/estatuto/regras/QUORUM_1A_CONVOCACAO", headers=auth_headers, json={"valor": "3/4"})
+    assert r.status_code == 200, r.text
+
+    r_assembleia = client.post(
+        "/api/assembleias/", headers=auth_headers,
+        json={"tipo": "Ordinária", "pauta": "Pauta de teste", "data_hora_convocacao": (datetime.utcnow() + timedelta(days=20)).strftime(_ISO)},
+    )
+    id_assembleia = r_assembleia.json()["id_assembleia"]
+    client.post(f"/api/assembleias/{id_assembleia}/convocar", headers=auth_headers)
+
+    edital = client.get(f"/api/assembleias/{id_assembleia}/edital", headers=auth_headers).json()["edital_texto"]
+    assert "quórum: 3/4 dos associados aptos" in edital
+    assert "quórum: 2/3 dos associados aptos" not in edital
+
+    # restaura o valor real do estatuto - `RegraEstatutaria` é estado global de sessão de teste
+    # (ver conftest.py: sem rollback por transação), outros testes (ex.: test_seed_traz_valores_
+    # reais_do_estatuto) dependem de QUORUM_1A_CONVOCACAO continuar "2/3".
+    r_restaura = client.put("/api/estatuto/regras/QUORUM_1A_CONVOCACAO", headers=auth_headers, json={"valor": "2/3"})
+    assert r_restaura.status_code == 200, r_restaura.text

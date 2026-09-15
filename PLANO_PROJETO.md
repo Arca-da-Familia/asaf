@@ -2043,11 +2043,69 @@ conseguir fazer uma assembleia válida bem antes de ter todos os refinamentos.
       > Nada novo a fazer aqui além do que a v2.0 já entregou (`PROCURACAO_PERMITIDA = "nao"`) -
       > confirmado que continua correto, sem fluxo de upload/conferência construído de propósito.
 
-##### 🔍 Ponto de Revisão — FASE 2 (1/3, fecha v2.0–v2.2)
+##### 🔍 Ponto de Revisão — FASE 2 (1/3, fecha v2.0–v2.2) — aplicado em 2026-09-15
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 - Nenhum quórum/prazo/mandato está escrito em código — todos vêm de `RegraEstatutaria` (v2.0), com teste que prova isso (mudar o parâmetro muda o comportamento sem deploy).
 - Lista de habilitados a votar (v2.2) é calculada e **congelada** no momento da convocação — testar que ela não recalcula depois do fato.
 - Cargo concede/revoga permissão automaticamente na data de início/fim do mandato (v2.1) — testar a revogação automática, não só a concessão.
+
+**Checklist padrão (seção 4.1)**:
+- [x] **Item 1 (implementado e testado de fato)**: v2.0-v2.2 lidas e conferidas contra o código
+      real nesta revisão (`app/models/estatuto.py`, `app/services/estatuto.py`,
+      `app/routers/estatuto.py`, `app/models/mandatos.py`, `app/services/mandatos.py`,
+      `app/models/governanca.py`, `app/services/assembleia.py`, `app/routers/governanca.py`),
+      não só relidas no texto do plano.
+- [x] **Item 2 (testes automatizados existem e passam)**: `pytest tests/` — **128/128 passando**
+      (110 herdados da FASE 1 + 18 novos de FASE 2: `test_regras_estatutarias.py`,
+      `test_mandatos.py`, `test_assembleia.py`), confirmado rodando a suíte completa nesta
+      revisão.
+- [x] **Item 3 (nenhuma regra congelada violada)**: confirmado — `RegraEstatutaria`/`Mandato`/
+      `Assembleia`/`PeticaoConvocacao`/`HabilitadoAssembleia` chegaram por migração Alembic, nada
+      via `create_all`; toda rota nova depende de `exigir_permissao("governanca")`, nunca checagem
+      de nível hardcoded.
+- [x] **Item 4 (nenhum segredo exposto)**: `git status` limpo, nenhum segredo novo introduzido.
+- [x] **Item 5 (AuditLog de verdade)**: confirmado no código — `registrar_auditoria` chamado em
+      toda ação sensível de `estatuto.py` (REFORMA), `mandatos.py` (criação/encerramento/
+      declaração de conflito) e `governanca.py` (convocação/cancelamento/petição/adesão/
+      conversão em assembleia).
+- [x] **Item 6 (permissão nova checada no backend)**: confirmado — `estatuto.py`, `mandatos.py` e
+      `governanca.py` protegidos por `exigir_permissao("governanca")` em toda rota de escrita,
+      nunca só escondido no front.
+- [x] **Item 7 (nada fora de escopo adiantado)**: confirmado — pendências reais da janela (upload
+      do documento do estatuto, publicação de edital em canais que não existem, assinatura digital
+      de adesão, consumo de segregação de funções e conflito de interesse pela aprovação
+      financeira) já estavam roteadas para as fases que as resolvem (commit `0621a1a`), nenhuma
+      fingida como pronta.
+- [x] **Item 8 (plano atualizado refletindo a realidade)**: sim, v2.0-v2.2 já documentadas com
+      nota de verificação real na hora da implementação.
+- [x] **Item 9 (suíte completa continua passando)**: mesma execução do item 2 — 128/128, nada
+      anterior quebrou silenciosamente.
+
+**Itens específicos do trecho**:
+- [x] **Nenhum quórum/prazo/mandato escrito em código**: `test_mudar_parametro_muda_comportamento_
+      sem_deploy` prova isso para `PROCURACAO_PERMITIDA`. **Achado real nesta revisão**:
+      `gerar_edital` (`app/services/assembleia.py`) tinha os três quóruns de convocação
+      ("2/3", "1/2 + 1", "1/4") **escritos direto no texto do edital**, ignorando
+      `QUORUM_1A/2A/3A_CONVOCACAO` (v2.0) que já existiam semeados mas nunca eram lidos — violação
+      direta deste item e do próprio docstring do módulo ("nada aqui é hardcoded"). **Corrigido
+      nesta revisão**: `gerar_edital` agora lê os três parâmetros via `obter_regra_vigente`, com
+      teste novo (`test_edital_le_quorum_de_regra_estatutaria_nao_de_texto_fixo`) provando que
+      reformar `QUORUM_1A_CONVOCACAO` muda o texto do edital sem deploy — mesmo padrão de
+      `test_mudar_parametro_muda_comportamento_sem_deploy`.
+- [x] **Lista de habilitados (v2.2) congelada, não recalcula**:
+      `test_convocar_assembleia_congela_lista_de_habilitados_pelo_criterio_real_do_estatuto`
+      confirmado passando — muda o status de "licenciado" para fora da licença depois da
+      convocação e confirma que `habilitado` continua `False` (valor congelado no momento da
+      convocação), nunca recalculado pela leitura seguinte.
+- [x] **Cargo concede/revoga permissão automaticamente (v2.1)**:
+      `test_cargo_concede_permissao_automaticamente_e_revoga_ao_encerrar` confirmado passando —
+      testa as duas pontas: `usuario_tem_permissao` retorna `True` com o mandato vigente e `False`
+      depois de `POST /api/mandatos/{id}/encerrar`, sem exigir nenhum job/cron (revogação é
+      computada na leitura, mesmo padrão do vencimento natural).
+
+**Fase não bloqueada, com correção aplicada**: um achado real (quórum hardcoded no edital) foi
+encontrado, corrigido e coberto por teste nesta mesma revisão — o ponto de revisão funcionou como
+portão, não deixou a fase avançar com o problema em aberto. FASE 2 (1/3) liberada para v2.3-v2.5.
 
 #### v2.3 — Condução da sessão (presencial, remota ou híbrida)
 - [ ] Credenciamento por QR code da carteirinha (v1.1) ou busca manual pela secretaria, com

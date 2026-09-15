@@ -89,12 +89,15 @@ def gerar_edital(db: Session, assembleia: Assembleia, qtd_habilitados: int) -> s
     if assembleia.link_remoto:
         local = f"{local} | Acesso remoto: {assembleia.link_remoto}"
     horarios = horarios_convocacao(db, assembleia)
+    quorum_1a = obter_regra_vigente(db, "QUORUM_1A_CONVOCACAO", "2/3") or "2/3"
+    quorum_2a = obter_regra_vigente(db, "QUORUM_2A_CONVOCACAO", "1/2+1") or "1/2+1"
+    quorum_3a = obter_regra_vigente(db, "QUORUM_3A_CONVOCACAO", "1/4") or "1/4"
     return (
         f"{nome_instituicao}\n"
         f"EDITAL DE CONVOCAÇÃO PARA ASSEMBLEIA GERAL {assembleia.tipo.upper()}\n\n"
-        f"1ª convocação: {horarios['primeira_convocacao']:%d/%m/%Y às %H:%M} (quórum: 2/3 dos associados aptos)\n"
-        f"2ª convocação: {horarios['segunda_convocacao']:%d/%m/%Y às %H:%M} (quórum: 1/2 + 1 dos associados aptos)\n"
-        f"3ª convocação: {horarios['terceira_convocacao']:%d/%m/%Y às %H:%M} (quórum: 1/4 dos associados aptos)\n\n"
+        f"1ª convocação: {horarios['primeira_convocacao']:%d/%m/%Y às %H:%M} (quórum: {quorum_1a} dos associados aptos)\n"
+        f"2ª convocação: {horarios['segunda_convocacao']:%d/%m/%Y às %H:%M} (quórum: {quorum_2a} dos associados aptos)\n"
+        f"3ª convocação: {horarios['terceira_convocacao']:%d/%m/%Y às %H:%M} (quórum: {quorum_3a} dos associados aptos)\n\n"
         f"Local: {local}\n"
         f"Associados aptos para efeito de quórum: {qtd_habilitados}\n\n"
         f"Ordem do dia:\n{assembleia.pauta}\n"
