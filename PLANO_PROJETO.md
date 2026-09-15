@@ -2619,6 +2619,13 @@ testes passando (`pytest tests/`).
       > regra nova foi inventada no painel. Módulo Governança ganhou sub-navegação própria
       > (mesmo padrão contextual de Associados, v2.5.1d) com 3 itens: Assembleias, Nova
       > assembleia, Petições de convocação.
+      >
+      > **Ajuste (2026-09-15) - achado do usuário: "onde fica a chamada de presença/falta?"**
+      > O credenciamento JÁ É a chamada, mas a tela só mostrava quem tinha comparecido - não
+      > dava pra ver quem faltava chamar. `BlocoCredenciamento` (`SessaoAssembleia.tsx`) ganhou
+      > uma segunda lista ("Faltantes até agora" = habilitados da assembleia menos quem já foi
+      > credenciado) com um botão de um clique pra marcar presença - sem endpoint novo, só
+      > cruzando `listarHabilitados` com `listarCredenciamentos` no cliente.
 
 #### v2.5.3 — Governança: Votação
 - [ ] Abrir votação (aberta e secreta), acompanhar quórum e apuração em tempo real.
