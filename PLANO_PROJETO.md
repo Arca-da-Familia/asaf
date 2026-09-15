@@ -1810,6 +1810,15 @@ funcional; a FASE 13 entrega o refinamento.** Esta separação é deliberada: a 
 conseguir fazer uma assembleia válida bem antes de ter todos os refinamentos.
 
 #### v2.0 — O estatuto como configuração, não como código
+> **Estatuto real recebido do usuário (2026-09-15)**: transcrito em `ESTATUTO_ASAF.txt` (raiz do
+> repositório, sem a parte de assinaturas/reconhecimento de firma - só o texto normativo, Art. 1º
+> a 35). Registrado em cartório (Comarca de Parauapebas/PA, Livro A-17/A-18, 23/05/2013).
+> Fundado em 10/02/2013, Código Civil Arts. 45/46/54. **Resolve a pendência da seção 8**: "o
+> estatuto permite procuração?" - **não**, o Art. 7º veda expressamente ("é vedada a
+> representação de um associado por outro mesmo que devidamente credenciado para efeito de
+> quórum ou do voto"). O usuário confirmou que é um estatuto "muito defasado" e pediu foco só no
+> essencial (quórum, prazos, mandato) - refinamento além disso é explicitamente FASE 13, não
+> aqui.
 - [ ] **Decisão de perpetuidade mais importante desta fase**: nenhum número estatutário fica
       escrito em código. Quórum, prazos, mandatos, quem vota, se cabe procuração — tudo vira
       parâmetro em `ConfiguracaoInstitucional`/`RegraEstatutaria` (v0.3.4). A ASAF vai reformar o
@@ -1820,6 +1829,56 @@ conseguir fazer uma assembleia válida bem antes de ter todos os refinamentos.
 - [ ] Documento do estatuto vigente anexado e versionado, com o número de registro em cartório
       (a eficácia perante terceiros vem do registro, ver v13.4) e link de cada parâmetro ao artigo
       que o originou — quem for auditar entende de onde saiu cada número.
+- [ ] **Seed inicial de `RegraEstatutaria`, com os valores reais do estatuto vigente da ASAF**
+      (cada um editável depois pela diretoria, sem deploy, se o estatuto for reformado):
+      - `QUORUM_1A_CONVOCACAO` = 2/3 dos associados aptos; `QUORUM_2A_CONVOCACAO` = 1/2 + 1
+        (meia hora após a 1ª); `QUORUM_3A_CONVOCACAO` = 1/4 (meia hora após a 2ª) - Art. 6º.
+        Deliberação por maioria simples dos presentes aptos, **salvo exceção estatutária** - a
+        dissolução (Art. 31) já é uma: 2/3 dos presentes, 1ª chamada com a totalidade dos
+        associados, 2ª chamada (uma hora depois) com no mínimo 1/3. O modelo de dado não pode
+        assumir "um quórum só" - precisa admitir quórum por TIPO de deliberação.
+      - `PRAZO_MINIMO_CONVOCACAO_DIAS` = 15 dias de antecedência (Art. 8º) - já existe como
+        `PRAZO_CONVOCACAO_DIAS` desde a v0.3.4 (seed atual "15", confirmado batendo com o
+        estatuto real - nenhuma mudança de valor necessária, só a origem agora está documentada).
+      - `PRAZO_ATENDIMENTO_PEDIDO_CONVOCACAO_DIAS` = 30 dias (Art. 10, Parágrafo Único) - prazo
+        que o Presidente tem para convocar depois de um pedido formal de associado; findo o
+        prazo sem convocação, os próprios associados podem convocar (efeito automático a
+        implementar na v2.2, junto da convocação por petição do Art. 60 do CC).
+      - `FRACAO_MINIMA_PETICAO_CONVOCACAO` = 1/5 dos associados ativos (Art. 8º/10 do estatuto,
+        que já bate com o Art. 60 do Código Civil - v2.2 já previa isso, agora com a fonte
+        estatutária confirmada, não só a legal).
+      - `DURACAO_MANDATO_ANOS` = 4 anos (Art. 25/32), **sem limite de reeleição** ("podendo
+        qualquer dos seus membros serem conduzidos para mandatos subsequentes" - Art. 32,
+        confirma que não há trava de número de mandatos consecutivos a impor no sistema).
+      - `PROCURACAO_PERMITIDA` = **não**, sempre (Art. 7º) - ver nota acima. Diferente do que a
+        v2.2 original previa ("parâmetro configurável"): aqui não é configurável de fato, é
+        proibição estatutária vigente - o parâmetro existe pra quando uma reforma futura mudar
+        isso, não porque hoje há escolha.
+      - `IDADE_MINIMA_FILIACAO_ANOS` = 18, **ou 16 com autorização expressa dos pais/responsáveis**
+        (Art. 12) - **achado real, ainda não implementado em lugar nenhum**: nem
+        `PropostaFiliacaoCriar` (v1.2) nem `AssociadoMasterCriar` (v1.0/v1.1) verificam idade
+        mínima hoje - qualquer idade passa. Pendência registrada para v1.2 ou v2.1 conectar aqui
+        (checar `data_nascimento` contra `IDADE_MINIMA_FILIACAO_ANOS`, exigindo referência de
+        autorização do responsável quando for o caso de 16-17 anos - mesmo padrão de
+        `autorizacao_responsavel_referencia` já usado no voluntariado, v1.6).
+      - `QTD_SOCIOS_PROPONENTES_FILIACAO` = 3 (Art. 12, Parágrafo Único, VI: "apresentar o pedido
+        de adesão por escrito, devendo ser proposto por 03 (três) sócios") - **achado real, ainda
+        não implementado**: `PropostaFiliacaoCriar` (v1.2) não pede nem guarda nenhum
+        proponente. Pendência registrada: quando a v2.0/v2.1 (`RegraEstatutaria`) existir, a
+        filiação passa a exigir 3 associados identificados (ex.: CPF ou id_pessoa de cada um)
+        como proponentes, gravados na proposta, conferíveis pela secretaria antes da aprovação -
+        não é um checkbox "sim/não", é rastrear QUEM propôs.
+      - `QTD_MENSALIDADES_INADIMPLENCIA_EXCLUSAO` = 6 mensalidades consecutivas em atraso é
+        motivo de abertura de processo disciplinar com possível exclusão (Art. 16, §1º, V) -
+        **distinto** do que já existe: `DIAS_TOLERANCIA_INADIMPLENCIA` (v0.3.4) só marca a
+        categoria calculada como "Inadimplente" (v1.1), nunca desliga ninguém sozinho - a
+        exclusão por 6 mensalidades exige o processo disciplinar com ampla defesa (v2.7), nunca
+        automática. Registrado aqui para a v2.7 conectar.
+      - Cláusulas pétreas (Art. 33 - data magna 10/02, versículos-base II Crônicas 4:9-10, oração
+        oficial): **não são regra operacional, são identidade institucional** - guardadas como
+        texto informativo (ex.: novas chaves em `ConfiguracaoInstitucional`, categoria
+        "identidade", mesmo padrão de `NOME_INSTITUICAO`), nunca como regra que bloqueia
+        nenhuma ação do sistema.
 
 #### v2.1 — Diretoria, Conselho Fiscal e mandatos
 - [ ] Cadastro de órgãos (Diretoria Executiva, Conselho Fiscal, Conselho Deliberativo se houver) e
@@ -1858,9 +1917,13 @@ conseguir fazer uma assembleia válida bem antes de ter todos os refinamentos.
       suspensão disciplinar, tempo mínimo de filiação) — congelada no momento da convocação,
       preservada como anexo imutável da assembleia. Nunca marcação manual, nunca recalculada
       depois do fato.
-- [ ] Procuração/representação como parâmetro estatutário (permitida ou não; limite de procurações
-      por pessoa), com upload do instrumento e conferência pela mesa. Nunca assumida como
-      permitida por padrão.
+- [ ] Procuração/representação como parâmetro estatutário (`PROCURACAO_PERMITIDA`, v2.0) — **hoje
+      vedada** pelo Art. 7º do estatuto real da ASAF ("é vedada a representação de um associado
+      por outro mesmo que devidamente credenciado para efeito de quórum ou do voto"), então o
+      sistema não constrói fluxo de upload/conferência de instrumento de procuração agora (não
+      há o que conferir se é sempre proibido) — só garante que o parâmetro existe e que, se uma
+      reforma futura do estatuto passar a permitir, o fluxo de upload/conferência entra sem
+      precisar de outra versão nova, só ligar o parâmetro.
 
 ##### 🔍 Ponto de Revisão — FASE 2 (1/3, fecha v2.0–v2.2)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
@@ -3774,23 +3837,26 @@ volume alto de usuários simultâneos.
   (FASE 3.2, QR code estático + conciliação manual em lote, sem gateway de pagamento).
 - **Coleções do Directus** (FASE 5.1): confirmado como desenhado — só conteúdo público (páginas,
   notícias, banners, galeria); nenhum dado de associado/financeiro/projeto/evento entra ali.
-- **Estatuto da ASAF** (v2.7, processo disciplinar): segue como item a detalhar quando o
-  texto normativo real da associação for compartilhado nesta conversa — até lá, o módulo de
-  governança (FASE 2) permanece genérico o suficiente para não travar o restante do plano.
+- **Estatuto da ASAF**: recebido e transcrito em `ESTATUTO_ASAF.txt` (2026-09-15) — v2.0 já
+  incorpora os valores reais (quórum, prazos, mandato, 3 sócios proponentes, idade mínima de
+  filiação). v2.7 (processo disciplinar) usa os números reais do Art. 16/17 (justa causa, 3
+  advertências → suspensão, 30 dias a 1 ano, eliminação) quando for implementado.
+- **Procuração em assembleia**: confirmado pelo Art. 7º do estatuto real — vedada, sempre. v2.2
+  ajustado para não construir fluxo de upload/conferência de procuração agora (nada a conferir se
+  é sempre proibida); o parâmetro `PROCURACAO_PERMITIDA` (v2.0) existe pronto pra quando uma
+  reforma futura do estatuto mudar isso.
+- **Empregados CLT**: confirmado pelo usuário (2026-09-15) — a ASAF não tem empregados hoje. O
+  cadastro mínimo de `Funcionario` (v1.6) já foi construído mesmo assim, por decisão do usuário
+  ("o Painel é unificado por Pessoa, não por Associado") - fica pronto, sem uso real ainda.
 
 ## 8. Novos pontos em aberto (surgidos da pesquisa de legislação)
 
 - **A ASAF recebe ou pretende receber recurso público** (convênio/termo de parceria com
   prefeitura, estado ou União)? Define se o módulo de MROSC (v12.1) fica ativo desde já ou
   permanece desligado até ser necessário.
-- **A ASAF tem ou terá empregados registrados em CLT**, além de voluntários? Define se o "modo
-  empregado" da v1.6 precisa de módulo próprio ou só de uma integração com sistema de folha de
-  pagamento externo especializado.
 - **A ASAF atua em assistência social, saúde ou educação de forma formal?** Define se o CEBAS
   (v12.2) é relevante ou fica de fora do escopo por completo, e se o módulo de Educação (FASE 14)
   é necessário desde já.
-- **O estatuto da ASAF permite voto por procuração em assembleia?** (v13.1) — muitos estatutos
-  vedam isso de propósito; não assumir nenhuma das duas opções sem o texto real.
 - **Pendência técnica**: repetir a pesquisa da FASE 13 (assembleia/diretoria/segurança) quando a
   ferramenta de busca deste ambiente estiver disponível de novo — a rodada mais recente falhou
   por indisponibilidade de infraestrutura, não por falta de informação, e o conteúdo atual não
