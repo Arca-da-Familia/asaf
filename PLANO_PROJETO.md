@@ -151,6 +151,16 @@ documento aplica esta lista, além dos itens específicos daquele trecho):
    realmente existe — o plano nunca fica desalinhado do código por mais de um ponto de revisão.
 9. A suíte de teste **completa** (não só a do intervalo) continua passando — nada anterior
    quebrou silenciosamente.
+10. **(item acrescentado em 2026-09-15, achado grave do usuário)** Toda funcionalidade de
+    back-end deste intervalo que se destina a uso humano direto (não é só API interna consumida
+    por outro serviço) tem uma **tela real e visível no painel único** (`painel.asaf.org.br`),
+    confirmada de verdade - descrita ou mostrada nesta revisão, nunca só inferida porque a rota
+    existe e o teste automatizado passa. **Motivo**: as FASES 1 e 2 inteiras (e o começo da FASE
+    3) foram marcadas como concluídas com o back-end pronto e testado, mas sem nenhuma tela
+    correspondente no painel - só apareceu `<EmConstrucao>`. Nenhuma revisão anterior pegou isso
+    porque o checklist só checava teste automatizado (item 2), nunca a experiência visual de
+    quem realmente vai usar. "O que não é visto não é lembrado" - a partir de agora, back-end
+    sem tela real não é fase concluída, é fase pela metade, e não passa deste item.
 
 **Quem revisa**: idealmente uma sessão diferente da que implementou (outra janela de contexto, ou
 o usuário revisando antes de autorizar a faixa seguinte) — revisar o próprio trabalho na mesma
@@ -2483,6 +2493,87 @@ rollback por transação).
 encontrado, corrigido e coberto por teste nesta mesma revisão. **FASE 2 (Governança) completa:
 v2.0-v2.9, com as três revisões (1/3, 2/3, 3/3) aplicadas de verdade contra o código.** 181/181
 testes passando (`pytest tests/`).
+
+> **Correção registrada em 2026-09-15**: "completa" acima significava só back-end (modelo,
+> endpoint, teste automatizado) - nenhuma das três revisões desta fase checou se existia tela no
+> painel único, porque o item 10 do checklist de revisão (seção 4.1) não existia ainda. Não
+> existe hoje nenhuma tela de Governança no painel (`/governanca` é `<EmConstrucao>`) - é
+> exatamente o vácuo que a FASE 2.5 abaixo fecha, com o item 10 aplicado de verdade desta vez.
+
+### FASE 2.5 — Painel (telas reais para Associados, Governança e Financeiro)
+
+> **Por que esta fase existe**: achado grave do usuário em 2026-09-15, no mesmo dia da v3.0. As
+> FASES 1 e 2 foram declaradas concluídas com back-end pronto e testado, mas **nenhuma tela real
+> no painel único** foi construída pra nenhuma delas (`/associados`, `/financeiro`, `/governanca`
+> eram todos `<EmConstrucao>` até este ponto - só navegação e guarda de permissão, zero conteúdo).
+> Isso violava o próprio desenho da v0.2 (cada fase deveria nascer com sua tela, não deixar pra
+> depois) sem que nenhum ponto de revisão anterior pegasse isso, porque o checklist padrão nunca
+> checava a experiência visual (corrigido agora, item 10 da seção 4.1).
+>
+> **Regra desta fase**: cada sub-versão é **uma tela ou um conjunto pequeno e coeso de telas**,
+> construída, testada e **mostrada rodando** antes de começar a próxima - nunca várias telas
+> escritas de uma vez só. Ordem por prioridade do usuário: Associados primeiro (é o "mega
+> painel" que a secretaria usa todo dia), depois Governança (por sub-módulo, é o maior volume),
+> Financeiro por último (o back-end já está pronto desde a v3.0, pode esperar a fila).
+>
+> A FASE 3 (Financeiro, v3.1 em diante) só continua depois do Ponto de Revisão 3/3 desta fase.
+
+#### v2.5.1 — Associados: completar o painel (edição, foto, cargos, família)
+- [ ] Editar associado (dados cadastrais + endereço), reaproveitando `PUT /api/associados/{id}`
+      já existente.
+- [ ] Upload de foto (`POST /api/associados/{id}/foto`, já existente).
+- [ ] Histórico de cargos: listar, registrar posse, encerrar (`/api/associados/{id}/cargos`,
+      `/api/cargos/{id}/encerrar`, já existentes).
+- [ ] Dependentes/família (v1.7): listar, adicionar, editar grau de parentesco, remover
+      (`/api/pessoas/{id_pessoa_titular}/dependentes` e afins, já existentes).
+
+#### v2.5.2 — Governança: Assembleias e Sessão
+- [ ] Listar/convocar assembleia, petição de convocação, habilitação de associado.
+- [ ] Painel da sessão em andamento: credenciamento, itens de pauta, ocorrências.
+
+#### v2.5.3 — Governança: Votação
+- [ ] Abrir votação (aberta e secreta), acompanhar quórum e apuração em tempo real.
+- [ ] Impugnação de voto e resolução de empate.
+
+#### v2.5.4 — Governança: Atas e Deliberações
+- [ ] Gerar/consultar ata, deliberações vinculadas, certidão de deliberação.
+
+##### 🔍 Ponto de Revisão — FASE 2.5 (1/3, fecha v2.5.1–v2.5.4)
+Além do checklist padrão (seção 4.1, item 10 em especial): abrir cada tela no navegador e
+confirmar visualmente que carrega dado real (não place holder, não erro no console) antes de
+marcar qualquer checkbox acima como `[x]`.
+
+#### v2.5.5 — Governança: Mandatos, Órgãos e Conselho Fiscal
+- [ ] Mandatos vigentes por órgão/cargo, declaração de conflito de interesse.
+- [ ] Painel do Conselho Fiscal: leitura financeira auditada, pareceres, questionamentos.
+
+#### v2.5.6 — Governança: Disciplina e Dissolução
+- [ ] Processo disciplinar: abertura, defesa, manifestação da diretoria, decisão.
+- [ ] Processo de dissolução (tela rara, mas precisa existir - Art. 31).
+
+#### v2.5.7 — Calendário institucional
+- [ ] Agenda de eventos do calendário (`app/services/calendario.py`), com alerta de vencimento.
+
+##### 🔍 Ponto de Revisão — FASE 2.5 (2/3, fecha v2.5.5–v2.5.7)
+Mesmo checklist do ponto 1/3.
+
+#### v2.5.8 — Financeiro: Plano de Contas, Fornecedores e Exercícios
+- [ ] Plano de Contas (listar, cadastrar) com os cinco tipos reais (v3.0).
+- [ ] Fornecedores (listar, cadastrar).
+- [ ] Exercícios contábeis (listar, abrir, fechar).
+
+#### v2.5.9 — Financeiro: Títulos e baixa
+- [ ] Lançar título (a pagar/a receber), listar com filtro por tipo/status.
+- [ ] Baixar título (com conta de contrapartida), refletindo o saldo restante.
+
+#### v2.5.10 — Financeiro: Razão Contábil
+- [ ] Extrato de lançamentos em partida dobrada (débito/crédito por linha).
+- [ ] Estornar lançamento, com motivo.
+
+##### 🔍 Ponto de Revisão — FASE 2.5 (3/3 — fim, fecha v2.5.8–v2.5.10)
+Mesmo checklist dos pontos anteriores. **Esta é a trava**: a FASE 3 (v3.1 em diante) só começa
+depois deste ponto de revisão aplicado de verdade, com as telas de Associados, Governança e
+Financeiro todas confirmadas visualmente no painel.
 
 ### FASE 3 — Financeiro
 
