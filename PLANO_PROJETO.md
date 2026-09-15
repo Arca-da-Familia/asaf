@@ -1746,11 +1746,60 @@ empregatício; empregado CLT tem outro regime inteiro (eSocial, ponto, folha).
 > `test_v1_1.py` e `test_filiacao.py` - não é regressão do comportamento, é o teste tendo que
 > criar pessoas de fato distintas quando a intenção é criar pessoas distintas.
 
-##### 🔍 Ponto de Revisão — FASE 1 (2/2 — fim, fecha v1.5–v1.8)
-Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
-- Importação em lote (v1.3) é reversível por `lote_id` — testar desfazer uma importação.
-- Readmissão (v1.4) reaproveita o `Pessoa` existente, nunca cria cadastro novo.
-- Detector de duplicidade contínuo (v1.8) gera fila de revisão, não mescla sozinho.
+##### 🔍 Ponto de Revisão — FASE 1 (2/2 — fim, fecha v1.5–v1.8) — aplicado em 2026-09-15
+- [x] **Item 1 (implementado e testado de fato)**: sim — v1.5-v1.8/v1.8a foram lidas e
+      conferidas contra o código real nesta revisão (endpoints, migrações, permissões), não só
+      relidas no texto do plano.
+- [x] **Item 2 (testes automatizados existem e passam)**: `pytest tests/` — **110/110
+      passando**, confirmado rodando a suíte completa agora (`test_ficha_360.py`,
+      `test_voluntariado.py`, `test_dependentes.py`, `test_qualidade_cadastro.py`,
+      `test_cadastro_duplicado.py`, entre outros).
+- [x] **Item 3 (nenhuma regra congelada violada)**: confirmado — todo schema novo (v1.5-v1.8)
+      passou por migração Alembic, nenhuma criada só via `create_all`; a nova permissão
+      `forcar_cadastro_duplicado` (v1.8a) segue o contrato de RBAC por permissão nomeada, nunca
+      checagem de nível hardcoded (`DECISOES_CONGELADAS.md` 3.x) - conferido em
+      `app/routers/associados.py`/`filiacao.py` que o código chama
+      `usuario_tem_permissao(db, usuario, "forcar_cadastro_duplicado")`, nunca
+      `if nivel == "Presidente"`.
+- [x] **Item 4 (nenhum segredo exposto)**: `git status` limpo, nenhum segredo novo introduzido
+      em nenhuma das versões desta janela.
+- [x] **Item 5 (AuditLog de verdade)**: confirmado no código - `mesclar_pessoas` (contagens por
+      tabela), `CADASTRO_DUPLICADO_FORCADO` (ficha master e aprovação de filiação),
+      `DADOS_CONFIRMADOS` (recadastramento), `MESCLADO` (pessoas.py) todos chamam
+      `registrar_auditoria` de fato.
+- [x] **Item 6 (permissão nova checada no backend)**: confirmado - toda rota de
+      `qualidade_cadastro.py`, `voluntariado.py` e os novos endpoints de dependentes por Pessoa
+      depende de `exigir_permissao("associados")`; o bloqueio de cadastro duplicado depende de
+      `usuario_tem_permissao(..., "forcar_cadastro_duplicado")`, nunca só escondido no front.
+- [x] **Item 7 (nada fora de escopo adiantado)**: confirmado pelas próprias ressalvas já
+      registradas em cada versão (certificado de voluntariado pendente da v4.8, assinatura
+      eletrônica pendente da FASE 20, campanha de recadastramento em massa pendente da v6.2,
+      "grupo de comunicação" registrado na v6.2 mas não construído) - cada uma aponta pra fase
+      futura em vez de fingir pronto.
+- [x] **Item 8 (plano atualizado refletindo a realidade)**: sim, cada versão (v1.5-v1.8, v1.8a)
+      já documentada com nota de verificação real na hora da implementação.
+- [x] **Item 9 (suíte completa continua passando)**: mesma execução do item 2 - 110/110, nada
+      anterior quebrou silenciosamente.
+
+**Itens específicos do trecho**:
+- [x] **Importação em lote (v1.3) reversível por `lote_id`**:
+      `test_desfazer_lote_remove_associados_criados` (`tests/test_importacao.py`) confirmado
+      passando nesta revisão - desfazer remove os associados criados pelo lote e é bloqueado se
+      qualquer um já tiver lançamento financeiro (nunca apaga dado financeiro).
+- [x] **Readmissão (v1.4) reaproveita o `Pessoa` existente, nunca cria cadastro novo**:
+      confirmado no código (`app/routers/situacao.py::readmitir_associado`) - reativa o mesmo
+      `Associado`/`Papel` (`associado.status_arrolamento = ATIVO_EM_DIA`, papel existente
+      reativado ou criado só se realmente não existir), nunca instancia um `Associado` novo.
+      `test_readmissao_reativa_papel_e_zera_data_desligamento` confirmado passando.
+- [x] **Detector de duplicidade contínuo (v1.8) gera fila de revisão, não mescla sozinho**:
+      confirmado no código - `escanear_duplicidade_continua` (`app/services/duplicidade.py`) só
+      chama `db.add(FilaRevisaoCadastro(...))`; `mesclar_pessoas` (`app/services/mesclagem.py`)
+      só é chamado a partir do endpoint explícito `POST /api/pessoas/{id}/mesclar`, nunca do
+      escaneamento. `test_escanear_duplicidade_fluxo_completo` confirmado passando.
+
+**Fase não bloqueada**: nenhum item do checklist falhou. **FASE 1 encerrada** - v1.0 até v1.8a
+completas, testadas (110/110, incluindo verificação real de código nesta revisão), documentadas,
+com os dois pontos de revisão da fase aplicados. Próxima fase é a FASE 2 (Governança).
 
 ### FASE 2 — Governança (assembleias, diretoria, conselho fiscal)
 
