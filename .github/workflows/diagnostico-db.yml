@@ -35,41 +35,54 @@ jobs:
           echo "::add-mask::$DB_URL"
           echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
 
-      - name: alembic current
+      # v3.0 - reparo pontual do drift entre alembic_version (travado em f2a3b4c5d6e7, v2.1) e o
+      # schema real de produção: `assembleias` é tabela órfã do protótipo pré-Alembic (baseline
+      # bba8fd2aebda, formato incompatível com o modelo atual, 0 linhas - mesma classe de
+      # problema do financeiro v0.1) e bloqueia o CREATE TABLE de v2.2. As outras 19 tabelas de
+      # v2.2-v2.9 genuinamente não existem ainda. Nenhuma tabela envolvida tem dado real
+      # (confirmado no diagnóstico anterior). Passo único, não deve rodar de novo depois de
+      # aplicado - arquivo removido do repositório logo em seguida.
+      - name: Reparar drift do Alembic (v2.2-v2.9) e aplicar v3.0
+        run: |
+          python - <<'EOF'
+          import os
+          from sqlalchemy import create_engine, text
+
+          engine = create_engine(os.environ["DATABASE_URL"])
+
+          with engine.begin() as conn:
+              linhas = conn.execute(text('SELECT COUNT(*) FROM assembleias')).scalar()
+              assert linhas == 0, f"assembleias tem {linhas} linha(s) - abortando, não é o cenário esperado"
+              conn.execute(text('DROP TABLE assembleias'))
+              print("assembleias (órfã do protótipo) removida.")
+
+          from app.database import Base
+          import app.models  # garante que todos os modelos estão registrados em Base.metadata
+
+          tabelas_v2_2_a_v2_9 = [
+              "assembleias", "habilitados_assembleia", "peticoes_convocacao", "adesoes_peticao",
+              "credenciamentos_assembleia", "itens_pauta", "ocorrencias_sessao",
+              "votacoes", "votos_abertos", "comprovantes_voto_secreto", "registros_voto_secreto", "impugnacoes_votacao",
+              "atas", "deliberacoes", "certidoes_deliberacao",
+              "pareceres_prestacao_contas", "questionamentos_lancamento", "respostas_questionamento",
+              "processos_disciplinares", "manifestacoes_diretoria_disciplinar",
+              "processos_dissolucao",
+              "eventos_calendario",
+          ]
+          tabelas = [Base.metadata.tables[nome] for nome in tabelas_v2_2_a_v2_9]
+          Base.metadata.create_all(bind=engine, checkfirst=True, tables=tabelas)
+          print(f"{len(tabelas)} tabelas de v2.2-v2.9 confirmadas/criadas.")
+          EOF
+
+      - name: alembic stamp b0c1d2e3f4a5 (v2.9 - alinha ponteiro à realidade do schema)
+        run: alembic stamp b0c1d2e3f4a5
+
+      - name: alembic upgrade head (aplica a v3.0 de verdade)
+        run: alembic upgrade head
+
+      - name: Confirmar estado final
         run: alembic current -v
 
-      - name: alembic history (tail)
-        run: alembic history | tail -20
-
-      - name: Listar tabelas e contagem de linhas (só leitura)
-        run: |
-          python - <<'EOF'
-          import os
-          from sqlalchemy import create_engine, text, inspect
-
-          engine = create_engine(os.environ["DATABASE_URL"])
-          insp = inspect(engine)
-          tabelas = sorted(insp.get_table_names())
-          print(f"{len(tabelas)} tabelas:")
-          with engine.connect() as conn:
-              for t in tabelas:
-                  try:
-                      n = conn.execute(text(f'SELECT COUNT(*) FROM "{t}"')).scalar()
-                  except Exception as e:
-                      n = f"erro: {e}"
-                  print(f" - {t}: {n} linha(s)")
-          EOF
-
-      - name: Colunas das tabelas do financeiro (só leitura)
-        run: |
-          python - <<'EOF'
-          import os
-          from sqlalchemy import create_engine, inspect
-
-          engine = create_engine(os.environ["DATABASE_URL"])
-          insp = inspect(engine)
-          for t in ["titulos_financeiros", "livro_caixa_auditoria", "plano_de_contas", "fornecedores", "assembleias"]:
-              print(f"--- {t} ---")
-              for c in insp.get_columns(t):
-                  print(" ", c["name"], c["type"])
-          EOF
+      - name: Logout
+        if: always()
+        run: az logout || true
