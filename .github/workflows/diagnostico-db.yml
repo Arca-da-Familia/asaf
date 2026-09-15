@@ -59,3 +59,17 @@ jobs:
                       n = f"erro: {e}"
                   print(f" - {t}: {n} linha(s)")
           EOF
+
+      - name: Colunas das tabelas do financeiro (só leitura)
+        run: |
+          python - <<'EOF'
+          import os
+          from sqlalchemy import create_engine, inspect
+
+          engine = create_engine(os.environ["DATABASE_URL"])
+          insp = inspect(engine)
+          for t in ["titulos_financeiros", "livro_caixa_auditoria", "plano_de_contas", "fornecedores", "assembleias"]:
+              print(f"--- {t} ---")
+              for c in insp.get_columns(t):
+                  print(" ", c["name"], c["type"])
+          EOF
