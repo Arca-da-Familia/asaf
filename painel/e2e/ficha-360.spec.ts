@@ -46,7 +46,9 @@ async function logar(page: Page) {
   await expect(page.getByRole('heading', { name: 'Início' })).toBeVisible()
 }
 
-test('linha do tempo mostra financeiro, cargos e o histórico unificado', async ({ page }) => {
+test('linha do tempo mostra financeiro, cargos e o histórico unificado', async ({
+  page,
+}) => {
   await logar(page)
 
   await page.route('**/auth/perfil', (route) =>
@@ -75,7 +77,10 @@ test('linha do tempo mostra financeiro, cargos e o histórico unificado', async 
           status_arrolamento: 'Ativo - Em Dia',
           data_admissao: '2024-01-01T00:00:00',
         },
-        situacao_financeira: { saldo_devedor_total: 150.5, quantidade_titulos_pendentes: 1 },
+        situacao_financeira: {
+          saldo_devedor_total: 150.5,
+          quantidade_titulos_pendentes: 1,
+        },
         cargos: [
           {
             id_historico: 1,
@@ -128,7 +133,10 @@ test('linha do tempo vazia mostra estado vazio, não erro', async ({ page }) => 
     route.fulfill(
       json({
         dados: { id_associado: 1 },
-        situacao_financeira: { saldo_devedor_total: 0, quantidade_titulos_pendentes: 0 },
+        situacao_financeira: {
+          saldo_devedor_total: 0,
+          quantidade_titulos_pendentes: 0,
+        },
         cargos: [],
         documentos: [],
         linha_do_tempo: [],

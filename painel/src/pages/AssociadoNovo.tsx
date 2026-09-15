@@ -85,7 +85,9 @@ export function AssociadoNovoPage() {
                     {...form.register('nome_completo')}
                     className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                   />
-                  <ErroCampo mensagem={form.formState.errors.nome_completo?.message} />
+                  <ErroCampo
+                    mensagem={form.formState.errors.nome_completo?.message}
+                  />
                 </div>
                 <div>
                   <label className="text-sm font-medium">CPF *</label>
@@ -102,15 +104,21 @@ export function AssociadoNovoPage() {
                     {...form.register('email_contato')}
                     className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                   />
-                  <ErroCampo mensagem={form.formState.errors.email_contato?.message} />
+                  <ErroCampo
+                    mensagem={form.formState.errors.email_contato?.message}
+                  />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Telefone (WhatsApp) *</label>
+                  <label className="text-sm font-medium">
+                    Telefone (WhatsApp) *
+                  </label>
                   <input
                     {...form.register('telefone_whatsapp')}
                     className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                   />
-                  <ErroCampo mensagem={form.formState.errors.telefone_whatsapp?.message} />
+                  <ErroCampo
+                    mensagem={form.formState.errors.telefone_whatsapp?.message}
+                  />
                 </div>
                 <div>
                   <label className="text-sm font-medium">Categoria *</label>
@@ -128,10 +136,14 @@ export function AssociadoNovoPage() {
                       </option>
                     ))}
                   </select>
-                  <ErroCampo mensagem={form.formState.errors.categoria?.message} />
+                  <ErroCampo
+                    mensagem={form.formState.errors.categoria?.message}
+                  />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Data de nascimento</label>
+                  <label className="text-sm font-medium">
+                    Data de nascimento
+                  </label>
                   <input
                     type="date"
                     {...form.register('data_nascimento')}
@@ -185,7 +197,9 @@ export function AssociadoNovoPage() {
                     {...form.register('logradouro')}
                     className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                   />
-                  <ErroCampo mensagem={form.formState.errors.logradouro?.message} />
+                  <ErroCampo
+                    mensagem={form.formState.errors.logradouro?.message}
+                  />
                 </div>
                 <div>
                   <label className="text-sm font-medium">Número *</label>

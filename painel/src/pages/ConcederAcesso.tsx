@@ -19,15 +19,19 @@ export function ConcederAcessoPage() {
   const idAssociado = Number(id)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [senhaEntregue, setSenhaEntregue] = useState<{ email: string; senha: string } | null>(
-    null,
-  )
+  const [senhaEntregue, setSenhaEntregue] = useState<{
+    email: string
+    senha: string
+  } | null>(null)
 
   const conceder = useMutation({
     mutationFn: (v: ConcederAcessoForm) => concederAcesso(idAssociado, v),
     onSuccess: (_resultado, variaveis) => {
       queryClient.invalidateQueries({ queryKey: ['associados'] })
-      setSenhaEntregue({ email: variaveis.email, senha: variaveis.senha_provisoria })
+      setSenhaEntregue({
+        email: variaveis.email,
+        senha: variaveis.senha_provisoria,
+      })
     },
   })
 
@@ -36,12 +40,15 @@ export function ConcederAcessoPage() {
       <>
         <PageHeader
           titulo="Acesso concedido"
-          trilha={[{ rotulo: 'Associados', href: '/associados' }, { rotulo: 'Conceder acesso' }]}
+          trilha={[
+            { rotulo: 'Associados', href: '/associados' },
+            { rotulo: 'Conceder acesso' },
+          ]}
         />
         <section className="rounded-xl border border-border bg-card p-6">
           <p className="mb-4 text-sm">
-            Entregue estes dados ao associado. Ele será obrigado a trocar a senha no primeiro
-            login.
+            Entregue estes dados ao associado. Ele será obrigado a trocar a
+            senha no primeiro login.
           </p>
           <dl className="mb-6 space-y-2 text-sm">
             <div className="flex gap-2">
@@ -53,7 +60,9 @@ export function ConcederAcessoPage() {
               <dd className="font-mono">{senhaEntregue.senha}</dd>
             </div>
           </dl>
-          <Button onClick={() => navigate('/associados')}>Voltar para Associados</Button>
+          <Button onClick={() => navigate('/associados')}>
+            Voltar para Associados
+          </Button>
         </section>
       </>
     )
@@ -64,7 +73,10 @@ export function ConcederAcessoPage() {
       <PageHeader
         titulo="Conceder acesso"
         descricao="Define uma senha provisória para o associado entrar no painel pela primeira vez."
-        trilha={[{ rotulo: 'Associados', href: '/associados' }, { rotulo: 'Conceder acesso' }]}
+        trilha={[
+          { rotulo: 'Associados', href: '/associados' },
+          { rotulo: 'Conceder acesso' },
+        ]}
       />
 
       <section className="max-w-md rounded-xl border border-border bg-card p-6">
@@ -89,13 +101,19 @@ export function ConcederAcessoPage() {
                   {...form.register('senha_provisoria')}
                   className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 />
-                <ErroCampo mensagem={form.formState.errors.senha_provisoria?.message} />
+                <ErroCampo
+                  mensagem={form.formState.errors.senha_provisoria?.message}
+                />
               </div>
               <div className="flex gap-3">
                 <Button type="submit" disabled={conceder.isPending}>
                   {conceder.isPending ? 'Concedendo…' : 'Conceder acesso'}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => navigate('/associados')}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate('/associados')}
+                >
                   Cancelar
                 </Button>
               </div>

@@ -250,21 +250,31 @@ test.describe('Passkey (WebAuthn)', () => {
   // Python (tests/test_webauthn.py, com o mesmo tipo de autenticador virtual). Este teste
   // prova que o painel liga os dois pedaços certo: chama /login/iniciar, entrega as opções pro
   // navegador, e manda a resposta de volta pra /login/concluir.
-  test('login usando uma passkey já registrada no dispositivo', async ({ page }) => {
+  test('login usando uma passkey já registrada no dispositivo', async ({
+    page,
+  }) => {
     const cdp = await page.context().newCDPSession(page)
     await cdp.send('WebAuthn.enable')
-    const { authenticatorId } = await cdp.send('WebAuthn.addVirtualAuthenticator', {
-      options: {
-        protocol: 'ctap2',
-        transport: 'internal',
-        hasResidentKey: true,
-        hasUserVerification: true,
-        isUserVerified: true,
+    const { authenticatorId } = await cdp.send(
+      'WebAuthn.addVirtualAuthenticator',
+      {
+        options: {
+          protocol: 'ctap2',
+          transport: 'internal',
+          hasResidentKey: true,
+          hasUserVerification: true,
+          isUserVerified: true,
+        },
       },
-    })
+    )
 
-    const { privateKey } = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' })
-    const chavePrivadaPkcs8 = privateKey.export({ type: 'pkcs8', format: 'der' })
+    const { privateKey } = crypto.generateKeyPairSync('ec', {
+      namedCurve: 'P-256',
+    })
+    const chavePrivadaPkcs8 = privateKey.export({
+      type: 'pkcs8',
+      format: 'der',
+    })
     const credentialId = crypto.randomBytes(16)
     const userHandle = crypto.randomBytes(8)
     // O protocolo CDP (diferente do WebAuthn no navegador) espera estes bytes em base64
@@ -311,7 +321,9 @@ test.describe('Passkey (WebAuthn)', () => {
     })
 
     await page.goto('/login')
-    await page.getByRole('button', { name: 'Entrar com chave de acesso' }).click()
+    await page
+      .getByRole('button', { name: 'Entrar com chave de acesso' })
+      .click()
 
     await expect(page.getByRole('heading', { name: 'Início' })).toBeVisible()
     // Confirma que o painel realmente completou a cerimônia (o navegador assinou de verdade e
@@ -325,8 +337,8 @@ test.describe('Passkey (WebAuthn)', () => {
       },
     })
     expect(
-      (corpoEnviado as { credencial: { response: { signature: string } } }).credencial.response
-        .signature,
+      (corpoEnviado as { credencial: { response: { signature: string } } })
+        .credencial.response.signature,
     ).toBeTruthy()
   })
 })

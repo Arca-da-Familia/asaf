@@ -39,7 +39,9 @@ export const associadoMasterSchema = z.object({
 // (validar_senha_forte, mínimo 8 hoje) - repetido aqui só pra feedback imediato no formulário.
 export const concederAcessoSchema = z.object({
   email: z.string().email('E-mail inválido.'),
-  senha_provisoria: z.string().min(8, 'A senha deve ter pelo menos 8 caracteres.'),
+  senha_provisoria: z
+    .string()
+    .min(8, 'A senha deve ter pelo menos 8 caracteres.'),
 })
 
 // Usado pelo formulário "Dados cadastrais" (pages/Perfil.tsx) — os únicos campos editáveis do

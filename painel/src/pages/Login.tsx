@@ -1,4 +1,7 @@
-import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
+import {
+  browserSupportsWebAuthn,
+  startAuthentication,
+} from '@simplewebauthn/browser'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -197,7 +200,9 @@ export function Login() {
                   onClick={entrarComPasskey}
                   disabled={carregandoPasskey}
                 >
-                  {carregandoPasskey ? 'Verificando…' : 'Entrar com chave de acesso'}
+                  {carregandoPasskey
+                    ? 'Verificando…'
+                    : 'Entrar com chave de acesso'}
                 </Button>
               </>
             )}

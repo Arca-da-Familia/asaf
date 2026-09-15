@@ -333,8 +333,8 @@ function PasskeySection() {
       <h2 className="mb-1 font-semibold">Chaves de acesso (passkey)</h2>
       <p className="mb-4 text-sm text-muted-foreground">
         Entre neste sistema usando a biometria ou PIN do próprio dispositivo
-        (Windows Hello, Face ID/Touch ID), sem digitar senha nem código. A
-        chave fica só neste dispositivo — adicione um dispositivo por vez.
+        (Windows Hello, Face ID/Touch ID), sem digitar senha nem código. A chave
+        fica só neste dispositivo — adicione um dispositivo por vez.
       </p>
 
       {erro && (
@@ -360,8 +360,7 @@ function PasskeySection() {
                   {c.apelido ?? 'Dispositivo sem nome'}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Adicionada em{' '}
-                  {c.criado_em ? formatarData(c.criado_em) : '—'}
+                  Adicionada em {c.criado_em ? formatarData(c.criado_em) : '—'}
                   {c.ultimo_uso_em &&
                     ` · último uso em ${formatarData(c.ultimo_uso_em)}`}
                 </p>
@@ -638,7 +637,8 @@ function LinhaDoTempoSection() {
     queryFn: obterMinhaFicha360,
   })
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>
+  if (isLoading)
+    return <p className="text-sm text-muted-foreground">Carregando…</p>
   if (!ficha) {
     return (
       <EmptyState
@@ -649,7 +649,10 @@ function LinhaDoTempoSection() {
   }
 
   const formatarReais = (valor: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor)
+    new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(valor)
 
   return (
     <div className="space-y-6">
@@ -666,7 +669,8 @@ function LinhaDoTempoSection() {
             {formatarReais(ficha.situacao_financeira.saldo_devedor_total)}
           </p>
           <p className="text-xs text-muted-foreground">
-            {ficha.situacao_financeira.quantidade_titulos_pendentes} título(s) pendente(s)
+            {ficha.situacao_financeira.quantidade_titulos_pendentes} título(s)
+            pendente(s)
           </p>
         </section>
 
@@ -675,20 +679,27 @@ function LinhaDoTempoSection() {
           {ficha.cargos.length > 0 ? (
             <ul className="space-y-1 text-sm">
               {ficha.cargos.map((c) => (
-                <li key={c.id_historico} className="flex items-center justify-between gap-2">
+                <li
+                  key={c.id_historico}
+                  className="flex items-center justify-between gap-2"
+                >
                   <span>{c.titulo_cargo}</span>
                   {c.atual ? (
                     <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
                       atual
                     </span>
                   ) : (
-                    <span className="text-xs text-muted-foreground">encerrado</span>
+                    <span className="text-xs text-muted-foreground">
+                      encerrado
+                    </span>
                   )}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">Nenhum cargo registrado.</p>
+            <p className="text-sm text-muted-foreground">
+              Nenhum cargo registrado.
+            </p>
           )}
         </section>
       </div>
