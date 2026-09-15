@@ -1307,3 +1307,117 @@ export function registrarOcorrencia(
     body: JSON.stringify(dados),
   })
 }
+
+// ---------------------------------------------------------------------------
+// Motor de votação (v2.4, ligado ao painel em v2.5.3) — abrir votação por item de
+// pauta, votar, apurar/encerrar (hash de integridade), impugnar e resolver empate.
+// Voto secreto é desacoplado de verdade no backend (ver app/models/votacao.py) - o
+// painel nunca pede nem mostra "quem votou o quê" numa votação secreta.
+// ---------------------------------------------------------------------------
+export type Votacao = {
+  id_votacao: number
+  id_item_pauta: number
+  titulo: string
+  tipo: string
+  escrutinio: string
+  fracao_qualificada: string | null
+  opcoes_validas: string[]
+  status: string
+  quorum_instalacao_minimo: number | null
+  resultado_contagem: Record<string, number> | null
+  resultado_hash: string | null
+  vencedor: string | null
+  aprovado: boolean | null
+  empate: boolean
+}
+
+export type VotacaoAbrirInput = {
+  titulo: string
+  tipo: string
+  escrutinio: string
+  opcoes: string[]
+  fracao_qualificada?: string
+  considerar_abstencao_na_base?: boolean
+}
+
+export function criarVotacao(
+  idItem: number,
+  dados: VotacaoAbrirInput,
+): Promise<Votacao> {
+  return apiFetch(`/api/itens-pauta/${idItem}/votacoes`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarVotacoesDoItem(idItem: number): Promise<Votacao[]> {
+  return apiFetch(`/api/itens-pauta/${idItem}/votacoes`)
+}
+
+export function obterVotacao(idVotacao: number): Promise<Votacao> {
+  return apiFetch(`/api/votacoes/${idVotacao}`)
+}
+
+export function votar(
+  idVotacao: number,
+  opcao: string,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/votacoes/${idVotacao}/votar`, {
+    method: 'POST',
+    body: JSON.stringify({ opcao }),
+  })
+}
+
+export function encerrarVotacao(idVotacao: number): Promise<Votacao> {
+  return apiFetch(`/api/votacoes/${idVotacao}/encerrar`, { method: 'POST' })
+}
+
+export function resolverEmpateVotacao(
+  idVotacao: number,
+  dados: { vencedor: string; justificativa: string },
+): Promise<Votacao> {
+  return apiFetch(`/api/votacoes/${idVotacao}/resolver-empate`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type ImpugnacaoVotacao = {
+  id_impugnacao: number
+  id_associado_impugnante: number
+  motivo: string
+  prazo_recurso_ate: string | null
+  resolvida: boolean
+  resolucao: string | null
+  criado_em: string
+}
+
+export function impugnarVotacao(
+  idVotacao: number,
+  motivo: string,
+): Promise<{
+  mensagem: string
+  id_impugnacao: number
+  prazo_recurso_ate: string | null
+}> {
+  return apiFetch(`/api/votacoes/${idVotacao}/impugnacoes`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo }),
+  })
+}
+
+export function listarImpugnacoes(
+  idVotacao: number,
+): Promise<ImpugnacaoVotacao[]> {
+  return apiFetch(`/api/votacoes/${idVotacao}/impugnacoes`)
+}
+
+export function resolverImpugnacao(
+  idImpugnacao: number,
+  resolucao: string,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/votacoes/impugnacoes/${idImpugnacao}/resolver`, {
+    method: 'POST',
+    body: JSON.stringify({ resolucao }),
+  })
+}

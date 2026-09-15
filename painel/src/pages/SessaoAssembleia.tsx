@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { z } from 'zod'
 
@@ -10,22 +11,38 @@ import {
   abrirVotacaoItem,
   credenciar,
   criarItemPauta,
+  criarVotacao,
   encerrarItemPauta,
+  encerrarVotacao,
+  impugnarVotacao,
   listarAssociados,
   listarCredenciamentos,
+  listarImpugnacoes,
   listarItensPauta,
   listarOcorrencias,
+  listarVotacoesDoItem,
   obterAssembleia,
   obterQuorum,
+  obterVotacao,
   registrarOcorrencia,
   registrarSaidaCredenciamento,
+  resolverEmpateVotacao,
+  resolverImpugnacao,
+  votar,
   type ItemPauta,
+  type Votacao,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
+import { useMe } from '@/lib/use-me'
 import {
   credenciarSchema,
+  impugnacaoCriarSchema,
   itemPautaCriarSchema,
   ocorrenciaCriarSchema,
+  resolverEmpateSchema,
+  resolverImpugnacaoSchema,
+  votacaoAbrirSchema,
+  votoSchema,
 } from '@/lib/schemas'
 
 const CORES_STATUS_ITEM: Record<string, string> = {
@@ -34,6 +51,8 @@ const CORES_STATUS_ITEM: Record<string, string> = {
   'Em votação': 'text-amber-600',
   Encerrado: 'text-green-600',
 }
+
+const OPCOES_RESERVADAS = ['Abstenção', 'Branco']
 
 function BlocoCredenciamento({ idAssembleia }: { idAssembleia: number }) {
   const queryClient = useQueryClient()
@@ -191,6 +210,456 @@ function BlocoCredenciamento({ idAssembleia }: { idAssembleia: number }) {
   )
 }
 
+function BlocoImpugnacoes({ idVotacao }: { idVotacao: number }) {
+  const { data: me } = useMe()
+  const podeGerir = me?.permissoes.includes('governanca') ?? false
+  const queryClient = useQueryClient()
+  const [mostrarForm, setMostrarForm] = useState(false)
+
+  const { data: impugnacoes } = useQuery({
+    queryKey: ['impugnacoes', idVotacao],
+    queryFn: () => listarImpugnacoes(idVotacao),
+    enabled: podeGerir,
+  })
+
+  const impugnar = useMutation({
+    mutationFn: (v: z.infer<typeof impugnacaoCriarSchema>) =>
+      impugnarVotacao(idVotacao, v.motivo),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['impugnacoes', idVotacao] })
+      setMostrarForm(false)
+    },
+  })
+
+  const resolver = useMutation({
+    mutationFn: ({
+      idImpugnacao,
+      resolucao,
+    }: {
+      idImpugnacao: number
+      resolucao: string
+    }) => resolverImpugnacao(idImpugnacao, resolucao),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['impugnacoes', idVotacao] }),
+  })
+
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold">Impugnações</h4>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setMostrarForm((v) => !v)}
+        >
+          {mostrarForm ? 'Cancelar' : 'Impugnar voto'}
+        </Button>
+      </div>
+
+      {mostrarForm && (
+        <FormShell<z.infer<typeof impugnacaoCriarSchema>>
+          schema={impugnacaoCriarSchema}
+          defaultValues={{ motivo: '' }}
+          onSubmit={(v) => impugnar.mutateAsync(v)}
+          className="mt-2 flex flex-wrap items-end gap-2"
+        >
+          {(form) => (
+            <>
+              <div className="min-w-[14rem] flex-1">
+                <input
+                  {...form.register('motivo')}
+                  placeholder="Motivo da impugnação"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                />
+                <ErroCampo mensagem={form.formState.errors.motivo?.message} />
+              </div>
+              <Button type="submit" size="sm" disabled={impugnar.isPending}>
+                {impugnar.isPending ? 'Enviando…' : 'Enviar'}
+              </Button>
+            </>
+          )}
+        </FormShell>
+      )}
+
+      {podeGerir && (
+        <div className="mt-2 space-y-2">
+          {(impugnacoes ?? []).length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma impugnação registrada.
+            </p>
+          )}
+          {(impugnacoes ?? []).map((i) => (
+            <div
+              key={i.id_impugnacao}
+              className="rounded-md border border-border p-2 text-sm"
+            >
+              <p>{i.motivo}</p>
+              <p className="text-xs text-muted-foreground">
+                {formatarData(i.criado_em, { comHora: true })}
+                {i.resolvida ? ` · Resolvida: ${i.resolucao}` : ' · Pendente'}
+              </p>
+              {!i.resolvida && (
+                <FormShell<z.infer<typeof resolverImpugnacaoSchema>>
+                  schema={resolverImpugnacaoSchema}
+                  defaultValues={{ resolucao: '' }}
+                  onSubmit={(v) =>
+                    resolver.mutateAsync({
+                      idImpugnacao: i.id_impugnacao,
+                      resolucao: v.resolucao,
+                    })
+                  }
+                  className="mt-2 flex flex-wrap items-end gap-2"
+                >
+                  {(form) => (
+                    <>
+                      <input
+                        {...form.register('resolucao')}
+                        placeholder="Resolução"
+                        className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm"
+                      />
+                      <Button
+                        type="submit"
+                        size="sm"
+                        variant="outline"
+                        disabled={resolver.isPending}
+                      >
+                        Resolver
+                      </Button>
+                    </>
+                  )}
+                </FormShell>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CardVotacao({ votacaoInicial }: { votacaoInicial: Votacao }) {
+  const { data: me } = useMe()
+  const podeGerir = me?.permissoes.includes('governanca') ?? false
+  const queryClient = useQueryClient()
+
+  const { data: votacao } = useQuery({
+    queryKey: ['votacao', votacaoInicial.id_votacao],
+    queryFn: () => obterVotacao(votacaoInicial.id_votacao),
+    initialData: votacaoInicial,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'Aberta' ? 5000 : false,
+  })
+
+  function invalidar() {
+    queryClient.invalidateQueries({
+      queryKey: ['votacao', votacaoInicial.id_votacao],
+    })
+    queryClient.invalidateQueries({
+      queryKey: ['votacoes-item', votacao.id_item_pauta],
+    })
+  }
+
+  const votarMutation = useMutation({
+    mutationFn: (v: z.infer<typeof votoSchema>) =>
+      votar(votacao.id_votacao, v.opcao),
+    onSuccess: invalidar,
+  })
+  const encerrar = useMutation({
+    mutationFn: () => encerrarVotacao(votacao.id_votacao),
+    onSuccess: invalidar,
+  })
+  const resolverEmpate = useMutation({
+    mutationFn: (v: z.infer<typeof resolverEmpateSchema>) =>
+      resolverEmpateVotacao(votacao.id_votacao, v),
+    onSuccess: invalidar,
+  })
+
+  const todasOpcoes = [...votacao.opcoes_validas, ...OPCOES_RESERVADAS]
+  const aberta = votacao.status === 'Aberta'
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-medium">{votacao.titulo}</p>
+          <p className="text-xs text-muted-foreground">
+            {votacao.tipo} · {votacao.escrutinio}
+            {votacao.fracao_qualificada
+              ? ` (${votacao.fracao_qualificada})`
+              : ''}
+          </p>
+        </div>
+        <span
+          className={`shrink-0 text-sm font-medium ${
+            aberta ? 'text-amber-600' : 'text-green-600'
+          }`}
+        >
+          {votacao.status}
+        </span>
+      </div>
+
+      {aberta ? (
+        <>
+          <FormShell<z.infer<typeof votoSchema>>
+            schema={votoSchema}
+            defaultValues={{ opcao: '' }}
+            onSubmit={(v) => votarMutation.mutateAsync(v)}
+            className="mt-3 flex flex-wrap items-end gap-2"
+          >
+            {(form) => (
+              <>
+                <select
+                  {...form.register('opcao')}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">Escolha sua opção…</option>
+                  {todasOpcoes.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={votarMutation.isPending}
+                >
+                  {votarMutation.isPending ? 'Votando…' : 'Votar'}
+                </Button>
+              </>
+            )}
+          </FormShell>
+          {votarMutation.isError && (
+            <p className="mt-1 text-sm text-destructive">
+              {(votarMutation.error as Error).message}
+            </p>
+          )}
+          {podeGerir && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              disabled={encerrar.isPending}
+              onClick={() => encerrar.mutate()}
+            >
+              {encerrar.isPending ? 'Apurando…' : 'Apurar e encerrar votação'}
+            </Button>
+          )}
+        </>
+      ) : (
+        <div className="mt-3 space-y-1 text-sm">
+          {votacao.resultado_contagem &&
+            Object.entries(votacao.resultado_contagem).map(([opcao, qtd]) => (
+              <div key={opcao} className="flex justify-between">
+                <span>{opcao}</span>
+                <span className="font-medium">{qtd}</span>
+              </div>
+            ))}
+          <p className="pt-1">
+            {votacao.empate ? (
+              <span className="font-medium text-amber-600">
+                Empate — aguardando resolução.
+              </span>
+            ) : (
+              <>
+                Vencedor: <strong>{votacao.vencedor ?? '—'}</strong> ·{' '}
+                {votacao.aprovado ? 'Aprovada' : 'Reprovada'}
+              </>
+            )}
+          </p>
+          {votacao.resultado_hash && (
+            <p className="break-all text-xs text-muted-foreground">
+              Hash de integridade: {votacao.resultado_hash}
+            </p>
+          )}
+        </div>
+      )}
+
+      {votacao.empate && podeGerir && (
+        <FormShell<z.infer<typeof resolverEmpateSchema>>
+          schema={resolverEmpateSchema}
+          defaultValues={{ vencedor: '', justificativa: '' }}
+          onSubmit={(v) => resolverEmpate.mutateAsync(v)}
+          className="mt-3 space-y-2 border-t border-border pt-3"
+        >
+          {(form) => (
+            <>
+              <select
+                {...form.register('vencedor')}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Escolha o vencedor do desempate…</option>
+                {votacao.opcoes_validas.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+              <input
+                {...form.register('justificativa')}
+                placeholder="Justificativa"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              />
+              <ErroCampo
+                mensagem={form.formState.errors.justificativa?.message}
+              />
+              <Button
+                type="submit"
+                size="sm"
+                disabled={resolverEmpate.isPending}
+              >
+                Resolver empate
+              </Button>
+            </>
+          )}
+        </FormShell>
+      )}
+
+      <BlocoImpugnacoes idVotacao={votacao.id_votacao} />
+    </div>
+  )
+}
+
+function BlocoVotacoesDoItem({
+  idItem,
+  podeAbrir,
+}: {
+  idItem: number
+  podeAbrir: boolean
+}) {
+  const queryClient = useQueryClient()
+  const [mostrarForm, setMostrarForm] = useState(false)
+
+  const { data: votacoes } = useQuery({
+    queryKey: ['votacoes-item', idItem],
+    queryFn: () => listarVotacoesDoItem(idItem),
+  })
+
+  const abrir = useMutation({
+    mutationFn: (v: z.infer<typeof votacaoAbrirSchema>) =>
+      criarVotacao(idItem, {
+        ...v,
+        opcoes: v.opcoes
+          .split(',')
+          .map((o) => o.trim())
+          .filter(Boolean),
+        fracao_qualificada: v.fracao_qualificada || undefined,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['votacoes-item', idItem] })
+      setMostrarForm(false)
+    },
+  })
+
+  return (
+    <div className="mt-3 space-y-3 border-t border-border pt-3">
+      {(votacoes ?? []).map((v) => (
+        <CardVotacao key={v.id_votacao} votacaoInicial={v} />
+      ))}
+
+      {podeAbrir && (
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setMostrarForm((v) => !v)}
+          >
+            {mostrarForm ? 'Cancelar' : 'Abrir votação'}
+          </Button>
+          {mostrarForm && (
+            <FormShell<z.infer<typeof votacaoAbrirSchema>>
+              schema={votacaoAbrirSchema}
+              defaultValues={{
+                titulo: '',
+                tipo: 'Aberta/Nominal',
+                escrutinio: 'Maioria simples',
+                opcoes: '',
+                fracao_qualificada: '',
+              }}
+              onSubmit={(v) => abrir.mutateAsync(v)}
+              className="space-y-2 rounded-md border border-border p-3"
+            >
+              {(form) => (
+                <>
+                  <div>
+                    <label className="text-sm font-medium">Título</label>
+                    <input
+                      {...form.register('titulo')}
+                      className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    />
+                    <ErroCampo
+                      mensagem={form.formState.errors.titulo?.message}
+                    />
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-medium">Tipo</label>
+                      <select
+                        {...form.register('tipo')}
+                        className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      >
+                        <option value="Aberta/Nominal">Aberta/Nominal</option>
+                        <option value="Secreta">Secreta</option>
+                        <option value="Aclamação">Aclamação</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Escrutínio</label>
+                      <select
+                        {...form.register('escrutinio')}
+                        className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      >
+                        <option value="Maioria simples">Maioria simples</option>
+                        <option value="Maioria absoluta">
+                          Maioria absoluta
+                        </option>
+                        <option value="Qualificada">Qualificada</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">
+                      Opções (separadas por vírgula)
+                    </label>
+                    <input
+                      {...form.register('opcoes')}
+                      placeholder="Sim, Não"
+                      className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    />
+                    <ErroCampo
+                      mensagem={form.formState.errors.opcoes?.message}
+                    />
+                  </div>
+                  {form.watch('escrutinio') === 'Qualificada' && (
+                    <div>
+                      <label className="text-sm font-medium">
+                        Fração qualificada
+                      </label>
+                      <input
+                        {...form.register('fracao_qualificada')}
+                        placeholder="2/3"
+                        className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      />
+                    </div>
+                  )}
+                  <Button type="submit" size="sm" disabled={abrir.isPending}>
+                    {abrir.isPending ? 'Abrindo…' : 'Abrir votação'}
+                  </Button>
+                  {abrir.isError && (
+                    <p className="text-sm text-destructive">
+                      {(abrir.error as Error).message}
+                    </p>
+                  )}
+                </>
+              )}
+            </FormShell>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 function LinhaItemPauta({
   idAssembleia,
   item,
@@ -262,6 +731,11 @@ function LinhaItemPauta({
           </Button>
         )}
       </div>
+
+      <BlocoVotacoesDoItem
+        idItem={item.id_item}
+        podeAbrir={item.status === 'Em votação'}
+      />
     </div>
   )
 }
@@ -414,7 +888,7 @@ export function SessaoAssembleiaPage() {
     <>
       <PageHeader
         titulo={`Sessão — Assembleia ${assembleia.tipo}`}
-        descricao="Credenciamento, quórum, pauta e ocorrências."
+        descricao="Credenciamento, quórum, pauta, votação e ocorrências."
         trilha={[
           { rotulo: 'Governança', href: '/governanca' },
           {

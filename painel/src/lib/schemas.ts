@@ -149,6 +149,36 @@ export const ocorrenciaCriarSchema = z.object({
   descricao: z.string().min(3, 'Descreva a ocorrência.'),
 })
 
+// Usado por "Abrir votação" (pages/SessaoAssembleia.tsx, v2.5.3) - `opcoes` fica como texto
+// separado por vírgula neste formulário (o campo do backend é uma lista) e é convertido em
+// array só no submit; o nome do campo é o MESMO do backend (`opcoes`) para o mapeamento
+// automático de erro 422 do FormShell funcionar mesmo com essa conversão.
+export const votacaoAbrirSchema = z.object({
+  titulo: z.string().min(2, 'Informe o título da votação.'),
+  tipo: z.enum(['Aberta/Nominal', 'Secreta', 'Aclamação']),
+  escrutinio: z.enum(['Maioria simples', 'Maioria absoluta', 'Qualificada']),
+  opcoes: z.string().min(1, 'Informe as opções separadas por vírgula.'),
+  fracao_qualificada: z.string().optional(),
+  considerar_abstencao_na_base: z.boolean().optional(),
+})
+
+export const votoSchema = z.object({
+  opcao: z.string().min(1, 'Selecione uma opção.'),
+})
+
+export const impugnacaoCriarSchema = z.object({
+  motivo: z.string().min(5, 'Descreva o motivo da impugnação.'),
+})
+
+export const resolverEmpateSchema = z.object({
+  vencedor: z.string().min(1, 'Selecione o vencedor.'),
+  justificativa: z.string().min(5, 'Justifique a resolução do empate.'),
+})
+
+export const resolverImpugnacaoSchema = z.object({
+  resolucao: z.string().min(3, 'Descreva a resolução da impugnação.'),
+})
+
 // v0.2.9 — presente só durante o modo "ver como" (impersonação de papel).
 export const impersonandoSchema = z.object({
   id_nivel: z.number(),

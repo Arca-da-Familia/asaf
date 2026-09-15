@@ -2604,11 +2604,10 @@ testes passando (`pytest tests/`).
       > significado de ordem entre Efetivo/Contribuinte/Fundador.
 
 #### v2.5.2 — Governança: Assembleias e Sessão
-- [ ] Listar/convocar assembleia, petição de convocação, habilitação de associado.
-- [ ] Painel da sessão em andamento: credenciamento, itens de pauta, ocorrências.
+- [x] Listar/convocar assembleia, petição de convocação, habilitação de associado.
+- [x] Painel da sessão em andamento: credenciamento, itens de pauta, ocorrências.
 
-      > **v2.5.2 (2026-09-15) - construído, aguardando confirmação visual (item 10 do
-      > checklist).** Backend (FASE 2, v2.2/v2.3) já tinha tudo isso completo e testado desde
+      > **v2.5.2 (2026-09-15) - confirmado visualmente pelo usuário (item 10 do checklist).** Backend (FASE 2, v2.2/v2.3) já tinha tudo isso completo e testado desde
       > antes desta fase - `/governanca` só nunca tinha ganhado tela. Telas novas:
       > `Assembleias.tsx` (listar), `AssembleiaNova.tsx` (criar rascunho **e** converter petição
       > em assembleia - mesma tela, `?peticao=<id>` troca o endpoint de destino),
@@ -2624,6 +2623,22 @@ testes passando (`pytest tests/`).
 #### v2.5.3 — Governança: Votação
 - [ ] Abrir votação (aberta e secreta), acompanhar quórum e apuração em tempo real.
 - [ ] Impugnação de voto e resolução de empate.
+
+      > **v2.5.3 (2026-09-15) - construído, aguardando confirmação visual (item 10 do
+      > checklist).** Motor de votação (FASE 2, v2.4) já existia completo e testado - votação
+      > secreta de verdade desacoplada (`ComprovanteVotoSecreto`/`RegistroVotoSecreto` sem
+      > coluna em comum, ver `app/models/votacao.py`), hash de integridade no encerramento,
+      > escrutínio (maioria simples/absoluta/qualificada), impugnação e desempate. Tela embutida
+      > dentro de cada item de pauta (`SessaoAssembleia.tsx`, dentro de `LinhaItemPauta`) - votação
+      > pertence a um item, não é uma tela própria. "Apuração em tempo real" **não mostra
+      > contagem parcial enquanto a votação está aberta** - decisão deliberada, não lacuna: o
+      > próprio backend só calcula `resultado_contagem` no encerramento (nunca antes), e mostrar
+      > parcial de voto secreto durante a votação quebraria o próprio sentido do sigilo (efeito
+      > manada). O "tempo real" é o poll de 5s que detecta o encerramento e mostra o resultado
+      > completo (contagem, vencedor, aprovado/reprovado, hash) assim que ele existe, sem precisar
+      > dar F5. Ações restritas (encerrar votação, resolver empate, ver/resolver impugnações) só
+      > aparecem pra quem tem a permissão `governanca` (`useMe().permissoes`) - o backend já
+      > recusava de qualquer forma, isto só evita mostrar um botão que ia dar 403.
 
 #### v2.5.4 — Governança: Atas e Deliberações
 - [ ] Gerar/consultar ata, deliberações vinculadas, certidão de deliberação.
