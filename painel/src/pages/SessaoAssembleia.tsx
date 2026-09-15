@@ -10,6 +10,7 @@ import {
   abrirDiscussaoItem,
   abrirVotacaoItem,
   credenciar,
+  credenciarManual,
   criarItemPauta,
   criarVotacao,
   encerrarItemPauta,
@@ -23,6 +24,7 @@ import {
   listarOcorrencias,
   listarVotacoesDoItem,
   obterAssembleia,
+  obterCodigoChamada,
   obterQuorum,
   obterVotacao,
   registrarOcorrencia,
@@ -55,7 +57,42 @@ const CORES_STATUS_ITEM: Record<string, string> = {
 
 const OPCOES_RESERVADAS = ['Abstenção', 'Branco']
 
-function BlocoCredenciamento({ idAssembleia }: { idAssembleia: number }) {
+function BlocoCodigoChamada({ idAssembleia }: { idAssembleia: number }) {
+  const [mostrar, setMostrar] = useState(false)
+  const { data } = useQuery({
+    queryKey: ['codigo-chamada', idAssembleia],
+    queryFn: () => obterCodigoChamada(idAssembleia),
+    enabled: mostrar,
+  })
+
+  return (
+    <div className="mb-4 rounded-lg border border-border p-4">
+      {mostrar && data ? (
+        <>
+          <p className="text-xs font-medium uppercase text-muted-foreground">
+            Código de chamada — anuncie ou projete na sala
+          </p>
+          <p className="mt-1 text-4xl font-bold tracking-widest">
+            {data.codigo_chamada}
+          </p>
+        </>
+      ) : (
+        <Button variant="outline" size="sm" onClick={() => setMostrar(true)}>
+          Mostrar código de chamada
+        </Button>
+      )}
+    </div>
+  )
+}
+
+function BlocoCredenciamento({
+  idAssembleia,
+  statusAssembleia,
+}: {
+  idAssembleia: number
+  statusAssembleia: string
+}) {
+  const emAndamento = statusAssembleia === 'Em andamento'
   const queryClient = useQueryClient()
   const { data: associados } = useQuery({
     queryKey: ['associados'],
@@ -65,7 +102,7 @@ function BlocoCredenciamento({ idAssembleia }: { idAssembleia: number }) {
     queryKey: ['credenciamentos', idAssembleia],
     queryFn: () => listarCredenciamentos(idAssembleia),
   })
-  // "Chamada" (presença/falta, v2.5.4 - achado do usuário: "onde fica a chamada?"). O
+  // "Chamada" (presença/falta, v2.5.3b - achado do usuário: "onde fica a chamada?"). O
   // credenciamento acima JÁ É a chamada; o que faltava era mostrar quem ainda não foi chamado -
   // habilitados a votar (v2.2, lista congelada na convocação) menos quem já se credenciou.
   const { data: habilitados } = useQuery({
@@ -75,7 +112,7 @@ function BlocoCredenciamento({ idAssembleia }: { idAssembleia: number }) {
   const { data: quorum } = useQuery({
     queryKey: ['quorum', idAssembleia],
     queryFn: () => obterQuorum(idAssembleia),
-    refetchInterval: 5000,
+    refetchInterval: emAndamento ? 5000 : false,
   })
 
   function invalidar() {
@@ -85,9 +122,14 @@ function BlocoCredenciamento({ idAssembleia }: { idAssembleia: number }) {
     queryClient.invalidateQueries({ queryKey: ['quorum', idAssembleia] })
   }
 
+  // Depois de encerrada, o credenciamento comum (`credenciar`) não aceita mais escrita (v2.3) -
+  // a correção do secretário usa `credenciarManual`, endpoint próprio que aceita 'Realizada'
+  // além de 'Em andamento' (achado do usuário: "app pode ter falhado, secretário corrige depois").
   const registrar = useMutation({
-    mutationFn: (v: z.infer<typeof credenciarSchema>) =>
-      credenciar(idAssembleia, v),
+    mutationFn: async (v: z.infer<typeof credenciarSchema>) => {
+      if (emAndamento) await credenciar(idAssembleia, v)
+      else await credenciarManual(idAssembleia, v)
+    },
     onSuccess: invalidar,
   })
   const saida = useMutation({
@@ -111,9 +153,15 @@ function BlocoCredenciamento({ idAssembleia }: { idAssembleia: number }) {
       <h2 className="mb-1 font-semibold">Chamada — credenciamento e quórum</h2>
       <p className="mb-4 text-sm text-muted-foreground">
         A chamada é este credenciamento: cada associado que comparece é marcado
-        presente aqui (QR da carteirinha ou busca manual abaixo). Quem não
-        aparece na lista de presentes está, por omissão, em falta.
+        presente aqui — pela mesa (busca manual abaixo) ou por autochamada do
+        próprio celular, com o código da sessão. Quem não aparece na lista de
+        presentes está, por omissão, em falta (ou falta justificada, se aceita —
+        ver detalhe da assembleia).
+        {!emAndamento &&
+          ' A sessão já foi encerrada: isto aqui é só correção manual.'}
       </p>
+
+      {emAndamento && <BlocoCodigoChamada idAssembleia={idAssembleia} />}
 
       {quorum && (
         <div className="mb-4 grid gap-4 sm:grid-cols-3">
@@ -213,8 +261,10 @@ function BlocoCredenciamento({ idAssembleia }: { idAssembleia: number }) {
                 className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
               >
                 <span>
-                  {c.nome_completo ?? `Associado #${c.id_associado}`} ·{' '}
-                  {c.modalidade} · entrou{' '}
+                  {nomesPorId.get(c.id_associado) ??
+                    c.nome_completo ??
+                    `Associado #${c.id_associado}`}{' '}
+                  · {c.modalidade} · entrou{' '}
                   {formatarData(c.hora_entrada, { comHora: true })}
                 </span>
                 {c.hora_saida ? (
@@ -222,14 +272,16 @@ function BlocoCredenciamento({ idAssembleia }: { idAssembleia: number }) {
                     saiu {formatarData(c.hora_saida, { comHora: true })}
                   </span>
                 ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={saida.isPending}
-                    onClick={() => saida.mutate(c.id_credenciamento)}
-                  >
-                    Registrar saída
-                  </Button>
+                  emAndamento && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={saida.isPending}
+                      onClick={() => saida.mutate(c.id_credenciamento)}
+                    >
+                      Registrar saída
+                    </Button>
+                  )
                 )}
               </div>
             ))}
@@ -971,18 +1023,34 @@ export function SessaoAssembleiaPage() {
         ]}
       />
 
-      {assembleia.status !== 'Em andamento' ? (
-        <p className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-          Esta assembleia está &quot;{assembleia.status}&quot; — a condução da
-          sessão só vale enquanto estiver &quot;Em andamento&quot;.
-        </p>
-      ) : (
+      {assembleia.status === 'Em andamento' && (
         <div className="space-y-6">
-          <BlocoCredenciamento idAssembleia={idAssembleia} />
+          <BlocoCredenciamento
+            idAssembleia={idAssembleia}
+            statusAssembleia={assembleia.status}
+          />
           <BlocoPauta idAssembleia={idAssembleia} />
           <BlocoOcorrencias idAssembleia={idAssembleia} />
         </div>
       )}
+
+      {assembleia.status === 'Realizada' && (
+        // Sessão já encerrada: pauta/votação/ocorrências ficam travadas (regra do backend,
+        // v2.3) - só a correção de presença continua disponível, pro secretário lançar quem
+        // não conseguiu se autochamar por falha do app (achado do usuário 2026-09-15).
+        <BlocoCredenciamento
+          idAssembleia={idAssembleia}
+          statusAssembleia={assembleia.status}
+        />
+      )}
+
+      {assembleia.status !== 'Em andamento' &&
+        assembleia.status !== 'Realizada' && (
+          <p className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+            Esta assembleia está &quot;{assembleia.status}&quot; — a condução da
+            sessão só vale a partir de &quot;Em andamento&quot;.
+          </p>
+        )}
     </>
   )
 }

@@ -49,6 +49,12 @@ class Assembleia(Base):
     id_peticao_origem = Column(Integer, ForeignKey("peticoes_convocacao.id_peticao"), nullable=True)
     edital_texto = Column(Text, nullable=True)
     convocada_em = Column(DateTime, nullable=True)
+    # v2.5.3b (achado do usuário 2026-09-15) - código de chamada, gerado só quando a sessão abre
+    # (app/routers/governanca.py::abrir_sessao). Existe pra provar presença física na sala -
+    # quem conduz anuncia/projeta o código, e só quem está lá consegue se autocredenciar com ele
+    # (ver app/routers/chamada.py). Nunca exposto no serializador de leitura geral da assembleia
+    # (get_current_user) - só num endpoint próprio, restrito a quem tem permissão `governanca`.
+    codigo_chamada = Column(String(10), nullable=True)
     id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
 

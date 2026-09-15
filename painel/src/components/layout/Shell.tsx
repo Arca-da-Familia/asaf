@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   ArrowLeft,
   Bell,
+  CalendarCheck,
   ChevronLeft,
   ChevronRight,
   House,
@@ -249,6 +250,18 @@ export function Shell() {
               >
                 <UserRound className="h-5 w-5 shrink-0" />
                 {!collapsed && <span>{mensagens.navegacao.meuPerfil}</span>}
+              </NavLink>
+
+              {/* v2.5.3b (achado do usuário 2026-09-15) - "cada membro tem a sua ficha de
+                  chamada": fica junto de Meu Perfil (sobre o próprio associado), não dentro do
+                  módulo Governança (que é sobre conduzir a assembleia de todo mundo). */}
+              <NavLink
+                to="/minhas-assembleias"
+                className={navCls}
+                onClick={() => setMobileOpen(false)}
+              >
+                <CalendarCheck className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>Minhas assembleias</span>}
               </NavLink>
             </>
           )}

@@ -2627,6 +2627,54 @@ testes passando (`pytest tests/`).
       > credenciado) com um botão de um clique pra marcar presença - sem endpoint novo, só
       > cruzando `listarHabilitados` com `listarCredenciamentos` no cliente.
 
+#### v2.5.3b — Governança: Chamada avançada (autochamada, justificativa de falta, Minhas Assembleias)
+- [ ] Autochamada: associado bate a própria presença com um código gerado quando a sessão abre.
+- [ ] Justificativa de falta (do edital ao encerramento) - associado propõe, `governanca` decide.
+- [ ] Correção manual de presença pelo secretário, inclusive após a sessão encerrada.
+- [ ] "Minhas Assembleias" (fora do módulo Governança, junto de Meu Perfil) - histórico próprio
+      de presença/falta/justificativa de cada associado.
+
+      > **v2.5.3b (2026-09-15) - construído, aguardando confirmação visual (item 10 do
+      > checklist).** Versão inserida fora da sequência original do plano - achado do usuário ao
+      > revisar v2.5.2 ("onde fica a chamada de presença, e a justificativa de quem não pôde ir?")
+      > pedia mais do que UI: um conceito novo (presença/falta como estado de três valores) que o
+      > backend da FASE 2 nunca teve. Decisões de desenho confirmadas com o usuário antes de
+      > implementar (AskUserQuestion): (1) código único por assembleia, anunciado/projetado na
+      > sala - não um código individual por associado; (2) justificativa aceita do edital
+      > (`Convocada`) até o encerramento da sessão (`Realizada`); (3) presença/falta continua
+      > **calculada na leitura, nunca gravada** - mesmo princípio já usado pro quórum de
+      > instalação (v2.3): Presente = tem `Credenciamento`; Falta justificada = sem credenciamento
+      > mas com `JustificativaFalta` aceita; Falta = sem nenhum dos dois E a assembleia já está
+      > `Realizada`; Pendente = nenhum dos casos acima ainda (sessão ainda rolando).
+      >
+      > **Backend novo** (`app/models/chamada.py`, `app/services/chamada.py`,
+      > `app/routers/chamada.py`, migração `accfd3edfd97`): `Assembleia.codigo_chamada` (gerado em
+      > `abrir_sessao`, 6 dígitos, exposto só a quem tem a permissão `governanca` via
+      > `GET .../codigo-chamada` - nunca no serializador geral, senão qualquer autenticado
+      > descobriria o código sem estar na sala) e a tabela `justificativas_falta_assembleia`.
+      > `POST .../bater-presenca` é o mesmo credenciamento de sempre, resolvido pelo token do
+      > associado em vez de escolhido por quem tem a permissão `governanca`, condicionado ao
+      > código bater. `POST .../credenciamentos/manual` é a correção do secretário - único
+      > caminho que aceita a assembleia já `Realizada` (achado do usuário: "app pode ter falhado").
+      > Justificativa lançada pelo próprio associado nasce `Pendente` (precisa de decisão);
+      > lançada por quem tem `governanca` em nome de outro já nasce `Aceita` (é a mesma autoridade
+      > que decidiria depois). 10 testes novos em `tests/test_chamada.py`, suíte completa (208
+      > testes) verde. Migração validada manualmente (upgrade E downgrade) contra um banco
+      > simulando o schema anterior, já que não há Postgres de desenvolvimento local disponível.
+      >
+      > **Painel**: `BlocoCodigoChamada` e a lista de faltantes com marcação manual (usa
+      > `credenciar` normal se "Em andamento", `credenciarManual` se "Realizada") ficam dentro de
+      > `SessaoAssembleia.tsx`; `BlocoJustificativas` fica em `AssembleiaDetalhe.tsx` (não em
+      > Sessão) porque justificativa vale mesmo antes da sessão abrir; `MinhasAssembleias.tsx` é
+      > tela nova, rota `/minhas-assembleias`, **fora** do módulo Governança - fica no menu global
+      > ao lado de "Meu Perfil" (não atrás da permissão `governanca`), porque é o associado vendo
+      > a própria ficha, não a diretoria conduzindo a assembleia de todo mundo.
+      >
+      > Corrigido de passagem: `listarCredenciamentos` nunca devolveu `nome_completo` (só o
+      > `POST` de criação devolve) - a lista de presentes em `SessaoAssembleia.tsx` desde v2.5.2
+      > estava sempre caindo no fallback "Associado #ID". Resolvido cruzando com
+      > `listarAssociados` no cliente, mesmo padrão já usado pra lista de faltantes.
+
 #### v2.5.3 — Governança: Votação
 - [ ] Abrir votação (aberta e secreta), acompanhar quórum e apuração em tempo real.
 - [ ] Impugnação de voto e resolução de empate.

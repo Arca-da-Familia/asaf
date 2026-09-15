@@ -179,6 +179,33 @@ export const resolverImpugnacaoSchema = z.object({
   resolucao: z.string().min(3, 'Descreva a resolução da impugnação.'),
 })
 
+// Usado por "Bater presença" (pages/MinhasAssembleias.tsx, v2.5.3b) - código anunciado/
+// projetado na sala pelo coordenador (`obterCodigoChamada`).
+export const baterPresencaSchema = z.object({
+  codigo: z.string().min(1, 'Informe o código de chamada.'),
+  modalidade: z.enum(['Presencial', 'Remoto']),
+})
+
+export const credenciamentoManualSchema = z.object({
+  id_associado: z.coerce.number().int({ message: 'Selecione um associado.' }),
+  modalidade: z.enum(['Presencial', 'Remoto']),
+})
+
+export const justificativaCriarSchema = z.object({
+  motivo: z.string().min(5, 'Descreva o motivo da justificativa.'),
+})
+
+// Usado por "Lançar em nome de associado" (pages/AssembleiaDetalhe.tsx, v2.5.3b) - só quem tem
+// a permissão `governanca` chama esse caminho (o backend também exige).
+export const justificativaManualSchema = z.object({
+  motivo: z.string().min(5, 'Descreva o motivo da justificativa.'),
+  id_associado: z.coerce.number().int({ message: 'Selecione um associado.' }),
+})
+
+export const justificativaDecidirSchema = z.object({
+  motivo_decisao: z.string().optional(),
+})
+
 // v0.2.9 — presente só durante o modo "ver como" (impersonação de papel).
 export const impersonandoSchema = z.object({
   id_nivel: z.number(),

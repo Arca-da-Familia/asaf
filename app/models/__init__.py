@@ -43,6 +43,7 @@ from app.models.linha_do_tempo import EventoLinhaDoTempo
 from app.models.estatuto import DocumentoEstatuto, RegraEstatutaria
 from app.models.mandatos import DeclaracaoConflitoInteresse, Mandato
 from app.models.sessao_assembleia import Credenciamento, ItemPauta, OcorrenciaSessao
+from app.models.chamada import JustificativaFalta
 from app.models.ata import Ata, CertidaoDeliberacao, Deliberacao
 from app.models.conselho_fiscal import ParecerPrestacaoContas, QuestionamentoLancamento, RespostaQuestionamento
 from app.models.disciplina import ManifestacaoDiretoria, ProcessoDisciplinar
@@ -96,6 +97,7 @@ __all__ = [
     "Credenciamento",
     "ItemPauta",
     "OcorrenciaSessao",
+    "JustificativaFalta",
     "Votacao",
     "VotoAberto",
     "ComprovanteVotoSecreto",

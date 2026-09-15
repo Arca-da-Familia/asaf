@@ -22,6 +22,7 @@ from app.services.assembleia import (
     calcular_lista_habilitados, fracao_adesao_peticao, gerar_edital, horarios_convocacao,
     peticao_atingiu_quorum, pode_converter_sem_presidente, validar_prazo_convocacao,
 )
+from app.services.chamada import gerar_codigo_chamada
 
 router = APIRouter()
 _permissao_governanca = exigir_permissao("governanca")
@@ -147,6 +148,7 @@ def abrir_sessao(id_assembleia: int, request: Request, db: Session = Depends(get
     if assembleia.status != CONVOCADA:
         raise HTTPException(status_code=400, detail=f"Assembleia está '{assembleia.status}', só se abre sessão a partir de '{CONVOCADA}'.")
     assembleia.status = EM_ANDAMENTO
+    assembleia.codigo_chamada = gerar_codigo_chamada()
     db.commit()
     registrar_auditoria(db, usuario, "assembleias", "SESSAO_ABERTA", id_registro_afetado=assembleia.id_assembleia, ip_origem=request.client.host if request.client else None)
     return _serializar_assembleia(db, assembleia)

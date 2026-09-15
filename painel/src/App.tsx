@@ -22,6 +22,7 @@ import { Home } from '@/pages/Home'
 import { ImportarAssociadosPage } from '@/pages/ImportarAssociados'
 import { Login } from '@/pages/Login'
 import { MfaSetup } from '@/pages/MfaSetup'
+import { MinhasAssembleiasPage } from '@/pages/MinhasAssembleias'
 import { PerfilPage } from '@/pages/Perfil'
 import { PeticoesConvocacaoPage } from '@/pages/PeticoesConvocacao'
 import { SessaoAssembleiaPage } from '@/pages/SessaoAssembleia'
@@ -94,6 +95,14 @@ function App() {
         <Route index element={<Home />} />
         <Route path="/dev/componentes" element={<DevComponents />} />
         <Route path="/perfil" element={<PerfilPage />} />
+        <Route
+          path="/minhas-assembleias"
+          element={
+            <ErrorBoundary tituloModulo="Minhas assembleias">
+              <MinhasAssembleiasPage />
+            </ErrorBoundary>
+          }
+        />
         <Route path="/403" element={<Forbidden />} />
         <Route
           path="/associados"

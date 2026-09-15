@@ -1421,3 +1421,86 @@ export function resolverImpugnacao(
     body: JSON.stringify({ resolucao }),
   })
 }
+
+// ---------------------------------------------------------------------------
+// Chamada (v2.5.3b, achado do usuário 2026-09-15) — autochamada por código da sessão,
+// justificativa de falta e "Minhas Assembleias" (visão do próprio associado, fora do
+// módulo Governança). Presença/falta nunca é um campo próprio: é sempre calculada a partir
+// do credenciamento (v2.3) + justificativa aceita, ver app/services/chamada.py.
+// ---------------------------------------------------------------------------
+export function baterPresenca(
+  idAssembleia: number,
+  dados: { codigo: string; modalidade: string },
+): Promise<{ mensagem: string; id_credenciamento: number }> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/bater-presenca`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function obterCodigoChamada(
+  idAssembleia: number,
+): Promise<{ codigo_chamada: string }> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/codigo-chamada`)
+}
+
+export function credenciarManual(
+  idAssembleia: number,
+  dados: { id_associado: number; modalidade: string },
+): Promise<{ mensagem: string; id_credenciamento: number }> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/credenciamentos/manual`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type JustificativaFalta = {
+  id_justificativa: number
+  id_assembleia: number
+  id_associado: number
+  motivo: string
+  status: string
+  motivo_decisao: string | null
+  decidido_em: string | null
+  criado_em: string
+}
+
+export function criarJustificativa(
+  idAssembleia: number,
+  dados: { motivo: string; id_associado?: number },
+): Promise<JustificativaFalta> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/justificativas`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarJustificativas(
+  idAssembleia: number,
+): Promise<JustificativaFalta[]> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/justificativas`)
+}
+
+export function decidirJustificativa(
+  idJustificativa: number,
+  dados: { aceitar: boolean; motivo_decisao?: string },
+): Promise<JustificativaFalta> {
+  return apiFetch(`/api/justificativas/${idJustificativa}/decidir`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type MinhaAssembleia = {
+  id_assembleia: number
+  tipo: string
+  pauta: string
+  status: string
+  data_hora_convocacao: string
+  status_presenca: string | null
+  justificativa: JustificativaFalta | null
+}
+
+export function listarMinhasAssembleias(): Promise<MinhaAssembleia[]> {
+  return apiFetch('/api/minhas-assembleias')
+}

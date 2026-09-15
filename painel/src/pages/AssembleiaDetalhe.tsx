@@ -1,19 +1,195 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { z } from 'zod'
 
+import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import {
   abrirSessaoAssembleia,
   cancelarAssembleia,
   convocarAssembleia,
+  criarJustificativa,
+  decidirJustificativa,
   encerrarSessaoAssembleia,
+  listarAssociados,
   listarHabilitados,
+  listarJustificativas,
   obterAssembleia,
   obterEditalAssembleia,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
+import { justificativaManualSchema } from '@/lib/schemas'
+
+const CORES_STATUS_JUSTIFICATIVA: Record<string, string> = {
+  Pendente: 'text-amber-600',
+  Aceita: 'text-green-600',
+  Rejeitada: 'text-destructive',
+}
+
+// v2.5.3b (achado do usuário 2026-09-15) - justificativa de falta vale do edital (Convocada) até
+// o fim da sessão (Realizada) - por isso mora aqui, não dentro de Sessão (que só existe com a
+// assembleia "Em andamento"). Lançamento em nome de outro associado (`id_associado` presente)
+// já nasce "Aceita" - é o secretário exercendo a mesma autoridade que teria pra decidir depois.
+function BlocoJustificativas({ idAssembleia }: { idAssembleia: number }) {
+  const queryClient = useQueryClient()
+  const [mostrarForm, setMostrarForm] = useState(false)
+
+  const { data: justificativas } = useQuery({
+    queryKey: ['justificativas', idAssembleia],
+    queryFn: () => listarJustificativas(idAssembleia),
+  })
+  const { data: associados } = useQuery({
+    queryKey: ['associados'],
+    queryFn: listarAssociados,
+  })
+  const nomesPorId = new Map(
+    (associados ?? []).map((a) => [a.id_associado, a.nome_completo]),
+  )
+
+  function invalidar() {
+    queryClient.invalidateQueries({
+      queryKey: ['justificativas', idAssembleia],
+    })
+  }
+
+  const lancar = useMutation({
+    mutationFn: (v: { motivo: string; id_associado: number }) =>
+      criarJustificativa(idAssembleia, v),
+    onSuccess: () => {
+      invalidar()
+      setMostrarForm(false)
+    },
+  })
+  const decidir = useMutation({
+    mutationFn: ({
+      idJustificativa,
+      aceitar,
+    }: {
+      idJustificativa: number
+      aceitar: boolean
+    }) => decidirJustificativa(idJustificativa, { aceitar }),
+    onSuccess: invalidar,
+  })
+
+  return (
+    <section className="mt-6 rounded-xl border border-border bg-card p-6">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="font-semibold">Justificativas de falta</h2>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setMostrarForm((v) => !v)}
+        >
+          {mostrarForm ? 'Cancelar' : 'Lançar em nome de associado'}
+        </Button>
+      </div>
+      <p className="mb-4 text-sm text-muted-foreground">
+        O próprio associado pode enviar a sua em &quot;Minhas Assembleias&quot;.
+        Lançar aqui em nome de outro já registra como aceita (correção do
+        secretário, ex.: app falhou).
+      </p>
+
+      {mostrarForm && (
+        <FormShell<z.infer<typeof justificativaManualSchema>>
+          schema={justificativaManualSchema}
+          defaultValues={{ motivo: '', id_associado: 0 }}
+          onSubmit={(v) => lancar.mutateAsync(v)}
+          className="mb-4 space-y-2 rounded-md border border-border p-3"
+        >
+          {(form) => (
+            <>
+              <select
+                {...form.register('id_associado')}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="0">Selecione o associado…</option>
+                {(associados ?? []).map((a) => (
+                  <option key={a.id_associado} value={a.id_associado}>
+                    {a.nome_completo}
+                  </option>
+                ))}
+              </select>
+              <input
+                {...form.register('motivo')}
+                placeholder="Motivo"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              />
+              <ErroCampo mensagem={form.formState.errors.motivo?.message} />
+              <Button type="submit" size="sm" disabled={lancar.isPending}>
+                {lancar.isPending ? 'Lançando…' : 'Lançar (já aceita)'}
+              </Button>
+              {lancar.isError && (
+                <p className="text-sm text-destructive">
+                  {(lancar.error as Error).message}
+                </p>
+              )}
+            </>
+          )}
+        </FormShell>
+      )}
+
+      <div className="space-y-2">
+        {(justificativas ?? []).map((j) => (
+          <div
+            key={j.id_justificativa}
+            className="rounded-md border border-border p-3 text-sm"
+          >
+            <div className="flex items-center justify-between">
+              <p className="font-medium">
+                {nomesPorId.get(j.id_associado) ??
+                  `Associado #${j.id_associado}`}
+              </p>
+              <span
+                className={
+                  CORES_STATUS_JUSTIFICATIVA[j.status] ?? 'font-medium'
+                }
+              >
+                {j.status}
+              </span>
+            </div>
+            <p className="text-muted-foreground">{j.motivo}</p>
+            {j.status === 'Pendente' && (
+              <div className="mt-2 flex gap-2">
+                <Button
+                  size="sm"
+                  disabled={decidir.isPending}
+                  onClick={() =>
+                    decidir.mutate({
+                      idJustificativa: j.id_justificativa,
+                      aceitar: true,
+                    })
+                  }
+                >
+                  Aceitar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={decidir.isPending}
+                  onClick={() =>
+                    decidir.mutate({
+                      idJustificativa: j.id_justificativa,
+                      aceitar: false,
+                    })
+                  }
+                >
+                  Rejeitar
+                </Button>
+              </div>
+            )}
+          </div>
+        ))}
+        {(justificativas ?? []).length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma justificativa registrada ainda.
+          </p>
+        )}
+      </div>
+    </section>
+  )
+}
 
 // v2.5.2 (FASE 2.5 - Painel) - condução do ciclo de vida da assembleia (Rascunho → Convocada →
 // Em andamento → Realizada/Cancelada, v2.2/v2.3). Cada transição chama exatamente o endpoint que
@@ -133,6 +309,13 @@ export function AssembleiaDetalhePage() {
                 </Button>
               </>
             )}
+            {assembleia.status === 'Realizada' && (
+              <Button asChild variant="outline">
+                <Link to={`/governanca/${idAssembleia}/sessao`}>
+                  Corrigir presença
+                </Link>
+              </Button>
+            )}
           </>
         }
       />
@@ -221,6 +404,11 @@ export function AssembleiaDetalhePage() {
           )}
         </section>
       </div>
+
+      {assembleia.status !== 'Rascunho' &&
+        assembleia.status !== 'Cancelada' && (
+          <BlocoJustificativas idAssembleia={idAssembleia} />
+        )}
     </>
   )
 }
