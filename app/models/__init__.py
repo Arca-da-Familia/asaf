@@ -37,6 +37,7 @@ from app.models.projetos import (
     AlocacaoVoluntario,
 )
 from app.models.linha_do_tempo import EventoLinhaDoTempo
+from app.models.estatuto import DocumentoEstatuto, RegraEstatutaria
 
 __all__ = [
     "perfil_permissao",
@@ -68,4 +69,6 @@ __all__ = [
     "ProjetoEvento",
     "AlocacaoVoluntario",
     "EventoLinhaDoTempo",
+    "DocumentoEstatuto",
+    "RegraEstatutaria",
 ]

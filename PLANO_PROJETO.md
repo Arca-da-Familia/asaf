@@ -1819,17 +1819,32 @@ conseguir fazer uma assembleia válida bem antes de ter todos os refinamentos.
 > quórum ou do voto"). O usuário confirmou que é um estatuto "muito defasado" e pediu foco só no
 > essencial (quórum, prazos, mandato) - refinamento além disso é explicitamente FASE 13, não
 > aqui.
-- [ ] **Decisão de perpetuidade mais importante desta fase**: nenhum número estatutário fica
+- [x] **Decisão de perpetuidade mais importante desta fase**: nenhum número estatutário fica
       escrito em código. Quórum, prazos, mandatos, quem vota, se cabe procuração — tudo vira
       parâmetro em `ConfiguracaoInstitucional`/`RegraEstatutaria` (v0.3.4). A ASAF vai reformar o
       estatuto ao longo de 20 anos; reforma de estatuto não pode virar tarefa de programador.
-- [ ] `RegraEstatutaria` versionada por vigência: cada parâmetro guarda o período em que valeu.
+      > Implementado: `app/models/estatuto.py` (`RegraEstatutaria`), `app/services/estatuto.py`
+      > (`obter_regra_vigente`/`reformar_regra`) e `app/routers/estatuto.py`
+      > (`/api/estatuto/regras/*`, permissão `governanca`). Teste
+      > `tests/test_regras_estatutarias.py::test_mudar_parametro_muda_comportamento_sem_deploy`
+      > prova a decisão: reformar um parâmetro pela API muda `obter_regra_vigente` sem deploy.
+- [x] `RegraEstatutaria` versionada por vigência: cada parâmetro guarda o período em que valeu.
       Uma assembleia de 2027 continua sendo auditável pelas regras de 2027 mesmo depois da reforma
       de 2031 — sem isso, todo histórico de governança fica mentiroso.
-- [ ] Documento do estatuto vigente anexado e versionado, com o número de registro em cartório
+      > Implementado: `reformar_regra` nunca faz UPDATE em `valor` — fecha `vigencia_fim` da
+      > linha vigente e insere uma nova; `obter_regra_vigente(db, parametro, em=<data>)`
+      > reconstitui a regra vigente em qualquer instante do passado. Testado em
+      > `test_reformar_regra_fecha_vigencia_anterior_e_preserva_historico`.
+- [x] Documento do estatuto vigente anexado e versionado, com o número de registro em cartório
       (a eficácia perante terceiros vem do registro, ver v13.4) e link de cada parâmetro ao artigo
       que o originou — quem for auditar entende de onde saiu cada número.
-- [ ] **Seed inicial de `RegraEstatutaria`, com os valores reais do estatuto vigente da ASAF**
+      > Implementado: `DocumentoEstatuto` (migração `e1f2a3b4c5d6`), semeado com o registro real
+      > (Comarca de Parauapebas/PA, Livro A-17/A-18, 23/05/2013) via `seed_regras_estatutarias`;
+      > cada `RegraEstatutaria` carrega `artigo_origem` e `id_documento_estatuto`. Upload de
+      > arquivo do estatuto em si ainda não tem rota dedicada — hoje só `caminho_arquivo` aponta
+      > para `ESTATUTO_ASAF.txt` na raiz do repositório; pendência menor para quando o site
+      > público (FASE 5) precisar servir o documento.
+- [x] **Seed inicial de `RegraEstatutaria`, com os valores reais do estatuto vigente da ASAF**
       (cada um editável depois pela diretoria, sem deploy, se o estatuto for reformado):
       - `QUORUM_1A_CONVOCACAO` = 2/3 dos associados aptos; `QUORUM_2A_CONVOCACAO` = 1/2 + 1
         (meia hora após a 1ª); `QUORUM_3A_CONVOCACAO` = 1/4 (meia hora após a 2ª) - Art. 6º.

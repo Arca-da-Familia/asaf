@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 import os
@@ -239,12 +241,18 @@ def seed_configuracoes_institucionais():
         {"chave": "FUSO_HORARIO", "valor": "America/Sao_Paulo", "tipo": "texto", "categoria": "geral", "descricao": "Fuso horário usado em datas de documento e agendamento."},
         {"chave": "EMAIL_REMETENTE", "valor": "", "tipo": "email", "categoria": "geral", "descricao": "E-mail usado como remetente de notificações do sistema."},
         {"chave": "TEXTO_PADRAO_DOCUMENTO", "valor": "", "tipo": "texto", "categoria": "documentos", "descricao": "Texto padrão (rodapé/aviso legal) incluído nos documentos gerados."},
-        {"chave": "PRAZO_CONVOCACAO_DIAS", "valor": "15", "tipo": "numero", "categoria": "regras", "descricao": "Dias mínimos de antecedência para convocação de assembleia."},
+        {"chave": "PRAZO_CONVOCACAO_DIAS", "valor": "15", "tipo": "numero", "categoria": "regras", "descricao": "Dias mínimos de antecedência para convocação de assembleia (Art. 8º do estatuto - ver ESTATUTO_ASAF.txt)."},
         {"chave": "DIAS_TOLERANCIA_INADIMPLENCIA", "valor": "30", "tipo": "numero", "categoria": "regras", "descricao": "Dias de atraso tolerados antes de marcar associado como inadimplente."},
         {"chave": "TETO_ALCADA_FINANCEIRA", "valor": "1000", "tipo": "numero", "categoria": "regras", "descricao": "Valor máximo (R$) que a Diretoria aprova sem submeter à Assembleia."},
         {"chave": "PRAZO_EXPERIENCIA_DIAS", "valor": "90", "tipo": "numero", "categoria": "regras", "descricao": "Dias de experiência de um novo associado antes de virar Ativo pleno (0 = sem período de experiência)."},
         {"chave": "PRAZO_RETENCAO_DESLIGADO_DIAS", "valor": "1825", "tipo": "numero", "categoria": "regras", "descricao": "Dias após o desligamento antes do dado pessoal sensível ser anonimizado (padrão 5 anos - LGPD; ajustar conforme orientação contábil/jurídica real da associação). Nome, matrícula e todo dado financeiro nunca são apagados."},
         {"chave": "PRAZO_RECADASTRAMENTO_DIAS", "valor": "365", "tipo": "numero", "categoria": "regras", "descricao": "Dias desde a última confirmação de dados cadastrais antes do cadastro ser sinalizado para recadastramento (v1.8)."},
+        # v2.0 - cláusulas pétreas do Art. 33 do estatuto: identidade institucional, não regra
+        # operacional (nunca bloqueiam nenhuma ação do sistema, por isso NÃO entram em
+        # RegraEstatutaria - ver seed_regras_estatutarias e PLANO_PROJETO.md v2.0).
+        {"chave": "DATA_MAGNA", "valor": "10/02", "tipo": "texto", "categoria": "identidade", "descricao": "Data magna da ASAF, aniversário de fundação (Art. 33, I - cláusula pétrea)."},
+        {"chave": "VERSICULOS_BASE", "valor": "II Crônicas 4:9-10", "tipo": "texto", "categoria": "identidade", "descricao": "Versículos-base existencial da ASAF (Art. 33, II - cláusula pétrea)."},
+        {"chave": "ORACAO_OFICIAL", "valor": "O Senhor nos abençoe muitíssimo; Alargue as nossas fronteiras! Que a tua mão esteja conosco, Guarda-nos de todo mal.", "tipo": "texto", "categoria": "identidade", "descricao": "Oração oficial da ASAF (Art. 33, III - cláusula pétrea)."},
     ]
     db = SessaoLocal()
     try:
@@ -254,6 +262,84 @@ def seed_configuracoes_institucionais():
             db.add(ConfiguracaoInstitucional(
                 chave_configuracao=c["chave"], valor_configuracao=c["valor"],
                 tipo=c["tipo"], categoria=c["categoria"], descricao=c["descricao"],
+            ))
+        db.commit()
+    finally:
+        db.close()
+
+
+def seed_regras_estatutarias():
+    """v2.0 (FASE 2) - seed inicial de `RegraEstatutaria` com os valores REAIS do estatuto
+    vigente da ASAF (`ESTATUTO_ASAF.txt`, recebido do usuário em 2026-09-15, registrado em
+    cartório - Comarca de Parauapebas/PA, Livro A-17/A-18, 23/05/2013). Só semeia o parâmetro
+    que ainda não tiver nenhuma linha vigente (nunca sobrescreve reforma feita depois pela
+    diretoria via /api/estatuto/regras/{parametro}) - mesmo raciocínio dos demais seeds.
+    Cláusulas pétreas do Art. 33 (data magna, versículos-base, oração oficial) NÃO entram aqui
+    de propósito: são identidade institucional, não regra operacional - ver
+    seed_configuracoes_institucionais."""
+    from app.models.estatuto import DocumentoEstatuto, RegraEstatutaria  # import local, mesmo motivo dos seeds acima
+
+    db = SessaoLocal()
+    try:
+        documento = db.query(DocumentoEstatuto).filter(DocumentoEstatuto.vigente.is_(True)).first()
+        if documento is None:
+            documento = DocumentoEstatuto(
+                versao="2013",
+                numero_registro_cartorio="Livro A-17/A-18",
+                comarca_registro="Comarca de Parauapebas/PA",
+                data_registro=datetime(2013, 5, 23),
+                caminho_arquivo="ESTATUTO_ASAF.txt",
+                vigente=True,
+            )
+            db.add(documento)
+            db.flush()
+
+        regras_padrao = [
+            {"parametro": "QUORUM_1A_CONVOCACAO", "valor": "2/3", "tipo": "fracao", "artigo_origem": "Art. 6º",
+             "descricao": "Fração dos associados aptos exigida para instalar a Assembleia Geral em primeira convocação."},
+            {"parametro": "QUORUM_2A_CONVOCACAO", "valor": "1/2+1", "tipo": "fracao", "artigo_origem": "Art. 6º",
+             "descricao": "Quórum de instalação em segunda convocação, meia hora após a primeira."},
+            {"parametro": "QUORUM_3A_CONVOCACAO", "valor": "1/4", "tipo": "fracao", "artigo_origem": "Art. 6º",
+             "descricao": "Quórum de instalação em terceira convocação, meia hora após a segunda."},
+            {"parametro": "QUORUM_DELIBERACAO_PADRAO", "valor": "maioria_simples", "tipo": "texto", "artigo_origem": "Art. 6º",
+             "descricao": "Forma de deliberação padrão: maioria simples dos votos dos associados aptos presentes, salvo exceção estatutária (ex.: dissolução, Art. 31)."},
+            {"parametro": "QUORUM_DISSOLUICAO_1A_CONVOCACAO", "valor": "totalidade", "tipo": "texto", "artigo_origem": "Art. 31",
+             "descricao": "Quórum de instalação da assembleia de dissolução em primeira chamada: totalidade dos associados."},
+            {"parametro": "QUORUM_DISSOLUICAO_2A_CONVOCACAO", "valor": "1/3", "tipo": "fracao", "artigo_origem": "Art. 31",
+             "descricao": "Quórum de instalação da assembleia de dissolução em segunda chamada, uma hora após a primeira."},
+            {"parametro": "QUORUM_DISSOLUICAO_APROVACAO", "valor": "2/3", "tipo": "fracao", "artigo_origem": "Art. 31",
+             "descricao": "Fração dos presentes exigida para deliberar a dissolução da ASAF."},
+            {"parametro": "PRAZO_ATENDIMENTO_PEDIDO_CONVOCACAO_DIAS", "valor": "30", "tipo": "numero", "artigo_origem": "Art. 10, Parágrafo Único",
+             "descricao": "Dias que o Presidente tem para convocar assembleia após pedido formal de associado; findo o prazo, os próprios associados podem convocar (efeito automático - v2.2)."},
+            {"parametro": "FRACAO_MINIMA_PETICAO_CONVOCACAO", "valor": "1/5", "tipo": "fracao", "artigo_origem": "Art. 8º / Art. 10",
+             "descricao": "Fração mínima dos associados ativos com direito de convocar Assembleia Geral por petição (bate com o Art. 60 do Código Civil)."},
+            {"parametro": "DURACAO_MANDATO_ANOS", "valor": "4", "tipo": "numero", "artigo_origem": "Art. 25 / Art. 32",
+             "descricao": "Duração, em anos, do mandato eletivo dos órgãos de direção da ASAF."},
+            {"parametro": "LIMITE_MANDATOS_CONSECUTIVOS", "valor": "ilimitado", "tipo": "texto", "artigo_origem": "Art. 32",
+             "descricao": "Limite de reeleições consecutivas - o estatuto real não impõe trava nenhuma (\"podendo qualquer dos seus membros serem conduzidos para mandatos subsequentes\")."},
+            {"parametro": "PROCURACAO_PERMITIDA", "valor": "nao", "tipo": "booleano", "artigo_origem": "Art. 7º",
+             "descricao": "Se procuração/representação de um associado por outro vale para quórum ou voto. Hoje SEMPRE vedada pelo estatuto vigente - parâmetro existe pra quando uma reforma futura mudar isso (v2.2)."},
+            {"parametro": "IDADE_MINIMA_FILIACAO_ANOS", "valor": "18", "tipo": "numero", "artigo_origem": "Art. 12",
+             "descricao": "Idade mínima geral para filiação à ASAF."},
+            {"parametro": "IDADE_MINIMA_FILIACAO_COM_AUTORIZACAO_ANOS", "valor": "16", "tipo": "numero", "artigo_origem": "Art. 12",
+             "descricao": "Idade mínima para filiação com autorização expressa dos pais/responsáveis (abaixo da idade geral)."},
+            {"parametro": "QTD_SOCIOS_PROPONENTES_FILIACAO", "valor": "3", "tipo": "numero", "artigo_origem": "Art. 12, Parágrafo Único, VI",
+             "descricao": "Quantidade de associados que devem propor por escrito o pedido de adesão de um novo sócio."},
+            {"parametro": "QTD_MENSALIDADES_INADIMPLENCIA_EXCLUSAO", "valor": "6", "tipo": "numero", "artigo_origem": "Art. 16, §1º, V",
+             "descricao": "Mensalidades consecutivas em atraso que configuram motivo de abertura de processo disciplinar com possível exclusão (nunca automática - exige processo com ampla defesa, v2.7)."},
+        ]
+
+        for r in regras_padrao:
+            ja_vigente = db.query(RegraEstatutaria).filter(
+                RegraEstatutaria.parametro == r["parametro"], RegraEstatutaria.vigencia_fim.is_(None)
+            ).first()
+            if ja_vigente:
+                continue
+            db.add(RegraEstatutaria(
+                parametro=r["parametro"], valor=r["valor"], tipo=r["tipo"], categoria="regras",
+                descricao=r["descricao"], artigo_origem=r["artigo_origem"],
+                id_documento_estatuto=documento.id_documento_estatuto,
+                vigencia_inicio=documento.data_registro or datetime.utcnow(),
             ))
         db.commit()
     finally:

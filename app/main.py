@@ -4,8 +4,8 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import os
 
-from app.database import preparar_banco, seed_catalogos, seed_niveis_e_permissoes, seed_configuracoes_institucionais
-from app.routers import auth, core, associados, financeiro, governanca, projetos, admin_portal, filiacao, importacao, situacao, voluntariado, qualidade_cadastro
+from app.database import preparar_banco, seed_catalogos, seed_niveis_e_permissoes, seed_configuracoes_institucionais, seed_regras_estatutarias
+from app.routers import auth, core, associados, financeiro, governanca, projetos, admin_portal, filiacao, importacao, situacao, voluntariado, qualidade_cadastro, estatuto
 from app.security import decodificar_access_token_silencioso
 
 # A auditoria de schema (preparar_banco) audita as ~50 tabelas uma a uma a cada start -
@@ -23,6 +23,7 @@ if os.environ.get("RUN_DB_MIGRATION", "true").lower() != "false":
 seed_catalogos()
 seed_niveis_e_permissoes()
 seed_configuracoes_institucionais()
+seed_regras_estatutarias()
 
 os.makedirs("uploads/fotos", exist_ok=True)
 
@@ -83,6 +84,7 @@ app.include_router(importacao.router)
 app.include_router(situacao.router)
 app.include_router(voluntariado.router)
 app.include_router(qualidade_cadastro.router)
+app.include_router(estatuto.router)
 
 @app.get("/", response_class=HTMLResponse, summary="Página Inicial (Landing Page)")
 def ler_pagina_inicial():
