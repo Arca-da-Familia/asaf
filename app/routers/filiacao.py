@@ -139,7 +139,7 @@ def aprovar_proposta(
         ip_origem=request.client.host if request.client else None,
     )
     publicar_evento_linha_do_tempo(
-        db, novo_associado.id_associado, "filiacao", "FILIACAO_APROVADA", "Filiação aprovada",
+        db, novo_associado.id_pessoa, "filiacao", "FILIACAO_APROVADA", "Filiação aprovada",
         descricao=f"Matrícula {novo_associado.numero_matricula} atribuída.",
     )
     return {

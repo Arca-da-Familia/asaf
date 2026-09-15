@@ -64,3 +64,17 @@ def admin_token(client):
 @pytest.fixture()
 def auth_headers(admin_token):
     return {"Authorization": f"Bearer {admin_token}"}
+
+
+@pytest.fixture()
+def db():
+    """Sessão direta pro banco de teste - usada só quando o teste precisa manipular algo que
+    nenhum endpoint HTTP expõe ainda (ex.: v1.6, criar uma Pessoa pura sem nenhum Papel, pra
+    testar voluntário/funcionário que nunca chegou a ser associado)."""
+    from app.database import SessaoLocal
+
+    sessao = SessaoLocal()
+    try:
+        yield sessao
+    finally:
+        sessao.close()

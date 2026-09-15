@@ -1534,20 +1534,73 @@ segundo ponto de revisão no fim.
 > 2 casos: linha do tempo com dado real e estado vazio tratado sem erro) - suíte e2e completa
 > 10/10.
 
-#### v1.6 — Pessoas além do associado: voluntário e empregado (base legal confirmada)
+#### v1.6 — Pessoas além do associado: voluntário e empregado (base legal confirmada) ✅ IMPLEMENTADO (2026-09-15)
 Distinção jurídica real, não só de rótulo: voluntário (Lei 9.608/1998) nunca gera vínculo
 empregatício; empregado CLT tem outro regime inteiro (eSocial, ponto, folha).
-- [ ] `TermoAdesaoVoluntario` (atividade, carga horária, local, vigência) — documento formal
+> **Confirmado com o usuário antes de construir**: a ASAF hoje não tem voluntário, beneficiário
+> nem funcionário reais - só associados. Decisão explícita: construir a infraestrutura mesmo
+> assim, porque o Painel é **unificado por Pessoa**, não por Associado - é exatamente o desenho
+> da v1.0 (Pessoa como raiz, Papel N:N). Não é "fingir pronto" (nenhum dado falso foi criado);
+> é a mesma lógica de construir o motor de categoria calculada antes de existir associado
+> inadimplente de verdade.
+- [x] `TermoAdesaoVoluntario` (atividade, carga horária, local, vigência) — documento formal
       exigido pela Lei 9.608/1998, versionado, assinado pelo motor da FASE 20, renovável, com
       alerta de vencimento. Voluntário sem termo vigente não é alocável em projeto (trava real,
       não aviso).
-- [ ] Registro de horas de voluntariado e certificado gerado a partir dele (motor único da v4.8).
-- [ ] Voluntário menor de idade: exige autorização de responsável anexada, e o sistema trata o
+      > `app/models/voluntariado.py` + `app/services/voluntariado.py::criar_termo_adesao` -
+      > renovação NUNCA edita a linha anterior (cria uma nova, `versao` incrementada, marca a
+      > anterior `ativo=False`) - histórico completo preservado. **"Assinado pelo motor da FASE
+      > 20" não implementado** - mesma pendência já registrada pela v1.2 pro termo de filiação
+      > (`documento_referencia` aqui é só upload comum, sem verificação de assinatura; conectar
+      > quando a FASE 20/v20.2 existir). **"Alerta de vencimento" não implementado** - mesma
+      > limitação já aceita nas v1.1a/v1.2/v1.4 (sem infra de notificação, pendência da v6.2).
+      > **Trava real testada de ponta a ponta**: `POST /projetos/alocar/` (endpoint legado de
+      > FASE 4, ainda prototípico) passou a recusar (403) alocação de associado sem termo
+      > vigente - `tests/test_voluntariado.py::test_alocar_voluntario_sem_termo_vigente_e_recusado`.
+- [x] Registro de horas de voluntariado e certificado gerado a partir dele (motor único da v4.8).
+      > `RegistroHorasVoluntariado`, sempre amarrado a um termo (nunca aceito sem termo vigente
+      > - `POST /api/pessoas/{id}/horas-voluntariado` devolve 400 sem termo). **Certificado não
+      > implementado** - depende do "motor único" da v4.8, que ainda não existe (FASE 4 não
+      > construída); o registro de horas em si já é real e consultável, pronto pra alimentar o
+      > motor quando ele existir.
+- [x] Voluntário menor de idade: exige autorização de responsável anexada, e o sistema trata o
       dado como sensível (FASE 7).
-- [ ] Empregados CLT: folha/ponto/eSocial ficam **fora do escopo** por decisão registrada —
+      > `pessoa_e_menor_de_idade` calcula a idade na `data_inicio` do termo (nunca na data atual
+      > - a menoridade que importa é a de quando o vínculo começou); sem `data_nascimento`
+      > cadastrada, trata como potencialmente menor (mais restritivo, nunca assume maioridade
+      > sem prova). Sem `autorizacao_responsavel_referencia`, a criação do termo é recusada
+      > (422). Testado com pessoa de 15 anos: recusado sem autorização, aceito com.
+- [x] Empregados CLT: folha/ponto/eSocial ficam **fora do escopo** por decisão registrada —
       recomenda-se integrar com sistema de folha especializado. O que fica aqui é só o cadastro da
       pessoa como `funcionario` e o vínculo com centro de custo, para o financeiro enxergar a
       despesa. Confirmar com a diretoria se a ASAF tem empregados antes de qualquer integração.
+      > Confirmado acima. `Funcionario` (cargo + `id_conta_centro_custo` opcional, referenciando
+      > `PlanoDeContas`) - 1:1 por pessoa (recusa cadastro duplicado). Papel `funcionario`
+      > marcado junto, mesmo padrão de todo satélite desde a v1.0.
+>
+> **Achado corrigido nesta versão, antes de virar dívida maior**: `EventoLinhaDoTempo` (v1.5)
+> tinha nascido chaveado por `id_associado` - cobria só quem já era Associado. Voluntário/
+> funcionário são papéis que uma `Pessoa` pode ter SEM nunca ser Associado (o próprio motivo da
+> v1.0 ter criado `Pessoa`/`Papel`). Corrigido para `id_pessoa` (migração `a1b2c3d4e5f6`, com
+> backfill via join em `associados` e verificação de contagem - mesmo rigor de migrações
+> anteriores) antes que mais módulos futuros passassem a depender da chave errada. Efeito
+> colateral bom: a Ficha 360º (v1.5) e a linha do tempo continuam funcionando idênticas para
+> quem já é associado (nenhum teste de v1.5 quebrou), e agora eventos de voluntário/funcionário
+> **já são publicados** de verdade (`app/services/linha_do_tempo.py`) - só não têm endpoint de
+> **visualização** ainda pra uma pessoa que nunca foi associada (a ficha-360 de hoje é
+> associado-only; uma "ficha da pessoa" genérica é a extensão natural, registrada como pendência,
+> não construída agora - fora de escopo desta versão).
+>
+> **Sem tela no painel React**: mesma situação já registrada na v1.5 - não existe módulo
+> "Voluntários"/"Funcionários" no painel (só o backend, testado via API). Fica pendente até um
+> desses módulos ser priorizado.
+>
+> Testado: `pytest tests/` - 91/91 (8 novos em `tests/test_voluntariado.py`: exige autenticação,
+> termo cria papel e aparece vigente, renovação incrementa versão e encerra o anterior, termo
+> vencido não conta como vigente, menor de idade sem/com autorização, horas exigem termo
+> vigente, alocação em projeto sem termo é recusada, cadastro de funcionário cria papel e recusa
+> duplicata). Migrações testadas em cadeia completa (v1.5 → v1.6 id_pessoa → v1.6 tabelas novas)
+> contra um banco sintético "pré-v1.5": upgrade e downgrade de ponta a ponta, sem erro.
 
 #### v1.7 — Relacionamento familiar e núcleo doméstico
 - [ ] `DependenteFamiliar` evoluído para vínculo entre `Pessoa`s (parentesco de catálogo), o que

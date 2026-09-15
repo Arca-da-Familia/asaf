@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from app.database import preparar_banco, seed_catalogos, seed_niveis_e_permissoes, seed_configuracoes_institucionais
-from app.routers import auth, core, associados, financeiro, governanca, projetos, admin_portal, filiacao, importacao, situacao
+from app.routers import auth, core, associados, financeiro, governanca, projetos, admin_portal, filiacao, importacao, situacao, voluntariado
 from app.security import decodificar_access_token_silencioso
 
 # A auditoria de schema (preparar_banco) audita as ~50 tabelas uma a uma a cada start -
@@ -81,6 +81,7 @@ app.include_router(admin_portal.router)
 app.include_router(filiacao.router)
 app.include_router(importacao.router)
 app.include_router(situacao.router)
+app.include_router(voluntariado.router)
 
 @app.get("/", response_class=HTMLResponse, summary="Página Inicial (Landing Page)")
 def ler_pagina_inicial():

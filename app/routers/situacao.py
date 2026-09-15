@@ -70,7 +70,7 @@ def registrar_licenca(
         ip_origem=request.client.host if request.client else None,
     )
     publicar_evento_linha_do_tempo(
-        db, id_associado, "situacao", "LICENCA_REGISTRADA", "Licença registrada",
+        db, associado.id_pessoa, "situacao", "LICENCA_REGISTRADA", "Licença registrada",
         descricao=f"Motivo: {dados.motivo}. Retorno previsto em {dados.data_fim_prevista.isoformat()}.",
         data_evento=data_inicio,
     )
@@ -119,7 +119,7 @@ def desligar_associado(
         ip_origem=request.client.host if request.client else None,
     )
     publicar_evento_linha_do_tempo(
-        db, id_associado, "situacao", "DESLIGAMENTO", "Desligamento registrado",
+        db, associado.id_pessoa, "situacao", "DESLIGAMENTO", "Desligamento registrado",
         descricao=f"Motivo: {dados.motivo}.", data_evento=data_efetiva,
     )
     return {"mensagem": "Desligamento registrado.", "titulos_cancelados": canceladas}
@@ -164,7 +164,7 @@ def readmitir_associado(
         db, usuario, "associados", "READMITIDO", id_registro_afetado=id_associado,
         ip_origem=request.client.host if request.client else None,
     )
-    publicar_evento_linha_do_tempo(db, id_associado, "situacao", "READMISSAO", "Readmitido como associado")
+    publicar_evento_linha_do_tempo(db, associado.id_pessoa, "situacao", "READMISSAO", "Readmitido como associado")
     return {"mensagem": "Associado readmitido.", "status_arrolamento": associado.status_arrolamento}
 
 

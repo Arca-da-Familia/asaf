@@ -59,7 +59,7 @@ def anonimizar_associado(db: Session, associado: Associado, usuario=None, ip_ori
     )
     # Nunca listar OS VALORES apagados aqui também - mesmo cuidado do AuditLog acima.
     publicar_evento_linha_do_tempo(
-        db, associado.id_associado, "situacao", "ANONIMIZADO", "Dado pessoal anonimizado (prazo de retenção vencido)",
+        db, pessoa.id_pessoa, "situacao", "ANONIMIZADO", "Dado pessoal anonimizado (prazo de retenção vencido)",
     )
     return True
 

@@ -11,7 +11,7 @@ from app.models.linha_do_tempo import EventoLinhaDoTempo
 
 def publicar_evento_linha_do_tempo(
     db: Session,
-    id_associado: int,
+    id_pessoa: int,
     modulo_origem: str,
     tipo: str,
     titulo: str,
@@ -19,7 +19,7 @@ def publicar_evento_linha_do_tempo(
     data_evento: Optional[datetime] = None,
 ) -> EventoLinhaDoTempo:
     evento = EventoLinhaDoTempo(
-        id_associado=id_associado,
+        id_pessoa=id_pessoa,
         modulo_origem=modulo_origem,
         tipo=tipo,
         titulo=titulo,

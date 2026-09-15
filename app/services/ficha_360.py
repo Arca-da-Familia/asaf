@@ -42,7 +42,7 @@ def montar_ficha_360(db: Session, associado: Associado) -> dict:
 
     linha_do_tempo = (
         db.query(EventoLinhaDoTempo)
-        .filter(EventoLinhaDoTempo.id_associado == associado.id_associado)
+        .filter(EventoLinhaDoTempo.id_pessoa == associado.id_pessoa)
         .order_by(EventoLinhaDoTempo.data_evento.desc())
         .all()
     )

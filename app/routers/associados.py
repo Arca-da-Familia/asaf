@@ -79,7 +79,8 @@ def listar_cargos(id_associado: int, db: Session = Depends(get_db)):
 
 @router.post("/api/associados/{id_associado}/cargos", summary="Registrar posse em cargo")
 def criar_cargo(id_associado: int, dados: HistoricoCargoCriar, db: Session = Depends(get_db)):
-    if not db.query(Associado).filter(Associado.id_associado == id_associado).first():
+    associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
+    if not associado:
         raise HTTPException(status_code=404, detail="Associado não encontrado.")
     novo = HistoricoCargo(
         id_associado=id_associado, titulo_cargo=dados.titulo_cargo,
@@ -89,7 +90,7 @@ def criar_cargo(id_associado: int, dados: HistoricoCargoCriar, db: Session = Dep
     db.commit()
     db.refresh(novo)
     publicar_evento_linha_do_tempo(
-        db, id_associado, "cargos", "CARGO_INICIADO", f"Assumiu o cargo de {dados.titulo_cargo}",
+        db, associado.id_pessoa, "cargos", "CARGO_INICIADO", f"Assumiu o cargo de {dados.titulo_cargo}",
         data_evento=novo.data_posse,
     )
     return {"mensagem": "Posse registrada.", "id_historico": novo.id_historico}
@@ -100,12 +101,14 @@ def encerrar_cargo(id_historico: int, dados: HistoricoCargoEncerrar, db: Session
     cargo = db.query(HistoricoCargo).filter(HistoricoCargo.id_historico == id_historico).first()
     if not cargo:
         raise HTTPException(status_code=404, detail="Registro de cargo não encontrado.")
+    associado = db.query(Associado).filter(Associado.id_associado == cargo.id_associado).first()
     cargo.data_saida = datetime.combine(dados.data_saida, datetime.min.time())
     db.commit()
-    publicar_evento_linha_do_tempo(
-        db, cargo.id_associado, "cargos", "CARGO_ENCERRADO", f"Deixou o cargo de {cargo.titulo_cargo}",
-        data_evento=cargo.data_saida,
-    )
+    if associado:
+        publicar_evento_linha_do_tempo(
+            db, associado.id_pessoa, "cargos", "CARGO_ENCERRADO", f"Deixou o cargo de {cargo.titulo_cargo}",
+            data_evento=cargo.data_saida,
+        )
     return {"mensagem": "Saída do cargo registrada."}
 
 
