@@ -357,6 +357,14 @@ def seed_regras_estatutarias():
             # não por catálogo inteiro - por isso entra aqui mesmo já existindo produção rodando).
             {"parametro": "INTERVALO_ENTRE_CONVOCACOES_MINUTOS", "valor": "30", "tipo": "numero", "artigo_origem": "Art. 6º",
              "descricao": "Minutos entre a 1ª e a 2ª convocação, e entre a 2ª e a 3ª, dentro da mesma sessão de assembleia."},
+            # v2.4 - SEM base no estatuto (Art. 1º-35 não menciona empate nem impugnação de voto);
+            # necessidade operacional da votação precisar sempre terminar em algum resultado,
+            # não mandato estatutário - por isso sem `artigo_origem` (None), diferente de todo
+            # outro parâmetro desta lista.
+            {"parametro": "REGRA_DESEMPATE", "valor": "NOVA_VOTACAO", "tipo": "texto", "artigo_origem": None,
+             "descricao": "Como resolver empate no resultado de uma votação - sem previsão estatutária. \"NOVA_VOTACAO\" é o único valor que o sistema resolve sozinho hoje; qualquer outro valor fica registrado mas exige resolução manual (POST /api/votacoes/{id}/resolver-empate)."},
+            {"parametro": "PRAZO_RECURSO_IMPUGNACAO_DIAS", "valor": "5", "tipo": "numero", "artigo_origem": None,
+             "descricao": "Dias para recorrer de uma impugnação de voto - sem previsão estatutária específica (apoia-se no direito geral de recurso do Art. 13, V)."},
         ]
 
         for r in regras_padrao:

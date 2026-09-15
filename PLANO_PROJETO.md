@@ -2147,24 +2147,62 @@ portão, não deixou a fase avançar com o problema em aberto. FASE 2 (1/3) libe
       > motor existir (pendência anotada na FASE 20/v20.2, mesmo padrão das demais).
 
 #### v2.4 — Motor de votação
-- [ ] `Votacao` vinculada a um item de pauta, com tipo configurável: aberta/nominal, secreta,
+> **Achado real (2026-09-15)**: diferente de quórum/prazo/mandato (v2.0), `ESTATUTO_ASAF.txt`
+> (Art. 1º-35) **não define empate nem impugnação de voto** - nenhum dos dois termos aparece no
+> texto. `REGRA_DESEMPATE` e `PRAZO_RECURSO_IMPUGNACAO_DIAS` (novos `RegraEstatutaria`) existem
+> sem `artigo_origem` de propósito, documentados como necessidade operacional (uma votação
+> precisa sempre terminar nalgum resultado), não mandato estatutário - diferente de todo outro
+> parâmetro semeado até aqui. "Eleição com chapas/candidatos" também não virou modelo `Chapa`
+> próprio: a `opcao` do voto já aceita livremente o nome/código do candidato informado na
+> abertura da votação, suficiente para eleição simples sem estrutura nova (refinamento de chapa
+> registrada formalmente fica pra FASE 13, se um caso real pedir).
+- [x] `Votacao` vinculada a um item de pauta, com tipo configurável: aberta/nominal, secreta,
       aclamação; e escrutínio: maioria simples, maioria absoluta, qualificado (fração
       configurável, ex. 2/3), ou eleição com chapas/candidatos.
-- [ ] **Quórum de instalação separado do quórum de aprovação**, ambos por item (Art. 59: eleição e
+      > `app/models/votacao.py::Votacao` + `POST /api/itens-pauta/{id}/votacoes`. Eleição com
+      > candidatos coberta por `opcoes_validas` livre (ver nota acima), não por modelo de chapa.
+- [x] **Quórum de instalação separado do quórum de aprovação**, ambos por item (Art. 59: eleição e
       destituição de administrador e reforma do estatuto são competência privativa da assembleia,
       com quórum qualificado definido em estatuto).
-- [ ] Abstenção e voto em branco como categorias próprias de resultado, com regra configurável de
+      > Quórum de INSTALAÇÃO checado na abertura de cada votação (`abrir_votacao` recusa se
+      > `quorum_instalacao_atual`, v2.3, não estiver atingido no momento - snapshot gravado em
+      > `Votacao.quorum_instalacao_minimo`). Quórum de APROVAÇÃO é o `escrutinio` do item
+      > (maioria simples/absoluta/qualificada), sobre os votos válidos - os dois nunca se
+      > confundem: dá pra instalar e não aprovar, mas nunca aprovar sem ter instalado.
+- [x] Abstenção e voto em branco como categorias próprias de resultado, com regra configurável de
       entrarem ou não na base de cálculo — essa é a fonte de metade das contestações reais de
       resultado de assembleia.
-- [ ] **Voto secreto de verdade**: o voto é gravado desacoplado do eleitor (tabela de votos com
+      > `ABSTENCAO`/`BRANCO` sempre disponíveis como opção (não precisam ser declaradas na
+      > abertura); `Votacao.considerar_abstencao_na_base` (bool, por votação) decide se entram no
+      > denominador do escrutínio.
+- [x] **Voto secreto de verdade**: o voto é gravado desacoplado do eleitor (tabela de votos com
       identificador aleatório + tabela separada de "quem já votou"), de forma que nem um
       administrador do sistema consiga reconstruir a associação entre pessoa e voto. Em votação
       aberta/nominal, o vínculo é registrado propositalmente e exibido na ata.
-- [ ] Apuração em tempo real, com resultado congelado e hash SHA-256 do conjunto de votos gerado
+      > `ComprovanteVotoSecreto` ("quem já votou", sem opção) e `RegistroVotoSecreto` (a opção,
+      > com `identificador_aleatorio` em vez de `id_associado`) são tabelas SEM NENHUMA COLUNA EM
+      > COMUM - a garantia é estrutural (não existe join possível, nem por SQL direto), não só
+      > convenção de código. Testado em
+      > `tests/test_votacao.py::test_votacao_secreta_desacoplada_de_verdade`. `VotoAberto` liga
+      > `id_associado` propositalmente para o caso aberto/nominal.
+- [x] Apuração em tempo real, com resultado congelado e hash SHA-256 do conjunto de votos gerado
       no fechamento (base para a ancoragem por carimbo de tempo da v15.1.1).
-- [ ] Empate resolvido pela regra estatutária configurada (voto de minerva do presidente,
+      > `apurar_e_encerrar`/`_hash_resultado` (`app/services/votacao.py`) - hash sobre
+      > `identificador:opcao` (secreta) ou `id_associado:opcao` (aberta) de cada voto, ordenado.
+      > Testado que o hash muda se um voto for alterado depois do fechamento
+      > (`test_hash_do_resultado_muda_se_um_voto_for_alterado_depois`).
+- [x] Empate resolvido pela regra estatutária configurada (voto de minerva do presidente,
       candidato mais antigo, nova votação) — nunca decisão improvisada na hora.
-- [ ] Impugnação de voto e protesto registrados vinculados ao item, com prazo de recurso.
+      > Empate detectado no fechamento (`Votacao.empate=True`, `aprovado=None`, nunca decisão
+      > automática fingida). `REGRA_DESEMPATE` (v2.0, sem base estatutária - ver nota acima)
+      > default "NOVA_VOTACAO"; resolução de fato é sempre manual e justificada
+      > (`POST /api/votacoes/{id}/resolver-empate`, `justificativa` obrigatória, vai pro
+      > `AuditLog`) - o sistema não decide sozinho quem venceu um empate.
+- [x] Impugnação de voto e protesto registrados vinculados ao item, com prazo de recurso.
+      > `Impugnacao` (`app/models/votacao.py`) + `/api/votacoes/{id}/impugnacoes`. Prazo de
+      > recurso via `PRAZO_RECURSO_IMPUGNACAO_DIAS` (v2.0, sem base estatutária específica - se
+      > apoia no direito geral de recurso do Art. 13, V). Resolução exige texto de resolução,
+      > auditada.
 
 #### v2.5 — Ata, deliberações e efeitos
 - [ ] Ata gerada a partir dos dados da sessão (presença, pauta, votos, ocorrências) em modelo

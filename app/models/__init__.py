@@ -41,6 +41,13 @@ from app.models.linha_do_tempo import EventoLinhaDoTempo
 from app.models.estatuto import DocumentoEstatuto, RegraEstatutaria
 from app.models.mandatos import DeclaracaoConflitoInteresse, Mandato
 from app.models.sessao_assembleia import Credenciamento, ItemPauta, OcorrenciaSessao
+from app.models.votacao import (
+    ComprovanteVotoSecreto,
+    Impugnacao,
+    RegistroVotoSecreto,
+    Votacao,
+    VotoAberto,
+)
 
 __all__ = [
     "perfil_permissao",
@@ -80,4 +87,9 @@ __all__ = [
     "Credenciamento",
     "ItemPauta",
     "OcorrenciaSessao",
+    "Votacao",
+    "VotoAberto",
+    "ComprovanteVotoSecreto",
+    "RegistroVotoSecreto",
+    "Impugnacao",
 ]
