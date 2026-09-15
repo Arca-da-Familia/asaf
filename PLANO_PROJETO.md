@@ -2561,24 +2561,35 @@ testes passando (`pytest tests/`).
       > Associados) precisa da própria barra de funções (Listar, Novo, Importar, Gráficos,
       > Configurações), não só abas soltas numa página - decisão que vale pra todo módulo
       > futuro, por isso resolvida agora, com só um módulo real existindo, em vez de refazer a
-      > cada fase nova. `components/layout/ModuleShell.tsx` (novo, genérico): sub-shell com
-      > mini-nav lateral própria + `<Outlet/>`, usado como layout de `/associados/*` no lugar de
-      > rotas soltas direto no `Shell` principal.
+      > cada fase nova. Primeira tentativa: `components/layout/ModuleShell.tsx`, um sub-shell
+      > com mini-nav própria ao lado do conteúdo - **corrigida na v2.5.1d abaixo, no mesmo dia**,
+      > por criar uma segunda coluna de navegação.
+      >
+      > **v2.5.1d (mesmo dia) - correção: uma barra lateral só, nunca duas**: a v2.5.1c criava
+      > duas colunas de navegação lado a lado (a barra global do painel + a mini-nav do
+      > `ModuleShell`) - ruim em qualquer tela, e pior no celular (a maioria de quem usa o
+      > painel não tem notebook), onde viraria uma faixa horizontal rolável comendo espaço em
+      > cima do conteúdo. `ModuleShell.tsx` removido. Corrigido para: a MESMA barra lateral do
+      > painel (`components/layout/Shell.tsx`) fica contextual - fora de um módulo mostra
+      > Início/Meu Perfil; dentro de um módulo com `itens` próprios (`lib/modulos.ts`, campo
+      > `itens?: ItemModulo[]`), troca pro menu daquele módulo + um link "← Início" pra voltar.
+      > Zero coluna nova, zero componente por módulo além de registrar `itens` no manifesto
+      > único que já existia.
       >
       > **Decisão registrada (não construída ainda): onde vivem os catálogos editáveis**
       > (categoria de associado, estado civil, grau de parentesco, tipo de conta contábil
       > etc.). Módulo **transversal próprio** ("Configurações", card na Início, permissão a
       > definir), nunca duplicado dentro de cada módulo de negócio - mesmo catálogo usado por
       > Associados e por outro módulo não pode ter duas telas de edição divergentes. Dentro
-      > dele, a sub-navegação (mesmo padrão do `ModuleShell` acima) agrupa por módulo dono do
-      > catálogo (ex.: "Associados" → categoria/estado civil/grau de parentesco; "Assembleia" →
-      > o que for catálogo de governança) - resolve exatamente o caso que o usuário descreveu
-      > ("quero mexer no catálogo da assembleia, não no de associados"), sem duplicar tela por
-      > módulo. Cada `Catalogo` já tem `editavel_pelo_usuario` (só os marcados assim aparecem
-      > pra edição - catálogo de sistema continua fixo). Fica pendente pra uma próxima versão
-      > desta fase (v2.5.1d ou similar), depois que a Governança também tiver pelo menos um
-      > módulo real pra confirmar que o agrupamento por dono faz sentido na prática, não só na
-      > teoria com um módulo só.
+      > dele, a sub-navegação (mesmo padrão de `itens` por módulo da v2.5.1d) agrupa por módulo
+      > dono do catálogo (ex.: "Associados" → categoria/estado civil/grau de parentesco;
+      > "Assembleia" → o que for catálogo de governança) - resolve exatamente o caso que o
+      > usuário descreveu ("quero mexer no catálogo da assembleia, não no de associados"), sem
+      > duplicar tela por módulo. Cada `Catalogo` já tem `editavel_pelo_usuario` (só os marcados
+      > assim aparecem pra edição - catálogo de sistema continua fixo). Fica pendente pra uma
+      > próxima versão desta fase, depois que a Governança também tiver pelo menos um módulo
+      > real pra confirmar que o agrupamento por dono faz sentido na prática, não só na teoria
+      > com um módulo só.
 
 #### v2.5.2 — Governança: Assembleias e Sessão
 - [ ] Listar/convocar assembleia, petição de convocação, habilitação de associado.

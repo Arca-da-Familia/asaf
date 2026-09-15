@@ -1,18 +1,33 @@
 import type { LucideIcon } from 'lucide-react'
 import {
+  FileUp,
   FolderKanban,
   Landmark,
   ScrollText,
   ShieldCheck,
+  UserPlus,
   Users,
   Wallet,
 } from 'lucide-react'
+
+export type ItemModulo = {
+  rota: string
+  rotulo: string
+  icone: LucideIcon
+  fim?: boolean // NavLink "end" - só a rota exata fica ativa, não qualquer sub-rota
+}
 
 export type Modulo = {
   rota: string
   rotulo: string
   permissao: string
   icone: LucideIcon
+  // v2.5.1d (achado do usuário 2026-09-15) - funções do módulo (Listar, Novo, Gráficos…).
+  // Renderizadas na MESMA barra lateral única do painel (Shell.tsx), nunca numa segunda
+  // barra ao lado do conteúdo - duas colunas de navegação é ruim em qualquer tela e péssimo
+  // no celular, onde a maioria de quem usa o painel está. Módulo sem `itens` (ainda
+  // `<EmConstrucao>`) simplesmente não troca a barra - continua mostrando o menu global.
+  itens?: ItemModulo[]
 }
 
 // Manifesto único dos módulos do painel (v0.2.3). O shell monta o menu filtrando esta lista
@@ -24,6 +39,20 @@ export const modulos: Modulo[] = [
     rotulo: 'Associados',
     permissao: 'associados',
     icone: Users,
+    itens: [
+      {
+        rota: '/associados',
+        rotulo: 'Listar associados',
+        icone: Users,
+        fim: true,
+      },
+      { rota: '/associados/novo', rotulo: 'Novo associado', icone: UserPlus },
+      {
+        rota: '/associados/importar',
+        rotulo: 'Importar em lote',
+        icone: FileUp,
+      },
+    ],
   },
   {
     rota: '/financeiro',

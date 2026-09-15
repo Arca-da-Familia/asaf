@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  ArrowLeft,
   Bell,
   ChevronLeft,
   ChevronRight,
@@ -11,13 +12,14 @@ import {
   Sun,
   UserRound,
 } from 'lucide-react'
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
 import { logout } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 import { useImpersonacao } from '@/lib/impersonacao'
 import { mensagens } from '@/lib/i18n/pt-BR'
+import { modulos } from '@/lib/modulos'
 import { useTheme } from '@/lib/theme'
 import { useMe } from '@/lib/use-me'
 import { useVersaoBuild } from '@/lib/versao'
@@ -80,6 +82,17 @@ export function Shell() {
   const { commitAtual, novaVersaoDisponivel, recarregar } = useVersaoBuild()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const location = useLocation()
+
+  // v2.5.1d (achado do usuário 2026-09-15) - uma barra lateral só, nunca duas: dentro de um
+  // módulo com `itens` próprios (ex.: Associados), a MESMA barra troca pro menu do módulo, em
+  // vez de abrir uma segunda coluna de navegação ao lado do conteúdo (péssimo no celular).
+  const moduloAtivo = modulos.find(
+    (m) =>
+      m.itens &&
+      (location.pathname === m.rota ||
+        location.pathname.startsWith(`${m.rota}/`)),
+  )
 
   const emImpersonacao = !!data?.impersonando
   const alturaTopo = emImpersonacao
@@ -189,24 +202,56 @@ export function Shell() {
         )}
       >
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          <NavLink
-            to="/"
-            end
-            className={navCls}
-            onClick={() => setMobileOpen(false)}
-          >
-            <House className="h-5 w-5 shrink-0" />
-            {!collapsed && <span>{mensagens.navegacao.inicio}</span>}
-          </NavLink>
+          {moduloAtivo ? (
+            <>
+              <Link
+                to="/"
+                onClick={() => setMobileOpen(false)}
+                className="mb-2 flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              >
+                <ArrowLeft className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>{mensagens.navegacao.inicio}</span>}
+              </Link>
+              {!collapsed && (
+                <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {moduloAtivo.rotulo}
+                </p>
+              )}
+              {moduloAtivo.itens?.map((item) => (
+                <NavLink
+                  key={item.rota}
+                  to={item.rota}
+                  end={item.fim}
+                  className={navCls}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <item.icone className="h-5 w-5 shrink-0" />
+                  {!collapsed && <span>{item.rotulo}</span>}
+                </NavLink>
+              ))}
+            </>
+          ) : (
+            <>
+              <NavLink
+                to="/"
+                end
+                className={navCls}
+                onClick={() => setMobileOpen(false)}
+              >
+                <House className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>{mensagens.navegacao.inicio}</span>}
+              </NavLink>
 
-          <NavLink
-            to="/perfil"
-            className={navCls}
-            onClick={() => setMobileOpen(false)}
-          >
-            <UserRound className="h-5 w-5 shrink-0" />
-            {!collapsed && <span>{mensagens.navegacao.meuPerfil}</span>}
-          </NavLink>
+              <NavLink
+                to="/perfil"
+                className={navCls}
+                onClick={() => setMobileOpen(false)}
+              >
+                <UserRound className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>{mensagens.navegacao.meuPerfil}</span>}
+              </NavLink>
+            </>
+          )}
         </nav>
       </aside>
 

@@ -1,9 +1,7 @@
-import { FileUp, UserPlus, Users } from 'lucide-react'
 import { type ReactNode } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 
 import { ErrorBoundary } from '@/components/feedback/ErrorBoundary'
-import { ModuleShell } from '@/components/layout/ModuleShell'
 import { Shell } from '@/components/layout/Shell'
 import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/use-me'
@@ -21,15 +19,6 @@ import { ImportarAssociadosPage } from '@/pages/ImportarAssociados'
 import { Login } from '@/pages/Login'
 import { MfaSetup } from '@/pages/MfaSetup'
 import { PerfilPage } from '@/pages/Perfil'
-
-// v2.5.1c - funções do módulo Associados, mostradas na sub-navegação própria dele
-// (ModuleShell). "Novo associado" e "Importar em lote" ficam sempre visíveis mesmo dentro do
-// detalhe de um associado - são ações do módulo, não da página atual.
-const ITENS_ASSOCIADOS = [
-  { rota: '/associados', rotulo: 'Listar associados', icone: Users, fim: true },
-  { rota: '/associados/novo', rotulo: 'Novo associado', icone: UserPlus },
-  { rota: '/associados/importar', rotulo: 'Importar em lote', icone: FileUp },
-]
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated, isBootstrapping } = useAuth()
@@ -104,7 +93,7 @@ function App() {
           path="/associados"
           element={
             <RequirePermission permission="associados">
-              <ModuleShell titulo="Associados" itens={ITENS_ASSOCIADOS} />
+              <Outlet />
             </RequirePermission>
           }
         >
