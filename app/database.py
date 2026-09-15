@@ -156,6 +156,15 @@ def seed_catalogos():
             ("ISENCAO_DE_MENSALIDADE", "Isenção de Mensalidade"), ("LICENCA_TEMPORARIA", "Licença Temporária"),
             ("DESLIGAMENTO", "Desligamento"),
         ]),
+        # v2.7 (Art. 16, §1º do estatuto) - motivos de abertura de processo disciplinar. Catálogo
+        # editável - a diretoria pode ajustar o rótulo, nunca remover o que o estatuto já lista.
+        "motivo_processo_disciplinar": ("Motivo de processo disciplinar", True, [
+            ("DESIDIA", "Desídia no desempenho das atividades associativas"),
+            ("VIOLACAO_ESTATUTO", "Violação do estatuto social"),
+            ("DIFAMACAO", "Difamação da ASAF, de sócios ou dos órgãos de direção"),
+            ("COMPORTAMENTO_ANTISSOCIAL", "Comportamento antissocial ou quebra das regras de convivência"),
+            ("INADIMPLENCIA_6_MENSALIDADES", "Falta de pagamento de 6 mensalidades consecutivas"),
+        ]),
         "unidade_medida_indicador": ("Unidade de medida de indicador", True, [
             ("UNIDADE", "Unidade"), ("PERCENTUAL", "Percentual"), ("REAL", "Real (R$)"),
             ("QUILOGRAMA", "Quilograma"), ("HORA", "Hora"), ("PESSOA", "Pessoa"),
@@ -365,6 +374,13 @@ def seed_regras_estatutarias():
              "descricao": "Como resolver empate no resultado de uma votação - sem previsão estatutária. \"NOVA_VOTACAO\" é o único valor que o sistema resolve sozinho hoje; qualquer outro valor fica registrado mas exige resolução manual (POST /api/votacoes/{id}/resolver-empate)."},
             {"parametro": "PRAZO_RECURSO_IMPUGNACAO_DIAS", "valor": "5", "tipo": "numero", "artigo_origem": None,
              "descricao": "Dias para recorrer de uma impugnação de voto - sem previsão estatutária específica (apoia-se no direito geral de recurso do Art. 13, V)."},
+            # v2.7 - SEM base no estatuto: Art. 16 exige "ampla defesa e contraditório" mas não
+            # diz quantos dias - confirmado com o usuário em 15, por consistência com o prazo de
+            # convocação de assembleia (Art. 8º), não porque o Art. 16 defina esse número.
+            {"parametro": "PRAZO_DEFESA_DIAS", "valor": "15", "tipo": "numero", "artigo_origem": None,
+             "descricao": "Dias que o associado tem para apresentar defesa após ser notificado de processo disciplinar (Art. 16 exige ampla defesa, mas não define o prazo - decisão operacional confirmada com a diretoria)."},
+            {"parametro": "SUSPENSAO_DISCIPLINAR_PADRAO_DIAS", "valor": "30", "tipo": "numero", "artigo_origem": "Art. 17, II",
+             "descricao": "Duração padrão da pena de suspensão quando o julgamento não especifica outro valor - o estatuto admite de 30 dias a 1 ano (365 dias); 30 é o piso do próprio artigo, usado como padrão menos gravoso."},
         ]
 
         for r in regras_padrao:

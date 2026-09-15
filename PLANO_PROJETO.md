@@ -2278,17 +2278,46 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       > nunca edição, histórico completo preservado mesmo com idas e vindas.
 
 #### v2.7 — Disciplina (condicionada ao estatuto real da ASAF)
-- [ ] Processo administrativo com rito configurável: abertura motivada, notificação do associado
+> **Achado real (2026-09-15)**: diferente do que o rascunho original temia ("estatuto vago"), o
+> `ESTATUTO_ASAF.txt` trata disciplina de forma concreta - Art. 16 (motivos do §1º, ampla defesa)
+> e Art. 17 (as três penas - Advertência/Suspensão/Eliminação -, a escalada automática da 4ª
+> advertência, e quem decide). O único número que o estatuto de fato não define é o prazo de
+> defesa - confirmado com o usuário: 15 dias (`PRAZO_DEFESA_DIAS`, `RegraEstatutaria` sem
+> `artigo_origem`, mesmo padrão do empate/impugnação na v2.4). Também confirmado: processo
+> **aberto** não suspende voto por si só (só a pena efetivamente aplicada); decisão do processo
+> comum é por maioria da Diretoria Executiva (por analogia ao Art. 17, Parágrafo Único).
+- [x] Processo administrativo com rito configurável: abertura motivada, notificação do associado
       com prazo de defesa, instrução, decisão pelo órgão competente, recurso à assembleia.
-- [ ] Ampla defesa e contraditório como travas do fluxo (o sistema não permite decisão antes do
+      > `ProcessoDisciplinar` + `/api/processos-disciplinares/*`. "Recurso à assembleia" não é
+      > opcional - Art. 17, Parágrafo Único torna a homologação da Assembleia **obrigatória**
+      > para eliminação, sempre (`AGUARDANDO_HOMOLOGACAO` → `POST .../homologar`).
+- [x] Ampla defesa e contraditório como travas do fluxo (o sistema não permite decisão antes do
       prazo de defesa correr) — Art. 57 do Código Civil condiciona a exclusão a justa causa
       reconhecida em procedimento que assegure direito de defesa e de recurso, nos termos do
       estatuto.
-- [ ] Efeitos automáticos: suspensão de direito de voto durante o processo se o estatuto previr,
+      > `pode_julgar_agora` (`app/services/disciplina.py`) bloqueia manifestação/decisão até a
+      > defesa ser apresentada OU o prazo esgotar - testado em
+      > `tests/test_disciplina.py::test_nao_pode_decidir_antes_do_prazo_de_defesa_sem_defesa_apresentada`.
+      > Decisão em si é colegiada (maioria da Diretoria Executiva, quórum calculado sobre
+      > mandatos vigentes em `DIRETORIA_EXECUTIVA` - v2.1), e o acusado nunca vota no próprio
+      > processo mesmo sendo diretor.
+- [x] Efeitos automáticos: suspensão de direito de voto durante o processo se o estatuto previr,
       com reversão automática no arquivamento.
-- [ ] Confidencialidade: processo disciplinar visível só para o órgão julgador e para o próprio
+      > **Decisão do usuário tornou este efeito inaplicável de propósito**: processo aberto não
+      > suspende voto (o estatuto só liga perda de direito à PENA efetivamente aplicada, Art.
+      > 17), então não há "durante o processo" a reverter. O que existe: pena de Suspensão
+      > materializa `status_arrolamento="Suspenso (Estatuto)"` de verdade. Reversão automática ao
+      > fim do prazo **não implementada** - mesma limitação já aceita desde a v1.1/v1.4
+      > (`calcular_categoria` nunca sobrescreve Suspenso, documentado como decisão, não lacuna
+      > esquecida); a 4ª advertência escala para Suspensão automaticamente, isso sim (Art. 17, I).
+- [x] Confidencialidade: processo disciplinar visível só para o órgão julgador e para o próprio
       interessado — nunca para a diretoria inteira por padrão.
-- [ ] **A confirmar com o estatuto real da ASAF** antes da implementação (ver seção 8).
+      > `GET /api/processos-disciplinares/{id}` devolve **404** (não 403 - não revela nem que o
+      > processo existe) pra quem não é o acusado nem tem permissão `governanca`. Testado em
+      > `tests/test_disciplina.py::test_confidencialidade_processo_visivel_so_para_acusado_e_orgao_julgador`.
+- [x] **A confirmar com o estatuto real da ASAF** antes da implementação (ver seção 8).
+      > Confirmado via `ESTATUTO_ASAF.txt` (Art. 16/17) + 3 perguntas ao usuário sobre os números
+      > que o estatuto não define (prazo de defesa, voto durante processo, quórum decisório).
 
 #### v2.8 — Destinação patrimonial em caso de dissolução (Art. 61 do Código Civil)
 - [ ] Campo estatutário formal: entidade de fins não econômicos designada para receber o
@@ -2307,6 +2336,7 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 ##### 🔍 Ponto de Revisão — FASE 2 (3/3 — fim, fecha v2.6–v2.9)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 - Processo disciplinar (v2.7) bloqueia decisão antes do prazo de defesa correr — testar tentativa de decisão prematura.
+  > ✅ (2026-09-15) `tests/test_disciplina.py::test_nao_pode_decidir_antes_do_prazo_de_defesa_sem_defesa_apresentada`.
 - Calendário institucional (v2.9) gera alerta antes do vencimento real de uma obrigação de governança, não só na data.
 
 ### FASE 3 — Financeiro

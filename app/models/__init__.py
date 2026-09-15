@@ -43,6 +43,7 @@ from app.models.mandatos import DeclaracaoConflitoInteresse, Mandato
 from app.models.sessao_assembleia import Credenciamento, ItemPauta, OcorrenciaSessao
 from app.models.ata import Ata, CertidaoDeliberacao, Deliberacao
 from app.models.conselho_fiscal import ParecerPrestacaoContas, QuestionamentoLancamento, RespostaQuestionamento
+from app.models.disciplina import ManifestacaoDiretoria, ProcessoDisciplinar
 from app.models.votacao import (
     ComprovanteVotoSecreto,
     Impugnacao,
@@ -100,4 +101,6 @@ __all__ = [
     "ParecerPrestacaoContas",
     "QuestionamentoLancamento",
     "RespostaQuestionamento",
+    "ProcessoDisciplinar",
+    "ManifestacaoDiretoria",
 ]

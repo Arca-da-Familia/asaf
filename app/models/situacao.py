@@ -10,6 +10,9 @@ from app.database import Base
 LICENCA = "licenca"
 DESLIGAMENTO = "desligamento"
 READMISSAO = "readmissao"
+# v2.7 - efeitos de pena disciplinar (Art. 17) registrados na mesma linha do tempo de situação.
+ADVERTENCIA_DISCIPLINAR = "advertencia_disciplinar"
+SUSPENSAO_DISCIPLINAR = "suspensao_disciplinar"
 
 
 class MudancaSituacao(Base):
