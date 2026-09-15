@@ -38,6 +38,7 @@ from app.models.projetos import (
 )
 from app.models.linha_do_tempo import EventoLinhaDoTempo
 from app.models.estatuto import DocumentoEstatuto, RegraEstatutaria
+from app.models.mandatos import DeclaracaoConflitoInteresse, Mandato
 
 __all__ = [
     "perfil_permissao",
@@ -71,4 +72,6 @@ __all__ = [
     "EventoLinhaDoTempo",
     "DocumentoEstatuto",
     "RegraEstatutaria",
+    "Mandato",
+    "DeclaracaoConflitoInteresse",
 ]

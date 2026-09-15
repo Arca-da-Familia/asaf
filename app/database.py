@@ -69,8 +69,14 @@ def seed_catalogos():
     PLANO_PROJETO.md v0.3.2)."""
     from app.models.core import Catalogo, OpcaoCatalogo  # import local, mesmo motivo do seed acima
     catalogos_padrao = {
+        # v2.1 - vantagem especial por categoria (Art. 55 do Código Civil) guardada em
+        # `metadados["vantagens"]`, texto livre - reaproveita o campo genérico da OpcaoCatalogo
+        # (v0.3.1) em vez de coluna nova. Editável via PUT /api/opcoes-catalogo/{id}, mesmo em
+        # catálogo de sistema (só criar/apagar código é que é bloqueado, não editar metadados).
         "categoria_associado": ("Categoria do associado", False, [
-            ("EFETIVO", "Efetivo"), ("CONTRIBUINTE", "Contribuinte"), ("FUNDADOR", "Fundador"),
+            ("EFETIVO", "Efetivo", {"vantagens": "Direito a voto e a ser votado; acesso pleno aos benefícios e projetos da ASAF."}),
+            ("CONTRIBUINTE", "Contribuinte", {"vantagens": "Apoia financeiramente sem os direitos políticos de associado efetivo (ajustável pela diretoria)."}),
+            ("FUNDADOR", "Fundador", {"vantagens": "Mesmos direitos do associado efetivo, com reconhecimento histórico de fundador da ASAF."}),
         ]),
         "status_arrolamento": ("Situação de arrolamento", False, [
             ("ATIVO_EM_DIA", "Ativo - Em Dia"), ("ATIVO_INADIMPLENTE", "Ativo - Inadimplente"),
@@ -96,11 +102,25 @@ def seed_catalogos():
             ("PIX", "Pix"), ("DINHEIRO", "Dinheiro"), ("CARTAO", "Cartão"),
             ("TRANSFERENCIA_BANCARIA", "Transferência Bancária"), ("BOLETO", "Boleto"),
         ]),
+        # v2.1 - `metadados["permissoes"]` é a lista de códigos de PermissaoSistema que o cargo
+        # concede automaticamente enquanto o mandato estiver vigente (ver app/services/mandatos.py
+        # e app/security.py::usuario_tem_permissao) - semente de partida plausível por
+        # competência do Art. 20/21 do estatuto, ajustável pela diretoria sem deploy.
         "titulo_cargo": ("Título de cargo", True, [
-            ("PRESIDENTE", "Presidente"), ("VICE_PRESIDENTE", "Vice-Presidente"), ("TESOUREIRO", "Tesoureiro"),
-            ("VICE_TESOUREIRO", "Vice-Tesoureiro"), ("SECRETARIO", "Secretário"), ("VICE_SECRETARIO", "Vice-Secretário"),
-            ("CONSELHO_FISCAL", "Conselho Fiscal"), ("DIRETOR_DE_PATRIMONIO", "Diretor de Patrimônio"),
-            ("DIRETOR_SOCIAL", "Diretor Social"),
+            ("PRESIDENTE", "Presidente", {"permissoes": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria"]}),
+            ("VICE_PRESIDENTE", "Vice-Presidente", {"permissoes": ["associados", "governanca"]}),
+            ("TESOUREIRO", "Tesoureiro", {"permissoes": ["financeiro"]}),
+            ("VICE_TESOUREIRO", "Vice-Tesoureiro", {"permissoes": ["financeiro"]}),
+            ("SECRETARIO", "Secretário", {"permissoes": ["associados", "governanca"]}),
+            ("VICE_SECRETARIO", "Vice-Secretário", {"permissoes": ["associados"]}),
+            ("CONSELHO_FISCAL", "Conselho Fiscal", {"permissoes": ["financeiro", "auditoria"]}),
+            ("DIRETOR_DE_PATRIMONIO", "Diretor de Patrimônio", {}),
+            ("DIRETOR_SOCIAL", "Diretor Social", {"permissoes": ["projetos"]}),
+        ]),
+        # v2.1 (Art. 18 do estatuto) - órgãos de direção da ASAF: Diretoria Executiva e Conselho
+        # Fiscal. Catálogo editável - a ASAF pode criar um Conselho Deliberativo sem deploy.
+        "orgao_direcao": ("Órgão de direção", True, [
+            ("DIRETORIA_EXECUTIVA", "Diretoria Executiva", {}), ("CONSELHO_FISCAL", "Conselho Fiscal", {}),
         ]),
         # ---- v0.3.2: catálogos novos, sem equivalente em opcoes_lista (v0.1/v0.2) ----
         "tipo_documento": ("Tipo de documento", True, [
@@ -149,8 +169,13 @@ def seed_catalogos():
             catalogo = Catalogo(chave=chave, nome_exibido=nome_exibido, editavel_pelo_usuario=editavel_pelo_usuario)
             db.add(catalogo)
             db.flush()
-            for i, (codigo, rotulo) in enumerate(opcoes):
-                db.add(OpcaoCatalogo(id_catalogo=catalogo.id_catalogo, codigo=codigo, rotulo=rotulo, ordem=i))
+            for i, opcao in enumerate(opcoes):
+                codigo, rotulo, *resto = opcao
+                metadados = resto[0] if resto else None
+                db.add(OpcaoCatalogo(
+                    id_catalogo=catalogo.id_catalogo, codigo=codigo, rotulo=rotulo, ordem=i,
+                    metadados=metadados or None,
+                ))
         db.commit()
     finally:
         db.close()

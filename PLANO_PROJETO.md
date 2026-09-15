@@ -1896,26 +1896,60 @@ conseguir fazer uma assembleia válida bem antes de ter todos os refinamentos.
         nenhuma ação do sistema.
 
 #### v2.1 — Diretoria, Conselho Fiscal e mandatos
-- [ ] Cadastro de órgãos (Diretoria Executiva, Conselho Fiscal, Conselho Deliberativo se houver) e
+- [x] Cadastro de órgãos (Diretoria Executiva, Conselho Fiscal, Conselho Deliberativo se houver) e
       de cargos dentro de cada órgão, tudo por catálogo (v0.3) — a ASAF pode criar um conselho
       novo sem deploy.
-- [ ] `Mandato` (pessoa, cargo, órgão, início, fim previsto, fim efetivo, ato que originou —
+      > Implementado com o motor de catálogo já existente (v0.3.1), sem tabela nova: catálogo
+      > `orgao_direcao` (Art. 18 - Diretoria Executiva/Conselho Fiscal) novo, e `titulo_cargo`
+      > (já existia) reaproveitado para os cargos. Ambos `editavel_pelo_usuario=True`.
+- [x] `Mandato` (pessoa, cargo, órgão, início, fim previsto, fim efetivo, ato que originou —
       assembleia/eleição de referência) — vencimento **calculado na leitura**, nunca job/cron que
       pode falhar em silêncio.
-- [ ] Vacância e substituição: renúncia, destituição (Art. 59, parágrafo único — exige assembleia
+      > `app/models/mandatos.py::Mandato` + `POST/GET /api/mandatos/`. `Mandato.vigente()` nunca
+      > lê um campo "status" gravado - compara `data_inicio`/`data_fim_previsto`/`data_fim_efetivo`
+      > contra o agora, sempre na leitura.
+- [x] Vacância e substituição: renúncia, destituição (Art. 59, parágrafo único — exige assembleia
       especialmente convocada), impedimento temporário, com sucessão automática conforme a regra
       estatutária configurada.
-- [ ] **Cargo dá permissão, automaticamente**: assumir "Tesoureiro" concede o conjunto de
+      > `POST /api/mandatos/{id}/encerrar` (motivo: Renúncia/Destituição/Impedimento temporário).
+      > "Sucessão automática" não virou reatribuição automática de cargo de propósito: o próprio
+      > Art. 26 do estatuto diz que, sem substituto imediato, quem recompõe o órgão é a Assembleia
+      > Geral Extraordinária - o endpoint detecta a vaga sem substituto vigente e registra a
+      > pendência (`vaga_aberta`/`AuditLog` "VACANCIA_SEM_SUBSTITUTO"), sem convocar sozinho
+      > (convocação de assembleia é v2.2, ainda não construída).
+- [x] **Cargo dá permissão, automaticamente**: assumir "Tesoureiro" concede o conjunto de
       permissões do cargo enquanto o mandato estiver vigente, e as revoga na data de término, sem
       intervenção manual. Esse é o ponto que evita o problema clássico de ex-diretor com acesso
       eterno. Toda concessão/revogação vai para `AuditLog`.
-- [ ] Alerta automático de mandato vencendo (90/30/7 dias) para a diretoria e para a secretaria.
-- [ ] Segregação de funções prevista desde aqui (quem lança financeiro não é quem aprova) —
+      > `app.security.usuario_tem_permissao` soma, em tempo real, as permissões do nível de
+      > acesso com `metadados["permissoes"]` do cargo (catálogo `titulo_cargo`) de todo mandato
+      > vigente (`app/services/mandatos.py`) - nunca um campo gravado que alguém precisa lembrar
+      > de atualizar, mesmo princípio de vencimento na leitura. A decisão humana que concede
+      > (criar mandato) ou revoga antecipadamente (encerrar mandato) vai para `AuditLog`; o
+      > vencimento natural não gera evento (não há cron) - testado em
+      > `tests/test_mandatos.py::test_cargo_concede_permissao_automaticamente_e_revoga_ao_encerrar`.
+- [x] Alerta automático de mandato vencendo (90/30/7 dias) para a diretoria e para a secretaria.
+      > `GET /api/mandatos/vencendo?dias=90` - computado sob demanda na leitura, nunca job/cron.
+- [x] Segregação de funções prevista desde aqui (quem lança financeiro não é quem aprova) —
       princípio confirmado por pesquisa de mercado como proteção nº 1 contra fraude em associações.
-- [ ] Categorias de associado com vantagens especiais (Art. 55 do Código Civil admite
+      > Nenhum fluxo de aprovação financeira existe ainda (FASE 3) para segregar - "previsto desde
+      > aqui" quer dizer que a modelagem não impede: cada cargo já concede permissões específicas e
+      > independentes (`TESOUREIRO`→`financeiro`, `CONSELHO_FISCAL`→`financeiro`+`auditoria`), e
+      > `metadados` do cargo pode carregar uma futura distinção lança/aprova sem migração nova.
+      > Pendência de consumo real registrada para a FASE 3, mesmo padrão de outras pendências
+      > deste plano (ex.: v1.2 → FASE 2).
+- [x] Categorias de associado com vantagens especiais (Art. 55 do Código Civil admite
       expressamente) — catálogo configurável, nunca hardcoded.
-- [ ] Declaração de conflito de interesse por dirigente (parente em fornecedor, interesse em
+      > Reaproveita `OpcaoCatalogo.metadados["vantagens"]` (texto livre) no catálogo
+      > `categoria_associado` já existente - editável via `PUT /api/opcoes-catalogo/{id}` mesmo
+      > sendo catálogo de sistema (só criar/apagar código é bloqueado, não editar metadados).
+      > Sem tabela nova; migração `f2a3b4c5d6e7` popula o valor inicial em produção.
+- [x] Declaração de conflito de interesse por dirigente (parente em fornecedor, interesse em
       contrato), consultada automaticamente pelo fluxo de aprovação financeira da FASE 3.
+      > `app/models/mandatos.py::DeclaracaoConflitoInteresse` + `/api/mandatos/conflitos-interesse`.
+      > "Consultada automaticamente" depende do fluxo de aprovação financeira, que é FASE 3 e
+      > ainda não existe - por ora só o registro e a consulta manual/via API, pendência registrada
+      > para quando a FASE 3 tiver um fluxo de aprovação para consultar.
 
 #### v2.2 — Assembleias: convocação e habilitação
 - [ ] `Assembleia` (tipo: ordinária/extraordinária, data/hora das convocações, local físico e/ou

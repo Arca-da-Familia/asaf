@@ -397,18 +397,32 @@ def nivel_efetivo_id(usuario: Usuario) -> Optional[int]:
 
 def usuario_tem_permissao(db: Session, usuario: Usuario, codigo_permissao: str) -> bool:
     id_nivel = nivel_efetivo_id(usuario)
-    if id_nivel is None:
-        return False
-    existe = (
-        db.query(PermissaoSistema)
-        .join(perfil_permissao, perfil_permissao.c.id_permissao == PermissaoSistema.id_permissao)
-        .filter(
-            perfil_permissao.c.id_nivel == id_nivel,
-            PermissaoSistema.codigo_permissao == codigo_permissao,
+    if id_nivel is not None:
+        existe = (
+            db.query(PermissaoSistema)
+            .join(perfil_permissao, perfil_permissao.c.id_permissao == PermissaoSistema.id_permissao)
+            .filter(
+                perfil_permissao.c.id_nivel == id_nivel,
+                PermissaoSistema.codigo_permissao == codigo_permissao,
+            )
+            .first()
         )
-        .first()
-    )
-    return existe is not None
+        if existe is not None:
+            return True
+
+    # v2.1 - cargo em mandato vigente concede permissão automaticamente, além do nível de acesso
+    # (ver app.services.mandatos.permissoes_por_mandatos_vigentes). Nunca em modo impersonação
+    # ("ver como") - a checagem ali é só do nível impersonado, não das permissões extras do
+    # usuário real por trás da sessão (senão o modo "ver como" vazaria acesso a mais).
+    if getattr(usuario, "id_nivel_impersonado", None):
+        return False
+    from app.models.associados import Associado
+    from app.services.mandatos import permissoes_por_mandatos_vigentes
+
+    associado = db.query(Associado).filter(Associado.id_usuario == usuario.id_usuario).first()
+    if associado is None:
+        return False
+    return codigo_permissao in permissoes_por_mandatos_vigentes(db, associado.id_associado)
 
 
 def exigir_permissao(codigo_permissao: str):
