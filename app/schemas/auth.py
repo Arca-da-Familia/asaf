@@ -32,6 +32,9 @@ class TokenResponse(BaseModel):
     expires_in_minutos: int
     requer_mfa: bool = False
     login_temp_token: Optional[str] = None
+    # v3.0 (achado 2026-09-15) - True quando a senha ativa foi definida por outra pessoa
+    # (secretaria concedendo acesso), nunca pelo titular - front-end deve forçar troca de senha.
+    senha_provisoria: bool = False
 
 
 class RefreshRequest(BaseModel):

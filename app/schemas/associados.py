@@ -137,3 +137,11 @@ class HistoricoCargoCriar(BaseModel):
 
 class HistoricoCargoEncerrar(BaseModel):
     data_saida: date
+
+class ConcederAcessoCriar(BaseModel):
+    """v3.0 (achado 2026-09-15) - fecha o buraco de cadastrar ficha sem nunca dar login: a
+    secretaria concede acesso definindo uma senha provisória, que o associado troca no primeiro
+    login (`Usuario.senha_provisoria`, checado em `POST /auth/login`)."""
+    email: EmailStr
+    senha_provisoria: str
+    id_nivel: Optional[int] = None

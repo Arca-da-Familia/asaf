@@ -161,6 +161,11 @@ class Usuario(Base):
     # v0.1 - MFA (TOTP), obrigatório só para níveis administrativos/financeiros (ver plano v0.1.4)
     mfa_secret = Column(String, nullable=True)
     mfa_ativado = Column(Boolean, default=False)
+    # v3.0 (achado 2026-09-15) - True quando a senha foi definida por outra pessoa (secretaria
+    # concedendo acesso a um associado, `POST /api/associados/{id}/conceder-acesso`), nunca pelo
+    # próprio titular. `POST /auth/login` devolve essa flag pro front-end forçar troca no
+    # primeiro acesso - zerada em `POST /auth/senha/alterar`.
+    senha_provisoria = Column(Boolean, default=False)
 
 class TokenAcesso(Base):
     __tablename__ = "tokens_acesso"

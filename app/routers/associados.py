@@ -13,20 +13,21 @@ from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.utils import esc, iniciais, avatar_html
 from app.models.associados import Associado, Endereco, DependenteFamiliar, DocumentoAnexo, HistoricoCargo
-from app.models.core import Usuario
+from app.models.core import NivelAcesso, Usuario
 from app.models.pessoas import Papel, Pessoa
 from app.models.financeiro import TituloFinanceiro
 from app.schemas.associados import (
     AssociadoMasterCriar,
     AssociadoAdminUpdate,
     AssociadoPerfilUpdate,
+    ConcederAcessoCriar,
     DependenteAtualizar,
     DependenteCriar,
     DependentePessoaCriar,
     HistoricoCargoCriar,
     HistoricoCargoEncerrar,
 )
-from app.security import criar_token_carteirinha, decodificar_token_carteirinha, exigir_permissao, get_current_user_opcional, usuario_tem_permissao
+from app.security import criar_token_carteirinha, decodificar_token_carteirinha, exigir_permissao, get_current_user_opcional, hash_senha, usuario_tem_permissao, validar_senha_forte
 from app.services.categoria_associado import calcular_categoria
 from app.services.catalogos import validar_codigo_em_catalogo
 from app.services.duplicidade import detectar_cadastro_duplicado
@@ -97,6 +98,47 @@ def cadastrar_ficha_master(
         db.rollback()
         raise HTTPException(status_code=400, detail="Não foi possível cadastrar: CPF já existe ou dado inválido.")
     return {"mensagem": f"Ficha de {novo_associado.nome_completo} criada com sucesso!", "id_associado": novo_associado.id_associado}
+
+
+@router.post("/api/associados/{id_associado}/conceder-acesso", summary="Conceder acesso (usuário/senha) a um associado")
+def conceder_acesso(id_associado: int, dados: ConcederAcessoCriar, db: Session = Depends(get_db), usuario_secretaria: Usuario = Depends(_permissao_associados)):
+    """v3.0 (achado 2026-09-15) - cadastrar a ficha (`/associados-master/`) nunca criou login
+    pra a pessoa; isso aqui fecha esse buraco. A secretaria define uma senha provisória
+    (`Usuario.senha_provisoria=True`) que o associado É OBRIGADO a trocar - `POST /auth/login`
+    devolve a flag pro front-end forçar a troca antes de deixar usar o resto do sistema."""
+    associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
+    if not associado:
+        raise HTTPException(status_code=404, detail="Associado não encontrado.")
+    if associado.id_usuario is not None:
+        raise HTTPException(status_code=400, detail="Este associado já tem acesso concedido.")
+
+    erro = validar_senha_forte(dados.senha_provisoria)
+    if erro:
+        raise HTTPException(status_code=400, detail=erro)
+
+    id_nivel = dados.id_nivel
+    if id_nivel is None:
+        nivel_padrao = db.query(NivelAcesso).filter(NivelAcesso.nome_nivel == "Associado").first()
+        if not nivel_padrao:
+            raise HTTPException(status_code=500, detail="Catálogo de níveis de acesso não foi semeado ainda - reinicie o servidor.")
+        id_nivel = nivel_padrao.id_nivel
+    elif not db.query(NivelAcesso).filter(NivelAcesso.id_nivel == id_nivel).first():
+        raise HTTPException(status_code=404, detail="Nível de acesso não encontrado.")
+
+    novo_usuario = Usuario(email=dados.email, senha_hash=hash_senha(dados.senha_provisoria), id_nivel=id_nivel, senha_provisoria=True)
+    db.add(novo_usuario)
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Já existe um usuário com esse e-mail.")
+    associado.id_usuario = novo_usuario.id_usuario
+    db.commit()
+    registrar_auditoria(
+        db, usuario_secretaria, "usuarios", "CONCESSAO_ACESSO", id_registro_afetado=novo_usuario.id_usuario,
+        dados_depois={"id_associado": id_associado, "id_nivel": id_nivel},
+    )
+    return {"mensagem": "Acesso concedido. Entregue a senha provisória ao associado - ele será obrigado a trocá-la no primeiro login.", "id_usuario": novo_usuario.id_usuario}
 
 
 @router.get("/api/associados/{id_associado}/cargos", summary="Listar histórico de cargos")

@@ -112,6 +112,7 @@ def _finalizar_login(db: Session, usuario: Usuario, request: Request, response: 
         access_token=criar_access_token(usuario),
         refresh_token=None,
         expires_in_minutos=ACCESS_TOKEN_MINUTOS,
+        senha_provisoria=usuario.senha_provisoria,
     )
 
 
@@ -201,6 +202,7 @@ def refresh(request: Request, dados: Optional[RefreshRequest] = None, db: Sessio
         access_token=criar_access_token(usuario),
         refresh_token=None,
         expires_in_minutos=ACCESS_TOKEN_MINUTOS,
+        senha_provisoria=usuario.senha_provisoria,
     )
 
 
@@ -429,6 +431,7 @@ def alterar_senha(dados: AlterarSenhaRequest, request: Request, usuario: Usuario
     if erro:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=erro)
     usuario.senha_hash = hash_senha(dados.senha_nova)
+    usuario.senha_provisoria = False
     db.commit()
     # Revoga todos os refresh tokens EXCETO o da sessão corrente (identificado pelo cookie).
     revogar_tokens_exceto(db, usuario, request.cookies.get(REFRESH_COOKIE_NAME))

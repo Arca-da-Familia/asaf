@@ -1217,6 +1217,18 @@ ignorá-la). Próxima fase é a FASE 1 (Associados), abaixo.
       > (400). Geração de imagem QR fica pro painel (frontend), quando a tela existir - o
       > backend só assina/verifica o conteúdo.
 >
+> **Achado e corrigido em 2026-09-15 (v3.0.1)**: cadastrar a ficha master nunca criou login -
+> `POST /associados-master/` só grava dado pessoal, nunca `Usuario`. Não tinha nenhum jeito de
+> dar acesso a um associado comum (só o Presidente, via `bootstrap-admin`, uma vez). Fechado por
+> `POST /api/associados/{id}/conceder-acesso`: a secretaria define uma senha provisória
+> (`Usuario.senha_provisoria=True`), o associado é obrigado a trocá-la no primeiro login
+> (`POST /auth/login` devolve a flag, `POST /auth/senha/alterar` zera). Mesmo achado trouxe a
+> política de senha mínima de 10 pra **8 caracteres** (`app/security.py::validar_senha_forte`,
+> decisão do usuário - 10 era difícil demais de lembrar pra associado comum, sem diferenciação
+> por cargo por enquanto). Recuperação de senha por e-mail ("esqueci minha senha") continua **não
+> implementada** - depende de escolher provedor de envio de e-mail antes (mesmo padrão de
+> decisão em aberto do PSP do Pix Automático/BSP do WhatsApp, ver DECISOES_CONGELADAS.md seção 7).
+>
 > Testado: `pytest tests/` — 43/43 (10 novos em `tests/test_v1_1.py`: CPF/telefone/nascimento
 > inválidos recusados, status_arrolamento não editável via schema, categoria vira Inadimplente
 > com título vencido e volta a Em Dia ao pagar, completude, CEP válido/inválido contra o ViaCEP

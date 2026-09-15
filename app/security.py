@@ -117,8 +117,10 @@ def revogar_codigos_recuperacao(db: Session, usuario: Usuario):
 
 
 # Lista das senhas mais comuns (v0.2.5) — verificada na troca de senha. A política é
-# "mínimo 10 caracteres + não estar nesta lista", nunca regra decorativa de "1 maiúscula
-# e 1 símbolo" (que só gera `Senha@123`). Lista derivada de vazamentos públicos conhecidos.
+# "mínimo 8 caracteres + não estar nesta lista" (reduzido de 10 pra 8 em 2026-09-15, decisão do
+# usuário: 10 é difícil demais de lembrar pra associado comum, e a lista de comuns já cobre o
+# risco real - nunca regra decorativa de "1 maiúscula e 1 símbolo" (que só gera `Senha@123`).
+# Lista derivada de vazamentos públicos conhecidos.
 SENHAS_COMUNS = frozenset({
     "123456", "123456789", "12345678", "1234567", "1234567890", "password", "password1",
     "password123", "12345678910", "12345678901", "qwerty", "qwerty123", "abc123", "123123",
@@ -139,8 +141,8 @@ SENHAS_COMUNS = frozenset({
 
 def validar_senha_forte(senha: str) -> Optional[str]:
     """Retorna uma mensagem de erro se a senha não atende à política, ou None se é aceitável."""
-    if len(senha) < 10:
-        return "A senha deve ter pelo menos 10 caracteres."
+    if len(senha) < 8:
+        return "A senha deve ter pelo menos 8 caracteres."
     if senha.lower() in SENHAS_COMUNS:
         return "Essa senha é muito comum e fácil de adivinhar. Escolha outra."
     return None

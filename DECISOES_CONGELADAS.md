@@ -314,6 +314,9 @@ quando a necessidade real aparecer, nunca antes:
   escolha comercial a fazer no momento da implementação, não hoje.
 - **Qual PSP para Pix Automático** (v3.2.1) — escolha de banco/fintech parceiro no momento da
   implementação daquela versão.
+- **Provedor de envio de e-mail** (recuperação de senha "esqueci minha senha", achado
+  2026-09-15) — hoje não existe nenhum serviço de e-mail transacional integrado; escolher
+  provedor (ex.: Azure Communication Services, SendGrid) quando esse fluxo for implementado.
 
 ---
 
