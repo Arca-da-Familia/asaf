@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.associados import Associado
-from app.models.core import Catalogo, OpcaoCatalogo, Usuario
+from app.models.core import Usuario
 from app.models.financeiro import TituloFinanceiro
 from app.models.pessoas import Papel
 from app.models.situacao import DESLIGAMENTO, LICENCA, READMISSAO, MudancaSituacao
@@ -19,6 +19,7 @@ from app.schemas.situacao import DesligamentoCriar, LicencaCriar, ReadmissaoCria
 from app.security import exigir_permissao
 from app.services.anonimizacao import anonimizar_associado, anonimizar_vencidos, data_elegivel_para_anonimizacao
 from app.services.categoria_associado import ATIVO_EM_DIA, LICENCIADO
+from app.services.catalogos import validar_codigo_em_catalogo as _validar_motivo_em_catalogo
 from app.services.ficha_360 import montar_ficha_360
 from app.services.linha_do_tempo import publicar_evento_linha_do_tempo
 
@@ -31,18 +32,6 @@ def _buscar_associado_ou_404(db: Session, id_associado: int) -> Associado:
     if not associado:
         raise HTTPException(status_code=404, detail="Associado não encontrado.")
     return associado
-
-
-def _validar_motivo_em_catalogo(db: Session, chave_catalogo: str, motivo: str, rotulo_erro: str) -> None:
-    catalogo = db.query(Catalogo).filter(Catalogo.chave == chave_catalogo).first()
-    valido = (
-        catalogo
-        and db.query(OpcaoCatalogo)
-        .filter(OpcaoCatalogo.id_catalogo == catalogo.id_catalogo, OpcaoCatalogo.codigo == motivo, OpcaoCatalogo.ativo == True)
-        .first()
-    )
-    if not valido:
-        raise HTTPException(status_code=422, detail=f"{rotulo_erro} inválido: '{motivo}'.")
 
 
 @router.post("/api/associados/{id_associado}/licenca", summary="Registrar licença temporária")

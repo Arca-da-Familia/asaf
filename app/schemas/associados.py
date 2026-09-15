@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, model_validator
 from datetime import date
 from typing import Optional
 
@@ -105,6 +105,27 @@ class DependenteCriar(BaseModel):
 
 class DependenteAtualizar(BaseModel):
     grau_parentesco: str
+
+class DependentePessoaCriar(BaseModel):
+    """v1.7 - vincula um dependente por `Pessoa` já existente (`id_pessoa_vinculada`) OU cria uma
+    `Pessoa` nova na hora (`nome_completo`/`data_nascimento`) - é assim que um filho menor que
+    ainda não tem cadastro nenhum entra no sistema pela primeira vez, sem precisar já ser
+    associado."""
+    id_pessoa_vinculada: Optional[int] = None
+    nome_completo: Optional[str] = None
+    data_nascimento: Optional[date] = None
+    grau_parentesco: str
+
+    _validar_nascimento = field_validator("data_nascimento")(classmethod(lambda cls, v: _validar_nascimento_campo(v)))
+
+    @model_validator(mode="after")
+    def validar_referencia_ou_nome(self):
+        # model_validator (não field_validator) de propósito: precisa disparar mesmo quando a
+        # chave nem aparece no JSON (os dois campos são opcionais e ficam None por default) -
+        # um field_validator em campo com default só roda se o valor vier explícito no corpo.
+        if not self.nome_completo and not self.id_pessoa_vinculada:
+            raise ValueError("Informe id_pessoa_vinculada (pessoa já existente) ou nome_completo (pessoa nova).")
+        return self
 
 class HistoricoCargoCriar(BaseModel):
     titulo_cargo: str

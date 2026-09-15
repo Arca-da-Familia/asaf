@@ -62,12 +62,18 @@ class Endereco(Base):
     estado = Column(String)
 
 class DependenteFamiliar(Base):
-    """Vínculo de parentesco entre dois associados já cadastrados (o sistema não registra pessoas de fora)."""
+    """v1.7 - vínculo de parentesco entre duas `Pessoa`s (até a v1.6, exigia que as duas já
+    fossem `Associado` - o que impedia registrar um dependente que ainda não é associado, ex.:
+    filho menor). Agora a pessoa vinculada só precisa TER um cadastro de `Pessoa` (que pode ser
+    criado na hora, junto do vínculo - ver app/routers/associados.py::criar_dependente_pessoa) -
+    se um dia ela virar associada, reaproveita a mesma `Pessoa`, sem recadastro. `grau_parentesco`
+    é código do catálogo `grau_parentesco` (v0.3.1), validado no backend (v1.7), nunca texto
+    livre solto."""
     __tablename__ = "dependentes_familiares"
-    __table_args__ = (UniqueConstraint("id_titular", "id_associado_vinculado", name="uq_familia_titular_vinculado"),)
+    __table_args__ = (UniqueConstraint("id_pessoa_titular", "id_pessoa_vinculada", name="uq_familia_titular_vinculado"),)
     id_dependente = Column(Integer, primary_key=True, index=True)
-    id_titular = Column(Integer, ForeignKey("associados.id_associado"))
-    id_associado_vinculado = Column(Integer, ForeignKey("associados.id_associado"))
+    id_pessoa_titular = Column(Integer, ForeignKey("pessoas.id_pessoa"), nullable=False, index=True)
+    id_pessoa_vinculada = Column(Integer, ForeignKey("pessoas.id_pessoa"), nullable=False, index=True)
     grau_parentesco = Column(String(50))
 
 class DocumentoAnexo(Base):

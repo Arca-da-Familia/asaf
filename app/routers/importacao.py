@@ -121,8 +121,8 @@ def desfazer_lote(id_lote: int, request: Request, db: Session = Depends(get_db),
         db.query(DocumentoAnexo).filter(DocumentoAnexo.id_associado == associado.id_associado).delete()
         db.query(HistoricoCargo).filter(HistoricoCargo.id_associado == associado.id_associado).delete()
         db.query(DependenteFamiliar).filter(
-            (DependenteFamiliar.id_titular == associado.id_associado)
-            | (DependenteFamiliar.id_associado_vinculado == associado.id_associado)
+            (DependenteFamiliar.id_pessoa_titular == associado.id_pessoa)
+            | (DependenteFamiliar.id_pessoa_vinculada == associado.id_pessoa)
         ).delete()
         db.query(Papel).filter(Papel.id_pessoa == associado.id_pessoa).delete()
         id_pessoa = associado.id_pessoa

@@ -18,17 +18,20 @@ from app.schemas.associados import (
     AssociadoMasterCriar,
     AssociadoAdminUpdate,
     AssociadoPerfilUpdate,
-    DependenteCriar,
     DependenteAtualizar,
+    DependenteCriar,
+    DependentePessoaCriar,
     HistoricoCargoCriar,
     HistoricoCargoEncerrar,
 )
-from app.security import criar_token_carteirinha, decodificar_token_carteirinha
+from app.security import criar_token_carteirinha, decodificar_token_carteirinha, exigir_permissao
 from app.services.categoria_associado import calcular_categoria
+from app.services.catalogos import validar_codigo_em_catalogo
 from app.services.linha_do_tempo import publicar_evento_linha_do_tempo
 from app.services.matricula import proximo_numero_matricula
 
 router = APIRouter()
+_permissao_associados = exigir_permissao("associados")
 
 @router.post("/associados-master/", summary="2. Cadastrar Ficha Master")
 def cadastrar_ficha_master(dados: AssociadoMasterCriar, db: Session = Depends(get_db)):
@@ -431,35 +434,51 @@ def buscar_associados_simples(excluir: int = None, db: Session = Depends(get_db)
     } for a in associados]
 
 
-@router.get("/api/associados/{id_associado}/dependentes", summary="Listar dependentes de um associado")
+# ==========================================
+# DEPENDENTES/FAMÍLIA (v1.7 - vínculo entre Pessoas, não mais entre Associados)
+#
+# As duas rotas legadas abaixo (/api/associados/.../dependentes) continuam funcionando
+# exatamente como antes - mesmo contrato JSON, sem autenticação (protótipo antigo ainda em
+# produção, mesmo padrão de compatibilidade já usado desde a v0.3.1 pros catálogos) - só que
+# por baixo já usam a tabela reformada (`id_pessoa_titular`/`id_pessoa_vinculada`). As rotas
+# novas (/api/pessoas/.../dependentes), com autenticação e permissão de verdade, são o caminho
+# que permite o caso que a v1.7 existe pra resolver: um dependente que ainda NÃO é associado.
+# ==========================================
+@router.get("/api/associados/{id_associado}/dependentes", summary="Listar dependentes de um associado (legado)")
 def listar_dependentes(id_associado: int, db: Session = Depends(get_db)):
-    deps = db.query(DependenteFamiliar).filter(DependenteFamiliar.id_titular == id_associado).all()
+    associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
+    if not associado:
+        return []
+    deps = db.query(DependenteFamiliar).filter(DependenteFamiliar.id_pessoa_titular == associado.id_pessoa).all()
     resultado = []
     for d in deps:
-        vinculado = db.query(Associado).filter(Associado.id_associado == d.id_associado_vinculado).first()
+        vinculado = db.query(Associado).filter(Associado.id_pessoa == d.id_pessoa_vinculada).first()
         resultado.append({
             "id_dependente": d.id_dependente,
             "grau_parentesco": d.grau_parentesco,
-            "id_associado_vinculado": d.id_associado_vinculado,
-            "nome_completo": vinculado.nome_completo if vinculado else "(associado removido)",
+            "id_associado_vinculado": vinculado.id_associado if vinculado else None,
+            "nome_completo": vinculado.nome_completo if vinculado else "(pessoa sem cadastro de associado)",
             "foto": vinculado.foto if vinculado else None,
             "data_nascimento": vinculado.data_nascimento.date().isoformat() if vinculado and vinculado.data_nascimento else None
         })
     return resultado
 
 
-@router.post("/api/associados/{id_associado}/dependentes", summary="Adicionar vínculo familiar")
+@router.post("/api/associados/{id_associado}/dependentes", summary="Adicionar vínculo familiar entre dois associados (legado)")
 def criar_dependente(id_associado: int, dados: DependenteCriar, db: Session = Depends(get_db)):
-    if not db.query(Associado).filter(Associado.id_associado == id_associado).first():
+    titular = db.query(Associado).filter(Associado.id_associado == id_associado).first()
+    if not titular:
         raise HTTPException(status_code=404, detail="Associado titular não encontrado.")
     if dados.id_associado_vinculado == id_associado:
         raise HTTPException(status_code=400, detail="Um associado não pode ser familiar de si mesmo.")
-    if not db.query(Associado).filter(Associado.id_associado == dados.id_associado_vinculado).first():
+    vinculado = db.query(Associado).filter(Associado.id_associado == dados.id_associado_vinculado).first()
+    if not vinculado:
         raise HTTPException(status_code=404, detail="O associado indicado como familiar não está cadastrado no sistema.")
+    validar_codigo_em_catalogo(db, "grau_parentesco", dados.grau_parentesco, "Grau de parentesco")
 
     novo = DependenteFamiliar(
-        id_titular=id_associado,
-        id_associado_vinculado=dados.id_associado_vinculado,
+        id_pessoa_titular=titular.id_pessoa,
+        id_pessoa_vinculada=vinculado.id_pessoa,
         grau_parentesco=dados.grau_parentesco
     )
     db.add(novo)
@@ -472,11 +491,73 @@ def criar_dependente(id_associado: int, dados: DependenteCriar, db: Session = De
     return {"mensagem": "Vínculo familiar adicionado.", "id_dependente": novo.id_dependente}
 
 
+@router.get("/api/pessoas/{id_pessoa_titular}/dependentes", summary="Listar dependentes de uma pessoa (v1.7)")
+def listar_dependentes_pessoa(
+    id_pessoa_titular: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_associados),
+):
+    if not db.query(Pessoa).filter(Pessoa.id_pessoa == id_pessoa_titular).first():
+        raise HTTPException(status_code=404, detail="Pessoa titular não encontrada.")
+    deps = db.query(DependenteFamiliar).filter(DependenteFamiliar.id_pessoa_titular == id_pessoa_titular).all()
+    resultado = []
+    for d in deps:
+        vinculada = db.query(Pessoa).filter(Pessoa.id_pessoa == d.id_pessoa_vinculada).first()
+        associado_vinculado = db.query(Associado).filter(Associado.id_pessoa == d.id_pessoa_vinculada).first()
+        resultado.append({
+            "id_dependente": d.id_dependente,
+            "grau_parentesco": d.grau_parentesco,
+            "id_pessoa_vinculada": d.id_pessoa_vinculada,
+            "nome_completo": vinculada.nome_completo if vinculada else None,
+            "data_nascimento": vinculada.data_nascimento.date().isoformat() if vinculada and vinculada.data_nascimento else None,
+            "e_associado": associado_vinculado is not None,
+        })
+    return resultado
+
+
+@router.post("/api/pessoas/{id_pessoa_titular}/dependentes", summary="Adicionar dependente (pessoa existente ou nova) - v1.7")
+def criar_dependente_pessoa(
+    id_pessoa_titular: int, dados: DependentePessoaCriar,
+    db: Session = Depends(get_db), _usuario=Depends(_permissao_associados),
+):
+    if not db.query(Pessoa).filter(Pessoa.id_pessoa == id_pessoa_titular).first():
+        raise HTTPException(status_code=404, detail="Pessoa titular não encontrada.")
+    validar_codigo_em_catalogo(db, "grau_parentesco", dados.grau_parentesco, "Grau de parentesco")
+
+    if dados.id_pessoa_vinculada:
+        vinculada = db.query(Pessoa).filter(Pessoa.id_pessoa == dados.id_pessoa_vinculada).first()
+        if not vinculada:
+            raise HTTPException(status_code=404, detail="Pessoa indicada como dependente não encontrada.")
+        if vinculada.id_pessoa == id_pessoa_titular:
+            raise HTTPException(status_code=400, detail="Uma pessoa não pode ser familiar de si mesma.")
+    else:
+        # Dependente que ainda não tem NENHUM cadastro no sistema (ex.: filho menor) - cria a
+        # Pessoa agora, sem Papel nenhum ainda; se um dia ela virar associada, o cadastro já
+        # existe, só ganha o Papel "associado" (mesma regra da v1.0), sem recadastro.
+        vinculada = Pessoa(nome_completo=dados.nome_completo, data_nascimento=(
+            datetime.combine(dados.data_nascimento, datetime.min.time()) if dados.data_nascimento else None
+        ))
+        db.add(vinculada)
+        db.flush()
+
+    novo = DependenteFamiliar(
+        id_pessoa_titular=id_pessoa_titular, id_pessoa_vinculada=vinculada.id_pessoa,
+        grau_parentesco=dados.grau_parentesco,
+    )
+    db.add(novo)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Esse vínculo familiar já foi cadastrado.")
+    db.refresh(novo)
+    return {"mensagem": "Dependente adicionado.", "id_dependente": novo.id_dependente, "id_pessoa_vinculada": vinculada.id_pessoa}
+
+
 @router.put("/api/dependentes/{id_dependente}", summary="Editar grau de parentesco")
 def editar_dependente(id_dependente: int, dados: DependenteAtualizar, db: Session = Depends(get_db)):
     dep = db.query(DependenteFamiliar).filter(DependenteFamiliar.id_dependente == id_dependente).first()
     if not dep:
         raise HTTPException(status_code=404, detail="Vínculo familiar não encontrado.")
+    validar_codigo_em_catalogo(db, "grau_parentesco", dados.grau_parentesco, "Grau de parentesco")
     dep.grau_parentesco = dados.grau_parentesco
     db.commit()
     return {"mensagem": "Vínculo familiar atualizado."}

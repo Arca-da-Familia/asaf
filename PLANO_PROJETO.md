@@ -1602,10 +1602,44 @@ empregatício; empregado CLT tem outro regime inteiro (eSocial, ponto, folha).
 > duplicata). Migrações testadas em cadeia completa (v1.5 → v1.6 id_pessoa → v1.6 tabelas novas)
 > contra um banco sintético "pré-v1.5": upgrade e downgrade de ponta a ponta, sem erro.
 
-#### v1.7 — Relacionamento familiar e núcleo doméstico
-- [ ] `DependenteFamiliar` evoluído para vínculo entre `Pessoa`s (parentesco de catálogo), o que
+#### v1.7 — Relacionamento familiar e núcleo doméstico ✅ IMPLEMENTADO (2026-09-15)
+- [x] `DependenteFamiliar` evoluído para vínculo entre `Pessoa`s (parentesco de catálogo), o que
       permite dependente virar associado depois sem recadastro, e permite "cobrança por família"
       na FASE 3 sem gambiarra.
+      > **Limitação real corrigida**: até aqui as duas pontas do vínculo precisavam JÁ ser
+      > `Associado` (`id_titular`/`id_associado_vinculado`, ambos FK pra `associados`) - impedia
+      > o caso mais comum (filho menor sem cadastro nenhum ainda). Migração `c3d4e5f6a7b8`
+      > troca para `id_pessoa_titular`/`id_pessoa_vinculada` (FK pra `pessoas`), com backfill via
+      > join e verificação de contagem (mesmo rigor de `a1b2c3d4e5f6`/`a5b6c7d8e9f0`).
+      > `POST /api/pessoas/{id}/dependentes` (novo, autenticado, permissão `associados`) aceita
+      > **ou** `id_pessoa_vinculada` (vincula alguém que já tem cadastro de `Pessoa`) **ou**
+      > `nome_completo`/`data_nascimento` (cria a `Pessoa` na hora, sem nenhum `Papel` ainda) -
+      > é assim que um filho menor entra no sistema pela primeira vez. Se um dia ele virar
+      > associado, a `Pessoa` já existe - só ganha o `Papel` "associado" (mesma regra desde a
+      > v1.0), sem recadastro, que é exatamente o que este item pedia.
+      > `grau_parentesco` agora é validado contra o catálogo `grau_parentesco` (existente desde
+      > a v0.3.1, mas nunca checado no backend - aceitava texto livre solto) -
+      > `app/services/catalogos.py::validar_codigo_em_catalogo`, extraído do que era uma função
+      > privada em `situacao.py` (`_validar_motivo_em_catalogo`) pra ser reaproveitado aqui sem
+      > duplicar a mesma consulta.
+      > **Compatibilidade preservada, mesmo padrão da v0.3.1**: as rotas legadas
+      > (`/api/associados/{id}/dependentes`, usadas pelo portal HTML antigo ainda em produção)
+      > continuam funcionando com o mesmo contrato JSON de sempre - por baixo, viraram um shim
+      > sobre a tabela reformada (resolvem `id_associado` ↔ `id_pessoa` nos dois sentidos).
+      > **"Cobrança por família" fica para a FASE 3** - o vínculo agora existe (Pessoa-Pessoa),
+      > mas nenhuma regra de cobrança foi implementada aqui (fora de escopo desta versão, por
+      > desenho - é o financeiro que vai consumir isso quando chegar sua vez).
+>
+> Testado: `pytest tests/` - 98/98 (7 novos em `tests/test_dependentes.py`: exige autenticação,
+> dependente criado como Pessoa nova sem nenhum cadastro prévio, vínculo com Pessoa já existente
+> (inclusive já associada), rejeição quando nem `id_pessoa_vinculada` nem `nome_completo` são
+> informados, grau de parentesco inválido recusado, vínculo duplicado recusado, rota legada
+> associado-associado continua funcionando sem mudança de contrato). Migração testada em cadeia
+> completa (v1.5 → v1.6 → v1.7) contra banco sintético "pré-v1.5": upgrade e downgrade de ponta
+> a ponta, sem erro.
+>
+> **Sem tela no painel React** - mesma situação já registrada nas v1.5/v1.6 (só o portal HTML
+> legado tem UI de família hoje, agora falando com a tabela nova por baixo).
 
 #### v1.8 — Qualidade permanente da base (o que mantém o cadastro vivo em 15 anos)
 - [ ] Campanha de recadastramento periódica: o associado confirma/atualiza os próprios dados pelo
