@@ -1,7 +1,9 @@
+import { FileUp, UserPlus, Users } from 'lucide-react'
 import { type ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import { ErrorBoundary } from '@/components/feedback/ErrorBoundary'
+import { ModuleShell } from '@/components/layout/ModuleShell'
 import { Shell } from '@/components/layout/Shell'
 import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/use-me'
@@ -19,6 +21,15 @@ import { ImportarAssociadosPage } from '@/pages/ImportarAssociados'
 import { Login } from '@/pages/Login'
 import { MfaSetup } from '@/pages/MfaSetup'
 import { PerfilPage } from '@/pages/Perfil'
+
+// v2.5.1c - funções do módulo Associados, mostradas na sub-navegação própria dele
+// (ModuleShell). "Novo associado" e "Importar em lote" ficam sempre visíveis mesmo dentro do
+// detalhe de um associado - são ações do módulo, não da página atual.
+const ITENS_ASSOCIADOS = [
+  { rota: '/associados', rotulo: 'Listar associados', icone: Users, fim: true },
+  { rota: '/associados/novo', rotulo: 'Novo associado', icone: UserPlus },
+  { rota: '/associados/importar', rotulo: 'Importar em lote', icone: FileUp },
+]
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated, isBootstrapping } = useAuth()
@@ -93,52 +104,51 @@ function App() {
           path="/associados"
           element={
             <RequirePermission permission="associados">
+              <ModuleShell titulo="Associados" itens={ITENS_ASSOCIADOS} />
+            </RequirePermission>
+          }
+        >
+          <Route
+            index
+            element={
               <ErrorBoundary tituloModulo="Associados">
                 <AssociadosPage />
               </ErrorBoundary>
-            </RequirePermission>
-          }
-        />
-        <Route
-          path="/associados/novo"
-          element={
-            <RequirePermission permission="associados">
+            }
+          />
+          <Route
+            path="novo"
+            element={
               <ErrorBoundary tituloModulo="Novo associado">
                 <AssociadoNovoPage />
               </ErrorBoundary>
-            </RequirePermission>
-          }
-        />
-        <Route
-          path="/associados/:id/conceder-acesso"
-          element={
-            <RequirePermission permission="associados">
-              <ErrorBoundary tituloModulo="Conceder acesso">
-                <ConcederAcessoPage />
-              </ErrorBoundary>
-            </RequirePermission>
-          }
-        />
-        <Route
-          path="/associados/:id"
-          element={
-            <RequirePermission permission="associados">
-              <ErrorBoundary tituloModulo="Detalhe do associado">
-                <AssociadoDetalhePage />
-              </ErrorBoundary>
-            </RequirePermission>
-          }
-        />
-        <Route
-          path="/associados/importar"
-          element={
-            <RequirePermission permission="associados">
+            }
+          />
+          <Route
+            path="importar"
+            element={
               <ErrorBoundary tituloModulo="Importar associados">
                 <ImportarAssociadosPage />
               </ErrorBoundary>
-            </RequirePermission>
-          }
-        />
+            }
+          />
+          <Route
+            path=":id"
+            element={
+              <ErrorBoundary tituloModulo="Detalhe do associado">
+                <AssociadoDetalhePage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path=":id/conceder-acesso"
+            element={
+              <ErrorBoundary tituloModulo="Conceder acesso">
+                <ConcederAcessoPage />
+              </ErrorBoundary>
+            }
+          />
+        </Route>
         <Route
           path="/financeiro"
           element={

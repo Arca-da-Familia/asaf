@@ -2556,6 +2556,29 @@ testes passando (`pytest tests/`).
       > (Home, não mais o Shell). Acrescentada também a aba "Ficha 360" no detalhe do associado
       > (`GET /api/associados/{id}/ficha-360` - endpoint da v1.5, já testado, nunca tinha tela),
       > resolvendo a pergunta concreta "a pessoa pagou a mensalidade?" sem sair do módulo.
+      >
+      > **v2.5.1c (mesmo dia) - módulo ganha sub-navegação própria**: um módulo aberto (ex.:
+      > Associados) precisa da própria barra de funções (Listar, Novo, Importar, Gráficos,
+      > Configurações), não só abas soltas numa página - decisão que vale pra todo módulo
+      > futuro, por isso resolvida agora, com só um módulo real existindo, em vez de refazer a
+      > cada fase nova. `components/layout/ModuleShell.tsx` (novo, genérico): sub-shell com
+      > mini-nav lateral própria + `<Outlet/>`, usado como layout de `/associados/*` no lugar de
+      > rotas soltas direto no `Shell` principal.
+      >
+      > **Decisão registrada (não construída ainda): onde vivem os catálogos editáveis**
+      > (categoria de associado, estado civil, grau de parentesco, tipo de conta contábil
+      > etc.). Módulo **transversal próprio** ("Configurações", card na Início, permissão a
+      > definir), nunca duplicado dentro de cada módulo de negócio - mesmo catálogo usado por
+      > Associados e por outro módulo não pode ter duas telas de edição divergentes. Dentro
+      > dele, a sub-navegação (mesmo padrão do `ModuleShell` acima) agrupa por módulo dono do
+      > catálogo (ex.: "Associados" → categoria/estado civil/grau de parentesco; "Assembleia" →
+      > o que for catálogo de governança) - resolve exatamente o caso que o usuário descreveu
+      > ("quero mexer no catálogo da assembleia, não no de associados"), sem duplicar tela por
+      > módulo. Cada `Catalogo` já tem `editavel_pelo_usuario` (só os marcados assim aparecem
+      > pra edição - catálogo de sistema continua fixo). Fica pendente pra uma próxima versão
+      > desta fase (v2.5.1d ou similar), depois que a Governança também tiver pelo menos um
+      > módulo real pra confirmar que o agrupamento por dono faz sentido na prática, não só na
+      > teoria com um módulo só.
 
 #### v2.5.2 — Governança: Assembleias e Sessão
 - [ ] Listar/convocar assembleia, petição de convocação, habilitação de associado.
