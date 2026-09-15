@@ -2590,6 +2590,18 @@ testes passando (`pytest tests/`).
       > próxima versão desta fase, depois que a Governança também tiver pelo menos um módulo
       > real pra confirmar que o agrupamento por dono faz sentido na prática, não só na teoria
       > com um módulo só.
+      >
+      > **v2.5.1e (mesmo dia) - primeiro dashboard de módulo**: achado do usuário ("quero saber
+      > quantos estão inadimplentes, não tem um gráfico"). Tela `/associados/graficos`
+      > (`painel/src/pages/AssociadosGraficos.tsx`), item novo na sub-navegação do módulo -
+      > 3 números-chave (total, ativos em dia, inadimplentes) + dois gráficos de barra
+      > (Recharts, já era dependência do painel, nunca usada) contando por situação e por
+      > categoria. **Nenhum endpoint novo**: usa o mesmo `listarAssociados()` já buscado pra
+      > listagem, agregado no cliente - não há volume de associados hoje que justifique
+      > agregação no backend. Cor da barra de "situação" segue o mesmo mapeamento
+      > semântico já usado no resto do painel (verde = em dia, vermelho = inadimplente, âmbar =
+      > suspenso), não paleta categórica nova; "categoria" usa a cor primária única, sem
+      > significado de ordem entre Efetivo/Contribuinte/Fundador.
 
 #### v2.5.2 — Governança: Assembleias e Sessão
 - [ ] Listar/convocar assembleia, petição de convocação, habilitação de associado.

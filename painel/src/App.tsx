@@ -8,6 +8,7 @@ import { useMe } from '@/lib/use-me'
 import { AcessoPage } from '@/pages/Acesso'
 import { AssociadoDetalhePage } from '@/pages/AssociadoDetalhe'
 import { AssociadoNovoPage } from '@/pages/AssociadoNovo'
+import { AssociadosGraficosPage } from '@/pages/AssociadosGraficos'
 import { AssociadosPage } from '@/pages/Associados'
 import { AuditoriaPage } from '@/pages/Auditoria'
 import { ConcederAcessoPage } from '@/pages/ConcederAcesso'
@@ -118,6 +119,14 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Importar associados">
                 <ImportarAssociadosPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="graficos"
+            element={
+              <ErrorBoundary tituloModulo="Gráficos">
+                <AssociadosGraficosPage />
               </ErrorBoundary>
             }
           />

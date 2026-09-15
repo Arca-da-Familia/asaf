@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import {
+  BarChart3,
   FileUp,
   FolderKanban,
   Landmark,
@@ -52,6 +53,7 @@ export const modulos: Modulo[] = [
         rotulo: 'Importar em lote',
         icone: FileUp,
       },
+      { rota: '/associados/graficos', rotulo: 'Gráficos', icone: BarChart3 },
     ],
   },
   {
