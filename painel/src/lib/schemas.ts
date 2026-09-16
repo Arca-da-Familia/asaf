@@ -381,6 +381,29 @@ export const opcaoCatalogoEditarSchema = z.object({
   rotulo: z.string().min(1, 'Informe o rótulo.'),
 })
 
+// Usado por "Plano de Contas" (pages/PlanoContas.tsx, v2.5.8) - `tipo` é o RÓTULO do catálogo
+// `tipo_conta_contabil` ("Ativo", "Despesa"...), nunca o código técnico (ver lib/api.ts).
+export const contaContabilCriarSchema = z.object({
+  codigo_contabil: z.string().min(1, 'Informe o código contábil.'),
+  descricao_conta: z.string().min(1, 'Informe a descrição.'),
+  tipo: z.string().min(1, 'Selecione o tipo.'),
+})
+
+// Usado por "Fornecedores" (pages/Fornecedores.tsx, v2.5.8) - o backend normaliza o CNPJ pra
+// só-dígitos e exige exatamente 14; aqui só barra o óbvio (campo vazio) antes do round-trip.
+export const fornecedorCriarSchema = z.object({
+  razao_social: z.string().min(1, 'Informe a razão social.'),
+  cnpj: z.string().min(14, 'CNPJ deve ter 14 dígitos.'),
+  categoria_servico: z.string().min(1, 'Informe a categoria de serviço.'),
+  telefone: z.string().min(1, 'Informe o telefone.'),
+})
+
+// Usado por "Exercícios" (pages/Exercicios.tsx, v2.5.8) - o backend também recusa ano fora de
+// 2000-2200 e exercício duplicado/já aberto (mensagem real vem do erro da mutation).
+export const exercicioAbrirSchema = z.object({
+  ano: z.coerce.number().min(2000, 'Ano inválido.').max(2200, 'Ano inválido.'),
+})
+
 // v0.2.9 — presente só durante o modo "ver como" (impersonação de papel).
 export const impersonandoSchema = z.object({
   id_nivel: z.number(),

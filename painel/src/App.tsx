@@ -21,6 +21,9 @@ import { ConcederAcessoPage } from '@/pages/ConcederAcesso'
 import { ConfiguracoesPage } from '@/pages/Configuracoes'
 import { ConselhoFiscalPage } from '@/pages/ConselhoFiscal'
 import { DevComponents } from '@/pages/DevComponents'
+import { ExerciciosPage } from '@/pages/Exercicios'
+import { FornecedoresPage } from '@/pages/Fornecedores'
+import { PlanoContasPage } from '@/pages/PlanoContas'
 import {
   ProcessoDisciplinarDetalhePage,
   ProcessosDisciplinaresPage,
@@ -228,6 +231,30 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Conselho Fiscal">
                 <ConselhoFiscalPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="plano-contas"
+            element={
+              <ErrorBoundary tituloModulo="Plano de Contas">
+                <PlanoContasPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="fornecedores"
+            element={
+              <ErrorBoundary tituloModulo="Fornecedores">
+                <FornecedoresPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="exercicios"
+            element={
+              <ErrorBoundary tituloModulo="Exercícios">
+                <ExerciciosPage />
               </ErrorBoundary>
             }
           />

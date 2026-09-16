@@ -1,8 +1,10 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   BarChart3,
+  BookOpen,
   Building2,
   CalendarPlus,
+  CalendarRange,
   FileText,
   FileUp,
   FolderKanban,
@@ -13,6 +15,7 @@ import {
   ScrollText,
   ShieldAlert,
   ShieldCheck,
+  Truck,
   UserCheck,
   UserPlus,
   Users,
@@ -80,6 +83,21 @@ export const modulos: Modulo[] = [
         rota: '/financeiro/conselho-fiscal',
         rotulo: 'Conselho Fiscal',
         icone: MessageCircleQuestion,
+      },
+      {
+        rota: '/financeiro/plano-contas',
+        rotulo: 'Plano de Contas',
+        icone: BookOpen,
+      },
+      {
+        rota: '/financeiro/fornecedores',
+        rotulo: 'Fornecedores',
+        icone: Truck,
+      },
+      {
+        rota: '/financeiro/exercicios',
+        rotulo: 'Exercícios',
+        icone: CalendarRange,
       },
     ],
   },

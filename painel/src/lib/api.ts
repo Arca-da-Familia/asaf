@@ -2204,3 +2204,114 @@ export function criarEventoCalendario(dados: {
     body: JSON.stringify(dados),
   })
 }
+
+// ---------------------------------------------------------------------------
+// Financeiro: Plano de Contas, Fornecedores e Exercícios (backend v3.0, painel v2.5.8) - as
+// três telas de cadastro que faltavam pro módulo Financeiro (o resto já era só leitura, via
+// Conselho Fiscal). Todos os endpoints exigem a mesma permissão `financeiro`, já usada em
+// `/financeiro` no App.tsx - nenhum caso de permissão mais estrita que o esperado desta vez.
+//
+// `PlanoDeContas.tipo` guarda o RÓTULO do catálogo `tipo_conta_contabil` ("Ativo", "Passivo",
+// "Patrimônio Líquido", "Receita", "Despesa"), nunca o `codigo` técnico - confirmado em
+// `app/services/contabilidade.py::NATUREZA_POR_TIPO` e nos testes de backend, que só usam
+// `tipo="Despesa"` etc. Por isso o <select> do formulário usa `o.rotulo` como `value`.
+// ---------------------------------------------------------------------------
+export type PlanoDeContas = {
+  id_conta: number
+  codigo_contabil: string
+  descricao_conta: string
+  tipo: string
+}
+
+export function listarPlanoContas(): Promise<PlanoDeContas[]> {
+  return apiFetch('/api/plano-contas/')
+}
+
+export function criarContaContabil(dados: {
+  codigo_contabil: string
+  descricao_conta: string
+  tipo: string
+}): Promise<{ mensagem: string; id_conta: number }> {
+  return apiFetch('/plano-contas/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function atualizarContaContabil(
+  idConta: number,
+  dados: { codigo_contabil: string; descricao_conta: string; tipo: string },
+): Promise<{ mensagem: string; id_conta: number }> {
+  return apiFetch(`/api/plano-contas/${idConta}`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type Fornecedor = {
+  id_fornecedor: number
+  razao_social: string
+  cnpj: string
+  categoria_servico: string
+  telefone: string
+}
+
+export function listarFornecedores(): Promise<Fornecedor[]> {
+  return apiFetch('/api/fornecedores/')
+}
+
+export function criarFornecedor(dados: {
+  razao_social: string
+  cnpj: string
+  categoria_servico: string
+  telefone: string
+}): Promise<{ mensagem: string; id_fornecedor: number }> {
+  return apiFetch('/fornecedores/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function atualizarFornecedor(
+  idFornecedor: number,
+  dados: {
+    razao_social: string
+    cnpj: string
+    categoria_servico: string
+    telefone: string
+  },
+): Promise<{ mensagem: string; id_fornecedor: number }> {
+  return apiFetch(`/api/fornecedores/${idFornecedor}`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type Exercicio = {
+  id_exercicio: number
+  ano: number
+  status: string
+  data_abertura: string
+  data_fechamento: string | null
+}
+
+export function listarExercicios(): Promise<Exercicio[]> {
+  return apiFetch('/api/exercicios/')
+}
+
+export function abrirExercicio(dados: {
+  ano: number
+}): Promise<{ mensagem: string; id_exercicio: number }> {
+  return apiFetch('/api/exercicios/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function fecharExercicio(
+  idExercicio: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/exercicios/${idExercicio}/fechar`, {
+    method: 'POST',
+  })
+}

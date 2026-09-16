@@ -3092,9 +3092,39 @@ Mesmo checklist do ponto 1/3.
       > `https://painel.asaf.org.br/version.json` confirmado batendo com `dc5e033`.
 
 #### v2.5.8 — Financeiro: Plano de Contas, Fornecedores e Exercícios
-- [ ] Plano de Contas (listar, cadastrar) com os cinco tipos reais (v3.0).
-- [ ] Fornecedores (listar, cadastrar).
-- [ ] Exercícios contábeis (listar, abrir, fechar).
+- [x] Plano de Contas (listar, cadastrar, editar) com os cinco tipos reais (v3.0).
+- [x] Fornecedores (listar, cadastrar, editar).
+- [x] Exercícios contábeis (listar, abrir, fechar).
+
+      > **v2.5.8 (2026-09-16)**: backend já existia inteiro (v3.0) - `PlanoDeContas`,
+      > `Fornecedor`, `Exercicio` (`app/models/financeiro.py`), todos atrás de
+      > `exigir_permissao("financeiro")`, a mesma já usada por `/financeiro` no painel. Só faltava
+      > a tela; nenhum caso desta vez do padrão "permissão real mais ampla que a rota" que se
+      > repetiu 4x nas versões anteriores.
+      >
+      > **Detalhe que exigiu checar o backend antes de escrever o `<select>`**: `PlanoDeContas.tipo`
+      > guarda o RÓTULO do catálogo `tipo_conta_contabil` ("Ativo", "Despesa", "Patrimônio
+      > Líquido"...), nunca o código técnico - confirmado em
+      > `app/services/contabilidade.py::NATUREZA_POR_TIPO` e nos testes de backend, que só usam os
+      > rótulos. O `<select>` usa `o.rotulo` como `value`, não `o.codigo`.
+      >
+      > **Achado real (ambiente de dev, não produção), corrigido antes de continuar**: `POST
+      > /plano-contas/` e `POST /fornecedores/` são as únicas duas rotas de escrita do backend que
+      > vivem fora de `/api` (compatibilidade de URL antiga). O proxy do Vite
+      > (`painel/vite.config.ts`) só conhecia `/auth`, `/uploads`, `/api`, `/carteirinha` - sem uma
+      > entrada pra essas duas, toda tentativa de criar conta/fornecedor em dev local batia 404 na
+      > própria página do Vite, nunca chegava no backend. Em produção nunca apareceria (o build usa
+      > `VITE_API_URL` absoluto, sem proxy - confirmado em `deploy-painel.yml`), mas travava
+      > qualquer teste ou desenvolvimento local dessas duas telas. Corrigido adicionando as duas
+      > rotas ao proxy.
+      >
+      > **Confirmado rodando de verdade** (Presidente, `financeiro` incluso): Plano de Contas -
+      > criar conta, editar descrição, código contábil duplicado recusado com a mensagem real do
+      > backend. Fornecedores - criar, editar telefone, CNPJ duplicado recusado com a mensagem
+      > real. Exercícios - abrir 2026, tentar abrir um segundo enquanto o primeiro está aberto
+      > (recusado com a mensagem real da regra de negócio "só um exercício aberto por vez"),
+      > fechar 2026, abrir 2027 com sucesso depois de fechado. Typecheck/lint/Prettier/vitest do
+      > painel verdes, suíte de backend (218 testes) intacta - versão sem alterações de backend.
 
 #### v2.5.9 — Financeiro: Títulos e baixa
 - [ ] Lançar título (a pagar/a receber), listar com filtro por tipo/status.

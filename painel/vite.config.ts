@@ -20,6 +20,13 @@ export default defineConfig({
       '/uploads': 'http://localhost:8000',
       '/api': 'http://localhost:8000',
       '/carteirinha': 'http://localhost:8000',
+      // v2.5.8 (achado ao testar Plano de Contas/Fornecedores) - as duas únicas rotas de
+      // escrita do backend que não vivem sob /api (compatibilidade de URL antiga, ver
+      // app/routers/financeiro.py). Sem isso o Vite não sabe pra onde encaminhar o POST e
+      // devolve 404 da própria página em dev - só afeta desenvolvimento local, produção usa
+      // VITE_API_URL absoluto (sem proxy).
+      '/plano-contas': 'http://localhost:8000',
+      '/fornecedores': 'http://localhost:8000',
     },
   },
 })
