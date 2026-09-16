@@ -3163,6 +3163,10 @@ Mesmo checklist do ponto 1/3.
       > selecionada. Typecheck/lint/Prettier/vitest do painel verdes, suíte de backend (218
       > testes) intacta - versão sem alterações de backend.
 
+      > **Item 12 cumprido (2026-09-16)**: commit `fea7fce` em `origin/main`. Só `painel/**` mudou
+      > (backend já existia) - só `deploy-painel.yml` disparou (run 35142249119), confirmado
+      > verde, e `https://painel.asaf.org.br/version.json` batendo com `fea7fce`.
+
 #### v2.5.10 — Financeiro: Razão Contábil
 - [ ] Extrato de lançamentos em partida dobrada (débito/crédito por linha).
 - [ ] Estornar lançamento, com motivo.
