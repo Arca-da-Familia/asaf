@@ -2935,8 +2935,14 @@ marcar qualquer checkbox acima como `[x]`.
       > real do backend. Suíte completa do backend (212 testes), typecheck e lint do painel
       > verdes.
       >
-      > **Item 12**: ver Ponto de Revisão 2/3 abaixo - esta versão só fecha depois de confirmada
-      > em produção de verdade, não só localmente.
+      > **Item 12 cumprido (2026-09-16)**: commit `36f9603` enviado a `origin/main` - o deploy
+      > do painel **falhou de verdade** na primeira tentativa (run 35106788225, `prettier --check`
+      > reprovou os 4 arquivos novos/editados - typecheck/lint/vitest locais não cobrem
+      > formatação, achado só ao olhar o log do CI, exatamente o que o item 12 existe pra pegar
+      > em vez de só confiar que "rodei os testes locais" bastava). Corrigido com `npm run format`
+      > (commit `b23c5c4`), reenviado, `deploy-painel.yml` (run 35107414453) verde, e
+      > `https://painel.asaf.org.br/version.json` confirmado batendo com `b23c5c4` - o hash do
+      > commit que de fato corrigiu o problema, não do que falhou.
 
 #### v2.5.6 — Governança: Disciplina e Dissolução
 - [ ] Processo disciplinar: abertura, defesa, manifestação da diretoria, decisão.
