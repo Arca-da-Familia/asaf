@@ -2985,6 +2985,11 @@ marcar qualquer checkbox acima como `[x]`.
       > (criada e concluída via Ata.tsx), incluindo o erro esperado ("Deliberação não
       > encontrada") ao tentar vincular um número de deliberação inexistente. Suíte completa do
       > backend (212 testes), typecheck, lint e Prettier do painel verdes.
+      >
+      > **Item 12 cumprido (2026-09-16)**: commit `1a9b54e` enviado a `origin/main`,
+      > `deploy-painel.yml` (run 35112647000) verde de primeira (Prettier já checado local antes
+      > do push, achado da v2.5.5 aplicado), e `https://painel.asaf.org.br/version.json`
+      > confirmado batendo com `1a9b54e`.
 
 #### v2.5.7 — Calendário institucional
 - [ ] Agenda de eventos do calendário (`app/services/calendario.py`), com alerta de vencimento.
