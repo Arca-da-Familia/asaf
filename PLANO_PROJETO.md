@@ -3126,6 +3126,10 @@ Mesmo checklist do ponto 1/3.
       > fechar 2026, abrir 2027 com sucesso depois de fechado. Typecheck/lint/Prettier/vitest do
       > painel verdes, suíte de backend (218 testes) intacta - versão sem alterações de backend.
 
+      > **Item 12 cumprido (2026-09-16)**: commit `456814b` em `origin/main`. Só `painel/**` mudou
+      > nesta versão (backend já existia) - só `deploy-painel.yml` disparou (run 35138085475),
+      > confirmado verde, e `https://painel.asaf.org.br/version.json` batendo com `456814b`.
+
 #### v2.5.9 — Financeiro: Títulos e baixa
 - [ ] Lançar título (a pagar/a receber), listar com filtro por tipo/status.
 - [ ] Baixar título (com conta de contrapartida), refletindo o saldo restante.
