@@ -3168,13 +3168,46 @@ Mesmo checklist do ponto 1/3.
       > verde, e `https://painel.asaf.org.br/version.json` batendo com `fea7fce`.
 
 #### v2.5.10 — Financeiro: Razão Contábil
-- [ ] Extrato de lançamentos em partida dobrada (débito/crédito por linha).
-- [ ] Estornar lançamento, com motivo.
+- [x] Extrato de lançamentos em partida dobrada (débito/crédito por linha).
+- [x] Estornar lançamento, com motivo.
 
-##### 🔍 Ponto de Revisão — FASE 2.5 (3/3 — fim, fecha v2.5.8–v2.5.10)
+      > **v2.5.10 (2026-09-16)**: backend já existia inteiro (v3.0) - `GET /api/livro-caixa/`
+      > (extrato + saldo em contas Ativo) e `POST /api/lancamentos/{id}/estornar` (motivo
+      > obrigatório, mínimo 5 caracteres). Fecha o módulo Financeiro desta fase. Tipos dedicados
+      > no painel (`LancamentoContabil`/`PartidaContabil`, não reaproveita os `*CF` do Conselho
+      > Fiscal - o endpoint de gestão devolve `id_exercicio`/`motivo_estorno`/
+      > `id_lancamento_estorno`, que o CF não expõe). Lançamento é imutável por decisão do próprio
+      > backend (comentário em `app/routers/financeiro.py`): nunca há editar/apagar, só estornar
+      > (novo lançamento com partidas invertidas) + o original marcado "Estornado", nunca
+      > removido - ambos ficam visíveis no extrato. Único endpoint desta fase que já nasceu com
+      > `/api` em ambos os métodos - nenhum achado de proxy do Vite aqui (diferente de v2.5.8/
+      > v2.5.9).
+      >
+      > **Confirmado rodando de verdade** (Presidente, `financeiro` incluso): título "A Receber"
+      > criado e baixado (gera lançamento #1, débito Caixa/crédito Doações, saldo em caixa R$
+      > 300,00 refletido no extrato); motivo de estorno curto recusado pela validação do próprio
+      > painel ("mínimo 5 caracteres"); estorno com motivo válido cria o lançamento #2 com as
+      > partidas exatamente invertidas (crédito Caixa/débito Doações), saldo em caixa volta a R$
+      > 0,00, e o lançamento #1 passa a mostrar "Estornado" com o motivo e a referência ao
+      > lançamento #2 - nunca desaparece do extrato. O próprio lançamento de estorno (#2) continua
+      > estornável (comportamento correto do backend - nada fica definitivamente fora de auditoria).
+      > Typecheck/lint/Prettier/vitest do painel verdes, suíte de backend (218 testes) intacta -
+      > versão sem alterações de backend.
+
+##### 🔍 Ponto de Revisão — FASE 2.5 (3/3 — fim, fecha v2.5.8–v2.5.10) ✅ FECHADO (2026-09-16)
 Mesmo checklist dos pontos anteriores. **Esta é a trava**: a FASE 3 (v3.1 em diante) só começa
 depois deste ponto de revisão aplicado de verdade, com as telas de Associados, Governança e
 Financeiro todas confirmadas visualmente no painel.
+
+> Diferente das duas faixas anteriores desta fase, v2.5.8-v2.5.10 não tiveram nenhum achado do
+> padrão "permissão do front mais estrita que o backend exige" (as três telas vivem, corretamente,
+> dentro do módulo `/financeiro`, mesma permissão `financeiro` que o backend sempre exigiu). O
+> achado recorrente aqui foi outro, mas igualmente sistemático: duas rotas de escrita legadas sem
+> prefixo `/api` (`/plano-contas/`, `/fornecedores/`, depois `/titulos/`, `/baixar-titulo/`)
+> faltavam no proxy de desenvolvimento do Vite - só afetava dev local (produção usa
+> `VITE_API_URL` absoluto), mas travava qualquer teste real dessas telas até ser corrigido.
+> Registrado como lição: ao integrar uma tela nova com uma rota de escrita legada deste backend,
+> checar sempre se ela tem `/api` no path antes de assumir que o proxy já cobre.
 
 ### FASE 3 — Financeiro
 

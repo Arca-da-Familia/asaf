@@ -2378,3 +2378,54 @@ export function baixarTitulo(dados: {
     body: JSON.stringify(dados),
   })
 }
+
+// ---------------------------------------------------------------------------
+// Financeiro: Razão Contábil - extrato e estorno (backend v3.0, painel v2.5.10) - último bloco
+// do módulo Financeiro. Tipos dedicados (mesmo motivo de Títulos): o endpoint de GESTÃO
+// (`GET /api/livro-caixa/`) devolve mais campos que o `LancamentoContabilCF` do Conselho Fiscal
+// (`id_exercicio`, `motivo_estorno`, `id_lancamento_estorno` - o CF não precisa disso pra só
+// ler). Lançamento é IMUTÁVEL (`app/routers/financeiro.py`, comentário do próprio backend) -
+// corrigir é sempre estornar (motivo obrigatório) + lançar de novo, nunca editar/apagar.
+// ---------------------------------------------------------------------------
+export type PartidaContabil = {
+  id_conta: number
+  conta_contabil: string
+  tipo_partida: string
+  valor: number
+}
+
+export type LancamentoContabil = {
+  id_lancamento: number
+  numero_sequencial: number
+  id_exercicio: number
+  id_titulo: number | null
+  data: string | null
+  historico: string
+  tipo_origem: string
+  forma_pagamento: string | null
+  estornado: boolean
+  motivo_estorno: string | null
+  id_lancamento_estorno: number | null
+  partidas: PartidaContabil[]
+}
+
+export function listarLivroCaixa(): Promise<{
+  lancamentos: LancamentoContabil[]
+  saldo_contas_ativo: number
+}> {
+  return apiFetch('/api/livro-caixa/')
+}
+
+export function estornarLancamento(
+  idLancamento: number,
+  motivo: string,
+): Promise<{
+  mensagem: string
+  id_lancamento_estorno: number
+  numero_sequencial: number
+}> {
+  return apiFetch(`/api/lancamentos/${idLancamento}/estornar`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo }),
+  })
+}

@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   BarChart3,
   BookOpen,
+  BookText,
   Building2,
   CalendarPlus,
   CalendarRange,
@@ -104,6 +105,11 @@ export const modulos: Modulo[] = [
         rota: '/financeiro/exercicios',
         rotulo: 'Exercícios',
         icone: CalendarRange,
+      },
+      {
+        rota: '/financeiro/razao-contabil',
+        rotulo: 'Razão Contábil',
+        icone: BookText,
       },
     ],
   },

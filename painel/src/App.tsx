@@ -42,6 +42,7 @@ import { MfaSetup } from '@/pages/MfaSetup'
 import { MinhasAssembleiasPage } from '@/pages/MinhasAssembleias'
 import { PerfilPage } from '@/pages/Perfil'
 import { PeticoesConvocacaoPage } from '@/pages/PeticoesConvocacao'
+import { RazaoContabilPage } from '@/pages/RazaoContabil'
 import { SessaoAssembleiaPage } from '@/pages/SessaoAssembleia'
 import { TitulosPage } from '@/pages/Titulos'
 
@@ -264,6 +265,14 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Exercícios">
                 <ExerciciosPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="razao-contabil"
+            element={
+              <ErrorBoundary tituloModulo="Razão Contábil">
+                <RazaoContabilPage />
               </ErrorBoundary>
             }
           />

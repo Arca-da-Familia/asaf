@@ -437,6 +437,12 @@ export const baixarTituloSchema = z.object({
     .positive({ message: 'Selecione a conta de contrapartida.' }),
 })
 
+// Usado por "Razão Contábil" (pages/RazaoContabil.tsx, v2.5.10) - o backend também recusa
+// motivo com menos de 5 caracteres e lançamento já estornado (mensagem real é mostrada).
+export const estornoCriarSchema = z.object({
+  motivo: z.string().min(5, 'Informe o motivo (mínimo 5 caracteres).'),
+})
+
 // v0.2.9 — presente só durante o modo "ver como" (impersonação de papel).
 export const impersonandoSchema = z.object({
   id_nivel: z.number(),
