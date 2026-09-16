@@ -2787,7 +2787,7 @@ testes passando (`pytest tests/`).
       > que renderizavam o campo bruto (`AssociadoDetalhe.tsx` e `Ata.tsx`) - checado que não
       > existe um terceiro lugar fazendo a mesma coisa.
 
-##### 🔍 Ponto de Revisão — FASE 2.5 (1/3, fecha v2.5.1–v2.5.4) ⚠️ ITEM 12 PENDENTE (2026-09-16)
+##### 🔍 Ponto de Revisão — FASE 2.5 (1/3, fecha v2.5.1–v2.5.4) ✅ FECHADO (2026-09-16)
 Além do checklist padrão (seção 4.1, item 10 em especial): abrir cada tela no navegador e
 confirmar visualmente que carrega dado real (não place holder, não erro no console) antes de
 marcar qualquer checkbox acima como `[x]`.
@@ -2860,12 +2860,17 @@ marcar qualquer checkbox acima como `[x]`.
 > Suíte completa do backend (212 testes) e typecheck/testes do painel seguem verdes depois da
 > correção.
 >
-> **Pendência do item 12 (criado nesta mesma revisão, aplicado a ela mesma)**: esta correção
-> (`app/services/ata.py` e `painel/src/pages/SessaoAssembleia.tsx`) segue **só local, sem
-> commit** no momento em que este bloco foi escrito - o item 12 do checklist padrão (seção 4.1)
-> não está cumprido até ela ser commitada, enviada a `origin/main` e o deploy correspondente
-> (`deploy-api.yml`/`deploy-painel.yml`) terminar verde. Registrado aqui de propósito, em vez de
-> fechar este ponto de revisão como se produção já refletisse a correção.
+> **Item 12 cumprido (2026-09-16, mesmo dia)**: a correção foi commitada (`00783e9`), enviada a
+> `origin/main` (`git log origin/main..HEAD` vazio, confirmado) e os dois deploys dispararam de
+> verdade - `deploy-api.yml` (run 35101127899) e `deploy-painel.yml` (run 35101127666), ambos
+> `completed`/`success`. Não aceito o check verde como prova por si só (é exatamente o tipo de
+> falso positivo que este item existe pra evitar): confirmado abrindo o log do run da API e
+> achando a atualização real do Container App (`az containerapp update` → nova revisão
+> `asaf-api--0000043`, `provisioningState: Succeeded`), e confirmado contra
+> `https://painel.asaf.org.br/version.json` (endpoint público, sem necessidade de credencial)
+> devolvendo `{"commit": "00783e9", ...}` - o mesmo hash do commit que acabou de subir. A API
+> ainda não tem um endpoint de versão equivalente (lacuna já registrada no item 12 da seção 4.1);
+> checagem mínima aceita até isso existir foi o log da Actions confirmando a revisão nova.
 >
 > **Achado 2 (não é bug, achado de rigor da própria revisão)**: os dados de teste desta revisão
 > usaram o **código** do catálogo (`FUNDADOR`, `SECRETARIO`, `FILHO_A`) em vez do **rótulo**
