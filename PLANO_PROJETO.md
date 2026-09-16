@@ -2715,6 +2715,29 @@ testes passando (`pytest tests/`).
       > de exercício quando "Aprovação de contas"), concluir (com criação de mandato quando
       > "Eleição" - único tipo com campo extra) ou revogar, emitir certidão numerada por
       > deliberação concluída.
+      >
+      > **Ajuste (2026-09-16) - achado do usuário: "essa ata não tem valor pra cartório, não
+      > é assinatura ICP-Brasil - falta anexar o documento de verdade".** Confirmado: o registro
+      > interno (`corpo_texto`, "assinar") não tem NENHUM valor cartorial. Renomeado o botão pra
+      > deixar isso explícito ("Travar registro interno (numerar)", não mais "Assinar ata") e
+      > acrescentado um aviso na própria tela. Adicionado o que faltava: `Ata.arquivo_documento_
+      > assinado`/`numero_protocolo_cartorio`/`data_protocolo_cartorio` (migração
+      > `5a24a5918625`) e `POST /api/atas/{id}/documento-assinado` (upload do PDF/foto do papel
+      > de verdade, assinado fora do sistema, com o protocolo do cartório se houver) - aceita em
+      > qualquer status da ata, porque o documento físico não segue o ciclo de vida interno. 3
+      > testes novos, suíte completa (212) verde; migração validada (upgrade e downgrade).
+      >
+      > Também virou item próprio "Atas" no menu de Governança (`Atas.tsx`, rota
+      > `/governanca/atas`, endpoint novo `GET /api/atas/` com dados da assembleia de origem) -
+      > antes só dava pra achar a ata entrando na assembleia específica; agora tem uma listagem
+      > geral, do jeito que o usuário pediu.
+      >
+      > **Nota técnica registrada, não corrigida agora**: assim como a foto do associado
+      > (v2.5.1), o link do documento anexado é servido em `/uploads/...` **relativo à API**
+      > (`api.asaf.org.br`), não ao painel (`painel.asaf.org.br`) - abrir esse link direto do
+      > painel em produção provavelmente 404 hoje, porque não há proxy configurado entre os dois
+      > domínios (ver `painel/public/staticwebapp.config.json`, sem rewrite pra `/uploads`). Gap
+      > pré-existente, fora do pedido desta versão - registrado aqui pra não ser esquecido.
 
 ##### 🔍 Ponto de Revisão — FASE 2.5 (1/3, fecha v2.5.1–v2.5.4)
 Além do checklist padrão (seção 4.1, item 10 em especial): abrir cada tela no navegador e

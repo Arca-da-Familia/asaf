@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   BarChart3,
   CalendarPlus,
+  FileText,
   FileUp,
   FolderKanban,
   Gavel,
@@ -86,6 +87,11 @@ export const modulos: Modulo[] = [
         rota: '/governanca/peticoes',
         rotulo: 'Petições de convocação',
         icone: Handshake,
+      },
+      {
+        rota: '/governanca/atas',
+        rotulo: 'Atas',
+        icone: FileText,
       },
     ],
   },

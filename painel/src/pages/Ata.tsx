@@ -7,6 +7,7 @@ import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import {
+  anexarDocumentoAssinado,
   ApiError,
   assinarAta,
   atualizarRelatoSecretaria,
@@ -24,6 +25,7 @@ import {
   type Ata,
   type Deliberacao,
 } from '@/lib/api'
+import { formatarData } from '@/lib/datas'
 import {
   ataRetificarSchema,
   deliberacaoCriarSchema,
@@ -428,6 +430,14 @@ function BlocoAta({
         </p>
       )}
 
+      <p className="mb-3 rounded-md border border-amber-600/30 bg-amber-600/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-400">
+        Isto é um registro interno do sistema, sem valor cartorial — não é
+        assinatura digital ICP-Brasil. O corpo abaixo é texto pra copiar para o
+        documento oficial (Word/PDF), que continua sendo assinado à mão (ou com
+        certificado digital de verdade) fora do sistema. O documento real se
+        anexa mais abaixo, depois de pronto.
+      </p>
+
       <p className="mb-1 text-xs font-medium uppercase text-muted-foreground">
         Corpo da ata (gerado do registro da sessão - copie para o documento
         oficial)
@@ -462,7 +472,9 @@ function BlocoAta({
               disabled={assinar.isPending}
               onClick={() => assinar.mutate()}
             >
-              {assinar.isPending ? 'Assinando…' : 'Assinar ata (trava daqui)'}
+              {assinar.isPending
+                ? 'Travando…'
+                : 'Travar registro interno (numerar)'}
             </Button>
           </>
         )}
@@ -501,7 +513,108 @@ function BlocoAta({
           )}
         </FormShell>
       )}
+
+      <BlocoDocumentoAssinado ata={ata} onAtaAtualizada={onAtaAtualizada} />
     </section>
+  )
+}
+
+function BlocoDocumentoAssinado({
+  ata,
+  onAtaAtualizada,
+}: {
+  ata: Ata
+  onAtaAtualizada: (a: Ata) => void
+}) {
+  const [arquivo, setArquivo] = useState<File | null>(null)
+  const [numeroProtocolo, setNumeroProtocolo] = useState(
+    ata.numero_protocolo_cartorio ?? '',
+  )
+  const [dataProtocolo, setDataProtocolo] = useState(
+    ata.data_protocolo_cartorio?.slice(0, 10) ?? '',
+  )
+
+  const anexar = useMutation({
+    mutationFn: () => {
+      if (!arquivo)
+        throw new Error('Selecione o arquivo do documento assinado.')
+      return anexarDocumentoAssinado(ata.id_ata, arquivo, {
+        numero_protocolo_cartorio: numeroProtocolo || undefined,
+        data_protocolo_cartorio: dataProtocolo || undefined,
+      })
+    },
+    onSuccess: onAtaAtualizada,
+  })
+
+  return (
+    <div className="mt-4 border-t border-border pt-4">
+      <h3 className="mb-1 text-sm font-semibold">
+        Documento oficial (assinado, e protocolado no cartório se houver)
+      </h3>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Este é o documento que de fato vale — o PDF/foto do papel assinado pela
+        diretoria, com o número de protocolo se já foi levado ao cartório.
+      </p>
+
+      {ata.arquivo_documento_assinado && (
+        <p className="mb-3 text-sm">
+          <a
+            href={ata.arquivo_documento_assinado}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary hover:underline"
+          >
+            Ver documento anexado
+          </a>
+          {ata.numero_protocolo_cartorio && (
+            <>
+              {' '}
+              · Protocolo {ata.numero_protocolo_cartorio}
+              {ata.data_protocolo_cartorio &&
+                ` em ${formatarData(ata.data_protocolo_cartorio)}`}
+            </>
+          )}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-end gap-2">
+        <input
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png"
+          onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
+          className="text-sm"
+        />
+        <input
+          value={numeroProtocolo}
+          onChange={(e) => setNumeroProtocolo(e.target.value)}
+          placeholder="Nº de protocolo no cartório (opcional)"
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        />
+        <input
+          type="date"
+          value={dataProtocolo}
+          onChange={(e) => setDataProtocolo(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={anexar.isPending || !arquivo}
+          onClick={() => anexar.mutate()}
+        >
+          {anexar.isPending
+            ? 'Enviando…'
+            : ata.arquivo_documento_assinado
+              ? 'Substituir anexo'
+              : 'Anexar documento'}
+        </Button>
+      </div>
+      {anexar.isError && (
+        <p className="mt-2 text-sm text-destructive">
+          {(anexar.error as Error).message}
+        </p>
+      )}
+    </div>
   )
 }
 

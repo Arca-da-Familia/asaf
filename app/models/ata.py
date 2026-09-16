@@ -36,6 +36,14 @@ class Ata(Base):
     id_usuario_assinatura = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     id_ata_retificada = Column(Integer, ForeignKey("atas.id_ata"), nullable=True)
     motivo_retificacao = Column(Text, nullable=True)
+    # v2.5.4b (achado do usuário 2026-09-16) - `corpo_texto` e "assinar" são registro INTERNO do
+    # sistema, sem valor cartorial (não é assinatura ICP-Brasil) - o documento que de fato tem
+    # valor legal é assinado fora do sistema (à mão ou com certificado digital de verdade) e
+    # levado ao cartório por fora. Estes três campos guardam ESSE documento real, uma vez que
+    # exista, pra fechar o ciclo sem fingir que o sistema o produziu.
+    arquivo_documento_assinado = Column(String, nullable=True)
+    numero_protocolo_cartorio = Column(String, nullable=True)
+    data_protocolo_cartorio = Column(DateTime, nullable=True)
     id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
 

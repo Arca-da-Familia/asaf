@@ -2,9 +2,10 @@
 correção possível é uma ata de retificação nova (`POST /api/atas/{id}/retificar`), vinculada à
 original. Permissão `governanca` para tudo que escreve; leitura liberada a qualquer usuário
 autenticado."""
+import os
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
@@ -20,13 +21,31 @@ from app.services.conselho_fiscal import parecer_existe_para_ano
 router = APIRouter()
 _permissao_governanca = exigir_permissao("governanca")
 
+EXTENSOES_DOCUMENTO_PERMITIDAS = {".pdf", ".jpg", ".jpeg", ".png"}
+TAMANHO_MAXIMO_DOCUMENTO = 15 * 1024 * 1024
+
 
 def _serializar_ata(ata: Ata) -> dict:
     return {
         "id_ata": ata.id_ata, "id_assembleia": ata.id_assembleia, "numero_sequencial": ata.numero_sequencial,
         "corpo_texto": ata.corpo_texto, "relato_secretaria": ata.relato_secretaria, "status": ata.status,
         "assinada_em": ata.assinada_em, "id_ata_retificada": ata.id_ata_retificada, "motivo_retificacao": ata.motivo_retificacao,
+        "arquivo_documento_assinado": ata.arquivo_documento_assinado,
+        "numero_protocolo_cartorio": ata.numero_protocolo_cartorio, "data_protocolo_cartorio": ata.data_protocolo_cartorio,
     }
+
+
+@router.get("/api/atas/", summary="Listar todas as atas (com dados da assembleia de origem)")
+def listar_atas(db: Session = Depends(get_db), _usuario=Depends(get_current_user)):
+    atas = db.query(Ata).order_by(Ata.criado_em.desc()).all()
+    resultado = []
+    for ata in atas:
+        assembleia = db.query(Assembleia).filter(Assembleia.id_assembleia == ata.id_assembleia).first()
+        linha = _serializar_ata(ata)
+        linha["assembleia_tipo"] = assembleia.tipo if assembleia else None
+        linha["assembleia_pauta"] = assembleia.pauta if assembleia else None
+        resultado.append(linha)
+    return resultado
 
 
 @router.post("/api/assembleias/{id_assembleia}/ata", summary="Gerar rascunho de ata a partir do registro da sessão")
@@ -88,6 +107,42 @@ def assinar_ata(id_ata: int, request: Request, db: Session = Depends(get_db), us
     ata.id_usuario_assinatura = usuario.id_usuario
     db.commit()
     registrar_auditoria(db, usuario, "atas", "ASSINADA", id_registro_afetado=ata.id_ata, dados_depois={"numero_sequencial": ata.numero_sequencial}, ip_origem=request.client.host if request.client else None)
+    return _serializar_ata(ata)
+
+
+@router.post("/api/atas/{id_ata}/documento-assinado", summary="Anexar o documento real, assinado e (se houver) protocolado no cartório")
+async def anexar_documento_assinado(
+    id_ata: int, request: Request, documento: UploadFile = File(...),
+    numero_protocolo_cartorio: str | None = Form(None), data_protocolo_cartorio: str | None = Form(None),
+    db: Session = Depends(get_db), usuario=Depends(_permissao_governanca),
+):
+    """v2.5.4b (achado do usuário 2026-09-16) - o `corpo_texto`/"assinar" do sistema não tem
+    valor cartorial (não é assinatura ICP-Brasil) - o documento de verdade é assinado fora do
+    sistema e anexado aqui só pra ficar tudo num lugar só. Aceita a qualquer status da ata
+    (o documento físico pode existir antes ou depois do sistema "assinar" internamente)."""
+    ata = _buscar_ata_ou_404(db, id_ata)
+    extensao = os.path.splitext(documento.filename or "")[1].lower()
+    if extensao not in EXTENSOES_DOCUMENTO_PERMITIDAS:
+        raise HTTPException(status_code=400, detail="Formato não suportado. Use PDF, JPG ou PNG.")
+
+    conteudo = await documento.read()
+    if len(conteudo) > TAMANHO_MAXIMO_DOCUMENTO:
+        raise HTTPException(status_code=400, detail="Arquivo muito grande (máximo 15MB).")
+
+    caminho_relativo = f"atas/{id_ata}{extensao}"
+    os.makedirs(os.path.join("uploads", "atas"), exist_ok=True)
+    with open(os.path.join("uploads", caminho_relativo), "wb") as arquivo:
+        arquivo.write(conteudo)
+
+    ata.arquivo_documento_assinado = f"/uploads/{caminho_relativo}"
+    ata.numero_protocolo_cartorio = numero_protocolo_cartorio or None
+    ata.data_protocolo_cartorio = datetime.fromisoformat(data_protocolo_cartorio) if data_protocolo_cartorio else None
+    db.commit()
+    db.refresh(ata)
+    registrar_auditoria(
+        db, usuario, "atas", "DOCUMENTO_ASSINADO_ANEXADO", id_registro_afetado=ata.id_ata,
+        dados_depois={"numero_protocolo_cartorio": ata.numero_protocolo_cartorio}, ip_origem=request.client.host if request.client else None,
+    )
     return _serializar_ata(ata)
 
 

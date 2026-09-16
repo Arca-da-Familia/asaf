@@ -10,6 +10,7 @@ import { AssembleiaDetalhePage } from '@/pages/AssembleiaDetalhe'
 import { AssembleiaNovoPage } from '@/pages/AssembleiaNova'
 import { AssembleiasPage } from '@/pages/Assembleias'
 import { AtaAssembleiaPage } from '@/pages/Ata'
+import { AtasPage } from '@/pages/Atas'
 import { AssociadoDetalhePage } from '@/pages/AssociadoDetalhe'
 import { AssociadoNovoPage } from '@/pages/AssociadoNovo'
 import { AssociadosGraficosPage } from '@/pages/AssociadosGraficos'
@@ -201,6 +202,14 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Petições de convocação">
                 <PeticoesConvocacaoPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="atas"
+            element={
+              <ErrorBoundary tituloModulo="Atas">
+                <AtasPage />
               </ErrorBoundary>
             }
           />

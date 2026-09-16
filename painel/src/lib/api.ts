@@ -1521,6 +1521,21 @@ export type Ata = {
   assinada_em: string | null
   id_ata_retificada: number | null
   motivo_retificacao: string | null
+  // v2.5.4b (achado do usuário 2026-09-16) - o registro interno do sistema (corpo_texto,
+  // "assinar") NÃO tem valor cartorial - estes três campos guardam o documento real, assinado
+  // fora do sistema e (se houver) protocolado em cartório.
+  arquivo_documento_assinado: string | null
+  numero_protocolo_cartorio: string | null
+  data_protocolo_cartorio: string | null
+}
+
+export type AtaListagem = Ata & {
+  assembleia_tipo: string | null
+  assembleia_pauta: string | null
+}
+
+export function listarAtas(): Promise<AtaListagem[]> {
+  return apiFetch('/api/atas/')
 }
 
 export function gerarAta(idAssembleia: number): Promise<Ata> {
@@ -1529,6 +1544,29 @@ export function gerarAta(idAssembleia: number): Promise<Ata> {
 
 export function obterAtaDaAssembleia(idAssembleia: number): Promise<Ata> {
   return apiFetch(`/api/assembleias/${idAssembleia}/ata`)
+}
+
+export function anexarDocumentoAssinado(
+  idAta: number,
+  arquivo: File,
+  dados: {
+    numero_protocolo_cartorio?: string
+    data_protocolo_cartorio?: string
+  },
+): Promise<Ata> {
+  const formData = new FormData()
+  formData.append('documento', arquivo)
+  if (dados.numero_protocolo_cartorio)
+    formData.append(
+      'numero_protocolo_cartorio',
+      dados.numero_protocolo_cartorio,
+    )
+  if (dados.data_protocolo_cartorio)
+    formData.append('data_protocolo_cartorio', dados.data_protocolo_cartorio)
+  return apiFetch(`/api/atas/${idAta}/documento-assinado`, {
+    method: 'POST',
+    body: formData,
+  })
 }
 
 export function atualizarRelatoSecretaria(

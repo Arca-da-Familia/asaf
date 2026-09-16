@@ -26,6 +26,7 @@ seed_configuracoes_institucionais()
 seed_regras_estatutarias()
 
 os.makedirs("uploads/fotos", exist_ok=True)
+os.makedirs("uploads/atas", exist_ok=True)
 
 # ==========================================
 # INICIALIZAÇÃO DO SERVIDOR E FRONTEND

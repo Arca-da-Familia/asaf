@@ -108,6 +108,43 @@ def test_relato_secretaria_so_edita_enquanto_rascunho(client, auth_headers):
     assert r2.status_code == 400
 
 
+def test_anexar_documento_assinado_com_protocolo_cartorio(client, auth_headers):
+    id_assembleia = _criar_assembleia_em_andamento(client, auth_headers)
+    id_ata = _criar_ata(client, auth_headers, id_assembleia)
+
+    r = client.post(
+        f"/api/atas/{id_ata}/documento-assinado", headers=auth_headers,
+        files={"documento": ("ata_assinada.pdf", b"%PDF-1.4 conteudo fake", "application/pdf")},
+        data={"numero_protocolo_cartorio": "12345-CRT", "data_protocolo_cartorio": "2026-09-20T00:00:00"},
+    )
+    assert r.status_code == 200, r.text
+    corpo = r.json()
+    assert corpo["arquivo_documento_assinado"] == f"/uploads/atas/{id_ata}.pdf"
+    assert corpo["numero_protocolo_cartorio"] == "12345-CRT"
+    assert corpo["data_protocolo_cartorio"] is not None
+
+
+def test_anexar_documento_formato_invalido_falha(client, auth_headers):
+    id_assembleia = _criar_assembleia_em_andamento(client, auth_headers)
+    id_ata = _criar_ata(client, auth_headers, id_assembleia)
+
+    r = client.post(
+        f"/api/atas/{id_ata}/documento-assinado", headers=auth_headers,
+        files={"documento": ("ata.docx", b"conteudo", "application/msword")},
+    )
+    assert r.status_code == 400
+
+
+def test_listar_todas_as_atas_traz_dados_da_assembleia(client, auth_headers):
+    id_assembleia = _criar_assembleia_em_andamento(client, auth_headers, pauta="Pauta pra listagem geral")
+    id_ata = _criar_ata(client, auth_headers, id_assembleia)
+
+    listadas = client.get("/api/atas/", headers=auth_headers).json()
+    encontrada = next(a for a in listadas if a["id_ata"] == id_ata)
+    assert encontrada["assembleia_pauta"] == "Pauta pra listagem geral"
+    assert encontrada["assembleia_tipo"] == "Ordinária"
+
+
 def test_retificar_exige_ata_assinada_e_preserva_original(client, auth_headers):
     id_assembleia = _criar_assembleia_em_andamento(client, auth_headers)
     id_ata = _criar_ata(client, auth_headers, id_assembleia)
