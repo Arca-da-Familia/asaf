@@ -233,12 +233,46 @@ export const deliberacaoConcluirSchema = z.object({
   observacao: z.string().optional(),
 })
 
-// Usado só quando a deliberação concluída é do tipo "Eleição" (cria o mandato de uma vez).
+// Usado tanto quando a deliberação concluída é do tipo "Eleição" (cria o mandato de uma vez,
+// sem os dois campos opcionais abaixo) quanto pelo formulário standalone "Registrar mandato"
+// (pages/Mandatos.tsx, v2.5.5) - `data_fim_previsto`/`ato_origem` ficam de fora do fluxo da
+// Eleição de propósito (o backend deriva o fim a partir de `DURACAO_MANDATO_ANOS` quando omitido).
 export const mandatoCriarSchema = z.object({
   id_associado: z.coerce.number().int({ message: 'Selecione um associado.' }),
   orgao_codigo: z.string().min(1, 'Informe o código do órgão.'),
   cargo_codigo: z.string().min(1, 'Informe o código do cargo.'),
   data_inicio: z.string().min(1, 'Informe a data de início.'),
+  data_fim_previsto: z.string().optional(),
+  ato_origem: z.string().optional(),
+})
+
+// Usado por "Encerrar mandato" (pages/Mandatos.tsx, v2.5.5) - `motivo` é o enum real do backend
+// (app/models/mandatos.py::MOTIVOS_ENCERRAMENTO_ANTECIPADO), nunca texto livre.
+export const mandatoEncerrarSchema = z.object({
+  motivo: z.enum(['Renúncia', 'Destituição', 'Impedimento temporário']),
+  referencia_ato: z.string().optional(),
+})
+
+// Usado por "Declarar conflito de interesse" (pages/Mandatos.tsx, v2.5.5).
+export const declaracaoConflitoCriarSchema = z.object({
+  id_associado: z.coerce.number().int({ message: 'Selecione um associado.' }),
+  descricao: z.string().min(3, 'Descreva o conflito de interesse.'),
+})
+
+// Usado por "Emitir parecer" (pages/ConselhoFiscal.tsx, v2.5.5) - `tipo` é o enum real do
+// backend (app/models/conselho_fiscal.py::TIPOS_PARECER).
+export const parecerCriarSchema = z.object({
+  ano_exercicio: z.coerce.number().int().min(2013, 'Ano inválido - a ASAF existe desde 2013.'),
+  tipo: z.enum(['Favorável', 'Com ressalva', 'Contrário']),
+  texto: z.string().min(10, 'Descreva o parecer.'),
+})
+
+export const questionamentoCriarSchema = z.object({
+  pergunta: z.string().min(5, 'Descreva o questionamento.'),
+})
+
+export const respostaQuestionamentoSchema = z.object({
+  texto: z.string().min(3, 'Escreva a resposta.'),
 })
 
 export const deliberacaoRevogarSchema = z.object({

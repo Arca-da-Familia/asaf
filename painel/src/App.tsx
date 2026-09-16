@@ -17,12 +17,14 @@ import { AssociadosGraficosPage } from '@/pages/AssociadosGraficos'
 import { AssociadosPage } from '@/pages/Associados'
 import { AuditoriaPage } from '@/pages/Auditoria'
 import { ConcederAcessoPage } from '@/pages/ConcederAcesso'
+import { ConselhoFiscalPage } from '@/pages/ConselhoFiscal'
 import { DevComponents } from '@/pages/DevComponents'
 import { EmConstrucao } from '@/pages/EmConstrucao'
 import { Forbidden } from '@/pages/Forbidden'
 import { Home } from '@/pages/Home'
 import { ImportarAssociadosPage } from '@/pages/ImportarAssociados'
 import { Login } from '@/pages/Login'
+import { MandatosPage } from '@/pages/Mandatos'
 import { MfaSetup } from '@/pages/MfaSetup'
 import { MinhasAssembleiasPage } from '@/pages/MinhasAssembleias'
 import { PerfilPage } from '@/pages/Perfil'
@@ -167,12 +169,27 @@ function App() {
           path="/financeiro"
           element={
             <RequirePermission permission="financeiro">
+              <Outlet />
+            </RequirePermission>
+          }
+        >
+          <Route
+            index
+            element={
               <ErrorBoundary tituloModulo="Financeiro">
                 <EmConstrucao modulo="Financeiro" />
               </ErrorBoundary>
-            </RequirePermission>
-          }
-        />
+            }
+          />
+          <Route
+            path="conselho-fiscal"
+            element={
+              <ErrorBoundary tituloModulo="Conselho Fiscal">
+                <ConselhoFiscalPage />
+              </ErrorBoundary>
+            }
+          />
+        </Route>
         <Route
           path="/governanca"
           element={
@@ -210,6 +227,14 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Atas">
                 <AtasPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="mandatos"
+            element={
+              <ErrorBoundary tituloModulo="Mandatos">
+                <MandatosPage />
               </ErrorBoundary>
             }
           />

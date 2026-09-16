@@ -2887,8 +2887,56 @@ marcar qualquer checkbox acima como `[x]`.
 > os Pontos de Revisão 2/3 e 3/3 não têm o que revisar ainda.
 
 #### v2.5.5 — Governança: Mandatos, Órgãos e Conselho Fiscal
-- [ ] Mandatos vigentes por órgão/cargo, declaração de conflito de interesse.
-- [ ] Painel do Conselho Fiscal: leitura financeira auditada, pareceres, questionamentos.
+- [x] Mandatos vigentes por órgão/cargo, declaração de conflito de interesse.
+- [x] Painel do Conselho Fiscal: leitura financeira auditada, pareceres, questionamentos.
+
+      > **v2.5.5 (2026-09-16) - backend já existia completo e testado desde v2.1 (mandatos)/v2.6
+      > (Conselho Fiscal, FASE 2) - só nunca tinha tela.** Telas novas: `Mandatos.tsx`
+      > (`/governanca/mandatos`) - mandatos por órgão/cargo com filtro "só vigentes", registrar
+      > posse, encerrar mandato (motivo do enum real do backend), e declarações de conflito de
+      > interesse (declarar/listar/encerrar); `ConselhoFiscal.tsx`
+      > (`/financeiro/conselho-fiscal`) - leitura irrestrita de títulos e do razão contábil,
+      > fila de questionamentos por título (perguntar/responder), pareceres sobre prestação de
+      > contas (listar/emitir).
+      >
+      > **Achado de desenho (não é bug, decisão registrada)**: apesar do changelog da fase
+      > agrupar "Mandatos, Órgãos **e Conselho Fiscal**" numa versão só, as duas telas moram em
+      > módulos diferentes do painel - `Mandatos.tsx` dentro de Governança (permissão
+      > `governanca`, a mesma do backend), `ConselhoFiscal.tsx` dentro de Financeiro (permissão
+      > `financeiro`). O nível "Conselho Fiscal" (v0.1.5) só tem `financeiro`/`auditoria`, nunca
+      > `governanca` - colocar a tela do Conselho Fiscal atrás da permissão `governanca` (só
+      > porque o texto do plano os agrupa) a deixaria invisível pra quem mais precisa dela,
+      > exatamente o tipo de "tela existe no código mas ninguém alcança" que os itens 10/11/12
+      > existem pra pegar.
+      >
+      > **Achado 1 (bug real, corrigido antes de marcar `[x]`)**: `Mandatos.tsx` mandava
+      > `data_fim_previsto: ''`/`ato_origem: ''` pro backend quando esses campos opcionais
+      > ficavam em branco (react-hook-form nunca deixa `undefined` um input registrado) -
+      > `MandatoCriar.data_fim_previsto` é `Optional[date]`, e Pydantic tenta interpretar a
+      > string vazia como data e falha (`"Input should be a valid date or datetime, input is too
+      > short"`), bloqueando "Registrar mandato" no caso mais comum (deixar em branco pra usar a
+      > duração padrão). Achado rodando o formulário de verdade no navegador (não só lendo o
+      > código) - o mesmo padrão de sanitização já usado em `BlocoPauta::criarItemPauta`
+      > (`v.tempo_fala_minutos || undefined`) resolveu.
+      >
+      > **Achado 2 (bug evitado antes de existir)**: `Decimal` do backend (`valor_original`,
+      > `saldo_devedor`, `valor` de partida) serializa como número JSON **em reais**
+      > (`jsonable_encoder`, confirmado empiricamente, não suposto), nunca centavos e nunca
+      > string. `lib/datas.ts::formatarMoeda` espera **centavos** (divide por 100) - usá-la aqui
+      > exibiria R$ 75,50 como R$ 0,50. `ConselhoFiscal.tsx` usa um formatador próprio em reais
+      > em vez de reaproveitar `formatarMoeda` errado.
+      >
+      > **Confirmado rodando de verdade** (backend local + painel, admin real completando MFA):
+      > registrar mandato (com e sem os campos opcionais), encerrar mandato pela tela, declarar
+      > conflito de interesse, títulos/razão contábil do Conselho Fiscal com valor monetário
+      > correto, e o erro 403 real ("Só um membro do Conselho Fiscal pode fazer isso") aparecendo
+      > de forma legível quando um Presidente (sem `is_conselho_fiscal`) tenta emitir parecer -
+      > o painel nunca tenta adivinhar essa marca (não existe em `/auth/me`), só mostra o erro
+      > real do backend. Suíte completa do backend (212 testes), typecheck e lint do painel
+      > verdes.
+      >
+      > **Item 12**: ver Ponto de Revisão 2/3 abaixo - esta versão só fecha depois de confirmada
+      > em produção de verdade, não só localmente.
 
 #### v2.5.6 — Governança: Disciplina e Dissolução
 - [ ] Processo disciplinar: abertura, defesa, manifestação da diretoria, decisão.

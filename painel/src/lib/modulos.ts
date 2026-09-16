@@ -8,8 +8,10 @@ import {
   Gavel,
   Handshake,
   Landmark,
+  MessageCircleQuestion,
   ScrollText,
   ShieldCheck,
+  UserCheck,
   UserPlus,
   Users,
   Wallet,
@@ -65,6 +67,19 @@ export const modulos: Modulo[] = [
     rotulo: 'Financeiro',
     permissao: 'financeiro',
     icone: Wallet,
+    itens: [
+      {
+        rota: '/financeiro',
+        rotulo: 'Início',
+        icone: Wallet,
+        fim: true,
+      },
+      {
+        rota: '/financeiro/conselho-fiscal',
+        rotulo: 'Conselho Fiscal',
+        icone: MessageCircleQuestion,
+      },
+    ],
   },
   {
     rota: '/governanca',
@@ -92,6 +107,11 @@ export const modulos: Modulo[] = [
         rota: '/governanca/atas',
         rotulo: 'Atas',
         icone: FileText,
+      },
+      {
+        rota: '/governanca/mandatos',
+        rotulo: 'Mandatos',
+        icone: UserCheck,
       },
     ],
   },

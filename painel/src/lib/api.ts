@@ -1686,3 +1686,213 @@ export function listarCertidoes(
 ): Promise<CertidaoDeliberacao[]> {
   return apiFetch(`/api/deliberacoes/${idDeliberacao}/certidoes`)
 }
+
+// ---------------------------------------------------------------------------
+// Mandatos, órgãos e conflito de interesse (v2.1 backend, v2.5.5 painel)
+// ---------------------------------------------------------------------------
+export type Mandato = {
+  id_mandato: number
+  id_associado: number
+  orgao_codigo: string
+  cargo_codigo: string
+  data_inicio: string
+  data_fim_previsto: string
+  data_fim_efetivo: string | null
+  motivo_encerramento: string | null
+  ato_origem: string | null
+  vigente: boolean
+}
+
+export function listarMandatos(filtros?: {
+  idAssociado?: number
+  orgaoCodigo?: string
+  apenasVigentes?: boolean
+}): Promise<Mandato[]> {
+  const params = new URLSearchParams()
+  if (filtros?.idAssociado) params.set('id_associado', String(filtros.idAssociado))
+  if (filtros?.orgaoCodigo) params.set('orgao_codigo', filtros.orgaoCodigo)
+  if (filtros?.apenasVigentes) params.set('apenas_vigentes', 'true')
+  const query = params.toString()
+  return apiFetch(`/api/mandatos/${query ? `?${query}` : ''}`)
+}
+
+export function criarMandato(dados: MandatoCriarInput): Promise<Mandato> {
+  return apiFetch('/api/mandatos/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function encerrarMandato(
+  idMandato: number,
+  dados: { motivo: string; referencia_ato?: string },
+): Promise<Mandato & { vaga_aberta: boolean; pendencia?: string }> {
+  return apiFetch(`/api/mandatos/${idMandato}/encerrar`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type DeclaracaoConflitoInteresse = {
+  id_declaracao: number
+  id_associado: number
+  descricao: string
+  ativa: boolean
+  criado_em: string
+}
+
+export function listarConflitosInteresse(filtros?: {
+  idAssociado?: number
+  apenasAtivas?: boolean
+}): Promise<DeclaracaoConflitoInteresse[]> {
+  const params = new URLSearchParams()
+  if (filtros?.idAssociado) params.set('id_associado', String(filtros.idAssociado))
+  params.set('apenas_ativas', filtros?.apenasAtivas === false ? 'false' : 'true')
+  return apiFetch(`/api/mandatos/conflitos-interesse?${params.toString()}`)
+}
+
+export function declararConflitoInteresse(dados: {
+  id_associado: number
+  descricao: string
+}): Promise<{ mensagem: string; id_declaracao: number }> {
+  return apiFetch('/api/mandatos/conflitos-interesse', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function encerrarConflitoInteresse(
+  idDeclaracao: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/mandatos/conflitos-interesse/${idDeclaracao}/encerrar`, {
+    method: 'PUT',
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Conselho Fiscal (v2.6 backend, v2.5.5 painel) - leitura financeira irrestrita
+// (auditada a cada consulta), parecer sobre prestação de contas, fila de
+// questionamentos sobre lançamento. Vive no módulo Financeiro (permissão
+// `financeiro`, a mesma que o backend exige pra leitura) - nunca dentro de
+// Governança, porque quem só tem `financeiro`/`auditoria` (Conselho Fiscal,
+// v0.1.5) não teria como abrir um módulo que exige `governanca`.
+// ---------------------------------------------------------------------------
+export type TituloFinanceiroCF = {
+  id_titulo: number
+  tipo_titulo: string
+  id_associado: number | null
+  id_fornecedor: number | null
+  descricao: string
+  // `Numeric`/`Decimal` no backend, mas o FastAPI serializa Decimal como número JSON em reais
+  // (jsonable_encoder), nunca centavos e nunca string - confirmado empiricamente antes de
+  // escrever este tipo, pra não repetir o mesmo tipo de suposição errada que gerou o achado 1
+  // do Ponto de Revisão FASE 2.5 (1/3).
+  valor_original: number
+  saldo_devedor: number
+  data_emissao: string | null
+  data_vencimento: string
+  status: string
+}
+
+export function listarTitulosConselhoFiscal(
+  status?: string,
+): Promise<TituloFinanceiroCF[]> {
+  return apiFetch(
+    `/api/conselho-fiscal/financeiro/titulos${status ? `?status=${encodeURIComponent(status)}` : ''}`,
+  )
+}
+
+export type PartidaContabilCF = {
+  id_conta: number
+  tipo_partida: string
+  valor: number
+}
+
+export type LancamentoContabilCF = {
+  id_lancamento: number
+  numero_sequencial: number
+  id_titulo: number | null
+  historico: string
+  data_lancamento: string
+  forma_pagamento: string | null
+  estornado: boolean
+  partidas: PartidaContabilCF[]
+}
+
+export function listarCaixaConselhoFiscal(): Promise<LancamentoContabilCF[]> {
+  return apiFetch('/api/conselho-fiscal/financeiro/caixa')
+}
+
+export type ParecerPrestacaoContas = {
+  id_parecer: number
+  ano_exercicio: number
+  tipo: string
+  texto: string
+  id_associado_conselheiro: number
+  criado_em: string
+}
+
+export function listarPareceres(
+  anoExercicio?: number,
+): Promise<ParecerPrestacaoContas[]> {
+  return apiFetch(
+    `/api/conselho-fiscal/pareceres${anoExercicio ? `?ano_exercicio=${anoExercicio}` : ''}`,
+  )
+}
+
+export function emitirParecer(dados: {
+  ano_exercicio: number
+  tipo: string
+  texto: string
+}): Promise<{ id_parecer: number; ano_exercicio: number; tipo: string }> {
+  return apiFetch('/api/conselho-fiscal/pareceres', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type QuestionamentoLancamento = {
+  id_questionamento: number
+  pergunta: string
+  status: string
+  id_associado_questionador: number
+  criado_em: string
+}
+
+export function criarQuestionamento(
+  idTitulo: number,
+  dados: { pergunta: string },
+): Promise<{ id_questionamento: number; status: string }> {
+  return apiFetch(`/api/financeiro/titulos/${idTitulo}/questionamentos`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarQuestionamentos(
+  idTitulo: number,
+): Promise<QuestionamentoLancamento[]> {
+  return apiFetch(`/api/financeiro/titulos/${idTitulo}/questionamentos`)
+}
+
+export type RespostaQuestionamento = {
+  id_resposta: number
+  texto: string
+  criado_em: string
+}
+
+export function responderQuestionamento(
+  idQuestionamento: number,
+  dados: { texto: string },
+): Promise<{ id_resposta: number; status_questionamento: string }> {
+  return apiFetch(`/api/questionamentos/${idQuestionamento}/respostas`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarRespostas(
+  idQuestionamento: number,
+): Promise<RespostaQuestionamento[]> {
+  return apiFetch(`/api/questionamentos/${idQuestionamento}/respostas`)
+}
