@@ -2945,8 +2945,46 @@ marcar qualquer checkbox acima como `[x]`.
       > commit que de fato corrigiu o problema, não do que falhou.
 
 #### v2.5.6 — Governança: Disciplina e Dissolução
-- [ ] Processo disciplinar: abertura, defesa, manifestação da diretoria, decisão.
-- [ ] Processo de dissolução (tela rara, mas precisa existir - Art. 31).
+- [x] Processo disciplinar: abertura, defesa, manifestação da diretoria, decisão.
+- [x] Processo de dissolução (tela rara, mas precisa existir - Art. 31).
+
+      > **v2.5.6 (2026-09-16) - backend já existia completo desde v2.7 (disciplina)/v2.8
+      > (dissolução, FASE 2) - só nunca tinha tela.** Telas novas: `Disciplina.tsx` (abertura,
+      > defesa, manifestação colegiada, decisão, homologação) e `Dissolucao.tsx` (as cinco
+      > etapas sequenciais do Art. 31 - deliberar, liquidar, destinar patrimônio, baixa
+      > cadastral, cancelar).
+      >
+      > **Achado de desenho (não é bug)**: o backend de disciplina devolve **404, nunca 403**,
+      > pra quem não é `governanca` nem o próprio acusado (confidencialidade real - nem revela
+      > que o processo existe). Por isso `ProcessoDisciplinarDetalhePage` mora numa rota
+      > **global** (`/processos-disciplinares/:id`), fora do módulo Governança - se morasse
+      > dentro de `/governanca` (permissão `governanca`), o próprio acusado nunca conseguiria
+      > abrir a própria defesa. Mesmo raciocínio da v2.5.5 com o Conselho Fiscal, segunda vez
+      > que esse padrão aparece nesta fase. A listagem (`GET /api/processos-disciplinares/`) já
+      > se auto-filtra no backend (governanca vê tudo, associado comum só o seu) - reaproveitada
+      > sem mudança nas duas rotas (`/governanca/disciplina` e `/meus-processos-disciplinares`,
+      > este último um novo item global no menu, ao lado de "Minhas assembleias").
+      >
+      > **Achado 1 (bug real, corrigido antes de marcar `[x]`)**: mesma classe de bug do achado 1
+      > da v2.5.5 (campo opcional em branco chega como valor "vazio", não ausente) - aqui com
+      > `suspensao_dias` (`DecisaoExecutar`): `<input type="number">` vazio + `z.coerce.number()`
+      > vira `0`, e `0` nunca passa da validação do backend (`Suspensão deve ser entre 30 e 365
+      > dias`), então **toda decisão que não fosse Suspensão** (a maioria - Advertência,
+      > Eliminação, arquivar) quebrava ao tentar fechar o processo. Achado rodando o fluxo
+      > completo de ponta a ponta no navegador (admin abre processo → acusado apresenta defesa →
+      > diretor se manifesta → admin decide), não só lendo o código - reproduzido com uma decisão
+      > de Advertência real antes de corrigir. Mesmo padrão de sanitização já usado em
+      > `Mandatos.tsx`/`BlocoPauta`.
+      >
+      > **Confirmado rodando de verdade** (backend local + painel): ciclo completo de disciplina
+      > com três contas reais diferentes (admin/Presidente abre o processo; a acusada, um
+      > associado comum sem permissão nenhuma, vê só o próprio processo em "Meus processos
+      > disciplinares" e apresenta defesa; um diretor com mandato vigente na Diretoria Executiva
+      > se manifesta; admin decide e fecha com a pena aplicada) - e o roteiro de dissolução
+      > completo, todas as cinco etapas em sequência contra uma deliberação de dissolução real
+      > (criada e concluída via Ata.tsx), incluindo o erro esperado ("Deliberação não
+      > encontrada") ao tentar vincular um número de deliberação inexistente. Suíte completa do
+      > backend (212 testes), typecheck, lint e Prettier do painel verdes.
 
 #### v2.5.7 — Calendário institucional
 - [ ] Agenda de eventos do calendário (`app/services/calendario.py`), com alerta de vencimento.

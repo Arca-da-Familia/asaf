@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   BarChart3,
+  Building2,
   CalendarPlus,
   FileText,
   FileUp,
@@ -10,6 +11,7 @@ import {
   Landmark,
   MessageCircleQuestion,
   ScrollText,
+  ShieldAlert,
   ShieldCheck,
   UserCheck,
   UserPlus,
@@ -112,6 +114,16 @@ export const modulos: Modulo[] = [
         rota: '/governanca/mandatos',
         rotulo: 'Mandatos',
         icone: UserCheck,
+      },
+      {
+        rota: '/governanca/disciplina',
+        rotulo: 'Disciplina',
+        icone: ShieldAlert,
+      },
+      {
+        rota: '/governanca/dissolucao',
+        rotulo: 'Dissolução',
+        icone: Building2,
       },
     ],
   },

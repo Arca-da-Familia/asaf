@@ -278,6 +278,77 @@ export const respostaQuestionamentoSchema = z.object({
   texto: z.string().min(3, 'Escreva a resposta.'),
 })
 
+// Usado por "Abrir processo" (pages/Disciplina.tsx, v2.5.6) - `motivo_codigo` vem do catálogo
+// `motivo_processo_disciplinar` (Art. 16, §1º), nunca texto livre.
+export const processoDisciplinarCriarSchema = z.object({
+  id_associado: z.coerce.number().int({ message: 'Selecione um associado.' }),
+  motivo_codigo: z.string().min(1, 'Selecione o motivo.'),
+  descricao: z.string().min(10, 'Descreva os fatos que motivam o processo.'),
+})
+
+export const defesaApresentarSchema = z.object({
+  texto: z.string().min(5, 'Apresente a defesa.'),
+})
+
+// `pena_proposta` vazio = propõe arquivar, sem pena (o próprio backend trata assim - ver
+// app/schemas/disciplina.py::ManifestacaoCriar). `''` é convertido pra `undefined` no submit.
+export const manifestacaoCriarSchema = z.object({
+  pena_proposta: z.string().optional(),
+  justificativa: z.string().optional(),
+})
+
+export const decisaoExecutarSchema = z.object({
+  texto_decisao: z.string().min(10, 'Fundamente a decisão.'),
+  suspensao_dias: z.coerce.number().int().optional(),
+})
+
+export const homologarSchema = z.object({
+  aprovado: z.enum(['sim', 'nao']),
+  justificativa: z.string().min(5, 'Justifique a homologação (ou recusa).'),
+})
+
+// Usado por "Abrir processo de dissolução" (pages/Dissolucao.tsx, v2.5.6, Art. 31).
+export const processoDissolucaoCriarSchema = z.object({
+  motivo: z
+    .string()
+    .min(
+      10,
+      'Descreva o motivo (Art. 31: impossibilidade de manutenção dos objetivos, desvirtuamento de finalidade, ou carência de recursos).',
+    ),
+})
+
+export const deliberarDissolucaoSchema = z.object({
+  id_deliberacao: z.coerce.number().int({
+    message: 'Informe o nº da deliberação de dissolução já concluída.',
+  }),
+})
+
+export const liquidacaoConcluirSchema = z.object({
+  observacao: z.string().min(10, 'Descreva como o passivo foi liquidado.'),
+})
+
+export const destinarPatrimonioSchema = z.object({
+  entidade_nome: z.string().min(3, 'Informe o nome da entidade destinatária.'),
+  entidade_cnpj: z.string().optional(),
+  justificativa: z
+    .string()
+    .min(
+      10,
+      'Justifique por que a entidade atende aos critérios do Art. 31, Parágrafo Único.',
+    ),
+  confirma_sede_parauapebas: z.boolean(),
+  confirma_anos_minimos: z.boolean(),
+  confirma_credenciada: z.boolean(),
+})
+
+export const baixaCadastralSchema = z.object({
+  observacao: z.string().min(5, 'Descreva a baixa cadastral realizada.'),
+})
+
+export const cancelarDissolucaoSchema = z.object({
+  motivo: z.string().min(5, 'Descreva o motivo do cancelamento.'),
+})
+
 export const deliberacaoRevogarSchema = z.object({
   motivo: z.string().min(5, 'Descreva o motivo da revogação.'),
 })

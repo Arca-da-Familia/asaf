@@ -19,6 +19,14 @@ import { AuditoriaPage } from '@/pages/Auditoria'
 import { ConcederAcessoPage } from '@/pages/ConcederAcesso'
 import { ConselhoFiscalPage } from '@/pages/ConselhoFiscal'
 import { DevComponents } from '@/pages/DevComponents'
+import {
+  ProcessoDisciplinarDetalhePage,
+  ProcessosDisciplinaresPage,
+} from '@/pages/Disciplina'
+import {
+  ProcessoDissolucaoDetalhePage,
+  ProcessosDissolucaoPage,
+} from '@/pages/Dissolucao'
 import { EmConstrucao } from '@/pages/EmConstrucao'
 import { Forbidden } from '@/pages/Forbidden'
 import { Home } from '@/pages/Home'
@@ -104,6 +112,22 @@ function App() {
           element={
             <ErrorBoundary tituloModulo="Minhas assembleias">
               <MinhasAssembleiasPage />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/meus-processos-disciplinares"
+          element={
+            <ErrorBoundary tituloModulo="Meus processos disciplinares">
+              <ProcessosDisciplinaresPage />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/processos-disciplinares/:id"
+          element={
+            <ErrorBoundary tituloModulo="Processo disciplinar">
+              <ProcessoDisciplinarDetalhePage />
             </ErrorBoundary>
           }
         />
@@ -235,6 +259,30 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Mandatos">
                 <MandatosPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="disciplina"
+            element={
+              <ErrorBoundary tituloModulo="Disciplina">
+                <ProcessosDisciplinaresPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="dissolucao"
+            element={
+              <ErrorBoundary tituloModulo="Dissolução">
+                <ProcessosDissolucaoPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="dissolucao/:id"
+            element={
+              <ErrorBoundary tituloModulo="Processo de dissolução">
+                <ProcessoDissolucaoDetalhePage />
               </ErrorBoundary>
             }
           />

@@ -10,6 +10,7 @@ import {
   Menu,
   Moon,
   Search,
+  ShieldAlert,
   Sun,
   UserRound,
 } from 'lucide-react'
@@ -262,6 +263,18 @@ export function Shell() {
               >
                 <CalendarCheck className="h-5 w-5 shrink-0" />
                 {!collapsed && <span>Minhas assembleias</span>}
+              </NavLink>
+
+              {/* v2.5.6 - mesmo padrão de "Minhas assembleias": é o próprio associado vendo o
+                  próprio processo (defesa, Art. 16), não a Diretoria julgando o de todo mundo -
+                  por isso fora do módulo Governança também. */}
+              <NavLink
+                to="/meus-processos-disciplinares"
+                className={navCls}
+                onClick={() => setMobileOpen(false)}
+              >
+                <ShieldAlert className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>Meus processos disciplinares</span>}
               </NavLink>
             </>
           )}

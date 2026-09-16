@@ -1904,3 +1904,206 @@ export function listarRespostas(
 ): Promise<RespostaQuestionamento[]> {
   return apiFetch(`/api/questionamentos/${idQuestionamento}/respostas`)
 }
+
+// ---------------------------------------------------------------------------
+// Processo disciplinar (v2.7 backend, v2.5.6 painel) - Art. 16/17. Confidencial: o backend
+// devolve 404 (nunca 403) pra quem não é `governanca` nem o próprio acusado, então a tela de
+// detalhe vive numa rota GLOBAL (/processos-disciplinares/:id), fora do módulo Governança - se
+// morasse dentro de /governanca (permissão `governanca`), o próprio acusado nunca conseguiria
+// abrir a própria defesa. A listagem (`GET .../processos-disciplinares/`) já se auto-filtra no
+// backend (governanca vê tudo, associado comum só o que é seu) - reaproveitada nas duas rotas
+// (`/governanca/disciplina` e `/meus-processos-disciplinares`).
+// ---------------------------------------------------------------------------
+export type ProcessoDisciplinar = {
+  id_processo: number
+  id_associado: number
+  motivo_codigo: string
+  descricao: string
+  status: string
+  data_abertura: string
+  prazo_defesa_ate: string
+  defesa_apresentada_em: string | null
+  pena_aplicada: string | null
+  escalada_automatica: boolean
+  suspensao_dias: number | null
+  data_fim_suspensao: string | null
+  decidido_em: string | null
+  homologado_em: string | null
+}
+
+export function listarProcessosDisciplinares(): Promise<ProcessoDisciplinar[]> {
+  return apiFetch('/api/processos-disciplinares/')
+}
+
+export function obterProcessoDisciplinar(
+  idProcesso: number,
+): Promise<ProcessoDisciplinar> {
+  return apiFetch(`/api/processos-disciplinares/${idProcesso}`)
+}
+
+export function abrirProcessoDisciplinar(dados: {
+  id_associado: number
+  motivo_codigo: string
+  descricao: string
+}): Promise<ProcessoDisciplinar> {
+  return apiFetch('/api/processos-disciplinares/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function apresentarDefesa(
+  idProcesso: number,
+  texto: string,
+): Promise<ProcessoDisciplinar> {
+  return apiFetch(`/api/processos-disciplinares/${idProcesso}/defesa`, {
+    method: 'POST',
+    body: JSON.stringify({ texto }),
+  })
+}
+
+export type ResultadoColegiado = {
+  diretores_aptos: number
+  quorum_minimo: number
+  manifestacoes: number
+  quorum_atingido: boolean
+  resultado: string | null
+  contagem: Record<string, number>
+}
+
+export function registrarManifestacao(
+  idProcesso: number,
+  dados: { pena_proposta?: string; justificativa?: string },
+): Promise<ResultadoColegiado> {
+  return apiFetch(`/api/processos-disciplinares/${idProcesso}/manifestacoes`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function verManifestacoes(
+  idProcesso: number,
+): Promise<ResultadoColegiado> {
+  return apiFetch(`/api/processos-disciplinares/${idProcesso}/manifestacoes`)
+}
+
+export function decidirProcessoDisciplinar(
+  idProcesso: number,
+  dados: { texto_decisao: string; suspensao_dias?: number },
+): Promise<ProcessoDisciplinar> {
+  return apiFetch(`/api/processos-disciplinares/${idProcesso}/decidir`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function homologarEliminacao(
+  idProcesso: number,
+  dados: { aprovado: boolean; justificativa: string },
+): Promise<ProcessoDisciplinar> {
+  return apiFetch(`/api/processos-disciplinares/${idProcesso}/homologar`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Processo de dissolução (v2.8 backend, v2.5.6 painel) - Art. 31. "Espera-se nunca usar", mas
+// precisa existir - tela rara, sempre dentro de Governança (permissão `governanca`, sem
+// conceito de "acusado" que precise ver de fora, diferente da disciplina).
+// ---------------------------------------------------------------------------
+export type ProcessoDissolucao = {
+  id_processo_dissolucao: number
+  motivo: string
+  status: string
+  id_deliberacao: number | null
+  deliberada_em: string | null
+  liquidacao_concluida_em: string | null
+  entidade_destinataria_nome: string | null
+  entidade_destinataria_cnpj: string | null
+  patrimonio_destinado_em: string | null
+  baixa_cadastral_em: string | null
+  motivo_cancelamento: string | null
+}
+
+export function listarProcessosDissolucao(): Promise<ProcessoDissolucao[]> {
+  return apiFetch('/api/processos-dissolucao/')
+}
+
+export function obterProcessoDissolucao(
+  idProcessoDissolucao: number,
+): Promise<ProcessoDissolucao> {
+  return apiFetch(`/api/processos-dissolucao/${idProcessoDissolucao}`)
+}
+
+export function abrirProcessoDissolucao(
+  motivo: string,
+): Promise<ProcessoDissolucao> {
+  return apiFetch('/api/processos-dissolucao/', {
+    method: 'POST',
+    body: JSON.stringify({ motivo }),
+  })
+}
+
+export function deliberarDissolucao(
+  idProcessoDissolucao: number,
+  idDeliberacao: number,
+): Promise<ProcessoDissolucao> {
+  return apiFetch(
+    `/api/processos-dissolucao/${idProcessoDissolucao}/deliberar`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ id_deliberacao: idDeliberacao }),
+    },
+  )
+}
+
+export function concluirLiquidacaoDissolucao(
+  idProcessoDissolucao: number,
+  observacao: string,
+): Promise<ProcessoDissolucao> {
+  return apiFetch(
+    `/api/processos-dissolucao/${idProcessoDissolucao}/concluir-liquidacao`,
+    { method: 'POST', body: JSON.stringify({ observacao }) },
+  )
+}
+
+export function destinarPatrimonioDissolucao(
+  idProcessoDissolucao: number,
+  dados: {
+    entidade_nome: string
+    entidade_cnpj?: string
+    justificativa: string
+    confirma_sede_parauapebas: boolean
+    confirma_anos_minimos: boolean
+    confirma_credenciada: boolean
+  },
+): Promise<ProcessoDissolucao> {
+  return apiFetch(
+    `/api/processos-dissolucao/${idProcessoDissolucao}/destinar-patrimonio`,
+    { method: 'POST', body: JSON.stringify(dados) },
+  )
+}
+
+export function baixaCadastralDissolucao(
+  idProcessoDissolucao: number,
+  observacao: string,
+): Promise<ProcessoDissolucao> {
+  return apiFetch(
+    `/api/processos-dissolucao/${idProcessoDissolucao}/baixa-cadastral`,
+    { method: 'POST', body: JSON.stringify({ observacao }) },
+  )
+}
+
+export function cancelarProcessoDissolucao(
+  idProcessoDissolucao: number,
+  motivo: string,
+): Promise<ProcessoDissolucao> {
+  return apiFetch(
+    `/api/processos-dissolucao/${idProcessoDissolucao}/cancelar`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ motivo }),
+    },
+  )
+}
