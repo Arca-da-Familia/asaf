@@ -357,6 +357,16 @@ export const justificativaDecidirSchema = z.object({
   motivo_decisao: z.string().optional(),
 })
 
+// Usado por "Agendar evento" (pages/Calendario.tsx, v2.5.7) - `categoria` vem do catálogo
+// `categoria_evento_calendario`.
+export const eventoCalendarioCriarSchema = z.object({
+  titulo: z.string().min(3, 'Informe o título do evento.'),
+  descricao: z.string().optional(),
+  categoria: z.string().min(1, 'Selecione a categoria.'),
+  data_inicio: z.string().min(1, 'Informe a data de início.'),
+  data_fim: z.string().optional(),
+})
+
 // v0.2.9 — presente só durante o modo "ver como" (impersonação de papel).
 export const impersonandoSchema = z.object({
   id_nivel: z.number(),

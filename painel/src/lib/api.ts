@@ -2107,3 +2107,56 @@ export function cancelarProcessoDissolucao(
     },
   )
 }
+
+// ---------------------------------------------------------------------------
+// Calendário institucional (v2.9 backend, v2.5.7 painel) - agrega, na leitura, o que já é dado
+// real em outro módulo (AGO/eleição estatutária, assembleia convocada, mandato vencendo, prazo
+// de deliberação, projeto/evento) mais evento avulso cadastrado aqui. Leitura liberada a
+// QUALQUER usuário autenticado no backend (`GET /api/calendario/` usa só `get_current_user`,
+// nunca `exigir_permissao`) - por isso a tela vive numa rota GLOBAL (`/calendario`), fora do
+// módulo Governança, terceira vez que esse padrão de "não travar atrás da permissão errada"
+// aparece nesta fase (depois de Conselho Fiscal e Disciplina). Só "agendar evento" exige
+// `governanca` - a tela mostra o formulário condicionado a isso, o backend recusa de qualquer
+// forma se alguém tentar sem ter.
+// ---------------------------------------------------------------------------
+export type ItemCalendario = {
+  tipo: string
+  titulo: string
+  data: string
+  dias_restantes: number
+  artigo_origem: string | null
+  categoria?: string
+  janela_fim?: string
+}
+
+export function obterCalendario(
+  diasAntecedencia = 90,
+): Promise<ItemCalendario[]> {
+  return apiFetch(`/api/calendario/?dias_antecedencia=${diasAntecedencia}`)
+}
+
+export type EventoCalendario = {
+  id_evento: number
+  titulo: string
+  descricao: string | null
+  categoria: string
+  data_inicio: string
+  data_fim: string | null
+}
+
+export function listarEventosCalendario(): Promise<EventoCalendario[]> {
+  return apiFetch('/api/eventos-calendario/')
+}
+
+export function criarEventoCalendario(dados: {
+  titulo: string
+  descricao?: string
+  categoria: string
+  data_inicio: string
+  data_fim?: string
+}): Promise<{ id_evento: number; titulo: string; data_inicio: string }> {
+  return apiFetch('/api/eventos-calendario/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}

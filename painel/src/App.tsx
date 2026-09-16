@@ -16,6 +16,7 @@ import { AssociadoNovoPage } from '@/pages/AssociadoNovo'
 import { AssociadosGraficosPage } from '@/pages/AssociadosGraficos'
 import { AssociadosPage } from '@/pages/Associados'
 import { AuditoriaPage } from '@/pages/Auditoria'
+import { CalendarioPage } from '@/pages/Calendario'
 import { ConcederAcessoPage } from '@/pages/ConcederAcesso'
 import { ConselhoFiscalPage } from '@/pages/ConselhoFiscal'
 import { DevComponents } from '@/pages/DevComponents'
@@ -112,6 +113,14 @@ function App() {
           element={
             <ErrorBoundary tituloModulo="Minhas assembleias">
               <MinhasAssembleiasPage />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/calendario"
+          element={
+            <ErrorBoundary tituloModulo="Calendário institucional">
+              <CalendarioPage />
             </ErrorBoundary>
           }
         />

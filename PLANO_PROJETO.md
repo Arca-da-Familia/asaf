@@ -2992,10 +2992,40 @@ marcar qualquer checkbox acima como `[x]`.
       > confirmado batendo com `1a9b54e`.
 
 #### v2.5.7 — Calendário institucional
-- [ ] Agenda de eventos do calendário (`app/services/calendario.py`), com alerta de vencimento.
+- [x] Agenda de eventos do calendário (`app/services/calendario.py`), com alerta de vencimento.
 
-##### 🔍 Ponto de Revisão — FASE 2.5 (2/3, fecha v2.5.5–v2.5.7)
+      > **v2.5.7 (2026-09-16) - backend já existia completo desde v2.9 (FASE 2) - só nunca tinha
+      > tela.** `Calendario.tsx`: lista unificada (AGO/eleição estatutária, assembleia
+      > convocada, mandato vencendo, prazo de deliberação, projeto/evento, evento avulso),
+      > filtro de antecedência (30/90/180/365 dias) e alerta visual por cor conforme dias
+      > restantes (vermelho ≤7, âmbar ≤30). "Agendar evento" exige `governanca`.
+      >
+      > **Achado de desenho (não é bug)**: `GET /api/calendario/` é liberado a **qualquer**
+      > usuário autenticado no backend (`get_current_user`, nunca `exigir_permissao`) - o
+      > próprio código documenta o motivo ("descobrir em dezembro que devia ter feito algo em
+      > abril" vale pra qualquer associado, não só pra quem administra). Por isso a tela mora
+      > numa rota **global** (`/calendario`), fora do módulo Governança - **terceira vez nesta
+      > fase** que esse padrão aparece (depois de Conselho Fiscal, v2.5.5, e Disciplina, v2.5.6).
+      > Confirmado na prática: um associado comum sem nenhuma permissão viu o calendário
+      > completo (incluindo o evento agendado pela Diretoria) e, corretamente, não viu o botão
+      > "Agendar evento".
+      >
+      > **Confirmado rodando de verdade**: dado real agregado de dois módulos diferentes
+      > (mandato vencendo em 19 dias, assembleia convocada em 25 dias) mais um evento avulso
+      > agendado pela tela mesma, todos ordenados por data corretamente; testado com duas contas
+      > reais (Presidente e associado comum). Suíte completa do backend (212 testes),
+      > typecheck/lint/Prettier do painel verdes de primeira.
+
+##### 🔍 Ponto de Revisão — FASE 2.5 (2/3, fecha v2.5.5–v2.5.7) ✅ FECHADO (2026-09-16)
 Mesmo checklist do ponto 1/3.
+
+> **Padrão que se repetiu três vezes nesta faixa (v2.5.5/v2.5.6/v2.5.7)**: um endpoint de
+> leitura liberado no backend a um público mais amplo do que `governanca` (Conselho Fiscal,
+> confidencialidade de disciplina pro próprio acusado, calendário pra qualquer associado) exige
+> uma rota do painel FORA do módulo cuja permissão bloquearia esse público. Registrado aqui como
+> item de atenção pra fases futuras: ao construir uma tela nova, checar sempre a permissão REAL
+> do endpoint (`Depends(get_current_user)` vs `Depends(exigir_permissao(...))`), nunca só a
+> agrupação temática do plano - a mesma armadilha já apareceu três vezes seguidas.
 
 #### v2.5.8 — Financeiro: Plano de Contas, Fornecedores e Exercícios
 - [ ] Plano de Contas (listar, cadastrar) com os cinco tipos reais (v3.0).

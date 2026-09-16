@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   Bell,
   CalendarCheck,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   House,
@@ -275,6 +276,19 @@ export function Shell() {
               >
                 <ShieldAlert className="h-5 w-5 shrink-0" />
                 {!collapsed && <span>Meus processos disciplinares</span>}
+              </NavLink>
+
+              {/* v2.5.7 - GET /api/calendario/ é liberado a qualquer autenticado no backend
+                  (nunca exigir_permissao) - fora de qualquer módulo de propósito, terceira vez
+                  nesta fase que uma tela evita travar atrás de permissão mais estrita do que o
+                  backend exige. */}
+              <NavLink
+                to="/calendario"
+                className={navCls}
+                onClick={() => setMobileOpen(false)}
+              >
+                <CalendarDays className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>Calendário institucional</span>}
               </NavLink>
             </>
           )}
