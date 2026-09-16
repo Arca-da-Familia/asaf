@@ -3083,6 +3083,14 @@ Mesmo checklist do ponto 1/3.
       > módulo não basta, `gerenciar_acesso` sempre funciona, as duas rotas legadas exigem login),
       > suíte completa (218 testes), typecheck/lint/Prettier do painel verdes.
 
+      > **Item 12 cumprido (2026-09-16)**: commit `dc5e033` em `origin/main`. Este é o primeiro
+      > deploy da FASE 2.5 com migração Alembic real contra o Postgres de produção (`75fa21fb920d`)
+      > - log confirma `Running upgrade 5a24a5918625 -> 75fa21fb920d` com `Context impl
+      > PostgresqlImpl`. `deploy-api.yml` (run 35133280537) verde, com nova revisão
+      > `asaf-api--0000044` e `provisioningState: Succeeded` confirmados no próprio log (não só o
+      > check verde do Actions). `deploy-painel.yml` (run 35133280579) verde, e
+      > `https://painel.asaf.org.br/version.json` confirmado batendo com `dc5e033`.
+
 #### v2.5.8 — Financeiro: Plano de Contas, Fornecedores e Exercícios
 - [ ] Plano de Contas (listar, cadastrar) com os cinco tipos reais (v3.0).
 - [ ] Fornecedores (listar, cadastrar).
