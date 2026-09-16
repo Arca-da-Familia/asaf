@@ -28,7 +28,7 @@ from app.schemas.core import (
     DefinicaoCampoAtualizar,
     ValoresCampoDefinir,
 )
-from app.security import exigir_permissao, get_current_user, nivel_efetivo_id
+from app.security import exigir_permissao, get_current_user, nivel_efetivo_id, usuario_tem_permissao
 
 router = APIRouter()
 
@@ -86,8 +86,17 @@ def listar_opcoes(tipo_lista: str, incluir_inativos: bool = False, db: Session =
 
 
 @router.post("/api/opcoes/{tipo_lista}", summary="Adicionar valor a uma lista configurável (compat v0.1/v0.2)")
-def criar_opcao(tipo_lista: str, dados: OpcaoCriar, db: Session = Depends(get_db)):
+def criar_opcao(
+    tipo_lista: str, dados: OpcaoCriar, request: Request, db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    # v2.5.8 (achado do usuário, correção de segurança) - esta rota nunca teve NENHUMA checagem
+    # de autenticação/permissão (só `Depends(get_db)`) - qualquer requisição não autenticada
+    # conseguia gravar/alterar opção real de catálogo em produção. Corrigido pra exigir login e a
+    # mesma permissão por módulo do motor novo (_exigir_permissao_catalogo), nunca deixado como
+    # estava só porque "ninguém usa mais essa rota" - ela continuava live e gravando de verdade.
     catalogo = _obter_ou_criar_catalogo(db, tipo_lista)
+    _exigir_permissao_catalogo(db, usuario, catalogo)
     if db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_catalogo == catalogo.id_catalogo, OpcaoCatalogo.rotulo == dados.valor).first():
         raise HTTPException(status_code=400, detail="Esse valor já existe nessa lista.")
     maior_ordem = db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_catalogo == catalogo.id_catalogo).count()
@@ -108,10 +117,18 @@ def criar_opcao(tipo_lista: str, dados: OpcaoCriar, db: Session = Depends(get_db
 
 
 @router.put("/api/opcoes/{id_opcao}", summary="Renomear/ativar/desativar valor de lista (compat v0.1/v0.2)")
-def atualizar_opcao(id_opcao: int, dados: OpcaoAtualizar, db: Session = Depends(get_db)):
+def atualizar_opcao(
+    id_opcao: int, dados: OpcaoAtualizar, request: Request, db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    # v2.5.8 - mesma correção de segurança do POST acima: esta rota também não tinha NENHUMA
+    # checagem de autenticação.
     opcao = db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_opcao == id_opcao).first()
     if not opcao:
         raise HTTPException(status_code=404, detail="Opção não encontrada.")
+    catalogo = db.query(Catalogo).filter(Catalogo.id_catalogo == opcao.id_catalogo).first()
+    if catalogo:
+        _exigir_permissao_catalogo(db, usuario, catalogo)
     if dados.valor is not None:
         opcao.rotulo = dados.valor
     if dados.ativo is not None:
@@ -146,6 +163,22 @@ def _opcao_em_uso(db: Session, chave_catalogo: str, rotulo: str) -> bool:
     return False
 
 
+def _exigir_permissao_catalogo(db: Session, usuario: Usuario, catalogo: Catalogo) -> None:
+    """v2.5.8 (achado do usuário) - antes disso, gerenciar opção de QUALQUER catálogo exigia
+    sempre `gerenciar_acesso` (a mesma permissão da tela de Níveis e permissões) - um secretário
+    (permissão `associados`) precisava de acesso bem mais amplo do que o necessário só pra
+    editar a categoria de associado. Agora cada catálogo declara o dono (`permissao_
+    gerenciamento`); quem tem essa permissão específica OU `gerenciar_acesso` (sempre, como
+    reforço - nunca como único caminho) pode gerenciar. Catálogo sem dono declarado continua
+    exigindo só `gerenciar_acesso` (comportamento antigo, preservado de propósito)."""
+    if usuario_tem_permissao(db, usuario, "gerenciar_acesso"):
+        return
+    if catalogo.permissao_gerenciamento and usuario_tem_permissao(db, usuario, catalogo.permissao_gerenciamento):
+        return
+    exigido = catalogo.permissao_gerenciamento or "gerenciar_acesso"
+    raise HTTPException(status_code=403, detail=f"Sem permissão para gerenciar o catálogo '{catalogo.nome_exibido}' (exige '{exigido}').")
+
+
 @router.get("/api/catalogos/", summary="Listar catálogos configuráveis")
 def listar_catalogos(db: Session = Depends(get_db), _usuario: Usuario = Depends(get_current_user)):
     catalogos = db.query(Catalogo).order_by(Catalogo.nome_exibido).all()
@@ -153,6 +186,7 @@ def listar_catalogos(db: Session = Depends(get_db), _usuario: Usuario = Depends(
         {
             "id_catalogo": c.id_catalogo, "chave": c.chave, "nome_exibido": c.nome_exibido,
             "descricao": c.descricao, "editavel_pelo_usuario": c.editavel_pelo_usuario,
+            "permissao_gerenciamento": c.permissao_gerenciamento,
         }
         for c in catalogos
     ]
@@ -197,11 +231,12 @@ def listar_opcoes_catalogo(
 
 @router.post("/api/catalogos/{chave}/opcoes", summary="Adicionar opção a um catálogo")
 def criar_opcao_catalogo(
-    chave: str, dados: OpcaoCatalogoCriar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_catalogos)
+    chave: str, dados: OpcaoCatalogoCriar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)
 ):
     catalogo = db.query(Catalogo).filter(Catalogo.chave == chave).first()
     if not catalogo:
         raise HTTPException(status_code=404, detail="Catálogo não encontrado.")
+    _exigir_permissao_catalogo(db, usuario, catalogo)
     if not catalogo.editavel_pelo_usuario:
         raise HTTPException(status_code=403, detail="Catálogo de sistema — não aceita opção nova por aqui.")
     if db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_catalogo == catalogo.id_catalogo, OpcaoCatalogo.codigo == dados.codigo).first():
@@ -223,11 +258,14 @@ def criar_opcao_catalogo(
 
 @router.put("/api/opcoes-catalogo/{id_opcao}", summary="Editar rótulo/ordem/ativo de uma opção (nunca o código)")
 def atualizar_opcao_catalogo(
-    id_opcao: int, dados: OpcaoCatalogoAtualizar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_catalogos)
+    id_opcao: int, dados: OpcaoCatalogoAtualizar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)
 ):
     opcao = db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_opcao == id_opcao).first()
     if not opcao:
         raise HTTPException(status_code=404, detail="Opção não encontrada.")
+    catalogo = db.query(Catalogo).filter(Catalogo.id_catalogo == opcao.id_catalogo).first()
+    if catalogo:
+        _exigir_permissao_catalogo(db, usuario, catalogo)
     antes = {"rotulo": opcao.rotulo, "ordem": opcao.ordem, "ativo": opcao.ativo, "cor": opcao.cor, "icone": opcao.icone}
     dados_alterados = dados.model_dump(exclude_unset=True)
     for campo, valor in dados_alterados.items():
@@ -242,14 +280,16 @@ def atualizar_opcao_catalogo(
 
 @router.delete("/api/opcoes-catalogo/{id_opcao}", summary="Excluir opção (só se já inativa e sem uso)")
 def excluir_opcao_catalogo(
-    id_opcao: int, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_catalogos)
+    id_opcao: int, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)
 ):
     opcao = db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_opcao == id_opcao).first()
     if not opcao:
         raise HTTPException(status_code=404, detail="Opção não encontrada.")
+    catalogo = db.query(Catalogo).filter(Catalogo.id_catalogo == opcao.id_catalogo).first()
+    if catalogo:
+        _exigir_permissao_catalogo(db, usuario, catalogo)
     if opcao.ativo:
         raise HTTPException(status_code=400, detail="Desative a opção antes de excluir (nunca exclui opção ativa).")
-    catalogo = db.query(Catalogo).filter(Catalogo.id_catalogo == opcao.id_catalogo).first()
     if catalogo and _opcao_em_uso(db, catalogo.chave, opcao.rotulo):
         raise HTTPException(status_code=409, detail="Opção em uso por registros existentes — não pode ser excluída.")
     dados_antes = {"codigo": opcao.codigo, "rotulo": opcao.rotulo}

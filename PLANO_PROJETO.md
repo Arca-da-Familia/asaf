@@ -3031,6 +3031,58 @@ Mesmo checklist do ponto 1/3.
 > do endpoint (`Depends(get_current_user)` vs `Depends(exigir_permissao(...))`), nunca só a
 > agrupação temática do plano - a mesma armadilha já apareceu três vezes seguidas.
 
+#### v2.5.7b — Módulo Configurações (catálogos editáveis por módulo)
+- [x] Módulo transversal Configurações: edita os catálogos (categoria, status, motivos, tipos)
+      usados pelos módulos de negócio - decisão registrada desde a v2.5.1, construída agora que
+      Governança tem módulos reais o bastante pra confirmar o agrupamento por dono na prática.
+- [x] Permissão de gerenciamento por catálogo (não mais só `gerenciar_acesso` pra tudo).
+
+      > **v2.5.7b (2026-09-16) - achado do usuário ao pedir esta versão**: "o secretário
+      > (permissão `associados`) não precisa mexer no financeiro, só no que é dele" - o backend
+      > de catálogo (`Catalogo`/`OpcaoCatalogo`, v0.3.1) sempre exigiu `gerenciar_acesso` pra
+      > **qualquer** opção de **qualquer** catálogo, mesmo pra ajustar a categoria de associado -
+      > a mesma permissão de Níveis e permissões, bem mais ampla do que o necessário.
+      >
+      > **Correção de backend (não só tela nova)**: `Catalogo.permissao_gerenciamento` (migração
+      > `75fa21fb920d`) - cada catálogo declara o módulo dono (`associados`, `governanca`,
+      > `financeiro`, `projetos`; `None` = catálogo transversal/de sistema, ex.:
+      > `status_arrolamento`, continua só `gerenciar_acesso`). `_exigir_permissao_catalogo`
+      > (`app/routers/core.py`) substitui a permissão fixa nos três endpoints de escrita de
+      > opção (criar/editar/excluir): quem tem a permissão do módulo dono OU `gerenciar_acesso`
+      > (sempre, como reforço - nunca como único caminho) pode gerenciar. `seed_catalogos()`
+      > (banco novo) e a migração (banco existente) preenchem o mesmo valor por catálogo, mesmo
+      > raciocínio de sempre nesta base de código (os dois caminhos têm que chegar no mesmo
+      > resultado). Migração validada manualmente (upgrade e downgrade, com dado real simulado -
+      > sem Postgres de desenvolvimento local disponível).
+      >
+      > **Achado 2 (bug de segurança real, corrigido com prioridade)**: `POST /api/opcoes/{tipo}`
+      > e `PUT /api/opcoes/{id}` (rotas legadas de compatibilidade v0.1/v0.2, ainda vivas e
+      > gravando de verdade em `OpcaoCatalogo`) **nunca tiveram nenhuma checagem de autenticação**
+      > - qualquer requisição não autenticada conseguia criar/alterar opção de catálogo real em
+      > produção. Achado ao revisar o motor de catálogo pra construir esta versão, não relatado
+      > pelo usuário - corrigido imediatamente (item 4 do checklist padrão: nada grava sem
+      > autenticação), nunca deixado como estava só porque "ninguém usa mais essa rota" (ela
+      > seguia exposta e funcional). Ambas agora exigem login e passam pela mesma
+      > `_exigir_permissao_catalogo`.
+      >
+      > **Painel**: `Configuracoes.tsx`, rota **global** (`/configuracoes`, fora de qualquer
+      > módulo) - mesmo padrão de Conselho Fiscal/Disciplina/Calendário (v2.5.5-v2.5.7): a tela
+      > não trava atrás de uma permissão única, ela mesma filtra os catálogos que o usuário logado
+      > pode ver/gerenciar (por `permissao_gerenciamento` cruzado com `useMe().permissoes`), com
+      > "Nenhuma configuração disponível" pra quem não tem nenhuma permissão de módulo. Layout em
+      > duas colunas (lista de catálogos agrupada por módulo dono à esquerda, opções do catálogo
+      > selecionado à direita); catálogo de sistema mostra aviso e nunca oferece "Nova opção",
+      > só editar/desativar/reativar o que já existe (o backend também recusa criar).
+      >
+      > **Confirmado rodando de verdade com duas contas reais**: Presidente (`gerenciar_acesso`)
+      > vê todos os grupos, inclusive Sistema; uma secretária de teste com **só** a permissão
+      > `associados` (nível criado na hora, nunca `gerenciar_acesso`) via só o grupo Associados -
+      > Governança/Financeiro/Projetos/Sistema corretamente ausentes da lista dela. Adicionar,
+      > editar e desativar opção testados pela tela de verdade. 6 testes novos de backend
+      > (`tests/test_catalogos_permissao.py` - permissão do módulo dono basta, permissão de outro
+      > módulo não basta, `gerenciar_acesso` sempre funciona, as duas rotas legadas exigem login),
+      > suíte completa (218 testes), typecheck/lint/Prettier do painel verdes.
+
 #### v2.5.8 — Financeiro: Plano de Contas, Fornecedores e Exercícios
 - [ ] Plano de Contas (listar, cadastrar) com os cinco tipos reais (v3.0).
 - [ ] Fornecedores (listar, cadastrar).

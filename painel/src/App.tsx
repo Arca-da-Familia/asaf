@@ -18,6 +18,7 @@ import { AssociadosPage } from '@/pages/Associados'
 import { AuditoriaPage } from '@/pages/Auditoria'
 import { CalendarioPage } from '@/pages/Calendario'
 import { ConcederAcessoPage } from '@/pages/ConcederAcesso'
+import { ConfiguracoesPage } from '@/pages/Configuracoes'
 import { ConselhoFiscalPage } from '@/pages/ConselhoFiscal'
 import { DevComponents } from '@/pages/DevComponents'
 import {
@@ -113,6 +114,14 @@ function App() {
           element={
             <ErrorBoundary tituloModulo="Minhas assembleias">
               <MinhasAssembleiasPage />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/configuracoes"
+          element={
+            <ErrorBoundary tituloModulo="Configurações">
+              <ConfiguracoesPage />
             </ErrorBoundary>
           }
         />

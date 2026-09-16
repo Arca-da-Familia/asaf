@@ -66,33 +66,38 @@ def seed_catalogos():
     motivo de desligamento, tipo de projeto/evento/protocolo/requerimento, unidade de medida de
     indicador) - todos como **semente de exemplo**, `editavel_pelo_usuario=True`: a diretoria
     ajusta ao estatuto real da associação depois, isto aqui é só ponto de partida (ver
-    PLANO_PROJETO.md v0.3.2)."""
+    PLANO_PROJETO.md v0.3.2).
+
+    v2.5.8 acrescentou `permissao_gerenciamento` (dono por módulo) a cada tupla - mesmo valor que
+    a migração 75fa21fb920d faz de backfill em banco que já tinha esses catálogos, pelo mesmo
+    motivo de sempre: banco novo (este seed) e banco existente (a migração) têm que chegar no
+    mesmo resultado, nunca um caminho ganhando um detalhe que o outro não tem."""
     from app.models.core import Catalogo, OpcaoCatalogo  # import local, mesmo motivo do seed acima
     catalogos_padrao = {
         # v2.1 - vantagem especial por categoria (Art. 55 do Código Civil) guardada em
         # `metadados["vantagens"]`, texto livre - reaproveita o campo genérico da OpcaoCatalogo
         # (v0.3.1) em vez de coluna nova. Editável via PUT /api/opcoes-catalogo/{id}, mesmo em
         # catálogo de sistema (só criar/apagar código é que é bloqueado, não editar metadados).
-        "categoria_associado": ("Categoria do associado", False, [
+        "categoria_associado": ("Categoria do associado", False, "associados", [
             ("EFETIVO", "Efetivo", {"vantagens": "Direito a voto e a ser votado; acesso pleno aos benefícios e projetos da ASAF."}),
             ("CONTRIBUINTE", "Contribuinte", {"vantagens": "Apoia financeiramente sem os direitos políticos de associado efetivo (ajustável pela diretoria)."}),
             ("FUNDADOR", "Fundador", {"vantagens": "Mesmos direitos do associado efetivo, com reconhecimento histórico de fundador da ASAF."}),
         ]),
-        "status_arrolamento": ("Situação de arrolamento", False, [
+        "status_arrolamento": ("Situação de arrolamento", False, None, [
             ("ATIVO_EM_DIA", "Ativo - Em Dia"), ("ATIVO_INADIMPLENTE", "Ativo - Inadimplente"),
             ("SUSPENSO_ESTATUTO", "Suspenso (Estatuto)"), ("DESLIGADO", "Desligado"),
             ("EM_EXPERIENCIA", "Em Experiência"),  # v1.2 - mesmo rótulo inserido via migração b6c7d8e9f0a1
             ("LICENCIADO", "Licenciado"),  # v1.4 - mesmo rótulo inserido via migração d8e9f0a1b2c3
         ]),
-        "estado_civil": ("Estado civil", True, [
+        "estado_civil": ("Estado civil", True, "associados", [
             ("SOLTEIRO_A", "Solteiro(a)"), ("CASADO_A", "Casado(a)"), ("DIVORCIADO_A", "Divorciado(a)"),
             ("VIUVO_A", "Viúvo(a)"), ("UNIAO_ESTAVEL", "União Estável"),
         ]),
-        "grau_parentesco": ("Grau de parentesco", True, [
+        "grau_parentesco": ("Grau de parentesco", True, "associados", [
             ("CONJUGE", "Cônjuge"), ("FILHO_A", "Filho(a)"), ("PAI", "Pai"), ("MAE", "Mãe"),
             ("IRMAO_A", "Irmão(ã)"), ("NETO_A", "Neto(a)"), ("OUTRO", "Outro"),
         ]),
-        "categoria_fornecedor": ("Categoria de fornecedor", True, [
+        "categoria_fornecedor": ("Categoria de fornecedor", True, "financeiro", [
             ("MATERIAL_DE_CONSTRUCAO", "Material de Construção"), ("SERVICOS_GRAFICOS", "Serviços Gráficos"),
             ("ALIMENTACAO", "Alimentação"), ("TECNOLOGIA", "Tecnologia"),
             ("MANUTENCAO_E_REPAROS", "Manutenção e Reparos"), ("TRANSPORTE", "Transporte"), ("OUTROS", "Outros"),
@@ -101,11 +106,11 @@ def seed_catalogos():
         # Despesa), dos quais deriva a natureza devedora/credora de cada conta (ver
         # app/services/contabilidade.py::NATUREZA_POR_TIPO) - antes só existia Receita/Despesa,
         # insuficiente pra validar partida dobrada de verdade.
-        "tipo_conta_contabil": ("Tipo de conta contábil", True, [
+        "tipo_conta_contabil": ("Tipo de conta contábil", True, "financeiro", [
             ("ATIVO", "Ativo"), ("PASSIVO", "Passivo"), ("PATRIMONIO_LIQUIDO", "Patrimônio Líquido"),
             ("RECEITA", "Receita"), ("DESPESA", "Despesa"),
         ]),
-        "forma_pagamento": ("Forma de pagamento", True, [
+        "forma_pagamento": ("Forma de pagamento", True, "financeiro", [
             ("PIX", "Pix"), ("DINHEIRO", "Dinheiro"), ("CARTAO", "Cartão"),
             ("TRANSFERENCIA_BANCARIA", "Transferência Bancária"), ("BOLETO", "Boleto"),
         ]),
@@ -113,7 +118,7 @@ def seed_catalogos():
         # concede automaticamente enquanto o mandato estiver vigente (ver app/services/mandatos.py
         # e app/security.py::usuario_tem_permissao) - semente de partida plausível por
         # competência do Art. 20/21 do estatuto, ajustável pela diretoria sem deploy.
-        "titulo_cargo": ("Título de cargo", True, [
+        "titulo_cargo": ("Título de cargo", True, "governanca", [
             ("PRESIDENTE", "Presidente", {"permissoes": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria"]}),
             ("VICE_PRESIDENTE", "Vice-Presidente", {"permissoes": ["associados", "governanca"]}),
             ("TESOUREIRO", "Tesoureiro", {"permissoes": ["financeiro"]}),
@@ -126,39 +131,39 @@ def seed_catalogos():
         ]),
         # v2.1 (Art. 18 do estatuto) - órgãos de direção da ASAF: Diretoria Executiva e Conselho
         # Fiscal. Catálogo editável - a ASAF pode criar um Conselho Deliberativo sem deploy.
-        "orgao_direcao": ("Órgão de direção", True, [
+        "orgao_direcao": ("Órgão de direção", True, "governanca", [
             ("DIRETORIA_EXECUTIVA", "Diretoria Executiva", {}), ("CONSELHO_FISCAL", "Conselho Fiscal", {}),
         ]),
         # ---- v0.3.2: catálogos novos, sem equivalente em opcoes_lista (v0.1/v0.2) ----
-        "tipo_documento": ("Tipo de documento", True, [
+        "tipo_documento": ("Tipo de documento", True, "associados", [
             ("RG", "RG"), ("CPF", "CPF"), ("COMPROVANTE_RESIDENCIA", "Comprovante de Residência"),
             ("CERTIDAO_NASCIMENTO", "Certidão de Nascimento"), ("COMPROVANTE_RENDA", "Comprovante de Renda"),
             ("FOTO_3X4", "Foto 3x4"),
         ]),
-        "motivo_desligamento": ("Motivo de desligamento", True, [
+        "motivo_desligamento": ("Motivo de desligamento", True, "associados", [
             ("INADIMPLENCIA", "Inadimplência"), ("PEDIDO_VOLUNTARIO", "Pedido voluntário"),
             ("FALECIMENTO", "Falecimento"), ("CONDUTA_INCOMPATIVEL", "Conduta incompatível com o estatuto"),
             ("MUDANCA_DE_CIDADE", "Mudança de cidade"),
         ]),
         # v1.4 - motivo de licença, mesmo padrão de motivo_desligamento (catálogo editável, não texto livre).
-        "motivo_licenca": ("Motivo de licença", True, [
+        "motivo_licenca": ("Motivo de licença", True, "associados", [
             ("SAUDE", "Saúde"), ("MOTIVO_PESSOAL", "Motivo pessoal"),
             ("MUDANCA_TEMPORARIA", "Mudança temporária de cidade"), ("ESTUDO", "Estudo"),
         ]),
-        "tipo_projeto": ("Tipo de projeto", True, [
+        "tipo_projeto": ("Tipo de projeto", True, "projetos", [
             ("ASSISTENCIAL", "Assistencial"), ("EDUCACIONAL", "Educacional"), ("CULTURAL", "Cultural"),
             ("ESPORTIVO", "Esportivo"), ("SAUDE", "Saúde"),
         ]),
-        "tipo_evento": ("Tipo de evento", True, [
+        "tipo_evento": ("Tipo de evento", True, "projetos", [
             ("ASSEMBLEIA", "Assembleia"), ("REUNIAO_DE_DIRETORIA", "Reunião de Diretoria"), ("CULTO", "Culto"),
             ("CONFRATERNIZACAO", "Confraternização"), ("ACAO_SOCIAL", "Ação Social"), ("PALESTRA", "Palestra"),
         ]),
-        "tipo_protocolo": ("Tipo de protocolo", True, [
+        "tipo_protocolo": ("Tipo de protocolo", True, "projetos", [
             ("SOLICITACAO_DE_DOCUMENTO", "Solicitação de Documento"), ("RECLAMACAO", "Reclamação"),
             ("SUGESTAO", "Sugestão"), ("DENUNCIA", "Denúncia"),
             ("REQUERIMENTO_ADMINISTRATIVO", "Requerimento Administrativo"),
         ]),
-        "tipo_requerimento": ("Tipo de requerimento", True, [
+        "tipo_requerimento": ("Tipo de requerimento", True, "projetos", [
             ("ALTERACAO_CADASTRAL", "Alteração Cadastral"), ("SEGUNDA_VIA_DE_CARTEIRINHA", "Segunda Via de Carteirinha"),
             ("ISENCAO_DE_MENSALIDADE", "Isenção de Mensalidade"), ("LICENCA_TEMPORARIA", "Licença Temporária"),
             ("DESLIGAMENTO", "Desligamento"),
@@ -166,7 +171,7 @@ def seed_catalogos():
         # v2.9 - o estatuto não define cadência de reunião de Diretoria/Conselho Fiscal (Art. 20
         # lista competências, não frequência) - por isso vira categoria de evento genérico
         # agendável pela diretoria, em vez de uma regra automática inventada.
-        "categoria_evento_calendario": ("Categoria de evento do calendário", True, [
+        "categoria_evento_calendario": ("Categoria de evento do calendário", True, "governanca", [
             ("REUNIAO_DIRETORIA", "Reunião de Diretoria"),
             ("REUNIAO_CONSELHO_FISCAL", "Reunião do Conselho Fiscal"),
             ("DATA_INSTITUCIONAL", "Data institucional"),
@@ -174,24 +179,27 @@ def seed_catalogos():
         ]),
         # v2.7 (Art. 16, §1º do estatuto) - motivos de abertura de processo disciplinar. Catálogo
         # editável - a diretoria pode ajustar o rótulo, nunca remover o que o estatuto já lista.
-        "motivo_processo_disciplinar": ("Motivo de processo disciplinar", True, [
+        "motivo_processo_disciplinar": ("Motivo de processo disciplinar", True, "governanca", [
             ("DESIDIA", "Desídia no desempenho das atividades associativas"),
             ("VIOLACAO_ESTATUTO", "Violação do estatuto social"),
             ("DIFAMACAO", "Difamação da ASAF, de sócios ou dos órgãos de direção"),
             ("COMPORTAMENTO_ANTISSOCIAL", "Comportamento antissocial ou quebra das regras de convivência"),
             ("INADIMPLENCIA_6_MENSALIDADES", "Falta de pagamento de 6 mensalidades consecutivas"),
         ]),
-        "unidade_medida_indicador": ("Unidade de medida de indicador", True, [
+        "unidade_medida_indicador": ("Unidade de medida de indicador", True, "projetos", [
             ("UNIDADE", "Unidade"), ("PERCENTUAL", "Percentual"), ("REAL", "Real (R$)"),
             ("QUILOGRAMA", "Quilograma"), ("HORA", "Hora"), ("PESSOA", "Pessoa"),
         ]),
     }
     db = SessaoLocal()
     try:
-        for chave, (nome_exibido, editavel_pelo_usuario, opcoes) in catalogos_padrao.items():
+        for chave, (nome_exibido, editavel_pelo_usuario, permissao_gerenciamento, opcoes) in catalogos_padrao.items():
             if db.query(Catalogo).filter(Catalogo.chave == chave).first():
                 continue
-            catalogo = Catalogo(chave=chave, nome_exibido=nome_exibido, editavel_pelo_usuario=editavel_pelo_usuario)
+            catalogo = Catalogo(
+                chave=chave, nome_exibido=nome_exibido, editavel_pelo_usuario=editavel_pelo_usuario,
+                permissao_gerenciamento=permissao_gerenciamento,
+            )
             db.add(catalogo)
             db.flush()
             for i, opcao in enumerate(opcoes):

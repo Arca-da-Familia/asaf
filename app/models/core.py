@@ -75,6 +75,14 @@ class Catalogo(Base):
     # status_arrolamento) - a diretoria pode renomear rótulo e reordenar, mas não apagar opção
     # nem criar código novo por conta própria (ver ROTULO_CATALOGOS_SISTEMA em routers/core.py).
     editavel_pelo_usuario = Column(Boolean, default=True)
+    # v2.5.8 (achado do usuário) - gerenciar opção de catálogo exigia SEMPRE `gerenciar_acesso`
+    # (a mesma permissão de Níveis e permissões), mesmo pra ajustar a categoria de associado -
+    # secretário (permissão `associados`) precisava de uma permissão mais ampla e sem relação só
+    # pra editar isso. Agora cada catálogo declara qual permissão de MÓDULO o gerencia (None =
+    # catálogo transversal/de sistema, continua exigindo só `gerenciar_acesso`) - quem tem
+    # `gerenciar_acesso` sempre pode editar qualquer catálogo, como reforço, nunca como único
+    # caminho (ver _exigir_permissao_catalogo em app/routers/core.py).
+    permissao_gerenciamento = Column(String(50), nullable=True)
 
 
 class OpcaoCatalogo(Base):

@@ -647,8 +647,10 @@ export function pararImpersonacao(): Promise<ImpersonarResult> {
 }
 
 // ---------------------------------------------------------------------------
-// Opções de catálogo para preencher seleção (v0.3.1/v0.3.3) — leitura liberada a
-// qualquer usuário autenticado, só CRUD de catálogo é restrito a admin.
+// Opções de catálogo para preencher seleção (v0.3.1/v0.3.3) — leitura liberada a qualquer
+// usuário autenticado. Gerenciar (criar/editar/excluir opção) exige, desde a v2.5.8, a
+// permissão do MÓDULO dono do catálogo (`Catalogo.permissao_gerenciamento`) - nunca mais só
+// `gerenciar_acesso` - ver módulo Configurações (pages/Configuracoes.tsx).
 // ---------------------------------------------------------------------------
 export type OpcaoDeCatalogo = {
   id_opcao: number
@@ -663,8 +665,50 @@ export type OpcaoDeCatalogo = {
 
 export function listarOpcoesCatalogo(
   chave: string,
+  incluirInativos = false,
 ): Promise<OpcaoDeCatalogo[]> {
-  return apiFetch(`/api/catalogos/${chave}/opcoes`)
+  return apiFetch(
+    `/api/catalogos/${chave}/opcoes${incluirInativos ? '?incluir_inativos=true' : ''}`,
+  )
+}
+
+export type Catalogo = {
+  id_catalogo: number
+  chave: string
+  nome_exibido: string
+  descricao: string | null
+  editavel_pelo_usuario: boolean
+  permissao_gerenciamento: string | null
+}
+
+export function listarCatalogos(): Promise<Catalogo[]> {
+  return apiFetch('/api/catalogos/')
+}
+
+export function criarOpcaoCatalogo(
+  chave: string,
+  dados: { codigo: string; rotulo: string; ordem?: number },
+): Promise<{ id_opcao: number; codigo: string }> {
+  return apiFetch(`/api/catalogos/${chave}/opcoes`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function atualizarOpcaoCatalogo(
+  idOpcao: number,
+  dados: { rotulo?: string; ordem?: number; ativo?: boolean },
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/opcoes-catalogo/${idOpcao}`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function excluirOpcaoCatalogo(
+  idOpcao: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/opcoes-catalogo/${idOpcao}`, { method: 'DELETE' })
 }
 
 // Rota legada de compatibilidade (`/api/opcoes/{tipo}`, mantida desde v0.1/v0.2 - ver

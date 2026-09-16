@@ -6,6 +6,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Cog,
   House,
   LogOut,
   Menu,
@@ -289,6 +290,18 @@ export function Shell() {
               >
                 <CalendarDays className="h-5 w-5 shrink-0" />
                 {!collapsed && <span>Calendário institucional</span>}
+              </NavLink>
+
+              {/* v2.5.8 - Configurações (decisão registrada desde v2.5.1): cada catálogo só é
+                  gerenciável por quem tem a permissão do módulo dono, não uma permissão única -
+                  por isso é rota global também, a própria tela filtra o que mostra. */}
+              <NavLink
+                to="/configuracoes"
+                className={navCls}
+                onClick={() => setMobileOpen(false)}
+              >
+                <Cog className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>Configurações</span>}
               </NavLink>
             </>
           )}

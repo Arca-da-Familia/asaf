@@ -367,6 +367,20 @@ export const eventoCalendarioCriarSchema = z.object({
   data_fim: z.string().optional(),
 })
 
+// Usado por "Nova opção" (pages/Configuracoes.tsx, v2.5.8) - `codigo` nunca muda depois de
+// criado (o backend recusa até tentativa via payload, mas nem expõe o campo na edição).
+export const opcaoCatalogoCriarSchema = z.object({
+  codigo: z
+    .string()
+    .min(1, 'Informe o código.')
+    .regex(/^[A-Z0-9_]+$/, 'Use só letras maiúsculas, números e underscore.'),
+  rotulo: z.string().min(1, 'Informe o rótulo.'),
+})
+
+export const opcaoCatalogoEditarSchema = z.object({
+  rotulo: z.string().min(1, 'Informe o rótulo.'),
+})
+
 // v0.2.9 — presente só durante o modo "ver como" (impersonação de papel).
 export const impersonandoSchema = z.object({
   id_nivel: z.number(),

@@ -77,6 +77,10 @@ class CatalogoCriar(BaseModel):
     nome_exibido: str
     descricao: Optional[str] = None
     editavel_pelo_usuario: bool = True
+    # v2.5.8 - permissão de MÓDULO (ex.: "associados", "financeiro") que passa a poder gerenciar
+    # as opções deste catálogo, além de gerenciar_acesso (sempre pode, como reforço). None =
+    # catálogo transversal/de sistema, só gerenciar_acesso mesmo.
+    permissao_gerenciamento: Optional[str] = None
 
     @field_validator("chave")
     @classmethod
