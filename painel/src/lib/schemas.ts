@@ -262,7 +262,10 @@ export const declaracaoConflitoCriarSchema = z.object({
 // Usado por "Emitir parecer" (pages/ConselhoFiscal.tsx, v2.5.5) - `tipo` é o enum real do
 // backend (app/models/conselho_fiscal.py::TIPOS_PARECER).
 export const parecerCriarSchema = z.object({
-  ano_exercicio: z.coerce.number().int().min(2013, 'Ano inválido - a ASAF existe desde 2013.'),
+  ano_exercicio: z.coerce
+    .number()
+    .int()
+    .min(2013, 'Ano inválido - a ASAF existe desde 2013.'),
   tipo: z.enum(['Favorável', 'Com ressalva', 'Contrário']),
   texto: z.string().min(10, 'Descreva o parecer.'),
 })

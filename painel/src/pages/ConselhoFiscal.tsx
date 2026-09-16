@@ -113,7 +113,11 @@ function BlocoQuestionamentos({ idTitulo }: { idTitulo: number }) {
 function BlocoRespostas({
   questionamento,
 }: {
-  questionamento: { id_questionamento: number; pergunta: string; status: string }
+  questionamento: {
+    id_questionamento: number
+    pergunta: string
+    status: string
+  }
 }) {
   const [mostrarForm, setMostrarForm] = useState(false)
   const queryClient = useQueryClient()
@@ -210,7 +214,9 @@ function BlocoTitulos() {
   return (
     <section className="rounded-xl border border-border bg-card p-6">
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="font-semibold">Títulos financeiros (leitura irrestrita)</h2>
+        <h2 className="font-semibold">
+          Títulos financeiros (leitura irrestrita)
+        </h2>
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
@@ -223,8 +229,8 @@ function BlocoTitulos() {
         </select>
       </div>
       <p className="mb-3 text-xs text-muted-foreground">
-        Toda consulta aqui é registrada em auditoria - o Conselho Fiscal lê tudo, mas nunca sem
-        deixar rastro de quem viu o quê.
+        Toda consulta aqui é registrada em auditoria - o Conselho Fiscal lê
+        tudo, mas nunca sem deixar rastro de quem viu o quê.
       </p>
       <div className="space-y-2">
         {(titulos ?? []).map((t) => (
@@ -278,7 +284,9 @@ function BlocoCaixa() {
 
   return (
     <section className="mt-6 rounded-xl border border-border bg-card p-6">
-      <h2 className="mb-2 font-semibold">Razão contábil (leitura irrestrita)</h2>
+      <h2 className="mb-2 font-semibold">
+        Razão contábil (leitura irrestrita)
+      </h2>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -431,7 +439,10 @@ export function ConselhoFiscalPage() {
       <PageHeader
         titulo="Conselho Fiscal"
         descricao="Leitura financeira auditada, pareceres e questionamentos."
-        trilha={[{ rotulo: 'Financeiro', href: '/financeiro' }, { rotulo: 'Conselho Fiscal' }]}
+        trilha={[
+          { rotulo: 'Financeiro', href: '/financeiro' },
+          { rotulo: 'Conselho Fiscal' },
+        ]}
       />
       <BlocoTitulos />
       <BlocoCaixa />

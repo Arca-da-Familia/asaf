@@ -88,9 +88,7 @@ function BlocoEncerrarMandato({
             </p>
           )}
           {encerrar.data?.pendencia && (
-            <p className="text-sm text-amber-600">
-              {encerrar.data.pendencia}
-            </p>
+            <p className="text-sm text-amber-600">{encerrar.data.pendencia}</p>
           )}
         </>
       )}
@@ -251,8 +249,8 @@ function BlocoMandatos() {
                   className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Em branco, usa a duração padrão do mandato (regra
-                  estatutária vigente).
+                  Em branco, usa a duração padrão do mandato (regra estatutária
+                  vigente).
                 </p>
               </div>
               <div>
@@ -469,7 +467,10 @@ export function MandatosPage() {
       <PageHeader
         titulo="Mandatos e órgãos"
         descricao="Posse, encerramento e conflito de interesse (Art. 20/26)."
-        trilha={[{ rotulo: 'Governança', href: '/governanca' }, { rotulo: 'Mandatos' }]}
+        trilha={[
+          { rotulo: 'Governança', href: '/governanca' },
+          { rotulo: 'Mandatos' },
+        ]}
       />
       <BlocoMandatos />
       <BlocoConflitoInteresse />

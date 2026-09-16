@@ -1709,7 +1709,8 @@ export function listarMandatos(filtros?: {
   apenasVigentes?: boolean
 }): Promise<Mandato[]> {
   const params = new URLSearchParams()
-  if (filtros?.idAssociado) params.set('id_associado', String(filtros.idAssociado))
+  if (filtros?.idAssociado)
+    params.set('id_associado', String(filtros.idAssociado))
   if (filtros?.orgaoCodigo) params.set('orgao_codigo', filtros.orgaoCodigo)
   if (filtros?.apenasVigentes) params.set('apenas_vigentes', 'true')
   const query = params.toString()
@@ -1746,8 +1747,12 @@ export function listarConflitosInteresse(filtros?: {
   apenasAtivas?: boolean
 }): Promise<DeclaracaoConflitoInteresse[]> {
   const params = new URLSearchParams()
-  if (filtros?.idAssociado) params.set('id_associado', String(filtros.idAssociado))
-  params.set('apenas_ativas', filtros?.apenasAtivas === false ? 'false' : 'true')
+  if (filtros?.idAssociado)
+    params.set('id_associado', String(filtros.idAssociado))
+  params.set(
+    'apenas_ativas',
+    filtros?.apenasAtivas === false ? 'false' : 'true',
+  )
   return apiFetch(`/api/mandatos/conflitos-interesse?${params.toString()}`)
 }
 
@@ -1764,9 +1769,12 @@ export function declararConflitoInteresse(dados: {
 export function encerrarConflitoInteresse(
   idDeclaracao: number,
 ): Promise<{ mensagem: string }> {
-  return apiFetch(`/api/mandatos/conflitos-interesse/${idDeclaracao}/encerrar`, {
-    method: 'PUT',
-  })
+  return apiFetch(
+    `/api/mandatos/conflitos-interesse/${idDeclaracao}/encerrar`,
+    {
+      method: 'PUT',
+    },
+  )
 }
 
 // ---------------------------------------------------------------------------
