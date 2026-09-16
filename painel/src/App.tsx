@@ -9,6 +9,7 @@ import { AcessoPage } from '@/pages/Acesso'
 import { AssembleiaDetalhePage } from '@/pages/AssembleiaDetalhe'
 import { AssembleiaNovoPage } from '@/pages/AssembleiaNova'
 import { AssembleiasPage } from '@/pages/Assembleias'
+import { AtaAssembleiaPage } from '@/pages/Ata'
 import { AssociadoDetalhePage } from '@/pages/AssociadoDetalhe'
 import { AssociadoNovoPage } from '@/pages/AssociadoNovo'
 import { AssociadosGraficosPage } from '@/pages/AssociadosGraficos'
@@ -216,6 +217,14 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Sessão da assembleia">
                 <SessaoAssembleiaPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path=":id/ata"
+            element={
+              <ErrorBoundary tituloModulo="Ata da assembleia">
+                <AtaAssembleiaPage />
               </ErrorBoundary>
             }
           />

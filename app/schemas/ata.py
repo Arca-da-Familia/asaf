@@ -18,6 +18,10 @@ class AtaRetificar(BaseModel):
         return v.strip()
 
 
+class AtaRelatoSecretariaAtualizar(BaseModel):
+    relato_secretaria: str
+
+
 class DeliberacaoCriar(BaseModel):
     tipo: str
     texto: str

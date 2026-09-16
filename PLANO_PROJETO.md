@@ -2698,6 +2698,24 @@ testes passando (`pytest tests/`).
 #### v2.5.4 — Governança: Atas e Deliberações
 - [ ] Gerar/consultar ata, deliberações vinculadas, certidão de deliberação.
 
+      > **v2.5.4 (2026-09-16) - construído, aguardando confirmação visual (item 10 do
+      > checklist).** Achado do usuário ao pedir esta versão: como a ata não é digitada (é
+      > gerada do registro da sessão - presença, pauta, votação, ocorrências, ver
+      > `app/services/ata.py`), o único texto livre é `relato_secretaria` - e esse campo existia
+      > no modelo desde v2.5 sem NENHUM endpoint pra escrevê-lo (gap real do backend, não do
+      > painel). Adicionado agora: `PUT /api/atas/{id}/relato-secretaria`, só enquanto a ata está
+      > em rascunho (depois de assinada, nunca edita - só retificação nova). 1 teste novo
+      > (`test_relato_secretaria_so_edita_enquanto_rascunho`), suíte completa (209) verde.
+      >
+      > Tela nova `Ata.tsx` (rota `/governanca/:id/ata`, link "Ata" no detalhe da assembleia só
+      > quando `Realizada` - a ata não existe antes disso): corpo gerado (texto puro, pra copiar
+      > pro documento oficial - o sistema não gera `.docx`, isso foi conversado explicitamente
+      > com o usuário), relato da secretaria editável em rascunho, assinar (trava e numera),
+      > retificar (ata nova vinculada, nunca edição). Deliberações: registrar (tipo, texto, ano
+      > de exercício quando "Aprovação de contas"), concluir (com criação de mandato quando
+      > "Eleição" - único tipo com campo extra) ou revogar, emitir certidão numerada por
+      > deliberação concluída.
+
 ##### 🔍 Ponto de Revisão — FASE 2.5 (1/3, fecha v2.5.1–v2.5.4)
 Além do checklist padrão (seção 4.1, item 10 em especial): abrir cada tela no navegador e
 confirmar visualmente que carrega dado real (não place holder, não erro no console) antes de

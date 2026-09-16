@@ -12,7 +12,7 @@ from app.database import get_db
 from app.models.ata import APROVACAO_CONTAS, ASSINADA, CONCLUIDA, ELEICAO, PENDENTE, RASCUNHO, REVOGADA, Ata, CertidaoDeliberacao, Deliberacao
 from app.models.governanca import Assembleia
 from app.routers.mandatos import criar_mandato
-from app.schemas.ata import AtaRetificar, DeliberacaoConcluir, DeliberacaoCriar, DeliberacaoRevogar
+from app.schemas.ata import AtaRelatoSecretariaAtualizar, AtaRetificar, DeliberacaoConcluir, DeliberacaoCriar, DeliberacaoRevogar
 from app.security import exigir_permissao, get_current_user
 from app.services.ata import aplicar_efeitos_deliberacao, gerar_corpo_ata, proximo_numero_ata, proximo_numero_certidao
 from app.services.conselho_fiscal import parecer_existe_para_ano
@@ -63,6 +63,18 @@ def _buscar_ata_ou_404(db: Session, id_ata: int) -> Ata:
 @router.get("/api/atas/{id_ata}", summary="Detalhar ata")
 def detalhar_ata(id_ata: int, db: Session = Depends(get_db), _usuario=Depends(get_current_user)):
     return _serializar_ata(_buscar_ata_ou_404(db, id_ata))
+
+
+@router.put("/api/atas/{id_ata}/relato-secretaria", summary="Atualizar o relato da secretaria (único texto livre da ata, só antes de assinar)")
+def atualizar_relato_secretaria(id_ata: int, dados: AtaRelatoSecretariaAtualizar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_governanca)):
+    ata = _buscar_ata_ou_404(db, id_ata)
+    if ata.status != RASCUNHO:
+        raise HTTPException(status_code=400, detail=f"Ata está '{ata.status}' - o relato só pode ser alterado enquanto a ata está em rascunho (depois de assinada, ata nunca é editada).")
+    ata.relato_secretaria = dados.relato_secretaria
+    db.commit()
+    db.refresh(ata)
+    registrar_auditoria(db, usuario, "atas", "RELATO_SECRETARIA_ATUALIZADO", id_registro_afetado=ata.id_ata, ip_origem=request.client.host if request.client else None)
+    return _serializar_ata(ata)
 
 
 @router.post("/api/atas/{id_ata}/assinar", summary="Assinar a ata (imutável a partir daqui)")

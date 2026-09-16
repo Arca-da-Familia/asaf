@@ -95,6 +95,19 @@ def test_assinar_ata_atribui_numero_sequencial_continuo(client, auth_headers):
     assert r2.json()["numero_sequencial"] == numero1 + 1
 
 
+def test_relato_secretaria_so_edita_enquanto_rascunho(client, auth_headers):
+    id_assembleia = _criar_assembleia_em_andamento(client, auth_headers)
+    id_ata = _criar_ata(client, auth_headers, id_assembleia)
+
+    r = client.put(f"/api/atas/{id_ata}/relato-secretaria", headers=auth_headers, json={"relato_secretaria": "Sessão conduzida sem incidentes relevantes."})
+    assert r.status_code == 200, r.text
+    assert r.json()["relato_secretaria"] == "Sessão conduzida sem incidentes relevantes."
+
+    client.post(f"/api/atas/{id_ata}/assinar", headers=auth_headers)
+    r2 = client.put(f"/api/atas/{id_ata}/relato-secretaria", headers=auth_headers, json={"relato_secretaria": "Tentativa depois de assinada."})
+    assert r2.status_code == 400
+
+
 def test_retificar_exige_ata_assinada_e_preserva_original(client, auth_headers):
     id_assembleia = _criar_assembleia_em_andamento(client, auth_headers)
     id_ata = _criar_ata(client, auth_headers, id_assembleia)

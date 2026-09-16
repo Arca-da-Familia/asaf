@@ -1504,3 +1504,137 @@ export type MinhaAssembleia = {
 export function listarMinhasAssembleias(): Promise<MinhaAssembleia[]> {
   return apiFetch('/api/minhas-assembleias')
 }
+
+// ---------------------------------------------------------------------------
+// Ata, deliberações e certidões (v2.5, ligado ao painel em v2.5.4) — a ata NUNCA é digitada
+// livre: é gerada do que a sessão já registrou (presença, pauta, votação, ocorrências); o único
+// texto livre é `relato_secretaria`, e só enquanto a ata está em rascunho. Depois de assinada,
+// trava pra sempre - correção é uma ata de retificação nova, nunca uma edição.
+// ---------------------------------------------------------------------------
+export type Ata = {
+  id_ata: number
+  id_assembleia: number
+  numero_sequencial: number | null
+  corpo_texto: string
+  relato_secretaria: string | null
+  status: string
+  assinada_em: string | null
+  id_ata_retificada: number | null
+  motivo_retificacao: string | null
+}
+
+export function gerarAta(idAssembleia: number): Promise<Ata> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/ata`, { method: 'POST' })
+}
+
+export function obterAtaDaAssembleia(idAssembleia: number): Promise<Ata> {
+  return apiFetch(`/api/assembleias/${idAssembleia}/ata`)
+}
+
+export function atualizarRelatoSecretaria(
+  idAta: number,
+  relatoSecretaria: string,
+): Promise<Ata> {
+  return apiFetch(`/api/atas/${idAta}/relato-secretaria`, {
+    method: 'PUT',
+    body: JSON.stringify({ relato_secretaria: relatoSecretaria }),
+  })
+}
+
+export function assinarAta(idAta: number): Promise<Ata> {
+  return apiFetch(`/api/atas/${idAta}/assinar`, { method: 'POST' })
+}
+
+export function retificarAta(idAta: number, motivo: string): Promise<Ata> {
+  return apiFetch(`/api/atas/${idAta}/retificar`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo }),
+  })
+}
+
+export type Deliberacao = {
+  id_deliberacao: number
+  id_ata: number
+  tipo: string
+  texto: string
+  ano_exercicio: number | null
+  status_execucao: string
+  id_associado_responsavel: number | null
+  prazo_execucao: string | null
+  concluida_em: string | null
+  observacao_conclusao: string | null
+}
+
+export type DeliberacaoCriarInput = {
+  tipo: string
+  texto: string
+  id_item_pauta?: number
+  id_votacao?: number
+  id_associado_responsavel?: number
+  prazo_execucao?: string
+  ano_exercicio?: number
+}
+
+export function criarDeliberacao(
+  idAta: number,
+  dados: DeliberacaoCriarInput,
+): Promise<Deliberacao> {
+  return apiFetch(`/api/atas/${idAta}/deliberacoes`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarDeliberacoesDaAta(idAta: number): Promise<Deliberacao[]> {
+  return apiFetch(`/api/atas/${idAta}/deliberacoes`)
+}
+
+export type MandatoCriarInput = {
+  id_associado: number
+  orgao_codigo: string
+  cargo_codigo: string
+  data_inicio: string
+  data_fim_previsto?: string
+  ato_origem?: string
+}
+
+export function concluirDeliberacao(
+  idDeliberacao: number,
+  dados: { observacao?: string; mandatos_criar?: MandatoCriarInput[] },
+): Promise<Deliberacao & { mandatos_criados: number[]; pendencia?: string }> {
+  return apiFetch(`/api/deliberacoes/${idDeliberacao}/concluir`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function revogarDeliberacao(
+  idDeliberacao: number,
+  motivo: string,
+): Promise<Deliberacao> {
+  return apiFetch(`/api/deliberacoes/${idDeliberacao}/revogar`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo }),
+  })
+}
+
+export type CertidaoDeliberacao = {
+  id_certidao: number
+  numero_sequencial: number
+  emitida_em?: string
+  texto_gerado?: string
+}
+
+export function emitirCertidao(
+  idDeliberacao: number,
+): Promise<CertidaoDeliberacao> {
+  return apiFetch(`/api/deliberacoes/${idDeliberacao}/certidao`, {
+    method: 'POST',
+  })
+}
+
+export function listarCertidoes(
+  idDeliberacao: number,
+): Promise<CertidaoDeliberacao[]> {
+  return apiFetch(`/api/deliberacoes/${idDeliberacao}/certidoes`)
+}

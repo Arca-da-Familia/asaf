@@ -310,11 +310,16 @@ export function AssembleiaDetalhePage() {
               </>
             )}
             {assembleia.status === 'Realizada' && (
-              <Button asChild variant="outline">
-                <Link to={`/governanca/${idAssembleia}/sessao`}>
-                  Corrigir presença
-                </Link>
-              </Button>
+              <>
+                <Button asChild variant="outline">
+                  <Link to={`/governanca/${idAssembleia}/sessao`}>
+                    Corrigir presença
+                  </Link>
+                </Button>
+                <Button asChild>
+                  <Link to={`/governanca/${idAssembleia}/ata`}>Ata</Link>
+                </Button>
+              </>
             )}
           </>
         }

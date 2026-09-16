@@ -202,6 +202,49 @@ export const justificativaManualSchema = z.object({
   id_associado: z.coerce.number().int({ message: 'Selecione um associado.' }),
 })
 
+// Usado por "Ata" (pages/Ata.tsx, v2.5.4) - relato_secretaria é o único texto livre da ata,
+// só editável enquanto ela está em rascunho (o backend recusa depois de assinada).
+export const relatoSecretariaSchema = z.object({
+  relato_secretaria: z.string(),
+})
+
+export const ataRetificarSchema = z.object({
+  motivo: z.string().min(5, 'Descreva o motivo da retificação.'),
+})
+
+export const deliberacaoCriarSchema = z
+  .object({
+    tipo: z.enum([
+      'Eleição',
+      'Reforma de estatuto',
+      'Aprovação de contas',
+      'Dissolução',
+      'Genérica',
+    ]),
+    texto: z.string().min(5, 'Descreva a deliberação.'),
+    ano_exercicio: z.coerce.number().int().optional(),
+  })
+  .refine((d) => d.tipo !== 'Aprovação de contas' || !!d.ano_exercicio, {
+    message: 'Informe o ano de exercício.',
+    path: ['ano_exercicio'],
+  })
+
+export const deliberacaoConcluirSchema = z.object({
+  observacao: z.string().optional(),
+})
+
+// Usado só quando a deliberação concluída é do tipo "Eleição" (cria o mandato de uma vez).
+export const mandatoCriarSchema = z.object({
+  id_associado: z.coerce.number().int({ message: 'Selecione um associado.' }),
+  orgao_codigo: z.string().min(1, 'Informe o código do órgão.'),
+  cargo_codigo: z.string().min(1, 'Informe o código do cargo.'),
+  data_inicio: z.string().min(1, 'Informe a data de início.'),
+})
+
+export const deliberacaoRevogarSchema = z.object({
+  motivo: z.string().min(5, 'Descreva o motivo da revogação.'),
+})
+
 export const justificativaDecidirSchema = z.object({
   motivo_decisao: z.string().optional(),
 })
