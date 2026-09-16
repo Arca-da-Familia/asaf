@@ -43,6 +43,7 @@ import { MinhasAssembleiasPage } from '@/pages/MinhasAssembleias'
 import { PerfilPage } from '@/pages/Perfil'
 import { PeticoesConvocacaoPage } from '@/pages/PeticoesConvocacao'
 import { SessaoAssembleiaPage } from '@/pages/SessaoAssembleia'
+import { TitulosPage } from '@/pages/Titulos'
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated, isBootstrapping } = useAuth()
@@ -231,6 +232,14 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Conselho Fiscal">
                 <ConselhoFiscalPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="titulos"
+            element={
+              <ErrorBoundary tituloModulo="Títulos">
+                <TitulosPage />
               </ErrorBoundary>
             }
           />

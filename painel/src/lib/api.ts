@@ -2315,3 +2315,66 @@ export function fecharExercicio(
     method: 'POST',
   })
 }
+
+// ---------------------------------------------------------------------------
+// Financeiro: Títulos e baixa (backend v2.6/v3.0, painel v2.5.9) - lançar título (a
+// pagar/a receber) e dar baixa nele. Tipos dedicados (não reaproveita `TituloFinanceiroCF`
+// acima): o endpoint de GESTÃO (`GET /api/titulos/`) já devolve `conta_contabil`/`beneficiario`
+// resolvidos como texto, formato diferente do endpoint de LEITURA do Conselho Fiscal (que
+// devolve `id_associado`/`id_fornecedor` crus). Estorno de lançamento fica pra v2.5.10 (Razão
+// Contábil), fora do escopo desta versão.
+// ---------------------------------------------------------------------------
+export type TituloFinanceiro = {
+  id_titulo: number
+  tipo_titulo: string
+  descricao: string
+  conta_contabil: string
+  beneficiario: string
+  valor_original: number
+  saldo_devedor: number
+  data_vencimento: string
+  status: string
+}
+
+export function listarTitulos(filtros?: {
+  status?: string
+  tipo_titulo?: string
+}): Promise<TituloFinanceiro[]> {
+  const params = new URLSearchParams()
+  if (filtros?.status) params.set('status', filtros.status)
+  if (filtros?.tipo_titulo) params.set('tipo_titulo', filtros.tipo_titulo)
+  const query = params.toString()
+  return apiFetch(`/api/titulos/${query ? `?${query}` : ''}`)
+}
+
+export function criarTitulo(dados: {
+  tipo_titulo: string
+  id_conta_contabil: number
+  id_associado?: number
+  id_fornecedor?: number
+  descricao: string
+  valor_original: number
+  data_vencimento: string
+}): Promise<{ mensagem: string; id_titulo: number }> {
+  return apiFetch('/titulos/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function baixarTitulo(dados: {
+  id_titulo: number
+  valor_pago: number
+  forma_pagamento: string
+  id_conta_contabil_contrapartida: number
+}): Promise<{
+  mensagem: string
+  saldo_restante: number
+  id_lancamento: number
+  numero_sequencial: number
+}> {
+  return apiFetch('/baixar-titulo/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}

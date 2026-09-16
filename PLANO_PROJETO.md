@@ -3131,8 +3131,37 @@ Mesmo checklist do ponto 1/3.
       > confirmado verde, e `https://painel.asaf.org.br/version.json` batendo com `456814b`.
 
 #### v2.5.9 — Financeiro: Títulos e baixa
-- [ ] Lançar título (a pagar/a receber), listar com filtro por tipo/status.
-- [ ] Baixar título (com conta de contrapartida), refletindo o saldo restante.
+- [x] Lançar título (a pagar/a receber), listar com filtro por tipo/status.
+- [x] Baixar título (com conta de contrapartida), refletindo o saldo restante.
+
+      > **v2.5.9 (2026-09-16)**: backend já existia inteiro (v2.6/v3.0) - `TituloFinanceiro`,
+      > `LancamentoContabil`/`PartidaContabil` (`app/models/financeiro.py`), atrás de
+      > `exigir_permissao("financeiro")`. Tipos novos e dedicados no painel (`TituloFinanceiro`,
+      > não reaproveita o `TituloFinanceiroCF` do Conselho Fiscal) - o endpoint de gestão
+      > (`GET /api/titulos/`) já devolve `conta_contabil`/`beneficiario` resolvidos como texto,
+      > formato diferente do endpoint de leitura do CF (que devolve ids crus).
+      >
+      > **Achado do próprio schema (não coberto por teste de backend), documentado em vez de
+      > "descoberto quebrando algo"**: `TituloCriar.id_associado`/`id_fornecedor` não são
+      > mutuamente exclusivos no backend - dá pra mandar os dois ou nenhum sem erro 400. O painel
+      > trata isso com um seletor "Sem beneficiário / Associado / Fornecedor" que só manda um dos
+      > dois ids (nunca os dois), evitando o caso ambíguo pela própria UI mesmo sem trava no
+      > backend.
+      >
+      > **Achado real (dev local, mesma causa do v2.5.8), corrigido antes de continuar**: `POST
+      > /titulos/` e `POST /baixar-titulo/` são as mesmas duas rotas sem `/api` do padrão que já
+      > tinha aparecido em Plano de Contas/Fornecedores - faltavam no proxy do Vite. Adicionadas
+      > junto.
+      >
+      > **Confirmado rodando de verdade** (Presidente, `financeiro` incluso): título "A Pagar" com
+      > fornecedor beneficiário e título "A Receber" com associado beneficiário, ambos criados;
+      > conta contábil de tipo incompatível com o tipo do título recusada com a mensagem real do
+      > backend ("precisa ser uma conta do tipo Despesa"); filtro por tipo funcionando; baixa
+      > parcial (R$ 250,00 → paga R$ 100,00 → saldo R$ 150,00) refletindo o saldo restante
+      > corretamente; baixa sem exercício aberto recusada com a mensagem real da regra de negócio;
+      > formulário de baixa bloqueia no próprio painel se a conta de contrapartida não for
+      > selecionada. Typecheck/lint/Prettier/vitest do painel verdes, suíte de backend (218
+      > testes) intacta - versão sem alterações de backend.
 
 #### v2.5.10 — Financeiro: Razão Contábil
 - [ ] Extrato de lançamentos em partida dobrada (débito/crédito por linha).

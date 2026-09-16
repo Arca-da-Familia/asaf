@@ -12,6 +12,7 @@ import {
   Handshake,
   Landmark,
   MessageCircleQuestion,
+  Receipt,
   ScrollText,
   ShieldAlert,
   ShieldCheck,
@@ -83,6 +84,11 @@ export const modulos: Modulo[] = [
         rota: '/financeiro/conselho-fiscal',
         rotulo: 'Conselho Fiscal',
         icone: MessageCircleQuestion,
+      },
+      {
+        rota: '/financeiro/titulos',
+        rotulo: 'Títulos',
+        icone: Receipt,
       },
       {
         rota: '/financeiro/plano-contas',

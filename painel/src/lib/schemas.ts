@@ -404,6 +404,39 @@ export const exercicioAbrirSchema = z.object({
   ano: z.coerce.number().min(2000, 'Ano inválido.').max(2200, 'Ano inválido.'),
 })
 
+// Usado por "Títulos" (pages/Titulos.tsx, v2.5.9) - `beneficiario_tipo` é só do formulário
+// (nunca vai pro backend); a página decide, na hora de montar o body, se manda `id_associado`
+// ou `id_fornecedor` (nunca os dois) com base nele. O backend valida a compatibilidade entre
+// `tipo_titulo` e o `tipo` da conta contábil escolhida - a mensagem real de erro é mostrada.
+export const tituloCriarSchema = z.object({
+  tipo_titulo: z.enum(['A Pagar', 'A Receber'], {
+    message: 'Selecione o tipo do título.',
+  }),
+  id_conta_contabil: z.coerce
+    .number()
+    .int({ message: 'Selecione a conta contábil.' })
+    .positive({ message: 'Selecione a conta contábil.' }),
+  beneficiario_tipo: z.enum(['nenhum', 'associado', 'fornecedor']),
+  id_associado: z.coerce.number().optional(),
+  id_fornecedor: z.coerce.number().optional(),
+  descricao: z.string().min(1, 'Informe a descrição.'),
+  valor_original: z.coerce
+    .number()
+    .positive('Informe um valor maior que zero.'),
+  data_vencimento: z.string().min(1, 'Informe a data de vencimento.'),
+})
+
+// Usado por "Baixar título" (pages/Titulos.tsx, v2.5.9) - o backend exige a conta de
+// contrapartida do tipo "Ativo" (Caixa/Banco); a mensagem real de erro é mostrada se não for.
+export const baixarTituloSchema = z.object({
+  valor_pago: z.coerce.number().positive('Informe um valor maior que zero.'),
+  forma_pagamento: z.string().min(1, 'Informe a forma de pagamento.'),
+  id_conta_contabil_contrapartida: z.coerce
+    .number()
+    .int({ message: 'Selecione a conta de contrapartida.' })
+    .positive({ message: 'Selecione a conta de contrapartida.' }),
+})
+
 // v0.2.9 — presente só durante o modo "ver como" (impersonação de papel).
 export const impersonandoSchema = z.object({
   id_nivel: z.number(),
