@@ -787,9 +787,11 @@ function BlocoVotacoesDoItem({
 function LinhaItemPauta({
   idAssembleia,
   item,
+  podeConduzir,
 }: {
   idAssembleia: number
   item: ItemPauta
+  podeConduzir: boolean
 }) {
   const queryClient = useQueryClient()
   function invalidar() {
@@ -824,7 +826,7 @@ function LinhaItemPauta({
         </span>
       </div>
       <div className="mt-2 flex gap-2">
-        {item.status === 'Aguardando' && (
+        {podeConduzir && item.status === 'Aguardando' && (
           <Button
             variant="outline"
             size="sm"
@@ -834,17 +836,18 @@ function LinhaItemPauta({
             Abrir discussão
           </Button>
         )}
-        {(item.status === 'Aguardando' || item.status === 'Em discussão') && (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={abrirVotacao.isPending}
-            onClick={() => abrirVotacao.mutate()}
-          >
-            Abrir votação
-          </Button>
-        )}
-        {item.status !== 'Encerrado' && (
+        {podeConduzir &&
+          (item.status === 'Aguardando' || item.status === 'Em discussão') && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={abrirVotacao.isPending}
+              onClick={() => abrirVotacao.mutate()}
+            >
+              Abrir votação
+            </Button>
+          )}
+        {podeConduzir && item.status !== 'Encerrado' && (
           <Button
             variant="outline"
             size="sm"
@@ -858,13 +861,19 @@ function LinhaItemPauta({
 
       <BlocoVotacoesDoItem
         idItem={item.id_item}
-        podeAbrir={item.status === 'Em votação'}
+        podeAbrir={podeConduzir && item.status === 'Em votação'}
       />
     </div>
   )
 }
 
-function BlocoPauta({ idAssembleia }: { idAssembleia: number }) {
+function BlocoPauta({
+  idAssembleia,
+  podeConduzir,
+}: {
+  idAssembleia: number
+  podeConduzir: boolean
+}) {
   const queryClient = useQueryClient()
   const { data: itens } = useQuery({
     queryKey: ['itens-pauta', idAssembleia],
@@ -887,36 +896,38 @@ function BlocoPauta({ idAssembleia }: { idAssembleia: number }) {
     <section className="rounded-xl border border-border bg-card p-6">
       <h2 className="mb-4 font-semibold">Itens de pauta</h2>
 
-      <FormShell<z.infer<typeof itemPautaCriarSchema>>
-        schema={itemPautaCriarSchema}
-        defaultValues={{ titulo: '', descricao: '' }}
-        onSubmit={(v) => criar.mutateAsync(v)}
-        className="mb-4 flex flex-wrap items-end gap-3"
-      >
-        {(form) => (
-          <>
-            <div className="min-w-[14rem] flex-1">
-              <label className="text-sm font-medium">Título</label>
-              <input
-                {...form.register('titulo')}
-                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              />
-              <ErroCampo mensagem={form.formState.errors.titulo?.message} />
-            </div>
-            <div className="w-32">
-              <label className="text-sm font-medium">Tempo (min)</label>
-              <input
-                type="number"
-                {...form.register('tempo_fala_minutos')}
-                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              />
-            </div>
-            <Button type="submit" disabled={criar.isPending}>
-              {criar.isPending ? 'Adicionando…' : 'Adicionar item'}
-            </Button>
-          </>
-        )}
-      </FormShell>
+      {podeConduzir && (
+        <FormShell<z.infer<typeof itemPautaCriarSchema>>
+          schema={itemPautaCriarSchema}
+          defaultValues={{ titulo: '', descricao: '' }}
+          onSubmit={(v) => criar.mutateAsync(v)}
+          className="mb-4 flex flex-wrap items-end gap-3"
+        >
+          {(form) => (
+            <>
+              <div className="min-w-[14rem] flex-1">
+                <label className="text-sm font-medium">Título</label>
+                <input
+                  {...form.register('titulo')}
+                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                />
+                <ErroCampo mensagem={form.formState.errors.titulo?.message} />
+              </div>
+              <div className="w-32">
+                <label className="text-sm font-medium">Tempo (min)</label>
+                <input
+                  type="number"
+                  {...form.register('tempo_fala_minutos')}
+                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                />
+              </div>
+              <Button type="submit" disabled={criar.isPending}>
+                {criar.isPending ? 'Adicionando…' : 'Adicionar item'}
+              </Button>
+            </>
+          )}
+        </FormShell>
+      )}
 
       <div className="space-y-2">
         {(itens ?? []).map((item) => (
@@ -924,6 +935,7 @@ function BlocoPauta({ idAssembleia }: { idAssembleia: number }) {
             key={item.id_item}
             idAssembleia={idAssembleia}
             item={item}
+            podeConduzir={podeConduzir}
           />
         ))}
       </div>
@@ -931,7 +943,13 @@ function BlocoPauta({ idAssembleia }: { idAssembleia: number }) {
   )
 }
 
-function BlocoOcorrencias({ idAssembleia }: { idAssembleia: number }) {
+function BlocoOcorrencias({
+  idAssembleia,
+  podeRegistrar,
+}: {
+  idAssembleia: number
+  podeRegistrar: boolean
+}) {
   const queryClient = useQueryClient()
   const { data: ocorrencias } = useQuery({
     queryKey: ['ocorrencias', idAssembleia],
@@ -951,28 +969,32 @@ function BlocoOcorrencias({ idAssembleia }: { idAssembleia: number }) {
     <section className="rounded-xl border border-border bg-card p-6">
       <h2 className="mb-4 font-semibold">Ocorrências</h2>
 
-      <FormShell<z.infer<typeof ocorrenciaCriarSchema>>
-        schema={ocorrenciaCriarSchema}
-        defaultValues={{ descricao: '' }}
-        onSubmit={(v) => registrar.mutateAsync(v)}
-        className="mb-4 flex flex-wrap items-end gap-3"
-      >
-        {(form) => (
-          <>
-            <div className="min-w-[16rem] flex-1">
-              <label className="text-sm font-medium">Descrição</label>
-              <input
-                {...form.register('descricao')}
-                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              />
-              <ErroCampo mensagem={form.formState.errors.descricao?.message} />
-            </div>
-            <Button type="submit" disabled={registrar.isPending}>
-              {registrar.isPending ? 'Registrando…' : 'Registrar ocorrência'}
-            </Button>
-          </>
-        )}
-      </FormShell>
+      {podeRegistrar && (
+        <FormShell<z.infer<typeof ocorrenciaCriarSchema>>
+          schema={ocorrenciaCriarSchema}
+          defaultValues={{ descricao: '' }}
+          onSubmit={(v) => registrar.mutateAsync(v)}
+          className="mb-4 flex flex-wrap items-end gap-3"
+        >
+          {(form) => (
+            <>
+              <div className="min-w-[16rem] flex-1">
+                <label className="text-sm font-medium">Descrição</label>
+                <input
+                  {...form.register('descricao')}
+                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                />
+                <ErroCampo
+                  mensagem={form.formState.errors.descricao?.message}
+                />
+              </div>
+              <Button type="submit" disabled={registrar.isPending}>
+                {registrar.isPending ? 'Registrando…' : 'Registrar ocorrência'}
+              </Button>
+            </>
+          )}
+        </FormShell>
+      )}
 
       <div className="space-y-1">
         {(ocorrencias ?? []).map((o) => (
@@ -992,9 +1014,19 @@ function BlocoOcorrencias({ idAssembleia }: { idAssembleia: number }) {
 }
 
 // v2.5.2 (FASE 2.5 - Painel) - painel da sessão em andamento (Art. 6º/9º): credenciamento com
-// quórum em tempo real, pauta item a item e ocorrências. Só faz sentido com a assembleia "Em
-// andamento" (o backend já recusa qualquer escrita fora disso - ver
-// app/routers/sessao_assembleia.py) - se o status for outro, a tela mostra só o aviso.
+// quórum em tempo real, pauta item a item e ocorrências. Criar item/ocorrência e conduzir um
+// item (abrir discussão/votação, encerrar) só faz sentido com a assembleia "Em andamento" (o
+// backend já recusa qualquer escrita fora disso - ver app/routers/sessao_assembleia.py).
+//
+// Achado do Ponto de Revisão FASE 2.5 (1/3): resolver empate e resolver impugnação de voto
+// (app/routers/votacao.py) NÃO exigem a assembleia "Em andamento" no backend - de propósito,
+// já que `encerrar-sessao` não trava em votação com empate/impugnação pendente (Art. 13, V é
+// direito de recurso, não dever de resolver antes de encerrar). Mas até aqui o painel escondia
+// a pauta inteira fora de "Em andamento", tornando um empate ou impugnação já registrados
+// irresolvíveis na prática assim que a sessão encerrava - só reaparecendo como `vencedor: None`
+// no texto gerado da ata (ver app/services/ata.py). Por isso "Realizada" também mostra
+// BlocoPauta/BlocoOcorrencias agora, só sem os formulários de criar/conduzir (que o backend
+// mesmo recusaria).
 export function SessaoAssembleiaPage() {
   const { id } = useParams<{ id: string }>()
   const idAssembleia = Number(id)
@@ -1029,19 +1061,24 @@ export function SessaoAssembleiaPage() {
             idAssembleia={idAssembleia}
             statusAssembleia={assembleia.status}
           />
-          <BlocoPauta idAssembleia={idAssembleia} />
-          <BlocoOcorrencias idAssembleia={idAssembleia} />
+          <BlocoPauta idAssembleia={idAssembleia} podeConduzir />
+          <BlocoOcorrencias idAssembleia={idAssembleia} podeRegistrar />
         </div>
       )}
 
       {assembleia.status === 'Realizada' && (
-        // Sessão já encerrada: pauta/votação/ocorrências ficam travadas (regra do backend,
-        // v2.3) - só a correção de presença continua disponível, pro secretário lançar quem
-        // não conseguiu se autochamar por falha do app (achado do usuário 2026-09-15).
-        <BlocoCredenciamento
-          idAssembleia={idAssembleia}
-          statusAssembleia={assembleia.status}
-        />
+        <div className="space-y-6">
+          {/* Sessão já encerrada: só a correção de presença continua editável (secretário
+              lança quem não conseguiu se autochamar - achado do usuário 2026-09-15). Pauta e
+              ocorrências ficam só de leitura, mas visíveis - é aqui que um empate ou
+              impugnação de voto ainda pendente continua resolvível (ver comentário acima). */}
+          <BlocoCredenciamento
+            idAssembleia={idAssembleia}
+            statusAssembleia={assembleia.status}
+          />
+          <BlocoPauta idAssembleia={idAssembleia} podeConduzir={false} />
+          <BlocoOcorrencias idAssembleia={idAssembleia} podeRegistrar={false} />
+        </div>
       )}
 
       {assembleia.status !== 'Em andamento' &&

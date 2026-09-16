@@ -171,6 +171,35 @@ documento aplica esta lista, além dos itens específicos daquele trecho):
     existia, carregava, sem erro nenhum no console) porque ninguém tinha clicado no link ainda -
     só foi achado quando o usuário de fato tentou abrir o documento que acabara de anexar. Item
     10 prova que a tela existe; este item prova que ela funciona de ponta a ponta.
+12. **(item acrescentado em 2026-09-16, achado do usuário - "passou pelo ponto de revisão mas o
+    negócio nunca foi pra produção")** O que este ponto de revisão está fechando **está de
+    verdade no ar em produção** — nunca só "está commitado", "está no GitHub" ou "o workflow foi
+    disparado". Isso é uma verificação própria, distinta dos itens 10/11: o item 10 prova que a
+    tela existe no código e roda; o item 11 prova que o que ela abre funciona de ponta a ponta;
+    este item prova que **o usuário final já consegue ver isso hoje**, não só quem está com o
+    repositório aberto. Passos mínimos, nesta ordem:
+    - `git log origin/main..HEAD` (ou equivalente) vazio — o commit que fecha esta faixa está
+      **no `main` remoto**, não só local ou numa branch/PR aberta.
+    - O workflow correspondente (`deploy-api.yml` e/ou `deploy-painel.yml`, conforme o que a
+      faixa tocou) **rodou e terminou com sucesso** para esse commit específico — checado na aba
+      Actions do GitHub (ou `gh run list`/`gh run view`), nunca assumido só porque o push
+      aconteceu (um workflow pode falhar silenciosamente, ou nem disparar).
+    - Pro painel: o rodapé (ou `painel.asaf.org.br/version.json`) mostra o **mesmo hash de commit
+      curto** que acabou de ser mergeado (`git rev-parse --short HEAD`) — mecanismo que já existe
+      desde a v0.2.7 exatamente pra isso, e que nenhuma revisão até 2026-09-16 tinha usado de
+      verdade com esse propósito. Pra API: como ela ainda não expõe um `/health`/versão com o
+      commit (lacuna registrada aqui, não resolvida por este ponto de revisão), confirmar pelo
+      log da Actions que o deploy do Container App terminou sem erro para o SHA certo é o mínimo
+      aceitável até que essa lacuna seja fechada.
+    - **Quando a sessão não tem acesso a produção** (comum: `CREDENCIAIS_AZURE.md` fica cifrado
+      via sops/age, e a maioria das sessões não tem a chave) - isto **não dispensa** o item, e
+      **nunca** deve ser silenciosamente substituído por "testei local e deu certo". A sessão
+      registra explicitamente, no próprio bloco de revisão: o que foi confirmado só localmente,
+      o que foi confirmado pela Actions/GitHub (git push + workflow verde, que não exige
+      credencial de produção nenhuma), e o que ficou **pendente de confirmação em produção** para
+      o usuário (ou uma sessão com acesso) fazer antes de considerar este item de fato cumprido.
+      Um ponto de revisão marcado ✅ com este item pendente é, por definição, um ponto de revisão
+      **fechado errado** - registrar a pendência é sempre melhor que fingir que foi checado.
 
 **Quem revisa**: idealmente uma sessão diferente da que implementou (outra janela de contexto, ou
 o usuário revisando antes de autorizar a faixa seguinte) — revisar o próprio trabalho na mesma
@@ -178,7 +207,11 @@ sessão que o produziu é melhor que nada, mas é a opção mais fraca desta lis
 
 **Se a revisão encontrar problema**: o achado é registrado no próprio bloco de revisão (nunca
 "empurrado" para a frente como pendência vaga), e a fase **não avança** para o próximo intervalo
-até a correção estar feita — o ponto de revisão é um portão, não uma sugestão.
+até a correção estar feita — o ponto de revisão é um portão, não uma sugestão. Isso vale igual
+pros itens 10/11/12: achar uma tela que não existe, um link que quebra ou um deploy que não saiu
+é achar um bug, e bug achado em ponto de revisão se corrige ali mesmo, não se registra como
+pendência pra outra sessão resolver depois — é exatamente esse adiamento que multiplica o
+retrabalho que a seção 4.1 existe pra evitar.
 
 ### FASE 0 — Fundação (infraestrutura, identidade, permissão, painel único)
 
@@ -2638,14 +2671,15 @@ testes passando (`pytest tests/`).
       > cruzando `listarHabilitados` com `listarCredenciamentos` no cliente.
 
 #### v2.5.3b — Governança: Chamada avançada (autochamada, justificativa de falta, Minhas Assembleias)
-- [ ] Autochamada: associado bate a própria presença com um código gerado quando a sessão abre.
-- [ ] Justificativa de falta (do edital ao encerramento) - associado propõe, `governanca` decide.
-- [ ] Correção manual de presença pelo secretário, inclusive após a sessão encerrada.
-- [ ] "Minhas Assembleias" (fora do módulo Governança, junto de Meu Perfil) - histórico próprio
+- [x] Autochamada: associado bate a própria presença com um código gerado quando a sessão abre.
+- [x] Justificativa de falta (do edital ao encerramento) - associado propõe, `governanca` decide.
+- [x] Correção manual de presença pelo secretário, inclusive após a sessão encerrada.
+- [x] "Minhas Assembleias" (fora do módulo Governança, junto de Meu Perfil) - histórico próprio
       de presença/falta/justificativa de cada associado.
 
-      > **v2.5.3b (2026-09-15) - construído, aguardando confirmação visual (item 10 do
-      > checklist).** Versão inserida fora da sequência original do plano - achado do usuário ao
+      > **v2.5.3b (2026-09-15) - confirmado visualmente pelo usuário/revisão em 2026-09-16
+      > (item 10 do checklist, ver Ponto de Revisão 1/3 abaixo).** Versão inserida fora da
+      > sequência original do plano - achado do usuário ao
       > revisar v2.5.2 ("onde fica a chamada de presença, e a justificativa de quem não pôde ir?")
       > pedia mais do que UI: um conceito novo (presença/falta como estado de três valores) que o
       > backend da FASE 2 nunca teve. Decisões de desenho confirmadas com o usuário antes de
@@ -2686,11 +2720,12 @@ testes passando (`pytest tests/`).
       > `listarAssociados` no cliente, mesmo padrão já usado pra lista de faltantes.
 
 #### v2.5.3 — Governança: Votação
-- [ ] Abrir votação (aberta e secreta), acompanhar quórum e apuração em tempo real.
-- [ ] Impugnação de voto e resolução de empate.
+- [x] Abrir votação (aberta e secreta), acompanhar quórum e apuração em tempo real.
+- [x] Impugnação de voto e resolução de empate.
 
-      > **v2.5.3 (2026-09-15) - construído, aguardando confirmação visual (item 10 do
-      > checklist).** Motor de votação (FASE 2, v2.4) já existia completo e testado - votação
+      > **v2.5.3 (2026-09-15) - confirmado visualmente pelo usuário/revisão em 2026-09-16
+      > (item 10 do checklist, ver Ponto de Revisão 1/3 abaixo).** Motor de votação (FASE 2,
+      > v2.4) já existia completo e testado - votação
       > secreta de verdade desacoplada (`ComprovanteVotoSecreto`/`RegistroVotoSecreto` sem
       > coluna em comum, ver `app/models/votacao.py`), hash de integridade no encerramento,
       > escrutínio (maioria simples/absoluta/qualificada), impugnação e desempate. Tela embutida
@@ -2706,10 +2741,11 @@ testes passando (`pytest tests/`).
       > recusava de qualquer forma, isto só evita mostrar um botão que ia dar 403.
 
 #### v2.5.4 — Governança: Atas e Deliberações
-- [ ] Gerar/consultar ata, deliberações vinculadas, certidão de deliberação.
+- [x] Gerar/consultar ata, deliberações vinculadas, certidão de deliberação.
 
-      > **v2.5.4 (2026-09-16) - construído, aguardando confirmação visual (item 10 do
-      > checklist).** Achado do usuário ao pedir esta versão: como a ata não é digitada (é
+      > **v2.5.4 (2026-09-16) - confirmado visualmente pelo usuário/revisão em 2026-09-16
+      > (item 10 do checklist, ver Ponto de Revisão 1/3 abaixo).** Achado do usuário ao pedir
+      > esta versão: como a ata não é digitada (é
       > gerada do registro da sessão - presença, pauta, votação, ocorrências, ver
       > `app/services/ata.py`), o único texto livre é `relato_secretaria` - e esse campo existia
       > no modelo desde v2.5 sem NENHUM endpoint pra escrevê-lo (gap real do backend, não do
@@ -2751,10 +2787,99 @@ testes passando (`pytest tests/`).
       > que renderizavam o campo bruto (`AssociadoDetalhe.tsx` e `Ata.tsx`) - checado que não
       > existe um terceiro lugar fazendo a mesma coisa.
 
-##### 🔍 Ponto de Revisão — FASE 2.5 (1/3, fecha v2.5.1–v2.5.4)
+##### 🔍 Ponto de Revisão — FASE 2.5 (1/3, fecha v2.5.1–v2.5.4) ⚠️ ITEM 12 PENDENTE (2026-09-16)
 Além do checklist padrão (seção 4.1, item 10 em especial): abrir cada tela no navegador e
 confirmar visualmente que carrega dado real (não place holder, não erro no console) antes de
 marcar qualquer checkbox acima como `[x]`.
+
+> **Refeito de verdade em 2026-09-16** - achado do usuário: os pontos de revisão anteriores
+> desta fase vinham fechando versão com o item 10 anotado como "aguardando confirmação visual"
+> e nunca voltavam pra confirmar de fato - risco real de falso positivo (rota que "existe" no
+> código mas nunca foi clicada, envio que "não dá erro" mas nunca aparece de volta na tela). A
+> partir desta fase, todo Ponto de Revisão exige rodar o painel de verdade (backend local +
+> `npm run dev`), logar como usuário real (associado comum e administrador) e navegar por cada
+> tela/rota da fase — não só ler o código.
+>
+> **Ambiente**: backend FastAPI + SQLite local (`DATABASE_URL` isolado, nunca o Postgres de
+> produção — as credenciais em `CREDENCIAIS_AZURE.md` seguem cifradas/fora de alcance, e não
+> deveriam ser usadas pra um teste exploratório de qualquer forma), `painel` com `npm run dev`
+> apontando pro backend local via o proxy do Vite já existente. Dado real semeado pela API
+> (nunca direto no banco): 4 associados, 1 assembleia percorrendo o ciclo completo (convocar →
+> abrir sessão → credenciar/autochamada/justificativa de falta → item de pauta → votação aberta
+> → impugnação → encerrar → gerar ata → relato da secretaria → deliberação (com criação de
+> mandato) → certidão → upload do documento assinado), mais uma assembleia parada em `Convocada`
+> e outra em `Rascunho`. Navegação automatizada com Playwright (login real por CPF/senha,
+> inclusive completando o cadastro de MFA obrigatório do Presidente com um TOTP gerado de
+> verdade a partir do segredo devolvido por `/auth/mfa/ativar` — não pulado), capturando
+> screenshot, console do navegador e status HTTP de cada requisição em cada rota.
+>
+> **Confirmado rodando de verdade (sem placeholder, sem erro de console, sem 404/401
+> inesperado)**: `/` (Início - grade de módulos por permissão), `/associados` (listagem com
+> dado real), `/associados/{id}` e suas 4 abas (Dados+foto, Ficha 360, Cargos, Família — todas
+> com dado real, incluindo a foto enviada por upload renderizando de volta corretamente),
+> `/associados/graficos`, `/associados/novo`, `/associados/importar`,
+> `/associados/{id}/conceder-acesso`, `/governanca` (listagem com os 3 status reais -
+> Rascunho/Convocada/Realizada), `/governanca/nova` (com e sem `?peticao=<id>`, pré-preenchendo
+> a pauta da petição), `/governanca/peticoes`, `/governanca/atas` (listagem geral, achado da
+> v2.5.4b), `/governanca/{id}` nos três status, `/governanca/{id}/sessao` (credenciamento com
+> quórum em tempo real, lista de presentes com nome completo - não mais "Associado #ID", bloco
+> de faltantes com marcação de um clique), `/governanca/{id}/ata` (corpo gerado com presença,
+> pauta, votação e ocorrências; relato da secretaria editável; upload do documento assinado com
+> link que resolve de verdade; deliberação concluída criando o mandato; certidão emitida),
+> `/minhas-assembleias` (associado comum vendo a própria presença como "Presente"/"Pendente"
+> corretamente) e `/perfil`. `Enviar justificativa`, autochamada com o código da sessão e
+> impugnação de voto também confirmados de ponta a ponta (chamada real à API, não só o botão
+> existindo). A guarda de permissão (403 pra quem não tem `associados`/`governanca`) também
+> testada com um usuário associado comum de verdade, não só lida no código.
+>
+> **Achado 1 (bug real, corrigido nesta revisão) - empate e impugnação de voto ficavam
+> irresolvíveis depois que a sessão encerrava.** `SessaoAssembleia.tsx` só renderizava o bloco
+> de pauta/votação (onde vivem o formulário de "Resolver empate" e a lista de impugnações) com
+> `assembleia.status === 'Em andamento'` - status "Realizada" mostrava só a correção de
+> presença. Só que `POST /api/assembleias/{id}/encerrar-sessao` nunca checou se havia votação
+> empatada ou impugnação pendente antes de fechar a sessão, e `resolver-empate`/
+> `impugnacoes/{id}/resolver` (`app/routers/votacao.py`) nunca exigiram a assembleia "Em
+> andamento" (de propósito - Art. 13, V é direito de recurso, não trava de encerramento).
+> Resultado: uma votação que terminasse empatada e cuja sessão fosse encerrada antes de alguém
+> resolver o empate (cenário plausível - nada impede) ficava para sempre sem vencedor **e sem
+> nenhuma tela no painel pra corrigir isso** - o próprio texto gerado da ata (pra copiar pro
+> documento oficial) chegava a imprimir `vencedor: None, aprovado: None` (repr cru do Python)
+> nesse caso. Reproduzido de propósito (4 associados, votação 2x2, sessão encerrada sem resolver
+> o empate) pra confirmar antes de corrigir - exatamente o tipo de lacuna que motivou o usuário
+> a pedir esta revisão refeita.
+>
+> Corrigido: `SessaoAssembleia.tsx` agora também mostra `BlocoPauta`/`BlocoOcorrencias` com a
+> assembleia "Realizada" (só sem os formulários de criar item/ocorrência e sem conduzir item -
+> ações que o backend mesmo recusa fora de "Em andamento"), então "Resolver empate" e a lista de
+> impugnações continuam alcançáveis depois que a sessão encerra. `app/services/ata.py` formata
+> `vencedor`/`aprovado` por extenso (inclusive o caso de empate ainda pendente) em vez de
+> confiar no valor bruto do Python. Corrigido e **confirmado resolvendo o empate pela tela de
+> verdade** (não só chamando a API): criada uma segunda votação empatada de propósito, sessão
+> encerrada sem resolver, "Resolver empate" apareceu na tela `/governanca/{id}/sessao` como
+> esperado, resolvido pelo formulário, resultado (`Vencedor: ... · Aprovada`) refletido na hora.
+> Suíte completa do backend (212 testes) e typecheck/testes do painel seguem verdes depois da
+> correção.
+>
+> **Pendência do item 12 (criado nesta mesma revisão, aplicado a ela mesma)**: esta correção
+> (`app/services/ata.py` e `painel/src/pages/SessaoAssembleia.tsx`) segue **só local, sem
+> commit** no momento em que este bloco foi escrito - o item 12 do checklist padrão (seção 4.1)
+> não está cumprido até ela ser commitada, enviada a `origin/main` e o deploy correspondente
+> (`deploy-api.yml`/`deploy-painel.yml`) terminar verde. Registrado aqui de propósito, em vez de
+> fechar este ponto de revisão como se produção já refletisse a correção.
+>
+> **Achado 2 (não é bug, achado de rigor da própria revisão)**: os dados de teste desta revisão
+> usaram o **código** do catálogo (`FUNDADOR`, `SECRETARIO`, `FILHO_A`) em vez do **rótulo**
+> (`Fundador`, `Secretário`, `Filho(a)`) em `categoria`/`titulo_cargo`/`grau_parentesco` -
+> parecia um bug de exibição ("categoria" aparecendo em caixa alta e duplicada no gráfico de
+> Associados), mas na verdade é o formulário real (`AssociadoNovo.tsx` via
+> `listarOpcoesLegado`) que só manda o rótulo (`o.rotulo`) pro backend; os campos em si
+> (`Associado.categoria` etc.) são texto livre sem normalização nenhuma contra o catálogo.
+> Comportamento correto do sistema, registrado aqui só para não repetir o susto numa próxima
+> revisão que semeie dado direto pela API.
+>
+> **Trava desta fase permanece de pé**: a FASE 3 continua bloqueada até o Ponto de Revisão 3/3
+> (fecha v2.5.8–v2.5.10) - v2.5.5 a v2.5.10 ainda não foram construídas (checkboxes `[ ]`), então
+> os Pontos de Revisão 2/3 e 3/3 não têm o que revisar ainda.
 
 #### v2.5.5 — Governança: Mandatos, Órgãos e Conselho Fiscal
 - [ ] Mandatos vigentes por órgão/cargo, declaração de conflito de interesse.

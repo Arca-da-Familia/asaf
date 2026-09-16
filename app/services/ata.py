@@ -46,7 +46,17 @@ def gerar_corpo_ata(db: Session, assembleia: Assembleia) -> str:
         for v in votacoes:
             if v.status == ENCERRADA:
                 resultado = json.loads(v.resultado_contagem) if v.resultado_contagem else {}
-                linhas.append(f"     Votação '{v.titulo}' ({v.tipo}): {resultado} - vencedor: {v.vencedor}, aprovado: {v.aprovado}, hash: {v.resultado_hash}")
+                # Achado do Ponto de Revisão FASE 2.5 (1/3): uma votação que terminou empatada
+                # e nunca teve o empate resolvido (o painel escondia a ação depois da sessão
+                # encerrar - corrigido em SessaoAssembleia.tsx) gerava aqui `vencedor: None,
+                # aprovado: None` - repr() do Python cru dentro de um texto pensado pra ir pro
+                # documento oficial. Formata por extenso em vez de confiar no valor bruto.
+                if v.empate:
+                    vencedor_txt, aprovado_txt = "empate ainda não resolvido", "pendente"
+                else:
+                    vencedor_txt = v.vencedor or "—"
+                    aprovado_txt = "Sim" if v.aprovado else "Não"
+                linhas.append(f"     Votação '{v.titulo}' ({v.tipo}): {resultado} - vencedor: {vencedor_txt}, aprovado: {aprovado_txt}, hash: {v.resultado_hash}")
 
     if ocorrencias:
         linhas += ["", "OCORRÊNCIAS"]
