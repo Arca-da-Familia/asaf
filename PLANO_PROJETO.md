@@ -3015,6 +3015,10 @@ marcar qualquer checkbox acima como `[x]`.
       > agendado pela tela mesma, todos ordenados por data corretamente; testado com duas contas
       > reais (Presidente e associado comum). Suíte completa do backend (212 testes),
       > typecheck/lint/Prettier do painel verdes de primeira.
+      >
+      > **Item 12 cumprido (2026-09-16)**: commit `32dbb2f` enviado a `origin/main`,
+      > `deploy-painel.yml` (run 35128274204) verde, e
+      > `https://painel.asaf.org.br/version.json` confirmado batendo com `32dbb2f`.
 
 ##### 🔍 Ponto de Revisão — FASE 2.5 (2/3, fecha v2.5.5–v2.5.7) ✅ FECHADO (2026-09-16)
 Mesmo checklist do ponto 1/3.
