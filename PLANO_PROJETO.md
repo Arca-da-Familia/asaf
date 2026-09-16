@@ -3194,6 +3194,10 @@ Mesmo checklist do ponto 1/3.
       > Typecheck/lint/Prettier/vitest do painel verdes, suíte de backend (218 testes) intacta -
       > versão sem alterações de backend.
 
+      > **Item 12 cumprido (2026-09-16)**: commit `0c3b9d7` em `origin/main`. Só `painel/**` mudou
+      > (backend já existia) - só `deploy-painel.yml` disparou (run 35144348463), confirmado
+      > verde, e `https://painel.asaf.org.br/version.json` batendo com `0c3b9d7`.
+
 ##### 🔍 Ponto de Revisão — FASE 2.5 (3/3 — fim, fecha v2.5.8–v2.5.10) ✅ FECHADO (2026-09-16)
 Mesmo checklist dos pontos anteriores. **Esta é a trava**: a FASE 3 (v3.1 em diante) só começa
 depois deste ponto de revisão aplicado de verdade, com as telas de Associados, Governança e
