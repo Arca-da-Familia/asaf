@@ -8,6 +8,16 @@ import { meResponseSchema, perfilResponseSchema } from './schemas'
 // funcionar — ex.: https://api.asaf.org.br). Em dev, deixe vazio: o Vite faz proxy de /auth.
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
+// v2.5.4c (achado do usuário 2026-09-16, ponto de revisão) - qualquer caminho `/uploads/...`
+// devolvido pelo backend (foto do associado, documento anexado da ata) é relativo À API, não
+// ao painel - em produção são domínios DIFERENTES (api.asaf.org.br vs painel.asaf.org.br), então
+// usar o caminho puro como `src`/`href` sempre resolvia contra a origem ERRADA (painel) e dava
+// 404. Todo lugar que renderiza um caminho de upload deve passar por aqui, nunca usar o campo
+// bruto direto.
+export function urlArquivo(caminho: string): string {
+  return `${API_BASE_URL}${caminho}`
+}
+
 type ErrorPayload = {
   detail?: string | { loc: (string | number)[]; msg: string; type: string }[]
 }

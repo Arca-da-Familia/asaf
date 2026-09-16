@@ -2732,12 +2732,14 @@ testes passando (`pytest tests/`).
       > antes só dava pra achar a ata entrando na assembleia específica; agora tem uma listagem
       > geral, do jeito que o usuário pediu.
       >
-      > **Nota técnica registrada, não corrigida agora**: assim como a foto do associado
-      > (v2.5.1), o link do documento anexado é servido em `/uploads/...` **relativo à API**
-      > (`api.asaf.org.br`), não ao painel (`painel.asaf.org.br`) - abrir esse link direto do
-      > painel em produção provavelmente 404 hoje, porque não há proxy configurado entre os dois
-      > domínios (ver `painel/public/staticwebapp.config.json`, sem rewrite pra `/uploads`). Gap
-      > pré-existente, fora do pedido desta versão - registrado aqui pra não ser esquecido.
+      > **Corrigido (2026-09-16), mesmo dia - usuário pediu prioridade imediata**: o gap acima
+      > (link `/uploads/...` resolvendo contra a origem errada) afetava tanto o documento da ata
+      > quanto a foto do associado (v2.5.1, nunca notado até agora porque nenhuma tela mostrava
+      > a foto de volta antes desta revisão). `urlArquivo()` (nova, `lib/api.ts`) prefixa
+      > qualquer caminho `/uploads/...` com `VITE_API_URL` antes de virar `src`/`href` - vazio em
+      > dev (o proxy do Vite já resolve), a origem da API em produção. Aplicado nos dois lugares
+      > que renderizavam o campo bruto (`AssociadoDetalhe.tsx` e `Ata.tsx`) - checado que não
+      > existe um terceiro lugar fazendo a mesma coisa.
 
 ##### 🔍 Ponto de Revisão — FASE 2.5 (1/3, fecha v2.5.1–v2.5.4)
 Além do checklist padrão (seção 4.1, item 10 em especial): abrir cada tela no navegador e

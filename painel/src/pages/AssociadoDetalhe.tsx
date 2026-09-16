@@ -22,6 +22,7 @@ import {
   obterFicha360Associado,
   removerCargo,
   removerDependente,
+  urlArquivo,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
 import {
@@ -160,7 +161,7 @@ function DadosEFotoTab({
         <div className="flex items-center gap-4">
           {associado.foto ? (
             <img
-              src={associado.foto}
+              src={urlArquivo(associado.foto)}
               alt=""
               className="h-20 w-20 rounded-full object-cover"
             />

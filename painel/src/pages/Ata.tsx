@@ -22,6 +22,7 @@ import {
   obterAtaDaAssembleia,
   retificarAta,
   revogarDeliberacao,
+  urlArquivo,
   type Ata,
   type Deliberacao,
 } from '@/lib/api'
@@ -559,7 +560,7 @@ function BlocoDocumentoAssinado({
       {ata.arquivo_documento_assinado && (
         <p className="mb-3 text-sm">
           <a
-            href={ata.arquivo_documento_assinado}
+            href={urlArquivo(ata.arquivo_documento_assinado)}
             target="_blank"
             rel="noreferrer"
             className="text-primary hover:underline"
