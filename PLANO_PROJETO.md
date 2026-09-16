@@ -161,6 +161,16 @@ documento aplica esta lista, além dos itens específicos daquele trecho):
     porque o checklist só checava teste automatizado (item 2), nunca a experiência visual de
     quem realmente vai usar. "O que não é visto não é lembrado" - a partir de agora, back-end
     sem tela real não é fase concluída, é fase pela metade, e não passa deste item.
+11. **(item acrescentado em 2026-09-16, achado do usuário)** Toda ação que produz um **link,
+    arquivo ou imagem pra abrir depois** (foto, documento anexado, edital, certidão) foi de fato
+    **clicada/aberta em produção**, não só "a tela renderizou sem erro no console". O item 10
+    cobre "existe uma tela"; este cobre "o que essa tela oferece pra abrir realmente abre".
+    **Motivo**: a foto do associado (v2.5.1) e o documento anexado da ata (v2.5.4) usavam um
+    caminho relativo (`/uploads/...`) que resolve contra a origem do PAINEL, não da API - em
+    produção são domínios diferentes, então o link sempre dava 404. Passou pelo item 10 (a tela
+    existia, carregava, sem erro nenhum no console) porque ninguém tinha clicado no link ainda -
+    só foi achado quando o usuário de fato tentou abrir o documento que acabara de anexar. Item
+    10 prova que a tela existe; este item prova que ela funciona de ponta a ponta.
 
 **Quem revisa**: idealmente uma sessão diferente da que implementou (outra janela de contexto, ou
 o usuário revisando antes de autorizar a faixa seguinte) — revisar o próprio trabalho na mesma
