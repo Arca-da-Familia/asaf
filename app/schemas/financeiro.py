@@ -8,12 +8,76 @@ class PlanoContaCriar(BaseModel):
     codigo_contabil: str
     descricao_conta: str
     tipo: str
+    # v3.1 - hierarquia (sintética x analítica): quando informado, esta conta se torna filha da
+    # conta de código `codigo_contabil_pai`, que passa a ser sintética (não recebe mais
+    # lançamento direto - ver app/services/contabilidade.py::exigir_conta_analitica).
+    codigo_contabil_pai: Optional[str] = None
 
     @field_validator("codigo_contabil")
     @classmethod
     def validar_codigo(cls, v):
         if len(v.strip()) < 1:
             raise ValueError("Informe o código contábil.")
+        return v.strip()
+
+    @field_validator("codigo_contabil_pai")
+    @classmethod
+    def validar_codigo_pai(cls, v):
+        if v is None:
+            return v
+        v = v.strip()
+        return v or None
+
+
+class CentroDeCustoCriar(BaseModel):
+    codigo: str
+    nome: str
+    id_projeto: Optional[int] = None
+
+    @field_validator("codigo", "nome")
+    @classmethod
+    def validar_texto(cls, v):
+        if len(v.strip()) < 1:
+            raise ValueError("Campo obrigatório.")
+        return v.strip()
+
+
+class ContaFinanceiraCriar(BaseModel):
+    id_conta: int
+    tipo_conta_financeira: str
+    banco: Optional[str] = None
+    agencia: Optional[str] = None
+    numero_conta: Optional[str] = None
+
+    @field_validator("tipo_conta_financeira")
+    @classmethod
+    def validar_tipo(cls, v):
+        if len(v.strip()) < 1:
+            raise ValueError("Informe o tipo da conta financeira.")
+        return v.strip()
+
+
+class TransferenciaCriar(BaseModel):
+    id_conta_financeira_origem: int
+    id_conta_financeira_destino: int
+    valor: Decimal
+    historico: str
+    id_centro_custo: Optional[int] = None
+    data_competencia: Optional[datetime] = None
+    comprovante: Optional[str] = None
+
+    @field_validator("valor")
+    @classmethod
+    def validar_valor(cls, v):
+        if v <= 0:
+            raise ValueError("O valor deve ser maior que zero.")
+        return v
+
+    @field_validator("historico")
+    @classmethod
+    def validar_historico(cls, v):
+        if len(v.strip()) < 3:
+            raise ValueError("Informe o histórico da transferência.")
         return v.strip()
 
 class FornecedorCriar(BaseModel):
@@ -50,10 +114,18 @@ class BaixarTitulo(BaseModel):
     id_titulo: int
     valor_pago: Decimal
     forma_pagamento: str
-    # v3.0 - contrapartida da partida dobrada simplificada: a conta do Plano de Contas do outro
-    # lado do lançamento (ex.: "Caixa"/"Conta Corrente") - até a v3.1 criar `ContaFinanceira`
-    # formal, a diretoria cadastra essa conta como qualquer outra no Plano de Contas.
+    # v3.0 - contrapartida da partida dobrada: a conta do Plano de Contas do outro lado do
+    # lançamento (ex.: "Caixa"/"Conta Corrente"); pode ser (e deveria, a partir da v3.1) uma
+    # conta com `ContaFinanceira` formal, mas continua aceitando qualquer conta Ativo por
+    # compatibilidade com baixas já cadastradas antes da v3.1.
     id_conta_contabil_contrapartida: int
+    id_centro_custo: Optional[int] = None
+    data_competencia: Optional[datetime] = None
+    # v3.1 - comprovante já enviado por `POST /api/comprovantes/` (caminho retornado). Obrigatório
+    # quando o tipo de conta do título exige (catálogo `tipo_conta_contabil`, ver
+    # app/services/contabilidade.py::exige_comprovante) - checado no endpoint, não aqui, porque
+    # depende de uma consulta ao banco.
+    comprovante: Optional[str] = None
 
     @field_validator("valor_pago")
     @classmethod

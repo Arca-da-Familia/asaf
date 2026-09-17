@@ -3,6 +3,7 @@ sempre balanceada), natureza da conta e Exercício aberto/fechado. Fundação pr
 (módulo mais sensível do sistema) - nenhum router deve montar `LancamentoContabil`/
 `PartidaContabil` na mão, sempre por aqui, pra nunca existir lançamento desbalanceado ou fora de
 um exercício aberto."""
+from datetime import datetime
 from decimal import Decimal
 from typing import Optional, Sequence, Tuple
 
@@ -50,42 +51,89 @@ def exigir_exercicio_aberto(db: Session) -> Exercicio:
     return exercicio
 
 
+def exigir_conta_analitica(db: Session, id_conta: int) -> PlanoDeContas:
+    """v3.1 - conta sintética (que tem conta(s) filha(s) apontando `codigo_contabil_pai` pra
+    ela) nunca recebe lançamento direto, só a analítica (folha da árvore) - checado aqui, o
+    único ponto por onde `PartidaContabil.id_conta` é gravado (ver `criar_lancamento`), nunca
+    confiado a quem chama."""
+    conta = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == id_conta).first()
+    if not conta:
+        raise HTTPException(status_code=404, detail=f"Conta contábil #{id_conta} não encontrada.")
+    tem_filha = db.query(PlanoDeContas.id_conta).filter(PlanoDeContas.codigo_contabil_pai == conta.codigo_contabil).first()
+    if tem_filha:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A conta '{conta.codigo_contabil} — {conta.descricao_conta}' é sintética (tem contas filhas) e não pode receber lançamento direto - use uma conta analítica.",
+        )
+    return conta
+
+
+def saldo_conta(db: Session, id_conta: int) -> Decimal:
+    """Saldo de uma conta contábil, sempre calculado somando `PartidaContabil` daquela conta
+    (débito soma, crédito subtrai) - nunca um campo de saldo editável. Mesma mecânica que já
+    existia desde a v3.0 para o indicador "saldo em contas Ativo" do livro-caixa (ver
+    app/routers/financeiro.py::listar_livro_caixa), generalizada aqui pra qualquer conta -
+    usada formalmente pela v3.1 em `ContaFinanceira`."""
+    saldo = Decimal("0")
+    for tipo_partida, valor in db.query(PartidaContabil.tipo_partida, PartidaContabil.valor).filter(PartidaContabil.id_conta == id_conta):
+        saldo += valor if tipo_partida == DEBITO else -valor
+    return saldo
+
+
 def criar_lancamento(
     db: Session,
     *,
     exercicio: Exercicio,
     historico: str,
     tipo_origem: str,
-    partidas: Sequence[Tuple[int, str, Decimal]],
+    partidas: Sequence[Tuple],
     id_titulo: Optional[int] = None,
     id_usuario: Optional[int] = None,
     forma_pagamento: Optional[str] = None,
+    data_competencia: Optional[datetime] = None,
+    data_caixa: Optional[datetime] = None,
+    comprovante: Optional[str] = None,
 ) -> LancamentoContabil:
     """Cria um lançamento em partida dobrada real. `partidas` é uma lista de
-    (id_conta, tipo_partida, valor), tipo_partida sendo DEBITO ou CREDITO - pode ter qualquer
-    quantidade de linhas de cada lado (ex.: uma baixa rateada entre várias contas de despesa),
-    desde que a soma dos débitos feche exatamente com a soma dos créditos. É a única trava que
-    realmente importa num razão contábil, e é sempre recusada aqui, nunca deixada para quem
-    chama garantir na mão."""
-    if len(partidas) < 2:
+    (id_conta, tipo_partida, valor) ou (id_conta, tipo_partida, valor, id_centro_custo),
+    tipo_partida sendo DEBITO ou CREDITO - pode ter qualquer quantidade de linhas de cada lado
+    (ex.: uma baixa rateada entre várias contas de despesa), desde que a soma dos débitos feche
+    exatamente com a soma dos créditos. É a única trava que realmente importa num razão
+    contábil, e é sempre recusada aqui, nunca deixada para quem chama garantir na mão.
+
+    v3.1 - toda `id_conta` de toda partida precisa ser uma conta ANALÍTICA (ver
+    `exigir_conta_analitica`); `data_competencia`/`data_caixa` separam regime de competência de
+    caixa (`data_caixa` default hoje, `data_competencia` default igual a `data_caixa` quando não
+    informada - nunca fica nula de propósito num lançamento novo)."""
+    partidas_norm = [(p[0], p[1], p[2], p[3] if len(p) > 3 else None) for p in partidas]
+    if len(partidas_norm) < 2:
         raise HTTPException(status_code=400, detail="Todo lançamento precisa de ao menos uma partida de débito e uma de crédito.")
-    total_debito = sum((valor for _, tipo, valor in partidas if tipo == DEBITO), Decimal("0"))
-    total_credito = sum((valor for _, tipo, valor in partidas if tipo == CREDITO), Decimal("0"))
+    total_debito = sum((valor for _, tipo, valor, _ in partidas_norm if tipo == DEBITO), Decimal("0"))
+    total_credito = sum((valor for _, tipo, valor, _ in partidas_norm if tipo == CREDITO), Decimal("0"))
     if total_debito <= 0 or total_credito <= 0:
         raise HTTPException(status_code=400, detail="Todo lançamento precisa de ao menos uma partida de débito e uma de crédito, com valor maior que zero.")
     if total_debito != total_credito:
         raise HTTPException(status_code=400, detail=f"Lançamento desbalanceado: débitos R$ {total_debito} != créditos R$ {total_credito}.")
+    for id_conta, _, _, _ in partidas_norm:
+        exigir_conta_analitica(db, id_conta)
 
+    agora = datetime.utcnow()
+    data_caixa_final = data_caixa or agora
     maior_numero = db.query(LancamentoContabil).filter(LancamentoContabil.id_exercicio == exercicio.id_exercicio).count()
     lancamento = LancamentoContabil(
         id_exercicio=exercicio.id_exercicio, numero_sequencial=maior_numero + 1,
         historico=historico, tipo_origem=tipo_origem, id_titulo=id_titulo,
         id_usuario_lancamento=id_usuario, forma_pagamento=forma_pagamento,
+        data_lancamento=data_caixa_final, data_competencia=data_competencia or data_caixa_final,
+        comprovante=comprovante,
     )
     db.add(lancamento)
     db.flush()
-    for id_conta, tipo_partida, valor in partidas:
-        db.add(PartidaContabil(id_lancamento=lancamento.id_lancamento, id_conta=id_conta, tipo_partida=tipo_partida, valor=valor))
+    for id_conta, tipo_partida, valor, id_centro_custo in partidas_norm:
+        db.add(PartidaContabil(
+            id_lancamento=lancamento.id_lancamento, id_conta=id_conta, tipo_partida=tipo_partida,
+            valor=valor, id_centro_custo=id_centro_custo,
+        ))
     db.flush()
     return lancamento
 
@@ -99,7 +147,7 @@ def estornar_lancamento(db: Session, *, original: LancamentoContabil, motivo: st
         raise HTTPException(status_code=400, detail="Este lançamento já foi estornado.")
     exercicio = exigir_exercicio_aberto(db)
     partidas_invertidas = [
-        (p.id_conta, CREDITO if p.tipo_partida == DEBITO else DEBITO, p.valor)
+        (p.id_conta, CREDITO if p.tipo_partida == DEBITO else DEBITO, p.valor, p.id_centro_custo)
         for p in original.partidas
     ]
     estorno = criar_lancamento(
@@ -118,3 +166,22 @@ def valor_total_lancamento(lancamento: LancamentoContabil) -> Decimal:
     """Valor "de fato" de um lançamento balanceado: a soma de qualquer um dos dois lados (são
     iguais por construção - ver `criar_lancamento`)."""
     return sum((p.valor for p in lancamento.partidas if p.tipo_partida == DEBITO), Decimal("0"))
+
+
+def exige_comprovante(db: Session, tipo_conta: str) -> bool:
+    """v3.1 - "anexo de comprovante obrigatório por tipo de lançamento (configurável)": lido do
+    catálogo `tipo_conta_contabil` (`OpcaoCatalogo.metadados["exige_comprovante"]`), o mesmo
+    catálogo genérico que já define os cinco tipos contábeis - a diretoria liga/desliga pelo
+    admin de catálogos (v0.3.1) sem deploy. Ausência de `metadados`/flag = não exige (mudança de
+    comportamento só quando alguém decide ligar de propósito)."""
+    from app.models.core import Catalogo, OpcaoCatalogo  # import local: financeiro não depende de core em nível de módulo
+
+    opcao = (
+        db.query(OpcaoCatalogo)
+        .join(Catalogo, Catalogo.id_catalogo == OpcaoCatalogo.id_catalogo)
+        .filter(Catalogo.chave == "tipo_conta_contabil", OpcaoCatalogo.rotulo == tipo_conta)
+        .first()
+    )
+    if not opcao or not opcao.metadados:
+        return False
+    return bool(opcao.metadados.get("exige_comprovante"))

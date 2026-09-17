@@ -106,9 +106,19 @@ def seed_catalogos():
         # Despesa), dos quais deriva a natureza devedora/credora de cada conta (ver
         # app/services/contabilidade.py::NATUREZA_POR_TIPO) - antes só existia Receita/Despesa,
         # insuficiente pra validar partida dobrada de verdade.
+        # v3.1 - `metadados["exige_comprovante"]` na opção DESPESA: "anexo de comprovante
+        # obrigatório por tipo de lançamento (configurável)" - despesa sem comprovante é a porta
+        # de entrada de todo problema de prestação de contas, então nasce exigido por padrão; a
+        # diretoria pode desligar pelo admin de catálogos (v0.3.1) sem deploy. Ver
+        # app/services/contabilidade.py::exige_comprovante.
         "tipo_conta_contabil": ("Tipo de conta contábil", True, "financeiro", [
             ("ATIVO", "Ativo"), ("PASSIVO", "Passivo"), ("PATRIMONIO_LIQUIDO", "Patrimônio Líquido"),
-            ("RECEITA", "Receita"), ("DESPESA", "Despesa"),
+            ("RECEITA", "Receita"), ("DESPESA", "Despesa", {"exige_comprovante": True}),
+        ]),
+        # v3.1 - especialização de PlanoDeContas tipo Ativo (`ContaFinanceira`).
+        "tipo_conta_financeira": ("Tipo de conta financeira", True, "financeiro", [
+            ("CAIXA", "Caixa"), ("CONTA_CORRENTE", "Conta Corrente"),
+            ("POUPANCA", "Poupança"), ("CONTA_DE_APLICACAO", "Conta de Aplicação"),
         ]),
         "forma_pagamento": ("Forma de pagamento", True, "financeiro", [
             ("PIX", "Pix"), ("DINHEIRO", "Dinheiro"), ("CARTAO", "Cartão"),

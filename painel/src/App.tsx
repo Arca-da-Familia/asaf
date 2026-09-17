@@ -23,6 +23,8 @@ import { ConselhoFiscalPage } from '@/pages/ConselhoFiscal'
 import { DevComponents } from '@/pages/DevComponents'
 import { ExerciciosPage } from '@/pages/Exercicios'
 import { FornecedoresPage } from '@/pages/Fornecedores'
+import { CentrosCustoPage } from '@/pages/CentrosCusto'
+import { ContasFinanceirasPage } from '@/pages/ContasFinanceiras'
 import { PlanoContasPage } from '@/pages/PlanoContas'
 import {
   ProcessoDisciplinarDetalhePage,
@@ -273,6 +275,22 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Razão Contábil">
                 <RazaoContabilPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="contas-financeiras"
+            element={
+              <ErrorBoundary tituloModulo="Contas Financeiras">
+                <ContasFinanceirasPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="centros-custo"
+            element={
+              <ErrorBoundary tituloModulo="Centros de Custo">
+                <CentrosCustoPage />
               </ErrorBoundary>
             }
           />

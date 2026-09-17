@@ -2221,6 +2221,8 @@ export type PlanoDeContas = {
   codigo_contabil: string
   descricao_conta: string
   tipo: string
+  codigo_contabil_pai: string | null
+  sintetica: boolean
 }
 
 export function listarPlanoContas(): Promise<PlanoDeContas[]> {
@@ -2231,6 +2233,7 @@ export function criarContaContabil(dados: {
   codigo_contabil: string
   descricao_conta: string
   tipo: string
+  codigo_contabil_pai?: string | null
 }): Promise<{ mensagem: string; id_conta: number }> {
   return apiFetch('/plano-contas/', {
     method: 'POST',
@@ -2240,10 +2243,116 @@ export function criarContaContabil(dados: {
 
 export function atualizarContaContabil(
   idConta: number,
-  dados: { codigo_contabil: string; descricao_conta: string; tipo: string },
+  dados: {
+    codigo_contabil: string
+    descricao_conta: string
+    tipo: string
+    codigo_contabil_pai?: string | null
+  },
 ): Promise<{ mensagem: string; id_conta: number }> {
   return apiFetch(`/api/plano-contas/${idConta}`, {
     method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function excluirContaContabil(
+  idConta: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/plano-contas/${idConta}`, { method: 'DELETE' })
+}
+
+// ---------------------------------------------------------------------------
+// Financeiro: Centros de Custo e Contas Financeiras (backend v3.1, painel v3.1) - "quanto custou
+// o projeto X" e saldo por caixa/banco calculado sempre pela soma das partidas (nunca campo
+// editável) - ver app/services/contabilidade.py::saldo_conta.
+// ---------------------------------------------------------------------------
+export type CentroDeCusto = {
+  id_centro_custo: number
+  codigo: string
+  nome: string
+  id_projeto: number | null
+  ativo: boolean
+}
+
+export function listarCentrosCusto(): Promise<CentroDeCusto[]> {
+  return apiFetch('/api/centros-custo/')
+}
+
+export function criarCentroCusto(dados: {
+  codigo: string
+  nome: string
+  id_projeto?: number
+}): Promise<{ mensagem: string; id_centro_custo: number }> {
+  return apiFetch('/api/centros-custo/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function alternarCentroCusto(
+  idCentroCusto: number,
+  ativo: boolean,
+): Promise<{ mensagem: string }> {
+  return apiFetch(
+    `/api/centros-custo/${idCentroCusto}/ativo?ativo=${ativo}`,
+    { method: 'PUT' },
+  )
+}
+
+export type ContaFinanceira = {
+  id_conta_financeira: number
+  id_conta: number
+  codigo_contabil: string | null
+  descricao_conta: string | null
+  tipo_conta_financeira: string
+  banco: string | null
+  agencia: string | null
+  numero_conta: string | null
+  ativo: boolean
+  saldo: number
+}
+
+export function listarContasFinanceiras(): Promise<ContaFinanceira[]> {
+  return apiFetch('/api/contas-financeiras/')
+}
+
+export function criarContaFinanceira(dados: {
+  id_conta: number
+  tipo_conta_financeira: string
+  banco?: string
+  agencia?: string
+  numero_conta?: string
+}): Promise<{ mensagem: string; id_conta_financeira: number }> {
+  return apiFetch('/api/contas-financeiras/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+// v3.1 - comprovante (anexo obrigatório configurável por tipo de conta - ver
+// app/services/contabilidade.py::exige_comprovante). Upload em duas etapas (envia o arquivo,
+// recebe o caminho, referencia o caminho na baixa/transferência) - mesmo padrão de
+// `enviarFotoAssociado`, mas devolvendo o caminho em vez de já gravar em um registro.
+export function enviarComprovante(
+  arquivo: File,
+): Promise<{ comprovante: string }> {
+  const formData = new FormData()
+  formData.append('arquivo', arquivo)
+  return apiFetch('/api/comprovantes/', { method: 'POST', body: formData })
+}
+
+export function criarTransferencia(dados: {
+  id_conta_financeira_origem: number
+  id_conta_financeira_destino: number
+  valor: number
+  historico: string
+  id_centro_custo?: number
+  data_competencia?: string
+  comprovante?: string
+}): Promise<{ mensagem: string; id_lancamento: number; numero_sequencial: number }> {
+  return apiFetch('/api/transferencias/', {
+    method: 'POST',
     body: JSON.stringify(dados),
   })
 }
@@ -2367,6 +2476,9 @@ export function baixarTitulo(dados: {
   valor_pago: number
   forma_pagamento: string
   id_conta_contabil_contrapartida: number
+  id_centro_custo?: number
+  data_competencia?: string
+  comprovante?: string
 }): Promise<{
   mensagem: string
   saldo_restante: number
@@ -2392,6 +2504,7 @@ export type PartidaContabil = {
   conta_contabil: string
   tipo_partida: string
   valor: number
+  id_centro_custo: number | null
 }
 
 export type LancamentoContabil = {
@@ -2400,9 +2513,11 @@ export type LancamentoContabil = {
   id_exercicio: number
   id_titulo: number | null
   data: string | null
+  data_competencia: string | null
   historico: string
   tipo_origem: string
   forma_pagamento: string | null
+  comprovante: string | null
   estornado: boolean
   motivo_estorno: string | null
   id_lancamento_estorno: number | null

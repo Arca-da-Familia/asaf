@@ -9,13 +9,50 @@ class PlanoDeContas(Base):
     Receita, Despesa - catálogo `tipo_conta_contabil`, ver app/database.py::seed_catalogos), do
     qual deriva a natureza devedora/credora da conta (ver `natureza_da_conta` em
     app/services/contabilidade.py - não guardada como coluna de propósito, pra nunca poder ficar
-    dessincronizada do `tipo` depois de uma edição). Conta sintética x analítica (hierarquia,
-    só a analítica recebe lançamento) é v3.1."""
+    dessincronizada do `tipo` depois de uma edição).
+
+    v3.1 - `codigo_contabil_pai` faz da conta uma hierarquia (sintética x analítica): uma conta
+    que é `pai` de outra (outra linha aponta `codigo_contabil_pai` pra ela) é sintética e nunca
+    recebe lançamento direto - só quem não tem filha (analítica/folha) recebe, checado em
+    `app/services/contabilidade.py::exigir_conta_analitica`, chamado por `criar_lancamento` pra
+    todo `id_conta` de toda partida, nunca confiado a quem chama."""
     __tablename__ = "plano_de_contas"
     id_conta = Column(Integer, primary_key=True, index=True)
     codigo_contabil = Column(String, unique=True, index=True)
     descricao_conta = Column(String)
     tipo = Column(String)
+    codigo_contabil_pai = Column(String, ForeignKey("plano_de_contas.codigo_contabil"), nullable=True)
+
+
+class CentroDeCusto(Base):
+    """v3.1 - "quanto custou o projeto X" sem planilha paralela: campo opcional em
+    `PartidaContabil` (a partida sabe a conta E o centro de custo), nunca tabela paralela que
+    pode divergir do lançamento real. `id_projeto` liga a um `ProjetoEvento` (FASE 4, ainda
+    prototípico) quando o centro de custo corresponder a um projeto/evento real - opcional,
+    porque nem todo centro de custo é um projeto (ex.: "Administrativo", "Manutenção predial")."""
+    __tablename__ = "centros_de_custo"
+    id_centro_custo = Column(Integer, primary_key=True, index=True)
+    codigo = Column(String, unique=True, index=True)
+    nome = Column(String, nullable=False)
+    id_projeto = Column(Integer, ForeignKey("projetos_eventos.id_projeto"), nullable=True)
+    ativo = Column(Boolean, default=True, nullable=False)
+
+
+class ContaFinanceira(Base):
+    """v3.1 - especialização de uma `PlanoDeContas` do tipo Ativo (Caixa, conta corrente,
+    poupança, conta de aplicação). Nunca guarda saldo em coluna própria - o saldo é sempre
+    calculado somando `PartidaContabil` daquela conta (débito soma, crédito subtrai - ver
+    `app/services/contabilidade.py::saldo_conta`), a mesma mecânica que já existia desde a v3.0
+    para o indicador "saldo em contas Ativo" do livro-caixa. Editar o saldo direto nunca é
+    possível porque a coluna simplesmente não existe."""
+    __tablename__ = "contas_financeiras"
+    id_conta_financeira = Column(Integer, primary_key=True, index=True)
+    id_conta = Column(Integer, ForeignKey("plano_de_contas.id_conta"), unique=True, nullable=False)
+    tipo_conta_financeira = Column(String, nullable=False)
+    banco = Column(String, nullable=True)
+    agencia = Column(String, nullable=True)
+    numero_conta = Column(String, nullable=True)
+    ativo = Column(Boolean, default=True, nullable=False)
 
 class Fornecedor(Base):
     __tablename__ = "fornecedores"
@@ -70,6 +107,17 @@ class LancamentoContabil(Base):
     forma_pagamento = Column(String, nullable=True)
     id_usuario_lancamento = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     data_lancamento = Column(DateTime, default=datetime.utcnow)
+    # v3.1 - `data_lancamento` (acima) passa a ser a data de CAIXA (quando o dinheiro efetivamente
+    # entrou/saiu); `data_competencia` é a data a que o fato contábil pertence (regime de
+    # competência) - distinção que a contabilidade exige e que sistemas amadores ignoram. Nula em
+    # lançamentos antigos (pré-v3.1), tratada nesse caso como igual à data de caixa (ver a
+    # migração desta versão, que faz o backfill).
+    data_competencia = Column(DateTime, nullable=True)
+    # v3.1 - comprovante anexado (caminho `/uploads/comprovantes/...`, ver
+    # app/routers/financeiro.py::enviar_comprovante) - obrigatoriedade por tipo de conta é
+    # configurável via o catálogo `tipo_conta_contabil` (`metadados.exige_comprovante`), checada
+    # em `baixar_titulo`/transferência, nunca hardcoded.
+    comprovante = Column(String, nullable=True)
     estornado = Column(Boolean, default=False, nullable=False)
     motivo_estorno = Column(String, nullable=True)
     id_lancamento_estorno = Column(Integer, ForeignKey("lancamentos_contabeis.id_lancamento"), nullable=True)
@@ -90,5 +138,8 @@ class PartidaContabil(Base):
     id_conta = Column(Integer, ForeignKey("plano_de_contas.id_conta"), nullable=False)
     tipo_partida = Column(String, nullable=False)  # "Debito" | "Credito" - ver app/services/contabilidade.py
     valor = Column(Numeric(14, 2), nullable=False)
+    # v3.1 - opcional: "quanto custou o projeto X" sem planilha paralela (ver `CentroDeCusto`
+    # acima). Nunca obrigatório - nem todo lançamento pertence a um projeto/centro específico.
+    id_centro_custo = Column(Integer, ForeignKey("centros_de_custo.id_centro_custo"), nullable=True)
 
     lancamento = relationship("LancamentoContabil", back_populates="partidas")

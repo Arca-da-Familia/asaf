@@ -387,6 +387,43 @@ export const contaContabilCriarSchema = z.object({
   codigo_contabil: z.string().min(1, 'Informe o código contábil.'),
   descricao_conta: z.string().min(1, 'Informe a descrição.'),
   tipo: z.string().min(1, 'Selecione o tipo.'),
+  // v3.1 - conta hierárquica: quando preenchida, esta conta vira filha (analítica) da conta de
+  // código informado, que passa a ser sintética. Vazio = conta sem pai (raiz ou solta).
+  codigo_contabil_pai: z.string().optional(),
+})
+
+// Usado por "Centros de Custo" (pages/CentrosCusto.tsx, v3.1) - "quanto custou o projeto X".
+export const centroDeCustoCriarSchema = z.object({
+  codigo: z.string().min(1, 'Informe o código.'),
+  nome: z.string().min(1, 'Informe o nome.'),
+})
+
+// Usado por "Contas Financeiras" (pages/ContasFinanceiras.tsx, v3.1) - especialização de
+// PlanoDeContas tipo Ativo (Caixa/Banco); o backend recusa conta que não seja Ativo.
+export const contaFinanceiraCriarSchema = z.object({
+  id_conta: z.coerce
+    .number()
+    .int({ message: 'Selecione a conta contábil.' })
+    .positive({ message: 'Selecione a conta contábil.' }),
+  tipo_conta_financeira: z.string().min(1, 'Selecione o tipo.'),
+  banco: z.string().optional(),
+  agencia: z.string().optional(),
+  numero_conta: z.string().optional(),
+})
+
+// Usado por "Nova transferência" (pages/RazaoContabil.tsx, v3.1) - entre duas Contas
+// Financeiras; o backend recusa origem igual a destino.
+export const transferenciaCriarSchema = z.object({
+  id_conta_financeira_origem: z.coerce
+    .number()
+    .int({ message: 'Selecione a conta de origem.' })
+    .positive({ message: 'Selecione a conta de origem.' }),
+  id_conta_financeira_destino: z.coerce
+    .number()
+    .int({ message: 'Selecione a conta de destino.' })
+    .positive({ message: 'Selecione a conta de destino.' }),
+  valor: z.coerce.number().positive('Informe um valor maior que zero.'),
+  historico: z.string().min(3, 'Informe o histórico da transferência.'),
 })
 
 // Usado por "Fornecedores" (pages/Fornecedores.tsx, v2.5.8) - o backend normaliza o CNPJ pra
@@ -435,6 +472,12 @@ export const baixarTituloSchema = z.object({
     .number()
     .int({ message: 'Selecione a conta de contrapartida.' })
     .positive({ message: 'Selecione a conta de contrapartida.' }),
+  // v3.1 - opcionais: centro de custo, data de competência (quando ausente, o backend usa a
+  // data de caixa) e comprovante (caminho já enviado por `enviarComprovante`, obrigatório
+  // quando a conta do título exige - a mensagem real de erro do backend é mostrada).
+  id_centro_custo: z.coerce.number().optional(),
+  data_competencia: z.string().optional(),
+  comprovante: z.string().optional(),
 })
 
 // Usado por "Razão Contábil" (pages/RazaoContabil.tsx, v2.5.10) - o backend também recusa

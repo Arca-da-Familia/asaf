@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button'
 import {
   baixarTitulo,
   criarTitulo,
+  enviarComprovante,
   listarAssociados,
+  listarCentrosCusto,
   listarFornecedores,
   listarPlanoContas,
   listarTitulos,
@@ -215,9 +217,15 @@ function FormularioBaixa({
   onCancelar: () => void
 }) {
   const queryClient = useQueryClient()
+  const [enviandoComprovante, setEnviandoComprovante] = useState(false)
+  const [erroComprovante, setErroComprovante] = useState<string | null>(null)
   const { data: contas } = useQuery({
     queryKey: ['plano-contas'],
     queryFn: listarPlanoContas,
+  })
+  const { data: centrosCusto } = useQuery({
+    queryKey: ['centros-custo'],
+    queryFn: listarCentrosCusto,
   })
   const contasAtivo = (contas ?? []).filter((c) => c.tipo === 'Ativo')
 
@@ -237,6 +245,9 @@ function FormularioBaixa({
         valor_pago: 0,
         forma_pagamento: '',
         id_conta_contabil_contrapartida: 0,
+        id_centro_custo: undefined,
+        data_competencia: '',
+        comprovante: '',
       }}
       onSubmit={(v) => baixar.mutateAsync(v)}
       className="mt-2 grid gap-2 rounded-md border border-border bg-muted/20 p-3 sm:grid-cols-3"
@@ -280,6 +291,60 @@ function FormularioBaixa({
                 form.formState.errors.id_conta_contabil_contrapartida?.message
               }
             />
+          </div>
+          <div>
+            <select
+              {...form.register('id_centro_custo')}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">Sem centro de custo</option>
+              {(centrosCusto ?? [])
+                .filter((c) => c.ativo)
+                .map((c) => (
+                  <option key={c.id_centro_custo} value={c.id_centro_custo}>
+                    {c.codigo} — {c.nome}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div>
+            <input
+              type="date"
+              {...form.register('data_competencia')}
+              title="Data de competência (opcional - se vazia, usa a data de hoje)"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            />
+          </div>
+          <div>
+            <input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              disabled={enviandoComprovante}
+              onChange={async (e) => {
+                const arquivo = e.target.files?.[0]
+                if (!arquivo) return
+                setErroComprovante(null)
+                setEnviandoComprovante(true)
+                try {
+                  const { comprovante } = await enviarComprovante(arquivo)
+                  form.setValue('comprovante', comprovante)
+                } catch (erro) {
+                  setErroComprovante((erro as Error).message)
+                } finally {
+                  setEnviandoComprovante(false)
+                }
+              }}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+            />
+            {enviandoComprovante && (
+              <p className="text-xs text-muted-foreground">Enviando…</p>
+            )}
+            {form.watch('comprovante') && (
+              <p className="text-xs text-green-600">Comprovante anexado.</p>
+            )}
+            {erroComprovante && (
+              <p className="text-xs text-destructive">{erroComprovante}</p>
+            )}
           </div>
           <div className="flex gap-2 sm:col-span-3">
             <Button type="submit" size="sm" disabled={baixar.isPending}>

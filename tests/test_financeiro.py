@@ -129,10 +129,28 @@ def test_estorno_reverte_saldo_e_marca_lancamento_original_sem_apagar(client, au
     }, headers=auth_headers)
     id_titulo = r.json()["id_titulo"]
 
+    # v3.1 - Despesa exige comprovante por padrão (catálogo `tipo_conta_contabil`, opção
+    # DESPESA) - baixa sem comprovante é recusada.
     r = client.post("/baixar-titulo/", json={
         "id_titulo": id_titulo, "valor_pago": 200, "forma_pagamento": "Pix",
         "id_conta_contabil_contrapartida": conta_caixa,
     }, headers=auth_headers)
+    assert r.status_code == 400
+    assert "comprovante" in r.json()["detail"].lower()
+
+    r = client.post(
+        "/api/comprovantes/", files={"arquivo": ("nota.pdf", b"%PDF-1.4 conteudo de teste", "application/pdf")},
+        headers=auth_headers,
+    )
+    assert r.status_code == 200, r.text
+    comprovante = r.json()["comprovante"]
+    assert comprovante.startswith("/uploads/comprovantes/")
+
+    r = client.post("/baixar-titulo/", json={
+        "id_titulo": id_titulo, "valor_pago": 200, "forma_pagamento": "Pix",
+        "id_conta_contabil_contrapartida": conta_caixa, "comprovante": comprovante,
+    }, headers=auth_headers)
+    assert r.status_code == 200, r.text
     id_lancamento = r.json()["id_lancamento"]
 
     titulos = client.get("/api/titulos/", headers=auth_headers).json()
@@ -200,3 +218,202 @@ def test_exercicio_fechado_bloqueia_lancamento_novo(client, auth_headers, exerci
     finally:
         # reabre um exercício pra não quebrar outros testes da suíte que dependem de haver um aberto.
         client.post("/api/exercicios/", json={"ano": 2101}, headers=auth_headers)
+
+
+# ---------------------------------------------------------------------------
+# v3.1 - Plano de contas hierárquico, centro de custo, conta financeira, competência x caixa,
+# comprovante configurável e transferência entre contas.
+# ---------------------------------------------------------------------------
+def test_conta_sintetica_nao_recebe_lancamento_direto(client, auth_headers, exercicio_financeiro_aberto):
+    pai = _criar_conta(client, auth_headers, "1.1.9100", "Caixa e Bancos (sintética)", tipo="Ativo")
+    r = client.post("/plano-contas/", json={
+        "codigo_contabil": "1.1.9100.01", "descricao_conta": "Caixa Loja (filha)", "tipo": "Ativo",
+        "codigo_contabil_pai": "1.1.9100",
+    }, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    filha = r.json()["id_conta"]
+
+    conta_receita = _criar_conta(client, auth_headers, "3.1.9100", "Receita Teste Hierarquia", tipo="Receita")
+    titulo = client.post("/titulos/", json={
+        "tipo_titulo": "A Receber", "id_conta_contabil": conta_receita,
+        "descricao": "Recebimento de teste", "valor_original": 30,
+        "data_vencimento": (datetime.utcnow() + timedelta(days=5)).strftime(_ISO),
+    }, headers=auth_headers).json()
+
+    # a conta PAI (sintética, tem filha) não pode receber lançamento direto.
+    r = client.post("/baixar-titulo/", json={
+        "id_titulo": titulo["id_titulo"], "valor_pago": 30, "forma_pagamento": "Pix",
+        "id_conta_contabil_contrapartida": pai,
+    }, headers=auth_headers)
+    assert r.status_code == 400
+    assert "sintética" in r.json()["detail"].lower()
+
+    # a conta FILHA (analítica, folha) recebe normalmente.
+    r = client.post("/baixar-titulo/", json={
+        "id_titulo": titulo["id_titulo"], "valor_pago": 30, "forma_pagamento": "Pix",
+        "id_conta_contabil_contrapartida": filha,
+    }, headers=auth_headers)
+    assert r.status_code == 200, r.text
+
+
+def test_exclusao_de_conta_bloqueada_por_filha_ou_movimento(client, auth_headers, exercicio_financeiro_aberto):
+    pai = _criar_conta(client, auth_headers, "1.1.9200", "Conta com filha", tipo="Ativo")
+    client.post("/plano-contas/", json={
+        "codigo_contabil": "1.1.9200.01", "descricao_conta": "Filha", "tipo": "Ativo",
+        "codigo_contabil_pai": "1.1.9200",
+    }, headers=auth_headers)
+
+    r = client.delete(f"/api/plano-contas/{pai}", headers=auth_headers)
+    assert r.status_code == 400
+    assert "filha" in r.json()["detail"].lower()
+
+    conta_receita = _criar_conta(client, auth_headers, "3.1.9200", "Receita com movimento", tipo="Receita")
+    conta_caixa = _criar_conta(client, auth_headers, "1.1.9201", "Caixa com movimento", tipo="Ativo")
+    titulo = client.post("/titulos/", json={
+        "tipo_titulo": "A Receber", "id_conta_contabil": conta_receita,
+        "descricao": "Gera movimento", "valor_original": 10,
+        "data_vencimento": (datetime.utcnow() + timedelta(days=5)).strftime(_ISO),
+    }, headers=auth_headers).json()
+    client.post("/baixar-titulo/", json={
+        "id_titulo": titulo["id_titulo"], "valor_pago": 10, "forma_pagamento": "Pix",
+        "id_conta_contabil_contrapartida": conta_caixa,
+    }, headers=auth_headers)
+
+    r = client.delete(f"/api/plano-contas/{conta_receita}", headers=auth_headers)
+    assert r.status_code == 400
+    assert "movimento" in r.json()["detail"].lower()
+
+    # conta nunca usada pode ser excluída normalmente.
+    conta_livre = _criar_conta(client, auth_headers, "1.1.9202", "Conta nunca usada", tipo="Ativo")
+    r = client.delete(f"/api/plano-contas/{conta_livre}", headers=auth_headers)
+    assert r.status_code == 200, r.text
+
+
+def test_conta_financeira_saldo_e_calculado_pela_soma_das_partidas(client, auth_headers, exercicio_financeiro_aberto):
+    conta_caixa = _criar_conta(client, auth_headers, "1.1.9300", "Caixa Físico Teste", tipo="Ativo")
+    r = client.post("/api/contas-financeiras/", json={
+        "id_conta": conta_caixa, "tipo_conta_financeira": "Caixa",
+    }, headers=auth_headers)
+    assert r.status_code == 200, r.text
+
+    conta_receita = _criar_conta(client, auth_headers, "3.1.9300", "Receita Teste Saldo", tipo="Receita")
+    titulo = client.post("/titulos/", json={
+        "tipo_titulo": "A Receber", "id_conta_contabil": conta_receita,
+        "descricao": "Entrada de caixa", "valor_original": 75,
+        "data_vencimento": (datetime.utcnow() + timedelta(days=5)).strftime(_ISO),
+    }, headers=auth_headers).json()
+    client.post("/baixar-titulo/", json={
+        "id_titulo": titulo["id_titulo"], "valor_pago": 75, "forma_pagamento": "Pix",
+        "id_conta_contabil_contrapartida": conta_caixa,
+    }, headers=auth_headers)
+
+    contas_financeiras = client.get("/api/contas-financeiras/", headers=auth_headers).json()
+    cf = next(c for c in contas_financeiras if c["id_conta"] == conta_caixa)
+    assert cf["saldo"] == 75.0
+
+    # não é conta do tipo Ativo - recusada como Conta Financeira.
+    conta_despesa = _criar_conta(client, auth_headers, "4.1.9300", "Despesa não pode ser financeira", tipo="Despesa")
+    r = client.post("/api/contas-financeiras/", json={
+        "id_conta": conta_despesa, "tipo_conta_financeira": "Caixa",
+    }, headers=auth_headers)
+    assert r.status_code == 400
+
+
+def test_transferencia_entre_contas_financeiras_move_saldo(client, auth_headers, exercicio_financeiro_aberto):
+    conta_caixa = _criar_conta(client, auth_headers, "1.1.9400", "Caixa Origem Transferência", tipo="Ativo")
+    conta_banco = _criar_conta(client, auth_headers, "1.1.9401", "Banco Destino Transferência", tipo="Ativo")
+    caixa_financeira = client.post("/api/contas-financeiras/", json={
+        "id_conta": conta_caixa, "tipo_conta_financeira": "Caixa",
+    }, headers=auth_headers).json()["id_conta_financeira"]
+    banco_financeira = client.post("/api/contas-financeiras/", json={
+        "id_conta": conta_banco, "tipo_conta_financeira": "Conta Corrente",
+    }, headers=auth_headers).json()["id_conta_financeira"]
+
+    conta_receita = _criar_conta(client, auth_headers, "3.1.9400", "Receita Teste Transferência", tipo="Receita")
+    titulo = client.post("/titulos/", json={
+        "tipo_titulo": "A Receber", "id_conta_contabil": conta_receita,
+        "descricao": "Entrada antes da transferência", "valor_original": 120,
+        "data_vencimento": (datetime.utcnow() + timedelta(days=5)).strftime(_ISO),
+    }, headers=auth_headers).json()
+    client.post("/baixar-titulo/", json={
+        "id_titulo": titulo["id_titulo"], "valor_pago": 120, "forma_pagamento": "Pix",
+        "id_conta_contabil_contrapartida": conta_caixa,
+    }, headers=auth_headers)
+
+    # mesma conta de origem e destino é recusada.
+    r = client.post("/api/transferencias/", json={
+        "id_conta_financeira_origem": caixa_financeira, "id_conta_financeira_destino": caixa_financeira,
+        "valor": 50, "historico": "Transferência inválida",
+    }, headers=auth_headers)
+    assert r.status_code == 400
+
+    r = client.post("/api/transferencias/", json={
+        "id_conta_financeira_origem": caixa_financeira, "id_conta_financeira_destino": banco_financeira,
+        "valor": 50, "historico": "Depósito do caixa no banco",
+    }, headers=auth_headers)
+    assert r.status_code == 200, r.text
+
+    contas_financeiras = client.get("/api/contas-financeiras/", headers=auth_headers).json()
+    caixa = next(c for c in contas_financeiras if c["id_conta_financeira"] == caixa_financeira)
+    banco = next(c for c in contas_financeiras if c["id_conta_financeira"] == banco_financeira)
+    assert caixa["saldo"] == 70.0
+    assert banco["saldo"] == 50.0
+
+    lancamento = client.get("/api/livro-caixa/", headers=auth_headers).json()["lancamentos"][0]
+    assert lancamento["tipo_origem"] == "TRANSFERENCIA"
+    total_debito = sum(p["valor"] for p in lancamento["partidas"] if p["tipo_partida"] == "Debito")
+    total_credito = sum(p["valor"] for p in lancamento["partidas"] if p["tipo_partida"] == "Credito")
+    assert total_debito == total_credito == 50.0
+
+
+def test_centro_de_custo_opcional_e_registrado_na_partida(client, auth_headers, exercicio_financeiro_aberto):
+    r = client.post("/api/centros-custo/", json={"codigo": "CC-9500", "nome": "Projeto Teste v3.1"}, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    id_centro_custo = r.json()["id_centro_custo"]
+
+    conta_despesa = _criar_conta(client, auth_headers, "4.1.9500", "Despesa Teste Centro de Custo", tipo="Despesa")
+    conta_caixa = _criar_conta(client, auth_headers, "1.1.9500", "Caixa Teste Centro de Custo", tipo="Ativo")
+    titulo = client.post("/titulos/", json={
+        "tipo_titulo": "A Pagar", "id_conta_contabil": conta_despesa,
+        "descricao": "Despesa do projeto", "valor_original": 40,
+        "data_vencimento": (datetime.utcnow() + timedelta(days=5)).strftime(_ISO),
+    }, headers=auth_headers).json()
+    comprovante = client.post(
+        "/api/comprovantes/", files={"arquivo": ("nota.jpg", b"conteudo", "image/jpeg")}, headers=auth_headers,
+    ).json()["comprovante"]
+
+    r = client.post("/baixar-titulo/", json={
+        "id_titulo": titulo["id_titulo"], "valor_pago": 40, "forma_pagamento": "Pix",
+        "id_conta_contabil_contrapartida": conta_caixa, "id_centro_custo": id_centro_custo,
+        "comprovante": comprovante,
+    }, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    id_lancamento = r.json()["id_lancamento"]
+
+    livro = client.get("/api/livro-caixa/", headers=auth_headers).json()
+    lancamento = next(l for l in livro["lancamentos"] if l["id_lancamento"] == id_lancamento)
+    assert lancamento["comprovante"] == comprovante
+    assert all(p["id_centro_custo"] == id_centro_custo for p in lancamento["partidas"])
+
+
+def test_data_competencia_e_separada_da_data_de_caixa(client, auth_headers, exercicio_financeiro_aberto):
+    conta_receita = _criar_conta(client, auth_headers, "3.1.9600", "Receita Teste Competência", tipo="Receita")
+    conta_caixa = _criar_conta(client, auth_headers, "1.1.9600", "Caixa Teste Competência", tipo="Ativo")
+    titulo = client.post("/titulos/", json={
+        "tipo_titulo": "A Receber", "id_conta_contabil": conta_receita,
+        "descricao": "Recebido hoje, competência do mês passado", "valor_original": 15,
+        "data_vencimento": (datetime.utcnow() + timedelta(days=5)).strftime(_ISO),
+    }, headers=auth_headers).json()
+
+    data_competencia = (datetime.utcnow() - timedelta(days=40)).strftime(_ISO)
+    r = client.post("/baixar-titulo/", json={
+        "id_titulo": titulo["id_titulo"], "valor_pago": 15, "forma_pagamento": "Pix",
+        "id_conta_contabil_contrapartida": conta_caixa, "data_competencia": data_competencia,
+    }, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    id_lancamento = r.json()["id_lancamento"]
+
+    livro = client.get("/api/livro-caixa/", headers=auth_headers).json()
+    lancamento = next(l for l in livro["lancamentos"] if l["id_lancamento"] == id_lancamento)
+    assert lancamento["data_competencia"] != lancamento["data"]
+    assert lancamento["data_competencia"] == data_competencia[:10]

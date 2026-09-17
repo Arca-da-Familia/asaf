@@ -111,6 +111,16 @@ export const modulos: Modulo[] = [
         rotulo: 'Razão Contábil',
         icone: BookText,
       },
+      {
+        rota: '/financeiro/contas-financeiras',
+        rotulo: 'Contas Financeiras',
+        icone: Wallet,
+      },
+      {
+        rota: '/financeiro/centros-custo',
+        rotulo: 'Centros de Custo',
+        icone: BookOpen,
+      },
     ],
   },
   {

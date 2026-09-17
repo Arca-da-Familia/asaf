@@ -16,18 +16,24 @@ de módulo) foram removidas em 2026-09-15 - o painel único (painel.asaf.org.br,
 4.1) é a única interface administrativa deste sistema daqui em diante. Só ficam as rotas
 `/api/...` (e as de escrita sem prefixo, mantidas por compatibilidade de URL) que o painel
 consome."""
+import os
+import uuid
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.associados import Associado
-from app.models.financeiro import Exercicio, LancamentoContabil, PlanoDeContas, Fornecedor, TituloFinanceiro
+from app.models.financeiro import (
+    CentroDeCusto, ContaFinanceira, Exercicio, LancamentoContabil, PartidaContabil,
+    PlanoDeContas, Fornecedor, TituloFinanceiro,
+)
 from app.schemas.financeiro import (
-    EstornoCriar, ExercicioAbrir, PlanoContaCriar, FornecedorCriar, TituloCriar, BaixarTitulo,
+    CentroDeCustoCriar, ContaFinanceiraCriar, EstornoCriar, ExercicioAbrir, PlanoContaCriar,
+    FornecedorCriar, TituloCriar, BaixarTitulo, TransferenciaCriar,
 )
 from app.security import exigir_permissao
 from app.services import contabilidade
@@ -95,16 +101,37 @@ def fechar_exercicio(id_exercicio: int, request: Request, db: Session = Depends(
 # ==========================================
 # PLANO DE CONTAS
 # ==========================================
+def _validar_pai(db: Session, codigo_contabil_pai: str, codigo_contabil_propria: str = None) -> None:
+    if codigo_contabil_pai is None:
+        return
+    if codigo_contabil_pai == codigo_contabil_propria:
+        raise HTTPException(status_code=400, detail="Uma conta não pode ser pai de si mesma.")
+    if not db.query(PlanoDeContas).filter(PlanoDeContas.codigo_contabil == codigo_contabil_pai).first():
+        raise HTTPException(status_code=404, detail=f"Conta pai '{codigo_contabil_pai}' não encontrada.")
+
+
 @router.get("/api/plano-contas/", summary="Listar Plano de Contas")
 def listar_plano_contas(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
     contas = db.query(PlanoDeContas).order_by(PlanoDeContas.codigo_contabil).all()
-    return [{"id_conta": c.id_conta, "codigo_contabil": c.codigo_contabil, "descricao_conta": c.descricao_conta, "tipo": c.tipo} for c in contas]
+    codigos_com_filha = {c.codigo_contabil_pai for c in contas if c.codigo_contabil_pai}
+    return [
+        {
+            "id_conta": c.id_conta, "codigo_contabil": c.codigo_contabil, "descricao_conta": c.descricao_conta,
+            "tipo": c.tipo, "codigo_contabil_pai": c.codigo_contabil_pai,
+            "sintetica": c.codigo_contabil in codigos_com_filha,
+        }
+        for c in contas
+    ]
 
 
 @router.post("/plano-contas/", summary="Cadastrar Plano de Contas")
 def cadastrar_plano_contas(dados: PlanoContaCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
     contabilidade.natureza_da_conta(dados.tipo)  # 400 se o tipo não for um dos cinco tipos contábeis reais
-    nova_conta = PlanoDeContas(codigo_contabil=dados.codigo_contabil, descricao_conta=dados.descricao_conta, tipo=dados.tipo)
+    _validar_pai(db, dados.codigo_contabil_pai)
+    nova_conta = PlanoDeContas(
+        codigo_contabil=dados.codigo_contabil, descricao_conta=dados.descricao_conta, tipo=dados.tipo,
+        codigo_contabil_pai=dados.codigo_contabil_pai,
+    )
     db.add(nova_conta)
     try:
         db.commit()
@@ -114,7 +141,10 @@ def cadastrar_plano_contas(dados: PlanoContaCriar, request: Request, db: Session
     db.refresh(nova_conta)
     registrar_auditoria(
         db, usuario, "plano_de_contas", "CREATE", id_registro_afetado=nova_conta.id_conta,
-        dados_depois={"codigo_contabil": nova_conta.codigo_contabil, "descricao_conta": nova_conta.descricao_conta, "tipo": nova_conta.tipo},
+        dados_depois={
+            "codigo_contabil": nova_conta.codigo_contabil, "descricao_conta": nova_conta.descricao_conta,
+            "tipo": nova_conta.tipo, "codigo_contabil_pai": nova_conta.codigo_contabil_pai,
+        },
         ip_origem=_ip_origem(request),
     )
     return {"mensagem": "Conta contábil cadastrada.", "id_conta": nova_conta.id_conta}
@@ -126,10 +156,12 @@ def editar_plano_contas(id_conta: int, dados: PlanoContaCriar, request: Request,
     if not conta:
         raise HTTPException(status_code=404, detail="Conta contábil não encontrada.")
     contabilidade.natureza_da_conta(dados.tipo)  # 400 se o tipo não for um dos cinco tipos contábeis reais
-    dados_antes = {"codigo_contabil": conta.codigo_contabil, "descricao_conta": conta.descricao_conta, "tipo": conta.tipo}
+    _validar_pai(db, dados.codigo_contabil_pai, codigo_contabil_propria=conta.codigo_contabil)
+    dados_antes = {"codigo_contabil": conta.codigo_contabil, "descricao_conta": conta.descricao_conta, "tipo": conta.tipo, "codigo_contabil_pai": conta.codigo_contabil_pai}
     conta.codigo_contabil = dados.codigo_contabil
     conta.descricao_conta = dados.descricao_conta
     conta.tipo = dados.tipo
+    conta.codigo_contabil_pai = dados.codigo_contabil_pai
     try:
         db.commit()
     except IntegrityError:
@@ -138,10 +170,156 @@ def editar_plano_contas(id_conta: int, dados: PlanoContaCriar, request: Request,
     registrar_auditoria(
         db, usuario, "plano_de_contas", "UPDATE", id_registro_afetado=conta.id_conta,
         dados_antes=dados_antes,
-        dados_depois={"codigo_contabil": conta.codigo_contabil, "descricao_conta": conta.descricao_conta, "tipo": conta.tipo},
+        dados_depois={"codigo_contabil": conta.codigo_contabil, "descricao_conta": conta.descricao_conta, "tipo": conta.tipo, "codigo_contabil_pai": conta.codigo_contabil_pai},
         ip_origem=_ip_origem(request),
     )
     return {"mensagem": "Conta contábil atualizada."}
+
+
+@router.delete("/api/plano-contas/{id_conta}", summary="Excluir Plano de Contas")
+def excluir_plano_contas(id_conta: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    """v3.1 - bloqueio de exclusão de conta com movimento: nunca se apaga uma conta que já
+    recebeu lançamento, título, ou que é uma `ContaFinanceira`/conta pai de outra - a única
+    correção possível pra conta com movimento é estorno + reclassificação, nunca remoção."""
+    conta = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == id_conta).first()
+    if not conta:
+        raise HTTPException(status_code=404, detail="Conta contábil não encontrada.")
+    if db.query(PlanoDeContas.id_conta).filter(PlanoDeContas.codigo_contabil_pai == conta.codigo_contabil).first():
+        raise HTTPException(status_code=400, detail="Esta conta tem contas filhas - remova ou realoque as filhas antes de excluir.")
+    if db.query(PartidaContabil.id_partida).filter(PartidaContabil.id_conta == id_conta).first():
+        raise HTTPException(status_code=400, detail="Esta conta já tem movimento no razão contábil e não pode ser excluída.")
+    if db.query(TituloFinanceiro.id_titulo).filter(TituloFinanceiro.id_conta_contabil == id_conta).first():
+        raise HTTPException(status_code=400, detail="Esta conta está referenciada por título financeiro e não pode ser excluída.")
+    if db.query(ContaFinanceira.id_conta_financeira).filter(ContaFinanceira.id_conta == id_conta).first():
+        raise HTTPException(status_code=400, detail="Esta conta é uma Conta Financeira cadastrada - remova o cadastro de Conta Financeira antes.")
+    dados_antes = {"codigo_contabil": conta.codigo_contabil, "descricao_conta": conta.descricao_conta, "tipo": conta.tipo}
+    db.delete(conta)
+    db.commit()
+    registrar_auditoria(
+        db, usuario, "plano_de_contas", "DELETE", id_registro_afetado=id_conta,
+        dados_antes=dados_antes, ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Conta contábil excluída."}
+
+
+# ==========================================
+# CENTROS DE CUSTO
+# ==========================================
+@router.get("/api/centros-custo/", summary="Listar Centros de Custo")
+def listar_centros_custo(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+    centros = db.query(CentroDeCusto).order_by(CentroDeCusto.codigo).all()
+    return [
+        {"id_centro_custo": c.id_centro_custo, "codigo": c.codigo, "nome": c.nome, "id_projeto": c.id_projeto, "ativo": c.ativo}
+        for c in centros
+    ]
+
+
+@router.post("/api/centros-custo/", summary="Cadastrar Centro de Custo")
+def cadastrar_centro_custo(dados: CentroDeCustoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    novo = CentroDeCusto(codigo=dados.codigo, nome=dados.nome, id_projeto=dados.id_projeto)
+    db.add(novo)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Já existe um centro de custo com esse código.")
+    db.refresh(novo)
+    registrar_auditoria(
+        db, usuario, "centros_de_custo", "CREATE", id_registro_afetado=novo.id_centro_custo,
+        dados_depois={"codigo": novo.codigo, "nome": novo.nome, "id_projeto": novo.id_projeto},
+        ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Centro de custo cadastrado.", "id_centro_custo": novo.id_centro_custo}
+
+
+@router.put("/api/centros-custo/{id_centro_custo}/ativo", summary="Ativar/Inativar Centro de Custo")
+def alternar_centro_custo(id_centro_custo: int, ativo: bool, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    centro = db.query(CentroDeCusto).filter(CentroDeCusto.id_centro_custo == id_centro_custo).first()
+    if not centro:
+        raise HTTPException(status_code=404, detail="Centro de custo não encontrado.")
+    dados_antes = {"ativo": centro.ativo}
+    centro.ativo = ativo
+    db.commit()
+    registrar_auditoria(
+        db, usuario, "centros_de_custo", "UPDATE", id_registro_afetado=centro.id_centro_custo,
+        dados_antes=dados_antes, dados_depois={"ativo": centro.ativo}, ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Centro de custo atualizado."}
+
+
+# ==========================================
+# CONTAS FINANCEIRAS (Caixa/Banco)
+# ==========================================
+@router.get("/api/contas-financeiras/", summary="Listar Contas Financeiras (com saldo)")
+def listar_contas_financeiras(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+    contas_financeiras = db.query(ContaFinanceira).order_by(ContaFinanceira.id_conta_financeira).all()
+    planos = {c.id_conta: c for c in db.query(PlanoDeContas).all()}
+    resultado = []
+    for cf in contas_financeiras:
+        plano = planos.get(cf.id_conta)
+        resultado.append({
+            "id_conta_financeira": cf.id_conta_financeira,
+            "id_conta": cf.id_conta,
+            "codigo_contabil": plano.codigo_contabil if plano else None,
+            "descricao_conta": plano.descricao_conta if plano else None,
+            "tipo_conta_financeira": cf.tipo_conta_financeira,
+            "banco": cf.banco, "agencia": cf.agencia, "numero_conta": cf.numero_conta,
+            "ativo": cf.ativo,
+            "saldo": contabilidade.saldo_conta(db, cf.id_conta),
+        })
+    return resultado
+
+
+@router.post("/api/contas-financeiras/", summary="Cadastrar Conta Financeira")
+def cadastrar_conta_financeira(dados: ContaFinanceiraCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    conta = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == dados.id_conta).first()
+    if not conta:
+        raise HTTPException(status_code=404, detail="Conta contábil não encontrada.")
+    contabilidade.exigir_tipo_conta(conta, ["Ativo"], "Uma Conta Financeira")
+    nova = ContaFinanceira(
+        id_conta=dados.id_conta, tipo_conta_financeira=dados.tipo_conta_financeira,
+        banco=dados.banco, agencia=dados.agencia, numero_conta=dados.numero_conta,
+    )
+    db.add(nova)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Esta conta contábil já é uma Conta Financeira.")
+    db.refresh(nova)
+    registrar_auditoria(
+        db, usuario, "contas_financeiras", "CREATE", id_registro_afetado=nova.id_conta_financeira,
+        dados_depois={"id_conta": nova.id_conta, "tipo_conta_financeira": nova.tipo_conta_financeira},
+        ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Conta financeira cadastrada.", "id_conta_financeira": nova.id_conta_financeira}
+
+
+# ==========================================
+# COMPROVANTES (anexo de lançamento/baixa/transferência)
+# ==========================================
+_EXTENSOES_COMPROVANTE_PERMITIDAS = {".pdf", ".jpg", ".jpeg", ".png"}
+_TAMANHO_MAXIMO_COMPROVANTE = 15 * 1024 * 1024
+
+
+@router.post("/api/comprovantes/", summary="Enviar comprovante financeiro")
+async def enviar_comprovante(request: Request, arquivo: UploadFile = File(...), db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    extensao = os.path.splitext(arquivo.filename or "")[1].lower()
+    if extensao not in _EXTENSOES_COMPROVANTE_PERMITIDAS:
+        raise HTTPException(status_code=400, detail="Formato não suportado. Use PDF, JPG ou PNG.")
+    conteudo = await arquivo.read()
+    if len(conteudo) > _TAMANHO_MAXIMO_COMPROVANTE:
+        raise HTTPException(status_code=400, detail="Arquivo muito grande (máximo 15MB).")
+    nome_arquivo = f"{uuid.uuid4().hex}{extensao}"
+    os.makedirs(os.path.join("uploads", "comprovantes"), exist_ok=True)
+    with open(os.path.join("uploads", "comprovantes", nome_arquivo), "wb") as f:
+        f.write(conteudo)
+    caminho = f"/uploads/comprovantes/{nome_arquivo}"
+    registrar_auditoria(
+        db, usuario, "comprovantes_financeiros", "UPLOAD",
+        dados_depois={"comprovante": caminho}, ip_origem=_ip_origem(request),
+    )
+    return {"comprovante": caminho}
 
 
 # ==========================================
@@ -286,16 +464,18 @@ def _serializar_lancamento(lancamento: LancamentoContabil, contas: dict) -> dict
         "id_exercicio": lancamento.id_exercicio,
         "id_titulo": lancamento.id_titulo,
         "data": lancamento.data_lancamento.date().isoformat() if lancamento.data_lancamento else None,
+        "data_competencia": lancamento.data_competencia.date().isoformat() if lancamento.data_competencia else None,
         "historico": lancamento.historico,
         "tipo_origem": lancamento.tipo_origem,
         "forma_pagamento": lancamento.forma_pagamento,
+        "comprovante": lancamento.comprovante,
         "estornado": lancamento.estornado,
         "motivo_estorno": lancamento.motivo_estorno,
         "id_lancamento_estorno": lancamento.id_lancamento_estorno,
         "partidas": [
             {
                 "id_conta": p.id_conta, "conta_contabil": _nome_conta(contas, p.id_conta),
-                "tipo_partida": p.tipo_partida, "valor": p.valor,
+                "tipo_partida": p.tipo_partida, "valor": p.valor, "id_centro_custo": p.id_centro_custo,
             }
             for p in lancamento.partidas
         ],
@@ -337,6 +517,10 @@ def baixar_titulo(dados: BaixarTitulo, request: Request, db: Session = Depends(g
         raise HTTPException(status_code=404, detail="Conta contábil de contrapartida não encontrada.")
     contabilidade.exigir_tipo_conta(contrapartida, ["Ativo"], "A conta de contrapartida de uma baixa (Caixa/Banco)")
 
+    conta_titulo = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == titulo.id_conta_contabil).first()
+    if conta_titulo and contabilidade.exige_comprovante(db, conta_titulo.tipo) and not dados.comprovante:
+        raise HTTPException(status_code=400, detail=f"Comprovante obrigatório para lançamento em conta do tipo '{conta_titulo.tipo}'. Envie por POST /api/comprovantes/ e informe o caminho retornado.")
+
     titulo.saldo_devedor -= dados.valor_pago
     if titulo.saldo_devedor <= 0:
         titulo.status = "Pago"
@@ -347,19 +531,20 @@ def baixar_titulo(dados: BaixarTitulo, request: Request, db: Session = Depends(g
     # receita (aumenta). Ambos os lados sempre com o mesmo valor - ver contabilidade.criar_lancamento.
     if titulo.tipo_titulo == "A Pagar":
         partidas = [
-            (titulo.id_conta_contabil, contabilidade.DEBITO, dados.valor_pago),
-            (contrapartida.id_conta, contabilidade.CREDITO, dados.valor_pago),
+            (titulo.id_conta_contabil, contabilidade.DEBITO, dados.valor_pago, dados.id_centro_custo),
+            (contrapartida.id_conta, contabilidade.CREDITO, dados.valor_pago, dados.id_centro_custo),
         ]
     else:
         partidas = [
-            (contrapartida.id_conta, contabilidade.DEBITO, dados.valor_pago),
-            (titulo.id_conta_contabil, contabilidade.CREDITO, dados.valor_pago),
+            (contrapartida.id_conta, contabilidade.DEBITO, dados.valor_pago, dados.id_centro_custo),
+            (titulo.id_conta_contabil, contabilidade.CREDITO, dados.valor_pago, dados.id_centro_custo),
         ]
 
     lancamento = contabilidade.criar_lancamento(
         db, exercicio=exercicio, historico=f"Baixa do título #{titulo.id_titulo} — {titulo.descricao}",
         tipo_origem="BAIXA_TITULO", partidas=partidas, id_titulo=titulo.id_titulo,
         id_usuario=usuario.id_usuario, forma_pagamento=dados.forma_pagamento,
+        data_competencia=dados.data_competencia, comprovante=dados.comprovante,
     )
     db.commit()
     db.refresh(lancamento)
@@ -411,4 +596,45 @@ def estornar_lancamento_endpoint(id_lancamento: int, dados: EstornoCriar, reques
     if titulo and titulo.id_associado:
         recalcular_categoria_associado(db, titulo.id_associado)
     return {"mensagem": "Lançamento estornado.", "id_lancamento_estorno": estorno.id_lancamento, "numero_sequencial": estorno.numero_sequencial}
+
+
+# ==========================================
+# TRANSFERÊNCIA ENTRE CONTAS FINANCEIRAS
+# ==========================================
+@router.post("/api/transferencias/", summary="Transferência entre Contas Financeiras")
+def criar_transferencia(dados: TransferenciaCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    """v3.1 - transferência entre contas (ex.: Caixa -> Conta Corrente) como operação própria,
+    não duas entradas soltas que podem divergir: por baixo, é só mais um caso de uso de
+    `contabilidade.criar_lancamento` (débito na conta de destino, crédito na de origem), exposto
+    aqui pra quem opera não precisar montar a partida na mão."""
+    if dados.id_conta_financeira_origem == dados.id_conta_financeira_destino:
+        raise HTTPException(status_code=400, detail="A conta de origem e a de destino não podem ser a mesma.")
+    exercicio = contabilidade.exigir_exercicio_aberto(db)
+    origem = db.query(ContaFinanceira).filter(ContaFinanceira.id_conta_financeira == dados.id_conta_financeira_origem).first()
+    if not origem:
+        raise HTTPException(status_code=404, detail="Conta financeira de origem não encontrada.")
+    destino = db.query(ContaFinanceira).filter(ContaFinanceira.id_conta_financeira == dados.id_conta_financeira_destino).first()
+    if not destino:
+        raise HTTPException(status_code=404, detail="Conta financeira de destino não encontrada.")
+
+    partidas = [
+        (destino.id_conta, contabilidade.DEBITO, dados.valor, dados.id_centro_custo),
+        (origem.id_conta, contabilidade.CREDITO, dados.valor, dados.id_centro_custo),
+    ]
+    lancamento = contabilidade.criar_lancamento(
+        db, exercicio=exercicio, historico=dados.historico, tipo_origem="TRANSFERENCIA",
+        partidas=partidas, id_usuario=usuario.id_usuario,
+        data_competencia=dados.data_competencia, comprovante=dados.comprovante,
+    )
+    db.commit()
+    db.refresh(lancamento)
+    registrar_auditoria(
+        db, usuario, "lancamentos_contabeis", "TRANSFERENCIA", id_registro_afetado=lancamento.id_lancamento,
+        dados_depois={
+            "id_conta_financeira_origem": origem.id_conta_financeira, "id_conta_financeira_destino": destino.id_conta_financeira,
+            "valor": str(dados.valor), "numero_sequencial": lancamento.numero_sequencial,
+        },
+        ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Transferência registrada.", "id_lancamento": lancamento.id_lancamento, "numero_sequencial": lancamento.numero_sequencial}
 
