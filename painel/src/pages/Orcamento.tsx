@@ -16,7 +16,10 @@ import {
   listarReservasContingencia,
   obterFluxoDeCaixa,
 } from '@/lib/api'
-import { orcamentoCriarSchema, reservaContingenciaCriarSchema } from '@/lib/schemas'
+import {
+  orcamentoCriarSchema,
+  reservaContingenciaCriarSchema,
+} from '@/lib/schemas'
 
 // v3.5 (FASE 3 - Financeiro) - orçamento anual (realizado x previsto calculado contra o razão
 // contábil, nunca guardado em coluna própria - ver app/services/orcamento.py::realizado_do_orcamento),
@@ -85,7 +88,9 @@ function FormularioOrcamento({ onCancelar }: { onCancelar: () => void }) {
               placeholder="Valor previsto (R$)"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             />
-            <ErroCampo mensagem={form.formState.errors.valor_previsto?.message} />
+            <ErroCampo
+              mensagem={form.formState.errors.valor_previsto?.message}
+            />
           </div>
           <div>
             <select
@@ -99,7 +104,9 @@ function FormularioOrcamento({ onCancelar }: { onCancelar: () => void }) {
                 </option>
               ))}
             </select>
-            <ErroCampo mensagem={form.formState.errors.id_conta_contabil?.message} />
+            <ErroCampo
+              mensagem={form.formState.errors.id_conta_contabil?.message}
+            />
           </div>
           <div>
             <select
@@ -119,20 +126,29 @@ function FormularioOrcamento({ onCancelar }: { onCancelar: () => void }) {
               {...form.register('id_deliberacao')}
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
-              <option value="0">Deliberação de assembleia que aprovou este orçamento…</option>
+              <option value="0">
+                Deliberação de assembleia que aprovou este orçamento…
+              </option>
               {(deliberacoes ?? []).map((d) => (
                 <option key={d.id_deliberacao} value={d.id_deliberacao}>
                   #{d.id_deliberacao} — {d.texto.slice(0, 80)}
                 </option>
               ))}
             </select>
-            <ErroCampo mensagem={form.formState.errors.id_deliberacao?.message} />
+            <ErroCampo
+              mensagem={form.formState.errors.id_deliberacao?.message}
+            />
           </div>
           <div className="flex gap-2 sm:col-span-2">
             <Button type="submit" size="sm" disabled={criar.isPending}>
               {criar.isPending ? 'Salvando…' : 'Cadastrar orçamento'}
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={onCancelar}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onCancelar}
+            >
               Cancelar
             </Button>
           </div>
@@ -167,29 +183,50 @@ function SecaoOrcamentos() {
     <section className="mb-6 rounded-xl border border-border bg-card p-6">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-semibold">Orçamento {anoAtual}</h2>
-        <Button variant="outline" size="sm" onClick={() => setMostrarForm((v) => !v)}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setMostrarForm((v) => !v)}
+        >
           {mostrarForm ? 'Cancelar' : 'Novo orçamento'}
         </Button>
       </div>
-      {mostrarForm && <FormularioOrcamento onCancelar={() => setMostrarForm(false)} />}
+      {mostrarForm && (
+        <FormularioOrcamento onCancelar={() => setMostrarForm(false)} />
+      )}
       <div className="space-y-2">
         {(orcamentos ?? []).map((o) => {
-          const conta = (contas ?? []).find((c) => c.id_conta === o.id_conta_contabil)
-          const centro = (centros ?? []).find((c) => c.id_centro_custo === o.id_centro_custo)
+          const conta = (contas ?? []).find(
+            (c) => c.id_conta === o.id_conta_contabil,
+          )
+          const centro = (centros ?? []).find(
+            (c) => c.id_centro_custo === o.id_centro_custo,
+          )
           const percentual = o.percentual_realizado ?? 0
           return (
-            <div key={o.id_orcamento} className="rounded-md border border-border p-3 text-sm">
+            <div
+              key={o.id_orcamento}
+              className="rounded-md border border-border p-3 text-sm"
+            >
               <div className="flex items-center justify-between">
                 <p className="font-medium">
-                  {conta ? `${conta.codigo_contabil} — ${conta.descricao_conta}` : `Conta #${o.id_conta_contabil}`}
+                  {conta
+                    ? `${conta.codigo_contabil} — ${conta.descricao_conta}`
+                    : `Conta #${o.id_conta_contabil}`}
                   {centro && ` · ${centro.nome}`}
                 </p>
-                <span className={o.estourado ? 'text-destructive' : 'text-green-600'}>
+                <span
+                  className={
+                    o.estourado ? 'text-destructive' : 'text-green-600'
+                  }
+                >
                   {o.estourado ? 'Estourado' : 'Dentro do previsto'}
                 </span>
               </div>
               <p className="text-muted-foreground">
-                {formatarReais(o.realizado)} de {formatarReais(o.valor_previsto)} previstos ({percentual.toFixed(0)}%)
+                {formatarReais(o.realizado)} de{' '}
+                {formatarReais(o.valor_previsto)} previstos (
+                {percentual.toFixed(0)}%)
               </p>
               <div className="mt-1 h-2 w-full rounded-full bg-muted">
                 <div
@@ -201,7 +238,9 @@ function SecaoOrcamentos() {
           )
         })}
         {(orcamentos ?? []).length === 0 && (
-          <p className="text-sm text-muted-foreground">Nenhum orçamento cadastrado para {anoAtual}.</p>
+          <p className="text-sm text-muted-foreground">
+            Nenhum orçamento cadastrado para {anoAtual}.
+          </p>
         )}
       </div>
     </section>
@@ -219,27 +258,40 @@ function SecaoFluxoDeCaixa() {
       <h2 className="mb-4 font-semibold">Fluxo de caixa projetado</h2>
       <div className="space-y-2">
         {(fluxo?.meses ?? []).map((m) => (
-          <div key={m.competencia} className="rounded-md border border-border p-3 text-sm">
+          <div
+            key={m.competencia}
+            className="rounded-md border border-border p-3 text-sm"
+          >
             <p className="font-medium">{m.competencia}</p>
             <p className="text-muted-foreground">
-              Saldo inicial: {formatarReais(m.saldo_inicial)} · Entradas: {formatarReais(m.entradas_previstas)} ·
-              {' '}Saídas: {formatarReais(m.saidas_previstas)}
-              {m.recorrentes_projetadas > 0 && ` (inclui ${formatarReais(m.recorrentes_projetadas)} de recorrentes ainda não lançadas)`}
+              Saldo inicial: {formatarReais(m.saldo_inicial)} · Entradas:{' '}
+              {formatarReais(m.entradas_previstas)} · Saídas:{' '}
+              {formatarReais(m.saidas_previstas)}
+              {m.recorrentes_projetadas > 0 &&
+                ` (inclui ${formatarReais(m.recorrentes_projetadas)} de recorrentes ainda não lançadas)`}
             </p>
-            <p className={`font-medium ${m.saldo_final < 0 ? 'text-destructive' : 'text-green-600'}`}>
+            <p
+              className={`font-medium ${m.saldo_final < 0 ? 'text-destructive' : 'text-green-600'}`}
+            >
               Saldo projetado: {formatarReais(m.saldo_final)}
             </p>
           </div>
         ))}
         {(fluxo?.meses ?? []).length === 0 && (
-          <p className="text-sm text-muted-foreground">Sem projeção disponível.</p>
+          <p className="text-sm text-muted-foreground">
+            Sem projeção disponível.
+          </p>
         )}
       </div>
     </section>
   )
 }
 
-function FormularioReservaContingencia({ onCancelar }: { onCancelar: () => void }) {
+function FormularioReservaContingencia({
+  onCancelar,
+}: {
+  onCancelar: () => void
+}) {
   const queryClient = useQueryClient()
   const { data: contasFinanceiras } = useQuery({
     queryKey: ['contas-financeiras'],
@@ -275,12 +327,17 @@ function FormularioReservaContingencia({ onCancelar }: { onCancelar: () => void 
             >
               <option value="0">Conta financeira…</option>
               {(contasFinanceiras ?? []).map((c) => (
-                <option key={c.id_conta_financeira} value={c.id_conta_financeira}>
+                <option
+                  key={c.id_conta_financeira}
+                  value={c.id_conta_financeira}
+                >
                   {c.codigo_contabil} — {c.descricao_conta}
                 </option>
               ))}
             </select>
-            <ErroCampo mensagem={form.formState.errors.id_conta_financeira?.message} />
+            <ErroCampo
+              mensagem={form.formState.errors.id_conta_financeira?.message}
+            />
           </div>
           <div>
             <input
@@ -317,7 +374,12 @@ function FormularioReservaContingencia({ onCancelar }: { onCancelar: () => void 
             <Button type="submit" size="sm" disabled={criar.isPending}>
               {criar.isPending ? 'Salvando…' : 'Cadastrar reserva'}
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={onCancelar}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onCancelar}
+            >
               Cancelar
             </Button>
           </div>
@@ -347,27 +409,53 @@ function SecaoReservaContingencia() {
     <section className="rounded-xl border border-border bg-card p-6">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-semibold">Reserva de contingência</h2>
-        <Button variant="outline" size="sm" onClick={() => setMostrarForm((v) => !v)}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setMostrarForm((v) => !v)}
+        >
           {mostrarForm ? 'Cancelar' : 'Nova reserva'}
         </Button>
       </div>
-      {mostrarForm && <FormularioReservaContingencia onCancelar={() => setMostrarForm(false)} />}
+      {mostrarForm && (
+        <FormularioReservaContingencia
+          onCancelar={() => setMostrarForm(false)}
+        />
+      )}
       <div className="space-y-2">
         {(reservas ?? []).map((r) => {
-          const contaFinanceira = (contasFinanceiras ?? []).find((c) => c.id_conta_financeira === r.id_conta_financeira)
-          const abaixoDoMinimo = r.valor_minimo != null && r.saldo_atual < r.valor_minimo
+          const contaFinanceira = (contasFinanceiras ?? []).find(
+            (c) => c.id_conta_financeira === r.id_conta_financeira,
+          )
+          const abaixoDoMinimo =
+            r.valor_minimo != null && r.saldo_atual < r.valor_minimo
           return (
-            <div key={r.id_reserva} className="rounded-md border border-border p-3 text-sm">
+            <div
+              key={r.id_reserva}
+              className="rounded-md border border-border p-3 text-sm"
+            >
               <div className="flex items-center justify-between">
                 <p className="font-medium">
-                  {contaFinanceira ? `${contaFinanceira.codigo_contabil} — ${contaFinanceira.descricao_conta}` : `Conta financeira #${r.id_conta_financeira}`}
+                  {contaFinanceira
+                    ? `${contaFinanceira.codigo_contabil} — ${contaFinanceira.descricao_conta}`
+                    : `Conta financeira #${r.id_conta_financeira}`}
                 </p>
-                <span className={abaixoDoMinimo ? 'text-destructive' : 'text-green-600'}>
+                <span
+                  className={
+                    abaixoDoMinimo ? 'text-destructive' : 'text-green-600'
+                  }
+                >
                   {formatarReais(r.saldo_atual)}
                 </span>
               </div>
               {r.valor_minimo != null && (
-                <p className={abaixoDoMinimo ? 'text-destructive' : 'text-muted-foreground'}>
+                <p
+                  className={
+                    abaixoDoMinimo
+                      ? 'text-destructive'
+                      : 'text-muted-foreground'
+                  }
+                >
                   Mínimo definido: {formatarReais(r.valor_minimo)}
                   {abaixoDoMinimo && ' — saldo abaixo do mínimo'}
                 </p>
@@ -377,7 +465,9 @@ function SecaoReservaContingencia() {
           )
         })}
         {(reservas ?? []).length === 0 && (
-          <p className="text-sm text-muted-foreground">Nenhuma reserva de contingência cadastrada.</p>
+          <p className="text-sm text-muted-foreground">
+            Nenhuma reserva de contingência cadastrada.
+          </p>
         )}
       </div>
     </section>

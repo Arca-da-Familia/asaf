@@ -774,7 +774,9 @@ export const orcamentoCriarSchema = z.object({
   id_deliberacao: z.coerce
     .number()
     .int({ message: 'Selecione a deliberação que aprovou este orçamento.' })
-    .positive({ message: 'Selecione a deliberação que aprovou este orçamento.' }),
+    .positive({
+      message: 'Selecione a deliberação que aprovou este orçamento.',
+    }),
 })
 
 // v3.5 - reserva de contingência: uma Conta Financeira já existente, marcada como reserva, com a
