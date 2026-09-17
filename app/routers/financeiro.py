@@ -18,6 +18,7 @@ de módulo) foram removidas em 2026-09-15 - o painel único (painel.asaf.org.br,
 consome."""
 import os
 import uuid
+from datetime import datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
@@ -28,15 +29,17 @@ from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.associados import Associado
 from app.models.financeiro import (
-    CentroDeCusto, ContaFinanceira, Exercicio, LancamentoContabil, PartidaContabil,
-    PlanoDeContas, Fornecedor, TituloFinanceiro,
+    CentroDeCusto, ContaFinanceira, CreditoAssociado, Exercicio, IsencaoContribuicao,
+    LancamentoContabil, PartidaContabil, PlanoDeContas, PlanoDeContribuicao, Fornecedor,
+    TituloFinanceiro, ValorPlanoContribuicao,
 )
 from app.schemas.financeiro import (
-    CentroDeCustoCriar, ContaFinanceiraCriar, EstornoCriar, ExercicioAbrir, PlanoContaCriar,
-    FornecedorCriar, TituloCriar, BaixarTitulo, TransferenciaCriar,
+    AplicarCreditoRequest, CentroDeCustoCriar, ContaFinanceiraCriar, EstornoCriar,
+    ExercicioAbrir, GerarCobrancasRequest, IsencaoCriar, PlanoContaCriar, PlanoDeContribuicaoCriar,
+    ReajusteCriar, FornecedorCriar, TituloCriar, BaixarTitulo, TransferenciaCriar,
 )
 from app.security import exigir_permissao
-from app.services import contabilidade
+from app.services import conciliacao, contabilidade, contribuicoes, pix as pix_service
 from app.services.categoria_associado import recalcular_categoria_associado
 
 router = APIRouter()
@@ -510,8 +513,22 @@ def baixar_titulo(dados: BaixarTitulo, request: Request, db: Session = Depends(g
         raise HTTPException(status_code=404, detail="Título não encontrado.")
     if titulo.status == "Pago":
         raise HTTPException(status_code=400, detail="Este título já está totalmente pago.")
+    excedente = Decimal("0")
+    conta_adiantamento = None
     if dados.valor_pago > titulo.saldo_devedor:
-        raise HTTPException(status_code=400, detail=f"Valor pago não pode ser maior que o saldo devedor (R$ {titulo.saldo_devedor:.2f}).")
+        # v3.2 - "pagamento a maior (crédito em conta do associado)": só permitido quando quem
+        # opera já sabe pra onde vai contabilizar o excedente (Passivo "Adiantamento de
+        # Associados") - sem isso, recusa exatamente como antes (nunca aceita baixa maior que o
+        # saldo devedor "por padrão").
+        if not dados.id_conta_contabil_adiantamento:
+            raise HTTPException(status_code=400, detail=f"Valor pago maior que o saldo devedor (R$ {titulo.saldo_devedor:.2f}) - informe id_conta_contabil_adiantamento para registrar o excedente como crédito do associado.")
+        if not titulo.id_associado:
+            raise HTTPException(status_code=400, detail="Pagamento a maior só é possível em título de um associado (crédito precisa de um dono).")
+        conta_adiantamento = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == dados.id_conta_contabil_adiantamento).first()
+        if not conta_adiantamento:
+            raise HTTPException(status_code=404, detail="Conta contábil de adiantamento não encontrada.")
+        contabilidade.exigir_tipo_conta(conta_adiantamento, ["Passivo"], "A conta de adiantamento de associados")
+        excedente = dados.valor_pago - titulo.saldo_devedor
     contrapartida = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == dados.id_conta_contabil_contrapartida).first()
     if not contrapartida:
         raise HTTPException(status_code=404, detail="Conta contábil de contrapartida não encontrada.")
@@ -521,7 +538,8 @@ def baixar_titulo(dados: BaixarTitulo, request: Request, db: Session = Depends(g
     if conta_titulo and contabilidade.exige_comprovante(db, conta_titulo.tipo) and not dados.comprovante:
         raise HTTPException(status_code=400, detail=f"Comprovante obrigatório para lançamento em conta do tipo '{conta_titulo.tipo}'. Envie por POST /api/comprovantes/ e informe o caminho retornado.")
 
-    titulo.saldo_devedor -= dados.valor_pago
+    valor_quitacao = dados.valor_pago - excedente
+    titulo.saldo_devedor -= valor_quitacao
     if titulo.saldo_devedor <= 0:
         titulo.status = "Pago"
         titulo.saldo_devedor = Decimal("0")
@@ -529,16 +547,23 @@ def baixar_titulo(dados: BaixarTitulo, request: Request, db: Session = Depends(g
     # v3.0 - partida dobrada real: "A Pagar" debita a despesa (aumenta) e credita a contrapartida
     # (Caixa/Banco diminui); "A Receber" debita a contrapartida (Caixa/Banco aumenta) e credita a
     # receita (aumenta). Ambos os lados sempre com o mesmo valor - ver contabilidade.criar_lancamento.
+    # v3.2 - pagamento a maior: o excedente é uma partida A MAIS do mesmo lado da contrapartida,
+    # creditando (ou debitando) a conta de adiantamento em vez da conta do título - o lançamento
+    # inteiro continua balanceado porque o total pago é o mesmo dos dois lados.
     if titulo.tipo_titulo == "A Pagar":
         partidas = [
-            (titulo.id_conta_contabil, contabilidade.DEBITO, dados.valor_pago, dados.id_centro_custo),
+            (titulo.id_conta_contabil, contabilidade.DEBITO, valor_quitacao, dados.id_centro_custo),
             (contrapartida.id_conta, contabilidade.CREDITO, dados.valor_pago, dados.id_centro_custo),
         ]
+        if excedente > 0:
+            partidas.append((conta_adiantamento.id_conta, contabilidade.DEBITO, excedente, dados.id_centro_custo))
     else:
         partidas = [
             (contrapartida.id_conta, contabilidade.DEBITO, dados.valor_pago, dados.id_centro_custo),
-            (titulo.id_conta_contabil, contabilidade.CREDITO, dados.valor_pago, dados.id_centro_custo),
+            (titulo.id_conta_contabil, contabilidade.CREDITO, valor_quitacao, dados.id_centro_custo),
         ]
+        if excedente > 0:
+            partidas.append((conta_adiantamento.id_conta, contabilidade.CREDITO, excedente, dados.id_centro_custo))
 
     lancamento = contabilidade.criar_lancamento(
         db, exercicio=exercicio, historico=f"Baixa do título #{titulo.id_titulo} — {titulo.descricao}",
@@ -546,6 +571,12 @@ def baixar_titulo(dados: BaixarTitulo, request: Request, db: Session = Depends(g
         id_usuario=usuario.id_usuario, forma_pagamento=dados.forma_pagamento,
         data_competencia=dados.data_competencia, comprovante=dados.comprovante,
     )
+    credito = None
+    if excedente > 0:
+        credito = contribuicoes.registrar_pagamento_a_maior(
+            db, titulo=titulo, excedente=excedente,
+            origem=f"Pagamento a maior do título #{titulo.id_titulo} — {titulo.descricao}",
+        )
     db.commit()
     db.refresh(lancamento)
     registrar_auditoria(
@@ -553,6 +584,7 @@ def baixar_titulo(dados: BaixarTitulo, request: Request, db: Session = Depends(g
         dados_depois={
             "id_titulo": titulo.id_titulo, "numero_sequencial": lancamento.numero_sequencial,
             "valor": str(dados.valor_pago), "saldo_devedor_restante": str(titulo.saldo_devedor),
+            "excedente_credito": str(excedente) if excedente > 0 else None,
         },
         ip_origem=_ip_origem(request),
     )
@@ -562,6 +594,7 @@ def baixar_titulo(dados: BaixarTitulo, request: Request, db: Session = Depends(g
     return {
         "mensagem": "Lançamento registrado no razão contábil.", "saldo_restante": titulo.saldo_devedor,
         "id_lancamento": lancamento.id_lancamento, "numero_sequencial": lancamento.numero_sequencial,
+        "id_credito_gerado": credito.id_credito if credito else None,
     }
 
 
@@ -637,4 +670,235 @@ def criar_transferencia(dados: TransferenciaCriar, request: Request, db: Session
         ip_origem=_ip_origem(request),
     )
     return {"mensagem": "Transferência registrada.", "id_lancamento": lancamento.id_lancamento, "numero_sequencial": lancamento.numero_sequencial}
+
+
+# ==========================================
+# PLANOS DE CONTRIBUIÇÃO (mensalidades) E REAJUSTE
+# ==========================================
+@router.get("/api/planos-contribuicao/", summary="Listar Planos de Contribuição")
+def listar_planos_contribuicao(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+    planos = db.query(PlanoDeContribuicao).order_by(PlanoDeContribuicao.categoria).all()
+    resultado = []
+    for p in planos:
+        try:
+            valor = contribuicoes.valor_vigente(db, p.id_plano, datetime.utcnow())
+        except HTTPException:
+            valor = None
+        resultado.append({
+            "id_plano": p.id_plano, "categoria": p.categoria, "descricao": p.descricao,
+            "periodicidade": p.periodicidade, "dia_vencimento": p.dia_vencimento,
+            "cobranca_por_nucleo_familiar": p.cobranca_por_nucleo_familiar,
+            "id_conta_contabil": p.id_conta_contabil, "ativo": p.ativo, "valor_vigente": valor,
+        })
+    return resultado
+
+
+@router.post("/api/planos-contribuicao/", summary="Cadastrar Plano de Contribuição")
+def cadastrar_plano_contribuicao(dados: PlanoDeContribuicaoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    conta = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == dados.id_conta_contabil).first()
+    if not conta:
+        raise HTTPException(status_code=404, detail="Conta contábil não encontrada.")
+    contabilidade.exigir_tipo_conta(conta, ["Receita"], "A conta contábil de um plano de contribuição")
+
+    novo_plano = PlanoDeContribuicao(
+        categoria=dados.categoria, descricao=dados.descricao, periodicidade=dados.periodicidade,
+        dia_vencimento=dados.dia_vencimento, cobranca_por_nucleo_familiar=dados.cobranca_por_nucleo_familiar,
+        id_conta_contabil=dados.id_conta_contabil,
+    )
+    db.add(novo_plano)
+    db.flush()
+    db.add(ValorPlanoContribuicao(
+        id_plano=novo_plano.id_plano, valor=dados.valor_inicial,
+        data_vigencia_inicio=datetime.utcnow(), id_usuario_registro=usuario.id_usuario,
+    ))
+    db.commit()
+    registrar_auditoria(
+        db, usuario, "planos_contribuicao", "CREATE", id_registro_afetado=novo_plano.id_plano,
+        dados_depois={"categoria": novo_plano.categoria, "descricao": novo_plano.descricao, "valor_inicial": str(dados.valor_inicial)},
+        ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Plano de contribuição cadastrado.", "id_plano": novo_plano.id_plano}
+
+
+@router.post("/api/planos-contribuicao/{id_plano}/reajustar", summary="Reajustar valor de um Plano de Contribuição")
+def reajustar_plano_contribuicao(id_plano: int, dados: ReajusteCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    """v3.2 - reajuste NUNCA edita o valor anterior: encerra a vigência da linha corrente
+    (`data_vigencia_fim`) e cria uma linha nova - histórico de quanto se cobrava em cada época
+    preservado para sempre, mesmo espírito de toda versão deste plano que trata dinheiro."""
+    plano = db.query(PlanoDeContribuicao).filter(PlanoDeContribuicao.id_plano == id_plano).first()
+    if not plano:
+        raise HTTPException(status_code=404, detail="Plano de contribuição não encontrado.")
+    vigente = (
+        db.query(ValorPlanoContribuicao)
+        .filter(ValorPlanoContribuicao.id_plano == id_plano, ValorPlanoContribuicao.data_vigencia_fim.is_(None))
+        .order_by(ValorPlanoContribuicao.data_vigencia_inicio.desc())
+        .first()
+    )
+    if vigente and dados.data_vigencia_inicio <= vigente.data_vigencia_inicio:
+        raise HTTPException(status_code=400, detail="A nova vigência precisa começar depois da vigência atual.")
+    if vigente:
+        vigente.data_vigencia_fim = dados.data_vigencia_inicio
+    novo_valor = ValorPlanoContribuicao(
+        id_plano=id_plano, valor=dados.valor, data_vigencia_inicio=dados.data_vigencia_inicio,
+        motivo_reajuste=dados.motivo, id_usuario_registro=usuario.id_usuario,
+    )
+    db.add(novo_valor)
+    db.commit()
+    registrar_auditoria(
+        db, usuario, "valores_plano_contribuicao", "REAJUSTE", id_registro_afetado=id_plano,
+        dados_antes={"valor_anterior": str(vigente.valor)} if vigente else None,
+        dados_depois={"valor_novo": str(dados.valor), "motivo": dados.motivo, "data_vigencia_inicio": dados.data_vigencia_inicio.isoformat()},
+        ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Reajuste registrado."}
+
+
+# ==========================================
+# ISENÇÕES DE CONTRIBUIÇÃO
+# ==========================================
+@router.get("/api/isencoes-contribuicao/", summary="Listar Isenções de Contribuição")
+def listar_isencoes_contribuicao(id_associado: int = None, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+    consulta = db.query(IsencaoContribuicao)
+    if id_associado:
+        consulta = consulta.filter(IsencaoContribuicao.id_associado == id_associado)
+    isencoes = consulta.order_by(IsencaoContribuicao.data_inicio.desc()).all()
+    return [
+        {
+            "id_isencao": i.id_isencao, "id_associado": i.id_associado, "id_plano": i.id_plano,
+            "motivo": i.motivo, "percentual_desconto": i.percentual_desconto,
+            "data_inicio": i.data_inicio.date().isoformat() if i.data_inicio else None,
+            "data_fim": i.data_fim.date().isoformat() if i.data_fim else None,
+        }
+        for i in isencoes
+    ]
+
+
+@router.post("/api/isencoes-contribuicao/", summary="Cadastrar Isenção de Contribuição")
+def cadastrar_isencao_contribuicao(dados: IsencaoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    if not db.query(Associado).filter(Associado.id_associado == dados.id_associado).first():
+        raise HTTPException(status_code=404, detail="Associado não encontrado.")
+    if dados.id_plano and not db.query(PlanoDeContribuicao).filter(PlanoDeContribuicao.id_plano == dados.id_plano).first():
+        raise HTTPException(status_code=404, detail="Plano de contribuição não encontrado.")
+    nova_isencao = IsencaoContribuicao(
+        id_associado=dados.id_associado, id_plano=dados.id_plano, motivo=dados.motivo,
+        percentual_desconto=dados.percentual_desconto, data_inicio=dados.data_inicio or datetime.utcnow(),
+        data_fim=dados.data_fim, id_usuario_aprovador=usuario.id_usuario,
+    )
+    db.add(nova_isencao)
+    db.commit()
+    db.refresh(nova_isencao)
+    registrar_auditoria(
+        db, usuario, "isencoes_contribuicao", "CREATE", id_registro_afetado=nova_isencao.id_isencao,
+        dados_depois={"id_associado": nova_isencao.id_associado, "motivo": nova_isencao.motivo, "percentual_desconto": str(nova_isencao.percentual_desconto)},
+        ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Isenção cadastrada.", "id_isencao": nova_isencao.id_isencao}
+
+
+# ==========================================
+# GERAÇÃO DE COBRANÇAS EM LOTE (idempotente por competência)
+# ==========================================
+@router.post("/api/contribuicoes/gerar-cobrancas/", summary="Gerar Cobranças em lote (com prévia)")
+def gerar_cobrancas_endpoint(dados: GerarCobrancasRequest, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    """v3.2 - `confirmar=false` (padrão) é só a PRÉVIA obrigatória (quantas, para quem, total) -
+    nada é gravado. `confirmar=true` grava de fato, e é sempre seguro rodar de novo na mesma
+    competência: título já gerado nunca duplica (ver `TituloFinanceiro.uq_titulo_cobranca_por_competencia`
+    e `app/services/contribuicoes.py::gerar_cobrancas`)."""
+    resultado = contribuicoes.gerar_cobrancas(db, competencia=dados.competencia, confirmar=dados.confirmar, id_usuario=usuario.id_usuario)
+    if dados.confirmar:
+        registrar_auditoria(
+            db, usuario, "titulos_financeiros", "GERACAO_COBRANCAS_LOTE",
+            dados_depois={
+                "competencia": dados.competencia, "total_gerados": resultado["total_gerados"],
+                "valor_total": str(resultado["valor_total"]),
+            },
+            ip_origem=_ip_origem(request),
+        )
+    return resultado
+
+
+# ==========================================
+# PIX ESTÁTICO (copia e cola de uma cobrança)
+# ==========================================
+@router.get("/api/titulos/{id_titulo}/pix", summary="Gerar Pix Copia e Cola de um título")
+def gerar_pix_titulo(id_titulo: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+    from app.models.core import ConfiguracaoInstitucional
+
+    titulo = db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == id_titulo).first()
+    if not titulo:
+        raise HTTPException(status_code=404, detail="Título não encontrado.")
+    if titulo.status == "Pago":
+        raise HTTPException(status_code=400, detail="Este título já está pago.")
+
+    configs = {
+        c.chave_configuracao: c.valor_configuracao
+        for c in db.query(ConfiguracaoInstitucional).filter(
+            ConfiguracaoInstitucional.chave_configuracao.in_(["CHAVE_PIX", "NOME_BENEFICIARIO_PIX", "CIDADE_BENEFICIARIO_PIX"])
+        ).all()
+    }
+    if not configs.get("CHAVE_PIX"):
+        raise HTTPException(status_code=400, detail="Chave Pix não configurada - cadastre em Configurações Institucionais (CHAVE_PIX).")
+
+    payload = pix_service.gerar_payload_pix(
+        chave_pix=configs["CHAVE_PIX"],
+        nome_beneficiario=configs.get("NOME_BENEFICIARIO_PIX") or "ASAF",
+        cidade_beneficiario=configs.get("CIDADE_BENEFICIARIO_PIX") or "NA",
+        valor=titulo.saldo_devedor, txid=str(titulo.id_titulo), descricao=titulo.descricao,
+    )
+    return {"payload": payload, "valor": titulo.saldo_devedor}
+
+
+# ==========================================
+# CRÉDITO DE ASSOCIADO (pagamento a maior)
+# ==========================================
+@router.get("/api/creditos-associado/{id_associado}", summary="Listar Créditos de um Associado")
+def listar_creditos_associado(id_associado: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+    creditos = db.query(CreditoAssociado).filter(CreditoAssociado.id_associado == id_associado).order_by(CreditoAssociado.data_criacao.desc()).all()
+    return [
+        {
+            "id_credito": c.id_credito, "valor": c.valor, "valor_original": c.valor_original,
+            "origem": c.origem, "id_titulo_origem": c.id_titulo_origem,
+            "data_criacao": c.data_criacao.date().isoformat() if c.data_criacao else None,
+        }
+        for c in creditos
+    ]
+
+
+@router.post("/api/creditos-associado/aplicar", summary="Aplicar Crédito de Associado em um título")
+def aplicar_credito_endpoint(dados: AplicarCreditoRequest, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    exercicio = contabilidade.exigir_exercicio_aberto(db)
+    credito = db.query(CreditoAssociado).filter(CreditoAssociado.id_credito == dados.id_credito).first()
+    if not credito:
+        raise HTTPException(status_code=404, detail="Crédito não encontrado.")
+    titulo = db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == dados.id_titulo).first()
+    if not titulo:
+        raise HTTPException(status_code=404, detail="Título não encontrado.")
+
+    valor_aplicado = contribuicoes.aplicar_credito(
+        db, credito=credito, titulo=titulo, id_conta_contabil_adiantamento=dados.id_conta_contabil_adiantamento,
+        exercicio=exercicio, id_usuario=usuario.id_usuario,
+    )
+    db.commit()
+    registrar_auditoria(
+        db, usuario, "creditos_associado", "APLICACAO", id_registro_afetado=credito.id_credito,
+        dados_depois={"id_titulo": titulo.id_titulo, "valor_aplicado": str(valor_aplicado), "saldo_credito_restante": str(credito.valor)},
+        ip_origem=_ip_origem(request),
+    )
+    if titulo.id_associado:
+        recalcular_categoria_associado(db, titulo.id_associado)
+    return {"mensagem": "Crédito aplicado.", "valor_aplicado": valor_aplicado, "saldo_credito_restante": credito.valor, "saldo_devedor_titulo": titulo.saldo_devedor}
+
+
+# ==========================================
+# CONCILIAÇÃO BANCÁRIA MANUAL (OFX/CSV)
+# ==========================================
+@router.post("/api/conciliacao/importar", summary="Importar extrato (OFX/CSV) e sugerir correspondências")
+async def importar_extrato(arquivo: UploadFile = File(...), db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+    conteudo_bruto = await arquivo.read()
+    try:
+        conteudo = conteudo_bruto.decode("utf-8")
+    except UnicodeDecodeError:
+        conteudo = conteudo_bruto.decode("latin-1")
+    transacoes = conciliacao.parse_extrato(arquivo.filename or "", conteudo)
+    return {"transacoes": conciliacao.sugerir_correspondencias(db, transacoes)}
 

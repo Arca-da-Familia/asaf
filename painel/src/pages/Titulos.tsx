@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { QRCodeSVG } from 'qrcode.react'
 import { useState } from 'react'
 import { z } from 'zod'
 
@@ -14,6 +15,7 @@ import {
   listarFornecedores,
   listarPlanoContas,
   listarTitulos,
+  obterPixTitulo,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
 import { baixarTituloSchema, tituloCriarSchema } from '@/lib/schemas'
@@ -211,9 +213,11 @@ function FormularioNovoTitulo({ onCancelar }: { onCancelar: () => void }) {
 
 function FormularioBaixa({
   idTitulo,
+  saldoDevedor,
   onCancelar,
 }: {
   idTitulo: number
+  saldoDevedor: number
   onCancelar: () => void
 }) {
   const queryClient = useQueryClient()
@@ -228,6 +232,7 @@ function FormularioBaixa({
     queryFn: listarCentrosCusto,
   })
   const contasAtivo = (contas ?? []).filter((c) => c.tipo === 'Ativo')
+  const contasPassivo = (contas ?? []).filter((c) => c.tipo === 'Passivo')
 
   const baixar = useMutation({
     mutationFn: (v: z.infer<typeof baixarTituloSchema>) =>
@@ -248,131 +253,200 @@ function FormularioBaixa({
         id_centro_custo: undefined,
         data_competencia: '',
         comprovante: '',
+        id_conta_contabil_adiantamento: undefined,
       }}
       onSubmit={(v) => baixar.mutateAsync(v)}
       className="mt-2 grid gap-2 rounded-md border border-border bg-muted/20 p-3 sm:grid-cols-3"
     >
-      {(form) => (
-        <>
-          <div>
-            <input
-              type="number"
-              step="0.01"
-              {...form.register('valor_pago')}
-              placeholder="Valor pago"
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            />
-            <ErroCampo mensagem={form.formState.errors.valor_pago?.message} />
-          </div>
-          <div>
-            <input
-              {...form.register('forma_pagamento')}
-              placeholder="Forma de pagamento"
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            />
-            <ErroCampo
-              mensagem={form.formState.errors.forma_pagamento?.message}
-            />
-          </div>
-          <div>
-            <select
-              {...form.register('id_conta_contabil_contrapartida')}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="0">Conta de contrapartida (Caixa/Banco)…</option>
-              {contasAtivo.map((c) => (
-                <option key={c.id_conta} value={c.id_conta}>
-                  {c.codigo_contabil} — {c.descricao_conta}
-                </option>
-              ))}
-            </select>
-            <ErroCampo
-              mensagem={
-                form.formState.errors.id_conta_contabil_contrapartida?.message
-              }
-            />
-          </div>
-          <div>
-            <select
-              {...form.register('id_centro_custo')}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">Sem centro de custo</option>
-              {(centrosCusto ?? [])
-                .filter((c) => c.ativo)
-                .map((c) => (
-                  <option key={c.id_centro_custo} value={c.id_centro_custo}>
-                    {c.codigo} — {c.nome}
+      {(form) => {
+        const valorPago = Number(form.watch('valor_pago')) || 0
+        const pagouAMais = valorPago > saldoDevedor
+        return (
+          <>
+            <div>
+              <input
+                type="number"
+                step="0.01"
+                {...form.register('valor_pago')}
+                placeholder="Valor pago"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              />
+              <ErroCampo mensagem={form.formState.errors.valor_pago?.message} />
+            </div>
+            <div>
+              <input
+                {...form.register('forma_pagamento')}
+                placeholder="Forma de pagamento"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              />
+              <ErroCampo
+                mensagem={form.formState.errors.forma_pagamento?.message}
+              />
+            </div>
+            <div>
+              <select
+                {...form.register('id_conta_contabil_contrapartida')}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="0">Conta de contrapartida (Caixa/Banco)…</option>
+                {contasAtivo.map((c) => (
+                  <option key={c.id_conta} value={c.id_conta}>
+                    {c.codigo_contabil} — {c.descricao_conta}
                   </option>
                 ))}
-            </select>
-          </div>
-          <div>
-            <input
-              type="date"
-              {...form.register('data_competencia')}
-              title="Data de competência (opcional - se vazia, usa a data de hoje)"
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            />
-          </div>
-          <div>
-            <input
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png"
-              disabled={enviandoComprovante}
-              onChange={async (e) => {
-                const arquivo = e.target.files?.[0]
-                if (!arquivo) return
-                setErroComprovante(null)
-                setEnviandoComprovante(true)
-                try {
-                  const { comprovante } = await enviarComprovante(arquivo)
-                  form.setValue('comprovante', comprovante)
-                } catch (erro) {
-                  setErroComprovante((erro as Error).message)
-                } finally {
-                  setEnviandoComprovante(false)
+              </select>
+              <ErroCampo
+                mensagem={
+                  form.formState.errors.id_conta_contabil_contrapartida?.message
                 }
-              }}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-            />
-            {enviandoComprovante && (
-              <p className="text-xs text-muted-foreground">Enviando…</p>
+              />
+            </div>
+            <div>
+              <select
+                {...form.register('id_centro_custo')}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Sem centro de custo</option>
+                {(centrosCusto ?? [])
+                  .filter((c) => c.ativo)
+                  .map((c) => (
+                    <option key={c.id_centro_custo} value={c.id_centro_custo}>
+                      {c.codigo} — {c.nome}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <div>
+              <input
+                type="date"
+                {...form.register('data_competencia')}
+                title="Data de competência (opcional - se vazia, usa a data de hoje)"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              />
+            </div>
+            <div>
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                disabled={enviandoComprovante}
+                onChange={async (e) => {
+                  const arquivo = e.target.files?.[0]
+                  if (!arquivo) return
+                  setErroComprovante(null)
+                  setEnviandoComprovante(true)
+                  try {
+                    const { comprovante } = await enviarComprovante(arquivo)
+                    form.setValue('comprovante', comprovante)
+                  } catch (erro) {
+                    setErroComprovante((erro as Error).message)
+                  } finally {
+                    setEnviandoComprovante(false)
+                  }
+                }}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+              />
+              {enviandoComprovante && (
+                <p className="text-xs text-muted-foreground">Enviando…</p>
+              )}
+              {form.watch('comprovante') && (
+                <p className="text-xs text-green-600">Comprovante anexado.</p>
+              )}
+              {erroComprovante && (
+                <p className="text-xs text-destructive">{erroComprovante}</p>
+              )}
+            </div>
+            {pagouAMais && (
+              <div className="sm:col-span-3">
+                <p className="mb-1 text-xs text-muted-foreground">
+                  Valor pago maior que o saldo devedor (
+                  {saldoDevedor.toFixed(2)}) — o excedente vira crédito do
+                  associado. Informe onde contabilizá-lo (Passivo):
+                </p>
+                <select
+                  {...form.register('id_conta_contabil_adiantamento')}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">Conta de adiantamento de associados…</option>
+                  {contasPassivo.map((c) => (
+                    <option key={c.id_conta} value={c.id_conta}>
+                      {c.codigo_contabil} — {c.descricao_conta}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
-            {form.watch('comprovante') && (
-              <p className="text-xs text-green-600">Comprovante anexado.</p>
+            <div className="flex gap-2 sm:col-span-3">
+              <Button type="submit" size="sm" disabled={baixar.isPending}>
+                {baixar.isPending ? 'Baixando…' : 'Confirmar baixa'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onCancelar}
+              >
+                Cancelar
+              </Button>
+            </div>
+            {baixar.isError && (
+              <p className="text-sm text-destructive sm:col-span-3">
+                {(baixar.error as Error).message}
+              </p>
             )}
-            {erroComprovante && (
-              <p className="text-xs text-destructive">{erroComprovante}</p>
-            )}
-          </div>
-          <div className="flex gap-2 sm:col-span-3">
-            <Button type="submit" size="sm" disabled={baixar.isPending}>
-              {baixar.isPending ? 'Baixando…' : 'Confirmar baixa'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onCancelar}
-            >
-              Cancelar
-            </Button>
-          </div>
-          {baixar.isError && (
-            <p className="text-sm text-destructive sm:col-span-3">
-              {(baixar.error as Error).message}
-            </p>
-          )}
-        </>
-      )}
+          </>
+        )
+      }}
     </FormShell>
+  )
+}
+
+// v3.2 - Pix estático (BR Code): mostra QR (renderizado no cliente com `qrcode.react`, mesma
+// biblioteca já usada pelo MFA) + o "copia e cola" retornado pelo backend, com botão de copiar.
+// Só faz sentido para título "A Receber" pendente - "A Pagar" é a ASAF pagando alguém, não
+// recebendo.
+function PainelPix({ idTitulo }: { idTitulo: number }) {
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['pix-titulo', idTitulo],
+    queryFn: () => obterPixTitulo(idTitulo),
+  })
+  const [copiado, setCopiado] = useState(false)
+
+  if (isLoading)
+    return <p className="mt-2 text-xs text-muted-foreground">Gerando Pix…</p>
+  if (isError)
+    return (
+      <p className="mt-2 text-xs text-destructive">
+        {(error as Error).message}
+      </p>
+    )
+  if (!data) return null
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-3 rounded-md border border-border bg-muted/20 p-3">
+      <QRCodeSVG value={data.payload} size={120} />
+      <div className="min-w-0 flex-1">
+        <p className="mb-1 break-all font-mono text-xs">{data.payload}</p>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={async () => {
+            await navigator.clipboard.writeText(data.payload)
+            setCopiado(true)
+            setTimeout(() => setCopiado(false), 2000)
+          }}
+        >
+          {copiado ? 'Copiado!' : 'Copiar código Pix'}
+        </Button>
+      </div>
+    </div>
   )
 }
 
 export function TitulosPage() {
   const [mostrarForm, setMostrarForm] = useState(false)
   const [baixando, setBaixando] = useState<number | null>(null)
+  const [mostrandoPix, setMostrandoPix] = useState<number | null>(null)
   const [status, setStatus] = useState('')
   const [tipoTitulo, setTipoTitulo] = useState('')
 
@@ -461,22 +535,43 @@ export function TitulosPage() {
               </p>
               {t.status !== 'Pago' && (
                 <div className="mt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setBaixando((v) =>
-                        v === t.id_titulo ? null : t.id_titulo,
-                      )
-                    }
-                  >
-                    {baixando === t.id_titulo ? 'Cancelar baixa' : 'Baixar'}
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setBaixando((v) =>
+                          v === t.id_titulo ? null : t.id_titulo,
+                        )
+                      }
+                    >
+                      {baixando === t.id_titulo ? 'Cancelar baixa' : 'Baixar'}
+                    </Button>
+                    {t.tipo_titulo === 'A Receber' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setMostrandoPix((v) =>
+                            v === t.id_titulo ? null : t.id_titulo,
+                          )
+                        }
+                      >
+                        {mostrandoPix === t.id_titulo
+                          ? 'Ocultar Pix'
+                          : 'Ver Pix'}
+                      </Button>
+                    )}
+                  </div>
                   {baixando === t.id_titulo && (
                     <FormularioBaixa
                       idTitulo={t.id_titulo}
+                      saldoDevedor={t.saldo_devedor}
                       onCancelar={() => setBaixando(null)}
                     />
+                  )}
+                  {mostrandoPix === t.id_titulo && (
+                    <PainelPix idTitulo={t.id_titulo} />
                   )}
                 </div>
               )}

@@ -478,6 +478,61 @@ export const baixarTituloSchema = z.object({
   id_centro_custo: z.coerce.number().optional(),
   data_competencia: z.string().optional(),
   comprovante: z.string().optional(),
+  // v3.2 - "pagamento a maior": só exigido quando o valor pago excede o saldo devedor (checado
+  // no backend, não aqui - a mensagem real de erro é mostrada quando falta).
+  id_conta_contabil_adiantamento: z.coerce.number().optional(),
+})
+
+// Usado por "Planos de Contribuição" (pages/PlanosContribuicao.tsx, v3.2) - mensalidade por
+// categoria de associado. `valor_inicial` só é usado na criação; reajuste depois é
+// `reajustePlanoContribuicaoSchema`.
+export const planoContribuicaoCriarSchema = z.object({
+  categoria: z.string().min(1, 'Informe a categoria.'),
+  descricao: z.string().min(1, 'Informe a descrição.'),
+  periodicidade: z.string().min(1, 'Selecione a periodicidade.'),
+  dia_vencimento: z.coerce
+    .number()
+    .int()
+    .min(1, 'Dia inválido.')
+    .max(31, 'Dia inválido.'),
+  cobranca_por_nucleo_familiar: z.boolean(),
+  id_conta_contabil: z.coerce
+    .number()
+    .int({ message: 'Selecione a conta contábil (Receita).' })
+    .positive({ message: 'Selecione a conta contábil (Receita).' }),
+  valor_inicial: z.coerce.number().positive('Informe um valor maior que zero.'),
+})
+
+// Usado por "Reajustar" (pages/PlanosContribuicao.tsx, v3.2) - o backend recusa vigência igual
+// ou anterior à vigência atual (nunca reabre um período já fechado).
+export const reajustePlanoContribuicaoSchema = z.object({
+  valor: z.coerce.number().positive('Informe um valor maior que zero.'),
+  data_vigencia_inicio: z
+    .string()
+    .min(1, 'Informe a data de início da vigência.'),
+  motivo: z.string().min(3, 'Informe o motivo do reajuste.'),
+})
+
+// Usado por "Isenções" (pages/PlanosContribuicao.tsx, v3.2) - `id_plano` vazio = isenção vale
+// para qualquer plano do associado.
+export const isencaoContribuicaoCriarSchema = z.object({
+  id_associado: z.coerce
+    .number()
+    .int({ message: 'Selecione o associado.' })
+    .positive({ message: 'Selecione o associado.' }),
+  id_plano: z.coerce.number().optional(),
+  motivo: z.string().min(1, 'Selecione o motivo.'),
+  percentual_desconto: z.coerce
+    .number()
+    .positive('Informe um percentual maior que zero.')
+    .max(100, 'No máximo 100%.'),
+  data_fim: z.string().optional(),
+})
+
+// Usado por "Gerar Cobranças" (pages/GerarCobrancas.tsx, v3.2) - sempre roda como prévia
+// primeiro (confirmar=false); "Confirmar" é uma ação separada, nunca o mesmo clique.
+export const gerarCobrancasSchema = z.object({
+  competencia: z.string().regex(/^\d{4}-\d{2}$/, 'Use o formato AAAA-MM.'),
 })
 
 // Usado por "Razão Contábil" (pages/RazaoContabil.tsx, v2.5.10) - o backend também recusa

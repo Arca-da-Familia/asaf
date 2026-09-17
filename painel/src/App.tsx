@@ -24,8 +24,11 @@ import { DevComponents } from '@/pages/DevComponents'
 import { ExerciciosPage } from '@/pages/Exercicios'
 import { FornecedoresPage } from '@/pages/Fornecedores'
 import { CentrosCustoPage } from '@/pages/CentrosCusto'
+import { ConciliacaoPage } from '@/pages/Conciliacao'
 import { ContasFinanceirasPage } from '@/pages/ContasFinanceiras'
+import { GerarCobrancasPage } from '@/pages/GerarCobrancas'
 import { PlanoContasPage } from '@/pages/PlanoContas'
+import { PlanosContribuicaoPage } from '@/pages/PlanosContribuicao'
 import {
   ProcessoDisciplinarDetalhePage,
   ProcessosDisciplinaresPage,
@@ -291,6 +294,30 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Centros de Custo">
                 <CentrosCustoPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="planos-contribuicao"
+            element={
+              <ErrorBoundary tituloModulo="Planos de Contribuição">
+                <PlanosContribuicaoPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="gerar-cobrancas"
+            element={
+              <ErrorBoundary tituloModulo="Gerar Cobranças">
+                <GerarCobrancasPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="conciliacao"
+            element={
+              <ErrorBoundary tituloModulo="Conciliação Bancária">
+                <ConciliacaoPage />
               </ErrorBoundary>
             }
           />

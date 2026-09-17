@@ -121,6 +121,21 @@ export const modulos: Modulo[] = [
         rotulo: 'Centros de Custo',
         icone: BookOpen,
       },
+      {
+        rota: '/financeiro/planos-contribuicao',
+        rotulo: 'Planos de Contribuição',
+        icone: Receipt,
+      },
+      {
+        rota: '/financeiro/gerar-cobrancas',
+        rotulo: 'Gerar Cobranças',
+        icone: Receipt,
+      },
+      {
+        rota: '/financeiro/conciliacao',
+        rotulo: 'Conciliação',
+        icone: BookText,
+      },
     ],
   },
   {

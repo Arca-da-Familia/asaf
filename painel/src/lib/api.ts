@@ -2547,3 +2547,169 @@ export function estornarLancamento(
     body: JSON.stringify({ motivo }),
   })
 }
+
+// ---------------------------------------------------------------------------
+// Financeiro: Mensalidades e cobrança recorrente (backend v3.2, painel v3.2) - Plano de
+// Contribuição (com valor vigente versionado), isenção/desconto, geração de cobrança em lote
+// (idempotente por competência), Pix estático (copia e cola) e crédito de associado (pagamento
+// a maior). "Cobrança" é sempre um `TituloFinanceiro` "A Receber" por baixo - a tela de Títulos
+// (v2.5.9) continua sendo onde se dá baixa nelas.
+// ---------------------------------------------------------------------------
+export type PlanoDeContribuicao = {
+  id_plano: number
+  categoria: string
+  descricao: string
+  periodicidade: string
+  dia_vencimento: number
+  cobranca_por_nucleo_familiar: boolean
+  id_conta_contabil: number
+  ativo: boolean
+  valor_vigente: number | null
+}
+
+export function listarPlanosContribuicao(): Promise<PlanoDeContribuicao[]> {
+  return apiFetch('/api/planos-contribuicao/')
+}
+
+export function criarPlanoContribuicao(dados: {
+  categoria: string
+  descricao: string
+  periodicidade: string
+  dia_vencimento: number
+  cobranca_por_nucleo_familiar: boolean
+  id_conta_contabil: number
+  valor_inicial: number
+}): Promise<{ mensagem: string; id_plano: number }> {
+  return apiFetch('/api/planos-contribuicao/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function reajustarPlanoContribuicao(
+  idPlano: number,
+  dados: { valor: number; data_vigencia_inicio: string; motivo: string },
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/planos-contribuicao/${idPlano}/reajustar`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type IsencaoContribuicao = {
+  id_isencao: number
+  id_associado: number
+  id_plano: number | null
+  motivo: string
+  percentual_desconto: number
+  data_inicio: string | null
+  data_fim: string | null
+}
+
+export function listarIsencoesContribuicao(
+  idAssociado?: number,
+): Promise<IsencaoContribuicao[]> {
+  const query = idAssociado ? `?id_associado=${idAssociado}` : ''
+  return apiFetch(`/api/isencoes-contribuicao/${query}`)
+}
+
+export function criarIsencaoContribuicao(dados: {
+  id_associado: number
+  id_plano?: number
+  motivo: string
+  percentual_desconto: number
+  data_fim?: string
+}): Promise<{ mensagem: string; id_isencao: number }> {
+  return apiFetch('/api/isencoes-contribuicao/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type PrevisaoCobranca = {
+  competencia: string
+  confirmado: boolean
+  total_gerados: number
+  total_ja_existentes: number
+  total_dependentes_pulados: number
+  total_isentos_totais: number
+  valor_total: number
+  detalhes: {
+    id_associado: number
+    nome: string
+    id_plano: number
+    descricao_plano: string
+    valor: number
+  }[]
+}
+
+export function gerarCobrancas(
+  competencia: string,
+  confirmar: boolean,
+): Promise<PrevisaoCobranca> {
+  return apiFetch('/api/contribuicoes/gerar-cobrancas/', {
+    method: 'POST',
+    body: JSON.stringify({ competencia, confirmar }),
+  })
+}
+
+export function obterPixTitulo(
+  idTitulo: number,
+): Promise<{ payload: string; valor: number }> {
+  return apiFetch(`/api/titulos/${idTitulo}/pix`)
+}
+
+export type CreditoAssociado = {
+  id_credito: number
+  valor: number
+  valor_original: number
+  origem: string
+  id_titulo_origem: number | null
+  data_criacao: string | null
+}
+
+export function listarCreditosAssociado(
+  idAssociado: number,
+): Promise<CreditoAssociado[]> {
+  return apiFetch(`/api/creditos-associado/${idAssociado}`)
+}
+
+export function aplicarCredito(dados: {
+  id_credito: number
+  id_titulo: number
+  id_conta_contabil_adiantamento: number
+}): Promise<{
+  mensagem: string
+  valor_aplicado: number
+  saldo_credito_restante: number
+  saldo_devedor_titulo: number
+}> {
+  return apiFetch('/api/creditos-associado/aplicar', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type SugestaoConciliacao = {
+  identificador: string
+  data: string
+  valor: number
+  descricao: string
+  sugestoes: {
+    id_titulo: number
+    descricao: string
+    tipo_titulo: string
+    saldo_devedor: number
+  }[]
+}
+
+export function importarExtratoConciliacao(
+  arquivo: File,
+): Promise<{ transacoes: SugestaoConciliacao[] }> {
+  const formData = new FormData()
+  formData.append('arquivo', arquivo)
+  return apiFetch('/api/conciliacao/importar', {
+    method: 'POST',
+    body: formData,
+  })
+}

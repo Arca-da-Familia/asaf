@@ -196,6 +196,17 @@ def seed_catalogos():
             ("COMPORTAMENTO_ANTISSOCIAL", "Comportamento antissocial ou quebra das regras de convivência"),
             ("INADIMPLENCIA_6_MENSALIDADES", "Falta de pagamento de 6 mensalidades consecutivas"),
         ]),
+        # v3.2 - periodicidade de um `PlanoDeContribuicao` (mensalidade). Catálogo editável -
+        # entra "Trimestral"/"Semestral" sem deploy se a diretoria decidir cobrar diferente.
+        "periodicidade_contribuicao": ("Periodicidade de contribuição", True, "financeiro", [
+            ("MENSAL", "Mensal"), ("ANUAL", "Anual"),
+        ]),
+        # v3.2 - motivo de isenção/desconto de contribuição, sempre de catálogo (nunca texto
+        # livre solto) - mesmo espírito de `motivo_desligamento`/`motivo_licenca` (v0.3.2).
+        "motivo_isencao_contribuicao": ("Motivo de isenção de contribuição", True, "financeiro", [
+            ("DIFICULDADE_FINANCEIRA", "Dificuldade financeira comprovada"), ("FUNDADOR", "Associado fundador"),
+            ("DIRETORIA", "Membro da diretoria em exercício"), ("OUTRO", "Outro"),
+        ]),
         "unidade_medida_indicador": ("Unidade de medida de indicador", True, "projetos", [
             ("UNIDADE", "Unidade"), ("PERCENTUAL", "Percentual"), ("REAL", "Real (R$)"),
             ("QUILOGRAMA", "Quilograma"), ("HORA", "Hora"), ("PESSOA", "Pessoa"),
@@ -306,6 +317,11 @@ def seed_configuracoes_institucionais():
         {"chave": "COR_PRIMARIA", "valor": "#1D4ED8", "tipo": "cor", "categoria": "aparencia", "descricao": "Cor primária de documentos e identidade visual."},
         {"chave": "COR_SECUNDARIA", "valor": "#64748B", "tipo": "cor", "categoria": "aparencia", "descricao": "Cor secundária de documentos e identidade visual."},
         {"chave": "DADOS_BANCARIOS", "valor": "", "tipo": "texto", "categoria": "financeiro", "descricao": "Banco, agência e conta para recebimento (texto livre)."},
+        # v3.2 - Pix ESTÁTICO (ver app/services/pix.py): as três chaves que o BR Code exige.
+        # Nenhuma API de banco/PSP envolvida - só o dado público da própria chave Pix da ASAF.
+        {"chave": "CHAVE_PIX", "valor": "", "tipo": "texto", "categoria": "financeiro", "descricao": "Chave Pix da instituição (CNPJ, e-mail, telefone ou aleatória) usada para gerar o Pix Copia e Cola das cobranças."},
+        {"chave": "NOME_BENEFICIARIO_PIX", "valor": "", "tipo": "texto", "categoria": "financeiro", "descricao": "Nome do beneficiário exibido no Pix (máx. 25 caracteres, sem acento - o BR Code corta e normaliza automaticamente)."},
+        {"chave": "CIDADE_BENEFICIARIO_PIX", "valor": "", "tipo": "texto", "categoria": "financeiro", "descricao": "Cidade do beneficiário exibida no Pix (máx. 15 caracteres, sem acento)."},
         {"chave": "FUSO_HORARIO", "valor": "America/Sao_Paulo", "tipo": "texto", "categoria": "geral", "descricao": "Fuso horário usado em datas de documento e agendamento."},
         {"chave": "EMAIL_REMETENTE", "valor": "", "tipo": "email", "categoria": "geral", "descricao": "E-mail usado como remetente de notificações do sistema."},
         {"chave": "TEXTO_PADRAO_DOCUMENTO", "valor": "", "tipo": "texto", "categoria": "documentos", "descricao": "Texto padrão (rodapé/aviso legal) incluído nos documentos gerados."},

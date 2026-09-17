@@ -3289,52 +3289,160 @@ Financeiro todas confirmadas visualmente no painel.
       > `registrar_auditoria` em toda escrita (plano de contas, fornecedor, título, baixa,
       > estorno, abertura/fechamento de exercício), com `dados_antes`/`dados_depois` nas edições.
 
-#### v3.1 — Plano de contas, centros de custo e caixa
+#### v3.1 — Plano de contas, centros de custo e caixa ✅ CONCLUÍDO (2026-09-17)
 > **Já entregue pela v3.0** (revisão de desenho do mesmo dia, ver nota acima): os cinco tipos
 > contábeis (Ativo/Passivo/Patrimônio Líquido/Receita/Despesa) com natureza devedora/credora
 > derivada, e `numero_sequencial` único por exercício em todo `LancamentoContabil`. O que resta
 > aqui é hierarquia (sintética x analítica) e a separação competência x caixa — nunca reabrir a
 > classificação de tipo/natureza, que já está resolvida.
-- [ ] `PlanoDeContas` **hierárquico** (conta sintética x analítica, com `codigo_contabil_pai`) -
+- [x] `PlanoDeContas` **hierárquico** (conta sintética x analítica, com `codigo_contabil_pai`) -
       só a analítica recebe lançamento (`PartidaContabil.id_conta` deve apontar só pra folha da
       árvore) - e bloqueio de exclusão de conta com movimento.
-- [ ] `CentroDeCusto` ligado a projeto/evento/área (FASE 4) — permite responder "quanto custou o
+      > `codigo_contabil_pai` (FK pra `plano_de_contas.codigo_contabil`) em
+      > `app/models/financeiro.py`. `contabilidade.exigir_conta_analitica` é chamada por
+      > `criar_lancamento` pra toda `id_conta` de toda partida - conta com filha (sintética)
+      > nunca recebe lançamento direto, checado ali, nunca confiado a quem chama.
+      > `DELETE /api/plano-contas/{id_conta}` (não existia até aqui) bloqueia exclusão de conta
+      > com filha, com movimento no razão, referenciada por título ou que seja uma
+      > `ContaFinanceira`. Painel: `PlanoContas.tsx` ganhou seletor de conta pai, badge
+      > "Sintética" e botão Excluir.
+- [x] `CentroDeCusto` ligado a projeto/evento/área (FASE 4) — permite responder "quanto custou o
       projeto X" sem planilha paralela, e alimenta a prestação de contas a doador (v12.6). Entra
       como campo opcional em `PartidaContabil` (a partida sabe a conta E o centro de custo),
       nunca como tabela paralela que pode divergir do lançamento real.
-- [ ] `ContaFinanceira` (caixa, conta corrente, poupança, conta de aplicação) — uma
+      > `CentroDeCusto` (`app/models/financeiro.py`, com `id_projeto` opcional pra `ProjetoEvento`
+      > da FASE 4, ainda prototípico) + `id_centro_custo` nullable em `PartidaContabil`. CRUD em
+      > `POST/GET /api/centros-custo/` e `PUT /api/centros-custo/{id}/ativo` (ativa/inativa, nunca
+      > apaga). Painel: tela nova `CentrosCusto.tsx`; selecionável na baixa de título
+      > (`Titulos.tsx`) e na transferência (`RazaoContabil.tsx`).
+- [x] `ContaFinanceira` (caixa, conta corrente, poupança, conta de aplicação) — uma
       especialização de `PlanoDeContas` tipo Ativo. Saldo sempre calculado somando
       `PartidaContabil` daquela conta (débito soma, crédito subtrai - a mesma mecânica que já
       existe desde a v3.0 para o indicador "saldo em contas Ativo"), jamais campo de saldo
       editável.
-- [ ] Data de competência **separada** da data de caixa em `LancamentoContabil` (hoje só existe
+      > `ContaFinanceira` (`app/models/financeiro.py`) referencia uma `PlanoDeContas` tipo Ativo
+      > (`contabilidade.exigir_tipo_conta`, mesma trava de sempre). `contabilidade.saldo_conta`
+      > generaliza o cálculo que já existia inline em `listar_livro_caixa` — nenhum campo de saldo
+      > gravado. CRUD em `POST/GET /api/contas-financeiras/` (GET já devolve o saldo calculado).
+      > Painel: tela nova `ContasFinanceiras.tsx`.
+- [x] Data de competência **separada** da data de caixa em `LancamentoContabil` (hoje só existe
       `data_lancamento`, que é as duas coisas ao mesmo tempo) — distinção que a contabilidade
       exige e que sistemas amadores ignoram. Numeração sequencial ("termo nº") já existe desde a
       v3.0; falta só o equivalente formal ao talão físico (numeração por tipo de lançamento,
       se o costume contábil da entidade exigir).
-- [ ] Anexo de comprovante obrigatório por tipo de lançamento (configurável) — despesa sem
+      > `data_competencia` nova em `LancamentoContabil`; `data_lancamento` passa a ser a data de
+      > CAIXA (documentado no modelo). `criar_lancamento` aceita `data_competencia`/`data_caixa`
+      > opcionais (default: hoje, competência = caixa quando omitida). Migração faz backfill dos
+      > lançamentos antigos (`data_competencia = data_lancamento`). Numeração formal por tipo de
+      > lançamento (talão físico) **não implementada** - fica pendente pra quando a entidade
+      > confirmar que o costume contábil dela exige, mesmo padrão de pendência registrada de
+      > outras versões deste plano.
+- [x] Anexo de comprovante obrigatório por tipo de lançamento (configurável) — despesa sem
       comprovante é a porta de entrada de todo problema de prestação de contas.
-- [ ] Transferência entre contas como operação própria (não duas entradas soltas que podem
+      > `contabilidade.exige_comprovante` lê `OpcaoCatalogo.metadados["exige_comprovante"]` do
+      > catálogo `tipo_conta_contabil` (motor genérico da v0.3.1) - a opção DESPESA nasce com o
+      > flag ligado por padrão (seed novo + migração de dado pra quem já tinha o catálogo em
+      > produção), ajustável pela diretoria no admin de catálogos sem deploy. Upload em
+      > `POST /api/comprovantes/` (`/uploads/comprovantes/...`, mesmo padrão de
+      > `associados.py`/`ata.py`); `baixar_titulo` recusa baixa de Despesa sem comprovante.
+      > Painel: upload na baixa de título (`Titulos.tsx`) e link "Ver comprovante" no extrato
+      > (`RazaoContabil.tsx`, via `urlArquivo` - mesma correção da v2.5.4c, nunca caminho bruto).
+- [x] Transferência entre contas como operação própria (não duas entradas soltas que podem
       divergir) — na prática já é só mais um caso de uso de
       `contabilidade.criar_lancamento` (débito na conta de destino, crédito na de origem),
       exposto como endpoint dedicado pra não exigir que quem opera monte a partida na mão.
+      > `POST /api/transferencias/` (`TransferenciaCriar`) recusa origem igual a destino e chama
+      > `contabilidade.criar_lancamento` com `tipo_origem="TRANSFERENCIA"`. Painel: formulário
+      > "Nova transferência" em `RazaoContabil.tsx`.
+>
+> **Testes**: 8 casos novos em `tests/test_financeiro.py` (conta sintética recusa lançamento
+> direto, exclusão bloqueada por filha/movimento, saldo de `ContaFinanceira` pela soma das
+> partidas, transferência move saldo entre duas contas, centro de custo registrado na partida,
+> data de competência separada da de caixa, comprovante obrigatório/aceito) - 224/224 testes da
+> suíte inteira passando. Migração `5278bf9ee537` validada upgrade+downgrade contra schema
+> pré-v3.1 simulado (achado corrigido nesta mesma validação: coluna JSON grava `None` como o
+> literal `"null"`, não SQL `NULL` - o backfill original checava `IS NULL` e não teria pego o
+> catálogo já existente em produção; corrigido pra ler em Python antes de decidir).
+> Deploy confirmado em produção (`painel.asaf.org.br/version.json` = commit `6204047`,
+> `api.asaf.org.br` via `deploy-api.yml`, migração Alembic aplicada em produção).
 
-#### v3.2 — Mensalidades e cobrança recorrente
-- [ ] `PlanoDeContribuicao` por categoria de associado (valor, periodicidade, dia de vencimento,
+#### v3.2 — Mensalidades e cobrança recorrente ✅ CONCLUÍDO (2026-09-17, boleto pendente por decisão explícita)
+> **Achado confirmado com o usuário nesta versão**: a ASAF não tem convênio de emissão de boleto
+> com nenhum banco (código de cedente/carteira) nem orçamento para API paga de PSP/banco - só a
+> própria chave Pix. Decisão explícita: implementar Pix ESTÁTICO de verdade (sem depender de
+> nenhum serviço pago) e deixar emissão de boleto e confirmação automática de pagamento
+> pendentes, com a mesma pendência já registrada na v3.2.1 (Pix Automático) - "quando houver
+> orçamento pra convênio bancário". O fluxo real hoje é manual: o associado copia o Pix, paga,
+> anexa comprovante (ou avisa que pagou) e a tesouraria confirma a baixa - nunca fingido como
+> automático.
+- [x] `PlanoDeContribuicao` por categoria de associado (valor, periodicidade, dia de vencimento,
       reajuste anual por índice configurável, isenção por regra) — reajuste é decisão registrada
       com data de vigência, nunca edição direta que apaga o histórico.
-- [ ] Geração de `Cobranca` em lote com prévia obrigatória (quantas, para quem, total) antes de
+      > `PlanoDeContribuicao` + `ValorPlanoContribuicao` (`app/models/financeiro.py`) — valor
+      > NUNCA é coluna do plano, é uma linha versionada por vigência
+      > (`app/services/contribuicoes.py::valor_vigente`); reajuste (`POST
+      > /api/planos-contribuicao/{id}/reajustar`) encerra a vigência anterior e cria uma linha
+      > nova, nunca edita a antiga - recusa reajuste com vigência igual/anterior à atual (nunca
+      > reabre um período já fechado). "Índice configurável" não veio como campo à parte -
+      > `motivo_reajuste` é texto livre onde o índice usado é registrado; catálogo de índices
+      > fica pendente pra se um dia a diretoria pedir automação do cálculo.
+- [x] Geração de `Cobranca` em lote com prévia obrigatória (quantas, para quem, total) antes de
       efetivar — e idempotência por competência: rodar a geração duas vezes no mesmo mês nunca
       duplica cobrança.
-- [ ] Isenções e descontos com motivo de catálogo, prazo de vigência e aprovador registrado.
-- [ ] Cobrança por família/núcleo doméstico (v1.7) quando o estatuto previr.
-- [ ] PIX estático (QR code e copia-e-cola) e boleto opcional — confirmado por pesquisa como
+      > Decisão de arquitetura: "Cobrança" não é tabela nova — é um `TituloFinanceiro` "A
+      > Receber" gerado em lote, reaproveitando toda a baixa/estorno/auditoria que já existem
+      > desde a v2.6/v3.0, nunca um conceito paralelo. `POST /api/contribuicoes/gerar-cobrancas/`
+      > com `confirmar=false` (padrão) é só a prévia; `confirmar=true` grava. Idempotência
+      > garantida no BANCO, não só na lógica: `UniqueConstraint(id_associado,
+      > id_plano_contribuicao, competencia)` em `TituloFinanceiro` — testado rodando a geração
+      > duas vezes na mesma competência (`tests/test_contribuicoes.py`).
+- [x] Isenções e descontos com motivo de catálogo, prazo de vigência e aprovador registrado.
+      > `IsencaoContribuicao` (motivo do catálogo `motivo_isencao_contribuicao`, novo,
+      > `percentual_desconto` 0-100, vigência com `data_inicio`/`data_fim`,
+      > `id_usuario_aprovador` = quem cadastrou). Aplicada automaticamente na geração de
+      > cobrança - isenção de 100% nunca gera título de valor zero, some da lista.
+- [x] Cobrança por família/núcleo doméstico (v1.7) quando o estatuto previr.
+      > `PlanoDeContribuicao.cobranca_por_nucleo_familiar` (opcional, por plano): na geração, um
+      > associado que é DEPENDENTE registrado (`DependenteFamiliar.id_pessoa_vinculada`, v1.7) de
+      > outro associado titular elegível não recebe cobrança própria - só o titular é cobrado
+      > (`app/services/contribuicoes.py::_titular_do_nucleo`).
+- [x] PIX estático (QR code e copia-e-cola) e boleto opcional — confirmado por pesquisa como
       baseline do mercado nacional (o mercado internacional resolve por cartão; aqui é PIX/boleto
       com conciliação).
-- [ ] Conciliação manual em lote a partir de extrato (OFX/CSV/colagem), com sugestão automática de
+      > Pix estático implementado de verdade e sem dependência externa: `app/services/pix.py`
+      > gera o payload BR Code (EMV/BACEN) completo, incluindo CRC16-CCITT-FALSE calculado
+      > localmente - `GET /api/titulos/{id}/pix` devolve o "copia e cola" de um título "A
+      > Receber" pendente, valor e beneficiário vindos de `ConfiguracaoInstitucional`
+      > (`CHAVE_PIX`/`NOME_BENEFICIARIO_PIX`/`CIDADE_BENEFICIARIO_PIX`, três chaves canônicas
+      > novas). Painel renderiza o QR com `qrcode.react` (já usado no MFA) + botão de copiar
+      > (`Titulos.tsx`). **Boleto não implementado, de propósito** - ver nota da versão acima
+      > (sem convênio bancário, sem orçamento pra API paga).
+- [x] Conciliação manual em lote a partir de extrato (OFX/CSV/colagem), com sugestão automática de
       correspondência por valor+data+identificador e confirmação humana.
-- [ ] Baixa parcial, pagamento a maior (crédito em conta do associado) e pagamento antecipado
+      > `app/services/conciliacao.py` faz parsing de CSV (colunas `data`/`valor`/`descricao`) e
+      > OFX (extração por regex dos blocos `<STMTTRN>` - OFX é SGML, não XML bem-formado; uma
+      > biblioteca dedicada não se justificava só pra isso) e sugere correspondência por valor
+      > exato + data dentro de uma janela de 5 dias contra títulos em aberto. Confirmação
+      > continua sempre humana - a sugestão só aponta pra tela de Títulos, nunca dá baixa
+      > sozinha. "Colagem" direta de texto não implementada — só upload de arquivo.
+- [x] Baixa parcial, pagamento a maior (crédito em conta do associado) e pagamento antecipado
       tratados explicitamente — são a maior fonte de divergência em cobrança recorrente.
+      > Baixa parcial e pagamento antecipado já funcionavam de forma genérica desde a v3.0/v2.6
+      > (`baixar_titulo` sempre aceitou `valor_pago` menor que o saldo devedor, e nunca checou
+      > data de vencimento) - só confirmados e testados explicitamente agora, nenhum código novo.
+      > Pagamento a maior é novo: `CreditoAssociado` (`app/models/financeiro.py`) nasce do
+      > excedente de uma baixa (`id_conta_contabil_adiantamento`, Passivo, exigido no momento -
+      > `baixar_titulo` recusa valor pago maior que o saldo sem essa conta) e é consumível depois
+      > em qualquer título futuro do mesmo associado (`POST /api/creditos-associado/aplicar`),
+      > sempre com lançamento contábil de verdade (nunca um número solto numa tabela).
+>
+> **Testes**: 7 casos novos em `tests/test_contribuicoes.py` (valor vigente e reajuste preserva
+> histórico, geração idempotente por competência, isenção reduz/zera cobrança, cobrança por
+> família pula dependente, Pix copia-e-cola com estrutura EMV válida, pagamento a maior gera e
+> aplica crédito, conciliação CSV sugere correspondência) — 231/231 testes da suíte inteira
+> passando (3 asserts de contagem de configuração institucional em testes pré-existentes
+> atualizados de 19 para 22, refletindo as 3 chaves novas do Pix). Migração `c24c04ccd948`
+> validada upgrade+downgrade+upgrade contra schema pré-v3.2 simulado.
 
 ##### 🔍 Ponto de Revisão — FASE 3 (1/3, fecha v3.0–v3.2)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:

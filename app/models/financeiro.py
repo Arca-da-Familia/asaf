@@ -77,6 +77,9 @@ class Exercicio(Base):
 
 class TituloFinanceiro(Base):
     __tablename__ = "titulos_financeiros"
+    __table_args__ = (
+        UniqueConstraint("id_associado", "id_plano_contribuicao", "competencia", name="uq_titulo_cobranca_por_competencia"),
+    )
     id_titulo = Column(Integer, primary_key=True, index=True)
     tipo_titulo = Column(String)
     id_conta_contabil = Column(Integer, ForeignKey("plano_de_contas.id_conta"))
@@ -88,6 +91,80 @@ class TituloFinanceiro(Base):
     data_emissao = Column(DateTime, default=datetime.utcnow)
     data_vencimento = Column(DateTime)
     status = Column(String, default="Pendente")
+    # v3.2 - título gerado por `gerar_cobrancas` (mensalidade/contribuição recorrente). Os dois
+    # juntos (nunca um sem o outro) são a chave de IDEMPOTÊNCIA da geração em lote: rodar a
+    # geração duas vezes na mesma competência nunca duplica cobrança - a `UniqueConstraint` acima
+    # garante isso no banco, não só na lógica do serviço (ver
+    # app/services/contribuicoes.py::gerar_cobrancas). Título lançado manualmente (fora da
+    # geração em lote) nunca preenche estes dois - ambos ficam `NULL`, fora da constraint.
+    id_plano_contribuicao = Column(Integer, ForeignKey("planos_contribuicao.id_plano"), nullable=True)
+    competencia = Column(String(7), nullable=True)  # "AAAA-MM"
+
+
+class PlanoDeContribuicao(Base):
+    """v3.2 - mensalidade/contribuição recorrente por categoria de associado (Art. 55 do
+    estatuto). O VALOR não é coluna aqui - mora em `ValorPlanoContribuicao`, versionado por
+    vigência (reajuste é uma linha nova com `data_vigencia_inicio`, nunca edição que apaga
+    quanto se cobrava antes - ver app/services/contribuicoes.py::valor_vigente)."""
+    __tablename__ = "planos_contribuicao"
+    id_plano = Column(Integer, primary_key=True, index=True)
+    categoria = Column(String, nullable=False)  # rótulo do catálogo `categoria_associado` (v0.3.1)
+    descricao = Column(String, nullable=False)
+    periodicidade = Column(String, nullable=False, default="Mensal")  # catálogo `periodicidade_contribuicao`
+    dia_vencimento = Column(Integer, nullable=False)
+    # v3.2 - "cobrança por família/núcleo doméstico (v1.7) quando o estatuto previr": quando
+    # ligado, um associado que é DEPENDENTE (`DependenteFamiliar.id_pessoa_vinculada`) de outro
+    # associado titular não recebe cobrança própria nesta competência - só o titular é cobrado
+    # (ver app/services/contribuicoes.py::gerar_cobrancas).
+    cobranca_por_nucleo_familiar = Column(Boolean, default=False, nullable=False)
+    id_conta_contabil = Column(Integer, ForeignKey("plano_de_contas.id_conta"), nullable=False)
+    ativo = Column(Boolean, default=True, nullable=False)
+
+
+class ValorPlanoContribuicao(Base):
+    """v3.2 - valor vigente de um `PlanoDeContribuicao`, versionado: reajuste NUNCA edita o
+    valor anterior, sempre encerra a vigência dele (`data_vigencia_fim`) e cria uma linha nova -
+    histórico completo de quanto se cobrava em cada época preservado para sempre."""
+    __tablename__ = "valores_plano_contribuicao"
+    id_valor = Column(Integer, primary_key=True, index=True)
+    id_plano = Column(Integer, ForeignKey("planos_contribuicao.id_plano"), nullable=False)
+    valor = Column(Numeric(14, 2), nullable=False)
+    data_vigencia_inicio = Column(DateTime, nullable=False, default=datetime.utcnow)
+    data_vigencia_fim = Column(DateTime, nullable=True)
+    motivo_reajuste = Column(String, nullable=True)
+    id_usuario_registro = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+
+
+class IsencaoContribuicao(Base):
+    """v3.2 - isenção/desconto de contribuição, sempre com motivo de catálogo, aprovador e
+    vigência - nunca "desconto que ninguém sabe por quê" (mesmo espírito da FASE 3 inteira:
+    quem registra é rastreável). `id_plano=NULL` = isenção vale para qualquer plano do
+    associado."""
+    __tablename__ = "isencoes_contribuicao"
+    id_isencao = Column(Integer, primary_key=True, index=True)
+    id_associado = Column(Integer, ForeignKey("associados.id_associado"), nullable=False)
+    id_plano = Column(Integer, ForeignKey("planos_contribuicao.id_plano"), nullable=True)
+    motivo = Column(String, nullable=False)  # catálogo `motivo_isencao_contribuicao`
+    percentual_desconto = Column(Numeric(5, 2), nullable=False)  # 0-100 (100 = isenção total)
+    data_inicio = Column(DateTime, nullable=False, default=datetime.utcnow)
+    data_fim = Column(DateTime, nullable=True)
+    id_usuario_aprovador = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+
+
+class CreditoAssociado(Base):
+    """v3.2 - "pagamento a maior (crédito em conta do associado) tratado explicitamente":
+    excedente de uma baixa vira crédito aqui (nunca perdido, nunca devolvido em dinheiro sem
+    decisão) - consumível em títulos futuros do mesmo associado
+    (`app/services/contribuicoes.py::aplicar_credito`). `valor` é o saldo RESTANTE do crédito
+    (decresce a cada aplicação); `valor_original` nunca muda, é o histórico de quanto nasceu."""
+    __tablename__ = "creditos_associado"
+    id_credito = Column(Integer, primary_key=True, index=True)
+    id_associado = Column(Integer, ForeignKey("associados.id_associado"), nullable=False)
+    valor = Column(Numeric(14, 2), nullable=False)
+    valor_original = Column(Numeric(14, 2), nullable=False)
+    origem = Column(String, nullable=False)
+    id_titulo_origem = Column(Integer, ForeignKey("titulos_financeiros.id_titulo"), nullable=True)
+    data_criacao = Column(DateTime, default=datetime.utcnow)
 
 class LancamentoContabil(Base):
     """v3.0 - lançamento do razão contábil em partida dobrada real: um cabeçalho com N

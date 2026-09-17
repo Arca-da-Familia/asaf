@@ -57,6 +57,84 @@ class ContaFinanceiraCriar(BaseModel):
         return v.strip()
 
 
+class PlanoDeContribuicaoCriar(BaseModel):
+    categoria: str
+    descricao: str
+    periodicidade: str = "Mensal"
+    dia_vencimento: int
+    cobranca_por_nucleo_familiar: bool = False
+    id_conta_contabil: int
+    valor_inicial: Decimal
+
+    @field_validator("dia_vencimento")
+    @classmethod
+    def validar_dia_vencimento(cls, v):
+        if not (1 <= v <= 31):
+            raise ValueError("Dia de vencimento deve ser entre 1 e 31.")
+        return v
+
+    @field_validator("valor_inicial")
+    @classmethod
+    def validar_valor_inicial(cls, v):
+        if v <= 0:
+            raise ValueError("O valor deve ser maior que zero.")
+        return v
+
+
+class ReajusteCriar(BaseModel):
+    valor: Decimal
+    data_vigencia_inicio: datetime
+    motivo: str
+
+    @field_validator("valor")
+    @classmethod
+    def validar_valor(cls, v):
+        if v <= 0:
+            raise ValueError("O valor deve ser maior que zero.")
+        return v
+
+    @field_validator("motivo")
+    @classmethod
+    def validar_motivo(cls, v):
+        if len(v.strip()) < 3:
+            raise ValueError("Informe o motivo do reajuste.")
+        return v.strip()
+
+
+class IsencaoCriar(BaseModel):
+    id_associado: int
+    id_plano: Optional[int] = None
+    motivo: str
+    percentual_desconto: Decimal
+    data_inicio: Optional[datetime] = None
+    data_fim: Optional[datetime] = None
+
+    @field_validator("percentual_desconto")
+    @classmethod
+    def validar_percentual(cls, v):
+        if not (0 < v <= 100):
+            raise ValueError("Percentual de desconto deve ser maior que zero e no máximo 100.")
+        return v
+
+
+class GerarCobrancasRequest(BaseModel):
+    competencia: str
+    confirmar: bool = False
+
+    @field_validator("competencia")
+    @classmethod
+    def validar_competencia(cls, v):
+        if not re.match(r"^\d{4}-\d{2}$", v):
+            raise ValueError("Competência deve estar no formato AAAA-MM.")
+        return v
+
+
+class AplicarCreditoRequest(BaseModel):
+    id_credito: int
+    id_titulo: int
+    id_conta_contabil_adiantamento: int
+
+
 class TransferenciaCriar(BaseModel):
     id_conta_financeira_origem: int
     id_conta_financeira_destino: int
@@ -126,6 +204,10 @@ class BaixarTitulo(BaseModel):
     # app/services/contabilidade.py::exige_comprovante) - checado no endpoint, não aqui, porque
     # depende de uma consulta ao banco.
     comprovante: Optional[str] = None
+    # v3.2 - "pagamento a maior (crédito em conta do associado)": obrigatório só quando
+    # `valor_pago` > saldo devedor do título - o excedente vira `CreditoAssociado`, contabilizado
+    # nesta conta (Passivo - "Adiantamento de Associados"), nunca perdido nem devolvido informal.
+    id_conta_contabil_adiantamento: Optional[int] = None
 
     @field_validator("valor_pago")
     @classmethod
