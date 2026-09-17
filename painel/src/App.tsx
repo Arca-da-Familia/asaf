@@ -27,6 +27,7 @@ import { CentrosCustoPage } from '@/pages/CentrosCusto'
 import { ConciliacaoPage } from '@/pages/Conciliacao'
 import { ContasFinanceirasPage } from '@/pages/ContasFinanceiras'
 import { GerarCobrancasPage } from '@/pages/GerarCobrancas'
+import { NegociacaoDividaPage } from '@/pages/NegociacaoDivida'
 import { PlanoContasPage } from '@/pages/PlanoContas'
 import { PlanosContribuicaoPage } from '@/pages/PlanosContribuicao'
 import {
@@ -318,6 +319,14 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Conciliação Bancária">
                 <ConciliacaoPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="negociacao-divida"
+            element={
+              <ErrorBoundary tituloModulo="Negociação de Dívida">
+                <NegociacaoDividaPage />
               </ErrorBoundary>
             }
           />

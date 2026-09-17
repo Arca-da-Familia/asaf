@@ -3546,16 +3546,45 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > Configurações Institucionais (listar/editar por categoria) — fora do escopo deste intervalo por
 > item 7 do checklist (não inflar a versão atual com um módulo à parte).
 
-#### v3.2.2 — Inadimplência como processo, não como rótulo
-- [ ] Régua de cobrança configurável (lembrete antes do vencimento, aviso no vencimento, avisos
-      escalonados depois), multicanal (FASE 11/v11.3), com histórico de cada tentativa.
-- [ ] Negociação/parcelamento de débito com termo de confissão de dívida assinado (FASE 20),
-      gerando cobranças filhas rastreadas até a origem.
-- [ ] Efeitos estatutários automáticos e **configuráveis** da inadimplência (perde direito a voto,
-      não reserva espaço, não usa benefício) com carência definida — e reversão automática no
-      pagamento, sem depender de alguém lembrar de reativar.
-- [ ] Tratamento humano obrigatório antes de qualquer exclusão por inadimplência: o sistema abre
-      o processo (v2.7), nunca exclui sozinho.
+#### v3.2.2 — Inadimplência como processo, não como rótulo (2026-09-17)
+> **Investigação antes de codar** (economizou trabalho duplicado): três dos quatro itens abaixo
+> já estavam total ou parcialmente resolvidos por versões anteriores, achado confirmado lendo o
+> código antes de implementar:
+> - **"Perde direito a voto"** já existe desde a v2.2 —
+>   `app/services/assembleia.py::calcular_lista_habilitados` já exclui `Ativo - Inadimplente` da
+>   lista de habilitados a votar (Art. 13/4º do estatuto). Nenhuma mudança necessária.
+> - **Reversão automática no pagamento** já existe desde a v1.1 —
+>   `app/services/categoria_associado.py::recalcular_categoria_associado` já recalcula o status a
+>   cada evento financeiro, sem exigir ação manual.
+> - **Nunca exclui sozinho** já é garantido por design — a mesma função nunca toca em
+>   `Suspenso`/`Desligado`, só transiciona entre estados reversíveis.
+> - **"Não reserva espaço"/"não usa benefício"** não têm como ser conectados ainda — os módulos
+>   de reserva de espaço e de parceiros/benefícios não existem no sistema. Registrado aqui como
+>   pendência de integração futura, não uma lacuna desta versão.
+- [x] Régua de cobrança escalonada **pós-vencimento** (`DIAS_ATRASO_LEMBRETE`, lista configurável
+      de dias de atraso, ex.: "7,15,30") — soma-se ao lembrete antes/no vencimento já entregue na
+      v3.2.1. Multicanal fica pra FASE 11/v11.3 (só e-mail por enquanto, mesmo canal do resto).
+      Cada aviso só sai uma vez por título (`LembreteMensalidadeEnviado`).
+- [x] Negociação/parcelamento de débito (`NegociacaoDivida`) — título vencido nunca é
+      editado/apagado, ganha status "Renegociado" (excluído do cálculo de inadimplência) e vira
+      um plano de parcelas novo, rastreável até a origem
+      (`TituloFinanceiro.id_negociacao_origem`/`id_negociacao_parcela`). **Termo de confissão de
+      dívida em TEXTO, não assinado eletronicamente** — assinatura eletrônica real é FASE 20,
+      ainda não existe no sistema; até lá, o termo registra autoria/data e o aceite do associado
+      é tratado como processo humano/presencial.
+- [x] Efeitos estatutários automáticos e configuráveis: voto (já existente, ver acima) +
+      reabilitação automática ao negociar (as parcelas novas vencem no futuro, então negociar já
+      tira o associado de "Ativo - Inadimplente" na hora, incentivo real a regularizar).
+- [x] Tratamento humano obrigatório antes de qualquer exclusão por inadimplência: já garantido
+      por design (ver achado acima) — esta versão não adicionou nenhum caminho de exclusão
+      automática.
+> **Testes**: 5 casos novos em `tests/test_negociacao.py` (parcelamento cria títulos e reabilita
+> o associado, recusa título já pago/de outro associado/já renegociado, listagem por associado) +
+> 2 em `tests/test_lembretes.py` (aviso escalonado configurável, idempotência) — 249/249 testes da
+> suíte inteira passando. Migração `e5f7a9c1d3b4` validada upgrade+downgrade+upgrade contra schema
+> pré-v3.2.2 simulado. Painel: tela "Negociação de Dívida" (Financeiro › Negociação de Dívida) —
+> confirmação visual em produção ainda pendente (mesma lacuna de ferramenta de navegador já
+> registrada no Ponto de Revisão FASE 3 1/3, acima).
 
 #### v3.2.3 — Desconto por Pagamento Antecipado em Bloco (configurável, decisão de assembleia 2026-09-17)
 > **Pedido da diretoria (2026-09-17)**: incentivar quem paga a mensalidade adiantada, em bloco

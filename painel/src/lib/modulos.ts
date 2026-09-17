@@ -136,6 +136,11 @@ export const modulos: Modulo[] = [
         rotulo: 'Conciliação',
         icone: BookText,
       },
+      {
+        rota: '/financeiro/negociacao-divida',
+        rotulo: 'Negociação de Dívida',
+        icone: Receipt,
+      },
     ],
   },
   {

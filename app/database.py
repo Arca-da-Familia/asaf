@@ -335,6 +335,10 @@ def seed_configuracoes_institucionais():
         # app/services/lembretes.py) - quantos dias antes do vencimento o primeiro lembrete sai
         # (o segundo sempre sai no próprio dia do vencimento, não configurável).
         {"chave": "DIAS_LEMBRETE_MENSALIDADE", "valor": "5", "tipo": "numero", "categoria": "regras", "descricao": "Dias antes do vencimento em que o lembrete automático de mensalidade (e-mail com Pix pronto) é enviado."},
+        # v3.2.2 - régua de cobrança escalonada pós-vencimento (ver app/services/lembretes.py) -
+        # lista de dias de atraso (separados por vírgula) em que um aviso mais urgente sai,
+        # multicanal fica pra FASE 11/v11.3 (só e-mail por enquanto, mesmo canal do resto).
+        {"chave": "DIAS_ATRASO_LEMBRETE", "valor": "7,15,30", "tipo": "texto", "categoria": "regras", "descricao": "Dias de atraso (separados por vírgula) em que um lembrete escalonado de cobrança é enviado após o vencimento."},
         # v2.0 - cláusulas pétreas do Art. 33 do estatuto: identidade institucional, não regra
         # operacional (nunca bloqueiam nenhuma ação do sistema, por isso NÃO entram em
         # RegraEstatutaria - ver seed_regras_estatutarias e PLANO_PROJETO.md v2.0).

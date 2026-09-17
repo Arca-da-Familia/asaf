@@ -136,6 +136,37 @@ def test_dias_lembrete_e_configuravel(client, auth_headers, db, monkeypatch):
     assert titulo_5_dias not in ids_notificados  # 5 dias não é mais o gatilho
 
 
+def test_lembrete_escalonado_pos_vencimento_configuravel(client, auth_headers, db, monkeypatch):
+    from app.models.core import ConfiguracaoInstitucional
+    from app.services import lembretes
+
+    _configurar_pix(db)
+    config = db.query(ConfiguracaoInstitucional).filter(ConfiguracaoInstitucional.chave_configuracao == "DIAS_ATRASO_LEMBRETE").first()
+    config.valor_configuracao = "7,20"
+    db.commit()
+
+    conta_receita = _criar_conta(client, auth_headers, "3.2.9904", "Receita Lembrete Teste 5", tipo="Receita")
+    associado = _criar_associado(client)
+    hoje = datetime(2094, 5, 10)
+    titulo_atraso_7 = _criar_titulo_a_receber(client, auth_headers, conta_receita, associado["id_associado"], 50, hoje - timedelta(days=7))
+    titulo_atraso_20 = _criar_titulo_a_receber(client, auth_headers, conta_receita, associado["id_associado"], 50, hoje - timedelta(days=20))
+    titulo_atraso_15 = _criar_titulo_a_receber(client, auth_headers, conta_receita, associado["id_associado"], 50, hoje - timedelta(days=15))
+
+    enviados = []
+    monkeypatch.setattr(lembretes.notificacoes, "enviar_email", lambda destinatario, assunto, corpo_texto: enviados.append(destinatario))
+
+    resultado = lembretes.enviar_lembretes_do_dia(db, hoje=hoje)
+    tipos_por_titulo = {r["id_titulo"]: r["tipo_lembrete"] for r in resultado}
+
+    assert tipos_por_titulo[titulo_atraso_7] == "ATRASO_7"
+    assert tipos_por_titulo[titulo_atraso_20] == "ATRASO_20"
+    assert titulo_atraso_15 not in tipos_por_titulo  # 15 dias não está na configuração ("7,20")
+
+    # rodar de novo no mesmo dia não duplica nenhum aviso escalonado.
+    resultado2 = lembretes.enviar_lembretes_do_dia(db, hoje=hoje)
+    assert resultado2 == []
+
+
 def test_enviar_email_falha_sem_smtp_configurado(monkeypatch):
     from app.services import notificacoes
 

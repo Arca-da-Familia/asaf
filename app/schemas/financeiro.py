@@ -272,6 +272,34 @@ class GerarCobrancaBlocoRequest(BaseModel):
         return v
 
 
+class NegociacaoDividaCriar(BaseModel):
+    id_associado: int
+    ids_titulos_originais: list[int]
+    quantidade_parcelas: int
+    termo: str
+
+    @field_validator("ids_titulos_originais")
+    @classmethod
+    def validar_titulos(cls, v):
+        if not v:
+            raise ValueError("Informe ao menos um título para renegociar.")
+        return v
+
+    @field_validator("quantidade_parcelas")
+    @classmethod
+    def validar_parcelas(cls, v):
+        if not (1 <= v <= 60):
+            raise ValueError("Quantidade de parcelas deve ser entre 1 e 60.")
+        return v
+
+    @field_validator("termo")
+    @classmethod
+    def validar_termo(cls, v):
+        if len(v.strip()) < 10:
+            raise ValueError("Descreva os termos da negociação (mínimo 10 caracteres) - é o registro que substitui a confissão de dívida assinada até a FASE 20 existir.")
+        return v.strip()
+
+
 class ExercicioAbrir(BaseModel):
     ano: int
 

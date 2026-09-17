@@ -573,6 +573,19 @@ export const gerarCobrancaBlocoSchema = z.object({
     .regex(/^\d{4}-\d{2}$/, 'Use o formato AAAA-MM.'),
 })
 
+// Usado por "Negociação de Dívida" (pages/NegociacaoDivida.tsx, v3.2.2) - a seleção de títulos
+// vencidos é feita por checkbox em estado local do componente (lista de ids), fora deste schema.
+export const negociacaoDividaCriarSchema = z.object({
+  quantidade_parcelas: z.coerce
+    .number()
+    .int()
+    .min(1, 'Mínimo 1 parcela.')
+    .max(60, 'Máximo 60 parcelas.'),
+  termo: z
+    .string()
+    .min(10, 'Descreva os termos da negociação (mínimo 10 caracteres).'),
+})
+
 // Usado por "Razão Contábil" (pages/RazaoContabil.tsx, v2.5.10) - o backend também recusa
 // motivo com menos de 5 caracteres e lançamento já estornado (mensagem real é mostrada).
 export const estornoCriarSchema = z.object({

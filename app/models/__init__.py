@@ -37,6 +37,7 @@ from app.models.financeiro import (
     CampanhaDescontoAntecipado,
     ReconhecimentoReceitaDiferida,
     LembreteMensalidadeEnviado,
+    NegociacaoDivida,
 )
 from app.models.governanca import (
     Assembleia,
@@ -101,6 +102,7 @@ __all__ = [
     "CampanhaDescontoAntecipado",
     "ReconhecimentoReceitaDiferida",
     "LembreteMensalidadeEnviado",
+    "NegociacaoDivida",
     "Assembleia",
     "HabilitadoAssembleia",
     "PeticaoConvocacao",

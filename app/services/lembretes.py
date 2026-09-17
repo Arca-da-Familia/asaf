@@ -1,10 +1,14 @@
-"""v3.2.1 (adaptado, 2026-09-17) - lembrete automático de mensalidade por e-mail, com o Pix já
-pronto (copia e cola) - substitui Pix Automático (Resolução BCB 402/506, exige convênio com um
-banco/PSP parceiro pago, sem orçamento hoje - achado confirmado com o usuário). Dois lembretes
-por título, cada um só uma vez (`LembreteMensalidadeEnviado`, trava por
-UniqueConstraint(id_titulo, tipo_lembrete)): alguns dias antes do vencimento
-(`DIAS_LEMBRETE_MENSALIDADE`, configurável) e no próprio dia do vencimento. Nunca debita nada
-sozinho - só entrega o Pix pronto na caixa de entrada, decisão de pagar continua 100% humana."""
+"""v3.2.1/v3.2.2 (adaptado, 2026-09-17) - régua de cobrança por e-mail, com o Pix já pronto
+(copia e cola) - substitui Pix Automático (Resolução BCB 402/506, exige convênio com um banco/PSP
+parceiro pago, sem orçamento hoje - achado confirmado com o usuário). Multicanal fica pra FASE
+11/v11.3 (só e-mail por enquanto). Cada tipo de lembrete só sai uma vez por título
+(`LembreteMensalidadeEnviado`, trava por UniqueConstraint(id_titulo, tipo_lembrete)):
+- alguns dias antes do vencimento (`DIAS_LEMBRETE_MENSALIDADE`, configurável);
+- no próprio dia do vencimento;
+- escalonado depois do vencimento (`DIAS_ATRASO_LEMBRETE`, lista configurável de dias de
+  atraso - v3.2.2), tom mais urgente, mencionando a possibilidade de negociar/parcelar.
+Nunca debita nada sozinho - só entrega o Pix pronto na caixa de entrada, decisão de pagar
+continua 100% humana."""
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -17,6 +21,7 @@ from app.models.financeiro import LembreteMensalidadeEnviado, TituloFinanceiro
 from app.services import notificacoes, pix
 
 _DIAS_LEMBRETE_PADRAO = 5
+_DIAS_ATRASO_PADRAO = [7, 15, 30]
 
 
 def _dias_lembrete_configurado(db: Session) -> int:
@@ -27,12 +32,35 @@ def _dias_lembrete_configurado(db: Session) -> int:
         return _DIAS_LEMBRETE_PADRAO
 
 
+def _dias_atraso_configurado(db: Session) -> list[int]:
+    config = db.query(ConfiguracaoInstitucional).filter(ConfiguracaoInstitucional.chave_configuracao == "DIAS_ATRASO_LEMBRETE").first()
+    if not config or not config.valor_configuracao:
+        return _DIAS_ATRASO_PADRAO
+    try:
+        return sorted({int(d.strip()) for d in config.valor_configuracao.split(",") if d.strip()})
+    except ValueError:
+        return _DIAS_ATRASO_PADRAO
+
+
 def _corpo_lembrete(titulo: TituloFinanceiro, payload_pix: str, tipo_lembrete: str) -> str:
-    quando = "vence hoje" if tipo_lembrete == "NO_VENCIMENTO" else f"vence em {titulo.data_vencimento.strftime('%d/%m/%Y')}"
+    if tipo_lembrete == "NO_VENCIMENTO":
+        quando = "vence hoje"
+    elif tipo_lembrete.startswith("ATRASO_"):
+        dias = tipo_lembrete.split("_")[1]
+        quando = f"está em atraso há {dias} dia(s) (venceu em {titulo.data_vencimento.strftime('%d/%m/%Y')})"
+    else:
+        quando = f"vence em {titulo.data_vencimento.strftime('%d/%m/%Y')}"
+
+    aviso_atraso = (
+        "\nSe precisar, procure a tesouraria para negociar o pagamento em parcelas - "
+        "regularizar reabilita automaticamente seus direitos associativos.\n"
+        if tipo_lembrete.startswith("ATRASO_") else ""
+    )
     return (
         f"Olá,\n\nSua mensalidade \"{titulo.descricao}\" {quando}, no valor de "
         f"R$ {titulo.saldo_devedor:.2f}.\n\n"
-        f"Pix copia e cola (abra o app do seu banco, Pix > Pix Copia e Cola):\n{payload_pix}\n\n"
+        f"Pix copia e cola (abra o app do seu banco, Pix > Pix Copia e Cola):\n{payload_pix}\n"
+        f"{aviso_atraso}\n"
         f"Este é um lembrete automático - nenhum valor foi debitado, o pagamento continua "
         f"sendo feito por você, quando quiser.\n"
     )
@@ -42,11 +70,15 @@ def enviar_lembretes_do_dia(db: Session, hoje: Optional[datetime] = None) -> lis
     hoje_data = (hoje or datetime.utcnow()).date()
     dias_antes = _dias_lembrete_configurado(db)
 
-    resultado: list[dict] = []
-    for tipo_lembrete, data_alvo in (
+    tipos_e_datas = [
         ("ANTES_VENCIMENTO", hoje_data + timedelta(days=dias_antes)),
         ("NO_VENCIMENTO", hoje_data),
-    ):
+    ]
+    for dias_atraso in _dias_atraso_configurado(db):
+        tipos_e_datas.append((f"ATRASO_{dias_atraso}", hoje_data - timedelta(days=dias_atraso)))
+
+    resultado: list[dict] = []
+    for tipo_lembrete, data_alvo in tipos_e_datas:
         titulos = (
             db.query(TituloFinanceiro)
             .filter(

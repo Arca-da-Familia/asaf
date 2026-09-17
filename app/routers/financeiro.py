@@ -30,17 +30,17 @@ from app.database import get_db
 from app.models.associados import Associado
 from app.models.financeiro import (
     CampanhaDescontoAntecipado, CentroDeCusto, ContaFinanceira, CreditoAssociado, Exercicio,
-    IsencaoContribuicao, LancamentoContabil, PartidaContabil, PlanoDeContas, PlanoDeContribuicao,
-    Fornecedor, TituloFinanceiro, ValorPlanoContribuicao,
+    IsencaoContribuicao, LancamentoContabil, NegociacaoDivida, PartidaContabil, PlanoDeContas,
+    PlanoDeContribuicao, Fornecedor, TituloFinanceiro, ValorPlanoContribuicao,
 )
 from app.schemas.financeiro import (
     AplicarCreditoRequest, CampanhaDescontoAntecipadoCriar, CentroDeCustoCriar, ContaFinanceiraCriar,
     EstornoCriar, ExercicioAbrir, GerarCobrancaBlocoRequest, GerarCobrancasRequest, IsencaoCriar,
-    PlanoContaCriar, PlanoDeContribuicaoCriar, ReajusteCriar, FornecedorCriar, TituloCriar,
-    BaixarTitulo, TransferenciaCriar,
+    NegociacaoDividaCriar, PlanoContaCriar, PlanoDeContribuicaoCriar, ReajusteCriar, FornecedorCriar,
+    TituloCriar, BaixarTitulo, TransferenciaCriar,
 )
 from app.security import exigir_permissao
-from app.services import conciliacao, contabilidade, contribuicoes, pix as pix_service
+from app.services import conciliacao, contabilidade, contribuicoes, negociacao, pix as pix_service
 from app.services.categoria_associado import recalcular_categoria_associado
 
 router = APIRouter()
@@ -414,6 +414,8 @@ def listar_titulos(status: str = None, tipo_titulo: str = None, db: Session = De
             "status": t.status,
             "competencia": t.competencia,
             "competencia_fim": t.competencia_fim,
+            "id_negociacao_origem": t.id_negociacao_origem,
+            "id_negociacao_parcela": t.id_negociacao_parcela,
         })
     return resultado
 
@@ -454,6 +456,50 @@ def lancar_titulo(dados: TituloCriar, request: Request, db: Session = Depends(ge
         # em vez de esperar o próximo evento.
         recalcular_categoria_associado(db, novo_titulo.id_associado)
     return {"mensagem": "Título registrado.", "id_titulo": novo_titulo.id_titulo}
+
+
+# ==========================================
+# NEGOCIAÇÃO/PARCELAMENTO DE DÉBITO (v3.2.2)
+# ==========================================
+@router.get("/api/negociacoes-divida/", summary="Listar Negociações de Dívida")
+def listar_negociacoes_divida(id_associado: int = None, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+    consulta = db.query(NegociacaoDivida)
+    if id_associado:
+        consulta = consulta.filter(NegociacaoDivida.id_associado == id_associado)
+    negociacoes = consulta.order_by(NegociacaoDivida.data_negociacao.desc()).all()
+    return [
+        {
+            "id_negociacao": n.id_negociacao, "id_associado": n.id_associado, "valor_total": n.valor_total,
+            "quantidade_parcelas": n.quantidade_parcelas, "termo": n.termo,
+            "data_negociacao": n.data_negociacao.date().isoformat() if n.data_negociacao else None,
+        }
+        for n in negociacoes
+    ]
+
+
+@router.post("/api/negociacoes-divida/", summary="Negociar/Parcelar Débito em Atraso")
+def negociar_divida_endpoint(dados: NegociacaoDividaCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    """v3.2.2 - título(s) vencido(s) de um associado viram um plano de parcelas novo. O(s)
+    título(s) original(is) nunca são editados/apagados - ganham status "Renegociado" (ver
+    app/services/negociacao.py::negociar_divida). Termo de confissão de dívida registrado em
+    texto (assinatura eletrônica fica pra FASE 20, ainda não existe)."""
+    nova_negociacao = negociacao.negociar_divida(
+        db, id_associado=dados.id_associado, ids_titulos_originais=dados.ids_titulos_originais,
+        quantidade_parcelas=dados.quantidade_parcelas, termo=dados.termo, id_usuario=usuario.id_usuario,
+    )
+    registrar_auditoria(
+        db, usuario, "negociacoes_divida", "CREATE", id_registro_afetado=nova_negociacao.id_negociacao,
+        dados_depois={
+            "id_associado": nova_negociacao.id_associado, "valor_total": str(nova_negociacao.valor_total),
+            "quantidade_parcelas": nova_negociacao.quantidade_parcelas, "titulos_originais": dados.ids_titulos_originais,
+        },
+        ip_origem=_ip_origem(request),
+    )
+    recalcular_categoria_associado(db, nova_negociacao.id_associado, usuario=usuario, ip_origem=_ip_origem(request))
+    return {
+        "mensagem": "Dívida renegociada.", "id_negociacao": nova_negociacao.id_negociacao,
+        "valor_total": nova_negociacao.valor_total, "quantidade_parcelas": nova_negociacao.quantidade_parcelas,
+    }
 
 
 # ==========================================

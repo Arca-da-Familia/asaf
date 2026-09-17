@@ -2731,6 +2731,42 @@ export function gerarCobrancaBloco(dados: {
   })
 }
 
+// v3.2.2 - negociação/parcelamento de débito em atraso: título original nunca é editado/apagado
+// (ganha status "Renegociado"), parcelas novas nascem como título "A Receber" normal. Termo de
+// confissão de dívida em texto - assinatura eletrônica fica pra FASE 20 (ainda não existe).
+export type NegociacaoDivida = {
+  id_negociacao: number
+  id_associado: number
+  valor_total: number
+  quantidade_parcelas: number
+  termo: string
+  data_negociacao: string | null
+}
+
+export function listarNegociacoesDivida(
+  idAssociado?: number,
+): Promise<NegociacaoDivida[]> {
+  const query = idAssociado ? `?id_associado=${idAssociado}` : ''
+  return apiFetch(`/api/negociacoes-divida/${query}`)
+}
+
+export function negociarDivida(dados: {
+  id_associado: number
+  ids_titulos_originais: number[]
+  quantidade_parcelas: number
+  termo: string
+}): Promise<{
+  mensagem: string
+  id_negociacao: number
+  valor_total: number
+  quantidade_parcelas: number
+}> {
+  return apiFetch('/api/negociacoes-divida/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
 export function obterPixTitulo(
   idTitulo: number,
 ): Promise<{ payload: string; valor: number }> {

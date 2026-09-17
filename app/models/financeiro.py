@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Boolean, Column, Integer, String, ForeignKey, DateTime, Numeric, UniqueConstraint
+from sqlalchemy import Boolean, Column, Integer, String, ForeignKey, DateTime, Numeric, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -107,6 +107,13 @@ class TituloFinanceiro(Base):
     # reconhecida depois, mês a mês, por `contribuicoes.reconhecer_receita_diferida_do_mes`.
     competencia_fim = Column(String(7), nullable=True)  # "AAAA-MM"
     id_campanha_desconto_antecipado = Column(Integer, ForeignKey("campanhas_desconto_antecipado.id_campanha"), nullable=True)
+    # v3.2.2 - negociação/parcelamento de débito (ver `NegociacaoDivida` abaixo):
+    # `id_negociacao_origem` marca o título ORIGINAL que foi renegociado (status vira
+    # "Renegociado" - nunca editado/apagado, só superado por parcelas novas, mesmo espírito de
+    # imutabilidade de todo título/lançamento deste projeto). `id_negociacao_parcela` marca cada
+    # título NOVO (parcela) nascido de uma negociação - nunca os dois preenchidos no mesmo título.
+    id_negociacao_origem = Column(Integer, ForeignKey("negociacoes_divida.id_negociacao"), nullable=True)
+    id_negociacao_parcela = Column(Integer, ForeignKey("negociacoes_divida.id_negociacao"), nullable=True)
 
 
 class PlanoDeContribuicao(Base):
@@ -220,6 +227,25 @@ class LembreteMensalidadeEnviado(Base):
     id_titulo = Column(Integer, ForeignKey("titulos_financeiros.id_titulo"), nullable=False)
     tipo_lembrete = Column(String, nullable=False)  # "ANTES_VENCIMENTO" | "NO_VENCIMENTO"
     data_envio = Column(DateTime, default=datetime.utcnow)
+
+
+class NegociacaoDivida(Base):
+    """v3.2.2 - negociação/parcelamento de débito em atraso, com termo de confissão de dívida em
+    TEXTO (assinatura eletrônica de verdade fica pra FASE 20, ainda não existe no sistema - até
+    lá, `termo` registra as condições acordadas, com autoria e data, e o aceite do associado é um
+    processo humano/presencial fora do sistema). O(s) título(s) original(is) NUNCA são
+    editados/apagados - ganham status "Renegociado" (excluído do cálculo de inadimplência, ver
+    app/services/categoria_associado.py) e as parcelas novas nascem como títulos "A Receber"
+    normais, sempre rastreáveis até aqui via `TituloFinanceiro.id_negociacao_origem`/
+    `id_negociacao_parcela`."""
+    __tablename__ = "negociacoes_divida"
+    id_negociacao = Column(Integer, primary_key=True, index=True)
+    id_associado = Column(Integer, ForeignKey("associados.id_associado"), nullable=False)
+    valor_total = Column(Numeric(14, 2), nullable=False)
+    quantidade_parcelas = Column(Integer, nullable=False)
+    termo = Column(Text, nullable=False)
+    id_usuario_registro = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+    data_negociacao = Column(DateTime, default=datetime.utcnow)
 
 
 class CreditoAssociado(Base):
