@@ -126,13 +126,18 @@ function FormularioTransferencia({ onCancelar }: { onCancelar: () => void }) {
             >
               <option value="0">Conta de origem…</option>
               {(contasFinanceiras ?? []).map((cf) => (
-                <option key={cf.id_conta_financeira} value={cf.id_conta_financeira}>
+                <option
+                  key={cf.id_conta_financeira}
+                  value={cf.id_conta_financeira}
+                >
                   {cf.codigo_contabil} — {cf.descricao_conta}
                 </option>
               ))}
             </select>
             <ErroCampo
-              mensagem={form.formState.errors.id_conta_financeira_origem?.message}
+              mensagem={
+                form.formState.errors.id_conta_financeira_origem?.message
+              }
             />
           </div>
           <div>
@@ -142,13 +147,18 @@ function FormularioTransferencia({ onCancelar }: { onCancelar: () => void }) {
             >
               <option value="0">Conta de destino…</option>
               {(contasFinanceiras ?? []).map((cf) => (
-                <option key={cf.id_conta_financeira} value={cf.id_conta_financeira}>
+                <option
+                  key={cf.id_conta_financeira}
+                  value={cf.id_conta_financeira}
+                >
                   {cf.codigo_contabil} — {cf.descricao_conta}
                 </option>
               ))}
             </select>
             <ErroCampo
-              mensagem={form.formState.errors.id_conta_financeira_destino?.message}
+              mensagem={
+                form.formState.errors.id_conta_financeira_destino?.message
+              }
             />
           </div>
           <div>
@@ -171,9 +181,16 @@ function FormularioTransferencia({ onCancelar }: { onCancelar: () => void }) {
           </div>
           <div className="flex gap-2 sm:col-span-4">
             <Button type="submit" size="sm" disabled={transferir.isPending}>
-              {transferir.isPending ? 'Transferindo…' : 'Confirmar transferência'}
+              {transferir.isPending
+                ? 'Transferindo…'
+                : 'Confirmar transferência'}
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={onCancelar}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onCancelar}
+            >
               Cancelar
             </Button>
           </div>

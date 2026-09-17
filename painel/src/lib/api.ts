@@ -2294,10 +2294,9 @@ export function alternarCentroCusto(
   idCentroCusto: number,
   ativo: boolean,
 ): Promise<{ mensagem: string }> {
-  return apiFetch(
-    `/api/centros-custo/${idCentroCusto}/ativo?ativo=${ativo}`,
-    { method: 'PUT' },
-  )
+  return apiFetch(`/api/centros-custo/${idCentroCusto}/ativo?ativo=${ativo}`, {
+    method: 'PUT',
+  })
 }
 
 export type ContaFinanceira = {
@@ -2350,7 +2349,11 @@ export function criarTransferencia(dados: {
   id_centro_custo?: number
   data_competencia?: string
   comprovante?: string
-}): Promise<{ mensagem: string; id_lancamento: number; numero_sequencial: number }> {
+}): Promise<{
+  mensagem: string
+  id_lancamento: number
+  numero_sequencial: number
+}> {
   return apiFetch('/api/transferencias/', {
     method: 'POST',
     body: JSON.stringify(dados),
