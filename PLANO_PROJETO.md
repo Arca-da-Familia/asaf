@@ -3999,6 +3999,10 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 >   e fora do padrão do resto da suíte, documentado no próprio teste pra não se repetir.
 > **Checkboxes não marcados `[x]`** — confirmação visual das telas novas ainda pendente (mesma
 > lacuna de ferramenta de navegador já registrada nos pontos de revisão desta fase).
+> **Verificado em produção (2026-09-17)**: `Deploy API` (migração `d7f9b1c3e5a6` aplicada de
+> verdade contra o Postgres de produção - função + 3 triggers reais criadas nas tabelas que já
+> têm dado real) e `Deploy Painel` verdes de primeira (commit `bbc1caf`),
+> `painel.asaf.org.br/version.json` confirmado ao vivo batendo esse commit.
 
 ##### 🔍 Ponto de Revisão — FASE 3 (3/3 — fim, fecha v3.5–v3.7)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
