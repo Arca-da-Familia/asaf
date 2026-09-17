@@ -3815,8 +3815,10 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > - **Item 12 (produção)**: `git log origin/main..HEAD` vazio; `Deploy API` e `Deploy Painel`
 >   verdes para o commit `927f8ad` (v3.4, e todos os commits do intervalo antes dele, conferido via
 >   `gh run list`); `painel.asaf.org.br/version.json` confirmado **ao vivo** batendo `927f8ad` no
->   momento desta revisão. O fix do item 11 acima ainda precisa do próprio ciclo de deploy — ver
->   nota de commit/push logo abaixo.
+>   momento desta revisão. **Atualização**: fix do item 11 (link do comprovante) commitado
+>   (`8fa0a9e`), empurrado pro `main` remoto e com `Deploy Painel` verde para esse SHA —
+>   `painel.asaf.org.br/version.json` reconfirmado ao vivo batendo `8fa0a9e` (o resultado anterior
+>   era cache de CDN, refeito com `?cachebust=` pra confirmar de verdade).
 > - **Confirmação visual em produção segue pendente** (mesma lacuna de ferramenta de navegador
 >   interativo/logado já registrada nos pontos de revisão anteriores desta fase) — checkboxes de
 >   v3.2.1–v3.4 continuam sem `[x]` até o usuário (ou uma sessão com essa ferramenta) abrir as telas
