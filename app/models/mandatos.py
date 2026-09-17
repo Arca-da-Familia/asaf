@@ -48,13 +48,19 @@ class Mandato(Base):
 
 class DeclaracaoConflitoInteresse(Base):
     """v2.1 - conflito de interesse declarado por um dirigente (parente em fornecedor, interesse
-    em contrato). Consultada automaticamente pelo fluxo de aprovação financeira da FASE 3, que
-    ainda não existe - pendência registrada (mesmo padrão de app/models/filiacao.py para a
-    aprovação por assembleia): por ora só existe o registro e a consulta manual/via API."""
+    em contrato).
+
+    v3.3 - a pendência registrada aqui foi resolvida: consultada automaticamente pelo fluxo de
+    aprovação de compras (`app/services/compras.py::_checar_conflito_interesse`), que bloqueia um
+    aprovador (ou solicitante) com declaração ativa envolvendo o `id_fornecedor` em questão,
+    exigindo outro aprovador. `id_fornecedor` é opcional (NULL) para declarações antigas/gerais
+    feitas antes desta versão, tratadas como conflito com QUALQUER fornecedor (mais restritivo,
+    nunca menos, na ausência de detalhe)."""
     __tablename__ = "declaracoes_conflito_interesse"
     id_declaracao = Column(Integer, primary_key=True, index=True)
     id_associado = Column(Integer, ForeignKey("associados.id_associado"), nullable=False, index=True)
     descricao = Column(String, nullable=False)
     ativa = Column(Boolean, default=True)
+    id_fornecedor = Column(Integer, ForeignKey("fornecedores.id_fornecedor"), nullable=True)
     id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)

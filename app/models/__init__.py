@@ -52,6 +52,16 @@ from app.models.projetos import (
 from app.models.linha_do_tempo import EventoLinhaDoTempo
 from app.models.estatuto import DocumentoEstatuto, RegraEstatutaria
 from app.models.mandatos import DeclaracaoConflitoInteresse, Mandato
+from app.models.compras import (
+    DadosBancariosFornecedor,
+    AlcadaAprovacao,
+    DelegacaoAprovacao,
+    SolicitacaoCompra,
+    CotacaoCompra,
+    AprovacaoCompra,
+    ReembolsoDespesa,
+    ContaAPagarRecorrente,
+)
 from app.models.sessao_assembleia import Credenciamento, ItemPauta, OcorrenciaSessao
 from app.models.chamada import JustificativaFalta
 from app.models.ata import Ata, CertidaoDeliberacao, Deliberacao
@@ -133,4 +143,12 @@ __all__ = [
     "ManifestacaoDiretoria",
     "ProcessoDissolucao",
     "EventoCalendario",
+    "DadosBancariosFornecedor",
+    "AlcadaAprovacao",
+    "DelegacaoAprovacao",
+    "SolicitacaoCompra",
+    "CotacaoCompra",
+    "AprovacaoCompra",
+    "ReembolsoDespesa",
+    "ContaAPagarRecorrente",
 ]

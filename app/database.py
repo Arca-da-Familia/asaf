@@ -339,6 +339,9 @@ def seed_configuracoes_institucionais():
         # lista de dias de atraso (separados por vírgula) em que um aviso mais urgente sai,
         # multicanal fica pra FASE 11/v11.3 (só e-mail por enquanto, mesmo canal do resto).
         {"chave": "DIAS_ATRASO_LEMBRETE", "valor": "7,15,30", "tipo": "texto", "categoria": "regras", "descricao": "Dias de atraso (separados por vírgula) em que um lembrete escalonado de cobrança é enviado após o vencimento."},
+        # v3.3 - fluxo de compras (ver app/services/compras.py) - acima deste valor, a solicitação
+        # exige ao menos duas cotações registradas antes de poder ser aprovada.
+        {"chave": "VALOR_MINIMO_EXIGE_COTACAO", "valor": "1000", "tipo": "numero", "categoria": "regras", "descricao": "Valor (R$) a partir do qual uma solicitação de compra exige ao menos duas cotações antes de aprovação."},
         # v2.0 - cláusulas pétreas do Art. 33 do estatuto: identidade institucional, não regra
         # operacional (nunca bloqueiam nenhuma ação do sistema, por isso NÃO entram em
         # RegraEstatutaria - ver seed_regras_estatutarias e PLANO_PROJETO.md v2.0).

@@ -614,3 +614,98 @@ export const meResponseSchema = z.object({
   permissoes: z.array(z.string()),
   impersonando: impersonandoSchema.nullish(),
 })
+
+// v3.3 - dados bancários de fornecedor (segundo aprovador obrigatório, nunca quem solicitou).
+export const dadosBancariosFornecedorCriarSchema = z.object({
+  banco: z.string().min(1, 'Informe o banco.'),
+  agencia: z.string().min(1, 'Informe a agência.'),
+  conta: z.string().min(1, 'Informe a conta.'),
+  tipo_conta: z.string().min(1, 'Informe o tipo de conta.'),
+  titular: z.string().min(1, 'Informe o titular.'),
+})
+
+// v3.3 - alçada de aprovação: cargos_autorizados fica como texto ("TESOUREIRO,PRESIDENTE") no
+// formulário, convertido pra string[] só na hora de chamar a API.
+export const alcadaAprovacaoCriarSchema = z.object({
+  valor_minimo: z.coerce.number().min(0, 'Valor mínimo não pode ser negativo.'),
+  valor_maximo: z.string().optional(),
+  cargos_autorizados: z
+    .string()
+    .min(1, 'Informe ao menos um cargo (códigos separados por vírgula).'),
+  exige_dupla_assinatura: z.boolean(),
+})
+
+export const delegacaoAprovacaoCriarSchema = z.object({
+  id_associado_delegante: z.coerce
+    .number()
+    .int({ message: 'Selecione quem delega.' })
+    .positive({ message: 'Selecione quem delega.' }),
+  id_associado_delegado: z.coerce
+    .number()
+    .int({ message: 'Selecione o delegado.' })
+    .positive({ message: 'Selecione o delegado.' }),
+  data_fim: z.string().min(1, 'Informe até quando vale a delegação.'),
+  motivo: z.string().min(5, 'Informe o motivo da delegação.'),
+})
+
+// v3.3 - solicitação de compra: fluxo solicitação → cotação → aprovação → pagamento.
+export const solicitacaoCompraCriarSchema = z.object({
+  descricao: z.string().min(3, 'Informe a descrição da compra.'),
+  justificativa: z.string().optional(),
+  id_fornecedor: z.coerce.number().optional(),
+  valor_estimado: z.coerce
+    .number()
+    .positive('Valor estimado deve ser maior que zero.'),
+  id_conta_contabil: z.coerce
+    .number()
+    .int({ message: 'Selecione a conta contábil (Despesa).' })
+    .positive({ message: 'Selecione a conta contábil (Despesa).' }),
+})
+
+export const cotacaoCompraCriarSchema = z.object({
+  id_fornecedor: z.coerce
+    .number()
+    .int({ message: 'Selecione o fornecedor.' })
+    .positive({ message: 'Selecione o fornecedor.' }),
+  valor: z.coerce.number().positive('Valor deve ser maior que zero.'),
+  anexo: z.string().optional(),
+})
+
+export const reprovarSolicitacaoSchema = z.object({
+  motivo: z.string().min(3, 'Informe o motivo.'),
+})
+
+// v3.3 - reembolso de despesa de voluntário/dirigente (comprovante obrigatório).
+export const reembolsoDespesaCriarSchema = z.object({
+  id_associado: z.coerce
+    .number()
+    .int({ message: 'Selecione o associado.' })
+    .positive({ message: 'Selecione o associado.' }),
+  descricao: z.string().min(3, 'Informe a descrição da despesa.'),
+  valor: z.coerce.number().positive('Valor deve ser maior que zero.'),
+  id_conta_contabil: z.coerce
+    .number()
+    .int({ message: 'Selecione a conta contábil (Despesa).' })
+    .positive({ message: 'Selecione a conta contábil (Despesa).' }),
+  comprovante: z.string().min(1, 'Anexe o comprovante da despesa.'),
+})
+
+// v3.3 - contas a pagar recorrentes (aluguel, energia, contador).
+export const contaAPagarRecorrenteCriarSchema = z.object({
+  descricao: z.string().min(3, 'Informe a descrição.'),
+  valor: z.coerce.number().positive('Valor deve ser maior que zero.'),
+  id_conta_contabil: z.coerce
+    .number()
+    .int({ message: 'Selecione a conta contábil (Despesa).' })
+    .positive({ message: 'Selecione a conta contábil (Despesa).' }),
+  id_fornecedor: z.coerce.number().optional(),
+  dia_vencimento: z.coerce
+    .number()
+    .int()
+    .min(1, 'Dia inválido.')
+    .max(31, 'Dia inválido.'),
+})
+
+export const gerarContasAPagarSchema = z.object({
+  competencia: z.string().regex(/^\d{4}-\d{2}$/, 'Use o formato AAAA-MM.'),
+})

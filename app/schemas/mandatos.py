@@ -38,6 +38,10 @@ class MandatoEncerrar(BaseModel):
 class DeclaracaoConflitoInteresseCriar(BaseModel):
     id_associado: int
     descricao: str
+    # v3.3 - opcional: quando informado, a declaração só conflita nesse fornecedor específico
+    # (checado automaticamente pelo fluxo de aprovação de compras); quando NULL, conflita com
+    # qualquer fornecedor (mais restritivo, comportamento anterior a esta versão).
+    id_fornecedor: Optional[int] = None
 
     @field_validator("descricao")
     @classmethod

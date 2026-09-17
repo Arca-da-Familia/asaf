@@ -154,14 +154,15 @@ def declarar_conflito_interesse(dados: DeclaracaoConflitoInteresseCriar, request
     if not db.query(Associado).filter(Associado.id_associado == dados.id_associado).first():
         raise HTTPException(status_code=404, detail="Associado não encontrado.")
     declaracao = DeclaracaoConflitoInteresse(
-        id_associado=dados.id_associado, descricao=dados.descricao, id_usuario_criacao=usuario.id_usuario,
+        id_associado=dados.id_associado, descricao=dados.descricao, id_fornecedor=dados.id_fornecedor,
+        id_usuario_criacao=usuario.id_usuario,
     )
     db.add(declaracao)
     db.commit()
     db.refresh(declaracao)
     registrar_auditoria(
         db, usuario, "declaracoes_conflito_interesse", "CREATE", id_registro_afetado=declaracao.id_declaracao,
-        dados_depois={"id_associado": declaracao.id_associado, "descricao": declaracao.descricao},
+        dados_depois={"id_associado": declaracao.id_associado, "descricao": declaracao.descricao, "id_fornecedor": declaracao.id_fornecedor},
         ip_origem=request.client.host if request.client else None,
     )
     return {"mensagem": "Conflito de interesse declarado.", "id_declaracao": declaracao.id_declaracao}
@@ -178,7 +179,7 @@ def listar_conflitos_interesse(id_associado: Optional[int] = None, apenas_ativas
     return [
         {
             "id_declaracao": d.id_declaracao, "id_associado": d.id_associado, "descricao": d.descricao,
-            "ativa": d.ativa, "criado_em": d.criado_em,
+            "ativa": d.ativa, "id_fornecedor": d.id_fornecedor, "criado_em": d.criado_em,
         }
         for d in declaracoes
     ]

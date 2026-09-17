@@ -332,7 +332,15 @@ async def enviar_comprovante(request: Request, arquivo: UploadFile = File(...), 
 @router.get("/api/fornecedores/", summary="Listar Fornecedores")
 def listar_fornecedores(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
     fornecedores = db.query(Fornecedor).order_by(Fornecedor.razao_social).all()
-    return [{"id_fornecedor": f.id_fornecedor, "razao_social": f.razao_social, "cnpj": f.cnpj, "categoria_servico": f.categoria_servico, "telefone": f.telefone} for f in fornecedores]
+    return [
+        {
+            "id_fornecedor": f.id_fornecedor, "razao_social": f.razao_social, "cnpj": f.cnpj,
+            "categoria_servico": f.categoria_servico, "telefone": f.telefone,
+            "situacao_cadastral": f.situacao_cadastral,
+            "data_ultima_validacao_cadastral": f.data_ultima_validacao_cadastral,
+        }
+        for f in fornecedores
+    ]
 
 
 @router.post("/fornecedores/", summary="Cadastrar Fornecedor")

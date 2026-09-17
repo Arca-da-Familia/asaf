@@ -61,6 +61,12 @@ class Fornecedor(Base):
     cnpj = Column(String, unique=True, index=True)
     categoria_servico = Column(String)
     telefone = Column(String)
+    # v3.3 - validação automática de situação cadastral (API pública "Minha Receita", ver
+    # app/services/fornecedores.py::validar_situacao_cadastral) antes de aprovar pagamento. Sem
+    # SLA garantido - nunca bloqueia o processo se a API estiver fora (`situacao_cadastral` fica
+    # "Não verificado" e o processo segue, registrado como decisão consciente).
+    situacao_cadastral = Column(String, nullable=True)
+    data_ultima_validacao_cadastral = Column(DateTime, nullable=True)
 
 class Exercicio(Base):
     """v3.0 - ano contábil com abertura/fechamento formal. Exercício fechado não aceita
@@ -79,6 +85,10 @@ class TituloFinanceiro(Base):
     __tablename__ = "titulos_financeiros"
     __table_args__ = (
         UniqueConstraint("id_associado", "id_plano_contribuicao", "competencia", name="uq_titulo_cobranca_por_competencia"),
+        # v3.3 - mesma trava de idempotência do lado "A Pagar" (ver
+        # app/services/contas_a_pagar.py::gerar_contas_a_pagar) - rodar a geração mensal duas
+        # vezes nunca duplica a despesa recorrente, garantido no banco, não só na lógica.
+        UniqueConstraint("id_conta_a_pagar_recorrente", "competencia", name="uq_titulo_conta_a_pagar_recorrente_por_competencia"),
     )
     id_titulo = Column(Integer, primary_key=True, index=True)
     tipo_titulo = Column(String)
@@ -114,6 +124,10 @@ class TituloFinanceiro(Base):
     # título NOVO (parcela) nascido de uma negociação - nunca os dois preenchidos no mesmo título.
     id_negociacao_origem = Column(Integer, ForeignKey("negociacoes_divida.id_negociacao"), nullable=True)
     id_negociacao_parcela = Column(Integer, ForeignKey("negociacoes_divida.id_negociacao"), nullable=True)
+    # v3.3 - título "A Pagar" gerado pela rotina mensal de contas a pagar recorrentes (aluguel,
+    # energia, contador) - ver app/services/contas_a_pagar.py::gerar_contas_a_pagar. NULL em todo
+    # título que não veio dessa geração.
+    id_conta_a_pagar_recorrente = Column(Integer, ForeignKey("contas_a_pagar_recorrentes.id_conta_recorrente"), nullable=True)
 
 
 class PlanoDeContribuicao(Base):

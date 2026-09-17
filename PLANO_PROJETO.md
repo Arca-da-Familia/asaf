@@ -3681,6 +3681,41 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       de contas.
 - [ ] Contas a pagar recorrentes (aluguel, energia, contador) com previsão no fluxo de caixa.
 
+> **Implementado em 2026-09-17, backend + painel, todos os itens acima.**
+> - `DadosBancariosFornecedor` — versionado (nunca editado), status Pendente/Aprovado/Rejeitado,
+>   segundo aprovador sempre diferente de quem solicitou a troca (`app/services/fornecedores.py`).
+> - `Fornecedor.situacao_cadastral` — validado sob demanda via API pública "Minha Receita"
+>   (`httpx`, sem chave, sem custo), nunca bloqueia se a API estiver fora (fallback "Não
+>   verificado", `app/services/fornecedores.py::validar_situacao_cadastral`). Fallback pra API
+>   oficial de dados abertos de CNPJ registrado como pendência futura, não resolvido agora (sem
+>   sinal ainda de instabilidade em uso real que justifique).
+> - `AlcadaAprovacao` (faixa de valor → cargo(s) autorizados, dupla assinatura configurável) +
+>   `DelegacaoAprovacao` (temporária, sempre rastreável — quem de fato aprovou nunca se perde,
+>   mesmo usando delegação) + `SolicitacaoCompra`/`CotacaoCompra`/`AprovacaoCompra`
+>   (`app/services/compras.py`): segregação de funções (quem solicita nunca aprova),
+>   `DeclaracaoConflitoInteresse` (ganhou `id_fornecedor` opcional) bloqueia aprovador com
+>   conflito ativo envolvendo o fornecedor em questão, cotação exigida acima de
+>   `VALOR_MINIMO_EXIGE_COTACAO` (configurável). Aprovação completa gera o título "A Pagar" de
+>   sempre — pagamento e conciliação reaproveitam `baixar_titulo`/conciliação (v3.0), nenhum
+>   conceito paralelo.
+> - `ReembolsoDespesa` (`app/services/reembolso.py`) — comprovante obrigatório, segregação de
+>   funções, aprovação gera título "A Pagar".
+> - `ContaAPagarRecorrente` (`app/services/contas_a_pagar.py::gerar_contas_a_pagar`) — geração
+>   mensal idempotente (mesmo mecanismo de `gerar_cobrancas`, `UniqueConstraint` no banco),
+>   acionada automaticamente dentro da mesma rotina mensal que já gera cobrança/lembrete (v3.2.1,
+>   `scripts/tarefa_mensal_financeiro.py`) — o compromisso do mês nasce sozinho, sem esperar a
+>   conta chegar.
+> - Painel: telas novas "Compras", "Reembolso de Despesa", "Alçadas de Aprovação" (+ delegações) e
+>   "Contas a Pagar Recorrentes"; "Fornecedores" ganhou situação cadastral + dados bancários.
+> - Migração `f6a8b0c2e4d5` validada upgrade+downgrade+upgrade contra schema pré-v3.3 simulado.
+>   11 testes novos em `tests/test_compras.py` (segregação de funções, cargo da alçada, dupla
+>   assinatura, cotação exigida, conflito de interesse, delegação temporária, segundo aprovador
+>   de dados bancários, reembolso, contas a pagar recorrentes, situação cadastral com e sem
+>   falha simulada da API) + 1 nova chave de configuração (`VALOR_MINIMO_EXIGE_COTACAO`,
+>   contagem de 24 para 25) — 260/260 testes da suíte inteira passando.
+> **Checkboxes não marcados `[x]`** — confirmação visual das telas novas ainda pendente (mesma
+> lacuna de ferramenta de navegador já registrada no Ponto de Revisão FASE 3 1/3).
+
 #### v3.4 — Doações, captação e recibos
 - [ ] `Doacao` (pessoa física/jurídica, identificada ou anônima, pontual ou recorrente, com ou sem
       destinação a projeto) — doação com destinação específica **não pode** ser gasta em outra

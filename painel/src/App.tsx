@@ -6,6 +6,10 @@ import { Shell } from '@/components/layout/Shell'
 import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/use-me'
 import { AcessoPage } from '@/pages/Acesso'
+import { AlcadasAprovacaoPage } from '@/pages/AlcadasAprovacao'
+import { ComprasPage } from '@/pages/Compras'
+import { ContasAPagarRecorrentesPage } from '@/pages/ContasAPagarRecorrentes'
+import { ReembolsoDespesaPage } from '@/pages/ReembolsoDespesa'
 import { AssembleiaDetalhePage } from '@/pages/AssembleiaDetalhe'
 import { AssembleiaNovoPage } from '@/pages/AssembleiaNova'
 import { AssembleiasPage } from '@/pages/Assembleias'
@@ -327,6 +331,38 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Negociação de Dívida">
                 <NegociacaoDividaPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="compras"
+            element={
+              <ErrorBoundary tituloModulo="Compras">
+                <ComprasPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="reembolso-despesa"
+            element={
+              <ErrorBoundary tituloModulo="Reembolso de Despesa">
+                <ReembolsoDespesaPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="alcadas-aprovacao"
+            element={
+              <ErrorBoundary tituloModulo="Alçadas de Aprovação">
+                <AlcadasAprovacaoPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="contas-a-pagar-recorrentes"
+            element={
+              <ErrorBoundary tituloModulo="Contas a Pagar Recorrentes">
+                <ContasAPagarRecorrentesPage />
               </ErrorBoundary>
             }
           />

@@ -2366,6 +2366,8 @@ export type Fornecedor = {
   cnpj: string
   categoria_servico: string
   telefone: string
+  situacao_cadastral: string | null
+  data_ultima_validacao_cadastral: string | null
 }
 
 export function listarFornecedores(): Promise<Fornecedor[]> {
@@ -2396,6 +2398,343 @@ export function atualizarFornecedor(
   return apiFetch(`/api/fornecedores/${idFornecedor}`, {
     method: 'PUT',
     body: JSON.stringify(dados),
+  })
+}
+
+// v3.3 - validação automática de situação cadastral (API pública "Minha Receita") e dados
+// bancários versionados com segundo aprovador obrigatório - a alteração de dados bancários de
+// fornecedor é o golpe mais comum contra organizações, a defesa é processual.
+export function validarSituacaoCadastral(
+  idFornecedor: number,
+): Promise<{
+  situacao_cadastral: string
+  data_ultima_validacao_cadastral: string | null
+}> {
+  return apiFetch(
+    `/api/fornecedores/${idFornecedor}/validar-situacao-cadastral`,
+    {
+      method: 'POST',
+    },
+  )
+}
+
+export type DadosBancariosFornecedor = {
+  id_dados_bancarios: number
+  banco: string
+  agencia: string
+  conta: string
+  tipo_conta: string
+  titular: string
+  status: string
+  id_usuario_solicitante: number | null
+  id_usuario_aprovador: number | null
+  motivo_rejeicao: string | null
+  data_solicitacao: string | null
+  data_aprovacao: string | null
+}
+
+export function listarDadosBancariosFornecedor(
+  idFornecedor: number,
+): Promise<DadosBancariosFornecedor[]> {
+  return apiFetch(`/api/fornecedores/${idFornecedor}/dados-bancarios`)
+}
+
+export function solicitarDadosBancariosFornecedor(dados: {
+  id_fornecedor: number
+  banco: string
+  agencia: string
+  conta: string
+  tipo_conta: string
+  titular: string
+}): Promise<{ mensagem: string; id_dados_bancarios: number }> {
+  return apiFetch('/api/fornecedores/dados-bancarios', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function aprovarDadosBancariosFornecedor(
+  idDadosBancarios: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(
+    `/api/fornecedores/dados-bancarios/${idDadosBancarios}/aprovar`,
+    {
+      method: 'POST',
+    },
+  )
+}
+
+export function rejeitarDadosBancariosFornecedor(
+  idDadosBancarios: number,
+  motivo: string,
+): Promise<{ mensagem: string }> {
+  return apiFetch(
+    `/api/fornecedores/dados-bancarios/${idDadosBancarios}/rejeitar`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ motivo }),
+    },
+  )
+}
+
+// v3.3 - alçadas de aprovação (faixa de valor -> cargo(s) autorizados + dupla assinatura) e
+// delegação temporária rastreável.
+export type AlcadaAprovacao = {
+  id_alcada: number
+  valor_minimo: number
+  valor_maximo: number | null
+  cargos_autorizados: string[]
+  exige_dupla_assinatura: boolean
+  ativo: boolean
+}
+
+export function listarAlcadasAprovacao(): Promise<AlcadaAprovacao[]> {
+  return apiFetch('/api/alcadas-aprovacao/')
+}
+
+export function criarAlcadaAprovacao(dados: {
+  valor_minimo: number
+  valor_maximo?: number | null
+  cargos_autorizados: string[]
+  exige_dupla_assinatura: boolean
+}): Promise<{ mensagem: string; id_alcada: number }> {
+  return apiFetch('/api/alcadas-aprovacao/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function alternarAlcadaAprovacao(
+  idAlcada: number,
+  ativo: boolean,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/alcadas-aprovacao/${idAlcada}/ativo?ativo=${ativo}`, {
+    method: 'PUT',
+  })
+}
+
+export type DelegacaoAprovacao = {
+  id_delegacao: number
+  id_associado_delegante: number
+  id_associado_delegado: number
+  data_inicio: string
+  data_fim: string
+  motivo: string
+}
+
+export function listarDelegacoesAprovacao(): Promise<DelegacaoAprovacao[]> {
+  return apiFetch('/api/delegacoes-aprovacao/')
+}
+
+export function criarDelegacaoAprovacao(dados: {
+  id_associado_delegante: number
+  id_associado_delegado: number
+  data_fim: string
+  motivo: string
+}): Promise<{ mensagem: string; id_delegacao: number }> {
+  return apiFetch('/api/delegacoes-aprovacao/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+// v3.3 - fluxo de compras: solicitação → cotação (acima de valor configurado) → aprovação por
+// alçada → pagamento (título "A Pagar" de sempre) → conciliação.
+export type SolicitacaoCompra = {
+  id_solicitacao: number
+  descricao: string
+  justificativa: string | null
+  id_fornecedor: number | null
+  valor_estimado: number
+  id_conta_contabil: number
+  id_centro_custo: number | null
+  status: string
+  id_usuario_solicitante: number | null
+  motivo_reprovacao: string | null
+  id_titulo_gerado: number | null
+  data_solicitacao: string | null
+}
+
+export function listarSolicitacoesCompra(
+  status?: string,
+): Promise<SolicitacaoCompra[]> {
+  const query = status ? `?status=${encodeURIComponent(status)}` : ''
+  return apiFetch(`/api/solicitacoes-compra/${query}`)
+}
+
+export function criarSolicitacaoCompra(dados: {
+  descricao: string
+  justificativa?: string
+  id_fornecedor?: number
+  valor_estimado: number
+  id_conta_contabil: number
+  id_centro_custo?: number
+}): Promise<{ mensagem: string; id_solicitacao: number }> {
+  return apiFetch('/api/solicitacoes-compra/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type CotacaoCompra = {
+  id_cotacao: number
+  id_fornecedor: number
+  valor: number
+  anexo: string | null
+  data_cotacao: string | null
+}
+
+export function listarCotacoesCompra(
+  idSolicitacao: number,
+): Promise<CotacaoCompra[]> {
+  return apiFetch(`/api/solicitacoes-compra/${idSolicitacao}/cotacoes`)
+}
+
+export function registrarCotacaoCompra(
+  idSolicitacao: number,
+  dados: { id_fornecedor: number; valor: number; anexo?: string },
+): Promise<{ mensagem: string; id_cotacao: number }> {
+  return apiFetch(`/api/solicitacoes-compra/${idSolicitacao}/cotacoes`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function aprovarSolicitacaoCompra(idSolicitacao: number): Promise<{
+  mensagem: string
+  status?: string
+  aprovacoes?: number
+  aprovacoes_exigidas?: number
+  id_titulo_gerado?: number
+}> {
+  return apiFetch(`/api/solicitacoes-compra/${idSolicitacao}/aprovar`, {
+    method: 'POST',
+  })
+}
+
+export function reprovarSolicitacaoCompra(
+  idSolicitacao: number,
+  motivo: string,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/solicitacoes-compra/${idSolicitacao}/reprovar`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo }),
+  })
+}
+
+// v3.3 - reembolso de despesa de voluntário/dirigente: comprovante obrigatório, aprovação
+// (segregação de funções), pagamento (título "A Pagar" de sempre).
+export type ReembolsoDespesa = {
+  id_reembolso: number
+  id_associado: number
+  descricao: string
+  valor: number
+  comprovante: string
+  status: string
+  id_usuario_solicitante: number | null
+  id_usuario_aprovador: number | null
+  motivo_reprovacao: string | null
+  id_titulo_gerado: number | null
+  data_solicitacao: string | null
+}
+
+export function listarReembolsosDespesa(
+  idAssociado?: number,
+): Promise<ReembolsoDespesa[]> {
+  const query = idAssociado ? `?id_associado=${idAssociado}` : ''
+  return apiFetch(`/api/reembolsos-despesa/${query}`)
+}
+
+export function solicitarReembolsoDespesa(dados: {
+  id_associado: number
+  descricao: string
+  valor: number
+  comprovante: string
+  id_conta_contabil: number
+}): Promise<{ mensagem: string; id_reembolso: number }> {
+  return apiFetch('/api/reembolsos-despesa/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function aprovarReembolsoDespesa(
+  idReembolso: number,
+): Promise<{ mensagem: string; id_titulo_gerado: number }> {
+  return apiFetch(`/api/reembolsos-despesa/${idReembolso}/aprovar`, {
+    method: 'POST',
+  })
+}
+
+export function reprovarReembolsoDespesa(
+  idReembolso: number,
+  motivo: string,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/reembolsos-despesa/${idReembolso}/reprovar`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo }),
+  })
+}
+
+// v3.3 - contas a pagar recorrentes (aluguel, energia, contador), geração mensal idempotente
+// espelhando "Gerar Cobranças" pro lado "A Pagar".
+export type ContaAPagarRecorrente = {
+  id_conta_recorrente: number
+  descricao: string
+  valor: number
+  id_conta_contabil: number
+  id_fornecedor: number | null
+  dia_vencimento: number
+  ativo: boolean
+}
+
+export function listarContasAPagarRecorrentes(): Promise<
+  ContaAPagarRecorrente[]
+> {
+  return apiFetch('/api/contas-a-pagar-recorrentes/')
+}
+
+export function criarContaAPagarRecorrente(dados: {
+  descricao: string
+  valor: number
+  id_conta_contabil: number
+  id_fornecedor?: number
+  dia_vencimento: number
+}): Promise<{ mensagem: string; id_conta_recorrente: number }> {
+  return apiFetch('/api/contas-a-pagar-recorrentes/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function alternarContaAPagarRecorrente(
+  idContaRecorrente: number,
+  ativo: boolean,
+): Promise<{ mensagem: string }> {
+  return apiFetch(
+    `/api/contas-a-pagar-recorrentes/${idContaRecorrente}/ativo?ativo=${ativo}`,
+    {
+      method: 'PUT',
+    },
+  )
+}
+
+export type PrevisaoContasAPagar = {
+  competencia: string
+  confirmado: boolean
+  total_gerados: number
+  total_ja_existentes: number
+  valor_total: number
+  detalhes: { id_conta_recorrente: number; descricao: string; valor: number }[]
+}
+
+export function gerarContasAPagarRecorrentes(
+  competencia: string,
+  confirmar: boolean,
+): Promise<PrevisaoContasAPagar> {
+  return apiFetch('/api/contas-a-pagar-recorrentes/gerar/', {
+    method: 'POST',
+    body: JSON.stringify({ competencia, confirmar }),
   })
 }
 

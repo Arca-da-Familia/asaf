@@ -141,6 +141,26 @@ export const modulos: Modulo[] = [
         rotulo: 'Negociação de Dívida',
         icone: Receipt,
       },
+      {
+        rota: '/financeiro/compras',
+        rotulo: 'Compras',
+        icone: Receipt,
+      },
+      {
+        rota: '/financeiro/reembolso-despesa',
+        rotulo: 'Reembolso de Despesa',
+        icone: Receipt,
+      },
+      {
+        rota: '/financeiro/alcadas-aprovacao',
+        rotulo: 'Alçadas de Aprovação',
+        icone: BookText,
+      },
+      {
+        rota: '/financeiro/contas-a-pagar-recorrentes',
+        rotulo: 'Contas a Pagar Recorrentes',
+        icone: Receipt,
+      },
     ],
   },
   {
