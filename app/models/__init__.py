@@ -65,6 +65,7 @@ from app.models.compras import (
 from app.models.doacoes import CampanhaArrecadacao, Doacao, RemanejamentoDestinacao
 from app.models.orcamento import Orcamento, ReservaContingencia
 from app.models.relatorios import PrestacaoDeContas
+from app.models.fechamento import FechamentoMensal
 from app.models.sessao_assembleia import Credenciamento, ItemPauta, OcorrenciaSessao
 from app.models.chamada import JustificativaFalta
 from app.models.ata import Ata, CertidaoDeliberacao, Deliberacao
@@ -160,4 +161,5 @@ __all__ = [
     "Orcamento",
     "ReservaContingencia",
     "PrestacaoDeContas",
+    "FechamentoMensal",
 ]

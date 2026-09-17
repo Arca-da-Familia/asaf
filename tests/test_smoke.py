@@ -11,4 +11,4 @@ def test_login_exige_autenticacao_em_rota_protegida(client):
 def test_admin_token_funciona(client, auth_headers):
     resposta = client.get("/api/configuracoes/", headers=auth_headers)
     assert resposta.status_code == 200
-    assert len(resposta.json()) == 26  # ver tests/test_configuracoes.py para a decomposição
+    assert len(resposta.json()) == 32  # ver tests/test_configuracoes.py para a decomposição

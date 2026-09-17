@@ -792,3 +792,14 @@ export const reservaContingenciaCriarSchema = z.object({
   valor_minimo: z.coerce.number().optional(),
   id_deliberacao: z.coerce.number().optional(),
 })
+
+// v3.7 - fechamento mensal: divergência aberta entre saldo do sistema e saldo do extrato
+// bancário bloqueia o fechamento (checado pelo backend, nunca só aqui).
+export const fecharMesSchema = z.object({
+  competencia: z.string().regex(/^\d{4}-\d{2}$/, 'Use o formato AAAA-MM.'),
+  id_conta_financeira: z.coerce
+    .number()
+    .int({ message: 'Selecione a conta financeira.' })
+    .positive({ message: 'Selecione a conta financeira.' }),
+  saldo_extrato_bancario: z.coerce.number(),
+})

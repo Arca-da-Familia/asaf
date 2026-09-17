@@ -3526,3 +3526,52 @@ export function gerarPrestacaoDeContas(
     body: JSON.stringify({ ano_exercicio: anoExercicio }),
   })
 }
+
+// ---------------------------------------------------------------------------
+// v3.7 (FASE 3) - controles antifraude além do mínimo: relatório de exceção mensal de padrões
+// suspeitos (Conselho Fiscal) e fechamento mensal com conciliação obrigatória (divergência
+// aberta bloqueia o fechamento). A trava de DELETE no próprio banco (lançamento/log imutáveis
+// mesmo pra quem tivesse acesso direto ao banco) não tem UI - é garantia de infraestrutura.
+// ---------------------------------------------------------------------------
+export type PadraoSuspeito = {
+  tipo: string
+  descricao: string
+  [chave: string]: unknown
+}
+
+export function obterPadroesSuspeitos(
+  competencia: string,
+): Promise<PadraoSuspeito[]> {
+  return apiFetch(
+    `/api/antifraude/padroes-suspeitos?competencia=${competencia}`,
+  )
+}
+
+export type FechamentoMensal = {
+  id_fechamento: number
+  competencia: string
+  id_conta_financeira: number
+  saldo_sistema: number
+  saldo_extrato_bancario: number
+  divergencia: number
+  id_usuario_conferencia: number | null
+  assinado_em: string | null
+}
+
+export function listarFechamentosMensais(
+  competencia?: string,
+): Promise<FechamentoMensal[]> {
+  const query = competencia ? `?competencia=${competencia}` : ''
+  return apiFetch(`/api/fechamentos-mensais/${query}`)
+}
+
+export function fecharMes(dados: {
+  competencia: string
+  id_conta_financeira: number
+  saldo_extrato_bancario: number
+}): Promise<FechamentoMensal> {
+  return apiFetch('/api/fechamentos-mensais/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}

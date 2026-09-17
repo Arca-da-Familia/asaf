@@ -53,6 +53,55 @@ def preparar_banco():
                     tipo_sql = coluna.type.compile(engine.dialect)
                     conn.execute(text(f'ALTER TABLE "{tabela.name}" ADD COLUMN "{coluna.name}" {tipo_sql}'))
 
+    criar_trava_delete_imutavel()
+
+
+# v3.7 - "nenhum usuário, em nenhum nível (inclusive Presidente), pode apagar lançamento ou log -
+# restrição garantida no banco, não só na aplicação" (ver PLANO_PROJETO.md). Espelha exatamente o
+# que a migração `d7f9b1c3e5a6` faz em produção via Alembic - `preparar_banco()` roda direto pela
+# app (dev local e, em tese, se RUN_DB_MIGRATION voltasse a "true" em produção) e nunca passa pelo
+# Alembic, então a trava precisa existir aqui também, senão só protegeria quem sobe via migração.
+# Idempotente de propósito (roda em todo start): `IF NOT EXISTS` no SQLite, checagem em
+# `pg_trigger` no Postgres antes de criar.
+_TABELAS_IMUTAVEIS = ("lancamentos_contabeis", "partidas_contabeis", "audit_log")
+
+
+def _nome_trigger_delete(tabela: str) -> str:
+    return f"trg_bloquear_delete_{tabela}"
+
+
+def criar_trava_delete_imutavel():
+    inspetor = inspect(engine)
+    tabelas_existentes = [t for t in _TABELAS_IMUTAVEIS if inspetor.has_table(t)]
+    if not tabelas_existentes:
+        return
+
+    with engine.begin() as conn:
+        if engine.dialect.name == "postgresql":
+            conn.execute(text(
+                "CREATE OR REPLACE FUNCTION bloquear_delete_financeiro() RETURNS trigger AS $$ "
+                "BEGIN RAISE EXCEPTION "
+                "'Registro imutável (tabela %) - correção é sempre por estorno/novo registro, nunca exclusão.', TG_TABLE_NAME; "
+                "RETURN NULL; "
+                "END; $$ LANGUAGE plpgsql;"
+            ))
+            for tabela in tabelas_existentes:
+                nome_trigger = _nome_trigger_delete(tabela)
+                ja_existe = conn.execute(text("SELECT 1 FROM pg_trigger WHERE tgname = :nome"), {"nome": nome_trigger}).first()
+                if not ja_existe:
+                    conn.execute(text(
+                        f"CREATE TRIGGER {nome_trigger} BEFORE DELETE ON {tabela} "
+                        f"FOR EACH ROW EXECUTE FUNCTION bloquear_delete_financeiro();"
+                    ))
+        else:
+            for tabela in tabelas_existentes:
+                nome_trigger = _nome_trigger_delete(tabela)
+                conn.execute(text(
+                    f"CREATE TRIGGER IF NOT EXISTS {nome_trigger} BEFORE DELETE ON {tabela} "
+                    f"BEGIN SELECT RAISE(ABORT, 'Registro imutável ({tabela}) - correção é sempre por estorno/novo registro, nunca exclusão.'); END;"
+                ))
+
+
 def seed_catalogos():
     """v0.3.1 - semeia Catalogo/OpcaoCatalogo (motor genérico) direto, para banco novo que nunca
     teve `opcoes_lista` (v0.1/v0.2). Banco que já tinha dado em `opcoes_lista` recebe esse mesmo
@@ -345,6 +394,15 @@ def seed_configuracoes_institucionais():
         # v3.5 - fluxo de caixa projetado (ver app/services/orcamento.py) - quantos meses à
         # frente a projeção olha por padrão quando ninguém informa `horizonte_meses` na chamada.
         {"chave": "HORIZONTE_FLUXO_CAIXA_MESES", "valor": "3", "tipo": "numero", "categoria": "regras", "descricao": "Quantidade padrão de meses à frente que o fluxo de caixa projetado calcula quando nenhum horizonte é informado."},
+        # v3.7 - controles antifraude além do mínimo (ver app/services/antifraude.py) - todos os
+        # limiares do relatório de exceção mensal são configuráveis, nunca hardcoded, porque cada
+        # associação tem um volume/perfil de operação diferente.
+        {"chave": "HORA_INICIO_EXPEDIENTE", "valor": "7", "tipo": "numero", "categoria": "regras", "descricao": "Hora (0-23, fuso FUSO_HORARIO) a partir da qual um lançamento é considerado dentro do expediente."},
+        {"chave": "HORA_FIM_EXPEDIENTE", "valor": "20", "tipo": "numero", "categoria": "regras", "descricao": "Hora (0-23, fuso FUSO_HORARIO) até a qual um lançamento é considerado dentro do expediente."},
+        {"chave": "PERCENTUAL_ALERTA_FRACIONAMENTO", "valor": "10", "tipo": "numero", "categoria": "regras", "descricao": "Solicitação de compra com valor a menos deste percentual do teto de uma alçada de aprovação entra no relatório de exceção mensal (possível fracionamento)."},
+        {"chave": "VALOR_ALERTA_FORNECEDOR_NOVO", "valor": "1000", "tipo": "numero", "categoria": "regras", "descricao": "Valor (R$) a partir do qual a primeira operação com um fornecedor novo entra no relatório de exceção mensal."},
+        {"chave": "QUANTIDADE_ALERTA_ESTORNOS_MESMO_USUARIO", "valor": "3", "tipo": "numero", "categoria": "regras", "descricao": "Quantidade de estornos no mesmo mês pelo mesmo usuário que entra no relatório de exceção mensal."},
+        {"chave": "DIAS_ALERTA_TROCA_DADOS_BANCARIOS", "valor": "30", "tipo": "numero", "categoria": "regras", "descricao": "Dias após a aprovação de troca de dados bancários de fornecedor em que um pagamento a ele entra no relatório de exceção mensal."},
         # v2.0 - cláusulas pétreas do Art. 33 do estatuto: identidade institucional, não regra
         # operacional (nunca bloqueiam nenhuma ação do sistema, por isso NÃO entram em
         # RegraEstatutaria - ver seed_regras_estatutarias e PLANO_PROJETO.md v2.0).

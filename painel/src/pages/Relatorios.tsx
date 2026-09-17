@@ -9,6 +9,7 @@ import {
   listarPrestacoesDeContas,
   obterBalancete,
   obterExtratoContaFinanceira,
+  obterPadroesSuspeitos,
   obterReceitasDespesas,
   obterReceitasDespesasPorCentroCusto,
   obterRelatorioInadimplencia,
@@ -468,6 +469,56 @@ function SecaoPrestacaoDeContas() {
   )
 }
 
+function competenciaAtualPadroesSuspeitos(): string {
+  const hoje = new Date()
+  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
+}
+
+// v3.7 (FASE 3) - relatório de exceção mensal para o Conselho Fiscal: padrões suspeitos NUNCA
+// bloqueiam nada sozinhos, são achados pra revisão humana (lançamento fora do horário, valor
+// perto do teto de alçada, fornecedor novo com pagamento alto, sequência de estornos, pagamento
+// logo após troca de dados bancários do fornecedor).
+function SecaoPadroesSuspeitos() {
+  const [competencia, setCompetencia] = useState(
+    competenciaAtualPadroesSuspeitos(),
+  )
+  const { data: achados } = useQuery({
+    queryKey: ['padroes-suspeitos', competencia],
+    queryFn: () => obterPadroesSuspeitos(competencia),
+  })
+
+  return (
+    <section className="mb-6 rounded-xl border border-border bg-card p-6">
+      <h2 className="mb-2 font-semibold">
+        Padrões suspeitos (Conselho Fiscal)
+      </h2>
+      <div className="mb-4">
+        <input
+          type="month"
+          value={competencia}
+          onChange={(e) => setCompetencia(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        />
+      </div>
+      <div className="space-y-2">
+        {(achados ?? []).map((a, i) => (
+          <div key={i} className="rounded-md border border-border p-3 text-sm">
+            <p className="text-xs font-medium text-muted-foreground">
+              {a.tipo}
+            </p>
+            <p>{a.descricao}</p>
+          </div>
+        ))}
+        {(achados ?? []).length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Nenhum padrão suspeito encontrado nesta competência.
+          </p>
+        )}
+      </div>
+    </section>
+  )
+}
+
 export function RelatoriosPage() {
   return (
     <>
@@ -484,6 +535,7 @@ export function RelatoriosPage() {
       <SecaoInadimplencia />
       <SecaoExtratoContaFinanceira />
       <SecaoPorProjeto />
+      <SecaoPadroesSuspeitos />
       <SecaoPrestacaoDeContas />
     </>
   )

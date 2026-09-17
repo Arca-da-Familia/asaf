@@ -3943,6 +3943,63 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - [ ] Nenhum usuário, em nenhum nível, pode apagar lançamento ou log — inclusive o Presidente.
       Restrição garantida no banco (FASE 15), não só na aplicação.
 
+> **Implementado em 2026-09-17, backend + painel, todos os itens acima.**
+> - `app/services/antifraude.py::relatorio_padroes_suspeitos` — relatório de EXCEÇÃO mensal
+>   (nunca bloqueia nada sozinho, é achado pra revisão humana do Conselho Fiscal), com os cinco
+>   padrões pedidos, todos os limiares configuráveis (`ConfiguracaoInstitucional`, nunca
+>   hardcoded, porque cada associação tem volume/perfil de operação diferente):
+>   - Lançamento fora do expediente (`HORA_INICIO_EXPEDIENTE`/`HORA_FIM_EXPEDIENTE`, convertido
+>     pro fuso `FUSO_HORARIO` de verdade, nunca hora UTC crua).
+>   - Valor de solicitação de compra a menos de `PERCENTUAL_ALERTA_FRACIONAMENTO`% do teto de uma
+>     `AlcadaAprovacao` (v3.3) ativa — possível fracionamento.
+>   - Primeira operação com um fornecedor (nenhum título "A Pagar" anterior) já acima de
+>     `VALOR_ALERTA_FORNECEDOR_NOVO`.
+>   - `QUANTIDADE_ALERTA_ESTORNOS_MESMO_USUARIO` ou mais estornos (`tipo_origem="ESTORNO"`) pelo
+>     mesmo usuário no mês.
+>   - Pagamento a um fornecedor dentro de `DIAS_ALERTA_TROCA_DADOS_BANCARIOS` dias da aprovação de
+>     uma troca de dados bancários dele (v3.3) — o golpe mais comum contra associações.
+> - `FechamentoMensal` (`app/services/fechamento.py::fechar_mes`) — saldo do sistema (mesma
+>   disciplina de `saldo_conta`, recortado até o fim da competência) comparado ao saldo do
+>   extrato bancário informado; **divergência acima de R$ 0,01 recusa o fechamento (400)**, sem
+>   exceção, sem "forçar mesmo assim" - a saída correta é investigar antes de tentar de novo.
+>   Fechamento é imutável (`UniqueConstraint` por competência+conta financeira) e assinado
+>   (`id_usuario_conferencia`, `assinado_em`).
+> - **Trava de DELETE garantida no próprio banco** para `lancamentos_contabeis`,
+>   `partidas_contabeis` e `audit_log` — trigger `BEFORE DELETE` que recusa a exclusão (Postgres:
+>   função + trigger reais; SQLite: `RAISE(ABORT, ...)`), criada tanto na migração Alembic
+>   (produção) quanto em `preparar_banco()` (`app/database.py::criar_trava_delete_imutavel`, dev
+>   local/teste) — as duas precisavam existir porque `preparar_banco()` nunca passa pelo Alembic.
+>   Confirmado que a trava é **real, não só a ausência de rota**: testado tentando `DELETE FROM
+>   lancamentos_contabeis`/`partidas_contabeis`/`audit_log` direto por SQL contra o banco de
+>   teste, e recusado pela trigger nos três casos (`tests/test_antifraude.py`).
+> - Pequeno complemento: `GET /api/antifraude/padroes-suspeitos` e `GET/POST
+>   /api/fechamentos-mensais/` em `app/routers/antifraude.py`, atrás de
+>   `exigir_permissao("financeiro")`.
+> - Painel: seção "Padrões suspeitos" nova em Relatórios (`Relatorios.tsx`) e seção "Fechamento
+>   mensal" nova em Conciliação (`Conciliacao.tsx`) — a trava de DELETE não tem UI, é garantia de
+>   infraestrutura.
+> - Migração `d7f9b1c3e5a6` (tabela `fechamentos_mensais` + as três triggers) validada
+>   upgrade+downgrade+upgrade contra schema pré-v3.7 simulado. **Achado real durante essa
+>   validação**: a primeira tentativa usou um arquivo sqlite de teste que, por uma diferença entre
+>   como o Git Bash e o Python nativo do Windows resolvem `sqlite:////tmp/...`, apontava pra dois
+>   arquivos físicos diferentes (`C:\Users\...\Temp\` via Git Bash vs `C:\tmp\` via Python) -
+>   mascarou o teste com tabelas de tentativas anteriores acumuladas. Corrigido usando um caminho
+>   absoluto sem ambiguidade (`C:/tmp/...`) nos dois lados; o ciclo completo (upgrade cria
+>   tabela+triggers, DELETE com linha real é recusado, downgrade remove tudo, upgrade recria) foi
+>   então confirmado de verdade.
+> - 6 testes novos em `tests/test_antifraude.py` (fracionamento, fornecedor novo com pagamento
+>   alto, pagamento após troca de dados bancários, sequência de estornos, fechamento mensal
+>   bloqueia com divergência e fecha sem divergência, trava de DELETE nas três tabelas) + 6 novas
+>   chaves de configuração (contagem de 26 para 32, ajustada em
+>   `test_configuracoes.py`/`test_smoke.py`/`test_import_export.py`) — 282/282 testes da suíte
+>   inteira passando. **Achado de isolamento de teste, corrigido na hora**: a primeira versão do
+>   teste de fracionamento usava uma faixa de valor pequena (parecida com o resto da suíte) e
+>   colidiu com uma alçada de outro arquivo (`alcada_aplicavel`, v3.3, escolhe a alçada de MAIOR
+>   `valor_minimo` entre as que casam com o valor) - corrigido usando uma faixa de valor bem alta
+>   e fora do padrão do resto da suíte, documentado no próprio teste pra não se repetir.
+> **Checkboxes não marcados `[x]`** — confirmação visual das telas novas ainda pendente (mesma
+> lacuna de ferramenta de navegador já registrada nos pontos de revisão desta fase).
+
 ##### 🔍 Ponto de Revisão — FASE 3 (3/3 — fim, fecha v3.5–v3.7)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 - Fechamento mensal (v3.7) bloqueia de fato quando há divergência entre saldo do sistema e extrato bancário — testar tentativa de fechar com divergência aberta.
