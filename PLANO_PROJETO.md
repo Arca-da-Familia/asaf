@@ -3577,6 +3577,20 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - [ ] Painel: tela de gestão da campanha (criar nova vigência, ver histórico) + ação de gerar
       cobrança em bloco a partir de Títulos, visível só quando há campanha vigente e ativa.
 
+> **Implementado em 2026-09-17 (commit `713d108`), backend + painel, todos os itens acima.**
+> Migração `b1c9d3e7f5a2` validada upgrade+downgrade+upgrade contra schema pré-v3.2.3 simulado.
+> 7 testes novos em `tests/test_desconto_antecipado.py` (campanha versionada nunca edita a
+> anterior, bloco recusa mês fora do gatilho, título único na conta de receita diferida, recusa
+> sobreposição com título existente, geração mensal normal pula quem tem bloco, dinheiro entra
+> inteiro no caixa na baixa + receita reconhecida mês a mês sem tocar caixa, mudar a campanha não
+> afeta bloco já gerado) — 238/238 testes da suíte inteira passando. `Deploy API` e
+> `Deploy Painel` verdes para este commit, `painel.asaf.org.br/version.json` confirmado batendo.
+> **Checkboxes não marcados `[x]` ainda** — item 10 do checklist (seção 4.1) exige confirmação
+> visual real do usuário nas duas telas novas (Planos de Contribuição › Campanha, Gerar Cobranças
+> › bloco), e esta sessão não tem ferramenta de navegador interativo pra fazer essa confirmação
+> sozinha (mesma lacuna registrada no Ponto de Revisão FASE 3 1/3, acima, junto com a confirmação
+> pendente do "Aplicar crédito"). Ambas seguem pendentes de confirmação visual do usuário.
+
 #### v3.3 — Contas a pagar, compras e segregação de funções
 > **Pendências registradas pela v2.1 (2026-09-15)**, que já entregou a base, mas sem consumidor
 > real (não existia fluxo de aprovação financeira ainda): (1) `DeclaracaoConflitoInteresse`
