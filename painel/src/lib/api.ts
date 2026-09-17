@@ -2404,9 +2404,7 @@ export function atualizarFornecedor(
 // v3.3 - validação automática de situação cadastral (API pública "Minha Receita") e dados
 // bancários versionados com segundo aprovador obrigatório - a alteração de dados bancários de
 // fornecedor é o golpe mais comum contra organizações, a defesa é processual.
-export function validarSituacaoCadastral(
-  idFornecedor: number,
-): Promise<{
+export function validarSituacaoCadastral(idFornecedor: number): Promise<{
   situacao_cadastral: string
   data_ultima_validacao_cadastral: string | null
 }> {
