@@ -2447,6 +2447,10 @@ export type TituloFinanceiro = {
   saldo_devedor: number
   data_vencimento: string
   status: string
+  // v3.2.3 - título-bloco (pagamento antecipado): `competencia_fim` só existe nele, nunca num
+  // título normal (um mês só).
+  competencia: string | null
+  competencia_fim: string | null
 }
 
 export function listarTitulos(filtros?: {
@@ -2634,6 +2638,9 @@ export type PrevisaoCobranca = {
   total_ja_existentes: number
   total_dependentes_pulados: number
   total_isentos_totais: number
+  // v3.2.3 - associado já coberto por um título-bloco (pagamento antecipado) nesta competência -
+  // geração mensal normal pula, pra nunca cobrar o mesmo mês duas vezes.
+  total_cobertos_por_bloco: number
   valor_total: number
   detalhes: {
     id_associado: number
@@ -2641,6 +2648,14 @@ export type PrevisaoCobranca = {
     id_plano: number
     descricao_plano: string
     valor: number
+  }[]
+  // v3.2.3 - reconhecimento de receita diferida desta competência (fatia mensal de título-bloco
+  // já pago) - só populado quando `confirmar=true`.
+  reconhecimentos_receita_diferida: {
+    id_titulo: number
+    competencia: string
+    valor: number
+    id_lancamento: number
   }[]
 }
 
@@ -2651,6 +2666,68 @@ export function gerarCobrancas(
   return apiFetch('/api/contribuicoes/gerar-cobrancas/', {
     method: 'POST',
     body: JSON.stringify({ competencia, confirmar }),
+  })
+}
+
+// v3.2.3 - campanha de desconto por pagamento antecipado em bloco (semestral/anual,
+// configurável), versionada como reajuste de mensalidade: nunca edita a anterior, sempre cria
+// uma vigência nova. Título-bloco gerado a partir dela guarda a referência congelada, então
+// mudar a campanha aqui nunca afeta quem já pagou.
+export type CampanhaDescontoAntecipado = {
+  id_campanha: number
+  percentual_desconto: number
+  quantidade_meses: number
+  meses_gatilho: number[]
+  id_conta_contabil_receita_diferida: number
+  motivo: string | null
+  ativo: boolean
+  data_vigencia_inicio: string | null
+  data_vigencia_fim: string | null
+}
+
+export function listarCampanhasDescontoAntecipado(): Promise<
+  CampanhaDescontoAntecipado[]
+> {
+  return apiFetch('/api/campanhas-desconto-antecipado/')
+}
+
+export function criarCampanhaDescontoAntecipado(dados: {
+  percentual_desconto: number
+  quantidade_meses: number
+  meses_gatilho: number[]
+  id_conta_contabil_receita_diferida: number
+  motivo?: string
+}): Promise<{ mensagem: string; id_campanha: number }> {
+  return apiFetch('/api/campanhas-desconto-antecipado/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function alternarCampanhaDescontoAntecipado(
+  idCampanha: number,
+  ativo: boolean,
+): Promise<{ mensagem: string }> {
+  return apiFetch(
+    `/api/campanhas-desconto-antecipado/${idCampanha}/ativo?ativo=${ativo}`,
+    { method: 'PUT' },
+  )
+}
+
+export function gerarCobrancaBloco(dados: {
+  id_associado: number
+  id_plano_contribuicao: number
+  competencia_inicio: string
+}): Promise<{
+  mensagem: string
+  id_titulo: number
+  competencia: string
+  competencia_fim: string
+  valor_original: number
+}> {
+  return apiFetch('/api/titulos/gerar-cobranca-bloco', {
+    method: 'POST',
+    body: JSON.stringify(dados),
   })
 }
 

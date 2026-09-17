@@ -99,6 +99,14 @@ class TituloFinanceiro(Base):
     # geração em lote) nunca preenche estes dois - ambos ficam `NULL`, fora da constraint.
     id_plano_contribuicao = Column(Integer, ForeignKey("planos_contribuicao.id_plano"), nullable=True)
     competencia = Column(String(7), nullable=True)  # "AAAA-MM"
+    # v3.2.3 - título-bloco (pagamento antecipado com desconto, ver `CampanhaDescontoAntecipado`
+    # abaixo): `competencia` acima é o PRIMEIRO mês coberto, `competencia_fim` o ÚLTIMO - NULL em
+    # todo título normal (um mês só). `id_conta_contabil` de um título-bloco aponta pra conta de
+    # Passivo de receita diferida da campanha (nunca a Receita do plano direto) - é assim que
+    # `baixar_titulo` (sem mudar nada nele) já credita a conta certa sozinho; a Receita real só é
+    # reconhecida depois, mês a mês, por `contribuicoes.reconhecer_receita_diferida_do_mes`.
+    competencia_fim = Column(String(7), nullable=True)  # "AAAA-MM"
+    id_campanha_desconto_antecipado = Column(Integer, ForeignKey("campanhas_desconto_antecipado.id_campanha"), nullable=True)
 
 
 class PlanoDeContribuicao(Base):
@@ -149,6 +157,51 @@ class IsencaoContribuicao(Base):
     data_inicio = Column(DateTime, nullable=False, default=datetime.utcnow)
     data_fim = Column(DateTime, nullable=True)
     id_usuario_aprovador = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+
+
+class CampanhaDescontoAntecipado(Base):
+    """v3.2.3 - desconto configurável por pagamento antecipado em bloco (semestral, anual, ou
+    outra periodicidade) - decisão de assembleia. Versionado como `ValorPlanoContribuicao`:
+    mudar percentual/meses NUNCA edita a campanha anterior, sempre encerra a vigência
+    (`data_vigencia_fim`) e cria uma linha nova - quem já pagou um bloco fica com a regra que
+    valia na hora, mesmo que a diretoria mude depois (ver
+    app/services/contribuicoes.py::campanha_vigente). `meses_gatilho` guarda os meses do
+    calendário (1-12) que abrem a janela, separados por vírgula (ex.: "1,7") - lista simples, sem
+    tabela associativa, porque não precisa de integridade referencial nenhuma.
+    `id_conta_contabil_receita_diferida` é sempre uma conta de Passivo: é pra lá que o dinheiro
+    do bloco vai na baixa (a Receita real só é reconhecida depois, mês a mês)."""
+    __tablename__ = "campanhas_desconto_antecipado"
+    id_campanha = Column(Integer, primary_key=True, index=True)
+    percentual_desconto = Column(Numeric(5, 2), nullable=False)  # 0-100
+    quantidade_meses = Column(Integer, nullable=False)  # ex.: 6 (semestral) ou 12 (anual)
+    meses_gatilho = Column(String, nullable=False)  # "1,7" - meses 1-12 separados por vírgula
+    id_conta_contabil_receita_diferida = Column(Integer, ForeignKey("plano_de_contas.id_conta"), nullable=False)
+    motivo = Column(String, nullable=True)  # ex.: "Ata da assembleia de 2026-09-17"
+    data_vigencia_inicio = Column(DateTime, nullable=False, default=datetime.utcnow)
+    data_vigencia_fim = Column(DateTime, nullable=True)
+    ativo = Column(Boolean, default=True, nullable=False)
+    id_usuario_registro = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+    data_criacao = Column(DateTime, default=datetime.utcnow)
+
+
+class ReconhecimentoReceitaDiferida(Base):
+    """v3.2.3 - rastreia qual competência de um título-bloco já teve sua fatia de receita
+    reclassificada da conta de Passivo (receita diferida) pra Receita de verdade - a
+    `UniqueConstraint` abaixo garante no banco que a mesma competência do mesmo título nunca é
+    reconhecida duas vezes, mesmo que a rotina mensal rode de novo (ver
+    app/services/contribuicoes.py::reconhecer_receita_diferida_do_mes). `valor` é a fatia
+    reconhecida NAQUELE mês (a soma de todas as linhas de um título bate exatamente com o
+    `valor_original` dele - o último mês do bloco absorve o arredondamento)."""
+    __tablename__ = "reconhecimentos_receita_diferida"
+    __table_args__ = (
+        UniqueConstraint("id_titulo", "competencia", name="uq_reconhecimento_por_competencia"),
+    )
+    id_reconhecimento = Column(Integer, primary_key=True, index=True)
+    id_titulo = Column(Integer, ForeignKey("titulos_financeiros.id_titulo"), nullable=False)
+    competencia = Column(String(7), nullable=False)  # "AAAA-MM"
+    valor = Column(Numeric(14, 2), nullable=False)
+    id_lancamento = Column(Integer, ForeignKey("lancamentos_contabeis.id_lancamento"), nullable=False)
+    data_criacao = Column(DateTime, default=datetime.utcnow)
 
 
 class CreditoAssociado(Base):

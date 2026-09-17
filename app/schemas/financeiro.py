@@ -226,6 +226,52 @@ class EstornoCriar(BaseModel):
             raise ValueError("Informe o motivo do estorno (mínimo 5 caracteres).")
         return v.strip()
 
+class CampanhaDescontoAntecipadoCriar(BaseModel):
+    percentual_desconto: Decimal
+    quantidade_meses: int
+    meses_gatilho: list[int]
+    id_conta_contabil_receita_diferida: int
+    motivo: Optional[str] = None
+
+    @field_validator("percentual_desconto")
+    @classmethod
+    def validar_percentual(cls, v):
+        if not (0 < v <= 100):
+            raise ValueError("Percentual de desconto deve ser maior que zero e no máximo 100.")
+        return v
+
+    @field_validator("quantidade_meses")
+    @classmethod
+    def validar_quantidade_meses(cls, v):
+        if not (2 <= v <= 12):
+            raise ValueError("Quantidade de meses do bloco deve ser entre 2 e 12.")
+        return v
+
+    @field_validator("meses_gatilho")
+    @classmethod
+    def validar_meses_gatilho(cls, v):
+        if not v:
+            raise ValueError("Informe ao menos um mês-gatilho.")
+        if any(not (1 <= mes <= 12) for mes in v):
+            raise ValueError("Mês-gatilho deve ser entre 1 e 12.")
+        if len(set(v)) != len(v):
+            raise ValueError("Meses-gatilho não podem se repetir.")
+        return sorted(set(v))
+
+
+class GerarCobrancaBlocoRequest(BaseModel):
+    id_associado: int
+    id_plano_contribuicao: int
+    competencia_inicio: str
+
+    @field_validator("competencia_inicio")
+    @classmethod
+    def validar_competencia(cls, v):
+        if not re.match(r"^\d{4}-\d{2}$", v):
+            raise ValueError("Competência deve estar no formato AAAA-MM.")
+        return v
+
+
 class ExercicioAbrir(BaseModel):
     ano: int
 

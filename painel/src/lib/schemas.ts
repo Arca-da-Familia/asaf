@@ -535,6 +535,44 @@ export const gerarCobrancasSchema = z.object({
   competencia: z.string().regex(/^\d{4}-\d{2}$/, 'Use o formato AAAA-MM.'),
 })
 
+// Usado por "Campanha de Desconto por Pagamento Antecipado" (pages/PlanosContribuicao.tsx,
+// v3.2.3) - `meses_gatilho` fica como texto ("1,7") no formulário, convertido pra número[] só na
+// hora de chamar a API (ver `criarCampanhaDescontoAntecipado`), igual o resto deste projeto faz
+// coerção fora do schema quando o formato de tela é mais simples que o da API.
+export const campanhaDescontoAntecipadoCriarSchema = z.object({
+  percentual_desconto: z.coerce
+    .number()
+    .positive('Informe um percentual maior que zero.')
+    .max(100, 'No máximo 100%.'),
+  quantidade_meses: z.coerce
+    .number()
+    .int()
+    .min(2, 'Mínimo 2 meses.')
+    .max(12, 'Máximo 12 meses.'),
+  meses_gatilho: z.string().min(1, 'Informe os meses-gatilho (ex.: 1,7).'),
+  id_conta_contabil_receita_diferida: z.coerce
+    .number()
+    .int({ message: 'Selecione a conta de receita diferida (Passivo).' })
+    .positive({ message: 'Selecione a conta de receita diferida (Passivo).' }),
+  motivo: z.string().optional(),
+})
+
+// Usado por "Gerar cobrança em bloco" (pages/GerarCobrancas.tsx, v3.2.3) - só oferecido quando
+// há campanha vigente e ativa cujo mês-gatilho bate com a competência escolhida.
+export const gerarCobrancaBlocoSchema = z.object({
+  id_associado: z.coerce
+    .number()
+    .int({ message: 'Selecione o associado.' })
+    .positive({ message: 'Selecione o associado.' }),
+  id_plano_contribuicao: z.coerce
+    .number()
+    .int({ message: 'Selecione o plano.' })
+    .positive({ message: 'Selecione o plano.' }),
+  competencia_inicio: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/, 'Use o formato AAAA-MM.'),
+})
+
 // Usado por "Razão Contábil" (pages/RazaoContabil.tsx, v2.5.10) - o backend também recusa
 // motivo com menos de 5 caracteres e lançamento já estornado (mensagem real é mostrada).
 export const estornoCriarSchema = z.object({

@@ -29,14 +29,15 @@ from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.associados import Associado
 from app.models.financeiro import (
-    CentroDeCusto, ContaFinanceira, CreditoAssociado, Exercicio, IsencaoContribuicao,
-    LancamentoContabil, PartidaContabil, PlanoDeContas, PlanoDeContribuicao, Fornecedor,
-    TituloFinanceiro, ValorPlanoContribuicao,
+    CampanhaDescontoAntecipado, CentroDeCusto, ContaFinanceira, CreditoAssociado, Exercicio,
+    IsencaoContribuicao, LancamentoContabil, PartidaContabil, PlanoDeContas, PlanoDeContribuicao,
+    Fornecedor, TituloFinanceiro, ValorPlanoContribuicao,
 )
 from app.schemas.financeiro import (
-    AplicarCreditoRequest, CentroDeCustoCriar, ContaFinanceiraCriar, EstornoCriar,
-    ExercicioAbrir, GerarCobrancasRequest, IsencaoCriar, PlanoContaCriar, PlanoDeContribuicaoCriar,
-    ReajusteCriar, FornecedorCriar, TituloCriar, BaixarTitulo, TransferenciaCriar,
+    AplicarCreditoRequest, CampanhaDescontoAntecipadoCriar, CentroDeCustoCriar, ContaFinanceiraCriar,
+    EstornoCriar, ExercicioAbrir, GerarCobrancaBlocoRequest, GerarCobrancasRequest, IsencaoCriar,
+    PlanoContaCriar, PlanoDeContribuicaoCriar, ReajusteCriar, FornecedorCriar, TituloCriar,
+    BaixarTitulo, TransferenciaCriar,
 )
 from app.security import exigir_permissao
 from app.services import conciliacao, contabilidade, contribuicoes, pix as pix_service
@@ -410,7 +411,9 @@ def listar_titulos(status: str = None, tipo_titulo: str = None, db: Session = De
             "valor_original": t.valor_original,
             "saldo_devedor": t.saldo_devedor,
             "data_vencimento": t.data_vencimento.date().isoformat() if t.data_vencimento else None,
-            "status": t.status
+            "status": t.status,
+            "competencia": t.competencia,
+            "competencia_fim": t.competencia_fim,
         })
     return resultado
 
@@ -794,6 +797,107 @@ def cadastrar_isencao_contribuicao(dados: IsencaoCriar, request: Request, db: Se
         ip_origem=_ip_origem(request),
     )
     return {"mensagem": "Isenção cadastrada.", "id_isencao": nova_isencao.id_isencao}
+
+
+# ==========================================
+# CAMPANHA DE DESCONTO POR PAGAMENTO ANTECIPADO EM BLOCO (v3.2.3)
+# ==========================================
+@router.get("/api/campanhas-desconto-antecipado/", summary="Listar Campanhas de Desconto por Pagamento Antecipado")
+def listar_campanhas_desconto_antecipado(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+    campanhas = db.query(CampanhaDescontoAntecipado).order_by(CampanhaDescontoAntecipado.data_vigencia_inicio.desc()).all()
+    return [
+        {
+            "id_campanha": c.id_campanha, "percentual_desconto": c.percentual_desconto,
+            "quantidade_meses": c.quantidade_meses,
+            "meses_gatilho": [int(m) for m in c.meses_gatilho.split(",") if m.strip()],
+            "id_conta_contabil_receita_diferida": c.id_conta_contabil_receita_diferida,
+            "motivo": c.motivo, "ativo": c.ativo,
+            "data_vigencia_inicio": c.data_vigencia_inicio.date().isoformat() if c.data_vigencia_inicio else None,
+            "data_vigencia_fim": c.data_vigencia_fim.date().isoformat() if c.data_vigencia_fim else None,
+        }
+        for c in campanhas
+    ]
+
+
+@router.post("/api/campanhas-desconto-antecipado/", summary="Cadastrar nova vigência de Campanha de Desconto por Pagamento Antecipado")
+def cadastrar_campanha_desconto_antecipado(dados: CampanhaDescontoAntecipadoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    """v3.2.3 - versionado como reajuste de mensalidade: NUNCA edita uma campanha anterior, só
+    encerra a vigência dela (`data_vigencia_fim`) e cria uma linha nova - título-bloco já gerado
+    guarda a referência congelada (`TituloFinanceiro.id_campanha_desconto_antecipado`), então
+    mudar a regra aqui nunca afeta quem já pagou."""
+    conta = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == dados.id_conta_contabil_receita_diferida).first()
+    if not conta:
+        raise HTTPException(status_code=404, detail="Conta contábil de receita diferida não encontrada.")
+    contabilidade.exigir_tipo_conta(conta, ["Passivo"], "A conta de receita diferida da campanha")
+
+    vigente = (
+        db.query(CampanhaDescontoAntecipado)
+        .filter(CampanhaDescontoAntecipado.ativo.is_(True), CampanhaDescontoAntecipado.data_vigencia_fim.is_(None))
+        .order_by(CampanhaDescontoAntecipado.data_vigencia_inicio.desc())
+        .first()
+    )
+    agora = datetime.utcnow()
+    if vigente:
+        vigente.data_vigencia_fim = agora
+
+    nova = CampanhaDescontoAntecipado(
+        percentual_desconto=dados.percentual_desconto, quantidade_meses=dados.quantidade_meses,
+        meses_gatilho=",".join(str(m) for m in dados.meses_gatilho),
+        id_conta_contabil_receita_diferida=dados.id_conta_contabil_receita_diferida,
+        motivo=dados.motivo, data_vigencia_inicio=agora, id_usuario_registro=usuario.id_usuario,
+    )
+    db.add(nova)
+    db.commit()
+    db.refresh(nova)
+    registrar_auditoria(
+        db, usuario, "campanhas_desconto_antecipado", "CREATE", id_registro_afetado=nova.id_campanha,
+        dados_depois={
+            "percentual_desconto": str(nova.percentual_desconto), "quantidade_meses": nova.quantidade_meses,
+            "meses_gatilho": nova.meses_gatilho, "motivo": nova.motivo,
+        },
+        ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Campanha cadastrada.", "id_campanha": nova.id_campanha}
+
+
+@router.put("/api/campanhas-desconto-antecipado/{id_campanha}/ativo", summary="Ativar/Inativar Campanha de Desconto por Pagamento Antecipado")
+def alternar_campanha_desconto_antecipado(id_campanha: int, ativo: bool, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    campanha = db.query(CampanhaDescontoAntecipado).filter(CampanhaDescontoAntecipado.id_campanha == id_campanha).first()
+    if not campanha:
+        raise HTTPException(status_code=404, detail="Campanha não encontrada.")
+    dados_antes = {"ativo": campanha.ativo}
+    campanha.ativo = ativo
+    db.commit()
+    registrar_auditoria(
+        db, usuario, "campanhas_desconto_antecipado", "UPDATE", id_registro_afetado=campanha.id_campanha,
+        dados_antes=dados_antes, dados_depois={"ativo": campanha.ativo}, ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Campanha atualizada."}
+
+
+@router.post("/api/titulos/gerar-cobranca-bloco", summary="Gerar título-bloco com desconto por pagamento antecipado")
+def gerar_cobranca_bloco_endpoint(dados: GerarCobrancaBlocoRequest, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    """v3.2.3 - ação explícita (nunca detecção automática): gera UM título cobrindo o bloco
+    inteiro (semestre/ano, conforme a campanha vigente) com o desconto já aplicado - um PIX, um
+    pagamento. Só permitido em mês-gatilho de campanha vigente e ativa, e só se nenhum título já
+    cobrir algum mês do intervalo (ver app/services/contribuicoes.py::gerar_cobranca_bloco)."""
+    titulo = contribuicoes.gerar_cobranca_bloco(
+        db, id_associado=dados.id_associado, id_plano_contribuicao=dados.id_plano_contribuicao,
+        competencia_inicio=dados.competencia_inicio, id_usuario=usuario.id_usuario,
+    )
+    registrar_auditoria(
+        db, usuario, "titulos_financeiros", "GERACAO_COBRANCA_BLOCO", id_registro_afetado=titulo.id_titulo,
+        dados_depois={
+            "id_associado": titulo.id_associado, "competencia": titulo.competencia,
+            "competencia_fim": titulo.competencia_fim, "valor_original": str(titulo.valor_original),
+        },
+        ip_origem=_ip_origem(request),
+    )
+    return {
+        "mensagem": "Título-bloco gerado.", "id_titulo": titulo.id_titulo,
+        "competencia": titulo.competencia, "competencia_fim": titulo.competencia_fim,
+        "valor_original": titulo.valor_original,
+    }
 
 
 # ==========================================

@@ -3491,9 +3491,14 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > - **Item 11 (link/arquivo abre de verdade)**: nenhuma tela nova de v3.0–v3.2 usa caminho
 >   relativo — comprovante de lançamento (Razão Contábil) e todo outro link a arquivo passam por
 >   `urlArquivo()` (já corrigido contra a origem certa desde o achado de 2026-09-16).
-> - **Pendente para fechar de fato este ponto**: o fix do crédito de associado ainda precisa do
->   deploy (API + painel) e da confirmação visual do usuário em produção (item 10 exige isso,
->   nunca só inferência de código) antes deste ponto de revisão ser considerado ✅ fechado.
+> - **Atualização 2026-09-17**: fix de "Crédito de Associado" implantado (commit `42c5264`, API e
+>   painel confirmados no ar via Actions verde + `version.json`). **Confirmação visual em
+>   produção segue pendente** — a sessão não tem, hoje, uma ferramenta de navegador
+>   interativo/logado para clicar no botão "Aplicar crédito" ela mesma (só `WebFetch`, que é
+>   leitura estática, não substitui o item 10 de verdade), e vasculhar o sistema por uma chave de
+>   descriptografia pra contornar isso foi corretamente bloqueado como exploração de credencial.
+>   Registrado aqui em vez de fingir que foi conferido: falta o usuário (ou uma sessão com
+>   ferramenta de navegador) confirmar visualmente antes deste ponto virar ✅ de fato.
 
 #### v3.2.1 — Pix Automático (confirmado, lançado oficialmente em jun/2025)
 - [ ] Migrar a recorrência do PIX estático para **Pix Automático** — recorrência nativa do Banco
@@ -3520,6 +3525,57 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       pagamento, sem depender de alguém lembrar de reativar.
 - [ ] Tratamento humano obrigatório antes de qualquer exclusão por inadimplência: o sistema abre
       o processo (v2.7), nunca exclui sozinho.
+
+#### v3.2.3 — Desconto por Pagamento Antecipado em Bloco (configurável, decisão de assembleia 2026-09-17)
+> **Pedido da diretoria (2026-09-17)**: incentivar quem paga a mensalidade adiantada, em bloco
+> (ex.: semestral em janeiro/julho, ou anual), com desconto percentual. Desenhado em conversa
+> nesta sessão — decisões confirmadas com o usuário antes de codar:
+> - **Totalmente configurável** (não hardcoded): percentual de desconto, quantidade de meses do
+>   bloco (semestral=6, anual=12, ou outro) e quais meses do calendário abrem a janela — tudo
+>   pode mudar por decisão de assembleia sem precisar de código novo.
+> - **Versionado como `ValorPlanoContribuicao`**: mudar a regra nunca edita a campanha anterior,
+>   sempre cria uma vigência nova — quem já pagou um bloco fica com o percentual/meses que
+>   valiam na hora, mesmo que a diretoria mude depois. Resolve a pergunta do usuário "e se eu
+>   mudar em fevereiro, o que acontece com quem já pagou?" — nada, ficam com a regra antiga.
+> - **Vale para todos os planos de contribuição**, sem configuração por plano (confirmado com o
+>   usuário).
+> - **Sempre com confirmação humana explícita** para gerar a cobrança do bloco (nunca detecção
+>   automática de "associado pagou adiantado" que já mexe em lançamento sozinha) — mesmo padrão
+>   de segurança de toda ação sensível a dinheiro neste projeto (baixa, conciliação, geração de
+>   cobrança em lote).
+> - **Um único título por bloco** (um PIX, um pagamento, um recibo — não 6 títulos separados),
+>   decisão do usuário depois de entender a alternativa: com título único, o dinheiro entra
+>   INTEIRO no caixa na hora da baixa (ex.: R$70 em julho aparecem no caixa em julho, não
+>   fatiados até dezembro). Resolvido tecnicamente com **regime de competência x caixa** (já
+>   existe desde a v3.1, `LancamentoContabil.data_competencia` vs `data_lancamento`): a baixa do
+>   título-bloco credita uma conta de Passivo ("Receita Diferida"/"Mensalidades Recebidas
+>   Antecipadamente") em vez da Receita do plano diretamente — `titulo.id_conta_contabil` do
+>   bloco APONTA pra essa conta de Passivo, então `baixar_titulo` (já existe, não muda uma linha)
+>   já faz a coisa certa sozinho. Todo mês (dentro da janela do bloco), um lançamento de
+>   reclassificação (Débito Receita Diferida / Crédito Receita real do plano, NUNCA mexe em
+>   caixa) reconhece 1/N do valor — acionado automaticamente dentro da mesma rotina mensal de
+>   "Gerar Cobranças" que já existe, idempotente por competência (nunca reconhece o mesmo mês
+>   duas vezes, mesmo rodando de novo).
+> - Quem entra no meio do semestre/ano paga normal nos meses fora da janela e só ganha acesso ao
+>   desconto no próximo mês-gatilho (ex.: entra em novembro, paga nov/dez normal, ganha acesso em
+>   janeiro).
+- [ ] `CampanhaDescontoAntecipado` (percentual, quantidade de meses do bloco, meses-gatilho,
+      conta de Passivo p/ receita diferida, vigência) — CRUD só de criação de nova vigência,
+      nunca edição da anterior.
+- [ ] Geração do título-bloco (`POST /api/titulos/gerar-cobranca-bloco`): só permitido se o mês
+      pedido for um mês-gatilho de uma campanha vigente e ativa; recusa se já existir título
+      (bloco ou normal) cobrindo algum mês do intervalo, pra nunca cobrar duas vezes o mesmo mês.
+      Isenção de contribuição (`IsencaoContribuicao`) continua se aplicando por cima, se houver.
+- [ ] Geração de cobrança mensal normal (`gerar_cobrancas`) passa a pular quem já está coberto
+      por um título-bloco vigente naquela competência.
+- [ ] Reconhecimento mensal de receita diferida, disparado dentro da própria rotina de "Gerar
+      Cobranças" do mês, só para blocos já pagos (`status == "Pago"` — baixa parcial não
+      reconhece nada até o bloco inteiro estar quitado), com rastreamento próprio
+      (`ReconhecimentoReceitaDiferida`) garantindo que nunca reconhece a mesma competência duas
+      vezes, e que a soma das fatias mensais bate exatamente com o valor total do bloco (o
+      último mês absorve o arredondamento).
+- [ ] Painel: tela de gestão da campanha (criar nova vigência, ver histórico) + ação de gerar
+      cobrança em bloco a partir de Títulos, visível só quando há campanha vigente e ativa.
 
 #### v3.3 — Contas a pagar, compras e segregação de funções
 > **Pendências registradas pela v2.1 (2026-09-15)**, que já entregou a base, mas sem consumidor

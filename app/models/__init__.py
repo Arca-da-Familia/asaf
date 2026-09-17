@@ -34,6 +34,8 @@ from app.models.financeiro import (
     ValorPlanoContribuicao,
     IsencaoContribuicao,
     CreditoAssociado,
+    CampanhaDescontoAntecipado,
+    ReconhecimentoReceitaDiferida,
 )
 from app.models.governanca import (
     Assembleia,
@@ -95,6 +97,8 @@ __all__ = [
     "ValorPlanoContribuicao",
     "IsencaoContribuicao",
     "CreditoAssociado",
+    "CampanhaDescontoAntecipado",
+    "ReconhecimentoReceitaDiferida",
     "Assembleia",
     "HabilitadoAssembleia",
     "PeticaoConvocacao",

@@ -6,9 +6,12 @@ import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import {
+  alternarCampanhaDescontoAntecipado,
+  criarCampanhaDescontoAntecipado,
   criarIsencaoContribuicao,
   criarPlanoContribuicao,
   listarAssociados,
+  listarCampanhasDescontoAntecipado,
   listarIsencoesContribuicao,
   listarOpcoesCatalogo,
   listarPlanoContas,
@@ -16,6 +19,7 @@ import {
   reajustarPlanoContribuicao,
 } from '@/lib/api'
 import {
+  campanhaDescontoAntecipadoCriarSchema,
   isencaoContribuicaoCriarSchema,
   planoContribuicaoCriarSchema,
   reajustePlanoContribuicaoSchema,
@@ -372,10 +376,142 @@ function FormularioIsencao({ onCancelar }: { onCancelar: () => void }) {
   )
 }
 
+// v3.2.3 - Campanha de Desconto por Pagamento Antecipado em Bloco (semestral/anual), decisão de
+// assembleia: percentual, quantidade de meses do bloco e meses-gatilho totalmente configuráveis,
+// versionada como reajuste - cadastrar uma nova NUNCA edita a anterior, só encerra a vigência
+// dela (título-bloco já gerado guarda a referência congelada, então mudar aqui nunca afeta quem
+// já pagou).
+function FormularioCampanha({ onCancelar }: { onCancelar: () => void }) {
+  const queryClient = useQueryClient()
+  const { data: contas } = useQuery({
+    queryKey: ['plano-contas'],
+    queryFn: listarPlanoContas,
+  })
+  const contasPassivo = (contas ?? []).filter(
+    (c) => c.tipo === 'Passivo' && !c.sintetica,
+  )
+
+  const criar = useMutation({
+    mutationFn: (v: z.infer<typeof campanhaDescontoAntecipadoCriarSchema>) =>
+      criarCampanhaDescontoAntecipado({
+        ...v,
+        meses_gatilho: v.meses_gatilho
+          .split(',')
+          .map((m) => Number(m.trim()))
+          .filter((m) => !Number.isNaN(m)),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['campanhas-desconto-antecipado'],
+      })
+      onCancelar()
+    },
+  })
+
+  return (
+    <FormShell<z.infer<typeof campanhaDescontoAntecipadoCriarSchema>>
+      schema={campanhaDescontoAntecipadoCriarSchema}
+      defaultValues={{
+        percentual_desconto: 0,
+        quantidade_meses: 6,
+        meses_gatilho: '',
+        id_conta_contabil_receita_diferida: 0,
+        motivo: '',
+      }}
+      onSubmit={(v) => criar.mutateAsync(v)}
+      className="mb-4 grid gap-2 rounded-md border border-border p-3 sm:grid-cols-3"
+    >
+      {(form) => (
+        <>
+          <div>
+            <input
+              type="number"
+              step="0.01"
+              {...form.register('percentual_desconto')}
+              placeholder="% de desconto"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            />
+            <ErroCampo
+              mensagem={form.formState.errors.percentual_desconto?.message}
+            />
+          </div>
+          <div>
+            <input
+              type="number"
+              {...form.register('quantidade_meses')}
+              placeholder="Meses do bloco (ex.: 6)"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            />
+            <ErroCampo
+              mensagem={form.formState.errors.quantidade_meses?.message}
+            />
+          </div>
+          <div>
+            <input
+              {...form.register('meses_gatilho')}
+              placeholder="Meses-gatilho (ex.: 1,7)"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            />
+            <ErroCampo
+              mensagem={form.formState.errors.meses_gatilho?.message}
+            />
+          </div>
+          <div>
+            <select
+              {...form.register('id_conta_contabil_receita_diferida')}
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="0">Conta de receita diferida (Passivo)…</option>
+              {contasPassivo.map((c) => (
+                <option key={c.id_conta} value={c.id_conta}>
+                  {c.codigo_contabil} — {c.descricao_conta}
+                </option>
+              ))}
+            </select>
+            <ErroCampo
+              mensagem={
+                form.formState.errors.id_conta_contabil_receita_diferida
+                  ?.message
+              }
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <input
+              {...form.register('motivo')}
+              placeholder="Motivo (ex.: Ata da assembleia de 2026-09-17)"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            />
+          </div>
+          <div className="flex gap-2 sm:col-span-3">
+            <Button type="submit" size="sm" disabled={criar.isPending}>
+              {criar.isPending ? 'Salvando…' : 'Cadastrar campanha'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onCancelar}
+            >
+              Cancelar
+            </Button>
+          </div>
+          {criar.isError && (
+            <p className="text-sm text-destructive sm:col-span-3">
+              {(criar.error as Error).message}
+            </p>
+          )}
+        </>
+      )}
+    </FormShell>
+  )
+}
+
 export function PlanosContribuicaoPage() {
   const [mostrarFormPlano, setMostrarFormPlano] = useState(false)
   const [mostrarFormIsencao, setMostrarFormIsencao] = useState(false)
+  const [mostrarFormCampanha, setMostrarFormCampanha] = useState(false)
   const [reajustando, setReajustando] = useState<number | null>(null)
+  const queryClient = useQueryClient()
 
   const { data: planos } = useQuery({
     queryKey: ['planos-contribuicao'],
@@ -384,6 +520,19 @@ export function PlanosContribuicaoPage() {
   const { data: isencoes } = useQuery({
     queryKey: ['isencoes-contribuicao'],
     queryFn: () => listarIsencoesContribuicao(),
+  })
+  const { data: campanhas } = useQuery({
+    queryKey: ['campanhas-desconto-antecipado'],
+    queryFn: listarCampanhasDescontoAntecipado,
+  })
+
+  const alternarCampanha = useMutation({
+    mutationFn: ({ id, ativo }: { id: number; ativo: boolean }) =>
+      alternarCampanhaDescontoAntecipado(id, ativo),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ['campanhas-desconto-antecipado'],
+      }),
   })
 
   return (
@@ -498,6 +647,90 @@ export function PlanosContribuicaoPage() {
           {(isencoes ?? []).length === 0 && (
             <p className="text-sm text-muted-foreground">
               Nenhuma isenção cadastrada.
+            </p>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold">
+              Campanha de Desconto por Pagamento Antecipado
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Bloco de meses (semestral, anual…) pago de uma vez, com desconto —
+              decisão de assembleia, totalmente configurável.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setMostrarFormCampanha((v) => !v)}
+          >
+            {mostrarFormCampanha ? 'Cancelar' : 'Nova vigência'}
+          </Button>
+        </div>
+
+        {mostrarFormCampanha && (
+          <FormularioCampanha
+            onCancelar={() => setMostrarFormCampanha(false)}
+          />
+        )}
+
+        <div className="space-y-2">
+          {(campanhas ?? []).map((c) => (
+            <div
+              key={c.id_campanha}
+              className="rounded-md border border-border p-3 text-sm"
+            >
+              <div className="flex items-center justify-between">
+                <p className="font-medium">
+                  {c.percentual_desconto}% de desconto — bloco de{' '}
+                  {c.quantidade_meses} meses
+                </p>
+                <span
+                  className={
+                    c.ativo && !c.data_vigencia_fim
+                      ? 'text-green-600'
+                      : 'text-muted-foreground'
+                  }
+                >
+                  {!c.data_vigencia_fim
+                    ? c.ativo
+                      ? 'Vigente'
+                      : 'Vigente (inativa)'
+                    : 'Encerrada'}
+                </span>
+              </div>
+              <p className="text-muted-foreground">
+                Meses-gatilho: {c.meses_gatilho.join(', ')} · desde{' '}
+                {c.data_vigencia_inicio}
+                {c.data_vigencia_fim && ` até ${c.data_vigencia_fim}`}
+              </p>
+              {c.motivo && <p className="text-muted-foreground">{c.motivo}</p>}
+              {!c.data_vigencia_fim && (
+                <div className="mt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={alternarCampanha.isPending}
+                    onClick={() =>
+                      alternarCampanha.mutate({
+                        id: c.id_campanha,
+                        ativo: !c.ativo,
+                      })
+                    }
+                  >
+                    {c.ativo ? 'Inativar' : 'Reativar'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
+          {(campanhas ?? []).length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma campanha cadastrada.
             </p>
           )}
         </div>
