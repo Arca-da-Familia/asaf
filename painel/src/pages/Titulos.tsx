@@ -7,11 +7,13 @@ import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import {
+  aplicarCredito,
   baixarTitulo,
   criarTitulo,
   enviarComprovante,
   listarAssociados,
   listarCentrosCusto,
+  listarCreditosAssociado,
   listarFornecedores,
   listarPlanoContas,
   listarTitulos,
@@ -443,10 +445,128 @@ function PainelPix({ idTitulo }: { idTitulo: number }) {
   )
 }
 
+// v3.2 - "pagamento a maior (crédito em conta do associado)": o excedente de uma baixa vira
+// `CreditoAssociado`, consumível depois em qualquer título futuro do MESMO associado. Painel
+// só oferece o botão quando o título tem beneficiário associado (`id_associado`) - crédito de
+// associado nunca se aplica a título de fornecedor.
+function PainelCredito({
+  idTitulo,
+  idAssociado,
+}: {
+  idTitulo: number
+  idAssociado: number
+}) {
+  const queryClient = useQueryClient()
+  const { data: creditos, isLoading } = useQuery({
+    queryKey: ['creditos-associado', idAssociado],
+    queryFn: () => listarCreditosAssociado(idAssociado),
+  })
+  const { data: contas } = useQuery({
+    queryKey: ['plano-contas'],
+    queryFn: listarPlanoContas,
+  })
+  const contasPassivo = (contas ?? []).filter((c) => c.tipo === 'Passivo')
+  const [idCredito, setIdCredito] = useState('')
+  const [idConta, setIdConta] = useState('')
+
+  const aplicar = useMutation({
+    mutationFn: () =>
+      aplicarCredito({
+        id_credito: Number(idCredito),
+        id_titulo: idTitulo,
+        id_conta_contabil_adiantamento: Number(idConta),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['titulos'] })
+      queryClient.invalidateQueries({
+        queryKey: ['creditos-associado', idAssociado],
+      })
+      setIdCredito('')
+      setIdConta('')
+    },
+  })
+
+  const creditosDisponiveis = (creditos ?? []).filter((c) => c.valor > 0)
+
+  if (isLoading)
+    return (
+      <p className="mt-2 text-xs text-muted-foreground">
+        Carregando créditos do associado…
+      </p>
+    )
+  if (creditosDisponiveis.length === 0)
+    return (
+      <p className="mt-2 text-xs text-muted-foreground">
+        Este associado não tem crédito disponível.
+      </p>
+    )
+
+  return (
+    <div className="mt-2 flex flex-wrap items-end gap-2 rounded-md border border-border bg-muted/20 p-3">
+      <div>
+        <label className="mb-1 block text-xs text-muted-foreground">
+          Crédito
+        </label>
+        <select
+          value={idCredito}
+          onChange={(e) => setIdCredito(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">Selecione…</option>
+          {creditosDisponiveis.map((c) => (
+            <option key={c.id_credito} value={c.id_credito}>
+              {formatarReais(c.valor)} ({c.origem}, título de origem #
+              {c.id_titulo_origem})
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="mb-1 block text-xs text-muted-foreground">
+          Conta de adiantamento (Passivo)
+        </label>
+        <select
+          value={idConta}
+          onChange={(e) => setIdConta(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">Selecione…</option>
+          {contasPassivo.map((c) => (
+            <option key={c.id_conta} value={c.id_conta}>
+              {c.codigo_contabil} — {c.descricao_conta}
+            </option>
+          ))}
+        </select>
+      </div>
+      <Button
+        type="button"
+        size="sm"
+        disabled={!idCredito || !idConta || aplicar.isPending}
+        onClick={() => aplicar.mutate()}
+      >
+        {aplicar.isPending ? 'Aplicando…' : 'Aplicar crédito'}
+      </Button>
+      {aplicar.isSuccess && aplicar.data && (
+        <p className="w-full text-xs text-green-600">
+          Aplicado {formatarReais(aplicar.data.valor_aplicado)}. Saldo do
+          título: {formatarReais(aplicar.data.saldo_devedor_titulo)}. Crédito
+          restante: {formatarReais(aplicar.data.saldo_credito_restante)}.
+        </p>
+      )}
+      {aplicar.isError && (
+        <p className="w-full text-xs text-destructive">
+          {(aplicar.error as Error).message}
+        </p>
+      )}
+    </div>
+  )
+}
+
 export function TitulosPage() {
   const [mostrarForm, setMostrarForm] = useState(false)
   const [baixando, setBaixando] = useState<number | null>(null)
   const [mostrandoPix, setMostrandoPix] = useState<number | null>(null)
+  const [mostrandoCredito, setMostrandoCredito] = useState<number | null>(null)
   const [status, setStatus] = useState('')
   const [tipoTitulo, setTipoTitulo] = useState('')
 
@@ -562,6 +682,21 @@ export function TitulosPage() {
                           : 'Ver Pix'}
                       </Button>
                     )}
+                    {t.tipo_titulo === 'A Receber' && t.id_associado && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setMostrandoCredito((v) =>
+                            v === t.id_titulo ? null : t.id_titulo,
+                          )
+                        }
+                      >
+                        {mostrandoCredito === t.id_titulo
+                          ? 'Ocultar crédito'
+                          : 'Aplicar crédito'}
+                      </Button>
+                    )}
                   </div>
                   {baixando === t.id_titulo && (
                     <FormularioBaixa
@@ -572,6 +707,12 @@ export function TitulosPage() {
                   )}
                   {mostrandoPix === t.id_titulo && (
                     <PainelPix idTitulo={t.id_titulo} />
+                  )}
+                  {mostrandoCredito === t.id_titulo && t.id_associado && (
+                    <PainelCredito
+                      idTitulo={t.id_titulo}
+                      idAssociado={t.id_associado}
+                    />
                   )}
                 </div>
               )}

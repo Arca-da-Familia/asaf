@@ -403,6 +403,7 @@ def listar_titulos(status: str = None, tipo_titulo: str = None, db: Session = De
         resultado.append({
             "id_titulo": t.id_titulo,
             "tipo_titulo": t.tipo_titulo,
+            "id_associado": t.id_associado,
             "descricao": t.descricao,
             "conta_contabil": conta.descricao_conta if conta else "",
             "beneficiario": beneficiario or "-",

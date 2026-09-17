@@ -183,6 +183,18 @@ def test_estorno_reverte_saldo_e_marca_lancamento_original_sem_apagar(client, au
     r = client.post(f"/api/lancamentos/{id_lancamento}/estornar", json={"motivo": "Tentativa dupla"}, headers=auth_headers)
     assert r.status_code == 400
 
+    # v3.0/v3.1 - Ponto de Revisão FASE 3 (1/3): imutabilidade não pode depender só da ausência
+    # de rota no código-fonte de hoje - uma rota genérica de CRUD adicionada por engano no futuro
+    # não pode voltar a permitir editar/apagar lançamento já gravado. Testa contra o HTTP de
+    # verdade, não só "grep não achou @router.put".
+    url_lancamento = f"/api/lancamentos/{id_lancamento}"
+    for r in (
+        client.put(url_lancamento, json={}, headers=auth_headers),
+        client.patch(url_lancamento, json={}, headers=auth_headers),
+        client.delete(url_lancamento, headers=auth_headers),
+    ):
+        assert r.status_code in (404, 405), f"lançamento deveria ser imutável, veio {r.status_code}"
+
 
 def test_nao_pode_abrir_dois_exercicios_ao_mesmo_tempo(client, auth_headers, exercicio_financeiro_aberto):
     r = client.post("/api/exercicios/", json={"ano": 2100}, headers=auth_headers)

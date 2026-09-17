@@ -3450,6 +3450,51 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - Lançamento é imutável — testar que tentar apagar/editar um lançamento já gravado falha, e que a correção é sempre estorno + novo lançamento.
 - Geração de cobrança em lote (v3.2) é idempotente por competência — rodar duas vezes no mesmo mês não pode duplicar cobrança.
 
+> **Revisado em 2026-09-17.** Checklist padrão (seção 4.1, 12 itens) + os três itens específicos
+> acima, todos aplicados com evidência concreta (arquivo:linha), não por inspeção superficial:
+> - **Item específico 1 (`float` perto de dinheiro)**: zero ocorrências em `app/models/financeiro.py`,
+>   `app/schemas/financeiro.py`, `app/services/{contabilidade,contribuicoes,pix,conciliacao}.py` —
+>   todo valor é `Numeric(14,2)`/`Decimal`, inclusive `percentual_desconto` da isenção.
+> - **Item específico 2 (imutabilidade do lançamento)**: confirmado que não existe
+>   PUT/PATCH/DELETE para `/api/lancamentos/` — só `POST .../estornar`
+>   (`app/services/contabilidade.py::estornar_lancamento`), que cria um lançamento NOVO com
+>   partidas invertidas e só marca `estornado`/`motivo_estorno` no original, nunca toca em
+>   `valor`/partidas dele. **Lacuna de teste encontrada e fechada nesta revisão**: a suíte só
+>   provava isso pela ausência de rota, nunca por uma chamada HTTP de verdade — adicionado em
+>   `tests/test_financeiro.py::test_estorno_reverte_saldo_e_marca_lancamento_original_sem_apagar`
+>   um PUT/PATCH/DELETE direto contra o lançamento já gravado, cada um assertando 404/405.
+> - **Item específico 3 (idempotência da geração em lote)**: `UniqueConstraint` real em
+>   `TituloFinanceiro(id_associado, id_plano_contribuicao, competencia)`
+>   (`app/models/financeiro.py`) + checagem prévia em `gerar_cobrancas`
+>   (`app/services/contribuicoes.py`) que pula quem já tem título na competência antes mesmo de
+>   tentar gravar. `tests/test_contribuicoes.py::test_geracao_de_cobrancas_e_idempotente_por_competencia`
+>   chama a geração duas vezes de verdade para a mesma competência e confirma que a segunda não
+>   duplica.
+> - **Itens 1–9 e 12 do checklist padrão**: sem violação. `AuditLog` grava toda ação sensível
+>   (baixa, estorno, transferência, isenção, aplicação de crédito, cadastro de plano de
+>   contas/centro de custo/conta financeira/fornecedor); toda rota nova usa
+>   `Depends(exigir_permissao("financeiro"))`, nunca checagem escondida no front;
+>   `DECISOES_CONGELADAS.md` sem violação (nenhuma troca de banco/framework, permissão sempre
+>   dinâmica via `usuario_tem_permissao`); scan de segredo limpo nos commits do intervalo;
+>   suíte completa 231/231 passando; commit que fecha a faixa (`92ec651`) está em `main` remoto,
+>   `Deploy API` e `Deploy Painel` verdes para esse SHA, e `painel.asaf.org.br/version.json`
+>   confirmado batendo com o commit no momento da revisão.
+> - **Item 10 (tela real no painel) — bug real encontrado e corrigido na hora, antes de fechar
+>   este ponto**: "Crédito de Associado" (pagamento a maior, v3.2) tinha back-end completo
+>   (`CreditoAssociado`, `POST /api/creditos-associado/aplicar`) e cliente de API já pronto no
+>   painel (`painel/src/lib/api.ts::listarCreditosAssociado`/`aplicarCredito`), mas **nenhuma tela
+>   consumia isso** — o mesmo padrão de falha do achado de 2026-09-15 (back-end pronto, sem tela).
+>   Corrigido nesta revisão: novo painel "Aplicar crédito" em `Titulos.tsx` (título "A Receber"
+>   pendente com `id_associado` ganha o botão), listando os créditos disponíveis do associado e
+>   aplicando contra o título escolhido. Exigiu também expor `id_associado` na resposta de
+>   `GET /api/titulos/` (campo que já existia no model, só não estava sendo serializado).
+> - **Item 11 (link/arquivo abre de verdade)**: nenhuma tela nova de v3.0–v3.2 usa caminho
+>   relativo — comprovante de lançamento (Razão Contábil) e todo outro link a arquivo passam por
+>   `urlArquivo()` (já corrigido contra a origem certa desde o achado de 2026-09-16).
+> - **Pendente para fechar de fato este ponto**: o fix do crédito de associado ainda precisa do
+>   deploy (API + painel) e da confirmação visual do usuário em produção (item 10 exige isso,
+>   nunca só inferência de código) antes deste ponto de revisão ser considerado ✅ fechado.
+
 #### v3.2.1 — Pix Automático (confirmado, lançado oficialmente em jun/2025)
 - [ ] Migrar a recorrência do PIX estático para **Pix Automático** — recorrência nativa do Banco
       Central (Resolução BCB nº 402/506): o associado autoriza **uma única vez** no app do banco e

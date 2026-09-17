@@ -2439,6 +2439,7 @@ export function fecharExercicio(
 export type TituloFinanceiro = {
   id_titulo: number
   tipo_titulo: string
+  id_associado: number | null
   descricao: string
   conta_contabil: string
   beneficiario: string
