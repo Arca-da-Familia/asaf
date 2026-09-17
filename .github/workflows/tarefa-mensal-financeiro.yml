@@ -60,7 +60,9 @@ jobs:
           echo "SMTP_REMETENTE=$SMTP_REMETENTE" >> "$GITHUB_ENV"
 
       - name: Rodar tarefa mensal (gerar cobrança + lembretes)
-        run: python scripts/tarefa_mensal_financeiro.py
+        # PYTHONPATH=. necessário pra `from app...` resolver - rodar o script direto (sem `-m`)
+        # não coloca a raiz do repo no sys.path (mesmo motivo do `python -m pytest` em deploy-api.yml).
+        run: PYTHONPATH=. python scripts/tarefa_mensal_financeiro.py
 
       - name: Logout
         if: always()
