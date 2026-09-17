@@ -13,6 +13,7 @@ import {
   listarReembolsosDespesa,
   reprovarReembolsoDespesa,
   solicitarReembolsoDespesa,
+  urlArquivo,
 } from '@/lib/api'
 import {
   reembolsoDespesaCriarSchema,
@@ -243,6 +244,16 @@ export function ReembolsoDespesaPage() {
               <p className="text-muted-foreground">
                 Valor: {formatarReais(r.valor)}
               </p>
+              {r.comprovante && (
+                <a
+                  href={urlArquivo(r.comprovante)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-primary underline"
+                >
+                  Ver comprovante
+                </a>
+              )}
               {r.motivo_reprovacao && (
                 <p className="text-muted-foreground">
                   Motivo: {r.motivo_reprovacao}

@@ -3763,6 +3763,66 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - Alteração de dado bancário de fornecedor (v3.3) exige segundo aprovador — testar que um único usuário não consegue fazer isso sozinho.
 - Quem solicita uma compra nunca consegue aprovar a própria solicitação — checado no endpoint, testar tentando forçar via chamada direta à API.
 
+> **Revisado em 2026-09-17.** Checklist padrão (seção 4.1, 12 itens) + os três itens específicos
+> acima:
+> - **Item específico 1 (cancelamento de Pix Automático)**: **reescrito** — a própria v3.2.1 (ver
+>   nota acima) substituiu Pix Automático de verdade (autorização/cancelamento pelo banco) por
+>   "Cobrança Recorrente Automática + Lembrete Pix", achado confirmado com o usuário por falta de
+>   orçamento pra um PSP parceiro. Não existe autorização de débito automático nenhuma pra
+>   "cancelar" — o item como escrito testa uma feature que foi deliberadamente adiada, não
+>   esquecida (registrado no próprio bloco da v3.2.1). O risco real por trás do item ("fica
+>   emitindo cobrança que nunca será paga") é coberto de outro jeito, já testado: título vencido
+>   não pago entra na régua de cobrança escalonada (v3.2.2, `DIAS_ATRASO_LEMBRETE`) e no fluxo de
+>   negociação/parcelamento (`NegociacaoDivida`), cada aviso só sai uma vez por título
+>   (`LembreteMensalidadeEnviado`, `tests/test_lembretes.py`) — nunca um loop de cobrança morta
+>   sem tratamento. Quando houver orçamento pra Pix Automático de verdade, este item volta a valer
+>   como escrito.
+> - **Item específico 2 (segundo aprovador de dados bancários)**: confirmado por chamada HTTP real
+>   contra o endpoint (`tests/test_compras.py::test_dados_bancarios_fornecedor_exige_segundo_aprovador`)
+>   — o mesmo usuário que solicita a troca recebe 400 ao tentar aprovar
+>   (`app/services/fornecedores.py::aprovar_dados_bancarios`), um segundo usuário aprova com sucesso.
+> - **Item específico 3 (solicitante não aprova a própria compra)**: confirmado por chamada HTTP
+>   real contra o endpoint, não só na camada de serviço
+>   (`tests/test_compras.py::test_segregacao_solicitante_nao_pode_aprovar_propria_solicitacao`) —
+>   403 ao forçar via `POST /api/solicitacoes-compra/{id}/aprovar` com o token de quem solicitou
+>   (`app/services/compras.py::_pode_aprovar`).
+> - **Itens 1–9 do checklist padrão**: sem violação. `AuditLog` grava toda ação sensível de
+>   compras/fornecedores/reembolso/contas a pagar/doações (`registrar_auditoria` em toda escrita
+>   dos routers `compras.py` e `doacoes.py`, 11/11 endpoints de doações cobertos); toda rota nova
+>   usa `Depends(exigir_permissao("financeiro"))`; `DECISOES_CONGELADAS.md` sem violação; scan de
+>   segredo limpo (`git diff --stat` do intervalo, 43 arquivos); nada fora de escopo sem registro
+>   (anexo opcional de cotação, patrimônio da doação em bens e publicação pública de campanha
+>   ficaram de fora deliberadamente, registrado nos blocos de v3.3/v3.4); suíte completa
+>   **266/266 passando** (backend) e **22/22 passando** (painel), rodada de verdade nesta revisão,
+>   não assumida pelo número citado nos blocos anteriores.
+> - **Item 10 (tela real no painel)**: confirmado que toda funcionalidade nova do intervalo tem
+>   tela própria — `Compras.tsx`, `ReembolsoDespesa.tsx`, `AlcadasAprovacao.tsx`,
+>   `ContasAPagarRecorrentes.tsx`, `Fornecedores.tsx` (extensão), `NegociacaoDivida.tsx`,
+>   `Doacoes.tsx`, `CentrosCusto.tsx` (extensão) — todas registradas em `App.tsx`.
+> - **Item 11 (link/arquivo abre de verdade) — bug real encontrado e corrigido na hora**: o
+>   comprovante do Reembolso de Despesa (v3.3) é enviado (`enviarComprovante`, mesmo padrão do
+>   comprovante de lançamento) e gravado (`ReembolsoDespesa.comprovante`), mas a listagem em
+>   `ReembolsoDespesaPage` nunca oferecia um jeito de abrir o arquivo depois — nem link quebrado,
+>   simplesmente nenhum link. Mesma categoria do achado de 2026-09-16 (foto do associado/documento
+>   da ata), desta vez por omissão em vez de caminho relativo errado. **Corrigido nesta revisão**:
+>   `ReembolsoDespesa.tsx` ganhou link "Ver comprovante" via `urlArquivo()` (mesmo helper já usado
+>   em `RazaoContabil.tsx`/`Ata.tsx`/`AssociadoDetalhe.tsx`), typecheck/lint/build/teste do painel
+>   rodados de novo depois do fix (limpos), commit próprio nesta faixa. **Gap menor registrado,
+>   não corrigido por estar fora de escopo (item 7)**: o campo opcional `anexo` de `CotacaoCompra`
+>   existe no backend mas o formulário de cotação em `Compras.tsx` nunca oferece upload dele —
+>   nunca gera link quebrado (porque nunca é preenchido), só uma funcionalidade opcional incompleta;
+>   fica para quando cotação ganhar anexo de verdade numa versão futura.
+> - **Item 12 (produção)**: `git log origin/main..HEAD` vazio; `Deploy API` e `Deploy Painel`
+>   verdes para o commit `927f8ad` (v3.4, e todos os commits do intervalo antes dele, conferido via
+>   `gh run list`); `painel.asaf.org.br/version.json` confirmado **ao vivo** batendo `927f8ad` no
+>   momento desta revisão. O fix do item 11 acima ainda precisa do próprio ciclo de deploy — ver
+>   nota de commit/push logo abaixo.
+> - **Confirmação visual em produção segue pendente** (mesma lacuna de ferramenta de navegador
+>   interativo/logado já registrada nos pontos de revisão anteriores desta fase) — checkboxes de
+>   v3.2.1–v3.4 continuam sem `[x]` até o usuário (ou uma sessão com essa ferramenta) abrir as telas
+>   listadas no item 10 acima e, em particular, clicar em "Ver comprovante" do Reembolso de Despesa
+>   já com o fix no ar.
+
 #### v3.5 — Orçamento e fluxo de caixa
 - [ ] `Orcamento` anual por conta e centro de custo, aprovado em assembleia (vinculado à
       deliberação da v2.5), com acompanhamento realizado x previsto e alerta de estouro.
