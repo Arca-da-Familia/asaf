@@ -3500,20 +3500,43 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 >   Registrado aqui em vez de fingir que foi conferido: falta o usuário (ou uma sessão com
 >   ferramenta de navegador) confirmar visualmente antes deste ponto virar ✅ de fato.
 
-#### v3.2.1 — Pix Automático (confirmado, lançado oficialmente em jun/2025)
-- [ ] Migrar a recorrência do PIX estático para **Pix Automático** — recorrência nativa do Banco
-      Central (Resolução BCB nº 402/506): o associado autoriza **uma única vez** no app do banco e
-      a associação dispara as cobranças nas datas programadas, sem gateway de terceiro nem taxa de
-      intermediário.
-- [ ] Exige integração com uma instituição financeira/PSP habilitado (a associação não se conecta
-      direto ao BCB) — escolher o banco/fintech parceiro é pré-requisito.
-- [ ] Ciclo completo de autorização: criar, consultar, o associado pode cancelar pelo próprio
-      banco a qualquer momento — o sistema precisa **detectar o cancelamento** e reverter o
-      associado para cobrança avulsa automaticamente, sem ficar emitindo cobrança que nunca será
-      paga.
-- [ ] Tratamento de falha por saldo insuficiente com política de retentativa configurada.
-- [ ] v3.2 (PIX estático) continua existindo como alternativa para quem não quiser autorizar
-      recorrência — nunca exigir Pix Automático como único caminho.
+#### v3.2.1 — Pix Automático → **adaptado para "Cobrança Recorrente Automática + Lembrete Pix"** (2026-09-17)
+> **Achado confirmado com o usuário**: Pix Automático de verdade (Resolução BCB nº 402/506) exige
+> integração com um banco/PSP parceiro **pago** — a associação não tem orçamento pra isso hoje.
+> Em vez de deixar a versão em branco, foi desenhada em conversa com o usuário uma adaptação que
+> entrega o mesmo benefício (associado não esquecer de pagar, ninguém precisar lembrar de rodar a
+> cobrança manual todo mês) usando só recursos **já gratuitos**: o e-mail institucional da própria
+> ASAF (`asaf@asaf.org.br`, Google Workspace — MX do domínio `asaf.org.br` já aponta pra
+> `smtp.google.com`, achado confirmado direto no Azure DNS) e o cron do GitHub Actions, mesma
+> infra que já roda o CI/CD.
+- [x] Geração mensal automática da cobrança (`gerar_cobrancas`, já existente desde a v3.2) —
+      elimina "alguém esquecer de rodar Gerar Cobranças todo mês".
+- [x] Lembrete automático por e-mail com o Pix já pronto (copia e cola) alguns dias antes do
+      vencimento (`DIAS_LEMBRETE_MENSALIDADE`, configurável) e no próprio dia do vencimento —
+      nunca debita nada sozinho, só reduz ao máximo a fricção de pagar. Cada tipo de lembrete só
+      sai uma vez por título (`LembreteMensalidadeEnviado`), mesmo se a rotina rodar de novo.
+- [x] Roda como **SISTEMA** (`id_usuario=None` no AuditLog), direto contra o banco de produção —
+      mesmo nível de confiança que já roda migração Alembic em produção via `DATABASE_URL` do Key
+      Vault. **Decisão explícita do usuário**: nenhuma conta de usuário "fantasma" — e no fim nem
+      precisou de login humano nenhum (registrar_auditoria já aceita `usuario=None`).
+- [x] Credenciais SMTP (`SMTP_HOST`/`SMTP_PORTA`/`SMTP_USUARIO`/`SMTP_SENHA`/`SMTP_REMETENTE`)
+      gravadas no Key Vault (`kv-asaf-arca`) pela própria sessão, com acesso Azure liberado pelo
+      usuário (saiu do modo automático pra aprovar os comandos `az` um a um). Nenhum segredo novo
+      pro usuário lembrar/gerenciar no dia a dia — é uma senha de app gerada uma única vez.
+- [ ] v3.2 (PIX estático manual, geração por associado avulsa) continua existindo do jeito que
+      está — esta adaptação não substitui, só reduz a fricção de quem já usa o fluxo mensal.
+- [ ] Fica registrado para o futuro, **se e quando houver orçamento**: migrar para Pix Automático
+      de verdade (ciclo de autorização, detecção de cancelamento, retentativa por saldo
+      insuficiente) exatamente como descrito originalmente nesta versão — nada do desenho antigo
+      foi perdido, só adiado até ter orçamento pra um PSP parceiro.
+
+> **Achado durante esta versão, não específico dela**: `ConfiguracaoInstitucional` (`CHAVE_PIX`,
+> `TETO_ALCADA_FINANCEIRA`, e agora `DIAS_LEMBRETE_MENSALIDADE`, entre outras) **nunca teve tela
+> no painel** — só editável hoje via chamada direta à API (`PUT /api/configuracoes/{chave}`).
+> Gap pré-existente desde a v0.3.4, não introduzido por esta versão, mas que se torna mais
+> visível agora. Registrado aqui para uma versão futura construir a tela genérica de
+> Configurações Institucionais (listar/editar por categoria) — fora do escopo deste intervalo por
+> item 7 do checklist (não inflar a versão atual com um módulo à parte).
 
 #### v3.2.2 — Inadimplência como processo, não como rótulo
 - [ ] Régua de cobrança configurável (lembrete antes do vencimento, aviso no vencimento, avisos

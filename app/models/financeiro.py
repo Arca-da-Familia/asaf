@@ -204,6 +204,24 @@ class ReconhecimentoReceitaDiferida(Base):
     data_criacao = Column(DateTime, default=datetime.utcnow)
 
 
+class LembreteMensalidadeEnviado(Base):
+    """v3.2.1 (adaptado, 2026-09-17) - Pix Automático de verdade (Resolução BCB 402/506) exige
+    integração com um banco/PSP parceiro pago, que a associação não tem orçamento pra contratar
+    (achado confirmado com o usuário). Adaptação: lembrete automático por e-mail com o Pix já
+    pronto (copia e cola), disparado pela mesma rotina mensal que gera a cobrança
+    (`app/services/lembretes.py`) - nunca debita nada sozinho, só reduz ao máximo a fricção de
+    "esquecer de pagar". A `UniqueConstraint` abaixo garante que o MESMO tipo de lembrete nunca é
+    enviado duas vezes pro mesmo título, mesmo se a rotina rodar mais de uma vez no mesmo dia."""
+    __tablename__ = "lembretes_mensalidade_enviados"
+    __table_args__ = (
+        UniqueConstraint("id_titulo", "tipo_lembrete", name="uq_lembrete_por_titulo_e_tipo"),
+    )
+    id_lembrete = Column(Integer, primary_key=True, index=True)
+    id_titulo = Column(Integer, ForeignKey("titulos_financeiros.id_titulo"), nullable=False)
+    tipo_lembrete = Column(String, nullable=False)  # "ANTES_VENCIMENTO" | "NO_VENCIMENTO"
+    data_envio = Column(DateTime, default=datetime.utcnow)
+
+
 class CreditoAssociado(Base):
     """v3.2 - "pagamento a maior (crédito em conta do associado) tratado explicitamente":
     excedente de uma baixa vira crédito aqui (nunca perdido, nunca devolvido em dinheiro sem

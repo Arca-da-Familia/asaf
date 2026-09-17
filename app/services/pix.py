@@ -9,6 +9,9 @@ import unicodedata
 from decimal import Decimal
 from typing import Optional
 
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+
 _GUI_PIX = "br.gov.bcb.pix"
 
 
@@ -64,3 +67,21 @@ def gerar_payload_pix(
     )
     payload_sem_crc = campos + "6304"
     return payload_sem_crc + _crc16_ccitt_false(payload_sem_crc)
+
+
+def payload_pix_do_titulo(db: Session, titulo) -> str:
+    """v3.2.1 (adaptado) - mesma geração de payload usada por `GET /api/titulos/{id}/pix`,
+    extraída aqui pra ser reaproveitada pelo lembrete automático por e-mail
+    (`app/services/lembretes.py`) - uma única fonte de verdade pro Pix de um título, nunca duas
+    implementações que podem divergir."""
+    from app.models.core import ConfiguracaoInstitucional
+
+    configs = {c.chave_configuracao: c.valor_configuracao for c in db.query(ConfiguracaoInstitucional).all()}
+    chave_pix = configs.get("CHAVE_PIX")
+    if not chave_pix:
+        raise HTTPException(status_code=400, detail="Pix não configurado (CHAVE_PIX ausente em Configurações Institucionais).")
+    return gerar_payload_pix(
+        chave_pix=chave_pix, nome_beneficiario=configs.get("NOME_BENEFICIARIO_PIX") or "ASAF",
+        cidade_beneficiario=configs.get("CIDADE_BENEFICIARIO_PIX") or "NA",
+        valor=titulo.saldo_devedor, txid=str(titulo.id_titulo), descricao=titulo.descricao,
+    )

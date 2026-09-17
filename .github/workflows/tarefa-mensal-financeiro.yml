@@ -1,0 +1,67 @@
+name: Tarefa Mensal (cobrança + lembrete Pix por e-mail)
+
+# v3.2.1 (adaptado, 2026-09-17) - substitui Pix Automático (Resolução BCB 402/506, exige convênio
+# pago com banco/PSP, sem orçamento hoje - achado confirmado com o usuário): gera a cobrança do
+# mês corrente e envia lembrete por e-mail (Pix pronto) de quem está prestes a vencer ou vence
+# hoje, todo dia 1 do mês. Roda como SISTEMA, direto contra o banco (mesmo mecanismo de
+# confiança que já roda migração Alembic em produção via DATABASE_URL do Key Vault) - nenhum
+# login humano é necessário.
+on:
+  schedule:
+    - cron: "0 9 1 * *" # dia 1 de cada mês, 09:00 UTC (06:00 em Brasília)
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write # necessário para login OIDC no Azure (sem senha salva)
+  contents: read
+
+jobs:
+  tarefa-mensal:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Login no Azure via OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Buscar segredos do Key Vault (DATABASE_URL + SMTP)
+        run: |
+          DB_URL=$(az keyvault secret show --vault-name kv-asaf-arca --name DATABASE-URL --query value -o tsv)
+          echo "::add-mask::$DB_URL"
+          echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
+
+          SMTP_HOST=$(az keyvault secret show --vault-name kv-asaf-arca --name SMTP-HOST --query value -o tsv)
+          SMTP_PORTA=$(az keyvault secret show --vault-name kv-asaf-arca --name SMTP-PORTA --query value -o tsv)
+          SMTP_USUARIO=$(az keyvault secret show --vault-name kv-asaf-arca --name SMTP-USUARIO --query value -o tsv)
+          SMTP_SENHA=$(az keyvault secret show --vault-name kv-asaf-arca --name SMTP-SENHA --query value -o tsv)
+          SMTP_REMETENTE=$(az keyvault secret show --vault-name kv-asaf-arca --name SMTP-REMETENTE --query value -o tsv)
+          echo "::add-mask::$SMTP_HOST"
+          echo "::add-mask::$SMTP_PORTA"
+          echo "::add-mask::$SMTP_USUARIO"
+          echo "::add-mask::$SMTP_SENHA"
+          echo "::add-mask::$SMTP_REMETENTE"
+          echo "SMTP_HOST=$SMTP_HOST" >> "$GITHUB_ENV"
+          echo "SMTP_PORTA=$SMTP_PORTA" >> "$GITHUB_ENV"
+          echo "SMTP_USUARIO=$SMTP_USUARIO" >> "$GITHUB_ENV"
+          echo "SMTP_SENHA=$SMTP_SENHA" >> "$GITHUB_ENV"
+          echo "SMTP_REMETENTE=$SMTP_REMETENTE" >> "$GITHUB_ENV"
+
+      - name: Rodar tarefa mensal (gerar cobrança + lembretes)
+        run: python scripts/tarefa_mensal_financeiro.py
+
+      - name: Logout
+        if: always()
+        run: az logout || true

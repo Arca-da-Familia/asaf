@@ -927,29 +927,13 @@ def gerar_cobrancas_endpoint(dados: GerarCobrancasRequest, request: Request, db:
 # ==========================================
 @router.get("/api/titulos/{id_titulo}/pix", summary="Gerar Pix Copia e Cola de um título")
 def gerar_pix_titulo(id_titulo: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
-    from app.models.core import ConfiguracaoInstitucional
-
     titulo = db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == id_titulo).first()
     if not titulo:
         raise HTTPException(status_code=404, detail="Título não encontrado.")
     if titulo.status == "Pago":
         raise HTTPException(status_code=400, detail="Este título já está pago.")
 
-    configs = {
-        c.chave_configuracao: c.valor_configuracao
-        for c in db.query(ConfiguracaoInstitucional).filter(
-            ConfiguracaoInstitucional.chave_configuracao.in_(["CHAVE_PIX", "NOME_BENEFICIARIO_PIX", "CIDADE_BENEFICIARIO_PIX"])
-        ).all()
-    }
-    if not configs.get("CHAVE_PIX"):
-        raise HTTPException(status_code=400, detail="Chave Pix não configurada - cadastre em Configurações Institucionais (CHAVE_PIX).")
-
-    payload = pix_service.gerar_payload_pix(
-        chave_pix=configs["CHAVE_PIX"],
-        nome_beneficiario=configs.get("NOME_BENEFICIARIO_PIX") or "ASAF",
-        cidade_beneficiario=configs.get("CIDADE_BENEFICIARIO_PIX") or "NA",
-        valor=titulo.saldo_devedor, txid=str(titulo.id_titulo), descricao=titulo.descricao,
-    )
+    payload = pix_service.payload_pix_do_titulo(db, titulo)
     return {"payload": payload, "valor": titulo.saldo_devedor}
 
 
