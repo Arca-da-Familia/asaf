@@ -3530,6 +3530,14 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       insuficiente) exatamente como descrito originalmente nesta versão — nada do desenho antigo
       foi perdido, só adiado até ter orçamento pra um PSP parceiro.
 
+> **Verificado em produção (2026-09-17)**: rotina disparada manualmente duas vezes via
+> `gh workflow run` — a primeira falhou (`ModuleNotFoundError: app`, corrigido no commit
+> `9129ae7` com `PYTHONPATH=.`, mesmo motivo já documentado em `deploy-api.yml` para
+> `python -m pytest`), a segunda rodou com sucesso ponta a ponta contra o Postgres de produção
+> (Key Vault → `DATABASE_URL`/`SMTP_*` → `gerar_cobrancas` → `enviar_lembretes_do_dia`): 0
+> cobranças novas (setembro/2026 já gerado antes) e 0 lembretes (nenhum título vencendo hoje ou
+> em 5 dias no momento do teste) — comportamento correto, nenhum e-mail indevido foi disparado.
+
 > **Achado durante esta versão, não específico dela**: `ConfiguracaoInstitucional` (`CHAVE_PIX`,
 > `TETO_ALCADA_FINANCEIRA`, e agora `DIAS_LEMBRETE_MENSALIDADE`, entre outras) **nunca teve tela
 > no painel** — só editável hoje via chamada direta à API (`PUT /api/configuracoes/{chave}`).
