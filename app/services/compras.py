@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.config_cache import obter_configuracao
 from app.models.associados import Associado
 from app.models.compras import AlcadaAprovacao, AprovacaoCompra, CotacaoCompra, DelegacaoAprovacao, SolicitacaoCompra
-from app.models.financeiro import TituloFinanceiro
+from app.models.financeiro import CentroDeCusto, TituloFinanceiro
 from app.models.mandatos import DeclaracaoConflitoInteresse
 from app.services.mandatos import mandatos_vigentes_do_associado
 
@@ -153,6 +153,21 @@ def aprovar_solicitacao(db: Session, *, id_solicitacao: int, id_usuario_aprovado
     ).first()
     if ja_aprovou:
         raise HTTPException(status_code=400, detail="Este usuário já aprovou esta solicitação.")
+
+    # v3.4 - doação com destinação específica não pode ser gasta em outra finalidade: um centro
+    # de custo "restrito" (ver CentroDeCusto.saldo_restrito) só libera a aprovação se o saldo
+    # (doações - remanejamentos de saída - gastos já aprovados) cobrir o valor. Checado ANTES de
+    # registrar a aprovação - se recusar aqui, ninguém fica com uma aprovação "gasta" sem
+    # conseguir completar a solicitação depois que o remanejamento acontecer. Import local pra
+    # evitar dependência circular entre os módulos de serviço.
+    if solicitacao.id_centro_custo:
+        centro_custo = db.query(CentroDeCusto).filter(CentroDeCusto.id_centro_custo == solicitacao.id_centro_custo).first()
+        if centro_custo and centro_custo.saldo_restrito:
+            from app.services.doacoes import saldo_disponivel_centro_custo
+
+            saldo = saldo_disponivel_centro_custo(db, solicitacao.id_centro_custo)
+            if solicitacao.valor_estimado > saldo:
+                raise HTTPException(status_code=400, detail=f"Centro de custo '{centro_custo.nome}' tem destinação restrita e saldo insuficiente (disponível: R$ {saldo:.2f}) - registre um remanejamento formal antes de aprovar.")
 
     associado = _associado_do_usuario(db, id_usuario_aprovador)
     db.add(AprovacaoCompra(

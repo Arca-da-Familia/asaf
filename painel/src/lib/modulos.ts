@@ -161,6 +161,11 @@ export const modulos: Modulo[] = [
         rotulo: 'Contas a Pagar Recorrentes',
         icone: Receipt,
       },
+      {
+        rota: '/financeiro/doacoes',
+        rotulo: 'Doações',
+        icone: Receipt,
+      },
     ],
   },
   {

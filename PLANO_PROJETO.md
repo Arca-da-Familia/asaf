@@ -3726,6 +3726,37 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       (v12.4).
 - [ ] Campanhas de arrecadação com meta, prazo e barra de progresso publicável no site (FASE 5).
 
+> **Implementado em 2026-09-17, backend + painel, todos os itens acima.**
+> - `Doacao` (`app/services/doacoes.py::registrar_doacao`) — identificada ou anônima (nome/CPF
+>   nunca gravados quando anônima), pontual ou recorrente, monetária ou em bens. Doação
+>   monetária SEMPRE vira `TituloFinanceiro` (status "Pago" na hora) + `LancamentoContabil` de
+>   verdade — registrar a doação já é a confirmação de que o dinheiro chegou (mesmo espírito de
+>   "PIX na hora do evento, lançado depois pela tesouraria"), nunca um número solto numa tabela.
+>   Doação em bens fica só com valor avaliado registrado — integração com patrimônio de verdade
+>   é a FASE 12 (v12.4), ainda não existe, registrado como pendência futura.
+> - **Destinação específica bloqueia gasto em outra finalidade**, de verdade: reaproveitou
+>   `CentroDeCusto` (v3.1) — um centro de custo pode ser marcado "restrito"
+>   (`CentroDeCusto.saldo_restrito`), e a aprovação de compra (v3.3) contra ele já checa
+>   `saldo_disponivel_centro_custo` (doações − remanejamentos de saída − gastos já aprovados)
+>   antes de liberar, recusando se faltar saldo. Único jeito de gastar em outra finalidade é um
+>   `RemanejamentoDestinacao` formal e auditado.
+> - Recibo numerado (`Doacao.numero_recibo`, sequencial, emitido automaticamente no registro) —
+>   texto gerado a partir do cadastro (`gerar_texto_recibo`), nunca editor livre, e nunca afirma
+>   dedutibilidade fiscal sem a associação confirmar sua própria situação tributária (risco legal
+>   de declarar isso errado).
+> - `CampanhaArrecadacao` (meta, prazo, progresso calculado pela soma das doações vinculadas) —
+>   publicação no site institucional é a FASE 5, ainda não existe; só a gestão administrativa por
+>   ora.
+> - Painel: nova tela "Doações" (campanhas + registro de doação + recibo) e extensão de "Centros
+>   de Custo" (marcar destinação restrita, ver saldo disponível, registrar remanejamento).
+> - Migração `a7c9e1f3b5d6` validada upgrade+downgrade+upgrade contra schema pré-v3.4 simulado.
+>   6 testes novos em `tests/test_doacoes.py` (recibo numerado sequencial, doação anônima não
+>   expõe dado, doação em bens não gera título, bloqueio de destinação restrita + remanejamento
+>   resolvendo, remanejamento recusa saldo insuficiente, progresso de campanha) — 266/266 testes
+>   da suíte inteira passando.
+> **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
+> lacuna de ferramenta de navegador já registrada no Ponto de Revisão FASE 3 1/3).
+
 ##### 🔍 Ponto de Revisão — FASE 3 (2/3, fecha v3.2.1–v3.4)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 - Cancelamento de Pix Automático pelo associado (v3.2.1) é detectado pelo sistema e reverte para cobrança avulsa — não fica emitindo cobrança que nunca será paga.

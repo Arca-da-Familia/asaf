@@ -62,6 +62,7 @@ from app.models.compras import (
     ReembolsoDespesa,
     ContaAPagarRecorrente,
 )
+from app.models.doacoes import CampanhaArrecadacao, Doacao, RemanejamentoDestinacao
 from app.models.sessao_assembleia import Credenciamento, ItemPauta, OcorrenciaSessao
 from app.models.chamada import JustificativaFalta
 from app.models.ata import Ata, CertidaoDeliberacao, Deliberacao
@@ -151,4 +152,7 @@ __all__ = [
     "AprovacaoCompra",
     "ReembolsoDespesa",
     "ContaAPagarRecorrente",
+    "CampanhaArrecadacao",
+    "Doacao",
+    "RemanejamentoDestinacao",
 ]

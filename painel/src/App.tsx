@@ -9,6 +9,7 @@ import { AcessoPage } from '@/pages/Acesso'
 import { AlcadasAprovacaoPage } from '@/pages/AlcadasAprovacao'
 import { ComprasPage } from '@/pages/Compras'
 import { ContasAPagarRecorrentesPage } from '@/pages/ContasAPagarRecorrentes'
+import { DoacoesPage } from '@/pages/Doacoes'
 import { ReembolsoDespesaPage } from '@/pages/ReembolsoDespesa'
 import { AssembleiaDetalhePage } from '@/pages/AssembleiaDetalhe'
 import { AssembleiaNovoPage } from '@/pages/AssembleiaNova'
@@ -363,6 +364,14 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Contas a Pagar Recorrentes">
                 <ContasAPagarRecorrentesPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="doacoes"
+            element={
+              <ErrorBoundary tituloModulo="Doações">
+                <DoacoesPage />
               </ErrorBoundary>
             }
           />

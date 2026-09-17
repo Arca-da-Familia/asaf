@@ -36,6 +36,13 @@ class CentroDeCusto(Base):
     nome = Column(String, nullable=False)
     id_projeto = Column(Integer, ForeignKey("projetos_eventos.id_projeto"), nullable=True)
     ativo = Column(Boolean, default=True, nullable=False)
+    # v3.4 - quando ligado, este centro de custo representa uma DESTINAÇÃO restrita (doação com
+    # finalidade específica, ver app/models/doacoes.py::Doacao) - toda aprovação de compra
+    # (v3.3) contra ele é bloqueada se o saldo restrito (doações - remanejamentos de saída -
+    # gastos já aprovados) não cobrir o valor, exigindo remanejamento formal antes de gastar em
+    # outra finalidade (ver app/services/doacoes.py::saldo_disponivel_centro_custo). Centro de
+    # custo comum (ex.: "Administrativo") nunca liga isso - continua sem controle de saldo.
+    saldo_restrito = Column(Boolean, default=False, nullable=False)
 
 
 class ContaFinanceira(Base):

@@ -2273,6 +2273,7 @@ export type CentroDeCusto = {
   nome: string
   id_projeto: number | null
   ativo: boolean
+  saldo_restrito: boolean
 }
 
 export function listarCentrosCusto(): Promise<CentroDeCusto[]> {
@@ -2297,6 +2298,146 @@ export function alternarCentroCusto(
   return apiFetch(`/api/centros-custo/${idCentroCusto}/ativo?ativo=${ativo}`, {
     method: 'PUT',
   })
+}
+
+// v3.4 - destinação restrita (doação com finalidade específica, ver Doações): centro de custo
+// "restrito" bloqueia aprovação de compra (v3.3) se o saldo não cobrir, exigindo remanejamento
+// formal antes de gastar em outra finalidade.
+export function alternarSaldoRestrito(
+  idCentroCusto: number,
+  saldoRestrito: boolean,
+): Promise<{ mensagem: string }> {
+  return apiFetch(
+    `/api/centros-custo/${idCentroCusto}/saldo-restrito?saldo_restrito=${saldoRestrito}`,
+    { method: 'PUT' },
+  )
+}
+
+export function obterSaldoRestrito(
+  idCentroCusto: number,
+): Promise<{ saldo_disponivel: number }> {
+  return apiFetch(`/api/centros-custo/${idCentroCusto}/saldo-restrito`)
+}
+
+export type RemanejamentoDestinacao = {
+  id_remanejamento: number
+  id_centro_custo_origem: number
+  id_centro_custo_destino: number
+  valor: number
+  motivo: string
+  data_remanejamento: string | null
+}
+
+export function listarRemanejamentosDestinacao(): Promise<
+  RemanejamentoDestinacao[]
+> {
+  return apiFetch('/api/remanejamentos-destinacao/')
+}
+
+export function registrarRemanejamentoDestinacao(dados: {
+  id_centro_custo_origem: number
+  id_centro_custo_destino: number
+  valor: number
+  motivo: string
+}): Promise<{ mensagem: string; id_remanejamento: number }> {
+  return apiFetch('/api/remanejamentos-destinacao/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+// v3.4 - doações, captação e recibos. Doação monetária vira título/lançamento de verdade e um
+// recibo numerado, emitido automaticamente no registro.
+export type CampanhaArrecadacao = {
+  id_campanha: number
+  titulo: string
+  descricao: string | null
+  meta_valor: number
+  prazo: string | null
+  id_centro_custo: number | null
+  ativa: boolean
+  valor_arrecadado: number
+}
+
+export function listarCampanhasArrecadacao(): Promise<CampanhaArrecadacao[]> {
+  return apiFetch('/api/campanhas-arrecadacao/')
+}
+
+export function criarCampanhaArrecadacao(dados: {
+  titulo: string
+  descricao?: string
+  meta_valor: number
+  prazo?: string
+  id_centro_custo?: number
+}): Promise<{ mensagem: string; id_campanha: number }> {
+  return apiFetch('/api/campanhas-arrecadacao/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function alternarCampanhaArrecadacao(
+  idCampanha: number,
+  ativa: boolean,
+): Promise<{ mensagem: string }> {
+  return apiFetch(
+    `/api/campanhas-arrecadacao/${idCampanha}/ativa?ativa=${ativa}`,
+    {
+      method: 'PUT',
+    },
+  )
+}
+
+export type Doacao = {
+  id_doacao: number
+  anonima: boolean
+  nome_doador: string | null
+  documento_doador: string | null
+  id_associado: number | null
+  tipo_doacao: string
+  recorrente: boolean
+  valor: number
+  descricao_bem: string | null
+  id_campanha: number | null
+  id_centro_custo_destinacao: number | null
+  numero_recibo: number | null
+  id_titulo: number | null
+  data_doacao: string | null
+}
+
+export function listarDoacoes(idCampanha?: number): Promise<Doacao[]> {
+  const query = idCampanha ? `?id_campanha=${idCampanha}` : ''
+  return apiFetch(`/api/doacoes/${query}`)
+}
+
+export function registrarDoacao(dados: {
+  anonima: boolean
+  nome_doador?: string
+  documento_doador?: string
+  id_associado?: number
+  tipo_doacao: string
+  recorrente: boolean
+  valor: number
+  descricao_bem?: string
+  id_campanha?: number
+  id_centro_custo_destinacao?: number
+  id_conta_contabil: number
+  id_conta_contabil_caixa?: number
+}): Promise<{
+  mensagem: string
+  id_doacao: number
+  numero_recibo: number | null
+}> {
+  return apiFetch('/api/doacoes/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function obterReciboDoacao(
+  idDoacao: number,
+): Promise<{ texto: string }> {
+  return apiFetch(`/api/doacoes/${idDoacao}/recibo`)
 }
 
 export type ContaFinanceira = {

@@ -213,7 +213,7 @@ def excluir_plano_contas(id_conta: int, request: Request, db: Session = Depends(
 def listar_centros_custo(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
     centros = db.query(CentroDeCusto).order_by(CentroDeCusto.codigo).all()
     return [
-        {"id_centro_custo": c.id_centro_custo, "codigo": c.codigo, "nome": c.nome, "id_projeto": c.id_projeto, "ativo": c.ativo}
+        {"id_centro_custo": c.id_centro_custo, "codigo": c.codigo, "nome": c.nome, "id_projeto": c.id_projeto, "ativo": c.ativo, "saldo_restrito": c.saldo_restrito}
         for c in centros
     ]
 

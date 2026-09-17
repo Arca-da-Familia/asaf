@@ -709,3 +709,48 @@ export const contaAPagarRecorrenteCriarSchema = z.object({
 export const gerarContasAPagarSchema = z.object({
   competencia: z.string().regex(/^\d{4}-\d{2}$/, 'Use o formato AAAA-MM.'),
 })
+
+// v3.4 - campanha de arrecadação (meta, prazo, progresso) - publicação no site institucional
+// fica pra FASE 5, ainda não existe.
+export const campanhaArrecadacaoCriarSchema = z.object({
+  titulo: z.string().min(3, 'Informe o título da campanha.'),
+  descricao: z.string().optional(),
+  meta_valor: z.coerce.number().positive('Meta deve ser maior que zero.'),
+  prazo: z.string().optional(),
+  id_centro_custo: z.coerce.number().optional(),
+})
+
+// v3.4 - doação: `anonima` esconde nome/documento; destinação específica (id_centro_custo_destinacao)
+// só pode ser gasta ali (ver Centros de Custo › destinação restrita).
+export const doacaoCriarSchema = z.object({
+  anonima: z.boolean(),
+  nome_doador: z.string().optional(),
+  documento_doador: z.string().optional(),
+  tipo_doacao: z.enum(['Monetaria', 'Bens'], {
+    message: 'Selecione o tipo de doação.',
+  }),
+  recorrente: z.boolean(),
+  valor: z.coerce.number().positive('Valor deve ser maior que zero.'),
+  descricao_bem: z.string().optional(),
+  id_campanha: z.coerce.number().optional(),
+  id_centro_custo_destinacao: z.coerce.number().optional(),
+  id_conta_contabil: z.coerce
+    .number()
+    .int({ message: 'Selecione a conta contábil (Receita).' })
+    .positive({ message: 'Selecione a conta contábil (Receita).' }),
+  id_conta_contabil_caixa: z.coerce.number().optional(),
+})
+
+// v3.4 - remanejamento formal e auditado de saldo restrito entre destinações.
+export const remanejamentoDestinacaoCriarSchema = z.object({
+  id_centro_custo_origem: z.coerce
+    .number()
+    .int({ message: 'Selecione o centro de custo de origem.' })
+    .positive({ message: 'Selecione o centro de custo de origem.' }),
+  id_centro_custo_destino: z.coerce
+    .number()
+    .int({ message: 'Selecione o centro de custo de destino.' })
+    .positive({ message: 'Selecione o centro de custo de destino.' }),
+  valor: z.coerce.number().positive('Valor deve ser maior que zero.'),
+  motivo: z.string().min(5, 'Informe o motivo do remanejamento.'),
+})
