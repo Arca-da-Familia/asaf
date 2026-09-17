@@ -3871,6 +3871,11 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 >   contagem hardcoded) — 271/271 testes da suíte inteira passando.
 > **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
 > lacuna de ferramenta de navegador já registrada nos pontos de revisão desta fase).
+> **Verificado em produção (2026-09-17)**: `Deploy API` (com a migração `b3f5d7e9c1a2` aplicada
+> de verdade contra o Postgres de produção) e `Deploy Painel` verdes — este último bloqueado uma
+> vez por formatação Prettier (`schemas.ts`/`Orcamento.tsx`, mesmo tipo de bloqueio já visto em
+> v3.1/v3.3), corrigido no commit `4ffbd27` e reconfirmado ao vivo em
+> `painel.asaf.org.br/version.json`.
 
 #### v3.6 — Relatórios, prestação de contas e transparência
 - [ ] Demonstrativos: balancete por período, receitas x despesas por conta e por centro de custo,
