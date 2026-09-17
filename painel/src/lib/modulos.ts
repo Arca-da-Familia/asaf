@@ -171,6 +171,11 @@ export const modulos: Modulo[] = [
         rotulo: 'Orçamento e Fluxo de Caixa',
         icone: BarChart3,
       },
+      {
+        rota: '/financeiro/relatorios',
+        rotulo: 'Relatórios',
+        icone: FileText,
+      },
     ],
   },
   {

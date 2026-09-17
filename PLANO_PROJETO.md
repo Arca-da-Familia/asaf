@@ -3886,6 +3886,47 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       (FASE 5/12.7), puxada do mesmo dado — nunca digitada duas vezes.
 - [ ] Exportação contábil para o contador (FASE 17) já contemplada no desenho desde a v3.0.
 
+> **Implementado em 2026-09-17, backend + painel, itens 1 e 2 acima.**
+> - Todos os demonstrativos (`app/services/relatorios.py`) são calculados **na hora** contra
+>   `PartidaContabil`/`TituloFinanceiro`, nunca guardados em tabela própria - mesma disciplina de
+>   `saldo_conta`/`realizado_do_orcamento` (v3.5):
+>   - `balancete_por_periodo` — saldo anterior + débitos/créditos do período + saldo atual, por
+>     conta analítica (nunca sintética).
+>   - `receitas_e_despesas_por_conta`/`..._por_centro_custo` — reaproveita o balancete, filtrando
+>     Receita/Despesa.
+>   - `relatorio_inadimplencia` — associados `Ativo - Inadimplente` (v1.1) com título vencido,
+>     total devido e dias de atraso máximo.
+>   - `extrato_conta_financeira` — movimentos de uma `ContaFinanceira` (v3.1) com saldo corrente
+>     acumulado.
+>   - `relatorio_por_projeto` — reaproveita receitas x despesas por centro de custo, filtrando os
+>     que têm `id_projeto` (FASE 4, ainda prototípica) vinculado.
+> - `PrestacaoDeContas` (`app/models/relatorios.py`) — snapshot gerado sob demanda, **versionado**
+>   (gerar de novo nunca edita a versão anterior, sempre cria uma linha nova, mesmo espírito de
+>   `Ata` retificada/`ValorPlanoContribuicao`): reúne balancete + receitas x despesas do ano +
+>   parecer do Conselho Fiscal (`ParecerPrestacaoContas`, v2.6) mais recente daquele
+>   `ano_exercicio`, se já emitido - texto claro quando ainda não há parecer, nunca finge que
+>   existe.
+> - Pequeno complemento: `GET /api/relatorios/*` e `GET/POST /api/prestacoes-de-contas/` em
+>   `app/routers/relatorios.py`, todos atrás de `exigir_permissao("financeiro")`.
+> - **Itens 3 e 4 (versão pública `/transparencia/` e exportação formal para o contador)
+>   deliberadamente fora do escopo desta versão** - o próprio item 3 já registra a dependência da
+>   FASE 5/12.7 (site institucional, ainda não existe); o item 4 já é "contemplado no desenho"
+>   (todo dado necessário já está estruturado e acessível via API), a construção formal do
+>   exportador fica pra FASE 17 como o plano sempre previu. Nenhum dos dois é lacuna desta versão,
+>   é sequenciamento correto de fase.
+> - Painel: nova tela única "Relatórios" (`Relatorios.tsx`, 6 seções: balancete, receitas x
+>   despesas com alternância conta/centro de custo, inadimplência, extrato por conta financeira,
+>   por projeto, prestação de contas com histórico de versões e parecer anexado visível).
+> - Migração `c5e7a9b1d3f4` (tabela `prestacoes_de_contas`) validada upgrade+downgrade+upgrade
+>   contra schema pré-v3.6 simulado (mesmo método da v3.5: worktree git no commit anterior,
+>   `preparar_banco()` + `alembic stamp head`, depois `alembic upgrade/downgrade/upgrade` a partir
+>   do código novo). 5 testes novos em `tests/test_relatorios.py` (balancete e receitas/despesas
+>   batendo com uma baixa real, inadimplência lista associado com título vencido, extrato calcula
+>   saldo corrente certo, relatório por projeto agrega pelo centro de custo vinculado, prestação
+>   de contas versiona e anexa o parecer certo) — 276/276 testes da suíte inteira passando.
+> **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
+> lacuna de ferramenta de navegador já registrada nos pontos de revisão desta fase).
+
 #### v3.7 — Controles antifraude (além do mínimo)
 - [ ] Detecção de padrões suspeitos como relatório de exceção mensal para o Conselho Fiscal:
       lançamentos fora do horário habitual, valores logo abaixo do teto de alçada (fracionamento),

@@ -3392,3 +3392,137 @@ export function criarReservaContingencia(dados: {
     body: JSON.stringify(dados),
   })
 }
+
+// ---------------------------------------------------------------------------
+// v3.6 (FASE 3) - demonstrativos financeiros e prestação de contas do exercício, versionada, com
+// o parecer do Conselho Fiscal (v2.6) já emitido anexado. Todo relatório é calculado na hora
+// contra o razão contábil - sem tabela própria (exceto a prestação de contas, que é um snapshot
+// versionado de propósito).
+// ---------------------------------------------------------------------------
+export type LinhaBalancete = {
+  id_conta: number
+  codigo_contabil: string
+  descricao_conta: string
+  tipo: string
+  saldo_anterior: number
+  debitos_periodo: number
+  creditos_periodo: number
+  saldo_atual: number
+}
+
+export function obterBalancete(periodo: {
+  dataInicio: string
+  dataFim: string
+}): Promise<LinhaBalancete[]> {
+  return apiFetch(
+    `/api/relatorios/balancete?data_inicio=${periodo.dataInicio}&data_fim=${periodo.dataFim}`,
+  )
+}
+
+export type LinhaReceitaDespesa = {
+  id_conta: number
+  codigo_contabil: string
+  descricao_conta: string
+  tipo: string
+  valor_periodo: number
+}
+
+export function obterReceitasDespesas(periodo: {
+  dataInicio: string
+  dataFim: string
+}): Promise<LinhaReceitaDespesa[]> {
+  return apiFetch(
+    `/api/relatorios/receitas-despesas?data_inicio=${periodo.dataInicio}&data_fim=${periodo.dataFim}`,
+  )
+}
+
+export type LinhaReceitaDespesaCentroCusto = {
+  id_centro_custo: number | null
+  nome_centro_custo: string
+  receitas: number
+  despesas: number
+  resultado: number
+}
+
+export function obterReceitasDespesasPorCentroCusto(periodo: {
+  dataInicio: string
+  dataFim: string
+}): Promise<LinhaReceitaDespesaCentroCusto[]> {
+  return apiFetch(
+    `/api/relatorios/receitas-despesas-por-centro-custo?data_inicio=${periodo.dataInicio}&data_fim=${periodo.dataFim}`,
+  )
+}
+
+export type LinhaInadimplencia = {
+  id_associado: number
+  nome_completo: string
+  quantidade_titulos_vencidos: number
+  total_devido: number
+  dias_atraso_maximo: number
+}
+
+export function obterRelatorioInadimplencia(): Promise<LinhaInadimplencia[]> {
+  return apiFetch('/api/relatorios/inadimplencia')
+}
+
+export type MovimentoExtrato = {
+  data: string
+  tipo_partida: string
+  valor: number
+  saldo_apos: number
+}
+
+export function obterExtratoContaFinanceira(
+  idContaFinanceira: number,
+): Promise<{
+  id_conta_financeira: number
+  saldo_atual: number
+  movimentos: MovimentoExtrato[]
+}> {
+  return apiFetch(
+    `/api/relatorios/extrato-conta-financeira/${idContaFinanceira}`,
+  )
+}
+
+export type LinhaRelatorioProjeto = {
+  id_projeto: number
+  nome_projeto: string
+  id_centro_custo: number
+  receitas: number
+  despesas: number
+  resultado: number
+}
+
+export function obterRelatorioPorProjeto(periodo: {
+  dataInicio: string
+  dataFim: string
+}): Promise<LinhaRelatorioProjeto[]> {
+  return apiFetch(
+    `/api/relatorios/por-projeto?data_inicio=${periodo.dataInicio}&data_fim=${periodo.dataFim}`,
+  )
+}
+
+export type PrestacaoDeContas = {
+  id_prestacao: number
+  ano_exercicio: number
+  versao: number
+  conteudo: string
+  id_parecer: number | null
+  gerada_em: string | null
+}
+
+export function listarPrestacoesDeContas(
+  anoExercicio?: number,
+): Promise<PrestacaoDeContas[]> {
+  const query = anoExercicio ? `?ano_exercicio=${anoExercicio}` : ''
+  return apiFetch(`/api/prestacoes-de-contas/${query}`)
+}
+
+export function gerarPrestacaoDeContas(
+  anoExercicio: number,
+): Promise<PrestacaoDeContas> {
+  return apiFetch('/api/prestacoes-de-contas/', {
+    method: 'POST',
+    body: JSON.stringify({ ano_exercicio: anoExercicio }),
+  })
+}
