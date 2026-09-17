@@ -3926,6 +3926,9 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 >   de contas versiona e anexa o parecer certo) — 276/276 testes da suíte inteira passando.
 > **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
 > lacuna de ferramenta de navegador já registrada nos pontos de revisão desta fase).
+> **Verificado em produção (2026-09-17)**: `Deploy API` (migração `c5e7a9b1d3f4` aplicada de
+> verdade contra o Postgres de produção) e `Deploy Painel` verdes de primeira (commit `7eca192`),
+> `painel.asaf.org.br/version.json` confirmado ao vivo batendo esse commit.
 
 #### v3.7 — Controles antifraude (além do mínimo)
 - [ ] Detecção de padrões suspeitos como relatório de exceção mensal para o Conselho Fiscal:
