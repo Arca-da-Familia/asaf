@@ -342,6 +342,9 @@ def seed_configuracoes_institucionais():
         # v3.3 - fluxo de compras (ver app/services/compras.py) - acima deste valor, a solicitação
         # exige ao menos duas cotações registradas antes de poder ser aprovada.
         {"chave": "VALOR_MINIMO_EXIGE_COTACAO", "valor": "1000", "tipo": "numero", "categoria": "regras", "descricao": "Valor (R$) a partir do qual uma solicitação de compra exige ao menos duas cotações antes de aprovação."},
+        # v3.5 - fluxo de caixa projetado (ver app/services/orcamento.py) - quantos meses à
+        # frente a projeção olha por padrão quando ninguém informa `horizonte_meses` na chamada.
+        {"chave": "HORIZONTE_FLUXO_CAIXA_MESES", "valor": "3", "tipo": "numero", "categoria": "regras", "descricao": "Quantidade padrão de meses à frente que o fluxo de caixa projetado calcula quando nenhum horizonte é informado."},
         # v2.0 - cláusulas pétreas do Art. 33 do estatuto: identidade institucional, não regra
         # operacional (nunca bloqueiam nenhuma ação do sistema, por isso NÃO entram em
         # RegraEstatutaria - ver seed_regras_estatutarias e PLANO_PROJETO.md v2.0).

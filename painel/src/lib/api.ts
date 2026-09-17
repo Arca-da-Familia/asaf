@@ -1681,6 +1681,12 @@ export function listarDeliberacoesDaAta(idAta: number): Promise<Deliberacao[]> {
   return apiFetch(`/api/atas/${idAta}/deliberacoes`)
 }
 
+// v3.5 - lista cross-assembleia, usada pra vincular orçamento/reserva de contingência à
+// deliberação que aprovou (nunca "de gaveta", sempre concluída de verdade em assembleia).
+export function listarDeliberacoesConcluidas(): Promise<Deliberacao[]> {
+  return apiFetch('/api/deliberacoes/concluidas')
+}
+
 export type MandatoCriarInput = {
   id_associado: number
   orgao_codigo: string
@@ -3303,5 +3309,86 @@ export function importarExtratoConciliacao(
   return apiFetch('/api/conciliacao/importar', {
     method: 'POST',
     body: formData,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// v3.5 (FASE 3) - orçamento anual (realizado x previsto calculado contra o razão contábil, nunca
+// guardado em coluna própria), fluxo de caixa projetado e reserva de contingência.
+// ---------------------------------------------------------------------------
+export type Orcamento = {
+  id_orcamento: number
+  ano: number
+  id_conta_contabil: number
+  id_centro_custo: number | null
+  valor_previsto: number
+  id_deliberacao: number
+  realizado: number
+  percentual_realizado: number | null
+  estourado: boolean
+}
+
+export function listarOrcamentos(ano?: number): Promise<Orcamento[]> {
+  const query = ano ? `?ano=${ano}` : ''
+  return apiFetch(`/api/orcamentos/${query}`)
+}
+
+export function criarOrcamento(dados: {
+  ano: number
+  id_conta_contabil: number
+  id_centro_custo?: number
+  valor_previsto: number
+  id_deliberacao: number
+}): Promise<{ mensagem: string; id_orcamento: number }> {
+  return apiFetch('/api/orcamentos/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type MesFluxoCaixa = {
+  competencia: string
+  saldo_inicial: number
+  entradas_previstas: number
+  saidas_previstas: number
+  recorrentes_projetadas: number
+  saldo_final: number
+}
+
+export function obterFluxoDeCaixa(dados?: {
+  competenciaInicial?: string
+  horizonteMeses?: number
+}): Promise<{ horizonte_meses: number; meses: MesFluxoCaixa[] }> {
+  const parametros = new URLSearchParams()
+  if (dados?.competenciaInicial)
+    parametros.set('competencia_inicial', dados.competenciaInicial)
+  if (dados?.horizonteMeses)
+    parametros.set('horizonte_meses', String(dados.horizonteMeses))
+  const query = parametros.toString() ? `?${parametros.toString()}` : ''
+  return apiFetch(`/api/fluxo-de-caixa/${query}`)
+}
+
+export type ReservaContingencia = {
+  id_reserva: number
+  id_conta_financeira: number
+  regra_uso: string
+  valor_minimo: number | null
+  id_deliberacao: number | null
+  saldo_atual: number
+}
+
+export function listarReservasContingencia(): Promise<ReservaContingencia[]> {
+  return apiFetch('/api/reservas-contingencia/')
+}
+
+export function criarReservaContingencia(dados: {
+  id_conta_financeira: number
+  regra_uso: string
+  valor_minimo?: number
+  id_deliberacao?: number
+}): Promise<{ mensagem: string; id_reserva: number }> {
+  return apiFetch('/api/reservas-contingencia/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
   })
 }

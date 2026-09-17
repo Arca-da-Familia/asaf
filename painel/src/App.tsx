@@ -10,6 +10,7 @@ import { AlcadasAprovacaoPage } from '@/pages/AlcadasAprovacao'
 import { ComprasPage } from '@/pages/Compras'
 import { ContasAPagarRecorrentesPage } from '@/pages/ContasAPagarRecorrentes'
 import { DoacoesPage } from '@/pages/Doacoes'
+import { OrcamentoPage } from '@/pages/Orcamento'
 import { ReembolsoDespesaPage } from '@/pages/ReembolsoDespesa'
 import { AssembleiaDetalhePage } from '@/pages/AssembleiaDetalhe'
 import { AssembleiaNovoPage } from '@/pages/AssembleiaNova'
@@ -372,6 +373,14 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Doações">
                 <DoacoesPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="orcamento"
+            element={
+              <ErrorBoundary tituloModulo="Orçamento e Fluxo de Caixa">
+                <OrcamentoPage />
               </ErrorBoundary>
             }
           />

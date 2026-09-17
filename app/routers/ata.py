@@ -212,6 +212,12 @@ def listar_deliberacoes_pendentes(db: Session = Depends(get_db), _usuario=Depend
     return [_serializar_deliberacao(d) for d in pendentes]
 
 
+@router.get("/api/deliberacoes/concluidas", summary="Listar deliberações concluídas (vincular orçamento/reserva de contingência, v3.5, a quem aprovou)")
+def listar_deliberacoes_concluidas(db: Session = Depends(get_db), _usuario=Depends(get_current_user)):
+    concluidas = db.query(Deliberacao).filter(Deliberacao.status_execucao == CONCLUIDA).order_by(Deliberacao.criado_em.desc()).all()
+    return [_serializar_deliberacao(d) for d in concluidas]
+
+
 def _buscar_deliberacao_ou_404(db: Session, id_deliberacao: int) -> Deliberacao:
     deliberacao = db.query(Deliberacao).filter(Deliberacao.id_deliberacao == id_deliberacao).first()
     if not deliberacao:

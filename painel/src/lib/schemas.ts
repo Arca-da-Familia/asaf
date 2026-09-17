@@ -754,3 +754,39 @@ export const remanejamentoDestinacaoCriarSchema = z.object({
   valor: z.coerce.number().positive('Valor deve ser maior que zero.'),
   motivo: z.string().min(5, 'Informe o motivo do remanejamento.'),
 })
+
+// v3.5 - orçamento anual: sempre vinculado a uma deliberação de assembleia já concluída (nunca
+// orçamento "de gaveta").
+export const orcamentoCriarSchema = z.object({
+  ano: z.coerce
+    .number()
+    .int()
+    .min(2000, 'Ano inválido.')
+    .max(2200, 'Ano inválido.'),
+  id_conta_contabil: z.coerce
+    .number()
+    .int({ message: 'Selecione a conta contábil.' })
+    .positive({ message: 'Selecione a conta contábil.' }),
+  id_centro_custo: z.coerce.number().optional(),
+  valor_previsto: z.coerce
+    .number()
+    .positive('Valor previsto deve ser maior que zero.'),
+  id_deliberacao: z.coerce
+    .number()
+    .int({ message: 'Selecione a deliberação que aprovou este orçamento.' })
+    .positive({ message: 'Selecione a deliberação que aprovou este orçamento.' }),
+})
+
+// v3.5 - reserva de contingência: uma Conta Financeira já existente, marcada como reserva, com a
+// regra de uso registrada por escrito.
+export const reservaContingenciaCriarSchema = z.object({
+  id_conta_financeira: z.coerce
+    .number()
+    .int({ message: 'Selecione a conta financeira.' })
+    .positive({ message: 'Selecione a conta financeira.' }),
+  regra_uso: z
+    .string()
+    .min(10, 'Descreva a regra de uso da reserva (mínimo 10 caracteres).'),
+  valor_minimo: z.coerce.number().optional(),
+  id_deliberacao: z.coerce.number().optional(),
+})

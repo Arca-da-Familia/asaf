@@ -3832,6 +3832,46 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       configurável — a pergunta "tem dinheiro pra pagar o mês que vem?" respondida sem planilha.
 - [ ] Reserva de contingência como conta própria com regra de uso definida.
 
+> **Implementado em 2026-09-17, backend + painel, todos os itens acima.**
+> - `Orcamento` (`app/services/orcamento.py`) — uma linha por (ano, conta contábil, centro de
+>   custo opcional), sempre vinculada a uma `Deliberacao` (v2.5) já **Concluída** — nunca um
+>   orçamento "de gaveta" sem respaldo de assembleia (`_exigir_deliberacao_concluida`, recusa com
+>   400 se a deliberação ainda estiver pendente). `realizado` e `estourado` **nunca são colunas**:
+>   são calculados na hora contra `PartidaContabil` (mesma disciplina de
+>   `contabilidade.saldo_conta`), recortados por ano e, se houver, por centro de custo
+>   (`realizado_do_orcamento`) — dessincronizar do razão contábil de verdade é estruturalmente
+>   impossível.
+> - Fluxo de caixa projetado (`orcamento.fluxo_de_caixa_projetado`) — mês a mês, a partir de
+>   qualquer competência, soma saldo real das `ContaFinanceira` ativas + títulos "A Receber"/"A
+>   Pagar" pendentes vencendo no mês + `ContaAPagarRecorrente` ativas que **ainda não geraram**
+>   título pra aquela competência (mesma checagem de idempotência de
+>   `contas_a_pagar.py::gerar_contas_a_pagar`, nunca conta em dobro depois que a rotina mensal
+>   roda). Horizonte configurável via nova chave `HORIZONTE_FLUXO_CAIXA_MESES`
+>   (`ConfiguracaoInstitucional`, padrão 3 meses).
+> - `ReservaContingencia` (`app/services/orcamento.py`) — sempre uma `ContaFinanceira` (v3.1) já
+>   existente, nunca uma tabela de saldo paralela; `regra_uso` é texto (mesmo espírito do termo de
+>   negociação de dívida, v3.2.2: processo humano documentado, não travado em código - travar de
+>   verdade exigiria prever toda exceção legítima de antemão). Movimentação continua sendo
+>   lançamento contábil normal, nunca um caminho de escrita à parte.
+> - Pequeno complemento em `app/routers/ata.py`: `GET /api/deliberacoes/concluidas` (não existia
+>   nenhuma listagem geral de deliberações concluídas cross-assembleia, só "pendentes" e "de uma
+>   ata específica") — necessário pro combo de vincular orçamento/reserva à deliberação certa.
+> - Painel: nova tela única "Orçamento e Fluxo de Caixa" (`Orcamento.tsx`, 3 seções: orçamento do
+>   ano corrente com barra de progresso e alerta visual de estouro, fluxo de caixa projetado mês a
+>   mês, reserva de contingência com alerta se o saldo cair abaixo do mínimo definido).
+> - Migração `b3f5d7e9c1a2` (tabelas `orcamentos`, `reservas_contingencia`) validada
+>   upgrade+downgrade+upgrade contra schema pré-v3.5 simulado (worktree git no commit anterior,
+>   `preparar_banco()` + `alembic stamp head`, depois `alembic upgrade/downgrade/upgrade` a partir
+>   do código novo). 5 testes novos em `tests/test_orcamento.py` (exige deliberação concluída,
+>   recusa orçamento duplicado pra mesma conta/ano, realizado e estouro calculados contra
+>   lançamento real, fluxo de caixa soma título + recorrente ainda não gerada por DELTA - a suíte
+>   compartilha banco entre arquivos, nunca total absoluto -, reserva de contingência vinculada e
+>   recusa duplicidade) + 1 nova chave de configuração (`HORIZONTE_FLUXO_CAIXA_MESES`, contagem de
+>   25 para 26, ajustada também em `test_smoke.py`/`test_import_export.py` que tinham a mesma
+>   contagem hardcoded) — 271/271 testes da suíte inteira passando.
+> **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
+> lacuna de ferramenta de navegador já registrada nos pontos de revisão desta fase).
+
 #### v3.6 — Relatórios, prestação de contas e transparência
 - [ ] Demonstrativos: balancete por período, receitas x despesas por conta e por centro de custo,
       relatório de inadimplência, extrato por conta financeira, relatório por projeto.
