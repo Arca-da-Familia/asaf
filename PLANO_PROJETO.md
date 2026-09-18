@@ -4746,6 +4746,15 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 >   `typecheck`/`lint`/`format`/`build` limpos em ambos.
 > **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
 > lacuna de ferramenta de navegador já registrada nos pontos de revisão anteriores).
+> **Achado real em produção, corrigido no mesmo dia**: `GET /api/publico/eventos/consentimento-
+> lgpd` colidia com `GET /api/publico/eventos/{id_evento}` pelo mesmo motivo já corrigido na v4.5
+> (rota literal registrada DEPOIS da parametrizada) - sem teste automatizado cobrindo essa rota
+> específica, só apareceu ao testar a produção de verdade. Corrigido reordenando o registro
+> (commit `b243423`) e coberto por teste de regressão dedicado.
+> **Verificado em produção (2026-09-18)**: `Deploy API` verde no commit `b243423` (migração
+> `e8b0c2d4f6a8` aplicada sem erro) e `Deploy Painel` verde no commit `c863ff9`,
+> `painel.asaf.org.br/version.json` confirmado ao vivo, e `GET https://api.asaf.org.br/api/
+> publico/eventos/consentimento-lgpd` respondendo o texto/versão reais sem autenticação.
 
 #### v4.7 — Vagas, lista de espera e inscrição em grupo
 - [ ] Limite de vagas com trava real sob concorrência (controle transacional no banco, não
