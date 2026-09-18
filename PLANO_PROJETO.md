@@ -4937,10 +4937,19 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > `test_eventos_vagas.py`/`test_voluntariado_escala.py` desde a v4.3/v4.4), mais o `assert
 > status_code == 200` que faltava em `_criar_usuario_com_mandato` pra qualquer falha futura
 > aparecer legível em vez de `KeyError` genérico. Suíte completa rodada mais duas vezes depois
-> deste fix (349/349, 349/349) — commit `9e04729`, `Deploy API` verde de primeira desta vez,
-> `Deploy Painel` não disparou (nenhum arquivo do painel mudou, esperado).
-> **Verificado em produção outra vez, pós-fix**: `Deploy API` verde no commit `9e04729`
-> (confirmado via `gh run view`, nenhuma falha de teste desta vez).
+> deste fix (349/349, 349/349) — commit `e79de51`. **Achado de infraestrutura do próprio ciclo de
+> deploy**: como o commit `e79de51` só tocou `tests/**`, e `deploy-api.yml` só dispara por
+> `paths: app/**, alembic/**, ...` (nunca `tests/**`), o push sozinho não gerou nenhum novo `Deploy
+> API` — o que, sem perceber, teria deixado o achado nº 2 (`df4683a`, a correção de auditoria)
+> **nunca implantado**, porque o `Deploy API` de `df4683a` tinha falhado bem antes de chegar na
+> migração/build. Corrigido dentro desta mesma revisão: `gh workflow run "Deploy API (FastAPI)"
+> --ref main` (workflow_dispatch, já previsto no gatilho do workflow) disparado manualmente pra
+> implantar o `HEAD` de verdade.
+> **Verificado em produção, pós-fix**: `Deploy API` verde no commit `e79de51`
+> (`gh run view 35385014891`, 349/349 passando dentro do próprio CI desta vez, nenhuma migração
+> nova necessária); `GET https://api.asaf.org.br/api/publico/eventos` respondendo 200 ao vivo.
+> `Deploy Painel` não disparou nesta faixa (nenhum arquivo do painel mudou em nenhum dos três
+> commits desta revisão) — esperado, não uma lacuna.
 > Isto fecha o Ponto de Revisão FASE 4 (2/3) — segue para v4.8.
 
 #### v4.8 — Check-in, crachá e certificado
