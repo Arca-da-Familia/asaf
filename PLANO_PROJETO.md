@@ -4295,6 +4295,9 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
 >   frontend).
 > **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
 > lacuna de ferramenta de navegador já registrada nos pontos de revisão anteriores).
+> **Verificado em produção (2026-09-18)**: `Deploy API` (migração `a2c4e6f8b0d1` aplicada de
+> verdade contra o Postgres de produção) e `Deploy Painel` verdes de primeira (commit `4bb1c04`),
+> `painel.asaf.org.br/version.json` confirmado ao vivo batendo esse commit.
 
 #### v4.3 — Reserva de espaço
 - [ ] `Espaco` (quadra, salão, campo, sala) com capacidade, recursos disponíveis, regras de uso,
