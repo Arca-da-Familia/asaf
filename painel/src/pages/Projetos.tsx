@@ -31,6 +31,7 @@ import {
   vincularBeneficiarioAoProjeto,
   type Projeto,
 } from '@/lib/api'
+import { formatarData } from '@/lib/datas'
 import {
   beneficiarioCriarSchema,
   encaminhamentoCriarSchema,
@@ -49,10 +50,6 @@ function formatarReais(valor: number): string {
     style: 'currency',
     currency: 'BRL',
   }).format(valor)
-}
-
-function formatarData(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR')
 }
 
 function FormularioProjeto({ onCancelar }: { onCancelar: () => void }) {
@@ -640,7 +637,7 @@ function PainelProntuario({ idVinculo }: { idVinculo: number }) {
               className="rounded-md border border-border p-2 text-xs"
             >
               <p className="text-muted-foreground">
-                {new Date(a.data_atendimento).toLocaleString('pt-BR')}
+                {formatarData(a.data_atendimento, { comHora: true })}
               </p>
               <p>{a.relato}</p>
             </div>
@@ -702,8 +699,7 @@ function PainelProntuario({ idVinculo }: { idVinculo: number }) {
               className="rounded-md border border-border p-2 text-xs"
             >
               <p className="text-muted-foreground">
-                {e.tipo_rede} —{' '}
-                {new Date(e.data_encaminhamento).toLocaleDateString('pt-BR')}
+                {e.tipo_rede} — {formatarData(e.data_encaminhamento)}
               </p>
               <p>{e.descricao}</p>
             </div>

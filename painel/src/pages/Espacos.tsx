@@ -25,6 +25,7 @@ import {
   registrarRetiradaEspaco,
   type Espaco,
 } from '@/lib/api'
+import { formatarData } from '@/lib/datas'
 import {
   bloqueioEspacoCriarSchema,
   devolucaoEspacoSchema,
@@ -45,7 +46,7 @@ function formatarReais(valor: number): string {
 }
 
 function formatarDataHora(iso: string): string {
-  return new Date(iso).toLocaleString('pt-BR')
+  return formatarData(iso, { comHora: true })
 }
 
 function FormularioEspaco({ onCancelar }: { onCancelar: () => void }) {

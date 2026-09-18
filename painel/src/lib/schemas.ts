@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { paraUtcIso } from '@/lib/datas'
+
 // v0.2.8 — schemas Zod compartilhados entre formulário (validação de entrada) e contrato de
 // API (validação da resposta em lib/api.ts). O objetivo: se o backend mudar/remover um campo,
 // a quebra aparece no `apiFetch` (e no teste de contrato) antes do usuário ver a tela travada
@@ -120,7 +122,8 @@ export const assembleiaCriarSchema = z.object({
   pauta: z.string().min(3, 'Informe a ordem do dia.'),
   data_hora_convocacao: z
     .string()
-    .min(1, 'Informe a data e hora da convocação.'),
+    .min(1, 'Informe a data e hora da convocação.')
+    .transform(paraUtcIso),
   local_fisico: z.string().optional(),
   link_remoto: z.string().optional(),
 })
@@ -363,8 +366,14 @@ export const eventoCalendarioCriarSchema = z.object({
   titulo: z.string().min(3, 'Informe o título do evento.'),
   descricao: z.string().optional(),
   categoria: z.string().min(1, 'Selecione a categoria.'),
-  data_inicio: z.string().min(1, 'Informe a data de início.'),
-  data_fim: z.string().optional(),
+  data_inicio: z
+    .string()
+    .min(1, 'Informe a data de início.')
+    .transform(paraUtcIso),
+  data_fim: z
+    .string()
+    .optional()
+    .transform((v) => (v ? paraUtcIso(v) : v)),
 })
 
 // Usado por "Nova opção" (pages/Configuracoes.tsx, v2.5.8) - `codigo` nunca muda depois de
@@ -876,8 +885,14 @@ export const espacoCriarSchema = z.object({
 })
 
 export const bloqueioEspacoCriarSchema = z.object({
-  data_hora_inicio: z.string().min(1, 'Informe o início do bloqueio.'),
-  data_hora_fim: z.string().min(1, 'Informe o fim do bloqueio.'),
+  data_hora_inicio: z
+    .string()
+    .min(1, 'Informe o início do bloqueio.')
+    .transform(paraUtcIso),
+  data_hora_fim: z
+    .string()
+    .min(1, 'Informe o fim do bloqueio.')
+    .transform(paraUtcIso),
   motivo: z.string().min(1, 'Selecione o motivo.'),
   descricao: z.string().optional(),
 })
@@ -887,8 +902,11 @@ export const reservaEspacoCriarSchema = z.object({
     .number()
     .int({ message: 'Selecione o solicitante.' })
     .positive({ message: 'Selecione o solicitante.' }),
-  data_hora_inicio: z.string().min(1, 'Informe o início.'),
-  data_hora_fim: z.string().min(1, 'Informe o fim.'),
+  data_hora_inicio: z
+    .string()
+    .min(1, 'Informe o início.')
+    .transform(paraUtcIso),
+  data_hora_fim: z.string().min(1, 'Informe o fim.').transform(paraUtcIso),
   finalidade: z.string().min(3, 'Descreva a finalidade.'),
 })
 

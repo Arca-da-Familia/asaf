@@ -4481,6 +4481,43 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > (motores reutilizados de verdade, EXCLUDE constraint recusando escrita concorrente real).** Isto
 > fecha o Ponto de Revisão FASE 4 (1/3) — segue para v4.4.
 
+> **Achado real do usuário (2026-09-18), corrigido fora do ciclo de versão**: auditoria e
+> eventos/reservas apareciam com hora adiantada, "marcando para o dia seguinte" perto do fim da
+> noite (horário de Brasília). Causa raiz confirmada por teste direto (não por inspeção): o
+> back-end grava tudo em UTC ingênuo (`datetime.utcnow()`, convenção documentada desde a v4.3),
+> mas o painel (`painel/src/lib/datas.ts::formatarData`) usava `new Date(string)` sem marcar a
+> string como UTC — o JavaScript, por spec, interpreta uma string `"...T..."` sem fuso como hora
+> LOCAL do navegador, então um valor UTC de verdade (ex.: auditoria às 13:13 UTC = 10:13 em
+> Brasília) aparecia cru como "13:13", ~3h adiantado, virando "amanhã" depois das 21h local (é
+> quando o UTC já rolou pro dia seguinte). No sentido contrário, todo `<input type="datetime-local">`
+> (convocação de assembleia, evento do calendário, reserva/bloqueio de espaço) manda a hora local
+> digitada sem converter — o back-end trata como se já fosse UTC, o que não estraga a exibição
+> desse campo especificamente (o erro se cancela na volta), mas contaminava toda comparação
+> contra `datetime.utcnow()` no próprio back-end (prazo mínimo de convocação, taxa de cancelamento
+> tardio de reserva, "hoje" do calendário institucional em `montar_calendario`).
+> **Correção (só no painel, nenhuma mudança de back-end necessária)**: `formatarData` agora trata
+> toda string `"...T..."` sem fuso explícito como UTC antes de converter pra hora local de quem
+> está vendo (`comoUtc`); todo schema Zod que alimenta um `datetime-local` (`assembleiaCriarSchema`,
+> `eventoCalendarioCriarSchema`, `bloqueioEspacoCriarSchema`, `reservaEspacoCriarSchema` — herdado
+> por `reservaRecorrenteCriarSchema`) agora converte a hora local digitada pra UTC antes de enviar
+> (`paraUtcIso`), fechando a convenção nos dois sentidos. Achado o mesmo bug duplicado por inteiro
+> em `Espacos.tsx` (função local `formatarDataHora` própria, sem usar `datas.ts`) e em três lugares
+> que chamavam `new Date(iso).toLocaleString/toLocaleDateString` direto (`Projetos.tsx`: prontuário
+> de atendimento e encaminhamento à rede externa, ambos `datetime.utcnow()` de verdade;
+> `Relatorios.tsx`: data de cada movimento do extrato de conta financeira) — todos migrados pro
+> `formatarData` compartilhado. **Verificado que não é bug em todo lugar**: `data_vencimento` de
+> título financeiro (`NegociacaoDivida.tsx`) e os filtros de período do Balancete/Receitas x
+> Despesas (`Relatorios.tsx`, `type="date"`) são marcadores de dia-calendário, nunca um instante
+> UTC de verdade — deixados como estavam, converter esses quebraria em vez de corrigir.
+> **Sem risco de dado histórico**: consultado direto em produção (só leitura, `count(*)`) antes de
+> decidir — `assembleias`, `eventos_calendario`, `reservas_espaco`, `bloqueios_espaco` e
+> `compromissos_agenda` estavam **todos com 0 linhas**, então não existe nenhum registro antigo
+> gravado sob a convenção errada pra corrigir ou migrar; a correção vale só daqui pra frente.
+> Prova: teste novo `painel/src/test/datas.test.ts` (5 casos, fuso fixado em `America/Sao_Paulo`
+> pro teste ser determinístico) — inclui o caso real relatado (13:13 UTC → 10:13 exibido) e a
+> prova de que entrada e exibição são inversas (o que o usuário digita é o que ele vê de volta).
+> 27/27 testes do painel passando, `typecheck`/`lint`/`build` limpos.
+
 #### v4.4 — Voluntariado vinculado a projeto
 - [ ] `AlocacaoVoluntario` (turno/horário, habilidades exigidas x cadastradas, horas previstas x
       realizadas), exigindo termo de adesão vigente (v1.6) como trava real.
