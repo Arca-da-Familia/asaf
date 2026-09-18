@@ -4403,6 +4403,77 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - Os motores compartilhados (v4.0 — presença, inscrição, documento, indicador) estão sendo **de fato reutilizados** por v4.1–v4.3, não reimplementados por dentro de cada sub-módulo.
 - Reserva de espaço (v4.3): conflito de horário é impedido no **banco** sob concorrência — testar duas reservas simultâneas no mesmo horário/espaço.
 
+> **Revisado em 2026-09-18 (parcial — ver pendência ao final).** Checklist padrão (seção 4.1, 12
+> itens) aplicado com evidência concreta:
+> - **Item específico 1 (motores de fato reutilizados)**: confirmado por leitura direta do código
+>   consumidor, não por inferência — motor de presença consumido por
+>   `app/routers/beneficiarios.py:148` (`listar_presencas(db, contexto_tipo="Projeto", ...)`);
+>   motor de indicador consumido por `app/services/projetos.py:14,193-197`
+>   (`servico_indicadores.listar_indicadores`/`listar_medicoes`, com comentário próprio no
+>   arquivo dizendo explicitamente "nunca um mecanismo próprio de indicador/orçamento duplicado
+>   aqui"); motor de agenda consumido por `app/services/espacos.py:53`
+>   (`agenda.criar_compromisso`), inclusive bloqueio de manutenção virando `CompromissoAgenda`.
+>   Motor de inscrição e motor de documento gerado **não têm consumidor ainda dentro de
+>   v4.1–v4.3** — conferido que isso é esperado, não uma lacuna: seus primeiros consumidores reais
+>   (escala de voluntário autoatendida, certificado) são v4.4/v4.5, ainda não implementadas.
+> - **Item específico 2 (conflito de horário impedido no banco sob concorrência) — ⚠️ PENDENTE,
+>   não confirmado nesta revisão**: a migração `b4d6f8a0c2e3` (EXCLUDE USING gist real) foi
+>   confirmada aplicada com sucesso contra o Postgres de produção (log da Actions,
+>   `gh run view 35345519075`: "Running upgrade a2c4e6f8b0d1 -> b4d6f8a0c2e3 ... + EXCLUDE
+>   constraint real em compromissos_agenda (Postgres)") — mas isso prova só que a constraint
+>   **existe**, não que ela **recusa de verdade uma segunda escrita concorrente**. O próprio bloco
+>   da v4.3 já registrava esta limitação: a suíte de teste roda em SQLite (sem `gist`/`tsrange`),
+>   então não existe hoje nenhum teste automatizado — desta revisão ou de qualquer versão anterior
+>   — que dispare duas requisições de verdade ao mesmo tempo contra o mesmo horário/espaço e prove
+>   que o Postgres rejeita uma delas. **Bloqueio real desta sessão, registrado em vez de
+>   contornado**: o único Postgres que existe é o de produção, e buscar `DATABASE_URL` do Key
+>   Vault para montar esse teste (mesmo isolado, numa tabela/schema descartável) foi recusado pelo
+>   classificador de modo automático como `[Credential Materialization]` — mesma categoria de
+>   trava já documentada nesta sessão para `az keyvault secret show`. Não existe Docker nem
+>   Postgres local nesta máquina para contornar isso sem credencial de produção. **Este item segue
+>   em aberto — a fase não deveria avançar para v4.4 com este item pendente, por definição do
+>   próprio checklist ("o ponto de revisão é um portão, não uma sugestão")**; a sessão vai pedir
+>   ao usuário como prosseguir (permissão pontual para o teste, ou o usuário rodando/aceitando o
+>   risco registrado) em vez de marcar isto como concluído.
+> - **Itens 1, 3–9 do checklist padrão**: sem violação. Zero ocorrências de `float` perto de
+>   dinheiro em `app/{models,services}/{motores,projetos,beneficiarios,espacos}.py`; toda escrita
+>   nova audita de verdade (`motores.py`: 10 endpoints de escrita/10 `registrar_auditoria`,
+>   `verificar-conflito` corretamente sem auditoria por ser só leitura; `projetos.py`: 8/8;
+>   `beneficiarios.py`: 4 escritas + 1 auditoria extra na CONSULTA do prontuário, mesmo padrão do
+>   Conselho Fiscal v2.6; `espacos.py`: 10/10); toda rota nova usa
+>   `Depends(exigir_permissao("projetos"))`, exceto a única deliberadamente pública
+>   (`GET /api/espacos/{id}/disponibilidade`, conferida que devolve só horário ocupado, nunca quem
+>   reservou); `DECISOES_CONGELADAS.md` sem violação (primeira associação polimórfica do projeto,
+>   decisão documentada no próprio `app/models/motores.py`, não é troca de banco/framework); scan
+>   de segredo limpo no intervalo (`git log -p aebec87..HEAD`, único achado foi mensagem de erro
+>   de no-show, nenhuma credencial); nada fora de escopo sem registro (43 arquivos, 6504 inserções
+>   conferidas por `git diff --stat`); suíte completa **316/316 passando** (backend, rodada duas
+>   vezes nesta revisão pra afastar flakiness — **achado à parte, corrigido durante esta própria
+>   revisão**: o venv local desta sessão não tinha `reportlab` instalado, embora já estivesse em
+>   `requirements.txt` desde a v4.0 — `pip install -r requirements.txt` resolvido, gap só do
+>   ambiente de desenvolvimento local, produção já constrói a imagem do zero a cada deploy e nunca
+>   teve esse problema) e **22/22 passando** (painel), `npm run typecheck`/`npm run lint` limpos
+>   (só os 3 warnings pré-existentes de `react-refresh/only-export-components`).
+> - **Item 10 (tela real no painel)**: confirmado que os três consumidores novos têm tela própria
+>   — "Projetos" (`Projetos.tsx`, com cronograma/equipe/orçamento/encerramento/beneficiários),
+>   "Reserva de Espaço" (`Espacos.tsx`, rota `/reserva-espaco`) — ambas registradas em `App.tsx` e
+>   no menu (`modulos.ts`). Os motores em si (v4.0) continuam corretamente sem tela — são
+>   infraestrutura consumida por outro serviço, exatamente como o próprio bloco da v4.0 registrou.
+> - **Item 11 (link/arquivo abre de verdade)**: não se aplica a este intervalo — o motor de
+>   documento gerado (v4.0, PDF em disco) ainda não tem consumidor/tela (ver item específico 1
+>   acima), então não existe hoje nenhum link novo pra verificar.
+> - **Item 12 (produção)**: `git log origin/main..HEAD` vazio; `Deploy API` verde no commit
+>   `ba32ab1` (última tentativa, depois de duas falhas reais por `btree_gist` não liberado —
+>   confirmado via `gh run view`, log mostrando a migração `b4d6f8a0c2e3` rodando com sucesso na
+>   terceira tentativa, depois da extensão liberada no servidor); `Deploy Painel` verde no commit
+>   `77a3e2d` (não roda de novo em `ba32ab1` porque esse commit só tocou
+>   `tests/test_situacao.py`, nenhum arquivo do painel — comportamento esperado, não uma lacuna);
+>   `painel.asaf.org.br/version.json` reconfirmado **ao vivo** nesta revisão batendo `77a3e2d`.
+> **Achado de higiene, não desta revisão**: o commit `2657fa4` ("fix: corrige nome de teste citado
+> na revisão FASE 3 (3/3)") mostra que a citação de nome de teste na revisão anterior estava
+> errada e foi corrigida por outra sessão/passagem — confirma que o processo de auditoria cruzada
+> deste documento está funcionando, registrado aqui só para o histórico.
+
 #### v4.4 — Voluntariado vinculado a projeto
 - [ ] `AlocacaoVoluntario` (turno/horário, habilidades exigidas x cadastradas, horas previstas x
       realizadas), exigindo termo de adesão vigente (v1.6) como trava real.
