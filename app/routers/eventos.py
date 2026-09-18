@@ -186,6 +186,18 @@ def listar_eventos_publicos_endpoint(db: Session = Depends(get_db)):
     return [_serializar_evento_publico(e) for e in eventos.listar_eventos_publicos(db)]
 
 
+# v4.6 - rotas literais (`/consentimento-lgpd`) SEMPRE antes de `/{id_evento}` - mesmo achado
+# real já corrigido na v4.5 (`/api/eventos/minhas-inscricoes` vs `/api/eventos/{id_evento}`):
+# FastAPI/Starlette casa rota por ordem de registro, e um segmento parametrizado sem conversor
+# próprio casa com QUALQUER string, inclusive um literal registrado depois dele.
+@router.get("/api/publico/eventos/consentimento-lgpd", summary="Texto e versão atuais do consentimento LGPD de inscrição (leitura, sem autenticação)")
+def obter_texto_consentimento_lgpd_endpoint(db: Session = Depends(get_db)):
+    return {
+        "texto": obter_configuracao(db, "TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", ""),
+        "versao": obter_configuracao(db, "VERSAO_TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", "1"),
+    }
+
+
 @router.get("/api/publico/eventos/{id_evento}", summary="Detalhe público de um evento (leitura, sem autenticação)")
 def obter_evento_publico_endpoint(id_evento: int, db: Session = Depends(get_db)):
     evento = eventos.obter_evento(db, id_evento)
@@ -208,14 +220,6 @@ def listar_perguntas_publicas_endpoint(id_evento: int, db: Session = Depends(get
     if evento.visibilidade != "Pública":
         raise HTTPException(status_code=404, detail="Evento não encontrado.")
     return [_serializar_pergunta(p) for p in eventos.listar_perguntas(db, id_evento=id_evento)]
-
-
-@router.get("/api/publico/eventos/consentimento-lgpd", summary="Texto e versão atuais do consentimento LGPD de inscrição (leitura, sem autenticação)")
-def obter_texto_consentimento_lgpd_endpoint(db: Session = Depends(get_db)):
-    return {
-        "texto": obter_configuracao(db, "TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", ""),
-        "versao": obter_configuracao(db, "VERSAO_TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", "1"),
-    }
 
 
 @router.post("/api/publico/eventos/{id_evento}/inscrever-se", summary="Inscrever-se publicamente neste evento (site institucional, sem login)")

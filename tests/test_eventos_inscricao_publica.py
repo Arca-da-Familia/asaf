@@ -173,6 +173,15 @@ def test_autocancelamento_com_token_invalido_e_404(client):
     assert r.status_code == 404
 
 
+def test_endpoint_publico_de_consentimento_lgpd_nao_colide_com_detalhe_do_evento(client):
+    """Achado real da v4.5 (rota literal vs `/{id_evento}` casando por ordem de registro) quase
+    se repetiu aqui com `/api/publico/eventos/consentimento-lgpd` - teste dedicado pra nunca
+    mais deixar passar sem cobertura."""
+    r = client.get("/api/publico/eventos/consentimento-lgpd")
+    assert r.status_code == 200, r.text
+    assert "texto" in r.json() and "versao" in r.json()
+
+
 def test_rate_limiting_por_ip_no_endpoint_publico_de_inscricao(client, auth_headers):
     id_evento = _criar_evento_publico(client, auth_headers)
     ip = _ip_de_teste()  # UM ip fixo, reaproveitado nas 6 chamadas - é isso que está sendo testado
