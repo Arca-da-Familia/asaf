@@ -961,3 +961,50 @@ export const horasVoluntariadoAutoatendimentoSchema = z.object({
   descricao_atividade: z.string().optional(),
   id_alocacao: z.coerce.number().optional(),
 })
+
+// v4.5 - evento como entidade única e pontual.
+export const eventoCriarSchema = z.object({
+  titulo: z.string().min(3, 'Informe o título.'),
+  categoria: z.string().min(1, 'Selecione a categoria.'),
+  data_hora_inicio: z
+    .string()
+    .min(1, 'Informe o início do evento.')
+    .transform(paraUtcIso),
+  data_hora_fim: z
+    .string()
+    .optional()
+    .transform((v) => (v ? paraUtcIso(v) : undefined)),
+  descricao: z.string().optional(),
+  id_espaco: z.coerce.number().optional(),
+  endereco_avulso: z.string().optional(),
+  id_associado_responsavel: z.coerce.number().optional(),
+  vagas: z.coerce.number().int().optional(),
+  gratuito: z.boolean(),
+  visibilidade: z.enum(['Pública', 'Interna']),
+})
+
+export const sessaoEventoCriarSchema = z.object({
+  titulo: z.string().min(2, 'Informe o título da sessão.'),
+  data_hora_inicio: z
+    .string()
+    .min(1, 'Informe o início da sessão.')
+    .transform(paraUtcIso),
+  data_hora_fim: z
+    .string()
+    .optional()
+    .transform((v) => (v ? paraUtcIso(v) : undefined)),
+  descricao: z.string().optional(),
+  vagas: z.coerce.number().int().optional(),
+})
+
+export const novaEdicaoEventoCriarSchema = z.object({
+  titulo: z.string().optional(),
+  data_hora_inicio: z
+    .string()
+    .min(1, 'Informe o início da nova edição.')
+    .transform(paraUtcIso),
+  data_hora_fim: z
+    .string()
+    .optional()
+    .transform((v) => (v ? paraUtcIso(v) : undefined)),
+})

@@ -14,6 +14,7 @@ import {
   Handshake,
   Landmark,
   MessageCircleQuestion,
+  PartyPopper,
   Receipt,
   ScrollText,
   ShieldAlert,
@@ -234,6 +235,12 @@ export const modulos: Modulo[] = [
     rotulo: 'Reserva de Espaço',
     permissao: 'projetos',
     icone: CalendarCheck,
+  },
+  {
+    rota: '/eventos',
+    rotulo: 'Eventos',
+    permissao: 'projetos',
+    icone: PartyPopper,
   },
   {
     rota: '/acesso',

@@ -64,6 +64,7 @@ from app.models.espacos import (
     Reserva,
     ChecklistDevolucaoEspaco,
 )
+from app.models.eventos import Evento, SessaoEvento
 from app.models.linha_do_tempo import EventoLinhaDoTempo
 from app.models.estatuto import DocumentoEstatuto, RegraEstatutaria
 from app.models.mandatos import DeclaracaoConflitoInteresse, Mandato
@@ -158,6 +159,8 @@ __all__ = [
     "BloqueioEspaco",
     "Reserva",
     "ChecklistDevolucaoEspaco",
+    "Evento",
+    "SessaoEvento",
     "EventoLinhaDoTempo",
     "DocumentoEstatuto",
     "RegraEstatutaria",

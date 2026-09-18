@@ -4607,6 +4607,65 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - [ ] Site institucional (Astro/Directus) só **lê** o endpoint público — o Directus não guarda
       evento algum, só enriquece com banner/texto de chamada vinculado por `evento_id`.
 
+> **Implementado em 2026-09-18, backend + painel, todos os itens acima (exceto o `evento_id` do
+> Directus - o site Astro/Directus é outro projeto, fora deste repositório; o que cabia aqui,
+> o endpoint público que ele vai consumir, está pronto e testado).**
+> - `Evento` (`app/models/eventos.py`) — título/descrição/categoria (catálogo `tipo_evento`, já
+>   seedado desde a v4.3 e sem nenhum consumidor real até agora), data/hora, local (`id_espaco`
+>   da v4.3 OU `endereco_avulso` em texto), responsável, `vagas` (só metadado — a trava real de
+>   limite sob concorrência é a v4.7, não inventada aqui por antecipação), `gratuito` e
+>   `visibilidade` (`"Pública"`/`"Interna"`, mesma convenção de `ProjetoEvento.visibilidade`,
+>   v4.1). **Um evento é um registro só** — `GET /api/eventos/{id}` (gestão, autenticado) e
+>   `GET /api/publico/eventos/{id}` (leitura pública) leem a MESMA tabela, o segundo só filtra
+>   `visibilidade == "Pública"` e omite campo de gestão interna (testado: evento `"Interna"`
+>   devolve 404 na rota pública, nunca 403 — não revela nem que existe).
+> - `SessaoEvento` — programação do evento (congresso de um dia, N atividades) sem exigir criar
+>   "vários eventos"; testado cadastrando e listando.
+> - Edições recorrentes: `Evento.id_edicao_anterior` liga cada nova edição à imediatamente
+>   anterior; `app/services/eventos.py::listar_cadeia_edicoes` percorre a cadeia inteira (pra
+>   trás E pra frente a partir de qualquer edição pedida) — testado criando 3 edições e
+>   confirmando que pedir a cadeia a partir da 1ª ou da 3ª devolve a mesma lista completa,
+>   ordenada cronologicamente.
+> - **Inscrição reaproveita o motor genérico da v4.0** (`app/models/motores.py::Inscricao`,
+>   `contexto_tipo="Evento"`/`"SessaoEvento"`) — motor que já existia desde a v4.0 sem nenhum
+>   consumidor real até esta versão. Gestão de inscrição de terceiros continua no endpoint
+>   genérico já existente (`/api/inscricoes/`, `app/routers/motores.py`, permissão "projetos" —
+>   nada novo criado ali). O que esta versão acrescenta é o **autoatendimento**: o próprio
+>   associado se inscreve (`POST /api/eventos/{id}/inscricao` e `.../sessoes/{id}/inscricao`,
+>   `Depends(get_current_user)`, resolve o `Associado` do usuário logado — nunca aceita
+>   `id_pessoa` do cliente) e vê só as próprias inscrições (`GET /api/eventos/minhas-inscricoes`)
+>   — testado criando dois associados e confirmando que a lista de um nunca mostra a do outro.
+> - **Achado real, corrigido antes de qualquer deploy**: as rotas `GET /api/eventos/{id_evento}`
+>   e `GET /api/eventos/minhas-inscricoes` colidiam — o FastAPI/Starlette casa rota por ORDEM DE
+>   REGISTRO, e `{id_evento}` (registrada primeiro) casava com o segmento literal
+>   `"minhas-inscricoes"` antes de tentar convertê-lo pra `int` e falhar com 422, nunca chegando
+>   na rota certa. Descoberto pelo próprio teste automatizado (`KeyError: 0` ao indexar um corpo
+>   de erro como se fosse lista) — corrigido registrando a rota literal ANTES da parametrizada,
+>   mesma regra de ordenação que qualquer framework de rota por padrão de caminho exige e que
+>   nenhuma versão anterior desta sessão tinha testado o suficiente pra pisar nela até agora.
+> - **Pendências registradas, não fingidas**: deduplicação por CPF e formulário público (v4.6),
+>   limite de vagas sob concorrência real e cotas/inscrição em grupo (v4.7) ainda não existem —
+>   esta versão entrega a entidade e o autoatendimento interno; o site institucional (Astro/
+>   Directus) em si é outro projeto, fora deste repositório, e não foi tocado aqui.
+> - Painel: nova tela "Eventos" (`Eventos.tsx`, rota `/eventos`, módulo com permissão "projetos")
+>   — lista + criação de evento, seção de programação (sessões), seção de edições recorrentes com
+>   a cadeia completa, seção de inscritos (reaproveitando o endpoint genérico de inscrição). Uma
+>   tela de autoatendimento (associado se inscrevendo pelo painel, fora do módulo de gestão) foi
+>   deliberadamente deixada pra quando a v4.6 chegar, já que o formulário de inscrição público é
+>   o mesmo tipo de tela e construir os dois agora arriscava duplicar UI que a v4.6 ia substituir.
+> - Migração `d6f8a0c2e4b6` (`eventos`, `sessoes_evento`) validada upgrade+downgrade+upgrade contra
+>   schema pré-v4.5 simulado em SQLite (mesmo processo de `git worktree` + import de `app.main` +
+>   `alembic stamp head` já usado nas versões anteriores).
+> - 7 testes novos em `tests/test_eventos.py` (categoria inválida recusada, evento público só
+>   lista/detalha visibilidade "Pública" e nunca expõe campo de gestão interna, sessões
+>   cadastradas e listadas, cadeia de 3 edições consistente a partir de qualquer uma delas,
+>   inscrição autoatendida no evento restrita ao próprio associado com duplicata recusada pelo
+>   motor genérico, inscrição autoatendida por sessão, endpoints de gestão exigem autenticação
+>   enquanto a leitura pública não) — 328/328 testes da suíte inteira passando. 27/27 testes do
+>   painel, `typecheck`/`lint`/`format`/`build` limpos em ambos.
+> **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
+> lacuna de ferramenta de navegador já registrada nos pontos de revisão anteriores).
+
 #### v4.6 — Inscrição pública com deduplicação
 - [ ] Formulário de inscrição no site chama o FastAPI (não o Directus), com CPF + e-mail +
       telefone.

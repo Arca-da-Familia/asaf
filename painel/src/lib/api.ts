@@ -4232,3 +4232,142 @@ export function registrarMinhasHoras(dados: {
     body: JSON.stringify(dados),
   })
 }
+
+// ---------------------------------------------------------------------------
+// v4.5 (FASE 4) - Evento como entidade única e pontual: UM registro só, consumido pelo painel
+// (gestão) e pelo site institucional (leitura pública, `/api/publico/eventos`). Sessões
+// (programação) e edições recorrentes ligadas entre si (`id_edicao_anterior`). Inscrição
+// reaproveita o motor genérico da v4.0 (contexto "Evento"/"SessaoEvento").
+// ---------------------------------------------------------------------------
+export type Evento = {
+  id_evento: number
+  titulo: string
+  descricao: string | null
+  categoria: string
+  data_hora_inicio: string
+  data_hora_fim: string | null
+  id_espaco: number | null
+  endereco_avulso: string | null
+  id_associado_responsavel: number | null
+  vagas: number | null
+  gratuito: boolean
+  visibilidade: string
+  id_edicao_anterior: number | null
+}
+
+export type SessaoEvento = {
+  id_sessao: number
+  id_evento: number
+  titulo: string
+  descricao: string | null
+  data_hora_inicio: string
+  data_hora_fim: string | null
+  vagas: number | null
+}
+
+export function criarEvento(dados: {
+  titulo: string
+  categoria: string
+  data_hora_inicio: string
+  descricao?: string
+  data_hora_fim?: string
+  id_espaco?: number
+  endereco_avulso?: string
+  id_associado_responsavel?: number
+  vagas?: number
+  gratuito: boolean
+  visibilidade: string
+}): Promise<{ mensagem: string; id_evento: number }> {
+  return apiFetch('/api/eventos/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarEventos(): Promise<Evento[]> {
+  return apiFetch('/api/eventos/')
+}
+
+export function obterEvento(idEvento: number): Promise<Evento> {
+  return apiFetch(`/api/eventos/${idEvento}`)
+}
+
+export function criarSessaoEvento(
+  idEvento: number,
+  dados: {
+    titulo: string
+    data_hora_inicio: string
+    descricao?: string
+    data_hora_fim?: string
+    vagas?: number
+  },
+): Promise<{ mensagem: string; id_sessao: number }> {
+  return apiFetch(`/api/eventos/${idEvento}/sessoes`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarSessoesEvento(idEvento: number): Promise<SessaoEvento[]> {
+  return apiFetch(`/api/eventos/${idEvento}/sessoes`)
+}
+
+export function criarNovaEdicaoEvento(
+  idEvento: number,
+  dados: { data_hora_inicio: string; data_hora_fim?: string; titulo?: string },
+): Promise<{ mensagem: string; id_evento: number }> {
+  return apiFetch(`/api/eventos/${idEvento}/nova-edicao`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarEdicoesEvento(idEvento: number): Promise<Evento[]> {
+  return apiFetch(`/api/eventos/${idEvento}/edicoes`)
+}
+
+export type InscricaoMotor = {
+  id_inscricao: number
+  id_pessoa: number
+  status: string
+  id_titulo_cobranca: number | null
+  data_inscricao: string
+}
+
+export function listarInscricoesDoContexto(
+  contextoTipo: string,
+  idContexto: number,
+): Promise<InscricaoMotor[]> {
+  return apiFetch(
+    `/api/inscricoes/?contexto_tipo=${encodeURIComponent(contextoTipo)}&id_contexto=${idContexto}`,
+  )
+}
+
+// -- Autoatendimento (qualquer usuário autenticado vinculado a um associado) --
+export function inscreverMeNoEvento(
+  idEvento: number,
+): Promise<{ mensagem: string; id_inscricao: number; status: string }> {
+  return apiFetch(`/api/eventos/${idEvento}/inscricao`, { method: 'POST' })
+}
+
+export function inscreverMeNaSessaoEvento(
+  idSessao: number,
+): Promise<{ mensagem: string; id_inscricao: number; status: string }> {
+  return apiFetch(`/api/eventos/sessoes/${idSessao}/inscricao`, {
+    method: 'POST',
+  })
+}
+
+export type MinhaInscricaoEvento = {
+  id_inscricao: number
+  contexto_tipo: string
+  id_contexto: number
+  status: string
+  data_inscricao: string
+}
+
+export function listarMinhasInscricoesEmEventos(): Promise<
+  MinhaInscricaoEvento[]
+> {
+  return apiFetch('/api/eventos/minhas-inscricoes')
+}

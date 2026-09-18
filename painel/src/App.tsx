@@ -48,6 +48,7 @@ import {
 import { EmConstrucao } from '@/pages/EmConstrucao'
 import { ProjetosPage } from '@/pages/Projetos'
 import { EspacosPage } from '@/pages/Espacos'
+import { EventosPage } from '@/pages/Eventos'
 import { Forbidden } from '@/pages/Forbidden'
 import { Home } from '@/pages/Home'
 import { ImportarAssociadosPage } from '@/pages/ImportarAssociados'
@@ -518,6 +519,16 @@ function App() {
             <RequirePermission permission="projetos">
               <ErrorBoundary tituloModulo="Reserva de Espaço">
                 <EspacosPage />
+              </ErrorBoundary>
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/eventos"
+          element={
+            <RequirePermission permission="projetos">
+              <ErrorBoundary tituloModulo="Eventos">
+                <EventosPage />
               </ErrorBoundary>
             </RequirePermission>
           }
