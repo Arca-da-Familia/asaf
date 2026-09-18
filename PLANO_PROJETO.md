@@ -4403,8 +4403,8 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - Os motores compartilhados (v4.0 — presença, inscrição, documento, indicador) estão sendo **de fato reutilizados** por v4.1–v4.3, não reimplementados por dentro de cada sub-módulo.
 - Reserva de espaço (v4.3): conflito de horário é impedido no **banco** sob concorrência — testar duas reservas simultâneas no mesmo horário/espaço.
 
-> **Revisado em 2026-09-18 (parcial — ver pendência ao final).** Checklist padrão (seção 4.1, 12
-> itens) aplicado com evidência concreta:
+> **Revisado em 2026-09-18.** Checklist padrão (seção 4.1, 12 itens) aplicado com evidência
+> concreta:
 > - **Item específico 1 (motores de fato reutilizados)**: confirmado por leitura direta do código
 >   consumidor, não por inferência — motor de presença consumido por
 >   `app/routers/beneficiarios.py:148` (`listar_presencas(db, contexto_tipo="Projeto", ...)`);
@@ -4416,25 +4416,29 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 >   Motor de inscrição e motor de documento gerado **não têm consumidor ainda dentro de
 >   v4.1–v4.3** — conferido que isso é esperado, não uma lacuna: seus primeiros consumidores reais
 >   (escala de voluntário autoatendida, certificado) são v4.4/v4.5, ainda não implementadas.
-> - **Item específico 2 (conflito de horário impedido no banco sob concorrência) — ⚠️ PENDENTE,
->   não confirmado nesta revisão**: a migração `b4d6f8a0c2e3` (EXCLUDE USING gist real) foi
->   confirmada aplicada com sucesso contra o Postgres de produção (log da Actions,
->   `gh run view 35345519075`: "Running upgrade a2c4e6f8b0d1 -> b4d6f8a0c2e3 ... + EXCLUDE
->   constraint real em compromissos_agenda (Postgres)") — mas isso prova só que a constraint
->   **existe**, não que ela **recusa de verdade uma segunda escrita concorrente**. O próprio bloco
->   da v4.3 já registrava esta limitação: a suíte de teste roda em SQLite (sem `gist`/`tsrange`),
->   então não existe hoje nenhum teste automatizado — desta revisão ou de qualquer versão anterior
->   — que dispare duas requisições de verdade ao mesmo tempo contra o mesmo horário/espaço e prove
->   que o Postgres rejeita uma delas. **Bloqueio real desta sessão, registrado em vez de
->   contornado**: o único Postgres que existe é o de produção, e buscar `DATABASE_URL` do Key
->   Vault para montar esse teste (mesmo isolado, numa tabela/schema descartável) foi recusado pelo
->   classificador de modo automático como `[Credential Materialization]` — mesma categoria de
->   trava já documentada nesta sessão para `az keyvault secret show`. Não existe Docker nem
->   Postgres local nesta máquina para contornar isso sem credencial de produção. **Este item segue
->   em aberto — a fase não deveria avançar para v4.4 com este item pendente, por definição do
->   próprio checklist ("o ponto de revisão é um portão, não uma sugestão")**; a sessão vai pedir
->   ao usuário como prosseguir (permissão pontual para o teste, ou o usuário rodando/aceitando o
->   risco registrado) em vez de marcar isto como concluído.
+> - **Item específico 2 (conflito de horário impedido no banco sob concorrência)**: confirmado
+>   por execução real contra o Postgres de produção, não só pela migração ter rodado sem erro. A
+>   sessão inicialmente não tinha como fazer esse teste (sem Docker/Postgres local, e buscar
+>   `DATABASE_URL` do Key Vault foi recusado pelo classificador de modo automático como
+>   `[Credential Materialization]`) — registrado nesta revisão, o usuário então tirou a sessão do
+>   modo automático especificamente para isto. Com a permissão concedida: `DATABASE-URL` lido do
+>   Key Vault direto pra um arquivo local (nunca impresso no terminal), firewall do
+>   `asaf-pg-server` liberado temporariamente pro IP desta máquina (regra `TesteRevisaoTemporario`,
+>   removida ao final — `az postgres flexible-server firewall-rule list` confirma só as duas
+>   regras originais de volta), e um script isolado (`recurso_tipo="TESTE_REVISAO_FASE4_20260918"`,
+>   `id_recurso=999999999` — marcadores que não colidem com nenhum espaço/reserva real) abriu
+>   **duas conexões psycopg2 de verdade em threads separadas**: a thread A insere um compromisso
+>   das 10h-11h de 2099-01-01 e mantém a transação **deliberadamente aberta** por 2,5s (sem
+>   commit); a thread B, 0,5s depois, tenta inserir o mesmo horário/recurso enquanto A ainda não
+>   commitou. Resultado real: a thread B **bloqueou por 2,21s** (esperando o lock de A) e só então
+>   recebeu `psycopg2.errors.ExclusionViolation` ("conflicting key value violates exclusion
+>   constraint `excl_compromissos_agenda_sobreposicao`") — a prova de que a serialização é de
+>   verdade no banco, não uma corrida que a aplicação pudesse perder (thread B não conseguiu
+>   inserir "por sorte" antes de A commitar; ela ficou travada esperando e foi recusada depois).
+>   Limpeza confirmada: a linha de teste de A foi removida ao final do script (`DELETE ...
+>   WHERE recurso_tipo = 'TESTE_REVISAO_FASE4_20260918'`, 1 linha), a regra de firewall temporária
+>   foi excluída, e o arquivo local com a credencial foi apagado — nenhum dado de teste nem
+>   segredo ficou para trás.
 > - **Itens 1, 3–9 do checklist padrão**: sem violação. Zero ocorrências de `float` perto de
 >   dinheiro em `app/{models,services}/{motores,projetos,beneficiarios,espacos}.py`; toda escrita
 >   nova audita de verdade (`motores.py`: 10 endpoints de escrita/10 `registrar_auditoria`,
@@ -4473,6 +4477,9 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > na revisão FASE 3 (3/3)") mostra que a citação de nome de teste na revisão anterior estava
 > errada e foi corrigida por outra sessão/passagem — confirma que o processo de auditoria cruzada
 > deste documento está funcionando, registrado aqui só para o histórico.
+> **Todos os 12 itens do checklist padrão confirmados, incluindo os dois específicos desta faixa
+> (motores reutilizados de verdade, EXCLUDE constraint recusando escrita concorrente real).** Isto
+> fecha o Ponto de Revisão FASE 4 (1/3) — segue para v4.4.
 
 #### v4.4 — Voluntariado vinculado a projeto
 - [ ] `AlocacaoVoluntario` (turno/horário, habilidades exigidas x cadastradas, horas previstas x
