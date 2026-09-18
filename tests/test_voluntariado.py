@@ -148,13 +148,14 @@ def test_alocar_voluntario_sem_termo_vigente_e_recusado(client, auth_headers):
     ).json()
     projeto = client.post(
         "/projetos/",
+        headers=auth_headers,
         json={
             "nome_projeto": "Mutirão", "tipo_foco": "Social", "necessita_alvara_bombeiros": False,
             "data_inicio": "2026-01-01T00:00:00", "data_fim_prevista": "2026-01-02T00:00:00",
         },
     ).json()
 
-    r = client.post("/projetos/alocar/", json={
+    r = client.post("/projetos/alocar/", headers=auth_headers, json={
         "id_projeto": projeto["id_projeto"], "id_associado": associado["id_associado"],
         "funcao_desempenhada": "Logística",
     })

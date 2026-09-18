@@ -803,3 +803,33 @@ export const fecharMesSchema = z.object({
     .positive({ message: 'Selecione a conta financeira.' }),
   saldo_extrato_bancario: z.coerce.number(),
 })
+
+// v4.1 - Projeto como entidade única e configurável.
+export const projetoCriarSchema = z.object({
+  nome_projeto: z.string().min(3, 'Informe o nome do projeto.'),
+  tipo_foco: z.string().min(1, 'Informe o foco do projeto.'),
+  necessita_alvara_bombeiros: z.boolean(),
+  data_inicio: z.string().min(1, 'Informe a data de início.'),
+  data_fim_prevista: z.string().min(1, 'Informe a data de fim prevista.'),
+  descricao: z.string().optional(),
+  tipo_projeto: z.string().optional(),
+  id_associado_responsavel: z.coerce.number().optional(),
+  publico_alvo: z.string().optional(),
+  id_centro_custo: z.coerce.number().optional(),
+  visibilidade: z.enum(['Pública', 'Interna']),
+})
+
+export const itemCronogramaCriarSchema = z.object({
+  tipo: z.enum(['Marco', 'Tarefa']),
+  titulo: z.string().min(3, 'Informe o título.'),
+  prazo: z.string().min(1, 'Informe o prazo.'),
+  id_associado_responsavel: z.coerce.number().optional(),
+})
+
+export const equipeProjetoCriarSchema = z.object({
+  id_associado: z.coerce
+    .number()
+    .int({ message: 'Selecione o associado.' })
+    .positive({ message: 'Selecione o associado.' }),
+  papel: z.string().min(1, 'Selecione o papel.'),
+})

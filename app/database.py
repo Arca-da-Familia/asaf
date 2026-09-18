@@ -213,6 +213,19 @@ def seed_catalogos():
             ("ASSISTENCIAL", "Assistencial"), ("EDUCACIONAL", "Educacional"), ("CULTURAL", "Cultural"),
             ("ESPORTIVO", "Esportivo"), ("SAUDE", "Saúde"),
         ]),
+        # v4.1 - status do próprio Projeto (nunca confundir com o status de um item de cronograma,
+        # esse é sempre DERIVADO, nunca escolhido à mão - ver app/services/projetos.py).
+        "status_projeto": ("Status do projeto", True, "projetos", [
+            ("PLANEJAMENTO", "Planejamento"), ("EM_EXECUCAO", "Em execução"),
+            ("CONCLUIDO", "Concluído"), ("SUSPENSO", "Suspenso"), ("CANCELADO", "Cancelado"),
+        ]),
+        # v4.1 - papel de quem compõe a equipe de um projeto - "coordenador enxerga só os
+        # beneficiários do projeto dele" (permissão contextual, preparação real pro RLS da
+        # FASE 15) depende de saber QUEM é coordenador de QUAL projeto.
+        "papel_equipe_projeto": ("Papel na equipe do projeto", True, "projetos", [
+            ("DIRIGENTE_RESPONSAVEL", "Dirigente responsável"), ("COORDENADOR", "Coordenador"),
+            ("VOLUNTARIO", "Voluntário"), ("COLABORADOR", "Colaborador"),
+        ]),
         "tipo_evento": ("Tipo de evento", True, "projetos", [
             ("ASSEMBLEIA", "Assembleia"), ("REUNIAO_DE_DIRETORIA", "Reunião de Diretoria"), ("CULTO", "Culto"),
             ("CONFRATERNIZACAO", "Confraternização"), ("ACAO_SOCIAL", "Ação Social"), ("PALESTRA", "Palestra"),

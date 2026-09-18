@@ -46,6 +46,7 @@ import {
   ProcessosDissolucaoPage,
 } from '@/pages/Dissolucao'
 import { EmConstrucao } from '@/pages/EmConstrucao'
+import { ProjetosPage } from '@/pages/Projetos'
 import { Forbidden } from '@/pages/Forbidden'
 import { Home } from '@/pages/Home'
 import { ImportarAssociadosPage } from '@/pages/ImportarAssociados'
@@ -496,7 +497,7 @@ function App() {
           element={
             <RequirePermission permission="projetos">
               <ErrorBoundary tituloModulo="Projetos">
-                <EmConstrucao modulo="Projetos" />
+                <ProjetosPage />
               </ErrorBoundary>
             </RequirePermission>
           }

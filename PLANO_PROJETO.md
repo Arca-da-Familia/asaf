@@ -4181,6 +4181,59 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
       financeira) gerado do próprio dado, arquivado e reutilizável em prestação de contas a doador
       e em edital futuro (v12.6).
 
+> **Implementado em 2026-09-18, backend + painel, todos os itens acima.**
+> - `ProjetoEvento`/`projetos_eventos` (v0.1/v0.2, `app/models/projetos.py`) **estendido em vez de
+>   renomeado** — decisão deliberada, documentada no próprio arquivo: `CentroDeCusto.id_projeto`
+>   (v3.1), `relatorio_por_projeto` (v3.6) e `EventoCalendario` (v2.9) já apontam pra essa tabela;
+>   renomear agora trocaria FK/nome em módulos já testados e em produção sem necessidade real. A
+>   separação de vez entre "Projeto" e "Evento" (se vier a existir) fica pra quando a v4.5 (Evento
+>   como entidade própria) chegar.
+> - **Achado real corrigido nesta versão, exatamente como a v2.9 já previa**: `criar_projeto` e
+>   `alocar_voluntario` eram protótipo sem `exigir_permissao`/`registrar_auditoria` - agora atrás
+>   de `exigir_permissao("projetos")` com auditoria em toda escrita
+>   (`app/routers/projetos.py`). Achado durante a correção: dois testes existentes
+>   (`tests/test_voluntariado.py::test_alocar_voluntario_sem_termo_vigente_e_recusado`) chamavam
+>   esses endpoints **sem autenticação**, contando com o protótipo aberto - corrigidos para usar
+>   `auth_headers`, preservando a intenção original do teste (recusa por falta de termo de
+>   voluntário vigente, não por falta de autenticação).
+> - `tipo_projeto` (catálogo `tipo_projeto`, **já estava seedado desde antes desta versão, sem
+>   consumidor** - mesmo sinal de antecipação já visto no motor de indicadores da v4.0) e `status`
+>   (catálogo novo `status_projeto`) — nunca texto livre.
+> - `ItemCronograma` (`app/models/projetos.py`) — marco ou tarefa, **status sempre calculado**
+>   (Pendente/Atrasado/Concluído a partir de `prazo`/`concluido_em` contra a data de hoje), nunca
+>   uma coluna que alguém escolhe à mão - mesma disciplina de `status_arrolamento` (v1.1) e do
+>   quórum de assembleia.
+> - `EquipeProjeto` — papel de catálogo novo (`papel_equipe_projeto`), um associado só fica ativo
+>   uma vez por projeto (encerra participação antiga antes de poder reentrar) - base real pra
+>   permissão contextual futura ("coordenador só vê beneficiários do projeto dele", preparação pro
+>   RLS da FASE 15); `eh_coordenador_do_projeto` já escrito no service, sem consumidor ainda
+>   (chega com a v4.2).
+> - **Orçamento do projeto NÃO ganhou mecanismo próprio** — reaproveita `Orcamento`/
+>   `realizado_do_orcamento` (v3.5) via `id_centro_custo` do projeto; `GET
+>   /api/projetos/{id}/orcamento` é só uma consulta filtrada, motor nenhum duplicado.
+> - `RelatorioFinalProjeto` — snapshot **versionado** (mesmo padrão de `PrestacaoDeContas`, v3.6),
+>   compõe indicadores (motor v4.0) + orçamento realizado x previsto (quando há centro de custo) +
+>   cronograma; a seção "público atendido" **registra a pendência real** (motor de beneficiários,
+>   v4.2, ainda não existe) em vez de fingir um número que não tem base em dado.
+> - Migração `f1c3d5e7a9b0` validada upgrade+downgrade+upgrade contra schema pré-v4.1 simulado.
+>   **Bug real encontrado e corrigido durante essa validação**: `batch_alter_table` do SQLite
+>   recusa (`ValueError: Constraint must have a name`) adicionar coluna com `ForeignKey` sem nome
+>   explícito - as três colunas novas de FK em `projetos_eventos` ganharam nome de constraint
+>   (`fk_projetos_eventos_id_*`), mesmo padrão já usado em migrações anteriores do projeto
+>   (ex.: v3.1) que eu não tinha seguido de primeira.
+> - 8 testes novos em `tests/test_projetos.py` (autenticação exigida, tipo/status validados
+>   contra catálogo, cronograma deriva status certo em cada caso incluindo depois de concluído,
+>   equipe recusa membro ativo duplicado mas permite reentrar após encerrar, orçamento do projeto
+>   bate com o `Orcamento` v3.5 cadastrado pro centro de custo, relatório final versiona e regista
+>   a pendência do público atendido) — 297/297 testes da suíte inteira passando (achei e descartei
+>   de novo a mesma flakiness intermitente pré-existente de `test_situacao.py`, sem relação com
+>   esta versão, já registrada nas revisões anteriores).
+> - Painel: **primeira tela real de Projetos** (`Projetos.tsx`, `/projetos`) - lista + criação +
+>   detalhe com cronograma, equipe, orçamento e encerramento formal, substituindo o
+>   `<EmConstrucao>` que estava lá desde sempre.
+> **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
+> lacuna de ferramenta de navegador já registrada nos pontos de revisão anteriores).
+
 #### v4.2 — Beneficiários e atendimento
 - [ ] `Beneficiario` como papel de `Pessoa` (v1.0), com vínculo N:N a `Projeto` e papel dentro dele
       (aluno, atendido, participante de oficina) — nunca um cadastro de pessoa por tipo de projeto.

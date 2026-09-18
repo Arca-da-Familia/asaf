@@ -3575,3 +3575,158 @@ export function fecharMes(dados: {
     body: JSON.stringify(dados),
   })
 }
+
+// ---------------------------------------------------------------------------
+// v4.1 (FASE 4) - Projeto como entidade única e configurável: cronograma (status sempre
+// derivado, nunca escolhido à mão), equipe com papel, orçamento via centro de custo (reaproveita
+// Orcamento, v3.5) e encerramento formal versionado (mesmo padrão de PrestacaoDeContas, v3.6).
+// ---------------------------------------------------------------------------
+export type Projeto = {
+  id_projeto: number
+  nome_projeto: string
+  descricao: string | null
+  tipo_projeto: string | null
+  tipo_foco: string
+  status: string
+  id_associado_responsavel: number | null
+  publico_alvo: string | null
+  data_inicio: string
+  data_fim_prevista: string
+  id_centro_custo: number | null
+  visibilidade: string
+  necessita_alvara_bombeiros: boolean
+  status_liberacao: string
+}
+
+export function listarProjetos(): Promise<Projeto[]> {
+  return apiFetch('/api/projetos/')
+}
+
+export function obterProjeto(idProjeto: number): Promise<Projeto> {
+  return apiFetch(`/api/projetos/${idProjeto}`)
+}
+
+export function criarProjeto(dados: {
+  nome_projeto: string
+  tipo_foco: string
+  necessita_alvara_bombeiros: boolean
+  data_inicio: string
+  data_fim_prevista: string
+  descricao?: string
+  tipo_projeto?: string
+  id_associado_responsavel?: number
+  publico_alvo?: string
+  id_centro_custo?: number
+  visibilidade: string
+}): Promise<{ mensagem: string; id_projeto: number }> {
+  return apiFetch('/projetos/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function alterarStatusProjeto(
+  idProjeto: number,
+  status: string,
+): Promise<{ mensagem: string; status: string }> {
+  return apiFetch(`/api/projetos/${idProjeto}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  })
+}
+
+export type ItemCronograma = {
+  id_item: number
+  tipo: string
+  titulo: string
+  id_associado_responsavel: number | null
+  prazo: string
+  concluido_em: string | null
+  status: string
+}
+
+export function listarCronograma(idProjeto: number): Promise<ItemCronograma[]> {
+  return apiFetch(`/api/projetos/${idProjeto}/cronograma`)
+}
+
+export function criarItemCronograma(
+  idProjeto: number,
+  dados: {
+    tipo: string
+    titulo: string
+    prazo: string
+    id_associado_responsavel?: number
+  },
+): Promise<{ mensagem: string; id_item: number }> {
+  return apiFetch(`/api/projetos/${idProjeto}/cronograma`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function concluirItemCronograma(
+  idItem: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/cronograma/${idItem}/concluir`, { method: 'POST' })
+}
+
+export type MembroEquipeProjeto = {
+  id_membro: number
+  id_associado: number
+  papel: string
+  data_inicio: string
+  data_fim: string | null
+}
+
+export function listarEquipeProjeto(
+  idProjeto: number,
+): Promise<MembroEquipeProjeto[]> {
+  return apiFetch(`/api/projetos/${idProjeto}/equipe`)
+}
+
+export function adicionarMembroEquipe(
+  idProjeto: number,
+  dados: { id_associado: number; papel: string },
+): Promise<{ mensagem: string; id_membro: number }> {
+  return apiFetch(`/api/projetos/${idProjeto}/equipe`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function encerrarParticipacaoEquipe(
+  idMembro: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/equipe-projeto/${idMembro}/encerrar`, {
+    method: 'POST',
+  })
+}
+
+export function obterOrcamentoDoProjeto(
+  idProjeto: number,
+  ano?: number,
+): Promise<Orcamento[]> {
+  const query = ano ? `?ano=${ano}` : ''
+  return apiFetch(`/api/projetos/${idProjeto}/orcamento${query}`)
+}
+
+export type RelatorioFinalProjeto = {
+  id_relatorio: number
+  versao: number
+  conteudo: string
+  gerado_em: string | null
+}
+
+export function gerarRelatorioFinalProjeto(
+  idProjeto: number,
+): Promise<RelatorioFinalProjeto> {
+  return apiFetch(`/api/projetos/${idProjeto}/relatorio-final`, {
+    method: 'POST',
+  })
+}
+
+export function listarRelatoriosFinaisProjeto(
+  idProjeto: number,
+): Promise<RelatorioFinalProjeto[]> {
+  return apiFetch(`/api/projetos/${idProjeto}/relatorio-final`)
+}
