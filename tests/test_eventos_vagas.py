@@ -13,7 +13,13 @@ _ISO = "%Y-%m-%dT%H:%M:%S"
 
 
 def _ip_de_teste() -> dict:
-    return {"X-Forwarded-For": f"203.0.113.{uuid.uuid4().hex[:2]}"}
+    # Achado real (Ponto de Revisão FASE 4 2/3): só 2 dígitos hex (256 valores) colidia entre
+    # testes deste arquivo E de test_eventos_inscricao_publica.py - mesma "rota" de rate limit
+    # (`inscrever-se-evento`), banco de teste compartilhado sem rollback por transação, suíte com
+    # centenas de chamadas. Mesma categoria de flakiness por paradoxo do aniversário já corrigida
+    # em `_criar_associado` (v4.3, CPF) - aumentado pro hex inteiro, colisão astronomicamente
+    # improvável.
+    return {"X-Forwarded-For": f"203.0.113.{uuid.uuid4().hex}"}
 
 
 def _criar_evento_publico(client, auth_headers, **overrides) -> int:

@@ -4833,6 +4833,90 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - Limite de vagas (v4.7) segura sob concorrência (duas inscrições simultâneas na última vaga não podem ambas passar) — teste de carga simples nisso.
 - Endpoint público de inscrição (v4.6) tem rate limiting e deduplicação por CPF funcionando de verdade.
 
+> **Revisado em 2026-09-18.** Checklist padrão (seção 4.1, 12 itens) + os três itens específicos
+> acima, todos aplicados com evidência concreta — **dois achados reais nesta revisão, ambos
+> corrigidos na hora, não empurrados como pendência.**
+> - **Item específico 1 (termo de adesão vigente trava candidatura)**: confirmado por chamada
+>   HTTP real — `tests/test_voluntariado_escala.py::test_candidatura_sem_termo_de_adesao_vigente_e_recusada`
+>   candidata um voluntário sem termo vigente (`POST /api/voluntariado/vagas/{id}/candidatar`),
+>   recebe 403 com "termo de adesão" na mensagem, antes de qualquer alocação nascer.
+> - **Item específico 2 (limite de vagas segura sob concorrência real)**: confirmado por teste de
+>   carga de verdade, não só lógico — `tests/test_eventos_vagas.py::test_duas_inscricoes_simultaneas_na_ultima_vaga_so_uma_passa`
+>   dispara 4 requisições concorrentes (`ThreadPoolExecutor`) contra 1 vaga só, confirma
+>   exatamente 1 "Pré-inscrito" e 3 "Lista de Espera". A trava real é um `UPDATE ... WHERE
+>   vagas_ocupadas < limite` (compare-and-swap atômico em uma única instrução SQL,
+>   `app/services/vagas.py::reservar_vaga`), sem depender de extensão de dialeto (ao contrário da
+>   `EXCLUDE USING gist` Postgres-only da v4.3) — funciona idêntico em SQLite (teste) e Postgres
+>   (produção). **Achado real durante esta própria revisão, corrigido na hora**: rodar a suíte
+>   completa duas vezes seguidas, esta mesma prova de concorrência falhou intermitentemente na
+>   segunda rodada — não por bug na trava (o teste isolado sempre passava), e sim por
+>   `_ip_de_teste()` (`tests/test_eventos_vagas.py` e `tests/test_eventos_inscricao_publica.py`)
+>   usar só 2 dígitos hex (256 valores possíveis) pro IP fake de rate limiting, com as duas
+>   suítes compartilhando a mesma rota (`inscrever-se-evento`) no mesmo banco de teste sem
+>   rollback por transação — mesma categoria de colisão por paradoxo do aniversário já corrigida
+>   nesta sessão pro sufixo de CPF da v4.3 (`_criar_associado`). Corrigido aumentando pro hex
+>   inteiro nos dois arquivos; suíte completa rodada mais duas vezes depois do fix (349/349,
+>   349/349), sem nenhuma repetição da falha.
+> - **Item específico 3 (rate limiting e deduplicação por CPF reais)**: confirmado por chamada
+>   HTTP real — `test_rate_limiting_por_ip_no_endpoint_publico_de_inscricao` faz 5 inscrições do
+>   mesmo IP (sucesso) e confirma 429 na 6ª; `test_inscricao_publica_com_cpf_conhecido_vincula_ao_cadastro_existente`
+>   inscreve o mesmo CPF em dois eventos diferentes e confirma por consulta direta ao banco que
+>   existe só UMA `Pessoa`, nunca duplicada.
+> - **Achado real nº 2, mais sério, corrigido durante esta revisão**: nenhuma das ações de
+>   inscrição em evento gravava `AuditLog` — nem o autoatendimento autenticado
+>   (`POST /api/eventos/{id}/inscricao`/`.../sessoes/{id}/inscricao`), nem a inscrição pública sem
+>   login (`POST /api/publico/eventos/{id}/inscrever-se`), nem o autocancelamento/confirmação por
+>   token, nem a expiração de promoção da lista de espera — violação direta do item 5 do checklist
+>   padrão ("toda ação sensível grava AuditLog de verdade"), e uma quebra do próprio padrão que a
+>   v4.4 já tinha estabelecido nesta mesma fase (`candidatar_se_endpoint`, autoatendimento de
+>   voluntário, já auditava). **Corrigido em `app/routers/eventos.py`**: autoatendimento
+>   autenticado audita com o `usuario` real; os quatro caminhos públicos (inscrever-se, cancelar,
+>   confirmar, expirar promoção) auditam com `usuario=None` (mesmo padrão SISTEMA já usado pela
+>   tarefa mensal financeira, v3.2.1), com o IP já capturado pelo rate limiting servindo de
+>   referência de origem — inscrição em grupo grava um registro por participante (nunca só o
+>   principal), mesma disciplina de "tratamento individual" do resto da v4.7. Dois testes de
+>   regressão novos confirmam a entrada de auditoria de verdade no banco (não só que o endpoint
+>   não quebrou): `test_inscricao_publica_grava_auditoria_mesmo_sem_login` e a asserção acrescentada
+>   em `test_inscricao_autoatendida_no_evento_e_restrita_ao_proprio`.
+> - **Itens 1, 3–4, 6–9 do checklist padrão**: sem violação (fora o achado nº 2 acima, já
+>   corrigido). Zero `float` perto de dinheiro nos módulos do intervalo (`carga_horaria_semanal`/
+>   `horas` em `voluntariado.py` são horas, não dinheiro — checado, não é violação); toda rota nova
+>   usa `exigir_permissao("projetos")` ou `get_current_user`, com as únicas rotas públicas sem
+>   nenhuma autenticação sendo as deliberadamente marcadas como tal (leitura de eventos públicos,
+>   consentimento LGPD, inscrição pública com rate limiting) — confirmado lendo o router inteiro,
+>   não só contando decorators; `DECISOES_CONGELADAS.md` sem violação; scan de segredo limpo no
+>   intervalo (`git log -p 6824c87..c99ad9b` — único conteúdo sensível são referências
+>   `${{ secrets.X }}` do GitHub Actions e chamadas `az keyvault secret show` com `::add-mask::`,
+>   mesmo padrão já estabelecido desde a v3.2.1, mais o uso correto de `secrets.token_hex`/
+>   `secrets.token_urlsafe` do Python pra gerar código de check-in e token de cancelamento); nada
+>   fora de escopo sem registro (43 arquivos, 5328 inserções conferidas por `git diff --stat`);
+>   suíte completa **349/349 passando** (backend, rodada três vezes nesta revisão — a
+>   flakiness real do achado acima só apareceu na 2ª rodada, por isso rodar mais de uma vez
+>   continua sendo o mínimo, nunca uma formalidade) e **27/27 passando** (painel),
+>   `typecheck`/`lint`/`build` limpos em ambos.
+> - **Item 10 (tela real no painel)**: confirmado — seção "Voluntariado" dentro do detalhe do
+>   Projeto + tela de autoatendimento "Meu voluntariado" (v4.4); tela "Eventos" com programação,
+>   edições recorrentes, inscritos, perguntas do formulário e cotas de vagas por categoria
+>   (v4.5–v4.7) — todas registradas em `App.tsx`/`modulos.ts`. Formulário público de inscrição e
+>   autocancelamento vivem no site institucional (Astro/Directus), fora deste repositório —
+>   decisão de escopo já registrada nos próprios blocos de v4.6, não uma lacuna desta revisão.
+> - **Item 11 (link/arquivo abre de verdade)**: não se aplica a este intervalo — nenhuma tela nova
+>   de v4.4–v4.7 introduz upload/link de arquivo (certificado em PDF é v4.8, motor de documento da
+>   v4.0 segue sem consumidor).
+> - **Item 12 (produção)**: `git log origin/main..HEAD` vazio (antes das correções desta revisão);
+>   `Deploy API` e `Deploy Painel` verdes pra todos os commits de código do intervalo (`859d819`→
+>   `b4a6491` após fix de Prettier, `081774e`, `c863ff9`→`b243423` após fix de colisão de rota,
+>   `d941934`) — conferido via `gh run list`, incluindo a única falha real do intervalo (`Deploy
+>   Painel` em `859d819`, já corrigida no próprio ciclo da v4.4);
+>   `painel.asaf.org.br/version.json?cachebust=d941934` reconfirmado **ao vivo** batendo `d941934`
+>   nesta revisão; workflow agendado `Tarefa Periódica (expira promoções de lista de espera
+>   vencidas)` confirmado `success` numa execução real em produção (18:54, 2026-09-18).
+> **Commit desta revisão** (achados 1 e 2 corrigidos): `app/routers/eventos.py` (auditoria nos
+> cinco caminhos de inscrição), `tests/test_eventos.py`/`test_eventos_inscricao_publica.py`
+> (regressão de auditoria), `tests/test_eventos_vagas.py`/`test_eventos_inscricao_publica.py`
+> (IP de teste com hex inteiro) — a caminho do deploy, confirmação em produção viria a seguir.
+> Isto fecha o Ponto de Revisão FASE 4 (2/3) — segue para v4.8.
+
 #### v4.8 — Check-in, crachá e certificado
 - [ ] Check-in por código curto, QR code da inscrição ou carteirinha do associado, **sem exigir
       login de quem opera a portaria** (token de operação com escopo limitado ao evento).

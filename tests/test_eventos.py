@@ -105,7 +105,7 @@ def test_nova_edicao_liga_a_cadeia_de_edicoes(client, auth_headers):
     assert cadeia_da_v3 == [id_v1, id_v2, id_v3]
 
 
-def test_inscricao_autoatendida_no_evento_e_restrita_ao_proprio(client, auth_headers):
+def test_inscricao_autoatendida_no_evento_e_restrita_ao_proprio(client, auth_headers, db):
     id_evento = _criar_evento(client, auth_headers, visibilidade="Pública")
     headers_a = _criar_associado_com_acesso(client, auth_headers)
     headers_b = _criar_associado_com_acesso(client, auth_headers)
@@ -113,6 +113,15 @@ def test_inscricao_autoatendida_no_evento_e_restrita_ao_proprio(client, auth_hea
     r = client.post(f"/api/eventos/{id_evento}/inscricao", headers=headers_a)
     assert r.status_code == 200, r.text
     assert r.json()["status"] == "Pré-inscrito"
+
+    # Ponto de Revisão FASE 4 (2/3): achado real - autoatendimento não gravava AuditLog, ao
+    # contrário do mesmo padrão já usado pela candidatura de voluntário (v4.4).
+    from app.models.core import AuditLog
+    entrada = db.query(AuditLog).filter(
+        AuditLog.tabela_afetada == "inscricoes", AuditLog.acao == "INSCRICAO", AuditLog.id_registro_afetado == r.json()["id_inscricao"],
+    ).first()
+    assert entrada is not None
+    assert entrada.id_usuario is not None
 
     # inscrição duplicada é recusada (motor genérico, v4.0).
     r = client.post(f"/api/eventos/{id_evento}/inscricao", headers=headers_a)

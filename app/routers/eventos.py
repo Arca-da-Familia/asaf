@@ -217,8 +217,10 @@ def listar_cotas_sessao_endpoint(id_sessao: int, db: Session = Depends(get_db), 
 # por quem tem permissão de projetos, sem precisar esperar o próximo ciclo agendado.
 # ==========================================
 @router.post("/api/eventos/expirar-promocoes-vencidas", summary="Expira promoções de lista de espera vencidas e promove o próximo da fila")
-def expirar_promocoes_vencidas_endpoint(db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+def expirar_promocoes_vencidas_endpoint(request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
     resultado = servico_vagas.expirar_promocoes_vencidas(db)
+    for item in resultado:
+        registrar_auditoria(db, usuario, "inscricoes", "EXPIRACAO_PROMOCAO", id_registro_afetado=item["id_inscricao"], dados_depois=item, ip_origem=_ip_origem(request))
     return {"mensagem": f"{len(resultado)} promoção(ões) vencida(s) processada(s).", "detalhes": resultado}
 
 
@@ -227,14 +229,16 @@ def expirar_promocoes_vencidas_endpoint(db: Session = Depends(get_db), _usuario=
 # continua em /api/inscricoes/, app/routers/motores.py, permissão "projetos")
 # ==========================================
 @router.post("/api/eventos/{id_evento}/inscricao", summary="Inscrever-se neste evento (autoatendimento)")
-def inscrever_no_evento_endpoint(id_evento: int, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+def inscrever_no_evento_endpoint(id_evento: int, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
     inscricao_criada = eventos.inscrever_no_evento(db, id_evento=id_evento, usuario=usuario)
+    registrar_auditoria(db, usuario, "inscricoes", "INSCRICAO", id_registro_afetado=inscricao_criada.id_inscricao, ip_origem=_ip_origem(request))
     return {"mensagem": "Inscrição registrada.", "id_inscricao": inscricao_criada.id_inscricao, "status": inscricao_criada.status}
 
 
 @router.post("/api/eventos/sessoes/{id_sessao}/inscricao", summary="Inscrever-se nesta sessão do evento (autoatendimento)")
-def inscrever_na_sessao_endpoint(id_sessao: int, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+def inscrever_na_sessao_endpoint(id_sessao: int, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
     inscricao_criada = eventos.inscrever_na_sessao(db, id_sessao=id_sessao, usuario=usuario)
+    registrar_auditoria(db, usuario, "inscricoes", "INSCRICAO", id_registro_afetado=inscricao_criada.id_inscricao, ip_origem=_ip_origem(request))
     return {"mensagem": "Inscrição registrada.", "id_inscricao": inscricao_criada.id_inscricao, "status": inscricao_criada.status}
 
 
@@ -296,6 +300,13 @@ def inscrever_publicamente_endpoint(id_evento: int, dados: InscricaoPublicaCriar
         versao_texto_consentimento=dados.versao_texto_consentimento,
         participantes_adicionais=[p.model_dump() for p in dados.participantes_adicionais],
     )
+    # usuario=None (mesmo padrão SISTEMA já usado pela tarefa mensal financeira, v3.2.1) - não há
+    # login aqui, mas a ação é sensível o bastante (dado pessoal + ocupa vaga) pra sempre deixar
+    # rastro auditável, com o IP capturado pro rate limiting servindo de referência de origem. Um
+    # registro por participante do grupo (nunca só o principal) - mesma "tratamento individual"
+    # já aplicada ao resto da inscrição em grupo.
+    for participante in resultado["participantes"]:
+        registrar_auditoria(db, None, "inscricoes", "INSCRICAO_PUBLICA", id_registro_afetado=participante["id_inscricao"], ip_origem=_ip_publico(request))
     return {"mensagem": "Inscrição registrada.", **resultado}
 
 
@@ -303,6 +314,7 @@ def inscrever_publicamente_endpoint(id_evento: int, dados: InscricaoPublicaCriar
 def cancelar_inscricao_publica_endpoint(token_cancelamento: str, request: Request, db: Session = Depends(get_db)):
     limitar_taxa_por_ip(db, ip=_ip_publico(request), rota="cancelar-inscricao-evento", limite=10, janela_minutos=10)
     inscricao_cancelada = servico_vagas.cancelar_e_promover_por_token(db, token_cancelamento=token_cancelamento)
+    registrar_auditoria(db, None, "inscricoes", "CANCELAMENTO_PUBLICO", id_registro_afetado=inscricao_cancelada.id_inscricao, ip_origem=_ip_publico(request))
     return {"mensagem": "Inscrição cancelada.", "status": inscricao_cancelada.status}
 
 
@@ -310,4 +322,5 @@ def cancelar_inscricao_publica_endpoint(token_cancelamento: str, request: Reques
 def confirmar_inscricao_publica_endpoint(token_cancelamento: str, request: Request, db: Session = Depends(get_db)):
     limitar_taxa_por_ip(db, ip=_ip_publico(request), rota="confirmar-inscricao-evento", limite=10, janela_minutos=10)
     inscricao_confirmada = servico_inscricao.confirmar_por_token(db, token_cancelamento=token_cancelamento)
+    registrar_auditoria(db, None, "inscricoes", "CONFIRMACAO_PUBLICA", id_registro_afetado=inscricao_confirmada.id_inscricao, ip_origem=_ip_publico(request))
     return {"mensagem": "Inscrição confirmada.", "status": inscricao_confirmada.status}

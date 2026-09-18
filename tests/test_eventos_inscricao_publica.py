@@ -15,8 +15,11 @@ def _ip_de_teste() -> dict:
     app/routers/eventos.py, que existe justamente pra tratar o IP real de quem está atrás do
     proxy do Container App) - sem isso, todos os testes deste arquivo compartilhariam o mesmo
     balde de rate limiting (o `request.client.host` do TestClient é sempre o mesmo), e um teste
-    esbarraria no 429 gerado por outro."""
-    return {"X-Forwarded-For": f"203.0.113.{uuid.uuid4().hex[:2]}"}
+    esbarraria no 429 gerado por outro. Achado real (Ponto de Revisão FASE 4 2/3): só 2 dígitos
+    hex (256 valores) colidia entre testes deste arquivo E de test_eventos_vagas.py, mesma rota
+    de rate limit - aumentado pro hex inteiro, mesma categoria de fix já aplicada ao CPF de
+    `_criar_associado` (v4.3)."""
+    return {"X-Forwarded-For": f"203.0.113.{uuid.uuid4().hex}"}
 
 
 def _criar_evento_publico(client, auth_headers, **overrides) -> int:
@@ -192,3 +195,22 @@ def test_rate_limiting_por_ip_no_endpoint_publico_de_inscricao(client, auth_head
 
     r = client.post(f"/api/publico/eventos/{id_evento}/inscrever-se", json=_payload_inscricao(), headers=ip)
     assert r.status_code == 429
+
+
+def test_inscricao_publica_grava_auditoria_mesmo_sem_login(client, auth_headers, db):
+    """Ponto de Revisão FASE 4 (2/3): achado real - a inscrição pública (dado pessoal, ocupa
+    vaga) não gravava AuditLog nenhum. Usuario=None (mesmo padrão SISTEMA já usado pela tarefa
+    mensal financeira), mas o rastro precisa existir - quem, quando, de que IP."""
+    from app.models.core import AuditLog
+
+    id_evento = _criar_evento_publico(client, auth_headers)
+    r = client.post(f"/api/publico/eventos/{id_evento}/inscrever-se", json=_payload_inscricao(), headers=_ip_de_teste())
+    assert r.status_code == 200, r.text
+    id_inscricao = r.json()["id_inscricao"]
+
+    entrada = db.query(AuditLog).filter(
+        AuditLog.tabela_afetada == "inscricoes", AuditLog.acao == "INSCRICAO_PUBLICA", AuditLog.id_registro_afetado == id_inscricao,
+    ).first()
+    assert entrada is not None
+    assert entrada.id_usuario is None
+    assert entrada.ip_origem is not None
