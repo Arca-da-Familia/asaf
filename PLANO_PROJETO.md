@@ -4589,6 +4589,12 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 >   27/27 testes do painel, `typecheck`/`lint`/`build` limpos em ambos.
 > **Checkboxes não marcados `[x]`** — confirmação visual das telas novas ainda pendente (mesma
 > lacuna de ferramenta de navegador já registrada nos pontos de revisão anteriores).
+> **Achado real no primeiro deploy**: `Deploy Painel` falhou no `prettier --check` (`Projetos.tsx`/
+> `MeuVoluntariado.tsx` fora do estilo) — corrigido com `prettier --write` (commit `b4a6491`), sem
+> mudança de comportamento.
+> **Verificado em produção (2026-09-18)**: `Deploy API` verde no commit `859d819` (migração
+> `c5e7f9b1d3a4` aplicada sem erro) e `Deploy Painel` verde no commit `b4a6491` (após o fix de
+> formatação), `painel.asaf.org.br/version.json` confirmado ao vivo batendo `b4a6491`.
 
 #### v4.5 — Evento como entidade única (pontual, com inscrição)
 - [ ] `Evento` (título, descrição, data/hora, local — `Espaco` da v4.3 ou endereço avulso —,
