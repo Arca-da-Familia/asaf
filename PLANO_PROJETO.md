@@ -4158,6 +4158,10 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
 > consumida por outro serviço (item 10 do checklist da seção 4.1 não se aplica ainda): a tela real
 > chega com o primeiro consumidor de verdade (v4.1, Projeto). Sem checkbox `[x]` por esse motivo,
 > não pela lacuna de ferramenta de navegador já registrada nas fases anteriores.
+> **Verificado em produção (2026-09-18)**: `git log origin/main..HEAD` vazio; `Deploy API` verde
+> (commit `8ad0a95`) — migração `e9b1c3d5f7a8` (7 tabelas novas) e a dependência nova
+> (`reportlab`) aplicadas de verdade contra produção. Sem `Deploy Painel` porque nenhum arquivo do
+> painel mudou nesta versão (esperado, não é uma lacuna).
 
 #### v4.1 — Projeto como entidade única e configurável
 - [ ] `Projeto` (nome, descrição, `tipo_projeto` de catálogo, responsável, público-alvo, período,
