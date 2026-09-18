@@ -10,8 +10,13 @@ def _criar_associado(client, **overrides):
     cpf = _cpf_unico()
     payload = {
         # v1.8 - nome/e-mail únicos por padrão (o bloqueio de cadastro duplicado trataria duas
-        # chamadas com nome+telefone iguais como a mesma pessoa, de propósito).
-        "nome_completo": f"Pessoa Situacao Teste {cpf[-4:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com",
+        # chamadas com nome+telefone iguais como a mesma pessoa, de propósito). Achado real
+        # (v4.3): só 4 dígitos de sufixo colide por paradoxo do aniversário bem antes da suíte
+        # ficar grande - `detectar_cadastro_duplicado` exige nome normalizado batendo, e uma
+        # colisão de nome + este mesmo telefone hardcoded já é sinal suficiente pra recusar (409)
+        # um `_criar_associado` que nada tinha a ver com o outro. 8 dígitos deixa a colisão
+        # astronomicamente improvável mesmo com a suíte inteira usando este helper.
+        "nome_completo": f"Pessoa Situacao Teste {cpf[-8:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com",
         "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
         "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
         "cidade": "Sao Paulo", "estado": "SP",
