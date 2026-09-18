@@ -4369,11 +4369,34 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
 >   sendo matematicamente exato) - só ficou visível porque os títulos novos desta versão mudaram
 >   os valores acumulados da suíte; corrigido pra `round(..., 2)`, uma fragilidade que já existia
 >   e podia voltar a aparecer com qualquer versão futura que mexesse em título financeiro.
+> - **Segundo achado real, mais sério, achado no primeiro deploy**: o sufixo de 4 dígitos usado
+>   por `tests/test_situacao.py::_criar_associado` (helper reaproveitado por boa parte da suíte,
+>   inclusive `tests/test_espacos.py` desta versão) colide por paradoxo do aniversário bem antes
+>   da suíte ficar grande - `detectar_cadastro_duplicado` (v1.8) recusa (409) quando o nome
+>   normalizado bate + outro sinal (aqui, o mesmo telefone hardcoded do próprio helper) também
+>   bate. **Isto explica retroativamente** a flakiness intermitente de `tests/test_situacao.py`
+>   já observada várias vezes em versões anteriores desta sessão, sempre em funções diferentes -
+>   nunca foi um teste quebrado, era o helper compartilhado. Corrigido aumentando o sufixo pra 8
+>   dígitos (commit `ba32ab1`), tornando a colisão astronomicamente improvável.
+> - **Terceiro achado real, de infraestrutura, só visível ao aplicar de verdade em produção**: a
+>   `EXCLUDE USING gist` exige a extensão `btree_gist`, e o Azure Database for PostgreSQL Flexible
+>   Server recusa `CREATE EXTENSION` pra extensões não liberadas explicitamente no servidor
+>   (`azure.extensions` estava vazio) - `NotSupportedError: extension "btree_gist" is not
+>   allow-listed`. Corrigido liberando a extensão no servidor `asaf-pg-server`
+>   (`az postgres flexible-server parameter set --name azure.extensions --value BTREE_GIST`,
+>   aplicado sem exigir reinício - `isConfigPendingRestart: false`), depois disparando o deploy de
+>   novo. **Isto não é uma alteração de código, é configuração do servidor** - se este projeto
+>   algum dia precisar recriar o servidor Postgres do zero, este passo precisa ser refeito antes
+>   do primeiro deploy que crie uma `EXCLUDE` constraint.
 > - Painel: nova tela "Reserva de Espaço" (`Espacos.tsx`, rota `/reserva-espaco`, novo item no
 >   menu) - lista de espaços + detalhe com bloqueios e reservas (aprovar/recusar/cancelar/
 >   não-compareceu/checklist), reserva simples e recorrente.
 > **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
 > lacuna de ferramenta de navegador já registrada nos pontos de revisão anteriores).
+> **Verificado em produção (2026-09-18)**: `Deploy API` verde no commit `77a3e2d` (após a extensão
+> liberada - a migração `b4d6f8a0c2e3`, incluindo a `EXCLUDE` constraint de verdade, aplicou sem
+> erro contra o Postgres de produção) e `Deploy Painel` verde no mesmo commit,
+> `painel.asaf.org.br/version.json` confirmado ao vivo batendo `77a3e2d`.
 
 ##### 🔍 Ponto de Revisão — FASE 4 (1/3, fecha v4.0–v4.3)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
