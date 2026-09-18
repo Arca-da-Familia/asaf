@@ -4820,6 +4820,12 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 >   `build` limpos em ambos.
 > **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
 > lacuna de ferramenta de navegador já registrada nos pontos de revisão anteriores).
+> **Verificado em produção (2026-09-18)**: `Deploy API` verde no commit `d941934` (migração
+> `f0a2c4e6b8d0` aplicada sem erro), `Deploy Painel` verde no mesmo commit,
+> `painel.asaf.org.br/version.json` confirmado ao vivo, `POST https://api.asaf.org.br/api/
+> publico/eventos/1/inscrever-se` validando o corpo de verdade (não 404 de rota), e o workflow
+> agendado `Tarefa Periódica (expira promoções de lista de espera vencidas)` confirmado `active`
+> no GitHub (`gh workflow list`).
 
 ##### 🔍 Ponto de Revisão — FASE 4 (2/3, fecha v4.4–v4.7)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
