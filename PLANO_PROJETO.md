@@ -4250,6 +4250,52 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
 - [ ] Encaminhamento para rede externa (CRAS, escola, posto de saúde) registrado como
       acompanhamento, sem o sistema pretender ser prontuário eletrônico de saúde.
 
+> **Implementado em 2026-09-18, backend + painel, todos os itens acima.**
+> - `Beneficiario` (`app/models/beneficiarios.py`) — papel satélite de `Pessoa` (v1.0), **exatamente
+>   o mesmo padrão de `Associado`**: tabela própria com `id_pessoa` + linha em
+>   `Papel(tipo_papel="beneficiario")` — que já era um dos exemplos citados no próprio docstring
+>   de `Papel` desde a v1.0, sem consumidor até agora. Aceita pessoa nova (nome/data de nascimento
+>   direto, útil pra criança sem CPF - o motivo que já justificava `Pessoa.cpf` ser nullable desde
+>   sempre) ou reaproveita uma `Pessoa` já cadastrada.
+> - **Núcleo familiar não ganhou modelo novo** — `DependenteFamiliar` (v1.7) já era genérico entre
+>   duas `Pessoa`s desde aquela versão, reaproveitado direto (`GET
+>   /api/beneficiarios/{id}/nucleo-familiar`).
+> - `BeneficiarioProjeto` — vínculo N:N com papel de catálogo (`papel_beneficiario_projeto`:
+>   Aluno/Atendido/Participante de oficina) e `atendimento_por_familia`. **Esta é a fronteira real
+>   de visibilidade do prontuário** — nunca o beneficiário solto, sempre o vínculo com UM projeto
+>   específico, porque um mesmo beneficiário pode estar em vários projetos com equipes diferentes.
+> - **`RegistroAtendimento` (prontuário) protegido por uma segunda trava, além da permissão geral
+>   de "projetos"**: `exigir_membro_da_equipe_do_vinculo` recusa (403) quem não está ATIVO na
+>   `EquipeProjeto` (v4.1) DAQUELE projeto - testado de propósito com o próprio usuário Presidente
+>   (dono do `auth_headers` de teste, permissão "projetos" plena) recebendo 403 até entrar na
+>   equipe, exatamente pra provar que não existe bypass por nível. Prontuário é **imutável**
+>   (nenhum endpoint de edição/exclusão existe) e **toda consulta é auditada**
+>   (`CONSULTA_PRONTUARIO`, não só a escrita) - mesmo padrão já usado pelo Conselho Fiscal (v2.6)
+>   pra leitura financeira sensível.
+> - `Beneficiario.consentimento_lgpd_registrado`/`observacao_consentimento` são um **placeholder
+>   honesto**, registrado como tal no código - FASE 7 (consentimento versionado de verdade, regra
+>   especial pra menor de idade) ainda não existe, isto não finge ser esse motor.
+> - Frequência/participação **sem mecanismo próprio** — usa o motor de presença (v4.0) direto,
+>   `contexto_tipo="Projeto"`; `GET /api/beneficiarios-projeto/{id}/presencas` é só um filtro por
+>   cima de `listar_presencas`.
+> - `EncaminhamentoRedeExterna` — tipo de catálogo novo (`tipo_rede_externa`: CRAS/Escola/Posto de
+>   Saúde/Conselho Tutelar/Outro), registra QUE encaminhou, nunca pretende ser prontuário
+>   eletrônico da rede pública.
+> - Migração `a2c4e6f8b0d1` (4 tabelas novas) validada upgrade+downgrade+upgrade contra schema
+>   pré-v4.2 simulado, sem surpresa desta vez (aplicando a lição da v4.1 sobre nome de constraint).
+> - 7 testes novos em `tests/test_beneficiarios.py` (pessoa nova recusa duplicidade de papel,
+>   exige id_pessoa ou nome, núcleo familiar bate com `DependenteFamiliar`, vínculo valida papel
+>   de catálogo e recusa duplicidade, **prontuário recusado pro Presidente até ele entrar na
+>   equipe e liberado depois, com consulta auditada de verdade** - o teste mais importante desta
+>   versão -, encaminhamento valida catálogo, frequência reflete o motor de presença v4.0) —
+>   304/304 testes da suíte inteira passando.
+> - Painel: seção "Beneficiários" nova dentro do detalhe de Projeto (`Projetos.tsx`) — cadastro
+>   rápido + vínculo, e um painel de prontuário/encaminhamento por vínculo que repassa a mensagem
+>   de erro da API quando quem está olhando não é da equipe (nunca decide isso sozinho no
+>   frontend).
+> **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
+> lacuna de ferramenta de navegador já registrada nos pontos de revisão anteriores).
+
 #### v4.3 — Reserva de espaço
 - [ ] `Espaco` (quadra, salão, campo, sala) com capacidade, recursos disponíveis, regras de uso,
       horário de funcionamento e bloqueios (manutenção, feriado, uso institucional).

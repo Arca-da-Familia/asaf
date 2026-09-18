@@ -833,3 +833,28 @@ export const equipeProjetoCriarSchema = z.object({
     .positive({ message: 'Selecione o associado.' }),
   papel: z.string().min(1, 'Selecione o papel.'),
 })
+
+// v4.2 - Beneficiários e atendimento.
+export const beneficiarioCriarSchema = z.object({
+  nome_completo: z.string().min(3, 'Informe o nome do beneficiário.'),
+  consentimento_lgpd_registrado: z.boolean(),
+  observacao_consentimento: z.string().optional(),
+})
+
+export const vincularBeneficiarioSchema = z.object({
+  id_beneficiario: z.coerce
+    .number()
+    .int({ message: 'Selecione o beneficiário.' })
+    .positive({ message: 'Selecione o beneficiário.' }),
+  papel: z.string().min(1, 'Selecione o papel.'),
+  atendimento_por_familia: z.boolean(),
+})
+
+export const registroAtendimentoCriarSchema = z.object({
+  relato: z.string().min(5, 'Descreva o atendimento.'),
+})
+
+export const encaminhamentoCriarSchema = z.object({
+  tipo_rede: z.string().min(1, 'Selecione o tipo de rede.'),
+  descricao: z.string().min(5, 'Descreva o encaminhamento.'),
+})

@@ -3730,3 +3730,106 @@ export function listarRelatoriosFinaisProjeto(
 ): Promise<RelatorioFinalProjeto[]> {
   return apiFetch(`/api/projetos/${idProjeto}/relatorio-final`)
 }
+
+// ---------------------------------------------------------------------------
+// v4.2 (FASE 4) - Beneficiários e atendimento: beneficiário como papel de Pessoa, vínculo N:N a
+// projeto com papel, prontuário de atendimento **visível só pra equipe ativa daquele projeto**
+// (dado sensível - a API recusa com 403 quem não está na equipe, mesmo tendo permissão geral de
+// projetos), e encaminhamento à rede externa. Frequência usa o motor de presença (v4.0) direto.
+// ---------------------------------------------------------------------------
+export type Beneficiario = {
+  id_beneficiario: number
+  id_pessoa: number
+  consentimento_lgpd_registrado: boolean
+  observacao_consentimento: string | null
+  data_consentimento: string | null
+}
+
+export function listarBeneficiarios(): Promise<Beneficiario[]> {
+  return apiFetch('/api/beneficiarios/')
+}
+
+export function criarBeneficiario(dados: {
+  id_pessoa?: number
+  nome_completo?: string
+  consentimento_lgpd_registrado?: boolean
+  observacao_consentimento?: string
+}): Promise<{ mensagem: string; id_beneficiario: number }> {
+  return apiFetch('/api/beneficiarios/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type VinculoBeneficiarioProjeto = {
+  id_vinculo: number
+  id_beneficiario: number
+  papel: string
+  atendimento_por_familia: boolean
+  data_inicio: string
+  data_fim: string | null
+}
+
+export function listarBeneficiariosDoProjeto(
+  idProjeto: number,
+): Promise<VinculoBeneficiarioProjeto[]> {
+  return apiFetch(`/api/projetos/${idProjeto}/beneficiarios`)
+}
+
+export function vincularBeneficiarioAoProjeto(dados: {
+  id_beneficiario: number
+  id_projeto: number
+  papel: string
+  atendimento_por_familia?: boolean
+}): Promise<{ mensagem: string; id_vinculo: number }> {
+  return apiFetch('/api/beneficiarios-projeto/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type RegistroAtendimento = {
+  id_registro: number
+  data_atendimento: string
+  relato: string
+  id_usuario_autor: number | null
+}
+
+export function listarAtendimentos(
+  idVinculo: number,
+): Promise<RegistroAtendimento[]> {
+  return apiFetch(`/api/beneficiarios-projeto/${idVinculo}/atendimentos`)
+}
+
+export function registrarAtendimento(
+  idVinculo: number,
+  relato: string,
+): Promise<{ mensagem: string; id_registro: number }> {
+  return apiFetch(`/api/beneficiarios-projeto/${idVinculo}/atendimentos`, {
+    method: 'POST',
+    body: JSON.stringify({ relato }),
+  })
+}
+
+export type EncaminhamentoRedeExterna = {
+  id_encaminhamento: number
+  tipo_rede: string
+  descricao: string
+  data_encaminhamento: string
+}
+
+export function listarEncaminhamentos(
+  idVinculo: number,
+): Promise<EncaminhamentoRedeExterna[]> {
+  return apiFetch(`/api/beneficiarios-projeto/${idVinculo}/encaminhamentos`)
+}
+
+export function registrarEncaminhamento(
+  idVinculo: number,
+  dados: { tipo_rede: string; descricao: string },
+): Promise<{ mensagem: string; id_encaminhamento: number }> {
+  return apiFetch(`/api/beneficiarios-projeto/${idVinculo}/encaminhamentos`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}

@@ -52,6 +52,12 @@ from app.models.projetos import (
     EquipeProjeto,
     RelatorioFinalProjeto,
 )
+from app.models.beneficiarios import (
+    Beneficiario,
+    BeneficiarioProjeto,
+    RegistroAtendimento,
+    EncaminhamentoRedeExterna,
+)
 from app.models.linha_do_tempo import EventoLinhaDoTempo
 from app.models.estatuto import DocumentoEstatuto, RegraEstatutaria
 from app.models.mandatos import DeclaracaoConflitoInteresse, Mandato
@@ -138,6 +144,10 @@ __all__ = [
     "ItemCronograma",
     "EquipeProjeto",
     "RelatorioFinalProjeto",
+    "Beneficiario",
+    "BeneficiarioProjeto",
+    "RegistroAtendimento",
+    "EncaminhamentoRedeExterna",
     "EventoLinhaDoTempo",
     "DocumentoEstatuto",
     "RegraEstatutaria",

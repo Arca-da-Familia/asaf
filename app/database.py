@@ -226,6 +226,17 @@ def seed_catalogos():
             ("DIRIGENTE_RESPONSAVEL", "Dirigente responsável"), ("COORDENADOR", "Coordenador"),
             ("VOLUNTARIO", "Voluntário"), ("COLABORADOR", "Colaborador"),
         ]),
+        # v4.2 - papel do beneficiário DENTRO de um projeto específico (o mesmo beneficiário pode
+        # ser "aluno" num projeto educacional e "atendido" noutro assistencial ao mesmo tempo).
+        "papel_beneficiario_projeto": ("Papel do beneficiário no projeto", True, "projetos", [
+            ("ALUNO", "Aluno"), ("ATENDIDO", "Atendido"), ("PARTICIPANTE_OFICINA", "Participante de oficina"),
+        ]),
+        # v4.2 - encaminhamento para rede externa - o sistema registra QUE encaminhou, nunca
+        # pretende ser o prontuário eletrônico da rede pública.
+        "tipo_rede_externa": ("Tipo de rede externa", True, "projetos", [
+            ("CRAS", "CRAS"), ("ESCOLA", "Escola"), ("POSTO_DE_SAUDE", "Posto de Saúde"),
+            ("CONSELHO_TUTELAR", "Conselho Tutelar"), ("OUTRO", "Outro"),
+        ]),
         "tipo_evento": ("Tipo de evento", True, "projetos", [
             ("ASSEMBLEIA", "Assembleia"), ("REUNIAO_DE_DIRETORIA", "Reunião de Diretoria"), ("CULTO", "Culto"),
             ("CONFRATERNIZACAO", "Confraternização"), ("ACAO_SOCIAL", "Ação Social"), ("PALESTRA", "Palestra"),

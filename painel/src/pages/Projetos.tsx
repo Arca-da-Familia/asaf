@@ -9,24 +9,36 @@ import {
   adicionarMembroEquipe,
   alterarStatusProjeto,
   concluirItemCronograma,
+  criarBeneficiario,
   criarItemCronograma,
   criarProjeto,
   encerrarParticipacaoEquipe,
   gerarRelatorioFinalProjeto,
   listarAssociados,
+  listarAtendimentos,
+  listarBeneficiarios,
+  listarBeneficiariosDoProjeto,
   listarCentrosCusto,
   listarCronograma,
+  listarEncaminhamentos,
   listarEquipeProjeto,
   listarOpcoesCatalogo,
   listarProjetos,
   listarRelatoriosFinaisProjeto,
   obterOrcamentoDoProjeto,
+  registrarAtendimento,
+  registrarEncaminhamento,
+  vincularBeneficiarioAoProjeto,
   type Projeto,
 } from '@/lib/api'
 import {
+  beneficiarioCriarSchema,
+  encaminhamentoCriarSchema,
   equipeProjetoCriarSchema,
   itemCronogramaCriarSchema,
   projetoCriarSchema,
+  registroAtendimentoCriarSchema,
+  vincularBeneficiarioSchema,
 } from '@/lib/schemas'
 
 // v4.1 (FASE 4) - Projeto como entidade única e configurável: tipo/status de catálogo,
@@ -543,6 +555,357 @@ function SecaoOrcamentoRelatorio({ projeto }: { projeto: Projeto }) {
   )
 }
 
+// v4.2 (FASE 4) - prontuário e encaminhamento são **visíveis só pra equipe ativa deste projeto**
+// (dado sensível) - a API recusa com 403 quem não está na equipe, mesmo com permissão geral de
+// projetos; o painel só repassa a mensagem de erro, nunca finge que decide isso sozinho.
+function PainelProntuario({ idVinculo }: { idVinculo: number }) {
+  const queryClient = useQueryClient()
+  const {
+    data: atendimentos,
+    isError: erroAtendimentos,
+    error: erroAtendimentosDetalhe,
+  } = useQuery({
+    queryKey: ['atendimentos', idVinculo],
+    queryFn: () => listarAtendimentos(idVinculo),
+  })
+  const { data: encaminhamentos } = useQuery({
+    queryKey: ['encaminhamentos', idVinculo],
+    queryFn: () => listarEncaminhamentos(idVinculo),
+    enabled: !erroAtendimentos,
+  })
+  const { data: tiposRede } = useQuery({
+    queryKey: ['opcoes-catalogo', 'tipo_rede_externa'],
+    queryFn: () => listarOpcoesCatalogo('tipo_rede_externa'),
+  })
+
+  const registrarRelato = useMutation({
+    mutationFn: (v: z.infer<typeof registroAtendimentoCriarSchema>) =>
+      registrarAtendimento(idVinculo, v.relato),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['atendimentos', idVinculo] }),
+  })
+  const registrarEncam = useMutation({
+    mutationFn: (v: z.infer<typeof encaminhamentoCriarSchema>) =>
+      registrarEncaminhamento(idVinculo, v),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ['encaminhamentos', idVinculo],
+      }),
+  })
+
+  if (erroAtendimentos) {
+    return (
+      <p className="text-sm text-destructive">
+        {(erroAtendimentosDetalhe as Error).message}
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-2 space-y-4 rounded-md border border-border bg-muted/10 p-3">
+      <div>
+        <p className="mb-1 text-xs font-semibold text-muted-foreground">
+          Prontuário de atendimento
+        </p>
+        <FormShell<z.infer<typeof registroAtendimentoCriarSchema>>
+          schema={registroAtendimentoCriarSchema}
+          defaultValues={{ relato: '' }}
+          onSubmit={(v) => registrarRelato.mutateAsync(v)}
+          className="mb-2 flex flex-wrap items-end gap-2"
+        >
+          {(form) => (
+            <>
+              <div className="flex-1">
+                <input
+                  {...form.register('relato')}
+                  placeholder="Relato do atendimento"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                />
+                <ErroCampo mensagem={form.formState.errors.relato?.message} />
+              </div>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={registrarRelato.isPending}
+              >
+                Registrar
+              </Button>
+            </>
+          )}
+        </FormShell>
+        <div className="space-y-1">
+          {(atendimentos ?? []).map((a) => (
+            <div
+              key={a.id_registro}
+              className="rounded-md border border-border p-2 text-xs"
+            >
+              <p className="text-muted-foreground">
+                {new Date(a.data_atendimento).toLocaleString('pt-BR')}
+              </p>
+              <p>{a.relato}</p>
+            </div>
+          ))}
+          {(atendimentos ?? []).length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              Nenhum atendimento registrado.
+            </p>
+          )}
+        </div>
+      </div>
+      <div>
+        <p className="mb-1 text-xs font-semibold text-muted-foreground">
+          Encaminhamento à rede externa
+        </p>
+        <FormShell<z.infer<typeof encaminhamentoCriarSchema>>
+          schema={encaminhamentoCriarSchema}
+          defaultValues={{ tipo_rede: '', descricao: '' }}
+          onSubmit={(v) => registrarEncam.mutateAsync(v)}
+          className="mb-2 flex flex-wrap items-end gap-2"
+        >
+          {(form) => (
+            <>
+              <select
+                {...form.register('tipo_rede')}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Tipo de rede…</option>
+                {(tiposRede ?? []).map((o) => (
+                  <option key={o.codigo} value={o.codigo}>
+                    {o.rotulo}
+                  </option>
+                ))}
+              </select>
+              <div className="flex-1">
+                <input
+                  {...form.register('descricao')}
+                  placeholder="Descrição do encaminhamento"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                />
+                <ErroCampo
+                  mensagem={form.formState.errors.descricao?.message}
+                />
+              </div>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={registrarEncam.isPending}
+              >
+                Registrar
+              </Button>
+            </>
+          )}
+        </FormShell>
+        <div className="space-y-1">
+          {(encaminhamentos ?? []).map((e) => (
+            <div
+              key={e.id_encaminhamento}
+              className="rounded-md border border-border p-2 text-xs"
+            >
+              <p className="text-muted-foreground">
+                {e.tipo_rede} —{' '}
+                {new Date(e.data_encaminhamento).toLocaleDateString('pt-BR')}
+              </p>
+              <p>{e.descricao}</p>
+            </div>
+          ))}
+          {(encaminhamentos ?? []).length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              Nenhum encaminhamento registrado.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SecaoBeneficiarios({ idProjeto }: { idProjeto: number }) {
+  const queryClient = useQueryClient()
+  const [mostrarForm, setMostrarForm] = useState(false)
+  const [vinculoAberto, setVinculoAberto] = useState<number | null>(null)
+  const { data: vinculos } = useQuery({
+    queryKey: ['beneficiarios-projeto', idProjeto],
+    queryFn: () => listarBeneficiariosDoProjeto(idProjeto),
+  })
+  const { data: beneficiarios } = useQuery({
+    queryKey: ['beneficiarios'],
+    queryFn: listarBeneficiarios,
+  })
+  const { data: papeis } = useQuery({
+    queryKey: ['opcoes-catalogo', 'papel_beneficiario_projeto'],
+    queryFn: () => listarOpcoesCatalogo('papel_beneficiario_projeto'),
+  })
+
+  const criarENovo = useMutation({
+    mutationFn: async (v: z.infer<typeof beneficiarioCriarSchema>) => {
+      const { id_beneficiario } = await criarBeneficiario(v)
+      return vincularBeneficiarioAoProjeto({
+        id_beneficiario,
+        id_projeto: idProjeto,
+        papel: 'ATENDIDO',
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['beneficiarios-projeto', idProjeto],
+      })
+      queryClient.invalidateQueries({ queryKey: ['beneficiarios'] })
+      setMostrarForm(false)
+    },
+  })
+  const vincularExistente = useMutation({
+    mutationFn: (v: z.infer<typeof vincularBeneficiarioSchema>) =>
+      vincularBeneficiarioAoProjeto({ ...v, id_projeto: idProjeto }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ['beneficiarios-projeto', idProjeto],
+      }),
+  })
+
+  const naoVinculados = (beneficiarios ?? []).filter(
+    (b) =>
+      !(vinculos ?? []).some((v) => v.id_beneficiario === b.id_beneficiario),
+  )
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Beneficiários</h3>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setMostrarForm((v) => !v)}
+        >
+          {mostrarForm ? 'Cancelar' : 'Novo beneficiário'}
+        </Button>
+      </div>
+      {mostrarForm && (
+        <FormShell<z.infer<typeof beneficiarioCriarSchema>>
+          schema={beneficiarioCriarSchema}
+          defaultValues={{
+            nome_completo: '',
+            consentimento_lgpd_registrado: false,
+          }}
+          onSubmit={(v) => criarENovo.mutateAsync(v)}
+          className="mb-3 flex flex-wrap items-end gap-2 rounded-md border border-border p-2"
+        >
+          {(form) => (
+            <>
+              <div className="flex-1">
+                <input
+                  {...form.register('nome_completo')}
+                  placeholder="Nome do beneficiário"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                />
+                <ErroCampo
+                  mensagem={form.formState.errors.nome_completo?.message}
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  {...form.register('consentimento_lgpd_registrado')}
+                />
+                Consentimento registrado
+              </label>
+              <Button type="submit" size="sm" disabled={criarENovo.isPending}>
+                Criar e vincular
+              </Button>
+            </>
+          )}
+        </FormShell>
+      )}
+      {naoVinculados.length > 0 && (
+        <FormShell<z.infer<typeof vincularBeneficiarioSchema>>
+          schema={vincularBeneficiarioSchema}
+          defaultValues={{
+            id_beneficiario: 0,
+            papel: '',
+            atendimento_por_familia: false,
+          }}
+          onSubmit={(v) => vincularExistente.mutateAsync(v)}
+          className="mb-3 flex flex-wrap items-end gap-2"
+        >
+          {(form) => (
+            <>
+              <select
+                {...form.register('id_beneficiario')}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="0">Vincular beneficiário já cadastrado…</option>
+                {naoVinculados.map((b) => (
+                  <option key={b.id_beneficiario} value={b.id_beneficiario}>
+                    Beneficiário #{b.id_beneficiario}
+                  </option>
+                ))}
+              </select>
+              <select
+                {...form.register('papel')}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Papel…</option>
+                {(papeis ?? []).map((o) => (
+                  <option key={o.codigo} value={o.codigo}>
+                    {o.rotulo}
+                  </option>
+                ))}
+              </select>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  {...form.register('atendimento_por_familia')}
+                />
+                Atendimento por família
+              </label>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={vincularExistente.isPending}
+              >
+                Vincular
+              </Button>
+            </>
+          )}
+        </FormShell>
+      )}
+      <div className="space-y-2">
+        {(vinculos ?? []).map((v) => (
+          <div
+            key={v.id_vinculo}
+            className="rounded-md border border-border p-2 text-sm"
+          >
+            <div className="flex items-center justify-between">
+              <span>
+                Beneficiário #{v.id_beneficiario} — {v.papel}
+                {v.atendimento_por_familia && ' · por família'}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setVinculoAberto((atual) =>
+                    atual === v.id_vinculo ? null : v.id_vinculo,
+                  )
+                }
+              >
+                {vinculoAberto === v.id_vinculo ? 'Fechar' : 'Prontuário'}
+              </Button>
+            </div>
+            {vinculoAberto === v.id_vinculo && (
+              <PainelProntuario idVinculo={v.id_vinculo} />
+            )}
+          </div>
+        ))}
+        {(vinculos ?? []).length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Nenhum beneficiário vinculado a este projeto.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function DetalheProjeto({ projeto }: { projeto: Projeto }) {
   const queryClient = useQueryClient()
   const { data: statusOpcoes } = useQuery({
@@ -583,6 +946,7 @@ function DetalheProjeto({ projeto }: { projeto: Projeto }) {
       </div>
       <SecaoCronograma idProjeto={projeto.id_projeto} />
       <SecaoEquipe idProjeto={projeto.id_projeto} />
+      <SecaoBeneficiarios idProjeto={projeto.id_projeto} />
       <SecaoOrcamentoRelatorio projeto={projeto} />
     </div>
   )
