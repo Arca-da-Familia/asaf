@@ -4015,7 +4015,9 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > nesta** — os itens abaixo confirmam o que os blocos de v3.5/v3.6/v3.7 já haviam registrado, sem
 > tomar a palavra escrita como suficiente.
 > - **Item específico 1 (fechamento bloqueia com divergência)**: confirmado por teste HTTP real,
->   não só na camada de serviço — `tests/test_antifraude.py::test_fechamento_mensal_bloqueia_com_divergencia_e_fecha_sem_divergencia`
+>   não só na camada de serviço — `tests/test_antifraude.py::test_fechar_mes_bloqueia_com_divergencia_e_fecha_sem_divergencia`
+>   (nome corrigido nesta revisão - a citação anterior tinha o nome errado da função, achado ao
+>   conferir contra o arquivo de verdade em vez de confiar na citação escrita)
 >   tenta fechar com saldo de extrato errado (`499` contra saldo real `500`), recebe 400 com a
 >   divergência explícita na mensagem (`app/services/fechamento.py::fechar_mes`, sem nenhum
 >   caminho de "forçar mesmo assim"), fecha com sucesso ao corrigir o valor, e uma segunda
