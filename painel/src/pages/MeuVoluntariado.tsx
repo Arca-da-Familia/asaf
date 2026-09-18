@@ -54,7 +54,8 @@ function CardAlocacao({ alocacao }: { alocacao: AlocacaoVoluntario }) {
     onSuccess: invalidar,
   })
 
-  const podeAgir = alocacao.status === 'PENDENTE' || alocacao.status === 'CONFIRMADA'
+  const podeAgir =
+    alocacao.status === 'PENDENTE' || alocacao.status === 'CONFIRMADA'
 
   return (
     <div className="rounded-xl border border-border bg-card p-5">
@@ -63,7 +64,8 @@ function CardAlocacao({ alocacao }: { alocacao: AlocacaoVoluntario }) {
           <p className="font-medium">{alocacao.funcao_desempenhada}</p>
           {alocacao.turno_data_hora_inicio && (
             <p className="text-sm text-muted-foreground">
-              {formatarData(alocacao.turno_data_hora_inicio, { comHora: true })} até{' '}
+              {formatarData(alocacao.turno_data_hora_inicio, { comHora: true })}{' '}
+              até{' '}
               {alocacao.turno_data_hora_fim &&
                 formatarData(alocacao.turno_data_hora_fim, { comHora: true })}
             </p>

@@ -609,8 +609,10 @@ function SecaoVoluntariado({ idProjeto }: { idProjeto: number }) {
               key={v.id_vaga}
               className="rounded-md border border-border p-2 text-sm"
             >
-              {v.funcao_desempenhada} — {formatarData(v.turno_data_hora_inicio, { comHora: true })} até{' '}
-              {formatarData(v.turno_data_hora_fim, { comHora: true })} · {v.vagas_disponiveis} vaga(s)
+              {v.funcao_desempenhada} —{' '}
+              {formatarData(v.turno_data_hora_inicio, { comHora: true })} até{' '}
+              {formatarData(v.turno_data_hora_fim, { comHora: true })} ·{' '}
+              {v.vagas_disponiveis} vaga(s)
             </div>
           ))}
           {(vagas ?? []).length === 0 && (
