@@ -2,16 +2,19 @@
 Inscrição reaproveita o motor genérico da v4.0 (`/api/inscricoes/`, já existente em
 `app/routers/motores.py`, permissão "projetos") pro lado da gestão; aqui só o autoatendimento
 (o próprio associado se inscrevendo) e a leitura pública pro site institucional."""
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
 from app.config_cache import obter_configuracao
 from app.database import get_db
-from app.schemas.eventos import EventoCriar, InscricaoPublicaCriar, NovaEdicaoEventoCriar, PerguntaEventoCriar, SessaoEventoCriar
+from app.schemas.eventos import CotaInscricaoCriar, EventoCriar, InscricaoPublicaCriar, NovaEdicaoEventoCriar, PerguntaEventoCriar, SessaoEventoCriar
 from app.security import exigir_permissao, get_current_user
 from app.services import eventos
 from app.services import inscricao as servico_inscricao
+from app.services import vagas as servico_vagas
 from app.services.protecao_publica import limitar_taxa_por_ip
 
 router = APIRouter()
@@ -34,13 +37,17 @@ def _ip_publico(request: Request) -> str:
     return _ip_origem(request) or "desconhecido"
 
 
+def _vagas_livres(e) -> Optional[int]:
+    return None if e.vagas is None else max(0, e.vagas - e.vagas_ocupadas)
+
+
 def _serializar_evento(e) -> dict:
     return {
         "id_evento": e.id_evento, "titulo": e.titulo, "descricao": e.descricao, "categoria": e.categoria,
         "data_hora_inicio": e.data_hora_inicio, "data_hora_fim": e.data_hora_fim, "id_espaco": e.id_espaco,
         "endereco_avulso": e.endereco_avulso, "id_associado_responsavel": e.id_associado_responsavel,
-        "vagas": e.vagas, "gratuito": e.gratuito, "visibilidade": e.visibilidade,
-        "id_edicao_anterior": e.id_edicao_anterior,
+        "vagas": e.vagas, "vagas_ocupadas": e.vagas_ocupadas, "vagas_livres": _vagas_livres(e),
+        "gratuito": e.gratuito, "visibilidade": e.visibilidade, "id_edicao_anterior": e.id_edicao_anterior,
     }
 
 
@@ -50,7 +57,7 @@ def _serializar_evento_publico(e) -> dict:
     return {
         "id_evento": e.id_evento, "titulo": e.titulo, "descricao": e.descricao, "categoria": e.categoria,
         "data_hora_inicio": e.data_hora_inicio, "data_hora_fim": e.data_hora_fim, "id_espaco": e.id_espaco,
-        "endereco_avulso": e.endereco_avulso, "vagas": e.vagas, "gratuito": e.gratuito,
+        "endereco_avulso": e.endereco_avulso, "vagas": e.vagas, "vagas_livres": _vagas_livres(e), "gratuito": e.gratuito,
     }
 
 
@@ -58,6 +65,7 @@ def _serializar_sessao(s) -> dict:
     return {
         "id_sessao": s.id_sessao, "id_evento": s.id_evento, "titulo": s.titulo, "descricao": s.descricao,
         "data_hora_inicio": s.data_hora_inicio, "data_hora_fim": s.data_hora_fim, "vagas": s.vagas,
+        "vagas_ocupadas": s.vagas_ocupadas, "vagas_livres": _vagas_livres(s),
     }
 
 
@@ -65,6 +73,13 @@ def _serializar_pergunta(p) -> dict:
     return {
         "id_pergunta": p.id_pergunta, "id_evento": p.id_evento, "enunciado": p.enunciado, "tipo": p.tipo,
         "opcoes": p.opcoes, "obrigatoria": p.obrigatoria, "ordem": p.ordem,
+    }
+
+
+def _serializar_cota(c) -> dict:
+    return {
+        "id_cota": c.id_cota, "contexto_tipo": c.contexto_tipo, "id_contexto": c.id_contexto,
+        "categoria": c.categoria, "vagas_limite": c.vagas_limite, "vagas_ocupadas": c.vagas_ocupadas,
     }
 
 
@@ -163,6 +178,51 @@ def listar_perguntas_endpoint(id_evento: int, db: Session = Depends(get_db), _us
 
 
 # ==========================================
+# COTAS POR CATEGORIA (v4.7) - opcional; sem nenhuma cota, o limite genérico do evento/sessão
+# vale pra todo mundo (ver app/services/vagas.py).
+# ==========================================
+@router.post("/api/eventos/{id_evento}/cotas", summary="Criar cota de vagas por categoria para o evento")
+def criar_cota_evento_endpoint(id_evento: int, dados: CotaInscricaoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    cota = eventos.criar_cota(db, contexto_tipo=eventos.CONTEXTO_EVENTO, id_contexto=id_evento, categoria=dados.categoria, vagas_limite=dados.vagas_limite)
+    registrar_auditoria(
+        db, usuario, "cotas_inscricao_evento", "CREATE", id_registro_afetado=cota.id_cota,
+        dados_depois={"id_evento": id_evento, "categoria": cota.categoria, "vagas_limite": cota.vagas_limite}, ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Cota criada.", "id_cota": cota.id_cota}
+
+
+@router.get("/api/eventos/{id_evento}/cotas", summary="Listar cotas de vagas por categoria do evento")
+def listar_cotas_evento_endpoint(id_evento: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    return [_serializar_cota(c) for c in eventos.listar_cotas(db, contexto_tipo=eventos.CONTEXTO_EVENTO, id_contexto=id_evento)]
+
+
+@router.post("/api/eventos/sessoes/{id_sessao}/cotas", summary="Criar cota de vagas por categoria para a sessão")
+def criar_cota_sessao_endpoint(id_sessao: int, dados: CotaInscricaoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    cota = eventos.criar_cota(db, contexto_tipo=eventos.CONTEXTO_SESSAO_EVENTO, id_contexto=id_sessao, categoria=dados.categoria, vagas_limite=dados.vagas_limite)
+    registrar_auditoria(
+        db, usuario, "cotas_inscricao_evento", "CREATE", id_registro_afetado=cota.id_cota,
+        dados_depois={"id_sessao": id_sessao, "categoria": cota.categoria, "vagas_limite": cota.vagas_limite}, ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Cota criada.", "id_cota": cota.id_cota}
+
+
+@router.get("/api/eventos/sessoes/{id_sessao}/cotas", summary="Listar cotas de vagas por categoria da sessão")
+def listar_cotas_sessao_endpoint(id_sessao: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    return [_serializar_cota(c) for c in eventos.listar_cotas(db, contexto_tipo=eventos.CONTEXTO_SESSAO_EVENTO, id_contexto=id_sessao)]
+
+
+# ==========================================
+# EXPIRAÇÃO DE PROMOÇÕES DA LISTA DE ESPERA (v4.7) - disparado periodicamente por
+# scripts/expirar_promocoes_vagas.py (workflow agendado); exposto aqui também pra disparo manual
+# por quem tem permissão de projetos, sem precisar esperar o próximo ciclo agendado.
+# ==========================================
+@router.post("/api/eventos/expirar-promocoes-vencidas", summary="Expira promoções de lista de espera vencidas e promove o próximo da fila")
+def expirar_promocoes_vencidas_endpoint(db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    resultado = servico_vagas.expirar_promocoes_vencidas(db)
+    return {"mensagem": f"{len(resultado)} promoção(ões) vencida(s) processada(s).", "detalhes": resultado}
+
+
+# ==========================================
 # AUTOATENDIMENTO - o próprio associado se inscrevendo (gestão de inscrição de terceiros
 # continua em /api/inscricoes/, app/routers/motores.py, permissão "projetos")
 # ==========================================
@@ -234,12 +294,20 @@ def inscrever_publicamente_endpoint(id_evento: int, dados: InscricaoPublicaCriar
         db, id_evento=id_evento, id_sessao=dados.id_sessao, nome_completo=dados.nome_completo, cpf=dados.cpf,
         email=dados.email, telefone=dados.telefone, respostas=dados.respostas,
         versao_texto_consentimento=dados.versao_texto_consentimento,
+        participantes_adicionais=[p.model_dump() for p in dados.participantes_adicionais],
     )
     return {"mensagem": "Inscrição registrada.", **resultado}
 
 
-@router.post("/api/publico/inscricoes/{token_cancelamento}/cancelar", summary="Autocancelar inscrição pelo link enviado por e-mail (sem login)")
+@router.post("/api/publico/inscricoes/{token_cancelamento}/cancelar", summary="Autocancelar inscrição pelo link enviado por e-mail (sem login) - libera a vaga e promove o próximo da lista de espera")
 def cancelar_inscricao_publica_endpoint(token_cancelamento: str, request: Request, db: Session = Depends(get_db)):
     limitar_taxa_por_ip(db, ip=_ip_publico(request), rota="cancelar-inscricao-evento", limite=10, janela_minutos=10)
-    inscricao_cancelada = servico_inscricao.cancelar_por_token(db, token_cancelamento=token_cancelamento)
+    inscricao_cancelada = servico_vagas.cancelar_e_promover_por_token(db, token_cancelamento=token_cancelamento)
     return {"mensagem": "Inscrição cancelada.", "status": inscricao_cancelada.status}
+
+
+@router.post("/api/publico/inscricoes/{token_cancelamento}/confirmar", summary="Confirmar inscrição promovida da lista de espera pelo link enviado por e-mail (sem login)")
+def confirmar_inscricao_publica_endpoint(token_cancelamento: str, request: Request, db: Session = Depends(get_db)):
+    limitar_taxa_por_ip(db, ip=_ip_publico(request), rota="confirmar-inscricao-evento", limite=10, janela_minutos=10)
+    inscricao_confirmada = servico_inscricao.confirmar_por_token(db, token_cancelamento=token_cancelamento)
+    return {"mensagem": "Inscrição confirmada.", "status": inscricao_confirmada.status}

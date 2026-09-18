@@ -4250,6 +4250,8 @@ export type Evento = {
   endereco_avulso: string | null
   id_associado_responsavel: number | null
   vagas: number | null
+  vagas_ocupadas: number
+  vagas_livres: number | null
   gratuito: boolean
   visibilidade: string
   id_edicao_anterior: number | null
@@ -4263,6 +4265,8 @@ export type SessaoEvento = {
   data_hora_inicio: string
   data_hora_fim: string | null
   vagas: number | null
+  vagas_ocupadas: number
+  vagas_livres: number | null
 }
 
 export function criarEvento(dados: {
@@ -4408,4 +4412,42 @@ export function listarPerguntasEvento(
   idEvento: number,
 ): Promise<PerguntaEvento[]> {
   return apiFetch(`/api/eventos/${idEvento}/perguntas`)
+}
+
+// ---------------------------------------------------------------------------
+// v4.7 (FASE 4) - vagas com trava real sob concorrência, cotas por categoria e lista de espera
+// com promoção automática. Autoatendimento (self-service) e formulário público em si (grupo,
+// autoconfirmação) reaproveitam os endpoints já existentes da v4.5/v4.6 - aqui só o que é gestão
+// nova: cotas e o disparo manual de expiração de promoções vencidas.
+// ---------------------------------------------------------------------------
+export type CotaInscricaoEvento = {
+  id_cota: number
+  contexto_tipo: string
+  id_contexto: number
+  categoria: string
+  vagas_limite: number
+  vagas_ocupadas: number
+}
+
+export function criarCotaEvento(
+  idEvento: number,
+  dados: { categoria: string; vagas_limite: number },
+): Promise<{ mensagem: string; id_cota: number }> {
+  return apiFetch(`/api/eventos/${idEvento}/cotas`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarCotasEvento(
+  idEvento: number,
+): Promise<CotaInscricaoEvento[]> {
+  return apiFetch(`/api/eventos/${idEvento}/cotas`)
+}
+
+export function expirarPromocoesVencidas(): Promise<{
+  mensagem: string
+  detalhes: { id_inscricao: number; id_promovido: number | null }[]
+}> {
+  return apiFetch('/api/eventos/expirar-promocoes-vencidas', { method: 'POST' })
 }

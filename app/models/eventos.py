@@ -14,7 +14,7 @@ público (v4.6) e o limite de vagas sob concorrência real (v4.7) ficam para as 
 documentado aqui como pendência, não fingido."""
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 
 from app.database import Base
 
@@ -46,6 +46,12 @@ class Evento(Base):
     endereco_avulso = Column(String, nullable=True)
     id_associado_responsavel = Column(Integer, ForeignKey("associados.id_associado"), nullable=True)
     vagas = Column(Integer, nullable=True)  # nulo = sem limite declarado
+    # v4.7 - trava real de vaga sob concorrência: `vagas_ocupadas` só muda por UPDATE atômico
+    # condicionado (`app/services/vagas.py::reservar_vaga`/`liberar_vaga` - "WHERE vagas_ocupadas
+    # < vagas", nunca SELECT-conta-depois-INSERT, que teria brecha de corrida). Só usado quando
+    # NENHUMA `CotaInscricaoEvento` está configurada pra este evento - cota configurada assume o
+    # controle da própria categoria.
+    vagas_ocupadas = Column(Integer, nullable=False, default=0)
     gratuito = Column(Boolean, nullable=False, default=True)
     visibilidade = Column(String, nullable=False, default="Interna")  # "Pública" | "Interna"
     # v4.5 - edições recorrentes ligadas entre si: "a 3ª edição conhece as anteriores" é isto -
@@ -69,8 +75,27 @@ class SessaoEvento(Base):
     data_hora_inicio = Column(DateTime, nullable=False)
     data_hora_fim = Column(DateTime, nullable=True)
     vagas = Column(Integer, nullable=True)
+    vagas_ocupadas = Column(Integer, nullable=False, default=0)  # v4.7 - mesmo mecanismo de Evento.vagas_ocupadas
     id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
+
+
+class CotaInscricaoEvento(Base):
+    """v4.7 - cota por categoria (ex.: X vagas pra associados, Y pra comunidade externa) num
+    evento ou sessão. Quando existe ao menos uma cota pra um `contexto_tipo`/`id_contexto`, ELA
+    passa a controlar a vaga daquela categoria (`Evento.vagas`/`SessaoEvento.vagas` genérico é
+    ignorado pra quem cai numa categoria com cota própria); sem nenhuma cota configurada, o
+    limite genérico do evento/sessão continua valendo pra todo mundo, como desde a v4.5."""
+    __tablename__ = "cotas_inscricao_evento"
+    __table_args__ = (
+        UniqueConstraint("contexto_tipo", "id_contexto", "categoria", name="uq_cota_inscricao_contexto_categoria"),
+    )
+    id_cota = Column(Integer, primary_key=True, index=True)
+    contexto_tipo = Column(String, nullable=False, index=True)
+    id_contexto = Column(Integer, nullable=False, index=True)
+    categoria = Column(String, nullable=False)  # catálogo `categoria_cota_inscricao`
+    vagas_limite = Column(Integer, nullable=False)
+    vagas_ocupadas = Column(Integer, nullable=False, default=0)
 
 
 class PerguntaEvento(Base):

@@ -29,6 +29,11 @@ def inscrever(
     # logado (v4.0-v4.5) nunca passa nenhum, ficam None.
     codigo_checkin: Optional[str] = None, token_cancelamento: Optional[str] = None,
     consentimento_lgpd_versao: Optional[str] = None,
+    # v4.7 - decidido por quem chama (app/services/vagas.py), nunca pelo motor - PRE_INSCRITO
+    # (vaga reservada) ou LISTA_DE_ESPERA (não coube); `categoria_cota`/`identificador_grupo`
+    # documentados em app/models/motores.py::Inscricao.
+    status_inicial: str = PRE_INSCRITO, categoria_cota: Optional[str] = None,
+    identificador_grupo: Optional[str] = None,
 ) -> Inscricao:
     if not db.query(Pessoa).filter(Pessoa.id_pessoa == id_pessoa).first():
         raise HTTPException(status_code=404, detail="Pessoa não encontrada.")
@@ -39,9 +44,12 @@ def inscrever(
     if existente:
         if existente.status != CANCELADO:
             raise HTTPException(status_code=400, detail=f"Esta pessoa já está inscrita neste contexto (status '{existente.status}').")
-        existente.status = PRE_INSCRITO
+        existente.status = status_inicial
         existente.respostas_formulario = json.dumps(respostas_formulario) if respostas_formulario else None
         existente.data_inscricao = datetime.utcnow()
+        existente.categoria_cota = categoria_cota
+        existente.identificador_grupo = identificador_grupo
+        existente.prazo_confirmacao = None
         if codigo_checkin is not None:
             existente.codigo_checkin = codigo_checkin
             existente.token_cancelamento = token_cancelamento
@@ -51,10 +59,11 @@ def inscrever(
         return existente
 
     inscricao = Inscricao(
-        contexto_tipo=contexto_tipo, id_contexto=id_contexto, id_pessoa=id_pessoa, status=PRE_INSCRITO,
+        contexto_tipo=contexto_tipo, id_contexto=id_contexto, id_pessoa=id_pessoa, status=status_inicial,
         respostas_formulario=json.dumps(respostas_formulario) if respostas_formulario else None,
         codigo_checkin=codigo_checkin, token_cancelamento=token_cancelamento,
-        consentimento_lgpd_versao=consentimento_lgpd_versao,
+        consentimento_lgpd_versao=consentimento_lgpd_versao, categoria_cota=categoria_cota,
+        identificador_grupo=identificador_grupo,
     )
     db.add(inscricao)
     db.commit()
@@ -88,6 +97,21 @@ def cancelar_por_token(db: Session, *, token_cancelamento: str) -> Inscricao:
     if inscricao.status not in _TRANSICOES_VALIDAS or CANCELADO not in _TRANSICOES_VALIDAS[inscricao.status]:
         raise HTTPException(status_code=400, detail=f"Não é possível cancelar uma inscrição com status '{inscricao.status}'.")
     inscricao.status = CANCELADO
+    db.commit()
+    db.refresh(inscricao)
+    return inscricao
+
+
+def confirmar_por_token(db: Session, *, token_cancelamento: str) -> Inscricao:
+    """v4.7 - quem foi PROMOVIDO da lista de espera confirma pelo mesmo token que já recebeu por
+    e-mail (nunca um token novo/id sequencial) antes do `prazo_confirmacao` vencer."""
+    inscricao = db.query(Inscricao).filter(Inscricao.token_cancelamento == token_cancelamento).first()
+    if not inscricao:
+        raise HTTPException(status_code=404, detail="Link de confirmação inválido.")
+    if inscricao.status not in _TRANSICOES_VALIDAS or CONFIRMADO not in _TRANSICOES_VALIDAS[inscricao.status]:
+        raise HTTPException(status_code=400, detail=f"Não é possível confirmar uma inscrição com status '{inscricao.status}'.")
+    inscricao.status = CONFIRMADO
+    inscricao.prazo_confirmacao = None
     db.commit()
     db.refresh(inscricao)
     return inscricao

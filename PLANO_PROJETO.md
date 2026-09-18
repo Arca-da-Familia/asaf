@@ -4764,6 +4764,63 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - [ ] Inscrição em grupo (família, delegação): cada nome vira inscrição própria com código de
       check-in individual; telefone/respostas compartilhados quando fizer sentido.
 
+> **Implementado em 2026-09-18, backend + painel, todos os itens acima.**
+> - **Trava real sob concorrência, sem extensão de dialeto nenhuma** (ao contrário da `EXCLUDE
+>   USING gist` da v4.3, Postgres-only): `app/services/vagas.py::reservar_vaga` faz um único
+>   `UPDATE ... WHERE vagas_ocupadas < limite` (compare-and-swap no próprio SQL) — o SGBD nunca
+>   deixa duas transações concorrentes aplicarem esse mesmo UPDATE condicionado na mesma linha ao
+>   mesmo tempo sem serializar uma depois da outra, então só uma consegue quando resta 1 vaga.
+>   **Testado com carga real, não só lógica**: `tests/test_eventos_vagas.py::
+>   test_duas_inscricoes_simultaneas_na_ultima_vaga_so_uma_passa` dispara 4 requisições
+>   concorrentes (`ThreadPoolExecutor`) pra 1 vaga só e confirma exatamente 1 "Pré-inscrito" e 3
+>   "Lista de Espera" — o item específico pedido pelo Ponto de Revisão desta faixa.
+>   `Evento`/`SessaoEvento.vagas` (só metadado desde a v4.5) agora é reforçado por
+>   `vagas_ocupadas`, e o motor de inscrição (v4.0) ganhou `status_inicial` (decidido por quem
+>   chama, nunca pelo motor - "o motor não sabe o que é vaga cheia" continua verdade).
+> - **Cotas por categoria** (`CotaInscricaoEvento`, opcional por evento/sessão): quando existe
+>   qualquer cota configurada, ela passa a controlar a vaga daquela categoria especificamente -
+>   testado com cota de 1 ASSOCIADO + 1 COMUNIDADE_EXTERNA, confirmando que um segundo associado
+>   vai pra lista de espera mesmo com a cota de comunidade externa ainda livre (cotas nunca se
+>   misturam). Categoria é **derivada** (`app/services/vagas.py::categoria_da_pessoa` - tem
+>   `Associado` vinculado = ASSOCIADO, senão COMUNIDADE_EXTERNA), nunca escolhida à mão por quem
+>   se inscreve. Sem nenhuma cota configurada, `Evento.vagas`/`SessaoEvento.vagas` genérico vale
+>   pra todo mundo, exatamente como desde a v4.5.
+> - **Lista de espera com promoção automática**: `Inscricao` (motor v4.0) ganhou
+>   `categoria_cota` (pra liberar/promover exatamente a mesma fonte depois), `prazo_confirmacao`
+>   (só preenchido quando promovida) e `identificador_grupo`. Cancelamento (`POST /api/publico/
+>   inscricoes/{token}/cancelar`, v4.6) agora libera a vaga de verdade e promove o próximo da
+>   fila (FIFO por `data_inscricao`) na mesma hora, por e-mail (best-effort, nunca trava a
+>   promoção); quem é promovido confirma pelo mesmo token
+>   (`POST /api/publico/inscricoes/{token}/confirmar`, novo) até o prazo configurável
+>   (`PRAZO_CONFIRMACAO_LISTA_ESPERA_HORAS`, editável sem deploy) - vencido sem confirmar,
+>   `app/services/vagas.py::expirar_promocoes_vencidas` cancela e promove o próximo, disparado
+>   a cada 15 minutos por `.github/workflows/tarefa-eventos-vagas.yml` (mesmo padrão de cron já
+>   usado pela tarefa mensal financeira, v3.2.1) e também exposto pra disparo manual
+>   (`POST /api/eventos/expirar-promocoes-vencidas`, permissão "projetos").
+> - **Inscrição em grupo**: `InscricaoPublicaCriar.participantes_adicionais` - o pedido principal
+>   é o primeiro participante, cada adicional vira sua própria `Inscricao` com seu próprio
+>   `codigo_checkin`, todos compartilhando `identificador_grupo` (mesmo raciocínio de
+>   `Reserva.identificador_serie`, v4.3) e telefone/e-mail/consentimento do pedido como um todo -
+>   "tratamento individual": testado com 3 participantes numa vaga pra 2, confirmando que 2
+>   ficam "Pré-inscrito" e 1 "Lista de Espera", nunca o grupo inteiro recusado por 1 não caber.
+> - Painel: nova seção "Cotas de vagas por categoria" dentro do detalhe do Evento
+>   (`Eventos.tsx`), e o cabeçalho do evento passou a mostrar vagas ocupadas/livres de verdade
+>   (antes só o número declarado, sem nenhum contador real por trás).
+> - Migração `f0a2c4e6b8d0` (`eventos.vagas_ocupadas`, `sessoes_evento.vagas_ocupadas`, tabela
+>   nova `cotas_inscricao_evento`, `categoria_cota`/`prazo_confirmacao`/`identificador_grupo` em
+>   `inscricoes`) validada upgrade+downgrade+upgrade contra schema pré-v4.7 simulado em SQLite
+>   (mesmo processo de sempre).
+> - 7 testes novos em `tests/test_eventos_vagas.py` (acima do limite vira lista de espera, 4
+>   inscrições concorrentes numa vaga só - exatamente 1 passa -, cota por categoria independente,
+>   cancelamento promove o próximo automaticamente, confirmação por token limpa o prazo,
+>   expiração de promoção vencida libera e promove o próximo da fila, inscrição em grupo com
+>   tratamento individual) — 348/348 testes da suíte inteira passando (3 testes pré-existentes
+>   tiveram a contagem de configurações institucionais atualizada de 35 para 36, refletindo
+>   `PRAZO_CONFIRMACAO_LISTA_ESPERA_HORAS`). 27/27 testes do painel, `typecheck`/`lint`/`format`/
+>   `build` limpos em ambos.
+> **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
+> lacuna de ferramenta de navegador já registrada nos pontos de revisão anteriores).
+
 ##### 🔍 Ponto de Revisão — FASE 4 (2/3, fecha v4.4–v4.7)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 - Voluntário sem termo de adesão vigente (v1.6) realmente não é alocável em projeto — trava real, testar a tentativa.

@@ -267,6 +267,13 @@ def seed_catalogos():
         "status_registro_horas_voluntariado": ("Status do registro de horas de voluntariado", True, "projetos", [
             ("PENDENTE", "Pendente"), ("APROVADO", "Aprovado"), ("RECUSADO", "Recusado"),
         ]),
+        # v4.7 - cota por categoria na inscrição de evento (ex.: X vagas pra associados, Y pra
+        # comunidade externa) - a categoria de quem se inscreve é DERIVADA (tem Associado ativo
+        # vinculado à Pessoa = "ASSOCIADO", senão "COMUNIDADE_EXTERNA"), nunca escolhida à mão
+        # por quem se inscreve.
+        "categoria_cota_inscricao": ("Categoria de cota de inscrição", True, "projetos", [
+            ("ASSOCIADO", "Associado"), ("COMUNIDADE_EXTERNA", "Comunidade externa"),
+        ]),
         "tipo_evento": ("Tipo de evento", True, "projetos", [
             ("ASSEMBLEIA", "Assembleia"), ("REUNIAO_DE_DIRETORIA", "Reunião de Diretoria"), ("CULTO", "Culto"),
             ("CONFRATERNIZACAO", "Confraternização"), ("ACAO_SOCIAL", "Ação Social"), ("PALESTRA", "Palestra"),
@@ -476,6 +483,9 @@ def seed_configuracoes_institucionais():
         {"chave": "TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", "valor": "Ao me inscrever, autorizo o uso dos meus dados pessoais (nome, CPF, e-mail, telefone e respostas deste formulário) para fins de organização deste evento, nos termos da LGPD.", "tipo": "texto", "categoria": "regras", "descricao": "Texto de consentimento LGPD exibido no formulário público de inscrição em evento."},
         {"chave": "VERSAO_TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", "valor": "1", "tipo": "texto", "categoria": "regras", "descricao": "Versão do texto de consentimento LGPD de inscrição - mude este valor sempre que o texto acima for editado de forma relevante."},
         {"chave": "URL_BASE_SITE_PUBLICO", "valor": "", "tipo": "texto", "categoria": "geral", "descricao": "URL base do site institucional (Astro/Directus) - usada para montar o link de autocancelamento enviado por e-mail. Vazio = e-mail orienta contatar a secretaria com o código."},
+        # v4.7 - vagas/lista de espera: quantas horas quem é promovido da lista de espera tem
+        # pra confirmar antes de perder a vaga pro próximo da fila (ver app/services/vagas.py).
+        {"chave": "PRAZO_CONFIRMACAO_LISTA_ESPERA_HORAS", "valor": "24", "tipo": "numero", "categoria": "regras", "descricao": "Horas que quem é promovido da lista de espera de um evento tem para confirmar a inscrição antes de perder a vaga para o próximo da fila."},
     ]
     db = SessaoLocal()
     try:

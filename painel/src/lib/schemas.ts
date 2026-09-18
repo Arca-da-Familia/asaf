@@ -1025,3 +1025,9 @@ export const perguntaEventoCriarSchema = z.object({
   obrigatoria: z.boolean(),
   ordem: z.coerce.number().int().min(0),
 })
+
+// v4.7 - cota de vagas por categoria (associado x comunidade externa) num evento/sessão.
+export const cotaInscricaoCriarSchema = z.object({
+  categoria: z.string().min(1, 'Selecione a categoria.'),
+  vagas_limite: z.coerce.number().int().min(1, 'Informe ao menos 1 vaga.'),
+})

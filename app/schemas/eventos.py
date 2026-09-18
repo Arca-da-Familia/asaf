@@ -57,17 +57,39 @@ class PerguntaEventoCriar(BaseModel):
         return v
 
 
+class ParticipanteAdicionalCriar(BaseModel):
+    """v4.7 - inscrição em grupo (família/delegação): cada participante adicional vira uma
+    inscrição própria (código de check-in individual), compartilhando e-mail/telefone/
+    consentimento do pedido principal - só nome/CPF/respostas são por pessoa."""
+    nome_completo: str
+    cpf: str
+    respostas: dict[str, Any] = {}
+
+    @field_validator("cpf")
+    @classmethod
+    def validar_cpf_campo(cls, v):
+        if not validar_cpf(v):
+            raise ValueError("CPF inválido (dígito verificador não confere).")
+        return somente_digitos(v)
+
+
 class InscricaoPublicaCriar(BaseModel):
     """v4.6 - formulário de inscrição pública (site institucional, sem login). `pagina_web` é o
     campo-armadilha (honeypot): invisível pra gente de verdade (escondido via CSS no site), só
     um robô preenche - quando vem preenchido, a inscrição finge sucesso mas não grava nada (nunca
-    revela pro robô que foi pego, senão ele só troca de tática)."""
+    revela pro robô que foi pego, senão ele só troca de tática).
+
+    v4.7 - `participantes_adicionais` é a inscrição em grupo: o pedido principal (nome/cpf/
+    respostas acima) é o primeiro participante, cada item de `participantes_adicionais` é mais
+    um - telefone/e-mail/consentimento são sempre do pedido como um todo (uma família, um
+    contato)."""
     nome_completo: str
     cpf: str
     email: EmailStr
     telefone: str
     id_sessao: Optional[int] = None
     respostas: dict[str, Any] = {}
+    participantes_adicionais: list[ParticipanteAdicionalCriar] = []
     consentimento_lgpd: bool
     versao_texto_consentimento: str
     pagina_web: Optional[str] = None
@@ -92,3 +114,8 @@ class InscricaoPublicaCriar(BaseModel):
         if not v:
             raise ValueError("É necessário aceitar o termo de consentimento LGPD para se inscrever.")
         return v
+
+
+class CotaInscricaoCriar(BaseModel):
+    categoria: str
+    vagas_limite: int

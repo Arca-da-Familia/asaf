@@ -73,6 +73,17 @@ class Inscricao(Base):
     codigo_checkin = Column(String, nullable=True, unique=True)
     token_cancelamento = Column(String, nullable=True, unique=True)
     consentimento_lgpd_versao = Column(String, nullable=True)
+    # v4.7 - vagas/lista de espera/inscrição em grupo (ver app/services/vagas.py):
+    # `categoria_cota` guarda ONDE a vaga foi (ou seria) reservada - qual `CotaInscricaoEvento`
+    # (categoria) ou o limite genérico do evento/sessão (None) - pra liberar exatamente a mesma
+    # fonte na hora de cancelar, nunca a fonte errada. `prazo_confirmacao` só é preenchido quando
+    # esta inscrição foi PROMOVIDA da lista de espera - vencido sem confirmar, perde a vaga pro
+    # próximo da fila (ver `expirar_promocoes_vencidas`). `identificador_grupo` liga inscrições
+    # de uma mesma inscrição em grupo (família/delegação) - cada pessoa é uma linha própria,
+    # nunca uma inscrição "coletiva", mesmo raciocínio de `Reserva.identificador_serie` (v4.3).
+    categoria_cota = Column(String, nullable=True)
+    prazo_confirmacao = Column(DateTime, nullable=True)
+    identificador_grupo = Column(String, nullable=True, index=True)
 
 
 class TemplateDocumento(Base):

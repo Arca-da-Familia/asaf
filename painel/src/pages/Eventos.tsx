@@ -6,11 +6,13 @@ import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import {
+  criarCotaEvento,
   criarEvento,
   criarNovaEdicaoEvento,
   criarPerguntaEvento,
   criarSessaoEvento,
   listarAssociados,
+  listarCotasEvento,
   listarEdicoesEvento,
   listarEspacos,
   listarEventos,
@@ -22,6 +24,7 @@ import {
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
 import {
+  cotaInscricaoCriarSchema,
   eventoCriarSchema,
   novaEdicaoEventoCriarSchema,
   perguntaEventoCriarSchema,
@@ -380,6 +383,89 @@ function SecaoPerguntas({ idEvento }: { idEvento: number }) {
   )
 }
 
+// v4.7 (FASE 4) - cota de vagas por categoria (associado x comunidade externa). Opcional: sem
+// nenhuma cota cadastrada, o limite genérico do evento (campo "Vagas" do formulário de criação)
+// vale pra todo mundo, como já era desde a v4.5 — só que agora com trava real sob concorrência.
+function SecaoCotas({ idEvento }: { idEvento: number }) {
+  const queryClient = useQueryClient()
+  const { data: categorias } = useQuery({
+    queryKey: ['opcoes-catalogo', 'categoria_cota_inscricao'],
+    queryFn: () => listarOpcoesCatalogo('categoria_cota_inscricao'),
+  })
+  const { data: cotas } = useQuery({
+    queryKey: ['cotas-evento', idEvento],
+    queryFn: () => listarCotasEvento(idEvento),
+  })
+
+  const criar = useMutation({
+    mutationFn: (v: z.infer<typeof cotaInscricaoCriarSchema>) =>
+      criarCotaEvento(idEvento, v),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['cotas-evento', idEvento] }),
+  })
+
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-semibold">
+        Cotas de vagas por categoria
+      </h3>
+      <FormShell<z.infer<typeof cotaInscricaoCriarSchema>>
+        schema={cotaInscricaoCriarSchema}
+        defaultValues={{ categoria: '', vagas_limite: 1 }}
+        onSubmit={(v) => criar.mutateAsync(v)}
+        className="mb-3 flex flex-wrap items-end gap-2"
+      >
+        {(form) => (
+          <>
+            <select
+              {...form.register('categoria')}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">Categoria…</option>
+              {(categorias ?? []).map((o) => (
+                <option key={o.codigo} value={o.codigo}>
+                  {o.rotulo}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min={1}
+              {...form.register('vagas_limite')}
+              placeholder="Vagas"
+              className="h-9 w-28 rounded-md border border-input bg-background px-3 text-sm"
+            />
+            <Button type="submit" size="sm" disabled={criar.isPending}>
+              Adicionar cota
+            </Button>
+            {criar.isError && (
+              <p className="w-full text-sm text-destructive">
+                {(criar.error as Error).message}
+              </p>
+            )}
+          </>
+        )}
+      </FormShell>
+      <div className="space-y-1">
+        {(cotas ?? []).map((c) => (
+          <div
+            key={c.id_cota}
+            className="rounded-md border border-border p-2 text-sm"
+          >
+            {c.categoria} — {c.vagas_ocupadas}/{c.vagas_limite} ocupada(s)
+          </div>
+        ))}
+        {(cotas ?? []).length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma cota configurada — o limite genérico de vagas do evento vale
+            pra todo mundo.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function SecaoEdicoes({ evento }: { evento: Evento }) {
   const queryClient = useQueryClient()
   const [mostrarForm, setMostrarForm] = useState(false)
@@ -504,10 +590,12 @@ function DetalheEvento({ evento }: { evento: Evento }) {
             ` até ${formatarData(evento.data_hora_fim, { comHora: true })}`}{' '}
           · {evento.categoria} · {evento.visibilidade} ·{' '}
           {evento.gratuito ? 'Gratuito' : 'Pago'}
-          {evento.vagas != null && ` · ${evento.vagas} vaga(s)`}
+          {evento.vagas != null &&
+            ` · ${evento.vagas_ocupadas}/${evento.vagas} vaga(s) ocupada(s) (${evento.vagas_livres} livre(s))`}
         </p>
       </div>
       <SecaoSessoes idEvento={evento.id_evento} />
+      <SecaoCotas idEvento={evento.id_evento} />
       <SecaoPerguntas idEvento={evento.id_evento} />
       <SecaoEdicoes evento={evento} />
       <SecaoInscritos evento={evento} />

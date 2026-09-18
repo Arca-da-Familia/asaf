@@ -1,0 +1,66 @@
+name: Tarefa Periódica (expira promoções de lista de espera vencidas)
+
+# v4.7 (FASE 4) - quem foi promovido da lista de espera de um evento tem um prazo pra confirmar
+# (PRAZO_CONFIRMACAO_LISTA_ESPERA_HORAS, configurável) antes de perder a vaga pro próximo da
+# fila - alguém precisa checar isso periodicamente, senão a promoção "automática" nunca
+# aconteceria de fato em produção. Roda como SISTEMA, mesmo mecanismo de confiança que já roda
+# migração Alembic e a tarefa mensal financeira em produção.
+on:
+  schedule:
+    - cron: "*/15 * * * *" # a cada 15 minutos
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write # necessário para login OIDC no Azure (sem senha salva)
+  contents: read
+
+jobs:
+  expirar-promocoes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Login no Azure via OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Buscar segredos do Key Vault (DATABASE_URL + SMTP)
+        run: |
+          DB_URL=$(az keyvault secret show --vault-name kv-asaf-arca --name DATABASE-URL --query value -o tsv)
+          echo "::add-mask::$DB_URL"
+          echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
+
+          SMTP_HOST=$(az keyvault secret show --vault-name kv-asaf-arca --name SMTP-HOST --query value -o tsv)
+          SMTP_PORTA=$(az keyvault secret show --vault-name kv-asaf-arca --name SMTP-PORTA --query value -o tsv)
+          SMTP_USUARIO=$(az keyvault secret show --vault-name kv-asaf-arca --name SMTP-USUARIO --query value -o tsv)
+          SMTP_SENHA=$(az keyvault secret show --vault-name kv-asaf-arca --name SMTP-SENHA --query value -o tsv)
+          SMTP_REMETENTE=$(az keyvault secret show --vault-name kv-asaf-arca --name SMTP-REMETENTE --query value -o tsv)
+          echo "::add-mask::$SMTP_HOST"
+          echo "::add-mask::$SMTP_PORTA"
+          echo "::add-mask::$SMTP_USUARIO"
+          echo "::add-mask::$SMTP_SENHA"
+          echo "::add-mask::$SMTP_REMETENTE"
+          echo "SMTP_HOST=$SMTP_HOST" >> "$GITHUB_ENV"
+          echo "SMTP_PORTA=$SMTP_PORTA" >> "$GITHUB_ENV"
+          echo "SMTP_USUARIO=$SMTP_USUARIO" >> "$GITHUB_ENV"
+          echo "SMTP_SENHA=$SMTP_SENHA" >> "$GITHUB_ENV"
+          echo "SMTP_REMETENTE=$SMTP_REMETENTE" >> "$GITHUB_ENV"
+
+      - name: Rodar expiração de promoções de lista de espera vencidas
+        run: PYTHONPATH=. python scripts/expirar_promocoes_vagas.py
+
+      - name: Logout
+        if: always()
+        run: az logout || true

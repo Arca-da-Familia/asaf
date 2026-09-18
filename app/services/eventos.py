@@ -7,11 +7,14 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+import uuid
+
 from app.models.associados import Associado
 from app.models.core import Usuario
 from app.models.eventos import (
     TIPO_PERGUNTA_SELECAO_MULTIPLA,
     TIPO_PERGUNTA_SELECAO_UNICA,
+    CotaInscricaoEvento,
     Evento,
     PerguntaEvento,
     SessaoEvento,
@@ -20,6 +23,7 @@ from app.models.espacos import Espaco
 from app.models.pessoas import Papel, Pessoa
 from app.services import inscricao as servico_inscricao
 from app.services import notificacoes
+from app.services import vagas as servico_vagas
 from app.services.catalogos import validar_codigo_em_catalogo
 from app.services.projetos import associado_do_usuario_ou_403
 from app.services.protecao_publica import gerar_codigo_checkin, gerar_token_cancelamento
@@ -170,18 +174,18 @@ def listar_cadeia_edicoes(db: Session, *, id_evento: int) -> list[Evento]:
 def inscrever_no_evento(db: Session, *, id_evento: int, usuario: Usuario):
     obter_evento(db, id_evento)
     associado = associado_do_usuario_ou_403(db, usuario)
-    return servico_inscricao.inscrever(
+    return servico_vagas.inscrever_com_controle_de_vaga(
         db, contexto_tipo=CONTEXTO_EVENTO, id_contexto=id_evento, id_pessoa=associado.id_pessoa,
-        respostas_formulario=None, id_usuario_operador=usuario.id_usuario,
+        respostas_formulario=None,
     )
 
 
 def inscrever_na_sessao(db: Session, *, id_sessao: int, usuario: Usuario):
     obter_sessao(db, id_sessao)
     associado = associado_do_usuario_ou_403(db, usuario)
-    return servico_inscricao.inscrever(
+    return servico_vagas.inscrever_com_controle_de_vaga(
         db, contexto_tipo=CONTEXTO_SESSAO_EVENTO, id_contexto=id_sessao, id_pessoa=associado.id_pessoa,
-        respostas_formulario=None, id_usuario_operador=usuario.id_usuario,
+        respostas_formulario=None,
     )
 
 
@@ -223,19 +227,59 @@ def listar_perguntas(db: Session, *, id_evento: int) -> list[PerguntaEvento]:
 
 
 # ==========================================
+# COTAS POR CATEGORIA (v4.7) - opcional; sem nenhuma cota configurada, o limite genérico
+# `Evento.vagas`/`SessaoEvento.vagas` vale pra todo mundo (ver app/services/vagas.py).
+# ==========================================
+def criar_cota(db: Session, *, contexto_tipo: str, id_contexto: int, categoria: str, vagas_limite: int) -> CotaInscricaoEvento:
+    if contexto_tipo == CONTEXTO_EVENTO:
+        obter_evento(db, id_contexto)
+    elif contexto_tipo == CONTEXTO_SESSAO_EVENTO:
+        obter_sessao(db, id_contexto)
+    else:
+        raise HTTPException(status_code=422, detail="contexto_tipo deve ser 'Evento' ou 'SessaoEvento'.")
+    validar_codigo_em_catalogo(db, "categoria_cota_inscricao", categoria, "Categoria de cota")
+    if vagas_limite < 1:
+        raise HTTPException(status_code=422, detail="O limite de vagas da cota precisa ser maior que zero.")
+    if db.query(CotaInscricaoEvento).filter(
+        CotaInscricaoEvento.contexto_tipo == contexto_tipo, CotaInscricaoEvento.id_contexto == id_contexto,
+        CotaInscricaoEvento.categoria == categoria,
+    ).first():
+        raise HTTPException(status_code=400, detail="Já existe uma cota desta categoria para este contexto.")
+
+    cota = CotaInscricaoEvento(contexto_tipo=contexto_tipo, id_contexto=id_contexto, categoria=categoria, vagas_limite=vagas_limite)
+    db.add(cota)
+    db.commit()
+    db.refresh(cota)
+    return cota
+
+
+def listar_cotas(db: Session, *, contexto_tipo: str, id_contexto: int) -> list[CotaInscricaoEvento]:
+    return db.query(CotaInscricaoEvento).filter(
+        CotaInscricaoEvento.contexto_tipo == contexto_tipo, CotaInscricaoEvento.id_contexto == id_contexto,
+    ).order_by(CotaInscricaoEvento.categoria).all()
+
+
+# ==========================================
 # INSCRIÇÃO PÚBLICA COM DEDUPLICAÇÃO (v4.6) - formulário do site, sem login. Rate limiting e
 # honeypot são checados no router (antes de chegar aqui); aqui é regra de negócio pura.
 # ==========================================
-def _texto_email_confirmacao(db: Session, *, evento: Evento, codigo_checkin: str, token_cancelamento: str) -> str:
+def _texto_email_confirmacao(db: Session, *, evento: Evento, codigo_checkin: str, token_cancelamento: str, status: str) -> str:
     url_base = obter_configuracao(db, "URL_BASE_SITE_PUBLICO", "")
     if url_base:
         linha_cancelamento = f"Para cancelar sua inscrição, acesse: {url_base.rstrip('/')}/cancelar-inscricao?token={token_cancelamento}"
     else:
         linha_cancelamento = f"Para cancelar sua inscrição, entre em contato com a secretaria informando o código {codigo_checkin}."
+
+    if status == "Lista de Espera":
+        # v4.7 - sem vaga agora, mas na fila - nunca tratado como recusa; a promoção automática
+        # (com prazo pra confirmar) manda um segundo e-mail quando uma vaga abrir de verdade.
+        linha_status = "Não havia vaga disponível no momento - você está na lista de espera e será avisado(a) por e-mail se uma vaga abrir."
+    else:
+        linha_status = f"Código de check-in: {codigo_checkin}\nApresente este código na entrada do evento."
+
     return (
         f"Sua inscrição em \"{evento.titulo}\" foi registrada com sucesso.\n\n"
-        f"Código de check-in: {codigo_checkin}\n"
-        f"Apresente este código na entrada do evento.\n\n"
+        f"{linha_status}\n\n"
         f"{linha_cancelamento}"
     )
 
@@ -249,15 +293,79 @@ def _validar_respostas_obrigatorias(db: Session, *, id_evento: int, respostas: d
             raise HTTPException(status_code=422, detail=f"A pergunta \"{pergunta.enunciado}\" é obrigatória.")
 
 
-def inscrever_publicamente(
-    db: Session, *, id_evento: int, id_sessao: Optional[int], nome_completo: str, cpf: str,
-    email: str, telefone: str, respostas: dict, versao_texto_consentimento: str,
-) -> dict:
+def _dedupicar_pessoa_por_cpf(db: Session, *, nome_completo: str, cpf: str, email: str, telefone: str) -> Pessoa:
     """CPF já conhecido → inscrição vinculada ao cadastro existente, sem pedir dado que o sistema
     já tem (só completa contato que estivesse vazio - nunca sobrescreve o que já tinha). CPF novo
     → pessoa nova com papel "participante_externo", que NUNCA vira associado automaticamente
     (isso continua exigindo o fluxo de filiação de sempre, decisão humana, não um efeito colateral
     de inscrição em evento)."""
+    pessoa = db.query(Pessoa).filter(Pessoa.cpf == cpf).first()
+    if pessoa:
+        if not pessoa.email_contato:
+            pessoa.email_contato = email
+        if not pessoa.telefone_whatsapp:
+            pessoa.telefone_whatsapp = telefone
+    else:
+        pessoa = Pessoa(nome_completo=nome_completo, cpf=cpf, email_contato=email, telefone_whatsapp=telefone)
+        db.add(pessoa)
+        db.flush()
+        db.add(Papel(id_pessoa=pessoa.id_pessoa, tipo_papel=TIPO_PAPEL_PARTICIPANTE_EXTERNO))
+    db.commit()
+    db.refresh(pessoa)
+    return pessoa
+
+
+def _inscrever_um_participante(
+    db: Session, *, evento: Evento, contexto_tipo: str, id_contexto: int, nome_completo: str, cpf: str,
+    email: str, telefone: str, respostas: dict, versao_texto_consentimento: str, identificador_grupo: Optional[str],
+) -> dict:
+    _validar_respostas_obrigatorias(db, id_evento=evento.id_evento, respostas=respostas)
+    pessoa = _dedupicar_pessoa_por_cpf(db, nome_completo=nome_completo, cpf=cpf, email=email, telefone=telefone)
+
+    codigo_checkin = gerar_codigo_checkin()
+    token_cancelamento = gerar_token_cancelamento()
+    inscricao_criada = servico_vagas.inscrever_com_controle_de_vaga(
+        db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, id_pessoa=pessoa.id_pessoa,
+        respostas_formulario=respostas or None, codigo_checkin=codigo_checkin,
+        token_cancelamento=token_cancelamento, consentimento_lgpd_versao=versao_texto_consentimento,
+        identificador_grupo=identificador_grupo,
+    )
+
+    email_enviado = False
+    try:
+        notificacoes.enviar_email(
+            email, assunto=f"Confirmação de inscrição - {evento.titulo}",
+            corpo_texto=_texto_email_confirmacao(
+                db, evento=evento, codigo_checkin=inscricao_criada.codigo_checkin or codigo_checkin,
+                token_cancelamento=inscricao_criada.token_cancelamento or token_cancelamento,
+                status=inscricao_criada.status,
+            ),
+        )
+        email_enviado = True
+    except Exception:
+        # Nunca deixa a inscrição em si falhar por causa do e-mail (SMTP fora do ar, não
+        # configurado, etc.) - a inscrição já está gravada, o e-mail é conveniência, não trava.
+        # WhatsApp fica pendente pra v11.3 (API oficial Meta Cloud/BSP - ver DECISOES_CONGELADAS.md
+        # seção 7), não fingido aqui.
+        pass
+
+    return {
+        "nome_completo": nome_completo, "id_inscricao": inscricao_criada.id_inscricao,
+        "status": inscricao_criada.status, "codigo_checkin": inscricao_criada.codigo_checkin,
+        "email_enviado": email_enviado,
+    }
+
+
+def inscrever_publicamente(
+    db: Session, *, id_evento: int, id_sessao: Optional[int], nome_completo: str, cpf: str,
+    email: str, telefone: str, respostas: dict, versao_texto_consentimento: str,
+    participantes_adicionais: Optional[list[dict]] = None,
+) -> dict:
+    """v4.7 - acima do limite de vagas (ou da cota da categoria), vira lista de espera
+    automaticamente - nunca um erro pra quem se inscreve. Inscrição em grupo
+    (`participantes_adicionais`): CADA nome vira uma inscrição própria, com seu próprio código de
+    check-in - "tratamento individual", mesmo raciocínio já usado na reserva recorrente de espaço
+    (v4.3): um da família ficar na lista de espera nunca impede os outros de serem confirmados."""
     evento = obter_evento(db, id_evento)
     if evento.visibilidade != "Pública":
         raise HTTPException(status_code=404, detail="Evento não encontrado.")
@@ -273,48 +381,30 @@ def inscrever_publicamente(
     id_contexto = id_sessao if id_sessao is not None else id_evento
     if id_sessao is not None:
         obter_sessao(db, id_sessao)
-    _validar_respostas_obrigatorias(db, id_evento=id_evento, respostas=respostas)
 
-    pessoa = db.query(Pessoa).filter(Pessoa.cpf == cpf).first()
-    if pessoa:
-        if not pessoa.email_contato:
-            pessoa.email_contato = email
-        if not pessoa.telefone_whatsapp:
-            pessoa.telefone_whatsapp = telefone
-    else:
-        pessoa = Pessoa(nome_completo=nome_completo, cpf=cpf, email_contato=email, telefone_whatsapp=telefone)
-        db.add(pessoa)
-        db.flush()
-        db.add(Papel(id_pessoa=pessoa.id_pessoa, tipo_papel=TIPO_PAPEL_PARTICIPANTE_EXTERNO))
-    db.commit()
-    db.refresh(pessoa)
+    participantes_adicionais = participantes_adicionais or []
+    identificador_grupo = str(uuid.uuid4()) if participantes_adicionais else None
 
-    codigo_checkin = gerar_codigo_checkin()
-    token_cancelamento = gerar_token_cancelamento()
-    inscricao_criada = servico_inscricao.inscrever(
-        db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, id_pessoa=pessoa.id_pessoa,
-        respostas_formulario=respostas or None, codigo_checkin=codigo_checkin,
-        token_cancelamento=token_cancelamento, consentimento_lgpd_versao=versao_texto_consentimento,
-    )
-
-    email_enviado = False
-    try:
-        notificacoes.enviar_email(
-            email, assunto=f"Confirmação de inscrição - {evento.titulo}",
-            corpo_texto=_texto_email_confirmacao(
-                db, evento=evento, codigo_checkin=inscricao_criada.codigo_checkin or codigo_checkin,
-                token_cancelamento=inscricao_criada.token_cancelamento or token_cancelamento,
-            ),
+    resultados = [
+        _inscrever_um_participante(
+            db, evento=evento, contexto_tipo=contexto_tipo, id_contexto=id_contexto, nome_completo=nome_completo,
+            cpf=cpf, email=email, telefone=telefone, respostas=respostas,
+            versao_texto_consentimento=versao_texto_consentimento, identificador_grupo=identificador_grupo,
         )
-        email_enviado = True
-    except Exception:
-        # Nunca deixa a inscrição em si falhar por causa do e-mail (SMTP fora do ar, não
-        # configurado, etc.) - a inscrição já está gravada, o e-mail é conveniência, não trava.
-        # WhatsApp fica pendente pra v11.3 (API oficial Meta Cloud/BSP - ver DECISOES_CONGELADAS.md
-        # seção 7), não fingido aqui.
-        pass
+    ]
+    for participante in participantes_adicionais:
+        resultados.append(
+            _inscrever_um_participante(
+                db, evento=evento, contexto_tipo=contexto_tipo, id_contexto=id_contexto,
+                nome_completo=participante["nome_completo"], cpf=participante["cpf"], email=email, telefone=telefone,
+                respostas=participante.get("respostas") or {}, versao_texto_consentimento=versao_texto_consentimento,
+                identificador_grupo=identificador_grupo,
+            )
+        )
 
+    primeiro = resultados[0]
     return {
-        "id_inscricao": inscricao_criada.id_inscricao, "status": inscricao_criada.status,
-        "codigo_checkin": inscricao_criada.codigo_checkin, "email_enviado": email_enviado,
+        "identificador_grupo": identificador_grupo, "participantes": resultados,
+        "id_inscricao": primeiro["id_inscricao"], "status": primeiro["status"],
+        "codigo_checkin": primeiro["codigo_checkin"], "email_enviado": primeiro["email_enviado"],
     }
