@@ -148,10 +148,13 @@ def test_fluxo_de_caixa_projetado_soma_receber_pagar_e_recorrentes(client, auth_
     assert r.status_code == 200, r.text
     mes = r.json()["meses"][0]
     assert mes["competencia"] == competencia_atual
-    assert mes["entradas_previstas"] - base["entradas_previstas"] == 300.0
+    # arredondado a centavos - soma de ponto flutuante entre bases acumuladas pela suíte inteira
+    # (títulos de outros arquivos de teste) nunca fecha exato em binário, mesmo quando o valor
+    # "de verdade" fecha (achado real: `573.05 - 273.05` não é `300.0` em float).
+    assert round(mes["entradas_previstas"] - base["entradas_previstas"], 2) == 300.0
     # saída = título "A Pagar" já lançado (80) + conta a pagar recorrente ainda não gerada (500)
-    assert mes["saidas_previstas"] - base["saidas_previstas"] == 580.0
-    assert mes["recorrentes_projetadas"] - base["recorrentes_projetadas"] == 500.0
+    assert round(mes["saidas_previstas"] - base["saidas_previstas"], 2) == 580.0
+    assert round(mes["recorrentes_projetadas"] - base["recorrentes_projetadas"], 2) == 500.0
 
 
 def test_reserva_contingencia_vinculada_a_conta_financeira_e_impede_duplicidade(client, auth_headers):

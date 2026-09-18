@@ -4,6 +4,7 @@ import {
   BookOpen,
   BookText,
   Building2,
+  CalendarCheck,
   CalendarPlus,
   CalendarRange,
   FileText,
@@ -227,6 +228,12 @@ export const modulos: Modulo[] = [
     rotulo: 'Projetos',
     permissao: 'projetos',
     icone: FolderKanban,
+  },
+  {
+    rota: '/reserva-espaco',
+    rotulo: 'Reserva de Espaço',
+    permissao: 'projetos',
+    icone: CalendarCheck,
   },
   {
     rota: '/acesso',

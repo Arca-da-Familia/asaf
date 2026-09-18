@@ -47,6 +47,7 @@ import {
 } from '@/pages/Dissolucao'
 import { EmConstrucao } from '@/pages/EmConstrucao'
 import { ProjetosPage } from '@/pages/Projetos'
+import { EspacosPage } from '@/pages/Espacos'
 import { Forbidden } from '@/pages/Forbidden'
 import { Home } from '@/pages/Home'
 import { ImportarAssociadosPage } from '@/pages/ImportarAssociados'
@@ -498,6 +499,16 @@ function App() {
             <RequirePermission permission="projetos">
               <ErrorBoundary tituloModulo="Projetos">
                 <ProjetosPage />
+              </ErrorBoundary>
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/reserva-espaco"
+          element={
+            <RequirePermission permission="projetos">
+              <ErrorBoundary tituloModulo="Reserva de Espaço">
+                <EspacosPage />
               </ErrorBoundary>
             </RequirePermission>
           }

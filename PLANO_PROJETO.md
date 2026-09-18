@@ -4318,6 +4318,63 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
       "quem quebrou" sem prova.
 - [ ] Agenda pública somente-leitura no site (disponibilidade, sem expor quem reservou).
 
+> **Implementado em 2026-09-18, backend + painel, todos os itens acima.**
+> - `Espaco` (`app/models/espacos.py`) — tipo de catálogo, capacidade, recursos, regras,
+>   horário de funcionamento, e **os dois fluxos configuráveis por espaço** confirmados pela
+>   pesquisa: `exige_aprovacao=False` (instantânea) ou `True` (solicitação + aprovação manual).
+> - **Conflito reaproveita o motor de agenda (v4.0) de ponta a ponta** — `Reserva` e
+>   `BloqueioEspaco` viram `CompromissoAgenda` na hora de criar
+>   (`app/services/agenda.py::criar_compromisso`), nunca uma checagem de sobreposição própria;
+>   testado de propósito reservando durante um bloqueio de manutenção pra provar o reuso de
+>   verdade, não só por inspeção do código.
+> - **"Conflito impedido no banco, não só na tela"**: migração `b4d6f8a0c2e3` acrescenta uma
+>   `EXCLUDE USING gist` (com `btree_gist` pra `recurso_tipo`/`id_recurso` e `tsrange` pro
+>   horário) em `compromissos_agenda`, **só no Postgres** (SQLite não tem gist/range - dev/teste
+>   dependem só da checagem em aplicação, documentado no código, não escondido).
+>   `criar_reserva` captura `SQLAlchemyError` ao redor da chamada ao motor de agenda e converte
+>   num 400 amigável - é assim que a violação da constraint (quando disparar sob concorrência
+>   real em produção) não vaza como 500. **Limitação honesta registrada**: a suíte de teste roda
+>   em SQLite, então não existe hoje um teste automatizado que prove a exclusão sob concorrência
+>   real de duas requisições simultâneas - só a migração aplicada em Postgres garante isso; fica
+>   pendente pro Ponto de Revisão desta faixa (que pede exatamente esse teste) confirmar contra
+>   produção ou um Postgres local.
+> - Tarifa por perfil: `Espaco.valor_reserva` + `isento_para_associado_adimplente` — reserva
+>   onerosa gera `TituloFinanceiro` "A Receber" automaticamente (nunca lançado à mão);
+>   inadimplente é **checado, não marcado à mão** (`Associado.status_arrolamento`, mesma
+>   materialização da v1.1).
+> - Recorrência (`criar_reserva_recorrente`) — **cada ocorrência é uma `Reserva` de verdade,
+>   independente**, agrupada só por um `identificador_serie` opaco; "tratamento individual de
+>   exceções" é isto por construção (um conflito numa semana específica nunca aborta as outras -
+>   testado de propósito ocupando deliberadamente uma ocorrência do meio da série).
+> - Cancelamento com taxa por prazo (`Espaco.prazo_cancelamento_horas`/`taxa_cancelamento_tardio`)
+>   e no-show com bloqueio configurável por reincidência
+>   (`Espaco.limite_no_show_bloqueio`, contado nunca escolhido à mão).
+> - Checklist de devolução (`ChecklistDevolucaoEspaco`) — retirada e devolução com autor/data
+>   próprios, avaria com descrição obrigatória quando marcada; devolução conclui a reserva.
+> - Agenda pública (`GET /api/espacos/{id}/disponibilidade`) — **única rota sem autenticação**
+>   deste módulo, devolve só horário ocupado, nunca quem reservou nem a finalidade (testado
+>   conferindo as chaves exatas da resposta).
+> - Migração `b4d6f8a0c2e3` (4 tabelas + a EXCLUDE constraint condicionada a Postgres) validada
+>   upgrade+downgrade+upgrade contra schema pré-v4.3 simulado em SQLite (a parte Postgres-only não
+>   pôde ser exercitada localmente - mesma limitação de ambiente já registrada em toda a sessão).
+> - 12 testes novos em `tests/test_espacos.py` (tipo de catálogo, reserva instantânea confirma e
+>   conflito é recusado, aprovação manual fica solicitada até decidir, recusa libera o horário
+>   pra outra pessoa, inadimplente bloqueado, tarifa gerada/isenta corretamente, série recorrente
+>   trata conflito individualmente, cancelamento tardio gera taxa, no-show bloqueia por
+>   reincidência, checklist registra avaria e conclui a reserva, disponibilidade pública sem
+>   autenticação e sem expor solicitante, bloqueio reaproveita o motor de agenda) — 316/316
+>   testes da suíte inteira passando. **Achado real corrigido durante esta versão, não específico
+>   dela**: `tests/test_orcamento.py::test_fluxo_de_caixa_projetado_soma_receber_pagar_e_recorrentes`
+>   comparava ponto flutuante com `==` exato (`573.05 - 273.05 == 300.0` falha em binário mesmo
+>   sendo matematicamente exato) - só ficou visível porque os títulos novos desta versão mudaram
+>   os valores acumulados da suíte; corrigido pra `round(..., 2)`, uma fragilidade que já existia
+>   e podia voltar a aparecer com qualquer versão futura que mexesse em título financeiro.
+> - Painel: nova tela "Reserva de Espaço" (`Espacos.tsx`, rota `/reserva-espaco`, novo item no
+>   menu) - lista de espaços + detalhe com bloqueios e reservas (aprovar/recusar/cancelar/
+>   não-compareceu/checklist), reserva simples e recorrente.
+> **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
+> lacuna de ferramenta de navegador já registrada nos pontos de revisão anteriores).
+
 ##### 🔍 Ponto de Revisão — FASE 4 (1/3, fecha v4.0–v4.3)
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 - Os motores compartilhados (v4.0 — presença, inscrição, documento, indicador) estão sendo **de fato reutilizados** por v4.1–v4.3, não reimplementados por dentro de cada sub-módulo.

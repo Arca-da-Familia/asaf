@@ -3833,3 +3833,213 @@ export function registrarEncaminhamento(
     body: JSON.stringify(dados),
   })
 }
+
+// ---------------------------------------------------------------------------
+// v4.3 (FASE 4) - Reserva de espaço: fluxo instantâneo ou aprovação manual (configurável por
+// espaço), conflito de horário reaproveitando o motor de agenda (v4.0), tarifa automática por
+// perfil, recorrência com tratamento individual de exceções, cancelamento com taxa por prazo,
+// no-show com bloqueio por reincidência e checklist de devolução com avaria. A garantia real de
+// conflito sob concorrência é uma EXCLUDE constraint no Postgres - o painel só repassa o erro.
+// ---------------------------------------------------------------------------
+export type Espaco = {
+  id_espaco: number
+  nome: string
+  tipo: string
+  capacidade: number | null
+  recursos_disponiveis: string | null
+  regras_uso: string | null
+  horario_funcionamento_inicio: string | null
+  horario_funcionamento_fim: string | null
+  exige_aprovacao: boolean
+  valor_reserva: number | null
+  isento_para_associado_adimplente: boolean
+  id_conta_contabil_receita: number | null
+  prazo_cancelamento_horas: number
+  taxa_cancelamento_tardio: number | null
+  limite_no_show_bloqueio: number | null
+  ativo: boolean
+}
+
+export function listarEspacos(): Promise<Espaco[]> {
+  return apiFetch('/api/espacos/')
+}
+
+export function criarEspaco(dados: {
+  nome: string
+  tipo: string
+  capacidade?: number
+  recursos_disponiveis?: string
+  regras_uso?: string
+  exige_aprovacao: boolean
+  valor_reserva?: number
+  isento_para_associado_adimplente: boolean
+  id_conta_contabil_receita?: number
+  prazo_cancelamento_horas: number
+  taxa_cancelamento_tardio?: number
+  limite_no_show_bloqueio?: number
+}): Promise<{ mensagem: string; id_espaco: number }> {
+  return apiFetch('/api/espacos/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type BloqueioEspaco = {
+  id_bloqueio: number
+  data_hora_inicio: string
+  data_hora_fim: string
+  motivo: string
+  descricao: string | null
+}
+
+export function listarBloqueiosEspaco(
+  idEspaco: number,
+): Promise<BloqueioEspaco[]> {
+  return apiFetch(`/api/espacos/${idEspaco}/bloqueios`)
+}
+
+export function criarBloqueioEspaco(
+  idEspaco: number,
+  dados: {
+    data_hora_inicio: string
+    data_hora_fim: string
+    motivo: string
+    descricao?: string
+  },
+): Promise<{ mensagem: string; id_bloqueio: number }> {
+  return apiFetch(`/api/espacos/${idEspaco}/bloqueios`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function obterDisponibilidadeEspaco(
+  idEspaco: number,
+): Promise<{ data_hora_inicio: string; data_hora_fim: string }[]> {
+  return apiFetch(`/api/espacos/${idEspaco}/disponibilidade`)
+}
+
+export type ReservaEspaco = {
+  id_reserva: number
+  id_espaco: number
+  id_associado_solicitante: number
+  data_hora_inicio: string
+  data_hora_fim: string
+  finalidade: string
+  status: string
+  motivo_status: string | null
+  id_titulo_cobranca: number | null
+  identificador_serie: string | null
+}
+
+export function listarReservasEspaco(
+  idEspaco: number,
+): Promise<ReservaEspaco[]> {
+  return apiFetch(`/api/reservas-espaco/?id_espaco=${idEspaco}`)
+}
+
+export function criarReservaEspaco(dados: {
+  id_espaco: number
+  id_associado_solicitante: number
+  data_hora_inicio: string
+  data_hora_fim: string
+  finalidade: string
+}): Promise<ReservaEspaco> {
+  return apiFetch('/api/reservas-espaco/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function criarReservaRecorrente(dados: {
+  id_espaco: number
+  id_associado_solicitante: number
+  data_hora_inicio: string
+  data_hora_fim: string
+  finalidade: string
+  quantidade_semanas: number
+}): Promise<{
+  ocorrencias: {
+    ocorrencia: number
+    sucesso: boolean
+    id_reserva?: number
+    erro?: string
+    data_hora_inicio: string
+  }[]
+}> {
+  return apiFetch('/api/reservas-espaco/recorrente', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function aprovarReserva(idReserva: number): Promise<ReservaEspaco> {
+  return apiFetch(`/api/reservas-espaco/${idReserva}/aprovar`, {
+    method: 'POST',
+  })
+}
+
+export function recusarReserva(
+  idReserva: number,
+  motivo: string,
+): Promise<ReservaEspaco> {
+  return apiFetch(`/api/reservas-espaco/${idReserva}/recusar`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo }),
+  })
+}
+
+export function cancelarReserva(
+  idReserva: number,
+  motivo: string,
+): Promise<ReservaEspaco> {
+  return apiFetch(`/api/reservas-espaco/${idReserva}/cancelar`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo }),
+  })
+}
+
+export function marcarNaoCompareceu(idReserva: number): Promise<ReservaEspaco> {
+  return apiFetch(`/api/reservas-espaco/${idReserva}/nao-compareceu`, {
+    method: 'POST',
+  })
+}
+
+export type ChecklistDevolucaoEspaco = {
+  condicao_retirada: string | null
+  data_retirada: string | null
+  condicao_devolucao: string | null
+  houve_avaria: boolean | null
+  descricao_avaria: string | null
+  data_devolucao: string | null
+}
+
+export function obterChecklistReserva(
+  idReserva: number,
+): Promise<ChecklistDevolucaoEspaco | null> {
+  return apiFetch(`/api/reservas-espaco/${idReserva}/checklist`)
+}
+
+export function registrarRetiradaEspaco(
+  idReserva: number,
+  condicaoRetirada: string,
+): Promise<{ mensagem: string; id_checklist: number }> {
+  return apiFetch(`/api/reservas-espaco/${idReserva}/retirada`, {
+    method: 'POST',
+    body: JSON.stringify({ condicao_retirada: condicaoRetirada }),
+  })
+}
+
+export function registrarDevolucaoEspaco(
+  idReserva: number,
+  dados: {
+    condicao_devolucao: string
+    houve_avaria: boolean
+    descricao_avaria?: string
+  },
+): Promise<{ mensagem: string; houve_avaria: boolean }> {
+  return apiFetch(`/api/reservas-espaco/${idReserva}/devolucao`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}

@@ -237,6 +237,17 @@ def seed_catalogos():
             ("CRAS", "CRAS"), ("ESCOLA", "Escola"), ("POSTO_DE_SAUDE", "Posto de Saúde"),
             ("CONSELHO_TUTELAR", "Conselho Tutelar"), ("OUTRO", "Outro"),
         ]),
+        # v4.3 - reserva de espaço.
+        "tipo_espaco": ("Tipo de espaço", True, "projetos", [
+            ("QUADRA", "Quadra"), ("SALAO", "Salão"), ("CAMPO", "Campo"), ("SALA", "Sala"),
+        ]),
+        "motivo_bloqueio_espaco": ("Motivo de bloqueio de espaço", True, "projetos", [
+            ("MANUTENCAO", "Manutenção"), ("FERIADO", "Feriado"), ("USO_INSTITUCIONAL", "Uso institucional"), ("OUTRO", "Outro"),
+        ]),
+        "status_reserva": ("Status da reserva", True, "projetos", [
+            ("SOLICITADA", "Solicitada"), ("CONFIRMADA", "Confirmada"), ("RECUSADA", "Recusada"),
+            ("CANCELADA", "Cancelada"), ("CONCLUIDA", "Concluída"), ("NAO_COMPARECEU", "Não compareceu"),
+        ]),
         "tipo_evento": ("Tipo de evento", True, "projetos", [
             ("ASSEMBLEIA", "Assembleia"), ("REUNIAO_DE_DIRETORIA", "Reunião de Diretoria"), ("CULTO", "Culto"),
             ("CONFRATERNIZACAO", "Confraternização"), ("ACAO_SOCIAL", "Ação Social"), ("PALESTRA", "Palestra"),

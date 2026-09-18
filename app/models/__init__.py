@@ -58,6 +58,12 @@ from app.models.beneficiarios import (
     RegistroAtendimento,
     EncaminhamentoRedeExterna,
 )
+from app.models.espacos import (
+    Espaco,
+    BloqueioEspaco,
+    Reserva,
+    ChecklistDevolucaoEspaco,
+)
 from app.models.linha_do_tempo import EventoLinhaDoTempo
 from app.models.estatuto import DocumentoEstatuto, RegraEstatutaria
 from app.models.mandatos import DeclaracaoConflitoInteresse, Mandato
@@ -148,6 +154,10 @@ __all__ = [
     "BeneficiarioProjeto",
     "RegistroAtendimento",
     "EncaminhamentoRedeExterna",
+    "Espaco",
+    "BloqueioEspaco",
+    "Reserva",
+    "ChecklistDevolucaoEspaco",
     "EventoLinhaDoTempo",
     "DocumentoEstatuto",
     "RegraEstatutaria",

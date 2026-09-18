@@ -858,3 +858,57 @@ export const encaminhamentoCriarSchema = z.object({
   tipo_rede: z.string().min(1, 'Selecione o tipo de rede.'),
   descricao: z.string().min(5, 'Descreva o encaminhamento.'),
 })
+
+// v4.3 - reserva de espaço.
+export const espacoCriarSchema = z.object({
+  nome: z.string().min(2, 'Informe o nome do espaço.'),
+  tipo: z.string().min(1, 'Selecione o tipo de espaço.'),
+  capacidade: z.coerce.number().optional(),
+  recursos_disponiveis: z.string().optional(),
+  regras_uso: z.string().optional(),
+  exige_aprovacao: z.boolean(),
+  valor_reserva: z.coerce.number().optional(),
+  isento_para_associado_adimplente: z.boolean(),
+  id_conta_contabil_receita: z.coerce.number().optional(),
+  prazo_cancelamento_horas: z.coerce.number().int().min(0),
+  taxa_cancelamento_tardio: z.coerce.number().optional(),
+  limite_no_show_bloqueio: z.coerce.number().int().optional(),
+})
+
+export const bloqueioEspacoCriarSchema = z.object({
+  data_hora_inicio: z.string().min(1, 'Informe o início do bloqueio.'),
+  data_hora_fim: z.string().min(1, 'Informe o fim do bloqueio.'),
+  motivo: z.string().min(1, 'Selecione o motivo.'),
+  descricao: z.string().optional(),
+})
+
+export const reservaEspacoCriarSchema = z.object({
+  id_associado_solicitante: z.coerce
+    .number()
+    .int({ message: 'Selecione o solicitante.' })
+    .positive({ message: 'Selecione o solicitante.' }),
+  data_hora_inicio: z.string().min(1, 'Informe o início.'),
+  data_hora_fim: z.string().min(1, 'Informe o fim.'),
+  finalidade: z.string().min(3, 'Descreva a finalidade.'),
+})
+
+export const reservaRecorrenteCriarSchema = reservaEspacoCriarSchema.extend({
+  quantidade_semanas: z.coerce
+    .number()
+    .int()
+    .min(2, 'Informe pelo menos 2 semanas.'),
+})
+
+export const motivoRecusaOuCancelamentoSchema = z.object({
+  motivo: z.string().min(3, 'Informe o motivo.'),
+})
+
+export const retiradaEspacoSchema = z.object({
+  condicao_retirada: z.string().min(3, 'Descreva a condição na retirada.'),
+})
+
+export const devolucaoEspacoSchema = z.object({
+  condicao_devolucao: z.string().min(3, 'Descreva a condição na devolução.'),
+  houve_avaria: z.boolean(),
+  descricao_avaria: z.string().optional(),
+})
