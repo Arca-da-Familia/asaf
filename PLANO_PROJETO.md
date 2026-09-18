@@ -4914,7 +4914,33 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > **Commit desta revisão** (achados 1 e 2 corrigidos): `app/routers/eventos.py` (auditoria nos
 > cinco caminhos de inscrição), `tests/test_eventos.py`/`test_eventos_inscricao_publica.py`
 > (regressão de auditoria), `tests/test_eventos_vagas.py`/`test_eventos_inscricao_publica.py`
-> (IP de teste com hex inteiro) — a caminho do deploy, confirmação em produção viria a seguir.
+> (IP de teste com hex inteiro) — commit `df4683a`.
+> **Achado real nº 3, o mais sério, achado pelo próprio `Deploy API` do commit `df4683a` (a
+> confirmação em produção deste ponto de revisão, não um teste manual à parte) — corrigido na
+> hora**: o CI falhou em "Rodar testes automatizados" com `KeyError: 'id_associado'` em
+> `tests/test_compras.py::test_reembolso_despesa_segregacao_e_gera_titulo`, um teste que **nunca
+> falhou localmente nesta revisão** (rodado 3 vezes seguidas antes do push, sempre 349/349).
+> Investigado até a causa raiz, não silenciado com retry: `_criar_usuario_com_mandato`
+> (`tests/test_compras.py`, reaproveitado por `test_antifraude.py`) gerava o nome com só 4 dígitos
+> de sufixo do CPF (`cpf[-4:]`) **e indexava `.json()["id_associado"]` sem checar o status code**
+> — quando `detectar_cadastro_duplicado` (v1.8) recusava por colisão de nome+telefone (o telefone
+> de `_PAYLOAD_BASE` é uma constante fixa, `"11900000000"`, compartilhada por toda chamada), a
+> resposta virava `{"detail": "..."}` e o `["id_associado"]` quebrava com `KeyError` em vez de um
+> assert legível — exatamente a mesma categoria de paradoxo do aniversário já corrigida na v4.3
+> pra `_criar_associado`, só que num helper diferente que aquele fix nunca tocou. **Auditoria
+> preventiva no resto da suíte encontrou o mesmo padrão vulnerável (sufixo de 4 dígitos + mesmo
+> telefone fixo `"11900000000"`) em mais 7 arquivos** (`test_associado_detalhe.py`,
+> `test_conceder_acesso.py`, `test_dependentes.py`, `test_doacoes.py`, `test_ficha_360.py`,
+> `test_filiacao.py`, `test_qualidade_cadastro.py`, `test_v1_1.py`) — nenhum tinha falhado ainda
+> só por sorte, não por estarem protegidos. Todos os 8 arquivos + `test_compras.py` corrigidos
+> juntos (sufixo de 8 dígitos, mesmo padrão já usado em `test_situacao.py`/`test_eventos.py`/
+> `test_eventos_vagas.py`/`test_voluntariado_escala.py` desde a v4.3/v4.4), mais o `assert
+> status_code == 200` que faltava em `_criar_usuario_com_mandato` pra qualquer falha futura
+> aparecer legível em vez de `KeyError` genérico. Suíte completa rodada mais duas vezes depois
+> deste fix (349/349, 349/349) — commit `9e04729`, `Deploy API` verde de primeira desta vez,
+> `Deploy Painel` não disparou (nenhum arquivo do painel mudou, esperado).
+> **Verificado em produção outra vez, pós-fix**: `Deploy API` verde no commit `9e04729`
+> (confirmado via `gh run view`, nenhuma falha de teste desta vez).
 > Isto fecha o Ponto de Revisão FASE 4 (2/3) — segue para v4.8.
 
 #### v4.8 — Check-in, crachá e certificado

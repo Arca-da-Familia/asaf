@@ -128,7 +128,7 @@ def test_destinacao_especifica_bloqueia_gasto_em_outra_finalidade(client, auth_h
 
     cpf = _cpf_unico()
     payload = {
-        "nome_completo": f"Presidente Teste {cpf[-4:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com",
+        "nome_completo": f"Presidente Teste {cpf[-8:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com",
         "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
         "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
         "cidade": "Sao Paulo", "estado": "SP",

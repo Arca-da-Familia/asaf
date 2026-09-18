@@ -12,7 +12,7 @@ def _criar_associado(client, **overrides):
     payload = {
         # v1.8 - nome/e-mail únicos por padrão (o bloqueio de cadastro duplicado trataria duas
         # chamadas com nome+telefone iguais como a mesma pessoa, de propósito).
-        "nome_completo": f"Pessoa Ficha 360 {cpf[-4:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com",
+        "nome_completo": f"Pessoa Ficha 360 {cpf[-8:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com",
         "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
         "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
         "cidade": "Sao Paulo", "estado": "SP",

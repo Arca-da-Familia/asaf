@@ -9,7 +9,7 @@ def _propor(client, cpf=None, **overrides):
     # v1.8 - nome/e-mail únicos por padrão (o bloqueio de cadastro duplicado na aprovação
     # trataria duas propostas com nome+telefone iguais como a mesma pessoa, de propósito).
     payload = {
-        "nome_completo": f"Candidato Filiação {cpf[-4:]}", "cpf": cpf,
+        "nome_completo": f"Candidato Filiação {cpf[-8:]}", "cpf": cpf,
         "email_contato": f"{cpf}@x.com", "telefone_whatsapp": "11900000000",
         **overrides,
     }

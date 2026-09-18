@@ -17,7 +17,7 @@ def _criar_associado(client, **overrides):
     cpf = _cpf_unico()
     # v1.8 - nome único por padrão (o bloqueio de cadastro duplicado trataria duas chamadas com
     # nome+telefone iguais como a mesma pessoa, de propósito).
-    payload = {**_PAYLOAD_BASE, "nome_completo": f"Pessoa Teste v1.1 {cpf[-4:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com", **overrides}
+    payload = {**_PAYLOAD_BASE, "nome_completo": f"Pessoa Teste v1.1 {cpf[-8:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com", **overrides}
     return client.post("/associados-master/", json=payload)
 
 

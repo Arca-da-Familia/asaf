@@ -19,8 +19,14 @@ def _criar_usuario_com_mandato(client, auth_headers, cargo_codigo, orgao_codigo=
     já vincula essa permissão ao cargo (TESOUREIRO/VICE_TESOUREIRO/PRESIDENTE, ver seed_catalogos).
     Retorna (id_associado, headers_de_autenticacao_proprios)."""
     cpf = _cpf_unico()
-    payload = {**_PAYLOAD_BASE, "nome_completo": f"Pessoa Compras {cpf[-4:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com"}
-    id_associado = client.post("/associados-master/", json=payload).json()["id_associado"]
+    # Achado real em produção de CI (Ponto de Revisão FASE 4 2/3): nome com só 4 dígitos de
+    # sufixo + telefone hardcoded compartilhado por toda chamada deste helper colidia com
+    # `detectar_cadastro_duplicado` (v1.8) sob paradoxo do aniversário - mesma categoria de bug já
+    # corrigida em `_criar_associado` (v4.3). Aumentado pro CPF inteiro, colisão praticamente nula.
+    payload = {**_PAYLOAD_BASE, "nome_completo": f"Pessoa Compras {cpf}", "cpf": cpf, "email_contato": f"{cpf}@x.com"}
+    r = client.post("/associados-master/", json=payload)
+    assert r.status_code == 200, r.text
+    id_associado = r.json()["id_associado"]
 
     senha = "SenhaForteTeste1"
     r = client.post(f"/api/associados/{id_associado}/conceder-acesso", json={"email": f"{cpf}@acesso.example.com", "senha_provisoria": senha}, headers=auth_headers)

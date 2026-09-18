@@ -14,7 +14,7 @@ _PAYLOAD_BASE = {
 
 def _criar_ficha(client, **overrides):
     cpf = _cpf_unico()
-    payload = {**_PAYLOAD_BASE, "nome_completo": f"Pessoa Teste Detalhe {cpf[-4:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com", **overrides}
+    payload = {**_PAYLOAD_BASE, "nome_completo": f"Pessoa Teste Detalhe {cpf[-8:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com", **overrides}
     resposta = client.post("/associados-master/", json=payload)
     assert resposta.status_code == 200, resposta.text
     return resposta.json()["id_associado"]
