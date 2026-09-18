@@ -4009,6 +4009,62 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - Fechamento mensal (v3.7) bloqueia de fato quando há divergência entre saldo do sistema e extrato bancário — testar tentativa de fechar com divergência aberta.
 - Nenhum usuário, em nenhum nível (inclusive Presidente), consegue apagar lançamento ou log — confirmar isso como restrição de banco, não só de aplicação.
 
+> **Revisado em 2026-09-17.** Checklist padrão (seção 4.1, 12 itens) + os dois itens específicos
+> acima, todos aplicados com evidência concreta (arquivo:linha/execução real), não por inspeção
+> superficial. Diferente das duas revisões anteriores desta fase, **nenhum bug novo foi encontrado
+> nesta** — os itens abaixo confirmam o que os blocos de v3.5/v3.6/v3.7 já haviam registrado, sem
+> tomar a palavra escrita como suficiente.
+> - **Item específico 1 (fechamento bloqueia com divergência)**: confirmado por teste HTTP real,
+>   não só na camada de serviço — `tests/test_antifraude.py::test_fechamento_mensal_bloqueia_com_divergencia_e_fecha_sem_divergencia`
+>   tenta fechar com saldo de extrato errado (`499` contra saldo real `500`), recebe 400 com a
+>   divergência explícita na mensagem (`app/services/fechamento.py::fechar_mes`, sem nenhum
+>   caminho de "forçar mesmo assim"), fecha com sucesso ao corrigir o valor, e uma segunda
+>   tentativa na mesma competência recebe 400 por já estar fechada (`UniqueConstraint`).
+> - **Item específico 2 (trava de DELETE no banco, sem exceção de nível)**: confirmado por SQL
+>   direto contra o banco de teste, não por ausência de rota —
+>   `tests/test_antifraude.py::test_banco_recusa_apagar_lancamento_partida_e_log_de_auditoria`
+>   executa `DELETE FROM lancamentos_contabeis`/`partidas_contabeis`/`audit_log` cru e as três
+>   chamadas levantam `DBAPIError` (trigger `BEFORE DELETE`,
+>   `app/database.py::criar_trava_delete_imutavel`, espelhada na migração `d7f9b1c3e5a6`). A trava
+>   vive na camada SQL, antes de qualquer checagem de nível/permissão da aplicação — não existe
+>   parâmetro de "Presidente pode", a restrição nem enxerga quem está chamando.
+> - **Itens 1–9 e 12 do checklist padrão**: sem violação. Zero ocorrências de `float` perto de
+>   dinheiro em `app/{models,services}/{orcamento,relatorios,fechamento,antifraude}.py` (tudo
+>   `Numeric`/`Decimal`); todo POST novo do intervalo (`orcamentos`, `reservas-contingencia`,
+>   `prestacoes-de-contas`, `fechamentos-mensais`) grava `registrar_auditoria` de verdade
+>   (conferido linha a linha nos três routers, não só contado por `grep` cru); toda rota nova usa
+>   `Depends(exigir_permissao("financeiro"))`; `DECISOES_CONGELADAS.md` sem violação (nenhuma
+>   troca de banco/framework, permissão sempre dinâmica); scan de segredo limpo no intervalo
+>   (`git log -p 9a3e53c^..ea3fe52`, único achado foi senha de fixture de teste
+>   `SenhaForte123456`, mesmo padrão já usado em toda a suíte); nada fora de escopo sem registro —
+>   os itens 3/4 da v3.6 (transparência pública, exportação formal pro contador) seguem
+>   deliberadamente adiados pra FASE 5/17, exatamente como o próprio bloco da v3.6 já registrava;
+>   suíte completa **282/282 passando** (backend, rodada de verdade nesta revisão) e **22/22
+>   passando** (painel), `npm run typecheck`/`npm run lint` limpos (só os 3 warnings
+>   pré-existentes de `react-refresh/only-export-components`, nada novo do intervalo).
+> - **Item 10 (tela real no painel)**: confirmado que as três versões têm tela própria —
+>   "Orçamento e Fluxo de Caixa" (`Orcamento.tsx`, rota `/financeiro/orcamento`), "Relatórios"
+>   (`Relatorios.tsx`, 6 seções + "Padrões suspeitos" acrescentada pela v3.7) e "Fechamento
+>   mensal" (seção nova dentro de `Conciliacao.tsx`) — todas registradas em `App.tsx` e no menu
+>   (`modulos.ts`). A trava de DELETE (v3.7, item 3) não tem UI porque é garantia de
+>   infraestrutura, não uma ação que um usuário realiza — corretamente sem tela, não uma omissão.
+> - **Item 11 (link/arquivo abre de verdade)**: não se aplica a este intervalo — nenhuma tela nova
+>   de v3.5–v3.7 introduz upload/link de arquivo. O único "parecer anexado" citado no bloco da
+>   v3.6 (`ParecerPrestacaoContas`) é texto (`Column(Text)`,
+>   `app/models/conselho_fiscal.py:26`), nunca um arquivo — não há link pra verificar. Item já
+>   fechado corretamente na revisão FASE 3 (2/3) para o achado real que existia (comprovante do
+>   Reembolso de Despesa).
+> - **Item 12 (produção)**: `git log origin/main..HEAD` vazio; `Deploy API` e `Deploy Painel`
+>   verdes para `bbc1caf` (commit de código da v3.7, e todos os commits do intervalo antes dele,
+>   conferido via `gh run list`) — o commit seguinte (`ea3fe52`) é só documentação
+>   (`PLANO_PROJETO.md`, `git show --stat` confirma nenhum arquivo de código tocado), então
+>   corretamente não dispara novo deploy. `painel.asaf.org.br/version.json?cachebust=ea3fe52`
+>   reconfirmado **ao vivo** nesta revisão batendo `bbc1caf` no momento da checagem.
+> **Isto fecha a FASE 3 inteira (v3.0–v3.7).** Checkboxes de v3.5–v3.7 continuam sem `[x]` pela
+> mesma pendência acumulada em toda a fase: confirmação visual em produção por um usuário/sessão
+> com ferramenta de navegador interativo — nenhuma tela nova, achado ou correção pendente além
+> disso.
+
 ### FASE 4 — Projetos, Reserva de Espaço e Eventos (módulo de integração site ↔ sistema)
 
 Esta é a fase que resolve, de propósito, o problema identificado nas referências de pesquisa:
