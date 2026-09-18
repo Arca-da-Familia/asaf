@@ -4233,6 +4233,9 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
 >   `<EmConstrucao>` que estava lá desde sempre.
 > **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
 > lacuna de ferramenta de navegador já registrada nos pontos de revisão anteriores).
+> **Verificado em produção (2026-09-18)**: `Deploy API` (migração `f1c3d5e7a9b0` aplicada de
+> verdade contra o Postgres de produção) e `Deploy Painel` verdes de primeira (commit `68a9b13`),
+> `painel.asaf.org.br/version.json` confirmado ao vivo batendo esse commit.
 
 #### v4.2 — Beneficiários e atendimento
 - [ ] `Beneficiario` como papel de `Pessoa` (v1.0), com vínculo N:N a `Projeto` e papel dentro dele
