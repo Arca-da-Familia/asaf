@@ -4110,6 +4110,55 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
 - [ ] **Motor de agenda/conflito**: verificação de sobreposição de horário reutilizada por reserva
       de espaço, aula e evento — regra de conflito escrita uma vez.
 
+> **Implementado em 2026-09-18, backend, todos os itens acima.**
+> - `contexto_tipo`/`id_contexto` (e `recurso_tipo`/`id_recurso` no motor de agenda) são a
+>   **primeira associação polimórfica deste projeto** — decisão deliberada e documentada em
+>   `app/models/motores.py`: até aqui todo relacionamento era FK explícita por tipo (ex.:
+>   `CentroDeCusto.id_projeto`), mas estes motores existem justamente pra servir consumidores que
+>   ainda não existem (Projeto nasce na v4.1, Evento na v4.5, Turma só na FASE 14) — uma FK
+>   explícita por consumidor exigiria alterar o motor a cada fase nova, o oposto do que "motor
+>   compartilhado" quer dizer.
+> - `RegistroPresenca` (`app/services/presenca.py`) — entrada/saída, meio de registro, operador.
+>   **Não substitui** `Credenciamento` (assembleia, v2.5.3) — investigado antes de codar: aquele
+>   já tem entrada+saída com FK explícita e está carregando o cálculo de quórum, migrá-lo seria
+>   risco desnecessário numa peça já travada da governança. Serve só consumidores novos.
+> - `Inscricao` (`app/services/inscricao.py`) — máquina de estados explícita (Pré-inscrito →
+>   Confirmado/Lista de Espera/Cancelado → Presente/Ausente; Cancelado → Pré-inscrito de novo,
+>   pra reinscrever sem duplicar linha), nunca pula etapa. `respostas_formulario` é JSON em texto
+>   (formulário dinâmico por contexto, sem tabela de resposta própria). O motor não decide o que
+>   é "vaga cheia" — isso é do consumidor (v4.7).
+> - `TemplateDocumento`/`DocumentoEmitido` (`app/services/documentos.py`) — template com
+>   `{{variavel}}` vira PDF de verdade (biblioteca nova, `reportlab` — pura Python, sem
+>   dependência de sistema operacional, escolhida por isso, dado que o Container App não tem
+>   Cairo/Pango do WeasyPrint), numerado sequencialmente, nunca reaproveitado, com
+>   `variaveis_usadas` preservando o valor exato de cada emissão mesmo que o template mude depois.
+>   Certificado de voluntariado, de participação em evento e de conclusão de curso (FASE 14) são
+>   o MESMO motor com template diferente. Modelo de "numerado + quem emitiu + quando" copiado de
+>   `CertidaoDeliberacao` (v2.5), já existente e testado.
+> - `Indicador`/`MedicaoIndicador` (`app/services/indicadores.py`) — `unidade` e `periodicidade`
+>   validados contra catálogo (`unidade_medida_indicador` já estava seedado desde antes, sem
+>   consumidor — sinal de que esta versão já era esperada; `periodicidade_indicador` novo nesta
+>   versão), nunca texto livre. Uma medição por período por indicador, nunca duplicada
+>   silenciosamente (`UniqueConstraint`).
+> - `CompromissoAgenda` (`app/services/agenda.py::verificar_conflito`/`criar_compromisso`) —
+>   sobreposição real (`inicio_a < fim_b AND fim_a > inicio_b`), não só "mesmo horário exato".
+>   Endpoint de verificação (`POST /api/agenda/verificar-conflito`) é só leitura, pra um
+>   consumidor futuro (v4.3, reserva de espaço) poder avisar o usuário ANTES de tentar submeter.
+> - Todas as rotas novas (`app/routers/motores.py`) atrás de `exigir_permissao("projetos")` —
+>   nível de proteção que o restante de `app/routers/projetos.py` **ainda não tem** (pendência já
+>   registrada pela v2.9, não resolvida por esta versão, resolvida pela v4.1).
+> - Migração `e9b1c3d5f7a8` (7 tabelas novas) validada upgrade+downgrade+upgrade contra schema
+>   pré-v4.0 simulado. 7 testes novos em `tests/test_motores.py` (presença recusa entrada
+>   duplicada em aberto, inscrição recusa duplicidade e transição inválida mas permite
+>   reinscrever após cancelamento, documento emitido numera sequencial e gera PDF de verdade no
+>   disco - conferido com `os.path.isfile`/`os.path.getsize`, não só "a chamada não caiu" -,
+>   indicador valida catálogo e recusa medição duplicada no período, agenda recusa compromisso
+>   sobreposto e permite horário livre) — 289/289 testes da suíte inteira passando.
+> **Sem tela no painel nesta versão, deliberadamente** — motor compartilhado é infraestrutura
+> consumida por outro serviço (item 10 do checklist da seção 4.1 não se aplica ainda): a tela real
+> chega com o primeiro consumidor de verdade (v4.1, Projeto). Sem checkbox `[x]` por esse motivo,
+> não pela lacuna de ferramenta de navegador já registrada nas fases anteriores.
+
 #### v4.1 — Projeto como entidade única e configurável
 - [ ] `Projeto` (nome, descrição, `tipo_projeto` de catálogo, responsável, público-alvo, período,
       status, centro de custo, visibilidade pública ou interna) — API `/api/projetos`.

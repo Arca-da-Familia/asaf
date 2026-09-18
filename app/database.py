@@ -260,6 +260,11 @@ def seed_catalogos():
             ("UNIDADE", "Unidade"), ("PERCENTUAL", "Percentual"), ("REAL", "Real (R$)"),
             ("QUILOGRAMA", "Quilograma"), ("HORA", "Hora"), ("PESSOA", "Pessoa"),
         ]),
+        # v4.0 - periodicidade de medição de um Indicador (motor compartilhado) - catálogo
+        # editável, mesmo raciocínio de `periodicidade_contribuicao` (v3.2).
+        "periodicidade_indicador": ("Periodicidade de indicador", True, "projetos", [
+            ("MENSAL", "Mensal"), ("TRIMESTRAL", "Trimestral"), ("SEMESTRAL", "Semestral"), ("ANUAL", "Anual"),
+        ]),
     }
     db = SessaoLocal()
     try:

@@ -66,6 +66,15 @@ from app.models.doacoes import CampanhaArrecadacao, Doacao, RemanejamentoDestina
 from app.models.orcamento import Orcamento, ReservaContingencia
 from app.models.relatorios import PrestacaoDeContas
 from app.models.fechamento import FechamentoMensal
+from app.models.motores import (
+    RegistroPresenca,
+    Inscricao,
+    TemplateDocumento,
+    DocumentoEmitido,
+    Indicador,
+    MedicaoIndicador,
+    CompromissoAgenda,
+)
 from app.models.sessao_assembleia import Credenciamento, ItemPauta, OcorrenciaSessao
 from app.models.chamada import JustificativaFalta
 from app.models.ata import Ata, CertidaoDeliberacao, Deliberacao
@@ -162,4 +171,11 @@ __all__ = [
     "ReservaContingencia",
     "PrestacaoDeContas",
     "FechamentoMensal",
+    "RegistroPresenca",
+    "Inscricao",
+    "TemplateDocumento",
+    "DocumentoEmitido",
+    "Indicador",
+    "MedicaoIndicador",
+    "CompromissoAgenda",
 ]
