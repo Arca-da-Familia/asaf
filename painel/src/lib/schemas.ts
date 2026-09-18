@@ -930,3 +930,34 @@ export const devolucaoEspacoSchema = z.object({
   houve_avaria: z.boolean(),
   descricao_avaria: z.string().optional(),
 })
+
+// v4.4 - escala de voluntariado vinculada a projeto.
+export const vagaEscalaCriarSchema = z.object({
+  funcao_desempenhada: z.string().min(2, 'Informe a função.'),
+  turno_data_hora_inicio: z
+    .string()
+    .min(1, 'Informe o início do turno.')
+    .transform(paraUtcIso),
+  turno_data_hora_fim: z
+    .string()
+    .min(1, 'Informe o fim do turno.')
+    .transform(paraUtcIso),
+  habilidades_exigidas: z.string().optional(),
+  vagas_disponiveis: z.coerce.number().int().min(1, 'Pelo menos 1 vaga.'),
+  horas_previstas: z.coerce.number().min(0),
+})
+
+export const trocaTurnoCriarSchema = z.object({
+  id_associado_substituto: z.coerce
+    .number()
+    .int({ message: 'Selecione o substituto.' })
+    .positive({ message: 'Selecione o substituto.' }),
+  motivo: z.string().optional(),
+})
+
+export const horasVoluntariadoAutoatendimentoSchema = z.object({
+  data: z.string().min(1, 'Informe a data.'),
+  horas: z.coerce.number().positive('Horas precisam ser maiores que zero.'),
+  descricao_atividade: z.string().optional(),
+  id_alocacao: z.coerce.number().optional(),
+})

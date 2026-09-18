@@ -45,8 +45,15 @@ class TermoAdesaoVoluntario(Base):
 
 class RegistroHorasVoluntariado(Base):
     """Lastro para o certificado de voluntariado (motor único da v4.8, quando existir - por ora
-    só o registro em si, real e consultável). Sempre amarrado a um termo (nunca a uma pessoa
-    solta) - não existe registro de hora sem termo de adesão por trás."""
+    só o registro em si, real e consultável) e para o score de engajamento (v11.1, quando
+    existir). Sempre amarrado a um termo (nunca a uma pessoa solta) - não existe registro de
+    hora sem termo de adesão por trás.
+
+    v4.4 - registro tem que ser APROVADO pelo coordenador do projeto (`app/services/
+    projetos.py::exigir_coordenador_do_projeto`) antes de contar pra qualquer coisa (soma de
+    horas realizadas da alocação, futuro certificado/score) - nasce `PENDENTE` quando amarrado a
+    um projeto (`id_alocacao` presente); nasce `APROVADO` direto quando é registro de voluntariado
+    fora de projeto (`id_alocacao` nulo, fluxo antigo da v1.6 sem coordenador nenhum pra aprovar)."""
     __tablename__ = "registros_horas_voluntariado"
     id_registro = Column(Integer, primary_key=True, index=True)
     id_termo = Column(Integer, ForeignKey("termos_adesao_voluntario.id_termo"), nullable=False, index=True)
@@ -54,6 +61,10 @@ class RegistroHorasVoluntariado(Base):
     horas = Column(Float, nullable=False)
     descricao_atividade = Column(String, nullable=True)
     id_projeto = Column(Integer, ForeignKey("projetos_eventos.id_projeto"), nullable=True)
+    id_alocacao = Column(Integer, ForeignKey("alocacoes_voluntarios.id_alocacao"), nullable=True)
+    status = Column(String, nullable=False, default="APROVADO")  # catálogo `status_registro_horas_voluntariado`
+    id_usuario_aprovacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+    aprovado_em = Column(DateTime, nullable=True)
     id_usuario_registrou = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
 

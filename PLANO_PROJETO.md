@@ -4529,6 +4529,67 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       histórico, nunca dado de outro voluntário/associado nem dado financeiro (garantido por RLS na
       v15.4).
 
+> **Implementado em 2026-09-18, backend + painel, todos os itens acima.**
+> - `AlocacaoVoluntario` (`app/models/projetos.py`) ganhou `turno_data_hora_inicio`/`_fim`,
+>   `habilidades_exigidas` (CSV do catálogo `habilidade_voluntario`, mesmo padrão de
+>   `Votacao.opcoes_validas`), `horas_previstas`/`horas_realizadas` e `status`
+>   (`PENDENTE`/`CONFIRMADA`/`RECUSADA`/`CANCELADA`) — a trava real de termo de adesão vigente
+>   (v1.6) **já existia** desde a v2.9/v4.1 em `app/services/projetos.py::alocar_voluntario`
+>   (`_exigir_termo_vigente_ou_403`), reaproveitada tal e qual pela candidatura autoatendida.
+>   `Pessoa.habilidades` (CSV) comparado com a habilidade exigida via
+>   `app/services/voluntariado.py::comparar_habilidades` — **só informativo, nunca bloqueia** (o
+>   único bloqueio real é o termo de adesão, conforme o item do plano especifica).
+> - Escala com autoatendimento de verdade: `VagaEscalaVoluntario` é a vaga publicada pelo
+>   coordenador (`POST /api/projetos/{id}/vagas-escala`); o voluntário se candidata pelo painel
+>   (`POST /api/voluntariado/vagas/{id_vaga}/candidatar`, resolve o `Associado` do próprio usuário
+>   logado — nunca aceita `id_associado` do cliente) e nasce `PENDENTE`; o coordenador do projeto
+>   específico confirma ou recusa (`exigir_coordenador_do_projeto`, mesma disciplina de
+>   `beneficiarios.py::exigir_membro_da_equipe_do_vinculo` — nem permissão geral de "projetos" nem
+>   ser Presidente dá esse poder por padrão, só estar ATIVO como `EquipeProjeto.papel ==
+>   "COORDENADOR"` **daquele** projeto). `eh_coordenador_do_projeto` já existia desde a v4.1,
+>   pronta e nunca usada até agora.
+> - Troca de turno (`TrocaTurnoVoluntario`) — só quem está alocado pede a troca; o substituto
+>   precisa ter termo de adesão vigente também (testado recusando 403 sem termo); o coordenador
+>   confirma (transferindo a alocação pro substituto) ou recusa — nunca automática, mesmo que os
+>   dois voluntários já tenham combinado entre si.
+> - Registro de horas (`RegistroHorasVoluntariado`, já existia desde a v1.6) ganhou `id_alocacao` +
+>   `status` — horas amarradas a uma alocação de projeto nascem `PENDENTE` e só somam ao
+>   `horas_realizadas` da alocação **depois** que o coordenador aprova
+>   (`app/services/projetos.py::aprovar_horas_voluntariado`); horas soltas (fluxo antigo, sem
+>   projeto) continuam nascendo `APROVADO` direto, porque não existe coordenador nenhum daquele
+>   contexto pra aprovar. **Pendência registrada, não fingida**: o certificado em si (v4.8) e o
+>   score de engajamento (v11.1) ainda não existem — esta versão entrega só o lastro real e
+>   consultável que eles vão consumir quando chegarem, exatamente como a v1.6 já tinha deixado
+>   documentado.
+> - Visibilidade contida na aplicação (RLS de banco é v15.4, ainda não existe):
+>   `/api/voluntariado/minha-escala` e `/api/voluntariado/meu-historico-horas` resolvem o
+>   `Associado` a partir do usuário logado (`Depends(get_current_user)`, nunca `id_associado` do
+>   cliente) — testado criando dois voluntários e confirmando que a escala de um nunca aparece pro
+>   outro. O nível "Voluntário Externo" (já seedado desde a v0.1.5, nunca usado até agora) não
+>   recebe **nenhuma** permissão de módulo, então todo o autoatendimento usa só
+>   `Depends(get_current_user)`, igual ao padrão já estabelecido em "Minhas assembleias" (v2.5.3b).
+> - Painel: nova seção "Voluntariado" dentro do detalhe do Projeto (`Projetos.tsx`) — publicar
+>   vaga, confirmar/recusar candidatura, confirmar/recusar troca, aprovar/recusar horas; e nova
+>   tela de autoatendimento "Meu voluntariado" (`MeuVoluntariado.tsx`, rota `/meu-voluntariado`,
+>   item global fora de qualquer módulo — mesmo padrão de "Minhas assembleias"/"Meus processos
+>   disciplinares") — vagas abertas com candidatura, minha escala com cancelamento/troca, meu
+>   histórico de horas com registro.
+> - Migração `c5e7f9b1d3a4` (`pessoas.habilidades`, tabela nova `vagas_escala_voluntario`, novas
+>   colunas em `alocacoes_voluntarios` — inclui remover `horas_dedicadas`, nunca usada em nenhum
+>   call site desde que foi criada na v2.9, substituída por `horas_previstas`/`horas_realizadas` —
+>   tabela nova `trocas_turno_voluntario`, novas colunas em `registros_horas_voluntariado`)
+>   validada upgrade+downgrade+upgrade contra schema pré-v4.4 simulado em SQLite (`git worktree`
+>   no commit anterior + import de `app.main` pra registrar todos os models + `alembic stamp
+>   head`).
+> - 5 testes novos em `tests/test_voluntariado_escala.py` (candidatura sem termo vigente recusada
+>   com 403, fluxo completo candidatura→confirmação→registro de horas→aprovação com verificação de
+>   que horas pendentes não somam e horas aprovadas somam, troca de turno recusando substituto sem
+>   termo e recusando confirmação por não-coordenador, "minha escala" restrita ao próprio
+>   voluntário, vaga esgotada recusa nova candidatura) — 326/326 testes da suíte inteira passando.
+>   27/27 testes do painel, `typecheck`/`lint`/`build` limpos em ambos.
+> **Checkboxes não marcados `[x]`** — confirmação visual das telas novas ainda pendente (mesma
+> lacuna de ferramenta de navegador já registrada nos pontos de revisão anteriores).
+
 #### v4.5 — Evento como entidade única (pontual, com inscrição)
 - [ ] `Evento` (título, descrição, data/hora, local — `Espaco` da v4.3 ou endereço avulso —,
       responsável, categoria, vagas, gratuito ou pago, público ou interno) — API `/api/eventos`,

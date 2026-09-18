@@ -4043,3 +4043,192 @@ export function registrarDevolucaoEspaco(
     body: JSON.stringify(dados),
   })
 }
+
+// ---------------------------------------------------------------------------
+// v4.4 (FASE 4) - Voluntariado vinculado a projeto: escala com turno/habilidades exigindo termo
+// de adesão vigente (v1.6) como trava real, autocandidatura + confirmação do coordenador, troca
+// de turno entre voluntários e aprovação de horas pelo coordenador (lastro pro certificado v4.8
+// e score de engajamento v11.1, quando existirem).
+// ---------------------------------------------------------------------------
+export type AlocacaoVoluntario = {
+  id_alocacao: number
+  id_projeto: number
+  id_associado: number
+  funcao_desempenhada: string
+  id_vaga: number | null
+  turno_data_hora_inicio: string | null
+  turno_data_hora_fim: string | null
+  habilidades_exigidas: string | null
+  horas_previstas: number
+  horas_realizadas: number
+  status: string
+}
+
+export type VagaEscalaVoluntario = {
+  id_vaga: number
+  id_projeto: number
+  funcao_desempenhada: string
+  habilidades_exigidas: string | null
+  turno_data_hora_inicio: string
+  turno_data_hora_fim: string
+  vagas_disponiveis: number
+  horas_previstas: number
+}
+
+export type VagaEscalaAberta = VagaEscalaVoluntario & { vagas_livres: number }
+
+export type TrocaTurnoVoluntario = {
+  id_troca: number
+  id_alocacao: number
+  id_associado_substituto: number
+  status: string
+  motivo: string | null
+  criado_em: string | null
+  resolvido_em: string | null
+}
+
+export type RegistroHorasVoluntariado = {
+  id_registro: number
+  id_termo: number
+  data: string
+  horas: number
+  descricao_atividade: string | null
+  id_projeto: number | null
+  id_alocacao: number | null
+  status: string
+}
+
+export function criarVagaEscala(
+  idProjeto: number,
+  dados: {
+    funcao_desempenhada: string
+    turno_data_hora_inicio: string
+    turno_data_hora_fim: string
+    habilidades_exigidas?: string
+    vagas_disponiveis: number
+    horas_previstas: number
+  },
+): Promise<{ mensagem: string; id_vaga: number }> {
+  return apiFetch(`/api/projetos/${idProjeto}/vagas-escala`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarVagasEscala(
+  idProjeto: number,
+): Promise<VagaEscalaVoluntario[]> {
+  return apiFetch(`/api/projetos/${idProjeto}/vagas-escala`)
+}
+
+export function listarCandidaturasPendentes(
+  idProjeto: number,
+): Promise<AlocacaoVoluntario[]> {
+  return apiFetch(`/api/projetos/${idProjeto}/candidaturas-pendentes`)
+}
+
+export function confirmarAlocacao(
+  idAlocacao: number,
+): Promise<{ mensagem: string; status: string }> {
+  return apiFetch(`/api/alocacoes/${idAlocacao}/confirmar`, { method: 'POST' })
+}
+
+export function recusarAlocacao(
+  idAlocacao: number,
+): Promise<{ mensagem: string; status: string }> {
+  return apiFetch(`/api/alocacoes/${idAlocacao}/recusar`, { method: 'POST' })
+}
+
+export function cancelarAlocacao(
+  idAlocacao: number,
+): Promise<{ mensagem: string; status: string }> {
+  return apiFetch(`/api/alocacoes/${idAlocacao}/cancelar`, { method: 'POST' })
+}
+
+export function solicitarTrocaTurno(
+  idAlocacao: number,
+  dados: { id_associado_substituto: number; motivo?: string },
+): Promise<{ mensagem: string; id_troca: number }> {
+  return apiFetch(`/api/alocacoes/${idAlocacao}/trocas`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarTrocasTurno(
+  idProjeto: number,
+): Promise<TrocaTurnoVoluntario[]> {
+  return apiFetch(`/api/projetos/${idProjeto}/trocas-turno`)
+}
+
+export function confirmarTrocaTurno(
+  idTroca: number,
+): Promise<{ mensagem: string; status: string }> {
+  return apiFetch(`/api/trocas-turno/${idTroca}/confirmar`, { method: 'POST' })
+}
+
+export function recusarTrocaTurno(
+  idTroca: number,
+): Promise<{ mensagem: string; status: string }> {
+  return apiFetch(`/api/trocas-turno/${idTroca}/recusar`, { method: 'POST' })
+}
+
+export function listarHorasPendentesDoProjeto(
+  idProjeto: number,
+): Promise<RegistroHorasVoluntariado[]> {
+  return apiFetch(`/api/projetos/${idProjeto}/horas-pendentes`)
+}
+
+export function aprovarHorasVoluntariado(
+  idRegistro: number,
+): Promise<{ mensagem: string; status: string }> {
+  return apiFetch(`/api/horas-voluntariado/${idRegistro}/aprovar`, {
+    method: 'POST',
+  })
+}
+
+export function recusarHorasVoluntariado(
+  idRegistro: number,
+): Promise<{ mensagem: string; status: string }> {
+  return apiFetch(`/api/horas-voluntariado/${idRegistro}/recusar`, {
+    method: 'POST',
+  })
+}
+
+// -- Autoatendimento do voluntário (nível "Voluntário Externo" não tem permissão "projetos"/
+// "associados" nenhuma - estes endpoints exigem só estar autenticado, ver app/routers/
+// projetos.py) --
+export function listarVagasAbertas(): Promise<VagaEscalaAberta[]> {
+  return apiFetch('/api/voluntariado/vagas-abertas')
+}
+
+export function candidatarSeAVaga(
+  idVaga: number,
+): Promise<{ mensagem: string; id_alocacao: number }> {
+  return apiFetch(`/api/voluntariado/vagas/${idVaga}/candidatar`, {
+    method: 'POST',
+  })
+}
+
+export function listarMinhaEscala(): Promise<AlocacaoVoluntario[]> {
+  return apiFetch('/api/voluntariado/minha-escala')
+}
+
+export function listarMeuHistoricoHoras(): Promise<
+  RegistroHorasVoluntariado[]
+> {
+  return apiFetch('/api/voluntariado/meu-historico-horas')
+}
+
+export function registrarMinhasHoras(dados: {
+  data: string
+  horas: number
+  descricao_atividade?: string
+  id_projeto?: number
+  id_alocacao?: number
+}): Promise<{ mensagem: string; id_registro: number; status: string }> {
+  return apiFetch('/api/voluntariado/horas', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}

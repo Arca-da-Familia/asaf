@@ -53,6 +53,7 @@ import { Home } from '@/pages/Home'
 import { ImportarAssociadosPage } from '@/pages/ImportarAssociados'
 import { Login } from '@/pages/Login'
 import { MandatosPage } from '@/pages/Mandatos'
+import { MeuVoluntariadoPage } from '@/pages/MeuVoluntariado'
 import { MfaSetup } from '@/pages/MfaSetup'
 import { MinhasAssembleiasPage } from '@/pages/MinhasAssembleias'
 import { PerfilPage } from '@/pages/Perfil'
@@ -150,6 +151,14 @@ function App() {
           element={
             <ErrorBoundary tituloModulo="Calendário institucional">
               <CalendarioPage />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/meu-voluntariado"
+          element={
+            <ErrorBoundary tituloModulo="Meu voluntariado">
+              <MeuVoluntariadoPage />
             </ErrorBoundary>
           }
         />

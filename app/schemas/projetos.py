@@ -33,6 +33,24 @@ class VoluntarioAlocar(BaseModel):
     id_projeto: int
     id_associado: int
     funcao_desempenhada: str
+    turno_data_hora_inicio: Optional[datetime] = None
+    turno_data_hora_fim: Optional[datetime] = None
+    habilidades_exigidas: Optional[str] = None
+    horas_previstas: float = 0.0
+
+
+class VagaEscalaCriar(BaseModel):
+    funcao_desempenhada: str
+    turno_data_hora_inicio: datetime
+    turno_data_hora_fim: datetime
+    habilidades_exigidas: Optional[str] = None
+    vagas_disponiveis: int = 1
+    horas_previstas: float = 0.0
+
+
+class TrocaTurnoCriar(BaseModel):
+    id_associado_substituto: int
+    motivo: Optional[str] = None
 
 
 class ItemCronogramaCriar(BaseModel):

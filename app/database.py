@@ -248,6 +248,25 @@ def seed_catalogos():
             ("SOLICITADA", "Solicitada"), ("CONFIRMADA", "Confirmada"), ("RECUSADA", "Recusada"),
             ("CANCELADA", "Cancelada"), ("CONCLUIDA", "Concluída"), ("NAO_COMPARECEU", "Não compareceu"),
         ]),
+        # v4.4 - escala de voluntariado vinculada a projeto: habilidade cadastrada em `Pessoa` e
+        # comparada (só informativo) com a exigida pela vaga/alocação; status da alocação
+        # (candidatura autoatendida x confirmação do coordenador), da troca de turno entre
+        # voluntários e do registro de horas (aprovação do coordenador antes de contar pra
+        # certificado/score - v4.8/v11.1, quando existirem).
+        "habilidade_voluntario": ("Habilidade de voluntário", True, "projetos", [
+            ("COZINHA", "Cozinha"), ("MOTORISTA", "Motorista/CNH"), ("PRIMEIROS_SOCORROS", "Primeiros socorros"),
+            ("MUSICA", "Música"), ("ENSINO", "Ensino/Educação"), ("INFORMATICA", "Informática"),
+            ("MARCENARIA_OU_REPAROS", "Marcenaria/Reparos"), ("ADMINISTRATIVO", "Administrativo"),
+        ]),
+        "status_alocacao_voluntario": ("Status da alocação de voluntário", True, "projetos", [
+            ("PENDENTE", "Pendente"), ("CONFIRMADA", "Confirmada"), ("RECUSADA", "Recusada"), ("CANCELADA", "Cancelada"),
+        ]),
+        "status_troca_turno": ("Status da troca de turno", True, "projetos", [
+            ("SOLICITADA", "Solicitada"), ("CONFIRMADA", "Confirmada"), ("RECUSADA", "Recusada"),
+        ]),
+        "status_registro_horas_voluntariado": ("Status do registro de horas de voluntariado", True, "projetos", [
+            ("PENDENTE", "Pendente"), ("APROVADO", "Aprovado"), ("RECUSADO", "Recusado"),
+        ]),
         "tipo_evento": ("Tipo de evento", True, "projetos", [
             ("ASSEMBLEIA", "Assembleia"), ("REUNIAO_DE_DIRETORIA", "Reunião de Diretoria"), ("CULTO", "Culto"),
             ("CONFRATERNIZACAO", "Confraternização"), ("ACAO_SOCIAL", "Ação Social"), ("PALESTRA", "Palestra"),

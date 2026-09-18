@@ -8,24 +8,35 @@ import { Button } from '@/components/ui/button'
 import {
   adicionarMembroEquipe,
   alterarStatusProjeto,
+  aprovarHorasVoluntariado,
   concluirItemCronograma,
+  confirmarAlocacao,
+  confirmarTrocaTurno,
   criarBeneficiario,
   criarItemCronograma,
   criarProjeto,
+  criarVagaEscala,
   encerrarParticipacaoEquipe,
   gerarRelatorioFinalProjeto,
   listarAssociados,
   listarAtendimentos,
   listarBeneficiarios,
   listarBeneficiariosDoProjeto,
+  listarCandidaturasPendentes,
   listarCentrosCusto,
   listarCronograma,
   listarEncaminhamentos,
   listarEquipeProjeto,
+  listarHorasPendentesDoProjeto,
   listarOpcoesCatalogo,
   listarProjetos,
   listarRelatoriosFinaisProjeto,
+  listarTrocasTurno,
+  listarVagasEscala,
   obterOrcamentoDoProjeto,
+  recusarAlocacao,
+  recusarHorasVoluntariado,
+  recusarTrocaTurno,
   registrarAtendimento,
   registrarEncaminhamento,
   vincularBeneficiarioAoProjeto,
@@ -39,6 +50,7 @@ import {
   itemCronogramaCriarSchema,
   projetoCriarSchema,
   registroAtendimentoCriarSchema,
+  vagaEscalaCriarSchema,
   vincularBeneficiarioSchema,
 } from '@/lib/schemas'
 
@@ -452,6 +464,287 @@ function SecaoEquipe({ idProjeto }: { idProjeto: number }) {
             Nenhum membro na equipe.
           </p>
         )}
+      </div>
+    </div>
+  )
+}
+
+// v4.4 (FASE 4) - escala de voluntariado vinculada a projeto: vaga de turno publicada pelo
+// coordenador, candidatura autoatendida (tela "Meu Voluntariado", fora deste módulo), confirmação/
+// recusa aqui, troca de turno entre voluntários e aprovação de horas - tudo do lado de quem
+// GERE o projeto (permissão "projetos"); a visão do próprio voluntário é outra tela.
+function SecaoVoluntariado({ idProjeto }: { idProjeto: number }) {
+  const queryClient = useQueryClient()
+  const { data: vagas } = useQuery({
+    queryKey: ['vagas-escala', idProjeto],
+    queryFn: () => listarVagasEscala(idProjeto),
+  })
+  const { data: candidaturas } = useQuery({
+    queryKey: ['candidaturas-pendentes', idProjeto],
+    queryFn: () => listarCandidaturasPendentes(idProjeto),
+  })
+  const { data: trocas } = useQuery({
+    queryKey: ['trocas-turno', idProjeto],
+    queryFn: () => listarTrocasTurno(idProjeto),
+  })
+  const { data: horasPendentes } = useQuery({
+    queryKey: ['horas-pendentes', idProjeto],
+    queryFn: () => listarHorasPendentesDoProjeto(idProjeto),
+  })
+
+  function invalidarTudo() {
+    queryClient.invalidateQueries({ queryKey: ['vagas-escala', idProjeto] })
+    queryClient.invalidateQueries({
+      queryKey: ['candidaturas-pendentes', idProjeto],
+    })
+    queryClient.invalidateQueries({ queryKey: ['trocas-turno', idProjeto] })
+    queryClient.invalidateQueries({ queryKey: ['horas-pendentes', idProjeto] })
+  }
+
+  const criarVaga = useMutation({
+    mutationFn: (v: z.infer<typeof vagaEscalaCriarSchema>) =>
+      criarVagaEscala(idProjeto, v),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['vagas-escala', idProjeto] }),
+  })
+  const confirmar = useMutation({
+    mutationFn: (idAlocacao: number) => confirmarAlocacao(idAlocacao),
+    onSuccess: invalidarTudo,
+  })
+  const recusar = useMutation({
+    mutationFn: (idAlocacao: number) => recusarAlocacao(idAlocacao),
+    onSuccess: invalidarTudo,
+  })
+  const confirmarTroca = useMutation({
+    mutationFn: (idTroca: number) => confirmarTrocaTurno(idTroca),
+    onSuccess: invalidarTudo,
+  })
+  const recusarTroca = useMutation({
+    mutationFn: (idTroca: number) => recusarTrocaTurno(idTroca),
+    onSuccess: invalidarTudo,
+  })
+  const aprovarHoras = useMutation({
+    mutationFn: (idRegistro: number) => aprovarHorasVoluntariado(idRegistro),
+    onSuccess: invalidarTudo,
+  })
+  const recusarHoras = useMutation({
+    mutationFn: (idRegistro: number) => recusarHorasVoluntariado(idRegistro),
+    onSuccess: invalidarTudo,
+  })
+
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-semibold">
+        Voluntariado — escala, candidaturas, trocas e horas
+      </h3>
+
+      <div className="mb-4">
+        <p className="mb-1 text-xs font-semibold text-muted-foreground">
+          Vagas de turno
+        </p>
+        <FormShell<z.infer<typeof vagaEscalaCriarSchema>>
+          schema={vagaEscalaCriarSchema}
+          defaultValues={{
+            funcao_desempenhada: '',
+            turno_data_hora_inicio: '',
+            turno_data_hora_fim: '',
+            habilidades_exigidas: '',
+            vagas_disponiveis: 1,
+            horas_previstas: 0,
+          }}
+          onSubmit={(v) => criarVaga.mutateAsync(v)}
+          className="mb-3 flex flex-wrap items-end gap-2 rounded-md border border-border p-2"
+        >
+          {(form) => (
+            <>
+              <div className="flex-1">
+                <input
+                  {...form.register('funcao_desempenhada')}
+                  placeholder="Função (ex.: Apoio na cozinha)"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                />
+                <ErroCampo
+                  mensagem={form.formState.errors.funcao_desempenhada?.message}
+                />
+              </div>
+              <input
+                type="datetime-local"
+                {...form.register('turno_data_hora_inicio')}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              />
+              <input
+                type="datetime-local"
+                {...form.register('turno_data_hora_fim')}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              />
+              <input
+                {...form.register('habilidades_exigidas')}
+                placeholder="Habilidades (códigos separados por vírgula)"
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              />
+              <input
+                type="number"
+                min={1}
+                {...form.register('vagas_disponiveis')}
+                placeholder="Vagas"
+                className="h-9 w-20 rounded-md border border-input bg-background px-3 text-sm"
+              />
+              <input
+                type="number"
+                min={0}
+                step="0.5"
+                {...form.register('horas_previstas')}
+                placeholder="Horas previstas"
+                className="h-9 w-28 rounded-md border border-input bg-background px-3 text-sm"
+              />
+              <Button type="submit" size="sm" disabled={criarVaga.isPending}>
+                Publicar vaga
+              </Button>
+            </>
+          )}
+        </FormShell>
+        <div className="space-y-1">
+          {(vagas ?? []).map((v) => (
+            <div
+              key={v.id_vaga}
+              className="rounded-md border border-border p-2 text-sm"
+            >
+              {v.funcao_desempenhada} — {formatarData(v.turno_data_hora_inicio, { comHora: true })} até{' '}
+              {formatarData(v.turno_data_hora_fim, { comHora: true })} · {v.vagas_disponiveis} vaga(s)
+            </div>
+          ))}
+          {(vagas ?? []).length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma vaga de escala publicada.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <p className="mb-1 text-xs font-semibold text-muted-foreground">
+          Candidaturas pendentes (autocandidatura pelo painel)
+        </p>
+        <div className="space-y-1">
+          {(candidaturas ?? []).map((a) => (
+            <div
+              key={a.id_alocacao}
+              className="flex items-center justify-between rounded-md border border-border p-2 text-sm"
+            >
+              <span>
+                Associado #{a.id_associado} — {a.funcao_desempenhada}
+                {a.turno_data_hora_inicio &&
+                  ` · ${formatarData(a.turno_data_hora_inicio, { comHora: true })}`}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  disabled={confirmar.isPending}
+                  onClick={() => confirmar.mutate(a.id_alocacao)}
+                >
+                  Confirmar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={recusar.isPending}
+                  onClick={() => recusar.mutate(a.id_alocacao)}
+                >
+                  Recusar
+                </Button>
+              </div>
+            </div>
+          ))}
+          {(candidaturas ?? []).length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma candidatura pendente.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <p className="mb-1 text-xs font-semibold text-muted-foreground">
+          Trocas de turno
+        </p>
+        <div className="space-y-1">
+          {(trocas ?? []).map((t) => (
+            <div
+              key={t.id_troca}
+              className="flex items-center justify-between rounded-md border border-border p-2 text-sm"
+            >
+              <span>
+                Alocação #{t.id_alocacao} → substituto associado #
+                {t.id_associado_substituto} — {t.status}
+              </span>
+              {t.status === 'SOLICITADA' && (
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    disabled={confirmarTroca.isPending}
+                    onClick={() => confirmarTroca.mutate(t.id_troca)}
+                  >
+                    Confirmar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={recusarTroca.isPending}
+                    onClick={() => recusarTroca.mutate(t.id_troca)}
+                  >
+                    Recusar
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
+          {(trocas ?? []).length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma troca de turno solicitada.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-1 text-xs font-semibold text-muted-foreground">
+          Horas de voluntariado pendentes de aprovação
+        </p>
+        <div className="space-y-1">
+          {(horasPendentes ?? []).map((r) => (
+            <div
+              key={r.id_registro}
+              className="flex items-center justify-between rounded-md border border-border p-2 text-sm"
+            >
+              <span>
+                {formatarData(r.data)} — {r.horas}h
+                {r.descricao_atividade && ` · ${r.descricao_atividade}`}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  disabled={aprovarHoras.isPending}
+                  onClick={() => aprovarHoras.mutate(r.id_registro)}
+                >
+                  Aprovar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={recusarHoras.isPending}
+                  onClick={() => recusarHoras.mutate(r.id_registro)}
+                >
+                  Recusar
+                </Button>
+              </div>
+            </div>
+          ))}
+          {(horasPendentes ?? []).length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma hora pendente de aprovação.
+            </p>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -942,6 +1235,7 @@ function DetalheProjeto({ projeto }: { projeto: Projeto }) {
       </div>
       <SecaoCronograma idProjeto={projeto.id_projeto} />
       <SecaoEquipe idProjeto={projeto.id_projeto} />
+      <SecaoVoluntariado idProjeto={projeto.id_projeto} />
       <SecaoBeneficiarios idProjeto={projeto.id_projeto} />
       <SecaoOrcamentoRelatorio projeto={projeto} />
     </div>

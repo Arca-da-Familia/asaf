@@ -37,6 +37,11 @@ class Pessoa(Base):
     # fila de revisão (`FilaRevisaoCadastro`).
     data_ultima_confirmacao = Column(DateTime, nullable=True)
     contato_suspeito = Column(Boolean, default=False)
+    # v4.4 - habilidades cadastradas da pessoa (CSV de códigos do catálogo `habilidade_voluntario`,
+    # mesmo padrão de `opcoes_validas` em app/models/votacao.py) - hoje só usado para comparar
+    # com `AlocacaoVoluntario.habilidades_exigidas` na escala de voluntariado, mas fica em Pessoa
+    # (não em TermoAdesaoVoluntario) porque é atributo da pessoa em si, não do termo/vigência.
+    habilidades = Column(String, nullable=True)
 
 
 class Papel(Base):

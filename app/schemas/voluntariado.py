@@ -34,6 +34,7 @@ class HorasVoluntariadoCriar(BaseModel):
     horas: float
     descricao_atividade: Optional[str] = None
     id_projeto: Optional[int] = None
+    id_alocacao: Optional[int] = None  # v4.4 - amarra a horas a uma alocação de escala, exigindo aprovação do coordenador
 
     @field_validator("horas")
     @classmethod

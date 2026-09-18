@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Cog,
+  HeartHandshake,
   House,
   LogOut,
   Menu,
@@ -265,6 +266,20 @@ export function Shell() {
               >
                 <CalendarCheck className="h-5 w-5 shrink-0" />
                 {!collapsed && <span>Minhas assembleias</span>}
+              </NavLink>
+
+              {/* v4.4 - mesmo padrão de "Minhas assembleias": autoatendimento do próprio
+                  voluntário (candidatura, escala, troca de turno, horas) - o nível "Voluntário
+                  Externo" não tem NENHUMA permissão de módulo (ver seed_niveis_e_permissoes no
+                  backend), então esta tela vive fora de qualquer módulo, acessível a qualquer
+                  usuário autenticado vinculado a um associado. */}
+              <NavLink
+                to="/meu-voluntariado"
+                className={navCls}
+                onClick={() => setMobileOpen(false)}
+              >
+                <HeartHandshake className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>Meu voluntariado</span>}
               </NavLink>
 
               {/* v2.5.6 - mesmo padrão de "Minhas assembleias": é o próprio associado vendo o

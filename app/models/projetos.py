@@ -43,12 +43,65 @@ class ProjetoEvento(Base):
 
 
 class AlocacaoVoluntario(Base):
+    """v2.9 - alocação de voluntário (Associado) em projeto, `app/services/projetos.py::alocar_voluntario`
+    já exigia termo de adesão vigente (v1.6) como trava real desde então.
+
+    v4.4 - escala de voluntariado de verdade: turno/horário, habilidades exigidas (CSV do catálogo
+    `habilidade_voluntario`, comparadas com `Pessoa.habilidades` na candidatura, mas sem bloquear -
+    só informativo, quem bloqueia é o termo vigente), horas previstas x realizadas, e status (a
+    alocação pode nascer `PENDENTE` de uma autocandidatura do próprio voluntário pelo painel,
+    esperando confirmação do coordenador do projeto - `EquipeProjeto.papel == "COORDENADOR"`, ver
+    `app/services/projetos.py::exigir_coordenador_do_projeto`) - ou já nascer `CONFIRMADA`, quando
+    é a própria equipe quem aloca direto (fluxo antigo, mantido)."""
     __tablename__ = "alocacoes_voluntarios"
     id_alocacao = Column(Integer, primary_key=True, index=True)
     id_projeto = Column(Integer, ForeignKey("projetos_eventos.id_projeto"))
     id_associado = Column(Integer, ForeignKey("associados.id_associado"))
     funcao_desempenhada = Column(String)
-    horas_dedicadas = Column(Float, default=0.0)
+    id_vaga = Column(Integer, ForeignKey("vagas_escala_voluntario.id_vaga"), nullable=True)
+    turno_data_hora_inicio = Column(DateTime, nullable=True)
+    turno_data_hora_fim = Column(DateTime, nullable=True)
+    habilidades_exigidas = Column(String, nullable=True)  # CSV catálogo `habilidade_voluntario`
+    horas_previstas = Column(Float, default=0.0)
+    horas_realizadas = Column(Float, default=0.0)
+    status = Column(String, nullable=False, default="CONFIRMADA")  # catálogo `status_alocacao_voluntario`
+    id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+
+class VagaEscalaVoluntario(Base):
+    """v4.4 - vaga de turno publicada pelo coordenador do projeto, para autocandidatura do
+    voluntário pelo painel (autoatendimento) - a vaga em si não é a alocação, é a "oferta"; cada
+    candidatura vira uma linha própria em `AlocacaoVoluntario` (`id_vaga` aponta pra aqui),
+    permitindo `vagas_disponiveis > 1` (mais de um voluntário no mesmo turno)."""
+    __tablename__ = "vagas_escala_voluntario"
+    id_vaga = Column(Integer, primary_key=True, index=True)
+    id_projeto = Column(Integer, ForeignKey("projetos_eventos.id_projeto"), nullable=False, index=True)
+    funcao_desempenhada = Column(String, nullable=False)
+    habilidades_exigidas = Column(String, nullable=True)  # CSV catálogo `habilidade_voluntario`
+    turno_data_hora_inicio = Column(DateTime, nullable=False)
+    turno_data_hora_fim = Column(DateTime, nullable=False)
+    vagas_disponiveis = Column(Integer, nullable=False, default=1)
+    horas_previstas = Column(Float, default=0.0)
+    id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+
+class TrocaTurnoVoluntario(Base):
+    """v4.4 - troca de turno entre voluntários: quem está alocado pede a troca por outro
+    associado (que precisa ter termo de adesão vigente também), o coordenador do projeto confirma
+    ou recusa - nunca uma troca automática sem confirmação, mesmo entre dois voluntários que já
+    concordaram entre si informalmente."""
+    __tablename__ = "trocas_turno_voluntario"
+    id_troca = Column(Integer, primary_key=True, index=True)
+    id_alocacao = Column(Integer, ForeignKey("alocacoes_voluntarios.id_alocacao"), nullable=False, index=True)
+    id_associado_substituto = Column(Integer, ForeignKey("associados.id_associado"), nullable=False)
+    status = Column(String, nullable=False, default="SOLICITADA")  # catálogo `status_troca_turno`
+    motivo = Column(String, nullable=True)
+    id_usuario_solicitacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+    id_usuario_resolucao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    resolvido_em = Column(DateTime, nullable=True)
 
 
 class ItemCronograma(Base):

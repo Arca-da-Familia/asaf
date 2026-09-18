@@ -12,14 +12,52 @@ from app.schemas.projetos import (
     ItemCronogramaCriar,
     ProjetoAlterarStatus,
     ProjetoCriar,
+    TrocaTurnoCriar,
+    VagaEscalaCriar,
     VoluntarioAlocar,
 )
-from app.security import exigir_permissao
+from app.schemas.voluntariado import HorasVoluntariadoCriar
+from app.security import exigir_permissao, get_current_user
 from app.services import orcamento as servico_orcamento
 from app.services import projetos
+from app.services import voluntariado as servico_voluntariado
 
 router = APIRouter()
 _permissao_projetos = exigir_permissao("projetos")
+
+
+def _serializar_alocacao(a) -> dict:
+    return {
+        "id_alocacao": a.id_alocacao, "id_projeto": a.id_projeto, "id_associado": a.id_associado,
+        "funcao_desempenhada": a.funcao_desempenhada, "id_vaga": a.id_vaga,
+        "turno_data_hora_inicio": a.turno_data_hora_inicio, "turno_data_hora_fim": a.turno_data_hora_fim,
+        "habilidades_exigidas": a.habilidades_exigidas, "horas_previstas": a.horas_previstas,
+        "horas_realizadas": a.horas_realizadas, "status": a.status,
+    }
+
+
+def _serializar_vaga(v) -> dict:
+    return {
+        "id_vaga": v.id_vaga, "id_projeto": v.id_projeto, "funcao_desempenhada": v.funcao_desempenhada,
+        "habilidades_exigidas": v.habilidades_exigidas, "turno_data_hora_inicio": v.turno_data_hora_inicio,
+        "turno_data_hora_fim": v.turno_data_hora_fim, "vagas_disponiveis": v.vagas_disponiveis,
+        "horas_previstas": v.horas_previstas,
+    }
+
+
+def _serializar_troca(t) -> dict:
+    return {
+        "id_troca": t.id_troca, "id_alocacao": t.id_alocacao, "id_associado_substituto": t.id_associado_substituto,
+        "status": t.status, "motivo": t.motivo, "criado_em": t.criado_em, "resolvido_em": t.resolvido_em,
+    }
+
+
+def _serializar_registro_horas(r) -> dict:
+    return {
+        "id_registro": r.id_registro, "id_termo": r.id_termo, "data": r.data, "horas": r.horas,
+        "descricao_atividade": r.descricao_atividade, "id_projeto": r.id_projeto, "id_alocacao": r.id_alocacao,
+        "status": r.status,
+    }
 
 
 def _ip_origem(request: Request) -> str:
@@ -76,13 +114,154 @@ def alterar_status_endpoint(id_projeto: int, dados: ProjetoAlterarStatus, reques
 
 @router.post("/projetos/alocar/", summary="Alocar Voluntário")
 def alocar_voluntario(dados: VoluntarioAlocar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
-    alocacao = projetos.alocar_voluntario(db, id_projeto=dados.id_projeto, id_associado=dados.id_associado, funcao_desempenhada=dados.funcao_desempenhada)
+    alocacao = projetos.alocar_voluntario(
+        db, id_projeto=dados.id_projeto, id_associado=dados.id_associado, funcao_desempenhada=dados.funcao_desempenhada,
+        turno_data_hora_inicio=dados.turno_data_hora_inicio, turno_data_hora_fim=dados.turno_data_hora_fim,
+        habilidades_exigidas=dados.habilidades_exigidas, horas_previstas=dados.horas_previstas, id_usuario=usuario.id_usuario,
+    )
     registrar_auditoria(
         db, usuario, "alocacoes_voluntarios", "CREATE", id_registro_afetado=alocacao.id_alocacao,
         dados_depois={"id_projeto": alocacao.id_projeto, "id_associado": alocacao.id_associado, "funcao_desempenhada": alocacao.funcao_desempenhada},
         ip_origem=_ip_origem(request),
     )
     return {"mensagem": "Voluntário escalado com sucesso!"}
+
+
+# ==========================================
+# ESCALA DE VOLUNTARIADO (v4.4) - vagas de turno, candidaturas, confirmação/recusa do
+# coordenador, troca entre voluntários e aprovação de horas.
+# ==========================================
+@router.post("/api/projetos/{id_projeto}/vagas-escala", summary="Publicar vaga de turno na escala de voluntariado")
+def criar_vaga_escala_endpoint(id_projeto: int, dados: VagaEscalaCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    vaga = projetos.criar_vaga_escala(
+        db, id_projeto=id_projeto, funcao_desempenhada=dados.funcao_desempenhada, habilidades_exigidas=dados.habilidades_exigidas,
+        turno_data_hora_inicio=dados.turno_data_hora_inicio, turno_data_hora_fim=dados.turno_data_hora_fim,
+        vagas_disponiveis=dados.vagas_disponiveis, horas_previstas=dados.horas_previstas, id_usuario=usuario.id_usuario,
+    )
+    registrar_auditoria(
+        db, usuario, "vagas_escala_voluntario", "CREATE", id_registro_afetado=vaga.id_vaga,
+        dados_depois={"id_projeto": vaga.id_projeto, "funcao_desempenhada": vaga.funcao_desempenhada}, ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Vaga de escala publicada.", "id_vaga": vaga.id_vaga}
+
+
+@router.get("/api/projetos/{id_projeto}/vagas-escala", summary="Listar vagas de escala do projeto")
+def listar_vagas_escala_endpoint(id_projeto: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    return [_serializar_vaga(v) for v in projetos.listar_vagas_escala(db, id_projeto=id_projeto)]
+
+
+@router.get("/api/projetos/{id_projeto}/candidaturas-pendentes", summary="Listar candidaturas de voluntário pendentes do projeto")
+def listar_candidaturas_pendentes_endpoint(id_projeto: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    return [_serializar_alocacao(a) for a in projetos.listar_candidaturas_pendentes(db, id_projeto=id_projeto)]
+
+
+@router.post("/api/alocacoes/{id_alocacao}/confirmar", summary="Coordenador confirma candidatura de voluntário")
+def confirmar_alocacao_endpoint(id_alocacao: int, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    alocacao = projetos.confirmar_alocacao(db, id_alocacao=id_alocacao, usuario=usuario)
+    registrar_auditoria(db, usuario, "alocacoes_voluntarios", "CONFIRMACAO", id_registro_afetado=alocacao.id_alocacao, ip_origem=_ip_origem(request))
+    return {"mensagem": "Candidatura confirmada.", "status": alocacao.status}
+
+
+@router.post("/api/alocacoes/{id_alocacao}/recusar", summary="Coordenador recusa candidatura de voluntário")
+def recusar_alocacao_endpoint(id_alocacao: int, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    alocacao = projetos.recusar_alocacao(db, id_alocacao=id_alocacao, usuario=usuario)
+    registrar_auditoria(db, usuario, "alocacoes_voluntarios", "RECUSA", id_registro_afetado=alocacao.id_alocacao, ip_origem=_ip_origem(request))
+    return {"mensagem": "Candidatura recusada.", "status": alocacao.status}
+
+
+@router.post("/api/alocacoes/{id_alocacao}/cancelar", summary="Cancela uma alocação (o próprio voluntário ou o coordenador do projeto)")
+def cancelar_alocacao_endpoint(id_alocacao: int, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    alocacao = projetos.cancelar_alocacao(db, id_alocacao=id_alocacao, usuario=usuario)
+    registrar_auditoria(db, usuario, "alocacoes_voluntarios", "CANCELAMENTO", id_registro_afetado=alocacao.id_alocacao, ip_origem=_ip_origem(request))
+    return {"mensagem": "Alocação cancelada.", "status": alocacao.status}
+
+
+@router.post("/api/alocacoes/{id_alocacao}/trocas", summary="Solicitar troca de turno com outro voluntário")
+def solicitar_troca_endpoint(id_alocacao: int, dados: TrocaTurnoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    troca = projetos.solicitar_troca_turno(
+        db, id_alocacao=id_alocacao, id_associado_substituto=dados.id_associado_substituto, motivo=dados.motivo, usuario=usuario,
+    )
+    registrar_auditoria(db, usuario, "trocas_turno_voluntario", "CREATE", id_registro_afetado=troca.id_troca, ip_origem=_ip_origem(request))
+    return {"mensagem": "Troca de turno solicitada.", "id_troca": troca.id_troca}
+
+
+@router.get("/api/projetos/{id_projeto}/trocas-turno", summary="Listar trocas de turno do projeto")
+def listar_trocas_endpoint(id_projeto: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    return [_serializar_troca(t) for t in projetos.listar_trocas_do_projeto(db, id_projeto=id_projeto)]
+
+
+@router.post("/api/trocas-turno/{id_troca}/confirmar", summary="Coordenador confirma troca de turno")
+def confirmar_troca_endpoint(id_troca: int, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    troca = projetos.confirmar_troca_turno(db, id_troca=id_troca, usuario=usuario)
+    registrar_auditoria(db, usuario, "trocas_turno_voluntario", "CONFIRMACAO", id_registro_afetado=troca.id_troca, ip_origem=_ip_origem(request))
+    return {"mensagem": "Troca de turno confirmada.", "status": troca.status}
+
+
+@router.post("/api/trocas-turno/{id_troca}/recusar", summary="Coordenador recusa troca de turno")
+def recusar_troca_endpoint(id_troca: int, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    troca = projetos.recusar_troca_turno(db, id_troca=id_troca, usuario=usuario)
+    registrar_auditoria(db, usuario, "trocas_turno_voluntario", "RECUSA", id_registro_afetado=troca.id_troca, ip_origem=_ip_origem(request))
+    return {"mensagem": "Troca de turno recusada.", "status": troca.status}
+
+
+@router.get("/api/projetos/{id_projeto}/horas-pendentes", summary="Listar horas de voluntariado pendentes de aprovação do projeto")
+def listar_horas_pendentes_endpoint(id_projeto: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    return [_serializar_registro_horas(r) for r in projetos.listar_horas_pendentes_do_projeto(db, id_projeto=id_projeto)]
+
+
+@router.post("/api/horas-voluntariado/{id_registro}/aprovar", summary="Coordenador aprova horas de voluntariado")
+def aprovar_horas_endpoint(id_registro: int, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    registro = projetos.aprovar_horas_voluntariado(db, id_registro=id_registro, usuario=usuario)
+    registrar_auditoria(db, usuario, "registros_horas_voluntariado", "APROVACAO", id_registro_afetado=registro.id_registro, ip_origem=_ip_origem(request))
+    return {"mensagem": "Horas aprovadas.", "status": registro.status}
+
+
+@router.post("/api/horas-voluntariado/{id_registro}/recusar", summary="Coordenador recusa horas de voluntariado")
+def recusar_horas_endpoint(id_registro: int, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    registro = projetos.recusar_horas_voluntariado(db, id_registro=id_registro, usuario=usuario)
+    registrar_auditoria(db, usuario, "registros_horas_voluntariado", "RECUSA", id_registro_afetado=registro.id_registro, ip_origem=_ip_origem(request))
+    return {"mensagem": "Horas recusadas.", "status": registro.status}
+
+
+# ==========================================
+# AUTOATENDIMENTO DO VOLUNTÁRIO (v4.4) - qualquer usuário autenticado vinculado a um associado,
+# SEM exigir permissão "projetos"/"associados" (nível "Voluntário Externo" não tem nenhuma
+# permissão de módulo, ver seed_niveis_e_permissoes) - visibilidade sempre restrita ao próprio
+# associado, nunca aceita id_associado vindo do cliente.
+# ==========================================
+@router.get("/api/voluntariado/vagas-abertas", summary="Vagas de escala com posição livre, para autocandidatura")
+def vagas_abertas_endpoint(db: Session = Depends(get_db), _usuario=Depends(get_current_user)):
+    return projetos.vagas_abertas(db)
+
+
+@router.post("/api/voluntariado/vagas/{id_vaga}/candidatar", summary="Candidatar-se a uma vaga de turno (aguarda confirmação do coordenador)")
+def candidatar_se_endpoint(id_vaga: int, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    alocacao = projetos.candidatar_se_a_vaga(db, id_vaga=id_vaga, usuario=usuario)
+    registrar_auditoria(db, usuario, "alocacoes_voluntarios", "CANDIDATURA", id_registro_afetado=alocacao.id_alocacao, ip_origem=_ip_origem(request))
+    return {"mensagem": "Candidatura registrada - aguardando confirmação do coordenador.", "id_alocacao": alocacao.id_alocacao}
+
+
+@router.get("/api/voluntariado/minha-escala", summary="Minha escala de voluntariado (alocações do próprio usuário)")
+def minha_escala_endpoint(db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    return [_serializar_alocacao(a) for a in projetos.minha_escala(db, usuario=usuario)]
+
+
+@router.get("/api/voluntariado/meu-historico-horas", summary="Meu histórico de horas de voluntariado (pendentes, aprovadas e recusadas)")
+def meu_historico_horas_endpoint(db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    return [_serializar_registro_horas(r) for r in projetos.meu_historico_horas_voluntariado(db, usuario=usuario)]
+
+
+@router.post("/api/voluntariado/horas", summary="Registrar minhas próprias horas de voluntariado (exige termo vigente; aprovação do coordenador se amarrada a uma alocação)")
+def registrar_minhas_horas_endpoint(dados: HorasVoluntariadoCriar, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    from datetime import datetime as _datetime
+
+    associado = projetos.associado_do_usuario_ou_403(db, usuario)
+    registro = servico_voluntariado.registrar_horas_voluntariado(
+        db, id_pessoa=associado.id_pessoa, data=_datetime.combine(dados.data, _datetime.min.time()), horas=dados.horas,
+        descricao_atividade=dados.descricao_atividade, id_projeto=dados.id_projeto, id_alocacao=dados.id_alocacao,
+        id_usuario=usuario.id_usuario,
+    )
+    return {"mensagem": "Horas registradas.", "id_registro": registro.id_registro, "status": registro.status}
 
 
 # ==========================================

@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.pessoas import Papel, Pessoa
-from app.models.voluntariado import TermoAdesaoVoluntario
+from app.models.voluntariado import RegistroHorasVoluntariado, TermoAdesaoVoluntario
 
 
 def pessoa_e_menor_de_idade(data_nascimento: Optional[date], na_data: date) -> bool:
@@ -90,3 +90,53 @@ def criar_termo_adesao(
     db.commit()
     db.refresh(novo)
     return novo
+
+
+# ==========================================
+# HABILIDADES (v4.4) - CSV de códigos do catálogo `habilidade_voluntario`, mesmo padrão de
+# `Votacao.opcoes_validas` - comparação é sempre informativa, nunca trava a candidatura (só o
+# termo de adesão vigente é trava real, ver `criar_alocacao_por_candidatura` em
+# app/services/projetos.py).
+# ==========================================
+def habilidades_csv_para_lista(csv: Optional[str]) -> list[str]:
+    if not csv:
+        return []
+    return [c.strip() for c in csv.split(",") if c.strip()]
+
+
+def comparar_habilidades(habilidades_exigidas: Optional[str], habilidades_pessoa: Optional[str]) -> dict:
+    exigidas = set(habilidades_csv_para_lista(habilidades_exigidas))
+    da_pessoa = set(habilidades_csv_para_lista(habilidades_pessoa))
+    return {
+        "atendidas": sorted(exigidas & da_pessoa),
+        "faltantes": sorted(exigidas - da_pessoa),
+    }
+
+
+# ==========================================
+# REGISTRO DE HORAS (v1.6, aprovação do coordenador desde a v4.4)
+# ==========================================
+def registrar_horas_voluntariado(
+    db: Session, *, id_pessoa: int, data: datetime, horas: float, descricao_atividade: Optional[str],
+    id_projeto: Optional[int], id_alocacao: Optional[int], id_usuario: Optional[int],
+) -> RegistroHorasVoluntariado:
+    termo = termo_vigente(db, id_pessoa)
+    if not termo:
+        raise HTTPException(
+            status_code=400,
+            detail="Pessoa sem termo de adesão de voluntário vigente - registre o termo antes de lançar horas.",
+        )
+    # Horas amarradas a uma alocação de projeto nascem PENDENTES - só contam (soma de horas
+    # realizadas, futuro certificado/score) depois que o coordenador aprova. Horas soltas (sem
+    # projeto, fluxo antigo da v1.6) nascem já aprovadas, porque não existe coordenador nenhum
+    # daquele contexto pra aprovar.
+    status_inicial = "PENDENTE" if id_alocacao is not None else "APROVADO"
+    registro = RegistroHorasVoluntariado(
+        id_termo=termo.id_termo, data=data, horas=horas, descricao_atividade=descricao_atividade,
+        id_projeto=id_projeto, id_alocacao=id_alocacao, status=status_inicial,
+        id_usuario_registrou=id_usuario,
+    )
+    db.add(registro)
+    db.commit()
+    db.refresh(registro)
+    return registro
