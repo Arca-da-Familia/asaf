@@ -4665,6 +4665,10 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 >   painel, `typecheck`/`lint`/`format`/`build` limpos em ambos.
 > **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
 > lacuna de ferramenta de navegador já registrada nos pontos de revisão anteriores).
+> **Verificado em produção (2026-09-18)**: `Deploy API` verde no commit `081774e` (migração
+> `d6f8a0c2e4b6` aplicada sem erro) e `Deploy Painel` verde no mesmo commit,
+> `painel.asaf.org.br/version.json` confirmado ao vivo, e `GET https://api.asaf.org.br/api/
+> publico/eventos` respondendo `[]` sem autenticação (endpoint público real em produção).
 
 #### v4.6 — Inscrição pública com deduplicação
 - [ ] Formulário de inscrição no site chama o FastAPI (não o Directus), com CPF + e-mail +
