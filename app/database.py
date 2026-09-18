@@ -468,6 +468,14 @@ def seed_configuracoes_institucionais():
         {"chave": "DATA_MAGNA", "valor": "10/02", "tipo": "texto", "categoria": "identidade", "descricao": "Data magna da ASAF, aniversário de fundação (Art. 33, I - cláusula pétrea)."},
         {"chave": "VERSICULOS_BASE", "valor": "II Crônicas 4:9-10", "tipo": "texto", "categoria": "identidade", "descricao": "Versículos-base existencial da ASAF (Art. 33, II - cláusula pétrea)."},
         {"chave": "ORACAO_OFICIAL", "valor": "O Senhor nos abençoe muitíssimo; Alargue as nossas fronteiras! Que a tua mão esteja conosco, Guarda-nos de todo mal.", "tipo": "texto", "categoria": "identidade", "descricao": "Oração oficial da ASAF (Art. 33, III - cláusula pétrea)."},
+        # v4.6 - inscrição pública em evento (site institucional, sem login) - texto de
+        # consentimento LGPD versionado: o formulário embute a versão atual, e a inscrição só é
+        # aceita se a versão enviada bater com esta - texto mudou, cadastro antigo continua
+        # válido com a versão que aceitou, mas ninguém consegue mandar consentimento pra versão
+        # que já não existe mais.
+        {"chave": "TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", "valor": "Ao me inscrever, autorizo o uso dos meus dados pessoais (nome, CPF, e-mail, telefone e respostas deste formulário) para fins de organização deste evento, nos termos da LGPD.", "tipo": "texto", "categoria": "regras", "descricao": "Texto de consentimento LGPD exibido no formulário público de inscrição em evento."},
+        {"chave": "VERSAO_TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", "valor": "1", "tipo": "texto", "categoria": "regras", "descricao": "Versão do texto de consentimento LGPD de inscrição - mude este valor sempre que o texto acima for editado de forma relevante."},
+        {"chave": "URL_BASE_SITE_PUBLICO", "valor": "", "tipo": "texto", "categoria": "geral", "descricao": "URL base do site institucional (Astro/Directus) - usada para montar o link de autocancelamento enviado por e-mail. Vazio = e-mail orienta contatar a secretaria com o código."},
     ]
     db = SessaoLocal()
     try:

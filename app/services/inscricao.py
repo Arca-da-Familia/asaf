@@ -25,6 +25,10 @@ _TRANSICOES_VALIDAS = {
 def inscrever(
     db: Session, *, contexto_tipo: str, id_contexto: int, id_pessoa: int,
     respostas_formulario: Optional[dict], id_usuario_operador: Optional[int] = None,
+    # v4.6 - só a inscrição pública (site, sem login) preenche estes três; staff/autoatendimento
+    # logado (v4.0-v4.5) nunca passa nenhum, ficam None.
+    codigo_checkin: Optional[str] = None, token_cancelamento: Optional[str] = None,
+    consentimento_lgpd_versao: Optional[str] = None,
 ) -> Inscricao:
     if not db.query(Pessoa).filter(Pessoa.id_pessoa == id_pessoa).first():
         raise HTTPException(status_code=404, detail="Pessoa não encontrada.")
@@ -38,6 +42,10 @@ def inscrever(
         existente.status = PRE_INSCRITO
         existente.respostas_formulario = json.dumps(respostas_formulario) if respostas_formulario else None
         existente.data_inscricao = datetime.utcnow()
+        if codigo_checkin is not None:
+            existente.codigo_checkin = codigo_checkin
+            existente.token_cancelamento = token_cancelamento
+            existente.consentimento_lgpd_versao = consentimento_lgpd_versao
         db.commit()
         db.refresh(existente)
         return existente
@@ -45,6 +53,8 @@ def inscrever(
     inscricao = Inscricao(
         contexto_tipo=contexto_tipo, id_contexto=id_contexto, id_pessoa=id_pessoa, status=PRE_INSCRITO,
         respostas_formulario=json.dumps(respostas_formulario) if respostas_formulario else None,
+        codigo_checkin=codigo_checkin, token_cancelamento=token_cancelamento,
+        consentimento_lgpd_versao=consentimento_lgpd_versao,
     )
     db.add(inscricao)
     db.commit()
@@ -61,6 +71,23 @@ def alterar_status(db: Session, *, id_inscricao: int, novo_status: str) -> Inscr
     if novo_status not in _TRANSICOES_VALIDAS[inscricao.status]:
         raise HTTPException(status_code=400, detail=f"Não é possível mudar de '{inscricao.status}' para '{novo_status}'.")
     inscricao.status = novo_status
+    db.commit()
+    db.refresh(inscricao)
+    return inscricao
+
+
+def cancelar_por_token(db: Session, *, token_cancelamento: str) -> Inscricao:
+    """v4.6 - autocancelamento pelo link enviado por e-mail (inscrição pública, sem login) - o
+    token é o que autentica quem pode cancelar, nunca o id_inscricao sequencial (que qualquer um
+    poderia adivinhar/incrementar)."""
+    inscricao = db.query(Inscricao).filter(Inscricao.token_cancelamento == token_cancelamento).first()
+    if not inscricao:
+        raise HTTPException(status_code=404, detail="Link de cancelamento inválido.")
+    if inscricao.status == CANCELADO:
+        raise HTTPException(status_code=400, detail="Esta inscrição já estava cancelada.")
+    if inscricao.status not in _TRANSICOES_VALIDAS or CANCELADO not in _TRANSICOES_VALIDAS[inscricao.status]:
+        raise HTTPException(status_code=400, detail=f"Não é possível cancelar uma inscrição com status '{inscricao.status}'.")
+    inscricao.status = CANCELADO
     db.commit()
     db.refresh(inscricao)
     return inscricao

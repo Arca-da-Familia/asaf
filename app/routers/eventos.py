@@ -6,10 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
+from app.config_cache import obter_configuracao
 from app.database import get_db
-from app.schemas.eventos import EventoCriar, NovaEdicaoEventoCriar, SessaoEventoCriar
+from app.schemas.eventos import EventoCriar, InscricaoPublicaCriar, NovaEdicaoEventoCriar, PerguntaEventoCriar, SessaoEventoCriar
 from app.security import exigir_permissao, get_current_user
 from app.services import eventos
+from app.services import inscricao as servico_inscricao
+from app.services.protecao_publica import limitar_taxa_por_ip
 
 router = APIRouter()
 _permissao_projetos = exigir_permissao("projetos")
@@ -17,6 +20,18 @@ _permissao_projetos = exigir_permissao("projetos")
 
 def _ip_origem(request: Request):
     return request.client.host if request.client else None
+
+
+def _ip_publico(request: Request) -> str:
+    """v4.6 - IP de quem está do outro lado de verdade, não do proxy - o Container App entrega a
+    requisição por trás de um ingress, então `request.client.host` seria o IP interno do
+    ingress/load balancer (o mesmo pra todo mundo), inutilizando o rate limiting por IP. Usa o
+    primeiro IP de `X-Forwarded-For` quando presente (padrão do Azure Container Apps), cai pro
+    `request.client.host` só quando não tem proxy no meio (dev local)."""
+    encaminhado = request.headers.get("x-forwarded-for")
+    if encaminhado:
+        return encaminhado.split(",")[0].strip()
+    return _ip_origem(request) or "desconhecido"
 
 
 def _serializar_evento(e) -> dict:
@@ -43,6 +58,13 @@ def _serializar_sessao(s) -> dict:
     return {
         "id_sessao": s.id_sessao, "id_evento": s.id_evento, "titulo": s.titulo, "descricao": s.descricao,
         "data_hora_inicio": s.data_hora_inicio, "data_hora_fim": s.data_hora_fim, "vagas": s.vagas,
+    }
+
+
+def _serializar_pergunta(p) -> dict:
+    return {
+        "id_pergunta": p.id_pergunta, "id_evento": p.id_evento, "enunciado": p.enunciado, "tipo": p.tipo,
+        "opcoes": p.opcoes, "obrigatoria": p.obrigatoria, "ordem": p.ordem,
     }
 
 
@@ -120,6 +142,27 @@ def listar_edicoes_endpoint(id_evento: int, db: Session = Depends(get_db), _usua
 
 
 # ==========================================
+# PERGUNTAS PERSONALIZADAS DO FORMULÁRIO DE INSCRIÇÃO (v4.6)
+# ==========================================
+@router.post("/api/eventos/{id_evento}/perguntas", summary="Cadastrar pergunta personalizada do formulário de inscrição")
+def criar_pergunta_endpoint(id_evento: int, dados: PerguntaEventoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    pergunta = eventos.criar_pergunta(
+        db, id_evento=id_evento, enunciado=dados.enunciado, tipo=dados.tipo, opcoes=dados.opcoes,
+        obrigatoria=dados.obrigatoria, ordem=dados.ordem,
+    )
+    registrar_auditoria(
+        db, usuario, "perguntas_evento", "CREATE", id_registro_afetado=pergunta.id_pergunta,
+        dados_depois={"id_evento": pergunta.id_evento, "enunciado": pergunta.enunciado}, ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Pergunta cadastrada.", "id_pergunta": pergunta.id_pergunta}
+
+
+@router.get("/api/eventos/{id_evento}/perguntas", summary="Listar perguntas do formulário de inscrição (visão de gestão)")
+def listar_perguntas_endpoint(id_evento: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    return [_serializar_pergunta(p) for p in eventos.listar_perguntas(db, id_evento=id_evento)]
+
+
+# ==========================================
 # AUTOATENDIMENTO - o próprio associado se inscrevendo (gestão de inscrição de terceiros
 # continua em /api/inscricoes/, app/routers/motores.py, permissão "projetos")
 # ==========================================
@@ -150,4 +193,49 @@ def obter_evento_publico_endpoint(id_evento: int, db: Session = Depends(get_db))
         raise HTTPException(status_code=404, detail="Evento não encontrado.")
     resposta = _serializar_evento_publico(evento)
     resposta["sessoes"] = [_serializar_sessao(s) for s in eventos.listar_sessoes(db, id_evento=id_evento)]
+    resposta["perguntas"] = [_serializar_pergunta(p) for p in eventos.listar_perguntas(db, id_evento=id_evento)]
     return resposta
+
+
+# ==========================================
+# INSCRIÇÃO PÚBLICA COM DEDUPLICAÇÃO (v4.6) - formulário do site, sem login. Protegida por rate
+# limiting por IP (sem CAPTCHA comercial pago, conforme o plano exige) - honeypot é checado
+# ANTES de tocar em rate limit/banco, pra nunca gastar cota de tentativa legítima com lixo de bot.
+# ==========================================
+@router.get("/api/publico/eventos/{id_evento}/perguntas", summary="Perguntas do formulário de inscrição (leitura, sem autenticação)")
+def listar_perguntas_publicas_endpoint(id_evento: int, db: Session = Depends(get_db)):
+    evento = eventos.obter_evento(db, id_evento)
+    if evento.visibilidade != "Pública":
+        raise HTTPException(status_code=404, detail="Evento não encontrado.")
+    return [_serializar_pergunta(p) for p in eventos.listar_perguntas(db, id_evento=id_evento)]
+
+
+@router.get("/api/publico/eventos/consentimento-lgpd", summary="Texto e versão atuais do consentimento LGPD de inscrição (leitura, sem autenticação)")
+def obter_texto_consentimento_lgpd_endpoint(db: Session = Depends(get_db)):
+    return {
+        "texto": obter_configuracao(db, "TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", ""),
+        "versao": obter_configuracao(db, "VERSAO_TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", "1"),
+    }
+
+
+@router.post("/api/publico/eventos/{id_evento}/inscrever-se", summary="Inscrever-se publicamente neste evento (site institucional, sem login)")
+def inscrever_publicamente_endpoint(id_evento: int, dados: InscricaoPublicaCriar, request: Request, db: Session = Depends(get_db)):
+    if dados.pagina_web:
+        # Honeypot disparado - finge sucesso, nunca grava nada e nunca avisa o robô que foi pego.
+        return {"mensagem": "Inscrição registrada.", "codigo_checkin": None, "email_enviado": False}
+
+    limitar_taxa_por_ip(db, ip=_ip_publico(request), rota="inscrever-se-evento", limite=5, janela_minutos=10)
+
+    resultado = eventos.inscrever_publicamente(
+        db, id_evento=id_evento, id_sessao=dados.id_sessao, nome_completo=dados.nome_completo, cpf=dados.cpf,
+        email=dados.email, telefone=dados.telefone, respostas=dados.respostas,
+        versao_texto_consentimento=dados.versao_texto_consentimento,
+    )
+    return {"mensagem": "Inscrição registrada.", **resultado}
+
+
+@router.post("/api/publico/inscricoes/{token_cancelamento}/cancelar", summary="Autocancelar inscrição pelo link enviado por e-mail (sem login)")
+def cancelar_inscricao_publica_endpoint(token_cancelamento: str, request: Request, db: Session = Depends(get_db)):
+    limitar_taxa_por_ip(db, ip=_ip_publico(request), rota="cancelar-inscricao-evento", limite=10, janela_minutos=10)
+    inscricao_cancelada = servico_inscricao.cancelar_por_token(db, token_cancelamento=token_cancelamento)
+    return {"mensagem": "Inscrição cancelada.", "status": inscricao_cancelada.status}

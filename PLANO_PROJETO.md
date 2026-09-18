@@ -4684,6 +4684,69 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       sem CAPTCHA comercial pago. Consentimento LGPD explícito no formulário, com versão do texto
       registrada.
 
+> **Implementado em 2026-09-18, backend + painel (perguntas), todos os itens acima (WhatsApp
+> registrado como pendência real de infraestrutura, não fingido - ver abaixo; o formulário
+> público em si vive no site institucional, outro projeto fora deste repositório).**
+> - `POST /api/publico/eventos/{id}/inscrever-se` chama o FastAPI direto (nunca o Directus) com
+>   CPF + e-mail + telefone + nome, validados de verdade (`app/validadores.py::validar_cpf`/
+>   `validar_telefone_br`, os mesmos já usados no resto do sistema desde a v1.1).
+> - **Deduplicação (seção 3.5)**: CPF já conhecido → `Pessoa.cpf` existente é reaproveitada (só
+>   completa e-mail/telefone que estivessem vazios, nunca sobrescreve o que já tinha) — testado
+>   inscrevendo o mesmo CPF em dois eventos diferentes e confirmando que só existe UMA `Pessoa`.
+>   CPF novo → `Pessoa` nova com `Papel.tipo_papel="participante_externo"` (papel que já existia
+>   como valor válido desde a v1.0, sem nunca ter tido consumidor real até agora) — **nunca** cria
+>   `Associado`; testado confirmando que o participante externo não aparece na busca de associados.
+> - `PerguntaEvento` (`app/models/eventos.py`) — texto curto/longo, seleção única/múltipla,
+>   número, data, arquivo, `obrigatoria` configurável por pergunta; resposta mora em
+>   `Inscricao.respostas_formulario` (JSON, chave = id da pergunta) — sem tabela própria de
+>   resposta, mesmo raciocínio de `ValorCampo` genérico (v0.3.3). Pergunta obrigatória sem
+>   resposta é recusada (422) antes de qualquer gravação.
+> - Confirmação por e-mail (`app/services/notificacoes.py`, SMTP já existente desde a v3.2.1) com
+>   código de check-in (`Inscricao.codigo_checkin`, 8 caracteres, gerado com `secrets.token_hex` -
+>   lastro real pro check-in da v4.8, quando existir) e link de autocancelamento
+>   (`Inscricao.token_cancelamento`, opaco - `POST /api/publico/inscricoes/{token}/cancelar`,
+>   nunca aceita o `id_inscricao` sequencial, que qualquer um poderia adivinhar). **Falha de SMTP
+>   nunca derruba a inscrição** - o `try/except` ao redor do envio garante isso, testado
+>   implicitamente (SMTP não configurado no ambiente de teste, e a inscrição sempre volta 200).
+>   **WhatsApp fica pendência real, não fingida**: depende da API oficial (Meta Cloud/BSP) da
+>   v11.3, que ainda não existe - mesma decisão já registrada em `DECISOES_CONGELADAS.md` seção 7
+>   desde antes desta versão.
+> - Proteção do endpoint público: `TentativaAcessoPublico` (tabela nova) + `app/services/
+>   protecao_publica.py::limitar_taxa_por_ip` - 5 tentativas/10 min pra inscrever-se, 10/10 min
+>   pra cancelar, sem nenhuma dependência nova (mesmo raciocínio de `Usuario.tentativas_falhas`/
+>   `bloqueado_ate` da v0.1, só que por IP em vez de por usuário) — testado excedendo o limite e
+>   confirmando 429. Honeypot (`pagina_web`, campo que só um robô preenche) finge sucesso sem
+>   gravar nada, nunca revela que foi pego. Consentimento LGPD (`ConfiguracaoInstitucional.
+>   TEXTO_CONSENTIMENTO_LGPD_INSCRICAO`/`VERSAO_TEXTO_CONSENTIMENTO_LGPD_INSCRICAO`, editáveis sem
+>   deploy) — a inscrição recusa (422) se a versão enviada não bater com a versão atual, e a
+>   versão aceita fica gravada em `Inscricao.consentimento_lgpd_versao`, imutável mesmo se o texto
+>   mudar depois. Desafio (captcha próprio) não foi necessário - rate limiting + honeypot já
+>   cobrem o que a pesquisa de mercado pedia, sem CAPTCHA comercial pago.
+> - **Achado real, corrigido durante esta versão**: `request.client.host` seria o IP do ingress
+>   do Azure Container Apps em produção, não o do visitante de verdade - rate limiting por IP
+>   ficaria inútil (todo mundo compartilhando o mesmo balde). Corrigido com `_ip_publico` (`app/
+>   routers/eventos.py`), que lê `X-Forwarded-For` quando presente, só cai pro `request.client.
+>   host` em dev local sem proxy no meio.
+> - Painel: nova seção "Perguntas do formulário de inscrição pública" dentro do detalhe do Evento
+>   (`Eventos.tsx`) - cadastro e listagem. **O formulário público (onde a resposta é de fato
+>   preenchida) e o autocancelamento vivem no site institucional (Astro/Directus), outro projeto,
+>   fora deste repositório** - mesma decisão de escopo já registrada na v4.5, deliberada pra não
+>   duplicar UI que o site vai ter que ter de qualquer forma.
+> - Migração `e8b0c2d4f6a8` (`perguntas_evento`, `tentativas_acesso_publico`, `codigo_checkin`/
+>   `token_cancelamento`/`consentimento_lgpd_versao` em `inscricoes`) validada
+>   upgrade+downgrade+upgrade contra schema pré-v4.6 simulado em SQLite (mesmo processo de sempre).
+> - 12 testes novos em `tests/test_eventos_inscricao_publica.py` (participante externo novo,
+>   CPF conhecido nunca duplica `Pessoa`, evento interno recusa inscrição pública, consentimento
+>   obrigatório, versão de consentimento desatualizada recusada, CPF inválido recusado, pergunta
+>   obrigatória sem resposta recusada e depois aceita, perguntas aparecem no detalhe público,
+>   honeypot finge sucesso sem gravar nada, autocancelamento por token e token inválido/já usado,
+>   rate limiting bloqueia a 6ª tentativa do mesmo IP) — 340/340 testes da suíte inteira passando
+>   (3 testes pré-existentes tiveram a contagem de configurações institucionais seguidas
+>   atualizada de 32 para 35, refletindo as 3 chaves novas desta versão). 27/27 testes do painel,
+>   `typecheck`/`lint`/`format`/`build` limpos em ambos.
+> **Checkboxes não marcados `[x]`** — confirmação visual da tela nova ainda pendente (mesma
+> lacuna de ferramenta de navegador já registrada nos pontos de revisão anteriores).
+
 #### v4.7 — Vagas, lista de espera e inscrição em grupo
 - [ ] Limite de vagas com trava real sob concorrência (controle transacional no banco, não
       contagem otimista na aplicação) — acima do limite, vira lista de espera automaticamente, com

@@ -18,6 +18,21 @@ from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, T
 
 from app.database import Base
 
+# v4.6 - tipos de pergunta personalizada do formulário de inscrição pública. Sem tabela própria
+# de resposta - a resposta mora em `Inscricao.respostas_formulario` (JSON, chave = id_pergunta),
+# mesmo raciocínio genérico de `ValorCampo` (v0.3.3) já usado noutro lugar do projeto.
+TIPO_PERGUNTA_TEXTO_CURTO = "TEXTO_CURTO"
+TIPO_PERGUNTA_TEXTO_LONGO = "TEXTO_LONGO"
+TIPO_PERGUNTA_SELECAO_UNICA = "SELECAO_UNICA"
+TIPO_PERGUNTA_SELECAO_MULTIPLA = "SELECAO_MULTIPLA"
+TIPO_PERGUNTA_NUMERO = "NUMERO"
+TIPO_PERGUNTA_DATA = "DATA"
+TIPO_PERGUNTA_ARQUIVO = "ARQUIVO"
+TIPOS_PERGUNTA_EVENTO = {
+    TIPO_PERGUNTA_TEXTO_CURTO, TIPO_PERGUNTA_TEXTO_LONGO, TIPO_PERGUNTA_SELECAO_UNICA,
+    TIPO_PERGUNTA_SELECAO_MULTIPLA, TIPO_PERGUNTA_NUMERO, TIPO_PERGUNTA_DATA, TIPO_PERGUNTA_ARQUIVO,
+}
+
 
 class Evento(Base):
     __tablename__ = "eventos"
@@ -56,3 +71,18 @@ class SessaoEvento(Base):
     vagas = Column(Integer, nullable=True)
     id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
+
+
+class PerguntaEvento(Base):
+    """Pergunta personalizada do formulário de inscrição pública (v4.6) - texto curto/longo,
+    seleção única/múltipla, número, data ou arquivo, com resposta obrigatória configurável por
+    pergunta. `opcoes` é CSV (mesmo padrão de `Votacao.opcoes_validas`), só usado pelos dois tipos
+    de seleção."""
+    __tablename__ = "perguntas_evento"
+    id_pergunta = Column(Integer, primary_key=True, index=True)
+    id_evento = Column(Integer, ForeignKey("eventos.id_evento"), nullable=False, index=True)
+    enunciado = Column(String, nullable=False)
+    tipo = Column(String, nullable=False)
+    opcoes = Column(Text, nullable=True)  # CSV - só pra SELECAO_UNICA/SELECAO_MULTIPLA
+    obrigatoria = Column(Boolean, nullable=False, default=True)
+    ordem = Column(Integer, nullable=False, default=0)

@@ -64,6 +64,15 @@ class Inscricao(Base):
     respostas_formulario = Column(Text, nullable=True)
     id_titulo_cobranca = Column(Integer, ForeignKey("titulos_financeiros.id_titulo"), nullable=True)
     data_inscricao = Column(DateTime, default=datetime.utcnow)
+    # v4.6 - inscrição pública (formulário do site, sem login): código de check-in (curto, pra
+    # digitar na portaria quando a v4.8 existir) e token de cancelamento (opaco, pro link de
+    # autocancelamento) - nulos pra toda inscrição de staff/autoatendimento logado (v4.0-v4.5),
+    # que nunca precisou de nenhum dos dois. `consentimento_lgpd_versao` guarda a versão do texto
+    # de consentimento aceito NA HORA, nunca recalculada depois - a versão pode mudar no futuro
+    # sem invalidar retroativamente o consentimento já dado.
+    codigo_checkin = Column(String, nullable=True, unique=True)
+    token_cancelamento = Column(String, nullable=True, unique=True)
+    consentimento_lgpd_versao = Column(String, nullable=True)
 
 
 class TemplateDocumento(Base):

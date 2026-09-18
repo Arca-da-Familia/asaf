@@ -4371,3 +4371,41 @@ export function listarMinhasInscricoesEmEventos(): Promise<
 > {
   return apiFetch('/api/eventos/minhas-inscricoes')
 }
+
+// ---------------------------------------------------------------------------
+// v4.6 (FASE 4) - inscrição pública com deduplicação: perguntas personalizadas do formulário
+// (gestão pelo painel); o formulário público em si e o autocancelamento vivem no site
+// institucional (Astro/Directus, outro projeto, fora deste repositório) - aqui só o que é
+// gestão interna.
+// ---------------------------------------------------------------------------
+export type PerguntaEvento = {
+  id_pergunta: number
+  id_evento: number
+  enunciado: string
+  tipo: string
+  opcoes: string | null
+  obrigatoria: boolean
+  ordem: number
+}
+
+export function criarPerguntaEvento(
+  idEvento: number,
+  dados: {
+    enunciado: string
+    tipo: string
+    opcoes?: string
+    obrigatoria: boolean
+    ordem: number
+  },
+): Promise<{ mensagem: string; id_pergunta: number }> {
+  return apiFetch(`/api/eventos/${idEvento}/perguntas`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarPerguntasEvento(
+  idEvento: number,
+): Promise<PerguntaEvento[]> {
+  return apiFetch(`/api/eventos/${idEvento}/perguntas`)
+}

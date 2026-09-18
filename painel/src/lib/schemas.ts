@@ -1008,3 +1008,20 @@ export const novaEdicaoEventoCriarSchema = z.object({
     .optional()
     .transform((v) => (v ? paraUtcIso(v) : undefined)),
 })
+
+// v4.6 - pergunta personalizada do formulário de inscrição pública em evento.
+export const perguntaEventoCriarSchema = z.object({
+  enunciado: z.string().min(3, 'Informe o enunciado da pergunta.'),
+  tipo: z.enum([
+    'TEXTO_CURTO',
+    'TEXTO_LONGO',
+    'SELECAO_UNICA',
+    'SELECAO_MULTIPLA',
+    'NUMERO',
+    'DATA',
+    'ARQUIVO',
+  ]),
+  opcoes: z.string().optional(),
+  obrigatoria: z.boolean(),
+  ordem: z.coerce.number().int().min(0),
+})

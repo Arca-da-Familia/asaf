@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import {
   criarEvento,
   criarNovaEdicaoEvento,
+  criarPerguntaEvento,
   criarSessaoEvento,
   listarAssociados,
   listarEdicoesEvento,
@@ -15,6 +16,7 @@ import {
   listarEventos,
   listarInscricoesDoContexto,
   listarOpcoesCatalogo,
+  listarPerguntasEvento,
   listarSessoesEvento,
   type Evento,
 } from '@/lib/api'
@@ -22,6 +24,7 @@ import { formatarData } from '@/lib/datas'
 import {
   eventoCriarSchema,
   novaEdicaoEventoCriarSchema,
+  perguntaEventoCriarSchema,
   sessaoEventoCriarSchema,
 } from '@/lib/schemas'
 
@@ -277,6 +280,106 @@ function SecaoSessoes({ idEvento }: { idEvento: number }) {
   )
 }
 
+// v4.6 (FASE 4) - perguntas personalizadas do formulário de inscrição pública. O formulário em
+// si (onde a resposta é preenchida) vive no site institucional (Astro/Directus, outro projeto,
+// fora deste repositório) - aqui é só a gestão de QUAIS perguntas existem, mesma decisão de
+// escopo já registrada na v4.5 pro autoatendimento.
+function SecaoPerguntas({ idEvento }: { idEvento: number }) {
+  const queryClient = useQueryClient()
+  const { data: perguntas } = useQuery({
+    queryKey: ['perguntas-evento', idEvento],
+    queryFn: () => listarPerguntasEvento(idEvento),
+  })
+
+  const criar = useMutation({
+    mutationFn: (v: z.infer<typeof perguntaEventoCriarSchema>) =>
+      criarPerguntaEvento(idEvento, v),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ['perguntas-evento', idEvento],
+      }),
+  })
+
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-semibold">
+        Perguntas do formulário de inscrição pública
+      </h3>
+      <FormShell<z.infer<typeof perguntaEventoCriarSchema>>
+        schema={perguntaEventoCriarSchema}
+        defaultValues={{
+          enunciado: '',
+          tipo: 'TEXTO_CURTO',
+          opcoes: '',
+          obrigatoria: true,
+          ordem: (perguntas ?? []).length,
+        }}
+        onSubmit={(v) => criar.mutateAsync(v)}
+        className="mb-3 flex flex-wrap items-end gap-2"
+      >
+        {(form) => (
+          <>
+            <div className="flex-1">
+              <input
+                {...form.register('enunciado')}
+                placeholder="Enunciado da pergunta"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              />
+              <ErroCampo mensagem={form.formState.errors.enunciado?.message} />
+            </div>
+            <select
+              {...form.register('tipo')}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="TEXTO_CURTO">Texto curto</option>
+              <option value="TEXTO_LONGO">Texto longo</option>
+              <option value="SELECAO_UNICA">Seleção única</option>
+              <option value="SELECAO_MULTIPLA">Seleção múltipla</option>
+              <option value="NUMERO">Número</option>
+              <option value="DATA">Data</option>
+              <option value="ARQUIVO">Arquivo</option>
+            </select>
+            <input
+              {...form.register('opcoes')}
+              placeholder="Opções (CSV, só seleção)"
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            />
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" {...form.register('obrigatoria')} />
+              Obrigatória
+            </label>
+            <Button type="submit" size="sm" disabled={criar.isPending}>
+              Adicionar
+            </Button>
+            {criar.isError && (
+              <p className="w-full text-sm text-destructive">
+                {(criar.error as Error).message}
+              </p>
+            )}
+          </>
+        )}
+      </FormShell>
+      <div className="space-y-1">
+        {(perguntas ?? []).map((p) => (
+          <div
+            key={p.id_pergunta}
+            className="rounded-md border border-border p-2 text-sm"
+          >
+            {p.enunciado} — {p.tipo}
+            {p.obrigatoria && ' · obrigatória'}
+          </div>
+        ))}
+        {(perguntas ?? []).length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma pergunta personalizada — o formulário público pede só
+            nome/CPF/e-mail/ telefone.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function SecaoEdicoes({ evento }: { evento: Evento }) {
   const queryClient = useQueryClient()
   const [mostrarForm, setMostrarForm] = useState(false)
@@ -405,6 +508,7 @@ function DetalheEvento({ evento }: { evento: Evento }) {
         </p>
       </div>
       <SecaoSessoes idEvento={evento.id_evento} />
+      <SecaoPerguntas idEvento={evento.id_evento} />
       <SecaoEdicoes evento={evento} />
       <SecaoInscritos evento={evento} />
     </div>
