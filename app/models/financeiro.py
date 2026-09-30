@@ -35,6 +35,10 @@ class CentroDeCusto(Base):
     codigo = Column(String, unique=True, index=True)
     nome = Column(String, nullable=False)
     id_projeto = Column(Integer, ForeignKey("projetos_eventos.id_projeto"), nullable=True)
+    # v4.9 - espelha `id_projeto` acima: centro de custo de um `Evento` (FASE 4, v4.5) - Evento
+    # nasceu como tabela própria só na v4.5, depois deste modelo já existir (v3.1), por isso o
+    # espelho chega só agora, nunca reaproveitando `id_projeto` pra uma coisa que não é projeto.
+    id_evento = Column(Integer, ForeignKey("eventos.id_evento"), nullable=True)
     ativo = Column(Boolean, default=True, nullable=False)
     # v3.4 - quando ligado, este centro de custo representa uma DESTINAÇÃO restrita (doação com
     # finalidade específica, ver app/models/doacoes.py::Doacao) - toda aprovação de compra
@@ -135,6 +139,12 @@ class TituloFinanceiro(Base):
     # energia, contador) - ver app/services/contas_a_pagar.py::gerar_contas_a_pagar. NULL em todo
     # título que não veio dessa geração.
     id_conta_a_pagar_recorrente = Column(Integer, ForeignKey("contas_a_pagar_recorrentes.id_conta_recorrente"), nullable=True)
+    # v4.9 - reembolso por cancelamento (inscrição de evento/reserva de espaço) NUNCA estorna o
+    # título original (o dinheiro realmente entrou) - gera um título "A Pagar" NOVO, devolvendo o
+    # percentual aplicável, pago pelo mesmo `POST /baixar-titulo/` de sempre. Este FK liga o
+    # título de reembolso de volta ao título original que ele devolve, pra rastreabilidade -
+    # `None` em todo título que não é um reembolso de outro.
+    id_titulo_reembolso_de = Column(Integer, ForeignKey("titulos_financeiros.id_titulo"), nullable=True)
 
 
 class PlanoDeContribuicao(Base):

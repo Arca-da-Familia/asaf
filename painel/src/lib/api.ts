@@ -2278,6 +2278,8 @@ export type CentroDeCusto = {
   codigo: string
   nome: string
   id_projeto: number | null
+  // v4.9 - espelha id_projeto: vínculo opcional com um evento (financeiro de projeto/evento).
+  id_evento: number | null
   ativo: boolean
   saldo_restrito: boolean
 }
@@ -2290,6 +2292,7 @@ export function criarCentroCusto(dados: {
   codigo: string
   nome: string
   id_projeto?: number
+  id_evento?: number
 }): Promise<{ mensagem: string; id_centro_custo: number }> {
   return apiFetch('/api/centros-custo/', {
     method: 'POST',
@@ -3877,6 +3880,11 @@ export function criarEspaco(dados: {
   prazo_cancelamento_horas: number
   taxa_cancelamento_tardio?: number
   limite_no_show_bloqueio?: number
+  // v4.9 - política de reembolso por cancelamento deste espaço. Ausente/nulo = usa o padrão
+  // global (`PERCENTUAL_REEMBOLSO_CANCELAMENTO_PADRAO`) - nunca devolvido pelo GET (mesmo padrão
+  // "só PUT/POST, sem leitura de volta" da elegibilidade v4.8), por isso só existe aqui, na
+  // criação (não há endpoint de edição de Espaco).
+  percentual_reembolso_cancelamento?: number
 }): Promise<{ mensagem: string; id_espaco: number }> {
   return apiFetch('/api/espacos/', {
     method: 'POST',
@@ -3989,10 +3997,18 @@ export function recusarReserva(
   })
 }
 
+// v4.9 - cancelar uma reserva paga (fora do fluxo de no-show) agora pode gerar reembolso de
+// verdade: `reembolso` vem preenchido quando havia cobrança e o cancelamento caiu dentro da
+// política de reembolso do espaço/sistema; `null` = cancelada sem gerar reembolso (sem cobrança,
+// ou fora da janela). O título gerado é "A Pagar" e precisa de baixa manual na tela de Títulos
+// (`/financeiro/titulos`, fluxo `baixarTitulo` já existente) - este endpoint só cria o título,
+// nunca paga sozinho.
 export function cancelarReserva(
   idReserva: number,
   motivo: string,
-): Promise<ReservaEspaco> {
+): Promise<
+  ReservaEspaco & { reembolso: { id_titulo: number; valor: number } | null }
+> {
   return apiFetch(`/api/reservas-espaco/${idReserva}/cancelar`, {
     method: 'POST',
     body: JSON.stringify({ motivo }),
@@ -4042,6 +4058,37 @@ export function registrarDevolucaoEspaco(
     method: 'POST',
     body: JSON.stringify(dados),
   })
+}
+
+// ---------------------------------------------------------------------------
+// v4.9 - isenção justificada de taxa (inscrição de evento OU reserva de espaço): motor genérico
+// só por `contexto_tipo`/`id_contexto`, reaproveitado por Eventos.tsx e por este arquivo. Backend
+// exige `id_pessoa` (não `id_associado`) - o formulário resolve isso chamando `obterAssociado`
+// pra achar o `id_pessoa` por trás do associado escolhido (ver Eventos.tsx/Espacos.tsx), já que
+// `listarAssociados` (usado em todo seletor de associado do painel) não devolve `id_pessoa`.
+// ---------------------------------------------------------------------------
+export type IsencaoTaxaContexto = {
+  id_isencao: number
+  id_pessoa: number
+  motivo: string
+  percentual_isencao: number
+  id_usuario_aprovador: number | null
+}
+
+export function criarIsencaoTaxaEspaco(
+  idEspaco: number,
+  dados: { id_pessoa: number; motivo: string; percentual_isencao: number },
+): Promise<{ mensagem: string; id_isencao: number }> {
+  return apiFetch(`/api/espacos/${idEspaco}/isencoes`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarIsencoesTaxaEspaco(
+  idEspaco: number,
+): Promise<IsencaoTaxaContexto[]> {
+  return apiFetch(`/api/espacos/${idEspaco}/isencoes`)
 }
 
 // ---------------------------------------------------------------------------
@@ -4450,6 +4497,153 @@ export function expirarPromocoesVencidas(): Promise<{
   detalhes: { id_inscricao: number; id_promovido: number | null }[]
 }> {
   return apiFetch('/api/eventos/expirar-promocoes-vencidas', { method: 'POST' })
+}
+
+// ---------------------------------------------------------------------------
+// FINANCEIRO DE EVENTO (v4.9) - cobrança de inscrição (faixa de preço por categoria/vigência,
+// cupom de desconto, isenção justificada), política de reembolso por cancelamento e fechamento
+// financeiro (snapshot imutável, manual ou pela tarefa diária agendada). Gate por "projetos"
+// (não "financeiro"), mesmo critério já usado pelos campos financeiros de `Espaco` (v4.3) -
+// nunca devolvido pelo GET /api/eventos (mesmo padrão "só PUT, sem leitura de volta" da
+// elegibilidade v4.8), por isso nenhum destes formulários pré-carrega o valor já configurado.
+// ---------------------------------------------------------------------------
+export function configurarCobrancaEvento(
+  idEvento: number,
+  dados: {
+    valor_base: number | null
+    id_conta_contabil_receita?: number | null
+    id_centro_custo?: number | null
+  },
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/eventos/${idEvento}/cobranca-config`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function configurarReembolsoEvento(
+  idEvento: number,
+  dados: {
+    prazo_cancelamento_horas: number
+    percentual_reembolso_cancelamento: number | null
+  },
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/eventos/${idEvento}/reembolso-config`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type FaixaPrecoEvento = {
+  id_faixa: number
+  categoria: string
+  valor: number
+  data_vigencia_inicio: string | null
+  data_vigencia_fim: string | null
+}
+
+export function criarFaixaPrecoEvento(
+  idEvento: number,
+  dados: {
+    categoria: string
+    valor: number
+    data_vigencia_inicio?: string
+    data_vigencia_fim?: string
+  },
+): Promise<{ mensagem: string; id_faixa: number }> {
+  return apiFetch(`/api/eventos/${idEvento}/faixas-preco`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+// Sem endpoint de edição/exclusão de faixa - só criar + listar (ver comentário do backend em
+// app/routers/eventos.py); a tela não deve sugerir um botão de editar/excluir que não existe.
+export function listarFaixasPrecoEvento(
+  idEvento: number,
+): Promise<FaixaPrecoEvento[]> {
+  return apiFetch(`/api/eventos/${idEvento}/faixas-preco`)
+}
+
+export type CupomDesconto = {
+  id_cupom: number
+  codigo: string
+  tipo_desconto: 'percentual' | 'valor_fixo'
+  valor_desconto: number
+  limite_uso: number | null
+  usos_atuais: number
+  data_vigencia_inicio: string | null
+  data_vigencia_fim: string | null
+  ativo: boolean
+}
+
+export function criarCupomEvento(
+  idEvento: number,
+  dados: {
+    codigo: string
+    tipo_desconto: 'percentual' | 'valor_fixo'
+    valor_desconto: number
+    limite_uso?: number
+    data_vigencia_inicio?: string
+    data_vigencia_fim?: string
+  },
+): Promise<{ mensagem: string; id_cupom: number; codigo: string }> {
+  return apiFetch(`/api/eventos/${idEvento}/cupons`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarCuponsEvento(idEvento: number): Promise<CupomDesconto[]> {
+  return apiFetch(`/api/eventos/${idEvento}/cupons`)
+}
+
+export function criarIsencaoTaxaEvento(
+  idEvento: number,
+  dados: { id_pessoa: number; motivo: string; percentual_isencao: number },
+): Promise<{ mensagem: string; id_isencao: number }> {
+  return apiFetch(`/api/eventos/${idEvento}/isencoes`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarIsencoesTaxaEvento(
+  idEvento: number,
+): Promise<IsencaoTaxaContexto[]> {
+  return apiFetch(`/api/eventos/${idEvento}/isencoes`)
+}
+
+export type FechamentoEvento = {
+  id_fechamento: number
+  gerado_em: string
+  total_inscritos: number
+  total_presentes: number
+  total_arrecadado: number
+  total_custos: number
+  resultado: number
+  // null = gerado automaticamente pela tarefa diária agendada, nunca por uma pessoa.
+  id_usuario_geracao: number | null
+}
+
+export function gerarFechamentoEvento(idEvento: number): Promise<{
+  mensagem: string
+  id_fechamento: number
+  total_inscritos: number
+  total_presentes: number
+  total_arrecadado: number
+  total_custos: number
+  resultado: number
+}> {
+  return apiFetch(`/api/eventos/${idEvento}/fechamento`, { method: 'POST' })
+}
+
+// Histórico completo (mais recente primeiro) - cada linha é um snapshot imutável, nunca editado;
+// a tela deve listar todo o histórico, não só o mais recente.
+export function listarFechamentosEvento(
+  idEvento: number,
+): Promise<FechamentoEvento[]> {
+  return apiFetch(`/api/eventos/${idEvento}/fechamento`)
 }
 
 // ---------------------------------------------------------------------------

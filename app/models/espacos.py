@@ -34,6 +34,12 @@ class Espaco(Base):
     taxa_cancelamento_tardio = Column(Numeric(14, 2), nullable=True)
     limite_no_show_bloqueio = Column(Integer, nullable=True)  # nulo = nunca bloqueia por reincidência
     ativo = Column(Boolean, default=True, nullable=False)
+    # v4.9 - reembolso por cancelamento dentro do prazo (fecha um gap real: até aqui,
+    # `cancelar_reserva` só sabia COBRAR taxa de cancelamento tardio, nunca devolver a cobrança
+    # original). Nulo = usa o padrão global (`ConfiguracaoInstitucional
+    # PERCENTUAL_REEMBOLSO_CANCELAMENTO_PADRAO`, mesma convenção já usada pela elegibilidade de
+    # certificado na v4.8) - preenchido, sobrescreve só para este espaço.
+    percentual_reembolso_cancelamento = Column(Numeric(5, 2), nullable=True)
 
 
 class BloqueioEspaco(Base):

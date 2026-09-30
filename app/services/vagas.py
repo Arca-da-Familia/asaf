@@ -160,19 +160,59 @@ def promover_proximo_da_espera(db: Session, *, contexto_tipo: str, id_contexto: 
     return proximo
 
 
-def cancelar_e_promover_por_token(db: Session, *, token_cancelamento: str) -> Inscricao:
+def _reembolsar_inscricao_se_devido(db: Session, *, inscricao: Inscricao, contexto_tipo: str, id_contexto: int):
+    """v4.9 - reembolso da cobrança de inscrição (quando havia uma - ver
+    app/services/cobranca_evento.py) no autocancelamento público. Nunca estorna o título original
+    (o dinheiro realmente entrou) - gera um título 'A Pagar' novo (ver
+    app/services/reembolso_cancelamento.py), pago pelo mesmo POST /baixar-titulo/ de sempre."""
+    if not inscricao.id_titulo_cobranca:
+        return None
+    from datetime import datetime
+
+    from app.models.eventos import Evento, SessaoEvento
+    from app.models.financeiro import TituloFinanceiro
+    from app.services import reembolso_cancelamento
+
+    if contexto_tipo == "SessaoEvento":
+        sessao = db.query(SessaoEvento).filter(SessaoEvento.id_sessao == id_contexto).first()
+        evento = db.query(Evento).filter(Evento.id_evento == sessao.id_evento).first() if sessao else None
+    else:
+        evento = db.query(Evento).filter(Evento.id_evento == id_contexto).first()
+    if not evento:
+        return None
+
+    titulo_original = db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == inscricao.id_titulo_cobranca).first()
+    if not titulo_original:
+        return None
+
+    horas_ate_evento = (evento.data_hora_inicio - datetime.utcnow()).total_seconds() / 3600
+    percentual = reembolso_cancelamento.calcular_percentual_reembolso(
+        db, horas_ate_evento=horas_ate_evento, prazo_horas=evento.prazo_cancelamento_horas,
+        percentual_override=evento.percentual_reembolso_cancelamento,
+    )
+    return reembolso_cancelamento.gerar_reembolso(
+        db, titulo_original=titulo_original, percentual=percentual,
+        motivo=f"cancelamento da inscrição em '{evento.titulo}'",
+    )
+
+
+def cancelar_e_promover_por_token(db: Session, *, token_cancelamento: str) -> tuple[Inscricao, Optional["TituloFinanceiro"]]:
     """Autocancelamento (v4.6) agora libera a vaga de verdade e promove o próximo da fila."""
     alvo = db.query(Inscricao).filter(Inscricao.token_cancelamento == token_cancelamento).first()
     if not alvo:
         raise HTTPException(status_code=404, detail="Link de cancelamento inválido.")
     status_anterior, contexto_tipo, id_contexto, categoria_cota = alvo.status, alvo.contexto_tipo, alvo.id_contexto, alvo.categoria_cota
 
+    titulo_reembolso = None
+    if status_anterior in (PRE_INSCRITO, CONFIRMADO):
+        titulo_reembolso = _reembolsar_inscricao_se_devido(db, inscricao=alvo, contexto_tipo=contexto_tipo, id_contexto=id_contexto)
+
     cancelada = servico_inscricao.cancelar_por_token(db, token_cancelamento=token_cancelamento)
 
     if status_anterior in (PRE_INSCRITO, CONFIRMADO):
         liberar_vaga(db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, categoria_cota=categoria_cota)
         promover_proximo_da_espera(db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, categoria_cota=categoria_cota)
-    return cancelada
+    return cancelada, titulo_reembolso
 
 
 def expirar_promocoes_vencidas(db: Session) -> list[dict]:

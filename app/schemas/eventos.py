@@ -94,6 +94,7 @@ class InscricaoPublicaCriar(BaseModel):
     consentimento_lgpd: bool
     versao_texto_consentimento: str
     pagina_web: Optional[str] = None
+    codigo_cupom: Optional[str] = None  # v4.9 - cupom de desconto (opcional, evento pago)
 
     @field_validator("cpf")
     @classmethod
@@ -127,3 +128,46 @@ class EventoElegibilidadeConfig(BaseModel):
     em qualquer campo volta a usar o padrão global (`ConfiguracaoInstitucional`)."""
     percentual_minimo: Optional[Decimal] = None
     carga_horaria_horas: Optional[Decimal] = None
+
+
+class EventoCobrancaConfig(BaseModel):
+    """v4.9 - cobrança de inscrição. `valor_base=None` volta o evento a gratuito de fato."""
+    valor_base: Optional[Decimal] = None
+    id_conta_contabil_receita: Optional[int] = None
+    id_centro_custo: Optional[int] = None
+
+
+class EventoReembolsoConfig(BaseModel):
+    """v4.9 - política de reembolso por cancelamento deste evento. `percentual_reembolso_
+    cancelamento=None` usa o padrão global (`PERCENTUAL_REEMBOLSO_CANCELAMENTO_PADRAO`)."""
+    prazo_cancelamento_horas: int = 24
+    percentual_reembolso_cancelamento: Optional[Decimal] = None
+
+
+class FaixaPrecoEventoCriar(BaseModel):
+    categoria: str
+    valor: Decimal
+    data_vigencia_inicio: Optional[datetime] = None
+    data_vigencia_fim: Optional[datetime] = None
+
+    @field_validator("valor")
+    @classmethod
+    def validar_valor(cls, v):
+        if v < 0:
+            raise ValueError("Valor não pode ser negativo.")
+        return v
+
+
+class CupomDescontoCriar(BaseModel):
+    codigo: str
+    tipo_desconto: str
+    valor_desconto: Decimal
+    limite_uso: Optional[int] = None
+    data_vigencia_inicio: Optional[datetime] = None
+    data_vigencia_fim: Optional[datetime] = None
+
+
+class IsencaoTaxaCriar(BaseModel):
+    id_pessoa: int
+    motivo: str
+    percentual_isencao: Decimal

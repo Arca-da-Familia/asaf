@@ -68,6 +68,21 @@ class Evento(Base):
     # sobrescreve só para este evento.
     carga_horaria_horas = Column(Numeric(6, 2), nullable=True)
     percentual_minimo_certificado = Column(Numeric(5, 2), nullable=True)
+    # v4.9 - cobrança de inscrição integrada à FASE 3. `valor_base` nulo = evento continua
+    # gratuito (comportamento de sempre, `gratuito=True`) - ver app/services/cobranca_evento.py
+    # pra faixa por categoria/data, cupom e isenção por cima deste valor. `id_centro_custo`
+    # opcional: liga toda cobrança/reembolso/despesa deste evento a um `CentroDeCusto` (espelha
+    # `CentroDeCusto.id_projeto`, v3.1) pra "resultado por centro de custo" sair de graça de
+    # `app/services/relatorios.py::receitas_e_despesas_por_centro_custo`.
+    valor_base = Column(Numeric(10, 2), nullable=True)
+    id_conta_contabil_receita = Column(Integer, ForeignKey("plano_de_contas.id_conta"), nullable=True)
+    id_centro_custo = Column(Integer, ForeignKey("centros_de_custo.id_centro_custo"), nullable=True)
+    # v4.9 - reembolso por cancelamento de inscrição paga, mesmo par de campos de
+    # `Espaco.prazo_cancelamento_horas`/`percentual_reembolso_cancelamento` (consistência entre os
+    # dois consumidores que a v4.9 cobra). `percentual_reembolso_cancelamento` nulo = usa o padrão
+    # global (`PERCENTUAL_REEMBOLSO_CANCELAMENTO_PADRAO`, mesma convenção de elegibilidade v4.8).
+    prazo_cancelamento_horas = Column(Integer, nullable=False, default=24)
+    percentual_reembolso_cancelamento = Column(Numeric(5, 2), nullable=True)
 
 
 class SessaoEvento(Base):

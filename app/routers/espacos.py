@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
 from app.database import get_db
+from app.schemas.eventos import IsencaoTaxaCriar
 from app.schemas.espacos import (
     BloqueioEspacoCriar,
     EspacoCriar,
@@ -19,6 +20,7 @@ from app.schemas.espacos import (
 )
 from app.security import exigir_permissao
 from app.services import espacos, reservas
+from app.services import isencoes_taxa as servico_isencoes_taxa
 
 router = APIRouter()
 _permissao_projetos = exigir_permissao("projetos")
@@ -62,6 +64,7 @@ def criar_espaco_endpoint(dados: EspacoCriar, request: Request, db: Session = De
         valor_reserva=dados.valor_reserva, isento_para_associado_adimplente=dados.isento_para_associado_adimplente,
         id_conta_contabil_receita=dados.id_conta_contabil_receita, prazo_cancelamento_horas=dados.prazo_cancelamento_horas,
         taxa_cancelamento_tardio=dados.taxa_cancelamento_tardio, limite_no_show_bloqueio=dados.limite_no_show_bloqueio,
+        percentual_reembolso_cancelamento=dados.percentual_reembolso_cancelamento,
     )
     registrar_auditoria(
         db, usuario, "espacos", "CREATE", id_registro_afetado=espaco.id_espaco,
@@ -153,9 +156,17 @@ def recusar_reserva_endpoint(id_reserva: int, dados: ReservaRecusar, request: Re
 
 @router.post("/api/reservas-espaco/{id_reserva}/cancelar", summary="Cancelar Reserva (pode gerar taxa se fora do prazo)")
 def cancelar_reserva_endpoint(id_reserva: int, dados: ReservaCancelar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
-    reserva = reservas.cancelar_reserva(db, id_reserva=id_reserva, motivo=dados.motivo, id_usuario=usuario.id_usuario)
-    registrar_auditoria(db, usuario, "reservas_espaco", "CANCELAMENTO", id_registro_afetado=reserva.id_reserva, dados_depois={"motivo": dados.motivo}, ip_origem=_ip_origem(request))
-    return _serializar_reserva(reserva)
+    reserva, titulo_reembolso = reservas.cancelar_reserva(db, id_reserva=id_reserva, motivo=dados.motivo, id_usuario=usuario.id_usuario)
+    registrar_auditoria(
+        db, usuario, "reservas_espaco", "CANCELAMENTO", id_registro_afetado=reserva.id_reserva,
+        dados_depois={"motivo": dados.motivo, "id_titulo_reembolso": titulo_reembolso.id_titulo if titulo_reembolso else None},
+        ip_origem=_ip_origem(request),
+    )
+    resposta = _serializar_reserva(reserva)
+    resposta["reembolso"] = (
+        {"id_titulo": titulo_reembolso.id_titulo, "valor": titulo_reembolso.valor_original} if titulo_reembolso else None
+    )
+    return resposta
 
 
 @router.post("/api/reservas-espaco/{id_reserva}/nao-compareceu", summary="Marcar não comparecimento (no-show)")
@@ -198,3 +209,34 @@ def obter_checklist_endpoint(id_reserva: int, db: Session = Depends(get_db), _us
         "condicao_devolucao": checklist.condicao_devolucao, "houve_avaria": checklist.houve_avaria,
         "descricao_avaria": checklist.descricao_avaria, "data_devolucao": checklist.data_devolucao,
     }
+
+
+# ==========================================
+# ISENÇÃO JUSTIFICADA DE TAXA DE RESERVA (v4.9) - mesmo motor genérico usado pela inscrição de
+# evento (app/services/isencoes_taxa.py), escopado ao espaço inteiro ("Espaco"/id_espaco), não à
+# reserva específica - uma isenção concedida vale para qualquer reserva futura da mesma pessoa
+# naquele espaço.
+# ==========================================
+@router.post("/api/espacos/{id_espaco}/isencoes", summary="Conceder isenção justificada de taxa de reserva")
+def conceder_isencao_espaco_endpoint(id_espaco: int, dados: IsencaoTaxaCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    isencao = servico_isencoes_taxa.conceder_isencao(
+        db, contexto_tipo="Espaco", id_contexto=id_espaco, id_pessoa=dados.id_pessoa, motivo=dados.motivo,
+        percentual_isencao=dados.percentual_isencao, id_usuario_aprovador=usuario.id_usuario,
+    )
+    registrar_auditoria(
+        db, usuario, "isencoes_taxa_contexto", "CREATE", id_registro_afetado=isencao.id_isencao,
+        dados_depois={"id_espaco": id_espaco, "id_pessoa": isencao.id_pessoa, "percentual_isencao": str(isencao.percentual_isencao)},
+        ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Isenção concedida.", "id_isencao": isencao.id_isencao}
+
+
+@router.get("/api/espacos/{id_espaco}/isencoes", summary="Listar isenções de taxa de reserva do espaço")
+def listar_isencoes_espaco_endpoint(id_espaco: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    return [
+        {
+            "id_isencao": i.id_isencao, "id_pessoa": i.id_pessoa, "motivo": i.motivo,
+            "percentual_isencao": i.percentual_isencao, "id_usuario_aprovador": i.id_usuario_aprovador,
+        }
+        for i in servico_isencoes_taxa.listar_isencoes(db, contexto_tipo="Espaco", id_contexto=id_espaco)
+    ]

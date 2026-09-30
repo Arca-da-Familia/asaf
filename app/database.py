@@ -317,6 +317,10 @@ def seed_catalogos():
             ("DIFICULDADE_FINANCEIRA", "Dificuldade financeira comprovada"), ("FUNDADOR", "Associado fundador"),
             ("DIRETORIA", "Membro da diretoria em exercício"), ("OUTRO", "Outro"),
         ]),
+        "motivo_isencao_taxa_evento": ("Motivo de isenção de taxa de inscrição/reserva", True, "financeiro", [
+            ("DIFICULDADE_FINANCEIRA", "Dificuldade financeira comprovada"), ("VOLUNTARIO_DA_EQUIPE", "Voluntário da equipe do evento"),
+            ("PALESTRANTE_CONVIDADO", "Palestrante/convidado de honra"), ("OUTRO", "Outro"),
+        ]),
         "unidade_medida_indicador": ("Unidade de medida de indicador", True, "projetos", [
             ("UNIDADE", "Unidade"), ("PERCENTUAL", "Percentual"), ("REAL", "Real (R$)"),
             ("QUILOGRAMA", "Quilograma"), ("HORA", "Hora"), ("PESSOA", "Pessoa"),

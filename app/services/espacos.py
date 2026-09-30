@@ -19,7 +19,7 @@ def criar_espaco(
     regras_uso: Optional[str], horario_funcionamento_inicio: Optional[str], horario_funcionamento_fim: Optional[str],
     exige_aprovacao: bool, valor_reserva: Optional[Decimal], isento_para_associado_adimplente: bool,
     id_conta_contabil_receita: Optional[int], prazo_cancelamento_horas: int, taxa_cancelamento_tardio: Optional[Decimal],
-    limite_no_show_bloqueio: Optional[int],
+    limite_no_show_bloqueio: Optional[int], percentual_reembolso_cancelamento: Optional[Decimal] = None,
 ) -> Espaco:
     validar_codigo_em_catalogo(db, "tipo_espaco", tipo, "Tipo de espaço")
     espaco = Espaco(
@@ -28,6 +28,7 @@ def criar_espaco(
         exige_aprovacao=exige_aprovacao, valor_reserva=valor_reserva, isento_para_associado_adimplente=isento_para_associado_adimplente,
         id_conta_contabil_receita=id_conta_contabil_receita, prazo_cancelamento_horas=prazo_cancelamento_horas,
         taxa_cancelamento_tardio=taxa_cancelamento_tardio, limite_no_show_bloqueio=limite_no_show_bloqueio,
+        percentual_reembolso_cancelamento=percentual_reembolso_cancelamento,
     )
     db.add(espaco)
     db.commit()

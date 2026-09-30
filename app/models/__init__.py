@@ -106,6 +106,8 @@ from app.models.votacao import (
     Votacao,
     VotoAberto,
 )
+from app.models.portaria import TokenPortaria, OperacaoPortariaIdempotente
+from app.models.financeiro_evento import FaixaPrecoEvento, CupomDesconto, IsencaoTaxaContexto, FechamentoEvento
 
 __all__ = [
     "perfil_permissao",
@@ -211,4 +213,10 @@ __all__ = [
     "Indicador",
     "MedicaoIndicador",
     "CompromissoAgenda",
+    "TokenPortaria",
+    "OperacaoPortariaIdempotente",
+    "FaixaPrecoEvento",
+    "CupomDesconto",
+    "IsencaoTaxaContexto",
+    "FechamentoEvento",
 ]

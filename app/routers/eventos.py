@@ -10,13 +10,30 @@ from sqlalchemy.orm import Session
 from app.auditoria import registrar_auditoria
 from app.config_cache import obter_configuracao
 from app.database import get_db
-from app.schemas.eventos import CotaInscricaoCriar, EventoCriar, EventoElegibilidadeConfig, InscricaoPublicaCriar, NovaEdicaoEventoCriar, PerguntaEventoCriar, SessaoEventoCriar
+from app.schemas.eventos import (
+    CotaInscricaoCriar,
+    CupomDescontoCriar,
+    EventoCobrancaConfig,
+    EventoCriar,
+    EventoElegibilidadeConfig,
+    EventoReembolsoConfig,
+    FaixaPrecoEventoCriar,
+    InscricaoPublicaCriar,
+    IsencaoTaxaCriar,
+    NovaEdicaoEventoCriar,
+    PerguntaEventoCriar,
+    SessaoEventoCriar,
+)
 from app.schemas.portaria import TokenPortariaCriar
 from app.security import exigir_permissao, get_current_user
 from app.services import certificados as servico_certificados
+from app.services import cupons as servico_cupons
 from app.services import eventos
+from app.services import fechamento_evento as servico_fechamento_evento
 from app.services import inscricao as servico_inscricao
+from app.services import isencoes_taxa as servico_isencoes_taxa
 from app.services import portaria as servico_portaria
+from app.services import precos_evento as servico_precos_evento
 from app.services import vagas as servico_vagas
 from app.services.protecao_publica import limitar_taxa_por_ip
 
@@ -233,15 +250,15 @@ def expirar_promocoes_vencidas_endpoint(request: Request, db: Session = Depends(
 # continua em /api/inscricoes/, app/routers/motores.py, permissão "projetos")
 # ==========================================
 @router.post("/api/eventos/{id_evento}/inscricao", summary="Inscrever-se neste evento (autoatendimento)")
-def inscrever_no_evento_endpoint(id_evento: int, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
-    inscricao_criada = eventos.inscrever_no_evento(db, id_evento=id_evento, usuario=usuario)
+def inscrever_no_evento_endpoint(id_evento: int, request: Request, codigo_cupom: Optional[str] = None, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    inscricao_criada = eventos.inscrever_no_evento(db, id_evento=id_evento, usuario=usuario, codigo_cupom=codigo_cupom)
     registrar_auditoria(db, usuario, "inscricoes", "INSCRICAO", id_registro_afetado=inscricao_criada.id_inscricao, ip_origem=_ip_origem(request))
     return {"mensagem": "Inscrição registrada.", "id_inscricao": inscricao_criada.id_inscricao, "status": inscricao_criada.status}
 
 
 @router.post("/api/eventos/sessoes/{id_sessao}/inscricao", summary="Inscrever-se nesta sessão do evento (autoatendimento)")
-def inscrever_na_sessao_endpoint(id_sessao: int, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
-    inscricao_criada = eventos.inscrever_na_sessao(db, id_sessao=id_sessao, usuario=usuario)
+def inscrever_na_sessao_endpoint(id_sessao: int, request: Request, codigo_cupom: Optional[str] = None, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    inscricao_criada = eventos.inscrever_na_sessao(db, id_sessao=id_sessao, usuario=usuario, codigo_cupom=codigo_cupom)
     registrar_auditoria(db, usuario, "inscricoes", "INSCRICAO", id_registro_afetado=inscricao_criada.id_inscricao, ip_origem=_ip_origem(request))
     return {"mensagem": "Inscrição registrada.", "id_inscricao": inscricao_criada.id_inscricao, "status": inscricao_criada.status}
 
@@ -338,6 +355,146 @@ def emitir_certificado_endpoint(id_evento: int, id_pessoa: int, request: Request
 
 
 # ==========================================
+# FINANCEIRO DE EVENTO (v4.9) - cobrança de inscrição integrada à FASE 3 (faixa de preço por
+# categoria/data, cupom, isenção justificada), reembolso por cancelamento e fechamento
+# financeiro automático ao encerrar. Mesma permissão de gestão geral do evento ("projetos") -
+# mesmo critério já usado pelos campos financeiros de `Espaco` (v4.3), nunca "financeiro"
+# aqui de propósito, pra ficar consistente com o resto da FASE 4.
+# ==========================================
+@router.put("/api/eventos/{id_evento}/cobranca-config", summary="Configurar cobrança de inscrição do evento")
+def configurar_cobranca_evento_endpoint(id_evento: int, dados: EventoCobrancaConfig, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    evento = eventos.configurar_cobranca_evento(
+        db, id_evento=id_evento, valor_base=dados.valor_base,
+        id_conta_contabil_receita=dados.id_conta_contabil_receita, id_centro_custo=dados.id_centro_custo,
+    )
+    registrar_auditoria(
+        db, usuario, "eventos", "CONFIGURAR_COBRANCA", id_registro_afetado=evento.id_evento,
+        dados_depois={"valor_base": str(evento.valor_base), "id_centro_custo": evento.id_centro_custo},
+        ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Configuração de cobrança atualizada."}
+
+
+@router.put("/api/eventos/{id_evento}/reembolso-config", summary="Configurar política de reembolso por cancelamento do evento")
+def configurar_reembolso_evento_endpoint(id_evento: int, dados: EventoReembolsoConfig, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    evento = eventos.obter_evento(db, id_evento)
+    evento.prazo_cancelamento_horas = dados.prazo_cancelamento_horas
+    evento.percentual_reembolso_cancelamento = dados.percentual_reembolso_cancelamento
+    db.commit()
+    registrar_auditoria(
+        db, usuario, "eventos", "CONFIGURAR_REEMBOLSO", id_registro_afetado=evento.id_evento,
+        dados_depois={"prazo_cancelamento_horas": evento.prazo_cancelamento_horas, "percentual_reembolso_cancelamento": str(evento.percentual_reembolso_cancelamento)},
+        ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Configuração de reembolso atualizada."}
+
+
+@router.post("/api/eventos/{id_evento}/faixas-preco", summary="Criar faixa de preço de inscrição (por categoria/vigência)")
+def criar_faixa_preco_endpoint(id_evento: int, dados: FaixaPrecoEventoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    faixa = servico_precos_evento.criar_faixa_preco(
+        db, id_evento=id_evento, categoria=dados.categoria, valor=dados.valor,
+        data_vigencia_inicio=dados.data_vigencia_inicio, data_vigencia_fim=dados.data_vigencia_fim, id_usuario=usuario.id_usuario,
+    )
+    registrar_auditoria(
+        db, usuario, "faixas_preco_evento", "CREATE", id_registro_afetado=faixa.id_faixa,
+        dados_depois={"id_evento": id_evento, "categoria": faixa.categoria, "valor": str(faixa.valor)}, ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Faixa de preço criada.", "id_faixa": faixa.id_faixa}
+
+
+@router.get("/api/eventos/{id_evento}/faixas-preco", summary="Listar faixas de preço de inscrição do evento")
+def listar_faixas_preco_endpoint(id_evento: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    return [
+        {
+            "id_faixa": f.id_faixa, "categoria": f.categoria, "valor": f.valor,
+            "data_vigencia_inicio": f.data_vigencia_inicio, "data_vigencia_fim": f.data_vigencia_fim,
+        }
+        for f in servico_precos_evento.listar_faixas_preco(db, id_evento=id_evento)
+    ]
+
+
+@router.post("/api/eventos/{id_evento}/cupons", summary="Criar cupom de desconto para inscrição no evento")
+def criar_cupom_evento_endpoint(id_evento: int, dados: CupomDescontoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    cupom = servico_cupons.criar_cupom(
+        db, codigo=dados.codigo, contexto_tipo="Evento", id_contexto=id_evento, tipo_desconto=dados.tipo_desconto,
+        valor_desconto=dados.valor_desconto, limite_uso=dados.limite_uso,
+        data_vigencia_inicio=dados.data_vigencia_inicio, data_vigencia_fim=dados.data_vigencia_fim, id_usuario=usuario.id_usuario,
+    )
+    registrar_auditoria(
+        db, usuario, "cupons_desconto", "CREATE", id_registro_afetado=cupom.id_cupom,
+        dados_depois={"id_evento": id_evento, "codigo": cupom.codigo}, ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Cupom criado.", "id_cupom": cupom.id_cupom, "codigo": cupom.codigo}
+
+
+@router.get("/api/eventos/{id_evento}/cupons", summary="Listar cupons de desconto do evento")
+def listar_cupons_evento_endpoint(id_evento: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    return [
+        {
+            "id_cupom": c.id_cupom, "codigo": c.codigo, "tipo_desconto": c.tipo_desconto, "valor_desconto": c.valor_desconto,
+            "limite_uso": c.limite_uso, "usos_atuais": c.usos_atuais, "data_vigencia_inicio": c.data_vigencia_inicio,
+            "data_vigencia_fim": c.data_vigencia_fim, "ativo": c.ativo,
+        }
+        for c in servico_cupons.listar_cupons(db, contexto_tipo="Evento", id_contexto=id_evento)
+    ]
+
+
+@router.post("/api/eventos/{id_evento}/isencoes", summary="Conceder isenção justificada de taxa de inscrição")
+def conceder_isencao_evento_endpoint(id_evento: int, dados: IsencaoTaxaCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    isencao = servico_isencoes_taxa.conceder_isencao(
+        db, contexto_tipo="Evento", id_contexto=id_evento, id_pessoa=dados.id_pessoa, motivo=dados.motivo,
+        percentual_isencao=dados.percentual_isencao, id_usuario_aprovador=usuario.id_usuario,
+    )
+    registrar_auditoria(
+        db, usuario, "isencoes_taxa_contexto", "CREATE", id_registro_afetado=isencao.id_isencao,
+        dados_depois={"id_evento": id_evento, "id_pessoa": isencao.id_pessoa, "percentual_isencao": str(isencao.percentual_isencao)},
+        ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Isenção concedida.", "id_isencao": isencao.id_isencao}
+
+
+@router.get("/api/eventos/{id_evento}/isencoes", summary="Listar isenções de taxa de inscrição do evento")
+def listar_isencoes_evento_endpoint(id_evento: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    return [
+        {
+            "id_isencao": i.id_isencao, "id_pessoa": i.id_pessoa, "motivo": i.motivo,
+            "percentual_isencao": i.percentual_isencao, "id_usuario_aprovador": i.id_usuario_aprovador,
+        }
+        for i in servico_isencoes_taxa.listar_isencoes(db, contexto_tipo="Evento", id_contexto=id_evento)
+    ]
+
+
+@router.post("/api/eventos/{id_evento}/fechamento", summary="Gerar fechamento financeiro do evento (manual, sem esperar a tarefa periódica)")
+def gerar_fechamento_evento_endpoint(id_evento: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    fechamento = servico_fechamento_evento.gerar_fechamento_evento(db, id_evento=id_evento, id_usuario=usuario.id_usuario)
+    registrar_auditoria(
+        db, usuario, "fechamentos_evento", "CREATE", id_registro_afetado=fechamento.id_fechamento,
+        dados_depois={
+            "id_evento": id_evento, "total_inscritos": fechamento.total_inscritos, "total_presentes": fechamento.total_presentes,
+            "total_arrecadado": str(fechamento.total_arrecadado), "total_custos": str(fechamento.total_custos), "resultado": str(fechamento.resultado),
+        },
+        ip_origem=_ip_origem(request),
+    )
+    return {
+        "mensagem": "Fechamento gerado.", "id_fechamento": fechamento.id_fechamento,
+        "total_inscritos": fechamento.total_inscritos, "total_presentes": fechamento.total_presentes,
+        "total_arrecadado": fechamento.total_arrecadado, "total_custos": fechamento.total_custos, "resultado": fechamento.resultado,
+    }
+
+
+@router.get("/api/eventos/{id_evento}/fechamento", summary="Listar histórico de fechamentos financeiros do evento")
+def listar_fechamentos_evento_endpoint(id_evento: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    return [
+        {
+            "id_fechamento": f.id_fechamento, "gerado_em": f.gerado_em, "total_inscritos": f.total_inscritos,
+            "total_presentes": f.total_presentes, "total_arrecadado": f.total_arrecadado, "total_custos": f.total_custos,
+            "resultado": f.resultado, "id_usuario_geracao": f.id_usuario_geracao,
+        }
+        for f in servico_fechamento_evento.listar_fechamentos_evento(db, id_evento=id_evento)
+    ]
+
+
+# ==========================================
 # EXPORTAÇÃO DE PRESENÇA/ELEGIBILIDADE (v4.8) - nunca caminho padrão: permissão própria
 # (`exportar_presencas_evento`, separada de `gerenciar_checkin_evento` de propósito, mesmo
 # critério de `exportar_dados_pessoais`) e sempre com auditoria - mesmo padrão de
@@ -429,6 +586,7 @@ def inscrever_publicamente_endpoint(id_evento: int, dados: InscricaoPublicaCriar
         email=dados.email, telefone=dados.telefone, respostas=dados.respostas,
         versao_texto_consentimento=dados.versao_texto_consentimento,
         participantes_adicionais=[p.model_dump() for p in dados.participantes_adicionais],
+        codigo_cupom=dados.codigo_cupom,
     )
     # usuario=None (mesmo padrão SISTEMA já usado pela tarefa mensal financeira, v3.2.1) - não há
     # login aqui, mas a ação é sensível o bastante (dado pessoal + ocupa vaga) pra sempre deixar
@@ -443,9 +601,16 @@ def inscrever_publicamente_endpoint(id_evento: int, dados: InscricaoPublicaCriar
 @router.post("/api/publico/inscricoes/{token_cancelamento}/cancelar", summary="Autocancelar inscrição pelo link enviado por e-mail (sem login) - libera a vaga e promove o próximo da lista de espera")
 def cancelar_inscricao_publica_endpoint(token_cancelamento: str, request: Request, db: Session = Depends(get_db)):
     limitar_taxa_por_ip(db, ip=_ip_publico(request), rota="cancelar-inscricao-evento", limite=10, janela_minutos=10)
-    inscricao_cancelada = servico_vagas.cancelar_e_promover_por_token(db, token_cancelamento=token_cancelamento)
-    registrar_auditoria(db, None, "inscricoes", "CANCELAMENTO_PUBLICO", id_registro_afetado=inscricao_cancelada.id_inscricao, ip_origem=_ip_publico(request))
-    return {"mensagem": "Inscrição cancelada.", "status": inscricao_cancelada.status}
+    inscricao_cancelada, titulo_reembolso = servico_vagas.cancelar_e_promover_por_token(db, token_cancelamento=token_cancelamento)
+    registrar_auditoria(
+        db, None, "inscricoes", "CANCELAMENTO_PUBLICO", id_registro_afetado=inscricao_cancelada.id_inscricao,
+        dados_depois={"id_titulo_reembolso": titulo_reembolso.id_titulo if titulo_reembolso else None},
+        ip_origem=_ip_publico(request),
+    )
+    return {
+        "mensagem": "Inscrição cancelada.", "status": inscricao_cancelada.status,
+        "reembolso": {"id_titulo": titulo_reembolso.id_titulo, "valor": titulo_reembolso.valor_original} if titulo_reembolso else None,
+    }
 
 
 @router.post("/api/publico/inscricoes/{token_cancelamento}/confirmar", summary="Confirmar inscrição promovida da lista de espera pelo link enviado por e-mail (sem login)")

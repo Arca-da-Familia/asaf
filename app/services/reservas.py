@@ -51,10 +51,23 @@ def _gerar_cobranca_se_devido(db: Session, *, espaco: Espaco, associado: Associa
         return
     if not espaco.id_conta_contabil_receita:
         return
+
+    # v4.9 - isenção justificada por cima do valor base (mesmo motor genérico de
+    # app/services/isencoes_taxa.py usado pela inscrição de evento - "Espaco" aqui é o contexto,
+    # escopado ao espaço inteiro, não à reserva específica). Cupom de desconto fica de fora desta
+    # versão pro lado de Reserva (precisaria acompanhar o código do pedido até a aprovação, que
+    # pode acontecer dias depois - escopo deixado pra quando houver necessidade real).
+    from app.services.isencoes_taxa import percentual_isento
+
+    percentual = percentual_isento(db, contexto_tipo="Espaco", id_contexto=espaco.id_espaco, id_pessoa=associado.id_pessoa)
+    valor_final = (espaco.valor_reserva * (Decimal("100") - percentual) / Decimal("100")).quantize(Decimal("0.01"))
+    if valor_final <= 0:
+        return
+
     titulo = TituloFinanceiro(
         tipo_titulo="A Receber", id_conta_contabil=espaco.id_conta_contabil_receita, id_associado=associado.id_associado,
         descricao=f"Reserva de espaço '{espaco.nome}' em {reserva.data_hora_inicio.strftime('%d/%m/%Y %H:%M')}",
-        valor_original=espaco.valor_reserva, saldo_devedor=espaco.valor_reserva, data_vencimento=reserva.data_hora_inicio, status="Pendente",
+        valor_original=valor_final, saldo_devedor=valor_final, data_vencimento=reserva.data_hora_inicio, status="Pendente",
     )
     db.add(titulo)
     db.flush()
@@ -168,7 +181,7 @@ def _liberar_compromisso(db: Session, id_compromisso: int) -> None:
         db.delete(compromisso)
 
 
-def cancelar_reserva(db: Session, *, id_reserva: int, motivo: str, id_usuario: Optional[int]) -> Reserva:
+def cancelar_reserva(db: Session, *, id_reserva: int, motivo: str, id_usuario: Optional[int]) -> tuple[Reserva, Optional[TituloFinanceiro]]:
     reserva = obter_reserva(db, id_reserva)
     if reserva.status not in (SOLICITADA, CONFIRMADA):
         raise HTTPException(status_code=400, detail=f"Reserva '{reserva.status}' não pode ser cancelada.")
@@ -185,6 +198,25 @@ def cancelar_reserva(db: Session, *, id_reserva: int, motivo: str, id_usuario: O
         )
         db.add(titulo_taxa)
 
+    # v4.9 - reembolso da cobrança original da reserva (gap real fechado nesta versão: até aqui,
+    # cancelar uma reserva paga só sabia COBRAR taxa de cancelamento tardio, nunca devolver o que
+    # já tinha sido pago). Nunca estorna o título original - gera um título "A Pagar" novo (ver
+    # app/services/reembolso_cancelamento.py), pago pelo mesmo POST /baixar-titulo/ de sempre.
+    titulo_reembolso = None
+    if reserva.id_titulo_cobranca:
+        from app.services import reembolso_cancelamento
+
+        titulo_original = db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == reserva.id_titulo_cobranca).first()
+        if titulo_original:
+            percentual = reembolso_cancelamento.calcular_percentual_reembolso(
+                db, horas_ate_evento=horas_ate_reserva, prazo_horas=espaco.prazo_cancelamento_horas,
+                percentual_override=espaco.percentual_reembolso_cancelamento,
+            )
+            titulo_reembolso = reembolso_cancelamento.gerar_reembolso(
+                db, titulo_original=titulo_original, percentual=percentual,
+                motivo=f"cancelamento da reserva de '{espaco.nome}'", id_usuario=id_usuario,
+            )
+
     reserva.status = CANCELADA
     reserva.motivo_status = motivo
     if reserva.id_compromisso_agenda:
@@ -192,7 +224,7 @@ def cancelar_reserva(db: Session, *, id_reserva: int, motivo: str, id_usuario: O
         reserva.id_compromisso_agenda = None
     db.commit()
     db.refresh(reserva)
-    return reserva
+    return reserva, titulo_reembolso
 
 
 def marcar_no_show(db: Session, *, id_reserva: int) -> Reserva:

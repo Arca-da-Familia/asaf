@@ -1,0 +1,50 @@
+name: Tarefa Periódica (fecha financeiramente eventos encerrados)
+
+# v4.9 (FASE 4) - todo evento com data de encerramento no passado e ainda sem `FechamentoEvento`
+# ganha um automaticamente (inscritos, presentes, arrecadado, custos, resultado por centro de
+# custo) - "fechamento financeiro automático ao encerrar" só acontece de verdade em produção se
+# alguém checar isso periodicamente. Roda como SISTEMA, mesmo mecanismo de confiança que já roda
+# migração Alembic e as demais tarefas periódicas em produção.
+on:
+  schedule:
+    - cron: "0 6 * * *" # uma vez por dia, 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write # necessário para login OIDC no Azure (sem senha salva)
+  contents: read
+
+jobs:
+  fechar-eventos-encerrados:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Login no Azure via OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Buscar DATABASE_URL do Key Vault
+        run: |
+          DB_URL=$(az keyvault secret show --vault-name kv-asaf-arca --name DATABASE-URL --query value -o tsv)
+          echo "::add-mask::$DB_URL"
+          echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
+
+      - name: Rodar fechamento de eventos encerrados
+        run: PYTHONPATH=. python scripts/fechar_eventos_encerrados.py
+
+      - name: Logout
+        if: always()
+        run: az logout || true

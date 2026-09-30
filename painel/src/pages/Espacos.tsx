@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { z } from 'zod'
 
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
@@ -10,15 +11,18 @@ import {
   cancelarReserva,
   criarBloqueioEspaco,
   criarEspaco,
+  criarIsencaoTaxaEspaco,
   criarReservaEspaco,
   criarReservaRecorrente,
   listarAssociados,
   listarBloqueiosEspaco,
   listarEspacos,
+  listarIsencoesTaxaEspaco,
   listarOpcoesCatalogo,
   listarPlanoContas,
   listarReservasEspaco,
   marcarNaoCompareceu,
+  obterAssociado,
   obterChecklistReserva,
   recusarReserva,
   registrarDevolucaoEspaco,
@@ -30,10 +34,12 @@ import {
   bloqueioEspacoCriarSchema,
   devolucaoEspacoSchema,
   espacoCriarSchema,
+  isencaoTaxaCriarSchema,
   reservaEspacoCriarSchema,
   reservaRecorrenteCriarSchema,
   retiradaEspacoSchema,
 } from '@/lib/schemas'
+import { useMe } from '@/lib/use-me'
 
 // v4.3 (FASE 4) - Reserva de espaço: fluxo instantâneo ou aprovação manual (por espaço),
 // conflito de horário reaproveitando o motor de agenda (v4.0) - a garantia real sob concorrência
@@ -161,6 +167,31 @@ function FormularioEspaco({ onCancelar }: { onCancelar: () => void }) {
               {...form.register('limite_no_show_bloqueio')}
               placeholder="Bloquear após N faltas (opcional)"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">
+              % de reembolso no cancelamento (em branco = usar padrão do
+              sistema)
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min={0}
+              max={100}
+              {...form.register('percentual_reembolso_cancelamento', {
+                // '' -> undefined ANTES da validação (mesmo cuidado 0-vs-não-informado do
+                // elegibilidadeConfigSchema, em Eventos.tsx): 0% reembolso é uma configuração
+                // real e bem diferente de "não sobrescrever, usar o padrão do sistema".
+                setValueAs: (v) => (v === '' ? undefined : Number(v)),
+              })}
+              placeholder="% de reembolso (opcional)"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            />
+            <ErroCampo
+              mensagem={
+                form.formState.errors.percentual_reembolso_cancelamento?.message
+              }
             />
           </div>
           <label className="flex items-center gap-2 text-sm">
@@ -336,10 +367,18 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
       recusarReserva(id, motivo),
     onSuccess: invalidar,
   })
+  // v4.9 - cancelar uma reserva paga pode gerar reembolso de verdade agora: guardamos o
+  // resultado por reserva (não só o último) pra mostrar o aviso na linha certa da lista.
+  const [reembolsosRecentes, setReembolsosRecentes] = useState<
+    Record<number, { id_titulo: number; valor: number } | null>
+  >({})
   const cancelar = useMutation({
     mutationFn: ({ id, motivo }: { id: number; motivo: string }) =>
       cancelarReserva(id, motivo),
-    onSuccess: invalidar,
+    onSuccess: (r, variaveis) => {
+      invalidar()
+      setReembolsosRecentes((s) => ({ ...s, [variaveis.id]: r.reembolso }))
+    },
   })
   const naoCompareceu = useMutation({
     mutationFn: marcarNaoCompareceu,
@@ -587,6 +626,18 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
             {checklistAberto === r.id_reserva && (
               <PainelChecklist idReserva={r.id_reserva} />
             )}
+            {reembolsosRecentes[r.id_reserva] && (
+              <p className="mt-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
+                Reembolso gerado:{' '}
+                {formatarReais(reembolsosRecentes[r.id_reserva]!.valor)} —
+                título a pagar #{reembolsosRecentes[r.id_reserva]!.id_titulo}.
+                Dar baixa em{' '}
+                <Link to="/financeiro/titulos" className="underline">
+                  Financeiro &gt; Títulos
+                </Link>
+                .
+              </p>
+            )}
           </div>
         ))}
         {(reservas ?? []).length === 0 && (
@@ -700,6 +751,154 @@ function SecaoBloqueios({ idEspaco }: { idEspaco: number }) {
   )
 }
 
+// v4.9 - isenção justificada de taxa de reserva (mesmo motor genérico usado por Eventos.tsx):
+// vale pra qualquer reserva futura da mesma pessoa neste espaço, não só uma reserva já existente.
+function SecaoIsencoesEspaco({ idEspaco }: { idEspaco: number }) {
+  const { data: me } = useMe()
+  const podeGerenciar = me?.permissoes.includes('projetos') ?? false
+  const queryClient = useQueryClient()
+  const { data: associados } = useQuery({
+    queryKey: ['associados'],
+    queryFn: listarAssociados,
+    enabled: podeGerenciar,
+  })
+  const { data: motivos } = useQuery({
+    queryKey: ['opcoes-catalogo', 'motivo_isencao_taxa_evento'],
+    queryFn: () => listarOpcoesCatalogo('motivo_isencao_taxa_evento'),
+    enabled: podeGerenciar,
+  })
+  const { data: isencoes } = useQuery({
+    queryKey: ['isencoes-espaco', idEspaco],
+    queryFn: () => listarIsencoesTaxaEspaco(idEspaco),
+    enabled: podeGerenciar,
+  })
+
+  const conceder = useMutation({
+    mutationFn: async (v: z.infer<typeof isencaoTaxaCriarSchema>) => {
+      // O backend exige `id_pessoa` (não `id_associado`) - resolvido aqui buscando o associado
+      // escolhido, já que `listarAssociados` (usado no seletor abaixo) não devolve `id_pessoa`.
+      const idPessoa = v.id_associado
+        ? (await obterAssociado(v.id_associado)).id_pessoa
+        : v.id_pessoa_manual!
+      return criarIsencaoTaxaEspaco(idEspaco, {
+        id_pessoa: idPessoa,
+        motivo: v.motivo,
+        percentual_isencao: v.percentual_isencao,
+      })
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ['isencoes-espaco', idEspaco],
+      }),
+  })
+
+  if (!podeGerenciar) return null
+
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-semibold">
+        Isenções justificadas de taxa de reserva
+      </h3>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Vale pra qualquer reserva futura desta pessoa neste espaço. Selecione um
+        associado cadastrado ou, se a pessoa não for associada, informe o ID da
+        pessoa manualmente.
+      </p>
+      <FormShell<z.infer<typeof isencaoTaxaCriarSchema>>
+        schema={isencaoTaxaCriarSchema}
+        defaultValues={{ motivo: '', percentual_isencao: 100 }}
+        onSubmit={(v) => conceder.mutateAsync(v)}
+        className="mb-3 flex flex-wrap items-end gap-2"
+      >
+        {(form) => (
+          <>
+            <div>
+              <select
+                {...form.register('id_associado', {
+                  setValueAs: (v) => (v === '' ? undefined : Number(v)),
+                })}
+                className="h-9 w-56 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Associado…</option>
+                {(associados ?? []).map((a) => (
+                  <option key={a.id_associado} value={a.id_associado}>
+                    {a.nome_completo}
+                  </option>
+                ))}
+              </select>
+              <ErroCampo
+                mensagem={form.formState.errors.id_associado?.message}
+              />
+            </div>
+            <div>
+              <input
+                type="number"
+                min={1}
+                {...form.register('id_pessoa_manual', {
+                  setValueAs: (v) => (v === '' ? undefined : Number(v)),
+                })}
+                placeholder="ou ID da pessoa (avançado)"
+                className="h-9 w-48 rounded-md border border-input bg-background px-3 text-sm"
+              />
+            </div>
+            <div>
+              <select
+                {...form.register('motivo')}
+                className="h-9 w-56 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Motivo…</option>
+                {(motivos ?? []).map((o) => (
+                  <option key={o.codigo} value={o.codigo}>
+                    {o.rotulo}
+                  </option>
+                ))}
+              </select>
+              <ErroCampo mensagem={form.formState.errors.motivo?.message} />
+            </div>
+            <div>
+              <input
+                type="number"
+                step="0.01"
+                min={0.01}
+                max={100}
+                {...form.register('percentual_isencao')}
+                placeholder="% isento"
+                className="h-9 w-28 rounded-md border border-input bg-background px-3 text-sm"
+              />
+              <ErroCampo
+                mensagem={form.formState.errors.percentual_isencao?.message}
+              />
+            </div>
+            <Button type="submit" size="sm" disabled={conceder.isPending}>
+              Conceder isenção
+            </Button>
+            {conceder.isError && (
+              <p className="w-full text-sm text-destructive">
+                {(conceder.error as Error).message}
+              </p>
+            )}
+          </>
+        )}
+      </FormShell>
+      <div className="space-y-1">
+        {(isencoes ?? []).map((i) => (
+          <div
+            key={i.id_isencao}
+            className="rounded-md border border-border p-2 text-sm"
+          >
+            Pessoa #{i.id_pessoa} — {i.percentual_isencao}% isento · {i.motivo}
+          </div>
+        ))}
+        {(isencoes ?? []).length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma isenção concedida.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function DetalheEspaco({ espaco }: { espaco: Espaco }) {
   return (
     <div className="space-y-6 rounded-xl border border-border bg-card p-6">
@@ -718,6 +917,7 @@ function DetalheEspaco({ espaco }: { espaco: Espaco }) {
       </div>
       <SecaoBloqueios idEspaco={espaco.id_espaco} />
       <SecaoReservas espaco={espaco} />
+      <SecaoIsencoesEspaco idEspaco={espaco.id_espaco} />
     </div>
   )
 }

@@ -20,6 +20,7 @@ class EspacoCriar(BaseModel):
     prazo_cancelamento_horas: int = 24
     taxa_cancelamento_tardio: Optional[Decimal] = None
     limite_no_show_bloqueio: Optional[int] = None
+    percentual_reembolso_cancelamento: Optional[Decimal] = None  # v4.9
 
     @field_validator("nome")
     @classmethod

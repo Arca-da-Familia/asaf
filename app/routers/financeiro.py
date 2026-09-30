@@ -213,14 +213,14 @@ def excluir_plano_contas(id_conta: int, request: Request, db: Session = Depends(
 def listar_centros_custo(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
     centros = db.query(CentroDeCusto).order_by(CentroDeCusto.codigo).all()
     return [
-        {"id_centro_custo": c.id_centro_custo, "codigo": c.codigo, "nome": c.nome, "id_projeto": c.id_projeto, "ativo": c.ativo, "saldo_restrito": c.saldo_restrito}
+        {"id_centro_custo": c.id_centro_custo, "codigo": c.codigo, "nome": c.nome, "id_projeto": c.id_projeto, "id_evento": c.id_evento, "ativo": c.ativo, "saldo_restrito": c.saldo_restrito}
         for c in centros
     ]
 
 
 @router.post("/api/centros-custo/", summary="Cadastrar Centro de Custo")
 def cadastrar_centro_custo(dados: CentroDeCustoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
-    novo = CentroDeCusto(codigo=dados.codigo, nome=dados.nome, id_projeto=dados.id_projeto)
+    novo = CentroDeCusto(codigo=dados.codigo, nome=dados.nome, id_projeto=dados.id_projeto, id_evento=dados.id_evento)
     db.add(novo)
     try:
         db.commit()

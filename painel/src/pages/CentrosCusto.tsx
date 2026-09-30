@@ -10,6 +10,8 @@ import {
   alternarSaldoRestrito,
   criarCentroCusto,
   listarCentrosCusto,
+  listarEventos,
+  listarProjetos,
   listarRemanejamentosDestinacao,
   obterSaldoRestrito,
   registrarRemanejamentoDestinacao,
@@ -31,6 +33,14 @@ function formatarReais(valor: number): string {
 // centro de custo específico) - feito na baixa de título/transferência, não aqui.
 function FormularioCentroCusto({ onCancelar }: { onCancelar: () => void }) {
   const queryClient = useQueryClient()
+  const { data: projetos } = useQuery({
+    queryKey: ['projetos'],
+    queryFn: listarProjetos,
+  })
+  const { data: eventos } = useQuery({
+    queryKey: ['eventos'],
+    queryFn: listarEventos,
+  })
   const criar = useMutation({
     mutationFn: (v: z.infer<typeof centroDeCustoCriarSchema>) =>
       criarCentroCusto(v),
@@ -64,6 +74,41 @@ function FormularioCentroCusto({ onCancelar }: { onCancelar: () => void }) {
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             />
             <ErroCampo mensagem={form.formState.errors.nome?.message} />
+          </div>
+          <div>
+            {/* v4.9 - vínculo opcional com projeto OU evento (o backend não impede os dois ao
+                mesmo tempo, mas um centro de custo normalmente pertence a um só - por isso não há
+                trava de exclusividade aqui, só a convenção de preencher um por vez). */}
+            <select
+              {...form.register('id_projeto', {
+                setValueAs: (v) => (v === '' ? undefined : Number(v)),
+              })}
+              title="Vincula este centro de custo a um projeto (opcional)"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">Sem projeto vinculado</option>
+              {(projetos ?? []).map((p) => (
+                <option key={p.id_projeto} value={p.id_projeto}>
+                  {p.nome_projeto}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <select
+              {...form.register('id_evento', {
+                setValueAs: (v) => (v === '' ? undefined : Number(v)),
+              })}
+              title="Vincula este centro de custo a um evento (opcional)"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">Sem evento vinculado</option>
+              {(eventos ?? []).map((e) => (
+                <option key={e.id_evento} value={e.id_evento}>
+                  {e.titulo}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex gap-2">
             <Button type="submit" size="sm" disabled={criar.isPending}>
@@ -282,6 +327,8 @@ export function CentrosCustoPage() {
                 <p className="text-xs text-muted-foreground">
                   {c.ativo ? 'Ativo' : 'Inativo'}
                   {c.saldo_restrito && ' · destinação restrita'}
+                  {c.id_projeto != null && ` · Projeto #${c.id_projeto}`}
+                  {c.id_evento != null && ` · Evento #${c.id_evento}`}
                 </p>
                 {c.saldo_restrito && (
                   <SaldoRestrito idCentroCusto={c.id_centro_custo} />

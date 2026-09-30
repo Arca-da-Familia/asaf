@@ -89,6 +89,40 @@ def atualizar_configuracao_elegibilidade(
     return evento
 
 
+def configurar_cobranca_evento(
+    db: Session, *, id_evento: int, valor_base: Optional[Decimal], id_conta_contabil_receita: Optional[int],
+    id_centro_custo: Optional[int],
+) -> Evento:
+    """v4.9 - cobrança de inscrição (app/services/cobranca_evento.py). `valor_base=None` volta o
+    evento a gratuito de fato (nenhum caminho de inscrição cobra nada - ver
+    `inscrever_com_controle_de_vaga`). `id_conta_contabil_receita` é obrigatório pra cobrar de
+    verdade (é pra lá que `criar_lancamento` credita o valor recebido) - validado aqui, não só
+    silenciosamente ignorado na hora de cobrar."""
+    from app.models.financeiro import CentroDeCusto, PlanoDeContas
+    from app.services import contabilidade
+
+    evento = obter_evento(db, id_evento)
+    if valor_base is not None:
+        if valor_base <= 0:
+            raise HTTPException(status_code=422, detail="Valor base da inscrição precisa ser maior que zero (ou nulo, para evento gratuito).")
+        if not id_conta_contabil_receita:
+            raise HTTPException(status_code=422, detail="Informe a conta contábil de receita para cobrar inscrição.")
+        conta = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == id_conta_contabil_receita).first()
+        if not conta:
+            raise HTTPException(status_code=404, detail="Conta contábil de receita não encontrada.")
+        contabilidade.exigir_tipo_conta(conta, ["Receita"], "A conta contábil de receita de um evento")
+    if id_centro_custo is not None and not db.query(CentroDeCusto).filter(CentroDeCusto.id_centro_custo == id_centro_custo).first():
+        raise HTTPException(status_code=404, detail="Centro de custo não encontrado.")
+
+    evento.valor_base = valor_base
+    evento.id_conta_contabil_receita = id_conta_contabil_receita if valor_base is not None else None
+    evento.id_centro_custo = id_centro_custo
+    evento.gratuito = valor_base is None
+    db.commit()
+    db.refresh(evento)
+    return evento
+
+
 def listar_eventos_publicos(db: Session) -> list[Evento]:
     """v4.5 - o que o site institucional consome (leitura pública, sem autenticação) - só o que
     a diretoria marcou `visibilidade="Pública"`, nunca evento interno vazando pra fora."""
@@ -186,22 +220,47 @@ def listar_cadeia_edicoes(db: Session, *, id_evento: int) -> list[Evento]:
 # ==========================================
 # INSCRIÇÃO (reaproveita o motor genérico da v4.0, nunca um mecanismo próprio)
 # ==========================================
-def inscrever_no_evento(db: Session, *, id_evento: int, usuario: Usuario):
-    obter_evento(db, id_evento)
+def _cobrar_inscricao_se_devido(
+    db: Session, *, evento: Evento, inscricao, id_pessoa: int,
+    categoria_preco: Optional[str] = None, codigo_cupom: Optional[str] = None, id_usuario: Optional[int] = None,
+):
+    """v4.9 - nunca cobra quem caiu na lista de espera (vaga ainda não é real - ver
+    app/services/vagas.py::inscrever_com_controle_de_vaga); evento sem `valor_base` continua
+    gratuito, comportamento preservado desde a v4.5."""
+    from app.models.motores import CONFIRMADO, PRE_INSCRITO
+    from app.services import cobranca_evento as servico_cobranca_evento
+
+    if inscricao.status not in (PRE_INSCRITO, CONFIRMADO) or evento.valor_base is None:
+        return None
+    calculo = servico_cobranca_evento.calcular_valor_inscricao(
+        db, evento=evento, id_pessoa=id_pessoa, categoria_preco=categoria_preco, codigo_cupom=codigo_cupom,
+    )
+    return servico_cobranca_evento.gerar_titulo_inscricao(
+        db, evento=evento, inscricao=inscricao, id_pessoa=id_pessoa, valor=calculo["valor_final"], id_usuario=id_usuario,
+    )
+
+
+def inscrever_no_evento(db: Session, *, id_evento: int, usuario: Usuario, codigo_cupom: Optional[str] = None):
+    evento = obter_evento(db, id_evento)
     associado = associado_do_usuario_ou_403(db, usuario)
-    return servico_vagas.inscrever_com_controle_de_vaga(
+    inscricao_criada = servico_vagas.inscrever_com_controle_de_vaga(
         db, contexto_tipo=CONTEXTO_EVENTO, id_contexto=id_evento, id_pessoa=associado.id_pessoa,
         respostas_formulario=None,
     )
+    _cobrar_inscricao_se_devido(db, evento=evento, inscricao=inscricao_criada, id_pessoa=associado.id_pessoa, codigo_cupom=codigo_cupom, id_usuario=usuario.id_usuario)
+    return inscricao_criada
 
 
-def inscrever_na_sessao(db: Session, *, id_sessao: int, usuario: Usuario):
-    obter_sessao(db, id_sessao)
+def inscrever_na_sessao(db: Session, *, id_sessao: int, usuario: Usuario, codigo_cupom: Optional[str] = None):
+    sessao = obter_sessao(db, id_sessao)
+    evento = obter_evento(db, sessao.id_evento)
     associado = associado_do_usuario_ou_403(db, usuario)
-    return servico_vagas.inscrever_com_controle_de_vaga(
+    inscricao_criada = servico_vagas.inscrever_com_controle_de_vaga(
         db, contexto_tipo=CONTEXTO_SESSAO_EVENTO, id_contexto=id_sessao, id_pessoa=associado.id_pessoa,
         respostas_formulario=None,
     )
+    _cobrar_inscricao_se_devido(db, evento=evento, inscricao=inscricao_criada, id_pessoa=associado.id_pessoa, codigo_cupom=codigo_cupom, id_usuario=usuario.id_usuario)
+    return inscricao_criada
 
 
 def minhas_inscricoes_em_eventos(db: Session, *, usuario: Usuario) -> list:
@@ -333,6 +392,7 @@ def _dedupicar_pessoa_por_cpf(db: Session, *, nome_completo: str, cpf: str, emai
 def _inscrever_um_participante(
     db: Session, *, evento: Evento, contexto_tipo: str, id_contexto: int, nome_completo: str, cpf: str,
     email: str, telefone: str, respostas: dict, versao_texto_consentimento: str, identificador_grupo: Optional[str],
+    codigo_cupom: Optional[str] = None,
 ) -> dict:
     _validar_respostas_obrigatorias(db, id_evento=evento.id_evento, respostas=respostas)
     pessoa = _dedupicar_pessoa_por_cpf(db, nome_completo=nome_completo, cpf=cpf, email=email, telefone=telefone)
@@ -344,6 +404,9 @@ def _inscrever_um_participante(
         respostas_formulario=respostas or None, codigo_checkin=codigo_checkin,
         token_cancelamento=token_cancelamento, consentimento_lgpd_versao=versao_texto_consentimento,
         identificador_grupo=identificador_grupo,
+    )
+    titulo_cobranca = _cobrar_inscricao_se_devido(
+        db, evento=evento, inscricao=inscricao_criada, id_pessoa=pessoa.id_pessoa, codigo_cupom=codigo_cupom,
     )
 
     email_enviado = False
@@ -368,13 +431,14 @@ def _inscrever_um_participante(
         "nome_completo": nome_completo, "id_inscricao": inscricao_criada.id_inscricao,
         "status": inscricao_criada.status, "codigo_checkin": inscricao_criada.codigo_checkin,
         "email_enviado": email_enviado,
+        "valor_cobrado": titulo_cobranca.valor_original if titulo_cobranca else None,
     }
 
 
 def inscrever_publicamente(
     db: Session, *, id_evento: int, id_sessao: Optional[int], nome_completo: str, cpf: str,
     email: str, telefone: str, respostas: dict, versao_texto_consentimento: str,
-    participantes_adicionais: Optional[list[dict]] = None,
+    participantes_adicionais: Optional[list[dict]] = None, codigo_cupom: Optional[str] = None,
 ) -> dict:
     """v4.7 - acima do limite de vagas (ou da cota da categoria), vira lista de espera
     automaticamente - nunca um erro pra quem se inscreve. Inscrição em grupo
@@ -405,6 +469,7 @@ def inscrever_publicamente(
             db, evento=evento, contexto_tipo=contexto_tipo, id_contexto=id_contexto, nome_completo=nome_completo,
             cpf=cpf, email=email, telefone=telefone, respostas=respostas,
             versao_texto_consentimento=versao_texto_consentimento, identificador_grupo=identificador_grupo,
+            codigo_cupom=codigo_cupom,
         )
     ]
     for participante in participantes_adicionais:
@@ -413,7 +478,7 @@ def inscrever_publicamente(
                 db, evento=evento, contexto_tipo=contexto_tipo, id_contexto=id_contexto,
                 nome_completo=participante["nome_completo"], cpf=participante["cpf"], email=email, telefone=telefone,
                 respostas=participante.get("respostas") or {}, versao_texto_consentimento=versao_texto_consentimento,
-                identificador_grupo=identificador_grupo,
+                identificador_grupo=identificador_grupo, codigo_cupom=codigo_cupom,
             )
         )
 
@@ -422,4 +487,5 @@ def inscrever_publicamente(
         "identificador_grupo": identificador_grupo, "participantes": resultados,
         "id_inscricao": primeiro["id_inscricao"], "status": primeiro["status"],
         "codigo_checkin": primeiro["codigo_checkin"], "email_enviado": primeiro["email_enviado"],
+        "valor_cobrado": primeiro["valor_cobrado"],
     }

@@ -33,6 +33,7 @@ class CentroDeCustoCriar(BaseModel):
     codigo: str
     nome: str
     id_projeto: Optional[int] = None
+    id_evento: Optional[int] = None  # v4.9 - espelha id_projeto
 
     @field_validator("codigo", "nome")
     @classmethod

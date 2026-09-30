@@ -402,9 +402,15 @@ export const contaContabilCriarSchema = z.object({
 })
 
 // Usado por "Centros de Custo" (pages/CentrosCusto.tsx, v3.1) - "quanto custou o projeto X".
+// v4.9 - `id_evento` espelha `id_projeto` (financeiro de projeto/evento): um centro de custo
+// pode ficar ligado a um projeto OU a um evento - acompanhando isto, o formulário (achado real:
+// `id_projeto` já existia em `criarCentroCusto`/api.ts desde sempre, mas nunca tinha um seletor
+// nesta tela) ganhou os dois seletores juntos, não só o de evento.
 export const centroDeCustoCriarSchema = z.object({
   codigo: z.string().min(1, 'Informe o código.'),
   nome: z.string().min(1, 'Informe o nome.'),
+  id_projeto: z.coerce.number().optional(),
+  id_evento: z.coerce.number().optional(),
 })
 
 // Usado por "Contas Financeiras" (pages/ContasFinanceiras.tsx, v3.1) - especialização de
@@ -869,6 +875,10 @@ export const encaminhamentoCriarSchema = z.object({
 })
 
 // v4.3 - reserva de espaço.
+// v4.9 - `percentual_reembolso_cancelamento`: em branco = usar o padrão global do sistema, nunca
+// 0% ("nunca reembolsar nada") - mesmo cuidado 0-vs-não-informado do comentário de
+// `elegibilidadeConfigSchema` abaixo. O formulário (Espacos.tsx) registra este campo com
+// `setValueAs` convertendo `''` em `undefined` antes da validação, pelo mesmo motivo.
 export const espacoCriarSchema = z.object({
   nome: z.string().min(2, 'Informe o nome do espaço.'),
   tipo: z.string().min(1, 'Selecione o tipo de espaço.'),
@@ -882,6 +892,11 @@ export const espacoCriarSchema = z.object({
   prazo_cancelamento_horas: z.coerce.number().int().min(0),
   taxa_cancelamento_tardio: z.coerce.number().optional(),
   limite_no_show_bloqueio: z.coerce.number().int().optional(),
+  percentual_reembolso_cancelamento: z.coerce
+    .number()
+    .min(0, 'Informe um percentual entre 0 e 100.')
+    .max(100, 'Informe um percentual entre 0 e 100.')
+    .optional(),
 })
 
 export const bloqueioEspacoCriarSchema = z.object({
@@ -1072,3 +1087,108 @@ export const templateDocumentoCriarSchema = z.object({
   nome: z.string().min(1, 'Informe um nome pro template.'),
   corpo_texto: z.string().min(1, 'Informe o texto do documento.'),
 })
+
+// ==========================================
+// FINANCEIRO DE EVENTO (v4.9) - cobrança de inscrição, reembolso por cancelamento, faixa de
+// preço, cupom e isenção justificada. Mesmo padrão "só PUT/POST, sem leitura de volta" da
+// elegibilidade (v4.8) acima: nenhum destes formulários pré-carrega o valor já configurado.
+// ==========================================
+
+// "Configurar cobrança" sempre exige um valor de verdade + a conta de receita (o próprio backend
+// recusa com 422 sem ela - ver app/services/eventos.py::configurar_cobranca_evento). Tornar o
+// evento gratuito de novo (`valor_base=null`) é uma ação SEPARADA e explícita na tela (um botão
+// próprio, sem formulário) - nunca inferida de deixar este campo em branco.
+export const cobrancaEventoConfigSchema = z.object({
+  valor_base: z.coerce.number().positive('Informe um valor maior que zero.'),
+  id_conta_contabil_receita: z.coerce
+    .number()
+    .int({ message: 'Selecione a conta contábil de receita.' })
+    .positive({ message: 'Selecione a conta contábil de receita.' }),
+  id_centro_custo: z.coerce.number().optional(),
+})
+
+// IMPORTANTE (mesmo cuidado 0-vs-não-informado do comentário de `elegibilidadeConfigSchema`):
+// `percentual_reembolso_cancelamento` nulo tem um significado real ("usar o padrão do sistema"),
+// bem diferente de 0 ("nunca reembolsar nada"). `usar_padrao_reembolso` decide isso explicitamente
+// por um checkbox - nunca inferido de um campo numérico vazio.
+export const reembolsoEventoConfigSchema = z
+  .object({
+    prazo_cancelamento_horas: z.coerce
+      .number()
+      .int()
+      .min(0, 'Informe um prazo válido, em horas.'),
+    usar_padrao_reembolso: z.boolean(),
+    percentual_reembolso_cancelamento: z.coerce
+      .number()
+      .min(0, 'Informe um percentual entre 0 e 100.')
+      .max(100, 'Informe um percentual entre 0 e 100.')
+      .optional(),
+  })
+  .refine(
+    (v) =>
+      v.usar_padrao_reembolso || v.percentual_reembolso_cancelamento != null,
+    {
+      message:
+        'Informe o percentual de reembolso, ou marque "usar padrão do sistema".',
+      path: ['percentual_reembolso_cancelamento'],
+    },
+  )
+
+// Faixa de preço por categoria/vigência - sem edição/exclusão no backend, só criar + listar.
+export const faixaPrecoEventoCriarSchema = z.object({
+  categoria: z.string().min(1, 'Selecione a categoria.'),
+  valor: z.coerce.number().min(0, 'Valor não pode ser negativo.'),
+  data_vigencia_inicio: z
+    .string()
+    .optional()
+    .transform((v) => (v ? paraUtcIso(v) : undefined)),
+  data_vigencia_fim: z
+    .string()
+    .optional()
+    .transform((v) => (v ? paraUtcIso(v) : undefined)),
+})
+
+export const cupomDescontoCriarSchema = z.object({
+  codigo: z.string().min(1, 'Informe o código do cupom.'),
+  tipo_desconto: z.enum(['percentual', 'valor_fixo']),
+  valor_desconto: z.coerce
+    .number()
+    .positive('Informe um valor de desconto maior que zero.'),
+  limite_uso: z.coerce
+    .number()
+    .int()
+    .positive('Informe um limite de uso maior que zero, ou deixe em branco.')
+    .optional(),
+  data_vigencia_inicio: z
+    .string()
+    .optional()
+    .transform((v) => (v ? paraUtcIso(v) : undefined)),
+  data_vigencia_fim: z
+    .string()
+    .optional()
+    .transform((v) => (v ? paraUtcIso(v) : undefined)),
+})
+
+// Isenção justificada de taxa (inscrição de evento OU reserva de espaço, mesmo motor genérico no
+// backend) - reaproveitado por Eventos.tsx e Espacos.tsx. O backend exige `id_pessoa` (não
+// `id_associado`) - a maioria das concessões é pra um associado (o formulário resolve o
+// `id_pessoa` por trás do associado escolhido chamando `obterAssociado`, já que `listarAssociados`
+// não devolve `id_pessoa` - ver comentário em api.ts). Nada impede conceder a alguém que não é
+// associado (ex.: palestrante convidado, participante externo de evento) - pra esse caso, quem
+// usa a tela ainda pode informar o ID da pessoa manualmente (avançado); não existe hoje, em
+// nenhuma tela do painel, um componente de busca de "Pessoa" por nome/CPF que não seja associado.
+export const isencaoTaxaCriarSchema = z
+  .object({
+    id_associado: z.coerce.number().int().positive().optional(),
+    id_pessoa_manual: z.coerce.number().int().positive().optional(),
+    motivo: z.string().min(1, 'Selecione o motivo.'),
+    percentual_isencao: z.coerce
+      .number()
+      .positive('Informe um percentual maior que 0.')
+      .max(100, 'Informe um percentual entre 0 e 100.'),
+  })
+  .refine((v) => v.id_associado != null || v.id_pessoa_manual != null, {
+    message:
+      'Selecione um associado ou informe o ID da pessoa manualmente (avançado).',
+    path: ['id_associado'],
+  })
