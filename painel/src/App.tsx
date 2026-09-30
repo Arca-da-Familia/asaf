@@ -59,6 +59,7 @@ import { MfaSetup } from '@/pages/MfaSetup'
 import { MinhasAssembleiasPage } from '@/pages/MinhasAssembleias'
 import { PerfilPage } from '@/pages/Perfil'
 import { PeticoesConvocacaoPage } from '@/pages/PeticoesConvocacao'
+import { PortariaGate } from '@/pages/PortariaGate'
 import { RazaoContabilPage } from '@/pages/RazaoContabil'
 import { SessaoAssembleiaPage } from '@/pages/SessaoAssembleia'
 import { TitulosPage } from '@/pages/Titulos'
@@ -110,6 +111,9 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* v4.8 - tela da portaria (check-in/check-out por token de evento, sem login do painel).
+          Fora de RequireAuth/RequireMfa/Shell de propósito - ver PortariaGate.tsx. */}
+      <Route path="/portaria/:token" element={<PortariaGate />} />
       <Route
         path="/mfa/setup"
         element={

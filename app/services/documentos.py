@@ -2,15 +2,18 @@
 numerado, com registro de quem emitiu, quando e pra quem. Certificado de voluntariado (FASE 4),
 de participação em evento e de conclusão de curso (FASE 14) são o MESMO motor com template
 diferente - nunca um gerador de PDF por funcionalidade."""
+import io
 import json
 import os
 import re
 from datetime import datetime
 from typing import Optional
 
+import qrcode
 from fastapi import HTTPException
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -46,7 +49,7 @@ def _substituir_variaveis(corpo_texto: str, variaveis: dict) -> str:
     return _VARIAVEL.sub(_resolver, corpo_texto)
 
 
-def _gerar_pdf(caminho: str, *, titulo: str, corpo: str, numero_sequencial: int) -> None:
+def _gerar_pdf(caminho: str, *, titulo: str, corpo: str, numero_sequencial: int, qr_conteudo: Optional[str] = None) -> None:
     os.makedirs(os.path.dirname(caminho), exist_ok=True)
     c = canvas.Canvas(caminho, pagesize=A4)
     largura, altura = A4
@@ -71,6 +74,18 @@ def _gerar_pdf(caminho: str, *, titulo: str, corpo: str, numero_sequencial: int)
         c.drawString(margem, y, linha_atual)
         y -= 0.6 * cm
 
+    if qr_conteudo:
+        # v4.8 - crachá/certificado de evento: QR desenhado no canto inferior direito, acima do
+        # rodapé. `qrcode` é a primeira dependência de geração de QR do lado servidor deste
+        # projeto (o QR de carteirinha/MFA/Pix é sempre renderizado no navegador, via
+        # `qrcode.react`) - aqui precisa nascer já dentro do PDF, que é gerado no servidor.
+        imagem_qr = qrcode.make(qr_conteudo)
+        buffer_qr = io.BytesIO()
+        imagem_qr.save(buffer_qr, format="PNG")
+        buffer_qr.seek(0)
+        tamanho_qr = 3 * cm
+        c.drawImage(ImageReader(buffer_qr), largura - margem - tamanho_qr, margem, width=tamanho_qr, height=tamanho_qr)
+
     c.setFont("Helvetica-Oblique", 8)
     c.drawString(margem, margem / 2, f"Documento nº {numero_sequencial} - emitido pelo sistema ASAF")
     c.showPage()
@@ -80,6 +95,7 @@ def _gerar_pdf(caminho: str, *, titulo: str, corpo: str, numero_sequencial: int)
 def emitir_documento(
     db: Session, *, codigo_template: str, variaveis: dict, contexto_tipo: Optional[str] = None,
     id_contexto: Optional[int] = None, id_pessoa: Optional[int] = None, id_usuario: Optional[int] = None,
+    codigo_verificacao: Optional[str] = None, qr_conteudo: Optional[str] = None,
 ) -> DocumentoEmitido:
     template = db.query(TemplateDocumento).filter(TemplateDocumento.codigo == codigo_template, TemplateDocumento.ativo.is_(True)).first()
     if not template:
@@ -92,14 +108,18 @@ def emitir_documento(
     ultimo_numero = db.query(func.max(DocumentoEmitido.numero_sequencial)).scalar() or 0
     numero_sequencial = ultimo_numero + 1
 
-    nome_arquivo = f"{numero_sequencial:08d}_{template.codigo}.pdf"
+    # v4.8 - documento com código de verificação pública (crachá/certificado de evento) é nomeado
+    # pelo código opaco, nunca pelo número sequencial: `/uploads/` é servido sem autenticação, e
+    # um nome sequencial seria enumerável (incrementar o número baixaria o PDF de qualquer pessoa
+    # certificada). Documento interno (sem código de verificação) continua com o nome de sempre.
+    nome_arquivo = f"{codigo_verificacao}.pdf" if codigo_verificacao else f"{numero_sequencial:08d}_{template.codigo}.pdf"
     caminho_relativo = f"{_DIRETORIO_DOCUMENTOS}/{nome_arquivo}"
-    _gerar_pdf(caminho_relativo, titulo=template.nome, corpo=corpo_final, numero_sequencial=numero_sequencial)
+    _gerar_pdf(caminho_relativo, titulo=template.nome, corpo=corpo_final, numero_sequencial=numero_sequencial, qr_conteudo=qr_conteudo)
 
     documento = DocumentoEmitido(
         id_template=template.id_template, numero_sequencial=numero_sequencial, contexto_tipo=contexto_tipo,
         id_contexto=id_contexto, id_pessoa=id_pessoa, variaveis_usadas=json.dumps(variaveis, default=str),
-        caminho_arquivo=f"/{caminho_relativo}", id_usuario_emissao=id_usuario,
+        caminho_arquivo=f"/{caminho_relativo}", id_usuario_emissao=id_usuario, codigo_verificacao=codigo_verificacao,
     )
     db.add(documento)
     db.commit()

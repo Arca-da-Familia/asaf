@@ -114,6 +114,12 @@ class DocumentoEmitido(Base):
     caminho_arquivo = Column(String, nullable=False)
     id_usuario_emissao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     emitida_em = Column(DateTime, default=datetime.utcnow)
+    # v4.8 - código opaco de verificação pública (`/certificado/verificar/{codigo}`), só
+    # preenchido para documentos pensados pra serem verificados por terceiros (crachá/
+    # certificado de evento) - nulo pra documento interno, que nunca precisou de link público.
+    # Quando preenchido, o arquivo também passa a ser nomeado por ele em vez do número
+    # sequencial (ver app/services/documentos.py) - sequencial é enumerável, este não é.
+    codigo_verificacao = Column(String, nullable=True, unique=True, index=True)
 
 
 class Indicador(Base):

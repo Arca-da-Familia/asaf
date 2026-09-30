@@ -10,15 +10,19 @@ from sqlalchemy.orm import Session
 from app.auditoria import registrar_auditoria
 from app.config_cache import obter_configuracao
 from app.database import get_db
-from app.schemas.eventos import CotaInscricaoCriar, EventoCriar, InscricaoPublicaCriar, NovaEdicaoEventoCriar, PerguntaEventoCriar, SessaoEventoCriar
+from app.schemas.eventos import CotaInscricaoCriar, EventoCriar, EventoElegibilidadeConfig, InscricaoPublicaCriar, NovaEdicaoEventoCriar, PerguntaEventoCriar, SessaoEventoCriar
+from app.schemas.portaria import TokenPortariaCriar
 from app.security import exigir_permissao, get_current_user
+from app.services import certificados as servico_certificados
 from app.services import eventos
 from app.services import inscricao as servico_inscricao
+from app.services import portaria as servico_portaria
 from app.services import vagas as servico_vagas
 from app.services.protecao_publica import limitar_taxa_por_ip
 
 router = APIRouter()
 _permissao_projetos = exigir_permissao("projetos")
+_permissao_checkin = exigir_permissao("gerenciar_checkin_evento")
 
 
 def _ip_origem(request: Request):
@@ -240,6 +244,132 @@ def inscrever_na_sessao_endpoint(id_sessao: int, request: Request, db: Session =
     inscricao_criada = eventos.inscrever_na_sessao(db, id_sessao=id_sessao, usuario=usuario)
     registrar_auditoria(db, usuario, "inscricoes", "INSCRICAO", id_registro_afetado=inscricao_criada.id_inscricao, ip_origem=_ip_origem(request))
     return {"mensagem": "Inscrição registrada.", "id_inscricao": inscricao_criada.id_inscricao, "status": inscricao_criada.status}
+
+
+# ==========================================
+# PORTARIA (v4.8) - emitir/listar/revogar o token de operação que dá acesso aos endpoints
+# públicos de check-in/check-out (app/routers/portaria.py), sem login de quem opera. Permissão
+# própria (`gerenciar_checkin_evento`), separada de "projetos" de propósito (ver plano da v4.8).
+# ==========================================
+@router.post("/api/eventos/{id_evento}/tokens-portaria", summary="Emitir token de operação da portaria para este evento")
+def emitir_token_portaria_endpoint(id_evento: int, dados: TokenPortariaCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_checkin)):
+    registro, token = servico_portaria.emitir_token_portaria(
+        db, id_evento=id_evento, descricao=dados.descricao, horas_validade=dados.horas_validade, id_usuario=usuario.id_usuario,
+    )
+    registrar_auditoria(
+        db, usuario, "tokens_portaria", "CREATE", id_registro_afetado=registro.id_token_portaria,
+        dados_depois={"id_evento": id_evento, "descricao": registro.descricao, "expira_em": str(registro.expira_em)},
+        ip_origem=_ip_origem(request),
+    )
+    return {
+        "mensagem": "Token de portaria emitido.", "id_token_portaria": registro.id_token_portaria, "token": token,
+        "url_portaria": f"/portaria/{token}", "expira_em": registro.expira_em,
+    }
+
+
+@router.get("/api/eventos/{id_evento}/tokens-portaria", summary="Listar tokens de operação da portaria deste evento")
+def listar_tokens_portaria_endpoint(id_evento: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_checkin)):
+    return [
+        {
+            "id_token_portaria": t.id_token_portaria, "descricao": t.descricao, "criado_em": t.criado_em,
+            "expira_em": t.expira_em, "revogado_em": t.revogado_em,
+        }
+        for t in servico_portaria.listar_tokens_portaria(db, id_evento=id_evento)
+    ]
+
+
+@router.post("/api/eventos/{id_evento}/tokens-portaria/{id_token_portaria}/revogar", summary="Revogar token de operação da portaria")
+def revogar_token_portaria_endpoint(id_evento: int, id_token_portaria: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_checkin)):
+    registro = servico_portaria.revogar_token_portaria(db, id_evento=id_evento, id_token_portaria=id_token_portaria, id_usuario=usuario.id_usuario)
+    registrar_auditoria(
+        db, usuario, "tokens_portaria", "REVOGAR", id_registro_afetado=registro.id_token_portaria,
+        dados_depois={"revogado_em": str(registro.revogado_em)}, ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Token de portaria revogado."}
+
+
+# ==========================================
+# ELEGIBILIDADE E EMISSÃO DE CRACHÁ/CERTIFICADO (v4.8) - elegibilidade é sempre calculada
+# (app/services/certificados.py::calcular_elegibilidade), nunca concedida à mão; sem parâmetro de
+# override em nenhum endpoint abaixo, de propósito.
+# ==========================================
+@router.put("/api/eventos/{id_evento}/elegibilidade-config", summary="Configurar sobrescrita de elegibilidade ao certificado deste evento")
+def atualizar_elegibilidade_config_endpoint(id_evento: int, dados: EventoElegibilidadeConfig, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_checkin)):
+    evento = eventos.atualizar_configuracao_elegibilidade(
+        db, id_evento=id_evento, percentual_minimo=dados.percentual_minimo, carga_horaria_horas=dados.carga_horaria_horas,
+    )
+    registrar_auditoria(
+        db, usuario, "eventos", "ATUALIZAR_ELEGIBILIDADE", id_registro_afetado=evento.id_evento,
+        dados_depois={"percentual_minimo_certificado": str(evento.percentual_minimo_certificado), "carga_horaria_horas": str(evento.carga_horaria_horas)},
+        ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Configuração de elegibilidade atualizada."}
+
+
+@router.get("/api/eventos/{id_evento}/elegibilidade", summary="Elegibilidade ao certificado de cada inscrito deste evento")
+def listar_elegibilidade_endpoint(id_evento: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_checkin)):
+    return servico_certificados.listar_elegibilidade_evento(db, id_evento=id_evento)
+
+
+@router.post("/api/eventos/{id_evento}/crachas/{id_pessoa}", summary="Emitir crachá em PDF para esta pessoa neste evento")
+def emitir_cracha_endpoint(id_evento: int, id_pessoa: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_checkin)):
+    documento = servico_certificados.emitir_cracha(db, id_evento=id_evento, id_pessoa=id_pessoa, id_usuario=usuario.id_usuario)
+    registrar_auditoria(
+        db, usuario, "documentos_emitidos", "EMITIR_CRACHA", id_registro_afetado=documento.id_documento,
+        dados_depois={"id_evento": id_evento, "id_pessoa": id_pessoa}, ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Crachá emitido.", "id_documento": documento.id_documento, "caminho_arquivo": documento.caminho_arquivo}
+
+
+@router.post("/api/eventos/{id_evento}/certificados/{id_pessoa}", summary="Emitir certificado em PDF para esta pessoa neste evento (recusa se não elegível)")
+def emitir_certificado_endpoint(id_evento: int, id_pessoa: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_checkin)):
+    documento = servico_certificados.emitir_certificado(
+        db, id_evento=id_evento, id_pessoa=id_pessoa, id_usuario=usuario.id_usuario, url_base_verificacao=str(request.base_url),
+    )
+    registrar_auditoria(
+        db, usuario, "documentos_emitidos", "EMITIR_CERTIFICADO", id_registro_afetado=documento.id_documento,
+        dados_depois={"id_evento": id_evento, "id_pessoa": id_pessoa, "codigo_verificacao": documento.codigo_verificacao},
+        ip_origem=_ip_origem(request),
+    )
+    return {
+        "mensagem": "Certificado emitido.", "id_documento": documento.id_documento,
+        "caminho_arquivo": documento.caminho_arquivo, "codigo_verificacao": documento.codigo_verificacao,
+    }
+
+
+# ==========================================
+# EXPORTAÇÃO DE PRESENÇA/ELEGIBILIDADE (v4.8) - nunca caminho padrão: permissão própria
+# (`exportar_presencas_evento`, separada de `gerenciar_checkin_evento` de propósito, mesmo
+# critério de `exportar_dados_pessoais`) e sempre com auditoria - mesmo padrão de
+# `GET /api/associados/exportar` (app/routers/importacao.py).
+# ==========================================
+_COLUNAS_EXPORTAVEIS_PRESENCA = {
+    "id_pessoa": lambda l: l["id_pessoa"],
+    "nome_completo": lambda l: l["nome_completo"],
+    "percentual": lambda l: l["percentual"],
+    "limite_aplicado": lambda l: l["limite_aplicado"],
+    "elegivel": lambda l: l["elegivel"],
+}
+
+
+@router.get("/api/eventos/{id_evento}/presencas/exportar", summary="Exportar presença/elegibilidade de um evento (permissão própria)")
+def exportar_presencas_endpoint(id_evento: int, colunas: str, request: Request, db: Session = Depends(get_db), usuario=Depends(exigir_permissao("exportar_presencas_evento"))):
+    colunas_pedidas = [c.strip() for c in colunas.split(",") if c.strip()]
+    desconhecidas = [c for c in colunas_pedidas if c not in _COLUNAS_EXPORTAVEIS_PRESENCA]
+    if desconhecidas:
+        raise HTTPException(status_code=422, detail=f"Coluna(s) desconhecida(s): {', '.join(desconhecidas)}.")
+    if not colunas_pedidas:
+        raise HTTPException(status_code=422, detail="Informe ao menos uma coluna.")
+
+    linhas_origem = servico_certificados.listar_elegibilidade_evento(db, id_evento=id_evento)
+    linhas = [{c: _COLUNAS_EXPORTAVEIS_PRESENCA[c](l) for c in colunas_pedidas} for l in linhas_origem]
+
+    registrar_auditoria(
+        db, usuario, "registros_presenca", "EXPORT", id_registro_afetado=id_evento,
+        dados_depois={"id_evento": id_evento, "colunas": colunas_pedidas, "total_linhas": len(linhas)},
+        ip_origem=_ip_origem(request),
+    )
+    return {"colunas": colunas_pedidas, "linhas": linhas}
 
 
 # ==========================================

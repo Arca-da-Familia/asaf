@@ -4451,3 +4451,140 @@ export function expirarPromocoesVencidas(): Promise<{
 }> {
   return apiFetch('/api/eventos/expirar-promocoes-vencidas', { method: 'POST' })
 }
+
+// ---------------------------------------------------------------------------
+// v4.8 (FASE 4) - portaria (check-in/crachá/certificado) do lado ORGANIZADOR, dentro do painel
+// autenticado: emitir/listar/revogar o token que dá acesso à tela SEM login `/portaria/:token`
+// (ver `lib/api-portaria.ts`, standalone de propósito - NUNCA reaproveitar `apiFetch` daqui pra
+// lá), configurar/consultar elegibilidade ao certificado e emitir crachá/certificado em PDF.
+// Permissão `gerenciar_checkin_evento` (separada de "projetos") em todos os endpoints abaixo,
+// exceto a exportação de presenças, que exige `exportar_presencas_evento` à parte - ver
+// `app/routers/eventos.py`.
+// ---------------------------------------------------------------------------
+export type TokenPortaria = {
+  id_token_portaria: number
+  descricao: string | null
+  criado_em: string
+  expira_em: string
+  revogado_em: string | null
+}
+
+export function criarTokenPortaria(
+  idEvento: number,
+  dados: { descricao?: string; horas_validade?: number },
+): Promise<{
+  mensagem: string
+  id_token_portaria: number
+  token: string
+  url_portaria: string
+  expira_em: string
+}> {
+  return apiFetch(`/api/eventos/${idEvento}/tokens-portaria`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarTokensPortaria(
+  idEvento: number,
+): Promise<TokenPortaria[]> {
+  return apiFetch(`/api/eventos/${idEvento}/tokens-portaria`)
+}
+
+export function revogarTokenPortaria(
+  idEvento: number,
+  idTokenPortaria: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(
+    `/api/eventos/${idEvento}/tokens-portaria/${idTokenPortaria}/revogar`,
+    { method: 'POST' },
+  )
+}
+
+export function atualizarElegibilidadeConfig(
+  idEvento: number,
+  dados: { percentual_minimo?: number | null; carga_horaria_horas?: number | null },
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/eventos/${idEvento}/elegibilidade-config`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type NivelElegibilidade = 'carga_horaria' | 'sessoes' | 'indisponivel'
+
+export type ElegibilidadePessoa = {
+  id_pessoa: number
+  nome_completo: string | null
+  nivel: NivelElegibilidade
+  percentual: number | null
+  limite_aplicado: number
+  elegivel: boolean
+}
+
+export function listarElegibilidadeEvento(
+  idEvento: number,
+): Promise<ElegibilidadePessoa[]> {
+  return apiFetch(`/api/eventos/${idEvento}/elegibilidade`)
+}
+
+export function emitirCrachaEvento(
+  idEvento: number,
+  idPessoa: number,
+): Promise<{ mensagem: string; id_documento: number; caminho_arquivo: string }> {
+  return apiFetch(`/api/eventos/${idEvento}/crachas/${idPessoa}`, {
+    method: 'POST',
+  })
+}
+
+export function emitirCertificadoEvento(
+  idEvento: number,
+  idPessoa: number,
+): Promise<{
+  mensagem: string
+  id_documento: number
+  caminho_arquivo: string
+  codigo_verificacao: string
+}> {
+  return apiFetch(`/api/eventos/${idEvento}/certificados/${idPessoa}`, {
+    method: 'POST',
+  })
+}
+
+export function exportarPresencasEvento(
+  idEvento: number,
+  colunas: string[],
+): Promise<{ colunas: string[]; linhas: Record<string, unknown>[] }> {
+  return apiFetch(
+    `/api/eventos/${idEvento}/presencas/exportar?colunas=${colunas.join(',')}`,
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Motor de documento gerado (v4.0, app/routers/motores.py) - até a v4.8 nenhuma tela do painel
+// cadastrava um `TemplateDocumento` (só o backend tinha o motor); os botões "emitir crachá"/
+// "emitir certificado" acima dependem de já existir um template ativo com o código
+// `CRACHA_EVENTO`/`CERTIFICADO_EVENTO` (ver `SecaoTemplatesDocumento` em `pages/Eventos.tsx`),
+// senão devolvem 404 "Template não encontrado ou inativo.".
+// ---------------------------------------------------------------------------
+export type TemplateDocumento = {
+  id_template: number
+  codigo: string
+  nome: string
+  ativo: boolean
+}
+
+export function listarTemplatesDocumento(): Promise<TemplateDocumento[]> {
+  return apiFetch('/api/templates-documento/')
+}
+
+export function criarTemplateDocumento(dados: {
+  codigo: string
+  nome: string
+  corpo_texto: string
+}): Promise<{ mensagem: string; id_template: number }> {
+  return apiFetch('/api/templates-documento/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}

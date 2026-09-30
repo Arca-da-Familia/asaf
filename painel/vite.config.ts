@@ -20,6 +20,10 @@ export default defineConfig({
       '/uploads': 'http://localhost:8000',
       '/api': 'http://localhost:8000',
       '/carteirinha': 'http://localhost:8000',
+      // v4.8 - tela da portaria (/portaria/:token no painel, ver PortariaGate.tsx) chama
+      // GET /portaria/evento e POST /portaria/checkin|checkout, fora de /api (de propósito,
+      // mesmo padrão de /carteirinha - ver app/routers/portaria.py).
+      '/portaria': 'http://localhost:8000',
       // v2.5.8/v2.5.9 (achado ao testar Plano de Contas/Fornecedores, mesmo padrão se repetiu
       // em Títulos/baixa) - rotas de escrita do backend que não vivem sob /api (compatibilidade
       // de URL antiga, ver app/routers/financeiro.py). Sem isso o Vite não sabe pra onde

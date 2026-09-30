@@ -14,7 +14,7 @@ público (v4.6) e o limite de vagas sob concorrência real (v4.7) ficam para as 
 documentado aqui como pendência, não fingido."""
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 
 from app.database import Base
 
@@ -60,6 +60,14 @@ class Evento(Base):
     id_edicao_anterior = Column(Integer, ForeignKey("eventos.id_evento"), nullable=True)
     id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
+    # v4.8 - elegibilidade ao certificado (ver app/services/certificados.py::calcular_elegibilidade):
+    # `carga_horaria_horas` declarada = percentual calculado por horas presentes (check-in/check-out
+    # reais) sobre o total; nula = cai pro cálculo por sessão, ou desabilita o certificado se o
+    # evento também não tem `SessaoEvento`. `percentual_minimo_certificado` nulo = usa o padrão
+    # global (`ConfiguracaoInstitucional.PERCENTUAL_MINIMO_CERTIFICADO_PADRAO`), preenchido =
+    # sobrescreve só para este evento.
+    carga_horaria_horas = Column(Numeric(6, 2), nullable=True)
+    percentual_minimo_certificado = Column(Numeric(5, 2), nullable=True)
 
 
 class SessaoEvento(Base):

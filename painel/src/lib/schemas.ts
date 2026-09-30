@@ -1031,3 +1031,44 @@ export const cotaInscricaoCriarSchema = z.object({
   categoria: z.string().min(1, 'Selecione a categoria.'),
   vagas_limite: z.coerce.number().int().min(1, 'Informe ao menos 1 vaga.'),
 })
+
+// v4.8 - emissão do token de operação da portaria (check-in sem login, ver PortariaGate.tsx).
+export const tokenPortariaCriarSchema = z.object({
+  descricao: z.string().optional(),
+  horas_validade: z.coerce
+    .number()
+    .int()
+    .min(1, 'Informe ao menos 1 hora de validade.')
+    .optional(),
+})
+
+// v4.8 - sobrescrita, por evento, da regra de elegibilidade ao certificado. Campo vazio = não
+// sobrescreve esse campo (volta a usar o padrão institucional) - nunca um formulário de "editar",
+// já que a API não devolve o valor atualmente configurado (ver app/routers/eventos.py, só PUT).
+// IMPORTANTE (bug real evitado aqui): `z.coerce.number()` sozinho, com o campo vazio, coagiria
+// `Number('') === 0` em vez de "não informado" - deixar o campo em branco salvaria um mínimo de
+// 0% (derrubando a elegibilidade de todo mundo pra zero) em vez de limpar a sobrescrita. Por isso
+// o formulário (Eventos.tsx) registra estes dois campos com `setValueAs` convertendo `''` para
+// `undefined` ANTES da validação, em vez de resolver isso aqui no schema (um `z.preprocess`
+// mudaria o tipo de entrada do schema pra `unknown`, incompatível com `FormShell<T>`, que exige
+// entrada e saída do mesmo tipo `T`).
+export const elegibilidadeConfigSchema = z.object({
+  percentual_minimo: z.coerce
+    .number()
+    .min(0, 'Informe um percentual entre 0 e 100.')
+    .max(100, 'Informe um percentual entre 0 e 100.')
+    .optional(),
+  carga_horaria_horas: z.coerce
+    .number()
+    .positive('Informe uma carga horária maior que zero.')
+    .optional(),
+})
+
+// v4.8 - cadastro de um novo template de documento (motor genérico da v4.0) - usado aqui só pra
+// nascer os templates CRACHA_EVENTO/CERTIFICADO_EVENTO que a emissão de crachá/certificado exige
+// (ver SecaoTemplatesDocumento em pages/Eventos.tsx).
+export const templateDocumentoCriarSchema = z.object({
+  codigo: z.string().min(3, 'Código precisa ter ao menos 3 caracteres.'),
+  nome: z.string().min(1, 'Informe um nome pro template.'),
+  corpo_texto: z.string().min(1, 'Informe o texto do documento.'),
+})

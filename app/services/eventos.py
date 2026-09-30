@@ -2,6 +2,7 @@
 recorrentes ligadas entre si. Inscrição reaproveita o motor genérico da v4.0
 (`app/services/inscricao.py`) - nenhum mecanismo de inscrição próprio aqui."""
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 
 from fastapi import HTTPException
@@ -72,6 +73,20 @@ def obter_evento(db: Session, id_evento: int) -> Evento:
 
 def listar_eventos(db: Session) -> list[Evento]:
     return db.query(Evento).order_by(Evento.data_hora_inicio.desc()).all()
+
+
+def atualizar_configuracao_elegibilidade(
+    db: Session, *, id_evento: int, percentual_minimo: Optional[Decimal], carga_horaria_horas: Optional[Decimal],
+) -> Evento:
+    """v4.8 - sobrescrita por evento da regra de elegibilidade ao certificado
+    (app/services/certificados.py). `None` explícito em qualquer campo volta a usar o padrão
+    global."""
+    evento = obter_evento(db, id_evento)
+    evento.percentual_minimo_certificado = percentual_minimo
+    evento.carga_horaria_horas = carga_horaria_horas
+    db.commit()
+    db.refresh(evento)
+    return evento
 
 
 def listar_eventos_publicos(db: Session) -> list[Evento]:

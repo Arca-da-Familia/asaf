@@ -36,3 +36,11 @@ def gerar_codigo_checkin() -> str:
 
 def gerar_token_cancelamento() -> str:
     return secrets.token_urlsafe(24)
+
+
+def gerar_codigo_verificacao_documento() -> str:
+    """v4.8 - código opaco de verificação pública de documento (crachá/certificado de evento,
+    `/certificado/verificar/{codigo}`). Mais longo que `gerar_codigo_checkin` (16 vs 8 chars) -
+    este precisa sobreviver anos num documento impresso/guardado, não só algumas horas digitado
+    na portaria."""
+    return secrets.token_hex(8).upper()

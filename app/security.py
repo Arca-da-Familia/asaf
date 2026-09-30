@@ -275,6 +275,35 @@ def decodificar_token_carteirinha(token: str) -> dict:
     return payload
 
 
+def criar_token_portaria(id_token_portaria: int, id_evento: int, horas_validade: int = 48) -> str:
+    """v4.8 - token de operação da portaria: dá acesso aos endpoints de check-in/check-out de UM
+    evento, sem login de quem opera. Carrega só o id da linha `TokenPortaria` (não `id_evento`
+    sozinho) porque a revogação de verdade é checada contra aquela linha
+    (`app/services/portaria.py::verificar_token_portaria`) - o JWT aqui só prova "este dispositivo
+    tem um token válido", nunca substitui a consulta ao banco antes de aceitar uma ação."""
+    _checar_jwt_secret_configurado()
+    agora = datetime.now(timezone.utc)
+    payload = {
+        "id_token_portaria": id_token_portaria,
+        "id_evento": id_evento,
+        "iat": agora,
+        "exp": agora + timedelta(hours=horas_validade),
+        "type": "portaria",
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def decodificar_token_portaria(token: str) -> dict:
+    _checar_jwt_secret_configurado()
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token de portaria inválido ou expirado.")
+    if payload.get("type") != "portaria":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token de portaria inválido.")
+    return payload
+
+
 def criar_refresh_token(
     db: Session,
     usuario: Usuario,

@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Any, Optional
 
 from pydantic import BaseModel, EmailStr, field_validator
@@ -119,3 +120,10 @@ class InscricaoPublicaCriar(BaseModel):
 class CotaInscricaoCriar(BaseModel):
     categoria: str
     vagas_limite: int
+
+
+class EventoElegibilidadeConfig(BaseModel):
+    """v4.8 - sobrescrita por evento da regra de elegibilidade ao certificado. `None` explícito
+    em qualquer campo volta a usar o padrão global (`ConfiguracaoInstitucional`)."""
+    percentual_minimo: Optional[Decimal] = None
+    carga_horaria_horas: Optional[Decimal] = None
