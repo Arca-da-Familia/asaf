@@ -3,6 +3,7 @@ o mês se o saldo do sistema não bater com o saldo do extrato bancário informa
 - divergência aberta bloqueia o fechamento, sempre. Não existe "forçar fechamento mesmo com
 divergência" - a saída correta é investigar a diferença (lançamento faltando, erro de digitação
 no extrato) antes de tentar de novo, nunca assinar embaixo de um número que não bate."""
+import calendar
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
@@ -14,7 +15,6 @@ from sqlalchemy.orm import Session
 from app.models.financeiro import ContaFinanceira, LancamentoContabil, PartidaContabil
 from app.models.fechamento import FechamentoMensal
 from app.services.contabilidade import DEBITO
-from app.services.contribuicoes import data_vencimento_da_competencia
 
 TOLERANCIA_CENTAVOS = Decimal("0.01")
 
@@ -22,8 +22,20 @@ TOLERANCIA_CENTAVOS = Decimal("0.01")
 def _saldo_sistema_ate_competencia(db: Session, *, id_conta: int, competencia: str) -> Decimal:
     """Saldo da conta contábil (débito soma, crédito subtrai) considerando só lançamentos com
     data de referência até o ÚLTIMO dia da competência - mesma regra de data (`data_competencia`
-    ou `data_lancamento`) usada em todo o resto do financeiro desde a v3.1."""
-    fim_do_mes = data_vencimento_da_competencia(competencia, 31)
+    ou `data_lancamento`) usada em todo o resto do financeiro desde a v3.1.
+
+    Achado real (2026-09-30, fechamento do mês corrente falhando com "saldo do sistema R$ 0,00"
+    mesmo com lançamento do dia): `fim_do_mes` precisa ser o FIM do último dia (23:59:59), nunca
+    meia-noite do início dele - `data_vencimento_da_competencia(competencia, 31)` (pensada pra
+    data de vencimento, nunca pra corte de saldo) devolve meia-noite, então todo lançamento feito
+    depois da meia-noite do próprio último dia do mês (ou seja, qualquer lançamento feito no
+    último dia, na prática) ficava fora do saldo. Mesmo padrão de fim de intervalo já usado em
+    `app/services/antifraude.py::_intervalo_da_competencia` e
+    `app/services/relatorios.py` (ambos `23, 59, 59`), só que esta função nunca tinha sido
+    alinhada com eles."""
+    ano, mes = (int(p) for p in competencia.split("-"))
+    ultimo_dia = calendar.monthrange(ano, mes)[1]
+    fim_do_mes = datetime(ano, mes, ultimo_dia, 23, 59, 59)
     data_referencia = func.coalesce(LancamentoContabil.data_competencia, LancamentoContabil.data_lancamento)
     saldo = Decimal("0")
     consulta = (
