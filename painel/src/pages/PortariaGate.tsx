@@ -10,13 +10,7 @@
 // Todo check-in/check-out passa por `portaria-queue.ts` (nunca um fetch direto daqui), mesmo
 // online: o caminho online e o offline são o MESMO caminho, sem caso especial.
 import type { IScannerControls } from '@zxing/browser'
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-} from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
@@ -134,7 +128,9 @@ function useLeitorQr(aoLer: (texto: string) => void) {
       })
       .catch(() => {
         if (!cancelado) {
-          setErro('Não foi possível acessar a câmera. Use o código manual abaixo.')
+          setErro(
+            'Não foi possível acessar a câmera. Use o código manual abaixo.',
+          )
           setAberto(false)
         }
       })
@@ -209,7 +205,9 @@ function CartaoConfirmacao({
       }`}
     >
       <p className="font-medium">
-        {item.tipo === 'checkin' ? 'Check-in registrado' : 'Check-out registrado'}{' '}
+        {item.tipo === 'checkin'
+          ? 'Check-in registrado'
+          : 'Check-out registrado'}{' '}
         <span className="font-normal text-muted-foreground">
           às {formatarHoraLocal(item.criado_em)}
         </span>
@@ -355,8 +353,8 @@ export function PortariaGate() {
         <div className="max-w-sm">
           <h1 className="text-lg font-semibold">Link da portaria inválido</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Este link expirou, foi revogado ou está incorreto. Peça um link
-            novo à organização do evento.
+            Este link expirou, foi revogado ou está incorreto. Peça um link novo
+            à organização do evento.
           </p>
         </div>
       </main>
@@ -372,7 +370,9 @@ export function PortariaGate() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background px-6 text-center">
         <div className="max-w-sm">
-          <h1 className="text-lg font-semibold">Não foi possível abrir a portaria</h1>
+          <h1 className="text-lg font-semibold">
+            Não foi possível abrir a portaria
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">{detalhe}</p>
           <Button className="mt-4" onClick={carregarEvento}>
             Tentar novamente
@@ -453,7 +453,10 @@ export function PortariaGate() {
 
         <form onSubmit={aoSubmeterFormulario} className="space-y-3">
           <div>
-            <label htmlFor="valor-portaria" className="mb-1 block text-xs text-muted-foreground">
+            <label
+              htmlFor="valor-portaria"
+              className="mb-1 block text-xs text-muted-foreground"
+            >
               {metodo === 'codigo'
                 ? 'Código de check-in (8 caracteres)'
                 : 'Token da carteirinha digital'}
@@ -474,7 +477,11 @@ export function PortariaGate() {
                     : e.target.value,
                 )
               }
-              placeholder={metodo === 'codigo' ? 'EX.: A1B2C3D4' : 'Cole o token ou use a câmera'}
+              placeholder={
+                metodo === 'codigo'
+                  ? 'EX.: A1B2C3D4'
+                  : 'Cole o token ou use a câmera'
+              }
               className="h-14 w-full rounded-md border border-input bg-background px-4 text-center text-2xl tracking-widest"
             />
           </div>

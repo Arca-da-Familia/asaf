@@ -21,7 +21,8 @@ import {
 } from './api-portaria'
 
 export type TipoAcaoPortaria = 'checkin' | 'checkout'
-export type StatusItemFilaPortaria = 'pendente' | 'enviando' | 'sincronizado' | 'erro'
+export type StatusItemFilaPortaria =
+  'pendente' | 'enviando' | 'sincronizado' | 'erro'
 
 export type PayloadAcaoPortaria = {
   metodo: MetodoCheckinPortaria
@@ -166,8 +167,7 @@ async function enviarItem(item: ItemFilaPortaria): Promise<void> {
       // pendente pro próximo ciclo; a chave de idempotência garante que reenviar depois nunca
       // conta a mesma presença duas vezes.
       item.status = 'pendente'
-      item.ultimo_erro =
-        erro instanceof Error ? erro.message : 'Falha de rede.'
+      item.ultimo_erro = erro instanceof Error ? erro.message : 'Falha de rede.'
     }
   }
   await db.put(LOJA, item)

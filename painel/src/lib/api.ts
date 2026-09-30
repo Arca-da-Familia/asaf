@@ -4503,7 +4503,10 @@ export function revogarTokenPortaria(
 
 export function atualizarElegibilidadeConfig(
   idEvento: number,
-  dados: { percentual_minimo?: number | null; carga_horaria_horas?: number | null },
+  dados: {
+    percentual_minimo?: number | null
+    carga_horaria_horas?: number | null
+  },
 ): Promise<{ mensagem: string }> {
   return apiFetch(`/api/eventos/${idEvento}/elegibilidade-config`, {
     method: 'PUT',
@@ -4531,7 +4534,11 @@ export function listarElegibilidadeEvento(
 export function emitirCrachaEvento(
   idEvento: number,
   idPessoa: number,
-): Promise<{ mensagem: string; id_documento: number; caminho_arquivo: string }> {
+): Promise<{
+  mensagem: string
+  id_documento: number
+  caminho_arquivo: string
+}> {
   return apiFetch(`/api/eventos/${idEvento}/crachas/${idPessoa}`, {
     method: 'POST',
   })

@@ -600,7 +600,8 @@ function SecaoInscritos({ evento }: { evento: Evento }) {
 // ==========================================
 function SecaoPortaria({ idEvento }: { idEvento: number }) {
   const { data: me } = useMe()
-  const podeGerenciar = me?.permissoes.includes('gerenciar_checkin_evento') ?? false
+  const podeGerenciar =
+    me?.permissoes.includes('gerenciar_checkin_evento') ?? false
   const queryClient = useQueryClient()
   const [linkRecemGerado, setLinkRecemGerado] = useState<string | null>(null)
 
@@ -626,18 +627,22 @@ function SecaoPortaria({ idEvento }: { idEvento: number }) {
     mutationFn: (idTokenPortaria: number) =>
       revogarTokenPortaria(idEvento, idTokenPortaria),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ['tokens-portaria', idEvento] }),
+      queryClient.invalidateQueries({
+        queryKey: ['tokens-portaria', idEvento],
+      }),
   })
 
   if (!podeGerenciar) return null
 
   return (
     <div>
-      <h3 className="mb-2 text-sm font-semibold">Portaria (check-in sem login)</h3>
+      <h3 className="mb-2 text-sm font-semibold">
+        Portaria (check-in sem login)
+      </h3>
       <p className="mb-3 text-sm text-muted-foreground">
-        Gere um link pra quem vai operar o check-in na entrada do evento —
-        abre num celular/tablet sem precisar logar no painel, e continua
-        registrando mesmo se a internet do local cair (sincroniza depois).
+        Gere um link pra quem vai operar o check-in na entrada do evento — abre
+        num celular/tablet sem precisar logar no painel, e continua registrando
+        mesmo se a internet do local cair (sincroniza depois).
       </p>
       <FormShell<z.infer<typeof tokenPortariaCriarSchema>>
         schema={tokenPortariaCriarSchema}
@@ -760,7 +765,8 @@ function FormularioTemplateDocumento({
       </p>
       <p className="mb-2 text-xs text-muted-foreground">
         Sem este modelo, emitir {rotulo.toLowerCase()} vai falhar com "template
-        não encontrado". Variáveis disponíveis no texto: {VARIAVEIS_TEMPLATE_EVENTO}.
+        não encontrado". Variáveis disponíveis no texto:{' '}
+        {VARIAVEIS_TEMPLATE_EVENTO}.
       </p>
       <FormShell<z.infer<typeof templateDocumentoCriarSchema>>
         schema={templateDocumentoCriarSchema}
@@ -809,7 +815,8 @@ function FormularioTemplateDocumento({
 // ==========================================
 function SecaoElegibilidade({ evento }: { evento: Evento }) {
   const { data: me } = useMe()
-  const podeGerenciar = me?.permissoes.includes('gerenciar_checkin_evento') ?? false
+  const podeGerenciar =
+    me?.permissoes.includes('gerenciar_checkin_evento') ?? false
   // v4.8 - cadastrar o TemplateDocumento (CRACHA_EVENTO/CERTIFICADO_EVENTO) chama
   // POST /api/templates-documento/, que é o motor GENÉRICO de documento (v4.0,
   // app/routers/motores.py) - gated por "projetos", de propósito nunca reaproveitado por
@@ -853,7 +860,8 @@ function SecaoElegibilidade({ evento }: { evento: Evento }) {
     mutationFn: (idPessoa: number) => emitirCrachaEvento(idEvento, idPessoa),
   })
   const emitirCertificado = useMutation({
-    mutationFn: (idPessoa: number) => emitirCertificadoEvento(idEvento, idPessoa),
+    mutationFn: (idPessoa: number) =>
+      emitirCertificadoEvento(idEvento, idPessoa),
   })
 
   function aoEmitirCracha(idPessoa: number) {
@@ -862,7 +870,11 @@ function SecaoElegibilidade({ evento }: { evento: Evento }) {
       onSuccess: (r) =>
         setResultados((s) => ({
           ...s,
-          [chave]: { ok: true, mensagem: 'Crachá emitido.', caminho: r.caminho_arquivo },
+          [chave]: {
+            ok: true,
+            mensagem: 'Crachá emitido.',
+            caminho: r.caminho_arquivo,
+          },
         })),
       onError: (e) =>
         setResultados((s) => ({
@@ -1098,7 +1110,8 @@ const COLUNAS_EXPORTAVEIS_PRESENCA: { chave: string; rotulo: string }[] = [
 
 function SecaoExportarPresencas({ idEvento }: { idEvento: number }) {
   const { data: me } = useMe()
-  const podeExportar = me?.permissoes.includes('exportar_presencas_evento') ?? false
+  const podeExportar =
+    me?.permissoes.includes('exportar_presencas_evento') ?? false
   const [colunasSelecionadas, setColunasSelecionadas] = useState<string[]>(
     COLUNAS_EXPORTAVEIS_PRESENCA.map((c) => c.chave),
   )
