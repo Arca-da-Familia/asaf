@@ -265,18 +265,9 @@ tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
 > `ProjetoEvento.data_inicio` de forma segura (endpoint próprio, autenticado) - mas criar/alterar
 > projeto continua sem proteção nenhuma até esta fase resolver.
 
-✅ **v4.0–v4.8 concluídas.** Motores compartilhados, projetos, beneficiários, reserva de espaço, voluntariado, eventos, inscrição pública com deduplicação, vagas/lista de espera e check-in/crachá/certificado — checklist original e confirmação em produção de cada uma movidos para [`HISTORICO.md`](HISTORICO.md#fase-4-v40-v48).
+✅ **v4.0–v4.9 concluídas.** Motores compartilhados, projetos, beneficiários, reserva de espaço, voluntariado, eventos, inscrição pública com deduplicação, vagas/lista de espera, check-in/crachá/certificado e financeiro de projeto/evento — checklist original e confirmação em produção de cada uma movidos para [`HISTORICO.md`](HISTORICO.md#fase-4-v40-v49).
 
-Segue com v4.9 (ainda não construída):
-
-#### v4.9 — Financeiro de projeto/evento
-
-- [ ] Cobrança de inscrição/uso de espaço integrada à FASE 3, com valor por faixa (associado x não
-      associado x estudante), lote promocional por data, cupom e isenção justificada.
-- [ ] Política de reembolso por cancelamento, com prazo e percentual configuráveis, gerando
-      estorno rastreável (nunca "devolução por fora").
-- [ ] Fechamento financeiro automático ao encerrar (inscritos, presentes, arrecadado, custos,
-      resultado por centro de custo), com a mesma auditoria do restante do financeiro.
+Segue com v4.10 (ainda não construída):
 
 #### v4.10 — Painel gerencial e avaliação
 

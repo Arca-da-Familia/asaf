@@ -4021,7 +4021,7 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 
 ---
 
-<a id="fase-4-v40-v48"></a>
+<a id="fase-4-v40-v49"></a>
 
 #### v4.0 — Motores compartilhados (construídos uma vez, usados por tudo)
 >
@@ -4974,5 +4974,54 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > endpoints públicos/escopados por token) para poder ser transplantada pro site institucional
 > (Astro, outro repositório) quando ele existir — por ora ela mora no painel porque o evento
 > acontece antes do site estar pronto, não porque é o lugar definitivo.
+
+#### v4.9 — Financeiro de projeto/evento
+
+- [x] Cobrança de inscrição/uso de espaço integrada à FASE 3, com valor por faixa (associado x não
+      associado x estudante), lote promocional por data, cupom e isenção justificada.
+- [x] Política de reembolso por cancelamento, com prazo e percentual configuráveis, gerando
+      estorno rastreável (nunca "devolução por fora").
+- [x] Fechamento financeiro automático ao encerrar (inscritos, presentes, arrecadado, custos,
+      resultado por centro de custo), com a mesma auditoria do restante do financeiro.
+
+> **v4.9 (2026-09-30)**: cobrança de inscrição liga no motor genérico que já existia desde a v4.0
+> mas nunca tinha consumidor automático (`Inscricao.id_titulo_cobranca`/`vincular_cobranca`) —
+> faixa de preço por categoria/data reaproveita o padrão versionado de
+> `CampanhaDescontoAntecipado` (v3.2.3, mensalidade); cupom é motor genérico novo
+> (`contexto_tipo`/`id_contexto`, mesmo raciocínio da v4.0) já nascendo pra servir inscrição de
+> evento e reserva de espaço ao mesmo tempo; isenção justificada espelha `IsencaoContribuicao`
+> (motivo de catálogo + aprovador + percentual). Evento gratuito continua sem cobrar nada -
+> comportamento preservado, confirmado lendo todo caminho de inscrição antes de mexer.
+> **Decisão de desenho central**: reembolso por cancelamento NUNCA estorna o título original (o
+> dinheiro realmente entrou) - gera um título "A Pagar" novo linkado
+> (`TituloFinanceiro.id_titulo_reembolso_de`), pago pelo mesmo `POST /baixar-titulo/` de sempre,
+> nunca uma devolução "por fora" - cobre 100% e reembolso parcial com o mesmo código, sem
+> ramificação. Isto fechou de quebra um gap real pré-existente da v4.3: `Reserva`/`Espaco` já
+> cobrava de verdade desde então, mas cancelar uma reserva paga nunca devolvia a cobrança
+> original - só podia empilhar uma taxa de cancelamento tardio em cima. Fechamento financeiro do
+> evento é snapshot versionado (nunca editado, mesmo raciocínio de `RelatorioFinalProjeto`,
+> v3.6), reaproveitando `receitas_e_despesas_por_centro_custo` (v3.6) sem soma paralela -
+> `CentroDeCusto` ganhou `id_evento` (espelha `id_projeto`, v3.1) porque `Evento` só nasceu como
+> tabela própria na v4.5, depois deste modelo já existir. Tarefa periódica diária
+> (`.github/workflows/tarefa-fechamento-eventos.yml`) fecha automaticamente todo evento encerrado
+> sem fechamento ainda, mesmo padrão de `expirar_promocoes_vagas.py` (v4.7).
+> **Achado real no próprio ciclo de migração desta versão**: validar o upgrade/downgrade contra
+> um schema pré-v4.9 genuíno (gerado a partir do código real da v4.8 via `git worktree`, não uma
+> simulação manual) encontrou que o Alembic exige nome explícito de constraint no modo batch do
+> SQLite ao adicionar uma coluna nova com FK numa tabela existente - o Postgres de produção nunca
+> precisaria disso (lá é um `ADD COLUMN` direto, sem recriar a tabela), mas o SQLite usado
+> localmente/CI recria a tabela inteira por trás de `batch_alter_table` e essa recriação falha
+> sem o nome. Corrigido antes de qualquer tentativa em produção, nomeando as quatro constraints
+> novas (`fk_centros_de_custo_id_evento`, `fk_titulos_financeiros_id_titulo_reembolso_de`,
+> `fk_eventos_id_conta_contabil_receita`, `fk_eventos_id_centro_custo`).
+> **Verificado em produção, ao vivo, nesta revisão**: `Deploy API` (`gh run view 36787989467`,
+> job `build-and-deploy` verde ponta a ponta - testes, migração Alembic aplicada, build da
+> imagem, atualização do Container App) e `Deploy Painel` (`36787989508`) verdes para o commit
+> que fecha a faixa (`dabed1a`); `GET https://api.asaf.org.br/api/eventos/1/faixas-preco` e
+> `GET https://api.asaf.org.br/api/centros-custo/` respondendo 401 (autenticação exigida, não
+> 500) - prova que a migração e o código novo estão de fato no ar, não só no repositório; todas
+> as rotas novas presentes no `openapi.json` de produção; `painel.asaf.org.br/version.json`
+> confirmando o commit `dabed1a`. Suíte completa rodada três vezes ao longo do ciclo (362/362,
+> 370/370, 370/370).
 
 ---
