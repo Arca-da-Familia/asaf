@@ -4953,19 +4953,71 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > Isto fecha o Ponto de Revisão FASE 4 (2/3) — segue para v4.8.
 
 #### v4.8 — Check-in, crachá e certificado
-- [ ] Check-in por código curto, QR code da inscrição ou carteirinha do associado, **sem exigir
+- [x] Check-in por código curto, QR code da inscrição ou carteirinha do associado, **sem exigir
       login de quem opera a portaria** (token de operação com escopo limitado ao evento).
-- [ ] Modo offline resiliente: a portaria continua registrando presença se a internet cair, com
+- [x] Modo offline resiliente: a portaria continua registrando presença se a internet cair, com
       sincronização depois — evento acontece em quadra e salão, onde a rede falha de verdade.
-- [ ] Check-out opcional (para cálculo de carga horária real de curso/atividade).
-- [ ] Crachá e certificado em PDF a partir do registro de presença (motor v4.0), com código de
+- [x] Check-out opcional (para cálculo de carga horária real de curso/atividade).
+- [x] Crachá e certificado em PDF a partir do registro de presença (motor v4.0), com código de
       verificação público (`/certificado/verificar/{codigo}`) que confirma autenticidade sem expor
       dado pessoal além do nome e da atividade.
-- [ ] Regra de elegibilidade ao certificado configurável (ex.: 75% de presença) — calculada, nunca
+- [x] Regra de elegibilidade ao certificado configurável (ex.: 75% de presença) — calculada, nunca
       concedida à mão.
-- [ ] **Nunca exportação de lista completa em lote** como caminho padrão (risco de vazamento
+- [x] **Nunca exportação de lista completa em lote** como caminho padrão (risco de vazamento
       identificado nas referências de pesquisa); exportação existe, mas com permissão própria e
       registro em auditoria (v1.3).
+
+> **v4.8 (2026-09-30)**: token de operação da portaria persistido e revogável
+> (`tokens_portaria` — diferente da carteirinha, que é um JWT puro; um QR de portaria fica exposto
+> fisicamente por horas, precisa poder ser morto no meio do evento) autoriza check-in/check-out sem
+> login em `app/routers/portaria.py`, fora de `/api/`. Idempotência real via
+> `operacoes_portaria_idempotentes`: a fila offline do painel (`painel/src/lib/portaria-queue.ts`,
+> IndexedDB via `idb`) gera a `chave_idempotencia` uma única vez por ação e nunca a regenera num
+> reenvio — reconectar depois de uma queda de internet nunca duplica presença. Elegibilidade
+> (`app/services/certificados.py::calcular_elegibilidade`) em três níveis — carga horária declarada
+> (único nível que usa dado de check-out) → contagem de sessões → indisponível (evento sem nenhum
+> dos dois critérios simplesmente **não emite certificado**, em vez de fingir um percentual sem
+> sentido) —, sempre calculada, sem parâmetro de override em nenhuma função da cadeia. Crachá nunca
+> exige elegibilidade (é etiqueta, não credencial); certificado gera `codigo_verificacao` opaco
+> (16 hex) e passa a nomear o próprio arquivo por ele em vez do número sequencial de sempre —
+> achado próprio desta versão: `/uploads/` é servido sem autenticação, e o nome sequencial de
+> `DocumentoEmitido` já era enumerável (quem incrementasse o número baixaria o nome completo de
+> qualquer pessoa certificada); corrigido só para os dois templates novos, documentos internos
+> continuam como antes. `GET /certificado/verificar/{codigo}` devolve só
+> `{nome_completo, atividade, tipo_documento, emitida_em}`, mesmo padrão de minimização de dado já
+> usado por `/carteirinha/verificar/{token}` (v1.1) — testado explicitamente que CPF/e-mail/
+> telefone nunca aparecem na resposta. Exportação de presença (`exportar_presencas_evento`,
+> permissão própria e auditada) réplica exata do padrão de `exportar_dados_pessoais` (v1.3).
+> **Achado do próprio ciclo de deploy desta versão**: `Deploy Painel` recusou o primeiro push no
+> job de `format:check` (Prettier) — 4 arquivos novos/alterados não verificados localmente antes
+> do push, corrigido no commit seguinte. `Deploy API` recusou o mesmo push em "Rodar testes
+> automatizados": `test_antifraude.py::test_fechar_mes_bloqueia_com_divergencia_e_fecha_sem_divergencia`
+> falhou com o saldo do sistema aparecendo como R$ 0,00 mesmo com lançamento do próprio dia — bug
+> pré-existente e não relacionado à v4.8 em `app/services/fechamento.py::_saldo_sistema_ate_competencia`,
+> que calculava o fim da competência como **meia-noite** do último dia do mês (reaproveitando
+> `data_vencimento_da_competencia`, pensada pra data de vencimento, nunca pra corte de saldo) —
+> qualquer lançamento feito depois da meia-noite do próprio último dia do mês (ou seja, qualquer
+> lançamento feito nesse dia, na prática) ficava fora do saldo. Só nunca tinha aparecido porque
+> nenhum teste tinha rodado num dia 30/31 até hoje (2026-09-30, o próprio dia deste deploy).
+> Corrigido pro mesmo padrão de fim de intervalo já usado em `app/services/antifraude.py` e
+> `app/services/relatorios.py` (`23:59:59`, nunca meia-noite) — commit `2495516`. Suíte completa
+> rodada duas vezes depois do fix (362/362, 362/362).
+> **Verificado em produção, ao vivo, nesta revisão**: `Deploy API` (`gh run view 36768930819`,
+> job `build-and-deploy` verde ponta a ponta — testes, migração Alembic aplicada, build da imagem,
+> atualização do Container App) e `Deploy Painel` (`gh run view 36768220783`) verdes para o commit
+> que fecha a faixa (`2495516`); `GET https://api.asaf.org.br/certificado/verificar/CODIGO-INEXISTENTE`
+> respondendo 404 com a mensagem esperada (prova que a rota nova e a migração — coluna
+> `codigo_verificacao` — estão de fato no ar, não só no código); `GET
+> https://api.asaf.org.br/api/publico/eventos` respondendo 200; todas as rotas novas (`/portaria/*`,
+> `/certificado/verificar/{codigo}`, `/api/eventos/{id}/tokens-portaria`, `/elegibilidade`,
+> `/elegibilidade-config`, `/crachas/{id}`, `/certificados/{id}`, `/presencas/exportar`) presentes
+> no `openapi.json` de produção; `painel.asaf.org.br/version.json` confirmando o commit
+> `d28792d` (último a tocar `painel/**` na faixa).
+> **Pendência registrada, não fingida**: a tela da portaria (`/portaria/:token` no painel) foi
+> construída deliberadamente desacoplada da sessão/autenticação do painel (só fala com os
+> endpoints públicos/escopados por token) para poder ser transplantada pro site institucional
+> (Astro, outro repositório) quando ele existir — por ora ela mora no painel porque o evento
+> acontece antes do site estar pronto, não porque é o lugar definitivo.
 
 #### v4.9 — Financeiro de projeto/evento
 - [ ] Cobrança de inscrição/uso de espaço integrada à FASE 3, com valor por faixa (associado x não
