@@ -4,5 +4,13 @@
   // linha manual por volta de 90-100 caracteres, nunca 80 - é o estilo já estabelecido em
   // centenas de blocos de confirmação de versão, não um erro a corrigir. Reformatar tudo pra
   // caber em 80 colunas reescreveria o documento inteiro sem ganho real nenhum.
-  "MD013": false
+  "MD013": false,
+  // MD033 (HTML inline) desligado - HISTORICO.md usa <a id="..."> pra ancorar link de
+  // PLANO_PROJETO.md direto numa fase (ex.: HISTORICO.md#fase-4-v40-v48), Markdown puro não tem
+  // como nomear uma âncora própria independente do texto do título.
+  "MD033": false,
+  // MD001 (títulos só sobem um nível por vez) desligado - HISTORICO.md é uma coleção de blocos
+  // originalmente escritos como sub-seção de um documento maior (começam em "###"), agora soltos
+  // sob um único título "#" - não vale a pena renumerar o nível de cada um só pra essa regra.
+  "MD001": false
 }
