@@ -48,7 +48,7 @@ sops CREDENCIAIS_AZURE.md
 O hook em `.githooks/pre-commit` bloqueia qualquer commit que tente subir `.env`,
 `CREDENCIAIS_AZURE.md` ou `infra/provisionar.sh` em **texto puro**. Ative com:
 
-```
+```bash
 git config core.hooksPath .githooks
 ```
 

@@ -9,6 +9,7 @@ parar para pedir confirmação** — isso já dispara `Deploy API`/`Deploy Paine
 Não é preciso perguntar "posso enviar?" a cada mudança; é o padrão esperado deste projeto.
 
 Depois do push, sempre:
+
 1. Acompanhar os workflows (`gh run list`, `gh run watch`) até `Deploy API`/`Deploy Painel`
    ficarem verdes.
 2. Se o CI encontrar um achado real (teste quebrando, formatação, o que for) — investigar a causa

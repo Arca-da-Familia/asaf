@@ -116,7 +116,7 @@ faz o upload do `dist/`.
 
 ## Estrutura
 
-```
+```text
 painel/
   src/
     components/ui/       Componentes shadcn/ui copiados para o repo

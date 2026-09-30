@@ -21,7 +21,7 @@ documento aqui é só sobre a arquitetura técnica.
 Tudo hospedado no Azure, grupo de recursos `Associacao-RG`, região Brazil South:
 
 | Componente | Serviço Azure | Por quê |
-|---|---|---|
+| --- | --- | --- |
 | Banco de dados | Postgres Flexible Server (Burstable) | Único banco, compartilhado entre a API e o Directus (só tabelas de conteúdo) |
 | API (este repositório) | Container Apps | Escala a zero quando ocioso — sem custo de servidor parado |
 | CMS do site institucional | Container Apps (Directus) | Conteúdo editável sem tocar em código |
@@ -40,15 +40,18 @@ Tudo hospedado no Azure, grupo de recursos `Associacao-RG`, região Brazil South
 > workflow e não no Key Vault) — todo build de produção do painel já aponta pra esse domínio.
 
 ### Por que Postgres, não SQLite
+
 O protótipo original usava SQLite. Postgres foi escolhido porque escala verticalmente (mais
 CPU/storage) sem reescrever nada, é o que o Directus também precisa, e é a base de dado que
 qualquer serviço de nuvem trata como cidadão de primeira classe (backup automático, HA, etc.).
 
 ### Por que Container Apps, não uma VM
+
 Uma associação sem equipe de TI dedicada não deveria precisar "cuidar de servidor". Container
 Apps no plano consumo escala de zero sozinho, e o custo acompanha o uso real.
 
 ### Por que Directus, e só para conteúdo
+
 Directus não carrega nenhuma regra de negócio (financeiro, votação, permissão por módulo) — só
 conteúdo do site público (página, notícia, banner). Reescrever a lógica de negócio já pronta do
 zero dentro do Directus não compensaria. Ver `PLANO_PROJETO.md` seção 3 para o raciocínio
@@ -56,7 +59,7 @@ completo.
 
 ## 3. Estrutura do código (API)
 
-```
+```text
 app/
   database.py     Conexão com o banco (engine, Base, get_db), migração de schema
   utils.py        Funções compartilhadas entre módulos (hash de senha, escape HTML, avatar)
@@ -115,6 +118,7 @@ FASE 5 do plano).
 ## 6. Onde estão os segredos
 
 Nunca em código, nunca commitado. Vivem em dois lugares:
+
 - **Azure Key Vault** (`kv-asaf-arca`): string de conexão do banco, chave do storage, segredos
   do Directus, `JWT_SECRET`.
 - **Secrets do GitHub** (`Arca-da-Familia/asaf` → Settings → Secrets): `AZURE_CLIENT_ID`,
@@ -125,7 +129,7 @@ Nunca em código, nunca commitado. Vivem em dois lugares:
 
 ## 7. Rodando localmente
 
-```
+```bash
 python -m venv .venv
 .venv\Scripts\activate         # Windows
 pip install -r requirements-dev.txt

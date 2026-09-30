@@ -30,6 +30,7 @@ pedra.
 ## 1. Dados e persistência
 
 ### 1.1 Banco de dados relacional: PostgreSQL
+
 - **Decidido**: Azure Database for PostgreSQL Flexible Server é o único banco de dados do
   sistema, compartilhado entre o FastAPI e o Directus.
 - **Por que está congelado**: já é o segundo banco do projeto (veio de SQLite). Trocar de novo
@@ -41,6 +42,7 @@ pedra.
   réplica de leitura, usar extensões (`pgcrypto`, `pg_stat_statements`).
 
 ### 1.2 ORM e tipos numéricos
+
 - **Decidido**: SQLAlchemy 2.x (estilo declarativo moderno) como único ORM. Todo valor monetário
   é `Numeric`/`Decimal`, nunca `float`.
 - **Por que está congelado**: trocar de ORM depois de dezenas de modelos escritos é reescrita
@@ -50,6 +52,7 @@ pedra.
   ORM atrapalha.
 
 ### 1.3 Migração de schema: Alembic
+
 - **Decidido**: toda alteração de schema passa por `alembic revision --autogenerate` +
   `alembic upgrade head`. Nunca mais alteração manual de tabela em produção.
 - **Por que está congelado**: é a correção que resolveu o mecanismo frágil anterior
@@ -59,6 +62,7 @@ pedra.
   plano (FASES 1 a 20) assume Alembic como dado.
 
 ### 1.4 Modelo de pessoa: `Pessoa` como raiz com papéis (v1.0)
+
 - **Decidido**: uma pessoa física é um único registro `Pessoa` (CPF único), com papéis (associado,
   voluntário, beneficiário, aluno, participante externo, funcionário) vinculados por N:N, nunca
   cadastros separados por papel.
@@ -68,6 +72,7 @@ pedra.
 - **Livre dentro disso**: quais papéis existem, quais atributos cada papel carrega.
 
 ### 1.5 Catálogo genérico e campos personalizados (v0.3)
+
 - **Decidido**: valor que a diretoria pode querer mudar sem programador (categoria, motivo,
   tipo) vive em `Catalogo`/`OpcaoCatalogo` com código estável separado do rótulo — nunca
   `enum` fixo em código para esse tipo de dado.
@@ -80,6 +85,7 @@ pedra.
 ## 2. Backend e API
 
 ### 2.1 Framework: FastAPI + Pydantic v2
+
 - **Decidido**: API única em FastAPI, servida por Uvicorn, validação por Pydantic v2.
 - **Por que está congelado**: é a base de 37+ rotas já em produção. Confirmado por pesquisa de
   mercado como stack corrente para este tipo de sistema, com casos reportados de bom desempenho
@@ -88,6 +94,7 @@ pedra.
   prática estabelecida).
 
 ### 2.2 Organização do código: pacote `app/` por domínio
+
 - **Decidido**: `app/models/`, `app/schemas/`, `app/routers/` organizados por domínio de negócio
   (core, associados, financeiro, governanca, projetos, admin_portal), cada módulo novo das FASES
   1-20 segue o mesmo padrão.
@@ -97,6 +104,7 @@ pedra.
   `financeiro/lancamentos.py` de `financeiro/cobranca.py` quando o arquivo crescer demais).
 
 ### 2.3 Versão do Python e imagem base
+
 - **Decidido**: `python:3.12-slim` como imagem base do contêiner (fixada no `Dockerfile`).
 - **Por que está congelado**: a versão exata do Python é o que garante que "funciona na minha
   máquina" e "funciona em produção" sejam a mesma coisa. Trocar a versão maior do Python é decisão
@@ -109,6 +117,7 @@ pedra.
 ## 3. Autenticação e permissão (v0.1)
 
 ### 3.1 Mecanismo de autenticação: JWT + refresh opaco + bcrypt + TOTP
+
 - **Decidido**: login por CPF+senha (bcrypt), access token JWT (HS256, curto), refresh token
   opaco guardado em `TokenAcesso`, MFA por TOTP (`pyotp`) com códigos de recuperação.
 - **Por que está congelado**: é o módulo mais testado do sistema até agora (bloqueio por força
@@ -122,6 +131,7 @@ pedra.
   alternativa, nunca substituindo o login por CPF.
 
 ### 3.2 Modelo de permissão: RBAC por nível (`NivelAcesso`/`PermissaoSistema`)
+
 - **Decidido**: permissão é atribuída a um nível de acesso (catálogo configurável), nunca
   verificada por `if (nivel == "Presidente")` espalhado pelo código — sempre via
   `exigir_permissao(codigo)`.
@@ -137,6 +147,7 @@ pedra.
 ## 4. Frontend
 
 ### 4.1 Framework do painel: React (Vite + TypeScript strict)
+
 - **Decidido**: SPA em React, Vite, TypeScript em modo `strict`, Tailwind + shadcn/ui + TanStack
   Query + React Router.
 - **Por que está congelado**: é a decisão de fundação da v0.2, que vira base de todos os módulos
@@ -148,6 +159,7 @@ pedra.
   inteiro não.
 
 ### 4.2 Autenticação no cliente: token em memória + refresh em cookie `HttpOnly`
+
 - **Decidido** (v0.2.1): access token nunca em `localStorage`; refresh token em cookie
   `HttpOnly`+`Secure`+`SameSite=Strict`.
 - **Por que está congelado**: é controle de segurança contra XSS que precisa ser certo desde o
@@ -156,6 +168,7 @@ pedra.
 - **Livre dentro disso**: detalhe de implementação do interceptor de renovação.
 
 ### 4.3 Perpetuidade do painel: zero dependência paga ou SaaS por usuário
+
 - **Decidido** (v0.2.0): nenhum componente de UI vem de biblioteca paga nem de SaaS com
   licença por usuário. Tudo que entra no painel precisa continuar funcionando se a associação
   parar de pagar qualquer coisa — o custo do painel é só o Static Web App (dentro do crédito
@@ -173,6 +186,7 @@ pedra.
 ## 5. Infraestrutura e deploy
 
 ### 5.1 Provedor de nuvem: Azure
+
 - **Decidido**: toda a infraestrutura roda em Azure (Container Apps, Static Web Apps, PostgreSQL
   Flexible Server, Blob Storage, Key Vault, Application Insights, DNS).
 - **Por que está congelado**: crédito de nonprofit já concedido e em uso (~US$2.000/ano), toda a
@@ -185,6 +199,7 @@ pedra.
   como plano de ação.
 
 ### 5.2 Hospedagem de contêiner: Azure Container Apps (plano consumo)
+
 - **Decidido**: API e Directus rodam em Container Apps, escala a zero quando ociosos.
 - **Por que está congelado**: já resolveu o problema real de "sem equipe de TI dedicada cuidando
   de servidor" — é a peça que permite a ASAF não ter alguém de plantão para infraestrutura.
@@ -193,6 +208,7 @@ pedra.
   Postgres abaixo).
 
 ### 5.3 Firewall do Postgres: `AllowAzureServices` + IP administrativo
+
 - **Decidido**: a regra de firewall do Postgres é `AllowAzureServices` (permite tráfego de
   qualquer serviço Azure) mais o IP da máquina administrativa — **não** uma lista restrita de IPs
   de Container Apps.
@@ -205,6 +221,7 @@ pedra.
   deliberadamente (o que hoje não está planejado em nenhuma fase).
 
 ### 5.4 CMS de conteúdo público: Directus, banco compartilhado
+
 - **Decidido**: Directus roda no mesmo Postgres do FastAPI, mas só possui e só pode alterar
   tabelas `directus_*` (garantido pelo filtro `include_object` no Alembic).
 - **Por que está congelado**: é a decisão que evita "dois sistemas que nunca se integram" — o
@@ -214,6 +231,7 @@ pedra.
 - **Livre dentro disso**: quais coleções o Directus gerencia (sempre só conteúdo público).
 
 ### 5.5 CI/CD: GitHub Actions + OIDC, sem segredo de longa duração
+
 - **Decidido**: deploy automatizado via GitHub Actions, autenticação no Azure por OIDC (Service
   Principal com credencial federada), nunca senha/chave de longa duração salva como GitHub
   Secret.
@@ -223,6 +241,7 @@ pedra.
   ganhar o próprio, v8.2), o que cada um builda e publica.
 
 ### 5.6 Infraestrutura versionada como script, não Bicep/Terraform
+
 - **Decidido**: a reconstrução da infraestrutura é documentada em `infra/provisionar.sh` — um
   script comentado, não uma ferramenta declarativa de IaC. **Não versionado neste repositório
   público** (mesmo tratamento de `CREDENCIAIS_AZURE.md`): mesmo sem senha nenhuma, o nome exato de
@@ -241,6 +260,7 @@ pedra.
   de aplicar. Nenhum dos dois é o cenário de hoje.
 
 ### 5.7 Repositório público, licença restritiva
+
 - **Decidido**: o repositório `Arca-da-Familia/asaf` é público (necessário para uso gratuito de
   integrações Azure/GitHub Actions), protegido por uma licença de todos os direitos reservados —
   uso restrito a entidades sem fins lucrativos com autorização expressa da associação.
@@ -250,6 +270,7 @@ pedra.
 - **Livre dentro disso**: quem tem acesso de escrita ao repositório.
 
 ### 5.8 Teto de orçamento: US$100/mês
+
 - **Decidido**: teto operacional de US$100/mês (dentro do crédito nonprofit de ~US$2.000/ano),
   aprovado explicitamente pelo usuário mesmo em cenário de milhares de associados.
 - **Por que está congelado**: é o número contra o qual toda escolha de tier/SKU nas FASES 8 e 16
@@ -263,6 +284,7 @@ pedra.
 ## 6. Segurança e conformidade (posições já resolvidas por pesquisa)
 
 ### 6.1 gov.br descartado como provedor de login/assinatura
+
 - **Decidido**: gov.br não é usado nem para login único nem para assinatura eletrônica.
 - **Por que está congelado**: confirmado por fonte oficial (a API de assinatura é restrita por
   norma a órgão público) e por tentativa real do usuário (login único para app privado exige
@@ -272,6 +294,7 @@ pedra.
   gov.br mudasse (fora do controle do projeto).
 
 ### 6.2 Assinatura eletrônica própria (v20.2) para documento interno; ICP-Brasil só para ato registral
+
 - **Decidido**: documento interno (termo de voluntariado, ficha, presença) usa a plataforma
   própria de assinatura (OTP + metadados + timestamp + hash SHA-256 + selo e-CNPJ). Documento que
   precisa ir a registro em cartório (ata de eleição, reforma estatutária) exige assinatura
@@ -283,6 +306,7 @@ pedra.
   crescer.
 
 ### 6.3 Estratégia de app: PWA, não nativo
+
 - **Decidido**: o painel evolui para PWA instalável (v9.4); aplicativo nativo só entra em
   discussão se biometria virar exigência não-negociável.
 - **Por que está congelado**: evita o custo recorrente de manter dois builds nativos (revisão de
@@ -326,7 +350,7 @@ Lista de referência rápida — o que evitar reabrir como "qual ferramenta usar
 correspondente chegar, porque já foi decidido:
 
 | Necessidade | Ferramenta fixada | Fase que usa |
-|---|---|---|
+| --- | --- | --- |
 | Migração de schema | Alembic | Todas |
 | Testes de backend | pytest + httpx | v18.1 |
 | Testes de frontend | Vitest + Testing Library + Playwright | v0.2.8 |

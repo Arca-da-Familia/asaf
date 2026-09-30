@@ -1,0 +1,8 @@
+{
+  // MD013 (comprimento de linha) desligado de propósito: os documentos deste projeto
+  // (PLANO_PROJETO.md, DECISOES_CONGELADAS.md, ARQUITETURA.md etc.) são escritos com quebra de
+  // linha manual por volta de 90-100 caracteres, nunca 80 - é o estilo já estabelecido em
+  // centenas de blocos de confirmação de versão, não um erro a corrigir. Reformatar tudo pra
+  // caber em 80 colunas reescreveria o documento inteiro sem ganho real nenhum.
+  "MD013": false
+}
