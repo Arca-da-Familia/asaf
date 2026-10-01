@@ -68,7 +68,10 @@ app/
   schemas/        Modelos Pydantic de entrada, mesmo agrupamento por domínio
   routers/        Rotas HTTP, mesmo agrupamento por domínio
 alembic/          Migrações de banco versionadas (ver seção 4)
-templates/        HTML estático do protótipo inicial do site (não confundir com o site institucional real, que vem depois na FASE 5 do plano)
+templates/        HTML estático do protótipo inicial (legado — o site institucional real é o `site/`, abaixo)
+painel/           Painel do associado/administrador (Vite + React) — painel.asaf.org.br
+site/             Site institucional público (Astro) — asaf.org.br
+design/           Tokens de design compartilhados por painel/ e site/ (fonte única da identidade visual)
 ```
 
 **Por que separado por domínio, não um arquivo só**: o código nasceu como um único
@@ -80,6 +83,17 @@ O front-end (painel do associado/admin) vive em `painel/` — Vite + React + Typ
 Tailwind + shadcn/ui + Recharts + TanStack Query + React Router. É um monorepo simples (mesma
 repo, sem ferramenta de monorepo), conforme a v0.2 do plano; o shell, o design system e os
 contratos de front-end ali construídos são a base que as FASES 1–20 consomem.
+
+O site institucional público (`asaf.org.br`) vive em `site/` — Astro (geração estática, com
+"ilhas" de JavaScript só onde há dado dinâmico) + Tailwind + TypeScript `strict`, publicado no
+Static Web App `asaf-site`. **A fronteira que impede o site de virar um segundo sistema**: tudo
+que é *dado* (eventos, transparência, inscrição) vem da API FastAPI e é buscado no navegador do
+visitante, a cada visita, sem rebuild; só o que é *editorial* (textos, notícias, banners) vem do
+Directus e é gerado no build. Detalhes de uso em [`site/README.md`](./site/README.md).
+
+A identidade visual (cores, raio, sombras, fonte) mora em `design/` — **fonte única** consumida
+pelo painel e pelo site. Nunca redefinir um token dentro de `painel/` ou `site/`; ver
+[`design/README.md`](./design/README.md).
 
 ## 4. Migração de banco de dados (Alembic)
 
@@ -111,9 +125,24 @@ Todo push na branch `main` que altere `painel/` (ou o próprio workflow) dispara
 App `asaf-painel` usando o deploy token `SWA-PAINEL-DEPLOY-TOKEN` que vive no Key Vault
 `kv-asaf-arca`.
 
-Directus hoje não tem CI/CD próprio ligado a este repositório — é gerido separadamente (Directus
-é conteúdo, editado pelo próprio painel; o site institucional real ainda não foi construído, ver
-FASE 5 do plano).
+Todo push na branch `main` que altere `site/` ou `design/` (ou o próprio workflow) dispara
+`.github/workflows/deploy-site.yml`. Os portões de qualidade rodam em todo pull request/push:
+Prettier, `astro check`, testes unitários e — contra o site **montado**, num navegador de
+verdade — auditoria de acessibilidade (axe, WCAG 2.1 AA, todas as páginas do sitemap, em
+desktop e celular), SEO técnico, links internos e Lighthouse CI (desempenho ≥ 90, acessibilidade
+e SEO = 100). Só na `main`, depois dos portões, publica no Static Web App `asaf-site` com o token
+`SWA-SITE-DEPLOY-TOKEN` (Key Vault) e **confere sozinho** que `asaf.org.br/version.json` já mostra
+o commit publicado. Mudança em `design/` também reconstrói o painel (`deploy-painel.yml`).
+
+O mesmo workflow aceita **disparo manual** (`workflow_dispatch`) — é o gatilho do "rebuild quando
+o conteúdo editorial muda": o Flow do Directus (ligado na v5.1, quando as coleções existirem)
+chama a API do GitHub com um token restrito à permissão *Actions: Read and write* deste
+repositório, o mínimo possível (dispara workflow; não lê nem altera código). Esse caminho pula os
+portões de qualidade: publicar uma notícia já revisada não deve ficar preso numa rodada
+instável do Lighthouse.
+
+Directus em si não tem CI/CD próprio ligado a este repositório — é gerido separadamente (é
+conteúdo, editado pelo próprio painel do Directus).
 
 ## 6. Onde estão os segredos
 

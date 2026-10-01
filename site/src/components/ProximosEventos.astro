@@ -1,0 +1,41 @@
+---
+import { API_URL } from '../config/organizacao'
+---
+
+<section
+  id="eventos"
+  aria-labelledby="eventos-titulo"
+  class="mx-auto max-w-5xl scroll-mt-4 px-4 py-12"
+>
+  <h2 id="eventos-titulo" class="text-2xl font-bold tracking-tight">
+    Próximos eventos
+  </h2>
+  <!--
+    Ilha (v5.0): o HTML sai pronto do build; os eventos são buscados na API no navegador, a
+    cada visita (src/lib/eventos-dom.ts). Evento novo aparece sem rebuild do site.
+  -->
+  <div
+    data-eventos
+    data-api-url={API_URL}
+    aria-live="polite"
+    aria-busy="true"
+    class="mt-6"
+  >
+    <p class="text-muted-foreground" data-estado="carregando">
+      Carregando eventos…
+    </p>
+  </div>
+  <noscript>
+    <p class="mt-6 text-muted-foreground">
+      Ative o JavaScript do navegador para ver os próximos eventos.
+    </p>
+  </noscript>
+</section>
+
+<script>
+  import { iniciarEventos } from '../lib/eventos-dom'
+
+  document
+    .querySelectorAll<HTMLElement>('[data-eventos]')
+    .forEach((container) => void iniciarEventos(container))
+</script>

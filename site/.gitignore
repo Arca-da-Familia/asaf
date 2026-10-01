@@ -1,0 +1,13 @@
+# Saída de build e caches (o .gitignore da raiz já cobre dist/ e .astro/; repetido aqui de
+# propósito para a pasta site/ continuar correta se for aberta isolada)
+dist/
+.astro/
+node_modules/
+
+# Gerado a cada build por scripts/gerar-version.js (commit + horário) — nunca versionado
+public/version.json
+
+# Relatórios de teste/auditoria
+test-results/
+playwright-report/
+.lighthouseci/

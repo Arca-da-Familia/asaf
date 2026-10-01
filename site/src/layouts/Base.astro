@@ -1,0 +1,105 @@
+---
+import Cabecalho from '../components/Cabecalho.astro'
+import Rodape from '../components/Rodape.astro'
+import { ORGANIZACAO, SITE_URL } from '../config/organizacao'
+import {
+  jsonLdOrganizacao,
+  serializarJsonLd,
+  tituloDaPagina,
+  urlCanonica,
+} from '../lib/seo'
+import '../styles/global.css'
+
+interface Props {
+  /** Sem título = home ("ASAF — Associação Arca da Família"). */
+  titulo?: string
+  descricao?: string
+  /** Caminho da página (ex.: "/"), base da URL canônica. */
+  caminho: string
+  /** Caminho da imagem de compartilhamento (1200x630). */
+  imagem?: string
+  /** `false` = noindex (ex.: 404). Páginas sem conteúdo próprio não vão ao Google. */
+  indexavel?: boolean
+  /** JSON-LD extra da página (ex.: schema.org/Event), além da organização. */
+  jsonLd?: object[]
+}
+
+const {
+  titulo,
+  descricao = ORGANIZACAO.descricaoCurta,
+  caminho,
+  imagem = '/og-padrao.png',
+  indexavel = true,
+  jsonLd = [],
+} = Astro.props
+
+const tituloCompleto = tituloDaPagina(titulo)
+const canonica = urlCanonica(caminho)
+const imagemAbsoluta = `${SITE_URL}${imagem}`
+const textoAlternativoImagem = `${ORGANIZACAO.nome} — ${ORGANIZACAO.lema}`
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{tituloCompleto}</title>
+    <meta name="description" content={descricao} />
+    {
+      indexavel ? (
+        <link rel="canonical" href={canonica} />
+      ) : (
+        <meta name="robots" content="noindex, nofollow" />
+      )
+    }
+    <meta name="theme-color" content="#2563eb" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:site_name" content={ORGANIZACAO.nome} />
+    <meta property="og:title" content={tituloCompleto} />
+    <meta property="og:description" content={descricao} />
+    <meta property="og:url" content={canonica} />
+    <meta property="og:image" content={imagemAbsoluta} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={textoAlternativoImagem} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={tituloCompleto} />
+    <meta name="twitter:description" content={descricao} />
+    <meta name="twitter:image" content={imagemAbsoluta} />
+    <meta name="twitter:image:alt" content={textoAlternativoImagem} />
+
+    <script
+      is:inline
+      type="application/ld+json"
+      set:html={serializarJsonLd(jsonLdOrganizacao())}
+    />
+    {
+      jsonLd.map((dados) => (
+        <script
+          is:inline
+          type="application/ld+json"
+          set:html={serializarJsonLd(dados)}
+        />
+      ))
+    }
+  </head>
+  <body
+    class="flex min-h-screen flex-col bg-background text-foreground antialiased"
+  >
+    <a
+      href="#conteudo"
+      class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:font-medium focus:text-primary focus:shadow-card-hover"
+    >
+      Pular para o conteúdo
+    </a>
+    <Cabecalho />
+    <main id="conteudo" class="flex-1">
+      <slot />
+    </main>
+    <Rodape />
+  </body>
+</html>

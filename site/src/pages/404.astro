@@ -1,0 +1,28 @@
+---
+import Base from '../layouts/Base.astro'
+---
+
+<Base
+  titulo="Página não encontrada"
+  descricao="A página que você procurou não existe ou mudou de endereço."
+  caminho="/404"
+  indexavel={false}
+>
+  <section class="mx-auto max-w-5xl px-4 py-24">
+    <p class="text-sm font-semibold uppercase tracking-wider text-primary">
+      Erro 404
+    </p>
+    <h1 class="mt-2 text-3xl font-bold tracking-tight">
+      Página não encontrada
+    </h1>
+    <p class="mt-4 max-w-xl">
+      O endereço que você abriu não existe ou mudou de lugar. Volte para a
+      página inicial para continuar.
+    </p>
+    <a
+      href="/"
+      class="mt-6 inline-block rounded-md bg-primary px-5 py-3 font-medium text-primary-foreground hover:opacity-90"
+      >Ir para a página inicial</a
+    >
+  </section>
+</Base>

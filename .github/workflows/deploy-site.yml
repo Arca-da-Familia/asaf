@@ -1,0 +1,180 @@
+name: Deploy Site (Astro)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "design/**"
+      - ".github/workflows/deploy-site.yml"
+  pull_request:
+    paths:
+      - "site/**"
+      - "design/**"
+      - ".github/workflows/deploy-site.yml"
+  # Rebuild SOB DEMANDA (v5.0). É este o gatilho do "rebuild automático quando o conteúdo
+  # editorial muda": o Flow do Directus (v5.1) chama
+  #   POST https://api.github.com/repos/<dono>/<repo>/actions/workflows/deploy-site.yml/dispatches
+  #   {"ref": "main"}
+  # com um token fine-grained restrito a ESTE repositório e à permissão "Actions: Read and
+  # write" — o mínimo possível: dá para disparar workflow, não dá para ler nem alterar código.
+  # (O caminho `repository_dispatch` exigiria "Contents: write", bem mais perigoso.)
+  # Por ser só publicação de conteúdo já revisado no Directus, pula os portões de qualidade
+  # (acessibilidade/Lighthouse): conteúdo editorial não deve ficar preso por nota de
+  # performance de uma rodada instável. Os portões rodam em todo push/PR de código.
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write # necessário para login OIDC no Azure (sem senha salva)
+  contents: read
+
+env:
+  KEY_VAULT: kv-asaf-arca
+  SWA_TOKEN_SECRET: SWA-SITE-DEPLOY-TOKEN
+  # Origem da API em produção — pública, não é segredo (a ilha de eventos busca daqui, no
+  # navegador do visitante; o CORS da API libera https://asaf.org.br, ver app/main.py).
+  PUBLIC_API_URL: https://api.asaf.org.br
+
+jobs:
+  # Portões de qualidade (v5.0): formato, tipos, testes unitários, e — contra o site MONTADO —
+  # acessibilidade (axe, WCAG 2.1 AA), SEO técnico e Lighthouse (desempenho >= 90,
+  # acessibilidade e SEO = 100). Falhou aqui, o site não é publicado.
+  quality:
+    name: Formato, tipos, testes, acessibilidade, SEO e Lighthouse
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Configura Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Instala dependências
+        run: npm ci
+
+      - name: Prettier (confere formatação)
+        run: npm run format:check
+
+      - name: Typecheck (astro check)
+        run: npm run typecheck
+
+      - name: Testes unitários (datas, SEO, API, ilha de eventos)
+        run: npm run test
+
+      - name: Build de produção (garante que o build real compila)
+        run: npm run build
+
+      - name: Build de teste (ilha de eventos apontando para a API simulada)
+        run: npm run build:teste
+
+      - name: Instala navegador do Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Auditoria e2e (axe WCAG 2.1 AA, SEO, links, ilha de eventos)
+        run: npm run test:e2e
+
+      - name: Lighthouse CI (desempenho, acessibilidade, melhores práticas, SEO)
+        run: npm run lighthouse
+
+      - name: Guarda relatórios
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorios-site
+          path: |
+            site/.lighthouseci
+            site/test-results
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # Publicação no Static Web App asaf-site (asaf.org.br). Só em push na main ou disparo manual,
+  # depois dos portões (ou sem eles, no disparo manual — ver comentário do workflow_dispatch).
+  deploy:
+    name: Publica no Static Web App asaf-site
+    needs: quality
+    if: >-
+      ${{ !cancelled()
+      && github.event_name != 'pull_request'
+      && github.ref == 'refs/heads/main'
+      && (needs.quality.result == 'success' || needs.quality.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-site
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Configura Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Login no Azure via OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Busca o deploy token no Key Vault
+        id: kv
+        run: |
+          TOKEN=$(az keyvault secret show \
+            --vault-name "$KEY_VAULT" \
+            --name "$SWA_TOKEN_SECRET" \
+            --query value -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Instala dependências
+        run: npm ci
+
+      - name: Build de produção
+        run: npm run build
+
+      - name: Publica no Static Web App
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.kv.outputs.token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          # Mesma lição do painel: com skip_app_build, app_location é a pasta de SAÍDA do build.
+          app_location: site/dist
+          skip_app_build: true
+
+      # Item 12 do checklist de revisão (PLANO_PROJETO.md, seção 4.1): "o workflow rodou" não
+      # prova "está no ar". Aqui o próprio deploy confere, sem login nenhum, que
+      # asaf.org.br/version.json já devolve o commit que acabou de ser publicado.
+      - name: Confirma no ar (version.json bate com este commit)
+        run: |
+          ESPERADO=$(git rev-parse --short HEAD)
+          for tentativa in $(seq 1 20); do
+            NO_AR=$(curl -fsS "https://asaf.org.br/version.json?t=$(date +%s)" \
+              | python3 -c "import json,sys; print(json.load(sys.stdin)['commit'])" || true)
+            if [ "$NO_AR" = "$ESPERADO" ]; then
+              echo "No ar: asaf.org.br está no commit $NO_AR"
+              exit 0
+            fi
+            echo "Tentativa $tentativa: no ar='$NO_AR', esperado='$ESPERADO' — aguardando 15s"
+            sleep 15
+          done
+          echo "::error::asaf.org.br/version.json não passou a mostrar o commit $ESPERADO"
+          exit 1
+
+      - name: Logout
+        if: always()
+        run: az logout

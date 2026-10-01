@@ -5,10 +5,14 @@ on:
     branches: [main]
     paths:
       - "painel/**"
+      # design/ é a identidade visual compartilhada com o site (v5.0): mudou lá, o painel
+      # precisa ser reconstruído também.
+      - "design/**"
       - ".github/workflows/deploy-painel.yml"
   pull_request:
     paths:
       - "painel/**"
+      - "design/**"
       - ".github/workflows/deploy-painel.yml"
   workflow_dispatch: {}
 

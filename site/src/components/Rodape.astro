@@ -1,0 +1,29 @@
+---
+import { ORGANIZACAO, PAINEL_URL } from '../config/organizacao'
+---
+
+<footer class="border-t bg-secondary text-secondary-foreground">
+  <div
+    class="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-8 text-sm sm:flex-row sm:items-start sm:justify-between"
+  >
+    <div>
+      <p class="font-semibold">{ORGANIZACAO.nome} — {ORGANIZACAO.sigla}</p>
+      <p class="mt-1">
+        {ORGANIZACAO.cidade} — {ORGANIZACAO.uf} · Fundada em {
+          ORGANIZACAO.fundacaoPorExtenso
+        }
+      </p>
+      <p class="mt-1 italic">“{ORGANIZACAO.lema}”</p>
+    </div>
+    <nav aria-label="Rodapé">
+      <ul class="flex flex-col gap-2">
+        <li>
+          <a href="/#eventos" class="hover:underline">Próximos eventos</a>
+        </li>
+        <li>
+          <a href={PAINEL_URL} class="hover:underline">Área do associado</a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</footer>

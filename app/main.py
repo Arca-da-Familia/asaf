@@ -37,8 +37,15 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # CORS: o painel React (v0.2) chama a API de outra origem. Precisa de origem explícita
 # (nunca "*") + allow_credentials para o cookie HttpOnly de refresh funcionar.
-# Em dev, o Vite faz proxy para o backend; em produção a origem é o painel (asaf.org.br).
-_origens_padrao = "http://localhost:5173,http://127.0.0.1:5173,https://painel.asaf.org.br"
+# Em dev, o Vite faz proxy para o backend; em produção a origem é o painel (painel.asaf.org.br).
+# v5.0 - o site institucional (https://asaf.org.br) também chama a API do navegador, para o dado
+# dinâmico das ilhas (eventos abertos, depois transparência) sem exigir rebuild do site a cada
+# inscrição. Só as rotas públicas de leitura (/api/publico/...) servem a ele; o resto continua
+# exigindo JWT, então liberar a origem não dá acesso novo a nada.
+_origens_padrao = (
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4321,http://127.0.0.1:4321,"
+    "https://painel.asaf.org.br,https://asaf.org.br"
+)
 _origens = [o.strip() for o in os.environ.get("CORS_ORIGINS", _origens_padrao).split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,

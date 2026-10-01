@@ -1,0 +1,43 @@
+{
+  "name": "asaf-site",
+  "private": true,
+  "version": "5.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "predev": "node scripts/gerar-version.js",
+    "dev": "astro dev",
+    "prebuild": "node scripts/gerar-version.js",
+    "build": "astro check && astro build",
+    "preview": "astro preview",
+    "typecheck": "astro check",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "lighthouse": "lhci autorun",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "og": "node scripts/gerar-og.mjs",
+    "build:teste": "node scripts/gerar-version.js && node scripts/build-teste.mjs"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "^3.7.4",
+    "astro": "^7.3.5"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@axe-core/playwright": "^4.13.0",
+    "@lhci/cli": "^0.15.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.10.2",
+    "autoprefixer": "^10.4.20",
+    "jsdom": "^25.0.1",
+    "postcss": "^8.4.49",
+    "prettier": "^3.4.2",
+    "prettier-plugin-astro": "^0.14.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
