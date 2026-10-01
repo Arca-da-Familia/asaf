@@ -48,9 +48,11 @@ Tudo hospedado no Azure, grupo de recursos `Associacao-RG`, região Brazil South
 > O Directus escala a zero (`minReplicas: 0`): a primeira abertura depois de um tempo parado leva
 > cerca de 30 s (medido: `GET /server/ping` em 33 s) — normal, não é defeito.
 >
-> **Licença do Directus (conferido na documentação oficial em 2026-10-01)**: instâncias
-> self-hosted sem licença rodam no plano *core*, **gratuito e sem chave** (hoje a imagem é
-> `directus/directus:11`). O uso comercial gratuito com limites maiores é o **Open Innovation
+> **Licença do Directus (conferido na documentação oficial em 2026-10-01)**: o sistema de licença
+> é da **versão 12** — a instância roda a **11.17.4** (`directus/directus:11`), que **não tem** a
+> aba *Settings → License*; para ativar uma chave é preciso atualizar para a 12 (ver o PLANO,
+> v5.1.0). Instâncias self-hosted sem licença rodam no plano *core*, **gratuito e sem chave**. O
+> uso comercial gratuito com limites maiores é o **Open Innovation
 > Grant** (entidade com menos de US$ 5 milhões de receita anual e menos de 50 funcionários): a
 > chave (`DXXXX-XXXXX-XXXXX-XXXXX-XXXXC`) é pedida à Directus pelo formulário de contato
 > (directus.com/oig) — não há cadastro automático — e cobre até 5 ativações (local, dev, staging,
@@ -58,6 +60,18 @@ Tudo hospedado no Azure, grupo de recursos `Associacao-RG`, região Brazil South
 > para a v12, instância acima dos limites do *core* tem 30 dias de carência e depois é bloqueada
 > (a API devolve erro até a licença ser resolvida; os dados ficam salvos). Por isso a chave vale
 > ser pedida **antes** de subir para a v12.
+
+### Os dois domínios da associação (esclarecimento do usuário, 2026-10-01)
+
+- **`asaf.org.br`** — domínio **nacional e oficial**: site, painel (`painel.`), API (`api.`),
+  Directus (`cms.`), zona de DNS no Azure e e-mail no Google Workspace (`asaf@asaf.org.br`). **É
+  com ele que toda identidade pública e todo e-mail novo devem sair** (inclusive o autor dos
+  commits do repositório, trocado em 2026-10-01).
+- **`arcadafamilia.org`** — domínio internacional, que é o do **tenant Microsoft/Azure**
+  (conta master `asaf@arcadafamilia.org`): serve **só para entrar no Azure**. O plano do usuário é
+  tirá-lo de cena nos próximos tempos por causa do custo. Qualquer endereço `@arcadafamilia.org`
+  que não seja essa conta master **não existe como caixa de e-mail** (foi o caso do
+  `admin@arcadafamilia.org` do Directus, que nunca recebeu nada).
 
 ### Por que Postgres, não SQLite
 

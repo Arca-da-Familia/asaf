@@ -427,20 +427,26 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       campo *Password*, confirmada na documentação) estava certa, mas não foi verificada na
 >       tela e deveria ter vindo com link direto. **O administrador de instalação
 >       `admin@arcadafamilia.org` não foi criado nesse dia**: é o `ADMIN_EMAIL` do Container App,
->       configurado em 2026-09-10 a partir da identidade do git deste repositório
->       (`.git/config`: `user.email = asaf@arcadafamilia.org`, autor de 147 commits, inclusive do
->       primeiro) — o domínio `arcadafamilia.org` **não é da associação** (o usuário confirmou que
->       não o conhece). **Suspenso em 2026-10-01** (reversível; login do administrador antigo
->       devolve 401, provado), **não apagado** de propósito: o Directus não tem e-mail de
->       recuperação configurado (nenhuma variável `EMAIL_*`), então, se a conta real perdesse a
->       senha, não restaria nenhum administrador para consertar. **Apagar de vez** quando o
->       usuário confirmar que entra com a senha que ele mesmo escolheu. Depois disso: trocar
->       `ADMIN_EMAIL` do Container App para `asaf@asaf.org.br` e decidir o destino do segredo
->       `DIRECTUS-ADMIN-PASSWORD` no Key Vault.
-> - [ ] **Identidade do git**: `user.email` deste repositório é `asaf@arcadafamilia.org` (domínio
->       que não é da associação). Os commits já feitos são públicos e a identidade fica no
->       histórico; propor trocar para `asaf@asaf.org.br` daqui para a frente (o histórico não é
->       reescrito). **Decisão do usuário.**
+>       configurado em 2026-09-10 pela configuração inicial do projeto. **Os dois domínios
+>       (esclarecimento do usuário, conferido com `az account show`)**: `arcadafamilia.org` é o
+>       domínio do **tenant Microsoft/Azure** (tenant "ASSOCIACAO ARCA DA FAMILIA - ASAF"); a
+>       conta master do Azure é `asaf@arcadafamilia.org` e serve **só para entrar no Azure** —
+>       o registro anterior deste plano, de que esse domínio "não era da associação", **estava
+>       errado**. O que **não existe** é a caixa `admin@arcadafamilia.org` (o `ADMIN_EMAIL` do
+>       Directus foi inventado no provisionamento; nunca recebe e-mail). `asaf.org.br` é o domínio
+>       **nacional e oficial** (site, DNS no Azure, e-mail no Google Workspace) e é com ele que
+>       tudo público e toda identidade nova deve sair; o internacional é para sair de cena nos
+>       próximos tempos, por custo (plano do usuário; migrar a conta master do Azure ficará para
+>       uma versão própria). **Administrador `admin@arcadafamilia.org` suspenso em 2026-10-01**
+>       (reversível; login devolve 401, provado), **não apagado** ainda de propósito: o Directus
+>       não tem e-mail de recuperação configurado (nenhuma variável `EMAIL_*`), então, se a conta
+>       real perdesse a senha, não restaria nenhum administrador para consertar. O usuário já
+>       trocou a própria senha e acessou; **falta só apagá-lo** (Studio → Diretório de usuários →
+>       o usuário → lixeira) e trocar `ADMIN_EMAIL` do Container App para `asaf@asaf.org.br`
+>       (vai junto com a atualização de versão, abaixo).
+> - [x] **Identidade do git trocada para `asaf@asaf.org.br`** (`.git/config` local, a pedido do
+>       usuário em 2026-10-01: "a partir de hoje tem que sair no org.br"). Vale para os commits
+>       novos; o histórico (147 commits como `asaf@arcadafamilia.org`) não é reescrito.
 > - [ ] **Chave de automação do Directus no Key Vault — BLOQUEADA pelo sistema de segurança do
 >       Claude Code** (regra "escrita em cofre de segredos", 2026-10-01): a tentativa de gerar um
 >       token estático para a conta real e gravá-lo em `DIRECTUS-ADMIN-TOKEN` foi negada, e não
@@ -450,11 +456,27 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       `gerenciar_acesso` (presidência), abre o Directus em nova aba. É conveniência; quem
 >       protege é o login do Directus. Papel de editor próprio (`editar_site`) nasce com os
 >       papéis do Directus, abaixo.
-> - [ ] **Chave do plano gratuito (Open Innovation Grant) — depende do USUÁRIO**: a chave só sai
->       por contato com a Directus (directus.com/oig; não há cadastro automático) e exige dados
->       da entidade. O Directus v11 em uso roda no plano *core* sem chave; ela passa a importar
->       na v12 (30 dias de carência acima dos limites do *core*, depois bloqueio da API). Quando
->       chegar: Studio → Settings → License (ou `LICENSE_KEY` guardada no Key Vault).
+> - [ ] **Chave do plano gratuito (Open Innovation Grant) — o usuário JÁ TEM a chave, mas não há
+>       onde digitá-la: a aba Settings → License NÃO existe na versão em uso.** Achado de
+>       2026-10-01: o sistema de licença é da **versão 12** do Directus (licença *Monospace
+>       Sustainable Core License*, MSCL); a instância roda a **11.17.4**, que não tem a aba. A 12
+>       existe (12.4.1 no Docker Hub). **Atualizar para `directus/directus:12.4.1`** (imagem
+>       fixada, não flutuante) é pré-requisito para ativar a chave. Conferido na documentação
+>       oficial para o nosso caso (instalação nova, PostgreSQL, sem extensões, sem conteúdo):
+>       (1) `IP_TRUST_PROXY` passa a `false` por padrão e atrás do proxy do Container App precisa
+>       ser `true`; (2) `/server/health` passa a exigir login (o Container App não tem sondas
+>       apontando para ele — conferido); (3) instâncias novas rodam no plano *core* com
+>       enforcement, a chave do subsídio libera os limites e o enforcement nunca apaga dados;
+>       (4) o relato de falha de migração na 12.4.1 na comunidade é de banco vindo de outro tipo
+>       de base, não atinge instalação nova. Para a v5.1 em diante, a consulta de conteúdo
+>       publicado muda para `?version=published` (era `?version=main`). Ativação: Studio →
+>       Settings → License, **digitada pelo próprio usuário** (a chave se amarra ao
+>       `PUBLIC_URL` `https://cms.asaf.org.br`, até 5 ativações). **BLOQUEADO pelo sistema de
+>       segurança do Claude Code** (regra "deploy em produção", 2026-10-01): a atualização foi
+>       negada por ser troca de versão maior sem autorização explícita; **aguarda decisão do
+>       usuário** — autorizar a atualização, fazê-la pelo Portal do Azure (Container Apps →
+>       `asaf-directus` → Contêineres → Editar e implantar → imagem), ou ficar na 11 (sem
+>       licença, sem a aba, sem enforcement; a 11 tende a deixar de receber correções).
 > - [ ] **Isolar o Directus do banco do sistema — PRÉ-REQUISITO, antes de qualquer editor ou
 >       coleção nova.** **Achado de 2026-10-01**: o Directus compartilha o Postgres e conecta com
 >       o mesmo usuário poderoso da API, então `GET /collections` (com login de administrador)
