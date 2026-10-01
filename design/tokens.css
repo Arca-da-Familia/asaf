@@ -41,7 +41,10 @@
     --muted-foreground: 215.4 16.3% 46.9%;
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
+    /* Vermelho de erro/exclusão: 5,4:1 com o texto claro do botão e 5,3:1 como texto sobre branco
+       (o anterior, 0 84.2% 60.2%, dava 3,6:1 — abaixo do mínimo AA de 4,5:1). Guarda em
+       painel/src/test/tokens-contraste.test.ts. */
+    --destructive: 0 72% 46%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
@@ -75,8 +78,11 @@
     --muted-foreground: 215 20.2% 65.1%;
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    /* No escuro o vermelho precisa ser CLARO: o anterior (0 62.8% 30.6%) dava 2,0:1 como texto de
+       erro sobre o fundo escuro — mensagem praticamente invisível. Mesma lógica do verde: cor mais
+       clara (5,1:1 como texto) e texto do botão ESCURO sobre ela (5,0:1). */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 222.2 84% 4.9%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 152 55% 45%;

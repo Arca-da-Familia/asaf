@@ -67,6 +67,47 @@ describe('DataTable', () => {
     expect(nomesNaTela()[1]).toBe('Marcos Vieira')
   })
 
+  it('ACESSIBILIDADE: coluna que não ordena não vira botão (cabeçalho vazio nem caixa dentro de botão)', () => {
+    const comAcoes: ColunaTabela<Pessoa>[] = [
+      ...colunas,
+      { id: 'acoes', header: '', cell: () => <span>ações</span> },
+    ]
+    render(<DataTable dados={PESSOAS} colunas={comAcoes} selecionavel />)
+    const cabecalho = screen.getAllByRole('rowgroup')[0]!
+
+    // Só as 3 colunas com dado ordenam: 3 botões — a de ações e a de seleção NÃO são botões.
+    const botoes = within(cabecalho).getAllByRole('button')
+    expect(botoes.map((b) => b.textContent)).toEqual([
+      'Nome',
+      'E-mail',
+      'Status',
+    ])
+    // Todo botão do cabeçalho tem nome acessível (era o defeito: botão vazio).
+    for (const b of botoes) expect(b).toHaveAccessibleName()
+    // A caixa "Selecionar todos" é um controle solto, não filho de botão.
+    const todos = within(cabecalho).getByRole('checkbox', {
+      name: 'Selecionar todos',
+    })
+    expect(todos.closest('button')).toBeNull()
+  })
+
+  it('ACESSIBILIDADE: o cabeçalho informa a ordenação (aria-sort) e os ícones são decorativos', async () => {
+    render(<DataTable dados={PESSOAS} colunas={colunas} />)
+    const th = (nome: string) =>
+      screen.getByRole('columnheader', { name: nome })
+
+    expect(th('Nome')).toHaveAttribute('aria-sort', 'none')
+    await userEvent.click(screen.getByRole('button', { name: 'Nome' }))
+    expect(th('Nome')).toHaveAttribute('aria-sort', 'ascending')
+    expect(th('E-mail')).toHaveAttribute('aria-sort', 'none')
+    await userEvent.click(screen.getByRole('button', { name: 'Nome' }))
+    expect(th('Nome')).toHaveAttribute('aria-sort', 'descending')
+    // Ícones de seta não entram no nome do botão (aria-hidden).
+    expect(screen.getByRole('button', { name: 'Nome' })).toHaveAccessibleName(
+      'Nome',
+    )
+  })
+
   it('filtro global procura em todas as colunas e atualiza o total', async () => {
     render(<DataTable dados={PESSOAS} colunas={colunas} />)
 

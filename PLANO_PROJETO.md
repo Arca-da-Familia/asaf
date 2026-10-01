@@ -1903,13 +1903,44 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         Python 3.14); API em produção na revisão `asaf-api--0000070` saudável: 342 rotas no
         OpenAPI, `/api/publico/eventos` 200, CORS do site intacto; tarefa agendada disparada à
         mão rodou no **CPython 3.14.7** contra o banco de produção (sucesso).
-      - **Lote 2 (majors do front, um por vez)**: React 18 → 19 (+ `@types`), Vite 5 → 8
-        (+ `@vitejs/plugin-react` 6), Vitest 2 → 5, TypeScript 5.9 → 7, **Tailwind 3 → 4**
-        (o `design/tailwind-preset.js` e os dois `postcss.config.js` precisam ser reescritos),
-        Zod 3 → 4 (+ `@hookform/resolvers` 5), React Router 6 → 7, Recharts 2 → 3, TanStack
-        Table 8 → 9, `lucide-react` 0.468 → 1.x, `jsdom` 25 → 28, `jest-axe` 9 → 11, `@types/node`
-        22 → 26, `globals`, `eslint-plugin-react-hooks` 5 → 7 e demais majors do `npm outdated`;
-        no site: os mesmos que se aplicam + `prettier-plugin-astro` 0.14 → 1.1.
+      - **Lote 2 ✅ FEITO e confirmado em produção (2026-10-01, commit `6bb45b3`)** (majors do
+        front, um por vez, por um agente em cópia isolada e conferido por mim): React 18 → 19.3,
+        Vite 5 → 8.3, `@vitejs/plugin-react` 4 → 6, Vitest 2 → 5, **Tailwind 3 → 4.3** (CSS-first,
+        plugin do Vite; `design/theme.css` substitui `tailwind-preset.js`; sem `tailwind.config.js`
+        nem `postcss.config.js`), Zod 3 → 4.6 (+ `@hookform/resolvers` 5), React Router 6 →
+        **`react-router` 8.4** (o `react-router-dom` parou na 7.18), Recharts 2 → 3.10,
+        TanStack Table 8 → 9.2 (`DataTable` reescrito), `lucide-react` 0.468 → 1.49,
+        `tailwind-merge` 3, `jsdom` 25 → 30, `jest-axe` 11, `jest-dom` 7, `@types/node` 26,
+        `globals` 17, ESLint 9 → 10, `eslint-plugin-react-hooks` 7, `prettier-plugin-astro` 1.1.
+        **Única exceção, com evidência (regra 2 do CLAUDE.md)**: **TypeScript fica na 6.0.3** —
+        a 7.0.2 existe, mas `typescript-eslint` (peer `<6.1.0`) aborta o lint e `@astrojs/check`
+        (peer `^5 || ^6`) recusa; conferido por mim com `npm view`. O `tsc` 7 já passa limpo nos
+        dois projetos: trocar quando saírem versões compatíveis dessas duas ferramentas.
+        **Verificação**: o agente mediu a geometria de **53 telas do painel** (5.909 elementos)
+        antes/depois do Tailwind 4 e achou 839 elementos com caixa diferente — `space-y-N` do 4 é
+        margem *inferior* com especificidade zero, desalinhava os ~70 formulários; foi corrigido
+        com o utilitário `v3-space-y-*` (a regra do 3, byte a byte) e a diferença final é **0**;
+        site 0,000% de pixels diferentes. Eu rodei as suítes completas duas vezes sobre o código
+        já reposicionado no `main`: painel 52 testes + 10 e2e e site 51 + 29 e2e + Lighthouse
+        100/100/100/100, sob Node 22 e Node 26; `npm ci` do CI (Linux x64) confere nos dois;
+        workflows verdes; em produção, versões `6bb45b3`, as mesmas cores do site e do painel em
+        tema claro e escuro, ilha de eventos funcionando, zero erro de console. **Notas**: o
+        `npm outdated` esconde majors cujo `engines` exclui o Node local — rodar sob Node 26
+        (`npx -y node@26`) e conferir com `npm view <pacote> dist-tags.latest`; o bundle do painel
+        cresceu ~15% (JS 1.400 → 1.540 kB; code-splitting fica para depois); `v3-space-y-*` é uma
+        muleta de compatibilidade (código novo: `gap-*`); `shadow-card` do site sempre foi uma
+        sombra branca invisível (o Tailwind 3 resolvia o conflito de nome assim) — religar a
+        sombra suave é uma linha em `design/theme.css`, decisão visual da diretoria; as mensagens
+        padrão do zod seguem em inglês (`z.config(z.locales.pt())` traduz).
+        **Achados de acessibilidade que o agente trouxe e foram corrigidos no mesmo dia**:
+        (1) o cabeçalho do `DataTable` era *sempre* um `<button>` — a caixa "Selecionar todos" ficava
+        dentro de um botão e coluna de cabeçalho vazio virava botão sem nome; agora só colunas que
+        ordenam têm botão, ícones são decorativos e o `<th>` informa `aria-sort` (2 testes novos,
+        que reprovam no código antigo); (2) **contraste do vermelho**: botão destrutivo com 3,6:1 e,
+        no **tema escuro, texto de erro com 2,0:1** (praticamente invisível) — corrigido em
+        `design/tokens.css` e travado por `painel/src/test/tokens-contraste.test.ts`, que lê a fonte
+        única e calcula **15 pares texto/fundo nos dois temas** (o axe do painel roda em jsdom e não
+        mede contraste; o primeiro rodar achou exatamente 5 pares reprovados, todos de vermelho).
       - **Lote 3 (majors do back)**: SQLAlchemy 2.0 → 2.1, ReportLab 4 → 5, `qrcode` 7 → 8
         (as duas últimas geram PDF/QR de certificado e carteirinha: conferir a saída, não só o
         teste).

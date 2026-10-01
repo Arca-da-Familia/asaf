@@ -49,7 +49,9 @@ Como aplicar (isto **é** a autorização geral dele para atualizar — não per
 
 1. **Sempre que começar uma versão/fase, ou tocar num componente**, conferir o que está
    desatualizado (`npm outdated` em `painel/` e `site/`, `pip list --outdated`, tags do Docker Hub,
-   versões das actions, `endoflife.date`) e atualizar **no fluxo de sempre**: implementar → suíte
+   versões das actions, `endoflife.date`) — **o `npm outdated` esconde majors cujo `engines` exclui o
+   Node local (22.12)**: rode-o sob Node 26 (`npx -y node@26 …`) e confirme cada pacote com
+   `npm view <pacote> dist-tags.latest` — e atualizar **no fluxo de sempre**: implementar → suíte
    completa mais de uma vez → commit → push → CI → confirmar em produção. A regra manda
    **atualizar**, nunca pular os portões de teste (vale igual para dinheiro, voto e LGPD).
 2. **Nunca fixar versão antiga "porque funciona".** Se uma atualização maior quebrar algo, resolver

@@ -154,12 +154,22 @@ export function DataTable<T extends RowData>({
                 {hg.headers.map((header) => (
                   <th
                     key={header.id}
+                    // Informa a leitores de tela qual coluna está ordenada e em que sentido.
+                    aria-sort={
+                      header.column.getIsSorted() === 'asc'
+                        ? 'ascending'
+                        : header.column.getIsSorted() === 'desc'
+                          ? 'descending'
+                          : header.column.getCanSort()
+                            ? 'none'
+                            : undefined
+                    }
                     className={cn(
                       'px-3 text-left font-medium',
                       densidade === 'compacta' ? 'py-1.5' : 'py-2',
                     )}
                   >
-                    {header.isPlaceholder ? null : (
+                    {header.isPlaceholder ? null : header.column.getCanSort() ? (
                       <button
                         type="button"
                         onClick={header.column.getToggleSortingHandler()}
@@ -170,13 +180,28 @@ export function DataTable<T extends RowData>({
                           header.getContext(),
                         )}
                         {header.column.getIsSorted() === 'asc' ? (
-                          <ArrowUp className="h-3.5 w-3.5" />
+                          <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
                         ) : header.column.getIsSorted() === 'desc' ? (
-                          <ArrowDown className="h-3.5 w-3.5" />
-                        ) : header.column.getCanSort() ? (
-                          <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-                        ) : null}
+                          <ArrowDown
+                            className="h-3.5 w-3.5"
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <ArrowUpDown
+                            className="h-3.5 w-3.5 text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                        )}
                       </button>
+                    ) : (
+                      // Coluna que NÃO ordena (seleção, ações): sem <button>. Antes o cabeçalho
+                      // era sempre um botão — a caixa "Selecionar todos" ficava DENTRO de um
+                      // botão (controle dentro de controle) e coluna de cabeçalho vazio virava
+                      // botão sem nome (achado do axe, 2026-10-01).
+                      flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )
                     )}
                   </th>
                 ))}
