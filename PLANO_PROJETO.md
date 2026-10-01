@@ -407,7 +407,11 @@ retrabalho que a seção 4.1 existe pra evitar.
 > falha sem linha no console) e que, depois, a mesma chamada passou a responder em ~1 s. A
 > correção (2 tentativas de 20 s + aviso de demora) continua valendo por si: cobre qualquer
 > demora ou falha passageira, qualquer que seja a origem. Se acontecer de novo, registrar a hora
-> exata para cruzar com os logs do Container App.
+> exata para cruzar com os logs do Container App. **Dado novo (mesmo dia, depois do deploy do
+> Lote 1)**: a primeira chamada à API logo depois de a revisão nova subir levou **23,4 s**
+> (`GET /api/publico/eventos`) — a API **tem** janelas de espera longa, o que torna a hipótese
+> de partida a frio/troca de réplica plausível de novo, embora ainda não provada como causa do
+> erro original; as 2 tentativas de 20 s cobrem esse caso.
 
 #### v5.1 — Directus como CMS de conteúdo
 
@@ -1798,12 +1802,19 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - [ ] **Atualização contínua — inventário de 2026-10-01 e lotes** (cada lote é testado e
       publicado sozinho; majors vêm um de cada vez para o culpado de uma quebra ser óbvio):
       - **Directus**: 11.17.4 → **12.4.1** ✅ (feito e verificado, ver v5.1.0).
-      - **Lote 1 (seguro — mesma versão-maior + plataforma)**: pacotes do painel dentro das
+      - **Lote 1 ✅ FEITO e confirmado em produção (2026-10-01, commit `443f24e`)** (seguro —
+        mesma versão-maior + plataforma): pacotes do painel dentro das
         faixas (36 atualizados, ex.: TanStack Query 5.104, prettier 3.9.9); `fastapi` 0.142.2,
         `uvicorn` 0.54.0, `PyJWT` 2.15.1, `webauthn` 3.0.1; **Python 3.12 → 3.14** na imagem
         Docker e no CI (o venv local de teste já era 3.14.7 — testávamos numa versão e rodávamos
         noutra); **Node 22 → 26** no CI (testado localmente: tipos, testes, builds e e2e do site
         sob Node 26); ações `setup-node`/`setup-python`/`upload-artifact` v4/v5 → **v7**.
+        **Verificado**: `pytest` 389/389 duas vezes no Python 3.14; painel lint/Prettier/`tsc`/
+        Vitest 31/e2e 10 (Node 22 e 26); site 51 unitários + 29 e2e (Node 22 e 26) + Lighthouse
+        sob Node 26; os três workflows verdes (a imagem da API foi construída no ACR com
+        Python 3.14); API em produção na revisão `asaf-api--0000070` saudável: 342 rotas no
+        OpenAPI, `/api/publico/eventos` 200, CORS do site intacto; tarefa agendada disparada à
+        mão rodou no **CPython 3.14.7** contra o banco de produção (sucesso).
       - **Lote 2 (majors do front, um por vez)**: React 18 → 19 (+ `@types`), Vite 5 → 8
         (+ `@vitejs/plugin-react` 6), Vitest 2 → 5, TypeScript 5.9 → 7, **Tailwind 3 → 4**
         (o `design/tailwind-preset.js` e os dois `postcss.config.js` precisam ser reescritos),
