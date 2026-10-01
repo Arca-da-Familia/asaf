@@ -22,8 +22,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    /* Alias @/ -> src/ (convenção do shadcn/ui) */
-    "baseUrl": ".",
+    /* Alias @/ -> src/ (convenção do shadcn/ui). Sem `baseUrl`: foi removido no TypeScript 7 e
+       `paths` já resolve relativo a este tsconfig. */
     "paths": {
       "@/*": ["./src/*"]
     },
