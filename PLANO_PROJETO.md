@@ -422,9 +422,30 @@ retrabalho que a seção 4.1 existe pra evitar.
 > - [x] **Usuário administrador do responsável** (`asaf@asaf.org.br`, papel Administrator),
 >       criado e **verificado** (login 200, poder de administração 200). Senha temporária entregue
 >       ao usuário na conversa; **trocar no primeiro acesso e ativar MFA** (Studio → perfil).
->       O administrador de instalação (`admin@arcadafamilia.org`, senha no Key Vault
->       `DIRECTUS-ADMIN-PASSWORD`) continua existindo: o domínio `arcadafamilia.org` não é o da
->       associação — decidir se esse usuário é desativado depois que existir token de serviço.
+>       **Correção do mesmo dia (reclamação do usuário, procedente em parte)**: a senha
+>       temporária era aleatória e o usuário não achou onde trocá-la — a instrução (perfil →
+>       campo *Password*, confirmada na documentação) estava certa, mas não foi verificada na
+>       tela e deveria ter vindo com link direto. **O administrador de instalação
+>       `admin@arcadafamilia.org` não foi criado nesse dia**: é o `ADMIN_EMAIL` do Container App,
+>       configurado em 2026-09-10 a partir da identidade do git deste repositório
+>       (`.git/config`: `user.email = asaf@arcadafamilia.org`, autor de 147 commits, inclusive do
+>       primeiro) — o domínio `arcadafamilia.org` **não é da associação** (o usuário confirmou que
+>       não o conhece). **Suspenso em 2026-10-01** (reversível; login do administrador antigo
+>       devolve 401, provado), **não apagado** de propósito: o Directus não tem e-mail de
+>       recuperação configurado (nenhuma variável `EMAIL_*`), então, se a conta real perdesse a
+>       senha, não restaria nenhum administrador para consertar. **Apagar de vez** quando o
+>       usuário confirmar que entra com a senha que ele mesmo escolheu. Depois disso: trocar
+>       `ADMIN_EMAIL` do Container App para `asaf@asaf.org.br` e decidir o destino do segredo
+>       `DIRECTUS-ADMIN-PASSWORD` no Key Vault.
+> - [ ] **Identidade do git**: `user.email` deste repositório é `asaf@arcadafamilia.org` (domínio
+>       que não é da associação). Os commits já feitos são públicos e a identidade fica no
+>       histórico; propor trocar para `asaf@asaf.org.br` daqui para a frente (o histórico não é
+>       reescrito). **Decisão do usuário.**
+> - [ ] **Chave de automação do Directus no Key Vault — BLOQUEADA pelo sistema de segurança do
+>       Claude Code** (regra "escrita em cofre de segredos", 2026-10-01): a tentativa de gerar um
+>       token estático para a conta real e gravá-lo em `DIRECTUS-ADMIN-TOKEN` foi negada, e não
+>       foi contornada. Nada depende disso até as coleções (v5.1); opções: o usuário libera a
+>       regra, ou grava o segredo pelo Portal do Azure (Cofre → Segredos → Gerar/Importar).
 > - [x] **Atalho no painel**: cartão "Editar o site" na tela inicial, visível a quem tem
 >       `gerenciar_acesso` (presidência), abre o Directus em nova aba. É conveniência; quem
 >       protege é o login do Directus. Papel de editor próprio (`editar_site`) nasce com os
