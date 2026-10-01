@@ -1,9 +1,8 @@
-import type { ColumnDef } from '@tanstack/react-table'
 import { useState, type ReactNode } from 'react'
 import { Controller } from 'react-hook-form'
 import { z } from 'zod'
 
-import { DataTable } from '@/components/data/DataTable'
+import { DataTable, type ColunaTabela } from '@/components/data/DataTable'
 import { Timeline } from '@/components/display/Timeline'
 import { CamposPersonalizadosFields } from '@/components/forms/CamposPersonalizados'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
@@ -41,7 +40,7 @@ const pessoas: Pessoa[] = [
   { nome: 'Fernanda Dias', email: 'fefe@exemplo.com', status: 'Ativo' },
   { nome: 'Gustavo Reis', email: 'guto@exemplo.com', status: 'Suspenso' },
 ]
-const colunasPessoas: ColumnDef<Pessoa>[] = [
+const colunasPessoas: ColunaTabela<Pessoa>[] = [
   { accessorKey: 'nome', header: 'Nome' },
   { accessorKey: 'email', header: 'E-mail' },
   { accessorKey: 'status', header: 'Status' },

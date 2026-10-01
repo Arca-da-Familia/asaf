@@ -1,10 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ColumnDef } from '@tanstack/react-table'
 import { HeartHandshake } from 'lucide-react'
 import { useState } from 'react'
 import { z } from 'zod'
 
-import { DataTable } from '@/components/data/DataTable'
+import { DataTable, type ColunaTabela } from '@/components/data/DataTable'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -219,7 +218,7 @@ export function BeneficiariosPage() {
   const dados = beneficiarios ?? []
   const editando = dados.find((b) => b.id_beneficiario === idEditando) ?? null
 
-  const colunas: ColumnDef<Beneficiario>[] = [
+  const colunas: ColunaTabela<Beneficiario>[] = [
     {
       accessorKey: 'nome_completo',
       header: 'Nome',

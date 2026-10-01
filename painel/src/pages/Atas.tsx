@@ -3,18 +3,17 @@ import { FileText } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link } from 'react-router'
 
-import { DataTable } from '@/components/data/DataTable'
+import { DataTable, type ColunaTabela } from '@/components/data/DataTable'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { listarAtas, type AtaListagem } from '@/lib/api'
-import type { ColumnDef } from '@tanstack/react-table'
 
 const CORES_STATUS: Record<string, string> = {
   Rascunho: 'text-amber-600',
   Assinada: 'text-green-600',
 }
 
-const colunas: ColumnDef<AtaListagem>[] = [
+const colunas: ColunaTabela<AtaListagem>[] = [
   {
     accessorKey: 'numero_sequencial',
     header: 'Nº',

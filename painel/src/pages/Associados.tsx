@@ -3,18 +3,17 @@ import { UserPlus, Users } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link } from 'react-router'
 
-import { DataTable } from '@/components/data/DataTable'
+import { DataTable, type ColunaTabela } from '@/components/data/DataTable'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { listarAssociados, type AssociadoListagem } from '@/lib/api'
-import type { ColumnDef } from '@tanstack/react-table'
 
 // v3.0.2 (achado 2026-09-15) - até aqui, /associados só tinha a guarda de permissão (navegação
 // e menu funcionando, nenhum conteúdo). Esta é a primeira tela de negócio de verdade do painel
 // único: listar quem já está cadastrado e, pra quem ainda não tem login, conceder acesso sem
 // sair desta tela.
-const colunas: ColumnDef<AssociadoListagem>[] = [
+const colunas: ColunaTabela<AssociadoListagem>[] = [
   {
     accessorKey: 'nome_completo',
     header: 'Nome',

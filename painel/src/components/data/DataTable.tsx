@@ -1,12 +1,21 @@
 import {
+  columnFilteringFeature,
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
+  filterFns,
   flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
+  globalFilteringFeature,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
+  sortFns,
+  tableFeatures,
+  useTable,
   type ColumnDef,
   type PaginationState,
+  type RowData,
+  type RowSelectionState,
   type SortingState,
 } from '@tanstack/react-table'
 import {
@@ -24,9 +33,27 @@ import { Button } from '@/components/ui/button'
 import { mensagens } from '@/lib/i18n/pt-BR'
 import { cn } from '@/lib/utils'
 
-type DataTableProps<T> = {
+// TanStack Table v9: cada recurso é declarado (e só o que se declara entra no bundle). Aqui:
+// ordenação, filtro global, paginação e seleção de linhas — o mesmo conjunto do DataTable da v8.
+const features = tableFeatures({
+  columnFilteringFeature, // exigido pelo tipo: globalFilteringFeature e filteredRowModel dependem dele
+  globalFilteringFeature,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
+  filteredRowModel: createFilteredRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  sortedRowModel: createSortedRowModel(),
+  filterFns,
+  sortFns,
+})
+
+/** Definição de coluna do DataTable — as telas tipam suas colunas com isto, não com `ColumnDef`. */
+export type ColunaTabela<T extends RowData> = ColumnDef<typeof features, T>
+
+type DataTableProps<T extends RowData> = {
   dados: T[]
-  colunas: ColumnDef<T>[]
+  colunas: ColunaTabela<T>[]
   selecionavel?: boolean
   filtroGlobal?: boolean
   densidade?: 'normal' | 'compacta'
@@ -40,7 +67,7 @@ type DataTableProps<T> = {
 
 // Tabela padrão (v0.2.4) — ordenação, filtro global, paginação (client ou server-side),
 // seleção e densidade. O mesmo contrato vale para todos os módulos de negócio futuros.
-export function DataTable<T>({
+export function DataTable<T extends RowData>({
   dados,
   colunas,
   selecionavel = false,
@@ -53,13 +80,13 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [filtro, setFiltro] = useState('')
-  const [selecao, setSelecao] = useState<Record<string, boolean>>({})
+  const [selecao, setSelecao] = useState<RowSelectionState>({})
   const [paginacao, setPaginacao] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
   })
 
-  const colunaSelecao: ColumnDef<T> = {
+  const colunaSelecao: ColunaTabela<T> = {
     id: 'selecao',
     header: ({ table }) => (
       <input
@@ -81,7 +108,8 @@ export function DataTable<T>({
 
   const colunasFinais = selecionavel ? [colunaSelecao, ...colunas] : colunas
 
-  const table = useReactTable({
+  const table = useTable({
+    features,
     data: dados,
     columns: colunasFinais,
     state: {
@@ -99,10 +127,6 @@ export function DataTable<T>({
       onPaginationChange?.(nova)
     },
     enableRowSelection: selecionavel,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     manualPagination,
     pageCount: manualPagination ? pageCount : undefined,
   })
@@ -177,7 +201,7 @@ export function DataTable<T>({
                   key={row.id}
                   className="border-b border-border last:border-0 hover:bg-accent/40"
                 >
-                  {row.getVisibleCells().map((cell) => (
+                  {row.getAllCells().map((cell) => (
                     <td
                       key={cell.id}
                       className={cn(
@@ -205,7 +229,7 @@ export function DataTable<T>({
             {mensagens.tabela.registros}
           </span>
           <select
-            value={table.getState().pagination.pageSize}
+            value={table.state.pagination.pageSize}
             onChange={(e) => table.setPageSize(Number(e.target.value))}
             aria-label="Registros por página"
             className="rounded-md border border-input bg-background px-2 py-1 text-sm"
@@ -228,7 +252,7 @@ export function DataTable<T>({
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="text-sm text-muted-foreground">
-            {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
+            {table.state.pagination.pageIndex + 1} / {table.getPageCount()}
           </span>
           <Button
             variant="outline"

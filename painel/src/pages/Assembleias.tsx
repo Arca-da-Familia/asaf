@@ -3,13 +3,12 @@ import { Gavel, Plus } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link } from 'react-router'
 
-import { DataTable } from '@/components/data/DataTable'
+import { DataTable, type ColunaTabela } from '@/components/data/DataTable'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { listarAssembleias, type Assembleia } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
-import type { ColumnDef } from '@tanstack/react-table'
 
 // v2.5.2 (FASE 2.5 - Painel) - primeira tela de Governança: até aqui `/governanca` era
 // `<EmConstrucao>`, apesar de o backend (FASE 2, v2.2/v2.3) já ter convocação, habilitação e
@@ -23,7 +22,7 @@ const CORES_STATUS: Record<string, string> = {
   Cancelada: 'text-destructive',
 }
 
-const colunas: ColumnDef<Assembleia>[] = [
+const colunas: ColunaTabela<Assembleia>[] = [
   {
     accessorKey: 'tipo',
     header: 'Tipo',

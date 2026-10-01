@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import type { ColumnDef, PaginationState } from '@tanstack/react-table'
+import type { PaginationState } from '@tanstack/react-table'
 
-import { DataTable } from '@/components/data/DataTable'
+import { DataTable, type ColunaTabela } from '@/components/data/DataTable'
 import { PageHeader } from '@/components/layout/PageHeader'
 import {
   listarAcoesAuditoria,
@@ -11,7 +11,7 @@ import {
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
 
-const colunas: ColumnDef<EntradaAuditoria>[] = [
+const colunas: ColunaTabela<EntradaAuditoria>[] = [
   {
     accessorKey: 'timestamp',
     header: 'Quando',
