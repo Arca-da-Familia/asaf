@@ -68,6 +68,42 @@ describe('FormShell', () => {
     )
   })
 
+  it('campo numérico com z.coerce: entrega número ao onSubmit e a mensagem do schema quando inválido', async () => {
+    // Mesmo padrão das telas de dinheiro/ano: <input> de texto + z.coerce.number() no schema
+    // (no Zod 4 a ENTRADA do coerce é `unknown`, a saída é number - o FormShell tem de aceitar).
+    const schemaNumero = z.object({
+      valor: z.coerce.number().positive('Informe um valor maior que zero.'),
+    })
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    render(
+      <FormShell<z.infer<typeof schemaNumero>>
+        schema={schemaNumero}
+        defaultValues={{ valor: undefined }}
+        onSubmit={onSubmit}
+      >
+        {(form) => (
+          <>
+            <input aria-label="valor" {...form.register('valor')} />
+            <ErroCampo mensagem={form.formState.errors.valor?.message} />
+            <button type="submit">Enviar</button>
+          </>
+        )}
+      </FormShell>,
+    )
+
+    await userEvent.type(screen.getByLabelText('valor'), '0')
+    await userEvent.click(screen.getByText('Enviar'))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Informe um valor maior que zero.',
+    )
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    await userEvent.clear(screen.getByLabelText('valor'))
+    await userEvent.type(screen.getByLabelText('valor'), '125.5')
+    await userEvent.click(screen.getByText('Enviar'))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({ valor: 125.5 }))
+  })
+
   it('mostra erro geral (não role=alert de campo) para falha genérica', async () => {
     const onSubmit = vi.fn().mockRejectedValue(new Error('Falha de rede.'))
     render(<Formulario onSubmit={onSubmit} />)

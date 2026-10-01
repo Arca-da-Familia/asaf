@@ -4,6 +4,7 @@ import {
   useForm,
   type DefaultValues,
   type FieldValues,
+  type Resolver,
   type UseFormReturn,
 } from 'react-hook-form'
 import { z } from 'zod'
@@ -12,7 +13,7 @@ import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 type FormShellProps<T extends FieldValues> = {
-  schema: z.ZodType<T>
+  schema: z.ZodType<T, FieldValues>
   defaultValues: DefaultValues<T>
   onSubmit: (valores: T) => void | Promise<unknown>
   children: (form: UseFormReturn<T>) => ReactNode
@@ -40,7 +41,12 @@ export function FormShell<T extends FieldValues>({
   children,
   className,
 }: FormShellProps<T>) {
-  const form = useForm<T>({ resolver: zodResolver(schema), defaultValues })
+  // zodResolver (v5) tipa o resolver pela ENTRADA do schema; o FormShell só conhece a SAÍDA (T) —
+  // com z.coerce, por exemplo, entrada e saída diferem. O elenco é o único ponto de contato.
+  const form = useForm<T>({
+    resolver: zodResolver(schema) as unknown as Resolver<T>,
+    defaultValues,
+  })
   const [erroGeral, setErroGeral] = useState<string | null>(null)
 
   async function handleSubmit(valores: T) {

@@ -1227,7 +1227,7 @@ export const indicadorCriarSchema = z.object({
 // `periodo` é texto livre (ex.: "2026-01", "Q1 2026") - o backend rejeita uma segunda medição
 // pro mesmo par (indicador, periodo) com 400, o painel só repassa a mensagem.
 export const medicaoIndicadorCriarSchema = z.object({
-  valor: z.coerce.number({ invalid_type_error: 'Informe um valor.' }),
+  valor: z.coerce.number({ error: 'Informe um valor.' }),
   periodo: z.string().min(1, 'Informe o período desta medição.'),
   fonte: z.string().optional(),
 })

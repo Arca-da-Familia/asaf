@@ -51,7 +51,10 @@ function schemaPorTipo(definicao: DefinicaoCampoPersonalizado): z.ZodTypeAny {
       message: `${definicao.rotulo} é obrigatório.`,
     })
   }
-  return schema.optional().default('')
+  // `.prefault('')` (Zod 4), não `.default('')`: no Zod 4 o default curto-circuita e devolve ''
+  // SEM validar — um campo obrigatório ausente passaria em branco. O prefault injeta '' como
+  // ENTRADA e valida normalmente (é o comportamento que o `.default()` tinha no Zod 3).
+  return schema.optional().prefault('')
 }
 
 // Combine com o schema fixo do módulo via `.merge()` (ex.: `schemaAssociado.merge(schemaCampos)`).
