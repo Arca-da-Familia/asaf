@@ -1,4 +1,9 @@
-import { ORGANIZACAO, SITE_URL } from '../config/organizacao'
+import {
+  ENDERECO_LINHA,
+  LOGO,
+  ORGANIZACAO,
+  SITE_URL,
+} from '../config/organizacao'
 import { comFusoDaAsaf } from './datas'
 
 /**
@@ -38,6 +43,7 @@ export function serializarJsonLd(dados: unknown): string {
   return JSON.stringify(dados).replace(/</g, '\\u003c')
 }
 
+/** Só cidade/UF — para local de evento que não é a sede (o endereço do local é texto livre). */
 const ENDERECO_CIDADE = {
   '@type': 'PostalAddress',
   addressLocality: ORGANIZACAO.cidade,
@@ -45,7 +51,17 @@ const ENDERECO_CIDADE = {
   addressCountry: ORGANIZACAO.pais,
 } as const
 
-/** Organização (aparece em todas as páginas). `NGO` = organização não governamental. */
+/** Endereço completo da sede (Estatuto, confirmado pelo usuário em 2026-10-01). */
+const ENDERECO_SEDE = {
+  ...ENDERECO_CIDADE,
+  streetAddress: `${ORGANIZACAO.endereco.logradouro}, ${ORGANIZACAO.endereco.numero}`,
+  postalCode: ORGANIZACAO.endereco.cep,
+} as const
+
+/**
+ * Organização (aparece em todas as páginas). `NGO` = organização não governamental. Carrega a
+ * logo institucional: é o que o Google usa para mostrar a marca nos resultados de busca.
+ */
 export function jsonLdOrganizacao() {
   return {
     '@context': 'https://schema.org',
@@ -54,10 +70,19 @@ export function jsonLdOrganizacao() {
     name: ORGANIZACAO.nome,
     alternateName: ORGANIZACAO.sigla,
     url: `${SITE_URL}/`,
+    logo: {
+      '@type': 'ImageObject',
+      url: `${SITE_URL}${LOGO.png}`,
+      width: LOGO.pngLargura,
+      height: LOGO.pngAltura,
+    },
     slogan: ORGANIZACAO.lema,
     description: ORGANIZACAO.descricaoCurta,
     foundingDate: ORGANIZACAO.fundacao,
-    address: ENDERECO_CIDADE,
+    taxID: ORGANIZACAO.cnpj,
+    telephone: ORGANIZACAO.telefoneInternacional,
+    email: ORGANIZACAO.email,
+    address: ENDERECO_SEDE,
     areaServed: { '@type': 'City', name: ORGANIZACAO.cidade },
   }
 }
@@ -81,7 +106,10 @@ export interface EventoParaJsonLd {
  * `image` (o evento ainda não tem imagem). Melhor omitir do que declarar dado falso.
  */
 export function jsonLdEvento(evento: EventoParaJsonLd, urlPagina: string) {
-  const local = evento.endereco_avulso?.trim() || `Sede da ${ORGANIZACAO.sigla}`
+  // Sem local próprio, o evento é na sede: aí o endereço completo é verdadeiro e ajuda o Google.
+  const localProprio = evento.endereco_avulso?.trim()
+  const local =
+    localProprio || `Sede da ${ORGANIZACAO.sigla} — ${ENDERECO_LINHA}`
   return {
     '@context': 'https://schema.org',
     '@type': 'Event',
@@ -95,7 +123,11 @@ export function jsonLdEvento(evento: EventoParaJsonLd, urlPagina: string) {
     eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
     isAccessibleForFree: evento.gratuito,
     url: urlPagina,
-    location: { '@type': 'Place', name: local, address: ENDERECO_CIDADE },
+    location: {
+      '@type': 'Place',
+      name: local,
+      address: localProprio ? ENDERECO_CIDADE : ENDERECO_SEDE,
+    },
     organizer: { '@id': `${SITE_URL}/#organizacao` },
   }
 }

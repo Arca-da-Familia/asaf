@@ -18,6 +18,7 @@
     "lighthouse": "lhci autorun",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "logos": "node scripts/gerar-logos.mjs",
     "og": "node scripts/gerar-og.mjs",
     "build:teste": "node scripts/gerar-version.js && node scripts/build-teste.mjs"
   },
@@ -36,6 +37,7 @@
     "postcss": "^8.4.49",
     "prettier": "^3.4.2",
     "prettier-plugin-astro": "^0.14.1",
+    "sharp": "^0.35.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.6.3",
     "vitest": "^2.1.8"

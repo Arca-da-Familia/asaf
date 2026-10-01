@@ -1,10 +1,23 @@
 /*
- * Tokens de design da ASAF — FONTE ÚNICA da identidade visual (v5.0).
+ * Tokens de design da ASAF — FONTE ÚNICA da identidade visual.
  *
  * Consumido pelo painel (painel/src/index.css) e pelo site institucional (site/src/styles/
  * global.css). Mudou uma cor ou o raio de borda aqui, mudou nos dois: é isso que mantém site
  * e painel parecendo a mesma instituição. NUNCA redefinir um token dentro de painel/ ou site/ —
  * se um dos dois precisar de algo diferente, o token novo nasce aqui com nome próprio.
+ *
+ * Paleta da marca (definida pelo usuário em 2026-10-01, tirada da logo institucional):
+ *   primária   VERDE  #145238  (verde bandeira)  -> --primary / --brand
+ *   secundária OURO   #E3C435  (amarelo ouro)    -> --brand-secondary
+ *   terciária  AZUL   #5FBBE9  (azul claro)      -> --brand-tertiary  (provisório: o usuário
+ *              vai informar o tom exato; está no mesmo azul claro da logo)
+ * As três estão na logo (design/logo/). Contrastes WCAG calculados: texto claro sobre o verde
+ * 8,75:1; verde sobre branco 9,16:1; texto verde-escuro sobre o ouro 9,47:1 e sobre o azul 7,57:1.
+ *
+ * Os tokens neutros do shadcn (--secondary, --muted, --accent) continuam CINZA de propósito:
+ * são superfícies de interface, não cor de marca. O ouro e o azul entram como tokens de marca
+ * próprios (--brand-secondary, --brand-tertiary), senão toda superfície cinza do painel viraria
+ * amarela.
  *
  * Valores no formato "H S% L%" (sem hsl()) para o Tailwind aplicar opacidade (bg-primary/50).
  * Os nomes são os do shadcn/ui, que o painel já usa desde a v0.2.4.
@@ -17,8 +30,8 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    /* Azul institucional da ASAF (blue-600) — fonte única, espelhada em tailwind-preset.js */
-    --primary: 221.2 83.2% 53.3%;
+    /* Verde institucional da ASAF (#145238) — fonte única, espelhada em tailwind-preset.js */
+    --primary: 154.8 60.8% 20%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -30,12 +43,17 @@
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --ring: 154.8 60.8% 20%;
     --radius: 0.5rem;
 
-    /* Tokens institucionais (v0.2.4) */
-    --brand: 221.2 83.2% 53.3%;
+    /* Tokens institucionais (v0.2.4; paleta atualizada em 2026-10-01) */
+    --brand: 154.8 60.8% 20%;
     --brand-foreground: 210 40% 98%;
+    /* Ouro (#E3C435) e azul claro (#5FBBE9): texto sobre eles é SEMPRE o verde-escuro abaixo */
+    --brand-secondary: 49.3 75.7% 54.9%;
+    --brand-secondary-foreground: 155 62% 9%;
+    --brand-tertiary: 200 75.8% 64.3%;
+    --brand-tertiary-foreground: 155 62% 9%;
   }
 
   .dark {
@@ -45,8 +63,10 @@
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    /* No escuro o verde institucional é CLARO demais pra escurecer o fundo (#145238 sobre quase
+       preto dá ~2,3:1): sobe o verde para 7,4:1 e o texto do botão fica escuro (6,3:1). */
+    --primary: 152 55% 45%;
+    --primary-foreground: 155 62% 8%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
@@ -57,8 +77,12 @@
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 221.2 83.2% 53.3%;
-    --brand: 221.2 83.2% 53.3%;
-    --brand-foreground: 210 40% 98%;
+    --ring: 152 55% 45%;
+    --brand: 152 55% 45%;
+    --brand-foreground: 155 62% 8%;
+    --brand-secondary: 49.3 75.7% 54.9%;
+    --brand-secondary-foreground: 155 62% 9%;
+    --brand-tertiary: 200 75.8% 64.3%;
+    --brand-tertiary-foreground: 155 62% 9%;
   }
 }

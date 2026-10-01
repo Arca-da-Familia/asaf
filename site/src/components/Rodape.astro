@@ -1,27 +1,49 @@
 ---
-import { ORGANIZACAO, PAINEL_URL } from '../config/organizacao'
+import { ENDERECO_LINHA, ORGANIZACAO, PAINEL_URL } from '../config/organizacao'
 ---
 
-<footer class="border-t bg-secondary text-secondary-foreground">
-  <div
-    class="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-8 text-sm sm:flex-row sm:items-start sm:justify-between"
-  >
+<footer
+  class="border-t-4 border-brand-secondary bg-primary text-primary-foreground"
+>
+  <div class="mx-auto grid max-w-5xl gap-8 px-4 py-10 text-sm sm:grid-cols-3">
     <div>
-      <p class="font-semibold">{ORGANIZACAO.nome} — {ORGANIZACAO.sigla}</p>
-      <p class="mt-1">
-        {ORGANIZACAO.cidade} — {ORGANIZACAO.uf} · Fundada em {
-          ORGANIZACAO.fundacaoPorExtenso
-        }
+      <p class="text-base font-semibold">
+        {ORGANIZACAO.nome} — {ORGANIZACAO.sigla}
       </p>
-      <p class="mt-1 italic">“{ORGANIZACAO.lema}”</p>
+      <p class="mt-2">CNPJ {ORGANIZACAO.cnpj}</p>
+      <p class="mt-1">Fundada em {ORGANIZACAO.fundacaoPorExtenso}</p>
+      <p class="mt-3 italic">“{ORGANIZACAO.lema}”</p>
     </div>
+
+    <div>
+      <h2 class="text-base font-semibold">Contato</h2>
+      <address class="mt-2 flex flex-col gap-1 not-italic">
+        <span>{ENDERECO_LINHA}</span>
+        <span
+          >{ORGANIZACAO.cidade} — {ORGANIZACAO.uf}, CEP {
+            ORGANIZACAO.endereco.cep
+          }</span
+        >
+        <a href={ORGANIZACAO.telefoneLink} class="mt-1 underline"
+          >{ORGANIZACAO.telefone}</a
+        >
+        <a href={`mailto:${ORGANIZACAO.email}`} class="underline"
+          >{ORGANIZACAO.email}</a
+        >
+      </address>
+    </div>
+
     <nav aria-label="Rodapé">
-      <ul class="flex flex-col gap-2">
+      <h2 class="text-base font-semibold">Navegação</h2>
+      <ul class="mt-2 flex flex-col gap-1">
         <li>
-          <a href="/#eventos" class="hover:underline">Próximos eventos</a>
+          <a href="/#quem-somos" class="underline">Quem somos</a>
         </li>
         <li>
-          <a href={PAINEL_URL} class="hover:underline">Área do associado</a>
+          <a href="/#eventos" class="underline">Próximos eventos</a>
+        </li>
+        <li>
+          <a href={PAINEL_URL} class="underline">Área do associado</a>
         </li>
       </ul>
     </nav>

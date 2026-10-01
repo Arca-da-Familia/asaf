@@ -3,9 +3,12 @@
 // identidade vive em src/index.css (variáveis) + tailwind.config.js (mapeamento) — trocar a
 // identidade visual da associação é mudar UM lugar, nunca caçar cor em 40 arquivos.
 export const cores = {
-  brand: '#2563eb', // blue-600 — azul institucional da ASAF
-  brandForte: '#1d4ed8', // blue-700
-  brandSuave: '#3b82f6', // blue-500
+  // Paleta da marca (2026-10-01), a mesma de design/tokens.css e da logo institucional.
+  brand: '#145238', // verde bandeira — cor primária da ASAF
+  brandForte: '#0e3a28', // verde mais escuro (hover/ênfase)
+  brandSuave: '#2a8f64', // verde mais claro (séries secundárias de gráfico)
+  ouro: '#e3c435', // secundária — amarelo ouro
+  azulClaro: '#5fbbe9', // terciária — azul claro (provisório, ver design/tokens.css)
   neutro: {
     50: '#f8fafc',
     100: '#f1f5f9',

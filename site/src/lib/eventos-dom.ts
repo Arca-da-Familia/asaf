@@ -88,7 +88,7 @@ function cartaoDoEvento(evento: EventoPublico): HTMLLIElement {
     selos.append(
       criar(
         'span',
-        'rounded-full bg-secondary px-2 py-1 font-medium text-secondary-foreground',
+        'rounded-full bg-brand-secondary px-2 py-1 font-semibold text-brand-secondary-foreground',
         'Gratuito',
       ),
     )

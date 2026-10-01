@@ -1,10 +1,16 @@
 /**
  * Dados institucionais da ASAF usados em todo o site (rodapé, SEO, dados estruturados).
  *
- * Fonte: ESTATUTO_ASAF.txt (Art. 1º e 3º) — nada aqui é inventado. Dado que o Estatuto não traz
- * (CNPJ, telefone, e-mail, endereço atual) fica FORA até ser confirmado: na v5.2 (Contato) vem
- * do Directus/FastAPI, nunca digitado em código. O Estatuto fala em "sede provisória", então o
- * endereço completo de 2013 não é publicado aqui — só a cidade/UF, que é estável.
+ * Fontes — nada aqui é inventado:
+ *  - ESTATUTO_ASAF.txt (Art. 1º e 3º): nome, lema, fundação, natureza, objetivo, áreas e sede.
+ *  - Informados e confirmados pelo usuário em 2026-10-01: CNPJ, telefone e e-mail. O endereço da
+ *    sede é o do Estatuto — o usuário confirmou que NÃO mudou ("sede provisória" no texto de 2013,
+ *    mas é a sede em uso).
+ *
+ * Quando a v5.1/v5.2 trouxer o Directus, estes dados passam a vir de lá/da API (para quem não
+ * edita código poder atualizar) — até lá este é o único lugar do site onde eles existem, para
+ * mudar em um ponto só. O CNPJ tem teste de dígito verificador (tests/organizacao.test.ts):
+ * erro de digitação aqui não chega à produção.
  */
 export const SITE_URL = 'https://asaf.org.br'
 export const PAINEL_URL = 'https://painel.asaf.org.br'
@@ -23,6 +29,18 @@ export const ORGANIZACAO = {
   cidade: 'Parauapebas',
   uf: 'PA',
   pais: 'BR',
+  cnpj: '17.631.942/0001-70',
+  // Celular (9 dígitos), DDD 94. Três formas do mesmo número: texto, link tel: e dado estruturado.
+  telefone: '(94) 98412-0703',
+  telefoneLink: 'tel:+5594984120703',
+  telefoneInternacional: '+55-94-98412-0703',
+  email: 'asaf@asaf.org.br',
+  endereco: {
+    logradouro: 'Rua Paulo Afonso',
+    numero: '150',
+    bairro: 'Bairro da Paz',
+    cep: '68515-000',
+  },
   natureza:
     'Entidade sócio comunitária de direito privado, sem fins econômicos e de caráter filantrópico.',
   // Completa a frase "Nosso objetivo principal é ..." (Art. 1º do Estatuto).
@@ -44,4 +62,20 @@ export const ORGANIZACAO = {
   ],
   descricaoCurta:
     'Entidade filantrópica sem fins econômicos, com sede em Parauapebas (PA), dedicada ao atendimento e à assistência à família, sem distinção de classe, raça ou crença.',
+} as const
+
+/** "Rua Paulo Afonso, 150 — Bairro da Paz" */
+export const ENDERECO_LINHA = `${ORGANIZACAO.endereco.logradouro}, ${ORGANIZACAO.endereco.numero} — ${ORGANIZACAO.endereco.bairro}`
+
+/** Logo institucional (arquivos gerados por `npm run logos`, a partir de design/logo/). */
+export const LOGO = {
+  /** Largura/altura reais do mestre — proporção usada para reservar espaço (sem salto de layout). */
+  proporcao: 2607 / 2160,
+  cabecalho: '/asaf-logo-160.webp',
+  destaque: '/asaf-logo-640.webp',
+  /** PNG com fundo transparente, para dados estruturados e quem não lê WebP. */
+  png: '/asaf-logo-600.png',
+  pngLargura: 600,
+  pngAltura: 497,
+  alt: 'Logotipo da Associação Arca da Família (ASAF)',
 } as const

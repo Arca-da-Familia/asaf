@@ -60,9 +60,15 @@ export default {
           DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))',
         },
+        // Marca: verde (primária), ouro (secundária), azul claro (terciária). Texto sobre ouro
+        // ou azul: `text-brand-secondary-foreground` / `text-brand-tertiary-foreground`.
         brand: {
           DEFAULT: 'hsl(var(--brand))',
           foreground: 'hsl(var(--brand-foreground))',
+          secondary: 'hsl(var(--brand-secondary))',
+          'secondary-foreground': 'hsl(var(--brand-secondary-foreground))',
+          tertiary: 'hsl(var(--brand-tertiary))',
+          'tertiary-foreground': 'hsl(var(--brand-tertiary-foreground))',
         },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',

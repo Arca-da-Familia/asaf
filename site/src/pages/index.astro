@@ -1,35 +1,52 @@
 ---
 import ProximosEventos from '../components/ProximosEventos.astro'
-import { ORGANIZACAO, PAINEL_URL } from '../config/organizacao'
+import { LOGO, ORGANIZACAO, PAINEL_URL } from '../config/organizacao'
 import Base from '../layouts/Base.astro'
+
+// Logo do destaque: 320px de largura; altura pela proporção real (reserva o espaço, sem salto).
+const LARGURA_LOGO = 320
+const ALTURA_LOGO = Math.round(LARGURA_LOGO / LOGO.proporcao)
 ---
 
 <Base caminho="/">
   <section class="bg-primary text-primary-foreground">
-    <div class="mx-auto max-w-5xl px-4 py-16 sm:py-24">
-      <p class="text-sm font-semibold uppercase tracking-wider">
-        {ORGANIZACAO.sigla}
-      </p>
-      <h1 class="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">
-        {ORGANIZACAO.nome}
-      </h1>
-      <p class="mt-4 text-xl italic">“{ORGANIZACAO.lema}”</p>
-      <p class="mt-6 max-w-2xl text-lg">
-        {ORGANIZACAO.natureza}{' '}
-        Nosso objetivo principal é {ORGANIZACAO.objetivo}
-      </p>
-      <div class="mt-8 flex flex-wrap gap-3">
-        <a
-          href="#eventos"
-          class="rounded-md bg-background px-5 py-3 font-medium text-primary hover:bg-secondary"
-          >Ver próximos eventos</a
-        >
-        <a
-          href={PAINEL_URL}
-          class="rounded-md border border-primary-foreground px-5 py-3 font-medium hover:bg-primary-foreground hover:text-primary"
-          >Área do associado</a
-        >
+    <div
+      class="mx-auto grid max-w-5xl items-center gap-10 px-4 py-14 sm:py-20 md:grid-cols-[1fr_auto]"
+    >
+      <div>
+        <p class="text-sm font-semibold uppercase tracking-wider">
+          {ORGANIZACAO.sigla}
+        </p>
+        <h1 class="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">
+          {ORGANIZACAO.nome}
+        </h1>
+        <div class="mt-4 h-1 w-20 rounded bg-brand-secondary"></div>
+        <p class="mt-4 text-xl italic">“{ORGANIZACAO.lema}”</p>
+        <p class="mt-6 max-w-2xl text-lg">
+          {ORGANIZACAO.natureza}{' '}
+          Nosso objetivo principal é {ORGANIZACAO.objetivo}
+        </p>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <a
+            href="#eventos"
+            class="rounded-md bg-brand-secondary px-5 py-3 font-semibold text-brand-secondary-foreground hover:opacity-90"
+            >Ver próximos eventos</a
+          >
+          <a
+            href={PAINEL_URL}
+            class="rounded-md border border-primary-foreground px-5 py-3 font-medium hover:bg-primary-foreground hover:text-primary"
+            >Área do associado</a
+          >
+        </div>
       </div>
+      <img
+        src={LOGO.destaque}
+        alt={LOGO.alt}
+        width={LARGURA_LOGO}
+        height={ALTURA_LOGO}
+        fetchpriority="high"
+        class="mx-auto h-auto w-56 max-w-full md:w-80"
+      />
     </div>
   </section>
 
@@ -51,7 +68,7 @@ import Base from '../layouts/Base.astro'
     <ul class="mt-3 flex flex-wrap gap-2">
       {
         ORGANIZACAO.areasDeAtuacao.map((area) => (
-          <li class="rounded-full bg-secondary px-3 py-1 text-sm font-medium text-secondary-foreground">
+          <li class="rounded-full bg-brand-tertiary/25 px-3 py-1 text-sm font-medium text-foreground">
             {area}
           </li>
         ))

@@ -144,7 +144,18 @@ export function Shell() {
             )}
           </Button>
 
-          <Link to="/" className="text-lg font-bold tracking-tight">
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-lg font-bold tracking-tight"
+          >
+            {/* Logo institucional (v5.0). alt vazio: o nome ao lado já é o texto do link. */}
+            <img
+              src="/asaf-logo-160.webp"
+              alt=""
+              width={39}
+              height={32}
+              className="h-8 w-auto"
+            />
             {mensagens.app.nome}
           </Link>
 

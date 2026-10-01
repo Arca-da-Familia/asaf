@@ -35,6 +35,7 @@ npm run preview      # serve dist/
 npm run format:check   # Prettier
 npm run typecheck      # astro check
 npm test               # unitários (vitest): datas/fuso, SEO/JSON-LD, cliente da API, ilha de eventos
+npm run logos          # regenera logo/ícones a partir de design/logo (ver design/README.md)
 npm run build:teste    # build com a ilha apontando para a API SIMULADA (obrigatório p/ e2e e Lighthouse)
 npm run test:e2e       # Playwright: axe WCAG 2.1 AA, SEO, links, ilha em cada estado
 npm run lighthouse     # Lighthouse CI (precisa de Chrome; localmente: CHROME_PATH=...)
@@ -102,8 +103,11 @@ site, o resto exige JWT. `tests/test_cors_site.py` guarda isso.
 
 ## Pendente (registrado no plano)
 
-- Cabeçalhos de segurança (CSP, HSTS, `X-Content-Type-Options`, `X-Frame-Options`) — **v5.5**. A
-  CSP só pode ser escrita certa depois que as páginas e ilhas existirem.
+- Cabeçalhos de segurança (CSP, `X-Frame-Options`) — **v5.5**. A CSP só pode ser escrita certa
+  depois que as páginas e ilhas existirem. (HSTS e `X-Content-Type-Options` o Static Web App já
+  envia por padrão.)
 - Dark mode do site (tokens `.dark` já existem no `design/`).
+- Tom exato do azul (terciária): hoje é o azul claro da logo (`#5FBBE9`), provisório.
+- Arquivo vetorial (SVG) da logo no repositório, para impressão/ampliação.
 - `www.asaf.org.br` não resolve (sem registro DNS) — decidir se vale criar com redirecionamento
   para o domínio sem `www`.

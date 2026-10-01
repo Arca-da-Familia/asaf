@@ -61,12 +61,27 @@ describe('jsonLdOrganizacao', () => {
     expect(org.address.addressRegion).toBe('PA')
   })
 
-  it('não declara dado que ainda não foi confirmado (CNPJ, telefone, e-mail, rua)', () => {
+  it('traz a logo institucional como imagem absoluta em https', () => {
+    expect(org.logo['@type']).toBe('ImageObject')
+    expect(org.logo.url).toBe('https://asaf.org.br/asaf-logo-600.png')
+    // Mínimo exigido pelo Google para logo de organização: 112x112.
+    expect(org.logo.width).toBeGreaterThanOrEqual(112)
+    expect(org.logo.height).toBeGreaterThanOrEqual(112)
+  })
+
+  it('traz os dados de contato confirmados pelo usuário em 2026-10-01', () => {
+    expect(org.taxID).toBe('17.631.942/0001-70')
+    expect(org.telephone).toBe('+55-94-98412-0703')
+    expect(org.email).toBe('asaf@asaf.org.br')
+    expect(org.address.streetAddress).toBe('Rua Paulo Afonso, 150')
+    expect(org.address.postalCode).toBe('68515-000')
+  })
+
+  it('não declara o que ninguém informou (redes sociais, horário, etc.)', () => {
     const chaves = Object.keys(org)
-    for (const proibida of ['telephone', 'email', 'vatID', 'taxID', 'logo']) {
-      expect(chaves).not.toContain(proibida)
+    for (const ausente of ['sameAs', 'contactPoint', 'openingHours']) {
+      expect(chaves).not.toContain(ausente)
     }
-    expect(Object.keys(org.address)).not.toContain('streetAddress')
   })
 })
 
@@ -111,7 +126,20 @@ describe('jsonLdEvento', () => {
     expect(Object.keys(ev)).not.toContain('endDate')
     expect(Object.keys(ev)).not.toContain('offers')
     expect(Object.keys(ev)).not.toContain('image')
-    expect(ev.location.name).toBe('Sede da ASAF')
+    // Sem local próprio, o evento é na sede: nome e endereço completo da sede.
+    expect(ev.location.name).toContain('Sede da ASAF')
+    expect(ev.location.name).toContain('Rua Paulo Afonso, 150')
+    expect(ev.location.address).toHaveProperty(
+      'streetAddress',
+      'Rua Paulo Afonso, 150',
+    )
+  })
+
+  it('evento com local próprio NÃO herda o endereço da sede', () => {
+    const ev = jsonLdEvento(base, url)
+    expect(ev.location.name).toBe('Salão Paroquial, Parauapebas')
+    expect(ev.location.address).not.toHaveProperty('streetAddress')
+    expect(ev.location.address.addressLocality).toBe('Parauapebas')
   })
 
   it('evento pago não é marcado como gratuito', () => {
