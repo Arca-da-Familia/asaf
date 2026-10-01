@@ -243,48 +243,7 @@ retrabalho que a seção 4.1 existe pra evitar.
 
 ### FASE 4 — Projetos, Reserva de Espaço e Eventos (módulo de integração site ↔ sistema)
 
-Esta é a fase que resolve, de propósito, o problema identificado nas referências de pesquisa:
-lá, o site e o sistema de gestão nunca se integraram de verdade, e o módulo de eventos nasceu
-*só* no site, sem nenhum dado de associado. Aqui, tanto Projeto quanto Evento nascem como
-entidades únicas do FastAPI, com API própria consumida pelo site (leitura pública) e pelo painel
-(gestão) — nunca dois cadastros que precisam ser conciliados à mão depois.
-
-Confirmado por pesquisa de mercado (seção 6): **não existe hoje um padrão de mercado maduro e
-único para módulo de Projetos em associação genérica** — a maioria dos sistemas de gestão
-associativa não cobre isso, e os que cobrem bem são de terceiro setor assistencial verticalizado.
-A saída de desenho recomendada pela própria pesquisa — e adotada aqui — é um cadastro único e
-configurável de `Projeto`, com `tipo_projeto` habilitando sub-formulários condicionais, em vez de
-modelar qualquer tipo específico da ASAF direto no código. Isso é deliberado: o módulo precisa
-caber projeto educacional, quadra/espaço, ação assistencial, oficina cultural ou qualquer outro
-tipo futuro — **sem ficar preso ao que a ASAF faz hoje**.
-
-> **Pendência registrada pela v2.9 (2026-09-15)**: `app/routers/projetos.py` (`criar_projeto`,
-> `alocar_voluntario`) ainda é protótipo v0.1/v0.2 - nenhum endpoint tem
-> `Depends(get_current_user)`/`exigir_permissao` nem chama `registrar_auditoria`, mesma categoria
-> de achado que a v1.1 fez pro financeiro (FASE 3). O calendário institucional (v2.9) já lê
-> `ProjetoEvento.data_inicio` de forma segura (endpoint próprio, autenticado) - mas criar/alterar
-> projeto continua sem proteção nenhuma até esta fase resolver.
-
-✅ **v4.0–v4.9 concluídas.** Motores compartilhados, projetos, beneficiários, reserva de espaço, voluntariado, eventos, inscrição pública com deduplicação, vagas/lista de espera, check-in/crachá/certificado e financeiro de projeto/evento — checklist original e confirmação em produção de cada uma movidos para [`HISTORICO.md`](HISTORICO.md#fase-4-v40-v49).
-
-Segue com v4.10 (ainda não construída):
-
-#### v4.10 — Painel gerencial e avaliação
-
-- [ ] Telas de inscritos/beneficiários/reservas com busca, filtro e edição, sem exportação em lote
-      como ação corriqueira.
-- [ ] Indicadores agregados por projeto e comparação entre edições de um mesmo evento.
-- [ ] Pesquisa de satisfação pós-evento (link único por inscrito, resposta anônima na exibição),
-      alimentando o indicador de qualidade do evento.
-- [ ] Mapa de calor de ocupação de espaços — subsidia decisão real sobre horário, tarifa e
-      necessidade de nova estrutura.
-
-##### 🔍 Ponto de Revisão — FASE 4 (3/3 — fim, fecha v4.8–v4.10)
-
-Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
-
-- Exportação de lista de inscritos/beneficiários (v4.10) nunca é ação corriqueira sem registro em auditoria.
-- Certificado (v4.8) só é emitido quando a regra de elegibilidade (ex.: 75% de presença) é realmente atingida — testar caso abaixo do limite.
+✅ **Concluída.** Todo o conteúdo desta fase (checklist original, confirmação em produção de cada versão v4.0–v4.10 e o Ponto de Revisão de fechamento) foi movido para [`HISTORICO.md`](HISTORICO.md#fase-4-v40-v49) para manter este arquivo focado no que falta construir.
 
 ### FASE 5 — Site institucional (conteúdo público)
 

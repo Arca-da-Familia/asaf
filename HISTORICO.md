@@ -5024,4 +5024,117 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > confirmando o commit `dabed1a`. Suíte completa rodada três vezes ao longo do ciclo (362/362,
 > 370/370, 370/370).
 
+#### v4.10 — Painel gerencial e avaliação
+
+- [x] Telas de inscritos/beneficiários/reservas com busca, filtro e edição, sem exportação em lote
+      como ação corriqueira.
+- [x] Indicadores agregados por projeto e comparação entre edições de um mesmo evento.
+- [x] Pesquisa de satisfação pós-evento (link único por inscrito, resposta anônima na exibição),
+      alimentando o indicador de qualidade do evento.
+- [x] Mapa de calor de ocupação de espaços — subsidia decisão real sobre horário, tarifa e
+      necessidade de nova estrutura.
+
+> **v4.10 (2026-09-30)**: última versão da FASE 4. `SecaoInscritos` (Eventos.tsx) ganhou
+> busca/filtro/transição de status (o `PUT /api/inscricoes/{id}/status` já existia desde a v4.0,
+> nunca tinha UI); beneficiário ganhou a primeira tela CRUZADA entre projetos
+> (`painel/src/pages/Beneficiarios.tsx` — a visão aninhada dentro de um projeto, com
+> prontuário/encaminhamento gateados por "equipe ativa deste projeto", continua existindo em
+> `Projetos.tsx`, de propósito: identidade/consentimento é cruzável, prontuário não); reserva de
+> espaço ganhou edição de horário/finalidade reexecutando a mesma checagem de conflito de agenda
+> (`agenda.atualizar_compromisso`, nunca uma checagem paralela). Três permissões de exportação
+> novas, uma por domínio (`exportar_inscricoes_evento`, `exportar_beneficiarios`,
+> `exportar_reservas_espaco`) — nunca compartilhada, mesmo padrão já estabelecido três vezes antes
+> (`exportar_dados_pessoais`, `gerenciar_checkin_evento`/`exportar_presencas_evento`).
+> **Indicadores (motor da v4.0) ganhou a primeira tela de verdade**, nova seção em `Projetos.tsx` -
+> até aqui só existia API, nunca UI, apesar de pronto desde o início da fase.
+> **Pesquisa de satisfação** é FK explícita a `Evento` (`RespostaPesquisaSatisfacao.id_evento`),
+> não motor genérico `contexto_tipo`/`id_contexto` - só há um consumidor real agora (mesmo
+> raciocínio que manteve `TituloFinanceiro` com FK explícita em vez de polimórfico até cupom/
+> isenção, v4.9, nascerem servindo dois consumidores ao mesmo tempo). `id_inscricao` existe só
+> pra impedir convite duplicado e saber pra quem mandar o link - nunca aparece no resultado
+> agregado (`calcular_resultado`), que é onde "resposta anônima na exibição" de fato se cumpre -
+> provado por teste (`test_resultado_agregado_e_sempre_anonimo...`). Convite automático entra no
+> mesmo ciclo diário que já fechava o financeiro do evento (v4.9,
+> `fechar_eventos_encerrados_sem_fechamento`), mais um disparo manual
+> (`POST /pesquisa-satisfacao/convidar`) pra quem não quiser esperar. Resultado alimenta um
+> `Indicador`/`MedicaoIndicador` CALCULADO (nome "Satisfação pós-evento",
+> `contexto_tipo="Evento"`) que é recriado/atualizado a cada recálculo, nunca empilhado - por isso
+> não passa pelo `indicadores.registrar_medicao` de entrada manual (que recusa, de propósito,
+> sobrescrever o período já medido). Duas opções de catálogo novas
+> (`unidade_medida_indicador.NOTA_0_A_10`, `periodicidade_indicador.POR_EVENTO`) entraram via
+> `INSERT` direto na migração (não no seed do `app/database.py`, que só roda pra catálogo NOVO e
+> pularia estas duas em produção - mesmo padrão já usado na migração `5278bf9ee537`, v3.1).
+> Mapa de calor de ocupação (`app/services/ocupacao_espacos.py::mapa_calor_ocupacao`) conta só
+> reserva `CONFIRMADA`/`CONCLUIDA` por dia-da-semana × hora; Recharts (biblioteca de gráfico
+> congelada) não tem heatmap nativo, então a visualização é uma grade de células com cor derivada
+> do token `--primary` via `color-mix` (se adapta a dark mode sozinha, nunca uma escala hexadecimal
+> fixa), `role="gridcell"`/`aria-label` por célula. Frontend construído por um agente em worktree
+> isolado (mesmo padrão da v4.8/v4.9), revisado e integrado manualmente - nenhuma dependência nova.
+>
+> **Ponto de Revisão - FASE 4 (3/3 — fim, fecha v4.8–v4.10)**
+>
+> Checklist padrão (seção 4.1):
+>
+> - [x] **Item 1 (implementado e testado de fato)**: v4.8-v4.10 relidas contra o código real
+>       nesta revisão (routers/services/models/migrações/testes de todas as três), não só pelo
+>       texto do plano.
+> - [x] **Item 2 (testes automatizados existem e passam)**: `pytest` - **384/384 passando**,
+>       suíte completa rodada duas vezes nesta revisão (370/370 antes da v4.10 acrescentar os
+>       testes novos: `test_pesquisa_satisfacao.py` + adições em `test_eventos.py`,
+>       `test_beneficiarios.py`, `test_espacos.py`).
+> - [x] **Item 3 (nenhuma regra congelada violada)**: `alembic heads` mostra uma única head
+>       (`85a120a27eb7`), cadeia linear desde a v4.9. Recharts continua a única biblioteca de
+>       gráfico (heat map é grade de `div`, não uma lib nova). Nenhuma dependência nova no
+>       `painel/package.json` nem em `requirements.txt`. MFA do painel não foi tocado (decisão
+>       congelada §3.1 permanece de pé, ver `CLAUDE.md`).
+> - [x] **Item 4 (nenhum segredo exposto)**: `git status` limpo antes do commit, nenhum segredo
+>       novo introduzido nos diffs revisados.
+> - [x] **Item 5 (AuditLog de verdade)**: toda escrita nova grava auditoria -
+>       `beneficiarios`/UPDATE, `reservas_espaco`/UPDATE, `inscricoes`/`beneficiarios`/
+>       `reservas_espaco` EXPORTAR, `respostas_pesquisa_satisfacao`/CONVIDAR e RESPONDER_PUBLICO
+>       (este último sem usuário, mesmo padrão SISTEMA já usado pela inscrição pública v4.6).
+> - [x] **Item 6 (permissão checada no backend)**: as três permissões de exportação e a edição de
+>       beneficiário/reserva são checadas via `Depends(exigir_permissao(...))` no router, nunca só
+>       escondidas no front - provado por teste (403 pra quem só tem `"projetos"` sem a permissão
+>       de exportação específica, nas três telas).
+> - [x] **Item 7 (nada fora de escopo adiantado)**: a página pública de resposta da pesquisa de
+>       satisfação (`/pesquisa-satisfacao/{token}`, sem login) foi deliberadamente NÃO construída
+>       no painel - é API pronta pro site institucional (FASE 5, Astro, outro repositório)
+>       consumir quando existir, mesmo raciocínio já registrado na v4.8 pra portaria.
+> - [x] **Item 8 (plano atualizado)**: este bloco.
+> - [x] **Item 9 (suíte completa, não só o intervalo)**: mesma suíte do item 2 - 384/384 cobre
+>       FASE 0-4 inteira, nada anterior quebrou silenciosamente.
+> - [x] **Item 10 (tela real no painel)**: confirmado por screen novo/alterado - `Beneficiarios.tsx`
+>       (novo), `SecaoInscritos`/`SecaoEdicoes`/`SecaoPesquisaSatisfacao` (Eventos.tsx),
+>       `SecaoReservas`/`SecaoMapaCalorOcupacao` (Espacos.tsx), `SecaoIndicadores` (Projetos.tsx) -
+>       `npm run typecheck`/`build`/`lint`/`format:check` e a suíte E2E (10/10, `Deploy Painel`)
+>       verdes contra este código real, não só a rota existindo.
+> - [x] **Item 11 (link/arquivo produzido foi aberto de verdade)**: esta versão não produz nenhum
+>       arquivo/documento novo pra abrir (os botões de exportar renderizam tabela em tela, nunca
+>       download) - o único "link" novo (token da pesquisa de satisfação) só é clicável a partir
+>       do futuro site institucional, que ainda não existe; confirmado em vez disso por uma
+>       chamada HTTP real e não-destrutiva à mesma rota em produção (ver abaixo).
+> - Específicos desta revisão: exportação de inscritos/beneficiários/reservas (v4.10) nunca é
+>   ação corriqueira sem auditoria - confirmado acima (item 5/6) e por teste dedicado em cada uma
+>   das três telas. Certificado (v4.8) só é emitido quando a elegibilidade é realmente atingida -
+>   reconferido nesta revisão, `app/services/certificados.py` sem nenhuma mudança nesta faixa que
+>   tocasse esse caminho, suíte de certificados permanece verde.
+>
+> **Verificado em produção, ao vivo, nesta revisão**: `Deploy API` (`gh run view 36794521349`,
+> job `build-and-deploy` verde ponta a ponta - testes, migração Alembic `85a120a27eb7` aplicada,
+> build da imagem, atualização do Container App) e `Deploy Painel` (`gh run view 36794521288`,
+> incluindo a suíte E2E de acessibilidade/login/MFA, 10/10) verdes para o commit que fecha a fase
+> (`a25dbfd`); `painel.asaf.org.br/version.json` confirmando esse mesmo commit; os dez endpoints
+> novos desta versão (`/api/inscricoes/exportar`, `/api/beneficiarios/exportar`,
+> `/api/beneficiarios/{id}` PUT, `/api/reservas-espaco/exportar`,
+> `/api/espacos/ocupacao-mapa-calor`, `/api/eventos/{id}/comparacao-edicoes`,
+> `/api/eventos/{id}/pesquisa-satisfacao/convidar` e `/resultado`,
+> `/pesquisa-satisfacao/{token}` e `/responder`) presentes no `openapi.json` de produção; uma
+> chamada real (não só de schema) a `GET /pesquisa-satisfacao/token-inexistente...` respondendo
+> `404 {"detail": "Link de pesquisa de satisfação inválido."}` exatamente como o código prevê -
+> prova que a rota pública nova está de fato no ar, não só no repositório.
+>
+> **FASE 4 fechada.** Todas as dez versões (v4.0-v4.10) concluídas, testadas e confirmadas em
+> produção.
+
 ---
