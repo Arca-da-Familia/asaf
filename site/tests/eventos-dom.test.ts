@@ -162,18 +162,60 @@ describe('iniciarEventos', () => {
     ).toMatch(/Nenhum evento/)
   })
 
-  it('API fora do ar: mensagem de erro e "Tentar novamente" que de fato tenta de novo', async () => {
+  it('API fora do ar de verdade: tenta 2 vezes, mostra erro, e "Tentar novamente" recupera', async () => {
     const fetchImpl = vi
       .fn()
-      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
-      .mockResolvedValueOnce(respostaJson([evento()]))
-    await iniciarEventos(container, { agora: AGORA, fetchImpl })
+      .mockRejectedValue(new TypeError('Failed to fetch'))
+    await iniciarEventos(container, {
+      agora: AGORA,
+      fetchImpl,
+      esperaEntreTentativasMs: 0,
+    })
     expect(container.querySelector('[data-estado="erro"]')).not.toBeNull()
+    expect(fetchImpl).toHaveBeenCalledTimes(2) // 1ª tentativa + 1 nova antes de desistir
 
+    fetchImpl.mockResolvedValue(respostaJson([evento()]))
     container.querySelector('button')!.click()
     await vi.waitFor(() =>
       expect(container.querySelector('[data-estado="lista"]')).not.toBeNull(),
     )
+  })
+
+  it('PARTIDA A FRIO: falha passageira na 1ª tentativa (API acordando) se resolve sozinha, sem mostrar erro', async () => {
+    // Foi o defeito achado em produção: a API escala a zero e a 1ª chamada depois de um tempo
+    // parado falha/demora. O visitante não pode ver "erro" por algo que passa em segundos.
+    const fetchImpl = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(respostaJson([evento()]))
+    await iniciarEventos(container, {
+      agora: AGORA,
+      fetchImpl,
+      esperaEntreTentativasMs: 0,
+    })
+    expect(container.querySelector('[data-estado="lista"]')).not.toBeNull()
+    expect(container.querySelector('[data-estado="erro"]')).toBeNull()
     expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('avisa que pode demorar quando a API leva tempo, e o aviso some quando chega', async () => {
+    let entregar!: (r: Response) => void
+    const fetchImpl = vi.fn(
+      () => new Promise<Response>((resolver) => (entregar = resolver)),
+    ) as unknown as typeof fetch
+    const carregando = iniciarEventos(container, {
+      agora: AGORA,
+      fetchImpl,
+      dicaAposMs: 20,
+    })
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain('pode levar alguns segundos'),
+    )
+    expect(container.querySelector('[data-estado="carregando"]')).not.toBeNull()
+
+    entregar(respostaJson([evento()]))
+    await carregando
+    expect(container.querySelector('[data-estado="lista"]')).not.toBeNull()
+    expect(container.textContent).not.toContain('pode levar alguns segundos')
   })
 })

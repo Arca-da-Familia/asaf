@@ -134,7 +134,17 @@ export function mostrarMensagem(
 export interface OpcoesIlha {
   agora?: Date
   fetchImpl?: typeof fetch
+  /** Depois deste tempo carregando, a mensagem avisa que pode demorar. */
+  dicaAposMs?: number
+  timeoutMs?: number
+  esperaEntreTentativasMs?: number
 }
+
+/** Quanto esperar antes de avisar que está demorando (API acordando da partida a frio). */
+const DICA_APOS_MS = 4000
+/** Por tentativa. Partida a frio da API leva segundos; 2 tentativas cobrem o pior caso. */
+const TIMEOUT_POR_TENTATIVA_MS = 20_000
+const TENTATIVAS = 2
 
 /** Carrega e desenha os eventos dentro de `container` (que traz `data-api-url`). */
 export async function iniciarEventos(
@@ -143,10 +153,24 @@ export async function iniciarEventos(
 ): Promise<void> {
   container.setAttribute('aria-busy', 'true')
   mostrarMensagem(container, 'Carregando eventos…', 'carregando')
+  // A API escala a zero: a 1ª visita depois de um tempo parado espera o contêiner acordar.
+  // Em vez de um "Carregando…" mudo, avisa que é normal demorar um pouco.
+  const avisoDeDemora = setTimeout(
+    () =>
+      mostrarMensagem(
+        container,
+        'Ainda carregando os eventos… isso pode levar alguns segundos.',
+        'carregando',
+      ),
+    opcoes.dicaAposMs ?? DICA_APOS_MS,
+  )
   try {
     const todos = await buscarEventosPublicos({
       baseUrl: container.dataset.apiUrl ?? '',
       fetchImpl: opcoes.fetchImpl,
+      timeoutMs: opcoes.timeoutMs ?? TIMEOUT_POR_TENTATIVA_MS,
+      tentativas: TENTATIVAS,
+      esperaEntreTentativasMs: opcoes.esperaEntreTentativasMs,
     })
     const proximos = eventosFuturos(todos, opcoes.agora)
     if (proximos.length === 0) {
@@ -166,6 +190,7 @@ export async function iniciarEventos(
       () => void iniciarEventos(container, opcoes),
     )
   } finally {
+    clearTimeout(avisoDeDemora)
     container.setAttribute('aria-busy', 'false')
   }
 }

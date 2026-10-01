@@ -61,6 +61,41 @@ test('API fora do ar: avisa e o "Tentar novamente" recupera quando ela volta', a
   await expect(page.locator('#eventos h3').first()).toBeVisible()
 })
 
+test('PARTIDA A FRIO: 1ª tentativa falha (API acordando), a 2ª funciona — o visitante não vê erro', async ({
+  page,
+}) => {
+  // Reproduz o defeito achado no 1º teste em produção: a API escala a zero e a primeira
+  // chamada depois de um tempo parado falha. Aqui a 1ª é derrubada e as seguintes passam.
+  let chamadas = 0
+  await page.route('**/api/publico/eventos', (rota) => {
+    chamadas += 1
+    return chamadas === 1 ? rota.abort() : rota.continue()
+  })
+  await page.goto('/')
+  await expect(page.locator('#eventos h3').first()).toBeVisible()
+  await expect(page.locator('[data-estado="erro"]')).toHaveCount(0)
+  expect(chamadas).toBe(2)
+})
+
+test('API lenta: avisa que pode demorar e mostra a lista quando chega', async ({
+  page,
+}) => {
+  await page.route('**/api/publico/eventos', async (rota) => {
+    await new Promise((resolver) => setTimeout(resolver, 5500))
+    await rota.continue()
+  })
+  await page.goto('/')
+  await expect(
+    page.locator('#eventos [data-estado="carregando"]'),
+  ).toContainText('pode levar alguns segundos')
+  await expect(page.locator('#eventos h3').first()).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(page.locator('#eventos')).not.toContainText(
+    'pode levar alguns segundos',
+  )
+})
+
 test('API responde 500: trata como erro, sem quebrar a página', async ({
   page,
 }) => {

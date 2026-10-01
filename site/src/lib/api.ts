@@ -18,12 +18,43 @@ export class ApiError extends Error {
 
 export interface OpcoesBusca {
   baseUrl: string
-  /** Tempo máximo de espera. A API escala a zero (primeira chamada pode demorar). */
+  /** Tempo máximo de espera de CADA tentativa. */
   timeoutMs?: number
+  /**
+   * Total de tentativas (1 = sem nova tentativa). Só repete o que pode ser passageiro: falha de
+   * rede, timeout e erro 5xx. Erro 4xx nunca é repetido (pedido errado continua errado).
+   *
+   * Existe porque a API escala a ZERO (decisão de custo congelada): depois de um período sem
+   * visita, a primeira chamada pode levar vários segundos ou falhar enquanto o contêiner acorda.
+   * Sem repetir, o primeiro visitante do dia veria uma mensagem de erro por algo que se resolve
+   * sozinho em segundos — foi o que aconteceu no primeiro teste em produção.
+   */
+  tentativas?: number
+  esperaEntreTentativasMs?: number
   fetchImpl?: typeof fetch
 }
 
 export async function buscarJson<T>(
+  caminho: string,
+  opcoes: OpcoesBusca,
+): Promise<T> {
+  const { tentativas = 1, esperaEntreTentativasMs = 1500 } = opcoes
+  for (let tentativa = 1; ; tentativa++) {
+    try {
+      return await umaTentativa<T>(caminho, opcoes)
+    } catch (erro) {
+      const passageiro =
+        erro instanceof ApiError &&
+        (erro.status === undefined || erro.status >= 500)
+      if (!passageiro || tentativa >= tentativas) throw erro
+      await new Promise((resolver) =>
+        setTimeout(resolver, esperaEntreTentativasMs),
+      )
+    }
+  }
+}
+
+async function umaTentativa<T>(
   caminho: string,
   { baseUrl, timeoutMs = 10_000, fetchImpl = fetch }: OpcoesBusca,
 ): Promise<T> {

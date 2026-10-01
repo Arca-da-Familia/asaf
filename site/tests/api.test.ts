@@ -64,6 +64,54 @@ describe('buscarJson', () => {
   })
 })
 
+describe('buscarJson — repetir só o que é passageiro (API que escala a zero)', () => {
+  const base = { baseUrl: 'https://a.org', esperaEntreTentativasMs: 0 }
+
+  it('por padrão faz UMA tentativa só', async () => {
+    const fetchImpl = vi.fn().mockRejectedValue(new TypeError('x'))
+    await buscarJson('/x', { ...base, fetchImpl }).catch(() => undefined)
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('falha de rede na 1ª tentativa e sucesso na 2ª devolve o dado', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(respostaJson([{ ok: true }]))
+    const dados = await buscarJson('/x', { ...base, fetchImpl, tentativas: 2 })
+    expect(dados).toEqual([{ ok: true }])
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('erro 503 (contêiner subindo) também é repetido', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(respostaJson({}, 503))
+      .mockResolvedValueOnce(respostaJson({ ok: 1 }))
+    await buscarJson('/x', { ...base, fetchImpl, tentativas: 2 })
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('erro 4xx NUNCA é repetido (pedido errado continua errado)', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(respostaJson({}, 404))
+    const erro = await buscarJson('/x', {
+      ...base,
+      fetchImpl,
+      tentativas: 3,
+    }).catch((e: unknown) => e)
+    expect((erro as ApiError).status).toBe(404)
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('desiste depois de esgotar as tentativas, com ApiError', async () => {
+    const fetchImpl = vi.fn().mockRejectedValue(new TypeError('x'))
+    await expect(
+      buscarJson('/x', { ...base, fetchImpl, tentativas: 3 }),
+    ).rejects.toBeInstanceOf(ApiError)
+    expect(fetchImpl).toHaveBeenCalledTimes(3)
+  })
+})
+
 describe('buscarEventosPublicos', () => {
   it('chama a rota pública de leitura de eventos', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(respostaJson([]))
