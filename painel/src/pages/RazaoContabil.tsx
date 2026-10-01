@@ -50,7 +50,7 @@ function FormularioEstorno({
       schema={estornoCriarSchema}
       defaultValues={{ motivo: '' }}
       onSubmit={(v) => estornar.mutateAsync(v)}
-      className="mt-2 space-y-2 rounded-md border border-border bg-muted/20 p-3"
+      className="mt-2 v3-space-y-2 rounded-md border border-border bg-muted/20 p-3"
     >
       {(form) => (
         <>
@@ -250,7 +250,7 @@ export function RazaoContabilPage() {
           <FormularioTransferencia onCancelar={() => setTransferindo(false)} />
         )}
 
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(data?.lancamentos ?? []).map((l) => (
             <div
               key={l.id_lancamento}

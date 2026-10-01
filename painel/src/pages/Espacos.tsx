@@ -681,7 +681,7 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
         </FormShell>
       )}
       {criarRecorrente.data && (
-        <div className="mb-3 space-y-1 rounded-md border border-border p-2 text-xs">
+        <div className="mb-3 v3-space-y-1 rounded-md border border-border p-2 text-xs">
           {criarRecorrente.data.ocorrencias.map((o) => (
             <p
               key={o.ocorrencia}
@@ -693,7 +693,7 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
           ))}
         </div>
       )}
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(reservas ?? []).map((r) => (
           <div
             key={r.id_reserva}
@@ -950,7 +950,7 @@ function SecaoBloqueios({ idEspaco }: { idEspaco: number }) {
           )}
         </FormShell>
       )}
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(bloqueios ?? []).map((b) => (
           <div
             key={b.id_bloqueio}
@@ -1099,7 +1099,7 @@ function SecaoIsencoesEspaco({ idEspaco }: { idEspaco: number }) {
           </>
         )}
       </FormShell>
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(isencoes ?? []).map((i) => (
           <div
             key={i.id_isencao}
@@ -1302,7 +1302,7 @@ function SecaoMapaCalorOcupacao({ espacos }: { espacos: Espaco[] }) {
 
 function DetalheEspaco({ espaco }: { espaco: Espaco }) {
   return (
-    <div className="space-y-6 rounded-xl border border-border bg-card p-6">
+    <div className="v3-space-y-6 rounded-xl border border-border bg-card p-6">
       <div>
         <h2 className="font-semibold">{espaco.nome}</h2>
         <p className="text-sm text-muted-foreground">
@@ -1356,7 +1356,7 @@ export function EspacosPage() {
         {mostrarForm && (
           <FormularioEspaco onCancelar={() => setMostrarForm(false)} />
         )}
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(espacos ?? []).map((e) => (
             <div
               key={e.id_espaco}

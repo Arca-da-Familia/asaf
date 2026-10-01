@@ -24,7 +24,7 @@ export function CamposPersonalizadosFields<T extends FieldValues>({
   if (definicoes.length === 0) return null
 
   return (
-    <div className="space-y-4 border-t border-border pt-4">
+    <div className="v3-space-y-4 border-t border-border pt-4">
       {definicoes.map((definicao) => (
         <CampoPersonalizado
           key={definicao.id_definicao}

@@ -50,7 +50,7 @@ function BlocoEncerrarMandato({
       schema={mandatoEncerrarSchema}
       defaultValues={{ motivo: 'Renúncia', referencia_ato: '' }}
       onSubmit={(v) => encerrar.mutateAsync(v)}
-      className="mt-2 space-y-2 rounded-md border border-border bg-muted/20 p-3"
+      className="mt-2 v3-space-y-2 rounded-md border border-border bg-muted/20 p-3"
     >
       {(form) => (
         <>
@@ -278,7 +278,7 @@ function BlocoMandatos() {
         </FormShell>
       )}
 
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(mandatos ?? []).map((m) => (
           <div
             key={m.id_mandato}
@@ -389,7 +389,7 @@ function BlocoConflitoInteresse() {
           schema={declaracaoConflitoCriarSchema}
           defaultValues={{ id_associado: 0, descricao: '' }}
           onSubmit={(v) => declarar.mutateAsync(v)}
-          className="mb-4 space-y-2 rounded-md border border-border p-3"
+          className="mb-4 v3-space-y-2 rounded-md border border-border p-3"
         >
           {(form) => (
             <>
@@ -423,7 +423,7 @@ function BlocoConflitoInteresse() {
         </FormShell>
       )}
 
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(declaracoes ?? []).map((d) => (
           <div
             key={d.id_declaracao}

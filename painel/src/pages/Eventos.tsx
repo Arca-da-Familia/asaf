@@ -315,7 +315,7 @@ function SecaoSessoes({ idEvento }: { idEvento: number }) {
           </>
         )}
       </FormShell>
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(sessoes ?? []).map((s) => (
           <div
             key={s.id_sessao}
@@ -413,7 +413,7 @@ function SecaoPerguntas({ idEvento }: { idEvento: number }) {
           </>
         )}
       </FormShell>
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(perguntas ?? []).map((p) => (
           <div
             key={p.id_pergunta}
@@ -497,7 +497,7 @@ function SecaoCotas({ idEvento }: { idEvento: number }) {
           </>
         )}
       </FormShell>
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(cotas ?? []).map((c) => (
           <div
             key={c.id_cota}
@@ -581,7 +581,7 @@ function SecaoEdicoes({ evento }: { evento: Evento }) {
           )}
         </FormShell>
       )}
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(edicoes ?? []).map((e) => (
           <div
             key={e.id_evento}
@@ -830,7 +830,7 @@ function SecaoInscritos({ evento }: { evento: Evento }) {
           )}
         </div>
       )}
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(inscritos ?? []).map((i) => (
           <LinhaInscrito key={i.id_inscricao} inscrito={i} onErro={setErro} />
         ))}
@@ -1098,7 +1098,7 @@ function SecaoFaixasPreco({ idEvento }: { idEvento: number }) {
           </>
         )}
       </FormShell>
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(faixas ?? []).map((f) => (
           <div
             key={f.id_faixa}
@@ -1228,7 +1228,7 @@ function SecaoCupons({ idEvento }: { idEvento: number }) {
           </>
         )}
       </FormShell>
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(cupons ?? []).map((c) => (
           <div
             key={c.id_cupom}
@@ -1392,7 +1392,7 @@ function SecaoIsencoesEvento({ idEvento }: { idEvento: number }) {
           </>
         )}
       </FormShell>
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(isencoes ?? []).map((i) => (
           <div
             key={i.id_isencao}
@@ -1555,7 +1555,7 @@ function SecaoFechamentoEvento({ idEvento }: { idEvento: number }) {
           {(gerar.error as Error).message}
         </p>
       )}
-      <div className="mt-3 space-y-1">
+      <div className="mt-3 v3-space-y-1">
         {(fechamentos ?? []).map((f) => (
           <div
             key={f.id_fechamento}
@@ -1690,7 +1690,7 @@ function SecaoPortaria({ idEvento }: { idEvento: number }) {
         </div>
       )}
 
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(tokens ?? []).map((t) => (
           <div
             key={t.id_token_portaria}
@@ -1765,7 +1765,7 @@ function FormularioTemplateDocumento({
         schema={templateDocumentoCriarSchema}
         defaultValues={{ codigo, nome: sugestaoNome, corpo_texto: '' }}
         onSubmit={(v) => criar.mutateAsync(v)}
-        className="space-y-2"
+        className="v3-space-y-2"
       >
         {(form) => (
           <>
@@ -1911,7 +1911,7 @@ function SecaoElegibilidade({ evento }: { evento: Evento }) {
         Elegibilidade, crachá e certificado
       </h3>
 
-      <div className="mb-3 space-y-2">
+      <div className="mb-3 v3-space-y-2">
         {(!temCracha || !temCertificado) && !podeCadastrarTemplate && (
           <p className="rounded-md border border-border bg-muted/30 p-2 text-sm text-muted-foreground">
             Ainda falta cadastrar o modelo de{' '}
@@ -1993,7 +1993,7 @@ function SecaoElegibilidade({ evento }: { evento: Evento }) {
         )}
       </FormShell>
 
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(elegibilidade ?? []).map((p) => {
           const resultadoCracha = resultados[`cracha:${p.id_pessoa}`]
           const resultadoCertificado = resultados[`certificado:${p.id_pessoa}`]
@@ -2259,7 +2259,7 @@ function SecaoPesquisaSatisfacao({ idEvento }: { idEvento: number }) {
               ` · nota média ${resultado.nota_media.toFixed(1)} / 10`}
           </p>
           {resultado.comentarios.length > 0 ? (
-            <ul className="mt-2 space-y-1">
+            <ul className="mt-2 v3-space-y-1">
               {resultado.comentarios.map((c, i) => (
                 <li key={i} className="rounded-md bg-muted/40 p-2 text-xs">
                   {c}
@@ -2279,7 +2279,7 @@ function SecaoPesquisaSatisfacao({ idEvento }: { idEvento: number }) {
 
 function DetalheEvento({ evento }: { evento: Evento }) {
   return (
-    <div className="space-y-6 rounded-xl border border-border bg-card p-6">
+    <div className="v3-space-y-6 rounded-xl border border-border bg-card p-6">
       <div>
         <h2 className="font-semibold">{evento.titulo}</h2>
         {evento.descricao && (
@@ -2346,7 +2346,7 @@ export function EventosPage() {
         {mostrarForm && (
           <FormularioEvento onCancelar={() => setMostrarForm(false)} />
         )}
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(eventos ?? []).map((e) => (
             <div
               key={e.id_evento}

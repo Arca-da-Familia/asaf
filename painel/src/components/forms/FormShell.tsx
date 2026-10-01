@@ -71,7 +71,14 @@ export function FormShell<T extends FieldValues>({
   return (
     <form
       onSubmit={form.handleSubmit(handleSubmit)}
-      className={cn('space-y-4', className)}
+      // Espaçamento padrão entre os filhos. `v3-space-y-*` (design/theme.css) e não `space-y-*`: as telas
+      // passam `flex flex-wrap items-end`/`grid` em className e só a regra do Tailwind 3 mantém esses
+      // formulários como eram. O twMerge não conhece o nome novo, então o padrão sai quando a tela
+      // traz o seu próprio `v3-space-y-*`.
+      className={cn(
+        !/(^|\s)v3-space-y-/.test(className ?? '') && 'v3-space-y-4',
+        className,
+      )}
       noValidate
     >
       {erroGeral && (

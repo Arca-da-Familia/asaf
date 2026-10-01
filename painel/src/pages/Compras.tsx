@@ -75,7 +75,7 @@ function PainelCotacoesEAprovacao({
   return (
     <div className="mt-2 rounded-md border border-border bg-muted/20 p-3 text-sm">
       <p className="mb-1 font-medium">Cotações</p>
-      <div className="mb-2 space-y-1">
+      <div className="mb-2 v3-space-y-1">
         {(cotacoes ?? []).map((c) => (
           <p key={c.id_cotacao} className="text-xs text-muted-foreground">
             {(fornecedores ?? []).find(
@@ -314,7 +314,7 @@ export function ComprasPage() {
           </FormShell>
         )}
 
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(solicitacoes ?? []).map((s) => (
             <div
               key={s.id_solicitacao}

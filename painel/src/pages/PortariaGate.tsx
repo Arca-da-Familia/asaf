@@ -415,7 +415,7 @@ function PortariaGateConteudo({ token }: { token: string }) {
     fila.itens.find((i) => i.chave_idempotencia === chaveUltimaAcao) ?? null
 
   return (
-    <main className="mx-auto min-h-screen max-w-md space-y-4 bg-background px-4 py-6">
+    <main className="mx-auto min-h-screen max-w-md v3-space-y-4 bg-background px-4 py-6">
       <header>
         {carregandoEvento || !evento ? (
           <p className="text-sm text-muted-foreground">Carregando evento…</p>
@@ -480,7 +480,7 @@ function PortariaGateConteudo({ token }: { token: string }) {
           </Button>
         </div>
 
-        <form onSubmit={aoSubmeterFormulario} className="space-y-3">
+        <form onSubmit={aoSubmeterFormulario} className="v3-space-y-3">
           <div>
             <label
               htmlFor="valor-portaria"
@@ -540,7 +540,7 @@ function PortariaGateConteudo({ token }: { token: string }) {
 
         <div className="mt-3 border-t border-border pt-3">
           {leitorAberto ? (
-            <div className="space-y-2">
+            <div className="v3-space-y-2">
               <video
                 ref={videoRef}
                 muted

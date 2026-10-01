@@ -163,7 +163,7 @@ function LinhaDeliberacao({ deliberacao }: { deliberacao: Deliberacao }) {
       )}
 
       {aba === 'concluir' && (
-        <div className="mt-3 space-y-2 rounded-md border border-border p-3">
+        <div className="mt-3 v3-space-y-2 rounded-md border border-border p-3">
           <input
             value={observacao}
             onChange={(e) => setObservacao(e.target.value)}
@@ -253,7 +253,7 @@ function FormMandato({
   }
 
   return (
-    <div className="space-y-2 rounded-md border border-dashed border-border p-3">
+    <div className="v3-space-y-2 rounded-md border border-dashed border-border p-3">
       <p className="text-xs font-medium text-muted-foreground">
         Mandato criado junto (Eleição, v2.1)
       </p>
@@ -329,7 +329,7 @@ function BlocoDeliberacoes({ idAta }: { idAta: number }) {
           schema={deliberacaoCriarSchema}
           defaultValues={{ tipo: 'Genérica', texto: '' }}
           onSubmit={(v) => criar.mutateAsync(v)}
-          className="mb-4 space-y-2 rounded-md border border-border p-3"
+          className="mb-4 v3-space-y-2 rounded-md border border-border p-3"
         >
           {(form) => (
             <>
@@ -371,7 +371,7 @@ function BlocoDeliberacoes({ idAta }: { idAta: number }) {
         </FormShell>
       )}
 
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(deliberacoes ?? []).map((d) => (
           <LinhaDeliberacao key={d.id_deliberacao} deliberacao={d} />
         ))}

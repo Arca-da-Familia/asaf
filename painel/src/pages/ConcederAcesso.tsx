@@ -50,7 +50,7 @@ export function ConcederAcessoPage() {
             Entregue estes dados ao associado. Ele será obrigado a trocar a
             senha no primeiro login.
           </p>
-          <dl className="mb-6 space-y-2 text-sm">
+          <dl className="mb-6 v3-space-y-2 text-sm">
             <div className="flex gap-2">
               <dt className="text-muted-foreground">E-mail de login:</dt>
               <dd className="font-mono">{senhaEntregue.email}</dd>

@@ -109,7 +109,7 @@ export function NegociacaoDividaPage() {
         {idAssociado && (
           <>
             <h2 className="mb-2 font-semibold">Títulos vencidos</h2>
-            <div className="mb-4 space-y-1">
+            <div className="mb-4 v3-space-y-1">
               {titulosVencidosDoAssociado.map((t) => (
                 <label
                   key={t.id_titulo}
@@ -212,7 +212,7 @@ export function NegociacaoDividaPage() {
       {idAssociado && (
         <section className="rounded-xl border border-border bg-card p-6">
           <h2 className="mb-4 font-semibold">Histórico de negociações</h2>
-          <div className="space-y-2">
+          <div className="v3-space-y-2">
             {(negociacoes ?? []).map((n) => (
               <div
                 key={n.id_negociacao}

@@ -149,7 +149,7 @@ export function FileUpload({
       )}
 
       {arquivos.length > 0 && (
-        <ul className="mt-3 space-y-2">
+        <ul className="mt-3 v3-space-y-2">
           {arquivos.map((a) => (
             <li
               key={a.id}

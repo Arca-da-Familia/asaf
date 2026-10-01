@@ -168,7 +168,7 @@ export function ProcessosDisciplinaresPage() {
         </FormShell>
       )}
 
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(processos ?? []).map((p) => (
           <Link
             key={p.id_processo}
@@ -254,7 +254,7 @@ function BlocoManifestacoes({ idProcesso }: { idProcesso: number }) {
         schema={manifestacaoCriarSchema}
         defaultValues={{ pena_proposta: '', justificativa: '' }}
         onSubmit={(v) => manifestar.mutateAsync(v)}
-        className="space-y-2"
+        className="v3-space-y-2"
       >
         {(form) => (
           <>
@@ -396,7 +396,7 @@ export function ProcessoDisciplinarDetalhePage() {
             schema={defesaApresentarSchema}
             defaultValues={{ texto: '' }}
             onSubmit={(v) => defender.mutateAsync(v)}
-            className="space-y-2"
+            className="v3-space-y-2"
           >
             {(form) => (
               <>
@@ -435,7 +435,7 @@ export function ProcessoDisciplinarDetalhePage() {
             schema={decisaoExecutarSchema}
             defaultValues={{ texto_decisao: '', suspensao_dias: undefined }}
             onSubmit={(v) => decidir.mutateAsync(v)}
-            className="space-y-2"
+            className="v3-space-y-2"
           >
             {(form) => (
               <>
@@ -479,7 +479,7 @@ export function ProcessoDisciplinarDetalhePage() {
             schema={homologarSchema}
             defaultValues={{ aprovado: 'sim', justificativa: '' }}
             onSubmit={(v) => homologar.mutateAsync(v)}
-            className="space-y-2"
+            className="v3-space-y-2"
           >
             {(form) => (
               <>

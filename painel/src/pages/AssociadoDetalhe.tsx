@@ -155,7 +155,7 @@ function DadosEFotoTab({
   })
 
   return (
-    <div className="space-y-6">
+    <div className="v3-space-y-6">
       <section className="rounded-xl border border-border bg-card p-6">
         <h2 className="mb-4 font-semibold">Foto</h2>
         <div className="flex items-center gap-4">
@@ -384,7 +384,7 @@ function Ficha360Tab({ idAssociado }: { idAssociado: number }) {
     }).format(valor)
 
   return (
-    <div className="space-y-6">
+    <div className="v3-space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <section className="rounded-xl border border-border bg-card p-6">
           <h2 className="mb-1 font-semibold">Situação financeira</h2>
@@ -421,7 +421,7 @@ function Ficha360Tab({ idAssociado }: { idAssociado: number }) {
       <section className="rounded-xl border border-border bg-card p-6">
         <h2 className="mb-4 font-semibold">Linha do tempo</h2>
         {ficha.linha_do_tempo.length > 0 ? (
-          <ol className="space-y-4 border-l border-border pl-4">
+          <ol className="v3-space-y-4 border-l border-border pl-4">
             {ficha.linha_do_tempo.map((e) => (
               <li key={e.id_evento}>
                 <p className="text-sm font-medium">{e.titulo}</p>
@@ -631,7 +631,7 @@ function FamiliaTab({ idPessoaTitular }: { idPessoaTitular: number }) {
             onSubmit={(v) => adicionar.mutateAsync(v)}
           >
             {(form) => (
-              <div className="space-y-4">
+              <div className="v3-space-y-4">
                 <div>
                   <label className="text-sm font-medium">
                     Grau de parentesco *

@@ -194,7 +194,7 @@ function SecaoOrcamentos() {
       {mostrarForm && (
         <FormularioOrcamento onCancelar={() => setMostrarForm(false)} />
       )}
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(orcamentos ?? []).map((o) => {
           const conta = (contas ?? []).find(
             (c) => c.id_conta === o.id_conta_contabil,
@@ -256,7 +256,7 @@ function SecaoFluxoDeCaixa() {
   return (
     <section className="mb-6 rounded-xl border border-border bg-card p-6">
       <h2 className="mb-4 font-semibold">Fluxo de caixa projetado</h2>
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(fluxo?.meses ?? []).map((m) => (
           <div
             key={m.competencia}
@@ -422,7 +422,7 @@ function SecaoReservaContingencia() {
           onCancelar={() => setMostrarForm(false)}
         />
       )}
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(reservas ?? []).map((r) => {
           const contaFinanceira = (contasFinanceiras ?? []).find(
             (c) => c.id_conta_financeira === r.id_conta_financeira,

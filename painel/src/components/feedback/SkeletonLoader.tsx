@@ -8,7 +8,7 @@ export function SkeletonLoader({ className }: SkeletonLoaderProps) {
 
 export function SkeletonTabela({ linhas = 5 }: { linhas?: number }) {
   return (
-    <div className="space-y-3">
+    <div className="v3-space-y-3">
       {Array.from({ length: linhas }).map((_, i) => (
         <div key={i} className="flex items-center gap-4">
           <SkeletonLoader className="h-4 w-8" />

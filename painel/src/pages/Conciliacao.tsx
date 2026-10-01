@@ -118,7 +118,7 @@ function SecaoFechamentoMensal() {
           </>
         )}
       </FormShell>
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(fechamentos ?? []).map((f) => (
           <div
             key={f.id_fechamento}
@@ -186,7 +186,7 @@ export function ConciliacaoPage() {
         </div>
 
         {transacoes && (
-          <div className="space-y-2">
+          <div className="v3-space-y-2">
             <p className="text-sm text-muted-foreground">
               {transacoes.length} transação(ões) encontrada(s) no extrato.
             </p>

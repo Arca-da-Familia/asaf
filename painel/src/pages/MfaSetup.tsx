@@ -105,7 +105,7 @@ export function MfaSetup() {
             <p className="text-sm text-muted-foreground">Gerando QR code…</p>
           )}
 
-          <form onSubmit={confirmar} className="mt-4 space-y-4">
+          <form onSubmit={confirmar} className="mt-4 v3-space-y-4">
             <div>
               <label htmlFor="codigo" className="text-sm font-medium">
                 Código do autenticador

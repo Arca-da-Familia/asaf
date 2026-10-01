@@ -97,7 +97,7 @@ export function AssociadosGraficosPage() {
       ) : dados.length === 0 ? (
         <EmptyState titulo="Nenhum associado cadastrado ainda" />
       ) : (
-        <div className="space-y-6">
+        <div className="v3-space-y-6">
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-xl border border-border bg-card p-6">
               <p className="text-xs font-medium uppercase text-muted-foreground">

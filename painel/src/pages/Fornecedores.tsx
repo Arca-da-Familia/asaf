@@ -232,7 +232,7 @@ function PainelDadosBancarios({ idFornecedor }: { idFornecedor: number }) {
         </FormShell>
       )}
 
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(historico ?? []).map((h) => (
           <div
             key={h.id_dados_bancarios}
@@ -376,7 +376,7 @@ export function FornecedoresPage() {
 
         {erro && <p className="mb-2 text-sm text-destructive">{erro}</p>}
 
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(fornecedores ?? []).map((f) =>
             editando === f.id_fornecedor ? (
               <FormularioFornecedor

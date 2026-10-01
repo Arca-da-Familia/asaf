@@ -180,7 +180,7 @@ export function CalendarioPage() {
         </FormShell>
       )}
 
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(itens ?? []).map((item, i) => (
           <div
             key={`${item.tipo}-${item.data}-${i}`}

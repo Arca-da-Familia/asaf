@@ -7,8 +7,7 @@
   *,
   ::after,
   ::before,
-  ::backdrop,
-  ::file-selector-button {
+  ::backdrop {
     @apply border-border;
   }
   body {
@@ -21,8 +20,9 @@
     @apply outline-hidden ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 
-  /* Compatibilidade com o preflight do Tailwind 3 — o 4 mudou estes dois padrões e o painel
-     (botões, campos) foi desenhado com os antigos: */
+  /* Compatibilidade com o preflight do Tailwind 3 — o 4 mudou estes padrões e o painel (botões,
+     campos, tabelas) foi desenhado com os antigos. Cada regra abaixo foi achada medindo a geometria
+     de todos os elementos de 53 telas antes/depois da migração: */
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
@@ -30,5 +30,20 @@
   input::placeholder,
   textarea::placeholder {
     color: #9ca3af; /* cinza-400 do Tailwind 3 (no 4 o placeholder herda a cor do texto a 50%) */
+  }
+  /* O preflight do 4 zera padding de TODOS os elementos; o 3 deixava o 1px padrão do navegador
+     nas células de tabela (th/td sem classes de padding próprias: a tela de Conselho Fiscal e o estado
+     vazio do DataTable mudavam 1-2 px). */
+  td,
+  th {
+    padding: 1px;
+  }
+  /* Botão do <input type=file>: o preflight do 4 zera borda, padding, fundo e raio dele; o 3 não
+     mexia, então ficava com o visual padrão do navegador (tela de importação de associados). */
+  ::file-selector-button {
+    border: revert;
+    padding: revert;
+    background-color: revert;
+    border-radius: revert;
   }
 }

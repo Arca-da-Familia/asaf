@@ -562,7 +562,7 @@ export function PlanosContribuicaoPage() {
           <FormularioPlano onCancelar={() => setMostrarFormPlano(false)} />
         )}
 
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(planos ?? []).map((p) => (
             <div
               key={p.id_plano}
@@ -628,7 +628,7 @@ export function PlanosContribuicaoPage() {
           <FormularioIsencao onCancelar={() => setMostrarFormIsencao(false)} />
         )}
 
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(isencoes ?? []).map((i) => (
             <div
               key={i.id_isencao}
@@ -678,7 +678,7 @@ export function PlanosContribuicaoPage() {
           />
         )}
 
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(campanhas ?? []).map((c) => (
             <div
               key={c.id_campanha}

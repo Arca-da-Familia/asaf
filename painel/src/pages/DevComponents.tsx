@@ -117,7 +117,7 @@ export function DevComponents() {
         trilha={[{ rotulo: 'Início', href: '/' }, { rotulo: 'Componentes' }]}
       />
 
-      <div className="space-y-6">
+      <div className="v3-space-y-6">
         <Secao titulo="Tokens de cor (cores institucionais)">
           <div className="flex flex-wrap gap-3">
             {[
@@ -258,7 +258,7 @@ export function DevComponents() {
                 <SkeletonTabela linhas={3} />
               </div>
             </div>
-            <div className="space-y-6">
+            <div className="v3-space-y-6">
               <Button
                 variant="destructive"
                 onClick={() => setDialogoAberto(true)}

@@ -254,7 +254,7 @@ function BlocoCredenciamento({
           <h3 className="mb-2 text-sm font-semibold text-green-600">
             Presentes ({(credenciados ?? []).length})
           </h3>
-          <div className="space-y-1">
+          <div className="v3-space-y-1">
             {(credenciados ?? []).map((c) => (
               <div
                 key={c.id_credenciamento}
@@ -297,7 +297,7 @@ function BlocoCredenciamento({
           <h3 className="mb-2 text-sm font-semibold text-destructive">
             Faltantes até agora ({faltantes.length})
           </h3>
-          <div className="space-y-1">
+          <div className="v3-space-y-1">
             {faltantes.map((h) => (
               <div
                 key={h.id_associado}
@@ -406,7 +406,7 @@ function BlocoImpugnacoes({ idVotacao }: { idVotacao: number }) {
       )}
 
       {podeGerir && (
-        <div className="mt-2 space-y-2">
+        <div className="mt-2 v3-space-y-2">
           {(impugnacoes ?? []).length === 0 && (
             <p className="text-sm text-muted-foreground">
               Nenhuma impugnação registrada.
@@ -571,7 +571,7 @@ function CardVotacao({ votacaoInicial }: { votacaoInicial: Votacao }) {
           )}
         </>
       ) : (
-        <div className="mt-3 space-y-1 text-sm">
+        <div className="mt-3 v3-space-y-1 text-sm">
           {votacao.resultado_contagem &&
             Object.entries(votacao.resultado_contagem).map(([opcao, qtd]) => (
               <div key={opcao} className="flex justify-between">
@@ -604,7 +604,7 @@ function CardVotacao({ votacaoInicial }: { votacaoInicial: Votacao }) {
           schema={resolverEmpateSchema}
           defaultValues={{ vencedor: '', justificativa: '' }}
           onSubmit={(v) => resolverEmpate.mutateAsync(v)}
-          className="mt-3 space-y-2 border-t border-border pt-3"
+          className="mt-3 v3-space-y-2 border-t border-border pt-3"
         >
           {(form) => (
             <>
@@ -676,7 +676,7 @@ function BlocoVotacoesDoItem({
   })
 
   return (
-    <div className="mt-3 space-y-3 border-t border-border pt-3">
+    <div className="mt-3 v3-space-y-3 border-t border-border pt-3">
       {(votacoes ?? []).map((v) => (
         <CardVotacao key={v.id_votacao} votacaoInicial={v} />
       ))}
@@ -701,7 +701,7 @@ function BlocoVotacoesDoItem({
                 fracao_qualificada: '',
               }}
               onSubmit={(v) => abrir.mutateAsync(v)}
-              className="space-y-2 rounded-md border border-border p-3"
+              className="v3-space-y-2 rounded-md border border-border p-3"
             >
               {(form) => (
                 <>
@@ -929,7 +929,7 @@ function BlocoPauta({
         </FormShell>
       )}
 
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(itens ?? []).map((item) => (
           <LinhaItemPauta
             key={item.id_item}
@@ -996,7 +996,7 @@ function BlocoOcorrencias({
         </FormShell>
       )}
 
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(ocorrencias ?? []).map((o) => (
           <div
             key={o.id_ocorrencia}
@@ -1056,7 +1056,7 @@ export function SessaoAssembleiaPage() {
       />
 
       {assembleia.status === 'Em andamento' && (
-        <div className="space-y-6">
+        <div className="v3-space-y-6">
           <BlocoCredenciamento
             idAssembleia={idAssembleia}
             statusAssembleia={assembleia.status}
@@ -1067,7 +1067,7 @@ export function SessaoAssembleiaPage() {
       )}
 
       {assembleia.status === 'Realizada' && (
-        <div className="space-y-6">
+        <div className="v3-space-y-6">
           {/* Sessão já encerrada: só a correção de presença continua editável (secretário
               lança quem não conseguiu se autochamar - achado do usuário 2026-09-15). Pauta e
               ocorrências ficam só de leitura, mas visíveis - é aqui que um empate ou

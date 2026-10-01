@@ -200,7 +200,7 @@ export function ContasAPagarRecorrentesPage() {
           </FormShell>
         )}
 
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(contasRecorrentes ?? []).map((c) => (
             <div
               key={c.id_conta_recorrente}
@@ -271,7 +271,7 @@ export function ContasAPagarRecorrentesPage() {
             <p className="mb-2 font-semibold">
               Prévia — competência {previa.competencia}
             </p>
-            <ul className="mb-3 space-y-1 text-sm text-muted-foreground">
+            <ul className="mb-3 v3-space-y-1 text-sm text-muted-foreground">
               <li>
                 {previa.total_gerados} conta(s) a gerar, totalizando{' '}
                 {formatarReais(previa.valor_total)}

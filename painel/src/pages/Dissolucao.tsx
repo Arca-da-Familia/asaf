@@ -79,7 +79,7 @@ export function ProcessosDissolucaoPage() {
           schema={processoDissolucaoCriarSchema}
           defaultValues={{ motivo: '' }}
           onSubmit={(v) => abrir.mutateAsync(v)}
-          className="mb-6 space-y-2 rounded-xl border border-border bg-card p-6"
+          className="mb-6 v3-space-y-2 rounded-xl border border-border bg-card p-6"
         >
           {(form) => (
             <>
@@ -103,7 +103,7 @@ export function ProcessosDissolucaoPage() {
         </FormShell>
       )}
 
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(processos ?? []).map((p) => (
           <Link
             key={p.id_processo_dissolucao}
@@ -286,7 +286,7 @@ export function ProcessoDissolucaoDetalhePage() {
             schema={liquidacaoConcluirSchema}
             defaultValues={{ observacao: '' }}
             onSubmit={(v) => concluirLiquidacao.mutateAsync(v)}
-            className="space-y-2"
+            className="v3-space-y-2"
           >
             {(form) => (
               <>
@@ -329,7 +329,7 @@ export function ProcessoDissolucaoDetalhePage() {
               confirma_credenciada: false,
             }}
             onSubmit={(v) => destinarPatrimonio.mutateAsync(v)}
-            className="space-y-2"
+            className="v3-space-y-2"
           >
             {(form) => (
               <>
@@ -403,7 +403,7 @@ export function ProcessoDissolucaoDetalhePage() {
             schema={baixaCadastralSchema}
             defaultValues={{ observacao: '' }}
             onSubmit={(v) => baixaCadastral.mutateAsync(v)}
-            className="space-y-2"
+            className="v3-space-y-2"
           >
             {(form) => (
               <>

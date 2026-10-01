@@ -331,7 +331,7 @@ function SecaoCronograma({ idProjeto }: { idProjeto: number }) {
           </>
         )}
       </FormShell>
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(cronograma ?? []).map((item) => (
           <div
             key={item.id_item}
@@ -449,7 +449,7 @@ function SecaoEquipe({ idProjeto }: { idProjeto: number }) {
           </>
         )}
       </FormShell>
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(equipe ?? []).map((m) => {
           const associado = (associados ?? []).find(
             (a) => a.id_associado === m.id_associado,
@@ -620,7 +620,7 @@ function SecaoVoluntariado({ idProjeto }: { idProjeto: number }) {
             </>
           )}
         </FormShell>
-        <div className="space-y-1">
+        <div className="v3-space-y-1">
           {(vagas ?? []).map((v) => (
             <div
               key={v.id_vaga}
@@ -644,7 +644,7 @@ function SecaoVoluntariado({ idProjeto }: { idProjeto: number }) {
         <p className="mb-1 text-xs font-semibold text-muted-foreground">
           Candidaturas pendentes (autocandidatura pelo painel)
         </p>
-        <div className="space-y-1">
+        <div className="v3-space-y-1">
           {(candidaturas ?? []).map((a) => (
             <div
               key={a.id_alocacao}
@@ -686,7 +686,7 @@ function SecaoVoluntariado({ idProjeto }: { idProjeto: number }) {
         <p className="mb-1 text-xs font-semibold text-muted-foreground">
           Trocas de turno
         </p>
-        <div className="space-y-1">
+        <div className="v3-space-y-1">
           {(trocas ?? []).map((t) => (
             <div
               key={t.id_troca}
@@ -729,7 +729,7 @@ function SecaoVoluntariado({ idProjeto }: { idProjeto: number }) {
         <p className="mb-1 text-xs font-semibold text-muted-foreground">
           Horas de voluntariado pendentes de aprovação
         </p>
-        <div className="space-y-1">
+        <div className="v3-space-y-1">
           {(horasPendentes ?? []).map((r) => (
             <div
               key={r.id_registro}
@@ -801,7 +801,7 @@ function SecaoOrcamentoRelatorio({ projeto }: { projeto: Projeto }) {
             Projeto sem centro de custo vinculado.
           </p>
         )}
-        <div className="space-y-1">
+        <div className="v3-space-y-1">
           {(orcamentos ?? []).map((o) => (
             <div
               key={o.id_orcamento}
@@ -831,7 +831,7 @@ function SecaoOrcamentoRelatorio({ projeto }: { projeto: Projeto }) {
         >
           {gerar.isPending ? 'Gerando…' : 'Gerar nova versão'}
         </Button>
-        <div className="mt-2 space-y-1">
+        <div className="mt-2 v3-space-y-1">
           {(relatorios ?? []).map((r) => (
             <div
               key={r.id_relatorio}
@@ -911,7 +911,7 @@ function PainelProntuario({ idVinculo }: { idVinculo: number }) {
   }
 
   return (
-    <div className="mt-2 space-y-4 rounded-md border border-border bg-muted/10 p-3">
+    <div className="mt-2 v3-space-y-4 rounded-md border border-border bg-muted/10 p-3">
       <div>
         <p className="mb-1 text-xs font-semibold text-muted-foreground">
           Prontuário de atendimento
@@ -942,7 +942,7 @@ function PainelProntuario({ idVinculo }: { idVinculo: number }) {
             </>
           )}
         </FormShell>
-        <div className="space-y-1">
+        <div className="v3-space-y-1">
           {(atendimentos ?? []).map((a) => (
             <div
               key={a.id_registro}
@@ -1004,7 +1004,7 @@ function PainelProntuario({ idVinculo }: { idVinculo: number }) {
             </>
           )}
         </FormShell>
-        <div className="space-y-1">
+        <div className="v3-space-y-1">
           {(encaminhamentos ?? []).map((e) => (
             <div
               key={e.id_encaminhamento}
@@ -1176,7 +1176,7 @@ function SecaoBeneficiarios({ idProjeto }: { idProjeto: number }) {
           )}
         </FormShell>
       )}
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(vinculos ?? []).map((v) => (
           <div
             key={v.id_vinculo}
@@ -1460,7 +1460,7 @@ function SecaoIndicadores({ idProjeto }: { idProjeto: number }) {
           )}
         </FormShell>
       )}
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(indicadores ?? []).map((ind) => (
           <div
             key={ind.id_indicador}
@@ -1514,7 +1514,7 @@ function DetalheProjeto({ projeto }: { projeto: Projeto }) {
   })
 
   return (
-    <div className="space-y-6 rounded-xl border border-border bg-card p-6">
+    <div className="v3-space-y-6 rounded-xl border border-border bg-card p-6">
       <div>
         <div className="mb-2 flex items-center justify-between">
           <h2 className="font-semibold">{projeto.nome_projeto}</h2>
@@ -1581,7 +1581,7 @@ export function ProjetosPage() {
         {mostrarForm && (
           <FormularioProjeto onCancelar={() => setMostrarForm(false)} />
         )}
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(projetos ?? []).map((p) => (
             <div
               key={p.id_projeto}

@@ -163,7 +163,7 @@ export function Login() {
         )}
 
         {!loginTempToken ? (
-          <form onSubmit={enviarPrimeiroPasso} className="mt-6 space-y-4">
+          <form onSubmit={enviarPrimeiroPasso} className="mt-6 v3-space-y-4">
             <div>
               <label htmlFor="cpf" className="text-sm font-medium">
                 CPF
@@ -214,7 +214,7 @@ export function Login() {
             )}
           </form>
         ) : (
-          <form onSubmit={enviarSegundoPasso} className="mt-6 space-y-4">
+          <form onSubmit={enviarSegundoPasso} className="mt-6 v3-space-y-4">
             <div>
               <label htmlFor="codigo" className="text-sm font-medium">
                 {modoRecuperacao ? 'Código de recuperação' : 'Código TOTP'}

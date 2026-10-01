@@ -393,7 +393,7 @@ export function DoacoesPage() {
             onCancelar={() => setMostrarFormCampanha(false)}
           />
         )}
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(campanhas ?? []).map((c) => {
             const progresso = Math.min(
               100,
@@ -464,7 +464,7 @@ export function DoacoesPage() {
         {mostrarFormDoacao && (
           <FormularioDoacao onCancelar={() => setMostrarFormDoacao(false)} />
         )}
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(doacoes ?? []).map((d) => (
             <div
               key={d.id_doacao}

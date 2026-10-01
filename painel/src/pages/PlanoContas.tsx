@@ -212,7 +212,7 @@ export function PlanoContasPage() {
 
         {erro && <p className="mb-2 text-sm text-destructive">{erro}</p>}
 
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(contas ?? []).map((c) =>
             editando === c.id_conta ? (
               <FormularioConta

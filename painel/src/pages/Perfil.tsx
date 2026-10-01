@@ -262,7 +262,7 @@ function SegurancaSection({
   onAtivar: () => void
 }) {
   return (
-    <div className="space-y-6">
+    <div className="v3-space-y-6">
       <section className="rounded-xl border border-border bg-card p-6">
         <h2 className="mb-4 font-semibold">Troca de senha</h2>
         <SenhaForm />
@@ -278,7 +278,7 @@ function SegurancaSection({
             : 'O MFA está desativado. Ative para proteger sua conta.'}
         </p>
         {mfaAtivado ? (
-          <div className="space-y-6">
+          <div className="v3-space-y-6">
             <RegenerarForm />
             <DesativarMfaForm />
           </div>
@@ -655,7 +655,7 @@ function LinhaDoTempoSection() {
     }).format(valor)
 
   return (
-    <div className="space-y-6">
+    <div className="v3-space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <section className="rounded-xl border border-border bg-card p-6">
           <h2 className="mb-1 font-semibold">Situação financeira</h2>
@@ -677,7 +677,7 @@ function LinhaDoTempoSection() {
         <section className="rounded-xl border border-border bg-card p-6">
           <h2 className="mb-1 font-semibold">Cargos</h2>
           {ficha.cargos.length > 0 ? (
-            <ul className="space-y-1 text-sm">
+            <ul className="v3-space-y-1 text-sm">
               {ficha.cargos.map((c) => (
                 <li
                   key={c.id_historico}
@@ -707,7 +707,7 @@ function LinhaDoTempoSection() {
       <section className="rounded-xl border border-border bg-card p-6">
         <h2 className="mb-4 font-semibold">Linha do tempo</h2>
         {ficha.linha_do_tempo.length > 0 ? (
-          <ol className="space-y-4 border-l border-border pl-4">
+          <ol className="v3-space-y-4 border-l border-border pl-4">
             {ficha.linha_do_tempo.map((e) => (
               <li key={e.id_evento}>
                 <p className="text-sm font-medium">{e.titulo}</p>

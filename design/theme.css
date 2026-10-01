@@ -74,6 +74,24 @@
 }
 
 /*
+ * `v3-space-y-N` = o `space-y-N` do Tailwind 3, byte a byte (margem SUPERIOR em todo irmão depois
+ * do primeiro, zera a inferior, com a mesma especificidade). O `space-y-N` do Tailwind 4 virou
+ * margem INFERIOR em todo irmão menos o último e com especificidade zero (`:where`). Em coluna
+ * simples dá o mesmo desenho, mas NÃO é equivalente quando o contêiner é `flex` em linha ou `grid`
+ * (o FormShell recebe `flex flex-wrap items-end` e `grid` das telas: no 4 o botão desalinha dos
+ * campos em 16 px) nem quando o filho tem margem própria (`mt-1` perdia para o `space-y` no 3 e
+ * ganha no 4). Por isso o painel usa este nome no lugar de `space-y-N` — medido com a geometria de
+ * todos os elementos de 53 telas antes/depois da migração. Código novo: prefira `flex flex-col
+ * gap-N` / `grid gap-N`, que se comportam igual nas duas versões.
+ */
+@utility v3-space-y-* {
+  & > :not([hidden]) ~ :not([hidden]) {
+    margin-top: calc(var(--spacing) * --value(integer, number));
+    margin-bottom: 0;
+  }
+}
+
+/*
  * Paleta padrão do Tailwind 3 PRESERVADA para as famílias que o código usa (`text-green-600` =
  * "em dia", `text-amber-600` = alerta, `text-emerald-600`, `text-blue-600`...). O Tailwind 4
  * redefiniu a paleta padrão em OKLCH (verde/âmbar mais saturados); sem isto, os estados de

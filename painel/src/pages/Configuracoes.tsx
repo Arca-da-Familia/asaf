@@ -161,7 +161,7 @@ function BlocoOpcoes({ catalogo }: { catalogo: Catalogo }) {
         </FormShell>
       )}
 
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(opcoes ?? []).map((o) => (
           <div
             key={o.id_opcao}
@@ -316,7 +316,7 @@ export function ConfiguracoesPage() {
         descricao="Catálogos usados pelos módulos de negócio - cada um só aparece pra quem tem a permissão do módulo dono."
       />
       <div className="grid gap-6 md:grid-cols-[16rem_1fr]">
-        <nav className="space-y-4">
+        <nav className="v3-space-y-4">
           {Array.from(grupos.entries()).map(
             ([chaveGrupo, catalogosDoGrupo]) => (
               <div key={chaveGrupo}>
@@ -325,7 +325,7 @@ export function ConfiguracoesPage() {
                     ? 'Sistema'
                     : (ROTULO_GRUPO[chaveGrupo] ?? chaveGrupo)}
                 </p>
-                <div className="space-y-1">
+                <div className="v3-space-y-1">
                   {catalogosDoGrupo.map((c) => (
                     <button
                       key={c.chave}

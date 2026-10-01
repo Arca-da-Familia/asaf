@@ -172,7 +172,7 @@ export function ContasFinanceirasPage() {
           <FormularioContaFinanceira onCancelar={() => setMostrarForm(false)} />
         )}
 
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(contasFinanceiras ?? []).map((cf) => (
             <div
               key={cf.id_conta_financeira}

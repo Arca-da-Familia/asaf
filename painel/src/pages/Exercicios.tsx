@@ -98,7 +98,7 @@ export function ExerciciosPage() {
           </p>
         )}
 
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(exercicios ?? []).map((e) => (
             <div
               key={e.id_exercicio}

@@ -190,7 +190,7 @@ function SecaoReceitasDespesas() {
       />
       {!agruparPorCentroCusto && (
         <>
-          <div className="space-y-1">
+          <div className="v3-space-y-1">
             {(porConta ?? []).map((l) => (
               <div
                 key={l.id_conta}
@@ -222,7 +222,7 @@ function SecaoReceitasDespesas() {
         </>
       )}
       {agruparPorCentroCusto && (
-        <div className="space-y-1">
+        <div className="v3-space-y-1">
           {(porCentroCusto ?? []).map((l) => (
             <div
               key={l.id_centro_custo ?? 'sem-centro'}
@@ -259,7 +259,7 @@ function SecaoInadimplencia() {
   return (
     <section className="mb-6 rounded-xl border border-border bg-card p-6">
       <h2 className="mb-4 font-semibold">Inadimplência</h2>
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(inadimplencia ?? []).map((l) => (
           <div
             key={l.id_associado}
@@ -319,7 +319,7 @@ function SecaoExtratoContaFinanceira() {
           <p className="mb-2 text-sm font-medium">
             Saldo atual: {formatarReais(extrato.saldo_atual)}
           </p>
-          <div className="space-y-1">
+          <div className="v3-space-y-1">
             {extrato.movimentos.map((m, i) => (
               <div
                 key={i}
@@ -359,7 +359,7 @@ function SecaoPorProjeto() {
         onAlterarInicio={setDataInicio}
         onAlterarFim={setDataFim}
       />
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(relatorio ?? []).map((l) => (
           <div
             key={l.id_projeto}
@@ -429,7 +429,7 @@ function SecaoPrestacaoDeContas() {
           {(gerar.error as Error).message}
         </p>
       )}
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(prestacoes ?? []).map((p) => (
           <div
             key={p.id_prestacao}
@@ -500,7 +500,7 @@ function SecaoPadroesSuspeitos() {
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         />
       </div>
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(achados ?? []).map((a, i) => (
           <div key={i} className="rounded-md border border-border p-3 text-sm">
             <p className="text-xs font-medium text-muted-foreground">

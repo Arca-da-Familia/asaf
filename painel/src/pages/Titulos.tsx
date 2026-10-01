@@ -625,7 +625,7 @@ export function TitulosPage() {
           <FormularioNovoTitulo onCancelar={() => setMostrarForm(false)} />
         )}
 
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(titulos ?? []).map((t) => (
             <div
               key={t.id_titulo}

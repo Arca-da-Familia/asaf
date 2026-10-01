@@ -76,6 +76,17 @@ Tudo que é identidade (cor, raio, sombra, fonte, tema escuro) está nos três a
 - **`shadow-card` é uma sombra branca (invisível) de propósito** — reproduz o que o Tailwind 3
   sempre renderizou por causa de um conflito de nome (`card` era cor e sombra). Detalhes e como
   ligar a sombra suave no comentário de `theme.css`.
+- **`v3-space-y-N` no lugar de `space-y-N` (só no painel).** O `space-y` do Tailwind 4 mudou de
+  semântica (margem inferior, especificidade zero): em coluna simples é igual, mas nos formulários
+  `flex flex-wrap items-end` e `grid` do FormShell desalinhava botões em 16 px e mudava a altura de
+  telas inteiras. O utilitário `v3-space-y-*` (em `theme.css`) é a regra do Tailwind 3 byte a byte.
+  Código novo: prefira `flex flex-col gap-N` / `grid gap-N`.
+- `base.css` também repõe três padrões do Tailwind 3 que o preflight do 4 mudou: `padding: 1px`
+  nas células de tabela, botão do `<input type="file">` com o visual do navegador e `cursor:
+  pointer`/cor do placeholder. Foram achados medindo a posição de TODOS os elementos de 53 telas
+  do painel nos dois Tailwind (diferença final: 0 de 5.909 elementos).
+- Em `npm run dev` o Vite não observa `design/` (fica fora da raiz do projeto): depois de editar
+  `tokens.css`, `theme.css` ou `base.css`, reinicie o servidor de desenvolvimento.
 - A paleta padrão do Tailwind 3 (`text-green-600`, `text-amber-600`...) está preservada em
   `theme.css` só para as famílias em uso (verde, âmbar, esmeralda, azul): o Tailwind 4 trocou a
   paleta padrão por outra, mais saturada, e os estados de status mudariam de cor.

@@ -96,7 +96,7 @@ function BlocoJustificativas({ idAssembleia }: { idAssembleia: number }) {
           schema={justificativaManualSchema}
           defaultValues={{ motivo: '', id_associado: 0 }}
           onSubmit={(v) => lancar.mutateAsync(v)}
-          className="mb-4 space-y-2 rounded-md border border-border p-3"
+          className="mb-4 v3-space-y-2 rounded-md border border-border p-3"
         >
           {(form) => (
             <>
@@ -130,7 +130,7 @@ function BlocoJustificativas({ idAssembleia }: { idAssembleia: number }) {
         </FormShell>
       )}
 
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(justificativas ?? []).map((j) => (
           <div
             key={j.id_justificativa}
@@ -364,7 +364,7 @@ export function AssembleiaDetalhePage() {
           <p className="whitespace-pre-wrap text-sm text-muted-foreground">
             {assembleia.pauta}
           </p>
-          <dl className="mt-4 space-y-1 text-sm">
+          <dl className="mt-4 v3-space-y-1 text-sm">
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Local físico</dt>
               <dd>{assembleia.local_fisico ?? '—'}</dd>

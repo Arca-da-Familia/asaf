@@ -221,7 +221,7 @@ export function ReembolsoDespesaPage() {
           </FormShell>
         )}
 
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(reembolsos ?? []).map((r) => (
             <div
               key={r.id_reembolso}

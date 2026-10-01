@@ -9,7 +9,7 @@ export type EventoTimeline = {
 
 export function Timeline({ eventos }: { eventos: EventoTimeline[] }) {
   return (
-    <ol className="relative space-y-6 border-l border-border pl-6">
+    <ol className="relative v3-space-y-6 border-l border-border pl-6">
       {eventos.map((e, i) => (
         <li key={i} className="relative">
           <span className="absolute left-[-31px] flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card">

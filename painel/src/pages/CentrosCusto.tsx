@@ -314,7 +314,7 @@ export function CentrosCustoPage() {
           <FormularioCentroCusto onCancelar={() => setMostrarForm(false)} />
         )}
 
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(centros ?? []).map((c) => (
             <div
               key={c.id_centro_custo}
@@ -396,7 +396,7 @@ export function CentrosCustoPage() {
           />
         )}
 
-        <div className="space-y-2">
+        <div className="v3-space-y-2">
           {(remanejamentos ?? []).map((r) => (
             <div
               key={r.id_remanejamento}

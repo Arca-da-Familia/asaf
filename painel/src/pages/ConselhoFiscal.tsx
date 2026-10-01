@@ -78,7 +78,7 @@ function BlocoQuestionamentos({ idTitulo }: { idTitulo: number }) {
           schema={questionamentoCriarSchema}
           defaultValues={{ pergunta: '' }}
           onSubmit={(v) => perguntar.mutateAsync(v)}
-          className="mt-2 space-y-2"
+          className="mt-2 v3-space-y-2"
         >
           {(form) => (
             <>
@@ -101,7 +101,7 @@ function BlocoQuestionamentos({ idTitulo }: { idTitulo: number }) {
         </FormShell>
       )}
 
-      <div className="mt-2 space-y-2">
+      <div className="mt-2 v3-space-y-2">
         {(questionamentos ?? []).map((q) => (
           <BlocoRespostas key={q.id_questionamento} questionamento={q} />
         ))}
@@ -172,7 +172,7 @@ function BlocoRespostas({
               schema={respostaQuestionamentoSchema}
               defaultValues={{ texto: '' }}
               onSubmit={(v) => responder.mutateAsync(v)}
-              className="mt-2 space-y-2"
+              className="mt-2 v3-space-y-2"
             >
               {(form) => (
                 <>
@@ -232,7 +232,7 @@ function BlocoTitulos() {
         Toda consulta aqui é registrada em auditoria - o Conselho Fiscal lê
         tudo, mas nunca sem deixar rastro de quem viu o quê.
       </p>
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(titulos ?? []).map((t) => (
           <div
             key={t.id_titulo}
@@ -368,7 +368,7 @@ function BlocoPareceres() {
             texto: '',
           }}
           onSubmit={(v) => emitir.mutateAsync(v)}
-          className="mb-4 space-y-2 rounded-md border border-border p-3"
+          className="mb-4 v3-space-y-2 rounded-md border border-border p-3"
         >
           {(form) => (
             <>
@@ -407,7 +407,7 @@ function BlocoPareceres() {
         </FormShell>
       )}
 
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(pareceres ?? []).map((p) => (
           <div
             key={p.id_parecer}

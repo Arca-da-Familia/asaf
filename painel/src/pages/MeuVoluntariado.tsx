@@ -172,7 +172,7 @@ function SecaoVagasAbertas() {
   return (
     <section className="mb-6 rounded-xl border border-border bg-card p-6">
       <h2 className="mb-4 font-semibold">Vagas abertas para candidatura</h2>
-      <div className="space-y-2">
+      <div className="v3-space-y-2">
         {(vagas ?? []).map((v) => (
           <div
             key={v.id_vaga}
@@ -299,7 +299,7 @@ function SecaoMeuHistoricoHoras() {
           </>
         )}
       </FormShell>
-      <div className="space-y-1">
+      <div className="v3-space-y-1">
         {(historico ?? []).map((r) => (
           <div
             key={r.id_registro}

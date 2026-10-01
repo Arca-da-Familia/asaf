@@ -196,7 +196,7 @@ export function GerarCobrancasPage() {
             <p className="mb-2 font-semibold">
               Prévia — competência {previa.competencia}
             </p>
-            <ul className="mb-3 space-y-1 text-sm text-muted-foreground">
+            <ul className="mb-3 v3-space-y-1 text-sm text-muted-foreground">
               <li>
                 {previa.total_gerados} cobrança(s) a gerar, totalizando{' '}
                 {formatarReais(previa.valor_total)}
@@ -219,7 +219,7 @@ export function GerarCobrancasPage() {
               </li>
             </ul>
             {previa.detalhes.length > 0 && (
-              <div className="mb-3 max-h-64 space-y-1 overflow-y-auto text-sm">
+              <div className="mb-3 max-h-64 v3-space-y-1 overflow-y-auto text-sm">
                 {previa.detalhes.map((d, i) => (
                   <div
                     key={i}
