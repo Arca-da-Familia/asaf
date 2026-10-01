@@ -301,17 +301,13 @@ retrabalho que a seção 4.1 existe pra evitar.
 >   — um evento cancelado não consegue ser representado. Decidir antes de publicar página de
 >   evento. A API também não expõe o valor da inscrição (`offers` do `schema.org/Event`) nem
 >   imagem; o construtor omite em vez de inventar.
-> - **Dado institucional fora de propósito**: CNPJ, telefone, e-mail e endereço atual **não estão
->   no site** — o Estatuto só traz "sede provisória" de 2013. Só cidade/UF (Parauapebas — PA) é
->   publicado, em texto e no JSON-LD. Entram na v5.2 (Contato) vindos do Directus/FastAPI,
->   **confirmados pelo usuário**; para emendas parlamentares esses dados importam e não podem estar
->   errados.
-> - **Identidade visual — decisão do usuário pendente**: a página provisória anterior usava azul-
->   marinho (`#0B2545`) e dourado (`#C9A227`); o painel usa o azul `blue-600` (`#2563eb`). O site
->   seguiu o painel, como o plano manda ("mesmos tokens"). Se o azul-marinho/dourado for a marca
->   real, **troca-se em um lugar só** (`design/tokens.css`) e os dois sites mudam juntos. A imagem
->   de compartilhamento (`og-padrao.png`) e o ícone são provisórios — não há logotipo oficial no
->   repositório.
+> - **Dado institucional fora de propósito — RESOLVIDO em 2026-10-01 (v5.0a, abaixo)**: o usuário
+>   informou e confirmou CNPJ, telefone e e-mail, e confirmou que o endereço do Estatuto não mudou.
+>   Na v5.0 original só cidade/UF eram publicados, porque o Estatuto traz "sede provisória" de
+>   2013 e para emendas parlamentares esses dados não podem estar errados.
+> - **Identidade visual — RESOLVIDO em 2026-10-01 (v5.0a, abaixo)**: a pergunta era se a marca
+>   era o azul do painel ou o azul-marinho/dourado da página provisória antiga. O usuário definiu:
+>   **verde (primária), ouro (secundária), azul claro (terciária)** e enviou a logo institucional.
 > - **Cabeçalhos de segurança**: o Static Web App já envia `Strict-Transport-Security` e
 >   `X-Content-Type-Options` por padrão (conferido em produção). CSP e `X-Frame-Options` ficam na
 >   **v5.5**, quando houver páginas e ilhas reais para escrever uma CSP correta.
@@ -344,6 +340,66 @@ retrabalho que a seção 4.1 existe pra evitar.
 > aparecendo na ilha — hoje a lista é vazia, então o desenho da lista com dados reais foi
 > validado só contra a API simulada (e2e) e contra o formato real do serializador, não contra um
 > evento de verdade vindo do banco de produção.
+>
+> **v5.0a (2026-10-01) — marca, logo e dados institucionais reais**
+>
+> Resposta do usuário às duas pendências da v5.0, aplicada no mesmo dia. **Paleta** (tirada da
+> logo, em `design/tokens.css`): primária **verde bandeira `#145238`**, secundária **amarelo ouro
+> `#E3C435`**, terciária **azul claro `#5FBBE9`** — o tom exato do azul o usuário ainda vai
+> informar (hoje é o azul claro da própria logo, **provisório**). Como `design/` é fonte única,
+> **o painel também ficou verde**. Ouro e azul entraram como tokens de marca próprios
+> (`--brand-secondary`, `--brand-tertiary`); os neutros do shadcn (`--secondary`, `--muted`)
+> continuam cinza de propósito, senão toda superfície cinza do painel viraria amarela. Contraste
+> WCAG **calculado** para cada combinação (texto claro sobre o verde 8,75:1; verde-escuro sobre
+> ouro 9,47:1 e sobre o azul 7,57:1; no tema escuro o verde sobe para 7,4:1 sobre o fundo) — o
+> axe do CI confirma no site montado.
+>
+> **Logo institucional em todo lugar** (pedido explícito: "vai estar em todo lugar, inclusive nas
+> pesquisas"): o arquivo-mestre é o PNG 2607×2160 transparente (`design/logo/`); `npm run logos`
+> (em `site/`) gera e distribui os derivados (160/640/600 px, `favicon.ico`, ícones 48/192/512,
+> `apple-touch-icon`). Usada no cabeçalho e destaque do site, ícone da aba, imagem ao compartilhar
+> um link (OG, refeita com a logo), **`Organization.logo` nos dados estruturados do Google**, e no
+> login e cabeçalho do painel. **Não** usada ainda em documentos gerados pelo sistema
+> (certificados, carteirinha) — fazer quando cada um for retrabalhado. O SVG vetorial do
+> CorelDRAW **não está no repositório** (veio só no texto da conversa, não como arquivo no
+> computador): para a web o derivado no tamanho certo pesa muito menos, mas impressão/ampliação
+> grande pede o vetor — salvar em `design/logo/asaf-logo.svg`.
+>
+> **Dados institucionais publicados** (informados e confirmados pelo usuário): CNPJ
+> `17.631.942/0001-70`, telefone `(94) 98412-0703`, e-mail `asaf@asaf.org.br` (o institucional já
+> documentado na v3.2.1, Google Workspace) e endereço do Estatuto (Rua Paulo Afonso, 150 — Bairro
+> da Paz, CEP 68515-000, Parauapebas — PA; confirmado inalterado). No rodapé (com links `tel:` e
+> `mailto:`) e no JSON-LD (`taxID`, `telephone`, `email`, endereço completo). **Guardas**: o CNPJ
+> tem teste de dígito verificador (`site/tests/organizacao.test.ts`, com teste do próprio teste);
+> as três formas do telefone são verificadas como o mesmo número; o e2e confere que a logo
+> carrega de verdade (`naturalWidth > 0`) e que cada ícone declarado responde 200 com imagem.
+> Enquanto o Directus não entra, estes dados vivem em **um** lugar
+> (`site/src/config/organizacao.ts`).
+>
+> **Defeito achado na verificação em produção (partida a frio da API) — corrigido**: logo após o
+> deploy, a ilha de eventos terminou em "Não foi possível carregar os eventos agora", sem nenhum
+> erro de console, e minutos depois a mesma chamada respondia em 1,1 s. O timeout de 10 s da ilha
+> era curto para uma API que **escala a zero** (decisão de custo congelada) e não havia nova
+> tentativa — o primeiro visitante depois de um período parado veria um erro por algo que se
+> resolve sozinho. Correção: 2 tentativas de 20 s (repete só falha de rede/timeout/5xx, **nunca
+> 4xx**) e um aviso "isso pode levar alguns segundos" depois de 4 s. 7 testes unitários e 2 e2e
+> novos reproduzem o caso; verificado por mutação (com 1 tentativa eles reprovam).
+>
+> **Testado**: `pytest` 389/389; painel lint/Prettier/`tsc`/Vitest 27/Playwright 10 verdes; site
+> 51 unitários, 29 e2e (axe WCAG AA com as cores novas) e Lighthouse 100/100/100/100 (LCP ≈ 1,4 s,
+> 83 KB). **Em produção** (commits `79863b9` e `3502285`): site e painel nos commits certos; todos
+> os arquivos da marca respondem 200 com o tipo certo; num Chromium real, hero e rodapé com
+> `rgb(20, 82, 56)`, botão ouro `rgb(227, 196, 53)`, JSON-LD com CNPJ/telefone/e-mail/logo/rua/CEP,
+> logos carregadas, painel com `--primary: 154.8 60.8% 20%`, zero erro de console (o 401 do painel é
+> o `POST /auth/refresh` de visitante deslogado, comportamento existente).
+>
+> **Ainda não verificado em produção (v5.0a)**: a ilha, com a correção, diante de uma partida a
+> frio **de verdade**. A causa do erro original é **hipótese**, não fato provado: sustentada por
+> (a) o erro não deixou nenhuma linha no console (um timeout próprio não deixa; CORS ou HTTP de
+> erro deixariam) e (b) minutos depois a mesma chamada respondia em 1,1 s. A medição com 7 min de
+> ociosidade **não** reproduziu partida a frio (API em 0,83 s — leva bem mais que 7 min para
+> escalar a zero). Um teste de ponta a ponta no navegador com 25 min sem nenhuma chamada foi
+> agendado para o mesmo dia; o resultado entra aqui quando sair.
 
 #### v5.1 — Directus como CMS de conteúdo
 
