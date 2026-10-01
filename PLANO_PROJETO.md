@@ -509,10 +509,64 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       que o Directus *possui* as tabelas `directus_*`, não que *não enxerga* as outras).
 >       **Hoje não há vazamento aberto**: sem login tudo devolve 403 (conferido ao vivo em
 >       associados, doações, audit_log, usuários, papéis, arquivos) e o cadastro público está
->       fechado. Correção: um usuário Postgres próprio do Directus, com permissão só nas tabelas
->       `directus_*` e nas de conteúdo, e trocar `DB_USER`/`DB_PASSWORD` do Container App;
->       validar com `GET /collections` devolvendo só `directus_*` + conteúdo, e deixar essa
->       checagem como script reexecutável (é o item do Ponto de Revisão abaixo).
+>       fechado. **Estado em 2026-10-01 (autorizado pelo usuário: "pode fazer esse isolamento")
+>       — PREPARADO E ENSAIADO, APLICAÇÃO EM PRODUÇÃO BLOQUEADA**:
+>       *Desenho* (mesmo banco, mesmo servidor, **custo zero** — não é banco separado): papel
+>       `directus_app` (sem superusuário/CREATEROLE/CREATEDB, senha própria de 64 caracteres) e
+>       schema `directus` só dele; as 33 tabelas `directus_*` saem de `public` e vão para lá; o
+>       Directus passa a `DB_USER=directus_app`, `DB_SEARCH_PATH=directus`, `DB_PASSWORD` →
+>       segredo novo `dbpasswordapp` — assim ele **nem lista** as 123 tabelas do sistema. A
+>       integração com o sistema continua pelos caminhos certos: o site lê evento/transparência
+>       da API pública do FastAPI, e o Directus só guarda a *divulgação* ligada por `evento_id`
+>       (DECISÃO §3.4/§5.4) ou lê uma VIEW de campos públicos concedida de propósito.
+>       *Ferramentas versionadas*: `scripts/isolar_directus.py` (`aplicar`/`verificar`/`reverter`,
+>       idempotente, transação única, verificação antes do commit) e
+>       `scripts/aplicar_isolamento_directus_producao.py` (orquestra: 1. segredo → 2. banco →
+>       3. configuração, e reverte o banco se o passo 3 falhar; se o passo 1 falhar, aborta com o
+>       banco intocado). *Ensaio* num banco descartável do próprio servidor, **15/15
+>       verificações**: o papel lê, escreve e **altera** (o que as migrações do Directus fazem) as
+>       tabelas dele e cria coleções no próprio schema; é **barrado** em todas as tabelas do
+>       sistema (e nem resolve os nomes); não cria tabela em `public`, papel nem banco; o
+>       verificador **reprova** quando se injeta um `SELECT` indevido; aplicar duas vezes é
+>       idempotente; `reverter` devolve tudo. *Pré-levantamento de produção*: 156 tabelas em
+>       `public` (33 `directus_*` + 123 do sistema), todas de dono `asafadmin` — que é também o
+>       usuário com que o Directus conecta —, 8 sequências, sem FK entre os dois grupos, sem
+>       views/enums, sem privilégios padrão, backup de 35 dias com georredundância.
+>       *Bloqueio*: o classificador de segurança do Claude Code **negou** a execução do
+>       orquestrador em produção ("ação perigosa", sem explicação) — ela grava um segredo no
+>       Container App, altera o banco de produção (papel + mover 33 tabelas) e troca a
+>       configuração do Directus. **Não foi fatiado nem contornado.** Nada foi alterado no banco
+>       nem no Directus. Para executar: o usuário libera esse comando com uma regra de permissão
+>       nas configurações do Claude Code (`/permissions` → Allow → `Bash(.venv/Scripts/python.exe
+>       scripts/aplicar_isolamento_directus_producao.py)`), ou alguém com acesso ao Azure o roda
+>       num terminal (precisa de `az login` e do IP na regra de firewall `AllowAdminMachine`).
+>       Depois: `python scripts/isolar_directus.py verificar` (com `DATABASE_URL`) e conferir o
+>       login no Studio. **Até aplicar: nenhum outro usuário recebe papel de administrador do
+>       Directus, e nenhuma coleção de conteúdo é criada.**
+> - [x] **Regra de firewall do Postgres `AllowAdminMachine` atualizada em 2026-10-01** de
+>       `45.7.26.120` (IP antigo, que podia nem ser mais da associação) para `177.87.165.132` (a
+>       máquina do usuário hoje; necessário para os passos administrativos no banco). O IP de
+>       casa/escritório muda: quando o banco não responder desta máquina, é a primeira coisa a
+>       conferir (`az postgres flexible-server firewall-rule list -g Associacao-RG -s
+>       asaf-pg-server`). A regra `AllowAzureServices` (API, Directus, GitHub Actions) não foi
+>       tocada (DECISÃO §5.3).
+> - [ ] **ACHADO GRAVE — arquivos enviados à API somem a cada deploy/reinício** (2026-10-01): a
+>       API grava foto de associado, ata e documento anexado em disco local do contêiner
+>       (`uploads/fotos`, `uploads/atas`, `uploads/documentos`, ver `app/main.py`) e o Container
+>       App `asaf-api` **não tem volume persistente** (`volumes: null`). O disco do contêiner é
+>       descartado a cada nova revisão, reinício e quando a réplica escala a zero. **Nenhum
+>       documento do projeto menciona isso.** O `ARQUITETURA.md` prevê Blob Storage para
+>       "fotos, documentos anexados", mas a API **não usa Blob** (conferido: nenhuma referência a
+>       Blob/Storage no código). Corrigir antes de qualquer associado depender de foto ou ata:
+>       gravar no Blob (contêiner próprio, ver o item seguinte) e servir por URL assinada ou rota
+>       da API. **Decisão do usuário** (é mudança de armazenamento de dado de associado).
+> - [ ] **Chave da conta de armazenamento no Directus**: o Directus guarda arquivos no contêiner
+>       `uploads` da conta `stasafarcadafamilia` usando a **chave da conta inteira**
+>       (`STORAGE_AZURE_ACCOUNT_KEY`), que também alcança `documentos-institucionais` e qualquer
+>       contêiner futuro — o mesmo tipo de excesso de privilégio do banco. Hoje a API não usa
+>       essa conta, então o alcance é pequeno; passa a importar quando a API for para o Blob.
+>       Correção: conta de armazenamento própria do Directus, ou SAS restrito ao contêiner
+>       `uploads` em vez da chave da conta. Depende de gravar segredo.
 > - [ ] **Usuário de serviço + token estático somente-leitura** para o build do site, guardado
 >       no Key Vault (`DIRECTUS-SITE-TOKEN`) — só depois das coleções de conteúdo e do papel
 >       restrito. Com ele, o administrador pode ter MFA obrigatório (`enforce_tfa`) sem quebrar
