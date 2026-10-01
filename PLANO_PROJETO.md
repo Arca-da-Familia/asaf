@@ -446,8 +446,13 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       não tem e-mail de recuperação configurado (nenhuma variável `EMAIL_*`), então, se a conta
 >       real perdesse a senha, não restaria nenhum administrador para consertar. O usuário já
 >       trocou a própria senha e acessou; **falta só apagá-lo** (Studio → Diretório de usuários →
->       o usuário → lixeira) e trocar `ADMIN_EMAIL` do Container App para `asaf@asaf.org.br`
->       (vai junto com a atualização de versão, abaixo).
+>       o usuário → lixeira). O `ADMIN_EMAIL` do Container App **já foi trocado** para
+>       `asaf@asaf.org.br` junto com a atualização de versão. **Combinado com o usuário
+>       (2026-10-01)**: a remoção desse administrador é feita junto com a aplicação do
+>       isolamento. Contexto: o domínio internacional só serve de "chefe do Azure"; no futuro o
+>       login da Microsoft vai migrar para outro domínio (que pode nem ser nenhum dos dois em uso
+>       hoje), e a conta master `@arcadafamilia.org` muda junto — por isso nada novo deve
+>       depender dela.
 > - [x] **Identidade do git trocada para `asaf@asaf.org.br`** (`.git/config` local, a pedido do
 >       usuário em 2026-10-01: "a partir de hoje tem que sair no org.br"). Vale para os commits
 >       novos; o histórico (147 commits como `asaf@arcadafamilia.org`) não é reescrito.
@@ -567,6 +572,20 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       essa conta, então o alcance é pequeno; passa a importar quando a API for para o Blob.
 >       Correção: conta de armazenamento própria do Directus, ou SAS restrito ao contêiner
 >       `uploads` em vez da chave da conta. Depende de gravar segredo.
+>       **Esclarecimento ao usuário (2026-10-01) — como o armazenamento do Azure é organizado**:
+>       *conta de armazenamento* (o "bloco" inteiro) → *contêineres* (as "pastas" de topo:
+>       `uploads`, `documentos-institucionais`, e no futuro `fotos-associados`, `atas`,
+>       `documentos-anexados`) → *blobs* (os arquivos; "subpastas" são só prefixos no nome do
+>       arquivo). Guardar foto/ata/documento no Blob **resolve** o sumiço de arquivo da API
+>       (o armazenamento é persistente e fora do contêiner). A **chave da conta** abre todos os
+>       contêineres da mesma conta — por isso o Directus, com ela, enxerga o "bloco todo". Mas
+>       não é obrigatório que ele acesse tudo: dá para entregar acesso **só a um contêiner**
+>       (SAS restrito ou identidade com permissão no contêiner). Desenho proposto:
+>       **duas contas** por nível de risco — uma *pública* (imagens do site e do Directus) e uma
+>       *privada* (fotos de associados, atas, documentos anexados), a API com acesso à privada e
+>       o Directus **só** à pública — e, dentro de cada conta, um contêiner por assunto. A
+>       separação por conta é a forte; contêiner separado na mesma conta só isola de verdade se
+>       o acesso for restrito por contêiner. **Decisão do usuário** antes de implementar.
 > - [ ] **Usuário de serviço + token estático somente-leitura** para o build do site, guardado
 >       no Key Vault (`DIRECTUS-SITE-TOKEN`) — só depois das coleções de conteúdo e do papel
 >       restrito. Com ele, o administrador pode ter MFA obrigatório (`enforce_tfa`) sem quebrar
@@ -580,6 +599,21 @@ retrabalho que a seção 4.1 existe pra evitar.
       versão com possibilidade de reverter.
 - [ ] Papéis do Directus mapeados à realidade (editor de conteúdo x administrador), sem dar
       administrador para quem só escreve notícia.
+      > **Requisito do usuário (2026-10-01) — VÁRIOS perfis de acesso, desde já**: hoje só existe
+      > o administrador (o próprio usuário), mas a FASE 5 e as seguintes vão ter muita gente
+      > com funções diferentes, e **cada um só pode ter acesso ao que a função dele precisa**:
+      > "só o editor de site, só o editor de outra coisa, só quem manda foto". Desenhar assim,
+      > no Directus **e** no sistema (painel, `niveis_acesso`), e conferir a cada fase: (1)
+      > **Administrador** (poucos, MFA obrigatório); (2) **Editor de conteúdo** (páginas e
+      > notícias, publica); (3) **Redator** (escreve em rascunho, não publica — quem revisa
+      > publica); (4) **Colaborador de mídia** (só envia imagens, sem ver nem editar texto);
+      > (5) **Leitor de serviço do site** (token somente-leitura de conteúdo publicado, usado
+      > no build); (6) um perfil por **tema** quando fizer sentido (ex.: transparência,
+      > eventos). Regras: privilégio mínimo; permissão **no backend/papel**, nunca só esconder
+      > na tela; papel de editor do Directus **sem** acesso a nenhuma tabela do sistema (depende
+      > do isolamento acima); cada perfil novo entra com teste de "esta pessoa NÃO consegue
+      > fazer X". No painel, o atalho "Editar o site" passa a ter permissão própria
+      > (`editar_site`) em vez de reaproveitar `gerenciar_acesso`.
 - [ ] Biblioteca de mídia com texto alternativo **obrigatório** (acessibilidade não é opcional) e
       geração de tamanhos responsivos.
 
