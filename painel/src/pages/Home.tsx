@@ -1,3 +1,4 @@
+import { ExternalLink } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { modulos } from '@/lib/modulos'
@@ -16,6 +17,9 @@ export function Home() {
     permissoes.includes(m.permissao),
   )
 
+  const classeCard =
+    'flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-6 text-center transition-colors hover:border-primary hover:bg-accent'
+
   return (
     <>
       <h1 className="text-2xl font-bold">Início</h1>
@@ -32,16 +36,31 @@ export function Home() {
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-            {modulosVisiveis.map((m) => (
-              <Link
-                key={m.rota}
-                to={m.rota}
-                className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-6 text-center transition-colors hover:border-primary hover:bg-accent"
-              >
-                <m.icone className="h-8 w-8 text-primary" />
-                <span className="font-medium">{m.rotulo}</span>
-              </Link>
-            ))}
+            {modulosVisiveis.map((m) =>
+              m.externo ? (
+                // v5.1 - módulo externo (ex.: Directus): abre noutra aba, sem repassar o
+                // `window.opener` (noopener) nem o endereço do painel como origem (noreferrer).
+                <a
+                  key={m.rota}
+                  href={m.externo}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={classeCard}
+                >
+                  <m.icone className="h-8 w-8 text-primary" />
+                  <span className="flex items-center gap-1 font-medium">
+                    {m.rotulo}
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span className="sr-only">(abre em uma nova aba)</span>
+                  </span>
+                </a>
+              ) : (
+                <Link key={m.rota} to={m.rota} className={classeCard}>
+                  <m.icone className="h-8 w-8 text-primary" />
+                  <span className="font-medium">{m.rotulo}</span>
+                </Link>
+              ),
+            )}
           </div>
         )}
       </section>

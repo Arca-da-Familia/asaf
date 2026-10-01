@@ -11,6 +11,7 @@ import {
   FileUp,
   FolderKanban,
   Gavel,
+  Globe,
   Handshake,
   HeartHandshake,
   Landmark,
@@ -27,6 +28,11 @@ import {
   Wallet,
 } from 'lucide-react'
 
+// Endereço do Directus (CMS do site). Definitivo — a chave do plano gratuito do Directus fica
+// amarrada a este endereço (PUBLIC_URL do Container App), então não se troca à toa.
+export const URL_DIRECTUS =
+  import.meta.env.VITE_DIRECTUS_URL ?? 'https://cms.asaf.org.br'
+
 export type ItemModulo = {
   rota: string
   rotulo: string
@@ -39,6 +45,10 @@ export type Modulo = {
   rotulo: string
   permissao: string
   icone: LucideIcon
+  // v5.1 - módulo que NÃO é tela do painel: o cartão da tela inicial abre este endereço numa
+  // nova aba (ex.: o Directus, onde se edita o conteúdo do site). `rota` vira só um
+  // identificador, nunca é registrada no roteador.
+  externo?: string
   // v2.5.1d (achado do usuário 2026-09-15) - funções do módulo (Listar, Novo, Gráficos…).
   // Renderizadas na MESMA barra lateral única do painel (Shell.tsx), nunca numa segunda
   // barra ao lado do conteúdo - duas colunas de navegação é ruim em qualquer tela e péssimo
@@ -260,5 +270,16 @@ export const modulos: Modulo[] = [
     rotulo: 'Auditoria',
     permissao: 'auditoria',
     icone: ScrollText,
+  },
+  // v5.1 - atalho para o Directus (CMS do site). Mostrar o cartão é só conveniência: quem
+  // protege o conteúdo é o login do próprio Directus (usuário, papel e MFA lá). Por ora reaproveita
+  // `gerenciar_acesso` (presidência); quando os papéis de editor do Directus forem mapeados
+  // (v5.1), nasce uma permissão própria (`editar_site`) para a secretaria/comunicação.
+  {
+    rota: '/editar-site',
+    rotulo: 'Editar o site',
+    permissao: 'gerenciar_acesso',
+    icone: Globe,
+    externo: URL_DIRECTUS,
   },
 ]

@@ -38,6 +38,26 @@ Tudo hospedado no Azure, grupo de recursos `Associacao-RG`, região Brazil South
 > produção (`https://api.asaf.org.br/docs` → 200 OK). `VITE_API_URL=https://api.asaf.org.br` está
 > definido no workflow `deploy-painel.yml` (valor público, não é segredo, por isso vive no
 > workflow e não no Key Vault) — todo build de produção do painel já aponta pra esse domínio.
+>
+> **Domínio do Directus (CMS) — criado em 2026-10-01**: `cms.asaf.org.br`. Mesmo procedimento do
+> `api`: registro `CNAME cms` → endereço do Container App `asaf-directus` + `TXT asuid.cms`
+> (verificação de domínio), hostname vinculado ao Container App com certificado gerenciado, e
+> `PUBLIC_URL=https://cms.asaf.org.br` no Container App. **O endereço é definitivo**: a chave de
+> licença do Directus (abaixo) fica amarrada ao `PUBLIC_URL`, e trocá-lo exige reativar a chave.
+> O endereço longo do Azure (`*.azurecontainerapps.io`) continua respondendo, mas não é para uso.
+> O Directus escala a zero (`minReplicas: 0`): a primeira abertura depois de um tempo parado leva
+> cerca de 30 s (medido: `GET /server/ping` em 33 s) — normal, não é defeito.
+>
+> **Licença do Directus (conferido na documentação oficial em 2026-10-01)**: instâncias
+> self-hosted sem licença rodam no plano *core*, **gratuito e sem chave** (hoje a imagem é
+> `directus/directus:11`). O uso comercial gratuito com limites maiores é o **Open Innovation
+> Grant** (entidade com menos de US$ 5 milhões de receita anual e menos de 50 funcionários): a
+> chave (`DXXXX-XXXXX-XXXXX-XXXXX-XXXXC`) é pedida à Directus pelo formulário de contato
+> (directus.com/oig) — não há cadastro automático — e cobre até 5 ativações (local, dev, staging,
+> produção). Ela entra em *Studio → Settings → License* ou na variável `LICENSE_KEY`. Na migração
+> para a v12, instância acima dos limites do *core* tem 30 dias de carência e depois é bloqueada
+> (a API devolve erro até a licença ser resolvida; os dados ficam salvos). Por isso a chave vale
+> ser pedida **antes** de subir para a v12.
 
 ### Por que Postgres, não SQLite
 

@@ -398,10 +398,62 @@ retrabalho que a seção 4.1 existe pra evitar.
 > (a) o erro não deixou nenhuma linha no console (um timeout próprio não deixa; CORS ou HTTP de
 > erro deixariam) e (b) minutos depois a mesma chamada respondia em 1,1 s. A medição com 7 min de
 > ociosidade **não** reproduziu partida a frio (API em 0,83 s — leva bem mais que 7 min para
-> escalar a zero). Um teste de ponta a ponta no navegador com 25 min sem nenhuma chamada foi
-> agendado para o mesmo dia; o resultado entra aqui quando sair.
+> escalar a zero). **Resultado do teste de ponta a ponta com ~25 min sem nenhuma chamada
+> (2026-10-01, 11:02): NÃO reproduziu** — a API respondeu em 241 ms e a lista carregou
+> normalmente. Ou seja, a hipótese de partida a frio da API **ficou enfraquecida, não
+> confirmada**: a API tem `minReplicas: 0` mas não esfriou em 25 min. (O Directus, esse sim,
+> teve partida a frio real, medida: `GET /server/ping` em 33 s.) A **causa do erro original
+> segue desconhecida** — o que se sabe é que foi uma resposta que passou de 10 s (ou de uma
+> falha sem linha no console) e que, depois, a mesma chamada passou a responder em ~1 s. A
+> correção (2 tentativas de 20 s + aviso de demora) continua valendo por si: cobre qualquer
+> demora ou falha passageira, qualquer que seja a origem. Se acontecer de novo, registrar a hora
+> exata para cruzar com os logs do Container App.
 
 #### v5.1 — Directus como CMS de conteúdo
+
+> **v5.1.0 — Pré-requisitos (2026-10-01)**: o usuário pediu acesso ao Directus para criar a conta,
+> registrar a chave do plano gratuito e gerar a chave de API que o site vai usar. Levantamento
+> feito no Azure e na documentação oficial; o que está pronto, o que depende do usuário e o
+> **achado que bloqueia a v5.1** estão abaixo.
+>
+> - [x] **Endereço definitivo `cms.asaf.org.br`** (CNAME + TXT `asuid.cms` + certificado
+>       gerenciado) e `PUBLIC_URL=https://cms.asaf.org.br` no Container App — confirmado: HTTPS
+>       200, Studio abre. Definitivo porque a chave de licença fica amarrada ao `PUBLIC_URL`.
+> - [x] **Usuário administrador do responsável** (`asaf@asaf.org.br`, papel Administrator),
+>       criado e **verificado** (login 200, poder de administração 200). Senha temporária entregue
+>       ao usuário na conversa; **trocar no primeiro acesso e ativar MFA** (Studio → perfil).
+>       O administrador de instalação (`admin@arcadafamilia.org`, senha no Key Vault
+>       `DIRECTUS-ADMIN-PASSWORD`) continua existindo: o domínio `arcadafamilia.org` não é o da
+>       associação — decidir se esse usuário é desativado depois que existir token de serviço.
+> - [x] **Atalho no painel**: cartão "Editar o site" na tela inicial, visível a quem tem
+>       `gerenciar_acesso` (presidência), abre o Directus em nova aba. É conveniência; quem
+>       protege é o login do Directus. Papel de editor próprio (`editar_site`) nasce com os
+>       papéis do Directus, abaixo.
+> - [ ] **Chave do plano gratuito (Open Innovation Grant) — depende do USUÁRIO**: a chave só sai
+>       por contato com a Directus (directus.com/oig; não há cadastro automático) e exige dados
+>       da entidade. O Directus v11 em uso roda no plano *core* sem chave; ela passa a importar
+>       na v12 (30 dias de carência acima dos limites do *core*, depois bloqueio da API). Quando
+>       chegar: Studio → Settings → License (ou `LICENSE_KEY` guardada no Key Vault).
+> - [ ] **Isolar o Directus do banco do sistema — PRÉ-REQUISITO, antes de qualquer editor ou
+>       coleção nova.** **Achado de 2026-10-01**: o Directus compartilha o Postgres e conecta com
+>       o mesmo usuário poderoso da API, então `GET /collections` (com login de administrador)
+>       lista **todas as tabelas do sistema** — `associados`, `doacoes`, `audit_log`,
+>       `codigos_recuperacao_mfa`, `credenciais_webauthn`, `dados_bancarios_fornecedor`,
+>       `usuarios`… mais de 100. Um administrador do Directus lê e edita dado de associado e
+>       financeiro **sem passar pelo RBAC nem pelo `AuditLog` da API** (a DECISÃO §5.4 garante só
+>       que o Directus *possui* as tabelas `directus_*`, não que *não enxerga* as outras).
+>       **Hoje não há vazamento aberto**: sem login tudo devolve 403 (conferido ao vivo em
+>       associados, doações, audit_log, usuários, papéis, arquivos) e o cadastro público está
+>       fechado. Correção: um usuário Postgres próprio do Directus, com permissão só nas tabelas
+>       `directus_*` e nas de conteúdo, e trocar `DB_USER`/`DB_PASSWORD` do Container App;
+>       validar com `GET /collections` devolvendo só `directus_*` + conteúdo, e deixar essa
+>       checagem como script reexecutável (é o item do Ponto de Revisão abaixo).
+> - [ ] **Usuário de serviço + token estático somente-leitura** para o build do site, guardado
+>       no Key Vault (`DIRECTUS-SITE-TOKEN`) — só depois das coleções de conteúdo e do papel
+>       restrito. Com ele, o administrador pode ter MFA obrigatório (`enforce_tfa`) sem quebrar
+>       automação.
+> - [ ] Nota de saúde: `GET /server/health` do Directus devolve `warn` por tempo de resposta do
+>       Postgres (518 ms contra limite de 150 ms) — latência do banco Burstable; acompanhar.
 
 - [ ] Coleções: páginas institucionais, notícias, banners, galeria, depoimentos, parceiros,
       perguntas frequentes — **só conteúdo público**, nunca dado de associado/financeiro.
@@ -434,6 +486,9 @@ retrabalho que a seção 4.1 existe pra evitar.
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 
 - Directus não tem, em nenhuma coleção, dado de associado/financeiro/evento — só conteúdo editorial.
+  **(Achado de 2026-10-01: hoje é FALSO — o Directus enxerga todas as tabelas do sistema; ver o
+  pré-requisito de isolamento na v5.1. Este item só pode ser marcado depois dessa correção, com o
+  script de verificação rodado em produção.)**
 - Auditoria de SEO/acessibilidade (v5.0) está rodando de fato no CI, não só planejada.
 
 #### v5.3 — Formulários públicos (uma fila única no painel)
