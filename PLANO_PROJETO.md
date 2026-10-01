@@ -253,17 +253,97 @@ retrabalho que a seção 4.1 existe pra evitar.
 
 #### v5.0 — Fundação técnica do site
 
-- [ ] Astro com geração estática + ilhas interativas, publicado no Static Web App `asaf-site` (já
+- [x] Astro com geração estática + ilhas interativas, publicado no Static Web App `asaf-site` (já
       provisionado), domínio `asaf.org.br` (já configurado na v0.0).
-- [ ] Rebuild automático: webhook do Directus dispara o workflow de publicação quando o conteúdo
-      muda; dado dinâmico do FastAPI (eventos, transparência) é buscado no cliente ou revalidado,
-      para não exigir rebuild a cada inscrição.
-- [ ] Mesmos tokens de design do painel (v0.2.4) — identidade visual única, mantida num lugar só.
-- [ ] SEO técnico desde o início: metadados por página, Open Graph, `sitemap.xml`, `robots.txt`,
-      dados estruturados de organização e de evento (`schema.org/Event`) — evento da ASAF
-      aparecendo corretamente na busca do Google é resultado direto disso.
-- [ ] Meta de performance e acessibilidade auditada no CI (antecipa a FASE 9): sem isso, "a gente
+- [x] Rebuild sob demanda: o workflow `deploy-site.yml` aceita disparo (`workflow_dispatch`) com
+      token de mínimo privilégio; dado dinâmico do FastAPI (eventos, transparência) é buscado no
+      cliente (ilha), para não exigir rebuild a cada inscrição.
+- [ ] **Flow do Directus que chama esse disparo** quando o conteúdo muda — **movido para a
+      v5.1**: um Flow precisa de coleção para escutar, e as coleções só nascem na v5.1. O
+      receptor (workflow) já está pronto e testado; o procedimento exato está em
+      [`site/README.md`](site/README.md#rebuild-quando-o-conteúdo-do-directus-muda).
+- [x] Mesmos tokens de design do painel (v0.2.4) — identidade visual única, mantida num lugar só
+      (`design/`, consumido por `painel/` e `site/`).
+- [x] SEO técnico desde o início: metadados por página, Open Graph, `sitemap.xml`, `robots.txt`,
+      dados estruturados de organização (`NGO`) — no ar. **`schema.org/Event`**: construtor
+      (`jsonLdEvento`) pronto e testado, mas quem o usa são as páginas de evento da **v5.2** —
+      hoje nenhum evento tem página própria, então ainda não há evento da ASAF na busca do Google.
+- [x] Meta de performance e acessibilidade auditada no CI (antecipa a FASE 9): sem isso, "a gente
       melhora depois" nunca acontece.
+
+> **v5.0 (2026-10-01)**: `site/` (Astro 7 + Tailwind 3 + TypeScript `strict`), `design/` (tokens
+> compartilhados) e `.github/workflows/deploy-site.yml`. `asaf.org.br` deixou de ser a página
+> provisória "em construção" (publicada à mão na v0.0, nunca esteve no repositório) e passou a
+> servir o site real: home mínima (identidade, natureza e objetivo do Estatuto Art. 1º, áreas de
+> atuação do Art. 3º, ilha de próximos eventos, chamada para o painel). A home é só o suficiente
+> para ter o que publicar — **a "Home" completa e as demais páginas continuam sendo a v5.2**.
+>
+> **Tokens (item 3)**: extraídos do `painel/` sem mudar nada — o CSS compilado do painel saiu
+> **idêntico byte a byte** (mesmo hash `index-DjBCh0k1.css`, conferido antes/depois e de novo em
+> produção). Mudança em `design/` dispara o deploy do painel *e* do site.
+>
+> **Ilha de eventos (dado dinâmico)**: `GET /api/publico/eventos` buscado no navegador. Tudo o que
+> vem da API entra no DOM por `textContent`, nunca `innerHTML` (título/descrição são texto da
+> diretoria) — provado por teste que **falha** se alguém trocar por `innerHTML` (verificado por
+> mutação). Datas da API são horário local sem fuso: `lib/datas.ts` fixa `America/Belem` (UTC-3),
+> senão um visitante em outro fuso veria o horário errado.
+>
+> **Achados desta versão** (todos tratados ou registrados abaixo):
+>
+> - **CORS (corrigido)**: `GET /api/publico/eventos` existia desde a v4.5, mas só o painel estava
+>   liberado em `app/main.py` — a ilha falharia **só no navegador** (o `curl` funcionaria). O site
+>   (`https://asaf.org.br`) e o dev local (`:4321`) entraram na lista; só rotas `/api/publico/...`
+>   servem a ele, o resto segue exigindo JWT. `tests/test_cors_site.py` (5 testes) — falha se a
+>   origem sair da lista e se uma origem desconhecida for liberada. Produção: `CORS_ORIGINS` não
+>   está definido no `asaf-api`, vale o padrão do código.
+> - **Para a v5.2 (páginas de evento)**: a API pública devolve **todo** evento público, inclusive
+>   os já realizados (a ilha filtra no cliente), e `Evento` **não tem campo de status/cancelamento**
+>   — um evento cancelado não consegue ser representado. Decidir antes de publicar página de
+>   evento. A API também não expõe o valor da inscrição (`offers` do `schema.org/Event`) nem
+>   imagem; o construtor omite em vez de inventar.
+> - **Dado institucional fora de propósito**: CNPJ, telefone, e-mail e endereço atual **não estão
+>   no site** — o Estatuto só traz "sede provisória" de 2013. Só cidade/UF (Parauapebas — PA) é
+>   publicado, em texto e no JSON-LD. Entram na v5.2 (Contato) vindos do Directus/FastAPI,
+>   **confirmados pelo usuário**; para emendas parlamentares esses dados importam e não podem estar
+>   errados.
+> - **Identidade visual — decisão do usuário pendente**: a página provisória anterior usava azul-
+>   marinho (`#0B2545`) e dourado (`#C9A227`); o painel usa o azul `blue-600` (`#2563eb`). O site
+>   seguiu o painel, como o plano manda ("mesmos tokens"). Se o azul-marinho/dourado for a marca
+>   real, **troca-se em um lugar só** (`design/tokens.css`) e os dois sites mudam juntos. A imagem
+>   de compartilhamento (`og-padrao.png`) e o ícone são provisórios — não há logotipo oficial no
+>   repositório.
+> - **Cabeçalhos de segurança**: o Static Web App já envia `Strict-Transport-Security` e
+>   `X-Content-Type-Options` por padrão (conferido em produção). CSP e `X-Frame-Options` ficam na
+>   **v5.5**, quando houver páginas e ilhas reais para escrever uma CSP correta.
+> - **`www.asaf.org.br` não resolve** (sem registro DNS). Decidir se vale criar com redirecionamento.
+> - Dark mode do site não existe (tokens `.dark` existem). Sem JavaScript, a ilha some e o
+>   `<noscript>` explica (defeito achado pelo próprio teste e corrigido antes do envio).
+>
+> **Testado (local, duas rodadas completas)**: `pytest` **389/389**; painel lint/Prettier/`tsc`/
+> Vitest/Playwright (10 e2e) verdes; site **36 testes unitários**, **22 e2e** no navegador (axe
+> WCAG 2.1 A/AA em desktop e 375 px, SEO, links internos, ilha em cada estado, XSS, sem JS) e
+> Lighthouse **100/100/100/100** (desempenho/acessibilidade/melhores práticas/SEO; LCP ≈ 1 s, 8 KB
+> transferidos). Os portões foram verificados por mutação (imagem sem `alt` reprova o axe).
+> A auditoria descobre as páginas **pelo sitemap**: página nova entra sozinha, sem editar teste.
+>
+> **Confirmado em produção (2026-10-01, commit `6300968`)**: workflows `Deploy API`, `Deploy Painel`
+> e `Deploy Site` verdes; `asaf.org.br/version.json` **e** `painel.asaf.org.br/version.json`
+> devolvendo `6300968`; `robots.txt`, `sitemap-0.xml` (só a home) e `og-padrao.png` (1200×630)
+> respondendo 200; página inexistente devolve **status 404 real** com a página própria
+> (`noindex`); `/_astro/*` com cache imutável e `version.json` com `no-store`. CORS ao vivo: a
+> origem do site recebe `access-control-allow-origin`, uma origem desconhecida **não**. Num
+> **navegador real** (Chromium) carregando `https://asaf.org.br` contra a API de produção: a ilha
+> terminou em "Nenhum evento aberto no momento" (a API devolve `[]` — não há evento público
+> cadastrado), **zero erro de console, zero requisição falha**. Painel em produção: mesmo CSS
+> (`index-DjBCh0k1.css`), tokens aplicados; o único 401 no console é o `POST /auth/refresh` da
+> checagem de sessão de visitante deslogado (comportamento já existente). Disparo manual
+> (`gh workflow run deploy-site.yml`) testado ao vivo: pula os portões e publica, com o passo
+> "Confirma no ar" passando — é o caminho que o Directus vai usar.
+>
+> **Ainda não verificado em produção**: o Flow do Directus (v5.1) e qualquer evento real
+> aparecendo na ilha — hoje a lista é vazia, então o desenho da lista com dados reais foi
+> validado só contra a API simulada (e2e) e contra o formato real do serializador, não contra um
+> evento de verdade vindo do banco de produção.
 
 #### v5.1 — Directus como CMS de conteúdo
 
@@ -515,7 +595,10 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 
 - [x] Workflow da API com OIDC (sem segredo de longa duração no GitHub), build via ACR Tasks e
       atualização do Container App.
-- [ ] Workflows equivalentes para o painel (v0.2.0) e para o site (v5.0).
+- [x] Workflows equivalentes para o painel (v0.2.0) e para o site (v5.0).
+      > `deploy-painel.yml` (desde a v0.2.0) e `deploy-site.yml` (v5.0, 2026-10-01) existem e rodam
+      > verdes em produção; ambos com portões de qualidade antes do deploy, e o do site confere
+      > sozinho que `asaf.org.br/version.json` mostra o commit publicado.
 - [ ] Migração Alembic executada como **passo explícito do pipeline**, antes do deploy da nova
       imagem, com falha de migração abortando o deploy — hoje a migração é aplicada manualmente.
 - [ ] Deploy com revisão progressiva do Container App (nova revisão recebendo tráfego aos poucos)
