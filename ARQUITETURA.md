@@ -49,9 +49,10 @@ Tudo hospedado no Azure, grupo de recursos `Associacao-RG`, região Brazil South
 > cerca de 30 s (medido: `GET /server/ping` em 33 s) — normal, não é defeito.
 >
 > **Licença do Directus (conferido na documentação oficial em 2026-10-01)**: o sistema de licença
-> é da **versão 12** — a instância roda a **11.17.4** (`directus/directus:11`), que **não tem** a
-> aba *Settings → License*; para ativar uma chave é preciso atualizar para a 12 (ver o PLANO,
-> v5.1.0). Instâncias self-hosted sem licença rodam no plano *core*, **gratuito e sem chave**. O
+> é da **versão 12**. A instância rodava a 11.17.4, que não tem a aba *Settings → License*, e foi
+> **atualizada em 2026-10-01 para `directus/directus:12.4.1`** (imagem fixada; regra do projeto:
+> tudo na última versão, ver `CLAUDE.md`). Instâncias self-hosted sem licença rodam no plano
+> *core*, **gratuito e sem chave**. O
 > uso comercial gratuito com limites maiores é o **Open Innovation
 > Grant** (entidade com menos de US$ 5 milhões de receita anual e menos de 50 funcionários): a
 > chave (`DXXXX-XXXXX-XXXXX-XXXXX-XXXXC`) é pedida à Directus pelo formulário de contato

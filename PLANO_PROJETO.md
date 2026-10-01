@@ -471,12 +471,30 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       de base, não atinge instalação nova. Para a v5.1 em diante, a consulta de conteúdo
 >       publicado muda para `?version=published` (era `?version=main`). Ativação: Studio →
 >       Settings → License, **digitada pelo próprio usuário** (a chave se amarra ao
->       `PUBLIC_URL` `https://cms.asaf.org.br`, até 5 ativações). **BLOQUEADO pelo sistema de
->       segurança do Claude Code** (regra "deploy em produção", 2026-10-01): a atualização foi
->       negada por ser troca de versão maior sem autorização explícita; **aguarda decisão do
->       usuário** — autorizar a atualização, fazê-la pelo Portal do Azure (Container Apps →
->       `asaf-directus` → Contêineres → Editar e implantar → imagem), ou ficar na 11 (sem
->       licença, sem a aba, sem enforcement; a 11 tende a deixar de receber correções).
+>       `PUBLIC_URL` `https://cms.asaf.org.br`, até 5 ativações).
+>       **ATUALIZADO em 2026-10-01 (autorizado pelo usuário: "tem que atualizar")**: a primeira
+>       tentativa foi bloqueada pelo sistema de segurança do Claude Code (regra "deploy em
+>       produção", por ser versão maior sem autorização explícita) e **não foi contornada**; com a
+>       autorização explícita na conversa, o Container App `asaf-directus` foi para
+>       `directus/directus:12.4.1` (revisão `asaf-directus--0000002`) com
+>       `IP_TRUST_PROXY=true` e `ADMIN_EMAIL=asaf@asaf.org.br`. **Verificado**: log com a
+>       migração da 12 aplicada ("Null Item Versions") e `Server started`; `GET /server/ping` 200;
+>       Studio abre; `GET /server/health` sem login devolve **403** (comportamento da 12); modo de
+>       revisão único com 100% do tráfego na nova e a antiga desativada; dados continuam 403 para
+>       visitante (associados, doações, usuários). Plano de volta: reaplicar a imagem 11.17.4
+>       (as tabelas `directus_*` só tinham 2 usuários e configuração padrão — se a migração
+>       impedisse a volta, recria-se do zero, e o `ADMIN_EMAIL` corrigido recria a conta real).
+>       **Falta só o usuário digitar a chave em Settings → License.**
+> - [ ] **Chave `SECRET` do Directus curta demais (aviso do log da 12)**: o Container App tem
+>       `SECRET` com **27 caracteres** (só o comprimento foi lido; o Directus exige ≥ 32 e
+>       recomenda aleatório e longo — assina os tokens de sessão). Corrigir gerando uma chave
+>       aleatória de 64+ caracteres, no Key Vault (`DIRECTUS-SECRET`) e no segredo do Container
+>       App; encerra as sessões abertas (cada pessoa entra de novo; tokens estáticos não são
+>       afetados). **Depende de gravar segredo — o sistema de segurança bloqueia isso para o
+>       Claude**: o usuário libera a regra ou grava pelo Portal do Azure.
+> - [ ] Nota do log da 12: a coleção `perfil_permissao` do sistema aparece sem chave primária e é
+>       ignorada pelo Directus — mais uma evidência de que ele enxerga as tabelas do sistema
+>       (ver o isolamento abaixo).
 > - [ ] **Isolar o Directus do banco do sistema — PRÉ-REQUISITO, antes de qualquer editor ou
 >       coleção nova.** **Achado de 2026-10-01**: o Directus compartilha o Postgres e conecta com
 >       o mesmo usuário poderoso da API, então `GET /collections` (com login de administrador)
@@ -1772,9 +1790,36 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       `directus_*` ou por que o firewall do Postgres é aberto a serviços Azure.
 - [ ] `ARQUITETURA.md` e o runbook (v8.4) mantidos como parte da definição de pronto de cada
       módulo, não como tarefa final que nunca acontece.
-- [ ] Política de atualização de dependência: revisão trimestral, atualização de segurança
-      imediata, atualização maior planejada com teste — o oposto do "não mexe que está
+- [x] **Política de atualização — SUBSTITUÍDA em 2026-10-01 pela regra permanente do usuário
+      ("tudo na última versão", ver `CLAUDE.md`)**: nada de revisão trimestral; atualiza-se
+      **sempre**, no fluxo normal (suíte completa 2x → push → CI → produção), preferindo
+      pré-lançamento quando for mais novo que a estável. É o oposto do "não mexe que está
       funcionando" que transforma manutenção em reescrita depois de 5 anos.
+- [ ] **Atualização contínua — inventário de 2026-10-01 e lotes** (cada lote é testado e
+      publicado sozinho; majors vêm um de cada vez para o culpado de uma quebra ser óbvio):
+      - **Directus**: 11.17.4 → **12.4.1** ✅ (feito e verificado, ver v5.1.0).
+      - **Lote 1 (seguro — mesma versão-maior + plataforma)**: pacotes do painel dentro das
+        faixas (36 atualizados, ex.: TanStack Query 5.104, prettier 3.9.9); `fastapi` 0.142.2,
+        `uvicorn` 0.54.0, `PyJWT` 2.15.1, `webauthn` 3.0.1; **Python 3.12 → 3.14** na imagem
+        Docker e no CI (o venv local de teste já era 3.14.7 — testávamos numa versão e rodávamos
+        noutra); **Node 22 → 26** no CI (testado localmente: tipos, testes, builds e e2e do site
+        sob Node 26); ações `setup-node`/`setup-python`/`upload-artifact` v4/v5 → **v7**.
+      - **Lote 2 (majors do front, um por vez)**: React 18 → 19 (+ `@types`), Vite 5 → 8
+        (+ `@vitejs/plugin-react` 6), Vitest 2 → 5, TypeScript 5.9 → 7, **Tailwind 3 → 4**
+        (o `design/tailwind-preset.js` e os dois `postcss.config.js` precisam ser reescritos),
+        Zod 3 → 4 (+ `@hookform/resolvers` 5), React Router 6 → 7, Recharts 2 → 3, TanStack
+        Table 8 → 9, `lucide-react` 0.468 → 1.x, `jsdom` 25 → 28, `jest-axe` 9 → 11, `@types/node`
+        22 → 26, `globals`, `eslint-plugin-react-hooks` 5 → 7 e demais majors do `npm outdated`;
+        no site: os mesmos que se aplicam + `prettier-plugin-astro` 0.14 → 1.1.
+      - **Lote 3 (majors do back)**: SQLAlchemy 2.0 → 2.1, ReportLab 4 → 5, `qrcode` 7 → 8
+        (as duas últimas geram PDF/QR de certificado e carteirinha: conferir a saída, não só o
+        teste).
+      - **Lote 4 (infra, com janela e backup)**: **PostgreSQL 16 → 18** no Azure (servidor
+        `asaf-pg-server`, Standard_B1ms) — upgrade maior de banco com dado real de associado e
+        financeiro: exige backup/ponto de restauração confirmado, checagem de compatibilidade
+        (inclusive do Directus) e **autorização explícita** na hora.
+      - Pendente fora do repositório: o Node **local** do usuário é o 22.12.0 (avisos de motor
+        em pacotes que pedem ≥ 22.19) — atualizar na máquina (não é do repositório).
 - [ ] Fator ônibus tratado como risco de projeto (v12.8): documentação suficiente para outra
       pessoa assumir, e pelo menos uma pessoa da associação treinada na operação básica.
 

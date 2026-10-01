@@ -37,3 +37,29 @@ sempre (ver qualquer bloco de confirmação de versão no `PLANO_PROJETO.md`). S
 por trás do pedido for diferente disso (ex.: dar ao Claude uma conta de teste própria, sem MFA,
 separada de qualquer usuário real, só em ambiente de homologação), isso é uma decisão nova a
 discutir explicitamente com o usuário — nunca assumir.
+
+## Tudo na última versão — regra permanente (definida pelo usuário em 2026-10-01)
+
+O usuário exige que **todo componente esteja sempre na versão mais recente**: pacotes (npm, pip),
+imagens Docker (Python, Directus...), Node, ações do GitHub e serviços do Azure (Postgres). Nas
+palavras dele: "coisa desatualizada não pega bem; a perpetuidade do sistema é estar tudo atualizado
+e moderno". Prefere a versão mais nova mesmo quando for **beta/candidata**, se existir.
+
+Como aplicar (isto **é** a autorização geral dele para atualizar — não perguntar de novo):
+
+1. **Sempre que começar uma versão/fase, ou tocar num componente**, conferir o que está
+   desatualizado (`npm outdated` em `painel/` e `site/`, `pip list --outdated`, tags do Docker Hub,
+   versões das actions, `endoflife.date`) e atualizar **no fluxo de sempre**: implementar → suíte
+   completa mais de uma vez → commit → push → CI → confirmar em produção. A regra manda
+   **atualizar**, nunca pular os portões de teste (vale igual para dinheiro, voto e LGPD).
+2. **Nunca fixar versão antiga "porque funciona".** Se uma atualização maior quebrar algo, resolver
+   a causa. Só adiar com registro explícito no `PLANO_PROJETO.md` (o motivo concreto e o que
+   bloqueia), nunca em silêncio.
+3. **Pré-lançamento (beta/rc/canary)**: adotar quando for mais novo que a estável e a suíte
+   passar. Não é adiamento usar a estável quando o único pré-lançamento disponível é *mais antigo*
+   que ela (ex.: `12.0.0-rc.2` do Directus, já superada pela `12.4.1` estável).
+4. **Atualização de versão maior em produção** (Directus, Postgres, imagem base) é mudança de
+   infraestrutura: dizer o plano de volta, e confirmar por prova (ping, versão, log). O sistema de
+   segurança do Claude Code já bloqueou "deploy em produção" de versão maior sem autorização
+   explícita na conversa; se bloquear, parar e avisar o usuário — nunca contornar.
+5. Os lotes e o estado atual estão no `PLANO_PROJETO.md` (item "Atualização contínua").
