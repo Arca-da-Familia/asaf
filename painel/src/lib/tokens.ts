@@ -1,6 +1,6 @@
 // Fonte única dos tokens de design (v0.2.4) para uso em JavaScript (gráficos Recharts,
 // SVG inline, etc.), onde classes do Tailwind não se aplicam. No CSS/Tailwind a mesma
-// identidade vive em src/index.css (variáveis) + tailwind.config.js (mapeamento) — trocar a
+// identidade vive em ../design/ (tokens.css = variáveis, theme.css = mapeamento) — trocar a
 // identidade visual da associação é mudar UM lugar, nunca caçar cor em 40 arquivos.
 export const cores = {
   // Paleta da marca (2026-10-01), a mesma de design/tokens.css e da logo institucional.

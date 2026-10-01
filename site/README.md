@@ -1,6 +1,6 @@
 # site/ — site institucional da ASAF (asaf.org.br)
 
-Astro (geração estática) + Tailwind + TypeScript `strict`. Publicado no Static Web App
+Astro (geração estática) + Tailwind 4 (plugin do Vite, tema em `../design/`) + TypeScript `strict`. Publicado no Static Web App
 `asaf-site` por `.github/workflows/deploy-site.yml`. Plano completo: FASE 5 do
 [`PLANO_PROJETO.md`](../PLANO_PROJETO.md); decisões de arquitetura: [`ARQUITETURA.md`](../ARQUITETURA.md).
 

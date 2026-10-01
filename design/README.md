@@ -24,12 +24,32 @@ propósito**: são superfícies de interface, não cor de marca.
 | Arquivo | O que é | Quem usa |
 | --- | --- | --- |
 | `tokens.css` | Variáveis CSS (cores, raio) — tema claro e escuro | `painel/src/index.css`, `site/src/styles/global.css` |
-| `base.css` | Regras-base (borda, fundo do `body`, foco visível) | idem |
-| `tailwind-preset.js` | `theme.extend` do Tailwind (cores nomeadas, sombras, fonte) | `painel/tailwind.config.js`, `site/tailwind.config.js` |
+| `theme.css` | Tema do **Tailwind 4** (`@theme`): transforma as variáveis em classes (`bg-primary`, `text-brand-secondary-foreground`, `rounded-lg`, `shadow-card`), fonte, sombras, variante `dark`, paleta v3 preservada para as cores de status | idem |
+| `base.css` | Regras-base (borda, fundo do `body`, foco visível, compatibilidade de botão/placeholder com o Tailwind 3) | idem |
 | `logo/asaf-logo-original.png` | **Logo institucional — arquivo mestre** (2607×2160, fundo transparente) | tudo abaixo é gerado dele |
 | `logo/*.webp`, `logo/*.png`, `logo/favicon.ico` | Derivados (160/640/600 px, ícones 48/192/512, apple-touch) | copiados para `site/public/` e `painel/public/` |
 
 Em JavaScript (gráficos Recharts) as cores espelham os tokens em `painel/src/lib/tokens.ts`.
+
+### Como os dois projetos consomem (Tailwind 4, CSS-first)
+
+Não existe mais `tailwind.config.js`, `postcss.config.js` nem preset em JavaScript: o Tailwind 4
+é configurado em CSS e entra pelo plugin do Vite (`@tailwindcss/vite`: em `painel/vite.config.ts`
+e em `site/astro.config.mjs`). O CSS de entrada de cada projeto tem sempre as mesmas 4 linhas,
+**nesta ordem**:
+
+```css
+@import 'tailwindcss' source(none);
+@import '<caminho>/design/theme.css';
+@import '<caminho>/design/tokens.css';
+@import '<caminho>/design/base.css';
+
+@source '<onde estão as classes do projeto>';
+```
+
+`source(none)` + `@source` fazem o Tailwind varrer só os arquivos do próprio projeto (painel:
+`index.html` e `src/**/*.{ts,tsx}`; site: `src/**/*.{astro,html,ts}`), igual ao antigo `content`.
+Tudo que é identidade (cor, raio, sombra, fonte, tema escuro) está nos três arquivos daqui.
 
 ## Regras
 
@@ -49,7 +69,16 @@ Em JavaScript (gráficos Recharts) as cores espelham os tokens em `painel/src/li
   a gerá-lo daí.
 - **Nunca redefina um token dentro de `painel/` ou `site/`.** Se um dos dois precisar de algo
   diferente, o token novo nasce aqui, com nome próprio.
-- Valores no formato `H S% L%` (sem `hsl()`), para o Tailwind aplicar opacidade (`bg-primary/50`).
+- Valores no formato `H S% L%` (sem `hsl()`): o `theme.css` os envolve em `hsl(var(--x))`, o que
+  deixa o Tailwind aplicar opacidade (`bg-primary/50`) e o JavaScript dos gráficos usar
+  `hsl(var(--border))`. **Token de cor novo = uma linha em `tokens.css` (claro e `.dark`) + uma
+  linha `--color-<nome>: hsl(var(--<nome>))` em `theme.css`.**
+- **`shadow-card` é uma sombra branca (invisível) de propósito** — reproduz o que o Tailwind 3
+  sempre renderizou por causa de um conflito de nome (`card` era cor e sombra). Detalhes e como
+  ligar a sombra suave no comentário de `theme.css`.
+- A paleta padrão do Tailwind 3 (`text-green-600`, `text-amber-600`...) está preservada em
+  `theme.css` só para as famílias em uso (verde, âmbar, esmeralda, azul): o Tailwind 4 trocou a
+  paleta padrão por outra, mais saturada, e os estados de status mudariam de cor.
 - `--muted-foreground` sobre fundo `--muted` **não** passa em AA para texto pequeno — use sobre
   `--background` ou `--card`.
 - Dark mode: os tokens `.dark` existem (o painel usa). O site, por ora, é só claro.

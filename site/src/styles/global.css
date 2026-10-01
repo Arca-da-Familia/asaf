@@ -1,11 +1,13 @@
-/* Identidade visual compartilhada com o painel — fonte única em ../../../design/ (v5.0).
-   Os @import vêm primeiro (regra do CSS); o Tailwind recolhe os blocos `@layer base` deles. */
+/* Tailwind 4 (CSS-first). A identidade visual (tema, cores, raio, base) é compartilhada com o
+   painel e mora em ../../../design/ (fonte única — ver design/README.md). Ordem importa: o
+   Tailwind primeiro, depois o tema (theme.css), os valores (tokens.css) e as regras-base.
+   `source(none)` + @source = só varre o que o site realmente usa (mesmo `content` do Tailwind 3). */
+@import 'tailwindcss' source(none);
+@import '../../../design/theme.css';
 @import '../../../design/tokens.css';
 @import '../../../design/base.css';
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@source '../**/*.{astro,html,ts}';
 
 /* Sem JavaScript a ilha de eventos nunca sai de "Carregando…" — esconder é mais honesto que
    mostrar um aviso que nunca muda; o <noscript> ao lado explica o que fazer. */

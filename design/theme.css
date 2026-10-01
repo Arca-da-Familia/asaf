@@ -1,0 +1,131 @@
+/*
+ * Tema do Tailwind 4 da ASAF — par de `tokens.css` (esse arquivo SUBSTITUI o antigo
+ * `tailwind-preset.js` do Tailwind 3).
+ *
+ * `tokens.css` guarda os VALORES (variáveis CSS `--primary`, `--radius`... no formato "H S% L%",
+ * tema claro e escuro). Este arquivo ensina o Tailwind a transformá-los em classes
+ * (`bg-primary`, `text-brand-secondary-foreground`, `rounded-lg`, `shadow-card`...) e é a ÚNICA
+ * definição de tema dos dois projetos. Painel (`painel/src/index.css`) e site
+ * (`site/src/styles/global.css`) importam, nesta ordem: `@import 'tailwindcss'`, este arquivo,
+ * `tokens.css` e `base.css`.
+ *
+ * `@theme inline`: as variáveis do Tailwind apontam para as de `tokens.css` (`hsl(var(--primary))`)
+ * em vez de copiar o valor, então o tema escuro (`.dark` troca `--primary`) funciona sem nenhuma
+ * classe `dark:` e o JavaScript (gráficos Recharts: `hsl(var(--border))`) segue lendo as mesmas
+ * variáveis. A opacidade (`bg-primary/50`) funciona porque o Tailwind aplica `color-mix` sobre
+ * a cor resolvida.
+ *
+ * Nunca definir token de cor/raio dentro de `painel/` ou `site/`: o token novo nasce em
+ * `tokens.css` e é mapeado aqui.
+ */
+
+/* Tema escuro por classe: `<html class="dark">` (o painel liga/desliga em lib/theme.tsx). Mesmo
+   comportamento do `darkMode: ['class']` do Tailwind 3 — casa o próprio `.dark` e descendentes. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  /* Fonte do sistema: sem baixar fonte (desempenho do site e painel instalável). */
+  --font-sans:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+
+  /* ATENÇÃO — `shadow-card` é, na prática, uma sombra BRANCA (invisível sobre fundo branco).
+     No Tailwind 3 o nome `card` existia como cor E como sombra neste preset, o `shadow-card`
+     casava com os dois e a cor (`--card`, branco) vencia a sombra preta de 5% que o preset
+     descrevia. O Tailwind 4 separa os dois, então para o visual NÃO mudar na migração a sombra
+     abaixo reproduz o que o 3 sempre renderizou. Para ligar a sombra suave que o preset previa,
+     trocar o valor por `0 1px 2px 0 rgb(0 0 0 / 0.05)` (muda site e painel; decisão visual). */
+  --shadow-card: 0 1px 2px 0 hsl(var(--card));
+  --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+
+  /* Raio: `rounded-lg/md/sm` seguem `--radius` (tokens.css), como no shadcn/ui. */
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  /* Marca: verde (primária), ouro (secundária), azul claro (terciária). Texto sobre ouro ou azul:
+     `text-brand-secondary-foreground` / `text-brand-tertiary-foreground`. */
+  --color-brand: hsl(var(--brand));
+  --color-brand-foreground: hsl(var(--brand-foreground));
+  --color-brand-secondary: hsl(var(--brand-secondary));
+  --color-brand-secondary-foreground: hsl(var(--brand-secondary-foreground));
+  --color-brand-tertiary: hsl(var(--brand-tertiary));
+  --color-brand-tertiary-foreground: hsl(var(--brand-tertiary-foreground));
+}
+
+/*
+ * Paleta padrão do Tailwind 3 PRESERVADA para as famílias que o código usa (`text-green-600` =
+ * "em dia", `text-amber-600` = alerta, `text-emerald-600`, `text-blue-600`...). O Tailwind 4
+ * redefiniu a paleta padrão em OKLCH (verde/âmbar mais saturados); sem isto, os estados de
+ * status mudariam de cor na migração. Famílias que ninguém usa continuam na paleta nova do
+ * Tailwind 4 — se um dia uma delas entrar, decidir a cor aqui.
+ */
+@theme {
+  --color-green-50: #f0fdf4;
+  --color-green-100: #dcfce7;
+  --color-green-200: #bbf7d0;
+  --color-green-300: #86efac;
+  --color-green-400: #4ade80;
+  --color-green-500: #22c55e;
+  --color-green-600: #16a34a;
+  --color-green-700: #15803d;
+  --color-green-800: #166534;
+  --color-green-900: #14532d;
+  --color-green-950: #052e16;
+
+  --color-amber-50: #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+  --color-amber-700: #b45309;
+  --color-amber-800: #92400e;
+  --color-amber-900: #78350f;
+  --color-amber-950: #451a03;
+
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-200: #a7f3d0;
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-emerald-800: #065f46;
+  --color-emerald-900: #064e3b;
+  --color-emerald-950: #022c22;
+
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-300: #93c5fd;
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e40af;
+  --color-blue-900: #1e3a8a;
+  --color-blue-950: #172554;
+}

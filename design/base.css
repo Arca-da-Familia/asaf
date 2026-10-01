@@ -1,13 +1,34 @@
-/* Regras-base compartilhadas pelo painel e pelo site (v5.0). Importar DEPOIS de @tailwind base. */
+/* Regras-base compartilhadas pelo painel e pelo site (v5.0). Importar DEPOIS de
+   `@import 'tailwindcss'` e de theme.css (usa @apply com as classes do tema). */
 @layer base {
-  * {
+  /* Cor de borda padrão = token `--border`. No Tailwind 4 a cor padrão de `border` virou
+     `currentColor` (no 3 era cinza); sem esta regra toda borda "sem cor" ficaria preta. Cobre
+     também ::before/::after, como o preflight do Tailwind 4 faz com a cor padrão dele. */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
   }
-  /* Foco visível em todo elemento interativo (navegação por teclado, v0.2.6) */
+  /* Foco visível em todo elemento interativo (navegação por teclado, v0.2.6).
+     `outline-hidden` = o antigo `outline-none` do Tailwind 3 (contorno transparente, que ainda
+     aparece no modo de alto contraste do Windows); o `outline-none` do 4 apagaria o contorno. */
   :focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    @apply outline-hidden ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Compatibilidade com o preflight do Tailwind 3 — o 4 mudou estes dois padrões e o painel
+     (botões, campos) foi desenhado com os antigos: */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: #9ca3af; /* cinza-400 do Tailwind 3 (no 4 o placeholder herda a cor do texto a 50%) */
   }
 }

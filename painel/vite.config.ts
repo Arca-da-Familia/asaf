@@ -1,11 +1,15 @@
 import { fileURLToPath, URL } from 'node:url'
 
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  // Tailwind 4 pelo plugin do Vite (sem PostCSS/autoprefixer: o prefixo é feito pelo próprio
+  // Tailwind). Tema e tokens vêm de ../design/ via src/index.css; não existe mais
+  // tailwind.config.js. O vitest.config.ts não carrega o plugin (css: false nos testes).
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

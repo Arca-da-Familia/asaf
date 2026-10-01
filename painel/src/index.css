@@ -1,9 +1,11 @@
-/* Identidade visual compartilhada com o site institucional — fonte única em ../design/ (v5.0).
-   Os dois @import vêm primeiro (regra do CSS); o Tailwind recolhe os blocos `@layer base` deles
-   e os coloca na camada base, depois do preflight. */
+/* Tailwind 4 (CSS-first). A identidade visual (tema, cores, raio, base) é compartilhada com o site
+   institucional e mora em ../../design/ (fonte única — ver design/README.md). Ordem importa:
+   o Tailwind primeiro, depois o tema (theme.css), os valores (tokens.css) e as regras-base.
+   `source(none)` + @source = só varre o que o painel realmente usa (mesmo `content` do Tailwind 3). */
+@import 'tailwindcss' source(none);
+@import '../../design/theme.css';
 @import '../../design/tokens.css';
 @import '../../design/base.css';
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@source '../index.html';
+@source './**/*.{ts,tsx}';

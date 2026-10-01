@@ -2,7 +2,8 @@
  * Tokens de design da ASAF — FONTE ÚNICA da identidade visual.
  *
  * Consumido pelo painel (painel/src/index.css) e pelo site institucional (site/src/styles/
- * global.css). Mudou uma cor ou o raio de borda aqui, mudou nos dois: é isso que mantém site
+ * global.css); `theme.css` (par deste arquivo) mapeia estas variáveis para as classes do
+ * Tailwind 4. Mudou uma cor ou o raio de borda aqui, mudou nos dois: é isso que mantém site
  * e painel parecendo a mesma instituição. NUNCA redefinir um token dentro de painel/ ou site/ —
  * se um dos dois precisar de algo diferente, o token novo nasce aqui com nome próprio.
  *
@@ -19,7 +20,8 @@
  * próprios (--brand-secondary, --brand-tertiary), senão toda superfície cinza do painel viraria
  * amarela.
  *
- * Valores no formato "H S% L%" (sem hsl()) para o Tailwind aplicar opacidade (bg-primary/50).
+ * Valores no formato "H S% L%" (sem hsl()): `theme.css` os envolve em hsl(var(--x)), o que deixa o
+ * Tailwind aplicar opacidade (bg-primary/50) e o JavaScript (gráficos) ler `hsl(var(--border))`.
  * Os nomes são os do shadcn/ui, que o painel já usa desde a v0.2.4.
  */
 @layer base {
@@ -30,7 +32,7 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    /* Verde institucional da ASAF (#145238) — fonte única, espelhada em tailwind-preset.js */
+    /* Verde institucional da ASAF (#145238) — fonte única, mapeada para a classe bg-primary em theme.css */
     --primary: 154.8 60.8% 20%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
