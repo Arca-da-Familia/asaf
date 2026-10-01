@@ -18,6 +18,16 @@ class BeneficiarioCriar(BaseModel):
         return self
 
 
+class BeneficiarioAtualizar(BaseModel):
+    """v4.10 - edição da tela cross-projeto nova (`Beneficiarios.tsx`). Campos de `Pessoa`
+    (nome/nascimento) e os dois campos próprios de `Beneficiario` (consentimento) - nunca o
+    prontuário, que é imutável de propósito (`registrar_atendimento`, sem endpoint de edição)."""
+    nome_completo: Optional[str] = None
+    data_nascimento: Optional[datetime] = None
+    consentimento_lgpd_registrado: Optional[bool] = None
+    observacao_consentimento: Optional[str] = None
+
+
 class BeneficiarioProjetoCriar(BaseModel):
     id_beneficiario: int
     id_projeto: int

@@ -12,6 +12,7 @@ import {
   FolderKanban,
   Gavel,
   Handshake,
+  HeartHandshake,
   Landmark,
   MessageCircleQuestion,
   PartyPopper,
@@ -235,6 +236,12 @@ export const modulos: Modulo[] = [
     rotulo: 'Reserva de Espaço',
     permissao: 'projetos',
     icone: CalendarCheck,
+  },
+  {
+    rota: '/beneficiarios',
+    rotulo: 'Beneficiários',
+    permissao: 'projetos',
+    icone: HeartHandshake,
   },
   {
     rota: '/eventos',

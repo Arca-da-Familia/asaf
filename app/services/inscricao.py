@@ -127,10 +127,24 @@ def vincular_cobranca(db: Session, *, id_inscricao: int, id_titulo: int) -> Insc
     return inscricao
 
 
-def listar_inscricoes(db: Session, *, contexto_tipo: str, id_contexto: int) -> list[Inscricao]:
-    return (
-        db.query(Inscricao)
-        .filter(Inscricao.contexto_tipo == contexto_tipo, Inscricao.id_contexto == id_contexto)
-        .order_by(Inscricao.data_inscricao)
-        .all()
-    )
+def listar_inscricoes(
+    db: Session, *, contexto_tipo: str, id_contexto: int,
+    # v4.10 - busca/filtro pra tela de gestão de inscritos (antes só dava pra listar tudo sem
+    # filtro nenhum, adequado quando o motor só tinha consumidor automático).
+    busca: Optional[str] = None, status: Optional[str] = None,
+) -> list[Inscricao]:
+    query = db.query(Inscricao).filter(Inscricao.contexto_tipo == contexto_tipo, Inscricao.id_contexto == id_contexto)
+    if status:
+        query = query.filter(Inscricao.status == status)
+    if busca:
+        query = query.join(Pessoa, Pessoa.id_pessoa == Inscricao.id_pessoa).filter(Pessoa.nome_completo.ilike(f"%{busca}%"))
+    return query.order_by(Inscricao.data_inscricao).all()
+
+
+def mapear_nomes_pessoas(db: Session, ids_pessoa: list[int]) -> dict[int, str]:
+    """v4.10 - o motor não tem relationship pra `Pessoa` (é genérico de propósito, não sabe o que
+    está inscrevendo) - quem exibe (router) busca o nome à parte, uma consulta só pra todo o lote."""
+    if not ids_pessoa:
+        return {}
+    linhas = db.query(Pessoa.id_pessoa, Pessoa.nome_completo).filter(Pessoa.id_pessoa.in_(set(ids_pessoa))).all()
+    return {id_pessoa: nome for id_pessoa, nome in linhas}

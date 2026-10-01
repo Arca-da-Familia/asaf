@@ -26,12 +26,14 @@ from app.schemas.eventos import (
 )
 from app.schemas.portaria import TokenPortariaCriar
 from app.security import exigir_permissao, get_current_user
+from app.models.motores import CANCELADO, Inscricao, RegistroPresenca
 from app.services import certificados as servico_certificados
 from app.services import cupons as servico_cupons
 from app.services import eventos
 from app.services import fechamento_evento as servico_fechamento_evento
 from app.services import inscricao as servico_inscricao
 from app.services import isencoes_taxa as servico_isencoes_taxa
+from app.services import pesquisa_satisfacao as servico_pesquisa_satisfacao
 from app.services import portaria as servico_portaria
 from app.services import precos_evento as servico_precos_evento
 from app.services import vagas as servico_vagas
@@ -492,6 +494,59 @@ def listar_fechamentos_evento_endpoint(id_evento: int, db: Session = Depends(get
         }
         for f in servico_fechamento_evento.listar_fechamentos_evento(db, id_evento=id_evento)
     ]
+
+
+# ==========================================
+# PESQUISA DE SATISFAÇÃO (v4.10) - convite automático já acontece pela mesma tarefa diária do
+# fechamento financeiro (v4.9, ver app/services/fechamento_evento.py); aqui só o disparo manual
+# (sem esperar o ciclo) e a leitura do resultado agregado, sempre anônimo.
+# ==========================================
+@router.post("/api/eventos/{id_evento}/pesquisa-satisfacao/convidar", summary="Gerar convites de pesquisa de satisfação (manual, sem esperar a tarefa periódica)")
+def convidar_pesquisa_satisfacao_endpoint(id_evento: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    convites = servico_pesquisa_satisfacao.gerar_convites(db, id_evento=id_evento)
+    registrar_auditoria(
+        db, usuario, "respostas_pesquisa_satisfacao", "CONVIDAR", id_registro_afetado=id_evento,
+        dados_depois={"quantidade_convites_novos": len(convites)}, ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Convites gerados.", "quantidade_convites_novos": len(convites)}
+
+
+@router.get("/api/eventos/{id_evento}/pesquisa-satisfacao/resultado", summary="Resultado agregado da pesquisa de satisfação (sempre anônimo)")
+def resultado_pesquisa_satisfacao_endpoint(id_evento: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    return servico_pesquisa_satisfacao.calcular_resultado(db, id_evento=id_evento)
+
+
+# ==========================================
+# COMPARAÇÃO ENTRE EDIÇÕES (v4.10) - nenhuma agregação nova de dado, só reaproveita, edição por
+# edição, o que cada versão anterior já calcula (inscritos/presentes do motor v4.0/v4.8,
+# arrecadado/resultado do último FechamentoEvento v4.9, satisfação desta versão).
+# ==========================================
+@router.get("/api/eventos/{id_evento}/comparacao-edicoes", summary="Comparação entre edições do evento")
+def comparacao_edicoes_endpoint(id_evento: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    linhas = []
+    for edicao in eventos.listar_cadeia_edicoes(db, id_evento=id_evento):
+        total_inscritos = (
+            db.query(Inscricao)
+            .filter(Inscricao.contexto_tipo == "Evento", Inscricao.id_contexto == edicao.id_evento, Inscricao.status != CANCELADO)
+            .count()
+        )
+        total_presentes = (
+            db.query(RegistroPresenca.id_pessoa)
+            .filter(RegistroPresenca.contexto_tipo == "Evento", RegistroPresenca.id_contexto == edicao.id_evento)
+            .distinct()
+            .count()
+        )
+        ultimos_fechamentos = servico_fechamento_evento.listar_fechamentos_evento(db, id_evento=edicao.id_evento)
+        ultimo_fechamento = ultimos_fechamentos[0] if ultimos_fechamentos else None
+        resultado_satisfacao = servico_pesquisa_satisfacao.calcular_resultado(db, id_evento=edicao.id_evento)
+        linhas.append({
+            "id_evento": edicao.id_evento, "titulo": edicao.titulo, "data_hora_inicio": edicao.data_hora_inicio,
+            "total_inscritos": total_inscritos, "total_presentes": total_presentes,
+            "total_arrecadado": ultimo_fechamento.total_arrecadado if ultimo_fechamento else None,
+            "resultado_financeiro": ultimo_fechamento.resultado if ultimo_fechamento else None,
+            "nota_media_satisfacao": resultado_satisfacao["nota_media"],
+        })
+    return linhas
 
 
 # ==========================================

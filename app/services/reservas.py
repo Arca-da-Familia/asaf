@@ -239,13 +239,49 @@ def marcar_no_show(db: Session, *, id_reserva: int) -> Reserva:
     return reserva
 
 
-def listar_reservas(db: Session, *, id_espaco: Optional[int] = None, id_associado_solicitante: Optional[int] = None) -> list[Reserva]:
+def listar_reservas(
+    db: Session, *, id_espaco: Optional[int] = None, id_associado_solicitante: Optional[int] = None,
+    # v4.10 - busca/filtro pra tela de gestão de reservas (antes só dava pra filtrar por espaço
+    # ou por solicitante, sem status nem período).
+    status: Optional[str] = None, data_inicio: Optional[datetime] = None, data_fim: Optional[datetime] = None,
+) -> list[Reserva]:
     consulta = db.query(Reserva)
     if id_espaco is not None:
         consulta = consulta.filter(Reserva.id_espaco == id_espaco)
     if id_associado_solicitante is not None:
         consulta = consulta.filter(Reserva.id_associado_solicitante == id_associado_solicitante)
+    if status is not None:
+        consulta = consulta.filter(Reserva.status == status)
+    if data_inicio is not None:
+        consulta = consulta.filter(Reserva.data_hora_inicio >= data_inicio)
+    if data_fim is not None:
+        consulta = consulta.filter(Reserva.data_hora_inicio <= data_fim)
     return consulta.order_by(Reserva.data_hora_inicio.desc()).all()
+
+
+def atualizar_reserva(
+    db: Session, *, id_reserva: int, data_hora_inicio: Optional[datetime], data_hora_fim: Optional[datetime], finalidade: Optional[str],
+) -> Reserva:
+    """v4.10 - edição da tela de gestão nova. Só reserva 'SOLICITADA'/'CONFIRMADA' pode mudar de
+    horário (as demais já aconteceram/foram encerradas - mudar depois não faz sentido); reexecuta
+    a MESMA checagem de conflito de `criar_reserva` via `agenda.atualizar_compromisso`, nunca uma
+    checagem própria - um único lugar decide o que é conflito (ver app/services/agenda.py)."""
+    reserva = obter_reserva(db, id_reserva)
+    if reserva.status not in (SOLICITADA, CONFIRMADA):
+        raise HTTPException(status_code=400, detail=f"Reserva '{reserva.status}' não pode ser editada.")
+
+    novo_inicio = data_hora_inicio if data_hora_inicio is not None else reserva.data_hora_inicio
+    novo_fim = data_hora_fim if data_hora_fim is not None else reserva.data_hora_fim
+    if (data_hora_inicio is not None or data_hora_fim is not None) and reserva.id_compromisso_agenda:
+        agenda.atualizar_compromisso(db, id_compromisso=reserva.id_compromisso_agenda, data_hora_inicio=novo_inicio, data_hora_fim=novo_fim)
+
+    reserva.data_hora_inicio = novo_inicio
+    reserva.data_hora_fim = novo_fim
+    if finalidade is not None:
+        reserva.finalidade = finalidade
+    db.commit()
+    db.refresh(reserva)
+    return reserva
 
 
 # ==========================================

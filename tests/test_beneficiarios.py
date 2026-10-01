@@ -152,6 +152,56 @@ def test_encaminhamento_rede_externa_valida_catalogo(client, auth_headers, db):
     assert encaminhamentos[0]["tipo_rede"] == "CRAS"
 
 
+# ==========================================
+# TELA CROSS-PROJETO (v4.10) - busca/filtro/edição/exportação. Antes só dava pra ver beneficiário
+# aninhado dentro de UM projeto por vez.
+# ==========================================
+def test_listar_beneficiarios_filtra_por_busca_e_projeto(client, auth_headers):
+    id_projeto = _criar_projeto(client, auth_headers)
+    id_ana = _criar_beneficiario(client, auth_headers, nome=f"Ana Beneficiária {uuid.uuid4().hex[:6]}")
+    id_bia = _criar_beneficiario(client, auth_headers, nome=f"Bia Beneficiária {uuid.uuid4().hex[:6]}")
+    _vincular(client, auth_headers, id_ana, id_projeto)
+
+    r = client.get("/api/beneficiarios/?busca=Ana", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    encontrados = [b["id_beneficiario"] for b in r.json()]
+    assert id_ana in encontrados and id_bia not in encontrados
+
+    r = client.get(f"/api/beneficiarios/?id_projeto={id_projeto}", headers=auth_headers)
+    encontrados = [b["id_beneficiario"] for b in r.json()]
+    assert encontrados == [id_ana]
+
+
+def test_atualizar_beneficiario_edita_dados_de_pessoa_e_consentimento(client, auth_headers, db):
+    id_beneficiario = _criar_beneficiario(client, auth_headers, nome="Nome Antigo")
+
+    r = client.put(f"/api/beneficiarios/{id_beneficiario}", json={
+        "nome_completo": "Nome Corrigido", "consentimento_lgpd_registrado": True, "observacao_consentimento": "Assinado em papel",
+    }, headers=auth_headers)
+    assert r.status_code == 200, r.text
+
+    atualizado = next(b for b in client.get("/api/beneficiarios/", headers=auth_headers).json() if b["id_beneficiario"] == id_beneficiario)
+    assert atualizado["nome_completo"] == "Nome Corrigido"
+    assert atualizado["consentimento_lgpd_registrado"] is True
+    assert atualizado["observacao_consentimento"] == "Assinado em papel"
+    assert atualizado["data_consentimento"] is not None
+
+
+def test_exportar_beneficiarios_exige_permissao_propria_e_grava_auditoria(client, auth_headers):
+    from tests.test_eventos import _criar_associado_com_acesso
+
+    _criar_beneficiario(client, auth_headers)
+    headers_sem_permissao = _criar_associado_com_acesso(client, auth_headers)
+
+    r = client.get("/api/beneficiarios/exportar", headers=headers_sem_permissao)
+    assert r.status_code == 403
+
+    r = client.get("/api/beneficiarios/exportar", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    assert len(r.json()) >= 1
+    assert "nome_completo" in r.json()[0]
+
+
 def test_frequencia_do_beneficiario_usa_motor_de_presenca_v40(client, auth_headers):
     id_projeto = _criar_projeto(client, auth_headers)
     id_beneficiario = _criar_beneficiario(client, auth_headers)

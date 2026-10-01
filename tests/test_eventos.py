@@ -152,3 +152,89 @@ def test_endpoints_de_evento_exigem_autenticacao(client):
     assert client.post("/api/eventos/", json={}).status_code == 401
     assert client.get("/api/eventos/").status_code == 401
     assert client.get("/api/publico/eventos").status_code == 200
+
+
+# ==========================================
+# GESTÃO DE INSCRITOS (v4.10) - busca/filtro/exportação sobre o motor genérico da v4.0, que até
+# aqui só dava pra listar tudo sem filtro nenhum.
+# ==========================================
+def _criar_pessoa_associada(client, db, nome=None) -> int:
+    from app.models.associados import Associado
+
+    cpf = _cpf_unico()
+    payload = {
+        "nome_completo": nome or f"Pessoa Evento Teste {cpf}", "cpf": cpf, "email_contato": f"{cpf}@x.com",
+        "telefone_whatsapp": "11900000000", "categoria": "Efetivo", "data_nascimento": "1990-01-01",
+        "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
+        "cidade": "Sao Paulo", "estado": "SP",
+    }
+    r = client.post("/associados-master/", json=payload)
+    assert r.status_code == 200, r.text
+    associado = db.query(Associado).filter(Associado.id_associado == r.json()["id_associado"]).first()
+    return associado.id_pessoa
+
+
+def test_listar_inscricoes_filtra_por_busca_e_status(client, auth_headers, db):
+    id_evento = _criar_evento(client, auth_headers)
+    id_pessoa_ana = _criar_pessoa_associada(client, db, nome=f"Ana Inscrita {uuid.uuid4().hex[:6]}")
+    id_pessoa_bia = _criar_pessoa_associada(client, db, nome=f"Bia Inscrita {uuid.uuid4().hex[:6]}")
+
+    client.post("/api/inscricoes/", json={"contexto_tipo": "Evento", "id_contexto": id_evento, "id_pessoa": id_pessoa_ana}, headers=auth_headers)
+    r = client.post("/api/inscricoes/", json={"contexto_tipo": "Evento", "id_contexto": id_evento, "id_pessoa": id_pessoa_bia}, headers=auth_headers)
+    id_inscricao_bia = r.json()["id_inscricao"]
+    client.put(f"/api/inscricoes/{id_inscricao_bia}/status", json={"status": "Confirmado"}, headers=auth_headers)
+
+    r = client.get(f"/api/inscricoes/?contexto_tipo=Evento&id_contexto={id_evento}&busca=Ana", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    nomes = [i["nome_pessoa"] for i in r.json()]
+    assert len(nomes) == 1 and "Ana" in nomes[0]
+
+    r = client.get(f"/api/inscricoes/?contexto_tipo=Evento&id_contexto={id_evento}&status=Confirmado", headers=auth_headers)
+    assert len(r.json()) == 1
+    assert r.json()[0]["id_pessoa"] == id_pessoa_bia
+
+    r = client.get(f"/api/inscricoes/?contexto_tipo=Evento&id_contexto={id_evento}", headers=auth_headers)
+    assert len(r.json()) == 2
+
+
+def test_exportar_inscricoes_exige_permissao_propria_e_grava_auditoria(client, auth_headers, db):
+    from app.models.core import AuditLog
+
+    id_evento = _criar_evento(client, auth_headers)
+    id_pessoa = _criar_pessoa_associada(client, db)
+    client.post("/api/inscricoes/", json={"contexto_tipo": "Evento", "id_contexto": id_evento, "id_pessoa": id_pessoa}, headers=auth_headers)
+
+    headers_sem_permissao = _criar_associado_com_acesso(client, auth_headers)
+    r = client.get(f"/api/inscricoes/exportar?contexto_tipo=Evento&id_contexto={id_evento}", headers=headers_sem_permissao)
+    assert r.status_code == 403
+
+    r = client.get(f"/api/inscricoes/exportar?contexto_tipo=Evento&id_contexto={id_evento}", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    assert len(r.json()) == 1
+    assert "id_inscricao" in r.json()[0] and "nome_pessoa" in r.json()[0]
+
+    entrada = db.query(AuditLog).filter(AuditLog.tabela_afetada == "inscricoes", AuditLog.acao == "EXPORTAR").first()
+    assert entrada is not None
+
+
+def test_comparacao_edicoes_combina_inscritos_presentes_financeiro_e_satisfacao(client, auth_headers, db):
+    id_v1 = _criar_evento(client, auth_headers, titulo="Retiro Anual 2024", data_hora_inicio=(datetime.utcnow() + timedelta(days=10)).strftime(_ISO))
+    r = client.post(f"/api/eventos/{id_v1}/nova-edicao", json={
+        "data_hora_inicio": (datetime.utcnow() + timedelta(days=400)).strftime(_ISO), "titulo": "Retiro Anual 2025",
+    }, headers=auth_headers)
+    id_v2 = r.json()["id_evento"]
+
+    id_pessoa = _criar_pessoa_associada(client, db)
+    client.post("/api/inscricoes/", json={"contexto_tipo": "Evento", "id_contexto": id_v1, "id_pessoa": id_pessoa}, headers=auth_headers)
+
+    r = client.get(f"/api/eventos/{id_v1}/comparacao-edicoes", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    linhas = {l["id_evento"]: l for l in r.json()}
+    assert set(linhas.keys()) == {id_v1, id_v2}
+    assert linhas[id_v1]["total_inscritos"] == 1
+    assert linhas[id_v2]["total_inscritos"] == 0
+    assert linhas[id_v1]["total_arrecadado"] is None  # nenhum fechamento gerado ainda
+    assert linhas[id_v1]["nota_media_satisfacao"] is None  # nenhuma resposta ainda
+
+    r = client.get(f"/api/eventos/{id_v2}/comparacao-edicoes", headers=auth_headers)
+    assert {l["id_evento"] for l in r.json()} == {id_v1, id_v2}

@@ -24,6 +24,7 @@ from app.services import agenda, documentos, indicadores, inscricao, presenca
 
 router = APIRouter()
 _permissao_projetos = exigir_permissao("projetos")
+_permissao_exportar_inscricoes = exigir_permissao("exportar_inscricoes_evento")
 
 
 def _ip_origem(request: Request) -> str:
@@ -103,13 +104,38 @@ def vincular_cobranca_endpoint(id_inscricao: int, dados: InscricaoVincularCobran
 
 
 @router.get("/api/inscricoes/", summary="Listar inscrições de um contexto")
-def listar_inscricoes_endpoint(contexto_tipo: str, id_contexto: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+def listar_inscricoes_endpoint(
+    contexto_tipo: str, id_contexto: int, busca: str = None, status: str = None,
+    db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos),
+):
+    inscritos = inscricao.listar_inscricoes(db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, busca=busca, status=status)
+    nomes = inscricao.mapear_nomes_pessoas(db, [i.id_pessoa for i in inscritos])
     return [
         {
-            "id_inscricao": i.id_inscricao, "id_pessoa": i.id_pessoa, "status": i.status,
-            "id_titulo_cobranca": i.id_titulo_cobranca, "data_inscricao": i.data_inscricao,
+            "id_inscricao": i.id_inscricao, "id_pessoa": i.id_pessoa, "nome_pessoa": nomes.get(i.id_pessoa),
+            "status": i.status, "id_titulo_cobranca": i.id_titulo_cobranca, "data_inscricao": i.data_inscricao,
         }
-        for i in inscricao.listar_inscricoes(db, contexto_tipo=contexto_tipo, id_contexto=id_contexto)
+        for i in inscritos
+    ]
+
+
+@router.get("/api/inscricoes/exportar", summary="Exportar inscrições de um contexto (v4.10 - permissão própria, nunca casual)")
+def exportar_inscricoes_endpoint(
+    contexto_tipo: str, id_contexto: int, request: Request, db: Session = Depends(get_db),
+    usuario=Depends(_permissao_exportar_inscricoes),
+):
+    inscritos = inscricao.listar_inscricoes(db, contexto_tipo=contexto_tipo, id_contexto=id_contexto)
+    nomes = inscricao.mapear_nomes_pessoas(db, [i.id_pessoa for i in inscritos])
+    registrar_auditoria(
+        db, usuario, "inscricoes", "EXPORTAR", dados_depois={"contexto_tipo": contexto_tipo, "id_contexto": id_contexto, "quantidade": len(inscritos)},
+        ip_origem=_ip_origem(request),
+    )
+    return [
+        {
+            "id_inscricao": i.id_inscricao, "nome_pessoa": nomes.get(i.id_pessoa), "status": i.status,
+            "data_inscricao": i.data_inscricao,
+        }
+        for i in inscritos
     ]
 
 

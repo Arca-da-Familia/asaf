@@ -14,6 +14,8 @@ import {
   criarIsencaoTaxaEspaco,
   criarReservaEspaco,
   criarReservaRecorrente,
+  editarReservaEspaco,
+  exportarReservasEspaco,
   listarAssociados,
   listarBloqueiosEspaco,
   listarEspacos,
@@ -24,18 +26,21 @@ import {
   marcarNaoCompareceu,
   obterAssociado,
   obterChecklistReserva,
+  obterOcupacaoMapaCalorEspacos,
   recusarReserva,
   registrarDevolucaoEspaco,
   registrarRetiradaEspaco,
   type Espaco,
+  type ReservaEspaco,
 } from '@/lib/api'
-import { formatarData } from '@/lib/datas'
+import { formatarData, paraDataHoraLocalInput } from '@/lib/datas'
 import {
   bloqueioEspacoCriarSchema,
   devolucaoEspacoSchema,
   espacoCriarSchema,
   isencaoTaxaCriarSchema,
   reservaEspacoCriarSchema,
+  reservaEspacoEditarSchema,
   reservaRecorrenteCriarSchema,
   retiradaEspacoSchema,
 } from '@/lib/schemas'
@@ -322,18 +327,66 @@ function PainelChecklist({ idReserva }: { idReserva: number }) {
   )
 }
 
+// Status do motor de reserva (ver app/routers/reservas_espaco.py).
+const STATUS_RESERVA = [
+  'SOLICITADA',
+  'CONFIRMADA',
+  'RECUSADA',
+  'CANCELADA',
+  'CONCLUIDA',
+  'NAO_COMPARECEU',
+] as const
+
 function SecaoReservas({ espaco }: { espaco: Espaco }) {
   const queryClient = useQueryClient()
+  const { data: me } = useMe()
+  const podeExportar =
+    me?.permissoes.includes('exportar_reservas_espaco') ?? false
   const [mostrarForm, setMostrarForm] = useState(false)
   const [mostrarFormRecorrente, setMostrarFormRecorrente] = useState(false)
   const [checklistAberto, setChecklistAberto] = useState<number | null>(null)
+  const [editandoAberto, setEditandoAberto] = useState<number | null>(null)
+  // v4.10 - filtros novos (status, intervalo de data pelo início da própria reserva).
+  const [statusFiltro, setStatusFiltro] = useState('')
+  const [dataInicioFiltro, setDataInicioFiltro] = useState('')
+  const [dataFimFiltro, setDataFimFiltro] = useState('')
   const { data: reservas } = useQuery({
-    queryKey: ['reservas-espaco', espaco.id_espaco],
-    queryFn: () => listarReservasEspaco(espaco.id_espaco),
+    queryKey: [
+      'reservas-espaco',
+      espaco.id_espaco,
+      statusFiltro,
+      dataInicioFiltro,
+      dataFimFiltro,
+    ],
+    queryFn: () =>
+      listarReservasEspaco({
+        idEspaco: espaco.id_espaco,
+        status: statusFiltro || undefined,
+        dataInicio: dataInicioFiltro
+          ? `${dataInicioFiltro}T00:00:00`
+          : undefined,
+        dataFim: dataFimFiltro ? `${dataFimFiltro}T23:59:59` : undefined,
+      }),
   })
   const { data: associados } = useQuery({
     queryKey: ['associados'],
     queryFn: listarAssociados,
+  })
+
+  const [resultadoExportacao, setResultadoExportacao] = useState<
+    ReservaEspaco[] | null
+  >(null)
+  const exportar = useMutation({
+    mutationFn: () =>
+      exportarReservasEspaco({
+        idEspaco: espaco.id_espaco,
+        status: statusFiltro || undefined,
+        dataInicio: dataInicioFiltro
+          ? `${dataInicioFiltro}T00:00:00`
+          : undefined,
+        dataFim: dataFimFiltro ? `${dataFimFiltro}T23:59:59` : undefined,
+      }),
+    onSuccess: setResultadoExportacao,
   })
 
   function invalidar() {
@@ -341,6 +394,20 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
       queryKey: ['reservas-espaco', espaco.id_espaco],
     })
   }
+
+  const editar = useMutation({
+    mutationFn: ({
+      id,
+      dados,
+    }: {
+      id: number
+      dados: z.infer<typeof reservaEspacoEditarSchema>
+    }) => editarReservaEspaco(id, dados),
+    onSuccess: () => {
+      invalidar()
+      setEditandoAberto(null)
+    },
+  })
 
   const criar = useMutation({
     mutationFn: (v: z.infer<typeof reservaEspacoCriarSchema>) =>
@@ -404,8 +471,98 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
           >
             {mostrarFormRecorrente ? 'Cancelar' : 'Reserva recorrente'}
           </Button>
+          {podeExportar && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={exportar.isPending}
+              onClick={() => exportar.mutate()}
+            >
+              {exportar.isPending ? 'Exportando…' : 'Exportar'}
+            </Button>
+          )}
         </div>
       </div>
+      <div className="mb-3 flex flex-wrap items-end gap-2">
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">
+            Status
+          </label>
+          <select
+            value={statusFiltro}
+            onChange={(e) => setStatusFiltro(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="">Todos os status</option>
+            {STATUS_RESERVA.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">De</label>
+          <input
+            type="date"
+            value={dataInicioFiltro}
+            onChange={(e) => setDataInicioFiltro(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">
+            Até
+          </label>
+          <input
+            type="date"
+            value={dataFimFiltro}
+            onChange={(e) => setDataFimFiltro(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          />
+        </div>
+      </div>
+      {exportar.isError && (
+        <p className="mb-2 text-sm text-destructive">
+          {(exportar.error as Error).message}
+        </p>
+      )}
+      {resultadoExportacao && (
+        <div className="mb-3 overflow-x-auto rounded-md border border-border">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="px-3 py-2 font-medium">Início</th>
+                <th className="px-3 py-2 font-medium">Fim</th>
+                <th className="px-3 py-2 font-medium">Finalidade</th>
+                <th className="px-3 py-2 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {resultadoExportacao.map((r) => (
+                <tr
+                  key={r.id_reserva}
+                  className="border-b border-border last:border-0"
+                >
+                  <td className="px-3 py-2">
+                    {formatarDataHora(r.data_hora_inicio)}
+                  </td>
+                  <td className="px-3 py-2">
+                    {formatarDataHora(r.data_hora_fim)}
+                  </td>
+                  <td className="px-3 py-2">{r.finalidade}</td>
+                  <td className="px-3 py-2">{r.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {resultadoExportacao.length === 0 && (
+            <p className="p-3 text-sm text-muted-foreground">
+              Nenhuma linha no resultado.
+            </p>
+          )}
+        </div>
+      )}
       {mostrarForm && (
         <FormShell<z.infer<typeof reservaEspacoCriarSchema>>
           schema={reservaEspacoCriarSchema}
@@ -622,7 +779,69 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
                   </Button>
                 </>
               )}
+              {/* v4.10 - edição da própria reserva só é aceita pelo backend em
+                  SOLICITADA/CONFIRMADA (400 fora disso). */}
+              {(r.status === 'SOLICITADA' || r.status === 'CONFIRMADA') && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    setEditandoAberto((v) =>
+                      v === r.id_reserva ? null : r.id_reserva,
+                    )
+                  }
+                >
+                  {editandoAberto === r.id_reserva ? 'Fechar edição' : 'Editar'}
+                </Button>
+              )}
             </div>
+            {editandoAberto === r.id_reserva && (
+              <FormShell<z.infer<typeof reservaEspacoEditarSchema>>
+                schema={reservaEspacoEditarSchema}
+                defaultValues={{
+                  data_hora_inicio: paraDataHoraLocalInput(r.data_hora_inicio),
+                  data_hora_fim: paraDataHoraLocalInput(r.data_hora_fim),
+                  finalidade: r.finalidade,
+                }}
+                onSubmit={(v) =>
+                  editar.mutateAsync({ id: r.id_reserva, dados: v })
+                }
+                className="mt-2 flex flex-wrap items-end gap-2 rounded-md border border-border p-2"
+              >
+                {(form) => (
+                  <>
+                    <input
+                      type="datetime-local"
+                      {...form.register('data_hora_inicio')}
+                      className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    />
+                    <input
+                      type="datetime-local"
+                      {...form.register('data_hora_fim')}
+                      className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    />
+                    <div className="flex-1">
+                      <input
+                        {...form.register('finalidade')}
+                        placeholder="Finalidade"
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      />
+                      <ErroCampo
+                        mensagem={form.formState.errors.finalidade?.message}
+                      />
+                    </div>
+                    <Button type="submit" size="sm" disabled={editar.isPending}>
+                      {editar.isPending ? 'Salvando…' : 'Salvar'}
+                    </Button>
+                    {editar.isError && (
+                      <p className="w-full text-xs text-destructive">
+                        {(editar.error as Error).message}
+                      </p>
+                    )}
+                  </>
+                )}
+              </FormShell>
+            )}
             {checklistAberto === r.id_reserva && (
               <PainelChecklist idReserva={r.id_reserva} />
             )}
@@ -899,6 +1118,188 @@ function SecaoIsencoesEspaco({ idEspaco }: { idEspaco: number }) {
   )
 }
 
+// ==========================================
+// MAPA DE CALOR DE OCUPAÇÃO (v4.10) - Recharts não tem um tipo "heatmap" nativo (decisão
+// arquitetural congelada: Recharts é a única lib de gráfico do painel, ver
+// AssociadosGraficos.tsx) - a resposta visual pro caso aqui é uma grade de células coloridas
+// (dia da semana × hora), não um componente Recharts. A cor de cada célula é derivada do MESMO
+// token `--primary` já usado no resto do painel (`color-mix` contra `--card`, sem hex fixo) -
+// então se adapta sozinha a claro/escuro, como todo o resto das cores do painel.
+// ==========================================
+const DIAS_SEMANA_MAPA_CALOR = [
+  'Segunda',
+  'Terça',
+  'Quarta',
+  'Quinta',
+  'Sexta',
+  'Sábado',
+  'Domingo',
+]
+
+function paraDataInput(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+function corCelulaMapaCalor(quantidade: number, maximo: number): string {
+  if (quantidade <= 0) return 'hsl(var(--muted))'
+  const pct = Math.round(
+    15 + 80 * Math.min(1, quantidade / Math.max(1, maximo)),
+  )
+  return `color-mix(in srgb, hsl(var(--primary)) ${pct}%, hsl(var(--card)))`
+}
+
+function LinhaHoraMapaCalor({
+  hora,
+  mapa,
+  maximo,
+}: {
+  hora: number
+  mapa: Map<string, number>
+  maximo: number
+}) {
+  return (
+    <>
+      <div className="flex items-center justify-end pr-2 text-xs text-muted-foreground">
+        {String(hora).padStart(2, '0')}h
+      </div>
+      {DIAS_SEMANA_MAPA_CALOR.map((nomeDia, diaSemana) => {
+        const quantidade = mapa.get(`${diaSemana}-${hora}`) ?? 0
+        return (
+          <div
+            key={diaSemana}
+            role="gridcell"
+            tabIndex={0}
+            title={`${nomeDia} ${String(hora).padStart(2, '0')}h — ${quantidade} reserva(s)`}
+            aria-label={`${nomeDia} ${String(hora).padStart(2, '0')}h: ${quantidade} reserva(s)`}
+            className="aspect-square rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+            style={{ backgroundColor: corCelulaMapaCalor(quantidade, maximo) }}
+          />
+        )
+      })}
+    </>
+  )
+}
+
+function SecaoMapaCalorOcupacao({ espacos }: { espacos: Espaco[] }) {
+  const [dataInicio, setDataInicio] = useState(() =>
+    paraDataInput(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)),
+  )
+  const [dataFim, setDataFim] = useState(() => paraDataInput(new Date()))
+  const [idEspacoFiltro, setIdEspacoFiltro] = useState('')
+
+  const { data: celulas } = useQuery({
+    queryKey: ['ocupacao-mapa-calor', dataInicio, dataFim, idEspacoFiltro],
+    queryFn: () =>
+      obterOcupacaoMapaCalorEspacos({
+        dataInicio: `${dataInicio}T00:00:00`,
+        dataFim: `${dataFim}T23:59:59`,
+        idEspaco: idEspacoFiltro ? Number(idEspacoFiltro) : undefined,
+      }),
+    enabled: Boolean(dataInicio && dataFim),
+  })
+
+  const mapa = new Map<string, number>()
+  let maximo = 0
+  for (const c of celulas ?? []) {
+    mapa.set(`${c.dia_semana}-${c.hora}`, c.quantidade)
+    if (c.quantidade > maximo) maximo = c.quantidade
+  }
+
+  return (
+    <section className="mb-6 rounded-xl border border-border bg-card p-6">
+      <h2 className="mb-1 font-semibold">Mapa de calor de ocupação</h2>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Reservas CONFIRMADA/CONCLUÍDA, por dia da semana e hora, no período
+        selecionado.
+      </p>
+      <div className="mb-4 flex flex-wrap items-end gap-2">
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">De</label>
+          <input
+            type="date"
+            value={dataInicio}
+            onChange={(e) => setDataInicio(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">
+            Até
+          </label>
+          <input
+            type="date"
+            value={dataFim}
+            onChange={(e) => setDataFim(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">
+            Espaço
+          </label>
+          <select
+            value={idEspacoFiltro}
+            onChange={(e) => setIdEspacoFiltro(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="">Todos os espaços</option>
+            {espacos.map((e) => (
+              <option key={e.id_espaco} value={e.id_espaco}>
+                {e.nome}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <div
+          className="inline-grid gap-px"
+          style={{
+            gridTemplateColumns: '3rem repeat(7, minmax(2.25rem, 1fr))',
+          }}
+          role="grid"
+          aria-label="Mapa de calor de ocupação por dia da semana e hora"
+        >
+          <div />
+          {DIAS_SEMANA_MAPA_CALOR.map((d) => (
+            <div
+              key={d}
+              className="px-1 pb-1 text-center text-xs font-medium text-muted-foreground"
+            >
+              {d.slice(0, 3)}
+            </div>
+          ))}
+          {Array.from({ length: 24 }, (_, hora) => (
+            <LinhaHoraMapaCalor
+              key={hora}
+              hora={hora}
+              mapa={mapa}
+              maximo={maximo}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+        <span>Menos</span>
+        {[0, 0.25, 0.5, 0.75, 1].map((fracao) => (
+          <span
+            key={fracao}
+            className="h-4 w-6 rounded-sm"
+            style={{
+              backgroundColor: corCelulaMapaCalor(
+                fracao === 0 ? 0 : Math.max(1, Math.round(fracao * maximo)),
+                maximo,
+              ),
+            }}
+          />
+        ))}
+        <span>Mais ({maximo})</span>
+      </div>
+    </section>
+  )
+}
+
 function DetalheEspaco({ espaco }: { espaco: Espaco }) {
   return (
     <div className="space-y-6 rounded-xl border border-border bg-card p-6">
@@ -979,6 +1380,8 @@ export function EspacosPage() {
           )}
         </div>
       </section>
+
+      <SecaoMapaCalorOcupacao espacos={espacos ?? []} />
 
       {espacoSelecionado && <DetalheEspaco espaco={espacoSelecionado} />}
     </>

@@ -283,3 +283,119 @@ def test_bloqueio_de_espaco_reutiliza_motor_de_agenda_e_impede_reserva(client, a
     }, headers=auth_headers)
     assert r.status_code == 400
     assert "conflito" in r.json()["detail"].lower()
+
+
+# ==========================================
+# GESTÃO DE RESERVAS (v4.10) - busca/filtro/edição/exportação sobre o fluxo de reserva que até
+# aqui só tinha ação de transição de status, nunca edição de horário/finalidade.
+# ==========================================
+def test_listar_reservas_filtra_por_status_e_periodo(client, auth_headers):
+    id_espaco = _criar_espaco(client, auth_headers)
+    associado = _criar_associado(client)
+    inicio_1 = datetime.utcnow() + timedelta(days=20)
+    inicio_2 = datetime.utcnow() + timedelta(days=60)
+
+    r1 = client.post("/api/reservas-espaco/", json={
+        "id_espaco": id_espaco, "id_associado_solicitante": associado["id_associado"],
+        "data_hora_inicio": inicio_1.strftime(_ISO), "data_hora_fim": (inicio_1 + timedelta(hours=1)).strftime(_ISO), "finalidade": "Reserva 1",
+    }, headers=auth_headers)
+    r2 = client.post("/api/reservas-espaco/", json={
+        "id_espaco": id_espaco, "id_associado_solicitante": associado["id_associado"],
+        "data_hora_inicio": inicio_2.strftime(_ISO), "data_hora_fim": (inicio_2 + timedelta(hours=1)).strftime(_ISO), "finalidade": "Reserva 2",
+    }, headers=auth_headers)
+    id_reserva_1, id_reserva_2 = r1.json()["id_reserva"], r2.json()["id_reserva"]
+
+    r = client.get(f"/api/reservas-espaco/?id_espaco={id_espaco}&status=CONFIRMADA", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    assert {r_["id_reserva"] for r_ in r.json()} == {id_reserva_1, id_reserva_2}
+
+    limite = (inicio_1 + timedelta(days=1)).strftime(_ISO)
+    r = client.get(f"/api/reservas-espaco/?id_espaco={id_espaco}&data_fim={limite}", headers=auth_headers)
+    assert {r_["id_reserva"] for r_ in r.json()} == {id_reserva_1}
+
+
+def test_atualizar_reserva_move_horario_e_recusa_conflito(client, auth_headers):
+    id_espaco = _criar_espaco(client, auth_headers)
+    associado = _criar_associado(client)
+    inicio_a = datetime.utcnow() + timedelta(days=25)
+    inicio_b = datetime.utcnow() + timedelta(days=26)
+
+    r = client.post("/api/reservas-espaco/", json={
+        "id_espaco": id_espaco, "id_associado_solicitante": associado["id_associado"],
+        "data_hora_inicio": inicio_a.strftime(_ISO), "data_hora_fim": (inicio_a + timedelta(hours=1)).strftime(_ISO), "finalidade": "Original",
+    }, headers=auth_headers)
+    id_reserva_a = r.json()["id_reserva"]
+
+    r = client.post("/api/reservas-espaco/", json={
+        "id_espaco": id_espaco, "id_associado_solicitante": associado["id_associado"],
+        "data_hora_inicio": inicio_b.strftime(_ISO), "data_hora_fim": (inicio_b + timedelta(hours=1)).strftime(_ISO), "finalidade": "Outra reserva",
+    }, headers=auth_headers)
+
+    # mover a reserva A pro MESMO horário da B - reexecuta a checagem de conflito e recusa.
+    r = client.put(f"/api/reservas-espaco/{id_reserva_a}", json={
+        "data_hora_inicio": inicio_b.strftime(_ISO), "data_hora_fim": (inicio_b + timedelta(hours=1)).strftime(_ISO),
+    }, headers=auth_headers)
+    assert r.status_code == 400
+    assert "conflito" in r.json()["detail"].lower()
+
+    # mover pra um horário livre - sucede, e o compromisso de agenda vinculado acompanha a mudança.
+    novo_inicio = inicio_a + timedelta(hours=5)
+    r = client.put(f"/api/reservas-espaco/{id_reserva_a}", json={
+        "data_hora_inicio": novo_inicio.strftime(_ISO), "data_hora_fim": (novo_inicio + timedelta(hours=1)).strftime(_ISO),
+        "finalidade": "Finalidade editada",
+    }, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["finalidade"] == "Finalidade editada"
+
+    # agora dá pra reservar o horário original da A, porque ela de fato saiu de lá.
+    r = client.post("/api/reservas-espaco/", json={
+        "id_espaco": id_espaco, "id_associado_solicitante": associado["id_associado"],
+        "data_hora_inicio": inicio_a.strftime(_ISO), "data_hora_fim": (inicio_a + timedelta(hours=1)).strftime(_ISO), "finalidade": "Reocupando horário livre",
+    }, headers=auth_headers)
+    assert r.status_code == 200, r.text
+
+
+def test_exportar_reservas_exige_permissao_propria_e_grava_auditoria(client, auth_headers):
+    from tests.test_eventos import _criar_associado_com_acesso
+
+    id_espaco = _criar_espaco(client, auth_headers)
+    associado = _criar_associado(client)
+    inicio = datetime.utcnow() + timedelta(days=30)
+    client.post("/api/reservas-espaco/", json={
+        "id_espaco": id_espaco, "id_associado_solicitante": associado["id_associado"],
+        "data_hora_inicio": inicio.strftime(_ISO), "data_hora_fim": (inicio + timedelta(hours=1)).strftime(_ISO), "finalidade": "Para exportar",
+    }, headers=auth_headers)
+
+    headers_sem_permissao = _criar_associado_com_acesso(client, auth_headers)
+    r = client.get(f"/api/reservas-espaco/exportar?id_espaco={id_espaco}", headers=headers_sem_permissao)
+    assert r.status_code == 403
+
+    r = client.get(f"/api/reservas-espaco/exportar?id_espaco={id_espaco}", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    assert len(r.json()) == 1
+
+
+def test_mapa_de_calor_ocupacao_conta_reservas_confirmadas_por_dia_e_hora(client, auth_headers):
+    id_espaco = _criar_espaco(client, auth_headers)
+    associado = _criar_associado(client)
+
+    # segunda-feira, às 10h - horário conhecido pra checar a célula certa do mapa (pelo menos 30
+    # dias no futuro primeiro, só DEPOIS rolando pra próxima segunda a partir dali - fazer os dois
+    # ajustes juntos quebraria o dia da semana sempre que 30 não for múltiplo de 7).
+    base = datetime.utcnow() + timedelta(days=30)
+    proxima_segunda = base + timedelta(days=(7 - base.weekday()) % 7)
+    inicio = proxima_segunda.replace(hour=10, minute=0, second=0, microsecond=0)
+    client.post("/api/reservas-espaco/", json={
+        "id_espaco": id_espaco, "id_associado_solicitante": associado["id_associado"],
+        "data_hora_inicio": inicio.strftime(_ISO), "data_hora_fim": (inicio + timedelta(hours=1)).strftime(_ISO), "finalidade": "Para o mapa de calor",
+    }, headers=auth_headers)
+
+    r = client.get(
+        f"/api/espacos/ocupacao-mapa-calor?id_espaco={id_espaco}"
+        f"&data_inicio={(inicio - timedelta(days=1)).strftime(_ISO)}&data_fim={(inicio + timedelta(days=1)).strftime(_ISO)}",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200, r.text
+    celulas = r.json()
+    assert len(celulas) == 1
+    assert celulas[0] == {"dia_semana": 0, "dia_semana_nome": "Segunda", "hora": 10, "quantidade": 1}

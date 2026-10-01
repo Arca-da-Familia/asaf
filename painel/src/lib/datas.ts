@@ -38,6 +38,17 @@ function comoUtc(dataHoraIso: string): string {
     : `${dataHoraIso}Z`
 }
 
+// v4.10 - inverso de `paraUtcIso`: pré-preencher um <input type="datetime-local"> com um
+// datetime que já veio da API (ex.: formulário de EDIÇÃO de reserva, Espacos.tsx) precisa da
+// mesma conversão UTC->local que `formatarData` já faz pra exibição - sem isso, o input mostraria
+// a hora UTC como se fosse local (mesmo achado real de 2026-09-18 documentado acima).
+export function paraDataHoraLocalInput(dataHoraUtc: string): string {
+  if (!dataHoraUtc) return ''
+  const d = new Date(comoUtc(dataHoraUtc))
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 export function formatarData(
   data: Date | string,
   opcoes?: { comHora?: boolean },

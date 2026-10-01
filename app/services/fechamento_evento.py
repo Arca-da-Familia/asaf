@@ -14,6 +14,7 @@ from app.models.eventos import Evento, SessaoEvento
 from app.models.financeiro_evento import FechamentoEvento
 from app.models.motores import CANCELADO, Inscricao, RegistroPresenca
 from app.services import eventos as servico_eventos
+from app.services import pesquisa_satisfacao as servico_pesquisa_satisfacao
 from app.services import relatorios as servico_relatorios
 
 CONTEXTO_EVENTO = "Evento"
@@ -94,5 +95,9 @@ def fechar_eventos_encerrados_sem_fechamento(db: Session) -> list[dict]:
         if ja_tem:
             continue
         fechamento = gerar_fechamento_evento(db, id_evento=evento.id_evento, id_usuario=None)
+        # v4.10 - o mesmo ciclo diário que fecha o financeiro do evento também convida quem
+        # participou a responder a pesquisa de satisfação - nunca um agendamento próprio (é o
+        # mesmo "evento encerrado" que dispara os dois).
+        servico_pesquisa_satisfacao.gerar_convites(db, id_evento=evento.id_evento)
         resultado.append({"id_evento": evento.id_evento, "id_fechamento": fechamento.id_fechamento, "resultado": fechamento.resultado})
     return resultado

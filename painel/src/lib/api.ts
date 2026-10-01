@@ -3743,18 +3743,32 @@ export function listarRelatoriosFinaisProjeto(
 export type Beneficiario = {
   id_beneficiario: number
   id_pessoa: number
+  // v4.10 - identidade do beneficiário, antes só visível aninhada dentro de um projeto.
+  nome_completo: string | null
+  data_nascimento: string | null
   consentimento_lgpd_registrado: boolean
   observacao_consentimento: string | null
   data_consentimento: string | null
 }
 
-export function listarBeneficiarios(): Promise<Beneficiario[]> {
-  return apiFetch('/api/beneficiarios/')
+// v4.10 - `busca` (substring no nome) e `id_projeto` são novos, opcionais - alimentam a tela
+// cruzada de beneficiários (pages/Beneficiarios.tsx). Chamada sem filtro (como já era) continua
+// devolvendo todos.
+export function listarBeneficiarios(
+  filtro: { busca?: string; idProjeto?: number } = {},
+): Promise<Beneficiario[]> {
+  const params = new URLSearchParams()
+  if (filtro.busca) params.set('busca', filtro.busca)
+  if (filtro.idProjeto != null)
+    params.set('id_projeto', String(filtro.idProjeto))
+  const query = params.toString()
+  return apiFetch(`/api/beneficiarios/${query ? `?${query}` : ''}`)
 }
 
 export function criarBeneficiario(dados: {
   id_pessoa?: number
   nome_completo?: string
+  data_nascimento?: string
   consentimento_lgpd_registrado?: boolean
   observacao_consentimento?: string
 }): Promise<{ mensagem: string; id_beneficiario: number }> {
@@ -3762,6 +3776,36 @@ export function criarBeneficiario(dados: {
     method: 'POST',
     body: JSON.stringify(dados),
   })
+}
+
+// v4.10 - primeiro endpoint de edição de beneficiário (até aqui só existia criar). Todos os
+// campos são opcionais - o formulário só envia o que foi alterado.
+export function editarBeneficiario(
+  idBeneficiario: number,
+  dados: {
+    nome_completo?: string
+    data_nascimento?: string
+    consentimento_lgpd_registrado?: boolean
+    observacao_consentimento?: string
+  },
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/beneficiarios/${idBeneficiario}`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+}
+
+// Exportação - permissão PRÓPRIA (`exportar_beneficiarios`), separada de `projetos` (mesmo
+// padrão de `exportar_presencas_evento`/`exportar_inscricoes_evento`). Mesmo formato do GET.
+export function exportarBeneficiarios(
+  filtro: { busca?: string; idProjeto?: number } = {},
+): Promise<Beneficiario[]> {
+  const params = new URLSearchParams()
+  if (filtro.busca) params.set('busca', filtro.busca)
+  if (filtro.idProjeto != null)
+    params.set('id_projeto', String(filtro.idProjeto))
+  const query = params.toString()
+  return apiFetch(`/api/beneficiarios/exportar${query ? `?${query}` : ''}`)
 }
 
 export type VinculoBeneficiarioProjeto = {
@@ -3940,10 +3984,28 @@ export type ReservaEspaco = {
   identificador_serie: string | null
 }
 
+// v4.10 - `status`, `dataInicio`, `dataFim` são novos filtros opcionais (status = match exato;
+// as datas filtram pelo início da própria reserva, intervalo inclusivo, ISO).
 export function listarReservasEspaco(
-  idEspaco: number,
+  filtro: {
+    idEspaco?: number
+    idAssociadoSolicitante?: number
+    status?: string
+    dataInicio?: string
+    dataFim?: string
+  } = {},
 ): Promise<ReservaEspaco[]> {
-  return apiFetch(`/api/reservas-espaco/?id_espaco=${idEspaco}`)
+  const params = new URLSearchParams()
+  if (filtro.idEspaco != null) params.set('id_espaco', String(filtro.idEspaco))
+  if (filtro.idAssociadoSolicitante != null)
+    params.set(
+      'id_associado_solicitante',
+      String(filtro.idAssociadoSolicitante),
+    )
+  if (filtro.status) params.set('status', filtro.status)
+  if (filtro.dataInicio) params.set('data_inicio', filtro.dataInicio)
+  if (filtro.dataFim) params.set('data_fim', filtro.dataFim)
+  return apiFetch(`/api/reservas-espaco/?${params.toString()}`)
 }
 
 export function criarReservaEspaco(dados: {
@@ -4019,6 +4081,64 @@ export function marcarNaoCompareceu(idReserva: number): Promise<ReservaEspaco> {
   return apiFetch(`/api/reservas-espaco/${idReserva}/nao-compareceu`, {
     method: 'POST',
   })
+}
+
+// v4.10 - edição de data/hora/finalidade da PRÓPRIA reserva (não status) - só funciona com a
+// reserva em SOLICITADA ou CONFIRMADA (400 com mensagem fora disso) e sob conflito de horário com
+// outra reserva do mesmo espaço (400 com mensagem contendo "Conflito" - resultado esperado do
+// fluxo, não um bug a esconder).
+export function editarReservaEspaco(
+  idReserva: number,
+  dados: {
+    data_hora_inicio?: string
+    data_hora_fim?: string
+    finalidade?: string
+  },
+): Promise<ReservaEspaco> {
+  return apiFetch(`/api/reservas-espaco/${idReserva}`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+}
+
+// Exportação - permissão PRÓPRIA (`exportar_reservas_espaco`), mesmo padrão das demais.
+export function exportarReservasEspaco(
+  filtro: {
+    idEspaco?: number
+    status?: string
+    dataInicio?: string
+    dataFim?: string
+  } = {},
+): Promise<ReservaEspaco[]> {
+  const params = new URLSearchParams()
+  if (filtro.idEspaco != null) params.set('id_espaco', String(filtro.idEspaco))
+  if (filtro.status) params.set('status', filtro.status)
+  if (filtro.dataInicio) params.set('data_inicio', filtro.dataInicio)
+  if (filtro.dataFim) params.set('data_fim', filtro.dataFim)
+  return apiFetch(`/api/reservas-espaco/exportar?${params.toString()}`)
+}
+
+// v4.10 - mapa de calor de ocupação (dia da semana × hora), só CONFIRMADA/CONCLUIDA (reserva que
+// de fato aconteceu ou vai acontecer). `dataInicio`/`dataFim` são obrigatórias no backend;
+// `idEspaco` omitido agrega todos os espaços. Resposta é ESPARSA (só células com quantidade > 0).
+export type OcupacaoHeatmapCelula = {
+  dia_semana: number
+  dia_semana_nome: string
+  hora: number
+  quantidade: number
+}
+
+export function obterOcupacaoMapaCalorEspacos(filtro: {
+  dataInicio: string
+  dataFim: string
+  idEspaco?: number
+}): Promise<OcupacaoHeatmapCelula[]> {
+  const params = new URLSearchParams({
+    data_inicio: filtro.dataInicio,
+    data_fim: filtro.dataFim,
+  })
+  if (filtro.idEspaco != null) params.set('id_espaco', String(filtro.idEspaco))
+  return apiFetch(`/api/espacos/ocupacao-mapa-calor?${params.toString()}`)
 }
 
 export type ChecklistDevolucaoEspaco = {
@@ -4380,6 +4500,8 @@ export function listarEdicoesEvento(idEvento: number): Promise<Evento[]> {
 export type InscricaoMotor = {
   id_inscricao: number
   id_pessoa: number
+  // v4.10 - nome já resolvido pelo backend (antes só dava pra mostrar "Pessoa #{id_pessoa}").
+  nome_pessoa: string | null
   status: string
   id_titulo_cobranca: number | null
   data_inscricao: string
@@ -4388,10 +4510,50 @@ export type InscricaoMotor = {
 export function listarInscricoesDoContexto(
   contextoTipo: string,
   idContexto: number,
+  // v4.10 - `busca` (substring no nome) e `status` (match exato) são novos, opcionais.
+  filtro: { busca?: string; status?: string } = {},
 ): Promise<InscricaoMotor[]> {
-  return apiFetch(
-    `/api/inscricoes/?contexto_tipo=${encodeURIComponent(contextoTipo)}&id_contexto=${idContexto}`,
-  )
+  const params = new URLSearchParams({
+    contexto_tipo: contextoTipo,
+    id_contexto: String(idContexto),
+  })
+  if (filtro.busca) params.set('busca', filtro.busca)
+  if (filtro.status) params.set('status', filtro.status)
+  return apiFetch(`/api/inscricoes/?${params.toString()}`)
+}
+
+// v4.10 - transição de status de inscrição (motor genérico): quem valida a transição é o
+// backend (Pré-inscrito/Confirmado/Lista de Espera/Cancelado/Presente/Ausente, ver
+// app/routers/motores.py), que devolve 400 com mensagem descritiva quando inválida - o painel só
+// repassa essa mensagem, nunca pré-valida a transição sozinho.
+export function atualizarStatusInscricao(
+  idInscricao: number,
+  status: string,
+): Promise<{ mensagem: string; status: string }> {
+  return apiFetch(`/api/inscricoes/${idInscricao}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  })
+}
+
+export type InscricaoExportada = {
+  id_inscricao: number
+  nome_pessoa: string | null
+  status: string
+  data_inscricao: string
+}
+
+// Exportação do motor de inscrição - permissão PRÓPRIA (`exportar_inscricoes_evento`), separada
+// de `projetos` (mesmo padrão já usado por `exportarPresencasEvento` acima).
+export function exportarInscricoesDoContexto(
+  contextoTipo: string,
+  idContexto: number,
+): Promise<InscricaoExportada[]> {
+  const params = new URLSearchParams({
+    contexto_tipo: contextoTipo,
+    id_contexto: String(idContexto),
+  })
+  return apiFetch(`/api/inscricoes/exportar?${params.toString()}`)
 }
 
 // -- Autoatendimento (qualquer usuário autenticado vinculado a um associado) --
@@ -4788,4 +4950,124 @@ export function criarTemplateDocumento(dados: {
     method: 'POST',
     body: JSON.stringify(dados),
   })
+}
+
+// ---------------------------------------------------------------------------
+// v4.10 (FASE 4, último) - painel gerencial e avaliação.
+//
+// Motor de indicadores (KPI, existe desde a v4.0 - `app/routers/indicadores.py` - mas nunca teve
+// tela). `unidade`/`periodicidade` são códigos de catálogo (`unidade_medida_indicador`/
+// `periodicidade_indicador`, ver `listarOpcoesCatalogo` acima) - nunca hardcoded aqui.
+// ---------------------------------------------------------------------------
+export type Indicador = {
+  id_indicador: number
+  nome: string
+  unidade: string
+  meta: number | null
+  periodicidade: string
+  contexto_tipo: string | null
+  id_contexto: number | null
+}
+
+export function criarIndicador(dados: {
+  nome: string
+  unidade: string
+  meta?: number
+  periodicidade: string
+  contexto_tipo?: string
+  id_contexto?: number
+}): Promise<{ mensagem: string; id_indicador: number }> {
+  return apiFetch('/api/indicadores/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function listarIndicadores(
+  contextoTipo: string,
+  idContexto: number,
+): Promise<Indicador[]> {
+  const params = new URLSearchParams({
+    contexto_tipo: contextoTipo,
+    id_contexto: String(idContexto),
+  })
+  return apiFetch(`/api/indicadores/?${params.toString()}`)
+}
+
+export type MedicaoIndicador = {
+  id_medicao: number
+  valor: number
+  periodo: string
+  fonte: string | null
+  medido_em: string
+}
+
+// `periodo` é texto livre escolhido por quem mede (ex.: "2026-01", "Q1 2026") - o backend REJEITA
+// uma segunda medição pro mesmo par (indicador, periodo) com 400; o painel repassa a mensagem,
+// nunca sobrescreve/retenta sozinho.
+export function registrarMedicaoIndicador(
+  idIndicador: number,
+  dados: { valor: number; periodo: string; fonte?: string },
+): Promise<{ mensagem: string; id_medicao: number }> {
+  return apiFetch(`/api/indicadores/${idIndicador}/medicoes`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+// Ordenado por período ascendente (já vem assim do backend).
+export function listarMedicoesIndicador(
+  idIndicador: number,
+): Promise<MedicaoIndicador[]> {
+  return apiFetch(`/api/indicadores/${idIndicador}/medicoes`)
+}
+
+// ---------------------------------------------------------------------------
+// v4.10 - comparação entre edições recorrentes de evento: mesma semântica "cadeia inteira,
+// independente de qual edição chamou" de `listarEdicoesEvento` (v4.5), com os totais de cada
+// edição lado a lado.
+// ---------------------------------------------------------------------------
+export type ComparacaoEdicaoEvento = {
+  id_evento: number
+  titulo: string
+  data_hora_inicio: string
+  total_inscritos: number
+  total_presentes: number
+  total_arrecadado: number | null
+  resultado_financeiro: number | null
+  nota_media_satisfacao: number | null
+}
+
+export function obterComparacaoEdicoesEvento(
+  idEvento: number,
+): Promise<ComparacaoEdicaoEvento[]> {
+  return apiFetch(`/api/eventos/${idEvento}/comparacao-edicoes`)
+}
+
+// ---------------------------------------------------------------------------
+// v4.10 - pesquisa de satisfação pós-evento: só gestão/visualização aqui. A página pública de
+// resposta (link enviado ao ex-participante, sem login) é escopo do site institucional
+// (Astro/Directus, outro repositório) - não existe `/pesquisa-satisfacao/:token` neste painel.
+// Resultado é SEMPRE agregado e anônimo - não há dado por respondente em nenhum endpoint.
+// ---------------------------------------------------------------------------
+export function convidarPesquisaSatisfacao(idEvento: number): Promise<{
+  mensagem: string
+  quantidade_convites_novos: number
+}> {
+  return apiFetch(`/api/eventos/${idEvento}/pesquisa-satisfacao/convidar`, {
+    method: 'POST',
+  })
+}
+
+export type ResultadoPesquisaSatisfacao = {
+  total_convidados: number
+  total_respondidos: number
+  nota_media: number | null
+  comentarios: string[]
+}
+
+export function obterResultadoPesquisaSatisfacao(
+  idEvento: number,
+): Promise<ResultadoPesquisaSatisfacao> {
+  return apiFetch(`/api/eventos/${idEvento}/pesquisa-satisfacao/resultado`)
 }

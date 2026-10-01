@@ -108,6 +108,7 @@ from app.models.votacao import (
 )
 from app.models.portaria import TokenPortaria, OperacaoPortariaIdempotente
 from app.models.financeiro_evento import FaixaPrecoEvento, CupomDesconto, IsencaoTaxaContexto, FechamentoEvento
+from app.models.pesquisa_satisfacao import RespostaPesquisaSatisfacao
 
 __all__ = [
     "perfil_permissao",
@@ -219,4 +220,5 @@ __all__ = [
     "CupomDesconto",
     "IsencaoTaxaContexto",
     "FechamentoEvento",
+    "RespostaPesquisaSatisfacao",
 ]

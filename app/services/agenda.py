@@ -47,6 +47,30 @@ def criar_compromisso(
     return compromisso
 
 
+def atualizar_compromisso(db: Session, *, id_compromisso: int, data_hora_inicio: datetime, data_hora_fim: datetime) -> CompromissoAgenda:
+    """v4.10 - move um compromisso já existente (reserva editada) pra outro horário, reexecutando
+    a MESMA checagem de conflito de `criar_compromisso` (excluindo o próprio compromisso da
+    checagem, senão ele sempre "colidiria" consigo mesmo) - nunca apagar e recriar, que perderia
+    o vínculo se a checagem falhasse no meio do caminho."""
+    compromisso = db.query(CompromissoAgenda).filter(CompromissoAgenda.id_compromisso == id_compromisso).first()
+    if not compromisso:
+        raise HTTPException(status_code=404, detail="Compromisso de agenda não encontrado.")
+    conflitos = verificar_conflito(
+        db, recurso_tipo=compromisso.recurso_tipo, id_recurso=compromisso.id_recurso,
+        data_hora_inicio=data_hora_inicio, data_hora_fim=data_hora_fim, excluir_id_compromisso=id_compromisso,
+    )
+    if conflitos:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Conflito de agenda: já existe compromisso para '{compromisso.recurso_tipo}' #{compromisso.id_recurso} nesse horário (compromisso #{conflitos[0].id_compromisso}).",
+        )
+    compromisso.data_hora_inicio = data_hora_inicio
+    compromisso.data_hora_fim = data_hora_fim
+    db.commit()
+    db.refresh(compromisso)
+    return compromisso
+
+
 def listar_compromissos(db: Session, *, recurso_tipo: str, id_recurso: int) -> list[CompromissoAgenda]:
     return (
         db.query(CompromissoAgenda)

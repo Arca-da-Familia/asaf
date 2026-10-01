@@ -8,8 +8,10 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import {
   atualizarElegibilidadeConfig,
+  atualizarStatusInscricao,
   configurarCobrancaEvento,
   configurarReembolsoEvento,
+  convidarPesquisaSatisfacao,
   criarCotaEvento,
   criarCupomEvento,
   criarEvento,
@@ -22,6 +24,7 @@ import {
   criarTokenPortaria,
   emitirCertificadoEvento,
   emitirCrachaEvento,
+  exportarInscricoesDoContexto,
   exportarPresencasEvento,
   gerarFechamentoEvento,
   listarAssociados,
@@ -43,9 +46,13 @@ import {
   listarTemplatesDocumento,
   listarTokensPortaria,
   obterAssociado,
+  obterComparacaoEdicoesEvento,
+  obterResultadoPesquisaSatisfacao,
   revogarTokenPortaria,
   urlArquivo,
   type Evento,
+  type InscricaoExportada,
+  type InscricaoMotor,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
 import {
@@ -63,6 +70,7 @@ import {
   templateDocumentoCriarSchema,
   tokenPortariaCriarSchema,
 } from '@/lib/schemas'
+import { useDebounce } from '@/lib/use-debounce'
 import { useMe } from '@/lib/use-me'
 
 // v4.9 - valores financeiros de evento chegam em reais (Decimal serializado como número JSON,
@@ -584,34 +592,251 @@ function SecaoEdicoes({ evento }: { evento: Evento }) {
           </div>
         ))}
       </div>
+      <ComparacaoEdicoes idEvento={evento.id_evento} />
+    </div>
+  )
+}
+
+// v4.10 - comparação lado a lado das edições da mesma cadeia recorrente (mesma semântica "cadeia
+// inteira, independente de qual edição chamou" de `listarEdicoesEvento` acima).
+function ComparacaoEdicoes({ idEvento }: { idEvento: number }) {
+  const { data: comparacao } = useQuery({
+    queryKey: ['comparacao-edicoes', idEvento],
+    queryFn: () => obterComparacaoEdicoesEvento(idEvento),
+  })
+
+  if (!comparacao || comparacao.length === 0) return null
+
+  return (
+    <div className="mt-4 overflow-x-auto">
+      <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+        Comparação entre edições
+      </h4>
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-b border-border">
+            <th className="py-1 pr-4">Edição</th>
+            <th className="py-1 pr-4">Data</th>
+            <th className="py-1 pr-4">Inscritos</th>
+            <th className="py-1 pr-4">Presentes</th>
+            <th className="py-1 pr-4">Arrecadado</th>
+            <th className="py-1 pr-4">Resultado</th>
+            <th className="py-1 pr-4">Satisfação</th>
+          </tr>
+        </thead>
+        <tbody>
+          {comparacao.map((e) => (
+            <tr
+              key={e.id_evento}
+              className={`border-b border-border last:border-0 ${e.id_evento === idEvento ? 'bg-muted/30' : ''}`}
+            >
+              <td className="py-1 pr-4">{e.titulo}</td>
+              <td className="py-1 pr-4">{formatarData(e.data_hora_inicio)}</td>
+              <td className="py-1 pr-4">{e.total_inscritos}</td>
+              <td className="py-1 pr-4">{e.total_presentes}</td>
+              <td className="py-1 pr-4">
+                {e.total_arrecadado != null
+                  ? formatarReais(e.total_arrecadado)
+                  : '—'}
+              </td>
+              <td className="py-1 pr-4">
+                {e.resultado_financeiro != null
+                  ? formatarReais(e.resultado_financeiro)
+                  : '—'}
+              </td>
+              <td className="py-1 pr-4">
+                {e.nota_media_satisfacao != null
+                  ? `${e.nota_media_satisfacao.toFixed(1)} / 10`
+                  : '—'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// v4.10 - status do motor de inscrição (Pré-inscrito/Confirmado/Lista de
+// Espera/Cancelado/Presente/Ausente, ver app/routers/motores.py). O MAPA abaixo só evita
+// oferecer uma transição obviamente inválida no <select> - quem valida de verdade é o backend
+// (400 com mensagem descritiva fora disso, que o painel repassa).
+const STATUS_INSCRICAO = [
+  'Pré-inscrito',
+  'Confirmado',
+  'Lista de Espera',
+  'Cancelado',
+  'Presente',
+  'Ausente',
+] as const
+
+const TRANSICOES_VALIDAS_INSCRICAO: Record<string, string[]> = {
+  'Pré-inscrito': ['Confirmado', 'Lista de Espera', 'Cancelado'],
+  Confirmado: ['Cancelado', 'Presente', 'Ausente'],
+  'Lista de Espera': ['Confirmado', 'Cancelado'],
+  Cancelado: ['Pré-inscrito'],
+  Presente: [],
+  Ausente: [],
+}
+
+function LinhaInscrito({
+  inscrito,
+  onErro,
+}: {
+  inscrito: InscricaoMotor
+  onErro: (mensagem: string | null) => void
+}) {
+  const queryClient = useQueryClient()
+  const transicoes = TRANSICOES_VALIDAS_INSCRICAO[inscrito.status] ?? []
+
+  const alterarStatus = useMutation({
+    mutationFn: (status: string) =>
+      atualizarStatusInscricao(inscrito.id_inscricao, status),
+    onSuccess: () => {
+      onErro(null)
+      queryClient.invalidateQueries({ queryKey: ['inscricoes'] })
+    },
+    onError: (err) => onErro((err as Error).message),
+  })
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-2 text-sm">
+      <span>{inscrito.nome_pessoa ?? `Pessoa #${inscrito.id_pessoa}`}</span>
+      <div className="flex items-center gap-2">
+        <span className="text-muted-foreground">{inscrito.status}</span>
+        {transicoes.length > 0 ? (
+          <select
+            value=""
+            disabled={alterarStatus.isPending}
+            onChange={(e) => {
+              if (e.target.value) alterarStatus.mutate(e.target.value)
+              e.target.value = ''
+            }}
+            className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+          >
+            <option value="">Alterar status…</option>
+            {transicoes.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="text-xs text-muted-foreground">(final)</span>
+        )}
+      </div>
     </div>
   )
 }
 
 function SecaoInscritos({ evento }: { evento: Evento }) {
+  const { data: me } = useMe()
+  const podeExportar =
+    me?.permissoes.includes('exportar_inscricoes_evento') ?? false
+  const [buscaInput, setBuscaInput] = useState('')
+  const busca = useDebounce(buscaInput)
+  const [status, setStatus] = useState('')
+  const [erro, setErro] = useState<string | null>(null)
+
   const { data: inscritos } = useQuery({
-    queryKey: ['inscricoes', 'Evento', evento.id_evento],
-    queryFn: () => listarInscricoesDoContexto('Evento', evento.id_evento),
+    queryKey: ['inscricoes', 'Evento', evento.id_evento, busca, status],
+    queryFn: () =>
+      listarInscricoesDoContexto('Evento', evento.id_evento, {
+        busca: busca || undefined,
+        status: status || undefined,
+      }),
+  })
+
+  const [resultadoExportacao, setResultadoExportacao] = useState<
+    InscricaoExportada[] | null
+  >(null)
+  const exportar = useMutation({
+    mutationFn: () => exportarInscricoesDoContexto('Evento', evento.id_evento),
+    onSuccess: setResultadoExportacao,
   })
 
   return (
     <div>
-      <h3 className="mb-2 text-sm font-semibold">
-        Inscritos no evento (autoatendimento pelo painel)
-      </h3>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">
+          Inscritos no evento (autoatendimento pelo painel)
+        </h3>
+        {podeExportar && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={exportar.isPending}
+            onClick={() => exportar.mutate()}
+          >
+            {exportar.isPending ? 'Exportando…' : 'Exportar'}
+          </Button>
+        )}
+      </div>
+      <div className="mb-3 flex flex-wrap gap-2">
+        <input
+          value={buscaInput}
+          onChange={(e) => setBuscaInput(e.target.value)}
+          placeholder="Buscar por nome…"
+          className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+        />
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">Todos os status</option>
+          {STATUS_INSCRICAO.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </div>
+      {erro && <p className="mb-2 text-sm text-destructive">{erro}</p>}
+      {exportar.isError && (
+        <p className="mb-2 text-sm text-destructive">
+          {(exportar.error as Error).message}
+        </p>
+      )}
+      {resultadoExportacao && (
+        <div className="mb-3 overflow-x-auto rounded-md border border-border">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="px-3 py-2 font-medium">Nome</th>
+                <th className="px-3 py-2 font-medium">Status</th>
+                <th className="px-3 py-2 font-medium">Inscrito em</th>
+              </tr>
+            </thead>
+            <tbody>
+              {resultadoExportacao.map((i) => (
+                <tr
+                  key={i.id_inscricao}
+                  className="border-b border-border last:border-0"
+                >
+                  <td className="px-3 py-2">{i.nome_pessoa ?? '—'}</td>
+                  <td className="px-3 py-2">{i.status}</td>
+                  <td className="px-3 py-2">
+                    {formatarData(i.data_inscricao, { comHora: true })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {resultadoExportacao.length === 0 && (
+            <p className="p-3 text-sm text-muted-foreground">
+              Nenhuma linha no resultado.
+            </p>
+          )}
+        </div>
+      )}
       <div className="space-y-1">
         {(inscritos ?? []).map((i) => (
-          <div
-            key={i.id_inscricao}
-            className="flex items-center justify-between rounded-md border border-border p-2 text-sm"
-          >
-            <span>Pessoa #{i.id_pessoa}</span>
-            <span className="text-muted-foreground">{i.status}</span>
-          </div>
+          <LinhaInscrito key={i.id_inscricao} inscrito={i} onErro={setErro} />
         ))}
         {(inscritos ?? []).length === 0 && (
           <p className="text-sm text-muted-foreground">
-            Nenhuma inscrição registrada ainda.
+            Nenhuma inscrição encontrada.
           </p>
         )}
       </div>
@@ -1971,6 +2196,87 @@ function SecaoExportarPresencas({ idEvento }: { idEvento: number }) {
   )
 }
 
+// ==========================================
+// PESQUISA DE SATISFAÇÃO PÓS-EVENTO (v4.10) - convite manual (idempotente, nunca duplica convite
+// já enviado; roda automaticamente 1x/dia pra eventos encerrados, mesmo ciclo diário do
+// fechamento financeiro v4.9 - este botão só não espera o ciclo) e resultado SEMPRE agregado e
+// anônimo - não existe, em nenhum endpoint, dado por respondente (quem respondeu, de quem é cada
+// comentário). A página pública de resposta (link sem login) é escopo do site institucional
+// (Astro/Directus, outro repositório), fora deste painel.
+// ==========================================
+function SecaoPesquisaSatisfacao({ idEvento }: { idEvento: number }) {
+  const { data: me } = useMe()
+  const podeGerenciar = me?.permissoes.includes('projetos') ?? false
+  const queryClient = useQueryClient()
+
+  const { data: resultado } = useQuery({
+    queryKey: ['pesquisa-satisfacao', idEvento],
+    queryFn: () => obterResultadoPesquisaSatisfacao(idEvento),
+    enabled: podeGerenciar,
+  })
+
+  const convidar = useMutation({
+    mutationFn: () => convidarPesquisaSatisfacao(idEvento),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ['pesquisa-satisfacao', idEvento],
+      }),
+  })
+
+  if (!podeGerenciar) return null
+
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-semibold">Pesquisa de satisfação</h3>
+      <p className="mb-2 text-xs text-muted-foreground">
+        Resultado sempre agregado e anônimo — não há como saber quem respondeu,
+        nem de quem é cada comentário.
+      </p>
+      <Button
+        size="sm"
+        disabled={convidar.isPending}
+        onClick={() => convidar.mutate()}
+      >
+        {convidar.isPending ? 'Convidando…' : 'Convidar inscritos'}
+      </Button>
+      {convidar.isSuccess && (
+        <p className="mt-2 text-sm text-emerald-600">
+          {convidar.data.mensagem} ({convidar.data.quantidade_convites_novos}{' '}
+          novo(s)).
+        </p>
+      )}
+      {convidar.isError && (
+        <p className="mt-2 text-sm text-destructive">
+          {(convidar.error as Error).message}
+        </p>
+      )}
+      {resultado && (
+        <div className="mt-3 rounded-md border border-border p-3 text-sm">
+          <p>
+            {resultado.total_respondidos} de {resultado.total_convidados}{' '}
+            convidado(s) responderam
+            {resultado.nota_media != null &&
+              ` · nota média ${resultado.nota_media.toFixed(1)} / 10`}
+          </p>
+          {resultado.comentarios.length > 0 ? (
+            <ul className="mt-2 space-y-1">
+              {resultado.comentarios.map((c, i) => (
+                <li key={i} className="rounded-md bg-muted/40 p-2 text-xs">
+                  {c}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Nenhum comentário ainda.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function DetalheEvento({ evento }: { evento: Evento }) {
   return (
     <div className="space-y-6 rounded-xl border border-border bg-card p-6">
@@ -2003,6 +2309,7 @@ function DetalheEvento({ evento }: { evento: Evento }) {
       <SecaoPortaria idEvento={evento.id_evento} />
       <SecaoElegibilidade evento={evento} />
       <SecaoExportarPresencas idEvento={evento.id_evento} />
+      <SecaoPesquisaSatisfacao idEvento={evento.id_evento} />
     </div>
   )
 }

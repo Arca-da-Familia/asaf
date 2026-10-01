@@ -1,5 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { z } from 'zod'
 
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
@@ -13,6 +23,7 @@ import {
   confirmarAlocacao,
   confirmarTrocaTurno,
   criarBeneficiario,
+  criarIndicador,
   criarItemCronograma,
   criarProjeto,
   criarVagaEscala,
@@ -28,6 +39,8 @@ import {
   listarEncaminhamentos,
   listarEquipeProjeto,
   listarHorasPendentesDoProjeto,
+  listarIndicadores,
+  listarMedicoesIndicador,
   listarOpcoesCatalogo,
   listarProjetos,
   listarRelatoriosFinaisProjeto,
@@ -39,7 +52,9 @@ import {
   recusarTrocaTurno,
   registrarAtendimento,
   registrarEncaminhamento,
+  registrarMedicaoIndicador,
   vincularBeneficiarioAoProjeto,
+  type Indicador,
   type Projeto,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
@@ -47,7 +62,9 @@ import {
   beneficiarioCriarSchema,
   encaminhamentoCriarSchema,
   equipeProjetoCriarSchema,
+  indicadorCriarSchema,
   itemCronogramaCriarSchema,
+  medicaoIndicadorCriarSchema,
   projetoCriarSchema,
   registroAtendimentoCriarSchema,
   vagaEscalaCriarSchema,
@@ -1020,7 +1037,7 @@ function SecaoBeneficiarios({ idProjeto }: { idProjeto: number }) {
   })
   const { data: beneficiarios } = useQuery({
     queryKey: ['beneficiarios'],
-    queryFn: listarBeneficiarios,
+    queryFn: () => listarBeneficiarios(),
   })
   const { data: papeis } = useQuery({
     queryKey: ['opcoes-catalogo', 'papel_beneficiario_projeto'],
@@ -1197,6 +1214,293 @@ function SecaoBeneficiarios({ idProjeto }: { idProjeto: number }) {
   )
 }
 
+// ==========================================
+// INDICADORES / KPI (v4.10) - motor existe desde a v4.0 (`app/routers/indicadores.py`) mas nunca
+// teve tela; `unidade`/`periodicidade` são código de catálogo (`unidade_medida_indicador`/
+// `periodicidade_indicador`), nunca hardcoded aqui - mesmo padrão de `tipo_projeto` acima.
+// ==========================================
+function TooltipMedicao({
+  active,
+  payload,
+  unidade,
+}: {
+  active?: boolean
+  payload?: {
+    payload: { periodo: string; valor: number; fonte: string | null }
+  }[]
+  unidade: string
+}) {
+  const item = payload?.[0]
+  if (!active || !item) return null
+  return (
+    <div className="rounded-md border border-border bg-card px-3 py-2 text-sm shadow-md">
+      <p className="font-medium">{item.payload.periodo}</p>
+      <p className="text-muted-foreground">
+        {item.payload.valor} {unidade}
+        {item.payload.fonte && ` · ${item.payload.fonte}`}
+      </p>
+    </div>
+  )
+}
+
+function PainelMedicoesIndicador({ indicador }: { indicador: Indicador }) {
+  const queryClient = useQueryClient()
+  const { data: medicoes } = useQuery({
+    queryKey: ['medicoes-indicador', indicador.id_indicador],
+    queryFn: () => listarMedicoesIndicador(indicador.id_indicador),
+  })
+
+  const registrar = useMutation({
+    mutationFn: (v: z.infer<typeof medicaoIndicadorCriarSchema>) =>
+      registrarMedicaoIndicador(indicador.id_indicador, v),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ['medicoes-indicador', indicador.id_indicador],
+      }),
+  })
+
+  return (
+    <div className="mt-2 rounded-md border border-border p-2">
+      <FormShell<z.infer<typeof medicaoIndicadorCriarSchema>>
+        schema={medicaoIndicadorCriarSchema}
+        defaultValues={{ valor: 0, periodo: '', fonte: '' }}
+        onSubmit={(v) => registrar.mutateAsync(v)}
+        className="mb-3 flex flex-wrap items-end gap-2"
+      >
+        {(form) => (
+          <>
+            <div>
+              <input
+                type="number"
+                step="0.01"
+                {...form.register('valor', {
+                  setValueAs: (v) => (v === '' ? undefined : Number(v)),
+                })}
+                placeholder="Valor"
+                className="h-9 w-28 rounded-md border border-input bg-background px-3 text-sm"
+              />
+              <ErroCampo mensagem={form.formState.errors.valor?.message} />
+            </div>
+            <div>
+              <input
+                {...form.register('periodo')}
+                placeholder="Período (ex.: 2026-01)"
+                className="h-9 w-40 rounded-md border border-input bg-background px-3 text-sm"
+              />
+              <ErroCampo mensagem={form.formState.errors.periodo?.message} />
+            </div>
+            <input
+              {...form.register('fonte')}
+              placeholder="Fonte (opcional)"
+              className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+            />
+            <Button type="submit" size="sm" disabled={registrar.isPending}>
+              {registrar.isPending ? 'Registrando…' : 'Registrar medição'}
+            </Button>
+            {registrar.isError && (
+              <p className="w-full text-xs text-destructive">
+                {(registrar.error as Error).message}
+              </p>
+            )}
+          </>
+        )}
+      </FormShell>
+      {(medicoes ?? []).length > 0 ? (
+        <div className="h-52">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={medicoes}>
+              <CartesianGrid stroke="hsl(var(--border))" />
+              <XAxis
+                dataKey="periodo"
+                stroke="hsl(var(--muted-foreground))"
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis
+                stroke="hsl(var(--muted-foreground))"
+                tick={{ fontSize: 12 }}
+              />
+              <Tooltip
+                content={<TooltipMedicao unidade={indicador.unidade} />}
+              />
+              {indicador.meta != null && (
+                <ReferenceLine
+                  y={indicador.meta}
+                  stroke="hsl(var(--destructive))"
+                  strokeDasharray="4 4"
+                  label={{
+                    value: 'Meta',
+                    fontSize: 11,
+                    fill: 'hsl(var(--destructive))',
+                  }}
+                />
+              )}
+              <Line
+                type="monotone"
+                dataKey="valor"
+                stroke="hsl(var(--primary))"
+                strokeWidth={2}
+                dot={{ r: 3 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Nenhuma medição registrada ainda.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function SecaoIndicadores({ idProjeto }: { idProjeto: number }) {
+  const queryClient = useQueryClient()
+  const [mostrarForm, setMostrarForm] = useState(false)
+  const [idIndicadorAberto, setIdIndicadorAberto] = useState<number | null>(
+    null,
+  )
+
+  const { data: unidades } = useQuery({
+    queryKey: ['opcoes-catalogo', 'unidade_medida_indicador'],
+    queryFn: () => listarOpcoesCatalogo('unidade_medida_indicador'),
+  })
+  const { data: periodicidades } = useQuery({
+    queryKey: ['opcoes-catalogo', 'periodicidade_indicador'],
+    queryFn: () => listarOpcoesCatalogo('periodicidade_indicador'),
+  })
+  const { data: indicadores } = useQuery({
+    queryKey: ['indicadores', 'Projeto', idProjeto],
+    queryFn: () => listarIndicadores('Projeto', idProjeto),
+  })
+
+  const criar = useMutation({
+    mutationFn: (v: z.infer<typeof indicadorCriarSchema>) =>
+      criarIndicador({
+        ...v,
+        contexto_tipo: 'Projeto',
+        id_contexto: idProjeto,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['indicadores', 'Projeto', idProjeto],
+      })
+      setMostrarForm(false)
+    },
+  })
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Indicadores</h3>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setMostrarForm((v) => !v)}
+        >
+          {mostrarForm ? 'Cancelar' : 'Novo indicador'}
+        </Button>
+      </div>
+      {mostrarForm && (
+        <FormShell<z.infer<typeof indicadorCriarSchema>>
+          schema={indicadorCriarSchema}
+          defaultValues={{ nome: '', unidade: '', periodicidade: '' }}
+          onSubmit={(v) => criar.mutateAsync(v)}
+          className="mb-3 flex flex-wrap items-end gap-2 rounded-md border border-border p-2"
+        >
+          {(form) => (
+            <>
+              <div className="flex-1">
+                <input
+                  {...form.register('nome')}
+                  placeholder="Nome do indicador"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                />
+                <ErroCampo mensagem={form.formState.errors.nome?.message} />
+              </div>
+              <select
+                {...form.register('unidade')}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Unidade…</option>
+                {(unidades ?? []).map((o) => (
+                  <option key={o.codigo} value={o.codigo}>
+                    {o.rotulo}
+                  </option>
+                ))}
+              </select>
+              <select
+                {...form.register('periodicidade')}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Periodicidade…</option>
+                {(periodicidades ?? []).map((o) => (
+                  <option key={o.codigo} value={o.codigo}>
+                    {o.rotulo}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="number"
+                step="0.01"
+                {...form.register('meta', {
+                  setValueAs: (v) => (v === '' ? undefined : Number(v)),
+                })}
+                placeholder="Meta (opcional)"
+                className="h-9 w-32 rounded-md border border-input bg-background px-3 text-sm"
+              />
+              <Button type="submit" size="sm" disabled={criar.isPending}>
+                Criar
+              </Button>
+              {criar.isError && (
+                <p className="w-full text-xs text-destructive">
+                  {(criar.error as Error).message}
+                </p>
+              )}
+            </>
+          )}
+        </FormShell>
+      )}
+      <div className="space-y-2">
+        {(indicadores ?? []).map((ind) => (
+          <div
+            key={ind.id_indicador}
+            className="rounded-md border border-border p-2 text-sm"
+          >
+            <div className="flex items-center justify-between">
+              <span>
+                {ind.nome}{' '}
+                <span className="text-muted-foreground">
+                  ({ind.unidade} · {ind.periodicidade}
+                  {ind.meta != null && ` · meta ${ind.meta}`})
+                </span>
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setIdIndicadorAberto((v) =>
+                    v === ind.id_indicador ? null : ind.id_indicador,
+                  )
+                }
+              >
+                {idIndicadorAberto === ind.id_indicador ? 'Fechar' : 'Medições'}
+              </Button>
+            </div>
+            {idIndicadorAberto === ind.id_indicador && (
+              <PainelMedicoesIndicador indicador={ind} />
+            )}
+          </div>
+        ))}
+        {(indicadores ?? []).length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Nenhum indicador cadastrado para este projeto.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function DetalheProjeto({ projeto }: { projeto: Projeto }) {
   const queryClient = useQueryClient()
   const { data: statusOpcoes } = useQuery({
@@ -1239,6 +1543,7 @@ function DetalheProjeto({ projeto }: { projeto: Projeto }) {
       <SecaoEquipe idProjeto={projeto.id_projeto} />
       <SecaoVoluntariado idProjeto={projeto.id_projeto} />
       <SecaoBeneficiarios idProjeto={projeto.id_projeto} />
+      <SecaoIndicadores idProjeto={projeto.id_projeto} />
       <SecaoOrcamentoRelatorio projeto={projeto} />
     </div>
   )

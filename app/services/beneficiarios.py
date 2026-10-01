@@ -49,8 +49,40 @@ def criar_beneficiario(
     return beneficiario
 
 
-def listar_beneficiarios(db: Session) -> list[Beneficiario]:
-    return db.query(Beneficiario).order_by(Beneficiario.criado_em.desc()).all()
+def listar_beneficiarios(
+    db: Session, *,
+    # v4.10 - tela cross-projeto nova (antes só dava pra ver beneficiário aninhado dentro de UM
+    # projeto por vez, `Projetos.tsx::SecaoBeneficiarios`) - busca por nome (via `Pessoa`, que é
+    # quem guarda o nome de verdade) e filtro por projeto (via o vínculo N:N).
+    busca: Optional[str] = None, id_projeto: Optional[int] = None,
+) -> list[Beneficiario]:
+    query = db.query(Beneficiario)
+    if id_projeto is not None:
+        query = query.join(BeneficiarioProjeto, BeneficiarioProjeto.id_beneficiario == Beneficiario.id_beneficiario).filter(BeneficiarioProjeto.id_projeto == id_projeto)
+    if busca:
+        query = query.join(Pessoa, Pessoa.id_pessoa == Beneficiario.id_pessoa).filter(Pessoa.nome_completo.ilike(f"%{busca}%"))
+    return query.order_by(Beneficiario.criado_em.desc()).all()
+
+
+def atualizar_beneficiario(
+    db: Session, *, id_beneficiario: int, nome_completo: Optional[str], data_nascimento: Optional[datetime],
+    consentimento_lgpd_registrado: Optional[bool], observacao_consentimento: Optional[str], id_usuario: Optional[int],
+) -> Beneficiario:
+    beneficiario = obter_beneficiario(db, id_beneficiario)
+    pessoa = db.query(Pessoa).filter(Pessoa.id_pessoa == beneficiario.id_pessoa).first()
+    if nome_completo is not None:
+        pessoa.nome_completo = nome_completo
+    if data_nascimento is not None:
+        pessoa.data_nascimento = data_nascimento
+    if observacao_consentimento is not None:
+        beneficiario.observacao_consentimento = observacao_consentimento
+    if consentimento_lgpd_registrado is not None and consentimento_lgpd_registrado != beneficiario.consentimento_lgpd_registrado:
+        beneficiario.consentimento_lgpd_registrado = consentimento_lgpd_registrado
+        beneficiario.data_consentimento = datetime.utcnow() if consentimento_lgpd_registrado else None
+        beneficiario.id_usuario_registro_consentimento = id_usuario if consentimento_lgpd_registrado else None
+    db.commit()
+    db.refresh(beneficiario)
+    return beneficiario
 
 
 def obter_beneficiario(db: Session, id_beneficiario: int) -> Beneficiario:

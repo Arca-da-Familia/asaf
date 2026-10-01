@@ -874,6 +874,15 @@ export const encaminhamentoCriarSchema = z.object({
   descricao: z.string().min(5, 'Descreva o encaminhamento.'),
 })
 
+// v4.10 - primeira edição de beneficiário (até aqui só existia criar). Campos são opcionais no
+// backend, mas o formulário de edição sempre reenvia todos (pré-preenchidos com o valor atual).
+export const beneficiarioEditarSchema = z.object({
+  nome_completo: z.string().min(3, 'Informe o nome do beneficiário.'),
+  data_nascimento: z.string().optional(),
+  consentimento_lgpd_registrado: z.boolean(),
+  observacao_consentimento: z.string().optional(),
+})
+
 // v4.3 - reserva de espaço.
 // v4.9 - `percentual_reembolso_cancelamento`: em branco = usar o padrão global do sistema, nunca
 // 0% ("nunca reembolsar nada") - mesmo cuidado 0-vs-não-informado do comentário de
@@ -930,6 +939,18 @@ export const reservaRecorrenteCriarSchema = reservaEspacoCriarSchema.extend({
     .number()
     .int()
     .min(2, 'Informe pelo menos 2 semanas.'),
+})
+
+// v4.10 - edição da PRÓPRIA reserva (data/hora/finalidade, não status) - só válido com a reserva
+// em SOLICITADA/CONFIRMADA no backend; conflito de horário devolve 400 com "Conflito" na
+// mensagem, resultado esperado do fluxo.
+export const reservaEspacoEditarSchema = z.object({
+  data_hora_inicio: z
+    .string()
+    .min(1, 'Informe o início.')
+    .transform(paraUtcIso),
+  data_hora_fim: z.string().min(1, 'Informe o fim.').transform(paraUtcIso),
+  finalidade: z.string().min(3, 'Descreva a finalidade.'),
 })
 
 export const motivoRecusaOuCancelamentoSchema = z.object({
@@ -1192,3 +1213,21 @@ export const isencaoTaxaCriarSchema = z
       'Selecione um associado ou informe o ID da pessoa manualmente (avançado).',
     path: ['id_associado'],
   })
+
+// v4.10 - motor de indicadores (KPI), scoped por contexto (aqui sempre "Projeto" + o projeto
+// aberto - ver SecaoIndicadores em Projetos.tsx). `unidade`/`periodicidade` são código de
+// catálogo (`unidade_medida_indicador`/`periodicidade_indicador`), preenchidos por <select>.
+export const indicadorCriarSchema = z.object({
+  nome: z.string().min(3, 'Informe o nome do indicador.'),
+  unidade: z.string().min(1, 'Selecione a unidade.'),
+  periodicidade: z.string().min(1, 'Selecione a periodicidade.'),
+  meta: z.coerce.number().optional(),
+})
+
+// `periodo` é texto livre (ex.: "2026-01", "Q1 2026") - o backend rejeita uma segunda medição
+// pro mesmo par (indicador, periodo) com 400, o painel só repassa a mensagem.
+export const medicaoIndicadorCriarSchema = z.object({
+  valor: z.coerce.number({ invalid_type_error: 'Informe um valor.' }),
+  periodo: z.string().min(1, 'Informe o período desta medição.'),
+  fonte: z.string().optional(),
+})

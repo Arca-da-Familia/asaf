@@ -68,6 +68,19 @@ class ReservaRecorrenteCriar(BaseModel):
         return v
 
 
+class ReservaAtualizar(BaseModel):
+    data_hora_inicio: Optional[datetime] = None
+    data_hora_fim: Optional[datetime] = None
+    finalidade: Optional[str] = None
+
+    @field_validator("finalidade")
+    @classmethod
+    def validar_finalidade(cls, v):
+        if v is not None and len(v.strip()) < 3:
+            raise ValueError("Descreva a finalidade da reserva.")
+        return v.strip() if v is not None else v
+
+
 class ReservaRecusar(BaseModel):
     motivo: str
 

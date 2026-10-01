@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
 from app.database import get_db
+from app.models.pessoas import Pessoa
 from app.schemas.beneficiarios import (
+    BeneficiarioAtualizar,
     BeneficiarioCriar,
     BeneficiarioProjetoCriar,
     EncaminhamentoRedeExternaCriar,
@@ -20,18 +22,27 @@ from app.services import beneficiarios
 
 router = APIRouter()
 _permissao_projetos = exigir_permissao("projetos")
+_permissao_exportar = exigir_permissao("exportar_beneficiarios")
 
 
 def _ip_origem(request: Request) -> str:
     return request.client.host if request.client else None
 
 
-def _serializar_beneficiario(b) -> dict:
+def _serializar_beneficiario(b, pessoa=None) -> dict:
     return {
         "id_beneficiario": b.id_beneficiario, "id_pessoa": b.id_pessoa,
+        "nome_completo": pessoa.nome_completo if pessoa else None,
+        "data_nascimento": pessoa.data_nascimento if pessoa else None,
         "consentimento_lgpd_registrado": b.consentimento_lgpd_registrado,
         "observacao_consentimento": b.observacao_consentimento, "data_consentimento": b.data_consentimento,
     }
+
+
+def _mapear_pessoas(db: Session, ids_pessoa: list[int]) -> dict:
+    if not ids_pessoa:
+        return {}
+    return {p.id_pessoa: p for p in db.query(Pessoa).filter(Pessoa.id_pessoa.in_(set(ids_pessoa))).all()}
 
 
 @router.post("/api/beneficiarios/", summary="Cadastrar Beneficiário (papel de Pessoa)")
@@ -49,8 +60,40 @@ def criar_beneficiario_endpoint(dados: BeneficiarioCriar, request: Request, db: 
 
 
 @router.get("/api/beneficiarios/", summary="Listar Beneficiários")
-def listar_beneficiarios_endpoint(db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
-    return [_serializar_beneficiario(b) for b in beneficiarios.listar_beneficiarios(db)]
+def listar_beneficiarios_endpoint(
+    busca: str = None, id_projeto: int = None,
+    db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos),
+):
+    lista = beneficiarios.listar_beneficiarios(db, busca=busca, id_projeto=id_projeto)
+    pessoas = _mapear_pessoas(db, [b.id_pessoa for b in lista])
+    return [_serializar_beneficiario(b, pessoas.get(b.id_pessoa)) for b in lista]
+
+
+@router.put("/api/beneficiarios/{id_beneficiario}", summary="Editar Beneficiário (dados de Pessoa + consentimento LGPD)")
+def atualizar_beneficiario_endpoint(id_beneficiario: int, dados: BeneficiarioAtualizar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    beneficiario = beneficiarios.atualizar_beneficiario(
+        db, id_beneficiario=id_beneficiario, nome_completo=dados.nome_completo, data_nascimento=dados.data_nascimento,
+        consentimento_lgpd_registrado=dados.consentimento_lgpd_registrado, observacao_consentimento=dados.observacao_consentimento,
+        id_usuario=usuario.id_usuario,
+    )
+    registrar_auditoria(
+        db, usuario, "beneficiarios", "UPDATE", id_registro_afetado=beneficiario.id_beneficiario,
+        dados_depois={"consentimento_lgpd_registrado": beneficiario.consentimento_lgpd_registrado}, ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Beneficiário atualizado."}
+
+
+@router.get("/api/beneficiarios/exportar", summary="Exportar beneficiários (v4.10 - permissão própria, nunca casual)")
+def exportar_beneficiarios_endpoint(
+    request: Request, busca: str = None, id_projeto: int = None,
+    db: Session = Depends(get_db), usuario=Depends(_permissao_exportar),
+):
+    lista = beneficiarios.listar_beneficiarios(db, busca=busca, id_projeto=id_projeto)
+    pessoas = _mapear_pessoas(db, [b.id_pessoa for b in lista])
+    registrar_auditoria(
+        db, usuario, "beneficiarios", "EXPORTAR", dados_depois={"quantidade": len(lista)}, ip_origem=_ip_origem(request),
+    )
+    return [_serializar_beneficiario(b, pessoas.get(b.id_pessoa)) for b in lista]
 
 
 @router.get("/api/beneficiarios/{id_beneficiario}/nucleo-familiar", summary="Núcleo familiar do beneficiário (reaproveita DependenteFamiliar, v1.7)")

@@ -2,6 +2,8 @@
 ou aprovação manual, conforme o espaço), cancelamento/no-show e checklist de devolução. A
 disponibilidade pública (`GET /api/espacos/{id}/disponibilidade`) é a ÚNICA rota deste módulo sem
 autenticação - leitura de horário ocupado pro site institucional, nunca expõe quem reservou."""
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
@@ -13,17 +15,19 @@ from app.schemas.espacos import (
     EspacoCriar,
     RegistrarDevolucao,
     RegistrarRetirada,
+    ReservaAtualizar,
     ReservaCancelar,
     ReservaCriar,
     ReservaRecorrenteCriar,
     ReservaRecusar,
 )
 from app.security import exigir_permissao
-from app.services import espacos, reservas
+from app.services import espacos, ocupacao_espacos, reservas
 from app.services import isencoes_taxa as servico_isencoes_taxa
 
 router = APIRouter()
 _permissao_projetos = exigir_permissao("projetos")
+_permissao_exportar_reservas = exigir_permissao("exportar_reservas_espaco")
 
 
 def _ip_origem(request: Request) -> str:
@@ -136,8 +140,49 @@ def criar_reserva_recorrente_endpoint(dados: ReservaRecorrenteCriar, request: Re
 
 
 @router.get("/api/reservas-espaco/", summary="Listar Reservas")
-def listar_reservas_endpoint(id_espaco: int = None, id_associado_solicitante: int = None, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
-    return [_serializar_reserva(r) for r in reservas.listar_reservas(db, id_espaco=id_espaco, id_associado_solicitante=id_associado_solicitante)]
+def listar_reservas_endpoint(
+    id_espaco: int = None, id_associado_solicitante: int = None, status: str = None,
+    data_inicio: datetime = None, data_fim: datetime = None,
+    db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos),
+):
+    return [
+        _serializar_reserva(r)
+        for r in reservas.listar_reservas(
+            db, id_espaco=id_espaco, id_associado_solicitante=id_associado_solicitante,
+            status=status, data_inicio=data_inicio, data_fim=data_fim,
+        )
+    ]
+
+
+@router.get("/api/reservas-espaco/exportar", summary="Exportar reservas (v4.10 - permissão própria, nunca casual)")
+def exportar_reservas_endpoint(
+    request: Request, id_espaco: int = None, status: str = None, data_inicio: datetime = None, data_fim: datetime = None,
+    db: Session = Depends(get_db), usuario=Depends(_permissao_exportar_reservas),
+):
+    lista = reservas.listar_reservas(db, id_espaco=id_espaco, status=status, data_inicio=data_inicio, data_fim=data_fim)
+    registrar_auditoria(db, usuario, "reservas_espaco", "EXPORTAR", dados_depois={"quantidade": len(lista)}, ip_origem=_ip_origem(request))
+    return [_serializar_reserva(r) for r in lista]
+
+
+@router.put("/api/reservas-espaco/{id_reserva}", summary="Editar Reserva (horário/finalidade - reexecuta checagem de conflito)")
+def atualizar_reserva_endpoint(id_reserva: int, dados: ReservaAtualizar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    reserva = reservas.atualizar_reserva(
+        db, id_reserva=id_reserva, data_hora_inicio=dados.data_hora_inicio, data_hora_fim=dados.data_hora_fim, finalidade=dados.finalidade,
+    )
+    registrar_auditoria(
+        db, usuario, "reservas_espaco", "UPDATE", id_registro_afetado=reserva.id_reserva,
+        dados_depois={"data_hora_inicio": reserva.data_hora_inicio.isoformat(), "data_hora_fim": reserva.data_hora_fim.isoformat()},
+        ip_origem=_ip_origem(request),
+    )
+    return _serializar_reserva(reserva)
+
+
+@router.get("/api/espacos/ocupacao-mapa-calor", summary="Mapa de calor de ocupação (dia da semana x hora)")
+def ocupacao_mapa_calor_endpoint(
+    data_inicio: datetime, data_fim: datetime, id_espaco: int = None,
+    db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos),
+):
+    return ocupacao_espacos.mapa_calor_ocupacao(db, id_espaco=id_espaco, data_inicio=data_inicio, data_fim=data_fim)
 
 
 @router.post("/api/reservas-espaco/{id_reserva}/aprovar", summary="Aprovar Reserva solicitada")
