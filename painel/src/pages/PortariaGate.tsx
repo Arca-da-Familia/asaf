@@ -11,7 +11,7 @@
 // online: o caminho online e o offline são o MESMO caminho, sem caso especial.
 import type { IScannerControls } from '@zxing/browser'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams } from 'react-router'
 
 import { Button } from '@/components/ui/button'
 import {

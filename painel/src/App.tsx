@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react'
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes } from 'react-router'
 
 import { ErrorBoundary } from '@/components/feedback/ErrorBoundary'
 import { Shell } from '@/components/layout/Shell'

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { UserPlus, Users } from 'lucide-react'
 import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 
 import { DataTable } from '@/components/data/DataTable'
 import { EmptyState } from '@/components/feedback/EmptyState'

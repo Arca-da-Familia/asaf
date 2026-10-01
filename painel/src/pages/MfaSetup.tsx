@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { QRCodeSVG } from 'qrcode.react'
 import { useEffect, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 
 import { Button } from '@/components/ui/button'
 import { ApiError, mfaAtivar, mfaConfirmar } from '@/lib/api'

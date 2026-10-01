@@ -17,7 +17,7 @@ import {
   Sun,
   UserRound,
 } from 'lucide-react'
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router'
 
 import { Button } from '@/components/ui/button'
 import { logout } from '@/lib/api'
