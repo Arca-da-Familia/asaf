@@ -7,9 +7,7 @@ const LARGURA = Math.round(ALTURA * LOGO.proporcao)
 ---
 
 <header class="border-b bg-background">
-  <div
-    class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3"
-  >
+  <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
     <a href="/" class="flex items-center gap-3 font-semibold">
       <!-- alt vazio: o nome ao lado já é o texto do link; a logo é decorativa aqui -->
       <img
@@ -20,19 +18,24 @@ const LARGURA = Math.round(ALTURA * LOGO.proporcao)
         class="h-11 w-auto shrink-0"
       />
       <span>{ORGANIZACAO.sigla}</span>
-      <span class="hidden font-normal text-muted-foreground sm:inline"
-        >— {ORGANIZACAO.nome}</span
-      >
+      <span class="hidden font-normal text-muted-foreground sm:inline">
+        — {ORGANIZACAO.nome}
+      </span>
     </a>
     <nav aria-label="Principal">
       <ul class="flex items-center gap-4 text-sm font-medium">
-        <li><a href="/#eventos" class="hover:underline">Eventos</a></li>
+        <li>
+          <a href="/#eventos" class="hover:underline">
+            Eventos
+          </a>
+        </li>
         <li>
           <a
             href={PAINEL_URL}
             class="rounded-md bg-primary px-3 py-2 text-primary-foreground hover:opacity-90"
-            >Área do associado</a
           >
+            Área do associado
+          </a>
         </li>
       </ul>
     </nav>

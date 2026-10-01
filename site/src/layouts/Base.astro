@@ -46,13 +46,11 @@ const textoAlternativoImagem = `${ORGANIZACAO.nome} — ${ORGANIZACAO.lema}`
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{tituloCompleto}</title>
     <meta name="description" content={descricao} />
-    {
-      indexavel ? (
-        <link rel="canonical" href={canonica} />
-      ) : (
-        <meta name="robots" content="noindex, nofollow" />
-      )
-    }
+    {indexavel ? (
+      <link rel="canonical" href={canonica} />
+    ) : (
+      <meta name="robots" content="noindex, nofollow" />
+    )}
     <meta name="theme-color" content="#145238" />
     <!-- Ícones gerados da logo institucional por `npm run logos` -->
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
@@ -80,19 +78,15 @@ const textoAlternativoImagem = `${ORGANIZACAO.nome} — ${ORGANIZACAO.lema}`
       type="application/ld+json"
       set:html={serializarJsonLd(jsonLdOrganizacao())}
     />
-    {
-      jsonLd.map((dados) => (
-        <script
-          is:inline
-          type="application/ld+json"
-          set:html={serializarJsonLd(dados)}
-        />
-      ))
-    }
+    {jsonLd.map((dados) => (
+      <script
+        is:inline
+        type="application/ld+json"
+        set:html={serializarJsonLd(dados)}
+      />
+    ))}
   </head>
-  <body
-    class="flex min-h-screen flex-col bg-background text-foreground antialiased"
-  >
+  <body class="flex min-h-screen flex-col bg-background text-foreground antialiased">
     <a
       href="#conteudo"
       class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:font-medium focus:text-primary focus:shadow-card-hover"

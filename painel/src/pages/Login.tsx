@@ -2,7 +2,7 @@ import {
   browserSupportsWebAuthn,
   startAuthentication,
 } from '@simplewebauthn/browser'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
@@ -37,12 +37,10 @@ export function Login() {
   const [loginTempToken, setLoginTempToken] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(false)
-  const [passkeySuportada, setPasskeySuportada] = useState(false)
+  // Painel é SPA (sem renderização no servidor): dá pra perguntar ao navegador já na criação do
+  // estado, sem efeito (a regra react-hooks/set-state-in-effect do React 19 reprova o efeito).
+  const [passkeySuportada] = useState(browserSupportsWebAuthn)
   const [carregandoPasskey, setCarregandoPasskey] = useState(false)
-
-  useEffect(() => {
-    setPasskeySuportada(browserSupportsWebAuthn())
-  }, [])
 
   function aplicarSessao(token: TokenPayload) {
     signIn(token.access_token)

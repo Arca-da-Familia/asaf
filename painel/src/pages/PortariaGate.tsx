@@ -247,11 +247,17 @@ function CartaoConfirmacao({
 
 export function PortariaGate() {
   const { token = '' } = useParams<{ token: string }>()
+  // `key` = token: se o token da URL mudar, a tela recomeça do zero (evento, erro e "carregando"
+  // de volta ao estado inicial) sem precisar resetar estado dentro de um efeito.
+  return <PortariaGateConteudo key={token} token={token} />
+}
 
+function PortariaGateConteudo({ token }: { token: string }) {
   const [evento, setEvento] = useState<EventoPortaria | null>(null)
   const [erroEvento, setErroEvento] = useState<unknown>(null)
   const [carregandoEvento, setCarregandoEvento] = useState(true)
 
+  // Botão "Tentar novamente" (manipulador de evento: pode zerar o estado antes de buscar).
   const carregarEvento = useCallback(() => {
     setCarregandoEvento(true)
     setErroEvento(null)
@@ -261,9 +267,24 @@ export function PortariaGate() {
       .finally(() => setCarregandoEvento(false))
   }, [token])
 
+  // Carga inicial: o estado já nasce "carregando, sem erro" (useState acima), então o efeito só
+  // busca e grava o resultado — nada de setState síncrono dentro do efeito.
   useEffect(() => {
-    carregarEvento()
-  }, [carregarEvento])
+    let cancelado = false
+    obterEventoPortaria(token)
+      .then((e) => {
+        if (!cancelado) setEvento(e)
+      })
+      .catch((e: unknown) => {
+        if (!cancelado) setErroEvento(e)
+      })
+      .finally(() => {
+        if (!cancelado) setCarregandoEvento(false)
+      })
+    return () => {
+      cancelado = true
+    }
+  }, [token])
 
   const fila = useFilaPortaria()
 
@@ -334,7 +355,15 @@ export function PortariaGate() {
     }
   }, [])
 
-  const leitor = useLeitorQr((texto) => {
+  // Desestruturado de propósito: `videoRef` é uma ref, e a regra react-hooks/refs do React 19
+  // trata o objeto inteiro como "contém ref" e reprova ler `leitor.aberto` durante o render.
+  const {
+    videoRef,
+    aberto: leitorAberto,
+    erro: erroLeitor,
+    abrir: abrirLeitor,
+    parar: pararLeitor,
+  } = useLeitorQr((texto) => {
     void registrar(acao, texto)
   })
 
@@ -510,10 +539,10 @@ export function PortariaGate() {
         </form>
 
         <div className="mt-3 border-t border-border pt-3">
-          {leitor.aberto ? (
+          {leitorAberto ? (
             <div className="space-y-2">
               <video
-                ref={leitor.videoRef}
+                ref={videoRef}
                 muted
                 playsInline
                 className="w-full rounded-md border border-border"
@@ -523,7 +552,7 @@ export function PortariaGate() {
                 variant="outline"
                 size="sm"
                 className="w-full"
-                onClick={leitor.parar}
+                onClick={pararLeitor}
               >
                 Fechar câmera
               </Button>
@@ -534,14 +563,14 @@ export function PortariaGate() {
               variant="outline"
               size="sm"
               className="w-full"
-              onClick={leitor.abrir}
+              onClick={abrirLeitor}
             >
               Ler QR pela câmera (opcional)
             </Button>
           )}
-          {leitor.erro && (
+          {erroLeitor && (
             <p role="alert" className="mt-2 text-sm text-destructive">
-              {leitor.erro}
+              {erroLeitor}
             </p>
           )}
         </div>

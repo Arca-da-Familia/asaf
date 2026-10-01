@@ -226,7 +226,9 @@ const INTERVALO_SINCRONIZACAO_MS = 18_000
 // estiver montado, e desliga tudo no unmount.
 export function useFilaPortaria() {
   const [itens, setItens] = useState<ItemFilaPortaria[]>([])
-  const [sincronizandoUi, setSincronizandoUi] = useState(false)
+  // Começa `true`: ao montar, o efeito abaixo já dispara uma sincronização (a regra
+  // react-hooks/set-state-in-effect reprova acender o indicador com setState síncrono no efeito).
+  const [sincronizandoUi, setSincronizandoUi] = useState(true)
   const [online, setOnline] = useState<boolean>(() =>
     typeof navigator === 'undefined' ? true : navigator.onLine,
   )
@@ -263,7 +265,8 @@ export function useFilaPortaria() {
     }, INTERVALO_SINCRONIZACAO_MS)
 
     // Tenta uma vez já ao montar (ex.: itens deixados pendentes de uma sessão anterior da aba).
-    void sincronizarAgora()
+    // O indicador de "sincronizando" já nasce ligado (ver useState acima); aqui só apaga no fim.
+    void sincronizarFilaPortaria().finally(() => setSincronizandoUi(false))
 
     return () => {
       cancelarOuvinte()

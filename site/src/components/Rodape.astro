@@ -2,9 +2,7 @@
 import { ENDERECO_LINHA, ORGANIZACAO, PAINEL_URL } from '../config/organizacao'
 ---
 
-<footer
-  class="border-t-4 border-brand-secondary bg-primary text-primary-foreground"
->
+<footer class="border-t-4 border-brand-secondary bg-primary text-primary-foreground">
   <div class="mx-auto grid max-w-5xl gap-8 px-4 py-10 text-sm sm:grid-cols-3">
     <div>
       <p class="text-base font-semibold">
@@ -19,17 +17,16 @@ import { ENDERECO_LINHA, ORGANIZACAO, PAINEL_URL } from '../config/organizacao'
       <h2 class="text-base font-semibold">Contato</h2>
       <address class="mt-2 flex flex-col gap-1 not-italic">
         <span>{ENDERECO_LINHA}</span>
-        <span
-          >{ORGANIZACAO.cidade} — {ORGANIZACAO.uf}, CEP {
-            ORGANIZACAO.endereco.cep
-          }</span
-        >
-        <a href={ORGANIZACAO.telefoneLink} class="mt-1 underline"
-          >{ORGANIZACAO.telefone}</a
-        >
-        <a href={`mailto:${ORGANIZACAO.email}`} class="underline"
-          >{ORGANIZACAO.email}</a
-        >
+        <span>
+          {ORGANIZACAO.cidade} — {ORGANIZACAO.uf}, CEP{' '}
+          {ORGANIZACAO.endereco.cep}
+        </span>
+        <a href={ORGANIZACAO.telefoneLink} class="mt-1 underline">
+          {ORGANIZACAO.telefone}
+        </a>
+        <a href={`mailto:${ORGANIZACAO.email}`} class="underline">
+          {ORGANIZACAO.email}
+        </a>
       </address>
     </div>
 
@@ -37,13 +34,19 @@ import { ENDERECO_LINHA, ORGANIZACAO, PAINEL_URL } from '../config/organizacao'
       <h2 class="text-base font-semibold">Navegação</h2>
       <ul class="mt-2 flex flex-col gap-1">
         <li>
-          <a href="/#quem-somos" class="underline">Quem somos</a>
+          <a href="/#quem-somos" class="underline">
+            Quem somos
+          </a>
         </li>
         <li>
-          <a href="/#eventos" class="underline">Próximos eventos</a>
+          <a href="/#eventos" class="underline">
+            Próximos eventos
+          </a>
         </li>
         <li>
-          <a href={PAINEL_URL} class="underline">Área do associado</a>
+          <a href={PAINEL_URL} class="underline">
+            Área do associado
+          </a>
         </li>
       </ul>
     </nav>

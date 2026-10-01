@@ -10,9 +10,7 @@ const ALTURA_LOGO = Math.round(LARGURA_LOGO / LOGO.proporcao)
 
 <Base caminho="/">
   <section class="bg-primary text-primary-foreground">
-    <div
-      class="mx-auto grid max-w-5xl items-center gap-10 px-4 py-14 sm:py-20 md:grid-cols-[1fr_auto]"
-    >
+    <div class="mx-auto grid max-w-5xl items-center gap-10 px-4 py-14 sm:py-20 md:grid-cols-[1fr_auto]">
       <div>
         <p class="text-sm font-semibold uppercase tracking-wider">
           {ORGANIZACAO.sigla}
@@ -23,20 +21,22 @@ const ALTURA_LOGO = Math.round(LARGURA_LOGO / LOGO.proporcao)
         <div class="mt-4 h-1 w-20 rounded bg-brand-secondary"></div>
         <p class="mt-4 text-xl italic">“{ORGANIZACAO.lema}”</p>
         <p class="mt-6 max-w-2xl text-lg">
-          {ORGANIZACAO.natureza}{' '}
-          Nosso objetivo principal é {ORGANIZACAO.objetivo}
+          {ORGANIZACAO.natureza} Nosso objetivo principal é{' '}
+          {ORGANIZACAO.objetivo}
         </p>
         <div class="mt-8 flex flex-wrap gap-3">
           <a
             href="#eventos"
             class="rounded-md bg-brand-secondary px-5 py-3 font-semibold text-brand-secondary-foreground hover:opacity-90"
-            >Ver próximos eventos</a
           >
+            Ver próximos eventos
+          </a>
           <a
             href={PAINEL_URL}
             class="rounded-md border border-primary-foreground px-5 py-3 font-medium hover:bg-primary-foreground hover:text-primary"
-            >Área do associado</a
           >
+            Área do associado
+          </a>
         </div>
       </div>
       <img
@@ -59,20 +59,18 @@ const ALTURA_LOGO = Math.round(LARGURA_LOGO / LOGO.proporcao)
       Quem somos
     </h2>
     <p class="mt-4 max-w-3xl">
-      A {ORGANIZACAO.nome} ({ORGANIZACAO.sigla}) foi fundada em {
-        ORGANIZACAO.fundacaoPorExtenso
-      }, com sede em {ORGANIZACAO.cidade}, {ORGANIZACAO.uf}. Atuamos para
-      alcançar as famílias, que são a razão da nossa existência.
+      A {ORGANIZACAO.nome} ({ORGANIZACAO.sigla}) foi fundada em{' '}
+      {ORGANIZACAO.fundacaoPorExtenso}, com sede em {ORGANIZACAO.cidade},{' '}
+      {ORGANIZACAO.uf}. Atuamos para alcançar as famílias, que são a razão da
+      nossa existência.
     </p>
     <h3 class="mt-8 text-lg font-semibold">Onde atuamos</h3>
     <ul class="mt-3 flex flex-wrap gap-2">
-      {
-        ORGANIZACAO.areasDeAtuacao.map((area) => (
-          <li class="rounded-full bg-brand-tertiary/25 px-3 py-1 text-sm font-medium text-foreground">
-            {area}
-          </li>
-        ))
-      }
+      {ORGANIZACAO.areasDeAtuacao.map((area) => (
+        <li class="rounded-full bg-brand-tertiary/25 px-3 py-1 text-sm font-medium text-foreground">
+          {area}
+        </li>
+      ))}
     </ul>
   </section>
 
@@ -93,8 +91,9 @@ const ALTURA_LOGO = Math.round(LARGURA_LOGO / LOGO.proporcao)
       <a
         href={PAINEL_URL}
         class="mt-5 inline-block rounded-md bg-primary px-5 py-3 font-medium text-primary-foreground hover:opacity-90"
-        >Entrar na área do associado</a
       >
+        Entrar na área do associado
+      </a>
     </div>
   </section>
 </Base>
