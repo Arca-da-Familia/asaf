@@ -127,6 +127,11 @@ def desfazer_lote(id_lote: int, request: Request, db: Session = Depends(get_db),
         db.query(Papel).filter(Papel.id_pessoa == associado.id_pessoa).delete()
         id_pessoa = associado.id_pessoa
         db.delete(associado)
+        # A sessão do app é `autoflush=False` e o DELETE em massa abaixo executa na hora: sem o flush a
+        # `pessoa` era apagada ENQUANTE o `associado` ainda existia no banco e o Postgres recusava
+        # (ForeignKeyViolation -> 500). Achado de 2026-10-02 ao rodar a suíte num Postgres de verdade;
+        # no SQLite (que não impõe FK) passava, então "desfazer lote" nunca funcionou em produção.
+        db.flush()
         db.query(Pessoa).filter(Pessoa.id_pessoa == id_pessoa).delete()
 
     lote.desfeito = True

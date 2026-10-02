@@ -5,6 +5,7 @@ import re
 import uuid
 from datetime import datetime, timedelta
 
+from app.models.financeiro import TituloFinanceiro
 from app.models.pessoas import Pessoa
 
 _ISO = "%Y-%m-%dT%H:%M:%S"
@@ -78,12 +79,20 @@ def test_inscricao_recusa_duplicidade_permite_transicoes_validas_e_recusa_invali
     r = client.put(f"/api/inscricoes/{id_inscricao}/status", json={"status": "Confirmado"}, headers=auth_headers)
     assert r.status_code == 200, r.text
 
-    r = client.put(f"/api/inscricoes/{id_inscricao}/cobranca", json={"id_titulo": 999}, headers=auth_headers)
+    # Título que não existe: 404 claro (antes, em Postgres, virava 500 por violação de chave estrangeira).
+    r = client.put(f"/api/inscricoes/{id_inscricao}/cobranca", json={"id_titulo": 987654321}, headers=auth_headers)
+    assert r.status_code == 404, r.text
+
+    titulo = TituloFinanceiro(tipo_titulo="A Receber", descricao="Inscrição de teste", valor_original=10, saldo_devedor=10)
+    db.add(titulo)
+    db.commit()
+    db.refresh(titulo)
+    r = client.put(f"/api/inscricoes/{id_inscricao}/cobranca", json={"id_titulo": titulo.id_titulo}, headers=auth_headers)
     assert r.status_code == 200, r.text
 
     inscricoes = client.get(f"/api/inscricoes/?contexto_tipo=Projeto&id_contexto={id_contexto}", headers=auth_headers).json()
     assert inscricoes[0]["status"] == "Confirmado"
-    assert inscricoes[0]["id_titulo_cobranca"] == 999
+    assert inscricoes[0]["id_titulo_cobranca"] == titulo.id_titulo
 
 
 def test_inscricao_cancelada_permite_reinscrever(client, auth_headers, db):

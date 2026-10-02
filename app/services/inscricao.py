@@ -9,6 +9,7 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.models.financeiro import TituloFinanceiro
 from app.models.motores import AUSENTE, CANCELADO, CONFIRMADO, LISTA_DE_ESPERA, PRESENTE, PRE_INSCRITO, STATUS_INSCRICAO, Inscricao
 from app.models.pessoas import Pessoa
 
@@ -121,6 +122,10 @@ def vincular_cobranca(db: Session, *, id_inscricao: int, id_titulo: int) -> Insc
     inscricao = db.query(Inscricao).filter(Inscricao.id_inscricao == id_inscricao).first()
     if not inscricao:
         raise HTTPException(status_code=404, detail="Inscrição não encontrada.")
+    # Achado de 2026-10-02 (suíte num Postgres de verdade): sem esta conferência, um id inexistente
+    # virava IntegrityError (500) em produção; o SQLite, que não impõe FK, deixava passar.
+    if not db.query(TituloFinanceiro.id_titulo).filter(TituloFinanceiro.id_titulo == id_titulo).first():
+        raise HTTPException(status_code=404, detail="Título financeiro não encontrado.")
     inscricao.id_titulo_cobranca = id_titulo
     db.commit()
     db.refresh(inscricao)
