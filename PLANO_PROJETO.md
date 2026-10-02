@@ -574,7 +574,7 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       for um terceiro endereço, criar mais uma regra (`firewall-rule create ... --server-name
 >       asaf-pg-server --name <regra>`). `AllowAzureServices` (API, Directus, GitHub Actions) não
 >       foi tocada (DECISÃO §5.3).
-> - [ ] **ACHADO GRAVE — arquivos enviados à API somem a cada deploy/reinício** (2026-10-01): a
+> - [x] **ACHADO GRAVE — arquivos enviados à API somem a cada deploy/reinício** (2026-10-01; **CORRIGIDO e provado em produção em 2026-10-02**): a
 >       API grava foto de associado, ata e documento anexado em disco local do contêiner
 >       (`uploads/fotos`, `uploads/atas`, `uploads/documentos`, ver `app/main.py`) e o Container
 >       App `asaf-api` **não tem volume persistente** (`volumes: null`). O disco do contêiner é
@@ -584,8 +584,7 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       Blob/Storage no código). Corrigir antes de qualquer associado depender de foto ou ata:
 >       gravar no Blob (contêiner próprio, ver o item seguinte) e servir por URL assinada ou rota
 >       da API. **Decisão do usuário** (é mudança de armazenamento de dado de associado).
->       **NO AR desde 2026-10-02 (commit `ed5b06d`) — falta só o teste de aceitação com upload
->       real pelo painel.** O usuário mandou corrigir **e travar para não voltar a acontecer**.
+>       **NO AR desde 2026-10-02 (commit `ed5b06d`) e ACEITO com upload real.** O usuário mandou corrigir **e travar para não voltar a acontecer**.
 >       Implementado: `app/services/armazenamento.py` (Blob em produção, pela identidade gerenciada;
 >       disco só em dev/teste), rota `GET /uploads/{pasta}/{nome}` (`app/routers/arquivos.py`,
 >       substitui o `StaticFiles` que lia o disco efêmero), os 4 pontos de gravação (foto de
@@ -616,9 +615,14 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       da partida mostra `armazenamento de arquivos: Azure Blob (https://stasafprivado.blob.core.windows.net)`
 >       e `Application startup complete` ~2 s depois — ou seja, a **sonda de gravar/ler/apagar passou**
 >       com a identidade gerenciada (se falhasse, a revisão não subiria). `GET /uploads/...` inexistente,
->       com pasta inválida e com `..%2F` → 404; `/api/publico/eventos` → 200. **Pendente**: upload real
->       pelo painel + reinício da revisão + conferir que a foto continua (precisa de login com MFA, que o
->       Claude não faz — decisão congelada). Nenhum registro de produção aponta para
+>       com pasta inválida e com `..%2F` → 404; `/api/publico/eventos` → 200. **Aceitação (2026-10-02)**: o
+>       usuário enviou a própria foto pelo painel (única `pessoas.foto` em `/uploads`: pasta `fotos`,
+>       nome aleatório de 32 hex + `.jpg`, 175.936 bytes). Sem login, só pela rota pública: antes do
+>       reinício → 200 `image/jpeg`, 175.936 bytes; `az containerapp revision restart` (réplica nova,
+>       disco zerado) e, depois de ociosa, escala a zero e nova partida a frio às 13:45 (o log mostra
+>       Blob + `Application startup complete` em 1,3 s) → **200, mesmo conteúdo (SHA-256 idêntico)**.
+>       Ou seja: o arquivo sobrevive a reinício e a escala a zero, que era exatamente o defeito. A
+>       sonda de partida custou ~1–2 s na partida a frio. Antes disso, nenhum registro de produção apontava para
 >       `/uploads` (0 de 0, conferido em 2026-10-01): nada se perdeu até aqui. **Fica para depois**:
 >       download autenticado / URL assinada de curta duração (hoje o nome aleatório é a única
 >       barreira, como já era). **"API sempre ligada" NÃO será feita** — decisão do usuário em
