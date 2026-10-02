@@ -26,6 +26,18 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    # Postgres 16 DESCARTÁVEL só para a suíte (nunca toca em produção). A suíte rodava só em SQLite, que não
+    # impõe chave estrangeira nem ordem de DDL; ao rodar num Postgres de verdade (Lote 3, 2026-10-02) saíram
+    # 4 defeitos antigos e a troca de driver padrão do SQLAlchemy 2.1 - tudo invisível em SQLite.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: asaf_teste
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -38,11 +50,29 @@ jobs:
       - name: Instalar dependências
         run: pip install -r requirements-dev.txt
 
-      - name: Rodar testes automatizados (achado do Ponto de Revisão FASE 0/v0.3)
-        # tests/conftest.py já define seu próprio DATABASE_URL/JWT_SECRET (sqlite descartável
-        # dedicado a teste) - não depende de nada do ambiente de produção. `python -m pytest`
+      # O histórico do Alembic NÃO recria o banco do zero (a 1ª migração é "baseline: schema existente",
+      # vazia): o schema de teste nasce como o do app (preparar_banco) e é carimbado no head. O
+      # `alembic check` tem que sair LIMPO - trava modelo que o Alembic não enxerga. `postgresql://` PURO de
+      # propósito: é o formato do segredo de produção e exercita app/url_banco.py (SQLAlchemy 2.1 mudou o
+      # driver padrão desse formato para psycopg 3).
+      - name: Criar o schema de teste num Postgres descartável e conferir o Alembic
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/asaf_teste
+          RUN_DB_MIGRATION: "false"
+          JWT_SECRET: segredo-de-teste-pytest-nao-usar-em-producao
+        run: |
+          python -c "import app.models; from app.database import preparar_banco; preparar_banco()"
+          alembic stamp head
+          alembic check
+
+      - name: Rodar testes automatizados contra Postgres (achado do Ponto de Revisão FASE 0/v0.3)
+        # tests/conftest.py usa ASAF_TESTE_DATABASE_URL quando existe (aqui: o Postgres descartável acima;
+        # sem ela, SQLite descartável) - nunca depende do ambiente de produção. `python -m pytest`
         # (não só `pytest`) é necessário para o diretório do repo entrar no sys.path - senão
         # `from app.main import app` em conftest.py falha com ModuleNotFoundError no runner.
+        env:
+          ASAF_TESTE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/asaf_teste
+          RUN_DB_MIGRATION: "false"
         run: python -m pytest tests/ -v
 
       - name: Login no Azure via OIDC
