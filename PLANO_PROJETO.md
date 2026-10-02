@@ -2110,7 +2110,33 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         16 × 18**, simula o schema de produção (sem os 7 índices), prova que o `alembic check`
         **enxerga** a falta (verifiquei que um passo anterior falhava pelo motivo errado e o
         corrigi), aplica a migração, repete (idempotência), faz downgrade/upgrade e roda a suíte.
-      - **Lote 4 (infra, com janela e backup)**: **PostgreSQL 16 → 18** no Azure (servidor
+      - **Lote 4 ✅ FEITO e confirmado em produção (2026-10-02): PostgreSQL 16.15 → 18.6.**
+        O usuário colocou o Claude Code em modo manual e aprovou o comando (em modo automático o
+        classificador o havia negado como "perigoso" — ver o parágrafo "PREPARADO" abaixo, mantido
+        como histórico). `az postgres flexible-server upgrade -g Associacao-RG -n asaf-pg-server
+        --version 18 --yes`: servidor em `UpgradingMajorVersion` de 18:09 a 18:26 UTC (**~17 min fora
+        do ar**), voltou `Ready` na 18. **Provas**: (1) **impressão digital** de todas as tabelas
+        (schemas `public` e `directus`; contagem + hash do conteúdo calculados no servidor) **idêntica
+        em 156 de 156 tabelas, 549 linhas, antes (16.15) e depois (18.6)** — nenhum dado perdido nem
+        alterado; (2) `show server_version` = **18.6**, SKU/disco/backup de 35 dias com
+        geo-redundância e as 3 regras de firewall **preservados**; (3) `btree_gist` atualizado de 1.7
+        para **1.8** (a exclusão de conflito de agenda continua presente), conexão com **TLS 1.3**;
+        (4) `alembic current` = head e **`alembic check` limpo**, 121 modelos lidos com psycopg 3 e
+        SQLAlchemy 2.1.2, 0 falhas; (5) `scripts/isolar_directus.py verificar` OK; (6) **Directus**
+        reiniciou após o upgrade ("Database already initialized, skipping install", "Server started")
+        e, numa consulta ao banco provocada por mim (`/assets/<inexistente>`), aparece conectado como
+        **`directus_app`** (9 conexões), separado de `asafadmin`; (7) API: partida a frio de 23 s
+        e `/api/publico/eventos` 200, site e painel 200; (8) a tarefa agendada de 15 em 15 min teve
+        **uma única falha (18:16 UTC, dentro da janela)** e rodou com sucesso nas seguintes (18:45,
+        19:12, 19:32) — ou seja, também conecta no 18 com o driver novo. **Depois do upgrade**:
+        `ANALYZE` (as 156 tabelas estavam sem estatísticas, como esperado após upgrade maior; agora 0),
+        o portão de testes do `Deploy API` passou para **`postgres:18`** (casa com a produção),
+        `validar-postgres.yml` ficou com matriz `["18"]` (acrescentar a versão nova antes do próximo
+        salto) e `infra/provisionar.exemplo.sh` cria servidor novo já na 18. **Fatos**: backup sob
+        demanda **não existe em servidor Burstable** (a rede de segurança foi a restauração a
+        qualquer ponto no tempo + o rollback automático do upgrade, sem precisar de nenhum dos dois).
+        **Parágrafo histórico — o que estava "PREPARADO" antes da execução:** (servidor
+        `asaf-pg-server`, Standard_B1ms)
         `asaf-pg-server`, Standard_B1ms) — upgrade maior de banco com dado real de associado e
         financeiro: exige backup/ponto de restauração confirmado, checagem de compatibilidade
         (inclusive do Directus) e **autorização explícita** na hora.

@@ -26,12 +26,13 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    # Postgres 16 DESCARTÁVEL só para a suíte (nunca toca em produção). A suíte rodava só em SQLite, que não
+    # Postgres 18 DESCARTÁVEL (a MESMA versão major da produção: servidor atualizado de 16 para 18 em
+    # 2026-10-02, Lote 4) só para a suíte (nunca toca em produção). A suíte rodava só em SQLite, que não
     # impõe chave estrangeira nem ordem de DDL; ao rodar num Postgres de verdade (Lote 3, 2026-10-02) saíram
     # 4 defeitos antigos e a troca de driver padrão do SQLAlchemy 2.1 - tudo invisível em SQLite.
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: asaf_teste

@@ -80,7 +80,7 @@ az postgres flexible-server create \
   --location "$LOCATION" \
   --sku-name Standard_B1ms \
   --tier Burstable \
-  --version 16 \
+  --version 18 \
   --storage-size 32 \
   --backup-retention 35 \
   --geo-redundant-backup Enabled \

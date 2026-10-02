@@ -6,8 +6,9 @@ name: Validar em Postgres (schema + migração de índices + suíte)
 # migração que corrige o banco de produção (que NÃO tem alguns índices dos modelos) e roda a suíte inteira
 # contra ele - nunca toca em produção e NÃO faz deploy.
 #
-# A matriz compara a versão do Postgres de produção com a seguinte, para provar o app na versão nova ANTES
-# de atualizar o servidor (Lote 4: PostgreSQL 16 -> 18).
+# A matriz serve para provar o app na PRÓXIMA versão do Postgres ANTES de atualizar o servidor (foi assim
+# no Lote 4, 16 -> 18, feito em 2026-10-02). Hoje a produção é a 18: para o próximo salto, acrescente a
+# versão nova à lista abaixo e rode em uma branch `validar/**`.
 on:
   workflow_dispatch: {}
   push:
@@ -22,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: ["16", "18"]
+        postgres: ["18"]
     services:
       postgres:
         image: postgres:${{ matrix.postgres }}

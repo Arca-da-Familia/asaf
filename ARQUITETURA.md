@@ -22,7 +22,7 @@ Tudo hospedado no Azure, grupo de recursos `Associacao-RG`, região Brazil South
 
 | Componente | Serviço Azure | Por quê |
 | --- | --- | --- |
-| Banco de dados | Postgres Flexible Server (Burstable) | Único banco, compartilhado entre a API e o Directus (só tabelas de conteúdo) |
+| Banco de dados | Postgres 18 Flexible Server (Burstable; atualizado de 16 em 2026-10-02) | Único banco, compartilhado entre a API e o Directus (só tabelas de conteúdo) |
 | API (este repositório) | Container Apps | Escala a zero quando ocioso — sem custo de servidor parado |
 | CMS do site institucional | Container Apps (Directus) | Conteúdo editável sem tocar em código |
 | Arquivos/uploads da API | Blob Storage — conta **privada** `stasafprivado` (GRS, sem chave, só a identidade gerenciada da API) | Foto de associado, ata assinada, comprovante, documento emitido. O disco do contêiner é efêmero: nada é gravado nele (`app/services/armazenamento.py`) |
