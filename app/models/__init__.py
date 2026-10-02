@@ -110,6 +110,17 @@ from app.models.portaria import TokenPortaria, OperacaoPortariaIdempotente
 from app.models.financeiro_evento import FaixaPrecoEvento, CupomDesconto, IsencaoTaxaContexto, FechamentoEvento
 from app.models.pesquisa_satisfacao import RespostaPesquisaSatisfacao
 
+# Achado de 2026-10-02 (validação do SQLAlchemy 2.1 contra o banco real): `alembic check` quebrava
+# porque modelos de importacao/filiacao/situacao/voluntariado/qualidade_cadastro nunca foram listados
+# acima - o Alembic só enxerga o que `import app.models` registra, e o autogenerate "apagaria" as tabelas
+# invisíveis (aviso já escrito em alembic/env.py). Importar TODO módulo do pacote, automaticamente, tira
+# a dependência de alguém lembrar de acrescentar a linha (tests/test_modelos_registrados.py garante).
+import importlib as _importlib
+import pkgutil as _pkgutil
+
+for _modulo in _pkgutil.iter_modules(__path__):
+    _importlib.import_module(f"{__name__}.{_modulo.name}")
+
 __all__ = [
     "perfil_permissao",
     "PermissaoSistema",

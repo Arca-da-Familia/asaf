@@ -1,4 +1,4 @@
 # Dependências só de desenvolvimento/teste - nunca entram na imagem Docker de produção.
 -r requirements.txt
 pytest==9.1.1
-alembic==1.19.2
+alembic==1.20.0

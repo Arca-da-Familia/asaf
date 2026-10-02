@@ -4,12 +4,14 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 import os
 
+from app.url_banco import normalizar_url_banco
+
 # ==========================================
 # CONFIGURAÇÃO DO BANCO DE DADOS
 # ==========================================
 # DATABASE_URL vem do ambiente (Key Vault -> Container App em produção; .env local em dev).
 # Nunca hardcoded aqui - ver CREDENCIAIS_AZURE.md (gitignored) para o valor real.
-URL_BANCO_DADOS = os.environ.get("DATABASE_URL", "sqlite:///./erp_asaf.db")
+URL_BANCO_DADOS = normalizar_url_banco(os.environ.get("DATABASE_URL", "sqlite:///./erp_asaf.db"))
 
 _engine_kwargs = {}
 if URL_BANCO_DADOS.startswith("sqlite"):

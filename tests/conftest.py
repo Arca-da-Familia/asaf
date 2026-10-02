@@ -19,7 +19,11 @@ _DB_PATH = Path(__file__).parent / "test_asaf.db"
 if _DB_PATH.exists():
     _DB_PATH.unlink()
 
-os.environ["DATABASE_URL"] = f"sqlite:///{_DB_PATH.as_posix()}"
+# Por padrão a suíte roda em SQLite descartável. Com ASAF_TESTE_DATABASE_URL (um Postgres VAZIO, já com
+# `alembic upgrade head` aplicado e RUN_DB_MIGRATION=false) ela roda contra Postgres de verdade - é o que
+# o workflow `validar-postgres.yml` faz. Motivo (achado de 2026-10-02): o SQLAlchemy 2.1 trocou o driver
+# padrão do `postgresql://` e a suíte em SQLite passou verde enquanto a API não subiria em produção.
+os.environ["DATABASE_URL"] = os.environ.get("ASAF_TESTE_DATABASE_URL") or f"sqlite:///{_DB_PATH.as_posix()}"
 os.environ["JWT_SECRET"] = "segredo-de-teste-pytest-nao-usar-em-producao"
 
 import tempfile

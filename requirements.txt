@@ -1,6 +1,6 @@
 fastapi==0.142.2
 uvicorn[standard]==0.54.0
-sqlalchemy==2.0.52
+sqlalchemy==2.1.2
 psycopg2-binary==2.9.13
 pydantic[email]==2.13.5
 python-multipart==0.0.32
@@ -9,7 +9,7 @@ bcrypt==5.0.0
 pyotp==2.10.0
 webauthn==3.0.1
 httpx==0.28.1
-reportlab==4.2.5
-qrcode[pil]==7.4.2
+reportlab==5.0.1
+qrcode[pil]==8.2
 azure-storage-blob==12.31.0
 azure-identity==1.26.0

@@ -18,7 +18,10 @@ config = context.config
 # sobrescreve o que estiver em alembic.ini.
 db_url = os.environ.get("DATABASE_URL")
 if db_url:
-    config.set_main_option("sqlalchemy.url", db_url)
+    # Driver explícito (psycopg2): `postgresql://` puro virou psycopg 3 no SQLAlchemy 2.1 - ver app/url_banco.py.
+    from app.url_banco import normalizar_url_banco
+
+    config.set_main_option("sqlalchemy.url", normalizar_url_banco(db_url))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

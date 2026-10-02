@@ -1,0 +1,55 @@
+name: Validar em Postgres (migrações do zero + suíte)
+
+# Por que existe (achado de 2026-10-02, Lote 3): a suíte padrão roda em SQLite, mas a produção é Postgres.
+# O SQLAlchemy 2.1 trocou o driver padrão de `postgresql://` (psycopg2 -> psycopg 3) e tudo passou verde
+# em SQLite enquanto a API NÃO subiria em produção. Este workflow sobe um Postgres 16 descartável, aplica
+# TODAS as migrações do zero e roda a suíte inteira contra ele - nunca toca em produção e NÃO faz deploy.
+#
+# A matriz compara o SQLAlchemy de produção anterior com o novo, para separar defeito antigo
+# (SQLite x Postgres) de regressão da atualização.
+on:
+  workflow_dispatch: {}
+  push:
+    branches: ["validar/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sqlalchemy: ["2.0.52", "2.1.2"]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: asaf_teste
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # `postgresql://` PURO de propósito: é o formato do segredo de produção e exercita app/url_banco.py.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/asaf_teste
+      ASAF_TESTE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/asaf_teste
+      RUN_DB_MIGRATION: "false"
+      JWT_SECRET: segredo-de-teste-pytest-nao-usar-em-producao
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Instalar dependências (SQLAlchemy ${{ matrix.sqlalchemy }})
+        run: |
+          pip install -r requirements-dev.txt
+          pip install "sqlalchemy==${{ matrix.sqlalchemy }}"
+          pip list | grep -iE "^(sqlalchemy|alembic|psycopg2|reportlab|qrcode|starlette|fastapi) "
+      - name: Migrações do ZERO (alembic upgrade head)
+        run: alembic upgrade head
+      - name: Modelos x banco (informativo - há diferenças antigas de índice, ver PLANO)
+        run: alembic check || true
+      - name: Suíte completa contra Postgres
+        run: python -m pytest tests/ -q -p no:warnings
