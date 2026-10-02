@@ -21,7 +21,16 @@ class PlanoDeContas(Base):
     codigo_contabil = Column(String, unique=True, index=True)
     descricao_conta = Column(String)
     tipo = Column(String)
-    codigo_contabil_pai = Column(String, ForeignKey("plano_de_contas.codigo_contabil"), nullable=True)
+    # `use_alter`: a FK é a própria tabela apontando para `codigo_contabil`, cuja unicidade vem de um
+    # ÍNDICE único criado DEPOIS do CREATE TABLE - dentro do CREATE TABLE o Postgres recusa ("there is no
+    # unique constraint matching given keys"), então num banco novo o `create_all` quebrava (achado de
+    # 2026-10-02; em produção o schema nasceu em etapas e nunca apareceu). Nome = o da restrição que já
+    # existe em produção (conferido no banco), para não haver diferença no banco real.
+    codigo_contabil_pai = Column(
+        String,
+        ForeignKey("plano_de_contas.codigo_contabil", use_alter=True, name="fk_plano_de_contas_codigo_contabil_pai"),
+        nullable=True,
+    )
 
 
 class CentroDeCusto(Base):
