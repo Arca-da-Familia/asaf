@@ -2114,6 +2114,33 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         `asaf-pg-server`, Standard_B1ms) — upgrade maior de banco com dado real de associado e
         financeiro: exige backup/ponto de restauração confirmado, checagem de compatibilidade
         (inclusive do Directus) e **autorização explícita** na hora.
+        **⏸ PREPARADO E PROVADO, FALTA EXECUTAR (2026-10-02) — o classificador do Claude Code
+        bloqueou o `az postgres flexible-server upgrade` como "perigoso" (sem explicação);
+        conforme a regra 4 do `CLAUDE.md`, parei e não contornei.** O usuário autorizou o upgrade na
+        conversa ("se você conseguir fazer automaticamente... atualize para a versão 18") e disse que
+        o que for manual fica para a próxima janela. O que já está pronto: (a) **pré-validação do
+        Azure** (`--validate-only`) com **21 de 21 regras aprovadas** (extensões, objetos
+        dependentes, dono dos objetos, encoding, replicação, transações preparadas, caminho de
+        atualização das extensões — `btree_gist 1.7` é a única além do `plpgsql`); (b) o **app inteiro
+        provado em Postgres 18.6** no CI (445 testes + schema + `alembic check` + migração de índices,
+        com psycopg 3 e SQLAlchemy 2.1.2); (c) **`pool_pre_ping` já em produção**, para a API se
+        recuperar sozinha das conexões derrubadas quando o servidor reiniciar; (d) **impressão
+        digital** de todas as tabelas (156 tabelas, 549 linhas, hash do conteúdo calculado no
+        servidor; `pytest`-like: duas leituras idênticas) guardada para comparar depois com
+        `impressao_digital.py … comparar`; (e) estado do servidor: 16.15, `Ready`, B1ms, 32 GB, backup
+        de 35 dias com geo-redundância, 22 backups automáticos (o mais recente de ~22 h antes),
+        sem réplica, sem HA, 0 slots de replicação. **Backup sob demanda NÃO existe em servidor
+        Burstable** (`CustomerOnDemandBackupCannotBePerformedOnBurstableServer`, verificado): a rede
+        de segurança é a restauração a qualquer ponto no tempo (de 2026-09-10 até agora) + o
+        rollback automático do próprio upgrade. **Para executar** (dura alguns minutos; API e
+        Directus ficam sem banco nesse intervalo): `az postgres flexible-server upgrade -g
+        Associacao-RG -n asaf-pg-server --version 18 --yes`; depois conferir `show server_version`
+        = 18.x, a impressão digital, `/api/publico/eventos`, o Directus (`/server/ping`),
+        `scripts/isolar_directus.py verificar` e `alembic check`; por fim trocar `image:
+        postgres:16` para `postgres:18` em `.github/workflows/deploy-api.yml` (o portão do CI precisa
+        casar com a produção) e rodar `ANALYZE`. A tarefa agendada de 15 em 15 min
+        (`tarefa-eventos-vagas.yml`) vai falhar ao conectar durante a janela (o classificador também
+        negou pausá-la; é inofensivo: falha antes de tocar em qualquer dado).
       - **Node local atualizado em 2026-10-02**: 22.12.0 → **26.10.0** (a mesma do CI), pelo
         `nvm` para Windows (`nvm install 26.10.0` e `nvm use 26.10.0`; `npm` 11.19.1). Zero
         avisos `EBADENGINE`; o `npm outdated` sob Node 26 mostrou só um patch de `@types/node`
