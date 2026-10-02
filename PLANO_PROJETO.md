@@ -2085,6 +2085,31 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         imagem; revisão `asaf-api--0000073` **Healthy, 100% do tráfego**, imagem `4c6a8f0`;
         `/api/publico/eventos` 200 (lê o banco com o 2.1), OpenAPI com os mesmos 342 caminhos, e a
         foto do usuário no Blob segue idêntica (SHA-256) depois do deploy novo.
+      - **Seguimento do Lote 3 ✅ FEITO e confirmado em produção (2026-10-02, commits `8a1a9bd` e
+        `3e540f1`) — por pedido do usuário ("só tem eu de associado cadastrado", então sem risco de
+        dado)**: (1) **driver trocado para o psycopg 3** (`psycopg[binary]==3.3.6`,
+        `postgresql+psycopg`; o psycopg2 saiu do `requirements.txt`, do venv e do código —
+        `scripts/isolar_directus.py` convertido, e `tests/test_url_banco.py` proíbe voltar a
+        importá-lo). Provado antes de chegar à produção: suíte inteira (445) em **Postgres 16 e 18**
+        reais no CI e leitura do banco de produção (121 modelos, 0 falhas, conexão read-only) com o
+        driver novo; depois, em produção: imagem com `psycopg==3.3.6`, revisão
+        `asaf-api--0000075` Healthy, partida no Blob, `/api/publico/eventos` 200,
+        `scripts/isolar_directus.py verificar` OK ("o Directus não alcança nenhuma tabela do
+        sistema"). (2) **Divergências modelo × banco zeradas.** **CORREÇÃO do que registrei acima:** o
+        inventário de "13 diferenças" estava **incompleto** (meu script só contava índices e
+        unicidades); o total real era **20**: os 7 índices que faltavam (migração
+        `9d4e1b7c2a60`, `if_not_exists`, aplicada em produção pelo `Deploy API`; 7 de 7 conferidos em
+        `pg_indexes`), as 3 unicidades (o banco as tem como constraints `uq_*` — foi o **modelo**
+        alinhado ao banco, sem recriar nada, já que 35 chaves estrangeiras apontam para
+        `associados`) e **7 colunas `NOT NULL` no banco que o modelo aceitava nulas**
+        (`catalogos.chave`, `centros_de_custo.codigo`, `definicoes_campo.entidade`/`tipo`,
+        `opcoes_catalogo.codigo`, `usuarios.senha_provisoria`, `valores_campo.id_registro`;
+        só os modelos mudaram, o banco já impunha a regra). Resultado em produção:
+        `alembic check` → **"No new upgrade operations detected"** e `compare_metadata`
+        sem filtro → **0**. (3) `.github/workflows/validar-postgres.yml` virou matriz **Postgres
+        16 × 18**, simula o schema de produção (sem os 7 índices), prova que o `alembic check`
+        **enxerga** a falta (verifiquei que um passo anterior falhava pelo motivo errado e o
+        corrigi), aplica a migração, repete (idempotência), faz downgrade/upgrade e roda a suíte.
       - **Lote 4 (infra, com janela e backup)**: **PostgreSQL 16 → 18** no Azure (servidor
         `asaf-pg-server`, Standard_B1ms) — upgrade maior de banco com dado real de associado e
         financeiro: exige backup/ponto de restauração confirmado, checagem de compatibilidade

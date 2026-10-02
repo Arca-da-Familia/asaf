@@ -13,7 +13,10 @@ from app.url_banco import normalizar_url_banco
 # Nunca hardcoded aqui - ver CREDENCIAIS_AZURE.md (gitignored) para o valor real.
 URL_BANCO_DADOS = normalizar_url_banco(os.environ.get("DATABASE_URL", "sqlite:///./erp_asaf.db"))
 
-_engine_kwargs = {}
+# pool_pre_ping: testa a conexão do pool antes de usá-la e descarta as quebradas. O Postgres do Azure
+# reinicia (manutenção, upgrade de versão) e derruba as conexões abertas; sem isto a API devolvia erro 500
+# até alguém reiniciá-la (achado ao planejar o upgrade 16 -> 18, 2026-10-02). Custo: um "SELECT 1" por checkout.
+_engine_kwargs = {"pool_pre_ping": True}
 if URL_BANCO_DADOS.startswith("sqlite"):
     # connect_args especifico do SQLite - so aplica em dev local sem Postgres configurado.
     _engine_kwargs["connect_args"] = {"check_same_thread": False}

@@ -49,6 +49,14 @@ def test_a_engine_real_da_aplicacao_usa_a_url_normalizada():
     assert database.URL_BANCO_DADOS == normalizar_url_banco(database.URL_BANCO_DADOS)
 
 
+def test_a_engine_descarta_conexoes_quebradas_pelo_reinicio_do_banco():
+    """O Postgres do Azure reinicia (manutenção/upgrade) e derruba as conexões do pool: sem pre_ping a API
+    devolvia 500 até ser reiniciada."""
+    from app import database
+
+    assert database.engine.pool._pre_ping is True
+
+
 def test_psycopg2_nao_e_mais_dependencia_da_aplicacao():
     """Trava: ninguém volta a importar o driver antigo em app/ (a produção não o instala mais)."""
     import ast
