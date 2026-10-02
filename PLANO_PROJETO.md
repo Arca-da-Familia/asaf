@@ -584,9 +584,9 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       Blob/Storage no código). Corrigir antes de qualquer associado depender de foto ou ata:
 >       gravar no Blob (contêiner próprio, ver o item seguinte) e servir por URL assinada ou rota
 >       da API. **Decisão do usuário** (é mudança de armazenamento de dado de associado).
->       **Em andamento (2026-10-02) — código pronto e testado, falta ligar a nuvem.** O usuário
->       mandou corrigir **e travar para não voltar a acontecer**. Implementado (ainda nada em
->       produção): `app/services/armazenamento.py` (Blob em produção, pela identidade gerenciada;
+>       **NO AR desde 2026-10-02 (commit `ed5b06d`) — falta só o teste de aceitação com upload
+>       real pelo painel.** O usuário mandou corrigir **e travar para não voltar a acontecer**.
+>       Implementado: `app/services/armazenamento.py` (Blob em produção, pela identidade gerenciada;
 >       disco só em dev/teste), rota `GET /uploads/{pasta}/{nome}` (`app/routers/arquivos.py`,
 >       substitui o `StaticFiles` que lia o disco efêmero), os 4 pontos de gravação (foto de
 >       associado, ata assinada, comprovante, documento emitido) convertidos. Nomes **aleatórios**
@@ -603,9 +603,22 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       acesso público, TLS 1.2, soft delete 30 dias + versionamento), contêineres `fotos-associados`,
 >       `atas`, `comprovantes`, `documentos-emitidos`; papel "Storage Blob Data Contributor" **só**
 >       para a identidade da API — tudo em `infra/armazenamento-privado.sh` (idempotente).
->       **Bloqueio atual**: o classificador do Claude Code negou a execução do script (concessão de
->       papel); precisa rodar em modo manual. Sem isso o código **não é enviado** (a trava de
->       partida derrubaria a revisão nova de propósito). Nenhum registro de produção aponta para
+>       **Como foi ligado e verificado em produção**: o classificador negou o script (concessão de
+>       papel); o usuário liberou em modo manual. Na primeira execução o Git Bash do Windows
+>       reescreveu `--scope /subscriptions/...` como caminho de arquivo (`MissingSubscription`) —
+>       corrigido no script com `MSYS_NO_PATHCONV=1`. Conferido **no Azure** (não só pela mensagem do
+>       script): conta `stasafprivado` Standard_GRS, TLS 1.2, `allowSharedKeyAccess=false`,
+>       `allowBlobPublicAccess=false`, soft delete de blob e de contêiner 30 dias, versionamento
+>       ligado, 4 contêineres sem acesso público, papel "Storage Blob Data Contributor" **só** na
+>       conta nova (a identidade da API segue com apenas `AcrPull` + esse papel), `ARMAZENAMENTO_BLOB_URL`
+>       na API. Só depois do papel propagar foi feito o push: `Deploy API` verde (pytest + migração +
+>       build no ACR), revisão `asaf-api--0000072` **Healthy, 100% do tráfego**, imagem `ed5b06d`; o log
+>       da partida mostra `armazenamento de arquivos: Azure Blob (https://stasafprivado.blob.core.windows.net)`
+>       e `Application startup complete` ~2 s depois — ou seja, a **sonda de gravar/ler/apagar passou**
+>       com a identidade gerenciada (se falhasse, a revisão não subiria). `GET /uploads/...` inexistente,
+>       com pasta inválida e com `..%2F` → 404; `/api/publico/eventos` → 200. **Pendente**: upload real
+>       pelo painel + reinício da revisão + conferir que a foto continua (precisa de login com MFA, que o
+>       Claude não faz — decisão congelada). Nenhum registro de produção aponta para
 >       `/uploads` (0 de 0, conferido em 2026-10-01): nada se perdeu até aqui. **Fica para depois**:
 >       download autenticado / URL assinada de curta duração (hoje o nome aleatório é a única
 >       barreira, como já era). **"API sempre ligada" NÃO será feita** — decisão do usuário em
