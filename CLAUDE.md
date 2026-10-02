@@ -61,9 +61,12 @@ Como aplicar (isto **é** a autorização geral dele para atualizar — não per
    (`"@typescript/native": "npm:typescript@^7"` dá o `tsc`; `"typescript":
    "npm:@typescript/typescript6@^6"` é a API que `typescript-eslint` e `astro check` ainda exigem) —
    reavaliar a cada lote até essas ferramentas aceitarem a 7.1.
-3. **Pré-lançamento (beta/rc/canary)**: adotar quando for mais novo que a estável e a suíte
-   passar. Não é adiamento usar a estável quando o único pré-lançamento disponível é *mais antigo*
-   que ela (ex.: `12.0.0-rc.2` do Directus, já superada pela `12.4.1` estável).
+3. **Pré-lançamento (beta/rc/canary)**: **só informativo** (esclarecido pelo usuário em
+   2026-10-02: "se está em beta, não precisa se preocupar, era só para sabermos"). O critério de
+   "tudo atualizado" é a **última versão estável**; pré-lançamento mais novo é citado no relatório
+   como informação, nunca como pendência nem motivo para pedir decisão (ex.: Pydantic 2.14 beta e
+   Python 3.15 RC ficam de fora). Se o usuário pedir expressamente um pré-lançamento, aí sim, e o
+   Claude Code pode bloquear fixá-lo — nesse caso parar e avisar, não contornar.
 4. **Atualização de versão maior em produção** (Directus, Postgres, imagem base) é mudança de
    infraestrutura: dizer o plano de volta, e confirmar por prova (ping, versão, log). O sistema de
    segurança do Claude Code já bloqueou "deploy em produção" de versão maior sem autorização

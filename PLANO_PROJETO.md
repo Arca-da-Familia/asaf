@@ -2126,7 +2126,8 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         **Pré-lançamentos mais novos que a estável, NÃO adotados (motivo concreto, regra 2/3 do
         `CLAUDE.md`)**: (1) **Pydantic 2.14.0b2** (beta) — testei: 446/446 duas vezes; o Claude Code
         **bloqueou fixá-lo no `requirements.txt`** ("código não confiável") e eu não contornei;
-        decisão do usuário; fica no 2.13.5 estável. (2) **Python 3.15 em RC** (a final ainda não
+        **decisão do usuário (2026-10-02): beta não é preocupação, só informação** — fica no 2.13.5
+        estável, sem pendência. (2) **Python 3.15 em RC** (a final ainda não
         saiu; `python:3.15-slim` não existe, só `3.15-rc-slim`) — as rodas (pacotes prontos)
         existem para 10 dos 12 pacotes compilados testados, mas **`httptools` e `pyyaml`
         (vêm do `uvicorn[standard]`) não têm roda para a 3.15** e a imagem `slim` não tem
