@@ -2020,9 +2020,71 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         `design/tokens.css` e travado por `painel/src/test/tokens-contraste.test.ts`, que lê a fonte
         única e calcula **15 pares texto/fundo nos dois temas** (o axe do painel roda em jsdom e não
         mede contraste; o primeiro rodar achou exatamente 5 pares reprovados, todos de vermelho).
-      - **Lote 3 (majors do back)**: SQLAlchemy 2.0 → 2.1, ReportLab 4 → 5, `qrcode` 7 → 8
-        (as duas últimas geram PDF/QR de certificado e carteirinha: conferir a saída, não só o
-        teste).
+      - **Lote 3 ✅ FEITO e confirmado em produção (2026-10-02, commit `4c6a8f0`)** (majors do
+        back, um pacote por vez): **SQLAlchemy 2.0.52 → 2.1.2**, **ReportLab 4.2.5 → 5.0.1**,
+        **`qrcode` 7.4.2 → 8.2**, **Alembic 1.19.2 → 1.20.0**; Starlette 1.6 → 1.7 (vem pelo
+        FastAPI, não fixado). Nenhum pré-lançamento mais novo que a estável.
+        **PDF/QR conferidos pela saída, não só pelo teste**: tirei uma "fotografia de antes" do
+        gerador REAL do sistema (`_gerar_pdf`, com e sem QR, com acentos e quebra de linha) e
+        comparei a cada pacote com um rasterizador de PDF (PyMuPDF) e um leitor de QR (OpenCV):
+        qrcode 8.2 → mesma matriz 41×41 e PNG pixel a pixel igual; ReportLab 5.0.1 → mesma página
+        A4, mesmo texto extraído, mesmas fontes, **0 pixels diferentes** a 150 dpi, e o **QR dentro
+        do PDF decodifica para a URL de verificação**. (O comparador foi validado antes contra si
+        mesmo.) **SQLAlchemy 2.1.2** lido contra o **Postgres de produção, em conexão read-only**:
+        114 modelos consultados com todas as colunas, 0 falhas, `alembic current` = head.
+        **ACHADOS** (a validação num Postgres de verdade era o que faltava — a suíte inteira rodava só
+        em SQLite, que não impõe chave estrangeira nem ordem de DDL):
+        (1) **o único problema do 2.1 em si**: o `DATABASE_URL` de produção é `postgresql://` puro, e
+        no 2.1 isso passou a significar **psycopg 3** (não instalado) — a API **não subiria** em
+        produção e o `alembic upgrade head` do CI quebraria, com os 432 testes em SQLite verdes.
+        Corrigido com `app/url_banco.py` (driver explícito `postgresql+psycopg2` em
+        `app/database.py` e `alembic/env.py`), com teste que reproduz o erro real. Trocar para o
+        psycopg 3 de propósito fica como decisão à parte (muda o binding de parâmetros num banco
+        com dado de dinheiro/voto; agora existe a suíte em Postgres como rede de segurança para
+        tentar);
+        (2) **antigo, escondido**: `app/models/__init__.py` não importava
+        `importacao/filiacao/situacao/voluntariado/qualidade_cadastro`, então o **Alembic não
+        enxergava essas tabelas** e `alembic check` quebrava — o autogenerate as "apagaria" (aviso
+        que o próprio `alembic/env.py` já trazia). O pacote agora importa todo módulo sozinho
+        (`tests/test_modelos_registrados.py`);
+        (3) **antigo**: `create_all` **quebrava em qualquer Postgres novo** (FK de
+        `plano_de_contas.codigo_contabil_pai` para si mesma dentro do `CREATE TABLE`, antes do
+        índice único existir) — invisível em produção (schema nasceu em etapas) e fatal para
+        ambiente novo ou **recuperação de desastre**. `use_alter=True` com o nome que já existe em
+        produção (conferido no banco: zero diferença), travado por `tests/test_ddl_postgres.py`
+        (simula o DDL do Postgres sem banco; falha sem a correção);
+        (4) **defeito real de produção**: "desfazer lote de importação" apagava a `pessoa` com o
+        `associado` ainda no banco (sessão `autoflush=False` + `DELETE` em massa imediato) →
+        `ForeignKeyViolation`/500 **sempre que o lote tivesse associados** — nunca funcionou em
+        Postgres. `db.flush()` antes;
+        (5) **real**: vincular cobrança a inscrição não conferia se o título existe → 500 em vez de
+        404; agora 404 claro (e o teste que usava `id_titulo=999` inexistente passou a criar um
+        título de verdade).
+        **Mudança de processo**: o `Deploy API` agora roda a suíte inteira **contra um Postgres 16
+        descartável** (serviço do GitHub Actions) e confere `alembic check` limpo **antes** de
+        tocar na produção — era o que teria pegado (1), (3), (4) e (5) lá atrás. `tests/conftest.py`
+        aceita `ASAF_TESTE_DATABASE_URL`; sem ela segue em SQLite (rápido, local).
+        `.github/workflows/validar-postgres.yml` roda a mesma suíte numa **matriz SQLAlchemy
+        2.0.52 × 2.1.2** em branch `validar/**` (sem deploy): resultado **444/444 nas duas** — é a
+        ferramenta para comparar versão antiga × nova em lotes futuros.
+        **Fatos que ficaram sem registro e agora estão**: (a) o histórico do Alembic **não recria o
+        banco do zero** (a 1ª migração, `baseline: schema existente`, é vazia; o modo offline
+        `--sql` também não funciona porque migrações inspecionam a conexão) — o banco novo nasce
+        de `preparar_banco()` e é carimbado no head; (b) **13 diferenças antigas modelos × banco
+        real** achadas pelo `alembic check` num banco de produção: **10 índices** que os modelos
+        declaram e o banco não tem (`ix_associados_numero_matricula`, `ix_associados_id_pessoa`,
+        `ix_aprovacoes_compra_id_solicitacao`, `ix_cotacoes_compra_id_solicitacao`,
+        `ix_dados_bancarios_fornecedor_id_fornecedor`, `ix_dependentes_familiares_id_pessoa_titular`
+        e `_vinculada`, `ix_doacoes_numero_recibo`, `ix_catalogos_chave`,
+        `ix_opcoes_catalogo_codigo`) e **3 unicidades** que o banco guarda como constraint e os
+        modelos como índice único (equivalentes). Sem efeito funcional hoje (387 linhas no total);
+        a correção é uma migração de índices — **pendente, sem pressa**, a decidir com o usuário.
+        **Verificado em produção**: `Deploy API` verde (schema+`alembic check`+444 testes em
+        Postgres → migração contra a produção com o `postgresql://` puro → build no ACR → deploy);
+        o log do build no ACR mostra `sqlalchemy==2.1.2`, `reportlab==5.0.1`, `qrcode==8.2` na
+        imagem; revisão `asaf-api--0000073` **Healthy, 100% do tráfego**, imagem `4c6a8f0`;
+        `/api/publico/eventos` 200 (lê o banco com o 2.1), OpenAPI com os mesmos 342 caminhos, e a
+        foto do usuário no Blob segue idêntica (SHA-256) depois do deploy novo.
       - **Lote 4 (infra, com janela e backup)**: **PostgreSQL 16 → 18** no Azure (servidor
         `asaf-pg-server`, Standard_B1ms) — upgrade maior de banco com dado real de associado e
         financeiro: exige backup/ponto de restauração confirmado, checagem de compatibilidade
