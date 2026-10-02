@@ -2,8 +2,8 @@ name: Validar em Postgres (migrações do zero + suíte)
 
 # Por que existe (achado de 2026-10-02, Lote 3): a suíte padrão roda em SQLite, mas a produção é Postgres.
 # O SQLAlchemy 2.1 trocou o driver padrão de `postgresql://` (psycopg2 -> psycopg 3) e tudo passou verde
-# em SQLite enquanto a API NÃO subiria em produção. Este workflow sobe um Postgres 16 descartável, aplica
-# TODAS as migrações do zero e roda a suíte inteira contra ele - nunca toca em produção e NÃO faz deploy.
+# em SQLite enquanto a API NÃO subiria em produção. Este workflow sobe um Postgres 16 descartável, cria
+# o schema do app e roda a suíte inteira contra ele - nunca toca em produção e NÃO faz deploy.
 #
 # A matriz compara o SQLAlchemy de produção anterior com o novo, para separar defeito antigo
 # (SQLite x Postgres) de regressão da atualização.
@@ -47,9 +47,17 @@ jobs:
           pip install -r requirements-dev.txt
           pip install "sqlalchemy==${{ matrix.sqlalchemy }}"
           pip list | grep -iE "^(sqlalchemy|alembic|psycopg2|reportlab|qrcode|starlette|fastapi) "
-      - name: Migrações do ZERO (alembic upgrade head)
-        run: alembic upgrade head
-      - name: Modelos x banco (informativo - há diferenças antigas de índice, ver PLANO)
-        run: alembic check || true
+      # O histórico do Alembic NÃO recria o banco do zero: a 1ª migração é "baseline: schema existente"
+      # (vazia) e as demais evoluem um schema que já nasceu do create_all do app. Então o schema do teste
+      # nasce igual ao de dev (preparar_banco) e é carimbado no head.
+      - name: Criar o schema como o app cria (preparar_banco) e carimbar no head
+        run: |
+          python -c "import app.models; from app.database import preparar_banco; preparar_banco()"
+          alembic stamp head
+          alembic heads
+          alembic current
+      - name: Modelos x banco (alembic check) - tem que estar LIMPO
+        # Trava o defeito de 2026-10-02: modelo que o Alembic não enxerga (app/models/__init__.py).
+        run: alembic check
       - name: Suíte completa contra Postgres
         run: python -m pytest tests/ -q -p no:warnings
