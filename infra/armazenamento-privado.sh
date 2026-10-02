@@ -18,6 +18,9 @@
 # Depois da 1ª execução a API precisa da variável ARMAZENAMENTO_BLOB_URL (o script já define) e de
 # alguns minutos para o papel propagar; ao subir, a API grava/lê/apaga uma sonda e recusa subir se falhar.
 set -euo pipefail
+# Git Bash no Windows reescreve argumentos que começam com "/" (ex.: --scope /subscriptions/...) como
+# caminho de arquivo e o Azure responde MissingSubscription. Inofensivo em Linux/macOS.
+export MSYS_NO_PATHCONV=1
 
 RESOURCE_GROUP="${RESOURCE_GROUP:-Associacao-RG}"
 LOCATION="${LOCATION:-brazilsouth}"
