@@ -29,13 +29,13 @@
     system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
     sans-serif;
 
-  /* ATENÇÃO — `shadow-card` é, na prática, uma sombra BRANCA (invisível sobre fundo branco).
-     No Tailwind 3 o nome `card` existia como cor E como sombra neste preset, o `shadow-card`
-     casava com os dois e a cor (`--card`, branco) vencia a sombra preta de 5% que o preset
-     descrevia. O Tailwind 4 separa os dois, então para o visual NÃO mudar na migração a sombra
-     abaixo reproduz o que o 3 sempre renderizou. Para ligar a sombra suave que o preset previa,
-     trocar o valor por `0 1px 2px 0 rgb(0 0 0 / 0.05)` (muda site e painel; decisão visual). */
-  --shadow-card: 0 1px 2px 0 hsl(var(--card));
+  /* Sombra dos cartões — LIGADA (decisão do usuário, 2026-10-01: "se vai ligar, tem que deixar
+     ligada"). Histórico: no Tailwind 3 o nome `card` existia como cor E como sombra neste preset,
+     o `shadow-card` casava com os dois e a cor (`--card`, branco) vencia a sombra preta de 5% que
+     o preset descrevia — então a sombra NUNCA apareceu (era branca sobre fundo branco). A migração
+     para o Tailwind 4 preservou isso de propósito; agora o valor abaixo (a sombra suave padrão de
+     cartão, camada dupla) é o real. Usada hoje só no site (cartões de evento e "Já é associado?"). */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1);
 
   /* Raio: `rounded-lg/md/sm` seguem `--radius` (tokens.css), como no shadcn/ui. */

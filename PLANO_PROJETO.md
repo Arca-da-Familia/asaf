@@ -411,7 +411,13 @@ retrabalho que a seção 4.1 existe pra evitar.
 > Lote 1)**: a primeira chamada à API logo depois de a revisão nova subir levou **23,4 s**
 > (`GET /api/publico/eventos`) — a API **tem** janelas de espera longa, o que torna a hipótese
 > de partida a frio/troca de réplica plausível de novo, embora ainda não provada como causa do
-> erro original; as 2 tentativas de 20 s cobrem esse caso.
+> erro original; as 2 tentativas de 20 s cobrem esse caso. **PARTIDA A FRIO DA API CONFIRMADA
+> (2026-10-02)**: depois de mais de meia hora parada, a primeira chamada levou **21,2 s** — já
+> são duas medições de 21 a 23 s (e o Directus, 33 s). Como 20 s abortava a 1ª tentativa um
+> instante antes de a API responder, o tempo por tentativa da ilha passou para **35 s**
+> (`site/src/lib/eventos-dom.ts`); a 2ª tentativa fica para falha de verdade. A API continua
+> `minReplicas: 0` (decisão de custo); manter 1 réplica sempre ligada elimina a espera, ao custo
+> de alguns dólares por mês — decisão do usuário, não tomada.
 
 #### v5.1 — Directus como CMS de conteúdo
 
@@ -441,15 +447,16 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       **nacional e oficial** (site, DNS no Azure, e-mail no Google Workspace) e é com ele que
 >       tudo público e toda identidade nova deve sair; o internacional é para sair de cena nos
 >       próximos tempos, por custo (plano do usuário; migrar a conta master do Azure ficará para
->       uma versão própria). **Administrador `admin@arcadafamilia.org` suspenso em 2026-10-01**
->       (reversível; login devolve 401, provado), **não apagado** ainda de propósito: o Directus
->       não tem e-mail de recuperação configurado (nenhuma variável `EMAIL_*`), então, se a conta
->       real perdesse a senha, não restaria nenhum administrador para consertar. O usuário já
->       trocou a própria senha e acessou; **falta só apagá-lo** (Studio → Diretório de usuários →
->       o usuário → lixeira). O `ADMIN_EMAIL` do Container App **já foi trocado** para
->       `asaf@asaf.org.br` junto com a atualização de versão. **Combinado com o usuário
->       (2026-10-01)**: a remoção desse administrador é feita junto com a aplicação do
->       isolamento. Contexto: o domínio internacional só serve de "chefe do Azure"; no futuro o
+>       uma versão própria). **Administrador `admin@arcadafamilia.org` REMOVIDO em
+>       2026-10-02**: ficou suspenso (login 401, provado) até a aplicação do isolamento, quando foi
+>       reativado só o tempo de autenticar e **apagado pela API do Directus** (HTTP 204), depois de
+>       conferir no banco que a conta real era ativa e administradora; ao final só sobrou
+>       `asaf@asaf.org.br`, ativa e administradora (conferido no banco). O `ADMIN_EMAIL` do
+>       Container App já é `asaf@asaf.org.br`. **Atenção — sem administrador de reserva**: o
+>       Directus não tem e-mail de recuperação (nenhuma variável `EMAIL_*`); se a conta real
+>       perder a senha, a recuperação é por SQL (papel `directus_app` + hash argon2). Configurar o
+>       e-mail do Directus (os segredos de SMTP já existem no Key Vault) na v5.1, junto com o
+>       convite de editores. Combinado com o usuário (2026-10-01). Contexto: o domínio internacional só serve de "chefe do Azure"; no futuro o
 >       login da Microsoft vai migrar para outro domínio (que pode nem ser nenhum dos dois em uso
 >       hoje), e a conta master `@arcadafamilia.org` muda junto — por isso nada novo deve
 >       depender dela.
@@ -494,17 +501,17 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       (as tabelas `directus_*` só tinham 2 usuários e configuração padrão — se a migração
 >       impedisse a volta, recria-se do zero, e o `ADMIN_EMAIL` corrigido recria a conta real).
 >       **Falta só o usuário digitar a chave em Settings → License.**
-> - [ ] **Chave `SECRET` do Directus curta demais (aviso do log da 12)**: o Container App tem
->       `SECRET` com **27 caracteres** (só o comprimento foi lido; o Directus exige ≥ 32 e
->       recomenda aleatório e longo — assina os tokens de sessão). Corrigir gerando uma chave
->       aleatória de 64+ caracteres, no Key Vault (`DIRECTUS-SECRET`) e no segredo do Container
->       App; encerra as sessões abertas (cada pessoa entra de novo; tokens estáticos não são
->       afetados). **Depende de gravar segredo — o sistema de segurança bloqueia isso para o
->       Claude**: o usuário libera a regra ou grava pelo Portal do Azure.
-> - [ ] Nota do log da 12: a coleção `perfil_permissao` do sistema aparece sem chave primária e é
->       ignorada pelo Directus — mais uma evidência de que ele enxerga as tabelas do sistema
->       (ver o isolamento abaixo).
-> - [ ] **Isolar o Directus do banco do sistema — PRÉ-REQUISITO, antes de qualquer editor ou
+> - [x] **Chave `SECRET` do Directus curta demais — CORRIGIDA em 2026-10-02** (aviso do log da
+>       12): tinha **27 caracteres** (o Directus exige ≥ 32; ela assina os tokens de sessão).
+>       Trocada por uma aleatória de **64 caracteres**, no Key Vault (`DIRECTUS-SECRET`) e no
+>       segredo do Container App (comprimentos conferidos: 64 e 64, valores iguais, sem imprimir),
+>       e a revisão foi reiniciada; o aviso **sumiu** do log. Efeito esperado: sessões abertas
+>       encerradas (entrar de novo); tokens estáticos não são afetados. Feito com o usuário no modo
+>       manual (a gravação de segredo é bloqueada para o Claude no modo automático).
+> - [x] Nota do log da 12 (`perfil_permissao` do sistema aparecendo sem chave primária):
+>       **desapareceu** do log depois do isolamento — prova indireta de que o Directus já não
+>       enxerga as tabelas do sistema.
+> - [x] **Isolar o Directus do banco do sistema — PRÉ-REQUISITO, antes de qualquer editor ou
 >       coleção nova.** **Achado de 2026-10-01**: o Directus compartilha o Postgres e conecta com
 >       o mesmo usuário poderoso da API, então `GET /collections` (com login de administrador)
 >       lista **todas as tabelas do sistema** — `associados`, `doacoes`, `audit_log`,
@@ -514,8 +521,9 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       que o Directus *possui* as tabelas `directus_*`, não que *não enxerga* as outras).
 >       **Hoje não há vazamento aberto**: sem login tudo devolve 403 (conferido ao vivo em
 >       associados, doações, audit_log, usuários, papéis, arquivos) e o cadastro público está
->       fechado. **Estado em 2026-10-01 (autorizado pelo usuário: "pode fazer esse isolamento")
->       — PREPARADO E ENSAIADO, APLICAÇÃO EM PRODUÇÃO BLOQUEADA**:
+>       fechado. **Estado: APLICADO E PROVADO EM PRODUÇÃO em 2026-10-02**
+>       (autorizado pelo usuário, com ele no modo manual; no modo automático o classificador de
+>       segurança negou a execução e isso **não foi contornado**):
 >       *Desenho* (mesmo banco, mesmo servidor, **custo zero** — não é banco separado): papel
 >       `directus_app` (sem superusuário/CREATEROLE/CREATEDB, senha própria de 64 caracteres) e
 >       schema `directus` só dele; as 33 tabelas `directus_*` saem de `public` e vão para lá; o
@@ -537,24 +545,35 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       `public` (33 `directus_*` + 123 do sistema), todas de dono `asafadmin` — que é também o
 >       usuário com que o Directus conecta —, 8 sequências, sem FK entre os dois grupos, sem
 >       views/enums, sem privilégios padrão, backup de 35 dias com georredundância.
->       *Bloqueio*: o classificador de segurança do Claude Code **negou** a execução do
->       orquestrador em produção ("ação perigosa", sem explicação) — ela grava um segredo no
->       Container App, altera o banco de produção (papel + mover 33 tabelas) e troca a
->       configuração do Directus. **Não foi fatiado nem contornado.** Nada foi alterado no banco
->       nem no Directus. Para executar: o usuário libera esse comando com uma regra de permissão
->       nas configurações do Claude Code (`/permissions` → Allow → `Bash(.venv/Scripts/python.exe
->       scripts/aplicar_isolamento_directus_producao.py)`), ou alguém com acesso ao Azure o roda
->       num terminal (precisa de `az login` e do IP na regra de firewall `AllowAdminMachine`).
->       Depois: `python scripts/isolar_directus.py verificar` (com `DATABASE_URL`) e conferir o
->       login no Studio. **Até aplicar: nenhum outro usuário recebe papel de administrador do
->       Directus, e nenhuma coleção de conteúdo é criada.**
-> - [x] **Regra de firewall do Postgres `AllowAdminMachine` atualizada em 2026-10-01** de
->       `45.7.26.120` (IP antigo, que podia nem ser mais da associação) para `177.87.165.132` (a
->       máquina do usuário hoje; necessário para os passos administrativos no banco). O IP de
->       casa/escritório muda: quando o banco não responder desta máquina, é a primeira coisa a
->       conferir (`az postgres flexible-server firewall-rule list -g Associacao-RG -s
->       asaf-pg-server`). A regra `AllowAzureServices` (API, Directus, GitHub Actions) não foi
->       tocada (DECISÃO §5.3).
+>       *Aplicação (2026-10-02)*: `scripts/aplicar_isolamento_directus_producao.py` — segredo
+>       `dbpasswordapp` no Container App → banco numa transação (papel criado, **33 tabelas
+>       movidas** de `public` para `directus`, verificação antes do commit) → Directus na revisão
+>       `asaf-directus--0000003` com `DB_USER=directus_app`, `DB_SEARCH_PATH=directus`. A senha
+>       do papel (64 caracteres) existe só no segredo `dbpasswordapp` do Container App (não foi
+>       impressa nem gravada em arquivo); para rotacionar, rodar o script de novo (o papel já
+>       existe, só a senha muda). *Prova em produção, conectando COMO `directus_app`*
+>       (**16/16**): lê as tabelas do Directus; é **barrado** em `associados`, `doacoes`,
+>       `audit_log`, `usuarios`, `credenciais_webauthn`, `codigos_recuperacao_mfa`,
+>       `dados_bancarios_fornecedor` e `lancamentos_contabeis` ("permission denied"); não cria
+>       tabela em `public`, papel nem banco; **não enxerga nenhuma tabela** de `public`
+>       (`information_schema`); o verificador do administrador aprova; o banco mostra o Directus
+>       conectado como `directus_app` e só a API como `asafadmin`. Depois: API do sistema 200 e
+>       `/openapi.json` 200; Directus responde `ping` 200 e devolve 403 a visitante em
+>       `associados`, `doacoes`, `users` e `collections`; site e painel 200. Reexecutável a
+>       qualquer momento: `DATABASE_URL=… python scripts/isolar_directus.py verificar`. **Regra
+>       daqui para a frente: coleção nova do Directus nasce no schema `directus`; para o Directus
+>       ler dado do sistema, conceder SELECT em uma VIEW de campos públicos, nunca na tabela.**
+> - [x] **Firewall do Postgres — duas regras para a máquina do usuário (2026-10-02)**: a internet
+>       dele **alterna entre dois endereços**. `AllowAdminMachine` = `45.7.26.120` (a original) e
+>       `AllowAdminMachine2` = `177.87.165.132` (criada agora). *Correção de um erro meu do dia
+>       anterior*: eu havia trocado a regra original pelo segundo IP tratando o primeiro como
+>       "antigo, que podia nem ser mais da associação" — era o IP dele; o banco parou de responder
+>       quando a internet voltou ao primeiro. Quando o banco não responder desta máquina, conferir
+>       o IP atual (`curl https://api.ipify.org`) contra
+>       `az postgres flexible-server firewall-rule list -g Associacao-RG -s asaf-pg-server` e, se
+>       for um terceiro endereço, criar mais uma regra (`firewall-rule create ... --server-name
+>       asaf-pg-server --name <regra>`). `AllowAzureServices` (API, Directus, GitHub Actions) não
+>       foi tocada (DECISÃO §5.3).
 > - [ ] **ACHADO GRAVE — arquivos enviados à API somem a cada deploy/reinício** (2026-10-01): a
 >       API grava foto de associado, ata e documento anexado em disco local do contêiner
 >       (`uploads/fotos`, `uploads/atas`, `uploads/documentos`, ver `app/main.py`) e o Container
@@ -639,9 +658,11 @@ retrabalho que a seção 4.1 existe pra evitar.
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 
 - Directus não tem, em nenhuma coleção, dado de associado/financeiro/evento — só conteúdo editorial.
-  **(Achado de 2026-10-01: hoje é FALSO — o Directus enxerga todas as tabelas do sistema; ver o
-  pré-requisito de isolamento na v5.1. Este item só pode ser marcado depois dessa correção, com o
-  script de verificação rodado em produção.)**
+  **(Achado de 2026-10-01: era FALSO — o Directus enxergava todas as tabelas do sistema.
+  Corrigido em 2026-10-02 pelo isolamento da v5.1 e provado em produção, 16/16: o Directus, com
+  o usuário `directus_app`, é barrado em todas as tabelas do sistema. Reverificar na revisão
+  com `DATABASE_URL=… python scripts/isolar_directus.py verificar`, e conferir que nenhuma
+  coleção de conteúdo nova nasceu fora do schema `directus`.)**
 - Auditoria de SEO/acessibilidade (v5.0) está rodando de fato no CI, não só planejada.
 
 #### v5.3 — Formulários públicos (uma fila única no painel)
@@ -1912,10 +1933,20 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         TanStack Table 8 → 9.2 (`DataTable` reescrito), `lucide-react` 0.468 → 1.49,
         `tailwind-merge` 3, `jsdom` 25 → 30, `jest-axe` 11, `jest-dom` 7, `@types/node` 26,
         `globals` 17, ESLint 9 → 10, `eslint-plugin-react-hooks` 7, `prettier-plugin-astro` 1.1.
-        **Única exceção, com evidência (regra 2 do CLAUDE.md)**: **TypeScript fica na 6.0.3** —
-        a 7.0.2 existe, mas `typescript-eslint` (peer `<6.1.0`) aborta o lint e `@astrojs/check`
-        (peer `^5 || ^6`) recusa; conferido por mim com `npm view`. O `tsc` 7 já passa limpo nos
-        dois projetos: trocar quando saírem versões compatíveis dessas duas ferramentas.
+        **TypeScript — resolvido em 2026-10-02 (o usuário pediu para tentar de novo)**: no
+        Lote 2 ficou na 6.0.3 porque `typescript-eslint` (peer `<6.1.0`) e `@astrojs/check` (peer
+        `^5 || ^6`) não aceitam a 7. A equipe do `typescript-eslint` respondeu nos pedidos de
+        suporte (#12518, #12720) que **a causa é o TypeScript 7 ainda não ter API** (virá na 7.1;
+        `typescript@next` é `7.1.0-dev`) e que o caminho é rodar a 7 **lado a lado** com a 6,
+        igual ao guia da Microsoft. Adotado assim nos dois projetos: `"@typescript/native":
+        "npm:typescript@^7.0.2"` (`tsc` = **7.0.2**, usado no `typecheck` e no `build` do painel e
+        no `typecheck` do site) e `"typescript": "npm:@typescript/typescript6@^6.0.2"` (a API que
+        `typescript-eslint` e `astro check` ainda exigem; binário `tsc6`). Pré-lançamentos
+        conferidos: a `canary` do `typescript-eslint` segue em `<6.1.0` e as betas do
+        `@astrojs/check` são mais antigas que a estável — nada a adotar. **Reavaliar a cada
+        lote**: quando `typescript-eslint` e `@astrojs/check` aceitarem a 7.1, o apelido
+        `typescript` deixa de ser necessário. Lockfiles com os binários de Linux (CI) e
+        `npm ci --dry-run` de Linux conferidos.
         **Verificação**: o agente mediu a geometria de **53 telas do painel** (5.909 elementos)
         antes/depois do Tailwind 4 e achou 839 elementos com caixa diferente — `space-y-N` do 4 é
         margem *inferior* com especificidade zero, desalinhava os ~70 formulários; foi corrigido
@@ -1929,8 +1960,9 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         (`npx -y node@26`) e conferir com `npm view <pacote> dist-tags.latest`; o bundle do painel
         cresceu ~15% (JS 1.400 → 1.540 kB; code-splitting fica para depois); `v3-space-y-*` é uma
         muleta de compatibilidade (código novo: `gap-*`); `shadow-card` do site sempre foi uma
-        sombra branca invisível (o Tailwind 3 resolvia o conflito de nome assim) — religar a
-        sombra suave é uma linha em `design/theme.css`, decisão visual da diretoria; as mensagens
+        sombra branca invisível (o Tailwind 3 resolvia o conflito de nome assim) — **LIGADA em
+        2026-10-02 por decisão do usuário** ("se vai ligar, tem que deixar ligada"; sombra suave
+        de cartão em camada dupla, só no site); as mensagens
         padrão do zod seguem em inglês (`z.config(z.locales.pt())` traduz).
         **Achados de acessibilidade que o agente trouxe e foram corrigidos no mesmo dia**:
         (1) o cabeçalho do `DataTable` era *sempre* um `<button>` — a caixa "Selecionar todos" ficava
@@ -1948,8 +1980,11 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         `asaf-pg-server`, Standard_B1ms) — upgrade maior de banco com dado real de associado e
         financeiro: exige backup/ponto de restauração confirmado, checagem de compatibilidade
         (inclusive do Directus) e **autorização explícita** na hora.
-      - Pendente fora do repositório: o Node **local** do usuário é o 22.12.0 (avisos de motor
-        em pacotes que pedem ≥ 22.19) — atualizar na máquina (não é do repositório).
+      - **Node local atualizado em 2026-10-02**: 22.12.0 → **26.10.0** (a mesma do CI), pelo
+        `nvm` para Windows (`nvm install 26.10.0` e `nvm use 26.10.0`; `npm` 11.19.1). Zero
+        avisos `EBADENGINE`; o `npm outdated` sob Node 26 mostrou só um patch de `@types/node`
+        (26.6.3 → 26.6.4, aplicado). Suítes completas rodadas sob o Node 26 como padrão. As
+        versões 24.19.0 e 20.20.2 seguem instaladas no `nvm` (candidatas a remoção).
 - [ ] Fator ônibus tratado como risco de projeto (v12.8): documentação suficiente para outra
       pessoa assumir, e pelo menos uma pessoa da associação treinada na operação básica.
 

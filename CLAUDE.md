@@ -56,7 +56,11 @@ Como aplicar (isto **é** a autorização geral dele para atualizar — não per
    **atualizar**, nunca pular os portões de teste (vale igual para dinheiro, voto e LGPD).
 2. **Nunca fixar versão antiga "porque funciona".** Se uma atualização maior quebrar algo, resolver
    a causa. Só adiar com registro explícito no `PLANO_PROJETO.md` (o motivo concreto e o que
-   bloqueia), nunca em silêncio.
+   bloqueia), nunca em silêncio. Se o bloqueio for uma ferramenta que não aceita a versão nova,
+   procure o caminho oficial antes de desistir: o **TypeScript 7** roda **lado a lado** com o 6
+   (`"@typescript/native": "npm:typescript@^7"` dá o `tsc`; `"typescript":
+   "npm:@typescript/typescript6@^6"` é a API que `typescript-eslint` e `astro check` ainda exigem) —
+   reavaliar a cada lote até essas ferramentas aceitarem a 7.1.
 3. **Pré-lançamento (beta/rc/canary)**: adotar quando for mais novo que a estável e a suíte
    passar. Não é adiamento usar a estável quando o único pré-lançamento disponível é *mais antigo*
    que ela (ex.: `12.0.0-rc.2` do Directus, já superada pela `12.4.1` estável).

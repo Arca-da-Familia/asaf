@@ -142,8 +142,12 @@ export interface OpcoesIlha {
 
 /** Quanto esperar antes de avisar que está demorando (API acordando da partida a frio). */
 const DICA_APOS_MS = 4000
-/** Por tentativa. Partida a frio da API leva segundos; 2 tentativas cobrem o pior caso. */
-const TIMEOUT_POR_TENTATIVA_MS = 20_000
+/**
+ * Por tentativa. Partida a frio da API MEDIDA em produção: 21 a 23 s na primeira chamada depois de
+ * um tempo parada (e 33 s no Directus). Com 20 s a 1ª tentativa abortava um instante antes de a API
+ * responder; 35 s deixa a 1ª terminar, e a 2ª tentativa fica para falha de verdade.
+ */
+const TIMEOUT_POR_TENTATIVA_MS = 35_000
 const TENTATIVAS = 2
 
 /** Carrega e desenha os eventos dentro de `container` (que traz `data-api-url`). */

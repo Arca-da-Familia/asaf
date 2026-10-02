@@ -77,9 +77,10 @@ Tudo que é identidade (cor, raio, sombra, fonte, tema escuro) está nos três a
   deixa o Tailwind aplicar opacidade (`bg-primary/50`) e o JavaScript dos gráficos usar
   `hsl(var(--border))`. **Token de cor novo = uma linha em `tokens.css` (claro e `.dark`) + uma
   linha `--color-<nome>: hsl(var(--<nome>))` em `theme.css`.**
-- **`shadow-card` é uma sombra branca (invisível) de propósito** — reproduz o que o Tailwind 3
-  sempre renderizou por causa de um conflito de nome (`card` era cor e sombra). Detalhes e como
-  ligar a sombra suave no comentário de `theme.css`.
+- **`shadow-card` (sombra dos cartões) está LIGADA** desde 2026-10-01 (decisão do usuário). No
+  Tailwind 3 ela nunca apareceu — um conflito de nome (`card` era cor e sombra) a deixava branca
+  sobre branco; a migração para o 4 preservou isso até o usuário pedir para ligar. Valor e
+  histórico no comentário de `theme.css`.
 - **`v3-space-y-N` no lugar de `space-y-N` (só no painel).** O `space-y` do Tailwind 4 mudou de
   semântica (margem inferior, especificidade zero): em coluna simples é igual, mas nos formulários
   `flex flex-wrap items-end` e `grid` do FormShell desalinhava botões em 16 px e mudava a altura de

@@ -60,7 +60,20 @@ Tudo hospedado no Azure, grupo de recursos `Associacao-RG`, região Brazil South
 > produção). Ela entra em *Studio → Settings → License* ou na variável `LICENSE_KEY`. Na migração
 > para a v12, instância acima dos limites do *core* tem 30 dias de carência e depois é bloqueada
 > (a API devolve erro até a licença ser resolvida; os dados ficam salvos). Por isso a chave vale
-> ser pedida **antes** de subir para a v12.
+> ser pedida **antes** de subir para a v12 (a instância já está na 12.4.1).
+>
+> **Isolamento do Directus no banco — aplicado em 2026-10-02.** O Directus divide o Postgres
+> `asaf_db` com a API, mas **não** o mesmo usuário nem as mesmas tabelas: conecta como o papel
+> `directus_app` (sem superusuário/CREATEROLE/CREATEDB), com `DB_SEARCH_PATH=directus`, e só
+> alcança o schema `directus` (as 33 tabelas `directus_*` e, no futuro, as coleções de conteúdo).
+> As 123 tabelas do sistema ficam em `public`, sem nenhum privilégio para ele — um administrador do
+> Directus não lê nem edita dado de associado ou financeiro, e o que o site mostra do sistema
+> (evento, transparência) vem da API pública do FastAPI. Integração por *ID* (divulgação do evento
+> ligada por `evento_id`) ou por uma VIEW de campos públicos concedida de propósito. A senha do
+> papel vive no segredo `dbpasswordapp` do Container App. Verificação reexecutável:
+> `DATABASE_URL=… python scripts/isolar_directus.py verificar`. O firewall do Postgres tem a regra
+> `AllowAzureServices` (API, Directus, GitHub Actions) e duas regras de administrador
+> (`AllowAdminMachine`, `AllowAdminMachine2`) para os dois endereços da internet do usuário.
 
 ### Os dois domínios da associação (esclarecimento do usuário, 2026-10-01)
 
