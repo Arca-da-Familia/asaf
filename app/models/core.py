@@ -70,7 +70,7 @@ class Catalogo(Base):
     id_catalogo = Column(Integer, primary_key=True, index=True)
     # Chave técnica estável (ex.: "categoria_associado") - é o que o código usa para achar o
     # catálogo certo; nunca é exibida à diretoria, que só vê nome_exibido.
-    chave = Column(String(50))  # unicidade: uq_catalogo_chave (acima)
+    chave = Column(String(50), nullable=False)  # unicidade: uq_catalogo_chave (acima)
     nome_exibido = Column(String(100))
     descricao = Column(String, nullable=True)
     # Catálogo "de sistema" (False): o código depende de opções específicas existirem (ex.:
@@ -97,7 +97,7 @@ class OpcaoCatalogo(Base):
     id_catalogo = Column(Integer, ForeignKey("catalogos.id_catalogo"), index=True)
     # Hierarquia opcional (plano de contas, tipo com subtipo, estrutura de cargo) - sem tabela nova.
     id_pai = Column(Integer, ForeignKey("opcoes_catalogo.id_opcao"), nullable=True)
-    codigo = Column(String(100), index=True)
+    codigo = Column(String(100), nullable=False, index=True)
     rotulo = Column(String(200))
     ordem = Column(Integer, default=0)
     ativo = Column(Boolean, default=True)
@@ -120,10 +120,10 @@ class DefinicaoCampo(Base):
     # Só os valores validados em schemas/core.py (ENTIDADES_CAMPO_PERSONALIZADO) - não é um
     # catálogo, porque adicionar uma entidade nova sempre exige código novo (a tabela alvo
     # precisa existir) - nunca é coisa que a diretoria configura sozinha.
-    entidade = Column(String(50), index=True)
+    entidade = Column(String(50), nullable=False, index=True)
     rotulo = Column(String(200))
     # texto | numero | data | booleano | selecao | arquivo
-    tipo = Column(String(20))
+    tipo = Column(String(20), nullable=False)
     # Só usado quando tipo="selecao" - a opção escolhida referencia um OpcaoCatalogo deste catálogo.
     id_catalogo = Column(Integer, ForeignKey("catalogos.id_catalogo"), nullable=True)
     obrigatorio = Column(Boolean, default=False)
@@ -145,7 +145,7 @@ class ValorCampo(Base):
     __table_args__ = (UniqueConstraint("id_definicao", "id_registro", name="uq_valor_campo_registro"),)
     id_valor = Column(Integer, primary_key=True, index=True)
     id_definicao = Column(Integer, ForeignKey("definicoes_campo.id_definicao"), index=True)
-    id_registro = Column(Integer, index=True)
+    id_registro = Column(Integer, nullable=False, index=True)
     valor = Column(String, nullable=True)
 
 
@@ -175,7 +175,7 @@ class Usuario(Base):
     # concedendo acesso a um associado, `POST /api/associados/{id}/conceder-acesso`), nunca pelo
     # próprio titular. `POST /auth/login` devolve essa flag pro front-end forçar troca no
     # primeiro acesso - zerada em `POST /auth/senha/alterar`.
-    senha_provisoria = Column(Boolean, default=False)
+    senha_provisoria = Column(Boolean, nullable=False, default=False)
 
 class TokenAcesso(Base):
     __tablename__ = "tokens_acesso"

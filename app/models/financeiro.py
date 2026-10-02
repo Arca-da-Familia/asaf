@@ -41,7 +41,7 @@ class CentroDeCusto(Base):
     porque nem todo centro de custo é um projeto (ex.: "Administrativo", "Manutenção predial")."""
     __tablename__ = "centros_de_custo"
     id_centro_custo = Column(Integer, primary_key=True, index=True)
-    codigo = Column(String, unique=True, index=True)
+    codigo = Column(String, nullable=False, unique=True, index=True)
     nome = Column(String, nullable=False)
     id_projeto = Column(Integer, ForeignKey("projetos_eventos.id_projeto"), nullable=True)
     # v4.9 - espelha `id_projeto` acima: centro de custo de um `Evento` (FASE 4, v4.5) - Evento
