@@ -6,7 +6,7 @@ from datetime import datetime, date, timezone
 import os
 import re
 
-import httpx
+import httpx2
 
 from app.auditoria import registrar_auditoria
 from app.database import get_db
@@ -355,10 +355,10 @@ def consultar_cep(cep: str):
     if len(digitos) != 8:
         raise HTTPException(status_code=422, detail="CEP deve conter 8 dígitos.")
     try:
-        resposta = httpx.get(f"https://viacep.com.br/ws/{digitos}/json/", timeout=5.0)
+        resposta = httpx2.get(f"https://viacep.com.br/ws/{digitos}/json/", timeout=5.0)
         resposta.raise_for_status()
         dados = resposta.json()
-    except httpx.HTTPError:
+    except httpx2.HTTPError:
         raise HTTPException(status_code=503, detail="Serviço de CEP indisponível no momento - preencha manualmente.")
     if dados.get("erro"):
         raise HTTPException(status_code=404, detail="CEP não encontrado.")

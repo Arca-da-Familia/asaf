@@ -262,7 +262,7 @@ def test_validar_situacao_cadastral_nunca_bloqueia_se_api_estiver_fora(client, a
     def _falha(*args, **kwargs):
         raise ConnectionError("simulando API fora do ar")
 
-    monkeypatch.setattr(fornecedores.httpx, "get", _falha)
+    monkeypatch.setattr(fornecedores.httpx2, "get", _falha)
     fornecedor = _criar_fornecedor(client, auth_headers, "05")
 
     r = client.post(f"/api/fornecedores/{fornecedor}/validar-situacao-cadastral", headers=auth_headers)
@@ -280,7 +280,7 @@ def test_validar_situacao_cadastral_usa_resposta_da_api(client, auth_headers, mo
         def json(self):
             return {"descricao_situacao_cadastral": "ATIVA"}
 
-    monkeypatch.setattr(fornecedores.httpx, "get", lambda *a, **kw: _RespostaFalsa())
+    monkeypatch.setattr(fornecedores.httpx2, "get", lambda *a, **kw: _RespostaFalsa())
     fornecedor = _criar_fornecedor(client, auth_headers, "06")
 
     r = client.post(f"/api/fornecedores/{fornecedor}/validar-situacao-cadastral", headers=auth_headers)

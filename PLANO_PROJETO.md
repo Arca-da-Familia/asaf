@@ -2110,6 +2110,31 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         16 × 18**, simula o schema de produção (sem os 7 índices), prova que o `alembic check`
         **enxerga** a falta (verifiquei que um passo anterior falhava pelo motivo errado e o
         corrigi), aplica a migração, repete (idempotência), faz downgrade/upgrade e roda a suíte.
+      - **Conferência geral de versões, a pedido do usuário (2026-10-02, depois dos Lotes 1–4)** —
+        levantamento NOVO contra as fontes oficiais, não de memória. **Na versão mais nova (estável)**:
+        Postgres **18.6** (a mais nova da linha 18; servidor Azure `Ready`), Directus **12.4.1** (a
+        `latest` do Docker Hub; sem pré-lançamento mais novo), Node **26.10.0** (a mais nova da linha
+        26), Python **3.14** (a imagem `python:3.14-slim` é reconstruída a cada deploy e pega a
+        3.14.8, atual), as 6 ações do GitHub (`checkout`/`setup-node`/`setup-python`/`upload-artifact`
+        v7, `azure/login` v3, `static-web-apps-deploy` v1 — todas na maior mais nova), todos os
+        pacotes do site, e os pacotes Python fixados (FastAPI 0.142.2, SQLAlchemy 2.1.2, psycopg
+        3.3.6, Alembic 1.20.0, ReportLab 5.0.1, qrcode 8.2 etc.). **Achado na conferência, corrigido
+        agora**: 2 pacotes do painel com correção nova (`@tanstack/react-query` 5.104.0 → 5.104.1,
+        `lucide-react` 1.49.0 → 1.50.0) e o `httpx` 0.28.1, que é a linha antiga — trocado pelo
+        sucessor oficial **`httpx2` 2.13.1** (feito pela equipe do Pydantic; o Starlette já avisava
+        "install httpx2 instead"; usado na consulta de CEP e na validação de CNPJ de fornecedor).
+        **Pré-lançamentos mais novos que a estável, NÃO adotados (motivo concreto, regra 2/3 do
+        `CLAUDE.md`)**: (1) **Pydantic 2.14.0b2** (beta) — testei: 446/446 duas vezes; o Claude Code
+        **bloqueou fixá-lo no `requirements.txt`** ("código não confiável") e eu não contornei;
+        decisão do usuário; fica no 2.13.5 estável. (2) **Python 3.15 em RC** (a final ainda não
+        saiu; `python:3.15-slim` não existe, só `3.15-rc-slim`) — as rodas (pacotes prontos)
+        existem para 10 dos 12 pacotes compilados testados, mas **`httptools` e `pyyaml`
+        (vêm do `uvicorn[standard]`) não têm roda para a 3.15** e a imagem `slim` não tem
+        compilador: bloqueado até saírem; reavaliar quando a 3.15 final e essas rodas existirem.
+        (3) `httpx` 1.0.dev6 — não é a linha nova (a nova é o `httpx2`). **Transitivos** (cbor2,
+        cryptography, greenlet, idna, Mako, python-dotenv, watchfiles, pydantic_core): não são
+        fixados; a imagem Docker os resolve na versão mais nova a cada build. **Fica para
+        acompanhar**: TypeScript 7.1 (quando `typescript-eslint`/`@astrojs/check` aceitarem).
       - **Lote 4 ✅ FEITO e confirmado em produção (2026-10-02): PostgreSQL 16.15 → 18.6.**
         O usuário colocou o Claude Code em modo manual e aprovou o comando (em modo automático o
         classificador o havia negado como "perigoso" — ver o parágrafo "PREPARADO" abaixo, mantido

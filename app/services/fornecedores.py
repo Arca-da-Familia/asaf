@@ -5,7 +5,7 @@ golpe mais comum contra organizações - a defesa é processual, não tecnológi
 from datetime import datetime
 from typing import Optional
 
-import httpx
+import httpx2
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -22,7 +22,7 @@ def validar_situacao_cadastral(db: Session, fornecedor: Fornecedor) -> str:
     dados abertos de CNPJ fica pra quando esse serviço se mostrar instável em uso real - por ora
     "Minha Receita" resolve sem custo nem chave de API)."""
     try:
-        resposta = httpx.get(_MINHA_RECEITA_URL.format(cnpj=fornecedor.cnpj), timeout=_TIMEOUT_SEGUNDOS)
+        resposta = httpx2.get(_MINHA_RECEITA_URL.format(cnpj=fornecedor.cnpj), timeout=_TIMEOUT_SEGUNDOS)
         resposta.raise_for_status()
         dados = resposta.json()
         situacao = dados.get("descricao_situacao_cadastral") or "Não verificado"
