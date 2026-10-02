@@ -73,10 +73,13 @@ jobs:
           with engine.begin() as c:
               for i in indices:
                   c.execute(text(f"DROP INDEX {i}"))
-              c.execute(text("UPDATE alembic_version SET version_num = '85a120a27eb7'"))
-          print("schema no formato da producao: 7 indices removidos, versao 85a120a27eb7")
+          print("schema no formato da producao: 7 indices removidos")
           EOF
-          if alembic check; then echo "ERRO: o alembic check devia acusar a falta dos índices"; exit 1; fi
+          # Prova que o `alembic check` ENXERGA a falta (versão = head, então só pode falhar por causa dos índices).
+          alembic check 2> "$RUNNER_TEMP/check.err" && { echo "ERRO: o alembic check devia acusar a falta dos índices"; exit 1; }
+          cat "$RUNNER_TEMP/check.err"
+          grep -q "New upgrade operations detected" "$RUNNER_TEMP/check.err" || { echo "ERRO: falhou por outro motivo"; exit 1; }
+          alembic stamp 85a120a27eb7
           alembic upgrade head
           alembic check
           alembic upgrade head
