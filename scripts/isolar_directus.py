@@ -31,8 +31,8 @@ import os
 import re
 import sys
 
-import psycopg2
-from psycopg2 import sql
+import psycopg
+from psycopg import sql
 
 PAPEL = "directus_app"
 SCHEMA = "directus"
@@ -42,7 +42,7 @@ PREFIXO = "directus_"
 def conectar(dsn: str | None = None):
     dsn = dsn or os.environ["DATABASE_URL"]
     dsn = re.sub(r"^postgresql\+\w+://", "postgresql://", dsn)  # URL do SQLAlchemy -> libpq
-    return psycopg2.connect(dsn, connect_timeout=30)
+    return psycopg.connect(dsn, connect_timeout=30)
 
 
 def _fetch(cur, consulta, *args):

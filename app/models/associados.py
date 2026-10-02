@@ -16,6 +16,10 @@ class Associado(Base):
     mesmo objeto) - por isso `Associado(nome_completo=..., cpf=..., ...)` continua funcionando
     igual a antes, sem precisar criar a `Pessoa` manualmente em todo call site."""
     __tablename__ = "associados"
+    # Unicidade da matrícula como CONSTRAINT nomeada (é o que existe em produção; 35 chaves estrangeiras
+    # apontam para esta tabela). Antes era `unique=True, index=True` (índice único `ix_...`), que o
+    # `alembic check` apontava como diferença do banco real - alinhado ao banco, sem recriar nada.
+    __table_args__ = (UniqueConstraint("numero_matricula", name="uq_associados_numero_matricula"),)
     id_associado = Column(Integer, primary_key=True, index=True)
     id_pessoa = Column(Integer, ForeignKey("pessoas.id_pessoa"), nullable=False, index=True)
     pessoa = relationship("Pessoa")
@@ -27,7 +31,7 @@ class Associado(Base):
     id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     # v1.2 - matrícula é número sequencial voltado pro humano (carteirinha, ofício, ata), nunca
     # o PK interno - atribuída na efetivação (ficha master direta ou filiação aprovada).
-    numero_matricula = Column(Integer, unique=True, nullable=True, index=True)
+    numero_matricula = Column(Integer, nullable=True)  # unicidade: uq_associados_numero_matricula (acima)
     # v1.2 - fim do período de experiência configurável (PRAZO_EXPERIENCIA_DIAS); nulo = sem
     # período de experiência. Ver app/services/categoria_associado.py.
     data_fim_experiencia = Column(DateTime, nullable=True)

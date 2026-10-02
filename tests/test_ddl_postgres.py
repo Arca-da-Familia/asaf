@@ -15,7 +15,7 @@ from app.database import Base
 
 def _ddl_postgres() -> list[str]:
     instrucoes: list[str] = []
-    motor = create_mock_engine("postgresql+psycopg2://", lambda sql, *a, **k: instrucoes.append(str(sql.compile(dialect=motor.dialect)).strip()))
+    motor = create_mock_engine("postgresql+psycopg://", lambda sql, *a, **k: instrucoes.append(str(sql.compile(dialect=motor.dialect)).strip()))
     Base.metadata.create_all(motor, checkfirst=False)
     return instrucoes
 

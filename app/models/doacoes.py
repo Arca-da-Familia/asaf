@@ -8,7 +8,7 @@ registrada em valor avaliado - integração com patrimônio de verdade é a FASE
 não existe."""
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 
 from app.database import Base
 
@@ -30,6 +30,8 @@ class CampanhaArrecadacao(Base):
 
 class Doacao(Base):
     __tablename__ = "doacoes"
+    # Unicidade como CONSTRAINT nomeada = a que existe em produção (ver associados.py / `alembic check`).
+    __table_args__ = (UniqueConstraint("numero_recibo", name="uq_doacoes_numero_recibo"),)
     id_doacao = Column(Integer, primary_key=True, index=True)
     anonima = Column(Boolean, default=False, nullable=False)
     nome_doador = Column(String, nullable=True)  # NULL quando anônima
@@ -45,7 +47,7 @@ class Doacao(Base):
     id_centro_custo_destinacao = Column(Integer, ForeignKey("centros_de_custo.id_centro_custo"), nullable=True)
     id_conta_contabil = Column(Integer, ForeignKey("plano_de_contas.id_conta"), nullable=False)  # Receita
     id_titulo = Column(Integer, ForeignKey("titulos_financeiros.id_titulo"), nullable=True)  # só Monetária
-    numero_recibo = Column(Integer, nullable=True, unique=True, index=True)
+    numero_recibo = Column(Integer, nullable=True)  # unicidade: uq_doacoes_numero_recibo (acima)
     id_usuario_registro = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     data_doacao = Column(DateTime, default=datetime.utcnow)
 

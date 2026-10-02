@@ -65,10 +65,12 @@ class Catalogo(Base):
     associação quer uma categoria/motivo/tipo novo, o valor vive aqui e a diretoria ajusta sem
     programador (ver DECISOES_CONGELADAS.md 1.5 e PLANO_PROJETO.md v0.3.1)."""
     __tablename__ = "catalogos"
+    # Unicidade como CONSTRAINT nomeada = a que existe em produção (ver associados.py / `alembic check`).
+    __table_args__ = (UniqueConstraint("chave", name="uq_catalogo_chave"),)
     id_catalogo = Column(Integer, primary_key=True, index=True)
     # Chave técnica estável (ex.: "categoria_associado") - é o que o código usa para achar o
     # catálogo certo; nunca é exibida à diretoria, que só vê nome_exibido.
-    chave = Column(String(50), unique=True, index=True)
+    chave = Column(String(50))  # unicidade: uq_catalogo_chave (acima)
     nome_exibido = Column(String(100))
     descricao = Column(String, nullable=True)
     # Catálogo "de sistema" (False): o código depende de opções específicas existirem (ex.:
