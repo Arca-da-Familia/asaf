@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
@@ -15,6 +16,7 @@ from app.models.governanca import Assembleia
 from app.routers.mandatos import criar_mandato
 from app.schemas.ata import AtaRelatoSecretariaAtualizar, AtaRetificar, DeliberacaoConcluir, DeliberacaoCriar, DeliberacaoRevogar
 from app.security import exigir_permissao, get_current_user
+from app.services import armazenamento
 from app.services.ata import aplicar_efeitos_deliberacao, gerar_corpo_ata, proximo_numero_ata, proximo_numero_certidao
 from app.services.conselho_fiscal import parecer_existe_para_ano
 
@@ -129,19 +131,20 @@ async def anexar_documento_assinado(
     if len(conteudo) > TAMANHO_MAXIMO_DOCUMENTO:
         raise HTTPException(status_code=400, detail="Arquivo muito grande (máximo 15MB).")
 
-    caminho_relativo = f"atas/{id_ata}{extensao}"
-    os.makedirs(os.path.join("uploads", "atas"), exist_ok=True)
-    with open(os.path.join("uploads", caminho_relativo), "wb") as arquivo:
-        arquivo.write(conteudo)
-
-    ata.arquivo_documento_assinado = f"/uploads/{caminho_relativo}"
+    # Nome aleatório (antes `atas/{id_ata}.pdf`, enumerável num diretório servido sem login) e
+    # gravado pelo serviço de armazenamento (Blob em produção). O documento anterior NÃO é apagado:
+    # ata é documento de valor jurídico - o caminho anterior vai para a auditoria e o arquivo fica
+    # (órfão, mas intocado e não enumerável).
+    documento_anterior = ata.arquivo_documento_assinado
+    ata.arquivo_documento_assinado = await run_in_threadpool(armazenamento.salvar_novo, "atas", extensao, conteudo)
     ata.numero_protocolo_cartorio = numero_protocolo_cartorio or None
     ata.data_protocolo_cartorio = datetime.fromisoformat(data_protocolo_cartorio) if data_protocolo_cartorio else None
     db.commit()
     db.refresh(ata)
     registrar_auditoria(
         db, usuario, "atas", "DOCUMENTO_ASSINADO_ANEXADO", id_registro_afetado=ata.id_ata,
-        dados_depois={"numero_protocolo_cartorio": ata.numero_protocolo_cartorio}, ip_origem=request.client.host if request.client else None,
+        dados_depois={"numero_protocolo_cartorio": ata.numero_protocolo_cartorio, "documento": ata.arquivo_documento_assinado, "documento_anterior": documento_anterior},
+        ip_origem=request.client.host if request.client else None,
     )
     return _serializar_ata(ata)
 

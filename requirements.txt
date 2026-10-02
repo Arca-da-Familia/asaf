@@ -11,3 +11,5 @@ webauthn==3.0.1
 httpx==0.28.1
 reportlab==4.2.5
 qrcode[pil]==7.4.2
+azure-storage-blob==12.31.0
+azure-identity==1.26.0

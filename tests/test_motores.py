@@ -1,7 +1,7 @@
 """v4.0 (FASE 4) - motores compartilhados: presença/check-in, inscrição, documento gerado,
 indicadores e agenda/conflito. Construídos pra serem consumidos por projeto/evento (esta fase) e
 aula (FASE 14) - testados aqui como mecanismo genérico, sem nenhum consumidor real ainda."""
-import os
+import re
 import uuid
 from datetime import datetime, timedelta
 
@@ -126,8 +126,13 @@ def test_documento_emitido_numera_sequencial_gera_pdf_real_e_exige_variavel(clie
     assert r.status_code == 200, r.text
     numero_1 = r.json()["numero_sequencial"]
     caminho = r.json()["caminho_arquivo"]
-    assert os.path.isfile(caminho.lstrip("/"))
-    assert os.path.getsize(caminho.lstrip("/")) > 0
+    # Contrato ponta a ponta: a URL gravada no banco é servida pela rota pública e é um PDF de verdade
+    # (não só "um arquivo existe no disco" - o disco do contêiner é efêmero, ver `armazenamento`).
+    assert re.fullmatch(r"/uploads/documentos/[0-9a-f]{32}\.pdf", caminho), caminho
+    baixado = client.get(caminho)
+    assert baixado.status_code == 200
+    assert baixado.headers["content-type"] == "application/pdf"
+    assert baixado.content.startswith(b"%PDF") and len(baixado.content) > 500
 
     r = client.post("/api/documentos-emitidos/", json={
         "codigo_template": codigo, "variaveis": {"nome": "Segunda Pessoa", "data": "18/09/2026"},

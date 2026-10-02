@@ -17,11 +17,11 @@ de módulo) foram removidas em 2026-09-15 - o painel único (painel.asaf.org.br,
 `/api/...` (e as de escrita sem prefixo, mantidas por compatibilidade de URL) que o painel
 consome."""
 import os
-import uuid
 from datetime import datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -40,7 +40,7 @@ from app.schemas.financeiro import (
     TituloCriar, BaixarTitulo, TransferenciaCriar,
 )
 from app.security import exigir_permissao
-from app.services import conciliacao, contabilidade, contribuicoes, negociacao, pix as pix_service
+from app.services import armazenamento, conciliacao, contabilidade, contribuicoes, negociacao, pix as pix_service
 from app.services.categoria_associado import recalcular_categoria_associado
 
 router = APIRouter()
@@ -314,11 +314,8 @@ async def enviar_comprovante(request: Request, arquivo: UploadFile = File(...), 
     conteudo = await arquivo.read()
     if len(conteudo) > _TAMANHO_MAXIMO_COMPROVANTE:
         raise HTTPException(status_code=400, detail="Arquivo muito grande (máximo 15MB).")
-    nome_arquivo = f"{uuid.uuid4().hex}{extensao}"
-    os.makedirs(os.path.join("uploads", "comprovantes"), exist_ok=True)
-    with open(os.path.join("uploads", "comprovantes", nome_arquivo), "wb") as f:
-        f.write(conteudo)
-    caminho = f"/uploads/comprovantes/{nome_arquivo}"
+    # Gravado pelo serviço de armazenamento (Blob em produção; o disco do contêiner é efêmero).
+    caminho = await run_in_threadpool(armazenamento.salvar_novo, "comprovantes", extensao, conteudo)
     registrar_auditoria(
         db, usuario, "comprovantes_financeiros", "UPLOAD",
         dados_depois={"comprovante": caminho}, ip_origem=_ip_origem(request),

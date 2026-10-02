@@ -1,11 +1,14 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 import os
 
 from app.database import preparar_banco, seed_catalogos, seed_niveis_e_permissoes, seed_configuracoes_institucionais, seed_regras_estatutarias
-from app.routers import auth, core, associados, financeiro, governanca, projetos, filiacao, importacao, situacao, voluntariado, qualidade_cadastro, estatuto, mandatos, sessao_assembleia, votacao, ata, conselho_fiscal, disciplina, dissolucao, calendario, chamada, compras, doacoes, orcamento, relatorios, antifraude, motores, beneficiarios, espacos, eventos, portaria, certificados, pesquisa_satisfacao
+from app.services import armazenamento
+from app.routers import arquivos, auth, core, associados, financeiro, governanca, projetos, filiacao, importacao, situacao, voluntariado, qualidade_cadastro, estatuto, mandatos, sessao_assembleia, votacao, ata, conselho_fiscal, disciplina, dissolucao, calendario, chamada, compras, doacoes, orcamento, relatorios, antifraude, motores, beneficiarios, espacos, eventos, portaria, certificados, pesquisa_satisfacao
 from app.security import decodificar_access_token_silencioso
 
 # A auditoria de schema (preparar_banco) audita as ~50 tabelas uma a uma a cada start -
@@ -25,15 +28,24 @@ seed_niveis_e_permissoes()
 seed_configuracoes_institucionais()
 seed_regras_estatutarias()
 
-os.makedirs("uploads/fotos", exist_ok=True)
-os.makedirs("uploads/atas", exist_ok=True)
-os.makedirs("uploads/documentos", exist_ok=True)
+
+
+@asynccontextmanager
+async def _ciclo_de_vida(_app: FastAPI):
+    """Trava de armazenamento (achado de 2026-10-01: a API gravava foto/ata/comprovante no disco
+    EFÊMERO do contêiner e os arquivos sumiam a cada deploy/reinício). `obter()` RECUSA subir no
+    Azure sem `ARMAZENAMENTO_BLOB_URL`; `verificar()` grava, lê e apaga uma sonda no Blob - se a
+    identidade, o papel (RBAC) ou a rede não funcionam, a revisão nova NÃO fica saudável e o Azure
+    mantém a anterior servindo: o problema aparece no deploy, não no upload de um associado."""
+    armazenamento_ativo = armazenamento.obter()
+    await run_in_threadpool(armazenamento_ativo.verificar)
+    yield
+
 
 # ==========================================
 # INICIALIZAÇÃO DO SERVIDOR E FRONTEND
 # ==========================================
-app = FastAPI(title="ERP ASAF - Versão Enterprise", version="2.0")
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app = FastAPI(title="ERP ASAF - Versão Enterprise", version="2.0", lifespan=_ciclo_de_vida)
 
 # CORS: o painel React (v0.2) chama a API de outra origem. Precisa de origem explícita
 # (nunca "*") + allow_credentials para o cookie HttpOnly de refresh funcionar.
@@ -114,6 +126,7 @@ app.include_router(eventos.router)
 app.include_router(portaria.router)
 app.include_router(certificados.router)
 app.include_router(pesquisa_satisfacao.router)
+app.include_router(arquivos.router)
 
 @app.get("/", response_class=HTMLResponse, summary="Página Inicial (Landing Page)")
 def ler_pagina_inicial():

@@ -25,7 +25,8 @@ Tudo hospedado no Azure, grupo de recursos `Associacao-RG`, região Brazil South
 | Banco de dados | Postgres Flexible Server (Burstable) | Único banco, compartilhado entre a API e o Directus (só tabelas de conteúdo) |
 | API (este repositório) | Container Apps | Escala a zero quando ocioso — sem custo de servidor parado |
 | CMS do site institucional | Container Apps (Directus) | Conteúdo editável sem tocar em código |
-| Arquivos/uploads | Blob Storage | Fotos, documentos anexados |
+| Arquivos/uploads da API | Blob Storage — conta **privada** `stasafprivado` (GRS, sem chave, só a identidade gerenciada da API) | Foto de associado, ata assinada, comprovante, documento emitido. O disco do contêiner é efêmero: nada é gravado nele (`app/services/armazenamento.py`) |
+| Arquivos do Directus/site | Blob Storage — conta `stasafarcadafamilia` | Mídia editorial pública do site |
 | Site + painel do associado | Static Web Apps | Domínio próprio (`asaf.org.br` / `painel.asaf.org.br`) |
 | Segredos | Key Vault | Nenhuma senha em variável de ambiente exposta em texto no Portal |
 | Build de imagem | Container Registry (ACR Tasks) | Builda a imagem Docker na nuvem — não precisa de Docker instalado localmente |
@@ -111,7 +112,9 @@ completo.
 app/
   database.py     Conexão com o banco (engine, Base, get_db), migração de schema
   utils.py        Funções compartilhadas entre módulos (hash de senha, escape HTML, avatar)
-  main.py         Cria o app FastAPI, inclui os routers, monta uploads
+  main.py         Cria o app FastAPI, inclui os routers; na partida confere o armazenamento (sonda no Blob)
+  services/armazenamento.py   ÚNICO ponto que grava/lê/apaga arquivo enviado (Blob em produção, disco só em dev/teste)
+  routers/arquivos.py         Serve `/uploads/<pasta>/<nome>` a partir do armazenamento
   models/         Um arquivo por domínio (core, associados, financeiro, governanca, projetos)
   schemas/        Modelos Pydantic de entrada, mesmo agrupamento por domínio
   routers/        Rotas HTTP, mesmo agrupamento por domínio

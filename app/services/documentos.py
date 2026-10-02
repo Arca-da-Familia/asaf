@@ -4,7 +4,6 @@ de participação em evento e de conclusão de curso (FASE 14) são o MESMO moto
 diferente - nunca um gerador de PDF por funcionalidade."""
 import io
 import json
-import os
 import re
 from datetime import datetime
 from typing import Optional
@@ -20,8 +19,8 @@ from sqlalchemy.orm import Session
 
 from app.models.motores import DocumentoEmitido, TemplateDocumento
 from app.models.pessoas import Pessoa
+from app.services import armazenamento
 
-_DIRETORIO_DOCUMENTOS = "uploads/documentos"
 _VARIAVEL = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 
 
@@ -49,9 +48,11 @@ def _substituir_variaveis(corpo_texto: str, variaveis: dict) -> str:
     return _VARIAVEL.sub(_resolver, corpo_texto)
 
 
-def _gerar_pdf(caminho: str, *, titulo: str, corpo: str, numero_sequencial: int, qr_conteudo: Optional[str] = None) -> None:
-    os.makedirs(os.path.dirname(caminho), exist_ok=True)
-    c = canvas.Canvas(caminho, pagesize=A4)
+def _gerar_pdf(*, titulo: str, corpo: str, numero_sequencial: int, qr_conteudo: Optional[str] = None) -> bytes:
+    # Gera em memória e devolve os bytes: quem grava é `armazenamento` (Blob em produção) - o disco
+    # do contêiner é efêmero, nada daqui pode escrever em `uploads/` direto.
+    saida = io.BytesIO()
+    c = canvas.Canvas(saida, pagesize=A4)
     largura, altura = A4
     margem = 2 * cm
 
@@ -90,6 +91,7 @@ def _gerar_pdf(caminho: str, *, titulo: str, corpo: str, numero_sequencial: int,
     c.drawString(margem, margem / 2, f"Documento nº {numero_sequencial} - emitido pelo sistema ASAF")
     c.showPage()
     c.save()
+    return saida.getvalue()
 
 
 def emitir_documento(
@@ -111,15 +113,16 @@ def emitir_documento(
     # v4.8 - documento com código de verificação pública (crachá/certificado de evento) é nomeado
     # pelo código opaco, nunca pelo número sequencial: `/uploads/` é servido sem autenticação, e
     # um nome sequencial seria enumerável (incrementar o número baixaria o PDF de qualquer pessoa
-    # certificada). Documento interno (sem código de verificação) continua com o nome de sempre.
-    nome_arquivo = f"{codigo_verificacao}.pdf" if codigo_verificacao else f"{numero_sequencial:08d}_{template.codigo}.pdf"
-    caminho_relativo = f"{_DIRETORIO_DOCUMENTOS}/{nome_arquivo}"
-    _gerar_pdf(caminho_relativo, titulo=template.nome, corpo=corpo_final, numero_sequencial=numero_sequencial, qr_conteudo=qr_conteudo)
+    # certificada). Documento interno (sem código de verificação) agora também recebe nome
+    # aleatório (antes `00000001_<template>.pdf`, enumerável) - ver `armazenamento`.
+    pdf = _gerar_pdf(titulo=template.nome, corpo=corpo_final, numero_sequencial=numero_sequencial, qr_conteudo=qr_conteudo)
+    nome_arquivo = f"{codigo_verificacao}.pdf" if codigo_verificacao else None
+    caminho_arquivo = armazenamento.salvar_novo("documentos", ".pdf", pdf, nome=nome_arquivo)
 
     documento = DocumentoEmitido(
         id_template=template.id_template, numero_sequencial=numero_sequencial, contexto_tipo=contexto_tipo,
         id_contexto=id_contexto, id_pessoa=id_pessoa, variaveis_usadas=json.dumps(variaveis, default=str),
-        caminho_arquivo=f"/{caminho_relativo}", id_usuario_emissao=id_usuario, codigo_verificacao=codigo_verificacao,
+        caminho_arquivo=caminho_arquivo, id_usuario_emissao=id_usuario, codigo_verificacao=codigo_verificacao,
     )
     db.add(documento)
     db.commit()

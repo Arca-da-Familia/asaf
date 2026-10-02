@@ -1,5 +1,6 @@
 """v2.5 (FASE 2) - ata gerada do registro, imutável após assinatura (correção só por
 retificação), deliberações com efeito automático e certidão numerada."""
+import re
 from datetime import datetime, timedelta
 
 from app.models.associados import Associado
@@ -119,7 +120,10 @@ def test_anexar_documento_assinado_com_protocolo_cartorio(client, auth_headers):
     )
     assert r.status_code == 200, r.text
     corpo = r.json()
-    assert corpo["arquivo_documento_assinado"] == f"/uploads/atas/{id_ata}.pdf"
+    # Nome aleatório (não enumerável: `/uploads/` é servido sem login) e servido de volta pela rota.
+    assert re.fullmatch(r"/uploads/atas/[0-9a-f]{32}\.pdf", corpo["arquivo_documento_assinado"]), corpo
+    baixado = client.get(corpo["arquivo_documento_assinado"])
+    assert baixado.status_code == 200 and baixado.content == b"%PDF-1.4 conteudo fake"
     assert corpo["numero_protocolo_cartorio"] == "12345-CRT"
     assert corpo["data_protocolo_cartorio"] is not None
 

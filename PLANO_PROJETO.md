@@ -584,6 +584,34 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       Blob/Storage no código). Corrigir antes de qualquer associado depender de foto ou ata:
 >       gravar no Blob (contêiner próprio, ver o item seguinte) e servir por URL assinada ou rota
 >       da API. **Decisão do usuário** (é mudança de armazenamento de dado de associado).
+>       **Em andamento (2026-10-02) — código pronto e testado, falta ligar a nuvem.** O usuário
+>       mandou corrigir **e travar para não voltar a acontecer**. Implementado (ainda nada em
+>       produção): `app/services/armazenamento.py` (Blob em produção, pela identidade gerenciada;
+>       disco só em dev/teste), rota `GET /uploads/{pasta}/{nome}` (`app/routers/arquivos.py`,
+>       substitui o `StaticFiles` que lia o disco efêmero), os 4 pontos de gravação (foto de
+>       associado, ata assinada, comprovante, documento emitido) convertidos. Nomes **aleatórios**
+>       em tudo — antes `fotos/{id}.jpg` e `atas/{id}.pdf` eram enumeráveis num diretório servido
+>       sem login (risco de LGPD). Foto antiga só é apagada depois de o banco apontar para a nova;
+>       ata anterior **nunca** é apagada (valor jurídico; o caminho vai para a auditoria). **Travas**:
+>       (1) API rodando no Azure sem `ARMAZENAMENTO_BLOB_URL` **recusa subir** (nunca cai em silêncio
+>       no disco efêmero); (2) na partida ela grava, lê e apaga uma sonda no Blob — se identidade,
+>       papel ou rede falharem, a revisão nova não fica saudável e a anterior segue servindo (o erro
+>       aparece no deploy, não no upload de um associado semanas depois); (3) teste de arquitetura
+>       proíbe qualquer módulo de `app/` gravar em disco fora do serviço (e foi conferido que ele
+>       pega o código antigo). `pytest` 432/432 duas vezes (43 testes novos, com cliente Blob falso).
+>       **Desenho da nuvem**: conta **nova e privada** `stasafprivado` (GRS, sem chave de conta, sem
+>       acesso público, TLS 1.2, soft delete 30 dias + versionamento), contêineres `fotos-associados`,
+>       `atas`, `comprovantes`, `documentos-emitidos`; papel "Storage Blob Data Contributor" **só**
+>       para a identidade da API — tudo em `infra/armazenamento-privado.sh` (idempotente).
+>       **Bloqueio atual**: o classificador do Claude Code negou a execução do script (concessão de
+>       papel); precisa rodar em modo manual. Sem isso o código **não é enviado** (a trava de
+>       partida derrubaria a revisão nova de propósito). Nenhum registro de produção aponta para
+>       `/uploads` (0 de 0, conferido em 2026-10-01): nada se perdeu até aqui. **Fica para depois**:
+>       download autenticado / URL assinada de curta duração (hoje o nome aleatório é a única
+>       barreira, como já era). **"API sempre ligada" NÃO será feita** — decisão do usuário em
+>       2026-10-02 (ele estimou mais de US$60/mês a mais e não quer agora; reavaliar quando houver
+>       muitos associados): a partida a frio de 21–23 s permanece e a ilha de eventos do site já
+>       espera 35 s.
 > - [ ] **Chave da conta de armazenamento no Directus**: o Directus guarda arquivos no contêiner
 >       `uploads` da conta `stasafarcadafamilia` usando a **chave da conta inteira**
 >       (`STORAGE_AZURE_ACCOUNT_KEY`), que também alcança `documentos-institucionais` e qualquer
@@ -872,7 +900,9 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - [x] FastAPI e Directus em Azure Container Apps (plano consumo, scale-to-zero).
 - [x] Site institucional + painel em Azure Static Web Apps, com domínio próprio via Azure DNS.
 - [x] Blob Storage para uploads/anexos (soft delete + versionamento), Key Vault para segredos,
-      Application Insights para monitoramento.
+      Application Insights para monitoramento. *(Correção de 2026-10-02: a conta de Blob existia,
+      mas a API **não a usava** — gravava em disco efêmero. Ver o "ACHADO GRAVE" da v5.1; a API passa
+      a usar uma conta privada própria, `stasafprivado`.)*
 - [x] Total estimado ~US$40–60/mês, dentro do teto de US$100/mês definido em 3.6, com alerta de
       orçamento configurado.
 

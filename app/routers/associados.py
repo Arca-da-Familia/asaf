@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, date, timezone
@@ -25,6 +26,7 @@ from app.schemas.associados import (
     HistoricoCargoEncerrar,
 )
 from app.security import criar_token_carteirinha, decodificar_token_carteirinha, exigir_permissao, get_current_user_opcional, hash_senha, usuario_tem_permissao, validar_senha_forte
+from app.services import armazenamento
 from app.services.categoria_associado import calcular_categoria
 from app.services.catalogos import validar_codigo_em_catalogo
 from app.services.duplicidade import detectar_cadastro_duplicado
@@ -590,12 +592,14 @@ async def enviar_foto_associado(id_associado: int, foto: UploadFile = File(...),
     if len(conteudo) > TAMANHO_MAXIMO_FOTO:
         raise HTTPException(status_code=400, detail="Imagem muito grande (máximo 5MB).")
 
-    caminho_relativo = f"fotos/{id_associado}{extensao}"
-    with open(os.path.join("uploads", caminho_relativo), "wb") as arquivo:
-        arquivo.write(conteudo)
-
-    associado.foto = f"/uploads/{caminho_relativo}"
+    # Nome aleatório (antes `fotos/{id}.jpg`, enumerável num diretório servido sem login) e gravado
+    # pelo serviço de armazenamento (Blob em produção; o disco do contêiner é efêmero). A foto
+    # antiga só é apagada DEPOIS de o banco apontar para a nova: falha no meio nunca deixa o
+    # associado sem foto.
+    foto_antiga = associado.foto
+    associado.foto = await run_in_threadpool(armazenamento.salvar_novo, "fotos", extensao, conteudo)
     db.commit()
+    armazenamento.remover_url(foto_antiga)
     registrar_auditoria(db, usuario, "associados", "FOTO_ATUALIZADA", id_registro_afetado=id_associado)
     return {"mensagem": "Foto atualizada com sucesso.", "foto": associado.foto}
 

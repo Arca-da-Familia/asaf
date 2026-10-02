@@ -22,10 +22,17 @@ if _DB_PATH.exists():
 os.environ["DATABASE_URL"] = f"sqlite:///{_DB_PATH.as_posix()}"
 os.environ["JWT_SECRET"] = "segredo-de-teste-pytest-nao-usar-em-producao"
 
+import tempfile
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services import armazenamento
+
+# Uploads de teste vão para uma pasta temporária descartável (não poluem `uploads/` do repositório).
+# O backend de verdade (Blob) é coberto em tests/test_armazenamento.py com um cliente falso.
+armazenamento.configurar(armazenamento.ArmazenamentoLocal(tempfile.mkdtemp(prefix="asaf-uploads-teste-")))
 
 _client = TestClient(app)
 
