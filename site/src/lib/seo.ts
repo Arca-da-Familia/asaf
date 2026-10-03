@@ -1,9 +1,4 @@
-import {
-  ENDERECO_LINHA,
-  LOGO,
-  ORGANIZACAO,
-  SITE_URL,
-} from '../config/organizacao'
+import { LOGO, ORGANIZACAO, SITE_URL } from '../config/organizacao'
 import { comFusoDaAsaf } from './datas'
 
 /**
@@ -123,17 +118,18 @@ export interface EventoParaJsonLd {
 
 /**
  * schema.org/Event de um evento público da ASAF — é isto que faz o evento aparecer com data,
- * local e "gratuito" direto no resultado do Google. As páginas de evento (v5.2) consomem esta
+ * local e "gratuito" direto no resultado do Google (o local só entra quando o evento tem endereço próprio). As páginas de evento (v5.2) consomem esta
  * função; `urlPagina` é a URL estável e compartilhável da própria página do evento.
  *
  * Fica de fora de propósito: `offers` (a API pública ainda não expõe o valor da inscrição) e
  * `image` (o evento ainda não tem imagem). Melhor omitir do que declarar dado falso.
  */
 export function jsonLdEvento(evento: EventoParaJsonLd, urlPagina: string) {
-  // Sem local próprio, o evento é na sede: aí o endereço completo é verdadeiro e ajuda o Google.
+  // O sistema só guarda o local quando o evento tem endereço próprio. Sem ele NÃO se presume a sede nem
+  // o modo presencial (o evento pode ser online ou em outro lugar): `location` e
+  // `eventAttendanceMode` ficam de fora — melhor omitir do que declarar dado falso (revisão de
+  // fatos da v5.2).
   const localProprio = evento.endereco_avulso?.trim()
-  const local =
-    localProprio || `Sede da ${ORGANIZACAO.sigla} — ${ENDERECO_LINHA}`
   return {
     '@context': 'https://schema.org',
     '@type': 'Event',
@@ -144,14 +140,18 @@ export function jsonLdEvento(evento: EventoParaJsonLd, urlPagina: string) {
       ? { endDate: comFusoDaAsaf(evento.data_hora_fim) }
       : {}),
     eventStatus: 'https://schema.org/EventScheduled',
-    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
     isAccessibleForFree: evento.gratuito,
     url: urlPagina,
-    location: {
-      '@type': 'Place',
-      name: local,
-      address: localProprio ? ENDERECO_CIDADE : ENDERECO_SEDE,
-    },
+    ...(localProprio
+      ? {
+          eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+          location: {
+            '@type': 'Place',
+            name: localProprio,
+            address: ENDERECO_CIDADE,
+          },
+        }
+      : {}),
     organizer: { '@id': `${SITE_URL}/#organizacao` },
   }
 }

@@ -238,7 +238,7 @@ export async function iniciarEventos(
       mostrarMensagem(
         container,
         modo === 'passados'
-          ? 'Ainda não há eventos realizados.'
+          ? 'Ainda não há eventos anteriores.'
           : 'Nenhum evento aberto no momento. Volte em breve.',
         'vazio',
       )

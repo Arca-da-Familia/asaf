@@ -87,14 +87,16 @@ WhatsApp. Rotas da API (`app/routers/publico.py`, sem login, só leitura, lista 
 - **Se a API não responder no build, o build FALHA** (3 tentativas, 60 s cada, por causa da partida a frio):
   nunca se publica um site sem a diretoria e sem os eventos.
 - **O que muda depois do build é resolvido no navegador** (`src/lib/evento-vivo.ts`): vagas livres,
-  evento **retirado do ar** (a API passa a responder 404 → aviso na hora) e "já aconteceu". A lista da
-  Agenda também é ilha: evento novo aparece sem rebuild, e só vira link quando a página dele já existe.
+  evento **retirado do ar** (a API passa a responder 404 → aviso na hora) e "a data já passou". A lista da
+  Agenda ("Próximos" e "Eventos anteriores") também é ilha: evento novo aparece sem rebuild, e só vira link quando a página dele já existe.
 - **Sincronização automática** (`.github/workflows/sincronizar-site.yml`, a cada 30 min): compara a
   impressão digital do conteúdo da API com a de `/conteudo.json` do site no ar; se mudou, dispara o
   `deploy-site.yml`. A impressão **ignora vagas livres** (mudam a cada inscrição). Sem token novo
   (usa o `GITHUB_TOKEN`, permissão `actions: write`). Testar: `npm run test:sincronizacao`.
 - **Estado vazio** é o da produção no 1º dia (sem projeto, diretoria, evento nem edital):
   `npm run test:vazio` constrói contra uma API vazia e confere o que aparece e o que NÃO pode aparecer.
+- **Evento sem endereço próprio**: o site NÃO presume a sede nem o modo presencial (pode ser online):
+  a página diz "a confirmar" e o schema.org/Event omite `location`.
 - **Privacidade**: a API NÃO publica CPF/e-mail/telefone/foto de dirigente, nem responsável/orçamento de
   projeto, e **remove o link de acesso remoto do edital** (publicá-lo daria a sala da assembleia a
   qualquer pessoa); o SHA-256 do edital é calculado sobre o texto publicado.

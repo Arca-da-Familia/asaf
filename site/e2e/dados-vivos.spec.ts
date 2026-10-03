@@ -78,7 +78,7 @@ test.describe('Agenda e página de cada evento', () => {
     await expect(page).toHaveURL(/\/eventos\/2\/$/)
 
     await page.goto('/eventos/')
-    const realizados = page.locator('#realizados [data-estado="lista"] li')
+    const realizados = page.locator('#anteriores [data-estado="lista"] li')
     await expect(realizados).toHaveCount(1)
     await expect(realizados.first()).toContainText('já realizado')
     // Evento que passou não anuncia vagas.

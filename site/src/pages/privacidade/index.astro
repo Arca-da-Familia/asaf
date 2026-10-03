@@ -9,9 +9,12 @@ import {
 } from '../../config/organizacao'
 import Base from '../../layouts/Base.astro'
 
-// Texto escrito SÓ com o que o site e o sistema realmente fazem hoje (conferido no código). Versionado
-// em config/organizacao.ts. Revisão jurídica e a definição do encarregado pelo tratamento de dados
-// (LGPD, art. 41) cabem à diretoria — ver o registro no PLANO_PROJETO.md.
+// Texto escrito SÓ com o que o site e o sistema realmente fazem hoje. Versionado em
+// config/organizacao.ts (v1.1: corrigido pela verificação de fatos de 2026-10-03, que apontou
+// promessas sem lastro — eliminação automática por prazo, base legal por formulário, consentimento
+// de menor imposto pelo sistema — tudo isso ainda é a FASE 7 e por isso NÃO está prometido aqui).
+// Revisão jurídica e a designação do encarregado pelo tratamento de dados (LGPD, art. 41) cabem à
+// diretoria — ver o registro no PLANO_PROJETO.md.
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -58,8 +61,10 @@ const direitos = [
           usa ferramentas de análise de visitantes de terceiros.
         </li>
         <li>
-          Só tratamos dados pessoais que você mesmo informar em um formulário ou
-          cadastro, e apenas para a finalidade informada ali.
+          Enquanto você apenas navega, o site
+          <strong>não coleta dados pessoais</strong>
+          informados por você. Os dados pessoais que a ASAF trata ficam no seu
+          sistema de gestão, e só a lista de dirigentes é publicada aqui.
         </li>
         <li>
           Não vendemos dados. Você pode exercer os seus direitos escrevendo para{' '}
@@ -95,7 +100,7 @@ const direitos = [
 
     <section aria-labelledby="site">
       <h2 id="site" class="text-xl font-bold tracking-tight">
-        O que este site coleta quando você apenas navega
+        O que este site faz quando você apenas navega
       </h2>
       <ul class="mt-3 flex list-disc flex-col gap-3 pl-6">
         <li>
@@ -106,21 +111,32 @@ const direitos = [
           para traçar o perfil de visitantes.
         </li>
         <li>
-          <strong>Lista de eventos.</strong> Para mostrar os próximos eventos, o
-          navegador consulta a lista pública de eventos da ASAF. Nessa consulta
-          nenhum dado seu é enviado.
+          <strong>Lista de eventos.</strong> Para mostrar os eventos, o
+          navegador consulta a lista pública de eventos da ASAF (no endereço
+          api.asaf.org.br). Como em qualquer acesso à internet, o seu endereço
+          IP chega ao servidor, mas nenhum dado pessoal informado por você é
+          enviado.
         </li>
         <li>
-          <strong>Cookies.</strong> Este site não instala cookies. A{' '}
+          <strong>Cookies e dados no navegador.</strong> Este site não instala
+          cookies nem guarda dados no seu navegador. A{' '}
           <a
             href={PAINEL_URL}
             class="font-medium text-primary underline underline-offset-4"
           >
             área do associado
-          </a>
+          </a>{' '}
           (um endereço separado, para quem já é associado) usa um cookie
-          técnico, estritamente necessário, para manter a sua sessão aberta; ele
-          não é usado para rastrear você.
+          técnico, estritamente necessário, para manter a sua sessão aberta, e
+          guarda no navegador a sua preferência de tema (claro ou escuro). Nada
+          disso é usado para rastrear você.
+        </li>
+        <li>
+          <strong>Diretoria e Conselho Fiscal.</strong> A página de Diretoria e
+          Conselho Fiscal publica o nome, o cargo e as datas do mandato de quem
+          ocupa cargos na ASAF, em respeito ao princípio da publicidade adotado
+          pelo Estatuto (Art. 2º). Não publicamos CPF, telefone, e-mail nem
+          foto.
         </li>
         <li>
           <strong>Links para outros sites.</strong> Ao clicar em um link para um
@@ -132,21 +148,26 @@ const direitos = [
 
     <section aria-labelledby="formularios">
       <h2 id="formularios" class="text-xl font-bold tracking-tight">
-        Formulários e cadastros
+        Cadastros e formulários
       </h2>
       <p class="mt-3">
-        Quando você se inscrever em um evento, propuser a sua filiação,
-        oferecer-se como voluntário ou enviar uma solicitação à ASAF, tratamos
-        os dados que o formulário pedir (por exemplo, nome, CPF, e-mail e
-        telefone). Cada formulário informa, antes do envio, para que os dados
-        serão usados e qual é a base legal do tratamento. Os dados de associados
-        também são tratados para cumprir obrigações previstas no Estatuto e na
-        lei, como o livro de associados e a escrituração contábil.
+        Este site ainda não tem formulários. Quando tiver (inscrição em evento,
+        pedido de filiação, voluntariado, contato), cada formulário informará,
+        antes do envio, quais dados pede e para quê.
       </p>
       <p class="mt-3">
-        Dados de crianças e adolescentes são tratados somente com o
-        consentimento específico e em destaque de pelo menos um dos pais ou do
-        responsável legal (LGPD, art. 14, § 1º).
+        Fora do site, a ASAF trata, no seu sistema de gestão, dados de
+        associados, voluntários, participantes de eventos e beneficiários — em
+        geral informados por essas pessoas à secretaria — para cumprir o
+        Estatuto e a lei (como o livro de associados e a escrituração contábil)
+        e para realizar as suas atividades.
+      </p>
+      <p class="mt-3">
+        Sobre crianças: a lei exige que o tratamento de dados de crianças com
+        base em consentimento conte com o consentimento específico e em destaque
+        de pelo menos um dos pais ou do responsável legal (LGPD, art. 14, § 1º).
+        Pais e responsáveis podem pedir informações e correções sobre os dados
+        de um menor pelo e-mail acima.
       </p>
     </section>
 
@@ -167,9 +188,11 @@ const direitos = [
         Por quanto tempo guardamos
       </h2>
       <p class="mt-3">
-        Pelo tempo necessário para cumprir a finalidade para a qual o dado foi
-        informado e as obrigações legais e estatutárias da ASAF. Acabado esse
-        prazo, os dados são eliminados ou anonimizados.
+        Pelo tempo necessário para cumprir a finalidade do tratamento e as
+        obrigações legais e estatutárias da ASAF. Você pode pedir a eliminação
+        ou a anonimização de dados desnecessários, ou tratados com o seu
+        consentimento (veja os seus direitos abaixo); cada pedido é analisado
+        conforme a lei e as obrigações da associação.
       </p>
     </section>
 
@@ -181,7 +204,7 @@ const direitos = [
         A comunicação com este site e com a área do associado é criptografada
         (HTTPS). Os dados de associados ficam em ambiente de acesso restrito,
         liberado por perfil conforme a função de cada pessoa, com registro dos
-        acessos e das alterações.
+        logins e das alterações.
       </p>
     </section>
 

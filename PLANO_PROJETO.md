@@ -693,10 +693,114 @@ retrabalho que a seção 4.1 existe pra evitar.
       > "Quem Somos") pode expor o documento vigente (`DocumentoEstatuto`, v2.0) para download -
       > hoje só existe `caminho_arquivo="ESTATUTO_ASAF.txt"` apontando pro arquivo na raiz do
       > repositório, sem rota de upload/servir arquivo dedicada ainda.
-- [ ] Página de cada projeto e de cada evento com URL estável e compartilhável.
-- [ ] **Publicação do edital de assembleia na área pública do site** (pendência da v2.2,
-      2026-09-15): `GET /api/assembleias/{id}/edital` (FASE 2) já gera o texto - falta só a
-      página pública que o exibe e o comprovante de publicação arquivado.
+      > **v5.2 — Etapa A ✅ (2026-10-03, commit `cf21b7e`) — páginas institucionais, sem tocar no
+      > backend.** No ar: `/estatuto/`, `/quem-somos/`, `/seja-associado/`, `/seja-voluntario/`,
+      > `/como-ajudar/`, `/contato/`, `/transparencia/`, `/privacidade/`, `/termos/` e a **Home
+      > completa**. **Regra: nada inventado** — cada bloco cita o artigo do Estatuto de onde saiu
+      > (ou a regra do sistema), e o que não existe em documento nenhum não foi preenchido. O
+      > **Estatuto é lido do `ESTATUTO_ASAF.txt` da raiz** (a mesma fonte do sistema) por
+      > `site/src/lib/estatuto.ts`; `tests/estatuto.test.ts` prova **palavra por palavra** que nada
+      > se perde, repete ou troca de ordem (8 capítulos, 35 artigos, a oração com os 4 versos) e o
+      > build **falha** se o formato mudar (melhor não publicar um Estatuto truncado).
+      > "Seja associado" lê as exigências/direitos/deveres dos Arts. 12–14 do próprio Estatuto.
+      > Navegação numa fonte única (`config/navegacao.ts`; menu de celular em `<details>`, sem
+      > JavaScript; **Transparência e Privacidade sempre no rodapé**, adiantando um item da v5.5);
+      > migalhas viram `BreadcrumbList` (schema.org). Privacidade e Termos **versionados**
+      > (`DOCUMENTOS_LEGAIS`, v1.0 de 2026-10-03), escritos só com o que o site/sistema fazem hoje.
+      > **Achados**: (1) a revisão **visual** (fotos do site montado) pegou que o Astro/Prettier
+      > **colava palavras em links** ("Acesse *aárea*") — nenhum teste de acessibilidade/SEO vê isso;
+      > corrigido em 4 páginas e `e2e/texto.spec.ts` reprova se voltar (verificado por mutação);
+      > (2) **mapa**: o CEP 68515-000 é um CEP único da cidade inteira e o OpenStreetMap não conhece
+      > a rua — **sem pino inventado**; o botão "Abrir no Google Maps" busca pelo endereço;
+      > (3) o Estatuto (Art. 33, II) cita "II Crônicas 4:9-10" mas o texto da oração é de **1**
+      > Crônicas 4:10 — **a referência do livro NÃO foi publicada** até o usuário confirmar. A
+      > oração em si (cláusula pétrea) está em "Quem somos".
+      > **Testado (2 rodadas)**: vitest 70; Playwright 84 (axe WCAG 2.1 AA desktop e 375 px em 11
+      > páginas, SEO, links, texto); Lighthouse **100/100/100/100** em Home, Quem somos, Seja
+      > associado, Estatuto e Contato (3 rodadas cada; antes só a Home era medida). **Em produção**:
+      > `asaf.org.br/version.json` = `cf21b7e`; as 10 páginas respondem 200, página inexistente
+      > devolve 404 real, sitemap com as 10 URLs, `/estatuto/` com 35 artigos e a oração; num
+      > navegador real (Chromium, desktop e 375 px) **zero erro de console e zero requisição
+      > falha**, menu de celular com 6 links, ilha de eventos contra a API real terminando em
+      > "vazio" (não há evento cadastrado).
+      > **v5.2 — Etapa B ✅ (2026-10-03, commits `a2d9861` API e `e1ec5f3` site, mais a correção
+      > de textos abaixo) — dados vivos.** **API** (`app/routers/publico.py`, sem login, só GET,
+      > lista explícita de campos): `/api/publico/diretoria`, `/projetos`, `/projetos/{id}`,
+      > `/assembleias`, `/assembleias/{id}`. **Privacidade testada com mutação** (`tests/test_publico.py`,
+      > 11 testes; plantei CPF/e-mail/telefone/foto e provei que não saem; vazar o link ou o CPF
+      > reprova): diretoria só com mandato **vigente** e só nome, cargo, órgão e datas; projeto só
+      > "Pública" (interno responde o **mesmo** 404 de um id inexistente); assembleia só **convocada**.
+      > **ACHADO**: o texto do edital embute o **link de acesso remoto** ("Acesso remoto: …") e
+      > publicá-lo daria a sala da assembleia a qualquer pessoa — a rota **remove** esse trecho e o
+      > SHA-256 é calculado sobre o texto publicado. **Site**: páginas geradas no build lendo a API
+      > (`/diretoria/`, `/projetos/` + `/projetos/<id>/`, `/eventos/` + `/eventos/<id>/` com
+      > `schema.org/Event`, `/transparencia/assembleias/<id>/`), URLs **só com o id** (título editado nunca
+      > quebra link compartilhado). **Se a API não responde, o build FALHA** (nunca publica site sem
+      > dados). O que muda depois do build resolve no navegador: vagas livres, **evento retirado do ar**
+      > (API 404 → aviso na hora) e "a data já passou". **Sincronização automática**
+      > (`.github/workflows/sincronizar-site.yml`, a cada 30 min): compara a impressão do conteúdo da API
+      > com `/conteudo.json` do site no ar e só então dispara o `deploy-site.yml` (sem token novo,
+      > `actions: write`); a impressão ignora vagas livres. **`test:sincronizacao` pegou um laço
+      > infinito antes de chegar à produção** (um campo do mock mudava a cada chamada: o site seria
+      > reconstruído para sempre). **Estado vazio** (= produção hoje: 0 eventos, projetos, dirigentes,
+      > editais) tem teste próprio (`test:vazio`). Revisão visual achou o **menu quebrando em duas
+      > linhas** no computador — corrigido (cabe numa linha; menu de celular até 1024 px).
+      > **Testado (2 rodadas)**: pytest 457; vitest 102; Playwright 150 (axe WCAG 2.1 AA em 20 páginas
+      > × 2 telas, SEO, links, texto, dados vivos, evento retirado/vagas ao vivo); estado vazio;
+      > sincronização; Lighthouse 100/100/100/100 em 7 páginas. **Em produção**: API revisão
+      > `asaf-api--0000079` com as 5 rotas (200 com lista vazia, 404 igual, `POST` → 405, CORS do site);
+      > site `e1ec5f3`, `conteudo.json` com contagens 0; **13 páginas** limpas no axe **no site real**
+      > (desktop e celular), zero erro de console; o `sincronizar-site` disparado à mão concluiu "não
+      > mudou" e **não** republicou.
+      >
+      > **Verificação de fatos independente (2026-10-03) — um agente leu o Estatuto inteiro e todas
+      > as páginas contra o texto e o código; achou o que eu havia publicado errado ou exagerado.**
+      > Cada alegação grave foi conferida no código antes de corrigir. **Corrigido** (privacidade e
+      > termos subiram para v1.1): (1) a Home prometia **"carteirinha digital"** no painel — **não
+      > existe tela** (o código diz "sem tela ainda"); (2) "não precisa ser associado" para ser
+      > voluntário era **falso na prática**: alocar em projeto **exige cadastro de Associado**
+      > (`app/services/projetos.py`) — a página agora diz o que acontece hoje; (3) Art. 28 lido como
+      > "**a** fonte primária" (são quatro fontes primárias; recurso público é "secundária e
+      > excepcional", o que pesa em emenda parlamentar); (4) o Estatuto **determina** ("serão
+      > integralmente aplicados"), e o site afirmava como fato consumado; (5) **Privacidade**
+      > prometia o que o sistema não faz: eliminação automática por prazo, base legal por formulário
+      > (o site nem tem formulário), consentimento de menor imposto pelo sistema, "só tratamos o que
+      > você informar" (há dependentes, beneficiários, importação em lote) e não citava a publicação
+      > de nome/cargo dos dirigentes; (6) evento sem endereço próprio era mostrado e declarado no
+      > schema.org como **"na sede, presencial"** — o evento pode ser online; agora "a confirmar" e
+      > `location` omitido; (7) "eventos realizados / já aconteceu" eram deduzidos só pela data (sem
+      > status "cancelado") → "Eventos anteriores / a data já passou"; (8) "Onde atuamos" na Home
+      > listava as 11 áreas do Art. 3º como atuação presente → "áreas previstas no Estatuto";
+      > (9) menores: "local" no termo é opcional; horas só são aprovadas por coordenador quando
+      > ligadas a projeto; o corpo do Estatuto é fiel mas os **títulos dos capítulos foram
+      > padronizados** (a página agora diz isso); edital "na íntegra" removia o link remoto (dito);
+      > nome/logotipo "pertencem" à associação (titularidade não verificada → "identificam").
+      > **Confirmado correto**: todos os artigos citados e números (7 cargos, 3 conselheiros, 4 anos,
+      > 16/18 anos, 35 artigos), as listas de exigências/direitos/deveres, as regras de voluntariado
+      > (termo, menor com autorização, coordenador confirma), LGPD arts. 18/19, e que o site **não** tem
+      > cookie/analítica/recurso de terceiro (código + respostas HTTP). **CNPJ 17.631.942/0001-70**:
+      > dígitos corretos e a BrasilAPI confirma razão social, situação ATIVA e o endereço
+      > (início de atividade na Receita 21/02/2013 × fundação 10/02/2013 do Estatuto: conceitos
+      > diferentes; o site usa a do Estatuto). **Decisões que NÃO são minhas** (abertas, para o
+      > usuário/diretoria): (a) hoje **voluntário não-associado não consegue ser escalado** em projeto —
+      > mudar o sistema ou manter; (b) o catálogo `titulo_cargo` **não bate com o Art. 19**
+      > ("Vice-Presidente" único, "Diretor de Patrimônio", "Diretor Social", "Conselho Fiscal" como
+      > cargo) — **alinhar antes de cadastrar dirigentes reais**, pois o site exibe o rótulo do
+      > catálogo; (c) **encarregado pelo tratamento de dados** (LGPD art. 41) e **revisão jurídica**
+      > de Privacidade e Termos; (d) o que a Privacidade **não** promete mais (eliminação automática,
+      > base legal por formulário, regra de menor no sistema, auditoria de consulta) é a **FASE 7** —
+      > o texto só pode prometer quando o sistema fizer; (e) Estatuto Art. 33, II cita "II Crônicas"
+      > (a oração é de 1 Crônicas 4:10) — **referência não publicada**; o Estatuto diz "sede
+      > provisória" (o site omite "provisória", endereço confirmado pelo usuário); o Art. 34 cita um
+      > "Conselho Administrativo" que o Art. 18 não lista; (f) titularidade do nome/logotipo (INPI);
+      > (g) o Estatuto no site é o do sistema — confirmar que é a **versão registrada em cartório**;
+      > (h) **mapa** só com coordenadas exatas (CEP único da cidade); (i) **Notícias** depende do
+      > Directus (v5.1: coleções + token de serviço); (j) **inscrição em evento pelo site** (a API já
+      > tem formulário, perguntas e consentimento) fica para a v5.3.
+- [x] Página de cada projeto e de cada evento com URL estável e compartilhável (v5.2 etapa B).
+- [x] **Publicação do edital de assembleia na área pública do site** (pendência da v2.2,
+      2026-09-15): página pública `/transparencia/assembleias/<id>/` com o texto (sem o link de
+      acesso remoto) e o código SHA-256 que identifica o texto publicado (v5.2 etapa B).
 
 ##### 🔍 Ponto de Revisão — FASE 5 (1/2 — meio, fecha v5.0–v5.2)
 

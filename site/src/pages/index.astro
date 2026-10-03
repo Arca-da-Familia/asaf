@@ -85,7 +85,9 @@ const ALTURA_LOGO = Math.round(LARGURA_LOGO / LOGO.proporcao)
       {ORGANIZACAO.uf}. Atuamos para alcançar as famílias, que são a razão da
       nossa existência.
     </p>
-    <h3 class="mt-8 text-lg font-semibold">Onde atuamos</h3>
+    <h3 class="mt-8 text-lg font-semibold">
+      Áreas de atuação previstas no Estatuto
+    </h3>
     <ul class="mt-3 flex flex-wrap gap-2">
       {ORGANIZACAO.areasDeAtuacao.map((area) => (
         <li class="rounded-full bg-brand-tertiary/25 px-3 py-1 text-sm font-medium text-foreground">
@@ -218,8 +220,7 @@ const ALTURA_LOGO = Math.round(LARGURA_LOGO / LOGO.proporcao)
         Já é associado?
       </h2>
       <p class="mt-2 max-w-2xl">
-        Acesse o painel para consultar seus dados, sua carteirinha digital e
-        acompanhar as assembleias.
+        Acesse o painel para consultar seus dados e acompanhar as assembleias.
       </p>
       <a
         href={PAINEL_URL}

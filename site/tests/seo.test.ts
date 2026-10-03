@@ -144,20 +144,20 @@ describe('jsonLdEvento', () => {
     expect(Object.keys(ev)).not.toContain('endDate')
     expect(Object.keys(ev)).not.toContain('offers')
     expect(Object.keys(ev)).not.toContain('image')
-    // Sem local próprio, o evento é na sede: nome e endereço completo da sede.
-    expect(ev.location.name).toContain('Sede da ASAF')
-    expect(ev.location.name).toContain('Rua Paulo Afonso, 150')
-    expect(ev.location.address).toHaveProperty(
-      'streetAddress',
-      'Rua Paulo Afonso, 150',
-    )
+    // Sem local próprio o sistema NÃO sabe onde é (pode ser online ou em outro lugar): não se presume
+    // a sede nem o modo presencial. Melhor omitir do que declarar dado falso.
+    expect(Object.keys(ev)).not.toContain('location')
+    expect(Object.keys(ev)).not.toContain('eventAttendanceMode')
+    expect(JSON.stringify(ev)).not.toContain('Rua Paulo Afonso')
   })
 
   it('evento com local próprio NÃO herda o endereço da sede', () => {
     const ev = jsonLdEvento(base, url)
-    expect(ev.location.name).toBe('Salão Paroquial, Parauapebas')
-    expect(ev.location.address).not.toHaveProperty('streetAddress')
-    expect(ev.location.address.addressLocality).toBe('Parauapebas')
+    // Só com endereço próprio o evento tem `location` (e o modo presencial).
+    const local = ev.location!
+    expect(local.name).toBe('Salão Paroquial, Parauapebas')
+    expect(local.address).not.toHaveProperty('streetAddress')
+    expect(local.address.addressLocality).toBe('Parauapebas')
   })
 
   it('evento pago não é marcado como gratuito', () => {

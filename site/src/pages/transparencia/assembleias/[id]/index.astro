@@ -45,7 +45,7 @@ const chamadas = [
 
 <Base
   titulo={titulo}
-  descricao={`Edital de convocação da Assembleia Geral ${assembleia.tipo} da ${ORGANIZACAO.nome} (${ORGANIZACAO.sigla}): datas das convocações, local, ordem do dia e comprovante de publicação.`}
+  descricao={`Edital de convocação da Assembleia Geral ${assembleia.tipo} da ${ORGANIZACAO.nome} (${ORGANIZACAO.sigla}): datas das convocações, local, ordem do dia e identificação do texto publicado.`}
   caminho={caminhoDaAssembleia(assembleia.id_assembleia)}
   migalhas={migalhas}
 >
@@ -93,7 +93,7 @@ const chamadas = [
 
     <section aria-labelledby="comprovante">
       <h2 id="comprovante" class="text-2xl font-bold tracking-tight">
-        Comprovante de publicação
+        Identificação do texto publicado
       </h2>
       <dl class="mt-4 grid gap-x-8 gap-y-3 sm:grid-cols-[auto_1fr]">
         {assembleia.convocada_em && (

@@ -9,7 +9,7 @@ import {
   renderizarEventos,
 } from '../src/lib/eventos-dom'
 
-// v5.2: arquivo da agenda ("eventos realizados") e link para a página de cada evento.
+// v5.2: arquivo da agenda ("eventos anteriores") e link para a página de cada evento.
 function evento(parcial: Partial<EventoPublico> = {}): EventoPublico {
   return {
     id_evento: 1,
@@ -129,6 +129,6 @@ describe('modo "passados" da ilha', () => {
       agora: AGORA,
       fetchImpl: vi.fn().mockResolvedValue(respostaJson([])),
     })
-    expect(vazio.textContent).toBe('Ainda não há eventos realizados.')
+    expect(vazio.textContent).toBe('Ainda não há eventos anteriores.')
   })
 })

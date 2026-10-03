@@ -39,9 +39,10 @@ const migalhas: Migalha[] = [
   { rotulo: 'Eventos', href: '/eventos/' },
   { rotulo: tituloCurto(evento.titulo) },
 ]
+// O sistema só guarda o local quando o evento tem endereço próprio. Sem ele NÃO se presume a sede
+// (o evento pode ser online ou em outro lugar): a página manda falar com a secretaria.
 const local =
-  evento.endereco_avulso?.trim() ||
-  `Sede da ${ORGANIZACAO.sigla} — ${ENDERECO_LINHA}, ${ORGANIZACAO.cidade} (${ORGANIZACAO.uf})`
+  evento.endereco_avulso?.trim() || 'A confirmar: fale com a secretaria.'
 const mesmoDia =
   !evento.data_hora_fim ||
   formatarDia(evento.data_hora_fim) === formatarDia(evento.data_hora_inicio)
@@ -90,7 +91,7 @@ if (evento.vagas_livres !== null) {
       role="status"
       class="rounded-lg border bg-muted p-4 font-medium"
     >
-      Este evento já aconteceu.
+      A data deste evento já passou.
     </p>
 
     <section aria-labelledby="quando-onde">
