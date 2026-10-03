@@ -1,0 +1,123 @@
+---
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import {
+  ENDERECO_LINHA,
+  ORGANIZACAO,
+  PAINEL_URL,
+} from '../../config/organizacao'
+import Base from '../../layouts/Base.astro'
+
+// Fonte: endereço do Estatuto (Art. 1º), confirmado pelo usuário em 2026-10-01; telefone e e-mail
+// confirmados pelo usuário. SEM mapa embutido de propósito: o CEP 68515-000 é um CEP único da
+// cidade inteira e o OpenStreetMap não conhece a rua — qualquer pino seria um chute. O botão
+// "Abrir no Google Maps" busca pelo ENDEREÇO (quem resolve o ponto é o Google). Se a diretoria
+// informar a localização exata, troca-se por um mapa de verdade.
+const migalhas: Migalha[] = [{ rotulo: 'Contato' }]
+const enderecoCompleto = `${ENDERECO_LINHA}, ${ORGANIZACAO.cidade} - ${ORGANIZACAO.uf}, ${ORGANIZACAO.endereco.cep}`
+const linkMapa = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoCompleto)}`
+---
+
+<Base
+  titulo="Contato"
+  descricao="Fale com a ASAF: endereço da sede em Parauapebas (PA), telefone, e-mail e como chegar."
+  caminho="/contato/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Contato"
+    resumo="Estamos em Parauapebas, no Pará. Ligue, escreva ou venha nos visitar."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto max-w-5xl px-4 py-12">
+    <div class="grid gap-6 md:grid-cols-2">
+      <section
+        aria-labelledby="fale"
+        class="rounded-lg border bg-card p-6 shadow-card"
+      >
+        <h2 id="fale" class="text-xl font-bold tracking-tight">
+          Fale conosco
+        </h2>
+        <dl class="mt-4 flex flex-col gap-4">
+          <div>
+            <dt class="text-sm font-medium text-muted-foreground">Telefone</dt>
+            <dd class="mt-1">
+              <a
+                href={ORGANIZACAO.telefoneLink}
+                class="text-lg font-medium text-primary underline underline-offset-4"
+              >
+                {ORGANIZACAO.telefone}
+              </a>
+            </dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-muted-foreground">E-mail</dt>
+            <dd class="mt-1">
+              <a
+                href={`mailto:${ORGANIZACAO.email}`}
+                class="text-lg font-medium text-primary underline underline-offset-4"
+              >
+                {ORGANIZACAO.email}
+              </a>
+            </dd>
+          </div>
+        </dl>
+        <p class="mt-6 text-sm">
+          Já é associado? Acesse a{' '}
+          <a
+            href={PAINEL_URL}
+            class="font-medium text-primary underline underline-offset-4"
+          >
+            área do associado
+          </a>
+          .
+        </p>
+      </section>
+
+      <section
+        aria-labelledby="onde"
+        class="rounded-lg border bg-card p-6 shadow-card"
+      >
+        <h2 id="onde" class="text-xl font-bold tracking-tight">
+          Onde fica a sede
+        </h2>
+        <address class="mt-4 flex flex-col gap-1 text-lg not-italic">
+          <span>{ENDERECO_LINHA}</span>
+          <span>
+            {ORGANIZACAO.cidade} — {ORGANIZACAO.uf}
+          </span>
+          <span>CEP {ORGANIZACAO.endereco.cep}</span>
+        </address>
+        <a
+          href={linkMapa}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="mt-6 inline-block rounded-md bg-primary px-5 py-3 font-medium text-primary-foreground hover:opacity-90"
+        >
+          Abrir no Google Maps
+          <span class="sr-only"> (abre em uma nova aba)</span>
+        </a>
+        <p class="mt-3 text-sm text-muted-foreground">
+          O mapa abre no site do Google; o nosso site não instala rastreadores.
+        </p>
+      </section>
+    </div>
+
+    <section aria-labelledby="identificacao" class="mt-10">
+      <h2 id="identificacao" class="text-xl font-bold tracking-tight">
+        Identificação da entidade
+      </h2>
+      <dl class="mt-4 grid max-w-3xl gap-x-8 gap-y-3 sm:grid-cols-[auto_1fr]">
+        <dt class="font-medium">Nome</dt>
+        <dd>
+          {ORGANIZACAO.nome} ({ORGANIZACAO.sigla})
+        </dd>
+        <dt class="font-medium">CNPJ</dt>
+        <dd>{ORGANIZACAO.cnpj}</dd>
+        <dt class="font-medium">Fundação</dt>
+        <dd>{ORGANIZACAO.fundacaoPorExtenso}</dd>
+      </dl>
+    </section>
+  </div>
+</Base>

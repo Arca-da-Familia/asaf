@@ -1,0 +1,159 @@
+---
+import FaleConosco from '../../components/FaleConosco.astro'
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import Base from '../../layouts/Base.astro'
+import { carregarEstatuto, incisosDoArtigo } from '../../lib/estatuto'
+
+// Fonte: Estatuto Social, Capítulo IV (Arts. 11 a 14) e Arts. 8º e 28. As listas de exigências,
+// direitos e deveres são LIDAS do Estatuto (não redigitadas): se o texto mudar, a página muda junto.
+const estatuto = carregarEstatuto()
+const semPontuacaoFinal = (texto: string) => texto.replace(/[;.]\s*$/, '')
+
+const exigencias = incisosDoArtigo(estatuto, 12).map((i) =>
+  semPontuacaoFinal(i.texto),
+)
+const direitos = incisosDoArtigo(estatuto, 13).map((i) =>
+  semPontuacaoFinal(i.texto),
+)
+const deveres = incisosDoArtigo(estatuto, 14).map((i) =>
+  semPontuacaoFinal(i.texto),
+)
+const migalhas: Migalha[] = [{ rotulo: 'Seja associado' }]
+
+const passos = [
+  'Preencha a ficha de inscrição na secretaria da entidade.',
+  'A ficha é analisada pela Diretoria Executiva.',
+  'Aprovada, seu nome é lançado no livro de associados, com o seu número de matrícula.',
+]
+---
+
+<Base
+  titulo="Seja associado"
+  descricao="Como se associar à ASAF: quem pode, o que o Estatuto exige, como funciona a aprovação e quais são os direitos e deveres dos associados."
+  caminho="/seja-associado/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Seja associado"
+    resumo="Faça parte da associação. Aqui está o que o Estatuto prevê para quem quer ingressar e para quem já é associado."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-5xl flex-col gap-14 px-4 py-12">
+    <section aria-labelledby="quem-pode">
+      <h2 id="quem-pode" class="text-2xl font-bold tracking-tight">
+        Quem pode se associar
+      </h2>
+      <p class="mt-4 max-w-3xl">
+        Podem filiar-se à ASAF pessoas maiores de dezoito anos e, a partir dos
+        dezesseis anos, com autorização expressa dos pais ou responsáveis,
+        independentemente de classe social, nacionalidade, sexo, raça, cor ou
+        crença religiosa (Estatuto, Art. 12).
+      </p>
+      <p class="mt-3 max-w-3xl">
+        São associados todos aqueles que, voluntariamente, assinam ou autorizam
+        o preenchimento do formulário de ingresso e atendem aos requisitos
+        estatutários (Art. 11).
+      </p>
+    </section>
+
+    <section aria-labelledby="como">
+      <h2 id="como" class="text-2xl font-bold tracking-tight">
+        Como funciona
+      </h2>
+      <ol class="mt-6 grid gap-4 md:grid-cols-3">
+        {passos.map((passo, indice) => (
+          <li class="flex gap-4 rounded-lg border bg-card p-5 shadow-card">
+            <span
+              aria-hidden="true"
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-secondary font-bold text-brand-secondary-foreground"
+            >
+              {indice + 1}
+            </span>
+            <p class="text-sm">{passo}</p>
+          </li>
+        ))}
+      </ol>
+      <p class="mt-4 text-sm text-muted-foreground">Art. 12 do Estatuto.</p>
+    </section>
+
+    <section aria-labelledby="exigencias">
+      <h2 id="exigencias" class="text-2xl font-bold tracking-tight">
+        O que o Estatuto exige para o ingresso
+      </h2>
+      <ul class="mt-4 flex max-w-3xl list-disc flex-col gap-2 pl-6">
+        {exigencias.map((texto) => (
+          <li>{texto}</li>
+        ))}
+      </ul>
+      <p class="mt-4 text-sm text-muted-foreground">
+        Art. 12, parágrafo único, do Estatuto.
+      </p>
+    </section>
+
+    <section
+      aria-labelledby="direitos-deveres"
+      class="grid gap-8 md:grid-cols-2"
+    >
+      <div>
+        <h2 id="direitos-deveres" class="text-2xl font-bold tracking-tight">
+          Direitos dos associados
+        </h2>
+        <p class="mt-2 text-sm text-muted-foreground">
+          Para quem está em dia com as suas obrigações (Art. 13).
+        </p>
+        <ul class="mt-4 flex list-disc flex-col gap-2 pl-6">
+          {direitos.map((texto) => (
+            <li>{texto}</li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <h2 class="text-2xl font-bold tracking-tight">
+          Deveres dos associados
+        </h2>
+        <p class="mt-2 text-sm text-muted-foreground">Art. 14.</p>
+        <ul class="mt-4 flex list-disc flex-col gap-2 pl-6">
+          {deveres.map((texto) => (
+            <li>{texto}</li>
+          ))}
+        </ul>
+      </div>
+    </section>
+
+    <section aria-labelledby="contribuicao">
+      <h2 id="contribuicao" class="text-2xl font-bold tracking-tight">
+        Contribuição mensal
+      </h2>
+      <p class="mt-4 max-w-3xl">
+        As contribuições mensais dos associados são a fonte primária de custeio
+        das atividades da ASAF (Art. 28, I). O valor das mensalidades é
+        estabelecido pela Assembleia Geral Ordinária (Art. 8º, I, d).
+      </p>
+      <p class="mt-3 max-w-3xl">
+        Quem quiser deixar o quadro de associados pode pedir o desligamento na
+        secretaria, desde que não esteja em débito com as obrigações sociais
+        (Art. 15).
+      </p>
+    </section>
+
+    <FaleConosco titulo="Quer se associar?">
+      <p>
+        Hoje, o primeiro passo é falar com a secretaria, que explica os
+        documentos e entrega a ficha de inscrição.
+      </p>
+    </FaleConosco>
+
+    <p class="text-sm">
+      Quer conferir cada regra? Leia o{' '}
+      <a
+        href="/estatuto/#capitulo-iv"
+        class="font-medium text-primary underline underline-offset-4"
+      >
+        Capítulo IV do Estatuto, “Dos associados”
+      </a>
+      .
+    </p>
+  </div>
+</Base>

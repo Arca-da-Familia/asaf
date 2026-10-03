@@ -1,0 +1,122 @@
+---
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import { ORGANIZACAO } from '../../config/organizacao'
+import Base from '../../layouts/Base.astro'
+import { agruparBlocos, carregarEstatuto } from '../../lib/estatuto'
+
+// O texto vem do arquivo ESTATUTO_ASAF.txt da raiz do repositório — o mesmo que o sistema usa.
+const estatuto = carregarEstatuto()
+const migalhas: Migalha[] = [{ rotulo: 'Estatuto Social' }]
+---
+
+<Base
+  titulo="Estatuto Social"
+  descricao="Estatuto Social da Associação Arca da Família (ASAF) na íntegra: 8 capítulos e 35 artigos, com índice e link direto para cada artigo."
+  caminho="/estatuto/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Estatuto Social"
+    resumo={`${ORGANIZACAO.nome} — ${ORGANIZACAO.sigla}. Texto integral, na ordem do documento.`}
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto max-w-5xl px-4 py-10">
+    <p class="max-w-3xl rounded-lg border bg-card p-4 text-sm shadow-card">
+      Texto transcrito do documento do Estatuto mantido no sistema da ASAF, sem
+      nenhuma alteração: a grafia e a pontuação do original foram preservadas.
+    </p>
+
+    <nav
+      aria-label="Índice do Estatuto"
+      class="mt-8 rounded-lg border bg-card p-5 shadow-card"
+    >
+      <h2 class="text-lg font-semibold">Índice</h2>
+      <ol class="mt-3 grid gap-4 md:grid-cols-2">
+        {estatuto.capitulos.map((capitulo) => (
+          <li>
+            <a
+              href={`#capitulo-${capitulo.numeral.toLowerCase()}`}
+              class="font-medium text-primary underline underline-offset-4"
+            >
+              Capítulo {capitulo.numeral} — {capitulo.titulo}
+            </a>
+            <ul class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm">
+              {capitulo.artigos.map((artigo) => (
+                <li>
+                  <a
+                    href={`#art-${artigo.numero}`}
+                    class="underline underline-offset-2"
+                  >
+                    {artigo.rotulo}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ol>
+    </nav>
+
+    <section aria-labelledby="preambulo" class="mt-10 max-w-3xl">
+      <h2 id="preambulo" class="text-2xl font-bold tracking-tight">
+        Preâmbulo
+      </h2>
+      <p class="mt-3 leading-relaxed">{estatuto.preambulo}</p>
+    </section>
+
+    {estatuto.capitulos.map((capitulo) => (
+      <section
+        id={`capitulo-${capitulo.numeral.toLowerCase()}`}
+        aria-labelledby={`titulo-capitulo-${capitulo.numeral.toLowerCase()}`}
+        class="mt-12 max-w-3xl scroll-mt-4"
+      >
+        <h2
+          id={`titulo-capitulo-${capitulo.numeral.toLowerCase()}`}
+          class="border-b-2 border-brand-secondary pb-2 text-2xl font-bold tracking-tight"
+        >
+          Capítulo {capitulo.numeral} — {capitulo.titulo}
+        </h2>
+
+        {capitulo.artigos.map((artigo) => (
+          <article id={`art-${artigo.numero}`} class="mt-8 scroll-mt-4">
+            <h3 class="text-lg font-semibold text-primary">{artigo.rotulo}</h3>
+            {agruparBlocos(artigo.blocos).map((grupo) =>
+              grupo.tipo === 'lista' ? (
+                <ul class="mt-2 flex list-none flex-col gap-2 pl-2 sm:pl-6">
+                  {grupo.blocos.map((bloco) => (
+                    <li class="flex gap-3 leading-relaxed">
+                      <span class="w-8 shrink-0 font-semibold">
+                        {bloco.marcador}
+                        {bloco.tipo === 'subitem' ? ')' : '.'}
+                      </span>
+                      <span>{bloco.texto}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                grupo.blocos.map((bloco) =>
+                  bloco.tipo === 'verso' ? (
+                    <blockquote class="my-4 whitespace-pre-line border-l-4 border-brand-secondary pl-4 italic leading-relaxed">
+                      {bloco.texto}
+                    </blockquote>
+                  ) : (
+                    <p class="mt-2 leading-relaxed">
+                      {bloco.marcador && (
+                        <strong class="font-semibold">
+                          {bloco.marcador} —{' '}
+                        </strong>
+                      )}
+                      {bloco.texto}
+                    </p>
+                  ),
+                )
+              ),
+            )}
+          </article>
+        ))}
+      </section>
+    ))}
+  </div>
+</Base>

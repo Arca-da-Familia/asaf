@@ -1,8 +1,10 @@
 ---
 import Cabecalho from '../components/Cabecalho.astro'
 import Rodape from '../components/Rodape.astro'
+import type { Migalha } from '../config/navegacao'
 import { ORGANIZACAO, SITE_URL } from '../config/organizacao'
 import {
+  jsonLdMigalhas,
   jsonLdOrganizacao,
   serializarJsonLd,
   tituloDaPagina,
@@ -22,6 +24,11 @@ interface Props {
   indexavel?: boolean
   /** JSON-LD extra da página (ex.: schema.org/Event), além da organização. */
   jsonLd?: object[]
+  /**
+   * Trilha da página sem a "Início" (ex.: [{ rotulo: 'Quem somos' }]). Vira o dado estruturado
+   * BreadcrumbList; a trilha VISÍVEL é desenhada por <TituloDePagina migalhas=...>.
+   */
+  migalhas?: Migalha[]
 }
 
 const {
@@ -31,7 +38,21 @@ const {
   imagem = '/og-padrao.png',
   indexavel = true,
   jsonLd = [],
+  migalhas = [],
 } = Astro.props
+
+// A última migalha é a própria página: sem href, usa o caminho da página.
+const dadosMigalhas =
+  migalhas.length > 0
+    ? [
+        jsonLdMigalhas(
+          migalhas.map((m) => ({
+            rotulo: m.rotulo,
+            caminho: m.href ?? caminho,
+          })),
+        ),
+      ]
+    : []
 
 const tituloCompleto = tituloDaPagina(titulo)
 const canonica = urlCanonica(caminho)
@@ -78,7 +99,7 @@ const textoAlternativoImagem = `${ORGANIZACAO.nome} — ${ORGANIZACAO.lema}`
       type="application/ld+json"
       set:html={serializarJsonLd(jsonLdOrganizacao())}
     />
-    {jsonLd.map((dados) => (
+    {[...dadosMigalhas, ...jsonLd].map((dados) => (
       <script
         is:inline
         type="application/ld+json"

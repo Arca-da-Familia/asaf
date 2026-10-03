@@ -4,7 +4,13 @@
       "startServerCommand": "node scripts/servir-teste.mjs",
       "startServerReadyPattern": "PRONTO_PARA_TESTE",
       "startServerReadyTimeout": 60000,
-      "url": ["http://127.0.0.1:4321/"],
+      "url": [
+        "http://127.0.0.1:4321/",
+        "http://127.0.0.1:4321/quem-somos/",
+        "http://127.0.0.1:4321/seja-associado/",
+        "http://127.0.0.1:4321/estatuto/",
+        "http://127.0.0.1:4321/contato/"
+      ],
       "numberOfRuns": 3,
       "settings": {
         "chromeFlags": "--no-sandbox --headless=new"

@@ -1,0 +1,226 @@
+---
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import {
+  DOCUMENTOS_LEGAIS,
+  ENDERECO_LINHA,
+  ORGANIZACAO,
+  PAINEL_URL,
+} from '../../config/organizacao'
+import Base from '../../layouts/Base.astro'
+
+// Texto escrito SÓ com o que o site e o sistema realmente fazem hoje (conferido no código). Versionado
+// em config/organizacao.ts. Revisão jurídica e a definição do encarregado pelo tratamento de dados
+// (LGPD, art. 41) cabem à diretoria — ver o registro no PLANO_PROJETO.md.
+const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
+const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
+const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
+  dateStyle: 'long',
+  timeZone: 'UTC',
+}).format(new Date(`${vigenteDesde}T00:00:00Z`))
+
+const direitos = [
+  'confirmar se tratamos dados seus;',
+  'acessar os seus dados;',
+  'corrigir dados incompletos, inexatos ou desatualizados;',
+  'pedir a anonimização, o bloqueio ou a eliminação de dados desnecessários, excessivos ou tratados em desacordo com a lei;',
+  'pedir a portabilidade dos dados;',
+  'pedir a eliminação dos dados tratados com o seu consentimento;',
+  'saber com quem compartilhamos os seus dados;',
+  'ser informado sobre a possibilidade de não consentir e sobre as consequências disso;',
+  'revogar o consentimento a qualquer momento.',
+]
+---
+
+<Base
+  titulo="Política de Privacidade"
+  descricao="Como a ASAF trata dados pessoais: o que este site coleta (quase nada), com quem compartilhamos, por quanto tempo guardamos e como exercer os seus direitos."
+  caminho="/privacidade/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Política de Privacidade"
+    resumo={`Versão ${versao} · em vigor desde ${dataExtenso}`}
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-3xl flex-col gap-10 px-4 py-12 leading-relaxed">
+    <section
+      aria-labelledby="resumo"
+      class="rounded-lg border bg-card p-6 shadow-card"
+    >
+      <h2 id="resumo" class="text-xl font-bold tracking-tight">
+        Em resumo
+      </h2>
+      <ul class="mt-3 flex list-disc flex-col gap-2 pl-6">
+        <li>
+          Este site <strong>não instala cookies</strong>, não tem anúncios e não
+          usa ferramentas de análise de visitantes de terceiros.
+        </li>
+        <li>
+          Só tratamos dados pessoais que você mesmo informar em um formulário ou
+          cadastro, e apenas para a finalidade informada ali.
+        </li>
+        <li>
+          Não vendemos dados. Você pode exercer os seus direitos escrevendo para{' '}
+          <a
+            href={`mailto:${ORGANIZACAO.email}`}
+            class="font-medium text-primary underline underline-offset-4"
+          >
+            {ORGANIZACAO.email}
+          </a>
+          .
+        </li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="quem">
+      <h2 id="quem" class="text-xl font-bold tracking-tight">
+        Quem é a responsável pelos dados
+      </h2>
+      <p class="mt-3">
+        A responsável (controladora) é a {ORGANIZACAO.nome} ({ORGANIZACAO.sigla}
+        ), CNPJ {ORGANIZACAO.cnpj}, com sede na {ENDERECO_LINHA},
+        {ORGANIZACAO.cidade} — {ORGANIZACAO.uf}, CEP {ORGANIZACAO.endereco.cep}.
+        O canal para falar sobre dados pessoais é o e-mail{' '}
+        <a
+          href={`mailto:${ORGANIZACAO.email}`}
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          {ORGANIZACAO.email}
+        </a>
+        .
+      </p>
+    </section>
+
+    <section aria-labelledby="site">
+      <h2 id="site" class="text-xl font-bold tracking-tight">
+        O que este site coleta quando você apenas navega
+      </h2>
+      <ul class="mt-3 flex list-disc flex-col gap-3 pl-6">
+        <li>
+          <strong>Dados técnicos de acesso.</strong> Como em qualquer site, a
+          plataforma de hospedagem (Microsoft Azure) pode registrar dados
+          técnicos de cada acesso, como endereço IP, data e hora, para a
+          segurança e o funcionamento do serviço. A ASAF não usa esses dados
+          para traçar o perfil de visitantes.
+        </li>
+        <li>
+          <strong>Lista de eventos.</strong> Para mostrar os próximos eventos, o
+          navegador consulta a lista pública de eventos da ASAF. Nessa consulta
+          nenhum dado seu é enviado.
+        </li>
+        <li>
+          <strong>Cookies.</strong> Este site não instala cookies. A{' '}
+          <a
+            href={PAINEL_URL}
+            class="font-medium text-primary underline underline-offset-4"
+          >
+            área do associado
+          </a>
+          (um endereço separado, para quem já é associado) usa um cookie
+          técnico, estritamente necessário, para manter a sua sessão aberta; ele
+          não é usado para rastrear você.
+        </li>
+        <li>
+          <strong>Links para outros sites.</strong> Ao clicar em um link para um
+          site de terceiros (por exemplo, o mapa do Google na página de
+          contato), você passa a ser regido pela política desse site.
+        </li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="formularios">
+      <h2 id="formularios" class="text-xl font-bold tracking-tight">
+        Formulários e cadastros
+      </h2>
+      <p class="mt-3">
+        Quando você se inscrever em um evento, propuser a sua filiação,
+        oferecer-se como voluntário ou enviar uma solicitação à ASAF, tratamos
+        os dados que o formulário pedir (por exemplo, nome, CPF, e-mail e
+        telefone). Cada formulário informa, antes do envio, para que os dados
+        serão usados e qual é a base legal do tratamento. Os dados de associados
+        também são tratados para cumprir obrigações previstas no Estatuto e na
+        lei, como o livro de associados e a escrituração contábil.
+      </p>
+      <p class="mt-3">
+        Dados de crianças e adolescentes são tratados somente com o
+        consentimento específico e em destaque de pelo menos um dos pais ou do
+        responsável legal (LGPD, art. 14, § 1º).
+      </p>
+    </section>
+
+    <section aria-labelledby="compartilhamento">
+      <h2 id="compartilhamento" class="text-xl font-bold tracking-tight">
+        Com quem compartilhamos
+      </h2>
+      <p class="mt-3">
+        A ASAF não vende nem aluga dados pessoais. Os dados podem ser tratados
+        por prestadores de infraestrutura que trabalham por conta da ASAF
+        (hospedagem, banco de dados e envio de e-mail) e fornecidos a
+        autoridades quando houver exigência legal.
+      </p>
+    </section>
+
+    <section aria-labelledby="guarda">
+      <h2 id="guarda" class="text-xl font-bold tracking-tight">
+        Por quanto tempo guardamos
+      </h2>
+      <p class="mt-3">
+        Pelo tempo necessário para cumprir a finalidade para a qual o dado foi
+        informado e as obrigações legais e estatutárias da ASAF. Acabado esse
+        prazo, os dados são eliminados ou anonimizados.
+      </p>
+    </section>
+
+    <section aria-labelledby="seguranca">
+      <h2 id="seguranca" class="text-xl font-bold tracking-tight">
+        Segurança
+      </h2>
+      <p class="mt-3">
+        A comunicação com este site e com a área do associado é criptografada
+        (HTTPS). Os dados de associados ficam em ambiente de acesso restrito,
+        liberado por perfil conforme a função de cada pessoa, com registro dos
+        acessos e das alterações.
+      </p>
+    </section>
+
+    <section aria-labelledby="direitos">
+      <h2 id="direitos" class="text-xl font-bold tracking-tight">
+        Os seus direitos
+      </h2>
+      <p class="mt-3">
+        A Lei Geral de Proteção de Dados (Lei nº 13.709/2018, art. 18) garante
+        que você pode, a qualquer momento:
+      </p>
+      <ul class="mt-3 flex list-disc flex-col gap-1 pl-6">
+        {direitos.map((direito) => (
+          <li>{direito}</li>
+        ))}
+      </ul>
+      <p class="mt-3">
+        Para exercer qualquer desses direitos, escreva para{' '}
+        <a
+          href={`mailto:${ORGANIZACAO.email}`}
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          {ORGANIZACAO.email}
+        </a>
+        . A lei prevê que a resposta completa a um pedido de acesso seja dada em
+        até 15 dias (art. 19, II). Se achar que o seu pedido não foi atendido,
+        você também pode reclamar à Autoridade Nacional de Proteção de Dados
+        (ANPD).
+      </p>
+    </section>
+
+    <section aria-labelledby="mudancas">
+      <h2 id="mudancas" class="text-xl font-bold tracking-tight">
+        Mudanças nesta política
+      </h2>
+      <p class="mt-3">
+        Quando este texto mudar, a versão e a data de vigência no topo da página
+        são atualizadas. Esta é a versão {versao}, em vigor desde {dataExtenso}.
+      </p>
+    </section>
+  </div>
+</Base>

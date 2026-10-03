@@ -1,4 +1,5 @@
 ---
+import CartaoDeLink from '../components/CartaoDeLink.astro'
 import ProximosEventos from '../components/ProximosEventos.astro'
 import { LOGO, ORGANIZACAO, PAINEL_URL } from '../config/organizacao'
 import Base from '../layouts/Base.astro'
@@ -26,8 +27,14 @@ const ALTURA_LOGO = Math.round(LARGURA_LOGO / LOGO.proporcao)
         </p>
         <div class="mt-8 flex flex-wrap gap-3">
           <a
-            href="#eventos"
+            href="/como-ajudar/"
             class="rounded-md bg-brand-secondary px-5 py-3 font-semibold text-brand-secondary-foreground hover:opacity-90"
+          >
+            Como ajudar
+          </a>
+          <a
+            href="#eventos"
+            class="rounded-md border border-primary-foreground px-5 py-3 font-medium hover:bg-primary-foreground hover:text-primary"
           >
             Ver próximos eventos
           </a>
@@ -72,9 +79,79 @@ const ALTURA_LOGO = Math.round(LARGURA_LOGO / LOGO.proporcao)
         </li>
       ))}
     </ul>
+    <p class="mt-6">
+      <a
+        href="/quem-somos/"
+        class="font-medium text-primary underline underline-offset-4"
+      >
+        Conheça a ASAF →
+      </a>
+    </p>
   </section>
 
   <ProximosEventos />
+
+  <section
+    aria-labelledby="participe-titulo"
+    class="mx-auto max-w-5xl px-4 py-12"
+  >
+    <h2 id="participe-titulo" class="text-2xl font-bold tracking-tight">
+      Participe
+    </h2>
+    <div class="mt-6 grid gap-4 md:grid-cols-3">
+      <CartaoDeLink
+        titulo="Seja associado"
+        href="/seja-associado/"
+        rotulo="Veja como se associar"
+      >
+        <p>Faça parte da associação e participe das decisões da assembleia.</p>
+      </CartaoDeLink>
+      <CartaoDeLink
+        titulo="Seja voluntário"
+        href="/seja-voluntario/"
+        rotulo="Veja como ser voluntário"
+      >
+        <p>Dedique um pouco do seu tempo às famílias atendidas pela ASAF.</p>
+      </CartaoDeLink>
+      <CartaoDeLink
+        titulo="Apoie a ASAF"
+        href="/como-ajudar/"
+        rotulo="Veja como ajudar"
+      >
+        <p>Doações, patrocínios e parcerias ajudam a manter os projetos.</p>
+      </CartaoDeLink>
+    </div>
+  </section>
+
+  <section
+    aria-labelledby="transparencia-titulo"
+    class="mx-auto max-w-5xl px-4 pb-12"
+  >
+    <div class="rounded-lg border bg-card p-6 shadow-card sm:p-8">
+      <h2 id="transparencia-titulo" class="text-xl font-bold tracking-tight">
+        Contas claras
+      </h2>
+      <p class="mt-2 max-w-2xl">
+        O Estatuto exige que a Diretoria preste contas à Assembleia Geral e que
+        o Conselho Fiscal examine toda a movimentação financeira. Veja como isso
+        funciona e leia o Estatuto na íntegra.
+      </p>
+      <div class="mt-5 flex flex-wrap gap-3">
+        <a
+          href="/transparencia/"
+          class="inline-block rounded-md bg-primary px-5 py-3 font-medium text-primary-foreground hover:opacity-90"
+        >
+          Transparência
+        </a>
+        <a
+          href="/estatuto/"
+          class="inline-block rounded-md border px-5 py-3 font-medium hover:bg-accent"
+        >
+          Estatuto Social
+        </a>
+      </div>
+    </div>
+  </section>
 
   <section
     aria-labelledby="associado-titulo"

@@ -1,0 +1,137 @@
+---
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import {
+  DOCUMENTOS_LEGAIS,
+  ORGANIZACAO,
+  PAINEL_URL,
+} from '../../config/organizacao'
+import Base from '../../layouts/Base.astro'
+
+// Texto escrito SÓ com o que o site e o sistema realmente fazem hoje. Versionado em
+// config/organizacao.ts. A revisão jurídica cabe à diretoria — ver o registro no PLANO_PROJETO.md.
+// De propósito NÃO define foro nem licença de uso de conteúdo: são decisões da diretoria.
+const migalhas: Migalha[] = [{ rotulo: 'Termos de Uso' }]
+const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.termos
+const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
+  dateStyle: 'long',
+  timeZone: 'UTC',
+}).format(new Date(`${vigenteDesde}T00:00:00Z`))
+
+const secoes = [
+  {
+    id: 'objeto',
+    titulo: 'Para que serve este site',
+    texto: `Este site é o canal de informação pública da ${ORGANIZACAO.nome} (${ORGANIZACAO.sigla}): apresenta a entidade, o Estatuto, os eventos e as formas de participar. Ao usá-lo, você concorda com estes Termos.`,
+  },
+  {
+    id: 'conteudo',
+    titulo: 'Sobre o conteúdo',
+    texto:
+      'Nos esforçamos para manter as informações corretas e atualizadas, mas elas podem mudar sem aviso. O texto do Estatuto exibido aqui é uma transcrição do documento mantido no sistema da ASAF; em caso de divergência entre este site e o Estatuto registrado, vale o Estatuto registrado.',
+  },
+  {
+    id: 'marca',
+    titulo: 'Nome e logotipo',
+    texto:
+      'O nome, a sigla e o logotipo da ASAF pertencem à associação. O uso deles por terceiros depende de autorização da diretoria.',
+  },
+  {
+    id: 'uso',
+    titulo: 'Uso adequado',
+    texto:
+      'Você se compromete a usar o site de forma lícita, sem tentar acessar áreas restritas, sem sobrecarregar o serviço e sem enviar conteúdo falso ou que viole direitos de terceiros.',
+  },
+  {
+    id: 'links',
+    titulo: 'Links para outros sites',
+    texto:
+      'O site pode ter links para páginas de terceiros. A ASAF não controla esses sites e não responde pelo seu conteúdo nem pelo seu tratamento de dados.',
+  },
+  {
+    id: 'disponibilidade',
+    titulo: 'Disponibilidade',
+    texto:
+      'Podemos suspender o site por manutenção ou por motivo técnico. Não garantimos funcionamento ininterrupto.',
+  },
+  {
+    id: 'lei',
+    titulo: 'Lei aplicável',
+    texto:
+      'Estes Termos são regidos pelas leis da República Federativa do Brasil.',
+  },
+]
+---
+
+<Base
+  titulo="Termos de Uso"
+  descricao="Termos de uso do site da ASAF: para que serve, como tratamos o conteúdo, o uso adequado, links externos e a área do associado."
+  caminho="/termos/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Termos de Uso"
+    resumo={`Versão ${versao} · em vigor desde ${dataExtenso}`}
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-3xl flex-col gap-10 px-4 py-12 leading-relaxed">
+    {secoes.map((secao) => (
+      <section aria-labelledby={secao.id}>
+        <h2 id={secao.id} class="text-xl font-bold tracking-tight">
+          {secao.titulo}
+        </h2>
+        <p class="mt-3">{secao.texto}</p>
+      </section>
+    ))}
+
+    <section aria-labelledby="area-associado">
+      <h2 id="area-associado" class="text-xl font-bold tracking-tight">
+        Área do associado
+      </h2>
+      <p class="mt-3">
+        O acesso à{' '}
+        <a
+          href={PAINEL_URL}
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          área do associado
+        </a>{' '}
+        é restrito a associados e a pessoas autorizadas. As credenciais são
+        pessoais e intransferíveis: não as compartilhe com ninguém.
+      </p>
+    </section>
+
+    <section aria-labelledby="privacidade">
+      <h2 id="privacidade" class="text-xl font-bold tracking-tight">
+        Privacidade
+      </h2>
+      <p class="mt-3">
+        O tratamento de dados pessoais é explicado na{' '}
+        <a
+          href="/privacidade/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          Política de Privacidade
+        </a>
+        .
+      </p>
+    </section>
+
+    <section aria-labelledby="contato-termos">
+      <h2 id="contato-termos" class="text-xl font-bold tracking-tight">
+        Dúvidas
+      </h2>
+      <p class="mt-3">
+        Fale com a ASAF pelo e-mail{' '}
+        <a
+          href={`mailto:${ORGANIZACAO.email}`}
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          {ORGANIZACAO.email}
+        </a>
+        . Esta é a versão {versao} dos Termos, em vigor desde {dataExtenso}.
+      </p>
+    </section>
+  </div>
+</Base>

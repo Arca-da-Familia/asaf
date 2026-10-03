@@ -1,0 +1,25 @@
+---
+interface Props {
+  titulo: string
+  href: string
+  /** Texto do link (ex.: "Saiba como"). */
+  rotulo?: string
+}
+
+const { titulo, href, rotulo = 'Saiba mais' } = Astro.props
+---
+
+<div class="flex flex-col rounded-lg border bg-card p-6 shadow-card">
+  <h3 class="text-lg font-semibold">{titulo}</h3>
+  <div class="mt-2 flex-1 text-sm">
+    <slot />
+  </div>
+  <a
+    href={href}
+    class="mt-4 inline-flex items-center gap-1 font-medium text-primary underline underline-offset-4 hover:opacity-80"
+  >
+    {rotulo}
+    <span class="sr-only">: {titulo}</span>
+    <span aria-hidden="true">→</span>
+  </a>
+</div>

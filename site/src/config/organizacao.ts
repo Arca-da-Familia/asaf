@@ -64,6 +64,16 @@ export const ORGANIZACAO = {
     'Entidade filantrópica sem fins econômicos, com sede em Parauapebas (PA), dedicada ao atendimento e à assistência à família, sem distinção de classe, raça ou crença.',
 } as const
 
+/**
+ * Documentos legais versionados do site (PLANO v5.2: "Política de Privacidade e Termos de Uso
+ * versionados"). Mudou o texto de uma página legal: aumente a versão e a data aqui — é o histórico
+ * do que estava em vigor em cada época (a mudança fica no Git).
+ */
+export const DOCUMENTOS_LEGAIS = {
+  privacidade: { versao: '1.0', vigenteDesde: '2026-10-03' },
+  termos: { versao: '1.0', vigenteDesde: '2026-10-03' },
+} as const
+
 /** "Rua Paulo Afonso, 150 — Bairro da Paz" */
 export const ENDERECO_LINHA = `${ORGANIZACAO.endereco.logradouro}, ${ORGANIZACAO.endereco.numero} — ${ORGANIZACAO.endereco.bairro}`
 

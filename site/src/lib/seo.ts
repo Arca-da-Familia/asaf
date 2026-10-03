@@ -87,6 +87,30 @@ export function jsonLdOrganizacao() {
   }
 }
 
+export interface MigalhaParaJsonLd {
+  rotulo: string
+  /** Caminho (ex.: "/quem-somos/"); a última migalha (página atual) também leva o seu. */
+  caminho: string
+}
+
+/**
+ * schema.org/BreadcrumbList — o Google mostra "ASAF › Quem somos" no resultado de busca. A home é
+ * sempre o primeiro item; `trilha` traz os demais, do mais alto ao da própria página.
+ */
+export function jsonLdMigalhas(trilha: MigalhaParaJsonLd[]) {
+  const itens = [{ rotulo: 'Início', caminho: '/' }, ...trilha]
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: itens.map((item, indice) => ({
+      '@type': 'ListItem',
+      position: indice + 1,
+      name: item.rotulo,
+      item: urlCanonica(item.caminho),
+    })),
+  }
+}
+
 export interface EventoParaJsonLd {
   id_evento: number
   titulo: string

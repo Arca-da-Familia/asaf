@@ -34,7 +34,7 @@ npm run preview      # serve dist/
 ```bash
 npm run format:check   # Prettier
 npm run typecheck      # astro check
-npm test               # unitários (vitest): datas/fuso, SEO/JSON-LD, cliente da API, ilha de eventos
+npm test               # unitários (vitest): datas/fuso, SEO/JSON-LD, cliente da API, ilha de eventos, Estatuto, menus
 npm run logos          # regenera logo/ícones a partir de design/logo (ver design/README.md)
 npm run build:teste    # build com a ilha apontando para a API SIMULADA (obrigatório p/ e2e e Lighthouse)
 npm run test:e2e       # Playwright: axe WCAG 2.1 AA, SEO, links, ilha em cada estado
@@ -45,7 +45,33 @@ npm run lighthouse     # Lighthouse CI (precisa de Chrome; localmente: CHROME_PA
   acessibilidade e SEO. Ninguém precisa lembrar de registrar.
 - `global-setup` recusa rodar o e2e contra um `dist/` de produção (testaria a API real).
 - Metas que **reprovam o deploy**: axe sem nenhuma violação (desktop e 375px); Lighthouse
-  desempenho ≥ 90, melhores práticas ≥ 95, acessibilidade = 100, SEO = 100.
+  desempenho ≥ 90, melhores práticas ≥ 95, acessibilidade = 100, SEO = 100 — medido na home,
+  em Quem somos, Seja associado, Estatuto e Contato (`lighthouserc.json`; acrescente a página
+  nova pesada aqui).
+
+## Páginas (v5.2) e de onde vem cada texto
+
+**Regra: nada é inventado.** Cada página institucional cita o artigo do Estatuto de onde tirou a
+informação, e o que falta (história além da data de fundação, mapa com pino) NÃO é preenchido.
+
+| Página                            | Fonte                                                                                                                                                                                                |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/estatuto/`                      | `ESTATUTO_ASAF.txt` (raiz do repo), lido por `src/lib/estatuto.ts`; `tests/estatuto.test.ts` prova que **nenhuma palavra se perde, repete ou troca de ordem** e que o build falha se o formato mudar |
+| `/quem-somos/`, `/transparencia/` | Estatuto (artigos citados no texto) + `src/config/organizacao.ts`                                                                                                                                    |
+| `/seja-associado/`                | Arts. 11–15 e 28 do Estatuto — as listas de exigências, direitos e deveres são **lidas** do Estatuto, não redigitadas                                                                                |
+| `/seja-voluntario/`               | regras do módulo de voluntariado do sistema (termo de adesão, menores) e Lei 9.608/1998                                                                                                              |
+| `/como-ajudar/`, `/contato/`      | Estatuto (Art. 28) e dados confirmados da entidade                                                                                                                                                   |
+| `/privacidade/`, `/termos/`       | descrevem só o que o site/sistema fazem hoje; versão e data em `DOCUMENTOS_LEGAIS` (`organizacao.ts`)                                                                                                |
+
+- **Navegação** num lugar só: `src/config/navegacao.ts` (cabeçalho, menu de celular em
+  `<details>` sem JavaScript, rodapé). Só entra página que existe — o e2e confere que todo link
+  interno responde 200.
+- **Migalhas** (`<TituloDePagina migalhas=...>` + `<Base migalhas=...>`) geram o dado
+  estruturado `BreadcrumbList`.
+- **Texto com link**: o Astro junta palavras quando o texto termina numa linha e o `<a>` começa na
+  seguinte. Use `{' '}` antes/depois do link; `e2e/texto.spec.ts` reprova se alguma palavra colar.
+- **Contato sem mapa embutido, de propósito**: o CEP 68515-000 é da cidade inteira e o
+  OpenStreetMap não conhece a rua — qualquer pino seria chute. O botão busca pelo endereço.
 
 ## SEO técnico
 

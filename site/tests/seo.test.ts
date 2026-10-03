@@ -2,11 +2,29 @@ import { describe, expect, it } from 'vitest'
 
 import {
   jsonLdEvento,
+  jsonLdMigalhas,
   jsonLdOrganizacao,
   serializarJsonLd,
   tituloDaPagina,
   urlCanonica,
 } from '../src/lib/seo'
+
+describe('jsonLdMigalhas (BreadcrumbList)', () => {
+  it('começa pela Início e numera as posições a partir de 1', () => {
+    const dados = jsonLdMigalhas([
+      { rotulo: 'Projetos', caminho: '/projetos/' },
+      { rotulo: 'Horta comunitária', caminho: '/projetos/horta/' },
+    ])
+    expect(dados['@type']).toBe('BreadcrumbList')
+    expect(
+      dados.itemListElement.map((i) => [i.position, i.name, i.item]),
+    ).toEqual([
+      [1, 'Início', 'https://asaf.org.br/'],
+      [2, 'Projetos', 'https://asaf.org.br/projetos/'],
+      [3, 'Horta comunitária', 'https://asaf.org.br/projetos/horta/'],
+    ])
+  })
+})
 
 describe('tituloDaPagina', () => {
   it('home usa o nome completo', () => {

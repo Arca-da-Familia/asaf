@@ -1,0 +1,151 @@
+---
+import FaleConosco from '../../components/FaleConosco.astro'
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import { ENDERECO_LINHA, ORGANIZACAO } from '../../config/organizacao'
+import Base from '../../layouts/Base.astro'
+
+// Fontes: Estatuto Social (Arts. 1º, 5º, 8º, 20, 23, 24 e 28) e dados institucionais confirmados
+// pelo usuário (CNPJ, sede, contato). Só é listado como "publicado" o que de fato existe no site.
+// Editais, atas e prestações de contas aprovadas entram aqui quando forem publicados (v5.2, etapa de
+// dados vivos, e FASE 6/12.7) — nunca prometidos antes de existirem.
+const migalhas: Migalha[] = [{ rotulo: 'Transparência' }]
+
+const etapasDeContas = [
+  {
+    quem: 'Diretoria Executiva',
+    o_que:
+      'Elabora o orçamento anual e apresenta à Assembleia Geral o relatório anual de sua gestão e a prestação de contas do exercício anterior.',
+    artigo: 'Art. 20, III e IV',
+  },
+  {
+    quem: 'Tesouraria',
+    o_que:
+      'O 1º Tesoureiro apresenta ao Conselho Fiscal os balancetes semestrais e o balanço anual, e organiza o relatório do balanço financeiro e dos principais eventos do ano anterior para a Assembleia Geral Ordinária.',
+    artigo: 'Art. 23, V e VI',
+  },
+  {
+    quem: 'Conselho Fiscal',
+    o_que:
+      'Examina os livros de escrituração, requisita a documentação das operações e dá pareceres sobre os balanços e relatórios, que são submetidos à Assembleia Geral.',
+    artigo: 'Art. 24',
+  },
+  {
+    quem: 'Assembleia Geral Ordinária',
+    o_que:
+      'Delibera sobre a previsão orçamentária e a prestação de contas. Reúne-se semestralmente, na primeira quinzena de fevereiro e de agosto.',
+    artigo: 'Art. 5º, I, e Art. 8º, I, c',
+  },
+]
+---
+
+<Base
+  titulo="Transparência"
+  descricao="Informações públicas da ASAF: dados da entidade, Estatuto, como a diretoria presta contas e quem fiscaliza as contas da associação."
+  caminho="/transparencia/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Transparência"
+    resumo="Quem somos juridicamente, como as contas são fiscalizadas e quais documentos estão publicados."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-5xl flex-col gap-14 px-4 py-12">
+    <section aria-labelledby="entidade">
+      <h2 id="entidade" class="text-2xl font-bold tracking-tight">
+        Dados da entidade
+      </h2>
+      <dl class="mt-4 grid max-w-3xl gap-x-8 gap-y-3 sm:grid-cols-[auto_1fr]">
+        <dt class="font-medium">Nome</dt>
+        <dd>
+          {ORGANIZACAO.nome} ({ORGANIZACAO.sigla})
+        </dd>
+        <dt class="font-medium">CNPJ</dt>
+        <dd>{ORGANIZACAO.cnpj}</dd>
+        <dt class="font-medium">Natureza</dt>
+        <dd>{ORGANIZACAO.natureza}</dd>
+        <dt class="font-medium">Fundação</dt>
+        <dd>{ORGANIZACAO.fundacaoPorExtenso}</dd>
+        <dt class="font-medium">Sede</dt>
+        <dd>
+          {ENDERECO_LINHA}, {ORGANIZACAO.cidade} — {ORGANIZACAO.uf}, CEP{' '}
+          {ORGANIZACAO.endereco.cep}
+        </dd>
+        <dt class="font-medium">Contato</dt>
+        <dd>
+          <a
+            href={ORGANIZACAO.telefoneLink}
+            class="underline underline-offset-4"
+          >
+            {ORGANIZACAO.telefone}
+          </a>
+          ·
+          <a
+            href={`mailto:${ORGANIZACAO.email}`}
+            class="underline underline-offset-4"
+          >
+            {ORGANIZACAO.email}
+          </a>
+        </dd>
+      </dl>
+    </section>
+
+    <section aria-labelledby="prestacao">
+      <h2 id="prestacao" class="text-2xl font-bold tracking-tight">
+        Como a ASAF presta contas
+      </h2>
+      <p class="mt-4 max-w-3xl">
+        O Estatuto estabelece um caminho em que quem administra o dinheiro
+        sempre responde a quem fiscaliza:
+      </p>
+      <ol class="mt-6 grid gap-4 md:grid-cols-2">
+        {etapasDeContas.map((etapa, indice) => (
+          <li class="rounded-lg border bg-card p-5 shadow-card">
+            <p class="text-sm font-medium text-primary">
+              {indice + 1}. {etapa.artigo}
+            </p>
+            <h3 class="mt-1 text-lg font-semibold">{etapa.quem}</h3>
+            <p class="mt-2 text-sm">{etapa.o_que}</p>
+          </li>
+        ))}
+      </ol>
+      <p class="mt-6 max-w-3xl font-medium">
+        Os recursos, o patrimônio e os rendimentos da ASAF são integralmente
+        aplicados no território brasileiro, no desenvolvimento de seus objetivos
+        sociais (Art. 28, § 3º).
+      </p>
+    </section>
+
+    <section aria-labelledby="documentos">
+      <h2 id="documentos" class="text-2xl font-bold tracking-tight">
+        Documentos publicados
+      </h2>
+      <ul class="mt-4 flex flex-col gap-3">
+        <li class="rounded-lg border bg-card p-5 shadow-card">
+          <a
+            href="/estatuto/"
+            class="text-lg font-semibold text-primary underline underline-offset-4"
+          >
+            Estatuto Social
+          </a>
+          <p class="mt-1 text-sm">
+            Texto integral, com 8 capítulos e 35 artigos.
+          </p>
+        </li>
+      </ul>
+      <p class="mt-4 max-w-3xl text-sm text-muted-foreground">
+        No momento, o Estatuto é o único documento publicado nesta página.
+        Editais de assembleia e demais documentos aparecerão aqui quando forem
+        publicados.
+      </p>
+    </section>
+
+    <FaleConosco titulo="Precisa de alguma informação?">
+      <p>
+        Se procura um documento que ainda não está aqui, peça à secretaria da
+        ASAF.
+      </p>
+    </FaleConosco>
+  </div>
+</Base>

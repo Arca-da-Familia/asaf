@@ -1,0 +1,47 @@
+---
+import { ORGANIZACAO } from '../config/organizacao'
+
+interface Props {
+  titulo?: string
+  /** Mostra o botão para a página de contato (desligue na própria página de contato). */
+  comLinkDeContato?: boolean
+}
+
+const { titulo = 'Fale com a secretaria', comLinkDeContato = true } =
+  Astro.props
+const idTitulo = `fale-${titulo.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+---
+
+<section
+  aria-labelledby={idTitulo}
+  class="rounded-lg border bg-card p-6 shadow-card sm:p-8"
+>
+  <h2 id={idTitulo} class="text-xl font-bold tracking-tight">
+    {titulo}
+  </h2>
+  <div class="mt-2 max-w-2xl">
+    <slot />
+  </div>
+  <div class="mt-5 flex flex-wrap gap-3">
+    <a
+      href={ORGANIZACAO.telefoneLink}
+      class="rounded-md bg-primary px-5 py-3 font-medium text-primary-foreground hover:opacity-90"
+    >
+      Ligar: {ORGANIZACAO.telefone}
+    </a>
+    <a
+      href={`mailto:${ORGANIZACAO.email}`}
+      class="rounded-md border px-5 py-3 font-medium hover:bg-accent"
+    >
+      Enviar e-mail
+    </a>
+    {comLinkDeContato && (
+      <a
+        href="/contato/"
+        class="rounded-md border px-5 py-3 font-medium hover:bg-accent"
+      >
+        Endereço e como chegar
+      </a>
+    )}
+  </div>
+</section>

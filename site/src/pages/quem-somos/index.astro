@@ -1,0 +1,178 @@
+---
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import { ORGANIZACAO } from '../../config/organizacao'
+import Base from '../../layouts/Base.astro'
+import { buscarArtigo, carregarEstatuto } from '../../lib/estatuto'
+
+// Fonte de TODO o texto desta página: Estatuto Social (ESTATUTO_ASAF.txt) — o artigo vem citado em
+// cada bloco. Nada aqui é inventado; história além da data de fundação não consta em documento
+// nenhum do sistema e por isso não é contada.
+const estatuto = carregarEstatuto()
+const oracao = buscarArtigo(estatuto, 33).blocos.find((b) => b.tipo === 'verso')
+const migalhas: Migalha[] = [{ rotulo: 'Quem somos' }]
+
+const orgaos = [
+  {
+    nome: 'Assembleia Geral',
+    texto:
+      'Formada pelos associados em pleno gozo de seus direitos, é o órgão máximo e soberano da ASAF (Art. 4º). A assembleia ordinária se reúne semestralmente, na primeira quinzena de fevereiro e de agosto (Art. 5º, I).',
+  },
+  {
+    nome: 'Diretoria Executiva',
+    texto:
+      'Gerencia a associação, elabora o orçamento anual e apresenta à Assembleia Geral o relatório de gestão e a prestação de contas. É composta por Presidente, 1º e 2º Vice-Presidentes, 1º e 2º Secretários e 1º e 2º Tesoureiros (Arts. 19 e 20).',
+  },
+  {
+    nome: 'Conselho Fiscal',
+    texto:
+      'Composto por três membros, fiscaliza e dá parecer sobre toda a movimentação financeira e contábil realizada pela Diretoria Executiva (Art. 24).',
+  },
+]
+---
+
+<Base
+  titulo="Quem somos"
+  descricao="Conheça a ASAF: entidade filantrópica fundada em 10 de fevereiro de 2013, em Parauapebas (PA), dedicada ao atendimento e à assistência à família."
+  caminho="/quem-somos/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Quem somos"
+    resumo={`${ORGANIZACAO.natureza} Fundada em ${ORGANIZACAO.fundacaoPorExtenso}, com sede em ${ORGANIZACAO.cidade} (${ORGANIZACAO.uf}).`}
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-5xl flex-col gap-14 px-4 py-12">
+    <section aria-labelledby="razao">
+      <h2 id="razao" class="text-2xl font-bold tracking-tight">
+        Nossa razão de existir
+      </h2>
+      <p class="mt-4 max-w-3xl text-lg">
+        O objetivo principal da {ORGANIZACAO.sigla} é {ORGANIZACAO.objetivo}
+      </p>
+      <p class="mt-3 max-w-3xl">
+        As ações sociais buscam alcançar as famílias, que são a razão da
+        constituição e da existência da associação (Estatuto, Arts. 1º e 3º).
+      </p>
+      <p class="mt-5 text-xl italic text-primary">“{ORGANIZACAO.lema}”</p>
+      <p class="text-sm text-muted-foreground">
+        Lema da ASAF (Estatuto, Art. 1º, parágrafo único)
+      </p>
+    </section>
+
+    <section aria-labelledby="areas">
+      <h2 id="areas" class="text-2xl font-bold tracking-tight">
+        Onde atuamos
+      </h2>
+      <p class="mt-4 max-w-3xl">
+        O Estatuto prevê ações sociais nas mais variadas formas e áreas onde
+        seja possível atingir as famílias, sem prejuízo de outras que vierem a
+        existir e se fizerem necessárias (Art. 3º):
+      </p>
+      <ul class="mt-4 flex flex-wrap gap-2">
+        {ORGANIZACAO.areasDeAtuacao.map((area) => (
+          <li class="rounded-full bg-brand-tertiary/25 px-4 py-1.5 text-sm font-medium">
+            {area}
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section aria-labelledby="principios">
+      <h2 id="principios" class="text-2xl font-bold tracking-tight">
+        Como agimos
+      </h2>
+      <p class="mt-4 max-w-3xl">
+        Para coibir qualquer vantagem ou promoção pessoal, a ASAF adota, em suas
+        atividades externas, os princípios constitucionais da impessoalidade,
+        legalidade, moralidade, publicidade, economicidade e eficiência (Art.
+        2º).
+      </p>
+    </section>
+
+    <section aria-labelledby="organizacao">
+      <h2 id="organizacao" class="text-2xl font-bold tracking-tight">
+        Como somos organizados
+      </h2>
+      <ul class="mt-6 grid gap-4 md:grid-cols-3">
+        {orgaos.map((orgao) => (
+          <li class="rounded-lg border bg-card p-5 shadow-card">
+            <h3 class="text-lg font-semibold">{orgao.nome}</h3>
+            <p class="mt-2 text-sm">{orgao.texto}</p>
+          </li>
+        ))}
+      </ul>
+      <p class="mt-6 max-w-3xl">
+        Os cargos nos órgãos de direção são preenchidos por escrutínio secreto
+        em Assembleia Geral (Art. 18, parágrafo único). As eleições acontecem de
+        quatro em quatro anos, na primeira quinzena de fevereiro, e os mandatos
+        duram quatro anos (Arts. 25 e 32).
+      </p>
+    </section>
+
+    <section aria-labelledby="recursos">
+      <h2 id="recursos" class="text-2xl font-bold tracking-tight">
+        De onde vêm os recursos
+      </h2>
+      <p class="mt-4 max-w-3xl">
+        O custeio das atividades vem, como fonte primária, das contribuições
+        mensais dos associados; de doações, patrocínios, legados, bens, direitos
+        e valores de pessoas físicas ou jurídicas; do resultado financeiro das
+        promoções e eventos; e de aluguéis, venda de patrimônio e juros (Art.
+        28). Como fonte secundária e em caráter excepcional, podem vir também
+        recursos públicos ou privados por meio de convênios, contratos,
+        comodato, contrato de gestão, termo de parceria, auxílios e subvenções
+        (Art. 28, § 1º).
+      </p>
+      <p class="mt-3 max-w-3xl font-medium">
+        Os recursos, o patrimônio e os rendimentos da ASAF são integralmente
+        aplicados no território brasileiro, no desenvolvimento de seus objetivos
+        sociais (Art. 28, § 3º).
+      </p>
+      <p class="mt-4">
+        <a
+          href="/transparencia/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          Veja como a ASAF presta contas →
+        </a>
+      </p>
+    </section>
+
+    <section aria-labelledby="identidade">
+      <h2 id="identidade" class="text-2xl font-bold tracking-tight">
+        Nossa identidade
+      </h2>
+      <p class="mt-4 max-w-3xl">
+        O Estatuto define como cláusulas pétreas — que não podem ser alteradas —
+        o dia 10 de fevereiro como data magna, aniversário da ASAF; a base
+        bíblica da entidade; e a oração oficial (Art. 33):
+      </p>
+      {oracao && (
+        <blockquote class="my-6 max-w-xl whitespace-pre-line border-l-4 border-brand-secondary pl-5 text-lg italic leading-relaxed">
+          {oracao.texto}
+        </blockquote>
+      )}
+    </section>
+
+    <section
+      aria-labelledby="estatuto-cta"
+      class="rounded-lg border bg-card p-6 shadow-card sm:p-8"
+    >
+      <h2 id="estatuto-cta" class="text-xl font-bold tracking-tight">
+        Leia o Estatuto completo
+      </h2>
+      <p class="mt-2 max-w-2xl">
+        Tudo o que está nesta página vem do Estatuto Social, que você pode ler
+        na íntegra, artigo por artigo.
+      </p>
+      <a
+        href="/estatuto/"
+        class="mt-5 inline-block rounded-md bg-primary px-5 py-3 font-medium text-primary-foreground hover:opacity-90"
+      >
+        Abrir o Estatuto Social
+      </a>
+    </section>
+  </div>
+</Base>

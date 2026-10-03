@@ -1,0 +1,99 @@
+---
+import FaleConosco from '../../components/FaleConosco.astro'
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import Base from '../../layouts/Base.astro'
+
+// Fonte: regras do módulo de voluntariado do sistema da ASAF (app/models/voluntariado.py,
+// app/services/voluntariado.py, app/services/projetos.py — v1.6 e v4.4) e Lei nº 9.608/1998.
+// Não prometemos o que o sistema ainda não faz (ex.: certificado de voluntariado).
+const migalhas: Migalha[] = [{ rotulo: 'Seja voluntário' }]
+
+const etapas = [
+  {
+    titulo: 'Fale com a gente',
+    texto:
+      'Conte em qual atividade você gostaria de ajudar e quanto tempo tem disponível por semana.',
+  },
+  {
+    titulo: 'Assine o termo de adesão',
+    texto:
+      'O termo de adesão ao serviço voluntário é exigido por lei. Nele constam a atividade, a carga horária semanal, o local e o período do voluntariado.',
+  },
+  {
+    titulo: 'Seja escalado em um projeto',
+    texto:
+      'As atividades são organizadas em projetos e em turnos. O coordenador do projeto confirma a sua participação.',
+  },
+  {
+    titulo: 'Registre as suas horas',
+    texto:
+      'As horas dedicadas são registradas e aprovadas pelo coordenador do projeto, e ficam guardadas no histórico do voluntário.',
+  },
+]
+---
+
+<Base
+  titulo="Seja voluntário"
+  descricao="Como ser voluntário da ASAF: o termo de adesão previsto na Lei 9.608/1998, as regras para menores de 18 anos e como as atividades são organizadas."
+  caminho="/seja-voluntario/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Seja voluntário"
+    resumo="Dedique um pouco do seu tempo às famílias atendidas pela ASAF. Veja como funciona."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-5xl flex-col gap-14 px-4 py-12">
+    <section aria-labelledby="o-que-e">
+      <h2 id="o-que-e" class="text-2xl font-bold tracking-tight">
+        O que é ser voluntário
+      </h2>
+      <p class="mt-4 max-w-3xl">
+        Voluntário é quem presta serviço sem remuneração, por escolha própria. O
+        serviço voluntário não gera vínculo de emprego, conforme a Lei nº
+        9.608/1998. Você não precisa ser associado da ASAF para ser voluntário.
+      </p>
+    </section>
+
+    <section aria-labelledby="como-funciona">
+      <h2 id="como-funciona" class="text-2xl font-bold tracking-tight">
+        Como funciona
+      </h2>
+      <ol class="mt-6 grid gap-4 sm:grid-cols-2">
+        {etapas.map((etapa, indice) => (
+          <li class="flex gap-4 rounded-lg border bg-card p-5 shadow-card">
+            <span
+              aria-hidden="true"
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-secondary font-bold text-brand-secondary-foreground"
+            >
+              {indice + 1}
+            </span>
+            <div>
+              <h3 class="font-semibold">{etapa.titulo}</h3>
+              <p class="mt-1 text-sm">{etapa.texto}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+
+    <section aria-labelledby="menores">
+      <h2 id="menores" class="text-2xl font-bold tracking-tight">
+        Menores de 18 anos
+      </h2>
+      <p class="mt-4 max-w-3xl">
+        Quem tem menos de 18 anos pode ser voluntário, mas o termo de adesão só
+        é aceito com a autorização do responsável anexada.
+      </p>
+    </section>
+
+    <FaleConosco titulo="Quero ser voluntário">
+      <p>
+        Entre em contato com a secretaria para combinar a atividade e assinar o
+        termo de adesão.
+      </p>
+    </FaleConosco>
+  </div>
+</Base>

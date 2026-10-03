@@ -1,0 +1,101 @@
+---
+import CartaoDeLink from '../../components/CartaoDeLink.astro'
+import FaleConosco from '../../components/FaleConosco.astro'
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import Base from '../../layouts/Base.astro'
+
+// Fonte: Estatuto Social, Art. 28 (fontes de custeio) e § 3º (aplicação dos recursos no Brasil).
+// Doação online (Pix): ainda NÃO existe no site (PLANO, v5.4) — a página diz isso com clareza em
+// vez de sugerir um caminho que não funciona.
+const migalhas: Migalha[] = [{ rotulo: 'Como ajudar' }]
+---
+
+<Base
+  titulo="Como ajudar"
+  descricao="Veja as formas de apoiar a ASAF: associe-se, seja voluntário, faça uma doação ou torne-se parceiro. Tudo é aplicado nos objetivos sociais da entidade."
+  caminho="/como-ajudar/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Como ajudar"
+    resumo="Há mais de um jeito de apoiar as famílias atendidas pela ASAF. Escolha o que cabe na sua vida."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-5xl flex-col gap-14 px-4 py-12">
+    <section aria-labelledby="formas">
+      <h2 id="formas" class="text-2xl font-bold tracking-tight">
+        Formas de ajudar
+      </h2>
+      <div class="mt-6 grid gap-4 sm:grid-cols-2">
+        <CartaoDeLink
+          titulo="Seja associado"
+          href="/seja-associado/"
+          rotulo="Veja como se associar"
+        >
+          <p>
+            As contribuições mensais dos associados são a fonte primária de
+            custeio das atividades da ASAF. Associados também votam e participam
+            das decisões da assembleia.
+          </p>
+        </CartaoDeLink>
+        <CartaoDeLink
+          titulo="Seja voluntário"
+          href="/seja-voluntario/"
+          rotulo="Veja como ser voluntário"
+        >
+          <p>
+            Doe o seu tempo e as suas habilidades em projetos e eventos. Não é
+            preciso ser associado.
+          </p>
+        </CartaoDeLink>
+        <CartaoDeLink
+          titulo="Faça uma doação"
+          href="/contato/"
+          rotulo="Fale com a secretaria"
+        >
+          <p>
+            A ASAF recebe doações de pessoas físicas e jurídicas (Estatuto, Art.
+            28). A doação pelo site ainda não está disponível: para doar, fale
+            com a secretaria.
+          </p>
+        </CartaoDeLink>
+        <CartaoDeLink
+          titulo="Seja parceiro ou patrocinador"
+          href="/contato/"
+          rotulo="Fale com a secretaria"
+        >
+          <p>
+            Empresas, instituições e órgãos públicos podem apoiar a ASAF com
+            patrocínios, convênios e termos de parceria (Estatuto, Art. 28).
+          </p>
+        </CartaoDeLink>
+      </div>
+    </section>
+
+    <section aria-labelledby="destino">
+      <h2 id="destino" class="text-2xl font-bold tracking-tight">
+        Para onde vai o que você dá
+      </h2>
+      <p class="mt-4 max-w-3xl">
+        Os recursos, o patrimônio e os rendimentos da ASAF são integralmente
+        aplicados no território brasileiro, no desenvolvimento de seus objetivos
+        sociais (Estatuto, Art. 28, § 3º). As contas passam pelo Conselho Fiscal
+        e pela Assembleia Geral.
+      </p>
+      <p class="mt-4">
+        <a
+          href="/transparencia/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          Veja como a ASAF presta contas →
+        </a>
+      </p>
+    </section>
+
+    <FaleConosco titulo="Tem dúvida de como ajudar?">
+      <p>Fale com a secretaria. Teremos prazer em explicar cada caminho.</p>
+    </FaleConosco>
+  </div>
+</Base>
