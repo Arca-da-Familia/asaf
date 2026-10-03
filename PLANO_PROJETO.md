@@ -841,29 +841,99 @@ retrabalho que a seção 4.1 existe pra evitar.
 > | Téc. | Site sempre no ar (comprovação) | Static Web App, sem monitor | Monitor a cada 15 min com histórico | v5.4 |
 > | Téc. | `COMO-ATUALIZAR.md`; dado de exemplo marcado | Não existe | Criar; **exemplo só em teste/rascunho, nunca na produção** | v5.4 |
 >
-> **Base legal citada no arquivo do usuário — informada por ele, NÃO verificada por mim:** IN nº 06/2025
-> do TCM-PA (art. 17, §§ 2º, 3º e 5º: publicar no site, em destaque, valores, vereador, íntegra do
-> instrumento, plano de trabalho, relatórios e prestação de contas, em até 24 h de cada parcela ou etapa,
-> em PDF pesquisável); Lei 13.019/2014 (art. 11: divulgar as parcerias com o poder público); Lei
-> Municipal nº 5.574/2025; ADPF 854 (STF). Regra do projeto aprendida hoje: **texto público só afirma o
-> que a ASAF faz**; citação legal em página pública só depois de validada pela assessoria jurídica.
+> **Base legal — pesquisada em fontes oficiais em 2026-10-03** (o usuário pediu: "use o arquivo e, se puder,
+> pesquise as resoluções para uma base ainda mais sólida"). Rótulos: **[CONFERIDO POR MIM]** = li o texto
+> no documento oficial; **[PESQUISA]** = relatado por um agente de pesquisa com a fonte indicada, ainda sem
+> minha leitura do texto; **[NÃO CONFIRMADO]**. Isto **não substitui revisão jurídica**: é a base de que o
+> desenho precisa e o que a página pública pode citar com segurança.
+>
+> - **IN nº 06/2025/TCMPA** (aprovada em 27/11/2025; DOE TCMPA nº 2.085, 11/12/2025, pp. 8–26) — **[CONFERIDO
+>   POR MIM no PDF do Diário Oficial]**. Art. 17: a execução de **emendas parlamentares impositivas
+>   municipais** por OSC (§ 2º) deve **publicar no próprio sítio, em local de destaque e fácil acesso**, os
+>   valores recebidos, o nome do(a) **Proponente** (o vereador), a **íntegra do instrumento**, o **plano de
+>   trabalho**, os **relatórios de execução** e a **prestação de contas**; (§ 3º) em **até 24 horas** do
+>   recebimento de **cada parcela** ou de **qualquer etapa relevante** (liberação financeira, entrega de
+>   bens, execução de serviços), com os documentos comprobatórios, em formato pesquisável; (§ 4º) **conta
+>   corrente específica**, vedadas conta de passagem, conta compartilhada e saque em espécie (isto é da
+>   diretoria/banco, não do site); (§ 5º) documentos em **PDF pesquisável (OCR)**, **vedado imagem ou
+>   fotografia**. Também: o plano de trabalho deve comprovar que a OSC tem sítio de transparência (art. 16,
+>   § 2º, IV, "c" — **[PESQUISA]**), e prestação de contas/relatório de gestão no sítio em 24 h
+>   (arts. 22–23, **[PESQUISA]**), guarda por 5 anos (art. 24, **[PESQUISA]**).
+>   **Limite de alcance:** o art. 17 trata das emendas **impositivas municipais**; o art. 48 estende "no que
+>   couber" às federais/estaduais executadas por municípios; **patrocínio privado não é alcançado** (a
+>   transparência dele é boa prática, não obrigação desta norma).
+> - **Lei 13.019/2014, art. 11 e parágrafo único** — **[CONFERIDO POR MIM no texto compilado do Planalto]**,
+>   redação vigente (Lei 13.204/2015): a OSC divulga "na internet e em locais visíveis de suas sedes"
+>   **todas as parcerias** com a administração pública;
+>   parágrafo único: data de assinatura, instrumento e órgão; nome da OSC e CNPJ; objeto; valor total e
+>   liberado; situação da prestação de contas; **remuneração da equipe paga com a parceria e funções** (não
+>   exige nome nem CPF). Art. 10 é do poder público. Cuidado: art. 47 § 4º e art. 33, IV, "b" foram
+>   revogados **[PESQUISA]**. Os itens I–VI do parágrafo único conferem com a lista do arquivo do usuário.
+> - **STF, ADPF 854** (e ADPFs 850/851/1014) — **[PESQUISA]**: ONGs executoras de emenda (qualquer
+>   modalidade) respeitam transparência e rastreabilidade (CF art. 163-A + Lei 13.019 art. 69); 23/10/2025:
+>   estados e municípios seguem o modelo federal, fiscalizado pelos tribunais de contas; as ordens a ONGs
+>   foram dirigidas a entidades específicas. **15/01/2026: vedadas emendas a entidades com cônjuge,
+>   companheiro ou parente até o 3º grau do parlamentar indicante, ou assessor dele, nos quadros diretivo
+>   ou administrativo** — **alerta para a diretoria** conferir a composição da diretoria; **[NÃO CONFIRMADO]**
+>   se vale para emenda municipal. O site **não decide** isso.
+> - **"Lei Municipal nº 5.574/2025" — [NÃO CONFIRMADO]**: não achei município nem texto; único indício
+>   (Termo de Referência de Parauapebas no Mural de Licitações do TCM-PA) a trata como adaptação local da
+>   Lei 13.019. **Não citar no site** até o usuário/diretoria informar o município e dar o texto.
+> - **Outras** (**[PESQUISA]**): LAI (Lei 12.527/2011, art. 2º, e parágrafo único) alcança entidade
+>   privada sem fins lucrativos "no que couber" e só quanto à parcela dos recursos públicos e sua
+>   destinação; Decreto 7.724/2012, art. 63 e Decreto 8.726/2016, art. 80 (só parcerias federais;
+>   publicar até 180 dias após a prestação final); EC 105/2019 (transferência especial não exige convênio).
+>   **LGPD**: não há regra expressa sobre CPF; omitir CPF/endereço/telefone pessoal vem do princípio da
+>   necessidade (arts. 6º, I e III) — **decisão de desenho**, não regra textual.
+>
+> **O que isso muda no desenho:** (1) o gatilho das **24 horas** é por **parcela** e por **etapa relevante**
+> (liberação, entrega de bens, execução de serviço) — o modelo da v5.4 tem `parcelas` e `etapas_execucao`
+> com data; (2) **"nome do Proponente"** = campo `vereador_autor` (já previsto); (3) **PDF pesquisável**
+> é regra expressa, o build recusa PDF só-imagem; (4) o link da Transparência precisa estar em **local de
+> destaque** (já está no menu, rodapé e vai à Home); (5) texto público seguro, só com o que foi conferido
+> (a ser validado juridicamente): *"A ASAF divulga neste site as parcerias que firmar com o poder público
+> (instrumento, objeto, valores e situação da prestação de contas). Atualmente a associação não recebe
+> recursos de emendas parlamentares. Caso venha a recebê-los, publicará aqui o instrumento, o plano de
+> trabalho, os valores recebidos e a prestação de contas, nos termos das normas aplicáveis."* — junto do
+> texto de estado vazio que o usuário ditou.
 
 #### v5.3 — Directus de verdade: a base editorial (junta o que faltava da v5.1 e as Notícias da v5.2)
 
-> **Entrega segura do token (pedido do usuário: "vou mandar o token").** Não colar token/senha no chat:
-> a conversa fica registrada e o sistema de segurança do Claude Code barra gravar segredo. Caminho
-> combinado: o usuário gera o token no Directus e o cola **numa entrada oculta** do script
-> `infra/guardar-segredo.ps1`, que o grava direto no Key Vault. Dois segredos: `DIRECTUS-ADMIN-TOKEN`
-> (**temporário**, só para montar a estrutura; **revogado ao fim**) e `DIRECTUS-SITE-TOKEN` (somente
-> leitura de conteúdo publicado, usado pelo build). O arquivo criptografado (SOPS) da equipe fica como
-> **cópia de segurança**; quem o build lê é o Key Vault.
+> **Como o Claude entra no Directus (decisão do usuário, 2026-10-03):** o usuário **não vai colar token
+> nem rodar script** ("não entendi nada, tenho medo"). O arquivo de credenciais criptografado e o Key
+> Vault existem justamente para o Claude buscar e usar o que precisa. O Directus já tem a conta de
+> administrador (`asaf@asaf.org.br`) com a senha guardada no Key Vault (`DIRECTUS-ADMIN-PASSWORD`):
+> `scripts/directus_configurar.py aplicar --producao` faz o login com ela **em memória** (nada é impresso
+> nem gravado) e monta tudo. **Limite real:** o sistema de segurança do Claude Code barra, no modo
+> automático, ler credencial ("Credential Exploration") — **mesmo com o usuário tendo dito que pode**; a
+> forma de liberar é o usuário trocar para o **modo manual** e aprovar o comando quando a tela perguntar
+> (como já foi feito antes). O Claude não contorna a barreira nem lê o arquivo SOPS por outro caminho.
+> Se a senha do Key Vault já não for a atual (o usuário pode ter trocado no Studio), o caminho
+> alternativo é um token estático gerado no próprio Studio — decisão nova a combinar com ele.
 
-- [ ] **Pré-requisito do usuário**: digitar a chave do plano gratuito do Directus (Settings → License)
-      e gerar o token de administrador (Studio → seu usuário → campo *Token*).
-- [ ] **`scripts/directus_configurar.py`** — idempotente, lê o token do Key Vault, **nunca imprime
-      segredo**, cria no schema `directus`: coleções, campos, validações, papéis e o usuário de serviço;
-      executado em modo manual com o usuário aprovando. Modo `--verificar` (só leitura) compara o
-      Directus com o desenho (coleção fora do schema `directus` reprova).
+- [x] **Licença do Directus**: o usuário **já digitou a chave** (Open Innovation Grant) e o Directus está
+      funcionando (2026-10-03). **Fato descoberto ao testar numa cópia local (Directus 12.4.1 sem
+      licença):** no Directus 12 a **regra de permissão personalizada** — filtro por linha ("só o que
+      está publicado", "só o que é meu"), validação, predefinição e lista de campos — é recurso
+      **licenciado** (`custom_permission_rules_enabled`); sem licença só há "pode tudo / nada" por coleção.
+      Os perfis Redator e Leitor do site dependem dessas regras. **A confirmar em produção** que a licença
+      do usuário inclui o recurso; o script avisa se não incluir e não finge.
+- [x] **`scripts/directus_configurar.py`** + `scripts/directus_modelo.py` (v5.3, 2026-10-03):
+      idempotente, só **acrescenta** (nunca apaga coleção, campo ou dado), nunca imprime segredo; `aplicar`
+      e `verificar` (só leitura; exit 1 se algo fugir do modelo; reprova coleção de negócio no Directus).
+      **Testado de verdade** contra um Directus 12.4.1 real e descartável (Node 22, SQLite): pastas,
+      coleções, campos, relações, políticas, papéis e permissões criados, 2ª execução sem mudar nada; 22
+      testes novos (privilégio mínimo do modelo + script contra um Directus falso, com mutação). Falta só
+      rodar **em produção** (depende da liberação acima).
+- [ ] **Área "Documentos" (pedido do usuário, 2026-10-03)**: o usuário envia os documentos **direto no
+      Directus**, não pelo chat ("é documento demais"). O script cria na Biblioteca de arquivos a pasta
+      *Documentos institucionais* (subpastas Estatuto e alterações, Atas, Registros e certidões, Balanços
+      e relatórios) e *Emendas e parcerias*, *Fotos de eventos e projetos*, *Notícias*; e a coleção
+      `documentos` (título, categoria, data, arquivo PDF, descrição, status). **Único documento que já
+      existe hoje**: o Estatuto, que é o `ESTATUTO_ASAF.txt` da raiz (transcrição do atual) — o site já o
+      publica como texto em `/estatuto/`; o PDF registrado em cartório entra aqui quando o usuário o tiver.
+- [ ] **Rodar `aplicar --producao`** e `verificar --producao` (modo manual, usuário aprovando) e conferir
+      ao vivo: pastas e coleção visíveis no Studio, `GET /items/documentos` sem token = 403.
 - [ ] **Papéis de privilégio mínimo** (requisito de 2026-10-01, acima): Administrador (MFA obrigatório),
       Editor de transparência, Editor de conteúdo (notícias, publica), Redator (rascunho, não publica),
       Colaborador de mídia, Leitor de serviço (token do build). Cada um com teste "esta pessoa **não**
@@ -876,6 +946,10 @@ retrabalho que a seção 4.1 existe pra evitar.
 - [ ] **E-mail do Directus** (SMTP com `asaf@asaf.org.br`, segredos já no Key Vault): convite de editores
       e recuperação de senha; **administrador de reserva** (hoje só existe um e a recuperação é por SQL).
 - [ ] **MFA obrigatório** para administrador.
+- [ ] **Token da conta de serviço do site** (`Leitor do site`): gerado pelo próprio script (aleatório, nunca
+      impresso) e guardado no Key Vault e como segredo do GitHub, também só com o usuário aprovando em
+      modo manual. Alternativa mais simples a avaliar: dar leitura **pública** só do que está publicado
+      (o conteúdo é público de qualquer forma) e dispensar o token.
 - [ ] **Site lê o Directus no build** (token de serviço, só publicado), com a mesma política da API (3
       tentativas × 60 s; falha derruba o build, o site no ar não muda). `conteudo.json` passa a incluir a
       impressão do Directus e a **sincronização roda a cada 15 min** cobrindo API **e** Directus, com
@@ -960,7 +1034,9 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - **Nenhum PDF só-imagem** publicado; **nenhum dado de exemplo** na produção; consistência de valores
   (parcelas, pagamentos) verificada.
 - O **Estatuto do site é a versão registrada em cartório** (o usuário confirma); cargos alinhados ao Art. 19.
-- **Revisão jurídica** da base legal e dos textos de Transparência, Privacidade e Termos.
+- **Revisão jurídica** dos textos de Transparência, Privacidade e Termos (a base legal já foi pesquisada, ver
+  acima; falta a leitura de quem é do ramo) e conferência da composição da diretoria contra a vedação do STF de
+  15/01/2026 (parentes de parlamentar).
 - Dado de dirigente real só depois de **cargos alinhados**; sem CPF/endereço/telefone pessoal.
 - Verificação independente de fatos de todas as páginas (agente) feita e corrigida.
 
@@ -1052,7 +1128,9 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - **OCR**: o teste detecta PDF sem texto, mas não garante que o texto extraído esteja correto.
 - **Um único administrador** no Directus até a v5.3 criar o de reserva.
 - **Limite de tamanho do Static Web App** para PDFs: medir antes de crescer; plano B = contêiner Blob público.
-- **Base legal não verificada** (ver acima): não é para citar em página pública sem validação jurídica.
+- **Base legal**: o art. 17 da IN 06/2025/TCMPA foi conferido por mim no Diário Oficial; o resto veio de pesquisa
+  (ver acima) e a **Lei Municipal 5.574/2025 segue não confirmada** — não citar no site. Revisão jurídica final
+  continua sendo condição para publicar texto de lei na página.
 
 ### FASE 6 — Comunicação e transparência
 
