@@ -25,7 +25,7 @@ export interface GrupoDoRodape {
   itens: ItemDeNavegacao[]
 }
 
-/** Mapa do site no rodapé. Transparência e Privacidade ficam sempre à vista (PLANO v5.5). */
+/** Mapa do site no rodapé. Transparência e Privacidade ficam sempre à vista (PLANO v5.7). */
 export const GRUPOS_DO_RODAPE: GrupoDoRodape[] = [
   {
     titulo: 'A ASAF',

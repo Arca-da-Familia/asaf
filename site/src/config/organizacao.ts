@@ -7,7 +7,7 @@
  *    sede é o do Estatuto — o usuário confirmou que NÃO mudou ("sede provisória" no texto de 2013,
  *    mas é a sede em uso).
  *
- * Quando a v5.1/v5.2 trouxer o Directus, estes dados passam a vir de lá/da API (para quem não
+ * Quando a v5.3/v5.4 trouxer o Directus, estes dados passam a vir de lá/da API (para quem não
  * edita código poder atualizar) — até lá este é o único lugar do site onde eles existem, para
  * mudar em um ponto só. O CNPJ tem teste de dígito verificador (tests/organizacao.test.ts):
  * erro de digitação aqui não chega à produção.

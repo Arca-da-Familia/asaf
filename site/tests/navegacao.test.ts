@@ -28,7 +28,7 @@ describe('menus', () => {
   it('todo link interno é absoluto (começa com "/")', () => {
     for (const item of todos) expect(item.href.startsWith('/')).toBe(true)
   })
-  it('Transparência e Privacidade estão sempre no rodapé (PLANO v5.5)', () => {
+  it('Transparência e Privacidade estão sempre no rodapé (PLANO v5.7)', () => {
     const hrefsDoRodape = GRUPOS_DO_RODAPE.flatMap((g) =>
       g.itens.map((i) => i.href),
     )

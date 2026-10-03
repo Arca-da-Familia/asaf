@@ -186,7 +186,7 @@ e SEO = 100). Só na `main`, depois dos portões, publica no Static Web App `asa
 o commit publicado. Mudança em `design/` também reconstrói o painel (`deploy-painel.yml`).
 
 O mesmo workflow aceita **disparo manual** (`workflow_dispatch`) — é o gatilho do "rebuild quando
-o conteúdo editorial muda": o Flow do Directus (ligado na v5.1, quando as coleções existirem)
+o conteúdo editorial muda": o Flow do Directus (ligado na v5.3, quando as coleções existirem)
 chama a API do GitHub com um token restrito à permissão *Actions: Read and write* deste
 repositório, o mínimo possível (dispara workflow; não lê nem altera código). Esse caminho pula os
 portões de qualidade: publicar uma notícia já revisada não deve ficar preso numa rodada

@@ -9,7 +9,7 @@ Astro (geração estática) + Tailwind 4 (plugin do Vite, tema em `../design/`) 
 | O que é                                             | De onde vem                      | Quando chega ao visitante                                                        |
 | --------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------- |
 | **Dado** (eventos, vagas, transparência, inscrição) | API FastAPI (`/api/publico/...`) | Buscado **no navegador, a cada visita** (ilha) — evento novo aparece sem rebuild |
-| **Editorial** (textos, notícias, banners, galeria)  | Directus (v5.1)                  | Gerado **no build**; o Directus dispara um rebuild quando o conteúdo muda        |
+| **Editorial** (textos, notícias, banners, galeria)  | Directus (v5.3)                  | Gerado **no build**; o Directus dispara um rebuild quando o conteúdo muda        |
 
 Nunca digite no site um dado que o sistema já tem (nome de dirigente, evento, valor): ele
 envelhece e vira um segundo sistema. O mesmo vale para dado institucional que o Estatuto não traz
@@ -121,7 +121,7 @@ organização (`NGO`), `robots.txt` e `sitemap-index.xml` gerados no build, 404 
 
 ## Rebuild quando o conteúdo do Directus muda
 
-O workflow `deploy-site.yml` tem `workflow_dispatch`. O Flow do Directus (**v5.1** — precisa das
+O workflow `deploy-site.yml` tem `workflow_dispatch`. O Flow do Directus (**v5.3** — precisa das
 coleções de conteúdo para ter o que escutar) deve chamar:
 
 ```text
@@ -161,7 +161,7 @@ site, o resto exige JWT. `tests/test_cors_site.py` guarda isso.
 
 ## Pendente (registrado no plano)
 
-- Cabeçalhos de segurança (CSP, `X-Frame-Options`) — **v5.5**. A CSP só pode ser escrita certa
+- Cabeçalhos de segurança (CSP, `X-Frame-Options`) — **v5.7**. A CSP só pode ser escrita certa
   depois que as páginas e ilhas existirem. (HSTS e `X-Content-Type-Options` o Static Web App já
   envia por padrão.)
 - Dark mode do site (tokens `.dark` já existem no `design/`).

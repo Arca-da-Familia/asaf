@@ -102,7 +102,7 @@ Créditos de ONG ~US$2.000/ano → teto de **US$100/mês**. Ver detalhamento na 
 
 > **Expansão de 2026-09-11**: a pedido do usuário, tudo a partir da **v0.2** foi levado ao nível
 > mais alto que cada fase comporta, com sub-versões criadas onde o detalhe exigia (v0.2.0–v0.2.10,
-> v0.3.1–v0.3.5, v1.0–v1.8, v2.0–v2.9, v3.0–v3.7, v4.0–v4.10, v5.0–v5.5, v6.1–v6.3, v7.0–v7.5,
+> v0.3.1–v0.3.5, v1.0–v1.8, v2.0–v2.9, v3.0–v3.7, v4.0–v4.10, v5.0–v5.7, v6.1–v6.3, v7.0–v7.5,
 > v8.1–v8.5, v9.1–v9.4, v11.1–v11.10, v12.0–v12.10, v13.1–v13.5, v14.1–v14.4, v15.0–v15.6,
 > v16.1–v16.4, v17.1–v17.3, v18.1–v18.4, v19.1–v19.2, v20.1–v20.4). Três regras foram seguidas
 > nessa expansão: **(1)** nenhuma afirmação de pesquisa/legislação já validada foi alterada ou
@@ -259,7 +259,7 @@ retrabalho que a seção 4.1 existe pra evitar.
       token de mínimo privilégio; dado dinâmico do FastAPI (eventos, transparência) é buscado no
       cliente (ilha), para não exigir rebuild a cada inscrição.
 - [ ] **Flow do Directus que chama esse disparo** quando o conteúdo muda — **movido para a
-      v5.1**: um Flow precisa de coleção para escutar, e as coleções só nascem na v5.1. O
+      v5.1**: um Flow precisa de coleção para escutar, e as coleções só nascem na v5.3 (era v5.1). O
       receptor (workflow) já está pronto e testado; o procedimento exato está em
       [`site/README.md`](site/README.md#rebuild-quando-o-conteúdo-do-directus-muda).
 - [x] Mesmos tokens de design do painel (v0.2.4) — identidade visual única, mantida num lugar só
@@ -310,7 +310,7 @@ retrabalho que a seção 4.1 existe pra evitar.
 >   **verde (primária), ouro (secundária), azul claro (terciária)** e enviou a logo institucional.
 > - **Cabeçalhos de segurança**: o Static Web App já envia `Strict-Transport-Security` e
 >   `X-Content-Type-Options` por padrão (conferido em produção). CSP e `X-Frame-Options` ficam na
->   **v5.5**, quando houver páginas e ilhas reais para escrever uma CSP correta.
+>   **v5.7** (era v5.5), quando houver páginas e ilhas reais para escrever uma CSP correta.
 > - **`www.asaf.org.br` não resolve** (sem registro DNS). Decidir se vale criar com redirecionamento.
 > - Dark mode do site não existe (tokens `.dark` existem). Sem JavaScript, a ilha some e o
 >   `<noscript>` explica (defeito achado pelo próprio teste e corrigido antes do envio).
@@ -336,7 +336,7 @@ retrabalho que a seção 4.1 existe pra evitar.
 > (`gh workflow run deploy-site.yml`) testado ao vivo: pula os portões e publica, com o passo
 > "Confirma no ar" passando — é o caminho que o Directus vai usar.
 >
-> **Ainda não verificado em produção**: o Flow do Directus (v5.1) e qualquer evento real
+> **Ainda não verificado em produção**: o Flow do Directus (v5.3, era v5.1) e qualquer evento real
 > aparecendo na ilha — hoje a lista é vazia, então o desenho da lista com dados reais foi
 > validado só contra a API simulada (e2e) e contra o formato real do serializador, não contra um
 > evento de verdade vindo do banco de produção.
@@ -420,6 +420,12 @@ retrabalho que a seção 4.1 existe pra evitar.
 > de alguns dólares por mês — decisão do usuário, não tomada.
 
 #### v5.1 — Directus como CMS de conteúdo
+
+> **Replanejamento (2026-10-03):** o que ficou **aberto** aqui — chave de automação, chave do plano
+> gratuito, chave da conta de armazenamento, usuário de serviço + token, coleções, fluxo editorial,
+> papéis de privilégio mínimo e biblioteca de mídia — **foi movido para a v5.3** (abaixo), que também
+> carrega as Notícias. O que já está feito e provado nesta versão (Directus 12.4.1, isolamento do banco
+> 16/16, logotipo, atalho no painel) continua valendo.
 
 > **v5.1.0 — Pré-requisitos (2026-10-01)**: o usuário pediu acesso ao Directus para criar a conta,
 > registrar a chave do plano gratuito e gerar a chave de API que o site vai usar. Levantamento
@@ -704,7 +710,7 @@ retrabalho que a seção 4.1 existe pra evitar.
       > build **falha** se o formato mudar (melhor não publicar um Estatuto truncado).
       > "Seja associado" lê as exigências/direitos/deveres dos Arts. 12–14 do próprio Estatuto.
       > Navegação numa fonte única (`config/navegacao.ts`; menu de celular em `<details>`, sem
-      > JavaScript; **Transparência e Privacidade sempre no rodapé**, adiantando um item da v5.5);
+      > JavaScript; **Transparência e Privacidade sempre no rodapé**, adiantando um item da v5.7);
       > migalhas viram `BreadcrumbList` (schema.org). Privacidade e Termos **versionados**
       > (`DOCUMENTOS_LEGAIS`, v1.0 de 2026-10-03), escritos só com o que o site/sistema fazem hoje.
       > **Achados**: (1) a revisão **visual** (fotos do site montado) pegou que o Astro/Prettier
@@ -795,59 +801,258 @@ retrabalho que a seção 4.1 existe pra evitar.
       > "Conselho Administrativo" que o Art. 18 não lista; (f) titularidade do nome/logotipo (INPI);
       > (g) o Estatuto no site é o do sistema — confirmar que é a **versão registrada em cartório**;
       > (h) **mapa** só com coordenadas exatas (CEP único da cidade); (i) **Notícias** depende do
-      > Directus (v5.1: coleções + token de serviço); (j) **inscrição em evento pelo site** (a API já
-      > tem formulário, perguntas e consentimento) fica para a v5.3.
+      > Directus (v5.3: coleções + token de serviço); (j) **inscrição em evento pelo site** (a API já
+      > tem formulário, perguntas e consentimento) fica para a v5.5.
 - [x] Página de cada projeto e de cada evento com URL estável e compartilhável (v5.2 etapa B).
 - [x] **Publicação do edital de assembleia na área pública do site** (pendência da v2.2,
       2026-09-15): página pública `/transparencia/assembleias/<id>/` com o texto (sem o link de
       acesso remoto) e o código SHA-256 que identifica o texto publicado (v5.2 etapa B).
 
-##### 🔍 Ponto de Revisão — FASE 5 (1/2 — meio, fecha v5.0–v5.2)
+> **REPLANEJAMENTO DA FASE 5 — da v5.3 ao fim (2026-10-03, a pedido do usuário).** Duas coisas mudaram:
+> (1) a ASAF **não recebe, mas poderá receber** emenda parlamentar e patrocínio (público ou privado) —
+> o site precisa estar **pronto para receber antes** que isso aconteça (publicação em até 24 h é prazo
+> de quem recebe, e site fora de conformidade pode ter repasse bloqueado); (2) o conteúdo que a diretoria
+> edita (notícias, documentos, emendas, parcelas, pagamentos) passa a viver no **Directus**, para ser
+> publicado **em minutos e sem programador**. Por isso entraram duas versões novas (**v5.3** Directus de
+> verdade e **v5.4** Transparência e Emendas) e as antigas v5.3/v5.4/v5.5 viraram **v5.5/v5.6/v5.7**.
+> O Ponto de Revisão (1/2) passa a fechar na **v5.4** (é aí que o site fica "pronto para receber").
+> Itens ainda abertos da v5.1 (coleções, papéis, fluxo editorial, mídia, e-mail, token) e as **Notícias**
+> da v5.2 foram **movidos para a v5.3**.
+>
+> **Requisitos recebidos do usuário** (arquivo `prompt-site-transparencia-emendas.md`, 2026-10-03):
+> regra principal é **adaptar o site existente, não refazer** (mesma identidade visual e estrutura;
+> página nova só para o que não existe). **Análise do site atual (v5.2) contra o arquivo:**
+>
+> | Req. | O que o arquivo pede | Hoje no site | Ação | Versão |
+> | --- | --- | --- | --- | --- |
+> | R1 | Link "Transparência" em destaque (menu, rodapé, Home), 1 clique | Já está no menu e no rodapé; na Home só há o cartão genérico "Contas claras" | Adaptar: cartão "Emendas parlamentares" em destaque | v5.4 |
+> | R2 | Lista de todas as emendas, todos os anos, com 8 campos + situação; CSV/JSON | Não existe | **Nova** (`/transparencia/emendas/`) | v5.4 |
+> | R3 | Por emenda: documentos (PDF pesquisável), parcelas, execução, pagamentos, relatórios, "última atualização" | Não existe | **Nova** (`/transparencia/emendas/<id>/`) | v5.4 |
+> | R4 | Todas as parcerias com o poder público (7 campos) | Não existe | **Nova** (`/transparencia/parcerias/`) | v5.4 |
+> | R5 | Documentos institucionais em PDF pesquisável | Só o Estatuto, como **texto** (HTML), sem PDF; falta ata, CNPJ, balanços, relatório anual | Adaptar `/transparencia/` + nova `/transparencia/documentos/`; **depende de documentos da diretoria** | v5.4 |
+> | R6 | Diretoria com nome, cargo, mandato; sem CPF/endereço/telefone | **Já existe** (`/diretoria/`, sem dado pessoal além do nome); produção vazia | Só alinhar cargos ao Art. 19 e cadastrar dirigentes | v5.4 |
+> | R7 | Contato também para pedido de informação sobre recursos públicos; prazo de resposta; link da Transparência | Contato já existe | Adaptar o texto; **prazo = decisão da diretoria**; formulário na v5.5 | v5.4 / v5.5 |
+> | R8 | Projetos e "Despertai": calendário oficial do município; edições anteriores com datas, fotos, público | Projetos já existem (do sistema); Despertai não existe; não há fotos | Adaptar projetos + camada editorial no Directus; **depende de conteúdo e de documento comprobatório** | v5.4 |
+> | Téc. | Atualizar sem programador | Hoje só por código | **Directus** | v5.3 |
+> | Téc. | Só PDF pesquisável (OCR) | Não há PDF | Verificação automática no build | v5.4 |
+> | Téc. | URLs permanentes; "Última atualização" automática | Padrão por id já existe nas páginas de dados vivos | Estender | v5.4 |
+> | Téc. | Acessibilidade e celular | Já auditado no CI (axe, Lighthouse) | Manter o portão | todas |
+> | Téc. | Foto de criança só com autorização | Não há foto | Campo obrigatório "autorização de imagem" | v5.3 |
+> | Téc. | Site sempre no ar (comprovação) | Static Web App, sem monitor | Monitor a cada 15 min com histórico | v5.4 |
+> | Téc. | `COMO-ATUALIZAR.md`; dado de exemplo marcado | Não existe | Criar; **exemplo só em teste/rascunho, nunca na produção** | v5.4 |
+>
+> **Base legal citada no arquivo do usuário — informada por ele, NÃO verificada por mim:** IN nº 06/2025
+> do TCM-PA (art. 17, §§ 2º, 3º e 5º: publicar no site, em destaque, valores, vereador, íntegra do
+> instrumento, plano de trabalho, relatórios e prestação de contas, em até 24 h de cada parcela ou etapa,
+> em PDF pesquisável); Lei 13.019/2014 (art. 11: divulgar as parcerias com o poder público); Lei
+> Municipal nº 5.574/2025; ADPF 854 (STF). Regra do projeto aprendida hoje: **texto público só afirma o
+> que a ASAF faz**; citação legal em página pública só depois de validada pela assessoria jurídica.
+
+#### v5.3 — Directus de verdade: a base editorial (junta o que faltava da v5.1 e as Notícias da v5.2)
+
+> **Entrega segura do token (pedido do usuário: "vou mandar o token").** Não colar token/senha no chat:
+> a conversa fica registrada e o sistema de segurança do Claude Code barra gravar segredo. Caminho
+> combinado: o usuário gera o token no Directus e o cola **numa entrada oculta** do script
+> `infra/guardar-segredo.ps1`, que o grava direto no Key Vault. Dois segredos: `DIRECTUS-ADMIN-TOKEN`
+> (**temporário**, só para montar a estrutura; **revogado ao fim**) e `DIRECTUS-SITE-TOKEN` (somente
+> leitura de conteúdo publicado, usado pelo build). O arquivo criptografado (SOPS) da equipe fica como
+> **cópia de segurança**; quem o build lê é o Key Vault.
+
+- [ ] **Pré-requisito do usuário**: digitar a chave do plano gratuito do Directus (Settings → License)
+      e gerar o token de administrador (Studio → seu usuário → campo *Token*).
+- [ ] **`scripts/directus_configurar.py`** — idempotente, lê o token do Key Vault, **nunca imprime
+      segredo**, cria no schema `directus`: coleções, campos, validações, papéis e o usuário de serviço;
+      executado em modo manual com o usuário aprovando. Modo `--verificar` (só leitura) compara o
+      Directus com o desenho (coleção fora do schema `directus` reprova).
+- [ ] **Papéis de privilégio mínimo** (requisito de 2026-10-01, acima): Administrador (MFA obrigatório),
+      Editor de transparência, Editor de conteúdo (notícias, publica), Redator (rascunho, não publica),
+      Colaborador de mídia, Leitor de serviço (token do build). Cada um com teste "esta pessoa **não**
+      consegue X"; o atalho "Editar o site" do painel passa a ter permissão própria (`editar_site`).
+- [ ] **Fluxo editorial** rascunho → revisão → publicado, agendamento e histórico de versão com
+      reversão; **rascunho nunca aparece no site** (teste).
+- [ ] **Biblioteca de mídia**: texto alternativo **obrigatório**, tamanhos responsivos e campo
+      obrigatório **"autorização de imagem confirmada"** (foto de criança só publica com autorização dos
+      responsáveis — ECA/LGPD).
+- [ ] **E-mail do Directus** (SMTP com `asaf@asaf.org.br`, segredos já no Key Vault): convite de editores
+      e recuperação de senha; **administrador de reserva** (hoje só existe um e a recuperação é por SQL).
+- [ ] **MFA obrigatório** para administrador.
+- [ ] **Site lê o Directus no build** (token de serviço, só publicado), com a mesma política da API (3
+      tentativas × 60 s; falha derruba o build, o site no ar não muda). `conteudo.json` passa a incluir a
+      impressão do Directus e a **sincronização roda a cada 15 min** cobrindo API **e** Directus, com
+      **proteção contra laço de falha** (3 falhas seguidas do deploy → não redispara e avisa).
+- [ ] **Notícias** (pendência da v5.2): `/noticias/` e `/noticias/<slug>/`, `schema.org/NewsArticle`,
+      prévia certa no WhatsApp, feed RSS; uma notícia pode se ligar a uma emenda ou projeto.
+- [ ] **Verificação em produção**: `isolar_directus.py verificar` (16/16) + nenhuma coleção fora do
+      schema `directus` + `GET /items/…` sem token = 403 + rascunho ausente do site + token de serviço
+      não consegue escrever.
+
+#### v5.4 — Transparência e Emendas Parlamentares (o site "pronto para receber")
+
+- [ ] **Estrutura de dados no Directus**: `emendas` (ano, nº da emenda, ID único, vereador autor, valor da
+      emenda, objeto, secretaria concedente, nº do Termo de Fomento, vigência início/fim, situação:
+      em execução / concluída / prestação de contas entregue / aprovada); `parcelas` (emenda, data,
+      valor); `pagamentos` (emenda, fornecedor, CNPJ, descrição, valor, data, tipo, função quando for
+      equipe — **sem nome de pessoa física**); `etapas_execucao` (emenda, data, local, público atendido,
+      descrição, fotos com autorização, notícia relacionada); `documentos` (tipo, título, PDF, data,
+      emenda opcional); `relatorios` (emenda, tipo execução/prestação de contas, período, PDF, situação
+      da análise); `parcerias` (data de assinatura, órgão, objeto, valor total, valores liberados,
+      situação da prestação de contas, remuneração da equipe paga com o recurso).
+- [ ] **Regras de consistência**: soma das parcelas ≤ valor da emenda; soma dos pagamentos ≤ recebido;
+      situação coerente (não "aprovada" sem relatório). Violação = erro **com o nome do registro**: o
+      build recusa publicar o dado inconsistente e avisa; o site no ar não muda.
+- [ ] **PDF pesquisável (OCR)**: no build cada PDF é aberto e o texto extraído; PDF só-imagem é
+      **recusado** com mensagem clara ("o documento X é imagem; faça OCR e envie de novo"). Os PDFs vão
+      para o site em **URL permanente** (`/arquivos/transparencia/<id>-<slug>.pdf`), independentes de o
+      Directus estar acordado (partida a frio de ~34 s). Conferir o limite de tamanho do Static Web App
+      (plano gratuito) antes de crescer.
+- [ ] **Páginas** (adaptando as existentes): `/transparencia/` vira o **hub** (estatuto, diretoria,
+      editais, emendas, parcerias, documentos, contato para pedido de informação);
+      `/transparencia/emendas/` (todos os anos, filtro por ano e situação, **nunca apaga ano anterior**);
+      `/transparencia/emendas/<id>/` (valores, parcelas, pagamentos, etapas, documentos, relatórios e
+      **"Última atualização" automática**); `/transparencia/parcerias/`;
+      `/transparencia/documentos/` (Estatuto e alterações, ata de eleição vigente, cartão CNPJ,
+      balanços, relatório anual, inscrições em conselhos); **dados abertos**
+      `/transparencia/dados/emendas.csv` e `.json`.
+- [ ] **Destaque na Home**: cartão "Emendas parlamentares" (o link "Transparência" já está no menu e no
+      rodapé).
+- [ ] **Estado vazio honesto** (texto dado pelo usuário): "A associação ainda não recebeu recursos de
+      emendas parlamentares. Esta página será atualizada em até 24 horas após qualquer recebimento."
+      **Dado de exemplo NÃO vai à produção** (site de OSC que busca financiamento não pode exibir
+      registro falso): o "EXEMPLO – substituir" existe só nos testes e como rascunho no Directus, e o e2e
+      prova que nenhum exemplo aparece no build de produção.
+- [ ] **Prazo de 24 h**: publicação manual ("Publicar agora" = `deploy-site.yml`) documentada;
+      sincronização ≤ 15 min + build ≈ 5 min; **alerta** se o site no ar estiver defasado em relação ao
+      Directus por mais de 2 h.
+- [ ] **Contato (R7)**: a página que existe ganha o texto "serve também para pedidos de informação sobre
+      os recursos públicos recebidos", link a partir da Transparência e **prazo de resposta — valor a
+      definir pela diretoria** (não será inventado). O formulário do pedido vem na v5.5.
+- [ ] **Projetos e Despertai (R8)**: projeto "Pública" no sistema já tem página; camada editorial no
+      Directus (`projetos_editoriais` + `edicoes`: data, local, público, fotos com autorização) para as
+      edições anteriores e a informação do **calendário oficial do município — só publicada com o
+      documento que a comprove** (número da lei/decreto).
+- [ ] **`COMO-ATUALIZAR.md`** para a diretoria, em português simples: publicar parcela, pagamento ou
+      etapa em minutos; **OCR antes do upload**; **autorização de imagem**; regra das 24 h; o que fazer
+      se o site recusar um registro.
+- [ ] **Site sempre no ar (comprovação)**: monitor a cada 15 min (`monitorar-site.yml`, histórico
+      guardado, alerta por falha); opcional: teste de disponibilidade do Application Insights
+      (decisão de custo do usuário).
+- [ ] **Cargos da diretoria alinhados ao Art. 19** (pré-requisito para publicar dirigentes reais): o
+      catálogo `titulo_cargo` hoje tem "Vice-Presidente" único, "Diretor de Patrimônio", "Diretor Social"
+      e "Conselho Fiscal" como cargo; passa a ter Presidente, 1º/2º Vice-Presidente, 1º/2º Secretário,
+      1º/2º Tesoureiro e Conselheiro Fiscal, **preservando as permissões que cada cargo concede**
+      (migração + testes).
+- [ ] **Verificação de fatos independente** (regra de 2026-10-03) em todas as páginas novas, antes de
+      dar por pronto.
+
+##### 🔍 Ponto de Revisão — FASE 5 (1/2 — meio, fecha v5.0–v5.4)
 
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 
-- Directus não tem, em nenhuma coleção, dado de associado/financeiro/evento — só conteúdo editorial.
-  **(Achado de 2026-10-01: era FALSO — o Directus enxergava todas as tabelas do sistema.
-  Corrigido em 2026-10-02 pelo isolamento da v5.1 e provado em produção, 16/16: o Directus, com
-  o usuário `directus_app`, é barrado em todas as tabelas do sistema. Reverificar na revisão
-  com `DATABASE_URL=… python scripts/isolar_directus.py verificar`, e conferir que nenhuma
-  coleção de conteúdo nova nasceu fora do schema `directus`.)**
-- Auditoria de SEO/acessibilidade (v5.0) está rodando de fato no CI, não só planejada.
+- Directus não tem, em nenhuma coleção, dado de associado/financeiro **do sistema** — só conteúdo
+  editorial e de transparência. **(Achado de 2026-10-01: era FALSO — o Directus enxergava todas as
+  tabelas do sistema. Corrigido em 2026-10-02 pelo isolamento da v5.1 e provado em produção, 16/16.
+  Reverificar na revisão com `DATABASE_URL=… python scripts/isolar_directus.py verificar` e conferir que
+  nenhuma coleção nova nasceu fora do schema `directus`.)**
+- Auditoria de SEO/acessibilidade (v5.0) está rodando de fato no CI (feito: axe em todas as páginas,
+  Lighthouse, e2e).
+- **Rascunho não vaza**, papel de editor **não** consegue publicar nem ver o que não é dele, token de
+  serviço **não** escreve (testes).
+- **Nenhum PDF só-imagem** publicado; **nenhum dado de exemplo** na produção; consistência de valores
+  (parcelas, pagamentos) verificada.
+- O **Estatuto do site é a versão registrada em cartório** (o usuário confirma); cargos alinhados ao Art. 19.
+- **Revisão jurídica** da base legal e dos textos de Transparência, Privacidade e Termos.
+- Dado de dirigente real só depois de **cargos alinhados**; sem CPF/endereço/telefone pessoal.
+- Verificação independente de fatos de todas as páginas (agente) feita e corrigida.
 
-#### v5.3 — Formulários públicos (uma fila única no painel)
+#### v5.5 — Formulários públicos, fila única e módulo de eventos (era a v5.3)
 
-- [ ] Formulário público de voluntariado, de proposta de filiação (v1.2), de contato e de
-      solicitação de titular LGPD (FASE 7) — todos com a mesma deduplicação por CPF/e-mail, todos
-      caindo em **uma fila única de atendimento** no painel, com status e responsável. Formulário
-      que vira e-mail solto é o jeito conhecido de perder gente interessada.
-- [ ] Confirmação automática ao remetente e prazo de resposta acompanhado (liga com o protocolo
-      interno da v13.3).
+- [ ] **Pré-requisito**: encarregado pelo tratamento de dados designado (LGPD, art. 41) e Política de
+      Privacidade revisada juridicamente — o texto só pode prometer base legal por formulário quando o
+      sistema registrar isso (FASE 7).
+- [ ] Formulário público de voluntariado, de proposta de filiação (v1.2), de contato, de solicitação de
+      titular LGPD (FASE 7) **e de pedido de informação sobre recursos públicos (R7)** — todos com a
+      mesma deduplicação por CPF/e-mail, todos caindo em **uma fila única de atendimento** no painel,
+      com status, responsável e **prazo**. Formulário que vira e-mail solto é o jeito conhecido de perder
+      gente interessada.
+- [ ] Confirmação automática ao remetente e prazo de resposta acompanhado (liga com o protocolo interno
+      da v13.3).
+- [ ] **Voluntário que não é associado** (decisão do usuário, 2026-10-03: "se ele se voluntaria, ele
+      precisa conseguir"): hoje a alocação em projeto **exige cadastro de Associado**
+      (`AlocacaoVoluntario.id_associado`); passa a apontar para `Pessoa`, com migração e testes, e a
+      página `/seja-voluntario/` é atualizada (até lá ela diz o que acontece hoje).
+- [ ] **Inscrição em evento pelo site** (a API já tem formulário, perguntas, consentimento e lista de
+      espera) e **status do evento** — Programado / **Cancelado** / Adiado / Realizado, com motivo —
+      no sistema, no painel e no site (`schema.org eventStatus`), no lugar do paliativo "voltar a
+      Interna". "Módulo de eventos" do usuário: este é o ponto de entrada dele.
 
-#### v5.4 — Doação online
+#### v5.6 — Doação online (era a v5.4)
 
 - [ ] PIX com QR code dinâmico por doação (identificação automática do pagamento), doação
       recorrente via Pix Automático (v3.2.1) quando disponível, e opção de doação anônima.
 - [ ] Recibo automático por e-mail e, para doador identificado, área de acompanhamento das próprias
       doações.
 - [ ] Transparência do destino: cada campanha mostra quanto arrecadou e em que foi aplicado,
-      puxando do centro de custo real (FASE 3) — não texto escrito à mão.
+      puxando do centro de custo real (FASE 3) — não texto escrito à mão. **Liga com a v5.4**: a
+      campanha aparece na Transparência.
 
-#### v5.5 — Confiança, privacidade e conformidade do site
+#### v5.7 — Confiança, privacidade e conformidade do site (era a v5.5)
 
 - [ ] Banner de cookies honesto: se o site não usa rastreamento de terceiro, não fingir que usa —
       preferência por métrica sem cookie (Application Insights ou analytics respeitoso), evitando
-      consentimento desnecessário.
+      consentimento desnecessário. (Hoje o site **não** instala cookie; a Política de Privacidade já diz
+      isso.)
 - [ ] Headers de segurança (CSP, `X-Content-Type-Options`, `X-Frame-Options`, HSTS) configurados no
-      Static Web App.
+      Static Web App — a CSP precisa conhecer o Directus (imagens/arquivos), as ilhas e o Google Maps.
 - [ ] Página "Transparência" e página "Privacidade" sempre acessíveis a partir do rodapé de
-      qualquer página.
+      qualquer página (**já feito na v5.2**).
+- [ ] **Declaração de acessibilidade** do site e `security.txt`; mapa com pino **só** com coordenadas
+      exatas informadas pela diretoria (decisão de 2026-10-03: fica para o futuro).
 
-##### 🔍 Ponto de Revisão — FASE 5 (2/2 — fim, fecha v5.3–v5.5)
+##### 🔍 Ponto de Revisão — FASE 5 (2/2 — fim, fecha v5.5–v5.7)
 
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 
-- Todos os formulários públicos (v5.3) caem na mesma fila única de atendimento — testar que nenhum vira e-mail solto por fora do sistema.
-- Headers de segurança (v5.5) presentes de fato na resposta HTTP do site em produção.
+- Todos os formulários públicos (v5.5) caem na mesma fila única de atendimento — testar que nenhum vira e-mail solto por fora do sistema.
+- Headers de segurança (v5.7) presentes de fato na resposta HTTP do site em produção.
+- Voluntário não associado consegue ser escalado; evento cancelado aparece como **cancelado** (não some).
+- Verificação independente de fatos das páginas novas e alteradas.
+
+##### Decisões pendentes → onde cada uma será tratada (resposta do usuário em 2026-10-03)
+
+| # | Decisão | Resposta | Onde / quando |
+| --- | --- | --- | --- |
+| 1 | Voluntário que não é associado | Quer que consiga se voluntariar ("outra situação") | v5.5 (refatoração do sistema); até lá a página diz a verdade |
+| 2 | Cargos do sistema × Art. 19 | Sem resposta específica ("se precisa antes da revisão, tratamos") | **v5.4**, antes do Ponto de Revisão (1/2) |
+| 3 | Encarregado LGPD e revisão jurídica | Idem | Revisão jurídica **antes do (1/2)**; encarregado **antes da v5.5** |
+| 4 | Estatuto Art. 33, II: "II Crônicas" | **Confirmado: é I Crônicas** (o Estatuto errou) | **FEITO e verificado em produção (2026-10-03, commit `069c835`)**: nota editorial no site (a transcrição segue fiel), "I Crônicas" em Quem somos, seed e migração do sistema. Provas: `asaf.org.br/version.json` = `069c835`; `/estatuto/` traz `#nota-versiculos`; `/quem-somos/` diz "I Crônicas 4:9-10"; o log do Deploy API mostra `Running upgrade 9d4e1b7c2a60 -> c3f8a1d07b94` (a migração só troca o valor se ainda for o do seed) |
+| 5 | Mapa com pino | Não agora; "fica para o futuro" | v5.7 (só com coordenadas exatas) |
+| 6 | Notícias | Vai mandar o token | v5.3 |
+| 7 | Inscrição em evento e "cancelado" | Será o "módulo de eventos" no futuro | v5.5 |
+| — | Estatuto do site = versão registrada em cartório? "Sede provisória" omitida; Art. 34 cita "Conselho Administrativo" que o Art. 18 não lista; titularidade do logotipo (INPI) | Em aberto | O Estatuto/PDF registrado é necessário para a v5.4 (R5); o resto, backlog |
+
+##### O que preciso do usuário (para não travar a v5.3 e a v5.4)
+
+1. **Token** — pelo caminho seguro acima (nada de colar no chat).
+2. **Documentos para a v5.4** (PDF; os escaneados passam por OCR antes): Estatuto registrado e alterações,
+   ata de eleição da diretoria vigente, cartão CNPJ, balanços e relatório anual (quando houver),
+   inscrições em conselhos municipais (quais?).
+3. **Despertai** (R8): edições anteriores (datas, local, público atendido, fotos **com autorização dos
+   responsáveis**) e o **documento** que comprove que integra o calendário oficial do município.
+4. **Decisões**: prazo de resposta a pedidos de informação sobre recursos públicos; quem serão os
+   editores e com qual papel (nomes e e-mails); se quer o teste de disponibilidade pago do Azure.
+
+##### Riscos conhecidos deste desenho
+
+- **Duas fontes para o dinheiro** (Directus publica; o livro-caixa da FASE 3 é a verdade contábil):
+  podem divergir. Mitigação: regras de consistência no build, campo opcional `referencia_no_sistema`
+  em parcelas e pagamentos e conferência mensal; a integração automática (a Transparência puxando o
+  centro de custo da emenda, via view/API) fica para a FASE 12.7.
+- **Directus acorda em ~34 s** e o build depende dele: mesma política da API (repetição, falha derruba o
+  build, o site no ar não muda) e PDFs copiados para o site.
+- **OCR**: o teste detecta PDF sem texto, mas não garante que o texto extraído esteja correto.
+- **Um único administrador** no Directus até a v5.3 criar o de reserva.
+- **Limite de tamanho do Static Web App** para PDFs: medir antes de crescer; plano B = contêiner Blob público.
+- **Base legal não verificada** (ver acima): não é para citar em página pública sem validação jurídica.
 
 ### FASE 6 — Comunicação e transparência
 
@@ -1250,7 +1455,7 @@ estarem de pé — nenhum destes itens tenta substituir o básico, todos depende
 - [ ] Gestão dos templates aprovados pela Meta dentro do painel (status de aprovação, variáveis,
       versão) — template reprovado precisa ser visível antes do disparo, não na hora do erro.
 - [ ] Janela de 24h respeitada pelo próprio sistema: fora dela, só template aprovado.
-- [ ] Recebimento de resposta roteado para a fila única de atendimento (v5.3) — comunicação
+- [ ] Recebimento de resposta roteado para a fila única de atendimento (v5.5) — comunicação
       unilateral gera frustração; se o sistema manda, precisa saber ouvir.
 - [ ] Opt-out honrado em todos os canais simultaneamente, com distinção explícita entre
       comunicação estatutária obrigatória e comunicação opcional.
