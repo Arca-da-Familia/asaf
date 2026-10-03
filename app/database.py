@@ -487,7 +487,7 @@ def seed_configuracoes_institucionais():
         # operacional (nunca bloqueiam nenhuma ação do sistema, por isso NÃO entram em
         # RegraEstatutaria - ver seed_regras_estatutarias e PLANO_PROJETO.md v2.0).
         {"chave": "DATA_MAGNA", "valor": "10/02", "tipo": "texto", "categoria": "identidade", "descricao": "Data magna da ASAF, aniversário de fundação (Art. 33, I - cláusula pétrea)."},
-        {"chave": "VERSICULOS_BASE", "valor": "II Crônicas 4:9-10", "tipo": "texto", "categoria": "identidade", "descricao": "Versículos-base existencial da ASAF (Art. 33, II - cláusula pétrea)."},
+        {"chave": "VERSICULOS_BASE", "valor": "I Crônicas 4:9-10", "tipo": "texto", "categoria": "identidade", "descricao": "Versículos-base existencial da ASAF (Art. 33, II - cláusula pétrea). O Estatuto grafa \"II Crônicas\" por engano; confirmado pelo usuário em 2026-10-03 que é I Crônicas 4:9-10."},
         {"chave": "ORACAO_OFICIAL", "valor": "O Senhor nos abençoe muitíssimo; Alargue as nossas fronteiras! Que a tua mão esteja conosco, Guarda-nos de todo mal.", "tipo": "texto", "categoria": "identidade", "descricao": "Oração oficial da ASAF (Art. 33, III - cláusula pétrea)."},
         # v4.6 - inscrição pública em evento (site institucional, sem login) - texto de
         # consentimento LGPD versionado: o formulário embute a versão atual, e a inscrição só é
