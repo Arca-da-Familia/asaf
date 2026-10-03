@@ -1,8 +1,22 @@
 ---
 import CartaoDeLink from '../components/CartaoDeLink.astro'
 import ProximosEventos from '../components/ProximosEventos.astro'
+import SeloDeStatus from '../components/SeloDeStatus.astro'
 import { LOGO, ORGANIZACAO, PAINEL_URL } from '../config/organizacao'
 import Base from '../layouts/Base.astro'
+import { caminhoDoProjeto, conteudoPublico } from '../lib/dados-publicos'
+
+// Eventos: a lista é uma ilha (ao vivo); o build só diz quais já têm página para virar link.
+// Projetos: até 3 projetos públicos (em execução primeiro) — só aparece a seção se existir algum.
+const { eventos, projetos } = await conteudoPublico()
+const idsComPagina = eventos.map((e) => e.id_evento)
+const emDestaque = [...projetos]
+  .sort(
+    (a, b) =>
+      Number(b.status_codigo === 'EM_EXECUCAO') -
+      Number(a.status_codigo === 'EM_EXECUCAO'),
+  )
+  .slice(0, 3)
 
 // Logo do destaque: 320px de largura; altura pela proporção real (reserva o espaço, sem salto).
 const LARGURA_LOGO = 320
@@ -89,7 +103,49 @@ const ALTURA_LOGO = Math.round(LARGURA_LOGO / LOGO.proporcao)
     </p>
   </section>
 
-  <ProximosEventos />
+  <ProximosEventos idsComPagina={idsComPagina} />
+
+  {emDestaque.length > 0 && (
+    <section
+      aria-labelledby="projetos-titulo"
+      class="mx-auto max-w-5xl px-4 pb-12"
+    >
+      <h2 id="projetos-titulo" class="text-2xl font-bold tracking-tight">
+        Nossos projetos
+      </h2>
+      <ul class="mt-6 grid gap-4 md:grid-cols-3">
+        {emDestaque.map((projeto) => (
+          <li class="flex flex-col rounded-lg border bg-card p-5 shadow-card">
+            <p>
+              <SeloDeStatus
+                codigo={projeto.status_codigo}
+                rotulo={projeto.status}
+              />
+            </p>
+            <h3 class="mt-3 text-lg font-semibold">
+              <a
+                href={caminhoDoProjeto(projeto.id_projeto)}
+                class="underline-offset-4 hover:underline"
+              >
+                {projeto.nome}
+              </a>
+            </h3>
+            {projeto.descricao && (
+              <p class="mt-2 line-clamp-3 text-sm">{projeto.descricao}</p>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p class="mt-6">
+        <a
+          href="/projetos/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          Ver todos os projetos →
+        </a>
+      </p>
+    </section>
+  )}
 
   <section
     aria-labelledby="participe-titulo"

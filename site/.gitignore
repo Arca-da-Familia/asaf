@@ -11,3 +11,4 @@ public/version.json
 test-results/
 playwright-report/
 .lighthouseci/
+dist-vazio/

@@ -12,6 +12,7 @@ import { comFusoDaAsaf, formatarDia, formatarHora, paraInstante } from './datas'
  */
 
 const LIMITE_PADRAO = 6
+const LIMITE_ARQUIVO = 12
 
 /**
  * A API pública lista TODO evento marcado como público, inclusive os que já passaram, e não tem
@@ -37,6 +38,39 @@ export function eventosFuturos(
     .slice(0, limite)
 }
 
+/** Eventos que já terminaram, do mais recente para o mais antigo (arquivo da agenda). */
+export function eventosPassados(
+  eventos: EventoPublico[],
+  agora: Date = new Date(),
+  limite: number = LIMITE_ARQUIVO,
+): EventoPublico[] {
+  return eventos
+    .filter(
+      (e) =>
+        paraInstante(e.data_hora_fim ?? e.data_hora_inicio).getTime() <
+        agora.getTime(),
+    )
+    .sort(
+      (a, b) =>
+        paraInstante(b.data_hora_inicio).getTime() -
+        paraInstante(a.data_hora_inicio).getTime(),
+    )
+    .slice(0, limite)
+}
+
+export type ModoDaLista = 'futuros' | 'passados'
+
+/** Ids que têm página própria (/eventos/<id>/) no site publicado — só esses viram link. */
+export function lerIdsComPagina(container: HTMLElement): Set<number> {
+  const bruto = container.dataset.idsComPagina ?? ''
+  return new Set(
+    bruto
+      .split(',')
+      .map((p) => Number(p.trim()))
+      .filter((n) => Number.isInteger(n) && n > 0),
+  )
+}
+
 function criar<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   classe?: string,
@@ -56,7 +90,11 @@ function rotuloDeVagas(evento: EventoPublico): string | null {
     : `${evento.vagas_livres} vagas disponíveis`
 }
 
-function cartaoDoEvento(evento: EventoPublico): HTMLLIElement {
+function cartaoDoEvento(
+  evento: EventoPublico,
+  idsComPagina: Set<number>,
+  modo: ModoDaLista,
+): HTMLLIElement {
   const item = criar(
     'li',
     'flex flex-col rounded-lg border bg-card p-5 shadow-card',
@@ -72,7 +110,16 @@ function cartaoDoEvento(evento: EventoPublico): HTMLLIElement {
   quando.append(tempo)
   item.append(quando)
 
-  item.append(criar('h3', 'mt-1 text-lg font-semibold', evento.titulo))
+  const titulo = criar('h3', 'mt-1 text-lg font-semibold')
+  if (idsComPagina.has(evento.id_evento)) {
+    // O link existe só quando a página do evento já foi publicada (senão seria um 404).
+    const link = criar('a', 'underline-offset-4 hover:underline', evento.titulo)
+    link.href = `/eventos/${evento.id_evento}/`
+    titulo.append(link)
+  } else {
+    titulo.textContent = evento.titulo
+  }
+  item.append(titulo)
 
   if (evento.endereco_avulso) {
     item.append(
@@ -93,7 +140,8 @@ function cartaoDoEvento(evento: EventoPublico): HTMLLIElement {
       ),
     )
   }
-  const vagas = rotuloDeVagas(evento)
+  // Vaga de evento que já passou não interessa a ninguém.
+  const vagas = modo === 'futuros' ? rotuloDeVagas(evento) : null
   if (vagas) selos.append(criar('span', 'text-muted-foreground', vagas))
   if (selos.childElementCount > 0) item.append(selos)
 
@@ -103,10 +151,14 @@ function cartaoDoEvento(evento: EventoPublico): HTMLLIElement {
 export function renderizarEventos(
   container: HTMLElement,
   eventos: EventoPublico[],
+  idsComPagina: Set<number> = new Set(),
+  modo: ModoDaLista = 'futuros',
 ): void {
   const lista = criar('ul', 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3')
   lista.setAttribute('data-estado', 'lista')
-  for (const evento of eventos) lista.append(cartaoDoEvento(evento))
+  for (const evento of eventos) {
+    lista.append(cartaoDoEvento(evento, idsComPagina, modo))
+  }
   container.replaceChildren(lista)
 }
 
@@ -176,15 +228,22 @@ export async function iniciarEventos(
       tentativas: TENTATIVAS,
       esperaEntreTentativasMs: opcoes.esperaEntreTentativasMs,
     })
-    const proximos = eventosFuturos(todos, opcoes.agora)
-    if (proximos.length === 0) {
+    const modo: ModoDaLista =
+      container.dataset.modo === 'passados' ? 'passados' : 'futuros'
+    const escolhidos =
+      modo === 'passados'
+        ? eventosPassados(todos, opcoes.agora)
+        : eventosFuturos(todos, opcoes.agora)
+    if (escolhidos.length === 0) {
       mostrarMensagem(
         container,
-        'Nenhum evento aberto no momento. Volte em breve.',
+        modo === 'passados'
+          ? 'Ainda não há eventos realizados.'
+          : 'Nenhum evento aberto no momento. Volte em breve.',
         'vazio',
       )
     } else {
-      renderizarEventos(container, proximos)
+      renderizarEventos(container, escolhidos, lerIdsComPagina(container), modo)
     }
   } catch {
     mostrarMensagem(

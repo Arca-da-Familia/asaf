@@ -1,0 +1,30 @@
+---
+interface Props {
+  /** Código do status vindo da API (ex.: "EM_EXECUCAO") — só escolhe o visual; o TEXTO é o rótulo. */
+  codigo?: string | null
+  rotulo?: string | null
+}
+
+const { codigo, rotulo } = Astro.props
+
+// O estado nunca é só cor: o rótulo sempre aparece escrito (acessibilidade).
+const estilos: Record<string, string> = {
+  EM_EXECUCAO: 'bg-brand-secondary text-brand-secondary-foreground',
+  PLANEJAMENTO: 'bg-brand-tertiary/30 text-foreground',
+  CONCLUIDO: 'bg-primary text-primary-foreground',
+  SUSPENSO: 'border text-foreground',
+  CANCELADO: 'border text-foreground line-through decoration-1',
+}
+const classe = estilos[codigo ?? ''] ?? 'border text-foreground'
+---
+
+{rotulo && (
+  <span
+    class:list={[
+      'inline-block rounded-full px-3 py-1 text-xs font-semibold',
+      classe,
+    ]}
+  >
+    {rotulo}
+  </span>
+)}

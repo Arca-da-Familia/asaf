@@ -1,0 +1,131 @@
+---
+import FaleConosco from '../../../../components/FaleConosco.astro'
+import TituloDePagina from '../../../../components/TituloDePagina.astro'
+import type { Migalha } from '../../../../config/navegacao'
+import { ORGANIZACAO } from '../../../../config/organizacao'
+import Base from '../../../../layouts/Base.astro'
+import {
+  caminhoDaAssembleia,
+  conteudoPublico,
+  type AssembleiaPublica,
+} from '../../../../lib/dados-publicos'
+import {
+  formatarDia,
+  formatarHora,
+  formatarInstanteUtc,
+} from '../../../../lib/datas'
+
+// Edital de convocação de assembleia (Estatuto, Arts. 8º e 9º). Dado: GET /api/publico/assembleias.
+// O texto publicado NÃO traz o link de acesso remoto (a API o remove: é para quem foi convocado) e
+// vem com um SHA-256 que comprova que ele não foi alterado depois de publicado.
+export async function getStaticPaths() {
+  const { assembleias } = await conteudoPublico()
+  return assembleias.map((assembleia) => ({
+    params: { id: String(assembleia.id_assembleia) },
+    props: { assembleia },
+  }))
+}
+
+interface Props {
+  assembleia: AssembleiaPublica
+}
+const { assembleia } = Astro.props
+
+const titulo = `Edital: Assembleia Geral ${assembleia.tipo}`
+const migalhas: Migalha[] = [
+  { rotulo: 'Transparência', href: '/transparencia/' },
+  { rotulo: titulo },
+]
+const chamadas = [
+  { rotulo: '1ª convocação', instante: assembleia.primeira_convocacao },
+  { rotulo: '2ª convocação', instante: assembleia.segunda_convocacao },
+  { rotulo: '3ª convocação', instante: assembleia.terceira_convocacao },
+]
+---
+
+<Base
+  titulo={titulo}
+  descricao={`Edital de convocação da Assembleia Geral ${assembleia.tipo} da ${ORGANIZACAO.nome} (${ORGANIZACAO.sigla}): datas das convocações, local, ordem do dia e comprovante de publicação.`}
+  caminho={caminhoDaAssembleia(assembleia.id_assembleia)}
+  migalhas={migalhas}
+>
+  <TituloDePagina titulo={titulo} migalhas={migalhas} />
+
+  <div class="mx-auto flex max-w-3xl flex-col gap-10 px-4 py-12">
+    <section aria-labelledby="quando">
+      <h2 id="quando" class="text-2xl font-bold tracking-tight">
+        Quando e onde
+      </h2>
+      <p class="mt-2 text-sm font-medium text-primary">{assembleia.status}</p>
+      <dl class="mt-4 grid gap-x-8 gap-y-3 sm:grid-cols-[auto_1fr]">
+        {chamadas.map((chamada) => (
+          <>
+            <dt class="font-medium">{chamada.rotulo}</dt>
+            <dd>
+              {formatarDia(chamada.instante)}, às{' '}
+              {formatarHora(chamada.instante)}
+            </dd>
+          </>
+        ))}
+        {assembleia.local_fisico && (
+          <>
+            <dt class="font-medium">Local</dt>
+            <dd>{assembleia.local_fisico}</dd>
+          </>
+        )}
+      </dl>
+      <p class="mt-4 text-sm text-muted-foreground">
+        As três convocações seguem o Art. 6º do Estatuto. Acesso remoto, quando
+        houver, é informado diretamente aos associados.
+      </p>
+    </section>
+
+    <section aria-labelledby="texto">
+      <h2 id="texto" class="text-2xl font-bold tracking-tight">
+        Texto do edital
+      </h2>
+      <pre
+        class="mt-4 overflow-x-auto whitespace-pre-wrap break-words rounded-lg border bg-card p-5 font-sans leading-relaxed shadow-card"
+        tabindex="0"
+        aria-label="Texto do edital de convocação"
+      >{assembleia.edital_texto}</pre>
+    </section>
+
+    <section aria-labelledby="comprovante">
+      <h2 id="comprovante" class="text-2xl font-bold tracking-tight">
+        Comprovante de publicação
+      </h2>
+      <dl class="mt-4 grid gap-x-8 gap-y-3 sm:grid-cols-[auto_1fr]">
+        {assembleia.convocada_em && (
+          <>
+            <dt class="font-medium">Edital emitido em</dt>
+            <dd>
+              {formatarInstanteUtc(assembleia.convocada_em)} (horário de
+              Parauapebas)
+            </dd>
+          </>
+        )}
+        <dt class="font-medium">Código (SHA-256)</dt>
+        <dd class="break-all font-mono text-sm">{assembleia.edital_sha256}</dd>
+      </dl>
+      <p class="mt-4 text-sm text-muted-foreground">
+        Este código identifica o texto exato do edital acima. Se uma única letra
+        for alterada, o código muda — guarde-o para provar, no futuro, o que foi
+        publicado.
+      </p>
+    </section>
+
+    <FaleConosco titulo="Dúvidas sobre a assembleia?">
+      <p>Fale com a secretaria da ASAF.</p>
+    </FaleConosco>
+
+    <p>
+      <a
+        href="/transparencia/"
+        class="font-medium text-primary underline underline-offset-4"
+      >
+        ← Transparência
+      </a>
+    </p>
+  </div>
+</Base>

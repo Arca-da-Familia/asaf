@@ -7,7 +7,9 @@
 // Lighthouse falha alto — em vez de medir, em silêncio, um servidor velho com a API fora do ar.
 import { spawn } from 'node:child_process'
 
-import './mock-api.mjs'
+import { criarServidor, PORTA_DO_MOCK } from './mock-api.mjs'
+
+criarServidor().listen(PORTA_DO_MOCK, '127.0.0.1')
 
 const preview = spawn('npx', ['astro', 'preview', '--port', '4321'], {
   stdio: 'inherit',

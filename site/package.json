@@ -20,7 +20,10 @@
     "format:check": "prettier --check .",
     "logos": "node scripts/gerar-logos.mjs",
     "og": "node scripts/gerar-og.mjs",
-    "build:teste": "node scripts/gerar-version.js && node scripts/build-teste.mjs"
+    "build:teste": "node scripts/gerar-version.js && node scripts/build-teste.mjs",
+    "test:vazio": "node scripts/testar-estados-vazios.mjs",
+    "verificar:conteudo": "node scripts/verificar-conteudo.mjs",
+    "test:sincronizacao": "node scripts/testar-sincronizacao.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",

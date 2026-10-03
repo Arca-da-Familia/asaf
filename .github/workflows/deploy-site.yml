@@ -19,6 +19,8 @@ on:
   # com um token fine-grained restrito a ESTE repositório e à permissão "Actions: Read and
   # write" — o mínimo possível: dá para disparar workflow, não dá para ler nem alterar código.
   # (O caminho `repository_dispatch` exigiria "Contents: write", bem mais perigoso.)
+  # TAMBÉM é chamado pelo workflow `sincronizar-site` (a cada 30 min, quando o conteúdo público da
+  # API — evento, projeto, diretoria, edital — mudou em relação ao site no ar).
   # Por ser só publicação de conteúdo já revisado no Directus, pula os portões de qualidade
   # (acessibilidade/Lighthouse): conteúdo editorial não deve ficar preso por nota de
   # performance de uma rodada instável. Os portões rodam em todo push/PR de código.
@@ -66,7 +68,7 @@ jobs:
       - name: Typecheck (astro check)
         run: npm run typecheck
 
-      - name: Testes unitários (datas, SEO, API, ilha de eventos)
+      - name: Testes unitários (datas, SEO, API, Estatuto, conteúdo público, ilhas de eventos)
         run: npm run test
 
       - name: Build de produção (garante que o build real compila)
@@ -78,8 +80,14 @@ jobs:
       - name: Instala navegador do Playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Auditoria e2e (axe WCAG 2.1 AA, SEO, links, ilha de eventos)
+      - name: Auditoria e2e (axe WCAG 2.1 AA, SEO, links, texto, ilhas, páginas de dados vivos)
         run: npm run test:e2e
+
+      - name: Estado VAZIO (a API sem nenhum dado — é o que a produção mostra no 1º dia)
+        run: npm run test:vazio
+
+      - name: Sincronização (igual não reconstrói; diferente e 1º deploy reconstroem)
+        run: npm run test:sincronizacao
 
       - name: Lighthouse CI (desempenho, acessibilidade, melhores práticas, SEO)
         run: npm run lighthouse

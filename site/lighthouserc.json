@@ -9,7 +9,9 @@
         "http://127.0.0.1:4321/quem-somos/",
         "http://127.0.0.1:4321/seja-associado/",
         "http://127.0.0.1:4321/estatuto/",
-        "http://127.0.0.1:4321/contato/"
+        "http://127.0.0.1:4321/contato/",
+        "http://127.0.0.1:4321/diretoria/",
+        "http://127.0.0.1:4321/eventos/2/"
       ],
       "numberOfRuns": 3,
       "settings": {
@@ -18,10 +20,30 @@
     },
     "assert": {
       "assertions": {
-        "categories:performance": ["error", { "minScore": 0.9 }],
-        "categories:accessibility": ["error", { "minScore": 1 }],
-        "categories:best-practices": ["error", { "minScore": 0.95 }],
-        "categories:seo": ["error", { "minScore": 1 }]
+        "categories:performance": [
+          "error",
+          {
+            "minScore": 0.9
+          }
+        ],
+        "categories:accessibility": [
+          "error",
+          {
+            "minScore": 1
+          }
+        ],
+        "categories:best-practices": [
+          "error",
+          {
+            "minScore": 0.95
+          }
+        ],
+        "categories:seo": [
+          "error",
+          {
+            "minScore": 1
+          }
+        ]
       }
     },
     "upload": {

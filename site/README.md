@@ -36,8 +36,10 @@ npm run format:check   # Prettier
 npm run typecheck      # astro check
 npm test               # unitários (vitest): datas/fuso, SEO/JSON-LD, cliente da API, ilha de eventos, Estatuto, menus
 npm run logos          # regenera logo/ícones a partir de design/logo (ver design/README.md)
-npm run build:teste    # build com a ilha apontando para a API SIMULADA (obrigatório p/ e2e e Lighthouse)
+npm run build:teste    # build com a API SIMULADA de pé (obrigatório p/ e2e e Lighthouse)
 npm run test:e2e       # Playwright: axe WCAG 2.1 AA, SEO, links, ilha em cada estado
+npm run test:vazio     # build contra API sem nenhum dado: confere o estado vazio (o da produção no 1º dia)
+npm run test:sincronizacao  # igual não reconstrói; diferente e 1º deploy reconstroem
 npm run lighthouse     # Lighthouse CI (precisa de Chrome; localmente: CHROME_PATH=...)
 ```
 
@@ -72,6 +74,34 @@ informação, e o que falta (história além da data de fundação, mapa com pin
   seguinte. Use `{' '}` antes/depois do link; `e2e/texto.spec.ts` reprova se alguma palavra colar.
 - **Contato sem mapa embutido, de propósito**: o CEP 68515-000 é da cidade inteira e o
   OpenStreetMap não conhece a rua — qualquer pino seria chute. O botão busca pelo endereço.
+
+## Dados vivos (v5.2): Diretoria, Projetos, Agenda, Evento, Edital
+
+Estas páginas são **geradas no build** lendo a API (`src/lib/dados-publicos.ts` →
+`scripts/lib/conteudo-publico.mjs`): ficam rápidas, indexáveis e com a prévia certa ao compartilhar no
+WhatsApp. Rotas da API (`app/routers/publico.py`, sem login, só leitura, lista explícita de campos):
+`/api/publico/diretoria`, `/projetos`, `/projetos/{id}`, `/assembleias`, `/assembleias/{id}` (+ os eventos).
+
+- **URLs estáveis só com o id** (`/eventos/12/`, `/projetos/3/`): um título editado nunca quebra um link
+  já compartilhado.
+- **Se a API não responder no build, o build FALHA** (3 tentativas, 60 s cada, por causa da partida a frio):
+  nunca se publica um site sem a diretoria e sem os eventos.
+- **O que muda depois do build é resolvido no navegador** (`src/lib/evento-vivo.ts`): vagas livres,
+  evento **retirado do ar** (a API passa a responder 404 → aviso na hora) e "já aconteceu". A lista da
+  Agenda também é ilha: evento novo aparece sem rebuild, e só vira link quando a página dele já existe.
+- **Sincronização automática** (`.github/workflows/sincronizar-site.yml`, a cada 30 min): compara a
+  impressão digital do conteúdo da API com a de `/conteudo.json` do site no ar; se mudou, dispara o
+  `deploy-site.yml`. A impressão **ignora vagas livres** (mudam a cada inscrição). Sem token novo
+  (usa o `GITHUB_TOKEN`, permissão `actions: write`). Testar: `npm run test:sincronizacao`.
+- **Estado vazio** é o da produção no 1º dia (sem projeto, diretoria, evento nem edital):
+  `npm run test:vazio` constrói contra uma API vazia e confere o que aparece e o que NÃO pode aparecer.
+- **Privacidade**: a API NÃO publica CPF/e-mail/telefone/foto de dirigente, nem responsável/orçamento de
+  projeto, e **remove o link de acesso remoto do edital** (publicá-lo daria a sala da assembleia a
+  qualquer pessoa); o SHA-256 do edital é calculado sobre o texto publicado.
+- **Mock da API** (`scripts/mock-api.mjs`) é ligado durante o `build:teste` (`scripts/com-mock.mjs`);
+  dados fixos no dia — um campo que mude a cada chamada faria a sincronização reconstruir sem parar.
+- Cancelar um evento hoje = voltar a visibilidade para "Interna" (some do site na próxima sincronização;
+  enquanto isso a página mostra o aviso de "retirado"). O sistema ainda não tem status "cancelado".
 
 ## SEO técnico
 

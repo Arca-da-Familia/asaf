@@ -4,11 +4,14 @@ import TituloDePagina from '../../components/TituloDePagina.astro'
 import type { Migalha } from '../../config/navegacao'
 import { ENDERECO_LINHA, ORGANIZACAO } from '../../config/organizacao'
 import Base from '../../layouts/Base.astro'
+import { caminhoDaAssembleia, conteudoPublico } from '../../lib/dados-publicos'
+import { formatarDia, formatarHora } from '../../lib/datas'
 
-// Fontes: Estatuto Social (Arts. 1º, 5º, 8º, 20, 23, 24 e 28) e dados institucionais confirmados
-// pelo usuário (CNPJ, sede, contato). Só é listado como "publicado" o que de fato existe no site.
-// Editais, atas e prestações de contas aprovadas entram aqui quando forem publicados (v5.2, etapa de
-// dados vivos, e FASE 6/12.7) — nunca prometidos antes de existirem.
+// Fontes: Estatuto Social (Arts. 1º, 5º, 8º, 20, 23, 24 e 28), dados institucionais confirmados pelo
+// usuário (CNPJ, sede, contato) e GET /api/publico/assembleias (editais de assembleia JÁ convocada).
+// Só é listado como "publicado" o que de fato existe. Atas e prestações de contas aprovadas entram
+// aqui quando forem publicadas (FASE 6/12.7) — nunca prometidas antes de existirem.
+const { assembleias } = await conteudoPublico()
 const migalhas: Migalha[] = [{ rotulo: 'Transparência' }]
 
 const etapasDeContas = [
@@ -135,11 +138,44 @@ const etapasDeContas = [
         </li>
       </ul>
       <p class="mt-4 max-w-3xl text-sm text-muted-foreground">
-        No momento, o Estatuto é o único documento publicado nesta página.
-        Editais de assembleia e demais documentos aparecerão aqui quando forem
-        publicados.
+        {assembleias.length === 0
+          ? 'No momento, o Estatuto é o único documento publicado nesta página. Editais de assembleia e demais documentos aparecerão aqui quando forem publicados.'
+          : 'Atas e prestações de contas aprovadas aparecerão aqui quando forem publicadas.'}
       </p>
     </section>
+
+    {assembleias.length > 0 && (
+      <section aria-labelledby="assembleias">
+        <h2 id="assembleias" class="text-2xl font-bold tracking-tight">
+          Editais de assembleia
+        </h2>
+        <p class="mt-4 max-w-3xl">
+          Os editais de convocação das assembleias gerais, na íntegra, com um
+          código que comprova que o texto publicado não foi alterado.
+        </p>
+        <ul class="mt-6 flex flex-col gap-3">
+          {assembleias.map((assembleia) => (
+            <li class="rounded-lg border bg-card p-5 shadow-card">
+              <p class="text-sm font-medium text-primary">
+                {assembleia.status}
+              </p>
+              <h3 class="mt-1 text-lg font-semibold">
+                <a
+                  href={caminhoDaAssembleia(assembleia.id_assembleia)}
+                  class="underline underline-offset-4"
+                >
+                  Assembleia Geral {assembleia.tipo}
+                </a>
+              </h3>
+              <p class="mt-1 text-sm">
+                1ª convocação: {formatarDia(assembleia.primeira_convocacao)}, às{' '}
+                {formatarHora(assembleia.primeira_convocacao)}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
 
     <FaleConosco titulo="Precisa de alguma informação?">
       <p>

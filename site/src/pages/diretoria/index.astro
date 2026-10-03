@@ -1,0 +1,108 @@
+---
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import Base from '../../layouts/Base.astro'
+import {
+  conteudoPublico,
+  type MembroDaDiretoria,
+} from '../../lib/dados-publicos'
+import { formatarDataCurta } from '../../lib/datas'
+
+// Dados: GET /api/publico/diretoria — só mandatos VIGENTES, só nome, cargo, órgão e datas do mandato
+// (nunca CPF, e-mail, telefone ou foto). Nenhum nome é digitado à mão aqui: se a diretoria muda no
+// sistema (posse, vacância), o site é reconstruído sozinho (workflow sincronizar-site).
+// Regras do Estatuto citadas: Arts. 18, 19, 24, 25 e 32.
+const { diretoria } = await conteudoPublico()
+const migalhas: Migalha[] = [{ rotulo: 'Diretoria e Conselho' }]
+
+// Mantém a ordem que a API entrega (órgão e cargo na ordem do catálogo).
+const porOrgao = new Map<string, MembroDaDiretoria[]>()
+for (const membro of diretoria) {
+  porOrgao.set(membro.orgao, [...(porOrgao.get(membro.orgao) ?? []), membro])
+}
+---
+
+<Base
+  titulo="Diretoria e Conselho Fiscal"
+  descricao="Quem dirige e quem fiscaliza a ASAF: a Diretoria Executiva e o Conselho Fiscal do mandato atual, com os cargos e a duração de cada mandato."
+  caminho="/diretoria/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Diretoria e Conselho Fiscal"
+    resumo="Quem dirige e quem fiscaliza a associação no mandato atual."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-5xl flex-col gap-14 px-4 py-12">
+    {porOrgao.size === 0 ? (
+      <section
+        aria-labelledby="sem-composicao"
+        class="rounded-lg border bg-card p-6 shadow-card sm:p-8"
+        data-estado="vazio"
+      >
+        <h2 id="sem-composicao" class="text-xl font-bold tracking-tight">
+          A composição atual ainda não foi publicada
+        </h2>
+        <p class="mt-2 max-w-3xl">
+          Os cargos da Diretoria Executiva e do Conselho Fiscal são preenchidos
+          por escrutínio secreto em Assembleia Geral (Estatuto, Art. 18). Quando
+          a composição vigente for registrada no sistema da ASAF, ela aparece
+          aqui automaticamente.
+        </p>
+      </section>
+    ) : (
+      [...porOrgao.entries()].map(([orgao, membros], indice) => (
+        <section aria-labelledby={`orgao-${indice}`} data-orgao={orgao}>
+          <h2 id={`orgao-${indice}`} class="text-2xl font-bold tracking-tight">
+            {orgao}
+          </h2>
+          <ul class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {membros.map((membro) => (
+              <li class="rounded-lg border bg-card p-5 shadow-card">
+                <p class="text-sm font-medium text-primary">{membro.cargo}</p>
+                <p class="mt-1 text-lg font-semibold">{membro.nome}</p>
+                {membro.data_inicio && membro.data_fim_previsto && (
+                  <p class="mt-2 text-sm text-muted-foreground">
+                    Mandato: {formatarDataCurta(membro.data_inicio)} a{' '}
+                    {formatarDataCurta(membro.data_fim_previsto)}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))
+    )}
+
+    <section aria-labelledby="como">
+      <h2 id="como" class="text-2xl font-bold tracking-tight">
+        Como a diretoria é composta
+      </h2>
+      <ul class="mt-4 flex max-w-3xl list-disc flex-col gap-3 pl-6">
+        <li>
+          A <strong>Diretoria Executiva</strong> tem sete cargos: Presidente, 1º
+          e 2º Vice-Presidentes, 1º e 2º Secretários e 1º e 2º Tesoureiros (Art.
+          19).
+        </li>
+        <li>
+          O <strong>Conselho Fiscal</strong> é composto por três membros e
+          fiscaliza toda a movimentação financeira e contábil (Art. 24).
+        </li>
+        <li>
+          Os cargos são preenchidos por escrutínio secreto em Assembleia Geral,
+          de quatro em quatro anos, na primeira quinzena de fevereiro, e os
+          mandatos duram quatro anos (Arts. 18, 25 e 32).
+        </li>
+      </ul>
+      <p class="mt-6">
+        <a
+          href="/estatuto/#capitulo-v"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          Leia o Capítulo V do Estatuto, “Dos órgãos da associação” →
+        </a>
+      </p>
+    </section>
+  </div>
+</Base>

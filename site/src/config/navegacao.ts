@@ -13,7 +13,8 @@ export interface ItemDeNavegacao {
 /** Menu do topo. Poucos itens, os que o visitante mais procura. */
 export const NAVEGACAO_PRINCIPAL: ItemDeNavegacao[] = [
   { rotulo: 'Quem somos', href: '/quem-somos/' },
-  { rotulo: 'Eventos', href: '/#eventos' },
+  { rotulo: 'Projetos', href: '/projetos/' },
+  { rotulo: 'Eventos', href: '/eventos/' },
   { rotulo: 'Transparência', href: '/transparencia/' },
   { rotulo: 'Como ajudar', href: '/como-ajudar/' },
   { rotulo: 'Contato', href: '/contato/' },
@@ -30,9 +31,16 @@ export const GRUPOS_DO_RODAPE: GrupoDoRodape[] = [
     titulo: 'A ASAF',
     itens: [
       { rotulo: 'Quem somos', href: '/quem-somos/' },
+      { rotulo: 'Diretoria e Conselho', href: '/diretoria/' },
       { rotulo: 'Estatuto Social', href: '/estatuto/' },
       { rotulo: 'Transparência', href: '/transparencia/' },
-      { rotulo: 'Próximos eventos', href: '/#eventos' },
+    ],
+  },
+  {
+    titulo: 'Atividades',
+    itens: [
+      { rotulo: 'Projetos', href: '/projetos/' },
+      { rotulo: 'Agenda de eventos', href: '/eventos/' },
     ],
   },
   {

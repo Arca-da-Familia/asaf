@@ -1,0 +1,191 @@
+---
+import FaleConosco from '../../../components/FaleConosco.astro'
+import TituloDePagina from '../../../components/TituloDePagina.astro'
+import type { Migalha } from '../../../config/navegacao'
+import {
+  API_URL,
+  ENDERECO_LINHA,
+  ORGANIZACAO,
+  SITE_URL,
+} from '../../../config/organizacao'
+import Base from '../../../layouts/Base.astro'
+import {
+  caminhoDoEvento,
+  conteudoPublico,
+  type EventoDetalhado,
+} from '../../../lib/dados-publicos'
+import { comFusoDaAsaf, formatarDia, formatarHora } from '../../../lib/datas'
+import { jsonLdEvento } from '../../../lib/seo'
+import { descricaoParaMeta, tituloCurto } from '../../../lib/texto'
+
+// Uma página por evento público, com URL estável e compartilhável (/eventos/<id>/): título, data e
+// local certos no WhatsApp/Google (schema.org/Event). O que muda depois do build (vagas, evento
+// retirado, "já aconteceu") é resolvido pela ilha src/lib/evento-vivo.ts.
+export async function getStaticPaths() {
+  const { eventos, detalhesDeEventos } = await conteudoPublico()
+  return eventos.map((evento) => ({
+    params: { id: String(evento.id_evento) },
+    props: { evento: detalhesDeEventos[evento.id_evento]! },
+  }))
+}
+
+interface Props {
+  evento: EventoDetalhado
+}
+const { evento } = Astro.props
+
+const caminho = caminhoDoEvento(evento.id_evento)
+const migalhas: Migalha[] = [
+  { rotulo: 'Eventos', href: '/eventos/' },
+  { rotulo: tituloCurto(evento.titulo) },
+]
+const local =
+  evento.endereco_avulso?.trim() ||
+  `Sede da ${ORGANIZACAO.sigla} — ${ENDERECO_LINHA}, ${ORGANIZACAO.cidade} (${ORGANIZACAO.uf})`
+const mesmoDia =
+  !evento.data_hora_fim ||
+  formatarDia(evento.data_hora_fim) === formatarDia(evento.data_hora_inicio)
+const reserva = `${evento.titulo} — ${formatarDia(evento.data_hora_inicio)}, ${formatarHora(evento.data_hora_inicio)}. Evento da ${ORGANIZACAO.nome} (${ORGANIZACAO.sigla}).`
+const fimDoEvento = evento.data_hora_fim ?? evento.data_hora_inicio
+
+let vagasTexto: string | null = null
+if (evento.vagas_livres !== null) {
+  vagasTexto =
+    evento.vagas_livres === 0
+      ? 'Vagas esgotadas'
+      : evento.vagas_livres === 1
+        ? '1 vaga disponível'
+        : `${evento.vagas_livres} vagas disponíveis`
+}
+---
+
+<Base
+  titulo={tituloCurto(evento.titulo)}
+  descricao={descricaoParaMeta(evento.descricao, reserva)}
+  caminho={caminho}
+  migalhas={migalhas}
+  jsonLd={[jsonLdEvento(evento, `${SITE_URL}${caminho}`)]}
+>
+  <TituloDePagina titulo={evento.titulo} migalhas={migalhas} />
+
+  <div
+    class="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-12"
+    data-evento-vivo
+    data-id={evento.id_evento}
+    data-api-url={API_URL}
+    data-fim={fimDoEvento}
+  >
+    <p
+      data-aviso-retirado
+      hidden
+      role="status"
+      class="rounded-lg border-2 border-destructive p-4 font-medium"
+    >
+      Este evento foi retirado da programação. Fale com a secretaria para mais
+      informações.
+    </p>
+    <p
+      data-aviso-realizado
+      hidden
+      role="status"
+      class="rounded-lg border bg-muted p-4 font-medium"
+    >
+      Este evento já aconteceu.
+    </p>
+
+    <section aria-labelledby="quando-onde">
+      <h2 id="quando-onde" class="sr-only">
+        Data, horário e local
+      </h2>
+      <dl class="grid max-w-3xl gap-x-8 gap-y-4 sm:grid-cols-[auto_1fr]">
+        <dt class="font-medium">Quando</dt>
+        <dd>
+          <time datetime={comFusoDaAsaf(evento.data_hora_inicio)}>
+            {formatarDia(evento.data_hora_inicio)}, às{' '}
+            {formatarHora(evento.data_hora_inicio)}
+          </time>
+          {evento.data_hora_fim && (
+            <>
+              {' '}
+              até{' '}
+              <time datetime={comFusoDaAsaf(evento.data_hora_fim)}>
+                {mesmoDia
+                  ? formatarHora(evento.data_hora_fim)
+                  : `${formatarDia(evento.data_hora_fim)}, ${formatarHora(evento.data_hora_fim)}`}
+              </time>
+            </>
+          )}
+        </dd>
+        <dt class="font-medium">Onde</dt>
+        <dd>{local}</dd>
+        <dt class="font-medium">Entrada</dt>
+        <dd>{evento.gratuito ? 'Gratuita' : 'Paga'}</dd>
+        {vagasTexto && (
+          <>
+            <dt class="font-medium">Vagas</dt>
+            <dd data-vagas>{vagasTexto}</dd>
+          </>
+        )}
+      </dl>
+    </section>
+
+    {evento.descricao && (
+      <section aria-labelledby="sobre">
+        <h2 id="sobre" class="text-2xl font-bold tracking-tight">
+          Sobre o evento
+        </h2>
+        <p class="mt-4 max-w-3xl whitespace-pre-line leading-relaxed">
+          {evento.descricao}
+        </p>
+      </section>
+    )}
+
+    {evento.sessoes.length > 0 && (
+      <section aria-labelledby="programacao">
+        <h2 id="programacao" class="text-2xl font-bold tracking-tight">
+          Programação
+        </h2>
+        <ol class="mt-4 flex max-w-3xl flex-col gap-3">
+          {evento.sessoes.map((sessao) => (
+            <li class="rounded-lg border bg-card p-4 shadow-card">
+              <p class="text-sm font-medium text-primary">
+                <time datetime={comFusoDaAsaf(sessao.data_hora_inicio)}>
+                  {formatarDia(sessao.data_hora_inicio)},{' '}
+                  {formatarHora(sessao.data_hora_inicio)}
+                </time>
+              </p>
+              <h3 class="mt-1 font-semibold">{sessao.titulo}</h3>
+              {sessao.descricao && (
+                <p class="mt-1 text-sm">{sessao.descricao}</p>
+              )}
+            </li>
+          ))}
+        </ol>
+      </section>
+    )}
+
+    <FaleConosco titulo="Como participar">
+      <p>
+        A inscrição pelo site ainda não está disponível. Fale com a secretaria
+        para garantir a sua participação.
+      </p>
+    </FaleConosco>
+
+    <p>
+      <a
+        href="/eventos/"
+        class="font-medium text-primary underline underline-offset-4"
+      >
+        ← Toda a agenda
+      </a>
+    </p>
+  </div>
+</Base>
+
+<script>
+  import { iniciarEventoVivo } from '../../../lib/evento-vivo'
+
+  document
+    .querySelectorAll<HTMLElement>('[data-evento-vivo]')
+    .forEach((raiz) => void iniciarEventoVivo(raiz))
+</script>

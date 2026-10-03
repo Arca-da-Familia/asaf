@@ -2,10 +2,45 @@ import { describe, expect, it } from 'vitest'
 
 import {
   comFusoDaAsaf,
+  formatarDataCurta,
   formatarDia,
   formatarHora,
+  formatarInstanteUtc,
+  jaAconteceu,
   paraInstante,
 } from '../src/lib/datas'
+
+describe('formatarDataCurta (mandato, projeto: data sem hora)', () => {
+  it('não perde um dia por causa do fuso (a armadilha do UTC-3)', () => {
+    expect(formatarDataCurta('2026-02-10')).toBe('10/02/2026')
+    expect(formatarDataCurta('2030-01-01')).toBe('01/01/2030')
+  })
+  it('aceita data com hora e usa só o dia', () => {
+    expect(formatarDataCurta('2026-02-10T00:00:00')).toBe('10/02/2026')
+  })
+})
+
+describe('formatarInstanteUtc (momento gravado em UTC, ex.: emissão do edital)', () => {
+  it('converte UTC para o horário de Parauapebas (UTC-3)', () => {
+    expect(formatarInstanteUtc('2026-10-03T14:30:00')).toBe('03/10/2026 11:30')
+  })
+  it('vira o dia anterior quando passa da meia-noite UTC', () => {
+    expect(formatarInstanteUtc('2026-10-03T01:15:00')).toBe('02/10/2026 22:15')
+  })
+  it('respeita fuso explícito', () => {
+    expect(formatarInstanteUtc('2026-10-03T11:30:00-03:00')).toBe(
+      '03/10/2026 11:30',
+    )
+  })
+})
+
+describe('jaAconteceu', () => {
+  const agora = new Date('2026-10-10T22:00:00Z') // 19:00 em Parauapebas
+  it('compara no horário LOCAL do evento, não no do navegador', () => {
+    expect(jaAconteceu('2026-10-10T18:59:00', agora)).toBe(true)
+    expect(jaAconteceu('2026-10-10T19:01:00', agora)).toBe(false)
+  })
+})
 
 describe('comFusoDaAsaf', () => {
   it('acrescenta -03:00 a data sem fuso (horário local do evento)', () => {

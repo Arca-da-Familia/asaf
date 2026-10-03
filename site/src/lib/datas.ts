@@ -45,3 +45,50 @@ export function formatarDia(isoDaApi: string): string {
 export function formatarHora(isoDaApi: string): string {
   return FORMATO_HORA.format(paraInstante(isoDaApi))
 }
+
+const FORMATO_DATA_CURTA = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'UTC',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+})
+
+/**
+ * "AAAA-MM-DD" (data sem hora, como mandato e projeto) -> "10/02/2026". Fixa UTC de propósito:
+ * `new Date('2026-02-10')` já é meia-noite UTC, e formatar no fuso do navegador (UTC-3) mostraria
+ * "09/02" — um dia a menos numa data de mandato.
+ */
+export function formatarDataCurta(dataIso: string): string {
+  return FORMATO_DATA_CURTA.format(
+    new Date(`${dataIso.slice(0, 10)}T00:00:00Z`),
+  )
+}
+
+const FORMATO_DATA_HORA = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: TIMEZONE_ASAF,
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+
+/**
+ * Instante gravado pelo sistema em UTC SEM fuso ("2026-10-03T14:30:00", ex.: quando o edital foi
+ * emitido) -> "03/10/2026 11:30" no horário de Parauapebas. É o oposto de `paraInstante`: aquele
+ * trata a data da API como horário LOCAL do evento; este trata como UTC.
+ */
+export function formatarInstanteUtc(isoUtcSemFuso: string): string {
+  const instante = new Date(
+    TEM_FUSO.test(isoUtcSemFuso) ? isoUtcSemFuso : `${isoUtcSemFuso}Z`,
+  )
+  return FORMATO_DATA_HORA.format(instante).replace(',', '')
+}
+
+/** O evento já terminou? (compara instantes absolutos: não depende do fuso do navegador). */
+export function jaAconteceu(
+  fimOuInicioIso: string,
+  agora: Date = new Date(),
+): boolean {
+  return paraInstante(fimOuInicioIso).getTime() < agora.getTime()
+}

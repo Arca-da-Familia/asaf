@@ -1,14 +1,31 @@
 ---
 import { API_URL } from '../config/organizacao'
+
+interface Props {
+  /** "futuros" (padrão) = próximos eventos; "passados" = arquivo dos que já aconteceram. */
+  modo?: 'futuros' | 'passados'
+  /** Id da seção (âncora). */
+  id?: string
+  titulo?: string
+  /** Ids com página própria no site publicado: só esses viram link (senão seria um 404). */
+  idsComPagina?: number[]
+}
+
+const {
+  modo = 'futuros',
+  id = 'eventos',
+  titulo = 'Próximos eventos',
+  idsComPagina = [],
+} = Astro.props
 ---
 
 <section
-  id="eventos"
-  aria-labelledby="eventos-titulo"
+  id={id}
+  aria-labelledby={`${id}-titulo`}
   class="mx-auto max-w-5xl scroll-mt-4 px-4 py-12"
 >
-  <h2 id="eventos-titulo" class="text-2xl font-bold tracking-tight">
-    Próximos eventos
+  <h2 id={`${id}-titulo`} class="text-2xl font-bold tracking-tight">
+    {titulo}
   </h2>
   <!--
     Ilha (v5.0): o HTML sai pronto do build; os eventos são buscados na API no navegador, a
@@ -16,7 +33,9 @@ import { API_URL } from '../config/organizacao'
   -->
   <div
     data-eventos
+    data-modo={modo}
     data-api-url={API_URL}
+    data-ids-com-pagina={idsComPagina.join(',')}
     aria-live="polite"
     aria-busy="true"
     class="mt-6"
@@ -27,7 +46,7 @@ import { API_URL } from '../config/organizacao'
   </div>
   <noscript>
     <p class="mt-6 text-muted-foreground">
-      Ative o JavaScript do navegador para ver os próximos eventos.
+      Ative o JavaScript do navegador para ver os eventos.
     </p>
   </noscript>
 </section>

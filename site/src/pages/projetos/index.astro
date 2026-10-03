@@ -1,0 +1,115 @@
+---
+import SeloDeStatus from '../../components/SeloDeStatus.astro'
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import Base from '../../layouts/Base.astro'
+import { caminhoDoProjeto, conteudoPublico } from '../../lib/dados-publicos'
+import { formatarDataCurta } from '../../lib/datas'
+
+// Dados: GET /api/publico/projetos — só projeto marcado "Pública" no sistema (visibilidade). Nada
+// de responsável, centro de custo ou orçamento. Cada projeto tem página própria (/projetos/<id>/).
+const { projetos } = await conteudoPublico()
+const migalhas: Migalha[] = [{ rotulo: 'Projetos' }]
+
+// Em execução primeiro, depois planejamento; encerrados por último.
+const ORDEM = [
+  'EM_EXECUCAO',
+  'PLANEJAMENTO',
+  'SUSPENSO',
+  'CONCLUIDO',
+  'CANCELADO',
+]
+const posicao = (codigo: string | null) => {
+  const i = ORDEM.indexOf(codigo ?? '')
+  return i === -1 ? ORDEM.length : i
+}
+const ordenados = [...projetos].sort(
+  (a, b) => posicao(a.status_codigo) - posicao(b.status_codigo),
+)
+---
+
+<Base
+  titulo="Projetos"
+  descricao="Conheça os projetos sociais da ASAF: o que fazem, para quem são e em que etapa estão. Cada projeto tem uma página com todos os detalhes."
+  caminho="/projetos/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Projetos"
+    resumo="As ações com que a ASAF alcança as famílias, o que cada uma faz e em que etapa está."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto max-w-5xl px-4 py-12">
+    {ordenados.length === 0 ? (
+      <section
+        aria-labelledby="sem-projetos"
+        class="rounded-lg border bg-card p-6 shadow-card sm:p-8"
+        data-estado="vazio"
+      >
+        <h2 id="sem-projetos" class="text-xl font-bold tracking-tight">
+          Ainda não há projetos publicados
+        </h2>
+        <p class="mt-2 max-w-3xl">
+          Quando a ASAF divulgar um projeto, ele aparece aqui, com a descrição,
+          o público atendido e a etapa em que está. Enquanto isso, conheça as
+          áreas em que a associação atua.
+        </p>
+        <a
+          href="/quem-somos/#areas"
+          class="mt-4 inline-block font-medium text-primary underline underline-offset-4"
+        >
+          Veja onde a ASAF atua →
+        </a>
+      </section>
+    ) : (
+      <ul class="grid gap-4 md:grid-cols-2">
+        {ordenados.map((projeto) => (
+          <li class="flex flex-col rounded-lg border bg-card p-6 shadow-card">
+            <p>
+              <SeloDeStatus
+                codigo={projeto.status_codigo}
+                rotulo={projeto.status}
+              />
+            </p>
+            <h2 class="mt-3 text-xl font-semibold">
+              <a
+                href={caminhoDoProjeto(projeto.id_projeto)}
+                class="underline-offset-4 hover:underline"
+              >
+                {projeto.nome}
+              </a>
+            </h2>
+            {projeto.descricao && (
+              <p class="mt-2 line-clamp-3 text-sm">{projeto.descricao}</p>
+            )}
+            <dl class="mt-4 flex flex-col gap-1 text-sm text-muted-foreground">
+              {projeto.publico_alvo && (
+                <div>
+                  <dt class="inline font-medium">Para quem: </dt>
+                  <dd class="inline">{projeto.publico_alvo}</dd>
+                </div>
+              )}
+              {projeto.data_inicio && (
+                <div>
+                  <dt class="inline font-medium">Início: </dt>
+                  <dd class="inline">
+                    {formatarDataCurta(projeto.data_inicio)}
+                  </dd>
+                </div>
+              )}
+            </dl>
+            <a
+              href={caminhoDoProjeto(projeto.id_projeto)}
+              class="mt-4 font-medium text-primary underline underline-offset-4"
+            >
+              Ver o projeto
+              <span class="sr-only">: {projeto.nome}</span>
+              <span aria-hidden="true"> →</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+</Base>

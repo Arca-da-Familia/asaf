@@ -1,0 +1,49 @@
+---
+import FaleConosco from '../../components/FaleConosco.astro'
+import ProximosEventos from '../../components/ProximosEventos.astro'
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import Base from '../../layouts/Base.astro'
+import { conteudoPublico } from '../../lib/dados-publicos'
+
+// Agenda: as duas listas são ilhas (buscam a API a cada visita: evento novo aparece sem rebuild).
+// O build só informa QUAIS eventos já têm página (/eventos/<id>/), para o link nunca dar 404.
+const { eventos } = await conteudoPublico()
+const idsComPagina = eventos.map((e) => e.id_evento)
+const migalhas: Migalha[] = [{ rotulo: 'Eventos' }]
+---
+
+<Base
+  titulo="Agenda de eventos"
+  descricao="A agenda da ASAF: próximos eventos abertos ao público, com data, horário e local, e o arquivo dos eventos que já aconteceram."
+  caminho="/eventos/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Agenda de eventos"
+    resumo="Encontros, ações e atividades da ASAF abertos ao público."
+    migalhas={migalhas}
+  />
+
+  <ProximosEventos
+    id="eventos"
+    titulo="Próximos eventos"
+    idsComPagina={idsComPagina}
+  />
+
+  <ProximosEventos
+    id="realizados"
+    titulo="Eventos realizados"
+    modo="passados"
+    idsComPagina={idsComPagina}
+  />
+
+  <div class="mx-auto max-w-5xl px-4 pb-16">
+    <FaleConosco titulo="Quer participar de um evento?">
+      <p>
+        A inscrição pelo site ainda não está disponível. Fale com a secretaria
+        para saber das vagas e como participar.
+      </p>
+    </FaleConosco>
+  </div>
+</Base>

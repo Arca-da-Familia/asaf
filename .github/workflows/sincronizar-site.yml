@@ -1,0 +1,66 @@
+name: Sincronizar site com o sistema
+
+# O site é estático: Diretoria, Projetos, cada Evento e cada edital viram PÁGINA no build. Quando algo
+# muda no sistema (evento publicado, projeto novo, posse de dirigente, edital emitido) o site
+# publicado fica para trás. Este workflow, a cada 30 minutos, compara a "impressão digital" do
+# conteúdo público da API com a do site no ar (`/conteudo.json`) e, SÓ SE mudou, republica o site.
+#
+# Sem token novo e sem segredo: usa o GITHUB_TOKEN do próprio workflow, com a permissão mínima
+# "actions: write" (disparar workflow; não lê nem altera código). A republicação vai pelo mesmo
+# `deploy-site.yml` (disparo manual: pula os portões de qualidade, de propósito — publicar conteúdo
+# já cadastrado no sistema não deve ficar preso numa rodada instável do Lighthouse).
+#
+# Vagas livres de evento NÃO entram na comparação (mudam a cada inscrição e fariam o site ser
+# reconstruído sem parar): elas são atualizadas no navegador do visitante (src/lib/evento-vivo.ts).
+on:
+  schedule:
+    - cron: "*/30 * * * *" # a cada 30 minutos
+  workflow_dispatch: {}
+
+permissions:
+  actions: write # disparar o deploy-site.yml
+  contents: read
+
+concurrency:
+  group: sincronizar-site
+  cancel-in-progress: false
+
+env:
+  PUBLIC_API_URL: https://api.asaf.org.br
+  SITE_URL: https://asaf.org.br
+
+jobs:
+  sincronizar:
+    name: Compara o conteúdo e, se mudou, republica
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (só os scripts do site)
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            site/scripts
+            site/package.json
+          sparse-checkout-cone-mode: false
+
+      - name: Configura Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+
+      - name: Compara o conteúdo da API com o do site publicado
+        id: conteudo
+        run: node site/scripts/verificar-conteudo.mjs
+
+      - name: Republica o site (só se o conteúdo mudou e não há publicação em andamento)
+        if: steps.conteudo.outputs.mudou == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EM_ANDAMENTO=$(gh run list --workflow deploy-site.yml --repo "$GITHUB_REPOSITORY" \
+            --json status -q '[.[] | select(.status=="in_progress" or .status=="queued")] | length')
+          if [ "$EM_ANDAMENTO" -gt 0 ]; then
+            echo "Já há uma publicação do site em andamento ($EM_ANDAMENTO): a próxima rodada confere de novo."
+            exit 0
+          fi
+          gh workflow run deploy-site.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo "Conteúdo mudou: publicação do site disparada."
