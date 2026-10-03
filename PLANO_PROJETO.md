@@ -875,16 +875,45 @@ retrabalho que a seção 4.1 existe pra evitar.
 >   foram dirigidas a entidades específicas. **15/01/2026: vedadas emendas a entidades com cônjuge,
 >   companheiro ou parente até o 3º grau do parlamentar indicante, ou assessor dele, nos quadros diretivo
 >   ou administrativo** — **alerta para a diretoria** conferir a composição da diretoria; **[NÃO CONFIRMADO]**
->   se vale para emenda municipal. O site **não decide** isso.
-> - **"Lei Municipal nº 5.574/2025" — [NÃO CONFIRMADO]**: não achei município nem texto; único indício
->   (Termo de Referência de Parauapebas no Mural de Licitações do TCM-PA) a trata como adaptação local da
->   Lei 13.019. **Não citar no site** até o usuário/diretoria informar o município e dar o texto.
+>   se vale para emenda municipal — mas o **art. 29 da lei de Parauapebas já exige declaração de que não há
+>   parente até o 2º grau de vereador/prefeito/secretário na diretoria**. O site **não decide** isso.
+> - **Lei Municipal nº 5.574/2025 de Parauapebas (8/7/2025)** — **[CONFERIDO POR MIM no texto integral que o
+>   usuário enviou, 47 páginas, 2026-10-03]**. A sede da ASAF é em Parauapebas, então ela vale direto. Dispõe
+>   sobre o regime das parcerias entre o Município e as OSCs (adapta a Lei 13.019). O que importa ao site e
+>   à diretoria: **art. 5º, § 1º** — a OSC divulga **no seu sítio e nas sedes**, **da celebração até 180 dias
+>   após a prestação de contas final**, as informações do art. 11 da Lei 13.019; **art. 10, § 5º** — emenda
+>   parlamentar à LOA: parceria **sem chamamento**, pela **indicação da OSC na própria emenda**, observados
+>   os arts. 29, 33 e 34 da Lei 13.019; **art. 27-A** — **prazo para receber proposta de parceria vinda de
+>   emenda municipal: até 30 de junho de cada ano** (2025: 30 de agosto); **art. 28** — documentos que a OSC
+>   apresenta (estatuto registrado, certidão de existência jurídica, **ata de eleição e posse**, CNPJ ativo há
+>   1 ano, experiência prévia, certidões federal/FGTS/trabalhista/municipal, **certidão de registro no
+>   SISPPAR**, relação nominal dos dirigentes com endereço, RG e CPF — **entregue à Prefeitura, nunca
+>   publicada**, comprovante de endereço, declarações); § 4º: comunicar mudança de diretoria em até 30 dias
+>   úteis; **art. 29** — declaração de que **nenhum dirigente é membro de Poder (inclui prefeito, vice,
+>   secretários municipais e vereadores) nem parente até o 2º grau** de quem for, e que recursos não pagam
+>   essas pessoas (**isto torna concreto o alerta da diretoria abaixo**); **art. 42** — pagamento por TED,
+>   DOC, débito, Pix ou boleto, com nota fiscal e CNPJ/CPF do fornecedor; **art. 43, § 4º** — **ampla
+>   transparência, também na plataforma, dos valores pagos de forma individualizada à equipe, com cargos e
+>   valores** (a lei não exige nome); **art. 60** — rol de documentos da prestação de contas (inclui
+>   **relatório fotográfico em arquivo digital**) e **art. 62** — prestação parcial em até **30 dias** do fim
+>   de cada parcela e final em até **90 dias** do fim da vigência; **art. 68** — resultado: **contas
+>   regulares / regulares com ressalvas / irregulares**; **art. 71** — análise em até **150 dias**;
+>   **art. 64** — guarda dos originais por **10 anos**; **art. 83, I** — **apoio ou patrocínio não é
+>   "parceria" para esta lei** (patrocínio privado segue legislação própria). A Prefeitura mantém o
+>   **SISPPAR** (Sistema de Gerenciamento de Parcerias) e o canal de denúncias (art. 36, § 2º).
 > - **Outras** (**[PESQUISA]**): LAI (Lei 12.527/2011, art. 2º, e parágrafo único) alcança entidade
 >   privada sem fins lucrativos "no que couber" e só quanto à parcela dos recursos públicos e sua
 >   destinação; Decreto 7.724/2012, art. 63 e Decreto 8.726/2016, art. 80 (só parcerias federais;
 >   publicar até 180 dias após a prestação final); EC 105/2019 (transferência especial não exige convênio).
 >   **LGPD**: não há regra expressa sobre CPF; omitir CPF/endereço/telefone pessoal vem do princípio da
 >   necessidade (arts. 6º, I e III) — **decisão de desenho**, não regra textual.
+>
+> **Tarefas da diretoria que a lei municipal cria (fora do site, mas que o plano deve lembrar):** (a) **cadastrar a
+> ASAF no SISPPAR** e obter a **certidão de registro** (art. 28, X); (b) abrir **conta corrente específica** para
+> cada parceria (IN 06, art. 17, § 4º); (c) calendário: **proposta de emenda municipal até 30 de junho** (art. 27-A);
+> (d) **comunicar mudança de diretoria em 30 dias úteis** (art. 28, § 4º) — a Diretoria do site precisa estar
+> sempre em dia; (e) preparar as **declarações do art. 29** e conferir a composição da diretoria; (f) guardar os
+> originais por **10 anos** (art. 64).
 >
 > **O que isso muda no desenho:** (1) o gatilho das **24 horas** é por **parcela** e por **etapa relevante**
 > (liberação, entrega de bens, execução de serviço) — o modelo da v5.4 tem `parcelas` e `etapas_execucao`
@@ -910,6 +939,17 @@ retrabalho que a seção 4.1 existe pra evitar.
 > (como já foi feito antes). O Claude não contorna a barreira nem lê o arquivo SOPS por outro caminho.
 > Se a senha do Key Vault já não for a atual (o usuário pode ter trocado no Studio), o caminho
 > alternativo é um token estático gerado no próprio Studio — decisão nova a combinar com ele.
+>
+> **Resultado da 1ª tentativa (2026-10-03, com o "pode rodar" do usuário):** `aplicar --producao` leu a
+> senha do Key Vault **sem bloqueio** (nada impresso), mas o Directus recusou o login (**HTTP 401**): a senha
+> guardada já não é a atual (o usuário a trocou no Studio) — ou há MFA. **Não repeti** (tentativa repetida
+> pode travar a conta). **Caminho adotado:** o usuário gera um **token estático temporário** no Studio
+> (Usuários → o próprio usuário → rodapé "Admin Options" → campo **Token** → ícone de chave → copiar → Salvar)
+> e cola em `.env.directus` (arquivo na raiz, **fora do Git** — `.env.*` está no `.gitignore`; só tem esse
+> token, não o arquivo SOPS das credenciais do Azure, que **não precisa ser decifrado**). O script lê esse
+> arquivo sozinho. O token é **revogado e o arquivo apagado ao fim da v5.3**. O campo do Token foi
+> conferido por captura de tela num Directus 12.4.1 local; o passo de gerar o valor **não** pôde ser
+> automatizado na captura (a tela do usuário pode estar em português).
 
 - [x] **Licença do Directus**: o usuário **já digitou a chave** (Open Innovation Grant) e o Directus está
       funcionando (2026-10-03). **Fato descoberto ao testar numa cópia local (Directus 12.4.1 sem
@@ -966,10 +1006,13 @@ retrabalho que a seção 4.1 existe pra evitar.
       emenda, objeto, secretaria concedente, nº do Termo de Fomento, vigência início/fim, situação:
       em execução / concluída / prestação de contas entregue / aprovada); `parcelas` (emenda, data,
       valor); `pagamentos` (emenda, fornecedor, CNPJ, descrição, valor, data, tipo, função quando for
-      equipe — **sem nome de pessoa física**); `etapas_execucao` (emenda, data, local, público atendido,
+      equipe — **valor individualizado por função/cargo, sem nome nem CPF de pessoa física** (art. 43, § 4º da lei
+      municipal e art. 11, VI da Lei 13.019 pedem valores e funções, não nomes — **decisão de desenho a validar
+      juridicamente**); `etapas_execucao` (emenda, data, local, público atendido,
       descrição, fotos com autorização, notícia relacionada); `documentos` (tipo, título, PDF, data,
       emenda opcional); `relatorios` (emenda, tipo execução/prestação de contas, período, PDF, situação
-      da análise); `parcerias` (data de assinatura, órgão, objeto, valor total, valores liberados,
+      da análise: **contas regulares / com ressalvas / irregulares**, com **data prevista, data de apresentação e prazo de
+      análise de 150 dias** — art. 11, V da Lei 13.019 e arts. 62, 68 e 71 da lei municipal); `parcerias` (data de assinatura, órgão, objeto, valor total, valores liberados,
       situação da prestação de contas, remuneração da equipe paga com o recurso).
 - [ ] **Regras de consistência**: soma das parcelas ≤ valor da emenda; soma dos pagamentos ≤ recebido;
       situação coerente (não "aprovada" sem relatório). Violação = erro **com o nome do registro**: o

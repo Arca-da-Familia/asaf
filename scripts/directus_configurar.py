@@ -6,7 +6,8 @@
 
 O que vem de `scripts/directus_modelo.py`. Conexão por variáveis de ambiente (nunca por argumento):
     DIRECTUS_URL        padrão https://cms.asaf.org.br
-    DIRECTUS_TOKEN      token estático de administrador (opção 1), OU
+    DIRECTUS_TOKEN      token estático de administrador (opção 1) - ou a linha `DIRECTUS_TOKEN=...` no arquivo
+                        `.env.directus` da raiz do repositório (fora do Git: `.env.*` está no .gitignore), OU
     DIRECTUS_EMAIL + DIRECTUS_PASSWORD (+ DIRECTUS_OTP se o MFA estiver ligado)  (opção 2: faz login)
 
 `aplicar` só ACRESCENTA: cria pasta/coleção/campo/perfil/permissão que falta e corrige permissão cujo
@@ -27,6 +28,7 @@ else:  # importado como pacote (testes)
     from . import directus_modelo as modelo
 
 URL_PADRAO = "https://cms.asaf.org.br"
+ARQUIVO_TOKEN = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env.directus")  # raiz do repositório, de qualquer pasta
 COFRE_PADRAO = "kv-asaf-arca"
 SEGREDO_SENHA_ADMIN = "DIRECTUS-ADMIN-PASSWORD"
 EMAIL_ADMIN_PADRAO = "asaf@asaf.org.br"
@@ -105,8 +107,30 @@ def senha_do_cofre(cofre: str = COFRE_PADRAO, segredo: str = SEGREDO_SENHA_ADMIN
     return r.stdout.strip()
 
 
-def cliente_do_ambiente(env: dict[str, str] | None = None, producao: bool = False) -> Cliente:
+def ler_arquivo_env(caminho: str) -> dict[str, str]:
+    """Lê linhas CHAVE=valor (ignora vazias e # comentário; tira aspas e espaços). Não imprime nada."""
+    valores: dict[str, str] = {}
+    try:
+        with open(caminho, encoding="utf-8-sig") as f:
+            for linha in f:
+                linha = linha.strip()
+                if not linha or linha.startswith("#") or "=" not in linha:
+                    continue
+                chave, _, valor = linha.partition("=")
+                valores[chave.strip()] = valor.strip().strip('"').strip("'")
+    except FileNotFoundError:
+        pass
+    return valores
+
+
+def cliente_do_ambiente(env: dict[str, str] | None = None, producao: bool = False,
+                        arquivo_token: str = ARQUIVO_TOKEN) -> Cliente:
     env = env if env is not None else dict(os.environ)
+    if not env.get("DIRECTUS_TOKEN") and os.path.exists(arquivo_token):
+        do_arquivo = ler_arquivo_env(arquivo_token)
+        if not do_arquivo.get("DIRECTUS_TOKEN"):
+            raise SystemExit(f"o arquivo {arquivo_token} existe, mas a linha DIRECTUS_TOKEN= está vazia: cole o token depois do '=' e salve (Ctrl+S)")
+        env = {**env, **{k: v for k, v in do_arquivo.items() if k in ("DIRECTUS_TOKEN", "DIRECTUS_URL")}}
     base = env.get("DIRECTUS_URL", URL_PADRAO)
     if producao and not env.get("DIRECTUS_TOKEN") and not env.get("DIRECTUS_PASSWORD"):
         env = {**env, "DIRECTUS_EMAIL": env.get("DIRECTUS_EMAIL", EMAIL_ADMIN_PADRAO),

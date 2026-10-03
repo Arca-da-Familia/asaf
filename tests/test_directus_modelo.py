@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+SEM_ARQUIVO = "arquivo-que-nao-existe.env"  # os testes não podem depender do .env.directus real do computador
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import directus_configurar as cfg  # noqa: E402
@@ -261,8 +263,8 @@ def test_aplicar_remove_permissao_que_nao_esta_no_modelo_e_corrige_a_alterada():
 
 def test_cliente_do_ambiente_exige_credencial():
     with pytest.raises(SystemExit):
-        cfg.cliente_do_ambiente({"DIRECTUS_URL": "http://x"})
-    c = cfg.cliente_do_ambiente({"DIRECTUS_URL": "http://x/", "DIRECTUS_TOKEN": "t"})
+        cfg.cliente_do_ambiente({"DIRECTUS_URL": "http://x"}, arquivo_token=SEM_ARQUIVO)
+    c = cfg.cliente_do_ambiente({"DIRECTUS_URL": "http://x/", "DIRECTUS_TOKEN": "t"}, arquivo_token=SEM_ARQUIVO)
     assert c.base == "http://x"
 
 
@@ -275,7 +277,7 @@ def test_modo_producao_usa_a_senha_do_cofre_sem_imprimir_e_o_email_padrao(monkey
 
     monkeypatch.setattr(cfg, "senha_do_cofre", lambda *a, **k: "segredo-do-cofre")
     monkeypatch.setattr(cfg, "entrar", falso_entrar)
-    c = cfg.cliente_do_ambiente({}, producao=True)
+    c = cfg.cliente_do_ambiente({}, producao=True, arquivo_token=SEM_ARQUIVO)
     assert c.base == "https://cms.asaf.org.br"
     assert chamadas == {"base": "https://cms.asaf.org.br", "email": "asaf@asaf.org.br", "senha": "segredo-do-cofre"}
     saida = capsys.readouterr()
@@ -287,4 +289,33 @@ def test_modo_producao_nao_vai_ao_cofre_se_ja_ha_token_ou_senha(monkeypatch):
         raise AssertionError("foi ao cofre sem precisar")
 
     monkeypatch.setattr(cfg, "senha_do_cofre", nao_deveria)
-    assert cfg.cliente_do_ambiente({"DIRECTUS_TOKEN": "t"}, producao=True).base == "https://cms.asaf.org.br"
+    assert cfg.cliente_do_ambiente({"DIRECTUS_TOKEN": "t"}, producao=True, arquivo_token=SEM_ARQUIVO).base == "https://cms.asaf.org.br"
+
+
+def test_token_pode_vir_do_arquivo_env_local_e_o_arquivo_vence_o_cofre(tmp_path, monkeypatch):
+    arquivo = tmp_path / ".env.directus"
+    arquivo.write_text('# token temporário\nDIRECTUS_TOKEN = "abc123"\n', encoding="utf-8")
+
+    def nao_deveria(*a, **k):
+        raise AssertionError("foi ao cofre havendo token no arquivo")
+
+    monkeypatch.setattr(cfg, "senha_do_cofre", nao_deveria)
+    c = cfg.cliente_do_ambiente({}, producao=True, arquivo_token=str(arquivo))
+    assert c._cab == {"Authorization": "Bearer abc123"}  # sem aspas, sem espaços
+    assert c.base == "https://cms.asaf.org.br"
+
+
+def test_arquivo_env_com_token_vazio_da_mensagem_clara_e_nao_cai_no_cofre(tmp_path, monkeypatch):
+    arquivo = tmp_path / ".env.directus"
+    arquivo.write_text("DIRECTUS_TOKEN=\n", encoding="utf-8")
+    monkeypatch.setattr(cfg, "senha_do_cofre", lambda *a, **k: (_ for _ in ()).throw(AssertionError("cofre")))
+    with pytest.raises(SystemExit) as erro:
+        cfg.cliente_do_ambiente({}, producao=True, arquivo_token=str(arquivo))
+    assert "vazia" in str(erro.value)
+
+
+def test_ler_arquivo_env_ignora_comentario_linha_vazia_e_arquivo_ausente(tmp_path):
+    assert cfg.ler_arquivo_env(str(tmp_path / "nao-existe")) == {}
+    arquivo = tmp_path / "x"
+    arquivo.write_text("\n# c\nA=1\nB = 'dois'\nsem-igual\n", encoding="utf-8")
+    assert cfg.ler_arquivo_env(str(arquivo)) == {"A": "1", "B": "dois"}
