@@ -979,15 +979,29 @@ retrabalho que a seção 4.1 existe pra evitar.
       coleções, campos, relações, políticas, papéis e permissões criados, 2ª execução sem mudar nada; 22
       testes novos (privilégio mínimo do modelo + script contra um Directus falso, com mutação). Falta só
       rodar **em produção** (depende da liberação acima).
-- [ ] **Área "Documentos" (pedido do usuário, 2026-10-03)**: o usuário envia os documentos **direto no
+- [x] **Área "Documentos" (pedido do usuário, 2026-10-03)** — **CRIADA EM PRODUÇÃO (2026-10-03)**, ver o bloco abaixo: o usuário envia os documentos **direto no
       Directus**, não pelo chat ("é documento demais"). O script cria na Biblioteca de arquivos a pasta
       *Documentos institucionais* (subpastas Estatuto e alterações, Atas, Registros e certidões, Balanços
       e relatórios) e *Emendas e parcerias*, *Fotos de eventos e projetos*, *Notícias*; e a coleção
       `documentos` (título, categoria, data, arquivo PDF, descrição, status). **Único documento que já
       existe hoje**: o Estatuto, que é o `ESTATUTO_ASAF.txt` da raiz (transcrição do atual) — o site já o
       publica como texto em `/estatuto/`; o PDF registrado em cartório entra aqui quando o usuário o tiver.
-- [ ] **Rodar `aplicar --producao`** e `verificar --producao` (modo manual, usuário aprovando) e conferir
-      ao vivo: pastas e coleção visíveis no Studio, `GET /items/documentos` sem token = 403.
+- [x] **`aplicar --producao` rodado em 2026-10-03** (token do administrador lido em memória do
+      `CREDENCIAIS_AZURE.md`, que voltou a ficar cifrado em seguida). **Criado no Directus de produção**: 8 pastas
+      (Documentos institucionais + 4 subpastas, Emendas e parcerias, Fotos de eventos e projetos, Notícias),
+      coleções `documentos` e `noticias` (com relação ao arquivo/imagem), 5 perfis (Editor de transparência, Editor
+      de conteúdo, Redator, Colaborador de mídia, Leitor do site) e as permissões que **não** dependem de licença.
+      **Provas:** `GET /items/documentos`, `/items/noticias` e `/folders` **sem token = 403**; `verificar --producao`
+      não acha coleção fora do modelo nem perfil com acesso de administrador; só reclama de **8 permissões** que
+      dependem de regra personalizada. **Pendente por LICENÇA:** `/server/info` em produção mostra
+      `license.source = null` (plano **Core**; a chave do Open Innovation Grant **não está aplicada**, ao contrário
+      do que se supunha) — sem ela, Redator (só rascunho, só o dele), Leitor do site (só publicado) e a leitura
+      própria de arquivos do Colaborador de mídia **não podem ser configurados**. Quando o usuário aplicar a chave
+      (Studio → Configurações (engrenagem) → **License**, opção "I have a license key"), basta rodar `aplicar
+      --producao` de novo (idempotente) e conferir `verificar --producao` limpo. Enquanto isso, a conta do site
+      **não deve ser criada** (sem a regra "só publicado" ela leria rascunho). Observação: com 5 perfis com acesso ao
+      Studio o plano Core pode ter limite de assentos — conferir após a licença.
+
 - [ ] **Papéis de privilégio mínimo** (requisito de 2026-10-01, acima): Administrador (MFA obrigatório),
       Editor de transparência, Editor de conteúdo (notícias, publica), Redator (rascunho, não publica),
       Colaborador de mídia, Leitor de serviço (token do build). Cada um com teste "esta pessoa **não**
