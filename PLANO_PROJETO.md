@@ -940,6 +940,20 @@ retrabalho que a seção 4.1 existe pra evitar.
 > Se a senha do Key Vault já não for a atual (o usuário pode ter trocado no Studio), o caminho
 > alternativo é um token estático gerado no próprio Studio — decisão nova a combinar com ele.
 >
+> **Decisão do usuário (2026-10-03, última palavra): o token fica GUARDADO DE FORMA PERMANENTE no arquivo de
+> credenciais cifrado (`CREDENCIAIS_AZURE.md`, SOPS/age)**, "para não buscar token a cada atualização, daqui a um
+> mês, dois meses": o Claude precisa ter o acesso para fazer o serviço inteiro. Fluxo adotado: (1) **uma vez**: o
+> arquivo é decifrado no lugar (`sops -d -i`), o usuário cola `DIRECTUS_TOKEN=...` no fim dele, o Claude usa e
+> **cifra de novo na hora** (`sops -e -i`); (2) **dali em diante**: `scripts/directus_configurar.py ... --producao`
+> lê esse arquivo **cifrado, decifrando só na memória** (`sops -d` com a saída capturada; nada em disco, nada na
+> tela; só a linha `DIRECTUS_TOKEN=` é usada) — o arquivo **não precisa ficar aberto** nunca mais. Os testes
+> garantem isso (comando exato `sops -d`, arquivo intacto byte a byte, nenhum arquivo temporário, nada
+> impresso) e que **nenhum teste toca os arquivos reais**. O token é de **administrador** (poder total sobre o
+> Directus): fica cifrado; revogar e trocar quando a diretoria mudar ou se houver suspeita de vazamento. No
+> modo automático o Claude Code barra esse acesso (filtro "Credential Exploration"); funcionou depois que o
+> usuário escolheu esta opção explicitamente. O arquivo `.env.directus` (alternativa descartável) continua
+> suportado, mas não é o caminho principal.
+>
 > **Resultado da 1ª tentativa (2026-10-03, com o "pode rodar" do usuário):** `aplicar --producao` leu a
 > senha do Key Vault **sem bloqueio** (nada impresso), mas o Directus recusou o login (**HTTP 401**): a senha
 > guardada já não é a atual (o usuário a trocou no Studio) — ou há MFA. **Não repeti** (tentativa repetida

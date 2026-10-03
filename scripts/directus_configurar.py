@@ -2,13 +2,18 @@
 
     python scripts/directus_configurar.py aplicar      # cria o que falta (pastas, coleções, perfis)
     python scripts/directus_configurar.py verificar    # só leitura; exit 1 se algo estiver fora do modelo
-    ... --producao   # cms.asaf.org.br: a senha do administrador vem do Key Vault (az), em memória - não é impressa
+    ... --producao   # cms.asaf.org.br; o token vem de .env.directus ou do arquivo de credenciais (ver abaixo)
 
 O que vem de `scripts/directus_modelo.py`. Conexão por variáveis de ambiente (nunca por argumento):
     DIRECTUS_URL        padrão https://cms.asaf.org.br
-    DIRECTUS_TOKEN      token estático de administrador (opção 1) - ou a linha `DIRECTUS_TOKEN=...` no arquivo
-                        `.env.directus` da raiz do repositório (fora do Git: `.env.*` está no .gitignore), OU
-    DIRECTUS_EMAIL + DIRECTUS_PASSWORD (+ DIRECTUS_OTP se o MFA estiver ligado)  (opção 2: faz login)
+    Onde o script procura o token do Directus (nesta ordem; só usa o primeiro que achar):
+      1. variável DIRECTUS_TOKEN;
+      2. linha `DIRECTUS_TOKEN=...` em `.env.directus` (raiz; fora do Git: `.env.*` está no .gitignore);
+      3. (só com --producao) linha `DIRECTUS_TOKEN=...` em CREDENCIAIS_AZURE.md. Se o arquivo estiver cifrado
+         (SOPS), é decifrado SÓ NA MEMÓRIA: a saída do `sops -d` é capturada, só esse valor é usado, e nada
+         vai a disco nem à tela - o arquivo continua cifrado o tempo todo;
+      4. (só com --producao --senha-do-cofre) login com a senha do administrador guardada no Key Vault;
+      5. DIRECTUS_EMAIL + DIRECTUS_PASSWORD (+ DIRECTUS_OTP se o MFA estiver ligado).
 
 `aplicar` só ACRESCENTA: cria pasta/coleção/campo/perfil/permissão que falta e corrige permissão cujo
 conteúdo difere do modelo. Não apaga coleção, campo nem dado nenhum.
@@ -16,6 +21,9 @@ conteúdo difere do modelo. Não apaga coleção, campo nem dado nenhum.
 from __future__ import annotations
 
 import os
+import re
+import shutil
+import subprocess
 import sys
 from typing import Any
 
@@ -28,7 +36,10 @@ else:  # importado como pacote (testes)
     from . import directus_modelo as modelo
 
 URL_PADRAO = "https://cms.asaf.org.br"
-ARQUIVO_TOKEN = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env.directus")  # raiz do repositório, de qualquer pasta
+RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # raiz do repositório, de qualquer pasta
+ARQUIVO_TOKEN = os.path.join(RAIZ, ".env.directus")
+ARQUIVO_CREDENCIAIS = os.path.join(RAIZ, "CREDENCIAIS_AZURE.md")  # cifrado com SOPS/age (ver .sops.yaml)
+MARCAS_SOPS = ('"sops"', "ENC[AES256_GCM")  # as mesmas que o hook pre-commit usa para reconhecer arquivo cifrado
 COFRE_PADRAO = "kv-asaf-arca"
 SEGREDO_SENHA_ADMIN = "DIRECTUS-ADMIN-PASSWORD"
 EMAIL_ADMIN_PADRAO = "asaf@asaf.org.br"
@@ -123,23 +134,52 @@ def ler_arquivo_env(caminho: str) -> dict[str, str]:
     return valores
 
 
+def token_das_credenciais(caminho: str | None = None) -> str | None:
+    """Lê `DIRECTUS_TOKEN=` do arquivo de credenciais e devolve SÓ esse valor (ou None se não houver).
+
+    Cifrado com SOPS => decifra em memória (`sops -d`, saída capturada). Nunca escreve o texto puro em
+    disco, nunca imprime, e descarta o resto do arquivo assim que acha a linha."""
+    caminho = caminho or ARQUIVO_CREDENCIAIS
+    try:
+        with open(caminho, encoding="utf-8") as f:
+            texto = f.read()
+    except FileNotFoundError:
+        return None
+    if any(marca in texto for marca in MARCAS_SOPS):
+        sops = shutil.which("sops")
+        if sops is None:
+            raise SystemExit("o arquivo de credenciais está cifrado e o `sops` não foi encontrado no PATH")
+        r = subprocess.run([sops, "-d", caminho], capture_output=True, text=True, encoding="utf-8", timeout=60)
+        if r.returncode != 0:
+            raise SystemExit("não consegui decifrar o arquivo de credenciais (a chave age fica na pasta sops\\age do AppData)")
+        texto = r.stdout
+    achou = re.search(r"""^[ \t>*`-]*DIRECTUS_TOKEN[ \t]*[=:][ \t]*[`"']?([^\s`"']+)""", texto, re.M)
+    return achou.group(1) if achou else None
+
+
 def cliente_do_ambiente(env: dict[str, str] | None = None, producao: bool = False,
-                        arquivo_token: str = ARQUIVO_TOKEN) -> Cliente:
+                        arquivo_token: str | None = None, arquivo_credenciais: str | None = None,
+                        usar_senha_do_cofre: bool = False) -> Cliente:
     env = env if env is not None else dict(os.environ)
+    arquivo_token = arquivo_token or ARQUIVO_TOKEN
     if not env.get("DIRECTUS_TOKEN") and os.path.exists(arquivo_token):
         do_arquivo = ler_arquivo_env(arquivo_token)
-        if not do_arquivo.get("DIRECTUS_TOKEN"):
-            raise SystemExit(f"o arquivo {arquivo_token} existe, mas a linha DIRECTUS_TOKEN= está vazia: cole o token depois do '=' e salve (Ctrl+S)")
-        env = {**env, **{k: v for k, v in do_arquivo.items() if k in ("DIRECTUS_TOKEN", "DIRECTUS_URL")}}
+        if do_arquivo.get("DIRECTUS_TOKEN"):  # arquivo ainda em branco (modelo não preenchido) = ignora
+            env = {**env, **{k: v for k, v in do_arquivo.items() if k in ("DIRECTUS_TOKEN", "DIRECTUS_URL")}}
+    if producao and not env.get("DIRECTUS_TOKEN"):
+        das_credenciais = token_das_credenciais(arquivo_credenciais)
+        if das_credenciais:
+            env = {**env, "DIRECTUS_TOKEN": das_credenciais}
     base = env.get("DIRECTUS_URL", URL_PADRAO)
-    if producao and not env.get("DIRECTUS_TOKEN") and not env.get("DIRECTUS_PASSWORD"):
+    if producao and usar_senha_do_cofre and not env.get("DIRECTUS_TOKEN") and not env.get("DIRECTUS_PASSWORD"):
         env = {**env, "DIRECTUS_EMAIL": env.get("DIRECTUS_EMAIL", EMAIL_ADMIN_PADRAO),
                "DIRECTUS_PASSWORD": senha_do_cofre()}
     if env.get("DIRECTUS_TOKEN"):
         return Cliente(base, env["DIRECTUS_TOKEN"])
     if env.get("DIRECTUS_EMAIL") and env.get("DIRECTUS_PASSWORD"):
         return Cliente(base, entrar(base, env["DIRECTUS_EMAIL"], env["DIRECTUS_PASSWORD"], env.get("DIRECTUS_OTP")))
-    raise SystemExit("defina DIRECTUS_TOKEN, ou DIRECTUS_EMAIL + DIRECTUS_PASSWORD (+ DIRECTUS_OTP)")
+    raise SystemExit("nenhuma credencial do Directus encontrada: cole `DIRECTUS_TOKEN=...` em .env.directus ou em "
+                     "CREDENCIAIS_AZURE.md (e use --producao), ou defina DIRECTUS_TOKEN / DIRECTUS_EMAIL + DIRECTUS_PASSWORD")
 
 
 # ----------------------------------------------------------------------------------------- pastas
@@ -323,11 +363,12 @@ def aplicar(c: Cliente) -> list[str]:
 
 def main(argv: list[str]) -> int:
     producao = "--producao" in argv
-    argv = [a for a in argv if a != "--producao"]
+    usar_cofre = "--senha-do-cofre" in argv
+    argv = [a for a in argv if a not in ("--producao", "--senha-do-cofre")]
     if len(argv) != 2 or argv[1] not in ("aplicar", "verificar"):
         print(__doc__)
         return 2
-    c = cliente_do_ambiente(producao=producao)
+    c = cliente_do_ambiente(producao=producao, usar_senha_do_cofre=usar_cofre)
     if argv[1] == "aplicar":
         feito = aplicar(c)
         print("\n".join(f"  + {x}" for x in feito) if feito else "nada a fazer: já está conforme o modelo.")

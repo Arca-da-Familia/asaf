@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-SEM_ARQUIVO = "arquivo-que-nao-existe.env"  # os testes não podem depender do .env.directus real do computador
+SEM_ARQUIVO = "arquivo-que-nao-existe.env"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
@@ -261,14 +261,105 @@ def test_aplicar_remove_permissao_que_nao_esta_no_modelo_e_corrige_a_alterada():
     assert cfg.verificar(falso) == []
 
 
+@pytest.fixture(autouse=True)
+def _nunca_toca_nos_arquivos_reais(monkeypatch):
+    """Nenhum teste pode ler o .env.directus nem o CREDENCIAIS_AZURE.md (cifrado) do computador, nem rodar `sops`."""
+    monkeypatch.setattr(cfg, "ARQUIVO_TOKEN", SEM_ARQUIVO)
+    monkeypatch.setattr(cfg, "ARQUIVO_CREDENCIAIS", SEM_ARQUIVO)
+
+    def proibido(*a, **k):
+        raise AssertionError("o teste tentou executar um programa externo (sops/az) sem simulá-lo")
+
+    monkeypatch.setattr(cfg.subprocess, "run", proibido)
+
+
 def test_cliente_do_ambiente_exige_credencial():
-    with pytest.raises(SystemExit):
-        cfg.cliente_do_ambiente({"DIRECTUS_URL": "http://x"}, arquivo_token=SEM_ARQUIVO)
-    c = cfg.cliente_do_ambiente({"DIRECTUS_URL": "http://x/", "DIRECTUS_TOKEN": "t"}, arquivo_token=SEM_ARQUIVO)
+    with pytest.raises(SystemExit) as erro:
+        cfg.cliente_do_ambiente({"DIRECTUS_URL": "http://x"})
+    assert "nenhuma credencial" in str(erro.value)
+    c = cfg.cliente_do_ambiente({"DIRECTUS_URL": "http://x/", "DIRECTUS_TOKEN": "t"})
     assert c.base == "http://x"
 
 
-def test_modo_producao_usa_a_senha_do_cofre_sem_imprimir_e_o_email_padrao(monkeypatch, capsys):
+def test_token_vem_do_arquivo_env_local_antes_do_arquivo_de_credenciais(tmp_path, monkeypatch):
+    env = tmp_path / ".env.directus"
+    env.write_text('# token temporário\nDIRECTUS_TOKEN = "do-env"\n', encoding="utf-8")
+    cred = tmp_path / "cred.md"
+    cred.write_text("DIRECTUS_TOKEN=das-credenciais\n", encoding="utf-8")
+    c = cfg.cliente_do_ambiente({}, producao=True, arquivo_token=str(env), arquivo_credenciais=str(cred))
+    assert c._cab == {"Authorization": "Bearer do-env"}  # sem aspas, sem espaços
+    assert c.base == "https://cms.asaf.org.br"
+
+
+def test_arquivo_env_em_branco_e_ignorado_e_cai_no_arquivo_de_credenciais(tmp_path):
+    env = tmp_path / ".env.directus"
+    env.write_text("DIRECTUS_TOKEN=\n", encoding="utf-8")
+    cred = tmp_path / "cred.md"
+    cred.write_text("# Directus\n- DIRECTUS_TOKEN=abc123\n", encoding="utf-8")
+    c = cfg.cliente_do_ambiente({}, producao=True, arquivo_token=str(env), arquivo_credenciais=str(cred))
+    assert c._cab == {"Authorization": "Bearer abc123"}
+
+
+def test_credenciais_so_sao_consultadas_em_modo_producao(tmp_path):
+    cred = tmp_path / "cred.md"
+    cred.write_text("DIRECTUS_TOKEN=abc123\n", encoding="utf-8")
+    with pytest.raises(SystemExit):
+        cfg.cliente_do_ambiente({}, producao=False, arquivo_credenciais=str(cred))
+
+
+def test_token_das_credenciais_texto_puro_formatos_comuns_e_ausencia(tmp_path):
+    f = tmp_path / "c.md"
+    for linha, esperado in [("DIRECTUS_TOKEN=abc", "abc"), ("  - DIRECTUS_TOKEN: `x-y_z`", "x-y_z"),
+                            ('> DIRECTUS_TOKEN = "q1"', "q1"), ("DIRECTUS_TOKEN=", None), ("OUTRA=1", None)]:
+        f.write_text(f"# titulo\nSENHA=nao-pegar\n{linha}\n", encoding="utf-8")
+        assert cfg.token_das_credenciais(str(f)) == esperado, linha
+    assert cfg.token_das_credenciais(str(tmp_path / "nao-existe")) is None
+
+
+def test_arquivo_cifrado_e_decifrado_so_em_memoria_e_so_o_token_e_usado(tmp_path, monkeypatch, capsys):
+    cifrado = tmp_path / "CREDENCIAIS_AZURE.md"
+    original = '{"data": "ENC[AES256_GCM,data:xxx]", "sops": {"version": "3"}}'
+    cifrado.write_text(original, encoding="utf-8")
+    chamadas = []
+
+    class Resultado:
+        returncode = 0
+        stdout = "# Azure\nSENHA_DO_BANCO=muito-secreta\nDIRECTUS_TOKEN=tok-persistente\n"
+
+    def falso_run(comando, **kw):
+        chamadas.append(comando)
+        return Resultado()
+
+    monkeypatch.setattr(cfg.subprocess, "run", falso_run)
+    monkeypatch.setattr(cfg.shutil, "which", lambda nome: "sops.exe")
+    assert cfg.token_das_credenciais(str(cifrado)) == "tok-persistente"
+    assert chamadas == [["sops.exe", "-d", str(cifrado)]]  # `-d` imprime na saída: nunca `-d -i` (que gravaria em disco)
+    assert cifrado.read_text(encoding="utf-8") == original  # o arquivo continua cifrado, byte a byte
+    saida = capsys.readouterr()
+    assert "muito-secreta" not in saida.out + saida.err and "tok-persistente" not in saida.out + saida.err
+    assert [p.name for p in tmp_path.iterdir()] == ["CREDENCIAIS_AZURE.md"]  # nenhum arquivo temporário com texto puro
+
+
+def test_falha_ao_decifrar_ou_sem_sops_da_erro_claro(tmp_path, monkeypatch):
+    cifrado = tmp_path / "c.md"
+    cifrado.write_text('{"sops": {}}', encoding="utf-8")
+    monkeypatch.setattr(cfg.shutil, "which", lambda nome: None)
+    with pytest.raises(SystemExit) as erro:
+        cfg.token_das_credenciais(str(cifrado))
+    assert "sops" in str(erro.value)
+
+    class Falha:
+        returncode = 1
+        stdout = ""
+
+    monkeypatch.setattr(cfg.shutil, "which", lambda nome: "sops.exe")
+    monkeypatch.setattr(cfg.subprocess, "run", lambda *a, **k: Falha())
+    with pytest.raises(SystemExit) as erro:
+        cfg.token_das_credenciais(str(cifrado))
+    assert "decifrar" in str(erro.value)
+
+
+def test_senha_do_cofre_so_com_opcao_explicita_e_nunca_e_impressa(monkeypatch, capsys):
     chamadas = {}
 
     def falso_entrar(base, email, senha, otp=None, http=None):
@@ -277,41 +368,13 @@ def test_modo_producao_usa_a_senha_do_cofre_sem_imprimir_e_o_email_padrao(monkey
 
     monkeypatch.setattr(cfg, "senha_do_cofre", lambda *a, **k: "segredo-do-cofre")
     monkeypatch.setattr(cfg, "entrar", falso_entrar)
-    c = cfg.cliente_do_ambiente({}, producao=True, arquivo_token=SEM_ARQUIVO)
-    assert c.base == "https://cms.asaf.org.br"
+    with pytest.raises(SystemExit):  # sem a opção, o cofre NÃO é consultado (a senha de lá está defasada)
+        cfg.cliente_do_ambiente({}, producao=True)
+    assert chamadas == {}
+    cfg.cliente_do_ambiente({}, producao=True, usar_senha_do_cofre=True)
     assert chamadas == {"base": "https://cms.asaf.org.br", "email": "asaf@asaf.org.br", "senha": "segredo-do-cofre"}
     saida = capsys.readouterr()
     assert "segredo-do-cofre" not in saida.out + saida.err
-
-
-def test_modo_producao_nao_vai_ao_cofre_se_ja_ha_token_ou_senha(monkeypatch):
-    def nao_deveria(*a, **k):
-        raise AssertionError("foi ao cofre sem precisar")
-
-    monkeypatch.setattr(cfg, "senha_do_cofre", nao_deveria)
-    assert cfg.cliente_do_ambiente({"DIRECTUS_TOKEN": "t"}, producao=True, arquivo_token=SEM_ARQUIVO).base == "https://cms.asaf.org.br"
-
-
-def test_token_pode_vir_do_arquivo_env_local_e_o_arquivo_vence_o_cofre(tmp_path, monkeypatch):
-    arquivo = tmp_path / ".env.directus"
-    arquivo.write_text('# token temporário\nDIRECTUS_TOKEN = "abc123"\n', encoding="utf-8")
-
-    def nao_deveria(*a, **k):
-        raise AssertionError("foi ao cofre havendo token no arquivo")
-
-    monkeypatch.setattr(cfg, "senha_do_cofre", nao_deveria)
-    c = cfg.cliente_do_ambiente({}, producao=True, arquivo_token=str(arquivo))
-    assert c._cab == {"Authorization": "Bearer abc123"}  # sem aspas, sem espaços
-    assert c.base == "https://cms.asaf.org.br"
-
-
-def test_arquivo_env_com_token_vazio_da_mensagem_clara_e_nao_cai_no_cofre(tmp_path, monkeypatch):
-    arquivo = tmp_path / ".env.directus"
-    arquivo.write_text("DIRECTUS_TOKEN=\n", encoding="utf-8")
-    monkeypatch.setattr(cfg, "senha_do_cofre", lambda *a, **k: (_ for _ in ()).throw(AssertionError("cofre")))
-    with pytest.raises(SystemExit) as erro:
-        cfg.cliente_do_ambiente({}, producao=True, arquivo_token=str(arquivo))
-    assert "vazia" in str(erro.value)
 
 
 def test_ler_arquivo_env_ignora_comentario_linha_vazia_e_arquivo_ausente(tmp_path):
