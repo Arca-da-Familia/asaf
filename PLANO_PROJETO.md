@@ -926,7 +926,61 @@ retrabalho que a seção 4.1 existe pra evitar.
 > trabalho, os valores recebidos e a prestação de contas, nos termos das normas aplicáveis."* — junto do
 > texto de estado vazio que o usuário ditou.
 
-#### v5.3 — Directus de verdade: a base editorial (junta o que faltava da v5.1 e as Notícias da v5.2)
+##### Decisão de arquitetura — quem é a fonte de cada informação (usuário, 2026-10-03)
+
+> **Pergunta do usuário:** "isso vai ser usado no sistema? Precisa estar só no Directus ou tem que vir do sistema
+> de gestão da ASAF? Se o sistema precisa do dado (um ofício, uma ata), ele não pode ficar exclusivo do
+> Directus; o site tem que puxar do sistema e organizar sozinho. O Directus existe para ser o **editor do
+> site** (já existe pronto, de código aberto; não vamos criar editor de site). Ata tem RG e CPF, que não pode
+> ficar exposto, e PDF não dá para editar. Tem que ficar tudo integrado."
+>
+> **Resposta (análise de 2026-10-03, olhando o que o sistema já tem):** o usuário tem razão, e **é o que o
+> próprio plano já mandava** (v12.7: "tudo gerado do próprio dado do sistema, **nunca digitado duas vezes**";
+> v12.1: execução da parceria ligada a centro de custo; v13.3: "gestão documental com classificação de sigilo").
+> O primeiro desenho da v5.4 (emendas, parcelas, pagamentos e documentos **dentro do Directus**) contrariava
+> isso e já constava nos riscos como "duas fontes para o dinheiro". **Foi corrigido.** O que o sistema já tem e
+> serve de base: `Ata` (com `arquivo_documento_assinado`, protocolo de cartório), `DocumentoEstatuto` (versão
+> registrada), `DocumentoAnexo`, `DocumentoEmitido`, centros de custo e livro-caixa (FASE 3), `PrestacaoDeContas`
+> (anual, texto), armazenamento privado no Azure (`app/services/armazenamento.py`) e as rotas públicas da v5.2.
+> **O que ainda não existe:** uma **biblioteca de documentos** com sigilo/versão pública (hoje cada tipo de
+> arquivo tem seu campo solto) e o módulo de **parcerias/emendas**.
+>
+> | Informação | Fonte da verdade | Como chega ao site |
+> | --- | --- | --- |
+> | Estatuto, atas (inclui eleição), certidões, CNPJ, balanços, relatório anual, conselhos | **SISTEMA** (módulo Documentos, v5.4a) | só a **versão pública aprovada**, via API pública |
+> | Diretoria e Conselho, projetos, eventos, editais de assembleia | **SISTEMA** (já pronto, v5.2) | API pública (já funciona) |
+> | Emendas, parcerias, parcelas, pagamentos, etapas, relatórios, prestação de contas | **SISTEMA** (módulo Parcerias, v5.4a; dinheiro vem do livro-caixa por centro de custo) | API pública → páginas de Transparência |
+> | Doações e campanhas | **SISTEMA** | API pública |
+> | Notícias, textos de página, banners da Home, galeria, FAQ, depoimentos, logos de parceiros, texto e fotos do Despertai | **DIRECTUS** (editor do site) | lido no build (v5.3) |
+> | Imagens do site | **DIRECTUS** (mídia, com texto alternativo e autorização de imagem) | copiadas no build |
+>
+> **Regra para decidir o que é de quem:** se o sistema **usa**, **audita** ou **precisa provar** a informação (ofício,
+> ata, certidão, dinheiro), a fonte é o **sistema** e o site só **mostra** uma cópia aprovada; se é só
+> conteúdo do site (notícia, foto, texto), é do **Directus**. O Directus **nunca** guarda documento oficial.
+> Consequência já aplicada: a coleção `documentos` e as pastas de documentos criadas no Directus de produção
+> **foram removidas** (estavam vazias — nenhum arquivo havia sido enviado) e o perfil "Editor de transparência"
+> do Directus deixou de existir (ele passa a ser perfil do **sistema**).
+>
+> **Dado pessoal em documento (RG, CPF, endereço — ata de eleição, termo de fomento, relação de dirigentes):**
+> (1) cada documento tem **classificação** — *Pública*, *Interna* ou *Restrita*; só *Pública* pode ir ao site;
+> (2) o **original** (com tudo) fica em armazenamento **privado**, com **download só autenticado e por permissão**
+> (a rota atual `/uploads/…` protege só por nome aleatório: **não serve para original sensível**); (3) como PDF
+> não se edita, quem publica sobe ao lado a **versão pública** (com os dados pessoais cobertos de verdade) e
+> **só ela** vai ao site; (4) um **verificador automático** extrai o texto da versão pública e **recusa**
+> CPF, RG e telefone/e-mail pessoal, PDF só-imagem (a IN 06 veda) e versão idêntica ao original — uma tarja
+> desenhada por cima **não apaga o texto**, por isso se confere o texto extraído, não o desenho; (5) nada vai ao ar
+> sem **aprovação de outra pessoa** (v12.7) e fica registrado quem enviou, quem aprovou e o SHA-256 do que foi
+> publicado; (6) "retirar do site" existe e preserva o histórico.
+>
+> **Decisões que dependem da diretoria:** quem aprova publicação (Presidente? Secretário?); classificação
+> padrão por tipo de documento; se o nome do dirigente aparece na versão pública da ata de eleição (a lei
+> municipal pede ao órgão público a relação **com** RG e CPF — isso é entrega à Prefeitura, **não** publicação).
+
+#### v5.3 — Directus de verdade: o EDITOR do site (junta o que faltava da v5.1 e as Notícias da v5.2)
+
+> **Escopo corrigido em 2026-10-03:** o Directus é **só o editor do site** (notícias, textos, banners, fotos, FAQ,
+> Despertai editorial). Documento oficial, emenda e dinheiro são do **sistema** (ver a decisão de arquitetura acima e
+> a v5.4a).
 
 > **Como o Claude entra no Directus (decisão do usuário, 2026-10-03):** o usuário **não vai colar token
 > nem rodar script** ("não entendi nada, tenho medo"). O arquivo de credenciais criptografado e o Key
@@ -979,13 +1033,12 @@ retrabalho que a seção 4.1 existe pra evitar.
       coleções, campos, relações, políticas, papéis e permissões criados, 2ª execução sem mudar nada; 22
       testes novos (privilégio mínimo do modelo + script contra um Directus falso, com mutação). Falta só
       rodar **em produção** (depende da liberação acima).
-- [x] **Área "Documentos" (pedido do usuário, 2026-10-03)** — **CRIADA EM PRODUÇÃO (2026-10-03)**, ver o bloco abaixo: o usuário envia os documentos **direto no
-      Directus**, não pelo chat ("é documento demais"). O script cria na Biblioteca de arquivos a pasta
-      *Documentos institucionais* (subpastas Estatuto e alterações, Atas, Registros e certidões, Balanços
-      e relatórios) e *Emendas e parcerias*, *Fotos de eventos e projetos*, *Notícias*; e a coleção
-      `documentos` (título, categoria, data, arquivo PDF, descrição, status). **Único documento que já
-      existe hoje**: o Estatuto, que é o `ESTATUTO_ASAF.txt` da raiz (transcrição do atual) — o site já o
-      publica como texto em `/estatuto/`; o PDF registrado em cartório entra aqui quando o usuário o tiver.
+- [x] **Área "Documentos" no Directus — CRIADA e depois RETIRADA (2026-10-03):** o usuário pediu um lugar para
+      enviar os documentos, o script criou pastas e a coleção `documentos`; ao ver o resultado ("só coloca aqui,
+      perdeu organização") e ao pensar na integração, o usuário decidiu que **documento oficial é do sistema**
+      (ver a decisão de arquitetura). Coleção, 6 pastas e o perfil "Editor de transparência" foram **removidos do
+      Directus de produção** (estavam vazios; o script só remove o que está vazio). **Nenhum arquivo deve ser
+      enviado ao Directus como documento oficial** — a biblioteca certa é o módulo Documentos do sistema (v5.4a).
 - [x] **`aplicar --producao` rodado em 2026-10-03** (token do administrador lido em memória do
       `CREDENCIAIS_AZURE.md`, que voltou a ficar cifrado em seguida). **Criado no Directus de produção**: 8 pastas
       (Documentos institucionais + 4 subpastas, Emendas e parcerias, Fotos de eventos e projetos, Notícias),
@@ -993,7 +1046,7 @@ retrabalho que a seção 4.1 existe pra evitar.
       de conteúdo, Redator, Colaborador de mídia, Leitor do site) e as permissões que **não** dependem de licença.
       **Provas:** `GET /items/documentos`, `/items/noticias` e `/folders` **sem token = 403**; `verificar --producao`
       não acha coleção fora do modelo nem perfil com acesso de administrador; só reclama de **8 permissões** que
-      dependem de regra personalizada. **Pendente por LICENÇA:** `/server/info` em produção mostra
+      dependem de regra personalizada. **(Resolvido no mesmo dia: o usuário aplicou a chave — `license.source = settings`, "OIG" — e as 8 permissões foram criadas; `verificar --producao` limpo.)** Antes disso, **pendente por LICENÇA:** `/server/info` em produção mostra
       `license.source = null` (plano **Core**; a chave do Open Innovation Grant **não está aplicada**, ao contrário
       do que se supunha) — sem ela, Redator (só rascunho, só o dele), Leitor do site (só publicado) e a leitura
       própria de arquivos do Colaborador de mídia **não podem ser configurados**. Quando o usuário aplicar a chave
@@ -1028,66 +1081,88 @@ retrabalho que a seção 4.1 existe pra evitar.
       schema `directus` + `GET /items/…` sem token = 403 + rascunho ausente do site + token de serviço
       não consegue escrever.
 
-#### v5.4 — Transparência e Emendas Parlamentares (o site "pronto para receber")
+#### v5.4 — Transparência e Emendas Parlamentares (o site "pronto para receber") — fonte da verdade no SISTEMA
 
-- [ ] **Estrutura de dados no Directus**: `emendas` (ano, nº da emenda, ID único, vereador autor, valor da
-      emenda, objeto, secretaria concedente, nº do Termo de Fomento, vigência início/fim, situação:
-      em execução / concluída / prestação de contas entregue / aprovada); `parcelas` (emenda, data,
-      valor); `pagamentos` (emenda, fornecedor, CNPJ, descrição, valor, data, tipo, função quando for
-      equipe — **valor individualizado por função/cargo, sem nome nem CPF de pessoa física** (art. 43, § 4º da lei
-      municipal e art. 11, VI da Lei 13.019 pedem valores e funções, não nomes — **decisão de desenho a validar
-      juridicamente**); `etapas_execucao` (emenda, data, local, público atendido,
-      descrição, fotos com autorização, notícia relacionada); `documentos` (tipo, título, PDF, data,
-      emenda opcional); `relatorios` (emenda, tipo execução/prestação de contas, período, PDF, situação
-      da análise: **contas regulares / com ressalvas / irregulares**, com **data prevista, data de apresentação e prazo de
-      análise de 150 dias** — art. 11, V da Lei 13.019 e arts. 62, 68 e 71 da lei municipal); `parcerias` (data de assinatura, órgão, objeto, valor total, valores liberados,
-      situação da prestação de contas, remuneração da equipe paga com o recurso).
-- [ ] **Regras de consistência**: soma das parcelas ≤ valor da emenda; soma dos pagamentos ≤ recebido;
-      situação coerente (não "aprovada" sem relatório). Violação = erro **com o nome do registro**: o
-      build recusa publicar o dado inconsistente e avisa; o site no ar não muda.
-- [ ] **PDF pesquisável (OCR)**: no build cada PDF é aberto e o texto extraído; PDF só-imagem é
-      **recusado** com mensagem clara ("o documento X é imagem; faça OCR e envie de novo"). Os PDFs vão
-      para o site em **URL permanente** (`/arquivos/transparencia/<id>-<slug>.pdf`), independentes de o
-      Directus estar acordado (partida a frio de ~34 s). Conferir o limite de tamanho do Static Web App
-      (plano gratuito) antes de crescer.
-- [ ] **Páginas** (adaptando as existentes): `/transparencia/` vira o **hub** (estatuto, diretoria,
-      editais, emendas, parcerias, documentos, contato para pedido de informação);
+> Refeita em 2026-10-03 pela decisão de arquitetura acima: **a v5.4a constrói o dado no sistema; a v5.4b o mostra
+> no site.** Antecipa, só no **núcleo** que a transparência exige, itens das fases 12/13 (v12.1 parcerias, v12.6
+> biblioteca de documentos, v12.7 portal de transparência, v13.3 gestão documental) — o resto dessas versões
+> continua onde está. Nenhuma dessas partes mexe em dinheiro/voto/LGPD sem os portões de teste de sempre.
+
+##### v5.4a — No sistema (painel + API)
+
+- [ ] **Módulo Documentos** (biblioteca institucional): tipo (estatuto, ata, certidão, CNPJ, balanço, relatório
+      anual, inscrição em conselho, termo de fomento, plano de trabalho, aditivo, prestação de contas, outro),
+      título, descrição, data, **versão** e "vigente", **validade** (certidão com alerta de vencimento),
+      **classificação** (Pública / Interna / Restrita), **vínculo** (ata, estatuto, parceria/emenda, projeto,
+      evento), **arquivo original** (armazenamento privado, **download autenticado e por permissão**, nunca pela
+      rota pública `/uploads`), **versão pública** (arquivo separado) e texto extraído (busca).
+- [ ] **Proteção de dado pessoal**: verificador automático da versão pública (texto extraído **sem** CPF, RG,
+      telefone/e-mail pessoal; **com** camada de texto — PDF só-imagem é recusado; diferente do original) +
+      **aprovação de publicação por outra pessoa** (rascunho → em revisão → aprovado → no site; quem enviou
+      não aprova), registro de quem enviou/aprovou/retirou e **SHA-256 do que foi publicado**; "retirar do
+      site" preservando o histórico.
+- [ ] **Atas e Estatuto ligados**: `Ata.arquivo_documento_assinado` e `DocumentoEstatuto.caminho_arquivo`
+      passam a ser documentos da biblioteca, **sem perder nenhum arquivo já enviado** (migração com teste).
+- [ ] **Tela do painel bem organizada** (crítica do usuário à biblioteca crua do Directus: "só coloca aqui, perdeu
+      organização"): lista **agrupada por tipo**, filtros (tipo, ano, situação, no site), pré-visualização, selo
+      "No site / Não publicado / Em revisão", alerta de vencimento, **envio em duas etapas** (original +
+      versão pública) com o **resultado da verificação na tela**, e histórico de versões.
+- [ ] **Perfis do sistema**: gerir documentos; ver restritos; **aprovar publicação** (perfil novo, mínimo).
+      O que era "Editor de transparência" do Directus vira perfil **do sistema** (`niveis_acesso`).
+- [ ] **Módulo Parcerias e emendas** (núcleo da v12.1, **sem** ativar o módulo todo): parceria/emenda (ano, nº da
+      emenda, ID único, **proponente = vereador**, valor, objeto, secretaria concedente, nº do Termo de Fomento,
+      vigência, situação), **parcelas**, **etapas de execução** (data, local, público, fotos com autorização),
+      **relatórios e prestação de contas** (situação **regulares / com ressalvas / irregulares**, data prevista,
+      data de apresentação, prazo de análise de 150 dias — Lei 13.019 art. 11, V; lei municipal arts. 62, 68, 71) e
+      **documentos ligados** (pelo módulo Documentos).
+- [ ] **Dinheiro vem do livro-caixa**, não digitado de novo: cada parceria tem **centro de custo exclusivo**
+      (FASE 3); pagamentos e recebimentos publicados **são** os lançamentos desse centro (fornecedor, CNPJ,
+      descrição, valor, data; **equipe paga = função + valor individualizado, sem nome nem CPF** — lei municipal
+      art. 43, § 4º e Lei 13.019 art. 11, VI; **a validar juridicamente**). **Consistência:** soma das parcelas ≤
+      valor da emenda; pagamentos ≤ recebido; "aprovada" só com relatório. Violação = erro com o nome do registro.
+- [ ] **API pública** `/api/publico/transparencia/...` (só o que foi **aprovado**; para documento, **só a versão
+      pública**; campos explícitos, nada interno — mesmo cuidado das rotas da v5.2) e entrada no
+      `conteudo.json` para a sincronização republicar o site quando mudar.
+- [ ] **Testes**: matriz de permissões; original **nunca** aparece na API pública; documento Interno/Restrito
+      nunca é publicado; verificador pega CPF/RG/telefone e PDF só-imagem; aprovação por outra pessoa;
+      download do original exige login e permissão; migração de atas preserva os arquivos.
+
+##### v5.4b — No site (páginas geradas a partir da API do sistema)
+
+- [ ] **Páginas** (adaptando as existentes): `/transparencia/` vira o **hub** (estatuto, diretoria, editais,
+      emendas, parcerias, documentos, contato para pedido de informação);
       `/transparencia/emendas/` (todos os anos, filtro por ano e situação, **nunca apaga ano anterior**);
       `/transparencia/emendas/<id>/` (valores, parcelas, pagamentos, etapas, documentos, relatórios e
       **"Última atualização" automática**); `/transparencia/parcerias/`;
-      `/transparencia/documentos/` (Estatuto e alterações, ata de eleição vigente, cartão CNPJ,
-      balanços, relatório anual, inscrições em conselhos); **dados abertos**
-      `/transparencia/dados/emendas.csv` e `.json`.
-- [ ] **Destaque na Home**: cartão "Emendas parlamentares" (o link "Transparência" já está no menu e no
-      rodapé).
-- [ ] **Estado vazio honesto** (texto dado pelo usuário): "A associação ainda não recebeu recursos de
-      emendas parlamentares. Esta página será atualizada em até 24 horas após qualquer recebimento."
-      **Dado de exemplo NÃO vai à produção** (site de OSC que busca financiamento não pode exibir
-      registro falso): o "EXEMPLO – substituir" existe só nos testes e como rascunho no Directus, e o e2e
-      prova que nenhum exemplo aparece no build de produção.
-- [ ] **Prazo de 24 h**: publicação manual ("Publicar agora" = `deploy-site.yml`) documentada;
-      sincronização ≤ 15 min + build ≈ 5 min; **alerta** se o site no ar estiver defasado em relação ao
-      Directus por mais de 2 h.
-- [ ] **Contato (R7)**: a página que existe ganha o texto "serve também para pedidos de informação sobre
-      os recursos públicos recebidos", link a partir da Transparência e **prazo de resposta — valor a
-      definir pela diretoria** (não será inventado). O formulário do pedido vem na v5.5.
-- [ ] **Projetos e Despertai (R8)**: projeto "Pública" no sistema já tem página; camada editorial no
-      Directus (`projetos_editoriais` + `edicoes`: data, local, público, fotos com autorização) para as
-      edições anteriores e a informação do **calendário oficial do município — só publicada com o
-      documento que a comprove** (número da lei/decreto).
-- [ ] **`COMO-ATUALIZAR.md`** para a diretoria, em português simples: publicar parcela, pagamento ou
-      etapa em minutos; **OCR antes do upload**; **autorização de imagem**; regra das 24 h; o que fazer
-      se o site recusar um registro.
-- [ ] **Site sempre no ar (comprovação)**: monitor a cada 15 min (`monitorar-site.yml`, histórico
-      guardado, alerta por falha); opcional: teste de disponibilidade do Application Insights
-      (decisão de custo do usuário).
-- [ ] **Cargos da diretoria alinhados ao Art. 19** (pré-requisito para publicar dirigentes reais): o
-      catálogo `titulo_cargo` hoje tem "Vice-Presidente" único, "Diretor de Patrimônio", "Diretor Social"
-      e "Conselho Fiscal" como cargo; passa a ter Presidente, 1º/2º Vice-Presidente, 1º/2º Secretário,
-      1º/2º Tesoureiro e Conselheiro Fiscal, **preservando as permissões que cada cargo concede**
-      (migração + testes).
-- [ ] **Verificação de fatos independente** (regra de 2026-10-03) em todas as páginas novas, antes de
-      dar por pronto.
+      `/transparencia/documentos/` (**organizada por tipo e ano**, com busca; só versões públicas aprovadas);
+      **dados abertos** `/transparencia/dados/emendas.csv` e `.json`.
+- [ ] **PDFs em URL permanente** (`/arquivos/transparencia/<id>-<slug>.pdf`), copiados no build — o site não
+      depende de o sistema estar acordado (partida a frio de ~21–35 s) e o PDF **continua pesquisável**
+      (conferido de novo no build). Conferir o limite de tamanho do Static Web App antes de crescer.
+- [ ] **Destaque na Home**: cartão "Emendas parlamentares" (o link "Transparência" já está no menu e no rodapé).
+- [ ] **Estado vazio honesto** (texto dado pelo usuário): "A associação ainda não recebeu recursos de emendas
+      parlamentares. Esta página será atualizada em até 24 horas após qualquer recebimento." **Dado de exemplo
+      NÃO vai à produção** (site de OSC que busca financiamento não exibe registro falso): "EXEMPLO – substituir"
+      só em teste/rascunho, e o e2e prova que nenhum exemplo aparece no build de produção.
+- [ ] **Prazo de 24 h**: aprovou no painel → sincronização ≤ 15 min + build ≈ 5 min; "Publicar agora"
+      (`deploy-site.yml`) documentado; **alerta** se o site no ar estiver defasado do sistema por mais de 2 h.
+- [ ] **Contato (R7)**: a página ganha o texto "serve também para pedidos de informação sobre os recursos
+      públicos recebidos", link a partir da Transparência e **prazo de resposta — valor a definir pela
+      diretoria** (não será inventado). O formulário do pedido vem na v5.5.
+- [ ] **Projetos e Despertai (R8)**: projeto "Pública" do sistema já tem página; a **camada editorial**
+      (texto, edições anteriores com data/local/público e fotos com autorização) fica no **Directus**, e a
+      informação do **calendário oficial do município só é publicada com o documento que a comprove**
+      (número da lei/decreto — esse documento entra pelo módulo Documentos).
+- [ ] **`COMO-ATUALIZAR.md`** para a diretoria, em português simples, agora sobre o **painel**: enviar documento
+      (original + versão pública), o que o verificador recusa e por quê, aprovar publicação, regra das 24 h,
+      **autorização de imagem**; e a parte do Directus (notícias, fotos).
+- [ ] **Site sempre no ar (comprovação)**: monitor a cada 15 min (`monitorar-site.yml`, histórico guardado,
+      alerta por falha); opcional: teste de disponibilidade do Application Insights (decisão de custo).
+- [ ] **Cargos da diretoria alinhados ao Art. 19** (pré-requisito para publicar dirigentes reais): o catálogo
+      `titulo_cargo` hoje tem "Vice-Presidente" único, "Diretor de Patrimônio", "Diretor Social" e "Conselho
+      Fiscal" como cargo; passa a ter Presidente, 1º/2º Vice-Presidente, 1º/2º Secretário, 1º/2º Tesoureiro e
+      Conselheiro Fiscal, **preservando as permissões que cada cargo concede** (migração + testes).
+- [ ] **Verificação de fatos independente** (regra de 2026-10-03) em todas as páginas novas, antes de dar por pronto.
 
 ##### 🔍 Ponto de Revisão — FASE 5 (1/2 — meio, fecha v5.0–v5.4)
 
@@ -1104,6 +1179,12 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
   serviço **não** escreve (testes).
 - **Nenhum PDF só-imagem** publicado; **nenhum dado de exemplo** na produção; consistência de valores
   (parcelas, pagamentos) verificada.
+- **Dado pessoal**: o **original** de um documento (ata, termo) **nunca** sai pela API pública nem pela rota
+  `/uploads`; só a **versão pública aprovada** está no site; teste com um PDF de ata com CPF/RG de mentira: o
+  verificador recusa, e uma tarja só desenhada por cima também (o texto continua lá). Documento *Interno*/*Restrito*
+  não aparece em lugar nenhum público. Quem enviou não aprova o próprio documento.
+- **Uma fonte só**: nada de documento oficial, emenda ou valor existe só no Directus (o `verificar` do Directus
+  reprova coleção de negócio); o que o site mostra de dinheiro **bate** com o livro-caixa do centro de custo.
 - O **Estatuto do site é a versão registrada em cartório** (o usuário confirma); cargos alinhados ao Art. 19.
 - **Revisão jurídica** dos textos de Transparência, Privacidade e Termos (a base legal já foi pesquisada, ver
   acima; falta a leitura de quem é do ramo) e conferência da composição da diretoria contra a vedação do STF de
@@ -1180,7 +1261,9 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 ##### O que preciso do usuário (para não travar a v5.3 e a v5.4)
 
 1. **Token** — pelo caminho seguro acima (nada de colar no chat).
-2. **Documentos para a v5.4** (PDF; os escaneados passam por OCR antes): Estatuto registrado e alterações,
+2. **Documentos para a v5.4a** — **NÃO enviar ao Directus nem pelo chat**: guardar com cuidado (atas têm RG/CPF) até o
+   módulo Documentos do sistema existir (v5.4a); aí entram pelo painel, original + versão pública. São eles (PDF; os
+   escaneados passam por OCR antes): Estatuto registrado e alterações,
    ata de eleição da diretoria vigente, cartão CNPJ, balanços e relatório anual (quando houver),
    inscrições em conselhos municipais (quais?).
 3. **Despertai** (R8): edições anteriores (datas, local, público atendido, fotos **com autorização dos
@@ -1755,6 +1838,10 @@ legal — e cobre módulos de gestão que ainda não tinham aparecido no plano.
 
 #### v12.1 — Parcerias com poder público (MROSC) — módulo condicional
 
+> **Núcleo antecipado na v5.4a (2026-10-03):** parceria/emenda, parcelas, etapas, relatórios e centro de custo exclusivo,
+> necessários para a transparência de emenda. O resto desta versão (plano de trabalho com indicadores, chamamento
+> acompanhado, glosas, dossiê) continua aqui.
+
 - [ ] A Lei 13.019/2014 só se aplica quando a associação firma Termo de Colaboração, Termo de
       Fomento ou Acordo de Cooperação com o poder público — **não** se aplica a mensalidade,
       doação privada ou venda de serviço. Fica **desativado por padrão**, ativado só se a
@@ -1850,6 +1937,9 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - [ ] Segmentação e régua de relacionamento com doador respeitando LGPD e opt-out (v11.3).
 
 #### v12.7 — Portal de transparência ativa
+
+> **Núcleo antecipado na v5.4a/b (2026-10-03):** documentos com versão pública, aprovação de publicação e páginas de
+> Transparência geradas do sistema. Aqui ficam os blocos restantes (prestação de contas anual, relatório de atividades).
 
 - [ ] Página pública dedicada reunindo automaticamente: prestação de contas, atas aprovadas,
       estatuto vigente, relatório anual de atividades, composição da diretoria e — quando o v12.1

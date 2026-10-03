@@ -305,6 +305,48 @@ def _garantir_permissoes(c: Cliente, politica: str, perfil: dict, relatorio: lis
             relatorio.append(f"permissão removida (fora do modelo): {perfil['nome']} / {chave[0]} / {chave[1]}")
 
 
+# ------------------------------------------------------------------------------------- descontinuados
+def _contar(c: Cliente, caminho: str, **filtro: Any) -> int:
+    r = c.ler(caminho, **{"aggregate[count]": "*", **filtro})
+    return int(r[0]["count"]) if r else 0
+
+
+def remover_descontinuados(c: Cliente, relatorio: list[str]) -> None:
+    """Retira do Directus o que saiu do modelo, SÓ se estiver vazio. Conteúdo de gente nunca é apagado."""
+    existentes = {x["collection"] for x in c.ler("/collections")}
+    for nome in modelo.COLECOES_DESCONTINUADAS:
+        if nome not in existentes:
+            continue
+        itens = _contar(c, f"/items/{nome}")
+        if itens == 0:
+            c.apagar(f"/collections/{nome}")
+            relatorio.append(f"coleção descontinuada removida (estava vazia): {nome}")
+        else:
+            relatorio.append(f"AVISO: coleção descontinuada '{nome}' tem {itens} item(ns): NÃO removida")
+    pastas = c.ler("/folders", limit=-1, fields="id,name,parent")
+    for nome in modelo.PASTAS_DESCONTINUADAS:  # filhas antes da mãe (ordem da lista)
+        for pasta in [p for p in pastas if p["name"] == nome]:
+            arquivos = _contar(c, "/files", **{"filter[folder][_eq]": pasta["id"]})
+            filhas = [p for p in c.ler("/folders", limit=-1, fields="id,parent") if p["parent"] == pasta["id"]]
+            if arquivos == 0 and not filhas:
+                c.apagar(f"/folders/{pasta['id']}")
+                relatorio.append(f"pasta descontinuada removida (estava vazia): {nome}")
+            else:
+                relatorio.append(f"AVISO: pasta descontinuada '{nome}' ainda tem conteúdo: NÃO removida")
+    papeis = {r["name"]: r["id"] for r in c.ler("/roles", limit=-1, fields="id,name")}
+    politicas = {p["name"]: p["id"] for p in c.ler("/policies", limit=-1, fields="id,name")}
+    for nome in modelo.PERFIS_DESCONTINUADOS:
+        if nome in papeis and _contar(c, "/users", **{"filter[role][_eq]": papeis[nome]}):
+            relatorio.append(f"AVISO: perfil descontinuado '{nome}' tem usuário(s): NÃO removido")
+            continue
+        if nome in papeis:
+            c.apagar(f"/roles/{papeis[nome]}")
+            relatorio.append(f"perfil descontinuado removido (sem usuários): papel {nome}")
+        if nome in politicas:
+            c.apagar(f"/policies/{politicas[nome]}")
+            relatorio.append(f"perfil descontinuado removido (sem usuários): política {nome}")
+
+
 # ----------------------------------------------------------------------------------------- verificar
 def verificar(c: Cliente) -> list[str]:
     """Lê o Directus e devolve a lista de problemas (vazia = tudo conforme o modelo)."""
@@ -313,6 +355,9 @@ def verificar(c: Cliente) -> list[str]:
     for nome in sorted(c_ for c_ in colecoes if not c_.startswith("directus_")):
         if nome not in modelo.COLECOES_PERMITIDAS:
             problemas.append(f"coleção fora do modelo: {nome} (o Directus só guarda conteúdo editorial)")
+    for nome in modelo.COLECOES_DESCONTINUADAS:
+        if nome in colecoes:
+            problemas.append(f"coleção descontinuada ainda existe: {nome}")
     for definicao in modelo.COLECOES:
         nome = definicao["colecao"]
         if nome not in colecoes:
@@ -355,6 +400,7 @@ def verificar(c: Cliente) -> list[str]:
 
 def aplicar(c: Cliente) -> list[str]:
     relatorio: list[str] = []
+    remover_descontinuados(c, relatorio)
     pastas = garantir_pastas(c, relatorio)
     garantir_colecoes(c, relatorio, pastas)
     garantir_perfis(c, relatorio)

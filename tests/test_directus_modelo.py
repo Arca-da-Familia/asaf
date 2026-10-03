@@ -87,7 +87,6 @@ def test_leitor_do_site_so_le_e_so_o_que_esta_no_ar():
     noticias = _perms("Leitor do site", "noticias", "read")[0]
     texto = repr(noticias["filtro"])
     assert "publicado" in texto and "$NOW" in texto  # publicada e com a data (agendamento) já vencida
-    assert _perms("Leitor do site", "documentos", "read")[0]["filtro"] == m.SO_PUBLICADO
     # arquivo: só campos públicos (sem quem enviou, caminho de armazenamento, etc.)
     campos = _perms("Leitor do site", m.ARQUIVOS, "read")[0]["campos"]
     assert "*" not in campos and "uploaded_by" not in campos and "storage" not in campos
@@ -111,10 +110,14 @@ def test_colaborador_de_midia_so_envia_foto_e_nao_ve_texto_de_colecao_nenhuma():
     assert "$CURRENT_USER" in repr(_perms("Colaborador de mídia", m.ARQUIVOS, "read")[0]["filtro"])
 
 
-def test_editor_de_transparencia_nao_mexe_em_noticia_e_editor_de_conteudo_nao_mexe_em_documento():
-    assert {p["colecao"] for p in _perfil("Editor de transparência")["permissoes"]} >= {"documentos"}
-    assert "noticias" not in {p["colecao"] for p in _perfil("Editor de transparência")["permissoes"]}
-    assert "documentos" not in {p["colecao"] for p in _perfil("Editor de conteúdo")["permissoes"]}
+def test_documento_oficial_nao_mora_no_directus_so_no_sistema():
+    """Decisão de 2026-10-03: ata, estatuto, certidão, balanço, emenda, parcela e pagamento ficam no SISTEMA
+    (sigilo, versão pública e aprovação); o Directus é só editor do site."""
+    assert {c["colecao"] for c in m.COLECOES} == {"noticias"}
+    assert "Editor de transparência" not in {p["nome"] for p in m.PERFIS}
+    assert "Editor de transparência" in m.PERFIS_DESCONTINUADOS and "documentos" in m.COLECOES_DESCONTINUADAS
+    pastas = {p["nome"] for p in m.PASTAS} | {f for p in m.PASTAS for f in p["filhas"]}
+    assert pastas.isdisjoint(m.PASTAS_DESCONTINUADAS)  # o que saiu não pode voltar por engano
 
 
 def test_toda_permissao_so_cita_colecao_do_modelo_ou_arquivos():
@@ -131,6 +134,7 @@ class DirectusFalso:
         self.licenciado = licenciado
         self.pastas, self.colecoes, self.campos, self.relacoes = [], {}, {}, []
         self.politicas, self.papeis, self.permissoes = [], [], []
+        self.itens, self.arquivos, self.usuarios = {}, [], []  # conteúdo de gente: nunca pode ser apagado
         self._n = 0
 
     def _id(self):
@@ -138,6 +142,18 @@ class DirectusFalso:
         return f"id-{self._n}"
 
     def ler(self, caminho, **params):
+        if params.get("aggregate[count]"):
+            if caminho.startswith("/items/"):
+                total = len(self.itens.get(caminho.split("/")[-1], []))
+            elif caminho == "/files":
+                pasta = params.get("filter[folder][_eq]")
+                total = len([a for a in self.arquivos if a["folder"] == pasta])
+            elif caminho == "/users":
+                papel = params.get("filter[role][_eq]")
+                total = len([u for u in self.usuarios if u["role"] == papel])
+            else:
+                raise AssertionError(caminho)
+            return [{"count": str(total)}]
         if caminho == "/folders":
             return copy.deepcopy(self.pastas)
         if caminho == "/collections":
@@ -199,14 +215,25 @@ class DirectusFalso:
 
     def apagar(self, caminho):
         identificador = caminho.split("/")[-1]
-        self.permissoes = [p for p in self.permissoes if p["id"] != identificador]
+        if caminho.startswith("/collections/"):
+            self.colecoes.pop(identificador)
+            self.campos.pop(identificador, None)
+        elif caminho.startswith("/folders/"):
+            self.pastas = [p for p in self.pastas if p["id"] != identificador]
+        elif caminho.startswith("/roles/"):
+            self.papeis = [p for p in self.papeis if p["id"] != identificador]
+        elif caminho.startswith("/policies/"):
+            self.politicas = [p for p in self.politicas if p["id"] != identificador]
+            self.permissoes = [p for p in self.permissoes if p["policy"] != identificador]
+        else:
+            self.permissoes = [p for p in self.permissoes if p["id"] != identificador]
 
 
 def test_aplicar_cria_tudo_e_verificar_fica_limpo_com_licenca():
     falso = DirectusFalso(licenciado=True)
     feito = cfg.aplicar(falso)
-    assert any(x.startswith("coleção criada: documentos") for x in feito)
     assert any(x.startswith("coleção criada: noticias") for x in feito)
+    assert not any("documentos" in x for x in feito)
     assert cfg.verificar(falso) == []
 
 
@@ -259,6 +286,54 @@ def test_aplicar_remove_permissao_que_nao_esta_no_modelo_e_corrige_a_alterada():
     assert "permissão removida (fora do modelo): Redator / noticias / delete" in feito
     assert "permissão corrigida: Redator / noticias / read" in feito
     assert cfg.verificar(falso) == []
+
+
+def _semear_antigo(falso):
+    """O que existia em produção antes da decisão de 2026-10-03."""
+    falso.colecoes["documentos"] = {}
+    falso.campos["documentos"] = []
+    mae = falso._id()
+    falso.pastas += [{"id": mae, "name": "Documentos institucionais", "parent": None},
+                     {"id": falso._id(), "name": "Atas", "parent": mae},
+                     {"id": falso._id(), "name": "Emendas e parcerias", "parent": None}]
+    papel = {"id": falso._id(), "name": "Editor de transparência"}
+    politica = {"id": falso._id(), "name": "Editor de transparência", "admin_access": False, "app_access": True, "enforce_tfa": True}
+    falso.papeis.append(papel)
+    falso.politicas.append(politica)
+    falso.permissoes.append({"id": falso._id(), "policy": politica["id"], "collection": "documentos", "action": "read",
+                             "permissions": None, "validation": None, "presets": None, "fields": ["*"]})
+    return papel
+
+
+def test_descontinuados_vazios_sao_removidos_e_a_segunda_rodada_nao_muda_nada():
+    falso = DirectusFalso()
+    _semear_antigo(falso)
+    feito = cfg.aplicar(falso)
+    assert "coleção descontinuada removida (estava vazia): documentos" in feito
+    assert "pasta descontinuada removida (estava vazia): Atas" in feito
+    assert "pasta descontinuada removida (estava vazia): Documentos institucionais" in feito  # mãe só depois da filha
+    assert "perfil descontinuado removido (sem usuários): papel Editor de transparência" in feito
+    assert "documentos" not in falso.colecoes
+    assert "Editor de transparência" not in {p["name"] for p in falso.papeis + falso.politicas}
+    assert not any(p["collection"] == "documentos" for p in falso.permissoes)
+    assert cfg.verificar(falso) == []
+    assert cfg.aplicar(falso) == []
+
+
+def test_descontinuados_com_conteudo_ou_usuario_nunca_sao_apagados():
+    falso = DirectusFalso()
+    papel = _semear_antigo(falso)
+    falso.itens["documentos"] = [{"id": 1}]
+    atas = next(p for p in falso.pastas if p["name"] == "Atas")
+    falso.arquivos.append({"folder": atas["id"]})
+    falso.usuarios.append({"role": papel["id"]})
+    feito = cfg.aplicar(falso)
+    assert "AVISO: coleção descontinuada 'documentos' tem 1 item(ns): NÃO removida" in feito
+    assert "AVISO: pasta descontinuada 'Atas' ainda tem conteúdo: NÃO removida" in feito
+    assert "AVISO: pasta descontinuada 'Documentos institucionais' ainda tem conteúdo: NÃO removida" in feito  # tem filha
+    assert "AVISO: perfil descontinuado 'Editor de transparência' tem usuário(s): NÃO removido" in feito
+    assert "documentos" in falso.colecoes and len(falso.pastas) >= 3 and "Editor de transparência" in {p["name"] for p in falso.papeis}
+    assert "coleção descontinuada ainda existe: documentos" in cfg.verificar(falso)  # e a verificação continua cobrando
 
 
 @pytest.fixture(autouse=True)

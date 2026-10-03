@@ -5,8 +5,12 @@ Só DADOS - nenhuma chamada de rede aqui. `scripts/directus_configurar.py` lê e
 sem precisar de um Directus no ar.
 
 Regras que este modelo precisa manter (PLANO_PROJETO.md, v5.1/v5.3):
-  - o Directus guarda SÓ conteúdo editorial e de transparência - nunca dado de associado/financeiro
-    do sistema (esse mora no schema `public`, fora do alcance do `directus_app`);
+  - o Directus guarda SÓ conteúdo EDITORIAL do site (notícias, textos, banners, fotos, FAQ...). Documento
+    oficial (ata, estatuto, certidão, balanço, termo de fomento...), emenda, parcela, pagamento e prestação
+    de contas moram no SISTEMA da ASAF, que é a fonte da verdade e controla sigilo/versão pública (decisão do
+    usuário, 2026-10-03; PLANO v5.4). Por isso NÃO existe aqui coleção `documentos` (foi criada e removida);
+  - nunca dado de associado/financeiro do sistema (esse mora no schema `public`, fora do alcance do
+    `directus_app`);
   - cada perfil só tem o que a função dele precisa; permissão no backend, nunca só escondida na tela;
   - rascunho não vaza: quem lê para o site só enxerga `status = publicado`;
   - quem só escreve (Redator) NÃO consegue publicar nem apagar;
@@ -33,32 +37,14 @@ STATUS_OPCOES = [
 STATUS_DE_RASCUNHO = [STATUS_RASCUNHO, STATUS_REVISAO]
 
 # ------------------------------------------------------------------------------------------ pastas
-# Biblioteca de arquivos do Directus (Studio -> Biblioteca de arquivos). Quem envia documento escolhe a
-# pasta; o nome é a "aba" que a diretoria vê. Subpastas são criadas debaixo da pasta-mãe.
+# Biblioteca de arquivos do Directus (Studio -> Biblioteca de arquivos): só IMAGENS e mídia do site. Documento
+# oficial NÃO vai aqui (vai para o módulo Documentos do sistema). Subpastas ficam debaixo da pasta-mãe.
 PASTAS: list[dict] = [
-    {"nome": "Documentos institucionais", "filhas": [
-        "Estatuto e alterações",
-        "Atas",
-        "Registros e certidões",
-        "Balanços e relatórios",
-    ]},
-    {"nome": "Emendas e parcerias", "filhas": []},
     {"nome": "Fotos de eventos e projetos", "filhas": []},
     {"nome": "Notícias", "filhas": []},
 ]
 
 # ---------------------------------------------------------------------------------------- coleções
-CATEGORIAS_DOCUMENTO = [
-    {"text": "Estatuto e alterações", "value": "estatuto"},
-    {"text": "Ata (eleição, assembleia)", "value": "ata"},
-    {"text": "Registro e certidão (CNPJ, utilidade pública)", "value": "registro"},
-    {"text": "Balanço / prestação de contas anual", "value": "balanco"},
-    {"text": "Relatório anual de atividades", "value": "relatorio_anual"},
-    {"text": "Inscrição em conselho", "value": "conselho"},
-    {"text": "Outro documento", "value": "outro"},
-]
-
-
 def _campo(nome: str, tipo: str, *, meta: dict | None = None, schema: dict | None = None) -> dict:
     return {"field": nome, "type": tipo, "meta": meta or {}, "schema": schema or {}}
 
@@ -106,39 +92,6 @@ def _chave_uuid() -> dict:
 
 
 COLECOES: list[dict] = [
-    {
-        "colecao": "documentos",
-        "meta": {
-            "icon": "description", "note": "Documentos públicos da transparência (PDF pesquisável). Um registro por documento.",
-            "archive_field": "status", "archive_value": STATUS_ARQUIVADO, "unarchive_value": STATUS_RASCUNHO,
-            "sort_field": None, "singleton": False, "versioning": True,
-            "display_template": "{{titulo}}", "translations": [{"language": "pt-BR", "translation": "Documentos", "singular": "Documento", "plural": "Documentos"}],
-        },
-        "campos": [
-            _chave_uuid(),
-            _campo_status(),
-            _campo("titulo", "string", meta={"interface": "input", "required": True, "width": "full",
-                                             "note": "Nome como aparece no site. Ex.: Ata de eleição da diretoria 2026–2028"},
-                   schema={"is_nullable": False}),
-            _campo("categoria", "string", meta={"interface": "select-dropdown", "required": True, "width": "half",
-                                                "options": {"choices": CATEGORIAS_DOCUMENTO}, "display": "labels"},
-                   schema={"is_nullable": False, "default_value": "outro"}),
-            _campo("data_documento", "date", meta={"interface": "datetime", "width": "half",
-                                                   "note": "Data do documento (da ata, do balanço...) - não a de hoje."},
-                   schema={"is_nullable": True}),
-            _campo("arquivo", "uuid", meta={"interface": "file", "special": ["file"], "required": True, "width": "full",
-                                            "note": "PDF PESQUISÁVEL (com texto selecionável). PDF que é só foto/escaneado sem OCR é recusado na publicação.",
-                                            "options": {"folder": None}},
-                   schema={"is_nullable": True}),
-            _campo("descricao", "text", meta={"interface": "input-multiline", "width": "full",
-                                              "note": "Opcional. Uma ou duas frases sobre o documento."},
-                   schema={"is_nullable": True}),
-            _campo("ordem", "integer", meta={"interface": "input", "width": "half", "note": "Opcional: menor número aparece primeiro."},
-                   schema={"is_nullable": True}),
-            *_campos_de_controle(),
-        ],
-        "relacoes": [{"campo": "arquivo", "para": "directus_files"}],
-    },
     {
         "colecao": "noticias",
         "meta": {
@@ -222,13 +175,6 @@ def _arquivos_editor() -> list[dict]:
 
 PERFIS: list[dict] = [
     {
-        "nome": "Editor de transparência",
-        "icone": "account_balance",
-        "descricao": "Publica documentos da transparência (e, na v5.4, emendas, parcerias e prestação de contas).",
-        "app_access": True,
-        "permissoes": [*_crud("documentos"), *_arquivos_editor()],
-    },
-    {
         "nome": "Editor de conteúdo",
         "icone": "edit_note",
         "descricao": "Escreve e publica notícias.",
@@ -269,7 +215,6 @@ PERFIS: list[dict] = [
         "app_access": False,
         "permissoes": [
             _perm("noticias", "read", filtro=NOTICIA_NO_AR),
-            _perm("documentos", "read", filtro=SO_PUBLICADO),
             _perm(ARQUIVOS, "read", campos=CAMPOS_ARQUIVO_PUBLICO),
             _perm(PASTAS_SISTEMA, "read"),
         ],
@@ -282,3 +227,10 @@ COLECOES_DE_SISTEMA_PROIBIDAS_A_EDITORES = (
     "directus_relations", "directus_presets", "directus_webhooks", "directus_extensions", "directus_activity",
     "directus_revisions",
 )
+
+# O que já existiu neste modelo e foi RETIRADO. `aplicar` remove do Directus, mas SÓ se estiver vazio
+# (nunca apaga conteúdo de ninguém); se houver conteúdo, avisa e não toca. Ordem: filhas antes da mãe.
+COLECOES_DESCONTINUADAS = ["documentos"]
+PASTAS_DESCONTINUADAS = ["Estatuto e alterações", "Atas", "Registros e certidões", "Balanços e relatórios",
+                         "Documentos institucionais", "Emendas e parcerias"]
+PERFIS_DESCONTINUADOS = ["Editor de transparência"]
