@@ -163,7 +163,7 @@ const diretoria = () => [
     orgao_codigo: 'DIRETORIA_EXECUTIVA',
     orgao: 'Diretoria Executiva',
     cargo_codigo: 'SECRETARIO',
-    cargo: 'Secretário',
+    cargo: '1º Secretário',
     nome: 'João de Teste Souza',
     data_inicio: soData(-100),
     data_fim_previsto: soData(1360),
@@ -172,7 +172,7 @@ const diretoria = () => [
     orgao_codigo: 'CONSELHO_FISCAL',
     orgao: 'Conselho Fiscal',
     cargo_codigo: 'CONSELHO_FISCAL',
-    cargo: 'Conselho Fiscal',
+    cargo: 'Conselheiro Fiscal',
     nome: 'Ana de Teste Lima',
     data_inicio: soData(-100),
     data_fim_previsto: soData(1360),
@@ -210,6 +210,17 @@ const PDFS_DE_TESTE = {
 }
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex')
 
+/** Foto de etapa de teste: JPEG de verdade (800x600), como a API entrega (já regravada, sem metadado). */
+const FOTO_DA_ETAPA_DE_TESTE = await sharp({
+  create: { width: 800, height: 600, channels: 3, background: '#2f6f4f' },
+})
+  .jpeg()
+  .toBuffer()
+
+/** Estatuto TRANSCRITO (documento de formato TEXTO): o PDF registrado, com assinaturas, é um original interno e nem aparece aqui. */
+const TEXTO_DO_ESTATUTO_DE_TESTE =
+  'EXEMPLO – TRANSCRIÇÃO DO ESTATUTO\n\nART. 1 - A associação de teste é uma entidade civil sem fins lucrativos.\nParágrafo de teste na mesma linha.\n\nART. 2 - A associação de teste tem sede em Parauapebas.'
+
 const documentos = () => [
   {
     id_documento: 1,
@@ -225,6 +236,7 @@ const documentos = () => [
     tamanho: PDFS_DE_TESTE[1].length,
     sha256: sha256(PDFS_DE_TESTE[1]),
     aprovado_em: dataIso(-20),
+    formato: 'PDF',
     arquivo: '/api/publico/transparencia/documentos/1/arquivo',
   },
   {
@@ -241,7 +253,25 @@ const documentos = () => [
     tamanho: PDFS_DE_TESTE[2].length,
     sha256: sha256(PDFS_DE_TESTE[2]),
     aprovado_em: dataIso(-10),
+    formato: 'PDF',
     arquivo: '/api/publico/transparencia/documentos/2/arquivo',
+  },
+  {
+    id_documento: 4,
+    tipo_codigo: 'ESTATUTO',
+    tipo: 'Estatuto e alterações',
+    titulo: 'EXEMPLO – Estatuto Social transcrito',
+    descricao: null,
+    data_documento: dataIso(-400),
+    ano: 2024,
+    versao: 1,
+    vigente: true,
+    paginas: null,
+    tamanho: Buffer.byteLength(TEXTO_DO_ESTATUTO_DE_TESTE, 'utf8'),
+    sha256: sha256(Buffer.from(TEXTO_DO_ESTATUTO_DE_TESTE, 'utf8')),
+    aprovado_em: dataIso(-3),
+    formato: 'TEXTO',
+    arquivo: null,
   },
   {
     id_documento: 3,
@@ -257,6 +287,7 @@ const documentos = () => [
     tamanho: PDFS_DE_TESTE[3].length,
     sha256: sha256(PDFS_DE_TESTE[3]),
     aprovado_em: dataIso(-5),
+    formato: 'PDF',
     arquivo: '/api/publico/transparencia/documentos/3/arquivo',
   },
 ]
@@ -409,6 +440,16 @@ function detalheDaParceria(id) {
           local: 'Quadra da escola',
           publico_atendido: 40,
           situacao: 'Realizada',
+          fotos: [
+            {
+              id_foto: 1,
+              alt: 'Crianças tocando tambores na quadra da escola (foto de teste)',
+              largura: 800,
+              altura: 600,
+              sha256: sha256(FOTO_DA_ETAPA_DE_TESTE),
+              arquivo: '/api/publico/transparencia/parcerias/1/fotos/1',
+            },
+          ],
         },
         {
           titulo: 'Entrega de instrumentos',
@@ -418,6 +459,7 @@ function detalheDaParceria(id) {
           local: null,
           publico_atendido: null,
           situacao: 'Prevista',
+          fotos: [],
         },
       ],
       relatorios: [
@@ -652,6 +694,30 @@ export function criarServidor({ vazio = false } = {}) {
         return detalhe
           ? responder(detalhe)
           : responder({ detail: 'Parceria não encontrada.' }, 404)
+      }
+      const detalheDoDocumento =
+        /^\/api\/publico\/transparencia\/documentos\/(\d+)$/.exec(caminho)
+      if (detalheDoDocumento) {
+        const documento = vazio
+          ? undefined
+          : documentos().find(
+              (d) => d.id_documento === Number(detalheDoDocumento[1]),
+            )
+        if (!documento)
+          return responder({ detail: 'Documento não encontrado.' }, 404)
+        return responder({
+          ...documento,
+          texto:
+            documento.formato === 'TEXTO' ? TEXTO_DO_ESTATUTO_DE_TESTE : null,
+        })
+      }
+      if (
+        !vazio &&
+        /^\/api\/publico\/transparencia\/parcerias\/1\/fotos\/1$/.test(caminho)
+      ) {
+        res.writeHead(200, { ...cors, 'Content-Type': 'image/jpeg' })
+        res.end(FOTO_DA_ETAPA_DE_TESTE)
+        return
       }
       const arquivoDoDocumento =
         /^\/api\/publico\/transparencia\/documentos\/(\d+)\/arquivo$/.exec(

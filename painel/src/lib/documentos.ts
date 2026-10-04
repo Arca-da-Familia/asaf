@@ -44,6 +44,8 @@ export type Documento = {
   original_tamanho: number | null
   original_sha256: string | null
   tem_versao_publica: boolean
+  // "PDF" (arquivo com texto pesquisável) ou "TEXTO" (o próprio texto, colado no sistema); nulo = ainda não há.
+  publico_formato: 'PDF' | 'TEXTO' | null
   publico_tamanho: number | null
   publico_paginas: number | null
   publico_sha256: string | null
@@ -208,6 +210,16 @@ export function enviarVersaoPublica(
   })
 }
 
+export function enviarVersaoPublicaTexto(
+  id: number,
+  texto: string,
+): Promise<DocumentoComVerificacao> {
+  return apiFetch(`/api/documentos/${id}/versao-publica-texto`, {
+    method: 'POST',
+    body: JSON.stringify({ texto }),
+  })
+}
+
 export function usarOriginalComoVersaoPublica(
   id: number,
 ): Promise<DocumentoComVerificacao> {
@@ -326,8 +338,8 @@ export function proximoPasso(doc: Documento): string {
         return 'Envie o arquivo original (ele fica guardado em área privada).'
       if (!doc.tem_versao_publica) {
         return doc.classificacao === 'Pública'
-          ? 'Use o original como versão pública (ele será conferido) ou envie outra versão.'
-          : 'Envie a versão pública: uma cópia com os dados pessoais cobertos de verdade. Ela será conferida automaticamente.'
+          ? 'Use o original como versão pública (ele será conferido) ou envie outra versão (PDF ou texto).'
+          : 'Envie a versão pública: um PDF com os dados pessoais cobertos de verdade ou o próprio texto. Ela será conferida automaticamente.'
       }
       return 'A versão pública passou na conferência. Envie para revisão.'
     case 'Em revisão':

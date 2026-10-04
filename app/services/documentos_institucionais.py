@@ -18,7 +18,8 @@ from datetime import date, datetime
 from fastapi import HTTPException
 
 from app.models.documentos import (
-    APROVADO, CLASSIFICACOES, EM_REVISAO, INTERNA, PUBLICA, RASCUNHO, RESTRITA, RETIRADO, TIPOS, VINCULOS, DocumentoInstitucional,
+    APROVADO, CLASSIFICACOES, EM_REVISAO, FORMATO_PDF, FORMATO_TEXTO, INTERNA, PUBLICA, RASCUNHO, RESTRITA, RETIRADO,
+    TAMANHO_MAXIMO_DO_TEXTO, TAMANHO_MINIMO_DO_TEXTO, TIPOS, VINCULOS, DocumentoInstitucional,
 )
 from app.services import armazenamento
 from app.services.documentos_verificacao import TAMANHO_MAXIMO, Resultado, procurar_dado_pessoal, verificar_versao_publica
@@ -120,6 +121,11 @@ def _validar_original(nome_arquivo: str | None, conteudo: bytes) -> str:
     return extensao
 
 
+def tem_versao_publica(doc: DocumentoInstitucional) -> bool:
+    """Há versão pública (PDF guardado OU texto)? Sempre por aqui: nenhum lugar olha só `publico_nome`."""
+    return bool(doc.publico_nome) or doc.publico_formato == FORMATO_TEXTO
+
+
 def _exigir_situacao(doc: DocumentoInstitucional, *permitidas: str, acao: str) -> None:
     if doc.situacao not in permitidas:
         raise HTTPException(
@@ -188,7 +194,7 @@ def editar(db, doc: DocumentoInstitucional, dados: dict) -> dict:
         setattr(doc, campo, valor)
     if "ano" not in campos and "data_documento" in campos and campos["data_documento"]:
         doc.ano = campos["data_documento"].year
-    if mudou_regra and doc.publico_nome:
+    if mudou_regra and tem_versao_publica(doc):
         _limpar_versao_publica(doc)
     db.commit()
     db.refresh(doc)
@@ -197,7 +203,7 @@ def editar(db, doc: DocumentoInstitucional, dados: dict) -> dict:
 
 def _limpar_versao_publica(doc: DocumentoInstitucional) -> None:
     _remover_arquivo(PASTA_PUBLICOS, doc.publico_nome)
-    doc.publico_nome = doc.publico_sha256 = doc.publico_texto = doc.verificacao_json = None
+    doc.publico_nome = doc.publico_sha256 = doc.publico_texto = doc.verificacao_json = doc.publico_formato = None
     doc.publico_tamanho = doc.publico_paginas = None
     doc.verificacao_ok = None
     doc.verificacao_em = None
@@ -224,7 +230,7 @@ def anexar_versao_publica(db, doc: DocumentoInstitucional, conteudo: bytes, *, d
     nome = armazenamento.nome_aleatorio(".pdf")
     armazenamento.obter().salvar(PASTA_PUBLICOS, nome, conteudo)
     doc.publico_nome, doc.publico_sha256, doc.publico_tamanho = nome, sha, len(conteudo)
-    doc.publico_paginas, doc.publico_texto = resultado.paginas, resultado.texto
+    doc.publico_paginas, doc.publico_texto, doc.publico_formato = resultado.paginas, resultado.texto, FORMATO_PDF
     doc.verificacao_ok, doc.verificacao_em = True, datetime.utcnow()
     doc.verificacao_json = _json_do_resultado(resultado)
     db.commit()
@@ -236,6 +242,49 @@ def _json_do_resultado(resultado: Resultado) -> str:
     import json
 
     return json.dumps(resultado.como_dicionario(), ensure_ascii=False)
+
+
+def _normalizar_texto(texto: str | None) -> str:
+    """Quebras de linha do Windows viram \n, espaço sobrando no fim da linha sai, no máximo uma linha em branco seguida."""
+    limpo = (texto or "").replace("\r\n", "\n").replace("\r", "\n")
+    limpo = "\n".join(linha.rstrip() for linha in limpo.split("\n"))
+    return re.sub(r"\n{3,}", "\n\n", limpo).strip()
+
+
+def verificar_texto_publico(texto: str) -> Resultado:
+    """Mesma conferência de dado pessoal da versão em PDF (CPF, RG, e-mail e celular de pessoas), aplicada ao texto."""
+    bloqueios, avisos = procurar_dado_pessoal(texto)
+    return Resultado(
+        ok=not bloqueios, bloqueios=bloqueios, avisos=avisos, paginas=0,
+        caracteres=len(re.sub(r"\s", "", texto)), texto=texto,
+    )
+
+
+def anexar_versao_publica_texto(db, doc: DocumentoInstitucional, texto: str | None) -> Resultado:
+    """A versão pública é um TEXTO (ex.: o estatuto transcrito, sem as assinaturas). Passa pela mesma conferência de dado
+    pessoal do PDF, é guardada no banco (não em arquivo) e vai ao site como uma página de texto. Se NÃO passar, não guarda
+    nada e devolve os achados MASCARADOS para a pessoa corrigir."""
+    _exigir_situacao(doc, RASCUNHO, acao="trocar a versão pública")
+    if not doc.publicar_no_site:
+        raise HTTPException(status_code=409, detail="Este documento não está marcado para o site: não há versão pública para anexar.")
+    limpo = _normalizar_texto(texto)
+    if len(limpo) < TAMANHO_MINIMO_DO_TEXTO:
+        raise HTTPException(status_code=400, detail=f"O texto é curto demais (pelo menos {TAMANHO_MINIMO_DO_TEXTO} caracteres).")
+    if len(limpo) > TAMANHO_MAXIMO_DO_TEXTO:
+        raise HTTPException(status_code=400, detail=f"O texto passa de {TAMANHO_MAXIMO_DO_TEXTO:,} caracteres: divida em dois documentos.".replace(",", "."))
+    resultado = verificar_texto_publico(limpo)
+    if not resultado.ok:
+        return resultado
+    _remover_arquivo(PASTA_PUBLICOS, doc.publico_nome)  # se havia um PDF público, sai: a versão pública agora é o texto
+    corpo = limpo.encode("utf-8")
+    doc.publico_nome, doc.publico_paginas = None, None
+    doc.publico_sha256, doc.publico_tamanho = _sha256(corpo), len(corpo)
+    doc.publico_texto, doc.publico_formato = limpo, FORMATO_TEXTO
+    doc.verificacao_ok, doc.verificacao_em = True, datetime.utcnow()
+    doc.verificacao_json = _json_do_resultado(resultado)
+    db.commit()
+    db.refresh(doc)
+    return resultado
 
 
 def usar_original_como_versao_publica(db, doc: DocumentoInstitucional) -> Resultado:
@@ -256,7 +305,7 @@ def enviar_para_revisao(db, usuario, doc: DocumentoInstitucional) -> None:
     _exigir_situacao(doc, RASCUNHO, acao="enviar para revisão")
     if not doc.publicar_no_site:
         raise HTTPException(status_code=409, detail="Este documento não está marcado para o site.")
-    if not doc.publico_nome or not doc.verificacao_ok:
+    if not tem_versao_publica(doc) or not doc.verificacao_ok:
         raise HTTPException(status_code=409, detail="Anexe a versão pública e passe na verificação antes de enviar para revisão.")
     doc.situacao = EM_REVISAO
     doc.id_usuario_envio_revisao, doc.enviado_revisao_em = usuario.id_usuario, datetime.utcnow()
@@ -272,12 +321,18 @@ def aprovar(db, usuario, doc: DocumentoInstitucional) -> Resultado:
             detail="Quem criou ou enviou o documento para revisão não pode aprová-lo: a aprovação é de outra pessoa "
                    "(Presidente ou Secretário).",
         )
-    conteudo = armazenamento.obter().ler(PASTA_PUBLICOS, doc.publico_nome) if doc.publico_nome else None
-    if conteudo is None:
-        raise HTTPException(status_code=409, detail="A versão pública não foi encontrada no armazenamento.")
-    if _sha256(conteudo) != doc.publico_sha256:
-        raise HTTPException(status_code=409, detail="O arquivo da versão pública mudou depois da verificação (SHA-256 diferente): envie de novo.")
-    resultado = verificar_versao_publica(conteudo)
+    if doc.publico_formato == FORMATO_TEXTO:
+        texto = doc.publico_texto or ""
+        if _sha256(texto.encode("utf-8")) != doc.publico_sha256:
+            raise HTTPException(status_code=409, detail="O texto da versão pública mudou depois da verificação (SHA-256 diferente): envie de novo.")
+        resultado = verificar_texto_publico(texto)
+    else:
+        conteudo = armazenamento.obter().ler(PASTA_PUBLICOS, doc.publico_nome) if doc.publico_nome else None
+        if conteudo is None:
+            raise HTTPException(status_code=409, detail="A versão pública não foi encontrada no armazenamento.")
+        if _sha256(conteudo) != doc.publico_sha256:
+            raise HTTPException(status_code=409, detail="O arquivo da versão pública mudou depois da verificação (SHA-256 diferente): envie de novo.")
+        resultado = verificar_versao_publica(conteudo)
     if not resultado.ok:
         raise HTTPException(status_code=422, detail={"mensagem": "A versão pública não passou na verificação final.", "resultado": resultado.como_dicionario()})
     agora = datetime.utcnow()

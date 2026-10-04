@@ -49,6 +49,33 @@ export function caminhoDoPdf(
 }
 
 /**
+ * Endereço do documento no site: o PDF copiado (formato PDF) ou a PÁGINA de texto (formato TEXTO). Os dois começam pelo id,
+ * então um título editado nunca colide com outro.
+ */
+export function caminhoDoDocumento(
+  documento: Pick<DocumentoDaParceria, 'id_documento' | 'titulo'> & {
+    formato?: 'PDF' | 'TEXTO'
+  },
+): string {
+  return documento.formato === 'TEXTO'
+    ? `/transparencia/documentos/${nomeDoPdf(documento)}/`
+    : caminhoDoPdf(documento)
+}
+
+/** Foto de etapa copiada no build: o id da foto é único (um endereço por foto, sempre o mesmo). */
+export const caminhoDaFotoDaEtapa = (foto: { id_foto: number }) =>
+  `/midia/parcerias/${foto.id_foto}.jpg`
+
+/** Texto publicado -> parágrafos (separados por linha em branco). Linhas simples dentro do parágrafo são mantidas. */
+export function paragrafosDoTexto(texto: string): string[] {
+  return texto
+    .replace(/\r\n?/g, '\n')
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+}
+
+/**
  * Agrupa por ano, do mais novo para o mais antigo. NUNCA descarta um ano: a página de emendas mostra todos os
  * anos, porque apagar o histórico do que já foi recebido seria o contrário de transparência.
  */

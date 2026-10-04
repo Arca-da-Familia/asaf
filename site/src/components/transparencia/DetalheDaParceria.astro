@@ -11,7 +11,8 @@ import TabelaRolavel from './TabelaRolavel.astro'
 import { formatarDataCurta, formatarInstanteUtc } from '../../lib/datas'
 import {
   beneficiarioDoPagamento,
-  caminhoDoPdf,
+  caminhoDaFotoDaEtapa,
+  caminhoDoDocumento,
   documentosOrdenados,
   formatarReais,
   saldoDaParceria,
@@ -299,6 +300,28 @@ const ROTULO_DA_CATEGORIA: Record<string, string> = {
                 ? ` · ${e.publico_atendido} pessoa${e.publico_atendido === 1 ? '' : 's'} atendida${e.publico_atendido === 1 ? '' : 's'}`
                 : ''}
             </p>
+            {e.fotos.length > 0 && (
+              <ul
+                class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+                aria-label={`Fotos: ${e.titulo}`}
+              >
+                {e.fotos.map((foto) => (
+                  <li>
+                    <figure>
+                      <img
+                        src={caminhoDaFotoDaEtapa(foto)}
+                        alt={foto.alt}
+                        width={foto.largura}
+                        height={foto.altura}
+                        loading="lazy"
+                        decoding="async"
+                        class="h-auto w-full rounded-md border"
+                      />
+                    </figure>
+                  </li>
+                ))}
+              </ul>
+            )}
           </li>
         ))}
       </ul>
@@ -362,14 +385,18 @@ const ROTULO_DA_CATEGORIA: Record<string, string> = {
         {documentos.map((d) => (
           <li class="rounded-lg border bg-card p-5 shadow-card">
             <a
-              href={caminhoDoPdf(d)}
+              href={caminhoDoDocumento(d)}
               class="text-lg font-semibold text-primary underline underline-offset-4"
             >
-              {d.titulo} <span class="sr-only">(PDF)</span>
+              {d.titulo}{' '}
+              <span class="sr-only">
+                ({d.formato === 'TEXTO' ? 'texto' : 'PDF'})
+              </span>
             </a>
             <p class="mt-1 text-sm text-muted-foreground">
               {d.tipo}
-              {d.data_documento ? ` · ${dia(d.data_documento)}` : ''} · PDF
+              {d.data_documento ? ` · ${dia(d.data_documento)}` : ''} ·{' '}
+              {d.formato === 'TEXTO' ? 'Texto' : 'PDF'}
             </p>
           </li>
         ))}

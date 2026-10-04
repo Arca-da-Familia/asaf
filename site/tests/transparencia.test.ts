@@ -10,6 +10,7 @@ import {
   agruparDocumentosPorTipo,
   agruparPorAno,
   beneficiarioDoPagamento,
+  caminhoDoDocumento,
   caminhoDoPdf,
   celulaCsv,
   ehEmenda,
@@ -17,6 +18,7 @@ import {
   formatarReais,
   linhasDosDadosAbertos,
   nomeDoPdf,
+  paragrafosDoTexto,
   paraCsv,
   saldoDaParceria,
   slugDoTitulo,
@@ -63,6 +65,7 @@ const documento = (
   tamanho: 100,
   sha256: 'a'.repeat(64),
   aprovado_em: null,
+  formato: 'PDF',
   arquivo: '/api/publico/transparencia/documentos/12/arquivo',
   ...extra,
 })
@@ -223,5 +226,29 @@ describe('tipos e documentos', () => {
     ])
     expect(grupos.map((g) => g.tipo)).toEqual(['Ata', 'Certidão'])
     expect(grupos[0]!.documentos.map((d) => d.id_documento)).toEqual([3, 1])
+  })
+})
+
+describe('documento em texto', () => {
+  it('o endereço depende do formato: PDF copiado ou página de texto', () => {
+    expect(caminhoDoDocumento(documento())).toBe(
+      '/arquivos/transparencia/12-ata-de-eleicao.pdf',
+    )
+    expect(caminhoDoDocumento({ ...documento(), formato: 'TEXTO' })).toBe(
+      '/transparencia/documentos/12-ata-de-eleicao/',
+    )
+    // sem formato (documento ligado a parceria, API antiga): é PDF
+    expect(
+      caminhoDoDocumento({ id_documento: 5, titulo: 'Plano de trabalho' }),
+    ).toBe('/arquivos/transparencia/5-plano-de-trabalho.pdf')
+  })
+
+  it('o texto vira parágrafos pela linha em branco e mantém as quebras simples', () => {
+    expect(
+      paragrafosDoTexto(
+        'ART. 1 - A\nsegue na linha.\r\n\r\n\n  ART. 2 - B  \n\n',
+      ),
+    ).toEqual(['ART. 1 - A\nsegue na linha.', 'ART. 2 - B'])
+    expect(paragrafosDoTexto('   \n\n  ')).toEqual([])
   })
 })

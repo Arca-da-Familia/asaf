@@ -77,6 +77,9 @@ jobs:
       - name: Build de produção (garante que o build real compila)
         run: npm run build
 
+      - name: Tamanho do site (limite do plano gratuito do Static Web App)
+        run: npm run verificar:tamanho
+
       - name: Build de teste (ilha de eventos apontando para a API simulada)
         run: npm run build:teste
 
@@ -168,6 +171,11 @@ jobs:
         env:
           DIRECTUS_OBRIGATORIO: "1"
         run: npm run build
+
+      # O plano Free aceita 250 MB e 15.000 arquivos por ambiente. PDFs e fotos da Transparência são copiados para o site
+      # no build, então ele só cresce: aviso a partir de 60% e a publicação PARA em 85%, antes de o Azure recusar.
+      - name: Confere o tamanho do site (limite do plano gratuito)
+        run: npm run verificar:tamanho
 
       - name: Publica no Static Web App
         uses: Azure/static-web-apps-deploy@v1

@@ -38,6 +38,7 @@ function documento(sobrescrever: Partial<Documento> = {}): Documento {
     original_tamanho: null,
     original_sha256: null,
     tem_versao_publica: false,
+    publico_formato: null,
     publico_tamanho: null,
     publico_paginas: null,
     publico_sha256: null,

@@ -112,6 +112,22 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
       )
     }),
   )
+  // Documento aprovado em formato TEXTO (ex.: o estatuto transcrito) vira uma página: o texto vem do detalhe e o build só o
+  // aceita se o SHA-256 bater com o que foi aprovado (mesma regra do PDF).
+  const detalhesDeDocumentos = {}
+  await Promise.all(
+    documentos
+      .filter((documento) => documento.formato === 'TEXTO')
+      .map(async (documento) => {
+        const detalhe = await buscarJson(
+          base,
+          `/api/publico/transparencia/documentos/${documento.id_documento}`,
+          config,
+        )
+        verificarTextoDoDocumento(detalhe)
+        detalhesDeDocumentos[documento.id_documento] = detalhe
+      }),
+  )
   // Notícias vêm do Directus (editor do site). Sem token em desenvolvimento = lista vazia; nos workflows de
   // publicação o token é obrigatório (DIRECTUS_OBRIGATORIO=1) e a falta dele derruba o build.
   const { noticias, avisos } = await buscarNoticias(
@@ -132,8 +148,60 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
     parcerias,
     detalhesDeParcerias,
     documentos,
+    detalhesDeDocumentos,
     noticias,
     avisosDeNoticias: avisos,
+  }
+}
+
+/** Primeiros bytes de todo JPEG. */
+const ASSINATURA_DE_JPEG = Buffer.from([0xff, 0xd8, 0xff])
+
+/**
+ * Baixa a foto de uma etapa (já regravada pela API: JPEG sem metadado, no máximo 2000 px) para o site guardá-la em endereço
+ * permanente. Mesma regra do PDF: só entra o que é JPEG de verdade e cujo SHA-256 é o que a API declara.
+ */
+export async function baixarFotoDaTransparencia(apiUrl, foto, opcoes = {}) {
+  const base = apiUrl.replace(/\/+$/, '')
+  const bytes = await buscarJson(base, foto.arquivo, {
+    fetchImpl: opcoes.fetchImpl ?? fetch,
+    tentativas: opcoes.tentativas ?? 3,
+    timeoutMs: opcoes.timeoutMs ?? 60_000,
+    esperaMs: opcoes.esperaMs ?? ESPERA_ENTRE_TENTATIVAS_MS,
+    headers: { Accept: 'image/jpeg' },
+    ler: async (resposta) => Buffer.from(await resposta.arrayBuffer()),
+  })
+  if (
+    !bytes.subarray(0, ASSINATURA_DE_JPEG.length).equals(ASSINATURA_DE_JPEG)
+  ) {
+    throw new Error(`A foto ${foto.id_foto} da transparência não é um JPEG.`)
+  }
+  const sha256 = createHash('sha256').update(bytes).digest('hex')
+  if (sha256 !== foto.sha256) {
+    throw new Error(
+      `A foto ${foto.id_foto} da transparência não confere com a aprovada: SHA-256 ${sha256} em vez de ${foto.sha256}.`,
+    )
+  }
+  return bytes
+}
+
+/**
+ * O texto publicado tem que ser exatamente o aprovado: o SHA-256 dos seus bytes UTF-8 é o que a API declara. Texto vazio,
+ * ou que não bate, derruba o build (melhor não publicar do que publicar outro texto).
+ */
+export function verificarTextoDoDocumento(detalhe) {
+  const texto = detalhe.texto
+  if (typeof texto !== 'string' || texto.trim() === '') {
+    throw new Error(
+      `O documento ${detalhe.id_documento} ("${detalhe.titulo}") é de formato texto, mas veio sem texto.`,
+    )
+  }
+  const sha256 = createHash('sha256').update(texto, 'utf8').digest('hex')
+  if (sha256 !== detalhe.sha256) {
+    throw new Error(
+      `O texto do documento ${detalhe.id_documento} ("${detalhe.titulo}") não confere com o que foi aprovado: ` +
+        `SHA-256 ${sha256} em vez de ${detalhe.sha256}.`,
+    )
   }
 }
 

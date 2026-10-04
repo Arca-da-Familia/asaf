@@ -106,6 +106,18 @@ export interface PagamentoPublico {
   fornecedor: { razao_social: string; cnpj: string } | null
 }
 
+/** Foto de uma etapa: já tem a autorização de imagem confirmada e o texto alternativo. */
+export interface FotoPublica {
+  id_foto: number
+  alt: string
+  largura: number
+  altura: number
+  /** SHA-256 do JPEG: o build só aceita o arquivo que bater com ele. */
+  sha256: string
+  /** Caminho na API; o site usa a cópia do build (`caminhoDaFotoDaEtapa`). */
+  arquivo: string
+}
+
 export interface EtapaPublica {
   titulo: string
   descricao: string | null
@@ -114,6 +126,7 @@ export interface EtapaPublica {
   local: string | null
   publico_atendido: number | null
   situacao: string
+  fotos: FotoPublica[]
 }
 
 export interface RelatorioPublico {
@@ -135,8 +148,10 @@ export interface DocumentoDaParceria {
   titulo: string
   tipo: string
   data_documento: string | null
-  /** Caminho na API; o site usa o PDF copiado no build (`caminhoDoPdf`). */
-  arquivo: string
+  /** "PDF": o site copia o arquivo; "TEXTO": o site monta uma página com o texto. */
+  formato: 'PDF' | 'TEXTO'
+  /** Caminho na API do PDF; nulo no formato TEXTO. */
+  arquivo: string | null
 }
 
 export interface ParceriaPublica {
@@ -190,7 +205,14 @@ export interface DocumentoPublico {
   /** SHA-256 do arquivo aprovado: o build só aceita o PDF que bater com ele. */
   sha256: string
   aprovado_em: string | null
-  arquivo: string
+  formato: 'PDF' | 'TEXTO'
+  /** Caminho na API do PDF (o site usa a cópia do build); nulo no formato TEXTO. */
+  arquivo: string | null
+}
+
+export interface DocumentoDetalhado extends DocumentoPublico {
+  /** O texto publicado (só no formato TEXTO). */
+  texto: string | null
 }
 
 export interface ConteudoPublico {
@@ -204,6 +226,8 @@ export interface ConteudoPublico {
   detalhesDeParcerias: Record<number, ParceriaDetalhada>
   /** Documentos APROVADOS (versão pública) da Transparência (v5.4b). */
   documentos: DocumentoPublico[]
+  /** Só dos documentos em formato TEXTO: o texto aprovado (SHA-256 já conferido no build). */
+  detalhesDeDocumentos: Record<number, DocumentoDetalhado>
   /** Notícias PUBLICADAS no Directus (editor do site), já validadas e com o HTML limpo. */
   noticias: NoticiaPublica[]
   /** Notícias que NÃO foram publicadas e o motivo (diagnóstico; fora da impressão digital). */
@@ -249,13 +273,27 @@ export function buscarJson(
   },
 ): Promise<any>
 
+/** Baixa a foto de uma etapa e só a devolve se for JPEG e bater com o SHA-256 aprovado. */
+export function baixarFotoDaTransparencia(
+  apiUrl: string,
+  foto: Pick<FotoPublica, 'id_foto' | 'sha256' | 'arquivo'>,
+  opcoes?: Omit<OpcoesDeBusca, 'directus'>,
+): Promise<Buffer>
+
+/** Derruba o build se o texto de um documento aprovado não for o aprovado (SHA-256) ou vier vazio. */
+export function verificarTextoDoDocumento(
+  detalhe: Pick<
+    DocumentoDetalhado,
+    'id_documento' | 'titulo' | 'sha256' | 'texto'
+  >,
+): void
+
 /** Baixa o PDF de um documento aprovado e só o devolve se for PDF e bater com o SHA-256 aprovado. */
 export function baixarPdfDaTransparencia(
   apiUrl: string,
-  documento: Pick<
-    DocumentoPublico,
-    'id_documento' | 'titulo' | 'sha256' | 'arquivo'
-  >,
+  documento: Pick<DocumentoPublico, 'id_documento' | 'titulo' | 'sha256'> & {
+    arquivo: string
+  },
   opcoes?: Omit<OpcoesDeBusca, 'directus'>,
 ): Promise<Buffer>
 

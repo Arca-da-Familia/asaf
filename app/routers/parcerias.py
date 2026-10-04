@@ -10,7 +10,9 @@ from datetime import date
 from decimal import Decimal
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -26,6 +28,7 @@ from app.models.parcerias import (
 )
 from app.security import exigir_permissao, get_current_user, usuario_tem_permissao
 from app.services import parcerias as servico
+from app.services import parcerias_fotos as servico_de_fotos
 
 router = APIRouter()
 
@@ -97,7 +100,8 @@ def _detalhar(db: Session, usuario: Usuario, p: Parceria) -> dict:
         ],
         "etapas": [
             {"id_etapa": e.id_etapa, "titulo": e.titulo, "descricao": e.descricao, "data_prevista": e.data_prevista,
-             "data_realizacao": e.data_realizacao, "local": e.local, "publico_atendido": e.publico_atendido, "situacao": e.situacao}
+             "data_realizacao": e.data_realizacao, "local": e.local, "publico_atendido": e.publico_atendido, "situacao": e.situacao,
+             "fotos": [servico_de_fotos.para_o_painel(f) for f in servico_de_fotos.fotos_da_etapa(db, e.id_etapa)]}
             for e in db.query(EtapaParceria).filter(EtapaParceria.id_parceria == p.id_parceria).order_by(EtapaParceria.data_prevista, EtapaParceria.id_etapa)
         ],
         "relatorios": [
@@ -286,6 +290,38 @@ def excluir_etapa(id_parceria: int, id_etapa: int, request: Request, db: Session
     return _detalhar(db, usuario, parceria)
 
 
+@router.post("/api/parcerias/{id_parceria}/etapas/{id_etapa}/fotos", summary="Enviar foto de uma etapa (exige a autorização de imagem)", status_code=201)
+async def enviar_foto_da_etapa(
+    id_parceria: int, id_etapa: int, request: Request, arquivo: UploadFile = File(...), alt: str = Form(""),
+    autorizacao_imagem: bool = Form(False), id_documento_autorizacao: Optional[int] = Form(None),
+    db: Session = Depends(get_db), usuario=Depends(_exigir_gestao),
+):
+    parceria = servico.buscar(db, id_parceria)
+    conteudo = await arquivo.read()
+    foto = await run_in_threadpool(
+        servico_de_fotos.adicionar_foto, db, usuario, parceria, id_etapa, conteudo, alt=alt, autorizacao_imagem=autorizacao_imagem,
+        id_documento_autorizacao=id_documento_autorizacao,
+    )
+    _auditar(db, usuario, request, parceria, "FOTO_ENVIADA", depois={"id_foto": foto.id_foto, "id_etapa": id_etapa, "id_documento": id_documento_autorizacao})
+    return _detalhar(db, usuario, parceria)
+
+
+@router.get("/api/parcerias/{id_parceria}/fotos/{id_foto}/arquivo", summary="Ver a foto (autenticado; antes de a parceria ir ao site)")
+async def ver_foto_da_etapa(id_parceria: int, id_foto: int, db: Session = Depends(get_db), _usuario=Depends(_exigir_leitura)):
+    parceria = servico.buscar(db, id_parceria)
+    foto = servico_de_fotos.buscar_foto(db, parceria, id_foto)
+    conteudo = await run_in_threadpool(servico_de_fotos.ler_arquivo, foto)
+    return Response(content=conteudo, media_type="image/jpeg", headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
+
+
+@router.delete("/api/parcerias/{id_parceria}/fotos/{id_foto}", summary="Apagar a foto (a autorização foi retirada): some do site e do armazenamento")
+def apagar_foto_da_etapa(id_parceria: int, id_foto: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_exigir_gestao)):
+    parceria = servico.buscar(db, id_parceria)
+    foto = servico_de_fotos.apagar_foto(db, parceria, id_foto)
+    _auditar(db, usuario, request, parceria, "FOTO_APAGADA", depois={"id_foto": foto.id_foto, "id_etapa": foto.id_etapa})
+    return _detalhar(db, usuario, parceria)
+
+
 # ----------------------------------------------------------------------------------------------- relatórios
 @router.post("/api/parcerias/{id_parceria}/relatorios", summary="Cadastrar relatório / prestação de contas", status_code=201)
 def criar_relatorio(id_parceria: int, dados: RelatorioDados, request: Request, db: Session = Depends(get_db), usuario=Depends(_exigir_gestao)):
@@ -380,6 +416,7 @@ def reabrir(id_parceria: int, request: Request, db: Session = Depends(get_db), u
 ROTULOS_DA_TRILHA = {
     "CRIADO": "Cadastrada", "EDITADO": "Cadastro alterado", "PARCELA_CRIADA": "Parcela cadastrada", "PARCELA_EDITADA": "Parcela alterada",
     "PARCELA_APAGADA": "Parcela apagada", "ETAPA_CRIADA": "Etapa cadastrada", "ETAPA_EDITADA": "Etapa alterada", "ETAPA_APAGADA": "Etapa apagada",
+    "FOTO_ENVIADA": "Foto de etapa enviada (com autorização de imagem)", "FOTO_APAGADA": "Foto de etapa apagada",
     "RELATORIO_CRIADO": "Relatório cadastrado", "RELATORIO_EDITADO": "Relatório alterado", "RELATORIO_APAGADO": "Relatório apagado",
     "LANCAMENTO_CLASSIFICADO": "Lançamento do livro-caixa classificado para o site", "LANCAMENTO_EDITADO": "Texto público de lançamento alterado",
     "LANCAMENTO_DESVINCULADO": "Lançamento tirado do site", "ENVIADO_REVISAO": "Enviada para revisão", "APROVADO": "Aprovada para o site",

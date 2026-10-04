@@ -20,6 +20,7 @@ import {
   enviarOriginal,
   enviarParaRevisao,
   enviarVersaoPublica,
+  enviarVersaoPublicaTexto,
   formatarTamanho,
   listarDocumentos,
   listarHistoricoDoDocumento,
@@ -65,6 +66,7 @@ export function DocumentoDetalhePage() {
   const [recusado, setRecusado] = useState<Resultado | null>(null)
   const [arquivoOriginal, setArquivoOriginal] = useState<File | null>(null)
   const [arquivoPublico, setArquivoPublico] = useState<File | null>(null)
+  const [textoPublico, setTextoPublico] = useState('')
   const [confirmacao, setConfirmacao] = useState<Confirmacao>(null)
   const [motivo, setMotivo] = useState('')
 
@@ -122,6 +124,9 @@ export function DocumentoDetalhePage() {
   })
   const publica = useMutation({
     mutationFn: () => enviarVersaoPublica(idDocumento, arquivoPublico!),
+  })
+  const publicaTexto = useMutation({
+    mutationFn: () => enviarVersaoPublicaTexto(idDocumento, textoPublico),
   })
 
   if (isLoading || !doc) {
@@ -266,13 +271,18 @@ export function DocumentoDetalhePage() {
             <p className="text-sm text-muted-foreground">
               Cópia do documento com os dados pessoais (CPF, RG, endereço,
               telefone e e-mail de pessoas) <strong>cobertos de verdade</strong>
-              , em PDF com texto pesquisável. É conferida por máquina antes de
-              ser aceita.
+              : um <strong>PDF</strong> com texto pesquisável ou o próprio{' '}
+              <strong>texto</strong> (ex.: o estatuto transcrito, sem as
+              assinaturas; o PDF com assinaturas fica como original interno). É
+              conferida por máquina antes de ser aceita.
             </p>
             {d.tem_versao_publica ? (
               <p className="text-sm">
-                Versão pública aceita — {formatarTamanho(d.publico_tamanho)},{' '}
-                {d.publico_paginas} página(s).
+                Versão pública aceita (
+                {d.publico_formato === 'TEXTO'
+                  ? `texto de ${d.verificacao?.caracteres ?? 0} caracteres`
+                  : `PDF, ${formatarTamanho(d.publico_tamanho)}, ${d.publico_paginas} página(s)`}
+                ).
                 <span className="block break-all text-xs text-muted-foreground">
                   SHA-256: {d.publico_sha256}
                 </span>
@@ -339,6 +349,33 @@ export function DocumentoDetalhePage() {
                 </div>
               )}
             </div>
+            {d.pode_editar && (
+              <div className="space-y-2 border-t border-border pt-3">
+                <label className="block text-sm">
+                  <span className="mb-1 block font-medium">
+                    Ou cole o texto da versão pública
+                  </span>
+                  <textarea
+                    className="min-h-40 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={textoPublico}
+                    onChange={(e) => setTextoPublico(e.target.value)}
+                  />
+                </label>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={
+                    textoPublico.trim().length < 20 || publicaTexto.isPending
+                  }
+                  onClick={executar(
+                    () => publicaTexto.mutateAsync(),
+                    () => setTextoPublico(''),
+                  )}
+                >
+                  <Upload aria-hidden="true" /> Enviar o texto e conferir
+                </Button>
+              </div>
+            )}
           </Secao>
         )}
 

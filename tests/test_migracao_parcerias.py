@@ -64,7 +64,7 @@ def test_o_downgrade_remove_as_cinco_tabelas_e_so_elas():
     assert set(sa.inspect(motor).get_table_names()) == antes
 
 
-def test_a_cadeia_de_migracoes_tem_um_unico_head_depois_desta():
+def test_a_cadeia_de_migracoes_continua_com_um_unico_head():
     migracao = _carregar()
     assert migracao.down_revision == "a7c1e9d3f0b2"
     from alembic.config import Config
@@ -72,4 +72,7 @@ def test_a_cadeia_de_migracoes_tem_um_unico_head_depois_desta():
 
     config = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
     config.set_main_option("script_location", str(Path(__file__).resolve().parent.parent / "alembic"))
-    assert ScriptDirectory.from_config(config).get_heads() == ["b5e2d8f1a436"]
+    diretorio = ScriptDirectory.from_config(config)
+    heads = diretorio.get_heads()
+    assert len(heads) == 1, f"histórico ramificado: {heads}"  # nenhuma migração nova pode criar um segundo head
+    assert "b5e2d8f1a436" in {r.revision for r in diretorio.walk_revisions()}

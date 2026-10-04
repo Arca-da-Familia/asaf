@@ -55,6 +55,18 @@ export type Parcela = {
   valor_recebido: number
 }
 
+export type FotoDaEtapa = {
+  id_foto: number
+  id_etapa: number
+  alt: string
+  largura: number
+  altura: number
+  tamanho: number
+  autorizacao_imagem: boolean
+  id_documento_autorizacao: number | null
+  criado_em: string
+}
+
 export type Etapa = {
   id_etapa: number
   titulo: string
@@ -64,6 +76,7 @@ export type Etapa = {
   local: string | null
   publico_atendido: number | null
   situacao: string
+  fotos: FotoDaEtapa[]
 }
 
 export type Relatorio = {
@@ -194,6 +207,34 @@ export const editarEtapa = (id: number, idEtapa: number, d: object) =>
   parte(id, `etapas/${idEtapa}`, 'PATCH', d)
 export const apagarEtapa = (id: number, idEtapa: number) =>
   parte(id, `etapas/${idEtapa}`, 'DELETE')
+
+// Foto: multipart (arquivo + descrição + confirmação da autorização de imagem). O servidor regrava a imagem.
+export const enviarFoto = (
+  id: number,
+  idEtapa: number,
+  d: {
+    arquivo: File
+    alt: string
+    autorizacaoImagem: boolean
+    idDocumentoAutorizacao?: string
+  },
+) => {
+  const form = new FormData()
+  form.append('arquivo', d.arquivo)
+  form.append('alt', d.alt)
+  form.append('autorizacao_imagem', String(d.autorizacaoImagem))
+  if (d.idDocumentoAutorizacao)
+    form.append('id_documento_autorizacao', d.idDocumentoAutorizacao)
+  return apiFetch<ParceriaDetalhe>(
+    `/api/parcerias/${id}/etapas/${idEtapa}/fotos`,
+    {
+      method: 'POST',
+      body: form,
+    },
+  )
+}
+export const apagarFoto = (id: number, idFoto: number) =>
+  parte(id, `fotos/${idFoto}`, 'DELETE')
 
 export const criarRelatorio = (id: number, d: object) =>
   parte(id, 'relatorios', 'POST', d)

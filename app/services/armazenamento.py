@@ -59,6 +59,9 @@ PASTAS_LEGADAS: dict[str, str] = {
 PASTAS_PRIVADAS: dict[str, str] = {
     "documentos-originais": "documentos-originais",
     "documentos-publicos": "documentos-publicos",
+    # v5.4b: foto de etapa de parceria (com pessoas): só sai pela rota autenticada do painel ou, depois de a parceria ser
+    # APROVADA, pela rota pública que confere isso a cada pedido (o site copia a foto no build).
+    "fotos-etapas": "fotos-etapas",
 }
 
 # Só estes tipos são servidos — nada de HTML/SVG/JS vindo de upload (XSS armazenado).

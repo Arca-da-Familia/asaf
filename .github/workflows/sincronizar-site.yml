@@ -21,9 +21,10 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  actions: write # disparar o deploy-site.yml
+  actions: write # disparar o deploy-site.yml e guardar o instante da defasagem (cache)
   contents: read
   id-token: write # login OIDC no Azure (ler o token do Directus no Key Vault)
+  issues: write # abrir/fechar o aviso de site defasado por mais de 2 horas
 
 concurrency:
   group: sincronizar-site
@@ -107,3 +108,75 @@ jobs:
           fi
           gh workflow run deploy-site.yml --repo "$GITHUB_REPOSITORY" --ref main
           echo "Conteúdo mudou: publicação do site disparada."
+
+      # ---- Alerta de DEFASAGEM (v5.4b): "o site no ar está atrás do sistema há mais de 2 horas".
+      # A execução do workflow não tem memória; o instante em que a diferença apareceu fica num cache pequeno (um arquivo).
+      # Diferença que dura 15-25 min é o ciclo normal (sincronização + publicação); mais de 2 h é problema de verdade
+      # (publicação falhando, Static Web App fora do ar...). Nesse caso esta execução fica VERMELHA e abre um aviso.
+      - name: Restaura desde quando o site está desatualizado
+        uses: actions/cache/restore@v6
+        with:
+          path: defasagem
+          key: defasagem-sem-chave-exata # só o prefixo abaixo importa: pega o registro mais recente
+          restore-keys: defasagem-
+
+      - name: Mede há quanto tempo o site está desatualizado
+        id: defasagem
+        env:
+          MUDOU: ${{ steps.conteudo.outputs.mudou }}
+          LIMITE_MINUTOS: "120"
+        run: |
+          mkdir -p defasagem
+          AGORA=$(date -u +%s)
+          DESDE=""
+          [ -f defasagem/desde ] && DESDE=$(tr -d '[:space:]' < defasagem/desde)
+          if [ "$MUDOU" = "true" ]; then
+            if [ -z "$DESDE" ]; then
+              DESDE=$AGORA
+              echo "$DESDE" > defasagem/desde
+              echo "mudar_registro=true" >> "$GITHUB_OUTPUT"
+            fi
+            MINUTOS=$(( (AGORA - DESDE) / 60 ))
+            echo "O site no ar está atrás do sistema há ${MINUTOS} min (limite: ${LIMITE_MINUTOS})."
+            echo "minutos=$MINUTOS" >> "$GITHUB_OUTPUT"
+            if [ "$MINUTOS" -gt "$LIMITE_MINUTOS" ]; then echo "defasado=true" >> "$GITHUB_OUTPUT"; fi
+          elif [ -n "$DESDE" ]; then
+            : > defasagem/desde   # o site alcançou o sistema: zera o registro
+            echo "mudar_registro=true" >> "$GITHUB_OUTPUT"
+            echo "O site voltou a bater com o sistema."
+          fi
+
+      - name: Guarda o registro (só quando ele muda)
+        if: steps.defasagem.outputs.mudar_registro == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: defasagem
+          key: defasagem-${{ github.run_id }}
+
+      - name: Aviso no GitHub — site atrás do sistema há mais de 2 horas
+        if: steps.defasagem.outputs.defasado == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MINUTOS: ${{ steps.defasagem.outputs.minutos }}
+        run: |
+          ROTULO=alerta-site-defasado
+          gh label create "$ROTULO" --repo "$GITHUB_REPOSITORY" --color D93F0B --description "O site no ar está atrás do sistema há mais de 2 horas (aviso automático)" 2>/dev/null || true
+          ABERTO=$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$ROTULO" --state open --json number -q '.[0].number // ""')
+          CORPO=$(printf 'O site publicado está atrás do sistema há %s minutos (limite: 120).\n\nO normal é a diferença durar uns 20 minutos (a sincronização confere de 15 em 15 e a publicação leva uns 5). Mais que isso quer dizer que a publicação está falhando ou o site está fora do ar.\n\nVeja Actions > Deploy Site: %s/%s/actions/workflows/deploy-site.yml\n\nEste aviso fecha sozinho quando o site alcançar o sistema.' \
+            "$MINUTOS" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY")
+          if [ -n "$ABERTO" ]; then
+            gh issue comment "$ABERTO" --repo "$GITHUB_REPOSITORY" --body "$CORPO"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --label "$ROTULO" --title "ALERTA: o site está atrás do sistema há mais de 2 horas" --body "$CORPO"
+          fi
+          echo "::error::O site no ar está atrás do sistema há ${MINUTOS} minutos (mais de 2 horas)."
+          exit 1
+
+      - name: Fecha o aviso de defasagem quando o site alcançou o sistema
+        if: steps.conteudo.outputs.mudou == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for N in $(gh issue list --repo "$GITHUB_REPOSITORY" --label alerta-site-defasado --state open --json number -q '.[].number' 2>/dev/null); do
+            gh issue close "$N" --repo "$GITHUB_REPOSITORY" --comment "O site voltou a bater com o sistema. Fechado automaticamente."
+          done

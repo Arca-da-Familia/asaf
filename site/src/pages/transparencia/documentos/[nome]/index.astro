@@ -1,0 +1,97 @@
+---
+import TituloDePagina from '../../../../components/TituloDePagina.astro'
+import type { Migalha } from '../../../../config/navegacao'
+import Base from '../../../../layouts/Base.astro'
+import { conteudoPublico } from '../../../../lib/dados-publicos'
+import { formatarDataCurta } from '../../../../lib/datas'
+import { descricaoParaMeta, tituloCurto } from '../../../../lib/texto'
+import {
+  caminhoDoDocumento,
+  nomeDoPdf,
+  paragrafosDoTexto,
+} from '../../../../lib/transparencia'
+
+// Documento APROVADO cuja versão pública é um TEXTO (ex.: o estatuto transcrito, sem as assinaturas): vira uma página.
+// O texto vem do sistema e só entra se o SHA-256 bater com o que foi aprovado (conteudo-publico.mjs). Documento em PDF
+// não passa por aqui: o PDF é copiado para /arquivos/transparencia/.
+export async function getStaticPaths() {
+  const { documentos, detalhesDeDocumentos } = await conteudoPublico()
+  return documentos
+    .filter((d) => d.formato === 'TEXTO')
+    .map((d) => ({
+      params: { nome: nomeDoPdf(d) },
+      props: { documento: detalhesDeDocumentos[d.id_documento]! },
+    }))
+}
+
+const { documento } = Astro.props
+const paragrafos = paragrafosDoTexto(documento.texto ?? '')
+const migalhas: Migalha[] = [
+  { rotulo: 'Transparência', href: '/transparencia/' },
+  { rotulo: 'Documentos', href: '/transparencia/documentos/' },
+  { rotulo: tituloCurto(documento.titulo) },
+]
+---
+
+<Base
+  titulo={tituloCurto(documento.titulo)}
+  descricao={descricaoParaMeta(
+    documento.descricao ?? documento.texto,
+    `${documento.tipo} publicado pela ASAF, em texto, para consulta.`,
+  )}
+  caminho={caminhoDoDocumento(documento)}
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo={documento.titulo}
+    resumo={[
+      documento.tipo,
+      documento.data_documento
+        ? formatarDataCurta(documento.data_documento)
+        : documento.ano
+          ? String(documento.ano)
+          : null,
+    ]
+      .filter(Boolean)
+      .join(' · ')}
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-3xl flex-col gap-10 px-4 py-12">
+    <article aria-label={documento.titulo} data-documento-em-texto>
+      {paragrafos.map((paragrafo) => (
+        <p class="mb-4 whitespace-pre-line leading-relaxed">{paragrafo}</p>
+      ))}
+    </article>
+
+    <section
+      aria-labelledby="sobre-o-texto"
+      class="rounded-lg border bg-card p-5 text-sm"
+    >
+      <h2 id="sobre-o-texto" class="font-semibold">
+        Sobre este texto
+      </h2>
+      <p class="mt-2">
+        Esta é a versão publicada do documento, em texto. Dados pessoais, como
+        CPF, RG e contatos de pessoas, não fazem parte dela.
+        {documento.aprovado_em
+          ? ` Aprovada para publicação em ${formatarDataCurta(documento.aprovado_em)}.`
+          : ''}
+      </p>
+      <details class="mt-2">
+        <summary class="cursor-pointer">Código de verificação do texto</summary>
+        <p class="mt-1 break-all font-mono text-xs">
+          SHA-256: {documento.sha256}
+        </p>
+      </details>
+      <p class="mt-3">
+        <a
+          href="/transparencia/documentos/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          ← Todos os documentos publicados
+        </a>
+      </p>
+    </section>
+  </div>
+</Base>

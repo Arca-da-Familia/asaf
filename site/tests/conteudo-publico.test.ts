@@ -3,7 +3,9 @@ import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
+  baixarFotoDaTransparencia,
   baixarPdfDaTransparencia,
+  verificarTextoDoDocumento,
   buscarConteudoPublico,
   impressaoDoConteudo,
 } from '../scripts/lib/conteudo-publico.mjs'
@@ -277,5 +279,157 @@ describe('baixarPdfDaTransparencia', () => {
       }),
     ).rejects.toThrow(/404/)
     expect(naoExiste).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('verificarTextoDoDocumento', () => {
+  const texto = 'ART. 1 - Texto aprovado.\n\nART. 2 - Outro artigo.'
+  const sha = createHash('sha256').update(texto, 'utf8').digest('hex')
+  const detalhe = { id_documento: 4, titulo: 'Estatuto', sha256: sha, texto }
+
+  it('aceita o texto cujo SHA-256 (dos bytes UTF-8) bate com o aprovado', () => {
+    expect(() => verificarTextoDoDocumento(detalhe)).not.toThrow()
+  })
+  it('RECUSA (derruba o build) texto diferente do aprovado, vazio ou ausente', () => {
+    expect(() =>
+      verificarTextoDoDocumento({ ...detalhe, texto: texto + ' alterado' }),
+    ).toThrow(/não confere com o que foi aprovado/)
+    expect(() =>
+      verificarTextoDoDocumento({ ...detalhe, texto: '   ' }),
+    ).toThrow(/veio sem texto/)
+    expect(() =>
+      verificarTextoDoDocumento({ ...detalhe, texto: null }),
+    ).toThrow(/veio sem texto/)
+  })
+  it('acento conta: o SHA-256 é dos bytes UTF-8', () => {
+    const acentuado = 'Associação — ação'
+    expect(() =>
+      verificarTextoDoDocumento({
+        ...detalhe,
+        texto: acentuado,
+        sha256: createHash('sha256').update(acentuado, 'utf8').digest('hex'),
+      }),
+    ).not.toThrow()
+  })
+})
+
+describe('buscarConteudoPublico - documentos em texto', () => {
+  const texto = 'ART. 1 - Texto aprovado do estatuto.'
+  const sha = createHash('sha256').update(texto, 'utf8').digest('hex')
+  const rotas = {
+    '/api/publico/eventos': [],
+    '/api/publico/projetos': [],
+    '/api/publico/diretoria': [],
+    '/api/publico/assembleias': [],
+    '/api/publico/transparencia/parcerias': [],
+    '/api/publico/transparencia/documentos': [
+      {
+        id_documento: 4,
+        formato: 'TEXTO',
+        titulo: 'Estatuto',
+        sha256: sha,
+        arquivo: null,
+      },
+      {
+        id_documento: 5,
+        formato: 'PDF',
+        titulo: 'Ata',
+        sha256: 'a'.repeat(64),
+        arquivo: '/x',
+      },
+    ],
+    '/api/publico/transparencia/documentos/4': {
+      id_documento: 4,
+      formato: 'TEXTO',
+      titulo: 'Estatuto',
+      sha256: sha,
+      texto,
+    },
+  }
+  const fetchDe = (r: Record<string, unknown>) =>
+    (async (url: string) => {
+      const caminho = String(url).replace('https://api.teste', '')
+      return caminho in r
+        ? new Response(JSON.stringify(r[caminho]), { status: 200 })
+        : new Response('{}', { status: 404 })
+    }) as unknown as typeof fetch
+
+  it('busca o detalhe SÓ do documento em texto (o PDF não precisa)', async () => {
+    const c = await buscarConteudoPublico('https://api.teste', {
+      fetchImpl: fetchDe(rotas),
+      esperaMs: 0,
+    })
+    expect(Object.keys(c.detalhesDeDocumentos)).toEqual(['4'])
+    expect(c.detalhesDeDocumentos[4]!.texto).toBe(texto)
+  })
+
+  it('FALHA o build se o texto que a API entrega não é o aprovado', async () => {
+    const adulterada = {
+      ...rotas,
+      '/api/publico/transparencia/documentos/4': {
+        ...rotas['/api/publico/transparencia/documentos/4'],
+        texto: texto + ' (editado por fora)',
+      },
+    }
+    await expect(
+      buscarConteudoPublico('https://api.teste', {
+        fetchImpl: fetchDe(adulterada),
+        esperaMs: 0,
+      }),
+    ).rejects.toThrow(/não confere com o que foi aprovado/)
+  })
+})
+
+describe('baixarFotoDaTransparencia', () => {
+  const jpeg = Buffer.concat([
+    Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+    Buffer.from('conteudo da foto aprovada'),
+  ])
+  const foto = {
+    id_foto: 3,
+    sha256: createHash('sha256').update(jpeg).digest('hex'),
+    arquivo: '/api/publico/transparencia/parcerias/1/fotos/3',
+  }
+  const resposta = (conteudo: Buffer, status = 200) =>
+    new Response(new Uint8Array(conteudo), { status })
+  const com = (fn: () => Response) => ({
+    fetchImpl: vi.fn(async () => fn()) as unknown as typeof fetch,
+    esperaMs: 0,
+  })
+
+  it('devolve os bytes quando é JPEG e o SHA-256 bate com o aprovado', async () => {
+    const recebido = await baixarFotoDaTransparencia(
+      'https://api.teste/',
+      foto,
+      com(() => resposta(jpeg)),
+    )
+    expect(Buffer.compare(recebido, jpeg)).toBe(0)
+  })
+
+  it('RECUSA (derruba o build) foto diferente da aprovada ou que não é JPEG', async () => {
+    const outra = Buffer.concat([jpeg, Buffer.from(' adulterada')])
+    await expect(
+      baixarFotoDaTransparencia(
+        'https://api.teste',
+        foto,
+        com(() => resposta(outra)),
+      ),
+    ).rejects.toThrow(/não confere com a aprovada/)
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    await expect(
+      baixarFotoDaTransparencia(
+        'https://api.teste',
+        { ...foto, sha256: createHash('sha256').update(png).digest('hex') },
+        com(() => resposta(png)),
+      ),
+    ).rejects.toThrow(/não é um JPEG/)
+  })
+
+  it('foto retirada (404) não é repetida e derruba o build', async () => {
+    const e = com(() => resposta(Buffer.from(''), 404))
+    await expect(
+      baixarFotoDaTransparencia('https://api.teste', foto, e),
+    ).rejects.toThrow(/404/)
+    expect(e.fetchImpl).toHaveBeenCalledTimes(1)
   })
 })

@@ -7,7 +7,7 @@ import { conteudoPublico } from '../../../lib/dados-publicos'
 import { formatarDataCurta } from '../../../lib/datas'
 import {
   agruparDocumentosPorTipo,
-  caminhoDoPdf,
+  caminhoDoDocumento,
 } from '../../../lib/transparencia'
 
 // Fonte: o SISTEMA (módulo Documentos). Só a VERSÃO PÚBLICA de documento aprovado por outra pessoa da diretoria: o
@@ -99,10 +99,13 @@ const tamanho = (bytes: number | null) =>
                     data-titulo={`${d.titulo} ${d.tipo} ${d.ano ?? ''}`.toLowerCase()}
                   >
                     <a
-                      href={caminhoDoPdf(d)}
+                      href={caminhoDoDocumento(d)}
                       class="text-lg font-semibold text-primary underline underline-offset-4"
                     >
-                      {d.titulo} <span class="sr-only">(PDF)</span>
+                      {d.titulo}{' '}
+                      <span class="sr-only">
+                        ({d.formato === 'TEXTO' ? 'texto' : 'PDF'})
+                      </span>
                     </a>
                     <p class="mt-1 text-sm text-muted-foreground">
                       {d.ano ? `${d.ano} · ` : ''}
@@ -115,7 +118,11 @@ const tamanho = (bytes: number | null) =>
                       {d.paginas
                         ? ` · ${d.paginas} página${d.paginas === 1 ? '' : 's'}`
                         : ''}
-                      {d.tamanho ? ` · PDF, ${tamanho(d.tamanho)}` : ''}
+                      {d.formato === 'TEXTO'
+                        ? ' · Texto'
+                        : d.tamanho
+                          ? ` · PDF, ${tamanho(d.tamanho)}`
+                          : ''}
                     </p>
                     {d.descricao && <p class="mt-2 text-sm">{d.descricao}</p>}
                     <details class="mt-2 text-sm">

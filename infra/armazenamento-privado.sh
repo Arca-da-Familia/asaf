@@ -26,7 +26,7 @@ RESOURCE_GROUP="${RESOURCE_GROUP:-Associacao-RG}"
 LOCATION="${LOCATION:-brazilsouth}"
 STORAGE_ACCOUNT="${STORAGE_ACCOUNT:-stasafprivado}"
 CONTAINER_APP="${CONTAINER_APP:-asaf-api}"
-CONTAINERS=(fotos-associados atas comprovantes documentos-emitidos documentos-originais documentos-publicos)  # nomes de PASTAS e PASTAS_PRIVADAS em armazenamento.py
+CONTAINERS=(fotos-associados atas comprovantes documentos-emitidos documentos-originais documentos-publicos fotos-etapas)  # nomes de PASTAS e PASTAS_PRIVADAS em armazenamento.py
 
 if ! az storage account show -g "$RESOURCE_GROUP" -n "$STORAGE_ACCOUNT" >/dev/null 2>&1; then
   az storage account create \

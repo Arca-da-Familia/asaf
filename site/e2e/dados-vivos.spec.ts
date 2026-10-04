@@ -13,17 +13,42 @@ test.describe('Diretoria e Conselho', () => {
       .evaluateAll((els) => els.map((e) => e.getAttribute('data-orgao')))
     expect(orgaos).toEqual(['Diretoria Executiva', 'Conselho Fiscal'])
 
+    // Os cargos vêm do Estatuto (Art. 19: sete; Art. 24: três conselheiros) e aparecem TODOS, com ou sem ocupante.
     const diretoria = page.locator('[data-orgao="Diretoria Executiva"] li')
-    await expect(diretoria).toHaveCount(2)
+    await expect(diretoria).toHaveCount(7)
     await expect(diretoria.first()).toContainText('Presidente')
     await expect(diretoria.first()).toContainText('Maria de Teste da Silva')
     // Data sem hora, no formato brasileiro (e sem perder um dia por causa do fuso).
     await expect(diretoria.first()).toContainText(
       /Mandato: \d{2}\/\d{2}\/\d{4} a \d{2}\/\d{2}\/\d{4}/,
     )
-    await expect(page.locator('[data-orgao="Conselho Fiscal"]')).toContainText(
-      'Ana de Teste Lima',
+    const cargos = await diretoria.locator('p.text-primary').allInnerTexts()
+    expect(cargos).toEqual([
+      'Presidente',
+      '1º Vice-Presidente',
+      '2º Vice-Presidente',
+      '1º Secretário',
+      '2º Secretário',
+      '1º Tesoureiro',
+      '2º Tesoureiro',
+    ])
+    await expect(
+      page.locator('[data-orgao="Diretoria Executiva"] [data-ocupante]'),
+    ).toHaveCount(2)
+    // Cargo sem ocupante publicado diz isso — não diz "vago" (a posse pode não estar registrada ainda).
+    const semOcupante = page.locator(
+      '[data-orgao="Diretoria Executiva"] [data-vaga]',
     )
+    await expect(semOcupante).toHaveCount(5)
+    await expect(semOcupante.first()).toContainText(
+      'Ocupante ainda não publicado',
+    )
+    await expect(semOcupante.first()).toContainText('Art. 19')
+    const conselho = page.locator('[data-orgao="Conselho Fiscal"]')
+    await expect(conselho).toContainText('Ana de Teste Lima')
+    await expect(conselho.locator('li')).toHaveCount(3)
+    await expect(conselho.locator('[data-vaga]')).toHaveCount(2)
+    expect(await page.content()).not.toMatch(/\bvago\b|vacância/i)
     // Nunca dado pessoal além do nome.
     const texto = await page.locator('main').innerText()
     expect(texto).not.toMatch(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}|@/)
@@ -208,6 +233,6 @@ test('/conteudo.json traz a impressão do conteúdo (para a sincronização auto
     assembleias: 1,
     noticias: 2,
     parcerias: 3,
-    documentos: 3,
+    documentos: 4,
   })
 })

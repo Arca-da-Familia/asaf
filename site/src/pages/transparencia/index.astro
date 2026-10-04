@@ -6,7 +6,11 @@ import { ENDERECO_LINHA, ORGANIZACAO } from '../../config/organizacao'
 import Base from '../../layouts/Base.astro'
 import { caminhoDaAssembleia, conteudoPublico } from '../../lib/dados-publicos'
 import { formatarDataCurta, formatarDia, formatarHora } from '../../lib/datas'
-import { caminhoDoPdf, ehEmenda, formatarReais } from '../../lib/transparencia'
+import {
+  caminhoDoDocumento,
+  ehEmenda,
+  formatarReais,
+} from '../../lib/transparencia'
 
 // Fontes: Estatuto Social (Arts. 1º, 5º, 8º, 20, 23, 24 e 28), dados institucionais confirmados pelo
 // usuário (CNPJ, sede, contato), GET /api/publico/assembleias (editais de assembleia JÁ convocada) e, desde a
@@ -230,10 +234,13 @@ const etapasDeContas = [
         {maisRecentes.map((d) => (
           <li class="rounded-lg border bg-card p-5 shadow-card">
             <a
-              href={caminhoDoPdf(d)}
+              href={caminhoDoDocumento(d)}
               class="text-lg font-semibold text-primary underline underline-offset-4"
             >
-              {d.titulo} <span class="sr-only">(PDF)</span>
+              {d.titulo}{' '}
+              <span class="sr-only">
+                ({d.formato === 'TEXTO' ? 'texto' : 'PDF'})
+              </span>
             </a>
             <p class="mt-1 text-sm">
               {d.tipo}

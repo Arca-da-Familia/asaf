@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { axe } from 'jest-axe'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -34,7 +35,17 @@ vi.mock('@/lib/documentos', async (original) => ({
   ...documentos,
 }))
 
+vi.mock('@/lib/api', async (original) => ({
+  ...(await original<typeof import('@/lib/api')>()),
+  apiFetchBlob: vi.fn().mockResolvedValue({
+    blob: new Blob(['x'], { type: 'image/jpeg' }),
+    nomeSugerido: null,
+  }),
+}))
+
 const parcerias = vi.hoisted(() => ({
+  enviarFoto: vi.fn(),
+  apagarFoto: vi.fn(),
   listarParcerias: vi.fn(),
   opcoesDeParcerias: vi.fn(),
   obterParceria: vi.fn(),
@@ -141,6 +152,19 @@ const detalhe: ParceriaDetalhe = {
       local: 'Quadra',
       publico_atendido: null,
       situacao: 'Prevista',
+      fotos: [
+        {
+          id_foto: 9,
+          id_etapa: 1,
+          alt: 'Crianças tocando tambores na quadra',
+          largura: 800,
+          altura: 600,
+          tamanho: 1000,
+          autorizacao_imagem: true,
+          id_documento_autorizacao: null,
+          criado_em: '2026-09-02T10:00:00',
+        },
+      ],
     },
   ],
   relatorios: [
@@ -226,6 +250,7 @@ const documento: Documento = {
   original_tamanho: 20480,
   original_sha256: 'a'.repeat(64),
   tem_versao_publica: true,
+  publico_formato: 'PDF',
   publico_tamanho: 10240,
   publico_paginas: 3,
   publico_sha256: 'b'.repeat(64),
@@ -440,5 +465,134 @@ describe('telas de Documentos (renderizadas de verdade)', () => {
       await screen.findByText(/secretaria@asaf\.org\.br/),
     ).toBeInTheDocument()
     expect(await axe(container)).toHaveNoViolations()
+  })
+})
+
+describe('versão pública em texto (renderizada de verdade)', () => {
+  it('quem prepara vê o campo para colar o texto e, com texto aceito, o formato e o tamanho', async () => {
+    documentos.obterDocumento.mockResolvedValue({
+      ...documento,
+      situacao: 'Rascunho',
+      pode_editar: true,
+      pode_aprovar: false,
+      publico_formato: 'TEXTO',
+      publico_paginas: null,
+      verificacao: {
+        ok: true,
+        paginas: 0,
+        caracteres: 1234,
+        bloqueios: [],
+        avisos: [],
+      },
+    })
+    const { container } = renderizar('/documentos/5')
+    expect(
+      await screen.findByLabelText('Ou cole o texto da versão pública'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /Enviar o texto e conferir/ }),
+    ).toBeDisabled() // texto vazio: não envia
+    expect(screen.getByText(/texto de 1234 caracteres/)).toBeInTheDocument()
+    expect(await axe(container)).toHaveNoViolations()
+  })
+})
+
+describe('fotos das etapas (renderizadas de verdade)', () => {
+  beforeEach(() => {
+    URL.createObjectURL = vi.fn(() => 'blob:foto-de-teste')
+    URL.revokeObjectURL = vi.fn()
+  })
+
+  it('mostra a foto com a descrição e o aviso de que a imagem é regravada', async () => {
+    const { container } = renderizar('/parcerias/7')
+    // a miniatura troca de caixa vazia para <img> quando a foto chega: procura de novo até estabilizar
+    await waitFor(
+      () =>
+        expect(
+          screen.getByRole('img', {
+            name: 'Crianças tocando tambores na quadra',
+          }),
+        ).toBeInstanceOf(HTMLImageElement),
+      { timeout: 5000 },
+    )
+    expect(
+      screen.getByText(/guardada sem localização nem dados do aparelho/),
+    ).toBeInTheDocument()
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('sem marcar a autorização de imagem a foto NÃO é enviada e o motivo aparece', async () => {
+    const usuario = userEvent.setup()
+    renderizar('/parcerias/7')
+    await screen.findByRole('heading', { name: 'Etapas de execução' })
+    const arquivo = new File(['x'], 'foto.jpg', { type: 'image/jpeg' })
+    await usuario.upload(screen.getByLabelText(/Enviar foto \(JPG/), arquivo)
+    await usuario.type(
+      screen.getByLabelText(/Descrição da foto/),
+      'Oficina de percussão na quadra da escola',
+    )
+    await usuario.click(screen.getByRole('button', { name: 'Enviar a foto' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /autorização de uso de imagem/,
+    )
+    expect(parcerias.enviarFoto).not.toHaveBeenCalled()
+  })
+
+  it('sem descrição a foto NÃO é enviada; com tudo, é enviada com a confirmação', async () => {
+    const usuario = userEvent.setup()
+    parcerias.enviarFoto.mockResolvedValue(detalhe)
+    renderizar('/parcerias/7')
+    await screen.findByRole('heading', { name: 'Etapas de execução' })
+    const arquivo = new File(['x'], 'foto.jpg', { type: 'image/jpeg' })
+    await usuario.upload(screen.getByLabelText(/Enviar foto \(JPG/), arquivo)
+    await usuario.click(
+      screen.getByRole('checkbox', { name: /Há autorização de uso de imagem/ }),
+    )
+    await usuario.click(screen.getByRole('button', { name: 'Enviar a foto' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /Descreva a foto/,
+    )
+    expect(parcerias.enviarFoto).not.toHaveBeenCalled()
+    await usuario.type(
+      screen.getByLabelText(/Descrição da foto/),
+      'Oficina de percussão na quadra da escola',
+    )
+    await usuario.click(screen.getByRole('button', { name: 'Enviar a foto' }))
+    expect(parcerias.enviarFoto).toHaveBeenCalledTimes(1)
+    const [id, idEtapa, dados] = parcerias.enviarFoto.mock.calls[0]!
+    expect([id, idEtapa]).toEqual([7, 1])
+    expect(dados).toMatchObject({
+      autorizacaoImagem: true,
+      alt: 'Oficina de percussão na quadra da escola',
+    })
+  })
+
+  it('quem só lê vê a foto, mas não o formulário de envio nem o botão de apagar', async () => {
+    parcerias.obterParceria.mockResolvedValue({
+      ...detalhe,
+      pode_editar: false,
+    })
+    renderizar('/parcerias/7')
+    await screen.findByRole('img', {
+      name: 'Crianças tocando tambores na quadra',
+    })
+    expect(
+      screen.queryByRole('button', { name: 'Enviar a foto' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Apagar a foto/ }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('apagar a foto chama o servidor', async () => {
+    const usuario = userEvent.setup()
+    parcerias.apagarFoto.mockResolvedValue(detalhe)
+    renderizar('/parcerias/7')
+    // procura só dentro do bloco das fotos (a consulta por papel em toda a tela é lenta no jsdom)
+    const bloco = (await screen.findByText('Fotos da etapa')).parentElement!
+    await usuario.click(
+      within(bloco).getByText('Apagar', { selector: 'button' }),
+    )
+    expect(parcerias.apagarFoto).toHaveBeenCalledWith(7, 9)
   })
 })

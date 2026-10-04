@@ -166,6 +166,35 @@ test.describe('Página de uma emenda', () => {
     ).toContainText('Regulares com ressalvas')
   })
 
+  test('as fotos da etapa aparecem com o texto alternativo, vêm do próprio site e nada do sistema vaza', async ({
+    page,
+    request,
+  }) => {
+    await page.goto('/transparencia/emendas/1/')
+    const fotos = page.locator('ul[aria-label^="Fotos:"] img')
+    await expect(fotos).toHaveCount(1)
+    await expect(fotos.first()).toHaveAttribute(
+      'alt',
+      'Crianças tocando tambores na quadra da escola (foto de teste)',
+    )
+    await expect(fotos.first()).toHaveAttribute('src', '/midia/parcerias/1.jpg')
+    await expect(fotos.first()).toHaveAttribute('width', '800')
+    await expect(fotos.first()).toHaveAttribute('height', '600')
+    await expect(fotos.first()).toHaveAttribute('loading', 'lazy')
+    const resposta = await request.get('/midia/parcerias/1.jpg')
+    expect(resposta.status()).toBe(200)
+    expect(resposta.headers()['content-type']).toBe('image/jpeg')
+    expect((await resposta.body()).subarray(0, 3).toString('hex')).toBe(
+      'ffd8ff',
+    )
+    // o endereço da API nunca vai para o HTML do visitante; a etapa sem foto não ganha lista vazia
+    expect(await page.content()).not.toContain('/api/publico/')
+    await expect(page.locator('ul[aria-label^="Fotos:"]')).toHaveCount(1)
+    // a foto só existe para parceria aprovada: a outra emenda não tem foto nem pasta de mídia própria
+    await page.goto('/transparencia/emendas/2/')
+    await expect(page.locator('ul[aria-label^="Fotos:"]')).toHaveCount(0)
+  })
+
   test('o documento ligado abre o PDF permanente do próprio site', async ({
     page,
     request,
@@ -262,7 +291,7 @@ test.describe('Documentos publicados', () => {
       'Nenhum documento encontrado.',
     )
     await busca.getByLabel('Buscar por título').fill('')
-    await expect(page.locator('li[data-documento]:visible')).toHaveCount(3)
+    await expect(page.locator('li[data-documento]:visible')).toHaveCount(4)
   })
 
   test('o PDF copiado é exatamente o aprovado (mesmo SHA-256 mostrado na página)', async ({
@@ -280,6 +309,52 @@ test.describe('Documentos publicados', () => {
     const href = await item.getByRole('link').first().getAttribute('href')
     const bytes = await (await request.get(href!)).body()
     expect(createHash('sha256').update(bytes).digest('hex')).toBe(sha)
+  })
+
+  test('documento em TEXTO vira uma página (o estatuto transcrito), sem PDF, e o texto mostrado é o aprovado', async ({
+    page,
+    request,
+  }) => {
+    await page.goto('/transparencia/documentos/')
+    const item = page.locator('li[data-documento]', {
+      hasText: 'Estatuto Social transcrito',
+    })
+    await expect(item).toContainText('Texto')
+    const link = item.getByRole('link', { name: /Estatuto Social transcrito/ })
+    await expect(link).toHaveAttribute(
+      'href',
+      '/transparencia/documentos/4-exemplo-estatuto-social-transcrito/',
+    )
+    await link.click()
+    await expect(page.locator('h1')).toHaveText(
+      'EXEMPLO – Estatuto Social transcrito',
+    )
+    const paragrafos = page.locator('[data-documento-em-texto] p')
+    await expect(paragrafos).toHaveCount(3)
+    await expect(paragrafos.nth(1)).toContainText(
+      'Parágrafo de teste na mesma linha.',
+    )
+    // o SHA-256 mostrado é o do texto que está na página (reconstruído com a linha em branco entre os parágrafos)
+    const sobre = page.locator('section[aria-labelledby="sobre-o-texto"]')
+    await sobre.locator('summary').click()
+    const mostrado = (await sobre.locator('details p').innerText())
+      .replace('SHA-256:', '')
+      .trim()
+    const texto = (await paragrafos.allTextContents()).join('\n\n')
+    expect(createHash('sha256').update(texto, 'utf8').digest('hex')).toBe(
+      mostrado,
+    )
+    // não existe PDF para ele, nem o endereço da API vaza para a página
+    expect(
+      (
+        await request.get(
+          '/arquivos/transparencia/4-exemplo-estatuto-social-transcrito.pdf',
+        )
+      ).status(),
+    ).toBe(404)
+    expect(await page.content()).not.toContain('/api/publico/')
+    // título e descrição cabem no Google
+    expect((await page.title()).length).toBeLessThanOrEqual(70)
   })
 })
 
@@ -352,7 +427,7 @@ test.describe('Transparência (página principal) e demais páginas', () => {
       '1 parceria publicada',
     )
     await expect(page.locator('[data-cartao="documentos"]')).toContainText(
-      '3 documentos publicados',
+      '4 documentos publicados',
     )
     await expect(page.locator('[data-cartao="dados"] a')).toHaveAttribute(
       'href',

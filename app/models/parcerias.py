@@ -140,8 +140,8 @@ class ParcelaParceria(Base):
 
 
 class EtapaParceria(Base):
-    """Etapa de execução (oficina, entrega, evento): data, local e público atendido. Fotos com autorização de
-    imagem entram na v5.4b (precisam de um caminho próprio que confira a autorização)."""
+    """Etapa de execução (oficina, entrega, evento): data, local e público atendido, e as FOTOS dela (só com autorização
+    de imagem confirmada: ver `FotoEtapaParceria` e app/services/parcerias_fotos.py)."""
     __tablename__ = "etapas_parceria"
     id_etapa = Column(Integer, primary_key=True, index=True)
     id_parceria = Column(Integer, ForeignKey("parcerias.id_parceria"), nullable=False, index=True)
@@ -189,3 +189,23 @@ class LancamentoDaParceria(Base):
     id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class FotoEtapaParceria(Base):
+    """Foto de uma etapa. Só existe com a autorização de imagem confirmada (a foto sem ela nem é guardada) e com o texto
+    alternativo. O arquivo fica em armazenamento PRIVADO (`fotos-etapas`), já regravado em JPEG sem metadado nenhum."""
+    __tablename__ = "fotos_etapa_parceria"
+    id_foto = Column(Integer, primary_key=True, index=True)
+    id_etapa = Column(Integer, ForeignKey("etapas_parceria.id_etapa"), nullable=False, index=True)
+    id_parceria = Column(Integer, ForeignKey("parcerias.id_parceria"), nullable=False, index=True)
+    arquivo_nome = Column(String(150), nullable=False)  # nome opaco (uuid) no armazenamento
+    sha256 = Column(String(64), nullable=False)
+    tamanho = Column(Integer, nullable=False)
+    largura = Column(Integer, nullable=False)
+    altura = Column(Integer, nullable=False)
+    alt = Column(String(300), nullable=False)
+    autorizacao_imagem = Column(Boolean, nullable=False, default=False)
+    # Termo de autorização assinado (documento da biblioteca, classificação Restrita): opcional, mas recomendado.
+    id_documento_autorizacao = Column(Integer, ForeignKey("documentos_institucionais.id_documento"), nullable=True)
+    id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)

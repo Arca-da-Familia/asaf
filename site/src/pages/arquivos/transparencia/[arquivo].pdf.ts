@@ -13,14 +13,19 @@ import { nomeDoPdf } from '../../../lib/transparencia'
  */
 export async function getStaticPaths() {
   const { documentos } = await conteudoPublico()
-  return documentos.map((documento) => ({
-    params: { arquivo: nomeDoPdf(documento) },
-    props: { documento },
-  }))
+  return documentos
+    .filter((documento) => documento.formato !== 'TEXTO')
+    .map((documento) => ({
+      params: { arquivo: nomeDoPdf(documento) },
+      props: { documento },
+    }))
 }
 
 export const GET: APIRoute = async ({ props }) => {
-  const bytes = await baixarPdfDaTransparencia(API_URL, props.documento)
+  const bytes = await baixarPdfDaTransparencia(API_URL, {
+    ...props.documento,
+    arquivo: props.documento.arquivo!,
+  })
   return new Response(new Uint8Array(bytes), {
     headers: { 'Content-Type': 'application/pdf' },
   })

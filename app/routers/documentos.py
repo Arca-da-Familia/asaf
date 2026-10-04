@@ -21,7 +21,7 @@ from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.core import AuditLog, Usuario
 from app.models.documentos import (
-    APROVADO, CLASSIFICACOES, EM_REVISAO, PUBLICA, RASCUNHO, SITUACOES, TIPOS, VINCULOS, DocumentoInstitucional,
+    APROVADO, CLASSIFICACOES, EM_REVISAO, FORMATO_TEXTO, PUBLICA, RASCUNHO, SITUACOES, TIPOS, VINCULOS, DocumentoInstitucional,
 )
 from app.security import exigir_permissao, get_current_user, usuario_tem_permissao
 from app.services import armazenamento
@@ -74,7 +74,7 @@ def _serializar(db: Session, usuario: Usuario, doc: DocumentoInstitucional) -> d
         "grupo_versao": doc.grupo_versao, "versao": doc.versao, "vigente": doc.vigente,
         "tem_original": bool(doc.original_nome), "original_nome_arquivo": doc.original_nome_arquivo,
         "original_tamanho": doc.original_tamanho, "original_sha256": doc.original_sha256,
-        "tem_versao_publica": bool(doc.publico_nome), "publico_tamanho": doc.publico_tamanho,
+        "tem_versao_publica": servico.tem_versao_publica(doc), "publico_formato": doc.publico_formato, "publico_tamanho": doc.publico_tamanho,
         "publico_paginas": doc.publico_paginas, "publico_sha256": doc.publico_sha256,
         "verificacao": verificacao, "verificacao_em": doc.verificacao_em,
         "situacao": doc.situacao, "enviado_revisao_em": doc.enviado_revisao_em, "aprovado_em": doc.aprovado_em,
@@ -225,6 +225,17 @@ async def enviar_versao_publica(id_documento: int, request: Request, arquivo: Up
     return _responder_verificacao(db, usuario, doc, resultado, request, "VERSAO_PUBLICA_ENVIADA")
 
 
+class TextoPublico(BaseModel):
+    texto: str = Field(..., max_length=400_000)
+
+
+@router.post("/api/documentos/{id_documento}/versao-publica-texto", summary="Enviar a versão pública como TEXTO (ex.: estatuto transcrito) e conferir")
+async def enviar_versao_publica_texto(id_documento: int, dados: TextoPublico, request: Request, db: Session = Depends(get_db), usuario=Depends(_exigir_documentos)):
+    doc = _buscar(db, id_documento)
+    resultado = await run_in_threadpool(servico.anexar_versao_publica_texto, db, doc, dados.texto)
+    return _responder_verificacao(db, usuario, doc, resultado, request, "VERSAO_PUBLICA_ENVIADA")
+
+
 @router.post("/api/documentos/{id_documento}/versao-publica/usar-original", summary="Documento PÚBLICO: usar o próprio original como versão pública (também verificado)")
 async def usar_original(id_documento: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_exigir_documentos)):
     doc = _buscar(db, id_documento)
@@ -351,8 +362,10 @@ async def baixar_original(id_documento: int, request: Request, db: Session = Dep
 @router.get("/api/documentos/{id_documento}/versao-publica", summary="Ver a versão pública (para quem prepara e revisa; antes de ir ao site)")
 async def ver_versao_publica(id_documento: int, db: Session = Depends(get_db), usuario=Depends(_exigir_leitura)):
     doc = _buscar(db, id_documento)
-    if not doc.publico_nome:
+    if not servico.tem_versao_publica(doc):
         raise HTTPException(status_code=404, detail="Este documento não tem versão pública.")
+    if doc.publico_formato == FORMATO_TEXTO:
+        return _resposta_de_arquivo((doc.publico_texto or "").encode("utf-8"), f"{doc.titulo[:80]}.txt", "text/plain; charset=utf-8", privado=False)
     conteudo = await run_in_threadpool(armazenamento.obter().ler, "documentos-publicos", doc.publico_nome)
     if conteudo is None:
         raise HTTPException(status_code=404, detail="Versão pública não encontrada no armazenamento.")

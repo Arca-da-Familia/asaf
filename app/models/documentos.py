@@ -53,6 +53,14 @@ INTERNA = "Interna"
 RESTRITA = "Restrita"
 CLASSIFICACOES = (PUBLICA, INTERNA, RESTRITA)
 
+# --- formato da versão pública: um PDF (com texto pesquisável) OU o próprio TEXTO (colado no sistema). O texto serve
+# para o que o público lê como página: o estatuto transcrito, por exemplo, que já sai sem assinaturas e dados pessoais,
+# enquanto o PDF registrado em cartório (com assinaturas) continua sendo um original INTERNO.
+FORMATO_PDF = "PDF"
+FORMATO_TEXTO = "TEXTO"
+TAMANHO_MINIMO_DO_TEXTO = 20
+TAMANHO_MAXIMO_DO_TEXTO = 200_000  # caracteres
+
 # --- situação de publicação
 RASCUNHO = "Rascunho"
 EM_REVISAO = "Em revisão"
@@ -94,7 +102,8 @@ class DocumentoInstitucional(Base):
     publico_sha256 = Column(String(64), nullable=True)
     publico_tamanho = Column(Integer, nullable=True)
     publico_paginas = Column(Integer, nullable=True)
-    publico_texto = Column(Text, nullable=True)  # texto extraído, para busca
+    publico_texto = Column(Text, nullable=True)  # PDF: texto extraído, para busca; TEXTO: o próprio texto publicado
+    publico_formato = Column(String(5), nullable=True)  # "PDF" | "TEXTO" (nulo = ainda não há versão pública)
     verificacao_ok = Column(Boolean, nullable=True)
     verificacao_json = Column(Text, nullable=True)  # bloqueios/avisos, sempre com amostra MASCARADA
     verificacao_em = Column(DateTime, nullable=True)

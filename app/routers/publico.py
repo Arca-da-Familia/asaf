@@ -25,17 +25,20 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.associados import Associado
 from app.models.core import Catalogo, OpcaoCatalogo
-from app.models.documentos import APROVADO, TIPOS as TIPOS_DE_DOCUMENTO, DocumentoInstitucional
+from app.models.documentos import APROVADO, FORMATO_TEXTO, TIPOS as TIPOS_DE_DOCUMENTO, DocumentoInstitucional
 from app.models.governanca import Assembleia, RASCUNHO
 from app.models.mandatos import Mandato
+from app.models.parcerias import FotoEtapaParceria
 from app.models.projetos import ProjetoEvento
 from app.services import armazenamento
 from app.services import parcerias as servico_de_parcerias
+from app.services import parcerias_fotos as servico_de_fotos
 from app.services.assembleia import horarios_convocacao
 
 router = APIRouter()
@@ -174,7 +177,7 @@ def _documentos_publicos(db: Session):
     return (
         db.query(DocumentoInstitucional)
         .filter(DocumentoInstitucional.situacao == APROVADO, DocumentoInstitucional.publicar_no_site.is_(True),
-                DocumentoInstitucional.publico_nome.isnot(None))
+                or_(DocumentoInstitucional.publico_nome.isnot(None), DocumentoInstitucional.publico_formato == FORMATO_TEXTO))
         .order_by(DocumentoInstitucional.ano.desc().nullslast(), DocumentoInstitucional.titulo, DocumentoInstitucional.versao.desc())
         .all()
     )
@@ -188,7 +191,9 @@ def _serializar_documento_publico(d: DocumentoInstitucional) -> dict:
         "versao": d.versao, "vigente": bool(d.vigente),
         "paginas": d.publico_paginas, "tamanho": d.publico_tamanho, "sha256": d.publico_sha256,
         "aprovado_em": _dia_de_belem(d.aprovado_em),
-        "arquivo": f"/api/publico/transparencia/documentos/{d.id_documento}/arquivo",
+        # "PDF": o site copia o arquivo; "TEXTO": o site monta uma página com o texto (detalhe abaixo)
+        "formato": d.publico_formato or "PDF",
+        "arquivo": None if d.publico_formato == FORMATO_TEXTO else f"/api/publico/transparencia/documentos/{d.id_documento}/arquivo",
     }
 
 
@@ -197,10 +202,18 @@ def listar_documentos_publicos(db: Session = Depends(get_db)):
     return [_serializar_documento_publico(d) for d in _documentos_publicos(db)]
 
 
+@router.get("/api/publico/transparencia/documentos/{id_documento}", summary="Detalhe de um documento aprovado; no formato TEXTO traz o texto publicado")
+def obter_documento_publico(id_documento: int, db: Session = Depends(get_db)):
+    d = next((x for x in _documentos_publicos(db) if x.id_documento == id_documento), None)
+    if d is None:
+        raise HTTPException(status_code=404, detail="Documento não encontrado.")
+    return {**_serializar_documento_publico(d), "texto": d.publico_texto if d.publico_formato == FORMATO_TEXTO else None}
+
+
 @router.get("/api/publico/transparencia/documentos/{id_documento}/arquivo", summary="PDF da versão pública de um documento aprovado")
 async def arquivo_do_documento_publico(id_documento: int, db: Session = Depends(get_db)):
-    d = next((x for x in _documentos_publicos(db) if x.id_documento == id_documento), None)
-    if d is None:  # inexistente, em rascunho, em revisão ou retirado: todos respondem igual
+    d = next((x for x in _documentos_publicos(db) if x.id_documento == id_documento and x.publico_formato != FORMATO_TEXTO), None)
+    if d is None:  # inexistente, em rascunho, em revisão, retirado ou de formato texto (não tem arquivo): todos respondem igual
         raise HTTPException(status_code=404, detail="Documento não encontrado.")
     conteudo = await run_in_threadpool(armazenamento.obter().ler, "documentos-publicos", d.publico_nome)
     if conteudo is None:
@@ -230,3 +243,19 @@ def obter_parceria_publica(id_parceria: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Parceria não encontrada.")
     return servico_de_parcerias.serializar_publico(db, p, detalhe=True)
 
+
+@router.get("/api/publico/transparencia/parcerias/{id_parceria}/fotos/{id_foto}", summary="Foto de uma etapa de parceria APROVADA (a autorização de imagem já foi confirmada)")
+async def foto_publica_da_etapa(id_parceria: int, id_foto: int, db: Session = Depends(get_db)):
+    p = next((x for x in servico_de_parcerias.parcerias_publicas(db) if x.id_parceria == id_parceria), None)
+    foto = (
+        db.query(FotoEtapaParceria)
+        .filter(FotoEtapaParceria.id_foto == id_foto, FotoEtapaParceria.id_parceria == id_parceria, FotoEtapaParceria.autorizacao_imagem.is_(True))
+        .first() if p else None
+    )
+    if foto is None:  # parceria não aprovada, foto de outra parceria ou sem autorização: todos respondem igual
+        raise HTTPException(status_code=404, detail="Foto não encontrada.")
+    conteudo = await run_in_threadpool(servico_de_fotos.ler_arquivo, foto)
+    return Response(
+        content=conteudo, media_type="image/jpeg",
+        headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "public, max-age=300"},
+    )

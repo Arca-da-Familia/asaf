@@ -1,0 +1,99 @@
+name: Monitorar o site (está no ar?)
+
+# A cada 15 minutos confere, de fora (como um visitante), se o SITE, o PAINEL e a API respondem e se o site está inteiro:
+# página inicial com o nome da associação, Transparência, `/conteudo.json` válido e `version.json` do site e do painel.
+# Se algo falhar (depois de tentar de novo, porque a API "dorme" e acorda em ~30 s), esta execução fica VERMELHA; se o
+# problema durar mais de uma rodada (15 min), abre um AVISO (issue com o rótulo `alerta-site-fora-do-ar`) no GitHub, que
+# chega por e-mail a quem acompanha o repositório, e fecha o aviso sozinho quando tudo volta ao normal.
+#
+# Não loga em nada nem lê segredo: só faz GET em endereços públicos. A API já é acordada de 15 em 15 min pela
+# sincronização do site, então este monitor não aumenta o custo.
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *" # a cada 15 minutos, fora do minuto da sincronização
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write # abrir e fechar o aviso
+  actions: read # ler se a rodada anterior também falhou
+
+concurrency:
+  group: monitorar-site
+  cancel-in-progress: false
+
+env:
+  SITE_URL: https://asaf.org.br
+  PAINEL_URL: https://painel.asaf.org.br
+  API_URL: https://api.asaf.org.br
+  ROTULO: alerta-site-fora-do-ar
+
+jobs:
+  monitorar:
+    name: Confere site, painel e API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confere de fora
+        id: confere
+        run: |
+          set -u
+          PROBLEMAS=""
+          # conferir <nome> <url> <o que deve conter no corpo (regex, ou vazio)> [tempo máximo em segundos]
+          conferir() {
+            local nome="$1" url="$2" padrao="$3" maximo="${4:-30}" tentativa codigo
+            for tentativa in 1 2 3; do
+              codigo=$(curl -sS -o corpo.tmp -w '%{http_code}' --max-time "$maximo" -H 'Cache-Control: no-cache' "$url?t=$(date +%s)" 2>erro.tmp || true)
+              if [ "$codigo" = "200" ] && { [ -z "$padrao" ] || grep -Eq "$padrao" corpo.tmp; }; then
+                echo "ok: $nome ($url)"
+                return 0
+              fi
+              sleep 20
+            done
+            echo "FALHOU: $nome ($url) respondeu '${codigo:-sem resposta}'"
+            PROBLEMAS="${PROBLEMAS}- ${nome}: ${url} respondeu ${codigo:-sem resposta}"$'\n'
+          }
+          conferir "Página inicial do site" "$SITE_URL/" 'Associação Arca da Família'
+          conferir "Transparência" "$SITE_URL/transparencia/" 'Transparência'
+          conferir "Conteúdo do site (conteudo.json)" "$SITE_URL/conteudo.json" '"impressao":"[0-9a-f]{64}"'
+          conferir "Versão do site" "$SITE_URL/version.json" '"commit"'
+          conferir "Painel" "$PAINEL_URL/" '<html'
+          conferir "Versão do painel" "$PAINEL_URL/version.json" '"commit"'
+          # A API escala a zero: a primeira resposta pode levar ~35 s.
+          conferir "API (agenda pública)" "$API_URL/api/publico/eventos" '^\[' 90
+          {
+            echo "problemas<<FIM"
+            printf '%s' "$PROBLEMAS"
+            echo "FIM"
+          } >> "$GITHUB_OUTPUT"
+          [ -z "$PROBLEMAS" ]
+
+      - name: Aviso no GitHub (só se o problema durou mais de uma rodada)
+        if: failure() && steps.confere.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROBLEMAS: ${{ steps.confere.outputs.problemas }}
+        run: |
+          ANTERIOR=$(gh run list --workflow monitorar-site.yml --repo "$GITHUB_REPOSITORY" --limit 2 \
+            --json conclusion,databaseId -q "[.[] | select(.databaseId != ${{ github.run_id }})][0].conclusion // \"\"")
+          if [ "$ANTERIOR" != "failure" ]; then
+            echo "Primeira rodada com problema: só esta execução fica vermelha; se continuar na próxima, abre o aviso."
+            exit 0
+          fi
+          gh label create "$ROTULO" --repo "$GITHUB_REPOSITORY" --color B60205 --description "O site, o painel ou a API não responderam (aviso automático)" 2>/dev/null || true
+          ABERTO=$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$ROTULO" --state open --json number -q '.[0].number // ""')
+          CORPO=$(printf 'O monitor automático encontrou problema por mais de uma rodada (15 min).\n\n%s\nVeja a execução: %s/%s/actions/runs/%s\n\nEste aviso fecha sozinho quando tudo voltar ao normal.' \
+            "$PROBLEMAS" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "${{ github.run_id }}")
+          if [ -n "$ABERTO" ]; then
+            gh issue comment "$ABERTO" --repo "$GITHUB_REPOSITORY" --body "$CORPO"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --label "$ROTULO" --title "ALERTA: o site, o painel ou a API da ASAF não está respondendo" --body "$CORPO"
+          fi
+
+      - name: Fecha o aviso quando tudo voltou ao normal
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for N in $(gh issue list --repo "$GITHUB_REPOSITORY" --label "$ROTULO" --state open --json number -q '.[].number' 2>/dev/null); do
+            gh issue close "$N" --repo "$GITHUB_REPOSITORY" --comment "Tudo voltou ao normal (site, painel e API respondendo). Fechado automaticamente."
+          done

@@ -376,7 +376,7 @@ def test_tornar_vigente_so_para_documento_que_nao_vai_ao_site(client, preparador
 # ------------------------------------------------------------------------- o que o PÚBLICO vê
 CAMPOS_PUBLICOS = {
     "id_documento", "tipo_codigo", "tipo", "titulo", "descricao", "data_documento", "ano", "versao", "vigente",
-    "paginas", "tamanho", "sha256", "aprovado_em", "arquivo",
+    "paginas", "tamanho", "sha256", "aprovado_em", "formato", "arquivo",
 }
 
 

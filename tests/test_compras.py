@@ -220,7 +220,7 @@ def test_reembolso_despesa_segregacao_e_gera_titulo(client, auth_headers):
     # ao sistema; quem opera o sistema (id_usuario_solicitante) é sempre um financeiro/tesouraria,
     # e é essa pessoa que a segregação de funções impede de também aprovar o que ela mesma lançou.
     conta = _criar_conta(client, auth_headers, "4.1.9916", "Despesa")
-    id_associado_beneficiario, _ = _criar_usuario_com_mandato(client, auth_headers, "DIRETOR_SOCIAL")
+    id_associado_beneficiario, _ = _criar_usuario_com_mandato(client, auth_headers, "VICE_PRESIDENTE_2")
     _, headers_tesouraria = _criar_usuario_com_mandato(client, auth_headers, "TESOUREIRO")
 
     r = client.post("/api/reembolsos-despesa/", json={

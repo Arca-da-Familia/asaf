@@ -23,6 +23,7 @@
     "build:teste": "node scripts/gerar-version.js && node scripts/build-teste.mjs",
     "test:vazio": "node scripts/testar-estados-vazios.mjs",
     "verificar:conteudo": "node scripts/verificar-conteudo.mjs",
+    "verificar:tamanho": "node scripts/verificar-tamanho.mjs",
     "test:sincronizacao": "node scripts/testar-sincronizacao.mjs"
   },
   "dependencies": {

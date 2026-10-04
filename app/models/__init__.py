@@ -234,4 +234,4 @@ __all__ = [
     "RespostaPesquisaSatisfacao",
 ]
 from app.models.documentos import DocumentoInstitucional
-from app.models.parcerias import Parceria, ParcelaParceria, EtapaParceria, RelatorioParceria, LancamentoDaParceria
+from app.models.parcerias import Parceria, ParcelaParceria, EtapaParceria, RelatorioParceria, LancamentoDaParceria, FotoEtapaParceria

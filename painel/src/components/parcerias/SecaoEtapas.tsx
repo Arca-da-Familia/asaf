@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { Campo } from '@/components/forms/Campo'
+import { FotosDaEtapa } from '@/components/parcerias/FotosDaEtapa'
 import { Secao } from '@/components/layout/Secao'
 import { Button } from '@/components/ui/button'
 import { classeAreaDeTexto, classeCampo } from '@/lib/campos'
@@ -90,6 +91,7 @@ export function SecaoEtapas({
                   ? ` · ${e.publico_atendido} pessoa(s) atendida(s)`
                   : ''}
               </p>
+              <FotosDaEtapa d={d} etapa={e} executar={executar} />
               {d.pode_editar && (
                 <EdicaoRapidaDaEtapa
                   d={d}

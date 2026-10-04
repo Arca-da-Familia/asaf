@@ -183,15 +183,18 @@ def seed_catalogos():
         # e app/security.py::usuario_tem_permissao) - semente de partida plausível por
         # competência do Art. 20/21 do estatuto, ajustável pela diretoria sem deploy.
         "titulo_cargo": ("Título de cargo", True, "governanca", [
+            # v5.4b - cargos EXATAMENTE como o Art. 19 (Diretoria Executiva) e o Art. 24 (Conselho Fiscal, 3 membros) do
+            # Estatuto: Presidente, 1º/2º Vice-Presidente, 1º/2º Secretário, 1º/2º Tesoureiro e Conselheiro Fiscal. O
+            # CÓDIGO nunca muda (o banco e as alçadas o referenciam): "2º Secretário" é o código VICE_SECRETARIO, e assim por
+            # diante. A ordem da lista é a ordem em que a Diretoria aparece no site. Cargo fora do Estatuto não existe.
             ("PRESIDENTE", "Presidente", {"permissoes": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias"]}),
-            ("VICE_PRESIDENTE", "Vice-Presidente", {"permissoes": ["associados", "governanca"]}),
-            ("TESOUREIRO", "Tesoureiro", {"permissoes": ["financeiro", "parcerias"]}),
-            ("VICE_TESOUREIRO", "Vice-Tesoureiro", {"permissoes": ["financeiro", "parcerias"]}),
-            ("SECRETARIO", "Secretário", {"permissoes": ["associados", "governanca", "documentos", "documentos_originais", "aprovar_publicacao"]}),
-            ("VICE_SECRETARIO", "Vice-Secretário", {"permissoes": ["associados", "documentos"]}),
-            ("CONSELHO_FISCAL", "Conselho Fiscal", {"permissoes": ["financeiro", "auditoria"]}),
-            ("DIRETOR_DE_PATRIMONIO", "Diretor de Patrimônio", {}),
-            ("DIRETOR_SOCIAL", "Diretor Social", {"permissoes": ["projetos"]}),
+            ("VICE_PRESIDENTE", "1º Vice-Presidente", {"permissoes": ["associados", "governanca"]}),
+            ("VICE_PRESIDENTE_2", "2º Vice-Presidente", {"permissoes": ["associados", "governanca"]}),
+            ("SECRETARIO", "1º Secretário", {"permissoes": ["associados", "governanca", "documentos", "documentos_originais", "aprovar_publicacao"]}),
+            ("VICE_SECRETARIO", "2º Secretário", {"permissoes": ["associados", "documentos"]}),
+            ("TESOUREIRO", "1º Tesoureiro", {"permissoes": ["financeiro", "parcerias"]}),
+            ("VICE_TESOUREIRO", "2º Tesoureiro", {"permissoes": ["financeiro", "parcerias"]}),
+            ("CONSELHO_FISCAL", "Conselheiro Fiscal", {"permissoes": ["financeiro", "auditoria"]}),
         ]),
         # v2.1 (Art. 18 do estatuto) - órgãos de direção da ASAF: Diretoria Executiva e Conselho
         # Fiscal. Catálogo editável - a ASAF pode criar um Conselho Deliberativo sem deploy.

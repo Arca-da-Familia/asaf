@@ -19,6 +19,7 @@ from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from fastapi import HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.financeiro import CentroDeCusto, Fornecedor, LancamentoContabil, PartidaContabil, PlanoDeContas, TituloFinanceiro
@@ -26,9 +27,9 @@ from app.models.parcerias import (
     APROVADO, CATEGORIA_EQUIPE, CATEGORIA_FORNECEDOR, CATEGORIAS_DE_PAGAMENTO, CONCLUIDA, EM_ANALISE, EM_EXECUCAO,
     EM_PRESTACAO, EM_REVISAO, ESFERAS, ETAPA_PREVISTA, NATUREZAS, PAGAMENTO, PRAZO_DE_ANALISE_PADRAO_EM_DIAS, PROPOSTA,
     RASCUNHO, RECEBIMENTO, RELATORIO_FINAL, RESULTADOS, RETIRADO, SITUACOES, SITUACOES_DE_ETAPA, TERMO_ASSINADO,
-    TIPOS, TIPOS_DE_RELATORIO, EtapaParceria, LancamentoDaParceria, ParcelaParceria, Parceria, RelatorioParceria,
+    TIPOS, TIPOS_DE_RELATORIO, EtapaParceria, FotoEtapaParceria, LancamentoDaParceria, ParcelaParceria, Parceria, RelatorioParceria,
 )
-from app.models.documentos import APROVADO as DOCUMENTO_APROVADO, DocumentoInstitucional
+from app.models.documentos import APROVADO as DOCUMENTO_APROVADO, FORMATO_TEXTO, DocumentoInstitucional
 from app.services.contabilidade import CREDITO, DEBITO
 from app.services.documentos_verificacao import procurar_dado_pessoal
 
@@ -340,7 +341,10 @@ def editar_etapa(db: Session, parceria: Parceria, id_etapa: int, dados: dict) ->
 
 
 def excluir_etapa(db: Session, parceria: Parceria, id_etapa: int) -> EtapaParceria:
+    from app.services import parcerias_fotos  # import tardio: parcerias_fotos importa este módulo
+
     etapa = _etapa(db, parceria, id_etapa)
+    parcerias_fotos.apagar_fotos_da_etapa(db, parceria, etapa.id_etapa)  # a foto não fica órfã (nem no armazenamento)
     db.delete(etapa)
     _tocar(parceria)
     db.commit()
@@ -791,9 +795,16 @@ def serializar_publico(db: Session, p: Parceria, *, detalhe: bool = False) -> di
         }
         for v in ligados if v["natureza"] == PAGAMENTO
     ]
+    fotos_por_etapa: dict[int, list] = {}
+    for f in db.query(FotoEtapaParceria).filter(FotoEtapaParceria.id_parceria == p.id_parceria, FotoEtapaParceria.autorizacao_imagem.is_(True)).order_by(FotoEtapaParceria.id_foto):
+        fotos_por_etapa.setdefault(f.id_etapa, []).append({
+            # campos EXPLÍCITOS: nunca quem enviou, o nome do arquivo no armazenamento nem o termo de autorização
+            "id_foto": f.id_foto, "alt": f.alt, "largura": f.largura, "altura": f.altura, "sha256": f.sha256,
+            "arquivo": f"/api/publico/transparencia/parcerias/{p.id_parceria}/fotos/{f.id_foto}",
+        })
     dados["etapas"] = [
         {"titulo": e.titulo, "descricao": e.descricao, "data_prevista": _iso(e.data_prevista), "data_realizacao": _iso(e.data_realizacao),
-         "local": e.local, "publico_atendido": e.publico_atendido, "situacao": e.situacao}
+         "local": e.local, "publico_atendido": e.publico_atendido, "situacao": e.situacao, "fotos": fotos_por_etapa.get(e.id_etapa, [])}
         for e in db.query(EtapaParceria).filter(EtapaParceria.id_parceria == p.id_parceria).order_by(EtapaParceria.data_prevista, EtapaParceria.id_etapa)
     ]
     dados["relatorios"] = [
@@ -807,12 +818,13 @@ def serializar_publico(db: Session, p: Parceria, *, detalhe: bool = False) -> di
         db.query(DocumentoInstitucional)
         .filter(DocumentoInstitucional.vinculo_tipo == "parceria", DocumentoInstitucional.vinculo_id == p.id_parceria,
                 DocumentoInstitucional.situacao == DOCUMENTO_APROVADO, DocumentoInstitucional.publicar_no_site.is_(True),
-                DocumentoInstitucional.publico_nome.isnot(None))
+                or_(DocumentoInstitucional.publico_nome.isnot(None), DocumentoInstitucional.publico_formato == FORMATO_TEXTO))
         .order_by(DocumentoInstitucional.id_documento).all()
     )
     dados["documentos"] = [
         {"id_documento": d.id_documento, "titulo": d.titulo, "tipo": d.tipo, "data_documento": _iso(d.data_documento),
-         "arquivo": f"/api/publico/transparencia/documentos/{d.id_documento}/arquivo"}
+         "formato": d.publico_formato or "PDF",
+         "arquivo": None if d.publico_formato == FORMATO_TEXTO else f"/api/publico/transparencia/documentos/{d.id_documento}/arquivo"}
         for d in documentos
     ]
     return dados
