@@ -1095,7 +1095,19 @@ retrabalho que a seção 4.1 existe pra evitar.
       captura de tela num Directus 12.4.1 local; aplicado em produção; a 2ª rodada não muda nada.
 - [x] **`COMO-ATUALIZAR.md`** (primeira versão, 2026-10-03): como publicar notícia no Editor, regras da foto, prazo, o
       que fazer quando não aparece. Cresce na v5.4b com documentos e emendas.
-- [ ] **v5.3 — ENTREGA 2026-10-03 (parte do site)** — a confirmar em produção após o deploy (próximo bloco).
+- [x] **v5.3 — ENTREGA 2026-10-03 (parte do site), commit `652069c`, verificada AO VIVO:** `asaf.org.br/version.json` =
+      `652069c`; `/noticias/` 200 com o estado vazio ("Ainda não há notícias publicadas"); `/noticias/feed.xml` 200 e
+      RSS válido sem itens; `/conteudo.json` conta `noticias: 0`; o sitemap traz `/noticias/`; a Home **não** mostra o
+      bloco de notícias enquanto não há; todas as páginas anunciam o feed. **Deploy Site** verde (job de qualidade: 180
+      e2e, Lighthouse; job de publicação com o token do Directus lido do Key Vault). **Sincronização real em CI**
+      (disparo manual): login OIDC no Azure → token do Key Vault → comparação sistema + Directus **verdes**; "republica"
+      corretamente pulado (nada mudou). **Teste ponta a ponta com o Directus de produção** (4 notícias + 1 foto de
+      teste, depois apagadas: 0 e 0): só a válida chegou ao site; o rascunho e a agendada nem chegaram ao leitor; a
+      de foto sem autorização foi recusada com aviso; a foto veio em WebP; o token **não** aparece no HTML gerado. As
+      anotações amarelas de "Notícia NÃO publicada" apareceram no resumo do job em CI (com o mock).
+      **Ainda aberto na v5.3:** SMTP do Directus (convite e recuperação de senha), administrador de reserva, MFA do
+      administrador, teste ao vivo dos demais perfis com usuários de teste, e a verificação `isolar_directus.py
+      verificar` (16/16) — exige a conexão do banco, que não foi aberta neste ciclo.
 - [ ] **Verificação em produção**: `isolar_directus.py verificar` (16/16) + nenhuma coleção fora do
       schema `directus` + `GET /items/…` sem token = 403 + rascunho ausente do site + token de serviço
       não consegue escrever.
