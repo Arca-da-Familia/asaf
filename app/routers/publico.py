@@ -35,6 +35,7 @@ from app.models.governanca import Assembleia, RASCUNHO
 from app.models.mandatos import Mandato
 from app.models.projetos import ProjetoEvento
 from app.services import armazenamento
+from app.services import parcerias as servico_de_parcerias
 from app.services.assembleia import horarios_convocacao
 
 router = APIRouter()
@@ -206,3 +207,20 @@ async def arquivo_do_documento_publico(id_documento: int, db: Session = Depends(
             "Cache-Control": "public, max-age=300",
         },
     )
+
+
+# ==========================================
+# PARCERIAS E EMENDAS DA TRANSPARÊNCIA (v5.4a) - só a APROVADA, campos explícitos
+# ==========================================
+@router.get("/api/publico/transparencia/parcerias", summary="Parcerias e emendas aprovadas para a transparência (leitura, sem autenticação, pro site)")
+def listar_parcerias_publicas(db: Session = Depends(get_db)):
+    return [servico_de_parcerias.serializar_publico(db, p) for p in servico_de_parcerias.parcerias_publicas(db)]
+
+
+@router.get("/api/publico/transparencia/parcerias/{id_parceria}", summary="Detalhe público de uma parceria aprovada: parcelas, recebimentos, pagamentos, etapas, relatórios e documentos")
+def obter_parceria_publica(id_parceria: int, db: Session = Depends(get_db)):
+    p = next((x for x in servico_de_parcerias.parcerias_publicas(db) if x.id_parceria == id_parceria), None)
+    if p is None:  # inexistente, rascunho, em revisão ou retirada: todas respondem igual
+        raise HTTPException(status_code=404, detail="Parceria não encontrada.")
+    return servico_de_parcerias.serializar_publico(db, p, detalhe=True)
+
