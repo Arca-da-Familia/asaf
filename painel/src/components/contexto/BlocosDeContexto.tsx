@@ -125,7 +125,7 @@ export function NoticiasDoContexto({
         As notícias são escritas no editor do site, não aqui. Ao escrever, abra
         a parte “Ligada a um projeto ou evento”. No campo “{campo}”, digite{' '}
         <strong>{id}</strong>. Depois de publicada, a notícia entra sozinha na
-        página do {nome} no site, em até 15 minutos.
+        página do {nome} no site, em até 25 minutos.
       </p>
       {!apareceNoSite && (
         <p className="text-sm text-muted-foreground">

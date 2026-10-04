@@ -377,6 +377,7 @@ def test_tornar_vigente_so_para_documento_que_nao_vai_ao_site(client, preparador
 CAMPOS_PUBLICOS = {
     "id_documento", "tipo_codigo", "tipo", "titulo", "descricao", "data_documento", "ano", "versao", "vigente",
     "paginas", "tamanho", "sha256", "aprovado_em", "formato", "arquivo",
+    "vinculo_tipo", "vinculo_id",  # v5.5: a que evento/projeto o documento pertence (só esses dois; nulo nos demais)
 }
 
 
@@ -395,7 +396,9 @@ def test_o_publico_so_ve_o_aprovado_so_a_versao_publica_e_so_os_campos_da_lista_
     assert set(item) == CAMPOS_PUBLICOS
     assert item["arquivo"] == f"/api/publico/transparencia/documentos/{publicado}/arquivo"
     assert item["tipo"] == "Ata" and item["ano"] == 2026 and item["vigente"] is True
-    for proibido in ("original", "classificacao", "texto", "id_usuario", "verificacao", "vinculo", "situacao"):
+    # v5.5: o vínculo só aparece para evento/projeto (a página deles lista o relatório); documento solto vem com nulo
+    assert item["vinculo_tipo"] is None and item["vinculo_id"] is None
+    for proibido in ("original", "classificacao", "texto", "id_usuario", "verificacao", "situacao"):
         assert proibido not in lista.text, proibido
 
     arquivo = client.get(item["arquivo"])

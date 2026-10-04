@@ -488,6 +488,17 @@ def test_so_o_vinculo_com_evento_ou_projeto_aparece_no_documento_publico(client,
     assert publico["vinculo_tipo"] is None and publico["vinculo_id"] is None
 
 
+def test_vinculo_com_ata_ou_assembleia_nao_vai_ao_publico(client, preparador, aprovador):
+    """A ligação com ata, assembleia ou parceria é de uso interno: só evento e projeto têm página no site."""
+    id_documento = _criar_documento(client, preparador, tipo="OUTRO", vinculo_tipo="assembleia", vinculo_id="7")
+    assert _texto(client, preparador, id_documento, RELATORIO).status_code == 200
+    assert client.post(f"/api/documentos/{id_documento}/enviar-revisao", headers=preparador).status_code == 200
+    assert client.post(f"/api/documentos/{id_documento}/aprovar", headers=aprovador).status_code == 200
+    publico = next(d for d in client.get("/api/publico/transparencia/documentos").json() if d["id_documento"] == id_documento)
+    assert publico["vinculo_tipo"] is None and publico["vinculo_id"] is None
+    assert "assembleia" not in client.get(f"/api/publico/transparencia/documentos/{id_documento}").text.lower().replace("assembleia geral", "")
+
+
 def test_relatorio_aprovado_que_e_retirado_sai_da_pagina_do_evento(client, auth_headers, preparador, aprovador):
     id_evento = _evento_publico(client, auth_headers)
     id_documento = _relatorio_aprovado(client, preparador, aprovador, "evento", id_evento)

@@ -520,7 +520,7 @@ describe('contexto do evento', () => {
       )
       expect(explicacao).toHaveTextContent(/editor do site, não aqui/)
       expect(explicacao).toHaveTextContent(
-        /sozinha na página do evento no site, em até 15 minutos/,
+        /sozinha na página do evento no site, em até 25 minutos/,
       )
     })
   })

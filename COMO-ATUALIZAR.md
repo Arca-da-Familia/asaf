@@ -11,6 +11,7 @@ Este guia é para quem edita o site (diretoria e comunicação). Não precisa sa
 | Documentos oficiais (atas, certidões, balanços, termos) | Sistema da ASAF | O painel, módulo **Documentos** (veja abaixo) |
 | Emendas parlamentares, parcerias, parcelas, pagamentos, etapas e prestação de contas | Sistema da ASAF | O painel, módulo **Parcerias e emendas** (veja abaixo) |
 | Quem ocupa cada cargo da Diretoria e do Conselho Fiscal | Sistema da ASAF | O painel, **Governança → Mandatos** (veja abaixo) |
+| Projetos (como o **Despertai**), eventos, fotos e relatórios de evento | Sistema da ASAF | O painel, **Projetos** e **Eventos** (veja abaixo) |
 
 > **Nunca coloque documento oficial (ata, estatuto, certidão, termo) no Editor do site.** Eles têm RG, CPF e outros
 > dados pessoais e precisam de controle próprio, que fica no sistema.
@@ -55,6 +56,15 @@ Uma notícia **com foto** só vai ao ar se:
 
 Se faltar uma das duas, **a notícia inteira não é publicada** (não só a foto) e aparece um aviso amarelo no resumo da
 publicação do site (GitHub → Actions → *Deploy Site*). Corrija e salve de novo.
+
+### Ligar a notícia a um projeto ou evento (Despertai, por exemplo)
+
+Na notícia, abra a seção **Ligada a um projeto ou evento (opcional)** e digite o **Número do projeto** e/ou o **Número do
+evento**. Os dois números aparecem **no alto da página do projeto ou do evento, no painel** (e a tela de cada evento tem o
+botão *Escrever notícia deste evento*, que abre este editor). Pronto: a notícia aparece sozinha na página do projeto e/ou
+do evento no site e, na própria notícia, ganha o link *Sobre o projeto…* / *Sobre o evento…*. Se o número não existir
+(ou o projeto/evento for **Interno**), a notícia **é publicada mesmo assim, só sem a ligação**, e o resumo da publicação
+(GitHub → Actions → *Deploy Site*) avisa o motivo.
 
 ### Listas prontas
 
@@ -171,6 +181,38 @@ O site diz, enquanto não há emenda, que a página **"será atualizada em até 
 isso valer: **lance o recebimento no livro-caixa com o centro de custo da parceria e classifique no mesmo dia**. Depois que
 a parceria estiver aprovada, o site confere o sistema a cada **15 minutos** e publica sozinho (uns 5 minutos de
 construção). Para a **primeira** emenda aparecer, além de cadastrar e classificar, **outra pessoa precisa aprovar**.
+
+---
+
+## Projetos, Despertai e eventos (painel → Projetos e Eventos)
+
+O **Despertai**, principal programa da associação, é um **projeto** do sistema. Cada edição dele é um **evento** ligado a esse
+projeto. Tudo o que pertence a uma edição (relatório, fotos, notícias) fica no **mesmo lugar**, e a página do projeto no site
+junta o conjunto sozinha.
+
+1. **Criar o projeto:** painel → **Projetos → Novo projeto**. Escolha a visibilidade **Pública** (senão ele não tem página no
+   site) e marque **Mostrar em destaque na página inicial do site** para o Despertai aparecer na página inicial. O nome e a
+   descrição são o que o público lê: **escreva só o que é verdade e comprovável**; o sistema recusa CPF, RG, e-mail pessoal e
+   celular nesses textos. Dá para **editar** depois (botão *Editar projeto*). O **Nº do projeto** aparece no alto da página
+   dele (é o número que se digita na notícia).
+2. **Criar cada edição:** **Eventos → Novo evento**, escolhendo o **Projeto**. Para uma edição nova do ano seguinte, use
+   *Criar nova edição*: ela já nasce ligada ao mesmo projeto. O evento também pode ser **editado** depois (título, datas, local,
+   visibilidade, projeto).
+3. **Contexto do evento** (na tela de cada evento):
+   - **Relatórios e documentos:** o botão *Novo relatório deste evento* abre o cadastro de documento já ligado ao evento. O
+     relatório segue as **mesmas regras de todo documento** (versão pública em PDF ou em texto, conferência de dado pessoal,
+     **aprovação por outra pessoa**). Aprovado, ele aparece sozinho na página do evento e na do projeto.
+   - **Fotos do evento:** só entram com a **autorização de imagem** confirmada e a **descrição da foto** (mesmas regras das
+     fotos de etapa de parceria, explicadas acima). Dá para **apagar** a foto a qualquer momento: ela sai do site e do
+     armazenamento.
+   - **Notícias deste evento:** o botão abre o editor do site; digite o **Número do evento** (veja acima).
+4. **O que aparece no site** (tudo sozinho, em até 25 minutos): na **página inicial**, o projeto em destaque (com a próxima
+   edição, se houver); na **página do projeto**, as edições, os relatórios, as fotos e as notícias; na **página do evento**, o
+   projeto, as outras edições, o relatório, as fotos e as notícias. **Só aparece o que já foi liberado**: evento Público,
+   relatório Aprovado, foto com autorização. Projeto ou evento **Interno** nunca aparece.
+
+> **Calendário oficial do município:** a data de um evento (por exemplo, o Despertai no calendário da cidade) só deve ser
+> citada no site **com o documento que a comprove** (lei ou decreto); esse documento entra pelo módulo **Documentos**.
 
 ---
 
