@@ -39,7 +39,24 @@ async def _ciclo_de_vida(_app: FastAPI):
     mantém a anterior servindo: o problema aparece no deploy, não no upload de um associado."""
     armazenamento_ativo = armazenamento.obter()
     await run_in_threadpool(armazenamento_ativo.verificar)
+    await run_in_threadpool(_migrar_atas_para_documentos)
     yield
+
+
+def _migrar_atas_para_documentos() -> None:
+    """v5.4a - a ata assinada deixou de ser servida em `/uploads/atas` (tem RG/CPF): copia as que ainda estão lá
+    para a biblioteca de Documentos (original privado). Idempotente, não faz nada quando não há ata antiga, e uma
+    falha aqui NUNCA impede a API de subir (fica no log e roda de novo no próximo início)."""
+    from app.database import SessaoLocal
+    from app.services.documentos_institucionais import migrar_atas_legadas
+
+    try:
+        with SessaoLocal() as db:
+            resultado = migrar_atas_legadas(db)
+        if any(resultado.values()):
+            armazenamento.LOG.warning("atas antigas copiadas para a biblioteca de Documentos: %s", resultado)
+    except Exception:  # noqa: BLE001
+        armazenamento.LOG.exception("não foi possível migrar as atas antigas para a biblioteca de Documentos")
 
 
 # ==========================================

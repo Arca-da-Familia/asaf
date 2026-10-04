@@ -793,6 +793,24 @@ def test_so_documento_aprovado_e_vinculado_aparece_na_parceria_publica(client, d
     assert docs[0]["arquivo"] == f"/api/publico/transparencia/documentos/{aprovado}/arquivo"
 
 
+def test_datas_do_site_nao_dependem_do_fuso_de_quem_le(client, db, gestor, aprovador, razao):
+    """`ultima_atualizacao` sai em UTC com `Z`; a data de cada movimento é o DIA no relógio de Parauapebas (UTC-3):
+    um pagamento feito às 22h do dia 10 (01h UTC do dia 11) tem que aparecer como dia 10."""
+    from app.models.financeiro import LancamentoContabil
+
+    parceria = _criar(client, gestor, valor_total="1000")
+    id_lancamento = razao.receber(parceria["id_centro_custo"], "500")
+    lancamento = db.query(LancamentoContabil).filter(LancamentoContabil.id_lancamento == id_lancamento).first()
+    lancamento.data_lancamento = datetime(2026, 8, 11, 1, 30)  # 22h30 do dia 10, em Belém
+    db.commit()
+    _classificar_tudo(client, gestor, parceria)
+    client.post(f"/api/parcerias/{parceria['id_parceria']}/enviar-revisao", headers=gestor)
+    client.post(f"/api/parcerias/{parceria['id_parceria']}/aprovar", headers=aprovador)
+    d = client.get(f"/api/publico/transparencia/parcerias/{parceria['id_parceria']}").json()
+    assert d["ultima_atualizacao"].endswith("Z") and len(d["ultima_atualizacao"]) > 20
+    assert d["recebimentos"][0]["data"] == "2026-08-10"
+
+
 def test_ultima_atualizacao_anda_quando_algo_muda(client, gestor, aprovador):
     parceria = _publicada(client, gestor, aprovador)
     antes = client.get(f"/api/publico/transparencia/parcerias/{parceria['id_parceria']}").json()["ultima_atualizacao"]

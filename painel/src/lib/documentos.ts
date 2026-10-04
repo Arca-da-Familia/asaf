@@ -263,6 +263,15 @@ export async function baixarOriginal(doc: Documento): Promise<void> {
   )
 }
 
+// Download autenticado de qualquer caminho da API (ex.: o documento assinado de uma ata). Nunca abre na aba.
+export async function baixarArquivoDaApi(
+  caminho: string,
+  nomePadrao: string,
+): Promise<void> {
+  const { blob, nomeSugerido } = await apiFetchBlob(caminho)
+  entregarAoNavegador(blob, nomeSugerido ?? nomePadrao, 'baixar')
+}
+
 export async function abrirVersaoPublica(doc: Documento): Promise<void> {
   const { blob } = await apiFetchBlob(
     `/api/documentos/${doc.id_documento}/versao-publica`,

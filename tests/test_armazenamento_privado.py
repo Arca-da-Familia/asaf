@@ -22,7 +22,27 @@ def test_validar_aceita_privada_mas_validar_publica_a_trata_como_desconhecida():
         assert armazenamento.validar(pasta, NOME) == PASTAS_PRIVADAS[pasta]
         with pytest.raises(ArmazenamentoInvalido, match="desconhecida"):
             armazenamento.validar_publica(pasta, NOME)
-    assert armazenamento.validar_publica("atas", NOME) == "atas"  # as públicas seguem como antes
+    assert armazenamento.validar_publica("fotos", NOME) == "fotos-associados"  # as públicas seguem como antes
+
+
+def test_pasta_antiga_das_atas_e_legivel_para_a_migracao_mas_nao_e_publica():
+    """v5.4a - a ata assinada (RG/CPF) já foi servida em `/uploads/atas`. A pasta continua LEGÍVEL só para copiar as
+    antigas para a biblioteca de Documentos; a rota pública não a conhece mais."""
+    assert armazenamento.PASTAS_LEGADAS == {"atas": "atas"}
+    assert "atas" not in PASTAS
+    assert armazenamento.validar("atas", NOME) == "atas"
+    with pytest.raises(ArmazenamentoInvalido, match="desconhecida"):
+        armazenamento.validar_publica("atas", NOME)
+    assert armazenamento.separar_url(f"/uploads/atas/{NOME}") is None
+
+
+def test_rota_publica_nao_serve_mais_a_pasta_antiga_das_atas(client):
+    armazenamento.obter().salvar("atas", NOME, b"%PDF-1.4 ata com RG e CPF")
+    try:
+        resposta = client.get(f"/uploads/atas/{NOME}")
+        assert resposta.status_code == 404 and "RG" not in resposta.text
+    finally:
+        armazenamento.obter().remover("atas", NOME)
 
 
 def test_url_de_pasta_privada_nao_e_um_upload_valido():

@@ -78,7 +78,7 @@ def restaurar_armazenamento():
 # ==========================================
 # CONTRATO DE PASTA/NOME (sem path traversal)
 # ==========================================
-@pytest.mark.parametrize("pasta", ["fotos", "atas", "comprovantes", "documentos"])
+@pytest.mark.parametrize("pasta", ["fotos", "comprovantes", "documentos"])
 def test_pastas_conhecidas_mapeiam_para_um_conteiner(pasta):
     assert armazenamento.validar(pasta, "abc123.pdf") == armazenamento.PASTAS[pasta]
 
@@ -313,18 +313,24 @@ def test_comprovante_financeiro_vai_para_o_armazenamento_e_e_servido(client, aut
     assert client.get(url).content == b"%PDF-1.4 nota fiscal"
 
 
-def test_nova_ata_assinada_mantem_o_documento_anterior_e_registra_na_auditoria(client, auth_headers):
-    """Ata é documento de valor jurídico: anexar outro NÃO apaga o anterior (ficaria só na auditoria)."""
+def test_nova_ata_assinada_mantem_o_arquivo_anterior_e_registra_na_auditoria(client, auth_headers, db):
+    """Ata é documento de valor jurídico: anexar outro NÃO apaga o anterior - o arquivo antigo continua no
+    armazenamento (privado) e a troca fica na auditoria. (v5.4a: agora é um original privado da biblioteca.)"""
+    from app.models.documentos import DocumentoInstitucional
     from tests.test_ata import _criar_assembleia_em_andamento, _criar_ata
 
     id_ata = _criar_ata(client, auth_headers, _criar_assembleia_em_andamento(client, auth_headers))
     primeiro = client.post(f"/api/atas/{id_ata}/documento-assinado", headers=auth_headers,
-                           files={"documento": ("v1.pdf", b"%PDF versao 1", "application/pdf")}).json()["arquivo_documento_assinado"]
+                           files={"documento": ("v1.pdf", b"%PDF-1.4 versao 1", "application/pdf")}).json()
+    doc = db.query(DocumentoInstitucional).filter(DocumentoInstitucional.id_documento == primeiro["id_documento_assinado"]).first()
+    nome_antigo = doc.original_nome
     segundo = client.post(f"/api/atas/{id_ata}/documento-assinado", headers=auth_headers,
-                          files={"documento": ("v2.pdf", b"%PDF versao 2", "application/pdf")}).json()["arquivo_documento_assinado"]
-    assert primeiro != segundo
-    assert client.get(primeiro).content == b"%PDF versao 1"
-    assert client.get(segundo).content == b"%PDF versao 2"
+                          files={"documento": ("v2.pdf", b"%PDF-1.4 versao 2", "application/pdf")}).json()
+    assert segundo["id_documento_assinado"] == primeiro["id_documento_assinado"], "rascunho: o mesmo documento, arquivo trocado"
+    assert client.get(segundo["arquivo_documento_assinado"], headers=auth_headers).content == b"%PDF-1.4 versao 2"
+    db.expire_all()
+    assert db.query(DocumentoInstitucional).filter(DocumentoInstitucional.id_documento == doc.id_documento).first().original_nome != nome_antigo
+    assert armazenamento.obter().ler("documentos-originais", nome_antigo) == b"%PDF-1.4 versao 1", "o arquivo anterior NÃO é apagado"
 
 
 def test_documento_emitido_interno_agora_tem_nome_aleatorio(client, auth_headers):

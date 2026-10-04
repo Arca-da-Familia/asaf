@@ -18,7 +18,7 @@ from datetime import date, datetime
 from fastapi import HTTPException
 
 from app.models.documentos import (
-    APROVADO, CLASSIFICACOES, EM_REVISAO, INTERNA, PUBLICA, RASCUNHO, RETIRADO, TIPOS, VINCULOS, DocumentoInstitucional,
+    APROVADO, CLASSIFICACOES, EM_REVISAO, INTERNA, PUBLICA, RASCUNHO, RESTRITA, RETIRADO, TIPOS, VINCULOS, DocumentoInstitucional,
 )
 from app.services import armazenamento
 from app.services.documentos_verificacao import TAMANHO_MAXIMO, Resultado, verificar_versao_publica
@@ -327,3 +327,95 @@ def nova_versao(db, usuario, doc: DocumentoInstitucional) -> DocumentoInstitucio
     db.commit()
     db.refresh(nova)
     return nova
+
+
+# ============================================================================================ atas (v5.4a)
+# A ata assinada traz RG/CPF de quem assinou. Antes ia para `/uploads/atas/<nome>`, servido SEM login; agora é um
+# documento da biblioteca (tipo Ata, Restrita, original privado), ligado à ata. `Ata.arquivo_documento_assinado`
+# passa a guardar o caminho AUTENTICADO do download (`/api/documentos/<id>/original`), nunca um link público.
+
+
+def caminho_do_original(id_documento: int) -> str:
+    return f"/api/documentos/{id_documento}/original"
+
+
+def _titulo_da_ata(ata) -> str:
+    numero = f" (ata nº {ata.numero_sequencial})" if ata.numero_sequencial else ""
+    return f"Ata da assembleia nº {ata.id_assembleia}{numero}"
+
+
+def documento_da_ata(db, id_ata: int) -> DocumentoInstitucional | None:
+    """A versão mais nova do documento assinado de uma ata."""
+    return (
+        db.query(DocumentoInstitucional)
+        .filter(DocumentoInstitucional.tipo == "ATA", DocumentoInstitucional.vinculo_tipo == "ata", DocumentoInstitucional.vinculo_id == id_ata)
+        .order_by(DocumentoInstitucional.versao.desc())
+        .first()
+    )
+
+
+def anexar_documento_da_ata(db, usuario, ata, nome_arquivo: str | None, conteudo: bytes) -> tuple[DocumentoInstitucional, str]:
+    """Guarda o documento assinado da ata como ORIGINAL PRIVADO. Devolve (documento, ação para a auditoria).
+    Nada se apaga: trocar o arquivo de um rascunho mantém o antigo no armazenamento versionado; se o documento já
+    foi publicado, nasce uma NOVA VERSÃO (a publicada continua no ar até a nova ser aprovada)."""
+    atual = documento_da_ata(db, ata.id_ata)
+    if atual is None:
+        dados = {
+            "tipo": "ATA", "titulo": _titulo_da_ata(ata), "classificacao": RESTRITA, "publicar_no_site": False,
+            "vinculo_tipo": "ata", "vinculo_id": ata.id_ata,
+        }
+        if ata.assinada_em:
+            dados["data_documento"] = ata.assinada_em.date()
+        return criar_documento(db, usuario, dados, nome_arquivo, conteudo), "CRIADO"
+    if atual.situacao == RASCUNHO:
+        substituir_original(db, atual, nome_arquivo, conteudo)
+        return atual, "ORIGINAL_ENVIADO"
+    nova = nova_versao(db, usuario, atual)
+    _gravar_original(nova, nome_arquivo, conteudo)
+    db.commit()
+    db.refresh(nova)
+    return nova, "NOVA_VERSAO"
+
+
+def migrar_atas_legadas(db) -> dict:
+    """Copia para a biblioteca (original PRIVADO) toda ata cujo documento ainda está no endereço público antigo, e
+    troca o caminho guardado na ata. Idempotente (só toca quem ainda tem o caminho antigo) e atômica por ata: o
+    documento e a troca do caminho vão no mesmo commit. Arquivo que não está mais no armazenamento fica como está e
+    é contado, para a diretoria saber. O arquivo antigo NÃO é apagado (valor jurídico)."""
+    from app.auditoria import registrar_auditoria
+    from app.models.ata import Ata
+
+    resultado = {"migradas": 0, "arquivo_ausente": 0, "ignoradas": 0}
+    pendentes = db.query(Ata).filter(Ata.arquivo_documento_assinado.like(f"{armazenamento.url_publica('atas', '')}%")).all()
+    for ata in pendentes:
+        nome = armazenamento.nome_no_endereco_antigo_da_ata(ata.arquivo_documento_assinado)
+        if nome is None:
+            armazenamento.LOG.error("ata %s: caminho antigo inválido (%r); não migrada", ata.id_ata, ata.arquivo_documento_assinado)
+            resultado["ignoradas"] += 1
+            continue
+        conteudo = armazenamento.obter().ler("atas", nome)
+        if conteudo is None:
+            armazenamento.LOG.error("ata %s: o arquivo %s não está no armazenamento; não migrada", ata.id_ata, nome)
+            resultado["arquivo_ausente"] += 1
+            continue
+        extensao = os.path.splitext(nome)[1].lower()
+        novo_nome = armazenamento.nome_aleatorio(extensao)
+        armazenamento.obter().salvar(PASTA_ORIGINAIS, novo_nome, conteudo)
+        doc = DocumentoInstitucional(
+            tipo="ATA", titulo=_titulo_da_ata(ata), classificacao=RESTRITA, publicar_no_site=False, vinculo_tipo="ata",
+            vinculo_id=ata.id_ata, data_documento=ata.assinada_em.date() if ata.assinada_em else None,
+            ano=ata.assinada_em.year if ata.assinada_em else None, grupo_versao=uuid.uuid4().hex, versao=1, vigente=True,
+            situacao=RASCUNHO, id_usuario_criacao=ata.id_usuario_assinatura or ata.id_usuario_criacao,
+            original_nome=novo_nome, original_nome_arquivo=f"ata-{ata.id_ata}{extensao}",
+            original_sha256=_sha256(conteudo), original_tamanho=len(conteudo),
+        )
+        db.add(doc)
+        db.flush()
+        ata.arquivo_documento_assinado = caminho_do_original(doc.id_documento)
+        db.commit()
+        registrar_auditoria(
+            db, None, "documentos_institucionais", "MIGRADO_DA_ATA", id_registro_afetado=doc.id_documento,
+            dados_depois={"id_ata": ata.id_ata, "tamanho": len(conteudo)},
+        )
+        resultado["migradas"] += 1
+    return resultado

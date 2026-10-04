@@ -40,9 +40,16 @@ LOG = logging.getLogger("asaf.armazenamento")
 # pasta (a parte da URL, o contrato com o banco) -> contêiner no Blob (um por assunto).
 PASTAS: dict[str, str] = {
     "fotos": "fotos-associados",
-    "atas": "atas",
     "comprovantes": "comprovantes",
     "documentos": "documentos-emitidos",
+}
+
+# Pastas LEGADAS (v5.4a): a ata assinada (RG/CPF de quem assinou) já foi servida em `/uploads/atas/<nome>` sem login. Deixou
+# de ser: a ata nova vai para o módulo Documentos (original privado) e as antigas são copiadas para lá na
+# inicialização (`documentos_institucionais.migrar_atas_legadas`). A pasta continua LEGÍVEL só para essa cópia; a
+# rota pública `/uploads` não a conhece (responde 404, como a de qualquer pasta privada).
+PASTAS_LEGADAS: dict[str, str] = {
+    "atas": "atas",
 }
 
 # Pastas PRIVADAS (v5.4a, módulo Documentos): NUNCA são servidas por `/uploads` (a rota pública só aceita `PASTAS`).
@@ -83,12 +90,13 @@ def nome_aleatorio(extensao: str) -> str:
 
 
 def validar(pasta: str, nome: str) -> str:
-    """Devolve o contêiner da pasta (pública OU privada), ou levanta ArmazenamentoInvalido."""
-    if pasta not in PASTAS and pasta not in PASTAS_PRIVADAS:
+    """Devolve o contêiner da pasta (pública, privada OU legada), ou levanta ArmazenamentoInvalido."""
+    conteineres = {**PASTAS, **PASTAS_PRIVADAS, **PASTAS_LEGADAS}
+    if pasta not in conteineres:
         raise ArmazenamentoInvalido(f"Pasta desconhecida: {pasta!r}")
     if not _NOME_VALIDO.match(nome) or ".." in nome:
         raise ArmazenamentoInvalido(f"Nome de arquivo inválido: {nome!r}")
-    return PASTAS[pasta] if pasta in PASTAS else PASTAS_PRIVADAS[pasta]
+    return conteineres[pasta]
 
 
 def validar_publica(pasta: str, nome: str) -> str:
@@ -97,6 +105,19 @@ def validar_publica(pasta: str, nome: str) -> str:
     if pasta not in PASTAS:
         raise ArmazenamentoInvalido(f"Pasta desconhecida: {pasta!r}")
     return validar(pasta, nome)
+
+
+def nome_no_endereco_antigo_da_ata(url: Optional[str]) -> Optional[str]:
+    """`/uploads/atas/abc.pdf` -> 'abc.pdf' (o endereço público que a ata assinada tinha antes da v5.4a); outro -> None."""
+    prefixo = url_publica("atas", "")
+    if not url or not url.startswith(prefixo):
+        return None
+    nome = url[len(prefixo):]
+    try:
+        validar("atas", nome)
+    except ArmazenamentoInvalido:
+        return None
+    return nome
 
 
 def tipo_servido(nome: str) -> Optional[str]:

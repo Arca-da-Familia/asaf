@@ -722,6 +722,17 @@ def _iso(valor) -> str | None:
     return valor.isoformat() if valor else None
 
 
+def _instante(valor: datetime | None) -> str | None:
+    """Momento UTC com o `Z` explícito: o banco guarda UTC sem fuso, e o site trata data sem fuso como horário de Belém."""
+    return f"{valor.isoformat()}Z" if valor else None
+
+
+def _dia_de_caixa(valor: datetime | None) -> str | None:
+    """Dia em que o dinheiro entrou/saiu, no relógio de Parauapebas (UTC-3, sem horário de verão): um pagamento feito
+    às 22h do dia 10 está gravado em UTC como dia 11, mas o público tem que ler dia 10."""
+    return (valor - timedelta(hours=3)).date().isoformat() if valor else None
+
+
 def parcerias_publicas(db: Session) -> list[Parceria]:
     return (
         db.query(Parceria).filter(Parceria.situacao_publicacao == APROVADO)
@@ -740,7 +751,7 @@ def serializar_publico(db: Session, p: Parceria, *, detalhe: bool = False) -> di
         "situacao": p.situacao, "valor_total": resumo["valor_total"], "recebido": resumo["recebido"], "pago": resumo["pago"],
         "data_assinatura": _iso(p.data_assinatura), "vigencia_inicio": _iso(p.vigencia_inicio), "vigencia_fim": _iso(p.vigencia_fim),
         "lancamentos_em_classificacao": len(pendentes),
-        "ultima_atualizacao": _iso(p.atualizado_em),
+        "ultima_atualizacao": _instante(p.atualizado_em),
     }
     if not detalhe:
         return dados
@@ -757,12 +768,12 @@ def serializar_publico(db: Session, p: Parceria, *, detalhe: bool = False) -> di
         for x in parcelas
     ]
     dados["recebimentos"] = [
-        {"data": _iso(v["data"]), "valor": v["valor"], "descricao": v["descricao_publica"], "parcela": v["parcela_numero"]}
+        {"data": _dia_de_caixa(v["data"]), "valor": v["valor"], "descricao": v["descricao_publica"], "parcela": v["parcela_numero"]}
         for v in ligados if v["natureza"] == RECEBIMENTO
     ]
     dados["pagamentos"] = [
         {
-            "data": _iso(v["data"]), "valor": v["valor"], "descricao": v["descricao_publica"], "categoria": v["categoria"],
+            "data": _dia_de_caixa(v["data"]), "valor": v["valor"], "descricao": v["descricao_publica"], "categoria": v["categoria"],
             # equipe: só a função; fornecedor: razão social e CNPJ; os demais: só a descrição
             "funcao": v["funcao"] if v["categoria"] == CATEGORIA_EQUIPE else None,
             "fornecedor": v["fornecedor"] if v["categoria"] == CATEGORIA_FORNECEDOR else None,

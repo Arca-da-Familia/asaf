@@ -22,11 +22,11 @@ import {
   obterAtaDaAssembleia,
   retificarAta,
   revogarDeliberacao,
-  urlArquivo,
   type Ata,
   type Deliberacao,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
+import { baixarArquivoDaApi } from '@/lib/documentos'
 import {
   ataRetificarSchema,
   deliberacaoCriarSchema,
@@ -528,6 +528,7 @@ function BlocoDocumentoAssinado({
   onAtaAtualizada: (a: Ata) => void
 }) {
   const [arquivo, setArquivo] = useState<File | null>(null)
+  const [erroDoDownload, setErroDoDownload] = useState<string | null>(null)
   const [numeroProtocolo, setNumeroProtocolo] = useState(
     ata.numero_protocolo_cartorio ?? '',
   )
@@ -559,14 +560,27 @@ function BlocoDocumentoAssinado({
 
       {ata.arquivo_documento_assinado && (
         <p className="mb-3 text-sm">
-          <a
-            href={urlArquivo(ata.arquivo_documento_assinado)}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
             className="text-primary hover:underline"
+            onClick={async () => {
+              setErroDoDownload(null)
+              try {
+                await baixarArquivoDaApi(
+                  ata.arquivo_documento_assinado ?? '',
+                  `ata-${ata.numero_sequencial ?? ata.id_ata}.pdf`,
+                )
+              } catch (e) {
+                setErroDoDownload(
+                  e instanceof ApiError
+                    ? e.detail
+                    : 'Não foi possível baixar o documento.',
+                )
+              }
+            }}
           >
-            Ver documento anexado
-          </a>
+            Baixar documento anexado
+          </button>
           {ata.numero_protocolo_cartorio && (
             <>
               {' '}
@@ -575,6 +589,19 @@ function BlocoDocumentoAssinado({
                 ` em ${formatarData(ata.data_protocolo_cartorio)}`}
             </>
           )}
+        </p>
+      )}
+
+      {ata.arquivo_documento_assinado && (
+        <p className="mb-3 text-xs text-muted-foreground">
+          O documento tem dados pessoais (RG, CPF): fica em área privada e só
+          baixa quem tem a permissão de originais sigilosos. Cada download fica
+          registrado.
+        </p>
+      )}
+      {erroDoDownload && (
+        <p role="alert" className="mb-3 text-sm text-destructive">
+          {erroDoDownload}
         </p>
       )}
 

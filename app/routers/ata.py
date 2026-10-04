@@ -3,6 +3,7 @@ correção possível é uma ata de retificação nova (`POST /api/atas/{id}/reti
 original. Permissão `governanca` para tudo que escreve; leitura liberada a qualquer usuário
 autenticado."""
 import os
+import re
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -16,7 +17,7 @@ from app.models.governanca import Assembleia
 from app.routers.mandatos import criar_mandato
 from app.schemas.ata import AtaRelatoSecretariaAtualizar, AtaRetificar, DeliberacaoConcluir, DeliberacaoCriar, DeliberacaoRevogar
 from app.security import exigir_permissao, get_current_user
-from app.services import armazenamento
+from app.services import documentos_institucionais
 from app.services.ata import aplicar_efeitos_deliberacao, gerar_corpo_ata, proximo_numero_ata, proximo_numero_certidao
 from app.services.conselho_fiscal import parecer_existe_para_ano
 
@@ -27,8 +28,15 @@ EXTENSOES_DOCUMENTO_PERMITIDAS = {".pdf", ".jpg", ".jpeg", ".png"}
 TAMANHO_MAXIMO_DOCUMENTO = 15 * 1024 * 1024
 
 
+_CAMINHO_DO_ORIGINAL = re.compile(r"^/api/documentos/(\d+)/original$")
+
+
 def _serializar_ata(ata: Ata) -> dict:
+    caminho = _CAMINHO_DO_ORIGINAL.match(ata.arquivo_documento_assinado or "")
     return {
+        # v5.4a - o documento assinado é um ORIGINAL PRIVADO do módulo Documentos (tem RG/CPF): o painel o baixa
+        # por `/api/documentos/<id>/original`, com login e permissão, nunca por link público.
+        "id_documento_assinado": int(caminho.group(1)) if caminho else None,
         "id_ata": ata.id_ata, "id_assembleia": ata.id_assembleia, "numero_sequencial": ata.numero_sequencial,
         "corpo_texto": ata.corpo_texto, "relato_secretaria": ata.relato_secretaria, "status": ata.status,
         "assinada_em": ata.assinada_em, "id_ata_retificada": ata.id_ata_retificada, "motivo_retificacao": ata.motivo_retificacao,
@@ -131,20 +139,25 @@ async def anexar_documento_assinado(
     if len(conteudo) > TAMANHO_MAXIMO_DOCUMENTO:
         raise HTTPException(status_code=400, detail="Arquivo muito grande (máximo 15MB).")
 
-    # Nome aleatório (antes `atas/{id_ata}.pdf`, enumerável num diretório servido sem login) e
-    # gravado pelo serviço de armazenamento (Blob em produção). O documento anterior NÃO é apagado:
-    # ata é documento de valor jurídico - o caminho anterior vai para a auditoria e o arquivo fica
-    # (órfão, mas intocado e não enumerável).
+    # v5.4a - a ata assinada tem RG/CPF de quem assinou: vai para a biblioteca de Documentos como ORIGINAL PRIVADO
+    # (classificação Restrita; download só autenticado, por permissão e auditado), nunca mais para `/uploads/atas`.
+    # Nada se apaga: trocar o arquivo mantém o anterior no armazenamento; documento já publicado ganha nova versão.
     documento_anterior = ata.arquivo_documento_assinado
-    ata.arquivo_documento_assinado = await run_in_threadpool(armazenamento.salvar_novo, "atas", extensao, conteudo)
+    doc, acao_do_documento = await run_in_threadpool(
+        documentos_institucionais.anexar_documento_da_ata, db, usuario, ata, documento.filename, conteudo
+    )
+    ata.arquivo_documento_assinado = documentos_institucionais.caminho_do_original(doc.id_documento)
     ata.numero_protocolo_cartorio = numero_protocolo_cartorio or None
     ata.data_protocolo_cartorio = datetime.fromisoformat(data_protocolo_cartorio) if data_protocolo_cartorio else None
     db.commit()
     db.refresh(ata)
+    ip = request.client.host if request.client else None
+    registrar_auditoria(db, usuario, "documentos_institucionais", acao_do_documento, id_registro_afetado=doc.id_documento,
+                        dados_depois={"titulo": doc.titulo, "tipo": doc.tipo, "classificacao": doc.classificacao, "versao": doc.versao}, ip_origem=ip)
     registrar_auditoria(
         db, usuario, "atas", "DOCUMENTO_ASSINADO_ANEXADO", id_registro_afetado=ata.id_ata,
-        dados_depois={"numero_protocolo_cartorio": ata.numero_protocolo_cartorio, "documento": ata.arquivo_documento_assinado, "documento_anterior": documento_anterior},
-        ip_origem=request.client.host if request.client else None,
+        dados_depois={"numero_protocolo_cartorio": ata.numero_protocolo_cartorio, "id_documento": doc.id_documento, "documento_anterior": documento_anterior},
+        ip_origem=ip,
     )
     return _serializar_ata(ata)
 

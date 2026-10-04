@@ -120,10 +120,14 @@ def test_anexar_documento_assinado_com_protocolo_cartorio(client, auth_headers):
     )
     assert r.status_code == 200, r.text
     corpo = r.json()
-    # Nome aleatório (não enumerável: `/uploads/` é servido sem login) e servido de volta pela rota.
-    assert re.fullmatch(r"/uploads/atas/[0-9a-f]{32}\.pdf", corpo["arquivo_documento_assinado"]), corpo
-    baixado = client.get(corpo["arquivo_documento_assinado"])
+    # v5.4a - o documento assinado (RG/CPF de quem assinou) é um ORIGINAL PRIVADO da biblioteca de Documentos:
+    # o caminho guardado é o do download AUTENTICADO, nunca um link público em `/uploads`.
+    assert corpo["id_documento_assinado"] is not None
+    assert corpo["arquivo_documento_assinado"] == f"/api/documentos/{corpo['id_documento_assinado']}/original"
+    assert client.get(corpo["arquivo_documento_assinado"]).status_code == 401, "sem login não baixa"
+    baixado = client.get(corpo["arquivo_documento_assinado"], headers=auth_headers)
     assert baixado.status_code == 200 and baixado.content == b"%PDF-1.4 conteudo fake"
+    assert baixado.headers["cache-control"] == "no-store"
     assert corpo["numero_protocolo_cartorio"] == "12345-CRT"
     assert corpo["data_protocolo_cartorio"] is not None
 

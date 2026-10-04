@@ -1620,7 +1620,10 @@ export type Ata = {
   // v2.5.4b (achado do usuário 2026-09-16) - o registro interno do sistema (corpo_texto,
   // "assinar") NÃO tem valor cartorial - estes três campos guardam o documento real, assinado
   // fora do sistema e (se houver) protocolado em cartório.
+  // v5.4a - o documento assinado (tem RG/CPF) é um ORIGINAL PRIVADO da biblioteca de Documentos: este campo é o
+  // caminho do download AUTENTICADO (`/api/documentos/<id>/original`), nunca um link público.
   arquivo_documento_assinado: string | null
+  id_documento_assinado: number | null
   numero_protocolo_cartorio: string | null
   data_protocolo_cartorio: string | null
 }
