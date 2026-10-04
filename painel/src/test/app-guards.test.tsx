@@ -2,7 +2,12 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 
-import { RequireAuth, RequireMfa, RequirePermission } from '@/App'
+import {
+  RequireAnyPermission,
+  RequireAuth,
+  RequireMfa,
+  RequirePermission,
+} from '@/App'
 import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/use-me'
 
@@ -128,5 +133,36 @@ describe('RequirePermission', () => {
       </RequirePermission>,
     )
     expect(screen.getByText('Módulo financeiro')).toBeInTheDocument()
+  })
+})
+
+describe('RequireAnyPermission (v5.4a - Documentos)', () => {
+  const permissoes = ['documentos', 'aprovar_publicacao']
+
+  it('libera quem tem QUALQUER uma das permissões', () => {
+    useMeMock.mockReturnValue({
+      data: { permissoes: ['aprovar_publicacao'] },
+      isLoading: false,
+    } as never)
+    renderComRotas(
+      <RequireAnyPermission permissions={permissoes}>
+        <p>Biblioteca</p>
+      </RequireAnyPermission>,
+    )
+    expect(screen.getByText('Biblioteca')).toBeInTheDocument()
+  })
+
+  it('manda para /403 quem não tem nenhuma', () => {
+    useMeMock.mockReturnValue({
+      data: { permissoes: ['associados'] },
+      isLoading: false,
+    } as never)
+    renderComRotas(
+      <RequireAnyPermission permissions={permissoes}>
+        <p>Biblioteca</p>
+      </RequireAnyPermission>,
+    )
+    expect(screen.getByText('Acesso negado')).toBeInTheDocument()
+    expect(screen.queryByText('Biblioteca')).not.toBeInTheDocument()
   })
 })

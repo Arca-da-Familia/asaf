@@ -233,18 +233,24 @@ export function Shell() {
                   {moduloAtivo.rotulo}
                 </p>
               )}
-              {moduloAtivo.itens?.map((item) => (
-                <NavLink
-                  key={item.rota}
-                  to={item.rota}
-                  end={item.fim}
-                  className={navCls}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <item.icone className="h-5 w-5 shrink-0" />
-                  {!collapsed && <span>{item.rotulo}</span>}
-                </NavLink>
-              ))}
+              {moduloAtivo.itens
+                ?.filter(
+                  (item) =>
+                    !item.permissao ||
+                    data?.permissoes.includes(item.permissao),
+                )
+                .map((item) => (
+                  <NavLink
+                    key={item.rota}
+                    to={item.rota}
+                    end={item.fim}
+                    className={navCls}
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    <item.icone className="h-5 w-5 shrink-0" />
+                    {!collapsed && <span>{item.rotulo}</span>}
+                  </NavLink>
+                ))}
             </>
           ) : (
             <>

@@ -28,6 +28,9 @@ import { ConcederAcessoPage } from '@/pages/ConcederAcesso'
 import { ConfiguracoesPage } from '@/pages/Configuracoes'
 import { ConselhoFiscalPage } from '@/pages/ConselhoFiscal'
 import { DevComponents } from '@/pages/DevComponents'
+import { DocumentoDetalhePage } from '@/pages/DocumentoDetalhe'
+import { DocumentoNovoPage } from '@/pages/DocumentoNovo'
+import { DocumentosPage } from '@/pages/Documentos'
 import { ExerciciosPage } from '@/pages/Exercicios'
 import { FornecedoresPage } from '@/pages/Fornecedores'
 import { CentrosCustoPage } from '@/pages/CentrosCusto'
@@ -94,6 +97,22 @@ export function RequirePermission({
   if (isLoading) return null
   if (!data?.permissoes.includes(permission)) {
     return <Navigate to="/403" replace state={{ permissao: permission }} />
+  }
+  return <>{children}</>
+}
+
+// v5.4a - Documentos: três permissões abrem o módulo (preparar, aprovar publicação, baixar originais sigilosos).
+export function RequireAnyPermission({
+  permissions,
+  children,
+}: {
+  permissions: string[]
+  children: ReactNode
+}) {
+  const { data, isLoading } = useMe()
+  if (isLoading) return null
+  if (!permissions.some((p) => data?.permissoes.includes(p))) {
+    return <Navigate to="/403" replace state={{ permissao: permissions[0] }} />
   }
   return <>{children}</>
 }
@@ -546,6 +565,48 @@ function App() {
                 <BeneficiariosPage />
               </ErrorBoundary>
             </RequirePermission>
+          }
+        />
+        <Route
+          path="/documentos"
+          element={
+            <RequireAnyPermission
+              permissions={[
+                'documentos',
+                'aprovar_publicacao',
+                'documentos_originais',
+              ]}
+            >
+              <ErrorBoundary tituloModulo="Documentos">
+                <DocumentosPage />
+              </ErrorBoundary>
+            </RequireAnyPermission>
+          }
+        />
+        <Route
+          path="/documentos/novo"
+          element={
+            <RequirePermission permission="documentos">
+              <ErrorBoundary tituloModulo="Novo documento">
+                <DocumentoNovoPage />
+              </ErrorBoundary>
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/documentos/:id"
+          element={
+            <RequireAnyPermission
+              permissions={[
+                'documentos',
+                'aprovar_publicacao',
+                'documentos_originais',
+              ]}
+            >
+              <ErrorBoundary tituloModulo="Documento">
+                <DocumentoDetalhePage />
+              </ErrorBoundary>
+            </RequireAnyPermission>
           }
         />
         <Route

@@ -19,7 +19,11 @@ export function urlArquivo(caminho: string): string {
 }
 
 type ErrorPayload = {
-  detail?: string | { loc: (string | number)[]; msg: string; type: string }[]
+  detail?:
+    | string
+    | { loc: (string | number)[]; msg: string; type: string }[]
+    // v5.4a - erro com corpo estruturado (ex.: a verificação da versão pública devolve os achados)
+    | { mensagem?: string; resultado?: unknown }
 }
 
 export type ErroCampo422 = { campo: string; mensagem: string }
@@ -29,12 +33,15 @@ export class ApiError extends Error {
   detail: string
   retryAfter?: number
   errosCampos: ErroCampo422[]
+  // Corpo estruturado do `detail` quando o backend devolve objeto em vez de texto (v5.4a).
+  dados?: Record<string, unknown>
 
   constructor(
     status: number,
     detail: string,
     errosCampos: ErroCampo422[] = [],
     retryAfter?: number,
+    dados?: Record<string, unknown>,
   ) {
     super(detail)
     this.name = 'ApiError'
@@ -42,6 +49,7 @@ export class ApiError extends Error {
     this.detail = detail
     this.errosCampos = errosCampos
     this.retryAfter = retryAfter
+    this.dados = dados
   }
 }
 
@@ -87,6 +95,7 @@ async function parseError(res: Response): Promise<ApiError> {
   let detail = `Erro inesperado (${res.status}).`
   const retryAfter = res.headers.get('retry-after')
   const errosCampos: ErroCampo422[] = []
+  let dados: Record<string, unknown> | undefined
   try {
     const payload = (await res.json()) as ErrorPayload
     if (Array.isArray(payload.detail)) {
@@ -99,6 +108,12 @@ async function parseError(res: Response): Promise<ApiError> {
         })),
       )
       detail = errosCampos[0]?.mensagem ?? 'Dados inválidos.'
+    } else if (typeof payload.detail === 'object' && payload.detail) {
+      dados = payload.detail as Record<string, unknown>
+      detail =
+        typeof payload.detail.mensagem === 'string'
+          ? payload.detail.mensagem
+          : 'Operação recusada.'
     } else if (payload.detail) {
       detail = payload.detail
     }
@@ -110,6 +125,7 @@ async function parseError(res: Response): Promise<ApiError> {
     detail,
     errosCampos,
     retryAfter ? Number(retryAfter) : undefined,
+    dados,
   )
 }
 
@@ -189,6 +205,32 @@ export async function apiFetch<T>(
   if (!res.ok) throw await parseError(res)
   if (res.status === 204) return undefined as T
   return (await res.json()) as T
+}
+
+// Download AUTENTICADO de arquivo (v5.4a): o original de um documento (pode ter RG/CPF) não tem link público,
+// só sai com o token do usuário - então não dá para um <a href>; busca com o cabeçalho e devolve o conteúdo.
+export async function apiFetchBlob(
+  path: string,
+  alreadyRetried = false,
+): Promise<{ blob: Blob; nomeSugerido: string | null }> {
+  const headers = new Headers()
+  const token = getAccessToken()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const res = await fetchInstrumentado(`${API_BASE_URL}${path}`, {
+    headers,
+    credentials: 'include',
+  })
+  if (res.status === 401) {
+    if (!alreadyRetried && (await refreshAccessToken())) {
+      return apiFetchBlob(path, true)
+    }
+    clearSession()
+    throw new ApiError(401, 'Sessão expirada. Faça login novamente.')
+  }
+  if (!res.ok) throw await parseError(res)
+  const disposicao = res.headers.get('content-disposition') ?? ''
+  const nome = /filename="([^"]+)"/.exec(disposicao)?.[1] ?? null
+  return { blob: await res.blob(), nomeSugerido: nome }
 }
 
 // ---------------------------------------------------------------------------

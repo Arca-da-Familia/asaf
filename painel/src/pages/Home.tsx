@@ -1,7 +1,7 @@
 import { ExternalLink } from 'lucide-react'
 import { Link } from 'react-router'
 
-import { modulos } from '@/lib/modulos'
+import { moduloVisivel, modulos } from '@/lib/modulos'
 import { useMe } from '@/lib/use-me'
 
 // v2.5.1b (FASE 2.5 - Painel, achado do usuário 2026-09-15) - "Início" só mostrava sessão e
@@ -13,9 +13,7 @@ import { useMe } from '@/lib/use-me'
 export function Home() {
   const { data } = useMe()
   const permissoes = data?.permissoes ?? []
-  const modulosVisiveis = modulos.filter((m) =>
-    permissoes.includes(m.permissao),
-  )
+  const modulosVisiveis = modulos.filter((m) => moduloVisivel(m, permissoes))
 
   const classeCard =
     'flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-6 text-center transition-colors hover:border-primary hover:bg-accent'

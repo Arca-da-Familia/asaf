@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
 from app.database import get_db
-from app.models.core import Usuario
+from app.models.core import AuditLog, Usuario
 from app.models.documentos import (
     APROVADO, CLASSIFICACOES, EM_REVISAO, PUBLICA, RASCUNHO, SITUACOES, TIPOS, VINCULOS, DocumentoInstitucional,
 )
@@ -119,7 +119,7 @@ def listar_documentos(
     tipo: Optional[str] = None, ano: Optional[int] = None, situacao: Optional[str] = None,
     classificacao: Optional[str] = None, vigente: Optional[bool] = None, publicar_no_site: Optional[bool] = None,
     vinculo_tipo: Optional[str] = None, vinculo_id: Optional[int] = None, busca: Optional[str] = None,
-    limite: int = 300, deslocamento: int = 0,
+    grupo_versao: Optional[str] = None, limite: int = 300, deslocamento: int = 0,
     db: Session = Depends(get_db), usuario=Depends(_exigir_leitura),
 ):
     consulta = db.query(DocumentoInstitucional)
@@ -139,6 +139,8 @@ def listar_documentos(
         consulta = consulta.filter(DocumentoInstitucional.vinculo_tipo == vinculo_tipo)
     if vinculo_id:
         consulta = consulta.filter(DocumentoInstitucional.vinculo_id == vinculo_id)
+    if grupo_versao:
+        consulta = consulta.filter(DocumentoInstitucional.grupo_versao == grupo_versao)
     if busca:
         padrao = f"%{busca.strip()}%"
         consulta = consulta.filter(
@@ -291,6 +293,38 @@ def _resposta_de_arquivo(conteudo: bytes, nome_do_arquivo: str, tipo: str, priva
             "Cache-Control": "no-store",  # arquivo sigiloso nunca fica em cache de navegador ou de intermediário
         },
     )
+
+
+ROTULOS_DA_TRILHA = {
+    "CRIADO": "Cadastrado", "EDITADO": "Cadastro alterado", "ORIGINAL_ENVIADO": "Arquivo original enviado",
+    "VERSAO_PUBLICA_ENVIADA": "Versão pública aceita pelo verificador",
+    "VERSAO_PUBLICA_RECUSADA": "Versão pública RECUSADA pelo verificador", "ENVIADO_REVISAO": "Enviado para revisão",
+    "APROVADO": "Aprovado para o site", "RECUSADO": "Publicação recusada", "RETIRADO": "Retirado do site",
+    "NOVA_VERSAO": "Nova versão criada", "TORNADO_VIGENTE": "Marcado como versão vigente", "ORIGINAL_BAIXADO": "Original baixado",
+}
+# Só estes campos do registro de auditoria chegam à tela (nunca nome de arquivo no armazenamento nem hash de outra coisa).
+_DETALHES_VISIVEIS = ("motivo", "ok", "bloqueios", "paginas", "versao", "classificacao", "titulo", "tipo", "enviado_por")
+
+
+@router.get("/api/documentos/{id_documento}/historico", summary="Trilha do documento: quem fez o quê e quando")
+def historico_do_documento(id_documento: int, db: Session = Depends(get_db), _usuario=Depends(_exigir_leitura)):
+    _buscar(db, id_documento)
+    entradas = (
+        db.query(AuditLog).filter(AuditLog.tabela_afetada == TABELA, AuditLog.id_registro_afetado == id_documento)
+        .order_by(AuditLog.timestamp, AuditLog.id_log).all()
+    )
+    emails = {u.id_usuario: u.email for u in db.query(Usuario).filter(Usuario.id_usuario.in_({e.id_usuario for e in entradas if e.id_usuario})).all()}
+    trilha = []
+    for e in entradas:
+        try:
+            dados = json.loads(e.dados_depois) if e.dados_depois else {}
+        except ValueError:
+            dados = {}
+        trilha.append({
+            "acao": e.acao, "rotulo": ROTULOS_DA_TRILHA.get(e.acao, e.acao), "quando": e.timestamp,
+            "quem": emails.get(e.id_usuario), "detalhes": {k: v for k, v in dados.items() if k in _DETALHES_VISIVEIS},
+        })
+    return trilha
 
 
 @router.get("/api/documentos/{id_documento}/original", summary="Baixar o ORIGINAL (autenticado, por permissão, sempre auditado)")

@@ -492,3 +492,28 @@ def test_presidente_e_secretario_recebem_aprovacao_pelo_cargo_em_mandato(db):
     assert "documentos_originais" in cargos["SECRETARIO"]  # quem prepara a versão pública precisa ver o original
     for outro in ("VICE_PRESIDENTE", "TESOUREIRO", "VICE_SECRETARIO", "CONSELHO_FISCAL"):
         assert "aprovar_publicacao" not in cargos[outro], outro  # só os dois aprovam
+
+
+# --------------------------------------------------------------------- histórico e grupo de versões
+def test_historico_do_documento_mostra_quem_fez_o_que_sem_vazar_nome_de_arquivo(client, db, preparador, aprovador):
+    id_documento = _publicado(client, preparador, aprovador)
+    client.post(f"/api/documentos/{id_documento}/original", files={"arquivo": ORIGINAL}, headers=preparador)  # gera arquivo_anterior
+    client.post(f"/api/documentos/{id_documento}/retirar", json={"motivo": "Retirado por engano de página."}, headers=aprovador)
+    r = client.get(f"/api/documentos/{id_documento}/historico", headers=preparador)
+    assert r.status_code == 200
+    rotulos = [e["rotulo"] for e in r.json()]
+    assert rotulos[0] == "Cadastrado" and "Aprovado para o site" in rotulos and rotulos[-1] == "Retirado do site"
+    assert all(e["quem"] and "@" in e["quem"] for e in r.json())
+    retirada = r.json()[-1]
+    assert retirada["detalhes"]["motivo"] == "Retirado por engano de página."
+    assert "arquivo_anterior" not in r.text and ".pdf" not in r.text.replace("Arquivo original enviado", "")
+    assert client.get(f"/api/documentos/{id_documento}/historico").status_code == 401
+    assert client.get("/api/documentos/999999/historico", headers=preparador).status_code == 404
+
+
+def test_listagem_filtra_pelo_grupo_de_versoes(client, preparador, aprovador):
+    v1 = _publicado(client, preparador, aprovador, tipo="ESTATUTO")
+    v2 = client.post(f"/api/documentos/{v1}/nova-versao", headers=preparador).json()["id_documento"]
+    grupo = client.get(f"/api/documentos/{v1}", headers=preparador).json()["grupo_versao"]
+    ids = [d["id_documento"] for d in client.get("/api/documentos", params={"grupo_versao": grupo}, headers=preparador).json()]
+    assert sorted(ids) == sorted([v1, v2])

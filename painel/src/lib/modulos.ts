@@ -10,6 +10,7 @@ import {
   FileText,
   FileUp,
   FolderKanban,
+  FolderOpen,
   Gavel,
   Globe,
   Handshake,
@@ -38,12 +39,17 @@ export type ItemModulo = {
   rotulo: string
   icone: LucideIcon
   fim?: boolean // NavLink "end" - só a rota exata fica ativa, não qualquer sub-rota
+  // v5.4a - só mostra o item a quem tem esta permissão (ex.: quem só aprova não vê "Novo documento").
+  permissao?: string
 }
 
 export type Modulo = {
   rota: string
   rotulo: string
   permissao: string
+  // v5.4a - outras permissões que TAMBÉM dão acesso ao módulo (ex.: quem só aprova ou só baixa originais
+  // enxerga a biblioteca de documentos sem precisar de `documentos`). O backend revalida cada ação.
+  permissoesAlternativas?: string[]
   icone: LucideIcon
   // v5.1 - módulo que NÃO é tela do painel: o cartão da tela inicial abre este endereço numa
   // nova aba (ex.: o Directus, onde se edita o conteúdo do site). `rota` vira só um
@@ -60,6 +66,13 @@ export type Modulo = {
 // Manifesto único dos módulos do painel (v0.2.3). O shell monta o menu filtrando esta lista
 // pelas permissões devolvidas por /auth/me — NUNCA há `if (nivel === 'Presidente')` no código.
 // Cada módulo de negócio das FASES 1-20 se registra aqui; o shell não precisa saber mais nada.
+// Visível se o usuário tem a permissão do módulo OU uma das alternativas. Nunca `if (nivel === ...)`.
+export function moduloVisivel(modulo: Modulo, permissoes: string[]): boolean {
+  return [modulo.permissao, ...(modulo.permissoesAlternativas ?? [])].some(
+    (p) => permissoes.includes(p),
+  )
+}
+
 export const modulos: Modulo[] = [
   {
     rota: '/associados',
@@ -232,6 +245,30 @@ export const modulos: Modulo[] = [
         rota: '/governanca/dissolucao',
         rotulo: 'Dissolução',
         icone: Building2,
+      },
+    ],
+  },
+  // v5.4a - biblioteca de documentos institucionais: original privado, versão pública verificada e aprovação
+  // de publicação por outra pessoa (Presidente ou Secretário). Dá acesso: preparar (`documentos`), aprovar
+  // (`aprovar_publicacao`) ou baixar originais sigilosos (`documentos_originais`).
+  {
+    rota: '/documentos',
+    rotulo: 'Documentos',
+    permissao: 'documentos',
+    permissoesAlternativas: ['aprovar_publicacao', 'documentos_originais'],
+    icone: FolderOpen,
+    itens: [
+      {
+        rota: '/documentos',
+        rotulo: 'Biblioteca',
+        icone: FolderOpen,
+        fim: true,
+      },
+      {
+        rota: '/documentos/novo',
+        rotulo: 'Novo documento',
+        icone: FileUp,
+        permissao: 'documentos',
       },
     ],
   },
