@@ -1,3 +1,15 @@
+import type {
+  AvisoDeNoticia,
+  ConfiguracaoDoDirectus,
+  NoticiaPublica,
+} from './directus.mjs'
+
+export type {
+  AvisoDeNoticia,
+  ImagemDaNoticia,
+  NoticiaPublica,
+} from './directus.mjs'
+
 export interface EventoDaLista {
   id_evento: number
   titulo: string
@@ -72,6 +84,10 @@ export interface ConteudoPublico {
   projetos: ProjetoPublico[]
   diretoria: MembroDaDiretoria[]
   assembleias: AssembleiaPublica[]
+  /** Notícias PUBLICADAS no Directus (editor do site), já validadas e com o HTML limpo. */
+  noticias: NoticiaPublica[]
+  /** Notícias que NÃO foram publicadas e o motivo (diagnóstico; fora da impressão digital). */
+  avisosDeNoticias: AvisoDeNoticia[]
 }
 
 export interface OpcoesDeBusca {
@@ -79,6 +95,8 @@ export interface OpcoesDeBusca {
   tentativas?: number
   timeoutMs?: number
   esperaMs?: number
+  /** Sobrescreve a configuração do Directus (padrão: variáveis de ambiente). */
+  directus?: ConfiguracaoDoDirectus
 }
 
 export const ENDPOINTS_DE_LISTA: Record<
@@ -90,5 +108,18 @@ export function buscarConteudoPublico(
   apiUrl: string,
   opcoes?: OpcoesDeBusca,
 ): Promise<ConteudoPublico>
+
+export function buscarJson(
+  base: string,
+  caminho: string,
+  opcoes: {
+    fetchImpl: typeof fetch
+    tentativas: number
+    timeoutMs: number
+    esperaMs: number
+    headers?: Record<string, string>
+    rotulo?: string
+  },
+): Promise<any>
 
 export function impressaoDoConteudo(conteudo: unknown): string

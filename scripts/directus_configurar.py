@@ -2,6 +2,9 @@
 
     python scripts/directus_configurar.py aplicar      # cria o que falta (pastas, coleções, perfis)
     python scripts/directus_configurar.py verificar    # só leitura; exit 1 se algo estiver fora do modelo
+    python scripts/directus_configurar.py criar-leitor [--rotacionar]
+                       # cria a conta de serviço "Leitor do site" (só lê o publicado), gera o token, guarda no
+                       # Key Vault (DIRECTUS-SITE-TOKEN) - o valor NUNCA é impresso. --rotacionar troca o token.
     ... --producao   # cms.asaf.org.br; o token vem de .env.directus ou do arquivo de credenciais (ver abaixo)
 
 O que vem de `scripts/directus_modelo.py`. Conexão por variáveis de ambiente (nunca por argumento):
@@ -22,9 +25,11 @@ from __future__ import annotations
 
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
+import tempfile
 from typing import Any
 
 import httpx2
@@ -43,6 +48,9 @@ MARCAS_SOPS = ('"sops"', "ENC[AES256_GCM")  # as mesmas que o hook pre-commit us
 COFRE_PADRAO = "kv-asaf-arca"
 SEGREDO_SENHA_ADMIN = "DIRECTUS-ADMIN-PASSWORD"
 EMAIL_ADMIN_PADRAO = "asaf@asaf.org.br"
+EMAIL_LEITOR = "leitor-do-site@asaf.org.br"  # conta de serviço (só API; sem caixa de e-mail e sem Studio)
+PERFIL_LEITOR = "Leitor do site"
+SEGREDO_TOKEN_SITE = "DIRECTUS-SITE-TOKEN"
 # O Directus de produção "acorda" em ~35 s depois de escalar a zero.
 TEMPO_LIMITE = 90.0
 
@@ -208,11 +216,13 @@ def garantir_pastas(c: Cliente, relatorio: list[str]) -> dict[str, str]:
 # --------------------------------------------------------------------------------------- coleções
 def _campo_para_api(campo: dict, colecao: str) -> dict:
     meta = {k: v for k, v in campo["meta"].items()}
-    return {"field": campo["field"], "type": campo["type"], "meta": meta, "schema": dict(campo["schema"])}
+    schema = None if campo["type"] == "alias" else dict(campo["schema"])  # seção do formulário não tem coluna
+    return {"field": campo["field"], "type": campo["type"], "meta": meta, "schema": schema}
 
 
 def garantir_colecoes(c: Cliente, relatorio: list[str], pastas: dict[str, str]) -> None:
-    existentes = {x["collection"] for x in c.ler("/collections")}
+    atuais_colecoes = {x["collection"]: x for x in c.ler("/collections")}
+    existentes = set(atuais_colecoes)
     for definicao in modelo.COLECOES:
         nome = definicao["colecao"]
         campos = [_campo_para_api(f, nome) for f in definicao["campos"]]
@@ -225,12 +235,67 @@ def garantir_colecoes(c: Cliente, relatorio: list[str], pastas: dict[str, str]) 
             })
             relatorio.append(f"coleção criada: {nome}")
         else:
-            atuais = {f["field"] for f in c.ler(f"/fields/{nome}")}
+            _ajustar_meta_da_colecao(c, definicao, atuais_colecoes[nome], relatorio)
+            atuais = {f["field"]: f for f in c.ler(f"/fields/{nome}")}
             for campo in campos:
                 if campo["field"] not in atuais:
                     c.criar(f"/fields/{nome}", campo)
                     relatorio.append(f"campo criado: {nome}.{campo['field']}")
+                else:
+                    _ajustar_meta_do_campo(c, nome, campo, atuais[campo["field"]], relatorio)
         _garantir_relacoes(c, definicao, relatorio)
+
+
+# O que é só APRESENTAÇÃO do campo (seção, ordem, rótulo, largura, dica...). O modelo manda: se alguém mexeu
+# na tela, o próximo `aplicar` devolve. Dado e tipo do campo nunca são tocados aqui.
+CHAVES_DE_APRESENTACAO = ("group", "sort", "width", "note", "interface", "options", "display", "display_options",
+                          "translations", "conditions", "required", "hidden", "readonly")
+
+
+CHAVES_DE_APRESENTACAO_DA_COLECAO = ("icon", "note", "display_template", "translations", "archive_field", "archive_value",
+                                     "unarchive_value", "sort_field", "versioning")
+
+
+def _ajustar_meta_da_colecao(c: Cliente, definicao: dict, atual: dict, relatorio: list[str]) -> None:
+    meta_atual = atual.get("meta") or {}
+    mudancas = {k: v for k, v in definicao["meta"].items()
+                if k in CHAVES_DE_APRESENTACAO_DA_COLECAO and _normalizar(meta_atual.get(k)) != _normalizar(v)}
+    if mudancas:
+        c.alterar(f"/collections/{definicao['colecao']}", {"meta": mudancas})
+        relatorio.append(f"coleção ajustada ({', '.join(sorted(mudancas))}): {definicao['colecao']}")
+
+
+def _ajustar_meta_do_campo(c: Cliente, colecao: str, desejado: dict, atual: dict, relatorio: list[str]) -> None:
+    meta_atual = atual.get("meta") or {}
+    mudancas = {k: v for k, v in desejado["meta"].items()
+                if k in CHAVES_DE_APRESENTACAO and _normalizar(meta_atual.get(k)) != _normalizar(v)}
+    if mudancas:
+        c.alterar(f"/fields/{colecao}/{desejado['field']}", {"meta": mudancas})
+        relatorio.append(f"campo ajustado ({', '.join(sorted(mudancas))}): {colecao}.{desejado['field']}")
+
+
+def garantir_configuracoes(c: Cliente, relatorio: list[str]) -> None:
+    """Nome, cor e idioma do Studio (Configurações do projeto)."""
+    atuais = c.ler("/settings") or {}
+    mudancas = {k: v for k, v in modelo.AJUSTES_DO_PROJETO.items() if atuais.get(k) != v}
+    if mudancas:
+        c.alterar("/settings", mudancas)
+        relatorio.append(f"configurações do projeto ajustadas: {', '.join(sorted(mudancas))}")
+
+
+def garantir_marcadores(c: Cliente, relatorio: list[str]) -> None:
+    """Atalhos globais da lista (Para revisar, Rascunhos, No ar...)."""
+    existentes = c.ler("/presets", limit=-1, fields="id,bookmark,collection,user,role")
+    ja = {(p["bookmark"], p["collection"]) for p in existentes if not p.get("user") and not p.get("role")}
+    for m in modelo.MARCADORES:
+        if (m["nome"], m["colecao"]) in ja:
+            continue
+        c.criar("/presets", {
+            "bookmark": m["nome"], "collection": m["colecao"], "icon": m["icone"], "user": None, "role": None,
+            "layout": "tabular", "filter": m["filtro"],
+            "layout_query": {"tabular": {"fields": modelo.COLUNAS_DA_LISTA, "sort": ["-publicada_em"]}},
+        })
+        relatorio.append(f"atalho criado: {m['nome'] or 'lista padrão de ' + m['colecao']}")
 
 
 def _garantir_relacoes(c: Cliente, definicao: dict, relatorio: list[str]) -> None:
@@ -347,6 +412,91 @@ def remover_descontinuados(c: Cliente, relatorio: list[str]) -> None:
             relatorio.append(f"perfil descontinuado removido (sem usuários): política {nome}")
 
 
+# ---------------------------------------------------------------------------------- leitor do site
+def cofre_tem_segredo(nome: str = SEGREDO_TOKEN_SITE, cofre: str = COFRE_PADRAO) -> bool:
+    """Pergunta ao Key Vault se o segredo existe SEM ler o valor (só o id)."""
+    az = shutil.which("az")
+    if az is None:
+        raise SystemExit("Azure CLI (az) não encontrado")
+    r = subprocess.run([az, "keyvault", "secret", "show", "--vault-name", cofre, "--name", nome,
+                        "--query", "id", "-o", "tsv"], capture_output=True, text=True, timeout=120)
+    return r.returncode == 0 and bool(r.stdout.strip())
+
+
+def guardar_no_cofre(nome: str, valor: str, cofre: str = COFRE_PADRAO) -> None:
+    """Grava o segredo no Key Vault por ARQUIVO temporário (nunca por argumento: ficaria na lista de
+    processos), apagado em seguida. Não imprime o valor."""
+    az = shutil.which("az")
+    if az is None:
+        raise SystemExit("Azure CLI (az) não encontrado")
+    caminho = None
+    try:
+        with tempfile.NamedTemporaryFile("w", delete=False, encoding="utf-8", newline="", suffix=".segredo") as f:
+            caminho = f.name
+            f.write(valor)  # sem quebra de linha no fim: o cofre guarda exatamente o que está no arquivo
+        r = subprocess.run([az, "keyvault", "secret", "set", "--vault-name", cofre, "--name", nome,
+                            "--file", caminho, "--query", "id", "-o", "tsv"], capture_output=True, text=True, timeout=120)
+        if r.returncode != 0:
+            raise SystemExit(f"o Key Vault recusou gravar {nome} (az login? permissão?)")
+    finally:
+        if caminho and os.path.exists(caminho):
+            with open(caminho, "w", encoding="utf-8", newline="") as f:
+                f.write("0" * max(len(valor), 64))  # sobrescreve antes de apagar
+            os.remove(caminho)
+
+
+def verificar_token_do_leitor(base: str, token: str) -> list[str]:
+    """Prova com o PRÓPRIO token que a conta lê notícias e NÃO consegue escrever (privilégio mínimo)."""
+    problemas: list[str] = []
+    leitor = Cliente(base, token)
+    try:
+        leitor.ler("/items/noticias", limit=1)
+    except ErroDirectus as erro:
+        problemas.append(f"o token do leitor não consegue ler notícias: {erro}")
+    try:
+        leitor.criar("/items/noticias", {"titulo": "teste de escrita (não deve ser criada)"})
+        problemas.append("GRAVE: o token do leitor CONSEGUIU criar uma notícia")
+    except ErroDirectus as erro:
+        if "HTTP 403" not in str(erro):
+            problemas.append(f"escrita do leitor deu resposta inesperada (esperado 403): {erro}")
+    try:
+        leitor.ler("/users", limit=1, fields="id,email")
+        problemas.append("GRAVE: o token do leitor consegue listar usuários")
+    except ErroDirectus:
+        pass  # esperado: 403
+    return problemas
+
+
+def garantir_leitor_do_site(c: Cliente, *, rotacionar: bool = False, guardar=guardar_no_cofre,
+                            tem_segredo=cofre_tem_segredo, verificar_token=verificar_token_do_leitor) -> list[str]:
+    """Cria (ou renova) a conta do site e guarda o token no Key Vault. Devolve o relatório (sem segredo)."""
+    papeis = {r["name"]: r["id"] for r in c.ler("/roles", limit=-1, fields="id,name")}
+    if PERFIL_LEITOR not in papeis:
+        raise SystemExit(f"o perfil '{PERFIL_LEITOR}' não existe: rode `aplicar` antes")
+    usuarios = c.ler("/users", limit=-1, fields="id,email", **{"filter[email][_eq]": EMAIL_LEITOR})
+    if usuarios and tem_segredo() and not rotacionar:
+        return [f"a conta {EMAIL_LEITOR} já existe e o token está no Key Vault ({SEGREDO_TOKEN_SITE}): nada a fazer "
+                "(use --rotacionar para trocar o token)"]
+    token = secrets.token_urlsafe(32)
+    relatorio: list[str] = []
+    if usuarios:
+        c.alterar(f"/users/{usuarios[0]['id']}", {"token": token, "role": papeis[PERFIL_LEITOR], "status": "active"})
+        relatorio.append(f"token da conta {EMAIL_LEITOR} renovado")
+    else:
+        c.criar("/users", {"email": EMAIL_LEITOR, "first_name": "Leitor", "last_name": "do site",
+                           "role": papeis[PERFIL_LEITOR], "status": "active", "token": token})
+        relatorio.append(f"conta criada: {EMAIL_LEITOR} (perfil {PERFIL_LEITOR})")
+    try:
+        guardar(SEGREDO_TOKEN_SITE, token)
+    except SystemExit:
+        relatorio.append(f"ATENÇÃO: o token novo NÃO foi gravado no Key Vault; rode de novo com --rotacionar")
+        raise
+    relatorio.append(f"token guardado no Key Vault ({SEGREDO_TOKEN_SITE}); o valor não é exibido")
+    for problema in verificar_token(c.base, token):
+        relatorio.append(f"PROBLEMA: {problema}")
+    return relatorio
+
+
 # ----------------------------------------------------------------------------------------- verificar
 def verificar(c: Cliente) -> list[str]:
     """Lê o Directus e devolve a lista de problemas (vazia = tudo conforme o modelo)."""
@@ -367,6 +517,15 @@ def verificar(c: Cliente) -> list[str]:
         for campo in definicao["campos"]:
             if campo["field"] not in atuais:
                 problemas.append(f"campo ausente: {nome}.{campo['field']}")
+    atuais_config = c.ler("/settings") or {}
+    for chave, valor in modelo.AJUSTES_DO_PROJETO.items():
+        if atuais_config.get(chave) != valor:
+            problemas.append(f"configuração do projeto diferente do modelo: {chave}")
+    marcadores = {(p["bookmark"], p["collection"]) for p in c.ler("/presets", limit=-1, fields="bookmark,collection,user,role")
+                  if not p.get("user") and not p.get("role")}
+    for m in modelo.MARCADORES:
+        if (m["nome"], m["colecao"]) not in marcadores:
+            problemas.append(f"atalho ausente: {m['nome'] or 'lista padrão de ' + m['colecao']}")
     pastas = {(p["name"]) for p in c.ler("/folders", limit=-1, fields="name")}
     for pasta in modelo.PASTAS:
         for nome in (pasta["nome"], *pasta["filhas"]):
@@ -403,6 +562,8 @@ def aplicar(c: Cliente) -> list[str]:
     remover_descontinuados(c, relatorio)
     pastas = garantir_pastas(c, relatorio)
     garantir_colecoes(c, relatorio, pastas)
+    garantir_configuracoes(c, relatorio)
+    garantir_marcadores(c, relatorio)
     garantir_perfis(c, relatorio)
     return relatorio
 
@@ -410,11 +571,16 @@ def aplicar(c: Cliente) -> list[str]:
 def main(argv: list[str]) -> int:
     producao = "--producao" in argv
     usar_cofre = "--senha-do-cofre" in argv
-    argv = [a for a in argv if a not in ("--producao", "--senha-do-cofre")]
-    if len(argv) != 2 or argv[1] not in ("aplicar", "verificar"):
+    rotacionar = "--rotacionar" in argv
+    argv = [a for a in argv if a not in ("--producao", "--senha-do-cofre", "--rotacionar")]
+    if len(argv) != 2 or argv[1] not in ("aplicar", "verificar", "criar-leitor"):
         print(__doc__)
         return 2
     c = cliente_do_ambiente(producao=producao, usar_senha_do_cofre=usar_cofre)
+    if argv[1] == "criar-leitor":
+        feito = garantir_leitor_do_site(c, rotacionar=rotacionar)
+        print("\n".join(f"  + {x}" for x in feito))
+        return 1 if any(x.startswith(("PROBLEMA", "ATENÇÃO")) for x in feito) else 0
     if argv[1] == "aplicar":
         feito = aplicar(c)
         print("\n".join(f"  + {x}" for x in feito) if feito else "nada a fazer: já está conforme o modelo.")

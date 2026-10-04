@@ -96,7 +96,9 @@ COLECOES: list[dict] = [
         "colecao": "noticias",
         "meta": {
             "icon": "newspaper", "note": "Notícias do site. O site mostra só as 'Publicado', da mais recente para a mais antiga.",
-            "archive_field": "status", "archive_value": STATUS_ARQUIVADO, "unarchive_value": STATUS_RASCUNHO,
+            # Sem "arquivar" do Directus: ele põe um chip "Publicado" no alto da lista que confunde. "Arquivado" continua
+            # sendo uma Situação normal (some do site, fica guardada).
+            "archive_field": None, "archive_value": None, "unarchive_value": None,
             "sort_field": None, "singleton": False, "versioning": True,
             "display_template": "{{titulo}}", "translations": [{"language": "pt-BR", "translation": "Notícias", "singular": "Notícia", "plural": "Notícias"}],
         },
@@ -126,7 +128,8 @@ COLECOES: list[dict] = [
                                                                  "required": True}]},
                    schema={"is_nullable": True, "max_length": 250}),
             _campo("autorizacao_imagem", "boolean", meta={"interface": "boolean", "width": "half",
-                                                          "note": "Marque SÓ se há autorização de uso de imagem (dos responsáveis, no caso de crianças).",
+                                                          "options": {"label": "Sim, tenho autorização"},
+                                                          "note":"Marque SÓ se há autorização de uso de imagem (dos responsáveis, no caso de crianças).",
                                                           "conditions": [{"name": "obrigatorio_com_imagem", "rule": {"_and": [{"imagem": {"_nnull": True}}]},
                                                                           "required": True}]},
                    schema={"is_nullable": False, "default_value": False}),
@@ -135,6 +138,80 @@ COLECOES: list[dict] = [
         "relacoes": [{"campo": "imagem", "para": "directus_files"}],
     },
 ]
+
+# ---------------------------------------------------------------------------- organização do formulário
+# O editor da ASAF não é programador: o formulário da notícia é dividido em seções, em português, na ordem em
+# que a pessoa escreve (texto -> foto -> publicação). Os rótulos usam `translations` (pt-BR).
+def _traduzido(texto: str) -> list[dict]:
+    return [{"language": "pt-BR", "translation": texto}]
+
+
+def _grupo(nome: str, rotulo: str, icone: str, ordem: int, aberto: bool = True) -> dict:
+    """Seção do formulário (campo "alias": não guarda dado, só agrupa os campos de dentro)."""
+    return {"field": nome, "type": "alias", "schema": None,
+            "meta": {"interface": "group-detail", "special": ["alias", "no-data", "group"], "width": "full", "sort": ordem,
+                     "translations": _traduzido(rotulo),
+                     "options": {"headerIcon": icone, "start": "open" if aberto else "closed"}}}
+
+
+def _organizar(definicao: dict, secoes: list[tuple], rotulos: dict[str, str]) -> None:
+    """`secoes`: (nome, rótulo, ícone, aberta, [campos]). Põe cada campo na sua seção, na ordem, com o rótulo."""
+    por_nome = {f["field"]: f for f in definicao["campos"]}
+    novos, ordem = [], 0
+    for nome, rotulo, icone, aberta, campos in secoes:
+        ordem += 1
+        novos.append(_grupo(nome, rotulo, icone, ordem, aberta))
+        for campo in campos:
+            ordem += 1
+            meta = por_nome[campo]["meta"]
+            meta["group"], meta["sort"] = nome, ordem
+            if campo in rotulos:
+                meta["translations"] = _traduzido(rotulos[campo])
+    por_nome["id"]["meta"]["sort"] = 0
+    definicao["campos"] = [por_nome["id"], *novos, *[f for f in definicao["campos"] if f["field"] not in ("id",)]]
+
+
+_NOTICIAS = next(c for c in COLECOES if c["colecao"] == "noticias")
+_organizar(
+    _NOTICIAS,
+    [
+        ("grupo_conteudo", "Conteúdo", "edit_note", True, ["titulo", "slug", "resumo", "corpo"]),
+        ("grupo_foto", "Foto da notícia (opcional)", "photo_camera", True, ["imagem", "imagem_alt", "autorizacao_imagem"]),
+        ("grupo_publicacao", "Publicação", "event_available", True, ["status", "publicada_em"]),
+        ("grupo_historico", "Histórico", "history", False, ["user_created", "date_created", "user_updated", "date_updated"]),
+    ],
+    {
+        "titulo": "Título", "slug": "Endereço da notícia (slug)", "resumo": "Resumo", "corpo": "Texto",
+        "imagem": "Foto", "imagem_alt": "Descrição da foto (texto alternativo)",
+        "autorizacao_imagem": "Autorização de imagem",
+        "status": "Situação", "publicada_em": "Publicar em",
+        "user_created": "Criada por", "date_created": "Criada em",
+        "user_updated": "Alterada por", "date_updated": "Última alteração",
+    },
+)
+# Sem as definições de campos "mexidas" fora de ordem: o sort acima é o que o Studio usa.
+_NOTICIAS["campos"] = sorted(_NOTICIAS["campos"], key=lambda f: f["meta"].get("sort", 0))
+
+# Aparência do Studio (Configurações do projeto): em português, com o nome e a cor da ASAF.
+AJUSTES_DO_PROJETO = {
+    "project_name": "ASAF — Editor do site",
+    "project_descriptor": "Notícias e conteúdo de asaf.org.br",
+    "project_color": "#145238",
+    "default_language": "pt-BR",
+    "public_note": "Acesso restrito a quem edita o site da ASAF. Em caso de dúvida: asaf@asaf.org.br.",
+}
+
+# Atalhos na lista de notícias (marcadores globais: aparecem para todos que têm acesso à coleção).
+_COLUNAS_DA_LISTA = ["status", "titulo", "publicada_em", "date_updated"]
+# O primeiro (`nome` None) NÃO é atalho: é a lista PADRÃO que abre ao entrar em Notícias, sem filtro.
+MARCADORES: list[dict] = [
+    {"nome": None, "colecao": "noticias", "icone": None, "filtro": None},
+    {"nome": "Todas as notícias", "colecao": "noticias", "icone": "newspaper", "filtro": None},
+    {"nome": "Para revisar", "colecao": "noticias", "icone": "rate_review", "filtro": {"status": {"_eq": STATUS_REVISAO}}},
+    {"nome": "Rascunhos", "colecao": "noticias", "icone": "draw", "filtro": {"status": {"_eq": STATUS_RASCUNHO}}},
+    {"nome": "No ar", "colecao": "noticias", "icone": "public", "filtro": {"status": {"_eq": STATUS_PUBLICADO}}},
+]
+COLUNAS_DA_LISTA = _COLUNAS_DA_LISTA
 
 # Coleções que o Directus de ASAF PODE ter (além das do próprio sistema, `directus_*`). A verificação
 # reprova qualquer outra - é a defesa contra dado de negócio parar no CMS.

@@ -1,5 +1,6 @@
 // Conteúdo público do site (v5.2) — busca na API e "impressão digital" do que as páginas mostram.
 //
+// (v5.3: junta também as notícias do Directus — ver ./directus.mjs.)
 // COMPARTILHADO por dois usuários, de propósito, para nunca divergirem:
 //   1. o BUILD das páginas (src/lib/dados-publicos.ts): gera Diretoria, Projetos, cada Evento etc.;
 //   2. a SINCRONIZAÇÃO (scripts/verificar-conteudo.mjs, rodada pelo workflow sincronizar-site): compara
@@ -9,6 +10,8 @@
 //
 // É JavaScript puro (não TypeScript) para rodar no Node do CI sem compilar. Tipos: conteudo-publico.d.mts.
 import { createHash } from 'node:crypto'
+
+import { buscarNoticias, configuracaoDoDirectus } from './directus.mjs'
 
 /** Listas que alimentam as páginas. O detalhe de cada evento é buscado em seguida. */
 export const ENDPOINTS_DE_LISTA = {
@@ -20,11 +23,21 @@ export const ENDPOINTS_DE_LISTA = {
 
 const ESPERA_ENTRE_TENTATIVAS_MS = 3000
 
-/** GET JSON com repetição só do que pode ser passageiro (rede, timeout, 5xx). 4xx nunca se repete. */
-async function buscar(
+/**
+ * GET JSON com repetição só do que pode ser passageiro (rede, timeout, 5xx). 4xx nunca se repete.
+ * `headers` (ex.: Authorization do Directus) e `rotulo` (quem respondeu, para a mensagem de erro).
+ */
+export async function buscarJson(
   base,
   caminho,
-  { fetchImpl, tentativas, timeoutMs, esperaMs },
+  {
+    fetchImpl,
+    tentativas,
+    timeoutMs,
+    esperaMs,
+    headers = {},
+    rotulo = 'a API',
+  },
 ) {
   let ultimoErro
   for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
@@ -32,15 +45,17 @@ async function buscar(
     const timer = setTimeout(() => controlador.abort(), timeoutMs)
     try {
       const resposta = await fetchImpl(`${base}${caminho}`, {
-        headers: { Accept: 'application/json' },
+        headers: { Accept: 'application/json', ...headers },
         signal: controlador.signal,
       })
       if (resposta.ok) return await resposta.json()
-      ultimoErro = new Error(`${caminho}: a API respondeu ${resposta.status}`)
+      ultimoErro = new Error(
+        `${caminho.split('?')[0]}: ${rotulo} respondeu ${resposta.status}`,
+      )
       if (resposta.status < 500) throw ultimoErro
     } catch (erro) {
       ultimoErro = erro instanceof Error ? erro : new Error(String(erro))
-      if (/a API respondeu 4\d\d/.test(ultimoErro.message)) throw ultimoErro
+      if (/respondeu 4\d\d/.test(ultimoErro.message)) throw ultimoErro
     } finally {
       clearTimeout(timer)
     }
@@ -48,7 +63,7 @@ async function buscar(
       await new Promise((r) => setTimeout(r, esperaMs))
   }
   throw new Error(
-    `Não consegui ler ${caminho} da API (${tentativas} tentativas): ${ultimoErro?.message}`,
+    `Não consegui ler ${caminho.split('?')[0]} de ${rotulo} (${tentativas} tentativas): ${ultimoErro?.message}`,
   )
 }
 
@@ -67,20 +82,39 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
   const base = apiUrl.replace(/\/+$/, '')
   const [eventos, projetos, diretoria, assembleias] = await Promise.all(
     Object.values(ENDPOINTS_DE_LISTA).map((caminho) =>
-      buscar(base, caminho, config),
+      buscarJson(base, caminho, config),
     ),
   )
   const detalhesDeEventos = {}
   await Promise.all(
     eventos.map(async (evento) => {
-      detalhesDeEventos[evento.id_evento] = await buscar(
+      detalhesDeEventos[evento.id_evento] = await buscarJson(
         base,
         `/api/publico/eventos/${evento.id_evento}`,
         config,
       )
     }),
   )
-  return { eventos, detalhesDeEventos, projetos, diretoria, assembleias }
+  // Notícias vêm do Directus (editor do site). Sem token em desenvolvimento = lista vazia; nos workflows de
+  // publicação o token é obrigatório (DIRECTUS_OBRIGATORIO=1) e a falta dele derruba o build.
+  const { noticias, avisos } = await buscarNoticias(
+    opcoes.directus ?? configuracaoDoDirectus(),
+    {
+      fetchImpl: config.fetchImpl,
+      tentativas: config.tentativas,
+      timeoutMs: config.timeoutMs,
+      esperaMs: config.esperaMs,
+    },
+  )
+  return {
+    eventos,
+    detalhesDeEventos,
+    projetos,
+    diretoria,
+    assembleias,
+    noticias,
+    avisosDeNoticias: avisos,
+  }
 }
 
 /** Remove, recursivamente, os campos que mudam a cada inscrição (não justificam reconstruir o site). */
@@ -89,7 +123,13 @@ function semVolateis(valor) {
   if (valor && typeof valor === 'object') {
     const limpo = {}
     for (const chave of Object.keys(valor).sort()) {
-      if (chave === 'vagas_livres' || chave === 'vagas_ocupadas') continue
+      // `avisosDeNoticias` é diagnóstico (o que NÃO foi publicado): não justifica reconstruir o site.
+      if (
+        chave === 'vagas_livres' ||
+        chave === 'vagas_ocupadas' ||
+        chave === 'avisosDeNoticias'
+      )
+        continue
       limpo[chave] = semVolateis(valor[chave])
     }
     return limpo

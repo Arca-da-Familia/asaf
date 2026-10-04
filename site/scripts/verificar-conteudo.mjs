@@ -14,6 +14,7 @@ import {
   buscarConteudoPublico,
   impressaoDoConteudo,
 } from './lib/conteudo-publico.mjs'
+import { anunciarAvisosDeNoticias } from './lib/directus.mjs'
 
 const apiUrl = process.env.PUBLIC_API_URL ?? 'https://api.asaf.org.br'
 const siteUrl = (process.env.SITE_URL ?? 'https://asaf.org.br').replace(
@@ -23,7 +24,9 @@ const siteUrl = (process.env.SITE_URL ?? 'https://asaf.org.br').replace(
 
 // Se a API não responde, ESTE passo falha (o workflow fica vermelho e tenta de novo na próxima
 // rodada) — nunca conclui "nada mudou" por não ter conseguido ler.
-const atual = impressaoDoConteudo(await buscarConteudoPublico(apiUrl))
+const conteudoAtual = await buscarConteudoPublico(apiUrl)
+anunciarAvisosDeNoticias(conteudoAtual.avisosDeNoticias)
+const atual = impressaoDoConteudo(conteudoAtual)
 
 let publicada = null
 try {

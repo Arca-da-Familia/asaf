@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   jsonLdEvento,
+  jsonLdNoticia,
   jsonLdMigalhas,
   jsonLdOrganizacao,
   serializarJsonLd,
@@ -164,5 +165,41 @@ describe('jsonLdEvento', () => {
     expect(
       jsonLdEvento({ ...base, gratuito: false }, url).isAccessibleForFree,
     ).toBe(false)
+  })
+})
+
+describe('jsonLdNoticia', () => {
+  const noticia = {
+    titulo: 'Encontro de famílias',
+    resumo: 'Resumo da notícia.',
+    publicadaEm: '2026-10-01T10:00:00.000Z',
+    atualizadaEm: '2026-10-02T10:00:00.000Z',
+    caminhoDaImagem: '/midia/noticias/arq-1.webp',
+  }
+  const url = 'https://asaf.org.br/noticias/encontro/'
+
+  it('gera schema.org/NewsArticle com datas, foto absoluta e a ASAF como autora e publicadora', () => {
+    const dados = jsonLdNoticia(noticia, url)
+    expect(dados['@type']).toBe('NewsArticle')
+    expect(dados.headline).toBe('Encontro de famílias')
+    expect(dados.datePublished).toBe('2026-10-01T10:00:00.000Z')
+    expect(dados.dateModified).toBe('2026-10-02T10:00:00.000Z')
+    expect(dados.image).toEqual([
+      'https://asaf.org.br/midia/noticias/arq-1.webp',
+    ])
+    expect(dados.author).toEqual({ '@id': 'https://asaf.org.br/#organizacao' })
+    expect(dados.publisher).toEqual({
+      '@id': 'https://asaf.org.br/#organizacao',
+    })
+    expect(dados.mainEntityOfPage['@id']).toBe(url)
+  })
+
+  it('omite foto e data de edição quando não existem (não declara dado falso)', () => {
+    const dados = jsonLdNoticia(
+      { ...noticia, atualizadaEm: null, caminhoDaImagem: null },
+      url,
+    )
+    expect(dados).not.toHaveProperty('image')
+    expect(dados).not.toHaveProperty('dateModified')
   })
 })

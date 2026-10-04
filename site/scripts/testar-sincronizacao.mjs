@@ -8,7 +8,11 @@ import { spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 
-import { criarServidor } from './mock-api.mjs'
+import {
+  ambienteDeTeste,
+  criarServidor,
+  PREFIXO_DO_DIRECTUS,
+} from './mock-api.mjs'
 
 const PORTA_CHEIA = 4322
 const PORTA_VAZIA = 4323
@@ -63,7 +67,7 @@ try {
 
   const igual = await verificar({
     ...base,
-    PUBLIC_API_URL: `http://127.0.0.1:${PORTA_CHEIA}`,
+    ...ambienteDeTeste(PORTA_CHEIA),
   })
   if (igual.mudou)
     problemas.push(
@@ -73,14 +77,14 @@ try {
   // Repetido: o conteúdo não pode variar de uma leitura para outra (hora, ordem, sorteio...).
   const outraVez = await verificar({
     ...base,
-    PUBLIC_API_URL: `http://127.0.0.1:${PORTA_CHEIA}`,
+    ...ambienteDeTeste(PORTA_CHEIA),
   })
   if (outraVez.atual !== igual.atual)
     problemas.push('a impressão do MESMO conteúdo variou entre duas leituras')
 
   const diferente = await verificar({
     ...base,
-    PUBLIC_API_URL: `http://127.0.0.1:${PORTA_VAZIA}`,
+    ...ambienteDeTeste(PORTA_VAZIA),
   })
   if (!diferente.mudou)
     problemas.push(
@@ -89,8 +93,36 @@ try {
 
   const primeiroDeploy = await verificar({
     SITE_URL: `http://127.0.0.1:${PORTA_SITE + 1}`,
-    PUBLIC_API_URL: `http://127.0.0.1:${PORTA_CHEIA}`,
+    ...ambienteDeTeste(PORTA_CHEIA),
   })
+
+  // Só as NOTÍCIAS do Directus mudaram (a API do sistema é a mesma): o site tem que ser republicado.
+  // O mock "vazio" liga os dois lados; aqui só a lista do Directus fica vazia.
+  const soDirectusMudou = await verificar({
+    ...base,
+    ...ambienteDeTeste(PORTA_CHEIA),
+    DIRECTUS_URL: `http://127.0.0.1:${PORTA_VAZIA}${PREFIXO_DO_DIRECTUS}`,
+  })
+  if (!soDirectusMudou.mudou)
+    problemas.push(
+      'só as notícias do Directus mudaram, mas a sincronização disse "não mudou" (notícia nova nunca iria ao ar)',
+    )
+
+  // Directus recusando o token: a sincronização FALHA (vermelha), nunca conclui "nada mudou".
+  let recusou = false
+  try {
+    await verificar({
+      ...base,
+      ...ambienteDeTeste(PORTA_CHEIA),
+      DIRECTUS_SITE_TOKEN: 'token-errado',
+    })
+  } catch {
+    recusou = true
+  }
+  if (!recusou)
+    problemas.push(
+      'token recusado pelo Directus, mas a sincronização não falhou',
+    )
   if (!primeiroDeploy.mudou)
     problemas.push(
       'site SEM /conteudo.json (1º deploy da v5.2) devia contar como "mudou"',

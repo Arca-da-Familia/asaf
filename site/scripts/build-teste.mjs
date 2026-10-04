@@ -4,7 +4,7 @@
 // Script Node, não variável de ambiente no package.json, para funcionar igual no Windows e no Linux.
 import { spawn } from 'node:child_process'
 
-import { API_DE_TESTE, comMock } from './com-mock.mjs'
+import { AMBIENTE_DE_TESTE, API_DE_TESTE, comMock } from './com-mock.mjs'
 
 export { API_DE_TESTE }
 
@@ -26,7 +26,7 @@ function rodarAstro() {
     const filho = spawn(comando, argumentos, {
       stdio: 'inherit',
       shell: process.platform === 'win32',
-      env: { ...process.env, PUBLIC_API_URL: API_DE_TESTE },
+      env: { ...process.env, ...AMBIENTE_DE_TESTE },
     })
     filho.on('exit', (codigo) => resolver(codigo ?? 1))
   })

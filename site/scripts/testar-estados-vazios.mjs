@@ -45,8 +45,32 @@ exigir(
   '/projetos/ sem a mensagem de nenhum projeto',
 )
 
+const noticias = lerPagina('/noticias/')
+exigir(
+  noticias.includes('data-estado="vazio"'),
+  '/noticias/ sem o estado vazio',
+)
+exigir(
+  noticias.includes('Ainda não há notícias publicadas'),
+  '/noticias/ sem a mensagem de nenhuma notícia',
+)
+const feed = readFileSync('dist-vazio/noticias/feed.xml', 'utf-8')
+exigir(
+  feed.includes('<channel>') && !feed.includes('<item>'),
+  '/noticias/feed.xml vazio devia ser um feed válido sem itens',
+)
+exigir(
+  !existsSync('dist-vazio/midia'),
+  'nasceu /midia/ (foto de notícia) sem haver notícia',
+)
+
 // 2. Não nasce página de recurso que não existe.
-for (const pasta of ['eventos', 'projetos', 'transparencia/assembleias']) {
+for (const pasta of [
+  'eventos',
+  'projetos',
+  'transparencia/assembleias',
+  'noticias',
+]) {
   const filhas = existsSync(`dist-vazio/${pasta}`)
     ? readdirSync(`dist-vazio/${pasta}`, { withFileTypes: true }).filter((e) =>
         e.isDirectory(),

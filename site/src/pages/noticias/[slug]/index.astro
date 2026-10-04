@@ -1,0 +1,101 @@
+---
+import TituloDePagina from '../../../components/TituloDePagina.astro'
+import type { Migalha } from '../../../config/navegacao'
+import Base from '../../../layouts/Base.astro'
+import {
+  caminhoDaFotoDaNoticia,
+  caminhoDaNoticia,
+  conteudoPublico,
+  type NoticiaPublica,
+} from '../../../lib/dados-publicos'
+import { formatarDataLonga } from '../../../lib/datas'
+import { jsonLdNoticia, urlCanonica } from '../../../lib/seo'
+import { descricaoParaMeta, tituloCurto } from '../../../lib/texto'
+
+// Uma página por notícia, com URL estável (/noticias/<endereço>/). O endereço é escolhido pelo editor no
+// Directus e NÃO deve ser mudado depois de publicada (o link compartilhado deixaria de funcionar).
+export async function getStaticPaths() {
+  const { noticias } = await conteudoPublico()
+  return noticias.map((noticia) => ({
+    params: { slug: noticia.slug },
+    props: { noticia },
+  }))
+}
+
+interface Props {
+  noticia: NoticiaPublica
+}
+const { noticia } = Astro.props
+
+const caminho = caminhoDaNoticia(noticia.slug)
+const caminhoDaImagem = noticia.imagem
+  ? caminhoDaFotoDaNoticia(noticia.imagem.id)
+  : null
+const migalhas: Migalha[] = [
+  { rotulo: 'Notícias', href: '/noticias/' },
+  { rotulo: tituloCurto(noticia.titulo) },
+]
+---
+
+<Base
+  titulo={tituloCurto(noticia.titulo)}
+  descricao={descricaoParaMeta(noticia.resumo, noticia.resumo)}
+  caminho={caminho}
+  migalhas={migalhas}
+  imagem={caminhoDaImagem ?? undefined}
+  imagemLargura={noticia.imagem?.largura}
+  imagemAltura={noticia.imagem?.altura}
+  imagemAlt={noticia.imagem?.alt}
+  jsonLd={[
+    jsonLdNoticia(
+      {
+        titulo: noticia.titulo,
+        resumo: noticia.resumo,
+        publicadaEm: noticia.publicadaEm,
+        atualizadaEm: noticia.atualizadaEm,
+        caminhoDaImagem,
+      },
+      urlCanonica(caminho),
+    ),
+  ]}
+>
+  <TituloDePagina titulo={noticia.titulo} migalhas={migalhas} />
+
+  <article class="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-12">
+    <p class="text-sm text-muted-foreground">
+      Publicada em{' '}
+      <time datetime={noticia.publicadaEm}>
+        {formatarDataLonga(noticia.publicadaEm)}
+      </time>
+    </p>
+
+    {noticia.imagem && (
+      <figure>
+        <img
+          src={caminhoDaImagem}
+          alt={noticia.imagem.alt}
+          width={noticia.imagem.largura}
+          height={noticia.imagem.altura}
+          decoding="async"
+          class="h-auto w-full rounded-lg border"
+        />
+      </figure>
+    )}
+
+    <p class="text-lg font-medium leading-relaxed">{noticia.resumo}</p>
+
+    <div
+      class="leading-relaxed [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_blockquote]:border-l-4 [&_blockquote]:border-brand-secondary [&_blockquote]:pl-4 [&_blockquote]:italic [&_h2]:mt-8 [&_h2]:text-2xl [&_h2]:font-bold [&_h3]:mt-6 [&_h3]:text-xl [&_h3]:font-semibold [&_h4]:mt-4 [&_h4]:font-semibold [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:mt-4 [&_ul]:list-disc [&_ul]:pl-6"
+      set:html={noticia.corpoHtml}
+    />
+
+    <p>
+      <a
+        href="/noticias/"
+        class="font-medium text-primary underline underline-offset-4"
+      >
+        ← Todas as notícias
+      </a>
+    </p>
+  </article>
+</Base>

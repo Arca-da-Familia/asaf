@@ -18,8 +18,12 @@ interface Props {
   descricao?: string
   /** Caminho da página (ex.: "/"), base da URL canônica. */
   caminho: string
-  /** Caminho da imagem de compartilhamento (1200x630). */
+  /** Caminho da imagem de compartilhamento (padrão: 1200x630 da ASAF). */
   imagem?: string
+  /** Medidas e descrição da imagem, quando ela NÃO é a padrão (ex.: foto de uma notícia). */
+  imagemLargura?: number
+  imagemAltura?: number
+  imagemAlt?: string
   /** `false` = noindex (ex.: 404). Páginas sem conteúdo próprio não vão ao Google. */
   indexavel?: boolean
   /** JSON-LD extra da página (ex.: schema.org/Event), além da organização. */
@@ -36,6 +40,9 @@ const {
   descricao = ORGANIZACAO.descricaoCurta,
   caminho,
   imagem = '/og-padrao.png',
+  imagemLargura = 1200,
+  imagemAltura = 630,
+  imagemAlt,
   indexavel = true,
   jsonLd = [],
   migalhas = [],
@@ -57,7 +64,8 @@ const dadosMigalhas =
 const tituloCompleto = tituloDaPagina(titulo)
 const canonica = urlCanonica(caminho)
 const imagemAbsoluta = `${SITE_URL}${imagem}`
-const textoAlternativoImagem = `${ORGANIZACAO.nome} — ${ORGANIZACAO.lema}`
+const textoAlternativoImagem =
+  imagemAlt ?? `${ORGANIZACAO.nome} — ${ORGANIZACAO.lema}`
 ---
 
 <!doctype html>
@@ -73,6 +81,12 @@ const textoAlternativoImagem = `${ORGANIZACAO.nome} — ${ORGANIZACAO.lema}`
       <meta name="robots" content="noindex, nofollow" />
     )}
     <meta name="theme-color" content="#145238" />
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title="Notícias da ASAF"
+      href="/noticias/feed.xml"
+    />
     <!-- Ícones gerados da logo institucional por `npm run logos` -->
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
@@ -85,8 +99,8 @@ const textoAlternativoImagem = `${ORGANIZACAO.nome} — ${ORGANIZACAO.lema}`
     <meta property="og:description" content={descricao} />
     <meta property="og:url" content={canonica} />
     <meta property="og:image" content={imagemAbsoluta} />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
+    <meta property="og:image:width" content={String(imagemLargura)} />
+    <meta property="og:image:height" content={String(imagemAltura)} />
     <meta property="og:image:alt" content={textoAlternativoImagem} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={tituloCompleto} />

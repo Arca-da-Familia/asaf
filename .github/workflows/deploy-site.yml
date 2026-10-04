@@ -33,6 +33,9 @@ permissions:
 env:
   KEY_VAULT: kv-asaf-arca
   SWA_TOKEN_SECRET: SWA-SITE-DEPLOY-TOKEN
+  # Conta de serviço do site no Directus (só lê o que está PUBLICADO; criada por
+  # `scripts/directus_configurar.py criar-leitor`). O token vive no Key Vault.
+  DIRECTUS_TOKEN_SECRET: DIRECTUS-SITE-TOKEN
   # Origem da API em produção — pública, não é segredo (a ilha de eventos busca daqui, no
   # navegador do visitante; o CORS da API libera https://asaf.org.br, ver app/main.py).
   PUBLIC_API_URL: https://api.asaf.org.br
@@ -147,11 +150,23 @@ jobs:
             --query value -o tsv)
           echo "::add-mask::$TOKEN"
           echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          # Notícias do Directus (v5.3): o token só existe neste job, mascarado, e só o build o lê.
+          DIRECTUS_TOKEN=$(az keyvault secret show \
+            --vault-name "$KEY_VAULT" \
+            --name "$DIRECTUS_TOKEN_SECRET" \
+            --query value -o tsv)
+          echo "::add-mask::$DIRECTUS_TOKEN"
+          echo "DIRECTUS_SITE_TOKEN=$DIRECTUS_TOKEN" >> "$GITHUB_ENV"
 
       - name: Instala dependências
         run: npm ci
 
       - name: Build de produção
+        # DIRECTUS_OBRIGATORIO: sem o token o build FALHA (melhor não publicar do que publicar o site sem
+        # as notícias por causa de um segredo que sumiu). Notícia recusada (foto sem autorização etc.)
+        # vira aviso amarelo no resumo do job, não derruba o site.
+        env:
+          DIRECTUS_OBRIGATORIO: "1"
         run: npm run build
 
       - name: Publica no Static Web App

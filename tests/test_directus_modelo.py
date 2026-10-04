@@ -132,9 +132,11 @@ class DirectusFalso:
 
     def __init__(self, licenciado=True):
         self.licenciado = licenciado
+        self.base = "http://directus-falso"
         self.pastas, self.colecoes, self.campos, self.relacoes = [], {}, {}, []
         self.politicas, self.papeis, self.permissoes = [], [], []
         self.itens, self.arquivos, self.usuarios = {}, [], []  # conteúdo de gente: nunca pode ser apagado
+        self.configuracoes, self.marcadores = {}, []
         self._n = 0
 
     def _id(self):
@@ -142,6 +144,8 @@ class DirectusFalso:
         return f"id-{self._n}"
 
     def ler(self, caminho, **params):
+        if caminho == "/users" and "filter[email][_eq]" in params:
+            return [{"id": u["id"], "email": u["email"]} for u in self.usuarios if u.get("email") == params["filter[email][_eq]"]]
         if params.get("aggregate[count]"):
             if caminho.startswith("/items/"):
                 total = len(self.itens.get(caminho.split("/")[-1], []))
@@ -157,9 +161,13 @@ class DirectusFalso:
         if caminho == "/folders":
             return copy.deepcopy(self.pastas)
         if caminho == "/collections":
-            return [{"collection": nome} for nome in self.colecoes]
+            return [{"collection": nome, "meta": copy.deepcopy(dados.get("meta"))} for nome, dados in self.colecoes.items()]
         if caminho.startswith("/fields/"):
-            return [{"field": f["field"]} for f in self.campos[caminho.split("/")[-1]]]
+            return copy.deepcopy(self.campos[caminho.split("/")[-1]])
+        if caminho == "/settings":
+            return copy.deepcopy(self.configuracoes)
+        if caminho == "/presets":
+            return copy.deepcopy(self.marcadores)
         if caminho == "/relations":
             return copy.deepcopy(self.relacoes)
         if caminho == "/policies":
@@ -184,6 +192,10 @@ class DirectusFalso:
         if caminho.startswith("/fields/"):
             self.campos[caminho.split("/")[-1]].append(corpo)
             return corpo
+        if caminho == "/presets":
+            registro = {"id": self._id(), **corpo}
+            self.marcadores.append(registro)
+            return registro
         if caminho == "/relations":
             self.relacoes.append({"collection": corpo["collection"], "field": corpo["field"]})
             return corpo
@@ -191,6 +203,10 @@ class DirectusFalso:
             registro = {"id": self._id(), "name": corpo["name"], "admin_access": corpo["admin_access"],
                         "app_access": corpo["app_access"], "enforce_tfa": corpo["enforce_tfa"]}
             self.politicas.append(registro)
+            return registro
+        if caminho == "/users":
+            registro = {"id": self._id(), "email": corpo["email"], "role": corpo["role"], "token": corpo.get("token")}
+            self.usuarios.append(registro)
             return registro
         if caminho == "/roles":
             registro = {"id": self._id(), "name": corpo["name"]}
@@ -207,6 +223,21 @@ class DirectusFalso:
 
     def alterar(self, caminho, corpo):
         identificador = caminho.split("/")[-1]
+        if caminho == "/settings":
+            self.configuracoes.update(copy.deepcopy(corpo))
+            return self.configuracoes
+        if caminho.startswith("/collections/"):
+            self.colecoes[caminho.split("/")[-1]]["meta"].update(copy.deepcopy(corpo["meta"]))
+            return self.colecoes[caminho.split("/")[-1]]
+        if caminho.startswith("/fields/"):
+            _, _, colecao, campo = caminho.split("/")
+            registro = next(f for f in self.campos[colecao] if f["field"] == campo)
+            registro["meta"].update(copy.deepcopy(corpo["meta"]))
+            return registro
+        if caminho.startswith("/users/"):
+            usuario = next(u for u in self.usuarios if u["id"] == identificador)
+            usuario.update(copy.deepcopy(corpo))
+            return usuario
         for p in self.permissoes:
             if p["id"] == identificador:
                 p.update(copy.deepcopy(corpo))
@@ -457,3 +488,249 @@ def test_ler_arquivo_env_ignora_comentario_linha_vazia_e_arquivo_ausente(tmp_pat
     arquivo = tmp_path / "x"
     arquivo.write_text("\n# c\nA=1\nB = 'dois'\nsem-igual\n", encoding="utf-8")
     assert cfg.ler_arquivo_env(str(arquivo)) == {"A": "1", "B": "dois"}
+
+
+# ----------------------------------------------------------------------- conta de serviço do site (leitor)
+def _falso_com_perfis():
+    falso = DirectusFalso()
+    cfg.aplicar(falso)
+    return falso
+
+
+class CofreFalso:
+    def __init__(self, ja_tem=False, falha=False):
+        self.ja_tem, self.falha, self.gravados = ja_tem, falha, []
+
+    def tem(self, *a, **k):
+        return self.ja_tem
+
+    def guardar(self, nome, valor, *a, **k):
+        if self.falha:
+            raise SystemExit("o Key Vault recusou")
+        self.gravados.append((nome, valor))
+
+
+def _sem_problemas(base, token):
+    return []
+
+
+def _criar_leitor(falso, cofre, **extra):
+    return cfg.garantir_leitor_do_site(falso, guardar=cofre.guardar, tem_segredo=cofre.tem, verificar_token=_sem_problemas, **extra)
+
+
+def test_leitor_cria_a_conta_guarda_o_token_no_cofre_e_nunca_o_mostra():
+    falso = _falso_com_perfis()
+    cofre = CofreFalso()
+    relatorio = _criar_leitor(falso, cofre)
+    assert [u["email"] for u in falso.usuarios] == [cfg.EMAIL_LEITOR]
+    papel = next(p for p in falso.papeis if p["name"] == "Leitor do site")
+    assert falso.usuarios[0]["role"] == papel["id"]
+    ((nome, token),) = cofre.gravados
+    assert nome == "DIRECTUS-SITE-TOKEN" and len(token) >= 40 and falso.usuarios[0]["token"] == token
+    assert token not in " ".join(relatorio)  # nunca no relatório que vai para a tela
+    assert any("conta criada" in x for x in relatorio)
+
+
+def test_leitor_existente_com_token_no_cofre_nao_muda_nada_a_menos_que_rotacione():
+    falso = _falso_com_perfis()
+    cofre = CofreFalso()
+    _criar_leitor(falso, cofre)
+    token_antigo = falso.usuarios[0]["token"]
+    cofre.ja_tem = True
+    cofre.gravados.clear()
+    relatorio = _criar_leitor(falso, cofre)
+    assert cofre.gravados == [] and falso.usuarios[0]["token"] == token_antigo and "nada a fazer" in relatorio[0]
+    _criar_leitor(falso, cofre, rotacionar=True)
+    assert len(cofre.gravados) == 1 and falso.usuarios[0]["token"] == cofre.gravados[0][1] != token_antigo
+
+
+def test_leitor_existente_sem_token_no_cofre_recebe_token_novo():
+    falso = _falso_com_perfis()
+    cofre = CofreFalso()
+    _criar_leitor(falso, cofre)
+    cofre.gravados.clear()  # o cofre perdeu o segredo: o Directus nunca mostra o token de novo
+    relatorio = _criar_leitor(falso, cofre)
+    assert len(cofre.gravados) == 1 and any("renovado" in x for x in relatorio)
+    assert len(falso.usuarios) == 1
+
+
+def test_leitor_exige_o_perfil_e_falha_alto_se_o_cofre_recusar():
+    with pytest.raises(SystemExit):
+        _criar_leitor(DirectusFalso(), CofreFalso())
+    with pytest.raises(SystemExit):
+        _criar_leitor(_falso_com_perfis(), CofreFalso(falha=True))
+
+
+def test_leitor_o_proprio_token_e_testado_leitura_ok_escrita_e_usuarios_negados(monkeypatch):
+    class LeitorFalso:
+        def __init__(self, base, token, http=None):
+            self.token = token
+
+        def ler(self, caminho, **params):
+            if caminho == "/users":
+                raise cfg.ErroDirectus("GET /users -> HTTP 403")
+            return []
+
+        def criar(self, caminho, corpo):
+            raise cfg.ErroDirectus("POST /items/noticias -> HTTP 403: sem permissão")
+
+    monkeypatch.setattr(cfg, "Cliente", LeitorFalso)
+    assert cfg.verificar_token_do_leitor("http://x", "t") == []
+
+    class LeitorPoderoso(LeitorFalso):
+        def ler(self, caminho, **params):
+            return []
+
+        def criar(self, caminho, corpo):
+            return {"id": 1}
+
+    monkeypatch.setattr(cfg, "Cliente", LeitorPoderoso)
+    problemas = cfg.verificar_token_do_leitor("http://x", "t")
+    assert any("CONSEGUIU criar" in p for p in problemas) and any("listar usuários" in p for p in problemas)
+
+    class LeitorSemAcesso(LeitorFalso):
+        def ler(self, caminho, **params):
+            raise cfg.ErroDirectus("GET -> HTTP 403")
+
+    monkeypatch.setattr(cfg, "Cliente", LeitorSemAcesso)
+    assert any("não consegue ler notícias" in p for p in cfg.verificar_token_do_leitor("http://x", "t"))
+
+
+def test_guardar_no_cofre_usa_arquivo_temporario_apagado_e_nunca_o_valor_no_comando(monkeypatch):
+    visto = {}
+
+    class Ok:
+        returncode = 0
+        stdout = "https://kv/segredo/versao"
+
+    def falso_run(comando, **kw):
+        visto["comando"] = comando
+        arquivo = comando[comando.index("--file") + 1]
+        visto["arquivo"] = arquivo
+        visto["conteudo"] = open(arquivo, encoding="utf-8").read()
+        return Ok()
+
+    monkeypatch.setattr(cfg.shutil, "which", lambda n: "az.cmd")
+    monkeypatch.setattr(cfg.subprocess, "run", falso_run)
+    cfg.guardar_no_cofre("DIRECTUS-SITE-TOKEN", "valor-super-secreto-123")
+    assert "valor-super-secreto-123" not in " ".join(visto["comando"]) and "--value" not in visto["comando"]
+    assert visto["conteudo"] == "valor-super-secreto-123"  # exatamente o valor, sem quebra de linha
+    assert not Path(visto["arquivo"]).exists()  # o arquivo temporário não fica no disco
+
+
+def test_guardar_no_cofre_apaga_o_arquivo_mesmo_quando_o_azure_recusa(monkeypatch):
+    visto = {}
+
+    class Falha:
+        returncode = 1
+        stdout = ""
+
+    def falso_run(comando, **kw):
+        visto["arquivo"] = comando[comando.index("--file") + 1]
+        return Falha()
+
+    monkeypatch.setattr(cfg.shutil, "which", lambda n: "az.cmd")
+    monkeypatch.setattr(cfg.subprocess, "run", falso_run)
+    with pytest.raises(SystemExit):
+        cfg.guardar_no_cofre("X", "segredo")
+    assert not Path(visto["arquivo"]).exists()
+
+
+def test_cofre_tem_segredo_pergunta_so_o_id_nunca_o_valor(monkeypatch):
+    visto = {}
+
+    class Ok:
+        returncode = 0
+        stdout = "https://kv/segredos/x\n"
+
+    def falso_run(comando, **kw):
+        visto["c"] = comando
+        return Ok()
+
+    monkeypatch.setattr(cfg.shutil, "which", lambda n: "az.cmd")
+    monkeypatch.setattr(cfg.subprocess, "run", falso_run)
+    assert cfg.cofre_tem_segredo() is True
+    assert visto["c"][visto["c"].index("--query") + 1] == "id" and "value" not in visto["c"]
+
+
+# ------------------------------------------------------------------------ organização do Studio (formulário)
+def _campos_da_noticia():
+    return {f["field"]: f for f in next(c for c in m.COLECOES if c["colecao"] == "noticias")["campos"]}
+
+
+def test_formulario_da_noticia_tem_secoes_em_portugues_na_ordem_de_quem_escreve():
+    campos = _campos_da_noticia()
+    secoes = [n for n, f in campos.items() if f["type"] == "alias"]
+    assert secoes == ["grupo_conteudo", "grupo_foto", "grupo_publicacao", "grupo_historico"]
+    for nome in secoes:
+        assert campos[nome]["schema"] is None  # seção não é coluna do banco
+        assert campos[nome]["meta"]["translations"][0]["language"] == "pt-BR"
+    # Cada campo de dado cai numa seção, e a ordem é título -> resumo -> texto -> foto -> publicação.
+    dados = [f for n, f in campos.items() if f["type"] != "alias" and n != "id"]
+    assert all(f["meta"].get("group") in secoes for f in dados)
+    ordem = [n for n, f in sorted(campos.items(), key=lambda par: par[1]["meta"]["sort"])]
+    assert ordem.index("titulo") < ordem.index("resumo") < ordem.index("corpo") < ordem.index("imagem") < ordem.index("status")
+    assert campos["grupo_historico"]["meta"]["options"]["start"] == "closed"  # o que ninguém edita fica recolhido
+
+
+def test_todo_campo_do_formulario_tem_rotulo_em_portugues_e_a_foto_exige_o_que_a_lei_pede():
+    campos = _campos_da_noticia()
+    for nome, f in campos.items():
+        if nome != "id":
+            assert f["meta"].get("translations"), f"{nome} sem rótulo em português"
+    assert "autorização" in campos["autorizacao_imagem"]["meta"]["translations"][0]["translation"].lower()
+    assert "alternativo" in campos["imagem_alt"]["meta"]["translations"][0]["translation"].lower()
+
+
+def test_atalhos_da_lista_e_configuracoes_do_projeto_existem_no_modelo():
+    nomes = [x["nome"] for x in m.MARCADORES]
+    assert nomes == [None, "Todas as notícias", "Para revisar", "Rascunhos", "No ar"]  # None = lista padrão, sem filtro
+    assert m.MARCADORES[0]["filtro"] is None
+    assert next(x for x in m.MARCADORES if x["nome"] == "Para revisar")["filtro"] == {"status": {"_eq": m.STATUS_REVISAO}}
+    assert m.AJUSTES_DO_PROJETO["default_language"] == "pt-BR" and m.AJUSTES_DO_PROJETO["project_color"] == "#145238"
+
+
+def test_aplicar_configura_o_projeto_cria_os_atalhos_e_a_segunda_rodada_nao_muda_nada():
+    falso = DirectusFalso()
+    feito = cfg.aplicar(falso)
+    assert falso.configuracoes == m.AJUSTES_DO_PROJETO
+    assert [p["bookmark"] for p in falso.marcadores] == [x["nome"] for x in m.MARCADORES]
+    assert all(p["user"] is None and p["role"] is None for p in falso.marcadores)  # globais: valem para todos
+    assert any(x.startswith("atalho criado") for x in feito) and cfg.verificar(falso) == []
+    assert cfg.aplicar(falso) == []
+
+
+def test_aplicar_devolve_a_apresentacao_do_campo_que_alguem_mexeu_e_nao_toca_no_resto():
+    falso = DirectusFalso()
+    cfg.aplicar(falso)
+    campo = next(f for f in falso.campos["noticias"] if f["field"] == "titulo")
+    campo["meta"]["group"] = None  # alguém tirou o título da seção
+    campo["meta"]["width"] = "half"
+    tipo_antes = campo["type"]
+    feito = cfg.aplicar(falso)
+    assert "campo ajustado (group, width): noticias.titulo" in feito
+    assert campo["meta"]["group"] == "grupo_conteudo" and campo["type"] == tipo_antes
+    assert cfg.aplicar(falso) == []
+
+
+def test_verificar_aponta_configuracao_e_atalho_fora_do_modelo():
+    falso = DirectusFalso()
+    cfg.aplicar(falso)
+    falso.configuracoes["default_language"] = "en-US"
+    falso.marcadores.pop()
+    problemas = cfg.verificar(falso)
+    assert "configuração do projeto diferente do modelo: default_language" in problemas
+    assert "atalho ausente: No ar" in problemas
+
+
+def test_colecao_noticias_nao_usa_o_arquivar_do_directus_e_o_ajuste_chega_a_colecao_ja_existente():
+    meta = next(c for c in m.COLECOES if c["colecao"] == "noticias")["meta"]
+    assert meta["archive_field"] is None  # o chip "Publicado" no alto da lista confundia
+    falso = DirectusFalso()
+    cfg.aplicar(falso)
+    # produção já tinha a coleção com "arquivar" ligado:
+    falso.colecoes["noticias"]["meta"].update({"archive_field": "status", "archive_value": "arquivado", "unarchive_value": "rascunho"})
+    feito = cfg.aplicar(falso)
+    assert any(x.startswith("coleção ajustada (archive_field") and x.endswith(": noticias") for x in feito)
+    assert falso.colecoes["noticias"]["meta"]["archive_field"] is None
+    assert cfg.aplicar(falso) == []

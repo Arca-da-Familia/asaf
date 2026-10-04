@@ -92,3 +92,15 @@ export function jaAconteceu(
 ): boolean {
   return paraInstante(fimOuInicioIso).getTime() < agora.getTime()
 }
+
+const FORMATO_DATA_LONGA = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: TIMEZONE_ASAF,
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+})
+
+/** "10 de outubro de 2026" — data de uma notícia (instante UTC mostrado no horário de Parauapebas). */
+export function formatarDataLonga(instanteIso: string): string {
+  return FORMATO_DATA_LONGA.format(new Date(instanteIso))
+}

@@ -41,6 +41,7 @@ export const GRUPOS_DO_RODAPE: GrupoDoRodape[] = [
     itens: [
       { rotulo: 'Projetos', href: '/projetos/' },
       { rotulo: 'Agenda de eventos', href: '/eventos/' },
+      { rotulo: 'Notícias', href: '/noticias/' },
     ],
   },
   {

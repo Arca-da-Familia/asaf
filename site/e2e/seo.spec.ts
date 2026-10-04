@@ -46,7 +46,10 @@ for (const caminho of caminhosIndexaveis()) {
       expect(await og('og:url')).toBe(canonica)
       expect(await og('og:type')).toBe('website')
       expect(await og('og:locale')).toBe('pt_BR')
-      expect(await og('og:image')).toMatch(/^https:\/\/asaf\.org\.br\/.+\.png$/)
+      // PNG padrão da ASAF; a notícia com foto usa a própria foto (WebP).
+      expect(await og('og:image')).toMatch(
+        /^https:\/\/asaf\.org\.br\/.+\.(png|webp)$/,
+      )
       expect(await og('og:image:alt')).toBeTruthy()
       await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
         'content',

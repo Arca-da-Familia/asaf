@@ -1,8 +1,10 @@
 // Roda uma função com a API simulada de pé (e a derruba no fim). Usado pelos builds de teste: desde a
 // v5.2 as páginas são geradas lendo a API NO BUILD, então o mock tem que existir enquanto o Astro roda.
-import { criarServidor, PORTA_DO_MOCK } from './mock-api.mjs'
+import { ambienteDeTeste, criarServidor, PORTA_DO_MOCK } from './mock-api.mjs'
 
 export const API_DE_TESTE = `http://127.0.0.1:${PORTA_DO_MOCK}`
+/** API + Directus simulados e o token de teste (o build lê notícias do Directus; ver mock-api.mjs). */
+export const AMBIENTE_DE_TESTE = ambienteDeTeste(PORTA_DO_MOCK)
 
 export async function comMock(opcoes, funcao) {
   const servidor = criarServidor(opcoes)

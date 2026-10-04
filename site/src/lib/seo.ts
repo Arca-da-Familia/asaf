@@ -155,3 +155,36 @@ export function jsonLdEvento(evento: EventoParaJsonLd, urlPagina: string) {
     organizer: { '@id': `${SITE_URL}/#organizacao` },
   }
 }
+
+export interface NoticiaParaJsonLd {
+  titulo: string
+  resumo: string
+  /** ISO em UTC. */
+  publicadaEm: string
+  atualizadaEm: string | null
+  /** Caminho da foto (ex.: "/midia/noticias/<id>.webp"); sem foto = sem `image`. */
+  caminhoDaImagem: string | null
+}
+
+/**
+ * schema.org/NewsArticle de uma notícia da ASAF. Só entra o que existe: sem foto não há `image` (melhor
+ * omitir do que apontar para a logo como se fosse a foto da notícia) e sem edição não há `dateModified`.
+ */
+export function jsonLdNoticia(noticia: NoticiaParaJsonLd, urlPagina: string) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'NewsArticle',
+    headline: noticia.titulo,
+    description: noticia.resumo,
+    datePublished: noticia.publicadaEm,
+    ...(noticia.atualizadaEm ? { dateModified: noticia.atualizadaEm } : {}),
+    ...(noticia.caminhoDaImagem
+      ? { image: [`${SITE_URL}${noticia.caminhoDaImagem}`] }
+      : {}),
+    mainEntityOfPage: { '@type': 'WebPage', '@id': urlPagina },
+    url: urlPagina,
+    inLanguage: 'pt-BR',
+    author: { '@id': `${SITE_URL}/#organizacao` },
+    publisher: { '@id': `${SITE_URL}/#organizacao` },
+  }
+}

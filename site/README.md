@@ -89,10 +89,23 @@ WhatsApp. Rotas da API (`app/routers/publico.py`, sem login, só leitura, lista 
 - **O que muda depois do build é resolvido no navegador** (`src/lib/evento-vivo.ts`): vagas livres,
   evento **retirado do ar** (a API passa a responder 404 → aviso na hora) e "a data já passou". A lista da
   Agenda ("Próximos" e "Eventos anteriores") também é ilha: evento novo aparece sem rebuild, e só vira link quando a página dele já existe.
-- **Sincronização automática** (`.github/workflows/sincronizar-site.yml`, a cada 30 min): compara a
-  impressão digital do conteúdo da API com a de `/conteudo.json` do site no ar; se mudou, dispara o
-  `deploy-site.yml`. A impressão **ignora vagas livres** (mudam a cada inscrição). Sem token novo
-  (usa o `GITHUB_TOKEN`, permissão `actions: write`). Testar: `npm run test:sincronizacao`.
+- **Notícias (v5.3)** vêm do **Directus** (editor do site), lidas NO BUILD por `scripts/lib/directus.mjs` com o
+  token da conta de serviço `leitor-do-site@asaf.org.br`, que só lê o que está **publicado** e já na data
+  (guardado no Key Vault, `DIRECTUS-SITE-TOKEN`; o build o recebe mascarado, nunca vai para o HTML). Páginas:
+  `/noticias/`, `/noticias/<endereço>/`, `/noticias/feed.xml` (RSS) e a foto de cada notícia em
+  `/midia/noticias/<id>.webp`, **copiada do Directus no build** (o site não depende de o Directus estar
+  acordado). **Notícia com foto só vai ao ar com texto alternativo e autorização de imagem**; a que descumpre
+  NÃO é publicada (a notícia inteira) e vira aviso amarelo no resumo do deploy. O texto do editor é limpo
+  (`sanitize-html`): sem script, sem imagem solta, só links http/https/mailto/tel. `DIRECTUS_OBRIGATORIO=1`
+  (workflows de publicação): sem o token o build FALHA. Em desenvolvimento, sem `DIRECTUS_SITE_TOKEN`, a lista
+  de notícias fica vazia. O guia para quem edita está em `COMO-ATUALIZAR.md` (raiz do repositório).
+- **Sincronização automática** (`.github/workflows/sincronizar-site.yml`, a cada 15 min): compara a
+  impressão digital do conteúdo (API do sistema **e notícias do Directus**) com a de `/conteudo.json` do
+  site no ar; se mudou, dispara o `deploy-site.yml`. A impressão **ignora vagas livres** (mudam a cada
+  inscrição) e o diagnóstico de notícia recusada. Usa o `GITHUB_TOKEN` (`actions: write`) para disparar e
+  login OIDC no Azure para ler o token do Directus no Key Vault; sem esse token a comparação FALHA (nunca
+  conclui "nada mudou"). **Se as 3 últimas publicações falharam, para e avisa** (execução vermelha) em vez de
+  repetir o erro. Testar: `npm run test:sincronizacao`.
 - **Estado vazio** é o da produção no 1º dia (sem projeto, diretoria, evento nem edital):
   `npm run test:vazio` constrói contra uma API vazia e confere o que aparece e o que NÃO pode aparecer.
 - **Evento sem endereço próprio**: o site NÃO presume a sede nem o modo presencial (pode ser online):
@@ -121,8 +134,9 @@ organização (`NGO`), `robots.txt` e `sitemap-index.xml` gerados no build, 404 
 
 ## Rebuild quando o conteúdo do Directus muda
 
-O workflow `deploy-site.yml` tem `workflow_dispatch`. O Flow do Directus (**v5.3** — precisa das
-coleções de conteúdo para ter o que escutar) deve chamar:
+O workflow `deploy-site.yml` tem `workflow_dispatch`. Hoje quem republica quando uma notícia muda é a
+sincronização (a cada 15 min, acima); um **Flow do Directus** que chame o endereço abaixo no ato de publicar
+(para a notícia ir ao ar em ~5 min em vez de ≤25) é um refinamento opcional:
 
 ```text
 POST https://api.github.com/repos/Arca-da-Familia/asaf/actions/workflows/deploy-site.yml/dispatches

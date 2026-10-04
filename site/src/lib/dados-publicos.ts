@@ -11,6 +11,7 @@ import {
   buscarConteudoPublico,
   type ConteudoPublico,
 } from '../../scripts/lib/conteudo-publico.mjs'
+import { anunciarAvisosDeNoticias } from '../../scripts/lib/directus.mjs'
 import { API_URL } from '../config/organizacao'
 
 export type {
@@ -19,6 +20,7 @@ export type {
   EventoDaLista,
   EventoDetalhado,
   MembroDaDiretoria,
+  NoticiaPublica,
   ProjetoPublico,
   SessaoDoEvento,
 } from '../../scripts/lib/conteudo-publico.mjs'
@@ -26,7 +28,10 @@ export type {
 let leitura: Promise<ConteudoPublico> | undefined
 
 export function conteudoPublico(): Promise<ConteudoPublico> {
-  leitura ??= buscarConteudoPublico(API_URL)
+  leitura ??= buscarConteudoPublico(API_URL).then((conteudo) => {
+    anunciarAvisosDeNoticias(conteudo.avisosDeNoticias)
+    return conteudo
+  })
   return leitura
 }
 
@@ -35,3 +40,7 @@ export const caminhoDoEvento = (id: number) => `/eventos/${id}/`
 export const caminhoDoProjeto = (id: number) => `/projetos/${id}/`
 export const caminhoDaAssembleia = (id: number) =>
   `/transparencia/assembleias/${id}/`
+export const caminhoDaNoticia = (slug: string) => `/noticias/${slug}/`
+/** Foto da notícia, gerada no build a partir do Directus (src/pages/midia/noticias/[id].webp.ts). */
+export const caminhoDaFotoDaNoticia = (idDoArquivo: string) =>
+  `/midia/noticias/${idDoArquivo}.webp`

@@ -1,0 +1,104 @@
+---
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import Base from '../../layouts/Base.astro'
+import {
+  caminhoDaFotoDaNoticia,
+  caminhoDaNoticia,
+  conteudoPublico,
+} from '../../lib/dados-publicos'
+import { formatarDataLonga } from '../../lib/datas'
+
+// Dados: Directus (editor do site), lidos no build — só notícia PUBLICADA, com data já vencida e, se tiver
+// foto, com texto alternativo e autorização de imagem (scripts/lib/directus.mjs). Cada notícia tem página
+// própria com URL estável (/noticias/<endereço>/).
+const { noticias } = await conteudoPublico()
+const migalhas: Migalha[] = [{ rotulo: 'Notícias' }]
+---
+
+<Base
+  titulo="Notícias"
+  descricao="Notícias da ASAF: o que acontece nos projetos, nos eventos e na vida da associação, da mais recente para a mais antiga."
+  caminho="/noticias/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Notícias"
+    resumo="O que acontece na ASAF: projetos, eventos e a vida da associação."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto max-w-5xl px-4 py-12">
+    {noticias.length === 0 ? (
+      <section
+        aria-labelledby="sem-noticias"
+        class="rounded-lg border bg-card p-6 shadow-card sm:p-8"
+        data-estado="vazio"
+      >
+        <h2 id="sem-noticias" class="text-xl font-bold tracking-tight">
+          Ainda não há notícias publicadas
+        </h2>
+        <p class="mt-2 max-w-3xl">
+          Quando a ASAF publicar uma notícia, ela aparece aqui. Enquanto isso,
+          veja a agenda e os projetos da associação.
+        </p>
+        <p class="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+          <a
+            href="/eventos/"
+            class="font-medium text-primary underline underline-offset-4"
+          >
+            Agenda de eventos →
+          </a>
+          <a
+            href="/projetos/"
+            class="font-medium text-primary underline underline-offset-4"
+          >
+            Projetos →
+          </a>
+        </p>
+      </section>
+    ) : (
+      <ul class="grid gap-6 md:grid-cols-2">
+        {noticias.map((noticia) => (
+          <li class="flex flex-col overflow-hidden rounded-lg border bg-card shadow-card">
+            {noticia.imagem && (
+              <img
+                src={caminhoDaFotoDaNoticia(noticia.imagem.id)}
+                alt={noticia.imagem.alt}
+                width={noticia.imagem.largura}
+                height={noticia.imagem.altura}
+                loading="lazy"
+                decoding="async"
+                class="aspect-video w-full object-cover"
+              />
+            )}
+            <div class="flex flex-1 flex-col p-6">
+              <p class="text-sm text-muted-foreground">
+                <time datetime={noticia.publicadaEm}>
+                  {formatarDataLonga(noticia.publicadaEm)}
+                </time>
+              </p>
+              <h2 class="mt-2 text-xl font-semibold">
+                <a
+                  href={caminhoDaNoticia(noticia.slug)}
+                  class="underline-offset-4 hover:underline"
+                >
+                  {noticia.titulo}
+                </a>
+              </h2>
+              <p class="mt-2 line-clamp-3 text-sm">{noticia.resumo}</p>
+              <a
+                href={caminhoDaNoticia(noticia.slug)}
+                class="mt-4 font-medium text-primary underline underline-offset-4"
+              >
+                Ler a notícia
+                <span class="sr-only">: {noticia.titulo}</span>
+                <span aria-hidden="true"> →</span>
+              </a>
+            </div>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+</Base>

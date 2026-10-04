@@ -4,11 +4,17 @@ import ProximosEventos from '../components/ProximosEventos.astro'
 import SeloDeStatus from '../components/SeloDeStatus.astro'
 import { LOGO, ORGANIZACAO, PAINEL_URL } from '../config/organizacao'
 import Base from '../layouts/Base.astro'
-import { caminhoDoProjeto, conteudoPublico } from '../lib/dados-publicos'
+import {
+  caminhoDaNoticia,
+  caminhoDoProjeto,
+  conteudoPublico,
+} from '../lib/dados-publicos'
+import { formatarDataLonga } from '../lib/datas'
 
 // Eventos: a lista é uma ilha (ao vivo); o build só diz quais já têm página para virar link.
 // Projetos: até 3 projetos públicos (em execução primeiro) — só aparece a seção se existir algum.
-const { eventos, projetos } = await conteudoPublico()
+const { eventos, projetos, noticias } = await conteudoPublico()
+const ultimasNoticias = noticias.slice(0, 3)
 const idsComPagina = eventos.map((e) => e.id_evento)
 const emDestaque = [...projetos]
   .sort(
@@ -106,6 +112,45 @@ const ALTURA_LOGO = Math.round(LARGURA_LOGO / LOGO.proporcao)
   </section>
 
   <ProximosEventos idsComPagina={idsComPagina} />
+
+  {ultimasNoticias.length > 0 && (
+    <section
+      aria-labelledby="ultimas-noticias"
+      class="mx-auto max-w-5xl px-4 pb-12"
+    >
+      <h2 id="ultimas-noticias" class="text-2xl font-bold tracking-tight">
+        Últimas notícias
+      </h2>
+      <ul class="mt-6 grid gap-4 md:grid-cols-3">
+        {ultimasNoticias.map((noticia) => (
+          <li class="flex flex-col rounded-lg border bg-card p-5 shadow-card">
+            <p class="text-sm text-muted-foreground">
+              <time datetime={noticia.publicadaEm}>
+                {formatarDataLonga(noticia.publicadaEm)}
+              </time>
+            </p>
+            <h3 class="mt-2 text-lg font-semibold">
+              <a
+                href={caminhoDaNoticia(noticia.slug)}
+                class="underline-offset-4 hover:underline"
+              >
+                {noticia.titulo}
+              </a>
+            </h3>
+            <p class="mt-2 line-clamp-3 text-sm">{noticia.resumo}</p>
+          </li>
+        ))}
+      </ul>
+      <p class="mt-6">
+        <a
+          href="/noticias/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          Ver todas as notícias →
+        </a>
+      </p>
+    </section>
+  )}
 
   {emDestaque.length > 0 && (
     <section

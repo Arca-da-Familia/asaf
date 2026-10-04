@@ -744,7 +744,7 @@ retrabalho que a seção 4.1 existe pra evitar.
       > quebra link compartilhado). **Se a API não responde, o build FALHA** (nunca publica site sem
       > dados). O que muda depois do build resolve no navegador: vagas livres, **evento retirado do ar**
       > (API 404 → aviso na hora) e "a data já passou". **Sincronização automática**
-      > (`.github/workflows/sincronizar-site.yml`, a cada 30 min): compara a impressão do conteúdo da API
+      > (`.github/workflows/sincronizar-site.yml`, a cada 30 min na v5.2; **15 min desde a v5.3**): compara a impressão do conteúdo da API
       > com `/conteudo.json` do site no ar e só então dispara o `deploy-site.yml` (sem token novo,
       > `actions: write`); a impressão ignora vagas livres. **`test:sincronizacao` pegou um laço
       > infinito antes de chegar à produção** (um campo do mock mudava a cada chamada: o site seria
@@ -1055,28 +1055,47 @@ retrabalho que a seção 4.1 existe pra evitar.
       **não deve ser criada** (sem a regra "só publicado" ela leria rascunho). Observação: com 5 perfis com acesso ao
       Studio o plano Core pode ter limite de assentos — conferir após a licença.
 
-- [ ] **Papéis de privilégio mínimo** (requisito de 2026-10-01, acima): Administrador (MFA obrigatório),
-      Editor de transparência, Editor de conteúdo (notícias, publica), Redator (rascunho, não publica),
-      Colaborador de mídia, Leitor de serviço (token do build). Cada um com teste "esta pessoa **não**
-      consegue X"; o atalho "Editar o site" do painel passa a ter permissão própria (`editar_site`).
-- [ ] **Fluxo editorial** rascunho → revisão → publicado, agendamento e histórico de versão com
-      reversão; **rascunho nunca aparece no site** (teste).
-- [ ] **Biblioteca de mídia**: texto alternativo **obrigatório**, tamanhos responsivos e campo
-      obrigatório **"autorização de imagem confirmada"** (foto de criança só publica com autorização dos
-      responsáveis — ECA/LGPD).
+- [x] **Papéis de privilégio mínimo** (requisito de 2026-10-01, acima) — **no ar em 2026-10-03**: Editor de conteúdo
+      (notícias, publica), Redator (rascunho, só o dele, não publica nem apaga), Colaborador de mídia (só envia foto) e
+      Leitor do site (só lê o publicado); o "Editor de transparência" saiu do Directus (virou perfil do sistema, v5.4a).
+      Provado no modelo (testes de privilégio mínimo) e **ao vivo para o Leitor** (item da conta de serviço abaixo).
+      **Falta:** teste ao vivo dos demais perfis com usuários de teste, e o atalho "Editar o site" do painel com
+      permissão própria (`editar_site`).
+- [x] **Fluxo editorial** rascunho → revisão → publicado (+ arquivado), **agendamento** pela data "Publicar em" e
+      **histórico de versões** com reversão (ligado na coleção). **Rascunho nunca aparece no site: provado ao vivo**
+      (notícia de teste em rascunho e outra agendada para o futuro **não** chegaram ao leitor do site) e no e2e.
+- [x] **Foto da notícia**: texto alternativo **obrigatório** e **"autorização de imagem"** confirmada — a notícia com
+      foto que descumpre **não é publicada** (validação do build, `scripts/lib/directus.mjs`; as condições do
+      formulário só valem na tela). Provado ao vivo (notícia de teste com foto sem autorização foi recusada com
+      aviso). Foto copiada do Directus no build, em WebP de até 1280 px; **tamanhos responsivos (srcset)** ficam
+      como melhoria futura.
 - [ ] **E-mail do Directus** (SMTP com `asaf@asaf.org.br`, segredos já no Key Vault): convite de editores
       e recuperação de senha; **administrador de reserva** (hoje só existe um e a recuperação é por SQL).
 - [ ] **MFA obrigatório** para administrador.
-- [ ] **Token da conta de serviço do site** (`Leitor do site`): gerado pelo próprio script (aleatório, nunca
-      impresso) e guardado no Key Vault e como segredo do GitHub, também só com o usuário aprovando em
-      modo manual. Alternativa mais simples a avaliar: dar leitura **pública** só do que está publicado
-      (o conteúdo é público de qualquer forma) e dispensar o token.
-- [ ] **Site lê o Directus no build** (token de serviço, só publicado), com a mesma política da API (3
-      tentativas × 60 s; falha derruba o build, o site no ar não muda). `conteudo.json` passa a incluir a
-      impressão do Directus e a **sincronização roda a cada 15 min** cobrindo API **e** Directus, com
-      **proteção contra laço de falha** (3 falhas seguidas do deploy → não redispara e avisa).
-- [ ] **Notícias** (pendência da v5.2): `/noticias/` e `/noticias/<slug>/`, `schema.org/NewsArticle`,
-      prévia certa no WhatsApp, feed RSS; uma notícia pode se ligar a uma emenda ou projeto.
+- [x] **Conta de serviço do site** (`leitor-do-site@asaf.org.br`, perfil Leitor do site): criada por
+      `directus_configurar.py criar-leitor --producao`; token aleatório **nunca impresso**, gravado no Key Vault
+      (`DIRECTUS-SITE-TOKEN`) por arquivo temporário apagado. **Autoteste do próprio token em produção:** lê
+      notícias; **não** cria notícia (403); **não** lista usuários. (Leitura pública sem token foi descartada:
+      a foto exige permissão.)
+- [x] **Site lê o Directus no build** (token do leitor, só publicado), com a mesma política da API (3 tentativas ×
+      60 s; 401/403 derrubam na hora; falha derruba o build e o site no ar não muda). Sem token o build **falha** nos
+      workflows de publicação (`DIRECTUS_OBRIGATORIO=1`). `conteudo.json` inclui as notícias e a **sincronização roda
+      a cada 15 min** cobrindo API **e** Directus (login OIDC no Azure para ler o token no Key Vault; sem ele a
+      comparação falha, nunca conclui "nada mudou"), com **proteção contra laço de falha**: se as 3 últimas
+      publicações falharam, para e avisa. Testes: 129 unitários, 180 e2e, estado vazio e sincronização (incluindo
+      "só o Directus mudou" e "token recusado").
+- [x] **Notícias** (pendência da v5.2): `/noticias/`, `/noticias/<slug>/`, `schema.org/NewsArticle`, prévia certa no
+      WhatsApp (foto própria, medidas e texto alternativo no Open Graph), feed RSS `/noticias/feed.xml`, "Últimas
+      notícias" na Home e link no rodapé; texto do editor limpo (`sanitize-html`). **Falta:** uma notícia poder se
+      ligar a uma emenda ou projeto (depende da v5.4).
+- [x] **Organização do Studio (crítica do usuário, 2026-10-03: "só coloca aqui, perdeu organização")**: o Editor agora é
+      **todo em português**, com o nome "ASAF — Editor do site", a cor da marca e uma nota na tela de entrada; o
+      formulário da notícia tem **seções** (Conteúdo → Foto da notícia → Publicação → Histórico recolhido), rótulos e
+      dicas em português, e a lista tem **atalhos** (Todas as notícias, Para revisar, Rascunhos, No ar). Conferido por
+      captura de tela num Directus 12.4.1 local; aplicado em produção; a 2ª rodada não muda nada.
+- [x] **`COMO-ATUALIZAR.md`** (primeira versão, 2026-10-03): como publicar notícia no Editor, regras da foto, prazo, o
+      que fazer quando não aparece. Cresce na v5.4b com documentos e emendas.
+- [ ] **v5.3 — ENTREGA 2026-10-03 (parte do site)** — a confirmar em produção após o deploy (próximo bloco).
 - [ ] **Verificação em produção**: `isolar_directus.py verificar` (16/16) + nenhuma coleção fora do
       schema `directus` + `GET /items/…` sem token = 403 + rascunho ausente do site + token de serviço
       não consegue escrever.

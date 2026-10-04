@@ -206,5 +206,6 @@ test('/conteudo.json traz a impressão do conteúdo (para a sincronização auto
     projetos: 2,
     diretoria: 3,
     assembleias: 1,
+    noticias: 2,
   })
 })

@@ -12,7 +12,25 @@ import { createServer } from 'node:http'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import sharp from 'sharp'
+
 export const PORTA_DO_MOCK = Number(process.env.MOCK_API_PORT ?? 4322)
+
+// DIRECTUS simulado (v5.3), no MESMO servidor, sob este prefixo: `DIRECTUS_URL=http://127.0.0.1:<porta>/__directus`.
+// Exige o token como o Directus real exige (sem ele, 401): o teste prova que o build manda o token.
+export const PREFIXO_DO_DIRECTUS = '/__directus'
+export const TOKEN_DO_MOCK = 'token-de-teste-do-site'
+export const ID_DA_FOTO_DE_TESTE = '11111111-1111-4111-8111-111111111111'
+
+/** Variáveis de ambiente que apontam o site (build, sincronização) para este mock, em qualquer porta. */
+export function ambienteDeTeste(porta = PORTA_DO_MOCK) {
+  return {
+    PUBLIC_API_URL: `http://127.0.0.1:${porta}`,
+    DIRECTUS_URL: `http://127.0.0.1:${porta}${PREFIXO_DO_DIRECTUS}`,
+    DIRECTUS_SITE_TOKEN: TOKEN_DO_MOCK,
+    DIRECTUS_OBRIGATORIO: '1',
+  }
+}
 // Mesmas origens que a API real libera para o site em desenvolvimento (app/main.py).
 const ORIGENS_PERMITIDAS = new Set([
   'http://127.0.0.1:4321',
@@ -178,6 +196,103 @@ const assembleias = () => [
   },
 ]
 
+/** "AAAA-MM-DDT12:00:00Z" de `dias` atrás: fixo no dia, para a impressão digital não variar entre leituras. */
+const instante = (dias) =>
+  `${new Date(Date.now() - dias * 86_400_000).toISOString().slice(0, 10)}T12:00:00Z`
+
+/**
+ * Notícias como o Directus devolve. Inclui, de propósito, o que a validação do site precisa RECUSAR:
+ * foto sem autorização, rascunho que "escapou" e agendada — o e2e confere que nenhuma aparece.
+ */
+function noticiasDoDirectus() {
+  const publicada = {
+    status: 'publicado',
+    imagem: null,
+    imagem_alt: null,
+    autorizacao_imagem: false,
+  }
+  return [
+    {
+      ...publicada,
+      id: 'noticia-1',
+      titulo: 'Notícia de teste com foto',
+      slug: 'noticia-de-teste-com-foto',
+      resumo:
+        'Resumo da notícia de teste com foto, usado na lista e na prévia ao compartilhar.',
+      corpo:
+        '<h1>Título solto</h1><p>Primeiro parágrafo da <strong>notícia</strong> de teste.</p><script>window.__invasao = 1</script><p onclick="x()">Segundo parágrafo.</p><a href="javascript:alert(1)">link ruim</a> <a href="https://exemplo.org/">link bom</a><img src="/solta.png" alt="">',
+      publicada_em: instante(2),
+      date_updated: instante(1),
+      imagem: { id: ID_DA_FOTO_DE_TESTE, width: 1280, height: 720 },
+      imagem_alt: 'Crianças lendo livros no pátio da sede (foto de teste)',
+      autorizacao_imagem: true,
+    },
+    {
+      ...publicada,
+      id: 'noticia-2',
+      titulo: 'Notícia de teste sem foto',
+      slug: 'noticia-de-teste-sem-foto',
+      resumo: 'Resumo da notícia de teste que não tem nenhuma foto anexada.',
+      corpo:
+        '<p>Texto da notícia sem foto.</p><ul><li>Item um</li><li>Item dois</li></ul>',
+      publicada_em: instante(5),
+      date_updated: instante(5),
+    },
+    {
+      ...publicada,
+      id: 'noticia-3',
+      titulo: 'NOTICIA RECUSADA foto sem autorização',
+      slug: 'recusada-sem-autorizacao',
+      resumo: 'Esta notícia tem foto, mas não pode ir ao ar sem a autorização.',
+      corpo: '<p>Texto que não pode aparecer.</p>',
+      publicada_em: instante(3),
+      date_updated: instante(3),
+      imagem: { id: ID_DA_FOTO_DE_TESTE, width: 1280, height: 720 },
+      imagem_alt: 'Foto sem autorização de imagem',
+      autorizacao_imagem: false,
+    },
+    {
+      ...publicada,
+      id: 'noticia-4',
+      status: 'rascunho',
+      titulo: 'NOTICIA RECUSADA rascunho',
+      slug: 'recusada-rascunho',
+      resumo:
+        'Um rascunho jamais pode aparecer no site, mesmo que escape do filtro.',
+      corpo: '<p>Rascunho.</p>',
+      publicada_em: instante(4),
+      date_updated: instante(4),
+    },
+    {
+      ...publicada,
+      id: 'noticia-5',
+      titulo: 'NOTICIA RECUSADA agendada',
+      slug: 'recusada-agendada',
+      resumo:
+        'Agendada para o futuro: só aparece depois da data de publicação.',
+      corpo: '<p>Ainda não.</p>',
+      publicada_em: instante(-10),
+      date_updated: instante(-10),
+    },
+  ]
+}
+
+let fotoDeTeste
+/** Uma foto WebP de verdade (1280x720, verde da ASAF), gerada uma vez. */
+function fotoWebp() {
+  fotoDeTeste ??= sharp({
+    create: {
+      width: 1280,
+      height: 720,
+      channels: 3,
+      background: '#145238',
+    },
+  })
+    .webp()
+    .toBuffer()
+  return fotoDeTeste
+}
+
 export function criarServidor({ vazio = false } = {}) {
   const lista = (dados) => (vazio ? [] : dados())
   return createServer((req, res) => {
@@ -199,6 +314,33 @@ export function criarServidor({ vazio = false } = {}) {
     const responder = (corpo, status = 200) => {
       res.writeHead(status, { ...cors, 'Content-Type': 'application/json' })
       res.end(JSON.stringify(corpo))
+    }
+
+    // ---- Directus simulado (v5.3): `Authorization: Bearer <token>` obrigatório, como no real.
+    if (
+      req.method === 'GET' &&
+      (req.url ?? '').startsWith(PREFIXO_DO_DIRECTUS + '/')
+    ) {
+      const caminhoDirectus = (req.url ?? '')
+        .slice(PREFIXO_DO_DIRECTUS.length)
+        .split('?')[0]
+      if (req.headers.authorization !== `Bearer ${TOKEN_DO_MOCK}`) {
+        return responder(
+          { errors: [{ message: 'Invalid user credentials.' }] },
+          401,
+        )
+      }
+      if (caminhoDirectus === '/items/noticias') {
+        return responder({ data: vazio ? [] : noticiasDoDirectus() })
+      }
+      if (caminhoDirectus === `/assets/${ID_DA_FOTO_DE_TESTE}`) {
+        fotoWebp().then((bytes) => {
+          res.writeHead(200, { ...cors, 'Content-Type': 'image/webp' })
+          res.end(bytes)
+        })
+        return
+      }
+      return responder({ errors: [{ message: 'Não encontrado.' }] }, 404)
     }
 
     if (req.method === 'GET') {
