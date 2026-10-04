@@ -550,6 +550,32 @@ def test_pagamento_a_fornecedor_exige_fornecedor_cadastrado(client, gestor, raza
     assert ligado["fornecedor"]["razao_social"] == "Gráfica Boa Impressão LTDA"
 
 
+def test_razao_social_de_fornecedor_com_cpf_nao_vai_ao_site(client, gestor, razao):
+    """MEI costuma ter razão social "NOME + CPF": como a razão social vai ao site, ela passa pelo mesmo verificador."""
+    parceria = _criar(client, gestor)
+    titulo = razao.titulo_de_fornecedor(razao_social=f"Fulano de Tal {CPF_VALIDO}")
+    pagamento = razao.pagar(parceria["id_centro_custo"], "100", id_titulo=titulo)
+    r = _lancamento(client, gestor, parceria["id_parceria"], id_lancamento=pagamento, natureza="PAGAMENTO", categoria="FORNECEDOR", descricao_publica="Serviço gráfico")
+    assert r.status_code == 422 and "razão social" in r.text and CPF_VALIDO not in r.text
+    # a mesma pessoa pode ser classificada como "Outro": só a descrição pública vai ao site, sem a razão social
+    r = _lancamento(client, gestor, parceria["id_parceria"], id_lancamento=pagamento, natureza="PAGAMENTO", categoria="OUTRO", descricao_publica="Serviço gráfico")
+    assert r.status_code == 201
+
+
+def test_razao_social_do_fornecedor_alterada_depois_de_classificar_trava_o_envio_para_revisao(client, db, gestor, razao):
+    from app.models.financeiro import Fornecedor
+
+    parceria = _criar(client, gestor)
+    titulo = razao.titulo_de_fornecedor()
+    pagamento = razao.pagar(parceria["id_centro_custo"], "100", id_titulo=titulo)
+    assert _lancamento(client, gestor, parceria["id_parceria"], id_lancamento=pagamento, natureza="PAGAMENTO", categoria="FORNECEDOR", descricao_publica="Serviço gráfico").status_code == 201
+    fornecedor = db.query(Fornecedor).order_by(Fornecedor.id_fornecedor.desc()).first()
+    fornecedor.razao_social = f"Fulano {CPF_VALIDO}"
+    db.commit()
+    r = client.post(f"/api/parcerias/{parceria['id_parceria']}/enviar-revisao", headers=gestor)
+    assert r.status_code == 422 and "razão social" in r.text
+
+
 def test_descricao_publica_nao_pode_ter_dado_pessoal(client, gestor, razao):
     parceria = _criar(client, gestor)
     pagamento = razao.pagar(parceria["id_centro_custo"], "100")
@@ -809,6 +835,15 @@ def test_datas_do_site_nao_dependem_do_fuso_de_quem_le(client, db, gestor, aprov
     d = client.get(f"/api/publico/transparencia/parcerias/{parceria['id_parceria']}").json()
     assert d["ultima_atualizacao"].endswith("Z") and len(d["ultima_atualizacao"]) > 20
     assert d["recebimentos"][0]["data"] == "2026-08-10"
+
+
+def test_ultima_atualizacao_tambem_anda_quando_entra_dinheiro_no_livro_caixa(client, gestor, aprovador, razao):
+    """O valor recebido mostrado no site vem do razão, que não passa pelo módulo: a data tem que acompanhar."""
+    parceria = _publicada(client, gestor, aprovador, valor_total="10000")
+    antes = client.get(f"/api/publico/transparencia/parcerias/{parceria['id_parceria']}").json()["ultima_atualizacao"]
+    razao.receber(parceria["id_centro_custo"], "700")
+    depois = client.get(f"/api/publico/transparencia/parcerias/{parceria['id_parceria']}").json()
+    assert depois["recebido"] == 700 and depois["ultima_atualizacao"] > antes
 
 
 def test_ultima_atualizacao_anda_quando_algo_muda(client, gestor, aprovador):

@@ -2,7 +2,7 @@
 //
 // Evento novo, projeto publicado, dirigente empossado, edital emitido: tudo isso vira PÁGINA no build.
 // Este script diz se o site publicado ficou para trás. É rodado pelo workflow `sincronizar-site`
-// (a cada 30 min); se `mudou`, o workflow dispara o `deploy-site.yml`.
+// (a cada 15 min); se `mudou`, o workflow dispara o `deploy-site.yml`.
 //
 //   PUBLIC_API_URL  origem da API   (padrão https://api.asaf.org.br)
 //   SITE_URL        origem do site  (padrão https://asaf.org.br)

@@ -21,7 +21,7 @@ from app.models.documentos import (
     APROVADO, CLASSIFICACOES, EM_REVISAO, INTERNA, PUBLICA, RASCUNHO, RESTRITA, RETIRADO, TIPOS, VINCULOS, DocumentoInstitucional,
 )
 from app.services import armazenamento
-from app.services.documentos_verificacao import TAMANHO_MAXIMO, Resultado, verificar_versao_publica
+from app.services.documentos_verificacao import TAMANHO_MAXIMO, Resultado, procurar_dado_pessoal, verificar_versao_publica
 
 PASTA_ORIGINAIS = "documentos-originais"
 PASTA_PUBLICOS = "documentos-publicos"
@@ -51,6 +51,21 @@ def _data(valor) -> date | None:
         raise HTTPException(status_code=400, detail=f"Data inválida: {valor!r} (use AAAA-MM-DD).")
 
 
+def _exigir_sem_dado_pessoal(campo: str, texto: str | None) -> None:
+    """Título e descrição aparecem na lista pública quando o documento é aprovado, e não passam pelo verificador do PDF:
+    CPF, RG, e-mail pessoal e celular nesses textos são recusados já no cadastro."""
+    if not texto:
+        return
+    bloqueios, _ = procurar_dado_pessoal(texto)
+    if bloqueios:
+        achado = bloqueios[0]
+        raise HTTPException(
+            status_code=422,
+            detail=f"O {campo} do documento aparece na lista pública e parece conter dado pessoal "
+                   f"({achado.mensagem.split(' na versão')[0]}{': ' + achado.amostra if achado.amostra else ''}). Tire esse dado do texto.",
+        )
+
+
 def _validar_campos(dados: dict) -> dict:
     """Valida e normaliza os campos de cadastro (criar e editar). Devolve só o que veio e é válido."""
     limpo: dict = {}
@@ -62,9 +77,11 @@ def _validar_campos(dados: dict) -> dict:
         titulo = (dados["titulo"] or "").strip()
         if len(titulo) < 3 or len(titulo) > 200:
             raise HTTPException(status_code=400, detail="O título precisa ter de 3 a 200 caracteres.")
+        _exigir_sem_dado_pessoal("título", titulo)
         limpo["titulo"] = titulo
     if "descricao" in dados:
         limpo["descricao"] = (dados["descricao"] or "").strip() or None
+        _exigir_sem_dado_pessoal("descrição", limpo["descricao"])
     if "classificacao" in dados:
         if dados["classificacao"] not in CLASSIFICACOES:
             raise HTTPException(status_code=400, detail=f"Classificação inválida. Use: {', '.join(CLASSIFICACOES)}.")

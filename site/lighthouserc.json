@@ -13,7 +13,11 @@
         "http://127.0.0.1:4321/diretoria/",
         "http://127.0.0.1:4321/eventos/2/",
         "http://127.0.0.1:4321/noticias/",
-        "http://127.0.0.1:4321/noticias/noticia-de-teste-com-foto/"
+        "http://127.0.0.1:4321/noticias/noticia-de-teste-com-foto/",
+        "http://127.0.0.1:4321/transparencia/",
+        "http://127.0.0.1:4321/transparencia/emendas/",
+        "http://127.0.0.1:4321/transparencia/emendas/1/",
+        "http://127.0.0.1:4321/transparencia/documentos/"
       ],
       "numberOfRuns": 3,
       "settings": {

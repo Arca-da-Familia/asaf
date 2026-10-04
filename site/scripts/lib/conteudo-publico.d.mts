@@ -78,12 +78,132 @@ export interface AssembleiaPublica {
   edital_sha256: string
 }
 
+/** Parcela PREVISTA e o que o livro-caixa mostra como recebido dela. */
+export interface ParcelaPublica {
+  numero: number
+  valor_previsto: number
+  /** "AAAA-MM-DD" */
+  data_prevista: string | null
+  valor_recebido: number
+}
+
+export interface RecebimentoPublico {
+  /** Dia no relógio de Parauapebas, "AAAA-MM-DD". */
+  data: string | null
+  valor: number
+  descricao: string
+  parcela: number | null
+}
+
+export interface PagamentoPublico {
+  data: string | null
+  valor: number
+  descricao: string
+  categoria: 'FORNECEDOR' | 'EQUIPE' | 'TARIFA' | 'OUTRO' | null
+  /** Só pagamento de equipe: a função (o nome da pessoa NUNCA vai ao site). */
+  funcao: string | null
+  /** Só pagamento a fornecedor. */
+  fornecedor: { razao_social: string; cnpj: string } | null
+}
+
+export interface EtapaPublica {
+  titulo: string
+  descricao: string | null
+  data_prevista: string | null
+  data_realizacao: string | null
+  local: string | null
+  publico_atendido: number | null
+  situacao: string
+}
+
+export interface RelatorioPublico {
+  tipo_codigo: string
+  tipo: string
+  periodo_inicio: string | null
+  periodo_fim: string | null
+  data_prevista: string | null
+  data_apresentacao: string | null
+  prazo_analise_dias: number
+  data_limite_analise: string | null
+  /** "Em análise" | "Regulares" | "Regulares com ressalvas" | "Irregulares" */
+  resultado: string
+  data_resultado: string | null
+}
+
+export interface DocumentoDaParceria {
+  id_documento: number
+  titulo: string
+  tipo: string
+  data_documento: string | null
+  /** Caminho na API; o site usa o PDF copiado no build (`caminhoDoPdf`). */
+  arquivo: string
+}
+
+export interface ParceriaPublica {
+  id_parceria: number
+  tipo_codigo: string
+  tipo: string
+  ano: number
+  titulo: string
+  objeto: string
+  esfera: string | null
+  orgao_concedente: string | null
+  numero_emenda: string | null
+  identificador_unico: string | null
+  proponente: string | null
+  numero_termo: string | null
+  situacao: string
+  valor_total: number
+  recebido: number
+  pago: number
+  data_assinatura: string | null
+  vigencia_inicio: string | null
+  vigencia_fim: string | null
+  /** Movimentos do livro-caixa que ainda não foram detalhados para o site (os totais já os incluem). */
+  lancamentos_em_classificacao: number
+  /** Instante UTC com `Z`. */
+  ultima_atualizacao: string
+}
+
+export interface ParceriaDetalhada extends ParceriaPublica {
+  parcelas: ParcelaPublica[]
+  recebimentos: RecebimentoPublico[]
+  pagamentos: PagamentoPublico[]
+  etapas: EtapaPublica[]
+  relatorios: RelatorioPublico[]
+  documentos: DocumentoDaParceria[]
+}
+
+/** Documento APROVADO: o site só enxerga a versão pública. */
+export interface DocumentoPublico {
+  id_documento: number
+  tipo_codigo: string
+  tipo: string
+  titulo: string
+  descricao: string | null
+  data_documento: string | null
+  ano: number | null
+  versao: number
+  vigente: boolean
+  paginas: number | null
+  tamanho: number | null
+  /** SHA-256 do arquivo aprovado: o build só aceita o PDF que bater com ele. */
+  sha256: string
+  aprovado_em: string | null
+  arquivo: string
+}
+
 export interface ConteudoPublico {
   eventos: EventoDaLista[]
   detalhesDeEventos: Record<number, EventoDetalhado>
   projetos: ProjetoPublico[]
   diretoria: MembroDaDiretoria[]
   assembleias: AssembleiaPublica[]
+  /** Parcerias e emendas APROVADAS pela diretoria (v5.4b). */
+  parcerias: ParceriaPublica[]
+  detalhesDeParcerias: Record<number, ParceriaDetalhada>
+  /** Documentos APROVADOS (versão pública) da Transparência (v5.4b). */
+  documentos: DocumentoPublico[]
   /** Notícias PUBLICADAS no Directus (editor do site), já validadas e com o HTML limpo. */
   noticias: NoticiaPublica[]
   /** Notícias que NÃO foram publicadas e o motivo (diagnóstico; fora da impressão digital). */
@@ -100,7 +220,12 @@ export interface OpcoesDeBusca {
 }
 
 export const ENDPOINTS_DE_LISTA: Record<
-  'eventos' | 'projetos' | 'diretoria' | 'assembleias',
+  | 'eventos'
+  | 'projetos'
+  | 'diretoria'
+  | 'assembleias'
+  | 'parcerias'
+  | 'documentos',
   string
 >
 
@@ -119,7 +244,19 @@ export function buscarJson(
     esperaMs: number
     headers?: Record<string, string>
     rotulo?: string
+    /** Como ler a resposta (padrão: JSON). */
+    ler?: (resposta: Response) => Promise<unknown>
   },
 ): Promise<any>
+
+/** Baixa o PDF de um documento aprovado e só o devolve se for PDF e bater com o SHA-256 aprovado. */
+export function baixarPdfDaTransparencia(
+  apiUrl: string,
+  documento: Pick<
+    DocumentoPublico,
+    'id_documento' | 'titulo' | 'sha256' | 'arquivo'
+  >,
+  opcoes?: Omit<OpcoesDeBusca, 'directus'>,
+): Promise<Buffer>
 
 export function impressaoDoConteudo(conteudo: unknown): string

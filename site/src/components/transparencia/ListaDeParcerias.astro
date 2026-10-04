@@ -1,0 +1,202 @@
+---
+/**
+ * Lista de parcerias/emendas (v5.4b): totais, filtro por ano e situação (melhora progressiva: sem JavaScript aparece
+ * tudo) e os cartões AGRUPADOS POR ANO, do mais novo ao mais antigo — nenhum ano é descartado.
+ * Peça independente: quem for redesenhar a página de Transparência pode soltar este componente em qualquer layout.
+ */
+import type { ParceriaPublica } from '../../../scripts/lib/conteudo-publico.mjs'
+import { caminhoDeUmaParceria } from '../../lib/dados-publicos'
+import { formatarInstanteUtc } from '../../lib/datas'
+import {
+  agruparPorAno,
+  formatarReais,
+  saldoDaParceria,
+} from '../../lib/transparencia'
+
+interface Props {
+  parcerias: ParceriaPublica[]
+  /** Prefixo dos ids da página (um por lista, para o filtro não confundir duas listas). */
+  prefixo: string
+  /** Nome no plural, para as frases ("emendas", "parcerias"). */
+  plural: string
+}
+
+const { parcerias, prefixo, plural } = Astro.props
+
+const grupos = agruparPorAno(parcerias)
+const situacoes = [...new Set(parcerias.map((p) => p.situacao))].sort((a, b) =>
+  a.localeCompare(b, 'pt-BR'),
+)
+const soma = (campo: 'valor_total' | 'recebido' | 'pago') =>
+  Math.round(parcerias.reduce((total, p) => total + p[campo], 0) * 100) / 100
+---
+
+<div data-lista-de-parcerias={prefixo}>
+  <dl
+    class="grid gap-4 sm:grid-cols-4"
+    aria-label={`Totais das ${plural} publicadas`}
+  >
+    <div class="rounded-lg border bg-card p-4 shadow-card">
+      <dt class="text-sm text-muted-foreground">Publicadas</dt>
+      <dd class="mt-1 text-2xl font-bold" data-total="quantidade">
+        {parcerias.length}
+      </dd>
+    </div>
+    <div class="rounded-lg border bg-card p-4 shadow-card">
+      <dt class="text-sm text-muted-foreground">Valor total</dt>
+      <dd class="mt-1 text-2xl font-bold" data-total="valor">
+        {formatarReais(soma('valor_total'))}
+      </dd>
+    </div>
+    <div class="rounded-lg border bg-card p-4 shadow-card">
+      <dt class="text-sm text-muted-foreground">Já recebido</dt>
+      <dd class="mt-1 text-2xl font-bold" data-total="recebido">
+        {formatarReais(soma('recebido'))}
+      </dd>
+    </div>
+    <div class="rounded-lg border bg-card p-4 shadow-card">
+      <dt class="text-sm text-muted-foreground">Já pago</dt>
+      <dd class="mt-1 text-2xl font-bold" data-total="pago">
+        {formatarReais(soma('pago'))}
+      </dd>
+    </div>
+  </dl>
+
+  <form
+    hidden
+    data-filtro
+    role="search"
+    aria-label={`Filtrar as ${plural}`}
+    class="mt-8 flex flex-wrap items-end gap-4"
+  >
+    <label class="flex flex-col gap-1 text-sm font-medium">
+      Ano
+      <select
+        name="ano"
+        class="h-11 rounded-md border bg-background px-3 text-base font-normal"
+      >
+        <option value="">Todos os anos</option>
+        {grupos.map((g) => (
+          <option value={String(g.ano)}>{g.ano}</option>
+        ))}
+      </select>
+    </label>
+    <label class="flex flex-col gap-1 text-sm font-medium">
+      Situação
+      <select
+        name="situacao"
+        class="h-11 rounded-md border bg-background px-3 text-base font-normal"
+      >
+        <option value="">Todas</option>
+        {situacoes.map((s) => (
+          <option value={s}>{s}</option>
+        ))}
+      </select>
+    </label>
+    <p
+      role="status"
+      class="pb-2 text-sm text-muted-foreground"
+      data-resultado
+    ></p>
+  </form>
+
+  <div class="mt-8 flex flex-col gap-10">
+    {grupos.map((grupo) => (
+      <section aria-labelledby={`${prefixo}-ano-${grupo.ano}`} data-ano-grupo>
+        <h2
+          id={`${prefixo}-ano-${grupo.ano}`}
+          class="text-2xl font-bold tracking-tight"
+        >
+          {grupo.ano}
+        </h2>
+        <ul class="mt-4 flex flex-col gap-4">
+          {grupo.itens.map((p) => (
+            <li
+              class="rounded-lg border bg-card p-5 shadow-card"
+              data-parceria
+              data-ano={p.ano}
+              data-situacao={p.situacao}
+            >
+              <p class="text-sm font-medium text-primary">
+                {p.tipo}
+                {p.numero_emenda ? ` nº ${p.numero_emenda}` : ''}
+                {p.proponente ? ` · ${p.proponente}` : ''}
+              </p>
+              <h3 class="mt-1 text-lg font-semibold">
+                <a
+                  href={caminhoDeUmaParceria(p)}
+                  class="underline underline-offset-4"
+                >
+                  {p.titulo}
+                </a>
+              </h3>
+              <p class="mt-2 text-sm">{p.objeto}</p>
+              <dl class="mt-4 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
+                <div>
+                  <dt class="text-muted-foreground">Valor</dt>
+                  <dd class="font-medium">{formatarReais(p.valor_total)}</dd>
+                </div>
+                <div>
+                  <dt class="text-muted-foreground">Recebido</dt>
+                  <dd class="font-medium">{formatarReais(p.recebido)}</dd>
+                </div>
+                <div>
+                  <dt class="text-muted-foreground">Pago</dt>
+                  <dd class="font-medium">{formatarReais(p.pago)}</dd>
+                </div>
+                <div>
+                  <dt class="text-muted-foreground">
+                    Saldo (recebido menos pago)
+                  </dt>
+                  <dd class="font-medium">
+                    {formatarReais(saldoDaParceria(p))}
+                  </dd>
+                </div>
+              </dl>
+              <p class="mt-3 text-xs text-muted-foreground">
+                Situação: <strong>{p.situacao}</strong> · Atualizado em{' '}
+                {formatarInstanteUtc(p.ultima_atualizacao)}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+  </div>
+</div>
+
+<script>
+  // Melhora progressiva: sem JavaScript a lista inteira já aparece; com ele, o filtro escolhe ano e situação.
+  for (const raiz of document.querySelectorAll<HTMLElement>(
+    '[data-lista-de-parcerias]',
+  )) {
+    const formulario = raiz.querySelector<HTMLFormElement>('[data-filtro]')
+    const resultado = raiz.querySelector<HTMLElement>('[data-resultado]')
+    if (!formulario || !resultado) continue
+    formulario.hidden = false
+    const itens = [...raiz.querySelectorAll<HTMLElement>('[data-parceria]')]
+
+    const filtrar = () => {
+      const dados = new FormData(formulario)
+      const ano = String(dados.get('ano') ?? '')
+      const situacao = String(dados.get('situacao') ?? '')
+      let visiveis = 0
+      for (const item of itens) {
+        const mostrar =
+          (!ano || item.dataset.ano === ano) &&
+          (!situacao || item.dataset.situacao === situacao)
+        item.hidden = !mostrar
+        if (mostrar) visiveis += 1
+      }
+      for (const grupo of raiz.querySelectorAll<HTMLElement>(
+        '[data-ano-grupo]',
+      )) {
+        grupo.hidden = !grupo.querySelector('[data-parceria]:not([hidden])')
+      }
+      resultado.textContent =
+        ano || situacao ? `Mostrando ${visiveis} de ${itens.length}.` : ''
+    }
+    formulario.addEventListener('change', filtrar)
+    formulario.addEventListener('submit', (e) => e.preventDefault())
+  }
+</script>

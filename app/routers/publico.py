@@ -19,7 +19,7 @@ Esta é a mesma fronteira das rotas de evento (app/routers/eventos.py): o site �
 painel é gestão."""
 import hashlib
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -56,6 +56,12 @@ def _catalogo(db: Session, chave: str) -> dict[str, tuple[str, int]]:
 
 def _data(valor: Optional[datetime]) -> Optional[str]:
     return valor.date().isoformat() if valor else None
+
+
+def _dia_de_belem(valor: Optional[datetime]) -> Optional[str]:
+    """Instante gravado em UTC -> dia no relógio de Parauapebas (UTC-3, sem horário de verão): uma aprovação às 22h do dia
+    10 está gravada como dia 11 em UTC, e o público tem que ler dia 10."""
+    return (valor - timedelta(hours=3)).date().isoformat() if valor else None
 
 
 # ==========================================
@@ -181,7 +187,7 @@ def _serializar_documento_publico(d: DocumentoInstitucional) -> dict:
         "data_documento": d.data_documento.isoformat() if d.data_documento else None, "ano": d.ano,
         "versao": d.versao, "vigente": bool(d.vigente),
         "paginas": d.publico_paginas, "tamanho": d.publico_tamanho, "sha256": d.publico_sha256,
-        "aprovado_em": _data(d.aprovado_em),
+        "aprovado_em": _dia_de_belem(d.aprovado_em),
         "arquivo": f"/api/publico/transparencia/documentos/{d.id_documento}/arquivo",
     }
 

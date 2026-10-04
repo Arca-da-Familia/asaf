@@ -1,0 +1,169 @@
+---
+import FaleConosco from '../../../components/FaleConosco.astro'
+import TituloDePagina from '../../../components/TituloDePagina.astro'
+import TabelaRolavel from '../../../components/transparencia/TabelaRolavel.astro'
+import type { Migalha } from '../../../config/navegacao'
+import Base from '../../../layouts/Base.astro'
+import { conteudoPublico } from '../../../lib/dados-publicos'
+import { ehEmenda } from '../../../lib/transparencia'
+
+// Os arquivos desta página são GERADOS no build, com os mesmos números das páginas de Emendas e Parcerias.
+const { parcerias } = await conteudoPublico()
+const emendas = parcerias.filter(ehEmenda).length
+const demais = parcerias.length - emendas
+const migalhas: Migalha[] = [
+  { rotulo: 'Transparência', href: '/transparencia/' },
+  { rotulo: 'Dados abertos' },
+]
+
+const arquivos = [
+  {
+    nome: 'emendas.csv',
+    href: '/transparencia/dados/emendas.csv',
+    texto: 'Emendas parlamentares, uma por linha (planilha).',
+    quantidade: emendas,
+  },
+  {
+    nome: 'emendas.json',
+    href: '/transparencia/dados/emendas.json',
+    texto:
+      'Emendas parlamentares com parcelas, recebimentos, pagamentos, etapas, relatórios e documentos.',
+    quantidade: emendas,
+  },
+  {
+    nome: 'parcerias.csv',
+    href: '/transparencia/dados/parcerias.csv',
+    texto: 'Termos de fomento, de colaboração e outras parcerias (planilha).',
+    quantidade: demais,
+  },
+  {
+    nome: 'parcerias.json',
+    href: '/transparencia/dados/parcerias.json',
+    texto: 'As mesmas parcerias, com todos os detalhes.',
+    quantidade: demais,
+  },
+]
+
+const colunas = [
+  ['id', 'Número da parceria no sistema da ASAF.'],
+  ['ano', 'Ano da emenda ou da parceria.'],
+  ['tipo', 'Emenda parlamentar, termo de fomento, termo de colaboração etc.'],
+  ['numero_emenda', 'Número da emenda, quando houver.'],
+  ['identificador_unico', 'Código único da emenda no órgão, quando houver.'],
+  ['proponente', 'Vereador ou parlamentar autor da emenda.'],
+  ['orgao_concedente', 'Órgão que repassa o recurso.'],
+  ['titulo', 'Nome da parceria.'],
+  ['objeto', 'O que será feito com o recurso.'],
+  ['situacao', 'Em que fase a parceria está.'],
+  ['numero_termo', 'Número do termo assinado, quando houver.'],
+  ['valor_total', 'Valor da parceria, em reais.'],
+  ['recebido', 'Quanto já entrou, segundo o livro-caixa, em reais.'],
+  ['pago', 'Quanto já saiu, segundo o livro-caixa, em reais.'],
+  [
+    'saldo',
+    'Recebido menos pago, em reais (calculado a partir do livro-caixa).',
+  ],
+  ['vigencia_inicio', 'Início da vigência (AAAA-MM-DD).'],
+  ['vigencia_fim', 'Fim da vigência (AAAA-MM-DD).'],
+  [
+    'ultima_atualizacao',
+    'Última atualização do cadastro da parceria ou do livro-caixa (UTC).',
+  ],
+  ['pagina', 'Endereço da página da parceria neste site.'],
+]
+---
+
+<Base
+  titulo="Dados abertos"
+  descricao="Baixe em planilha (CSV) ou em JSON os dados das emendas parlamentares e das parcerias da ASAF, os mesmos que aparecem nas páginas de Transparência."
+  caminho="/transparencia/dados/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Dados abertos"
+    resumo="Os números das emendas e parcerias em arquivos que você pode abrir numa planilha ou usar em outros programas."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-5xl flex-col gap-12 px-4 py-12">
+    <section aria-labelledby="arquivos">
+      <h2 id="arquivos" class="text-2xl font-bold tracking-tight">
+        Arquivos
+      </h2>
+      <p class="mt-4 max-w-3xl">
+        Os arquivos são gerados a cada publicação do site e trazem os mesmos
+        números das páginas de{' '}
+        <a href="/transparencia/emendas/" class="underline underline-offset-4">
+          emendas
+        </a>{' '}
+        e de{' '}
+        <a
+          href="/transparencia/parcerias/"
+          class="underline underline-offset-4"
+        >
+          parcerias
+        </a>
+        .
+      </p>
+      <ul class="mt-6 flex flex-col gap-3">
+        {arquivos.map((a) => (
+          <li class="rounded-lg border bg-card p-5 shadow-card">
+            <a
+              href={a.href}
+              download
+              class="text-lg font-semibold text-primary underline underline-offset-4"
+            >
+              {a.nome}
+            </a>
+            <p class="mt-1 text-sm">
+              {a.texto} Registros na última publicação do site: {a.quantidade}.
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section aria-labelledby="colunas">
+      <h2 id="colunas" class="text-2xl font-bold tracking-tight">
+        O que significa cada coluna
+      </h2>
+      <p class="mt-4 max-w-3xl">
+        Nas planilhas (CSV), as colunas são separadas por vírgula, os textos
+        usam codificação UTF-8 e os valores em reais usam ponto como separador
+        decimal, sem separador de milhar e sem o símbolo R$ (por exemplo, 1234.5
+        ou 50000).
+      </p>
+      <TabelaRolavel rotulo="Colunas das planilhas de dados abertos">
+        <table class="w-full min-w-[32rem] text-left text-sm">
+          <caption class="sr-only">
+            Colunas das planilhas de dados abertos
+          </caption>
+          <thead>
+            <tr class="border-b">
+              <th scope="col" class="py-2 pr-4">
+                Coluna
+              </th>
+              <th scope="col" class="py-2">
+                O que é
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {colunas.map(([coluna, significado]) => (
+              <tr class="border-b">
+                <th scope="row" class="py-2 pr-4 font-mono font-medium">
+                  {coluna}
+                </th>
+                <td class="py-2">{significado}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TabelaRolavel>
+    </section>
+
+    <FaleConosco titulo="Dúvida sobre os dados?">
+      <p>Fale com a secretaria da ASAF.</p>
+    </FaleConosco>
+  </div>
+</Base>

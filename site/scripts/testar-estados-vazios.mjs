@@ -97,6 +97,83 @@ exigir(
   '/transparencia/ tem a seção de editais sem haver edital',
 )
 
+// 3b. Transparência (v5.4b) sem nenhuma emenda, parcerias ou documento aprovado: a PRODUÇÃO no dia em que o módulo entra
+// no ar. O texto do estado vazio das emendas é o que o usuário pediu, palavra por palavra.
+const emendas = lerPagina('/transparencia/emendas/')
+exigir(
+  emendas.includes('data-estado="vazio"'),
+  '/transparencia/emendas/ sem o estado vazio',
+)
+exigir(
+  emendas.includes(
+    'A associação ainda não recebeu recursos de emendas parlamentares.',
+  ) &&
+    emendas.includes(
+      'Esta página será atualizada em até 24 horas após qualquer recebimento.',
+    ),
+  '/transparencia/emendas/ sem o texto do estado vazio dado pelo usuário',
+)
+exigir(
+  !emendas.includes('data-lista-de-parcerias'),
+  '/transparencia/emendas/ mostra a lista (e os totais) sem haver emenda',
+)
+exigir(
+  lerPagina('/transparencia/parcerias/').includes('data-estado="vazio"'),
+  '/transparencia/parcerias/ sem o estado vazio',
+)
+exigir(
+  lerPagina('/transparencia/documentos/').includes('data-estado="vazio"'),
+  '/transparencia/documentos/ sem o estado vazio',
+)
+exigir(
+  transparencia.includes(
+    'A associação ainda não recebeu recursos de emendas parlamentares.',
+  ),
+  '/transparencia/ sem o estado vazio das emendas',
+)
+exigir(
+  readFileSync('dist-vazio/transparencia/dados/emendas.csv', 'utf-8')
+    .trim()
+    .split(/\r?\n/).length === 1,
+  'emendas.csv vazio devia ter só o cabeçalho',
+)
+exigir(
+  JSON.parse(
+    readFileSync('dist-vazio/transparencia/dados/emendas.json', 'utf-8'),
+  ).length === 0,
+  'emendas.json vazio devia ser uma lista vazia',
+)
+exigir(
+  !existsSync('dist-vazio/arquivos'),
+  'nasceu /arquivos/ (PDF da transparência) sem haver documento aprovado',
+)
+for (const pasta of ['transparencia/emendas', 'transparencia/parcerias']) {
+  const filhas = readdirSync(`dist-vazio/${pasta}`, {
+    withFileTypes: true,
+  }).filter((e) => e.isDirectory())
+  exigir(filhas.length === 0, `${pasta}/ gerou página de recurso inexistente`)
+}
+
+// 3c. NENHUM dado de exemplo chega ao build de produção: o mock marca todo registro de teste com "EXEMPLO", e este
+// build (a API sem nada cadastrado) não pode conter a palavra em arquivo nenhum. Site de entidade que busca
+// financiamento público não exibe registro falso.
+const todosOsArquivos = []
+const listar = (pasta) => {
+  for (const e of readdirSync(pasta, { withFileTypes: true })) {
+    const caminho = `${pasta}/${e.name}`
+    if (e.isDirectory()) listar(caminho)
+    else todosOsArquivos.push(caminho)
+  }
+}
+listar('dist-vazio')
+for (const arquivo of todosOsArquivos) {
+  if (!/\.(html|csv|json|xml|txt|js|css)$/.test(arquivo)) continue
+  exigir(
+    !readFileSync(arquivo, 'utf-8').includes('EXEMPLO'),
+    `${arquivo} contém "EXEMPLO": dado de teste no build de produção`,
+  )
+}
+
 // 4. Nada de "undefined"/"null"/"[object" vazando para o texto de nenhuma página.
 const paginas = []
 const varrer = (pasta) => {

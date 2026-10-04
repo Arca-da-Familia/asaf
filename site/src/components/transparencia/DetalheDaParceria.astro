@@ -1,0 +1,387 @@
+---
+/**
+ * Página de UMA parceria/emenda (v5.4b): valores, parcelas, recebimentos, pagamentos, etapas, prestação de contas e
+ * documentos. Peça independente (quem redesenhar a Transparência pode reaproveitá-la).
+ *
+ * Tudo vem da API pública do sistema e já foi aprovado por outra pessoa na diretoria. Dinheiro = livro-caixa. O nome
+ * de quem recebeu como equipe NUNCA aparece (só a função e o valor); fornecedor aparece com razão social e CNPJ.
+ */
+import type { ParceriaDetalhada } from '../../../scripts/lib/conteudo-publico.mjs'
+import TabelaRolavel from './TabelaRolavel.astro'
+import { formatarDataCurta, formatarInstanteUtc } from '../../lib/datas'
+import {
+  beneficiarioDoPagamento,
+  caminhoDoPdf,
+  documentosOrdenados,
+  formatarReais,
+  saldoDaParceria,
+} from '../../lib/transparencia'
+
+interface Props {
+  parceria: ParceriaDetalhada
+}
+
+const { parceria: p } = Astro.props
+const dia = (iso: string | null) => (iso ? formatarDataCurta(iso) : '—')
+const documentos = documentosOrdenados(p)
+const ROTULO_DA_CATEGORIA: Record<string, string> = {
+  FORNECEDOR: 'Fornecedor',
+  EQUIPE: 'Equipe',
+  TARIFA: 'Tarifa ou taxa',
+  OUTRO: 'Outro',
+}
+---
+
+<div class="mx-auto flex max-w-5xl flex-col gap-12 px-4 py-12">
+  <section aria-labelledby="resumo">
+    <h2 id="resumo" class="text-2xl font-bold tracking-tight">
+      Resumo
+    </h2>
+    <p class="mt-4 max-w-3xl whitespace-pre-line">{p.objeto}</p>
+    <dl class="mt-6 grid max-w-3xl gap-x-8 gap-y-3 sm:grid-cols-[auto_1fr]">
+      <dt class="font-medium">Situação</dt>
+      <dd data-campo="situacao">{p.situacao}</dd>
+      <dt class="font-medium">Tipo</dt>
+      <dd>{p.tipo}</dd>
+      {p.numero_emenda && (
+        <>
+          <dt class="font-medium">Emenda nº</dt>
+          <dd>{p.numero_emenda}</dd>
+        </>
+      )}
+      {p.identificador_unico && (
+        <>
+          <dt class="font-medium">Identificador único</dt>
+          <dd>{p.identificador_unico}</dd>
+        </>
+      )}
+      {p.proponente && (
+        <>
+          <dt class="font-medium">Proponente</dt>
+          <dd>{p.proponente}</dd>
+        </>
+      )}
+      {p.orgao_concedente && (
+        <>
+          <dt class="font-medium">Órgão concedente</dt>
+          <dd>{p.orgao_concedente}</dd>
+        </>
+      )}
+      {p.numero_termo && (
+        <>
+          <dt class="font-medium">Termo nº</dt>
+          <dd>{p.numero_termo}</dd>
+        </>
+      )}
+      {p.data_assinatura && (
+        <>
+          <dt class="font-medium">Assinatura</dt>
+          <dd>{dia(p.data_assinatura)}</dd>
+        </>
+      )}
+      {(p.vigencia_inicio || p.vigencia_fim) && (
+        <>
+          <dt class="font-medium">Vigência</dt>
+          <dd>
+            {dia(p.vigencia_inicio)} a {dia(p.vigencia_fim)}
+          </dd>
+        </>
+      )}
+    </dl>
+  </section>
+
+  <section aria-labelledby="valores">
+    <h2 id="valores" class="text-2xl font-bold tracking-tight">
+      Valores
+    </h2>
+    <dl class="mt-4 grid gap-4 sm:grid-cols-4">
+      <div class="rounded-lg border bg-card p-4 shadow-card">
+        <dt class="text-sm text-muted-foreground">Valor da parceria</dt>
+        <dd class="mt-1 text-2xl font-bold" data-valor="total">
+          {formatarReais(p.valor_total)}
+        </dd>
+      </div>
+      <div class="rounded-lg border bg-card p-4 shadow-card">
+        <dt class="text-sm text-muted-foreground">Já recebido</dt>
+        <dd class="mt-1 text-2xl font-bold" data-valor="recebido">
+          {formatarReais(p.recebido)}
+        </dd>
+      </div>
+      <div class="rounded-lg border bg-card p-4 shadow-card">
+        <dt class="text-sm text-muted-foreground">Já pago</dt>
+        <dd class="mt-1 text-2xl font-bold" data-valor="pago">
+          {formatarReais(p.pago)}
+        </dd>
+      </div>
+      <div class="rounded-lg border bg-card p-4 shadow-card">
+        <dt class="text-sm text-muted-foreground">
+          Saldo (recebido menos pago)
+        </dt>
+        <dd class="mt-1 text-2xl font-bold" data-valor="saldo">
+          {formatarReais(saldoDaParceria(p))}
+        </dd>
+      </div>
+    </dl>
+    <p class="mt-3 text-sm text-muted-foreground">
+      Os valores recebido e pago vêm do livro-caixa da ASAF.
+    </p>
+    {p.lancamentos_em_classificacao > 0 && (
+      <p
+        class="mt-3 rounded-md border border-brand-tertiary bg-brand-tertiary/20 p-3 text-sm"
+        data-aviso="classificacao"
+      >
+        {p.lancamentos_em_classificacao === 1
+          ? 'Há 1 movimento financeiro ainda não detalhado nas listas abaixo.'
+          : `Há ${p.lancamentos_em_classificacao} movimentos financeiros ainda não detalhados nas listas abaixo.`}
+        Os totais acima já incluem esses valores; as listas abaixo ainda não
+        mostram o detalhe deles.
+      </p>
+    )}
+  </section>
+
+  {p.parcelas.length > 0 && (
+    <section aria-labelledby="parcelas">
+      <h2 id="parcelas" class="text-2xl font-bold tracking-tight">
+        Parcelas
+      </h2>
+      <TabelaRolavel rotulo="Parcelas previstas e valores recebidos">
+        <table class="w-full min-w-[32rem] text-left text-sm">
+          <caption class="sr-only">
+            Parcelas previstas e valores recebidos
+          </caption>
+          <thead>
+            <tr class="border-b">
+              <th scope="col" class="py-2 pr-4">
+                Parcela
+              </th>
+              <th scope="col" class="py-2 pr-4">
+                Prevista para
+              </th>
+              <th scope="col" class="py-2 pr-4">
+                Valor previsto
+              </th>
+              <th scope="col" class="py-2">
+                Recebido
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {p.parcelas.map((parcela) => (
+              <tr class="border-b">
+                <th scope="row" class="py-2 pr-4 font-medium">
+                  {parcela.numero}ª
+                </th>
+                <td class="py-2 pr-4">{dia(parcela.data_prevista)}</td>
+                <td class="py-2 pr-4">
+                  {formatarReais(parcela.valor_previsto)}
+                </td>
+                <td class="py-2">{formatarReais(parcela.valor_recebido)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TabelaRolavel>
+    </section>
+  )}
+
+  <section aria-labelledby="recebimentos">
+    <h2 id="recebimentos" class="text-2xl font-bold tracking-tight">
+      Recebimentos
+    </h2>
+    {p.recebimentos.length === 0 ? (
+      <p class="mt-4">Nenhum recebimento detalhado até agora.</p>
+    ) : (
+      <TabelaRolavel rotulo="Recebimentos desta parceria">
+        <table class="w-full min-w-[32rem] text-left text-sm">
+          <caption class="sr-only">Recebimentos desta parceria</caption>
+          <thead>
+            <tr class="border-b">
+              <th scope="col" class="py-2 pr-4">
+                Data
+              </th>
+              <th scope="col" class="py-2 pr-4">
+                Descrição
+              </th>
+              <th scope="col" class="py-2">
+                Valor
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {p.recebimentos.map((r) => (
+              <tr class="border-b">
+                <td class="py-2 pr-4">{dia(r.data)}</td>
+                <td class="py-2 pr-4">
+                  {r.descricao}
+                  {r.parcela ? ` (${r.parcela}ª parcela)` : ''}
+                </td>
+                <td class="py-2">{formatarReais(r.valor)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TabelaRolavel>
+    )}
+  </section>
+
+  <section aria-labelledby="pagamentos">
+    <h2 id="pagamentos" class="text-2xl font-bold tracking-tight">
+      Pagamentos
+    </h2>
+    {p.pagamentos.length === 0 ? (
+      <p class="mt-4">Nenhum pagamento detalhado até agora.</p>
+    ) : (
+      <>
+        <TabelaRolavel rotulo="Pagamentos desta parceria">
+          <table class="w-full min-w-[40rem] text-left text-sm">
+            <caption class="sr-only">Pagamentos desta parceria</caption>
+            <thead>
+              <tr class="border-b">
+                <th scope="col" class="py-2 pr-4">
+                  Data
+                </th>
+                <th scope="col" class="py-2 pr-4">
+                  Descrição
+                </th>
+                <th scope="col" class="py-2 pr-4">
+                  Tipo
+                </th>
+                <th scope="col" class="py-2 pr-4">
+                  Para quem
+                </th>
+                <th scope="col" class="py-2">
+                  Valor
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.pagamentos.map((g) => (
+                <tr class="border-b">
+                  <td class="py-2 pr-4">{dia(g.data)}</td>
+                  <td class="py-2 pr-4">{g.descricao}</td>
+                  <td class="py-2 pr-4">
+                    {g.categoria ? ROTULO_DA_CATEGORIA[g.categoria] : '—'}
+                  </td>
+                  <td class="py-2 pr-4">{beneficiarioDoPagamento(g)}</td>
+                  <td class="py-2">{formatarReais(g.valor)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TabelaRolavel>
+        <p class="mt-3 text-sm text-muted-foreground">
+          Pagamentos a pessoas da equipe aparecem com a função e o valor, sem o
+          nome da pessoa.
+        </p>
+      </>
+    )}
+  </section>
+
+  {p.etapas.length > 0 && (
+    <section aria-labelledby="etapas">
+      <h2 id="etapas" class="text-2xl font-bold tracking-tight">
+        Etapas de execução
+      </h2>
+      <ul class="mt-4 flex flex-col gap-3">
+        {p.etapas.map((e) => (
+          <li class="rounded-lg border bg-card p-5 shadow-card">
+            <p class="text-sm font-medium text-primary">{e.situacao}</p>
+            <h3 class="mt-1 text-lg font-semibold">{e.titulo}</h3>
+            {e.descricao && <p class="mt-2 text-sm">{e.descricao}</p>}
+            <p class="mt-2 text-sm text-muted-foreground">
+              {e.data_realizacao
+                ? `Realizada em ${dia(e.data_realizacao)}`
+                : e.data_prevista
+                  ? `Prevista para ${dia(e.data_prevista)}`
+                  : 'Sem data definida'}
+              {e.local ? ` · ${e.local}` : ''}
+              {e.publico_atendido !== null
+                ? ` · ${e.publico_atendido} pessoa${e.publico_atendido === 1 ? '' : 's'} atendida${e.publico_atendido === 1 ? '' : 's'}`
+                : ''}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  {p.relatorios.length > 0 && (
+    <section aria-labelledby="relatorios">
+      <h2 id="relatorios" class="text-2xl font-bold tracking-tight">
+        Relatórios e prestação de contas
+      </h2>
+      <TabelaRolavel rotulo="Relatórios e prestação de contas">
+        <table class="w-full min-w-[40rem] text-left text-sm">
+          <caption class="sr-only">Relatórios e prestação de contas</caption>
+          <thead>
+            <tr class="border-b">
+              <th scope="col" class="py-2 pr-4">
+                Relatório
+              </th>
+              <th scope="col" class="py-2 pr-4">
+                Previsto para
+              </th>
+              <th scope="col" class="py-2 pr-4">
+                Apresentado em
+              </th>
+              <th scope="col" class="py-2 pr-4">
+                Prazo de análise até
+              </th>
+              <th scope="col" class="py-2">
+                Resultado
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {p.relatorios.map((r) => (
+              <tr class="border-b">
+                <th scope="row" class="py-2 pr-4 font-medium">
+                  {r.tipo}
+                </th>
+                <td class="py-2 pr-4">{dia(r.data_prevista)}</td>
+                <td class="py-2 pr-4">{dia(r.data_apresentacao)}</td>
+                <td class="py-2 pr-4">{dia(r.data_limite_analise)}</td>
+                <td class="py-2">
+                  {r.resultado}
+                  {r.data_resultado ? ` (${dia(r.data_resultado)})` : ''}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TabelaRolavel>
+    </section>
+  )}
+
+  {documentos.length > 0 && (
+    <section aria-labelledby="documentos-da-parceria">
+      <h2 id="documentos-da-parceria" class="text-2xl font-bold tracking-tight">
+        Documentos
+      </h2>
+      <ul class="mt-4 flex flex-col gap-3">
+        {documentos.map((d) => (
+          <li class="rounded-lg border bg-card p-5 shadow-card">
+            <a
+              href={caminhoDoPdf(d)}
+              class="text-lg font-semibold text-primary underline underline-offset-4"
+            >
+              {d.titulo} <span class="sr-only">(PDF)</span>
+            </a>
+            <p class="mt-1 text-sm text-muted-foreground">
+              {d.tipo}
+              {d.data_documento ? ` · ${dia(d.data_documento)}` : ''} · PDF
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  <p class="text-sm text-muted-foreground" data-campo="ultima-atualizacao">
+    Última atualização (cadastro ou livro-caixa):{' '}
+    {formatarInstanteUtc(p.ultima_atualizacao)}. A publicação desta parceria foi
+    aprovada no sistema da ASAF por uma pessoa autorizada, diferente de quem a
+    cadastrou e a enviou para revisão. Alterações posteriores ficam registradas
+    na trilha do sistema.
+  </p>
+</div>

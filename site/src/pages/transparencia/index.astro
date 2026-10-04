@@ -5,13 +5,21 @@ import type { Migalha } from '../../config/navegacao'
 import { ENDERECO_LINHA, ORGANIZACAO } from '../../config/organizacao'
 import Base from '../../layouts/Base.astro'
 import { caminhoDaAssembleia, conteudoPublico } from '../../lib/dados-publicos'
-import { formatarDia, formatarHora } from '../../lib/datas'
+import { formatarDataCurta, formatarDia, formatarHora } from '../../lib/datas'
+import { caminhoDoPdf, ehEmenda, formatarReais } from '../../lib/transparencia'
 
 // Fontes: Estatuto Social (Arts. 1º, 5º, 8º, 20, 23, 24 e 28), dados institucionais confirmados pelo
-// usuário (CNPJ, sede, contato) e GET /api/publico/assembleias (editais de assembleia JÁ convocada).
-// Só é listado como "publicado" o que de fato existe. Atas e prestações de contas aprovadas entram
-// aqui quando forem publicadas (FASE 6/12.7) — nunca prometidas antes de existirem.
-const { assembleias } = await conteudoPublico()
+// usuário (CNPJ, sede, contato), GET /api/publico/assembleias (editais de assembleia JÁ convocada) e, desde a
+// v5.4b, o que a diretoria APROVOU no sistema: emendas, parcerias e documentos. Só é listado como "publicado" o que
+// de fato existe — nunca prometido antes de existir.
+const { assembleias, parcerias, documentos } = await conteudoPublico()
+const emendas = parcerias.filter(ehEmenda)
+const demaisParcerias = parcerias.filter((p) => !ehEmenda(p))
+const somaRecebido = (lista: typeof parcerias) =>
+  Math.round(lista.reduce((total, p) => total + p.recebido, 0) * 100) / 100
+const maisRecentes = [...documentos]
+  .sort((a, b) => (b.aprovado_em ?? '').localeCompare(a.aprovado_em ?? ''))
+  .slice(0, 6)
 const migalhas: Migalha[] = [{ rotulo: 'Transparência' }]
 
 const etapasDeContas = [
@@ -94,6 +102,89 @@ const etapasDeContas = [
       </dl>
     </section>
 
+    <section aria-labelledby="recursos">
+      <h2 id="recursos" class="text-2xl font-bold tracking-tight">
+        Recursos públicos recebidos
+      </h2>
+      <p class="mt-4 max-w-3xl">
+        O que a ASAF recebe de emendas parlamentares e de parcerias com órgãos
+        públicos, em que foi gasto e como está a prestação de contas. Os valores
+        recebidos e pagos vêm do livro-caixa da associação.
+      </p>
+      <ul class="mt-6 grid gap-4 md:grid-cols-2">
+        <li
+          class="rounded-lg border bg-card p-5 shadow-card"
+          data-cartao="emendas"
+        >
+          <h3 class="text-lg font-semibold">
+            <a
+              href="/transparencia/emendas/"
+              class="text-primary underline underline-offset-4"
+            >
+              Emendas parlamentares
+            </a>
+          </h3>
+          <p class="mt-2 text-sm">
+            {emendas.length === 0
+              ? 'A associação ainda não recebeu recursos de emendas parlamentares. Esta página será atualizada em até 24 horas após qualquer recebimento.'
+              : `${emendas.length} ${emendas.length === 1 ? 'emenda publicada' : 'emendas publicadas'}, com ${formatarReais(somaRecebido(emendas))} já recebidos.`}
+          </p>
+        </li>
+        <li
+          class="rounded-lg border bg-card p-5 shadow-card"
+          data-cartao="parcerias"
+        >
+          <h3 class="text-lg font-semibold">
+            <a
+              href="/transparencia/parcerias/"
+              class="text-primary underline underline-offset-4"
+            >
+              Parcerias e termos
+            </a>
+          </h3>
+          <p class="mt-2 text-sm">
+            {demaisParcerias.length === 0
+              ? 'Nenhum termo de fomento, de colaboração ou outra parceria foi publicado até agora.'
+              : `${demaisParcerias.length} ${demaisParcerias.length === 1 ? 'parceria publicada' : 'parcerias publicadas'}.`}
+          </p>
+        </li>
+        <li
+          class="rounded-lg border bg-card p-5 shadow-card"
+          data-cartao="documentos"
+        >
+          <h3 class="text-lg font-semibold">
+            <a
+              href="/transparencia/documentos/"
+              class="text-primary underline underline-offset-4"
+            >
+              Documentos
+            </a>
+          </h3>
+          <p class="mt-2 text-sm">
+            {documentos.length === 0
+              ? 'Atas, certidões, balanços e termos aparecerão aqui quando forem aprovados para publicação.'
+              : `${documentos.length} ${documentos.length === 1 ? 'documento publicado' : 'documentos publicados'}, organizados por tipo e ano.`}
+          </p>
+        </li>
+        <li
+          class="rounded-lg border bg-card p-5 shadow-card"
+          data-cartao="dados"
+        >
+          <h3 class="text-lg font-semibold">
+            <a
+              href="/transparencia/dados/"
+              class="text-primary underline underline-offset-4"
+            >
+              Dados abertos
+            </a>
+          </h3>
+          <p class="mt-2 text-sm">
+            Os números das emendas e parcerias em planilha (CSV) e em JSON.
+          </p>
+        </li>
+      </ul>
+    </section>
+
     <section aria-labelledby="prestacao">
       <h2 id="prestacao" class="text-2xl font-bold tracking-tight">
         Como a ASAF presta contas
@@ -136,11 +227,41 @@ const etapasDeContas = [
             Texto integral, com 8 capítulos e 35 artigos.
           </p>
         </li>
+        {maisRecentes.map((d) => (
+          <li class="rounded-lg border bg-card p-5 shadow-card">
+            <a
+              href={caminhoDoPdf(d)}
+              class="text-lg font-semibold text-primary underline underline-offset-4"
+            >
+              {d.titulo} <span class="sr-only">(PDF)</span>
+            </a>
+            <p class="mt-1 text-sm">
+              {d.tipo}
+              {d.data_documento
+                ? ` · ${formatarDataCurta(d.data_documento)}`
+                : ''}
+              {d.aprovado_em
+                ? ` · aprovado em ${formatarDataCurta(d.aprovado_em)}`
+                : ''}
+            </p>
+          </li>
+        ))}
       </ul>
       <p class="mt-4 max-w-3xl text-sm text-muted-foreground">
-        {assembleias.length === 0
-          ? 'No momento, o Estatuto é o único documento publicado nesta página. Editais de assembleia e demais documentos aparecerão aqui quando forem publicados.'
-          : 'Atas e prestações de contas aprovadas aparecerão aqui quando forem publicadas.'}
+        {documentos.length === 0 ? (
+          assembleias.length === 0 ? (
+            'No momento, o Estatuto é o único documento publicado nesta página. Editais de assembleia e demais documentos aparecerão aqui quando forem publicados.'
+          ) : (
+            'Atas e prestações de contas aprovadas aparecerão aqui quando forem publicadas.'
+          )
+        ) : (
+          <a
+            href="/transparencia/documentos/"
+            class="underline underline-offset-4"
+          >
+            Ver todos os documentos publicados
+          </a>
+        )}
       </p>
     </section>
 
@@ -181,8 +302,9 @@ const etapasDeContas = [
 
     <FaleConosco titulo="Precisa de alguma informação?">
       <p>
-        Se procura um documento que ainda não está aqui, peça à secretaria da
-        ASAF.
+        Se procura um documento que ainda não está aqui, ou quer pedir
+        informação sobre os recursos públicos recebidos, fale com a secretaria
+        da ASAF.
       </p>
     </FaleConosco>
   </div>

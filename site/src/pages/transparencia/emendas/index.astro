@@ -1,0 +1,73 @@
+---
+import FaleConosco from '../../../components/FaleConosco.astro'
+import TituloDePagina from '../../../components/TituloDePagina.astro'
+import ListaDeParcerias from '../../../components/transparencia/ListaDeParcerias.astro'
+import type { Migalha } from '../../../config/navegacao'
+import Base from '../../../layouts/Base.astro'
+import { conteudoPublico } from '../../../lib/dados-publicos'
+import { ehEmenda } from '../../../lib/transparencia'
+
+// Fonte: o SISTEMA (módulo Parcerias e emendas). Só entra o que a diretoria aprovou no painel (outra pessoa que não
+// quem cadastrou) e os valores de recebido e pago vêm do livro-caixa. Nada aqui é digitado à mão no site.
+const { parcerias } = await conteudoPublico()
+const emendas = parcerias.filter(ehEmenda)
+const migalhas: Migalha[] = [
+  { rotulo: 'Transparência', href: '/transparencia/' },
+  { rotulo: 'Emendas parlamentares' },
+]
+---
+
+<Base
+  titulo="Emendas parlamentares"
+  descricao="Recursos de emendas parlamentares recebidos pela ASAF: valores, parcelas, pagamentos, etapas de execução, prestação de contas e documentos, de todos os anos publicados."
+  caminho="/transparencia/emendas/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Emendas parlamentares"
+    resumo="Quanto a ASAF recebeu de cada emenda, em que foi gasto e como está a prestação de contas."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-12">
+    {emendas.length === 0 ? (
+      <section data-estado="vazio" aria-labelledby="sem-emendas">
+        <h2 id="sem-emendas" class="text-2xl font-bold tracking-tight">
+          Nenhuma emenda publicada
+        </h2>
+        <p class="mt-4 max-w-3xl text-lg">
+          A associação ainda não recebeu recursos de emendas parlamentares. Esta
+          página será atualizada em até 24 horas após qualquer recebimento.
+        </p>
+      </section>
+    ) : (
+      <>
+        <p class="max-w-3xl">
+          Cada emenda tem a sua página, com parcelas, recebimentos, pagamentos,
+          etapas de execução, relatórios e documentos, quando houver. Os anos
+          anteriores continuam nesta página.
+        </p>
+        <ListaDeParcerias
+          parcerias={emendas}
+          prefixo="emendas"
+          plural="emendas"
+        />
+      </>
+    )}
+
+    <p class="text-sm">
+      Quer analisar os números numa planilha?
+      <a href="/transparencia/dados/" class="underline underline-offset-4">
+        Baixe os dados abertos
+      </a>
+      .
+    </p>
+
+    <FaleConosco titulo="Pedido de informação">
+      <p>
+        Para pedir informação sobre os recursos públicos recebidos, fale com a
+        secretaria da ASAF.
+      </p>
+    </FaleConosco>
+  </div>
+</Base>

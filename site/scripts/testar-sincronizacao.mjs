@@ -1,6 +1,6 @@
 // Teste da SINCRONIZAÇÃO (v5.2): o workflow `sincronizar-site` compara a impressão do conteúdo da API
 // com a do site publicado (/conteudo.json). Dois erros seriam silenciosos e caros:
-//   1. dizer "mudou" quando NADA mudou -> o site seria reconstruído a cada 30 min, para sempre;
+//   1. dizer "mudou" quando NADA mudou -> o site seria reconstruído a cada 15 min, para sempre;
 //   2. dizer "não mudou" quando mudou  -> evento/projeto novo nunca ganharia página.
 // Aqui: mesma API do build => NÃO mudou; API com outro conteúdo => mudou; site sem o arquivo => mudou.
 // Pré-requisito: `npm run build:teste` (usa dist/conteudo.json).

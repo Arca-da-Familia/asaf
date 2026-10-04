@@ -35,6 +35,8 @@ export const GRUPOS_DO_RODAPE: GrupoDoRodape[] = [
       { rotulo: 'Diretoria e Conselho', href: '/diretoria/' },
       { rotulo: 'Estatuto Social', href: '/estatuto/' },
       { rotulo: 'Transparência', href: '/transparencia/' },
+      { rotulo: 'Emendas parlamentares', href: '/transparencia/emendas/' },
+      { rotulo: 'Documentos publicados', href: '/transparencia/documentos/' },
     ],
   },
   {

@@ -1,6 +1,9 @@
+import { createHash } from 'node:crypto'
+
 import { describe, expect, it, vi } from 'vitest'
 
 import {
+  baixarPdfDaTransparencia,
   buscarConteudoPublico,
   impressaoDoConteudo,
 } from '../scripts/lib/conteudo-publico.mjs'
@@ -46,9 +49,18 @@ describe('buscarConteudoPublico', () => {
     '/api/publico/projetos': [{ id_projeto: 7, nome: 'Horta' }],
     '/api/publico/diretoria': [],
     '/api/publico/assembleias': [],
+    '/api/publico/transparencia/parcerias': [
+      { id_parceria: 3, titulo: 'Emenda' },
+    ],
+    '/api/publico/transparencia/parcerias/3': {
+      id_parceria: 3,
+      titulo: 'Emenda',
+      parcelas: [],
+    },
+    '/api/publico/transparencia/documentos': [{ id_documento: 9 }],
   }
 
-  it('lê as 4 listas e o detalhe de cada evento', async () => {
+  it('lê as 6 listas e o detalhe de cada evento e de cada parceria', async () => {
     const { fetchImpl, chamadas } = apiFalsa(rotasBase)
     const c = await buscarConteudoPublico('https://api.teste/', {
       fetchImpl,
@@ -57,7 +69,23 @@ describe('buscarConteudoPublico', () => {
     expect(c.eventos).toHaveLength(2)
     expect(Object.keys(c.detalhesDeEventos)).toEqual(['1', '2'])
     expect(c.projetos[0]!.nome).toBe('Horta')
-    expect(chamadas).toHaveLength(6) // 4 listas + 2 detalhes
+    expect(c.parcerias).toHaveLength(1)
+    expect(Object.keys(c.detalhesDeParcerias)).toEqual(['3'])
+    expect(c.documentos).toEqual([{ id_documento: 9 }])
+    expect(chamadas).toHaveLength(9) // 6 listas + 2 detalhes de evento + 1 de parceria
+  })
+
+  it('FALHA o build se a lista de parcerias não responder (nunca publica uma Transparência incompleta)', async () => {
+    const { fetchImpl } = apiFalsa(rotasBase, {
+      '/api/publico/transparencia/parcerias': [503, 503, 503],
+    })
+    await expect(
+      buscarConteudoPublico('https://api.teste', {
+        fetchImpl,
+        esperaMs: 0,
+        tentativas: 3,
+      }),
+    ).rejects.toThrow(/transparencia\/parcerias/)
   })
 
   it('repete o que é passageiro (API acordando: 503 e depois 200)', async () => {
@@ -101,6 +129,9 @@ describe('impressaoDoConteudo', () => {
     projetos: [{ id_projeto: 7, nome: 'Horta' }],
     diretoria: [],
     assembleias: [],
+    parcerias: [{ id_parceria: 3, titulo: 'Emenda', valor_total: 100 }],
+    detalhesDeParcerias: { 3: { id_parceria: 3, parcelas: [] } },
+    documentos: [{ id_documento: 9, sha256: 'a'.repeat(64) }],
   })
 
   it('é estável: o mesmo conteúdo dá sempre a mesma impressão', () => {
@@ -129,5 +160,122 @@ describe('impressaoDoConteudo', () => {
     const original = impressaoDoConteudo(base())
     expect(impressaoDoConteudo(titulo)).not.toBe(original)
     expect(impressaoDoConteudo(projeto)).not.toBe(original)
+  })
+})
+
+describe('impressaoDoConteudo - Transparência (v5.4b)', () => {
+  const com = () => ({
+    eventos: [],
+    detalhesDeEventos: {},
+    projetos: [],
+    diretoria: [],
+    assembleias: [],
+    parcerias: [{ id_parceria: 3, titulo: 'Emenda', recebido: 100 }],
+    detalhesDeParcerias: { 3: { id_parceria: 3, pagamentos: [] } },
+    documentos: [{ id_documento: 9, sha256: 'a'.repeat(64) }],
+  })
+
+  it('MUDA quando entra dinheiro, um pagamento ou um documento é trocado (o site é reconstruído)', () => {
+    const original = impressaoDoConteudo(com())
+    const recebido = com()
+    recebido.parcerias[0]!.recebido = 200
+    const trocado = com()
+    trocado.documentos[0]!.sha256 = 'b'.repeat(64)
+    const novo = com()
+    novo.parcerias.push({ id_parceria: 4, titulo: 'Outra', recebido: 0 })
+    expect(impressaoDoConteudo(recebido)).not.toBe(original)
+    expect(impressaoDoConteudo(trocado)).not.toBe(original)
+    expect(impressaoDoConteudo(novo)).not.toBe(original)
+  })
+})
+
+describe('baixarPdfDaTransparencia', () => {
+  const bytes = Buffer.from('%PDF-1.4\nconteudo aprovado\n%%EOF\n')
+  const sha256 = createHash('sha256').update(bytes).digest('hex')
+  const documento = {
+    id_documento: 9,
+    titulo: 'Ata de eleição',
+    sha256,
+    arquivo: '/api/publico/transparencia/documentos/9/arquivo',
+  }
+
+  function apiComPdf(resposta: () => Response) {
+    const fetchImpl = vi.fn(async () => resposta()) as unknown as typeof fetch
+    return { fetchImpl }
+  }
+  const pdf = (conteudo: Buffer, status = 200) =>
+    new Response(new Uint8Array(conteudo), {
+      status,
+      headers: { 'Content-Type': 'application/pdf' },
+    })
+
+  it('devolve os bytes quando é PDF e o SHA-256 bate com o aprovado', async () => {
+    const { fetchImpl } = apiComPdf(() => pdf(bytes))
+    const recebido = await baixarPdfDaTransparencia(
+      'https://api.teste/',
+      documento,
+      {
+        fetchImpl,
+        esperaMs: 0,
+      },
+    )
+    expect(Buffer.compare(recebido, bytes)).toBe(0)
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://api.teste/api/publico/transparencia/documentos/9/arquivo',
+      expect.objectContaining({
+        headers: expect.objectContaining({ Accept: 'application/pdf' }),
+      }),
+    )
+  })
+
+  it('RECUSA (derruba o build) um arquivo diferente do aprovado', async () => {
+    const outro = Buffer.from('%PDF-1.4\nOUTRO conteudo\n%%EOF\n')
+    const { fetchImpl } = apiComPdf(() => pdf(outro))
+    await expect(
+      baixarPdfDaTransparencia('https://api.teste', documento, {
+        fetchImpl,
+        esperaMs: 0,
+      }),
+    ).rejects.toThrow(/não confere com o que foi aprovado/)
+  })
+
+  it('RECUSA o que não é PDF, mesmo com o SHA-256 igual ao declarado', async () => {
+    const html = Buffer.from('<html>erro</html>')
+    const { fetchImpl } = apiComPdf(() => pdf(html))
+    await expect(
+      baixarPdfDaTransparencia(
+        'https://api.teste',
+        {
+          ...documento,
+          sha256: createHash('sha256').update(html).digest('hex'),
+        },
+        { fetchImpl, esperaMs: 0 },
+      ),
+    ).rejects.toThrow(/não é um PDF/)
+  })
+
+  it('repete o que é passageiro (API acordando) e desiste de erro 404', async () => {
+    let chamadas = 0
+    const acordando = vi.fn(async () => {
+      chamadas += 1
+      return chamadas < 3 ? new Response('', { status: 503 }) : pdf(bytes)
+    }) as unknown as typeof fetch
+    const ok = await baixarPdfDaTransparencia('https://api.teste', documento, {
+      fetchImpl: acordando,
+      esperaMs: 0,
+    })
+    expect(Buffer.compare(ok, bytes)).toBe(0)
+    expect(chamadas).toBe(3)
+
+    const naoExiste = vi.fn(
+      async () => new Response('', { status: 404 }),
+    ) as unknown as typeof fetch
+    await expect(
+      baixarPdfDaTransparencia('https://api.teste', documento, {
+        fetchImpl: naoExiste,
+        esperaMs: 0,
+      }),
+    ).rejects.toThrow(/404/)
+    expect(naoExiste).toHaveBeenCalledTimes(1)
   })
 })

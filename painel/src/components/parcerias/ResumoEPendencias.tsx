@@ -8,7 +8,7 @@ export function ResumoFinanceiro({ d }: { d: ParceriaDetalhe }) {
     { rotulo: 'Valor da parceria', valor: d.valor_total },
     { rotulo: 'Recebido', valor: d.recebido },
     { rotulo: 'Pago', valor: d.pago },
-    { rotulo: 'Saldo em conta', valor: d.saldo },
+    { rotulo: 'Saldo (recebido menos pago)', valor: d.saldo },
   ]
   return (
     <section aria-label="Resumo financeiro">

@@ -534,12 +534,16 @@ def vincular_lancamento(db: Session, usuario, parceria: Parceria, dados: dict) -
             raise HTTPException(status_code=400, detail=f"Categoria do pagamento inválida. Use: {', '.join(CATEGORIAS_DE_PAGAMENTO)}.")
         if categoria == CATEGORIA_EQUIPE and not funcao:
             raise HTTPException(status_code=400, detail="Pagamento de equipe: informe a função (o nome da pessoa não vai ao site).")
-        if categoria == CATEGORIA_FORNECEDOR and _fornecedor_do_lancamento(db, item["id_titulo"]) is None:
-            raise HTTPException(
-                status_code=409,
-                detail="Pagamento a fornecedor precisa de fornecedor cadastrado (razão social e CNPJ) no título pago. "
-                       "Cadastre o fornecedor ou classifique como Equipe, Tarifa ou Outro.",
-            )
+        if categoria == CATEGORIA_FORNECEDOR:
+            fornecedor = _fornecedor_do_lancamento(db, item["id_titulo"])
+            if fornecedor is None:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Pagamento a fornecedor precisa de fornecedor cadastrado (razão social e CNPJ) no título pago. "
+                           "Cadastre o fornecedor ou classifique como Equipe, Tarifa ou Outro.",
+                )
+            # MEI costuma ter razão social "NOME + CPF": a razão social também vai ao site.
+            exigir_texto_sem_dado_pessoal({"razão social do fornecedor": fornecedor.razao_social})
         id_parcela = None
     else:
         categoria = None
@@ -658,6 +662,9 @@ def _exigir_publicavel(db: Session, parceria: Parceria) -> None:
     exigir_texto_sem_dado_pessoal({c: getattr(parceria, c) for c in _CAMPOS_TEXTO_PUBLICOS})
     for v in db.query(LancamentoDaParceria).filter(LancamentoDaParceria.id_parceria == parceria.id_parceria):
         exigir_texto_sem_dado_pessoal({f"descrição pública do lançamento {v.id_lancamento}": v.descricao_publica, "função": v.funcao})
+    for ligado in lancamentos_ligados(db, parceria):
+        if ligado["fornecedor"]:
+            exigir_texto_sem_dado_pessoal({f"razão social do fornecedor (lançamento {ligado['id_lancamento']})": ligado["fornecedor"]["razao_social"]})
     for e in db.query(EtapaParceria).filter(EtapaParceria.id_parceria == parceria.id_parceria):
         exigir_texto_sem_dado_pessoal({"título da etapa": e.titulo, "descrição da etapa": e.descricao, "local da etapa": e.local})
     achados = consistencia(db, parceria)["bloqueios"]
@@ -744,6 +751,10 @@ def serializar_publico(db: Session, p: Parceria, *, detalhe: bool = False) -> di
     """Campos EXPLÍCITOS (nada interno): nunca usuário, centro de custo, histórico do razão, motivos ou observações."""
     resumo = resumo_financeiro(db, p)
     pendentes = lancamentos_nao_classificados(db, p)
+    # "Última atualização" vale para o que a página mostra: o cadastro (que `_tocar` carimba) E o livro-caixa (que não
+    # passa pelo módulo): entrada de dinheiro nova muda recebido/pago, então também muda a data.
+    movimentos = [i["data"] for i in _lancamentos_do_centro(db, p).values() if i["data"]]
+    ultima_atualizacao = max([p.atualizado_em, *movimentos])
     dados = {
         "id_parceria": p.id_parceria, "tipo_codigo": p.tipo, "tipo": TIPOS.get(p.tipo, p.tipo), "ano": p.ano, "titulo": p.titulo,
         "objeto": p.objeto, "esfera": p.esfera, "orgao_concedente": p.orgao_concedente, "numero_emenda": p.numero_emenda,
@@ -751,7 +762,7 @@ def serializar_publico(db: Session, p: Parceria, *, detalhe: bool = False) -> di
         "situacao": p.situacao, "valor_total": resumo["valor_total"], "recebido": resumo["recebido"], "pago": resumo["pago"],
         "data_assinatura": _iso(p.data_assinatura), "vigencia_inicio": _iso(p.vigencia_inicio), "vigencia_fim": _iso(p.vigencia_fim),
         "lancamentos_em_classificacao": len(pendentes),
-        "ultima_atualizacao": _instante(p.atualizado_em),
+        "ultima_atualizacao": _instante(ultima_atualizacao),
     }
     if not detalhe:
         return dados

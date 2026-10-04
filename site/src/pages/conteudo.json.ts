@@ -5,7 +5,7 @@ import { conteudoPublico } from '../lib/dados-publicos'
 
 /**
  * `/conteudo.json` — a "impressão digital" do conteúdo público com que ESTE build foi gerado
- * (eventos, projetos, diretoria, editais e notícias do Directus). O workflow `sincronizar-site` compara com a impressão do
+ * (eventos, projetos, diretoria, editais, notícias do Directus, parcerias/emendas e documentos aprovados). O workflow `sincronizar-site` compara com a impressão do
  * que a API tem AGORA: se diferem, algo mudou no sistema (evento novo, dirigente empossado...) e o
  * site é reconstruído. Sem isto, página nova só nasceria quando alguém lembrasse de republicar.
  */
@@ -21,6 +21,8 @@ export const GET: APIRoute = async () => {
         diretoria: conteudo.diretoria.length,
         assembleias: conteudo.assembleias.length,
         noticias: conteudo.noticias.length,
+        parcerias: conteudo.parcerias.length,
+        documentos: conteudo.documentos.length,
       },
     }),
     { headers: { 'Content-Type': 'application/json' } },

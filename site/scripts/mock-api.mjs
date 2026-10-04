@@ -8,6 +8,7 @@
 //
 // O fetch do site é de verdade (HTTP -> JSON -> página); só o servidor é falso. Datas relativas a
 // "hoje", para o teste nunca envelhecer. `vazio` simula a produção sem nenhum dado cadastrado.
+import { createHash } from 'node:crypto'
 import { createServer } from 'node:http'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -196,6 +197,293 @@ const assembleias = () => [
   },
 ]
 
+// ---- Transparência (v5.4b): parcerias/emendas e documentos APROVADOS, como a API pública do sistema devolve.
+// Todo título começa com "EXEMPLO" DE PROPÓSITO: o teste do estado vazio prova que nenhum exemplo chega ao build de
+// produção (site de entidade que busca financiamento não pode exibir registro falso).
+const dataIso = (dias) => soData(dias)
+
+/** PDFs de teste: bytes pequenos, mas começam com `%PDF-` e têm o SHA-256 que a API "aprovou". */
+const PDFS_DE_TESTE = {
+  1: Buffer.from('%PDF-1.4\n% EXEMPLO - Estatuto Social registrado\n%%EOF\n'),
+  2: Buffer.from('%PDF-1.4\n% EXEMPLO - Ata de eleicao\n%%EOF\n'),
+  3: Buffer.from('%PDF-1.4\n% EXEMPLO - Plano de trabalho\n%%EOF\n'),
+}
+const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex')
+
+const documentos = () => [
+  {
+    id_documento: 1,
+    tipo_codigo: 'ESTATUTO',
+    tipo: 'Estatuto e alterações',
+    titulo: 'EXEMPLO – Estatuto Social registrado',
+    descricao: 'Texto de teste do estatuto.',
+    data_documento: dataIso(-300),
+    ano: 2024,
+    versao: 1,
+    vigente: true,
+    paginas: 12,
+    tamanho: PDFS_DE_TESTE[1].length,
+    sha256: sha256(PDFS_DE_TESTE[1]),
+    aprovado_em: dataIso(-20),
+    arquivo: '/api/publico/transparencia/documentos/1/arquivo',
+  },
+  {
+    id_documento: 2,
+    tipo_codigo: 'ATA',
+    tipo: 'Ata',
+    titulo: 'EXEMPLO – Ata de eleição da diretoria 2026-2028',
+    descricao: null,
+    data_documento: dataIso(-100),
+    ano: 2026,
+    versao: 1,
+    vigente: true,
+    paginas: 3,
+    tamanho: PDFS_DE_TESTE[2].length,
+    sha256: sha256(PDFS_DE_TESTE[2]),
+    aprovado_em: dataIso(-10),
+    arquivo: '/api/publico/transparencia/documentos/2/arquivo',
+  },
+  {
+    id_documento: 3,
+    tipo_codigo: 'PLANO_TRABALHO',
+    tipo: 'Plano de trabalho',
+    titulo: 'EXEMPLO – Plano de trabalho da Emenda 123/2026',
+    descricao: null,
+    data_documento: dataIso(-60),
+    ano: 2026,
+    versao: 1,
+    vigente: true,
+    paginas: 5,
+    tamanho: PDFS_DE_TESTE[3].length,
+    sha256: sha256(PDFS_DE_TESTE[3]),
+    aprovado_em: dataIso(-5),
+    arquivo: '/api/publico/transparencia/documentos/3/arquivo',
+  },
+]
+
+const parcerias = () => [
+  {
+    id_parceria: 1,
+    tipo_codigo: 'EMENDA',
+    tipo: 'Emenda parlamentar',
+    ano: 2026,
+    titulo: 'EXEMPLO – Emenda 123/2026 — Oficinas de música',
+    objeto:
+      'Oficinas de música e reforço escolar para crianças do bairro, com instrumentos e material didático.',
+    esfera: 'Municipal',
+    orgao_concedente: 'Secretaria Municipal de Assistência Social',
+    numero_emenda: '123/2026',
+    identificador_unico: 'EM-TESTE-0001',
+    proponente: 'Vereador Exemplo',
+    numero_termo: 'TF 009/2026',
+    situacao: 'Em execução',
+    valor_total: 50000,
+    recebido: 10000,
+    pago: 2015,
+    data_assinatura: dataIso(-90),
+    vigencia_inicio: dataIso(-90),
+    vigencia_fim: dataIso(270),
+    lancamentos_em_classificacao: 1,
+    ultima_atualizacao: `${dataIso(-1)}T15:30:00.000000Z`,
+  },
+  {
+    id_parceria: 2,
+    tipo_codigo: 'EMENDA',
+    tipo: 'Emenda parlamentar',
+    ano: 2025,
+    titulo: 'EXEMPLO – Emenda 77/2025 — Reforço escolar',
+    objeto: 'Reforço escolar aos sábados para crianças de 6 a 12 anos.',
+    esfera: 'Municipal',
+    orgao_concedente: 'Secretaria Municipal de Educação',
+    numero_emenda: '77/2025',
+    identificador_unico: null,
+    proponente: 'Vereadora Exemplo',
+    numero_termo: 'TF 014/2025',
+    situacao: 'Concluída',
+    valor_total: 30000,
+    recebido: 30000,
+    pago: 30000,
+    data_assinatura: dataIso(-500),
+    vigencia_inicio: dataIso(-500),
+    vigencia_fim: dataIso(-140),
+    lancamentos_em_classificacao: 0,
+    ultima_atualizacao: `${dataIso(-30)}T10:00:00.000000Z`,
+  },
+  {
+    id_parceria: 3,
+    tipo_codigo: 'TERMO_FOMENTO',
+    tipo: 'Termo de fomento',
+    ano: 2026,
+    titulo: 'EXEMPLO – Termo de fomento 9/2026',
+    objeto:
+      'Atendimento a famílias em situação de vulnerabilidade, com cestas e oficinas.',
+    esfera: 'Municipal',
+    orgao_concedente: 'Secretaria Municipal de Assistência Social',
+    numero_emenda: null,
+    identificador_unico: null,
+    proponente: null,
+    numero_termo: 'TF 009/2026',
+    situacao: 'Termo assinado',
+    valor_total: 12000,
+    recebido: 0,
+    pago: 0,
+    data_assinatura: dataIso(-20),
+    vigencia_inicio: dataIso(-20),
+    vigencia_fim: dataIso(340),
+    lancamentos_em_classificacao: 0,
+    ultima_atualizacao: `${dataIso(-2)}T09:00:00.000000Z`,
+  },
+]
+
+function detalheDaParceria(id) {
+  const base = parcerias().find((p) => p.id_parceria === id)
+  if (!base) return null
+  const vazio = {
+    parcelas: [],
+    recebimentos: [],
+    pagamentos: [],
+    etapas: [],
+    relatorios: [],
+    documentos: [],
+  }
+  if (id === 1) {
+    return {
+      ...base,
+      parcelas: [
+        {
+          numero: 1,
+          valor_previsto: 10000,
+          data_prevista: dataIso(-80),
+          valor_recebido: 10000,
+        },
+        {
+          numero: 2,
+          valor_previsto: 15000,
+          data_prevista: dataIso(60),
+          valor_recebido: 0,
+        },
+      ],
+      recebimentos: [
+        {
+          data: dataIso(-75),
+          valor: 10000,
+          descricao: 'Repasse do recurso',
+          parcela: 1,
+        },
+      ],
+      pagamentos: [
+        {
+          data: dataIso(-40),
+          valor: 1200,
+          descricao: 'Pagamento mensal de oficineiro',
+          categoria: 'EQUIPE',
+          funcao: 'Oficineiro de música',
+          fornecedor: null,
+        },
+        {
+          data: dataIso(-35),
+          valor: 800,
+          descricao: 'Impressão de cartazes',
+          categoria: 'FORNECEDOR',
+          funcao: null,
+          fornecedor: {
+            razao_social: 'Gráfica Aurora ME',
+            cnpj: '12345678000199',
+          },
+        },
+        {
+          data: dataIso(-30),
+          valor: 15,
+          descricao: 'Tarifa bancária',
+          categoria: 'TARIFA',
+          funcao: null,
+          fornecedor: null,
+        },
+      ],
+      etapas: [
+        {
+          titulo: 'Oficina de percussão',
+          descricao: 'Primeira oficina com as turmas da manhã.',
+          data_prevista: dataIso(-30),
+          data_realizacao: dataIso(-28),
+          local: 'Quadra da escola',
+          publico_atendido: 40,
+          situacao: 'Realizada',
+        },
+        {
+          titulo: 'Entrega de instrumentos',
+          descricao: null,
+          data_prevista: dataIso(40),
+          data_realizacao: null,
+          local: null,
+          publico_atendido: null,
+          situacao: 'Prevista',
+        },
+      ],
+      relatorios: [
+        {
+          tipo_codigo: 'PARCIAL',
+          tipo: 'Prestação de contas parcial',
+          periodo_inicio: dataIso(-90),
+          periodo_fim: dataIso(-30),
+          data_prevista: dataIso(-20),
+          data_apresentacao: dataIso(-18),
+          prazo_analise_dias: 150,
+          data_limite_analise: dataIso(132),
+          resultado: 'Em análise',
+          data_resultado: null,
+        },
+      ],
+      documentos: [
+        {
+          id_documento: 3,
+          titulo: 'EXEMPLO – Plano de trabalho da Emenda 123/2026',
+          tipo: 'Plano de trabalho',
+          data_documento: dataIso(-60),
+          arquivo: '/api/publico/transparencia/documentos/3/arquivo',
+        },
+      ],
+    }
+  }
+  if (id === 2) {
+    return {
+      ...base,
+      ...vazio,
+      parcelas: [
+        {
+          numero: 1,
+          valor_previsto: 30000,
+          data_prevista: dataIso(-480),
+          valor_recebido: 30000,
+        },
+      ],
+      recebimentos: [
+        {
+          data: dataIso(-470),
+          valor: 30000,
+          descricao: 'Repasse integral',
+          parcela: 1,
+        },
+      ],
+      relatorios: [
+        {
+          tipo_codigo: 'FINAL',
+          tipo: 'Prestação de contas final',
+          periodo_inicio: dataIso(-500),
+          periodo_fim: dataIso(-140),
+          data_prevista: dataIso(-110),
+          data_apresentacao: dataIso(-120),
+          prazo_analise_dias: 150,
+          data_limite_analise: dataIso(30),
+          resultado: 'Regulares com ressalvas',
+          data_resultado: dataIso(-40),
+        },
+      ],
+    }
+  }
+  return { ...base, ...vazio }
+}
+
 /** "AAAA-MM-DDT12:00:00Z" de `dias` atrás: fixo no dia, para a impressão digital não variar entre leituras. */
 const instante = (dias) =>
   `${new Date(Date.now() - dias * 86_400_000).toISOString().slice(0, 10)}T12:00:00Z`
@@ -351,6 +639,31 @@ export function criarServidor({ vazio = false } = {}) {
         return responder(lista(diretoria))
       if (caminho === '/api/publico/assembleias') {
         return responder(lista(assembleias))
+      }
+      if (caminho === '/api/publico/transparencia/parcerias')
+        return responder(lista(parcerias))
+      if (caminho === '/api/publico/transparencia/documentos')
+        return responder(lista(documentos))
+      const parceria = /^\/api\/publico\/transparencia\/parcerias\/(\d+)$/.exec(
+        caminho,
+      )
+      if (parceria) {
+        const detalhe = vazio ? null : detalheDaParceria(Number(parceria[1]))
+        return detalhe
+          ? responder(detalhe)
+          : responder({ detail: 'Parceria não encontrada.' }, 404)
+      }
+      const arquivoDoDocumento =
+        /^\/api\/publico\/transparencia\/documentos\/(\d+)\/arquivo$/.exec(
+          caminho,
+        )
+      if (arquivoDoDocumento) {
+        const bytes = vazio ? undefined : PDFS_DE_TESTE[arquivoDoDocumento[1]]
+        if (!bytes)
+          return responder({ detail: 'Documento não encontrado.' }, 404)
+        res.writeHead(200, { ...cors, 'Content-Type': 'application/pdf' })
+        res.end(bytes)
+        return
       }
       const evento = /^\/api\/publico\/eventos\/(\d+)$/.exec(caminho)
       if (evento) {

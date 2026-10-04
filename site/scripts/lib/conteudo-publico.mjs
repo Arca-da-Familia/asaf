@@ -1,6 +1,7 @@
 // Conteúdo público do site (v5.2) — busca na API e "impressão digital" do que as páginas mostram.
 //
 // (v5.3: junta também as notícias do Directus — ver ./directus.mjs.)
+// (v5.4b: junta as parcerias/emendas e os documentos APROVADOS da Transparência, que moram no SISTEMA.)
 // COMPARTILHADO por dois usuários, de propósito, para nunca divergirem:
 //   1. o BUILD das páginas (src/lib/dados-publicos.ts): gera Diretoria, Projetos, cada Evento etc.;
 //   2. a SINCRONIZAÇÃO (scripts/verificar-conteudo.mjs, rodada pelo workflow sincronizar-site): compara
@@ -19,6 +20,9 @@ export const ENDPOINTS_DE_LISTA = {
   projetos: '/api/publico/projetos',
   diretoria: '/api/publico/diretoria',
   assembleias: '/api/publico/assembleias',
+  // v5.4b - só o que a diretoria APROVOU no painel (rascunho, em revisão e retirado nem aparecem na API).
+  parcerias: '/api/publico/transparencia/parcerias',
+  documentos: '/api/publico/transparencia/documentos',
 }
 
 const ESPERA_ENTRE_TENTATIVAS_MS = 3000
@@ -37,6 +41,7 @@ export async function buscarJson(
     esperaMs,
     headers = {},
     rotulo = 'a API',
+    ler = (resposta) => resposta.json(),
   },
 ) {
   let ultimoErro
@@ -48,7 +53,7 @@ export async function buscarJson(
         headers: { Accept: 'application/json', ...headers },
         signal: controlador.signal,
       })
-      if (resposta.ok) return await resposta.json()
+      if (resposta.ok) return await ler(resposta)
       ultimoErro = new Error(
         `${caminho.split('?')[0]}: ${rotulo} respondeu ${resposta.status}`,
       )
@@ -80,17 +85,29 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
     esperaMs: opcoes.esperaMs ?? ESPERA_ENTRE_TENTATIVAS_MS,
   }
   const base = apiUrl.replace(/\/+$/, '')
-  const [eventos, projetos, diretoria, assembleias] = await Promise.all(
-    Object.values(ENDPOINTS_DE_LISTA).map((caminho) =>
-      buscarJson(base, caminho, config),
-    ),
+  const chaves = Object.keys(ENDPOINTS_DE_LISTA)
+  const respostas = await Promise.all(
+    chaves.map((chave) => buscarJson(base, ENDPOINTS_DE_LISTA[chave], config)),
   )
+  const { eventos, projetos, diretoria, assembleias, parcerias, documentos } =
+    Object.fromEntries(chaves.map((chave, i) => [chave, respostas[i]]))
   const detalhesDeEventos = {}
   await Promise.all(
     eventos.map(async (evento) => {
       detalhesDeEventos[evento.id_evento] = await buscarJson(
         base,
         `/api/publico/eventos/${evento.id_evento}`,
+        config,
+      )
+    }),
+  )
+  // Cada parceria aprovada tem a sua página (parcelas, recebimentos, pagamentos, etapas, relatórios, documentos).
+  const detalhesDeParcerias = {}
+  await Promise.all(
+    parcerias.map(async (parceria) => {
+      detalhesDeParcerias[parceria.id_parceria] = await buscarJson(
+        base,
+        `/api/publico/transparencia/parcerias/${parceria.id_parceria}`,
         config,
       )
     }),
@@ -112,9 +129,46 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
     projetos,
     diretoria,
     assembleias,
+    parcerias,
+    detalhesDeParcerias,
+    documentos,
     noticias,
     avisosDeNoticias: avisos,
   }
+}
+
+/** Primeiros bytes de todo PDF. */
+const ASSINATURA_DE_PDF = Buffer.from('%PDF-')
+
+/**
+ * Baixa o PDF de um documento APROVADO da Transparência para o site guardá-lo em URL permanente (o site no ar não
+ * depende de a API estar acordada: partida a frio de ~20-35 s). Só entra o arquivo que É o aprovado: o SHA-256 que a
+ * API declara (o do arquivo que passou no verificador e foi aprovado) tem que bater com o dos bytes recebidos, e os
+ * bytes têm que ser um PDF. Qualquer divergência derruba o build: melhor não publicar do que publicar outro arquivo.
+ */
+export async function baixarPdfDaTransparencia(apiUrl, documento, opcoes = {}) {
+  const base = apiUrl.replace(/\/+$/, '')
+  const bytes = await buscarJson(base, documento.arquivo, {
+    fetchImpl: opcoes.fetchImpl ?? fetch,
+    tentativas: opcoes.tentativas ?? 3,
+    timeoutMs: opcoes.timeoutMs ?? 60_000,
+    esperaMs: opcoes.esperaMs ?? ESPERA_ENTRE_TENTATIVAS_MS,
+    headers: { Accept: 'application/pdf' },
+    ler: async (resposta) => Buffer.from(await resposta.arrayBuffer()),
+  })
+  if (!bytes.subarray(0, ASSINATURA_DE_PDF.length).equals(ASSINATURA_DE_PDF)) {
+    throw new Error(
+      `O arquivo do documento ${documento.id_documento} ("${documento.titulo}") não é um PDF.`,
+    )
+  }
+  const sha256 = createHash('sha256').update(bytes).digest('hex')
+  if (sha256 !== documento.sha256) {
+    throw new Error(
+      `O PDF do documento ${documento.id_documento} ("${documento.titulo}") não confere com o que foi aprovado: ` +
+        `SHA-256 ${sha256} em vez de ${documento.sha256}.`,
+    )
+  }
+  return bytes
 }
 
 /** Remove, recursivamente, os campos que mudam a cada inscrição (não justificam reconstruir o site). */

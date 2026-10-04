@@ -349,6 +349,8 @@ describe('notícias dentro do conteúdo público', () => {
     '/api/publico/projetos': [],
     '/api/publico/diretoria': [],
     '/api/publico/assembleias': [],
+    '/api/publico/transparencia/parcerias': [],
+    '/api/publico/transparencia/documentos': [],
   }
   const fetchComDirectus = (noticias: unknown[]) =>
     (async (url: string) => {

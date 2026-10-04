@@ -517,3 +517,30 @@ def test_listagem_filtra_pelo_grupo_de_versoes(client, preparador, aprovador):
     grupo = client.get(f"/api/documentos/{v1}", headers=preparador).json()["grupo_versao"]
     ids = [d["id_documento"] for d in client.get("/api/documentos", params={"grupo_versao": grupo}, headers=preparador).json()]
     assert sorted(ids) == sorted([v1, v2])
+
+
+# ------------------------------------------------------------------ título e descrição também vão ao site
+def test_titulo_e_descricao_com_dado_pessoal_sao_recusados_ja_no_cadastro(client, preparador):
+    r = _criar(client, preparador, titulo=f"Ata do Fulano CPF {CPF_VALIDO}")
+    assert r.status_code == 422 and "título" in r.text and CPF_VALIDO not in r.text
+    r = _criar(client, preparador, titulo="Ata de eleição", descricao="Contato: fulano@gmail.com")
+    assert r.status_code == 422 and "descrição" in r.text
+    assert _criar(client, preparador, titulo="Ata de eleição 2026", descricao="Eleição da diretoria 2026-2028.").status_code == 200
+
+
+def test_editar_titulo_com_dado_pessoal_tambem_e_recusado(client, preparador):
+    id_documento = _criar(client, preparador).json()["id_documento"]
+    r = client.patch(f"/api/documentos/{id_documento}", json={"titulo": f"Ata CPF {CPF_VALIDO}"}, headers=preparador)
+    assert r.status_code == 422
+
+
+def test_data_de_aprovacao_publica_e_o_dia_de_belem(client, db, preparador, aprovador):
+    """Aprovado às 22h30 do dia 10 em Belém (01h30 UTC do dia 11): o público tem que ler dia 10."""
+    from datetime import datetime
+
+    id_documento = _publicado(client, preparador, aprovador)
+    doc = db.query(DocumentoInstitucional).filter(DocumentoInstitucional.id_documento == id_documento).first()
+    doc.aprovado_em = datetime(2026, 8, 11, 1, 30)
+    db.commit()
+    lista = client.get("/api/publico/transparencia/documentos").json()
+    assert next(d for d in lista if d["id_documento"] == id_documento)["aprovado_em"] == "2026-08-10"

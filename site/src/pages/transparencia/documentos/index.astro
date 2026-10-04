@@ -1,0 +1,182 @@
+---
+import FaleConosco from '../../../components/FaleConosco.astro'
+import TituloDePagina from '../../../components/TituloDePagina.astro'
+import type { Migalha } from '../../../config/navegacao'
+import Base from '../../../layouts/Base.astro'
+import { conteudoPublico } from '../../../lib/dados-publicos'
+import { formatarDataCurta } from '../../../lib/datas'
+import {
+  agruparDocumentosPorTipo,
+  caminhoDoPdf,
+} from '../../../lib/transparencia'
+
+// Fonte: o SISTEMA (módulo Documentos). Só a VERSÃO PÚBLICA de documento aprovado por outra pessoa da diretoria: o
+// original (que pode ter RG/CPF) nunca sai do sistema. O PDF é copiado para este site no build, num endereço fixo.
+const { documentos } = await conteudoPublico()
+const porTipo = agruparDocumentosPorTipo(documentos)
+const migalhas: Migalha[] = [
+  { rotulo: 'Transparência', href: '/transparencia/' },
+  { rotulo: 'Documentos' },
+]
+const tamanho = (bytes: number | null) =>
+  bytes === null
+    ? ''
+    : bytes < 1024 * 1024
+      ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+      : `${(bytes / (1024 * 1024)).toFixed(1).replace('.', ',')} MB`
+---
+
+<Base
+  titulo="Documentos publicados"
+  descricao="Documentos oficiais da ASAF publicados para consulta: atas, certidões, balanços, relatórios e termos, organizados por tipo e ano."
+  caminho="/transparencia/documentos/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Documentos publicados"
+    resumo="Os documentos oficiais da ASAF, por tipo e por ano, para ler ou baixar em PDF."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-12">
+    <p class="max-w-3xl">
+      A versão publicada de cada documento é conferida antes da publicação para
+      não trazer CPF, número de RG, e-mail ou celular de pessoas, e a publicação
+      é aprovada por outra pessoa autorizada. O original, que pode ter dados
+      pessoais, não é publicado. O Estatuto Social também pode ser lido na
+      íntegra em{' '}
+      <a href="/estatuto/" class="underline underline-offset-4">
+        sua página
+      </a>
+      .
+    </p>
+
+    {documentos.length === 0 ? (
+      <section data-estado="vazio" aria-labelledby="sem-documentos">
+        <h2 id="sem-documentos" class="text-2xl font-bold tracking-tight">
+          Nenhum documento publicado ainda
+        </h2>
+        <p class="mt-4 max-w-3xl text-lg">
+          Os documentos aparecerão aqui quando forem aprovados para publicação.
+        </p>
+      </section>
+    ) : (
+      <div data-documentos>
+        <form
+          hidden
+          data-busca
+          role="search"
+          aria-label="Buscar documentos"
+          class="flex flex-wrap items-end gap-4"
+        >
+          <label class="flex flex-col gap-1 text-sm font-medium">
+            Buscar por título
+            <input
+              type="search"
+              name="q"
+              autocomplete="off"
+              class="h-11 w-72 max-w-full rounded-md border bg-background px-3 text-base font-normal"
+            />
+          </label>
+          <p
+            role="status"
+            class="pb-2 text-sm text-muted-foreground"
+            data-resultado
+          />
+        </form>
+
+        <div class="mt-8 flex flex-col gap-10">
+          {porTipo.map((grupo, i) => (
+            <section aria-labelledby={`tipo-${i}`} data-tipo-grupo>
+              <h2 id={`tipo-${i}`} class="text-2xl font-bold tracking-tight">
+                {grupo.tipo}
+              </h2>
+              <ul class="mt-4 flex flex-col gap-3">
+                {grupo.documentos.map((d) => (
+                  <li
+                    class="rounded-lg border bg-card p-5 shadow-card"
+                    data-documento
+                    data-titulo={`${d.titulo} ${d.tipo} ${d.ano ?? ''}`.toLowerCase()}
+                  >
+                    <a
+                      href={caminhoDoPdf(d)}
+                      class="text-lg font-semibold text-primary underline underline-offset-4"
+                    >
+                      {d.titulo} <span class="sr-only">(PDF)</span>
+                    </a>
+                    <p class="mt-1 text-sm text-muted-foreground">
+                      {d.ano ? `${d.ano} · ` : ''}
+                      {d.data_documento
+                        ? `${formatarDataCurta(d.data_documento)} · `
+                        : ''}
+                      {d.vigente
+                        ? 'Versão vigente'
+                        : `Versão ${d.versao} (anterior)`}
+                      {d.paginas
+                        ? ` · ${d.paginas} página${d.paginas === 1 ? '' : 's'}`
+                        : ''}
+                      {d.tamanho ? ` · PDF, ${tamanho(d.tamanho)}` : ''}
+                    </p>
+                    {d.descricao && <p class="mt-2 text-sm">{d.descricao}</p>}
+                    <details class="mt-2 text-sm">
+                      <summary class="cursor-pointer">
+                        Código de verificação do arquivo
+                      </summary>
+                      <p class="mt-1 break-all font-mono text-xs">
+                        SHA-256: {d.sha256}
+                      </p>
+                    </details>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      </div>
+    )}
+
+    <FaleConosco titulo="Procura outro documento?">
+      <p>
+        Se procura um documento que ainda não está aqui, peça à secretaria da
+        ASAF.
+      </p>
+    </FaleConosco>
+  </div>
+</Base>
+
+<script>
+  // Melhora progressiva: sem JavaScript a lista inteira aparece; com ele, a busca filtra pelo título, tipo e ano.
+  const raiz = document.querySelector<HTMLElement>('[data-documentos]')
+  const formulario = raiz?.querySelector<HTMLFormElement>('[data-busca]')
+  const resultado = raiz?.querySelector<HTMLElement>('[data-resultado]')
+  if (raiz && formulario && resultado) {
+    formulario.hidden = false
+    const itens = [...raiz.querySelectorAll<HTMLElement>('[data-documento]')]
+    const normalizar = (texto: string) =>
+      texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+    const filtrar = () => {
+      const consulta = normalizar(
+        String(new FormData(formulario).get('q') ?? ''),
+      )
+      let visiveis = 0
+      for (const item of itens) {
+        const mostrar =
+          !consulta || normalizar(item.dataset.titulo ?? '').includes(consulta)
+        item.hidden = !mostrar
+        if (mostrar) visiveis += 1
+      }
+      for (const grupo of raiz.querySelectorAll<HTMLElement>(
+        '[data-tipo-grupo]',
+      )) {
+        grupo.hidden = !grupo.querySelector('[data-documento]:not([hidden])')
+      }
+      resultado.textContent = consulta
+        ? visiveis === 0
+          ? 'Nenhum documento encontrado.'
+          : `Mostrando ${visiveis} de ${itens.length}.`
+        : ''
+    }
+    formulario.addEventListener('input', filtrar)
+    formulario.addEventListener('submit', (e) => e.preventDefault())
+  }
+</script>

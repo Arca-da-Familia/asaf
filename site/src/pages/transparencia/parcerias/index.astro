@@ -1,0 +1,65 @@
+---
+import FaleConosco from '../../../components/FaleConosco.astro'
+import TituloDePagina from '../../../components/TituloDePagina.astro'
+import ListaDeParcerias from '../../../components/transparencia/ListaDeParcerias.astro'
+import type { Migalha } from '../../../config/navegacao'
+import Base from '../../../layouts/Base.astro'
+import { conteudoPublico } from '../../../lib/dados-publicos'
+import { ehEmenda } from '../../../lib/transparencia'
+
+// Fonte: o SISTEMA (módulo Parcerias e emendas). Termos de fomento, de colaboração, acordos de cooperação e outras
+// parcerias APROVADOS pela diretoria. As emendas parlamentares têm página própria.
+const { parcerias } = await conteudoPublico()
+const demais = parcerias.filter((p) => !ehEmenda(p))
+const migalhas: Migalha[] = [
+  { rotulo: 'Transparência', href: '/transparencia/' },
+  { rotulo: 'Parcerias' },
+]
+---
+
+<Base
+  titulo="Parcerias e termos"
+  descricao="Termos de fomento, de colaboração e outras parcerias da ASAF com órgãos públicos: valores, parcelas, pagamentos, etapas e prestação de contas."
+  caminho="/transparencia/parcerias/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Parcerias e termos"
+    resumo="Os termos de fomento, de colaboração e outras parcerias que a ASAF mantém com órgãos públicos."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-12">
+    {demais.length === 0 ? (
+      <section data-estado="vazio" aria-labelledby="sem-parcerias">
+        <h2 id="sem-parcerias" class="text-2xl font-bold tracking-tight">
+          Nenhuma parceria publicada
+        </h2>
+        <p class="mt-4 max-w-3xl text-lg">
+          Nenhum termo de fomento, de colaboração ou outra parceria foi
+          publicado até agora. As emendas parlamentares estão em{' '}
+          <a
+            href="/transparencia/emendas/"
+            class="underline underline-offset-4"
+          >
+            Emendas parlamentares
+          </a>
+          .
+        </p>
+      </section>
+    ) : (
+      <ListaDeParcerias
+        parcerias={demais}
+        prefixo="parcerias"
+        plural="parcerias"
+      />
+    )}
+
+    <FaleConosco titulo="Pedido de informação">
+      <p>
+        Para pedir informação sobre os recursos públicos recebidos, fale com a
+        secretaria da ASAF.
+      </p>
+    </FaleConosco>
+  </div>
+</Base>

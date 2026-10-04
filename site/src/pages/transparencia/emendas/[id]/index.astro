@@ -1,0 +1,46 @@
+---
+import TituloDePagina from '../../../../components/TituloDePagina.astro'
+import DetalheDaParceria from '../../../../components/transparencia/DetalheDaParceria.astro'
+import type { Migalha } from '../../../../config/navegacao'
+import Base from '../../../../layouts/Base.astro'
+import {
+  caminhoDaEmenda,
+  conteudoPublico,
+} from '../../../../lib/dados-publicos'
+import { descricaoParaMeta, tituloCurto } from '../../../../lib/texto'
+import { ehEmenda } from '../../../../lib/transparencia'
+
+// Uma página por emenda APROVADA. Sem emenda aprovada, nenhuma página nasce.
+export async function getStaticPaths() {
+  const { parcerias, detalhesDeParcerias } = await conteudoPublico()
+  return parcerias.filter(ehEmenda).map((p) => ({
+    params: { id: String(p.id_parceria) },
+    props: { parceria: detalhesDeParcerias[p.id_parceria]! },
+  }))
+}
+
+const { parceria } = Astro.props
+const caminho = caminhoDaEmenda(parceria.id_parceria)
+const migalhas: Migalha[] = [
+  { rotulo: 'Transparência', href: '/transparencia/' },
+  { rotulo: 'Emendas parlamentares', href: '/transparencia/emendas/' },
+  { rotulo: tituloCurto(parceria.titulo) },
+]
+---
+
+<Base
+  titulo={tituloCurto(parceria.titulo)}
+  descricao={descricaoParaMeta(
+    parceria.objeto,
+    `Emenda parlamentar ${parceria.ano} da ASAF: valores, parcelas, pagamentos, etapas e prestação de contas.`,
+  )}
+  caminho={caminho}
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo={parceria.titulo}
+    resumo={`${parceria.tipo} · ${parceria.ano}`}
+    migalhas={migalhas}
+  />
+  <DetalheDaParceria parceria={parceria} />
+</Base>

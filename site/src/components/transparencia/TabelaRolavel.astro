@@ -1,0 +1,21 @@
+---
+/**
+ * Envolve uma tabela larga: no celular ela rola para o lado, e quem navega só pelo teclado precisa conseguir focar e
+ * rolar essa área (axe: scrollable-region-focusable). Por isso a região recebe `tabindex="0"`, um papel e um nome.
+ */
+interface Props {
+  /** Nome da região para o leitor de tela (ex.: "Pagamentos desta parceria"). Vira "Tabela: …", para nunca repetir o nome da seção que a contém (axe: landmark-unique). */
+  rotulo: string
+}
+
+const { rotulo } = Astro.props
+---
+
+<div
+  class="mt-4 overflow-x-auto"
+  role="region"
+  tabindex="0"
+  aria-label={`Tabela: ${rotulo}`}
+>
+  <slot />
+</div>

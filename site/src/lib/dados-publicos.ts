@@ -17,10 +17,13 @@ import { API_URL } from '../config/organizacao'
 export type {
   AssembleiaPublica,
   ConteudoPublico,
+  DocumentoPublico,
   EventoDaLista,
   EventoDetalhado,
   MembroDaDiretoria,
   NoticiaPublica,
+  ParceriaDetalhada,
+  ParceriaPublica,
   ProjetoPublico,
   SessaoDoEvento,
 } from '../../scripts/lib/conteudo-publico.mjs'
@@ -44,3 +47,14 @@ export const caminhoDaNoticia = (slug: string) => `/noticias/${slug}/`
 /** Foto da notícia, gerada no build a partir do Directus (src/pages/midia/noticias/[id].webp.ts). */
 export const caminhoDaFotoDaNoticia = (idDoArquivo: string) =>
   `/midia/noticias/${idDoArquivo}.webp`
+/** Parcerias: cada uma tem UM endereço, conforme o tipo (emenda parlamentar x demais parcerias). Só o id: título editado nunca quebra o link. */
+export const caminhoDaEmenda = (id: number) => `/transparencia/emendas/${id}/`
+export const caminhoDaParceria = (id: number) =>
+  `/transparencia/parcerias/${id}/`
+export const caminhoDeUmaParceria = (p: {
+  id_parceria: number
+  tipo_codigo: string
+}) =>
+  p.tipo_codigo === 'EMENDA'
+    ? caminhoDaEmenda(p.id_parceria)
+    : caminhoDaParceria(p.id_parceria)
