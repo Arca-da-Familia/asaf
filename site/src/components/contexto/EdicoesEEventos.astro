@@ -1,0 +1,74 @@
+---
+/**
+ * Lista de edições/eventos de um projeto (v5.5), na ordem em que vier. Usada na página do projeto ("Edições e eventos",
+ * da mais recente para a mais antiga) e na do evento ("Outras edições", da mais antiga para a mais nova, com a atual
+ * marcada e SEM link — a pessoa já está nela).
+ *
+ * O build não sabe que dia é quando alguém abre a página: "Já realizado" é acrescentado no navegador
+ * (src/lib/edicoes-vivas.ts), por isso o item leva `data-fim`.
+ */
+import { caminhoDoEvento } from '../../lib/dados-publicos'
+import { comFusoDaAsaf, formatarDia, formatarHora } from '../../lib/datas'
+import { fimDoEvento } from '../../lib/contexto'
+import type { ResumoDeEvento } from '../../lib/dados-publicos'
+
+interface Props {
+  id: string
+  titulo: string
+  eventos: (ResumoDeEvento & { atual?: boolean })[]
+}
+
+const { id, titulo, eventos } = Astro.props
+---
+
+<section aria-labelledby={id} data-secao={id}>
+  <h2 id={id} class="text-2xl font-bold tracking-tight">
+    {titulo}
+  </h2>
+  <ul class="mt-4 flex max-w-3xl flex-col gap-3">
+    {eventos.map((evento) => (
+      <li
+        class="rounded-lg border bg-card p-4 shadow-card"
+        data-edicao
+        data-fim={fimDoEvento(evento)}
+      >
+        <p class="text-sm font-medium text-primary">
+          <time datetime={comFusoDaAsaf(evento.data_hora_inicio)}>
+            {formatarDia(evento.data_hora_inicio)}, às{' '}
+            {formatarHora(evento.data_hora_inicio)}
+          </time>
+          <span data-realizado hidden>
+            {' '}
+            · Já realizado
+          </span>
+        </p>
+        <h3 class="mt-1 text-lg font-semibold">
+          {evento.atual ? (
+            <>
+              {evento.titulo}{' '}
+              <span class="text-sm font-normal text-muted-foreground">
+                (você está nesta edição)
+              </span>
+            </>
+          ) : (
+            <a
+              href={caminhoDoEvento(evento.id_evento)}
+              class="text-primary underline underline-offset-4"
+            >
+              {evento.titulo}
+            </a>
+          )}
+        </h3>
+        {evento.endereco_avulso && (
+          <p class="mt-1 text-sm">{evento.endereco_avulso}</p>
+        )}
+      </li>
+    ))}
+  </ul>
+</section>
+
+<script>
+  import { marcarEdicoesRealizadas } from '../../lib/edicoes-vivas'
+
+  marcarEdicoesRealizadas()
+</script>

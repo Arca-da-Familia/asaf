@@ -11,10 +11,14 @@ export { API_DE_TESTE }
 const comando = process.platform === 'win32' ? 'npx.cmd' : 'npx'
 // `--vazio`: variante com a API sem nenhum dado (o estado da produção hoje), em `dist-vazio`.
 const vazio = process.argv.includes('--vazio')
+// `--antiga`: a API ANTES do contexto de projeto/evento (v5.5), em `dist-antiga` — prova que o site continua
+// construindo (sem as seções novas) se for publicado antes de a API nova entrar no ar.
+const antiga = process.argv.includes('--antiga')
 const argumentos = [
   'astro',
   'build',
   ...(vazio ? ['--outDir', 'dist-vazio'] : []),
+  ...(antiga ? ['--outDir', 'dist-antiga'] : []),
 ]
 
 /**
@@ -32,5 +36,5 @@ function rodarAstro() {
   })
 }
 
-const status = await comMock({ vazio }, rodarAstro)
+const status = await comMock({ vazio, antiga }, rodarAstro)
 process.exit(status)

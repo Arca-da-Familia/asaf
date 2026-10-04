@@ -87,6 +87,24 @@ exigir(
   !lerPagina('/').includes('Nossos projetos'),
   'a home mostra "Nossos projetos" sem projeto',
 )
+// 3a. v5.5 - Despertai e contexto do evento: sem projeto em destaque, evento, foto nem notícia ligada, NADA disso aparece
+// (nem a seção de destaque da home, nem a "próxima edição", nem a pasta de fotos de evento).
+const inicio = lerPagina('/')
+for (const marca of [
+  'data-secao="destaque"',
+  'data-proximas-edicoes',
+  'Em destaque',
+  'Próxima edição',
+]) {
+  exigir(
+    !inicio.includes(marca),
+    `a home mostra "${marca}" sem projeto em destaque`,
+  )
+}
+exigir(
+  !existsSync('dist-vazio/midia/eventos'),
+  'nasceu /midia/eventos/ (foto de evento) sem haver evento com foto',
+)
 const transparencia = lerPagina('/transparencia/')
 exigir(
   transparencia.includes('o Estatuto é o único documento publicado'),
@@ -208,9 +226,76 @@ exigir(
   `conteudo.json devia contar zero: ${JSON.stringify(conteudo.contagem)}`,
 )
 
+// 6. v5.5 - API ANTIGA. O site e a API são publicados juntos: se o build do site ler a API ANTES de ela ter o contexto de
+// projeto/evento (destaque, edições, relatórios, fotos, projeto no evento), o site TEM que construir do mesmo jeito, só
+// sem as seções novas — nunca quebrar o deploy nem mostrar bloco vazio. O mock `--antiga` responde como a API antiga
+// (mesmos dados, sem nenhum campo novo) e as notícias chegam sem `projeto_id`/`evento_id`.
+const construcaoAntiga = spawnSync(
+  'node',
+  ['scripts/build-teste.mjs', '--antiga'],
+  { stdio: 'inherit' },
+)
+if (construcaoAntiga.status !== 0) {
+  console.error(
+    'O build contra a API ANTIGA falhou: o site não pode depender dos campos novos da API (v5.5).',
+  )
+  process.exit(1)
+}
+const lerAntiga = (caminho) =>
+  readFileSync(`dist-antiga${caminho}index.html`, 'utf-8')
+const homeAntiga = lerAntiga('/')
+for (const marca of [
+  'data-secao="destaque"',
+  'data-proximas-edicoes',
+  'Em destaque',
+  'Próxima edição',
+]) {
+  exigir(
+    !homeAntiga.includes(marca),
+    `API antiga: a home mostra "${marca}" (não há destaque na API antiga)`,
+  )
+}
+exigir(
+  homeAntiga.includes('Nossos projetos'),
+  'API antiga: a home perdeu "Nossos projetos"',
+)
+for (const [caminho, rotulo] of [
+  ['/projetos/3/', 'a página do projeto'],
+  ['/projetos/1/', 'a página do projeto de reforço'],
+  ['/eventos/4/', 'a página do evento'],
+  ['/eventos/2/', 'a página do evento avulso'],
+  ['/noticias/noticia-de-teste-ligada-ao-projeto/', 'a página da notícia'],
+]) {
+  exigir(
+    existsSync(`dist-antiga${caminho}index.html`),
+    `API antiga: ${rotulo} (${caminho}) não foi gerada`,
+  )
+  if (!existsSync(`dist-antiga${caminho}index.html`)) continue
+  const html = lerAntiga(caminho)
+  for (const marca of [
+    'data-secao=',
+    'data-projeto-do-evento',
+    'data-ligacoes-da-noticia',
+    'Faz parte do projeto',
+    'Outras edições',
+    'Fotos do evento',
+  ]) {
+    exigir(
+      !html.includes(marca),
+      `API antiga: ${caminho} mostra "${marca}" sem haver dado`,
+    )
+  }
+}
+exigir(
+  !existsSync('dist-antiga/midia/eventos'),
+  'API antiga: nasceu /midia/eventos/ sem haver foto de evento',
+)
+
 if (problemas.length > 0) {
   console.error('\nESTADO VAZIO COM PROBLEMA:')
   for (const p of problemas) console.error('  -', p)
   process.exit(1)
 }
-console.log(`OK: estado vazio conferido em ${paginas.length} páginas.`)
+console.log(
+  `OK: estado vazio conferido em ${paginas.length} páginas; build contra a API antiga (sem o contexto de projeto/evento) conferido.`,
+)

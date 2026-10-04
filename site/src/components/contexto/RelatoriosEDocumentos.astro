@@ -1,0 +1,56 @@
+---
+/**
+ * Relatórios e documentos APROVADOS ligados a um projeto ou evento (v5.5). Cada um abre o PDF (copiado no build, endereço
+ * permanente) ou a página do texto (`caminhoDoDocumento`). Quem aprovou, o termo e o arquivo interno nunca vêm da API.
+ */
+import { ordenarDocumentos, rotuloDoFormato } from '../../lib/contexto'
+import type { DocumentoPublico } from '../../lib/dados-publicos'
+import { caminhoDoDocumento } from '../../lib/transparencia'
+
+interface Props {
+  id: string
+  titulo: string
+  documentos: DocumentoPublico[]
+  /** Título de cada evento do projeto, para dizer a que edição o documento pertence. */
+  titulosDosEventos?: Record<number, string>
+}
+
+const { id, titulo, documentos, titulosDosEventos = {} } = Astro.props
+
+const itens = ordenarDocumentos(documentos).map((d) => ({
+  documento: d,
+  detalhes: [
+    d.tipo,
+    d.ano ? String(d.ano) : null,
+    rotuloDoFormato(d),
+    d.vinculo_tipo === 'evento' && d.vinculo_id != null
+      ? (titulosDosEventos[d.vinculo_id] ?? null)
+      : null,
+  ].filter(Boolean),
+}))
+---
+
+<section aria-labelledby={id} data-secao={id}>
+  <h2 id={id} class="text-2xl font-bold tracking-tight">
+    {titulo}
+  </h2>
+  <ul class="mt-4 flex max-w-3xl flex-col gap-3">
+    {itens.map(({ documento, detalhes }) => (
+      <li
+        class="rounded-lg border bg-card p-5 shadow-card"
+        data-documento-do-contexto
+      >
+        <a
+          href={caminhoDoDocumento(documento)}
+          class="text-lg font-semibold text-primary underline underline-offset-4"
+        >
+          {documento.titulo}{' '}
+          <span class="sr-only">
+            ({documento.formato === 'TEXTO' ? 'texto' : 'PDF'})
+          </span>
+        </a>
+        <p class="mt-1 text-sm text-muted-foreground">{detalhes.join(' · ')}</p>
+      </li>
+    ))}
+  </ul>
+</section>

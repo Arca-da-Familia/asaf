@@ -19,19 +19,18 @@ Esta é a mesma fronteira das rotas de evento (app/routers/eventos.py): o site �
 painel é gestão."""
 import hashlib
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.associados import Associado
 from app.models.core import Catalogo, OpcaoCatalogo
-from app.models.documentos import APROVADO, FORMATO_TEXTO, TIPOS as TIPOS_DE_DOCUMENTO, DocumentoInstitucional
+from app.models.documentos import FORMATO_TEXTO
 from app.models.governanca import Assembleia, RASCUNHO
 from app.models.mandatos import Mandato
 from app.models.parcerias import FotoEtapaParceria
@@ -39,6 +38,7 @@ from app.models.projetos import ProjetoEvento
 from app.services import armazenamento
 from app.services import parcerias as servico_de_parcerias
 from app.services import parcerias_fotos as servico_de_fotos
+from app.services import publico_contexto
 from app.services.assembleia import horarios_convocacao
 
 router = APIRouter()
@@ -59,12 +59,6 @@ def _catalogo(db: Session, chave: str) -> dict[str, tuple[str, int]]:
 
 def _data(valor: Optional[datetime]) -> Optional[str]:
     return valor.date().isoformat() if valor else None
-
-
-def _dia_de_belem(valor: Optional[datetime]) -> Optional[str]:
-    """Instante gravado em UTC -> dia no relógio de Parauapebas (UTC-3, sem horário de verão): uma aprovação às 22h do dia
-    10 está gravada como dia 11 em UTC, e o público tem que ler dia 10."""
-    return (valor - timedelta(hours=3)).date().isoformat() if valor else None
 
 
 # ==========================================
@@ -107,6 +101,8 @@ def _serializar_projeto_publico(p: ProjetoEvento, tipos: dict, status: dict) -> 
         "tipo_codigo": p.tipo_projeto, "tipo": tipos.get(p.tipo_projeto or "", (p.tipo_projeto, 0))[0],
         "status_codigo": p.status, "status": status.get(p.status or "", (p.status, 0))[0],
         "publico_alvo": p.publico_alvo, "data_inicio": _data(p.data_inicio), "data_fim_prevista": _data(p.data_fim_prevista),
+        # v5.5: o projeto principal da associação (o Despertai) aparece em destaque na página inicial
+        "destaque": bool(p.destaque_no_site),
     }
 
 
@@ -125,7 +121,11 @@ def obter_projeto_publico(id_projeto: int, db: Session = Depends(get_db)):
     projeto = db.query(ProjetoEvento).filter(ProjetoEvento.id_projeto == id_projeto).first()
     if not projeto or projeto.visibilidade != VISIBILIDADE_PUBLICA:
         raise HTTPException(status_code=404, detail="Projeto não encontrado.")
-    return _serializar_projeto_publico(projeto, _catalogo(db, "tipo_projeto"), _catalogo(db, "status_projeto"))
+    # v5.5: o contexto do projeto — as edições/eventos dele, os relatórios e documentos aprovados e as fotos dos eventos
+    return {
+        **_serializar_projeto_publico(projeto, _catalogo(db, "tipo_projeto"), _catalogo(db, "status_projeto")),
+        **publico_contexto.contexto_do_projeto(db, projeto),
+    }
 
 
 # ==========================================
@@ -173,28 +173,8 @@ def obter_assembleia_publica(id_assembleia: int, db: Session = Depends(get_db)):
 # ==========================================
 # DOCUMENTOS DA TRANSPARÊNCIA (v5.4a) - só o APROVADO, só a versão pública
 # ==========================================
-def _documentos_publicos(db: Session):
-    return (
-        db.query(DocumentoInstitucional)
-        .filter(DocumentoInstitucional.situacao == APROVADO, DocumentoInstitucional.publicar_no_site.is_(True),
-                or_(DocumentoInstitucional.publico_nome.isnot(None), DocumentoInstitucional.publico_formato == FORMATO_TEXTO))
-        .order_by(DocumentoInstitucional.ano.desc().nullslast(), DocumentoInstitucional.titulo, DocumentoInstitucional.versao.desc())
-        .all()
-    )
-
-
-def _serializar_documento_publico(d: DocumentoInstitucional) -> dict:
-    return {
-        "id_documento": d.id_documento, "tipo_codigo": d.tipo, "tipo": TIPOS_DE_DOCUMENTO.get(d.tipo, d.tipo),
-        "titulo": d.titulo, "descricao": d.descricao,
-        "data_documento": d.data_documento.isoformat() if d.data_documento else None, "ano": d.ano,
-        "versao": d.versao, "vigente": bool(d.vigente),
-        "paginas": d.publico_paginas, "tamanho": d.publico_tamanho, "sha256": d.publico_sha256,
-        "aprovado_em": _dia_de_belem(d.aprovado_em),
-        # "PDF": o site copia o arquivo; "TEXTO": o site monta uma página com o texto (detalhe abaixo)
-        "formato": d.publico_formato or "PDF",
-        "arquivo": None if d.publico_formato == FORMATO_TEXTO else f"/api/publico/transparencia/documentos/{d.id_documento}/arquivo",
-    }
+_documentos_publicos = publico_contexto.documentos_publicos
+_serializar_documento_publico = publico_contexto.serializar_documento_publico
 
 
 @router.get("/api/publico/transparencia/documentos", summary="Documentos aprovados para a transparência (leitura, sem autenticação, pro site)")

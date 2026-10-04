@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test'
 
 // v5.3 — Notícias vindas do Directus (editor do site), lidas no build. O servidor de teste (scripts/mock-api.mjs)
-// simula o Directus: 2 notícias boas e 3 que a validação do site TEM que recusar (foto sem autorização, rascunho
-// que escapou do filtro, agendada). Aqui se prova, no navegador, o que aparece e o que NÃO pode aparecer.
+// simula o Directus: 5 notícias boas (2 comuns e 3 ligadas a projeto/evento, v5.5) e 3 que a validação do site TEM que
+// recusar (foto sem autorização, rascunho que escapou do filtro, agendada). Aqui se prova, no navegador, o que aparece
+// e o que NÃO pode aparecer.
 
 const FOTO = '11111111-1111-4111-8111-111111111111'
 
@@ -15,6 +16,10 @@ test.describe('Lista de notícias', () => {
     expect(titulos).toEqual([
       'Notícia de teste com foto',
       'Notícia de teste sem foto',
+      // v5.5: as ligadas a projeto/evento são notícias como as outras (a de ligação quebrada também vai ao ar)
+      'Notícia de teste ligada ao projeto',
+      'Notícia de teste ligada ao evento',
+      'Notícia de teste com ligação quebrada',
     ])
     const html = await page.content()
     expect(html).not.toContain('RECUSADA')
@@ -152,7 +157,7 @@ test.describe('Feed, Home e rodapé', () => {
     const xml = await resposta.text()
     expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true)
     expect(xml).toContain('<rss version="2.0"')
-    expect(xml.match(/<item>/g)).toHaveLength(2)
+    expect(xml.match(/<item>/g)).toHaveLength(5)
     expect(xml).toContain('<title>Notícia de teste com foto</title>')
     expect(xml).toContain(
       '<link>https://asaf.org.br/noticias/noticia-de-teste-com-foto/</link>',
@@ -173,7 +178,7 @@ test.describe('Feed, Home e rodapé', () => {
   }) => {
     await page.goto('/')
     const bloco = page.locator('section[aria-labelledby="ultimas-noticias"]')
-    await expect(bloco.locator('li')).toHaveCount(2)
+    await expect(bloco.locator('li')).toHaveCount(3) // as 3 mais recentes
     await expect(bloco).toContainText('Notícia de teste com foto')
     await expect(
       page.locator('footer a[href="/noticias/"]').first(),
@@ -184,6 +189,6 @@ test.describe('Feed, Home e rodapé', () => {
     request,
   }) => {
     const dados = await (await request.get('/conteudo.json')).json()
-    expect(dados.contagem.noticias).toBe(2)
+    expect(dados.contagem.noticias).toBe(5)
   })
 })

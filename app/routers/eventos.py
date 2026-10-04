@@ -4,7 +4,9 @@ Inscrição reaproveita o motor genérico da v4.0 (`/api/inscricoes/`, já exist
 (o próprio associado se inscrevendo) e a leitura pública pro site institucional."""
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
@@ -15,6 +17,7 @@ from app.schemas.eventos import (
     CupomDescontoCriar,
     EventoCobrancaConfig,
     EventoCriar,
+    EventoEditar,
     EventoElegibilidadeConfig,
     EventoReembolsoConfig,
     FaixaPrecoEventoCriar,
@@ -30,11 +33,13 @@ from app.models.motores import CANCELADO, Inscricao, RegistroPresenca
 from app.services import certificados as servico_certificados
 from app.services import cupons as servico_cupons
 from app.services import eventos
+from app.services import eventos_fotos as servico_de_fotos
 from app.services import fechamento_evento as servico_fechamento_evento
 from app.services import inscricao as servico_inscricao
 from app.services import isencoes_taxa as servico_isencoes_taxa
 from app.services import pesquisa_satisfacao as servico_pesquisa_satisfacao
 from app.services import portaria as servico_portaria
+from app.services import publico_contexto
 from app.services import precos_evento as servico_precos_evento
 from app.services import vagas as servico_vagas
 from app.services.protecao_publica import limitar_taxa_por_ip
@@ -71,16 +76,18 @@ def _serializar_evento(e) -> dict:
         "endereco_avulso": e.endereco_avulso, "id_associado_responsavel": e.id_associado_responsavel,
         "vagas": e.vagas, "vagas_ocupadas": e.vagas_ocupadas, "vagas_livres": _vagas_livres(e),
         "gratuito": e.gratuito, "visibilidade": e.visibilidade, "id_edicao_anterior": e.id_edicao_anterior,
+        "id_projeto": e.id_projeto,
     }
 
 
-def _serializar_evento_publico(e) -> dict:
+def _serializar_evento_publico(e, projetos_publicos: set) -> dict:
     # v4.5 - só o que o site institucional precisa - nunca campos de gestão interna
-    # (id_usuario_criacao, etc.).
+    # (id_usuario_criacao, etc.). v5.5: `id_projeto` só vai quando o projeto também é Público (o site só tem página dele).
     return {
         "id_evento": e.id_evento, "titulo": e.titulo, "descricao": e.descricao, "categoria": e.categoria,
         "data_hora_inicio": e.data_hora_inicio, "data_hora_fim": e.data_hora_fim, "id_espaco": e.id_espaco,
         "endereco_avulso": e.endereco_avulso, "vagas": e.vagas, "vagas_livres": _vagas_livres(e), "gratuito": e.gratuito,
+        "id_projeto": e.id_projeto if e.id_projeto in projetos_publicos else None,
     }
 
 
@@ -113,6 +120,7 @@ def criar_evento_endpoint(dados: EventoCriar, request: Request, db: Session = De
         data_hora_inicio=dados.data_hora_inicio, data_hora_fim=dados.data_hora_fim, id_espaco=dados.id_espaco,
         endereco_avulso=dados.endereco_avulso, id_associado_responsavel=dados.id_associado_responsavel,
         vagas=dados.vagas, gratuito=dados.gratuito, visibilidade=dados.visibilidade, id_usuario=usuario.id_usuario,
+        id_projeto=dados.id_projeto,
     )
     registrar_auditoria(
         db, usuario, "eventos", "CREATE", id_registro_afetado=evento.id_evento,
@@ -140,6 +148,63 @@ def minhas_inscricoes_endpoint(db: Session = Depends(get_db), usuario=Depends(ge
 @router.get("/api/eventos/{id_evento}", summary="Detalhe de um Evento")
 def obter_evento_endpoint(id_evento: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
     return _serializar_evento(eventos.obter_evento(db, id_evento))
+
+
+@router.put("/api/eventos/{id_evento}", summary="Editar o cadastro do evento (título, descrição, datas, local, visibilidade, projeto)")
+def editar_evento_endpoint(id_evento: int, dados: EventoEditar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    evento, antes = eventos.editar_evento(db, id_evento, dados.model_dump(exclude_unset=True))
+    registrar_auditoria(
+        db, usuario, "eventos", "UPDATE", id_registro_afetado=evento.id_evento,
+        dados_antes=antes, dados_depois={c: getattr(evento, c) for c in antes}, ip_origem=_ip_origem(request),
+    )
+    return _serializar_evento(evento)
+
+
+# ==========================================
+# FOTOS DO EVENTO (v5.5) - só entram com a autorização de imagem; a imagem é regravada sem metadado
+# ==========================================
+@router.get("/api/eventos/{id_evento}/fotos", summary="Fotos do evento (visão de gestão)")
+def listar_fotos_do_evento_endpoint(id_evento: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    evento = eventos.obter_evento(db, id_evento)
+    return [servico_de_fotos.para_o_painel(f) for f in servico_de_fotos.fotos_do_evento(db, evento.id_evento)]
+
+
+@router.post("/api/eventos/{id_evento}/fotos", summary="Enviar foto do evento (exige a autorização de imagem)", status_code=201)
+async def enviar_foto_do_evento_endpoint(
+    id_evento: int, request: Request, arquivo: UploadFile = File(...), alt: str = Form(""),
+    autorizacao_imagem: bool = Form(False), id_documento_autorizacao: Optional[int] = Form(None),
+    db: Session = Depends(get_db), usuario=Depends(_permissao_projetos),
+):
+    evento = eventos.obter_evento(db, id_evento)
+    conteudo = await arquivo.read()
+    foto = await run_in_threadpool(
+        servico_de_fotos.adicionar_foto, db, usuario, evento, conteudo, alt=alt, autorizacao_imagem=autorizacao_imagem,
+        id_documento_autorizacao=id_documento_autorizacao,
+    )
+    registrar_auditoria(
+        db, usuario, "eventos", "FOTO_ENVIADA", id_registro_afetado=evento.id_evento,
+        dados_depois={"id_foto": foto.id_foto, "id_documento": id_documento_autorizacao}, ip_origem=_ip_origem(request),
+    )
+    return [servico_de_fotos.para_o_painel(f) for f in servico_de_fotos.fotos_do_evento(db, evento.id_evento)]
+
+
+@router.get("/api/eventos/{id_evento}/fotos/{id_foto}/arquivo", summary="Ver a foto (autenticado; a foto fica em área privada)")
+async def ver_foto_do_evento_endpoint(id_evento: int, id_foto: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    evento = eventos.obter_evento(db, id_evento)
+    foto = servico_de_fotos.buscar_foto(db, evento, id_foto)
+    conteudo = await run_in_threadpool(servico_de_fotos.ler_arquivo, foto)
+    return Response(content=conteudo, media_type="image/jpeg", headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
+
+
+@router.delete("/api/eventos/{id_evento}/fotos/{id_foto}", summary="Apagar a foto (a autorização foi retirada): some do site e do armazenamento")
+def apagar_foto_do_evento_endpoint(id_evento: int, id_foto: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    evento = eventos.obter_evento(db, id_evento)
+    foto = servico_de_fotos.apagar_foto(db, evento, id_foto)
+    registrar_auditoria(
+        db, usuario, "eventos", "FOTO_APAGADA", id_registro_afetado=evento.id_evento,
+        dados_antes={"id_foto": foto.id_foto}, ip_origem=_ip_origem(request),
+    )
+    return [servico_de_fotos.para_o_painel(f) for f in servico_de_fotos.fotos_do_evento(db, evento.id_evento)]
 
 
 @router.post("/api/eventos/{id_evento}/sessoes", summary="Cadastrar sessão/atividade do evento (programação)")
@@ -589,7 +654,8 @@ def exportar_presencas_endpoint(id_evento: int, colunas: str, request: Request, 
 # ==========================================
 @router.get("/api/publico/eventos", summary="Eventos públicos (leitura, sem autenticação, pro site institucional)")
 def listar_eventos_publicos_endpoint(db: Session = Depends(get_db)):
-    return [_serializar_evento_publico(e) for e in eventos.listar_eventos_publicos(db)]
+    projetos_publicos = publico_contexto.ids_de_projetos_publicos(db)
+    return [_serializar_evento_publico(e, projetos_publicos) for e in eventos.listar_eventos_publicos(db)]
 
 
 # v4.6 - rotas literais (`/consentimento-lgpd`) SEMPRE antes de `/{id_evento}` - mesmo achado
@@ -609,10 +675,21 @@ def obter_evento_publico_endpoint(id_evento: int, db: Session = Depends(get_db))
     evento = eventos.obter_evento(db, id_evento)
     if evento.visibilidade != "Pública":
         raise HTTPException(status_code=404, detail="Evento não encontrado.")
-    resposta = _serializar_evento_publico(evento)
+    resposta = _serializar_evento_publico(evento, publico_contexto.ids_de_projetos_publicos(db))
     resposta["sessoes"] = [_serializar_sessao(s) for s in eventos.listar_sessoes(db, id_evento=id_evento)]
     resposta["perguntas"] = [_serializar_pergunta(p) for p in eventos.listar_perguntas(db, id_evento=id_evento)]
+    # v5.5: o contexto do evento — projeto, outras edições, relatórios/documentos aprovados e fotos com autorização de imagem
+    resposta.update(publico_contexto.contexto_do_evento(db, evento))
     return resposta
+
+
+@router.get("/api/publico/eventos/{id_evento}/fotos/{id_foto}", summary="Foto de um evento Público (a autorização de imagem já foi confirmada)")
+async def foto_publica_do_evento_endpoint(id_evento: int, id_foto: int, db: Session = Depends(get_db)):
+    foto = publico_contexto.foto_publica(db, id_evento, id_foto)
+    if foto is None:  # evento inexistente, interno, foto de outro evento ou sem autorização: todos respondem igual
+        raise HTTPException(status_code=404, detail="Foto não encontrada.")
+    conteudo = await run_in_threadpool(servico_de_fotos.ler_arquivo, foto)
+    return Response(content=conteudo, media_type="image/jpeg", headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "public, max-age=300"})
 
 
 # ==========================================

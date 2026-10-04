@@ -56,16 +56,16 @@ test.describe('Diretoria e Conselho', () => {
 })
 
 test.describe('Projetos', () => {
-  test('lista com o projeto em execução primeiro e link para a página de cada um', async ({
+  test('lista com o projeto em destaque primeiro, depois o em execução, e link para a página de cada um', async ({
     page,
   }) => {
     await page.goto('/projetos/')
     const titulos = await page.locator('main ul h2').allInnerTexts()
-    expect(titulos[0]).toContain('reforço escolar')
-    expect(titulos).toHaveLength(2)
-    await expect(page.locator('main ul li').first()).toContainText(
-      'Em execução',
-    )
+    // v5.5: o projeto em destaque (principal) vem antes de todos; depois a ordem de sempre (em execução, concluído).
+    expect(titulos[0]).toBe('Projeto Principal de Teste')
+    expect(titulos[1]).toContain('reforço escolar')
+    expect(titulos).toHaveLength(3)
+    await expect(page.locator('main ul li').nth(1)).toContainText('Em execução')
     await page
       .getByRole('link', {
         name: /Ver o projeto\s*:\s*Projeto de teste — reforço/,
@@ -95,7 +95,7 @@ test.describe('Agenda e página de cada evento', () => {
   }) => {
     await page.goto('/eventos/')
     const proximos = page.locator('#eventos [data-estado="lista"] li')
-    await expect(proximos).toHaveCount(2)
+    await expect(proximos).toHaveCount(3) // encontro, vagas esgotadas e a 2ª edição do projeto principal
     await proximos
       .first()
       .getByRole('link', { name: /encontro de famílias/ })
@@ -104,7 +104,7 @@ test.describe('Agenda e página de cada evento', () => {
 
     await page.goto('/eventos/')
     const realizados = page.locator('#anteriores [data-estado="lista"] li')
-    await expect(realizados).toHaveCount(1)
+    await expect(realizados).toHaveCount(3) // o já realizado, a 1ª edição do projeto principal e a do reforço escolar
     await expect(realizados.first()).toContainText('já realizado')
     // Evento que passou não anuncia vagas.
     await expect(realizados.first()).not.toContainText('vaga')
@@ -227,12 +227,12 @@ test('/conteudo.json traz a impressão do conteúdo (para a sincronização auto
   const dados = await r.json()
   expect(dados.impressao).toMatch(/^[0-9a-f]{64}$/)
   expect(dados.contagem).toEqual({
-    eventos: 3,
-    projetos: 2,
+    eventos: 6,
+    projetos: 3,
     diretoria: 3,
     assembleias: 1,
-    noticias: 2,
+    noticias: 5,
     parcerias: 3,
-    documentos: 4,
+    documentos: 5,
   })
 })

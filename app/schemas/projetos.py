@@ -16,11 +16,31 @@ class ProjetoCriar(BaseModel):
     publico_alvo: Optional[str] = None
     id_centro_custo: Optional[int] = None
     visibilidade: str = "Interna"
+    destaque_no_site: bool = False
 
     @field_validator("visibilidade")
     @classmethod
     def validar_visibilidade(cls, v):
         if v not in ("Pública", "Interna"):
+            raise ValueError("Visibilidade deve ser 'Pública' ou 'Interna'.")
+        return v
+
+
+class ProjetoEditar(BaseModel):
+    """Só os campos enviados mudam (`model_dump(exclude_unset=True)`); tipo, centro de custo e responsável não se editam aqui."""
+    nome_projeto: Optional[str] = None
+    descricao: Optional[str] = None
+    tipo_projeto: Optional[str] = None
+    publico_alvo: Optional[str] = None
+    data_inicio: Optional[datetime] = None
+    data_fim_prevista: Optional[datetime] = None
+    visibilidade: Optional[str] = None
+    destaque_no_site: Optional[bool] = None
+
+    @field_validator("visibilidade")
+    @classmethod
+    def validar_visibilidade(cls, v):
+        if v is not None and v not in ("Pública", "Interna"):
             raise ValueError("Visibilidade deve ser 'Pública' ou 'Interna'.")
         return v
 

@@ -1,8 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { QRCodeSVG } from 'qrcode.react'
-import { useState } from 'react'
+import { useState, type KeyboardEvent } from 'react'
+import { useSearchParams } from 'react-router'
 import { z } from 'zod'
 
+import { ContextoDoEvento } from '@/components/eventos/ContextoDoEvento'
+import { EditarEvento } from '@/components/eventos/EditarEvento'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -42,6 +45,7 @@ import {
   listarOpcoesCatalogo,
   listarPerguntasEvento,
   listarPlanoContas,
+  listarProjetos,
   listarSessoesEvento,
   listarTemplatesDocumento,
   listarTokensPortaria,
@@ -103,6 +107,10 @@ function FormularioEvento({ onCancelar }: { onCancelar: () => void }) {
     queryKey: ['associados'],
     queryFn: listarAssociados,
   })
+  const { data: projetos } = useQuery({
+    queryKey: ['projetos'],
+    queryFn: listarProjetos,
+  })
 
   const criar = useMutation({
     mutationFn: (v: z.infer<typeof eventoCriarSchema>) => criarEvento(v),
@@ -133,6 +141,7 @@ function FormularioEvento({ onCancelar }: { onCancelar: () => void }) {
           <div className="sm:col-span-2">
             <input
               {...form.register('titulo')}
+              aria-label="Título do evento"
               placeholder="Título do evento"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             />
@@ -141,6 +150,7 @@ function FormularioEvento({ onCancelar }: { onCancelar: () => void }) {
           <div>
             <select
               {...form.register('categoria')}
+              aria-label="Categoria do evento"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="">Categoria…</option>
@@ -155,6 +165,7 @@ function FormularioEvento({ onCancelar }: { onCancelar: () => void }) {
           <div>
             <select
               {...form.register('visibilidade')}
+              aria-label="Quem pode ver o evento"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="Interna">Interna</option>
@@ -164,12 +175,12 @@ function FormularioEvento({ onCancelar }: { onCancelar: () => void }) {
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">
               Início
+              <input
+                type="datetime-local"
+                {...form.register('data_hora_inicio')}
+                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              />
             </label>
-            <input
-              type="datetime-local"
-              {...form.register('data_hora_inicio')}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            />
             <ErroCampo
               mensagem={form.formState.errors.data_hora_inicio?.message}
             />
@@ -177,16 +188,17 @@ function FormularioEvento({ onCancelar }: { onCancelar: () => void }) {
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">
               Fim (opcional)
+              <input
+                type="datetime-local"
+                {...form.register('data_hora_fim')}
+                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              />
             </label>
-            <input
-              type="datetime-local"
-              {...form.register('data_hora_fim')}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            />
           </div>
           <div>
             <select
               {...form.register('id_espaco')}
+              aria-label="Espaço da associação"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="">Sem espaço próprio…</option>
@@ -200,6 +212,7 @@ function FormularioEvento({ onCancelar }: { onCancelar: () => void }) {
           <div>
             <input
               {...form.register('endereco_avulso')}
+              aria-label="Endereço avulso"
               placeholder="Ou endereço avulso"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             />
@@ -207,6 +220,7 @@ function FormularioEvento({ onCancelar }: { onCancelar: () => void }) {
           <div>
             <select
               {...form.register('id_associado_responsavel')}
+              aria-label="Responsável pelo evento"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="">Responsável…</option>
@@ -222,13 +236,35 @@ function FormularioEvento({ onCancelar }: { onCancelar: () => void }) {
               type="number"
               min={1}
               {...form.register('vagas')}
+              aria-label="Vagas"
               placeholder="Vagas (opcional)"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             />
           </div>
           <div className="sm:col-span-2">
+            <label className="block text-xs text-muted-foreground">
+              Projeto (opcional)
+              <select
+                {...form.register('id_projeto')}
+                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Sem projeto</option>
+                {(projetos ?? []).map((p) => (
+                  <option key={p.id_projeto} value={p.id_projeto}>
+                    {p.nome_projeto} (nº {p.id_projeto})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Escolha o projeto de que este evento faz parte (ex.: uma edição do
+              Despertai).
+            </p>
+          </div>
+          <div className="sm:col-span-2">
             <textarea
               {...form.register('descricao')}
+              aria-label="Descrição"
               placeholder="Descrição"
               rows={2}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -2278,10 +2314,21 @@ function SecaoPesquisaSatisfacao({ idEvento }: { idEvento: number }) {
 }
 
 function DetalheEvento({ evento }: { evento: Evento }) {
+  const { data: me } = useMe()
+  const podeEditar = me?.permissoes.includes('projetos') ?? false
+  const [editando, setEditando] = useState(false)
+
   return (
     <div className="v3-space-y-6 rounded-xl border border-border bg-card p-6">
-      <div>
+      <div className="space-y-2">
         <h2 className="font-semibold">{evento.titulo}</h2>
+        <p className="text-sm">
+          Nº do evento: <strong className="text-lg">{evento.id_evento}</strong>{' '}
+          <span className="text-muted-foreground">
+            (é este número que se digita no editor do site para ligar uma
+            notícia ao evento)
+          </span>
+        </p>
         {evento.descricao && (
           <p className="text-sm text-muted-foreground">{evento.descricao}</p>
         )}
@@ -2294,7 +2341,21 @@ function DetalheEvento({ evento }: { evento: Evento }) {
           {evento.vagas != null &&
             ` · ${evento.vagas_ocupadas}/${evento.vagas} vaga(s) ocupada(s) (${evento.vagas_livres} livre(s))`}
         </p>
+        {podeEditar &&
+          (editando ? (
+            <EditarEvento evento={evento} onFechar={() => setEditando(false)} />
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEditando(true)}
+            >
+              Editar evento
+            </Button>
+          ))}
       </div>
+      <ContextoDoEvento evento={evento} />
       <SecaoSessoes idEvento={evento.id_evento} />
       <SecaoCotas idEvento={evento.id_evento} />
       <SecaoPerguntas idEvento={evento.id_evento} />
@@ -2316,7 +2377,12 @@ function DetalheEvento({ evento }: { evento: Evento }) {
 
 export function EventosPage() {
   const [mostrarForm, setMostrarForm] = useState(false)
-  const [idSelecionado, setIdSelecionado] = useState<number | null>(null)
+  // `/eventos?evento=12` abre o evento nº 12 (é o endereço que os outros módulos usam para apontar para ele).
+  const [parametros] = useSearchParams()
+  const [idSelecionado, setIdSelecionado] = useState<number | null>(() => {
+    const numero = Number(parametros.get('evento'))
+    return Number.isInteger(numero) && numero > 0 ? numero : null
+  })
   const { data: eventos } = useQuery({
     queryKey: ['eventos'],
     queryFn: listarEventos,
@@ -2324,6 +2390,16 @@ export function EventosPage() {
 
   const eventoSelecionado =
     (eventos ?? []).find((e) => e.id_evento === idSelecionado) ?? null
+
+  function alternar(id: number) {
+    setIdSelecionado(id === idSelecionado ? null : id)
+  }
+  function teclado(e: KeyboardEvent, id: number) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      alternar(id)
+    }
+  }
 
   return (
     <>
@@ -2350,15 +2426,20 @@ export function EventosPage() {
           {(eventos ?? []).map((e) => (
             <div
               key={e.id_evento}
+              role="button"
+              tabIndex={0}
+              aria-pressed={e.id_evento === idSelecionado}
               className="cursor-pointer rounded-md border border-border p-3 text-sm hover:bg-muted/30"
-              onClick={() =>
-                setIdSelecionado(
-                  e.id_evento === idSelecionado ? null : e.id_evento,
-                )
-              }
+              onClick={() => alternar(e.id_evento)}
+              onKeyDown={(ev) => teclado(ev, e.id_evento)}
             >
               <div className="flex items-center justify-between">
-                <p className="font-medium">{e.titulo}</p>
+                <p className="font-medium">
+                  {e.titulo}{' '}
+                  <span className="text-xs font-normal text-muted-foreground">
+                    nº {e.id_evento}
+                  </span>
+                </p>
                 <span className="text-muted-foreground">{e.visibilidade}</span>
               </div>
               <p className="text-muted-foreground">
@@ -2375,7 +2456,12 @@ export function EventosPage() {
         </div>
       </section>
 
-      {eventoSelecionado && <DetalheEvento evento={eventoSelecionado} />}
+      {eventoSelecionado && (
+        <DetalheEvento
+          key={eventoSelecionado.id_evento}
+          evento={eventoSelecionado}
+        />
+      )}
     </>
   )
 }

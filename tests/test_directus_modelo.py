@@ -59,6 +59,19 @@ def test_foto_exige_texto_alternativo_e_autorizacao_de_imagem():
     assert campos["autorizacao_imagem"]["schema"]["default_value"] is False
 
 
+def test_noticia_pode_ser_ligada_a_um_projeto_e_a_um_evento_do_sistema():
+    """v5.5: o número do projeto (ex.: Despertai) e/ou do evento. Opcionais, inteiros, numa seção própria do formulário, em português."""
+    campos = {f["field"]: f for f in next(c for c in m.COLECOES if c["colecao"] == "noticias")["campos"]}
+    for nome, rotulo in (("projeto_id", "Número do projeto"), ("evento_id", "Número do evento")):
+        assert campos[nome]["type"] == "integer" and campos[nome]["schema"]["is_nullable"] is True, nome
+        assert not campos[nome]["meta"].get("required"), "ligar a notícia a um projeto/evento nunca é obrigatório"
+        assert campos[nome]["meta"]["group"] == "grupo_ligacao"
+        assert campos[nome]["meta"]["translations"][0]["translation"] == rotulo
+        assert campos[nome]["meta"]["options"]["min"] == 1
+    secao = campos["grupo_ligacao"]
+    assert secao["type"] == "alias" and "opcional" in secao["meta"]["translations"][0]["translation"]
+
+
 def test_slug_da_noticia_e_unico():
     campos = {f["field"]: f for f in next(c for c in m.COLECOES if c["colecao"] == "noticias")["campos"]}
     assert campos["slug"]["schema"]["is_unique"] is True
@@ -661,7 +674,7 @@ def _campos_da_noticia():
 def test_formulario_da_noticia_tem_secoes_em_portugues_na_ordem_de_quem_escreve():
     campos = _campos_da_noticia()
     secoes = [n for n, f in campos.items() if f["type"] == "alias"]
-    assert secoes == ["grupo_conteudo", "grupo_foto", "grupo_publicacao", "grupo_historico"]
+    assert secoes == ["grupo_conteudo", "grupo_foto", "grupo_ligacao", "grupo_publicacao", "grupo_historico"]
     for nome in secoes:
         assert campos[nome]["schema"] is None  # seção não é coluna do banco
         assert campos[nome]["meta"]["translations"][0]["language"] == "pt-BR"

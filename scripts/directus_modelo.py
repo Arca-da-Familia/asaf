@@ -133,6 +133,15 @@ COLECOES: list[dict] = [
                                                           "conditions": [{"name": "obrigatorio_com_imagem", "rule": {"_and": [{"imagem": {"_nnull": True}}]},
                                                                           "required": True}]},
                    schema={"is_nullable": False, "default_value": False}),
+            # v5.5: ligação com um projeto (ex.: Despertai) e/ou um evento do sistema. O número aparece no painel do sistema, no alto
+            # da página do projeto/evento; o site liga a notícia à página dele no build. Número que não existe NÃO impede a
+            # publicação: a notícia vai ao site sem a ligação e o resumo do deploy avisa.
+            _campo("projeto_id", "integer", meta={"interface": "input", "width": "half", "options": {"min": 1, "placeholder": "Ex.: 3"},
+                                                  "note": "Opcional. Número do projeto (no painel do sistema, em Projetos, aparece no alto da página do projeto)."},
+                   schema={"is_nullable": True}),
+            _campo("evento_id", "integer", meta={"interface": "input", "width": "half", "options": {"min": 1, "placeholder": "Ex.: 12"},
+                                                 "note": "Opcional. Número do evento (no painel do sistema, em Eventos, aparece no alto da página do evento)."},
+                   schema={"is_nullable": True}),
             *_campos_de_controle(),
         ],
         "relacoes": [{"campo": "imagem", "para": "directus_files"}],
@@ -177,6 +186,7 @@ _organizar(
     [
         ("grupo_conteudo", "Conteúdo", "edit_note", True, ["titulo", "slug", "resumo", "corpo"]),
         ("grupo_foto", "Foto da notícia (opcional)", "photo_camera", True, ["imagem", "imagem_alt", "autorizacao_imagem"]),
+        ("grupo_ligacao", "Ligada a um projeto ou evento (opcional)", "link", True, ["projeto_id", "evento_id"]),
         ("grupo_publicacao", "Publicação", "event_available", True, ["status", "publicada_em"]),
         ("grupo_historico", "Histórico", "history", False, ["user_created", "date_created", "user_updated", "date_updated"]),
     ],
@@ -184,6 +194,7 @@ _organizar(
         "titulo": "Título", "slug": "Endereço da notícia (slug)", "resumo": "Resumo", "corpo": "Texto",
         "imagem": "Foto", "imagem_alt": "Descrição da foto (texto alternativo)",
         "autorizacao_imagem": "Autorização de imagem",
+        "projeto_id": "Número do projeto", "evento_id": "Número do evento",
         "status": "Situação", "publicada_em": "Publicar em",
         "user_created": "Criada por", "date_created": "Criada em",
         "user_updated": "Alterada por", "date_updated": "Última alteração",

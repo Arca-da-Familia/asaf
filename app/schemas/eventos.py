@@ -20,11 +20,34 @@ class EventoCriar(BaseModel):
     vagas: Optional[int] = None
     gratuito: bool = True
     visibilidade: str = "Interna"
+    id_projeto: Optional[int] = None  # v5.5: o projeto a que o evento pertence (ex.: Despertai)
 
     @field_validator("visibilidade")
     @classmethod
     def validar_visibilidade(cls, v):
         if v not in ("Pública", "Interna"):
+            raise ValueError("Visibilidade deve ser 'Pública' ou 'Interna'.")
+        return v
+
+
+class EventoEditar(BaseModel):
+    """v5.5 - só os campos enviados mudam (`model_dump(exclude_unset=True)`). `id_projeto: null` desliga o evento do projeto.
+    Cobrança, elegibilidade e reembolso têm as suas próprias rotas e não se editam aqui."""
+    titulo: Optional[str] = None
+    descricao: Optional[str] = None
+    categoria: Optional[str] = None
+    data_hora_inicio: Optional[datetime] = None
+    data_hora_fim: Optional[datetime] = None
+    id_espaco: Optional[int] = None
+    endereco_avulso: Optional[str] = None
+    vagas: Optional[int] = None
+    visibilidade: Optional[str] = None
+    id_projeto: Optional[int] = None
+
+    @field_validator("visibilidade")
+    @classmethod
+    def validar_visibilidade(cls, v):
+        if v is not None and v not in ("Pública", "Interna"):
             raise ValueError("Visibilidade deve ser 'Pública' ou 'Interna'.")
         return v
 

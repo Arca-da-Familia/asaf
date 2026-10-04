@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import {
   listarDocumentos,
   listarTiposDeDocumento,
+  rotuloDoVinculo,
   type Documento,
   type FiltrosDeDocumentos,
 } from '@/lib/documentos'
@@ -235,6 +236,11 @@ export function DocumentosPage() {
                             <span>versão {d.versao}</span>
                             {!d.vigente && <span>(não vigente)</span>}
                             <SeloDeValidade validade={d.validade} />
+                            {d.vinculo_tipo && (
+                              <span>
+                                {rotuloDoVinculo(d.vinculo_tipo, d.vinculo_id)}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="px-3 py-2">{d.ano ?? '—'}</td>

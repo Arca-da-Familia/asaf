@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { Globe, Lock, Star } from 'lucide-react'
+import { useState, type KeyboardEvent } from 'react'
+import { useSearchParams } from 'react-router'
 import {
   CartesianGrid,
   Line,
@@ -14,6 +16,8 @@ import { z } from 'zod'
 
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { ContextoDoProjeto } from '@/components/projetos/ContextoDoProjeto'
+import { EditarProjeto } from '@/components/projetos/EditarProjeto'
 import { Button } from '@/components/ui/button'
 import {
   adicionarMembroEquipe,
@@ -57,7 +61,8 @@ import {
   type Indicador,
   type Projeto,
 } from '@/lib/api'
-import { formatarData } from '@/lib/datas'
+import { diaDoProjeto } from '@/lib/contexto'
+import { formatarData, isoParaDataBr } from '@/lib/datas'
 import {
   beneficiarioCriarSchema,
   encaminhamentoCriarSchema,
@@ -70,6 +75,7 @@ import {
   vagaEscalaCriarSchema,
   vincularBeneficiarioSchema,
 } from '@/lib/schemas'
+import { useMe } from '@/lib/use-me'
 
 // v4.1 (FASE 4) - Projeto como entidade única e configurável: tipo/status de catálogo,
 // cronograma com status sempre derivado (nunca escolhido à mão), equipe com papel, orçamento via
@@ -116,6 +122,7 @@ function FormularioProjeto({ onCancelar }: { onCancelar: () => void }) {
         descricao: '',
         publico_alvo: '',
         visibilidade: 'Interna',
+        destaque_no_site: false,
       }}
       onSubmit={(v) => criar.mutateAsync(v)}
       className="mb-4 grid gap-2 rounded-md border border-border p-3 sm:grid-cols-2"
@@ -125,6 +132,7 @@ function FormularioProjeto({ onCancelar }: { onCancelar: () => void }) {
           <div className="sm:col-span-2">
             <input
               {...form.register('nome_projeto')}
+              aria-label="Nome do projeto"
               placeholder="Nome do projeto"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             />
@@ -133,6 +141,7 @@ function FormularioProjeto({ onCancelar }: { onCancelar: () => void }) {
           <div>
             <input
               {...form.register('tipo_foco')}
+              aria-label="Foco do projeto"
               placeholder="Foco (ex.: Social, Educacional)"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             />
@@ -141,6 +150,7 @@ function FormularioProjeto({ onCancelar }: { onCancelar: () => void }) {
           <div>
             <select
               {...form.register('tipo_projeto')}
+              aria-label="Tipo de projeto"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="">Tipo de projeto…</option>
@@ -154,23 +164,23 @@ function FormularioProjeto({ onCancelar }: { onCancelar: () => void }) {
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">
               Data de início
+              <input
+                type="date"
+                {...form.register('data_inicio')}
+                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              />
             </label>
-            <input
-              type="date"
-              {...form.register('data_inicio')}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            />
             <ErroCampo mensagem={form.formState.errors.data_inicio?.message} />
           </div>
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">
               Data de fim prevista
+              <input
+                type="date"
+                {...form.register('data_fim_prevista')}
+                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              />
             </label>
-            <input
-              type="date"
-              {...form.register('data_fim_prevista')}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            />
             <ErroCampo
               mensagem={form.formState.errors.data_fim_prevista?.message}
             />
@@ -178,6 +188,7 @@ function FormularioProjeto({ onCancelar }: { onCancelar: () => void }) {
           <div>
             <select
               {...form.register('id_associado_responsavel')}
+              aria-label="Responsável pelo projeto"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="">Responsável…</option>
@@ -191,6 +202,7 @@ function FormularioProjeto({ onCancelar }: { onCancelar: () => void }) {
           <div>
             <select
               {...form.register('id_centro_custo')}
+              aria-label="Centro de custo"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="">Sem centro de custo</option>
@@ -204,6 +216,7 @@ function FormularioProjeto({ onCancelar }: { onCancelar: () => void }) {
           <div className="sm:col-span-2">
             <input
               {...form.register('publico_alvo')}
+              aria-label="Público-alvo"
               placeholder="Público-alvo"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             />
@@ -211,6 +224,7 @@ function FormularioProjeto({ onCancelar }: { onCancelar: () => void }) {
           <div className="sm:col-span-2">
             <textarea
               {...form.register('descricao')}
+              aria-label="Descrição"
               placeholder="Descrição"
               rows={2}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -218,11 +232,19 @@ function FormularioProjeto({ onCancelar }: { onCancelar: () => void }) {
           </div>
           <div>
             <select
-              {...form.register('visibilidade')}
+              {...form.register('visibilidade', {
+                // Projeto Interno nunca fica em destaque: desmarca sozinho ao voltar para Interna.
+                onChange: (e) => {
+                  if (e.target.value !== 'Pública') {
+                    form.setValue('destaque_no_site', false)
+                  }
+                },
+              })}
+              aria-label="Quem pode ver o projeto"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="Interna">Interna</option>
-              <option value="Pública">Pública</option>
+              <option value="Pública">Pública (site institucional)</option>
             </select>
           </div>
           <label className="flex items-center gap-2 text-sm">
@@ -232,6 +254,29 @@ function FormularioProjeto({ onCancelar }: { onCancelar: () => void }) {
             />
             Necessita alvará dos bombeiros
           </label>
+          <div className="space-y-1 sm:col-span-2">
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                disabled={form.watch('visibilidade') !== 'Pública'}
+                {...form.register('destaque_no_site')}
+              />
+              <span>
+                <strong>Mostrar em destaque na página inicial do site.</strong>{' '}
+                {form.watch('visibilidade') === 'Pública'
+                  ? 'Use para o projeto principal da associação.'
+                  : 'Só projeto Público pode ficar em destaque: escolha “Pública” em quem pode ver o projeto.'}
+              </span>
+            </label>
+            {form.watch('visibilidade') === 'Pública' && (
+              <p className="text-xs text-muted-foreground">
+                Projeto Público: o nome, a descrição e o público-alvo vão ao
+                site e passam por conferência de dado pessoal. Não escreva
+                telefone, e-mail nem documento de pessoas.
+              </p>
+            )}
+          </div>
           <div className="flex gap-2 sm:col-span-2">
             <Button type="submit" size="sm" disabled={criar.isPending}>
               {criar.isPending ? 'Salvando…' : 'Criar projeto'}
@@ -1501,8 +1546,34 @@ function SecaoIndicadores({ idProjeto }: { idProjeto: number }) {
   )
 }
 
+// v5.5 - "Público"/"Interno" e "Em destaque no site" em texto (e ícone), nunca só por cor.
+function SelosDoProjeto({ projeto }: { projeto: Projeto }) {
+  const publico = projeto.visibilidade === 'Pública'
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        {publico ? (
+          <Globe aria-hidden="true" className="h-3 w-3" />
+        ) : (
+          <Lock aria-hidden="true" className="h-3 w-3" />
+        )}
+        {publico ? 'Público' : 'Interno'}
+      </span>
+      {projeto.destaque_no_site && (
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
+          <Star aria-hidden="true" className="h-3 w-3" />
+          Em destaque no site
+        </span>
+      )}
+    </span>
+  )
+}
+
 function DetalheProjeto({ projeto }: { projeto: Projeto }) {
   const queryClient = useQueryClient()
+  const { data: me } = useMe()
+  const podeEditar = me?.permissoes.includes('projetos') ?? false
+  const [editando, setEditando] = useState(false)
   const { data: statusOpcoes } = useQuery({
     queryKey: ['opcoes-catalogo', 'status_projeto'],
     queryFn: () => listarOpcoesCatalogo('status_projeto'),
@@ -1515,10 +1586,11 @@ function DetalheProjeto({ projeto }: { projeto: Projeto }) {
 
   return (
     <div className="v3-space-y-6 rounded-xl border border-border bg-card p-6">
-      <div>
-        <div className="mb-2 flex items-center justify-between">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
           <h2 className="font-semibold">{projeto.nome_projeto}</h2>
           <select
+            aria-label="Situação do projeto"
             value={projeto.status}
             onChange={(e) => alterarStatus.mutate(e.target.value)}
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
@@ -1530,15 +1602,47 @@ function DetalheProjeto({ projeto }: { projeto: Projeto }) {
             ))}
           </select>
         </div>
+        <p className="text-sm">
+          Nº do projeto:{' '}
+          <strong className="text-lg">{projeto.id_projeto}</strong>{' '}
+          <span className="text-muted-foreground">
+            (é este número que se digita no editor do site para ligar uma
+            notícia ao projeto)
+          </span>
+        </p>
+        <SelosDoProjeto projeto={projeto} />
         {projeto.descricao && (
           <p className="text-sm text-muted-foreground">{projeto.descricao}</p>
         )}
         <p className="text-sm text-muted-foreground">
-          {formatarData(projeto.data_inicio)} —{' '}
-          {formatarData(projeto.data_fim_prevista)}
+          {isoParaDataBr(diaDoProjeto(projeto.data_inicio))} —{' '}
+          {isoParaDataBr(diaDoProjeto(projeto.data_fim_prevista))}
           {projeto.publico_alvo && ` · Público-alvo: ${projeto.publico_alvo}`}
         </p>
+        {projeto.visibilidade === 'Pública' && (
+          <p className="text-xs text-muted-foreground">
+            Projeto Público: o nome, a descrição e o público-alvo vão ao site e
+            passam por conferência de dado pessoal.
+          </p>
+        )}
+        {podeEditar &&
+          (editando ? (
+            <EditarProjeto
+              projeto={projeto}
+              onFechar={() => setEditando(false)}
+            />
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEditando(true)}
+            >
+              Editar projeto
+            </Button>
+          ))}
       </div>
+      <ContextoDoProjeto projeto={projeto} />
       <SecaoCronograma idProjeto={projeto.id_projeto} />
       <SecaoEquipe idProjeto={projeto.id_projeto} />
       <SecaoVoluntariado idProjeto={projeto.id_projeto} />
@@ -1551,7 +1655,12 @@ function DetalheProjeto({ projeto }: { projeto: Projeto }) {
 
 export function ProjetosPage() {
   const [mostrarForm, setMostrarForm] = useState(false)
-  const [idSelecionado, setIdSelecionado] = useState<number | null>(null)
+  // `/projetos?projeto=3` abre o projeto nº 3 (é o endereço que os outros módulos usam para apontar para ele).
+  const [parametros] = useSearchParams()
+  const [idSelecionado, setIdSelecionado] = useState<number | null>(() => {
+    const numero = Number(parametros.get('projeto'))
+    return Number.isInteger(numero) && numero > 0 ? numero : null
+  })
   const { data: projetos } = useQuery({
     queryKey: ['projetos'],
     queryFn: listarProjetos,
@@ -1559,6 +1668,16 @@ export function ProjetosPage() {
 
   const projetoSelecionado =
     (projetos ?? []).find((p) => p.id_projeto === idSelecionado) ?? null
+
+  function alternar(id: number) {
+    setIdSelecionado(id === idSelecionado ? null : id)
+  }
+  function teclado(e: KeyboardEvent, id: number) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      alternar(id)
+    }
+  }
 
   return (
     <>
@@ -1585,20 +1704,26 @@ export function ProjetosPage() {
           {(projetos ?? []).map((p) => (
             <div
               key={p.id_projeto}
+              role="button"
+              tabIndex={0}
+              aria-pressed={p.id_projeto === idSelecionado}
               className="cursor-pointer rounded-md border border-border p-3 text-sm hover:bg-muted/30"
-              onClick={() =>
-                setIdSelecionado(
-                  p.id_projeto === idSelecionado ? null : p.id_projeto,
-                )
-              }
+              onClick={() => alternar(p.id_projeto)}
+              onKeyDown={(e) => teclado(e, p.id_projeto)}
             >
               <div className="flex items-center justify-between">
-                <p className="font-medium">{p.nome_projeto}</p>
+                <p className="font-medium">
+                  {p.nome_projeto}{' '}
+                  <span className="text-xs font-normal text-muted-foreground">
+                    nº {p.id_projeto}
+                  </span>
+                </p>
                 <span className="text-muted-foreground">{p.status}</span>
               </div>
-              <p className="text-muted-foreground">
-                {p.tipo_projeto ?? p.tipo_foco} · {p.visibilidade}
-              </p>
+              <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                <span>{p.tipo_projeto ?? p.tipo_foco}</span>
+                <SelosDoProjeto projeto={p} />
+              </div>
             </div>
           ))}
           {(projetos ?? []).length === 0 && (
@@ -1609,7 +1734,12 @@ export function ProjetosPage() {
         </div>
       </section>
 
-      {projetoSelecionado && <DetalheProjeto projeto={projetoSelecionado} />}
+      {projetoSelecionado && (
+        <DetalheProjeto
+          key={projetoSelecionado.id_projeto}
+          projeto={projetoSelecionado}
+        />
+      )}
     </>
   )
 }

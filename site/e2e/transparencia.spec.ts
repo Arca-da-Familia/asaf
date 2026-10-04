@@ -268,7 +268,12 @@ test.describe('Documentos publicados', () => {
     const tipos = await page
       .locator('main section[data-tipo-grupo] h2')
       .allInnerTexts()
-    expect(tipos).toEqual(['Ata', 'Estatuto e alterações', 'Plano de trabalho'])
+    expect(tipos).toEqual([
+      'Ata',
+      'Estatuto e alterações',
+      'Plano de trabalho',
+      'Relatório de evento ou de projeto',
+    ])
     const ata = page.getByRole('link', { name: /Ata de eleição da diretoria/ })
     await expect(ata).toHaveAttribute(
       'href',
@@ -291,7 +296,7 @@ test.describe('Documentos publicados', () => {
       'Nenhum documento encontrado.',
     )
     await busca.getByLabel('Buscar por título').fill('')
-    await expect(page.locator('li[data-documento]:visible')).toHaveCount(4)
+    await expect(page.locator('li[data-documento]:visible')).toHaveCount(5)
   })
 
   test('o PDF copiado é exatamente o aprovado (mesmo SHA-256 mostrado na página)', async ({
@@ -427,7 +432,7 @@ test.describe('Transparência (página principal) e demais páginas', () => {
       '1 parceria publicada',
     )
     await expect(page.locator('[data-cartao="documentos"]')).toContainText(
-      '4 documentos publicados',
+      '5 documentos publicados',
     )
     await expect(page.locator('[data-cartao="dados"] a')).toHaveAttribute(
       'href',
@@ -489,7 +494,9 @@ test.describe('Transparência (página principal) e demais páginas', () => {
       )
       // endereço da API real (e do mock) nunca no HTML: o PDF é do próprio site
       expect(html, caminho).not.toContain('/api/publico/transparencia')
-      expect(html, caminho).not.toMatch(/https?:\/\/127\.0\.0\.1:4322/)
+      expect(html, caminho).not.toContain(
+        `127.0.0.1:${process.env.MOCK_API_PORT ?? 4322}`,
+      )
     }
     // o CSV/JSON também não
     expect(

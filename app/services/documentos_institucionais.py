@@ -21,6 +21,8 @@ from app.models.documentos import (
     APROVADO, CLASSIFICACOES, EM_REVISAO, FORMATO_PDF, FORMATO_TEXTO, INTERNA, PUBLICA, RASCUNHO, RESTRITA, RETIRADO,
     TAMANHO_MAXIMO_DO_TEXTO, TAMANHO_MINIMO_DO_TEXTO, TIPOS, VINCULOS, DocumentoInstitucional,
 )
+from app.models.eventos import Evento
+from app.models.projetos import ProjetoEvento
 from app.services import armazenamento
 from app.services.documentos_verificacao import TAMANHO_MAXIMO, Resultado, procurar_dado_pessoal, verificar_versao_publica
 
@@ -145,8 +147,17 @@ def _remover_arquivo(pasta: str, nome: str | None) -> None:
 
 
 # ------------------------------------------------------------------------------------------ criar
+def _exigir_vinculo_existente(db, campos: dict) -> None:
+    """Documento ligado a um evento ou a um projeto: o evento/projeto tem que existir (o relatório aparece na página dele)."""
+    tipo, ident = campos.get("vinculo_tipo"), campos.get("vinculo_id")
+    modelo = {"evento": (Evento, Evento.id_evento, "Evento"), "projeto": (ProjetoEvento, ProjetoEvento.id_projeto, "Projeto")}.get(tipo)
+    if modelo and not db.query(modelo[1]).filter(modelo[1] == ident).first():
+        raise HTTPException(status_code=404, detail=f"{modelo[2]} nº {ident} não encontrado: confira o número do vínculo.")
+
+
 def criar_documento(db, usuario, dados: dict, nome_arquivo: str | None = None, conteudo: bytes | None = None) -> DocumentoInstitucional:
     campos = _validar_campos(dados)
+    _exigir_vinculo_existente(db, campos)
     for obrigatorio in ("tipo", "titulo"):
         if obrigatorio not in campos:
             raise HTTPException(status_code=400, detail=f"Campo obrigatório: {obrigatorio}.")
@@ -188,6 +199,7 @@ def editar(db, doc: DocumentoInstitucional, dados: dict) -> dict:
     """Edita o cadastro (só em rascunho). Mudar classificação ou 'publicar no site' invalida a versão pública."""
     _exigir_situacao(doc, RASCUNHO, acao="editar o cadastro")
     campos = _validar_campos(dados)
+    _exigir_vinculo_existente(db, campos)
     antes = {k: getattr(doc, k) for k in campos}
     mudou_regra = any(k in campos and campos[k] != getattr(doc, k) for k in ("classificacao", "publicar_no_site"))
     for campo, valor in campos.items():

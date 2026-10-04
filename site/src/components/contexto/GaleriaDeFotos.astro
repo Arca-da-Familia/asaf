@@ -1,0 +1,64 @@
+---
+/**
+ * Galeria de fotos de evento (v5.5). Cada foto já passou pelas regras do sistema: autorização de imagem confirmada, texto
+ * alternativo escrito por quem enviou e imagem regravada sem localização nem dados do aparelho. O build COPIA o arquivo
+ * (`/midia/eventos/<id>.jpg`) conferindo o SHA-256: o site no ar não depende da API.
+ *
+ * Na galeria do projeto a legenda diz de qual evento é a foto (com link); na página do evento não precisa.
+ */
+import {
+  caminhoDaFotoDoEvento,
+  caminhoDoEvento,
+} from '../../lib/dados-publicos'
+import type { FotoDoEvento } from '../../lib/dados-publicos'
+
+interface Props {
+  id: string
+  titulo: string
+  fotos: (FotoDoEvento & { id_evento?: number })[]
+  /** Título de cada evento que tem página, para a legenda ("Evento: ..."). Sem ele, a foto não leva legenda. */
+  titulosDosEventos?: Record<number, string>
+}
+
+const { id, titulo, fotos, titulosDosEventos = {} } = Astro.props
+---
+
+<section aria-labelledby={id} data-secao={id}>
+  <h2 id={id} class="text-2xl font-bold tracking-tight">
+    {titulo}
+  </h2>
+  <ul class="mt-4 grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {fotos.map((foto) => {
+      const evento =
+        foto.id_evento !== undefined
+          ? titulosDosEventos[foto.id_evento]
+          : undefined
+      return (
+        <li data-foto>
+          <figure>
+            <img
+              src={caminhoDaFotoDoEvento(foto.id_foto)}
+              alt={foto.alt}
+              width={foto.largura}
+              height={foto.altura}
+              loading="lazy"
+              decoding="async"
+              class="h-auto w-full rounded-md border"
+            />
+            {evento && foto.id_evento !== undefined && (
+              <figcaption class="mt-2 text-sm">
+                Evento:{' '}
+                <a
+                  href={caminhoDoEvento(foto.id_evento)}
+                  class="text-primary underline underline-offset-4"
+                >
+                  {evento}
+                </a>
+              </figcaption>
+            )}
+          </figure>
+        </li>
+      )
+    })}
+  </ul>
+</section>

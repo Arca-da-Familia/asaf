@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,9 @@ import { ApiError } from '@/lib/api'
 import {
   EXPLICACAO_DA_CLASSIFICACAO,
   criarDocumento,
+  frasePertenceA,
   listarTiposDeDocumento,
+  rotuloDoVinculo,
   type Classificacao,
   type DadosDoDocumento,
 } from '@/lib/documentos'
@@ -18,19 +20,27 @@ const classeCampo =
 
 // v5.4a - Novo documento. Três perguntas que decidem tudo: que documento é, QUEM PODE LER (classificação) e se vai
 // ao site. O arquivo original é opcional aqui (pode ser enviado depois, na tela do documento).
+// v5.5 - `?tipo=RELATORIO_EVENTO&vinculo_tipo=evento&vinculo_id=12` já abre com o tipo e o vínculo preenchidos (é o
+// botão "Novo relatório deste evento"); a pessoa vê e pode mudar a que o documento pertence.
 export function DocumentoNovoPage() {
   const navegar = useNavigate()
   const queryClient = useQueryClient()
+  const [parametros] = useSearchParams()
   const { data: tipos } = useQuery({
     queryKey: ['documentos-tipos'],
     queryFn: listarTiposDeDocumento,
   })
 
-  const [dados, setDados] = useState<DadosDoDocumento>({
-    tipo: 'ATA',
-    titulo: '',
-    classificacao: 'Restrita',
-    publicar_no_site: true,
+  const [dados, setDados] = useState<DadosDoDocumento>(() => {
+    const idDoVinculo = parametros.get('vinculo_id') ?? ''
+    return {
+      tipo: parametros.get('tipo') || 'ATA',
+      titulo: '',
+      classificacao: 'Restrita',
+      publicar_no_site: true,
+      vinculo_tipo: parametros.get('vinculo_tipo') ?? '',
+      vinculo_id: /^\d+$/.test(idDoVinculo) ? idDoVinculo : '',
+    }
   })
   const [arquivo, setArquivo] = useState<File | null>(null)
   const [erro, setErro] = useState<string | null>(null)
@@ -52,6 +62,20 @@ export function DocumentoNovoPage() {
       setErro('Dê um título ao documento (pelo menos 3 letras).')
       return
     }
+    const tipoDoVinculo = dados.vinculo_tipo ?? ''
+    const idDoVinculo = (dados.vinculo_id ?? '').trim()
+    if (tipoDoVinculo && !/^[1-9]\d*$/.test(idDoVinculo)) {
+      setErro(
+        'Informe o número do evento ou do projeto a que o documento pertence (um número maior que zero).',
+      )
+      return
+    }
+    if (!tipoDoVinculo && idDoVinculo) {
+      setErro(
+        'Escolha a que o documento pertence (evento ou projeto) ou apague o número.',
+      )
+      return
+    }
     criar.mutate()
   }
 
@@ -61,6 +85,16 @@ export function DocumentoNovoPage() {
   ) {
     setDados((d) => ({ ...d, [chave]: valor }))
   }
+
+  // Evento e projeto são os vínculos do dia a dia (relatórios); outro vínculo só aparece se vier no endereço da página.
+  const vinculoEscolhido = dados.vinculo_tipo ?? ''
+  const opcoesDeVinculo = ['evento', 'projeto']
+  if (vinculoEscolhido && !opcoesDeVinculo.includes(vinculoEscolhido)) {
+    opcoesDeVinculo.push(vinculoEscolhido)
+  }
+  const fraseDoVinculo = /^[1-9]\d*$/.test((dados.vinculo_id ?? '').trim())
+    ? frasePertenceA(vinculoEscolhido, Number(dados.vinculo_id))
+    : null
 
   return (
     <>
@@ -117,6 +151,48 @@ export function DocumentoNovoPage() {
             onChange={(e) => campo('descricao', e.target.value)}
           />
         </label>
+
+        <fieldset className="space-y-2 rounded-md border border-border p-3">
+          <legend className="px-1 text-sm font-medium">
+            A que este documento pertence{' '}
+            <span className="font-normal">(opcional)</span>
+          </legend>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium">Pertence a</span>
+              <select
+                className={classeCampo}
+                value={dados.vinculo_tipo ?? ''}
+                onChange={(e) => campo('vinculo_tipo', e.target.value)}
+              >
+                <option value="">Nenhum (documento solto)</option>
+                {opcoesDeVinculo.map((v) => (
+                  <option key={v} value={v}>
+                    {rotuloDoVinculo(v, null) ?? v}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium">Número</span>
+              <input
+                type="number"
+                min={1}
+                className={classeCampo}
+                value={dados.vinculo_id ?? ''}
+                onChange={(e) => campo('vinculo_id', e.target.value)}
+              />
+            </label>
+          </div>
+          {fraseDoVinculo ? (
+            <p className="text-sm font-medium">{fraseDoVinculo}</p>
+          ) : null}
+          <p className="text-xs text-muted-foreground">
+            Use para ligar um relatório a um evento ou a um projeto: depois de
+            aprovado, ele aparece na página dele no site. O número fica no alto
+            da página do evento ou do projeto, aqui no painel.
+          </p>
+        </fieldset>
 
         <fieldset className="space-y-2">
           <legend className="mb-1 text-sm font-medium">

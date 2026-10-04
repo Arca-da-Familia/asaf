@@ -12,7 +12,8 @@ export default function globalSetup() {
     )
   }
   const html = readFileSync('dist/index.html', 'utf-8')
-  if (!html.includes('data-api-url="http://127.0.0.1:4322"')) {
+  const portaDoMock = process.env.MOCK_API_PORT ?? '4322'
+  if (!html.includes(`data-api-url="http://127.0.0.1:${portaDoMock}"`)) {
     throw new Error(
       'dist/ foi gerado com a API de produção. Rode `npm run build:teste` (ilha de eventos ' +
         'apontando para a API simulada) antes do e2e.',

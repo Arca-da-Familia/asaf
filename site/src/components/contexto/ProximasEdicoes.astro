@@ -1,0 +1,47 @@
+---
+/**
+ * "Próxima edição" de um projeto em destaque (Home, v5.5). O build deixa prontas as próximas edições (as que ainda não
+ * terminaram) e o navegador mostra só a primeira que ainda vale (src/lib/edicoes-vivas.ts): sem isso a Home anunciaria,
+ * por semanas, uma "próxima edição" que já aconteceu — o site só é reconstruído quando o conteúdo muda, não porque o
+ * relógio andou.
+ */
+import { fimDoEvento } from '../../lib/contexto'
+import { caminhoDoEvento } from '../../lib/dados-publicos'
+import type { ResumoDeEvento } from '../../lib/dados-publicos'
+import { comFusoDaAsaf, formatarDia } from '../../lib/datas'
+
+interface Props {
+  edicoes: ResumoDeEvento[]
+}
+
+const { edicoes } = Astro.props
+---
+
+<div class="mt-4" data-proximas-edicoes>
+  {edicoes.map((edicao, i) => (
+    <p
+      class="font-medium"
+      data-proxima-edicao
+      data-fim={fimDoEvento(edicao)}
+      hidden={i > 0}
+    >
+      Próxima edição:{' '}
+      <time datetime={comFusoDaAsaf(edicao.data_hora_inicio)}>
+        {formatarDia(edicao.data_hora_inicio)}
+      </time>{' '}
+      ·{' '}
+      <a
+        href={caminhoDoEvento(edicao.id_evento)}
+        class="text-primary underline underline-offset-4"
+      >
+        {edicao.titulo}
+      </a>
+    </p>
+  ))}
+</div>
+
+<script>
+  import { mostrarSoAProximaEdicao } from '../../lib/edicoes-vivas'
+
+  mostrarSoAProximaEdicao()
+</script>

@@ -2,9 +2,12 @@
 import TituloDePagina from '../../../components/TituloDePagina.astro'
 import type { Migalha } from '../../../config/navegacao'
 import Base from '../../../layouts/Base.astro'
+import { ligacoesDaNoticia } from '../../../lib/contexto'
 import {
   caminhoDaFotoDaNoticia,
   caminhoDaNoticia,
+  caminhoDoEvento,
+  caminhoDoProjeto,
   conteudoPublico,
   type NoticiaPublica,
 } from '../../../lib/dados-publicos'
@@ -14,18 +17,22 @@ import { descricaoParaMeta, tituloCurto } from '../../../lib/texto'
 
 // Uma página por notícia, com URL estável (/noticias/<endereço>/). O endereço é escolhido pelo editor no
 // Directus e NÃO deve ser mudado depois de publicada (o link compartilhado deixaria de funcionar).
+//
+// v5.5: a notícia pode estar ligada a um projeto e/ou a um evento (números no Directus). O link só aparece para o que
+// EXISTE no site: número que não existe já foi desfeito na leitura (conteudo-publico.mjs) e aqui se confere de novo.
 export async function getStaticPaths() {
-  const { noticias } = await conteudoPublico()
+  const { noticias, projetos, eventos } = await conteudoPublico()
   return noticias.map((noticia) => ({
     params: { slug: noticia.slug },
-    props: { noticia },
+    props: { noticia, ligacoes: ligacoesDaNoticia(noticia, projetos, eventos) },
   }))
 }
 
 interface Props {
   noticia: NoticiaPublica
+  ligacoes: ReturnType<typeof ligacoesDaNoticia>
 }
-const { noticia } = Astro.props
+const { noticia, ligacoes } = Astro.props
 
 const caminho = caminhoDaNoticia(noticia.slug)
 const caminhoDaImagem = noticia.imagem
@@ -88,6 +95,31 @@ const migalhas: Migalha[] = [
       class="leading-relaxed [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_blockquote]:border-l-4 [&_blockquote]:border-brand-secondary [&_blockquote]:pl-4 [&_blockquote]:italic [&_h2]:mt-8 [&_h2]:text-2xl [&_h2]:font-bold [&_h3]:mt-6 [&_h3]:text-xl [&_h3]:font-semibold [&_h4]:mt-4 [&_h4]:font-semibold [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:mt-4 [&_ul]:list-disc [&_ul]:pl-6"
       set:html={noticia.corpoHtml}
     />
+
+    {(ligacoes.projeto || ligacoes.evento) && (
+      <ul class="flex flex-col gap-2" data-ligacoes-da-noticia>
+        {ligacoes.projeto && (
+          <li>
+            <a
+              href={caminhoDoProjeto(ligacoes.projeto.id_projeto)}
+              class="font-medium text-primary underline underline-offset-4"
+            >
+              Sobre o projeto {ligacoes.projeto.nome}
+            </a>
+          </li>
+        )}
+        {ligacoes.evento && (
+          <li>
+            <a
+              href={caminhoDoEvento(ligacoes.evento.id_evento)}
+              class="font-medium text-primary underline underline-offset-4"
+            >
+              Sobre o evento {ligacoes.evento.titulo}
+            </a>
+          </li>
+        )}
+      </ul>
+    )}
 
     <p>
       <a

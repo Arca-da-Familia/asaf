@@ -16,6 +16,8 @@ import warnings
 from fastapi import HTTPException
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from app.services.documentos_verificacao import exigir_texto_sem_dado_pessoal
+
 TAMANHO_MAXIMO_DO_ARQUIVO = 10 * 1024 * 1024
 LADO_MAXIMO = 2000
 PIXELS_MAXIMOS = 50_000_000  # recusa imagem gigante (bomba de descompressão)
@@ -69,8 +71,6 @@ def tratar_imagem(conteudo: bytes) -> tuple[bytes, int, int]:
 
 def validar_alt(alt: str | None) -> str:
     """Texto alternativo (descrição da foto para quem não enxerga): tamanho certo e sem dado pessoal."""
-    from app.services.parcerias import exigir_texto_sem_dado_pessoal  # import tardio: evita ciclo
-
     texto = (alt or "").strip()
     if not ALT_MINIMO <= len(texto) <= ALT_MAXIMO:
         raise HTTPException(

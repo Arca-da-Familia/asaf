@@ -28,6 +28,7 @@ import {
   proximoPasso,
   recusarDocumento,
   retirarDocumento,
+  rotuloDoVinculo,
   tornarVigente,
   usarOriginalComoVersaoPublica,
   type Documento,
@@ -135,6 +136,11 @@ export function DocumentoDetalhePage() {
 
   const d: Documento = doc
   const noSite = d.publicar_no_site
+  // Evento e projeto têm tela própria (no módulo de Projetos): vira link só para quem pode abrir essa tela.
+  const podeVerOVinculo =
+    (d.vinculo_tipo === 'evento' || d.vinculo_tipo === 'projeto') &&
+    d.vinculo_id != null &&
+    (eu?.permissoes.includes('projetos') ?? false)
 
   return (
     <>
@@ -188,9 +194,22 @@ export function DocumentoDetalhePage() {
             <dd>{d.ano ?? '—'}</dd>
             {d.vinculo_tipo && (
               <>
-                <dt className="font-medium">Vinculado a</dt>
+                <dt className="font-medium">Pertence a</dt>
                 <dd>
-                  {d.vinculo_tipo} nº {d.vinculo_id}
+                  {podeVerOVinculo ? (
+                    <Link
+                      to={
+                        d.vinculo_tipo === 'evento'
+                          ? `/eventos?evento=${d.vinculo_id}`
+                          : `/projetos?projeto=${d.vinculo_id}`
+                      }
+                      className="underline"
+                    >
+                      {rotuloDoVinculo(d.vinculo_tipo, d.vinculo_id)}
+                    </Link>
+                  ) : (
+                    rotuloDoVinculo(d.vinculo_tipo, d.vinculo_id)
+                  )}
                 </dd>
               </>
             )}

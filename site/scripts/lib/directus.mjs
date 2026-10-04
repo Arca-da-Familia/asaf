@@ -33,6 +33,9 @@ export const CAMPOS_DA_NOTICIA = [
   'imagem.height',
   'imagem_alt',
   'autorizacao_imagem',
+  // v5.5: número do projeto e do evento a que a notícia se liga (campos opcionais, inteiros).
+  'projeto_id',
+  'evento_id',
 ]
 
 /** Endereço da notícia: minúsculas, números e hífen (o que o editor vê como "slug"). */
@@ -104,8 +107,24 @@ const textoSimples = (valor) =>
     .trim()
 
 /**
+ * Número de projeto/evento a que a notícia se liga (v5.5): inteiro positivo, ou `null` com o campo vazio.
+ * `invalido` = o editor digitou algo que não é um número de projeto/evento (texto, negativo, decimal, zero).
+ */
+function lerLigacao(valor) {
+  if (valor === null || valor === undefined || valor === '') {
+    return { id: null, invalido: false }
+  }
+  if (Number.isSafeInteger(valor) && valor > 0) {
+    return { id: valor, invalido: false }
+  }
+  return { id: null, invalido: true }
+}
+
+/**
  * Valida as notícias lidas do Directus. Devolve `{ noticias, avisos }`: `noticias` já limpas e ordenadas da mais
  * recente para a mais antiga; `avisos` lista cada notícia NÃO publicada e o motivo (aparece no resumo do deploy).
+ * Cada notícia leva `projetoId` e `eventoId` (inteiro positivo ou `null`); número inválido vira `null` e gera um
+ * aviso com `publicada: true` (a notícia foi ao ar, só sem a ligação).
  */
 export function validarNoticias(brutas, agora = new Date()) {
   const avisos = []
@@ -183,6 +202,25 @@ export function validarNoticias(brutas, agora = new Date()) {
       }
     }
 
+    // Ligação com um projeto/evento (v5.5): valor que não é número de verdade NÃO derruba a notícia — ela vai ao
+    // ar sem a ligação e o aviso diz o que corrigir no Directus.
+    const ligacoes = {}
+    for (const [campo, chave, rotulo] of [
+      ['projeto_id', 'projetoId', 'projeto'],
+      ['evento_id', 'eventoId', 'evento'],
+    ]) {
+      const { id, invalido } = lerLigacao(bruta[campo])
+      ligacoes[chave] = id
+      if (invalido) {
+        avisos.push({
+          id: String(bruta.id ?? ''),
+          titulo: nome,
+          motivo: `o campo ${campo} tem um valor inválido ("${textoSimples(bruta[campo]).slice(0, 40)}"): precisa ser o número de um ${rotulo}. A notícia foi publicada sem a ligação com o ${rotulo}`,
+          publicada: true,
+        })
+      }
+    }
+
     vistas.add(slug)
     noticias.push({
       id: String(bruta.id),
@@ -195,6 +233,8 @@ export function validarNoticias(brutas, agora = new Date()) {
         ? new Date(bruta.date_updated).toISOString()
         : null,
       imagem,
+      projetoId: ligacoes.projetoId,
+      eventoId: ligacoes.eventoId,
     })
   }
   noticias.sort(
@@ -247,6 +287,8 @@ export async function buscarNoticias(
 /**
  * Anuncia as notícias NÃO publicadas e o motivo. No GitHub Actions vira aviso amarelo (anotação) no resumo do
  * job — é como o editor descobre que a notícia dele ficou de fora (foto sem autorização, sem texto alternativo...).
+ * Aviso com `publicada: true` (v5.5) é outro caso: a notícia FOI ao ar, só sem a ligação com um projeto/evento
+ * (número que não existe ou não é público); o texto diz isso para o editor não procurar a notícia que sumiu.
  */
 export function anunciarAvisosDeNoticias(
   avisos,
@@ -254,10 +296,13 @@ export function anunciarAvisosDeNoticias(
   noGitHub = process.env.GITHUB_ACTIONS === 'true',
 ) {
   for (const aviso of avisos ?? []) {
-    const texto = `Notícia NÃO publicada: "${aviso.titulo}" — ${aviso.motivo}`
+    const publicada = aviso.publicada === true
+    const texto = publicada
+      ? `Notícia publicada SEM a ligação: "${aviso.titulo}" — ${aviso.motivo}`
+      : `Notícia NÃO publicada: "${aviso.titulo}" — ${aviso.motivo}`
     escrever(
       noGitHub
-        ? `::warning title=Notícia não publicada::${texto.replace(/[\r\n]+/g, ' ')}`
+        ? `::warning title=${publicada ? 'Notícia sem ligação' : 'Notícia não publicada'}::${texto.replace(/[\r\n]+/g, ' ')}`
         : texto,
     )
   }

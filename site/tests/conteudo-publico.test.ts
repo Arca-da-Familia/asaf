@@ -8,6 +8,11 @@ import {
   verificarTextoDoDocumento,
   buscarConteudoPublico,
   impressaoDoConteudo,
+  ligarNoticias,
+  normalizarEvento,
+  normalizarEventoDetalhado,
+  normalizarProjeto,
+  normalizarProjetoDetalhado,
 } from '../scripts/lib/conteudo-publico.mjs'
 
 function json(corpo: unknown, status = 200): Response {
@@ -49,6 +54,7 @@ describe('buscarConteudoPublico', () => {
     '/api/publico/eventos/1': { ...evento(1), sessoes: [] },
     '/api/publico/eventos/2': { ...evento(2), sessoes: [] },
     '/api/publico/projetos': [{ id_projeto: 7, nome: 'Horta' }],
+    '/api/publico/projetos/7': { id_projeto: 7, nome: 'Horta' },
     '/api/publico/diretoria': [],
     '/api/publico/assembleias': [],
     '/api/publico/transparencia/parcerias': [
@@ -62,7 +68,7 @@ describe('buscarConteudoPublico', () => {
     '/api/publico/transparencia/documentos': [{ id_documento: 9 }],
   }
 
-  it('lê as 6 listas e o detalhe de cada evento e de cada parceria', async () => {
+  it('lê as 6 listas e o detalhe de cada evento, de cada projeto e de cada parceria', async () => {
     const { fetchImpl, chamadas } = apiFalsa(rotasBase)
     const c = await buscarConteudoPublico('https://api.teste/', {
       fetchImpl,
@@ -71,10 +77,12 @@ describe('buscarConteudoPublico', () => {
     expect(c.eventos).toHaveLength(2)
     expect(Object.keys(c.detalhesDeEventos)).toEqual(['1', '2'])
     expect(c.projetos[0]!.nome).toBe('Horta')
+    expect(Object.keys(c.detalhesDeProjetos)).toEqual(['7'])
     expect(c.parcerias).toHaveLength(1)
     expect(Object.keys(c.detalhesDeParcerias)).toEqual(['3'])
     expect(c.documentos).toEqual([{ id_documento: 9 }])
-    expect(chamadas).toHaveLength(9) // 6 listas + 2 detalhes de evento + 1 de parceria
+    expect(chamadas).toHaveLength(10) // 6 listas + 2 detalhes de evento + 1 de projeto + 1 de parceria
+    expect(chamadas).toContain('/api/publico/projetos/7')
   })
 
   it('FALHA o build se a lista de parcerias não responder (nunca publica uma Transparência incompleta)', async () => {
@@ -431,5 +439,314 @@ describe('baixarFotoDaTransparencia', () => {
       baixarFotoDaTransparencia('https://api.teste', foto, e),
     ).rejects.toThrow(/404/)
     expect(e.fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('a mensagem diz de onde é a foto (evento x etapa de parceria)', async () => {
+    const outra = Buffer.concat([jpeg, Buffer.from(' adulterada')])
+    await expect(
+      baixarFotoDaTransparencia('https://api.teste', foto, {
+        ...com(() => resposta(outra)),
+        descricao: 'do evento',
+      }),
+    ).rejects.toThrow(/A foto 3 do evento não confere com a aprovada/)
+    await expect(
+      baixarFotoDaTransparencia(
+        'https://api.teste',
+        foto,
+        com(() => resposta(outra)),
+      ),
+    ).rejects.toThrow(/A foto 3 da transparência não confere/)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------------- v5.5
+// O projeto principal da associação (Despertai) é um projeto em destaque; cada edição é um evento ligado a ele; relatórios
+// são documentos aprovados ligados; fotos só com autorização de imagem. O site lê tudo isso no build — e precisa continuar
+// construindo se for publicado ANTES da API nova (os dois deploys saem ao mesmo tempo).
+const documentoDoContexto = (extra = {}) => ({
+  id_documento: 5,
+  tipo_codigo: 'RELATORIO_EVENTO',
+  tipo: 'Relatório de evento ou de projeto',
+  titulo: 'Relatório da 1ª edição',
+  formato: 'TEXTO',
+  sha256: 'c'.repeat(64),
+  arquivo: null,
+  vinculo_tipo: 'evento',
+  vinculo_id: 4,
+  ...extra,
+})
+const fotoDoContexto = (extra = {}) => ({
+  id_foto: 11,
+  alt: 'Participantes reunidos na quadra',
+  largura: 600,
+  altura: 400,
+  tamanho: 1000,
+  sha256: 'd'.repeat(64),
+  arquivo: '/api/publico/eventos/4/fotos/11',
+  ...extra,
+})
+const resumoDeEdicao = (id: number, extra = {}) => ({
+  id_evento: id,
+  titulo: `Edição ${id}`,
+  categoria: 'Encontro',
+  data_hora_inicio: '2026-10-10T19:00:00',
+  data_hora_fim: null,
+  endereco_avulso: null,
+  ...extra,
+})
+
+describe('buscarConteudoPublico - contexto de projeto e evento (v5.5)', () => {
+  const rotasNovas = {
+    '/api/publico/eventos': [
+      { ...evento(4), id_projeto: 3 },
+      { ...evento(5), id_projeto: 3 },
+    ],
+    '/api/publico/eventos/4': {
+      ...evento(4),
+      id_projeto: 3,
+      sessoes: [],
+      projeto: { id_projeto: 3, nome: 'Principal' },
+      edicoes: [
+        { ...resumoDeEdicao(4), atual: true },
+        { ...resumoDeEdicao(5), atual: false },
+      ],
+      documentos: [documentoDoContexto()],
+      fotos: [fotoDoContexto()],
+    },
+    '/api/publico/eventos/5': {
+      ...evento(5),
+      id_projeto: 3,
+      sessoes: [],
+      projeto: { id_projeto: 3, nome: 'Principal' },
+      edicoes: [],
+      documentos: [],
+      fotos: [],
+    },
+    '/api/publico/projetos': [
+      { id_projeto: 3, nome: 'Principal', destaque: true },
+    ],
+    '/api/publico/projetos/3': {
+      id_projeto: 3,
+      nome: 'Principal',
+      destaque: true,
+      eventos: [resumoDeEdicao(5), resumoDeEdicao(4)],
+      documentos: [documentoDoContexto()],
+      fotos: [{ ...fotoDoContexto(), id_evento: 4 }],
+    },
+    '/api/publico/diretoria': [],
+    '/api/publico/assembleias': [],
+    '/api/publico/transparencia/parcerias': [],
+    '/api/publico/transparencia/documentos': [],
+  }
+  const ler = (rotas: Record<string, unknown>) =>
+    buscarConteudoPublico('https://api.teste', {
+      fetchImpl: apiFalsa(rotas).fetchImpl,
+      esperaMs: 0,
+    })
+
+  it('guarda o detalhe de cada projeto, com edições, relatórios e fotos', async () => {
+    const c = await ler(rotasNovas)
+    const detalhe = c.detalhesDeProjetos[3]!
+    expect(detalhe.destaque).toBe(true)
+    expect(detalhe.eventos.map((e) => e.id_evento)).toEqual([5, 4])
+    expect(detalhe.documentos.map((d) => d.id_documento)).toEqual([5])
+    expect(detalhe.fotos[0]).toMatchObject({ id_foto: 11, id_evento: 4 })
+    expect(c.projetos[0]!.destaque).toBe(true)
+    expect(c.eventos[0]!.id_projeto).toBe(3)
+    expect(c.detalhesDeEventos[4]!.projeto).toEqual({
+      id_projeto: 3,
+      nome: 'Principal',
+    })
+  })
+
+  it('é TOLERANTE a API antiga: sem eventos/documentos/fotos/projeto/edicoes/destaque o build não quebra', async () => {
+    const antigas = {
+      ...rotasNovas,
+      '/api/publico/eventos': [evento(4)],
+      '/api/publico/eventos/4': { ...evento(4), sessoes: [] },
+      '/api/publico/projetos': [{ id_projeto: 3, nome: 'Principal' }],
+      '/api/publico/projetos/3': { id_projeto: 3, nome: 'Principal' },
+    }
+    const c = await ler(antigas)
+    expect(c.projetos[0]!.destaque).toBe(false)
+    expect(c.eventos[0]!.id_projeto).toBeNull()
+    expect(c.detalhesDeProjetos[3]).toMatchObject({
+      destaque: false,
+      eventos: [],
+      documentos: [],
+      fotos: [],
+    })
+    expect(c.detalhesDeEventos[4]).toMatchObject({
+      id_projeto: null,
+      projeto: null,
+      edicoes: [],
+      documentos: [],
+      fotos: [],
+    })
+  })
+
+  it('a impressão digital MUDA quando muda uma foto, um documento ou uma edição (o site é reconstruído)', async () => {
+    const original = impressaoDoConteudo(await ler(rotasNovas))
+    expect(impressaoDoConteudo(await ler(rotasNovas))).toBe(original)
+
+    const comMudanca = async (chave: string, valor: unknown) =>
+      impressaoDoConteudo(await ler({ ...rotasNovas, [chave]: valor }))
+    const projeto = rotasNovas['/api/publico/projetos/3']
+    const evento4 = rotasNovas['/api/publico/eventos/4']
+
+    // foto trocada (o arquivo muda, o SHA-256 muda) ou nova foto na galeria do projeto
+    expect(
+      await comMudanca('/api/publico/eventos/4', {
+        ...evento4,
+        fotos: [fotoDoContexto({ sha256: 'e'.repeat(64) })],
+      }),
+    ).not.toBe(original)
+    expect(
+      await comMudanca('/api/publico/projetos/3', {
+        ...projeto,
+        fotos: [
+          { ...fotoDoContexto({ id_foto: 12 }), id_evento: 4 },
+          ...projeto.fotos,
+        ],
+      }),
+    ).not.toBe(original)
+    // relatório aprovado novo, ou trocado
+    expect(
+      await comMudanca('/api/publico/projetos/3', {
+        ...projeto,
+        documentos: [
+          ...projeto.documentos,
+          documentoDoContexto({ id_documento: 6 }),
+        ],
+      }),
+    ).not.toBe(original)
+    expect(
+      await comMudanca('/api/publico/eventos/4', {
+        ...evento4,
+        documentos: [documentoDoContexto({ sha256: 'f'.repeat(64) })],
+      }),
+    ).not.toBe(original)
+    // nova edição do projeto
+    expect(
+      await comMudanca('/api/publico/projetos/3', {
+        ...projeto,
+        eventos: [resumoDeEdicao(6), ...projeto.eventos],
+      }),
+    ).not.toBe(original)
+    // o projeto entra ou sai de destaque
+    expect(
+      await comMudanca('/api/publico/projetos', [
+        { id_projeto: 3, nome: 'Principal', destaque: false },
+      ]),
+    ).not.toBe(original)
+  })
+})
+
+describe('normalização (API antiga)', () => {
+  it('projeto: destaque só vale se for exatamente true', () => {
+    expect(normalizarProjeto({ id_projeto: 1 }).destaque).toBe(false)
+    expect(normalizarProjeto({ id_projeto: 1, destaque: 'sim' }).destaque).toBe(
+      false,
+    )
+    expect(normalizarProjeto({ id_projeto: 1, destaque: true }).destaque).toBe(
+      true,
+    )
+  })
+  it('projeto detalhado e evento detalhado: ausência vira lista vazia ou null, e o que veio é mantido', () => {
+    expect(normalizarProjetoDetalhado({ id_projeto: 1 })).toEqual({
+      id_projeto: 1,
+      destaque: false,
+      eventos: [],
+      documentos: [],
+      fotos: [],
+    })
+    const evento = normalizarEventoDetalhado({
+      id_evento: 2,
+      fotos: [fotoDoContexto()],
+    })
+    expect(evento).toMatchObject({
+      id_projeto: null,
+      projeto: null,
+      edicoes: [],
+      documentos: [],
+    })
+    expect(evento.fotos).toHaveLength(1)
+    expect(normalizarEvento({ id_evento: 2, id_projeto: 3 }).id_projeto).toBe(3)
+    // valor que não é lista (resposta torta) também vira lista vazia, nunca quebra o build
+    expect(
+      normalizarProjetoDetalhado({
+        id_projeto: 1,
+        eventos: null as never,
+        fotos: 'x' as never,
+      }),
+    ).toMatchObject({ eventos: [], fotos: [] })
+  })
+})
+
+describe('ligarNoticias', () => {
+  const noticia = (extra = {}) => ({
+    id: 'n1',
+    titulo: 'Encontro',
+    slug: 'encontro',
+    resumo: 'r',
+    corpoHtml: '<p>t</p>',
+    publicadaEm: '2026-10-01T10:00:00.000Z',
+    atualizadaEm: null,
+    imagem: null,
+    projetoId: null,
+    eventoId: null,
+    ...extra,
+  })
+  const existentes = {
+    projetos: [{ id_projeto: 3 }],
+    eventos: [{ id_evento: 4 }],
+  }
+
+  it('mantém a ligação com projeto e evento que existem (e públicos)', () => {
+    const { noticias, avisos } = ligarNoticias(
+      [noticia({ projetoId: 3, eventoId: 4 })],
+      existentes,
+    )
+    expect(noticias[0]).toMatchObject({ projetoId: 3, eventoId: 4 })
+    expect(avisos).toEqual([])
+  })
+
+  it('número que não existe: a notícia É publicada sem a ligação e o aviso diz o motivo em português', () => {
+    const { noticias, avisos } = ligarNoticias(
+      [noticia({ projetoId: 999, eventoId: 998 })],
+      existentes,
+    )
+    expect(noticias).toHaveLength(1)
+    expect(noticias[0]).toMatchObject({ projetoId: null, eventoId: null })
+    expect(avisos).toHaveLength(2)
+    expect(avisos[0]).toMatchObject({
+      id: 'n1',
+      titulo: 'Encontro',
+      publicada: true,
+    })
+    expect(avisos[0]!.motivo).toMatch(
+      /projeto nº 999 não existe ou não é público/,
+    )
+    expect(avisos[1]!.motivo).toMatch(
+      /evento nº 998 não existe ou não é público/,
+    )
+  })
+
+  it('desfaz só a ligação que está errada', () => {
+    const { noticias, avisos } = ligarNoticias(
+      [noticia({ projetoId: 3, eventoId: 998 })],
+      existentes,
+    )
+    expect(noticias[0]).toMatchObject({ projetoId: 3, eventoId: null })
+    expect(avisos).toHaveLength(1)
+  })
+
+  it('notícia sem ligação (ou de uma versão antiga sem os campos) passa intacta, com null', () => {
+    const { projetoId, eventoId, ...antiga } = noticia()
+    void projetoId
+    void eventoId
+    const { noticias, avisos } = ligarNoticias([antiga as never], existentes)
+    expect(noticias[0]).toMatchObject({ projetoId: null, eventoId: null })
+    expect(avisos).toEqual([])
   })
 })

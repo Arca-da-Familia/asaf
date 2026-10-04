@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { descricaoParaMeta, tituloCurto } from '../src/lib/texto'
+import { descricaoParaMeta, tituloCurto, trechoDoTexto } from '../src/lib/texto'
 
 const RESERVA =
   'Projeto da Associação Arca da Família (ASAF), em Parauapebas (PA), voltado às famílias atendidas.'
@@ -29,6 +29,28 @@ describe('descricaoParaMeta', () => {
       RESERVA,
     )
     expect(meta).not.toMatch(/\s{2,}|\n/)
+  })
+})
+
+describe('trechoDoTexto', () => {
+  it('texto curto fica como veio (nunca é trocado por uma frase de reserva)', () => {
+    expect(trechoDoTexto('Encontros com jovens.')).toBe('Encontros com jovens.')
+  })
+  it('sem texto = vazio', () => {
+    expect(trechoDoTexto(null)).toBe('')
+    expect(trechoDoTexto(undefined)).toBe('')
+    expect(trechoDoTexto('   ')).toBe('')
+  })
+  it('corta na última palavra inteira, com reticências, no máximo pedido', () => {
+    const trecho = trechoDoTexto('palavra '.repeat(80), 100)
+    expect(trecho.length).toBeLessThanOrEqual(100)
+    expect(trecho.endsWith('…')).toBe(true)
+    expect(trecho).not.toMatch(/palavr…$/)
+  })
+  it('junta quebras de linha e espaços repetidos', () => {
+    expect(trechoDoTexto('Linha um\n\nlinha   dois')).toBe(
+      'Linha um linha dois',
+    )
   })
 })
 

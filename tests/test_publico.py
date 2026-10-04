@@ -19,8 +19,10 @@ _ISO = "%Y-%m-%dT%H:%M:%S"
 CAMPOS_DIRETORIA = {"orgao_codigo", "orgao", "cargo_codigo", "cargo", "nome", "data_inicio", "data_fim_previsto"}
 CAMPOS_PROJETO = {
     "id_projeto", "nome", "descricao", "tipo_codigo", "tipo", "status_codigo", "status",
-    "publico_alvo", "data_inicio", "data_fim_prevista",
+    "publico_alvo", "data_inicio", "data_fim_prevista", "destaque",
 }
+# v5.5: o detalhe traz também o contexto do projeto (edições/eventos, relatórios e documentos aprovados, fotos)
+CAMPOS_DETALHE_DO_PROJETO = CAMPOS_PROJETO | {"eventos", "documentos", "fotos"}
 CAMPOS_ASSEMBLEIA = {
     "id_assembleia", "tipo", "status", "pauta", "local_fisico", "convocada_em", "primeira_convocacao",
     "segunda_convocacao", "terceira_convocacao", "edital_texto", "edital_sha256",
@@ -140,7 +142,7 @@ def test_projeto_interno_ou_inexistente_responde_404_igual_nao_revela_que_existe
     assert interno.status_code == inexistente.status_code == 404
     assert interno.json() == inexistente.json()
     detalhe = client.get(f"/api/publico/projetos/{id_publico}")
-    assert detalhe.status_code == 200 and set(detalhe.json()) == CAMPOS_PROJETO
+    assert detalhe.status_code == 200 and set(detalhe.json()) == CAMPOS_DETALHE_DO_PROJETO
 
 
 # ==========================================

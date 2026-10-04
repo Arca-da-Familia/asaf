@@ -38,11 +38,13 @@ npm test               # unitários (vitest): datas/fuso, SEO/JSON-LD, cliente d
 npm run logos          # regenera logo/ícones a partir de design/logo (ver design/README.md)
 npm run build:teste    # build com a API SIMULADA de pé (obrigatório p/ e2e e Lighthouse)
 npm run test:e2e       # Playwright: axe WCAG 2.1 AA, SEO, links, ilha em cada estado
-npm run test:vazio     # build contra API sem nenhum dado: confere o estado vazio (o da produção no 1º dia)
+npm run test:vazio     # build contra API sem nenhum dado (estado vazio, o da produção no 1º dia) e contra a API ANTIGA (sem o contexto de projeto/evento)
 npm run test:sincronizacao  # igual não reconstrói; diferente e 1º deploy reconstroem
 npm run lighthouse     # Lighthouse CI (precisa de Chrome; localmente: CHROME_PATH=...)
 ```
 
+- Portas 4321/4322 ocupadas por outra cópia do projeto? Gere o build de teste e rode o e2e com
+  `MOCK_API_PORT=4422 PORTA_DO_SITE_DE_TESTE=4421` (as duas variáveis precisam ser as mesmas no build e no Playwright).
 - O **e2e descobre as páginas pelo `sitemap`**: toda página nova entra sozinha na auditoria de
   acessibilidade e SEO. Ninguém precisa lembrar de registrar.
 - `global-setup` recusa rodar o e2e contra um `dist/` de produção (testaria a API real).
@@ -99,6 +101,19 @@ WhatsApp. Rotas da API (`app/routers/publico.py`, sem login, só leitura, lista 
   (`sanitize-html`): sem script, sem imagem solta, só links http/https/mailto/tel. `DIRECTUS_OBRIGATORIO=1`
   (workflows de publicação): sem o token o build FALHA. Em desenvolvimento, sem `DIRECTUS_SITE_TOKEN`, a lista
   de notícias fica vazia. O guia para quem edita está em `COMO-ATUALIZAR.md` (raiz do repositório).
+- **Projeto em destaque e contexto do evento (v5.5)**: o programa principal da associação (o Despertai) é um
+  **Projeto** do sistema marcado como destaque (não existe entidade "Programa"); cada edição é um **Evento** ligado ao
+  projeto; relatórios são **Documentos** aprovados ligados; fotos entram só com autorização de imagem. O build lê o detalhe
+  de cada projeto (`/api/publico/projetos/{id}`) e acrescenta, **só quando há conteúdo** (nunca seção vazia): na página do
+  projeto, "Edições e eventos", "Relatórios e documentos", "Fotos" e "Notícias"; na do evento, "Faz parte do projeto",
+  "Outras edições", "Relatório e documentos", "Fotos do evento" e "Notícias sobre este evento"; na Home, a seção "Em
+  destaque" (e a lista de `/projetos/` põe o destaque primeiro). As fotos são copiadas no build para
+  `/midia/eventos/<id>.jpg` (JPEG com SHA-256 conferido, como as da transparência). As **notícias** do Directus se ligam
+  pelos campos opcionais `projeto_id` e `evento_id`; número que não existe não derruba a notícia: ela vai ao ar sem a
+  ligação e o resumo do deploy avisa. O site é **tolerante a API antiga** (publicado antes dela): o que falta vira lista
+  vazia e as seções novas simplesmente não aparecem (provado por `npm run test:vazio`, que também constrói contra a API
+  antiga). "Próxima edição" e "Já realizado" dependem de "hoje", que o build não sabe: o navegador confere a data
+  (`src/lib/edicoes-vivas.ts`) e esconde a edição que já passou.
 - **Sincronização automática** (`.github/workflows/sincronizar-site.yml`, a cada 15 min): compara a
   impressão digital do conteúdo (API do sistema **e notícias do Directus**) com a de `/conteudo.json` do
   site no ar; se mudou, dispara o `deploy-site.yml`. A impressão **ignora vagas livres** (mudam a cada

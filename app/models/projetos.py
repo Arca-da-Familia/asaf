@@ -7,7 +7,7 @@ chegar, a decisão de separar de vez "Projeto" e "Evento" em tabelas diferentes 
 esse nome em mente - não decidida aqui por antecipação."""
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, false
 
 from app.database import Base
 
@@ -38,6 +38,9 @@ class ProjetoEvento(Base):
     publico_alvo = Column(String, nullable=True)
     id_centro_custo = Column(Integer, ForeignKey("centros_de_custo.id_centro_custo"), nullable=True)
     visibilidade = Column(String, nullable=False, default="Interna")  # "Pública" | "Interna"
+    # v5.5 - o projeto principal da associação (o Despertai) aparece em destaque na página inicial do site. Só projeto
+    # Público pode ficar em destaque (validado no serviço); mais de um pode estar em destaque ao mesmo tempo.
+    destaque_no_site = Column(Boolean, nullable=False, default=False, server_default=false())
     id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
 

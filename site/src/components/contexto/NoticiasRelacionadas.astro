@@ -1,0 +1,58 @@
+---
+/**
+ * Notícias do Directus ligadas a um projeto ou evento pelo número (v5.5). A lista já vem escolhida e ordenada
+ * (`noticiasDoProjeto` / `noticiasDoEvento`); aqui só se desenha.
+ */
+import { caminhoDaNoticia } from '../../lib/dados-publicos'
+import type { NoticiaPublica } from '../../lib/dados-publicos'
+import { formatarDataLonga } from '../../lib/datas'
+
+interface Props {
+  id: string
+  titulo: string
+  noticias: NoticiaPublica[]
+  /** true = há mais notícias do que as mostradas: acrescenta o link para a lista completa. */
+  haMais?: boolean
+}
+
+const { id, titulo, noticias, haMais = false } = Astro.props
+---
+
+<section aria-labelledby={id} data-secao={id}>
+  <h2 id={id} class="text-2xl font-bold tracking-tight">
+    {titulo}
+  </h2>
+  <ul class="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    {noticias.map((noticia) => (
+      <li
+        class="flex flex-col rounded-lg border bg-card p-5 shadow-card"
+        data-noticia-do-contexto
+      >
+        <p class="text-sm text-muted-foreground">
+          <time datetime={noticia.publicadaEm}>
+            {formatarDataLonga(noticia.publicadaEm)}
+          </time>
+        </p>
+        <h3 class="mt-2 text-lg font-semibold">
+          <a
+            href={caminhoDaNoticia(noticia.slug)}
+            class="underline-offset-4 hover:underline"
+          >
+            {noticia.titulo}
+          </a>
+        </h3>
+        <p class="mt-2 line-clamp-3 text-sm">{noticia.resumo}</p>
+      </li>
+    ))}
+  </ul>
+  {haMais && (
+    <p class="mt-4">
+      <a
+        href="/noticias/"
+        class="font-medium text-primary underline underline-offset-4"
+      >
+        Ver todas as notícias →
+      </a>
+    </p>
+  )}
+</section>

@@ -24,6 +24,7 @@ CERTIDAO = "CERTIDAO"
 CNPJ = "CNPJ"
 BALANCO = "BALANCO"
 RELATORIO_ANUAL = "RELATORIO_ANUAL"
+RELATORIO_EVENTO = "RELATORIO_EVENTO"
 CONSELHO = "CONSELHO"
 TERMO_FOMENTO = "TERMO_FOMENTO"
 PLANO_TRABALHO = "PLANO_TRABALHO"
@@ -38,6 +39,7 @@ TIPOS = {
     CNPJ: "Cartão CNPJ",
     BALANCO: "Balanço / prestação de contas anual",
     RELATORIO_ANUAL: "Relatório anual de atividades",
+    RELATORIO_EVENTO: "Relatório de evento ou de projeto",
     CONSELHO: "Inscrição em conselho",
     TERMO_FOMENTO: "Termo de fomento / colaboração",
     PLANO_TRABALHO: "Plano de trabalho",

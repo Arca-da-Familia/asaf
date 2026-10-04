@@ -1,12 +1,23 @@
 ---
+import EdicoesEEventos from '../../../components/contexto/EdicoesEEventos.astro'
+import GaleriaDeFotos from '../../../components/contexto/GaleriaDeFotos.astro'
+import NoticiasRelacionadas from '../../../components/contexto/NoticiasRelacionadas.astro'
+import RelatoriosEDocumentos from '../../../components/contexto/RelatoriosEDocumentos.astro'
 import SeloDeStatus from '../../../components/SeloDeStatus.astro'
 import TituloDePagina from '../../../components/TituloDePagina.astro'
 import type { Migalha } from '../../../config/navegacao'
 import { ORGANIZACAO } from '../../../config/organizacao'
 import Base from '../../../layouts/Base.astro'
 import {
+  noticiasDoProjeto,
+  soComPagina,
+  soDocumentosPublicados,
+} from '../../../lib/contexto'
+import {
   caminhoDoProjeto,
   conteudoPublico,
+  type NoticiaPublica,
+  type ProjetoDetalhado,
   type ProjetoPublico,
 } from '../../../lib/dados-publicos'
 import { formatarDataCurta } from '../../../lib/datas'
@@ -14,18 +25,53 @@ import { descricaoParaMeta, tituloCurto } from '../../../lib/texto'
 
 // Uma página por projeto público, com URL estável (/projetos/<id>/) — só o id, para um título
 // editado nunca quebrar um link já compartilhado.
+//
+// v5.5: além do projeto, a página mostra o que está ligado a ele no sistema — edições (eventos), relatórios e
+// documentos aprovados, fotos (com autorização de imagem) — e as notícias do Directus ligadas pelo número. Cada
+// seção SÓ existe quando há conteúdo: nada de "Fotos" vazio.
 export async function getStaticPaths() {
-  const { projetos } = await conteudoPublico()
-  return projetos.map((projeto) => ({
-    params: { id: String(projeto.id_projeto) },
-    props: { projeto },
-  }))
+  const { projetos, eventos, documentos, detalhesDeProjetos, noticias } =
+    await conteudoPublico()
+  return projetos.map((projeto) => {
+    const detalhe = detalhesDeProjetos[projeto.id_projeto]!
+    // Só o que tem página no site vira link (nunca um 404): o evento da lista de eventos e o documento da lista de
+    // documentos publicados.
+    const edicoes = soComPagina(
+      detalhe.eventos,
+      eventos.map((e) => e.id_evento),
+    )
+    const { lista, total } = noticiasDoProjeto(
+      noticias,
+      projeto.id_projeto,
+      edicoes.map((e) => e.id_evento),
+    )
+    return {
+      params: { id: String(projeto.id_projeto) },
+      props: {
+        projeto,
+        detalhe: {
+          ...detalhe,
+          eventos: edicoes,
+          documentos: soDocumentosPublicados(detalhe.documentos, documentos),
+        },
+        noticias: lista,
+        haMaisNoticias: total > lista.length,
+      },
+    }
+  })
 }
 
 interface Props {
   projeto: ProjetoPublico
+  detalhe: ProjetoDetalhado
+  noticias: NoticiaPublica[]
+  haMaisNoticias: boolean
 }
-const { projeto } = Astro.props
+const { projeto, detalhe, noticias, haMaisNoticias } = Astro.props
+// Título de cada edição: legenda das fotos e "a que edição o relatório pertence".
+const titulosDosEventos = Object.fromEntries(
+  detalhe.eventos.map((e) => [e.id_evento, e.titulo]),
+)
 
 const migalhas: Migalha[] = [
   { rotulo: 'Projetos', href: '/projetos/' },
@@ -95,6 +141,41 @@ const reserva = `Projeto ${projeto.nome} da ${ORGANIZACAO.nome} (${ORGANIZACAO.s
         )}
       </dl>
     </section>
+
+    {detalhe.eventos.length > 0 && (
+      <EdicoesEEventos
+        id="edicoes"
+        titulo="Edições e eventos"
+        eventos={detalhe.eventos}
+      />
+    )}
+
+    {detalhe.documentos.length > 0 && (
+      <RelatoriosEDocumentos
+        id="relatorios-e-documentos"
+        titulo="Relatórios e documentos"
+        documentos={detalhe.documentos}
+        titulosDosEventos={titulosDosEventos}
+      />
+    )}
+
+    {detalhe.fotos.length > 0 && (
+      <GaleriaDeFotos
+        id="fotos"
+        titulo="Fotos"
+        fotos={detalhe.fotos}
+        titulosDosEventos={titulosDosEventos}
+      />
+    )}
+
+    {noticias.length > 0 && (
+      <NoticiasRelacionadas
+        id="noticias"
+        titulo="Notícias"
+        noticias={noticias}
+        haMais={haMaisNoticias}
+      />
+    )}
 
     <section
       aria-labelledby="participar"

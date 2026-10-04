@@ -23,6 +23,8 @@ import io
 import re
 from dataclasses import dataclass, field
 
+from fastapi import HTTPException
+
 TAMANHO_MAXIMO = 25 * 1024 * 1024
 MAXIMO_DE_PAGINAS = 400
 MINIMO_DE_CARACTERES_POR_PAGINA = 20  # abaixo disto a página não tem camada de texto útil
@@ -256,3 +258,18 @@ def verificar_versao_publica(conteudo: bytes) -> Resultado:
 
     resultado.ok = not resultado.bloqueios
     return resultado
+
+
+def exigir_texto_sem_dado_pessoal(campos: dict[str, str | None]) -> None:
+    """Todo texto que vai ao site passa pelo verificador dos documentos: CPF, RG, e-mail e celular de pessoa."""
+    for nome, texto in campos.items():
+        if not texto:
+            continue
+        bloqueios, _ = procurar_dado_pessoal(texto)
+        if bloqueios:
+            achado = bloqueios[0]
+            raise HTTPException(
+                status_code=422,
+                detail=f"O campo '{nome}' vai ao site e parece conter dado pessoal ({achado.mensagem.split(' na versão')[0]}"
+                       f"{': ' + achado.amostra if achado.amostra else ''}). Tire esse dado do texto.",
+            )

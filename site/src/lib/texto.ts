@@ -32,6 +32,17 @@ export function descricaoParaMeta(
   return cortar(limpo, MAX_DESCRICAO)
 }
 
+/**
+ * Trecho do início de um texto, para cartões (ex.: o projeto em destaque na Home). Diferente de `descricaoParaMeta`, um texto curto
+ * é mantido como veio (nunca é trocado por uma frase de reserva); texto longo é cortado na última palavra inteira.
+ */
+export function trechoDoTexto(
+  texto: string | null | undefined,
+  maximo = 220,
+): string {
+  return texto ? cortar(limpar(texto), maximo) : ''
+}
+
 /** Título curto o bastante para caber em "Título | ASAF" dentro dos 70 caracteres. */
 export function tituloCurto(titulo: string): string {
   return cortar(limpar(titulo), MAX_TITULO)

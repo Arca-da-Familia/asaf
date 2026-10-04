@@ -27,6 +27,7 @@ from app.models.voluntariado import RegistroHorasVoluntariado
 from app.services import indicadores as servico_indicadores
 from app.services import orcamento as servico_orcamento
 from app.services.catalogos import validar_codigo_em_catalogo
+from app.services.documentos_verificacao import exigir_texto_sem_dado_pessoal
 from app.services.voluntariado import termo_vigente
 
 CONTEXTO_PROJETO = "Projeto"
@@ -36,10 +37,11 @@ def criar_projeto(
     db: Session, *, nome_projeto: str, tipo_foco: str, necessita_alvara_bombeiros: bool,
     data_inicio: datetime, data_fim_prevista: datetime, descricao: Optional[str], tipo_projeto: Optional[str],
     id_associado_responsavel: Optional[int], publico_alvo: Optional[str], id_centro_custo: Optional[int],
-    visibilidade: str, id_usuario: Optional[int],
+    visibilidade: str, id_usuario: Optional[int], destaque_no_site: bool = False,
 ) -> ProjetoEvento:
     if tipo_projeto is not None:
         validar_codigo_em_catalogo(db, "tipo_projeto", tipo_projeto, "Tipo de projeto")
+    _exigir_publicavel(visibilidade, destaque_no_site, {"nome do projeto": nome_projeto, "descrição": descricao, "público-alvo": publico_alvo})
     if id_associado_responsavel is not None and not db.query(Associado).filter(Associado.id_associado == id_associado_responsavel).first():
         raise HTTPException(status_code=404, detail="Associado responsável não encontrado.")
     if id_centro_custo is not None and not db.query(CentroDeCusto).filter(CentroDeCusto.id_centro_custo == id_centro_custo).first():
@@ -50,6 +52,7 @@ def criar_projeto(
         data_inicio=data_inicio, data_fim_prevista=data_fim_prevista, descricao=descricao, tipo_projeto=tipo_projeto,
         status="PLANEJAMENTO", id_associado_responsavel=id_associado_responsavel,
         publico_alvo=publico_alvo, id_centro_custo=id_centro_custo, visibilidade=visibilidade, id_usuario_criacao=id_usuario,
+        destaque_no_site=destaque_no_site,
     )
     if projeto.necessita_alvara_bombeiros:
         projeto.status_liberacao = "Pendente de Vistoria"
@@ -57,6 +60,45 @@ def criar_projeto(
     db.commit()
     db.refresh(projeto)
     return projeto
+
+
+def _exigir_publicavel(visibilidade: str, destaque_no_site: bool, textos: dict) -> None:
+    """Projeto Público vai ao site: o texto não pode ter dado pessoal; e só projeto Público pode ficar em destaque na página inicial."""
+    if destaque_no_site and visibilidade != "Pública":
+        raise HTTPException(status_code=422, detail="Só um projeto Público pode ficar em destaque no site: mude a visibilidade para Pública.")
+    if visibilidade == "Pública":
+        exigir_texto_sem_dado_pessoal(textos)
+
+
+CAMPOS_EDITAVEIS = (
+    "nome_projeto", "descricao", "tipo_projeto", "publico_alvo", "data_inicio", "data_fim_prevista", "visibilidade", "destaque_no_site",
+)
+
+
+def editar_projeto(db: Session, id_projeto: int, campos: dict) -> tuple[ProjetoEvento, dict]:
+    """Edita o cadastro do projeto (só os campos enviados). Devolve o projeto e o `antes` dos campos que mudaram (para a auditoria)."""
+    projeto = obter_projeto(db, id_projeto)
+    campos = {k: v for k, v in campos.items() if k in CAMPOS_EDITAVEIS}
+    for obrigatorio in ("nome_projeto", "visibilidade"):
+        if obrigatorio in campos and not campos[obrigatorio]:
+            raise HTTPException(status_code=422, detail=f"O campo {obrigatorio} não pode ficar vazio.")
+    if campos.get("tipo_projeto") is not None:
+        validar_codigo_em_catalogo(db, "tipo_projeto", campos["tipo_projeto"], "Tipo de projeto")
+    inicio = campos.get("data_inicio", projeto.data_inicio)
+    fim = campos.get("data_fim_prevista", projeto.data_fim_prevista)
+    if inicio and fim and fim < inicio:
+        raise HTTPException(status_code=422, detail="A previsão de término precisa ser depois do início.")
+    final = {c: campos.get(c, getattr(projeto, c)) for c in CAMPOS_EDITAVEIS}
+    _exigir_publicavel(
+        final["visibilidade"], bool(final["destaque_no_site"]),
+        {"nome do projeto": final["nome_projeto"], "descrição": final["descricao"], "público-alvo": final["publico_alvo"]},
+    )
+    antes = {c: getattr(projeto, c) for c in campos if getattr(projeto, c) != campos[c]}
+    for campo in antes:
+        setattr(projeto, campo, campos[campo])
+    db.commit()
+    db.refresh(projeto)
+    return projeto, antes
 
 
 def alterar_status_projeto(db: Session, *, id_projeto: int, novo_status: str) -> ProjetoEvento:

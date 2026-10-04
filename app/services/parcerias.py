@@ -31,7 +31,7 @@ from app.models.parcerias import (
 )
 from app.models.documentos import APROVADO as DOCUMENTO_APROVADO, FORMATO_TEXTO, DocumentoInstitucional
 from app.services.contabilidade import CREDITO, DEBITO
-from app.services.documentos_verificacao import procurar_dado_pessoal
+from app.services.documentos_verificacao import exigir_texto_sem_dado_pessoal  # noqa: F401 - usado aqui e reexportado
 
 MOTIVO_MINIMO = 10
 CENTAVO = Decimal("0.01")
@@ -74,21 +74,6 @@ def _texto(valor, campo: str, *, minimo: int = 0, maximo: int = 200, obrigatorio
 def _tocar(parceria: Parceria) -> None:
     """Qualquer mudança em parceria ou nas partes dela atualiza a data que o site mostra como 'última atualização'."""
     parceria.atualizado_em = datetime.utcnow()
-
-
-def exigir_texto_sem_dado_pessoal(campos: dict[str, str | None]) -> None:
-    """Todo texto que vai ao site passa pelo verificador dos documentos: CPF, RG, e-mail e celular de pessoa."""
-    for nome, texto in campos.items():
-        if not texto:
-            continue
-        bloqueios, _ = procurar_dado_pessoal(texto)
-        if bloqueios:
-            achado = bloqueios[0]
-            raise HTTPException(
-                status_code=422,
-                detail=f"O campo '{nome}' vai ao site e parece conter dado pessoal ({achado.mensagem.split(' na versão')[0]}"
-                       f"{': ' + achado.amostra if achado.amostra else ''}). Tire esse dado do texto.",
-            )
 
 
 def buscar(db: Session, id_parceria: int) -> Parceria:

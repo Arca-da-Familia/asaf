@@ -17,12 +17,13 @@ test('lista só os eventos que ainda vão acontecer, do mais próximo ao mais di
   await expect(titulos).toHaveText([
     'Evento de teste — encontro de famílias',
     'Evento de teste — vagas esgotadas',
+    'Projeto Principal de Teste — 2ª edição',
   ])
   await expect(secao).not.toContainText('já realizado')
   await expect(secao).toContainText('Local de teste, Parauapebas')
   await expect(secao).toContainText('12 vagas disponíveis')
   await expect(secao).toContainText('Vagas esgotadas')
-  await expect(secao.getByText('Gratuito')).toHaveCount(1)
+  await expect(secao.getByText('Gratuito')).toHaveCount(2) // o encontro e a 2ª edição (a de vagas esgotadas é paga)
   await expect(page.locator('[data-eventos]')).toHaveAttribute(
     'aria-busy',
     'false',

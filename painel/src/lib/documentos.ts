@@ -89,6 +89,9 @@ export type FiltrosDeDocumentos = {
   classificacao?: string
   vigente?: boolean
   grupo_versao?: string
+  // v5.5 - os documentos ligados a um evento ou a um projeto (ex.: os relatórios de uma edição do Despertai).
+  vinculo_tipo?: string
+  vinculo_id?: number
 }
 
 export type DadosDoDocumento = {
@@ -306,6 +309,40 @@ export const EXPLICACAO_DA_CLASSIFICACAO: Record<Classificacao, string> = {
     'Uso da associação. Só uma versão pública (com os dados pessoais cobertos) pode ir ao site.',
   Restrita:
     'Tem dado pessoal sensível (RG, CPF, endereço). O original só é baixado por quem tem a permissão de originais sigilosos; ao site vai só a versão pública.',
+}
+
+// v5.5 - a que o documento está ligado, em português simples ("Evento nº 12"). Nulo = não está ligado a nada.
+const NOME_DO_VINCULO: Record<string, { nome: string; artigo: 'o' | 'a' }> = {
+  evento: { nome: 'evento', artigo: 'o' },
+  projeto: { nome: 'projeto', artigo: 'o' },
+  parceria: { nome: 'parceria', artigo: 'a' },
+  ata: { nome: 'ata', artigo: 'a' },
+  estatuto: { nome: 'estatuto', artigo: 'o' },
+  assembleia: { nome: 'assembleia', artigo: 'a' },
+}
+
+export function rotuloDoVinculo(
+  tipo: string | null | undefined,
+  id: number | null | undefined,
+): string | null {
+  if (!tipo) return null
+  const nome = NOME_DO_VINCULO[tipo]?.nome ?? tipo
+  const inicial = nome.charAt(0).toUpperCase() + nome.slice(1)
+  return id != null ? `${inicial} nº ${id}` : inicial
+}
+
+// "Este documento pertence ao evento nº 12" (a tela de cadastro diz isso para a pessoa conferir o vínculo).
+export function frasePertenceA(
+  tipo: string | null | undefined,
+  id: number | null | undefined,
+): string | null {
+  if (!tipo) return null
+  const { nome, artigo } = NOME_DO_VINCULO[tipo] ?? {
+    nome: tipo,
+    artigo: 'o' as const,
+  }
+  const preposicao = artigo === 'a' ? 'à' : 'ao'
+  return `Este documento pertence ${preposicao} ${nome}${id != null ? ` nº ${id}` : ''}.`
 }
 
 export type AlertaDeValidade = 'vencida' | 'vence-em-breve' | null

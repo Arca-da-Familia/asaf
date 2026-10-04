@@ -2,6 +2,8 @@
 //
 // (v5.3: junta também as notícias do Directus — ver ./directus.mjs.)
 // (v5.4b: junta as parcerias/emendas e os documentos APROVADOS da Transparência, que moram no SISTEMA.)
+// (v5.5: o detalhe de cada projeto (edições, relatórios, fotos), o contexto de cada evento e a ligação das notícias
+//  com projeto/evento. TOLERANTE a API antiga: o que ainda não existe nela vira lista vazia / null.)
 // COMPARTILHADO por dois usuários, de propósito, para nunca divergirem:
 //   1. o BUILD das páginas (src/lib/dados-publicos.ts): gera Diretoria, Projetos, cada Evento etc.;
 //   2. a SINCRONIZAÇÃO (scripts/verificar-conteudo.mjs, rodada pelo workflow sincronizar-site): compara
@@ -72,6 +74,78 @@ export async function buscarJson(
   )
 }
 
+const lista = (valor) => (Array.isArray(valor) ? valor : [])
+
+/**
+ * Projeto da lista/detalhe -> forma que o site usa. TOLERANTE a API antiga (v5.5): o site e a API são publicados
+ * ao mesmo tempo; se o build ler a API ANTES de ela ter o destaque, o projeto simplesmente não está em destaque.
+ */
+export function normalizarProjeto(projeto) {
+  return { ...projeto, destaque: projeto.destaque === true }
+}
+
+/** Detalhe do projeto: edições, documentos e fotos ausentes (API antiga) viram lista vazia. */
+export function normalizarProjetoDetalhado(detalhe) {
+  return {
+    ...normalizarProjeto(detalhe),
+    eventos: lista(detalhe.eventos),
+    documentos: lista(detalhe.documentos),
+    fotos: lista(detalhe.fotos),
+  }
+}
+
+/** Evento da lista: sem `id_projeto` (API antiga) = sem projeto. */
+export function normalizarEvento(evento) {
+  return { ...evento, id_projeto: evento.id_projeto ?? null }
+}
+
+/** Detalhe do evento: projeto ausente = null; edições, documentos e fotos ausentes = lista vazia. */
+export function normalizarEventoDetalhado(detalhe) {
+  return {
+    ...normalizarEvento(detalhe),
+    projeto: detalhe.projeto ?? null,
+    edicoes: lista(detalhe.edicoes),
+    documentos: lista(detalhe.documentos),
+    fotos: lista(detalhe.fotos),
+  }
+}
+
+/**
+ * Notícia ligada a projeto/evento que NÃO existe (ou não é público) é publicada SEM a ligação — o número errado no
+ * Directus nunca tira a notícia do ar, nem faz um link que daria 404. Cada ligação desfeita vira um aviso (mesmo
+ * formato dos avisos de `validarNoticias`, com `publicada: true`) para o editor corrigir o número.
+ */
+export function ligarNoticias(noticias, { projetos, eventos }) {
+  const idsDeProjetos = new Set(projetos.map((p) => p.id_projeto))
+  const idsDeEventos = new Set(eventos.map((e) => e.id_evento))
+  const avisos = []
+  const ligadas = noticias.map((noticia) => {
+    let { projetoId, eventoId } = noticia
+    projetoId ??= null
+    eventoId ??= null
+    if (projetoId !== null && !idsDeProjetos.has(projetoId)) {
+      avisos.push({
+        id: noticia.id,
+        titulo: noticia.titulo,
+        motivo: `o projeto nº ${projetoId} não existe ou não é público. A notícia foi publicada sem a ligação com o projeto`,
+        publicada: true,
+      })
+      projetoId = null
+    }
+    if (eventoId !== null && !idsDeEventos.has(eventoId)) {
+      avisos.push({
+        id: noticia.id,
+        titulo: noticia.titulo,
+        motivo: `o evento nº ${eventoId} não existe ou não é público. A notícia foi publicada sem a ligação com o evento`,
+        publicada: true,
+      })
+      eventoId = null
+    }
+    return { ...noticia, projetoId, eventoId }
+  })
+  return { noticias: ligadas, avisos }
+}
+
 /**
  * Lê TODO o conteúdo público. A API escala a zero (partida a frio de ~20-35 s), então o tempo por
  * tentativa é generoso. Qualquer falha derruba o build: melhor não publicar do que publicar um
@@ -89,15 +163,32 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
   const respostas = await Promise.all(
     chaves.map((chave) => buscarJson(base, ENDPOINTS_DE_LISTA[chave], config)),
   )
-  const { eventos, projetos, diretoria, assembleias, parcerias, documentos } =
+  const { diretoria, assembleias, parcerias, documentos, ...listas } =
     Object.fromEntries(chaves.map((chave, i) => [chave, respostas[i]]))
+  const eventos = listas.eventos.map(normalizarEvento)
+  const projetos = listas.projetos.map(normalizarProjeto)
   const detalhesDeEventos = {}
   await Promise.all(
     eventos.map(async (evento) => {
-      detalhesDeEventos[evento.id_evento] = await buscarJson(
-        base,
-        `/api/publico/eventos/${evento.id_evento}`,
-        config,
+      detalhesDeEventos[evento.id_evento] = normalizarEventoDetalhado(
+        await buscarJson(
+          base,
+          `/api/publico/eventos/${evento.id_evento}`,
+          config,
+        ),
+      )
+    }),
+  )
+  // v5.5: cada projeto público tem a sua página, com as edições, os relatórios e as fotos dele.
+  const detalhesDeProjetos = {}
+  await Promise.all(
+    projetos.map(async (projeto) => {
+      detalhesDeProjetos[projeto.id_projeto] = normalizarProjetoDetalhado(
+        await buscarJson(
+          base,
+          `/api/publico/projetos/${projeto.id_projeto}`,
+          config,
+        ),
       )
     }),
   )
@@ -130,7 +221,7 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
   )
   // Notícias vêm do Directus (editor do site). Sem token em desenvolvimento = lista vazia; nos workflows de
   // publicação o token é obrigatório (DIRECTUS_OBRIGATORIO=1) e a falta dele derruba o build.
-  const { noticias, avisos } = await buscarNoticias(
+  const lidas = await buscarNoticias(
     opcoes.directus ?? configuracaoDoDirectus(),
     {
       fetchImpl: config.fetchImpl,
@@ -139,10 +230,16 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
       esperaMs: config.esperaMs,
     },
   )
+  // A notícia ligada a projeto/evento que não existe (ou não é público) vai ao ar sem a ligação.
+  const { noticias, avisos } = ligarNoticias(lidas.noticias, {
+    projetos,
+    eventos,
+  })
   return {
     eventos,
     detalhesDeEventos,
     projetos,
+    detalhesDeProjetos,
     diretoria,
     assembleias,
     parcerias,
@@ -150,7 +247,7 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
     documentos,
     detalhesDeDocumentos,
     noticias,
-    avisosDeNoticias: avisos,
+    avisosDeNoticias: [...lidas.avisos, ...avisos],
   }
 }
 
@@ -171,15 +268,17 @@ export async function baixarFotoDaTransparencia(apiUrl, foto, opcoes = {}) {
     headers: { Accept: 'image/jpeg' },
     ler: async (resposta) => Buffer.from(await resposta.arrayBuffer()),
   })
+  // `opcoes.descricao`: de onde é a foto, para a mensagem de erro ("da transparência" é a etapa de parceria).
+  const origem = opcoes.descricao ?? 'da transparência'
   if (
     !bytes.subarray(0, ASSINATURA_DE_JPEG.length).equals(ASSINATURA_DE_JPEG)
   ) {
-    throw new Error(`A foto ${foto.id_foto} da transparência não é um JPEG.`)
+    throw new Error(`A foto ${foto.id_foto} ${origem} não é um JPEG.`)
   }
   const sha256 = createHash('sha256').update(bytes).digest('hex')
   if (sha256 !== foto.sha256) {
     throw new Error(
-      `A foto ${foto.id_foto} da transparência não confere com a aprovada: SHA-256 ${sha256} em vez de ${foto.sha256}.`,
+      `A foto ${foto.id_foto} ${origem} não confere com a aprovada: SHA-256 ${sha256} em vez de ${foto.sha256}.`,
     )
   }
   return bytes

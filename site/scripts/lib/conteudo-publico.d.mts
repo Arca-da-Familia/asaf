@@ -23,6 +23,8 @@ export interface EventoDaLista {
   vagas: number | null
   vagas_livres: number | null
   gratuito: boolean
+  /** Projeto público a que o evento pertence (v5.5); null = evento avulso (ou projeto interno, nunca revelado). */
+  id_projeto: number | null
 }
 
 export interface SessaoDoEvento {
@@ -35,8 +37,49 @@ export interface SessaoDoEvento {
   vagas_livres: number | null
 }
 
+/** O mínimo de um evento nas listas de contexto (edições de um projeto, cadeia de edições). */
+export interface ResumoDeEvento {
+  id_evento: number
+  titulo: string
+  categoria: string
+  /** ISO sem fuso (horário local de Parauapebas). */
+  data_hora_inicio: string
+  data_hora_fim: string | null
+  endereco_avulso: string | null
+}
+
+/** Uma edição da cadeia do evento; `atual` marca a da própria página. */
+export interface EdicaoDoEvento extends ResumoDeEvento {
+  atual: boolean
+}
+
+/** Foto de um evento: só entra com autorização de imagem confirmada e texto alternativo (v5.5). */
+export interface FotoDoEvento {
+  id_foto: number
+  alt: string
+  largura: number
+  altura: number
+  tamanho: number
+  /** SHA-256 do JPEG: o build só aceita o arquivo que bater com ele. */
+  sha256: string
+  /** Caminho na API; o site usa a cópia do build (`caminhoDaFotoDoEvento`). */
+  arquivo: string
+}
+
+/** Foto na galeria do projeto: diz de qual evento é. */
+export interface FotoDoProjeto extends FotoDoEvento {
+  id_evento: number
+}
+
 export interface EventoDetalhado extends EventoDaLista {
   sessoes: SessaoDoEvento[]
+  /** Projeto público do evento, ou null. */
+  projeto: { id_projeto: number; nome: string } | null
+  /** Cadeia de edições públicas (da mais antiga à mais nova); vazia na API antiga. */
+  edicoes: EdicaoDoEvento[]
+  /** Documentos APROVADOS ligados a este evento. */
+  documentos: DocumentoPublico[]
+  fotos: FotoDoEvento[]
 }
 
 export interface ProjetoPublico {
@@ -51,6 +94,17 @@ export interface ProjetoPublico {
   /** "AAAA-MM-DD" */
   data_inicio: string | null
   data_fim_prevista: string | null
+  /** Projeto principal da associação: aparece em destaque na Home (v5.5). false na API antiga. */
+  destaque: boolean
+}
+
+export interface ProjetoDetalhado extends ProjetoPublico {
+  /** Eventos públicos do projeto, o mais recente primeiro. */
+  eventos: ResumoDeEvento[]
+  /** Documentos APROVADOS ligados ao projeto ou a qualquer evento dele. */
+  documentos: DocumentoPublico[]
+  /** Até 12 fotos, as mais recentes. */
+  fotos: FotoDoProjeto[]
 }
 
 export interface MembroDaDiretoria {
@@ -208,6 +262,9 @@ export interface DocumentoPublico {
   formato: 'PDF' | 'TEXTO'
   /** Caminho na API do PDF (o site usa a cópia do build); nulo no formato TEXTO. */
   arquivo: string | null
+  /** A que evento ou projeto o documento pertence (v5.5); ausente/null = não é de um evento nem de um projeto. */
+  vinculo_tipo?: 'evento' | 'projeto' | null
+  vinculo_id?: number | null
 }
 
 export interface DocumentoDetalhado extends DocumentoPublico {
@@ -219,6 +276,8 @@ export interface ConteudoPublico {
   eventos: EventoDaLista[]
   detalhesDeEventos: Record<number, EventoDetalhado>
   projetos: ProjetoPublico[]
+  /** O detalhe de cada projeto público: edições, relatórios e fotos (v5.5). */
+  detalhesDeProjetos: Record<number, ProjetoDetalhado>
   diretoria: MembroDaDiretoria[]
   assembleias: AssembleiaPublica[]
   /** Parcerias e emendas APROVADAS pela diretoria (v5.4b). */
@@ -258,6 +317,38 @@ export function buscarConteudoPublico(
   opcoes?: OpcoesDeBusca,
 ): Promise<ConteudoPublico>
 
+/** Projeto da API (lista ou detalhe) -> o do site: `destaque` ausente (API antiga) = false. */
+export function normalizarProjeto<T extends object>(
+  projeto: T,
+): Omit<T, 'destaque'> & { destaque: boolean }
+
+/** Detalhe de projeto: edições, documentos e fotos ausentes (API antiga) = lista vazia. */
+export function normalizarProjetoDetalhado(
+  detalhe: Partial<ProjetoDetalhado> & { id_projeto: number },
+): ProjetoDetalhado
+
+/** Evento da lista: `id_projeto` ausente (API antiga) = null. */
+export function normalizarEvento<T extends object>(
+  evento: T,
+): Omit<T, 'id_projeto'> & { id_projeto: number | null }
+
+/** Detalhe de evento: projeto ausente = null; edições, documentos e fotos ausentes = lista vazia. */
+export function normalizarEventoDetalhado(
+  detalhe: Partial<EventoDetalhado> & { id_evento: number },
+): EventoDetalhado
+
+/**
+ * Notícia ligada a projeto/evento que não existe (ou não é público) é publicada SEM a ligação, com um aviso
+ * (`publicada: true`) por ligação desfeita.
+ */
+export function ligarNoticias(
+  noticias: NoticiaPublica[],
+  existentes: {
+    projetos: Pick<ProjetoPublico, 'id_projeto'>[]
+    eventos: Pick<EventoDaLista, 'id_evento'>[]
+  },
+): { noticias: NoticiaPublica[]; avisos: AvisoDeNoticia[] }
+
 export function buscarJson(
   base: string,
   caminho: string,
@@ -277,7 +368,10 @@ export function buscarJson(
 export function baixarFotoDaTransparencia(
   apiUrl: string,
   foto: Pick<FotoPublica, 'id_foto' | 'sha256' | 'arquivo'>,
-  opcoes?: Omit<OpcoesDeBusca, 'directus'>,
+  opcoes?: Omit<OpcoesDeBusca, 'directus'> & {
+    /** De onde é a foto, para a mensagem de erro (padrão: "da transparência"; evento: "do evento"). */
+    descricao?: string
+  },
 ): Promise<Buffer>
 
 /** Derruba o build se o texto de um documento aprovado não for o aprovado (SHA-256) ou vier vazio. */

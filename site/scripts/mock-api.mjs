@@ -32,10 +32,16 @@ export function ambienteDeTeste(porta = PORTA_DO_MOCK) {
     DIRECTUS_OBRIGATORIO: '1',
   }
 }
-// Mesmas origens que a API real libera para o site em desenvolvimento (app/main.py).
+// Mesmas origens que a API real libera para o site em desenvolvimento (app/main.py). `PORTA_DO_SITE_DE_TESTE` (com
+// `MOCK_API_PORT`) deixa rodar o e2e em outras portas quando a 4321/4322 já estão ocupadas por outra cópia do projeto.
+const PORTA_DO_SITE_DE_TESTE = Number(
+  process.env.PORTA_DO_SITE_DE_TESTE ?? 4321,
+)
 const ORIGENS_PERMITIDAS = new Set([
   'http://127.0.0.1:4321',
   'http://localhost:4321',
+  `http://127.0.0.1:${PORTA_DO_SITE_DE_TESTE}`,
+  `http://localhost:${PORTA_DO_SITE_DE_TESTE}`,
 ])
 
 /** "AAAA-MM-DDT19:00:00" daqui a `dias` dias — formato sem fuso, como a API real devolve. */
@@ -47,6 +53,9 @@ function dataLocal(dias, hora = 19) {
 
 const soData = (dias) => dataLocal(dias).slice(0, 10)
 
+/** O projeto principal de teste (em destaque na Home). Nome neutro de propósito: nada de fato real. */
+const ID_DO_PROJETO_PRINCIPAL = 3
+
 function eventos() {
   const base = {
     descricao: null,
@@ -57,6 +66,7 @@ function eventos() {
     vagas_livres: null,
     gratuito: true,
     data_hora_fim: null,
+    id_projeto: null,
   }
   return [
     {
@@ -85,12 +95,80 @@ function eventos() {
       vagas_livres: 0,
       data_hora_inicio: dataLocal(14),
     },
+    // v5.5 - o projeto principal de teste (id 3) tem duas edições: uma passada (com relatório e fotos) e uma futura.
+    {
+      ...base,
+      id_evento: 4,
+      id_projeto: ID_DO_PROJETO_PRINCIPAL,
+      titulo: 'Projeto Principal de Teste — 1ª edição',
+      descricao: 'Descrição de teste da edição que já aconteceu.',
+      endereco_avulso: 'Quadra de teste, Parauapebas',
+      data_hora_inicio: dataLocal(-60),
+      data_hora_fim: dataLocal(-60, 21),
+    },
+    {
+      ...base,
+      id_evento: 5,
+      id_projeto: ID_DO_PROJETO_PRINCIPAL,
+      titulo: 'Projeto Principal de Teste — 2ª edição',
+      descricao: 'Descrição de teste da próxima edição.',
+      data_hora_inicio: dataLocal(21),
+      data_hora_fim: dataLocal(21, 22),
+    },
+    // Edição de OUTRO projeto (o de reforço escolar): nunca aparece na página do projeto principal.
+    {
+      ...base,
+      id_evento: 6,
+      id_projeto: 1,
+      titulo: 'Edição de teste do reforço escolar',
+      data_hora_inicio: dataLocal(-90),
+    },
   ]
 }
+
+/** O mínimo de um evento nas listas de contexto (edições do projeto, cadeia de edições). */
+const resumoDoEvento = (e) => ({
+  id_evento: e.id_evento,
+  titulo: e.titulo,
+  categoria: e.categoria,
+  data_hora_inicio: e.data_hora_inicio,
+  data_hora_fim: e.data_hora_fim,
+  endereco_avulso: e.endereco_avulso,
+})
+
+/** Cadeia de edições (nova-edicao): as duas edições do projeto principal. Evento sem cadeia = só ele mesmo. */
+const CADEIA_DE_EDICOES = { 4: [4, 5], 5: [4, 5] }
+
+/** Foto na forma pública (campos explícitos; a galeria do projeto acrescenta `id_evento`). */
+const fotoPublica = (f) => ({
+  id_foto: f.id_foto,
+  alt: f.alt,
+  largura: f.largura,
+  altura: f.altura,
+  tamanho: f.bytes.length,
+  sha256: sha256(f.bytes),
+  arquivo: `/api/publico/eventos/${f.id_evento}/fotos/${f.id_foto}`,
+})
 
 function detalheDoEvento(id) {
   const evento = eventos().find((e) => e.id_evento === id)
   if (!evento) return null
+  const projeto = evento.id_projeto
+    ? projetos().find((p) => p.id_projeto === evento.id_projeto)
+    : null
+  const contexto = {
+    projeto: projeto
+      ? { id_projeto: projeto.id_projeto, nome: projeto.nome }
+      : null,
+    edicoes: (CADEIA_DE_EDICOES[id] ?? [id]).map((i) => ({
+      ...resumoDoEvento(eventos().find((e) => e.id_evento === i)),
+      atual: i === id,
+    })),
+    documentos: documentos().filter(
+      (d) => d.vinculo_tipo === 'evento' && d.vinculo_id === id,
+    ),
+    fotos: FOTOS_DE_EVENTO.filter((f) => f.id_evento === id).map(fotoPublica),
+  }
   const sessoes =
     id === 2
       ? [
@@ -118,7 +196,7 @@ function detalheDoEvento(id) {
           },
         ]
       : []
-  return { ...evento, sessoes, perguntas: [] }
+  return { ...evento, sessoes, perguntas: [], ...contexto }
 }
 
 const projetos = () => [
@@ -134,6 +212,7 @@ const projetos = () => [
     publico_alvo: 'Crianças de 6 a 12 anos',
     data_inicio: soData(-60),
     data_fim_prevista: soData(120),
+    destaque: false,
   },
   {
     id_projeto: 2,
@@ -146,8 +225,48 @@ const projetos = () => [
     publico_alvo: null,
     data_inicio: soData(-400),
     data_fim_prevista: soData(-30),
+    destaque: false,
+  },
+  // v5.5 - o projeto principal (em destaque). Descrição e nome de teste, sem nenhum fato real.
+  {
+    id_projeto: ID_DO_PROJETO_PRINCIPAL,
+    nome: 'Projeto Principal de Teste',
+    descricao:
+      'Descrição de teste do projeto principal: encontros periódicos com as comunidades, em edições, com relatório e fotos de cada uma.',
+    tipo_codigo: 'SOCIAL',
+    tipo: 'Social',
+    status_codigo: 'EM_EXECUCAO',
+    status: 'Em execução',
+    publico_alvo: 'Comunidades de teste',
+    data_inicio: soData(-120),
+    data_fim_prevista: soData(240),
+    destaque: true,
   },
 ]
+
+/** Detalhe do projeto: as edições (eventos Públicos dele, a mais recente primeiro), os documentos aprovados ligados a
+ *  ele ou a uma edição e as fotos mais recentes (até 12). */
+function detalheDoProjeto(id) {
+  const projeto = projetos().find((p) => p.id_projeto === id)
+  if (!projeto) return null
+  const doProjeto = eventos()
+    .filter((e) => e.id_projeto === id)
+    .sort((a, b) => b.data_hora_inicio.localeCompare(a.data_hora_inicio))
+  const idsDosEventos = doProjeto.map((e) => e.id_evento)
+  return {
+    ...projeto,
+    eventos: doProjeto.map(resumoDoEvento),
+    documentos: documentos().filter(
+      (d) =>
+        (d.vinculo_tipo === 'projeto' && d.vinculo_id === id) ||
+        (d.vinculo_tipo === 'evento' && idsDosEventos.includes(d.vinculo_id)),
+    ),
+    fotos: FOTOS_DE_EVENTO.filter((f) => idsDosEventos.includes(f.id_evento))
+      .sort((a, b) => b.id_foto - a.id_foto)
+      .slice(0, 12)
+      .map((f) => ({ ...fotoPublica(f), id_evento: f.id_evento })),
+  }
+}
 
 const diretoria = () => [
   {
@@ -221,76 +340,133 @@ const FOTO_DA_ETAPA_DE_TESTE = await sharp({
 const TEXTO_DO_ESTATUTO_DE_TESTE =
   'EXEMPLO – TRANSCRIÇÃO DO ESTATUTO\n\nART. 1 - A associação de teste é uma entidade civil sem fins lucrativos.\nParágrafo de teste na mesma linha.\n\nART. 2 - A associação de teste tem sede em Parauapebas.'
 
-const documentos = () => [
+/** Relatório (documento de formato TEXTO) da edição passada do projeto principal de teste. */
+const TEXTO_DO_RELATORIO_DE_TESTE =
+  'EXEMPLO – RELATÓRIO DA 1ª EDIÇÃO DE TESTE\n\nTexto de teste do relatório da edição que já aconteceu.\n\nSegundo parágrafo de teste do relatório.'
+
+/** O texto de cada documento em formato TEXTO (o detalhe do documento devolve o texto; o PDF não tem). */
+const TEXTOS_DE_TESTE = {
+  4: TEXTO_DO_ESTATUTO_DE_TESTE,
+  5: TEXTO_DO_RELATORIO_DE_TESTE,
+}
+
+/** Fotos de evento de teste: JPEG de verdade (já regravado pela API, sem metadado), cada uma com o seu SHA-256. */
+const jpegDeTeste = (largura, altura, cor) =>
+  sharp({
+    create: { width: largura, height: altura, channels: 3, background: cor },
+  })
+    .jpeg()
+    .toBuffer()
+const FOTOS_DE_EVENTO = [
   {
-    id_documento: 1,
-    tipo_codigo: 'ESTATUTO',
-    tipo: 'Estatuto e alterações',
-    titulo: 'EXEMPLO – Estatuto Social registrado',
-    descricao: 'Texto de teste do estatuto.',
-    data_documento: dataIso(-300),
-    ano: 2024,
-    versao: 1,
-    vigente: true,
-    paginas: 12,
-    tamanho: PDFS_DE_TESTE[1].length,
-    sha256: sha256(PDFS_DE_TESTE[1]),
-    aprovado_em: dataIso(-20),
-    formato: 'PDF',
-    arquivo: '/api/publico/transparencia/documentos/1/arquivo',
+    id_foto: 11,
+    id_evento: 4,
+    alt: 'Participantes reunidos na quadra durante a 1ª edição de teste (foto de teste)',
+    largura: 600,
+    altura: 400,
+    bytes: await jpegDeTeste(600, 400, '#145238'),
   },
   {
-    id_documento: 2,
-    tipo_codigo: 'ATA',
-    tipo: 'Ata',
-    titulo: 'EXEMPLO – Ata de eleição da diretoria 2026-2028',
-    descricao: null,
-    data_documento: dataIso(-100),
-    ano: 2026,
-    versao: 1,
-    vigente: true,
-    paginas: 3,
-    tamanho: PDFS_DE_TESTE[2].length,
-    sha256: sha256(PDFS_DE_TESTE[2]),
-    aprovado_em: dataIso(-10),
-    formato: 'PDF',
-    arquivo: '/api/publico/transparencia/documentos/2/arquivo',
-  },
-  {
-    id_documento: 4,
-    tipo_codigo: 'ESTATUTO',
-    tipo: 'Estatuto e alterações',
-    titulo: 'EXEMPLO – Estatuto Social transcrito',
-    descricao: null,
-    data_documento: dataIso(-400),
-    ano: 2024,
-    versao: 1,
-    vigente: true,
-    paginas: null,
-    tamanho: Buffer.byteLength(TEXTO_DO_ESTATUTO_DE_TESTE, 'utf8'),
-    sha256: sha256(Buffer.from(TEXTO_DO_ESTATUTO_DE_TESTE, 'utf8')),
-    aprovado_em: dataIso(-3),
-    formato: 'TEXTO',
-    arquivo: null,
-  },
-  {
-    id_documento: 3,
-    tipo_codigo: 'PLANO_TRABALHO',
-    tipo: 'Plano de trabalho',
-    titulo: 'EXEMPLO – Plano de trabalho da Emenda 123/2026',
-    descricao: null,
-    data_documento: dataIso(-60),
-    ano: 2026,
-    versao: 1,
-    vigente: true,
-    paginas: 5,
-    tamanho: PDFS_DE_TESTE[3].length,
-    sha256: sha256(PDFS_DE_TESTE[3]),
-    aprovado_em: dataIso(-5),
-    formato: 'PDF',
-    arquivo: '/api/publico/transparencia/documentos/3/arquivo',
+    id_foto: 12,
+    id_evento: 4,
+    alt: 'Mesa com os materiais da oficina da 1ª edição de teste (foto de teste)',
+    largura: 400,
+    altura: 600,
+    bytes: await jpegDeTeste(400, 600, '#8a5a14'),
   },
 ]
+
+const documentos = () =>
+  [
+    {
+      id_documento: 1,
+      tipo_codigo: 'ESTATUTO',
+      tipo: 'Estatuto e alterações',
+      titulo: 'EXEMPLO – Estatuto Social registrado',
+      descricao: 'Texto de teste do estatuto.',
+      data_documento: dataIso(-300),
+      ano: 2024,
+      versao: 1,
+      vigente: true,
+      paginas: 12,
+      tamanho: PDFS_DE_TESTE[1].length,
+      sha256: sha256(PDFS_DE_TESTE[1]),
+      aprovado_em: dataIso(-20),
+      formato: 'PDF',
+      arquivo: '/api/publico/transparencia/documentos/1/arquivo',
+    },
+    {
+      id_documento: 2,
+      tipo_codigo: 'ATA',
+      tipo: 'Ata',
+      titulo: 'EXEMPLO – Ata de eleição da diretoria 2026-2028',
+      descricao: null,
+      data_documento: dataIso(-100),
+      ano: 2026,
+      versao: 1,
+      vigente: true,
+      paginas: 3,
+      tamanho: PDFS_DE_TESTE[2].length,
+      sha256: sha256(PDFS_DE_TESTE[2]),
+      aprovado_em: dataIso(-10),
+      formato: 'PDF',
+      arquivo: '/api/publico/transparencia/documentos/2/arquivo',
+    },
+    {
+      id_documento: 4,
+      tipo_codigo: 'ESTATUTO',
+      tipo: 'Estatuto e alterações',
+      titulo: 'EXEMPLO – Estatuto Social transcrito',
+      descricao: null,
+      data_documento: dataIso(-400),
+      ano: 2024,
+      versao: 1,
+      vigente: true,
+      paginas: null,
+      tamanho: Buffer.byteLength(TEXTO_DO_ESTATUTO_DE_TESTE, 'utf8'),
+      sha256: sha256(Buffer.from(TEXTO_DO_ESTATUTO_DE_TESTE, 'utf8')),
+      aprovado_em: dataIso(-3),
+      formato: 'TEXTO',
+      arquivo: null,
+    },
+    {
+      id_documento: 3,
+      tipo_codigo: 'PLANO_TRABALHO',
+      tipo: 'Plano de trabalho',
+      titulo: 'EXEMPLO – Plano de trabalho da Emenda 123/2026',
+      descricao: null,
+      data_documento: dataIso(-60),
+      ano: 2026,
+      versao: 1,
+      vigente: true,
+      paginas: 5,
+      tamanho: PDFS_DE_TESTE[3].length,
+      sha256: sha256(PDFS_DE_TESTE[3]),
+      aprovado_em: dataIso(-5),
+      formato: 'PDF',
+      arquivo: '/api/publico/transparencia/documentos/3/arquivo',
+    },
+    // v5.5 - relatório da edição passada do projeto principal: documento aprovado, em TEXTO, ligado ao EVENTO 4.
+    {
+      id_documento: 5,
+      tipo_codigo: 'RELATORIO_EVENTO',
+      tipo: 'Relatório de evento ou de projeto',
+      titulo: 'EXEMPLO – Relatório da 1ª edição do projeto principal de teste',
+      descricao: null,
+      data_documento: dataIso(-55),
+      ano: 2026,
+      versao: 1,
+      vigente: true,
+      paginas: null,
+      tamanho: Buffer.byteLength(TEXTO_DO_RELATORIO_DE_TESTE, 'utf8'),
+      sha256: sha256(Buffer.from(TEXTO_DO_RELATORIO_DE_TESTE, 'utf8')),
+      aprovado_em: dataIso(-50),
+      formato: 'TEXTO',
+      arquivo: null,
+      vinculo_tipo: 'evento',
+      vinculo_id: 4,
+    },
+  ].map((d) => ({ vinculo_tipo: null, vinculo_id: null, ...d }))
 
 const parcerias = () => [
   {
@@ -540,6 +716,8 @@ function noticiasDoDirectus() {
     imagem: null,
     imagem_alt: null,
     autorizacao_imagem: false,
+    projeto_id: null,
+    evento_id: null,
   }
   return [
     {
@@ -604,6 +782,45 @@ function noticiasDoDirectus() {
       publicada_em: instante(-10),
       date_updated: instante(-10),
     },
+    // v5.5 - ligadas ao projeto principal (id 3) e à edição passada dele (evento 4), pelo número, como o editor faz.
+    {
+      ...publicada,
+      id: 'noticia-6',
+      titulo: 'Notícia de teste ligada ao projeto',
+      slug: 'noticia-de-teste-ligada-ao-projeto',
+      resumo:
+        'Resumo da notícia de teste que está ligada ao projeto principal de teste.',
+      corpo: '<p>Texto da notícia ligada ao projeto.</p>',
+      publicada_em: instante(8),
+      date_updated: instante(8),
+      projeto_id: ID_DO_PROJETO_PRINCIPAL,
+    },
+    {
+      ...publicada,
+      id: 'noticia-7',
+      titulo: 'Notícia de teste ligada ao evento',
+      slug: 'noticia-de-teste-ligada-ao-evento',
+      resumo:
+        'Resumo da notícia de teste que está ligada à primeira edição do projeto principal.',
+      corpo: '<p>Texto da notícia ligada ao evento.</p>',
+      publicada_em: instante(9),
+      date_updated: instante(9),
+      evento_id: 4,
+    },
+    // Número que não existe: a notícia vai ao ar SEM a ligação (e o build avisa o editor).
+    {
+      ...publicada,
+      id: 'noticia-8',
+      titulo: 'Notícia de teste com ligação quebrada',
+      slug: 'noticia-de-teste-com-ligacao-quebrada',
+      resumo:
+        'Resumo da notícia de teste ligada a um projeto e a um evento que não existem.',
+      corpo: '<p>Texto da notícia com ligação quebrada.</p>',
+      publicada_em: instante(10),
+      date_updated: instante(10),
+      projeto_id: 999,
+      evento_id: 998,
+    },
   ]
 }
 
@@ -623,8 +840,34 @@ function fotoWebp() {
   return fotoDeTeste
 }
 
-export function criarServidor({ vazio = false } = {}) {
+/** Campos que a API (v5.5) acrescentou: a API ANTIGA não os tem. */
+const CAMPOS_NOVOS = {
+  eventoDaLista: ['id_projeto'],
+  eventoDetalhado: ['id_projeto', 'projeto', 'edicoes', 'documentos', 'fotos'],
+  projetoDaLista: ['destaque'],
+  projetoDetalhado: ['destaque', 'eventos', 'documentos', 'fotos'],
+  documento: ['vinculo_tipo', 'vinculo_id'],
+  noticia: ['projeto_id', 'evento_id'],
+}
+
+/** Tira os campos novos (lista ou objeto): é assim que a API antiga responderia. */
+function semCampos(corpo, campos) {
+  const limpar = (objeto) =>
+    Object.fromEntries(
+      Object.entries(objeto).filter(([chave]) => !campos.includes(chave)),
+    )
+  return Array.isArray(corpo) ? corpo.map(limpar) : limpar(corpo)
+}
+
+/**
+ * `vazio`: a produção sem nenhum dado cadastrado. `antiga`: a API ANTES da v5.5 — mesmos dados, mas sem destaque, sem
+ * projeto no evento, sem edições, relatórios nem fotos e sem os campos de ligação das notícias (o site precisa
+ * continuar construindo se for publicado antes da API nova).
+ */
+export function criarServidor({ vazio = false, antiga = false } = {}) {
   const lista = (dados) => (vazio ? [] : dados())
+  const comoVier = (corpo, campos) =>
+    antiga ? semCampos(corpo, campos) : corpo
   return createServer((req, res) => {
     const origem = req.headers.origin
     const cors = ORIGENS_PERMITIDAS.has(origem ?? '')
@@ -661,7 +904,11 @@ export function criarServidor({ vazio = false } = {}) {
         )
       }
       if (caminhoDirectus === '/items/noticias') {
-        return responder({ data: vazio ? [] : noticiasDoDirectus() })
+        return responder({
+          data: vazio
+            ? []
+            : comoVier(noticiasDoDirectus(), CAMPOS_NOVOS.noticia),
+        })
       }
       if (caminhoDirectus === `/assets/${ID_DA_FOTO_DE_TESTE}`) {
         fotoWebp().then((bytes) => {
@@ -675,8 +922,17 @@ export function criarServidor({ vazio = false } = {}) {
 
     if (req.method === 'GET') {
       const caminho = (req.url ?? '').split('?')[0]
-      if (caminho === '/api/publico/eventos') return responder(lista(eventos))
-      if (caminho === '/api/publico/projetos') return responder(lista(projetos))
+      if (caminho === '/api/publico/eventos')
+        return responder(comoVier(lista(eventos), CAMPOS_NOVOS.eventoDaLista))
+      if (caminho === '/api/publico/projetos')
+        return responder(comoVier(lista(projetos), CAMPOS_NOVOS.projetoDaLista))
+      const projeto = /^\/api\/publico\/projetos\/(\d+)$/.exec(caminho)
+      if (projeto) {
+        const detalhe = vazio ? null : detalheDoProjeto(Number(projeto[1]))
+        return detalhe
+          ? responder(comoVier(detalhe, CAMPOS_NOVOS.projetoDetalhado))
+          : responder({ detail: 'Projeto não encontrado.' }, 404)
+      }
       if (caminho === '/api/publico/diretoria')
         return responder(lista(diretoria))
       if (caminho === '/api/publico/assembleias') {
@@ -685,7 +941,7 @@ export function criarServidor({ vazio = false } = {}) {
       if (caminho === '/api/publico/transparencia/parcerias')
         return responder(lista(parcerias))
       if (caminho === '/api/publico/transparencia/documentos')
-        return responder(lista(documentos))
+        return responder(comoVier(lista(documentos), CAMPOS_NOVOS.documento))
       const parceria = /^\/api\/publico\/transparencia\/parcerias\/(\d+)$/.exec(
         caminho,
       )
@@ -705,11 +961,18 @@ export function criarServidor({ vazio = false } = {}) {
             )
         if (!documento)
           return responder({ detail: 'Documento não encontrado.' }, 404)
-        return responder({
-          ...documento,
-          texto:
-            documento.formato === 'TEXTO' ? TEXTO_DO_ESTATUTO_DE_TESTE : null,
-        })
+        return responder(
+          comoVier(
+            {
+              ...documento,
+              texto:
+                documento.formato === 'TEXTO'
+                  ? TEXTOS_DE_TESTE[documento.id_documento]
+                  : null,
+            },
+            CAMPOS_NOVOS.documento,
+          ),
+        )
       }
       if (
         !vazio &&
@@ -731,11 +994,28 @@ export function criarServidor({ vazio = false } = {}) {
         res.end(bytes)
         return
       }
+      // Foto de um evento (v5.5): o JPEG já regravado, com o mesmo SHA-256 que o detalhe declara.
+      const fotoDeEvento =
+        /^\/api\/publico\/eventos\/(\d+)\/fotos\/(\d+)$/.exec(caminho)
+      if (fotoDeEvento) {
+        const foto =
+          vazio || antiga
+            ? undefined
+            : FOTOS_DE_EVENTO.find(
+                (f) =>
+                  f.id_evento === Number(fotoDeEvento[1]) &&
+                  f.id_foto === Number(fotoDeEvento[2]),
+              )
+        if (!foto) return responder({ detail: 'Foto não encontrada.' }, 404)
+        res.writeHead(200, { ...cors, 'Content-Type': 'image/jpeg' })
+        res.end(foto.bytes)
+        return
+      }
       const evento = /^\/api\/publico\/eventos\/(\d+)$/.exec(caminho)
       if (evento) {
         const detalhe = vazio ? null : detalheDoEvento(Number(evento[1]))
         return detalhe
-          ? responder(detalhe)
+          ? responder(comoVier(detalhe, CAMPOS_NOVOS.eventoDetalhado))
           : responder({ detail: 'Evento não encontrado.' }, 404)
       }
     }
@@ -748,9 +1028,10 @@ export function criarServidor({ vazio = false } = {}) {
 const executadoDireto =
   process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])
 if (executadoDireto) {
-  criarServidor({ vazio: process.env.MOCK_API_VAZIO === '1' }).listen(
-    PORTA_DO_MOCK,
-    '127.0.0.1',
-    () => console.log(`mock-api em http://127.0.0.1:${PORTA_DO_MOCK}`),
+  criarServidor({
+    vazio: process.env.MOCK_API_VAZIO === '1',
+    antiga: process.env.MOCK_API_ANTIGA === '1',
+  }).listen(PORTA_DO_MOCK, '127.0.0.1', () =>
+    console.log(`mock-api em http://127.0.0.1:${PORTA_DO_MOCK}`),
   )
 }

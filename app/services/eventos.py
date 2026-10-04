@@ -21,11 +21,13 @@ from app.models.eventos import (
     SessaoEvento,
 )
 from app.models.espacos import Espaco
+from app.models.projetos import ProjetoEvento
 from app.models.pessoas import Papel, Pessoa
 from app.services import inscricao as servico_inscricao
 from app.services import notificacoes
 from app.services import vagas as servico_vagas
 from app.services.catalogos import validar_codigo_em_catalogo
+from app.services.documentos_verificacao import exigir_texto_sem_dado_pessoal
 from app.services.projetos import associado_do_usuario_ou_403
 from app.services.protecao_publica import gerar_codigo_checkin, gerar_token_cancelamento
 from app.config_cache import obter_configuracao
@@ -40,9 +42,12 @@ def criar_evento(
     db: Session, *, titulo: str, descricao: Optional[str], categoria: str,
     data_hora_inicio: datetime, data_hora_fim: Optional[datetime], id_espaco: Optional[int],
     endereco_avulso: Optional[str], id_associado_responsavel: Optional[int], vagas: Optional[int],
-    gratuito: bool, visibilidade: str, id_usuario: Optional[int],
+    gratuito: bool, visibilidade: str, id_usuario: Optional[int], id_projeto: Optional[int] = None,
 ) -> Evento:
     validar_codigo_em_catalogo(db, "tipo_evento", categoria, "Categoria do evento")
+    _exigir_projeto_existente(db, id_projeto)
+    if visibilidade == "Pública":
+        exigir_texto_sem_dado_pessoal({"título": titulo, "descrição": descricao, "local": endereco_avulso})
     if visibilidade not in ("Pública", "Interna"):
         raise HTTPException(status_code=422, detail="Visibilidade deve ser 'Pública' ou 'Interna'.")
     if data_hora_fim is not None and data_hora_fim <= data_hora_inicio:
@@ -56,12 +61,58 @@ def criar_evento(
         titulo=titulo, descricao=descricao, categoria=categoria, data_hora_inicio=data_hora_inicio,
         data_hora_fim=data_hora_fim, id_espaco=id_espaco, endereco_avulso=endereco_avulso,
         id_associado_responsavel=id_associado_responsavel, vagas=vagas, gratuito=gratuito,
-        visibilidade=visibilidade, id_usuario_criacao=id_usuario,
+        visibilidade=visibilidade, id_usuario_criacao=id_usuario, id_projeto=id_projeto,
     )
     db.add(evento)
     db.commit()
     db.refresh(evento)
     return evento
+
+
+def _exigir_projeto_existente(db: Session, id_projeto: Optional[int]) -> None:
+    if id_projeto is not None and not db.query(ProjetoEvento.id_projeto).filter(ProjetoEvento.id_projeto == id_projeto).first():
+        raise HTTPException(status_code=404, detail=f"Projeto nº {id_projeto} não encontrado.")
+
+
+CAMPOS_EDITAVEIS = (
+    "titulo", "descricao", "categoria", "data_hora_inicio", "data_hora_fim", "id_espaco", "endereco_avulso", "vagas", "visibilidade",
+    "id_projeto",
+)
+
+
+def editar_evento(db: Session, id_evento: int, campos: dict) -> tuple[Evento, dict]:
+    """Edita o cadastro do evento (só os campos enviados). Devolve o evento e o `antes` do que mudou, para a auditoria.
+    Evento que já está no site continua no site: a edição entra na próxima sincronização (a cada 15 minutos)."""
+    evento = obter_evento(db, id_evento)
+    campos = {k: v for k, v in campos.items() if k in CAMPOS_EDITAVEIS}
+    if campos.get("titulo") is not None and len(campos["titulo"].strip()) < 3:
+        raise HTTPException(status_code=422, detail="O título do evento precisa ter pelo menos 3 letras.")
+    if "titulo" in campos and campos["titulo"] is None:
+        raise HTTPException(status_code=422, detail="O título do evento não pode ficar vazio.")
+    for obrigatorio in ("categoria", "data_hora_inicio", "visibilidade"):
+        if obrigatorio in campos and campos[obrigatorio] is None:
+            raise HTTPException(status_code=422, detail=f"O campo {obrigatorio} não pode ficar vazio.")
+    if campos.get("categoria") is not None:
+        validar_codigo_em_catalogo(db, "tipo_evento", campos["categoria"], "Categoria do evento")
+    if campos.get("id_espaco") is not None and not db.query(Espaco).filter(Espaco.id_espaco == campos["id_espaco"]).first():
+        raise HTTPException(status_code=404, detail="Espaço não encontrado.")
+    if campos.get("id_projeto") is not None:
+        _exigir_projeto_existente(db, campos["id_projeto"])
+    inicio = campos.get("data_hora_inicio", evento.data_hora_inicio)
+    fim = campos.get("data_hora_fim", evento.data_hora_fim)
+    if fim is not None and fim <= inicio:
+        raise HTTPException(status_code=422, detail="O fim do evento precisa ser depois do início.")
+    if campos.get("vagas") is not None and campos["vagas"] < (evento.vagas_ocupadas or 0):
+        raise HTTPException(status_code=422, detail=f"O evento já tem {evento.vagas_ocupadas} vagas ocupadas: o limite não pode ser menor que isso.")
+    final = {c: campos.get(c, getattr(evento, c)) for c in CAMPOS_EDITAVEIS}
+    if final["visibilidade"] == "Pública":
+        exigir_texto_sem_dado_pessoal({"título": final["titulo"], "descrição": final["descricao"], "local": final["endereco_avulso"]})
+    antes = {c: getattr(evento, c) for c in campos if getattr(evento, c) != campos[c]}
+    for campo in antes:
+        setattr(evento, campo, campos[campo])
+    db.commit()
+    db.refresh(evento)
+    return evento, antes
 
 
 def obter_evento(db: Session, id_evento: int) -> Evento:
@@ -183,7 +234,7 @@ def criar_nova_edicao(
         data_hora_inicio=data_hora_inicio, data_hora_fim=data_hora_fim, id_espaco=anterior.id_espaco,
         endereco_avulso=anterior.endereco_avulso, id_associado_responsavel=anterior.id_associado_responsavel,
         vagas=anterior.vagas, gratuito=anterior.gratuito, visibilidade=anterior.visibilidade,
-        id_edicao_anterior=anterior.id_evento, id_usuario_criacao=id_usuario,
+        id_edicao_anterior=anterior.id_evento, id_usuario_criacao=id_usuario, id_projeto=anterior.id_projeto,  # a edição nova segue no mesmo projeto
     )
     db.add(nova_edicao)
     db.commit()

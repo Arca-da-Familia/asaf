@@ -58,6 +58,9 @@ class Evento(Base):
     # cada nova edição aponta pra edição imediatamente anterior, formando uma cadeia percorrível
     # (ver app/services/eventos.py::listar_cadeia_edicoes), nunca uma cópia solta sem vínculo.
     id_edicao_anterior = Column(Integer, ForeignKey("eventos.id_evento"), nullable=True)
+    # v5.5 - o projeto a que este evento pertence (ex.: cada edição do Despertai é um evento do projeto Despertai). A página
+    # pública do projeto lista as edições; a do evento aponta para o projeto. Nulo = evento avulso.
+    id_projeto = Column(Integer, ForeignKey("projetos_eventos.id_projeto"), nullable=True, index=True)
     id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
     # v4.8 - elegibilidade ao certificado (ver app/services/certificados.py::calcular_elegibilidade):
@@ -134,3 +137,23 @@ class PerguntaEvento(Base):
     opcoes = Column(Text, nullable=True)  # CSV - só pra SELECAO_UNICA/SELECAO_MULTIPLA
     obrigatoria = Column(Boolean, nullable=False, default=True)
     ordem = Column(Integer, nullable=False, default=0)
+
+
+class FotoEvento(Base):
+    """v5.5 - foto de um evento. Mesmas regras da foto de etapa de parceria (`app/services/fotos.py`): só existe com a
+    autorização de imagem confirmada (a foto sem ela nem é guardada) e com o texto alternativo; o arquivo fica em armazenamento
+    PRIVADO (`fotos-eventos`), já regravado em JPEG sem metadado nenhum."""
+    __tablename__ = "fotos_evento"
+    id_foto = Column(Integer, primary_key=True, index=True)
+    id_evento = Column(Integer, ForeignKey("eventos.id_evento"), nullable=False, index=True)
+    arquivo_nome = Column(String(150), nullable=False)  # nome opaco (uuid) no armazenamento
+    sha256 = Column(String(64), nullable=False)
+    tamanho = Column(Integer, nullable=False)
+    largura = Column(Integer, nullable=False)
+    altura = Column(Integer, nullable=False)
+    alt = Column(String(300), nullable=False)
+    autorizacao_imagem = Column(Boolean, nullable=False, default=False)
+    # Termo de autorização assinado (documento da biblioteca, classificação Restrita): opcional, mas recomendado.
+    id_documento_autorizacao = Column(Integer, ForeignKey("documentos_institucionais.id_documento"), nullable=True)
+    id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)

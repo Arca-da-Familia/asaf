@@ -8,6 +8,7 @@ import {
   anunciarAvisosDeNoticias,
   baixarImagem,
   buscarNoticias,
+  CAMPOS_DA_NOTICIA,
   configuracaoDoDirectus,
   sanitizarCorpo,
   validarNoticias,
@@ -188,6 +189,99 @@ describe('validarNoticias', () => {
       AGORA,
     )
     expect(noticias.map((n) => n.id)).toEqual(['nova', 'velha'])
+  })
+})
+
+describe('validarNoticias - ligação com projeto e evento (v5.5)', () => {
+  it('pede ao Directus os campos projeto_id e evento_id', () => {
+    expect(CAMPOS_DA_NOTICIA).toContain('projeto_id')
+    expect(CAMPOS_DA_NOTICIA).toContain('evento_id')
+  })
+
+  it('sem ligação: projetoId e eventoId são null, sem aviso (campo vazio não é erro)', () => {
+    for (const vazio of [null, undefined, '']) {
+      const { noticias, avisos } = validarNoticias(
+        [bruta({ projeto_id: vazio, evento_id: vazio })],
+        AGORA,
+      )
+      expect(noticias[0]).toMatchObject({ projetoId: null, eventoId: null })
+      expect(avisos).toEqual([])
+    }
+    // notícia de antes da v5.5 (o Directus nem devolve os campos)
+    const { noticias } = validarNoticias([bruta()], AGORA)
+    expect(noticias[0]).toMatchObject({ projetoId: null, eventoId: null })
+  })
+
+  it('número inteiro positivo vira a ligação', () => {
+    const { noticias, avisos } = validarNoticias(
+      [bruta({ projeto_id: 3, evento_id: 4 })],
+      AGORA,
+    )
+    expect(noticias[0]).toMatchObject({ projetoId: 3, eventoId: 4 })
+    expect(avisos).toEqual([])
+  })
+
+  it.each([
+    ['texto', 'abc'],
+    ['número escrito como texto', '3'],
+    ['negativo', -2],
+    ['zero', 0],
+    ['decimal', 2.5],
+    ['verdadeiro', true],
+    ['lista', [3]],
+  ])(
+    'valor inválido (%s) vira null e gera aviso, SEM derrubar a notícia',
+    (_nome, invalido) => {
+      const { noticias, avisos } = validarNoticias(
+        [bruta({ projeto_id: invalido, evento_id: 4 })],
+        AGORA,
+      )
+      expect(noticias).toHaveLength(1)
+      expect(noticias[0]).toMatchObject({ projetoId: null, eventoId: 4 })
+      expect(avisos).toHaveLength(1)
+      expect(avisos[0]).toMatchObject({ id: 'n1', publicada: true })
+      expect(avisos[0]!.motivo).toMatch(/projeto_id tem um valor inválido/)
+      expect(avisos[0]!.motivo).toMatch(/sem a ligação com o projeto/)
+    },
+  )
+
+  it('os dois campos inválidos geram dois avisos, um por campo', () => {
+    const { noticias, avisos } = validarNoticias(
+      [bruta({ projeto_id: 'x', evento_id: -1 })],
+      AGORA,
+    )
+    expect(noticias[0]).toMatchObject({ projetoId: null, eventoId: null })
+    expect(avisos.map((a) => a.motivo.match(/campo (\w+)/)![1])).toEqual([
+      'projeto_id',
+      'evento_id',
+    ])
+  })
+
+  it('texto enorme no campo não infla o aviso', () => {
+    const { avisos } = validarNoticias(
+      [bruta({ projeto_id: 'z'.repeat(500) })],
+      AGORA,
+    )
+    expect(avisos[0]!.motivo.length).toBeLessThan(250)
+  })
+
+  it('o aviso de ligação desfeita sai com texto próprio (a notícia FOI publicada)', () => {
+    const linhas: string[] = []
+    anunciarAvisosDeNoticias(
+      [
+        {
+          id: 'a',
+          titulo: 'Encontro',
+          motivo: 'o projeto nº 9 não existe',
+          publicada: true,
+        },
+      ],
+      (l: string) => linhas.push(l),
+      true,
+    )
+    expect(linhas[0]).toBe(
+      '::warning title=Notícia sem ligação::Notícia publicada SEM a ligação: "Encontro" — o projeto nº 9 não existe',
+    )
   })
 })
 
@@ -391,6 +485,76 @@ describe('notícias dentro do conteúdo público', () => {
     ])
     expect(comRecusada.avisosDeNoticias).toHaveLength(1)
     expect(impressaoDoConteudo(comRecusada)).toBe(impressaoDoConteudo(limpo))
+  })
+})
+
+describe('notícias ligadas a projeto e evento dentro do conteúdo público (v5.5)', () => {
+  const rotas: Record<string, unknown> = {
+    '/api/publico/eventos': [{ id_evento: 4, titulo: 'Edição' }],
+    '/api/publico/eventos/4': { id_evento: 4, titulo: 'Edição', sessoes: [] },
+    '/api/publico/projetos': [{ id_projeto: 3, nome: 'Principal' }],
+    '/api/publico/projetos/3': { id_projeto: 3, nome: 'Principal' },
+    '/api/publico/diretoria': [],
+    '/api/publico/assembleias': [],
+    '/api/publico/transparencia/parcerias': [],
+    '/api/publico/transparencia/documentos': [],
+  }
+  const ler = (noticias: unknown[]) =>
+    buscarConteudoPublico('https://api.teste', {
+      fetchImpl: (async (url: string) => {
+        const u = String(url)
+        if (u.startsWith('https://cms.teste/items/noticias'))
+          return new Response(JSON.stringify({ data: noticias }), {
+            status: 200,
+          })
+        const caminho = u.replace('https://api.teste', '')
+        return caminho in rotas
+          ? new Response(JSON.stringify(rotas[caminho]), { status: 200 })
+          : new Response('{}', { status: 404 })
+      }) as unknown as typeof fetch,
+      esperaMs: 0,
+      directus: CONFIG,
+    })
+
+  it('mantém a ligação com o projeto e o evento que existem', async () => {
+    const c = await ler([bruta({ projeto_id: 3, evento_id: 4 })])
+    expect(c.noticias[0]).toMatchObject({ projetoId: 3, eventoId: 4 })
+    expect(c.avisosDeNoticias).toEqual([])
+  })
+
+  it('projeto/evento que NÃO existe: a notícia vai ao ar sem a ligação e o aviso explica, em português', async () => {
+    const c = await ler([bruta({ projeto_id: 99, evento_id: 4 })])
+    expect(c.noticias).toHaveLength(1)
+    expect(c.noticias[0]).toMatchObject({ projetoId: null, eventoId: 4 })
+    expect(c.avisosDeNoticias).toHaveLength(1)
+    expect(c.avisosDeNoticias[0]).toMatchObject({
+      id: 'n1',
+      titulo: 'Encontro de famílias',
+      publicada: true,
+    })
+    expect(c.avisosDeNoticias[0]!.motivo).toBe(
+      'o projeto nº 99 não existe ou não é público. A notícia foi publicada sem a ligação com o projeto',
+    )
+  })
+
+  it('o aviso de ligação desfeita NÃO muda a impressão (é diagnóstico), mas a ligação em si muda', async () => {
+    const semLigacao = await ler([bruta()])
+    const quebrada = await ler([bruta({ projeto_id: 99 })])
+    expect(quebrada.avisosDeNoticias).toHaveLength(1)
+    expect(impressaoDoConteudo(quebrada)).toBe(impressaoDoConteudo(semLigacao))
+    const ligada = await ler([bruta({ projeto_id: 3 })])
+    expect(impressaoDoConteudo(ligada)).not.toBe(
+      impressaoDoConteudo(semLigacao),
+    )
+  })
+
+  it('valor inválido no Directus e número inexistente aparecem juntos nos avisos, sem derrubar nenhuma notícia', async () => {
+    const c = await ler([
+      bruta({ id: 'a', slug: 'a', projeto_id: 'abc' }),
+      bruta({ id: 'b', slug: 'b', evento_id: 77 }),
+    ])
+    expect(c.noticias.map((n) => n.id)).toEqual(['a', 'b'])
+    expect(c.avisosDeNoticias.map((a) => a.id).sort()).toEqual(['a', 'b'])
   })
 })
 

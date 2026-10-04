@@ -62,6 +62,8 @@ PASTAS_PRIVADAS: dict[str, str] = {
     # v5.4b: foto de etapa de parceria (com pessoas): só sai pela rota autenticada do painel ou, depois de a parceria ser
     # APROVADA, pela rota pública que confere isso a cada pedido (o site copia a foto no build).
     "fotos-etapas": "fotos-etapas",
+    # v5.5: foto de evento (com pessoas): mesma regra da foto de etapa; a rota pública confere que o evento é Público.
+    "fotos-eventos": "fotos-eventos",
 }
 
 # Só estes tipos são servidos — nada de HTML/SVG/JS vindo de upload (XSS armazenado).

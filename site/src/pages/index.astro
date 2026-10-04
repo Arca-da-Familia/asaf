@@ -1,22 +1,42 @@
 ---
 import CartaoDeLink from '../components/CartaoDeLink.astro'
+import ProximasEdicoes from '../components/contexto/ProximasEdicoes.astro'
 import ProximosEventos from '../components/ProximosEventos.astro'
 import SeloDeStatus from '../components/SeloDeStatus.astro'
 import { LOGO, ORGANIZACAO, PAINEL_URL } from '../config/organizacao'
 import Base from '../layouts/Base.astro'
+import { proximasEdicoes, soComPagina } from '../lib/contexto'
 import {
   caminhoDaNoticia,
   caminhoDoProjeto,
   conteudoPublico,
 } from '../lib/dados-publicos'
 import { formatarDataLonga } from '../lib/datas'
+import { trechoDoTexto } from '../lib/texto'
 
 // Eventos: a lista é uma ilha (ao vivo); o build só diz quais já têm página para virar link.
 // Projetos: até 3 projetos públicos (em execução primeiro) — só aparece a seção se existir algum.
-const { eventos, projetos, noticias } = await conteudoPublico()
+// v5.5: o projeto marcado como destaque no sistema (o principal da associação) ganha uma seção própria, logo
+// abaixo da abertura; sem nenhum em destaque a Home fica exatamente como era.
+const { eventos, projetos, noticias, detalhesDeProjetos } =
+  await conteudoPublico()
 const ultimasNoticias = noticias.slice(0, 3)
 const idsComPagina = eventos.map((e) => e.id_evento)
-const emDestaque = [...projetos]
+const destaques = projetos
+  .filter((projeto) => projeto.destaque)
+  .map((projeto) => ({
+    projeto,
+    trecho: trechoDoTexto(projeto.descricao),
+    // Edições que ainda não terminaram (as que têm página no site); a ilha mostra só a primeira que ainda vale.
+    proximas: proximasEdicoes(
+      soComPagina(
+        detalhesDeProjetos[projeto.id_projeto]?.eventos ?? [],
+        idsComPagina,
+      ),
+    ),
+  }))
+const emDestaque = projetos
+  .filter((projeto) => !projeto.destaque)
   .sort(
     (a, b) =>
       Number(b.status_codigo === 'EM_EXECUCAO') -
@@ -76,6 +96,52 @@ const ALTURA_LOGO = Math.round(LARGURA_LOGO / LOGO.proporcao)
       />
     </div>
   </section>
+
+  {destaques.length > 0 && (
+    <section
+      aria-labelledby="em-destaque"
+      class="mx-auto max-w-5xl px-4 pt-12"
+      data-secao="destaque"
+    >
+      <h2 id="em-destaque" class="text-2xl font-bold tracking-tight">
+        Em destaque
+      </h2>
+      <div class="mt-6 flex flex-col gap-4">
+        {destaques.map(({ projeto, trecho, proximas }) => (
+          <article
+            class="rounded-lg border bg-card p-6 shadow-card sm:p-8"
+            data-destaque={projeto.id_projeto}
+          >
+            <h3 class="text-xl font-bold tracking-tight">
+              <a
+                href={caminhoDoProjeto(projeto.id_projeto)}
+                class="underline-offset-4 hover:underline"
+              >
+                {projeto.nome}
+              </a>
+            </h3>
+            {trecho && <p class="mt-3 max-w-3xl">{trecho}</p>}
+            {proximas.length > 0 && <ProximasEdicoes edicoes={proximas} />}
+            <div class="mt-5 flex flex-wrap gap-3">
+              <a
+                href={caminhoDoProjeto(projeto.id_projeto)}
+                class="inline-block rounded-md bg-primary px-5 py-3 font-medium text-primary-foreground hover:opacity-90"
+              >
+                Conheça o projeto
+                <span class="sr-only">: {projeto.nome}</span>
+              </a>
+              <a
+                href="/projetos/"
+                class="inline-block rounded-md border px-5 py-3 font-medium hover:bg-accent"
+              >
+                Todos os projetos
+              </a>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  )}
 
   <section
     id="quem-somos"

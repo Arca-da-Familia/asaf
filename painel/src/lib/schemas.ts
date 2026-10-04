@@ -819,6 +819,17 @@ export const fecharMesSchema = z.object({
   saldo_extrato_bancario: z.coerce.number(),
 })
 
+// Campo opcional de formulário deixado em branco ("" num select ou num campo numérico) = "não informado": nunca vai à API
+// como "" nem como 0. Antes, um `z.coerce.number()` transformava "" em 0 e o servidor respondia "Projeto/Espaço/Centro de
+// custo nº 0 não encontrado"; e o "" do tipo de projeto era recusado como código inválido.
+const emBrancoVira = (v: unknown) => (v === '' || v === null ? undefined : v)
+const numeroOpcional = z.preprocess(emBrancoVira, z.coerce.number().optional())
+const inteiroOpcional = z.preprocess(
+  emBrancoVira,
+  z.coerce.number().int().optional(),
+)
+const textoOpcional = z.preprocess(emBrancoVira, z.string().optional())
+
 // v4.1 - Projeto como entidade única e configurável.
 export const projetoCriarSchema = z.object({
   nome_projeto: z.string().min(3, 'Informe o nome do projeto.'),
@@ -827,11 +838,13 @@ export const projetoCriarSchema = z.object({
   data_inicio: z.string().min(1, 'Informe a data de início.'),
   data_fim_prevista: z.string().min(1, 'Informe a data de fim prevista.'),
   descricao: z.string().optional(),
-  tipo_projeto: z.string().optional(),
-  id_associado_responsavel: z.coerce.number().optional(),
+  tipo_projeto: textoOpcional,
+  id_associado_responsavel: numeroOpcional,
   publico_alvo: z.string().optional(),
-  id_centro_custo: z.coerce.number().optional(),
+  id_centro_custo: numeroOpcional,
   visibilidade: z.enum(['Pública', 'Interna']),
+  // v5.5 - o projeto principal (ex.: Despertai) em destaque na página inicial do site; só projeto Público.
+  destaque_no_site: z.boolean().optional(),
 })
 
 export const itemCronogramaCriarSchema = z.object({
@@ -1011,12 +1024,14 @@ export const eventoCriarSchema = z.object({
     .optional()
     .transform((v) => (v ? paraUtcIso(v) : undefined)),
   descricao: z.string().optional(),
-  id_espaco: z.coerce.number().optional(),
+  id_espaco: numeroOpcional,
   endereco_avulso: z.string().optional(),
-  id_associado_responsavel: z.coerce.number().optional(),
-  vagas: z.coerce.number().int().optional(),
+  id_associado_responsavel: numeroOpcional,
+  vagas: inteiroOpcional,
   gratuito: z.boolean(),
   visibilidade: z.enum(['Pública', 'Interna']),
+  // v5.5 - o projeto a que o evento pertence (ex.: uma edição do Despertai); em branco = sem projeto.
+  id_projeto: numeroOpcional,
 })
 
 export const sessaoEventoCriarSchema = z.object({

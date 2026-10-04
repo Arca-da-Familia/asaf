@@ -18,13 +18,18 @@ export type {
   AssembleiaPublica,
   ConteudoPublico,
   DocumentoPublico,
+  EdicaoDoEvento,
   EventoDaLista,
   EventoDetalhado,
+  FotoDoEvento,
+  FotoDoProjeto,
   MembroDaDiretoria,
   NoticiaPublica,
   ParceriaDetalhada,
   ParceriaPublica,
+  ProjetoDetalhado,
   ProjetoPublico,
+  ResumoDeEvento,
   SessaoDoEvento,
 } from '../../scripts/lib/conteudo-publico.mjs'
 
@@ -47,6 +52,12 @@ export const caminhoDaNoticia = (slug: string) => `/noticias/${slug}/`
 /** Foto da notícia, gerada no build a partir do Directus (src/pages/midia/noticias/[id].webp.ts). */
 export const caminhoDaFotoDaNoticia = (idDoArquivo: string) =>
   `/midia/noticias/${idDoArquivo}.webp`
+/**
+ * Foto de um evento, copiada da API no build (src/pages/midia/eventos/[id].jpg.ts). O id da foto é único: a mesma foto
+ * aparece na página do evento e na galeria do projeto, sempre com este mesmo endereço.
+ */
+export const caminhoDaFotoDoEvento = (idFoto: number) =>
+  `/midia/eventos/${idFoto}.jpg`
 /** Parcerias: cada uma tem UM endereço, conforme o tipo (emenda parlamentar x demais parcerias). Só o id: título editado nunca quebra o link. */
 export const caminhoDaEmenda = (id: number) => `/transparencia/emendas/${id}/`
 export const caminhoDaParceria = (id: number) =>

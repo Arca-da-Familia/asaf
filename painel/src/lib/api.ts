@@ -3644,6 +3644,8 @@ export type Projeto = {
   visibilidade: string
   necessita_alvara_bombeiros: boolean
   status_liberacao: string
+  // v5.5 - o projeto principal (ex.: Despertai) aparece em destaque na página inicial do site. Só projeto Público.
+  destaque_no_site: boolean
 }
 
 export function listarProjetos(): Promise<Projeto[]> {
@@ -3666,9 +3668,33 @@ export function criarProjeto(dados: {
   publico_alvo?: string
   id_centro_custo?: number
   visibilidade: string
+  destaque_no_site?: boolean
 }): Promise<{ mensagem: string; id_projeto: number }> {
   return apiFetch('/projetos/', {
     method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+// v5.5 - editar o cadastro do projeto. Só os campos enviados mudam (o servidor usa `exclude_unset`); texto de projeto
+// Público vai ao site e passa pela conferência de dado pessoal (422 com `detail` em português).
+export type DadosDaEdicaoDoProjeto = {
+  nome_projeto?: string
+  descricao?: string | null
+  tipo_projeto?: string | null
+  publico_alvo?: string | null
+  data_inicio?: string
+  data_fim_prevista?: string
+  visibilidade?: 'Pública' | 'Interna'
+  destaque_no_site?: boolean
+}
+
+export function editarProjeto(
+  idProjeto: number,
+  dados: DadosDaEdicaoDoProjeto,
+): Promise<Projeto> {
+  return apiFetch(`/api/projetos/${idProjeto}`, {
+    method: 'PUT',
     body: JSON.stringify(dados),
   })
 }
@@ -4467,6 +4493,8 @@ export type Evento = {
   gratuito: boolean
   visibilidade: string
   id_edicao_anterior: number | null
+  // v5.5 - o projeto a que o evento pertence (ex.: Despertai); nulo = evento sem projeto.
+  id_projeto: number | null
 }
 
 export type SessaoEvento = {
@@ -4493,10 +4521,91 @@ export function criarEvento(dados: {
   vagas?: number
   gratuito: boolean
   visibilidade: string
+  id_projeto?: number
 }): Promise<{ mensagem: string; id_evento: number }> {
   return apiFetch('/api/eventos/', {
     method: 'POST',
     body: JSON.stringify(dados),
+  })
+}
+
+// v5.5 - editar o cadastro do evento. Só os campos enviados mudam (o servidor usa `exclude_unset`); `null` limpa o campo
+// (em `id_projeto`, desliga o evento do projeto). Evento Público passa pela conferência de dado pessoal (422 em português).
+export type DadosDaEdicaoDoEvento = {
+  titulo?: string
+  descricao?: string | null
+  categoria?: string
+  data_hora_inicio?: string
+  data_hora_fim?: string | null
+  id_espaco?: number | null
+  endereco_avulso?: string | null
+  vagas?: number | null
+  visibilidade?: 'Pública' | 'Interna'
+  id_projeto?: number | null
+}
+
+export function editarEvento(
+  idEvento: number,
+  dados: DadosDaEdicaoDoEvento,
+): Promise<Evento> {
+  return apiFetch(`/api/eventos/${idEvento}`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+}
+
+// v5.5 - fotos do evento: só entram com a AUTORIZAÇÃO DE IMAGEM confirmada e uma descrição (mesmas regras das fotos de
+// etapa de parceria). O arquivo fica em área privada: a miniatura é buscada com o token (`apiFetchBlob`).
+export type FotoDoEvento = {
+  id_foto: number
+  id_evento: number
+  alt: string
+  largura: number
+  altura: number
+  tamanho: number
+  autorizacao_imagem: boolean
+  id_documento_autorizacao: number | null
+  criado_em: string
+}
+
+export function listarFotosDoEvento(idEvento: number): Promise<FotoDoEvento[]> {
+  return apiFetch(`/api/eventos/${idEvento}/fotos`)
+}
+
+export function caminhoDaFotoDoEvento(
+  idEvento: number,
+  idFoto: number,
+): string {
+  return `/api/eventos/${idEvento}/fotos/${idFoto}/arquivo`
+}
+
+export function enviarFotoDoEvento(
+  idEvento: number,
+  dados: {
+    arquivo: File
+    alt: string
+    autorizacaoImagem: boolean
+    idDocumentoAutorizacao?: string
+  },
+): Promise<FotoDoEvento[]> {
+  const form = new FormData()
+  form.append('arquivo', dados.arquivo)
+  form.append('alt', dados.alt)
+  form.append('autorizacao_imagem', String(dados.autorizacaoImagem))
+  if (dados.idDocumentoAutorizacao)
+    form.append('id_documento_autorizacao', dados.idDocumentoAutorizacao)
+  return apiFetch(`/api/eventos/${idEvento}/fotos`, {
+    method: 'POST',
+    body: form,
+  })
+}
+
+export function apagarFotoDoEvento(
+  idEvento: number,
+  idFoto: number,
+): Promise<FotoDoEvento[]> {
+  return apiFetch(`/api/eventos/${idEvento}/fotos/${idFoto}`, {
+    method: 'DELETE',
   })
 }
 

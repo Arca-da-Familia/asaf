@@ -25,12 +25,18 @@ export interface NoticiaPublica {
   publicadaEm: string
   atualizadaEm: string | null
   imagem: ImagemDaNoticia | null
+  /** Número do projeto a que a notícia se liga (inteiro positivo) ou null. */
+  projetoId: number | null
+  /** Número do evento a que a notícia se liga (inteiro positivo) ou null. */
+  eventoId: number | null
 }
 
 export interface AvisoDeNoticia {
   id: string
   titulo: string
   motivo: string
+  /** true = a notícia FOI publicada (só ficou sem a ligação com projeto/evento); ausente = NÃO foi publicada. */
+  publicada?: boolean
 }
 
 export interface ResultadoDasNoticias {

@@ -7,3 +7,4 @@ playwright-report
 .lighthouseci
 public/version.json
 dist-vazio
+dist-antiga

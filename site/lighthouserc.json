@@ -12,6 +12,8 @@
         "http://127.0.0.1:4321/contato/",
         "http://127.0.0.1:4321/diretoria/",
         "http://127.0.0.1:4321/eventos/2/",
+        "http://127.0.0.1:4321/eventos/4/",
+        "http://127.0.0.1:4321/projetos/3/",
         "http://127.0.0.1:4321/noticias/",
         "http://127.0.0.1:4321/noticias/noticia-de-teste-com-foto/",
         "http://127.0.0.1:4321/transparencia/",

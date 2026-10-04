@@ -12,6 +12,7 @@ from app.schemas.projetos import (
     ItemCronogramaCriar,
     ProjetoAlterarStatus,
     ProjetoCriar,
+    ProjetoEditar,
     TrocaTurnoCriar,
     VagaEscalaCriar,
     VoluntarioAlocar,
@@ -72,6 +73,7 @@ def _serializar_projeto(p) -> dict:
         "data_inicio": p.data_inicio, "data_fim_prevista": p.data_fim_prevista,
         "id_centro_custo": p.id_centro_custo, "visibilidade": p.visibilidade,
         "necessita_alvara_bombeiros": p.necessita_alvara_bombeiros, "status_liberacao": p.status_liberacao,
+        "destaque_no_site": bool(p.destaque_no_site),
     }
 
 
@@ -82,7 +84,7 @@ def criar_projeto(dados: ProjetoCriar, request: Request, db: Session = Depends(g
         data_inicio=dados.data_inicio, data_fim_prevista=dados.data_fim_prevista, descricao=dados.descricao,
         tipo_projeto=dados.tipo_projeto, id_associado_responsavel=dados.id_associado_responsavel,
         publico_alvo=dados.publico_alvo, id_centro_custo=dados.id_centro_custo, visibilidade=dados.visibilidade,
-        id_usuario=usuario.id_usuario,
+        id_usuario=usuario.id_usuario, destaque_no_site=dados.destaque_no_site,
     )
     registrar_auditoria(
         db, usuario, "projetos_eventos", "CREATE", id_registro_afetado=projeto.id_projeto,
@@ -100,6 +102,16 @@ def listar_projetos_endpoint(db: Session = Depends(get_db), _usuario=Depends(_pe
 @router.get("/api/projetos/{id_projeto}", summary="Detalhe de um Projeto")
 def obter_projeto_endpoint(id_projeto: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
     return _serializar_projeto(projetos.obter_projeto(db, id_projeto))
+
+
+@router.put("/api/projetos/{id_projeto}", summary="Editar o cadastro do Projeto (nome, descrição, visibilidade, destaque no site...)")
+def editar_projeto_endpoint(id_projeto: int, dados: ProjetoEditar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    projeto, antes = projetos.editar_projeto(db, id_projeto, dados.model_dump(exclude_unset=True))
+    registrar_auditoria(
+        db, usuario, "projetos_eventos", "UPDATE", id_registro_afetado=projeto.id_projeto,
+        dados_antes=antes, dados_depois={c: getattr(projeto, c) for c in antes}, ip_origem=_ip_origem(request),
+    )
+    return _serializar_projeto(projeto)
 
 
 @router.put("/api/projetos/{id_projeto}/status", summary="Alterar status do Projeto")

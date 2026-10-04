@@ -3,6 +3,7 @@ import SeloDeStatus from '../../components/SeloDeStatus.astro'
 import TituloDePagina from '../../components/TituloDePagina.astro'
 import type { Migalha } from '../../config/navegacao'
 import Base from '../../layouts/Base.astro'
+import { ordenarProjetos } from '../../lib/contexto'
 import { caminhoDoProjeto, conteudoPublico } from '../../lib/dados-publicos'
 import { formatarDataCurta } from '../../lib/datas'
 
@@ -11,21 +12,8 @@ import { formatarDataCurta } from '../../lib/datas'
 const { projetos } = await conteudoPublico()
 const migalhas: Migalha[] = [{ rotulo: 'Projetos' }]
 
-// Em execução primeiro, depois planejamento; encerrados por último.
-const ORDEM = [
-  'EM_EXECUCAO',
-  'PLANEJAMENTO',
-  'SUSPENSO',
-  'CONCLUIDO',
-  'CANCELADO',
-]
-const posicao = (codigo: string | null) => {
-  const i = ORDEM.indexOf(codigo ?? '')
-  return i === -1 ? ORDEM.length : i
-}
-const ordenados = [...projetos].sort(
-  (a, b) => posicao(a.status_codigo) - posicao(b.status_codigo),
-)
+// Os projetos em destaque primeiro; depois em execução, planejamento e, por último, os encerrados.
+const ordenados = ordenarProjetos(projetos)
 ---
 
 <Base

@@ -12,7 +12,7 @@ NOME = "0123456789abcdef0123456789abcdef.pdf"
 
 
 def test_pastas_privadas_nao_se_misturam_com_as_publicas():
-    assert set(PASTAS_PRIVADAS) == {"documentos-originais", "documentos-publicos", "fotos-etapas"}
+    assert set(PASTAS_PRIVADAS) == {"documentos-originais", "documentos-publicos", "fotos-etapas", "fotos-eventos"}
     assert set(PASTAS_PRIVADAS).isdisjoint(PASTAS)
     assert set(PASTAS_PRIVADAS.values()).isdisjoint(PASTAS.values())  # nem o contêiner é o mesmo
 

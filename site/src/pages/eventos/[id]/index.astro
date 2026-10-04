@@ -1,4 +1,8 @@
 ---
+import EdicoesEEventos from '../../../components/contexto/EdicoesEEventos.astro'
+import GaleriaDeFotos from '../../../components/contexto/GaleriaDeFotos.astro'
+import NoticiasRelacionadas from '../../../components/contexto/NoticiasRelacionadas.astro'
+import RelatoriosEDocumentos from '../../../components/contexto/RelatoriosEDocumentos.astro'
 import FaleConosco from '../../../components/FaleConosco.astro'
 import TituloDePagina from '../../../components/TituloDePagina.astro'
 import type { Migalha } from '../../../config/navegacao'
@@ -10,9 +14,16 @@ import {
 } from '../../../config/organizacao'
 import Base from '../../../layouts/Base.astro'
 import {
+  noticiasDoEvento,
+  soComPagina,
+  soDocumentosPublicados,
+} from '../../../lib/contexto'
+import {
   caminhoDoEvento,
+  caminhoDoProjeto,
   conteudoPublico,
   type EventoDetalhado,
+  type NoticiaPublica,
 } from '../../../lib/dados-publicos'
 import { comFusoDaAsaf, formatarDia, formatarHora } from '../../../lib/datas'
 import { jsonLdEvento } from '../../../lib/seo'
@@ -21,18 +32,40 @@ import { descricaoParaMeta, tituloCurto } from '../../../lib/texto'
 // Uma página por evento público, com URL estável e compartilhável (/eventos/<id>/): título, data e
 // local certos no WhatsApp/Google (schema.org/Event). O que muda depois do build (vagas, evento
 // retirado, "já aconteceu") é resolvido pela ilha src/lib/evento-vivo.ts.
+//
+// v5.5: o contexto do evento — projeto a que pertence, outras edições, relatório, fotos e notícias ligadas pelo
+// número. Cada bloco SÓ existe quando há conteúdo.
 export async function getStaticPaths() {
-  const { eventos, detalhesDeEventos } = await conteudoPublico()
-  return eventos.map((evento) => ({
-    params: { id: String(evento.id_evento) },
-    props: { evento: detalhesDeEventos[evento.id_evento]! },
-  }))
+  const { eventos, projetos, documentos, detalhesDeEventos, noticias } =
+    await conteudoPublico()
+  const idsDeEventos = eventos.map((e) => e.id_evento)
+  return eventos.map((evento) => {
+    const detalhe = detalhesDeEventos[evento.id_evento]!
+    return {
+      params: { id: String(evento.id_evento) },
+      props: {
+        evento: {
+          ...detalhe,
+          // Só o que tem página no site vira link (nunca um 404).
+          projeto: projetos.some(
+            (p) => p.id_projeto === detalhe.projeto?.id_projeto,
+          )
+            ? detalhe.projeto
+            : null,
+          edicoes: soComPagina(detalhe.edicoes, idsDeEventos),
+          documentos: soDocumentosPublicados(detalhe.documentos, documentos),
+        },
+        noticias: noticiasDoEvento(noticias, evento.id_evento),
+      },
+    }
+  })
 }
 
 interface Props {
   evento: EventoDetalhado
+  noticias: NoticiaPublica[]
 }
-const { evento } = Astro.props
+const { evento, noticias } = Astro.props
 
 const caminho = caminhoDoEvento(evento.id_evento)
 const migalhas: Migalha[] = [
@@ -93,6 +126,18 @@ if (evento.vagas_livres !== null) {
     >
       A data deste evento já passou.
     </p>
+
+    {evento.projeto && (
+      <p class="text-lg" data-projeto-do-evento>
+        Faz parte do projeto{' '}
+        <a
+          href={caminhoDoProjeto(evento.projeto.id_projeto)}
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          {evento.projeto.nome}
+        </a>
+      </p>
+    )}
 
     <section aria-labelledby="quando-onde">
       <h2 id="quando-onde" class="sr-only">
@@ -163,6 +208,38 @@ if (evento.vagas_livres !== null) {
           ))}
         </ol>
       </section>
+    )}
+
+    {evento.documentos.length > 0 && (
+      <RelatoriosEDocumentos
+        id="relatorio-e-documentos"
+        titulo="Relatório e documentos"
+        documentos={evento.documentos}
+      />
+    )}
+
+    {evento.fotos.length > 0 && (
+      <GaleriaDeFotos
+        id="fotos-do-evento"
+        titulo="Fotos do evento"
+        fotos={evento.fotos}
+      />
+    )}
+
+    {noticias.length > 0 && (
+      <NoticiasRelacionadas
+        id="noticias-do-evento"
+        titulo="Notícias sobre este evento"
+        noticias={noticias}
+      />
+    )}
+
+    {evento.edicoes.length > 1 && (
+      <EdicoesEEventos
+        id="outras-edicoes"
+        titulo="Outras edições"
+        eventos={evento.edicoes}
+      />
     )}
 
     <FaleConosco titulo="Como participar">
