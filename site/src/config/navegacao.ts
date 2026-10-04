@@ -15,6 +15,7 @@ export const NAVEGACAO_PRINCIPAL: ItemDeNavegacao[] = [
   { rotulo: 'Quem somos', href: '/quem-somos/' },
   { rotulo: 'Projetos', href: '/projetos/' },
   { rotulo: 'Eventos', href: '/eventos/' },
+  { rotulo: 'Notícias', href: '/noticias/' },
   { rotulo: 'Transparência', href: '/transparencia/' },
   { rotulo: 'Como ajudar', href: '/como-ajudar/' },
   { rotulo: 'Contato', href: '/contato/' },
