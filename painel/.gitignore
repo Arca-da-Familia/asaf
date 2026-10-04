@@ -9,3 +9,5 @@ public/version.json
 # Artefatos do Playwright (v0.2.8) — relatório e resultados de execução local.
 /test-results/
 /playwright-report/
+
+*.tsbuildinfo
