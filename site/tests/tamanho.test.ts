@@ -64,7 +64,7 @@ describe('medirPasta', () => {
     expect(m.bytes).toBe(450)
     expect(m.arquivos).toBe(3)
     expect(m.maior.bytes).toBe(300)
-    expect(m.maior.caminho.endsWith('dois.txt')).toBe(true)
+    expect(m.maior.caminho?.endsWith('dois.txt')).toBe(true)
   })
 
   it('pasta vazia: zero', () => {
