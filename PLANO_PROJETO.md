@@ -1302,7 +1302,7 @@ retrabalho que a seção 4.1 existe pra evitar.
 > GitHub (provada só executando o script em bash nos testes).
 >
 > **v5.5 — em andamento (2026-10-04, parado de propósito às ~16h por pedido do usuário; nada disto está em produção).** Branch
-> local `despertai` (commits `e0808d2`, `bfebc4c`, `fad3c3b`): projeto em destaque, edição de projeto e de evento (antes só se
+> local `despertai` (3 commits sobre `f8dfa3a`; os números mudam a cada rebase): projeto em destaque, edição de projeto e de evento (antes só se
 > criavam), evento ligado a projeto, fotos de evento, relatórios como documentos ligados, página do projeto e do evento no site
 > com o contexto, destaque na Home, campos `projeto_id`/`evento_id` nas notícias. **Já feito em produção (aditivo, conferido
 > com `directus_configurar.py verificar --producao`):** os 3 campos novos da coleção `noticias` no Directus. **Falta:** um teste
