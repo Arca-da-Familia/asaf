@@ -31,6 +31,9 @@ import { DevComponents } from '@/pages/DevComponents'
 import { DocumentoDetalhePage } from '@/pages/DocumentoDetalhe'
 import { DocumentoNovoPage } from '@/pages/DocumentoNovo'
 import { DocumentosPage } from '@/pages/Documentos'
+import { ParceriaDetalhePage } from '@/pages/ParceriaDetalhe'
+import { ParceriaNovaPage } from '@/pages/ParceriaNova'
+import { ParceriasPage } from '@/pages/Parcerias'
 import { ExerciciosPage } from '@/pages/Exercicios'
 import { FornecedoresPage } from '@/pages/Fornecedores'
 import { CentrosCustoPage } from '@/pages/CentrosCusto'
@@ -605,6 +608,40 @@ function App() {
             >
               <ErrorBoundary tituloModulo="Documento">
                 <DocumentoDetalhePage />
+              </ErrorBoundary>
+            </RequireAnyPermission>
+          }
+        />
+        <Route
+          path="/parcerias"
+          element={
+            <RequireAnyPermission
+              permissions={['parcerias', 'aprovar_publicacao']}
+            >
+              <ErrorBoundary tituloModulo="Parcerias e emendas">
+                <ParceriasPage />
+              </ErrorBoundary>
+            </RequireAnyPermission>
+          }
+        />
+        <Route
+          path="/parcerias/nova"
+          element={
+            <RequirePermission permission="parcerias">
+              <ErrorBoundary tituloModulo="Nova parceria">
+                <ParceriaNovaPage />
+              </ErrorBoundary>
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/parcerias/:id"
+          element={
+            <RequireAnyPermission
+              permissions={['parcerias', 'aprovar_publicacao']}
+            >
+              <ErrorBoundary tituloModulo="Parceria">
+                <ParceriaDetalhePage />
               </ErrorBoundary>
             </RequireAnyPermission>
           }

@@ -272,6 +272,30 @@ export const modulos: Modulo[] = [
       },
     ],
   },
+  // v5.4a - parcerias e emendas parlamentares: o dinheiro vem do livro-caixa (centro de custo exclusivo) e o site
+  // de transparência só mostra o que o Presidente ou o Secretário aprovar. Gerir: `parcerias`; aprovar:
+  // `aprovar_publicacao`.
+  {
+    rota: '/parcerias',
+    rotulo: 'Parcerias e emendas',
+    permissao: 'parcerias',
+    permissoesAlternativas: ['aprovar_publicacao'],
+    icone: Handshake,
+    itens: [
+      {
+        rota: '/parcerias',
+        rotulo: 'Parcerias e emendas',
+        icone: Handshake,
+        fim: true,
+      },
+      {
+        rota: '/parcerias/nova',
+        rotulo: 'Nova parceria',
+        icone: CalendarPlus,
+        permissao: 'parcerias',
+      },
+    ],
+  },
   {
     rota: '/projetos',
     rotulo: 'Projetos',
