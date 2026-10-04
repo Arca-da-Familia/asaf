@@ -1184,6 +1184,9 @@ retrabalho que a seção 4.1 existe pra evitar.
 >   recusado.
 > - **Quem aprova:** o sistema exige a permissão `aprovar_publicacao` (Presidente e Secretário a recebem pelo cargo) e que o
 >   aprovador **não seja quem criou nem quem enviou**. A página pública **não** afirma o cargo de quem aprovou.
+> - **RESOLVIDO em 2026-10-04 (decisão do presidente, por voz):** (1) aprova **qualquer um dos dois — Presidente ou Secretário —
+>   porque tem que ser rápido** (como está implementado: um deles, nunca quem criou ou enviou); (2) **depois de aprovado, editar vai
+>   ao site sem nova aprovação** ("não vai ter tantas mudanças"; fica na trilha de auditoria). *Texto de quando estava em aberto:*
 > - **Em aberto, para a diretoria decidir:** (1) o Presidente disse *"os dois podem aprovar, tanto o presidente como o
 >   secretário"* — foi implementado **um deles (outro que não quem enviou)**; se for **os dois juntos**, é uma mudança
 >   pequena; (2) hoje, **depois de aprovada**, uma edição ou um movimento novo vai ao site **sem nova aprovação** (fica na
@@ -1208,21 +1211,26 @@ retrabalho que a seção 4.1 existe pra evitar.
       parlamentares. Esta página será atualizada em até 24 horas após qualquer recebimento." **Dado de exemplo
       NÃO vai à produção** (site de OSC que busca financiamento não exibe registro falso): "EXEMPLO – substituir"
       só em teste/rascunho, e o e2e prova que nenhum exemplo aparece no build de produção.
-- [ ] **Prazo de 24 h**: aprovou no painel → sincronização ≤ 15 min + build ≈ 5 min; "Publicar agora"
-      (`deploy-site.yml`) documentado; **alerta** se o site no ar estiver defasado do sistema por mais de 2 h.
+- [x] **Prazo de 24 h**: aprovou no painel → sincronização ≤ 15 min + build ≈ 5 min; **alerta** se o site no ar
+      estiver defasado do sistema por mais de 2 h (`sincronizar-site.yml` guarda o instante da diferença num cache
+      e abre/fecha o aviso; a lógica foi **executada em bash de verdade** nos testes). *Nada manual: ninguém roda comando.*
 - [x] **Contato (R7)**: a página ganha o texto "serve também para pedidos de informação sobre os recursos
       públicos recebidos", link a partir da Transparência e **prazo de resposta — valor a definir pela
       diretoria** (não será inventado). O formulário do pedido vem na v5.5.
-- [ ] **Projetos e Despertai (R8)**: projeto "Pública" do sistema já tem página; a **camada editorial**
+- [ ] **Projetos e Despertai (R8)** — *decisão de 2026-10-04: o Despertai é um **projeto** do sistema marcado como destaque, cada
+      edição é um **evento** ligado a ele; relatórios = documentos ligados; fotos com autorização; notícias do Directus
+      ligadas pelo número. **Construído, mas AINDA NÃO publicado** (branch local `despertai`, ver o bloco "v5.5 — em
+      andamento" abaixo).* Texto original do item: projeto "Pública" do sistema já tem página; a **camada editorial**
       (texto, edições anteriores com data/local/público e fotos com autorização) fica no **Directus**, e a
       informação do **calendário oficial do município só é publicada com o documento que a comprove**
       (número da lei/decreto — esse documento entra pelo módulo Documentos).
 - [x] **`COMO-ATUALIZAR.md`** para a diretoria, em português simples, agora sobre o **painel**: enviar documento
       (original + versão pública), o que o verificador recusa e por quê, aprovar publicação, regra das 24 h,
       **autorização de imagem**; e a parte do Directus (notícias, fotos).
-- [ ] **Site sempre no ar (comprovação)**: monitor a cada 15 min (`monitorar-site.yml`, histórico guardado,
-      alerta por falha); opcional: teste de disponibilidade do Application Insights (decisão de custo).
-- [ ] **Cargos da diretoria alinhados ao Art. 19** (pré-requisito para publicar dirigentes reais): o catálogo
+- [x] **Site sempre no ar (comprovação)**: monitor a cada 15 min (`monitorar-site.yml`: confere site, painel e API
+      **de fora**; aviso no GitHub na 2ª rodada com falha, fecha sozinho). *Fica como decisão de custo, não feita:* teste
+      de disponibilidade do Application Insights.
+- [x] **Cargos da diretoria alinhados ao Art. 19** (pré-requisito para publicar dirigentes reais): o catálogo
       `titulo_cargo` hoje tem "Vice-Presidente" único, "Diretor de Patrimônio", "Diretor Social" e "Conselho
       Fiscal" como cargo; passa a ter Presidente, 1º/2º Vice-Presidente, 1º/2º Secretário, 1º/2º Tesoureiro e
       Conselheiro Fiscal, **preservando as permissões que cada cargo concede** (migração + testes).
@@ -1232,7 +1240,8 @@ retrabalho que a seção 4.1 existe pra evitar.
 > `/transparencia/` (hub com os quatro caminhos e os documentos aprovados), `/transparencia/emendas/` (+ `/<id>/`),
 > `/transparencia/parcerias/` (+ `/<id>/`), `/transparencia/documentos/` (por tipo e ano, com busca) e
 > `/transparencia/dados/` (CSV e JSON de emendas e de parcerias). Cada peça (lista, detalhe, tabela rolável com foco no
-> teclado) é um **componente solto** em `site/src/components/transparencia/`: quem for redesenhar a Transparência pode reaproveitar.
+> teclado) é um **componente solto** em `site/src/components/transparencia/`: quem for redesenhar a **aparência** da Transparência
+> pode reaproveitar (só visual; o **conteúdo é 100% automático** — criou o relatório, aprovou, vai ao site — e **ninguém roda comando**).
 > **PDF:** copiado no build para `/arquivos/transparencia/<id>-<título>.pdf`; o build **só aceita** o arquivo que for PDF e
 > cujo **SHA-256** for o que a API declara como aprovado (qualquer diferença derruba o build). Importante: o build
 > **não refaz** a leitura da camada de texto; essa conferência é a do sistema, na aprovação (e o SHA-256 amarra o arquivo
@@ -1249,7 +1258,7 @@ retrabalho que a seção 4.1 existe pra evitar.
 > de fornecedor com CPF (MEI) agora é recusada**; **título e descrição de documento** passam pelo verificador de dado pessoal;
 > **"Última atualização" agora acompanha o livro-caixa** (antes só o cadastro); data de aprovação do documento no dia de Belém.
 >
-> **Ainda em aberto na v5.4b (não feito, para ninguém achar que foi):**
+> **Em aberto quando a v5.4b foi publicada (o segundo lote, logo abaixo, resolveu tudo isto, exceto o Despertai e o que está dito lá):**
 >
 > - **Prazo de 24 h:** a sincronização (a cada 15 min) + o build (≈5 min) estão no ar, mas o **alerta de defasagem do site
 >   por mais de 2 h NÃO existe**, e o "até 24 horas" do estado vazio depende de **dois passos humanos** (lançar e classificar
@@ -1271,6 +1280,34 @@ retrabalho que a seção 4.1 existe pra evitar.
 > `version.json` = `a19ca54`. **O que NÃO foi visto ao vivo:** nenhuma emenda/documento real foi cadastrada (não há dado
 > de exemplo em produção, de propósito), então a página de detalhe, o PDF permanente e o CSV com linhas só foram provados
 > no build de teste (e2e) contra a API simulada, que reproduz o formato da API real (a API real é testada à parte, 70 testes).
+>
+> **v5.4b — segundo lote, NO AR e verificado (2026-10-04; commits `a921164` e `db03536`).** Pedido do presidente: "não pode
+> ficar nada para depois". Entregue: (1) **documento público em PDF OU TEXTO** (o Estatuto: PDF de cartório com assinaturas
+> = original interno; texto transcrito = página do site; mesma conferência de dado pessoal, o build só aceita o texto cujo
+> SHA-256 é o aprovado); (2) **cargos do Art. 19** (7) e **Art. 24** (3) no catálogo e em `/diretoria/`, vagos para irem sendo
+> preenchidos pelo registro do mandato (nenhum nome digitado no site); (3) **fotos das etapas com autorização de imagem**
+> (só entram com a autorização confirmada e a descrição; a imagem é **regravada** sem GPS/aparelho, com a rotação aplicada,
+> até 2000 px, JPEG; arquivo privado; apagar tira do site e do armazenamento); (4) **monitor de disponibilidade** e
+> **alerta de site defasado >2 h**; (5) **trava de tamanho** do site (plano gratuito do Azure: 250 MB e 15.000 arquivos;
+> avisa a 60%, **para a publicação a 85%**). *Provas:* backend **741 testes ×2**, painel 156 ×2 (+lint, tipos, build, e2e),
+> site vitest ×2, estado vazio, sincronização, e2e 252 + 65 de acessibilidade, **Lighthouse 39/39**. **Ao vivo:**
+> `painel.asaf.org.br/version.json` = `a921164`; `asaf.org.br/version.json` = `db03536`; as 4 rotas novas no `openapi.json`;
+> `/api/publico/transparencia/documentos` → 200 (a coluna nova existe em produção: a migração rodou); `/diretoria/` mostra os
+> dois órgãos com os **10 cargos vagos**; `monitorar-site.yml` e `sincronizar-site.yml` disparados à mão terminaram **verdes**
+> (os passos de alerta, corretamente, "pulados": nada atrasado); log do deploy: "Tamanho do site (dist): 0.8 MB de 250 MB (0%)
+> e 43 de 15000 arquivos". **Falha minha, pega pelo CI:** o primeiro envio (`a921164`) foi barrado no `astro check` por um erro de
+> tipo num teste — o erro estava no resumo da minha própria verificação, que li só pelo fim. Nada foi publicado errado (a
+> publicação do site é depois dos portões); corrigido em `db03536`. **O que NÃO foi visto ao vivo:** foto de etapa real e
+> Estatuto em texto (não há dado em produção, de propósito; a diretoria sobe o documento) e a abertura real de um aviso no
+> GitHub (provada só executando o script em bash nos testes).
+>
+> **v5.5 — em andamento (2026-10-04, parado de propósito às ~16h por pedido do usuário; nada disto está em produção).** Branch
+> local `despertai` (commits `e0808d2`, `bfebc4c`, `fad3c3b`): projeto em destaque, edição de projeto e de evento (antes só se
+> criavam), evento ligado a projeto, fotos de evento, relatórios como documentos ligados, página do projeto e do evento no site
+> com o contexto, destaque na Home, campos `projeto_id`/`evento_id` nas notícias. **Já feito em produção (aditivo, conferido
+> com `directus_configurar.py verificar --producao`):** os 3 campos novos da coleção `noticias` no Directus. **Falta:** um teste
+> de migração que falha só na suíte inteira (`test_migracao_projeto_destaque`, causa a achar), repetir backend ×2, site (e2e +
+> Lighthouse) e painel e2e no commit final, enviar, acompanhar o CI e conferir ao vivo.
 
 
 ##### 🔍 Ponto de Revisão — FASE 5 (1/2 — meio, fecha v5.0–v5.4)
