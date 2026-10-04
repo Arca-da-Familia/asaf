@@ -45,6 +45,15 @@ PASTAS: dict[str, str] = {
     "documentos": "documentos-emitidos",
 }
 
+# Pastas PRIVADAS (v5.4a, módulo Documentos): NUNCA são servidas por `/uploads` (a rota pública só aceita `PASTAS`).
+# O original de um documento (ata com RG/CPF, termo de fomento...) e a versão pública ainda não aprovada só saem
+# por rotas autenticadas e com permissão (app/routers/documentos.py); a versão pública APROVADA só sai por
+# /api/publico/transparencia/documentos/<id>/arquivo, que confere a situação a cada pedido (retirada = some).
+PASTAS_PRIVADAS: dict[str, str] = {
+    "documentos-originais": "documentos-originais",
+    "documentos-publicos": "documentos-publicos",
+}
+
 # Só estes tipos são servidos — nada de HTML/SVG/JS vindo de upload (XSS armazenado).
 TIPOS_SERVIDOS: dict[str, str] = {
     ".pdf": "application/pdf",
@@ -74,12 +83,20 @@ def nome_aleatorio(extensao: str) -> str:
 
 
 def validar(pasta: str, nome: str) -> str:
-    """Devolve o contêiner da pasta, ou levanta ArmazenamentoInvalido."""
-    if pasta not in PASTAS:
+    """Devolve o contêiner da pasta (pública OU privada), ou levanta ArmazenamentoInvalido."""
+    if pasta not in PASTAS and pasta not in PASTAS_PRIVADAS:
         raise ArmazenamentoInvalido(f"Pasta desconhecida: {pasta!r}")
     if not _NOME_VALIDO.match(nome) or ".." in nome:
         raise ArmazenamentoInvalido(f"Nome de arquivo inválido: {nome!r}")
-    return PASTAS[pasta]
+    return PASTAS[pasta] if pasta in PASTAS else PASTAS_PRIVADAS[pasta]
+
+
+def validar_publica(pasta: str, nome: str) -> str:
+    """Como `validar`, mas SÓ aceita pasta pública: é o que a rota `/uploads` (sem login) usa. Pasta privada
+    parece "desconhecida" - o visitante nem descobre que ela existe."""
+    if pasta not in PASTAS:
+        raise ArmazenamentoInvalido(f"Pasta desconhecida: {pasta!r}")
+    return validar(pasta, nome)
 
 
 def tipo_servido(nome: str) -> Optional[str]:
@@ -98,7 +115,7 @@ def separar_url(url: Optional[str]) -> Optional[tuple[str, str]]:
     if len(partes) != 2:
         return None
     try:
-        validar(partes[0], partes[1])
+        validar_publica(partes[0], partes[1])
     except ArmazenamentoInvalido:
         return None
     return partes[0], partes[1]
@@ -174,10 +191,27 @@ class ArmazenamentoBlob:
     def salvar(self, pasta: str, nome: str, conteudo: bytes) -> None:
         from azure.storage.blob import ContentSettings
 
+        from azure.core.exceptions import ResourceNotFoundError
+
         tipo = tipo_servido(nome) or "application/octet-stream"
-        self._blob(pasta, nome).upload_blob(
-            conteudo, overwrite=True, content_settings=ContentSettings(content_type=tipo)
-        )
+        blob = self._blob(pasta, nome)
+        try:
+            blob.upload_blob(conteudo, overwrite=True, content_settings=ContentSettings(content_type=tipo))
+        except ResourceNotFoundError as erro:
+            # Contêiner novo (ex.: o do módulo Documentos, v5.4a) que o script de infraestrutura ainda não criou:
+            # cria, privado (sem acesso público - a conta não permite), e tenta de novo. Outro "não encontrado" sobe.
+            if getattr(erro, "error_code", None) != "ContainerNotFound":
+                raise
+            self._criar_conteiner(validar(pasta, nome))
+            blob.upload_blob(conteudo, overwrite=True, content_settings=ContentSettings(content_type=tipo))
+
+    def _criar_conteiner(self, conteiner: str) -> None:
+        from azure.core.exceptions import ResourceExistsError
+
+        try:
+            self._cliente.get_container_client(conteiner).create_container()
+        except ResourceExistsError:  # outra réplica criou no mesmo instante
+            pass
 
     def ler(self, pasta: str, nome: str) -> Optional[bytes]:
         from azure.core.exceptions import ResourceNotFoundError

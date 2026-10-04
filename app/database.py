@@ -183,12 +183,12 @@ def seed_catalogos():
         # e app/security.py::usuario_tem_permissao) - semente de partida plausível por
         # competência do Art. 20/21 do estatuto, ajustável pela diretoria sem deploy.
         "titulo_cargo": ("Título de cargo", True, "governanca", [
-            ("PRESIDENTE", "Presidente", {"permissoes": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria"]}),
+            ("PRESIDENTE", "Presidente", {"permissoes": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias"]}),
             ("VICE_PRESIDENTE", "Vice-Presidente", {"permissoes": ["associados", "governanca"]}),
-            ("TESOUREIRO", "Tesoureiro", {"permissoes": ["financeiro"]}),
-            ("VICE_TESOUREIRO", "Vice-Tesoureiro", {"permissoes": ["financeiro"]}),
-            ("SECRETARIO", "Secretário", {"permissoes": ["associados", "governanca"]}),
-            ("VICE_SECRETARIO", "Vice-Secretário", {"permissoes": ["associados"]}),
+            ("TESOUREIRO", "Tesoureiro", {"permissoes": ["financeiro", "parcerias"]}),
+            ("VICE_TESOUREIRO", "Vice-Tesoureiro", {"permissoes": ["financeiro", "parcerias"]}),
+            ("SECRETARIO", "Secretário", {"permissoes": ["associados", "governanca", "documentos", "documentos_originais", "aprovar_publicacao"]}),
+            ("VICE_SECRETARIO", "Vice-Secretário", {"permissoes": ["associados", "documentos"]}),
             ("CONSELHO_FISCAL", "Conselho Fiscal", {"permissoes": ["financeiro", "auditoria"]}),
             ("DIRETOR_DE_PATRIMONIO", "Diretor de Patrimônio", {}),
             ("DIRETOR_SOCIAL", "Diretor Social", {"permissoes": ["projetos"]}),
@@ -369,6 +369,11 @@ def seed_niveis_e_permissoes():
         {"nome_nivel": "Conselho Fiscal", "descricao": "Fiscalização financeira e de atas.", "is_conselho_fiscal": True, "exige_mfa": False},
         {"nome_nivel": "Associado", "descricao": "Autoatendimento do próprio cadastro.", "is_conselho_fiscal": False, "exige_mfa": False},
         {"nome_nivel": "Voluntário Externo", "descricao": "Acesso restrito ao próprio histórico de voluntariado.", "is_conselho_fiscal": False, "exige_mfa": False},
+        # v5.4a - perfis EXCLUSIVOS, um por situação: quem recebe só um deles só faz aquilo (privilégio mínimo).
+        {"nome_nivel": "Documentos - preparo", "descricao": "Cadastra documentos, anexa original e versão pública e envia para revisão. NÃO aprova e NÃO baixa originais sigilosos.", "is_conselho_fiscal": False, "exige_mfa": False},
+        {"nome_nivel": "Documentos - originais sigilosos", "descricao": "Vê a lista e baixa o ORIGINAL de documento Interno/Restrito (pode ter RG/CPF). Todo download é auditado.", "is_conselho_fiscal": False, "exige_mfa": True},
+        {"nome_nivel": "Publicação - aprovação", "descricao": "Aprova, recusa e retira publicações da transparência. Nunca aprova o que ele mesmo enviou.", "is_conselho_fiscal": False, "exige_mfa": True},
+        {"nome_nivel": "Parcerias e emendas - gestão", "descricao": "Cadastra parcerias, emendas, parcelas, etapas e relatórios (v5.4a).", "is_conselho_fiscal": False, "exige_mfa": False},
     ]
     permissoes_padrao = [
         {"modulo": "core", "codigo_permissao": "gerenciar_acesso", "descricao": "Gerenciar níveis de acesso e permissões."},
@@ -384,15 +389,23 @@ def seed_niveis_e_permissoes():
         {"modulo": "eventos", "codigo_permissao": "exportar_inscricoes_evento", "descricao": "Exportar lista de inscritos de um evento (v4.10 - separada de 'exportar_presencas_evento' de propósito, cada exportação em massa tem o seu próprio código)."},
         {"modulo": "projetos", "codigo_permissao": "exportar_beneficiarios", "descricao": "Exportar dado de beneficiário em massa através de projetos (v4.10 - separada de 'projetos' de propósito, mesmo padrão de 'exportar_dados_pessoais')."},
         {"modulo": "projetos", "codigo_permissao": "exportar_reservas_espaco", "descricao": "Exportar lista de reservas de espaço em massa (v4.10 - separada de 'projetos'/demais exportações de propósito)."},
+        {"modulo": "documentos", "codigo_permissao": "documentos", "descricao": "Cadastrar documentos institucionais, anexar original e versão pública e enviar para revisão (v5.4a)."},
+        {"modulo": "documentos", "codigo_permissao": "documentos_originais", "descricao": "Baixar o ORIGINAL de documento Interno/Restrito, que pode ter RG/CPF (v5.4a - separada de 'documentos' de propósito, mesmo padrão de 'exportar_dados_pessoais')."},
+        {"modulo": "documentos", "codigo_permissao": "aprovar_publicacao", "descricao": "Aprovar, recusar e retirar publicações no site de transparência; nunca o que a própria pessoa enviou (v5.4a)."},
+        {"modulo": "parcerias", "codigo_permissao": "parcerias", "descricao": "Gerenciar parcerias, emendas parlamentares, parcelas, etapas e relatórios (v5.4a)."},
     ]
     # Nível -> lista de códigos de permissão que ele recebe por padrão (ajustável depois pela
     # própria tela de administração de acesso, isto aqui é só ponto de partida).
     atribuicoes_padrao = {
-        "Presidente": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria", "exportar_dados_pessoais", "forcar_cadastro_duplicado", "gerenciar_checkin_evento", "exportar_presencas_evento", "exportar_inscricoes_evento", "exportar_beneficiarios", "exportar_reservas_espaco"],
-        "Diretoria": ["associados", "financeiro", "governanca", "projetos", "gerenciar_checkin_evento"],
+        "Presidente": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria", "exportar_dados_pessoais", "forcar_cadastro_duplicado", "gerenciar_checkin_evento", "exportar_presencas_evento", "exportar_inscricoes_evento", "exportar_beneficiarios", "exportar_reservas_espaco", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias"],
+        "Diretoria": ["associados", "financeiro", "governanca", "projetos", "gerenciar_checkin_evento", "documentos", "parcerias"],
         "Conselho Fiscal": ["financeiro", "auditoria"],
         "Associado": [],
         "Voluntário Externo": [],
+        "Documentos - preparo": ["documentos"],
+        "Documentos - originais sigilosos": ["documentos_originais"],
+        "Publicação - aprovação": ["aprovar_publicacao"],
+        "Parcerias e emendas - gestão": ["parcerias"],
     }
 
     db = SessaoLocal()

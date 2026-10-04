@@ -13,3 +13,4 @@ reportlab==5.0.1
 qrcode[pil]==8.2
 azure-storage-blob==12.31.0
 azure-identity==1.26.0
+pypdf==6.19.0

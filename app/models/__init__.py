@@ -233,3 +233,4 @@ __all__ = [
     "FechamentoEvento",
     "RespostaPesquisaSatisfacao",
 ]
+from app.models.documentos import DocumentoInstitucional

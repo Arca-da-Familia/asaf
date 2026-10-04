@@ -12,6 +12,9 @@ Regras (cada uma tem teste em tests/test_publico.py):
     LINK de acesso remoto quando há (app/services/assembleia.py::gerar_edital) - esse trecho é
     REMOVIDO daqui: o link é para quem foi convocado, e publicá-lo daria a qualquer pessoa a sala da
     assembleia. A prova de integridade (SHA-256) é calculada sobre o texto efetivamente publicado.
+  - Documentos (v5.4a): só os APROVADOS para o site (`situacao == Aprovado`), e do arquivo só a VERSÃO PÚBLICA -
+    nunca o original, a classificação, o texto extraído nem quem enviou/aprovou. Retirado do site = 404 na hora
+    (o arquivo é lido a cada pedido, não há link permanente para um arquivo solto).
 Esta é a mesma fronteira das rotas de evento (app/routers/eventos.py): o site é leitura pública, o
 painel é gestão."""
 import hashlib
@@ -20,14 +23,18 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.associados import Associado
 from app.models.core import Catalogo, OpcaoCatalogo
+from app.models.documentos import APROVADO, TIPOS as TIPOS_DE_DOCUMENTO, DocumentoInstitucional
 from app.models.governanca import Assembleia, RASCUNHO
 from app.models.mandatos import Mandato
 from app.models.projetos import ProjetoEvento
+from app.services import armazenamento
 from app.services.assembleia import horarios_convocacao
 
 router = APIRouter()
@@ -151,3 +158,51 @@ def obter_assembleia_publica(id_assembleia: int, db: Session = Depends(get_db)):
     if not assembleia:
         raise HTTPException(status_code=404, detail="Assembleia não encontrada.")
     return _serializar_assembleia_publica(db, assembleia)
+
+
+# ==========================================
+# DOCUMENTOS DA TRANSPARÊNCIA (v5.4a) - só o APROVADO, só a versão pública
+# ==========================================
+def _documentos_publicos(db: Session):
+    return (
+        db.query(DocumentoInstitucional)
+        .filter(DocumentoInstitucional.situacao == APROVADO, DocumentoInstitucional.publicar_no_site.is_(True),
+                DocumentoInstitucional.publico_nome.isnot(None))
+        .order_by(DocumentoInstitucional.ano.desc().nullslast(), DocumentoInstitucional.titulo, DocumentoInstitucional.versao.desc())
+        .all()
+    )
+
+
+def _serializar_documento_publico(d: DocumentoInstitucional) -> dict:
+    return {
+        "id_documento": d.id_documento, "tipo_codigo": d.tipo, "tipo": TIPOS_DE_DOCUMENTO.get(d.tipo, d.tipo),
+        "titulo": d.titulo, "descricao": d.descricao,
+        "data_documento": d.data_documento.isoformat() if d.data_documento else None, "ano": d.ano,
+        "versao": d.versao, "vigente": bool(d.vigente),
+        "paginas": d.publico_paginas, "tamanho": d.publico_tamanho, "sha256": d.publico_sha256,
+        "aprovado_em": _data(d.aprovado_em),
+        "arquivo": f"/api/publico/transparencia/documentos/{d.id_documento}/arquivo",
+    }
+
+
+@router.get("/api/publico/transparencia/documentos", summary="Documentos aprovados para a transparência (leitura, sem autenticação, pro site)")
+def listar_documentos_publicos(db: Session = Depends(get_db)):
+    return [_serializar_documento_publico(d) for d in _documentos_publicos(db)]
+
+
+@router.get("/api/publico/transparencia/documentos/{id_documento}/arquivo", summary="PDF da versão pública de um documento aprovado")
+async def arquivo_do_documento_publico(id_documento: int, db: Session = Depends(get_db)):
+    d = next((x for x in _documentos_publicos(db) if x.id_documento == id_documento), None)
+    if d is None:  # inexistente, em rascunho, em revisão ou retirado: todos respondem igual
+        raise HTTPException(status_code=404, detail="Documento não encontrado.")
+    conteudo = await run_in_threadpool(armazenamento.obter().ler, "documentos-publicos", d.publico_nome)
+    if conteudo is None:
+        raise HTTPException(status_code=404, detail="Documento não encontrado.")
+    return Response(
+        content=conteudo, media_type="application/pdf",
+        headers={
+            "X-Content-Type-Options": "nosniff",
+            "Content-Disposition": 'inline; filename="documento.pdf"',
+            "Cache-Control": "public, max-age=300",
+        },
+    )

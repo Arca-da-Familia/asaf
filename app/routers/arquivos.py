@@ -18,7 +18,7 @@ router = APIRouter()
 @router.get("/uploads/{pasta}/{nome}", summary="Baixar arquivo enviado", include_in_schema=False)
 async def baixar_arquivo(pasta: str, nome: str):
     try:
-        armazenamento.validar(pasta, nome)
+        armazenamento.validar_publica(pasta, nome)  # pasta privada (documentos) parece inexistente
     except armazenamento.ArmazenamentoInvalido:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
     tipo = armazenamento.tipo_servido(nome)
