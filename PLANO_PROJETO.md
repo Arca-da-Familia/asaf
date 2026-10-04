@@ -1121,70 +1121,103 @@ retrabalho que a seção 4.1 existe pra evitar.
 
 ##### v5.4a — No sistema (painel + API)
 
-- [ ] **Módulo Documentos** (biblioteca institucional): tipo (estatuto, ata, certidão, CNPJ, balanço, relatório
+- [x] **Módulo Documentos** (biblioteca institucional): tipo (estatuto, ata, certidão, CNPJ, balanço, relatório
       anual, inscrição em conselho, termo de fomento, plano de trabalho, aditivo, prestação de contas, outro),
       título, descrição, data, **versão** e "vigente", **validade** (certidão com alerta de vencimento),
       **classificação** (Pública / Interna / Restrita), **vínculo** (ata, estatuto, parceria/emenda, projeto,
       evento), **arquivo original** (armazenamento privado, **download autenticado e por permissão**, nunca pela
       rota pública `/uploads`), **versão pública** (arquivo separado) e texto extraído (busca).
-- [ ] **Proteção de dado pessoal**: verificador automático da versão pública (texto extraído **sem** CPF, RG,
+- [x] **Proteção de dado pessoal**: verificador automático da versão pública (texto extraído **sem** CPF, RG,
       telefone/e-mail pessoal; **com** camada de texto — PDF só-imagem é recusado; diferente do original) +
       **aprovação de publicação por outra pessoa** (rascunho → em revisão → aprovado → no site; quem enviou
       não aprova), registro de quem enviou/aprovou/retirou e **SHA-256 do que foi publicado**; "retirar do
       site" preservando o histórico.
-- [ ] **Atas e Estatuto ligados**: `Ata.arquivo_documento_assinado` e `DocumentoEstatuto.caminho_arquivo`
+- [x] **Atas e Estatuto ligados**: `Ata.arquivo_documento_assinado` e `DocumentoEstatuto.caminho_arquivo`
       passam a ser documentos da biblioteca, **sem perder nenhum arquivo já enviado** (migração com teste).
-- [ ] **Tela do painel bem organizada** (crítica do usuário à biblioteca crua do Directus: "só coloca aqui, perdeu
+- [x] **Tela do painel bem organizada** (crítica do usuário à biblioteca crua do Directus: "só coloca aqui, perdeu
       organização"): lista **agrupada por tipo**, filtros (tipo, ano, situação, no site), pré-visualização, selo
       "No site / Não publicado / Em revisão", alerta de vencimento, **envio em duas etapas** (original +
       versão pública) com o **resultado da verificação na tela**, e histórico de versões.
-- [ ] **Perfis do sistema**: gerir documentos; ver restritos; **aprovar publicação** (perfil novo, mínimo).
+- [x] **Perfis do sistema**: gerir documentos; ver restritos; **aprovar publicação** (perfil novo, mínimo).
       O que era "Editor de transparência" do Directus vira perfil **do sistema** (`niveis_acesso`).
-- [ ] **Módulo Parcerias e emendas** (núcleo da v12.1, **sem** ativar o módulo todo): parceria/emenda (ano, nº da
+- [x] **Módulo Parcerias e emendas** (núcleo da v12.1, **sem** ativar o módulo todo): parceria/emenda (ano, nº da
       emenda, ID único, **proponente = vereador**, valor, objeto, secretaria concedente, nº do Termo de Fomento,
       vigência, situação), **parcelas**, **etapas de execução** (data, local, público, fotos com autorização),
       **relatórios e prestação de contas** (situação **regulares / com ressalvas / irregulares**, data prevista,
       data de apresentação, prazo de análise de 150 dias — Lei 13.019 art. 11, V; lei municipal arts. 62, 68, 71) e
       **documentos ligados** (pelo módulo Documentos).
-- [ ] **Dinheiro vem do livro-caixa**, não digitado de novo: cada parceria tem **centro de custo exclusivo**
+- [x] **Dinheiro vem do livro-caixa**, não digitado de novo: cada parceria tem **centro de custo exclusivo**
       (FASE 3); pagamentos e recebimentos publicados **são** os lançamentos desse centro (fornecedor, CNPJ,
       descrição, valor, data; **equipe paga = função + valor individualizado, sem nome nem CPF** — lei municipal
       art. 43, § 4º e Lei 13.019 art. 11, VI; **a validar juridicamente**). **Consistência:** soma das parcelas ≤
       valor da emenda; pagamentos ≤ recebido; "aprovada" só com relatório. Violação = erro com o nome do registro.
-- [ ] **API pública** `/api/publico/transparencia/...` (só o que foi **aprovado**; para documento, **só a versão
+- [x] **API pública** `/api/publico/transparencia/...` (só o que foi **aprovado**; para documento, **só a versão
       pública**; campos explícitos, nada interno — mesmo cuidado das rotas da v5.2) e entrada no
       `conteudo.json` para a sincronização republicar o site quando mudar.
-- [ ] **Testes**: matriz de permissões; original **nunca** aparece na API pública; documento Interno/Restrito
+- [x] **Testes**: matriz de permissões; original **nunca** aparece na API pública; documento Interno/Restrito
       nunca é publicado; verificador pega CPF/RG/telefone e PDF só-imagem; aprovação por outra pessoa;
       download do original exige login e permissão; migração de atas preserva os arquivos.
 
+> **v5.4a — feito e verificado ao vivo (2026-10-04).** Commits `2f2a45b` (documentos), `594364a` (tela de Documentos),
+> `0fc7fb3` + `3c5c2b2` (Parcerias e emendas: API + painel), `d2a39f3` (atas ligadas), `eaa6f46` (correções da conferência
+> de fatos). **Provas:** Deploy API verde em todos; o log da produção mostra `Running upgrade a7c1e9d3f0b2 -> b5e2d8f1a436`
+> (a anterior, de Documentos, `c3f8a1d07b94 -> a7c1e9d3f0b2`); `painel.asaf.org.br/version.json` bateu o commit e o *bundle*
+> publicado contém as telas; `GET /api/publico/transparencia/parcerias` e `/documentos` → 200 `[]`; detalhe inexistente
+> → 404; `GET /api/parcerias` sem login → 401; 19 rotas de parcerias no `openapi.json`; `/uploads/atas/<nome>` e
+> `/uploads/documentos-originais/<nome>` → **404** (a ata assinada, que tem RG/CPF, deixou de ser pública). **Testes:**
+> backend 680 passaram em duas passadas seguidas (inclui a migração `b5e2d8f1a436` comparada, tabela a tabela, com os
+> modelos), painel 150 (vitest, inclui a renderização das telas completas com axe) + 10 e2e, lint/formatação/tipos limpos. **Não** foi feito login no painel (MFA intocado):
+> perfis e permissões foram provados pelos testes de matriz.
+>
+> **O que mudou em relação ao plano (decisões a registrar):**
+>
+> - **Fotos das etapas** (com autorização de imagem) **ficaram para a v5.4b**: precisam de um caminho próprio que confira a
+>   autorização; a etapa hoje tem data, local, público atendido e descrição.
+> - **Estatuto:** `DocumentoEstatuto.caminho_arquivo` é só um nome de referência (`ESTATUTO_ASAF.txt`), **não há arquivo a
+>   migrar**; o PDF registrado em cartório entra pelo módulo Documentos (tipo *Estatuto*, classificação *Pública*) quando a
+>   diretoria o enviar. **Atas:** o documento assinado é agora um documento *Restrito* privado, o caminho guardado na ata é o
+>   do download autenticado e as atas antigas (se houver) são **copiadas** para a biblioteca na inicialização
+>   (idempotente, o arquivo antigo não é apagado; testado).
+> - **Movimentos do livro-caixa precisam ser classificados** (texto público, tipo de pagamento, função da equipe) antes da
+>   publicação: sem isso a aprovação fica travada. O texto público passa pelo mesmo verificador de dado pessoal; **nome de
+>   pessoa o sistema não detecta** (depende de quem classifica e de quem aprova). Fornecedor com CPF na razão social (MEI) é
+>   recusado.
+> - **Quem aprova:** o sistema exige a permissão `aprovar_publicacao` (Presidente e Secretário a recebem pelo cargo) e que o
+>   aprovador **não seja quem criou nem quem enviou**. A página pública **não** afirma o cargo de quem aprovou.
+> - **Em aberto, para a diretoria decidir:** (1) o Presidente disse *"os dois podem aprovar, tanto o presidente como o
+>   secretário"* — foi implementado **um deles (outro que não quem enviou)**; se for **os dois juntos**, é uma mudança
+>   pequena; (2) hoje, **depois de aprovada**, uma edição ou um movimento novo vai ao site **sem nova aprovação** (fica na
+>   trilha de auditoria); se a diretoria quiser nova aprovação a cada mudança, o custo é a página sair do ar enquanto espera.
+> - **Conferência independente de fatos (agente) das páginas novas:** achou 4 frases imprecisas e 3 riscos reais, todos
+>   **corrigidos antes de publicar** (ver v5.4b).
+
 ##### v5.4b — No site (páginas geradas a partir da API do sistema)
 
-- [ ] **Páginas** (adaptando as existentes): `/transparencia/` vira o **hub** (estatuto, diretoria, editais,
+- [x] **Páginas** (adaptando as existentes): `/transparencia/` vira o **hub** (estatuto, diretoria, editais,
       emendas, parcerias, documentos, contato para pedido de informação);
       `/transparencia/emendas/` (todos os anos, filtro por ano e situação, **nunca apaga ano anterior**);
       `/transparencia/emendas/<id>/` (valores, parcelas, pagamentos, etapas, documentos, relatórios e
       **"Última atualização" automática**); `/transparencia/parcerias/`;
       `/transparencia/documentos/` (**organizada por tipo e ano**, com busca; só versões públicas aprovadas);
       **dados abertos** `/transparencia/dados/emendas.csv` e `.json`.
-- [ ] **PDFs em URL permanente** (`/arquivos/transparencia/<id>-<slug>.pdf`), copiados no build — o site não
+- [x] **PDFs em URL permanente** (`/arquivos/transparencia/<id>-<slug>.pdf`), copiados no build — o site não
       depende de o sistema estar acordado (partida a frio de ~21–35 s) e o PDF **continua pesquisável**
       (conferido de novo no build). Conferir o limite de tamanho do Static Web App antes de crescer.
-- [ ] **Destaque na Home**: cartão "Emendas parlamentares" (o link "Transparência" já está no menu e no rodapé).
-- [ ] **Estado vazio honesto** (texto dado pelo usuário): "A associação ainda não recebeu recursos de emendas
+- [x] **Destaque na Home**: cartão "Emendas parlamentares" (o link "Transparência" já está no menu e no rodapé). *Feito como link em destaque no cartão "Contas claras" da Home e no rodapé (não como um cartão só dele).*
+- [x] **Estado vazio honesto** (texto dado pelo usuário): "A associação ainda não recebeu recursos de emendas
       parlamentares. Esta página será atualizada em até 24 horas após qualquer recebimento." **Dado de exemplo
       NÃO vai à produção** (site de OSC que busca financiamento não exibe registro falso): "EXEMPLO – substituir"
       só em teste/rascunho, e o e2e prova que nenhum exemplo aparece no build de produção.
 - [ ] **Prazo de 24 h**: aprovou no painel → sincronização ≤ 15 min + build ≈ 5 min; "Publicar agora"
       (`deploy-site.yml`) documentado; **alerta** se o site no ar estiver defasado do sistema por mais de 2 h.
-- [ ] **Contato (R7)**: a página ganha o texto "serve também para pedidos de informação sobre os recursos
+- [x] **Contato (R7)**: a página ganha o texto "serve também para pedidos de informação sobre os recursos
       públicos recebidos", link a partir da Transparência e **prazo de resposta — valor a definir pela
       diretoria** (não será inventado). O formulário do pedido vem na v5.5.
 - [ ] **Projetos e Despertai (R8)**: projeto "Pública" do sistema já tem página; a **camada editorial**
       (texto, edições anteriores com data/local/público e fotos com autorização) fica no **Directus**, e a
       informação do **calendário oficial do município só é publicada com o documento que a comprove**
       (número da lei/decreto — esse documento entra pelo módulo Documentos).
-- [ ] **`COMO-ATUALIZAR.md`** para a diretoria, em português simples, agora sobre o **painel**: enviar documento
+- [x] **`COMO-ATUALIZAR.md`** para a diretoria, em português simples, agora sobre o **painel**: enviar documento
       (original + versão pública), o que o verificador recusa e por quê, aprovar publicação, regra das 24 h,
       **autorização de imagem**; e a parte do Directus (notícias, fotos).
 - [ ] **Site sempre no ar (comprovação)**: monitor a cada 15 min (`monitorar-site.yml`, histórico guardado,
@@ -1193,7 +1226,52 @@ retrabalho que a seção 4.1 existe pra evitar.
       `titulo_cargo` hoje tem "Vice-Presidente" único, "Diretor de Patrimônio", "Diretor Social" e "Conselho
       Fiscal" como cargo; passa a ter Presidente, 1º/2º Vice-Presidente, 1º/2º Secretário, 1º/2º Tesoureiro e
       Conselheiro Fiscal, **preservando as permissões que cada cargo concede** (migração + testes).
-- [ ] **Verificação de fatos independente** (regra de 2026-10-03) em todas as páginas novas, antes de dar por pronto.
+- [x] **Verificação de fatos independente** (regra de 2026-10-03) em todas as páginas novas, antes de dar por pronto.
+
+> **v5.4b — páginas no ar e verificadas (2026-10-04, commit `eaa6f46`; correção do painel `a19ca54`).** Páginas:
+> `/transparencia/` (hub com os quatro caminhos e os documentos aprovados), `/transparencia/emendas/` (+ `/<id>/`),
+> `/transparencia/parcerias/` (+ `/<id>/`), `/transparencia/documentos/` (por tipo e ano, com busca) e
+> `/transparencia/dados/` (CSV e JSON de emendas e de parcerias). Cada peça (lista, detalhe, tabela rolável com foco no
+> teclado) é um **componente solto** em `site/src/components/transparencia/`: quem for redesenhar a Transparência pode reaproveitar.
+> **PDF:** copiado no build para `/arquivos/transparencia/<id>-<título>.pdf`; o build **só aceita** o arquivo que for PDF e
+> cujo **SHA-256** for o que a API declara como aprovado (qualquer diferença derruba o build). Importante: o build
+> **não refaz** a leitura da camada de texto; essa conferência é a do sistema, na aprovação (e o SHA-256 amarra o arquivo
+> aprovado ao publicado). **O limite de tamanho do Static Web App ainda precisa ser conferido antes de os PDFs crescerem.**
+> **Estado vazio:** o `test:vazio` prova, no build contra a API sem nada cadastrado, o texto do presidente palavra por
+> palavra, **nenhuma** página de emenda/parceria, **nenhum** PDF e **a palavra "EXEMPLO" em nenhum arquivo** (o mock marca todo
+> dado de teste com ela). **Provas ao vivo e de CI:** ver o bloco "Verificado ao vivo" logo abaixo. **Conferência independente
+> de fatos** (agente que não escreveu as páginas): 4 frases imprecisas e 3 riscos reais, **todos corrigidos antes de publicar** —
+> "nada é apagado" (retirar do site é possível) → "os anos anteriores continuam nesta página"; "Saldo em conta" → "Saldo
+> (recebido menos pago)" (não é extrato bancário); "aprovada pelo Presidente ou pelo Secretário" → "por uma pessoa autorizada,
+> diferente de quem cadastrou e enviou" (o sistema confere a permissão, não o cargo); "recente… será completada em breve" →
+> "ainda não detalhado" (o sistema não promete prazo de classificação); "dados pessoais são cobertos" → "conferida para não
+> trazer CPF, RG, e-mail ou celular" (recusa, não cobre); exemplo de CSV com casas decimais fixas era falso; **razão social
+> de fornecedor com CPF (MEI) agora é recusada**; **título e descrição de documento** passam pelo verificador de dado pessoal;
+> **"Última atualização" agora acompanha o livro-caixa** (antes só o cadastro); data de aprovação do documento no dia de Belém.
+>
+> **Ainda em aberto na v5.4b (não feito, para ninguém achar que foi):**
+>
+> - **Prazo de 24 h:** a sincronização (a cada 15 min) + o build (≈5 min) estão no ar, mas o **alerta de defasagem do site
+>   por mais de 2 h NÃO existe**, e o "até 24 horas" do estado vazio depende de **dois passos humanos** (lançar e classificar
+>   o recebimento; para a **primeira** emenda, outra pessoa aprovar). Desenho do alerta: guardar o instante em que a
+>   diferença apareceu (a execução do workflow é sem memória) e falhar a rodada depois de 2 h.
+> - **Monitor de disponibilidade** (`monitorar-site.yml`), **Despertai / projetos (R8)**, **cargos da diretoria × Art. 19** e
+>   **fotos das etapas com autorização de imagem**.
+> - **Nome de pessoa em texto livre** (descrição pública, objeto, etapa) o sistema **não** detecta: depende de quem escreve e
+>   de quem aprova (o `COMO-ATUALIZAR.md` avisa).
+>
+> **Verificado ao vivo (2026-10-04):** `asaf.org.br/version.json` = `eaa6f46` (Deploy Site verde: formato, tipos, 153 testes
+> unitários, **247 e2e** com axe desktop e celular em todas as páginas, SEO, estado vazio, sincronização e **Lighthouse CI** em 13
+> URLs, incluindo as novas); `/transparencia/`, `/emendas/`, `/parcerias/`, `/documentos/`, `/dados/`, `emendas.csv` (só o
+> cabeçalho), `emendas.json` (`[]`), `parcerias.csv`, `conteudo.json` (contagem zero, inclui `parcerias` e `documentos`) →
+> 200; `/transparencia/emendas/` traz o estado vazio com o texto do presidente e **não contém "EXEMPLO"**;
+> `/arquivos/transparencia/…` → 404 (nenhum PDF sem documento aprovado); o Contato traz o parágrafo de pedido de
+> informação, sem prazo. A **sincronização** disparada à mão depois do deploy terminou verde **sem** disparar novo deploy
+> (a impressão digital nova — com parcerias e documentos — bate com a do site: não há laço de reconstrução). Painel
+> `version.json` = `a19ca54`. **O que NÃO foi visto ao vivo:** nenhuma emenda/documento real foi cadastrada (não há dado
+> de exemplo em produção, de propósito), então a página de detalhe, o PDF permanente e o CSV com linhas só foram provados
+> no build de teste (e2e) contra a API simulada, que reproduz o formato da API real (a API real é testada à parte, 70 testes).
+
 
 ##### 🔍 Ponto de Revisão — FASE 5 (1/2 — meio, fecha v5.0–v5.4)
 
