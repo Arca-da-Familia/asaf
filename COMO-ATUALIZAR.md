@@ -10,6 +10,7 @@ Este guia é para quem edita o site (diretoria e comunicação). Não precisa sa
 | Diretoria, projetos, eventos, editais de assembleia | Sistema da ASAF | O painel do sistema (`painel.asaf.org.br`) |
 | Documentos oficiais (atas, certidões, balanços, termos) | Sistema da ASAF | O painel, módulo **Documentos** (veja abaixo) |
 | Emendas parlamentares, parcerias, parcelas, pagamentos, etapas e prestação de contas | Sistema da ASAF | O painel, módulo **Parcerias e emendas** (veja abaixo) |
+| Quem ocupa cada cargo da Diretoria e do Conselho Fiscal | Sistema da ASAF | O painel, **Governança → Mandatos** (veja abaixo) |
 
 > **Nunca coloque documento oficial (ata, estatuto, certidão, termo) no Editor do site.** Eles têm RG, CPF e outros
 > dados pessoais e precisam de controle próprio, que fica no sistema.
@@ -39,7 +40,7 @@ Este guia é para quem edita o site (diretoria e comunicação). Não precisa sa
 ### Quanto tempo leva para aparecer no site?
 
 O site confere o Editor a cada **15 minutos** e, se algo mudou, publica sozinho (leva uns 5 minutos). Então, em geral, a
-notícia aparece **em até 25 minutos**. Para publicar na hora, peça a quem cuida do sistema para rodar *Publicar agora*.
+notícia aparece **em até 25 minutos**. Não existe nenhum passo a mais para você: salvou como **Publicado**, o resto é automático.
 
 Notícia com **data de publicação no futuro** só aparece quando a data chegar.
 
@@ -82,9 +83,15 @@ registrado). O que vai ao site é uma **versão pública**, conferida pelo siste
    CPF, endereço; ex.: ata assinada).
 2. Se for para o site, deixe marcado **Publicar no site de transparência**. Anexe o arquivo original (PDF, JPG ou PNG, até
    25 MB). Ele fica guardado em área privada.
-3. Na tela do documento, envie a **versão pública**: uma cópia em **PDF com texto** em que os dados pessoais foram
-   **apagados de verdade** (não vale só desenhar uma tarja preta por cima: o texto continua dentro do arquivo). Documento
-   *Pública* pode usar o próprio original (botão **Usar o original como versão pública**).
+3. Na tela do documento, envie a **versão pública**. Ela pode ser de **dois jeitos**:
+   - **PDF com texto**, em que os dados pessoais foram **apagados de verdade** (não vale só desenhar uma tarja preta por
+     cima: o texto continua dentro do arquivo). Documento *Pública* pode usar o próprio original (botão **Usar o original
+     como versão pública**);
+   - **Texto colado no sistema** (caixa **Colar o texto da versão pública**): serve para o que o público lê como página.
+     O exemplo é o **Estatuto**: o PDF registrado em cartório (com as assinaturas) fica como **original interno**, e o
+     texto do estatuto, **já sem as assinaturas**, é colado aqui e vira uma página do site. O texto passa pela **mesma
+     conferência** do PDF e, se for aprovado, o site mostra **exatamente** aquele texto (o sistema confere que nada mudou
+     no caminho). Os dois jeitos seguem os mesmos passos de aprovação.
 4. O sistema **confere na hora** e mostra o resultado. Ele **recusa** a versão pública se encontrar: CPF; número de RG, CNH,
    título de eleitor, PIS ou carteira de trabalho; e-mail que não seja da ASAF; celular que não seja o da ASAF; PDF que é
    só imagem escaneada (mais da metade das páginas sem texto); PDF com senha, danificado, com programa dentro ou com arquivo
@@ -128,7 +135,7 @@ digita de novo**: o que entrou e saiu é lido do **livro-caixa** por esse centro
 
    **Não escreva nome de pessoa, CPF, telefone ou e-mail no texto público.** O sistema recusa CPF, RG, e-mail pessoal e
    celular, mas **não consegue detectar um nome** — isso é com quem classifica e com quem aprova.
-5. **Etapas de execução** (oficinas, entregas) e **relatórios / prestação de contas** (previsto, apresentado, prazo de
+5. **Etapas de execução** (oficinas, entregas), com **fotos** (veja a regra logo abaixo), e **relatórios / prestação de contas** (previsto, apresentado, prazo de
    análise e resultado: *regulares*, *regulares com ressalvas* ou *irregulares*). O resultado só existe depois de o
    relatório ser apresentado. A parceria só vira **Concluída** depois da prestação de contas final apresentada.
 6. O painel mostra **pendências** em vermelho (travam a publicação: soma das parcelas acima do valor, recebido acima do
@@ -142,6 +149,22 @@ depois de classificado (o site diz quantos faltam). Hoje, **alterações feitas 
 texto de movimento) vão ao site **sem nova aprovação** e ficam registradas no **histórico** da parceria — quem edita responde
 por isso. Para tirar do ar, quem aprova usa **Retirar do site**.
 
+### Fotos das etapas e a autorização de imagem
+
+Foto de oficina ou de entrega mostra pessoas, muitas vezes **crianças**. Por isso o sistema só aceita a foto se você:
+
+1. **Marcar que há autorização de uso de imagem** de todas as pessoas que aparecem (dos **responsáveis**, no caso de criança
+   ou adolescente). Em palavras simples: *alguém assinou um termo dizendo que pode publicar aquela foto*. Marque **somente**
+   se esse termo existe de verdade. Se o termo assinado estiver na biblioteca de **Documentos** (classificação *Restrita*),
+   informe o número dele no campo opcional;
+2. **Descrever a foto para quem não enxerga** (ex.: *"Crianças tocando tambores na quadra da escola"*) — **sem nome de
+   pessoa**; o sistema recusa CPF, RG, e-mail e celular nessa descrição.
+
+O sistema **regrava a imagem**: some a localização (GPS) e o modelo do aparelho que o celular escreve dentro do arquivo,
+a foto é girada para a posição certa e reduzida (no máximo 2000 pontos de lado). A foto fica em área **privada** e só vai
+ao site quando a parceria é **aprovada**. Se alguém **retirar a autorização**, abra a etapa e clique em **Apagar a foto**: ela
+sai do site (em até 25 minutos) **e** do armazenamento.
+
 ### A promessa das 24 horas
 
 O site diz, enquanto não há emenda, que a página **"será atualizada em até 24 horas após qualquer recebimento"**. Para
@@ -151,10 +174,33 @@ construção). Para a **primeira** emenda aparecer, além de cadastrar e classif
 
 ---
 
+## Diretoria e Conselho Fiscal no site
+
+A página **/diretoria/** já mostra **todos os cargos** do Estatuto: os **sete** da Diretoria Executiva (Art. 19: Presidente,
+1º e 2º Vice-Presidente, 1º e 2º Secretário, 1º e 2º Tesoureiro) e os **três** do Conselho Fiscal (Art. 24). Cargo sem
+ocupante aparece como **vago**, para ir sendo preenchido. **Nenhum nome é digitado no site**: quando a Assembleia elege e a
+posse é registrada em **Governança → Mandatos**, o nome (só o nome, o cargo e as datas do mandato) aparece sozinho, em até 25
+minutos. Mandato encerrado no sistema volta a mostrar o cargo como vago.
+
+---
+
 ## Quando algo não aparece
 
 1. A **Situação** está *Publicado* e a data *Publicar em* já passou?
 2. Se tem foto: a **descrição** e a **autorização** estão preenchidas?
 3. O **Endereço da notícia** só tem letras minúsculas, números e hífen, e não é igual ao de outra notícia?
-4. Passaram mais de 25 minutos? Peça para olhar o resumo da última publicação do site: ele diz, notícia por notícia, o
-   motivo de ter ficado de fora.
+4. Passaram mais de 25 minutos? O resumo da última publicação do site (GitHub → Actions → *Deploy Site*) diz, notícia por
+   notícia, o motivo de ter ficado de fora.
+
+## O sistema avisa sozinho quando o site tem problema
+
+Ninguém precisa ficar olhando. Existem **três vigilantes automáticos**, e os avisos chegam como *Issue* no GitHub do
+projeto (e por e-mail, para quem acompanha o repositório):
+
+- **Site fora do ar:** a cada 15 minutos o sistema confere, **de fora**, o site, o painel e a API. Se algo não responder
+  duas vezes seguidas, abre o aviso *"ALERTA: o site, o painel ou a API da ASAF não está respondendo"* e **fecha sozinho** quando tudo volta.
+- **Site desatualizado:** se o site no ar ficar **mais de 2 horas** atrás do sistema (por exemplo, um relatório aprovado que não
+  chega ao site), abre o aviso *"o site está atrás do sistema há mais de 2 horas"* e fecha quando o site alcança.
+- **Site grande demais:** o plano gratuito do Azure aceita até **250 MB e 15.000 arquivos**. A publicação **avisa a partir de
+  60%** do limite e **para sozinha a partir de 85%**, antes de o Azure recusar, e diz quanto falta e o que fazer (limpar, ou
+  passar para o plano pago). O tamanho dos PDFs e das fotos é conferido nessa mesma etapa.
