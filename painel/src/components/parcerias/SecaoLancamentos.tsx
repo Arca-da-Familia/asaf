@@ -51,12 +51,22 @@ export function SecaoLancamentos({
                 key={p.id_lancamento}
                 className="rounded-md border border-amber-300 bg-amber-50/50 p-3 text-sm"
               >
-                <ClassificarMovimento
-                  d={d}
-                  pendente={p}
-                  opcoes={opcoes}
-                  executar={executar}
-                />
+                {d.pode_editar ? (
+                  <ClassificarMovimento
+                    d={d}
+                    pendente={p}
+                    opcoes={opcoes}
+                    executar={executar}
+                  />
+                ) : (
+                  <p>
+                    <strong>
+                      {p.natureza_rotulo} de {moeda(p.valor)}
+                    </strong>{' '}
+                    em {dia(p.data)} — lançamento nº {p.numero}, ainda sem
+                    classificação para o site.
+                  </p>
+                )}
               </li>
             ))}
           </ul>
