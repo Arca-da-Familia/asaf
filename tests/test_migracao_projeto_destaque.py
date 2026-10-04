@@ -38,13 +38,36 @@ def _banco_antes():
     return motor
 
 
-def _diferencas_sobre(motor, nomes):
+# O que esta migração traz: tudo da tabela nova e só estas duas colunas (com o índice e a chave estrangeira de `eventos.id_projeto`).
+_COLUNAS_DESTA_MIGRACAO = {("eventos", "id_projeto"), ("projetos_eventos", "destaque_no_site")}
+
+
+def _tabela_e_colunas(d):
+    """(tabela, colunas) de uma diferença do Alembic; colunas vazias = a diferença é da tabela inteira."""
+    operacao = d[0]
+    if operacao in ("add_table", "remove_table"):
+        return d[1].name, []
+    if operacao in ("add_column", "remove_column"):
+        return d[2], [d[3].name]
+    if operacao.startswith("modify_"):
+        return d[2], [d[3]]
+    objeto = d[1]  # índice, chave estrangeira ou restrição
+    colunas = list(getattr(objeto, "column_keys", None) or [c.name for c in objeto.columns])
+    return objeto.table.name, colunas
+
+
+def _diferencas_sobre(motor):
+    """Diferenças entre o banco migrado e o modelo QUE SÃO DESTA MIGRAÇÃO. Não vale filtrar por texto ("id_projeto" também é
+    coluna de `centros_de_custo` e `alocacoes_voluntarios`): as chaves estrangeiras em ciclo (centros_de_custo ↔ eventos ↔
+    projetos_eventos) o `create_all` do SQLAlchemy as pula numa ordem que muda de uma execução para outra, e essa deriva
+    antiga, de outras tabelas, não é assunto desta migração."""
     with motor.connect() as conexao:
         diferencas = compare_metadata(MigrationContext.configure(conexao), Base.metadata)
     achadas = []
     for item in diferencas:
         for d in item if isinstance(item, list) else [item]:
-            if any(nome in repr(d) for nome in nomes):
+            tabela, colunas = _tabela_e_colunas(d)
+            if tabela == _TABELA_NOVA or any((tabela, c) in _COLUNAS_DESTA_MIGRACAO for c in colunas):
                 achadas.append(repr(d))
     return achadas
 
@@ -56,7 +79,13 @@ def test_a_migracao_cria_exatamente_o_que_o_modelo_descreve():
     assert _TABELA_NOVA in inspetor.get_table_names()
     assert "id_projeto" in {c["name"] for c in inspetor.get_columns("eventos")}
     assert "destaque_no_site" in {c["name"] for c in inspetor.get_columns("projetos_eventos")}
-    achadas = _diferencas_sobre(motor, (_TABELA_NOVA, "id_projeto", "destaque_no_site"))
+    # a chave estrangeira e o índice de `eventos.id_projeto` existem de verdade (não dependem de o comparador enxergá-los)
+    assert any(
+        fk["constrained_columns"] == ["id_projeto"] and fk["referred_table"] == "projetos_eventos"
+        for fk in inspetor.get_foreign_keys("eventos")
+    )
+    assert any(i["column_names"] == ["id_projeto"] for i in inspetor.get_indexes("eventos"))
+    achadas = _diferencas_sobre(motor)
     assert achadas == [], "a migração e o modelo divergem:\n" + "\n".join(achadas)
 
 
