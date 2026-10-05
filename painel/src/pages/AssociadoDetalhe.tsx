@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 
+import { SituacaoDoAssociado } from '@/components/associados/SituacaoDoAssociado'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -31,7 +32,7 @@ import {
   dependenteCriarSchema,
 } from '@/lib/schemas'
 
-type Aba = 'dados' | 'ficha360' | 'cargos' | 'familia'
+type Aba = 'dados' | 'ficha360' | 'cargos' | 'familia' | 'situacao'
 type AssociadoEditarForm = z.infer<typeof associadoEditarSchema>
 
 // v2.5.1 (FASE 2.5 - Painel) - completa o módulo Associados: editar dados/foto, gerenciar
@@ -53,6 +54,7 @@ export function AssociadoDetalhePage() {
     { id: 'ficha360', rotulo: 'Ficha 360' },
     { id: 'cargos', rotulo: 'Cargos' },
     { id: 'familia', rotulo: 'Família' },
+    { id: 'situacao', rotulo: 'Situação' },
   ]
 
   return (
@@ -100,6 +102,13 @@ export function AssociadoDetalhePage() {
           {aba === 'cargos' && <CargosTab idAssociado={idAssociado} />}
           {aba === 'familia' && (
             <FamiliaTab idPessoaTitular={associado.id_pessoa} />
+          )}
+          {aba === 'situacao' && (
+            <SituacaoDoAssociado
+              idAssociado={idAssociado}
+              nome={associado.nome_completo}
+              situacao={associado.status_arrolamento}
+            />
           )}
         </>
       )}

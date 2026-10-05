@@ -1246,3 +1246,34 @@ export const medicaoIndicadorCriarSchema = z.object({
   periodo: z.string().min(1, 'Informe o período desta medição.'),
   fonte: z.string().optional(),
 })
+
+// Situação do associado (v5.4c). As frases batem com as do servidor (app/schemas/situacao.py).
+export const licencaSchema = z
+  .object({
+    motivo: z.string().min(1, 'Selecione o motivo da licença.'),
+    data_inicio: z.string().min(1, 'Informe quando a licença começa.'),
+    data_fim_prevista: z.string().min(1, 'Informe o retorno previsto.'),
+    documento_referencia: z.string().optional(),
+  })
+  .refine(
+    (d) =>
+      !d.data_inicio ||
+      !d.data_fim_prevista ||
+      d.data_fim_prevista > d.data_inicio,
+    {
+      path: ['data_fim_prevista'],
+      message: 'O retorno previsto precisa ser depois do início da licença.',
+    },
+  )
+
+export const desligamentoSchema = z.object({
+  motivo: z.string().min(1, 'Selecione o motivo do desligamento.'),
+  data_efetiva: z.string().min(1, 'Informe a data do desligamento.'),
+  documento_referencia: z.string().optional(),
+})
+
+export const readmissaoSchema = z.object({
+  cpf: z.string().optional(),
+  email_contato: z.string().optional(),
+  telefone_whatsapp: z.string().optional(),
+})

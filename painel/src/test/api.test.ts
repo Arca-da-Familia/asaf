@@ -71,6 +71,33 @@ describe('apiFetch', () => {
     })
   })
 
+  it('tira o prefixo técnico "Value error," da frase que o usuário lê (achado ao vivo na homologação)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce(
+        jsonResponse(422, {
+          detail: [
+            {
+              loc: ['body', 'cpf'],
+              msg: 'Value error, CPF inválido (dígito verificador não confere).',
+              type: 'value_error',
+            },
+          ],
+        }),
+      ),
+    )
+
+    await expect(apiFetch('/rota')).rejects.toMatchObject({
+      detail: 'CPF inválido (dígito verificador não confere).',
+      errosCampos: [
+        {
+          campo: 'cpf',
+          mensagem: 'CPF inválido (dígito verificador não confere).',
+        },
+      ],
+    })
+  })
+
   it('falha de transporte (fetch lança) marca o estado de rede como offline', async () => {
     vi.stubGlobal(
       'fetch',

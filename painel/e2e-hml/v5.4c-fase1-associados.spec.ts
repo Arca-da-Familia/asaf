@@ -140,6 +140,82 @@ test('a ficha do associado: abas Dados e foto, Ficha 360, Cargos e Família abre
   expect(vigia.problemas()).toEqual([])
 })
 
+async function abrirFicha(page: import('@playwright/test').Page) {
+  await page.goto('/associados')
+  await page.getByLabel('Filtrar').fill(String(RODADA))
+  await page.getByRole('link', { name: NOME }).click()
+  await expect(page.getByRole('heading', { name: NOME })).toBeVisible()
+}
+
+test('situação: licença, desligamento (com confirmação), recusa de anonimizar antes do prazo e readmissão — pela tela, com histórico e Auditoria', async ({
+  page,
+}, info) => {
+  const vigia = vigiar(page)
+  await entrar(page, 'presidente')
+  await abrirFicha(page)
+  await page.getByRole('button', { name: 'Situação', exact: true }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Situação do associado' }),
+  ).toBeVisible()
+  await expect(
+    page.getByText('Nenhuma mudança de situação registrada'),
+  ).toBeVisible()
+  await ver(page, info, 'situacao antes de qualquer mudanca')
+
+  // 1) licença
+  const retorno = new Date(Date.now() + 30 * 86_400_000)
+    .toISOString()
+    .slice(0, 10)
+  await page.getByRole('button', { name: 'Registrar licença' }).click()
+  await page.getByLabel('Motivo *').selectOption('SAUDE')
+  await page.getByLabel('Retorno previsto *').fill(retorno)
+  await ver(page, info, 'formulario de licenca preenchido')
+  await page.getByRole('button', { name: 'Confirmar licença' }).click()
+  await expect(page.getByTestId('situacao-atual')).toHaveText('Licenciado')
+  await expect(page.getByText('Licença — Saúde')).toBeVisible()
+  await ver(page, info, 'licenca registrada e no historico')
+
+  // 2) desligamento: o sistema mostra as consequências e só desliga depois de confirmar
+  await page.getByRole('button', { name: 'Desligar associado' }).click()
+  await page.getByLabel('Motivo *').selectOption('PEDIDO_VOLUNTARIO')
+  await page.getByRole('button', { name: 'Desligar associado…' }).click()
+  const dialogo = page.getByRole('alertdialog')
+  await expect(dialogo).toContainText('revoga o acesso ao painel')
+  await ver(page, info, 'confirmacao do desligamento com as consequencias')
+  await dialogo.getByRole('button', { name: 'Desligar associado' }).click()
+  await expect(page.getByTestId('situacao-atual')).toHaveText('Desligado')
+  await expect(page.getByText('Desligamento — Pedido voluntário')).toBeVisible()
+  await ver(page, info, 'desligado')
+
+  // 3) recusa provocada: anonimizar antes de o prazo de retenção terminar
+  await page.getByRole('button', { name: 'Anonimizar dado pessoal' }).click()
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Anonimizar dado pessoal' })
+    .click()
+  await expect(page.getByRole('alert')).toContainText('Ainda não elegível')
+  await expect(page.getByTestId('situacao-atual')).toHaveText('Desligado')
+  await ver(page, info, 'anonimizar antes do prazo: recusado')
+
+  // 4) readmissão: volta o mesmo cadastro
+  await page.getByRole('button', { name: 'Readmitir associado' }).click()
+  await page.getByRole('button', { name: 'Confirmar readmissão' }).click()
+  await expect(page.getByTestId('situacao-atual')).not.toHaveText('Desligado')
+  await expect(page.getByText('Readmissão')).toBeVisible()
+  await ver(page, info, 'readmitido e historico completo')
+
+  // 5) o que aconteceu aparece na linha do tempo da ficha 360 e na Auditoria
+  await page.getByRole('button', { name: 'Ficha 360' }).click()
+  await expect(page.getByText('Desligamento registrado')).toBeVisible()
+  await expect(page.getByText('Readmitido como associado')).toBeVisible()
+  await ver(page, info, 'linha do tempo da ficha 360')
+  await page.goto('/auditoria')
+  await expect(page.getByText('READMITIDO').first()).toBeVisible()
+  await expect(page.getByText('DESLIGADO').first()).toBeVisible()
+  await ver(page, info, 'auditoria com licenca, desligamento e readmissao')
+  expect(vigia.problemas()).toEqual([])
+})
+
 test('foto: sobe pela tela e ABRE de verdade (a imagem carrega, não dá 404)', async ({
   page,
 }, info) => {

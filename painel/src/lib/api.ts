@@ -104,7 +104,8 @@ async function parseError(res: Response): Promise<ApiError> {
       errosCampos.push(
         ...payload.detail.map((d) => ({
           campo: d.loc.filter((p) => p !== 'body').join('.'),
-          mensagem: d.msg,
+          // O Pydantic prefixa a frase dos validadores com "Value error, ": jargão técnico (e em inglês) que o usuário não precisa ler.
+          mensagem: d.msg.replace(/^(Value error|Assertion failed),\s*/i, ''),
         })),
       )
       detail = errosCampos[0]?.mensagem ?? 'Dados inválidos.'
@@ -5224,4 +5225,70 @@ export function obterResultadoPesquisaSatisfacao(
   idEvento: number,
 ): Promise<ResultadoPesquisaSatisfacao> {
   return apiFetch(`/api/eventos/${idEvento}/pesquisa-satisfacao/resultado`)
+}
+
+// ---------------------------------------------------------------------------
+// Situação do associado: licença, desligamento, readmissão e histórico (servidor na v1.4; tela só na v5.4c —
+// achado ao vivo na homologação: as rotas existiam e nenhuma tela as chamava)
+// ---------------------------------------------------------------------------
+export type MudancaDeSituacao = {
+  id_mudanca: number
+  tipo: 'licenca' | 'desligamento' | 'readmissao' | string
+  motivo: string | null
+  data_efetiva: string
+  data_fim_prevista: string | null
+  documento_referencia: string | null
+}
+
+export function listarHistoricoDeSituacao(
+  idAssociado: number,
+): Promise<MudancaDeSituacao[]> {
+  return apiFetch(`/api/associados/${idAssociado}/historico-situacao`)
+}
+
+export function registrarLicenca(
+  idAssociado: number,
+  dados: {
+    motivo: string
+    data_inicio: string
+    data_fim_prevista: string
+    documento_referencia?: string
+  },
+): Promise<{ mensagem: string; status_arrolamento: string }> {
+  return apiFetch(`/api/associados/${idAssociado}/licenca`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function desligarAssociado(
+  idAssociado: number,
+  dados: {
+    motivo: string
+    data_efetiva: string
+    documento_referencia?: string
+  },
+): Promise<{ mensagem: string; titulos_cancelados: number }> {
+  return apiFetch(`/api/associados/${idAssociado}/desligar`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function readmitirAssociado(
+  idAssociado: number,
+  dados: { cpf?: string; email_contato?: string; telefone_whatsapp?: string },
+): Promise<{ mensagem: string; status_arrolamento: string }> {
+  return apiFetch(`/api/associados/${idAssociado}/readmitir`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function anonimizarAssociado(
+  idAssociado: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/associados/${idAssociado}/anonimizar`, {
+    method: 'POST',
+  })
 }

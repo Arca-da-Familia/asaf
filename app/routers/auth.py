@@ -236,6 +236,14 @@ def me(usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_d
         .filter(perfil_permissao.c.id_nivel == id_nivel_efetivo)
         .all()
     )
+    codigos_de_permissao = {p[0] for p in permissoes}
+    # v5.4c (achado AO VIVO na homologação, 2026-10-05): o cargo em mandato vigente concede permissão (`usuario_tem_permissao`, v2.1),
+    # mas esta rota só devolvia as do NÍVEL. O painel monta o menu e guarda as rotas por esta lista: o Secretário e o Tesoureiro
+    # entravam e viam "Nenhum módulo disponível", embora o servidor os autorizasse. Mesma regra do servidor: nunca no modo "ver como".
+    if associado is not None and not usuario.id_nivel_impersonado:
+        from app.services.mandatos import permissoes_por_mandatos_vigentes
+
+        codigos_de_permissao |= permissoes_por_mandatos_vigentes(db, associado.id_associado)
     mfa_obrigatorio = bool(nivel_real.exige_mfa) if nivel_real else False
 
     impersonando = None
@@ -255,7 +263,7 @@ def me(usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_d
         mfa_ativado=usuario.mfa_ativado,
         mfa_obrigatorio=mfa_obrigatorio,
         mfa_pendente=mfa_obrigatorio and not usuario.mfa_ativado,
-        permissoes=[p[0] for p in permissoes],
+        permissoes=sorted(codigos_de_permissao),
         impersonando=impersonando,
     )
 
