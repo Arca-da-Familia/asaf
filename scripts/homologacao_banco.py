@@ -3,7 +3,8 @@
     python scripts/homologacao_banco.py preparar      # papel `asaf_hml` + banco `asaf_hml` (idempotente)
     python scripts/homologacao_banco.py resetar       # APAGA o banco de teste inteiro e o recria vazio
 
-A verificação em dois passos (MFA) continua LIGADA na homologação, igual à produção: nada aqui a enfraquece.
+Este script cuida só do banco (papel, banco, esquema): não mexe em usuário, nível de acesso nem em segundo passo (MFA). Na
+homologação o MFA fica desligado, e quem o desliga é `scripts/popular_homologacao.py`, só no banco de teste.
 
 Por que "resetar" apaga o BANCO e não as linhas: a produção tem trava no próprio banco que impede apagar lançamento e
 auditoria (de propósito, ver `criar_trava_delete_imutavel`). No teste isso é o que se quer poder desfazer, e a única forma é
@@ -96,6 +97,18 @@ def resetar(conexao_admin, senha: str) -> list[str]:
     return ["banco de teste apagado e recriado vazio"]
 
 
+def entregar_esquema_public(conexao_no_banco_de_teste) -> list[str]:
+    """Banco novo no Azure nasce com o esquema `public` do `azure_pg_admin` (só "usar", sem "criar"): o dono do banco, que é o papel de
+    teste, não conseguiria criar tabela nenhuma ("permission denied for schema public"). Aqui o `public` DESTE banco passa ao papel de
+    teste. Roda ligado DENTRO do banco de teste e confere o nome dele antes de mexer em qualquer coisa."""
+    sql = _sql()
+    with conexao_no_banco_de_teste.cursor() as cur:
+        cur.execute("SELECT current_database()")
+        exigir_banco_de_teste(cur.fetchone()[0])
+        cur.execute(sql.SQL("ALTER SCHEMA public OWNER TO {}").format(sql.Identifier(PAPEL_HML)))
+    return ["esquema public do banco de teste entregue ao papel de teste"]
+
+
 def _exigir(env: dict, nome: str) -> str:
     valor = env.get(nome, "")
     if not valor:
@@ -112,9 +125,11 @@ def main(argv: list[str], env: dict | None = None, conectar=None) -> int:
     comando = argv[0] if argv else ""
     if comando in ("preparar", "resetar"):
         senha = _exigir(env, "HML_SENHA")
-        dsn = _dsn_com_banco(_exigir(env, "ADMIN_DATABASE_URL"), "postgres")  # o administrador conecta no banco de manutenção
-        with conectar(dsn) as conexao:
+        dsn_admin = _exigir(env, "ADMIN_DATABASE_URL")
+        with conectar(_dsn_com_banco(dsn_admin, "postgres")) as conexao:  # o administrador conecta no banco de manutenção
             resultado = (preparar if comando == "preparar" else resetar)(conexao, senha)
+        with conectar(_dsn_com_banco(dsn_admin, BANCO_HML)) as conexao_do_teste:  # e depois DENTRO do banco de teste (nome constante)
+            resultado += entregar_esquema_public(conexao_do_teste)
     else:
         print(__doc__)
         return 2

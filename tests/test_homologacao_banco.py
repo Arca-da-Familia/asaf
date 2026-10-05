@@ -1,6 +1,6 @@
 """O auxiliar do banco de HOMOLOGAÇÃO só pode mexer no banco de teste. Estes testes usam conexões FALSAS (nenhum banco de verdade)
-e conferem o SQL que seria enviado: o nome do banco é constante, não há como apontar para o banco de produção, nada enfraquece o
-MFA e a senha nunca é impressa."""
+e conferem o SQL que seria enviado: o nome do banco é constante, não há como apontar para o banco de produção, o script não mexe em
+MFA nem em nível de acesso e a senha nunca é impressa."""
 import importlib.util
 from pathlib import Path
 
@@ -13,9 +13,10 @@ _especificacao.loader.exec_module(hb)
 
 
 class CursorFalso:
-    def __init__(self, existentes=()):
+    def __init__(self, existentes=(), banco_atual="asaf_hml"):
         self.comandos: list[str] = []
         self._existentes = set(existentes)
+        self._banco_atual = banco_atual
         self._ultimo = None
 
     def __enter__(self):
@@ -31,6 +32,8 @@ class CursorFalso:
 
     def fetchone(self):
         texto, parametros = self._ultimo
+        if "current_database" in texto:
+            return (self._banco_atual,)
         if "pg_roles" in texto:
             return (1,) if ("papel" in self._existentes) else None
         if "pg_database" in texto:
@@ -39,8 +42,8 @@ class CursorFalso:
 
 
 class ConexaoFalsa:
-    def __init__(self, existentes=()):
-        self.cursor_falso = CursorFalso(existentes)
+    def __init__(self, existentes=(), banco_atual="asaf_hml"):
+        self.cursor_falso = CursorFalso(existentes, banco_atual)
 
     def cursor(self):
         return self.cursor_falso
@@ -95,6 +98,21 @@ def test_nenhuma_funcao_aceita_o_nome_de_outro_banco():
 
     for funcao in (hb.preparar, hb.resetar):
         assert list(inspect.signature(funcao).parameters) == ["conexao_admin", "senha"], funcao.__name__
+    assert list(inspect.signature(hb.entregar_esquema_public).parameters) == ["conexao_no_banco_de_teste"]
+
+
+def test_o_esquema_public_do_banco_novo_passa_ao_papel_de_teste():
+    """Achado do 1º reinício real (2026-10-05): no Azure o `public` de um banco novo é do `azure_pg_admin` e o papel de teste, dono do
+    banco, não conseguia criar tabela. A correção roda DENTRO do banco de teste e só nele."""
+    conexao = ConexaoFalsa()
+    feito = hb.entregar_esquema_public(conexao)
+    assert [c for c in conexao.cursor_falso.comandos if "SCHEMA" in c] == ['ALTER SCHEMA public OWNER TO "asaf_hml"']
+    assert feito == ["esquema public do banco de teste entregue ao papel de teste"]
+    for outro in ("asaf_db", "postgres"):
+        errada = ConexaoFalsa(banco_atual=outro)
+        with pytest.raises(hb.AlvoProibido, match="RECUSADO"):
+            hb.entregar_esquema_public(errada)
+        assert not any("SCHEMA" in c for c in errada.cursor_falso.comandos), "em outro banco nem chega a mexer no esquema"
 
 
 def test_o_script_nao_tem_como_enfraquecer_o_mfa():
@@ -109,16 +127,21 @@ def test_main_pede_as_variaveis_e_nunca_imprime_a_senha(capsys):
         hb.main(["resetar"], env={"HML_SENHA": "s"}, conectar=lambda dsn: ConexaoFalsa())
 
     usados = []
+    conexoes = []
 
     def conectar(dsn):
         usados.append(dsn)
-        return ConexaoFalsa()
+        conexoes.append(ConexaoFalsa())
+        return conexoes[-1]
 
     env = {"ADMIN_DATABASE_URL": "postgresql://adm:segredo-do-admin@h.exemplo:5432/asaf_db?sslmode=require", "HML_SENHA": "SENHA-SECRETA-HML"}
     assert hb.main(["preparar"], env=env, conectar=conectar) == 0
     saida = capsys.readouterr().out
     assert "SENHA-SECRETA-HML" not in saida and "segredo-do-admin" not in saida
     assert "dbname=postgres" in usados[0] and "asaf_db" not in usados[0], "o administrador conecta no banco de manutenção, não no de produção"
+    assert len(usados) == 2 and "dbname=asaf_hml" in usados[1] and "asaf_db" not in usados[1], "e depois dentro do banco de teste"
+    assert any("ALTER SCHEMA public OWNER" in c for c in conexoes[1].cursor_falso.comandos)
+    assert not any("SCHEMA" in c for c in conexoes[0].cursor_falso.comandos), "no banco de manutenção não se mexe em esquema"
 
 
 def test_comando_desconhecido_mostra_a_ajuda_e_nao_faz_nada(capsys):
