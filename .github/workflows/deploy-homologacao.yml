@@ -141,13 +141,13 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # O roteiro só roda em banco SEM usuários e só no `asaf_hml` (confere `current_database()`); a senha do administrador de teste
-      # nasce aqui, vai direto para o cofre e nunca é impressa.
+      # O roteiro só roda em banco SEM usuários e só no `asaf_hml` (confere `current_database()`). As senhas de teste ficam no cofre
+      # (HML-ADMIN-SENHA e HML-USUARIOS, criadas por quem administra o Azure): o fluxo só as LÊ — a identidade do GitHub não tem
+      # (e não deve ter) permissão de escrever no cofre. Nenhuma senha é impressa.
       - name: Preencher (dados inventados, pelas rotas de verdade)
         env:
           RUN_DB_MIGRATION: "false"
           ARMAZENAMENTO_BLOB_URL: https://stasafhmlprivado.blob.core.windows.net
-          HML_USUARIOS_SAIDA: ${{ runner.temp }}/usuarios-de-teste.json
         run: |
           DB_URL=$(az keyvault secret show --vault-name "$KEY_VAULT" --name HML-DATABASE-URL --query value -o tsv)
           echo "::add-mask::$DB_URL"
@@ -157,13 +157,13 @@ jobs:
           esac
           JWT=$(az keyvault secret show --vault-name "$KEY_VAULT" --name HML-JWT-SECRET --query value -o tsv)
           echo "::add-mask::$JWT"
-          ADMIN_SENHA=$(python -c "import secrets,string; a=string.ascii_letters+string.digits; print(secrets.choice(string.ascii_uppercase)+secrets.choice(string.ascii_lowercase)+secrets.choice(string.digits)+''.join(secrets.choice(a) for _ in range(21)))")
+          ADMIN_SENHA=$(az keyvault secret show --vault-name "$KEY_VAULT" --name HML-ADMIN-SENHA --query value -o tsv)
           echo "::add-mask::$ADMIN_SENHA"
-          # a senha vai para o cofre ANTES: se o preenchimento parar no meio, o administrador já criado continua com senha conhecida
-          az keyvault secret set --vault-name "$KEY_VAULT" --name HML-ADMIN-SENHA --value "$ADMIN_SENHA" --tags ambiente=hml --query name -o tsv
-          DATABASE_URL="$DB_URL" JWT_SECRET="$JWT" HML_ADMIN_SENHA="$ADMIN_SENHA" python scripts/popular_homologacao.py
-          az keyvault secret set --vault-name "$KEY_VAULT" --name HML-USUARIOS --file "$HML_USUARIOS_SAIDA" --tags ambiente=hml --query name -o tsv
-          rm -f "$HML_USUARIOS_SAIDA"
+          USUARIOS=$(az keyvault secret show --vault-name "$KEY_VAULT" --name HML-USUARIOS --query value -o tsv)
+          echo "::add-mask::$USUARIOS"
+          # cada senha também é mascarada sozinha (o texto inteiro do JSON não esconde um trecho impresso por engano)
+          python -c "import json,sys; [print('::add-mask::' + v) for v in json.loads(sys.argv[1]).values()]" "$USUARIOS"
+          DATABASE_URL="$DB_URL" JWT_SECRET="$JWT" HML_ADMIN_SENHA="$ADMIN_SENHA" HML_USUARIOS_JSON="$USUARIOS" python scripts/popular_homologacao.py
 
       - name: Logout
         if: always()

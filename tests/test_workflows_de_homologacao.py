@@ -64,11 +64,19 @@ def test_painel_e_site_de_teste_levam_a_faixa_e_apontam_para_a_api_de_teste():
 
 def test_todo_segredo_lido_do_cofre_e_mascarado():
     leituras = CODIGO.count("az keyvault secret show")
-    # banco de teste (api e popular), administrador (só no reinício), segredo JWT (popular), token do painel e token do site
-    assert leituras == 6
+    # banco de teste (api e popular), administrador do servidor (só no reinício), JWT, senha do administrador de teste e senhas
+    # dos usuários de teste (popular), token do painel e token do site
+    assert leituras == 8
     assert CODIGO.count("::add-mask::") >= leituras, "cada segredo lido é mascarado antes de qualquer uso"
 
 
 @pytest.mark.parametrize("trecho", ["concurrency:", "group: homologacao", "cancel-in-progress: false"])
 def test_uma_publicacao_de_teste_por_vez(trecho):
     assert trecho in CODIGO
+
+
+def test_o_fluxo_so_le_o_cofre_nunca_escreve():
+    """A identidade do GitHub só tem permissão de LER segredos (de propósito). As senhas de teste são criadas por quem administra o
+    Azure; o fluxo apenas as lê. (A primeira execução falhou justamente por tentar gravar: ForbiddenByPolicy.)"""
+    assert "keyvault secret set" not in CODIGO and "secret set" not in CODIGO
+    assert "--name HML-ADMIN-SENHA" in CODIGO and "--name HML-USUARIOS" in CODIGO

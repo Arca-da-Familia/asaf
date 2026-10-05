@@ -29,7 +29,8 @@ MOTORISTA = textwrap.dedent(
     ph = importlib.util.module_from_spec(esp); esp.loader.exec_module(ph)
     saidas = []
     with SessaoLocal() as db, TestClient(app) as client:
-        resultado = ph.popular(client, db, admin_senha="Senha-De-Teste-Do-Roteiro-1", escrever=saidas.append)
+        resultado = ph.popular(client, db, admin_senha="Senha-De-Teste-Do-Roteiro-1", escrever=saidas.append,
+                               senhas={{"secretario": "Secretaria-Senha-Do-Cofre-77", "tesoureiro": "Tesouraria-Senha-Do-Cofre-88"}})
         contagem = lambda sql: db.execute(text(sql)).scalar()
         resumo = {{
             "associados": contagem("select count(*) from associados"),
@@ -94,6 +95,8 @@ def test_cria_o_secretario_e_o_tesoureiro_de_teste_e_nao_vaza_senha(execucao):
     usuarios = dados["resultado"]["usuarios"]
     assert set(usuarios) == {"presidente", "secretario", "tesoureiro"}
     saida_visivel = "\n".join(dados["saidas"]) + processo.stderr
+    assert usuarios["secretario"]["senha"] == "Secretaria-Senha-Do-Cofre-77", "usa a senha recebida do cofre"
+    assert usuarios["tesoureiro"]["senha"] == "Tesouraria-Senha-Do-Cofre-88"
     for papel in ("secretario", "tesoureiro"):
         assert usuarios[papel]["senha"] and usuarios[papel]["cpf"] and usuarios[papel]["email"].endswith("@homologacao.example.com")
         assert usuarios[papel]["senha"] not in saida_visivel

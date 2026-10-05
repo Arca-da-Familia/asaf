@@ -7,8 +7,8 @@ Variáveis de ambiente (o fluxo `deploy-homologacao.yml` as monta; nada é impre
     DATABASE_URL        endereço do banco de TESTE (tem que ser o `asaf_hml`; qualquer outro é recusado)
     JWT_SECRET          segredo de assinatura do ambiente de teste
     ARMAZENAMENTO_BLOB_URL  armazenamento privado do ambiente de teste (fotos e documentos)
-    HML_ADMIN_SENHA     senha do administrador de teste (a mesma guardada no cofre)
-    HML_USUARIOS_SAIDA  (opcional) arquivo onde gravar os usuários de teste e suas senhas, para o fluxo guardar no cofre e apagar
+    HML_ADMIN_SENHA     senha do administrador de teste (guardada no cofre como HML-ADMIN-SENHA; o fluxo só a LÊ)
+    HML_USUARIOS_JSON   senhas do Secretário e do Tesoureiro de teste, `{"secretario": "...", "tesoureiro": "..."}` (cofre: HML-USUARIOS)
 
 O que cria (tudo marcado "de Teste", sem nenhum dado real):
   15 associados (e o administrador de teste, que também é associado); 10 mandatos (7 da Diretoria Executiva + 3 do Conselho Fiscal, Art. 19 e 24); logins para o Secretário e o Tesoureiro
@@ -122,8 +122,11 @@ def _cabecalho(usuario) -> dict:
     return {"Authorization": f"Bearer {criar_access_token(usuario)}"}
 
 
-def popular(client, db, admin_headers: dict | None = None, admin_senha: str | None = None, escrever=print) -> dict:
-    """Roda o roteiro inteiro e devolve `{"usuarios": {...}, "feito": [...], "falhas": [...]}` (as senhas só vão neste retorno)."""
+def popular(client, db, admin_headers: dict | None = None, admin_senha: str | None = None, escrever=print,
+            senhas: dict | None = None) -> dict:
+    """Roda o roteiro inteiro e devolve `{"usuarios": {...}, "feito": [...], "falhas": [...]}`. `senhas` traz a senha de cada
+    papel (vêm do cofre); sem ela, uma senha aleatória é gerada e aparece só neste retorno."""
+    senhas = senhas or {}
     from app.models.associados import Associado
     from app.models.core import Usuario
     from app.models.financeiro import CentroDeCusto, Exercicio, PlanoDeContas
@@ -184,7 +187,7 @@ def popular(client, db, admin_headers: dict | None = None, admin_senha: str | No
 
     def logins():
         for papel, indice in (("secretario", 3), ("tesoureiro", 5)):
-            senha = senha_aleatoria()
+            senha = senhas.get(papel) or senha_aleatoria()
             email = f"{papel}@{SUFIXO_EMAIL}"
             _ok(client.post(f"/api/associados/{ids_associados[indice]}/conceder-acesso", headers=admin_headers,
                             json={"email": email, "senha_provisoria": senha}))
@@ -192,7 +195,7 @@ def popular(client, db, admin_headers: dict | None = None, admin_senha: str | No
             cabecalhos[papel] = _cabecalho(usuario)
             cpf = db.query(Associado).filter(Associado.id_associado == ids_associados[indice]).first().cpf
             contexto["usuarios"][papel] = {"cpf": cpf, "email": email, "senha": senha}
-        return "Secretário e Tesoureiro de teste (a senha provisória vai para o cofre)"
+        return "Secretário e Tesoureiro de teste (senhas do cofre)"
 
     if len(ids_associados) > 5:
         roteiro.area("Logins do Secretário e do Tesoureiro", logins)
@@ -366,11 +369,8 @@ def main() -> int:
     with SessaoLocal() as db:
         _exigir_banco_de_teste(db)
         with TestClient(app) as client:
-            resultado = popular(client, db, admin_senha=os.environ.get("HML_ADMIN_SENHA"))
-    saida = os.environ.get("HML_USUARIOS_SAIDA")
-    if saida:
-        with open(saida, "w", encoding="utf-8") as arquivo:
-            json.dump(resultado["usuarios"], arquivo, ensure_ascii=False)
+            resultado = popular(client, db, admin_senha=os.environ.get("HML_ADMIN_SENHA"),
+                                senhas=json.loads(os.environ.get("HML_USUARIOS_JSON") or "{}"))
     print(f"\nFeito: {len(resultado['feito'])} áreas; falhas: {len(resultado['falhas'])}")
     return 1 if resultado["falhas"] else 0
 
