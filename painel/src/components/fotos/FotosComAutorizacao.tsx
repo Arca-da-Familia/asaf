@@ -235,8 +235,9 @@ export function FotosComAutorizacao({
           )}
           <p className="text-xs text-muted-foreground">
             A foto é guardada sem localização nem dados do aparelho. Se alguém
-            retirar a autorização, apague a foto: ela sai do site e do
-            armazenamento.
+            retirar a autorização, apague a foto: ela sai do sistema na hora e
+            do site na próxima publicação (normalmente em 15 a 30 minutos). O
+            armazenamento ainda guarda uma cópia de segurança por 30 dias.
           </p>
         </div>
       )}

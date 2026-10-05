@@ -450,7 +450,7 @@ test.describe('Home com o projeto em destaque', () => {
     // próxima edição: data e link para a página dela
     const proxima = cartao.locator('[data-proxima-edicao]:visible')
     await expect(proxima).toHaveCount(1)
-    await expect(proxima).toContainText('Próxima edição:')
+    await expect(proxima).toContainText('Próximo evento:')
     await expect(proxima.getByRole('link', { name: EDICAO_2 })).toHaveAttribute(
       'href',
       '/eventos/5/',
@@ -504,7 +504,7 @@ test.describe('Home com o projeto em destaque', () => {
     // o destaque continua; só a "próxima edição" que já aconteceu deixa de ser anunciada
     await expect(page.locator('[data-destaque="3"]')).toBeVisible()
     await expect(page.locator('[data-proximas-edicoes]')).toBeHidden()
-    await expect(page.getByText('Próxima edição:')).toBeHidden()
+    await expect(page.getByText('Próximo evento:')).toBeHidden()
   })
 })
 
@@ -516,7 +516,7 @@ test.describe('Home com o destaque, sem JavaScript', () => {
   }) => {
     await page.goto('/')
     await expect(page.locator('[data-destaque="3"]')).toBeVisible()
-    await expect(page.getByText('Próxima edição:')).toBeVisible()
+    await expect(page.getByText('Próximo evento:')).toBeVisible()
   })
 })
 

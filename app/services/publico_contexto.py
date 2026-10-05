@@ -44,8 +44,17 @@ def documentos_publicos(db: Session) -> list[DocumentoInstitucional]:
     )
 
 
-def serializar_documento_publico(d: DocumentoInstitucional) -> dict:
-    ligado = d.vinculo_tipo in _VINCULOS_PUBLICOS
+def vinculos_visiveis(db: Session) -> dict[str, set[int]]:
+    """Os eventos e projetos que têm página no site. O documento aprovado só mostra a ligação com um deles; ligado a evento ou
+    projeto INTERNO ele continua na lista da Transparência (foi aprovado para isso), mas sem revelar que o interno existe."""
+    return {
+        "evento": {i for (i,) in db.query(Evento.id_evento).filter(Evento.visibilidade == VISIBILIDADE_PUBLICA)},
+        "projeto": ids_de_projetos_publicos(db),
+    }
+
+
+def serializar_documento_publico(d: DocumentoInstitucional, visiveis: dict[str, set[int]] | None = None) -> dict:
+    ligado = d.vinculo_tipo in _VINCULOS_PUBLICOS and (visiveis is None or d.vinculo_id in visiveis.get(d.vinculo_tipo, ()))
     return {
         "id_documento": d.id_documento, "tipo_codigo": d.tipo, "tipo": TIPOS_DE_DOCUMENTO.get(d.tipo, d.tipo),
         "titulo": d.titulo, "descricao": d.descricao,

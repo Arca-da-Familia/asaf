@@ -53,7 +53,9 @@ export function RelatoriosEDocumentos({
       <p className="text-xs text-muted-foreground">
         Os relatórios ficam na biblioteca de Documentos, ligados a este {nome}.
         Para aparecer no site, o relatório precisa de uma versão pública
-        conferida e da aprovação de outra pessoa.
+        conferida, da aprovação de outra pessoa e de “Publicar no site” marcado.
+        Aprovado, ele também aparece na página de Transparência, mesmo que este{' '}
+        {nome} seja Interno.
       </p>
       {!podeVer ? (
         <p className="text-sm text-muted-foreground">
@@ -125,7 +127,8 @@ export function NoticiasDoContexto({
         As notícias são escritas no editor do site, não aqui. Ao escrever, abra
         a parte “Ligada a um projeto ou evento”. No campo “{campo}”, digite{' '}
         <strong>{id}</strong>. Depois de publicada, a notícia entra sozinha na
-        página do {nome} no site, em até 25 minutos.
+        página do {nome} no site, normalmente em 15 a 30 minutos (o GitHub às
+        vezes atrasa).
       </p>
       {!apareceNoSite && (
         <p className="text-sm text-muted-foreground">

@@ -1,9 +1,10 @@
 ---
 /**
- * "Próxima edição" de um projeto em destaque (Home, v5.5). O build deixa prontas as próximas edições (as que ainda não
- * terminaram) e o navegador mostra só a primeira que ainda vale (src/lib/edicoes-vivas.ts): sem isso a Home anunciaria,
- * por semanas, uma "próxima edição" que já aconteceu — o site só é reconstruído quando o conteúdo muda, não porque o
- * relógio andou.
+ * "Próximo evento" de um projeto em destaque (Home, v5.5). O rótulo é "evento" (não "edição") porque o projeto pode ter
+ * reuniões e outros eventos além das edições. O build deixa prontos os próximos eventos (os que ainda não terminaram) e o
+ * navegador mostra só o primeiro que ainda vale (src/lib/edicoes-vivas.ts): sem isso a Home anunciaria, por semanas, um
+ * "próximo evento" que já aconteceu — o site só é reconstruído quando o conteúdo muda, não porque o relógio andou. Quem
+ * navega SEM JavaScript vê o primeiro como foi construído, COM a data escrita ao lado (nunca sem data).
  */
 import { fimDoEvento } from '../../lib/contexto'
 import { caminhoDoEvento } from '../../lib/dados-publicos'
@@ -25,7 +26,7 @@ const { edicoes } = Astro.props
       data-fim={fimDoEvento(edicao)}
       hidden={i > 0}
     >
-      Próxima edição:{' '}
+      Próximo evento:{' '}
       <time datetime={comFusoDaAsaf(edicao.data_hora_inicio)}>
         {formatarDia(edicao.data_hora_inicio)}
       </time>{' '}

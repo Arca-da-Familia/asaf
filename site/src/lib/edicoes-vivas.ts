@@ -5,10 +5,12 @@ import { jaAconteceu } from './datas'
  * Duas coisas dependem de "hoje" e são conferidas aqui, no navegador, a cada visita:
  *
  *  1. a lista "Edições e eventos" mostra "Já realizado" nas edições cuja data passou;
- *  2. a Home mostra só a PRÓXIMA edição de verdade: o build deixa prontas as próximas (nenhuma passada fica na tela) e
- *     aqui some quem já terminou — sem isto a Home anunciaria, por semanas, uma "próxima edição" que já aconteceu.
+ *  2. a Home mostra só o PRÓXIMO evento de verdade: o build deixa prontos os próximos (nenhum passado fica na tela) e
+ *     aqui some quem já terminou — sem isto a Home anunciaria, por semanas, um "próximo evento" que já aconteceu.
  *
- * Sem JavaScript a página continua correta como foi construída. SEGURANÇA: só atributos `hidden`; nada vira HTML.
+ * Sem JavaScript a página fica como foi construída: a data de cada item está sempre escrita, mas o "Já realizado" não
+ * aparece e o "Próximo evento" pode ser um que já passou (até o próximo build, quando o conteúdo mudar). SEGURANÇA: só
+ * atributos `hidden`; nada vira HTML.
  */
 
 /** Mostra "Já realizado" nos itens `[data-edicao][data-fim]` cuja data de fim já passou. */

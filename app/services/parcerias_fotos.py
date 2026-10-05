@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app.models.documentos import DocumentoInstitucional
 from app.models.parcerias import EtapaParceria, FotoEtapaParceria, Parceria
 from app.services import armazenamento
-from app.services.fotos import FOTOS_POR_ETAPA, MENSAGEM_SEM_AUTORIZACAO, tratar_imagem, validar_alt
+from app.services.fotos import FOTOS_POR_ETAPA, MENSAGEM_SEM_AUTORIZACAO, remover_arquivo, tratar_imagem, validar_alt
 from app.services.parcerias import _tocar
 
 PASTA_DAS_FOTOS = "fotos-etapas"
@@ -77,14 +77,10 @@ def buscar_foto(db: Session, parceria: Parceria, id_foto: int) -> FotoEtapaParce
 def apagar_foto(db: Session, parceria: Parceria, id_foto: int) -> FotoEtapaParceria:
     """Apaga de verdade (a pessoa retirou a autorização): linha do banco e arquivo. A auditoria guarda quem apagou."""
     foto = buscar_foto(db, parceria, id_foto)
-    nome = foto.arquivo_nome
+    remover_arquivo(PASTA_DAS_FOTOS, foto.arquivo_nome)  # primeiro o arquivo: se falhar, a foto continua cadastrada
     db.delete(foto)
     _tocar(parceria)
     db.commit()
-    try:
-        armazenamento.obter().remover(PASTA_DAS_FOTOS, nome)
-    except Exception:  # noqa: BLE001 - o registro já saiu do banco e do site; arquivo órfão fica no log
-        armazenamento.LOG.exception("não foi possível apagar a foto %s/%s", PASTA_DAS_FOTOS, nome)
     return foto
 
 

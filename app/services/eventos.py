@@ -193,9 +193,11 @@ def criar_sessao(
     data_hora_inicio: datetime, data_hora_fim: Optional[datetime], vagas: Optional[int],
     id_usuario: Optional[int],
 ) -> SessaoEvento:
-    obter_evento(db, id_evento)
+    evento = obter_evento(db, id_evento)
     if data_hora_fim is not None and data_hora_fim <= data_hora_inicio:
         raise HTTPException(status_code=422, detail="O fim da sessão precisa ser depois do início.")
+    if evento.visibilidade == "Pública":  # a programação aparece na página do evento
+        exigir_texto_sem_dado_pessoal({"título da sessão": titulo, "descrição da sessão": descricao})
 
     sessao = SessaoEvento(
         id_evento=id_evento, titulo=titulo, descricao=descricao, data_hora_inicio=data_hora_inicio,
@@ -228,6 +230,8 @@ def criar_nova_edicao(
     anterior = obter_evento(db, id_evento_anterior)
     if data_hora_fim is not None and data_hora_fim <= data_hora_inicio:
         raise HTTPException(status_code=422, detail="O fim do evento precisa ser depois do início.")
+    if titulo and anterior.visibilidade == "Pública":  # a edição nova herda a visibilidade: o título novo vai ao site
+        exigir_texto_sem_dado_pessoal({"título da nova edição": titulo})
 
     nova_edicao = Evento(
         titulo=titulo or anterior.titulo, descricao=anterior.descricao, categoria=anterior.categoria,

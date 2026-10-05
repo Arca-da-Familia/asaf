@@ -167,8 +167,10 @@ export function ContextoDoEvento({ evento }: { evento: Evento }) {
       <div className="space-y-2">
         <h4 className="text-sm font-semibold">Fotos do evento</h4>
         <p className="text-xs text-muted-foreground">
-          As fotos aparecem na página do evento no site (quando o evento é
-          Público), sempre com a descrição escrita aqui.
+          As fotos aparecem na página do evento no site quando o evento é
+          Público, e todas as que já foram enviadas aparecem de uma vez: confira
+          antes de mudar o evento para Público. A descrição escrita aqui é lida
+          por quem usa leitor de tela (não aparece como legenda).
         </p>
         {podeProjetos ? (
           <FotosComAutorizacao

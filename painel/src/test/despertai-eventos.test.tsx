@@ -520,7 +520,7 @@ describe('contexto do evento', () => {
       )
       expect(explicacao).toHaveTextContent(/editor do site, não aqui/)
       expect(explicacao).toHaveTextContent(
-        /sozinha na página do evento no site, em até 25 minutos/,
+        /sozinha na página do evento no site, normalmente em 15 a 30 minutos/,
       )
     })
   })
@@ -551,7 +551,9 @@ describe('contexto do evento', () => {
         screen.getByText(/guardada sem localização nem dados do aparelho/),
       ).toBeInTheDocument()
       expect(
-        screen.getByText(/ela sai do site e do armazenamento/),
+        screen.getByText(
+          /ela sai do sistema na hora e do\s+site na próxima publicação/,
+        ),
       ).toBeInTheDocument()
       expect(await axe(container)).toHaveNoViolations()
     })

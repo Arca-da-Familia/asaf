@@ -19,7 +19,8 @@ on:
   # com um token fine-grained restrito a ESTE repositório e à permissão "Actions: Read and
   # write" — o mínimo possível: dá para disparar workflow, não dá para ler nem alterar código.
   # (O caminho `repository_dispatch` exigiria "Contents: write", bem mais perigoso.)
-  # TAMBÉM é chamado pelo workflow `sincronizar-site` (a cada 30 min, quando o conteúdo público da
+  # TAMBÉM é chamado pelo workflow `sincronizar-site` (agendado de 15 em 15 min, mas o GitHub atrasa
+  # agendamento: já houve intervalos de horas entre rodadas; dispara quando o conteúdo público da
   # API — evento, projeto, diretoria, edital — mudou em relação ao site no ar).
   # Por ser só publicação de conteúdo já revisado no Directus, pula os portões de qualidade
   # (acessibilidade/Lighthouse): conteúdo editorial não deve ficar preso por nota de

@@ -181,6 +181,31 @@ def test_o_monitor_avisa_so_na_segunda_rodada_com_problema():
     assert "gh issue close" in texto, "o aviso fecha sozinho quando tudo volta ao normal"
 
 
+def _passo(texto: str, nome: str) -> str:
+    """O texto de um passo do workflow (do `- name:` até o próximo)."""
+    inicio = texto.index(f"- name: {nome}")
+    proximo = texto.find("\n      - name:", inicio + 1)
+    return texto[inicio:] if proximo == -1 else texto[inicio:proximo]
+
+
+def test_o_aviso_de_defasagem_sai_mesmo_quando_a_republicacao_parou_de_proposito():
+    """Achado da verificação independente: com as 3 últimas publicações falhas o passo de republicar faz `exit 1`, e os passos
+    seguintes eram PULADOS — justamente quando o site está atrasado. Agora rodam (`!cancelled()`), mas só se a comparação rodou."""
+    texto = (RAIZ / ".github" / "workflows" / "sincronizar-site.yml").read_text(encoding="utf-8")
+    republica = _passo(texto, "Republica o site (só se o conteúdo mudou e não há publicação em andamento)")
+    assert "exit 1" in republica, "o desenho de parar depois de 3 falhas continua"
+    for nome in (
+        "Restaura desde quando o site está desatualizado", "Mede há quanto tempo o site está desatualizado",
+        "Guarda o registro (só quando ele muda)", "Aviso no GitHub — site atrás do sistema há mais de 2 horas",
+        "Fecha o aviso de defasagem quando o site alcançou o sistema",
+    ):
+        passo = _passo(texto, nome)
+        assert "!cancelled()" in passo, nome
+    # sem a comparação (nenhum `mudou`) não há o que medir: nunca zera o registro por engano
+    for nome in ("Restaura desde quando o site está desatualizado", "Mede há quanto tempo o site está desatualizado"):
+        assert "steps.conteudo.outcome == 'success'" in _passo(texto, nome), nome
+
+
 def test_a_sincronizacao_abre_e_fecha_o_aviso_de_defasagem():
     texto = (RAIZ / ".github" / "workflows" / "sincronizar-site.yml").read_text(encoding="utf-8")
     assert "issues: write" in texto and "alerta-site-defasado" in texto

@@ -94,7 +94,7 @@ for (const marca of [
   'data-secao="destaque"',
   'data-proximas-edicoes',
   'Em destaque',
-  'Próxima edição',
+  'Próximo evento',
 ]) {
   exigir(
     !inicio.includes(marca),
@@ -248,7 +248,7 @@ for (const marca of [
   'data-secao="destaque"',
   'data-proximas-edicoes',
   'Em destaque',
-  'Próxima edição',
+  'Próximo evento',
 ]) {
   exigir(
     !homeAntiga.includes(marca),

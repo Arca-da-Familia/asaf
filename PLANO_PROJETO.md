@@ -1293,7 +1293,7 @@ retrabalho que a seção 4.1 existe pra evitar.
 > site vitest ×2, estado vazio, sincronização, e2e 252 + 65 de acessibilidade, **Lighthouse 39/39**. **Ao vivo:**
 > `painel.asaf.org.br/version.json` = `a921164`; `asaf.org.br/version.json` = `db03536`; as 4 rotas novas no `openapi.json`;
 > `/api/publico/transparencia/documentos` → 200 (a coluna nova existe em produção: a migração rodou); `/diretoria/` mostra os
-> dois órgãos com os **10 cargos vagos**; `monitorar-site.yml` e `sincronizar-site.yml` disparados à mão terminaram **verdes**
+> dois órgãos com os **10 cargos** ("Ocupante ainda não publicado": o site não afirma que o cargo está vago); `monitorar-site.yml` e `sincronizar-site.yml` disparados à mão terminaram **verdes**
 > (os passos de alerta, corretamente, "pulados": nada atrasado); log do deploy: "Tamanho do site (dist): 0.8 MB de 250 MB (0%)
 > e 43 de 15000 arquivos". **Falha minha, pega pelo CI:** o primeiro envio (`a921164`) foi barrado no `astro check` por um erro de
 > tipo num teste — o erro estava no resumo da minha própria verificação, que li só pelo fim. Nada foi publicado errado (a
@@ -1328,6 +1328,25 @@ retrabalho que a seção 4.1 existe pra evitar.
 > `Deploy Site` manual (que pula os portões, por desenho) com o mesmo código já testado; a correção (`c06f861`: o dado de teste
 > passa a usar um dia de referência fixo, com teste simulando a virada do dia) passou em **todos** os portões e o site foi
 > republicado. Antes, no lote anterior, outro erro (de tipo, num teste) também foi barrado pelo CI e corrigido.
+>
+> **Verificação independente de fatos da v5.5 (agente que não escreveu o código; 14 achados, todos tratados):** (1) o prazo
+> "em até 25 minutos" **não é garantido** — o agendador do GitHub atrasa (houve intervalos de horas entre rodadas): o texto passou
+> a "normalmente 15 a 30 minutos; às vezes atrasa; passou de 2 h o sistema avisa"; (2) o alerta de "site atrás do sistema há mais
+> de 2 h" **não saía** quando as 3 últimas publicações tinham falhado (os passos seguintes eram pulados): agora rodam com
+> `!cancelled()` (só se a comparação rodou) e há teste; (3) a trava de tamanho **não abre Issue** (só aviso/erro na publicação): o
+> guia dizia que sim; (4) o guia dizia "vago" e o site diz "Ocupante ainda não publicado" (de propósito: a diretoria pode estar
+> empossada e não registrada); (5) a conferência de dado pessoal tinha furos: título da **nova edição** e **sessões** da
+> programação (agora conferidos); (6) "apagar a foto: sai do armazenamento" era forte demais — o Azure mantém **cópia de segurança
+> por 30 dias** (apagamento reversível e versionamento, `infra/armazenamento-privado.sh`), a falha ao apagar era **engolida**
+> (agora aparece e a foto continua cadastrada) e o **comentário escondido do JPEG** passava para o arquivo novo (agora removido,
+> com teste); (7) o rótulo "Próxima edição" na Home vira "Próximo evento" (o projeto pode ter reuniões; sem JavaScript o primeiro
+> evento pode ser passado, mas a data sempre aparece); o destaque **não olha a situação do projeto** (a diretoria desmarca); (8)
+> relatório aprovado ligado a evento/projeto **Interno** continua na Transparência, mas a API **não revela mais a ligação**;
+> foto de evento vai ao site assim que o evento é Público, **sem segunda pessoa conferir** (dito no guia e no painel);
+> (9) "o sistema recusa CPF, RG…" virou "barra os padrões de…" (RG solto passa; nome e endereço não são detectados); (10)–(14)
+> redação: legenda x descrição da foto, nomes reais dos botões, o Despertai como decisão da diretoria (não como fato), 6
+> notícias/12 fotos na página do projeto, e-mail só com notificação ligada. **Ainda é limite conhecido:** não há regra de ciclo de
+> vida para apagar de vez as versões antigas no Azure antes de 30 dias, e o prazo real do site depende do agendador do GitHub.
 >
 > **O que NÃO foi visto ao vivo, e o que depende da diretoria:** nenhum projeto/evento/foto/relatório **real** existe em
 > produção (de propósito: nada de exemplo), então a página do projeto, a do evento, o destaque na Home e a foto só foram provados no

@@ -219,6 +219,20 @@ def test_limite_de_vagas_nao_pode_ficar_abaixo_das_vagas_ocupadas(client, db, au
     assert client.put(f"/api/eventos/{id_evento}", json={"vagas": 8}, headers=auth_headers).status_code == 200
 
 
+def test_titulo_da_nova_edicao_e_a_programacao_tambem_passam_pela_conferencia_de_dado_pessoal(client, auth_headers):
+    """O que vai à página do evento (título da edição nova, título/descrição das sessões) tem a mesma conferência do cadastro."""
+    publico = _evento_publico(client, auth_headers)
+    inicio = (datetime.utcnow() + timedelta(days=60)).strftime(_ISO)
+    r = client.post(f"/api/eventos/{publico}/nova-edicao", headers=auth_headers, json={"data_hora_inicio": inicio, "titulo": f"Edição 2027 - fale com Maria, CPF {CPF_VALIDO}"})
+    assert r.status_code == 422 and CPF_VALIDO not in r.text
+    r = client.post(f"/api/eventos/{publico}/sessoes", headers=auth_headers, json={"titulo": "Abertura", "descricao": f"Mediação: Maria, CPF {CPF_VALIDO}", "data_hora_inicio": inicio})
+    assert r.status_code == 422 and CPF_VALIDO not in r.text
+    # evento INTERNO não vai ao site: não é barrado
+    interno = _criar_evento(client, auth_headers, visibilidade="Interna")
+    assert client.post(f"/api/eventos/{interno}/sessoes", headers=auth_headers, json={"titulo": "Reunião", "descricao": f"Anotação, CPF {CPF_VALIDO}", "data_hora_inicio": inicio}).status_code == 200
+    assert client.post(f"/api/eventos/{publico}/nova-edicao", headers=auth_headers, json={"data_hora_inicio": inicio, "titulo": "Edição 2027"}).status_code == 200
+
+
 def test_evento_publico_com_dado_pessoal_na_criacao_e_recusado_mas_interno_nao(client, auth_headers):
     inicio = (datetime.utcnow() + timedelta(days=5)).strftime(_ISO)
     base = {"titulo": "Encontro", "categoria": "PALESTRA", "data_hora_inicio": inicio, "descricao": f"Falar com Maria, CPF {CPF_VALIDO}"}
@@ -335,6 +349,41 @@ def test_apagar_a_foto_tira_do_banco_do_armazenamento_e_do_site(client, db, auth
     assert client.get(f"/api/publico/eventos/{id_evento}").json()["fotos"] == []
     log = db.query(AuditLog).filter(AuditLog.tabela_afetada == "eventos", AuditLog.id_registro_afetado == id_evento, AuditLog.acao == "FOTO_APAGADA").first()
     assert log is not None
+
+
+def test_o_comentario_escondido_no_jpeg_tambem_nao_vai_junto(client, auth_headers):
+    """O Pillow devolve ao arquivo novo o comentário do JPEG (texto livre que alguns programas gravam): é apagado."""
+    id_evento = _evento_publico(client, auth_headers)
+    original = io.BytesIO()
+    Image.new("RGB", (60, 40), (10, 20, 30)).save(original, format="JPEG", comment=b"SEGREDO-NO-COMENTARIO")
+    assert b"SEGREDO-NO-COMENTARIO" in original.getvalue()
+    id_foto = _foto(client, auth_headers, id_evento, conteudo=original.getvalue())
+    guardada = client.get(f"/api/eventos/{id_evento}/fotos/{id_foto}/arquivo", headers=auth_headers).content
+    assert b"SEGREDO-NO-COMENTARIO" not in guardada and "comment" not in Image.open(io.BytesIO(guardada)).info
+
+
+def test_se_o_armazenamento_nao_apaga_a_foto_o_erro_aparece_e_a_foto_continua_cadastrada(client, db, auth_headers, monkeypatch):
+    """Antes o erro era engolido e o painel mostrava sucesso com o arquivo ainda lá (e a foto da criança já fora do banco)."""
+    id_evento = _evento_publico(client, auth_headers)
+    id_foto = _foto(client, auth_headers, id_evento)
+    nome = db.query(FotoEvento).filter(FotoEvento.id_foto == id_foto).first().arquivo_nome
+    real = armazenamento.obter()
+
+    class Quebrado:
+        def __getattr__(self, atributo):
+            return getattr(real, atributo)
+
+        def remover(self, pasta, nome):
+            raise RuntimeError("armazenamento fora do ar")
+
+    monkeypatch.setattr("app.services.armazenamento.obter", lambda: Quebrado())
+    r = client.delete(f"/api/eventos/{id_evento}/fotos/{id_foto}", headers=auth_headers)
+    assert r.status_code == 502 and "continua cadastrada" in r.text
+    db.expire_all()
+    assert db.query(FotoEvento).filter(FotoEvento.id_foto == id_foto).count() == 1
+    monkeypatch.undo()
+    assert client.delete(f"/api/eventos/{id_evento}/fotos/{id_foto}", headers=auth_headers).status_code == 200
+    assert armazenamento.obter().ler("fotos-eventos", nome) is None
 
 
 def test_foto_de_outro_evento_nao_e_alcancada_pelo_numero(client, auth_headers):
@@ -497,6 +546,24 @@ def test_vinculo_com_ata_ou_assembleia_nao_vai_ao_publico(client, preparador, ap
     publico = next(d for d in client.get("/api/publico/transparencia/documentos").json() if d["id_documento"] == id_documento)
     assert publico["vinculo_tipo"] is None and publico["vinculo_id"] is None
     assert "assembleia" not in client.get(f"/api/publico/transparencia/documentos/{id_documento}").text.lower().replace("assembleia geral", "")
+
+
+def test_relatorio_ligado_a_evento_ou_projeto_interno_nao_revela_que_ele_existe(client, auth_headers, preparador, aprovador):
+    """O relatório aprovado fica na lista da Transparência (foi aprovado para isso), mas a ligação com um evento/projeto INTERNO não
+    aparece: nem na lista, nem no detalhe, nem nas páginas do evento e do projeto (que nem existem no site)."""
+    interno = _criar_evento(client, auth_headers, visibilidade="Interna")
+    projeto_interno = _criar_projeto(client, auth_headers, visibilidade="Interna")
+    publico = _evento_publico(client, auth_headers)
+    do_interno = _relatorio_aprovado(client, preparador, aprovador, "evento", interno)
+    do_projeto_interno = _relatorio_aprovado(client, preparador, aprovador, "projeto", projeto_interno)
+    do_publico = _relatorio_aprovado(client, preparador, aprovador, "evento", publico)
+    lista = {d["id_documento"]: d for d in client.get("/api/publico/transparencia/documentos").json()}
+    for id_documento in (do_interno, do_projeto_interno):
+        assert id_documento in lista, "continua na Transparência: foi aprovado para o site"
+        assert lista[id_documento]["vinculo_tipo"] is None and lista[id_documento]["vinculo_id"] is None
+        detalhe = client.get(f"/api/publico/transparencia/documentos/{id_documento}").json()
+        assert detalhe["vinculo_tipo"] is None and detalhe["vinculo_id"] is None
+    assert lista[do_publico]["vinculo_tipo"] == "evento" and lista[do_publico]["vinculo_id"] == publico
 
 
 def test_relatorio_aprovado_que_e_retirado_sai_da_pagina_do_evento(client, auth_headers, preparador, aprovador):

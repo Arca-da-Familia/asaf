@@ -7,7 +7,8 @@ Foto de oficina, entrega ou evento mostra pessoas (muitas vezes crianças). Regr
     data), a rotação é aplicada, o lado maior fica em até 2000 px e o formato é sempre JPEG. O arquivo original nunca é guardado;
   - o arquivo fica em armazenamento PRIVADO; ao público só chega por rota que confere a situação a cada pedido, e o site copia a
     foto no build conferindo o SHA-256;
-  - quem retira a autorização pode APAGAR a foto: some do site e do armazenamento (a auditoria registra quem apagou)."""
+  - quem retira a autorização pode APAGAR a foto: some do sistema e, na próxima publicação, do site (a auditoria registra quem
+    apagou). O Azure guarda uma cópia de segurança por 30 dias (apagamento reversível, versionamento) antes de apagar de vez."""
 from __future__ import annotations
 
 import io
@@ -64,9 +65,27 @@ def tratar_imagem(conteudo: bytes) -> tuple[bytes, int, int]:
     else:
         imagem = imagem.convert("RGB")
     imagem.thumbnail((LADO_MAXIMO, LADO_MAXIMO))
+    # O Pillow devolve para o arquivo novo o que veio em `info` (inclusive o COMENTÁRIO do JPEG, onde há programa que escreve
+    # texto livre): limpa, para nada do arquivo original ir junto. Exif, XMP e perfil de cor já não vão (não passam por aqui).
+    imagem.info = {}
     saida = io.BytesIO()
     imagem.save(saida, format="JPEG", quality=85, optimize=True)  # sem exif=: nenhum metadado vai junto
     return saida.getvalue(), imagem.width, imagem.height
+
+
+def remover_arquivo(pasta: str, nome: str) -> None:
+    """Apaga o arquivo da foto do armazenamento. Se NÃO conseguir, avisa (a pessoa tenta de novo) em vez de mostrar sucesso com a
+    foto ainda lá: quem retirou a autorização precisa saber. (O Azure ainda guarda uma cópia de segurança por 30 dias.)"""
+    from app.services import armazenamento
+
+    try:
+        armazenamento.obter().remover(pasta, nome)
+    except Exception:  # noqa: BLE001
+        armazenamento.LOG.exception("não foi possível apagar a foto %s/%s", pasta, nome)
+        raise HTTPException(
+            status_code=502,
+            detail="Não consegui apagar o arquivo da foto do armazenamento. A foto continua cadastrada: tente de novo em instantes.",
+        )
 
 
 def validar_alt(alt: str | None) -> str:

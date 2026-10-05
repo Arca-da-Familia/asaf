@@ -113,7 +113,11 @@ jobs:
       # A execução do workflow não tem memória; o instante em que a diferença apareceu fica num cache pequeno (um arquivo).
       # Diferença que dura 15-25 min é o ciclo normal (sincronização + publicação); mais de 2 h é problema de verdade
       # (publicação falhando, Static Web App fora do ar...). Nesse caso esta execução fica VERMELHA e abre um aviso.
+      # `!cancelled()` (não só o sucesso do passo anterior): se a republicação parou de propósito porque as 3 últimas publicações
+      # falharam (passo acima faz `exit 1`), é EXATAMENTE aí que o aviso de "site atrasado" tem que sair. Só não mede se a
+      # comparação em si não rodou (sem `mudou` não há o que medir).
       - name: Restaura desde quando o site está desatualizado
+        if: ${{ !cancelled() && steps.conteudo.outcome == 'success' }}
         uses: actions/cache/restore@v6
         with:
           path: defasagem
@@ -122,6 +126,7 @@ jobs:
 
       - name: Mede há quanto tempo o site está desatualizado
         id: defasagem
+        if: ${{ !cancelled() && steps.conteudo.outcome == 'success' }}
         env:
           MUDOU: ${{ steps.conteudo.outputs.mudou }}
           LIMITE_MINUTOS: "120"
@@ -147,14 +152,14 @@ jobs:
           fi
 
       - name: Guarda o registro (só quando ele muda)
-        if: steps.defasagem.outputs.mudar_registro == 'true'
+        if: ${{ !cancelled() && steps.defasagem.outputs.mudar_registro == 'true' }}
         uses: actions/cache/save@v6
         with:
           path: defasagem
           key: defasagem-${{ github.run_id }}
 
       - name: Aviso no GitHub — site atrás do sistema há mais de 2 horas
-        if: steps.defasagem.outputs.defasado == 'true'
+        if: ${{ !cancelled() && steps.defasagem.outputs.defasado == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           MINUTOS: ${{ steps.defasagem.outputs.minutos }}
@@ -162,7 +167,7 @@ jobs:
           ROTULO=alerta-site-defasado
           gh label create "$ROTULO" --repo "$GITHUB_REPOSITORY" --color D93F0B --description "O site no ar está atrás do sistema há mais de 2 horas (aviso automático)" 2>/dev/null || true
           ABERTO=$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$ROTULO" --state open --json number -q '.[0].number // ""')
-          CORPO=$(printf 'O site publicado está atrás do sistema há %s minutos (limite: 120).\n\nO normal é a diferença durar uns 20 minutos (a sincronização confere de 15 em 15 e a publicação leva uns 5). Mais que isso quer dizer que a publicação está falhando ou o site está fora do ar.\n\nVeja Actions > Deploy Site: %s/%s/actions/workflows/deploy-site.yml\n\nEste aviso fecha sozinho quando o site alcançar o sistema.' \
+          CORPO=$(printf 'O site publicado está atrás do sistema há %s minutos, contados desde que a sincronização percebeu a diferença (limite: 120).\n\nO normal é a diferença durar de 15 a 30 minutos (a sincronização confere de 15 em 15, mas o GitHub às vezes atrasa o agendamento; a publicação leva alguns minutos). Bem mais que isso quer dizer que a publicação está falhando ou o site está fora do ar.\n\nVeja Actions > Deploy Site: %s/%s/actions/workflows/deploy-site.yml\n\nEste aviso fecha sozinho quando o site alcançar o sistema.' \
             "$MINUTOS" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY")
           if [ -n "$ABERTO" ]; then
             gh issue comment "$ABERTO" --repo "$GITHUB_REPOSITORY" --body "$CORPO"
@@ -173,7 +178,7 @@ jobs:
           exit 1
 
       - name: Fecha o aviso de defasagem quando o site alcançou o sistema
-        if: steps.conteudo.outputs.mudou == 'false'
+        if: ${{ !cancelled() && steps.conteudo.outputs.mudou == 'false' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
