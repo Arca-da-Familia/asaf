@@ -1219,7 +1219,7 @@ retrabalho que a seção 4.1 existe pra evitar.
       diretoria** (não será inventado). O formulário do pedido vem na v5.5.
 - [x] **Projetos e Despertai (R8)** — *decisão de 2026-10-04: o Despertai é um **projeto** do sistema marcado como destaque, cada
       edição é um **evento** ligado a ele; relatórios = documentos ligados; fotos com autorização; notícias do Directus
-      ligadas pelo número. **No ar** (ver o bloco "v5.5 — no ar" abaixo). **Depende da diretoria:** criar o projeto no painel
+      ligadas pelo número. **No ar** (ver o bloco "v5.4b — terceiro lote" abaixo). **Depende da diretoria:** criar o projeto no painel
       (Pública + "em destaque") com o texto real; sem projeto a Home e `/projetos/` ficam como eram.* Texto original do item: projeto "Pública" do sistema já tem página; a **camada editorial**
       (texto, edições anteriores com data/local/público e fotos com autorização) fica no **Directus**, e a
       informação do **calendário oficial do município só é publicada com o documento que a comprove**
@@ -1301,7 +1301,10 @@ retrabalho que a seção 4.1 existe pra evitar.
 > Estatuto em texto (não há dado em produção, de propósito; a diretoria sobe o documento) e a abertura real de um aviso no
 > GitHub (provada só executando o script em bash nos testes).
 >
-> **v5.5 — Despertai e o contexto do evento: NO AR (2026-10-04/05; commits `df5f917` e `c06f861`).** Modelagem: o Despertai é um
+> **v5.4b — terceiro lote (R8): Despertai e o contexto do evento — NO AR (2026-10-04/05; commits `df5f917` e `c06f861`).**
+> *Atenção à numeração: nos comentários do código, nas mensagens de commit e no nome da migração `a7d2f4c8b931` este trabalho aparece
+> como "v5.5" por engano meu. A **v5.5 do plano é outra** (Formulários públicos, fila única e módulo de eventos) e ainda NÃO começou.*
+> Modelagem: o Despertai é um
 > **projeto** do sistema marcado como destaque; cada edição é um **evento** ligado a ele; os relatórios são **documentos** ligados
 > ao evento/projeto (aprovados por outra pessoa, como todo documento); as fotos do evento só entram com **autorização de imagem**;
 > as notícias do Directus se ligam pelo **número** (`projeto_id`, `evento_id`). Entregue: (1) **editar projeto e evento** (antes só
@@ -1329,7 +1332,7 @@ retrabalho que a seção 4.1 existe pra evitar.
 > passa a usar um dia de referência fixo, com teste simulando a virada do dia) passou em **todos** os portões e o site foi
 > republicado. Antes, no lote anterior, outro erro (de tipo, num teste) também foi barrado pelo CI e corrigido.
 >
-> **Verificação independente de fatos da v5.5 (agente que não escreveu o código; 14 achados, todos tratados e NO AR em `68b55e0`:
+> **Verificação independente de fatos do R8/Despertai (agente que não escreveu o código; 14 achados, todos tratados e NO AR em `68b55e0`:
 > backend 801 testes + painel 234 + site 245 e e2e das páginas novas, verdes aqui, e a suíte completa de novo no CI de cada parte;
 > `painel` e `asaf.org.br/version.json` = `68b55e0`; `/diretoria/` mostra "Ocupante ainda não publicado" nos 10 cargos):** (1) o prazo
 > "em até 25 minutos" **não é garantido** — o agendador do GitHub atrasa (houve intervalos de horas entre rodadas): o texto passou
