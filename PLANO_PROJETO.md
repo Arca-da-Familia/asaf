@@ -1361,10 +1361,119 @@ retrabalho que a seção 4.1 existe pra evitar.
 > comprove**.
 
 
+#### v5.4c a v5.4g — Conferência AO VIVO na homologação, uma versão por fase (decisão do presidente, 2026-10-05)
+
+> **Por que existem.** Das FASES 0 a 4 (e da FASE 5 até a v5.4b) os pontos foram "confirmados em produção" por pipeline verde,
+> versão no ar e rotas vazias. **Nenhum ponto foi usado de verdade, com dado, numa tela.** A produção não pode receber dado de teste
+> (a auditoria não apaga: o próprio banco recusa), então a conferência real só pode ser feita na **homologação**
+> (`HOMOLOGACAO.md`: `hml-painel`, `hml-api`, `hml-site`, banco `asaf_hml` que pode ser apagado e recriado). Cada versão abaixo remete
+> a **uma fase** e tem um único trabalho: **usar de verdade, ao vivo, tudo que aquela fase construiu** — cadastrar, editar, aprovar,
+> errar de propósito, ver na Auditoria, abrir o link/arquivo/foto que a tela oferece (itens 10 e 11 do checklist da seção 4.1) — e
+> deixar tudo pronto para quando o Ponto de Revisão abrir. Nada aqui é "mais um teste simulado": é o sistema publicado, com o
+> navegador de verdade, como o usuário vai usá-lo.
+>
+> **Como cada item é dado como feito** (vale para as cinco versões): (1) a ação foi feita **na tela** do `hml-painel` (ou no
+> `hml-site`), não por chamada direta à API; (2) há **print** da tela antes e depois, guardado como artefato do fluxo; (3) a ação
+> apareceu na **Auditoria** com quem fez e quando (item 5 do checklist); (4) o que a tela oferece para abrir (foto, ata, PDF, link)
+> foi **aberto de fato**; (5) o erro que o sistema tem de recusar (CPF inválido, duplicado, permissão faltando, quem criou aprovando
+> o próprio documento) foi **provocado** e a recusa vista; (6) achou defeito: corrige ali, republica na homologação e **refaz o
+> item** — defeito achado não vira pendência. Quem recomeça do zero usa `resetar_banco` + `popular` (só o banco de teste).
+> **Usuários de teste** (CPFs inventados, no `HOMOLOGACAO.md`): Presidente (tudo), 1º Secretário (documentos e aprovação), 1º
+> Tesoureiro (financeiro e parcerias) — cada papel só enxerga o que o cargo permite, e isso também é conferido.
+
+#### v5.4c — FASE 0 e FASE 1 ao vivo: identidade, painel e associados
+
+- [ ] **Alicerce da conferência** (único item que não vem de uma fase): fluxo do GitHub `testar-homologacao.yml` (manual, só contra
+      `hml-*`, nunca contra a produção) que abre um navegador de verdade, entra com os usuários de teste lendo as senhas do cofre
+      (**ninguém digita nem cria senha**), executa o roteiro da versão e guarda prints/vídeo/relatório como artefato; e o
+      `deploy-homologacao.yml` ganha a opção de publicar **uma branch** (não só a `main`), para a regra da v5.5 em diante.
+      **Pendência de acesso, registrada com honestidade:** o segundo passo (MFA) está **ligado** na homologação. O presidente quer
+      a homologação **sem** segundo passo (nada real entra lá, e o MFA já foi provado); em 2026-10-05 a trava de segurança do Claude
+      Code recusou a mudança que o desligaria, então ele **não foi desligado** e nada foi contornado. Como o robô entra sem ninguém
+      digitando código é decisão do presidente — e o MFA de **produção** não se mexe (`DECISOES_CONGELADAS.md` §3.1).
+- [ ] **FASE 0 — entrar e sair:** login por CPF e senha, saída, sessão que expira (volta ao login), tela proibida (403 amigável), menu
+      que muda conforme o nível, "ver como" outro nível (v0.2.9), faixa **AMBIENTE DE TESTE** sempre visível, **Configurações**
+      (catálogos) editando e a opção nova aparecendo no cadastro, **Auditoria** mostrando tudo o que foi feito nesta versão.
+- [ ] **FASE 1 / 2.5.1 — associados:** cadastrar pela tela (CPF inválido recusado; CPF repetido recusado **na hora**, não depois), editar,
+      subir foto e **abri-la**, filiação (da intenção ao efetivo), licença / desligamento / retorno, ficha 360º e linha do tempo,
+      família e núcleo doméstico, voluntário e empregado, importar e exportar CSV, qualidade da base (pendências do cadastro).
+- [ ] Lista de **achados** da versão preenchida (cada um corrigido e refeito) e print de cada tela real no bloco de fechamento.
+
+#### v5.4d — FASE 2 e FASE 2.5 ao vivo: governança
+
+- [ ] **Diretoria e Conselho Fiscal:** nomear, encerrar e renovar mandato; **cargos do Art. 19 (7) e do Art. 24 (3)**; o menu e as
+      permissões do usuário **mudam sozinhos** quando o cargo muda (Secretário passa a ver documentos).
+- [ ] **Assembleia de ponta a ponta:** criar, convocar (edital), habilitar quem pode votar, abrir a sessão, chamada (presença,
+      autochamada, justificativa de falta), votação com o motor de votos (quórum e empate), encerrar, ata com **anexo que abre**,
+      deliberação com efeito, "Minhas Assembleias" visto como associado comum.
+- [ ] **Conselho Fiscal com poder real:** consulta ao financeiro que **grava a consulta na Auditoria**; fila de questionamentos
+      (conselheiro pergunta, tesouraria responde, histórico fica); **parecer** (favorável, com ressalva, contrário) — e a
+      deliberação de "aprovação de contas" **só pode ser criada com o parecer do ano**. Depois: **disciplina** (abrir, defesa,
+      decisão), **dissolução** (art. 61 do Código Civil: só simulada — nada irreversível) e **calendário institucional**.
+- [ ] Lista de **achados** corrigidos e refeitos; prints.
+
+#### v5.4e — FASE 3 ao vivo: financeiro
+
+- [ ] **Base contábil:** exercício, plano de contas, centros de custo, contas financeiras; lançamento em partida dobrada que **não fecha**
+      é recusado; lançamento **não se apaga** (estorno), e o razão contábil bate com o livro-caixa.
+- [ ] **Receita:** planos de contribuição, gerar cobranças em bloco, baixa de título, inadimplência como processo (negociação de dívida),
+      desconto por pagamento antecipado, doações e **recibo que abre**.
+- [ ] **Despesa com segregação de funções:** compra, conta a pagar (recorrentes), reembolso; **quem criou não aprova** (Tesoureiro prepara,
+      Presidente aprova); alçadas de aprovação; fornecedores; conciliação bancária.
+- [ ] **Orçamento e fluxo de caixa, relatórios e prestação de contas, controles antifraude** (alerta dispara de verdade).
+- [ ] Os **valores** vistos nas telas conferem **centavo a centavo** com o que foi lançado; lista de achados corrigidos e prints.
+
+#### v5.4f — FASE 4 ao vivo: projetos, reserva de espaço e eventos
+
+- [ ] **Projeto:** criar, editar, publicar no site (aprovação), **em destaque**, beneficiários e atendimento, voluntariado vinculado.
+- [ ] **Reserva de espaço:** reservar, **conflito de horário recusado**, cancelar, calendário do espaço.
+- [ ] **Evento:** criar ligado a um projeto, programação em sessões, inscrição **pelo site** (CPF repetido não duplica), vagas, **lista de espera**
+      que anda quando alguém cancela, inscrição em grupo, check-in com crachá/QR, certificado **que abre**, financeiro do evento, painel gerencial.
+- [ ] **Despertai e o contexto do evento:** página do projeto no `hml-site` (fotos, edições, relatórios aprovados, notícias vinculadas),
+      destaque na Home, página do evento com o projeto de origem, foto de evento, **relatório de evento aprovado** na Transparência;
+      dado pessoal digitado no texto público é **barrado**.
+- [ ] Lista de **achados** corrigidos e refeitos; prints do painel e do site.
+
+#### v5.4g — FASE 5 ao vivo (v5.0 a v5.4b): site e Transparência
+
+- [ ] **Todas as páginas do `hml-site`** abertas e conferidas (links, imagens, acessibilidade, `noindex`, faixa de teste): início, a associação,
+      diretoria (Art. 19), projetos, eventos, notícias (a de teste não tem — o editor é um só), contato, privacidade, termos, transparência.
+- [ ] **Documentos:** Secretário prepara (original PDF + versão pública em texto), Presidente **aprova** (quem enviou **não** aprova o próprio);
+      o **original nunca** sai pela API pública nem por `/uploads`; PDF só-imagem recusado; documento **Interno/Restrito** não aparece;
+      retirar uma publicação e ver sair do site.
+- [ ] **Parcerias e emendas:** cadastrar, parcelas, etapas **com foto**, movimentos classificados, relatório, publicação aprovada por segunda
+      pessoa; o **valor mostrado no site bate** com o livro-caixa do centro de custo; edição depois de aprovada vai direto (decisão de 2026-10-04).
+- [ ] **Vigilantes e avisos** (monitor do site, alerta de 2 h, trava de tamanho) conferidos **sem** apontá-los para a homologação (custo).
+- [ ] **Checklist do Ponto de Revisão FASE 5 (1/2) executado inteiro na homologação**, item a item, com o resultado registrado ali.
+
+##### Regra de trabalho a partir da v5.5 — a homologação é o portão (decisão do presidente, 2026-10-05)
+
+> "A partir da v5.5, tudo vai ser feito teste a teste. Não vai ter mais processos internos, teste simulado. Literalmente é real. A IA vai
+> testar na homologação, de fato. Se tiver certo lá, aí sim ela manda para o real."
+
+Para **cada versão** (v5.5 em diante), nesta ordem — pular um passo é descumprir o plano:
+
+1. **Implementar numa branch** (não na `main`) e passar a suíte completa local; a suíte continua existindo como rede de segurança, mas
+   **deixa de ser o portão**.
+2. **Publicar a branch na homologação** (`deploy-homologacao.yml` com a branch escolhida; migração e dados rodam primeiro lá,
+   com o banco de teste, antes de qualquer coisa na produção).
+3. **Conferir ao vivo na homologação** tudo que a versão entrega, pelas telas, no formato das versões v5.4c–g (ação na tela + print +
+   Auditoria + abrir o que a tela oferece + provocar o erro que deve ser recusado). Defeito achado: corrige na branch, republica,
+   **refaz o item**.
+4. **Só com tudo conferido, ir para a `main`** (isso dispara a produção), acompanhar o pipeline e **confirmar em produção por leitura**
+   (`version.json`, rota nova só com `GET`) — **produção nunca recebe dado de teste**.
+5. Registrar no bloco da versão o que foi visto **na homologação** e o que foi confirmado **em produção**, em linhas separadas.
+
+Mudança que não toca tela nem regra (documento, ajuste de pipeline) segue o fluxo curto do `CLAUDE.md`.
+
+
 ##### 🔍 Ponto de Revisão — FASE 5 (1/2 — meio, fecha v5.0–v5.4)
 
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 
+- **Conferência ao vivo na homologação (v5.4c–v5.4g) concluída** (decisão do presidente, 2026-10-05): cada item das cinco versões feito
+  **na tela**, com print, Auditoria e recusa provocada; **nenhum defeito aberto** e nenhum item "falta conferir". Este ponto só abre
+  com isso fechado — a revisão que já aconteceu sem ninguém ter visto a tela é exatamente o que esta exigência corrige.
 - Directus não tem, em nenhuma coleção, dado de associado/financeiro **do sistema** — só conteúdo
   editorial e de transparência. **(Achado de 2026-10-01: era FALSO — o Directus enxergava todas as
   tabelas do sistema. Corrigido em 2026-10-02 pelo isolamento da v5.1 e provado em produção, 16/16.
@@ -1686,7 +1795,8 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       escrever no cofre — mantido só leitura — e o roteiro não achava o pacote `app`), terceira verde nas 4 partes; a API de teste
       serve 10 cargos, 1 projeto em destaque com 2 edições e 3 fotos, 2 documentos aprovados e 1 emenda; o site de teste mostra a
       faixa, o destaque na Home, a página do projeto e `robots.txt` bloqueando tudo; o site e o painel de produção continuam sem a faixa
-      (`test:vazio` prova). **Falta:** conferir as telas de gestão da homologação logado (o login é feito pelo usuário).
+      (`test:vazio` prova). **Falta:** conferir as telas de gestão da homologação ao vivo, que agora é o trabalho das versões
+      **v5.4c a v5.4g** (uma por fase, antes do Ponto de Revisão FASE 5 (1/2)); a pendência de como o robô entra está na v5.4c.
 
 #### v8.3 — Reconstruibilidade da infraestrutura ✅ resolvida em 2026-09-11
 

@@ -24,6 +24,25 @@ Isso não dispensa cuidado — só remove a pausa de pedir permissão pra enviar
 destrutivas/irreversíveis continuam exigindo confirmação explícita de qualquer forma (isso é regra
 geral, não específica deste repositório).
 
+## A partir da v5.5: a homologação é o portão (decisão do usuário, 2026-10-05)
+
+O que vale **até a v5.4g** (conferir ao vivo, na homologação, tudo que as FASES 0–5 já construíram) e **a partir da v5.5**
+(`PLANO_PROJETO.md`, blocos "v5.4c a v5.4g" e "Regra de trabalho a partir da v5.5"). Nas palavras do usuário: "tudo vai ser feito
+teste a teste; não vai ter mais teste simulado, é real; a IA testa na homologação, de fato; se estiver certo lá, aí sim manda para o
+real". Em resumo, para **versão de funcionalidade** (mexe em tela ou regra):
+
+1. Implementar numa **branch**, suíte completa local passando (continua sendo rede de segurança, não é mais o portão).
+2. **Publicar a branch na homologação** (`deploy-homologacao.yml`); migração e dados rodam lá primeiro.
+3. **Conferir ao vivo na homologação**, pelas telas: ação feita na tela + print + Auditoria + abrir o que a tela oferece + provocar o
+   erro que tem de ser recusado. Defeito: corrige, republica e **refaz o item**.
+4. **Só então** ir para a `main` (produção), acompanhar o pipeline e confirmar em produção **por leitura** (`version.json`, `GET` de
+   rota nova). **Produção nunca recebe dado de teste** (a auditoria não apaga).
+5. No `PLANO_PROJETO.md`, registrar em linhas separadas o que foi visto **na homologação** e o que foi confirmado **em produção**.
+
+Mudança que não toca tela nem regra (documento, ajuste de pipeline, atualização de pacote sem efeito visível) segue o fluxo curto
+do início deste arquivo. Como o robô entra na homologação sem o usuário digitar nem criar senha: ver "Pendência de acesso" na v5.4c —
+é decisão do usuário e **não se resolve enfraquecendo nenhuma trava**; se o Claude Code bloquear algo, parar e avisar.
+
 ## MFA do painel não é renegociável por pedido avulso
 
 Já foi pedido (2026-09-30) para remover a exigência de MFA do painel pra que o Claude conseguisse
