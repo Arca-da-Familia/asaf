@@ -5,7 +5,7 @@
 // Aqui: mesma API do build => NÃO mudou; API com outro conteúdo => mudou; site sem o arquivo => mudou.
 // Pré-requisito: `npm run build:teste` (usa dist/conteudo.json).
 import { spawn } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
 
 import {
@@ -42,6 +42,9 @@ function verificar(env) {
 }
 
 const publicado = readFileSync('dist/conteudo.json', 'utf-8')
+// As datas do mock são relativas ao dia de hoje. Se a meia-noite (UTC) passou entre o build e este teste, a API "mudaria"
+// só por isso: reproduz o dia em que o build gravou o conteúdo (o horário do arquivo).
+process.env.MOCK_AGORA ??= statSync('dist/conteudo.json').mtime.toISOString()
 const cheia = criarServidor()
 const vazia = criarServidor({ vazio: true })
 // "Site publicado": serve o /conteudo.json do build; qualquer outro caminho é 404.

@@ -44,9 +44,17 @@ const ORIGENS_PERMITIDAS = new Set([
   `http://localhost:${PORTA_DO_SITE_DE_TESTE}`,
 ])
 
+/**
+ * O "agora" do mock: o relógio, ou `MOCK_AGORA` (ISO) para reproduzir o dia em que o build rodou. As datas do mock são
+ * relativas a hoje (dia inteiro); se a virada do dia (UTC) cair ENTRE o build e o teste de sincronização, a API "mudaria"
+ * sozinha e o teste acusaria reconstrução sem parar — foi o que aconteceu no CI à meia-noite UTC de 2026-10-05.
+ */
+const agora = () =>
+  process.env.MOCK_AGORA ? Date.parse(process.env.MOCK_AGORA) : Date.now()
+
 /** "AAAA-MM-DDT19:00:00" daqui a `dias` dias — formato sem fuso, como a API real devolve. */
 function dataLocal(dias, hora = 19) {
-  const d = new Date(Date.now() + dias * 86_400_000)
+  const d = new Date(agora() + dias * 86_400_000)
   const dia = d.toISOString().slice(0, 10)
   return `${dia}T${String(hora).padStart(2, '0')}:00:00`
 }
@@ -704,7 +712,7 @@ function detalheDaParceria(id) {
 
 /** "AAAA-MM-DDT12:00:00Z" de `dias` atrás: fixo no dia, para a impressão digital não variar entre leituras. */
 const instante = (dias) =>
-  `${new Date(Date.now() - dias * 86_400_000).toISOString().slice(0, 10)}T12:00:00Z`
+  `${new Date(agora() - dias * 86_400_000).toISOString().slice(0, 10)}T12:00:00Z`
 
 /**
  * Notícias como o Directus devolve. Inclui, de propósito, o que a validação do site precisa RECUSAR:
