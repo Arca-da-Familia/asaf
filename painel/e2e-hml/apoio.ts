@@ -75,6 +75,8 @@ export async function ver(
   info: TestInfo,
   nome: string,
 ): Promise<void> {
+  // print de tela "Carregando…" não prova nada: espera o dado chegar (uma tela travada nisso é defeito e reprova aqui)
+  await expect(page.getByText(/^Carregando/)).toHaveCount(0)
   const roteiro = path.basename(info.file).replace(/\.spec\.ts$/, '')
   const pasta = path.join('prints-hml', roteiro)
   fs.mkdirSync(pasta, { recursive: true })

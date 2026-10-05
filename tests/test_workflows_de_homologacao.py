@@ -153,3 +153,12 @@ def test_da_para_publicar_uma_branch_na_homologacao_antes_da_main():
     assert "github.sha" not in CODIGO
     assert 'echo "CODIGO_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"' in CODIGO
     assert CODIGO.count("hml-${CODIGO_SHA}") == 2
+
+
+def test_mexer_so_no_robo_de_conferencia_nao_reconstroi_o_painel_de_producao():
+    """O robô (painel/e2e-hml, playwright.hml.config.ts) não vai para o painel publicado: o deploy de produção ignora essas pastas."""
+    texto = (RAIZ / ".github" / "workflows" / "deploy-painel.yml").read_text(encoding="utf-8")
+    for ignorado in ('"!painel/e2e-hml/**"', '"!painel/playwright.hml.config.ts"', '"!painel/prints-hml/**"'):
+        assert texto.count(ignorado) == 2, f"{ignorado} em push e em pull_request"
+    # a negação vem DEPOIS de "painel/**" (a ordem importa nos filtros de caminho do GitHub)
+    assert texto.index('"painel/**"') < texto.index('"!painel/e2e-hml/**"')

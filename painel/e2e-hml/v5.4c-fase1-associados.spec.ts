@@ -187,7 +187,13 @@ test('editar: a mudança é salva e continua lá depois de recarregar a página'
   await expect(page.getByRole('heading', { name: NOME })).toBeVisible()
 
   await campo(page, 'Profissão').fill('Professora de Teste')
+  const gravou = page.waitForResponse(
+    (r) =>
+      ['PUT', 'PATCH'].includes(r.request().method()) &&
+      r.url().includes('/associados'),
+  )
   await page.getByRole('button', { name: 'Salvar alterações' }).click()
+  expect((await gravou).status()).toBe(200)
   await ver(page, info, 'depois de salvar')
   await page.reload()
   await expect(campo(page, 'Profissão')).toHaveValue('Professora de Teste')

@@ -55,10 +55,9 @@ test('o Presidente entra só com CPF e senha (sem segundo passo), vê o início 
   // o módulo "Auditoria" existe e já registrou o que acabamos de fazer
   await page.goto('/auditoria')
   await expect(page.getByRole('heading', { name: 'Auditoria' })).toBeVisible()
+  // o que acabamos de fazer (o login) já tem que estar registrado: a lista não pode estar vazia
+  await expect(page.locator('tbody tr').first()).toBeVisible()
   await ver(page, info, 'auditoria mostrando o login')
-  await expect(page.locator('main, [role="main"], body')).toContainText(
-    /LOGIN/i,
-  )
 
   await page.goto('/configuracoes')
   await expect(

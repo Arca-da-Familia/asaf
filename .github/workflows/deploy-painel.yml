@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - "painel/**"
+      # o robô de conferência ao vivo na homologação (v5.4c) NÃO faz parte do painel publicado: mexer só nele não reconstrói a produção
+      - "!painel/e2e-hml/**"
+      - "!painel/playwright.hml.config.ts"
+      - "!painel/prints-hml/**"
       # design/ é a identidade visual compartilhada com o site (v5.0): mudou lá, o painel
       # precisa ser reconstruído também.
       - "design/**"
@@ -12,6 +16,10 @@ on:
   pull_request:
     paths:
       - "painel/**"
+      # o robô de conferência ao vivo na homologação (v5.4c) NÃO faz parte do painel publicado: mexer só nele não reconstrói a produção
+      - "!painel/e2e-hml/**"
+      - "!painel/playwright.hml.config.ts"
+      - "!painel/prints-hml/**"
       - "design/**"
       - ".github/workflows/deploy-painel.yml"
   workflow_dispatch: {}
