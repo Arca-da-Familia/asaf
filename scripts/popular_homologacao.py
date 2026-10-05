@@ -361,6 +361,8 @@ def main() -> int:
     if f"/{BANCO_HML}" not in url:
         raise SystemExit(f"RECUSADO: DATABASE_URL não aponta para o banco de teste ('{BANCO_HML}').")
     os.environ.setdefault("RUN_DB_MIGRATION", "false")
+    # `python scripts/popular_homologacao.py` põe só a pasta `scripts/` no caminho dos módulos: o pacote `app` é da raiz do repositório
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from fastapi.testclient import TestClient
 
     from app.database import SessaoLocal

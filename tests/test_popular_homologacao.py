@@ -152,3 +152,17 @@ def test_a_trava_recusa_qualquer_banco_que_nao_seja_o_de_teste(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@h:5432/asaf_db")
     with pytest.raises(SystemExit, match="RECUSADO"):
         ph.main()
+
+
+def test_o_script_roda_como_arquivo_de_qualquer_pasta_e_acha_o_pacote_app(tmp_path):
+    """A 2ª execução do fluxo falhou com `No module named 'app'`: `python scripts/popular_homologacao.py` só enxerga a pasta `scripts/`.
+    Aqui o script roda COMO ARQUIVO, de outra pasta, num banco SQLite (que não é o de teste de verdade): tem que passar do `import app`
+    e só parar na trava do banco, nunca por falta de módulo."""
+    import os
+
+    env = {**os.environ, "DATABASE_URL": f"sqlite:///{(tmp_path / 'asaf_hml.db').as_posix()}", "JWT_SECRET": "x", "RUN_DB_MIGRATION": "true"}
+    env.pop("PYTHONPATH", None)
+    r = subprocess.run([sys.executable, str(CAMINHO)], cwd=tmp_path, env=env, capture_output=True, text=True, encoding="utf-8", timeout=300)
+    saida = r.stdout + r.stderr
+    assert "No module named" not in saida, saida[-800:]
+    assert r.returncode != 0, "num banco que não é o de teste de verdade a trava tem que parar o roteiro"
