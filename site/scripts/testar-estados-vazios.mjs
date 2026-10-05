@@ -190,6 +190,12 @@ for (const arquivo of todosOsArquivos) {
     !readFileSync(arquivo, 'utf-8').includes('EXEMPLO'),
     `${arquivo} contém "EXEMPLO": dado de teste no build de produção`,
   )
+  // A faixa do ambiente de TESTE (homologação) nunca pode existir no build de produção, nem noindex por causa dela.
+  exigir(
+    !readFileSync(arquivo, 'utf-8').includes('AMBIENTE DE TESTE') &&
+      !readFileSync(arquivo, 'utf-8').includes('data-ambiente="homologacao"'),
+    `${arquivo} traz a faixa do ambiente de TESTE no build de produção`,
+  )
 }
 
 // 4. Nada de "undefined"/"null"/"[object" vazando para o texto de nenhuma página.

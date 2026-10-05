@@ -1,0 +1,13 @@
+---
+import { ehHomologacao, TEXTO_DO_AMBIENTE_DE_TESTE } from '../lib/ambiente'
+---
+
+{ehHomologacao() && (
+  <p
+    role="status"
+    data-ambiente="homologacao"
+    class="bg-amber-300 px-4 py-2 text-center text-sm font-semibold text-black"
+  >
+    {TEXTO_DO_AMBIENTE_DE_TESTE}
+  </p>
+)}

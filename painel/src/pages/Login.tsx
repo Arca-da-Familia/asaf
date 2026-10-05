@@ -5,6 +5,7 @@ import {
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 
+import { AvisoDeAmbiente } from '@/components/layout/AvisoDeAmbiente'
 import { Button } from '@/components/ui/button'
 import {
   ApiError,
@@ -136,132 +137,135 @@ export function Login() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
-      <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-xs">
-        {/* Logo institucional (v5.0). alt vazio: o <h1> logo abaixo já diz o nome. */}
-        <img
-          src="/asaf-logo-160.webp"
-          alt=""
-          width={77}
-          height={64}
-          className="mb-4 h-16 w-auto"
-        />
-        <h1 className="text-xl font-bold">ASAF · Painel</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {loginTempToken
-            ? 'Informe o código do seu autenticador.'
-            : 'Entre com seu CPF e senha.'}
-        </p>
-
-        {erro && (
-          <p
-            role="alert"
-            className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-          >
-            {erro}
+    <main className="flex min-h-screen flex-col bg-muted/40">
+      <AvisoDeAmbiente />
+      <div className="flex flex-1 items-center justify-center px-4">
+        <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-xs">
+          {/* Logo institucional (v5.0). alt vazio: o <h1> logo abaixo já diz o nome. */}
+          <img
+            src="/asaf-logo-160.webp"
+            alt=""
+            width={77}
+            height={64}
+            className="mb-4 h-16 w-auto"
+          />
+          <h1 className="text-xl font-bold">ASAF · Painel</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {loginTempToken
+              ? 'Informe o código do seu autenticador.'
+              : 'Entre com seu CPF e senha.'}
           </p>
-        )}
 
-        {!loginTempToken ? (
-          <form onSubmit={enviarPrimeiroPasso} className="mt-6 v3-space-y-4">
-            <div>
-              <label htmlFor="cpf" className="text-sm font-medium">
-                CPF
-              </label>
-              <input
-                id="cpf"
-                inputMode="numeric"
-                autoComplete="username"
-                value={cpf}
-                onChange={(e) => setCpf(formatarCpf(e.target.value))}
-                placeholder="000.000.000-00"
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label htmlFor="senha" className="text-sm font-medium">
-                Senha
-              </label>
-              <input
-                id="senha"
-                type="password"
-                autoComplete="current-password"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={carregando}>
-              {carregando ? 'Entrando…' : 'Entrar'}
-            </Button>
-            {passkeySuportada && (
-              <>
-                <div className="relative py-1 text-center text-xs text-muted-foreground">
-                  <span className="bg-card px-2">ou</span>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={entrarComPasskey}
-                  disabled={carregandoPasskey}
-                >
-                  {carregandoPasskey
-                    ? 'Verificando…'
-                    : 'Entrar com chave de acesso'}
-                </Button>
-              </>
-            )}
-          </form>
-        ) : (
-          <form onSubmit={enviarSegundoPasso} className="mt-6 v3-space-y-4">
-            <div>
-              <label htmlFor="codigo" className="text-sm font-medium">
-                {modoRecuperacao ? 'Código de recuperação' : 'Código TOTP'}
-              </label>
-              <input
-                id="codigo"
-                inputMode={modoRecuperacao ? 'text' : 'numeric'}
-                enterKeyHint="done"
-                autoComplete="one-time-code"
-                maxLength={modoRecuperacao ? 14 : 6}
-                value={codigoTotp}
-                onChange={(e) =>
-                  setCodigoTotp(
-                    modoRecuperacao
-                      ? e.target.value.toUpperCase()
-                      : somenteDigitos(e.target.value),
-                  )
-                }
-                placeholder={modoRecuperacao ? 'XXXX-XXXX-XXXX' : '000000'}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm tracking-widest"
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={carregando}>
-              {carregando ? 'Verificando…' : 'Verificar'}
-            </Button>
-            <Button
-              type="button"
-              variant="link"
-              className="w-full"
-              onClick={alternarModo}
-              disabled={carregando}
+          {erro && (
+            <p
+              role="alert"
+              className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
             >
-              {modoRecuperacao
-                ? 'Usar código do autenticador'
-                : 'Usar código de recuperação'}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={voltar}
-              disabled={carregando}
-            >
-              Voltar
-            </Button>
-          </form>
-        )}
+              {erro}
+            </p>
+          )}
+
+          {!loginTempToken ? (
+            <form onSubmit={enviarPrimeiroPasso} className="mt-6 v3-space-y-4">
+              <div>
+                <label htmlFor="cpf" className="text-sm font-medium">
+                  CPF
+                </label>
+                <input
+                  id="cpf"
+                  inputMode="numeric"
+                  autoComplete="username"
+                  value={cpf}
+                  onChange={(e) => setCpf(formatarCpf(e.target.value))}
+                  placeholder="000.000.000-00"
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label htmlFor="senha" className="text-sm font-medium">
+                  Senha
+                </label>
+                <input
+                  id="senha"
+                  type="password"
+                  autoComplete="current-password"
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={carregando}>
+                {carregando ? 'Entrando…' : 'Entrar'}
+              </Button>
+              {passkeySuportada && (
+                <>
+                  <div className="relative py-1 text-center text-xs text-muted-foreground">
+                    <span className="bg-card px-2">ou</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={entrarComPasskey}
+                    disabled={carregandoPasskey}
+                  >
+                    {carregandoPasskey
+                      ? 'Verificando…'
+                      : 'Entrar com chave de acesso'}
+                  </Button>
+                </>
+              )}
+            </form>
+          ) : (
+            <form onSubmit={enviarSegundoPasso} className="mt-6 v3-space-y-4">
+              <div>
+                <label htmlFor="codigo" className="text-sm font-medium">
+                  {modoRecuperacao ? 'Código de recuperação' : 'Código TOTP'}
+                </label>
+                <input
+                  id="codigo"
+                  inputMode={modoRecuperacao ? 'text' : 'numeric'}
+                  enterKeyHint="done"
+                  autoComplete="one-time-code"
+                  maxLength={modoRecuperacao ? 14 : 6}
+                  value={codigoTotp}
+                  onChange={(e) =>
+                    setCodigoTotp(
+                      modoRecuperacao
+                        ? e.target.value.toUpperCase()
+                        : somenteDigitos(e.target.value),
+                    )
+                  }
+                  placeholder={modoRecuperacao ? 'XXXX-XXXX-XXXX' : '000000'}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm tracking-widest"
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={carregando}>
+                {carregando ? 'Verificando…' : 'Verificar'}
+              </Button>
+              <Button
+                type="button"
+                variant="link"
+                className="w-full"
+                onClick={alternarModo}
+                disabled={carregando}
+              >
+                {modoRecuperacao
+                  ? 'Usar código do autenticador'
+                  : 'Usar código de recuperação'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={voltar}
+                disabled={carregando}
+              >
+                Voltar
+              </Button>
+            </form>
+          )}
+        </div>
       </div>
     </main>
   )

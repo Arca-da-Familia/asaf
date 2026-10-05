@@ -1,0 +1,281 @@
+name: Deploy Homologação (ambiente de TESTE)
+
+# Publica o código da `main` no ambiente de TESTE (dados inventados): API `hml-api`, painel `hml-painel`, site `hml-site`
+# (todos sob asaf.org.br). SÓ roda quando alguém dispara à mão (nunca por push): o ambiente de teste não pode derrubar nem
+# alterar a produção, e a API de teste só custa enquanto está acordada.
+#
+# Garantias (cada uma tem teste em tests/test_workflows_de_homologacao.py):
+#   - o banco usado é SEMPRE o `asaf_hml` (segredo HML-DATABASE-URL, nunca DATABASE-URL; cada passo confere o nome do banco);
+#   - `resetar_banco` apaga e recria SÓ o banco de teste (scripts/homologacao_banco.py tem o nome fixo);
+#   - nada aqui toca o painel, o site, a API ou o banco de produção;
+#   - nenhum segredo é impresso (todos passam por `::add-mask::`).
+on:
+  workflow_dispatch:
+    inputs:
+      resetar_banco:
+        description: "APAGAR o banco de TESTE inteiro e recriá-lo vazio (só o de teste)"
+        type: boolean
+        default: false
+      popular:
+        description: "Depois de publicar, preencher o banco de teste com dados INVENTADOS"
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: homologacao
+  cancel-in-progress: false
+
+env:
+  RESOURCE_GROUP: Associacao-RG
+  REGISTRY: asafregistry
+  IMAGE_NAME: asaf-api
+  CONTAINER_APP: asaf-api-hml
+  KEY_VAULT: kv-asaf-arca
+  API_HML: https://hml-api.asaf.org.br
+
+jobs:
+  api:
+    name: API de teste (banco, imagem e Container App)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Instalar dependências
+        run: pip install -r requirements-dev.txt
+
+      - name: Login no Azure via OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Segredos do banco de TESTE (nunca os de produção)
+        run: |
+          HML_URL=$(az keyvault secret show --vault-name "$KEY_VAULT" --name HML-DATABASE-URL --query value -o tsv)
+          echo "::add-mask::$HML_URL"
+          case "$HML_URL" in
+            */asaf_hml\?*) ;;
+            *) echo "::error::HML-DATABASE-URL não aponta para o banco asaf_hml: parando."; exit 1 ;;
+          esac
+          HML_SENHA=$(python -c "from urllib.parse import urlsplit; import sys; print(urlsplit(sys.argv[1]).password)" "$HML_URL")
+          echo "::add-mask::$HML_SENHA"
+          {
+            echo "HML_DATABASE_URL=$HML_URL"
+            echo "HML_SENHA=$HML_SENHA"
+          } >> "$GITHUB_ENV"
+
+      - name: Reiniciar o banco de TESTE (só se pedido)
+        if: ${{ inputs.resetar_banco }}
+        run: |
+          ADMIN_URL=$(az keyvault secret show --vault-name "$KEY_VAULT" --name DATABASE-URL --query value -o tsv)
+          echo "::add-mask::$ADMIN_URL"
+          ADMIN_DATABASE_URL="$ADMIN_URL" python scripts/homologacao_banco.py resetar
+          # banco novo: o esquema nasce como o do app e é carimbado no head do Alembic (mesmo caminho do CI da produção)
+          DATABASE_URL="$HML_DATABASE_URL" RUN_DB_MIGRATION=false JWT_SECRET=so-para-criar-o-esquema \
+            python -c "import app.models; from app.database import preparar_banco; preparar_banco()"
+          DATABASE_URL="$HML_DATABASE_URL" alembic stamp head
+
+      - name: Aplicar migrações no banco de TESTE
+        run: DATABASE_URL="$HML_DATABASE_URL" alembic upgrade head
+
+      - name: Build da imagem no ACR
+        run: |
+          az acr build \
+            --registry "$REGISTRY" \
+            --image "$IMAGE_NAME:hml-${{ github.sha }}" \
+            .
+
+      - name: Atualiza a API de TESTE com a nova imagem
+        run: |
+          az containerapp update \
+            --name "$CONTAINER_APP" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "$REGISTRY.azurecr.io/$IMAGE_NAME:hml-${{ github.sha }}"
+
+      - name: Espera a API de teste responder
+        run: |
+          for i in $(seq 1 30); do
+            CODIGO=$(curl -s -o /dev/null -w "%{http_code}" --max-time 40 "$API_HML/api/publico/eventos" || true)
+            echo "tentativa $i: HTTP $CODIGO"
+            [ "$CODIGO" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "::error::A API de teste não respondeu 200."; exit 1
+
+      - name: Logout
+        if: always()
+        run: az logout || true
+
+  popular:
+    name: Preencher o banco de teste com dados inventados
+    needs: api
+    if: ${{ inputs.popular }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Instalar dependências
+        run: pip install -r requirements-dev.txt
+
+      - name: Login no Azure via OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # O roteiro só roda em banco SEM usuários e só no `asaf_hml` (confere `current_database()`); a senha do administrador de teste
+      # nasce aqui, vai direto para o cofre e nunca é impressa.
+      - name: Preencher (dados inventados, pelas rotas de verdade)
+        env:
+          RUN_DB_MIGRATION: "false"
+          ARMAZENAMENTO_BLOB_URL: https://stasafhmlprivado.blob.core.windows.net
+          HML_USUARIOS_SAIDA: ${{ runner.temp }}/usuarios-de-teste.json
+        run: |
+          DB_URL=$(az keyvault secret show --vault-name "$KEY_VAULT" --name HML-DATABASE-URL --query value -o tsv)
+          echo "::add-mask::$DB_URL"
+          case "$DB_URL" in
+            */asaf_hml\?*) ;;
+            *) echo "::error::HML-DATABASE-URL não aponta para o banco asaf_hml: parando."; exit 1 ;;
+          esac
+          JWT=$(az keyvault secret show --vault-name "$KEY_VAULT" --name HML-JWT-SECRET --query value -o tsv)
+          echo "::add-mask::$JWT"
+          ADMIN_SENHA=$(python -c "import secrets,string; a=string.ascii_letters+string.digits; print(secrets.choice(string.ascii_uppercase)+secrets.choice(string.ascii_lowercase)+secrets.choice(string.digits)+''.join(secrets.choice(a) for _ in range(21)))")
+          echo "::add-mask::$ADMIN_SENHA"
+          # a senha vai para o cofre ANTES: se o preenchimento parar no meio, o administrador já criado continua com senha conhecida
+          az keyvault secret set --vault-name "$KEY_VAULT" --name HML-ADMIN-SENHA --value "$ADMIN_SENHA" --tags ambiente=hml --query name -o tsv
+          DATABASE_URL="$DB_URL" JWT_SECRET="$JWT" HML_ADMIN_SENHA="$ADMIN_SENHA" python scripts/popular_homologacao.py
+          az keyvault secret set --vault-name "$KEY_VAULT" --name HML-USUARIOS --file "$HML_USUARIOS_SAIDA" --tags ambiente=hml --query name -o tsv
+          rm -f "$HML_USUARIOS_SAIDA"
+
+      - name: Logout
+        if: always()
+        run: az logout || true
+
+  painel:
+    name: Painel de teste (hml-painel)
+    needs: api
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: painel
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Configura Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: painel/package-lock.json
+
+      - name: Login no Azure via OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Busca o deploy token do painel de TESTE
+        id: kv
+        run: |
+          TOKEN=$(az keyvault secret show --vault-name "$KEY_VAULT" --name SWA-PAINEL-HML-DEPLOY-TOKEN --query value -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Instala dependências
+        run: npm ci
+
+      - name: Build do painel de TESTE (aponta para a API de teste e leva a faixa de ambiente de teste)
+        env:
+          VITE_API_URL: ${{ env.API_HML }}
+          VITE_AMBIENTE: homologacao
+        run: npm run build
+
+      - name: Publica no Static Web App de TESTE
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.kv.outputs.token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: painel/dist
+          skip_app_build: true
+
+      - name: Logout
+        if: always()
+        run: az logout || true
+
+  site:
+    name: Site de teste (hml-site)
+    # depois do preenchimento (quando pedido): o site lê a API NO BUILD, então só mostra o que já existe
+    needs: [api, popular]
+    if: ${{ !cancelled() && needs.api.result == 'success' && (needs.popular.result == 'success' || needs.popular.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Configura Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Login no Azure via OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Busca o deploy token do site de TESTE
+        id: kv
+        run: |
+          TOKEN=$(az keyvault secret show --vault-name "$KEY_VAULT" --name SWA-SITE-HML-DEPLOY-TOKEN --query value -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Instala dependências
+        run: npm ci
+
+      # Sem token do Directus de propósito: o site de teste não tem notícias (o editor de notícias é um só, o de produção).
+      - name: Build do site de TESTE (lê a API de teste e leva a faixa de ambiente de teste)
+        env:
+          PUBLIC_API_URL: ${{ env.API_HML }}
+          PUBLIC_AMBIENTE: homologacao
+        run: npm run build
+
+      - name: Publica no Static Web App de TESTE
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.kv.outputs.token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: site/dist
+          skip_app_build: true
+
+      - name: Logout
+        if: always()
+        run: az logout || true

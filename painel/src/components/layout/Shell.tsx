@@ -30,6 +30,7 @@ import { useMe } from '@/lib/use-me'
 import { useVersaoBuild } from '@/lib/versao'
 import { cn } from '@/lib/utils'
 
+import { AvisoDeAmbiente } from './AvisoDeAmbiente'
 import { StatusBar } from './StatusBar'
 
 // Altura total da faixa fixa do topo: 64px (barra normal) + 40px a mais quando o aviso
@@ -348,6 +349,7 @@ export function Shell() {
           collapsed ? 'lg:pl-16' : 'lg:pl-64',
         )}
       >
+        <AvisoDeAmbiente />
         <StatusBar
           novaVersaoDisponivel={novaVersaoDisponivel}
           recarregar={recarregar}
