@@ -1217,10 +1217,10 @@ retrabalho que a seção 4.1 existe pra evitar.
 - [x] **Contato (R7)**: a página ganha o texto "serve também para pedidos de informação sobre os recursos
       públicos recebidos", link a partir da Transparência e **prazo de resposta — valor a definir pela
       diretoria** (não será inventado). O formulário do pedido vem na v5.5.
-- [ ] **Projetos e Despertai (R8)** — *decisão de 2026-10-04: o Despertai é um **projeto** do sistema marcado como destaque, cada
+- [x] **Projetos e Despertai (R8)** — *decisão de 2026-10-04: o Despertai é um **projeto** do sistema marcado como destaque, cada
       edição é um **evento** ligado a ele; relatórios = documentos ligados; fotos com autorização; notícias do Directus
-      ligadas pelo número. **Construído, mas AINDA NÃO publicado** (branch local `despertai`, ver o bloco "v5.5 — em
-      andamento" abaixo).* Texto original do item: projeto "Pública" do sistema já tem página; a **camada editorial**
+      ligadas pelo número. **No ar** (ver o bloco "v5.5 — no ar" abaixo). **Depende da diretoria:** criar o projeto no painel
+      (Pública + "em destaque") com o texto real; sem projeto a Home e `/projetos/` ficam como eram.* Texto original do item: projeto "Pública" do sistema já tem página; a **camada editorial**
       (texto, edições anteriores com data/local/público e fotos com autorização) fica no **Directus**, e a
       informação do **calendário oficial do município só é publicada com o documento que a comprove**
       (número da lei/decreto — esse documento entra pelo módulo Documentos).
@@ -1301,13 +1301,40 @@ retrabalho que a seção 4.1 existe pra evitar.
 > Estatuto em texto (não há dado em produção, de propósito; a diretoria sobe o documento) e a abertura real de um aviso no
 > GitHub (provada só executando o script em bash nos testes).
 >
-> **v5.5 — em andamento (2026-10-04, parado de propósito às ~16h por pedido do usuário; nada disto está em produção).** Branch
-> local `despertai` (3 commits sobre `f8dfa3a`; os números mudam a cada rebase): projeto em destaque, edição de projeto e de evento (antes só se
-> criavam), evento ligado a projeto, fotos de evento, relatórios como documentos ligados, página do projeto e do evento no site
-> com o contexto, destaque na Home, campos `projeto_id`/`evento_id` nas notícias. **Já feito em produção (aditivo, conferido
-> com `directus_configurar.py verificar --producao`):** os 3 campos novos da coleção `noticias` no Directus. **Falta:** um teste
-> de migração que falha só na suíte inteira (`test_migracao_projeto_destaque`, causa a achar), repetir backend ×2, site (e2e +
-> Lighthouse) e painel e2e no commit final, enviar, acompanhar o CI e conferir ao vivo.
+> **v5.5 — Despertai e o contexto do evento: NO AR (2026-10-04/05; commits `df5f917` e `c06f861`).** Modelagem: o Despertai é um
+> **projeto** do sistema marcado como destaque; cada edição é um **evento** ligado a ele; os relatórios são **documentos** ligados
+> ao evento/projeto (aprovados por outra pessoa, como todo documento); as fotos do evento só entram com **autorização de imagem**;
+> as notícias do Directus se ligam pelo **número** (`projeto_id`, `evento_id`). Entregue: (1) **editar projeto e evento** (antes só
+> se criavam) com conferência de dado pessoal no texto que vai ao site; (2) projeto **em destaque** (só Público) e evento ligado ao
+> projeto (a nova edição segue no mesmo projeto); (3) **fotos do evento** (mesmas regras das fotos de etapa; pasta privada
+> `fotos-eventos`); (4) documento do tipo **relatório de evento ou de projeto**; (5) **página do projeto** (edições, relatórios,
+> fotos, notícias), **página do evento** (projeto, outras edições, relatório, fotos, notícias), **destaque na Home** e link na página
+> da notícia — **só aparece o que já foi liberado** (evento Público, relatório Aprovado, foto com autorização; projeto ou evento
+> Interno nunca, nem por quem está ligado a ele); (6) no painel, a seção **Contexto do evento/projeto** e o atalho para escrever
+> a notícia no editor do site. O site é **tolerante a API antiga** (publicar o site antes da API nova não quebra; provado por um
+> build contra a "API antiga"). **Defeito antigo achado e corrigido:** criar projeto ou evento deixando um campo opcional em
+> branco mandava `0`/texto vazio e a API recusava. *Provas:* backend **796 testes ×2**; painel lint, tipos, build, 234 ×2 e 10 e2e;
+> site vitest ×2, estado vazio (inclui a API antiga), sincronização, e2e 338 + 81 de acessibilidade na repetição, **Lighthouse**.
+> **Ao vivo:** `painel` e `asaf.org.br/version.json` = `df5f917`, depois o site `c06f861`; log do deploy: `Running upgrade
+> f5c1d9e7a283 -> a7d2f4c8b931`; `openapi.json` com os `PUT` de projeto e evento, as rotas de fotos e a rota pública da foto;
+> `/api/publico/projetos` → 200 `[]`; sem login: `PUT` de projeto 401, fotos 401; foto pública inexistente 404; a Home **não tem**
+> a seção de destaque (nenhum projeto cadastrado, de propósito); a sincronização disparada à mão depois do deploy **não**
+> republicou (sem laço de reconstrução). **Directus de produção:** os 3 campos novos da coleção `noticias` foram acrescentados
+> (`directus_configurar.py aplicar --producao`; `verificar --producao` = conforme).
+>
+> **Intercorrência (registrada para ninguém achar que passou liso):** o portão do `Deploy Site` **barrou** o primeiro envio às
+> 00:01 UTC: o teste de sincronização reprovou porque as datas do dado de TESTE são relativas ao dia de hoje e a **meia-noite
+> UTC caiu entre o build e o teste** (não era a API de produção). A sincronização, ao ver o conteúdo novo da API, disparou um
+> `Deploy Site` manual (que pula os portões, por desenho) com o mesmo código já testado; a correção (`c06f861`: o dado de teste
+> passa a usar um dia de referência fixo, com teste simulando a virada do dia) passou em **todos** os portões e o site foi
+> republicado. Antes, no lote anterior, outro erro (de tipo, num teste) também foi barrado pelo CI e corrigido.
+>
+> **O que NÃO foi visto ao vivo, e o que depende da diretoria:** nenhum projeto/evento/foto/relatório **real** existe em
+> produção (de propósito: nada de exemplo), então a página do projeto, a do evento, o destaque na Home e a foto só foram provados no
+> build de teste contra a API simulada (a API real é testada à parte, 796 testes) e por rotas vazias ao vivo. **Falta a diretoria:**
+> criar o projeto **Despertai** no painel (Pública + "em destaque") **com o texto real** (nada foi inventado sobre ele), e
+> cadastrar a edição como evento ligado a ele. O calendário oficial do município só entra no site **com o documento que o
+> comprove**.
 
 
 ##### 🔍 Ponto de Revisão — FASE 5 (1/2 — meio, fecha v5.0–v5.4)
