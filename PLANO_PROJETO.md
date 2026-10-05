@@ -1673,9 +1673,20 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       imagem, com falha de migração abortando o deploy — hoje a migração é aplicada manualmente.
 - [ ] Deploy com revisão progressiva do Container App (nova revisão recebendo tráfego aos poucos)
       e **rollback em um comando** documentado e testado ao menos uma vez.
-- [ ] Ambiente de homologação: por custo, um **slot lógico** (banco separado barato + revisão
+- [x] Ambiente de homologação: por custo, um **slot lógico** (banco separado barato + revisão
       própria do Container App), não um ambiente inteiro duplicado — decisão consciente de
-      orçamento, registrada.
+      orçamento, registrada. **Feito em 2026-10-05** (`HOMOLOGACAO.md`): banco `asaf_hml` no servidor existente (papel próprio, 5
+      conexões), API `hml-api` (Container App que escala a zero, 1 réplica no máximo), painel `hml-painel` e site `hml-site` (Static
+      Web Apps Free), armazenamento LRS próprio, segredos `HML-*` no cofre, faixa "AMBIENTE DE TESTE" + `noindex`, MFA **ligado**.
+      Motivo (decisão do presidente): a auditoria da produção não apaga (o próprio banco recusa), então **nenhum dado de teste entra na
+      produção**; o teste real é feito aqui e o banco de teste pode ser apagado por inteiro (`resetar_banco`). Publica-se só à mão
+      (`deploy-homologacao.yml`). Custo estimado US$ 1 a 5 por mês, dentro do crédito de organização sem fins lucrativos da
+      assinatura (US$ 2.000, válido de 05/02/2026 a 05/02/2027; renovação NÃO confirmada). Orçamento mensal criado na assinatura.
+      Provas: 3 execuções do fluxo (as duas primeiras falharam por motivos reais e foram corrigidas: a identidade do GitHub não pode
+      escrever no cofre — mantido só leitura — e o roteiro não achava o pacote `app`), terceira verde nas 4 partes; a API de teste
+      serve 10 cargos, 1 projeto em destaque com 2 edições e 3 fotos, 2 documentos aprovados e 1 emenda; o site de teste mostra a
+      faixa, o destaque na Home, a página do projeto e `robots.txt` bloqueando tudo; o site e o painel de produção continuam sem a faixa
+      (`test:vazio` prova). **Falta:** conferir as telas de gestão da homologação logado (o login é feito pelo usuário).
 
 #### v8.3 — Reconstruibilidade da infraestrutura ✅ resolvida em 2026-09-11
 

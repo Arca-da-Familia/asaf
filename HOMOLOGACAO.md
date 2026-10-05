@@ -39,8 +39,18 @@ de teste **só aceita chamadas do painel e do site de teste** (a produção não
 
 O fluxo **nunca dispara sozinho**: só quando alguém clica.
 
-**Entrar:** as senhas dos usuários de teste ficam no Key Vault (`HML-ADMIN-SENHA` e `HML-USUARIOS`); quem tem acesso ao portal do Azure as
-lê lá. No primeiro login o sistema pede para configurar o segundo passo.
+**Entrar:** as senhas dos usuários de teste ficam no Key Vault `kv-asaf-arca` (Portal do Azure → Cofres de chaves → Segredos):
+`HML-ADMIN-SENHA` (a senha do Presidente de teste) e `HML-USUARIOS` (um texto com a senha do Secretário e a do Tesoureiro de teste).
+Os CPFs são inventados e não são segredo:
+
+| Usuário de teste | CPF | Senha | O que ele pode (vem do cargo) |
+| --- | --- | --- | --- |
+| Presidente (administrador) | 111.000.111-88 | `HML-ADMIN-SENHA` | tudo, inclusive aprovar publicação |
+| 1º Secretário | 222.023.757-59 | `HML-USUARIOS` (secretario) | documentos e aprovação de publicação |
+| 1º Tesoureiro | 222.039.595-25 | `HML-USUARIOS` (tesoureiro) | financeiro e parcerias/emendas |
+
+No primeiro login do Presidente o sistema pede para configurar o segundo passo (MFA), como na produção. Para testar o fluxo
+"quem criou não aprova", entre com o Secretário ou o Tesoureiro para preparar e com o Presidente para aprovar.
 
 ## Custo e cuidados
 
