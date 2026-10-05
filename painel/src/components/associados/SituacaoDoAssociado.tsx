@@ -38,6 +38,12 @@ function hoje(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
+// Licença e desligamento guardam um DIA (o servidor grava meia-noite sem fuso). Passar isso por `formatarData` como se fosse um instante
+// em UTC faz o dia recuar no Brasil (05/10 aparecia como 04/10 — achado AO VIVO na homologação). Só a readmissão guarda o instante de verdade.
+function diaDoEvento(m: MudancaDeSituacao): string {
+  return m.tipo === 'readmissao' ? m.data_efetiva : m.data_efetiva.slice(0, 10)
+}
+
 function rotuloDoMotivo(
   motivo: string | null,
   opcoes: OpcaoDeCatalogo[] | undefined,
@@ -478,9 +484,9 @@ export function SituacaoDoAssociado({
                     )}`}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Em {formatarData(m.data_efetiva)}
+                  Em {formatarData(diaDoEvento(m))}
                   {m.data_fim_prevista &&
-                    ` · retorno previsto em ${formatarData(m.data_fim_prevista)}`}
+                    ` · retorno previsto em ${formatarData(m.data_fim_prevista.slice(0, 10))}`}
                   {m.documento_referencia &&
                     ` · documento: ${m.documento_referencia}`}
                 </p>

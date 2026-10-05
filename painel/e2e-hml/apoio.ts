@@ -105,6 +105,9 @@ export function vigiar(page: Page): { problemas: () => string[] } {
   return { problemas: () => achados }
 }
 
+/** A API de TESTE (nunca a de produção). O robô só a usa onde o sistema ainda não tem tela de entrada (ex.: o formulário público do site). */
+export const API_HML = 'https://hml-api.asaf.org.br'
+
 /** A faixa fixa "AMBIENTE DE TESTE" (painel/src/components/layout/AvisoDeAmbiente.tsx). */
 export const FAIXA_DE_TESTE = '[data-ambiente="homologacao"]'
 

@@ -9,6 +9,7 @@ import {
   CalendarRange,
   FileText,
   FileUp,
+  Inbox,
   FolderKanban,
   FolderOpen,
   Gavel,
@@ -87,6 +88,11 @@ export const modulos: Modulo[] = [
         fim: true,
       },
       { rota: '/associados/novo', rotulo: 'Novo associado', icone: UserPlus },
+      {
+        rota: '/associados/propostas',
+        rotulo: 'Propostas de filiação',
+        icone: Inbox,
+      },
       {
         rota: '/associados/importar',
         rotulo: 'Importar em lote',

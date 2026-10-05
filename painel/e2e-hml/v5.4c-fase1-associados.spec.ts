@@ -210,8 +210,16 @@ test('situação: licença, desligamento (com confirmação), recusa de anonimiz
   await expect(page.getByText('Readmitido como associado')).toBeVisible()
   await ver(page, info, 'linha do tempo da ficha 360')
   await page.goto('/auditoria')
-  await expect(page.getByText('READMITIDO').first()).toBeVisible()
-  await expect(page.getByText('DESLIGADO').first()).toBeVisible()
+  // o filtro "Ação" também tem uma opção com este texto (escondida): a conferência é na linha da tabela
+  await expect(
+    page.getByRole('cell', { name: 'READMITIDO' }).first(),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('cell', { name: 'DESLIGADO' }).first(),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('cell', { name: 'LICENCA_REGISTRADA' }).first(),
+  ).toBeVisible()
   await ver(page, info, 'auditoria com licenca, desligamento e readmissao')
   expect(vigia.problemas()).toEqual([])
 })

@@ -63,6 +63,41 @@ beforeEach(() => {
 })
 
 describe('Situação do associado (v5.4c: a tela que faltava para as rotas da v1.4)', () => {
+  it('mostra o DIA certo mesmo no fuso do Brasil (licença de 05/10 não vira 04/10)', async () => {
+    const fusoAntes = process.env.TZ
+    process.env.TZ = 'America/Belem'
+    try {
+      vi.mocked(api.listarHistoricoDeSituacao).mockResolvedValue([
+        {
+          id_mudanca: 1,
+          tipo: 'licenca',
+          motivo: 'SAUDE',
+          data_efetiva: '2026-10-05T00:00:00',
+          data_fim_prevista: '2026-11-03T00:00:00',
+          documento_referencia: null,
+        },
+        {
+          id_mudanca: 2,
+          tipo: 'desligamento',
+          motivo: 'PEDIDO_VOLUNTARIO',
+          data_efetiva: '2026-10-05T00:00:00',
+          data_fim_prevista: null,
+          documento_referencia: null,
+        },
+      ])
+      desenhar()
+      expect(
+        await screen.findByText(
+          /Em 05\/10\/2026 · retorno previsto em 03\/11\/2026/,
+        ),
+      ).toBeInTheDocument()
+      expect(screen.getByText('Em 05/10/2026')).toBeInTheDocument()
+    } finally {
+      if (fusoAntes === undefined) delete process.env.TZ
+      else process.env.TZ = fusoAntes
+    }
+  })
+
   it('mostra a situação atual e o histórico com o motivo por extenso', async () => {
     desenhar()
     expect(screen.getByTestId('situacao-atual')).toHaveTextContent(

@@ -5292,3 +5292,61 @@ export function anonimizarAssociado(
     method: 'POST',
   })
 }
+
+// ---------------------------------------------------------------------------
+// Propostas de filiação (servidor na v1.2; caixa de entrada só na v5.4c — achado ao vivo: as rotas existiam e nenhuma tela as chamava)
+// ---------------------------------------------------------------------------
+export type StatusDeProposta =
+  'Pendente' | 'Em Conferência' | 'Aprovada' | 'Recusada'
+
+export type PropostaDeFiliacao = {
+  id_proposta: number
+  nome_completo: string
+  cpf: string
+  email_contato: string | null
+  telefone_whatsapp: string | null
+  status: StatusDeProposta
+  motivo_recusa: string | null
+  id_associado_efetivado: number | null
+  criado_em: string
+}
+
+export function listarPropostasDeFiliacao(
+  status?: string,
+): Promise<PropostaDeFiliacao[]> {
+  const consulta = status ? `?status=${encodeURIComponent(status)}` : ''
+  return apiFetch(`/api/filiacao/propostas${consulta}`)
+}
+
+export function conferirPropostaDeFiliacao(
+  idProposta: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/filiacao/propostas/${idProposta}/conferir`, {
+    method: 'POST',
+  })
+}
+
+export function recusarPropostaDeFiliacao(
+  idProposta: number,
+  motivo: string,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/filiacao/propostas/${idProposta}/recusar`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo }),
+  })
+}
+
+export function aprovarPropostaDeFiliacao(
+  idProposta: number,
+  dados: { categoria: string; forcar?: boolean },
+): Promise<{
+  mensagem: string
+  id_associado: number
+  numero_matricula: number
+  status_arrolamento: string
+}> {
+  return apiFetch(`/api/filiacao/propostas/${idProposta}/aprovar`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}

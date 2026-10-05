@@ -59,6 +59,7 @@ import { EventosPage } from '@/pages/Eventos'
 import { Forbidden } from '@/pages/Forbidden'
 import { Home } from '@/pages/Home'
 import { ImportarAssociadosPage } from '@/pages/ImportarAssociados'
+import { PropostasDeFiliacaoPage } from '@/pages/PropostasDeFiliacao'
 import { Login } from '@/pages/Login'
 import { MandatosPage } from '@/pages/Mandatos'
 import { MeuVoluntariadoPage } from '@/pages/MeuVoluntariado'
@@ -228,6 +229,14 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Novo associado">
                 <AssociadoNovoPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="propostas"
+            element={
+              <ErrorBoundary tituloModulo="Propostas de filiação">
+                <PropostasDeFiliacaoPage />
               </ErrorBoundary>
             }
           />
