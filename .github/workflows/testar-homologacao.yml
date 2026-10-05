@@ -1,0 +1,126 @@
+name: Testar Homologação (conferência ao vivo, SÓ o ambiente de TESTE)
+
+# Abre um navegador de verdade no painel de TESTE já publicado (hml-painel.asaf.org.br), entra com os usuários de teste e roda um
+# roteiro de conferência ao vivo (painel/e2e-hml/<roteiro>-*.spec.ts), guardando print, vídeo e relatório de cada passo como artefato.
+# É o "teste a teste" do plano (v5.4c em diante): o sistema publicado, usado de verdade, como o usuário vai usá-lo.
+#
+# Garantias (cada uma tem teste em tests/test_workflows_de_homologacao.py):
+#   - só dispara à mão (nunca por push, agenda ou outro fluxo): nada aqui acorda a API de teste sozinho (custo);
+#   - só fala com a homologação (hml-painel; o robô recusa qualquer outro endereço) e só lê segredos HML-*;
+#   - as senhas de teste vêm do cofre e nunca são impressas nem guardadas: passam por `::add-mask::`, o robô não grava `trace` e
+#     o passo de entrada é "boxed" (o relatório não mostra o que foi digitado); depois da execução os arquivos de resultado são
+#     varridos e, se alguma senha aparecer, o artefato é descartado e o fluxo falha;
+#   - não toca no banco: tudo é feito pela tela, passando pelas regras e pela Auditoria do próprio sistema.
+on:
+  workflow_dispatch:
+    inputs:
+      roteiro:
+        description: "Qual roteiro rodar (v5.4c, v5.4d...): arquivos painel/e2e-hml/<roteiro>-*.spec.ts"
+        type: string
+        required: true
+        default: "v5.4c"
+
+permissions:
+  id-token: write
+  contents: read
+
+# mesma fila do deploy de teste: nunca conferir enquanto a homologação está sendo republicada (nem o contrário)
+concurrency:
+  group: homologacao
+  cancel-in-progress: false
+
+env:
+  KEY_VAULT: kv-asaf-arca
+  HML_PAINEL_URL: https://hml-painel.asaf.org.br
+
+jobs:
+  conferir:
+    name: Conferir ao vivo na homologação
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: painel
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Configura Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: painel/package-lock.json
+
+      - name: Confere o nome do roteiro
+        env:
+          ROTEIRO: ${{ inputs.roteiro }}
+        run: |
+          case "$ROTEIRO" in
+            v[0-9]*.[0-9]*) ;;
+            *) echo "::error::Roteiro inválido: use algo como v5.4c."; exit 1 ;;
+          esac
+          if ! ls e2e-hml/"$ROTEIRO"-*.spec.ts >/dev/null 2>&1; then
+            echo "::error::Não existe painel/e2e-hml/$ROTEIRO-*.spec.ts."; exit 1
+          fi
+
+      - name: Login no Azure via OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # O fluxo só LÊ o cofre (a identidade do GitHub não escreve nele). As senhas são dos usuários de TESTE (HML-*), nunca da produção.
+      - name: Senhas dos usuários de teste (do cofre; nada é impresso)
+        run: |
+          ADMIN_SENHA=$(az keyvault secret show --vault-name "$KEY_VAULT" --name HML-ADMIN-SENHA --query value -o tsv)
+          echo "::add-mask::$ADMIN_SENHA"
+          USUARIOS=$(az keyvault secret show --vault-name "$KEY_VAULT" --name HML-USUARIOS --query value -o tsv)
+          echo "::add-mask::$USUARIOS"
+          # cada senha também é mascarada sozinha (o texto inteiro do JSON não esconde um trecho impresso por engano)
+          python3 -c "import json,sys; [print('::add-mask::' + v) for v in json.loads(sys.argv[1]).values()]" "$USUARIOS"
+          {
+            echo "HML_ADMIN_SENHA=$ADMIN_SENHA"
+            echo "HML_USUARIOS_JSON=$USUARIOS"
+          } >> "$GITHUB_ENV"
+
+      - name: Instala dependências
+        run: npm ci
+
+      - name: Instala o navegador (Chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: Roda o roteiro ao vivo na homologação
+        env:
+          ROTEIRO: ${{ inputs.roteiro }}
+        run: npx playwright test -c playwright.hml.config.ts "e2e-hml/$ROTEIRO-"
+
+      # Última barreira: nenhuma senha de teste pode estar em texto simples nos arquivos que vão ser guardados.
+      - name: Varre os resultados atrás de senha
+        if: ${{ always() }}
+        run: |
+          [ -d prints-hml ] || exit 0
+          SENHAS="$RUNNER_TEMP/senhas-de-teste.txt"
+          printf '%s\n' "$HML_ADMIN_SENHA" > "$SENHAS"
+          python3 -c "import json,os; [print(v) for v in json.loads(os.environ['HML_USUARIOS_JSON']).values()]" >> "$SENHAS"
+          if grep -rIlF -f "$SENHAS" prints-hml; then
+            rm -rf prints-hml
+            rm -f "$SENHAS"
+            echo "::error::Uma senha de teste apareceu nos resultados: o artefato foi descartado."
+            exit 1
+          fi
+          rm -f "$SENHAS"
+
+      - name: Guarda os prints, vídeos e o relatório
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: conferencia-homologacao-${{ inputs.roteiro }}
+          path: painel/prints-hml
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Logout
+        if: always()
+        run: az logout || true

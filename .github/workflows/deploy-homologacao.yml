@@ -1,6 +1,6 @@
 name: Deploy Homologação (ambiente de TESTE)
 
-# Publica o código da `main` no ambiente de TESTE (dados inventados): API `hml-api`, painel `hml-painel`, site `hml-site`
+# Publica o código da `main` (ou de uma branch, pela opção `ref`) no ambiente de TESTE (dados inventados): API `hml-api`, painel `hml-painel`, site `hml-site`
 # (todos sob asaf.org.br). SÓ roda quando alguém dispara à mão (nunca por push): o ambiente de teste não pode derrubar nem
 # alterar a produção, e a API de teste só custa enquanto está acordada.
 #
@@ -20,6 +20,10 @@ on:
         description: "Depois de publicar, preencher o banco de teste com dados INVENTADOS"
         type: boolean
         default: false
+      ref:
+        description: "O que publicar: `main` ou o nome de uma branch (a regra da v5.5 em diante: testar a branch aqui ANTES de ir para a main)"
+        type: string
+        default: main
 
 permissions:
   id-token: write
@@ -44,6 +48,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -52,6 +58,10 @@ jobs:
 
       - name: Instalar dependências
         run: pip install -r requirements-dev.txt
+
+      # o commit que está sendo publicado (pode ser de outra branch: `github.sha` é sempre o da `main`, de onde o fluxo foi disparado)
+      - name: Qual commit está sendo publicado
+        run: echo "CODIGO_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Login no Azure via OIDC
         uses: azure/login@v3
@@ -93,15 +103,18 @@ jobs:
         run: |
           az acr build \
             --registry "$REGISTRY" \
-            --image "$IMAGE_NAME:hml-${{ github.sha }}" \
+            --image "$IMAGE_NAME:hml-${CODIGO_SHA}" \
             .
 
+      # O papel do banco de teste aceita no máximo 5 conexões (o servidor é compartilhado com a produção): o conjunto de conexões da
+      # API de teste fica em 3 + 1 de estouro, deixando uma de folga para quem administra o banco. A produção não define estas variáveis.
       - name: Atualiza a API de TESTE com a nova imagem
         run: |
           az containerapp update \
             --name "$CONTAINER_APP" \
             --resource-group "$RESOURCE_GROUP" \
-            --image "$REGISTRY.azurecr.io/$IMAGE_NAME:hml-${{ github.sha }}"
+            --image "$REGISTRY.azurecr.io/$IMAGE_NAME:hml-${CODIGO_SHA}" \
+            --set-env-vars DB_POOL_SIZE=3 DB_MAX_OVERFLOW=1
 
       - name: Espera a API de teste responder
         run: |
@@ -125,6 +138,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -179,6 +194,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Configura Node.js
         uses: actions/setup-node@v7
@@ -235,6 +252,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Configura Node.js
         uses: actions/setup-node@v7

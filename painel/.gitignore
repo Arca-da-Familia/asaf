@@ -10,4 +10,7 @@ public/version.json
 /test-results/
 /playwright-report/
 
+# Conferência ao vivo na homologação (v5.4c): prints, vídeos e relatório de cada rodada (o fluxo guarda como artefato do GitHub).
+/prints-hml/
+
 *.tsbuildinfo

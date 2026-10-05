@@ -39,7 +39,17 @@ de teste **só aceita chamadas do painel e do site de teste** (a produção não
 - `popular` (desligado por padrão): depois de publicar, preenche o banco de teste com **dados inventados** pelas rotas de verdade do
   sistema (`scripts/popular_homologacao.py`). Só roda em banco **sem nenhum usuário**; para recomeçar, use junto com `resetar_banco`.
 
+- `ref` (padrão `main`): o que publicar. Pode ser o nome de **uma branch**: é assim que, a partir da v5.5, cada versão é testada aqui
+  **antes** de ir para a `main` (e, depois dela, para a produção).
+
 O fluxo **nunca dispara sozinho**: só quando alguém clica.
+
+**Conferir ao vivo, com navegador de verdade** (GitHub → Actions → *Testar Homologação (conferência ao vivo, SÓ o ambiente de TESTE)* →
+*Run workflow*, escolhendo o roteiro, por exemplo `v5.4c`): um robô abre o `hml-painel`, entra com os usuários de teste (as senhas vêm do
+cofre; ninguém digita nem cria senha), faz pela tela o que o roteiro manda (cadastrar, editar, aprovar, errar de propósito, abrir a foto)
+e guarda **print, vídeo e relatório** de cada passo como artefato do fluxo. Os roteiros ficam em `painel/e2e-hml/`. O robô só aceita o
+endereço do painel de teste, nunca grava `trace` (que guardaria a senha digitada) e, ao fim, varre os resultados atrás de qualquer senha.
+É o "teste a teste" do plano (v5.4c em diante).
 
 **Entrar:** as senhas dos usuários de teste ficam no Key Vault `kv-asaf-arca` (Portal do Azure → Cofres de chaves → Segredos):
 `HML-ADMIN-SENHA` (a senha do Presidente de teste) e `HML-USUARIOS` (um texto com a senha do Secretário e a do Tesoureiro de teste).
@@ -62,6 +72,9 @@ com `resetar_banco` + `popular`.
 - **Nunca** aponte os vigilantes automáticos (`monitorar-site.yml`, `sincronizar-site.yml`, tarefas periódicas) para a API de teste:
   chamadas a cada poucos minutos a mantêm acordada o mês inteiro (até US$ 42).
 - Mantenha o banco de teste **pequeno**: o servidor é compartilhado com a produção e o disco não cresce sozinho.
+- O papel do banco de teste aceita no máximo **5 conexões** (o servidor aceita 50 e a produção usa até 25). Por isso a API de teste usa um
+  conjunto pequeno de conexões (3 + 1 de estouro, `DB_POOL_SIZE` e `DB_MAX_OVERFLOW`, definidos a cada publicação) e deixa folga para
+  quem administra o banco. Sem isso, várias telas pedindo dados ao mesmo tempo estourariam o limite.
 - Há um orçamento mensal na assinatura (`orcamento-mensal-150-dolares`) com avisos a 50%, 80% e 100%.
 
 ## Desmontar (se um dia não for mais preciso)

@@ -20,6 +20,13 @@ _engine_kwargs = {"pool_pre_ping": True}
 if URL_BANCO_DADOS.startswith("sqlite"):
     # connect_args especifico do SQLite - so aplica em dev local sem Postgres configurado.
     _engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    # Tamanho do conjunto de conexoes. Sem as variaveis nada muda (padrao do SQLAlchemy: 5 fixas + 10 de estouro = ate 15). A API do
+    # ambiente de TESTE define as duas: o papel do banco de teste so aceita 5 conexoes (o servidor e compartilhado com a producao) e
+    # com o padrao varias telas pedindo dados ao mesmo tempo estourariam o limite ("too many connections for role").
+    for _opcao, _variavel in (("pool_size", "DB_POOL_SIZE"), ("max_overflow", "DB_MAX_OVERFLOW")):
+        if os.environ.get(_variavel, "").strip():
+            _engine_kwargs[_opcao] = int(os.environ[_variavel])
 
 engine = create_engine(URL_BANCO_DADOS, **_engine_kwargs)
 SessaoLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
