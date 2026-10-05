@@ -25,8 +25,10 @@ de teste **só aceita chamadas do painel e do site de teste** (a produção não
   `HML-ADMIN-SENHA` e `HML-USUARIOS`) no Key Vault. Nenhum segredo da produção é usado no dia a dia da homologação.
 - **Sem e-mail:** a API de teste não tem as variáveis de envio, então nenhum e-mail sai.
 - **Sem Directus próprio:** o site de teste não tem notícias (o editor de notícias é um só, o de produção).
-- **Verificação em dois passos (MFA) LIGADA**, igual à produção: nada aqui a enfraquece. Quem entra no painel de teste faz o mesmo login
-  (CPF e senha, depois o segundo passo).
+- **Sem verificação em dois passos (MFA)** — decisão do presidente em 2026-10-05: aqui só entram dados inventados, e o segundo passo
+  já é provado na produção e pela suíte. O roteiro `popular` desliga a exigência **só no banco `asaf_hml`** (confere o nome do banco antes
+  de gravar e recusa qualquer outro; um teste prova). **A produção continua com a exigência ligada** (`DECISOES_CONGELADAS.md` §3.1).
+  Quem entra no painel de teste usa só CPF e senha.
 
 ## Como usar
 
@@ -49,8 +51,9 @@ Os CPFs são inventados e não são segredo:
 | 1º Secretário | 222.023.757-59 | `HML-USUARIOS` (secretario) | documentos e aprovação de publicação |
 | 1º Tesoureiro | 222.039.595-25 | `HML-USUARIOS` (tesoureiro) | financeiro e parcerias/emendas |
 
-No primeiro login do Presidente o sistema pede para configurar o segundo passo (MFA), como na produção. Para testar o fluxo
-"quem criou não aprova", entre com o Secretário ou o Tesoureiro para preparar e com o Presidente para aprovar.
+Não há segundo passo: CPF e senha bastam. Para testar o fluxo "quem criou não aprova", entre com o Secretário ou o Tesoureiro para
+preparar e com o Presidente para aprovar. Dá para criar, aprovar, desfazer e errar à vontade; se quiser recomeçar do zero, rode o fluxo
+com `resetar_banco` + `popular`.
 
 ## Custo e cuidados
 

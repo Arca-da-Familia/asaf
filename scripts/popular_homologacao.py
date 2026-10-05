@@ -17,6 +17,8 @@ O que cria (tudo marcado "de Teste", sem nenhum dado real):
   etapas, foto, movimentos classificados e publicação aprovada; assembleia convocada.
 
 Segurança: recusa rodar fora do banco `asaf_hml`; só roda em banco SEM usuário nenhum (nunca em cima de dado existente).
+Na homologação o segundo passo (MFA) fica DESLIGADO (decisão do presidente, 2026-10-05): entra-se só com CPF e senha. Só neste banco;
+a produção mantém a exigência ligada.
 """
 from __future__ import annotations
 
@@ -356,6 +358,27 @@ def _exigir_banco_de_teste(db) -> None:
         raise SystemExit("O banco de teste já tem usuários: não vou criar por cima. Para recomeçar, rode o fluxo com 'resetar_banco'.")
 
 
+def _nome_do_banco(db) -> str:
+    from sqlalchemy import text
+
+    return db.execute(text("SELECT current_database()")).scalar()
+
+
+def desligar_segundo_passo_do_ambiente_de_teste(db) -> int:
+    """Decisão do presidente (2026-10-05, dita no chat): na homologação NÃO há verificação em dois passos. O segundo passo já é
+    provado em produção e pela suíte automática; aqui o teste (do robô e das pessoas) tem que entrar só com CPF e senha. Só mexe no
+    banco de teste: o nome do banco é conferido ANTES de qualquer escrita. A produção continua com a exigência ligada
+    (DECISOES_CONGELADAS §3.1): este roteiro recusa qualquer banco que não seja o `asaf_hml`, então não tem como alcançá-la."""
+    nome = _nome_do_banco(db)
+    if nome != BANCO_HML:
+        raise SystemExit(f"RECUSADO: só o banco de teste ('{BANCO_HML}') perde a exigência do segundo passo, não '{nome}'.")
+    from app.models.core import NivelAcesso
+
+    afetados = db.query(NivelAcesso).filter(NivelAcesso.exige_mfa.is_(True)).update({"exige_mfa": False}, synchronize_session=False)
+    db.commit()
+    return afetados
+
+
 def main() -> int:
     url = os.environ.get("DATABASE_URL", "")
     if f"/{BANCO_HML}" not in url:
@@ -373,6 +396,7 @@ def main() -> int:
         with TestClient(app) as client:
             resultado = popular(client, db, admin_senha=os.environ.get("HML_ADMIN_SENHA"),
                                 senhas=json.loads(os.environ.get("HML_USUARIOS_JSON") or "{}"))
+            print(f"  + Segundo passo desligado só no banco de teste: {desligar_segundo_passo_do_ambiente_de_teste(db)} níveis")
     print(f"\nFeito: {len(resultado['feito'])} áreas; falhas: {len(resultado['falhas'])}")
     return 1 if resultado["falhas"] else 0
 

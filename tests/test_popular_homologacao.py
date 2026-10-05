@@ -31,6 +31,19 @@ MOTORISTA = textwrap.dedent(
     with SessaoLocal() as db, TestClient(app) as client:
         resultado = ph.popular(client, db, admin_senha="Senha-De-Teste-Do-Roteiro-1", escrever=saidas.append,
                                senhas={{"secretario": "Secretaria-Senha-Do-Cofre-77", "tesoureiro": "Tesouraria-Senha-Do-Cofre-88"}})
+        def entrar():
+            # entra pelo caminho de verdade (CPF e senha) e pergunta ao sistema se ainda exige o segundo passo
+            login = client.post("/auth/login", json={{"cpf": ph.cpf_valido(111000111), "senha": "Senha-De-Teste-Do-Roteiro-1"}})
+            corpo = login.json()
+            eu = client.get("/auth/me", headers={{"Authorization": "Bearer " + corpo.get("access_token", "")}}).json()
+            return {{"status": login.status_code, "requer_mfa": corpo.get("requer_mfa"), "mfa_obrigatorio": eu.get("mfa_obrigatorio"),
+                    "mfa_pendente": eu.get("mfa_pendente")}}
+
+        niveis_com_mfa = lambda: db.execute(text("select count(*) from niveis_acesso where exige_mfa = 1")).scalar()
+        antes, entrada_antes = niveis_com_mfa(), entrar()
+        ph._nome_do_banco = lambda _db: "asaf_hml"  # o SQLite descartável faz de conta que é o banco de teste
+        afetados = ph.desligar_segundo_passo_do_ambiente_de_teste(db)
+        mfa = {{"antes": antes, "afetados": afetados, "depois": niveis_com_mfa(), "entrada_antes": entrada_antes, "entrada_depois": entrar()}}
         contagem = lambda sql: db.execute(text(sql)).scalar()
         resumo = {{
             "associados": contagem("select count(*) from associados"),
@@ -49,7 +62,7 @@ MOTORISTA = textwrap.dedent(
         publico = {{c: client.get(c).json() for c in ("/api/publico/diretoria", "/api/publico/projetos", "/api/publico/eventos",
                                                       "/api/publico/transparencia/parcerias", "/api/publico/transparencia/documentos")}}
         publico = {{c: len(v) for c, v in publico.items()}}
-    print("@@" + json.dumps({{"resultado": resultado, "resumo": resumo, "publico": publico, "saidas": saidas}}, default=str))
+    print("@@" + json.dumps({{"resultado": resultado, "resumo": resumo, "publico": publico, "saidas": saidas, "mfa": mfa}}, default=str))
     """
 )
 
@@ -88,6 +101,53 @@ def test_o_site_publico_enxerga_o_que_ja_foi_liberado(execucao):
     assert publico["/api/publico/projetos"] == 1, "só o projeto Público; o interno não aparece"
     assert publico["/api/publico/eventos"] == 2, "só os eventos Públicos"
     assert publico["/api/publico/transparencia/parcerias"] == 1 and publico["/api/publico/transparencia/documentos"] == 2
+
+
+def test_segundo_passo_fica_desligado_no_banco_de_teste_e_o_login_entra_so_com_cpf_e_senha(execucao):
+    """Decisão do presidente (2026-10-05): a homologação não tem segundo passo. Antes de desligar, o Presidente de teste ERA obrigado a
+    configurá-lo (prova de que o roteiro mexeu em algo real); depois, entra direto e o sistema não pede mais nada."""
+    mfa = execucao[0]["mfa"]
+    assert mfa["antes"] > 0 and mfa["entrada_antes"]["mfa_pendente"] is True, mfa
+    assert mfa["afetados"] == mfa["antes"] and mfa["depois"] == 0, mfa
+    assert mfa["entrada_depois"] == {"status": 200, "requer_mfa": False, "mfa_obrigatorio": False, "mfa_pendente": False}, mfa
+
+
+def test_o_segundo_passo_so_pode_ser_desligado_no_banco_de_teste():
+    """A produção (`asaf_db`) e qualquer outro banco são RECUSADOS antes de qualquer escrita."""
+
+    class Resultado:
+        def __init__(self, valor):
+            self.valor = valor
+
+        def scalar(self):
+            return self.valor
+
+    class BancoFalso:
+        def __init__(self, nome):
+            self.nome = nome
+
+        def execute(self, *_):
+            return Resultado(self.nome)
+
+        def query(self, *_):
+            raise AssertionError("não pode nem chegar a tocar nos níveis de acesso")
+
+        def commit(self):
+            raise AssertionError("não pode gravar nada")
+
+    for outro in ("asaf_db", "postgres", "asaf_hml_copia"):
+        with pytest.raises(SystemExit, match="RECUSADO"):
+            ph.desligar_segundo_passo_do_ambiente_de_teste(BancoFalso(outro))
+
+
+def test_nada_fora_do_roteiro_de_homologacao_desliga_o_segundo_passo():
+    """O segundo passo só some por este roteiro, que só roda no `asaf_hml`: o código do sistema (`app/`) segue exigindo-o, e o
+    catálogo de produção nasce com a exigência ligada."""
+    from app.database import SessaoLocal  # noqa: F401 - só garante que o pacote carrega
+    texto = (RAIZ / "app" / "database.py").read_text(encoding="utf-8")
+    assert '"nome_nivel": "Presidente"' in texto and '"exige_mfa": True' in texto
+    for arquivo in (RAIZ / "app").rglob("*.py"):
+        assert "desligar_segundo_passo" not in arquivo.read_text(encoding="utf-8"), arquivo
 
 
 def test_cria_o_secretario_e_o_tesoureiro_de_teste_e_nao_vaza_senha(execucao):

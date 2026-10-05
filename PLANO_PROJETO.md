@@ -1387,10 +1387,12 @@ retrabalho que a seção 4.1 existe pra evitar.
       `hml-*`, nunca contra a produção) que abre um navegador de verdade, entra com os usuários de teste lendo as senhas do cofre
       (**ninguém digita nem cria senha**), executa o roteiro da versão e guarda prints/vídeo/relatório como artefato; e o
       `deploy-homologacao.yml` ganha a opção de publicar **uma branch** (não só a `main`), para a regra da v5.5 em diante.
-      **Pendência de acesso, registrada com honestidade:** o segundo passo (MFA) está **ligado** na homologação. O presidente quer
-      a homologação **sem** segundo passo (nada real entra lá, e o MFA já foi provado); em 2026-10-05 a trava de segurança do Claude
-      Code recusou a mudança que o desligaria, então ele **não foi desligado** e nada foi contornado. Como o robô entra sem ninguém
-      digitando código é decisão do presidente — e o MFA de **produção** não se mexe (`DECISOES_CONGELADAS.md` §3.1).
+      **Acesso (decidido pelo presidente em 2026-10-05):** a homologação fica **sem segundo passo (MFA)** — nada real entra lá e o MFA já é
+      provado na produção e pela suíte; o robô e as pessoas entram só com CPF e senha. O roteiro `popular` desliga a exigência **só no banco
+      `asaf_hml`** (confere o nome do banco antes de gravar e recusa qualquer outro; teste prova). O MFA de **produção** não se mexe
+      (`DECISOES_CONGELADAS.md` §3.1). O presidente também entra na homologação para testar à vontade (lançar, desfazer, aprovar).
+      *(Primeira tentativa, ainda no modo automático, foi barrada pela trava de segurança do Claude Code e nada foi contornado; o
+      presidente passou ao modo manual e repetiu a ordem no chat.)*
 - [ ] **FASE 0 — entrar e sair:** login por CPF e senha, saída, sessão que expira (volta ao login), tela proibida (403 amigável), menu
       que muda conforme o nível, "ver como" outro nível (v0.2.9), faixa **AMBIENTE DE TESTE** sempre visível, **Configurações**
       (catálogos) editando e a opção nova aparecendo no cadastro, **Auditoria** mostrando tudo o que foi feito nesta versão.

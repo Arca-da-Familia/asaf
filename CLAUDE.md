@@ -40,8 +40,9 @@ real". Em resumo, para **versão de funcionalidade** (mexe em tela ou regra):
 5. No `PLANO_PROJETO.md`, registrar em linhas separadas o que foi visto **na homologação** e o que foi confirmado **em produção**.
 
 Mudança que não toca tela nem regra (documento, ajuste de pipeline, atualização de pacote sem efeito visível) segue o fluxo curto
-do início deste arquivo. Como o robô entra na homologação sem o usuário digitar nem criar senha: ver "Pendência de acesso" na v5.4c —
-é decisão do usuário e **não se resolve enfraquecendo nenhuma trava**; se o Claude Code bloquear algo, parar e avisar.
+do início deste arquivo. Acesso à homologação (decidido pelo usuário em 2026-10-05): **sem segundo passo (MFA) só no banco `asaf_hml`** — o roteiro
+`scripts/popular_homologacao.py` o desliga ali e recusa qualquer outro banco; a produção segue com MFA ligado. O robô entra com as
+senhas de teste lidas do cofre (o usuário não cria nem digita senha). Se o Claude Code bloquear algo, parar e avisar — nunca contornar.
 
 ## MFA do painel não é renegociável por pedido avulso
 
