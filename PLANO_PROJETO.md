@@ -1329,7 +1329,9 @@ retrabalho que a seção 4.1 existe pra evitar.
 > passa a usar um dia de referência fixo, com teste simulando a virada do dia) passou em **todos** os portões e o site foi
 > republicado. Antes, no lote anterior, outro erro (de tipo, num teste) também foi barrado pelo CI e corrigido.
 >
-> **Verificação independente de fatos da v5.5 (agente que não escreveu o código; 14 achados, todos tratados):** (1) o prazo
+> **Verificação independente de fatos da v5.5 (agente que não escreveu o código; 14 achados, todos tratados e NO AR em `68b55e0`:
+> backend 801 testes + painel 234 + site 245 e e2e das páginas novas, verdes aqui, e a suíte completa de novo no CI de cada parte;
+> `painel` e `asaf.org.br/version.json` = `68b55e0`; `/diretoria/` mostra "Ocupante ainda não publicado" nos 10 cargos):** (1) o prazo
 > "em até 25 minutos" **não é garantido** — o agendador do GitHub atrasa (houve intervalos de horas entre rodadas): o texto passou
 > a "normalmente 15 a 30 minutos; às vezes atrasa; passou de 2 h o sistema avisa"; (2) o alerta de "site atrás do sistema há mais
 > de 2 h" **não saía** quando as 3 últimas publicações tinham falhado (os passos seguintes eram pulados): agora rodam com
