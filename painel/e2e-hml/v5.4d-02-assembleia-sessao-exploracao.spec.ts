@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import {
+  atingirQuorum,
   campo,
   entrar,
   escolherPorTexto,
@@ -79,6 +80,9 @@ test('sessão: credenciar, pauta e votação, estado por estado', async ({
   await inv(page, info, 's5-com-item-de-pauta')
   await ver(page, info, 's5 com item de pauta')
 
+  await atingirQuorum(page)
+  await inv(page, info, 's5b-quorum-atingido')
+  await ver(page, info, 's5b quorum atingido')
   // votação em dois níveis: o item vai para "Em votação" e DENTRO dele se cria a votação
   await page.getByRole('button', { name: 'Abrir votação' }).first().click()
   await inv(page, info, 's6-item-em-votacao')

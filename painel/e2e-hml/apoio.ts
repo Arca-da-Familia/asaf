@@ -309,3 +309,22 @@ export async function escolherPorTexto(
     throw new Error(`opção com "${trecho}" não existe neste campo`)
   await seletor.selectOption(valor)
 }
+
+/**
+ * Na sessão de assembleia, credencia (marca presença) quem faltar até o quórum de instalação ser atingido. Lê "credenciados / mínimo exigido"
+ * da própria tela, então serve para qualquer tamanho de base. Devolve o mínimo exigido.
+ */
+export async function atingirQuorum(page: Page): Promise<number> {
+  const placar = page.getByText(/^\d+ \/ \d+$/).first()
+  for (let i = 0; i < 150; i += 1) {
+    const [credenciados, minimo] = (await placar.innerText())
+      .split('/')
+      .map((n) => Number(n.trim())) as [number, number]
+    if (credenciados >= minimo) return minimo
+    await page.getByRole('button', { name: 'Marcar presença' }).first().click()
+    await expect(placar).toHaveText(new RegExp(`^${credenciados + 1} / `))
+  }
+  throw new Error(
+    'o quórum não foi atingido nem credenciando todos os faltantes',
+  )
+}
