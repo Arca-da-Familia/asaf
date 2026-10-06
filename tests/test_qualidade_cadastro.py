@@ -232,7 +232,8 @@ def test_mesclar_funciona_com_chave_estrangeira_ligada_como_no_postgres(client, 
     client.post("/api/pessoas/duplicidade/escanear", headers=auth_headers)
     assert db.query(FilaRevisaoCadastro).filter(FilaRevisaoCadastro.id_pessoa_b.in_([mantida, absorvida])).count() >= 1
 
-    assert db.execute(text("PRAGMA foreign_keys")).scalar() == 1, "o SQLite da suíte precisa conferir chave estrangeira, como o Postgres"
+    if db.get_bind().dialect.name == "sqlite":  # no Postgres (CI de produção) a chave estrangeira já é conferida de fábrica
+        assert db.execute(text("PRAGMA foreign_keys")).scalar() == 1, "o SQLite da suíte precisa conferir chave estrangeira, como o Postgres"
     r = client.post(f"/api/pessoas/{mantida}/mesclar", headers=auth_headers, json={"id_pessoa_absorvida": absorvida, "nome_confirmacao": nome})
     assert r.status_code == 200, r.text
     resultado = r.json()
