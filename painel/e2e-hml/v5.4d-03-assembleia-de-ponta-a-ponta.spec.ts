@@ -128,8 +128,11 @@ test('sessão: chamada (credenciar, saída, código), quórum e a votação barr
   await expect(
     page.getByText('Aprovação das contas de 2026').first(),
   ).toBeVisible()
+  // dois níveis: o item vai para "Em votação" (espera isso aparecer) e só então o mesmo botão abre o formulário da votação
   await page.getByRole('button', { name: 'Abrir votação' }).first().click()
+  await expect(page.getByText('Em votação', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Abrir votação' }).last().click()
+  await expect(page.getByLabel('Opções (separadas por vírgula)')).toBeVisible()
   await page.getByLabel('Título').last().fill('Aprovação das contas de 2026')
   await page.getByLabel('Opções (separadas por vírgula)').fill('Sim, Não')
   await page.getByRole('button', { name: 'Abrir votação' }).last().click()
