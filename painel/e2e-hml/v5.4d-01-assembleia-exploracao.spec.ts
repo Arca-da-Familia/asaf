@@ -63,9 +63,13 @@ test('criar a assembleia pela tela e avançar pelos estados, inventariando cada 
   }
   // a sessão e a ata em cada estado
   await page.goto(`${base}/sessao`)
+  await expect(page.locator('h1').first()).toBeVisible()
+  await page.waitForTimeout(3000)
   await inventariar(page, info, 'sessao-depois-de-abrir').catch(() => undefined)
   await ver(page, info, 'sessao depois de abrir')
   await page.goto(`${base}/ata`)
+  await expect(page.locator('h1').first()).toBeVisible()
+  await page.waitForTimeout(3000)
   await inventariar(page, info, 'ata-antes-de-encerrar').catch(() => undefined)
   await ver(page, info, 'ata antes de encerrar')
   expect(vigia.problemas()).toEqual([])
