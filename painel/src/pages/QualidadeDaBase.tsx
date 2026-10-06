@@ -220,9 +220,9 @@ function ItemDaFila({
         {ROTULO_DO_SINAL[item.tipo_sinal] ?? item.tipo_sinal}
       </p>
       <p className="mt-1 text-sm font-medium">
-        {item.nome_pessoa_a}
+        {a}
         {ehDuplicidade && <span className="font-normal"> e </span>}
-        {item.nome_pessoa_b}
+        {ehDuplicidade && b}
       </p>
       {item.detalhe && (
         <p className="text-xs text-muted-foreground">{item.detalhe}</p>

@@ -76,6 +76,13 @@ describe('Qualidade da base (v5.4c: a tela que faltava para as rotas da v1.8)', 
         name: 'Possível cadastro duplicado: Maria Souza',
       }),
     )
+    // já no cabeçalho do item: quem é associado (e a matrícula) e quem é só uma pessoa — nomes iguais não se distinguem de outro jeito
+    expect(
+      dup.getByText(/Maria Souza \(associado, matrícula 5\)/),
+    ).toBeInTheDocument()
+    expect(
+      dup.getByText(/Maria de Souza \(pessoa sem cadastro de associado\)/),
+    ).toBeInTheDocument()
     expect(
       dup.getByRole('button', { name: 'Mesclar os dois cadastros' }),
     ).toBeInTheDocument()

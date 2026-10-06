@@ -141,7 +141,9 @@ test('Configurações: uma opção nova de catálogo (estado civil) aparece no c
   // desativa: sai do cadastro (e o histórico de quem já usou continua)
   await page.goto('/configuracoes')
   await page.getByRole('button', { name: 'Estado civil', exact: true }).click()
-  const linha = page.locator('li, tr, div').filter({ hasText: rotulo }).last()
+  const linha = page
+    .locator('div.rounded-md.justify-between')
+    .filter({ hasText: rotulo })
   await linha.getByRole('button', { name: /Desativar/ }).click()
   await page.goto('/associados/novo')
   await expect(
