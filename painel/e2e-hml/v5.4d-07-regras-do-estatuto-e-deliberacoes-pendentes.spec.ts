@@ -217,6 +217,10 @@ test('deliberações pendentes: a tela abre para a Diretoria e cada deliberaçã
   await ver(page, info, 'deliberacoes pendentes')
 
   const links = page.getByRole('link', { name: 'Abrir a ata' })
+  // a lista e o mapa de atas chegam em consultas separadas: espera aparecer ou o link da primeira ou o aviso de que não há nada
+  await expect(
+    links.first().or(page.getByText('Nenhuma deliberação pendente')),
+  ).toBeVisible()
   if ((await links.count()) === 0) {
     await expect(page.getByText('Nenhuma deliberação pendente')).toBeVisible()
   } else {
