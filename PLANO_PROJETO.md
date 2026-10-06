@@ -1544,6 +1544,13 @@ retrabalho que a seção 4.1 existe pra evitar.
       19. **[aberto, decisão de produto]** um mesmo associado pode ter vários pareceres do Conselho Fiscal no mesmo ano; questionamento respondido
           não reabre; `gerar_ata` aceita assembleia ainda "Em andamento" (só a tela exige "Realizada"; o rascunho agora pode ser atualizado);
           aderente converter petição em assembleia depois do prazo do Art. 10 vive numa rota de Governança.
+      20. **[corrigido, estava em produção desde a v0.2.9]** **a recusa de escrita no modo "ver como" chegava ao navegador sem os cabeçalhos de
+          CORS**: o intermediário que a gera ficava por fora do CORS, o navegador escondia a resposta (o painel e a API ficam em endereços
+          diferentes) e a tela dizia **"Sem conexão com o servidor"** em vez de "somente leitura". Achado quando o roteiro tentou emitir um parecer
+          "vendo como Conselho Fiscal". Agora o CORS é o mais externo; teste em `tests/test_ver_como_somente_leitura.py`.
+      21. **[corrigido]** formulários que recusavam o envio **em silêncio**: a recusa de um campo (por exemplo, um select obrigatório sem lugar
+          para o erro, como "associado" na declaração de conflito) não aparecia em lugar nenhum. O `FormShell` agora lista, no alto do formulário, as
+          recusas que nenhum campo mostra (sem repetir as que já aparecem no campo); vale para todas as telas.
 
 #### v5.4e — FASE 3 ao vivo: financeiro
 

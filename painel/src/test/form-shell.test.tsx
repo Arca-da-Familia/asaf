@@ -113,4 +113,45 @@ describe('FormShell', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Falha de rede.')
   })
+
+  it('recusa que nenhum ErroCampo mostra aparece num resumo (o envio nunca parece não ter acontecido), sem repetir o que já está no campo', async () => {
+    const schemaDois = z.object({
+      nome: z.string().min(1, 'Informe o nome.'),
+      id_conta: z.coerce.number().min(1, 'Selecione a conta.'),
+    })
+    const onSubmit = vi.fn()
+    render(
+      <FormShell<z.infer<typeof schemaDois>>
+        schema={schemaDois}
+        defaultValues={{ nome: '', id_conta: 0 }}
+        onSubmit={onSubmit}
+      >
+        {(form) => (
+          <>
+            <input aria-label="nome" {...form.register('nome')} />
+            <ErroCampo mensagem={form.formState.errors.nome?.message} />
+            {/* o select obrigatório não tem ErroCampo: o erro dele tem de aparecer mesmo assim */}
+            <select aria-label="conta" {...form.register('id_conta')}>
+              <option value="0">Selecione…</option>
+            </select>
+            <button type="submit">Enviar</button>
+          </>
+        )}
+      </FormShell>,
+    )
+
+    await userEvent.click(screen.getByText('Enviar'))
+
+    const alertas = await screen.findAllByRole('alert')
+    const texto = alertas.map((a) => a.textContent).join(' | ')
+    expect(texto).toContain('Selecione a conta.')
+    // "Informe o nome." está no campo e NÃO é repetido no resumo
+    expect(screen.getAllByText('Informe o nome.')).toHaveLength(1)
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    // corrigido o campo com resumo, o resumo some
+    await userEvent.type(screen.getByLabelText('nome'), 'Maria')
+    await userEvent.selectOptions(screen.getByLabelText('conta'), '0')
+    expect(screen.queryByText('Informe o nome.')).toBeNull()
+  })
 })

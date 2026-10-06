@@ -76,13 +76,9 @@ _origens_padrao = (
     "https://painel.asaf.org.br,https://asaf.org.br"
 )
 _origens = [o.strip() for o in os.environ.get("CORS_ORIGINS", _origens_padrao).split(",") if o.strip()]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_origens,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# O CORS é registrado DEPOIS dos demais intermediários (mais abaixo): no Starlette o último registrado fica por fora, e é ele que tem de
+# embrulhar toda resposta, inclusive a recusa do "ver como". Registrado antes, a recusa saía sem os cabeçalhos de acesso e o navegador a lia
+# como falta de conexão.
 
 
 # v0.2.9 - reforço de "somente leitura" do modo "ver como": mesmo que o nível impersonado
@@ -108,6 +104,15 @@ async def bloquear_escrita_em_impersonacao(request: Request, call_next):
                     content={"detail": "Modo \"ver como\" é somente leitura — nenhuma escrita é permitida."},
                 )
     return await call_next(request)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origens,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 app.include_router(auth.router)

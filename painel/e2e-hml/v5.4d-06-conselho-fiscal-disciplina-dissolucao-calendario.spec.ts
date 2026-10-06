@@ -645,16 +645,18 @@ test.describe('B. Disciplina', () => {
   }, info) => {
     const vigia = vigiar(page)
     await entrar(page, 'tesoureiro')
+    // as permissões do cargo chegaram quando o Início oferece o Financeiro (os módulos só aparecem no Início e dentro de cada módulo, nunca
+    // no menu das telas globais como esta)
+    await expect(
+      page.getByRole('link', { name: 'Financeiro' }).first(),
+    ).toBeVisible()
     await page.goto('/meus-processos-disciplinares')
     await expect(
       page.getByRole('heading', { name: 'Meus processos disciplinares' }),
     ).toBeVisible()
     const meu = page.locator(`a[href="/processos-disciplinares/${processo}"]`)
     await expect(meu).toContainText(`Processo #${processo}`)
-    // com as permissões já carregadas (o menu mostra o Financeiro), a conta não oferece abrir processo nem mostra o dos outros
-    await expect(
-      page.getByRole('link', { name: 'Financeiro' }).first(),
-    ).toBeVisible()
+    // com as permissões já carregadas, a conta não oferece abrir processo nem mostra o dos outros
     await expect(
       page.getByRole('button', { name: 'Abrir processo' }),
     ).toHaveCount(0)
@@ -1023,6 +1025,20 @@ test.describe('C. Dissolução (somente o que não conclui nada)', () => {
       .getByPlaceholder('Motivo do cancelamento')
       .fill('Cancelado pelo robô: era só o roteiro de conferência.')
     await page.getByRole('button', { name: 'Cancelar processo' }).click()
+    // etapa sem volta: o sistema pede confirmação; desistir não muda nada
+    const dialogo = page.getByRole('alertdialog')
+    await expect(dialogo).toContainText('não pode ser reaberto')
+    await ver(page, info, 'cancelar dissolucao: pede confirmacao')
+    await dialogo.getByRole('button', { name: 'Cancelar', exact: true }).click()
+    await expect(dialogo).toHaveCount(0)
+    await expect(
+      page.getByText('Aberto', { exact: true }).first(),
+    ).toBeVisible()
+    await page.getByRole('button', { name: 'Cancelar processo' }).click()
+    await page
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Cancelar processo' })
+      .click()
     await expect(
       page.getByText(
         'Cancelado: Cancelado pelo robô: era só o roteiro de conferência.',
@@ -1127,6 +1143,10 @@ test.describe('D. Calendário institucional', () => {
   }, info) => {
     const vigia = vigiar(page)
     await entrar(page, 'tesoureiro')
+    // as permissões do cargo chegaram quando o Início oferece o Financeiro
+    await expect(
+      page.getByRole('link', { name: 'Financeiro' }).first(),
+    ).toBeVisible()
     await page.goto('/calendario')
     await expect(
       page.getByRole('heading', { name: 'Calendário institucional', level: 1 }),
@@ -1134,9 +1154,6 @@ test.describe('D. Calendário institucional', () => {
     const cartao = cartaoDe(page, meioDia)
     await expect(cartao).toBeVisible()
     await expect(cartao).toContainText(`Evento institucional · ${dia.br}`)
-    await expect(
-      page.getByRole('link', { name: 'Financeiro' }).first(),
-    ).toBeVisible()
     await expect(
       page.getByRole('button', { name: 'Agendar evento' }),
     ).toHaveCount(0)

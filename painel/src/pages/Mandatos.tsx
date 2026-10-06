@@ -499,8 +499,12 @@ function BlocoConflitoInteresse() {
                   </option>
                 ))}
               </select>
+              <ErroCampo
+                mensagem={form.formState.errors.id_associado?.message}
+              />
               <input
                 {...form.register('descricao')}
+                aria-label="Descrição do conflito de interesse"
                 placeholder="Descreva o conflito de interesse"
                 className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
               />

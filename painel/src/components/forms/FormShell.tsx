@@ -1,5 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import {
   useForm,
   type DefaultValues,
@@ -11,6 +18,15 @@ import { z } from 'zod'
 
 import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
+
+// Quais mensagens de erro de campo a tela JÁ mostra (cada `ErroCampo` se registra aqui). O que o formulário recusou e nenhum `ErroCampo` mostra
+// (um select obrigatório sem lugar para o erro, por exemplo) aparece num resumo no alto do formulário: o clique em "Enviar" nunca pode parecer
+// que não aconteceu nada. Achado ao vivo da v5.4d: vários formulários recusavam o envio em silêncio.
+type RegistroDeMensagens = {
+  adicionar: (mensagem: string) => void
+  remover: (mensagem: string) => void
+}
+const MensagensExibidas = createContext<RegistroDeMensagens | null>(null)
 
 type FormShellProps<T extends FieldValues> = {
   schema: z.ZodType<T, FieldValues>
@@ -48,6 +64,30 @@ export function FormShell<T extends FieldValues>({
     defaultValues,
   })
   const [erroGeral, setErroGeral] = useState<string | null>(null)
+  const [exibidas, setExibidas] = useState<Record<string, number>>({})
+  const registro = useMemo<RegistroDeMensagens>(
+    () => ({
+      adicionar: (mensagem) =>
+        setExibidas((e) => ({ ...e, [mensagem]: (e[mensagem] ?? 0) + 1 })),
+      remover: (mensagem) =>
+        setExibidas((e) => {
+          const proximo = { ...e }
+          if ((e[mensagem] ?? 0) > 1) proximo[mensagem] = e[mensagem]! - 1
+          else delete proximo[mensagem]
+          return proximo
+        }),
+    }),
+    [],
+  )
+  const soltas = [
+    ...new Set(
+      Object.values(form.formState.errors)
+        .map((e) => (e as { message?: unknown } | undefined)?.message)
+        .filter(
+          (m): m is string => typeof m === 'string' && m !== '' && !exibidas[m],
+        ),
+    ),
+  ]
 
   async function handleSubmit(valores: T) {
     setErroGeral(null)
@@ -91,13 +131,35 @@ export function FormShell<T extends FieldValues>({
           {erroGeral}
         </p>
       )}
-      {children(form)}
+      {soltas.length > 0 && (
+        <div
+          role="alert"
+          className="col-span-full w-full rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          <p className="font-medium">Corrija para continuar:</p>
+          <ul className="list-disc pl-5">
+            {soltas.map((m) => (
+              <li key={m}>{m}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <MensagensExibidas.Provider value={registro}>
+        {children(form)}
+      </MensagensExibidas.Provider>
     </form>
   )
 }
 
 // Erro de campo, para uso junto com o FormShell (form.formState.errors.campo?.message).
 export function ErroCampo({ mensagem }: { mensagem?: string }) {
+  const registro = useContext(MensagensExibidas)
+  // layout effect: registra ANTES da tela pintar, para o resumo do formulário não piscar com uma mensagem que já está no campo
+  useLayoutEffect(() => {
+    if (!mensagem || !registro) return
+    registro.adicionar(mensagem)
+    return () => registro.remover(mensagem)
+  }, [mensagem, registro])
   if (!mensagem) return null
   return (
     <p role="alert" className="mt-1 text-sm text-destructive">
