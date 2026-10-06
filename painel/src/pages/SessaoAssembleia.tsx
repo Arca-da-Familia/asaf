@@ -534,6 +534,7 @@ function CardVotacao({ votacaoInicial }: { votacaoInicial: Votacao }) {
               <>
                 <select
                   {...form.register('opcao')}
+                  aria-label="Sua opção de voto"
                   className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                 >
                   <option value="">Escolha sua opção…</option>
