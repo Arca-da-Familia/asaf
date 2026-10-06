@@ -172,6 +172,8 @@ def editar_plano_contas(id_conta: int, dados: PlanoContaCriar, request: Request,
         raise HTTPException(status_code=404, detail="Conta contábil não encontrada.")
     contabilidade.natureza_da_conta(dados.tipo)  # 400 se o tipo não for um dos cinco tipos contábeis reais
     _validar_pai(db, dados.codigo_contabil_pai, codigo_contabil_propria=conta.codigo_contabil)
+    if dados.codigo_contabil != conta.codigo_contabil and db.query(PlanoDeContas.id_conta).filter(PlanoDeContas.codigo_contabil == dados.codigo_contabil).first():
+        raise HTTPException(status_code=400, detail="Já existe uma conta com esse código contábil.")
     if dados.codigo_contabil != conta.codigo_contabil and db.query(PlanoDeContas.id_conta).filter(PlanoDeContas.codigo_contabil_pai == conta.codigo_contabil).first():
         raise HTTPException(status_code=400, detail="Esta conta tem contas filhas - mudar o código a desligaria delas. Realoque as filhas antes de mudar o código.")
     if dados.tipo != conta.tipo and db.query(PartidaContabil.id_partida).filter(PartidaContabil.id_conta == id_conta).first():

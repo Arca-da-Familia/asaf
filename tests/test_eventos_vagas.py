@@ -239,3 +239,52 @@ def test_inscricao_em_grupo_cada_participante_e_uma_inscricao_propria(client, au
 
     grupo = db.query(Inscricao).filter(Inscricao.identificador_grupo == corpo["identificador_grupo"]).all()
     assert len(grupo) == 3
+
+
+def test_inscricao_recusada_por_duplicidade_nao_consome_vaga(client, auth_headers):
+    id_evento = _criar_evento_publico(client, auth_headers, vagas=2)
+    headers_a, _ = _criar_associado_com_acesso(client, auth_headers)
+    headers_b, _ = _criar_associado_com_acesso(client, auth_headers)
+
+    assert client.post(f"/api/eventos/{id_evento}/inscricao", headers=headers_a).status_code == 200
+    for _ in range(3):
+        repetida = client.post(f"/api/eventos/{id_evento}/inscricao", headers=headers_a)
+        assert repetida.status_code == 400
+    # a vaga que a tentativa repetida reservou voltou: a segunda pessoa ainda cabe
+    r = client.post(f"/api/eventos/{id_evento}/inscricao", headers=headers_b)
+    assert r.status_code == 200 and r.json()["status"] == "Pré-inscrito"
+    evento = next(e for e in client.get("/api/eventos/", headers=auth_headers).json() if e["id_evento"] == id_evento)
+    assert evento["vagas_ocupadas"] == 2
+
+
+def test_cancelar_pelo_painel_libera_a_vaga_e_promove_o_proximo_da_fila(client, auth_headers, db):
+    id_evento = _criar_evento_publico(client, auth_headers, vagas=1)
+    r = client.post(f"/api/publico/eventos/{id_evento}/inscrever-se", json=_payload_inscricao(), headers=_ip_de_teste())
+    id_a = r.json()["participantes"][0]["id_inscricao"]
+    r = client.post(f"/api/publico/eventos/{id_evento}/inscrever-se", json=_payload_inscricao(), headers=_ip_de_teste())
+    assert r.json()["status"] == "Lista de Espera"
+    id_b = r.json()["id_inscricao"]
+
+    r = client.put(f"/api/inscricoes/{id_a}/status", json={"status": "Cancelado"}, headers=auth_headers)
+    assert r.status_code == 200, r.text
+
+    db.expire_all()
+    assert db.query(Inscricao).filter(Inscricao.id_inscricao == id_b).first().status == "Pré-inscrito"
+    evento = next(e for e in client.get("/api/eventos/", headers=auth_headers).json() if e["id_evento"] == id_evento)
+    assert evento["vagas_ocupadas"] == 1  # a vaga de quem cancelou passou para quem estava na fila
+
+
+def test_reativar_cancelado_sem_vaga_livre_e_recusado_pelo_painel(client, auth_headers, db):
+    id_evento = _criar_evento_publico(client, auth_headers, vagas=1)
+    r = client.post(f"/api/publico/eventos/{id_evento}/inscrever-se", json=_payload_inscricao(), headers=_ip_de_teste())
+    id_a = r.json()["participantes"][0]["id_inscricao"]
+    assert client.put(f"/api/inscricoes/{id_a}/status", json={"status": "Cancelado"}, headers=auth_headers).status_code == 200
+    # a vaga foi para outra pessoa
+    r = client.post(f"/api/publico/eventos/{id_evento}/inscrever-se", json=_payload_inscricao(), headers=_ip_de_teste())
+    assert r.json()["status"] == "Pré-inscrito"
+
+    r = client.put(f"/api/inscricoes/{id_a}/status", json={"status": "Pré-inscrito"}, headers=auth_headers)
+    assert r.status_code == 400
+    assert "Não há vaga livre" in r.json()["detail"]
+    db.expire_all()
+    assert db.query(Inscricao).filter(Inscricao.id_inscricao == id_a).first().status == "Cancelado"

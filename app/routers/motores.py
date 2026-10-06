@@ -21,7 +21,7 @@ from app.schemas.motores import (
     TemplateDocumentoCriar,
 )
 from app.security import exigir_permissao
-from app.services import documentos, indicadores, inscricao, presenca
+from app.services import documentos, indicadores, inscricao, presenca, vagas
 from app.services.eventos import CONTEXTO_EVENTO
 
 router = APIRouter()
@@ -87,7 +87,7 @@ def inscrever_endpoint(dados: InscricaoCriar, request: Request, db: Session = De
 
 @router.put("/api/inscricoes/{id_inscricao}/status", summary="Alterar status de uma inscrição")
 def alterar_status_inscricao_endpoint(id_inscricao: int, dados: InscricaoAlterarStatus, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
-    inscricao_atualizada = inscricao.alterar_status(db, id_inscricao=id_inscricao, novo_status=dados.status)
+    inscricao_atualizada = vagas.alterar_status_com_controle_de_vaga(db, id_inscricao=id_inscricao, novo_status=dados.status)
     registrar_auditoria(
         db, usuario, "inscricoes", "UPDATE", id_registro_afetado=inscricao_atualizada.id_inscricao,
         dados_depois={"status": inscricao_atualizada.status}, ip_origem=_ip_origem(request),

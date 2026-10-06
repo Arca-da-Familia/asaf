@@ -38,6 +38,10 @@ def test_mudar_o_codigo_de_conta_com_filhas_e_recusado(client, auth_headers):
     r = _editar(client, auth_headers, pai, "7.1.9003", "Pai com filha", "Despesa")
     assert r.status_code == 400
     assert "filhas" in r.json()["detail"]
+    # código que já é de outra conta: a recusa certa é a de código repetido, mesmo a conta tendo filhas
+    r = _editar(client, auth_headers, pai, "7.1.9002.1", "Pai com filha", "Despesa")
+    assert r.status_code == 400
+    assert "Já existe uma conta com esse código" in r.json()["detail"]
     # a descrição, sem mudar o código, continua editável
     assert _editar(client, auth_headers, pai, "7.1.9002", "Pai com filha (renomeado)", "Despesa").status_code == 200
 

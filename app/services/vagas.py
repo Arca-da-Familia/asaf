@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from app.config_cache import obter_configuracao
 from app.models.associados import Associado
 from app.models.eventos import CotaInscricaoEvento, Evento, SessaoEvento
-from app.models.motores import CANCELADO, CONFIRMADO, LISTA_DE_ESPERA, PRE_INSCRITO, Inscricao
+from app.models.motores import AUSENTE, CANCELADO, CONFIRMADO, LISTA_DE_ESPERA, PRE_INSCRITO, PRESENTE, Inscricao
 from app.models.pessoas import Pessoa
 from app.services import inscricao as servico_inscricao
 from app.services import notificacoes
@@ -109,12 +109,57 @@ def inscrever_com_controle_de_vaga(
     categoria = categoria_da_pessoa(db, id_pessoa=id_pessoa)
     conseguiu, categoria_cota = reservar_vaga(db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, categoria=categoria)
     status_inicial = PRE_INSCRITO if conseguiu else LISTA_DE_ESPERA
-    return servico_inscricao.inscrever(
-        db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, id_pessoa=id_pessoa,
-        respostas_formulario=respostas_formulario, codigo_checkin=codigo_checkin,
-        token_cancelamento=token_cancelamento, consentimento_lgpd_versao=consentimento_lgpd_versao,
-        status_inicial=status_inicial, categoria_cota=categoria_cota, identificador_grupo=identificador_grupo,
-    )
+    try:
+        return servico_inscricao.inscrever(
+            db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, id_pessoa=id_pessoa,
+            respostas_formulario=respostas_formulario, codigo_checkin=codigo_checkin,
+            token_cancelamento=token_cancelamento, consentimento_lgpd_versao=consentimento_lgpd_versao,
+            status_inicial=status_inicial, categoria_cota=categoria_cota, identificador_grupo=identificador_grupo,
+        )
+    except HTTPException:
+        # a inscrição foi recusada (já inscrita, pessoa inexistente...): a vaga reservada para ela volta, senão cada tentativa repetida comeria uma vaga
+        if conseguiu:
+            liberar_vaga(db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, categoria_cota=categoria_cota)
+        raise
+
+
+# Quem está nestes status ocupa uma vaga do evento/sessão; lista de espera e cancelado não ocupam.
+_OCUPAM_VAGA = {PRE_INSCRITO, CONFIRMADO, PRESENTE, AUSENTE}
+
+
+def alterar_status_com_controle_de_vaga(db: Session, *, id_inscricao: int, novo_status: str) -> Inscricao:
+    """Mudança de status feita por quem opera o painel, com o mesmo controle de vaga do cancelamento por link: quem deixa de ocupar vaga (cancelado,
+    volta à lista de espera) a devolve e o próximo da fila é promovido; quem passa a ocupar (cancelado que volta, espera confirmada à mão) só entra
+    se houver vaga livre. Sem isto o contador ficava parado (2/2 depois de cancelar) e a fila nunca andava pelo painel."""
+    alvo = db.query(Inscricao).filter(Inscricao.id_inscricao == id_inscricao).first()
+    if alvo is None or alvo.contexto_tipo not in _MODELO_POR_CONTEXTO or novo_status not in servico_inscricao._TRANSICOES_VALIDAS.get(alvo.status, set()):
+        # inscrição inexistente, de um contexto sem controle de vaga (projeto...) ou transição inválida: o caminho padrão, sem tocar em contador nenhum
+        return servico_inscricao.alterar_status(db, id_inscricao=id_inscricao, novo_status=novo_status)
+
+    anterior, contexto_tipo, id_contexto, categoria_cota = alvo.status, alvo.contexto_tipo, alvo.id_contexto, alvo.categoria_cota
+    ocupava, vai_ocupar = anterior in _OCUPAM_VAGA, novo_status in _OCUPAM_VAGA
+
+    reservou = False
+    if vai_ocupar and not ocupava:
+        conseguiu, nova_categoria_cota = reservar_vaga(
+            db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, categoria=categoria_da_pessoa(db, id_pessoa=alvo.id_pessoa),
+        )
+        if not conseguiu:
+            raise HTTPException(status_code=400, detail="Não há vaga livre neste evento: a pessoa continua onde estava. Libere uma vaga (cancelando outra inscrição) e tente de novo.")
+        reservou = True
+        categoria_cota = nova_categoria_cota
+        alvo.categoria_cota = nova_categoria_cota
+    try:
+        atualizada = servico_inscricao.alterar_status(db, id_inscricao=id_inscricao, novo_status=novo_status)
+    except HTTPException:
+        if reservou:
+            liberar_vaga(db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, categoria_cota=categoria_cota)
+        raise
+
+    if ocupava and not vai_ocupar:
+        liberar_vaga(db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, categoria_cota=categoria_cota)
+        promover_proximo_da_espera(db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, categoria_cota=categoria_cota)
+    return atualizada
 
 
 def promover_proximo_da_espera(db: Session, *, contexto_tipo: str, id_contexto: int, categoria_cota: Optional[str]) -> Optional[Inscricao]:
