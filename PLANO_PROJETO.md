@@ -1480,17 +1480,46 @@ retrabalho que a seção 4.1 existe pra evitar.
 
 #### v5.4d — FASE 2 e FASE 2.5 ao vivo: governança
 
-- [ ] **Diretoria e Conselho Fiscal:** nomear, encerrar e renovar mandato; **cargos do Art. 19 (7) e do Art. 24 (3)**; o menu e as
+- [x] **Diretoria e Conselho Fiscal:** nomear, encerrar e renovar mandato; **cargos do Art. 19 (7) e do Art. 24 (3)**; o menu e as
       permissões do usuário **mudam sozinhos** quando o cargo muda (Secretário passa a ver documentos).
-- [ ] **Assembleia de ponta a ponta:** criar, convocar (edital), habilitar quem pode votar, abrir a sessão, chamada (presença,
+      **Na homologação (roteiro `v5.4d-04-mandatos`, 7 de 7):** a diretoria (7 cargos) e o Conselho Fiscal (3) semeados aparecem com situação e
+      datas (15/01/2026, não 14/01); o Secretário abre e lê Mandatos e o Tesoureiro é barrado; tudo vazio, associado não escolhido, **cargo já
+      ocupado**, **Conselho Fiscal completo (3 de 3)** e fim antes do início são **recusados**; **encerrar o mandato do Tesoureiro tira o
+      Financeiro e a Parceria dele ao vivo e registrar de novo devolve** (a segunda aba que tenta encerrar o já encerrado recebe a recusa uma
+      vez só); conflito de interesse declarado (as duas faltas aparecem), com a data de hoje, e encerrado; tudo na Auditoria.
+- [x] **Assembleia de ponta a ponta:** criar, convocar (edital), habilitar quem pode votar, abrir a sessão, chamada (presença,
       autochamada, justificativa de falta), votação com o motor de votos (quórum e empate), encerrar, ata com **anexo que abre**,
       deliberação com efeito, "Minhas Assembleias" visto como associado comum.
+      **Na homologação (roteiros `v5.4d-03` e `v5.4d-05`, todos verdes):** assembleia sem ordem do dia recusada; criada vira rascunho; convocar
+      gera o edital; sessão com código de chamada; credenciar, **sair e voltar**; votação **barrada sem quórum** (Art. 6º); quórum atingido,
+      **quem não está na sala não vota**, voto repetido recusado, apuração com hash de integridade, ocorrência, encerrar item e sessão;
+      justificativas (vazia e curta recusadas; **rejeitar exige motivo**); "vendo como Associado" (somente leitura) recusa a chamada e a
+      justificativa; autochamada com código vazio, errado, certo e a segunda tentativa recusada; correção de presença depois do fim; **ata gerada do
+      registro** (presença, votação, ocorrência), segunda geração recusada, relato salvo; **documento oficial anexado** (formato ruim e "PDF"
+      falso recusados), **baixado de volta com status 200 e o mesmo conteúdo**, protocolo com o dia certo, troca do anexo; deliberações (campo
+      vazio, ano, parecer do Conselho Fiscal recusados), conclusão com certidão e revogação; eleição (cria o mandato; cargo ocupado recusado) e
+      reforma de estatuto (a pendência fica visível); ata travada e **retificada, com a original ainda alcançável**; petições de convocação
+      (propor, aderir, segunda adesão recusada, converter antes do quórum recusado, **o Tesoureiro também propõe e adere**).
 - [ ] **Conselho Fiscal com poder real:** consulta ao financeiro que **grava a consulta na Auditoria**; fila de questionamentos
       (conselheiro pergunta, tesouraria responde, histórico fica); **parecer** (favorável, com ressalva, contrário) — e a
       deliberação de "aprovação de contas" **só pode ser criada com o parecer do ano**. Depois: **disciplina** (abrir, defesa,
       decisão), **dissolução** (art. 61 do Código Civil: só simulada — nada irreversível) e **calendário institucional**.
-- [ ] Lista de **achados** corrigidos e refeitos; prints.
-- [ ] **Achados da conferência ao vivo (2026-10-06, em andamento).** Os roteiros `painel/e2e-hml/v5.4d-0*.spec.ts` (assembleia de ponta a
+      **Na homologação (roteiros `v5.4d-06` e `v5.4d-07`, 16 e 4 cenários verdes), o que já está provado:** a consulta do Conselho Fiscal ao
+      financeiro e ao razão aparece na Auditoria com quem viu (e a do Tesoureiro também; o Secretário é barrado); a fila de questionamentos
+      recusa o Presidente e a pergunta vazia; "vendo como Conselho Fiscal" recusa o parecer com a explicação (e não mais "sem conexão"); parecer com
+      campo faltando e do Presidente recusados; **disciplina**: abrir (dados faltando recusados), prazo de defesa, decidir e manifestar antes da
+      defesa recusados, o acusado entra pela própria conta, só vê o dele, defesa curta recusada, apresenta a defesa e **não vê as etapas de quem
+      julga**, o Secretário se manifesta uma vez e repetir é recusado, decidir sem quórum recusado, o Presidente (sem mandato) não se manifesta,
+      confidencialidade (404 para quem não é parte); **dissolução** (nada irreversível): motivo curto recusado, só a etapa 1, vincular deliberação
+      inexistente recusado, **cancelar pede confirmação** e vira Cancelado; **calendário**: campos faltando recusados, evento do meio-dia e o das
+      22h30 de Belém no dia certo, fim antes do início recusado, o Tesoureiro vê o evento sem o botão de agendar; **Regras do Estatuto**: lista,
+      valor impossível e igual ao atual recusados no campo, **reforma de verdade com confirmação, histórico das duas vigências e Auditoria**, e o
+      valor devolvido ao de origem; **Deliberações pendentes** abre para a Diretoria e leva à ata.
+      **AINDA NÃO provado ao vivo** (por falta de login de teste de conselheiro fiscal e de diretores suficientes para o quórum, achado 17):
+      emitir um parecer de verdade e criar a deliberação de "aprovação de contas" com ele, e a **decisão e a homologação** de um processo
+      disciplinar (quórum de 4). Só têm teste de servidor e de tela. **Este item continua aberto até isso ser provado.**
+- [x] Lista de **achados** corrigidos e refeitos; prints.
+- [x] **Achados da conferência ao vivo (2026-10-06).** Os roteiros `painel/e2e-hml/v5.4d-0*.spec.ts` (assembleia de ponta a
       ponta, mandatos, ata/petições/minhas assembleias, Conselho Fiscal/disciplina/dissolução/calendário) e a leitura do código que eles
       provocaram acharam o que segue. **[provado]** = corrigido e refeito ao vivo na homologação; **[corrigido]** = corrigido com teste,
       falta refazer ao vivo no próximo ciclo; **[aberto]** = fica registrado com o motivo.
@@ -1501,37 +1530,37 @@ retrabalho que a seção 4.1 existe pra evitar.
          presente (credenciado e sem saída, o mesmo critério do quórum).
       3. **[provado]** a recusa do servidor aparecia **duas vezes** em 70 formulários (o formulário já a mostra e a tela repetia). Removidos
          os 70 blocos; trava permanente em `painel/src/test/erro-duplicado.test.ts` (por componente).
-      4. **[corrigido]** **regra do estatuto sem validação**: o servidor aceitava qualquer texto como quórum, e "abc" ou "2/0" derrubaria a
+      4. **[provado]** **regra do estatuto sem validação**: o servidor aceitava qualquer texto como quórum, e "abc" ou "2/0" derrubaria a
          apuração de quórum (e a abertura de toda votação) até alguém reformar de novo. Agora recusa por tipo (fração, número, sim/nao, meses da
          AGO) antes de virar a regra vigente.
-      5. **[corrigido]** **dois Presidentes ao mesmo tempo**: o servidor dava posse a quantos pedissem no mesmo cargo, e as permissões do cargo
+      5. **[provado]** **dois Presidentes ao mesmo tempo**: o servidor dava posse a quantos pedissem no mesmo cargo, e as permissões do cargo
          somavam. Agora: um titular por cargo (Art. 19) e três conselheiros fiscais (Art. 24, parâmetro `VAGAS_CONSELHO_FISCAL`), com a vacância
          liberando a vaga no mesmo instante e o sucessor podendo tomar posse quando o mandato acaba. Posse em 29/02 que caía em ano não bissexto
          dava erro 500.
       6. **[corrigido]** **ninguém conseguia emitir parecer do Conselho Fiscal pela tela**: só o *nível* contava, não o cargo em mandato; sem
          parecer, a deliberação de "aprovação de contas" nunca podia ser criada. Agora vale também o mandato vigente no órgão (nunca no "ver como").
       7. **[corrigido]** o **acusado que é diretor** podia decidir, homologar e ver a apuração do próprio processo disciplinar; e via os botões.
-      8. **[corrigido, segurança]** a lista e o detalhe dos **processos de dissolução** (com o motivo) eram legíveis por **qualquer usuário
+      8. **[provado, segurança]** a lista e o detalhe dos **processos de dissolução** (com o motivo) eram legíveis por **qualquer usuário
          logado**; agora exigem `governanca`.
-      9. **[corrigido]** calendário: reunião das 22h30 em Belém aparecia no **dia seguinte** (o dia vinha de UTC; agora vem do fuso da associação,
+      9. **[provado]** calendário: reunião das 22h30 em Belém aparecia no **dia seguinte** (o dia vinha de UTC; agora vem do fuso da associação,
          `FUSO_HORARIO`); fim antes do início era aceito; data passada era aceita e nunca aparecia; **não havia como remover** um evento (agora há,
          com confirmação e na Auditoria).
-      10. **[corrigido]** mandatos: datas só-dia apareciam um dia antes em Belém (15/01 → 14/01); o aviso de vacância sem substituto (Art. 26) **nunca
+      10. **[provado]** mandatos: datas só-dia apareciam um dia antes em Belém (15/01 → 14/01); o aviso de vacância sem substituto (Art. 26) **nunca
           aparecia** (o bloco fechava antes); mensagem de erro repetida; "Carregando…" aparecendo como "nenhum mandato"; o alerta
           `/api/mandatos/vencendo` não tinha tela (agora há "Mandatos vencendo").
-      11. **[corrigido]** ata: o que falta fazer depois de concluir uma deliberação (cartório, reforma de estatuto) **sumia** com o painel; erro do
+      11. **[provado]** ata: o que falta fazer depois de concluir uma deliberação (cartório, reforma de estatuto) **sumia** com o painel; erro do
           ano em "aprovação de contas" não aparecia; "Gerar ata" recusado deixava a **página em branco**; data de protocolo um dia antes; depois
           de **retificar**, a tela mostrava uma das duas atas ao acaso (agora a mais recente, com as versões navegáveis e `?ata=`); **certidão** saía
           de deliberação pendente ou revogada; o texto do rascunho nunca refletia presença corrigida depois (novo "Atualizar o texto").
-      12. **[corrigido]** justificativa de falta: rejeitar sem dizer o motivo (o associado não sabia por quê); justificar estando presente;
+      12. **[provado]** justificativa de falta: rejeitar sem dizer o motivo (o associado não sabia por quê); justificar estando presente;
           "Lançar em nome" oferecido com a assembleia já encerrada (o servidor sempre recusa); quem teve a falta justificada e compareceu não
           conseguia bater presença.
-      13. **[corrigido]** petição de convocação: a tela diz que qualquer associado propõe e adere, mas a rota ficava dentro de Governança (associado
+      13. **[provado]** petição de convocação: a tela diz que qualquer associado propõe e adere, mas a rota ficava dentro de Governança (associado
           comum caía em "acesso negado"). Agora há a rota `/peticoes-de-convocacao` e o item no menu de todos.
-      14. **[corrigido]** telas que faltavam (rotas do servidor desde a v2.x sem nenhuma tela): **Regras do Estatuto** (lista, histórico e reforma,
+      14. **[provado]** telas que faltavam (rotas do servidor desde a v2.x sem nenhuma tela): **Regras do Estatuto** (lista, histórico e reforma,
           com validação e confirmação), **Deliberações pendentes** (cross-assembleia) e **Mandatos vencendo**. As três rotas genéricas
           `/api/agenda/*` (sem uso humano; o motor continua nos serviços de espaços) foram **removidas**.
-      15. **[corrigido]** dissolução: cancelar, destinar o patrimônio e a baixa cadastral agora pedem confirmação; erros de campo não
+      15. **[provado]** dissolução: cancelar, destinar o patrimônio e a baixa cadastral agora pedem confirmação; erros de campo não
           apareciam; processo inexistente deixava "Carregando…" para sempre (o mesmo em disciplina). Campos sem nome para leitor de tela em
           disciplina, dissolução, Conselho Fiscal, ata, eleição e calendário ganharam `aria-label`. O seletor de tamanho de página da Auditoria
           mostrava "10 / página" com 25 linhas.
@@ -1544,13 +1573,21 @@ retrabalho que a seção 4.1 existe pra evitar.
       19. **[aberto, decisão de produto]** um mesmo associado pode ter vários pareceres do Conselho Fiscal no mesmo ano; questionamento respondido
           não reabre; `gerar_ata` aceita assembleia ainda "Em andamento" (só a tela exige "Realizada"; o rascunho agora pode ser atualizado);
           aderente converter petição em assembleia depois do prazo do Art. 10 vive numa rota de Governança.
-      20. **[corrigido, estava em produção desde a v0.2.9]** **a recusa de escrita no modo "ver como" chegava ao navegador sem os cabeçalhos de
+      20. **[provado, estava em produção desde a v0.2.9]** **a recusa de escrita no modo "ver como" chegava ao navegador sem os cabeçalhos de
           CORS**: o intermediário que a gera ficava por fora do CORS, o navegador escondia a resposta (o painel e a API ficam em endereços
           diferentes) e a tela dizia **"Sem conexão com o servidor"** em vez de "somente leitura". Achado quando o roteiro tentou emitir um parecer
           "vendo como Conselho Fiscal". Agora o CORS é o mais externo; teste em `tests/test_ver_como_somente_leitura.py`.
-      21. **[corrigido]** formulários que recusavam o envio **em silêncio**: a recusa de um campo (por exemplo, um select obrigatório sem lugar
+      21. **[provado]** formulários que recusavam o envio **em silêncio**: a recusa de um campo (por exemplo, um select obrigatório sem lugar
           para o erro, como "associado" na declaração de conflito) não aparecia em lugar nenhum. O `FormShell` agora lista, no alto do formulário, as
           recusas que nenhum campo mostra (sem repetir as que já aparecem no campo); vale para todas as telas.
+      **Resultado na homologação:** o roteiro completo `v5.4d` (abertura de todas as telas de governança, assembleia de ponta a ponta,
+      mandatos, ata/petições/minhas assembleias, Conselho Fiscal/disciplina/dissolução/calendário) rodou **65 de 65 cenários verdes**, e o das
+      Regras do Estatuto e Deliberações pendentes, **4 de 4** (artefatos `conferencia-homologacao-v5.4d*` do GitHub, com print e vídeo de cada passo).
+      **Em produção (por leitura, sem dado de teste):** `painel.asaf.org.br/version.json` = `c326585` (o último commit do painel); a API no ar é a do
+      `e6d4471` (o último commit do servidor, com a correção do CORS), e o servidor de produção responde ao preflight com
+      `access-control-allow-origin: https://painel.asaf.org.br`; as rotas novas e as protegidas respondem **401** sem login
+      (`/api/estatuto/regras`, `/api/deliberacoes/pendentes`, `/api/processos-dissolucao/`, `/api/mandatos/vencendo`,
+      `DELETE /api/eventos-calendario/1`) e as rotas genéricas removidas (`/api/agenda/compromissos`) respondem **404**.
 
 #### v5.4e — FASE 3 ao vivo: financeiro
 
