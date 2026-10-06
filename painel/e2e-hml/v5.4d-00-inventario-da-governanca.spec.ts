@@ -30,6 +30,21 @@ const TELAS: { nome: string; caminho: string; titulo: RegExp }[] = [
     titulo: /Conselho Fiscal/,
   },
   {
+    nome: 'deliberacoes-pendentes',
+    caminho: '/governanca/deliberacoes',
+    titulo: /Deliberações pendentes/,
+  },
+  {
+    nome: 'regras-do-estatuto',
+    caminho: '/governanca/estatuto',
+    titulo: /Regras do Estatuto/,
+  },
+  {
+    nome: 'peticoes-do-quadro-social',
+    caminho: '/peticoes-de-convocacao',
+    titulo: /Petições de convocação/,
+  },
+  {
     nome: 'minhas-assembleias',
     caminho: '/minhas-assembleias',
     titulo: /assembleias/i,
