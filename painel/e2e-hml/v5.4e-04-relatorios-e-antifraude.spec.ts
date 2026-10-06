@@ -65,6 +65,9 @@ const BRL = new Intl.NumberFormat('pt-BR', {
 })
 /** Como o painel escreve (Intl pt-BR): "R$ 1.234,56". */
 const brl = (centavos: number): string => BRL.format(centavos / 100)
+// o dinheiro que o SERVIDOR escreve nas mensagens e nos textos gerados (alertas, prestação de contas): R$ 1.234,56
+const reaisSrv = (centavos: number): string =>
+  `R$ ${(centavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 /** Como o servidor escreve nos textos (Python `:.2f`): "1234.56". */
 const decimal = (centavos: number): string => (centavos / 100).toFixed(2)
 const REAIS = /([-−])?R\$\s?([-−])?([\d.]+),(\d{2})/g
@@ -833,7 +836,7 @@ function conferirAlertasDoRobo(lista: Padrao[]): void {
   ).toHaveLength(1)
   expect(doC[0]?.id_fornecedor).toBe(estado.idFornecedor.F1)
   expect(doC[0]?.descricao).toBe(
-    `Primeira operação com o fornecedor '${f1.razao}' já é de R$ ${decimal(TITULOS.C.valor)}.`,
+    `Primeira operação com o fornecedor '${f1.razao}' já é de ${reaisSrv(TITULOS.C.valor)}.`,
   )
   expect(
     novos.filter(
@@ -854,14 +857,14 @@ function conferirAlertasDoRobo(lista: Padrao[]): void {
     )
     expect(
       deste,
-      `solicitação ${chave} (R$ ${decimal(s.valor)}): ${s.alerta ? 'tem de alertar' : 'não pode alertar'}`,
+      `solicitação ${chave} (${reaisSrv(s.valor)}): ${s.alerta ? 'tem de alertar' : 'não pode alertar'}`,
     ).toHaveLength(s.alerta ? 1 : 0)
     if (s.alerta) {
       expect(deste[0]?.descricao).toContain(
-        `Solicitação de compra #${estado.idSolicitacao[chave]} (R$ ${decimal(s.valor)})`,
+        `Solicitação de compra #${estado.idSolicitacao[chave]} (${reaisSrv(s.valor)})`,
       )
       expect(deste[0]?.descricao).toContain(
-        `está a menos de 10% do teto de alçada (R$ ${decimal(ALCADA_TETO)}) - possível fracionamento.`,
+        `está a menos de 10% do teto de alçada (${reaisSrv(ALCADA_TETO)}) - possível fracionamento.`,
       )
     }
   }
@@ -1480,7 +1483,7 @@ test('3. as baixas A, B e C: campos vazios, valor a mais e falta de comprovante 
     .replace(/\s+/g, ' ')
     .trim()
   expect(textoAMais).toContain(
-    `Valor pago maior que o saldo devedor (R$ ${decimal(TITULOS.C.valor)})`,
+    `Valor pago maior que o saldo devedor (${reaisSrv(TITULOS.C.valor)})`,
   )
   if (/id_conta_contabil_adiantamento/.test(textoAMais)) {
     achar(
@@ -2944,18 +2947,18 @@ test('14. Prestação de contas do exercício: ano inválido é recusado; cada v
     const b = balanco[chave]
     if (b) {
       expect(texto, `prestação: saldo de ${chave}`).toContain(
-        `${c.codigo} — ${c.descricao}: saldo R$ ${decimal(b.atual)}`,
+        `${c.codigo} — ${c.descricao}: saldo ${reaisSrv(b.atual)}`,
       )
     }
   }
   if (periodo.REC !== null) {
     expect(texto).toContain(
-      `[Receita] ${CONTAS.REC.codigo} — ${CONTAS.REC.descricao}: R$ ${decimal(periodo.REC)}`,
+      `[Receita] ${CONTAS.REC.codigo} — ${CONTAS.REC.descricao}: ${reaisSrv(periodo.REC)}`,
     )
   }
   if (periodo.DES !== null) {
     expect(texto).toContain(
-      `[Despesa] ${CONTAS.DES.codigo} — ${CONTAS.DES.descricao}: R$ ${decimal(periodo.DES)}`,
+      `[Despesa] ${CONTAS.DES.codigo} — ${CONTAS.DES.descricao}: ${reaisSrv(periodo.DES)}`,
     )
   }
   const centavosDoTexto = (v: string) => Math.round(Number(v) * 100)

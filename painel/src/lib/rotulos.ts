@@ -41,3 +41,49 @@ export function associarRotulos(raiz: ParentNode = document): number {
     })
   return ligados
 }
+
+// Segunda rede de segurança: o campo que, mesmo depois de `associarRotulos`, continua sem nome (um `<select>` ao lado de um texto que não é `<label>`,
+// um `<input type="date">` solto) ganha um `aria-label` — o da primeira opção do select quando ela é o convite ("Selecione a conta contábil…") ou o
+// nome do campo por extenso. Rótulo de verdade, `aria-label`, `title` ou placeholder sempre valem mais e nunca são trocados.
+export function nomeLegivelDoCampo(nome: string): string {
+  const texto = nome
+    .replace(/^id_/, '')
+    .replace(/\[\d+\]/g, ' ')
+    .replace(/[_.]+/g, ' ')
+    .trim()
+  return texto ? texto.charAt(0).toUpperCase() + texto.slice(1) : ''
+}
+
+type Campo = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+
+const TIPOS_SEM_NOME = new Set(['hidden', 'submit', 'button', 'reset', 'image'])
+
+function temNome(campo: Campo): boolean {
+  if (campo.getAttribute('aria-label')?.trim()) return true
+  if (campo.getAttribute('aria-labelledby')) return true
+  if (campo.getAttribute('title')?.trim()) return true
+  if (
+    campo instanceof HTMLInputElement ||
+    campo instanceof HTMLTextAreaElement
+  ) {
+    if (campo.placeholder?.trim()) return true
+  }
+  return Array.from(campo.labels ?? []).some((l) => l.textContent?.trim())
+}
+
+export function nomearCamposSemRotulo(raiz: HTMLElement): void {
+  raiz.querySelectorAll<Campo>('input, select, textarea').forEach((campo) => {
+    if (campo instanceof HTMLInputElement && TIPOS_SEM_NOME.has(campo.type))
+      return
+    if (temNome(campo)) return
+    let nome = ''
+    if (campo instanceof HTMLSelectElement) {
+      const primeira = campo.options[0]
+      if (primeira && primeira.value === '') {
+        nome = (primeira.textContent ?? '').replace(/[….\s]+$/, '').trim()
+      }
+    }
+    if (!nome) nome = nomeLegivelDoCampo(campo.name || campo.id)
+    if (nome) campo.setAttribute('aria-label', nome)
+  })
+}

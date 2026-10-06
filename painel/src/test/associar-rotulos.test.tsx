@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AssociarRotulos } from '@/components/acessibilidade/AssociarRotulos'
 import * as api from '@/lib/api'
-import { associarRotulos } from '@/lib/rotulos'
+import { associarRotulos, nomearCamposSemRotulo } from '@/lib/rotulos'
 import { AssociadoNovoPage } from '@/pages/AssociadoNovo'
 
 vi.mock('@/lib/api', async (importOriginal) => ({
@@ -128,5 +128,42 @@ describe('em uma tela de verdade (Novo associado)', () => {
     expect(screen.getByLabelText('CPF *')).toBeInTheDocument()
     expect(screen.getByLabelText('Categoria *')).toBeInTheDocument()
     expect(await axe(container, { runOnly: ['label'] })).toHaveNoViolations()
+  })
+})
+
+describe('nomearCamposSemRotulo (segunda rede: campo sem nome ganha um aria-label)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('select com convite na primeira opção usa o convite; campo solto usa o nome por extenso; rótulo de verdade não é trocado', () => {
+    const raiz = montar(
+      '<select name="id_conta_contabil"><option value="">Selecione a conta contábil…</option><option value="1">1.1</option></select>' +
+        '<select name="tipo"><option value="Ativo">Ativo</option></select>' +
+        '<input type="date" name="data_competencia" />' +
+        '<input type="number" name="ano" placeholder="Ano" />' +
+        '<label for="ok">Com rótulo</label><input id="ok" name="com_rotulo" />' +
+        '<input type="hidden" name="escondido" />',
+    )
+    nomearCamposSemRotulo(raiz)
+    expect(raiz.querySelector('[name=id_conta_contabil]')).toHaveAttribute(
+      'aria-label',
+      'Selecione a conta contábil',
+    )
+    expect(raiz.querySelector('[name=tipo]')).toHaveAttribute(
+      'aria-label',
+      'Tipo',
+    )
+    expect(raiz.querySelector('[name=data_competencia]')).toHaveAttribute(
+      'aria-label',
+      'Data competencia',
+    )
+    expect(raiz.querySelector('[name=ano]')).not.toHaveAttribute('aria-label')
+    expect(raiz.querySelector('[name=com_rotulo]')).not.toHaveAttribute(
+      'aria-label',
+    )
+    expect(raiz.querySelector('[name=escondido]')).not.toHaveAttribute(
+      'aria-label',
+    )
   })
 })

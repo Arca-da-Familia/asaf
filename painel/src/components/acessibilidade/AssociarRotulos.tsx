@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
 
-import { associarRotulos } from '@/lib/rotulos'
+import { associarRotulos, nomearCamposSemRotulo } from '@/lib/rotulos'
 
 export function AssociarRotulos() {
   useEffect(() => {
     associarRotulos()
+    nomearCamposSemRotulo(document.body)
     let agendado = false
     const observador = new MutationObserver(() => {
       if (agendado) return
@@ -12,6 +13,7 @@ export function AssociarRotulos() {
       queueMicrotask(() => {
         agendado = false
         associarRotulos()
+        nomearCamposSemRotulo(document.body)
       })
     })
     observador.observe(document.body, { childList: true, subtree: true })
