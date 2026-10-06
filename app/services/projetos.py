@@ -42,6 +42,8 @@ def criar_projeto(
 ) -> ProjetoEvento:
     if tipo_projeto is not None:
         validar_codigo_em_catalogo(db, "tipo_projeto", tipo_projeto, "Tipo de projeto")
+    if data_inicio and data_fim_prevista and data_fim_prevista < data_inicio:
+        raise HTTPException(status_code=422, detail="A previsão de término precisa ser depois do início.")
     _exigir_publicavel(visibilidade, destaque_no_site, {"nome do projeto": nome_projeto, "descrição": descricao, "público-alvo": publico_alvo})
     if id_associado_responsavel is not None and not db.query(Associado).filter(Associado.id_associado == id_associado_responsavel).first():
         raise HTTPException(status_code=404, detail="Associado responsável não encontrado.")

@@ -15,7 +15,7 @@ import {
   listarProjetos,
   type Beneficiario,
 } from '@/lib/api'
-import { formatarData } from '@/lib/datas'
+import { formatarDia } from '@/lib/datas'
 import { useDebounce } from '@/lib/use-debounce'
 import { beneficiarioEditarSchema } from '@/lib/schemas'
 import { useMe } from '@/lib/use-me'
@@ -173,7 +173,7 @@ function SecaoExportarBeneficiarios({
                     {b.nome_completo ?? `Pessoa #${b.id_pessoa}`}
                   </td>
                   <td className="px-3 py-2">
-                    {b.data_nascimento ? formatarData(b.data_nascimento) : '—'}
+                    {b.data_nascimento ? formatarDia(b.data_nascimento) : '—'}
                   </td>
                   <td className="px-3 py-2">
                     {b.consentimento_lgpd_registrado ? 'Sim' : 'Não'}
@@ -230,7 +230,7 @@ export function BeneficiariosPage() {
       header: 'Nascimento',
       cell: ({ row }) =>
         row.original.data_nascimento
-          ? formatarData(row.original.data_nascimento)
+          ? formatarDia(row.original.data_nascimento)
           : '—',
     },
     {

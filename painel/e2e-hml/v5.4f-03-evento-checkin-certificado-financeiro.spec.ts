@@ -1470,7 +1470,12 @@ test.describe('D. Crachá e portaria', () => {
         valor: string,
         estado: string | RegExp,
       ): Promise<void> {
-        await expect(cartao).toContainText(`${acao} registrado às`)
+        // o título do cartão acompanha o resultado: recusado pelo servidor não pode ser lido como "registrado"
+        const recusado =
+          typeof estado === 'string' && estado.startsWith('Recusado')
+        await expect(cartao).toContainText(
+          `${acao} ${recusado ? 'recusado' : 'registrado'} às`,
+        )
         await expect(cartao).toContainText(valor)
         await expect(cartao).toContainText(estado)
       }

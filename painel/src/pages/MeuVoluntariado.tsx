@@ -17,7 +17,7 @@ import {
   solicitarTrocaTurno,
   type AlocacaoVoluntario,
 } from '@/lib/api'
-import { formatarData } from '@/lib/datas'
+import { formatarData, formatarDia } from '@/lib/datas'
 import {
   horasVoluntariadoAutoatendimentoSchema,
   trocaTurnoCriarSchema,
@@ -296,7 +296,7 @@ function SecaoMeuHistoricoHoras() {
             className="flex items-center justify-between rounded-md border border-border p-2 text-sm"
           >
             <span>
-              {formatarData(r.data)} — {r.horas}h
+              {formatarDia(r.data)} — {r.horas}h
               {r.descricao_atividade && ` · ${r.descricao_atividade}`}
             </span>
             <span className={CORES_STATUS[r.status] ?? ''}>{r.status}</span>

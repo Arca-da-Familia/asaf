@@ -62,7 +62,7 @@ import {
   type Projeto,
 } from '@/lib/api'
 import { diaDoProjeto } from '@/lib/contexto'
-import { formatarData, isoParaDataBr } from '@/lib/datas'
+import { formatarData, formatarDia, isoParaDataBr } from '@/lib/datas'
 import {
   beneficiarioCriarSchema,
   encaminhamentoCriarSchema,
@@ -378,7 +378,7 @@ function SecaoCronograma({ idProjeto }: { idProjeto: number }) {
             className="flex items-center justify-between rounded-md border border-border p-2 text-sm"
           >
             <span>
-              [{item.tipo}] {item.titulo} — prazo {formatarData(item.prazo)}
+              [{item.tipo}] {item.titulo} — prazo {formatarDia(item.prazo)}
             </span>
             <div className="flex items-center gap-2">
               <span
@@ -771,7 +771,7 @@ function SecaoVoluntariado({ idProjeto }: { idProjeto: number }) {
               className="flex items-center justify-between rounded-md border border-border p-2 text-sm"
             >
               <span>
-                {formatarData(r.data)} — {r.horas}h
+                {formatarDia(r.data)} — {r.horas}h
                 {r.descricao_atividade && ` · ${r.descricao_atividade}`}
               </span>
               <div className="flex gap-2">

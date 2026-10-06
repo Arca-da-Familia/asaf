@@ -153,3 +153,44 @@ def test_recibo_de_doacao_usa_virgula_nos_centavos(client, auth_headers):
     assert reais(1234567.8) == "R$ 1.234.567,80"
     assert reais(0) == "R$ 0,00"
     assert reais(-5) == "-R$ 5,00"
+
+
+def test_configuracoes_do_evento_recusam_valores_impossiveis(client, auth_headers):
+    from datetime import datetime, timedelta
+
+    r = client.post("/api/eventos/", json={
+        "titulo": "Evento de configuração impossível", "categoria": "PALESTRA", "visibilidade": "Interna",
+        "data_hora_inicio": (datetime.utcnow() + timedelta(days=9)).strftime(_ISO),
+    }, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    id_evento = r.json()["id_evento"]
+
+    # reembolso: percentual de 0 a 100 e prazo de 0 a um ano
+    for corpo in ({"prazo_cancelamento_horas": 24, "percentual_reembolso_cancelamento": 150}, {"prazo_cancelamento_horas": -5, "percentual_reembolso_cancelamento": 50}):
+        assert client.put(f"/api/eventos/{id_evento}/reembolso-config", json=corpo, headers=auth_headers).status_code == 422
+    assert client.put(f"/api/eventos/{id_evento}/reembolso-config", json={"prazo_cancelamento_horas": 48, "percentual_reembolso_cancelamento": 50}, headers=auth_headers).status_code == 200
+    # elegibilidade: percentual de 0 a 100 e carga horária positiva
+    for corpo in ({"percentual_minimo": 150}, {"carga_horaria_horas": -3}):
+        assert client.put(f"/api/eventos/{id_evento}/elegibilidade-config", json=corpo, headers=auth_headers).status_code == 422
+    assert client.put(f"/api/eventos/{id_evento}/elegibilidade-config", json={"percentual_minimo": 0, "carga_horaria_horas": 0.5}, headers=auth_headers).status_code == 200
+    # cobrança: sem valor que estoura a coluna do banco
+    r = client.put(f"/api/eventos/{id_evento}/cobranca-config", json={"valor_base": 99999999999}, headers=auth_headers)
+    assert r.status_code == 422
+    # vagas negativas na criação
+    r = client.post("/api/eventos/", json={
+        "titulo": "Evento com vagas negativas", "categoria": "PALESTRA", "visibilidade": "Interna", "vagas": -3,
+        "data_hora_inicio": (datetime.utcnow() + timedelta(days=9)).strftime(_ISO),
+    }, headers=auth_headers)
+    assert r.status_code == 422
+
+
+def test_criar_projeto_com_termino_antes_do_inicio_e_recusado(client, auth_headers):
+    from datetime import datetime, timedelta
+
+    r = client.post("/projetos/", json={
+        "nome_projeto": "Projeto com datas trocadas", "tipo_foco": "Social", "necessita_alvara_bombeiros": False,
+        "data_inicio": (datetime.utcnow() + timedelta(days=30)).strftime(_ISO),
+        "data_fim_prevista": (datetime.utcnow() + timedelta(days=10)).strftime(_ISO),
+    }, headers=auth_headers)
+    assert r.status_code == 422, r.text
+    assert "depois do início" in r.json()["detail"]

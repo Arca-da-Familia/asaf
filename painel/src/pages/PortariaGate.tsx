@@ -206,8 +206,12 @@ function CartaoConfirmacao({
     >
       <p className="font-medium">
         {item.tipo === 'checkin'
-          ? 'Check-in registrado'
-          : 'Check-out registrado'}{' '}
+          ? item.status === 'erro'
+            ? 'Check-in recusado'
+            : 'Check-in registrado'
+          : item.status === 'erro'
+            ? 'Check-out recusado'
+            : 'Check-out registrado'}{' '}
         <span className="font-normal text-muted-foreground">
           às {formatarHoraLocal(item.criado_em)}
         </span>

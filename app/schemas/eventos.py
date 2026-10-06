@@ -29,6 +29,13 @@ class EventoCriar(BaseModel):
             raise ValueError("Visibilidade deve ser 'Pública' ou 'Interna'.")
         return v
 
+    @field_validator("vagas")
+    @classmethod
+    def validar_vagas(cls, v):
+        if v is not None and v < 0:
+            raise ValueError("O número de vagas não pode ser negativo.")
+        return v
+
 
 class EventoEditar(BaseModel):
     """v5.5 - só os campos enviados mudam (`model_dump(exclude_unset=True)`). `id_projeto: null` desliga o evento do projeto.
@@ -152,6 +159,20 @@ class EventoElegibilidadeConfig(BaseModel):
     percentual_minimo: Optional[Decimal] = None
     carga_horaria_horas: Optional[Decimal] = None
 
+    @field_validator("percentual_minimo")
+    @classmethod
+    def validar_percentual_minimo(cls, v):
+        if v is not None and not (0 <= v <= 100):
+            raise ValueError("O percentual mínimo de presença deve ficar entre 0 e 100.")
+        return v
+
+    @field_validator("carga_horaria_horas")
+    @classmethod
+    def validar_carga_horaria(cls, v):
+        if v is not None and not (0 < v <= 9999):
+            raise ValueError("A carga horária deve ser maior que zero e de no máximo 9999 horas.")
+        return v
+
 
 class EventoCobrancaConfig(BaseModel):
     """v4.9 - cobrança de inscrição. `valor_base=None` volta o evento a gratuito de fato."""
@@ -159,12 +180,33 @@ class EventoCobrancaConfig(BaseModel):
     id_conta_contabil_receita: Optional[int] = None
     id_centro_custo: Optional[int] = None
 
+    @field_validator("valor_base")
+    @classmethod
+    def validar_valor_base(cls, v):
+        if v is not None and v > Decimal("99999999.99"):
+            raise ValueError("O valor da inscrição não pode passar de R$ 99.999.999,99.")
+        return v
+
 
 class EventoReembolsoConfig(BaseModel):
     """v4.9 - política de reembolso por cancelamento deste evento. `percentual_reembolso_
     cancelamento=None` usa o padrão global (`PERCENTUAL_REEMBOLSO_CANCELAMENTO_PADRAO`)."""
     prazo_cancelamento_horas: int = 24
     percentual_reembolso_cancelamento: Optional[Decimal] = None
+
+    @field_validator("prazo_cancelamento_horas")
+    @classmethod
+    def validar_prazo(cls, v):
+        if not (0 <= v <= 24 * 365):
+            raise ValueError("O prazo de cancelamento deve ficar entre 0 e 8760 horas (um ano).")
+        return v
+
+    @field_validator("percentual_reembolso_cancelamento")
+    @classmethod
+    def validar_percentual_reembolso(cls, v):
+        if v is not None and not (0 <= v <= 100):
+            raise ValueError("O percentual de reembolso deve ficar entre 0 e 100.")
+        return v
 
 
 class FaixaPrecoEventoCriar(BaseModel):

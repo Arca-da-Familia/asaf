@@ -2197,7 +2197,8 @@ test('orçamento: linhas por conta e centro de custo; o realizado é o que foi l
   await expect(linha1).toContainText(
     `${brl(BAIXA_A)} de ${brl(PREVISTO_R1)} previstos (12%)`,
   )
-  await expect(linha1).toContainText('Dentro do previsto')
+  // conta de RECEITA: 12% do previsto é "Abaixo do previsto" (meta ainda não batida), nunca "Dentro do previsto"/"Estourado", que são palavras de despesa
+  await expect(linha1).toContainText('Abaixo do previsto')
   await ver(
     page,
     info,
@@ -2239,9 +2240,6 @@ test('orçamento: linhas por conta e centro de custo; o realizado é o que foi l
     `${brl(BAIXA_A)} de ${brl(PREVISTO_R2)} previstos (123%)`,
   )
   await expect(linha2).toContainText('Estourado')
-  registrarObservacao(
-    'Orçamento: o aviso "Estourado" não olha a natureza da conta: numa conta de RECEITA, realizado acima do previsto (o que é bom) sairia vermelho como "Estourado" pelo mesmo cálculo (services/orcamento.py::_serializar_orcamento compara realizado > previsto)',
-  )
 
   // linha 3: receita no centro 2, previsto R$ 500,00, ainda sem movimento
   const r3 = await criarOrcamento(page, {
@@ -2256,7 +2254,7 @@ test('orçamento: linhas por conta e centro de custo; o realizado é o que foi l
     `${brl(0)} de ${brl(PREVISTO_R3)} previstos (0%)`,
   )
   await expect(linhaDoOrcamento(page, DESC_RECEITA, NOME_C2)).toContainText(
-    'Dentro do previsto',
+    'Abaixo do previsto',
   )
   await ver(
     page,
