@@ -1,6 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import {
+  AVISO,
+  cadastrarPelaTela as cadastrar,
   campo,
   cpfValido,
   entrar,
@@ -20,40 +22,6 @@ const cpf = (k: number) =>
   cpfValido(500000000 + ((RODADA + k * 104729) % 150000000))
 const MESMO_NOME = `Duplicada Robo ${RODADA} de Teste`
 const NASCIMENTO = '1981-04-04'
-
-async function cadastrar(
-  page: Page,
-  d: {
-    nome: string
-    cpf: string
-    email: string
-    telefone?: string
-    nascimento?: string
-    forcar?: boolean
-  },
-) {
-  await page.goto('/associados/novo')
-  await campo(page, 'Nome completo *').fill(d.nome)
-  await campo(page, 'CPF *').fill(d.cpf)
-  await campo(page, 'E-mail *').fill(d.email)
-  await campo(page, 'Telefone (WhatsApp) *').fill(d.telefone ?? '91911112222')
-  await campo(page, 'Categoria *').selectOption({ index: 1 })
-  if (d.nascimento) await campo(page, 'Data de nascimento').fill(d.nascimento)
-  await campo(page, 'CEP *').fill('68515000')
-  await campo(page, 'Logradouro *').fill('Rua das Flores de Teste')
-  await campo(page, 'Número *').fill('5')
-  await campo(page, 'Bairro *').fill('Bairro de Teste')
-  await campo(page, 'Cidade *').fill('Parauapebas')
-  await campo(page, 'Estado (UF) *').fill('PA')
-  await page.getByRole('button', { name: 'Cadastrar associado' }).click()
-  if (d.forcar) {
-    await expect(page.getByRole('alert').first()).toContainText(
-      'Já existe um cadastro parecido',
-    )
-    await page.getByRole('button', { name: /Cadastrar mesmo assim/ }).click()
-  }
-  await expect(page).toHaveURL(/\/associados$/)
-}
 
 async function abrirFicha(page: Page, nome: string) {
   await page.goto('/associados')
@@ -133,7 +101,7 @@ test('qualidade da base: o sistema acha o par; mesclar recusa nome errado e dois
   await page
     .getByRole('button', { name: 'Procurar cadastros duplicados' })
     .click()
-  await expect(page.getByRole('status')).toContainText('candidato(s)')
+  await expect(page.locator(AVISO)).toContainText('candidato(s)')
 
   const par = page
     .getByRole('listitem', {
@@ -160,7 +128,7 @@ test('qualidade da base: o sistema acha o par; mesclar recusa nome errado e dois
   await ver(page, info, 'mesclar recusado: os dois ja sao associados')
 
   await par.getByRole('button', { name: 'Não é duplicado — ignorar' }).click()
-  await expect(page.getByRole('status')).toContainText('ignorado')
+  await expect(page.locator(AVISO)).toContainText('ignorado')
   await expect(
     page.getByRole('listitem', {
       name: new RegExp(`Possível cadastro duplicado: ${MESMO_NOME}`),
@@ -171,7 +139,7 @@ test('qualidade da base: o sistema acha o par; mesclar recusa nome errado e dois
   await page
     .getByRole('button', { name: 'Procurar telefones inválidos' })
     .click()
-  await expect(page.getByRole('status')).toContainText('telefone(s)')
+  await expect(page.locator(AVISO)).toContainText('telefone(s)')
   expect(vigia.problemas()).toEqual([])
 })
 
@@ -229,7 +197,7 @@ test('qualidade da base: mescla de verdade (um associado e uma pessoa sem cadast
     'mesclagem pronta: mantem o associado e absorve a pessoa',
   )
   await par.getByRole('button', { name: 'Mesclar (irreversível)' }).click()
-  await expect(page.getByRole('status')).toContainText('mescladas com sucesso')
+  await expect(page.locator(AVISO)).toContainText('mescladas com sucesso')
   await expect(
     page.getByRole('listitem', {
       name: new RegExp(`Possível cadastro duplicado: ${manter}`),
@@ -294,7 +262,7 @@ test('vínculos e cartões da ficha: completude, termo de voluntário (e renova�
   await page.getByLabel('Carga horária semanal *').fill('4')
   await page.getByLabel('Fim da vigência *').fill(fim)
   await page.getByRole('button', { name: 'Confirmar termo de adesão' }).click()
-  await expect(page.getByRole('status')).toContainText('Versão 1')
+  await expect(page.locator(AVISO)).toContainText('Versão 1')
   await expect(page.getByTestId('termo-vigente')).toContainText(
     'Apoio na cozinha comunitária',
   )
@@ -304,7 +272,7 @@ test('vínculos e cartões da ficha: completude, termo de voluntário (e renova�
   await page.getByLabel('Carga horária semanal *').fill('6')
   await page.getByLabel('Fim da vigência *').fill(fim)
   await page.getByRole('button', { name: 'Confirmar termo de adesão' }).click()
-  await expect(page.getByRole('status')).toContainText('Versão 2')
+  await expect(page.locator(AVISO)).toContainText('Versão 2')
   await expect(page.getByTestId('termo-vigente')).toContainText(
     '6 h por semana',
   )
@@ -333,7 +301,7 @@ test('vínculos e cartões da ficha: completude, termo de voluntário (e renova�
     .getByLabel('O que aconteceu? *')
     .fill('a mensagem voltou como endereço inexistente')
   await page.getByRole('button', { name: 'Confirmar e-mail suspeito' }).click()
-  await expect(page.getByRole('status')).toContainText('suspeito')
+  await expect(page.locator(AVISO)).toContainText('suspeito')
   await ver(page, info, 'email marcado como suspeito')
 
   // situação guardada × calculada (o cálculo vem do financeiro)
@@ -400,9 +368,7 @@ test('acesso: só quem gerencia o acesso redefine o segundo passo de outra pesso
   await expect(dialogo).toContainText('Remove o autenticador atual')
   await ver(page, info, 'confirmacao de redefinir o segundo passo')
   await dialogo.getByRole('button', { name: 'Redefinir segundo passo' }).click()
-  await expect(page.getByRole('status')).toContainText(
-    'MFA do usuário resetado',
-  )
+  await expect(page.locator(AVISO)).toContainText('MFA do usuário resetado')
   await page.goto('/auditoria')
   await expect(
     page.getByRole('cell', { name: 'MFA_RESET_POR_TERCEIRO' }).first(),
@@ -420,7 +386,7 @@ test('recadastramento: o associado confirma que os dados continuam corretos e a 
     .getByRole('button', { name: 'Confirmo que meus dados estão corretos' })
     .click()
   await expect(
-    page.getByRole('status').filter({ hasText: 'Dados confirmados em' }),
+    page.locator(AVISO).filter({ hasText: 'Dados confirmados em' }),
   ).toBeVisible()
   await ver(page, info, 'dados confirmados no meu perfil')
   await page.goto('/auditoria')

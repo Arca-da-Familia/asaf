@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 
 import {
   API_HML,
+  cadastrarPelaTela,
   cpfValido,
   entrar,
   exigirHomologacao,
@@ -29,11 +30,12 @@ const B = {
   email_contato: `candidato.${RODADA}@homologacao.example.com`,
   telefone_whatsapp: '91966665555',
 }
-// mesmo nome e mesmo e-mail de um associado que já existe (Ana Lúcia, do roteiro de dados): o sistema tem que desconfiar
+// mesmo nome e mesmo e-mail de um associado que JÁ EXISTE (criado pela tela no começo do primeiro teste, com nome único desta rodada): o
+// sistema tem que desconfiar
 const C = {
-  nome_completo: 'Ana Lúcia Ferreira de Teste',
+  nome_completo: `Parecida Robo ${RODADA} de Teste`,
   cpf: cpfValido(base(3)).replace(/\D/g, ''),
-  email_contato: 'associado1@homologacao.example.com',
+  email_contato: `parecida.${RODADA}@homologacao.example.com`,
   telefone_whatsapp: '91955554444',
 }
 
@@ -41,7 +43,13 @@ test('as propostas entram pela rota pública e aparecem na caixa; proposta repet
   page,
 }, info) => {
   const vigia = vigiar(page)
-  await page.goto('/login')
+  await entrar(page, 'presidente')
+  await cadastrarPelaTela(page, {
+    nome: C.nome_completo,
+    cpf: cpfValido(base(9)),
+    email: C.email_contato,
+    telefone: C.telefone_whatsapp,
+  })
   for (const proposta of [A, B, C]) {
     const r = await page.request.post(`${API_HML}/api/filiacao/propor`, {
       data: proposta,
@@ -55,7 +63,6 @@ test('as propostas entram pela rota pública e aparecem na caixa; proposta repet
   expect(repetida.status()).toBe(400)
   expect(await repetida.text()).toContain('proposta em andamento')
 
-  await entrar(page, 'presidente')
   await page.goto('/associados/propostas')
   await expect(
     page.getByRole('heading', { name: 'Propostas de filiação' }),

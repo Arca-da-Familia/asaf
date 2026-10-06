@@ -3,6 +3,7 @@ import { UserPlus, Users } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link } from 'react-router'
 
+import { ExportarAssociados } from '@/components/associados/ExportarAssociados'
 import { DataTable, type ColunaTabela } from '@/components/data/DataTable'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -85,6 +86,8 @@ export function AssociadosPage() {
           </>
         }
       />
+
+      <ExportarAssociados />
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>

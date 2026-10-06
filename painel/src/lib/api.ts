@@ -904,12 +904,6 @@ export function desfazerLote(idLote: number): Promise<{ mensagem: string }> {
   })
 }
 
-export function exportarAssociados(
-  colunas: string[],
-): Promise<{ colunas: string[]; linhas: Record<string, unknown>[] }> {
-  return apiFetch(`/api/associados/exportar?colunas=${colunas.join(',')}`)
-}
-
 // ---------------------------------------------------------------------------
 // Associados — listagem, cadastro e concessão de acesso (v3.0.2, achado 2026-09-15: a aba
 // "Associados" do painel só tinha guarda de permissão, nenhum conteúdo real).
@@ -5529,4 +5523,33 @@ export function confirmarMeusDados(): Promise<{
   data_ultima_confirmacao: string
 }> {
   return apiFetch('/auth/perfil/confirmar-dados', { method: 'POST' })
+}
+
+// ---------------------------------------------------------------------------
+// Exportar associados (servidor na v1.3; tela só na v5.4c — achado ao vivo: a exportação não tinha tela). Permissão PRÓPRIA
+// (`exportar_dados_pessoais`) e sempre auditada (quem, quantas linhas, quais colunas — nunca o conteúdo).
+// ---------------------------------------------------------------------------
+export const COLUNAS_EXPORTAVEIS_DE_ASSOCIADOS = [
+  { chave: 'numero_matricula', rotulo: 'Matrícula' },
+  { chave: 'nome_completo', rotulo: 'Nome completo' },
+  { chave: 'cpf', rotulo: 'CPF' },
+  { chave: 'email_contato', rotulo: 'E-mail' },
+  { chave: 'telefone_whatsapp', rotulo: 'Telefone' },
+  { chave: 'data_nascimento', rotulo: 'Data de nascimento' },
+  { chave: 'categoria', rotulo: 'Categoria' },
+  { chave: 'status_arrolamento', rotulo: 'Situação' },
+  { chave: 'data_admissao', rotulo: 'Data de admissão' },
+] as const
+
+export type ExportacaoDeAssociados = {
+  colunas: string[]
+  linhas: Record<string, string | number | null>[]
+}
+
+export function exportarAssociados(
+  colunas: string[],
+): Promise<ExportacaoDeAssociados> {
+  return apiFetch(
+    `/api/associados/exportar?colunas=${encodeURIComponent(colunas.join(','))}`,
+  )
 }

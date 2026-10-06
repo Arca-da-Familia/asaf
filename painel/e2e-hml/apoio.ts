@@ -108,6 +108,44 @@ export function vigiar(page: Page): { problemas: () => string[] } {
 /** A API de TESTE (nunca a de produção). O robô só a usa onde o sistema ainda não tem tela de entrada (ex.: o formulário público do site). */
 export const API_HML = 'https://hml-api.asaf.org.br'
 
+/** Cadastra um associado pelo formulário (Novo associado); com `forcar`, aperta "cadastrar mesmo assim" depois do aviso de cadastro parecido. */
+export async function cadastrarPelaTela(
+  page: Page,
+  d: {
+    nome: string
+    cpf: string
+    email: string
+    telefone?: string
+    nascimento?: string
+    forcar?: boolean
+  },
+) {
+  await page.goto('/associados/novo')
+  await campo(page, 'Nome completo *').fill(d.nome)
+  await campo(page, 'CPF *').fill(d.cpf)
+  await campo(page, 'E-mail *').fill(d.email)
+  await campo(page, 'Telefone (WhatsApp) *').fill(d.telefone ?? '91911112222')
+  await campo(page, 'Categoria *').selectOption({ index: 1 })
+  if (d.nascimento) await campo(page, 'Data de nascimento').fill(d.nascimento)
+  await campo(page, 'CEP *').fill('68515000')
+  await campo(page, 'Logradouro *').fill('Rua das Flores de Teste')
+  await campo(page, 'Número *').fill('5')
+  await campo(page, 'Bairro *').fill('Bairro de Teste')
+  await campo(page, 'Cidade *').fill('Parauapebas')
+  await campo(page, 'Estado (UF) *').fill('PA')
+  await page.getByRole('button', { name: 'Cadastrar associado' }).click()
+  if (d.forcar) {
+    await expect(page.getByRole('alert').first()).toContainText(
+      'Já existe um cadastro parecido',
+    )
+    await page.getByRole('button', { name: /Cadastrar mesmo assim/ }).click()
+  }
+  await expect(page).toHaveURL(/\/associados$/)
+}
+
+/** O aviso de sucesso de uma tela (a faixa AMBIENTE DE TESTE também tem papel de aviso: por isso a busca é pelo <p>). */
+export const AVISO = 'p[role="status"]'
+
 /** A faixa fixa "AMBIENTE DE TESTE" (painel/src/components/layout/AvisoDeAmbiente.tsx). */
 export const FAIXA_DE_TESTE = '[data-ambiente="homologacao"]'
 

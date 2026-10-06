@@ -45,11 +45,15 @@ test('a lista mostra os associados de teste e o filtro encontra um deles', async
   await entrar(page, 'presidente')
   await page.goto('/associados')
   await expect(page.getByRole('heading', { name: 'Associados' })).toBeVisible()
-  await expect(page.getByText('Ana Lúcia Ferreira de Teste')).toBeVisible()
+  await expect(
+    page.getByText('Ana Lúcia Ferreira de Teste').first(),
+  ).toBeVisible()
   await ver(page, info, 'lista de associados')
 
   await page.getByLabel('Filtrar').fill('Carla Menezes')
-  await expect(page.getByText('Carla Menezes Souza de Teste')).toBeVisible()
+  await expect(
+    page.getByText('Carla Menezes Souza de Teste').first(),
+  ).toBeVisible()
   await expect(page.getByText('Ana Lúcia Ferreira de Teste')).toHaveCount(0)
   await ver(page, info, 'filtro por nome')
   expect(vigia.problemas()).toEqual([])
