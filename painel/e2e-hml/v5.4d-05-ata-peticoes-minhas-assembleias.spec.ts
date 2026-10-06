@@ -731,7 +731,9 @@ test.describe('assembleia própria: justificativas, chamada, sessão, detalhe e 
     )
     await faltante.getByRole('button', { name: 'Marcar presença' }).click()
     const correcao = await corrigindo
-    expect(correcao.status()).toBe(200)
+    expect(correcao.status(), `correção manual: ${await correcao.text()}`).toBe(
+      200,
+    )
     idCorrecao = ((await correcao.json()) as { id_credenciamento: number })
       .id_credenciamento
     await expect(page.getByText(`${corrigido} · Presencial`)).toBeVisible()
