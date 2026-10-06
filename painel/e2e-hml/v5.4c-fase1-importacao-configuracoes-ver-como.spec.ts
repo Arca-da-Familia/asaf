@@ -179,15 +179,15 @@ test('"ver como": o Presidente vê o painel como outro nível (somente leitura) 
   const faixa = page.getByRole('status').filter({ hasText: 'Vendo como' })
   await expect(faixa).toContainText('Associado')
   await expect(faixa).toContainText('somente leitura')
-  // como "Associado" o menu perde os módulos de gestão
-  await page.goto('/')
+  // como "Associado" o menu perde os módulos de gestão (sem recarregar a página: o modo "ver como" vive só na memória dela)
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByRole('link', { name: 'Meu perfil' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Financeiro' })).toHaveCount(0)
   await ver(page, info, 'vendo como Associado: sem os modulos de gestao')
   await faixa.getByRole('button', { name: 'Encerrar' }).click()
   await expect(
     page.getByRole('status').filter({ hasText: 'Vendo como' }),
   ).toHaveCount(0)
-  await page.goto('/')
   await expect(
     page.getByRole('link', { name: 'Financeiro' }).first(),
   ).toBeVisible()

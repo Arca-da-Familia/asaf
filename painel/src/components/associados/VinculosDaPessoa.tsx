@@ -48,6 +48,7 @@ export function VinculosDaPessoa({
   const [inicio, setInicio] = useState(hoje())
   const [fim, setFim] = useState('')
   const [documento, setDocumento] = useState('')
+  const [autorizacao, setAutorizacao] = useState('')
   const [cargo, setCargo] = useState('')
   const [admissao, setAdmissao] = useState(hoje())
   const [motivo, setMotivo] = useState('')
@@ -84,6 +85,7 @@ export function VinculosDaPessoa({
         data_inicio: inicio,
         data_fim_vigencia: fim,
         documento_referencia: documento || undefined,
+        autorizacao_responsavel_referencia: autorizacao || undefined,
       }),
     onSuccess: (r) =>
       concluir(`${r.mensagem} Versão ${r.versao}.`, [
@@ -258,6 +260,26 @@ export function VinculosDaPessoa({
                 onChange={(e) => setDocumento(e.target.value)}
                 className={campoClasse}
               />
+            </div>
+            <div className="sm:col-span-2">
+              <label
+                htmlFor="termo-autorizacao"
+                className="text-sm font-medium"
+              >
+                Autorização do responsável (referência)
+              </label>
+              <input
+                id="termo-autorizacao"
+                value={autorizacao}
+                onChange={(e) => setAutorizacao(e.target.value)}
+                placeholder="Ex.: documento anexado, número do protocolo"
+                className={campoClasse}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Obrigatória se a pessoa for menor de idade ou se a data de
+                nascimento ainda não estiver no cadastro (sem ela não dá para
+                provar a maioridade).
+              </p>
             </div>
             <div className="sm:col-span-2">
               <Button type="submit" disabled={registrarTermo.isPending}>

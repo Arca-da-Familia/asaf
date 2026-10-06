@@ -262,6 +262,17 @@ test('vínculos e cartões da ficha: completude, termo de voluntário (e renova�
   await page.getByLabel('Carga horária semanal *').fill('4')
   await page.getByLabel('Fim da vigência *').fill(fim)
   await page.getByRole('button', { name: 'Confirmar termo de adesão' }).click()
+  // recusa provocada: sem data de nascimento no cadastro não dá para provar a maioridade, então o servidor exige a autorização do responsável
+  await expect(page.getByRole('alert')).toContainText('menor de idade')
+  await ver(
+    page,
+    info,
+    'termo de adesao: sem nascimento no cadastro exige autorizacao do responsavel',
+  )
+  await page
+    .getByLabel('Autorização do responsável (referência)')
+    .fill('Autorização de teste, protocolo 001')
+  await page.getByRole('button', { name: 'Confirmar termo de adesão' }).click()
   await expect(page.locator(AVISO)).toContainText('Versão 1')
   await expect(page.getByTestId('termo-vigente')).toContainText(
     'Apoio na cozinha comunitária',
@@ -271,6 +282,9 @@ test('vínculos e cartões da ficha: completude, termo de voluntário (e renova�
   await page.getByLabel('Atividade *').fill('Apoio na cozinha comunitária')
   await page.getByLabel('Carga horária semanal *').fill('6')
   await page.getByLabel('Fim da vigência *').fill(fim)
+  await page
+    .getByLabel('Autorização do responsável (referência)')
+    .fill('Autorização de teste, protocolo 001')
   await page.getByRole('button', { name: 'Confirmar termo de adesão' }).click()
   await expect(page.locator(AVISO)).toContainText('Versão 2')
   await expect(page.getByTestId('termo-vigente')).toContainText(

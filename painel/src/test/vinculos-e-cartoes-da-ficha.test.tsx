@@ -132,6 +132,52 @@ describe('Vínculos da pessoa (v5.4c: a tela que faltava para as rotas da v1.6 e
     )
   })
 
+  it('menor ou sem data de nascimento: o servidor exige a autorização do responsável, e o campo para informá-la existe', async () => {
+    const u = userEvent.setup()
+    vi.mocked(api.registrarTermoDeVoluntario)
+      .mockRejectedValueOnce(
+        new Error(
+          'Voluntário menor de idade exige autorização de responsável anexada.',
+        ),
+      )
+      .mockResolvedValueOnce({
+        mensagem: 'Termo de adesão registrado.',
+        id_termo: 2,
+        versao: 1,
+      })
+    desenhar(vinculos())
+    await u.click(
+      await screen.findByRole('button', { name: 'Registrar termo de adesão' }),
+    )
+    expect(
+      screen.getByText(/Obrigatória se a pessoa for menor de idade/),
+    ).toBeInTheDocument()
+    await u.type(screen.getByLabelText('Atividade *'), 'Monitoria')
+    await u.type(screen.getByLabelText('Carga horária semanal *'), '2')
+    await u.type(screen.getByLabelText('Fim da vigência *'), '2027-03-01')
+    await u.click(
+      screen.getByRole('button', { name: 'Confirmar termo de adesão' }),
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('menor de idade')
+
+    await u.type(
+      screen.getByLabelText('Autorização do responsável (referência)'),
+      'Autorização assinada, protocolo 123',
+    )
+    await u.click(
+      screen.getByRole('button', { name: 'Confirmar termo de adesão' }),
+    )
+    await waitFor(() =>
+      expect(api.registrarTermoDeVoluntario).toHaveBeenLastCalledWith(
+        5,
+        expect.objectContaining({
+          autorizacao_responsavel_referencia:
+            'Autorização assinada, protocolo 123',
+        }),
+      ),
+    )
+  })
+
   it('funcionário já cadastrado aparece e não oferece cadastrar de novo; novo é cadastrado com cargo e admissão', async () => {
     const u = userEvent.setup()
     vi.mocked(api.cadastrarFuncionario).mockResolvedValue({
