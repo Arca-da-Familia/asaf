@@ -62,11 +62,10 @@ test('detalhe, sessão e ata da assembleia convocada abrem sem erro e ficam inve
   await entrar(page, 'presidente')
   await page.goto('/governanca')
   await expect(page.getByText(/Carregando/)).toHaveCount(0)
-  const primeira = page
-    .locator('main a[href^="/governanca/"]')
-    .filter({ hasNotText: /Nova/ })
-    .first()
-  const destino = await primeira.getAttribute('href')
+  const enderecos = await page
+    .locator('a[href^="/governanca/"]')
+    .evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''))
+  const destino = enderecos.find((h) => /^\/governanca\/\d+$/.test(h))
   expect(
     destino,
     'tem que haver ao menos uma assembleia (a do roteiro de dados)',
