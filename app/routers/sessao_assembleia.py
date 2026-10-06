@@ -17,7 +17,7 @@ from app.models.sessao_assembleia import (
 )
 from app.schemas.sessao_assembleia import CredenciarRequest, ItemPautaCriar, OcorrenciaCriar
 from app.security import decodificar_token_carteirinha, exigir_permissao, get_current_user
-from app.services.sessao_assembleia import quorum_instalacao_atual
+from app.services.sessao_assembleia import JaPresente, credenciar_ou_reentrar, quorum_instalacao_atual
 
 router = APIRouter()
 _permissao_governanca = exigir_permissao("governanca")
@@ -49,18 +49,16 @@ def credenciar(id_assembleia: int, dados: CredenciarRequest, request: Request, d
         if not associado:
             raise HTTPException(status_code=404, detail="Associado não encontrado.")
 
-    if db.query(Credenciamento).filter(Credenciamento.id_assembleia == id_assembleia, Credenciamento.id_associado == associado.id_associado).first():
-        raise HTTPException(status_code=400, detail="Associado já foi credenciado nesta sessão.")
-
-    credenciamento = Credenciamento(
-        id_assembleia=id_assembleia, id_associado=associado.id_associado, modalidade=dados.modalidade,
-        id_usuario_registro=usuario.id_usuario,
-    )
-    db.add(credenciamento)
-    db.commit()
-    db.refresh(credenciamento)
+    try:
+        credenciamento, saida_anterior = credenciar_ou_reentrar(
+            db, id_assembleia, associado.id_associado, dados.modalidade, usuario.id_usuario
+        )
+    except JaPresente:
+        raise HTTPException(status_code=400, detail="Associado já está credenciado e presente nesta sessão.")
     registrar_auditoria(
-        db, usuario, "credenciamentos_assembleia", "CREATE", id_registro_afetado=credenciamento.id_credenciamento,
+        db, usuario, "credenciamentos_assembleia", "CREATE" if saida_anterior is None else "REENTRADA",
+        id_registro_afetado=credenciamento.id_credenciamento,
+        dados_antes=None if saida_anterior is None else {"hora_saida": saida_anterior.isoformat()},
         dados_depois={"id_assembleia": id_assembleia, "id_associado": associado.id_associado, "modalidade": dados.modalidade},
         ip_origem=request.client.host if request.client else None,
     )

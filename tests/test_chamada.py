@@ -90,6 +90,27 @@ def test_bater_presenca_com_codigo_correto(client, auth_headers, db):
     assert r_dup.status_code == 400
 
 
+def test_autochamada_de_quem_saiu_reabre_a_presenca_e_a_auditoria_diz_que_foi_reentrada(client, auth_headers, db):
+    from app.models.core import AuditLog
+
+    associado, usuario = _criar_associado_com_login(db, "Autochamada Volta")
+    id_assembleia = _criar_assembleia_convocada(client, auth_headers)
+    _abrir_sessao(client, auth_headers, id_assembleia)
+    codigo = client.get(f"/api/assembleias/{id_assembleia}/codigo-chamada", headers=auth_headers).json()["codigo_chamada"]
+    corpo = {"codigo": codigo, "modalidade": "Presencial"}
+    id_credenciamento = client.post(f"/api/assembleias/{id_assembleia}/bater-presenca", headers=_headers(usuario), json=corpo).json()["id_credenciamento"]
+    client.post(f"/api/assembleias/{id_assembleia}/credenciamentos/{id_credenciamento}/saida", headers=auth_headers)
+
+    r = client.post(f"/api/assembleias/{id_assembleia}/bater-presenca", headers=_headers(usuario), json=corpo)
+    assert r.status_code == 200, r.text
+    assert r.json()["id_credenciamento"] == id_credenciamento
+    linhas = [c for c in client.get(f"/api/assembleias/{id_assembleia}/credenciamentos", headers=auth_headers).json() if c["id_associado"] == associado.id_associado]
+    assert len(linhas) == 1 and linhas[0]["hora_saida"] is None
+    volta = db.query(AuditLog).filter(AuditLog.tabela_afetada == "credenciamentos_assembleia", AuditLog.acao == "AUTOCHAMADA", AuditLog.id_registro_afetado == id_credenciamento).all()
+    assert len(volta) == 2
+    assert "reentrada" in str(volta[-1].dados_depois)
+
+
 def test_bater_presenca_com_codigo_errado_falha(client, auth_headers, db):
     _associado, usuario = _criar_associado_com_login(db, "Autochamada Errada")
     id_assembleia = _criar_assembleia_convocada(client, auth_headers)

@@ -120,6 +120,37 @@ def test_registrar_saida_credenciamento(client, auth_headers, db):
     assert r3.status_code == 400  # já registrada
 
 
+def test_quem_saiu_volta_pelo_mesmo_credenciamento_e_volta_ao_quorum(client, auth_headers, db):
+    # achado ao vivo na homologação (v5.4d): quem saía não tinha como voltar ("já foi credenciado") e a tela
+    # continuava a listá-lo como presente. Uma linha só por associado e sessão: a volta reabre a mesma.
+    from app.models.core import AuditLog
+
+    associado = _criar_associado(db, "Fulano Sai E Volta")
+    id_assembleia = _criar_assembleia_em_andamento(client, auth_headers)
+    corpo = {"modalidade": "Presencial", "id_associado": associado.id_associado}
+    id_credenciamento = client.post(f"/api/assembleias/{id_assembleia}/credenciamentos", headers=auth_headers, json=corpo).json()["id_credenciamento"]
+    client.post(f"/api/assembleias/{id_assembleia}/credenciamentos/{id_credenciamento}/saida", headers=auth_headers)
+    assert client.get(f"/api/assembleias/{id_assembleia}/quorum", headers=auth_headers).json()["credenciados_habilitados"] == 0
+
+    r = client.post(f"/api/assembleias/{id_assembleia}/credenciamentos", headers=auth_headers, json={**corpo, "modalidade": "Remoto"})
+    assert r.status_code == 200, r.text
+    assert r.json()["id_credenciamento"] == id_credenciamento
+    linhas = client.get(f"/api/assembleias/{id_assembleia}/credenciamentos", headers=auth_headers).json()
+    assert len(linhas) == 1
+    assert linhas[0]["hora_saida"] is None
+    assert linhas[0]["modalidade"] == "Remoto"
+    assert client.get(f"/api/assembleias/{id_assembleia}/quorum", headers=auth_headers).json()["credenciados_habilitados"] == 1
+
+    reentrada = db.query(AuditLog).filter(AuditLog.tabela_afetada == "credenciamentos_assembleia", AuditLog.acao == "REENTRADA", AuditLog.id_registro_afetado == id_credenciamento).all()
+    assert len(reentrada) == 1
+    assert "hora_saida" in str(reentrada[0].dados_antes)
+
+    # de volta e presente, não credencia duas vezes
+    assert client.post(f"/api/assembleias/{id_assembleia}/credenciamentos", headers=auth_headers, json=corpo).status_code == 400
+    # e pode sair outra vez
+    assert client.post(f"/api/assembleias/{id_assembleia}/credenciamentos/{id_credenciamento}/saida", headers=auth_headers).status_code == 200
+
+
 def test_item_de_pauta_ciclo_de_status(client, auth_headers):
     id_assembleia = _criar_assembleia_em_andamento(client, auth_headers)
     r = client.post(f"/api/assembleias/{id_assembleia}/itens-pauta", headers=auth_headers, json={"titulo": "Aprovação de contas"})

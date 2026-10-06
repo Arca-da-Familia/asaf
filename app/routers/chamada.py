@@ -19,6 +19,7 @@ from app.schemas.chamada import (
 )
 from app.security import exigir_permissao, get_current_user, usuario_tem_permissao
 from app.services.chamada import status_presenca
+from app.services.sessao_assembleia import JaPresente, credenciar_ou_reentrar
 
 router = APIRouter()
 _permissao_governanca = exigir_permissao("governanca")
@@ -38,17 +39,13 @@ def _buscar_assembleia_ou_404(db: Session, id_assembleia: int) -> Assembleia:
     return assembleia
 
 
-def _credenciar(db: Session, id_assembleia: int, associado: Associado, modalidade: str, id_usuario_registro: int) -> Credenciamento:
-    if db.query(Credenciamento).filter(Credenciamento.id_assembleia == id_assembleia, Credenciamento.id_associado == associado.id_associado).first():
-        raise HTTPException(status_code=400, detail="Associado já foi credenciado nesta sessão.")
-    credenciamento = Credenciamento(
-        id_assembleia=id_assembleia, id_associado=associado.id_associado, modalidade=modalidade,
-        id_usuario_registro=id_usuario_registro,
-    )
-    db.add(credenciamento)
-    db.commit()
-    db.refresh(credenciamento)
-    return credenciamento
+def _credenciar(db: Session, id_assembleia: int, associado: Associado, modalidade: str, id_usuario_registro: int) -> tuple[Credenciamento, dict]:
+    """Devolve o credenciamento e o que a auditoria deve levar a mais: quem já saiu e volta reabre o mesmo credenciamento."""
+    try:
+        credenciamento, saida_anterior = credenciar_ou_reentrar(db, id_assembleia, associado.id_associado, modalidade, id_usuario_registro)
+    except JaPresente:
+        raise HTTPException(status_code=400, detail="Associado já está credenciado e presente nesta sessão.")
+    return credenciamento, ({} if saida_anterior is None else {"reentrada": True, "saida_anterior": saida_anterior.isoformat()})
 
 
 @router.post("/api/assembleias/{id_assembleia}/bater-presenca", summary="Autochamada: associado marca a própria presença com o código da sessão")
@@ -60,10 +57,10 @@ def bater_presenca(id_assembleia: int, dados: BaterPresencaRequest, request: Req
         raise HTTPException(status_code=400, detail="Código de chamada incorreto - confira o código anunciado/projetado na sala.")
 
     associado = _associado_do_usuario_ou_403(db, usuario)
-    credenciamento = _credenciar(db, id_assembleia, associado, dados.modalidade, usuario.id_usuario)
+    credenciamento, extra = _credenciar(db, id_assembleia, associado, dados.modalidade, usuario.id_usuario)
     registrar_auditoria(
         db, usuario, "credenciamentos_assembleia", "AUTOCHAMADA", id_registro_afetado=credenciamento.id_credenciamento,
-        dados_depois={"id_assembleia": id_assembleia, "id_associado": associado.id_associado, "modalidade": dados.modalidade},
+        dados_depois={"id_assembleia": id_assembleia, "id_associado": associado.id_associado, "modalidade": dados.modalidade, **extra},
         ip_origem=request.client.host if request.client else None,
     )
     return {"mensagem": "Presença registrada.", "id_credenciamento": credenciamento.id_credenciamento}
@@ -86,10 +83,10 @@ def credenciar_manual(id_assembleia: int, dados: CredenciamentoManualCriar, requ
     if not associado:
         raise HTTPException(status_code=404, detail="Associado não encontrado.")
 
-    credenciamento = _credenciar(db, id_assembleia, associado, dados.modalidade, usuario.id_usuario)
+    credenciamento, extra = _credenciar(db, id_assembleia, associado, dados.modalidade, usuario.id_usuario)
     registrar_auditoria(
         db, usuario, "credenciamentos_assembleia", "CORRECAO_MANUAL", id_registro_afetado=credenciamento.id_credenciamento,
-        dados_depois={"id_assembleia": id_assembleia, "id_associado": associado.id_associado, "modalidade": dados.modalidade},
+        dados_depois={"id_assembleia": id_assembleia, "id_associado": associado.id_associado, "modalidade": dados.modalidade, **extra},
         ip_origem=request.client.host if request.client else None,
     )
     return {"mensagem": "Presença registrada manualmente.", "id_credenciamento": credenciamento.id_credenciamento}

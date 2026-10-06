@@ -8,6 +8,7 @@ import {
   exigirHomologacao,
   inventariar,
   RODADA,
+  sair,
   ver,
   vigiar,
 } from './apoio'
@@ -102,12 +103,23 @@ test('sessão: chamada (credenciar, saída, código), quórum e a votação barr
   await expect(
     page.getByRole('heading', { name: /Presentes \(0\)/ }),
   ).toBeVisible()
-  await escolherPorTexto(page.getByLabel('Associado').first(), 'Marta Souza')
-  await page.getByRole('button', { name: 'Credenciar' }).first().click()
+  await expect(
+    page.getByRole('heading', { name: /Saíram \(1\)/ }),
+  ).toBeVisible()
+  await ver(page, info, 'presidente saiu: sai de Presentes e vai para Saíram')
+  // quem saiu volta pela própria tela (reabre o mesmo credenciamento) e o quórum acompanha
+  await page.getByRole('button', { name: 'Registrar retorno' }).click()
   await expect(
     page.getByRole('heading', { name: /Presentes \(1\)/ }),
   ).toBeVisible()
-  await ver(page, info, 'presidente credenciado, saiu e voltou')
+  await expect(page.getByRole('heading', { name: /Saíram/ })).toHaveCount(0)
+  // credenciar quem JÁ está presente é recusado
+  await escolherPorTexto(page.getByLabel('Associado').first(), 'Marta Souza')
+  await page.getByRole('button', { name: 'Credenciar' }).first().click()
+  await expect(
+    page.getByText('Associado já está credenciado e presente nesta sessão.'),
+  ).toBeVisible()
+  await ver(page, info, 'presidente de volta; credenciar de novo e recusado')
 
   // pauta + votação ANTES do quórum: o sistema recusa
   await page.getByLabel('Título').first().fill('Aprovação das contas de 2026')
@@ -155,6 +167,34 @@ test('quórum atingido: vota, voto repetido recusado, apura e encerra votação,
     page.getByRole('button', { name: 'Apurar e encerrar votação' }),
   ).toBeVisible()
   await ver(page, info, 'votacao aberta com quorum')
+
+  // quem não está na sala não vota: o Secretário de teste (Daniel) sai, tenta votar e é recusado; depois volta
+  const linhaDoDaniel = page
+    .locator('div.rounded-md')
+    .filter({ hasText: 'Daniel Ribeiro Costa' })
+    .filter({ has: page.getByRole('button', { name: 'Registrar saída' }) })
+  await linhaDoDaniel.getByRole('button', { name: 'Registrar saída' }).click()
+  await expect(
+    page.getByRole('heading', { name: /Saíram \(1\)/ }),
+  ).toBeVisible()
+  await sair(page)
+  await entrar(page, 'secretario')
+  await page.goto(`${base}/sessao`)
+  await page.getByLabel('Sua opção de voto').first().selectOption('Sim')
+  await page.getByRole('button', { name: 'Votar', exact: true }).first().click()
+  await expect(
+    page.getByText(/não está presente na sessão/).first(),
+  ).toBeVisible()
+  await ver(page, info, 'voto de quem saiu da sala: recusado')
+  await sair(page)
+  await entrar(page, 'presidente')
+  await page.goto(`${base}/sessao`)
+  await page
+    .locator('div.rounded-md')
+    .filter({ hasText: 'Daniel Ribeiro Costa' })
+    .getByRole('button', { name: 'Registrar retorno' })
+    .click()
+  await expect(page.getByRole('heading', { name: /Saíram/ })).toHaveCount(0)
 
   await page.getByLabel('Sua opção de voto').first().selectOption('Sim')
   await page.getByRole('button', { name: 'Votar', exact: true }).first().click()

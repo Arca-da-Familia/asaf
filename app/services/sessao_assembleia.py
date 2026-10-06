@@ -2,6 +2,7 @@
 leitura a partir dos credenciamentos existentes - nunca um contador incrementado/decrementado
 manualmente que pode dessincronizar da realidade."""
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -29,6 +30,56 @@ def _credenciados_habilitados(db: Session, id_assembleia: int) -> int:
         )
         .count()
     )
+
+
+class JaPresente(Exception):
+    """O associado já está credenciado e ainda não registrou saída."""
+
+
+def associado_presente(db: Session, id_assembleia: int, id_associado: int) -> bool:
+    """Presente = credenciado e sem saída registrada: o mesmo critério que conta pro quórum."""
+    return (
+        db.query(Credenciamento)
+        .filter(
+            Credenciamento.id_assembleia == id_assembleia,
+            Credenciamento.id_associado == id_associado,
+            Credenciamento.hora_saida.is_(None),
+        )
+        .first()
+        is not None
+    )
+
+
+def credenciar_ou_reentrar(
+    db: Session, id_assembleia: int, id_associado: int, modalidade: str, id_usuario_registro: int
+) -> tuple[Credenciamento, Optional[datetime]]:
+    """Credencia o associado na sessão. Quem já saiu e volta (há uma linha só por associado e sessão)
+    reabre o mesmo credenciamento: a `hora_entrada` original fica e o instante da saída anterior é
+    devolvido, para quem chama registrar a reentrada na auditoria. Quem ainda está presente não
+    credencia duas vezes (`JaPresente`)."""
+    existente = (
+        db.query(Credenciamento)
+        .filter(Credenciamento.id_assembleia == id_assembleia, Credenciamento.id_associado == id_associado)
+        .first()
+    )
+    if existente is None:
+        novo = Credenciamento(
+            id_assembleia=id_assembleia, id_associado=id_associado, modalidade=modalidade,
+            id_usuario_registro=id_usuario_registro,
+        )
+        db.add(novo)
+        db.commit()
+        db.refresh(novo)
+        return novo, None
+    if existente.hora_saida is None:
+        raise JaPresente()
+    saida_anterior = existente.hora_saida
+    existente.hora_saida = None
+    existente.modalidade = modalidade
+    existente.id_usuario_registro = id_usuario_registro
+    db.commit()
+    db.refresh(existente)
+    return existente, saida_anterior
 
 
 def quorum_instalacao_atual(db: Session, assembleia: Assembleia) -> dict:

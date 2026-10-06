@@ -115,6 +115,35 @@ def test_associado_nao_habilitado_nao_pode_votar(client, auth_headers, db):
     assert r.status_code == 403
 
 
+def test_so_vota_quem_esta_presente_na_sessao(client, auth_headers, db):
+    # achado ao vivo na homologação (v5.4d): `votar` só conferia a lista de habilitados; quem nunca fez a chamada,
+    # ou já tinha saído da sala, votava do mesmo jeito. Presente = credenciado e sem saída (o critério do quórum).
+    ausente, u_ausente = _criar_associado_com_login(db, "Votante Ausente")
+    saiu, u_saiu = _criar_associado_com_login(db, "Votante Que Saiu")
+    id_assembleia, id_item = _criar_assembleia_com_item_em_andamento(client, auth_headers)
+    # a lista de habilitados é congelada na convocação: os dois acima já existem quando ela é gerada
+    _credenciar_todos_habilitados(client, auth_headers, id_assembleia)
+    ids = {c["id_associado"]: c["id_credenciamento"] for c in client.get(f"/api/assembleias/{id_assembleia}/credenciamentos", headers=auth_headers).json()}
+    # o ausente nunca chegou: tira a presença dele (a saída é o único jeito de "des-credenciar")
+    client.post(f"/api/assembleias/{id_assembleia}/credenciamentos/{ids[ausente.id_associado]}/saida", headers=auth_headers)
+    # o outro chegou e saiu
+    client.post(f"/api/assembleias/{id_assembleia}/credenciamentos/{ids[saiu.id_associado]}/saida", headers=auth_headers)
+    id_votacao = client.post(
+        f"/api/itens-pauta/{id_item}/votacoes", headers=auth_headers,
+        json={"titulo": "Votacao de presenca", "tipo": "Aberta/Nominal", "escrutinio": "Maioria simples", "opcoes": ["Sim", "Não"]},
+    ).json()["id_votacao"]
+
+    for usuario in (u_ausente, u_saiu):
+        r = client.post(f"/api/votacoes/{id_votacao}/votar", headers=_headers(usuario), json={"opcao": "Sim"})
+        assert r.status_code == 403, r.text
+        assert "presente" in r.json()["detail"]
+
+    # volta à sala (credencia de novo): passa a poder votar
+    r_volta = client.post(f"/api/assembleias/{id_assembleia}/credenciamentos", headers=auth_headers, json={"modalidade": "Presencial", "id_associado": saiu.id_associado})
+    assert r_volta.status_code == 200, r_volta.text
+    assert client.post(f"/api/votacoes/{id_votacao}/votar", headers=_headers(u_saiu), json={"opcao": "Sim"}).status_code == 200
+
+
 def test_votacao_secreta_desacoplada_de_verdade(client, auth_headers, db):
     votantes = [_criar_associado_com_login(db, f"Votante Secreta {i}") for i in range(2)]
     id_assembleia, id_item = _criar_assembleia_com_item_em_andamento(client, auth_headers)

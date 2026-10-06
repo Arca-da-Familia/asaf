@@ -15,6 +15,7 @@ from app.models.sessao_assembleia import ItemPauta
 from app.models.votacao import ABERTA, SECRETA, Impugnacao, Votacao
 from app.schemas.votacao import ImpugnacaoCriar, ImpugnacaoResolver, ResolverEmpate, VotacaoAbrir, VotoRegistrar
 from app.security import exigir_permissao, get_current_user
+from app.services.sessao_assembleia import associado_presente
 from app.services.votacao import (
     apurar_e_encerrar, abrir_votacao, associado_habilitado, ja_votou, prazo_recurso_impugnacao,
     registrar_voto, resolver_empate,
@@ -100,6 +101,9 @@ def votar(id_votacao: int, dados: VotoRegistrar, db: Session = Depends(get_db), 
     item = db.query(ItemPauta).filter(ItemPauta.id_item == votacao.id_item_pauta).first()
     if not associado_habilitado(db, item.id_assembleia, associado.id_associado):
         raise HTTPException(status_code=403, detail="Associado não está na lista de habilitados desta assembleia (Art. 13/4º).")
+    # Quem vota é quem está na sessão (credenciado, presencial ou remoto, e sem saída registrada): o mesmo critério do quórum.
+    if not associado_presente(db, item.id_assembleia, associado.id_associado):
+        raise HTTPException(status_code=403, detail="Associado não está presente na sessão - faça a chamada (credenciamento) antes de votar.")
     if ja_votou(db, votacao, associado.id_associado):
         raise HTTPException(status_code=400, detail="Associado já votou nesta votação.")
 

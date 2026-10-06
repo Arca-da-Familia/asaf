@@ -147,6 +147,15 @@ function BlocoCredenciamento({
   const faltantes = (habilitados ?? []).filter(
     (h) => !idsCredenciados.has(h.id_associado),
   )
+  // Presente é quem não registrou saída (o mesmo critério do quórum); quem saiu aparece à parte e pode voltar.
+  const presentes = (credenciados ?? []).filter((c) => !c.hora_saida)
+  const quemSaiu = (credenciados ?? []).flatMap((c) =>
+    c.hora_saida ? [{ ...c, hora_saida: c.hora_saida }] : [],
+  )
+  const nomeDe = (c: { id_associado: number; nome_completo?: string }) =>
+    nomesPorId.get(c.id_associado) ??
+    c.nome_completo ??
+    `Associado #${c.id_associado}`
 
   return (
     <section className="rounded-xl border border-border bg-card p-6">
@@ -252,45 +261,73 @@ function BlocoCredenciamento({
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div>
           <h3 className="mb-2 text-sm font-semibold text-green-600">
-            Presentes ({(credenciados ?? []).length})
+            Presentes ({presentes.length})
           </h3>
           <div className="v3-space-y-1">
-            {(credenciados ?? []).map((c) => (
+            {presentes.map((c) => (
               <div
                 key={c.id_credenciamento}
                 className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
               >
                 <span>
-                  {nomesPorId.get(c.id_associado) ??
-                    c.nome_completo ??
-                    `Associado #${c.id_associado}`}{' '}
-                  · {c.modalidade} · entrou{' '}
+                  {nomeDe(c)} · {c.modalidade} · entrou{' '}
                   {formatarData(c.hora_entrada, { comHora: true })}
                 </span>
-                {c.hora_saida ? (
-                  <span className="text-muted-foreground">
-                    saiu {formatarData(c.hora_saida, { comHora: true })}
-                  </span>
-                ) : (
-                  emAndamento && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={saida.isPending}
-                      onClick={() => saida.mutate(c.id_credenciamento)}
-                    >
-                      Registrar saída
-                    </Button>
-                  )
+                {emAndamento && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={saida.isPending}
+                    onClick={() => saida.mutate(c.id_credenciamento)}
+                  >
+                    Registrar saída
+                  </Button>
                 )}
               </div>
             ))}
-            {(credenciados ?? []).length === 0 && (
+            {presentes.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                Ninguém credenciado ainda.
+                {quemSaiu.length === 0
+                  ? 'Ninguém credenciado ainda.'
+                  : 'Ninguém presente no momento.'}
               </p>
             )}
           </div>
+
+          {quemSaiu.length > 0 && (
+            <>
+              <h3 className="mb-2 mt-4 text-sm font-semibold text-muted-foreground">
+                Saíram ({quemSaiu.length})
+              </h3>
+              <div className="v3-space-y-1">
+                {quemSaiu.map((c) => (
+                  <div
+                    key={c.id_credenciamento}
+                    className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
+                  >
+                    <span>
+                      {nomeDe(c)} · saiu{' '}
+                      {formatarData(c.hora_saida, { comHora: true })}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={registrar.isPending}
+                      onClick={() =>
+                        registrar.mutate({
+                          id_associado: c.id_associado,
+                          modalidade:
+                            c.modalidade === 'Remoto' ? 'Remoto' : 'Presencial',
+                        })
+                      }
+                    >
+                      Registrar retorno
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         <div>
