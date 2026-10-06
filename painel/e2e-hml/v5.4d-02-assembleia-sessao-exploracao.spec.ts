@@ -86,6 +86,7 @@ test('sessão: credenciar, pauta e votação, estado por estado', async ({
   await inv(page, info, 's7-form-da-votacao')
   await ver(page, info, 's7 form da votacao')
   await page.getByLabel('Título').last().fill('Aprovação das contas de 2026')
+  await page.getByLabel('Opções (separadas por vírgula)').fill('Sim, Não')
   await page.getByRole('button', { name: 'Abrir votação' }).last().click()
   await inv(page, info, 's8-votacao-aberta')
   await ver(page, info, 's8 votacao aberta')
