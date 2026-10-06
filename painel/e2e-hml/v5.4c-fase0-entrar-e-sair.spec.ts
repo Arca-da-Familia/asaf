@@ -84,6 +84,18 @@ test('sair volta ao login e rota protegida sem sessão manda para o login', asyn
   await ver(page, info, 'rota protegida sem sessao volta ao login')
 })
 
+test('sessão que acaba: sem o cookie da sessão o painel volta ao login em vez de mostrar dado', async ({
+  page,
+  context,
+}, info) => {
+  await entrar(page, 'presidente')
+  await expect(page.getByRole('heading', { name: 'Início' })).toBeVisible()
+  await context.clearCookies()
+  await page.goto('/associados')
+  await expect(page).toHaveURL(/\/login/)
+  await ver(page, info, 'sessao acabada: volta ao login')
+})
+
 test('o Secretário de teste enxerga só o que o cargo permite (documentos sim, financeiro não)', async ({
   page,
 }, info) => {

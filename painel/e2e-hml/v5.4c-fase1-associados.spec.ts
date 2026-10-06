@@ -228,6 +228,46 @@ test('situação: licença, desligamento (com confirmação), recusa de anonimiz
   expect(vigia.problemas()).toEqual([])
 })
 
+test('cargos e família: registrar posse e encerrar; adicionar familiar (com recusa) e remover', async ({
+  page,
+}, info) => {
+  const vigia = vigiar(page)
+  await entrar(page, 'presidente')
+  await abrirFicha(page)
+
+  await page.getByRole('button', { name: 'Cargos' }).click()
+  await expect(page.getByText('Nenhum cargo registrado ainda')).toBeVisible()
+  await page.getByRole('button', { name: 'Registrar posse' }).click()
+  await campo(page, 'Cargo *').fill('Coordenador de Oficinas (teste)')
+  await page.getByRole('button', { name: 'Registrar', exact: true }).click()
+  await expect(page.getByText('Coordenador de Oficinas (teste)')).toBeVisible()
+  await expect(page.getByText(/vigente/)).toBeVisible()
+  await ver(page, info, 'cargo registrado e vigente')
+  await page.getByRole('button', { name: 'Encerrar hoje' }).click()
+  await expect(page.getByText(/saiu em/)).toBeVisible()
+  await ver(page, info, 'cargo encerrado')
+
+  await page.getByRole('button', { name: 'Família' }).click()
+  await expect(
+    page.getByText('Nenhum vínculo familiar registrado ainda'),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Adicionar familiar' }).click()
+  // recusa provocada: sem nome (pessoa nova) e sem escolher um associado
+  await campo(page, 'Grau de parentesco *').selectOption({ index: 1 })
+  await page.getByRole('button', { name: 'Adicionar', exact: true }).click()
+  await expect(page.locator('.text-destructive').first()).toBeVisible()
+  await ver(page, info, 'familiar sem nome nem associado: recusado')
+  await campo(page, 'Nome (se pessoa nova)').fill(`Filha Robo ${RODADA}`)
+  await campo(page, 'Data de nascimento (se pessoa nova)').fill('2015-05-05')
+  await page.getByRole('button', { name: 'Adicionar', exact: true }).click()
+  await expect(page.getByText(`Filha Robo ${RODADA}`)).toBeVisible()
+  await ver(page, info, 'familiar adicionado')
+  await page.getByRole('button', { name: 'Remover' }).first().click()
+  await expect(page.getByText(`Filha Robo ${RODADA}`)).toHaveCount(0)
+  await ver(page, info, 'familiar removido')
+  expect(vigia.problemas()).toEqual([])
+})
+
 test('foto: sobe pela tela e ABRE de verdade (a imagem carrega, não dá 404)', async ({
   page,
 }, info) => {
