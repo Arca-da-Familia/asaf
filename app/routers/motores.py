@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
 from app.database import get_db
+from app.models.eventos import Evento
+from app.models.motores import TemplateDocumento
+from app.models.pessoas import Pessoa
 from app.schemas.motores import (
     DocumentoEmitir,
     IndicadorCriar,
@@ -19,6 +22,7 @@ from app.schemas.motores import (
 )
 from app.security import exigir_permissao
 from app.services import documentos, indicadores, inscricao, presenca
+from app.services.eventos import CONTEXTO_EVENTO
 
 router = APIRouter()
 _permissao_projetos = exigir_permissao("projetos")
@@ -177,13 +181,22 @@ def listar_documentos_emitidos_endpoint(
     contexto_tipo: str = None, id_contexto: int = None, id_pessoa: int = None,
     db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos),
 ):
+    emitidos = documentos.listar_documentos_emitidos(db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, id_pessoa=id_pessoa)
+    # a lista é para gente ler: o nome do modelo (Certificado, Crachá), de quem recebeu e do evento, não só números
+    modelos = {t.id_template: t.nome for t in db.query(TemplateDocumento).all()}
+    ids_pessoas = {d.id_pessoa for d in emitidos if d.id_pessoa is not None}
+    pessoas = {p.id_pessoa: p.nome_completo for p in db.query(Pessoa).filter(Pessoa.id_pessoa.in_(ids_pessoas)).all()} if ids_pessoas else {}
+    ids_eventos = {d.id_contexto for d in emitidos if d.contexto_tipo == CONTEXTO_EVENTO and d.id_contexto is not None}
+    eventos = {e.id_evento: e.titulo for e in db.query(Evento).filter(Evento.id_evento.in_(ids_eventos)).all()} if ids_eventos else {}
     return [
         {
-            "id_documento": d.id_documento, "id_template": d.id_template, "numero_sequencial": d.numero_sequencial,
-            "contexto_tipo": d.contexto_tipo, "id_contexto": d.id_contexto, "id_pessoa": d.id_pessoa,
+            "id_documento": d.id_documento, "id_template": d.id_template, "nome_template": modelos.get(d.id_template),
+            "numero_sequencial": d.numero_sequencial, "contexto_tipo": d.contexto_tipo, "id_contexto": d.id_contexto,
+            "titulo_contexto": eventos.get(d.id_contexto) if d.contexto_tipo == CONTEXTO_EVENTO else None,
+            "id_pessoa": d.id_pessoa, "nome_pessoa": pessoas.get(d.id_pessoa),
             "caminho_arquivo": d.caminho_arquivo, "emitida_em": d.emitida_em,
         }
-        for d in documentos.listar_documentos_emitidos(db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, id_pessoa=id_pessoa)
+        for d in emitidos
     ]
 
 

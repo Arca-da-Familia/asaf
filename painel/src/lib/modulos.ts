@@ -7,6 +7,7 @@ import {
   CalendarCheck,
   CalendarPlus,
   CalendarRange,
+  FileCheck,
   FileText,
   FileUp,
   Inbox,
@@ -342,6 +343,12 @@ export const modulos: Modulo[] = [
     rotulo: 'Eventos',
     permissao: 'projetos',
     icone: PartyPopper,
+  },
+  {
+    rota: '/documentos-emitidos',
+    rotulo: 'Documentos emitidos',
+    permissao: 'projetos',
+    icone: FileCheck,
   },
   {
     rota: '/acesso',

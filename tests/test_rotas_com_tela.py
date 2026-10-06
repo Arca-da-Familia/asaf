@@ -31,9 +31,6 @@ SEM_TELA_CONHECIDAS = {
     # legados duplicados (o painel usa `listarAssociados` e `/auth/perfil`): a decisão é REMOVER, não criar tela; ainda usados por testes antigos
     "/api/associados/busca-simples": "v5.4c",
     "/api/meu-perfil/{id_associado}": "v5.4c",
-    # v5.4e — FASE 3 (financeiro)
-    "/api/solicitacoes-compra/{id_solicitacao}/aprovacoes": "v5.4e",
-    "/api/documentos-emitidos/": "v5.4e",
     # v5.4f — FASE 4 (projetos, reserva, eventos)
     "/api/beneficiarios/{id_beneficiario}/nucleo-familiar": "v5.4f",
     "/api/inscricoes/{id_inscricao}/cobranca": "v5.4f",

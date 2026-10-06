@@ -12,6 +12,7 @@ import { ContasAPagarRecorrentesPage } from '@/pages/ContasAPagarRecorrentes'
 import { DoacoesPage } from '@/pages/Doacoes'
 import { OrcamentoPage } from '@/pages/Orcamento'
 import { RelatoriosPage } from '@/pages/Relatorios'
+import { DocumentosEmitidosPage } from '@/pages/DocumentosEmitidos'
 import { ReembolsoDespesaPage } from '@/pages/ReembolsoDespesa'
 import { AssembleiaDetalhePage } from '@/pages/AssembleiaDetalhe'
 import { AssembleiaNovoPage } from '@/pages/AssembleiaNova'
@@ -603,6 +604,16 @@ function App() {
               <RequirePermission permission="projetos">
                 <ErrorBoundary tituloModulo="Eventos">
                   <EventosPage />
+                </ErrorBoundary>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="/documentos-emitidos"
+            element={
+              <RequirePermission permission="projetos">
+                <ErrorBoundary tituloModulo="Documentos emitidos">
+                  <DocumentosEmitidosPage />
                 </ErrorBoundary>
               </RequirePermission>
             }

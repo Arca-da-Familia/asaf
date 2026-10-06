@@ -2820,6 +2820,21 @@ export function registrarCotacaoCompra(
   })
 }
 
+// Trilha de aprovação de uma solicitação de compra: quem aprovou (pelo nome) e quando; `por delegação` quando foi alguém no lugar de quem tem o cargo.
+export type AprovacaoCompra = {
+  id_aprovacao: number
+  id_usuario_aprovador: number | null
+  nome_aprovador: string | null
+  id_delegacao_usada: number | null
+  data_aprovacao: string
+}
+
+export function listarAprovacoesCompra(
+  idSolicitacao: number,
+): Promise<AprovacaoCompra[]> {
+  return apiFetch(`/api/solicitacoes-compra/${idSolicitacao}/aprovacoes`)
+}
+
 export function aprovarSolicitacaoCompra(idSolicitacao: number): Promise<{
   mensagem: string
   status?: string
@@ -5619,4 +5634,34 @@ export function reformarRegraEstatutaria(
     method: 'PUT',
     body: JSON.stringify(dados),
   })
+}
+
+// ---------------------------------------------------------------------------
+// Documentos emitidos (backend v4.0, motor de documento gerado): crachás e certificados, numerados em sequência.
+export type DocumentoEmitido = {
+  id_documento: number
+  id_template: number
+  nome_template: string | null
+  numero_sequencial: number
+  contexto_tipo: string | null
+  id_contexto: number | null
+  titulo_contexto: string | null
+  id_pessoa: number | null
+  nome_pessoa: string | null
+  caminho_arquivo: string
+  emitida_em: string
+}
+
+export function listarDocumentosEmitidos(filtros?: {
+  contexto_tipo?: string
+  id_contexto?: number
+  id_pessoa?: number
+}): Promise<DocumentoEmitido[]> {
+  const params = new URLSearchParams()
+  if (filtros?.contexto_tipo) params.set('contexto_tipo', filtros.contexto_tipo)
+  if (filtros?.id_contexto)
+    params.set('id_contexto', String(filtros.id_contexto))
+  if (filtros?.id_pessoa) params.set('id_pessoa', String(filtros.id_pessoa))
+  const query = params.toString()
+  return apiFetch(`/api/documentos-emitidos/${query ? `?${query}` : ''}`)
 }

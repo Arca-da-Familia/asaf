@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+
+import { formatarData } from '@/lib/datas'
 import { z } from 'zod'
 
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
@@ -8,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import {
   aprovarSolicitacaoCompra,
   criarSolicitacaoCompra,
+  listarAprovacoesCompra,
   listarCotacoesCompra,
   listarFornecedores,
   listarPlanoContas,
@@ -31,6 +34,37 @@ function formatarReais(valor: number): string {
   }).format(valor)
 }
 
+// Quem aprovou a compra e quando (a trilha que a alçada e a dupla assinatura deixam). Aparece no painel de quem aprova e, depois da decisão, na
+// própria solicitação: é aí que se confere que quem solicitou não foi quem aprovou.
+function TrilhaDeAprovacao({ idSolicitacao }: { idSolicitacao: number }) {
+  const { data: aprovacoes, isLoading } = useQuery({
+    queryKey: ['aprovacoes-compra', idSolicitacao],
+    queryFn: () => listarAprovacoesCompra(idSolicitacao),
+  })
+  return (
+    <div className="mb-2">
+      <p className="mb-1 font-medium">Aprovações</p>
+      <div className="v3-space-y-1">
+        {(aprovacoes ?? []).map((a) => (
+          <p key={a.id_aprovacao} className="text-xs text-muted-foreground">
+            {a.nome_aprovador ?? `Usuário #${a.id_usuario_aprovador}`} —{' '}
+            {formatarData(a.data_aprovacao, { comHora: true })}
+            {a.id_delegacao_usada && ' (por delegação)'}
+          </p>
+        ))}
+        {isLoading && (
+          <p className="text-xs text-muted-foreground">Carregando…</p>
+        )}
+        {!isLoading && (aprovacoes ?? []).length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            Nenhuma aprovação ainda.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function PainelCotacoesEAprovacao({
   idSolicitacao,
 }: {
@@ -48,6 +82,9 @@ function PainelCotacoesEAprovacao({
   const [mostrarReprovar, setMostrarReprovar] = useState(false)
 
   function invalidar() {
+    queryClient.invalidateQueries({
+      queryKey: ['aprovacoes-compra', idSolicitacao],
+    })
     queryClient.invalidateQueries({ queryKey: ['solicitacoes-compra'] })
     queryClient.invalidateQueries({
       queryKey: ['cotacoes-compra', idSolicitacao],
@@ -90,6 +127,8 @@ function PainelCotacoesEAprovacao({
           </p>
         )}
       </div>
+
+      <TrilhaDeAprovacao idSolicitacao={idSolicitacao} />
 
       <FormShell<z.infer<typeof cotacaoCompraCriarSchema>>
         schema={cotacaoCompraCriarSchema}
@@ -193,6 +232,7 @@ function PainelCotacoesEAprovacao({
 export function ComprasPage() {
   const [mostrarForm, setMostrarForm] = useState(false)
   const [expandida, setExpandida] = useState<number | null>(null)
+  const [trilhaAberta, setTrilhaAberta] = useState<number | null>(null)
   const queryClient = useQueryClient()
 
   const { data: solicitacoes } = useQuery({
@@ -356,6 +396,28 @@ export function ComprasPage() {
                     <PainelCotacoesEAprovacao
                       idSolicitacao={s.id_solicitacao}
                     />
+                  )}
+                </div>
+              )}
+              {s.status !== 'Aguardando Aprovação' && (
+                <div className="mt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setTrilhaAberta((v) =>
+                        v === s.id_solicitacao ? null : s.id_solicitacao,
+                      )
+                    }
+                  >
+                    {trilhaAberta === s.id_solicitacao
+                      ? 'Ocultar aprovações'
+                      : 'Ver aprovações'}
+                  </Button>
+                  {trilhaAberta === s.id_solicitacao && (
+                    <div className="mt-2 rounded-md border border-border bg-muted/20 p-3 text-sm">
+                      <TrilhaDeAprovacao idSolicitacao={s.id_solicitacao} />
+                    </div>
                   )}
                 </div>
               )}

@@ -226,3 +226,29 @@ def test_agenda_recusa_compromisso_sobreposto_e_permite_horario_livre(db):
     criar(3, horario_livre_inicio, horario_livre_inicio + timedelta(hours=1))
 
     assert len(agenda.listar_compromissos(db, recurso_tipo="Espaco", id_recurso=id_recurso)) == 2
+
+
+def test_lista_de_documentos_emitidos_traz_o_nome_do_modelo_da_pessoa_e_do_evento(client, auth_headers, db):
+    # a v5.4e deu tela aos documentos emitidos (crachás e certificados): a lista é para gente ler, não só números
+    from app.models.eventos import Evento
+    from app.services import documentos
+
+    pessoa = _criar_pessoa(db, nome="Maria Do Certificado Teste")
+    evento = Evento(titulo="Oficina de Teste dos Documentos", categoria="Oficina", data_hora_inicio=datetime.utcnow() + timedelta(days=3))
+    db.add(evento)
+    db.commit()
+    db.refresh(evento)
+    client.post("/api/templates-documento/", json={"codigo": f"MODELO_LISTA_{evento.id_evento}", "nome": "Declaração de Teste", "corpo_texto": "Olá {{nome}}"}, headers=auth_headers)
+    r = client.post("/api/documentos-emitidos/", json={
+        "codigo_template": f"MODELO_LISTA_{evento.id_evento}", "variaveis": {"nome": "Maria"}, "contexto_tipo": "Evento",
+        "id_contexto": evento.id_evento, "id_pessoa": pessoa,
+    }, headers=auth_headers)
+    assert r.status_code == 200, r.text
+
+    lista = client.get(f"/api/documentos-emitidos/?contexto_tipo=Evento&id_contexto={evento.id_evento}", headers=auth_headers).json()
+    assert len(lista) == 1
+    assert lista[0]["nome_template"] == "Declaração de Teste"
+    assert lista[0]["nome_pessoa"] == "Maria Do Certificado Teste"
+    assert lista[0]["titulo_contexto"] == "Oficina de Teste dos Documentos"
+    assert lista[0]["caminho_arquivo"]
+

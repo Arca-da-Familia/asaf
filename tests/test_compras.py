@@ -289,3 +289,20 @@ def test_validar_situacao_cadastral_usa_resposta_da_api(client, auth_headers, mo
     r = client.post(f"/api/fornecedores/{fornecedor}/validar-situacao-cadastral", headers=auth_headers)
     assert r.status_code == 200, r.text
     assert r.json()["situacao_cadastral"] == "ATIVA"
+
+
+def test_trilha_de_aprovacao_diz_quem_aprovou_pelo_nome(client, auth_headers):
+    # a v5.4e deu tela à trilha de aprovação: ela mostra o NOME de quem aprovou (e quando), não "usuário nº 7"
+    conta = _criar_conta(client, auth_headers, "4.1.9925", "Despesa")
+    _criar_alcada(client, auth_headers, ["TESOUREIRO", "PRESIDENTE"], valor_minimo=800, valor_maximo=880, dupla=True)
+    id_solicitacao = _criar_solicitacao(client, auth_headers, conta, valor=850)
+    id_tesoureiro, headers_tesoureiro = _criar_usuario_com_mandato(client, auth_headers, "TESOUREIRO")
+    _, headers_presidente = _criar_usuario_com_mandato(client, auth_headers, "PRESIDENTE")
+
+    assert client.post(f"/api/solicitacoes-compra/{id_solicitacao}/aprovar", headers=headers_tesoureiro).status_code == 200
+    assert client.post(f"/api/solicitacoes-compra/{id_solicitacao}/aprovar", headers=headers_presidente).status_code == 200
+
+    trilha = client.get(f"/api/solicitacoes-compra/{id_solicitacao}/aprovacoes", headers=auth_headers).json()
+    assert len(trilha) == 2
+    assert all(a["nome_aprovador"] and a["nome_aprovador"].startswith("Pessoa Compras") for a in trilha)
+    assert trilha[0]["data_aprovacao"] <= trilha[1]["data_aprovacao"]

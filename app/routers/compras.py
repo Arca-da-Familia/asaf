@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
 from app.database import get_db
+from app.models.associados import Associado
+from app.models.core import Usuario
 from app.models.compras import AlcadaAprovacao, AprovacaoCompra, CotacaoCompra, DadosBancariosFornecedor, DelegacaoAprovacao, ReembolsoDespesa, SolicitacaoCompra, ContaAPagarRecorrente
 from app.models.financeiro import Fornecedor
 from app.schemas.compras import (
@@ -253,8 +255,16 @@ def reprovar_solicitacao_endpoint(id_solicitacao: int, dados: ReprovarSolicitaca
 @router.get("/api/solicitacoes-compra/{id_solicitacao}/aprovacoes", summary="Listar Aprovações de uma Solicitação de Compra")
 def listar_aprovacoes(id_solicitacao: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
     aprovacoes = db.query(AprovacaoCompra).filter(AprovacaoCompra.id_solicitacao == id_solicitacao).order_by(AprovacaoCompra.data_aprovacao).all()
+    # quem aprovou, pelo nome (o associado do usuário; sem associado, o e-mail): a tela mostra a trilha de aprovação em português, não "usuário nº 7"
+    ids = {a.id_usuario_aprovador for a in aprovacoes if a.id_usuario_aprovador is not None}
+    nomes = {x.id_usuario: x.nome_completo for x in db.query(Associado).filter(Associado.id_usuario.in_(ids)).all()} if ids else {}
+    emails = {u.id_usuario: u.email for u in db.query(Usuario).filter(Usuario.id_usuario.in_(ids)).all()} if ids else {}
     return [
-        {"id_aprovacao": a.id_aprovacao, "id_usuario_aprovador": a.id_usuario_aprovador, "id_delegacao_usada": a.id_delegacao_usada, "data_aprovacao": a.data_aprovacao}
+        {
+            "id_aprovacao": a.id_aprovacao, "id_usuario_aprovador": a.id_usuario_aprovador,
+            "nome_aprovador": nomes.get(a.id_usuario_aprovador) or emails.get(a.id_usuario_aprovador),
+            "id_delegacao_usada": a.id_delegacao_usada, "data_aprovacao": a.data_aprovacao,
+        }
         for a in aprovacoes
     ]
 
