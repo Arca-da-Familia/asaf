@@ -948,7 +948,10 @@ test.describe('assembleia própria: justificativas, chamada, sessão, detalhe e 
         /\/api\/documentos\/(\d+)\/original/.exec(resposta.url())?.[1],
       )
       const baixado = await baixando
-      expect(baixado.suggestedFilename()).toBe(nomeEsperado)
+      // a tela nomeia o arquivo baixado pelo número da ata (`ata-<nº>.pdf`), não pelo nome que veio do computador de quem enviou
+      expect(baixado.suggestedFilename(), nomeEsperado).toMatch(
+        /^ata-\d+\.pdf$/,
+      )
       const conteudo = fs.readFileSync(
         (await baixado.path()) as string,
         'latin1',
