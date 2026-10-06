@@ -94,6 +94,11 @@ export const modulos: Modulo[] = [
         icone: Inbox,
       },
       {
+        rota: '/associados/qualidade',
+        rotulo: 'Qualidade da base',
+        icone: ShieldCheck,
+      },
+      {
         rota: '/associados/importar',
         rotulo: 'Importar em lote',
         icone: FileUp,

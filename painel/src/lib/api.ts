@@ -946,6 +946,8 @@ export type AssociadoMasterCriarInput = {
   estado_civil?: string
   profissao?: string
   naturalidade?: string
+  // Só tem efeito para quem tem a permissão do Presidente (forcar_cadastro_duplicado): passa por cima da desconfiança de cadastro parecido.
+  forcar?: boolean
 }
 
 export function criarAssociadoMaster(
@@ -979,6 +981,7 @@ export function concederAcesso(
 export type AssociadoDetalhe = {
   id_associado: number
   id_pessoa: number
+  id_usuario: number | null
   nome_completo: string
   cpf: string
   email_contato: string
@@ -5349,4 +5352,181 @@ export function aprovarPropostaDeFiliacao(
     method: 'POST',
     body: JSON.stringify(dados),
   })
+}
+
+// ---------------------------------------------------------------------------
+// Qualidade da base (servidor na v1.8; tela só na v5.4c — achado ao vivo: nenhuma tela chamava a fila de revisão, a mesclagem nem a
+// anonimização em lote)
+// ---------------------------------------------------------------------------
+export type SinalDeRevisao = {
+  id_fila: number
+  tipo_sinal:
+    | 'duplicidade_nome_nascimento'
+    | 'contato_telefone_invalido'
+    | 'contato_email_suspeito'
+    | string
+  detalhe: string | null
+  status: string
+  criado_em: string
+  id_pessoa_a: number
+  nome_pessoa_a: string | null
+  id_pessoa_b: number | null
+  nome_pessoa_b: string | null
+  e_associado_a: boolean
+  matricula_a: number | null
+  e_associado_b: boolean
+  matricula_b: number | null
+}
+
+export function listarFilaDeRevisao(): Promise<SinalDeRevisao[]> {
+  return apiFetch('/api/pessoas/fila-revisao')
+}
+
+export function escanearDuplicidade(): Promise<{
+  mensagem: string
+  novos: number
+}> {
+  return apiFetch('/api/pessoas/duplicidade/escanear', { method: 'POST' })
+}
+
+export function higienizarContatos(): Promise<{
+  mensagem: string
+  novos: number
+}> {
+  return apiFetch('/api/pessoas/higienizar-contatos', { method: 'POST' })
+}
+
+export function ignorarItemDaFila(
+  idFila: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/pessoas/fila-revisao/${idFila}/ignorar`, {
+    method: 'POST',
+  })
+}
+
+export function mesclarPessoas(
+  idPessoaMantida: number,
+  dados: { id_pessoa_absorvida: number; nome_confirmacao: string },
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/pessoas/${idPessoaMantida}/mesclar`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function anonimizarVencidos(): Promise<{
+  mensagem: string
+  total: number
+}> {
+  return apiFetch('/api/associados/anonimizar-vencidos', { method: 'POST' })
+}
+
+// ---------------------------------------------------------------------------
+// Vínculos da pessoa: voluntário (termo de adesão), funcionário, e-mail suspeito, acesso (servidor na v1.6/v1.8; tela só na v5.4c)
+// ---------------------------------------------------------------------------
+export type TermoDeVoluntario =
+  | { vigente: false }
+  | {
+      vigente: true
+      id_termo: number
+      atividade: string
+      carga_horaria_semanal: number
+      data_fim_vigencia: string
+      versao: number
+    }
+
+export function obterTermoVigente(
+  idPessoa: number,
+): Promise<TermoDeVoluntario> {
+  return apiFetch(`/api/pessoas/${idPessoa}/termo-voluntariado/vigente`)
+}
+
+export function registrarTermoDeVoluntario(
+  idPessoa: number,
+  dados: {
+    atividade: string
+    carga_horaria_semanal: number
+    local?: string
+    data_inicio: string
+    data_fim_vigencia: string
+    documento_referencia?: string
+    autorizacao_responsavel_referencia?: string
+  },
+): Promise<{ mensagem: string; id_termo: number; versao: number }> {
+  return apiFetch(`/api/pessoas/${idPessoa}/termo-voluntariado`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type FuncionarioCadastrado = {
+  id_funcionario: number
+  id_pessoa: number
+  cargo: string
+  id_conta_centro_custo: number | null
+  data_admissao: string
+  ativo: boolean
+}
+
+export function listarFuncionarios(): Promise<FuncionarioCadastrado[]> {
+  return apiFetch('/api/funcionarios/')
+}
+
+export function cadastrarFuncionario(
+  idPessoa: number,
+  dados: { cargo: string; data_admissao: string },
+): Promise<{ mensagem: string; id_funcionario: number }> {
+  return apiFetch(`/api/pessoas/${idPessoa}/funcionario`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function marcarContatoSuspeito(
+  idPessoa: number,
+  motivo: string,
+): Promise<{ mensagem: string; id_fila: number }> {
+  return apiFetch(`/api/pessoas/${idPessoa}/marcar-contato-suspeito`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo }),
+  })
+}
+
+export function redefinirSegundoPasso(
+  idUsuario: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch('/auth/mfa/reset', {
+    method: 'POST',
+    body: JSON.stringify({ id_usuario: idUsuario }),
+  })
+}
+
+export type CompletudeDoCadastro = {
+  percentual: number
+  campos_faltando: string[]
+}
+
+export function obterCompletude(
+  idAssociado: number,
+): Promise<CompletudeDoCadastro> {
+  return apiFetch(`/api/associados/${idAssociado}/completude`)
+}
+
+export type CategoriaCalculada = {
+  status_arrolamento_materializado: string | null
+  categoria_calculada_agora: string
+  desatualizado: boolean
+}
+
+export function obterCategoriaCalculada(
+  idAssociado: number,
+): Promise<CategoriaCalculada> {
+  return apiFetch(`/api/associados/${idAssociado}/categoria-calculada`)
+}
+
+export function confirmarMeusDados(): Promise<{
+  mensagem: string
+  data_ultima_confirmacao: string
+}> {
+  return apiFetch('/auth/perfil/confirmar-dados', { method: 'POST' })
 }

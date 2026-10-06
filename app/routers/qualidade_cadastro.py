@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.associados import Associado
 from app.models.core import Usuario
 from app.models.pessoas import Pessoa
 from app.models.qualidade_cadastro import PENDENTE, FilaRevisaoCadastro
@@ -59,11 +60,17 @@ def listar_fila_revisao(status: str = PENDENTE, db: Session = Depends(get_db), _
     for item in itens:
         pessoa_a = db.query(Pessoa).filter(Pessoa.id_pessoa == item.id_pessoa_a).first()
         pessoa_b = db.query(Pessoa).filter(Pessoa.id_pessoa == item.id_pessoa_b).first() if item.id_pessoa_b else None
+        # v5.4c (achado AO VIVO): dois cadastros duplicados costumam ter O MESMO NOME; sem dizer quem é associado (e a matrícula), a tela de
+        # mesclar não tinha como distinguir um do outro.
+        associado_a = db.query(Associado).filter(Associado.id_pessoa == item.id_pessoa_a).first()
+        associado_b = db.query(Associado).filter(Associado.id_pessoa == item.id_pessoa_b).first() if item.id_pessoa_b else None
         resultado.append({
             "id_fila": item.id_fila, "tipo_sinal": item.tipo_sinal, "detalhe": item.detalhe,
             "status": item.status, "criado_em": item.criado_em,
             "id_pessoa_a": item.id_pessoa_a, "nome_pessoa_a": pessoa_a.nome_completo if pessoa_a else None,
             "id_pessoa_b": item.id_pessoa_b, "nome_pessoa_b": pessoa_b.nome_completo if pessoa_b else None,
+            "e_associado_a": associado_a is not None, "matricula_a": associado_a.numero_matricula if associado_a else None,
+            "e_associado_b": associado_b is not None, "matricula_b": associado_b.numero_matricula if associado_b else None,
         })
     return resultado
 

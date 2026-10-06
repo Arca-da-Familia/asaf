@@ -60,6 +60,7 @@ import { Forbidden } from '@/pages/Forbidden'
 import { Home } from '@/pages/Home'
 import { ImportarAssociadosPage } from '@/pages/ImportarAssociados'
 import { PropostasDeFiliacaoPage } from '@/pages/PropostasDeFiliacao'
+import { QualidadeDaBasePage } from '@/pages/QualidadeDaBase'
 import { Login } from '@/pages/Login'
 import { MandatosPage } from '@/pages/Mandatos'
 import { MeuVoluntariadoPage } from '@/pages/MeuVoluntariado'
@@ -229,6 +230,14 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Novo associado">
                 <AssociadoNovoPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="qualidade"
+            element={
+              <ErrorBoundary tituloModulo="Qualidade da base">
+                <QualidadeDaBasePage />
               </ErrorBoundary>
             }
           />

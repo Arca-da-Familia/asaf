@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { z } from 'zod'
 
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
-import { criarAssociadoMaster, listarOpcoesLegado } from '@/lib/api'
+import { ApiError, criarAssociadoMaster, listarOpcoesLegado } from '@/lib/api'
+import { useMe } from '@/lib/use-me'
 import { associadoMasterSchema } from '@/lib/schemas'
 
 type AssociadoForm = z.infer<typeof associadoMasterSchema>
@@ -26,10 +28,16 @@ export function AssociadoNovoPage() {
     queryFn: () => listarOpcoesLegado('estado_civil'),
   })
 
+  // v5.4c (achado AO VIVO): o servidor barra cadastro parecido com um que já existe e diz "só o Presidente pode forçar", mas esta tela
+  // não oferecia como — só a caixa de propostas tinha o "aprovar mesmo assim".
+  const { data: eu } = useMe()
+  const podeForcar = !!eu?.permissoes.includes('forcar_cadastro_duplicado')
+  const [cadastroParecido, setCadastroParecido] = useState(false)
+
   const criar = useMutation({
     // Campos opcionais chegam como string vazia do formulário (input não preenchido) - o
     // backend espera ausência do campo (None), não "" (Pydantic recusaria "" como data).
-    mutationFn: (v: AssociadoForm) =>
+    mutationFn: (v: AssociadoForm & { forcar?: boolean }) =>
       criarAssociadoMaster({
         ...v,
         data_nascimento: v.data_nascimento || undefined,
@@ -74,7 +82,13 @@ export function AssociadoNovoPage() {
             profissao: '',
             naturalidade: '',
           }}
-          onSubmit={(v) => criar.mutateAsync(v)}
+          onSubmit={(v) =>
+            criar.mutateAsync(v).catch((e: unknown) => {
+              if (e instanceof ApiError && e.status === 409)
+                setCadastroParecido(true)
+              throw e
+            })
+          }
         >
           {(form) => (
             <>
@@ -240,6 +254,18 @@ export function AssociadoNovoPage() {
                 <Button type="submit" disabled={criar.isPending}>
                   {criar.isPending ? 'Cadastrando…' : 'Cadastrar associado'}
                 </Button>
+                {cadastroParecido && podeForcar && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={criar.isPending}
+                    onClick={form.handleSubmit((v) =>
+                      criar.mutateAsync({ ...v, forcar: true }),
+                    )}
+                  >
+                    Cadastrar mesmo assim (confirmo que é outra pessoa)
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="outline"

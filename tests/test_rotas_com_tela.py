@@ -28,21 +28,9 @@ ISENTAS = (
 # Rotas que AINDA não têm tela, e a versão do plano que vai criá-la. Só pode encolher.
 SEM_TELA_CONHECIDAS = {
     # v5.4c — FASE 1 (associados, qualidade da base, pessoas)
-    "/api/associados/{id_associado}/categoria-calculada": "v5.4c",
-    "/api/associados/{id_associado}/completude": "v5.4c",
+    # legados duplicados (o painel usa `listarAssociados` e `/auth/perfil`): a decisão é REMOVER, não criar tela; ainda usados por testes antigos
     "/api/associados/busca-simples": "v5.4c",
-    "/api/associados/anonimizar-vencidos": "v5.4c",
     "/api/meu-perfil/{id_associado}": "v5.4c",
-    "/auth/perfil/confirmar-dados": "v5.4c",
-    "/auth/mfa/reset": "v5.4c",
-    "/api/pessoas/{id_pessoa}/termo-voluntariado": "v5.4c",
-    "/api/pessoas/{id_pessoa}/funcionario": "v5.4c",
-    "/api/funcionarios/": "v5.4c",
-    "/api/pessoas/duplicidade/escanear": "v5.4c",
-    "/api/pessoas/higienizar-contatos": "v5.4c",
-    "/api/pessoas/{id_pessoa}/marcar-contato-suspeito": "v5.4c",
-    "/api/pessoas/fila-revisao": "v5.4c",
-    "/api/pessoas/{id_pessoa_mantida}/mesclar": "v5.4c",
     # v5.4d — FASE 2 (governança)
     "/api/deliberacoes/pendentes": "v5.4d",
     "/api/estatuto/regras": "v5.4d",

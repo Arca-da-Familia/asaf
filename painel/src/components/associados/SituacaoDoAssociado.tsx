@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
+import { SituacaoGuardadaECalculada } from '@/components/associados/CompletudeECategoria'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { Button } from '@/components/ui/button'
 import {
@@ -95,6 +96,9 @@ export function SituacaoDoAssociado({
       queryKey: ['historico-situacao', idAssociado],
     })
     queryClient.invalidateQueries({ queryKey: ['associados'] })
+    queryClient.invalidateQueries({
+      queryKey: ['categoria-calculada', idAssociado],
+    })
   }
 
   function concluir(mensagem: string) {
@@ -462,6 +466,8 @@ export function SituacaoDoAssociado({
           </div>
         )}
       </section>
+
+      <SituacaoGuardadaECalculada idAssociado={idAssociado} />
 
       <section className="rounded-xl border border-border bg-card p-6">
         <h2 className="mb-4 font-semibold">Histórico de situação</h2>

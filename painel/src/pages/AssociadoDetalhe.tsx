@@ -3,7 +3,9 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 
+import { CompletudeDoCadastro } from '@/components/associados/CompletudeECategoria'
 import { SituacaoDoAssociado } from '@/components/associados/SituacaoDoAssociado'
+import { VinculosDaPessoa } from '@/components/associados/VinculosDaPessoa'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -32,7 +34,7 @@ import {
   dependenteCriarSchema,
 } from '@/lib/schemas'
 
-type Aba = 'dados' | 'ficha360' | 'cargos' | 'familia' | 'situacao'
+type Aba = 'dados' | 'ficha360' | 'cargos' | 'familia' | 'situacao' | 'vinculos'
 type AssociadoEditarForm = z.infer<typeof associadoEditarSchema>
 
 // v2.5.1 (FASE 2.5 - Painel) - completa o módulo Associados: editar dados/foto, gerenciar
@@ -55,6 +57,7 @@ export function AssociadoDetalhePage() {
     { id: 'cargos', rotulo: 'Cargos' },
     { id: 'familia', rotulo: 'Família' },
     { id: 'situacao', rotulo: 'Situação' },
+    { id: 'vinculos', rotulo: 'Vínculos' },
   ]
 
   return (
@@ -110,6 +113,13 @@ export function AssociadoDetalhePage() {
               situacao={associado.status_arrolamento}
             />
           )}
+          {aba === 'vinculos' && (
+            <VinculosDaPessoa
+              idPessoa={associado.id_pessoa}
+              idUsuario={associado.id_usuario}
+              nome={associado.nome_completo}
+            />
+          )}
         </>
       )}
     </>
@@ -151,6 +161,7 @@ function DadosEFotoTab({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['associado', idAssociado] })
       queryClient.invalidateQueries({ queryKey: ['associados'] })
+      queryClient.invalidateQueries({ queryKey: ['completude', idAssociado] })
     },
   })
 
@@ -165,6 +176,7 @@ function DadosEFotoTab({
 
   return (
     <div className="v3-space-y-6">
+      <CompletudeDoCadastro idAssociado={idAssociado} />
       <section className="rounded-xl border border-border bg-card p-6">
         <h2 className="mb-4 font-semibold">Foto</h2>
         <div className="flex items-center gap-4">

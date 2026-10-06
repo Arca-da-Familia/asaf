@@ -422,6 +422,7 @@ def obter_associado(id_associado: int, db: Session = Depends(get_db), _usuario: 
     return {
         "id_associado": associado.id_associado,
         "id_pessoa": associado.id_pessoa,
+        "id_usuario": associado.id_usuario,  # v5.4c: a ficha oferece "redefinir o segundo passo" de quem tem acesso
         "nome_completo": associado.nome_completo,
         "cpf": associado.cpf,
         "email_contato": associado.email_contato,

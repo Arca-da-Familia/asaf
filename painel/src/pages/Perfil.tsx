@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { z } from 'zod'
 
+import { ConfirmarMeusDados } from '@/components/associados/ConfirmarMeusDados'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -231,6 +232,7 @@ export function PerfilPage() {
                 </div>
               </dl>
               <DadosForm perfil={perfil} />
+              <ConfirmarMeusDados />
             </>
           ) : (
             <EmptyState

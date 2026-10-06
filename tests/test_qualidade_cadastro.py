@@ -184,3 +184,28 @@ def test_marcar_email_suspeito_manualmente(client, auth_headers, db):
 
     pessoa = db.query(Pessoa).filter(Pessoa.id_pessoa == id_pessoa).first()
     assert pessoa.contato_suspeito is True
+
+
+def test_fila_diz_quem_e_associado_e_a_matricula_quando_os_dois_tem_o_mesmo_nome(client, auth_headers, db):
+    """Achado AO VIVO (v5.4c): dois cadastros duplicados costumam ter o MESMO nome; a tela de mesclar só distinguia um do outro se a fila
+    dissesse quem é associado (e a matrícula) e quem é só uma pessoa."""
+    nome = "Mesmo Nome Duas Vezes Qualidade"
+    associado = _criar_associado(client, nome_completo=nome, data_nascimento="1979-03-09")
+    registro = db.query(Associado).filter(Associado.id_associado == associado["id_associado"]).first()
+
+    outro = _criar_associado(client)
+    id_pessoa_titular = db.query(Associado).filter(Associado.id_associado == outro["id_associado"]).first().id_pessoa
+    r = client.post(
+        f"/api/pessoas/{id_pessoa_titular}/dependentes", headers=auth_headers,
+        json={"nome_completo": nome, "data_nascimento": "1979-03-09", "grau_parentesco": "OUTRO"},
+    )
+    id_dependente = r.json()["id_pessoa_vinculada"]
+    client.post("/api/pessoas/duplicidade/escanear", headers=auth_headers)
+
+    fila = client.get("/api/pessoas/fila-revisao", headers=auth_headers).json()
+    par = next(i for i in fila if {i["id_pessoa_a"], i["id_pessoa_b"]} == {registro.id_pessoa, id_dependente})
+    lado_associado, lado_so_pessoa = ("a", "b") if par["id_pessoa_a"] == registro.id_pessoa else ("b", "a")
+    assert par[f"e_associado_{lado_associado}"] is True
+    assert par[f"matricula_{lado_associado}"] == registro.numero_matricula
+    assert par[f"e_associado_{lado_so_pessoa}"] is False
+    assert par[f"matricula_{lado_so_pessoa}"] is None
