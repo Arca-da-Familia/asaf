@@ -153,6 +153,7 @@ export function AuditoriaPage() {
           totalRegistros={data?.total}
           pageCount={data ? Math.ceil(data.total / data.por_pagina) : 0}
           onPaginationChange={setPaginacao}
+          tamanhoDePaginaInicial={paginacao.pageSize}
         />
       )}
     </>

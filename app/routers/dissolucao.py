@@ -18,7 +18,7 @@ from app.schemas.dissolucao import (
     BaixaCadastralRequest, CancelarProcessoRequest, DeliberarRequest, DestinarPatrimonioRequest,
     LiquidacaoConcluirRequest, ProcessoDissolucaoCriar,
 )
-from app.security import exigir_permissao, get_current_user
+from app.security import exigir_permissao
 from app.services.estatuto import obter_regra_vigente
 
 router = APIRouter()
@@ -60,13 +60,13 @@ def abrir_processo(dados: ProcessoDissolucaoCriar, request: Request, db: Session
 
 
 @router.get("/api/processos-dissolucao/", summary="Listar processos de dissolução")
-def listar_processos(db: Session = Depends(get_db), _usuario=Depends(get_current_user)):
+def listar_processos(db: Session = Depends(get_db), _usuario=Depends(_permissao_governanca)):
     processos = db.query(ProcessoDissolucao).order_by(ProcessoDissolucao.criado_em.desc()).all()
     return [_serializar(p) for p in processos]
 
 
 @router.get("/api/processos-dissolucao/{id_processo_dissolucao}", summary="Detalhar processo de dissolução")
-def detalhar_processo(id_processo_dissolucao: int, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+def detalhar_processo(id_processo_dissolucao: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_governanca)):
     return _serializar(_buscar_ou_404(db, id_processo_dissolucao))
 
 

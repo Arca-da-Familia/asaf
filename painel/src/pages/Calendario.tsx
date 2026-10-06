@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { z } from 'zod'
 
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -9,6 +10,8 @@ import {
   criarEventoCalendario,
   listarOpcoesCatalogo,
   obterCalendario,
+  removerEventoCalendario,
+  type ItemCalendario,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
 import { useMe } from '@/lib/use-me'
@@ -43,9 +46,10 @@ export function CalendarioPage() {
   const podeAgendar = me?.permissoes.includes('governanca') ?? false
   const [diasAntecedencia, setDiasAntecedencia] = useState(90)
   const [mostrarForm, setMostrarForm] = useState(false)
+  const [removendo, setRemovendo] = useState<ItemCalendario | null>(null)
   const queryClient = useQueryClient()
 
-  const { data: itens } = useQuery({
+  const { data: itens, isLoading } = useQuery({
     queryKey: ['calendario', diasAntecedencia],
     queryFn: () => obterCalendario(diasAntecedencia),
   })
@@ -66,6 +70,16 @@ export function CalendarioPage() {
       queryClient.invalidateQueries({ queryKey: ['calendario'] })
       setMostrarForm(false)
     },
+  })
+
+  // evento agendado por engano, ou que não vai mais acontecer, sai do calendário (fica na Auditoria quem removeu e o que era)
+  const remover = useMutation({
+    mutationFn: (idEvento: number) => removerEventoCalendario(idEvento),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendario'] })
+      setRemovendo(null)
+    },
+    onError: () => setRemovendo(null),
   })
 
   return (
@@ -143,6 +157,7 @@ export function CalendarioPage() {
                 <label className="text-sm font-medium">Início</label>
                 <input
                   type="datetime-local"
+                  aria-label="Início do evento"
                   {...form.register('data_inicio')}
                   className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 />
@@ -154,6 +169,7 @@ export function CalendarioPage() {
                 <label className="text-sm font-medium">Fim (opcional)</label>
                 <input
                   type="datetime-local"
+                  aria-label="Fim do evento (opcional)"
                   {...form.register('data_fim')}
                   className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 />
@@ -174,6 +190,12 @@ export function CalendarioPage() {
             </>
           )}
         </FormShell>
+      )}
+
+      {remover.isError && (
+        <p role="alert" className="mb-3 text-sm text-destructive">
+          {(remover.error as Error).message}
+        </p>
       )}
 
       <div className="v3-space-y-2">
@@ -204,14 +226,41 @@ export function CalendarioPage() {
               {ROTULOS_TIPO[item.tipo] ?? item.tipo} · {formatarData(item.data)}
               {item.artigo_origem && ` · ${item.artigo_origem}`}
             </p>
+            {podeAgendar && item.id_evento && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-1"
+                onClick={() => setRemovendo(item)}
+              >
+                Remover evento
+              </Button>
+            )}
           </div>
         ))}
-        {(itens ?? []).length === 0 && (
+        {isLoading && (
+          <p className="text-sm text-muted-foreground">Carregando…</p>
+        )}
+        {!isLoading && (itens ?? []).length === 0 && (
           <p className="text-sm text-muted-foreground">
             Nada no calendário para os próximos {diasAntecedencia} dias.
           </p>
         )}
       </div>
+
+      <ConfirmDialog
+        aberto={removendo !== null}
+        onAbertoChange={(aberto) => {
+          if (!aberto) setRemovendo(null)
+        }}
+        titulo={`Remover “${removendo?.titulo ?? ''}” do calendário?`}
+        descricao="O evento deixa de aparecer para todos. Quem removeu e o que era ficam registrados na Auditoria."
+        rotuloConfirmar="Remover evento"
+        carregando={remover.isPending}
+        onConfirmar={() => {
+          if (removendo?.id_evento) remover.mutate(removendo.id_evento)
+        }}
+      />
     </>
   )
 }

@@ -7,6 +7,7 @@ from app.models.associados import Associado
 from app.models.core import NivelAcesso, Usuario
 from app.models.pessoas import Pessoa
 from app.security import criar_access_token, hash_senha
+from tests.apoio_mandatos import liberar_cargo
 
 _ISO = "%Y-%m-%dT%H:%M:%S"
 
@@ -216,6 +217,7 @@ def test_deliberacao_eleicao_concluida_cria_mandatos(client, auth_headers, db):
         json={"tipo": "Eleição", "texto": "Eleição da Diretoria Executiva para o quadriênio."},
     ).json()["id_deliberacao"]
 
+    liberar_cargo(client, auth_headers, "DIRETORIA_EXECUTIVA", "PRESIDENTE")  # a posse só vale com o cargo livre (um titular, Art. 19)
     r = client.post(
         f"/api/deliberacoes/{id_deliberacao}/concluir", headers=auth_headers,
         json={
@@ -251,6 +253,9 @@ def test_certidao_de_deliberacao_numeracao_sequencial(client, auth_headers):
     id_assembleia = _criar_assembleia_em_andamento(client, auth_headers)
     id_ata = _criar_ata(client, auth_headers, id_assembleia)
     id_deliberacao = client.post(f"/api/atas/{id_ata}/deliberacoes", headers=auth_headers, json={"tipo": "Genérica", "texto": "Deliberação para certidão."}).json()["id_deliberacao"]
+    # certidão é de deliberação concluída: antes de concluir, o servidor recusa (achado da v5.4d: saía certidão de deliberação pendente)
+    assert client.post(f"/api/deliberacoes/{id_deliberacao}/certidao", headers=auth_headers).status_code == 400
+    assert client.post(f"/api/deliberacoes/{id_deliberacao}/concluir", headers=auth_headers, json={"observacao": "Aprovada."}).status_code == 200
 
     r1 = client.post(f"/api/deliberacoes/{id_deliberacao}/certidao", headers=auth_headers)
     assert r1.status_code == 200, r1.text
@@ -259,3 +264,42 @@ def test_certidao_de_deliberacao_numeracao_sequencial(client, auth_headers):
 
     listadas = client.get(f"/api/deliberacoes/{id_deliberacao}/certidoes", headers=auth_headers).json()
     assert len(listadas) == 2
+
+
+def test_rascunho_da_ata_pode_ter_o_texto_refeito_e_ata_travada_nao(client, auth_headers, db):
+    # achado da v5.4d: a mensagem mandava "apagar e gerar de novo", que não existe; presença corrigida DEPOIS de gerar a ata nunca entrava.
+    id_assembleia = _criar_assembleia_em_andamento(client, auth_headers)
+    id_ata = _criar_ata(client, auth_headers, id_assembleia)
+    r_de_novo = client.post(f"/api/assembleias/{id_assembleia}/ata", headers=auth_headers)
+    assert r_de_novo.status_code == 400
+    assert "Atualizar o texto" in r_de_novo.json()["detail"]
+
+    # um associado credenciado depois de gerar a ata
+    associado, _usuario = _criar_associado_com_login(db, "Credenciado Depois Da Ata")
+    antes = client.get(f"/api/atas/{id_ata}", headers=auth_headers).json()["corpo_texto"]
+    assert "Credenciado Depois Da Ata" not in antes
+    client.post(f"/api/assembleias/{id_assembleia}/credenciamentos/manual", headers=auth_headers, json={"id_associado": associado.id_associado, "modalidade": "Presencial"})
+
+    r = client.post(f"/api/atas/{id_ata}/regerar-corpo", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    assert "Credenciado Depois Da Ata" in r.json()["corpo_texto"]
+
+    client.post(f"/api/atas/{id_ata}/assinar", headers=auth_headers)
+    r_travada = client.post(f"/api/atas/{id_ata}/regerar-corpo", headers=auth_headers)
+    assert r_travada.status_code == 400
+    assert "retificação" in r_travada.json()["detail"]
+
+
+def test_depois_de_retificar_a_assembleia_mostra_a_ata_mais_recente(client, auth_headers):
+    id_assembleia = _criar_assembleia_em_andamento(client, auth_headers)
+    id_ata = _criar_ata(client, auth_headers, id_assembleia)
+    client.post(f"/api/atas/{id_ata}/assinar", headers=auth_headers)
+    retificacao = client.post(f"/api/atas/{id_ata}/retificar", headers=auth_headers, json={"motivo": "Erro de digitação no nome de um presente."})
+    assert retificacao.status_code == 200, retificacao.text
+
+    da_assembleia = client.get(f"/api/assembleias/{id_assembleia}/ata", headers=auth_headers).json()
+    assert da_assembleia["id_ata"] == retificacao.json()["id_ata"]
+    # a original continua alcançável pelo próprio número
+    assert client.get(f"/api/atas/{id_ata}", headers=auth_headers).json()["status"] == "Assinada"
+    # a retificação não tem o texto refeito (é o da original)
+    assert client.post(f"/api/atas/{retificacao.json()['id_ata']}/regerar-corpo", headers=auth_headers).status_code == 400

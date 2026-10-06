@@ -6,8 +6,40 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from sqlalchemy import func
+
 from app.models.core import Catalogo, OpcaoCatalogo
 from app.models.mandatos import Mandato
+from app.services.estatuto import obter_regra_vigente
+
+ORGAO_CONSELHO_FISCAL = "CONSELHO_FISCAL"
+
+
+def vagas_do_cargo(db: Session, orgao_codigo: str, cargo_codigo: str) -> int:
+    """Quantas pessoas podem ocupar o cargo ao mesmo tempo: cada cargo da Diretoria Executiva tem um titular (Art. 19) e o Conselho
+    Fiscal tem três membros (Art. 24, parâmetro `VAGAS_CONSELHO_FISCAL`, nunca fixo em código como as demais regras do estatuto)."""
+    if orgao_codigo == ORGAO_CONSELHO_FISCAL and cargo_codigo == ORGAO_CONSELHO_FISCAL:
+        return int(obter_regra_vigente(db, "VAGAS_CONSELHO_FISCAL", "3") or "3")
+    return 1
+
+
+def mandatos_que_ocupam_a_vaga(
+    db: Session, orgao_codigo: str, cargo_codigo: str, inicio: datetime, fim: datetime, agora: Optional[datetime] = None,
+) -> list[Mandato]:
+    """Mandatos do mesmo órgão e cargo cujo período se sobrepõe ao pedido [inicio, fim). Um mandato encerrado antes do prazo deixa de ocupar
+    a vaga no instante do encerramento; por isso um mandato que já começou (início hoje ou antes) conta a partir de AGORA, e a posse de
+    quem substitui no mesmo dia de uma vacância passa."""
+    momento = agora or datetime.utcnow()
+    comeca_em = inicio if fim <= momento else max(inicio, momento)
+    fim_da_ocupacao = func.coalesce(Mandato.data_fim_efetivo, Mandato.data_fim_previsto)
+    return (
+        db.query(Mandato)
+        .filter(
+            Mandato.orgao_codigo == orgao_codigo, Mandato.cargo_codigo == cargo_codigo,
+            Mandato.data_inicio < fim, fim_da_ocupacao > comeca_em,
+        )
+        .all()
+    )
 
 
 def mandatos_vigentes_do_associado(db: Session, id_associado: int, em: Optional[datetime] = None) -> list[Mandato]:

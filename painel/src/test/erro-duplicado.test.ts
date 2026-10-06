@@ -37,8 +37,12 @@ describe('mensagem de erro do formulário não se repete na tela', () => {
   })
 
   it('nenhuma mutação enviada só por formulário repete o erro com isError', () => {
+    // por componente (cada `function Componente` do arquivo), porque duas telas do mesmo arquivo podem ter uma mutação `encerrar` cada
     const achados = Object.entries(fontes).flatMap(([arquivo, codigo]) =>
-      repetidas(codigo).map((n) => `${arquivo}: ${n}`),
+      codigo
+        .split(/\n(?=(?:export )?function [A-Z])/)
+        .flatMap((trecho) => repetidas(trecho))
+        .map((n) => `${arquivo}: ${n}`),
     )
     expect(achados).toEqual([])
   })

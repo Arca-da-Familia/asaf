@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { z } from 'zod'
 
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -15,6 +16,7 @@ import {
   destinarPatrimonioDissolucao,
   listarProcessosDissolucao,
   obterProcessoDissolucao,
+  ApiError,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
 import {
@@ -44,7 +46,7 @@ export function ProcessosDissolucaoPage() {
   const [mostrarForm, setMostrarForm] = useState(false)
   const queryClient = useQueryClient()
 
-  const { data: processos } = useQuery({
+  const { data: processos, isLoading: carregando } = useQuery({
     queryKey: ['processos-dissolucao'],
     queryFn: listarProcessosDissolucao,
   })
@@ -86,6 +88,7 @@ export function ProcessosDissolucaoPage() {
               <textarea
                 {...form.register('motivo')}
                 rows={3}
+                aria-label="Motivo da dissolução"
                 placeholder="Descreva o motivo da dissolução (Art. 31)"
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
@@ -116,7 +119,10 @@ export function ProcessosDissolucaoPage() {
             <p className="text-muted-foreground">{p.motivo}</p>
           </Link>
         ))}
-        {(processos ?? []).length === 0 && (
+        {carregando && (
+          <p className="text-sm text-muted-foreground">Carregando…</p>
+        )}
+        {!carregando && (processos ?? []).length === 0 && (
           <p className="text-sm text-muted-foreground">
             Nenhum processo de dissolução registrado - o esperado, Art. 31 é
             excepcional.
@@ -132,10 +138,25 @@ export function ProcessoDissolucaoDetalhePage() {
   const idProcesso = Number(id)
   const queryClient = useQueryClient()
 
-  const { data: processo, isLoading } = useQuery({
+  const {
+    data: processo,
+    isLoading,
+    error: erroDeLeitura,
+  } = useQuery({
     queryKey: ['processo-dissolucao', idProcesso],
     queryFn: () => obterProcessoDissolucao(idProcesso),
+    retry: (tentativas, erro) =>
+      !(erro instanceof ApiError && erro.status < 500) && tentativas < 2,
   })
+  // As etapas que não têm volta (cancelar, destinar o patrimônio, a baixa cadastral) só valem depois de uma confirmação explícita:
+  // o formulário valida, guarda os valores e o diálogo pergunta de novo, dizendo o que vai acontecer.
+  const [pendente, setPendente] = useState<
+    | { etapa: 'cancelar'; valores: z.infer<typeof cancelarDissolucaoSchema> }
+    | { etapa: 'destinar'; valores: z.infer<typeof destinarPatrimonioSchema> }
+    | { etapa: 'baixa'; valores: z.infer<typeof baixaCadastralSchema> }
+    | null
+  >(null)
+  const [erroDaEtapa, setErroDaEtapa] = useState<string | null>(null)
 
   function invalidar() {
     queryClient.invalidateQueries({
@@ -173,6 +194,39 @@ export function ProcessoDissolucaoDetalhePage() {
     onSuccess: invalidar,
   })
 
+  async function confirmarEtapa() {
+    if (!pendente) return
+    setErroDaEtapa(null)
+    try {
+      if (pendente.etapa === 'cancelar')
+        await cancelar.mutateAsync(pendente.valores)
+      else if (pendente.etapa === 'destinar')
+        await destinarPatrimonio.mutateAsync(pendente.valores)
+      else await baixaCadastral.mutateAsync(pendente.valores)
+    } catch (e) {
+      setErroDaEtapa(
+        e instanceof Error ? e.message : 'Não foi possível concluir a etapa.',
+      )
+    } finally {
+      setPendente(null)
+    }
+  }
+
+  if (erroDeLeitura) {
+    return (
+      <>
+        <p role="alert" className="text-sm text-destructive">
+          {(erroDeLeitura as Error).message}
+        </p>
+        <Link
+          to="/governanca/dissolucao"
+          className="mt-2 inline-block text-sm text-primary hover:underline"
+        >
+          Voltar aos processos de dissolução
+        </Link>
+      </>
+    )
+  }
   if (isLoading || !processo) {
     return <p className="text-sm text-muted-foreground">Carregando…</p>
   }
@@ -196,16 +250,22 @@ export function ProcessoDissolucaoDetalhePage() {
             <FormShell<z.infer<typeof cancelarDissolucaoSchema>>
               schema={cancelarDissolucaoSchema}
               defaultValues={{ motivo: '' }}
-              onSubmit={(v) => cancelar.mutateAsync(v)}
+              onSubmit={(v) => setPendente({ etapa: 'cancelar', valores: v })}
               className="flex items-end gap-2"
             >
               {(form) => (
                 <>
-                  <input
-                    {...form.register('motivo')}
-                    placeholder="Motivo do cancelamento"
-                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                  />
+                  <div>
+                    <input
+                      {...form.register('motivo')}
+                      aria-label="Motivo do cancelamento"
+                      placeholder="Motivo do cancelamento"
+                      className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    />
+                    <ErroCampo
+                      mensagem={form.formState.errors.motivo?.message}
+                    />
+                  </div>
                   <Button
                     type="submit"
                     variant="outline"
@@ -219,6 +279,12 @@ export function ProcessoDissolucaoDetalhePage() {
           )
         }
       />
+
+      {erroDaEtapa && (
+        <p role="alert" className="mb-3 text-sm text-destructive">
+          {erroDaEtapa}
+        </p>
+      )}
 
       <div className="rounded-xl border border-border bg-card p-6">
         <p className="whitespace-pre-wrap text-sm">{processo.motivo}</p>
@@ -247,12 +313,18 @@ export function ProcessoDissolucaoDetalhePage() {
           >
             {(form) => (
               <>
-                <input
-                  type="number"
-                  {...form.register('id_deliberacao')}
-                  placeholder="Nº da deliberação"
-                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                />
+                <div>
+                  <input
+                    type="number"
+                    {...form.register('id_deliberacao')}
+                    aria-label="Nº da deliberação"
+                    placeholder="Nº da deliberação"
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  />
+                  <ErroCampo
+                    mensagem={form.formState.errors.id_deliberacao?.message}
+                  />
+                </div>
                 <Button type="submit" disabled={deliberar.isPending}>
                   Vincular
                 </Button>
@@ -278,6 +350,7 @@ export function ProcessoDissolucaoDetalhePage() {
                 <textarea
                   {...form.register('observacao')}
                   rows={3}
+                  aria-label="Como o passivo foi liquidado"
                   placeholder="Descreva como o passivo foi liquidado"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
@@ -308,13 +381,14 @@ export function ProcessoDissolucaoDetalhePage() {
               confirma_anos_minimos: false,
               confirma_credenciada: false,
             }}
-            onSubmit={(v) => destinarPatrimonio.mutateAsync(v)}
+            onSubmit={(v) => setPendente({ etapa: 'destinar', valores: v })}
             className="v3-space-y-2"
           >
             {(form) => (
               <>
                 <input
                   {...form.register('entidade_nome')}
+                  aria-label="Nome da entidade destinatária"
                   placeholder="Nome da entidade destinatária"
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 />
@@ -323,12 +397,14 @@ export function ProcessoDissolucaoDetalhePage() {
                 />
                 <input
                   {...form.register('entidade_cnpj')}
+                  aria-label="CNPJ da entidade (opcional)"
                   placeholder="CNPJ (opcional)"
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 />
                 <textarea
                   {...form.register('justificativa')}
                   rows={2}
+                  aria-label="Justificativa dos critérios do Art. 31"
                   placeholder="Justifique por que atende aos critérios do Art. 31, Parágrafo Único"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
@@ -377,7 +453,7 @@ export function ProcessoDissolucaoDetalhePage() {
           <FormShell<z.infer<typeof baixaCadastralSchema>>
             schema={baixaCadastralSchema}
             defaultValues={{ observacao: '' }}
-            onSubmit={(v) => baixaCadastral.mutateAsync(v)}
+            onSubmit={(v) => setPendente({ etapa: 'baixa', valores: v })}
             className="v3-space-y-2"
           >
             {(form) => (
@@ -385,6 +461,7 @@ export function ProcessoDissolucaoDetalhePage() {
                 <textarea
                   {...form.register('observacao')}
                   rows={2}
+                  aria-label="Baixa cadastral realizada"
                   placeholder="Descreva a baixa cadastral realizada"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
@@ -412,6 +489,40 @@ export function ProcessoDissolucaoDetalhePage() {
           </p>
         </section>
       )}
+
+      <ConfirmDialog
+        aberto={pendente !== null}
+        onAbertoChange={(aberto) => {
+          if (!aberto) setPendente(null)
+        }}
+        titulo={
+          pendente?.etapa === 'cancelar'
+            ? 'Cancelar este processo de dissolução?'
+            : pendente?.etapa === 'destinar'
+              ? `Destinar o patrimônio a ${pendente.valores.entidade_nome}?`
+              : 'Concluir a dissolução (baixa cadastral)?'
+        }
+        descricao={
+          pendente?.etapa === 'cancelar'
+            ? 'O processo fica cancelado e não pode ser reaberto: se a associação quiser dissolver depois, abre-se um processo novo. O motivo e quem cancelou ficam na Auditoria.'
+            : pendente?.etapa === 'destinar'
+              ? 'Isto declara que o patrimônio remanescente foi destinado à entidade informada, com os três critérios do Art. 31 confirmados, e libera a baixa cadastral. Fica na Auditoria e não se desfaz.'
+              : 'Encerra o roteiro de dissolução da associação. Fica registrado na Auditoria e não se desfaz.'
+        }
+        rotuloConfirmar={
+          pendente?.etapa === 'cancelar'
+            ? 'Cancelar processo'
+            : pendente?.etapa === 'destinar'
+              ? 'Registrar destinação'
+              : 'Concluir dissolução'
+        }
+        carregando={
+          cancelar.isPending ||
+          destinarPatrimonio.isPending ||
+          baixaCadastral.isPending
+        }
+        onConfirmar={confirmarEtapa}
+      />
     </>
   )
 }

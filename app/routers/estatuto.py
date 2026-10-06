@@ -15,7 +15,7 @@ from app.database import get_db
 from app.models.estatuto import DocumentoEstatuto, RegraEstatutaria
 from app.schemas.estatuto import DocumentoEstatutoCriar, RegraEstatutariaReformar
 from app.security import exigir_permissao, get_current_user
-from app.services.estatuto import reformar_regra
+from app.services.estatuto import reformar_regra, validar_valor_da_regra
 
 router = APIRouter()
 _permissao_governanca = exigir_permissao("governanca")
@@ -68,8 +68,15 @@ def reformar_regra_estatutaria(
     )
     valor_anterior = anterior.valor if anterior else None
 
+    tipo = anterior.tipo if anterior else "texto"
+    recusa = validar_valor_da_regra(parametro, tipo, dados.valor)
+    if recusa:
+        raise HTTPException(status_code=422, detail=recusa)
+    # fração guardada sempre sem espaço ("2 / 3" vira "2/3"): quem lê o quórum não precisa adivinhar o formato
+    valor = dados.valor.replace(" ", "") if tipo == "fracao" else dados.valor
+
     nova = reformar_regra(
-        db, parametro, dados.valor, id_usuario=usuario.id_usuario,
+        db, parametro, valor, id_usuario=usuario.id_usuario,
         artigo_origem=dados.artigo_origem, descricao=dados.descricao,
         id_documento_estatuto=dados.id_documento_estatuto,
     )

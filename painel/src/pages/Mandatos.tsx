@@ -13,9 +13,10 @@ import {
   listarAssociados,
   listarConflitosInteresse,
   listarMandatos,
+  listarMandatosVencendo,
   listarOpcoesCatalogo,
 } from '@/lib/api'
-import { formatarData } from '@/lib/datas'
+import { formatarData, formatarDia } from '@/lib/datas'
 import {
   declaracaoConflitoCriarSchema,
   mandatoCriarSchema,
@@ -31,16 +32,21 @@ import {
 function BlocoEncerrarMandato({
   idMandato,
   onFechar,
+  onEncerrado,
 }: {
   idMandato: number
   onFechar: () => void
+  onEncerrado: (pendencia: string | null) => void
 }) {
   const queryClient = useQueryClient()
   const encerrar = useMutation({
     mutationFn: (v: z.infer<typeof mandatoEncerrarSchema>) =>
       encerrarMandato(idMandato, v),
-    onSuccess: () => {
+    onSuccess: (mandato) => {
       queryClient.invalidateQueries({ queryKey: ['mandatos'] })
+      queryClient.invalidateQueries({ queryKey: ['mandatos-vencendo'] })
+      // o bloco fecha ao encerrar, então o aviso da vacância (Art. 26) sobe para a tela em vez de morrer junto com ele
+      onEncerrado(mandato.pendencia ?? null)
       onFechar()
     },
   })
@@ -83,14 +89,6 @@ function BlocoEncerrarMandato({
               Cancelar
             </Button>
           </div>
-          {encerrar.isError && (
-            <p className="text-sm text-destructive">
-              {(encerrar.error as Error).message}
-            </p>
-          )}
-          {encerrar.data?.pendencia && (
-            <p className="text-sm text-amber-600">{encerrar.data.pendencia}</p>
-          )}
         </>
       )}
     </FormShell>
@@ -101,9 +99,10 @@ function BlocoMandatos() {
   const [apenasVigentes, setApenasVigentes] = useState(true)
   const [idParaEncerrar, setIdParaEncerrar] = useState<number | null>(null)
   const [mostrarNovo, setMostrarNovo] = useState(false)
+  const [avisoDaVacancia, setAvisoDaVacancia] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
-  const { data: mandatos } = useQuery({
+  const { data: mandatos, isLoading: carregandoMandatos } = useQuery({
     queryKey: ['mandatos', apenasVigentes],
     queryFn: () => listarMandatos({ apenasVigentes }),
   })
@@ -277,6 +276,15 @@ function BlocoMandatos() {
         </FormShell>
       )}
 
+      {avisoDaVacancia && (
+        <p
+          role="status"
+          className="mb-3 rounded-md border border-amber-600/30 bg-amber-600/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-400"
+        >
+          Vaga aberta: {avisoDaVacancia}
+        </p>
+      )}
+
       <div className="v3-space-y-2">
         {(mandatos ?? []).map((m) => (
           <div
@@ -303,8 +311,10 @@ function BlocoMandatos() {
               {rotuloCargo.get(m.cargo_codigo) ?? m.cargo_codigo}
             </p>
             <p className="text-xs text-muted-foreground">
-              {formatarData(m.data_inicio)} até{' '}
-              {formatarData(m.data_fim_efetivo ?? m.data_fim_previsto)}
+              {formatarDia(m.data_inicio)} até{' '}
+              {m.data_fim_efetivo
+                ? formatarData(m.data_fim_efetivo)
+                : formatarDia(m.data_fim_previsto)}
               {m.data_fim_efetivo && ' (encerramento antecipado)'}
               {m.motivo_encerramento && ` - ${m.motivo_encerramento}`}
             </p>
@@ -322,13 +332,98 @@ function BlocoMandatos() {
               <BlocoEncerrarMandato
                 idMandato={m.id_mandato}
                 onFechar={() => setIdParaEncerrar(null)}
+                onEncerrado={setAvisoDaVacancia}
               />
             )}
           </div>
         ))}
-        {(mandatos ?? []).length === 0 && (
+        {carregandoMandatos && (
+          <p className="text-sm text-muted-foreground">Carregando…</p>
+        )}
+        {!carregandoMandatos && (mandatos ?? []).length === 0 && (
           <p className="text-sm text-muted-foreground">
             Nenhum mandato {apenasVigentes ? 'vigente' : 'registrado'} ainda.
+          </p>
+        )}
+      </div>
+    </section>
+  )
+}
+
+// Alerta de fim de mandato (o servidor já calculava: `/api/mandatos/vencendo`): "descobrir em dezembro que o mandato acabou em abril" é o que o
+// calendário e este bloco existem para evitar.
+function BlocoMandatosVencendo() {
+  const [dias, setDias] = useState(90)
+  const { data: vencendo, isLoading } = useQuery({
+    queryKey: ['mandatos-vencendo', dias],
+    queryFn: () => listarMandatosVencendo(dias),
+  })
+  const { data: associados } = useQuery({
+    queryKey: ['associados'],
+    queryFn: listarAssociados,
+  })
+  const { data: cargos } = useQuery({
+    queryKey: ['opcoes-catalogo', 'titulo_cargo'],
+    queryFn: () => listarOpcoesCatalogo('titulo_cargo'),
+  })
+  const nomesPorId = new Map(
+    (associados ?? []).map((a) => [a.id_associado, a.nome_completo]),
+  )
+  const rotuloCargo = new Map((cargos ?? []).map((o) => [o.codigo, o.rotulo]))
+
+  return (
+    <section className="mb-6 rounded-xl border border-border bg-card p-6">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="font-semibold">Mandatos vencendo</h2>
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          Nos próximos
+          <select
+            value={dias}
+            onChange={(e) => setDias(Number(e.target.value))}
+            aria-label="Janela de vencimento dos mandatos"
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value={30}>30 dias</option>
+            <option value={60}>60 dias</option>
+            <option value={90}>90 dias</option>
+            <option value={180}>180 dias</option>
+            <option value={365}>365 dias</option>
+          </select>
+        </label>
+      </div>
+      <div className="v3-space-y-2">
+        {(vencendo ?? []).map((m) => (
+          <div
+            key={m.id_mandato}
+            className="flex items-center justify-between rounded-md border border-border p-3 text-sm"
+          >
+            <span>
+              <span className="font-medium">
+                {nomesPorId.get(m.id_associado) ??
+                  `Associado #${m.id_associado}`}
+              </span>{' '}
+              · {rotuloCargo.get(m.cargo_codigo) ?? m.cargo_codigo} · fim em{' '}
+              {formatarDia(m.data_fim_previsto)}
+            </span>
+            <span
+              className={
+                m.dias_restantes <= 30
+                  ? 'font-medium text-destructive'
+                  : 'font-medium text-amber-600'
+              }
+            >
+              {m.dias_restantes === 0
+                ? 'Hoje'
+                : `Em ${m.dias_restantes} dia(s)`}
+            </span>
+          </div>
+        ))}
+        {isLoading && (
+          <p className="text-sm text-muted-foreground">Carregando…</p>
+        )}
+        {!isLoading && (vencendo ?? []).length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Nenhum mandato vence nos próximos {dias} dias.
           </p>
         )}
       </div>
@@ -340,7 +435,7 @@ function BlocoConflitoInteresse() {
   const [mostrarForm, setMostrarForm] = useState(false)
   const queryClient = useQueryClient()
 
-  const { data: declaracoes } = useQuery({
+  const { data: declaracoes, isLoading: carregandoDeclaracoes } = useQuery({
     queryKey: ['conflitos-interesse'],
     queryFn: () => listarConflitosInteresse(),
   })
@@ -418,6 +513,12 @@ function BlocoConflitoInteresse() {
         </FormShell>
       )}
 
+      {encerrar.isError && (
+        <p role="alert" className="mb-2 text-sm text-destructive">
+          {(encerrar.error as Error).message}
+        </p>
+      )}
+
       <div className="v3-space-y-2">
         {(declaracoes ?? []).map((d) => (
           <div
@@ -446,7 +547,10 @@ function BlocoConflitoInteresse() {
             </p>
           </div>
         ))}
-        {(declaracoes ?? []).length === 0 && (
+        {carregandoDeclaracoes && (
+          <p className="text-sm text-muted-foreground">Carregando…</p>
+        )}
+        {!carregandoDeclaracoes && (declaracoes ?? []).length === 0 && (
           <p className="text-sm text-muted-foreground">
             Nenhuma declaração ativa.
           </p>
@@ -467,6 +571,7 @@ export function MandatosPage() {
           { rotulo: 'Mandatos' },
         ]}
       />
+      <BlocoMandatosVencendo />
       <BlocoMandatos />
       <BlocoConflitoInteresse />
     </>

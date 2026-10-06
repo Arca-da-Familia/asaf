@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import {
   abrirProcessoDisciplinar,
+  ApiError,
   apresentarDefesa,
   decidirProcessoDisciplinar,
   homologarEliminacao,
@@ -50,7 +51,7 @@ export function ProcessosDisciplinaresPage() {
   const [mostrarForm, setMostrarForm] = useState(false)
   const queryClient = useQueryClient()
 
-  const { data: processos } = useQuery({
+  const { data: processos, isLoading: carregando } = useQuery({
     queryKey: ['processos-disciplinares'],
     queryFn: listarProcessosDisciplinares,
   })
@@ -147,6 +148,7 @@ export function ProcessosDisciplinaresPage() {
               <div className="sm:col-span-2">
                 <textarea
                   {...form.register('descricao')}
+                  aria-label="Fatos que motivam o processo"
                   placeholder="Descreva os fatos que motivam o processo"
                   rows={3}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -189,7 +191,10 @@ export function ProcessosDisciplinaresPage() {
             </p>
           </Link>
         ))}
-        {(processos ?? []).length === 0 && (
+        {carregando && (
+          <p className="text-sm text-muted-foreground">Carregando…</p>
+        )}
+        {!carregando && (processos ?? []).length === 0 && (
           <p className="text-sm text-muted-foreground">
             Nenhum processo disciplinar {podeAbrir ? 'registrado' : 'seu'}{' '}
             ainda.
@@ -257,6 +262,7 @@ function BlocoManifestacoes({ idProcesso }: { idProcesso: number }) {
           <>
             <select
               {...form.register('pena_proposta')}
+              aria-label="Pena proposta"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="">Propor arquivamento (sem pena)</option>
@@ -268,6 +274,7 @@ function BlocoManifestacoes({ idProcesso }: { idProcesso: number }) {
             </select>
             <input
               {...form.register('justificativa')}
+              aria-label="Justificativa da manifestação (opcional)"
               placeholder="Justificativa (opcional)"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             />
@@ -288,9 +295,15 @@ export function ProcessoDisciplinarDetalhePage() {
   const podeGerir = me?.permissoes.includes('governanca') ?? false
   const queryClient = useQueryClient()
 
-  const { data: processo, isLoading } = useQuery({
+  const {
+    data: processo,
+    isLoading,
+    error: erroDeLeitura,
+  } = useQuery({
     queryKey: ['processo-disciplinar', idProcesso],
     queryFn: () => obterProcessoDisciplinar(idProcesso),
+    retry: (tentativas, erro) =>
+      !(erro instanceof ApiError && erro.status < 500) && tentativas < 2,
   })
 
   function invalidar() {
@@ -327,11 +340,33 @@ export function ProcessoDisciplinarDetalhePage() {
     onSuccess: invalidar,
   })
 
+  if (erroDeLeitura) {
+    // processo confidencial: quem não é do órgão julgador nem o acusado recebe "não encontrado" (de propósito, nunca 403)
+    return (
+      <>
+        <p role="alert" className="text-sm text-destructive">
+          {(erroDeLeitura as Error).message}
+        </p>
+        <Link
+          to={
+            podeGerir
+              ? '/governanca/disciplina'
+              : '/meus-processos-disciplinares'
+          }
+          className="mt-2 inline-block text-sm text-primary hover:underline"
+        >
+          Voltar aos processos
+        </Link>
+      </>
+    )
+  }
   if (isLoading || !processo) {
     return <p className="text-sm text-muted-foreground">Carregando…</p>
   }
 
   const souOAcusado = me?.id_associado === processo.id_associado
+  // o acusado não participa do julgamento do próprio processo (o servidor também recusa): nem manifestação, nem decisão, nem homologação
+  const podeJulgar = podeGerir && !souOAcusado
   const aberto = processo.status === 'Aberto'
   const aguardandoHomologacao =
     processo.status === 'Aguardando homologação da Assembleia'
@@ -395,6 +430,7 @@ export function ProcessoDisciplinarDetalhePage() {
                 <textarea
                   {...form.register('texto')}
                   rows={4}
+                  aria-label="Sua defesa"
                   placeholder="Apresente sua defesa"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
@@ -408,9 +444,9 @@ export function ProcessoDisciplinarDetalhePage() {
         </section>
       )}
 
-      {podeGerir && aberto && <BlocoManifestacoes idProcesso={idProcesso} />}
+      {podeJulgar && aberto && <BlocoManifestacoes idProcesso={idProcesso} />}
 
-      {podeGerir && aberto && (
+      {podeJulgar && aberto && (
         <section className="mt-4 rounded-xl border border-border bg-card p-6">
           <h2 className="mb-2 font-semibold">Decidir</h2>
           <p className="mb-2 text-xs text-muted-foreground">
@@ -429,6 +465,7 @@ export function ProcessoDisciplinarDetalhePage() {
                 <textarea
                   {...form.register('texto_decisao')}
                   rows={3}
+                  aria-label="Fundamentação da decisão"
                   placeholder="Fundamente a decisão"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
@@ -438,6 +475,7 @@ export function ProcessoDisciplinarDetalhePage() {
                 <input
                   type="number"
                   {...form.register('suspensao_dias')}
+                  aria-label="Dias de suspensão"
                   placeholder="Dias de suspensão (só se a pena for Suspensão - 30 a 365)"
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 />
@@ -452,7 +490,7 @@ export function ProcessoDisciplinarDetalhePage() {
         </section>
       )}
 
-      {podeGerir && aguardandoHomologacao && (
+      {podeJulgar && aguardandoHomologacao && (
         <section className="mt-4 rounded-xl border border-border bg-card p-6">
           <h2 className="mb-2 font-semibold">
             Homologar eliminação (Art. 17, Parágrafo Único)
@@ -467,6 +505,7 @@ export function ProcessoDisciplinarDetalhePage() {
               <>
                 <select
                   {...form.register('aprovado')}
+                  aria-label="Decisão da assembleia"
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
                   <option value="sim">Aprovar eliminação</option>
@@ -474,6 +513,7 @@ export function ProcessoDisciplinarDetalhePage() {
                 </select>
                 <input
                   {...form.register('justificativa')}
+                  aria-label="Justificativa da homologação"
                   placeholder="Justificativa"
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 />

@@ -68,7 +68,9 @@ import { MeuVoluntariadoPage } from '@/pages/MeuVoluntariado'
 import { MfaSetup } from '@/pages/MfaSetup'
 import { MinhasAssembleiasPage } from '@/pages/MinhasAssembleias'
 import { PerfilPage } from '@/pages/Perfil'
+import { DeliberacoesPendentesPage } from '@/pages/DeliberacoesPendentes'
 import { PeticoesConvocacaoPage } from '@/pages/PeticoesConvocacao'
+import { RegrasDoEstatutoPage } from '@/pages/RegrasDoEstatuto'
 import { PortariaGate } from '@/pages/PortariaGate'
 import { RazaoContabilPage } from '@/pages/RazaoContabil'
 import { SessaoAssembleiaPage } from '@/pages/SessaoAssembleia'
@@ -168,6 +170,14 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Minhas assembleias">
                 <MinhasAssembleiasPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/peticoes-de-convocacao"
+            element={
+              <ErrorBoundary tituloModulo="Petições de convocação">
+                <PeticoesConvocacaoPage />
               </ErrorBoundary>
             }
           />
@@ -491,6 +501,22 @@ function App() {
               element={
                 <ErrorBoundary tituloModulo="Atas">
                   <AtasPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="deliberacoes"
+              element={
+                <ErrorBoundary tituloModulo="Deliberações pendentes">
+                  <DeliberacoesPendentesPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="estatuto"
+              element={
+                <ErrorBoundary tituloModulo="Regras do Estatuto">
+                  <RegrasDoEstatutoPage />
                 </ErrorBoundary>
               }
             />

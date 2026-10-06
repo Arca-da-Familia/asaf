@@ -12,6 +12,7 @@ from app.models.associados import Associado
 from app.models.core import NivelAcesso, Usuario
 from app.models.mandatos import Mandato
 from app.models.pessoas import Pessoa
+from tests.apoio_mandatos import liberar_cargo
 from app.routers import publico
 from app.security import hash_senha
 
@@ -49,6 +50,7 @@ def _dar_posse(client, auth_headers, associado, orgao, cargo, inicio="2026-01-01
     corpo = {"id_associado": associado.id_associado, "orgao_codigo": orgao, "cargo_codigo": cargo, "data_inicio": inicio}
     if fim:
         corpo["data_fim_previsto"] = fim
+    liberar_cargo(client, auth_headers, orgao, cargo)
     r = client.post("/api/mandatos/", headers=auth_headers, json=corpo)
     assert r.status_code == 200, r.text
     return r.json()["id_mandato"]

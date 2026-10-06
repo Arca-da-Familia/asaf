@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { z } from 'zod'
 
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
@@ -16,16 +16,19 @@ import {
   emitirCertidao,
   gerarAta,
   listarAssociados,
+  listarAtas,
   listarCertidoes,
   listarDeliberacoesDaAta,
   obterAssembleia,
+  obterAta,
   obterAtaDaAssembleia,
+  regerarCorpoDaAta,
   retificarAta,
   revogarDeliberacao,
   type Ata,
   type Deliberacao,
 } from '@/lib/api'
-import { formatarData } from '@/lib/datas'
+import { formatarDia } from '@/lib/datas'
 import { baixarArquivoDaApi } from '@/lib/documentos'
 import {
   ataRetificarSchema,
@@ -73,6 +76,11 @@ function BlocoCertidoes({ idDeliberacao }: { idDeliberacao: number }) {
           {emitir.isPending ? 'Emitindo…' : 'Emitir certidão'}
         </Button>
       </div>
+      {emitir.isError && (
+        <p role="alert" className="mt-2 text-sm text-destructive">
+          {(emitir.error as Error).message}
+        </p>
+      )}
       {ultimoTexto && (
         <pre className="mt-2 whitespace-pre-wrap rounded-md bg-muted p-3 text-xs">
           {ultimoTexto}
@@ -89,6 +97,8 @@ function LinhaDeliberacao({ deliberacao }: { deliberacao: Deliberacao }) {
   const [mandato, setMandato] = useState<z.infer<
     typeof mandatoCriarSchema
   > | null>(null)
+  // o painel de conclusão fecha ao concluir; o aviso do que ainda falta fazer (cartório, reforma de estatuto) fica na linha
+  const [pendencia, setPendencia] = useState<string | null>(null)
 
   function invalidar() {
     queryClient.invalidateQueries({
@@ -103,7 +113,10 @@ function LinhaDeliberacao({ deliberacao }: { deliberacao: Deliberacao }) {
         observacao: observacao || undefined,
         mandatos_criar: mandato ? [mandato] : [],
       }),
-    onSuccess: invalidar,
+    onSuccess: (resposta) => {
+      setPendencia(resposta.pendencia ?? null)
+      invalidar()
+    },
   })
   const revogar = useMutation({
     mutationFn: (v: z.infer<typeof deliberacaoRevogarSchema>) =>
@@ -179,14 +192,20 @@ function LinhaDeliberacao({ deliberacao }: { deliberacao: Deliberacao }) {
             {concluir.isPending ? 'Concluindo…' : 'Concluir deliberação'}
           </Button>
           {concluir.isError && (
-            <p className="text-sm text-destructive">
+            <p role="alert" className="text-sm text-destructive">
               {(concluir.error as Error).message}
             </p>
           )}
-          {concluir.data?.pendencia && (
-            <p className="text-sm text-amber-600">{concluir.data.pendencia}</p>
-          )}
         </div>
+      )}
+
+      {pendencia && (
+        <p
+          role="status"
+          className="mt-2 rounded-md border border-amber-600/30 bg-amber-600/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-400"
+        >
+          Falta fazer: {pendencia}
+        </p>
       )}
 
       {aba === 'revogar' && (
@@ -260,6 +279,7 @@ function FormMandato({
       <select
         value={valores.id_associado}
         onChange={(e) => atualizar('id_associado', e.target.value)}
+        aria-label="Eleito"
         className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
       >
         <option value="0">Selecione o eleito…</option>
@@ -273,18 +293,21 @@ function FormMandato({
         <input
           value={valores.orgao_codigo}
           onChange={(e) => atualizar('orgao_codigo', e.target.value)}
+          aria-label="Órgão do mandato"
           placeholder="Órgão (ex.: DIRETORIA_EXECUTIVA)"
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         />
         <input
           value={valores.cargo_codigo}
           onChange={(e) => atualizar('cargo_codigo', e.target.value)}
+          aria-label="Cargo do mandato"
           placeholder="Cargo (ex.: PRESIDENTE)"
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         />
         <input
           type="date"
           value={valores.data_inicio}
+          aria-label="Início do mandato"
           onChange={(e) => atualizar('data_inicio', e.target.value)}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         />
@@ -335,6 +358,7 @@ function BlocoDeliberacoes({ idAta }: { idAta: number }) {
             <>
               <select
                 {...form.register('tipo')}
+                aria-label="Tipo da deliberação"
                 className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
                 <option value="Genérica">Genérica</option>
@@ -344,16 +368,23 @@ function BlocoDeliberacoes({ idAta }: { idAta: number }) {
                 <option value="Dissolução">Dissolução</option>
               </select>
               {form.watch('tipo') === 'Aprovação de contas' && (
-                <input
-                  type="number"
-                  {...form.register('ano_exercicio')}
-                  placeholder="Ano de exercício"
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                />
+                <div>
+                  <input
+                    type="number"
+                    {...form.register('ano_exercicio')}
+                    placeholder="Ano de exercício"
+                    aria-label="Ano de exercício"
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  />
+                  <ErroCampo
+                    mensagem={form.formState.errors.ano_exercicio?.message}
+                  />
+                </div>
               )}
               <textarea
                 {...form.register('texto')}
                 rows={3}
+                aria-label="Texto da deliberação"
                 placeholder="Texto da deliberação"
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
@@ -391,12 +422,20 @@ function BlocoAta({
   const [mostrarRetificar, setMostrarRetificar] = useState(false)
   const emRascunho = ata.status === 'Rascunho'
 
+  const [relatoSalvo, setRelatoSalvo] = useState(false)
   const salvarRelato = useMutation({
     mutationFn: () => atualizarRelatoSecretaria(ata.id_ata, relato),
-    onSuccess: onAtaAtualizada,
+    onSuccess: (nova) => {
+      setRelatoSalvo(true)
+      onAtaAtualizada(nova)
+    },
   })
   const assinar = useMutation({
     mutationFn: () => assinarAta(ata.id_ata),
+    onSuccess: onAtaAtualizada,
+  })
+  const refazerTexto = useMutation({
+    mutationFn: () => regerarCorpoDaAta(ata.id_ata),
     onSuccess: onAtaAtualizada,
   })
   const retificar = useMutation({
@@ -442,13 +481,17 @@ function BlocoAta({
         {ata.corpo_texto}
       </pre>
 
-      <label className="text-sm font-medium">
+      <label htmlFor="relato-da-secretaria" className="text-sm font-medium">
         Relato da secretaria (único texto livre)
       </label>
       <textarea
+        id="relato-da-secretaria"
         value={relato}
         disabled={!emRascunho}
-        onChange={(e) => setRelato(e.target.value)}
+        onChange={(e) => {
+          setRelato(e.target.value)
+          setRelatoSalvo(false)
+        }}
         rows={3}
         className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
       />
@@ -463,6 +506,16 @@ function BlocoAta({
             >
               {salvarRelato.isPending ? 'Salvando…' : 'Salvar relato'}
             </Button>
+            {!ata.id_ata_retificada && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={refazerTexto.isPending}
+                onClick={() => refazerTexto.mutate()}
+              >
+                {refazerTexto.isPending ? 'Atualizando…' : 'Atualizar o texto'}
+              </Button>
+            )}
             <Button
               size="sm"
               disabled={assinar.isPending}
@@ -484,6 +537,20 @@ function BlocoAta({
           </Button>
         )}
       </div>
+
+      {relatoSalvo && (
+        <p role="status" className="mt-2 text-sm text-green-600">
+          Relato salvo.
+        </p>
+      )}
+      {[salvarRelato, assinar, refazerTexto].map(
+        (acao, i) =>
+          acao.isError && (
+            <p key={i} role="alert" className="mt-2 text-sm text-destructive">
+              {(acao.error as Error).message}
+            </p>
+          ),
+      )}
 
       {mostrarRetificar && (
         <FormShell<z.infer<typeof ataRetificarSchema>>
@@ -581,7 +648,7 @@ function BlocoDocumentoAssinado({
               {' '}
               · Protocolo {ata.numero_protocolo_cartorio}
               {ata.data_protocolo_cartorio &&
-                ` em ${formatarData(ata.data_protocolo_cartorio)}`}
+                ` em ${formatarDia(ata.data_protocolo_cartorio)}`}
             </>
           )}
         </p>
@@ -648,35 +715,56 @@ export function AtaAssembleiaPage() {
   const { id } = useParams<{ id: string }>()
   const idAssembleia = Number(id)
   const queryClient = useQueryClient()
+  // `?ata=<id>` abre uma versão específica (a original, depois de uma retificação); sem ele, a mais recente da assembleia
+  const [busca] = useSearchParams()
+  const idAtaEscolhida = Number(busca.get('ata')) || null
 
   const { data: assembleia } = useQuery({
     queryKey: ['assembleia', idAssembleia],
     queryFn: () => obterAssembleia(idAssembleia),
   })
 
-  const { data: ata, isLoading } = useQuery({
-    queryKey: ['ata', idAssembleia],
-    queryFn: () => obterAtaDaAssembleia(idAssembleia),
+  const chaveDaAta = ['ata', idAssembleia, idAtaEscolhida]
+  const {
+    data: ata,
+    isLoading,
+    error: erroDaAta,
+  } = useQuery({
+    queryKey: chaveDaAta,
+    queryFn: () =>
+      idAtaEscolhida
+        ? obterAta(idAtaEscolhida)
+        : obterAtaDaAssembleia(idAssembleia),
     retry: false,
   })
+  const { data: todasAsAtas } = useQuery({
+    queryKey: ['atas'],
+    queryFn: listarAtas,
+  })
+  const versoes = (todasAsAtas ?? [])
+    .filter((a) => a.id_assembleia === idAssembleia)
+    .sort((a, b) => a.id_ata - b.id_ata)
 
   const gerar = useMutation({
     mutationFn: () => gerarAta(idAssembleia),
-    onSuccess: (nova) => queryClient.setQueryData(['ata', idAssembleia], nova),
+    onSuccess: (nova) => {
+      queryClient.setQueryData(chaveDaAta, nova)
+      queryClient.invalidateQueries({ queryKey: ['atas'] })
+    },
   })
 
   function atualizarAtaLocal(nova: Ata) {
-    queryClient.setQueryData(['ata', idAssembleia], nova)
+    queryClient.setQueryData(chaveDaAta, nova)
+    queryClient.invalidateQueries({ queryKey: ['atas'] })
   }
 
   if (!assembleia) {
     return <p className="text-sm text-muted-foreground">Carregando…</p>
   }
 
-  const ataNaoExiste =
-    !ata &&
-    !isLoading &&
-    !(gerar.error instanceof ApiError && gerar.error.status !== 404)
+  // sem ata: a tela oferece gerar. Se a leitura falhou por outro motivo que não "não existe" (servidor fora, sem permissão), mostra o erro
+  const falhouAoLer = erroDaAta instanceof ApiError && erroDaAta.status !== 404
+  const ataNaoExiste = !ata && !isLoading && !falhouAoLer
 
   return (
     <>
@@ -700,9 +788,40 @@ export function AtaAssembleiaPage() {
         </p>
       ) : isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
+      ) : falhouAoLer ? (
+        <p role="alert" className="text-sm text-destructive">
+          {(erroDaAta as Error).message}
+        </p>
       ) : ata ? (
         <>
-          <BlocoAta ata={ata} onAtaAtualizada={atualizarAtaLocal} />
+          {versoes.length > 1 && (
+            <nav
+              aria-label="Versões da ata"
+              className="mb-3 flex flex-wrap items-center gap-2 text-sm"
+            >
+              <span className="text-muted-foreground">Versões:</span>
+              {versoes.map((v) => (
+                <Link
+                  key={v.id_ata}
+                  to={`/governanca/${idAssembleia}/ata?ata=${v.id_ata}`}
+                  aria-current={v.id_ata === ata.id_ata ? 'page' : undefined}
+                  className={
+                    v.id_ata === ata.id_ata
+                      ? 'font-semibold underline'
+                      : 'text-primary hover:underline'
+                  }
+                >
+                  {v.id_ata_retificada ? 'Retificação' : 'Original'} (#
+                  {v.id_ata}, {v.status})
+                </Link>
+              ))}
+            </nav>
+          )}
+          <BlocoAta
+            key={ata.id_ata}
+            ata={ata}
+            onAtaAtualizada={atualizarAtaLocal}
+          />
           <BlocoDeliberacoes idAta={ata.id_ata} />
         </>
       ) : ataNaoExiste ? (
@@ -714,7 +833,7 @@ export function AtaAssembleiaPage() {
             {gerar.isPending ? 'Gerando…' : 'Gerar ata'}
           </Button>
           {gerar.isError && (
-            <p className="mt-2 text-sm text-destructive">
+            <p role="alert" className="mt-2 text-sm text-destructive">
               {(gerar.error as Error).message}
             </p>
           )}

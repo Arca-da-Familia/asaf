@@ -218,3 +218,24 @@ def test_confidencialidade_processo_visivel_so_para_acusado_e_orgao_julgador(cli
 
     r_diretoria = client.get(f"/api/processos-disciplinares/{id_processo}", headers=auth_headers)
     assert r_diretoria.status_code == 200
+
+
+def test_acusado_que_e_diretor_nao_decide_nem_homologa_nem_ve_a_apuracao_do_proprio_processo(client, auth_headers, db):
+    # achado da v5.4d (leitura do código ao escrever o roteiro ao vivo): a manifestação já excluía o acusado, mas decidir, homologar e ver
+    # a apuração só pediam a permissão `governanca`, que o acusado tem quando é diretor.
+    julgadores = _criar_diretoria_para_maioria(db, "Julgador Do Acusado", 3)
+    acusado, usuario_acusado = _criar_diretor(db, "Diretor Acusado De Verdade")
+    id_processo = _abrir_processo(client, auth_headers, acusado.id_associado)
+    client.post(f"/api/processos-disciplinares/{id_processo}/defesa", headers=_headers(usuario_acusado), json={"texto": "Minha defesa sobre os fatos narrados no processo."})
+
+    proprio = _headers(usuario_acusado)
+    r_decidir = client.post(f"/api/processos-disciplinares/{id_processo}/decidir", headers=proprio, json={"texto_decisao": "Decisão em causa própria, que não pode valer."})
+    r_homologar = client.post(f"/api/processos-disciplinares/{id_processo}/homologar", headers=proprio, json={"aprovado": False, "justificativa": "Em causa própria."})
+    r_apuracao = client.get(f"/api/processos-disciplinares/{id_processo}/manifestacoes", headers=proprio)
+    for resposta in (r_decidir, r_homologar, r_apuracao):
+        assert resposta.status_code == 403, resposta.text
+        assert "acusado" in resposta.json()["detail"]
+
+    # quem julga continua julgando
+    _associado, usuario_julgador = julgadores[0]
+    assert client.get(f"/api/processos-disciplinares/{id_processo}/manifestacoes", headers=_headers(usuario_julgador)).status_code == 200

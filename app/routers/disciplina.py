@@ -48,6 +48,14 @@ def _pode_ver(db: Session, usuario, processo: ProcessoDisciplinar) -> bool:
     return bool(associado and associado.id_associado == processo.id_associado)
 
 
+def _exigir_que_nao_seja_o_acusado(db: Session, usuario, processo: ProcessoDisciplinar) -> None:
+    """Quem é acusado não decide, não homologa nem espia a apuração do próprio processo (as penalidades são impostas pelos demais
+    membros da Diretoria Executiva). A manifestação já excluía o acusado (`diretores_aptos`); decidir e homologar não."""
+    associado = _associado_do_usuario(db, usuario)
+    if associado and associado.id_associado == processo.id_associado:
+        raise HTTPException(status_code=403, detail="O acusado não participa do julgamento do próprio processo.")
+
+
 @router.post("/api/processos-disciplinares/", summary="Abrir processo disciplinar (Art. 16)")
 def abrir_processo(dados: ProcessoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_governanca)):
     if not db.query(Associado).filter(Associado.id_associado == dados.id_associado).first():
@@ -137,12 +145,14 @@ def registrar_manifestacao(id_processo: int, dados: ManifestacaoCriar, request: 
 @router.get("/api/processos-disciplinares/{id_processo}/manifestacoes", summary="Ver apuração das manifestações")
 def ver_manifestacoes(id_processo: int, db: Session = Depends(get_db), usuario=Depends(_permissao_governanca)):
     processo = _buscar_processo_visivel_ou_erro(db, id_processo, usuario)
+    _exigir_que_nao_seja_o_acusado(db, usuario, processo)
     return calcular_resultado_colegiado(db, processo)
 
 
 @router.post("/api/processos-disciplinares/{id_processo}/decidir", summary="Fechar o processo com a pena decidida pela maioria")
 def decidir_processo(id_processo: int, dados: DecisaoExecutar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_governanca)):
     processo = _buscar_processo_visivel_ou_erro(db, id_processo, usuario)
+    _exigir_que_nao_seja_o_acusado(db, usuario, processo)
     if processo.status != ABERTO:
         raise HTTPException(status_code=400, detail=f"Processo está '{processo.status}', não está aberto pra decisão.")
     if not pode_julgar_agora(processo):
@@ -167,6 +177,7 @@ def decidir_processo(id_processo: int, dados: DecisaoExecutar, request: Request,
 @router.post("/api/processos-disciplinares/{id_processo}/homologar", summary="Homologar (ou recusar) eliminação pela Assembleia (Art. 17, Parágrafo Único)")
 def homologar_eliminacao(id_processo: int, dados: HomologarRequest, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_governanca)):
     processo = _buscar_processo_visivel_ou_erro(db, id_processo, usuario)
+    _exigir_que_nao_seja_o_acusado(db, usuario, processo)
     if processo.status != AGUARDANDO_HOMOLOGACAO:
         raise HTTPException(status_code=400, detail=f"Processo está '{processo.status}', não está aguardando homologação.")
 

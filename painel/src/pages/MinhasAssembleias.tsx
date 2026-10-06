@@ -45,9 +45,11 @@ function CardAssembleia({ assembleia }: { assembleia: MinhaAssembleia }) {
     onSuccess: invalidar,
   })
 
+  // quem tem a falta justificada e aceita mas chegou à sessão também bate presença (o servidor deixa): só quem já está presente não
   const podeBaterPresenca =
     assembleia.status === 'Em andamento' &&
-    assembleia.status_presenca === 'Pendente'
+    (assembleia.status_presenca === 'Pendente' ||
+      assembleia.status_presenca === 'Falta justificada')
   const podeJustificar =
     (assembleia.status === 'Convocada' ||
       assembleia.status === 'Em andamento') &&

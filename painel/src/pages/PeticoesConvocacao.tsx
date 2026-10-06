@@ -14,13 +14,20 @@ import {
   type PeticaoConvocacao,
 } from '@/lib/api'
 import { peticaoCriarSchema } from '@/lib/schemas'
+import { useMe } from '@/lib/use-me'
 import { z } from 'zod'
 
 // v2.5.2 (FASE 2.5 - Painel) - petição de convocação (Art. 8º/10 do estatuto, Art. 60 do Código
 // Civil): qualquer associado pode propor e aderir, sem exigir a permissão `governanca` - é
 // direito do quadro social, não uma função da diretoria. Aderir/propor usam o próprio usuário
 // logado (o backend resolve o associado a partir do token); não há "aderir em nome de outro".
-function CardPeticao({ peticao }: { peticao: PeticaoConvocacao }) {
+function CardPeticao({
+  peticao,
+  podeConverter,
+}: {
+  peticao: PeticaoConvocacao
+  podeConverter: boolean
+}) {
   const queryClient = useQueryClient()
   const aderir = useMutation({
     mutationFn: () => aderirPeticao(peticao.id_peticao),
@@ -62,12 +69,17 @@ function CardPeticao({ peticao }: { peticao: PeticaoConvocacao }) {
             {aderir.isPending ? 'Aderindo…' : 'Aderir a esta petição'}
           </Button>
         )}
-        {peticao.status === 'Quórum atingido' && (
+        {peticao.status === 'Quórum atingido' && podeConverter && (
           <Button asChild size="sm">
             <Link to={`/governanca/nova?peticao=${peticao.id_peticao}`}>
               Converter em assembleia
             </Link>
           </Button>
+        )}
+        {peticao.status === 'Quórum atingido' && !podeConverter && (
+          <p className="text-sm text-muted-foreground">
+            Quórum atingido: a Diretoria convoca a assembleia (Art. 10).
+          </p>
         )}
       </div>
       {aderir.isError && (
@@ -82,6 +94,9 @@ function CardPeticao({ peticao }: { peticao: PeticaoConvocacao }) {
 export function PeticoesConvocacaoPage() {
   const queryClient = useQueryClient()
   const [mostrarForm, setMostrarForm] = useState(false)
+  // a tela é do quadro social (qualquer associado propõe e adere); só a Diretoria vê o caminho de Governança e converte em assembleia
+  const { data: me } = useMe()
+  const ehDiretoria = me?.permissoes.includes('governanca') ?? false
 
   const { data: peticoes, isLoading } = useQuery({
     queryKey: ['peticoes'],
@@ -104,10 +119,14 @@ export function PeticoesConvocacaoPage() {
       <PageHeader
         titulo="Petições de convocação"
         descricao="Convocação de assembleia por 1/5 dos associados ativos (Art. 8º/10)."
-        trilha={[
-          { rotulo: 'Governança', href: '/governanca' },
-          { rotulo: 'Petições de convocação' },
-        ]}
+        trilha={
+          ehDiretoria
+            ? [
+                { rotulo: 'Governança', href: '/governanca' },
+                { rotulo: 'Petições de convocação' },
+              ]
+            : [{ rotulo: 'Petições de convocação' }]
+        }
         acoes={
           <Button variant="outline" onClick={() => setMostrarForm((v) => !v)}>
             {mostrarForm ? 'Cancelar' : 'Propor petição'}
@@ -125,10 +144,14 @@ export function PeticoesConvocacaoPage() {
             {(form) => (
               <>
                 <div>
-                  <label className="text-sm font-medium">
+                  <label
+                    htmlFor="pauta-proposta"
+                    className="text-sm font-medium"
+                  >
                     Pauta proposta *
                   </label>
                   <textarea
+                    id="pauta-proposta"
                     {...form.register('pauta_proposta')}
                     rows={3}
                     className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -157,7 +180,11 @@ export function PeticoesConvocacaoPage() {
       ) : (
         <div className="grid gap-4">
           {dados.map((p) => (
-            <CardPeticao key={p.id_peticao} peticao={p} />
+            <CardPeticao
+              key={p.id_peticao}
+              peticao={p}
+              podeConverter={ehDiretoria}
+            />
           ))}
         </div>
       )}

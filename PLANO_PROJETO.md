@@ -1490,6 +1490,60 @@ retrabalho que a seção 4.1 existe pra evitar.
       deliberação de "aprovação de contas" **só pode ser criada com o parecer do ano**. Depois: **disciplina** (abrir, defesa,
       decisão), **dissolução** (art. 61 do Código Civil: só simulada — nada irreversível) e **calendário institucional**.
 - [ ] Lista de **achados** corrigidos e refeitos; prints.
+- [ ] **Achados da conferência ao vivo (2026-10-06, em andamento).** Os roteiros `painel/e2e-hml/v5.4d-0*.spec.ts` (assembleia de ponta a
+      ponta, mandatos, ata/petições/minhas assembleias, Conselho Fiscal/disciplina/dissolução/calendário) e a leitura do código que eles
+      provocaram acharam o que segue. **[provado]** = corrigido e refeito ao vivo na homologação; **[corrigido]** = corrigido com teste,
+      falta refazer ao vivo no próximo ciclo; **[aberto]** = fica registrado com o motivo.
+      1. **[provado]** chamada da sessão: quem registrava saída **não tinha como voltar** ("já foi credenciado") e a tela o continuava listando
+         em "Presentes (1)" enquanto o quórum dizia 0 / 44. Agora a volta reabre o mesmo credenciamento (auditada como REENTRADA), e a tela separa
+         "Presentes" de "Saíram" com "Registrar retorno".
+      2. **[provado]** `votar` só conferia a lista de habilitados: quem nunca fez a chamada, ou já tinha saído, **votava**. Agora exige estar
+         presente (credenciado e sem saída, o mesmo critério do quórum).
+      3. **[provado]** a recusa do servidor aparecia **duas vezes** em 70 formulários (o formulário já a mostra e a tela repetia). Removidos
+         os 70 blocos; trava permanente em `painel/src/test/erro-duplicado.test.ts` (por componente).
+      4. **[corrigido]** **regra do estatuto sem validação**: o servidor aceitava qualquer texto como quórum, e "abc" ou "2/0" derrubaria a
+         apuração de quórum (e a abertura de toda votação) até alguém reformar de novo. Agora recusa por tipo (fração, número, sim/nao, meses da
+         AGO) antes de virar a regra vigente.
+      5. **[corrigido]** **dois Presidentes ao mesmo tempo**: o servidor dava posse a quantos pedissem no mesmo cargo, e as permissões do cargo
+         somavam. Agora: um titular por cargo (Art. 19) e três conselheiros fiscais (Art. 24, parâmetro `VAGAS_CONSELHO_FISCAL`), com a vacância
+         liberando a vaga no mesmo instante e o sucessor podendo tomar posse quando o mandato acaba. Posse em 29/02 que caía em ano não bissexto
+         dava erro 500.
+      6. **[corrigido]** **ninguém conseguia emitir parecer do Conselho Fiscal pela tela**: só o *nível* contava, não o cargo em mandato; sem
+         parecer, a deliberação de "aprovação de contas" nunca podia ser criada. Agora vale também o mandato vigente no órgão (nunca no "ver como").
+      7. **[corrigido]** o **acusado que é diretor** podia decidir, homologar e ver a apuração do próprio processo disciplinar; e via os botões.
+      8. **[corrigido, segurança]** a lista e o detalhe dos **processos de dissolução** (com o motivo) eram legíveis por **qualquer usuário
+         logado**; agora exigem `governanca`.
+      9. **[corrigido]** calendário: reunião das 22h30 em Belém aparecia no **dia seguinte** (o dia vinha de UTC; agora vem do fuso da associação,
+         `FUSO_HORARIO`); fim antes do início era aceito; data passada era aceita e nunca aparecia; **não havia como remover** um evento (agora há,
+         com confirmação e na Auditoria).
+      10. **[corrigido]** mandatos: datas só-dia apareciam um dia antes em Belém (15/01 → 14/01); o aviso de vacância sem substituto (Art. 26) **nunca
+          aparecia** (o bloco fechava antes); mensagem de erro repetida; "Carregando…" aparecendo como "nenhum mandato"; o alerta
+          `/api/mandatos/vencendo` não tinha tela (agora há "Mandatos vencendo").
+      11. **[corrigido]** ata: o que falta fazer depois de concluir uma deliberação (cartório, reforma de estatuto) **sumia** com o painel; erro do
+          ano em "aprovação de contas" não aparecia; "Gerar ata" recusado deixava a **página em branco**; data de protocolo um dia antes; depois
+          de **retificar**, a tela mostrava uma das duas atas ao acaso (agora a mais recente, com as versões navegáveis e `?ata=`); **certidão** saía
+          de deliberação pendente ou revogada; o texto do rascunho nunca refletia presença corrigida depois (novo "Atualizar o texto").
+      12. **[corrigido]** justificativa de falta: rejeitar sem dizer o motivo (o associado não sabia por quê); justificar estando presente;
+          "Lançar em nome" oferecido com a assembleia já encerrada (o servidor sempre recusa); quem teve a falta justificada e compareceu não
+          conseguia bater presença.
+      13. **[corrigido]** petição de convocação: a tela diz que qualquer associado propõe e adere, mas a rota ficava dentro de Governança (associado
+          comum caía em "acesso negado"). Agora há a rota `/peticoes-de-convocacao` e o item no menu de todos.
+      14. **[corrigido]** telas que faltavam (rotas do servidor desde a v2.x sem nenhuma tela): **Regras do Estatuto** (lista, histórico e reforma,
+          com validação e confirmação), **Deliberações pendentes** (cross-assembleia) e **Mandatos vencendo**. As três rotas genéricas
+          `/api/agenda/*` (sem uso humano; o motor continua nos serviços de espaços) foram **removidas**.
+      15. **[corrigido]** dissolução: cancelar, destinar o patrimônio e a baixa cadastral agora pedem confirmação; erros de campo não
+          apareciam; processo inexistente deixava "Carregando…" para sempre (o mesmo em disciplina). Campos sem nome para leitor de tela em
+          disciplina, dissolução, Conselho Fiscal, ata, eleição e calendário ganharam `aria-label`. O seletor de tamanho de página da Auditoria
+          mostrava "10 / página" com 25 linhas.
+      16. **[aberto]** a dissolução **não tem modo simulado** (o plano pedia "só simulada"): as etapas são reais, agora com confirmação e na
+          Auditoria. Os parâmetros `QUORUM_DISSOLUICAO_*` existem no estatuto mas **nenhum código os lê**. Decidir com o presidente.
+      17. **[aberto]** o robô não tem login de **conselheiro fiscal** nem de diretores suficientes para o quórum de decisão da disciplina (só
+          Presidente, Secretário e Tesoureiro): parecer, questionamento e decisão só são provados pela recusa. Ampliar o roteiro de
+          `popular_homologacao.py` (com as senhas no cofre) na próxima rodada.
+      18. **[aberto]** campos do formulário de **título financeiro** sem nome acessível (`Titulos.tsx`): entra na varredura da v5.4e.
+      19. **[aberto, decisão de produto]** um mesmo associado pode ter vários pareceres do Conselho Fiscal no mesmo ano; questionamento respondido
+          não reabre; `gerar_ata` aceita assembleia ainda "Em andamento" (só a tela exige "Realizada"; o rascunho agora pode ser atualizado);
+          aderente converter petição em assembleia depois do prazo do Art. 10 vive numa rota de Governança.
 
 #### v5.4e — FASE 3 ao vivo: financeiro
 

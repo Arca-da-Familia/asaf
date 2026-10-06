@@ -111,3 +111,17 @@ def test_cancelar_processo_aberto(client, auth_headers):
 
     r_de_novo = client.post(f"/api/processos-dissolucao/{id_processo}/cancelar", headers=auth_headers, json={"motivo": "Tentativa de cancelar duas vezes."})
     assert r_de_novo.status_code == 400
+
+
+def test_listar_e_detalhar_processo_de_dissolucao_exige_governanca(client, auth_headers, db):
+    # achado da v5.4d: qualquer usuário logado (até um associado comum) lia a lista e o motivo de um processo de dissolução.
+    from tests.test_conselho_fiscal import _criar_associado, _headers
+
+    id_processo = _abrir_processo(client, auth_headers)
+    _associado, comum = _criar_associado(db, "Associado Curioso Dissolucao")
+
+    assert client.get("/api/processos-dissolucao/", headers=_headers(comum)).status_code == 403
+    assert client.get(f"/api/processos-dissolucao/{id_processo}", headers=_headers(comum)).status_code == 403
+    assert client.get("/api/processos-dissolucao/").status_code == 401
+    assert client.get("/api/processos-dissolucao/", headers=auth_headers).status_code == 200
+    assert client.get(f"/api/processos-dissolucao/{id_processo}", headers=auth_headers).status_code == 200

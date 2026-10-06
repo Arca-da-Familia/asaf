@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.schemas.motores import (
-    CompromissoAgendaCriar,
     DocumentoEmitir,
     IndicadorCriar,
     InscricaoAlterarStatus,
@@ -17,10 +16,9 @@ from app.schemas.motores import (
     MedicaoIndicadorCriar,
     RegistrarEntradaCriar,
     TemplateDocumentoCriar,
-    VerificarConflitoRequest,
 )
 from app.security import exigir_permissao
-from app.services import agenda, documentos, indicadores, inscricao, presenca
+from app.services import documentos, indicadores, inscricao, presenca
 
 router = APIRouter()
 _permissao_projetos = exigir_permissao("projetos")
@@ -232,45 +230,4 @@ def listar_medicoes_endpoint(id_indicador: int, db: Session = Depends(get_db), _
     return [
         {"id_medicao": m.id_medicao, "valor": m.valor, "periodo": m.periodo, "fonte": m.fonte, "medido_em": m.medido_em}
         for m in indicadores.listar_medicoes(db, id_indicador=id_indicador)
-    ]
-
-
-# ==========================================
-# MOTOR DE AGENDA/CONFLITO
-# ==========================================
-@router.post("/api/agenda/verificar-conflito", summary="Verificar conflito de horário (motor de agenda) - só leitura, não reserva")
-def verificar_conflito_endpoint(dados: VerificarConflitoRequest, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
-    conflitos = agenda.verificar_conflito(
-        db, recurso_tipo=dados.recurso_tipo, id_recurso=dados.id_recurso, data_hora_inicio=dados.data_hora_inicio,
-        data_hora_fim=dados.data_hora_fim, excluir_id_compromisso=dados.excluir_id_compromisso,
-    )
-    return {
-        "tem_conflito": len(conflitos) > 0,
-        "compromissos_conflitantes": [{"id_compromisso": c.id_compromisso, "contexto_tipo": c.contexto_tipo, "id_contexto": c.id_contexto} for c in conflitos],
-    }
-
-
-@router.post("/api/agenda/compromissos", summary="Criar Compromisso de Agenda (recusa se houver conflito)")
-def criar_compromisso_endpoint(dados: CompromissoAgendaCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
-    compromisso = agenda.criar_compromisso(
-        db, recurso_tipo=dados.recurso_tipo, id_recurso=dados.id_recurso, contexto_tipo=dados.contexto_tipo,
-        id_contexto=dados.id_contexto, data_hora_inicio=dados.data_hora_inicio, data_hora_fim=dados.data_hora_fim,
-        id_usuario=usuario.id_usuario,
-    )
-    registrar_auditoria(
-        db, usuario, "compromissos_agenda", "CREATE", id_registro_afetado=compromisso.id_compromisso,
-        dados_depois={"recurso_tipo": compromisso.recurso_tipo, "id_recurso": compromisso.id_recurso},
-        ip_origem=_ip_origem(request),
-    )
-    return {"mensagem": "Compromisso registrado.", "id_compromisso": compromisso.id_compromisso}
-
-
-@router.get("/api/agenda/compromissos", summary="Listar Compromissos de um Recurso")
-def listar_compromissos_endpoint(recurso_tipo: str, id_recurso: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
-    return [
-        {
-            "id_compromisso": c.id_compromisso, "contexto_tipo": c.contexto_tipo, "id_contexto": c.id_contexto,
-            "data_hora_inicio": c.data_hora_inicio, "data_hora_fim": c.data_hora_fim,
-        }
-        for c in agenda.listar_compromissos(db, recurso_tipo=recurso_tipo, id_recurso=id_recurso)
     ]

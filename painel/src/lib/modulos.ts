@@ -17,9 +17,11 @@ import {
   Handshake,
   HeartHandshake,
   Landmark,
+  ListChecks,
   MessageCircleQuestion,
   PartyPopper,
   Receipt,
+  Scale,
   ScrollText,
   ShieldAlert,
   ShieldCheck,
@@ -243,9 +245,19 @@ export const modulos: Modulo[] = [
         icone: FileText,
       },
       {
+        rota: '/governanca/deliberacoes',
+        rotulo: 'Deliberações pendentes',
+        icone: ListChecks,
+      },
+      {
         rota: '/governanca/mandatos',
         rotulo: 'Mandatos',
         icone: UserCheck,
+      },
+      {
+        rota: '/governanca/estatuto',
+        rotulo: 'Regras do Estatuto',
+        icone: Scale,
       },
       {
         rota: '/governanca/disciplina',

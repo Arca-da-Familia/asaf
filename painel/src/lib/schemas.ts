@@ -136,7 +136,10 @@ export const peticaoCriarSchema = z.object({
 // Usado pelo painel da sessão (pages/SessaoAssembleia.tsx, v2.5.2) - credenciamento por busca
 // manual do associado (o QR da carteirinha é outro caminho do mesmo endpoint, sem tela ainda).
 export const credenciarSchema = z.object({
-  id_associado: z.coerce.number().int({ message: 'Selecione um associado.' }),
+  id_associado: z.coerce
+    .number()
+    .int({ message: 'Selecione um associado.' })
+    .min(1, 'Selecione um associado.'),
   modalidade: z.enum(['Presencial', 'Remoto']),
 })
 
@@ -190,7 +193,10 @@ export const baterPresencaSchema = z.object({
 })
 
 export const credenciamentoManualSchema = z.object({
-  id_associado: z.coerce.number().int({ message: 'Selecione um associado.' }),
+  id_associado: z.coerce
+    .number()
+    .int({ message: 'Selecione um associado.' })
+    .min(1, 'Selecione um associado.'),
   modalidade: z.enum(['Presencial', 'Remoto']),
 })
 
@@ -202,7 +208,10 @@ export const justificativaCriarSchema = z.object({
 // a permissão `governanca` chama esse caminho (o backend também exige).
 export const justificativaManualSchema = z.object({
   motivo: z.string().min(5, 'Descreva o motivo da justificativa.'),
-  id_associado: z.coerce.number().int({ message: 'Selecione um associado.' }),
+  id_associado: z.coerce
+    .number()
+    .int({ message: 'Selecione um associado.' })
+    .min(1, 'Selecione um associado.'),
 })
 
 // Usado por "Ata" (pages/Ata.tsx, v2.5.4) - relato_secretaria é o único texto livre da ata,
@@ -241,9 +250,12 @@ export const deliberacaoConcluirSchema = z.object({
 // (pages/Mandatos.tsx, v2.5.5) - `data_fim_previsto`/`ato_origem` ficam de fora do fluxo da
 // Eleição de propósito (o backend deriva o fim a partir de `DURACAO_MANDATO_ANOS` quando omitido).
 export const mandatoCriarSchema = z.object({
-  id_associado: z.coerce.number().int({ message: 'Selecione um associado.' }),
-  orgao_codigo: z.string().min(1, 'Informe o código do órgão.'),
-  cargo_codigo: z.string().min(1, 'Informe o código do cargo.'),
+  id_associado: z.coerce
+    .number()
+    .int({ message: 'Selecione um associado.' })
+    .min(1, 'Selecione um associado.'),
+  orgao_codigo: z.string().min(1, 'Selecione o órgão.'),
+  cargo_codigo: z.string().min(1, 'Selecione o cargo.'),
   data_inicio: z.string().min(1, 'Informe a data de início.'),
   data_fim_previsto: z.string().optional(),
   ato_origem: z.string().optional(),
@@ -258,7 +270,10 @@ export const mandatoEncerrarSchema = z.object({
 
 // Usado por "Declarar conflito de interesse" (pages/Mandatos.tsx, v2.5.5).
 export const declaracaoConflitoCriarSchema = z.object({
-  id_associado: z.coerce.number().int({ message: 'Selecione um associado.' }),
+  id_associado: z.coerce
+    .number()
+    .int({ message: 'Selecione um associado.' })
+    .min(1, 'Selecione um associado.'),
   descricao: z.string().min(3, 'Descreva o conflito de interesse.'),
 })
 
@@ -284,7 +299,10 @@ export const respostaQuestionamentoSchema = z.object({
 // Usado por "Abrir processo" (pages/Disciplina.tsx, v2.5.6) - `motivo_codigo` vem do catálogo
 // `motivo_processo_disciplinar` (Art. 16, §1º), nunca texto livre.
 export const processoDisciplinarCriarSchema = z.object({
-  id_associado: z.coerce.number().int({ message: 'Selecione um associado.' }),
+  id_associado: z.coerce
+    .number()
+    .int({ message: 'Selecione um associado.' })
+    .min(1, 'Selecione um associado.'),
   motivo_codigo: z.string().min(1, 'Selecione o motivo.'),
   descricao: z.string().min(10, 'Descreva os fatos que motivam o processo.'),
 })
@@ -321,9 +339,12 @@ export const processoDissolucaoCriarSchema = z.object({
 })
 
 export const deliberarDissolucaoSchema = z.object({
-  id_deliberacao: z.coerce.number().int({
-    message: 'Informe o nº da deliberação de dissolução já concluída.',
-  }),
+  id_deliberacao: z.coerce
+    .number()
+    .int({
+      message: 'Informe o nº da deliberação de dissolução já concluída.',
+    })
+    .min(1, 'Informe o nº da deliberação de dissolução já concluída.'),
 })
 
 export const liquidacaoConcluirSchema = z.object({

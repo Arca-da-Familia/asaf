@@ -19,7 +19,7 @@ const colunas: ColunaTabela<AtaListagem>[] = [
     header: 'Nº',
     cell: ({ row }) => (
       <Link
-        to={`/governanca/${row.original.id_assembleia}/ata`}
+        to={`/governanca/${row.original.id_assembleia}/ata?ata=${row.original.id_ata}`}
         className="font-medium hover:underline"
       >
         {row.original.numero_sequencial ?? '(rascunho)'}

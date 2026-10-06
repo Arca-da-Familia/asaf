@@ -49,6 +49,20 @@ export function paraDataHoraLocalInput(dataHoraUtc: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+// Data só-dia que o servidor guarda como meia-noite sem fuso (fim de mandato, prazo de deliberação, data de protocolo): o dia já é o certo,
+// então NÃO passa pela conversão de instante UTC (que em Belém, UTC-3, mostrava o dia anterior). Usa só os 10 primeiros caracteres (aaaa-mm-dd).
+export function formatarDia(valor: string | null | undefined): string {
+  return valor ? formatarData(valor.slice(0, 10)) : ''
+}
+
+// Vigência de uma regra do estatuto: a de uma regra semeada com a data do registro do estatuto é só um dia (meia-noite), a de uma reforma é o
+// instante em que ela foi feita. Meia-noite exata é tratada como dia; o resto, como instante com hora.
+export function formatarVigencia(valor: string): string {
+  return /T00:00:00(\.0+)?$/.test(valor)
+    ? formatarDia(valor)
+    : formatarData(valor, { comHora: true })
+}
+
 export function formatarData(
   data: Date | string,
   opcoes?: { comHora?: boolean },

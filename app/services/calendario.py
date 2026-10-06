@@ -4,11 +4,13 @@ obrigações estatutárias recorrentes que não têm registro próprio (AGO seme
 eleição quadrienal - Art. 25). É a base tanto para as obrigações de governança quanto para as
 ações/eventos reais que a associação for realizar (ProjetoEvento, FASE 4) - "descobrir em
 dezembro que devia ter feito algo em abril" vale tanto pra assembleia quanto pra projeto."""
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone, tzinfo
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
+from app.config_cache import obter_configuracao
 from app.models.ata import PENDENTE, Deliberacao
 from app.models.calendario import EventoCalendario
 from app.models.governanca import CANCELADA, REALIZADA, Assembleia
@@ -16,6 +18,22 @@ from app.models.mandatos import Mandato
 from app.models.projetos import ProjetoEvento
 from app.services.estatuto import obter_regra_vigente
 from app.services.mandatos import mandatos_vencendo
+
+
+def fuso_da_associacao(db: Session) -> tzinfo:
+    """Fuso configurado (`FUSO_HORARIO`); sem a base de fusos instalada, cai no horário de Brasília (UTC-3, sem horário de verão)."""
+    nome = obter_configuracao(db, "FUSO_HORARIO", "America/Sao_Paulo") or "America/Sao_Paulo"
+    try:
+        return ZoneInfo(nome)
+    except Exception:
+        return timezone(timedelta(hours=-3))
+
+
+def dia_local(instante: datetime, fuso: tzinfo) -> date:
+    """Os instantes (início de assembleia, de evento) ficam gravados em UTC sem fuso; o DIA que a associação vê é o do fuso dela: uma reunião
+    às 22h30 em Belém é 01h30 UTC do dia seguinte, e o calendário não pode mostrá-la no dia errado. Datas só-dia (fim de mandato, prazo)
+    NÃO passam por aqui: já são o dia certo."""
+    return instante.replace(tzinfo=timezone.utc).astimezone(fuso).date()
 
 
 def _janela_quinzena(ano: int, mes: int) -> tuple[date, date]:
@@ -74,7 +92,8 @@ def proxima_eleicao(db: Session, hoje: date) -> Optional[dict]:
 
 
 def montar_calendario(db: Session, dias_antecedencia: int = 90) -> list[dict]:
-    hoje = datetime.utcnow().date()
+    fuso = fuso_da_associacao(db)
+    hoje = dia_local(datetime.utcnow(), fuso)
     limite = hoje + timedelta(days=dias_antecedencia)
     itens: list[dict] = []
 
@@ -87,7 +106,7 @@ def montar_calendario(db: Session, dias_antecedencia: int = 90) -> list[dict]:
         itens.append({**eleicao, "dias_restantes": (eleicao["data"] - hoje).days})
 
     for a in db.query(Assembleia).filter(Assembleia.status.notin_([CANCELADA, REALIZADA])).all():
-        data = a.data_hora_convocacao.date()
+        data = dia_local(a.data_hora_convocacao, fuso)
         if hoje <= data <= limite:
             itens.append({
                 "tipo": "ASSEMBLEIA_CONVOCADA", "titulo": f"Assembleia {a.tipo}: {a.pauta[:60]}",
@@ -118,11 +137,11 @@ def montar_calendario(db: Session, dias_antecedencia: int = 90) -> list[dict]:
             })
 
     for e in db.query(EventoCalendario).filter(EventoCalendario.data_inicio.isnot(None)).all():
-        data = e.data_inicio.date()
+        data = dia_local(e.data_inicio, fuso)
         if hoje <= data <= limite:
             itens.append({
                 "tipo": "EVENTO_INSTITUCIONAL", "titulo": e.titulo, "data": data,
-                "dias_restantes": (data - hoje).days, "artigo_origem": None, "categoria": e.categoria,
+                "dias_restantes": (data - hoje).days, "artigo_origem": None, "categoria": e.categoria, "id_evento": e.id_evento,
             })
 
     itens.sort(key=lambda i: i["data"])

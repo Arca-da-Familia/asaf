@@ -6,6 +6,7 @@ reconstituir a regra vigente numa assembleia antiga) - cache invalidado por escr
 mesma limitação multi-réplica do config_cache, sem o mesmo ganho (regra estatutária muda bem
 menos vezes que configuração geral)."""
 import math
+import re
 from datetime import datetime
 from typing import Optional
 
@@ -53,6 +54,32 @@ def avaliar_quorum_minimo(valor: str, base: int) -> int:
         fracao = int(numerador) / int(denominador)
         return math.ceil(base * fracao) + extra
     return int(fracao_str) + extra
+
+
+_FRACAO = re.compile(r"^(\d+)/(\d+)(?:\+(\d+))?$", re.ASCII)
+
+
+def validar_valor_da_regra(parametro: str, tipo: str, valor: str) -> Optional[str]:
+    """Recusa, ANTES de virar a regra vigente, um valor que quebraria quem o lê: um quórum "abc" ou "2/0" derrubaria a
+    apuração de quórum (e com ela a abertura de qualquer votação) até alguém reformar de novo. Devolve a mensagem de
+    recusa, ou None se o valor serve. Vale pelo `tipo` da regra ("fracao", "numero", "booleano"); "texto" é livre, com a
+    exceção dos meses da AGO, que o calendário lê como lista de 1 a 12."""
+    v = valor.strip()
+    if parametro == "MESES_AGO_ESTATUTARIA":
+        meses = [m.strip() for m in v.split(",")]
+        if not all(m.isascii() and m.isdigit() and 1 <= int(m) <= 12 for m in meses) or len(set(meses)) != len(meses):
+            return "Informe os meses de 1 a 12, separados por vírgula e sem repetir (ex.: 2,8)."
+    elif tipo == "fracao":
+        achado = _FRACAO.match(v.replace(" ", ""))
+        if not achado or int(achado.group(2)) == 0 or not 0 < int(achado.group(1)) <= int(achado.group(2)):
+            return "Informe uma fração como 2/3 (ou 1/2+1, para metade mais um): o numerador de 1 até o denominador, e o denominador maior que zero."
+    elif tipo == "numero":
+        if not (v.isascii() and v.isdigit()) or int(v) < 1:
+            return "Informe um número inteiro maior que zero (ex.: 30)."
+    elif tipo == "booleano":
+        if v.lower() not in {"sim", "nao"}:
+            return "Informe 'sim' ou 'nao'."
+    return None
 
 
 def reformar_regra(

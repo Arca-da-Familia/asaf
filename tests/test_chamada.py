@@ -237,3 +237,33 @@ def test_minhas_assembleias_nao_lista_assembleia_ainda_nao_convocada(client, aut
 
     minhas = client.get("/api/minhas-assembleias", headers=_headers(usuario)).json()
     assert not any(m["id_assembleia"] == id_assembleia for m in minhas)
+
+
+def test_justificativa_recusada_exige_motivo_e_quem_ja_esta_na_sessao_nao_justifica_falta(client, auth_headers, db):
+    # achados da v5.4d (leitura do código): rejeitar sem dizer o motivo, e justificar falta estando presente.
+    _associado, usuario = _criar_associado_com_login(db, "Justifica E Rejeita")
+    _outro, presente = _criar_associado_com_login(db, "Justifica Estando Presente")
+    id_assembleia = _criar_assembleia_convocada(client, auth_headers)
+
+    r = client.post(f"/api/assembleias/{id_assembleia}/justificativas", headers=_headers(usuario), json={"motivo": "Viagem a trabalho já marcada antes da convocação."})
+    assert r.status_code == 200, r.text
+    id_justificativa = r.json()["id_justificativa"]
+
+    sem_motivo = client.post(f"/api/justificativas/{id_justificativa}/decidir", headers=auth_headers, json={"aceitar": False})
+    assert sem_motivo.status_code == 400
+    assert "motivo da rejeição" in sem_motivo.json()["detail"]
+    curto = client.post(f"/api/justificativas/{id_justificativa}/decidir", headers=auth_headers, json={"aceitar": False, "motivo_decisao": "não"})
+    assert curto.status_code == 400
+    ok = client.post(f"/api/justificativas/{id_justificativa}/decidir", headers=auth_headers, json={"aceitar": False, "motivo_decisao": "Sem comprovante da viagem."})
+    assert ok.status_code == 200 and ok.json()["status"] == "Rejeitada"
+    # aceitar continua sem exigir motivo
+    r2 = client.post(f"/api/assembleias/{id_assembleia}/justificativas", headers=auth_headers, json={"motivo": "Internado, atestado em anexo ao processo.", "id_associado": _outro.id_associado})
+    assert r2.status_code == 200, r2.text
+
+    # quem já está na sessão não justifica falta
+    id_assembleia_2 = _abrir_sessao(client, auth_headers, _criar_assembleia_convocada(client, auth_headers))
+    codigo = client.get(f"/api/assembleias/{id_assembleia_2}/codigo-chamada", headers=auth_headers).json()["codigo_chamada"]
+    assert client.post(f"/api/assembleias/{id_assembleia_2}/bater-presenca", headers=_headers(presente), json={"codigo": codigo, "modalidade": "Presencial"}).status_code == 200
+    r_presente = client.post(f"/api/assembleias/{id_assembleia_2}/justificativas", headers=_headers(presente), json={"motivo": "Cheguei mas queria justificar mesmo assim."})
+    assert r_presente.status_code == 400
+    assert "já está na sessão" in r_presente.json()["detail"]

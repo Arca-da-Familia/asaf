@@ -3,7 +3,9 @@ semestral, eleição quadrienal), assembleias convocadas, mandatos vencendo, pra
 e eventos/projetos reais da associação (FASE 4) - tudo com alerta por antecedência configurável,
 pra nunca descobrir em dezembro que devia ter feito algo em abril. Leitura liberada a qualquer
 usuário autenticado; agendar evento institucional exige permissão `governanca`."""
-from fastapi import APIRouter, Depends, Query, Request
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
@@ -11,7 +13,7 @@ from app.database import get_db
 from app.models.calendario import EventoCalendario
 from app.schemas.calendario import EventoCalendarioCriar
 from app.security import exigir_permissao, get_current_user
-from app.services.calendario import montar_calendario
+from app.services.calendario import dia_local, fuso_da_associacao, montar_calendario
 from app.services.catalogos import validar_codigo_em_catalogo
 
 router = APIRouter()
@@ -26,6 +28,10 @@ def obter_calendario(dias_antecedencia: int = Query(90, ge=1, le=730), db: Sessi
 @router.post("/api/eventos-calendario/", summary="Agendar evento institucional (reunião de diretoria/conselho, data institucional etc.)")
 def criar_evento(dados: EventoCalendarioCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_governanca)):
     validar_codigo_em_catalogo(db, "categoria_evento_calendario", dados.categoria, "Categoria de evento")
+    fuso = fuso_da_associacao(db)
+    if dia_local(dados.data_inicio, fuso) < dia_local(datetime.utcnow(), fuso):
+        # o calendário só mostra o que ainda vai acontecer: um evento no passado seria aceito e nunca apareceria
+        raise HTTPException(status_code=400, detail="A data de início já passou: o calendário só mostra o que ainda vai acontecer.")
     evento = EventoCalendario(
         titulo=dados.titulo, descricao=dados.descricao, categoria=dados.categoria,
         data_inicio=dados.data_inicio, data_fim=dados.data_fim, id_usuario_criacao=usuario.id_usuario,
@@ -39,6 +45,21 @@ def criar_evento(dados: EventoCalendarioCriar, request: Request, db: Session = D
         ip_origem=request.client.host if request.client else None,
     )
     return {"id_evento": evento.id_evento, "titulo": evento.titulo, "data_inicio": evento.data_inicio}
+
+
+@router.delete("/api/eventos-calendario/{id_evento}", summary="Remover um evento institucional agendado por engano ou que não vai mais acontecer")
+def remover_evento(id_evento: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_governanca)):
+    evento = db.query(EventoCalendario).filter(EventoCalendario.id_evento == id_evento).first()
+    if not evento:
+        raise HTTPException(status_code=404, detail="Evento não encontrado.")
+    antes = {"titulo": evento.titulo, "categoria": evento.categoria, "data_inicio": evento.data_inicio.isoformat() if evento.data_inicio else None}
+    db.delete(evento)
+    db.commit()
+    registrar_auditoria(
+        db, usuario, "eventos_calendario", "REMOVIDO", id_registro_afetado=id_evento, dados_antes=antes,
+        ip_origem=request.client.host if request.client else None,
+    )
+    return {"mensagem": "Evento removido do calendário."}
 
 
 @router.get("/api/eventos-calendario/", summary="Listar eventos institucionais agendados")

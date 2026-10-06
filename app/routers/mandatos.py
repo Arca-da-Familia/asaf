@@ -1,6 +1,7 @@
 """v2.1 (FASE 2) - Diretoria, Conselho Fiscal e mandatos: quem ocupa qual cargo, vacância e
 declaração de conflito de interesse. Permissão `governanca` (Presidente/Diretoria) para tudo que
 escreve; leitura liberada a qualquer usuário autenticado."""
+import calendar
 from datetime import datetime
 from typing import Optional
 
@@ -15,7 +16,7 @@ from app.models.mandatos import DeclaracaoConflitoInteresse, Mandato
 from app.schemas.mandatos import DeclaracaoConflitoInteresseCriar, MandatoCriar, MandatoEncerrar
 from app.security import exigir_permissao, get_current_user
 from app.services.estatuto import obter_regra_vigente
-from app.services.mandatos import mandatos_vencendo, mandatos_vigentes_do_associado
+from app.services.mandatos import mandatos_que_ocupam_a_vaga, mandatos_vencendo, mandatos_vigentes_do_associado, vagas_do_cargo
 
 router = APIRouter()
 _permissao_governanca = exigir_permissao("governanca")
@@ -55,9 +56,26 @@ def criar_mandato(dados: MandatoCriar, request: Request, db: Session = Depends(g
         data_fim_previsto = datetime.combine(dados.data_fim_previsto, datetime.min.time())
     else:
         anos = int(obter_regra_vigente(db, "DURACAO_MANDATO_ANOS", "4") or "4")
-        data_fim_previsto = datetime(data_inicio.year + anos, data_inicio.month, data_inicio.day)
+        ano_fim = data_inicio.year + anos
+        # posse em 29/02 e fim num ano que não é bissexto: termina em 28/02 (antes dava erro 500)
+        dia_fim = 28 if data_inicio.month == 2 and data_inicio.day == 29 and not calendar.isleap(ano_fim) else data_inicio.day
+        data_fim_previsto = datetime(ano_fim, data_inicio.month, dia_fim)
     if data_fim_previsto <= data_inicio:
         raise HTTPException(status_code=400, detail="Data de fim previsto deve ser depois do início.")
+
+    # Um titular por cargo (Art. 19) e três conselheiros fiscais (Art. 24): sem isso, dois Presidentes somavam as permissões do cargo.
+    ocupantes = mandatos_que_ocupam_a_vaga(db, dados.orgao_codigo, dados.cargo_codigo, data_inicio, data_fim_previsto)
+    if any(m.id_associado == dados.id_associado for m in ocupantes):
+        raise HTTPException(status_code=409, detail="Este associado já tem mandato neste cargo no período.")
+    vagas = vagas_do_cargo(db, dados.orgao_codigo, dados.cargo_codigo)
+    if len(ocupantes) >= vagas:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"O cargo já está ocupado no período ({len(ocupantes)} de {vagas} vaga(s)): encerre o mandato atual "
+                "(renúncia, destituição ou impedimento) antes de dar posse a outra pessoa."
+            ),
+        )
 
     mandato = Mandato(
         id_associado=dados.id_associado, orgao_codigo=dados.orgao_codigo, cargo_codigo=dados.cargo_codigo,

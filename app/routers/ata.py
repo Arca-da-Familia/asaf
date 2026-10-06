@@ -63,7 +63,10 @@ def gerar_ata(id_assembleia: int, request: Request, db: Session = Depends(get_db
     assembleia = db.query(Assembleia).filter(Assembleia.id_assembleia == id_assembleia).first()
     if not assembleia:
         raise HTTPException(status_code=404, detail="Assembleia não encontrada.")
-    if db.query(Ata).filter(Ata.id_assembleia == id_assembleia).first():
+    existente = db.query(Ata).filter(Ata.id_assembleia == id_assembleia).first()
+    if existente:
+        if existente.status == RASCUNHO:
+            raise HTTPException(status_code=400, detail="Esta assembleia já tem ata em rascunho - use \"Atualizar o texto\" para refazer o corpo com os dados da sessão.")
         raise HTTPException(status_code=400, detail="Esta assembleia já tem ata - corrija por retificação, não crie outra.")
 
     ata = Ata(id_assembleia=id_assembleia, corpo_texto=gerar_corpo_ata(db, assembleia), id_usuario_criacao=usuario.id_usuario)
@@ -76,7 +79,8 @@ def gerar_ata(id_assembleia: int, request: Request, db: Session = Depends(get_db
 
 @router.get("/api/assembleias/{id_assembleia}/ata", summary="Detalhar a ata de uma assembleia")
 def obter_ata_da_assembleia(id_assembleia: int, db: Session = Depends(get_db), _usuario=Depends(get_current_user)):
-    ata = db.query(Ata).filter(Ata.id_assembleia == id_assembleia).first()
+    # a mais recente: depois de uma retificação são duas atas na mesma assembleia, e antes não havia ordem (a tela mostrava uma ao acaso)
+    ata = db.query(Ata).filter(Ata.id_assembleia == id_assembleia).order_by(Ata.id_ata.desc()).first()
     if not ata:
         raise HTTPException(status_code=404, detail="Esta assembleia ainda não tem ata gerada.")
     return _serializar_ata(ata)
@@ -92,6 +96,21 @@ def _buscar_ata_ou_404(db: Session, id_ata: int) -> Ata:
 @router.get("/api/atas/{id_ata}", summary="Detalhar ata")
 def detalhar_ata(id_ata: int, db: Session = Depends(get_db), _usuario=Depends(get_current_user)):
     return _serializar_ata(_buscar_ata_ou_404(db, id_ata))
+
+
+@router.post("/api/atas/{id_ata}/regerar-corpo", summary="Refazer o corpo da ata em RASCUNHO com os dados atuais da sessão (presença corrigida depois, por exemplo)")
+def regerar_corpo_da_ata(id_ata: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_governanca)):
+    ata = _buscar_ata_ou_404(db, id_ata)
+    if ata.status != RASCUNHO:
+        raise HTTPException(status_code=400, detail="Ata já travada não muda de texto - corrija por retificação.")
+    if ata.id_ata_retificada:
+        raise HTTPException(status_code=400, detail="O texto de uma retificação é o da ata original - explique a correção no relato da secretaria.")
+    assembleia = db.query(Assembleia).filter(Assembleia.id_assembleia == ata.id_assembleia).first()
+    ata.corpo_texto = gerar_corpo_ata(db, assembleia)
+    db.commit()
+    db.refresh(ata)
+    registrar_auditoria(db, usuario, "atas", "CORPO_REGERADO", id_registro_afetado=ata.id_ata, ip_origem=request.client.host if request.client else None)
+    return _serializar_ata(ata)
 
 
 @router.put("/api/atas/{id_ata}/relato-secretaria", summary="Atualizar o relato da secretaria (único texto livre da ata, só antes de assinar)")
@@ -166,7 +185,7 @@ async def anexar_documento_assinado(
 def retificar_ata(id_ata: int, dados: AtaRetificar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_governanca)):
     original = _buscar_ata_ou_404(db, id_ata)
     if original.status != ASSINADA:
-        raise HTTPException(status_code=400, detail="Só se retifica ata já assinada - ata em rascunho ainda pode virar rascunho de novo (apagar e gerar de novo).")
+        raise HTTPException(status_code=400, detail="Só se retifica ata já assinada - ata em rascunho ainda pode ser atualizada (\"Atualizar o texto\").")
 
     retificacao = Ata(
         id_assembleia=original.id_assembleia, corpo_texto=original.corpo_texto,
@@ -286,6 +305,8 @@ def revogar_deliberacao(id_deliberacao: int, dados: DeliberacaoRevogar, request:
 @router.post("/api/deliberacoes/{id_deliberacao}/certidao", summary="Emitir certidão de deliberação (extrato numerado)")
 def emitir_certidao(id_deliberacao: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_governanca)):
     deliberacao = _buscar_deliberacao_ou_404(db, id_deliberacao)
+    if deliberacao.status_execucao != CONCLUIDA:
+        raise HTTPException(status_code=400, detail=f"Só se emite certidão de deliberação concluída - esta está '{deliberacao.status_execucao}'.")
     numero = proximo_numero_certidao(db)
     texto = (
         f"CERTIDÃO DE DELIBERAÇÃO Nº {numero}\n\n"

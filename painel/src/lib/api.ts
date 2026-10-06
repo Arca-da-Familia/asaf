@@ -1639,6 +1639,15 @@ export function gerarAta(idAssembleia: number): Promise<Ata> {
   return apiFetch(`/api/assembleias/${idAssembleia}/ata`, { method: 'POST' })
 }
 
+export function obterAta(idAta: number): Promise<Ata> {
+  return apiFetch(`/api/atas/${idAta}`)
+}
+
+// Refaz o corpo de uma ata em RASCUNHO com os dados atuais da sessão (presença corrigida depois, por exemplo).
+export function regerarCorpoDaAta(idAta: number): Promise<Ata> {
+  return apiFetch(`/api/atas/${idAta}/regerar-corpo`, { method: 'POST' })
+}
+
 export function obterAtaDaAssembleia(idAssembleia: number): Promise<Ata> {
   return apiFetch(`/api/assembleias/${idAssembleia}/ata`)
 }
@@ -1726,6 +1735,11 @@ export function listarDeliberacoesDaAta(idAta: number): Promise<Deliberacao[]> {
 
 // v3.5 - lista cross-assembleia, usada pra vincular orçamento/reserva de contingência à
 // deliberação que aprovou (nunca "de gaveta", sempre concluída de verdade em assembleia).
+// Painel da diretoria: tudo que a assembleia deliberou e ainda não foi executado, de todas as assembleias.
+export function listarDeliberacoesPendentes(): Promise<Deliberacao[]> {
+  return apiFetch('/api/deliberacoes/pendentes')
+}
+
 export function listarDeliberacoesConcluidas(): Promise<Deliberacao[]> {
   return apiFetch('/api/deliberacoes/concluidas')
 }
@@ -1815,6 +1829,14 @@ export function criarMandato(dados: MandatoCriarInput): Promise<Mandato> {
     method: 'POST',
     body: JSON.stringify(dados),
   })
+}
+
+export type MandatoVencendo = Mandato & { dias_restantes: number }
+
+export function listarMandatosVencendo(
+  dias: number,
+): Promise<MandatoVencendo[]> {
+  return apiFetch(`/api/mandatos/vencendo?dias=${dias}`)
 }
 
 export function encerrarMandato(
@@ -2213,6 +2235,7 @@ export function cancelarProcessoDissolucao(
 // forma se alguém tentar sem ter.
 // ---------------------------------------------------------------------------
 export type ItemCalendario = {
+  id_evento?: number
   tipo: string
   titulo: string
   data: string
@@ -2239,6 +2262,12 @@ export type EventoCalendario = {
 
 export function listarEventosCalendario(): Promise<EventoCalendario[]> {
   return apiFetch('/api/eventos-calendario/')
+}
+
+export function removerEventoCalendario(
+  idEvento: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/eventos-calendario/${idEvento}`, { method: 'DELETE' })
 }
 
 export function criarEventoCalendario(dados: {
@@ -5552,4 +5581,42 @@ export function exportarAssociados(
   return apiFetch(
     `/api/associados/exportar?colunas=${encodeURIComponent(colunas.join(','))}`,
   )
+}
+
+// ---------------------------------------------------------------------------
+// Regras do Estatuto (backend v2.0): os números do estatuto (quórum, prazos, mandato) vivem no banco, com vigência. Reformar fecha a vigência
+// atual e abre outra: nada se apaga.
+export type RegraEstatutaria = {
+  id_regra: number
+  parametro: string
+  valor: string
+  tipo: string
+  categoria: string
+  descricao: string | null
+  artigo_origem: string | null
+  id_documento_estatuto: number | null
+  vigencia_inicio: string
+  vigencia_fim: string | null
+}
+
+export function listarRegrasEstatutarias(): Promise<RegraEstatutaria[]> {
+  return apiFetch('/api/estatuto/regras')
+}
+
+export function historicoDaRegraEstatutaria(
+  parametro: string,
+): Promise<RegraEstatutaria[]> {
+  return apiFetch(
+    `/api/estatuto/regras/${encodeURIComponent(parametro)}/historico`,
+  )
+}
+
+export function reformarRegraEstatutaria(
+  parametro: string,
+  dados: { valor: string; artigo_origem?: string; descricao?: string },
+): Promise<RegraEstatutaria> {
+  return apiFetch(`/api/estatuto/regras/${encodeURIComponent(parametro)}`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  })
 }

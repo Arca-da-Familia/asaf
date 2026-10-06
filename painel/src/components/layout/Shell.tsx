@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Cog,
+  Handshake,
   HeartHandshake,
   House,
   LogOut,
@@ -284,6 +285,17 @@ export function Shell() {
               >
                 <CalendarCheck className="h-5 w-5 shrink-0" />
                 {!collapsed && <span>Minhas assembleias</span>}
+              </NavLink>
+
+              {/* Petição de convocação (Art. 8º/10): direito do quadro social, qualquer associado propõe e adere
+                  (o servidor não pede `governanca`), então também vive fora do módulo Governança. */}
+              <NavLink
+                to="/peticoes-de-convocacao"
+                className={navCls}
+                onClick={() => setMobileOpen(false)}
+              >
+                <Handshake className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>Petições de convocação</span>}
               </NavLink>
 
               {/* v4.4 - mesmo padrão de "Minhas assembleias": autoatendimento do próprio

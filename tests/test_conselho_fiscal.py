@@ -109,3 +109,31 @@ def test_deliberacao_aprovacao_contas_exige_parecer_previo(client, auth_headers,
 
     r_com_parecer = client.post(f"/api/atas/{id_ata}/deliberacoes", headers=auth_headers, json={"tipo": "Aprovação de contas", "texto": "Aprovação das contas do exercício.", "ano_exercicio": 2027})
     assert r_com_parecer.status_code == 200, r_com_parecer.text
+
+
+def test_conselheiro_com_mandato_vigente_no_conselho_emite_parecer_mesmo_sem_nivel_de_conselho(client, auth_headers, db):
+    # achado da v5.4d: só o NÍVEL contava; os três conselheiros eleitos (cargo em mandato, como manda o Art. 24) não conseguiam emitir
+    # parecer, e sem parecer a deliberação de "aprovação de contas" nunca podia ser criada pela tela.
+    from tests.apoio_mandatos import liberar_cargo
+
+    membro, usuario = _criar_associado(db, "Conselheira Pelo Mandato")  # nível "Associado", sem a marca de conselho fiscal
+    corpo = {"ano_exercicio": 2025, "tipo": "Favorável", "texto": "Contas em ordem, sem ressalvas a apontar."}
+    assert client.post("/api/conselho-fiscal/pareceres", headers=_headers(usuario), json=corpo).status_code == 403
+
+    liberar_cargo(client, auth_headers, "CONSELHO_FISCAL", "CONSELHO_FISCAL")
+    r_posse = client.post("/api/mandatos/", headers=auth_headers, json={
+        "id_associado": membro.id_associado, "orgao_codigo": "CONSELHO_FISCAL", "cargo_codigo": "CONSELHO_FISCAL",
+        "data_inicio": datetime.utcnow().date().isoformat(),
+    })
+    assert r_posse.status_code == 200, r_posse.text
+    assert client.post("/api/conselho-fiscal/pareceres", headers=_headers(usuario), json=corpo).status_code == 200
+
+    # em "ver como" vale só o nível visto, nunca o cargo de quem está por trás
+    nivel_associado = db.query(NivelAcesso).filter(NivelAcesso.nome_nivel == "Associado").first()
+    vendo_como = {"Authorization": f"Bearer {criar_access_token(usuario, id_nivel_impersonado=nivel_associado.id_nivel)}"}
+    assert client.post("/api/conselho-fiscal/pareceres", headers=vendo_como, json=corpo).status_code == 403
+
+    # acabou o mandato, acabou o poder
+    client.post(f"/api/mandatos/{r_posse.json()['id_mandato']}/encerrar", headers=auth_headers, json={"motivo": "Renúncia"})
+    db.expire_all()
+    assert client.post("/api/conselho-fiscal/pareceres", headers=_headers(usuario), json=corpo).status_code == 403

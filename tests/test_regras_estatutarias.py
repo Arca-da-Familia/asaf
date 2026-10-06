@@ -4,6 +4,8 @@ FASE 2 (1/3): "mudar o parâmetro muda o comportamento sem deploy", provado cons
 `obter_regra_vigente` antes/depois da reforma e também num instante do passado."""
 from datetime import datetime, timedelta
 
+import pytest
+
 from app.services.estatuto import obter_regra_vigente
 
 
@@ -80,3 +82,54 @@ def test_mudar_parametro_muda_comportamento_sem_deploy(client, auth_headers, db)
     # antiga permanecer sob a regra vigente à época, mesmo depois de uma reforma futura.
     ha_um_ano = datetime.utcnow() - timedelta(days=365)
     assert obter_regra_vigente(db, "PROCURACAO_PERMITIDA", em=ha_um_ano) == "nao"
+
+
+@pytest.mark.parametrize("parametro, valor", [
+    ("QUORUM_1A_CONVOCACAO", "abc"),
+    ("QUORUM_1A_CONVOCACAO", "2/0"),
+    ("QUORUM_1A_CONVOCACAO", "5/3"),
+    ("QUORUM_1A_CONVOCACAO", "0/3"),
+    ("QUORUM_1A_CONVOCACAO", "2/3+"),
+    ("QUORUM_1A_CONVOCACAO", "²/3"),
+    ("DURACAO_MANDATO_ANOS", "0"),
+    ("DURACAO_MANDATO_ANOS", "-1"),
+    ("DURACAO_MANDATO_ANOS", "quatro"),
+    ("DURACAO_MANDATO_ANOS", "4.5"),
+    ("PROCURACAO_PERMITIDA", "talvez"),
+    ("MESES_AGO_ESTATUTARIA", "13"),
+    ("MESES_AGO_ESTATUTARIA", "0,8"),
+    ("MESES_AGO_ESTATUTARIA", "2,2"),
+    ("MESES_AGO_ESTATUTARIA", "fev,ago"),
+])
+def test_valor_que_quebraria_quem_le_a_regra_e_recusado_e_nada_muda(client, auth_headers, db, parametro, valor):
+    # achado da v5.4d ao desenhar a tela de reforma: o servidor aceitava QUALQUER texto, e um quórum "abc" ou "2/0" derrubaria a
+    # apuração de quórum (e a abertura de toda votação) até alguém reformar de novo.
+    antes = client.get(f"/api/estatuto/regras/{parametro}/historico", headers=auth_headers).json()
+    vigente_antes = obter_regra_vigente(db, parametro)
+
+    resposta = client.put(f"/api/estatuto/regras/{parametro}", headers=auth_headers, json={"valor": valor})
+
+    assert resposta.status_code == 422, resposta.text
+    assert resposta.json()["detail"]
+    assert client.get(f"/api/estatuto/regras/{parametro}/historico", headers=auth_headers).json() == antes
+    assert obter_regra_vigente(db, parametro) == vigente_antes
+
+
+@pytest.mark.parametrize("parametro, valor, guardado", [
+    ("QUORUM_3A_CONVOCACAO", "1/4", "1/4"),
+    ("QUORUM_2A_CONVOCACAO", "1/2+1", "1/2+1"),
+    ("QUORUM_1A_CONVOCACAO", "2 / 3", "2/3"),
+    ("DURACAO_MANDATO_ANOS", "4", "4"),
+    ("PROCURACAO_PERMITIDA", "nao", "nao"),
+    ("MESES_AGO_ESTATUTARIA", "2,8", "2,8"),
+    ("MESES_AGO_ESTATUTARIA", "3", "3"),
+    ("REGRA_DESEMPATE", "QUALQUER TEXTO LIVRE", "QUALQUER TEXTO LIVRE"),
+])
+def test_valor_valido_e_aceito_e_vira_a_regra_vigente(client, auth_headers, db, parametro, valor, guardado):
+    original = obter_regra_vigente(db, parametro)
+    try:
+        resposta = client.put(f"/api/estatuto/regras/{parametro}", headers=auth_headers, json={"valor": valor})
+        assert resposta.status_code == 200, resposta.text
+        assert obter_regra_vigente(db, parametro) == guardado
+    finally:
+        client.put(f"/api/estatuto/regras/{parametro}", headers=auth_headers, json={"valor": original})

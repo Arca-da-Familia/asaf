@@ -585,6 +585,8 @@ def seed_regras_estatutarias():
              "descricao": "Fração mínima dos associados ativos com direito de convocar Assembleia Geral por petição (bate com o Art. 60 do Código Civil)."},
             {"parametro": "DURACAO_MANDATO_ANOS", "valor": "4", "tipo": "numero", "artigo_origem": "Art. 25 / Art. 32",
              "descricao": "Duração, em anos, do mandato eletivo dos órgãos de direção da ASAF."},
+            {"parametro": "VAGAS_CONSELHO_FISCAL", "valor": "3", "tipo": "numero", "artigo_origem": "Art. 24",
+             "descricao": "Quantidade de membros do Conselho Fiscal (cada cargo da Diretoria Executiva tem um só titular, Art. 19)."},
             {"parametro": "LIMITE_MANDATOS_CONSECUTIVOS", "valor": "ilimitado", "tipo": "texto", "artigo_origem": "Art. 32",
              "descricao": "Limite de reeleições consecutivas - o estatuto real não impõe trava nenhuma (\"podendo qualquer dos seus membros serem conduzidos para mandatos subsequentes\")."},
             {"parametro": "PROCURACAO_PERMITIDA", "valor": "nao", "tipo": "booleano", "artigo_origem": "Art. 7º",

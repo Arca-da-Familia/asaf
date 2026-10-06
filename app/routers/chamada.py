@@ -123,6 +123,8 @@ def criar_justificativa(id_assembleia: int, dados: JustificativaCriar, request: 
 
     if db.query(JustificativaFalta).filter(JustificativaFalta.id_assembleia == id_assembleia, JustificativaFalta.id_associado == associado.id_associado).first():
         raise HTTPException(status_code=400, detail="Já existe justificativa registrada para este associado nesta assembleia.")
+    if db.query(Credenciamento).filter(Credenciamento.id_assembleia == id_assembleia, Credenciamento.id_associado == associado.id_associado).first():
+        raise HTTPException(status_code=400, detail="Este associado já está na sessão (credenciado): não há falta a justificar.")
 
     justificativa = JustificativaFalta(
         id_assembleia=id_assembleia, id_associado=associado.id_associado, motivo=dados.motivo,
@@ -155,6 +157,9 @@ def decidir_justificativa(id_justificativa: int, dados: JustificativaDecidir, re
     if justificativa.status != PENDENTE:
         raise HTTPException(status_code=400, detail=f"Justificativa já está '{justificativa.status}'.")
 
+    if not dados.aceitar and len((dados.motivo_decisao or "").strip()) < 5:
+        # quem teve a falta recusada precisa saber por quê (ampla defesa: pode reapresentar ou recorrer)
+        raise HTTPException(status_code=400, detail="Informe o motivo da rejeição (ao menos 5 caracteres): o associado precisa saber por que a falta não foi aceita.")
     justificativa.status = ACEITA if dados.aceitar else REJEITADA
     justificativa.motivo_decisao = dados.motivo_decisao
     justificativa.decidido_em = datetime.utcnow()

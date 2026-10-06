@@ -32,9 +32,21 @@ const CORES_STATUS_JUSTIFICATIVA: Record<string, string> = {
 // o fim da sessão (Realizada) - por isso mora aqui, não dentro de Sessão (que só existe com a
 // assembleia "Em andamento"). Lançamento em nome de outro associado (`id_associado` presente)
 // já nasce "Aceita" - é o secretário exercendo a mesma autoridade que teria pra decidir depois.
-function BlocoJustificativas({ idAssembleia }: { idAssembleia: number }) {
+function BlocoJustificativas({
+  idAssembleia,
+  statusAssembleia,
+}: {
+  idAssembleia: number
+  statusAssembleia: string
+}) {
   const queryClient = useQueryClient()
   const [mostrarForm, setMostrarForm] = useState(false)
+  // rejeitar exige dizer o motivo (o associado precisa saber por que a falta não foi aceita): o botão abre o campo, não rejeita direto
+  const [rejeitando, setRejeitando] = useState<number | null>(null)
+  const [motivoRejeicao, setMotivoRejeicao] = useState('')
+  // o servidor só aceita justificativa do edital até o encerramento da sessão
+  const aceitaLancamento =
+    statusAssembleia === 'Convocada' || statusAssembleia === 'Em andamento'
 
   const { data: justificativas } = useQuery({
     queryKey: ['justificativas', idAssembleia],
@@ -66,29 +78,43 @@ function BlocoJustificativas({ idAssembleia }: { idAssembleia: number }) {
     mutationFn: ({
       idJustificativa,
       aceitar,
+      motivo,
     }: {
       idJustificativa: number
       aceitar: boolean
-    }) => decidirJustificativa(idJustificativa, { aceitar }),
-    onSuccess: invalidar,
+      motivo?: string
+    }) =>
+      decidirJustificativa(idJustificativa, {
+        aceitar,
+        motivo_decisao: motivo,
+      }),
+    onSuccess: () => {
+      invalidar()
+      setRejeitando(null)
+      setMotivoRejeicao('')
+    },
   })
 
   return (
     <section className="mt-6 rounded-xl border border-border bg-card p-6">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="font-semibold">Justificativas de falta</h2>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setMostrarForm((v) => !v)}
-        >
-          {mostrarForm ? 'Cancelar' : 'Lançar em nome de associado'}
-        </Button>
+        {aceitaLancamento && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setMostrarForm((v) => !v)}
+          >
+            {mostrarForm ? 'Cancelar' : 'Lançar em nome de associado'}
+          </Button>
+        )}
       </div>
       <p className="mb-4 text-sm text-muted-foreground">
         O próprio associado pode enviar a sua em &quot;Minhas Assembleias&quot;.
         Lançar aqui em nome de outro já registra como aceita (correção do
         secretário, ex.: app falhou).
+        {!aceitaLancamento &&
+          ' Depois do encerramento da sessão não se lança mais justificativa; as pendentes ainda podem ser decididas.'}
       </p>
 
       {mostrarForm && (
@@ -102,6 +128,7 @@ function BlocoJustificativas({ idAssembleia }: { idAssembleia: number }) {
             <>
               <select
                 {...form.register('id_associado')}
+                aria-label="Associado a justificar"
                 className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
                 <option value="0">Selecione o associado…</option>
@@ -113,6 +140,7 @@ function BlocoJustificativas({ idAssembleia }: { idAssembleia: number }) {
               </select>
               <input
                 {...form.register('motivo')}
+                aria-label="Motivo da justificativa"
                 placeholder="Motivo"
                 className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
               />
@@ -123,6 +151,12 @@ function BlocoJustificativas({ idAssembleia }: { idAssembleia: number }) {
             </>
           )}
         </FormShell>
+      )}
+
+      {decidir.isError && (
+        <p role="alert" className="mb-2 text-sm text-destructive">
+          {(decidir.error as Error).message}
+        </p>
       )}
 
       <div className="v3-space-y-2">
@@ -163,16 +197,46 @@ function BlocoJustificativas({ idAssembleia }: { idAssembleia: number }) {
                   variant="outline"
                   size="sm"
                   disabled={decidir.isPending}
-                  onClick={() =>
-                    decidir.mutate({
-                      idJustificativa: j.id_justificativa,
-                      aceitar: false,
-                    })
-                  }
+                  onClick={() => {
+                    setRejeitando((atual) =>
+                      atual === j.id_justificativa ? null : j.id_justificativa,
+                    )
+                    setMotivoRejeicao('')
+                  }}
                 >
                   Rejeitar
                 </Button>
               </div>
+            )}
+            {j.status === 'Pendente' && rejeitando === j.id_justificativa && (
+              <div className="mt-2 flex flex-wrap items-end gap-2">
+                <input
+                  value={motivoRejeicao}
+                  onChange={(e) => setMotivoRejeicao(e.target.value)}
+                  aria-label="Motivo da rejeição"
+                  placeholder="Por que a falta não foi aceita (o associado vai ler)"
+                  className="h-9 min-w-[16rem] flex-1 rounded-md border border-input bg-background px-3 text-sm"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={decidir.isPending}
+                  onClick={() =>
+                    decidir.mutate({
+                      idJustificativa: j.id_justificativa,
+                      aceitar: false,
+                      motivo: motivoRejeicao,
+                    })
+                  }
+                >
+                  Confirmar rejeição
+                </Button>
+              </div>
+            )}
+            {j.motivo_decisao && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Decisão: {j.motivo_decisao}
+              </p>
             )}
           </div>
         ))}
@@ -407,7 +471,10 @@ export function AssembleiaDetalhePage() {
 
       {assembleia.status !== 'Rascunho' &&
         assembleia.status !== 'Cancelada' && (
-          <BlocoJustificativas idAssembleia={idAssembleia} />
+          <BlocoJustificativas
+            idAssembleia={idAssembleia}
+            statusAssembleia={assembleia.status}
+          />
         )}
     </>
   )

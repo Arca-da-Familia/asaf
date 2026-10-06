@@ -68,20 +68,3 @@ class MedicaoIndicadorCriar(BaseModel):
     valor: Decimal
     periodo: str
     fonte: Optional[str] = None
-
-
-class CompromissoAgendaCriar(BaseModel):
-    recurso_tipo: str
-    id_recurso: int
-    contexto_tipo: str
-    id_contexto: int
-    data_hora_inicio: datetime
-    data_hora_fim: datetime
-
-
-class VerificarConflitoRequest(BaseModel):
-    recurso_tipo: str
-    id_recurso: int
-    data_hora_inicio: datetime
-    data_hora_fim: datetime
-    excluir_id_compromisso: Optional[int] = None

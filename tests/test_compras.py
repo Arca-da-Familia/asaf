@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 from tests.test_pessoas import _cpf_unico
 from tests.apoio_auth import cabecalho_admin
+from tests.apoio_mandatos import liberar_cargo
 
 _PAYLOAD_BASE = {
     "email_contato": "x@x.com", "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
@@ -37,6 +38,7 @@ def _criar_usuario_com_mandato(client, auth_headers, cargo_codigo, orgao_codigo=
     assert login.status_code == 200, login.text
     headers_proprios = {"Authorization": f"Bearer {login.json()['access_token']}"}
 
+    liberar_cargo(client, auth_headers, orgao_codigo, cargo_codigo)
     r = client.post("/api/mandatos/", json={
         "id_associado": id_associado, "orgao_codigo": orgao_codigo, "cargo_codigo": cargo_codigo,
         "data_inicio": datetime.utcnow().date().isoformat(),

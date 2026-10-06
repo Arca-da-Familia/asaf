@@ -1,7 +1,7 @@
 """v2.9 (FASE 2) - calendário institucional: obrigações estatutárias recorrentes calculadas
 (AGO semestral Art. 5º/I, eleição quadrienal Art. 25) + agregação de dado real de outros módulos
 (assembleia, mandato, deliberação, projeto/evento) + eventos institucionais genéricos."""
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from app.models.associados import Associado
 from app.models.mandatos import Mandato
@@ -94,3 +94,63 @@ def test_ago_le_meses_de_regra_estatutaria_nao_de_texto_fixo(client, auth_header
 
     r_restaura = client.put("/api/estatuto/regras/MESES_AGO_ESTATUTARIA", headers=auth_headers, json={"valor": "2,8"})
     assert r_restaura.status_code == 200, r_restaura.text
+
+
+def _evento(client, auth_headers, titulo, inicio, fim=None):
+    corpo = {"titulo": titulo, "categoria": "REUNIAO_DIRETORIA", "data_inicio": inicio.strftime(_ISO)}
+    if fim:
+        corpo["data_fim"] = fim.strftime(_ISO)
+    return client.post("/api/eventos-calendario/", headers=auth_headers, json=corpo)
+
+
+def test_evento_da_noite_aparece_no_dia_local_e_nao_no_dia_seguinte_em_utc(client, auth_headers, db):
+    # achado da v5.4d: o calendário tomava o dia em UTC. Uma reunião às 22h30 em Belém (UTC-3) é 01h30 UTC do dia SEGUINTE e aparecia lá.
+    from app.services.calendario import dia_local, fuso_da_associacao
+
+    fuso = fuso_da_associacao(db)
+    dia = dia_local(datetime.utcnow(), fuso) + timedelta(days=5)
+    local_22h30 = datetime(dia.year, dia.month, dia.day, 22, 30, tzinfo=fuso)
+    em_utc = local_22h30.astimezone(timezone.utc).replace(tzinfo=None)
+    assert em_utc.date() == dia + timedelta(days=1), "o caso só prova algo se o instante UTC cai no dia seguinte"
+
+    r = _evento(client, auth_headers, "Reunião da noite no horário de Belém", em_utc)
+    assert r.status_code == 200, r.text
+    itens = client.get("/api/calendario/?dias_antecedencia=30", headers=auth_headers).json()
+    item = next(i for i in itens if i["titulo"] == "Reunião da noite no horário de Belém")
+    assert item["data"] == dia.isoformat()
+    assert item["dias_restantes"] == (dia - dia_local(datetime.utcnow(), fuso)).days
+
+
+def test_evento_com_fim_antes_do_inicio_ou_no_passado_e_recusado(client, auth_headers):
+    inicio = datetime.utcnow() + timedelta(days=10)
+    r_fim = _evento(client, auth_headers, "Reunião que acaba antes de começar", inicio, fim=inicio - timedelta(hours=1))
+    assert r_fim.status_code == 422
+    assert "depois do início" in r_fim.text
+
+    r_passado = _evento(client, auth_headers, "Reunião que já passou", datetime.utcnow() - timedelta(days=3))
+    assert r_passado.status_code == 400
+    assert "já passou" in r_passado.json()["detail"]
+
+
+def test_remover_evento_agendado_por_engano_sai_do_calendario_e_fica_na_auditoria(client, auth_headers, db):
+    from app.models.core import AuditLog
+    from tests.test_conselho_fiscal import _criar_associado, _headers
+
+    r = _evento(client, auth_headers, "Evento agendado por engano", datetime.utcnow() + timedelta(days=4))
+    id_evento = r.json()["id_evento"]
+    itens = client.get("/api/calendario/?dias_antecedencia=30", headers=auth_headers).json()
+    assert any(i.get("id_evento") == id_evento for i in itens), "o item do calendário traz o id para a tela poder remover"
+
+    _associado, comum = _criar_associado(db, "Associado Que Nao Remove Evento")
+    assert client.delete(f"/api/eventos-calendario/{id_evento}", headers=_headers(comum)).status_code == 403
+    assert client.delete(f"/api/eventos-calendario/{id_evento}").status_code == 401
+
+    assert client.delete(f"/api/eventos-calendario/{id_evento}", headers=auth_headers).status_code == 200
+    itens = client.get("/api/calendario/?dias_antecedencia=30", headers=auth_headers).json()
+    assert not any(i.get("id_evento") == id_evento for i in itens)
+    assert client.delete(f"/api/eventos-calendario/{id_evento}", headers=auth_headers).status_code == 404
+
+    removido = db.query(AuditLog).filter(AuditLog.tabela_afetada == "eventos_calendario", AuditLog.acao == "REMOVIDO", AuditLog.id_registro_afetado == id_evento).all()
+    assert len(removido) == 1
+    assert "Evento agendado por engano" in str(removido[0].dados_antes)
+

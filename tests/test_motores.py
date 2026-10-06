@@ -191,38 +191,38 @@ def test_indicador_valida_catalogo_e_recusa_medicao_duplicada_no_periodo(client,
 # ==========================================
 # MOTOR DE AGENDA/CONFLITO
 # ==========================================
-def test_agenda_recusa_compromisso_sobreposto_e_permite_horario_livre(client, auth_headers):
+def test_agenda_recusa_compromisso_sobreposto_e_permite_horario_livre(db):
+    # o motor é consumido pelos serviços (espaços, bloqueios); a v5.4d tirou as rotas genéricas /api/agenda/* (sem tela e sem uso humano:
+    # quem digita "Espaco #3" à mão?), então ele é provado direto, sem passar por HTTP.
+    import pytest
+    from fastapi import HTTPException
+
+    from app.services import agenda
+
     id_recurso = 9090
     inicio = datetime.utcnow().replace(minute=0, second=0, microsecond=0) + timedelta(days=10)
     fim = inicio + timedelta(hours=2)
 
-    r = client.post("/api/agenda/compromissos", json={
-        "recurso_tipo": "Espaco", "id_recurso": id_recurso, "contexto_tipo": "ReservaEspaco", "id_contexto": 1,
-        "data_hora_inicio": inicio.strftime(_ISO), "data_hora_fim": fim.strftime(_ISO),
-    }, headers=auth_headers)
-    assert r.status_code == 200, r.text
+    def criar(id_contexto, de, ate):
+        return agenda.criar_compromisso(
+            db, recurso_tipo="Espaco", id_recurso=id_recurso, contexto_tipo="ReservaEspaco", id_contexto=id_contexto,
+            data_hora_inicio=de, data_hora_fim=ate, id_usuario=None,
+        )
+
+    criar(1, inicio, fim)
 
     sobreposto_inicio = inicio + timedelta(hours=1)
-    r = client.post("/api/agenda/verificar-conflito", json={
-        "recurso_tipo": "Espaco", "id_recurso": id_recurso,
-        "data_hora_inicio": sobreposto_inicio.strftime(_ISO), "data_hora_fim": (sobreposto_inicio + timedelta(hours=2)).strftime(_ISO),
-    }, headers=auth_headers)
-    assert r.status_code == 200, r.text
-    assert r.json()["tem_conflito"] is True
+    conflitos = agenda.verificar_conflito(
+        db, recurso_tipo="Espaco", id_recurso=id_recurso, data_hora_inicio=sobreposto_inicio, data_hora_fim=sobreposto_inicio + timedelta(hours=2),
+    )
+    assert len(conflitos) == 1
 
-    r = client.post("/api/agenda/compromissos", json={
-        "recurso_tipo": "Espaco", "id_recurso": id_recurso, "contexto_tipo": "ReservaEspaco", "id_contexto": 2,
-        "data_hora_inicio": sobreposto_inicio.strftime(_ISO), "data_hora_fim": (sobreposto_inicio + timedelta(hours=2)).strftime(_ISO),
-    }, headers=auth_headers)
-    assert r.status_code == 400
-    assert "conflito de agenda" in r.json()["detail"].lower()
+    with pytest.raises(HTTPException) as erro:
+        criar(2, sobreposto_inicio, sobreposto_inicio + timedelta(hours=2))
+    assert erro.value.status_code == 400
+    assert "conflito de agenda" in erro.value.detail.lower()
 
     horario_livre_inicio = fim + timedelta(hours=1)
-    r = client.post("/api/agenda/compromissos", json={
-        "recurso_tipo": "Espaco", "id_recurso": id_recurso, "contexto_tipo": "ReservaEspaco", "id_contexto": 3,
-        "data_hora_inicio": horario_livre_inicio.strftime(_ISO), "data_hora_fim": (horario_livre_inicio + timedelta(hours=1)).strftime(_ISO),
-    }, headers=auth_headers)
-    assert r.status_code == 200, r.text
+    criar(3, horario_livre_inicio, horario_livre_inicio + timedelta(hours=1))
 
-    compromissos = client.get(f"/api/agenda/compromissos?recurso_tipo=Espaco&id_recurso={id_recurso}", headers=auth_headers).json()
-    assert len(compromissos) == 2
+    assert len(agenda.listar_compromissos(db, recurso_tipo="Espaco", id_recurso=id_recurso)) == 2

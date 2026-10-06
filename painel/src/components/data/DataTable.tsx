@@ -63,6 +63,8 @@ type DataTableProps<T extends RowData> = {
   pageCount?: number
   totalRegistros?: number
   onPaginationChange?: (paginacao: PaginationState) => void
+  // Tamanho de página com que a tabela começa (o seletor mostra o mesmo valor que o chamador usa para buscar no servidor).
+  tamanhoDePaginaInicial?: number
 }
 
 // Tabela padrão (v0.2.4) — ordenação, filtro global, paginação (client ou server-side),
@@ -77,13 +79,14 @@ export function DataTable<T extends RowData>({
   pageCount,
   totalRegistros,
   onPaginationChange,
+  tamanhoDePaginaInicial = 10,
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [filtro, setFiltro] = useState('')
   const [selecao, setSelecao] = useState<RowSelectionState>({})
   const [paginacao, setPaginacao] = useState<PaginationState>({
     pageIndex: 0,
-    pageSize: 10,
+    pageSize: tamanhoDePaginaInicial,
   })
 
   const colunaSelecao: ColunaTabela<T> = {

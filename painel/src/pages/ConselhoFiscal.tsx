@@ -37,9 +37,9 @@ function formatarReais(valor: number): string {
 // Financeiro (permissão `financeiro`), NUNCA dentro de Governança - o nível "Conselho Fiscal"
 // (v0.1.5) só tem `financeiro`/`auditoria`, nunca `governanca`; colocar esta tela atrás da
 // permissão errada a deixaria invisível pra quem mais precisa dela. Emitir parecer/questionar
-// exige além disso `NivelAcesso.is_conselho_fiscal` - o backend checa isso (`_exigir_conselho_
-// fiscal`), o painel não tenta adivinhar (não existe esse campo em `/auth/me`) e só mostra a
-// mensagem de erro real (403) se alguém sem essa marca tentar.
+// exige além disso ser do Conselho Fiscal: um nível marcado como tal OU um mandato vigente no órgão
+// (Art. 24) - o backend checa isso (`_exigir_conselho_fiscal`), o painel não tenta adivinhar (não
+// existe esse campo em `/auth/me`) e só mostra a mensagem de erro real (403) se alguém de fora tentar.
 function BlocoQuestionamentos({ idTitulo }: { idTitulo: number }) {
   const [mostrarForm, setMostrarForm] = useState(false)
   const queryClient = useQueryClient()
@@ -84,6 +84,7 @@ function BlocoQuestionamentos({ idTitulo }: { idTitulo: number }) {
             <>
               <input
                 {...form.register('pergunta')}
+                aria-label="Pergunta sobre o lançamento"
                 placeholder="O que você quer questionar sobre este lançamento?"
                 className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
               />
@@ -173,9 +174,11 @@ function BlocoRespostas({
                 <>
                   <input
                     {...form.register('texto')}
+                    aria-label="Resposta ao questionamento"
                     placeholder="Resposta"
                     className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                   />
+                  <ErroCampo mensagem={form.formState.errors.texto?.message} />
                   <Button
                     type="submit"
                     size="sm"
@@ -364,12 +367,17 @@ function BlocoPareceres() {
           {(form) => (
             <>
               <div className="grid gap-2 sm:grid-cols-2">
-                <input
-                  type="number"
-                  {...form.register('ano_exercicio')}
-                  aria-label="Ano do exercício"
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                />
+                <div>
+                  <input
+                    type="number"
+                    {...form.register('ano_exercicio')}
+                    aria-label="Ano do exercício"
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  />
+                  <ErroCampo
+                    mensagem={form.formState.errors.ano_exercicio?.message}
+                  />
+                </div>
                 <select
                   {...form.register('tipo')}
                   aria-label="Tipo de parecer"
@@ -382,6 +390,7 @@ function BlocoPareceres() {
               </div>
               <textarea
                 {...form.register('texto')}
+                aria-label="Texto do parecer"
                 placeholder="Texto do parecer"
                 rows={3}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
