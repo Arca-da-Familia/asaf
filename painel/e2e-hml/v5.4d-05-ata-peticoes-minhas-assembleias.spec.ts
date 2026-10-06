@@ -1246,9 +1246,9 @@ test.describe('assembleia própria: justificativas, chamada, sessão, detalhe e 
     await eleicao.getByPlaceholder(/^Órgão/).fill('DIRETORIA_EXECUTIVA')
     await eleicao.getByPlaceholder(/^Cargo/).fill('VICE_SECRETARIO')
     await eleito.selectOption('0')
-    await concluir.click()
-    await expect(eleicao.getByText('Associado não encontrado.')).toBeVisible()
-    await ver(page, info, 'eleicao sem escolher o eleito: recusada')
+    // sem eleito escolhido a tela nem deixa enviar (o botão desliga); antes o servidor é que respondia "Associado não encontrado"
+    await expect(concluir).toBeDisabled()
+    await ver(page, info, 'eleicao sem escolher o eleito: o botao desliga')
     // o cargo de 2º Secretário já tem titular na diretoria de teste (a Elisa, desde a semente): dar posse a um segundo titular no mesmo
     // período tem que ser recusado ("cargo ocupado"). Se o servidor aceitar, é achado (e o mandato extra é encerrado logo abaixo).
     await escolherPorTexto(eleito, 'Nelson Fonseca Prado')
