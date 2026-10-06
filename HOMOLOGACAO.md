@@ -52,7 +52,7 @@ endereço do painel de teste, nunca grava `trace` (que guardaria a senha digitad
 É o "teste a teste" do plano (v5.4c em diante).
 
 **Entrar:** as senhas dos usuários de teste ficam no Key Vault `kv-asaf-arca` (Portal do Azure → Cofres de chaves → Segredos):
-`HML-ADMIN-SENHA` (a senha do Presidente de teste) e `HML-USUARIOS` (um texto com a senha do Secretário e a do Tesoureiro de teste).
+`HML-ADMIN-SENHA` (a senha do Presidente de teste) e `HML-USUARIOS` (um texto com a senha de cada usuário de teste que tem cargo).
 Os CPFs são inventados e não são segredo:
 
 | Usuário de teste | CPF | Senha | O que ele pode (vem do cargo) |
@@ -60,6 +60,10 @@ Os CPFs são inventados e não são segredo:
 | Presidente (administrador) | 111.000.111-88 | `HML-ADMIN-SENHA` | tudo, inclusive aprovar publicação |
 | 1º Secretário | 222.023.757-59 | `HML-USUARIOS` (secretario) | documentos e aprovação de publicação |
 | 1º Tesoureiro | 222.039.595-25 | `HML-USUARIOS` (tesoureiro) | financeiro e parcerias/emendas |
+| Presidente do cargo (Ana Lúcia) | 222.000.000-14 | `HML-USUARIOS` (cargo_presidente) | tudo que o cargo de Presidente dá; um dos 4 diretores que decidem a disciplina |
+| 1º Vice-Presidente (Bruno) | 222.007.919-84 | `HML-USUARIOS` (vice_presidente) | associados e governança; manifesta na disciplina |
+| 2ª Vice-Presidente (Carla) | 222.015.838-11 | `HML-USUARIOS` (vice_presidente_2) | associados e governança; manifesta na disciplina |
+| Conselheiro Fiscal (Heitor) | 222.055.433-34 | `HML-USUARIOS` (conselheiro) | financeiro e auditoria; emite parecer e questiona (cargo no Conselho Fiscal) |
 
 Não há segundo passo: CPF e senha bastam. Para testar o fluxo "quem criou não aprova", entre com o Secretário ou o Tesoureiro para
 preparar e com o Presidente para aprovar. Dá para criar, aprovar, desfazer e errar à vontade; se quiser recomeçar do zero, rode o fluxo

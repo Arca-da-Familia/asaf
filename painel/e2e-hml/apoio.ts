@@ -12,13 +12,26 @@ import {
 // Apoio dos roteiros de conferência ao vivo na homologação (v5.4c em diante). Nada aqui conhece a produção: o endereço é conferido
 // em playwright.hml.config.ts e de novo em `exigirHomologacao`.
 
-export type Papel = 'presidente' | 'secretario' | 'tesoureiro'
+export type Papel =
+  | 'presidente'
+  | 'secretario'
+  | 'tesoureiro'
+  // quem tem cargo de verdade na diretoria (Ana Lúcia = Presidente do cargo, Bruno = 1º Vice, Carla = 2ª Vice) e no Conselho Fiscal (Heitor):
+  // existem para o que depende de várias pessoas (quórum de decisão da disciplina, parecer do Conselho Fiscal)
+  | 'cargo_presidente'
+  | 'vice_presidente'
+  | 'vice_presidente_2'
+  | 'conselheiro'
 
 // CPFs inventados (não são segredo; estão no HOMOLOGACAO.md). As senhas vêm do cofre pelo fluxo.
 const CPF: Record<Papel, string> = {
   presidente: '111.000.111-88',
   secretario: '222.023.757-59',
   tesoureiro: '222.039.595-25',
+  cargo_presidente: '222.000.000-14',
+  vice_presidente: '222.007.919-84',
+  vice_presidente_2: '222.015.838-11',
+  conselheiro: '222.055.433-34',
 }
 
 function senhaDe(papel: Papel): string {

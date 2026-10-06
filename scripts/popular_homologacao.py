@@ -187,8 +187,15 @@ def popular(client, db, admin_headers: dict | None = None, admin_senha: str | No
     # ---------------------------------------------------------------------------------------- logins de teste (a permissão vem do cargo)
     cabecalhos: dict[str, dict] = {"presidente": admin_headers}
 
+    # Os dois de sempre (Secretário e Tesoureiro) ganham senha aleatória se o cofre não trouxer a deles. Os EXTRAS só existem quando o cofre traz a
+    # senha: servem para provar ao vivo o que depende de várias pessoas (quórum de decisão da disciplina, parecer do Conselho Fiscal) e, sem
+    # senha, não há como o robô entrar com eles.
+    PERSONAS_FIXAS = (("secretario", 3), ("tesoureiro", 5))
+    PERSONAS_EXTRAS = (("cargo_presidente", 0), ("vice_presidente", 1), ("vice_presidente_2", 2), ("conselheiro", 7))
+
     def logins():
-        for papel, indice in (("secretario", 3), ("tesoureiro", 5)):
+        pessoas = list(PERSONAS_FIXAS) + [(papel, i) for papel, i in PERSONAS_EXTRAS if senhas.get(papel)]
+        for papel, indice in pessoas:
             senha = senhas.get(papel) or senha_aleatoria()
             email = f"{papel}@{SUFIXO_EMAIL}"
             _ok(client.post(f"/api/associados/{ids_associados[indice]}/conceder-acesso", headers=admin_headers,
@@ -197,7 +204,7 @@ def popular(client, db, admin_headers: dict | None = None, admin_senha: str | No
             cabecalhos[papel] = _cabecalho(usuario)
             cpf = db.query(Associado).filter(Associado.id_associado == ids_associados[indice]).first().cpf
             contexto["usuarios"][papel] = {"cpf": cpf, "email": email, "senha": senha}
-        return "Secretário e Tesoureiro de teste (senhas do cofre)"
+        return f"{len(pessoas)} usuários de teste com cargo (senhas do cofre)"
 
     if len(ids_associados) > 5:
         roteiro.area("Logins do Secretário e do Tesoureiro", logins)
