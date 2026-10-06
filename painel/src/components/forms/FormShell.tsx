@@ -100,6 +100,10 @@ export function FormShell<T extends FieldValues>({
         err.errosCampos.length
       ) {
         aplicarErros422(form, err)
+        // regra que olha vários campos juntos (fim antes do início) vem do servidor sem nome de campo: não tem onde pendurar, então vai no alto
+        const semCampo = err.errosCampos.filter((e) => !e.campo)
+        if (semCampo.length)
+          setErroGeral(semCampo.map((e) => e.mensagem).join(' '))
       } else if (err instanceof Error) {
         setErroGeral(err.message)
       } else {

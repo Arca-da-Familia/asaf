@@ -926,17 +926,24 @@ test('conflito de interesse: declarar (com as recusas), aparece com a data de ho
     const declarar = page.getByRole('button', { name: 'Declarar', exact: true })
     await expect(associado).toBeVisible()
 
-    // recusa 1: descrição vazia
+    // recusa 1: tudo vazio. As DUAS faltas aparecem, cada uma no seu campo, uma vez só
     await declarar.click()
-    await expect(page.getByRole('alert')).toHaveCount(1)
-    await expect(page.getByRole('alert')).toContainText(/Descreva o conflito/)
-    await ver(page, info, 'conflito sem descricao: recusado')
+    await expect(page.getByRole('alert')).toHaveCount(2)
+    await expect(
+      page.getByRole('alert').filter({ hasText: /Descreva o conflito/ }),
+    ).toHaveCount(1)
+    await expect(
+      page.getByRole('alert').filter({ hasText: /Selecione um associado/ }),
+    ).toHaveCount(1)
+    await ver(page, info, 'conflito vazio: recusado, as duas faltas aparecem')
 
-    // recusa 2: descrição curta demais (mínimo de 3 letras)
+    // recusa 2: descrição curta demais (mínimo de 3 letras), ainda sem associado
     await texto.fill('ab')
     await declarar.click()
-    await expect(page.getByRole('alert')).toHaveCount(1)
-    await expect(page.getByRole('alert')).toContainText(/Descreva o conflito/)
+    await expect(page.getByRole('alert')).toHaveCount(2)
+    await expect(
+      page.getByRole('alert').filter({ hasText: /Descreva o conflito/ }),
+    ).toHaveCount(1)
 
     // recusa 3: descrição boa, associado não escolhido
     await texto.fill(descricao)

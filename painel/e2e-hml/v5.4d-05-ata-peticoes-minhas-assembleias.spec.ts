@@ -311,8 +311,19 @@ test.describe('assembleia própria: justificativas, chamada, sessão, detalhe e 
     expect((await aceitando).status()).toBe(200)
     await expect(daniel.getByText('Aceita', { exact: true })).toBeVisible()
     await expect(daniel.getByRole('button', { name: 'Aceitar' })).toHaveCount(0)
+    // rejeitar exige dizer o motivo (o associado precisa saber por que): o botão só abre o campo, e sem motivo o servidor recusa
     await fabio.getByRole('button', { name: 'Rejeitar' }).click()
+    await fabio.getByRole('button', { name: 'Confirmar rejeição' }).click()
+    await expect(
+      bloco.getByRole('alert').filter({ hasText: /motivo da rejeição/ }),
+    ).toBeVisible()
+    await expect(fabio.getByText('Pendente', { exact: true })).toBeVisible()
+    await fabio
+      .getByLabel('Motivo da rejeição')
+      .fill('Sem comprovante da viagem informada.')
+    await fabio.getByRole('button', { name: 'Confirmar rejeição' }).click()
     await expect(fabio.getByText('Rejeitada', { exact: true })).toBeVisible()
+    await expect(fabio).toContainText('Sem comprovante da viagem informada.')
     await expect(fabio.getByRole('button', { name: 'Rejeitar' })).toHaveCount(0)
     await ver(page, info, 'uma aceita e outra rejeitada')
 
@@ -1560,20 +1571,33 @@ test.describe('petições de convocação', () => {
     await ver(page, info, 'segundo associado aderiu: duas adesoes')
     await sair(page)
 
-    // quem não tem a permissão de governança consegue propor e aderir? (a tela diz que qualquer associado pode, Art. 8º/10)
+    // quem não tem a permissão de governança também propõe e adere (Art. 8º/10): pela rota do quadro social, fora de Governança
     await entrar(page, 'tesoureiro')
-    await page.goto('/governanca/peticoes')
+    await page.getByRole('link', { name: 'Petições de convocação' }).click()
+    await expect(page).toHaveURL(/\/peticoes-de-convocacao$/)
     await expect(
-      page
-        .getByRole('heading', { name: 'Petições de convocação' })
-        .or(page.getByRole('heading', { name: 'Acesso negado' })),
+      page.getByRole('heading', { name: 'Petições de convocação' }),
     ).toBeVisible()
-    if (new URL(page.url()).pathname === '/403') {
-      achadosPeticoes.push(
-        'Petições de convocação: um associado sem a permissão de governança (o Tesoureiro de teste) cai em "Acesso negado" e não alcança a tela; o direito de propor e aderir é de qualquer associado (Art. 8º/10), e Minhas assembleias não oferece outro caminho (App.tsx põe a rota dentro do módulo Governança)',
-      )
-    }
-    await ver(page, info, 'Tesoureiro tenta abrir as peticoes')
+    const cartaoTesoureiro = page
+      .locator('div.rounded-xl')
+      .filter({ hasText: PAUTA_PETICAO })
+    await expect(cartaoTesoureiro).toContainText(
+      /2 de \d+ associados ativos aderiram/,
+    )
+    await cartaoTesoureiro
+      .getByRole('button', { name: 'Aderir a esta petição' })
+      .click()
+    await expect(cartaoTesoureiro).toContainText(
+      /3 de \d+ associados ativos aderiram/,
+    )
+    await ver(
+      page,
+      info,
+      'Tesoureiro (sem governanca) adere pela rota do quadro social',
+    )
+    // o caminho de Governança continua só da Diretoria
+    await page.goto('/governanca/peticoes')
+    await expect(page).toHaveURL(/\/403$/)
     await sair(page)
 
     await entrar(page, 'presidente')

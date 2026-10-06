@@ -154,4 +154,34 @@ describe('FormShell', () => {
     await userEvent.selectOptions(screen.getByLabelText('conta'), '0')
     expect(screen.queryByText('Informe o nome.')).toBeNull()
   })
+
+  it('recusa 422 do servidor SEM nome de campo (regra que olha vários campos) aparece no alto do formulário', async () => {
+    const erro422 = new ApiError(422, 'O fim precisa ser depois do início.', [
+      { campo: '', mensagem: 'O fim precisa ser depois do início.' },
+    ])
+    const onSubmit = vi.fn().mockRejectedValue(erro422)
+    render(<Formulario onSubmit={onSubmit} />)
+
+    await userEvent.type(screen.getByLabelText('nome'), 'Maria')
+    await userEvent.click(screen.getByText('Enviar'))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'O fim precisa ser depois do início.',
+    )
+  })
+
+  it('recusa 422 que aponta um campo que a tela não tem também aparece (nunca em silêncio)', async () => {
+    const erro422 = new ApiError(422, 'Valor inválido.', [
+      { campo: 'campo_que_a_tela_nao_tem', mensagem: 'Valor inválido.' },
+    ])
+    const onSubmit = vi.fn().mockRejectedValue(erro422)
+    render(<Formulario onSubmit={onSubmit} />)
+
+    await userEvent.type(screen.getByLabelText('nome'), 'Maria')
+    await userEvent.click(screen.getByText('Enviar'))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Valor inválido.',
+    )
+  })
 })
