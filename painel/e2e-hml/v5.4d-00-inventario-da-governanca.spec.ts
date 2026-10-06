@@ -81,3 +81,60 @@ test('detalhe, sessão e ata da assembleia convocada abrem sem erro e ficam inve
   }
   expect(vigia.problemas()).toEqual([])
 })
+
+const FORMULARIOS: { nome: string; caminho: string; botao: string | RegExp }[] =
+  [
+    {
+      nome: 'mandato-registrar',
+      caminho: '/governanca/mandatos',
+      botao: 'Registrar mandato',
+    },
+    {
+      nome: 'mandato-encerrar',
+      caminho: '/governanca/mandatos',
+      botao: 'Encerrar mandato',
+    },
+    {
+      nome: 'mandato-conflito',
+      caminho: '/governanca/mandatos',
+      botao: 'Declarar conflito',
+    },
+    {
+      nome: 'peticao-propor',
+      caminho: '/governanca/peticoes',
+      botao: 'Propor petição',
+    },
+    {
+      nome: 'disciplina-abrir',
+      caminho: '/governanca/disciplina',
+      botao: 'Abrir processo',
+    },
+    {
+      nome: 'dissolucao-abrir',
+      caminho: '/governanca/dissolucao',
+      botao: 'Abrir processo',
+    },
+    {
+      nome: 'calendario-agendar',
+      caminho: '/calendario',
+      botao: 'Agendar evento',
+    },
+    {
+      nome: 'parecer-emitir',
+      caminho: '/financeiro/conselho-fiscal',
+      botao: 'Emitir parecer',
+    },
+  ]
+
+for (const f of FORMULARIOS) {
+  test(`formulário abre: ${f.nome}`, async ({ page }, info) => {
+    const vigia = vigiar(page)
+    await entrar(page, 'presidente')
+    await page.goto(f.caminho)
+    await page.getByRole('button', { name: f.botao }).first().click()
+    await page.waitForTimeout(800)
+    await inventariar(page, info, `form-${f.nome}`)
+    await ver(page, info, `form ${f.nome}`)
+    expect(vigia.problemas()).toEqual([])
+  })
+}
