@@ -173,6 +173,8 @@ test('"ver como": o Presidente vê o painel como outro nível (somente leitura) 
     page.getByRole('heading', { name: 'Níveis e permissões' }),
   ).toBeVisible()
   await ver(page, info, 'matriz de niveis e permissoes')
+  // "Ver como" pede confirmação numa janela do próprio navegador (window.confirm): o robô a aceita, senão ela é recusada sozinha
+  page.once('dialog', (janela) => janela.accept())
   await page.getByRole('button', { name: /Ver como Associado/ }).click()
   const faixa = page.getByRole('status').filter({ hasText: 'Vendo como' })
   await expect(faixa).toContainText('Associado')

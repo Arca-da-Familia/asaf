@@ -31,6 +31,19 @@ import tempfile
 import pytest
 from fastapi.testclient import TestClient
 
+from sqlalchemy import event
+
+from app.database import engine as _engine_dos_testes
+
+# SQLite não confere chave estrangeira por padrão e o Postgres de produção confere: erro de chave estrangeira passava na suíte e quebrava
+# (erro 500) só no ambiente de verdade — foi assim com a mesclagem de pessoas (v5.4c). Aqui o SQLite passa a conferir como o Postgres.
+if _engine_dos_testes.dialect.name == "sqlite":
+
+    @event.listens_for(_engine_dos_testes, "connect")
+    def _ligar_chave_estrangeira(conexao, _registro):
+        conexao.execute("PRAGMA foreign_keys=ON")
+
+
 from app.main import app
 from app.services import armazenamento
 

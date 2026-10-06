@@ -15,6 +15,7 @@ from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
@@ -27,6 +28,31 @@ _CAMPOS_PESSOAIS = [
     "cpf", "data_nascimento", "email_contato", "telefone_whatsapp",
     "estado_civil", "profissao", "naturalidade", "foto",
 ]
+
+
+# Referências a `pessoas` que a mesclagem trata UMA A UMA (regra própria de cada uma). Todas as outras são só "passa a apontar para a pessoa
+# mantida" (ver `_repontar_demais_referencias`).
+_TRATADAS_UMA_A_UMA = {
+    ("associados", "id_pessoa"), ("papeis", "id_pessoa"), ("funcionarios", "id_pessoa"), ("termos_adesao_voluntario", "id_pessoa"),
+    ("eventos_linha_do_tempo", "id_pessoa"), ("dependentes_familiares", "id_pessoa_titular"), ("dependentes_familiares", "id_pessoa_vinculada"),
+}
+
+
+def _repontar_demais_referencias(db: Session, id_pessoa_mantida: int, id_pessoa_absorvida: int, contagens: dict) -> None:
+    """v5.4c (achado AO VIVO na homologação, 2026-10-06): a mesclagem apagava a pessoa absorvida enquanto OUTRAS tabelas ainda apontavam para
+    ela — a fila de revisão (de onde a mesclagem sempre parte), inscrições, presenças, beneficiários, documentos emitidos e isenções. No
+    Postgres isso é violação de chave estrangeira (erro 500); nos testes em SQLite, que não confere chave estrangeira, passava. Aqui TODA
+    referência a `pessoas` que não tem regra própria passa a apontar para a pessoa mantida (descobertas pelo próprio modelo, então tabela
+    nova não escapa)."""
+    from app.database import Base
+
+    for tabela in Base.metadata.sorted_tables:
+        for fk in tabela.foreign_keys:
+            if fk.column.table.name != "pessoas" or (tabela.name, fk.parent.name) in _TRATADAS_UMA_A_UMA:
+                continue
+            resultado = db.execute(tabela.update().where(fk.parent == id_pessoa_absorvida).values({fk.parent.name: id_pessoa_mantida}))
+            if resultado.rowcount:
+                contagens[tabela.name] = contagens.get(tabela.name, 0) + resultado.rowcount
 
 
 def _buscar_pessoa_ou_404(db: Session, id_pessoa: int) -> Pessoa:
@@ -137,8 +163,18 @@ def mesclar_pessoas(
             setattr(mantida, campo, getattr(absorvida, campo))
 
     nome_absorvida = absorvida.nome_completo
-    db.delete(absorvida)
-    db.commit()
+    try:
+        _repontar_demais_referencias(db, id_pessoa_mantida, id_pessoa_absorvida, contagens)
+        db.delete(absorvida)
+        db.commit()
+    except IntegrityError as erro:
+        # nada foi gravado até aqui (o commit é só neste ponto): desfaz tudo e explica, em vez de devolver erro 500
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="As duas pessoas têm registros que não dá para juntar sozinho (por exemplo, a mesma inscrição, presença ou ficha de "
+                   "beneficiário nas duas). Resolva esse registro manualmente antes de mesclar; nada foi alterado.",
+        ) from erro
 
     registrar_auditoria(
         db, usuario, "pessoas", "MESCLADO", id_registro_afetado=id_pessoa_mantida,

@@ -209,3 +209,37 @@ def test_fila_diz_quem_e_associado_e_a_matricula_quando_os_dois_tem_o_mesmo_nome
     assert par[f"matricula_{lado_associado}"] == registro.numero_matricula
     assert par[f"e_associado_{lado_so_pessoa}"] is False
     assert par[f"matricula_{lado_so_pessoa}"] is None
+
+
+def test_mesclar_funciona_com_chave_estrangeira_ligada_como_no_postgres(client, auth_headers, db):
+    """Achado AO VIVO na homologação (v5.4c, 2026-10-06): a mesclagem apagava a pessoa absorvida enquanto a fila de revisão (de onde ela sempre
+    parte), as inscrições, as presenças, os beneficiários etc. ainda apontavam para ela. No Postgres isso é violação de chave estrangeira
+    (erro 500 na tela: "Failed to fetch"). A suíte agora liga `PRAGMA foreign_keys=ON` no SQLite (tests/conftest.py) para se comportar igual;
+    sem a correção, esta mesclagem pela rota de verdade falha com IntegrityError."""
+    from sqlalchemy import text
+
+    from app.models.qualidade_cadastro import FilaRevisaoCadastro
+
+    nome = "Mesclagem Com Chave Estrangeira"
+    associado = _criar_associado(client, nome_completo=nome, data_nascimento="1971-07-07")
+    mantida = db.query(Associado).filter(Associado.id_associado == associado["id_associado"]).first().id_pessoa
+    outro = _criar_associado(client)
+    titular = db.query(Associado).filter(Associado.id_associado == outro["id_associado"]).first().id_pessoa
+    absorvida = client.post(
+        f"/api/pessoas/{titular}/dependentes", headers=auth_headers,
+        json={"nome_completo": nome, "data_nascimento": "1971-07-07", "grau_parentesco": "OUTRO"},
+    ).json()["id_pessoa_vinculada"]
+    client.post("/api/pessoas/duplicidade/escanear", headers=auth_headers)
+    assert db.query(FilaRevisaoCadastro).filter(FilaRevisaoCadastro.id_pessoa_b.in_([mantida, absorvida])).count() >= 1
+
+    assert db.execute(text("PRAGMA foreign_keys")).scalar() == 1, "o SQLite da suíte precisa conferir chave estrangeira, como o Postgres"
+    r = client.post(f"/api/pessoas/{mantida}/mesclar", headers=auth_headers, json={"id_pessoa_absorvida": absorvida, "nome_confirmacao": nome})
+    assert r.status_code == 200, r.text
+    resultado = r.json()
+    assert resultado["id_pessoa_mantida"] == mantida
+    assert resultado["contagens"].get("fila_revisao_cadastro", 0) >= 1, "as entradas da fila passam a apontar para a pessoa que fica"
+    db.expire_all()
+    assert db.query(Pessoa).filter(Pessoa.id_pessoa == absorvida).first() is None
+    assert db.query(FilaRevisaoCadastro).filter(
+        (FilaRevisaoCadastro.id_pessoa_a == absorvida) | (FilaRevisaoCadastro.id_pessoa_b == absorvida)
+    ).count() == 0
