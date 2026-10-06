@@ -61,15 +61,13 @@ test('detalhe, sessão e ata da assembleia convocada abrem sem erro e ficam inve
   const vigia = vigiar(page)
   await entrar(page, 'presidente')
   await page.goto('/governanca')
-  await expect(page.getByText(/Carregando/)).toHaveCount(0)
-  const enderecos = await page
-    .locator('a[href^="/governanca/"]')
-    .evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''))
-  const destino = enderecos.find((h) => /^\/governanca\/\d+$/.test(h))
-  expect(
-    destino,
-    'tem que haver ao menos uma assembleia (a do roteiro de dados)',
-  ).toBeTruthy()
+  // a lista é uma tabela que chega depois do "Carregando": espera a primeira assembleia (o link é o tipo dela) e lê o endereço
+  const primeira = page
+    .getByRole('link', { name: /Ordinária|Extraordinária/ })
+    .first()
+  await expect(primeira).toBeVisible()
+  const destino = await primeira.getAttribute('href')
+  expect(destino).toMatch(/^\/governanca\/\d+$/)
   const base = destino!.replace(/\/(sessao|ata)$/, '')
   for (const [nome, caminho] of [
     ['assembleia-detalhe', base],
