@@ -188,4 +188,16 @@ describe('Chamada da sessão (achado v5.4d: quem saiu continuava listado como pr
       await screen.findByText('Ninguém presente no momento.'),
     ).toBeInTheDocument()
   })
+
+  it('enquanto quem já entrou não chegou, NÃO mostra todos como faltantes (um clique credenciaria quem já está na sala)', async () => {
+    vi.mocked(api.listarCredenciamentos).mockReturnValue(new Promise(() => {}))
+    desenhar()
+    expect(await screen.findByText('Carregando a chamada…')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Marcar presença' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: /Faltantes/ }),
+    ).not.toBeInTheDocument()
+  })
 })

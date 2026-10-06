@@ -150,6 +150,7 @@ function BlocoCredenciamento({
   const idsCredenciados = new Set(
     (credenciados ?? []).map((c) => c.id_associado),
   )
+  const chamadaPronta = credenciados !== undefined && habilitados !== undefined
   const faltantes = (habilitados ?? []).filter(
     (h) => !idsCredenciados.has(h.id_associado),
   )
@@ -267,115 +268,126 @@ function BlocoCredenciamento({
         </p>
       )}
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <div>
-          <h3 className="mb-2 text-sm font-semibold text-green-600">
-            Presentes ({presentes.length})
-          </h3>
-          <div className="v3-space-y-1">
-            {presentes.map((c) => (
-              <div
-                key={c.id_credenciamento}
-                className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
-              >
-                <span>
-                  {nomeDe(c)} · {c.modalidade} · entrou{' '}
-                  {formatarData(c.hora_entrada, { comHora: true })}
-                </span>
-                {emAndamento && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={saida.isPending}
-                    onClick={() => saida.mutate(c.id_credenciamento)}
-                  >
-                    Registrar saída
-                  </Button>
-                )}
-              </div>
-            ))}
-            {presentes.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                {quemSaiu.length === 0
-                  ? 'Ninguém credenciado ainda.'
-                  : 'Ninguém presente no momento.'}
-              </p>
-            )}
-          </div>
-
-          {quemSaiu.length > 0 && (
-            <>
-              <h3 className="mb-2 mt-4 text-sm font-semibold text-muted-foreground">
-                Saíram ({quemSaiu.length})
-              </h3>
-              <div className="v3-space-y-1">
-                {quemSaiu.map((c) => (
-                  <div
-                    key={c.id_credenciamento}
-                    className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
-                  >
-                    <span>
-                      {nomeDe(c)} · saiu{' '}
-                      {formatarData(c.hora_saida, { comHora: true })}
-                    </span>
+      {/* Enquanto a lista de quem já foi credenciado não chegou, TODOS os habilitados pareceriam faltantes (e um clique em "Marcar presença"
+          credenciaria quem já está na sala): só se mostra a chamada quando os dois dados chegaram. */}
+      {!chamadaPronta && (
+        <p className="mt-4 text-sm text-muted-foreground">
+          Carregando a chamada…
+        </p>
+      )}
+      {chamadaPronta && (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-green-600">
+              Presentes ({presentes.length})
+            </h3>
+            <div className="v3-space-y-1">
+              {presentes.map((c) => (
+                <div
+                  key={c.id_credenciamento}
+                  className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
+                >
+                  <span>
+                    {nomeDe(c)} · {c.modalidade} · entrou{' '}
+                    {formatarData(c.hora_entrada, { comHora: true })}
+                  </span>
+                  {emAndamento && (
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={registrar.isPending}
-                      onClick={() =>
-                        registrarPeloBotao({
-                          id_associado: c.id_associado,
-                          modalidade:
-                            c.modalidade === 'Remoto' ? 'Remoto' : 'Presencial',
-                        })
-                      }
+                      disabled={saida.isPending}
+                      onClick={() => saida.mutate(c.id_credenciamento)}
                     >
-                      Registrar retorno
+                      Registrar saída
                     </Button>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+                  )}
+                </div>
+              ))}
+              {presentes.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {quemSaiu.length === 0
+                    ? 'Ninguém credenciado ainda.'
+                    : 'Ninguém presente no momento.'}
+                </p>
+              )}
+            </div>
 
-        <div>
-          <h3 className="mb-2 text-sm font-semibold text-destructive">
-            Faltantes até agora ({faltantes.length})
-          </h3>
-          <div className="v3-space-y-1">
-            {faltantes.map((h) => (
-              <div
-                key={h.id_associado}
-                className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
-              >
-                <span>
-                  {nomesPorId.get(h.id_associado) ??
-                    `Associado #${h.id_associado}`}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={registrar.isPending}
-                  onClick={() =>
-                    registrarPeloBotao({
-                      id_associado: h.id_associado,
-                      modalidade: 'Presencial',
-                    })
-                  }
-                >
-                  Marcar presença
-                </Button>
-              </div>
-            ))}
-            {faltantes.length === 0 && (habilitados ?? []).length > 0 && (
-              <p className="text-sm text-muted-foreground">
-                Todos os habilitados já foram chamados.
-              </p>
+            {quemSaiu.length > 0 && (
+              <>
+                <h3 className="mb-2 mt-4 text-sm font-semibold text-muted-foreground">
+                  Saíram ({quemSaiu.length})
+                </h3>
+                <div className="v3-space-y-1">
+                  {quemSaiu.map((c) => (
+                    <div
+                      key={c.id_credenciamento}
+                      className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
+                    >
+                      <span>
+                        {nomeDe(c)} · saiu{' '}
+                        {formatarData(c.hora_saida, { comHora: true })}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={registrar.isPending}
+                        onClick={() =>
+                          registrarPeloBotao({
+                            id_associado: c.id_associado,
+                            modalidade:
+                              c.modalidade === 'Remoto'
+                                ? 'Remoto'
+                                : 'Presencial',
+                          })
+                        }
+                      >
+                        Registrar retorno
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
+
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-destructive">
+              Faltantes até agora ({faltantes.length})
+            </h3>
+            <div className="v3-space-y-1">
+              {faltantes.map((h) => (
+                <div
+                  key={h.id_associado}
+                  className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
+                >
+                  <span>
+                    {nomesPorId.get(h.id_associado) ??
+                      `Associado #${h.id_associado}`}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={registrar.isPending}
+                    onClick={() =>
+                      registrarPeloBotao({
+                        id_associado: h.id_associado,
+                        modalidade: 'Presencial',
+                      })
+                    }
+                  >
+                    Marcar presença
+                  </Button>
+                </div>
+              ))}
+              {faltantes.length === 0 && (habilitados ?? []).length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Todos os habilitados já foram chamados.
+                </p>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </section>
   )
 }
