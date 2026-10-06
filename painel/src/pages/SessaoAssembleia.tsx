@@ -137,6 +137,12 @@ function BlocoCredenciamento({
       registrarSaidaCredenciamento(idAssembleia, idCredenciamento),
     onSuccess: invalidar,
   })
+  // O formulário mostra o próprio erro (FormShell); a recusa de quem foi marcado pelos botões da lista (presença, retorno) aparece aqui.
+  const [erroDosBotoes, setErroDosBotoes] = useState<string | null>(null)
+  function registrarPeloBotao(v: z.infer<typeof credenciarSchema>) {
+    setErroDosBotoes(null)
+    registrar.mutate(v, { onError: (e) => setErroDosBotoes(e.message) })
+  }
 
   const nomesPorId = new Map(
     (associados ?? []).map((a) => [a.id_associado, a.nome_completo]),
@@ -214,7 +220,10 @@ function BlocoCredenciamento({
       <FormShell<z.infer<typeof credenciarSchema>>
         schema={credenciarSchema}
         defaultValues={{ id_associado: 0, modalidade: 'Presencial' }}
-        onSubmit={(v) => registrar.mutateAsync(v)}
+        onSubmit={(v) => {
+          setErroDosBotoes(null)
+          return registrar.mutateAsync(v)
+        }}
         className="flex flex-wrap items-end gap-3"
       >
         {(form) => (
@@ -252,9 +261,9 @@ function BlocoCredenciamento({
           </>
         )}
       </FormShell>
-      {registrar.isError && (
-        <p className="mt-2 text-sm text-destructive">
-          {(registrar.error as Error).message}
+      {erroDosBotoes && (
+        <p role="alert" className="mt-2 text-sm text-destructive">
+          {erroDosBotoes}
         </p>
       )}
 
@@ -314,7 +323,7 @@ function BlocoCredenciamento({
                       size="sm"
                       disabled={registrar.isPending}
                       onClick={() =>
-                        registrar.mutate({
+                        registrarPeloBotao({
                           id_associado: c.id_associado,
                           modalidade:
                             c.modalidade === 'Remoto' ? 'Remoto' : 'Presencial',
@@ -349,7 +358,7 @@ function BlocoCredenciamento({
                   size="sm"
                   disabled={registrar.isPending}
                   onClick={() =>
-                    registrar.mutate({
+                    registrarPeloBotao({
                       id_associado: h.id_associado,
                       modalidade: 'Presencial',
                     })
@@ -591,11 +600,6 @@ function CardVotacao({ votacaoInicial }: { votacaoInicial: Votacao }) {
               </>
             )}
           </FormShell>
-          {votarMutation.isError && (
-            <p className="mt-1 text-sm text-destructive">
-              {(votarMutation.error as Error).message}
-            </p>
-          )}
           {podeGerir && (
             <Button
               variant="outline"
@@ -807,11 +811,6 @@ function BlocoVotacoesDoItem({
                   <Button type="submit" size="sm" disabled={abrir.isPending}>
                     {abrir.isPending ? 'Abrindo…' : 'Abrir votação'}
                   </Button>
-                  {abrir.isError && (
-                    <p className="text-sm text-destructive">
-                      {(abrir.error as Error).message}
-                    </p>
-                  )}
                 </>
               )}
             </FormShell>

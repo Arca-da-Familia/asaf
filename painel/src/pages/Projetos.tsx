@@ -290,11 +290,6 @@ function FormularioProjeto({ onCancelar }: { onCancelar: () => void }) {
               Cancelar
             </Button>
           </div>
-          {criar.isError && (
-            <p className="text-sm text-destructive sm:col-span-2">
-              {(criar.error as Error).message}
-            </p>
-          )}
         </>
       )}
     </FormShell>
@@ -486,11 +481,6 @@ function SecaoEquipe({ idProjeto }: { idProjeto: number }) {
             <Button type="submit" size="sm" disabled={adicionar.isPending}>
               Adicionar
             </Button>
-            {adicionar.isError && (
-              <p className="text-sm text-destructive">
-                {(adicionar.error as Error).message}
-              </p>
-            )}
           </>
         )}
       </FormShell>
@@ -1342,11 +1332,6 @@ function PainelMedicoesIndicador({ indicador }: { indicador: Indicador }) {
             <Button type="submit" size="sm" disabled={registrar.isPending}>
               {registrar.isPending ? 'Registrando…' : 'Registrar medição'}
             </Button>
-            {registrar.isError && (
-              <p className="w-full text-xs text-destructive">
-                {(registrar.error as Error).message}
-              </p>
-            )}
           </>
         )}
       </FormShell>
@@ -1496,11 +1481,6 @@ function SecaoIndicadores({ idProjeto }: { idProjeto: number }) {
               <Button type="submit" size="sm" disabled={criar.isPending}>
                 Criar
               </Button>
-              {criar.isError && (
-                <p className="w-full text-xs text-destructive">
-                  {(criar.error as Error).message}
-                </p>
-              )}
             </>
           )}
         </FormShell>

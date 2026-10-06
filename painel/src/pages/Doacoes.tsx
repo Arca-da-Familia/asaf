@@ -116,11 +116,6 @@ function FormularioCampanha({ onCancelar }: { onCancelar: () => void }) {
               Cancelar
             </Button>
           </div>
-          {criar.isError && (
-            <p className="text-sm text-destructive sm:col-span-2">
-              {(criar.error as Error).message}
-            </p>
-          )}
         </>
       )}
     </FormShell>
@@ -303,11 +298,6 @@ function FormularioDoacao({ onCancelar }: { onCancelar: () => void }) {
                 Cancelar
               </Button>
             </div>
-            {criar.isError && (
-              <p className="text-sm text-destructive sm:col-span-2">
-                {(criar.error as Error).message}
-              </p>
-            )}
             {numeroRecibo != null && (
               <p className="text-sm text-green-600 sm:col-span-2">
                 Doação registrada — recibo nº {numeroRecibo}.

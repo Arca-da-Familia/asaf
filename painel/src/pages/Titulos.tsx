@@ -201,11 +201,6 @@ function FormularioNovoTitulo({ onCancelar }: { onCancelar: () => void }) {
                 Cancelar
               </Button>
             </div>
-            {criar.isError && (
-              <p className="text-sm text-destructive sm:col-span-2">
-                {(criar.error as Error).message}
-              </p>
-            )}
           </>
         )
       }}
@@ -390,11 +385,6 @@ function FormularioBaixa({
                 Cancelar
               </Button>
             </div>
-            {baixar.isError && (
-              <p className="text-sm text-destructive sm:col-span-3">
-                {(baixar.error as Error).message}
-              </p>
-            )}
           </>
         )
       }}

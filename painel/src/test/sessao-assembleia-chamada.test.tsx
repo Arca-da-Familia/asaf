@@ -151,6 +151,25 @@ describe('Chamada da sessão (achado v5.4d: quem saiu continuava listado como pr
     })
   })
 
+  it('a recusa do servidor aparece UMA vez, tanto pelo formulário quanto pelo botão da lista', async () => {
+    const u = userEvent.setup()
+    const recusa = 'Associado já está credenciado e presente nesta sessão.'
+    vi.mocked(api.credenciar).mockRejectedValue(new Error(recusa))
+    desenhar()
+
+    // pelo botão da lista (a mensagem não pode vir duplicada)
+    await u.click(
+      await screen.findByRole('button', { name: 'Registrar retorno' }),
+    )
+    expect(await screen.findAllByText(recusa)).toHaveLength(1)
+
+    // pelo formulário (o próprio formulário já mostra; a página não repete)
+    await u.selectOptions(screen.getAllByRole('combobox')[0]!, '3')
+    await u.click(screen.getByRole('button', { name: 'Credenciar' }))
+    await waitFor(() => expect(api.credenciar).toHaveBeenCalledTimes(2))
+    expect(await screen.findAllByText(recusa)).toHaveLength(1)
+  })
+
   it('sem ninguém na sala e com quem saiu, diz que não há ninguém presente (e não "ninguém credenciado")', async () => {
     vi.mocked(api.listarCredenciamentos).mockResolvedValue([
       {

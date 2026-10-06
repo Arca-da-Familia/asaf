@@ -146,11 +146,6 @@ function CardAssembleia({ assembleia }: { assembleia: MinhaAssembleia }) {
               <Button type="submit" size="sm" disabled={bater.isPending}>
                 {bater.isPending ? 'Confirmando…' : 'Confirmar presença'}
               </Button>
-              {bater.isError && (
-                <p className="w-full text-sm text-destructive">
-                  {(bater.error as Error).message}
-                </p>
-              )}
             </>
           )}
         </FormShell>
@@ -176,11 +171,6 @@ function CardAssembleia({ assembleia }: { assembleia: MinhaAssembleia }) {
               <Button type="submit" size="sm" disabled={justificar.isPending}>
                 {justificar.isPending ? 'Enviando…' : 'Enviar justificativa'}
               </Button>
-              {justificar.isError && (
-                <p className="w-full text-sm text-destructive">
-                  {(justificar.error as Error).message}
-                </p>
-              )}
             </>
           )}
         </FormShell>

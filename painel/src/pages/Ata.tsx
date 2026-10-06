@@ -361,11 +361,6 @@ function BlocoDeliberacoes({ idAta }: { idAta: number }) {
               <Button type="submit" size="sm" disabled={criar.isPending}>
                 {criar.isPending ? 'Registrando…' : 'Registrar'}
               </Button>
-              {criar.isError && (
-                <p className="text-sm text-destructive">
-                  {(criar.error as Error).message}
-                </p>
-              )}
             </>
           )}
         </FormShell>

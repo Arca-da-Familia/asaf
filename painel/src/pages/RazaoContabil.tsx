@@ -74,11 +74,6 @@ function FormularioEstorno({
               Cancelar
             </Button>
           </div>
-          {estornar.isError && (
-            <p className="text-sm text-destructive">
-              {(estornar.error as Error).message}
-            </p>
-          )}
         </>
       )}
     </FormShell>
@@ -194,11 +189,6 @@ function FormularioTransferencia({ onCancelar }: { onCancelar: () => void }) {
               Cancelar
             </Button>
           </div>
-          {transferir.isError && (
-            <p className="text-sm text-destructive sm:col-span-4">
-              {(transferir.error as Error).message}
-            </p>
-          )}
         </>
       )}
     </FormShell>

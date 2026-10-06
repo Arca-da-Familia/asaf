@@ -223,11 +223,6 @@ function FormularioEspaco({ onCancelar }: { onCancelar: () => void }) {
               Cancelar
             </Button>
           </div>
-          {criar.isError && (
-            <p className="text-sm text-destructive sm:col-span-2">
-              {(criar.error as Error).message}
-            </p>
-          )}
         </>
       )}
     </FormShell>
@@ -611,11 +606,6 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
               <Button type="submit" size="sm" disabled={criar.isPending}>
                 Reservar
               </Button>
-              {criar.isError && (
-                <p className="w-full text-xs text-destructive">
-                  {(criar.error as Error).message}
-                </p>
-              )}
             </>
           )}
         </FormShell>
@@ -941,11 +931,6 @@ function SecaoBloqueios({ idEspaco }: { idEspaco: number }) {
               <Button type="submit" size="sm" disabled={criar.isPending}>
                 Bloquear
               </Button>
-              {criar.isError && (
-                <p className="w-full text-xs text-destructive">
-                  {(criar.error as Error).message}
-                </p>
-              )}
             </>
           )}
         </FormShell>
@@ -1091,11 +1076,6 @@ function SecaoIsencoesEspaco({ idEspaco }: { idEspaco: number }) {
             <Button type="submit" size="sm" disabled={conceder.isPending}>
               Conceder isenção
             </Button>
-            {conceder.isError && (
-              <p className="w-full text-sm text-destructive">
-                {(conceder.error as Error).message}
-              </p>
-            )}
           </>
         )}
       </FormShell>

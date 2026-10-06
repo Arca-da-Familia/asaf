@@ -271,11 +271,6 @@ function BlocoMandatos() {
                 <Button type="submit" disabled={criar.isPending}>
                   {criar.isPending ? 'Registrando…' : 'Registrar mandato'}
                 </Button>
-                {criar.isError && (
-                  <p className="mt-2 text-sm text-destructive">
-                    {(criar.error as Error).message}
-                  </p>
-                )}
               </div>
             </>
           )}
@@ -418,11 +413,6 @@ function BlocoConflitoInteresse() {
               <Button type="submit" size="sm" disabled={declarar.isPending}>
                 {declarar.isPending ? 'Declarando…' : 'Declarar'}
               </Button>
-              {declarar.isError && (
-                <p className="text-sm text-destructive">
-                  {(declarar.error as Error).message}
-                </p>
-              )}
             </>
           )}
         </FormShell>

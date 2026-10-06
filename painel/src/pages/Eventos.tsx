@@ -287,11 +287,6 @@ function FormularioEvento({ onCancelar }: { onCancelar: () => void }) {
               Cancelar
             </Button>
           </div>
-          {criar.isError && (
-            <p className="text-sm text-destructive sm:col-span-2">
-              {(criar.error as Error).message}
-            </p>
-          )}
         </>
       )}
     </FormShell>
@@ -441,11 +436,6 @@ function SecaoPerguntas({ idEvento }: { idEvento: number }) {
             <Button type="submit" size="sm" disabled={criar.isPending}>
               Adicionar
             </Button>
-            {criar.isError && (
-              <p className="w-full text-sm text-destructive">
-                {(criar.error as Error).message}
-              </p>
-            )}
           </>
         )}
       </FormShell>
@@ -525,11 +515,6 @@ function SecaoCotas({ idEvento }: { idEvento: number }) {
             <Button type="submit" size="sm" disabled={criar.isPending}>
               Adicionar cota
             </Button>
-            {criar.isError && (
-              <p className="w-full text-sm text-destructive">
-                {(criar.error as Error).message}
-              </p>
-            )}
           </>
         )}
       </FormShell>
@@ -1003,11 +988,6 @@ function SecaoCobranca({ evento }: { evento: Evento }) {
             <Button type="submit" size="sm" disabled={configurar.isPending}>
               {configurar.isPending ? 'Salvando…' : 'Salvar cobrança'}
             </Button>
-            {configurar.isError && (
-              <p className="w-full text-sm text-destructive">
-                {(configurar.error as Error).message}
-              </p>
-            )}
             {configurar.isSuccess && (
               <p className="w-full text-sm text-emerald-600">
                 Cobrança configurada.
@@ -1126,11 +1106,6 @@ function SecaoFaixasPreco({ idEvento }: { idEvento: number }) {
             <Button type="submit" size="sm" disabled={criar.isPending}>
               Adicionar faixa
             </Button>
-            {criar.isError && (
-              <p className="w-full text-sm text-destructive">
-                {(criar.error as Error).message}
-              </p>
-            )}
           </>
         )}
       </FormShell>
@@ -1256,11 +1231,6 @@ function SecaoCupons({ idEvento }: { idEvento: number }) {
             <Button type="submit" size="sm" disabled={criar.isPending}>
               Criar cupom
             </Button>
-            {criar.isError && (
-              <p className="w-full text-sm text-destructive">
-                {(criar.error as Error).message}
-              </p>
-            )}
           </>
         )}
       </FormShell>
@@ -1420,11 +1390,6 @@ function SecaoIsencoesEvento({ idEvento }: { idEvento: number }) {
             <Button type="submit" size="sm" disabled={conceder.isPending}>
               Conceder isenção
             </Button>
-            {conceder.isError && (
-              <p className="w-full text-sm text-destructive">
-                {(conceder.error as Error).message}
-              </p>
-            )}
           </>
         )}
       </FormShell>
@@ -1533,11 +1498,6 @@ function SecaoReembolsoEvento({ idEvento }: { idEvento: number }) {
               <Button type="submit" size="sm" disabled={configurar.isPending}>
                 {configurar.isPending ? 'Salvando…' : 'Salvar política'}
               </Button>
-              {configurar.isError && (
-                <p className="w-full text-sm text-destructive">
-                  {(configurar.error as Error).message}
-                </p>
-              )}
               {configurar.isSuccess && (
                 <p className="w-full text-sm text-emerald-600">
                   Política de reembolso atualizada.
@@ -1698,11 +1658,6 @@ function SecaoPortaria({ idEvento }: { idEvento: number }) {
             <Button type="submit" size="sm" disabled={criar.isPending}>
               Gerar link da portaria
             </Button>
-            {criar.isError && (
-              <p className="w-full text-sm text-destructive">
-                {(criar.error as Error).message}
-              </p>
-            )}
           </>
         )}
       </FormShell>
@@ -1824,11 +1779,6 @@ function FormularioTemplateDocumento({
             <Button type="submit" size="sm" disabled={criar.isPending}>
               Cadastrar modelo
             </Button>
-            {criar.isError && (
-              <p className="text-sm text-destructive">
-                {(criar.error as Error).message}
-              </p>
-            )}
           </>
         )}
       </FormShell>
@@ -2020,11 +1970,6 @@ function SecaoElegibilidade({ evento }: { evento: Evento }) {
             <Button type="submit" size="sm" disabled={configurar.isPending}>
               Salvar configuração
             </Button>
-            {configurar.isError && (
-              <p className="w-full text-sm text-destructive">
-                {(configurar.error as Error).message}
-              </p>
-            )}
           </>
         )}
       </FormShell>

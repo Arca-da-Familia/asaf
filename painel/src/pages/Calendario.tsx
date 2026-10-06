@@ -170,11 +170,6 @@ export function CalendarioPage() {
                 <Button type="submit" disabled={agendar.isPending}>
                   {agendar.isPending ? 'Agendando…' : 'Agendar evento'}
                 </Button>
-                {agendar.isError && (
-                  <p className="mt-2 text-sm text-destructive">
-                    {(agendar.error as Error).message}
-                  </p>
-                )}
               </div>
             </>
           )}

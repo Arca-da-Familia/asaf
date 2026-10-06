@@ -189,11 +189,6 @@ export function NegociacaoDividaPage() {
                           : 'Confirmar negociação'}
                       </Button>
                     </div>
-                    {negociar.isError && (
-                      <p className="text-sm text-destructive sm:col-span-3">
-                        {(negociar.error as Error).message}
-                      </p>
-                    )}
                     {negociar.isSuccess && negociar.data && (
                       <p className="text-sm text-green-600 sm:col-span-3">
                         Negociação #{negociar.data.id_negociacao} confirmada —{' '}

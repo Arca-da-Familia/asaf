@@ -152,11 +152,6 @@ function FormularioOrcamento({ onCancelar }: { onCancelar: () => void }) {
               Cancelar
             </Button>
           </div>
-          {criar.isError && (
-            <p className="text-sm text-destructive sm:col-span-2">
-              {(criar.error as Error).message}
-            </p>
-          )}
         </>
       )}
     </FormShell>
@@ -383,11 +378,6 @@ function FormularioReservaContingencia({
               Cancelar
             </Button>
           </div>
-          {criar.isError && (
-            <p className="text-sm text-destructive sm:col-span-2">
-              {(criar.error as Error).message}
-            </p>
-          )}
         </>
       )}
     </FormShell>

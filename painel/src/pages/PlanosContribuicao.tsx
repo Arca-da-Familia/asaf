@@ -163,11 +163,6 @@ function FormularioPlano({ onCancelar }: { onCancelar: () => void }) {
               Cancelar
             </Button>
           </div>
-          {criar.isError && (
-            <p className="text-sm text-destructive sm:col-span-3">
-              {(criar.error as Error).message}
-            </p>
-          )}
         </>
       )}
     </FormShell>
@@ -241,11 +236,6 @@ function FormularioReajuste({
               Cancelar
             </Button>
           </div>
-          {reajustar.isError && (
-            <p className="text-sm text-destructive sm:col-span-3">
-              {(reajustar.error as Error).message}
-            </p>
-          )}
         </>
       )}
     </FormShell>
@@ -365,11 +355,6 @@ function FormularioIsencao({ onCancelar }: { onCancelar: () => void }) {
               Cancelar
             </Button>
           </div>
-          {criar.isError && (
-            <p className="text-sm text-destructive sm:col-span-3">
-              {(criar.error as Error).message}
-            </p>
-          )}
         </>
       )}
     </FormShell>
@@ -495,11 +480,6 @@ function FormularioCampanha({ onCancelar }: { onCancelar: () => void }) {
               Cancelar
             </Button>
           </div>
-          {criar.isError && (
-            <p className="text-sm text-destructive sm:col-span-3">
-              {(criar.error as Error).message}
-            </p>
-          )}
         </>
       )}
     </FormShell>

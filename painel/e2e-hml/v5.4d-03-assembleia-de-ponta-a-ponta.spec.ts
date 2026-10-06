@@ -124,10 +124,6 @@ test('sessão: chamada (credenciar, saída, código), quórum e a votação barr
   // pauta + votação ANTES do quórum: o sistema recusa
   await page.getByLabel('Título').first().fill('Aprovação das contas de 2026')
   await page.getByLabel('Tempo (min)').fill('10')
-  await page
-    .getByLabel('Descrição')
-    .first()
-    .fill('Votação do parecer do Conselho Fiscal')
   await page.getByRole('button', { name: 'Adicionar item' }).click()
   await expect(
     page.getByText('Aprovação das contas de 2026').first(),

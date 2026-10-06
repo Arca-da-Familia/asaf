@@ -104,11 +104,6 @@ function FormularioCobrancaBloco() {
           <Button type="submit" size="sm" disabled={gerar.isPending}>
             {gerar.isPending ? 'Gerando…' : 'Gerar cobrança em bloco'}
           </Button>
-          {gerar.isError && (
-            <p className="text-sm text-destructive sm:col-span-4">
-              {(gerar.error as Error).message}
-            </p>
-          )}
           {gerar.isSuccess && gerar.data && (
             <p className="text-sm text-green-600 sm:col-span-4">
               Título-bloco #{gerar.data.id_titulo} gerado (
@@ -185,11 +180,6 @@ export function GerarCobrancasPage() {
             </>
           )}
         </FormShell>
-        {gerarPrevia.isError && (
-          <p className="text-sm text-destructive">
-            {(gerarPrevia.error as Error).message}
-          </p>
-        )}
 
         {previa && (
           <div className="rounded-md border border-border bg-muted/20 p-4">

@@ -222,11 +222,6 @@ function PainelDadosBancarios({ idFornecedor }: { idFornecedor: number }) {
                     : 'Solicitar (aguarda segundo aprovador)'}
                 </Button>
               </div>
-              {solicitar.isError && (
-                <p className="text-xs text-destructive sm:col-span-2">
-                  {(solicitar.error as Error).message}
-                </p>
-              )}
             </>
           )}
         </FormShell>

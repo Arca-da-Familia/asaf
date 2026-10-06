@@ -110,11 +110,6 @@ function SecaoFechamentoMensal() {
             <Button type="submit" size="sm" disabled={fechar.isPending}>
               {fechar.isPending ? 'Fechando…' : 'Fechar mês'}
             </Button>
-            {fechar.isError && (
-              <p className="text-sm text-destructive sm:col-span-4">
-                {(fechar.error as Error).message}
-              </p>
-            )}
           </>
         )}
       </FormShell>

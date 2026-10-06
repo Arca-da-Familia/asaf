@@ -1383,7 +1383,7 @@ retrabalho que a seção 4.1 existe pra evitar.
 
 #### v5.4c — FASE 0 e FASE 1 ao vivo: identidade, painel e associados
 
-- [ ] **Alicerce da conferência** (único item que não vem de uma fase): fluxo do GitHub `testar-homologacao.yml` (manual, só contra
+- [x] **Alicerce da conferência** (único item que não vem de uma fase): fluxo do GitHub `testar-homologacao.yml` (manual, só contra
       `hml-*`, nunca contra a produção) que abre um navegador de verdade, entra com os usuários de teste lendo as senhas do cofre
       (**ninguém digita nem cria senha**), executa o roteiro da versão e guarda prints/vídeo/relatório como artefato; e o
       `deploy-homologacao.yml` ganha a opção de publicar **uma branch** (não só a `main`), para a regra da v5.5 em diante.
@@ -1393,13 +1393,33 @@ retrabalho que a seção 4.1 existe pra evitar.
       (`DECISOES_CONGELADAS.md` §3.1). O presidente também entra na homologação para testar à vontade (lançar, desfazer, aprovar).
       *(Primeira tentativa, ainda no modo automático, foi barrada pela trava de segurança do Claude Code e nada foi contornado; o
       presidente passou ao modo manual e repetiu a ordem no chat.)*
-- [ ] **FASE 0 — entrar e sair:** login por CPF e senha, saída, sessão que expira (volta ao login), tela proibida (403 amigável), menu
+      **Provado (2026-10-06):** o robô (`testar-homologacao.yml` + `painel/e2e-hml/`) rodou dezenas de vezes na homologação publicada;
+      sem trace e com a entrada "boxed", a varredura de senha nos resultados nunca achou nada; o reinício do banco de teste foi exercitado de
+      ponta a ponta duas vezes. **Ainda NÃO provado:** publicar uma **branch** (`ref`) na homologação — está implementado e coberto por teste do
+      YAML, mas só será exercitado com uma branch de verdade na v5.5.
+- [x] **FASE 0 — entrar e sair:** login por CPF e senha, saída, sessão que expira (volta ao login), tela proibida (403 amigável), menu
       que muda conforme o nível, "ver como" outro nível (v0.2.9), faixa **AMBIENTE DE TESTE** sempre visível, **Configurações**
       (catálogos) editando e a opção nova aparecendo no cadastro, **Auditoria** mostrando tudo o que foi feito nesta versão.
-- [ ] **FASE 1 / 2.5.1 — associados:** cadastrar pela tela (CPF inválido recusado; CPF repetido recusado **na hora**, não depois), editar,
+      **Provado ao vivo, pela tela, com print de cada passo:** entrada com CPF e senha **sem** segundo passo; CPF inválido e senha errada
+      recusados; sair, rota protegida sem sessão e **sessão que acaba** (sem o cookie volta ao login); Secretário vê documentos/associados
+      e não vê financeiro (e digitar o endereço também é negado), Tesoureiro vê financeiro e parcerias e não vê documentos; "ver como"
+      Associado (faixa "somente leitura", menu sem os módulos de gestão, "Encerrar" devolve o menu completo); faixa AMBIENTE DE TESTE em todas
+      as telas; Configurações: opção nova de **estado civil** aparece no cadastro e **some ao desativar**; Auditoria lista cada ação feita.
+- [x] **FASE 1 / 2.5.1 — associados:** cadastrar pela tela (CPF inválido recusado; CPF repetido recusado **na hora**, não depois), editar,
       subir foto e **abri-la**, filiação (da intenção ao efetivo), licença / desligamento / retorno, ficha 360º e linha do tempo,
       família e núcleo doméstico, voluntário e empregado, importar e exportar CSV, qualidade da base (pendências do cadastro).
-- [ ] **Achados da conferência ao vivo (2026-10-05 e 06).** O robô (`painel/e2e-hml/v5.4c-*.spec.ts`) rodou várias vezes na homologação; o
+      **Provado ao vivo, pela tela, com print:** cadastro (CPF inválido, CPF repetido, nome vazio e **cadastro parecido** recusados; o Secretário
+      não tem como forçar e o Presidente força, ficando na Auditoria); lista e filtro; edição que **continua lá depois de recarregar**; **foto
+      que sobe e ABRE** (a imagem carrega e responde 200); ficha 360 e linha do tempo; cargos (registrar posse, encerrar); família (recusa,
+      adicionar, remover); situação (licença, desligamento com confirmação, **anonimizar antes do prazo recusado**, readmissão, histórico com o
+      dia certo); propostas de filiação (entram pela rota pública, recusa sem motivo barrada, só aprova depois de conferir, abre o cadastro
+      criado); **qualidade da base** (o sistema acha o par duplicado, recusa nome errado e dois associados, **mescla de verdade** um associado
+      com uma pessoa sem cadastro, ignora da fila); vínculos (termo de voluntário com recusa da autorização do responsável, registro e **renovação
+      que sobe a versão**, funcionário, e-mail suspeito indo para a fila); completude do cadastro **subindo** ao preencher; situação guardada ×
+      calculada; **importar** CSV (linha boa criada, CPF inválido e repetida barrados) e **exportar** (o CSV baixado tem as colunas escolhidas e o
+      total bate; o Secretário não vê o botão; a Auditoria registra); redefinir o segundo passo (só quem gerencia o acesso, com confirmação e
+      Auditoria); recadastramento ("Confirmo que meus dados estão corretos" + Auditoria); gráficos abrem com dados.
+- [x] **Achados da conferência ao vivo (2026-10-05 e 06).** O robô (`painel/e2e-hml/v5.4c-*.spec.ts`) rodou várias vezes na homologação; o
       que ele achou, e a leitura do código que ele provocou (marcado: **[corrigido]** já feito e provado, **[aberto]** falta fazer):
       1. **[corrigido]** o menu e as rotas do painel só enxergavam as permissões do **nível**, não as do **cargo** em mandato: o Secretário
          e o Tesoureiro de teste entravam e viam "Nenhum módulo disponível", embora o servidor os autorizasse. `/auth/me` agora soma as do
@@ -1425,15 +1445,38 @@ retrabalho que a seção 4.1 existe pra evitar.
       8. **[corrigido, infra]** o 1º reinício real da homologação falhou (esquema `public` de banco novo no Azure é do `azure_pg_admin`) e o
          papel de teste tem limite de 5 conexões (a API usava até 15): `entregar_esquema_public` e pool 3+1. Publicar uma branch na
          homologação já é possível (`ref`).
-      9. **[aberto]** ainda **sem tela** (33 rotas do servidor que nenhum código do painel chama; a lista exata e a versão que resolve cada
-         uma está em `tests/test_rotas_com_tela.py`, que impede a lista de crescer): qualidade da base (duplicidade, fila de revisão,
-         mesclar, higienizar contatos, completude), termo de voluntariado e funcionário (v1.6), autoatendimento e recadastro, regras do
-         estatuto, entre outras.
-      10. **[aberto → v5.4g]** o cartão "Editar o site" do painel de teste abre o Directus de **produção** (Directus de teste previsto).
-      11. **[aberto, decisão de produto]** o CPF aparece sem máscara no cabeçalho da ficha; "Recadastramento pendente" já no cadastro recém
+      9. **[corrigido]** funcionalidades da FASE 1 marcadas como concluídas **sem tela**, todas agora com tela, teste de tela (axe incluso) e
+         roteiro do robô: qualidade da base (duplicidade, fila de revisão, mesclar, ignorar, higienizar telefones), termo de voluntário e
+         funcionário (v1.6), e-mail suspeito, completude, situação calculada, recadastramento, **exportação de associados** (v1.3, permissão própria
+         e auditada — a função do cliente existia e nenhuma tela a usava), redefinir o segundo passo. **Trava permanente:** `tests/test_rotas_com_tela.py`
+         exige que toda rota do servidor tenha chamada no painel ou conste ali com a versão do plano que a resolve (a lista só pode encolher).
+      10. **[corrigido — erro que só o Postgres real mostrou]** **mesclar duas pessoas nunca funcionou em produção**: o servidor apagava a
+          pessoa absorvida enquanto a fila de revisão (de onde a mesclagem sempre parte), inscrições, presenças, beneficiários, documentos
+          emitidos e isenções ainda apontavam para ela; no Postgres isso é violação de chave estrangeira (erro 500; na tela, "Failed to fetch"). O
+          SQLite dos testes **não confere chave estrangeira**, por isso passava. Corrigido (toda referência a `pessoas` sem regra própria passa
+          a apontar para quem fica; conflito que não dá para juntar devolve 409 explicando, não 500) e **a suíte agora liga a conferência de chave
+          estrangeira no SQLite**: os 861 testes seguem verdes, então não há outro caso exercitado.
+      11. **[corrigido]** o formulário do **termo de voluntário não tinha o campo da autorização do responsável**, que o servidor exige quando a
+          pessoa é menor **ou quando a data de nascimento falta** (não dá para provar a maioridade); quem tentasse ficava travado.
+      12. **[corrigido]** o formulário de **novo associado** não oferecia "Cadastrar mesmo assim" ao Presidente quando o servidor barra cadastro
+          parecido (só a caixa de propostas oferecia).
+      13. **[corrigido]** dois cadastros duplicados costumam ter o **mesmo nome**: a fila agora diz quem é associado (e a matrícula) e quem é só uma pessoa.
+      14. **[aberto, decisão de produto]** o CPF aparece sem máscara no cabeçalho da ficha; "Recadastramento pendente" já no cadastro recém
           criado; existem **dois** modelos de cargo (o "Histórico de cargos" livre da ficha × os Mandatos da Governança) — avaliar na v5.4d.
-      Falta fechar a v5.4c: telas das pendências do item 9 que são da FASE 1, importação/exportação CSV, Configurações editando um catálogo e
-      a opção aparecendo no cadastro, "ver como", e o print de cada tela no bloco de fechamento.
+      15. **[aberto → v5.4g]** o cartão "Editar o site" do painel de teste abre o Directus de **produção** (Directus de teste previsto).
+      16. **[aberto]** `/api/associados/busca-simples` e `PUT /api/meu-perfil/{id}` são **legados duplicados** (o painel usa a lista de
+          associados e `/auth/perfil`), agora protegidos; a decisão é **removê-los** (ainda são usados por testes antigos).
+      17. **[observação]** "Ver como" usa uma janela de confirmação **nativa do navegador** (`window.confirm`) em vez do diálogo do painel
+          (inconsistente com o resto; funciona).
+      18. **[corrigido, com dívida registrada]** acessibilidade: o inventário do robô achou **183 campos sem nome para leitor de tela** em
+          telas que já existiam (o `<label>` ficava solto ao lado, sem `for`). Corrigido com `aria-label` nas telas que a conferência tocou e
+          com o componente `AssociarRotulos` (rede de segurança no painel inteiro: liga o rótulo solto ao campo seguinte; teste de unidade e
+          teste de tela com axe). **Dívida:** trocar, aos poucos, o rótulo solto por `<Label htmlFor>` nas telas antigas (a rede cobre enquanto isso).
+      **Resultado:** o roteiro v5.4c rodou **29 de 29 cenários verdes** na homologação (artefato `conferencia-homologacao-v5.4c` do GitHub, com
+      print e vídeo de cada passo; fica guardado 30 dias).
+      **Produção (por leitura, sem dado de teste):** a correção da mesclagem passou nos testes **no Postgres real** do pipeline e foi para o ar
+      (o primeiro envio falhou no CI só por uma afirmação de teste que só vale no SQLite; corrigido o teste, não o pipeline); as rotas que
+      estavam abertas respondem **401**; a versão do painel no ar bate com o commit.
 
 #### v5.4d — FASE 2 e FASE 2.5 ao vivo: governança
 

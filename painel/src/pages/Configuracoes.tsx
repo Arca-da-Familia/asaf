@@ -150,11 +150,6 @@ function BlocoOpcoes({ catalogo }: { catalogo: Catalogo }) {
                 <Button type="submit" size="sm" disabled={criar.isPending}>
                   {criar.isPending ? 'Adicionando…' : 'Adicionar opção'}
                 </Button>
-                {criar.isError && (
-                  <p className="mt-2 text-sm text-destructive">
-                    {(criar.error as Error).message}
-                  </p>
-                )}
               </div>
             </>
           )}

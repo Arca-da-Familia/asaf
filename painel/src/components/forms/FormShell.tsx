@@ -82,9 +82,11 @@ export function FormShell<T extends FieldValues>({
       noValidate
     >
       {erroGeral && (
+        // `col-span-full` e `w-full`: o formulário pode ser uma grade ou uma linha que quebra; a mensagem ocupa a largura
+        // toda em vez de empurrar os campos uma casa.
         <p
           role="alert"
-          className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          className="col-span-full w-full rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
         >
           {erroGeral}
         </p>

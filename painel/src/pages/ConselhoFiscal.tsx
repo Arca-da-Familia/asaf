@@ -91,11 +91,6 @@ function BlocoQuestionamentos({ idTitulo }: { idTitulo: number }) {
               <Button type="submit" size="sm" disabled={perguntar.isPending}>
                 {perguntar.isPending ? 'Enviando…' : 'Enviar questionamento'}
               </Button>
-              {perguntar.isError && (
-                <p className="text-sm text-destructive">
-                  {(perguntar.error as Error).message}
-                </p>
-              )}
             </>
           )}
         </FormShell>
@@ -188,11 +183,6 @@ function BlocoRespostas({
                   >
                     Responder
                   </Button>
-                  {responder.isError && (
-                    <p className="text-destructive">
-                      {(responder.error as Error).message}
-                    </p>
-                  )}
                 </>
               )}
             </FormShell>
@@ -400,11 +390,6 @@ function BlocoPareceres() {
               <Button type="submit" size="sm" disabled={emitir.isPending}>
                 {emitir.isPending ? 'Emitindo…' : 'Emitir parecer'}
               </Button>
-              {emitir.isError && (
-                <p className="text-sm text-destructive">
-                  {(emitir.error as Error).message}
-                </p>
-              )}
             </>
           )}
         </FormShell>

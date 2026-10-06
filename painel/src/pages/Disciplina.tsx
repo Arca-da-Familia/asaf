@@ -159,11 +159,6 @@ export function ProcessosDisciplinaresPage() {
                 <Button type="submit" disabled={abrir.isPending}>
                   {abrir.isPending ? 'Abrindo…' : 'Abrir processo'}
                 </Button>
-                {abrir.isError && (
-                  <p className="mt-2 text-sm text-destructive">
-                    {(abrir.error as Error).message}
-                  </p>
-                )}
               </div>
             </>
           )}
@@ -279,11 +274,6 @@ function BlocoManifestacoes({ idProcesso }: { idProcesso: number }) {
             <Button type="submit" size="sm" disabled={manifestar.isPending}>
               {manifestar.isPending ? 'Registrando…' : 'Registrar manifestação'}
             </Button>
-            {manifestar.isError && (
-              <p className="text-sm text-destructive">
-                {(manifestar.error as Error).message}
-              </p>
-            )}
           </>
         )}
       </FormShell>
@@ -412,11 +402,6 @@ export function ProcessoDisciplinarDetalhePage() {
                 <Button type="submit" disabled={defender.isPending}>
                   {defender.isPending ? 'Enviando…' : 'Enviar defesa'}
                 </Button>
-                {defender.isError && (
-                  <p className="text-sm text-destructive">
-                    {(defender.error as Error).message}
-                  </p>
-                )}
               </>
             )}
           </FormShell>
@@ -461,11 +446,6 @@ export function ProcessoDisciplinarDetalhePage() {
                     ? 'Decidindo…'
                     : 'Fechar com a pena decidida'}
                 </Button>
-                {decidir.isError && (
-                  <p className="text-sm text-destructive">
-                    {(decidir.error as Error).message}
-                  </p>
-                )}
               </>
             )}
           </FormShell>
@@ -505,11 +485,6 @@ export function ProcessoDisciplinarDetalhePage() {
                     ? 'Registrando…'
                     : 'Registrar homologação'}
                 </Button>
-                {homologar.isError && (
-                  <p className="text-sm text-destructive">
-                    {(homologar.error as Error).message}
-                  </p>
-                )}
               </>
             )}
           </FormShell>

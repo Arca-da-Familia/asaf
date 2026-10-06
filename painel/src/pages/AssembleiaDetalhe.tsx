@@ -120,11 +120,6 @@ function BlocoJustificativas({ idAssembleia }: { idAssembleia: number }) {
               <Button type="submit" size="sm" disabled={lancar.isPending}>
                 {lancar.isPending ? 'Lançando…' : 'Lançar (já aceita)'}
               </Button>
-              {lancar.isError && (
-                <p className="text-sm text-destructive">
-                  {(lancar.error as Error).message}
-                </p>
-              )}
             </>
           )}
         </FormShell>

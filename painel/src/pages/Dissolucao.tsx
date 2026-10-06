@@ -93,11 +93,6 @@ export function ProcessosDissolucaoPage() {
               <Button type="submit" disabled={abrir.isPending}>
                 {abrir.isPending ? 'Abrindo…' : 'Abrir processo'}
               </Button>
-              {abrir.isError && (
-                <p className="text-sm text-destructive">
-                  {(abrir.error as Error).message}
-                </p>
-              )}
             </>
           )}
         </FormShell>
@@ -232,11 +227,6 @@ export function ProcessoDissolucaoDetalhePage() {
             Cancelado: {processo.motivo_cancelamento}
           </p>
         )}
-        {cancelar.isError && (
-          <p className="mt-2 text-sm text-destructive">
-            {(cancelar.error as Error).message}
-          </p>
-        )}
       </div>
 
       {processo.status === 'Aberto' && (
@@ -269,11 +259,6 @@ export function ProcessoDissolucaoDetalhePage() {
               </>
             )}
           </FormShell>
-          {deliberar.isError && (
-            <p className="mt-2 text-sm text-destructive">
-              {(deliberar.error as Error).message}
-            </p>
-          )}
         </section>
       )}
 
@@ -302,11 +287,6 @@ export function ProcessoDissolucaoDetalhePage() {
                 <Button type="submit" disabled={concluirLiquidacao.isPending}>
                   Registrar liquidação concluída
                 </Button>
-                {concluirLiquidacao.isError && (
-                  <p className="text-sm text-destructive">
-                    {(concluirLiquidacao.error as Error).message}
-                  </p>
-                )}
               </>
             )}
           </FormShell>
@@ -379,11 +359,6 @@ export function ProcessoDissolucaoDetalhePage() {
                 <Button type="submit" disabled={destinarPatrimonio.isPending}>
                   Registrar destinação
                 </Button>
-                {destinarPatrimonio.isError && (
-                  <p className="text-sm text-destructive">
-                    {(destinarPatrimonio.error as Error).message}
-                  </p>
-                )}
               </>
             )}
           </FormShell>
@@ -419,11 +394,6 @@ export function ProcessoDissolucaoDetalhePage() {
                 <Button type="submit" disabled={baixaCadastral.isPending}>
                   Concluir roteiro (baixa cadastral)
                 </Button>
-                {baixaCadastral.isError && (
-                  <p className="text-sm text-destructive">
-                    {(baixaCadastral.error as Error).message}
-                  </p>
-                )}
               </>
             )}
           </FormShell>

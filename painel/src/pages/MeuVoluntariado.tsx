@@ -142,11 +142,6 @@ function CardAlocacao({ alocacao }: { alocacao: AlocacaoVoluntario }) {
               >
                 {solicitarTroca.isPending ? 'Enviando…' : 'Solicitar troca'}
               </Button>
-              {solicitarTroca.isError && (
-                <p className="w-full text-sm text-destructive">
-                  {(solicitarTroca.error as Error).message}
-                </p>
-              )}
             </>
           )}
         </FormShell>
@@ -291,11 +286,6 @@ function SecaoMeuHistoricoHoras() {
             <Button type="submit" size="sm" disabled={registrar.isPending}>
               {registrar.isPending ? 'Registrando…' : 'Registrar horas'}
             </Button>
-            {registrar.isError && (
-              <p className="w-full text-sm text-destructive">
-                {(registrar.error as Error).message}
-              </p>
-            )}
           </>
         )}
       </FormShell>
