@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.models.financeiro import ContaFinanceira, LancamentoContabil, PartidaContabil
 from app.models.fechamento import FechamentoMensal
 from app.services.contabilidade import DEBITO
+from app.services.formato import reais
 
 TOLERANCIA_CENTAVOS = Decimal("0.01")
 
@@ -65,7 +66,7 @@ def fechar_mes(
     if abs(divergencia) > TOLERANCIA_CENTAVOS:
         raise HTTPException(
             status_code=400,
-            detail=f"Divergência de R$ {divergencia:.2f} entre o saldo do sistema (R$ {saldo_sistema:.2f}) e o saldo do extrato bancário (R$ {saldo_extrato_bancario:.2f}) - concilie antes de fechar o mês.",
+            detail=f"Divergência de {reais(divergencia)} entre o saldo do sistema ({reais(saldo_sistema)}) e o saldo do extrato bancário ({reais(saldo_extrato_bancario)}) - concilie antes de fechar o mês.",
         )
 
     fechamento = FechamentoMensal(

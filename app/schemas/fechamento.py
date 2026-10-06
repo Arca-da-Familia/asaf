@@ -12,6 +12,6 @@ class FechamentoMensalCriar(BaseModel):
     @classmethod
     def validar_competencia(cls, v):
         partes = v.split("-")
-        if len(partes) != 2 or len(partes[0]) != 4 or not partes[0].isdigit() or not partes[1].isdigit():
-            raise ValueError("Competência inválida - use o formato AAAA-MM.")
+        if len(partes) != 2 or len(partes[0]) != 4 or not partes[0].isdigit() or not partes[1].isdigit() or not (1 <= int(partes[1]) <= 12):
+            raise ValueError("Competência inválida - use o formato AAAA-MM, com mês de 01 a 12.")
         return v

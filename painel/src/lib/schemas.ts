@@ -1,6 +1,22 @@
 import { z } from 'zod'
 
 import { paraUtcIso } from '@/lib/datas'
+import { lerValorEmReais } from '@/lib/valores'
+
+// Campo opcional de formulário deixado em branco ("" num select ou num campo numérico) = "não informado": nunca vai à API
+// como "" nem como 0. Antes, um `z.coerce.number()` transformava "" em 0 e o servidor respondia "Projeto/Espaço/Centro de
+// custo nº 0 não encontrado"; e o "" do tipo de projeto era recusado como código inválido.
+const emBrancoVira = (v: unknown) => (v === '' || v === null ? undefined : v)
+const numeroOpcional = z.preprocess(emBrancoVira, z.coerce.number().optional())
+const inteiroOpcional = z.preprocess(
+  emBrancoVira,
+  z.coerce.number().int().optional(),
+)
+const inteiroPositivoOpcional = z.preprocess(
+  emBrancoVira,
+  z.coerce.number().int().positive().optional(),
+)
+const textoOpcional = z.preprocess(emBrancoVira, z.string().optional())
 
 // v0.2.8 — schemas Zod compartilhados entre formulário (validação de entrada) e contrato de
 // API (validação da resposta em lib/api.ts). O objetivo: se o backend mudar/remover um campo,
@@ -31,7 +47,7 @@ export const associadoMasterSchema = z.object({
   bairro: z.string().min(1, 'Informe o bairro.'),
   cidade: z.string().min(1, 'Informe a cidade.'),
   estado: z.string().length(2, 'UF com 2 letras.'),
-  data_nascimento: z.string().optional(),
+  data_nascimento: textoOpcional,
   estado_civil: z.string().optional(),
   profissao: z.string().optional(),
   naturalidade: z.string().optional(),
@@ -59,7 +75,7 @@ export const associadoEditarSchema = z.object({
   bairro: z.string().min(1, 'Informe o bairro.'),
   cidade: z.string().min(1, 'Informe a cidade.'),
   estado: z.string().length(2, 'UF com 2 letras.'),
-  data_nascimento: z.string().optional(),
+  data_nascimento: textoOpcional,
   estado_civil: z.string().optional(),
   profissao: z.string().optional(),
   naturalidade: z.string().optional(),
@@ -73,9 +89,9 @@ export const cargoCriarSchema = z.object({
 export const dependenteCriarSchema = z
   .object({
     grau_parentesco: z.string().min(1, 'Selecione o grau de parentesco.'),
-    id_pessoa_vinculada: z.coerce.number().int().optional(),
+    id_pessoa_vinculada: inteiroOpcional,
     nome_completo: z.string().optional(),
-    data_nascimento: z.string().optional(),
+    data_nascimento: textoOpcional,
   })
   .refine(
     (d) =>
@@ -148,7 +164,7 @@ export const itemPautaCriarSchema = z.object({
   descricao: z.string().optional(),
   // Number('') = 0 (não NaN) - campo em branco chega como 0, tratado como "sem tempo definido"
   // do mesmo jeito que undefined (ver criarItemPauta em lib/api.ts).
-  tempo_fala_minutos: z.coerce.number().int().optional(),
+  tempo_fala_minutos: inteiroOpcional,
 })
 
 export const ocorrenciaCriarSchema = z.object({
@@ -234,7 +250,7 @@ export const deliberacaoCriarSchema = z
       'Genérica',
     ]),
     texto: z.string().min(5, 'Descreva a deliberação.'),
-    ano_exercicio: z.coerce.number().int().optional(),
+    ano_exercicio: inteiroOpcional,
   })
   .refine((d) => d.tipo !== 'Aprovação de contas' || !!d.ano_exercicio, {
     message: 'Informe o ano de exercício.',
@@ -257,7 +273,7 @@ export const mandatoCriarSchema = z.object({
   orgao_codigo: z.string().min(1, 'Selecione o órgão.'),
   cargo_codigo: z.string().min(1, 'Selecione o cargo.'),
   data_inicio: z.string().min(1, 'Informe a data de início.'),
-  data_fim_previsto: z.string().optional(),
+  data_fim_previsto: textoOpcional,
   ato_origem: z.string().optional(),
 })
 
@@ -320,7 +336,7 @@ export const manifestacaoCriarSchema = z.object({
 
 export const decisaoExecutarSchema = z.object({
   texto_decisao: z.string().min(10, 'Fundamente a decisão.'),
-  suspensao_dias: z.coerce.number().int().optional(),
+  suspensao_dias: inteiroOpcional,
 })
 
 export const homologarSchema = z.object({
@@ -419,7 +435,7 @@ export const contaContabilCriarSchema = z.object({
   tipo: z.string().min(1, 'Selecione o tipo.'),
   // v3.1 - conta hierárquica: quando preenchida, esta conta vira filha (analítica) da conta de
   // código informado, que passa a ser sintética. Vazio = conta sem pai (raiz ou solta).
-  codigo_contabil_pai: z.string().optional(),
+  codigo_contabil_pai: textoOpcional,
 })
 
 // Usado por "Centros de Custo" (pages/CentrosCusto.tsx, v3.1) - "quanto custou o projeto X".
@@ -430,8 +446,8 @@ export const contaContabilCriarSchema = z.object({
 export const centroDeCustoCriarSchema = z.object({
   codigo: z.string().min(1, 'Informe o código.'),
   nome: z.string().min(1, 'Informe o nome.'),
-  id_projeto: z.coerce.number().optional(),
-  id_evento: z.coerce.number().optional(),
+  id_projeto: numeroOpcional,
+  id_evento: numeroOpcional,
 })
 
 // Usado por "Contas Financeiras" (pages/ContasFinanceiras.tsx, v3.1) - especialização de
@@ -490,8 +506,8 @@ export const tituloCriarSchema = z.object({
     .int({ message: 'Selecione a conta contábil.' })
     .positive({ message: 'Selecione a conta contábil.' }),
   beneficiario_tipo: z.enum(['nenhum', 'associado', 'fornecedor']),
-  id_associado: z.coerce.number().optional(),
-  id_fornecedor: z.coerce.number().optional(),
+  id_associado: numeroOpcional,
+  id_fornecedor: numeroOpcional,
   descricao: z.string().min(1, 'Informe a descrição.'),
   valor_original: z.coerce
     .number()
@@ -511,12 +527,12 @@ export const baixarTituloSchema = z.object({
   // v3.1 - opcionais: centro de custo, data de competência (quando ausente, o backend usa a
   // data de caixa) e comprovante (caminho já enviado por `enviarComprovante`, obrigatório
   // quando a conta do título exige - a mensagem real de erro do backend é mostrada).
-  id_centro_custo: z.coerce.number().optional(),
-  data_competencia: z.string().optional(),
+  id_centro_custo: numeroOpcional,
+  data_competencia: textoOpcional,
   comprovante: z.string().optional(),
   // v3.2 - "pagamento a maior": só exigido quando o valor pago excede o saldo devedor (checado
   // no backend, não aqui - a mensagem real de erro é mostrada quando falta).
-  id_conta_contabil_adiantamento: z.coerce.number().optional(),
+  id_conta_contabil_adiantamento: numeroOpcional,
 })
 
 // Usado por "Planos de Contribuição" (pages/PlanosContribuicao.tsx, v3.2) - mensalidade por
@@ -556,13 +572,13 @@ export const isencaoContribuicaoCriarSchema = z.object({
     .number()
     .int({ message: 'Selecione o associado.' })
     .positive({ message: 'Selecione o associado.' }),
-  id_plano: z.coerce.number().optional(),
+  id_plano: numeroOpcional,
   motivo: z.string().min(1, 'Selecione o motivo.'),
   percentual_desconto: z.coerce
     .number()
     .positive('Informe um percentual maior que zero.')
     .max(100, 'No máximo 100%.'),
-  data_fim: z.string().optional(),
+  data_fim: textoOpcional,
 })
 
 // Usado por "Gerar Cobranças" (pages/GerarCobrancas.tsx, v3.2) - sempre roda como prévia
@@ -662,14 +678,36 @@ export const dadosBancariosFornecedorCriarSchema = z.object({
 
 // v3.3 - alçada de aprovação: cargos_autorizados fica como texto ("TESOUREIRO,PRESIDENTE") no
 // formulário, convertido pra string[] só na hora de chamar a API.
-export const alcadaAprovacaoCriarSchema = z.object({
-  valor_minimo: z.coerce.number().min(0, 'Valor mínimo não pode ser negativo.'),
-  valor_maximo: z.string().optional(),
-  cargos_autorizados: z
-    .string()
-    .min(1, 'Informe ao menos um cargo (códigos separados por vírgula).'),
-  exige_dupla_assinatura: z.boolean(),
-})
+export const alcadaAprovacaoCriarSchema = z
+  .object({
+    valor_minimo: z.coerce
+      .number()
+      .min(0, 'Valor mínimo não pode ser negativo.'),
+    valor_maximo: textoOpcional,
+    cargos_autorizados: z
+      .string()
+      .min(1, 'Informe ao menos um cargo (códigos separados por vírgula).'),
+    exige_dupla_assinatura: z.boolean(),
+  })
+  .superRefine((d, ctx) => {
+    // o teto digitado como se escreve no Brasil ("4.999,99"); em branco = sem teto; nunca vira "sem teto" por engano
+    if (d.valor_maximo === undefined) return
+    const lido = lerValorEmReais(String(d.valor_maximo))
+    if (lido === null) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['valor_maximo'],
+        message:
+          'Informe um valor válido (ex.: 4.999,99) ou deixe em branco para "sem teto".',
+      })
+    } else if (Number(lido) < d.valor_minimo) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['valor_maximo'],
+        message: 'O valor máximo não pode ser menor que o mínimo.',
+      })
+    }
+  })
 
 export const delegacaoAprovacaoCriarSchema = z.object({
   id_associado_delegante: z.coerce
@@ -688,7 +726,7 @@ export const delegacaoAprovacaoCriarSchema = z.object({
 export const solicitacaoCompraCriarSchema = z.object({
   descricao: z.string().min(3, 'Informe a descrição da compra.'),
   justificativa: z.string().optional(),
-  id_fornecedor: z.coerce.number().optional(),
+  id_fornecedor: numeroOpcional,
   valor_estimado: z.coerce
     .number()
     .positive('Valor estimado deve ser maior que zero.'),
@@ -734,7 +772,7 @@ export const contaAPagarRecorrenteCriarSchema = z.object({
     .number()
     .int({ message: 'Selecione a conta contábil (Despesa).' })
     .positive({ message: 'Selecione a conta contábil (Despesa).' }),
-  id_fornecedor: z.coerce.number().optional(),
+  id_fornecedor: numeroOpcional,
   dia_vencimento: z.coerce
     .number()
     .int()
@@ -752,8 +790,8 @@ export const campanhaArrecadacaoCriarSchema = z.object({
   titulo: z.string().min(3, 'Informe o título da campanha.'),
   descricao: z.string().optional(),
   meta_valor: z.coerce.number().positive('Meta deve ser maior que zero.'),
-  prazo: z.string().optional(),
-  id_centro_custo: z.coerce.number().optional(),
+  prazo: textoOpcional,
+  id_centro_custo: numeroOpcional,
 })
 
 // v3.4 - doação: `anonima` esconde nome/documento; destinação específica (id_centro_custo_destinacao)
@@ -768,13 +806,13 @@ export const doacaoCriarSchema = z.object({
   recorrente: z.boolean(),
   valor: z.coerce.number().positive('Valor deve ser maior que zero.'),
   descricao_bem: z.string().optional(),
-  id_campanha: z.coerce.number().optional(),
-  id_centro_custo_destinacao: z.coerce.number().optional(),
+  id_campanha: numeroOpcional,
+  id_centro_custo_destinacao: numeroOpcional,
   id_conta_contabil: z.coerce
     .number()
     .int({ message: 'Selecione a conta contábil (Receita).' })
     .positive({ message: 'Selecione a conta contábil (Receita).' }),
-  id_conta_contabil_caixa: z.coerce.number().optional(),
+  id_conta_contabil_caixa: numeroOpcional,
 })
 
 // v3.4 - remanejamento formal e auditado de saldo restrito entre destinações.
@@ -803,7 +841,7 @@ export const orcamentoCriarSchema = z.object({
     .number()
     .int({ message: 'Selecione a conta contábil.' })
     .positive({ message: 'Selecione a conta contábil.' }),
-  id_centro_custo: z.coerce.number().optional(),
+  id_centro_custo: numeroOpcional,
   valor_previsto: z.coerce
     .number()
     .positive('Valor previsto deve ser maior que zero.'),
@@ -825,8 +863,8 @@ export const reservaContingenciaCriarSchema = z.object({
   regra_uso: z
     .string()
     .min(10, 'Descreva a regra de uso da reserva (mínimo 10 caracteres).'),
-  valor_minimo: z.coerce.number().optional(),
-  id_deliberacao: z.coerce.number().optional(),
+  valor_minimo: numeroOpcional,
+  id_deliberacao: numeroOpcional,
 })
 
 // v3.7 - fechamento mensal: divergência aberta entre saldo do sistema e saldo do extrato
@@ -839,17 +877,6 @@ export const fecharMesSchema = z.object({
     .positive({ message: 'Selecione a conta financeira.' }),
   saldo_extrato_bancario: z.coerce.number(),
 })
-
-// Campo opcional de formulário deixado em branco ("" num select ou num campo numérico) = "não informado": nunca vai à API
-// como "" nem como 0. Antes, um `z.coerce.number()` transformava "" em 0 e o servidor respondia "Projeto/Espaço/Centro de
-// custo nº 0 não encontrado"; e o "" do tipo de projeto era recusado como código inválido.
-const emBrancoVira = (v: unknown) => (v === '' || v === null ? undefined : v)
-const numeroOpcional = z.preprocess(emBrancoVira, z.coerce.number().optional())
-const inteiroOpcional = z.preprocess(
-  emBrancoVira,
-  z.coerce.number().int().optional(),
-)
-const textoOpcional = z.preprocess(emBrancoVira, z.string().optional())
 
 // v4.1 - Projeto como entidade única e configurável.
 export const projetoCriarSchema = z.object({
@@ -872,7 +899,7 @@ export const itemCronogramaCriarSchema = z.object({
   tipo: z.enum(['Marco', 'Tarefa']),
   titulo: z.string().min(3, 'Informe o título.'),
   prazo: z.string().min(1, 'Informe o prazo.'),
-  id_associado_responsavel: z.coerce.number().optional(),
+  id_associado_responsavel: numeroOpcional,
 })
 
 export const equipeProjetoCriarSchema = z.object({
@@ -912,7 +939,7 @@ export const encaminhamentoCriarSchema = z.object({
 // backend, mas o formulário de edição sempre reenvia todos (pré-preenchidos com o valor atual).
 export const beneficiarioEditarSchema = z.object({
   nome_completo: z.string().min(3, 'Informe o nome do beneficiário.'),
-  data_nascimento: z.string().optional(),
+  data_nascimento: textoOpcional,
   consentimento_lgpd_registrado: z.boolean(),
   observacao_consentimento: z.string().optional(),
 })
@@ -925,16 +952,16 @@ export const beneficiarioEditarSchema = z.object({
 export const espacoCriarSchema = z.object({
   nome: z.string().min(2, 'Informe o nome do espaço.'),
   tipo: z.string().min(1, 'Selecione o tipo de espaço.'),
-  capacidade: z.coerce.number().optional(),
+  capacidade: numeroOpcional,
   recursos_disponiveis: z.string().optional(),
   regras_uso: z.string().optional(),
   exige_aprovacao: z.boolean(),
-  valor_reserva: z.coerce.number().optional(),
+  valor_reserva: numeroOpcional,
   isento_para_associado_adimplente: z.boolean(),
-  id_conta_contabil_receita: z.coerce.number().optional(),
+  id_conta_contabil_receita: numeroOpcional,
   prazo_cancelamento_horas: z.coerce.number().int().min(0),
-  taxa_cancelamento_tardio: z.coerce.number().optional(),
-  limite_no_show_bloqueio: z.coerce.number().int().optional(),
+  taxa_cancelamento_tardio: numeroOpcional,
+  limite_no_show_bloqueio: inteiroOpcional,
   percentual_reembolso_cancelamento: z.coerce
     .number()
     .min(0, 'Informe um percentual entre 0 e 100.')
@@ -1029,7 +1056,7 @@ export const horasVoluntariadoAutoatendimentoSchema = z.object({
   data: z.string().min(1, 'Informe a data.'),
   horas: z.coerce.number().positive('Horas precisam ser maiores que zero.'),
   descricao_atividade: z.string().optional(),
-  id_alocacao: z.coerce.number().optional(),
+  id_alocacao: numeroOpcional,
 })
 
 // v4.5 - evento como entidade única e pontual.
@@ -1066,7 +1093,7 @@ export const sessaoEventoCriarSchema = z.object({
     .optional()
     .transform((v) => (v ? paraUtcIso(v) : undefined)),
   descricao: z.string().optional(),
-  vagas: z.coerce.number().int().optional(),
+  vagas: inteiroOpcional,
 })
 
 export const novaEdicaoEventoCriarSchema = z.object({
@@ -1161,7 +1188,7 @@ export const cobrancaEventoConfigSchema = z.object({
     .number()
     .int({ message: 'Selecione a conta contábil de receita.' })
     .positive({ message: 'Selecione a conta contábil de receita.' }),
-  id_centro_custo: z.coerce.number().optional(),
+  id_centro_custo: numeroOpcional,
 })
 
 // IMPORTANTE (mesmo cuidado 0-vs-não-informado do comentário de `elegibilidadeConfigSchema`):
@@ -1236,8 +1263,8 @@ export const cupomDescontoCriarSchema = z.object({
 // nenhuma tela do painel, um componente de busca de "Pessoa" por nome/CPF que não seja associado.
 export const isencaoTaxaCriarSchema = z
   .object({
-    id_associado: z.coerce.number().int().positive().optional(),
-    id_pessoa_manual: z.coerce.number().int().positive().optional(),
+    id_associado: inteiroPositivoOpcional,
+    id_pessoa_manual: inteiroPositivoOpcional,
     motivo: z.string().min(1, 'Selecione o motivo.'),
     percentual_isencao: z.coerce
       .number()
@@ -1257,7 +1284,7 @@ export const indicadorCriarSchema = z.object({
   nome: z.string().min(3, 'Informe o nome do indicador.'),
   unidade: z.string().min(1, 'Selecione a unidade.'),
   periodicidade: z.string().min(1, 'Selecione a periodicidade.'),
-  meta: z.coerce.number().optional(),
+  meta: numeroOpcional,
 })
 
 // `periodo` é texto livre (ex.: "2026-01", "Q1 2026") - o backend rejeita uma segunda medição

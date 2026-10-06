@@ -10,13 +10,15 @@ import {
   criarAlcadaAprovacao,
   criarDelegacaoAprovacao,
   listarAlcadasAprovacao,
-  listarAssociados,
+  listarAssociadosParaSelecao,
   listarDelegacoesAprovacao,
 } from '@/lib/api'
 import {
   alcadaAprovacaoCriarSchema,
   delegacaoAprovacaoCriarSchema,
 } from '@/lib/schemas'
+import { formatarDia } from '@/lib/datas'
+import { lerValorEmReais } from '@/lib/valores'
 
 // v3.3 (FASE 3 - Financeiro) - alçada de aprovação (faixa de valor -> cargo(s) autorizados, com
 // ou sem dupla assinatura) e delegação temporária rastreável (ex.: tesoureiro de férias delega
@@ -34,7 +36,9 @@ function FormularioAlcada({ onCancelar }: { onCancelar: () => void }) {
     mutationFn: (v: z.infer<typeof alcadaAprovacaoCriarSchema>) =>
       criarAlcadaAprovacao({
         valor_minimo: v.valor_minimo,
-        valor_maximo: v.valor_maximo ? Number(v.valor_maximo) : null,
+        valor_maximo: v.valor_maximo
+          ? Number(lerValorEmReais(String(v.valor_maximo)))
+          : null,
         cargos_autorizados: v.cargos_autorizados
           .split(',')
           .map((c) => c.trim().toUpperCase())
@@ -117,8 +121,8 @@ function FormularioAlcada({ onCancelar }: { onCancelar: () => void }) {
 function FormularioDelegacao({ onCancelar }: { onCancelar: () => void }) {
   const queryClient = useQueryClient()
   const { data: associados } = useQuery({
-    queryKey: ['associados'],
-    queryFn: listarAssociados,
+    queryKey: ['associados-selecao'],
+    queryFn: listarAssociadosParaSelecao,
   })
 
   const criar = useMutation({
@@ -325,11 +329,11 @@ export function AlcadasAprovacaoPage() {
               className="rounded-md border border-border p-3 text-sm"
             >
               <p className="font-medium">
-                Associado #{d.id_associado_delegante} → Associado #
-                {d.id_associado_delegado}
+                {d.nome_delegante ?? `Associado #${d.id_associado_delegante}`} →{' '}
+                {d.nome_delegado ?? `Associado #${d.id_associado_delegado}`}
               </p>
               <p className="text-muted-foreground">
-                {d.motivo} · até {d.data_fim}
+                {d.motivo} · até {formatarDia(d.data_fim)}
               </p>
             </div>
           ))}

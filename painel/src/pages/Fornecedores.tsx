@@ -270,11 +270,17 @@ function PainelDadosBancarios({ idFornecedor }: { idFornecedor: number }) {
                 </Button>
               </div>
             )}
-            {aprovar.isError && (
+            {aprovar.isError && aprovar.variables === h.id_dados_bancarios && (
               <p className="text-xs text-destructive">
                 {(aprovar.error as Error).message}
               </p>
             )}
+            {rejeitar.isError &&
+              rejeitar.variables === h.id_dados_bancarios && (
+                <p className="text-xs text-destructive">
+                  {(rejeitar.error as Error).message}
+                </p>
+              )}
           </div>
         ))}
         {(historico ?? []).length === 0 && (
@@ -291,7 +297,6 @@ export function FornecedoresPage() {
   const [mostrarForm, setMostrarForm] = useState(false)
   const [editando, setEditando] = useState<number | null>(null)
   const [expandido, setExpandido] = useState<number | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
   const validar = useMutation({
@@ -316,9 +321,7 @@ export function FornecedoresPage() {
     onSuccess: () => {
       invalidar()
       setMostrarForm(false)
-      setErro(null)
     },
-    onError: (e: Error) => setErro(e.message),
   })
 
   const editar = useMutation({
@@ -332,9 +335,7 @@ export function FornecedoresPage() {
     onSuccess: () => {
       invalidar()
       setEditando(null)
-      setErro(null)
     },
-    onError: (e: Error) => setErro(e.message),
   })
 
   return (
@@ -368,8 +369,6 @@ export function FornecedoresPage() {
             />
           </div>
         )}
-
-        {erro && <p className="mb-2 text-sm text-destructive">{erro}</p>}
 
         <div className="v3-space-y-2">
           {(fornecedores ?? []).map((f) =>

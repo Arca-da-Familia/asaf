@@ -149,7 +149,6 @@ export function PlanoContasPage() {
       setMostrarForm(false)
       setErro(null)
     },
-    onError: (e: Error) => setErro(e.message),
   })
 
   const editar = useMutation({
@@ -165,7 +164,6 @@ export function PlanoContasPage() {
       setEditando(null)
       setErro(null)
     },
-    onError: (e: Error) => setErro(e.message),
   })
 
   const excluir = useMutation({

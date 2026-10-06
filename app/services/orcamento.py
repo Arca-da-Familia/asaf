@@ -112,11 +112,15 @@ def realizado_do_orcamento(db: Session, orcamento: Orcamento) -> Decimal:
 def _serializar_orcamento(db: Session, orcamento: Orcamento) -> dict:
     realizado = realizado_do_orcamento(db, orcamento)
     percentual = (realizado / orcamento.valor_previsto * 100) if orcamento.valor_previsto else None
+    conta = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == orcamento.id_conta_contabil).first()
+    natureza = natureza_da_conta(conta.tipo) if conta else "Devedora"
     return {
         "id_orcamento": orcamento.id_orcamento, "ano": orcamento.ano, "id_conta_contabil": orcamento.id_conta_contabil,
         "id_centro_custo": orcamento.id_centro_custo, "valor_previsto": orcamento.valor_previsto,
         "id_deliberacao": orcamento.id_deliberacao, "realizado": realizado,
-        "percentual_realizado": percentual, "estourado": realizado > orcamento.valor_previsto,
+        "percentual_realizado": percentual,
+        # "estourar" é gastar acima do previsto (despesa); numa conta de RECEITA, realizado acima do previsto é meta batida, não estouro
+        "natureza": natureza, "estourado": natureza == "Devedora" and realizado > orcamento.valor_previsto,
     }
 
 

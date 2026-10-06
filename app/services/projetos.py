@@ -29,6 +29,7 @@ from app.services import orcamento as servico_orcamento
 from app.services.catalogos import validar_codigo_em_catalogo
 from app.services.documentos_verificacao import exigir_texto_sem_dado_pessoal
 from app.services.voluntariado import termo_vigente
+from app.services.formato import reais
 
 CONTEXTO_PROJETO = "Projeto"
 
@@ -580,7 +581,7 @@ def _gerar_texto_relatorio_final(db: Session, projeto: ProjetoEvento) -> str:
         if not orcamentos:
             linhas.append(f"   Nenhum orçamento ({ano_atual}) cadastrado para o centro de custo deste projeto.")
         for o in orcamentos:
-            linhas.append(f"   Previsto R$ {o['valor_previsto']:.2f} — Realizado R$ {o['realizado']:.2f} ({'estourado' if o['estourado'] else 'dentro do previsto'})")
+            linhas.append(f"   Previsto {reais(o['valor_previsto'])} — Realizado {reais(o['realizado'])} ({'estourado' if o['estourado'] else 'dentro do previsto'})")
 
     linhas += ["", "4. CRONOGRAMA"]
     cronograma = listar_cronograma(db, id_projeto=projeto.id_projeto)

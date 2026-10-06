@@ -10,7 +10,7 @@ import {
   criarCampanhaDescontoAntecipado,
   criarIsencaoContribuicao,
   criarPlanoContribuicao,
-  listarAssociados,
+  listarAssociadosParaSelecao,
   listarCampanhasDescontoAntecipado,
   listarIsencoesContribuicao,
   listarOpcoesCatalogo,
@@ -245,8 +245,8 @@ function FormularioReajuste({
 function FormularioIsencao({ onCancelar }: { onCancelar: () => void }) {
   const queryClient = useQueryClient()
   const { data: associados } = useQuery({
-    queryKey: ['associados'],
-    queryFn: listarAssociados,
+    queryKey: ['associados-selecao'],
+    queryFn: listarAssociadosParaSelecao,
   })
   const { data: planos } = useQuery({
     queryKey: ['planos-contribuicao'],

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -43,6 +43,16 @@ function useFiltroPeriodo() {
   return { dataInicio, setDataInicio, dataFim, setDataFim }
 }
 
+// A consulta que falhou (período invertido, mês inválido...) aparece onde o relatório estaria, em vez de uma lista vazia que parece "sem movimento".
+function ErroDaConsulta({ erro }: { erro: unknown }) {
+  if (!erro) return null
+  return (
+    <p role="alert" className="mb-2 text-sm text-destructive">
+      {erro instanceof Error ? erro.message : 'Não foi possível carregar.'}
+    </p>
+  )
+}
+
 function FiltroPeriodo({
   dataInicio,
   dataFim,
@@ -54,23 +64,41 @@ function FiltroPeriodo({
   onAlterarInicio: (v: string) => void
   onAlterarFim: (v: string) => void
 }) {
+  const id = useId()
+  // data apagada no campo: fica o período que já estava (uma data vazia não é período)
   return (
     <div className="mb-4 flex flex-wrap items-end gap-2">
       <div>
-        <label className="mb-1 block text-xs text-muted-foreground">De</label>
+        <label
+          htmlFor={`${id}-de`}
+          className="mb-1 block text-xs text-muted-foreground"
+        >
+          De
+        </label>
         <input
+          id={`${id}-de`}
           type="date"
           value={dataInicio.slice(0, 10)}
-          onChange={(e) => onAlterarInicio(`${e.target.value}T00:00:00`)}
+          onChange={(e) =>
+            e.target.value && onAlterarInicio(`${e.target.value}T00:00:00`)
+          }
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         />
       </div>
       <div>
-        <label className="mb-1 block text-xs text-muted-foreground">Até</label>
+        <label
+          htmlFor={`${id}-ate`}
+          className="mb-1 block text-xs text-muted-foreground"
+        >
+          Até
+        </label>
         <input
+          id={`${id}-ate`}
           type="date"
           value={dataFim.slice(0, 10)}
-          onChange={(e) => onAlterarFim(`${e.target.value}T23:59:59`)}
+          onChange={(e) =>
+            e.target.value && onAlterarFim(`${e.target.value}T23:59:59`)
+          }
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         />
       </div>
@@ -80,7 +108,11 @@ function FiltroPeriodo({
 
 function SecaoBalancete() {
   const { dataInicio, setDataInicio, dataFim, setDataFim } = useFiltroPeriodo()
-  const { data: balancete } = useQuery({
+  const {
+    data: balancete,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['relatorio-balancete', dataInicio, dataFim],
     queryFn: () => obterBalancete({ dataInicio, dataFim }),
   })
@@ -94,6 +126,7 @@ function SecaoBalancete() {
         onAlterarInicio={setDataInicio}
         onAlterarFim={setDataFim}
       />
+      <ErroDaConsulta erro={error} />
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -134,16 +167,18 @@ function SecaoBalancete() {
               ))}
           </tbody>
         </table>
-        {(balancete ?? []).every(
-          (l) =>
-            l.saldo_atual === 0 &&
-            l.debitos_periodo === 0 &&
-            l.creditos_periodo === 0,
-        ) && (
-          <p className="text-sm text-muted-foreground">
-            Sem movimento no período.
-          </p>
-        )}
+        {!isLoading &&
+          !error &&
+          (balancete ?? []).every(
+            (l) =>
+              l.saldo_atual === 0 &&
+              l.debitos_periodo === 0 &&
+              l.creditos_periodo === 0,
+          ) && (
+            <p className="text-sm text-muted-foreground">
+              Sem movimento no período.
+            </p>
+          )}
       </div>
     </section>
   )
@@ -152,12 +187,20 @@ function SecaoBalancete() {
 function SecaoReceitasDespesas() {
   const { dataInicio, setDataInicio, dataFim, setDataFim } = useFiltroPeriodo()
   const [agruparPorCentroCusto, setAgruparPorCentroCusto] = useState(false)
-  const { data: porConta } = useQuery({
+  const {
+    data: porConta,
+    isLoading: carregandoPorConta,
+    error: erroPorConta,
+  } = useQuery({
     queryKey: ['relatorio-receitas-despesas', dataInicio, dataFim],
     queryFn: () => obterReceitasDespesas({ dataInicio, dataFim }),
     enabled: !agruparPorCentroCusto,
   })
-  const { data: porCentroCusto } = useQuery({
+  const {
+    data: porCentroCusto,
+    isLoading: carregandoPorCentro,
+    error: erroPorCentro,
+  } = useQuery({
     queryKey: ['relatorio-receitas-despesas-centro-custo', dataInicio, dataFim],
     queryFn: () => obterReceitasDespesasPorCentroCusto({ dataInicio, dataFim }),
     enabled: agruparPorCentroCusto,
@@ -188,6 +231,9 @@ function SecaoReceitasDespesas() {
         onAlterarInicio={setDataInicio}
         onAlterarFim={setDataFim}
       />
+      <ErroDaConsulta
+        erro={agruparPorCentroCusto ? erroPorCentro : erroPorConta}
+      />
       {!agruparPorCentroCusto && (
         <>
           <div className="v3-space-y-1">
@@ -208,11 +254,13 @@ function SecaoReceitasDespesas() {
                 </span>
               </div>
             ))}
-            {(porConta ?? []).length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Sem receitas/despesas no período.
-              </p>
-            )}
+            {!carregandoPorConta &&
+              !erroPorConta &&
+              (porConta ?? []).length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Sem receitas/despesas no período.
+                </p>
+              )}
           </div>
           <p className="mt-2 border-t border-border pt-2 text-sm font-medium">
             Receitas: {formatarReais(totalReceitas)} · Despesas:{' '}
@@ -239,11 +287,13 @@ function SecaoReceitasDespesas() {
               </span>
             </div>
           ))}
-          {(porCentroCusto ?? []).length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Sem movimento no período.
-            </p>
-          )}
+          {!carregandoPorCentro &&
+            !erroPorCentro &&
+            (porCentroCusto ?? []).length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Sem movimento no período.
+              </p>
+            )}
         </div>
       )}
     </section>
@@ -251,7 +301,11 @@ function SecaoReceitasDespesas() {
 }
 
 function SecaoInadimplencia() {
-  const { data: inadimplencia } = useQuery({
+  const {
+    data: inadimplencia,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['relatorio-inadimplencia'],
     queryFn: obterRelatorioInadimplencia,
   })
@@ -259,6 +313,7 @@ function SecaoInadimplencia() {
   return (
     <section className="mb-6 rounded-xl border border-border bg-card p-6">
       <h2 className="mb-4 font-semibold">Inadimplência</h2>
+      <ErroDaConsulta erro={error} />
       <div className="v3-space-y-2">
         {(inadimplencia ?? []).map((l) => (
           <div
@@ -277,7 +332,7 @@ function SecaoInadimplencia() {
             </p>
           </div>
         ))}
-        {(inadimplencia ?? []).length === 0 && (
+        {!isLoading && !error && (inadimplencia ?? []).length === 0 && (
           <p className="text-sm text-muted-foreground">
             Nenhum associado inadimplente no momento.
           </p>
@@ -293,7 +348,7 @@ function SecaoExtratoContaFinanceira() {
     queryFn: listarContasFinanceiras,
   })
   const [idContaFinanceira, setIdContaFinanceira] = useState<number>(0)
-  const { data: extrato } = useQuery({
+  const { data: extrato, error: erroExtrato } = useQuery({
     queryKey: ['relatorio-extrato-conta-financeira', idContaFinanceira],
     queryFn: () => obterExtratoContaFinanceira(idContaFinanceira),
     enabled: idContaFinanceira > 0,
@@ -303,6 +358,7 @@ function SecaoExtratoContaFinanceira() {
     <section className="mb-6 rounded-xl border border-border bg-card p-6">
       <h2 className="mb-2 font-semibold">Extrato por Conta Financeira</h2>
       <select
+        aria-label="Conta financeira"
         value={idContaFinanceira}
         onChange={(e) => setIdContaFinanceira(Number(e.target.value))}
         className="mb-4 h-9 w-full max-w-sm rounded-md border border-input bg-background px-3 text-sm"
@@ -314,6 +370,7 @@ function SecaoExtratoContaFinanceira() {
           </option>
         ))}
       </select>
+      <ErroDaConsulta erro={erroExtrato} />
       {extrato && (
         <>
           <p className="mb-2 text-sm font-medium">
@@ -345,7 +402,11 @@ function SecaoExtratoContaFinanceira() {
 
 function SecaoPorProjeto() {
   const { dataInicio, setDataInicio, dataFim, setDataFim } = useFiltroPeriodo()
-  const { data: relatorio } = useQuery({
+  const {
+    data: relatorio,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['relatorio-por-projeto', dataInicio, dataFim],
     queryFn: () => obterRelatorioPorProjeto({ dataInicio, dataFim }),
   })
@@ -359,6 +420,7 @@ function SecaoPorProjeto() {
         onAlterarInicio={setDataInicio}
         onAlterarFim={setDataFim}
       />
+      <ErroDaConsulta erro={error} />
       <div className="v3-space-y-1">
         {(relatorio ?? []).map((l) => (
           <div
@@ -376,7 +438,7 @@ function SecaoPorProjeto() {
             </span>
           </div>
         ))}
-        {(relatorio ?? []).length === 0 && (
+        {!isLoading && !error && (relatorio ?? []).length === 0 && (
           <p className="text-sm text-muted-foreground">
             Nenhum projeto com centro de custo vinculado e movimento no período.
           </p>
@@ -390,7 +452,11 @@ function SecaoPrestacaoDeContas() {
   const queryClient = useQueryClient()
   const [ano, setAno] = useState(new Date().getFullYear())
   const [aberta, setAberta] = useState<number | null>(null)
-  const { data: prestacoes } = useQuery({
+  const {
+    data: prestacoes,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['prestacoes-de-contas'],
     queryFn: () => listarPrestacoesDeContas(),
   })
@@ -406,10 +472,14 @@ function SecaoPrestacaoDeContas() {
       <h2 className="mb-4 font-semibold">Prestação de contas do exercício</h2>
       <div className="mb-4 flex flex-wrap items-end gap-2">
         <div>
-          <label className="mb-1 block text-xs text-muted-foreground">
+          <label
+            htmlFor="prestacao-ano"
+            className="mb-1 block text-xs text-muted-foreground"
+          >
             Ano do exercício
           </label>
           <input
+            id="prestacao-ano"
             type="number"
             value={ano}
             onChange={(e) => setAno(Number(e.target.value))}
@@ -429,6 +499,7 @@ function SecaoPrestacaoDeContas() {
           {(gerar.error as Error).message}
         </p>
       )}
+      <ErroDaConsulta erro={error} />
       <div className="v3-space-y-2">
         {(prestacoes ?? []).map((p) => (
           <div
@@ -459,7 +530,7 @@ function SecaoPrestacaoDeContas() {
             )}
           </div>
         ))}
-        {(prestacoes ?? []).length === 0 && (
+        {!isLoading && !error && (prestacoes ?? []).length === 0 && (
           <p className="text-sm text-muted-foreground">
             Nenhuma prestação de contas gerada ainda.
           </p>
@@ -482,7 +553,11 @@ function SecaoPadroesSuspeitos() {
   const [competencia, setCompetencia] = useState(
     competenciaAtualPadroesSuspeitos(),
   )
-  const { data: achados } = useQuery({
+  const {
+    data: achados,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['padroes-suspeitos', competencia],
     queryFn: () => obterPadroesSuspeitos(competencia),
   })
@@ -495,11 +570,13 @@ function SecaoPadroesSuspeitos() {
       <div className="mb-4">
         <input
           type="month"
+          aria-label="Competência"
           value={competencia}
-          onChange={(e) => setCompetencia(e.target.value)}
+          onChange={(e) => e.target.value && setCompetencia(e.target.value)}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         />
       </div>
+      <ErroDaConsulta erro={error} />
       <div className="v3-space-y-2">
         {(achados ?? []).map((a, i) => (
           <div key={i} className="rounded-md border border-border p-3 text-sm">
@@ -509,7 +586,7 @@ function SecaoPadroesSuspeitos() {
             <p>{a.descricao}</p>
           </div>
         ))}
-        {(achados ?? []).length === 0 && (
+        {!isLoading && !error && (achados ?? []).length === 0 && (
           <p className="text-sm text-muted-foreground">
             Nenhum padrão suspeito encontrado nesta competência.
           </p>

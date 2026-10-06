@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import {
   gerarCobrancaBloco,
   gerarCobrancas,
-  listarAssociados,
+  listarAssociadosParaSelecao,
   listarPlanosContribuicao,
   type PrevisaoCobranca,
 } from '@/lib/api'
@@ -32,8 +32,8 @@ function formatarReais(valor: number): string {
 function FormularioCobrancaBloco() {
   const queryClient = useQueryClient()
   const { data: associados } = useQuery({
-    queryKey: ['associados'],
-    queryFn: listarAssociados,
+    queryKey: ['associados-selecao'],
+    queryFn: listarAssociadosParaSelecao,
   })
   const { data: planos } = useQuery({
     queryKey: ['planos-contribuicao'],

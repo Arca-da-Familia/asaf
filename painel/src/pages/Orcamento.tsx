@@ -215,7 +215,13 @@ function SecaoOrcamentos() {
                     o.estourado ? 'text-destructive' : 'text-green-600'
                   }
                 >
-                  {o.estourado ? 'Estourado' : 'Dentro do previsto'}
+                  {o.natureza === 'Credora'
+                    ? o.realizado >= o.valor_previsto
+                      ? 'Meta atingida'
+                      : 'Abaixo do previsto'
+                    : o.estourado
+                      ? 'Estourado'
+                      : 'Dentro do previsto'}
                 </span>
               </div>
               <p className="text-muted-foreground">

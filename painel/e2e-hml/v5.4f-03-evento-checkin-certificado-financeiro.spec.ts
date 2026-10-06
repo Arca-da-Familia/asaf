@@ -46,7 +46,7 @@ import {
 //    robô reaproveita o cabeçalho de autorização de uma chamada que o próprio painel acabou de fazer.
 //
 // O que parece DEFEITO do sistema (e não do roteiro) vai para `achados` em vez de derrubar o teste na hora; o último teste lista tudo.
-test.describe.configure({ mode: 'serial' })
+test.describe.configure({ mode: 'serial', timeout: 300_000 })
 test.beforeAll(() => exigirHomologacao())
 
 const PRESIDENTE = 'Marta Souza'
@@ -312,14 +312,23 @@ function textoDoPdf(pdf: Buffer): string {
   return textos.join('\n')
 }
 
-/** Abre o endereço do PDF como o navegador abriria: 200, `application/pdf`, começa com `%PDF-`. Devolve o texto de dentro (vazio se não deu para ler). */
-async function conferirPdf(page: Page, href: string): Promise<string> {
+/**
+ * Abre o endereço do PDF como o navegador abriria: 200, `application/pdf`, começa com `%PDF-`. Devolve o texto de dentro (vazio se não deu para ler)
+ * e se o arquivo traz uma imagem (o QR do crachá e o do certificado são imagens dentro do PDF).
+ */
+async function conferirPdf(
+  page: Page,
+  href: string,
+): Promise<{ texto: string; temImagem: boolean }> {
   const resposta = await page.request.get(href)
   expect(resposta.status(), `abrir ${href}`).toBe(200)
   expect(resposta.headers()['content-type']).toContain('application/pdf')
   const corpo = await resposta.body()
   expect(corpo.subarray(0, 5).toString('latin1')).toBe('%PDF-')
-  return textoDoPdf(corpo)
+  return {
+    texto: textoDoPdf(corpo),
+    temImagem: /\/Subtype\s*\/Image/.test(corpo.toString('latin1')),
+  }
 }
 
 /**
@@ -915,6 +924,12 @@ test.describe('B. Financeiro do evento', () => {
       )
     }
     await expect(cartoes.filter({ hasText: `em '${TITULO}'` })).toHaveCount(3)
+    // a inscrição gratuita (feita antes de o evento cobrar) não gerou título
+    await expect(
+      cartoes
+        .filter({ hasText: `Inscrição de ${PRESIDENTE}` })
+        .filter({ hasText: `em '${TITULO}'` }),
+    ).toHaveCount(0)
     await ver(page, info, 'tres titulos de R$ 87,65 gerados pela inscricao')
 
     // Auditoria: o rastro de cada inscrição pública (sem usuário: é o formulário do site)
@@ -1246,7 +1261,6 @@ test.describe('D. Crachá e portaria', () => {
       ).toBeVisible()
       await abrirEvento(page)
     }
-    await expect(eleg.getByText(/ainda não cadastrado/)).toHaveCount(0)
 
     // ---- as pessoas do quadro: quem cancelou não entra; a tela diz que a elegibilidade ainda não pode ser calculada
     const presente = cartaoDe(eleg, P_PRESENTE)
@@ -1254,6 +1268,8 @@ test.describe('D. Crachá e portaria', () => {
     await expect(presente).toBeVisible()
     await expect(ausente).toBeVisible()
     await expect(cartaoDe(eleg, PRESIDENTE)).toBeVisible()
+    // (os avisos de modelo faltando somem quando a lista de modelos chega: com a seção já na tela, o zero aqui é de verdade)
+    await expect(eleg.getByText(/ainda não cadastrado/)).toHaveCount(0)
     await expect(eleg.getByText(P_CANCELADA)).toHaveCount(0)
     await expect(presente).toContainText(
       'Elegibilidade indisponível — evento sem carga horária nem sessões configuradas.',
@@ -1294,7 +1310,7 @@ test.describe('D. Crachá e portaria', () => {
       expect(dados.caminho_arquivo).toMatch(
         /^\/uploads\/documentos\/[0-9a-f]{32}\.pdf$/,
       )
-      const texto = await conferirPdf(page, href)
+      const { texto, temImagem } = await conferirPdf(page, href)
       if (texto && !texto.includes('emitido pelo sistema ASAF')) {
         achados.push(
           `Crachá de ${nome}: o texto do PDF não traz o rodapé "emitido pelo sistema ASAF" (ou o robô não leu o PDF direito)`,
@@ -1303,6 +1319,11 @@ test.describe('D. Crachá e portaria', () => {
       if (texto && !texto.includes(nome)) {
         achados.push(
           `Crachá de ${nome}: o nome da pessoa não aparece no texto do PDF (o modelo de crachá usado não tem {{nome_completo}}, ou o PDF sai sem o nome)`,
+        )
+      }
+      if (!temImagem) {
+        achados.push(
+          `Crachá de ${nome}: o PDF não traz a imagem do QR do código de check-in (a pessoa tem código, app/services/certificados.py::emitir_cracha)`,
         )
       }
       return { id: dados.id_documento, href }
@@ -1836,7 +1857,12 @@ test.describe('E. Certificado', () => {
       href,
       codigo: dados.codigo_verificacao,
     }
-    const texto = await conferirPdf(page, href)
+    const { texto, temImagem } = await conferirPdf(page, href)
+    if (!temImagem) {
+      achados.push(
+        'Certificado: o PDF não traz a imagem do QR de verificação (app/services/certificados.py::emitir_certificado)',
+      )
+    }
     if (texto && !texto.includes(P_PRESENTE)) {
       achados.push(
         `Certificado de ${P_PRESENTE}: o nome não aparece no texto do PDF (o modelo de certificado usado não tem {{nome_completo}}, ou o PDF sai sem o nome)`,
@@ -2274,6 +2300,14 @@ test.describe('H. Exportações', () => {
     // ---- Ana Lúcia (cargo de Presidente): tem "projetos", não tem as permissões próprias de exportar e de portaria
     await entrar(page, 'cargo_presidente')
     await abrirEvento(page)
+    // a seção de cobrança só aparece com "projetos": é o sinal de que a tela já sabe as permissões; só depois a ausência das outras vale
+    await expect(
+      page.getByRole('heading', {
+        name: 'Cobrança de inscrição',
+        level: 3,
+        exact: true,
+      }),
+    ).toBeVisible()
     await expect(secao(page, SECAO_INSCRITOS)).toBeVisible()
     await expect(
       secao(page, SECAO_INSCRITOS).getByRole('button', {
@@ -2290,13 +2324,6 @@ test.describe('H. Exportações', () => {
         page.getByRole('heading', { name: titulo, level: 3, exact: true }),
       ).toHaveCount(0)
     }
-    await expect(
-      page.getByRole('heading', {
-        name: 'Cobrança de inscrição',
-        level: 3,
-        exact: true,
-      }),
-    ).toBeVisible()
     await ver(page, info, 'cargo de Presidente: sem exportar, sem portaria')
 
     const cabecalho = await api.cabecalho()

@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
+import logging
 import os
 
 from app.database import preparar_banco, seed_catalogos, seed_niveis_e_permissoes, seed_configuracoes_institucionais, seed_regras_estatutarias
@@ -104,6 +105,21 @@ async def bloquear_escrita_em_impersonacao(request: Request, call_next):
                     content={"detail": "Modo \"ver como\" é somente leitura — nenhuma escrita é permitida."},
                 )
     return await call_next(request)
+
+
+@app.middleware("http")
+async def erro_interno_com_cabecalhos_de_acesso(request: Request, call_next):
+    """Rede de segurança: um erro inesperado (500) sai daqui como JSON em português e passa pelo CORS (que fica por fora). Sem isto, o
+    `ServerErrorMiddleware` do Starlette, que embrulha tudo por fora do CORS, devolvia o 500 sem os cabeçalhos de acesso e o navegador o lia como
+    "falta de conexão" - a tela dizia que estava sem internet quando o servidor tinha respondido que deu erro."""
+    try:
+        return await call_next(request)
+    except Exception:
+        logging.getLogger("asaf").exception("Erro inesperado em %s %s", request.method, request.url.path)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "O sistema não conseguiu concluir esta ação. Nada foi perdido; tente de novo e, se repetir, avise a diretoria."},
+        )
 
 
 app.add_middleware(

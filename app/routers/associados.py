@@ -25,7 +25,7 @@ from app.schemas.associados import (
     HistoricoCargoCriar,
     HistoricoCargoEncerrar,
 )
-from app.security import criar_token_carteirinha, decodificar_token_carteirinha, exigir_permissao, get_current_user, hash_senha, usuario_tem_permissao, validar_senha_forte
+from app.security import criar_token_carteirinha, decodificar_token_carteirinha, exigir_alguma_permissao, exigir_permissao, get_current_user, hash_senha, usuario_tem_permissao, validar_senha_forte
 from app.services import armazenamento
 from app.services.categoria_associado import calcular_categoria
 from app.services.catalogos import validar_codigo_em_catalogo
@@ -35,6 +35,7 @@ from app.services.matricula import proximo_numero_matricula
 
 router = APIRouter()
 _permissao_associados = exigir_permissao("associados")
+_permissao_seletor_de_associado = exigir_alguma_permissao("associados", "financeiro")
 
 
 def _associado_do_proprio_ou_de_quem_tem_permissao(db: Session, usuario: Usuario, id_associado: int) -> Associado:
@@ -389,7 +390,9 @@ def consultar_cep(cep: str):
 # ==========================================
 
 @router.get("/api/associados/busca-simples", summary="Buscar associados para vincular (seletores)")
-def buscar_associados_simples(excluir: int = None, db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_associados)):
+def buscar_associados_simples(excluir: int = None, db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_seletor_de_associado)):
+    # só id, nome e os dois últimos dígitos do CPF: o suficiente para escolher o associado em um título, uma isenção ou uma delegação sem que quem
+    # cuida do financeiro precise da ficha completa (CPF, e-mail, telefone), que continua exigindo a permissão "associados".
     # order_by direto em Associado.nome_completo não funciona - é association_proxy (v1.0), não
     # coluna de verdade; precisa ordenar pela Pessoa via join.
     consulta = db.query(Associado).join(Pessoa)

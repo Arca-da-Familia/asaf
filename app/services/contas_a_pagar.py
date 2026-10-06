@@ -13,10 +13,11 @@ from sqlalchemy.orm import Session
 
 from app.models.compras import ContaAPagarRecorrente
 from app.models.financeiro import TituloFinanceiro
-from app.services.contribuicoes import data_vencimento_da_competencia
+from app.services.contribuicoes import _mes_ano, data_vencimento_da_competencia
 
 
 def gerar_contas_a_pagar(db: Session, *, competencia: str, confirmar: bool, id_usuario: Optional[int] = None) -> dict:
+    _mes_ano(competencia)  # a prévia também recusa competência inválida (mês 13, vazio): 400, como a confirmação
     contas = db.query(ContaAPagarRecorrente).filter(ContaAPagarRecorrente.ativo.is_(True)).all()
     ja_existentes = {
         t.id_conta_a_pagar_recorrente

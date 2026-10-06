@@ -10,7 +10,7 @@ from typing import Optional, Sequence, Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.models.financeiro import Exercicio, LancamentoContabil, PartidaContabil, PlanoDeContas
+from app.models.financeiro import CentroDeCusto, Exercicio, LancamentoContabil, PartidaContabil, PlanoDeContas
 
 DEBITO = "Debito"
 CREDITO = "Credito"
@@ -116,6 +116,10 @@ def criar_lancamento(
         raise HTTPException(status_code=400, detail=f"Lançamento desbalanceado: débitos R$ {total_debito} != créditos R$ {total_credito}.")
     for id_conta, _, _, _ in partidas_norm:
         exigir_conta_analitica(db, id_conta)
+    # centro de custo que não existe: 404 claro aqui, nunca erro de chave do banco (500) na hora de gravar a partida
+    for id_centro in {c for _, _, _, c in partidas_norm if c is not None}:
+        if not db.query(CentroDeCusto.id_centro_custo).filter(CentroDeCusto.id_centro_custo == id_centro).first():
+            raise HTTPException(status_code=404, detail="Centro de custo não encontrado.")
 
     agora = datetime.utcnow()
     data_caixa_final = data_caixa or agora

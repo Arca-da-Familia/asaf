@@ -11,7 +11,7 @@ import {
   baixarTitulo,
   criarTitulo,
   enviarComprovante,
-  listarAssociados,
+  listarAssociadosParaSelecao,
   listarCentrosCusto,
   listarCreditosAssociado,
   listarFornecedores,
@@ -40,8 +40,8 @@ function FormularioNovoTitulo({ onCancelar }: { onCancelar: () => void }) {
     queryFn: listarPlanoContas,
   })
   const { data: associados } = useQuery({
-    queryKey: ['associados'],
-    queryFn: listarAssociados,
+    queryKey: ['associados-selecao'],
+    queryFn: listarAssociadosParaSelecao,
   })
   const { data: fornecedores } = useQuery({
     queryKey: ['fornecedores'],

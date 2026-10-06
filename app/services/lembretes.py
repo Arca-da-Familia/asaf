@@ -19,6 +19,7 @@ from app.models.associados import Associado
 from app.models.core import ConfiguracaoInstitucional
 from app.models.financeiro import LembreteMensalidadeEnviado, TituloFinanceiro
 from app.services import notificacoes, pix
+from app.services.formato import reais
 
 _DIAS_LEMBRETE_PADRAO = 5
 _DIAS_ATRASO_PADRAO = [7, 15, 30]
@@ -58,7 +59,7 @@ def _corpo_lembrete(titulo: TituloFinanceiro, payload_pix: str, tipo_lembrete: s
     )
     return (
         f"Olá,\n\nSua mensalidade \"{titulo.descricao}\" {quando}, no valor de "
-        f"R$ {titulo.saldo_devedor:.2f}.\n\n"
+        f"{reais(titulo.saldo_devedor)}.\n\n"
         f"Pix copia e cola (abra o app do seu banco, Pix > Pix Copia e Cola):\n{payload_pix}\n"
         f"{aviso_atraso}\n"
         f"Este é um lembrete automático - nenhum valor foi debitado, o pagamento continua "

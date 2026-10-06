@@ -10,16 +10,25 @@ from decimal import Decimal
 from typing import Optional
 from zoneinfo import ZoneInfo
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.config_cache import obter_configuracao
 from app.models.compras import AlcadaAprovacao, DadosBancariosFornecedor, SolicitacaoCompra
 from app.models.financeiro import Fornecedor, LancamentoContabil, TituloFinanceiro
+from app.services.formato import reais
 
 
 def _mes_ano(competencia: str) -> tuple[int, int]:
-    ano_str, mes_str = competencia.split("-")
-    return int(ano_str), int(mes_str)
+    # competência vem da tela/da URL: mês 13, vazio ou fora do formato é 400 em português, nunca 500
+    try:
+        ano_str, mes_str = competencia.split("-")
+        ano, mes = int(ano_str), int(mes_str)
+        if not (1 <= mes <= 12 and 1 <= ano <= 9999):
+            raise ValueError
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Competência inválida - use o formato AAAA-MM.")
+    return ano, mes
 
 
 def _intervalo_da_competencia(competencia: str) -> tuple[datetime, datetime]:
@@ -74,7 +83,7 @@ def _valores_proximos_do_teto_de_alcada(db: Session, *, inicio: datetime, fim: d
             if limite_inferior <= s.valor_estimado <= alcada.valor_maximo:
                 achados.append({
                     "tipo": "VALOR_PROXIMO_DO_TETO_DE_ALCADA",
-                    "descricao": f"Solicitação de compra #{s.id_solicitacao} (R$ {s.valor_estimado:.2f}) está a menos de {percentual}% do teto de alçada (R$ {alcada.valor_maximo:.2f}) - possível fracionamento.",
+                    "descricao": f"Solicitação de compra #{s.id_solicitacao} ({reais(s.valor_estimado)}) está a menos de {percentual}% do teto de alçada ({reais(alcada.valor_maximo)}) - possível fracionamento.",
                     "id_solicitacao": s.id_solicitacao,
                 })
                 break
@@ -99,7 +108,7 @@ def _fornecedor_novo_com_pagamento_alto(db: Session, *, inicio: datetime, fim: d
             fornecedor = db.query(Fornecedor).filter(Fornecedor.id_fornecedor == titulo.id_fornecedor).first()
             achados.append({
                 "tipo": "FORNECEDOR_NOVO_PAGAMENTO_ALTO",
-                "descricao": f"Primeira operação com o fornecedor '{fornecedor.razao_social if fornecedor else titulo.id_fornecedor}' já é de R$ {titulo.valor_original:.2f}.",
+                "descricao": f"Primeira operação com o fornecedor '{fornecedor.razao_social if fornecedor else titulo.id_fornecedor}' já é de {reais(titulo.valor_original)}.",
                 "id_titulo": titulo.id_titulo, "id_fornecedor": titulo.id_fornecedor,
             })
     return achados

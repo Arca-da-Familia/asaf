@@ -6,7 +6,7 @@ import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import {
-  listarAssociados,
+  listarAssociadosParaSelecao,
   listarNegociacoesDivida,
   listarTitulos,
   negociarDivida,
@@ -31,8 +31,8 @@ export function NegociacaoDividaPage() {
   const [titulosSelecionados, setTitulosSelecionados] = useState<number[]>([])
 
   const { data: associados } = useQuery({
-    queryKey: ['associados'],
-    queryFn: listarAssociados,
+    queryKey: ['associados-selecao'],
+    queryFn: listarAssociadosParaSelecao,
   })
   const { data: titulos } = useQuery({
     queryKey: ['titulos', 'Pendente', 'A Receber'],

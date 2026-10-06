@@ -177,16 +177,17 @@ def test_delegacao_temporaria_permite_aprovacao_por_outra_pessoa(client, auth_he
     _criar_alcada(client, auth_headers, ["TESOUREIRO"], valor_minimo=500, valor_maximo=580)
     id_solicitacao = _criar_solicitacao(client, auth_headers, conta, valor=550)
 
-    id_associado_tesoureiro, _ = _criar_usuario_com_mandato(client, auth_headers, "TESOUREIRO")
+    id_associado_tesoureiro, headers_tesoureiro = _criar_usuario_com_mandato(client, auth_headers, "TESOUREIRO")
     # CONSELHO_FISCAL tem permissão 'financeiro' (passa no Depends do endpoint) mas não é
     # TESOUREIRO - só a delegação deve permitir aprovar esta alçada.
     id_associado_delegado, headers_delegado = _criar_usuario_com_mandato(client, auth_headers, "CONSELHO_FISCAL")
 
     hoje = datetime.utcnow()
+    # quem delega é o próprio Tesoureiro: ninguém registra a delegação no lugar dele
     r = client.post("/api/delegacoes-aprovacao/", json={
         "id_associado_delegante": id_associado_tesoureiro, "id_associado_delegado": id_associado_delegado,
         "data_fim": (hoje + timedelta(days=10)).isoformat(), "motivo": "Tesoureiro de férias, delega ao diretor social.",
-    }, headers=auth_headers)
+    }, headers=headers_tesoureiro)
     assert r.status_code == 200, r.text
 
     r = client.post(f"/api/solicitacoes-compra/{id_solicitacao}/aprovar", headers=headers_delegado)
@@ -306,3 +307,29 @@ def test_trilha_de_aprovacao_diz_quem_aprovou_pelo_nome(client, auth_headers):
     assert len(trilha) == 2
     assert all(a["nome_aprovador"] and a["nome_aprovador"].startswith("Pessoa Compras") for a in trilha)
     assert trilha[0]["data_aprovacao"] <= trilha[1]["data_aprovacao"]
+
+
+def test_delegacao_so_pode_ser_registrada_por_quem_delega_e_recusa_dado_ruim(client, auth_headers):
+    id_tesoureiro, headers_tesoureiro = _criar_usuario_com_mandato(client, auth_headers, "TESOUREIRO")
+    id_colega, headers_colega = _criar_usuario_com_mandato(client, auth_headers, "CONSELHO_FISCAL")
+    fim = (datetime.utcnow() + timedelta(days=5)).isoformat()
+    corpo = {"id_associado_delegante": id_tesoureiro, "id_associado_delegado": id_colega, "data_fim": fim, "motivo": "Teste de quem registra."}
+
+    # o colega com acesso ao financeiro não pode se dar poder de aprovação em nome do Tesoureiro; nem o administrador sem o cargo
+    for cabecalhos in (headers_colega, auth_headers):
+        r = client.post("/api/delegacoes-aprovacao/", json=corpo, headers=cabecalhos)
+        assert r.status_code == 403, r.text
+        assert "quem delega" in r.json()["detail"]
+
+    r = client.post("/api/delegacoes-aprovacao/", json={**corpo, "id_associado_delegado": id_tesoureiro}, headers=headers_tesoureiro)
+    assert r.status_code == 400 and "mesma pessoa" in r.json()["detail"]
+    r = client.post("/api/delegacoes-aprovacao/", json={**corpo, "id_associado_delegado": 99999999}, headers=headers_tesoureiro)
+    assert r.status_code == 404
+    r = client.post("/api/delegacoes-aprovacao/", json={**corpo, "data_fim": "amanhã"}, headers=headers_tesoureiro)
+    assert r.status_code == 400 and "Data inválida" in r.json()["detail"]
+
+    r = client.post("/api/delegacoes-aprovacao/", json=corpo, headers=headers_tesoureiro)
+    assert r.status_code == 200, r.text
+    lista = client.get("/api/delegacoes-aprovacao/", headers=auth_headers).json()
+    registrada = next(d for d in lista if d["id_delegacao"] == r.json()["id_delegacao"])
+    assert registrada["nome_delegante"] and registrada["nome_delegado"]

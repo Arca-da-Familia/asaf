@@ -180,3 +180,32 @@ def test_reserva_contingencia_vinculada_a_conta_financeira_e_impede_duplicidade(
     }, headers=auth_headers)
     assert r.status_code == 400
     assert "já é uma reserva" in r.json()["detail"].lower()
+
+
+def test_orcamento_de_receita_acima_do_previsto_nao_e_estouro(client, auth_headers, exercicio_financeiro_aberto):
+    """Estourar é gastar acima do previsto (despesa); numa conta de receita, arrecadar acima do previsto é meta batida."""
+    conta_receita = _criar_conta(client, auth_headers, "Receita")
+    conta_caixa = _criar_conta(client, auth_headers, "Ativo")
+    id_deliberacao = _criar_deliberacao(client, auth_headers)
+    r = client.post("/api/orcamentos/", json={
+        "ano": datetime.utcnow().year, "id_conta_contabil": conta_receita, "valor_previsto": 100, "id_deliberacao": id_deliberacao,
+    }, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    id_orcamento = r.json()["id_orcamento"]
+    r = client.post("/titulos/", json={
+        "tipo_titulo": "A Receber", "id_conta_contabil": conta_receita, "descricao": "Receita acima do previsto", "valor_original": 150,
+        "data_vencimento": (datetime.utcnow() + timedelta(days=5)).strftime(_ISO),
+    }, headers=auth_headers)
+    id_titulo = r.json()["id_titulo"]
+    comprovante = client.post(
+        "/api/comprovantes/", files={"arquivo": ("nota.pdf", b"%PDF-1.4 conteudo de teste", "application/pdf")}, headers=auth_headers,
+    ).json()["comprovante"]
+    r = client.post("/baixar-titulo/", json={
+        "id_titulo": id_titulo, "valor_pago": 150, "forma_pagamento": "Pix", "id_conta_contabil_contrapartida": conta_caixa,
+        "comprovante": comprovante,
+    }, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    orcamento = next(o for o in client.get("/api/orcamentos/", headers=auth_headers).json() if o["id_orcamento"] == id_orcamento)
+    assert orcamento["realizado"] == 150.0
+    assert orcamento["natureza"] == "Credora"
+    assert orcamento["estourado"] is False

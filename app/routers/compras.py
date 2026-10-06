@@ -13,14 +13,14 @@ from app.database import get_db
 from app.models.associados import Associado
 from app.models.core import Usuario
 from app.models.compras import AlcadaAprovacao, AprovacaoCompra, CotacaoCompra, DadosBancariosFornecedor, DelegacaoAprovacao, ReembolsoDespesa, SolicitacaoCompra, ContaAPagarRecorrente
-from app.models.financeiro import Fornecedor
+from app.models.financeiro import Fornecedor, PlanoDeContas
 from app.schemas.compras import (
     AlcadaAprovacaoCriar, ContaAPagarRecorrenteCriar, CotacaoCompraCriar, DadosBancariosFornecedorCriar,
     DelegacaoAprovacaoCriar, GerarContasAPagarRequest, RejeitarDadosBancariosRequest, ReembolsoDespesaCriar,
     ReprovarSolicitacaoRequest, SolicitacaoCompraCriar,
 )
 from app.security import exigir_permissao
-from app.services import compras, contas_a_pagar, fornecedores, reembolso
+from app.services import compras, contabilidade, contas_a_pagar, fornecedores, reembolso
 
 router = APIRouter()
 _permissao_financeiro = exigir_permissao("financeiro")
@@ -144,11 +144,15 @@ def alternar_alcada(id_alcada: int, ativo: bool, request: Request, db: Session =
 @router.get("/api/delegacoes-aprovacao/", summary="Listar Delegações de Aprovação")
 def listar_delegacoes(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
     delegacoes = db.query(DelegacaoAprovacao).order_by(DelegacaoAprovacao.data_inicio.desc()).all()
+    # a lista é para gente ler: o nome de quem delegou e de quem recebeu, não só os números
+    ids = {d.id_associado_delegante for d in delegacoes} | {d.id_associado_delegado for d in delegacoes}
+    nomes = {a.id_associado: a.nome_completo for a in db.query(Associado).filter(Associado.id_associado.in_(ids)).all()} if ids else {}
     return [
         {
             "id_delegacao": d.id_delegacao, "id_associado_delegante": d.id_associado_delegante,
-            "id_associado_delegado": d.id_associado_delegado, "data_inicio": d.data_inicio,
-            "data_fim": d.data_fim, "motivo": d.motivo,
+            "nome_delegante": nomes.get(d.id_associado_delegante),
+            "id_associado_delegado": d.id_associado_delegado, "nome_delegado": nomes.get(d.id_associado_delegado),
+            "data_inicio": d.data_inicio, "data_fim": d.data_fim, "motivo": d.motivo,
         }
         for d in delegacoes
     ]
@@ -156,8 +160,20 @@ def listar_delegacoes(db: Session = Depends(get_db), _usuario=Depends(_permissao
 
 @router.post("/api/delegacoes-aprovacao/", summary="Registrar Delegação Temporária de Aprovação")
 def registrar_delegacao(dados: DelegacaoAprovacaoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
-    data_fim = datetime.fromisoformat(dados.data_fim)
-    data_inicio = datetime.fromisoformat(dados.data_inicio) if dados.data_inicio else datetime.utcnow()
+    # quem delega é a própria pessoa: uma delegação dá a outro o poder de aprovar em nome dela, então ninguém a registra no lugar de outro
+    # (senão quem opera o financeiro poderia se dar poder de aprovação em nome do Tesoureiro)
+    quem_registra = db.query(Associado).filter(Associado.id_usuario == usuario.id_usuario).first()
+    if quem_registra is None or quem_registra.id_associado != dados.id_associado_delegante:
+        raise HTTPException(status_code=403, detail="Só quem tem o cargo pode delegar a aprovação em seu nome: a delegação é registrada por quem delega.")
+    if dados.id_associado_delegante == dados.id_associado_delegado:
+        raise HTTPException(status_code=400, detail="Quem delega e quem recebe a delegação não podem ser a mesma pessoa.")
+    if not db.query(Associado.id_associado).filter(Associado.id_associado == dados.id_associado_delegado).first():
+        raise HTTPException(status_code=404, detail="Associado que receberá a delegação não encontrado.")
+    try:
+        data_fim = datetime.fromisoformat(dados.data_fim)
+        data_inicio = datetime.fromisoformat(dados.data_inicio) if dados.data_inicio else datetime.utcnow()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Data inválida na delegação - use o seletor de data.")
     if data_fim <= data_inicio:
         raise HTTPException(status_code=400, detail="Data de fim deve ser depois da data de início.")
     nova = DelegacaoAprovacao(
@@ -342,6 +358,13 @@ def listar_contas_a_pagar_recorrentes(db: Session = Depends(get_db), _usuario=De
 
 @router.post("/api/contas-a-pagar-recorrentes/", summary="Cadastrar Conta a Pagar Recorrente")
 def cadastrar_conta_a_pagar_recorrente(dados: ContaAPagarRecorrenteCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    # a conta e o fornecedor precisam existir (e a conta ser de despesa): recusa clara aqui, nunca erro de chave do banco (500) na hora de gravar
+    conta = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == dados.id_conta_contabil).first()
+    if not conta:
+        raise HTTPException(status_code=404, detail="Conta contábil não encontrada.")
+    contabilidade.exigir_tipo_conta(conta, ["Despesa"], "A conta de uma conta a pagar recorrente")
+    if dados.id_fornecedor is not None and not db.query(Fornecedor.id_fornecedor).filter(Fornecedor.id_fornecedor == dados.id_fornecedor).first():
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado.")
     nova = ContaAPagarRecorrente(
         descricao=dados.descricao, valor=dados.valor, id_conta_contabil=dados.id_conta_contabil,
         id_fornecedor=dados.id_fornecedor, dia_vencimento=dados.dia_vencimento,

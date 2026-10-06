@@ -20,6 +20,7 @@ from app.models.compras import SolicitacaoCompra
 from app.models.doacoes import CampanhaArrecadacao, Doacao, RemanejamentoDestinacao
 from app.models.financeiro import CentroDeCusto, PlanoDeContas, TituloFinanceiro
 from app.services import contabilidade
+from app.services.formato import reais
 
 
 def _proximo_numero_recibo(db: Session) -> int:
@@ -94,14 +95,18 @@ def gerar_texto_recibo(db: Session, doacao: Doacao) -> str:
     nome_instituicao = obter_configuracao(db, "NOME_INSTITUICAO", "ASAF - Associação Arca da Família")
     cnpj = obter_configuracao(db, "CNPJ", "") or "(CNPJ não configurado)"
     rodape = obter_configuracao(db, "TEXTO_PADRAO_DOCUMENTO", "") or ""
+    # o dia do recibo é o dia da associação (Belém), não o do servidor em UTC: uma doação às 22h de segunda não pode sair datada de terça
+    from app.services.calendario import dia_local, fuso_da_associacao
+
+    dia_do_recibo = dia_local(doacao.data_doacao, fuso_da_associacao(db))
     doador = "Doador(a) anônimo(a)" if doacao.anonima else f"{doacao.nome_doador}" + (f" (doc. {doacao.documento_doador})" if doacao.documento_doador else "")
     natureza = "em bens (avaliação registrada)" if doacao.tipo_doacao == "Bens" else "em dinheiro"
     return (
         f"{nome_instituicao} — CNPJ {cnpj}\n"
         f"RECIBO DE DOAÇÃO Nº {doacao.numero_recibo}\n\n"
-        f"Recebemos de {doador} a doação {natureza} no valor de R$ {doacao.valor:.2f}"
+        f"Recebemos de {doador} a doação {natureza} no valor de {reais(doacao.valor)}"
         + (f", referente a: {doacao.descricao_bem}" if doacao.descricao_bem else "")
-        + f", em {doacao.data_doacao.strftime('%d/%m/%Y')}.\n\n"
+        + f", em {dia_do_recibo.strftime('%d/%m/%Y')}.\n\n"
         f"Este recibo não constitui, por si só, declaração de dedutibilidade fiscal — consulte a "
         f"situação tributária vigente da entidade antes de utilizá-lo para esse fim.\n"
         + (f"\n{rodape}\n" if rodape else "")
@@ -145,7 +150,7 @@ def registrar_remanejamento(
 
     saldo_origem = saldo_disponivel_centro_custo(db, id_centro_custo_origem)
     if valor > saldo_origem:
-        raise HTTPException(status_code=400, detail=f"Saldo restrito insuficiente na origem (disponível: R$ {saldo_origem:.2f}).")
+        raise HTTPException(status_code=400, detail=f"Saldo restrito insuficiente na origem (disponível: {reais(saldo_origem)}).")
 
     remanejamento = RemanejamentoDestinacao(
         id_centro_custo_origem=id_centro_custo_origem, id_centro_custo_destino=id_centro_custo_destino,

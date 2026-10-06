@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import {
   aprovarReembolsoDespesa,
   enviarComprovante,
-  listarAssociados,
+  listarAssociadosParaSelecao,
   listarPlanoContas,
   listarReembolsosDespesa,
   reprovarReembolsoDespesa,
@@ -42,8 +42,8 @@ export function ReembolsoDespesaPage() {
     queryFn: () => listarReembolsosDespesa(),
   })
   const { data: associados } = useQuery({
-    queryKey: ['associados'],
-    queryFn: listarAssociados,
+    queryKey: ['associados-selecao'],
+    queryFn: listarAssociadosParaSelecao,
   })
   const { data: contas } = useQuery({
     queryKey: ['plano-contas'],
@@ -276,7 +276,7 @@ export function ReembolsoDespesaPage() {
                   </Button>
                 </div>
               )}
-              {aprovar.isError && (
+              {aprovar.isError && aprovar.variables === r.id_reembolso && (
                 <p className="mt-1 text-xs text-destructive">
                   {(aprovar.error as Error).message}
                 </p>

@@ -1097,7 +1097,9 @@ test('centros de custo: campos vazios e código repetido são recusados; criar c
         .click(),
   )
   expect(ligou.status).toBe(200)
-  await expect(c1().locator('p.text-xs')).toContainText('destinação restrita')
+  await expect(c1().locator('p.text-xs').first()).toContainText(
+    'destinação restrita',
+  )
   await expect(
     c1().getByText(`Saldo restrito disponível: ${brl(0)}`),
   ).toBeVisible()
@@ -1179,7 +1181,7 @@ test('centros de custo: campos vazios e código repetido são recusados; criar c
       c1().getByRole('button', { name: 'Remover destinação restrita' }).click(),
   )
   expect(desligou.status).toBe(200)
-  await expect(c1().locator('p.text-xs')).not.toContainText(
+  await expect(c1().locator('p.text-xs').first()).not.toContainText(
     'destinação restrita',
   )
   await sair(page)

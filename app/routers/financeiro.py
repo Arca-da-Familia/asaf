@@ -42,6 +42,7 @@ from app.schemas.financeiro import (
 from app.security import exigir_permissao
 from app.services import armazenamento, conciliacao, contabilidade, contribuicoes, negociacao, pix as pix_service
 from app.services.categoria_associado import recalcular_categoria_associado
+from app.services.formato import reais
 
 router = APIRouter()
 _permissao_financeiro = exigir_permissao("financeiro")
@@ -112,6 +113,16 @@ def _validar_pai(db: Session, codigo_contabil_pai: str, codigo_contabil_propria:
         raise HTTPException(status_code=400, detail="Uma conta não pode ser pai de si mesma.")
     if not db.query(PlanoDeContas).filter(PlanoDeContas.codigo_contabil == codigo_contabil_pai).first():
         raise HTTPException(status_code=404, detail=f"Conta pai '{codigo_contabil_pai}' não encontrada.")
+    # sobe a cadeia de pais: se passar pela própria conta, o pai escolhido é neta/filha dela (A filha de B filha de A) - um laço que o plano não pode ter
+    if codigo_contabil_propria is not None:
+        visitados = set()
+        atual = codigo_contabil_pai
+        while atual is not None and atual not in visitados:
+            if atual == codigo_contabil_propria:
+                raise HTTPException(status_code=400, detail="Essa conta pai é descendente desta conta - o plano não pode ter uma conta dentro dela mesma.")
+            visitados.add(atual)
+            pai = db.query(PlanoDeContas.codigo_contabil_pai).filter(PlanoDeContas.codigo_contabil == atual).first()
+            atual = pai[0] if pai else None
 
 
 @router.get("/api/plano-contas/", summary="Listar Plano de Contas")
@@ -161,6 +172,10 @@ def editar_plano_contas(id_conta: int, dados: PlanoContaCriar, request: Request,
         raise HTTPException(status_code=404, detail="Conta contábil não encontrada.")
     contabilidade.natureza_da_conta(dados.tipo)  # 400 se o tipo não for um dos cinco tipos contábeis reais
     _validar_pai(db, dados.codigo_contabil_pai, codigo_contabil_propria=conta.codigo_contabil)
+    if dados.codigo_contabil != conta.codigo_contabil and db.query(PlanoDeContas.id_conta).filter(PlanoDeContas.codigo_contabil_pai == conta.codigo_contabil).first():
+        raise HTTPException(status_code=400, detail="Esta conta tem contas filhas - mudar o código a desligaria delas. Realoque as filhas antes de mudar o código.")
+    if dados.tipo != conta.tipo and db.query(PartidaContabil.id_partida).filter(PartidaContabil.id_conta == id_conta).first():
+        raise HTTPException(status_code=400, detail="Esta conta já tem movimento no razão contábil - mudar o tipo mudaria a natureza dos saldos já lançados.")
     dados_antes = {"codigo_contabil": conta.codigo_contabil, "descricao_conta": conta.descricao_conta, "tipo": conta.tipo, "codigo_contabil_pai": conta.codigo_contabil_pai}
     conta.codigo_contabil = dados.codigo_contabil
     conta.descricao_conta = dados.descricao_conta
@@ -198,7 +213,12 @@ def excluir_plano_contas(id_conta: int, request: Request, db: Session = Depends(
         raise HTTPException(status_code=400, detail="Esta conta é uma Conta Financeira cadastrada - remova o cadastro de Conta Financeira antes.")
     dados_antes = {"codigo_contabil": conta.codigo_contabil, "descricao_conta": conta.descricao_conta, "tipo": conta.tipo}
     db.delete(conta)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # orçamento, reserva, conta recorrente, alçada, solicitação de compra, campanha... também apontam para a conta: o banco não deixa e a resposta é clara
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Esta conta é usada por orçamento, reserva, conta recorrente, compra ou outro cadastro e não pode ser excluída.")
     registrar_auditoria(
         db, usuario, "plano_de_contas", "DELETE", id_registro_afetado=id_conta,
         dados_antes=dados_antes, ip_origem=_ip_origem(request),
@@ -568,6 +588,9 @@ def baixar_titulo(dados: BaixarTitulo, request: Request, db: Session = Depends(g
         raise HTTPException(status_code=404, detail="Título não encontrado.")
     if titulo.status == "Pago":
         raise HTTPException(status_code=400, detail="Este título já está totalmente pago.")
+    if titulo.status == "Renegociado":
+        # a dívida passou para as parcelas da negociação: pagar o original cobraria duas vezes
+        raise HTTPException(status_code=400, detail="Este título foi renegociado: a dívida passou para as parcelas da negociação. Dê a baixa nas parcelas.")
     excedente = Decimal("0")
     conta_adiantamento = None
     if dados.valor_pago > titulo.saldo_devedor:
@@ -576,7 +599,7 @@ def baixar_titulo(dados: BaixarTitulo, request: Request, db: Session = Depends(g
         # Associados") - sem isso, recusa exatamente como antes (nunca aceita baixa maior que o
         # saldo devedor "por padrão").
         if not dados.id_conta_contabil_adiantamento:
-            raise HTTPException(status_code=400, detail=f"Valor pago maior que o saldo devedor (R$ {titulo.saldo_devedor:.2f}) - informe id_conta_contabil_adiantamento para registrar o excedente como crédito do associado.")
+            raise HTTPException(status_code=400, detail=f"Valor pago maior que o saldo devedor ({reais(titulo.saldo_devedor)}) - escolha a conta de adiantamento para registrar o excedente como crédito do associado.")
         if not titulo.id_associado:
             raise HTTPException(status_code=400, detail="Pagamento a maior só é possível em título de um associado (crédito precisa de um dono).")
         conta_adiantamento = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == dados.id_conta_contabil_adiantamento).first()
@@ -591,7 +614,7 @@ def baixar_titulo(dados: BaixarTitulo, request: Request, db: Session = Depends(g
 
     conta_titulo = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == titulo.id_conta_contabil).first()
     if conta_titulo and contabilidade.exige_comprovante(db, conta_titulo.tipo) and not dados.comprovante:
-        raise HTTPException(status_code=400, detail=f"Comprovante obrigatório para lançamento em conta do tipo '{conta_titulo.tipo}'. Envie por POST /api/comprovantes/ e informe o caminho retornado.")
+        raise HTTPException(status_code=400, detail=f"Comprovante obrigatório para lançamento em conta do tipo '{conta_titulo.tipo}'. Anexe o comprovante antes de registrar.")
 
     valor_quitacao = dados.valor_pago - excedente
     titulo.saldo_devedor -= valor_quitacao

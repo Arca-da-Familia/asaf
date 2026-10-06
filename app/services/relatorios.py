@@ -18,6 +18,7 @@ from app.models.financeiro import CentroDeCusto, ContaFinanceira, LancamentoCont
 from app.models.projetos import ProjetoEvento
 from app.models.relatorios import PrestacaoDeContas
 from app.services.contabilidade import DEBITO, natureza_da_conta
+from app.services.formato import reais
 
 DIAS_TOLERANCIA_INADIMPLENCIA_PADRAO = 30
 
@@ -217,12 +218,12 @@ def _gerar_texto_prestacao(db: Session, *, ano_exercicio: int, parecer: Optional
     for l in balancete:
         if l["saldo_atual"] == 0 and l["debitos_periodo"] == 0 and l["creditos_periodo"] == 0:
             continue
-        linhas.append(f"   {l['codigo_contabil']} — {l['descricao_conta']}: saldo R$ {l['saldo_atual']:.2f}")
+        linhas.append(f"   {l['codigo_contabil']} — {l['descricao_conta']}: saldo {reais(l['saldo_atual'])}")
 
     linhas += ["", "2. RECEITAS X DESPESAS DO EXERCÍCIO"]
     for l in receitas_despesas:
-        linhas.append(f"   [{l['tipo']}] {l['codigo_contabil']} — {l['descricao_conta']}: R$ {l['valor_periodo']:.2f}")
-    linhas.append(f"   TOTAL RECEITAS: R$ {total_receitas:.2f} — TOTAL DESPESAS: R$ {total_despesas:.2f} — RESULTADO: R$ {(total_receitas - total_despesas):.2f}")
+        linhas.append(f"   [{l['tipo']}] {l['codigo_contabil']} — {l['descricao_conta']}: {reais(l['valor_periodo'])}")
+    linhas.append(f"   TOTAL RECEITAS: {reais(total_receitas)} — TOTAL DESPESAS: {reais(total_despesas)} — RESULTADO: {reais((total_receitas - total_despesas))}")
 
     linhas += ["", "3. PARECER DO CONSELHO FISCAL"]
     if parecer:

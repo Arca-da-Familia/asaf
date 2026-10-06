@@ -16,6 +16,7 @@ from app.models.compras import AlcadaAprovacao, AprovacaoCompra, CotacaoCompra, 
 from app.models.financeiro import CentroDeCusto, TituloFinanceiro
 from app.models.mandatos import DeclaracaoConflitoInteresse
 from app.services.mandatos import mandatos_vigentes_do_associado
+from app.services.formato import reais
 
 _VALOR_MINIMO_COTACAO_PADRAO = Decimal("1000")
 _QUANTIDADE_MINIMA_COTACOES = 2
@@ -41,7 +42,7 @@ def alcada_aplicavel(db: Session, valor: Decimal) -> AlcadaAprovacao:
         .first()
     )
     if not alcada:
-        raise HTTPException(status_code=400, detail=f"Nenhuma alçada de aprovação configurada para o valor R$ {valor:.2f} - cadastre uma faixa em Alçadas de Aprovação antes de prosseguir.")
+        raise HTTPException(status_code=400, detail=f"Nenhuma alçada de aprovação configurada para o valor {reais(valor)} - cadastre uma faixa em Alçadas de Aprovação antes de prosseguir.")
     return alcada
 
 
@@ -141,7 +142,7 @@ def aprovar_solicitacao(db: Session, *, id_solicitacao: int, id_usuario_aprovado
     if solicitacao.valor_estimado >= _valor_minimo_cotacao(db):
         quantidade_cotacoes = db.query(CotacaoCompra).filter(CotacaoCompra.id_solicitacao == id_solicitacao).count()
         if quantidade_cotacoes < _QUANTIDADE_MINIMA_COTACOES:
-            raise HTTPException(status_code=400, detail=f"Valor acima de R$ {_valor_minimo_cotacao(db):.2f} exige ao menos {_QUANTIDADE_MINIMA_COTACOES} cotações antes de aprovar (tem {quantidade_cotacoes}).")
+            raise HTTPException(status_code=400, detail=f"Valor acima de {reais(_valor_minimo_cotacao(db))} exige ao menos {_QUANTIDADE_MINIMA_COTACOES} cotações antes de aprovar (tem {quantidade_cotacoes}).")
 
     alcada = alcada_aplicavel(db, solicitacao.valor_estimado)
     pode, motivo, id_delegacao = _pode_aprovar(db, id_usuario_aprovador=id_usuario_aprovador, solicitacao=solicitacao, alcada=alcada)
@@ -167,7 +168,7 @@ def aprovar_solicitacao(db: Session, *, id_solicitacao: int, id_usuario_aprovado
 
             saldo = saldo_disponivel_centro_custo(db, solicitacao.id_centro_custo)
             if solicitacao.valor_estimado > saldo:
-                raise HTTPException(status_code=400, detail=f"Centro de custo '{centro_custo.nome}' tem destinação restrita e saldo insuficiente (disponível: R$ {saldo:.2f}) - registre um remanejamento formal antes de aprovar.")
+                raise HTTPException(status_code=400, detail=f"Centro de custo '{centro_custo.nome}' tem destinação restrita e saldo insuficiente (disponível: {reais(saldo)}) - registre um remanejamento formal antes de aprovar.")
 
     associado = _associado_do_usuario(db, id_usuario_aprovador)
     db.add(AprovacaoCompra(

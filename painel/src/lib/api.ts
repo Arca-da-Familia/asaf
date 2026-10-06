@@ -924,6 +924,18 @@ export function listarAssociados(): Promise<AssociadoListagem[]> {
   return apiFetch('/api/associados/')
 }
 
+// Só quem escolhe o associado (título, isenção, delegação, reembolso...): id, nome e os dois últimos dígitos do CPF. Quem cuida do financeiro não
+// precisa da ficha completa (CPF, e-mail, telefone) e por isso não a recebe.
+export type AssociadoParaSelecao = {
+  id_associado: number
+  nome_completo: string
+  cpf_final: string
+}
+
+export function listarAssociadosParaSelecao(): Promise<AssociadoParaSelecao[]> {
+  return apiFetch('/api/associados/busca-simples')
+}
+
 export type AssociadoMasterCriarInput = {
   nome_completo: string
   cpf: string
@@ -2736,7 +2748,9 @@ export function alternarAlcadaAprovacao(
 export type DelegacaoAprovacao = {
   id_delegacao: number
   id_associado_delegante: number
+  nome_delegante?: string | null
   id_associado_delegado: number
+  nome_delegado?: string | null
   data_inicio: string
   data_fim: string
   motivo: string
@@ -3415,6 +3429,7 @@ export type Orcamento = {
   id_deliberacao: number
   realizado: number
   percentual_realizado: number | null
+  natureza?: 'Devedora' | 'Credora'
   estourado: boolean
 }
 

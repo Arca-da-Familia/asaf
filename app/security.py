@@ -457,6 +457,23 @@ def usuario_tem_permissao(db: Session, usuario: Usuario, codigo_permissao: str) 
     return codigo_permissao in permissoes_por_mandatos_vigentes(db, associado.id_associado)
 
 
+def exigir_alguma_permissao(*codigos_permissao: str):
+    """Dependency factory - basta UMA das permissões: `Depends(exigir_alguma_permissao("associados", "financeiro"))`."""
+
+    def _checar(
+        usuario: Usuario = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ) -> Usuario:
+        if not any(usuario_tem_permissao(db, usuario, codigo) for codigo in codigos_permissao):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Sem permissão '" + "' nem '".join(codigos_permissao) + "'.",
+            )
+        return usuario
+
+    return _checar
+
+
 def exigir_permissao(codigo_permissao: str):
     """Dependency factory - use como Depends(exigir_permissao("financeiro"))."""
 

@@ -16,7 +16,6 @@ import { exercicioAbrirSchema } from '@/lib/schemas'
 // mensagem de erro real é mostrada, o painel não tenta adivinhar/bloquear antes.
 export function ExerciciosPage() {
   const [mostrarForm, setMostrarForm] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
   const { data: exercicios } = useQuery({
@@ -33,9 +32,7 @@ export function ExerciciosPage() {
     onSuccess: () => {
       invalidar()
       setMostrarForm(false)
-      setErro(null)
     },
-    onError: (e: Error) => setErro(e.message),
   })
 
   const fechar = useMutation({
@@ -91,7 +88,6 @@ export function ExerciciosPage() {
           </FormShell>
         )}
 
-        {erro && <p className="mb-2 text-sm text-destructive">{erro}</p>}
         {fechar.isError && (
           <p className="mb-2 text-sm text-destructive">
             {(fechar.error as Error).message}
