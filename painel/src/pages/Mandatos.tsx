@@ -56,6 +56,7 @@ function BlocoEncerrarMandato({
         <>
           <select
             {...form.register('motivo')}
+            aria-label="Motivo do encerramento"
             className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
           >
             <option value="Renúncia">Renúncia</option>
@@ -183,6 +184,7 @@ function BlocoMandatos() {
               <div>
                 <select
                   {...form.register('id_associado')}
+                  aria-label="Associado"
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
                   <option value="0">Selecione o associado…</option>
@@ -199,6 +201,7 @@ function BlocoMandatos() {
               <div>
                 <select
                   {...form.register('orgao_codigo')}
+                  aria-label="Órgão"
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
                   <option value="">Selecione o órgão…</option>
@@ -215,6 +218,7 @@ function BlocoMandatos() {
               <div>
                 <select
                   {...form.register('cargo_codigo')}
+                  aria-label="Cargo"
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
                   <option value="">Selecione o cargo…</option>
@@ -395,6 +399,7 @@ function BlocoConflitoInteresse() {
             <>
               <select
                 {...form.register('id_associado')}
+                aria-label="Associado do conflito de interesse"
                 className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
                 <option value="0">Selecione o associado…</option>

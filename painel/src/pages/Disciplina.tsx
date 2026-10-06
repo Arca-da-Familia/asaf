@@ -113,6 +113,7 @@ export function ProcessosDisciplinaresPage() {
               <div>
                 <select
                   {...form.register('id_associado')}
+                  aria-label="Associado"
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
                   <option value="0">Selecione o associado…</option>
@@ -129,6 +130,7 @@ export function ProcessosDisciplinaresPage() {
               <div>
                 <select
                   {...form.register('motivo_codigo')}
+                  aria-label="Motivo"
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
                   <option value="">Selecione o motivo…</option>

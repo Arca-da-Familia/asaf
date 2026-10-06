@@ -218,6 +218,7 @@ function BlocoTitulos() {
           Títulos financeiros (leitura irrestrita)
         </h2>
         <select
+          aria-label="Filtrar títulos por situação"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
@@ -376,10 +377,12 @@ function BlocoPareceres() {
                 <input
                   type="number"
                   {...form.register('ano_exercicio')}
+                  aria-label="Ano do exercício"
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 />
                 <select
                   {...form.register('tipo')}
+                  aria-label="Tipo de parecer"
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
                   <option value="Favorável">Favorável</option>

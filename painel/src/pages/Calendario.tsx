@@ -125,6 +125,7 @@ export function CalendarioPage() {
               <div>
                 <select
                   {...form.register('categoria')}
+                  aria-label="Categoria"
                   className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
                   <option value="">Selecione a categoria…</option>

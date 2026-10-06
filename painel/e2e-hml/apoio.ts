@@ -218,6 +218,28 @@ export async function inventariar(
         ''
       )
     }
+    // campo SEM rótulo de verdade (sem aria-label, <label> nem placeholder): leitor de tela não sabe o que é. O `name` técnico não conta.
+    const semRotuloReal = (campo: Element): boolean => {
+      if (campo.getAttribute('type') === 'hidden') return false
+      const id = campo.getAttribute('id')
+      const porId = id ? document.querySelector(`label[for="${id}"]`) : null
+      const anterior = campo.previousElementSibling
+      return !(
+        campo.getAttribute('aria-label') ||
+        campo.getAttribute('aria-labelledby') ||
+        texto(porId) ||
+        (anterior?.tagName === 'LABEL' ? texto(anterior) : '') ||
+        texto(campo.closest('label')) ||
+        campo.getAttribute('placeholder') ||
+        campo.getAttribute('title')
+      )
+    }
+    const semRotulo = [...document.querySelectorAll('input, select, textarea')]
+      .filter(semRotuloReal)
+      .map(
+        (c) =>
+          `${c.tagName.toLowerCase()} name=${c.getAttribute('name') ?? ''}`,
+      )
     const campos = [
       ...document.querySelectorAll('input, select, textarea'),
     ].map(
@@ -243,6 +265,7 @@ export async function inventariar(
           texto,
         ),
       ),
+      semRotulo,
     }
   })
   const linhas = [
@@ -253,6 +276,7 @@ export async function inventariar(
     `COLUNAS: ${dados.colunas.join(' | ')}`,
     `LINKS: ${dados.links.slice(0, 40).join(' | ')}`,
     `AVISOS: ${dados.avisos.join(' | ')}`,
+    `SEM RÓTULO: ${dados.semRotulo.join(' | ')}`,
   ].join('\n')
   const roteiro = path.basename(info.file).replace(/\.spec\.ts$/, '')
   const pasta = path.join('prints-hml', roteiro)
@@ -266,5 +290,9 @@ export async function inventariar(
     path: arquivo,
     contentType: 'text/plain',
   })
+  expect(
+    dados.semRotulo,
+    `campo(s) sem rótulo acessível em "${nome}": quem usa leitor de tela não sabe o que preencher`,
+  ).toEqual([])
   return linhas
 }
