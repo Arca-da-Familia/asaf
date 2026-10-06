@@ -139,19 +139,21 @@ test.describe('A. Conselho Fiscal com poder real', () => {
     await cartaoDoTitulo
       .getByRole('button', { name: 'Ver questionamentos' })
       .click()
-    await cartaoDoTitulo.getByRole('button', { name: 'Questionar' }).click()
+    const cartaoAberto = titulos
+      .locator('div.rounded-md.border')
+      .filter({ hasText: tituloPerguntado })
+      .first()
+    await cartaoAberto.getByRole('button', { name: 'Questionar' }).click()
     // pergunta vazia é recusada
-    await cartaoDoTitulo
+    await cartaoAberto
       .getByRole('button', { name: 'Enviar questionamento' })
       .click()
-    await expect(cartaoDoTitulo.getByRole('alert')).toBeVisible()
-    await cartaoDoTitulo
-      .getByLabel('Pergunta sobre o lançamento')
-      .fill(pergunta)
-    await cartaoDoTitulo
+    await expect(cartaoAberto.getByRole('alert')).toBeVisible()
+    await cartaoAberto.getByLabel('Pergunta sobre o lançamento').fill(pergunta)
+    await cartaoAberto
       .getByRole('button', { name: 'Enviar questionamento' })
       .click()
-    const questionamento = cartaoDoTitulo
+    const questionamento = cartaoAberto
       .locator('div.rounded-md')
       .filter({ hasText: pergunta })
       .first()
