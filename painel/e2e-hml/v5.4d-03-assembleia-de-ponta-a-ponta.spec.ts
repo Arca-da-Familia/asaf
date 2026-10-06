@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test'
 
 import {
   atingirQuorum,
-  AVISO,
   campo,
   entrar,
   escolherPorTexto,
