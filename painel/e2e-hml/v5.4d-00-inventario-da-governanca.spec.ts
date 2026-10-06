@@ -1,0 +1,86 @@
+import { expect, test } from '@playwright/test'
+
+import { entrar, exigirHomologacao, inventariar, ver, vigiar } from './apoio'
+
+// v5.4d — FASE 2 e 2.5 (governança) ao vivo, passo 0: cada tela da governança abre sem erro e fica inventariada (o que ela oferece de verdade na
+// homologação), para o roteiro de cada fluxo ser escrito sobre o que existe e não sobre o que se supõe.
+test.describe.configure({ mode: 'serial' })
+test.beforeAll(() => exigirHomologacao())
+
+const TELAS: { nome: string; caminho: string; titulo: RegExp }[] = [
+  { nome: 'assembleias', caminho: '/governanca', titulo: /Assembleias/ },
+  {
+    nome: 'nova-assembleia',
+    caminho: '/governanca/nova',
+    titulo: /Nova assembleia/,
+  },
+  { nome: 'peticoes', caminho: '/governanca/peticoes', titulo: /Petiç/ },
+  { nome: 'atas', caminho: '/governanca/atas', titulo: /Atas/ },
+  { nome: 'mandatos', caminho: '/governanca/mandatos', titulo: /Mandatos/ },
+  {
+    nome: 'disciplina',
+    caminho: '/governanca/disciplina',
+    titulo: /Disciplina/,
+  },
+  { nome: 'dissolucao', caminho: '/governanca/dissolucao', titulo: /Dissolu/ },
+  { nome: 'calendario', caminho: '/calendario', titulo: /Calend/ },
+  {
+    nome: 'conselho-fiscal',
+    caminho: '/financeiro/conselho-fiscal',
+    titulo: /Conselho Fiscal/,
+  },
+  {
+    nome: 'minhas-assembleias',
+    caminho: '/minhas-assembleias',
+    titulo: /assembleias/i,
+  },
+  {
+    nome: 'meus-processos',
+    caminho: '/meus-processos-disciplinares',
+    titulo: /processos/i,
+  },
+]
+
+for (const tela of TELAS) {
+  test(`abre sem erro: ${tela.nome}`, async ({ page }, info) => {
+    const vigia = vigiar(page)
+    await entrar(page, 'presidente')
+    await page.goto(tela.caminho)
+    await expect(
+      page.getByRole('heading', { name: tela.titulo }).first(),
+    ).toBeVisible()
+    await inventariar(page, info, tela.nome)
+    await ver(page, info, tela.nome)
+    expect(vigia.problemas()).toEqual([])
+  })
+}
+
+test('detalhe, sessão e ata da assembleia convocada abrem sem erro e ficam inventariados', async ({
+  page,
+}, info) => {
+  const vigia = vigiar(page)
+  await entrar(page, 'presidente')
+  await page.goto('/governanca')
+  await expect(page.getByText(/Carregando/)).toHaveCount(0)
+  const primeira = page
+    .locator('main a[href^="/governanca/"]')
+    .filter({ hasNotText: /Nova/ })
+    .first()
+  const destino = await primeira.getAttribute('href')
+  expect(
+    destino,
+    'tem que haver ao menos uma assembleia (a do roteiro de dados)',
+  ).toBeTruthy()
+  const base = destino!.replace(/\/(sessao|ata)$/, '')
+  for (const [nome, caminho] of [
+    ['assembleia-detalhe', base],
+    ['assembleia-sessao', `${base}/sessao`],
+    ['assembleia-ata', `${base}/ata`],
+  ] as const) {
+    await page.goto(caminho)
+    await expect(page.locator('h1').first()).toBeVisible()
+    await inventariar(page, info, nome)
+    await ver(page, info, nome)
+  }
+  expect(vigia.problemas()).toEqual([])
+})

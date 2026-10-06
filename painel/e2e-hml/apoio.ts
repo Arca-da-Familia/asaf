@@ -188,3 +188,83 @@ export async function fotoDeTeste(page: Page, rotulo: string): Promise<Buffer> {
   }, rotulo)
   return Buffer.from(base64, 'base64')
 }
+
+/**
+ * Inventário da tela atual (títulos, botões, links, campos com o rótulo, cabeçalhos de tabela), gravado em prints-hml/<roteiro>/inventario-<nome>.txt
+ * e anexado ao relatório. Serve para conhecer, na homologação de verdade, o que cada tela oferece antes de escrever o roteiro dela; e, como o
+ * robô só chega à tela se ela abre sem erro, vira também uma conferência de que a tela abre.
+ */
+export async function inventariar(
+  page: Page,
+  info: TestInfo,
+  nome: string,
+): Promise<string> {
+  await expect(page.getByText(/^Carregando/)).toHaveCount(0)
+  const dados = await page.evaluate(() => {
+    const texto = (el: Element | null) =>
+      (el?.textContent ?? '').replace(/\s+/g, ' ').trim()
+    const unicos = (lista: string[]) => [...new Set(lista.filter(Boolean))]
+    const rotuloDe = (campo: Element): string => {
+      const id = campo.getAttribute('id')
+      const porId = id ? document.querySelector(`label[for="${id}"]`) : null
+      const anterior = campo.previousElementSibling
+      return (
+        campo.getAttribute('aria-label') ||
+        texto(porId) ||
+        (anterior?.tagName === 'LABEL' ? texto(anterior) : '') ||
+        texto(campo.closest('label')) ||
+        campo.getAttribute('placeholder') ||
+        campo.getAttribute('name') ||
+        ''
+      )
+    }
+    const campos = [
+      ...document.querySelectorAll('input, select, textarea'),
+    ].map(
+      (c) =>
+        `${c.tagName.toLowerCase()}${c.getAttribute('type') ? `[${c.getAttribute('type')}]` : ''}: ${rotuloDe(c)}`,
+    )
+    return {
+      titulos: unicos([...document.querySelectorAll('h1, h2, h3')].map(texto)),
+      botoes: unicos(
+        [...document.querySelectorAll('button')].map(
+          (b) => texto(b) || b.getAttribute('aria-label') || '',
+        ),
+      ),
+      links: unicos(
+        [...document.querySelectorAll('main a, aside a')].map(
+          (a) => `${texto(a)} -> ${a.getAttribute('href')}`,
+        ),
+      ),
+      campos: unicos(campos),
+      colunas: unicos([...document.querySelectorAll('th')].map(texto)),
+      avisos: unicos(
+        [...document.querySelectorAll('[role="alert"], p[role="status"]')].map(
+          texto,
+        ),
+      ),
+    }
+  })
+  const linhas = [
+    `URL: ${page.url()}`,
+    `TÍTULOS: ${dados.titulos.join(' | ')}`,
+    `BOTÕES: ${dados.botoes.join(' | ')}`,
+    `CAMPOS: ${dados.campos.join(' | ')}`,
+    `COLUNAS: ${dados.colunas.join(' | ')}`,
+    `LINKS: ${dados.links.slice(0, 40).join(' | ')}`,
+    `AVISOS: ${dados.avisos.join(' | ')}`,
+  ].join('\n')
+  const roteiro = path.basename(info.file).replace(/\.spec\.ts$/, '')
+  const pasta = path.join('prints-hml', roteiro)
+  fs.mkdirSync(pasta, { recursive: true })
+  const arquivo = path.join(
+    pasta,
+    `inventario-${nome.replace(/[^a-zA-Z0-9]+/g, '-')}.txt`,
+  )
+  fs.writeFileSync(arquivo, linhas, 'utf-8')
+  await info.attach(`inventario ${nome}`, {
+    path: arquivo,
+    contentType: 'text/plain',
+  })
+  return linhas
+}
