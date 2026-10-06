@@ -218,18 +218,15 @@ export async function inventariar(
         ''
       )
     }
-    // campo SEM rótulo de verdade (sem aria-label, <label> nem placeholder): leitor de tela não sabe o que é. O `name` técnico não conta.
+    // campo SEM rótulo de verdade: o navegador (`labels`) é quem diz o que um leitor de tela vai ler. Rótulo parado AO LADO, sem `for` nem envolver
+    // o campo, não conta; o `name` técnico também não.
     const semRotuloReal = (campo: Element): boolean => {
       if (campo.getAttribute('type') === 'hidden') return false
-      const id = campo.getAttribute('id')
-      const porId = id ? document.querySelector(`label[for="${id}"]`) : null
-      const anterior = campo.previousElementSibling
+      const controle = campo as HTMLInputElement
       return !(
+        (controle.labels && controle.labels.length > 0) ||
         campo.getAttribute('aria-label') ||
         campo.getAttribute('aria-labelledby') ||
-        texto(porId) ||
-        (anterior?.tagName === 'LABEL' ? texto(anterior) : '') ||
-        texto(campo.closest('label')) ||
         campo.getAttribute('placeholder') ||
         campo.getAttribute('title')
       )

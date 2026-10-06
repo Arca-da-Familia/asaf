@@ -59,6 +59,7 @@ import { EventosPage } from '@/pages/Eventos'
 import { Forbidden } from '@/pages/Forbidden'
 import { Home } from '@/pages/Home'
 import { ImportarAssociadosPage } from '@/pages/ImportarAssociados'
+import { AssociarRotulos } from '@/components/acessibilidade/AssociarRotulos'
 import { PropostasDeFiliacaoPage } from '@/pages/PropostasDeFiliacao'
 import { QualidadeDaBasePage } from '@/pages/QualidadeDaBase'
 import { Login } from '@/pages/Login'
@@ -134,560 +135,563 @@ function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      {/* v4.8 - tela da portaria (check-in/check-out por token de evento, sem login do painel).
+    <>
+      <AssociarRotulos />
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        {/* v4.8 - tela da portaria (check-in/check-out por token de evento, sem login do painel).
           Fora de RequireAuth/RequireMfa/Shell de propósito - ver PortariaGate.tsx. */}
-      <Route path="/portaria/:token" element={<PortariaGate />} />
-      <Route
-        path="/mfa/setup"
-        element={
-          <RequireAuth>
-            <MfaSetup />
-          </RequireAuth>
-        }
-      />
+        <Route path="/portaria/:token" element={<PortariaGate />} />
+        <Route
+          path="/mfa/setup"
+          element={
+            <RequireAuth>
+              <MfaSetup />
+            </RequireAuth>
+          }
+        />
 
-      <Route
-        element={
-          <RequireAuth>
-            <RequireMfa>
-              <Shell />
-            </RequireMfa>
-          </RequireAuth>
-        }
-      >
-        <Route index element={<Home />} />
-        <Route path="/dev/componentes" element={<DevComponents />} />
-        <Route path="/perfil" element={<PerfilPage />} />
         <Route
-          path="/minhas-assembleias"
           element={
-            <ErrorBoundary tituloModulo="Minhas assembleias">
-              <MinhasAssembleiasPage />
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/configuracoes"
-          element={
-            <ErrorBoundary tituloModulo="Configurações">
-              <ConfiguracoesPage />
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/calendario"
-          element={
-            <ErrorBoundary tituloModulo="Calendário institucional">
-              <CalendarioPage />
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/meu-voluntariado"
-          element={
-            <ErrorBoundary tituloModulo="Meu voluntariado">
-              <MeuVoluntariadoPage />
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/meus-processos-disciplinares"
-          element={
-            <ErrorBoundary tituloModulo="Meus processos disciplinares">
-              <ProcessosDisciplinaresPage />
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/processos-disciplinares/:id"
-          element={
-            <ErrorBoundary tituloModulo="Processo disciplinar">
-              <ProcessoDisciplinarDetalhePage />
-            </ErrorBoundary>
-          }
-        />
-        <Route path="/403" element={<Forbidden />} />
-        <Route
-          path="/associados"
-          element={
-            <RequirePermission permission="associados">
-              <Outlet />
-            </RequirePermission>
+            <RequireAuth>
+              <RequireMfa>
+                <Shell />
+              </RequireMfa>
+            </RequireAuth>
           }
         >
+          <Route index element={<Home />} />
+          <Route path="/dev/componentes" element={<DevComponents />} />
+          <Route path="/perfil" element={<PerfilPage />} />
           <Route
-            index
+            path="/minhas-assembleias"
             element={
-              <ErrorBoundary tituloModulo="Associados">
-                <AssociadosPage />
+              <ErrorBoundary tituloModulo="Minhas assembleias">
+                <MinhasAssembleiasPage />
               </ErrorBoundary>
             }
           />
           <Route
-            path="novo"
+            path="/configuracoes"
             element={
-              <ErrorBoundary tituloModulo="Novo associado">
-                <AssociadoNovoPage />
+              <ErrorBoundary tituloModulo="Configurações">
+                <ConfiguracoesPage />
               </ErrorBoundary>
             }
           />
           <Route
-            path="qualidade"
+            path="/calendario"
             element={
-              <ErrorBoundary tituloModulo="Qualidade da base">
-                <QualidadeDaBasePage />
+              <ErrorBoundary tituloModulo="Calendário institucional">
+                <CalendarioPage />
               </ErrorBoundary>
             }
           />
           <Route
-            path="propostas"
+            path="/meu-voluntariado"
             element={
-              <ErrorBoundary tituloModulo="Propostas de filiação">
-                <PropostasDeFiliacaoPage />
+              <ErrorBoundary tituloModulo="Meu voluntariado">
+                <MeuVoluntariadoPage />
               </ErrorBoundary>
             }
           />
           <Route
-            path="importar"
+            path="/meus-processos-disciplinares"
             element={
-              <ErrorBoundary tituloModulo="Importar associados">
-                <ImportarAssociadosPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="graficos"
-            element={
-              <ErrorBoundary tituloModulo="Gráficos">
-                <AssociadosGraficosPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path=":id"
-            element={
-              <ErrorBoundary tituloModulo="Detalhe do associado">
-                <AssociadoDetalhePage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path=":id/conceder-acesso"
-            element={
-              <ErrorBoundary tituloModulo="Conceder acesso">
-                <ConcederAcessoPage />
-              </ErrorBoundary>
-            }
-          />
-        </Route>
-        <Route
-          path="/financeiro"
-          element={
-            <RequirePermission permission="financeiro">
-              <Outlet />
-            </RequirePermission>
-          }
-        >
-          <Route
-            index
-            element={
-              <ErrorBoundary tituloModulo="Financeiro">
-                <EmConstrucao modulo="Financeiro" />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="conselho-fiscal"
-            element={
-              <ErrorBoundary tituloModulo="Conselho Fiscal">
-                <ConselhoFiscalPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="titulos"
-            element={
-              <ErrorBoundary tituloModulo="Títulos">
-                <TitulosPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="plano-contas"
-            element={
-              <ErrorBoundary tituloModulo="Plano de Contas">
-                <PlanoContasPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="fornecedores"
-            element={
-              <ErrorBoundary tituloModulo="Fornecedores">
-                <FornecedoresPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="exercicios"
-            element={
-              <ErrorBoundary tituloModulo="Exercícios">
-                <ExerciciosPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="razao-contabil"
-            element={
-              <ErrorBoundary tituloModulo="Razão Contábil">
-                <RazaoContabilPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="contas-financeiras"
-            element={
-              <ErrorBoundary tituloModulo="Contas Financeiras">
-                <ContasFinanceirasPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="centros-custo"
-            element={
-              <ErrorBoundary tituloModulo="Centros de Custo">
-                <CentrosCustoPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="planos-contribuicao"
-            element={
-              <ErrorBoundary tituloModulo="Planos de Contribuição">
-                <PlanosContribuicaoPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="gerar-cobrancas"
-            element={
-              <ErrorBoundary tituloModulo="Gerar Cobranças">
-                <GerarCobrancasPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="conciliacao"
-            element={
-              <ErrorBoundary tituloModulo="Conciliação Bancária">
-                <ConciliacaoPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="negociacao-divida"
-            element={
-              <ErrorBoundary tituloModulo="Negociação de Dívida">
-                <NegociacaoDividaPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="compras"
-            element={
-              <ErrorBoundary tituloModulo="Compras">
-                <ComprasPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="reembolso-despesa"
-            element={
-              <ErrorBoundary tituloModulo="Reembolso de Despesa">
-                <ReembolsoDespesaPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="alcadas-aprovacao"
-            element={
-              <ErrorBoundary tituloModulo="Alçadas de Aprovação">
-                <AlcadasAprovacaoPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="contas-a-pagar-recorrentes"
-            element={
-              <ErrorBoundary tituloModulo="Contas a Pagar Recorrentes">
-                <ContasAPagarRecorrentesPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="doacoes"
-            element={
-              <ErrorBoundary tituloModulo="Doações">
-                <DoacoesPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="orcamento"
-            element={
-              <ErrorBoundary tituloModulo="Orçamento e Fluxo de Caixa">
-                <OrcamentoPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="relatorios"
-            element={
-              <ErrorBoundary tituloModulo="Relatórios">
-                <RelatoriosPage />
-              </ErrorBoundary>
-            }
-          />
-        </Route>
-        <Route
-          path="/governanca"
-          element={
-            <RequirePermission permission="governanca">
-              <Outlet />
-            </RequirePermission>
-          }
-        >
-          <Route
-            index
-            element={
-              <ErrorBoundary tituloModulo="Governança">
-                <AssembleiasPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="nova"
-            element={
-              <ErrorBoundary tituloModulo="Nova assembleia">
-                <AssembleiaNovoPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="peticoes"
-            element={
-              <ErrorBoundary tituloModulo="Petições de convocação">
-                <PeticoesConvocacaoPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="atas"
-            element={
-              <ErrorBoundary tituloModulo="Atas">
-                <AtasPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="mandatos"
-            element={
-              <ErrorBoundary tituloModulo="Mandatos">
-                <MandatosPage />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="disciplina"
-            element={
-              <ErrorBoundary tituloModulo="Disciplina">
+              <ErrorBoundary tituloModulo="Meus processos disciplinares">
                 <ProcessosDisciplinaresPage />
               </ErrorBoundary>
             }
           />
           <Route
-            path="dissolucao"
+            path="/processos-disciplinares/:id"
             element={
-              <ErrorBoundary tituloModulo="Dissolução">
-                <ProcessosDissolucaoPage />
+              <ErrorBoundary tituloModulo="Processo disciplinar">
+                <ProcessoDisciplinarDetalhePage />
               </ErrorBoundary>
             }
           />
+          <Route path="/403" element={<Forbidden />} />
           <Route
-            path="dissolucao/:id"
+            path="/associados"
             element={
-              <ErrorBoundary tituloModulo="Processo de dissolução">
-                <ProcessoDissolucaoDetalhePage />
-              </ErrorBoundary>
+              <RequirePermission permission="associados">
+                <Outlet />
+              </RequirePermission>
+            }
+          >
+            <Route
+              index
+              element={
+                <ErrorBoundary tituloModulo="Associados">
+                  <AssociadosPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="novo"
+              element={
+                <ErrorBoundary tituloModulo="Novo associado">
+                  <AssociadoNovoPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="qualidade"
+              element={
+                <ErrorBoundary tituloModulo="Qualidade da base">
+                  <QualidadeDaBasePage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="propostas"
+              element={
+                <ErrorBoundary tituloModulo="Propostas de filiação">
+                  <PropostasDeFiliacaoPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="importar"
+              element={
+                <ErrorBoundary tituloModulo="Importar associados">
+                  <ImportarAssociadosPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="graficos"
+              element={
+                <ErrorBoundary tituloModulo="Gráficos">
+                  <AssociadosGraficosPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path=":id"
+              element={
+                <ErrorBoundary tituloModulo="Detalhe do associado">
+                  <AssociadoDetalhePage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path=":id/conceder-acesso"
+              element={
+                <ErrorBoundary tituloModulo="Conceder acesso">
+                  <ConcederAcessoPage />
+                </ErrorBoundary>
+              }
+            />
+          </Route>
+          <Route
+            path="/financeiro"
+            element={
+              <RequirePermission permission="financeiro">
+                <Outlet />
+              </RequirePermission>
+            }
+          >
+            <Route
+              index
+              element={
+                <ErrorBoundary tituloModulo="Financeiro">
+                  <EmConstrucao modulo="Financeiro" />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="conselho-fiscal"
+              element={
+                <ErrorBoundary tituloModulo="Conselho Fiscal">
+                  <ConselhoFiscalPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="titulos"
+              element={
+                <ErrorBoundary tituloModulo="Títulos">
+                  <TitulosPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="plano-contas"
+              element={
+                <ErrorBoundary tituloModulo="Plano de Contas">
+                  <PlanoContasPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="fornecedores"
+              element={
+                <ErrorBoundary tituloModulo="Fornecedores">
+                  <FornecedoresPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="exercicios"
+              element={
+                <ErrorBoundary tituloModulo="Exercícios">
+                  <ExerciciosPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="razao-contabil"
+              element={
+                <ErrorBoundary tituloModulo="Razão Contábil">
+                  <RazaoContabilPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="contas-financeiras"
+              element={
+                <ErrorBoundary tituloModulo="Contas Financeiras">
+                  <ContasFinanceirasPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="centros-custo"
+              element={
+                <ErrorBoundary tituloModulo="Centros de Custo">
+                  <CentrosCustoPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="planos-contribuicao"
+              element={
+                <ErrorBoundary tituloModulo="Planos de Contribuição">
+                  <PlanosContribuicaoPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="gerar-cobrancas"
+              element={
+                <ErrorBoundary tituloModulo="Gerar Cobranças">
+                  <GerarCobrancasPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="conciliacao"
+              element={
+                <ErrorBoundary tituloModulo="Conciliação Bancária">
+                  <ConciliacaoPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="negociacao-divida"
+              element={
+                <ErrorBoundary tituloModulo="Negociação de Dívida">
+                  <NegociacaoDividaPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="compras"
+              element={
+                <ErrorBoundary tituloModulo="Compras">
+                  <ComprasPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="reembolso-despesa"
+              element={
+                <ErrorBoundary tituloModulo="Reembolso de Despesa">
+                  <ReembolsoDespesaPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="alcadas-aprovacao"
+              element={
+                <ErrorBoundary tituloModulo="Alçadas de Aprovação">
+                  <AlcadasAprovacaoPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="contas-a-pagar-recorrentes"
+              element={
+                <ErrorBoundary tituloModulo="Contas a Pagar Recorrentes">
+                  <ContasAPagarRecorrentesPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="doacoes"
+              element={
+                <ErrorBoundary tituloModulo="Doações">
+                  <DoacoesPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="orcamento"
+              element={
+                <ErrorBoundary tituloModulo="Orçamento e Fluxo de Caixa">
+                  <OrcamentoPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="relatorios"
+              element={
+                <ErrorBoundary tituloModulo="Relatórios">
+                  <RelatoriosPage />
+                </ErrorBoundary>
+              }
+            />
+          </Route>
+          <Route
+            path="/governanca"
+            element={
+              <RequirePermission permission="governanca">
+                <Outlet />
+              </RequirePermission>
+            }
+          >
+            <Route
+              index
+              element={
+                <ErrorBoundary tituloModulo="Governança">
+                  <AssembleiasPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="nova"
+              element={
+                <ErrorBoundary tituloModulo="Nova assembleia">
+                  <AssembleiaNovoPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="peticoes"
+              element={
+                <ErrorBoundary tituloModulo="Petições de convocação">
+                  <PeticoesConvocacaoPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="atas"
+              element={
+                <ErrorBoundary tituloModulo="Atas">
+                  <AtasPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="mandatos"
+              element={
+                <ErrorBoundary tituloModulo="Mandatos">
+                  <MandatosPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="disciplina"
+              element={
+                <ErrorBoundary tituloModulo="Disciplina">
+                  <ProcessosDisciplinaresPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="dissolucao"
+              element={
+                <ErrorBoundary tituloModulo="Dissolução">
+                  <ProcessosDissolucaoPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="dissolucao/:id"
+              element={
+                <ErrorBoundary tituloModulo="Processo de dissolução">
+                  <ProcessoDissolucaoDetalhePage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path=":id"
+              element={
+                <ErrorBoundary tituloModulo="Detalhe da assembleia">
+                  <AssembleiaDetalhePage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path=":id/sessao"
+              element={
+                <ErrorBoundary tituloModulo="Sessão da assembleia">
+                  <SessaoAssembleiaPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path=":id/ata"
+              element={
+                <ErrorBoundary tituloModulo="Ata da assembleia">
+                  <AtaAssembleiaPage />
+                </ErrorBoundary>
+              }
+            />
+          </Route>
+          <Route
+            path="/projetos"
+            element={
+              <RequirePermission permission="projetos">
+                <ErrorBoundary tituloModulo="Projetos">
+                  <ProjetosPage />
+                </ErrorBoundary>
+              </RequirePermission>
             }
           />
           <Route
-            path=":id"
+            path="/reserva-espaco"
             element={
-              <ErrorBoundary tituloModulo="Detalhe da assembleia">
-                <AssembleiaDetalhePage />
-              </ErrorBoundary>
+              <RequirePermission permission="projetos">
+                <ErrorBoundary tituloModulo="Reserva de Espaço">
+                  <EspacosPage />
+                </ErrorBoundary>
+              </RequirePermission>
             }
           />
           <Route
-            path=":id/sessao"
+            path="/eventos"
             element={
-              <ErrorBoundary tituloModulo="Sessão da assembleia">
-                <SessaoAssembleiaPage />
-              </ErrorBoundary>
+              <RequirePermission permission="projetos">
+                <ErrorBoundary tituloModulo="Eventos">
+                  <EventosPage />
+                </ErrorBoundary>
+              </RequirePermission>
             }
           />
           <Route
-            path=":id/ata"
+            path="/beneficiarios"
             element={
-              <ErrorBoundary tituloModulo="Ata da assembleia">
-                <AtaAssembleiaPage />
-              </ErrorBoundary>
+              <RequirePermission permission="projetos">
+                <ErrorBoundary tituloModulo="Beneficiários">
+                  <BeneficiariosPage />
+                </ErrorBoundary>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="/documentos"
+            element={
+              <RequireAnyPermission
+                permissions={[
+                  'documentos',
+                  'aprovar_publicacao',
+                  'documentos_originais',
+                ]}
+              >
+                <ErrorBoundary tituloModulo="Documentos">
+                  <DocumentosPage />
+                </ErrorBoundary>
+              </RequireAnyPermission>
+            }
+          />
+          <Route
+            path="/documentos/novo"
+            element={
+              <RequirePermission permission="documentos">
+                <ErrorBoundary tituloModulo="Novo documento">
+                  <DocumentoNovoPage />
+                </ErrorBoundary>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="/documentos/:id"
+            element={
+              <RequireAnyPermission
+                permissions={[
+                  'documentos',
+                  'aprovar_publicacao',
+                  'documentos_originais',
+                ]}
+              >
+                <ErrorBoundary tituloModulo="Documento">
+                  <DocumentoDetalhePage />
+                </ErrorBoundary>
+              </RequireAnyPermission>
+            }
+          />
+          <Route
+            path="/parcerias"
+            element={
+              <RequireAnyPermission
+                permissions={['parcerias', 'aprovar_publicacao']}
+              >
+                <ErrorBoundary tituloModulo="Parcerias e emendas">
+                  <ParceriasPage />
+                </ErrorBoundary>
+              </RequireAnyPermission>
+            }
+          />
+          <Route
+            path="/parcerias/nova"
+            element={
+              <RequirePermission permission="parcerias">
+                <ErrorBoundary tituloModulo="Nova parceria">
+                  <ParceriaNovaPage />
+                </ErrorBoundary>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="/parcerias/:id"
+            element={
+              <RequireAnyPermission
+                permissions={['parcerias', 'aprovar_publicacao']}
+              >
+                <ErrorBoundary tituloModulo="Parceria">
+                  <ParceriaDetalhePage />
+                </ErrorBoundary>
+              </RequireAnyPermission>
+            }
+          />
+          <Route
+            path="/acesso"
+            element={
+              <RequirePermission permission="gerenciar_acesso">
+                <ErrorBoundary tituloModulo="Níveis e permissões">
+                  <AcessoPage />
+                </ErrorBoundary>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="/auditoria"
+            element={
+              <RequirePermission permission="auditoria">
+                <ErrorBoundary tituloModulo="Auditoria">
+                  <AuditoriaPage />
+                </ErrorBoundary>
+              </RequirePermission>
             }
           />
         </Route>
-        <Route
-          path="/projetos"
-          element={
-            <RequirePermission permission="projetos">
-              <ErrorBoundary tituloModulo="Projetos">
-                <ProjetosPage />
-              </ErrorBoundary>
-            </RequirePermission>
-          }
-        />
-        <Route
-          path="/reserva-espaco"
-          element={
-            <RequirePermission permission="projetos">
-              <ErrorBoundary tituloModulo="Reserva de Espaço">
-                <EspacosPage />
-              </ErrorBoundary>
-            </RequirePermission>
-          }
-        />
-        <Route
-          path="/eventos"
-          element={
-            <RequirePermission permission="projetos">
-              <ErrorBoundary tituloModulo="Eventos">
-                <EventosPage />
-              </ErrorBoundary>
-            </RequirePermission>
-          }
-        />
-        <Route
-          path="/beneficiarios"
-          element={
-            <RequirePermission permission="projetos">
-              <ErrorBoundary tituloModulo="Beneficiários">
-                <BeneficiariosPage />
-              </ErrorBoundary>
-            </RequirePermission>
-          }
-        />
-        <Route
-          path="/documentos"
-          element={
-            <RequireAnyPermission
-              permissions={[
-                'documentos',
-                'aprovar_publicacao',
-                'documentos_originais',
-              ]}
-            >
-              <ErrorBoundary tituloModulo="Documentos">
-                <DocumentosPage />
-              </ErrorBoundary>
-            </RequireAnyPermission>
-          }
-        />
-        <Route
-          path="/documentos/novo"
-          element={
-            <RequirePermission permission="documentos">
-              <ErrorBoundary tituloModulo="Novo documento">
-                <DocumentoNovoPage />
-              </ErrorBoundary>
-            </RequirePermission>
-          }
-        />
-        <Route
-          path="/documentos/:id"
-          element={
-            <RequireAnyPermission
-              permissions={[
-                'documentos',
-                'aprovar_publicacao',
-                'documentos_originais',
-              ]}
-            >
-              <ErrorBoundary tituloModulo="Documento">
-                <DocumentoDetalhePage />
-              </ErrorBoundary>
-            </RequireAnyPermission>
-          }
-        />
-        <Route
-          path="/parcerias"
-          element={
-            <RequireAnyPermission
-              permissions={['parcerias', 'aprovar_publicacao']}
-            >
-              <ErrorBoundary tituloModulo="Parcerias e emendas">
-                <ParceriasPage />
-              </ErrorBoundary>
-            </RequireAnyPermission>
-          }
-        />
-        <Route
-          path="/parcerias/nova"
-          element={
-            <RequirePermission permission="parcerias">
-              <ErrorBoundary tituloModulo="Nova parceria">
-                <ParceriaNovaPage />
-              </ErrorBoundary>
-            </RequirePermission>
-          }
-        />
-        <Route
-          path="/parcerias/:id"
-          element={
-            <RequireAnyPermission
-              permissions={['parcerias', 'aprovar_publicacao']}
-            >
-              <ErrorBoundary tituloModulo="Parceria">
-                <ParceriaDetalhePage />
-              </ErrorBoundary>
-            </RequireAnyPermission>
-          }
-        />
-        <Route
-          path="/acesso"
-          element={
-            <RequirePermission permission="gerenciar_acesso">
-              <ErrorBoundary tituloModulo="Níveis e permissões">
-                <AcessoPage />
-              </ErrorBoundary>
-            </RequirePermission>
-          }
-        />
-        <Route
-          path="/auditoria"
-          element={
-            <RequirePermission permission="auditoria">
-              <ErrorBoundary tituloModulo="Auditoria">
-                <AuditoriaPage />
-              </ErrorBoundary>
-            </RequirePermission>
-          }
-        />
-      </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   )
 }
 
