@@ -296,3 +296,19 @@ export async function inventariar(
   ).toEqual([])
   return linhas
 }
+
+/** Escolhe, num <select>, a opção cujo texto contém `trecho` (as opções de associado têm o nome completo). */
+export async function escolherPorTexto(
+  seletor: Locator,
+  trecho: string,
+): Promise<void> {
+  const valor = await seletor.evaluate((el, t) => {
+    const opcao = [...(el as HTMLSelectElement).options].find((o) =>
+      o.textContent?.includes(t),
+    )
+    return opcao?.value ?? null
+  }, trecho)
+  if (valor === null)
+    throw new Error(`opção com "${trecho}" não existe neste campo`)
+  await seletor.selectOption(valor)
+}
