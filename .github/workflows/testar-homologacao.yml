@@ -19,6 +19,10 @@ on:
         type: string
         required: true
         default: "v5.4c"
+      fechar_exercicio:
+        description: "Rodar também o cenário que FECHA o exercício contábil aberto (sem volta; só no fim da bateria, e recrie a homologação depois)"
+        type: boolean
+        default: false
 
 permissions:
   id-token: write
@@ -94,6 +98,7 @@ jobs:
       - name: Roda o roteiro ao vivo na homologação
         env:
           ROTEIRO: ${{ inputs.roteiro }}
+          HML_FECHAR_EXERCICIO: ${{ inputs.fechar_exercicio && 'sim' || 'nao' }}
         run: npx playwright test -c playwright.hml.config.ts "e2e-hml/$ROTEIRO-"
 
       # Última barreira: nenhuma senha de teste pode estar em texto simples nos arquivos que vão ser guardados.
