@@ -1500,7 +1500,7 @@ retrabalho que a seção 4.1 existe pra evitar.
       vazio, ano, parecer do Conselho Fiscal recusados), conclusão com certidão e revogação; eleição (cria o mandato; cargo ocupado recusado) e
       reforma de estatuto (a pendência fica visível); ata travada e **retificada, com a original ainda alcançável**; petições de convocação
       (propor, aderir, segunda adesão recusada, converter antes do quórum recusado, **o Tesoureiro também propõe e adere**).
-- [ ] **Conselho Fiscal com poder real:** consulta ao financeiro que **grava a consulta na Auditoria**; fila de questionamentos
+- [x] **Conselho Fiscal com poder real:** consulta ao financeiro que **grava a consulta na Auditoria**; fila de questionamentos
       (conselheiro pergunta, tesouraria responde, histórico fica); **parecer** (favorável, com ressalva, contrário) — e a
       deliberação de "aprovação de contas" **só pode ser criada com o parecer do ano**. Depois: **disciplina** (abrir, defesa,
       decisão), **dissolução** (art. 61 do Código Civil: só simulada — nada irreversível) e **calendário institucional**.
@@ -1515,9 +1515,14 @@ retrabalho que a seção 4.1 existe pra evitar.
       22h30 de Belém no dia certo, fim antes do início recusado, o Tesoureiro vê o evento sem o botão de agendar; **Regras do Estatuto**: lista,
       valor impossível e igual ao atual recusados no campo, **reforma de verdade com confirmação, histórico das duas vigências e Auditoria**, e o
       valor devolvido ao de origem; **Deliberações pendentes** abre para a Diretoria e leva à ata.
-      **AINDA NÃO provado ao vivo** (por falta de login de teste de conselheiro fiscal e de diretores suficientes para o quórum, achado 17):
-      emitir um parecer de verdade e criar a deliberação de "aprovação de contas" com ele, e a **decisão e a homologação** de um processo
-      disciplinar (quórum de 4). Só têm teste de servidor e de tela. **Este item continua aberto até isso ser provado.**
+      **Provado ao vivo com gente com cargo (roteiro `v5.4d-08`, 7 de 7; usuários de teste novos: Presidente do cargo, 1º e 2º Vice-Presidente e
+      Conselheiro Fiscal, com as senhas no cofre `HML-USUARIOS`):** o **conselheiro (pelo cargo no Conselho Fiscal) emite o parecer** (texto vazio e
+      ano 2012 recusados; o válido entra na lista e na Auditoria com o nome dele); ele **pergunta sobre um lançamento** (pergunta vazia recusada), a
+      **tesouraria responde** (resposta vazia recusada) e o questionamento passa a Respondido; com o parecer do ano emitido, a deliberação de
+      **"aprovação de contas" daquele ano é aceita** (sem parecer era recusada); **disciplina**: a Presidente abre dois processos contra o
+      Tesoureiro, ele apresenta a defesa nos dois, quatro diretores se manifestam, **com um voto a menos que o quórum a decisão é recusada** e, com o
+      quórum, o processo é **decidido (advertência) e a Auditoria registra**; a eliminação decidida **fica aguardando a assembleia**, que a
+      recusa (justificativa obrigatória), e **nada irreversível acontece** (o Tesoureiro continua associado e com o menu do cargo).
 - [x] Lista de **achados** corrigidos e refeitos; prints.
 - [x] **Achados da conferência ao vivo (2026-10-06).** Os roteiros `painel/e2e-hml/v5.4d-0*.spec.ts` (assembleia de ponta a
       ponta, mandatos, ata/petições/minhas assembleias, Conselho Fiscal/disciplina/dissolução/calendário) e a leitura do código que eles
@@ -1537,9 +1542,9 @@ retrabalho que a seção 4.1 existe pra evitar.
          somavam. Agora: um titular por cargo (Art. 19) e três conselheiros fiscais (Art. 24, parâmetro `VAGAS_CONSELHO_FISCAL`), com a vacância
          liberando a vaga no mesmo instante e o sucessor podendo tomar posse quando o mandato acaba. Posse em 29/02 que caía em ano não bissexto
          dava erro 500.
-      6. **[corrigido]** **ninguém conseguia emitir parecer do Conselho Fiscal pela tela**: só o *nível* contava, não o cargo em mandato; sem
+      6. **[provado]** **ninguém conseguia emitir parecer do Conselho Fiscal pela tela**: só o *nível* contava, não o cargo em mandato; sem
          parecer, a deliberação de "aprovação de contas" nunca podia ser criada. Agora vale também o mandato vigente no órgão (nunca no "ver como").
-      7. **[corrigido]** o **acusado que é diretor** podia decidir, homologar e ver a apuração do próprio processo disciplinar; e via os botões.
+      7. **[provado]** o **acusado que é diretor** podia decidir, homologar e ver a apuração do próprio processo disciplinar; e via os botões.
       8. **[provado, segurança]** a lista e o detalhe dos **processos de dissolução** (com o motivo) eram legíveis por **qualquer usuário
          logado**; agora exigem `governanca`.
       9. **[provado]** calendário: reunião das 22h30 em Belém aparecia no **dia seguinte** (o dia vinha de UTC; agora vem do fuso da associação,
@@ -1566,7 +1571,7 @@ retrabalho que a seção 4.1 existe pra evitar.
           mostrava "10 / página" com 25 linhas.
       16. **[aberto]** a dissolução **não tem modo simulado** (o plano pedia "só simulada"): as etapas são reais, agora com confirmação e na
           Auditoria. Os parâmetros `QUORUM_DISSOLUICAO_*` existem no estatuto mas **nenhum código os lê**. Decidir com o presidente.
-      17. **[aberto]** o robô não tem login de **conselheiro fiscal** nem de diretores suficientes para o quórum de decisão da disciplina (só
+      17. **[provado]** o robô não tinha login de **conselheiro fiscal** nem de diretores suficientes para o quórum de decisão da disciplina (só
           Presidente, Secretário e Tesoureiro): parecer, questionamento e decisão só são provados pela recusa. Ampliar o roteiro de
           `popular_homologacao.py` (com as senhas no cofre) na próxima rodada.
       18. **[aberto]** campos do formulário de **título financeiro** sem nome acessível (`Titulos.tsx`): entra na varredura da v5.4e.
@@ -1581,8 +1586,9 @@ retrabalho que a seção 4.1 existe pra evitar.
           para o erro, como "associado" na declaração de conflito) não aparecia em lugar nenhum. O `FormShell` agora lista, no alto do formulário, as
           recusas que nenhum campo mostra (sem repetir as que já aparecem no campo); vale para todas as telas.
       **Resultado na homologação:** o roteiro completo `v5.4d` (abertura de todas as telas de governança, assembleia de ponta a ponta,
-      mandatos, ata/petições/minhas assembleias, Conselho Fiscal/disciplina/dissolução/calendário) rodou **65 de 65 cenários verdes**, e o das
-      Regras do Estatuto e Deliberações pendentes, **4 de 4** (artefatos `conferencia-homologacao-v5.4d*` do GitHub, com print e vídeo de cada passo).
+      mandatos, ata/petições/minhas assembleias, Conselho Fiscal/disciplina/dissolução/calendário, Regras do Estatuto, Deliberações pendentes,
+      parecer e decisão da disciplina) tem **76 cenários, todos verdes**: a última bateria completa (com o banco de teste recriado do zero) deu 70
+      de 71 por um seletor do roteiro `v5.4d-08`, corrigido, e o `v5.4d-08` refeito deu **7 de 7** (artefatos `conferencia-homologacao-v5.4d*` do GitHub, com print e vídeo de cada passo).
       **Em produção (por leitura, sem dado de teste):** `painel.asaf.org.br/version.json` = `c326585` (o último commit do painel); a API no ar é a do
       `e6d4471` (o último commit do servidor, com a correção do CORS), e o servidor de produção responde ao preflight com
       `access-control-allow-origin: https://painel.asaf.org.br`; as rotas novas e as protegidas respondem **401** sem login
