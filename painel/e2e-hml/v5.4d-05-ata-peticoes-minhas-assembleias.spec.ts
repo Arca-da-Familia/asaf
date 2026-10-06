@@ -1475,14 +1475,19 @@ test.describe('assembleia própria: justificativas, chamada, sessão, detalhe e 
     await expect(original).toContainText('Ordinária')
     await expect(original).toContainText('Anexado')
     await expect(original.getByRole('link')).toHaveText(String(numeroAta))
+    // cada linha abre a SUA ata (`?ata=<id>`): depois de uma retificação a assembleia tem duas, e a original não pode ficar inalcançável
     await expect(original.getByRole('link')).toHaveAttribute(
       'href',
-      `${base}/ata`,
+      `${base}/ata?ata=${idAta}`,
     )
     const retificacao = linhas.filter({ hasText: '(rascunho)' })
     await expect(retificacao).toHaveCount(1)
     await expect(retificacao).toContainText('Rascunho')
     await expect(retificacao).toContainText('Não anexado')
+    await expect(retificacao.getByRole('link')).toHaveAttribute(
+      'href',
+      `${base}/ata?ata=${idRetificacao}`,
+    )
     await ver(page, info, 'lista de atas: a assinada e a retificacao')
     expect(vigia.problemas()).toEqual([])
   })
