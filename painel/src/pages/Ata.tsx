@@ -670,6 +670,7 @@ function BlocoDocumentoAssinado({
       <div className="flex flex-wrap items-end gap-2">
         <input
           type="file"
+          aria-label="Arquivo do documento assinado"
           accept=".pdf,.jpg,.jpeg,.png"
           onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
           className="text-sm"
@@ -682,6 +683,7 @@ function BlocoDocumentoAssinado({
         />
         <input
           type="date"
+          aria-label="Data do protocolo no cartório"
           value={dataProtocolo}
           onChange={(e) => setDataProtocolo(e.target.value)}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
