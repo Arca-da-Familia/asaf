@@ -4,6 +4,7 @@ prazo de retenção configurável, mas nome/matrícula/financeiro nunca são apa
 from datetime import date, timedelta
 
 from tests.test_pessoas import _cpf_unico
+from tests.apoio_auth import cabecalho_admin
 
 
 def _criar_associado(client, **overrides):
@@ -22,7 +23,7 @@ def _criar_associado(client, **overrides):
         "cidade": "Sao Paulo", "estado": "SP",
         **overrides,
     }
-    return client.post("/associados-master/", json=payload).json()
+    return client.post("/associados-master/", json=payload, headers=cabecalho_admin(client)).json()
 
 
 def test_licenca_muda_categoria_para_licenciado(client, auth_headers):
@@ -34,7 +35,7 @@ def test_licenca_muda_categoria_para_licenciado(client, auth_headers):
     assert resposta.status_code == 200, resposta.text
     assert resposta.json()["status_arrolamento"] == "Licenciado"
 
-    calculada = client.get(f"/api/associados/{associado['id_associado']}/categoria-calculada").json()
+    calculada = client.get(f"/api/associados/{associado['id_associado']}/categoria-calculada", headers=cabecalho_admin(client)).json()
     assert calculada["categoria_calculada_agora"] == "Licenciado"
 
 
@@ -49,7 +50,7 @@ def test_desligar_com_motivo_invalido_e_recusado(client, auth_headers):
 
 def test_desligar_invalida_papel_e_bloqueia_carteirinha(client, auth_headers):
     associado = _criar_associado(client)
-    carteirinha = client.get(f"/api/associados/{associado['id_associado']}/carteirinha").json()
+    carteirinha = client.get(f"/api/associados/{associado['id_associado']}/carteirinha", headers=cabecalho_admin(client)).json()
     ainda_valida = client.get(carteirinha["url_verificacao"])
     assert ainda_valida.status_code == 200
 
@@ -86,7 +87,7 @@ def test_readmissao_reativa_papel_e_zera_data_desligamento(client, auth_headers)
     assert resposta.status_code == 200, resposta.text
     assert resposta.json()["status_arrolamento"] == "Ativo - Em Dia"
 
-    carteirinha = client.get(f"/api/associados/{associado['id_associado']}/carteirinha").json()
+    carteirinha = client.get(f"/api/associados/{associado['id_associado']}/carteirinha", headers=cabecalho_admin(client)).json()
     verificacao = client.get(carteirinha["url_verificacao"])
     assert verificacao.status_code == 200
 
@@ -120,10 +121,10 @@ def test_anonimizar_depois_do_prazo_apaga_dado_sensivel_mas_preserva_nome_e_matr
     resposta = client.post(f"/api/associados/{associado['id_associado']}/anonimizar", headers=auth_headers)
     assert resposta.status_code == 200, resposta.text
 
-    nomes = {a["id_associado"]: a["nome_completo"] for a in client.get("/api/associados/busca-simples").json()}
+    nomes = {a["id_associado"]: a["nome_completo"] for a in client.get("/api/associados/busca-simples", headers=cabecalho_admin(client)).json()}
     assert nomes[associado["id_associado"]].startswith("Pessoa Situacao Teste")
 
-    perfil = client.get(f"/api/associados/{associado['id_associado']}/completude").json()
+    perfil = client.get(f"/api/associados/{associado['id_associado']}/completude", headers=cabecalho_admin(client)).json()
     assert "cpf" in perfil["campos_faltando"]
     assert "email_contato" in perfil["campos_faltando"]
 
@@ -142,7 +143,7 @@ def test_anonimizar_em_lote_processa_so_os_vencidos(client, auth_headers):
     assert resposta.status_code == 200
     assert resposta.json()["total"] >= 1
 
-    nomes = {a["id_associado"]: a for a in client.get("/api/associados/busca-simples").json()}
+    nomes = {a["id_associado"]: a for a in client.get("/api/associados/busca-simples", headers=cabecalho_admin(client)).json()}
     assert nomes[ainda_ativo["id_associado"]]["cpf_final"] != ""
 
 

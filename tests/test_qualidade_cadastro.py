@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from app.models.associados import Associado
 from app.models.pessoas import Pessoa
 from tests.test_pessoas import _cpf_unico
+from tests.apoio_auth import cabecalho_admin
 
 
 def _criar_associado(client, **overrides):
@@ -20,7 +21,7 @@ def _criar_associado(client, **overrides):
         "cidade": "Sao Paulo", "estado": "SP",
         **overrides,
     }
-    return client.post("/associados-master/", json=payload).json()
+    return client.post("/associados-master/", json=payload, headers=cabecalho_admin(client)).json()
 
 
 # ---------------------------------------------------------------------------

@@ -2,6 +2,7 @@
 sequencial e período de experiência) ou recusa. Cobre também o que a v1.1 deixou pendente:
 "Em Experiência" agora existe e se conecta ao cálculo de categoria."""
 from tests.test_pessoas import _cpf_unico
+from tests.apoio_auth import cabecalho_admin
 
 
 def _propor(client, cpf=None, **overrides):
@@ -52,7 +53,7 @@ def test_fluxo_completo_ate_aprovacao_atribui_matricula_e_experiencia(client, au
     assert corpo["status_arrolamento"] == "Em Experiência"
 
     # categoria calculada confirma "Em Experiência" (prazo padrão 90 dias, ainda não passou)
-    calculada = client.get(f"/api/associados/{corpo['id_associado']}/categoria-calculada").json()
+    calculada = client.get(f"/api/associados/{corpo['id_associado']}/categoria-calculada", headers=cabecalho_admin(client)).json()
     assert calculada["categoria_calculada_agora"] == "Em Experiência"
 
 

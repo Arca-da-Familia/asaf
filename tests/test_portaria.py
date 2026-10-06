@@ -9,6 +9,7 @@ from app.models.motores import CANCELADO, CONFIRMADO, PRESENTE, Inscricao, Regis
 from app.models.associados import Associado
 from tests.test_eventos import _criar_associado_com_acesso, _criar_evento
 from tests.test_pessoas import _cpf_unico
+from tests.apoio_auth import cabecalho_admin
 
 _ISO = "%Y-%m-%dT%H:%M:%S"
 
@@ -32,7 +33,7 @@ def _criar_pessoa_associada(client, auth_headers, db) -> tuple[int, int]:
         "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
         "cidade": "Sao Paulo", "estado": "SP",
     }
-    r = client.post("/associados-master/", json=payload)
+    r = client.post("/associados-master/", json=payload, headers=cabecalho_admin(client))
     assert r.status_code == 200, r.text
     id_associado = r.json()["id_associado"]
     associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
@@ -40,7 +41,7 @@ def _criar_pessoa_associada(client, auth_headers, db) -> tuple[int, int]:
 
 
 def _token_carteirinha(client, id_associado) -> str:
-    r = client.get(f"/api/associados/{id_associado}/carteirinha")
+    r = client.get(f"/api/associados/{id_associado}/carteirinha", headers=cabecalho_admin(client))
     assert r.status_code == 200, r.text
     return r.json()["token"]
 

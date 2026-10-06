@@ -25,7 +25,7 @@ from app.schemas.associados import (
     HistoricoCargoCriar,
     HistoricoCargoEncerrar,
 )
-from app.security import criar_token_carteirinha, decodificar_token_carteirinha, exigir_permissao, get_current_user_opcional, hash_senha, usuario_tem_permissao, validar_senha_forte
+from app.security import criar_token_carteirinha, decodificar_token_carteirinha, exigir_permissao, get_current_user, hash_senha, usuario_tem_permissao, validar_senha_forte
 from app.services import armazenamento
 from app.services.categoria_associado import calcular_categoria
 from app.services.catalogos import validar_codigo_em_catalogo
@@ -36,11 +36,24 @@ from app.services.matricula import proximo_numero_matricula
 router = APIRouter()
 _permissao_associados = exigir_permissao("associados")
 
+
+def _associado_do_proprio_ou_de_quem_tem_permissao(db: Session, usuario: Usuario, id_associado: int) -> Associado:
+    """v5.4c (achado AO VIVO ao varrer a API sem login, 2026-10-05): a ficha de um associado só é do próprio dono dela ou de quem tem
+    a permissão `associados`. Rotas antigas do protótipo abriam isso para QUALQUER pessoa na internet, só com o número do associado."""
+    associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
+    if not associado:
+        raise HTTPException(status_code=404, detail="Associado não encontrado.")
+    if associado.id_usuario == usuario.id_usuario or usuario_tem_permissao(db, usuario, "associados"):
+        return associado
+    raise HTTPException(status_code=403, detail="Sem permissão para esta ficha.")
+
 @router.post("/associados-master/", summary="Cadastrar Ficha Master")
 def cadastrar_ficha_master(
     dados: AssociadoMasterCriar, db: Session = Depends(get_db),
-    usuario_opcional: Usuario = Depends(get_current_user_opcional),
+    usuario: Usuario = Depends(_permissao_associados),
 ):
+    # v5.4c: antes o login era OPCIONAL (restos do protótipo): qualquer pessoa cadastrava associados direto, sem passar pela proposta de
+    # filiação e sem conferência. A porta pública é a proposta (`/api/filiacao/propor`); o cadastro direto é de quem cuida do cadastro.
     if db.query(Associado).filter(Associado.cpf == dados.cpf).first():
         raise HTTPException(status_code=400, detail="Este CPF já está arrolado.")
 
@@ -55,7 +68,7 @@ def cadastrar_ficha_master(
         telefone_whatsapp=dados.telefone_whatsapp, email_contato=dados.email_contato,
     )
     if parecido:
-        pode_forcar = dados.forcar and usuario_opcional and usuario_tem_permissao(db, usuario_opcional, "forcar_cadastro_duplicado")
+        pode_forcar = dados.forcar and usuario_tem_permissao(db, usuario, "forcar_cadastro_duplicado")
         if not pode_forcar:
             raise HTTPException(
                 status_code=409,
@@ -63,7 +76,7 @@ def cadastrar_ficha_master(
                        "pessoa antes de continuar. Só um Presidente pode forçar este cadastro mesmo assim.",
             )
         registrar_auditoria(
-            db, usuario_opcional, "associados", "CADASTRO_DUPLICADO_FORCADO",
+            db, usuario, "associados", "CADASTRO_DUPLICADO_FORCADO",
             dados_depois={"nome_completo": dados.nome_completo, "id_pessoa_parecida": parecido.id_pessoa},
         )
 
@@ -267,12 +280,14 @@ def admin_editar_associado(id_associado: int, dados: AssociadoAdminUpdate, db: S
 
 
 @router.put("/api/meu-perfil/{id_associado}", summary="Associado - Autoatendimento")
-def associado_atualizar_perfil(id_associado: int, dados: AssociadoPerfilUpdate, db: Session = Depends(get_db)):
-    associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
+def associado_atualizar_perfil(
+    id_associado: int, dados: AssociadoPerfilUpdate, db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    associado = _associado_do_proprio_ou_de_quem_tem_permissao(db, usuario, id_associado)
+    antes = {"email_contato": associado.email_contato, "telefone_whatsapp": associado.telefone_whatsapp}
     endereco = db.query(Endereco).filter(Endereco.id_associado == id_associado).first()
     
-    if not associado:
-        raise HTTPException(status_code=404, detail="Ficha não encontrada.")
     
     # Atualiza Contato
     associado.email_contato = dados.email_contato
@@ -295,6 +310,10 @@ def associado_atualizar_perfil(id_associado: int, dados: AssociadoPerfilUpdate, 
     endereco.estado = dados.estado
 
     db.commit()
+    registrar_auditoria(
+        db, usuario, "associados", "UPDATE_PERFIL", id_registro_afetado=id_associado, dados_antes=antes,
+        dados_depois={"email_contato": associado.email_contato, "telefone_whatsapp": associado.telefone_whatsapp},
+    )
     return {"mensagem": "Seus dados foram atualizados com sucesso!"}
 
 
@@ -302,13 +321,12 @@ def associado_atualizar_perfil(id_associado: int, dados: AssociadoPerfilUpdate, 
 # CATEGORIA CALCULADA E COMPLETUDE DO CADASTRO (v1.1)
 # ==========================================
 @router.get("/api/associados/{id_associado}/categoria-calculada", summary="Recalcular e comparar a categoria de um associado")
-def obter_categoria_calculada(id_associado: int, db: Session = Depends(get_db)):
+def obter_categoria_calculada(id_associado: int, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
     """O cálculo (a partir do financeiro) é a fonte da verdade - `status_arrolamento` no banco
     é só um cache atualizado por evento. Este endpoint mostra os dois lado a lado, útil pra
     conferir se o materializado está desatualizado (ex.: passou o prazo de tolerância sem
     nenhum evento financeiro novo acontecer)."""
-    if not db.query(Associado).filter(Associado.id_associado == id_associado).first():
-        raise HTTPException(status_code=404, detail="Associado não encontrado.")
+    _associado_do_proprio_ou_de_quem_tem_permissao(db, usuario, id_associado)
     materializada = db.query(Associado.status_arrolamento).filter(Associado.id_associado == id_associado).scalar()
     calculada_agora = calcular_categoria(db, id_associado)
     return {
@@ -319,10 +337,8 @@ def obter_categoria_calculada(id_associado: int, db: Session = Depends(get_db)):
 
 
 @router.get("/api/associados/{id_associado}/completude", summary="Percentual de preenchimento do cadastro")
-def obter_completude_cadastro(id_associado: int, db: Session = Depends(get_db)):
-    associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
-    if not associado:
-        raise HTTPException(status_code=404, detail="Associado não encontrado.")
+def obter_completude_cadastro(id_associado: int, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+    associado = _associado_do_proprio_ou_de_quem_tem_permissao(db, usuario, id_associado)
     endereco = db.query(Endereco).filter(Endereco.id_associado == id_associado).first()
 
     campos = {
@@ -373,7 +389,7 @@ def consultar_cep(cep: str):
 # ==========================================
 
 @router.get("/api/associados/busca-simples", summary="Buscar associados para vincular (seletores)")
-def buscar_associados_simples(excluir: int = None, db: Session = Depends(get_db)):
+def buscar_associados_simples(excluir: int = None, db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_associados)):
     # order_by direto em Associado.nome_completo não funciona - é association_proxy (v1.0), não
     # coluna de verdade; precisa ordenar pela Pessoa via join.
     consulta = db.query(Associado).join(Pessoa)
@@ -440,7 +456,7 @@ def obter_associado(id_associado: int, db: Session = Depends(get_db), _usuario: 
 # que permite o caso que a v1.7 existe pra resolver: um dependente que ainda NÃO é associado.
 # ==========================================
 @router.get("/api/associados/{id_associado}/dependentes", summary="Listar dependentes de um associado (legado)")
-def listar_dependentes(id_associado: int, db: Session = Depends(get_db)):
+def listar_dependentes(id_associado: int, db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_associados)):
     associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
     if not associado:
         return []
@@ -460,7 +476,7 @@ def listar_dependentes(id_associado: int, db: Session = Depends(get_db)):
 
 
 @router.post("/api/associados/{id_associado}/dependentes", summary="Adicionar vínculo familiar entre dois associados (legado)")
-def criar_dependente(id_associado: int, dados: DependenteCriar, db: Session = Depends(get_db)):
+def criar_dependente(id_associado: int, dados: DependenteCriar, db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_associados)):
     titular = db.query(Associado).filter(Associado.id_associado == id_associado).first()
     if not titular:
         raise HTTPException(status_code=404, detail="Associado titular não encontrado.")
@@ -608,10 +624,9 @@ async def enviar_foto_associado(id_associado: int, foto: UploadFile = File(...),
 # CARTEIRINHA DIGITAL (v1.1) — QR assinado, verificação pública sem dado sensível.
 # ==========================================
 @router.get("/api/associados/{id_associado}/carteirinha", summary="Gerar token da carteirinha digital")
-def gerar_carteirinha(id_associado: int, db: Session = Depends(get_db)):
-    associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
-    if not associado:
-        raise HTTPException(status_code=404, detail="Associado não encontrado.")
+def gerar_carteirinha(id_associado: int, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+    # v5.4c: antes qualquer pessoa gerava uma carteirinha VÁLIDA (assinada) de qualquer associado, só com o número dele.
+    associado = _associado_do_proprio_ou_de_quem_tem_permissao(db, usuario, id_associado)
     token = criar_token_carteirinha(associado.id_pessoa)
     return {"token": token, "url_verificacao": f"/carteirinha/verificar/{token}"}
 

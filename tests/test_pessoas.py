@@ -5,6 +5,7 @@ resolução de nome via join (os dois pontos que association_proxy não resolve 
 import random
 
 from app.validadores import validar_cpf
+from tests.apoio_auth import cabecalho_admin
 
 
 def _cpf_unico() -> str:
@@ -51,12 +52,12 @@ def test_cadastrar_ficha_master_cria_pessoa_e_papel(client, auth_headers):
             "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
             "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
             "cidade": "Sao Paulo", "estado": "SP",
-        },
+        }, headers=cabecalho_admin(client),
     )
     assert resposta.status_code == 200, resposta.text
     id_associado = resposta.json()["id_associado"]
 
-    busca = client.get("/api/associados/busca-simples").json()
+    busca = client.get("/api/associados/busca-simples", headers=cabecalho_admin(client)).json()
     encontrado = next(a for a in busca if a["id_associado"] == id_associado)
     assert encontrado["nome_completo"] == "Pessoa Via Ficha Master"
     assert encontrado["cpf_final"] == cpf[-2:]
@@ -70,11 +71,11 @@ def test_cpf_duplicado_e_recusado(client, auth_headers):
         "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
         "cidade": "Sao Paulo", "estado": "SP",
     }
-    primeira = client.post("/associados-master/", json=payload)
+    primeira = client.post("/associados-master/", json=payload, headers=cabecalho_admin(client))
     assert primeira.status_code == 200
 
     payload["nome_completo"] = "Tentativa Duplicada"
-    segunda = client.post("/associados-master/", json=payload)
+    segunda = client.post("/associados-master/", json=payload, headers=cabecalho_admin(client))
     assert segunda.status_code == 400
 
 
@@ -90,9 +91,9 @@ def test_busca_simples_ordena_por_nome_via_join_pessoa(client, auth_headers):
                 "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
                 "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
                 "cidade": "Sao Paulo", "estado": "SP",
-            },
+            }, headers=cabecalho_admin(client),
         )
-    nomes = [a["nome_completo"] for a in client.get("/api/associados/busca-simples").json()]
+    nomes = [a["nome_completo"] for a in client.get("/api/associados/busca-simples", headers=cabecalho_admin(client)).json()]
     posicao_abelha = nomes.index("Abelha Teste")
     posicao_zebra = nomes.index("Zebra Teste")
     assert posicao_abelha < posicao_zebra
@@ -107,7 +108,7 @@ def test_editar_associado_atualiza_pessoa(client, auth_headers):
             "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
             "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
             "cidade": "Sao Paulo", "estado": "SP",
-        },
+        }, headers=cabecalho_admin(client),
     ).json()
     id_associado = criado["id_associado"]
 
@@ -120,7 +121,7 @@ def test_editar_associado_atualiza_pessoa(client, auth_headers):
     )
     assert resposta.status_code == 200, resposta.text
 
-    nomes = {a["id_associado"]: a["nome_completo"] for a in client.get("/api/associados/busca-simples").json()}
+    nomes = {a["id_associado"]: a["nome_completo"] for a in client.get("/api/associados/busca-simples", headers=cabecalho_admin(client)).json()}
     assert nomes[id_associado] == "Depois da Edição"
 
 

@@ -5,6 +5,7 @@ versionados com segundo aprovador. Reembolso de despesa e contas a pagar recorre
 from datetime import datetime, timedelta
 
 from tests.test_pessoas import _cpf_unico
+from tests.apoio_auth import cabecalho_admin
 
 _PAYLOAD_BASE = {
     "email_contato": "x@x.com", "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
@@ -24,7 +25,7 @@ def _criar_usuario_com_mandato(client, auth_headers, cargo_codigo, orgao_codigo=
     # `detectar_cadastro_duplicado` (v1.8) sob paradoxo do aniversário - mesma categoria de bug já
     # corrigida em `_criar_associado` (v4.3). Aumentado pro CPF inteiro, colisão praticamente nula.
     payload = {**_PAYLOAD_BASE, "nome_completo": f"Pessoa Compras {cpf}", "cpf": cpf, "email_contato": f"{cpf}@x.com"}
-    r = client.post("/associados-master/", json=payload)
+    r = client.post("/associados-master/", json=payload, headers=cabecalho_admin(client))
     assert r.status_code == 200, r.text
     id_associado = r.json()["id_associado"]
 

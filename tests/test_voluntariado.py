@@ -5,6 +5,7 @@ criam a Pessoa direto via sessão de banco (`db` fixture), não via `/associados
 from datetime import date, timedelta
 
 from app.models.pessoas import Papel, Pessoa
+from tests.apoio_auth import cabecalho_admin
 
 
 def _criar_pessoa(db, nome="Voluntário Teste", data_nascimento=None) -> int:
@@ -144,7 +145,7 @@ def test_alocar_voluntario_sem_termo_vigente_e_recusado(client, auth_headers):
             "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
             "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
             "cidade": "Sao Paulo", "estado": "SP",
-        },
+        }, headers=cabecalho_admin(client),
     ).json()
     projeto = client.post(
         "/projetos/",

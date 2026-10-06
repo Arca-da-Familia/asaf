@@ -9,6 +9,7 @@ from app.models.motores import Indicador, MedicaoIndicador
 from app.models.pesquisa_satisfacao import RespostaPesquisaSatisfacao
 from tests.test_eventos import _criar_evento, _criar_associado_com_acesso
 from tests.test_pessoas import _cpf_unico
+from tests.apoio_auth import cabecalho_admin
 
 _ISO = "%Y-%m-%dT%H:%M:%S"
 
@@ -21,7 +22,7 @@ def _criar_pessoa_associada(client, db) -> int:
         "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
         "cidade": "Sao Paulo", "estado": "SP",
     }
-    r = client.post("/associados-master/", json=payload)
+    r = client.post("/associados-master/", json=payload, headers=cabecalho_admin(client))
     assert r.status_code == 200, r.text
     associado = db.query(Associado).filter(Associado.id_associado == r.json()["id_associado"]).first()
     return associado.id_pessoa

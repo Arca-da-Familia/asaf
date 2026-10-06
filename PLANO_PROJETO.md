@@ -1399,7 +1399,41 @@ retrabalho que a seção 4.1 existe pra evitar.
 - [ ] **FASE 1 / 2.5.1 — associados:** cadastrar pela tela (CPF inválido recusado; CPF repetido recusado **na hora**, não depois), editar,
       subir foto e **abri-la**, filiação (da intenção ao efetivo), licença / desligamento / retorno, ficha 360º e linha do tempo,
       família e núcleo doméstico, voluntário e empregado, importar e exportar CSV, qualidade da base (pendências do cadastro).
-- [ ] Lista de **achados** da versão preenchida (cada um corrigido e refeito) e print de cada tela real no bloco de fechamento.
+- [ ] **Achados da conferência ao vivo (2026-10-05 e 06).** O robô (`painel/e2e-hml/v5.4c-*.spec.ts`) rodou várias vezes na homologação; o
+      que ele achou, e a leitura do código que ele provocou (marcado: **[corrigido]** já feito e provado, **[aberto]** falta fazer):
+      1. **[corrigido]** o menu e as rotas do painel só enxergavam as permissões do **nível**, não as do **cargo** em mandato: o Secretário
+         e o Tesoureiro de teste entravam e viam "Nenhum módulo disponível", embora o servidor os autorizasse. `/auth/me` agora soma as do
+         mandato (nunca no "ver como"). Provado ao vivo (os dois passam a ver o que o cargo dá); teste reprova sem a correção.
+      2. **[corrigido]** v1.4 marcada concluída **sem tela**: licença, desligamento, readmissão, histórico e anonimização. Nova aba
+         "Situação" na ficha do associado (desligar pede confirmação mostrando as consequências).
+      3. **[corrigido]** v1.2 marcada concluída **sem tela**: propostas de filiação. Nova página "Propostas de filiação" (conferir, recusar
+         com motivo, aprovar e efetivar; só o Presidente força cadastro parecido).
+      4. **[corrigido]** a mensagem de CPF inválido saía como "Value error, CPF inválido…" (jargão do Pydantic).
+      5. **[corrigido]** licença e desligamento de 05/10 apareciam como **04/10**: o servidor guarda um *dia* (meia-noite sem fuso) e o painel
+         o convertia como instante UTC. **Classe de defeito a caçar nas v5.4d–f** (toda data só-dia exibida como instante).
+      6. **[SEGURANÇA — corrigido; estava em produção desde o protótipo]** ao chamar **cada rota sem login** (varredura automática), 7 rotas
+         antigas mexiam em dado de associado **sem exigir login**, só com o número do associado (sequencial): `PUT /api/meu-perfil/{id}`
+         (trocar e-mail, telefone e endereço de qualquer um), `POST /associados-master/` (cadastrar associado direto, sem proposta nem
+         conferência), `GET /api/associados/busca-simples` (nome e fim do CPF de **todos**), `GET /api/associados/{id}/carteirinha` (gerar
+         carteirinha **válida** de qualquer um), `GET/POST /api/associados/{id}/dependentes` (ler e criar vínculos de família),
+         `/categoria-calculada` e `/completude`, e `POST /setup-cerebro/`. Agora exigem login e a permissão `associados` (ou ser o próprio
+         dono da ficha); o autoatendimento passou a gravar auditoria. **Sem evidência de abuso, mas também sem como saber:** essas rotas não
+         deixavam rastro. Trava permanente: `tests/test_rotas_sem_login.py` chama todas as rotas sem login e exige que as abertas sejam
+         exatamente a lista das públicas de propósito.
+      7. **[corrigido]** ler e gravar os **valores de campo personalizado** de qualquer registro estava aberto a qualquer logado (até um
+         associado comum); agora vale a permissão do módulo dono da entidade.
+      8. **[corrigido, infra]** o 1º reinício real da homologação falhou (esquema `public` de banco novo no Azure é do `azure_pg_admin`) e o
+         papel de teste tem limite de 5 conexões (a API usava até 15): `entregar_esquema_public` e pool 3+1. Publicar uma branch na
+         homologação já é possível (`ref`).
+      9. **[aberto]** ainda **sem tela** (33 rotas do servidor que nenhum código do painel chama; a lista exata e a versão que resolve cada
+         uma está em `tests/test_rotas_com_tela.py`, que impede a lista de crescer): qualidade da base (duplicidade, fila de revisão,
+         mesclar, higienizar contatos, completude), termo de voluntariado e funcionário (v1.6), autoatendimento e recadastro, regras do
+         estatuto, entre outras.
+      10. **[aberto → v5.4g]** o cartão "Editar o site" do painel de teste abre o Directus de **produção** (Directus de teste previsto).
+      11. **[aberto, decisão de produto]** o CPF aparece sem máscara no cabeçalho da ficha; "Recadastramento pendente" já no cadastro recém
+          criado; existem **dois** modelos de cargo (o "Histórico de cargos" livre da ficha × os Mandatos da Governança) — avaliar na v5.4d.
+      Falta fechar a v5.4c: telas das pendências do item 9 que são da FASE 1, importação/exportação CSV, Configurações editando um catálogo e
+      a opção aparecendo no cadastro, "ver como", e o print de cada tela no bloco de fechamento.
 
 #### v5.4d — FASE 2 e FASE 2.5 ao vivo: governança
 

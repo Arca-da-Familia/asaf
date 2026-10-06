@@ -5,6 +5,7 @@ import random
 import uuid
 
 from tests.test_pessoas import _cpf_unico
+from tests.apoio_auth import cabecalho_admin
 
 _PAYLOAD_BASE = {
     "email_contato": "x@x.com", "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
@@ -18,7 +19,7 @@ def _criar_associado(client, **overrides):
     # v1.8 - nome único por padrão (o bloqueio de cadastro duplicado trataria duas chamadas com
     # nome+telefone iguais como a mesma pessoa, de propósito).
     payload = {**_PAYLOAD_BASE, "nome_completo": f"Pessoa Teste v1.1 {cpf[-8:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com", **overrides}
-    return client.post("/associados-master/", json=payload)
+    return client.post("/associados-master/", json=payload, headers=cabecalho_admin(client))
 
 
 def test_cpf_com_digito_verificador_invalido_e_recusado(client, auth_headers):
@@ -47,7 +48,7 @@ def test_status_arrolamento_nao_e_mais_editavel_no_schema(client, auth_headers):
         },
     )
     assert resposta.status_code == 200
-    calculada = client.get(f"/api/associados/{criado['id_associado']}/categoria-calculada").json()
+    calculada = client.get(f"/api/associados/{criado['id_associado']}/categoria-calculada", headers=cabecalho_admin(client)).json()
     assert calculada["status_arrolamento_materializado"] == "Ativo - Em Dia"
 
 
@@ -76,7 +77,7 @@ def test_categoria_calculada_fica_inadimplente_apos_titulo_vencido_e_volta_ao_pa
         headers=auth_headers,
     ).json()
 
-    calculada = client.get(f"/api/associados/{id_associado}/categoria-calculada").json()
+    calculada = client.get(f"/api/associados/{id_associado}/categoria-calculada", headers=cabecalho_admin(client)).json()
     assert calculada["status_arrolamento_materializado"] == "Ativo - Inadimplente"
 
     client.post(
@@ -88,13 +89,13 @@ def test_categoria_calculada_fica_inadimplente_apos_titulo_vencido_e_volta_ao_pa
         headers=auth_headers,
     )
 
-    calculada_depois = client.get(f"/api/associados/{id_associado}/categoria-calculada").json()
+    calculada_depois = client.get(f"/api/associados/{id_associado}/categoria-calculada", headers=cabecalho_admin(client)).json()
     assert calculada_depois["status_arrolamento_materializado"] == "Ativo - Em Dia"
 
 
 def test_completude_do_cadastro(client, auth_headers):
     associado = _criar_associado(client, estado_civil=None, profissao=None, naturalidade=None).json()
-    resposta = client.get(f"/api/associados/{associado['id_associado']}/completude")
+    resposta = client.get(f"/api/associados/{associado['id_associado']}/completude", headers=cabecalho_admin(client))
     assert resposta.status_code == 200
     corpo = resposta.json()
     assert 0 < corpo["percentual"] < 100
@@ -115,7 +116,7 @@ def test_consultar_cep_formato_invalido(client):
 
 def test_carteirinha_gera_e_verifica_sem_expor_cpf(client, auth_headers):
     associado = _criar_associado(client).json()
-    carteirinha = client.get(f"/api/associados/{associado['id_associado']}/carteirinha").json()
+    carteirinha = client.get(f"/api/associados/{associado['id_associado']}/carteirinha", headers=cabecalho_admin(client)).json()
 
     verificacao = client.get(carteirinha["url_verificacao"])
     assert verificacao.status_code == 200

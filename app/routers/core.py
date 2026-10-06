@@ -50,7 +50,7 @@ def _obter_ou_criar_catalogo(db: Session, chave: str) -> Catalogo:
     return catalogo
 
 @router.post("/setup-cerebro/", summary="1. Inicializar Cérebro")
-def setup_cerebro(db: Session = Depends(get_db)):
+def setup_cerebro(db: Session = Depends(get_db), _usuario: Usuario = Depends(exigir_permissao("gerenciar_acesso"))):
     configs = [
         {"chave": "NOME_INSTITUICAO", "valor": "ASAF - Associação Arca da Família"},
         {"chave": "STATUS_ARROLAMENTO_PADRAO", "valor": "Ativo - Em Dia"},
@@ -520,6 +520,20 @@ def _campo_visivel_para(definicao: DefinicaoCampo, usuario: Usuario) -> bool:
     return nivel_efetivo_id(usuario) in definicao.niveis_visiveis
 
 
+# v5.4c (achado AO VIVO na análise das rotas que só pedem login, 2026-10-05): ler e gravar os VALORES de campo personalizado de um registro
+# estava aberto a qualquer usuário logado (até um associado comum, em qualquer associado/projeto/beneficiário). Agora vale a permissão do
+# módulo dono da entidade; listar as DEFINIÇÕES (rótulos) continua para quem está logado, porque não traz dado de ninguém.
+_PERMISSAO_DA_ENTIDADE_DE_CAMPO = {"associado": "associados", "projeto_evento": "projetos", "beneficiario": "projetos"}
+
+
+def _exigir_permissao_da_entidade(db: Session, usuario: Usuario, entidade: str) -> None:
+    permissao = _PERMISSAO_DA_ENTIDADE_DE_CAMPO.get(entidade)
+    if permissao is None:
+        raise HTTPException(status_code=404, detail=f"Entidade '{entidade}' não tem campos personalizados.")
+    if not usuario_tem_permissao(db, usuario, permissao):
+        raise HTTPException(status_code=403, detail=f"Sem permissão '{permissao}'.")
+
+
 def _validar_valor(definicao: DefinicaoCampo, valor: Optional[str], db: Session) -> None:
     if valor is None or valor == "":
         if definicao.obrigatorio:
@@ -641,6 +655,7 @@ def excluir_definicao_campo(
 def obter_valores_campo(
     entidade: str, id_registro: int, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)
 ):
+    _exigir_permissao_da_entidade(db, usuario, entidade)
     definicoes = (
         db.query(DefinicaoCampo)
         .filter(DefinicaoCampo.entidade == entidade, DefinicaoCampo.ativo == True)
@@ -664,6 +679,7 @@ def obter_valores_campo(
 def definir_valores_campo(
     entidade: str, id_registro: int, dados: ValoresCampoDefinir, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)
 ):
+    _exigir_permissao_da_entidade(db, usuario, entidade)
     definicoes = {
         d.id_definicao: d
         for d in db.query(DefinicaoCampo).filter(DefinicaoCampo.entidade == entidade, DefinicaoCampo.ativo == True).all()

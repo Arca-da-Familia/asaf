@@ -58,18 +58,18 @@ def admin_token(client):
     reaproveitado por todo teste que precisar de permissão administrativa. bootstrap-admin só
     funciona uma vez por banco (trava de segurança real, testada em separado), por isso é
     session-scoped, não per-test."""
-    cpf = _cpf_unico()
-    senha = "SenhaForte123456"
-    resposta = client.post(
-        "/auth/bootstrap-admin",
-        json={"cpf": cpf, "nome_completo": "Admin de Teste", "email": f"{cpf}@teste.local", "senha": senha},
-    )
-    assert resposta.status_code == 200, resposta.text
+    from tests.apoio_auth import token_admin
 
-    login = client.post("/auth/login", json={"cpf": cpf, "senha": senha})
-    assert login.status_code == 200, login.text
-    assert login.json()["requer_mfa"] is False  # bootstrap-admin não ativa MFA
-    return login.json()["access_token"]
+    return token_admin(client)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _admin_garantido_desde_o_inicio(client):
+    """O `bootstrap-admin` só funciona num banco sem NENHUM usuário: cria o administrador antes de qualquer teste, para que um teste que
+    crie usuário primeiro (ou que use `cabecalho_admin` sem pedir o fixture) nunca feche essa janela."""
+    from tests.apoio_auth import token_admin
+
+    token_admin(client)
 
 
 @pytest.fixture()

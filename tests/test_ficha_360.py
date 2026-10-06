@@ -5,6 +5,7 @@ na ordem certa, e que tanto o admin (/api/associados/{id}/ficha-360) quanto o pr
 from datetime import date, timedelta
 
 from tests.test_pessoas import _cpf_unico
+from tests.apoio_auth import cabecalho_admin
 
 
 def _criar_associado(client, **overrides):
@@ -18,7 +19,7 @@ def _criar_associado(client, **overrides):
         "cidade": "Sao Paulo", "estado": "SP",
         **overrides,
     }
-    return client.post("/associados-master/", json=payload).json()
+    return client.post("/associados-master/", json=payload, headers=cabecalho_admin(client)).json()
 
 
 def test_ficha_360_exige_autenticacao(client):

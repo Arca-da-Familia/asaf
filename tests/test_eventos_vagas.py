@@ -8,6 +8,7 @@ from datetime import date, datetime, timedelta
 from app.database import SessaoLocal
 from app.models.motores import Inscricao
 from tests.test_pessoas import _cpf_unico
+from tests.apoio_auth import cabecalho_admin
 
 _ISO = "%Y-%m-%dT%H:%M:%S"
 
@@ -57,7 +58,7 @@ def _criar_associado_com_acesso(client, auth_headers) -> tuple[dict, int]:
         "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
         "cidade": "Sao Paulo", "estado": "SP",
     }
-    r = client.post("/associados-master/", json=payload)
+    r = client.post("/associados-master/", json=payload, headers=cabecalho_admin(client))
     assert r.status_code == 200, r.text
     id_associado = r.json()["id_associado"]
 

@@ -3,6 +3,7 @@ do endpoint que fecha esse buraco (`POST /api/associados/{id}/conceder-acesso`),
 provisória forçando troca no primeiro login, e o novo mínimo de senha (8 caracteres, reduzido
 de 10)."""
 from tests.test_pessoas import _cpf_unico
+from tests.apoio_auth import cabecalho_admin
 
 _PAYLOAD_BASE = {
     "email_contato": "x@x.com", "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
@@ -14,7 +15,7 @@ _PAYLOAD_BASE = {
 def _criar_ficha(client, **overrides):
     cpf = _cpf_unico()
     payload = {**_PAYLOAD_BASE, "nome_completo": f"Pessoa Teste Acesso {cpf[-8:]}", "cpf": cpf, "email_contato": f"{cpf}@x.com", **overrides}
-    resposta = client.post("/associados-master/", json=payload)
+    resposta = client.post("/associados-master/", json=payload, headers=cabecalho_admin(client))
     assert resposta.status_code == 200, resposta.text
     return resposta.json()["id_associado"], cpf
 

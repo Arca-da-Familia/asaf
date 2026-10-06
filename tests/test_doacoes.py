@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timedelta
 
 from tests.test_pessoas import _cpf_unico
+from tests.apoio_auth import cabecalho_admin
 
 
 def _criar_conta(client, auth_headers, tipo):
@@ -133,7 +134,7 @@ def test_destinacao_especifica_bloqueia_gasto_em_outra_finalidade(client, auth_h
         "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
         "cidade": "Sao Paulo", "estado": "SP",
     }
-    id_associado = client.post("/associados-master/", json=payload).json()["id_associado"]
+    id_associado = client.post("/associados-master/", json=payload, headers=cabecalho_admin(client)).json()["id_associado"]
     senha = "SenhaForteTeste1"
     client.post(f"/api/associados/{id_associado}/conceder-acesso", json={"email": f"{cpf}@acesso.example.com", "senha_provisoria": senha}, headers=auth_headers)
     login = client.post("/auth/login", json={"cpf": cpf, "senha": senha})

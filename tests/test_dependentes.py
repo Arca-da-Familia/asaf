@@ -7,6 +7,7 @@ from datetime import date
 from app.models.associados import Associado
 from app.models.pessoas import Pessoa
 from tests.test_pessoas import _cpf_unico
+from tests.apoio_auth import cabecalho_admin
 
 
 def _criar_associado(client, **overrides):
@@ -20,7 +21,7 @@ def _criar_associado(client, **overrides):
         "cidade": "Sao Paulo", "estado": "SP",
         **overrides,
     }
-    return client.post("/associados-master/", json=payload).json()
+    return client.post("/associados-master/", json=payload, headers=cabecalho_admin(client)).json()
 
 
 def test_dependente_pessoa_exige_autenticacao(client):
@@ -111,11 +112,11 @@ def test_rota_legada_associado_associado_continua_funcionando(client, auth_heade
 
     r = client.post(
         f"/api/associados/{titular['id_associado']}/dependentes",
-        json={"id_associado_vinculado": vinculado["id_associado"], "grau_parentesco": "IRMAO_A"},
+        json={"id_associado_vinculado": vinculado["id_associado"], "grau_parentesco": "IRMAO_A"}, headers=cabecalho_admin(client),
     )
     assert r.status_code == 200, r.text
 
-    listagem = client.get(f"/api/associados/{titular['id_associado']}/dependentes").json()
+    listagem = client.get(f"/api/associados/{titular['id_associado']}/dependentes", headers=cabecalho_admin(client)).json()
     assert len(listagem) == 1
     assert listagem[0]["id_associado_vinculado"] == vinculado["id_associado"]
     assert listagem[0]["nome_completo"] == "Familiar Legado"

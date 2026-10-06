@@ -1,6 +1,7 @@
 """v1.3 - importação em lote (dedup por CPF exato e nome+nascimento, lote desfazível) e
 exportação de dados pessoais (permissão própria, auditada)."""
 from tests.test_pessoas import _cpf_unico
+from tests.apoio_auth import cabecalho_admin
 
 
 def test_verificar_duplicidade_cpf_exato(client, auth_headers):
@@ -12,7 +13,7 @@ def test_verificar_duplicidade_cpf_exato(client, auth_headers):
             "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
             "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
             "cidade": "Sao Paulo", "estado": "SP",
-        },
+        }, headers=cabecalho_admin(client),
     )
     resposta = client.post(
         "/api/associados/verificar-duplicidade", headers=auth_headers,
@@ -30,7 +31,7 @@ def test_verificar_duplicidade_nome_e_nascimento(client, auth_headers):
             "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
             "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
             "cidade": "Sao Paulo", "estado": "SP", "data_nascimento": "1990-05-10",
-        },
+        }, headers=cabecalho_admin(client),
     )
     resposta = client.post(
         "/api/associados/verificar-duplicidade", headers=auth_headers,
@@ -62,7 +63,7 @@ def test_importar_lote_com_duplicidade_gera_erro_e_nao_trava_o_resto(client, aut
             "telefone_whatsapp": "11900000000", "categoria": "Efetivo",
             "cep": "01000000", "logradouro": "Rua Teste", "numero": "1", "bairro": "Centro",
             "cidade": "Sao Paulo", "estado": "SP",
-        },
+        }, headers=cabecalho_admin(client),
     )
     linhas = [
         {"nome_completo": "Duplicado", "cpf": cpf_existente, "categoria": "Efetivo", "resolucao": "nova"},
@@ -91,7 +92,7 @@ def test_desfazer_lote_remove_associados_criados(client, auth_headers):
     resposta = client.post(f"/api/associados/importar-lote/{id_lote}/desfazer", headers=auth_headers)
     assert resposta.status_code == 200, resposta.text
 
-    busca = client.get("/api/associados/busca-simples").json()
+    busca = client.get("/api/associados/busca-simples", headers=cabecalho_admin(client)).json()
     assert not any(a["nome_completo"] == "Desfazer Teste" for a in busca)
 
     segunda_vez = client.post(f"/api/associados/importar-lote/{id_lote}/desfazer", headers=auth_headers)
