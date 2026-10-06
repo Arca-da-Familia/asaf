@@ -57,8 +57,11 @@ async function reformarPelaTela(
   valor: string,
 ): Promise<void> {
   const cartao = cartaoDaRegra(page, parametro)
-  await cartao.getByRole('button', { name: `Reformar ${parametro}` }).click()
   const novo = cartao.getByLabel('Novo valor')
+  // o botão "Reformar" abre e fecha o formulário: só clica se ele ainda não está aberto
+  if ((await novo.count()) === 0) {
+    await cartao.getByRole('button', { name: `Reformar ${parametro}` }).click()
+  }
   await novo.fill(valor)
   await cartao.getByRole('button', { name: 'Reformar regra' }).click()
   await page
