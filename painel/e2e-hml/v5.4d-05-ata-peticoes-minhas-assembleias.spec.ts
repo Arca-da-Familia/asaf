@@ -341,14 +341,22 @@ test.describe('assembleia própria: justificativas, chamada, sessão, detalhe e 
       has: page.locator('option', { hasText: 'Selecione o associado' }),
     })
     const lancar = page.getByRole('button', { name: 'Lançar (já aceita)' })
+    // tudo vazio: as DUAS faltas aparecem, cada uma no seu campo
     await lancar.click()
-    await expect(bloco.getByRole('alert')).toContainText(
-      'Descreva o motivo da justificativa.',
-    )
+    await expect(bloco.getByRole('alert')).toHaveCount(2)
+    await expect(
+      bloco
+        .getByRole('alert')
+        .filter({ hasText: 'Descreva o motivo da justificativa.' }),
+    ).toHaveCount(1)
+    await expect(
+      bloco.getByRole('alert').filter({ hasText: 'Selecione um associado.' }),
+    ).toHaveCount(1)
     await bloco.getByPlaceholder('Motivo').fill(MOTIVO_MANUAL)
     await lancar.click()
+    await expect(bloco.getByRole('alert')).toHaveCount(1)
     await expect(bloco.getByRole('alert')).toContainText(
-      'Associado não encontrado.',
+      'Selecione um associado.',
     )
     await ver(page, info, 'lancar sem escolher o associado: recusado')
     await escolherQuandoHouver(seletor, 'Leonardo Batista Reis')
@@ -689,23 +697,18 @@ test.describe('assembleia própria: justificativas, chamada, sessão, detalhe e 
     ).toBeVisible()
     await ver(page, info, 'detalhe da assembleia realizada')
 
-    // a tela oferece "lançar" depois do fim, mas o servidor só aceita justificativa até o encerramento da sessão
-    await page
-      .getByRole('button', { name: 'Lançar em nome de associado' })
-      .click()
-    const seletor = bloco.locator('select').filter({
-      has: page.locator('option', { hasText: 'Selecione o associado' }),
-    })
-    await escolherQuandoHouver(seletor, 'Marina Azevedo Lopes')
-    await bloco
-      .getByPlaceholder('Motivo')
-      .fill('Tentativa depois do encerramento da sessão')
-    await page.getByRole('button', { name: 'Lançar (já aceita)' }).click()
-    await expect(bloco.getByRole('alert')).toContainText(
-      /justificativa só vale do edital até o encerramento da sessão/,
+    // o servidor só aceita justificativa até o encerramento da sessão: depois do fim a tela NÃO oferece "lançar" e explica por quê
+    await expect(
+      page.getByRole('button', { name: 'Lançar em nome de associado' }),
+    ).toHaveCount(0)
+    await expect(bloco).toContainText(
+      'Depois do encerramento da sessão não se lança mais justificativa',
     )
-    await ver(page, info, 'lancar justificativa depois do fim: recusado')
-    await bloco.getByRole('button', { name: 'Cancelar' }).click()
+    await ver(
+      page,
+      info,
+      'sessao encerrada: a tela nao oferece lancar justificativa',
+    )
 
     // corrigir presença: quem faltou é marcado pela mesa mesmo com a sessão encerrada
     await page.getByRole('link', { name: 'Corrigir presença' }).click()
@@ -1421,21 +1424,27 @@ test.describe('assembleia própria: justificativas, chamada, sessão, detalhe e 
       'retificacao criada (a ata original continua assinada)',
     )
 
-    // recarregando, a tela mostra UMA das duas atas da assembleia: a outra fica sem como ser aberta
+    // recarregando, a tela mostra a MAIS RECENTE (a retificação) e as versões levam à original assinada
     await page.goto(`${base}/ata`)
+    await expect(page.getByText(/Retificação da ata #/)).toBeVisible()
+    const versoes = page.getByRole('navigation', { name: 'Versões da ata' })
+    await expect(versoes.getByRole('link', { name: /Original/ })).toBeVisible()
     await expect(
-      page.getByRole('heading', { name: /^Ata/ }).first(),
-    ).toBeVisible()
-    await page.waitForTimeout(1500)
-    const mostraRetificacao =
-      (await page.getByText(/Retificação da ata #/).count()) > 0
-    achadosAssembleia.push(
-      `Retificação: recarregada a tela da ata, ela mostra só ${mostraRetificacao ? 'a retificação (a ata original assinada deixa de ser alcançável)' : 'a ata original (a retificação criada não pode mais ser aberta, travada nem anexada)'}: GET /api/assembleias/{id}/ata devolve a primeira ata sem ordenar (app/routers/ata.py)`,
-    )
+      versoes.getByRole('link', { name: /Retificação/ }),
+    ).toHaveAttribute('aria-current', 'page')
     await ver(
       page,
       info,
-      'ata depois de recarregar, com uma retificacao criada',
+      'ata depois de recarregar: a retificacao e as versoes',
+    )
+    await versoes.getByRole('link', { name: /Original/ }).click()
+    await expect(page).toHaveURL(new RegExp(`ata\\?ata=${idAta}$`))
+    await expect(page.getByText(/Retificação da ata #/)).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: /^Ata nº/ })).toBeVisible()
+    await ver(
+      page,
+      info,
+      'a ata original assinada continua alcancavel pelas versoes',
     )
 
     await naAuditoria(page, 'atas', 'ASSINADA', idAta)

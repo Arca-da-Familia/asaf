@@ -138,6 +138,9 @@ function BlocoJustificativas({
                   </option>
                 ))}
               </select>
+              <ErroCampo
+                mensagem={form.formState.errors.id_associado?.message}
+              />
               <input
                 {...form.register('motivo')}
                 aria-label="Motivo da justificativa"
