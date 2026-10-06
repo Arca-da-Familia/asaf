@@ -244,7 +244,9 @@ def test_reembolso_despesa_segregacao_e_gera_titulo(client, auth_headers):
 
 
 def test_gerar_contas_a_pagar_recorrentes_idempotente_por_competencia(client, auth_headers):
-    conta = _criar_conta(client, auth_headers, "4.1.9917", "Despesa")
+    import uuid
+
+    conta = _criar_conta(client, auth_headers, f"4.1.9917.{uuid.uuid4().hex[:6]}", "Despesa")
     r = client.post("/api/contas-a-pagar-recorrentes/", json={
         "descricao": "Aluguel da sede", "valor": 2000, "id_conta_contabil": conta, "dia_vencimento": 5,
     }, headers=auth_headers)
@@ -333,3 +335,22 @@ def test_delegacao_so_pode_ser_registrada_por_quem_delega_e_recusa_dado_ruim(cli
     lista = client.get("/api/delegacoes-aprovacao/", headers=auth_headers).json()
     registrada = next(d for d in lista if d["id_delegacao"] == r.json()["id_delegacao"])
     assert registrada["nome_delegante"] and registrada["nome_delegado"]
+
+
+def test_beneficiario_do_reembolso_nao_aprova_nem_reprova_o_proprio_reembolso(client, auth_headers):
+    conta = _criar_conta(client, auth_headers, "4.1.9917", "Despesa")
+    id_beneficiario, headers_beneficiario = _criar_usuario_com_mandato(client, auth_headers, "TESOUREIRO")
+    r = client.post("/api/reembolsos-despesa/", json={
+        "id_associado": id_beneficiario, "descricao": "Despesa de quem recebe", "valor": 80,
+        "comprovante": "/uploads/comprovantes/teste.pdf", "id_conta_contabil": conta,
+    }, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    id_reembolso = r.json()["id_reembolso"]
+
+    r = client.post(f"/api/reembolsos-despesa/{id_reembolso}/aprovar", headers=headers_beneficiario)
+    assert r.status_code == 400 and "Quem vai receber" in r.json()["detail"]
+    r = client.post(f"/api/reembolsos-despesa/{id_reembolso}/reprovar", json={"motivo": "Tentando reprovar o meu"}, headers=headers_beneficiario)
+    assert r.status_code == 400 and "Quem vai receber" in r.json()["detail"]
+    # outra pessoa (nem quem lançou, nem quem recebe) decide normalmente
+    _, headers_outro = _criar_usuario_com_mandato(client, auth_headers, "CONSELHO_FISCAL")
+    assert client.post(f"/api/reembolsos-despesa/{id_reembolso}/aprovar", headers=headers_outro).status_code == 200

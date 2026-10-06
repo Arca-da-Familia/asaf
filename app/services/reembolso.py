@@ -30,6 +30,15 @@ def solicitar_reembolso(
     return reembolso
 
 
+def _exigir_que_nao_seja_o_beneficiario(db: Session, reembolso: ReembolsoDespesa, id_usuario_aprovador: int, acao: str) -> None:
+    """Quem vai RECEBER o dinheiro não decide sobre ele (segregação de funções): além de quem lançou o pedido, o beneficiário também fica de fora."""
+    from app.models.associados import Associado
+
+    associado_do_aprovador = db.query(Associado.id_associado).filter(Associado.id_usuario == id_usuario_aprovador).first()
+    if associado_do_aprovador is not None and associado_do_aprovador[0] == reembolso.id_associado:
+        raise HTTPException(status_code=400, detail=f"Quem vai receber o reembolso não pode {acao} (segregação de funções).")
+
+
 def aprovar_reembolso(db: Session, *, id_reembolso: int, id_usuario_aprovador: int) -> ReembolsoDespesa:
     reembolso = db.query(ReembolsoDespesa).filter(ReembolsoDespesa.id_reembolso == id_reembolso).first()
     if not reembolso:
@@ -38,6 +47,7 @@ def aprovar_reembolso(db: Session, *, id_reembolso: int, id_usuario_aprovador: i
         raise HTTPException(status_code=400, detail=f"Reembolso '{reembolso.status}' não pode ser aprovado.")
     if reembolso.id_usuario_solicitante == id_usuario_aprovador:
         raise HTTPException(status_code=400, detail="Quem solicitou o reembolso não pode aprová-lo (segregação de funções).")
+    _exigir_que_nao_seja_o_beneficiario(db, reembolso, id_usuario_aprovador, "aprová-lo")
 
     reembolso.status = "Aprovado"
     reembolso.id_usuario_aprovador = id_usuario_aprovador
@@ -65,6 +75,7 @@ def reprovar_reembolso(db: Session, *, id_reembolso: int, motivo: str, id_usuari
         raise HTTPException(status_code=400, detail=f"Reembolso '{reembolso.status}' não pode ser reprovado.")
     if reembolso.id_usuario_solicitante == id_usuario_aprovador:
         raise HTTPException(status_code=400, detail="Quem solicitou o reembolso não pode reprová-lo (segregação de funções).")
+    _exigir_que_nao_seja_o_beneficiario(db, reembolso, id_usuario_aprovador, "reprová-lo")
     reembolso.status = "Reprovado"
     reembolso.motivo_reprovacao = motivo
     reembolso.id_usuario_aprovador = id_usuario_aprovador

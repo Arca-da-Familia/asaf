@@ -69,10 +69,16 @@ const MENSAGEM = {
     `Aprovador não tem o cargo exigido para esta alçada (${cargos}).`,
   cotacoes: (tem: number) =>
     new RegExp(`exige ao menos 2 cotações antes de aprovar \\(tem ${tem}\\)`),
-  semAlcada: (valor: string) =>
-    new RegExp(
-      `Nenhuma alçada de aprovação configurada para o valor R\\$ ${valor.replace('.', '\\.')} - cadastre uma faixa`,
-    ),
+  semAlcada: (valor: string) => {
+    // o servidor escreve o dinheiro como se lê no Brasil: R$ 1.234,56
+    const br = Number(valor).toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+    return new RegExp(
+      `Nenhuma alçada de aprovação configurada para o valor R\\$ ${br.replace(/\./g, '\\.')} - cadastre uma faixa`,
+    )
+  },
 }
 
 /** Dia (AAAA-MM-DD e dd/mm/aaaa) daqui a `deslocamentoDias`, no relógio de Belém (UTC-3), que é o do navegador do robô. */
@@ -1062,19 +1068,24 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
       'alcada com cargos so de virgula: recusada pelo servidor',
     )
 
-    // achado provável 1: valor máximo MENOR que o mínimo (a faixa nunca vale para valor nenhum)
-    const invertida = await enviar({
+    // valor máximo MENOR que o mínimo: a faixa nunca valeria para valor nenhum; a tela recusa e nada vai ao servidor
+    const antesDaInvertida = enviadas.length
+    await tentarSemEnviar({
       minimo: '9000100',
       maximo: '9000050',
       cargos: 'presidente',
     })
-    if (invertida.ok()) aceitasDeLixo.push(await idDe(invertida, 'id_alcada'))
-    expect
-      .soft(
-        invertida.ok(),
-        'o sistema ACEITOU uma faixa com valor máximo (R$ 9.000.050,00) menor que o mínimo (R$ 9.000.100,00): ela nunca se aplica a valor nenhum',
-      )
-      .toBe(false)
+    await expect(
+      page
+        .getByRole('alert')
+        .filter({ hasText: 'O valor máximo não pode ser menor que o mínimo.' }),
+    ).toHaveCount(1)
+    expect(enviadas.length).toBe(antesDaInvertida)
+    await ver(
+      page,
+      info,
+      'alcada com maximo menor que o minimo: recusada na tela',
+    )
 
     // achado provável 2: o campo do valor máximo é texto livre; "9999999,99" (vírgula, como se escreve no Brasil) vira "sem teto"
     const virgula = await enviar({
@@ -1439,7 +1450,7 @@ test('Cotações: acima de R$ 1.000,00 a aprovação exige duas cotações (0 e 
     const nenhuma = await tentarAprovarCompra(page, cartao)
     expect(nenhuma.status()).toBe(400)
     await expect(cartao.getByText(MENSAGEM.cotacoes(0))).toBeVisible()
-    await expect(cartao.getByText(/Valor acima de R\$ 1000\.00/)).toBeVisible()
+    await expect(cartao.getByText(/Valor acima de R\$ 1\.000,00/)).toBeVisible()
     await ver(page, info, 'compra acima de R$ 1.000,00 sem cotacao: recusada')
 
     // cotação vazia é recusada na tela
