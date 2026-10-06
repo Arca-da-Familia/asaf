@@ -79,14 +79,51 @@ test('sessão: credenciar, pauta e votação, estado por estado', async ({
   await inv(page, info, 's5-com-item-de-pauta')
   await ver(page, info, 's5 com item de pauta')
 
-  // votação: tenta abrir a primeira votação do item
-  for (const nome of [/Abrir votação|Iniciar votação|Nova votação|Votação/]) {
-    const b = page.getByRole('button', { name: nome }).first()
-    if ((await b.count()) > 0) {
-      await b.click()
-      await inv(page, info, 's6-votacao')
-      await ver(page, info, 's6 votacao')
-    }
+  // votação em dois níveis: o item vai para "Em votação" e DENTRO dele se cria a votação
+  await page.getByRole('button', { name: 'Abrir votação' }).first().click()
+  await inv(page, info, 's6-item-em-votacao')
+  await page.getByRole('button', { name: 'Abrir votação' }).last().click()
+  await inv(page, info, 's7-form-da-votacao')
+  await ver(page, info, 's7 form da votacao')
+  await page.getByLabel('Título').last().fill('Aprovação das contas de 2026')
+  await page.getByRole('button', { name: 'Abrir votação' }).last().click()
+  await inv(page, info, 's8-votacao-aberta')
+  await ver(page, info, 's8 votacao aberta')
+
+  // vota como o Presidente (credenciado acima)
+  await page
+    .getByRole('combobox')
+    .filter({ hasText: 'Escolha sua opção' })
+    .first()
+    .selectOption({ index: 1 })
+  await page.getByRole('button', { name: 'Votar' }).first().click()
+  await inv(page, info, 's9-depois-de-votar')
+  await ver(page, info, 's9 depois de votar')
+  // voto repetido
+  await page
+    .getByRole('combobox')
+    .filter({ hasText: 'Escolha sua opção' })
+    .first()
+    .selectOption({ index: 1 })
+    .catch(() => undefined)
+  await page
+    .getByRole('button', { name: 'Votar' })
+    .first()
+    .click()
+    .catch(() => undefined)
+  await inv(page, info, 's10-voto-repetido')
+  await ver(page, info, 's10 voto repetido')
+
+  // encerrar votação, item e sessão
+  for (const [nome, botao] of [
+    ['s11-votacao-encerrada', /Encerrar votação/],
+    ['s12-item-encerrado', /Encerrar item/],
+    ['s13-sessao-encerrada', /Encerrar sessão/],
+  ] as const) {
+    const b = page.getByRole('button', { name: botao }).first()
+    if ((await b.count()) > 0) await b.click()
+    await inv(page, info, nome)
+    await ver(page, info, nome)
   }
   expect(vigia.problemas()).toEqual([])
 })
