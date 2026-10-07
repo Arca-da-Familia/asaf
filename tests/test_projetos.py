@@ -149,10 +149,19 @@ def test_relatorio_final_versiona_e_registra_pendencia_de_publico_atendido(clien
     assert r.status_code == 200, r.text
     primeira = r.json()
     assert primeira["versao"] == 1
-    assert "v4.2" in primeira["conteudo"]  # registra a pendência do motor de beneficiários
+    # sem beneficiário vinculado, o relatório diz isso (e não "o motor ainda não existe": ele existe desde a v4.2)
+    assert "Nenhum beneficiário vinculado" in primeira["conteudo"] and "ainda não existe" not in primeira["conteudo"]
+
+    # com beneficiário vinculado, traz o número (só o número, nunca o nome)
+    r = client.post("/api/beneficiarios/", json={"nome_completo": "Beneficiária do Relatório de Teste"}, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    r = client.post("/api/beneficiarios-projeto/", json={"id_beneficiario": r.json()["id_beneficiario"], "id_projeto": id_projeto, "papel": "ATENDIDO"}, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    r = client.post(f"/api/projetos/{id_projeto}/relatorio-final", headers=auth_headers)
+    assert "Beneficiários vinculados ao projeto: 1" in r.json()["conteudo"] and "Beneficiária do Relatório" not in r.json()["conteudo"]
 
     r = client.post(f"/api/projetos/{id_projeto}/relatorio-final", headers=auth_headers)
-    assert r.json()["versao"] == 2
+    assert r.json()["versao"] == 3
 
     historico = client.get(f"/api/projetos/{id_projeto}/relatorio-final", headers=auth_headers).json()
-    assert sorted(h["versao"] for h in historico) == [1, 2]
+    assert sorted(h["versao"] for h in historico) == [1, 2, 3]

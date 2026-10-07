@@ -3,7 +3,7 @@ import { useId, useState } from 'react'
 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
-import { formatarData } from '@/lib/datas'
+import { formatarVigencia } from '@/lib/datas'
 import {
   gerarPrestacaoDeContas,
   listarContasFinanceiras,
@@ -383,7 +383,7 @@ function SecaoExtratoContaFinanceira() {
                 className="flex items-center justify-between text-sm"
               >
                 <span>
-                  {formatarData(m.data)} · {m.tipo_partida}
+                  {formatarVigencia(m.data)} · {m.tipo_partida}
                 </span>
                 <span>
                   {formatarReais(m.valor)} · saldo {formatarReais(m.saldo_apos)}

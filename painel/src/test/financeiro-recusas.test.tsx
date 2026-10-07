@@ -13,6 +13,7 @@ import {
   orcamentoCriarSchema,
 } from '@/lib/schemas'
 import { lerValorEmReais } from '@/lib/valores'
+import { FinanceiroInicioPage } from '@/pages/FinanceiroInicio'
 import { RelatoriosPage } from '@/pages/Relatorios'
 
 vi.mock('@/lib/api', async (importOriginal) => ({
@@ -26,6 +27,8 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   obterRelatorioPorProjeto: vi.fn(),
   listarPrestacoesDeContas: vi.fn(),
   obterPadroesSuspeitos: vi.fn(),
+  listarTitulos: vi.fn(),
+  listarSolicitacoesCompra: vi.fn(),
 }))
 
 describe('campos opcionais em branco não viram 0 nem texto vazio', () => {
@@ -165,6 +168,66 @@ describe('Relatórios: a consulta que falha aparece, e não vira "sem movimento"
     expect(screen.getAllByLabelText('De').length).toBeGreaterThan(0)
     expect(screen.getAllByLabelText('Até').length).toBeGreaterThan(0)
     expect(screen.getByLabelText('Competência')).toBeInTheDocument()
+    expect(await axe(container)).toHaveNoViolations()
+  })
+})
+
+describe('Início do Financeiro: o retrato do dia no lugar da página de obra', () => {
+  it('mostra saldo, vencidos, a pagar em 30 dias, compras a aprovar e os atalhos; passa no axe', async () => {
+    const ontem = new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString()
+    const emBreve = new Date(Date.now() + 5 * 24 * 3600 * 1000).toISOString()
+    vi.mocked(api.listarContasFinanceiras).mockResolvedValue([
+      { id_conta_financeira: 1, saldo: 1500.5, ativo: true },
+      { id_conta_financeira: 2, saldo: 500, ativo: true },
+      { id_conta_financeira: 3, saldo: 9999, ativo: false },
+    ] as Awaited<ReturnType<typeof api.listarContasFinanceiras>>)
+    vi.mocked(api.listarTitulos).mockResolvedValue([
+      {
+        id_titulo: 1,
+        tipo_titulo: 'A Receber',
+        descricao: 'Mensalidade atrasada',
+        saldo_devedor: 60,
+        data_vencimento: ontem,
+        status: 'Pendente',
+      },
+      {
+        id_titulo: 2,
+        tipo_titulo: 'A Pagar',
+        descricao: 'Conta de energia',
+        saldo_devedor: 410,
+        data_vencimento: emBreve,
+        status: 'Pendente',
+      },
+    ] as Awaited<ReturnType<typeof api.listarTitulos>>)
+    vi.mocked(api.listarSolicitacoesCompra).mockResolvedValue([
+      { id_solicitacao: 1 },
+      { id_solicitacao: 2 },
+    ] as Awaited<ReturnType<typeof api.listarSolicitacoesCompra>>)
+
+    const cliente = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const { container } = render(
+      <QueryClientProvider client={cliente}>
+        <MemoryRouter>
+          <FinanceiroInicioPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    // só as contas ativas somam: 1.500,50 + 500,00
+    expect(await screen.findByText(/2\.000,50/)).toBeInTheDocument()
+    expect(screen.getByText('1 título(s) em atraso')).toBeInTheDocument()
+    expect(screen.getByText(/A Pagar — Conta de energia/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/A Receber — Mensalidade atrasada/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Compras aguardando aprovação').parentElement,
+    ).toHaveTextContent('2')
+    expect(screen.getByRole('link', { name: /Títulos/ })).toBeInTheDocument()
+    expect(
+      screen.queryByText(/entra nas fases seguintes/),
+    ).not.toBeInTheDocument()
     expect(await axe(container)).toHaveNoViolations()
   })
 })

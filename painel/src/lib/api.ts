@@ -4197,7 +4197,11 @@ export function cancelarReserva(
   idReserva: number,
   motivo: string,
 ): Promise<
-  ReservaEspaco & { reembolso: { id_titulo: number; valor: number } | null }
+  ReservaEspaco & {
+    reembolso: { id_titulo: number; valor: number } | null
+    // cancelar fora do prazo gera uma taxa (título a receber): quem cancelou precisa ser avisado
+    taxa?: { id_titulo: number; valor: number } | null
+  }
 > {
   return apiFetch(`/api/reservas-espaco/${idReserva}/cancelar`, {
     method: 'POST',

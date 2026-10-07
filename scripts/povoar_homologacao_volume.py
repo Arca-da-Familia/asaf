@@ -71,6 +71,13 @@ def povoar(client, db, escrever=print) -> dict:
     com_login = [(a, u) for a, u in db.query(Associado, Usuario).join(Usuario, Associado.id_usuario == Usuario.id_usuario).all()]
     eleitores = [cabecalho(u) for _, u in com_login if u.id_usuario != admin.id_usuario][:5]
 
+    # ---------------------------------------------------------------------------------------- chave Pix de teste (sem ela o Pix das cobranças não abre)
+    def chave_pix():
+        ok(client.put("/api/configuracoes/CHAVE_PIX", headers=adm, json={"valor": f"chave-pix-de-teste@{ph.SUFIXO_EMAIL}"}))
+        return "chave Pix de teste (inventada) para o Pix Copia e Cola das cobranças"
+
+    roteiro.area("Chave Pix de teste", chave_pix)
+
     # ---------------------------------------------------------------------------------------- 25 associados cadastrados direto
     ids: dict[int, int] = {}
 

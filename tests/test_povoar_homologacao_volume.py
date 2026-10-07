@@ -79,7 +79,7 @@ def execucao(tmp_path_factory):
 
 def test_todas_as_areas_do_volume_passam_sem_falha(execucao):
     assert execucao["resultado"]["falhas"] == [], execucao["resultado"]["falhas"]
-    assert len(execucao["resultado"]["feito"]) == 11
+    assert len(execucao["resultado"]["feito"]) == 12
 
 
 def test_o_que_foi_criado_bate_com_o_prometido(execucao):

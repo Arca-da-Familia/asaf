@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import Optional
 
 from fastapi import HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.espacos import BloqueioEspaco, Espaco
@@ -22,6 +23,9 @@ def criar_espaco(
     limite_no_show_bloqueio: Optional[int], percentual_reembolso_cancelamento: Optional[Decimal] = None,
 ) -> Espaco:
     validar_codigo_em_catalogo(db, "tipo_espaco", tipo, "Tipo de espaço")
+    # dois espaços com o mesmo nome viram dois cartões iguais na lista, sem como distinguir: o nome é único (sem olhar maiúscula ou espaço nas pontas)
+    if db.query(Espaco.id_espaco).filter(func.lower(func.trim(Espaco.nome)) == nome.strip().lower()).first():
+        raise HTTPException(status_code=400, detail="Já existe um espaço com esse nome: escolha outro nome para poder distinguir os dois.")
     espaco = Espaco(
         nome=nome, tipo=tipo, capacidade=capacidade, recursos_disponiveis=recursos_disponiveis, regras_uso=regras_uso,
         horario_funcionamento_inicio=horario_funcionamento_inicio, horario_funcionamento_fim=horario_funcionamento_fim,

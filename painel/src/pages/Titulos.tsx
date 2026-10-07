@@ -643,7 +643,7 @@ export function TitulosPage() {
                 Original {formatarReais(t.valor_original)} · Saldo{' '}
                 {formatarReais(t.saldo_devedor)}
               </p>
-              {t.status !== 'Pago' && (
+              {!['Pago', 'Renegociado', 'Cancelado'].includes(t.status) && (
                 <div className="mt-2">
                   <div className="flex flex-wrap gap-2">
                     <Button

@@ -201,7 +201,7 @@ def recusar_reserva_endpoint(id_reserva: int, dados: ReservaRecusar, request: Re
 
 @router.post("/api/reservas-espaco/{id_reserva}/cancelar", summary="Cancelar Reserva (pode gerar taxa se fora do prazo)")
 def cancelar_reserva_endpoint(id_reserva: int, dados: ReservaCancelar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
-    reserva, titulo_reembolso = reservas.cancelar_reserva(db, id_reserva=id_reserva, motivo=dados.motivo, id_usuario=usuario.id_usuario)
+    reserva, titulo_reembolso, titulo_taxa = reservas.cancelar_reserva(db, id_reserva=id_reserva, motivo=dados.motivo, id_usuario=usuario.id_usuario)
     registrar_auditoria(
         db, usuario, "reservas_espaco", "CANCELAMENTO", id_registro_afetado=reserva.id_reserva,
         dados_depois={"motivo": dados.motivo, "id_titulo_reembolso": titulo_reembolso.id_titulo if titulo_reembolso else None},
@@ -211,6 +211,8 @@ def cancelar_reserva_endpoint(id_reserva: int, dados: ReservaCancelar, request: 
     resposta["reembolso"] = (
         {"id_titulo": titulo_reembolso.id_titulo, "valor": titulo_reembolso.valor_original} if titulo_reembolso else None
     )
+    # cancelar fora do prazo gera uma taxa: quem cancelou precisa saber disso na hora, não só do reembolso
+    resposta["taxa"] = {"id_titulo": titulo_taxa.id_titulo, "valor": titulo_taxa.valor_original} if titulo_taxa else None
     return resposta
 
 

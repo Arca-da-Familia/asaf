@@ -574,7 +574,16 @@ def _gerar_texto_relatorio_final(db: Session, projeto: ProjetoEvento) -> str:
         linhas.append(f"   {indicador.nome}: meta {meta_txt} — realizado {realizado_txt}")
 
     linhas += ["", "2. PÚBLICO ATENDIDO"]
-    linhas.append("   Pendência registrada: motor de beneficiários (v4.2) ainda não existe - este relatório não afirma um número que não tem base em dado real.")
+    # só números (nunca nomes): o relatório pode virar texto público e o público atendido é dado pessoal sensível
+    from app.models.beneficiarios import BeneficiarioProjeto
+
+    vinculos = db.query(BeneficiarioProjeto).filter(BeneficiarioProjeto.id_projeto == projeto.id_projeto).all()
+    if not vinculos:
+        linhas.append("   Nenhum beneficiário vinculado a este projeto no sistema: o relatório não afirma um número que não tem base em dado real.")
+    else:
+        ativos = sum(1 for v in vinculos if v.data_fim is None)
+        por_familia = sum(1 for v in vinculos if v.atendimento_por_familia)
+        linhas.append(f"   Beneficiários vinculados ao projeto: {len(vinculos)} ({ativos} com vínculo ativo; {por_familia} com atendimento por família).")
 
     linhas += ["", "3. EXECUÇÃO FINANCEIRA"]
     if projeto.id_centro_custo is None:

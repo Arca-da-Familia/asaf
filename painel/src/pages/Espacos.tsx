@@ -434,12 +434,16 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
   const [reembolsosRecentes, setReembolsosRecentes] = useState<
     Record<number, { id_titulo: number; valor: number } | null>
   >({})
+  const [taxasRecentes, setTaxasRecentes] = useState<
+    Record<number, { id_titulo: number; valor: number } | null>
+  >({})
   const cancelar = useMutation({
     mutationFn: ({ id, motivo }: { id: number; motivo: string }) =>
       cancelarReserva(id, motivo),
     onSuccess: (r, variaveis) => {
       invalidar()
       setReembolsosRecentes((s) => ({ ...s, [variaveis.id]: r.reembolso }))
+      setTaxasRecentes((s) => ({ ...s, [variaveis.id]: r.taxa ?? null }))
     },
   })
   const naoCompareceu = useMutation({
@@ -838,6 +842,18 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
             )}
             {checklistAberto === r.id_reserva && (
               <PainelChecklist idReserva={r.id_reserva} />
+            )}
+            {taxasRecentes[r.id_reserva] && (
+              <p className="mt-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs">
+                Taxa de cancelamento tardio:{' '}
+                {formatarReais(taxasRecentes[r.id_reserva]!.valor)} — título a
+                receber #{taxasRecentes[r.id_reserva]!.id_titulo}, cobrado
+                porque o cancelamento foi fora do prazo. Veja em{' '}
+                <Link to="/financeiro/titulos" className="underline">
+                  Financeiro &gt; Títulos
+                </Link>
+                .
+              </p>
             )}
             {reembolsosRecentes[r.id_reserva] && (
               <p className="mt-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">

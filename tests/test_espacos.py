@@ -187,18 +187,31 @@ def test_cancelamento_fora_do_prazo_gera_taxa(client, auth_headers):
     assert taxa[0]["valor_original"] == 30.0
 
 
-def test_no_show_bloqueia_por_reincidencia(client, auth_headers):
+def test_no_show_bloqueia_por_reincidencia(client, auth_headers, db):
+    from app.models.espacos import Reserva
+
     id_espaco = _criar_espaco(client, auth_headers, limite_no_show_bloqueio=1)
     associado = _criar_associado(client)
 
+    # reservar o passado é recusado; a reserva nasce no futuro e o relógio "anda" (a hora dela passa) antes de marcar o não comparecimento
     r = client.post("/api/reservas-espaco/", json={
         "id_espaco": id_espaco, "id_associado_solicitante": associado["id_associado"],
         "data_hora_inicio": (datetime.utcnow() - timedelta(hours=2)).strftime(_ISO),
         "data_hora_fim": (datetime.utcnow() - timedelta(hours=1)).strftime(_ISO),
-        "finalidade": "Reserva já no passado, pra marcar no-show",
+        "finalidade": "Reserva no passado é recusada",
+    }, headers=auth_headers)
+    assert r.status_code == 400 and "já passou" in r.json()["detail"]
+    r = client.post("/api/reservas-espaco/", json={
+        "id_espaco": id_espaco, "id_associado_solicitante": associado["id_associado"],
+        "data_hora_inicio": (datetime.utcnow() + timedelta(days=3)).strftime(_ISO),
+        "data_hora_fim": (datetime.utcnow() + timedelta(days=3, hours=1)).strftime(_ISO),
+        "finalidade": "Reserva que vai passar sem comparecimento",
     }, headers=auth_headers)
     assert r.status_code == 200, r.text
     id_reserva = r.json()["id_reserva"]
+    reserva = db.query(Reserva).filter(Reserva.id_reserva == id_reserva).first()
+    reserva.data_hora_inicio, reserva.data_hora_fim = datetime.utcnow() - timedelta(hours=2), datetime.utcnow() - timedelta(hours=1)
+    db.commit()
 
     r = client.post(f"/api/reservas-espaco/{id_reserva}/nao-compareceu", headers=auth_headers)
     assert r.status_code == 200, r.text
@@ -419,3 +432,22 @@ def test_cancelar_reserva_com_cobranca_nao_paga_cancela_a_cobranca(client, auth_
     assert r.status_code == 200, r.text
     titulo = next(t for t in client.get("/api/titulos/", headers=auth_headers).json() if t["id_titulo"] == id_titulo)
     assert titulo["status"] == "Cancelado" and titulo["saldo_devedor"] == 0  # nunca fica "Pendente" cobrando por reserva que não existe mais
+
+
+def test_espaco_com_nome_repetido_e_recusado_e_cancelar_tarde_conta_a_taxa(client, auth_headers):
+    nome = f"Espaço de nome único {uuid.uuid4().hex[:6]}"
+    assert client.post("/api/espacos/", json={"nome": nome, "tipo": "SALA"}, headers=auth_headers).status_code == 200
+    r = client.post("/api/espacos/", json={"nome": f"  {nome.upper()}  ", "tipo": "SALA"}, headers=auth_headers)
+    assert r.status_code == 400 and "Já existe um espaço com esse nome" in r.json()["detail"]
+
+    conta_receita = _criar_conta(client, auth_headers, "Receita")
+    id_espaco = _criar_espaco(client, auth_headers, valor_reserva=50, taxa_cancelamento_tardio=30, prazo_cancelamento_horas=48, id_conta_contabil_receita=conta_receita)
+    associado = _criar_associado(client)
+    r = client.post("/api/reservas-espaco/", json={
+        "id_espaco": id_espaco, "id_associado_solicitante": associado["id_associado"],
+        "data_hora_inicio": (datetime.utcnow() + timedelta(hours=5)).strftime(_ISO),
+        "data_hora_fim": (datetime.utcnow() + timedelta(hours=6)).strftime(_ISO), "finalidade": "Reserva cancelada em cima da hora",
+    }, headers=auth_headers)
+    r = client.post(f"/api/reservas-espaco/{r.json()['id_reserva']}/cancelar", json={"motivo": "Desisti em cima da hora."}, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["taxa"]["valor"] == 30.0 and r.json()["taxa"]["id_titulo"]  # a tela mostra a taxa a quem cancelou

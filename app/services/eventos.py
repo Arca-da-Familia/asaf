@@ -1,7 +1,7 @@
 """v4.5 (FASE 4) - Evento como entidade única e pontual, com sessões (programação) e edições
 recorrentes ligadas entre si. Inscrição reaproveita o motor genérico da v4.0
 (`app/services/inscricao.py`) - nenhum mecanismo de inscrição próprio aqui."""
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -196,6 +196,13 @@ def criar_sessao(
     evento = obter_evento(db, id_evento)
     if data_hora_fim is not None and data_hora_fim <= data_hora_inicio:
         raise HTTPException(status_code=422, detail="O fim da sessão precisa ser depois do início.")
+    # a programação cabe no período do evento: sessão dois dias antes do início, ou depois do fim, é erro de digitação. Os instantes ficam em UTC
+    # sem fuso: a hora que chega com fuso (o painel manda com "Z") é trazida para UTC antes de comparar, senão a comparação dá erro 500
+    inicio_utc = data_hora_inicio.astimezone(timezone.utc).replace(tzinfo=None) if data_hora_inicio.tzinfo else data_hora_inicio
+    if inicio_utc < evento.data_hora_inicio.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=3):
+        raise HTTPException(status_code=422, detail="A sessão não pode começar antes do dia do evento.")
+    if evento.data_hora_fim is not None and inicio_utc > evento.data_hora_fim:
+        raise HTTPException(status_code=422, detail="A sessão não pode começar depois do fim do evento.")
     if evento.visibilidade == "Pública":  # a programação aparece na página do evento
         exigir_texto_sem_dado_pessoal({"título da sessão": titulo, "descrição da sessão": descricao})
 
