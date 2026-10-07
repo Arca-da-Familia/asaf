@@ -13,6 +13,7 @@ import { DoacoesPage } from '@/pages/Doacoes'
 import { OrcamentoPage } from '@/pages/Orcamento'
 import { RelatoriosPage } from '@/pages/Relatorios'
 import { DocumentosEmitidosPage } from '@/pages/DocumentosEmitidos'
+import { InstituicaoPage } from '@/pages/Instituicao'
 import { FinanceiroInicioPage } from '@/pages/FinanceiroInicio'
 import { ReembolsoDespesaPage } from '@/pages/ReembolsoDespesa'
 import { AssembleiaDetalhePage } from '@/pages/AssembleiaDetalhe'
@@ -180,6 +181,16 @@ function App() {
               <ErrorBoundary tituloModulo="Petições de convocação">
                 <PeticoesConvocacaoPage />
               </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/instituicao"
+            element={
+              <RequirePermission permission="gerenciar_acesso">
+                <ErrorBoundary tituloModulo="Instituição">
+                  <InstituicaoPage />
+                </ErrorBoundary>
+              </RequirePermission>
             }
           />
           <Route

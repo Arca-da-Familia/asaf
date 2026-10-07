@@ -5715,3 +5715,31 @@ export function listarDocumentosEmitidos(filtros?: {
   const query = params.toString()
   return apiFetch(`/api/documentos-emitidos/${query ? `?${query}` : ''}`)
 }
+
+// ---------------------------------------------------------------------------
+// Instituição (v5.4h): os dados da própria associação, cada campo marcado "vai para o site" ou "só interno".
+export type CampoDaInstituicao = {
+  chave: string
+  grupo: string
+  rotulo: string
+  ajuda: string
+  tipo: string
+  valor: string
+  pode_ser_publico: boolean
+  publico: boolean
+  atualizado_em: string | null
+}
+
+export function listarCamposDaInstituicao(): Promise<CampoDaInstituicao[]> {
+  return apiFetch('/api/instituicao/')
+}
+
+export function editarCampoDaInstituicao(
+  chave: string,
+  corpo: { valor?: string; publico?: boolean },
+): Promise<{ chave: string; valor: string; publico: boolean }> {
+  return apiFetch(`/api/instituicao/${encodeURIComponent(chave)}`, {
+    method: 'PUT',
+    body: JSON.stringify(corpo),
+  })
+}

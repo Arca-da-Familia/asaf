@@ -9,7 +9,7 @@ import os
 
 from app.database import preparar_banco, seed_catalogos, seed_niveis_e_permissoes, seed_configuracoes_institucionais, seed_regras_estatutarias
 from app.services import armazenamento
-from app.routers import publico, arquivos, auth, core, associados, financeiro, governanca, projetos, filiacao, importacao, situacao, voluntariado, qualidade_cadastro, estatuto, mandatos, sessao_assembleia, votacao, ata, conselho_fiscal, disciplina, dissolucao, calendario, chamada, compras, doacoes, orcamento, relatorios, antifraude, motores, beneficiarios, espacos, eventos, portaria, certificados, pesquisa_satisfacao, documentos, parcerias
+from app.routers import instituicao, publico, arquivos, auth, core, associados, financeiro, governanca, projetos, filiacao, importacao, situacao, voluntariado, qualidade_cadastro, estatuto, mandatos, sessao_assembleia, votacao, ata, conselho_fiscal, disciplina, dissolucao, calendario, chamada, compras, doacoes, orcamento, relatorios, antifraude, motores, beneficiarios, espacos, eventos, portaria, certificados, pesquisa_satisfacao, documentos, parcerias
 from app.security import decodificar_access_token_silencioso
 
 # A auditoria de schema (preparar_banco) audita as ~50 tabelas uma a uma a cada start -
@@ -133,6 +133,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(core.router)
+app.include_router(instituicao.router)
 app.include_router(associados.router)
 app.include_router(financeiro.router)
 app.include_router(governanca.router)

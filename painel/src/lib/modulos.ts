@@ -363,6 +363,12 @@ export const modulos: Modulo[] = [
     icone: FileCheck,
   },
   {
+    rota: '/instituicao',
+    rotulo: 'Instituição',
+    permissao: 'gerenciar_acesso',
+    icone: Building2,
+  },
+  {
     rota: '/acesso',
     rotulo: 'Níveis e permissões',
     permissao: 'gerenciar_acesso',

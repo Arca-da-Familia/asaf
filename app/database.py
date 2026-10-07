@@ -524,6 +524,23 @@ def seed_configuracoes_institucionais():
         # pra confirmar antes de perder a vaga pro próximo da fila (ver app/services/vagas.py).
         {"chave": "PRAZO_CONFIRMACAO_LISTA_ESPERA_HORAS", "valor": "24", "tipo": "numero", "categoria": "regras", "descricao": "Horas que quem é promovido da lista de espera de um evento tem para confirmar a inscrição antes de perder a vaga para o próximo da fila."},
     ]
+    # módulo Instituição (v5.4h): contatos e redes (campos novos) e, para cada campo que pode ir para o site, a marca "vai para o site"
+    # (`PUBLICO__<CHAVE>`, verdadeiro/falso, ajustável no painel). Ver app/services/instituicao.py.
+    from app.services import instituicao as servico_instituicao
+
+    configs_padrao += [
+        {"chave": "TELEFONE_INSTITUCIONAL", "valor": "", "tipo": "texto", "categoria": "contato", "descricao": "Telefone ou WhatsApp que o público pode ligar."},
+        {"chave": "EMAIL_INSTITUCIONAL", "valor": "", "tipo": "email", "categoria": "contato", "descricao": "E-mail de contato da associação."},
+        {"chave": "HORARIO_ATENDIMENTO", "valor": "", "tipo": "texto", "categoria": "contato", "descricao": "Horário de atendimento ao público."},
+        {"chave": "SITE_INSTAGRAM", "valor": "", "tipo": "texto", "categoria": "redes", "descricao": "Instagram da associação (@perfil ou endereço)."},
+        {"chave": "SITE_FACEBOOK", "valor": "", "tipo": "texto", "categoria": "redes", "descricao": "Página da associação no Facebook (endereço)."},
+        {"chave": "DESCRICAO_INSTITUCIONAL", "valor": "", "tipo": "texto", "categoria": "identidade", "descricao": "Texto curto 'quem somos'."},
+    ]
+    configs_padrao += [
+        {"chave": chave, "valor": "true" if padrao else "false", "tipo": "booleano", "categoria": "visibilidade",
+         "descricao": "Se este campo da Instituição aparece no site público (verdadeiro) ou fica só interno (falso)."}
+        for chave, padrao in servico_instituicao.chaves_de_visibilidade()
+    ]
     db = SessaoLocal()
     try:
         for c in configs_padrao:
