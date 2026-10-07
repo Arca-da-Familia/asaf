@@ -9,6 +9,7 @@ import {
   decidirTituloNaAuditoria,
   listarAuditoriaFinanceira,
   listarPlanoContas,
+  responderQuestionamento,
   type DecisaoNaAuditoria,
   type ResultadoDoLote,
   type TituloNaAuditoria,
@@ -92,6 +93,25 @@ function CartaoDoTitulo({
     },
   })
 
+  // quem lança (a tesouraria) responde ali mesmo às perguntas abertas do Conselho; é o que libera o título suspenso
+  const [respondendo, setRespondendo] = useState<number | null>(null)
+  const [resposta, setResposta] = useState('')
+  const responder = useMutation({
+    mutationFn: (v: { idQuestionamento: number; texto: string }) =>
+      responderQuestionamento(v.idQuestionamento, { texto: v.texto }),
+    onSuccess: () => {
+      setRespondendo(null)
+      setResposta('')
+      queryClient.invalidateQueries({ queryKey: ['auditoria-financeira'] })
+    },
+  })
+  const perguntasAbertas = podeDecidir
+    ? []
+    : t.decisoes.filter(
+        (d) =>
+          d.vigente && d.questionamento === 'Aberto' && d.id_questionamento,
+      )
+
   const aprovado = t.situacao === 'Aprovado'
   const podeAgir = podeDecidir && !t.sou_parte
   const id = `explicacao-${t.id_titulo}`
@@ -135,6 +155,67 @@ function CartaoDoTitulo({
             </li>
           ))}
         </ul>
+      )}
+
+      {perguntasAbertas.map((d) => (
+        <div key={d.id_auditoria} className="mt-2 space-y-2">
+          {respondendo === d.id_questionamento ? (
+            <>
+              <label
+                htmlFor={`resposta-${d.id_auditoria}`}
+                className="block text-xs font-medium"
+              >
+                Resposta da tesouraria a {d.conselheiro}
+              </label>
+              <textarea
+                id={`resposta-${d.id_auditoria}`}
+                rows={3}
+                value={resposta}
+                onChange={(e) => setResposta(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  disabled={resposta.trim().length < 3 || responder.isPending}
+                  onClick={() =>
+                    responder.mutate({
+                      idQuestionamento: d.id_questionamento as number,
+                      texto: resposta.trim(),
+                    })
+                  }
+                >
+                  Enviar resposta
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setRespondendo(null)
+                    setResposta('')
+                    responder.reset()
+                  }}
+                >
+                  Cancelar resposta
+                </Button>
+              </div>
+            </>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              aria-label={`Responder a ${d.conselheiro}: ${t.descricao}`}
+              onClick={() => setRespondendo(d.id_questionamento)}
+            >
+              Responder a {d.conselheiro}
+            </Button>
+          )}
+        </div>
+      ))}
+      {responder.isError && (
+        <p role="alert" className="mt-2 text-xs text-destructive">
+          {(responder.error as Error).message}
+        </p>
       )}
 
       {t.sou_parte && podeDecidir && (

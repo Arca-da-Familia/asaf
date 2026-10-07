@@ -32,7 +32,8 @@ MOTORISTA = textwrap.dedent(
         resultado = ph.popular(client, db, admin_senha="Senha-De-Teste-Do-Roteiro-1", escrever=saidas.append,
                                senhas={{"secretario": "Secretaria-Senha-Do-Cofre-77", "tesoureiro": "Tesouraria-Senha-Do-Cofre-88",
                                        "cargo_presidente": "CargoPresidente-Senha-Do-Cofre-11", "vice_presidente": "VicePresidente-Senha-Do-Cofre-22",
-                                       "vice_presidente_2": "VicePresidente2-Senha-Do-Cofre-33", "conselheiro": "Conselheiro-Senha-Do-Cofre-44"}})
+                                       "vice_presidente_2": "VicePresidente2-Senha-Do-Cofre-33", "conselheiro": "Conselheiro-Senha-Do-Cofre-44",
+                                       "conselheiro_2": "Conselheiro2-Senha-Do-Cofre-55", "conselheiro_3": "Conselheiro3-Senha-Do-Cofre-66"}})
         def entrar():
             # entra pelo caminho de verdade (CPF e senha) e pergunta ao sistema se ainda exige o segundo passo
             login = client.post("/auth/login", json={{"cpf": ph.cpf_valido(111000111), "senha": "Senha-De-Teste-Do-Roteiro-1"}})
@@ -156,14 +157,18 @@ def test_cria_o_secretario_e_o_tesoureiro_de_teste_e_nao_vaza_senha(execucao):
     dados, processo = execucao
     usuarios = dados["resultado"]["usuarios"]
     # os extras (diretoria com cargo e conselheiro fiscal) só existem porque o cofre trouxe a senha deles
-    assert set(usuarios) == {"presidente", "secretario", "tesoureiro", "cargo_presidente", "vice_presidente", "vice_presidente_2", "conselheiro"}
+    assert set(usuarios) == {
+        "presidente", "secretario", "tesoureiro", "cargo_presidente", "vice_presidente", "vice_presidente_2", "conselheiro", "conselheiro_2",
+        "conselheiro_3",
+    }
     saida_visivel = "\n".join(dados["saidas"]) + processo.stderr
     assert usuarios["secretario"]["senha"] == "Secretaria-Senha-Do-Cofre-77", "usa a senha recebida do cofre"
     assert usuarios["tesoureiro"]["senha"] == "Tesouraria-Senha-Do-Cofre-88"
     assert usuarios["conselheiro"]["cpf"] == "22205543334", "o CPF inventado que o robô e o HOMOLOGACAO.md conhecem"
     assert usuarios["vice_presidente"]["cpf"] == "22200791984" and usuarios["vice_presidente_2"]["cpf"] == "22201583811"
     assert usuarios["cargo_presidente"]["cpf"] == "22200000014"
-    for papel in ("secretario", "tesoureiro", "cargo_presidente", "vice_presidente", "vice_presidente_2", "conselheiro"):
+    assert usuarios["conselheiro_2"]["cpf"] == "22206335271" and usuarios["conselheiro_3"]["cpf"] == "22207127109"
+    for papel in ("secretario", "tesoureiro", "cargo_presidente", "vice_presidente", "vice_presidente_2", "conselheiro", "conselheiro_2", "conselheiro_3"):
         assert usuarios[papel]["senha"] and usuarios[papel]["cpf"] and usuarios[papel]["email"].endswith("@homologacao.example.com")
         assert usuarios[papel]["senha"] not in saida_visivel
     assert "Senha-De-Teste-Do-Roteiro-1" not in saida_visivel, "a senha do administrador nunca aparece na saída"

@@ -5755,6 +5755,7 @@ export type RegistroDaAuditoria = {
   observacao: string | null
   em: string | null
   vigente: boolean
+  id_questionamento: number | null
   questionamento: 'Aberto' | 'Respondido' | null
 }
 

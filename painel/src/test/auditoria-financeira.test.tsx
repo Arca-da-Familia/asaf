@@ -14,6 +14,7 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   decidirTituloNaAuditoria: vi.fn(),
   aprovarEmLoteNaAuditoria: vi.fn(),
   listarPlanoContas: vi.fn(),
+  responderQuestionamento: vi.fn(),
 }))
 
 const titulo = (
@@ -105,6 +106,7 @@ describe('Auditoria financeira', () => {
               observacao: 'Falta a nota fiscal.',
               em: null,
               vigente: true,
+              id_questionamento: 7,
               questionamento: 'Aberto',
             },
           ],
@@ -138,6 +140,75 @@ describe('Auditoria financeira', () => {
     await screen.findByText(/— Resma de papel$/)
     expect(screen.queryByRole('button', { name: /Aprovar/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /Reprovar/ })).toBeNull()
+  })
+
+  it('a tesouraria responde à pergunta aberta no próprio cartão; o conselheiro não vê esse botão', async () => {
+    const u = userEvent.setup()
+    const suspenso = titulo(2, 'Toner', {
+      situacao: 'Suspenso',
+      decisoes: [
+        {
+          id_auditoria: 5,
+          conselheiro: 'Heitor',
+          decisao: 'Com ressalva',
+          observacao: 'Falta a nota fiscal.',
+          em: null,
+          vigente: true,
+          id_questionamento: 7,
+          questionamento: 'Aberto',
+        },
+      ],
+    })
+    vi.mocked(api.listarAuditoriaFinanceira).mockResolvedValue(
+      lista([suspenso], false),
+    )
+    vi.mocked(api.responderQuestionamento).mockResolvedValue({
+      id_resposta: 1,
+      status_questionamento: 'Respondido',
+    })
+    desenhar()
+    await u.click(
+      await screen.findByRole('button', {
+        name: 'Responder a Heitor: Toner',
+      }),
+    )
+    const enviar = screen.getByRole('button', { name: 'Enviar resposta' })
+    expect(enviar).toBeDisabled()
+    await u.type(
+      screen.getByLabelText('Resposta da tesouraria a Heitor'),
+      'Nota fiscal anexada hoje.',
+    )
+    await u.click(enviar)
+    await waitFor(() =>
+      expect(api.responderQuestionamento).toHaveBeenCalledWith(7, {
+        texto: 'Nota fiscal anexada hoje.',
+      }),
+    )
+  })
+
+  it('o conselheiro não vê o botão de responder (quem pergunta não responde)', async () => {
+    vi.mocked(api.listarAuditoriaFinanceira).mockResolvedValue(
+      lista([
+        titulo(2, 'Toner', {
+          situacao: 'Suspenso',
+          decisoes: [
+            {
+              id_auditoria: 5,
+              conselheiro: 'Heitor',
+              decisao: 'Com ressalva',
+              observacao: 'Falta a nota fiscal.',
+              em: null,
+              vigente: true,
+              id_questionamento: 7,
+              questionamento: 'Aberto',
+            },
+          ],
+        }),
+      ]),
+    )
+    desenhar()
+    await screen.findByText(/— Toner$/)
+    expect(screen.queryByRole('button', { name: /Responder a/ })).toBeNull()
   })
 
   it('o conselheiro aprova com um clique, e a resposta recarrega a lista', async () => {

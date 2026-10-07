@@ -238,6 +238,7 @@ def listar_auditoria_financeira(
                 {
                     "id_auditoria": l.id_auditoria, "conselheiro": nomes.get(l.id_associado_conselheiro, "-"), "decisao": l.decisao,
                     "observacao": l.observacao, "em": l.criado_em, "vigente": l.id_auditoria in vigentes_ids,
+                    "id_questionamento": l.id_questionamento,
                     "questionamento": None if not l.id_questionamento else ("Aberto" if l.id_questionamento in e["questionamentos_abertos"] else RESPONDIDO),
                 }
                 for l in e["historico"]

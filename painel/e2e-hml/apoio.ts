@@ -22,6 +22,9 @@ export type Papel =
   | 'vice_presidente'
   | 'vice_presidente_2'
   | 'conselheiro'
+  // os outros dois do Conselho Fiscal (Art. 24: três membros): a auditoria financeira só aprova e trava com a maioria, 2 de 3
+  | 'conselheiro_2'
+  | 'conselheiro_3'
 
 // CPFs inventados (não são segredo; estão no HOMOLOGACAO.md). As senhas vêm do cofre pelo fluxo.
 const CPF: Record<Papel, string> = {
@@ -32,9 +35,12 @@ const CPF: Record<Papel, string> = {
   vice_presidente: '222.007.919-84',
   vice_presidente_2: '222.015.838-11',
   conselheiro: '222.055.433-34',
+  conselheiro_2: '222.063.352-71',
+  conselheiro_3: '222.071.271-09',
 }
 
-function senhaDe(papel: Papel): string {
+/** A senha de teste do papel (do cofre, pelo fluxo). Nunca é impressa nem anexada; só vai para a API de teste, quando o roteiro dá acesso a alguém. */
+export function senhaDe(papel: Papel): string {
   const senha =
     papel === 'presidente'
       ? process.env.HML_ADMIN_SENHA

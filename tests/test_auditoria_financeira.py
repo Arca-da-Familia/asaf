@@ -114,6 +114,7 @@ def test_ressalva_exige_explicacao_abre_pergunta_suspende_e_a_resposta_libera(cl
     assert item["situacao"] == "Suspenso" and item["aprovacoes"] == 2
     ressalva = next(d for d in item["decisoes"] if d["decisao"] == "Com ressalva")
     assert ressalva["questionamento"] == "Aberto" and "nota fiscal" in ressalva["observacao"]
+    assert ressalva["id_questionamento"] == id_questionamento, "a tela responde a pergunta pelo número dela"
 
     r = client.post(f"/api/questionamentos/{id_questionamento}/respostas", json={"texto": "Nota fiscal anexada hoje, conferir."}, headers=_headers(tesoureiro))
     assert r.status_code == 200, r.text

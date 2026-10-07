@@ -64,6 +64,8 @@ Os CPFs são inventados e não são segredo:
 | 1º Vice-Presidente (Bruno) | 222.007.919-84 | `HML-USUARIOS` (vice_presidente) | associados e governança; manifesta na disciplina |
 | 2ª Vice-Presidente (Carla) | 222.015.838-11 | `HML-USUARIOS` (vice_presidente_2) | associados e governança; manifesta na disciplina |
 | Conselheiro Fiscal (Heitor) | 222.055.433-34 | `HML-USUARIOS` (conselheiro) | financeiro e auditoria; emite parecer e questiona (cargo no Conselho Fiscal) |
+| 2º Conselheiro Fiscal | 222.063.352-71 | `HML-USUARIOS` (conselheiro_2) | igual ao Heitor; com ele a auditoria financeira alcança a maioria (2 de 3) |
+| 3º Conselheiro Fiscal | 222.071.271-09 | `HML-USUARIOS` (conselheiro_3) | igual ao Heitor; o terceiro voto da auditoria financeira |
 
 Não há segundo passo: CPF e senha bastam. Para testar o fluxo "quem criou não aprova", entre com o Secretário ou o Tesoureiro para
 preparar e com o Presidente para aprovar. Dá para criar, aprovar, desfazer e errar à vontade; se quiser recomeçar do zero, rode o fluxo
