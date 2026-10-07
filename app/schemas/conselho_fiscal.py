@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel, field_validator
 
 from app.models.conselho_fiscal import TIPOS_PARECER
@@ -50,3 +52,18 @@ class RespostaCriar(BaseModel):
         if len(v.strip()) < 3:
             raise ValueError("Escreva a resposta.")
         return v.strip()
+
+
+class DecisaoDeTituloCriar(BaseModel):
+    """Decisão de um conselheiro sobre um título na auditoria financeira (v5.4h). Reprovar, ressalvar e reabrir exigem a explicação."""
+    decisao: str
+    observacao: Optional[str] = None
+
+
+class AprovacaoEmLoteCriar(BaseModel):
+    """Aprovar de uma vez os títulos pendentes de um mês (e, se quiser, de uma categoria): o mês é obrigatório para ninguém aprovar o sistema
+    inteiro por engano."""
+    mes: str
+    tipo_titulo: Optional[str] = None
+    id_conta_contabil: Optional[int] = None
+    busca: Optional[str] = None

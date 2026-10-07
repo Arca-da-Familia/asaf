@@ -144,6 +144,11 @@ export const modulos: Modulo[] = [
         icone: ArrowUpFromLine,
       },
       {
+        rota: '/financeiro/auditoria-financeira',
+        rotulo: 'Auditoria financeira',
+        icone: ListChecks,
+      },
+      {
         rota: '/financeiro/plano-contas',
         rotulo: 'Plano de Contas',
         icone: BookOpen,

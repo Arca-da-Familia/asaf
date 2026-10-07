@@ -58,6 +58,7 @@ class RespostaQuestionamento(Base):
 APROVADO = "Aprovado"
 REPROVADO = "Reprovado"
 DECISOES_AUDITORIA = {APROVADO, REPROVADO, COM_RESSALVA}
+REABERTO = "Reaberto"  # não é um voto: zera as decisões vigentes de um título aprovado (o histórico fica)
 
 
 class AuditoriaDeTitulo(Base):

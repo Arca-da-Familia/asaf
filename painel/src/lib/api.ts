@@ -5743,3 +5743,117 @@ export function editarCampoDaInstituicao(
     body: JSON.stringify(corpo),
   })
 }
+
+// ---- Auditoria financeira do Conselho Fiscal (v5.4h): o Conselho aprova, reprova ou ressalva cada título do mês.
+export type DecisaoNaAuditoria =
+  'Aprovado' | 'Reprovado' | 'Com ressalva' | 'Reaberto'
+
+export type RegistroDaAuditoria = {
+  id_auditoria: number
+  conselheiro: string
+  decisao: DecisaoNaAuditoria
+  observacao: string | null
+  em: string | null
+  vigente: boolean
+  questionamento: 'Aberto' | 'Respondido' | null
+}
+
+export type SituacaoNaAuditoria = 'Pendente' | 'Suspenso' | 'Aprovado'
+
+export type TituloNaAuditoria = {
+  id_titulo: number
+  tipo_titulo: string
+  descricao: string
+  conta_contabil: string
+  beneficiario: string
+  valor_original: number
+  saldo_devedor: number
+  data_vencimento: string | null
+  status: string
+  situacao: SituacaoNaAuditoria
+  aprovacoes: number
+  quorum: number
+  minha_decisao: DecisaoNaAuditoria | null
+  sou_parte: boolean
+  decisoes: RegistroDaAuditoria[]
+}
+
+export type ListaDaAuditoriaFinanceira = {
+  itens: TituloNaAuditoria[]
+  total: number
+  pagina: number
+  por_pagina: number
+  resumo: Record<SituacaoNaAuditoria, number> & { total: number }
+  quorum: number
+  pode_decidir: boolean
+}
+
+export type FiltrosDaAuditoriaFinanceira = {
+  mes?: string
+  tipo_titulo?: string
+  id_conta_contabil?: number
+  situacao?: string
+  busca?: string
+  pagina?: number
+  por_pagina?: number
+}
+
+function consultaDaAuditoriaFinanceira(
+  filtros: FiltrosDaAuditoriaFinanceira,
+): string {
+  const params = new URLSearchParams()
+  for (const [chave, valor] of Object.entries(filtros)) {
+    if (valor !== undefined && valor !== '' && valor !== null)
+      params.set(chave, String(valor))
+  }
+  const query = params.toString()
+  return query ? `?${query}` : ''
+}
+
+export function listarAuditoriaFinanceira(
+  filtros: FiltrosDaAuditoriaFinanceira,
+): Promise<ListaDaAuditoriaFinanceira> {
+  return apiFetch(
+    `/api/conselho-fiscal/auditoria-financeira/${consultaDaAuditoriaFinanceira(filtros)}`,
+  )
+}
+
+export function decidirTituloNaAuditoria(
+  idTitulo: number,
+  dados: { decisao: DecisaoNaAuditoria; observacao?: string },
+): Promise<{
+  id_auditoria: number
+  decisao: DecisaoNaAuditoria
+  situacao: SituacaoNaAuditoria
+  aprovacoes: number
+  quorum: number
+  id_questionamento: number | null
+}> {
+  return apiFetch(
+    `/api/conselho-fiscal/auditoria-financeira/titulos/${idTitulo}/decisao`,
+    { method: 'POST', body: JSON.stringify(dados) },
+  )
+}
+
+export type ResultadoDoLote = {
+  aprovados: number
+  ignorados: {
+    ja_aprovados_por_voce: number
+    suspensos: number
+    ja_travados: number
+    seus: number
+    com_decisao_sua_diferente: number
+  }
+}
+
+export function aprovarEmLoteNaAuditoria(corpo: {
+  mes: string
+  tipo_titulo?: string
+  id_conta_contabil?: number
+  busca?: string
+}): Promise<ResultadoDoLote> {
+  return apiFetch('/api/conselho-fiscal/auditoria-financeira/aprovar-em-lote', {
+    method: 'POST',
+    body: JSON.stringify(corpo),
+  })
+}

@@ -6,16 +6,21 @@ Fiscal/Diretoria/Presidente a têm por padrão, v0.1.5) - "irrestrita" é sobre 
 escondido do conselho), não sobre inventar uma trava nova. Emitir parecer e abrir questionamento,
 esses sim são exclusivos de quem tem nível com `is_conselho_fiscal=True` (segregação de função:
 quem fiscaliza não é quem lança)."""
-from fastapi import APIRouter, Depends, HTTPException, Request
+import re
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.associados import Associado
 from app.models.conselho_fiscal import RESPONDIDO, ParecerPrestacaoContas, QuestionamentoLancamento, RespostaQuestionamento
-from app.models.financeiro import LancamentoContabil, TituloFinanceiro
-from app.schemas.conselho_fiscal import ParecerCriar, QuestionamentoCriar, RespostaCriar
+from app.models.financeiro import Fornecedor, LancamentoContabil, PlanoDeContas, TituloFinanceiro
+from app.routers.financeiro import _consulta_de_titulos
+from app.schemas.conselho_fiscal import AprovacaoEmLoteCriar, DecisaoDeTituloCriar, ParecerCriar, QuestionamentoCriar, RespostaCriar
 from app.security import exigir_permissao, get_current_user
+from app.services import auditoria_financeira
 from app.services.conselho_fiscal import usuario_e_conselho_fiscal
 
 router = APIRouter()
@@ -163,3 +168,145 @@ def responder_questionamento(id_questionamento: int, dados: RespostaCriar, reque
 def listar_respostas(id_questionamento: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
     respostas = db.query(RespostaQuestionamento).filter(RespostaQuestionamento.id_questionamento == id_questionamento).order_by(RespostaQuestionamento.criado_em).all()
     return [{"id_resposta": r.id_resposta, "texto": r.texto, "criado_em": r.criado_em} for r in respostas]
+
+
+# ==========================================
+# AUDITORIA FINANCEIRA (v5.4h): o Conselho Fiscal decide, título a título, o que está certo (regras em app/services/auditoria_financeira.py)
+# ==========================================
+_MES = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+
+
+def _associado_do_usuario(db: Session, usuario) -> Optional[Associado]:
+    return db.query(Associado).filter(Associado.id_usuario == usuario.id_usuario).first()
+
+
+def _nome_dos_associados(db: Session, ids: set[int]) -> dict[int, str]:
+    if not ids:
+        return {}
+    return {a.id_associado: a.nome_completo for a in db.query(Associado).filter(Associado.id_associado.in_(ids)).all()}
+
+
+@router.get("/api/conselho-fiscal/auditoria-financeira/", summary="Títulos do mês com a situação na auditoria do Conselho Fiscal")
+def listar_auditoria_financeira(
+    mes: Optional[str] = None, tipo_titulo: Optional[str] = None, id_conta_contabil: Optional[int] = None, situacao: Optional[str] = None,
+    busca: Optional[str] = None, pagina: int = Query(1, ge=1), por_pagina: int = Query(25, ge=1, le=200),
+    db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro),
+):
+    if situacao and situacao not in auditoria_financeira.SITUACOES:
+        raise HTTPException(status_code=422, detail=f"A situação deve ser uma de: {', '.join(auditoria_financeira.SITUACOES)}.")
+    consulta = _consulta_de_titulos(
+        db, status=None, tipo_titulo=tipo_titulo, mes=mes, data_de=None, data_ate=None, busca=busca, id_conta_contabil=id_conta_contabil,
+    )
+    titulos = consulta.order_by(TituloFinanceiro.data_vencimento, TituloFinanceiro.id_titulo).all()
+    estados = auditoria_financeira.situacoes_dos_titulos(db, [t.id_titulo for t in titulos])
+    resumo = {s: 0 for s in auditoria_financeira.SITUACOES}
+    for e in estados.values():
+        resumo[e["situacao"]] += 1
+    resumo["total"] = len(titulos)
+
+    escolhidos = [t for t in titulos if not situacao or estados[t.id_titulo]["situacao"] == situacao]
+    da_pagina = escolhidos[(pagina - 1) * por_pagina: pagina * por_pagina]
+
+    conselheiro = _associado_do_usuario(db, usuario) if usuario_e_conselho_fiscal(db, usuario) else None
+    contas = {c.id_conta: c for c in db.query(PlanoDeContas).all()}
+    fornecedores = {f.id_fornecedor: f for f in db.query(Fornecedor).all()}
+    ids_pessoas = {t.id_associado for t in da_pagina if t.id_associado}
+    for t in da_pagina:
+        ids_pessoas |= {l.id_associado_conselheiro for l in estados[t.id_titulo]["historico"]}
+    nomes = _nome_dos_associados(db, ids_pessoas)
+
+    itens = []
+    for t in da_pagina:
+        e = estados[t.id_titulo]
+        vigentes_ids = {d.id_auditoria for d in e["vigentes"].values()}
+        minha = e["vigentes"].get(conselheiro.id_associado) if conselheiro else None
+        conta = contas.get(t.id_conta_contabil)
+        if t.id_associado:
+            beneficiario = nomes.get(t.id_associado)
+        else:
+            fornecedor = fornecedores.get(t.id_fornecedor)
+            beneficiario = fornecedor.razao_social if fornecedor else None
+        itens.append({
+            "id_titulo": t.id_titulo, "tipo_titulo": t.tipo_titulo, "descricao": t.descricao,
+            "conta_contabil": conta.descricao_conta if conta else "", "beneficiario": beneficiario or "-",
+            "valor_original": t.valor_original, "saldo_devedor": t.saldo_devedor,
+            "data_vencimento": t.data_vencimento.date().isoformat() if t.data_vencimento else None, "status": t.status,
+            "situacao": e["situacao"], "aprovacoes": e["aprovacoes"], "quorum": e["quorum"],
+            "minha_decisao": minha.decisao if minha else None,
+            "sou_parte": bool(conselheiro and t.id_associado and t.id_associado == conselheiro.id_associado),
+            "decisoes": [
+                {
+                    "id_auditoria": l.id_auditoria, "conselheiro": nomes.get(l.id_associado_conselheiro, "-"), "decisao": l.decisao,
+                    "observacao": l.observacao, "em": l.criado_em, "vigente": l.id_auditoria in vigentes_ids,
+                    "questionamento": None if not l.id_questionamento else ("Aberto" if l.id_questionamento in e["questionamentos_abertos"] else RESPONDIDO),
+                }
+                for l in e["historico"]
+            ],
+        })
+    return {
+        "itens": itens, "total": len(escolhidos), "pagina": pagina, "por_pagina": por_pagina, "resumo": resumo,
+        "quorum": auditoria_financeira.quorum(db), "pode_decidir": conselheiro is not None,
+    }
+
+
+@router.post("/api/conselho-fiscal/auditoria-financeira/titulos/{id_titulo}/decisao", summary="Aprovar, reprovar, ressalvar ou reabrir um título (Conselho Fiscal)")
+def decidir_titulo(id_titulo: int, dados: DecisaoDeTituloCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    conselheiro = _exigir_conselho_fiscal(db, usuario)
+    titulo = db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == id_titulo).first()
+    if not titulo:
+        raise HTTPException(status_code=404, detail="Título financeiro não encontrado.")
+    linha = auditoria_financeira.registrar_decisao(
+        db, titulo=titulo, conselheiro=conselheiro, id_usuario=usuario.id_usuario, decisao=dados.decisao, observacao=dados.observacao,
+    )
+    registrar_auditoria(
+        db, usuario, "auditorias_de_titulo", "AUDITORIA_FINANCEIRA_DECISAO", id_registro_afetado=linha.id_auditoria,
+        dados_depois={"id_titulo": id_titulo, "decisao": linha.decisao, "observacao": linha.observacao, "id_questionamento": linha.id_questionamento},
+        ip_origem=request.client.host if request.client else None,
+    )
+    estado = auditoria_financeira.situacoes_dos_titulos(db, [id_titulo])[id_titulo]
+    return {
+        "id_auditoria": linha.id_auditoria, "decisao": linha.decisao, "situacao": estado["situacao"], "aprovacoes": estado["aprovacoes"],
+        "quorum": estado["quorum"], "id_questionamento": linha.id_questionamento,
+    }
+
+
+@router.post("/api/conselho-fiscal/auditoria-financeira/aprovar-em-lote", summary="Aprovar de uma vez os títulos pendentes de um mês (e categoria)")
+def aprovar_em_lote(dados: AprovacaoEmLoteCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    conselheiro = _exigir_conselho_fiscal(db, usuario)
+    if not _MES.match(dados.mes or ""):
+        raise HTTPException(status_code=422, detail="Informe o mês no formato AAAA-MM: aprovar em lote vale para um mês de cada vez.")
+    titulos = _consulta_de_titulos(
+        db, status=None, tipo_titulo=dados.tipo_titulo, mes=dados.mes, data_de=None, data_ate=None, busca=dados.busca, id_conta_contabil=dados.id_conta_contabil,
+    ).order_by(TituloFinanceiro.data_vencimento, TituloFinanceiro.id_titulo).all()
+    if len(titulos) > auditoria_financeira.MAXIMO_POR_LOTE:
+        raise HTTPException(status_code=422, detail=f"São {len(titulos)} títulos; o lote aceita até {auditoria_financeira.MAXIMO_POR_LOTE}. Refine por categoria ou por tipo.")
+    estados = auditoria_financeira.situacoes_dos_titulos(db, [t.id_titulo for t in titulos])
+    aprovados: list[int] = []
+    ignorados = {"ja_aprovados_por_voce": 0, "suspensos": 0, "ja_travados": 0, "seus": 0, "com_decisao_sua_diferente": 0}
+    for t in titulos:
+        e = estados[t.id_titulo]
+        minha = e["vigentes"].get(conselheiro.id_associado)
+        if e["situacao"] == auditoria_financeira.APROVADO:
+            ignorados["ja_travados"] += 1
+        elif e["situacao"] == auditoria_financeira.SUSPENSO:
+            ignorados["suspensos"] += 1
+        elif t.id_associado and t.id_associado == conselheiro.id_associado:
+            ignorados["seus"] += 1
+        elif minha is not None and minha.decisao == auditoria_financeira.APROVADO:
+            ignorados["ja_aprovados_por_voce"] += 1
+        elif minha is not None:
+            ignorados["com_decisao_sua_diferente"] += 1  # reprovou ou ressalvou antes: reconsiderar é título a título, com a resposta da tesouraria à vista
+        else:
+            auditoria_financeira.registrar_decisao(
+                db, titulo=t, conselheiro=conselheiro, id_usuario=usuario.id_usuario, decisao=auditoria_financeira.APROVADO, observacao=None,
+            )
+            aprovados.append(t.id_titulo)
+    registrar_auditoria(
+        db, usuario, "auditorias_de_titulo", "AUDITORIA_FINANCEIRA_LOTE",
+        dados_depois={
+            "mes": dados.mes, "tipo_titulo": dados.tipo_titulo, "id_conta_contabil": dados.id_conta_contabil, "busca": dados.busca,
+            "ids_titulos": aprovados, "ignorados": ignorados,
+        },
+        ip_origem=request.client.host if request.client else None,
+    )
+    return {"aprovados": len(aprovados), "ignorados": ignorados}

@@ -43,7 +43,7 @@ from app.schemas.financeiro import (
     TituloCriar, BaixarTitulo, TransferenciaCriar,
 )
 from app.security import exigir_permissao
-from app.services import armazenamento, conciliacao, contabilidade, contribuicoes, negociacao, pix as pix_service
+from app.services import armazenamento, auditoria_financeira, conciliacao, contabilidade, contribuicoes, negociacao, pix as pix_service
 from app.services.categoria_associado import recalcular_categoria_associado
 from app.services.formato import reais
 
@@ -581,6 +581,8 @@ def negociar_divida_endpoint(dados: NegociacaoDividaCriar, request: Request, db:
     título(s) original(is) nunca são editados/apagados - ganham status "Renegociado" (ver
     app/services/negociacao.py::negociar_divida). Termo de confissão de dívida registrado em
     texto (assinatura eletrônica fica pra FASE 20, ainda não existe)."""
+    for id_titulo_original in dados.ids_titulos_originais:
+        auditoria_financeira.exigir_titulo_destravado(db, id_titulo_original, "renegociar a dívida")
     nova_negociacao = negociacao.negociar_divida(
         db, id_associado=dados.id_associado, ids_titulos_originais=dados.ids_titulos_originais,
         quantidade_parcelas=dados.quantidade_parcelas, termo=dados.termo, id_usuario=usuario.id_usuario,
@@ -758,6 +760,8 @@ def estornar_lancamento_endpoint(id_lancamento: int, dados: EstornoCriar, reques
     if not original:
         raise HTTPException(status_code=404, detail="Lançamento não encontrado.")
 
+    # v5.4h: título aprovado pelo Conselho Fiscal está travado (só se estorna depois que um conselheiro reabrir a auditoria dele)
+    auditoria_financeira.exigir_titulo_destravado(db, original.id_titulo, "estornar o lançamento dele")
     valor_original = contabilidade.valor_total_lancamento(original)
     estorno = contabilidade.estornar_lancamento(db, original=original, motivo=dados.motivo, id_usuario=usuario.id_usuario)
 

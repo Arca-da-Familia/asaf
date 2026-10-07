@@ -76,6 +76,7 @@ import { RegrasDoEstatutoPage } from '@/pages/RegrasDoEstatuto'
 import { PortariaGate } from '@/pages/PortariaGate'
 import { RazaoContabilPage } from '@/pages/RazaoContabil'
 import { SessaoAssembleiaPage } from '@/pages/SessaoAssembleia'
+import { AuditoriaFinanceiraPage } from '@/pages/AuditoriaFinanceira'
 import { TitulosPage } from '@/pages/Titulos'
 
 export function RequireAuth({ children }: { children: ReactNode }) {
@@ -352,6 +353,14 @@ function App() {
               element={
                 <ErrorBoundary tituloModulo="Saídas">
                   <TitulosPage tipoFixo="A Pagar" />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="auditoria-financeira"
+              element={
+                <ErrorBoundary tituloModulo="Auditoria financeira">
+                  <AuditoriaFinanceiraPage />
                 </ErrorBoundary>
               }
             />
