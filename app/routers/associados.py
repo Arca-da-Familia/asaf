@@ -35,7 +35,7 @@ from app.services.matricula import proximo_numero_matricula
 
 router = APIRouter()
 _permissao_associados = exigir_permissao("associados")
-_permissao_seletor_de_associado = exigir_alguma_permissao("associados", "financeiro")
+_permissao_seletor_de_associado = exigir_alguma_permissao("associados", "financeiro", "projetos")
 
 
 def _associado_do_proprio_ou_de_quem_tem_permissao(db: Session, usuario: Usuario, id_associado: int) -> Associado:

@@ -2,7 +2,7 @@
 encerramento formal. Corrige o achado registrado pela v2.9: `criar_projeto`/`alocar_voluntario`
 eram protótipo v0.1/v0.2 sem `exigir_permissao`/`registrar_auditoria` - agora seguem o mesmo
 padrão do resto do sistema."""
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
@@ -160,6 +160,19 @@ def criar_vaga_escala_endpoint(id_projeto: int, dados: VagaEscalaCriar, request:
 @router.get("/api/projetos/{id_projeto}/vagas-escala", summary="Listar vagas de escala do projeto")
 def listar_vagas_escala_endpoint(id_projeto: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
     return [_serializar_vaga(v) for v in projetos.listar_vagas_escala(db, id_projeto=id_projeto)]
+
+
+@router.get("/api/projetos/{id_projeto}/alocacoes", summary="Escala do projeto: quem está alocado, em que turno e em que situação")
+def listar_alocacoes_do_projeto_endpoint(id_projeto: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    from app.models.associados import Associado
+    from app.models.projetos import ProjetoEvento
+
+    if not db.query(ProjetoEvento).filter(ProjetoEvento.id_projeto == id_projeto).first():
+        raise HTTPException(status_code=404, detail="Projeto não encontrado.")
+    alocacoes = projetos.listar_alocacoes_do_projeto(db, id_projeto=id_projeto)
+    ids = {a.id_associado for a in alocacoes}
+    nomes = {x.id_associado: x.nome_completo for x in db.query(Associado).filter(Associado.id_associado.in_(ids)).all()} if ids else {}
+    return [{**_serializar_alocacao(a), "nome_associado": nomes.get(a.id_associado, "-")} for a in alocacoes]
 
 
 @router.get("/api/projetos/{id_projeto}/candidaturas-pendentes", summary="Listar candidaturas de voluntário pendentes do projeto")

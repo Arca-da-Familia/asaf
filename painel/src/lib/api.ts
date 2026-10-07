@@ -4457,6 +4457,30 @@ export function listarCandidaturasPendentes(
   return apiFetch(`/api/projetos/${idProjeto}/candidaturas-pendentes`)
 }
 
+export type AlocacaoDoProjeto = AlocacaoVoluntario & { nome_associado: string }
+
+// A escala do projeto inteira (confirmadas, pendentes, recusadas e canceladas), por turno.
+export function listarAlocacoesDoProjeto(
+  idProjeto: number,
+): Promise<AlocacaoDoProjeto[]> {
+  return apiFetch(`/api/projetos/${idProjeto}/alocacoes`)
+}
+
+// Alocação direta pela equipe: já nasce confirmada (exige o termo de voluntariado vigente da pessoa).
+export function alocarVoluntario(dados: {
+  id_projeto: number
+  id_associado: number
+  funcao_desempenhada: string
+  turno_data_hora_inicio: string
+  turno_data_hora_fim: string
+  horas_previstas: number
+}): Promise<{ mensagem: string }> {
+  return apiFetch('/projetos/alocar/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
 export function confirmarAlocacao(
   idAlocacao: number,
 ): Promise<{ mensagem: string; status: string }> {

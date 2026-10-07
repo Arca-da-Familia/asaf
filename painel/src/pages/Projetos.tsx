@@ -16,6 +16,7 @@ import { z } from 'zod'
 
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { AlocarVoluntarioNoTurno } from '@/components/projetos/AlocarVoluntarioNoTurno'
 import { ContextoDoProjeto } from '@/components/projetos/ContextoDoProjeto'
 import { EditarProjeto } from '@/components/projetos/EditarProjeto'
 import { Button } from '@/components/ui/button'
@@ -551,6 +552,10 @@ function SecaoVoluntariado({ idProjeto }: { idProjeto: number }) {
     })
     queryClient.invalidateQueries({ queryKey: ['trocas-turno', idProjeto] })
     queryClient.invalidateQueries({ queryKey: ['horas-pendentes', idProjeto] })
+    // confirmar ou recusar uma candidatura muda a escala do projeto
+    queryClient.invalidateQueries({
+      queryKey: ['escala-do-projeto', idProjeto],
+    })
   }
 
   const criarVaga = useMutation({
@@ -689,6 +694,8 @@ function SecaoVoluntariado({ idProjeto }: { idProjeto: number }) {
           )}
         </div>
       </div>
+
+      <AlocarVoluntarioNoTurno idProjeto={idProjeto} />
 
       <div className="mb-4">
         <p className="mb-1 text-xs font-semibold text-muted-foreground">

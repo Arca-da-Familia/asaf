@@ -373,6 +373,14 @@ def obter_alocacao(db: Session, id_alocacao: int) -> AlocacaoVoluntario:
     return alocacao
 
 
+def listar_alocacoes_do_projeto(db: Session, *, id_projeto: int) -> list[AlocacaoVoluntario]:
+    """A escala do projeto inteira (confirmadas, pendentes, recusadas e canceladas), por turno. Quem não tem turno marcado vem no fim."""
+    return (
+        db.query(AlocacaoVoluntario).filter(AlocacaoVoluntario.id_projeto == id_projeto)
+        .order_by(AlocacaoVoluntario.turno_data_hora_inicio.is_(None), AlocacaoVoluntario.turno_data_hora_inicio, AlocacaoVoluntario.id_alocacao).all()
+    )
+
+
 def listar_candidaturas_pendentes(db: Session, *, id_projeto: int) -> list[AlocacaoVoluntario]:
     return db.query(AlocacaoVoluntario).filter(
         AlocacaoVoluntario.id_projeto == id_projeto, AlocacaoVoluntario.status == "PENDENTE",

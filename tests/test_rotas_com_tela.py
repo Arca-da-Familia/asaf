@@ -34,7 +34,6 @@ SEM_TELA_CONHECIDAS = {
     "/api/beneficiarios/{id_beneficiario}/nucleo-familiar": "v5.4f",
     "/api/inscricoes/{id_inscricao}/cobranca": "v5.4f",
     "/api/presencas/entrada": "v5.4f",
-    "/projetos/alocar/": "v5.4f",
 }
 
 
