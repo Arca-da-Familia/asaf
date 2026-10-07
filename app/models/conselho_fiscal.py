@@ -50,3 +50,23 @@ class RespostaQuestionamento(Base):
     texto = Column(Text, nullable=False)
     id_usuario_resposta = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
+
+
+# v5.4h - Auditoria financeira: o Conselho Fiscal aprova, reprova ou ressalva cada título do mês. Cada decisão é uma linha nova (nunca
+# edição da anterior); a decisão VIGENTE de um conselheiro é a mais recente dele naquele título. Reprovar e ressalvar abrem um
+# questionamento (a fila que a tesouraria já responde), e é esse questionamento aberto que suspende o título.
+APROVADO = "Aprovado"
+REPROVADO = "Reprovado"
+DECISOES_AUDITORIA = {APROVADO, REPROVADO, COM_RESSALVA}
+
+
+class AuditoriaDeTitulo(Base):
+    __tablename__ = "auditorias_de_titulo"
+    id_auditoria = Column(Integer, primary_key=True, index=True)
+    id_titulo = Column(Integer, ForeignKey("titulos_financeiros.id_titulo"), nullable=False, index=True)
+    id_associado_conselheiro = Column(Integer, ForeignKey("associados.id_associado"), nullable=False, index=True)
+    decisao = Column(String(20), nullable=False)
+    observacao = Column(Text, nullable=True)
+    id_questionamento = Column(Integer, ForeignKey("questionamentos_lancamento.id_questionamento"), nullable=True)
+    id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)

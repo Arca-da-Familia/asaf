@@ -95,7 +95,7 @@ from app.models.motores import (
 from app.models.sessao_assembleia import Credenciamento, ItemPauta, OcorrenciaSessao
 from app.models.chamada import JustificativaFalta
 from app.models.ata import Ata, CertidaoDeliberacao, Deliberacao
-from app.models.conselho_fiscal import ParecerPrestacaoContas, QuestionamentoLancamento, RespostaQuestionamento
+from app.models.conselho_fiscal import AuditoriaDeTitulo, ParecerPrestacaoContas, QuestionamentoLancamento, RespostaQuestionamento
 from app.models.disciplina import ManifestacaoDiretoria, ProcessoDisciplinar
 from app.models.dissolucao import ProcessoDissolucao
 from app.models.calendario import EventoCalendario
