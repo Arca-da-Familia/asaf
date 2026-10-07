@@ -3,7 +3,7 @@ por `Espaco.exige_aprovacao`), tarifa automática por perfil (associado adimplen
 recorrência como N reservas independentes, cancelamento com prazo/taxa, no-show com bloqueio
 configurável por reincidência, e checklist de devolução com registro de avaria."""
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -84,6 +84,10 @@ def criar_reserva(
     espaco = obter_espaco(db, id_espaco)
     if not espaco.ativo:
         raise HTTPException(status_code=400, detail="Este espaço está inativo.")
+    # os instantes ficam gravados em UTC sem fuso: uma hora vinda com fuso é trazida para UTC antes de comparar
+    inicio_utc = data_hora_inicio.astimezone(timezone.utc).replace(tzinfo=None) if data_hora_inicio.tzinfo else data_hora_inicio
+    if inicio_utc < datetime.utcnow() - timedelta(minutes=5):
+        raise HTTPException(status_code=400, detail="Não dá para reservar um horário que já passou: escolha uma data e hora a partir de agora.")
     associado = _exigir_associado_apto(db, id_associado_solicitante)
     _exigir_sem_bloqueio_por_no_show(db, espaco=espaco, id_associado=id_associado_solicitante)
 
@@ -184,7 +188,7 @@ def _liberar_compromisso(db: Session, id_compromisso: int) -> None:
         db.delete(compromisso)
 
 
-def cancelar_reserva(db: Session, *, id_reserva: int, motivo: str, id_usuario: Optional[int]) -> tuple[Reserva, Optional[TituloFinanceiro]]:
+def cancelar_reserva(db: Session, *, id_reserva: int, motivo: str, id_usuario: Optional[int]) -> tuple[Reserva, Optional[TituloFinanceiro], Optional[TituloFinanceiro]]:
     reserva = obter_reserva(db, id_reserva)
     if reserva.status not in (SOLICITADA, CONFIRMADA):
         raise HTTPException(status_code=400, detail=f"Reserva '{reserva.status}' não pode ser cancelada.")
@@ -192,6 +196,7 @@ def cancelar_reserva(db: Session, *, id_reserva: int, motivo: str, id_usuario: O
     espaco = obter_espaco(db, reserva.id_espaco)
     horas_ate_reserva = (reserva.data_hora_inicio - datetime.utcnow()).total_seconds() / 3600
     cancelamento_tardio = horas_ate_reserva < espaco.prazo_cancelamento_horas
+    titulo_taxa = None
     if cancelamento_tardio and espaco.taxa_cancelamento_tardio and espaco.taxa_cancelamento_tardio > 0:
         titulo_taxa = TituloFinanceiro(
             tipo_titulo="A Receber", id_conta_contabil=espaco.id_conta_contabil_receita, id_associado=reserva.id_associado_solicitante,
@@ -231,7 +236,7 @@ def cancelar_reserva(db: Session, *, id_reserva: int, motivo: str, id_usuario: O
         reserva.id_compromisso_agenda = None
     db.commit()
     db.refresh(reserva)
-    return reserva, titulo_reembolso
+    return reserva, titulo_reembolso, titulo_taxa
 
 
 def marcar_no_show(db: Session, *, id_reserva: int) -> Reserva:
