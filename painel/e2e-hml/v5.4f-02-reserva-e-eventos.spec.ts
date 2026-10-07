@@ -2903,14 +2903,11 @@ test.describe('B. Evento', () => {
         .locator('span.text-muted-foreground')
         .first()
     await expect(situacaoDepois('Daniel Ribeiro Costa')).toHaveText('Cancelado')
-    await expect
-      .soft(
-        detalheDepois,
-        'cancelar um inscrito pela tela não devolve a vaga: o contador continua 2/2 (app/routers/motores.py::alterar_status_inscricao_endpoint chama inscricao.alterar_status, que só troca o texto do status e nunca chama vagas.liberar_vaga)',
-      )
-      .toContainText(/1\/2 vaga\(s\) ocupada\(s\) \(1 livre\(s\)\)/, {
-        timeout: 8_000,
-      })
+    // a vaga de Daniel passou para o primeiro da fila (Bruno): o contador segue em 2/2, agora com Bruno dentro e Daniel fora
+    await expect(detalheDepois).toContainText(
+      /2\/2 vaga\(s\) ocupada\(s\) \(0 livre\(s\)\)/,
+      { timeout: 8_000 },
+    )
     await expect
       .soft(
         situacaoDepois('Bruno Carvalho Lima'),

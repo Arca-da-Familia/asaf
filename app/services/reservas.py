@@ -210,7 +210,11 @@ def cancelar_reserva(db: Session, *, id_reserva: int, motivo: str, id_usuario: O
         from app.services import reembolso_cancelamento
 
         titulo_original = db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == reserva.id_titulo_cobranca).first()
-        if titulo_original:
+        if titulo_original and titulo_original.status == "Pendente" and titulo_original.saldo_devedor == titulo_original.valor_original:
+            # a cobrança nunca foi paga: não há o que devolver, e ela não pode ficar "Pendente" cobrando por uma reserva que não existe mais
+            titulo_original.status = "Cancelado"
+            titulo_original.saldo_devedor = Decimal("0")
+        elif titulo_original:
             percentual = reembolso_cancelamento.calcular_percentual_reembolso(
                 db, horas_ate_evento=horas_ate_reserva, prazo_horas=espaco.prazo_cancelamento_horas,
                 percentual_override=espaco.percentual_reembolso_cancelamento,

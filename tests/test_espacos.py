@@ -400,3 +400,22 @@ def test_mapa_de_calor_ocupacao_conta_reservas_confirmadas_por_dia_e_hora(client
     celulas = r.json()
     assert len(celulas) == 1
     assert celulas[0] == {"dia_semana": 0, "dia_semana_nome": "Segunda", "hora": 10, "quantidade": 1}
+
+
+def test_cancelar_reserva_com_cobranca_nao_paga_cancela_a_cobranca(client, auth_headers):
+    conta_receita = _criar_conta(client, auth_headers, "Receita")
+    id_espaco = _criar_espaco(client, auth_headers, valor_reserva=80, isento_para_associado_adimplente=False, id_conta_contabil_receita=conta_receita)
+    associado = _criar_associado(client)
+    r = client.post("/api/reservas-espaco/", json={
+        "id_espaco": id_espaco, "id_associado_solicitante": associado["id_associado"],
+        "data_hora_inicio": (datetime.utcnow() + timedelta(days=12)).strftime(_ISO),
+        "data_hora_fim": (datetime.utcnow() + timedelta(days=12, hours=1)).strftime(_ISO),
+        "finalidade": "Reserva cobrada que será cancelada",
+    }, headers=auth_headers)
+    id_reserva, id_titulo = r.json()["id_reserva"], r.json()["id_titulo_cobranca"]
+    assert id_titulo is not None
+
+    r = client.post(f"/api/reservas-espaco/{id_reserva}/cancelar", json={"motivo": "Desisti antes de pagar a cobrança."}, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    titulo = next(t for t in client.get("/api/titulos/", headers=auth_headers).json() if t["id_titulo"] == id_titulo)
+    assert titulo["status"] == "Cancelado" and titulo["saldo_devedor"] == 0  # nunca fica "Pendente" cobrando por reserva que não existe mais

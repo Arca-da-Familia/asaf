@@ -178,6 +178,10 @@ def test_troca_de_turno_exige_termo_vigente_do_substituto_e_confirmacao_do_coord
 
     id_substituto, cpf_substituto = _criar_associado(client, auth_headers)
 
+    # a troca com a própria pessoa não faz sentido: recusada
+    r = client.post(f"/api/alocacoes/{id_alocacao}/trocas", headers=headers_voluntario, json={"id_associado_substituto": id_associado})
+    assert r.status_code == 400 and "próprio substituto" in r.json()["detail"]
+
     # substituto sem termo vigente - troca recusada.
     r = client.post(f"/api/alocacoes/{id_alocacao}/trocas", headers=headers_voluntario, json={"id_associado_substituto": id_substituto})
     assert r.status_code == 403

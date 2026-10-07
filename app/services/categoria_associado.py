@@ -55,7 +55,7 @@ def calcular_categoria(db: Session, id_associado: int) -> str:
             # v3.2.2 - "Renegociado" (ver NegociacaoDivida) é um título superado por parcelas
             # novas, nunca mais cobrável por si - contar ele aqui de novo penalizaria duas vezes
             # quem já regularizou via negociação (as parcelas novas, se vencerem, é que contam).
-            TituloFinanceiro.status.notin_(["Pago", "Renegociado"]),
+            TituloFinanceiro.status.notin_(["Pago", "Renegociado", "Cancelado"]),
             TituloFinanceiro.data_vencimento < limite,
         )
         .first()

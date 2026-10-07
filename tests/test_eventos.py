@@ -239,3 +239,22 @@ def test_comparacao_edicoes_combina_inscritos_presentes_financeiro_e_satisfacao(
 
     r = client.get(f"/api/eventos/{id_v2}/comparacao-edicoes", headers=auth_headers)
     assert {l["id_evento"] for l in r.json()} == {id_v1, id_v2}
+
+
+def test_sessao_precisa_comecar_dentro_do_periodo_do_evento(client, auth_headers):
+    from datetime import datetime, timedelta
+
+    iso = "%Y-%m-%dT%H:%M:%S"
+    inicio = (datetime.utcnow() + timedelta(days=20)).replace(hour=9, minute=0, second=0, microsecond=0)
+    r = client.post("/api/eventos/", json={
+        "titulo": "Evento com programação dentro do período", "categoria": "PALESTRA", "visibilidade": "Interna",
+        "data_hora_inicio": inicio.strftime(iso), "data_hora_fim": (inicio + timedelta(hours=8)).strftime(iso),
+    }, headers=auth_headers)
+    id_evento = r.json()["id_evento"]
+
+    def sessao(quando):
+        return client.post(f"/api/eventos/{id_evento}/sessoes", json={"titulo": "Palestra do dia", "data_hora_inicio": quando.strftime(iso)}, headers=auth_headers)
+
+    assert sessao(inicio - timedelta(days=2)).status_code == 422
+    assert sessao(inicio + timedelta(hours=9)).status_code == 422
+    assert sessao(inicio + timedelta(hours=1)).status_code == 200

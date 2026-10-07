@@ -434,6 +434,8 @@ def solicitar_troca_turno(db: Session, *, id_alocacao: int, id_associado_substit
         raise HTTPException(status_code=403, detail="Só quem está alocado neste turno pode pedir a troca.")
     if alocacao.status != "CONFIRMADA":
         raise HTTPException(status_code=400, detail="Só uma alocação confirmada pode ter troca solicitada.")
+    if id_associado_substituto == associado.id_associado:
+        raise HTTPException(status_code=400, detail="Quem pede a troca não pode ser o próprio substituto: escolha outra pessoa para ficar no turno.")
     substituto = db.query(Associado).filter(Associado.id_associado == id_associado_substituto).first()
     if not substituto:
         raise HTTPException(status_code=404, detail="Associado substituto não encontrado.")
