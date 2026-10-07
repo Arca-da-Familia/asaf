@@ -2957,14 +2957,22 @@ test('14. Prestação de contas do exercício: ano inválido é recusado; cada v
       `[Despesa] ${CONTAS.DES.codigo} — ${CONTAS.DES.descricao}: ${reaisSrv(periodo.DES)}`,
     )
   }
-  const centavosDoTexto = (v: string) => Math.round(Number(v) * 100)
+  // o texto da prestação escreve o dinheiro como se lê no Brasil: R$ 1.234,56 (e -R$ 5,00 para negativo)
+  const centavosDoTexto = (v: string) =>
+    (v.startsWith('-') ? -1 : 1) *
+    Math.round(Number(v.replace(/[^\d,]/g, '').replace(',', '.')) * 100)
+  const DINHEIRO = String.raw`(-?R\$ [\d.]+,\d{2})`
   const linhasRd = [
-    ...texto.matchAll(/^\s+\[(Receita|Despesa)\] .*: R\$ (-?\d+\.\d{2})$/gm),
+    ...texto.matchAll(
+      new RegExp(
+        String.raw`^\s+\[(Receita|Despesa)\] .*: ` + DINHEIRO + '$',
+        'gm',
+      ),
+    ),
   ].map((m) => ({ tipo: m[1], valor: centavosDoTexto(m[2] ?? '0') }))
-  const total =
-    /TOTAL RECEITAS: R\$ (-?\d+\.\d{2}) — TOTAL DESPESAS: R\$ (-?\d+\.\d{2}) — RESULTADO: R\$ (-?\d+\.\d{2})/.exec(
-      texto,
-    )
+  const total = new RegExp(
+    `TOTAL RECEITAS: ${DINHEIRO} — TOTAL DESPESAS: ${DINHEIRO} — RESULTADO: ${DINHEIRO}`,
+  ).exec(texto)
   expect(total, 'a prestação traz a linha de totais').not.toBeNull()
   const totalReceitas = centavosDoTexto(total?.[1] ?? '0')
   const totalDespesas = centavosDoTexto(total?.[2] ?? '0')
