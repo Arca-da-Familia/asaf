@@ -98,8 +98,16 @@ jobs:
       - name: Instala dependências
         run: npm ci
 
+      # O download/instalação (inclui pacotes do sistema pelo apt) às vezes trava do lado do GitHub: já custou 29 minutos parado. Cada tentativa
+      # tem 5 minutos; passou disso, tenta de novo (até 3 vezes) em vez de esperar o fim do tempo do trabalho.
       - name: Instala o navegador (Chromium)
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 17
+        run: |
+          for tentativa in 1 2 3; do
+            if timeout 300 npx playwright install --with-deps chromium; then exit 0; fi
+            echo "::warning::Instalação do navegador falhou ou passou de 5 minutos (tentativa $tentativa de 3)."
+          done
+          exit 1
 
       - name: Roda o roteiro ao vivo na homologação
         env:
