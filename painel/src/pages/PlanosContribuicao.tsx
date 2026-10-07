@@ -18,6 +18,7 @@ import {
   listarPlanosContribuicao,
   reajustarPlanoContribuicao,
 } from '@/lib/api'
+import { formatarDia } from '@/lib/datas'
 import {
   campanhaDescontoAntecipadoCriarSchema,
   isencaoContribuicaoCriarSchema,
@@ -501,6 +502,21 @@ export function PlanosContribuicaoPage() {
     queryKey: ['isencoes-contribuicao'],
     queryFn: () => listarIsencoesContribuicao(),
   })
+  // a lista de isenções fala em nome da pessoa e em motivo por extenso, não em "Associado #72" e "DIFICULDADE_FINANCEIRA"
+  const { data: pessoasDasIsencoes } = useQuery({
+    queryKey: ['associados-selecao'],
+    queryFn: listarAssociadosParaSelecao,
+  })
+  const { data: motivosDasIsencoes } = useQuery({
+    queryKey: ['opcoes-catalogo', 'motivo_isencao_contribuicao'],
+    queryFn: () => listarOpcoesCatalogo('motivo_isencao_contribuicao'),
+  })
+  const nomeDoAssociado = (id: number) =>
+    (pessoasDasIsencoes ?? []).find((a) => a.id_associado === id)
+      ?.nome_completo ?? `Associado #${id}`
+  const rotuloDoMotivo = (codigo: string) =>
+    (motivosDasIsencoes ?? []).find((m) => m.codigo === codigo)?.rotulo ??
+    codigo
   const { data: campanhas } = useQuery({
     queryKey: ['campanhas-desconto-antecipado'],
     queryFn: listarCampanhasDescontoAntecipado,
@@ -615,12 +631,14 @@ export function PlanosContribuicaoPage() {
               className="rounded-md border border-border p-3 text-sm"
             >
               <p className="font-medium">
-                Associado #{i.id_associado} — {i.percentual_desconto}% de
+                {nomeDoAssociado(i.id_associado)} — {i.percentual_desconto}% de
                 desconto
               </p>
               <p className="text-muted-foreground">
-                {i.motivo} · desde {i.data_inicio}
-                {i.data_fim ? ` até ${i.data_fim}` : ' · sem data de fim'}
+                {rotuloDoMotivo(i.motivo)} · desde {formatarDia(i.data_inicio)}
+                {i.data_fim
+                  ? ` até ${formatarDia(i.data_fim)}`
+                  : ' · sem data de fim'}
               </p>
             </div>
           ))}

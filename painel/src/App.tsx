@@ -13,6 +13,7 @@ import { DoacoesPage } from '@/pages/Doacoes'
 import { OrcamentoPage } from '@/pages/Orcamento'
 import { RelatoriosPage } from '@/pages/Relatorios'
 import { DocumentosEmitidosPage } from '@/pages/DocumentosEmitidos'
+import { FinanceiroInicioPage } from '@/pages/FinanceiroInicio'
 import { ReembolsoDespesaPage } from '@/pages/ReembolsoDespesa'
 import { AssembleiaDetalhePage } from '@/pages/AssembleiaDetalhe'
 import { AssembleiaNovoPage } from '@/pages/AssembleiaNova'
@@ -52,7 +53,6 @@ import {
   ProcessoDissolucaoDetalhePage,
   ProcessosDissolucaoPage,
 } from '@/pages/Dissolucao'
-import { EmConstrucao } from '@/pages/EmConstrucao'
 import { ProjetosPage } from '@/pages/Projetos'
 import { BeneficiariosPage } from '@/pages/Beneficiarios'
 import { EspacosPage } from '@/pages/Espacos'
@@ -308,7 +308,7 @@ function App() {
               index
               element={
                 <ErrorBoundary tituloModulo="Financeiro">
-                  <EmConstrucao modulo="Financeiro" />
+                  <FinanceiroInicioPage />
                 </ErrorBoundary>
               }
             />
