@@ -19,6 +19,14 @@ import {
 test.describe.configure({ mode: 'serial' })
 test.setTimeout(420_000)
 
+/** Escolhe a opção pelo texto, esperando a lista chegar do servidor (sem isso a escolha corre na frente do carregamento). */
+async function escolherQuandoCarregar(seletor: Locator, trecho: string) {
+  await expect(
+    seletor.locator('option', { hasText: trecho }).first(),
+  ).toBeAttached()
+  await escolherPorTexto(seletor, trecho)
+}
+
 const S = String(RODADA)
 const NOME_DO_PROJETO = `Projeto da Escala ${S}`
 const COM_TERMO = 'Karina Duarte Melo'
@@ -148,7 +156,7 @@ test('o formulário vazio diz o que falta; quem não tem termo vigente é recusa
   await expect(bloco.getByText('Informe o início do turno.')).toBeVisible()
   await expect(bloco.getByText('Informe o fim do turno.')).toBeVisible()
 
-  await escolherPorTexto(
+  await escolherQuandoCarregar(
     bloco.getByLabel('Voluntário', { exact: true }),
     SEM_TERMO,
   )
@@ -172,7 +180,7 @@ test('quem tem o termo vigente é alocado, aparece na escala (e continua lá ao 
   const vigia = vigiar(page)
   await entrar(page, 'presidente')
   const bloco = await abrirOBloco(page)
-  await escolherPorTexto(
+  await escolherQuandoCarregar(
     bloco.getByLabel('Voluntário', { exact: true }),
     COM_TERMO,
   )
