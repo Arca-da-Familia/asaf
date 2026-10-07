@@ -65,6 +65,10 @@ async function api(
   }
 }
 
+/** Só os títulos desta rodada: rodadas anteriores (e as que falharam) deixam os seus no mesmo mês de 2088. */
+const buscarNaTela = (page: Page, texto: string) =>
+  page.getByLabel('Buscar por descrição, nome ou fornecedor').fill(texto)
+
 const cartoes = (page: Page, texto: RegExp) =>
   page.locator('div.rounded-md.border').filter({ hasText: texto })
 
@@ -134,6 +138,7 @@ test('Saídas: o mês filtra, 31 títulos são 2 páginas de 25 e a segunda pág
   await expect(page.getByLabel('Tipo', { exact: true })).toHaveCount(0)
 
   await page.getByLabel('Mês de vencimento').fill(MES_SAIDAS)
+  await buscarNaTela(page, `Saída de teste ${S}`)
   await expect(
     page.getByText(`${QUANTIDADE_DE_SAIDAS} título(s) · Original`),
   ).toBeVisible()
@@ -172,6 +177,7 @@ test('Entradas: só as a receber; mês sem lançamento diz que não há; busca p
   ).toBeVisible()
 
   await page.getByLabel('Mês de vencimento').fill(MES_ENTRADAS)
+  await buscarNaTela(page, `Entrada de teste ${S}`)
   await expect(
     page.getByText(`${QUANTIDADE_DE_ENTRADAS} título(s) · Original`),
   ).toBeVisible()
@@ -201,7 +207,9 @@ test('Todos os títulos: tipo, situação e categoria combinam; "Todo o período
 }, info) => {
   const vigia = vigiar(page)
   await entrar(page, 'tesoureiro')
-  await page.goto(`/financeiro/titulos?mes=${MES_SAIDAS}`)
+  await page.goto(
+    `/financeiro/titulos?mes=${MES_SAIDAS}&busca=${encodeURIComponent(`Saída de teste ${S}`)}`,
+  )
   await expect(
     page.getByText(`${QUANTIDADE_DE_SAIDAS} título(s) · Original`),
   ).toBeVisible()
