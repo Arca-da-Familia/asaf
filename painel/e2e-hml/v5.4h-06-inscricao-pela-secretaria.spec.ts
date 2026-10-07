@@ -18,6 +18,14 @@ import {
 test.describe.configure({ mode: 'serial' })
 test.setTimeout(300_000)
 
+/** Escolhe a opção pelo texto, esperando a lista chegar do servidor (sem isso a escolha corre na frente do carregamento). */
+async function escolherQuandoCarregar(seletor: Locator, trecho: string) {
+  await expect(
+    seletor.locator('option', { hasText: trecho }).first(),
+  ).toBeAttached()
+  await escolherPorTexto(seletor, trecho)
+}
+
 const S = String(RODADA)
 const TITULO = `Evento da Secretaria ${S}`
 const PRIMEIRA = 'Karina Duarte Melo'
@@ -108,7 +116,7 @@ test('a secretaria inscreve duas pessoas: a primeira ocupa a vaga, a segunda vai
   await entrar(page, 'presidente')
   const secao = await abrirOsInscritos(page)
   const escolher = (nome: string) =>
-    escolherPorTexto(secao.getByLabel('Inscrever um associado'), nome)
+    escolherQuandoCarregar(secao.getByLabel('Inscrever um associado'), nome)
   const inscrever = () =>
     secao.getByRole('button', { name: 'Inscrever', exact: true })
   const linha = (nome: string) =>
