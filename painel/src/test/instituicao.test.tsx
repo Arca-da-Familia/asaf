@@ -69,18 +69,16 @@ beforeEach(() => {
 describe('Instituição', () => {
   it('mostra os campos por grupo, diz o que vai para o site e o que é só interno; passa no axe', async () => {
     const { container } = desenhar()
-    expect(
-      await screen.findByLabelText('Nome da instituição'),
-    ).toHaveValue('ASAF')
+    expect(await screen.findByLabelText('Nome da instituição')).toHaveValue(
+      'ASAF',
+    )
     for (const grupo of ['Identidade', 'Contato', 'Financeiro', 'Sistema']) {
       expect(screen.getByRole('region', { name: grupo })).toBeInTheDocument()
     }
     // Nome, CNPJ, telefone e chave Pix podem ir para o site (4 marcas); o e-mail remetente é só interno
     expect(screen.getAllByLabelText('Aparece no site')).toHaveLength(4)
     expect(screen.getByText('Só interno')).toBeInTheDocument()
-    expect(
-      screen.getAllByLabelText('Aparece no site')[3],
-    ).not.toBeChecked() // a chave Pix só vai se alguém decidir
+    expect(screen.getAllByLabelText('Aparece no site')[3]).not.toBeChecked() // a chave Pix só vai se alguém decidir
     expect(await axe(container)).toHaveNoViolations()
   })
 
@@ -113,7 +111,9 @@ describe('Instituição', () => {
         publico: true,
       }),
     )
-    expect(await screen.findByText('Agora aparece no site.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Agora aparece no site.'),
+    ).toBeInTheDocument()
   })
 
   it('a recusa do servidor aparece no próprio campo, em português', async () => {
