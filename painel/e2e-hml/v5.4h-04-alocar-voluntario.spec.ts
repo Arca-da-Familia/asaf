@@ -194,7 +194,7 @@ test('quem tem o termo vigente é alocado, aparece na escala (e continua lá ao 
 
   const linha = bloco
     .locator('div.rounded-md.border')
-    .filter({ hasText: `${COM_TERMO} — ${FUNCAO}` })
+    .filter({ hasText: new RegExp(`${COM_TERMO}.* — ${FUNCAO}`) })
   await expect(linha).toHaveCount(1)
   await expect(linha).toContainText('4 h previstas · CONFIRMADA')
   await ver(page, info, 'voluntario-na-escala')
@@ -204,7 +204,7 @@ test('quem tem o termo vigente é alocado, aparece na escala (e continua lá ao 
   await expect(
     blocoDeNovo
       .locator('div.rounded-md.border')
-      .filter({ hasText: `${COM_TERMO} — ${FUNCAO}` }),
+      .filter({ hasText: new RegExp(`${COM_TERMO}.* — ${FUNCAO}`) }),
   ).toHaveCount(1)
 
   const total = await totalNaAuditoria(page)

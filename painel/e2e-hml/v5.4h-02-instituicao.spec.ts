@@ -153,7 +153,8 @@ test('salvar grava, continua gravado ao recarregar, e a marca decide o que o sit
   const marca = quadro(page, 'Telefone / WhatsApp').getByLabel(
     'Aparece no site',
   )
-  await marca.uncheck()
+  await marca.click()
+  await expect(marca).not.toBeChecked()
   await expect(
     quadro(page, 'Telefone / WhatsApp').getByText('Agora é só interno.'),
   ).toBeVisible()
@@ -170,7 +171,10 @@ test('salvar grava, continua gravado ao recarregar, e a marca decide o que o sit
   // marcar de novo: volta para o site com o mesmo valor
   await quadro(page, 'Telefone / WhatsApp')
     .getByLabel('Aparece no site')
-    .check()
+    .click()
+  await expect(
+    quadro(page, 'Telefone / WhatsApp').getByLabel('Aparece no site'),
+  ).toBeChecked()
   await expect(
     quadro(page, 'Telefone / WhatsApp').getByText('Agora aparece no site.'),
   ).toBeVisible()
