@@ -2,14 +2,17 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 import logging
 import os
 
 from app.database import preparar_banco, seed_catalogos, seed_niveis_e_permissoes, seed_configuracoes_institucionais, seed_regras_estatutarias
 from app.services import armazenamento
 from app.routers import instituicao, publico, arquivos, auth, core, associados, financeiro, governanca, projetos, filiacao, importacao, situacao, voluntariado, qualidade_cadastro, estatuto, mandatos, sessao_assembleia, votacao, ata, conselho_fiscal, disciplina, dissolucao, calendario, chamada, compras, doacoes, orcamento, relatorios, antifraude, motores, beneficiarios, espacos, eventos, portaria, certificados, pesquisa_satisfacao, documentos, parcerias
+from app import recusas
 from app.security import decodificar_access_token_silencioso
 
 # A auditoria de schema (preparar_banco) audita as ~50 tabelas uma a uma a cada start -
@@ -105,6 +108,14 @@ async def bloquear_escrita_em_impersonacao(request: Request, call_next):
                     content={"detail": "Modo \"ver como\" é somente leitura — nenhuma escrita é permitida."},
                 )
     return await call_next(request)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def registrar_recusa_de_aprovacao_e_responder(request: Request, exc: StarletteHTTPException):
+    """Tentou aprovar/assinar e o sistema recusou: além de responder como sempre, a tentativa fica na Auditoria (app/recusas.py)."""
+    if recusas.deve_registrar(request.method, request.url.path, exc.status_code):
+        await run_in_threadpool(recusas.registrar_recusa, request, exc.status_code, exc.detail)
+    return await http_exception_handler(request, exc)
 
 
 @app.middleware("http")
