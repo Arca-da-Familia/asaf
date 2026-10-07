@@ -26,9 +26,16 @@ const descricaoSaida = (n: number) =>
 const descricaoEntrada = (n: number) => `Entrada de teste ${S} nº ${n}`
 
 /** O menu só mostra Entradas e Saídas dentro do módulo Financeiro: entra por ele, como o usuário faria. */
-async function irParaAPaginaDoFinanceiro(page: Page, nome: 'Entradas' | 'Saídas') {
+async function irParaAPaginaDoFinanceiro(
+  page: Page,
+  nome: 'Entradas' | 'Saídas',
+) {
   await page.getByRole('link', { name: 'Financeiro' }).first().click()
-  await page.getByRole('link', { name: nome, exact: true }).click()
+  // o link existe no menu lateral e também no cartão "Telas do módulo": o roteiro usa o do menu
+  await page
+    .getByRole('complementary')
+    .getByRole('link', { name: nome, exact: true })
+    .click()
 }
 
 async function capturarToken(page: Page): Promise<() => string> {
