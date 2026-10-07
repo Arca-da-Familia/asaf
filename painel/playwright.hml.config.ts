@@ -35,6 +35,9 @@ export default defineConfig({
     // Sem `trace`: o trace guarda o texto digitado, e a senha de teste não pode ir parar num arquivo.
     trace: 'off',
     video: 'on',
+    // um elemento que não aparece reprova em 45 s, não em 5 minutos (o tempo do teste inteiro): cada roteiro que erra o endereço do menu custava isso
+    actionTimeout: 45_000,
+    navigationTimeout: 60_000,
     screenshot: 'on',
     viewport: { width: 1366, height: 900 },
   },

@@ -313,6 +313,25 @@ def inscrever_no_evento(db: Session, *, id_evento: int, usuario: Usuario, codigo
     return inscricao_criada
 
 
+def inscrever_associado_no_evento(
+    db: Session, *, id_evento: int, id_associado: int, operador: Usuario, codigo_cupom: Optional[str] = None,
+):
+    """Inscrição feita PELA SECRETARIA (quem tem a permissão de projetos) em nome de um associado. Passa pelo mesmo controle de vagas e pela
+    mesma cobrança da inscrição do próprio associado: o limite de vagas nunca estoura por esta via (a rota genérica `/api/inscricoes/` não controla
+    vaga). Quem inscreveu fica na Auditoria."""
+    evento = obter_evento(db, id_evento)
+    associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
+    if not associado:
+        raise HTTPException(status_code=404, detail="Associado não encontrado.")
+    inscricao_criada = servico_vagas.inscrever_com_controle_de_vaga(
+        db, contexto_tipo=CONTEXTO_EVENTO, id_contexto=id_evento, id_pessoa=associado.id_pessoa, respostas_formulario=None,
+    )
+    _cobrar_inscricao_se_devido(
+        db, evento=evento, inscricao=inscricao_criada, id_pessoa=associado.id_pessoa, codigo_cupom=codigo_cupom, id_usuario=operador.id_usuario,
+    )
+    return inscricao_criada
+
+
 def inscrever_na_sessao(db: Session, *, id_sessao: int, usuario: Usuario, codigo_cupom: Optional[str] = None):
     sessao = obter_sessao(db, id_sessao)
     evento = obter_evento(db, sessao.id_evento)

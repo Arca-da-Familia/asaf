@@ -8,6 +8,7 @@ import { ContextoDoEvento } from '@/components/eventos/ContextoDoEvento'
 import { EditarEvento } from '@/components/eventos/EditarEvento'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { InscreverAssociadoNoEvento } from '@/components/eventos/InscreverAssociadoNoEvento'
 import { Button } from '@/components/ui/button'
 import {
   atualizarElegibilidadeConfig,
@@ -821,6 +822,7 @@ function SecaoInscritos({ evento }: { evento: Evento }) {
           ))}
         </select>
       </div>
+      <InscreverAssociadoNoEvento idEvento={evento.id_evento} />
       {erro && <p className="mb-2 text-sm text-destructive">{erro}</p>}
       {exportar.isError && (
         <p className="mb-2 text-sm text-destructive">

@@ -30,9 +30,10 @@ const quadro = (page: Page, rotulo: string) =>
     .filter({ has: page.getByLabel(rotulo, { exact: true }) })
 
 async function abrirInstituicao(page: Page): Promise<void> {
+  // os módulos aparecem como cartões no Início (o menu lateral só mostra os itens do módulo em que se está)
   await page
-    .getByRole('complementary')
-    .getByRole('link', { name: 'Instituição', exact: true })
+    .getByRole('link', { name: /^Instituição/ })
+    .first()
     .click()
   await expect(
     page.getByRole('heading', { name: 'Instituição', level: 1 }),

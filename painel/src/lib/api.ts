@@ -4809,6 +4809,18 @@ export function listarInscricoesDoContexto(
   return apiFetch(`/api/inscricoes/?${params.toString()}`)
 }
 
+// Inscrição feita pela secretaria em nome de um associado: passa pelo mesmo controle de vagas da inscrição do próprio associado (acima do
+// limite vira lista de espera) e deixa quem inscreveu na Auditoria.
+export function inscreverAssociadoNoEvento(
+  idEvento: number,
+  dados: { id_associado: number },
+): Promise<{ mensagem: string; id_inscricao: number; status: string }> {
+  return apiFetch(`/api/eventos/${idEvento}/inscrever-associado`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
 // v4.10 - transição de status de inscrição (motor genérico): quem valida a transição é o
 // backend (Pré-inscrito/Confirmado/Lista de Espera/Cancelado/Presente/Ausente, ver
 // app/routers/motores.py), que devolve 400 com mensagem descritiva quando inválida - o painel só

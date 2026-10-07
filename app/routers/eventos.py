@@ -14,6 +14,7 @@ from app.config_cache import obter_configuracao
 from app.database import get_db
 from app.schemas.eventos import (
     CotaInscricaoCriar,
+    InscreverAssociadoCriar,
     CupomDescontoCriar,
     EventoCobrancaConfig,
     EventoCriar,
@@ -320,6 +321,20 @@ def expirar_promocoes_vencidas_endpoint(request: Request, db: Session = Depends(
 def inscrever_no_evento_endpoint(id_evento: int, request: Request, codigo_cupom: Optional[str] = None, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
     inscricao_criada = eventos.inscrever_no_evento(db, id_evento=id_evento, usuario=usuario, codigo_cupom=codigo_cupom)
     registrar_auditoria(db, usuario, "inscricoes", "INSCRICAO", id_registro_afetado=inscricao_criada.id_inscricao, ip_origem=_ip_origem(request))
+    return {"mensagem": "Inscrição registrada.", "id_inscricao": inscricao_criada.id_inscricao, "status": inscricao_criada.status}
+
+
+@router.post("/api/eventos/{id_evento}/inscrever-associado", summary="Inscrever um associado neste evento (feito pela secretaria, com controle de vagas)")
+def inscrever_associado_no_evento_endpoint(
+    id_evento: int, dados: InscreverAssociadoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos),
+):
+    inscricao_criada = eventos.inscrever_associado_no_evento(
+        db, id_evento=id_evento, id_associado=dados.id_associado, operador=usuario, codigo_cupom=dados.codigo_cupom,
+    )
+    registrar_auditoria(
+        db, usuario, "inscricoes", "INSCRICAO_PELA_SECRETARIA", id_registro_afetado=inscricao_criada.id_inscricao,
+        dados_depois={"id_evento": id_evento, "id_associado": dados.id_associado, "status": inscricao_criada.status}, ip_origem=_ip_origem(request),
+    )
     return {"mensagem": "Inscrição registrada.", "id_inscricao": inscricao_criada.id_inscricao, "status": inscricao_criada.status}
 
 

@@ -148,6 +148,12 @@ class InscricaoPublicaCriar(BaseModel):
         return v
 
 
+class InscreverAssociadoCriar(BaseModel):
+    """Inscrição feita pela secretaria em nome de um associado (passa pelo controle de vagas)."""
+    id_associado: int
+    codigo_cupom: Optional[str] = None
+
+
 class CotaInscricaoCriar(BaseModel):
     categoria: str
     vagas_limite: int
