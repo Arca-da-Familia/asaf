@@ -2753,7 +2753,11 @@ test('13. Balancete, Receitas x despesas (por conta e por centro de custo), Por 
     return {
       saldoAtual: emCentavos(saldoTexto),
       movimentos: linhas.flatMap((l) => {
-        const m = /^(\d{2}\/\d{2}\/\d{4}) · (Debito|Credito)$/.exec(l.rotulo)
+        // a data vem só como dia (competência) ou com a hora (instante do lançamento)
+        const m =
+          /^(\d{2}\/\d{2}\/\d{4})(?:,\s*\d{2}:\d{2})? · (Debito|Credito)$/.exec(
+            l.rotulo,
+          )
         const v = valoresEmCentavos(l.valor)
         return m && v.length === 2
           ? [
