@@ -143,6 +143,7 @@ describe('nomearCamposSemRotulo (segunda rede: campo sem nome ganha um aria-labe
         '<input type="date" name="data_competencia" />' +
         '<input type="number" name="ano" placeholder="Ano" />' +
         '<label for="ok">Com rótulo</label><input id="ok" name="com_rotulo" />' +
+        '<input type="file" />' +
         '<input type="hidden" name="escondido" />',
     )
     nomearCamposSemRotulo(raiz)
@@ -161,6 +162,10 @@ describe('nomearCamposSemRotulo (segunda rede: campo sem nome ganha um aria-labe
     expect(raiz.querySelector('[name=ano]')).not.toHaveAttribute('aria-label')
     expect(raiz.querySelector('[name=com_rotulo]')).not.toHaveAttribute(
       'aria-label',
+    )
+    expect(raiz.querySelector('input[type=file]')).toHaveAttribute(
+      'aria-label',
+      'Anexar arquivo',
     )
     expect(raiz.querySelector('[name=escondido]')).not.toHaveAttribute(
       'aria-label',

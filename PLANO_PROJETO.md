@@ -1606,6 +1606,22 @@ retrabalho que a seção 4.1 existe pra evitar.
 - [ ] **Orçamento e fluxo de caixa, relatórios e prestação de contas, controles antifraude** (alerta dispara de verdade).
 - [ ] Os **valores** vistos nas telas conferem **centavo a centavo** com o que foi lançado; lista de achados corrigidos e prints.
 
+  **Andamento (2026-10-06, em curso — nada acima está fechado):** quatro roteiros do robô escritos (`v5.4e-01` base contábil e orçamento,
+  `-02` receita, `-03` despesa e segregação, `-04` relatórios e antifraude). O `-01` já passa na homologação (15 cenários verdes; o 14, que
+  **fecha o exercício** e não tem volta, só roda com a opção `fechar_exercicio` do fluxo, no fim, e a homologação é recriada depois); falta
+  só a varredura de campos sem nome acessível, que ganhou uma rede de segurança global (`nomearCamposSemRotulo`). Defeitos reais achados e
+  corrigidos até aqui: campos opcionais em branco viravam `0`/texto vazio e quebravam o servidor (32 campos); mês 13, centro de custo,
+  fornecedor e conta inexistentes davam erro 500 (agora 400/404 em português); 500 inesperado saía sem cabeçalhos de acesso e a tela dizia
+  "sem conexão" (agora JSON claro); plano de contas aceitava pai circular e mudar tipo/código de conta com filhas ou movimento; excluir conta
+  usada por orçamento/reserva/recorrente dava 500; delegação de aprovação podia ser registrada por outra pessoa; baixa de título
+  **renegociado** era aceita (cobraria duas vezes); o **beneficiário** aprovava o próprio reembolso; orçamento de **receita** acima do previsto
+  saía como "Estourado"; relatórios mostravam "sem movimento" quando a consulta falhava; mensagens e recibos com ponto decimal e data em UTC;
+  o Tesoureiro não conseguia escolher o associado (seletor mínimo `busca-simples` agora serve ao financeiro); erro repetido duas vezes nas
+  telas de exercício/plano de contas/fornecedor. **Ainda abertos para decidir/fazer:** CNPJ com dígito verificador errado é aceito (exige
+  ajustar dados de teste); cargo inexistente na alçada é aceito; "Pix" sem chave configurada; título gerado por compra usa o valor estimado e
+  não a cotação vencedora; reembolso sem alçada/dupla assinatura; recusas de aprovação não deixam rastro na Auditoria; Conselheiro Fiscal
+  recebe a permissão `financeiro` (decisão de desenho).
+
 #### v5.4f — FASE 4 ao vivo: projetos, reserva de espaço e eventos
 
 - [ ] **Projeto:** criar, editar, publicar no site (aprovação), **em destaque**, beneficiários e atendimento, voluntariado vinculado.

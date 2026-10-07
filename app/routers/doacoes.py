@@ -27,7 +27,8 @@ def listar_campanhas(db: Session = Depends(get_db), _usuario=Depends(_permissao_
     campanhas = db.query(CampanhaArrecadacao).order_by(CampanhaArrecadacao.criado_em.desc()).all()
     resultado = []
     for c in campanhas:
-        arrecadado = sum((d.valor for d in db.query(Doacao).filter(Doacao.id_campanha == c.id_campanha).all()), 0)
+        # "arrecadado" é dinheiro que entrou: doação em bens tem valor avaliado, mas não é arrecadação (mesma regra do saldo restrito do centro de custo)
+        arrecadado = sum((d.valor for d in db.query(Doacao).filter(Doacao.id_campanha == c.id_campanha, Doacao.tipo_doacao != "Bens").all()), 0)
         resultado.append({
             "id_campanha": c.id_campanha, "titulo": c.titulo, "descricao": c.descricao,
             "meta_valor": c.meta_valor, "prazo": c.prazo, "id_centro_custo": c.id_centro_custo,

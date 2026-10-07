@@ -354,3 +354,33 @@ def test_beneficiario_do_reembolso_nao_aprova_nem_reprova_o_proprio_reembolso(cl
     # outra pessoa (nem quem lançou, nem quem recebe) decide normalmente
     _, headers_outro = _criar_usuario_com_mandato(client, auth_headers, "CONSELHO_FISCAL")
     assert client.post(f"/api/reembolsos-despesa/{id_reembolso}/aprovar", headers=headers_outro).status_code == 200
+
+
+def test_alcada_recusa_cargo_que_nao_existe_e_maximo_menor_que_o_minimo(client, auth_headers):
+    base = {"valor_minimo": 9100000, "valor_maximo": 9100100, "cargos_autorizados": ["PRESIDENTE"], "exige_dupla_assinatura": False}
+    r = client.post("/api/alcadas-aprovacao/", json={**base, "cargos_autorizados": ["CARGO_QUE_NAO_EXISTE"]}, headers=auth_headers)
+    assert r.status_code == 422 and "Cargo inválido" in r.json()["detail"]
+    r = client.post("/api/alcadas-aprovacao/", json={**base, "valor_maximo": 9099999}, headers=auth_headers)
+    assert r.status_code == 422 and "menor que o mínimo" in r.json()["detail"]
+    # uma faixa certa continua sendo aceita (e é inativada para não sobrar na suíte)
+    r = client.post("/api/alcadas-aprovacao/", json=base, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    client.put(f"/api/alcadas-aprovacao/{r.json()['id_alcada']}/ativo?ativo=false", headers=auth_headers)
+
+
+def test_titulo_do_reembolso_diz_a_quem_pagar_sem_prender_o_titulo_ao_associado(client, auth_headers):
+    import uuid
+
+    conta = _criar_conta(client, auth_headers, f"4.1.9918.{uuid.uuid4().hex[:6]}", "Despesa")
+    id_beneficiario, _ = _criar_usuario_com_mandato(client, auth_headers, "VICE_PRESIDENTE_2")
+    r = client.post("/api/reembolsos-despesa/", json={
+        "id_associado": id_beneficiario, "descricao": "Combustível de quem recebe", "valor": 55,
+        "comprovante": "/uploads/comprovantes/teste.pdf", "id_conta_contabil": conta,
+    }, headers=auth_headers)
+    id_reembolso = r.json()["id_reembolso"]
+    _, headers_outro = _criar_usuario_com_mandato(client, auth_headers, "CONSELHO_FISCAL")
+    r = client.post(f"/api/reembolsos-despesa/{id_reembolso}/aprovar", headers=headers_outro)
+    assert r.status_code == 200, r.text
+    titulo = next(t for t in client.get("/api/titulos/", headers=auth_headers).json() if t["id_titulo"] == r.json()["id_titulo_gerado"])
+    assert "(a pagar a " in titulo["descricao"]
+    assert titulo.get("id_associado") is None  # nunca conta como dívida do associado

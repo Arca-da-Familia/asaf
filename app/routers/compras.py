@@ -20,6 +20,7 @@ from app.schemas.compras import (
     ReprovarSolicitacaoRequest, SolicitacaoCompraCriar,
 )
 from app.security import exigir_permissao
+from app.services.catalogos import validar_codigo_em_catalogo
 from app.services import compras, contabilidade, contas_a_pagar, fornecedores, reembolso
 
 router = APIRouter()
@@ -108,6 +109,11 @@ def listar_alcadas(db: Session = Depends(get_db), _usuario=Depends(_permissao_fi
 
 @router.post("/api/alcadas-aprovacao/", summary="Cadastrar Alçada de Aprovação")
 def cadastrar_alcada(dados: AlcadaAprovacaoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    # cada cargo precisa ser um cargo de verdade do estatuto: um erro de digitação criaria uma faixa que ninguém consegue usar
+    for cargo in dados.cargos_autorizados:
+        validar_codigo_em_catalogo(db, "titulo_cargo", cargo.strip(), "Cargo")
+    if dados.valor_maximo is not None and dados.valor_maximo < dados.valor_minimo:
+        raise HTTPException(status_code=422, detail="O valor máximo não pode ser menor que o mínimo.")
     nova = AlcadaAprovacao(
         valor_minimo=dados.valor_minimo, valor_maximo=dados.valor_maximo,
         cargos_autorizados=",".join(dados.cargos_autorizados), exige_dupla_assinatura=dados.exige_dupla_assinatura,

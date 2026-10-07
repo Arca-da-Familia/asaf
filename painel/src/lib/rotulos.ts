@@ -56,6 +56,18 @@ export function nomeLegivelDoCampo(nome: string): string {
 
 type Campo = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
 
+const NOME_POR_TIPO: Record<string, string> = {
+  file: 'Anexar arquivo',
+  date: 'Data',
+  month: 'Mês',
+  'datetime-local': 'Data e hora',
+  number: 'Número',
+  checkbox: 'Opção',
+  radio: 'Opção',
+  search: 'Buscar',
+  text: 'Texto',
+}
+
 const TIPOS_SEM_NOME = new Set(['hidden', 'submit', 'button', 'reset', 'image'])
 
 function temNome(campo: Campo): boolean {
@@ -84,6 +96,11 @@ export function nomearCamposSemRotulo(raiz: HTMLElement): void {
       }
     }
     if (!nome) nome = nomeLegivelDoCampo(campo.name || campo.id)
+    // campo sem `name` nem `id` (um anexo, um filtro solto): o nome vem do tipo
+    if (!nome && campo instanceof HTMLInputElement) {
+      nome = NOME_POR_TIPO[campo.type] ?? 'Campo'
+    }
+    if (!nome) nome = 'Campo'
     if (nome) campo.setAttribute('aria-label', nome)
   })
 }

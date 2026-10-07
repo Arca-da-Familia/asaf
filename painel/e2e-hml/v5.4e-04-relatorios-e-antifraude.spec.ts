@@ -2291,37 +2291,20 @@ test('10. os alertas seguem os dados: o mês é o da gravação (não o da compe
     'auditoria: criacao e tres trocas de situacao da alcada',
   )
 
-  // ---- competência vazia (campo de mês limpo): o servidor não pode cair e a tela não pode dizer "nada suspeito"
+  // ---- competência vazia (campo de mês limpo): a tela ignora o campo vazio (nenhuma consulta sai) e continua no mês que já estava
   const { sec } = await lerPadroes(page, estado.mes)
-  const [vazia] = await Promise.all([
-    page.waitForResponse(
-      (r) =>
-        new URL(r.url()).pathname === ROTA_PADROES &&
-        new URL(r.url()).searchParams.get('competencia') === '',
-    ),
-    sec.locator('input[type="month"]').fill(''),
-  ])
-  if (vazia.status() >= 500) {
-    achar(
-      `GET ${ROTA_PADROES}?competencia= (campo de mês limpo) derruba o servidor com HTTP ${vazia.status()}: app/services/antifraude.py::_mes_ano separa a competência sem validar`,
-    )
-  } else if (vazia.status() >= 400) {
-    observar(
-      `competência vazia recusada com HTTP ${vazia.status()} (como deve ser)`,
-    )
-  }
-  await page.waitForTimeout(3_000) // o painel tenta de novo uma vez antes de dar a consulta por falha
-  if (vazia.status() >= 400) {
-    const todoClaro = await sec
-      .getByText('Nenhum padrão suspeito encontrado nesta competência.')
-      .isVisible()
-    if (todoClaro) {
-      achar(
-        `quando a consulta dos padrões suspeitos FALHA (HTTP ${vazia.status()}), a tela diz "Nenhum padrão suspeito encontrado nesta competência." em vez de avisar que não conseguiu consultar: num controle antifraude, falha silenciosa parece "tudo certo"`,
-      )
-    }
-  }
-  await ver(page, info, 'padroes suspeitos com competencia vazia')
+  const consultas: string[] = []
+  page.on('request', (r) => {
+    if (new URL(r.url()).pathname === ROTA_PADROES) consultas.push(r.url())
+  })
+  await sec.locator('input[type="month"]').fill('')
+  await page.waitForTimeout(3_000)
+  expect(
+    consultas,
+    'o campo de mês limpo não pode mandar uma consulta sem competência',
+  ).toEqual([])
+  await expect(sec.locator('input[type="month"]')).toHaveValue(estado.mes)
+  await ver(page, info, 'padroes suspeitos com competencia vazia: ignorada')
   // o único 5xx permitido neste teste é o da consulta com a competência vazia, que já virou achado
   expect(vigia.problemas().filter((p) => !p.includes(ROTA_PADROES))).toEqual([])
 })

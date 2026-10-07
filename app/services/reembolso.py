@@ -53,9 +53,14 @@ def aprovar_reembolso(db: Session, *, id_reembolso: int, id_usuario_aprovador: i
     reembolso.id_usuario_aprovador = id_usuario_aprovador
     reembolso.data_aprovacao = datetime.utcnow()
 
+    # o título é "A Pagar" e não leva o associado (um título vencido com dono entraria na conta de inadimplência dele): a quem pagar vai na descrição
+    from app.models.associados import Associado
+
+    beneficiario = db.query(Associado).filter(Associado.id_associado == reembolso.id_associado).first()
+    quem_recebe = f" (a pagar a {beneficiario.nome_completo})" if beneficiario else ""
     titulo = TituloFinanceiro(
         tipo_titulo="A Pagar", id_conta_contabil=reembolso.id_conta_contabil,
-        descricao=f"Reembolso #{reembolso.id_reembolso} — {reembolso.descricao}",
+        descricao=f"Reembolso #{reembolso.id_reembolso} — {reembolso.descricao}{quem_recebe}",
         valor_original=reembolso.valor, saldo_devedor=reembolso.valor,
         data_vencimento=datetime.utcnow(), status="Pendente",
     )

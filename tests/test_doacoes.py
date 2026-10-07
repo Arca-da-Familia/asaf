@@ -217,3 +217,21 @@ def test_campanha_arrecadacao_soma_doacoes_vinculadas(client, auth_headers):
     campanha = next(c for c in campanhas if c["id_campanha"] == id_campanha)
     assert campanha["valor_arrecadado"] == 350.0
     assert campanha["meta_valor"] == 1000.0
+
+
+def test_arrecadado_da_campanha_soma_so_dinheiro_e_nao_o_valor_avaliado_de_bens(client, auth_headers, exercicio_financeiro_aberto):
+    conta_receita = _criar_conta(client, auth_headers, "Receita")
+    conta_caixa = _criar_conta(client, auth_headers, "Ativo")
+    r = client.post("/api/campanhas-arrecadacao/", json={"titulo": f"Campanha só dinheiro {uuid.uuid4().hex[:6]}", "meta_valor": 1000}, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    id_campanha = r.json()["id_campanha"]
+    assert client.post("/api/doacoes/", json={
+        "nome_doador": "Doador em dinheiro", "tipo_doacao": "Monetaria", "valor": 100, "id_campanha": id_campanha,
+        "id_conta_contabil": conta_receita, "id_conta_contabil_caixa": conta_caixa,
+    }, headers=auth_headers).status_code == 200
+    assert client.post("/api/doacoes/", json={
+        "nome_doador": "Doador de bem", "tipo_doacao": "Bens", "valor": 250, "descricao_bem": "Mesas usadas", "id_campanha": id_campanha,
+        "id_conta_contabil": conta_receita,
+    }, headers=auth_headers).status_code == 200
+    campanha = next(c for c in client.get("/api/campanhas-arrecadacao/", headers=auth_headers).json() if c["id_campanha"] == id_campanha)
+    assert campanha["valor_arrecadado"] == 100.0

@@ -317,11 +317,15 @@ async function criarSolicitacao(
 
 /** Abre o painel "Cotações / Aprovar" do cartão (se já estiver aberto, não faz nada). */
 async function abrirPainelDaCompra(cartao: Locator): Promise<void> {
-  const abrir = cartao.getByRole('button', { name: 'Cotações / Aprovar' })
-  if ((await abrir.count()) > 0) await abrir.click()
-  await expect(
-    cartao.getByRole('button', { name: 'Ocultar', exact: true }),
-  ).toBeVisible()
+  // logo depois da entrada a tela ainda se refaz (a sessão é confirmada e a lista, relida), o que fecha um painel recém-aberto: abre de novo
+  // até ele ficar aberto, em vez de clicar uma vez só
+  await expect(async () => {
+    const abrir = cartao.getByRole('button', { name: 'Cotações / Aprovar' })
+    if ((await abrir.count()) > 0) await abrir.click()
+    await expect(
+      cartao.getByRole('button', { name: 'Ocultar', exact: true }),
+    ).toBeVisible({ timeout: 3_000 })
+  }).toPass({ timeout: 30_000 })
   await expect(cartao.getByText('Cotações', { exact: true })).toBeVisible()
 }
 
@@ -478,6 +482,9 @@ async function abrirMandatos(page: Page): Promise<void> {
 /** Encerra (pela tela) toda declaração de conflito ATIVA de quem casa com `nomes`. Devolve quantas. */
 async function encerrarConflitosDe(page: Page, nomes: RegExp): Promise<number> {
   await abrirMandatos(page)
+  // a lista de declarações não tem estado "carregando": vazia e carregando se parecem; espera as leituras terminarem antes de contar
+  await page.waitForLoadState('networkidle')
+  await page.waitForTimeout(1_000)
   const deles = () =>
     secaoDeConflitos(page)
       .locator('div.rounded-md.border')

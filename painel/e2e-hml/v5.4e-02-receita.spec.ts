@@ -796,7 +796,8 @@ test.describe('A. Quem pode e o que cada tela da receita oferece', () => {
     await entrarNoFinanceiro(page, 'tesoureiro')
     const lista = page.waitForResponse(
       (r) =>
-        new URL(r.url()).pathname === '/api/associados/' && r.status() !== 401,
+        new URL(r.url()).pathname === '/api/associados/busca-simples' &&
+        r.status() !== 401,
     )
     await page.goto('/financeiro/negociacao-divida')
     await expect(
@@ -1798,8 +1799,13 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
     const cobertos = Number(
       /(\d+) já coberto\(s\) por título-bloco/.exec(texto)?.[1] ?? Number.NaN,
     )
+    // no primeiro mês do bloco o próprio título-bloco já é "existente" para a competência; nos seguintes, "coberto": das duas formas quem
+    // pagou o bloco não é cobrado de novo
+    const existentes = Number(
+      /(\d+) já existente\(s\)/.exec(texto)?.[1] ?? Number.NaN,
+    )
     expect(
-      cobertos,
+      cobertos + existentes,
       'quem pagou o bloco é pulado na geração mensal',
     ).toBeGreaterThanOrEqual(1)
     const linhas = painel
@@ -2223,7 +2229,7 @@ test.describe('C. Títulos, baixa, pagamento a maior, crédito e negociação de
     await expect(
       form.getByRole('alert').filter({
         hasText:
-          /Valor pago maior que o saldo devedor \(R\$ 1234[.,]56\) - .*adiantamento/,
+          /Valor pago maior que o saldo devedor \(R\$ 1\.?234[.,]56\) - .*adiantamento/,
       }),
     ).toHaveCount(1)
     await expect(cartaoT1).toContainText(`Saldo ${reais(V.t1)}`)
@@ -3537,7 +3543,7 @@ test.describe('E. Conciliação bancária e fechamento do mês', () => {
     await expect(credito).toContainText(reais(CENTAVOS))
     await expect(credito).toContainText(
       new RegExp(
-        `Sugestão: título #${idTitulo} — ${escapar(DESCRICAO)} \\(A Receber, saldo ${escapar(reais(CENTAVOS))}\\) — dê baixa em Financeiro › Títulos\\.`,
+        `Sugestão: título #${idTitulo} — ${escapar(DESCRICAO)} \\(A Receber, saldo ${escapar(reais(CENTAVOS)).replace(/\s/g, '\\s')}\\) — dê baixa em Financeiro › Títulos\\.`,
       ),
     )
     const debito = page.locator('div.rounded-md.border').filter({
