@@ -23,6 +23,10 @@ on:
         description: "Rodar também o cenário que FECHA o exercício contábil aberto (sem volta; só no fim da bateria, e recrie a homologação depois)"
         type: boolean
         default: false
+      ref:
+        description: "De onde baixar os roteiros do robô: `main` ou o nome de uma branch (a regra da v5.5 em diante: provar a branch aqui ANTES de ir para a main). O fluxo em si roda sempre da `main`, de onde a identidade do Azure é aceita."
+        type: string
+        default: main
 
 permissions:
   id-token: write
@@ -48,6 +52,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Configura Node.js
         uses: actions/setup-node@v7
