@@ -1622,6 +1622,16 @@ retrabalho que a seção 4.1 existe pra evitar.
   não a cotação vencedora; reembolso sem alçada/dupla assinatura; recusas de aprovação não deixam rastro na Auditoria; Conselheiro Fiscal
   recebe a permissão `financeiro` (decisão de desenho).
 
+  **Atualização (2026-10-06, ~22:20, parada a pedido do usuário no fim das 4 horas):** na **homologação** (código `7e06c99`/`da8435c`) o robô
+  fechou **verde**: `v5.4e-01` (15 cenários; o do fechamento do exercício fica para o fim, com a opção `fechar_exercicio`), `v5.4e-03`
+  (despesa e segregação, 12/12) e `v5.4f-03` (evento, check-in, certificado, financeiro do evento, 16/16). Quase verde: `v5.4e-02` receita
+  (26 de 29; faltam o cenário da Auditoria da receita, o da negociação de dívida e o do Pix, que depende de `CHAVE_PIX` configurada na
+  homologação e de uma tela para gravá-la), `v5.4e-04` relatórios (12 de 13 antes das últimas correções), `v5.4f-01` projetos (19 de 22; a
+  troca de turno consigo mesmo foi corrigida depois) e `v5.4f-02` reserva e eventos (10 de 16; o resto são achados que ficaram para decidir:
+  espaço com o mesmo nome, reserva no passado, taxa de cancelamento tardio não explicada na tela). **Em produção** só se confirmou por leitura
+  (`version.json` no commit publicado e rotas novas respondendo 401 sem login). Itens da v5.4e/v5.4f **continuam abertos** até o robô fechar
+  verde cada roteiro e os achados serem resolvidos ou decididos; v5.4g não foi começada.
+
 #### v5.4f — FASE 4 ao vivo: projetos, reserva de espaço e eventos
 
 - [ ] **Projeto:** criar, editar, publicar no site (aprovação), **em destaque**, beneficiários e atendimento, voluntariado vinculado.
