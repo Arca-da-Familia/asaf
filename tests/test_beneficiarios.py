@@ -74,6 +74,9 @@ def test_nucleo_familiar_reaproveita_dependente_familiar(client, auth_headers, d
     nucleo = client.get(f"/api/beneficiarios/{id_beneficiario}/nucleo-familiar", headers=auth_headers).json()
     assert len(nucleo) == 1
     assert nucleo[0]["id_pessoa_titular"] == mae.id_pessoa
+    # a tela mostra nomes e o lado da família em que o beneficiário está
+    assert nucleo[0]["nome_titular"] == mae.nome_completo and nucleo[0]["nome_vinculada"] == "Criança Teste Núcleo"
+    assert nucleo[0]["beneficiario_e"] == "dependente" and nucleo[0]["grau_parentesco"] == "FILHO"
 
 
 def test_vincular_a_projeto_valida_papel_e_recusa_duplicidade(client, auth_headers):

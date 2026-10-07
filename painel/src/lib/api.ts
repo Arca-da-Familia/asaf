@@ -3937,6 +3937,23 @@ export function criarBeneficiario(dados: {
   })
 }
 
+// Núcleo familiar do beneficiário (os vínculos de parentesco que a pessoa tem como titular ou como dependente).
+export type VinculoDoNucleoFamiliar = {
+  id_dependente: number
+  id_pessoa_titular: number
+  id_pessoa_vinculada: number
+  grau_parentesco: string | null
+  nome_titular: string
+  nome_vinculada: string
+  beneficiario_e: 'titular' | 'dependente'
+}
+
+export function listarNucleoFamiliar(
+  idBeneficiario: number,
+): Promise<VinculoDoNucleoFamiliar[]> {
+  return apiFetch(`/api/beneficiarios/${idBeneficiario}/nucleo-familiar`)
+}
+
 // v4.10 - primeiro endpoint de edição de beneficiário (até aqui só existia criar). Todos os
 // campos são opcionais - o formulário só envia o que foi alterado.
 export function editarBeneficiario(

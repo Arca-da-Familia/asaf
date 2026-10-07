@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
 from app.database import get_db
+from app.models.beneficiarios import Beneficiario
 from app.models.pessoas import Pessoa
 from app.schemas.beneficiarios import (
     BeneficiarioAtualizar,
@@ -98,9 +99,19 @@ def exportar_beneficiarios_endpoint(
 
 @router.get("/api/beneficiarios/{id_beneficiario}/nucleo-familiar", summary="Núcleo familiar do beneficiário (reaproveita DependenteFamiliar, v1.7)")
 def nucleo_familiar_endpoint(id_beneficiario: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    vinculos = beneficiarios.nucleo_familiar(db, id_beneficiario=id_beneficiario)
+    pessoa_do_beneficiario = db.query(Beneficiario).filter(Beneficiario.id_beneficiario == id_beneficiario).first().id_pessoa
+    ids = {d.id_pessoa_titular for d in vinculos} | {d.id_pessoa_vinculada for d in vinculos}
+    nomes = {p.id_pessoa: p.nome_completo for p in db.query(Pessoa).filter(Pessoa.id_pessoa.in_(ids)).all()} if ids else {}
+    # a tela precisa dos nomes e de saber de que lado da família o beneficiário está (titular ou dependente)
     return [
-        {"id_dependente": d.id_dependente, "id_pessoa_titular": d.id_pessoa_titular, "id_pessoa_vinculada": d.id_pessoa_vinculada, "grau_parentesco": d.grau_parentesco}
-        for d in beneficiarios.nucleo_familiar(db, id_beneficiario=id_beneficiario)
+        {
+            "id_dependente": d.id_dependente, "id_pessoa_titular": d.id_pessoa_titular, "id_pessoa_vinculada": d.id_pessoa_vinculada,
+            "grau_parentesco": d.grau_parentesco, "nome_titular": nomes.get(d.id_pessoa_titular, "-"),
+            "nome_vinculada": nomes.get(d.id_pessoa_vinculada, "-"),
+            "beneficiario_e": "titular" if d.id_pessoa_titular == pessoa_do_beneficiario else "dependente",
+        }
+        for d in vinculos
     ]
 
 

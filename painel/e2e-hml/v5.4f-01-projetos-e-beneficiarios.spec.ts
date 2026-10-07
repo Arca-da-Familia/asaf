@@ -31,8 +31,8 @@ import {
 //  - NÃO existe aprovação para publicar PROJETO no site: "Pública" publica na hora (só o texto passa pela conferência de dado pessoal). A
 //    aprovação por segunda pessoa existe para Documentos e Parcerias. Aqui se confere o que existe e se anota a diferença para o plano.
 //  - Mais de um projeto pode estar "em destaque" ao mesmo tempo (regra escrita em app/models/projetos.py); só projeto Público vai a destaque.
-//  - NÃO existe foto de projeto (as fotos são de evento) e NÃO existe tela do núcleo familiar do beneficiário nem da alocação direta de
-//    voluntário (`/projetos/alocar/`): o primeiro tem só a rota (conferida aqui por GET) e o segundo nem isso.
+//  - NÃO existe foto de projeto (as fotos são de evento). O núcleo familiar do beneficiário e a alocação direta de voluntário (`/projetos/alocar/`)
+//    ganharam tela na v5.4h (roteiros v5.4h-05 e v5.4h-04).
 //  - Prontuário e encaminhamento só abrem para quem está ATIVO na equipe daquele projeto (mesmo o Presidente é barrado se não estiver).
 //  - Confirmar candidatura, confirmar troca de turno e aprovar horas é só do COORDENADOR ativo do projeto. Para isso o Presidente entra na
 //    equipe como Coordenador. Candidatar-se e registrar horas exige termo de adesão de voluntário vigente (registrado na ficha, em Vínculos).
@@ -2022,7 +2022,7 @@ test.describe('C. Beneficiários e atendimento', () => {
     await expect(linhaDe(BENEFICIARIA_1)).toContainText('Pendente')
     await ver(page, info, 'consentimento retirado: volta a Pendente')
 
-    // núcleo familiar: a rota existe (v1.7) mas NENHUMA tela a chama; confere-se por GET e fica como achado
+    // núcleo familiar: a rota responde (a tela dele é conferida no roteiro v5.4h-05)
     expect(token.atual()).toBeTruthy()
     const nucleo = await page.request.get(
       `${API_HML}/api/beneficiarios/${id1}/nucleo-familiar`,
@@ -2030,11 +2030,6 @@ test.describe('C. Beneficiários e atendimento', () => {
     )
     expect(nucleo.status()).toBe(200)
     expect(Array.isArray(await nucleo.json())).toBe(true)
-    test.info().annotations.push({
-      type: 'achado',
-      description:
-        'GET /api/beneficiarios/{id}/nucleo-familiar responde, mas nenhuma tela mostra o núcleo familiar (nem o "atendimento por família" abre a família); a alocação direta de voluntário (POST /projetos/alocar/) também não tem tela',
-    })
 
     // exportação (permissão própria): só o filtro atual, e fica na Auditoria
     const antesDaExportacao = await abrirAuditoria(page, 'beneficiarios')

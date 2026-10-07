@@ -7,6 +7,7 @@ import { DataTable, type ColunaTabela } from '@/components/data/DataTable'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { NucleoFamiliarDoBeneficiario } from '@/components/projetos/NucleoFamiliarDoBeneficiario'
 import { Button } from '@/components/ui/button'
 import {
   editarBeneficiario,
@@ -201,6 +202,7 @@ export function BeneficiariosPage() {
     undefined,
   )
   const [idEditando, setIdEditando] = useState<number | null>(null)
+  const [idVendoNucleo, setIdVendoNucleo] = useState<number | null>(null)
 
   const { data: projetos } = useQuery({
     queryKey: ['projetos'],
@@ -218,6 +220,8 @@ export function BeneficiariosPage() {
 
   const dados = beneficiarios ?? []
   const editando = dados.find((b) => b.id_beneficiario === idEditando) ?? null
+  const vendoNucleo =
+    dados.find((b) => b.id_beneficiario === idVendoNucleo) ?? null
 
   const colunas: ColunaTabela<Beneficiario>[] = [
     {
@@ -250,19 +254,35 @@ export function BeneficiariosPage() {
       id: 'acoes',
       header: '',
       cell: ({ row }) => (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            setIdEditando((atual) =>
-              atual === row.original.id_beneficiario
-                ? null
-                : row.original.id_beneficiario,
-            )
-          }
-        >
-          Editar
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setIdEditando((atual) =>
+                atual === row.original.id_beneficiario
+                  ? null
+                  : row.original.id_beneficiario,
+              )
+            }
+          >
+            Editar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label={`Núcleo familiar de ${row.original.nome_completo ?? `pessoa ${row.original.id_pessoa}`}`}
+            onClick={() =>
+              setIdVendoNucleo((atual) =>
+                atual === row.original.id_beneficiario
+                  ? null
+                  : row.original.id_beneficiario,
+              )
+            }
+          >
+            Núcleo familiar
+          </Button>
+        </div>
       ),
     },
   ]
@@ -316,6 +336,13 @@ export function BeneficiariosPage() {
           <FormularioEditarBeneficiario
             beneficiario={editando}
             onFechar={() => setIdEditando(null)}
+          />
+        )}
+
+        {vendoNucleo && (
+          <NucleoFamiliarDoBeneficiario
+            beneficiario={vendoNucleo}
+            onFechar={() => setIdVendoNucleo(null)}
           />
         )}
 
