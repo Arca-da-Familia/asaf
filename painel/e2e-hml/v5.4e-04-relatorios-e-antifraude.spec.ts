@@ -2838,22 +2838,21 @@ test('13. Balancete, Receitas x despesas (por conta e por centro de custo), Por 
     )
   }
   await ver(page, info, 'balancete com inicio depois do fim')
-  const [apagada] = await Promise.all([
-    page.waitForResponse(
-      (r) =>
-        new URL(r.url()).pathname === '/api/relatorios/balancete' &&
-        new URL(r.url()).searchParams.get('data_inicio') === 'T00:00:00',
-    ),
-    datas.nth(0).fill(''),
-  ])
-  expect(apagada.status()).toBe(400)
+  // data apagada no campo: a tela ignora (uma data vazia não é período) e continua no que estava, sem mandar consulta nenhuma
+  const consultasDoBalancete: string[] = []
+  page.on('request', (r) => {
+    if (new URL(r.url()).pathname === '/api/relatorios/balancete')
+      consultasDoBalancete.push(r.url())
+  })
+  const valorAntes = await datas.nth(0).inputValue()
+  await datas.nth(0).fill('')
   await page.waitForTimeout(3_000)
-  if (!(await bal2.getByText(/inválido/i).isVisible())) {
-    achar(
-      `Balancete com a data inicial apagada: o servidor recusa (HTTP 400 "${((await apagada.json()) as { detail: string }).detail}") e a tela não mostra nenhuma mensagem`,
-    )
-  }
-  await ver(page, info, 'balancete com a data apagada')
+  expect(
+    consultasDoBalancete,
+    'a data apagada não pode mandar uma consulta sem data inicial',
+  ).toEqual([])
+  await expect(datas.nth(0)).toHaveValue(valorAntes)
+  await ver(page, info, 'balancete com a data apagada: ignorada')
   expect(
     vigia.problemas(),
     'nenhum 5xx nos relatórios (os 400 do período inválido são esperados)',
