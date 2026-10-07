@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 
 import {
   API_HML,
+  AVISO,
   campo,
   entrar,
   exigirHomologacao,
@@ -332,7 +333,7 @@ test('o 2º conselheiro completa a maioria: o título fica aprovado e travado; o
   await page
     .getByRole('button', { name: 'Confirmar aprovação em lote' })
     .click()
-  await expect(page.getByRole('status')).toContainText(
+  await expect(page.locator(AVISO)).toContainText(
     '5 título(s) aprovado(s) por você. Pulados: 1 suspenso(s), 1 já aprovado(s) e travado(s).',
   )
   await expect(page.getByText(resumo(7, 5, 1, 1))).toBeVisible()
@@ -352,7 +353,7 @@ test('o 3º conselheiro aprova o lote (a maioria trava os títulos) e reabre um 
   await page
     .getByRole('button', { name: 'Confirmar aprovação em lote' })
     .click()
-  await expect(page.getByRole('status')).toContainText(
+  await expect(page.locator(AVISO)).toContainText(
     '5 título(s) aprovado(s) por você. Pulados: 1 suspenso(s), 1 já aprovado(s) e travado(s).',
   )
   await expect(page.getByText(resumo(7, 0, 1, 6))).toBeVisible()
