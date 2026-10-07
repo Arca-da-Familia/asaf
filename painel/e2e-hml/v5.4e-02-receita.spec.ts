@@ -1564,9 +1564,20 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
     await outra.close()
 
     // o que ficou nos Títulos: uma cobrança por associado do plano, com o valor certo e o vencimento do dia 15
-    await page.goto('/financeiro/titulos?periodo=todos')
-    const dosPlano = cartaoDeTitulo(page, `${PLANO} — competência ${C1}`)
-    await expect(dosPlano).toHaveCount(quantasDoPlano)
+    // a tela pagina de 25 em 25: o total do lote vem do resumo da busca, e cada pessoa é achada buscando pelo nome dela
+    const descricaoDoPlano = `${PLANO} — competência ${C1}`
+    const buscarNosTitulos = async (busca: string) => {
+      await page.goto(
+        `/financeiro/titulos?periodo=todos&busca=${encodeURIComponent(busca)}`,
+      )
+      await expect(page.getByText(/^Carregando/)).toHaveCount(0)
+    }
+    await buscarNosTitulos(descricaoDoPlano)
+    await expect(
+      page.getByText(`${quantasDoPlano} título(s) · Original`),
+    ).toBeVisible()
+    await buscarNosTitulos(a.isento.nome)
+    const dosPlano = cartaoDeTitulo(page, descricaoDoPlano)
     const doIsentoNosTitulos = dosPlano.filter({ hasText: a.isento.nome })
     await expect(doIsentoNosTitulos).toHaveCount(1)
     await expect(doIsentoNosTitulos).toContainText(
@@ -1583,11 +1594,13 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
       'titulo do isento: R$ 74,07',
       doIsentoNosTitulos,
     )
+    await buscarNosTitulos(a.bloco.nome)
     const doBloco = dosPlano.filter({ hasText: a.bloco.nome })
     await expect(doBloco).toHaveCount(1)
     await expect(doBloco).toContainText(
       `Original ${reais(BASE)} · Saldo ${reais(BASE)}`,
     )
+    await buscarNosTitulos(a.devedor.nome)
     await expect(dosPlano.filter({ hasText: a.devedor.nome })).toHaveCount(0)
     expect(vigia.problemas()).toEqual([])
   })
