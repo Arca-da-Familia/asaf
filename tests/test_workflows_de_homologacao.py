@@ -105,6 +105,16 @@ def test_a_conferencia_ao_vivo_so_fala_com_a_homologacao_e_so_le_segredos_de_tes
     assert "secret set" not in CODIGO_TESTAR, "o fluxo só lê o cofre"
 
 
+def test_o_robo_pode_conferir_os_roteiros_de_uma_branch_sem_mudar_quem_entra_no_azure():
+    """O roteiro de uma versão nova só existe na branch dela. O fluxo continua disparado da `main` (a identidade do Azure só confia nela),
+    mas baixa os roteiros de `ref` — como o deploy de teste já faz. O nome vai para o `with:` do checkout, nunca para um script."""
+    entradas = CODIGO_TESTAR.split("permissions:")[0]
+    assert "      ref:" in entradas and "default: main" in entradas
+    assert CODIGO_TESTAR.count("uses: actions/checkout@v7") == 1
+    assert CODIGO_TESTAR.count("ref: ${{ inputs.ref }}") == 1
+    assert "${{ inputs.ref }}" not in CODIGO_TESTAR.replace("ref: ${{ inputs.ref }}", ""), "o nome da branch nunca é interpolado num script"
+
+
 def test_a_conferencia_ao_vivo_mascara_as_senhas_e_varre_os_resultados():
     assert CODIGO_TESTAR.count("::add-mask::") >= 3
     varredura = _passo_de(TEXTO_TESTAR, "Varre os resultados atrás de senha")
