@@ -101,7 +101,7 @@ test('a Instituição mostra os campos por grupo e diz o que vai para o site e o
     'Texto de rodapé dos documentos',
   ]) {
     const q = quadro(page, interno)
-    await expect(q.getByText('Só interno')).toBeVisible()
+    await expect(q.getByText('Só interno', { exact: true })).toBeVisible()
     await expect(q.getByLabel('Aparece no site')).toHaveCount(0)
   }
   await ver(page, info, 'instituicao-campos-por-grupo')
