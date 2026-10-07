@@ -584,11 +584,26 @@ function SecaoVoluntariado({ idProjeto }: { idProjeto: number }) {
     onSuccess: invalidarTudo,
   })
 
+  // a recusa do servidor (quem não é o coordenador do projeto, por exemplo) aparece no alto da seção: antes o clique parecia não fazer nada
+  const erroDeAcao = [
+    confirmar,
+    recusar,
+    confirmarTroca,
+    recusarTroca,
+    aprovarHoras,
+    recusarHoras,
+  ].find((m) => m.isError)?.error as Error | undefined
+
   return (
     <div>
       <h3 className="mb-2 text-sm font-semibold">
         Voluntariado — escala, candidaturas, trocas e horas
       </h3>
+      {erroDeAcao && (
+        <p role="alert" className="mb-2 text-sm text-destructive">
+          {erroDeAcao.message}
+        </p>
+      )}
 
       <div className="mb-4">
         <p className="mb-1 text-xs font-semibold text-muted-foreground">

@@ -446,6 +446,10 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
     mutationFn: marcarNaoCompareceu,
     onSuccess: invalidar,
   })
+  // a recusa do servidor (aprovar, recusar, cancelar, "não compareceu" antes da hora) aparece no alto da lista: antes o clique parecia não fazer nada
+  const erroDeAcao = [aprovar, recusar, cancelar, naoCompareceu].find(
+    (m) => m.isError,
+  )?.error as Error | undefined
 
   return (
     <div>
@@ -478,6 +482,11 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
           )}
         </div>
       </div>
+      {erroDeAcao && (
+        <p role="alert" className="mb-2 text-sm text-destructive">
+          {erroDeAcao.message}
+        </p>
+      )}
       <div className="mb-3 flex flex-wrap items-end gap-2">
         <div>
           <label className="mb-1 block text-xs text-muted-foreground">
@@ -823,11 +832,6 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
                     <Button type="submit" size="sm" disabled={editar.isPending}>
                       {editar.isPending ? 'Salvando…' : 'Salvar'}
                     </Button>
-                    {editar.isError && (
-                      <p className="w-full text-xs text-destructive">
-                        {(editar.error as Error).message}
-                      </p>
-                    )}
                   </>
                 )}
               </FormShell>

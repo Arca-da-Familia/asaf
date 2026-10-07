@@ -36,6 +36,12 @@ def dia_local(instante: datetime, fuso: tzinfo) -> date:
     return instante.replace(tzinfo=timezone.utc).astimezone(fuso).date()
 
 
+def instante_local(instante: datetime, fuso: tzinfo) -> datetime:
+    """O instante gravado em UTC (sem fuso) como hora de relógio da associação: a reserva das 10h de Belém está gravada às 13h UTC, e é 10h que a
+    cobrança, o mapa de calor e as telas têm de mostrar."""
+    return instante.replace(tzinfo=timezone.utc).astimezone(fuso)
+
+
 def _janela_quinzena(ano: int, mes: int) -> tuple[date, date]:
     return date(ano, mes, 1), date(ano, mes, 15)
 

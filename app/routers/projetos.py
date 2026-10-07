@@ -264,7 +264,7 @@ def meu_historico_horas_endpoint(db: Session = Depends(get_db), usuario=Depends(
 
 
 @router.post("/api/voluntariado/horas", summary="Registrar minhas próprias horas de voluntariado (exige termo vigente; aprovação do coordenador se amarrada a uma alocação)")
-def registrar_minhas_horas_endpoint(dados: HorasVoluntariadoCriar, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+def registrar_minhas_horas_endpoint(dados: HorasVoluntariadoCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
     from datetime import datetime as _datetime
 
     associado = projetos.associado_do_usuario_ou_403(db, usuario)
@@ -272,6 +272,10 @@ def registrar_minhas_horas_endpoint(dados: HorasVoluntariadoCriar, db: Session =
         db, id_pessoa=associado.id_pessoa, data=_datetime.combine(dados.data, _datetime.min.time()), horas=dados.horas,
         descricao_atividade=dados.descricao_atividade, id_projeto=dados.id_projeto, id_alocacao=dados.id_alocacao,
         id_usuario=usuario.id_usuario,
+    )
+    registrar_auditoria(
+        db, usuario, "registros_horas_voluntariado", "CREATE", id_registro_afetado=registro.id_registro,
+        dados_depois={"horas": str(registro.horas), "id_alocacao": registro.id_alocacao, "status": registro.status}, ip_origem=_ip_origem(request),
     )
     return {"mensagem": "Horas registradas.", "id_registro": registro.id_registro, "status": registro.status}
 

@@ -959,7 +959,10 @@ export const espacoCriarSchema = z.object({
   valor_reserva: numeroOpcional,
   isento_para_associado_adimplente: z.boolean(),
   id_conta_contabil_receita: numeroOpcional,
-  prazo_cancelamento_horas: z.coerce.number().int().min(0),
+  prazo_cancelamento_horas: z.coerce
+    .number()
+    .int()
+    .min(0, 'Informe um prazo válido, em horas (zero ou mais).'),
   taxa_cancelamento_tardio: numeroOpcional,
   limite_no_show_bloqueio: inteiroOpcional,
   percentual_reembolso_cancelamento: z.coerce

@@ -61,7 +61,8 @@ function FormularioEditarBeneficiario({
         schema={beneficiarioEditarSchema}
         defaultValues={{
           nome_completo: beneficiario.nome_completo ?? '',
-          data_nascimento: beneficiario.data_nascimento ?? '',
+          // a API devolve data e hora ("1990-03-04T00:00:00"); o campo de data só aceita aaaa-mm-dd
+          data_nascimento: beneficiario.data_nascimento?.slice(0, 10) ?? '',
           consentimento_lgpd_registrado:
             beneficiario.consentimento_lgpd_registrado,
           observacao_consentimento: beneficiario.observacao_consentimento ?? '',

@@ -64,9 +64,12 @@ def _gerar_cobranca_se_devido(db: Session, *, espaco: Espaco, associado: Associa
     if valor_final <= 0:
         return
 
+    from app.services.calendario import fuso_da_associacao, instante_local
+
+    inicio_local = instante_local(reserva.data_hora_inicio, fuso_da_associacao(db))
     titulo = TituloFinanceiro(
         tipo_titulo="A Receber", id_conta_contabil=espaco.id_conta_contabil_receita, id_associado=associado.id_associado,
-        descricao=f"Reserva de espaço '{espaco.nome}' em {reserva.data_hora_inicio.strftime('%d/%m/%Y %H:%M')}",
+        descricao=f"Reserva de espaço '{espaco.nome}' em {inicio_local.strftime('%d/%m/%Y %H:%M')}",
         valor_original=valor_final, saldo_devedor=valor_final, data_vencimento=reserva.data_hora_inicio, status="Pendente",
     )
     db.add(titulo)

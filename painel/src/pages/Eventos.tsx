@@ -300,13 +300,17 @@ function SecaoSessoes({ idEvento }: { idEvento: number }) {
     queryFn: () => listarSessoesEvento(idEvento),
   })
 
+  // depois de adicionar, o formulário volta em branco (nova chave = formulário novo): senão a mesma sessão podia ser adicionada duas vezes sem querer
+  const [chaveDoFormulario, setChaveDoFormulario] = useState(0)
   const criar = useMutation({
     mutationFn: (v: z.infer<typeof sessaoEventoCriarSchema>) =>
       criarSessaoEvento(idEvento, v),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
+    onSuccess: () => {
+      setChaveDoFormulario((c) => c + 1)
+      return queryClient.invalidateQueries({
         queryKey: ['sessoes-evento', idEvento],
-      }),
+      })
+    },
   })
 
   return (
@@ -315,6 +319,7 @@ function SecaoSessoes({ idEvento }: { idEvento: number }) {
         Programação (sessões/atividades)
       </h3>
       <FormShell<z.infer<typeof sessaoEventoCriarSchema>>
+        key={chaveDoFormulario}
         schema={sessaoEventoCriarSchema}
         defaultValues={{ titulo: '', data_hora_inicio: '', data_hora_fim: '' }}
         onSubmit={(v) => criar.mutateAsync(v)}
@@ -716,6 +721,9 @@ function LinhaInscrito({
     onSuccess: () => {
       onErro(null)
       queryClient.invalidateQueries({ queryKey: ['inscricoes'] })
+      // cancelar (ou reativar) mexe nas vagas: o contador do evento e o das cotas precisam ser relidos, senão ficam parados em 2/2
+      queryClient.invalidateQueries({ queryKey: ['eventos'] })
+      queryClient.invalidateQueries({ queryKey: ['cotas-evento'] })
     },
     onError: (err) => onErro((err as Error).message),
   })

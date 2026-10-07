@@ -384,7 +384,8 @@ def test_mapa_de_calor_ocupacao_conta_reservas_confirmadas_por_dia_e_hora(client
     # ajustes juntos quebraria o dia da semana sempre que 30 não for múltiplo de 7).
     base = datetime.utcnow() + timedelta(days=30)
     proxima_segunda = base + timedelta(days=(7 - base.weekday()) % 7)
-    inicio = proxima_segunda.replace(hour=10, minute=0, second=0, microsecond=0)
+    # 13h UTC = 10h no relógio de Belém (UTC-3): o mapa agrupa pela hora local da associação, não pela hora UTC guardada
+    inicio = proxima_segunda.replace(hour=13, minute=0, second=0, microsecond=0)
     client.post("/api/reservas-espaco/", json={
         "id_espaco": id_espaco, "id_associado_solicitante": associado["id_associado"],
         "data_hora_inicio": inicio.strftime(_ISO), "data_hora_fim": (inicio + timedelta(hours=1)).strftime(_ISO), "finalidade": "Para o mapa de calor",

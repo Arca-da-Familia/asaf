@@ -23,9 +23,15 @@ def mapa_calor_ocupacao(
     if id_espaco is not None:
         consulta = consulta.filter(Reserva.id_espaco == id_espaco)
 
+    # o dia da semana e a hora são os do relógio da associação (Belém), não os do instante UTC guardado: uma reserva de domingo 14h de Belém
+    # está gravada às 17h UTC e tem de cair na célula das 14h
+    from app.services.calendario import fuso_da_associacao, instante_local
+
+    fuso = fuso_da_associacao(db)
     contagem: dict[tuple[int, int], int] = {}
     for reserva in consulta.all():
-        chave = (reserva.data_hora_inicio.weekday(), reserva.data_hora_inicio.hour)
+        local = instante_local(reserva.data_hora_inicio, fuso)
+        chave = (local.weekday(), local.hour)
         contagem[chave] = contagem.get(chave, 0) + 1
 
     return [

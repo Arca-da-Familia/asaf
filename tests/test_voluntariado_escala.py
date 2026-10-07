@@ -138,6 +138,10 @@ def test_fluxo_completo_candidatura_confirmacao_e_aprovacao_de_horas(client, aut
     assert r.json()["status"] == "PENDENTE"
     id_registro = r.json()["id_registro"]
 
+    # registrar horas deixa rastro na Auditoria (aprovar e recusar já deixavam)
+    trilha = client.get("/api/auditoria/?tabela_afetada=registros_horas_voluntariado&acao=CREATE&por_pagina=200", headers=auth_headers).json()
+    assert any(e["id_registro_afetado"] == id_registro for e in trilha["entradas"])
+
     horas = client.get(f"/api/pessoas/{associado_voluntario.id_pessoa}/horas-voluntariado", headers=auth_headers).json()
     assert horas["total_horas"] == 0  # pendente ainda não conta
 
