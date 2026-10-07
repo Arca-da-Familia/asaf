@@ -1597,66 +1597,75 @@ retrabalho que a seção 4.1 existe pra evitar.
 
 #### v5.4e — FASE 3 ao vivo: financeiro
 
-- [ ] **Base contábil:** exercício, plano de contas, centros de custo, contas financeiras; lançamento em partida dobrada que **não fecha**
-      é recusado; lançamento **não se apaga** (estorno), e o razão contábil bate com o livro-caixa.
-- [ ] **Receita:** planos de contribuição, gerar cobranças em bloco, baixa de título, inadimplência como processo (negociação de dívida),
+- [x] **Base contábil:** exercício, plano de contas, centros de custo, contas financeiras; lançamento em partida dobrada que **não fecha
+      é recusado**; lançamento **não se apaga** (estorno), e o razão contábil bate com o livro-caixa.
+      **Na homologação (roteiro `v5.4e-01`, 17 de 17, o do fechamento do exercício rodado à parte):** plano de contas (campos vazios, código
+      repetido, **pai circular**, trocar tipo/código de conta com filhas ou movimento, excluir conta usada: tudo recusado em português); centros
+      de custo (inativar, destinação restrita, remanejamento recusado); contas financeiras só de conta Ativo; baixa e transferência em partida
+      dobrada com os valores ao centavo; **estorno** como outro lançamento com as partidas invertidas e os saldos voltando; **exercício fechado
+      bloqueia lançamento e não reabre**; tudo na Auditoria. **Em produção (só leitura):** `version.json` no commit publicado e as rotas novas
+      respondendo 401 sem login.
+- [x] **Receita:** planos de contribuição, gerar cobranças em bloco, baixa de título, inadimplência como processo (negociação de dívida),
       desconto por pagamento antecipado, doações e **recibo que abre**.
-- [ ] **Despesa com segregação de funções:** compra, conta a pagar (recorrentes), reembolso; **quem criou não aprova** (Tesoureiro prepara,
+      **Na homologação (roteiro `v5.4e-02`, 27 de 29):** plano e reajuste (valores impossíveis recusados), campanha de desconto, isenção de 40%
+      e 100%, **cobrança em lote** (prévia linha a linha ao centavo, segunda confirmação não duplica, quem pagou o bloco não é cobrado de novo),
+      **baixa parcial, pagamento a maior virando crédito do associado**, **negociação de dívida** (3 parcelas de R$ 50,17 / 50,17 / 50,16),
+      doação em dinheiro com **recibo numerado que abre**, anônima, recorrente e em bens, conciliação por extrato (OFX/CSV) e fechamento do mês.
+      **Fora do fechamento (abertos, não são defeito desta fase):** o Pix precisa da chave da instituição, que ainda não tem tela (módulo
+      Instituição, a criar), e uma sondagem que falha às vezes porque a lista de Títulos ainda não pagina.
+- [x] **Despesa com segregação de funções:** compra, conta a pagar (recorrentes), reembolso; **quem criou não aprova** (Tesoureiro prepara,
       Presidente aprova); alçadas de aprovação; fornecedores; conciliação bancária.
-- [ ] **Orçamento e fluxo de caixa, relatórios e prestação de contas, controles antifraude** (alerta dispara de verdade).
-- [ ] Os **valores** vistos nas telas conferem **centavo a centavo** com o que foi lançado; lista de achados corrigidos e prints.
-
-  **Andamento (2026-10-06, em curso — nada acima está fechado):** quatro roteiros do robô escritos (`v5.4e-01` base contábil e orçamento,
-  `-02` receita, `-03` despesa e segregação, `-04` relatórios e antifraude). O `-01` já passa na homologação (15 cenários verdes; o 14, que
-  **fecha o exercício** e não tem volta, só roda com a opção `fechar_exercicio` do fluxo, no fim, e a homologação é recriada depois); falta
-  só a varredura de campos sem nome acessível, que ganhou uma rede de segurança global (`nomearCamposSemRotulo`). Defeitos reais achados e
-  corrigidos até aqui: campos opcionais em branco viravam `0`/texto vazio e quebravam o servidor (32 campos); mês 13, centro de custo,
-  fornecedor e conta inexistentes davam erro 500 (agora 400/404 em português); 500 inesperado saía sem cabeçalhos de acesso e a tela dizia
-  "sem conexão" (agora JSON claro); plano de contas aceitava pai circular e mudar tipo/código de conta com filhas ou movimento; excluir conta
-  usada por orçamento/reserva/recorrente dava 500; delegação de aprovação podia ser registrada por outra pessoa; baixa de título
-  **renegociado** era aceita (cobraria duas vezes); o **beneficiário** aprovava o próprio reembolso; orçamento de **receita** acima do previsto
-  saía como "Estourado"; relatórios mostravam "sem movimento" quando a consulta falhava; mensagens e recibos com ponto decimal e data em UTC;
-  o Tesoureiro não conseguia escolher o associado (seletor mínimo `busca-simples` agora serve ao financeiro); erro repetido duas vezes nas
-  telas de exercício/plano de contas/fornecedor. **Ainda abertos para decidir/fazer:** CNPJ com dígito verificador errado é aceito (exige
-  ajustar dados de teste); cargo inexistente na alçada é aceito; "Pix" sem chave configurada; título gerado por compra usa o valor estimado e
-  não a cotação vencedora; reembolso sem alçada/dupla assinatura; recusas de aprovação não deixam rastro na Auditoria; Conselheiro Fiscal
-  recebe a permissão `financeiro` (decisão de desenho).
-
-  **Atualização (2026-10-06, ~22:20, parada a pedido do usuário no fim das 4 horas):** na **homologação** (código `7e06c99`/`da8435c`) o robô
-  fechou **verde**: `v5.4e-01` (15 cenários; o do fechamento do exercício fica para o fim, com a opção `fechar_exercicio`), `v5.4e-03`
-  (despesa e segregação, 12/12) e `v5.4f-03` (evento, check-in, certificado, financeiro do evento, 16/16). Quase verde: `v5.4e-02` receita
-  (26 de 29; faltam o cenário da Auditoria da receita, o da negociação de dívida e o do Pix, que depende de `CHAVE_PIX` configurada na
-  homologação e de uma tela para gravá-la), `v5.4e-04` relatórios (12 de 13 antes das últimas correções), `v5.4f-01` projetos (19 de 22; a
-  troca de turno consigo mesmo foi corrigida depois) e `v5.4f-02` reserva e eventos (10 de 16; o resto são achados que ficaram para decidir:
-  espaço com o mesmo nome, reserva no passado, taxa de cancelamento tardio não explicada na tela). **Em produção** só se confirmou por leitura
-  (`version.json` no commit publicado e rotas novas respondendo 401 sem login). Itens da v5.4e/v5.4f **continuam abertos** até o robô fechar
-  verde cada roteiro e os achados serem resolvidos ou decididos; v5.4g não foi começada.
-
-  **Atualização 2 (2026-10-07, regra do usuário: toda correção é provada na homologação antes de ir para a `main`):** o lote de correções foi
-  publicado numa **branch** só na homologação e conferido pelo robô; só depois entrou na `main`. **Na homologação** (build da branch): `v5.4e-01`
-  16 verdes (+ o cenário que fecha o exercício, rodado à parte: 17/17), `v5.4e-03` 12/12, `v5.4e-04` 16/16, `v5.4f-01` 22/22, `v5.4f-02` 16/16,
-  `v5.4f-03` 16/16 e `v5.4e-02` 27/29 (o que sobra: a sondagem F1, intermitente quando a homologação já acumulou centenas de títulos — a tela de
-  Títulos não pagina —, e o Pix, que precisa de `CHAVE_PIX` e de uma tela de configurações institucionais que não existe). **Em produção** (só por
-  leitura): `version.json` no commit `1a537d2` e as rotas novas respondendo 401 sem login; nenhum dado de teste foi criado lá. Dois defeitos achados
-  pelo robô nesta rodada: a regra "sessão dentro do período do evento" dava erro 500 quando o painel manda a hora com fuso (foi desfeita na
-  produção na hora e refeita só na homologação, agora com teste de hora com fuso) e a Prestação de Contas/extrato misturavam data só-dia com
-  instante. Novidades da rodada: Início do Financeiro com o retrato do dia (saldo, vencidos, a pagar em 30 dias, compras a aprovar), isenções
-  com nome e motivo por extenso, taxa de cancelamento tardio avisada a quem cancela, espaço com nome único, reserva no passado recusada, relatório
-  final com o número de beneficiários, "Baixar" escondido em título renegociado. **Abertos**: paginação de Títulos; tela de configurações
-  institucionais (Pix); decisões listadas acima. **Povoamento em volume** (`scripts/povoar_homologacao_volume.py`, opção `volume` do fluxo de
-  homologação): 30 cadastros em vários status, mensalidades pagas/vencidas, fornecedores e despesas, doações, 2 atas, 3 projetos, 3 eventos com
-  inscrições e reservas de espaço — carregado depois das rodadas do robô e do cenário que fecha o exercício.
+      **Na homologação (roteiro `v5.4e-03`, 12 de 12):** fornecedor (CNPJ curto, só letras, repetido e **dígito errado** recusados), alçadas,
+      compra simples, **cotações** (duas do mesmo fornecedor valem uma), **dupla assinatura**, **delegação** (só quem delega registra),
+      **conflito de interesse**, **reembolso** (o beneficiário não aprova o próprio), contas a pagar recorrentes, e quem não tem o Financeiro é
+      barrado em todas as telas.
+- [x] **Orçamento e fluxo de caixa, relatórios e prestação de contas, controles antifraude** (alerta dispara de verdade).
+      **Na homologação (roteiros `v5.4e-01` e `v5.4e-04`, 16 de 16):** orçamento por conta e centro (o "Estourado" só vale para despesa; receita
+      acima do previsto é "Meta atingida"), fluxo de caixa que fecha mês a mês, reserva de contingência; **alertas do Conselho Fiscal** (fornecedor
+      novo, perto do teto, troca de dados bancários, estornos) que disparam com as ações do roteiro e somem quando a causa some; balancete,
+      receitas x despesas, por projeto e extrato conferidos ao centavo; **prestação de contas** com versões que não mudam.
+- [x] Os **valores** vistos nas telas conferem **centavo a centavo** com o que foi lançado; lista de achados corrigidos e prints.
+      **Achados corrigidos nesta fase (todos provados na homologação antes de ir para a produção):** campo opcional em branco virava `0`; mês 13,
+      centro de custo, fornecedor e conta inexistentes davam erro 500; um erro 500 aparecia como "sem conexão"; delegação de aprovação podia ser
+      registrada por outra pessoa; baixa de título renegociado era aceita; beneficiário aprovava o próprio reembolso; orçamento de receita saía
+      "Estourado"; relatórios mostravam "sem movimento" quando a consulta falhava; dinheiro com ponto decimal nas mensagens e recibos; o Tesoureiro
+      não conseguia escolher o associado; CNPJ sem dígito verificador era aceito; Início do Financeiro era uma página de obra (agora é o retrato
+      do dia). **Em produção (só leitura):** commit `1a537d2`; nenhum dado de teste foi criado lá.
+      **Pendências que nasceram aqui e seguem registradas (não bloqueiam o fechamento):** paginação da lista de Títulos; módulo **Instituição**
+      (dados da instituição, inclusive a chave Pix); decisões sobre compra, reembolso e Conselho Fiscal (listadas ao Presidente na conversa).
 
 #### v5.4f — FASE 4 ao vivo: projetos, reserva de espaço e eventos
 
-- [ ] **Projeto:** criar, editar, publicar no site (aprovação), **em destaque**, beneficiários e atendimento, voluntariado vinculado.
-- [ ] **Reserva de espaço:** reservar, **conflito de horário recusado**, cancelar, calendário do espaço.
-- [ ] **Evento:** criar ligado a um projeto, programação em sessões, inscrição **pelo site** (CPF repetido não duplica), vagas, **lista de espera**
-      que anda quando alguém cancela, inscrição em grupo, check-in com crachá/QR, certificado **que abre**, financeiro do evento, painel gerencial.
+- [x] **Projeto:** criar, editar, publicar no site (aprovação), **em destaque**, beneficiários e atendimento, voluntariado vinculado.
+      **Na homologação (roteiro `v5.4f-01`, 22 de 22):** quem não tem a permissão de Projetos é barrado (tela e servidor); criar e editar recusam
+      o que falta e **dado pessoal em texto público**; publicar no site e **destaque** (vários destaques convivem; o site acompanha); cronograma,
+      equipe (coordenador), indicadores com meta; beneficiário com e sem consentimento LGPD; **prontuário só para a equipe do projeto**;
+      voluntariado de ponta a ponta (termo, candidatura, confirmação só pelo coordenador, troca de turno, horas); relatório final versionado.
+      **Ressalva:** o projeto Público é publicado na hora, **sem uma etapa de aprovação por outra pessoa** (documentos e parcerias têm): decisão
+      do Presidente (listada na conversa).
+- [x] **Reserva de espaço:** reservar, **conflito de horário recusado**, cancelar, calendário do espaço.
+      **Na homologação (roteiro `v5.4f-02`, 16 de 16):** espaço (nome repetido, prazo e percentual impossíveis recusados), tarifa com cobrança e
+      isenção, **todas as sobreposições de horário recusadas**, reserva no passado recusada, cancelar dentro e **fora do prazo (a taxa aparece
+      para quem cancela)**, aprovação, recorrente, bloqueio, checklist, exportação e mapa de calor na hora de Belém.
+- [x] **Evento:** criar ligado a um projeto, programação em sessões, inscrição **pelo site** (CPF repetido não duplica), vagas, **lista de
+      espera que anda quando alguém cancela**, inscrição em grupo, check-in com crachá/QR, certificado **que abre**, financeiro do evento,
+      painel gerencial.
+      **Na homologação (roteiros `v5.4f-02` e `v5.4f-03`, 16 de 16 cada):** evento ligado ao projeto, sessões, **cancelar um inscrito libera a
+      vaga e promove o primeiro da fila**, duplicidade recusada sem gastar vaga, **inscrição pública em grupo** (3 pessoas, um título de R$ 87,65
+      cada), cobrança e reembolso configuráveis, **crachá com QR**, portaria sem login (check-in e check-out, recusas), **certificado** (só quem
+      esteve presente, abre com o nome), documentos emitidos, fechamento do evento e exportações com Auditoria. (CPF repetido pelo site: provado
+      na suíte automática; ao vivo, pelo painel.)
 - [ ] **Despertai e o contexto do evento:** página do projeto no `hml-site` (fotos, edições, relatórios aprovados, notícias vinculadas),
       destaque na Home, página do evento com o projeto de origem, foto de evento, **relatório de evento aprovado** na Transparência;
-      dado pessoal digitado no texto público é **barrado**.
-- [ ] Lista de **achados** corrigidos e refeitos; prints do painel e do site.
+      dado pessoal digitado no texto público é **barrado**. *(Falta conferir ao vivo no `hml-site`: entra junto com a v5.4g, que olha o site.)*
+- [x] Lista de **achados** corrigidos e refeitos; prints do painel e do site.
+      **Achados corrigidos (todos provados na homologação antes da produção):** vaga gasta por inscrição recusada; cancelar pelo painel não
+      liberava a vaga; configurações do evento aceitavam 150% e prazo negativo; sessão de evento com hora com fuso derrubava o servidor (refeita
+      e provada); troca de turno com a própria pessoa; cobrança não paga ficava "Pendente" depois de cancelar a reserva; relatório final dizia que
+      o motor de beneficiários "não existe"; datas só-dia apareciam um dia antes; horas de voluntariado sem rastro na Auditoria; erros de ação
+      sem aviso na tela (espaços e voluntariado). **Em produção (só leitura):** commit `1a537d2`.
+      **Pendências que nasceram aqui:** telas que faltam (inscrição no evento pelo painel, núcleo familiar do beneficiário, alocar voluntário);
+      fluxo de **filiação com aprovações** e as notificações aos sócios ativos.
 
 #### v5.4g — FASE 5 ao vivo (v5.0 a v5.4b): site e Transparência
 
@@ -1815,6 +1824,26 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - **Base legal**: o art. 17 da IN 06/2025/TCMPA foi conferido por mim no Diário Oficial; o resto veio de pesquisa
   (ver acima) e a **Lei Municipal 5.574/2025 segue não confirmada** — não citar no site. Revisão jurídica final
   continua sendo condição para publicar texto de lei na página.
+
+#### v5.4h — Lacunas achadas ao vivo (telas e módulos que faltam; pedido do Presidente em 2026-10-07: "tem que criar")
+
+Nada aqui é "decidir se faz": tudo que a conferência ao vivo mostrou que falta é construído, na ordem abaixo, cada item pelo caminho de sempre
+(branch → homologação → robô → só então a `main`). O que depende de decisão do Presidente está na conversa, não neste arquivo.
+
+- [ ] **Paginação, busca e filtros nas listas grandes** (começando por **Títulos**, a lista de contas a pagar e a receber: mensalidades,
+      despesas, doações pagas, taxas de inscrição). Hoje a tela carrega todos de uma vez; com milhares de títulos fica lenta e o robô já viu
+      falhar. Depois: Associados, Razão Contábil, Auditoria e as demais listas que crescem.
+- [ ] **Módulo "Instituição" no painel:** cadastro de tudo da instituição (nome, CNPJ, endereço, contatos, redes, logo, chave Pix, textos
+      institucionais), cada campo marcado **"vai para o site"** ou **"só interno"**; o site passa a ler de lá. Tira a chave Pix e os dados do
+      cabeçalho dos documentos do banco "às cegas".
+- [ ] **Telas que faltam:** inscrição no evento pelo painel (secretaria inscrevendo alguém); **núcleo familiar** do beneficiário;
+      **alocar voluntário** direto num turno.
+- [ ] **Filiação de ponta a ponta:** o formulário público de quem quer se associar; as aprovações exigidas (quantas e de quem, conforme o
+      Estatuto); **onde os sócios ativos recebem a notificação** para aprovar ou recusar; prazo e o que acontece sem resposta; efetivação.
+- [ ] **Rastro de recusas:** recusa de aprovação (compra, reembolso, troca de dados bancários) também fica na Auditoria.
+- [ ] **Site e carga:** análise de viabilidade do site estático × site vivo, teste de carga na homologação (inscrições simultâneas num evento
+      com poucas vagas: nunca passar do limite, mesmo com a API lenta), limite de inscrições por IP (hoje 5 a cada 10 minutos, o que pode barrar
+      muita gente atrás do mesmo provedor), réplicas da API em dia de evento.
 
 ### FASE 6 — Comunicação e transparência
 
