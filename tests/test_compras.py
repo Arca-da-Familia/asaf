@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 from tests.test_pessoas import _cpf_unico
 from tests.apoio_auth import cabecalho_admin
+from tests.apoio_cnpj import cnpj_valido
 from tests.apoio_mandatos import liberar_cargo
 
 _PAYLOAD_BASE = {
@@ -56,7 +57,7 @@ def _criar_conta(client, auth_headers, codigo, tipo):
 
 def _criar_fornecedor(client, auth_headers, cnpj_sufixo):
     r = client.post("/fornecedores/", json={
-        "razao_social": "Fornecedor Teste Compras", "cnpj": f"1122334455{cnpj_sufixo}"[:14].ljust(14, "0"),
+        "razao_social": "Fornecedor Teste Compras", "cnpj": cnpj_valido(int(f"5500{cnpj_sufixo}")),
         "categoria_servico": "Outros", "telefone": "11999999999",
     }, headers=auth_headers)
     assert r.status_code == 200, r.text
@@ -150,6 +151,11 @@ def test_cotacao_exigida_acima_do_valor_configurado(client, auth_headers):
     assert "cotaç" in r.json()["detail"].lower()
 
     client.post(f"/api/solicitacoes-compra/{id_solicitacao}/cotacoes", json={"id_fornecedor": fornecedor1, "valor": 4900}, headers=auth_headers)
+    # duas cotações do MESMO fornecedor não são duas cotações: a comparação é entre fornecedores diferentes
+    client.post(f"/api/solicitacoes-compra/{id_solicitacao}/cotacoes", json={"id_fornecedor": fornecedor1, "valor": 4950}, headers=auth_headers)
+    r = client.post(f"/api/solicitacoes-compra/{id_solicitacao}/aprovar", headers=headers_tesoureiro)
+    assert r.status_code == 400 and "fornecedores diferentes" in r.json()["detail"]
+
     client.post(f"/api/solicitacoes-compra/{id_solicitacao}/cotacoes", json={"id_fornecedor": fornecedor2, "valor": 5100}, headers=auth_headers)
 
     r = client.post(f"/api/solicitacoes-compra/{id_solicitacao}/aprovar", headers=headers_tesoureiro)

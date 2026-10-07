@@ -8,6 +8,7 @@ from decimal import Decimal
 from typing import Optional
 
 from fastapi import HTTPException
+from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
 from app.config_cache import obter_configuracao
@@ -140,9 +141,10 @@ def aprovar_solicitacao(db: Session, *, id_solicitacao: int, id_usuario_aprovado
         raise HTTPException(status_code=400, detail=f"Solicitação '{solicitacao.status}' não pode ser aprovada.")
 
     if solicitacao.valor_estimado >= _valor_minimo_cotacao(db):
-        quantidade_cotacoes = db.query(CotacaoCompra).filter(CotacaoCompra.id_solicitacao == id_solicitacao).count()
+        # comparar preços é comparar FORNECEDORES: duas cotações do mesmo fornecedor valem uma
+        quantidade_cotacoes = db.query(func.count(distinct(CotacaoCompra.id_fornecedor))).filter(CotacaoCompra.id_solicitacao == id_solicitacao).scalar() or 0
         if quantidade_cotacoes < _QUANTIDADE_MINIMA_COTACOES:
-            raise HTTPException(status_code=400, detail=f"Valor acima de {reais(_valor_minimo_cotacao(db))} exige ao menos {_QUANTIDADE_MINIMA_COTACOES} cotações antes de aprovar (tem {quantidade_cotacoes}).")
+            raise HTTPException(status_code=400, detail=f"Valor acima de {reais(_valor_minimo_cotacao(db))} exige ao menos {_QUANTIDADE_MINIMA_COTACOES} cotações antes de aprovar (tem {quantidade_cotacoes}). As cotações precisam ser de fornecedores diferentes.")
 
     alcada = alcada_aplicavel(db, solicitacao.valor_estimado)
     pode, motivo, id_delegacao = _pode_aprovar(db, id_usuario_aprovador=id_usuario_aprovador, solicitacao=solicitacao, alcada=alcada)

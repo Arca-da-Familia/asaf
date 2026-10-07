@@ -1854,7 +1854,7 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
     expect(Math.round((reconhecimento?.valor ?? 0) * 100)).toBe(FATIA)
     await expect(
       page.getByText(
-        /\d+ reconhecimento\(s\) de receita diferida \(título-bloco pago\), totalizando R\$ [\d.]+,\d{2}/,
+        /\d+ reconhecimento\(s\) de receita diferida \(título-bloco pago\), totalizando R\$\s[\d.]+,\d{2}/,
       ),
     ).toBeVisible()
     await ver(
@@ -3707,7 +3707,7 @@ test.describe('E. Conciliação bancária e fechamento do mês', () => {
     await expect(
       form
         .getByRole('alert')
-        .filter({ hasText: /Divergência de R\$ -78[.,]91/ }),
+        .filter({ hasText: /Divergência de -?R\$ ?-?78[.,]91/ }),
     ).toHaveCount(1)
     await expect(
       secao.getByText(

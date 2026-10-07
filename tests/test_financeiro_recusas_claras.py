@@ -194,3 +194,20 @@ def test_criar_projeto_com_termino_antes_do_inicio_e_recusado(client, auth_heade
     }, headers=auth_headers)
     assert r.status_code == 422, r.text
     assert "depois do início" in r.json()["detail"]
+
+
+def test_cnpj_do_fornecedor_precisa_ter_os_digitos_verificadores_certos(client, auth_headers):
+    from app.validadores import validar_cnpj
+    from tests.apoio_cnpj import cnpj_valido
+
+    valido = cnpj_valido(12345678)
+    assert validar_cnpj(valido) and validar_cnpj(f"{valido[:2]}.{valido[2:5]}.{valido[5:8]}/{valido[8:12]}-{valido[12:]}")
+    assert not validar_cnpj("11111111111111") and not validar_cnpj(valido[:-1] + str((int(valido[-1]) + 1) % 10))
+
+    base = {"razao_social": "Fornecedor do CNPJ conferido", "categoria_servico": "Outros", "telefone": "11999999999"}
+    errado = valido[:-1] + str((int(valido[-1]) + 1) % 10)
+    r = client.post("/fornecedores/", json={**base, "cnpj": errado}, headers=auth_headers)
+    assert r.status_code == 422
+    assert "dígitos verificadores" in str(r.json()["detail"])
+    r = client.post("/fornecedores/", json={**base, "cnpj": valido}, headers=auth_headers)
+    assert r.status_code == 200, r.text

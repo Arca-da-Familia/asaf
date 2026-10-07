@@ -5,6 +5,8 @@ regra de uso registrada)."""
 import uuid
 from datetime import datetime, timedelta
 
+from tests.apoio_cnpj import cnpj_valido
+
 _ISO = "%Y-%m-%dT%H:%M:%S"
 
 
@@ -134,7 +136,7 @@ def test_fluxo_de_caixa_projetado_soma_receber_pagar_e_recorrentes(client, auth_
     }, headers=auth_headers)
 
     fornecedor_r = client.post("/fornecedores/", json={
-        "razao_social": "Fornecedor Fluxo de Caixa", "cnpj": f"{uuid.uuid4().int % 10**14:014d}",
+        "razao_social": "Fornecedor Fluxo de Caixa", "cnpj": cnpj_valido(uuid.uuid4().int),
         "categoria_servico": "Outros", "telefone": "11999999999",
     }, headers=auth_headers)
     assert fornecedor_r.status_code == 200, fornecedor_r.text

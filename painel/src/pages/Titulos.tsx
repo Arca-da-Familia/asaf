@@ -356,7 +356,7 @@ function FormularioBaixa({
               <div className="sm:col-span-3">
                 <p className="mb-1 text-xs text-muted-foreground">
                   Valor pago maior que o saldo devedor (
-                  {saldoDevedor.toFixed(2)}) — o excedente vira crédito do
+                  {formatarReais(saldoDevedor)}) — o excedente vira crédito do
                   associado. Informe onde contabilizá-lo (Passivo):
                 </p>
                 <select

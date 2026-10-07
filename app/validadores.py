@@ -27,6 +27,21 @@ def validar_cpf(cpf: str) -> bool:
     return dv1 == int(digitos[9]) and dv2 == int(digitos[10])
 
 
+def validar_cnpj(cnpj: str) -> bool:
+    """14 dígitos com os dois dígitos verificadores certos (módulo 11); sequência de dígitos iguais não é CNPJ."""
+    digitos = somente_digitos(cnpj)
+    if len(digitos) != 14 or digitos == digitos[0] * 14:
+        return False
+
+    def _digito(base: str, pesos: list[int]) -> int:
+        resto = sum(int(d) * p for d, p in zip(base, pesos)) % 11
+        return 0 if resto < 2 else 11 - resto
+
+    dv1 = _digito(digitos[:12], [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
+    dv2 = _digito(digitos[:12] + str(dv1), [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
+    return dv1 == int(digitos[12]) and dv2 == int(digitos[13])
+
+
 def validar_telefone_br(telefone: str) -> bool:
     """Aceita celular (11 dígitos, DDD + 9XXXXXXXX) ou fixo (10 dígitos, DDD + XXXXXXXX)."""
     digitos = somente_digitos(telefone)

@@ -164,15 +164,29 @@ const CENTRO = {
   nome: `Centro do robô 4e04 ${S}`,
 }
 
+/** CNPJ (só dígitos) com os dois dígitos verificadores certos, filial 9999 (que não existe de verdade), a partir de uma raiz inventada. */
+function cnpjValidoSoDigitos(raiz: number): string {
+  const base = `${String(raiz).padStart(8, '0').slice(-8)}9999`
+  const digito = (numeros: number[], pesos: number[]): number => {
+    const soma = numeros.reduce((acc, n, i) => acc + n * (pesos[i] ?? 0), 0)
+    const resto = soma % 11
+    return resto < 2 ? 0 : 11 - resto
+  }
+  const numeros = base.split('').map(Number)
+  const d1 = digito(numeros, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
+  const d2 = digito([...numeros, d1], [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
+  return `${base}${d1}${d2}`
+}
+
 type ChaveFornecedor = 'F1' | 'F2'
 const FORNECEDORES: Record<ChaveFornecedor, { razao: string; cnpj: string }> = {
   F1: {
     razao: `Fornecedor Um do robô ${S}`,
-    cnpj: String(RODADA).padStart(14, '0'),
+    cnpj: cnpjValidoSoDigitos((RODADA % 80_000_000) + 10_000_000),
   },
   F2: {
     razao: `Fornecedor Dois do robô ${S}`,
-    cnpj: String(RODADA + 1).padStart(14, '0'),
+    cnpj: cnpjValidoSoDigitos((RODADA % 80_000_000) + 10_000_001),
   },
 }
 const cnpjFormatado = (d: string): string =>
@@ -388,7 +402,7 @@ function balanceteEsperado(
   for (const chave of CHAVES_CONTA) {
     const b = bruto[chave]
     const credora = CONTAS[chave].credora
-    const anterior = credora ? -b.anterior : b.anterior
+    const anterior = credora ? 0 - b.anterior : b.anterior // `0 -` e não `-`: menos zero (-0) não é igual a zero no toEqual
     const liquido = credora ? b.creditos - b.debitos : b.debitos - b.creditos
     const atual = anterior + liquido
     resultado[chave] =

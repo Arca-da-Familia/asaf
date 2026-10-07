@@ -2816,9 +2816,13 @@ test('Formulários de despesa: cada campo tem nome acessível (inventário de fo
     .first()
   await page.waitForTimeout(500) // a lista não tem estado "carregando": vazia e carregando se parecem
   if ((await pendente.count()) > 0) {
-    await pendente.getByRole('button', { name: 'Cotações / Aprovar' }).click()
+    // o botão do cartão vira "Ocultar" quando o painel abre e o cartão deixa de casar com o filtro acima: o painel aberto é achado na página
+    await page
+      .getByRole('button', { name: 'Cotações / Aprovar' })
+      .first()
+      .click()
     await expect(
-      pendente.getByRole('button', { name: 'Adicionar cotação' }),
+      page.getByRole('button', { name: 'Adicionar cotação' }).first(),
     ).toBeVisible()
     await inventario('compras-cotacoes-e-aprovacao')
   } else {

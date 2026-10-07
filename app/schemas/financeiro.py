@@ -4,6 +4,8 @@ from decimal import Decimal
 from typing import Optional
 import re
 
+from app.validadores import validar_cnpj
+
 class PlanoContaCriar(BaseModel):
     codigo_contabil: str
     descricao_conta: str
@@ -171,6 +173,8 @@ class FornecedorCriar(BaseModel):
         digitos = re.sub(r"\D", "", v)
         if len(digitos) != 14:
             raise ValueError("CNPJ deve conter 14 dígitos.")
+        if not validar_cnpj(digitos):
+            raise ValueError("CNPJ inválido: os dígitos verificadores não conferem. Confira o número.")
         return digitos
 
 class TituloCriar(BaseModel):

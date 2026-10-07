@@ -189,16 +189,17 @@ export function NegociacaoDividaPage() {
                           : 'Confirmar negociação'}
                       </Button>
                     </div>
-                    {negociar.isSuccess && negociar.data && (
-                      <p className="text-sm text-green-600 sm:col-span-3">
-                        Negociação #{negociar.data.id_negociacao} confirmada —{' '}
-                        {negociar.data.quantidade_parcelas} parcela(s), veja em
-                        Financeiro › Títulos.
-                      </p>
-                    )}
                   </>
                 )}
               </FormShell>
+            )}
+            {/* fora do formulário: ele some assim que a seleção é limpa, e a confirmação precisa continuar na tela */}
+            {negociar.isSuccess && negociar.data && (
+              <p role="status" className="text-sm text-green-600">
+                Negociação #{negociar.data.id_negociacao} confirmada —{' '}
+                {negociar.data.quantidade_parcelas} parcela(s), veja em
+                Financeiro › Títulos.
+              </p>
             )}
           </>
         )}
