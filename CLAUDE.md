@@ -24,6 +24,15 @@ Isso não dispensa cuidado — só remove a pausa de pedir permissão pra enviar
 destrutivas/irreversíveis continuam exigindo confirmação explícita de qualquer forma (isso é regra
 geral, não específica deste repositório).
 
+## Esclarecimento do usuário (2026-10-07): vale para TODA correção, também as da v5.4
+
+Defeito achado pelo robô na homologação **não vai para a `main` (produção) antes de a correção ser provada lá**: branch → `Deploy Homologação`
+com `ref=<branch>` → robô verde → só então `main`. Nas palavras dele: "se você corrigiu na homologação, de nada adianta enviar para a produção
+sem saber se funcionou ou se fez algo pior; tem que ser testado tudo em homologação primeiro". Só mudança de roteiro de teste, documento ou
+pipeline de homologação vai direto. A produção só se confirma por leitura. Ele também quer a homologação **cheia de dados inventados** (uns 30
+associados em vários status, mensalidades, financeiro, atas, projetos, eventos; sem documentos com anexo) para entrar e explorar, carregada
+no fim das rodadas do robô (`scripts/povoar_homologacao_volume.py`).
+
 ## A partir da v5.5: a homologação é o portão (decisão do usuário, 2026-10-05)
 
 O que vale **até a v5.4g** (conferir ao vivo, na homologação, tudo que as FASES 0–5 já construíram) e **a partir da v5.5**

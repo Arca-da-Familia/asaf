@@ -64,9 +64,9 @@ def test_painel_e_site_de_teste_levam_a_faixa_e_apontam_para_a_api_de_teste():
 
 def test_todo_segredo_lido_do_cofre_e_mascarado():
     leituras = CODIGO.count("az keyvault secret show")
-    # banco de teste (api e popular), administrador do servidor (só no reinício), JWT, senha do administrador de teste e senhas
-    # dos usuários de teste (popular), token do painel e token do site
-    assert leituras == 8
+    # banco de teste (api, popular e volume), administrador do servidor (só no reinício), JWT (api, popular e volume), senha do
+    # administrador de teste e senhas dos usuários de teste (popular), token do painel e token do site
+    assert leituras == 10
     assert CODIGO.count("::add-mask::") >= leituras, "cada segredo lido é mascarado antes de qualquer uso"
 
 
@@ -147,8 +147,8 @@ def test_da_para_publicar_uma_branch_na_homologacao_antes_da_main():
     (de onde a identidade do Azure é aceita), mas baixa o código da branch pedida em `ref`."""
     entradas = CODIGO.split("permissions:")[0]
     assert "      ref:" in entradas and "default: main" in entradas
-    assert CODIGO.count("uses: actions/checkout@v7") == 4
-    assert CODIGO.count("ref: ${{ inputs.ref }}") == 4, "os quatro trabalhos (api, popular, painel, site) baixam o mesmo código"
+    assert CODIGO.count("uses: actions/checkout@v7") == 5
+    assert CODIGO.count("ref: ${{ inputs.ref }}") == 5, "os cinco trabalhos (api, popular, volume, painel, site) baixam o mesmo código"
     # `github.sha` é o da main: a imagem tem que levar o SHA do código de verdade publicado
     assert "github.sha" not in CODIGO
     assert 'echo "CODIGO_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"' in CODIGO

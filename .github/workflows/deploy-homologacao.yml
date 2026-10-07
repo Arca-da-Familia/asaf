@@ -20,6 +20,10 @@ on:
         description: "Depois de publicar, preencher o banco de teste com dados INVENTADOS"
         type: boolean
         default: false
+      volume:
+        description: "Depois do preenchimento básico, encher o banco de teste de dados inventados em VOLUME (30 cadastros, mensalidades, atas, eventos...) para explorar; rode só no fim das rodadas do robô"
+        type: boolean
+        default: false
       ref:
         description: "O que publicar: `main` ou o nome de uma branch (a regra da v5.5 em diante: testar a branch aqui ANTES de ir para a main)"
         type: string
@@ -179,6 +183,53 @@ jobs:
           # cada senha também é mascarada sozinha (o texto inteiro do JSON não esconde um trecho impresso por engano)
           python -c "import json,sys; [print('::add-mask::' + v) for v in json.loads(sys.argv[1]).values()]" "$USUARIOS"
           DATABASE_URL="$DB_URL" JWT_SECRET="$JWT" HML_ADMIN_SENHA="$ADMIN_SENHA" HML_USUARIOS_JSON="$USUARIOS" python scripts/popular_homologacao.py
+
+      - name: Logout
+        if: always()
+        run: az logout || true
+
+  volume:
+    name: Encher o banco de teste de dados inventados em volume
+    needs: [api, popular]
+    if: ${{ !cancelled() && inputs.volume && needs.api.result == 'success' && (needs.popular.result == 'success' || needs.popular.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Instalar dependências
+        run: pip install -r requirements-dev.txt
+
+      - name: Login no Azure via OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Só roda no `asaf_hml` (confere `current_database()` e a URL) e só uma vez por banco (marca o que criou). Não usa nem imprime senha:
+      # entra pelo administrador de teste que o roteiro básico criou. Nada de dado inventado chega perto da produção.
+      - name: Encher (dados inventados, pelas rotas de verdade)
+        env:
+          RUN_DB_MIGRATION: "false"
+          ARMAZENAMENTO_BLOB_URL: https://stasafhmlprivado.blob.core.windows.net
+        run: |
+          DB_URL=$(az keyvault secret show --vault-name "$KEY_VAULT" --name HML-DATABASE-URL --query value -o tsv)
+          echo "::add-mask::$DB_URL"
+          case "$DB_URL" in
+            */asaf_hml\?*) ;;
+            *) echo "::error::HML-DATABASE-URL não aponta para o banco asaf_hml: parando."; exit 1 ;;
+          esac
+          JWT=$(az keyvault secret show --vault-name "$KEY_VAULT" --name HML-JWT-SECRET --query value -o tsv)
+          echo "::add-mask::$JWT"
+          DATABASE_URL="$DB_URL" JWT_SECRET="$JWT" python scripts/povoar_homologacao_volume.py
 
       - name: Logout
         if: always()
