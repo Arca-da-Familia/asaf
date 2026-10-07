@@ -1825,25 +1825,35 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
   (ver acima) e a **Lei Municipal 5.574/2025 segue não confirmada** — não citar no site. Revisão jurídica final
   continua sendo condição para publicar texto de lei na página.
 
-#### v5.4h — Lacunas achadas ao vivo (telas e módulos que faltam; pedido do Presidente em 2026-10-07: "tem que criar")
+#### v5.4h — Lacunas achadas ao vivo (telas e módulos que faltam; decisões do Presidente em 2026-10-07)
 
-Nada aqui é "decidir se faz": tudo que a conferência ao vivo mostrou que falta é construído, na ordem abaixo, cada item pelo caminho de sempre
-(branch → homologação → robô → só então a `main`). O que depende de decisão do Presidente está na conversa, não neste arquivo.
+Tudo aqui é construído (não é "decidir se faz"), na ordem abaixo, cada item pelo caminho de sempre: branch → homologação → robô → só então a
+`main`. As decisões do Presidente (voz, 2026-10-07; Estatuto em `ESTATUTO_ASAF.txt`) estão resumidas em cada item.
 
-- [ ] **Paginação, busca e filtros nas listas grandes** (começando por **Títulos**, a lista de contas a pagar e a receber: mensalidades,
-      despesas, doações pagas, taxas de inscrição). Hoje a tela carrega todos de uma vez; com milhares de títulos fica lenta e o robô já viu
-      falhar. Depois: Associados, Razão Contábil, Auditoria e as demais listas que crescem.
+- [ ] **Títulos com filtros e paginação.** Título = cada **entrada** (a receber) ou **saída** (a pagar). A tela passa a filtrar por **mês**
+      (filtro principal), intervalo de datas, **entradas ou saídas** (uma página para cada), situação, categoria e texto; lista paginada.
+      Depois, o mesmo nas outras listas que crescem (Associados, Razão Contábil, Auditoria).
 - [ ] **Módulo "Instituição" no painel:** cadastro de tudo da instituição (nome, CNPJ, endereço, contatos, redes, logo, chave Pix, textos
-      institucionais), cada campo marcado **"vai para o site"** ou **"só interno"**; o site passa a ler de lá. Tira a chave Pix e os dados do
-      cabeçalho dos documentos do banco "às cegas".
+      institucionais), cada campo marcado **"vai para o site"** ou **"só interno"**; o site passa a ler de lá.
+- [ ] **Auditoria financeira (Conselho Fiscal):** o Conselho **não opera** o Financeiro, **audita**. Página própria: escolhe o **mês**, vê todas
+      as entradas e saídas já consolidadas, abre cada título (comprovantes e informações) e **aprova, reprova ou manda ressalva**; a ressalva
+      volta ao Tesoureiro, que corrige e submete de novo; dá para aprovar **tudo de uma vez, um por um ou por categoria**; **título aprovado pelo
+      Conselho não pode mais ser alterado**. Tudo na Auditoria. (Estatuto Art. 24: fiscalizar toda a movimentação financeira e contábil.)
+- [ ] **Saídas, reembolso e dupla assinatura:** a saída é lançada com a **nota fiscal anexa** e uma **categoria** (o **reembolso é uma categoria
+      de saída**, com as mesmas regras; entradas também têm categorias). **Dupla assinatura Presidente + 1º Tesoureiro** (Estatuto Art. 21, II).
+      **Sem exigência de cotação/orçamento no dia a dia** (a regra de 2 cotações sai); orçamento só em **emenda parlamentar**, como documento
+      anexado na parceria. **Prazos e alertas:** data da despesa e data do lançamento sempre registradas; alerta de lançamento tardio e de
+      assinatura parada (lembrete ao outro assinante; delegação já existe), para a associação não perder prazo nem ter multa.
+- [ ] **Filiação de ponta a ponta (Estatuto Art. 12):** formulário público; o pedido precisa ser **proposto por 3 sócios** (qualquer sócio ativo
+      e apto pode propor) e passar pela **análise da Diretoria Executiva**; os sócios ativos **recebem a notificação no painel** para propor ou
+      recusar; sem prazo — sem resposta, o pedido fica pendente; aprovado, entra no livro de associados com a matrícula.
 - [ ] **Telas que faltam:** inscrição no evento pelo painel (secretaria inscrevendo alguém); **núcleo familiar** do beneficiário;
       **alocar voluntário** direto num turno.
-- [ ] **Filiação de ponta a ponta:** o formulário público de quem quer se associar; as aprovações exigidas (quantas e de quem, conforme o
-      Estatuto); **onde os sócios ativos recebem a notificação** para aprovar ou recusar; prazo e o que acontece sem resposta; efetivação.
-- [ ] **Rastro de recusas:** recusa de aprovação (compra, reembolso, troca de dados bancários) também fica na Auditoria.
-- [ ] **Site e carga:** análise de viabilidade do site estático × site vivo, teste de carga na homologação (inscrições simultâneas num evento
-      com poucas vagas: nunca passar do limite, mesmo com a API lenta), limite de inscrições por IP (hoje 5 a cada 10 minutos, o que pode barrar
-      muita gente atrás do mesmo provedor), réplicas da API em dia de evento.
+- [ ] **Rastro de recusas:** recusa de aprovação/assinatura também fica na Auditoria.
+- [ ] **Site e carga (decisão: manter páginas estáticas e deixar "vivo" o que é dinâmico):** inscrição em evento, voluntário e filiação passam
+      pela API, que não pode travar nem estourar o limite de vagas. **Meta:** ~150 pessoas por minuto (50 a 100 preenchendo ao mesmo tempo) sem
+      travar; teste de carga na homologação; réplicas da API sobem em dia de evento (sem servidor ligado 24 h); limite de inscrições por IP revisto
+      (hoje 5 a cada 10 minutos, o que barra muita gente atrás do mesmo provedor).
 
 ### FASE 6 — Comunicação e transparência
 
