@@ -196,11 +196,6 @@ def criar_sessao(
     evento = obter_evento(db, id_evento)
     if data_hora_fim is not None and data_hora_fim <= data_hora_inicio:
         raise HTTPException(status_code=422, detail="O fim da sessão precisa ser depois do início.")
-    # a programação cabe no período do evento: sessão dois dias antes do início, ou depois do fim, é erro de digitação
-    if data_hora_inicio < evento.data_hora_inicio.replace(hour=0, minute=0, second=0, microsecond=0):
-        raise HTTPException(status_code=422, detail="A sessão não pode começar antes do dia do evento.")
-    if evento.data_hora_fim is not None and data_hora_inicio > evento.data_hora_fim:
-        raise HTTPException(status_code=422, detail="A sessão não pode começar depois do fim do evento.")
     if evento.visibilidade == "Pública":  # a programação aparece na página do evento
         exigir_texto_sem_dado_pessoal({"título da sessão": titulo, "descrição da sessão": descricao})
 
