@@ -1170,7 +1170,11 @@ test.describe('A. Reserva de espaço', () => {
     await outra.close()
 
     // o link do aviso leva ao Financeiro, onde estão a taxa e o reembolso
-    await cartao2.getByRole('link', { name: 'Financeiro > Títulos' }).click()
+    // o aviso da taxa e o do reembolso têm, cada um, o seu atalho para os títulos: qualquer um serve
+    await cartao2
+      .getByRole('link', { name: 'Financeiro > Títulos' })
+      .first()
+      .click()
     await expect(page).toHaveURL(/\/financeiro\/titulos$/)
     await expect(
       page.getByRole('heading', { name: 'Títulos', level: 1 }),
