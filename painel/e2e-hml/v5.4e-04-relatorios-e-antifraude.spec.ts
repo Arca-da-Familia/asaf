@@ -2449,11 +2449,21 @@ test('12. o Início do Financeiro e a navegação até Relatórios; o que a pág
     'Orçamento e Fluxo de Caixa',
     'Relatórios',
   ]) {
+    // o item está no menu lateral (e, agora, também nos atalhos do Início do Financeiro): confere o do menu
     await expect(
-      page.getByRole('link', { name: item, exact: true }),
+      page
+        .getByRole('navigation')
+        .getByRole('link', { name: item, exact: true }),
       `o menu do Financeiro oferece ${item}`,
     ).toBeVisible()
   }
+  // o Início do Financeiro mostra o retrato do dia e os atalhos para as telas do módulo
+  await expect(
+    page.getByRole('region', { name: 'Resumo do dia' }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('region', { name: 'Telas do módulo' }),
+  ).toBeVisible()
   const inicial = Promise.all([
     page.waitForResponse(
       (r) =>
@@ -2464,7 +2474,10 @@ test('12. o Início do Financeiro e a navegação até Relatórios; o que a pág
       (r) => new URL(r.url()).pathname === ROTA_PADROES && r.status() === 200,
     ),
   ])
-  await page.getByRole('link', { name: 'Relatórios', exact: true }).click()
+  await page
+    .getByRole('navigation')
+    .getByRole('link', { name: 'Relatórios', exact: true })
+    .click()
   await inicial
   await expect(page).toHaveURL(/\/financeiro\/relatorios$/)
   await expect(
