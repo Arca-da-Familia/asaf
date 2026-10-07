@@ -210,7 +210,7 @@ test.describe('A. Conselho Fiscal', () => {
   }, info) => {
     const vigia = vigiar(page)
     await entrar(page, 'tesoureiro')
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     await expect(
       page.getByRole('heading', { name: 'Títulos', level: 1 }),
     ).toBeVisible()

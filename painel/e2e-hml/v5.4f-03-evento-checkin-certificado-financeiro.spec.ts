@@ -904,7 +904,7 @@ test.describe('B. Financeiro do evento', () => {
     await ver(page, info, 'inscricao em grupo: tres pre-inscritos')
 
     // o financeiro: um título "A Receber" por pessoa, de R$ 87,65; a inscrição gratuita não gerou nenhum
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     await expect(
       page.getByRole('heading', { name: 'Títulos', level: 1 }),
     ).toBeVisible()
@@ -2038,7 +2038,7 @@ test.describe('G. Painel gerencial do evento', () => {
     const fechamentosAntes = await abrirAuditoria(page, 'fechamentos_evento')
 
     // ---- a baixa do título, pela tela de Títulos, no centro de custo do evento
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     await expect(
       page.getByRole('heading', { name: 'Títulos', level: 1 }),
     ).toBeVisible()

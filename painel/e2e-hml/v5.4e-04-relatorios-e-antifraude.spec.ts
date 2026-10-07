@@ -1386,7 +1386,7 @@ test('2. a tesouraria cadastra dois fornecedores e lança os cinco títulos; cam
   await form.getByRole('button', { name: 'Cancelar' }).click()
 
   // ---- os cinco títulos
-  await page.goto('/financeiro/titulos')
+  await page.goto('/financeiro/titulos?periodo=todos')
   await expect(
     page.getByRole('heading', { name: 'Títulos', level: 1 }),
   ).toBeVisible()
@@ -1423,7 +1423,7 @@ test('3. as baixas A, B e C: campos vazios, valor a mais e falta de comprovante 
   await expect(saldoCaixa).toBeVisible()
   estado.caixaAntes = emCentavos(await saldoCaixa.innerText())
 
-  await page.goto('/financeiro/titulos')
+  await page.goto('/financeiro/titulos?periodo=todos')
   await expect(
     page.getByRole('heading', { name: 'Títulos', level: 1 }),
   ).toBeVisible()
@@ -1760,7 +1760,7 @@ test('6. as baixas D (parcial, fornecedor de troca rejeitada) e E (fornecedor de
   await expect(
     page.getByRole('link', { name: 'Financeiro' }).first(),
   ).toBeVisible()
-  await page.goto('/financeiro/titulos')
+  await page.goto('/financeiro/titulos?periodo=todos')
   await expect(
     page.getByRole('heading', { name: 'Títulos', level: 1 }),
   ).toBeVisible()
@@ -1984,7 +1984,7 @@ test('7. o Tesoureiro faz três estornos (motivo curto é recusado, estornar dua
   await ver(page, info, 'razao: os tres estornos')
 
   // ---- os títulos estornados voltam a pendentes, com o saldo original, centavo a centavo
-  await page.goto('/financeiro/titulos')
+  await page.goto('/financeiro/titulos?periodo=todos')
   await expect(
     page.getByRole('heading', { name: 'Títulos', level: 1 }),
   ).toBeVisible()
@@ -3067,7 +3067,7 @@ test('15. o Conselho Fiscal lê os mesmos números das telas de Títulos e de Ra
   await entrar(page, 'presidente')
 
   // o que a tela de Títulos diz de cada título do robô
-  await page.goto('/financeiro/titulos')
+  await page.goto('/financeiro/titulos?periodo=todos')
   await expect(
     page.getByRole('heading', { name: 'Títulos', level: 1 }),
   ).toBeVisible()

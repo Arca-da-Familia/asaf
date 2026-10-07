@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { QRCodeSVG } from 'qrcode.react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { z } from 'zod'
 
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
@@ -18,6 +19,7 @@ import {
   listarPlanoContas,
   listarTitulos,
   obterPixTitulo,
+  resumirTitulos,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
 import { baixarTituloSchema, tituloCriarSchema } from '@/lib/schemas'
@@ -33,7 +35,13 @@ function formatarReais(valor: number): string {
   }).format(valor)
 }
 
-function FormularioNovoTitulo({ onCancelar }: { onCancelar: () => void }) {
+function FormularioNovoTitulo({
+  onCancelar,
+  tipoPadrao = 'A Pagar',
+}: {
+  onCancelar: () => void
+  tipoPadrao?: 'A Pagar' | 'A Receber'
+}) {
   const queryClient = useQueryClient()
   const { data: contas } = useQuery({
     queryKey: ['plano-contas'],
@@ -76,7 +84,7 @@ function FormularioNovoTitulo({ onCancelar }: { onCancelar: () => void }) {
     <FormShell<z.infer<typeof tituloCriarSchema>>
       schema={tituloCriarSchema}
       defaultValues={{
-        tipo_titulo: 'A Pagar',
+        tipo_titulo: tipoPadrao,
         id_conta_contabil: 0,
         beneficiario_tipo: 'nenhum',
         descricao: '',
@@ -552,55 +560,192 @@ function PainelCredito({
   )
 }
 
-export function TitulosPage() {
+const TITULOS_POR_PAGINA = 25
+
+function mesAtual(): string {
+  const hoje = new Date()
+  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
+}
+
+// Títulos = as entradas (a receber) e as saídas (a pagar). A tela filtra por MÊS de vencimento (começa no mês atual), por situação, por
+// categoria (a conta contábil) e por texto, e é paginada. Os filtros ficam no endereço (`?mes=2026-10&status=Pendente&pagina=2`): dá para
+// guardar e mandar o link. Há uma página só das entradas e uma só das saídas (`tipoFixo`).
+export function TitulosPage({
+  tipoFixo,
+}: {
+  tipoFixo?: 'A Receber' | 'A Pagar'
+}) {
+  const [filtros, setFiltros] = useSearchParams()
   const [mostrarForm, setMostrarForm] = useState(false)
   const [baixando, setBaixando] = useState<number | null>(null)
   const [mostrandoPix, setMostrandoPix] = useState<number | null>(null)
   const [mostrandoCredito, setMostrandoCredito] = useState<number | null>(null)
-  const [status, setStatus] = useState('')
-  const [tipoTitulo, setTipoTitulo] = useState('')
 
+  const todoPeriodo = filtros.get('periodo') === 'todos'
+  const mes = todoPeriodo ? '' : (filtros.get('mes') ?? mesAtual())
+  const status = filtros.get('status') ?? ''
+  const tipoTitulo = tipoFixo ?? filtros.get('tipo') ?? ''
+  const categoria = filtros.get('categoria') ?? ''
+  const busca = filtros.get('busca') ?? ''
+  const pagina = Math.max(1, Number(filtros.get('pagina') ?? '1') || 1)
+
+  function mudar(novos: Record<string, string | null>) {
+    const proximo = new URLSearchParams(filtros)
+    for (const [chave, valor] of Object.entries(novos)) {
+      if (valor === null || valor === '') proximo.delete(chave)
+      else proximo.set(chave, valor)
+    }
+    if (!('pagina' in novos)) proximo.delete('pagina')
+    setFiltros(proximo, { replace: true })
+  }
+
+  // a busca por texto espera a pessoa parar de digitar antes de ir ao servidor
+  const [textoBusca, setTextoBusca] = useState(busca)
+  useEffect(() => {
+    if (textoBusca === busca) return
+    const espera = setTimeout(() => mudar({ busca: textoBusca }), 400)
+    return () => clearTimeout(espera)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [textoBusca])
+
+  const consulta = {
+    status: status || undefined,
+    tipo_titulo: tipoTitulo || undefined,
+    mes: mes || undefined,
+    id_conta_contabil: categoria ? Number(categoria) : undefined,
+    busca: busca || undefined,
+  }
   const { data: titulos } = useQuery({
-    queryKey: ['titulos', status, tipoTitulo],
+    queryKey: ['titulos', status, tipoTitulo, mes, categoria, busca, pagina],
     queryFn: () =>
       listarTitulos({
-        status: status || undefined,
-        tipo_titulo: tipoTitulo || undefined,
+        ...consulta,
+        pagina,
+        por_pagina: TITULOS_POR_PAGINA,
       }),
   })
+  const { data: resumo } = useQuery({
+    queryKey: ['titulos', 'resumo', status, tipoTitulo, mes, categoria, busca],
+    queryFn: () => resumirTitulos(consulta),
+  })
+  const { data: contas } = useQuery({
+    queryKey: ['plano-contas'],
+    queryFn: listarPlanoContas,
+  })
+  const categorias = (contas ?? []).filter((c) =>
+    tipoFixo === 'A Receber'
+      ? c.tipo === 'Receita'
+      : tipoFixo === 'A Pagar'
+        ? c.tipo === 'Despesa'
+        : c.tipo === 'Receita' || c.tipo === 'Despesa',
+  )
+  const totalDePaginas = Math.max(
+    1,
+    Math.ceil((resumo?.total ?? 0) / TITULOS_POR_PAGINA),
+  )
+
+  const titulo =
+    tipoFixo === 'A Receber'
+      ? 'Entradas'
+      : tipoFixo === 'A Pagar'
+        ? 'Saídas'
+        : 'Títulos'
 
   return (
     <>
       <PageHeader
-        titulo="Títulos"
-        descricao="Títulos a pagar e a receber, e baixa com conta de contrapartida."
+        titulo={titulo}
+        descricao={
+          tipoFixo === 'A Receber'
+            ? 'Entradas (títulos a receber): mensalidades, doações, taxas. Escolha o mês.'
+            : tipoFixo === 'A Pagar'
+              ? 'Saídas (títulos a pagar): despesas, compras, reembolsos. Escolha o mês.'
+              : 'Títulos a pagar e a receber, e baixa com conta de contrapartida.'
+        }
         trilha={[
           { rotulo: 'Financeiro', href: '/financeiro' },
-          { rotulo: 'Títulos' },
+          { rotulo: titulo },
         ]}
       />
 
       <section className="rounded-xl border border-border bg-card p-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex gap-2">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+          <div className="flex flex-wrap items-end gap-2">
+            <div>
+              <label
+                htmlFor="filtro-mes"
+                className="mb-1 block text-xs text-muted-foreground"
+              >
+                Mês de vencimento
+              </label>
+              <input
+                id="filtro-mes"
+                type="month"
+                value={mes}
+                disabled={todoPeriodo}
+                onChange={(e) =>
+                  e.target.value &&
+                  mudar({ mes: e.target.value, periodo: null })
+                }
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                todoPeriodo
+                  ? mudar({ periodo: null, mes: null })
+                  : mudar({ periodo: 'todos', mes: null })
+              }
+            >
+              {todoPeriodo ? 'Voltar ao mês atual' : 'Todo o período'}
+            </Button>
             <select
+              aria-label="Situação"
               value={status}
-              onChange={(e) => setStatus(e.target.value)}
+              onChange={(e) => mudar({ status: e.target.value })}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="">Todos os status</option>
               <option value="Pendente">Pendente</option>
               <option value="Pago">Pago</option>
+              <option value="Renegociado">Renegociado</option>
+              <option value="Cancelado">Cancelado</option>
             </select>
+            {!tipoFixo && (
+              <select
+                aria-label="Tipo"
+                value={tipoTitulo}
+                onChange={(e) => mudar({ tipo: e.target.value })}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Todos os tipos</option>
+                <option value="A Pagar">A Pagar</option>
+                <option value="A Receber">A Receber</option>
+              </select>
+            )}
             <select
-              value={tipoTitulo}
-              onChange={(e) => setTipoTitulo(e.target.value)}
+              aria-label="Categoria"
+              value={categoria}
+              onChange={(e) => mudar({ categoria: e.target.value })}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm"
             >
-              <option value="">Todos os tipos</option>
-              <option value="A Pagar">A Pagar</option>
-              <option value="A Receber">A Receber</option>
+              <option value="">Todas as categorias</option>
+              {categorias.map((c) => (
+                <option key={c.id_conta} value={c.id_conta}>
+                  {c.descricao_conta}
+                </option>
+              ))}
             </select>
+            <input
+              type="search"
+              aria-label="Buscar por descrição, nome ou fornecedor"
+              placeholder="Buscar por descrição, nome ou fornecedor"
+              value={textoBusca}
+              onChange={(e) => setTextoBusca(e.target.value)}
+              className="h-9 w-64 rounded-md border border-input bg-background px-3 text-sm"
+            />
           </div>
           <Button
             variant="outline"
@@ -612,7 +757,18 @@ export function TitulosPage() {
         </div>
 
         {mostrarForm && (
-          <FormularioNovoTitulo onCancelar={() => setMostrarForm(false)} />
+          <FormularioNovoTitulo
+            onCancelar={() => setMostrarForm(false)}
+            tipoPadrao={tipoFixo ?? 'A Pagar'}
+          />
+        )}
+
+        {resumo && (
+          <p className="mb-3 text-sm text-muted-foreground" aria-live="polite">
+            {resumo.total} título(s) · Original{' '}
+            {formatarReais(resumo.soma_original)} · Saldo{' '}
+            {formatarReais(resumo.soma_saldo)}
+          </p>
         )}
 
         <div className="v3-space-y-2">
@@ -714,6 +870,33 @@ export function TitulosPage() {
             </p>
           )}
         </div>
+
+        {totalDePaginas > 1 && (
+          <nav
+            aria-label="Páginas de títulos"
+            className="mt-4 flex items-center justify-between gap-2 text-sm"
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pagina <= 1}
+              onClick={() => mudar({ pagina: String(pagina - 1) })}
+            >
+              Página anterior
+            </Button>
+            <span className="text-muted-foreground">
+              Página {pagina} de {totalDePaginas}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pagina >= totalDePaginas}
+              onClick={() => mudar({ pagina: String(pagina + 1) })}
+            >
+              Próxima página
+            </Button>
+          </nav>
+        )}
       </section>
     </>
   )

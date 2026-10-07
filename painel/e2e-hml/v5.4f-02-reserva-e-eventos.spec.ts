@@ -863,7 +863,7 @@ test.describe('A. Reserva de espaço', () => {
     await ver(page, info, 'auditoria: espaco cadastrado')
 
     // o título existe no Financeiro, com o valor da tarifa
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     await expect(
       page.getByRole('heading', { name: 'Títulos', level: 1 }),
     ).toBeVisible()
@@ -1013,7 +1013,7 @@ test.describe('A. Reserva de espaço', () => {
 
     // Financeiro: dentro do prazo não nasce taxa; e a cobrança da reserva cancelada não pode continuar pendente
     // (conferido ANTES de reservar o mesmo horário de novo, que geraria uma segunda cobrança com o mesmo dia)
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     await expect(
       page.getByRole('heading', { name: 'Títulos', level: 1 }),
     ).toBeVisible()
@@ -1079,7 +1079,7 @@ test.describe('A. Reserva de espaço', () => {
     expect(Number.isInteger(idTitulo)).toBe(true)
 
     // paga a cobrança pela tela de Títulos (sem pagamento não há o que reembolsar)
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     await expect(
       page.getByRole('heading', { name: 'Títulos', level: 1 }),
     ).toBeVisible()

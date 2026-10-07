@@ -3041,15 +3041,46 @@ export type TituloFinanceiro = {
   competencia_fim: string | null
 }
 
-export function listarTitulos(filtros?: {
+// Os filtros da tela de Títulos (as entradas e as saídas): situação, tipo, MÊS de vencimento (AAAA-MM), intervalo de datas, categoria (a conta
+// contábil) e texto; `pagina` (a partir de 1) liga a paginação. Sem `pagina`, devolve tudo que passa nos filtros (outras telas dependem disso).
+export type FiltrosDeTitulos = {
   status?: string
   tipo_titulo?: string
-}): Promise<TituloFinanceiro[]> {
+  mes?: string
+  data_de?: string
+  data_ate?: string
+  busca?: string
+  id_conta_contabil?: number
+  pagina?: number
+  por_pagina?: number
+}
+
+function consultaDeTitulos(filtros?: FiltrosDeTitulos): string {
   const params = new URLSearchParams()
-  if (filtros?.status) params.set('status', filtros.status)
-  if (filtros?.tipo_titulo) params.set('tipo_titulo', filtros.tipo_titulo)
+  for (const [chave, valor] of Object.entries(filtros ?? {})) {
+    if (valor !== undefined && valor !== '' && valor !== null)
+      params.set(chave, String(valor))
+  }
   const query = params.toString()
-  return apiFetch(`/api/titulos/${query ? `?${query}` : ''}`)
+  return query ? `?${query}` : ''
+}
+
+export function listarTitulos(
+  filtros?: FiltrosDeTitulos,
+): Promise<TituloFinanceiro[]> {
+  return apiFetch(`/api/titulos/${consultaDeTitulos(filtros)}`)
+}
+
+export type ResumoDeTitulos = {
+  total: number
+  soma_original: number
+  soma_saldo: number
+}
+
+export function resumirTitulos(
+  filtros?: Omit<FiltrosDeTitulos, 'pagina' | 'por_pagina'>,
+): Promise<ResumoDeTitulos> {
+  return apiFetch(`/api/titulos/resumo${consultaDeTitulos(filtros)}`)
 }
 
 export function criarTitulo(dados: {

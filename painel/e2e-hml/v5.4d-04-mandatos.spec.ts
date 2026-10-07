@@ -832,7 +832,7 @@ test('cargo -> permissão ao vivo: encerrar o mandato do Tesoureiro tira o finan
       page.getByText(/permissão necessária: financeiro/),
     ).toBeVisible()
     await ver(page, info, 'Tesoureiro sem o cargo no financeiro: acesso negado')
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     await expect(
       page.getByRole('heading', { name: 'Acesso negado' }),
     ).toBeVisible()

@@ -420,7 +420,7 @@ async function criarTituloPelaTela(
     associado?: string
   },
 ): Promise<number> {
-  await page.goto('/financeiro/titulos')
+  await page.goto('/financeiro/titulos?periodo=todos')
   await expect(
     page.getByRole('heading', { name: 'Títulos', level: 1 }),
   ).toBeVisible()
@@ -759,7 +759,7 @@ test.describe('A. Quem pode e o que cada tela da receita oferece', () => {
       }),
     ).toBeVisible()
 
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     await expect(
       page.getByRole('button', { name: 'Novo título', exact: true }),
     ).toBeVisible()
@@ -882,12 +882,12 @@ test.describe('A. Quem pode e o que cada tela da receita oferece', () => {
     ).toBeVisible()
     await varrer('receita-gerar-cobrancas')
 
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     await page.getByRole('button', { name: 'Novo título', exact: true }).click()
     await expect(page.getByPlaceholder('Valor original')).toBeVisible()
     await varrer('receita-titulos-novo-titulo')
 
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     await expect(
       page
         .getByText('Nenhum título encontrado.')
@@ -1564,7 +1564,7 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
     await outra.close()
 
     // o que ficou nos Títulos: uma cobrança por associado do plano, com o valor certo e o vencimento do dia 15
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     const dosPlano = cartaoDeTitulo(page, `${PLANO} — competência ${C1}`)
     await expect(dosPlano).toHaveCount(quantasDoPlano)
     const doIsentoNosTitulos = dosPlano.filter({ hasText: a.isento.nome })
@@ -1703,7 +1703,7 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
     await ver(page, info, 'bloco repetido: recusado, ja existe titulo cobrindo')
 
     // o título-bloco nos Títulos: a conta é a de receita diferida (Passivo), não a Receita do plano
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     const noTitulos = cartaoDeTitulo(
       page,
       new RegExp(
@@ -1737,7 +1737,7 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
     await entrarNoFinanceiro(page, 'tesoureiro')
 
     // 1. baixa total do bloco
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     const noTitulos = cartaoDeTitulo(
       page,
       new RegExp(
@@ -2018,7 +2018,7 @@ test.describe('C. Títulos, baixa, pagamento a maior, crédito e negociação de
     const a = await garantirApoio(page)
     await entrarNoFinanceiro(page, 'presidente')
     auditoriaDosCreditosAntes = await abrirAuditoria(page, 'creditos_associado')
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     await expect(
       page.getByRole('heading', { name: 'Títulos', level: 1 }),
     ).toBeVisible()
@@ -2150,7 +2150,7 @@ test.describe('C. Títulos, baixa, pagamento a maior, crédito e negociação de
     const vigia = vigiar(page)
     const a = exigirApoio()
     await entrarNoFinanceiro(page, 'tesoureiro')
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     const cartaoT1 = cartaoDeTitulo(page, D.t1)
     await expect(cartaoT1).toBeVisible()
 
@@ -2268,7 +2268,7 @@ test.describe('C. Títulos, baixa, pagamento a maior, crédito e negociação de
     // segunda aba parada com o título ainda pendente (para provar a recusa de baixar o que já foi pago)
     const outra = await page.context().newPage()
     const vigiaOutra = vigiar(outra)
-    await outra.goto('/financeiro/titulos')
+    await outra.goto('/financeiro/titulos?periodo=todos')
     const cartaoNaOutra = cartaoDeTitulo(outra, D.t1)
     await expect(cartaoNaOutra).toContainText(`Saldo ${reais(V.t1Resto)}`)
 
@@ -2363,7 +2363,7 @@ test.describe('C. Títulos, baixa, pagamento a maior, crédito e negociação de
     )
 
     // os filtros da tela de Títulos: Pago x Pendente, A Receber x A Pagar
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     const porStatus = seletorCom(corpoDaPagina(page), 'Todos os status')
     const porTipo = seletorCom(corpoDaPagina(page), 'Todos os tipos')
     await porStatus.selectOption('Pago')
@@ -2393,7 +2393,7 @@ test.describe('C. Títulos, baixa, pagamento a maior, crédito e negociação de
     const vigia = vigiar(page)
     const a = exigirApoio()
     await entrarNoFinanceiro(page, 'tesoureiro')
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     const cartaoT2 = cartaoDeTitulo(page, D.t2)
     const cartaoT3 = cartaoDeTitulo(page, D.t3)
     await expect(cartaoT3).toBeVisible()
@@ -2463,7 +2463,7 @@ test.describe('C. Títulos, baixa, pagamento a maior, crédito e negociação de
     )
 
     // o crédito de R$ 50,10 aparece no outro título do mesmo associado e quita os R$ 40,00 dele
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     const novoT3 = cartaoDeTitulo(page, D.t3)
     await novoT3
       .getByRole('button', { name: 'Aplicar crédito', exact: true })
@@ -2684,7 +2684,7 @@ test.describe('C. Títulos, baixa, pagamento a maior, crédito e negociação de
     await outra.close()
 
     // os títulos: originais "Renegociado" (nunca editados), três parcelas novas somando o total ao centavo
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     await expect(cartaoDeTitulo(page, D.t4)).toContainText('Renegociado')
     await expect(cartaoDeTitulo(page, D.t5)).toContainText('Renegociado')
     await expect(cartaoDeTitulo(page, D.t4)).toContainText(
@@ -2789,7 +2789,7 @@ test.describe('C. Títulos, baixa, pagamento a maior, crédito e negociação de
         'o aviso da baixa a maior mostra o saldo como "1234.56" (ponto, sem R$), fora do formato pt-BR do resto da tela (painel/src/pages/Titulos.tsx:358-360)',
       )
       .toContain('R$ 1.234,56')
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     const original = cartaoDeTitulo(page, D.t4)
     await expect(original).toContainText('Renegociado')
     const oferecida =
@@ -3066,7 +3066,7 @@ test.describe('D. Doações, campanha de arrecadação e recibo', () => {
     )
 
     // título pago e lançamento no razão
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     const titulo = cartaoDeTitulo(
       page,
       `Doação #${registrada.id_doacao} — recibo nº ${registrada.numero_recibo}`,
@@ -3217,7 +3217,7 @@ test.describe('D. Doações, campanha de arrecadação e recibo', () => {
     expect(doacao.bens.recibo).toBe(doacao.anonima.recibo + 1)
 
     // em bens não há título nem lançamento (não é dinheiro em caixa); a monetária anônima tem os dois
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     await expect(
       cartaoDeTitulo(
         page,
@@ -3586,7 +3586,7 @@ test.describe('E. Conciliação bancária e fechamento do mês', () => {
     const contaDoBanco = conta
     if (!contaDoBanco) throw new Error('o preparo da conciliação não rodou')
     await entrarNoFinanceiro(page, 'tesoureiro')
-    await page.goto('/financeiro/titulos')
+    await page.goto('/financeiro/titulos?periodo=todos')
     const cartao = cartaoDeTitulo(page, DESCRICAO)
     await expect(cartao).toBeVisible()
     const primeiroDoMes = `${competenciaAtual}-01`

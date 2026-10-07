@@ -1437,7 +1437,12 @@ test('baixa de título: campos vazios e conta sintética como contrapartida são
   const antes = await totaisComoPresidente(page, ['lancamentos_contabeis'])
 
   await entrarNoFinanceiro(page)
-  await abrirTela(page, '/financeiro/titulos', ['/api/titulos/'], 'Títulos')
+  await abrirTela(
+    page,
+    '/financeiro/titulos?periodo=todos',
+    ['/api/titulos/'],
+    'Títulos',
+  )
   ids.tituloA = await criarTitulo(page, {
     tipo: 'A Receber',
     conta: trecho(COD_RECEITA, DESC_RECEITA),
@@ -1491,7 +1496,12 @@ test('baixa de título: campos vazios e conta sintética como contrapartida são
   await ver(page, info, 'baixa em conta sintetica: recusada')
 
   // a recusa não mexeu no título: recarrega e confere
-  await abrirTela(page, '/financeiro/titulos', ['/api/titulos/'], 'Títulos')
+  await abrirTela(
+    page,
+    '/financeiro/titulos?periodo=todos',
+    ['/api/titulos/'],
+    'Títulos',
+  )
   await expect(titulo()).toContainText('Pendente')
   await expect(titulo()).toContainText(
     `Original ${brl(BAIXA_A)} · Saldo ${brl(BAIXA_A)}`,
@@ -2346,7 +2356,12 @@ test('orçamento: o realizado acompanha a baixa e o estorno (receita no centro 2
   const antes = await totaisComoPresidente(page, ['lancamentos_contabeis'])
 
   await entrarNoFinanceiro(page)
-  await abrirTela(page, '/financeiro/titulos', ['/api/titulos/'], 'Títulos')
+  await abrirTela(
+    page,
+    '/financeiro/titulos?periodo=todos',
+    ['/api/titulos/'],
+    'Títulos',
+  )
   ids.tituloB = await criarTitulo(page, {
     tipo: 'A Receber',
     conta: trecho(COD_RECEITA, DESC_RECEITA),
@@ -2418,7 +2433,12 @@ test('orçamento: o realizado acompanha a baixa e o estorno (receita no centro 2
     `${brl(0)} de ${brl(PREVISTO_R3)} previstos (0%)`,
   )
   await ver(page, info, 'orcamento 3: realizado volta a zero depois do estorno')
-  await abrirTela(page, '/financeiro/titulos', ['/api/titulos/'], 'Títulos')
+  await abrirTela(
+    page,
+    '/financeiro/titulos?periodo=todos',
+    ['/api/titulos/'],
+    'Títulos',
+  )
   await expect(titulo()).toContainText('Pendente')
   await expect(titulo()).toContainText(
     `Original ${brl(BAIXA_B)} · Saldo ${brl(BAIXA_B)}`,
@@ -2528,7 +2548,12 @@ test('fluxo de caixa projetado: saldo inicial = soma das contas financeiras; cad
   ).toBe(true)
 
   // um título a pagar e um a receber, pendentes, vencendo daqui a 2 dias
-  await abrirTela(page, '/financeiro/titulos', ['/api/titulos/'], 'Títulos')
+  await abrirTela(
+    page,
+    '/financeiro/titulos?periodo=todos',
+    ['/api/titulos/'],
+    'Títulos',
+  )
   await criarTitulo(page, {
     tipo: 'A Pagar',
     conta: trecho(COD_DESPESA, DESC_DESPESA),

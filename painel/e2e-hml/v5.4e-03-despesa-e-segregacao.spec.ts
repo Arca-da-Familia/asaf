@@ -431,7 +431,7 @@ async function conferirTrilhaDeAprovacao(
 
 /** Abre a lista de Títulos e devolve o cartão do título pela descrição (espera a lista chegar). */
 async function tituloDe(page: Page, descricao: string): Promise<Locator> {
-  await abrirTela(page, '/financeiro/titulos', 'Títulos')
+  await abrirTela(page, '/financeiro/titulos?periodo=todos', 'Títulos')
   const cartao = cartaoDe(page, descricao)
   await expect(cartao.first()).toBeVisible()
   return cartao
@@ -1643,7 +1643,7 @@ test('Dupla assinatura: a primeira aprovação não gera título, a mesma pessoa
     await ver(page, info, 'a mesma pessoa aprovando de novo: recusado')
 
     // com uma aprovação só, nenhum título: a lista de títulos (que já tem os das outras compras) não traz este
-    await abrirTela(page, '/financeiro/titulos', 'Títulos')
+    await abrirTela(page, '/financeiro/titulos?periodo=todos', 'Títulos')
     await expect(page.locator('div.rounded-md.border').first()).toBeVisible()
     await expect(
       cartaoDe(page, `Compra aprovada #${idDupla} — ${dupla}`),
@@ -2855,7 +2855,7 @@ test('Formulários de despesa: cada campo tem nome acessível (inventário de fo
   await expect(page.getByPlaceholder('Dia de vencimento')).toBeVisible()
   await inventario('recorrentes-nova-e-gerar-do-mes')
 
-  await abrirTela(page, '/financeiro/titulos', 'Títulos')
+  await abrirTela(page, '/financeiro/titulos?periodo=todos', 'Títulos')
   await page.getByRole('button', { name: 'Novo título' }).click()
   await expect(page.getByPlaceholder('Valor original')).toBeVisible()
   await inventario('titulos-novo')

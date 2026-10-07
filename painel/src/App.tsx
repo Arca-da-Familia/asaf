@@ -329,6 +329,22 @@ function App() {
               }
             />
             <Route
+              path="entradas"
+              element={
+                <ErrorBoundary tituloModulo="Entradas">
+                  <TitulosPage tipoFixo="A Receber" />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="saidas"
+              element={
+                <ErrorBoundary tituloModulo="Saídas">
+                  <TitulosPage tipoFixo="A Pagar" />
+                </ErrorBoundary>
+              }
+            />
+            <Route
               path="plano-contas"
               element={
                 <ErrorBoundary tituloModulo="Plano de Contas">

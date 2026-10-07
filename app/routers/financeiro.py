@@ -17,17 +17,20 @@ de módulo) foram removidas em 2026-09-15 - o painel único (painel.asaf.org.br,
 `/api/...` (e as de escrita sem prefixo, mantidas por compatibilidade de URL) que o painel
 consome."""
 import os
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.associados import Associado
+from app.models.pessoas import Pessoa
 from app.models.financeiro import (
     CampanhaDescontoAntecipado, CentroDeCusto, ContaFinanceira, CreditoAssociado, Exercicio,
     IsencaoContribuicao, LancamentoContabil, NegociacaoDivida, PartidaContabil, PlanoDeContas,
@@ -407,14 +410,82 @@ def editar_fornecedor(id_fornecedor: int, dados: FornecedorCriar, request: Reque
 # ==========================================
 # TÍTULOS FINANCEIROS (contas a pagar/receber)
 # ==========================================
-@router.get("/api/titulos/", summary="Listar Títulos Financeiros")
-def listar_titulos(status: str = None, tipo_titulo: str = None, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+def _consulta_de_titulos(
+    db: Session, *, status: Optional[str], tipo_titulo: Optional[str], mes: Optional[str], data_de: Optional[date],
+    data_ate: Optional[date], busca: Optional[str], id_conta_contabil: Optional[int],
+):
+    """Os filtros da tela de Títulos (entradas e saídas): situação, tipo, **mês de vencimento** (AAAA-MM), intervalo de datas, categoria (a
+    conta contábil) e texto (descrição, nome do associado ou razão social do fornecedor). Usado pela lista e pelo resumo, para os dois
+    sempre falarem do mesmo conjunto."""
     consulta = db.query(TituloFinanceiro)
     if status:
         consulta = consulta.filter(TituloFinanceiro.status == status)
     if tipo_titulo:
         consulta = consulta.filter(TituloFinanceiro.tipo_titulo == tipo_titulo)
-    titulos = consulta.order_by(TituloFinanceiro.data_vencimento).all()
+    if id_conta_contabil:
+        consulta = consulta.filter(TituloFinanceiro.id_conta_contabil == id_conta_contabil)
+    if mes:
+        try:
+            ano, numero_do_mes = int(mes[:4]), int(mes[5:7])
+            if len(mes) != 7 or mes[4] != "-" or not (1 <= numero_do_mes <= 12):
+                raise ValueError
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Mês inválido - use o formato AAAA-MM.")
+        inicio = datetime(ano, numero_do_mes, 1)
+        fim = datetime(ano + (1 if numero_do_mes == 12 else 0), 1 if numero_do_mes == 12 else numero_do_mes + 1, 1)
+        consulta = consulta.filter(TituloFinanceiro.data_vencimento >= inicio, TituloFinanceiro.data_vencimento < fim)
+    if data_de:
+        consulta = consulta.filter(TituloFinanceiro.data_vencimento >= datetime(data_de.year, data_de.month, data_de.day))
+    if data_ate:
+        consulta = consulta.filter(TituloFinanceiro.data_vencimento < datetime(data_ate.year, data_ate.month, data_ate.day) + timedelta(days=1))
+    if busca and busca.strip():
+        termo = f"%{busca.strip()}%"
+        ids_associados = db.query(Associado.id_associado).join(Pessoa, Associado.id_pessoa == Pessoa.id_pessoa).filter(Pessoa.nome_completo.ilike(termo))
+        ids_fornecedores = db.query(Fornecedor.id_fornecedor).filter(Fornecedor.razao_social.ilike(termo))
+        consulta = consulta.filter(or_(
+            TituloFinanceiro.descricao.ilike(termo), TituloFinanceiro.id_associado.in_(ids_associados), TituloFinanceiro.id_fornecedor.in_(ids_fornecedores),
+        ))
+    return consulta
+
+
+@router.get("/api/titulos/resumo", summary="Totais dos títulos que passam nos mesmos filtros da lista (quantidade e somas)")
+def resumo_dos_titulos(
+    status: Optional[str] = None, tipo_titulo: Optional[str] = None, mes: Optional[str] = None, data_de: Optional[date] = None,
+    data_ate: Optional[date] = None, busca: Optional[str] = None, id_conta_contabil: Optional[int] = None,
+    db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro),
+):
+    base = _consulta_de_titulos(
+        db, status=status, tipo_titulo=tipo_titulo, mes=mes, data_de=data_de, data_ate=data_ate, busca=busca, id_conta_contabil=id_conta_contabil,
+    ).subquery()
+    total, soma_original, soma_saldo = db.query(
+        func.count(), func.coalesce(func.sum(base.c.valor_original), 0), func.coalesce(func.sum(base.c.saldo_devedor), 0),
+    ).select_from(base).one()
+    return {"total": total, "soma_original": soma_original, "soma_saldo": soma_saldo}
+
+
+@router.get("/api/titulos/", summary="Listar Títulos Financeiros (com filtros e, se `pagina` vier, paginados)")
+def listar_titulos(
+    status: Optional[str] = None, tipo_titulo: Optional[str] = None, mes: Optional[str] = None, data_de: Optional[date] = None,
+    data_ate: Optional[date] = None, busca: Optional[str] = None, id_conta_contabil: Optional[int] = None,
+    pagina: Optional[int] = None, por_pagina: int = 50,
+    db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro),
+):
+    if pagina is not None and pagina < 1:
+        raise HTTPException(status_code=400, detail="A página começa em 1.")
+    if not (1 <= por_pagina <= 200):
+        raise HTTPException(status_code=400, detail="Informe de 1 a 200 títulos por página.")
+    consulta = _consulta_de_titulos(
+        db, status=status, tipo_titulo=tipo_titulo, mes=mes, data_de=data_de, data_ate=data_ate, busca=busca, id_conta_contabil=id_conta_contabil,
+    )
+    com_periodo = bool(mes or data_de or data_ate)
+    if pagina is not None and not com_periodo:
+        # sem período escolhido, a lista paginada mostra primeiro o que foi lançado por último; com período, é por vencimento
+        consulta = consulta.order_by(TituloFinanceiro.id_titulo.desc())
+    else:
+        consulta = consulta.order_by(TituloFinanceiro.data_vencimento, TituloFinanceiro.id_titulo)
+    if pagina is not None:
+        consulta = consulta.offset((pagina - 1) * por_pagina).limit(por_pagina)
+    titulos = consulta.all()
 
     contas = {c.id_conta: c for c in db.query(PlanoDeContas).all()}
     associados = {a.id_associado: a for a in db.query(Associado).all()}

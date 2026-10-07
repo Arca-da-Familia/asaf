@@ -1,5 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
   BarChart3,
   BookOpen,
   BookText,
@@ -130,6 +132,16 @@ export const modulos: Modulo[] = [
         rota: '/financeiro/titulos',
         rotulo: 'Títulos',
         icone: Receipt,
+      },
+      {
+        rota: '/financeiro/entradas',
+        rotulo: 'Entradas',
+        icone: ArrowDownToLine,
+      },
+      {
+        rota: '/financeiro/saidas',
+        rotulo: 'Saídas',
+        icone: ArrowUpFromLine,
       },
       {
         rota: '/financeiro/plano-contas',
