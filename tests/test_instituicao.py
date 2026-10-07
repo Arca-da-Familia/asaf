@@ -32,8 +32,11 @@ def test_a_lista_traz_grupos_rotulos_e_se_vai_para_o_site(client, auth_headers):
 def test_editar_valida_em_portugues_e_grava_na_auditoria(client, auth_headers):
     r = client.put("/api/instituicao/CNPJ", json={"valor": "11.111.111/1111-11"}, headers=auth_headers)
     assert r.status_code == 422 and "CNPJ inválido" in r.json()["detail"]
-    assert client.put("/api/instituicao/EMAIL_INSTITUCIONAL", json={"valor": "sem-arroba"}, headers=auth_headers).status_code == 422
-    assert client.put("/api/instituicao/COR_PRIMARIA", json={"valor": "azul"}, headers=auth_headers).status_code == 422
+    r = client.put("/api/instituicao/EMAIL_INSTITUCIONAL", json={"valor": "sem-arroba"}, headers=auth_headers)
+    assert r.status_code == 422 and "“E-mail de contato” precisa ser um e-mail válido" in r.json()["detail"]
+    r = client.put("/api/instituicao/COR_PRIMARIA", json={"valor": "azul"}, headers=auth_headers)
+    assert r.status_code == 422 and "“Cor primária” precisa ser uma cor hexadecimal" in r.json()["detail"]
+    assert "COR_PRIMARIA" not in r.json()["detail"], "o usuário vê o nome do campo, não a chave técnica"
     r = client.put("/api/instituicao/NOME_BENEFICIARIO_PIX", json={"valor": "x" * 30}, headers=auth_headers)
     assert r.status_code == 422 and "no máximo 25" in r.json()["detail"]
     assert client.put("/api/instituicao/NAO_EXISTE", json={"valor": "x"}, headers=auth_headers).status_code == 404

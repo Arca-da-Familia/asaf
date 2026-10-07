@@ -100,7 +100,11 @@ def atualizar_campo(db: Session, *, chave: str, valor: Optional[str], publico: O
         raise HTTPException(status_code=400, detail="Este campo é só interno e não pode ir para o site.")
     if valor is not None:
         limpo = validar_valor(chave, valor)
-        _validar_valor_configuracao(config, limpo)
+        try:
+            _validar_valor_configuracao(config, limpo)
+        except HTTPException as erro:
+            # a regra genérica das configurações fala pela chave técnica ('COR_PRIMARIA'); aqui o usuário vê o nome do campo na tela
+            raise HTTPException(status_code=erro.status_code, detail=str(erro.detail).replace(f"'{chave}'", f"“{campo[2]}”"))
         config.valor_configuracao = limpo
         config.atualizado_em = datetime.utcnow()
         config.id_usuario_atualizacao = id_usuario
