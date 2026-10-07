@@ -25,6 +25,19 @@ const descricaoSaida = (n: number) =>
   `Saída de teste ${S} nº ${String(n).padStart(2, '0')}`
 const descricaoEntrada = (n: number) => `Entrada de teste ${S} nº ${n}`
 
+/** O menu só mostra Entradas e Saídas dentro do módulo Financeiro: entra por ele, como o usuário faria. */
+async function irParaAPaginaDoFinanceiro(
+  page: Page,
+  nome: 'Entradas' | 'Saídas',
+) {
+  await page.getByRole('link', { name: 'Financeiro' }).first().click()
+  // o link existe no menu lateral e também no cartão "Telas do módulo": o roteiro usa o do menu
+  await page
+    .getByRole('complementary')
+    .getByRole('link', { name: nome, exact: true })
+    .click()
+}
+
 async function capturarToken(page: Page): Promise<() => string> {
   let token = ''
   page.on('request', (r) => {
@@ -113,7 +126,7 @@ test('Saídas: o mês filtra, 31 títulos são 2 páginas de 25 e a segunda pág
 }, info) => {
   const vigia = vigiar(page)
   await entrar(page, 'tesoureiro')
-  await page.getByRole('link', { name: 'Saídas', exact: true }).click()
+  await irParaAPaginaDoFinanceiro(page, 'Saídas')
   await expect(
     page.getByRole('heading', { name: 'Saídas', level: 1 }),
   ).toBeVisible()
@@ -153,7 +166,7 @@ test('Entradas: só as a receber; mês sem lançamento diz que não há; busca p
 }, info) => {
   const vigia = vigiar(page)
   await entrar(page, 'tesoureiro')
-  await page.getByRole('link', { name: 'Entradas', exact: true }).click()
+  await irParaAPaginaDoFinanceiro(page, 'Entradas')
   await expect(
     page.getByRole('heading', { name: 'Entradas', level: 1 }),
   ).toBeVisible()
