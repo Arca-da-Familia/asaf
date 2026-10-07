@@ -1632,6 +1632,21 @@ retrabalho que a seção 4.1 existe pra evitar.
   (`version.json` no commit publicado e rotas novas respondendo 401 sem login). Itens da v5.4e/v5.4f **continuam abertos** até o robô fechar
   verde cada roteiro e os achados serem resolvidos ou decididos; v5.4g não foi começada.
 
+  **Atualização 2 (2026-10-07, regra do usuário: toda correção é provada na homologação antes de ir para a `main`):** o lote de correções foi
+  publicado numa **branch** só na homologação e conferido pelo robô; só depois entrou na `main`. **Na homologação** (build da branch): `v5.4e-01`
+  16 verdes (+ o cenário que fecha o exercício, rodado à parte: 17/17), `v5.4e-03` 12/12, `v5.4e-04` 16/16, `v5.4f-01` 22/22, `v5.4f-02` 16/16,
+  `v5.4f-03` 16/16 e `v5.4e-02` 27/29 (o que sobra: a sondagem F1, intermitente quando a homologação já acumulou centenas de títulos — a tela de
+  Títulos não pagina —, e o Pix, que precisa de `CHAVE_PIX` e de uma tela de configurações institucionais que não existe). **Em produção** (só por
+  leitura): `version.json` no commit `1a537d2` e as rotas novas respondendo 401 sem login; nenhum dado de teste foi criado lá. Dois defeitos achados
+  pelo robô nesta rodada: a regra "sessão dentro do período do evento" dava erro 500 quando o painel manda a hora com fuso (foi desfeita na
+  produção na hora e refeita só na homologação, agora com teste de hora com fuso) e a Prestação de Contas/extrato misturavam data só-dia com
+  instante. Novidades da rodada: Início do Financeiro com o retrato do dia (saldo, vencidos, a pagar em 30 dias, compras a aprovar), isenções
+  com nome e motivo por extenso, taxa de cancelamento tardio avisada a quem cancela, espaço com nome único, reserva no passado recusada, relatório
+  final com o número de beneficiários, "Baixar" escondido em título renegociado. **Abertos**: paginação de Títulos; tela de configurações
+  institucionais (Pix); decisões listadas acima. **Povoamento em volume** (`scripts/povoar_homologacao_volume.py`, opção `volume` do fluxo de
+  homologação): 30 cadastros em vários status, mensalidades pagas/vencidas, fornecedores e despesas, doações, 2 atas, 3 projetos, 3 eventos com
+  inscrições e reservas de espaço — carregado depois das rodadas do robô e do cenário que fecha o exercício.
+
 #### v5.4f — FASE 4 ao vivo: projetos, reserva de espaço e eventos
 
 - [ ] **Projeto:** criar, editar, publicar no site (aprovação), **em destaque**, beneficiários e atendimento, voluntariado vinculado.
