@@ -98,8 +98,26 @@ jobs:
       - name: Instala dependências
         run: npm ci
 
+      # O que travava (já custou 29 minutos e duas rodadas): o `apt-get` do `--with-deps` fica pendurado no espelho do Ubuntu da rede do GitHub
+      # (azure.archive.ubuntu.com) e segura a trava do apt. O navegador em si baixa bem. Então: 1) só o navegador, sem apt, e confere que ele
+      # abre (a imagem do GitHub já traz as bibliotecas dele); 2) só se faltar biblioteca usa o apt, com 5 minutos por tentativa e, entre uma
+      # tentativa e outra, mata o apt pendurado e solta a trava (a máquina é descartável).
       - name: Instala o navegador (Chromium)
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 17
+        run: |
+          npx playwright install chromium
+          if node -e "const { chromium } = require('@playwright/test'); chromium.launch().then((b) => b.close()).then(() => process.exit(0), (e) => { console.error(e.message); process.exit(1) })"; then
+            echo "O navegador abre sem instalar pacotes do sistema."
+            exit 0
+          fi
+          echo "::warning::Faltam bibliotecas do sistema para o navegador: instalando com o apt."
+          for tentativa in 1 2 3; do
+            if timeout 300 npx playwright install --with-deps chromium; then exit 0; fi
+            echo "::warning::Instalação com o apt falhou ou passou de 5 minutos (tentativa $tentativa de 3)."
+            sudo pkill -9 -f apt-get || true
+            sudo rm -f /var/lib/apt/lists/lock /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend || true
+          done
+          exit 1
 
       - name: Roda o roteiro ao vivo na homologação
         env:
