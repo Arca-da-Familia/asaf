@@ -1352,7 +1352,7 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
     }
     idIsencaoParcial = await cadastrarIsencao(a.isento.nome, 40)
     const cartaoParcial = secao.locator('div.rounded-md.border').filter({
-      hasText: new RegExp(`Associado #${a.isento.id} — 40% de desconto`),
+      hasText: new RegExp(`${escapar(a.isento.nome)} — 40% de desconto`),
     })
     await expect(cartaoParcial).toHaveCount(1)
     await verNaTela(page, info, 'isencao de 40% cadastrada', cartaoParcial)
@@ -1363,7 +1363,7 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
     await expect(form).toBeVisible()
     idIsencaoTotal = await cadastrarIsencao(a.devedor.nome, 100)
     const cartaoTotal = secao.locator('div.rounded-md.border').filter({
-      hasText: new RegExp(`Associado #${a.devedor.id} — 100% de desconto`),
+      hasText: new RegExp(`${escapar(a.devedor.nome)} — 100% de desconto`),
     })
     await expect(cartaoTotal).toHaveCount(1)
     await verNaTela(page, info, 'isencao de 100% cadastrada', cartaoTotal)
@@ -1955,7 +1955,7 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
     // por último (achado provável de apresentação): a isenção mostra o motivo pelo nome, não pelo código técnico
     await page.goto('/financeiro/planos-contribuicao')
     const isencao = page.locator('div.rounded-md.border').filter({
-      hasText: new RegExp(`Associado #${a.isento.id} — 40% de desconto`),
+      hasText: new RegExp(`${escapar(a.isento.nome)} — 40% de desconto`),
     })
     await expect(isencao).toHaveCount(1)
     await expect
