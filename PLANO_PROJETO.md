@@ -1830,25 +1830,64 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 Tudo aqui é construído (não é "decidir se faz"), na ordem abaixo, cada item pelo caminho de sempre: branch → homologação → robô → só então a
 `main`. As decisões do Presidente (voz, 2026-10-07; Estatuto em `ESTATUTO_ASAF.txt`) estão resumidas em cada item.
 
-- [ ] **Títulos com filtros e paginação.** Título = cada **entrada** (a receber) ou **saída** (a pagar). A tela passa a filtrar por **mês**
+- [x] **Títulos com filtros e paginação.** Título = cada **entrada** (a receber) ou **saída** (a pagar). A tela passa a filtrar por **mês**
       (filtro principal), intervalo de datas, **entradas ou saídas** (uma página para cada), situação, categoria e texto; lista paginada.
-      Depois, o mesmo nas outras listas que crescem (Associados, Razão Contábil, Auditoria).
-- [ ] **Módulo "Instituição" no painel:** cadastro de tudo da instituição (nome, CNPJ, endereço, contatos, redes, logo, chave Pix, textos
+      **Na homologação (2026-10-07):** o robô (`v5.4h-01`, 5 de 5) lançou 31 saídas e 3 entradas em meses de 2088 e conferiu: o mês filtra; 31
+      títulos são 2 páginas de 25 (a segunda com os 6 que sobram); Entradas e Saídas em páginas próprias; busca por texto; tipo, situação e
+      categoria combinando; "Todo o período" tirando o mês; os filtros guardados no endereço; o Secretário barrado. A regressão na pilha final
+      ficou verde (e-01 13, e-02 29, e-03 12, e-04 16, f-01 22, f-02 16, f-03 16). **Em produção (2026-10-08):** commit `66642bd` no
+      `version.json`; Deploy API e Deploy Painel verdes; `GET /api/titulos/resumo` responde 401 sem login.
+- [ ] **Paginação nas outras listas que crescem** (Associados, Razão Contábil, Auditoria): o mesmo padrão dos Títulos.
+- [x] **Módulo "Instituição" no painel:** cadastro de tudo da instituição (nome, CNPJ, endereço, contatos, redes, logo, chave Pix, textos
       institucionais), cada campo marcado **"vai para o site"** ou **"só interno"**; o site passa a ler de lá.
-- [ ] **Auditoria financeira (Conselho Fiscal):** o Conselho **não opera** o Financeiro, **audita**. Página própria: escolhe o **mês**, vê todas
+      **Na homologação (2026-10-07):** `v5.4h-02`, 5 de 5: os campos por grupo com a marca "aparece no site" ou "só interno"; salvar grava e
+      continua gravado ao recarregar; a marca decide o que a rota pública entrega (some e volta na hora); CNPJ inválido, e-mail sem arroba, cor
+      fora do formato e nome do Pix longo são recusados em português com o nome do campo (não a chave técnica) e não deixam rastro; o CNPJ
+      válido grava e as alterações aparecem na Auditoria; o Secretário não vê o módulo nem entra pelo endereço. **Em produção (2026-10-08):**
+      `GET /api/instituicao/` responde 401 sem login; `GET /api/publico/instituicao` responde 200 só com os campos marcados e preenchidos.
+      **Atenção:** o CNPJ de produção ainda é o de exemplo (`00.000.000/0001-00`) e está marcado para o site: a diretoria precisa preencher o
+      real na tela Instituição **antes** de o site passar a ler de lá.
+- [ ] **O site lê a Instituição:** nome, contatos, redes, endereço e Pix do site vêm de `/api/publico/instituicao` (hoje o site ainda usa o
+      texto fixo dele); só depois de a diretoria preencher os dados reais.
+- [x] **Auditoria financeira (Conselho Fiscal):** o Conselho **não opera** o Financeiro, **audita**. Página própria: escolhe o **mês**, vê todas
       as entradas e saídas já consolidadas, abre cada título (comprovantes e informações) e **aprova, reprova ou manda ressalva**; a ressalva
       volta ao Tesoureiro, que corrige e submete de novo; dá para aprovar **tudo de uma vez, um por um ou por categoria**; **título aprovado pelo
       Conselho não pode mais ser alterado**. Tudo na Auditoria. (Estatuto Art. 24: fiscalizar toda a movimentação financeira e contábil.)
+      **Regra decidida (Presidente, 2026-10-07/08):** o título é aprovado e travado quando a **maioria** do Conselho (2 de 3) aprova; quem
+      discorda tem de dizer por quê (explicação obrigatória, sempre visível). **Na homologação (2026-10-07):** `v5.4h-03`, 8 de 8, com os três
+      conselheiros de teste: o resumo do mês; aprovar um por um; ressalva e reprovação só seguem com a explicação (10 letras) e suspendem o
+      título; a tesouraria responde no próprio cartão e isso libera; o 2º conselheiro completa a maioria e o título fica **Aprovado e travado**
+      (só oferece "Reabrir auditoria"); aprovar em lote vale para um mês e pula suspensos, travados e os já aprovados por quem aprova; o 3º
+      conselheiro reabre com explicação e as aprovações antigas deixam de valer (o histórico fica); o Secretário é barrado; a Auditoria do
+      sistema guarda as 7 ações. Título aprovado também não é estornado nem renegociado enquanto estiver travado (testes do servidor).
+      **Em produção (2026-10-08):** migração `b8e4c1a7d205` aplicada pelo pipeline; `GET /api/conselho-fiscal/auditoria-financeira/` e
+      `POST .../aprovar-em-lote` respondem 401 sem login.
+- [ ] **Auditoria financeira: a discordância não trava a maioria.** Hoje uma ressalva ou reprovação com pergunta aberta ainda suspende o
+      título mesmo com 2 aprovações. Decisão do Presidente (2026-10-08): com a maioria o título aprova; o motivo de quem discordou fica
+      destacado no cartão e na Auditoria.
 - [ ] **Saídas, reembolso e dupla assinatura:** a saída é lançada com a **nota fiscal anexa** e uma **categoria** (o **reembolso é uma categoria
       de saída**, com as mesmas regras; entradas também têm categorias). **Dupla assinatura Presidente + 1º Tesoureiro** (Estatuto Art. 21, II).
       **Sem exigência de cotação/orçamento no dia a dia** (a regra de 2 cotações sai); orçamento só em **emenda parlamentar**, como documento
       anexado na parceria. **Prazos e alertas:** data da despesa e data do lançamento sempre registradas; alerta de lançamento tardio e de
       assinatura parada (lembrete ao outro assinante; delegação já existe), para a associação não perder prazo nem ter multa.
+      **Decisão do Presidente (2026-10-08, vale mais que o texto acima):** o sistema é só o **registro** das entradas e saídas que **já
+      aconteceram no mundo real**. A dupla assinatura é do banco (quem faz o Pix já tem a aprovação da outra parte): **não há fila de
+      "aguardando assinatura" nem a mesma burocracia dentro do sistema**. A saída entra como fato consumado, com nota fiscal anexa, categoria
+      (reembolso incluso), data da despesa, data do pagamento, forma de pagamento e quem lançou; o controle é a **Auditoria financeira do
+      Conselho Fiscal**, depois do fato. A compra com alçada, cotação e delegação (v3.3) continua existindo, mas **não é o caminho do dia a dia**.
+      O que falta construir: o formulário único "Registrar saída" (lança e baixa de uma vez) e o alerta de lançamento tardio.
 - [ ] **Filiação de ponta a ponta (Estatuto Art. 12):** formulário público; o pedido precisa ser **proposto por 3 sócios** (qualquer sócio ativo
       e apto pode propor) e passar pela **análise da Diretoria Executiva**; os sócios ativos **recebem a notificação no painel** para propor ou
       recusar; sem prazo — sem resposta, o pedido fica pendente; aprovado, entra no livro de associados com a matrícula.
-- [ ] **Telas que faltam:** inscrição no evento pelo painel (secretaria inscrevendo alguém); **núcleo familiar** do beneficiário;
+- [x] **Telas que faltam:** inscrição no evento pelo painel (secretaria inscrevendo alguém); **núcleo familiar** do beneficiário;
       **alocar voluntário** direto num turno.
+      **Na homologação (2026-10-07):** `v5.4h-06` inscrição pela secretaria, 4 de 4 (com 1 vaga: o primeiro fica Pré-inscrito, o segundo vai
+      para a Lista de Espera; a mesma pessoa de novo é recusada sem rastro; 2 inscrições na Auditoria; Secretário barrado na tela e na API; a
+      rota nova passa pelo controle de vagas, ao contrário da genérica `/api/inscricoes/`); `v5.4h-04` alocar voluntário direto num turno, 4
+      de 4 (formulário vazio diz o que falta; sem termo vigente é recusado em português; com termo entra na escala, continua ao recarregar e
+      fica na Auditoria; Secretário barrado); `v5.4h-05` núcleo familiar do beneficiário, 3 de 3 (a mãe vê o filho, o filho vê a mãe, sem
+      vínculo diz onde cadastrar). **Em produção (2026-10-08):** `POST /api/eventos/{id}/inscrever-associado`,
+      `GET /api/projetos/{id}/alocacoes` e `GET /api/beneficiarios/{id}/nucleo-familiar` respondem 401 sem login.
 - [ ] **Rastro de recusas:** recusa de aprovação/assinatura também fica na Auditoria.
 - [ ] **Site e carga (decisão: manter páginas estáticas e deixar "vivo" o que é dinâmico):** inscrição em evento, voluntário e filiação passam
       pela API, que não pode travar nem estourar o limite de vagas. **Meta:** ~150 pessoas por minuto (50 a 100 preenchendo ao mesmo tempo) sem
