@@ -84,11 +84,26 @@ def test_a_maioria_dos_tres_aprova_e_o_titulo_fica_travado(client, auth_headers,
     r = _decidir(client, c2, id_titulo, "Aprovado")
     assert r.json()["situacao"] == "Aprovado" and r.json()["aprovacoes"] == 2
 
-    r = _decidir(client, c3, id_titulo, "Aprovado")
-    assert r.status_code == 409 and "travado" in r.json()["detail"]
-    assert _decidir(client, c3, id_titulo, "Reprovado", "Não concordo com este lançamento.").status_code == 409
+    # o terceiro discorda: o voto e o motivo dele ficam registrados e À VISTA, mas a maioria decide (o título segue Aprovado e travado)
+    r = _decidir(client, c3, id_titulo, "Reprovado", "Não concordo com este lançamento.")
+    assert r.status_code == 200 and r.json()["situacao"] == "Aprovado" and r.json()["aprovacoes"] == 2
     item = _situacao(client, auth_headers, id_titulo, M)
-    assert item["situacao"] == "Aprovado" and len(item["decisoes"]) == 2 and all(d["vigente"] for d in item["decisoes"])
+    assert item["situacao"] == "Aprovado" and item["com_discordancia"] is True and len(item["decisoes"]) == 3
+    divergente = next(d for d in item["decisoes"] if d["decisao"] == "Reprovado")
+    assert divergente["observacao"] == "Não concordo com este lançamento." and divergente["questionamento"] == "Aberto" and divergente["vigente"]
+
+
+def test_o_terceiro_que_concorda_tambem_vota_e_fica_tres_de_tres(client, auth_headers, db):
+    M = "2087-01"
+    (_, c1), (_, c2), (_, c3) = _conselho(db)
+    id_titulo = _titulo(db, "Título unânime", M)
+    for c in (c1, c2):
+        assert _decidir(client, c, id_titulo, "Aprovado").status_code == 200
+    r = _decidir(client, c3, id_titulo, "Aprovado")
+    assert r.status_code == 200 and r.json()["situacao"] == "Aprovado" and r.json()["aprovacoes"] == 3
+    assert _decidir(client, c3, id_titulo, "Aprovado").status_code == 409, "o mesmo voto de aprovação não se repete"
+    item = _situacao(client, auth_headers, id_titulo, M)
+    assert item["com_discordancia"] is False
 
 
 def test_ressalva_exige_explicacao_abre_pergunta_suspende_e_a_resposta_libera(client, auth_headers, db):
@@ -107,11 +122,11 @@ def test_ressalva_exige_explicacao_abre_pergunta_suspende_e_a_resposta_libera(cl
     perguntas = client.get(f"/api/financeiro/titulos/{id_titulo}/questionamentos", headers=_headers(tesoureiro)).json()
     assert any(p["id_questionamento"] == id_questionamento and "nota fiscal" in p["pergunta"] for p in perguntas)
 
-    # os outros aprovam, mas a pergunta aberta mantém o título suspenso
+    # enquanto a maioria não aprovou, a pergunta aberta mantém o título suspenso; com a maioria (2 de 3) a ressalva não segura mais
     assert _decidir(client, c2, id_titulo, "Aprovado").json()["situacao"] == "Suspenso"
-    assert _decidir(client, c3, id_titulo, "Aprovado").json()["situacao"] == "Suspenso"
+    assert _decidir(client, c3, id_titulo, "Aprovado").json()["situacao"] == "Aprovado"
     item = _situacao(client, auth_headers, id_titulo, M)
-    assert item["situacao"] == "Suspenso" and item["aprovacoes"] == 2
+    assert item["situacao"] == "Aprovado" and item["aprovacoes"] == 2 and item["com_discordancia"] is True
     ressalva = next(d for d in item["decisoes"] if d["decisao"] == "Com ressalva")
     assert ressalva["questionamento"] == "Aberto" and "nota fiscal" in ressalva["observacao"]
     assert ressalva["id_questionamento"] == id_questionamento, "a tela responde a pergunta pelo número dela"
@@ -144,7 +159,7 @@ def test_a_lista_filtra_por_mes_situacao_e_pagina_com_resumo(client, auth_header
     _decidir(client, c1, ids[2], "Com ressalva", "Falta o comprovante deste lançamento.")
 
     lista = client.get(f"{_RAIZ}/?mes={M}&por_pagina=2&pagina=2", headers=auth_headers).json()
-    assert lista["total"] == 5 and lista["resumo"] == {"Pendente": 2, "Suspenso": 1, "Aprovado": 2, "total": 5}
+    assert lista["total"] == 5 and lista["resumo"] == {"Pendente": 2, "Suspenso": 1, "Aprovado": 2, "total": 5, "com_discordancia": 1}
     assert [i["descricao"] for i in lista["itens"]] == ["Maio 3", "Maio 4"]
     so_suspensos = client.get(f"{_RAIZ}/?mes={M}&situacao=Suspenso", headers=auth_headers).json()
     assert [i["id_titulo"] for i in so_suspensos["itens"]] == [ids[2]] and so_suspensos["resumo"]["total"] == 5

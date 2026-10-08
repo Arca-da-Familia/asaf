@@ -39,7 +39,7 @@ const COR_DA_SITUACAO = {
 
 function rotuloDaSituacao(t: TituloNaAuditoria): string {
   if (t.situacao === 'Aprovado')
-    return `Aprovado (${t.aprovacoes} de ${t.quorum}) — travado`
+    return `Aprovado (${t.aprovacoes} de ${Math.max(t.aprovacoes, t.quorum)}) — travado`
   if (t.situacao === 'Suspenso')
     return 'Suspenso: aguardando a resposta da tesouraria'
   return `Pendente: ${t.aprovacoes} de ${t.quorum} aprovações`
@@ -113,6 +113,13 @@ function CartaoDoTitulo({
       )
 
   const aprovado = t.situacao === 'Aprovado'
+  // a discordância de quem não concorda fica sempre à vista, mesmo quando a maioria já aprovou
+  const discordancias = t.decisoes.filter(
+    (d) =>
+      d.vigente && (d.decisao === 'Reprovado' || d.decisao === 'Com ressalva'),
+  )
+  // título aprovado não deixa de receber o voto de quem ainda não votou (concordando ou discordando); só a reabertura é separada
+  const podeVotar = !aprovado || t.minha_decisao === null
   const podeAgir = podeDecidir && !t.sou_parte
   const id = `explicacao-${t.id_titulo}`
 
@@ -135,6 +142,23 @@ function CartaoDoTitulo({
         Original {formatarReais(t.valor_original)} · Saldo{' '}
         {formatarReais(t.saldo_devedor)}
       </p>
+
+      {discordancias.length > 0 && (
+        <div
+          role="note"
+          aria-label={`Discordância sobre ${t.descricao}`}
+          className="mt-2 rounded-md border border-amber-600/40 bg-amber-100 px-3 py-2 text-xs text-amber-950"
+        >
+          {discordancias.map((d) => (
+            <p key={d.id_auditoria}>
+              <span className="font-semibold">
+                Discordância de {d.conselheiro}
+              </span>{' '}
+              ({d.decisao}): “{d.observacao}”
+            </p>
+          ))}
+        </div>
+      )}
 
       {t.decisoes.length > 0 && (
         <ul
@@ -226,7 +250,7 @@ function CartaoDoTitulo({
 
       {podeAgir && !pedindo && (
         <div className="mt-2 flex flex-wrap gap-2">
-          {!aprovado && (
+          {podeVotar && (
             <>
               <Button
                 size="sm"
@@ -510,8 +534,11 @@ export function AuditoriaFinanceiraPage() {
         {resumo && (
           <p className="mb-3 text-sm text-muted-foreground" aria-live="polite">
             {resumo.total} título(s) no mês · {resumo.Pendente} pendente(s) ·{' '}
-            {resumo.Suspenso} suspenso(s) · {resumo.Aprovado} aprovado(s) · Para
-            aprovar, {lista?.quorum} conselheiros precisam concordar.
+            {resumo.Suspenso} suspenso(s) · {resumo.Aprovado} aprovado(s) ·{' '}
+            {resumo.com_discordancia > 0
+              ? `${resumo.com_discordancia} com discordância · `
+              : ''}
+            Para aprovar, {lista?.quorum} conselheiros precisam concordar.
           </p>
         )}
 

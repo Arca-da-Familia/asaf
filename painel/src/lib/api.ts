@@ -5828,6 +5828,8 @@ export type TituloNaAuditoria = {
   aprovacoes: number
   quorum: number
   minha_decisao: DecisaoNaAuditoria | null
+  // alguém do Conselho reprovou ou ressalvou (o título pode estar Aprovado pela maioria mesmo assim)
+  com_discordancia: boolean
   sou_parte: boolean
   decisoes: RegistroDaAuditoria[]
 }
@@ -5837,7 +5839,10 @@ export type ListaDaAuditoriaFinanceira = {
   total: number
   pagina: number
   por_pagina: number
-  resumo: Record<SituacaoNaAuditoria, number> & { total: number }
+  resumo: Record<SituacaoNaAuditoria, number> & {
+    total: number
+    com_discordancia: number
+  }
   quorum: number
   pode_decidir: boolean
 }

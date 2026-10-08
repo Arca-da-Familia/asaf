@@ -35,6 +35,7 @@ const titulo = (
   aprovacoes: 0,
   quorum: 2,
   minha_decisao: null,
+  com_discordancia: false,
   sou_parte: false,
   decisoes: [],
   ...extra,
@@ -54,6 +55,7 @@ function lista(
       Suspenso: itens.filter((i) => i.situacao === 'Suspenso').length,
       Aprovado: itens.filter((i) => i.situacao === 'Aprovado').length,
       total: itens.length,
+      com_discordancia: itens.filter((i) => i.com_discordancia).length,
     },
     quorum: 2,
     pode_decidir,
@@ -126,9 +128,18 @@ describe('Auditoria financeira', () => {
       screen.getByText('Suspenso: aguardando a resposta da tesouraria'),
     ).toBeInTheDocument()
     expect(screen.getByText('Aprovado (2 de 2) — travado')).toBeInTheDocument()
-    expect(screen.getByText(/Heitor/).closest('li')).toHaveTextContent(
-      /Falta a nota fiscal\.” \(pergunta aberta\)/,
-    )
+    const decisoesDoToner = screen.getByRole('list', {
+      name: 'Decisões do Conselho sobre Toner',
+    })
+    expect(
+      within(decisoesDoToner)
+        .getByText(/Heitor/)
+        .closest('li'),
+    ).toHaveTextContent(/Falta a nota fiscal\.” \(pergunta aberta\)/)
+    // a discordância de quem ressalvou também aparece em destaque, mesmo com o título ainda suspenso
+    expect(
+      screen.getByRole('note', { name: 'Discordância sobre Toner' }),
+    ).toHaveTextContent('Falta a nota fiscal.')
     expect(await axe(container)).toHaveNoViolations()
   })
 
@@ -300,7 +311,11 @@ describe('Auditoria financeira', () => {
     vi.mocked(api.listarAuditoriaFinanceira).mockResolvedValue(
       lista([
         titulo(1, 'Meu reembolso', { sou_parte: true }),
-        titulo(2, 'Café', { situacao: 'Aprovado', aprovacoes: 2 }),
+        titulo(2, 'Café', {
+          situacao: 'Aprovado',
+          aprovacoes: 2,
+          minha_decisao: 'Aprovado',
+        }),
       ]),
     )
     desenhar()
@@ -315,6 +330,79 @@ describe('Auditoria financeira', () => {
       screen.getByRole('button', { name: 'Reabrir auditoria: Café' }),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Aprovar: Café' })).toBeNull()
+  })
+
+  it('a maioria aprovou, mas o motivo de quem discordou fica em destaque; quem ainda não votou pode votar, quem já votou só reabre', async () => {
+    const dissidente = {
+      id_auditoria: 8,
+      conselheiro: 'Heitor',
+      decisao: 'Reprovado' as const,
+      observacao: 'O valor não confere com o contrato.',
+      em: null,
+      vigente: true,
+      id_questionamento: 9,
+      questionamento: 'Aberto' as const,
+    }
+    vi.mocked(api.listarAuditoriaFinanceira).mockResolvedValue(
+      lista([
+        titulo(1, 'Contrato da gráfica', {
+          situacao: 'Aprovado',
+          aprovacoes: 2,
+          com_discordancia: true,
+          decisoes: [dissidente],
+        }),
+        titulo(2, 'Voto já dado', {
+          situacao: 'Aprovado',
+          aprovacoes: 2,
+          minha_decisao: 'Aprovado',
+        }),
+      ]),
+    )
+    desenhar()
+    await screen.findByText(/— Contrato da gráfica$/)
+    expect(
+      screen.getByText(/1 com discordância · Para aprovar, 2 conselheiros/),
+    ).toBeInTheDocument()
+    const aviso = screen.getByRole('note', {
+      name: 'Discordância sobre Contrato da gráfica',
+    })
+    expect(aviso).toHaveTextContent('Discordância de Heitor (Reprovado)')
+    expect(aviso).toHaveTextContent('O valor não confere com o contrato.')
+    // não votou ainda: o voto (inclusive a discordância) continua aberto, e a reabertura também
+    expect(
+      screen.getByRole('button', { name: 'Aprovar: Contrato da gráfica' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Reprovar: Contrato da gráfica' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', {
+        name: 'Reabrir auditoria: Contrato da gráfica',
+      }),
+    ).toBeInTheDocument()
+    // já votou: só a reabertura
+    expect(
+      screen.queryByRole('button', { name: 'Aprovar: Voto já dado' }),
+    ).toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Reabrir auditoria: Voto já dado' }),
+    ).toBeInTheDocument()
+  })
+
+  it('o rótulo do título aprovado mostra os votos de verdade (3 de 3 quando é unânime)', async () => {
+    vi.mocked(api.listarAuditoriaFinanceira).mockResolvedValue(
+      lista([
+        titulo(1, 'Unânime', {
+          situacao: 'Aprovado',
+          aprovacoes: 3,
+          minha_decisao: 'Aprovado',
+        }),
+      ]),
+    )
+    desenhar()
+    expect(
+      await screen.findByText('Aprovado (3 de 3) — travado'),
+    ).toBeInTheDocument()
   })
 
   it('aprovar em lote pede confirmação, vale para o mês do filtro e conta o que foi pulado', async () => {

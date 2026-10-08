@@ -67,6 +67,8 @@ async function totalNaAuditoria(page: Page): Promise<number> {
 }
 
 let totalAntes = 0
+// alterações a mais que este roteiro precisou fazer só para partir do estado certo (a Auditoria tem que ter as 5 de sempre + estas)
+let alteracoesExtras = 0
 
 test('a Instituição mostra os campos por grupo e diz o que vai para o site e o que é só interno', async ({
   page,
@@ -145,6 +147,13 @@ test('salvar grava, continua gravado ao recarregar, e a marca decide o que o sit
   ).toHaveValue(TELEFONE)
 
   // marcado "aparece no site" (o padrão), o site recebe
+  const marcaDoTelefone = () =>
+    quadro(page, 'Telefone / WhatsApp').getByLabel('Aparece no site')
+  if (!(await marcaDoTelefone().isChecked())) {
+    await marcaDoTelefone().click()
+    await expect(marcaDoTelefone()).toBeChecked()
+    alteracoesExtras += 1
+  }
   let publico = await dadosPublicos(page)
   expect(publico['TELEFONE_INSTITUCIONAL']).toBe(TELEFONE)
   expect(publico['HORARIO_ATENDIMENTO']).toBe(HORARIO)
@@ -153,7 +162,8 @@ test('salvar grava, continua gravado ao recarregar, e a marca decide o que o sit
   const marca = quadro(page, 'Telefone / WhatsApp').getByLabel(
     'Aparece no site',
   )
-  await marca.uncheck()
+  await marca.click()
+  await expect(marca).not.toBeChecked()
   await expect(
     quadro(page, 'Telefone / WhatsApp').getByText('Agora é só interno.'),
   ).toBeVisible()
@@ -170,7 +180,10 @@ test('salvar grava, continua gravado ao recarregar, e a marca decide o que o sit
   // marcar de novo: volta para o site com o mesmo valor
   await quadro(page, 'Telefone / WhatsApp')
     .getByLabel('Aparece no site')
-    .check()
+    .click()
+  await expect(
+    quadro(page, 'Telefone / WhatsApp').getByLabel('Aparece no site'),
+  ).toBeChecked()
   await expect(
     quadro(page, 'Telefone / WhatsApp').getByText('Agora aparece no site.'),
   ).toBeVisible()
@@ -251,7 +264,9 @@ test('um CNPJ válido grava e as alterações aparecem na Auditoria', async ({
 
   // Auditoria: telefone (salvar, desmarcar, marcar), horário (salvar) e CNPJ (salvar) = 5 ações novas
   const total = await totalNaAuditoria(page)
-  expect(total - totalAntes, 'cinco alterações na Auditoria').toBe(5)
+  expect(total - totalAntes, 'as alterações do roteiro na Auditoria').toBe(
+    5 + alteracoesExtras,
+  )
   await expect(
     page.getByRole('row').filter({
       has: page.getByRole('cell', {

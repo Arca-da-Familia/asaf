@@ -3,8 +3,10 @@
 Regras (decisões do Presidente em 2026-10-07):
   - cada conselheiro decide por conta própria; a decisão VIGENTE dele é a mais recente naquele título (o histórico fica inteiro);
   - o título fica **Aprovado** (e travado) quando a MAIORIA dos membros do Conselho aprovou (3 membros -> 2; o número de vagas é o do Art. 24);
-  - reprovar ou ressalvar exige explicação e abre um questionamento (a fila que a tesouraria já responde); enquanto esse questionamento
-    estiver aberto o título fica **Suspenso**, e responder o reabre para a decisão do conselheiro;
+  - **a discordância não trava a maioria** (decisão do Presidente, 2026-10-08): quem reprova ou ressalva depois de a maioria aprovar continua
+    podendo registrar o voto, o título segue Aprovado e o motivo de quem discordou fica sempre à vista (`discordancias`);
+  - reprovar ou ressalvar exige explicação e abre um questionamento (a fila que a tesouraria já responde); enquanto a maioria ainda NÃO
+    aprovou, esse questionamento aberto deixa o título **Suspenso**, e responder o reabre para a decisão do conselheiro;
   - título aprovado não é estornado nem renegociado; só um conselheiro, com motivo, pode **reabri-lo** (a decisão "Reaberto" zera as
     decisões anteriores, que continuam no histórico);
   - o conselheiro não audita título em que ele mesmo é parte."""
@@ -77,10 +79,12 @@ def situacoes_dos_titulos(db: Session, ids_titulos: list[int]) -> dict[int, dict
         vigentes = decisoes_vigentes(lista)
         aprovacoes = sum(1 for d in vigentes.values() if d.decisao == APROVADO)
         suspensa = any(d.decisao != APROVADO and d.id_questionamento in abertos for d in vigentes.values())
-        situacao = SUSPENSO if suspensa else (APROVADO if aprovacoes >= necessario else PENDENTE)
+        # a maioria decide: quem discorda não suspende um título que já tem os votos necessários
+        situacao = APROVADO if aprovacoes >= necessario else (SUSPENSO if suspensa else PENDENTE)
+        discordancias = [d for d in vigentes.values() if d.decisao in (REPROVADO, COM_RESSALVA)]
         resultado[id_titulo] = {
             "situacao": situacao, "aprovacoes": aprovacoes, "quorum": necessario, "vigentes": vigentes, "historico": lista,
-            "questionamentos_abertos": abertos,
+            "questionamentos_abertos": abertos, "discordancias": discordancias,
         }
     return resultado
 
@@ -120,8 +124,7 @@ def registrar_decisao(
         if estado["situacao"] != APROVADO:
             raise HTTPException(status_code=409, detail="Só se reabre um título que já foi aprovado.")
     else:
-        if estado["situacao"] == APROVADO:
-            raise HTTPException(status_code=409, detail="Este título já foi aprovado pelo Conselho Fiscal e está travado.")
+        # título já aprovado: o voto (inclusive a discordância) continua podendo ser registrado; o que trava é o título, não a opinião
         minha = estado["vigentes"].get(conselheiro.id_associado)
         if minha is not None and minha.decisao == decisao == APROVADO:
             raise HTTPException(status_code=409, detail="Você já aprovou este título.")

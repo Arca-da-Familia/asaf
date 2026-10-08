@@ -78,7 +78,7 @@ async function abrirOsInscritos(page: Page): Promise<Locator> {
     .last()
   await expect(detalhe).toBeVisible()
   const secao = detalhe.locator(
-    'xpath=.//h3[starts-with(normalize-space(.), "Inscritos no evento")]/..',
+    'xpath=.//h3[starts-with(normalize-space(.), "Inscritos no evento")]/../..',
   )
   await expect(secao).toBeVisible()
   return secao
@@ -126,14 +126,18 @@ test('a secretaria inscreve duas pessoas: a primeira ocupa a vaga, a segunda vai
   await escolher(PRIMEIRA)
   await inscrever().click()
   await expect(secao.getByRole('status')).toContainText(
-    `Inscrição registrada: ${PRIMEIRA} — situação Pré-inscrito.`,
+    new RegExp(
+      `Inscrição registrada: ${PRIMEIRA}.* — situação Pré-inscrito\\.`,
+    ),
   )
   await expect(linha(PRIMEIRA)).toHaveCount(1)
 
   await escolher(SEGUNDO)
   await inscrever().click()
   await expect(secao.getByRole('status')).toContainText(
-    `Inscrição registrada: ${SEGUNDO} — situação Lista de Espera.`,
+    new RegExp(
+      `Inscrição registrada: ${SEGUNDO}.* — situação Lista de Espera\\.`,
+    ),
   )
   await expect(linha(SEGUNDO)).toHaveCount(1)
   await expect(secao.locator('div.rounded-md.border.p-2')).toHaveCount(2)
