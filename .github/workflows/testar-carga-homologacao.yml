@@ -1,0 +1,145 @@
+name: Testar Carga da Homologação (SÓ o ambiente de TESTE)
+
+# Simula a multidão de um dia de evento na API de TESTE (hml-api.asaf.org.br): por padrão 150 pessoas chegando em 1 minuto, cada uma levando uns 20 segundos
+# para preencher o formulário (50 a 100 ao mesmo tempo) e se inscrevendo num evento de 100 vagas; mais um grupo atrás do mesmo IP e alguns cliques duplos.
+# Confere (scripts/teste_de_carga_hml.py): nenhuma resposta 5xx, vagas nunca estouradas, lista de espera sem ninguém perdido, nenhuma inscrição duplicada,
+# limite por IP funcionando sem barrar quem vem de IP diferente e o tempo de resposta (p95). O relatório fica como artefato.
+#
+# Garantias (cada uma tem teste em tests/test_workflows_de_homologacao.py):
+#   - só dispara à mão (nunca por push, agenda ou outro fluxo): carga contra a API de teste custa dinheiro e acorda o ambiente;
+#   - só fala com a homologação (o próprio script recusa qualquer outro endereço) e só lê o segredo da senha do presidente de TESTE;
+#   - a senha vem do cofre, é mascarada e nunca é impressa; o relatório é varrido atrás dela antes de ser guardado;
+#   - só usa dados inventados (CPFs gerados, e-mails @homologacao.example.com), e o evento criado leva "[CARGA]" no título.
+on:
+  workflow_dispatch:
+    inputs:
+      pessoas:
+        description: "Quantas pessoas se inscrevem"
+        type: string
+        default: "150"
+      vagas:
+        description: "Vagas do evento de carga (menos que as pessoas, para provar a lista de espera)"
+        type: string
+        default: "100"
+      rampa:
+        description: "Em quantos segundos as pessoas chegam (150 em 60 = 150 por minuto)"
+        type: string
+        default: "60"
+      preenchimento:
+        description: "Segundos que cada pessoa leva preenchendo o formulário, em média"
+        type: string
+        default: "20"
+      p95_maximo:
+        description: "Limite do p95 da inscrição, em segundos"
+        type: string
+        default: "5"
+      ref:
+        description: "De onde baixar o script de carga: `main` ou o nome de uma branch (o fluxo em si roda sempre da `main`, de onde a identidade do Azure é aceita)."
+        type: string
+        default: main
+
+permissions:
+  id-token: write
+  contents: read
+
+# mesma fila do deploy de teste e da conferência ao vivo: nunca carregar enquanto a homologação está sendo republicada (nem o contrário)
+concurrency:
+  group: homologacao
+  cancel-in-progress: false
+
+env:
+  KEY_VAULT: kv-asaf-arca
+
+jobs:
+  carga:
+    name: Carga na homologação
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Configura Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      # Os números vão por variável de ambiente (nunca interpolados no script) e só passam se forem inteiros.
+      - name: Confere os números pedidos
+        env:
+          PESSOAS: ${{ inputs.pessoas }}
+          VAGAS: ${{ inputs.vagas }}
+          RAMPA: ${{ inputs.rampa }}
+          PREENCHIMENTO: ${{ inputs.preenchimento }}
+          P95_MAXIMO: ${{ inputs.p95_maximo }}
+        run: |
+          for valor in "$PESSOAS" "$VAGAS" "$RAMPA" "$PREENCHIMENTO" "$P95_MAXIMO"; do
+            case "$valor" in
+              ''|*[!0-9]*) echo "::error::Use só números inteiros nos campos do teste de carga."; exit 1 ;;
+            esac
+          done
+          if [ "$PESSOAS" -lt 1 ] || [ "$PESSOAS" -gt 600 ]; then
+            echo "::error::Pessoas: entre 1 e 600 (a API de teste é pequena e o custo é dela)."; exit 1
+          fi
+          if [ "$VAGAS" -lt 1 ] || [ "$RAMPA" -lt 1 ]; then
+            echo "::error::Vagas e rampa: pelo menos 1."; exit 1
+          fi
+
+      - name: Login no Azure via OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # O fluxo só LÊ o cofre. A senha é a do presidente de TESTE (HML-*), nunca da produção.
+      - name: Senha do presidente de teste (do cofre; nada é impresso)
+        run: |
+          ADMIN_SENHA=$(az keyvault secret show --vault-name "$KEY_VAULT" --name HML-ADMIN-SENHA --query value -o tsv)
+          echo "::add-mask::$ADMIN_SENHA"
+          echo "HML_ADMIN_SENHA=$ADMIN_SENHA" >> "$GITHUB_ENV"
+
+      - name: Instala o cliente HTTP (a mesma versão do sistema)
+        run: pip install "$(grep -i '^httpx2==' requirements.txt)"
+
+      - name: Roda o teste de carga na homologação
+        env:
+          PESSOAS: ${{ inputs.pessoas }}
+          VAGAS: ${{ inputs.vagas }}
+          RAMPA: ${{ inputs.rampa }}
+          PREENCHIMENTO: ${{ inputs.preenchimento }}
+          P95_MAXIMO: ${{ inputs.p95_maximo }}
+        run: |
+          mkdir -p resultado-de-carga
+          python scripts/teste_de_carga_hml.py --pessoas "$PESSOAS" --vagas "$VAGAS" --rampa "$RAMPA" --preenchimento "$PREENCHIMENTO" \
+            --p95-maximo "$P95_MAXIMO" --saida resultado-de-carga/relatorio.json
+
+      # Última barreira: a senha de teste não pode estar em texto simples nos arquivos que vão ser guardados.
+      - name: Varre o relatório atrás de senha
+        if: ${{ always() }}
+        run: |
+          [ -d resultado-de-carga ] || exit 0
+          SENHAS="$RUNNER_TEMP/senha-de-teste.txt"
+          printf '%s\n' "$HML_ADMIN_SENHA" > "$SENHAS"
+          if grep -rIlF -f "$SENHAS" resultado-de-carga; then
+            rm -rf resultado-de-carga
+            rm -f "$SENHAS"
+            echo "::error::A senha de teste apareceu no relatório: o artefato foi descartado."
+            exit 1
+          fi
+          rm -f "$SENHAS"
+
+      - name: Guarda o relatório
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: carga-homologacao
+          path: resultado-de-carga
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Logout
+        if: always()
+        run: az logout || true
