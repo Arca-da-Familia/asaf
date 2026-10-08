@@ -34,6 +34,10 @@ const titulo = (
   situacao: 'Pendente',
   aprovacoes: 0,
   quorum: 2,
+  nota_fiscal: null,
+  comprovantes: [],
+  dias_ate_o_lancamento: null,
+  lancamento_tardio: false,
   minha_decisao: null,
   com_discordancia: false,
   sou_parte: false,
@@ -387,6 +391,54 @@ describe('Auditoria financeira', () => {
     expect(
       screen.getByRole('button', { name: 'Reabrir auditoria: Voto já dado' }),
     ).toBeInTheDocument()
+  })
+
+  it('o conselheiro abre a nota fiscal e o comprovante no cartão e vê quando a saída foi lançada', async () => {
+    vi.mocked(api.listarAuditoriaFinanceira).mockResolvedValue(
+      lista([
+        titulo(1, 'Saída com documentos', {
+          nota_fiscal: '/uploads/comprovantes/nota.pdf',
+          comprovantes: ['/uploads/comprovantes/pix.pdf'],
+          dias_ate_o_lancamento: 8,
+          lancamento_tardio: true,
+        }),
+        titulo(2, 'Saída em dia', {
+          nota_fiscal: '/uploads/comprovantes/nota2.pdf',
+          dias_ate_o_lancamento: 2,
+        }),
+        titulo(3, 'Título simples'),
+      ]),
+    )
+    desenhar()
+    await screen.findByText(/— Saída com documentos$/)
+    const comDocumentos = within(cartao('Saída com documentos'))
+    expect(
+      comDocumentos.getByRole('link', { name: 'Ver nota fiscal' }),
+    ).toHaveAttribute(
+      'href',
+      expect.stringContaining('/uploads/comprovantes/nota.pdf'),
+    )
+    expect(
+      comDocumentos.getByRole('link', { name: 'Ver comprovante do pagamento' }),
+    ).toHaveAttribute(
+      'href',
+      expect.stringContaining('/uploads/comprovantes/pix.pdf'),
+    )
+    expect(
+      comDocumentos.getByText(
+        /Lançamento tardio: lançada 8 dia\(s\) depois da despesa\./,
+      ),
+    ).toBeInTheDocument()
+    // lançada em dia: só informa, sem o alerta
+    const emDia = within(cartao('Saída em dia'))
+    expect(
+      emDia.getByText('lançada 2 dia(s) depois da despesa.'),
+    ).toBeInTheDocument()
+    expect(emDia.queryByText(/Lançamento tardio/)).toBeNull()
+    // título que não é saída registrada não tem documento nem contagem
+    const simples = within(cartao('Título simples'))
+    expect(simples.queryByRole('link')).toBeNull()
+    expect(simples.queryByText(/depois da despesa/)).toBeNull()
   })
 
   it('o rótulo do título aprovado mostra os votos de verdade (3 de 3 quando é unânime)', async () => {

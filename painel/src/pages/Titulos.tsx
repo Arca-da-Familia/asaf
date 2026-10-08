@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { QRCodeSVG } from 'qrcode.react'
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { z } from 'zod'
 
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
@@ -20,6 +20,7 @@ import {
   listarTitulos,
   obterPixTitulo,
   resumirTitulos,
+  urlArquivo,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
 import { baixarTituloSchema, tituloCriarSchema } from '@/lib/schemas'
@@ -747,13 +748,22 @@ export function TitulosPage({
               className="h-9 w-64 rounded-md border border-input bg-background px-3 text-sm"
             />
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setMostrarForm((v) => !v)}
-          >
-            {mostrarForm ? 'Cancelar' : 'Novo título'}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {tipoFixo === 'A Pagar' && (
+              <Button asChild size="sm">
+                <Link to="/financeiro/registrar-saida">
+                  Registrar saída (já paga)
+                </Link>
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMostrarForm((v) => !v)}
+            >
+              {mostrarForm ? 'Cancelar' : 'Novo título'}
+            </Button>
+          </div>
         </div>
 
         {mostrarForm && (
@@ -799,6 +809,18 @@ export function TitulosPage({
                 Original {formatarReais(t.valor_original)} · Saldo{' '}
                 {formatarReais(t.saldo_devedor)}
               </p>
+              {t.nota_fiscal && (
+                <p className="text-xs">
+                  <a
+                    href={urlArquivo(t.nota_fiscal)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline"
+                  >
+                    Ver nota fiscal
+                  </a>
+                </p>
+              )}
               {!['Pago', 'Renegociado', 'Cancelado'].includes(t.status) && (
                 <div className="mt-2">
                   <div className="flex flex-wrap gap-2">

@@ -13,6 +13,7 @@ import {
   type DecisaoNaAuditoria,
   type ResultadoDoLote,
   type TituloNaAuditoria,
+  urlArquivo,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
 
@@ -142,6 +143,45 @@ function CartaoDoTitulo({
         Original {formatarReais(t.valor_original)} · Saldo{' '}
         {formatarReais(t.saldo_devedor)}
       </p>
+      {(t.nota_fiscal || t.comprovantes.length > 0) && (
+        <p className="mt-1 flex flex-wrap gap-3 text-xs">
+          {t.nota_fiscal && (
+            <a
+              href={urlArquivo(t.nota_fiscal)}
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              Ver nota fiscal
+            </a>
+          )}
+          {t.comprovantes.map((c, i) => (
+            <a
+              key={c}
+              href={urlArquivo(c)}
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              {t.comprovantes.length > 1
+                ? `Ver comprovante do pagamento ${i + 1}`
+                : 'Ver comprovante do pagamento'}
+            </a>
+          ))}
+        </p>
+      )}
+      {t.dias_ate_o_lancamento !== null && t.dias_ate_o_lancamento > 0 && (
+        <p
+          className={
+            t.lancamento_tardio
+              ? 'mt-1 text-xs font-medium text-amber-700'
+              : 'mt-1 text-xs text-muted-foreground'
+          }
+        >
+          {t.lancamento_tardio ? 'Lançamento tardio: ' : ''}lançada{' '}
+          {t.dias_ate_o_lancamento} dia(s) depois da despesa.
+        </p>
+      )}
 
       {discordancias.length > 0 && (
         <div

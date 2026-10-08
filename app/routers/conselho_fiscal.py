@@ -17,7 +17,7 @@ from app.database import get_db
 from app.models.associados import Associado
 from app.models.conselho_fiscal import RESPONDIDO, ParecerPrestacaoContas, QuestionamentoLancamento, RespostaQuestionamento
 from app.models.financeiro import Fornecedor, LancamentoContabil, PlanoDeContas, TituloFinanceiro
-from app.routers.financeiro import _consulta_de_titulos
+from app.routers.financeiro import DIAS_PARA_LANCAMENTO_TARDIO, _consulta_de_titulos
 from app.schemas.conselho_fiscal import AprovacaoEmLoteCriar, DecisaoDeTituloCriar, ParecerCriar, QuestionamentoCriar, RespostaCriar
 from app.security import exigir_permissao, get_current_user
 from app.services import auditoria_financeira
@@ -180,6 +180,13 @@ def _associado_do_usuario(db: Session, usuario) -> Optional[Associado]:
     return db.query(Associado).filter(Associado.id_usuario == usuario.id_usuario).first()
 
 
+def _dias_ate_o_lancamento(t: TituloFinanceiro) -> Optional[int]:
+    """Só para a saída registrada (a que veio com nota fiscal): quantos dias a despesa esperou até ser lançada no sistema."""
+    if not t.nota_fiscal or not t.data_emissao or not t.data_vencimento:
+        return None
+    return max(0, (t.data_emissao.date() - t.data_vencimento.date()).days)
+
+
 def _nome_dos_associados(db: Session, ids: set[int]) -> dict[int, str]:
     if not ids:
         return {}
@@ -215,6 +222,14 @@ def listar_auditoria_financeira(
     for t in da_pagina:
         ids_pessoas |= {l.id_associado_conselheiro for l in estados[t.id_titulo]["historico"]}
     nomes = _nome_dos_associados(db, ids_pessoas)
+    # os documentos que o conselheiro abre para conferir: a nota fiscal do título e o comprovante de cada baixa que não foi estornada
+    comprovantes: dict[int, list[str]] = {}
+    ids_da_pagina = [t.id_titulo for t in da_pagina]
+    if ids_da_pagina:
+        for l in db.query(LancamentoContabil).filter(
+            LancamentoContabil.id_titulo.in_(ids_da_pagina), LancamentoContabil.comprovante.isnot(None), LancamentoContabil.estornado.is_(False),
+        ).order_by(LancamentoContabil.id_lancamento).all():
+            comprovantes.setdefault(l.id_titulo, []).append(l.comprovante)
 
     itens = []
     for t in da_pagina:
@@ -232,6 +247,8 @@ def listar_auditoria_financeira(
             "conta_contabil": conta.descricao_conta if conta else "", "beneficiario": beneficiario or "-",
             "valor_original": t.valor_original, "saldo_devedor": t.saldo_devedor,
             "data_vencimento": t.data_vencimento.date().isoformat() if t.data_vencimento else None, "status": t.status,
+            "nota_fiscal": t.nota_fiscal, "comprovantes": comprovantes.get(t.id_titulo, []),
+            "dias_ate_o_lancamento": _dias_ate_o_lancamento(t), "lancamento_tardio": (_dias_ate_o_lancamento(t) or 0) > DIAS_PARA_LANCAMENTO_TARDIO,
             "situacao": e["situacao"], "aprovacoes": e["aprovacoes"], "quorum": e["quorum"],
             "minha_decisao": minha.decisao if minha else None,
             "com_discordancia": bool(e["discordancias"]),

@@ -3035,6 +3035,8 @@ export type TituloFinanceiro = {
   saldo_devedor: number
   data_vencimento: string
   status: string
+  // v5.4h - só a saída registrada traz a nota fiscal (caminho do arquivo)
+  nota_fiscal?: string | null
   // v3.2.3 - título-bloco (pagamento antecipado): `competencia_fim` só existe nele, nunca num
   // título normal (um mês só).
   competencia: string | null
@@ -5824,6 +5826,11 @@ export type TituloNaAuditoria = {
   saldo_devedor: number
   data_vencimento: string | null
   status: string
+  // os documentos que o conselheiro abre para conferir, e quantos dias a despesa esperou até ser lançada (só a saída registrada)
+  nota_fiscal: string | null
+  comprovantes: string[]
+  dias_ate_o_lancamento: number | null
+  lancamento_tardio: boolean
   situacao: SituacaoNaAuditoria
   aprovacoes: number
   quorum: number
@@ -5914,5 +5921,38 @@ export function aprovarEmLoteNaAuditoria(corpo: {
   return apiFetch('/api/conselho-fiscal/auditoria-financeira/aprovar-em-lote', {
     method: 'POST',
     body: JSON.stringify(corpo),
+  })
+}
+
+// ---- Registrar saída (v5.4h): a saída que JÁ ACONTECEU entra de uma vez só (lança e dá a baixa), com categoria, nota fiscal e comprovante.
+// O sistema é só o registro: não há fila de assinatura (a dupla assinatura é do banco).
+export type DadosDaSaida = {
+  id_conta_contabil: number
+  descricao: string
+  valor: number
+  data_despesa: string
+  data_pagamento: string
+  forma_pagamento: string
+  id_conta_contabil_contrapartida: number
+  id_fornecedor?: number
+  id_associado?: number
+  id_centro_custo?: number
+  nota_fiscal: string
+  comprovante: string
+}
+
+export type SaidaRegistrada = {
+  mensagem: string
+  id_titulo: number
+  id_lancamento: number
+  numero_sequencial: number
+  dias_ate_o_lancamento: number
+  lancamento_tardio: boolean
+}
+
+export function registrarSaida(dados: DadosDaSaida): Promise<SaidaRegistrada> {
+  return apiFetch('/api/saidas/registrar', {
+    method: 'POST',
+    body: JSON.stringify(dados),
   })
 }

@@ -121,6 +121,9 @@ class TituloFinanceiro(Base):
     data_emissao = Column(DateTime, default=datetime.utcnow)
     data_vencimento = Column(DateTime)
     status = Column(String, default="Pendente")
+    # v5.4h - nota fiscal da saída (caminho `/uploads/comprovantes/...`, enviada por `POST /api/comprovantes/`): a saída registrada já vem com ela;
+    # a Auditoria financeira do Conselho Fiscal abre este documento. Nulo nos títulos que não são saída registrada.
+    nota_fiscal = Column(String, nullable=True)
     # v3.2 - título gerado por `gerar_cobrancas` (mensalidade/contribuição recorrente). Os dois
     # juntos (nunca um sem o outro) são a chave de IDEMPOTÊNCIA da geração em lote: rodar a
     # geração duas vezes na mesma competência nunca duplica cobrança - a `UniqueConstraint` acima
