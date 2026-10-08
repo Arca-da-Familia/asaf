@@ -26,6 +26,24 @@ const CPF = cpfValido(700000000 + (RODADA % 200000000)).replace(/\D/g, '')
 const EMAIL = `candidato.socios.${S}@homologacao.example.com`
 const TELEFONE = '91955551234'
 const TABELA = 'propostas_de_socios'
+const NASCIMENTO = '1990-05-10'
+/** A idade de hoje de quem nasceu em NASCIMENTO (o pedido mostra a idade, calculada no servidor). */
+const IDADE = (() => {
+  const hoje = new Date()
+  const [a, m, d] = NASCIMENTO.split('-').map(Number) as [
+    number,
+    number,
+    number,
+  ]
+  return (
+    hoje.getUTCFullYear() -
+    a -
+    (hoje.getUTCMonth() + 1 < m ||
+    (hoje.getUTCMonth() + 1 === m && hoje.getUTCDate() < d)
+      ? 1
+      : 0)
+  )
+})()
 
 let totalAntes = 0
 
@@ -65,7 +83,7 @@ test('o pedido chega pela rota pública e o sócio é avisado no sino, abre o av
       cpf: CPF,
       email_contato: EMAIL,
       telefone_whatsapp: TELEFONE,
-      data_nascimento: '1990-05-10',
+      data_nascimento: NASCIMENTO,
     },
   })
   expect(r.status(), await r.text()).toBe(200)
@@ -87,7 +105,7 @@ test('o pedido chega pela rota pública e o sócio é avisado no sino, abre o av
     page.getByRole('heading', { name: 'Pedidos de filiação', level: 1 }),
   ).toBeVisible()
   const cartao = cartaoDoPedido(page)
-  await expect(cartao).toContainText('34 anos')
+  await expect(cartao).toContainText(`${IDADE} anos`)
   await expect(cartao).toContainText('0 de 3 sócios já propuseram — faltam 3.')
   // o sócio não vê CPF, e-mail nem telefone do candidato
   await expect(page.getByText(CPF)).toHaveCount(0)
