@@ -145,7 +145,7 @@ test('um segundo sócio propõe e um terceiro recusa, com o motivo', async ({
   await cartao.getByRole('button', { name: `Recusar ${NOME}` }).click()
   const confirmar = cartao.getByRole('button', { name: 'Confirmar recusa' })
   await expect(confirmar).toBeDisabled()
-  await cartao.getByLabel(/Motivo da recusa/).fill('curto')
+  await cartao.getByLabel(/Motivo da recusa/).fill('não')
   await expect(confirmar).toBeDisabled()
   await cartao
     .getByLabel(/Motivo da recusa/)
