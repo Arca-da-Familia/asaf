@@ -155,6 +155,9 @@ function Proposta({ proposta }: { proposta: PropostaDeFiliacao }) {
   })
 
   const podeForcar = !!eu?.permissoes.includes('forcar_cadastro_duplicado')
+  const exigidos = proposta.exigidos ?? 3
+  const propoem = proposta.total_propoem ?? 0
+  const sociosCompletos = propoem >= exigidos
 
   function enviarRecusa(e: FormEvent) {
     e.preventDefault()
@@ -190,6 +193,29 @@ function Proposta({ proposta }: { proposta: PropostaDeFiliacao }) {
           {proposta.status}
         </span>
       </div>
+
+      {(proposta.status === 'Pendente' ||
+        proposta.status === 'Em Conferência') && (
+        <div className="mt-3 text-sm">
+          <p className={sociosCompletos ? 'font-medium' : ''}>
+            Sócios que propõem: {propoem} de {exigidos}
+            {sociosCompletos ? '' : ` — faltam ${exigidos - propoem}.`}
+          </p>
+          {(proposta.proponentes ?? []).length > 0 && (
+            <ul
+              aria-label={`Sócios sobre o pedido de ${proposta.nome_completo}`}
+              className="mt-1 space-y-0.5 text-xs"
+            >
+              {(proposta.proponentes ?? []).map((d) => (
+                <li key={d.id_associado}>
+                  <span className="font-medium">{d.socio}</span>: {d.decisao}
+                  {d.observacao ? ` — “${d.observacao}”` : ''}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {proposta.status === 'Recusada' && proposta.motivo_recusa && (
         <p className="mt-3 text-sm">
@@ -238,6 +264,12 @@ function Proposta({ proposta }: { proposta: PropostaDeFiliacao }) {
         {proposta.status === 'Em Conferência' && (
           <Button
             size="sm"
+            disabled={!sociosCompletos}
+            title={
+              sociosCompletos
+                ? undefined
+                : `O Estatuto pede ${exigidos} sócios propondo (até agora ${propoem}).`
+            }
             onClick={() => setModo(modo === 'aprovar' ? null : 'aprovar')}
           >
             Aprovar e efetivar

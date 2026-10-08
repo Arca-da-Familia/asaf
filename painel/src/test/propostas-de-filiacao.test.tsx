@@ -32,6 +32,15 @@ function proposta(
     motivo_recusa: null,
     id_associado_efetivado: null,
     criado_em: '2026-10-05T12:00:00',
+    total_propoem: 3,
+    exigidos: 3,
+    proponentes: [1, 2, 3].map((n) => ({
+      id_associado: n,
+      socio: `Sócio ${n}`,
+      decisao: 'Propõe' as const,
+      observacao: null,
+      em: '2026-10-06T09:00:00',
+    })),
     ...sobrescrever,
   }
 }
@@ -290,6 +299,71 @@ describe('Propostas de filiação (v5.4c: a caixa de entrada que faltava para as
         forcar: true,
       }),
     )
+  })
+
+  it('mostra quem propôs e quem recusou (com o motivo) e só libera "Aprovar e efetivar" com os 3 sócios', async () => {
+    vi.mocked(api.listarPropostasDeFiliacao).mockResolvedValue([
+      proposta({
+        id_proposta: 1,
+        nome_completo: 'Faltam Sócios',
+        status: 'Em Conferência',
+        total_propoem: 2,
+        proponentes: [
+          {
+            id_associado: 1,
+            socio: 'Ana Sócia',
+            decisao: 'Propõe',
+            observacao: null,
+            em: null,
+          },
+          {
+            id_associado: 2,
+            socio: 'Bruno Sócio',
+            decisao: 'Propõe',
+            observacao: null,
+            em: null,
+          },
+          {
+            id_associado: 3,
+            socio: 'Carla Sócia',
+            decisao: 'Recusa',
+            observacao: 'Não conheço a família.',
+            em: null,
+          },
+        ],
+      }),
+      proposta({
+        id_proposta: 2,
+        nome_completo: 'Já Completa',
+        status: 'Em Conferência',
+      }),
+    ])
+    desenhar()
+    const incompleta = within(
+      await screen.findByLabelText('Proposta de Faltam Sócios'),
+    )
+    expect(
+      incompleta.getByText('Sócios que propõem: 2 de 3 — faltam 1.'),
+    ).toBeInTheDocument()
+    const lista = incompleta.getByRole('list', {
+      name: 'Sócios sobre o pedido de Faltam Sócios',
+    })
+    expect(
+      within(lista)
+        .getByText(/Carla Sócia/)
+        .closest('li'),
+    ).toHaveTextContent('Recusa — “Não conheço a família.”')
+    expect(
+      incompleta.getByRole('button', { name: 'Aprovar e efetivar' }),
+    ).toBeDisabled()
+    expect(
+      incompleta.getByRole('button', { name: 'Aprovar e efetivar' }),
+    ).toHaveAttribute('title', expect.stringContaining('até agora 2'))
+    const completa = within(screen.getByLabelText('Proposta de Já Completa'))
+    expect(completa.getByText('Sócios que propõem: 3 de 3')).toBeInTheDocument()
+    expect(
+      completa.getByRole('button', { name: 'Aprovar e efetivar' }),
+    ).toBeEnabled()
   })
 
   it('não tem violação de acessibilidade (axe)', async () => {

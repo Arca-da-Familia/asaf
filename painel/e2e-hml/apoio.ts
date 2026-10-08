@@ -354,3 +354,28 @@ export async function atingirQuorum(page: Page): Promise<number> {
     'o quórum não foi atingido nem credenciando todos os faltantes',
   )
 }
+
+/**
+ * Um sócio entra pelo caminho de verdade e PROPÕE os candidatos pedidos (Estatuto Art. 12, par. único VI: o pedido de filiação tem de ser proposto
+ * por 3 sócios). Cada candidato aparece em "Pedidos de filiação" (a tela que o sino do topo abre); depois do clique a tela confirma a decisão.
+ */
+export async function socioPropoe(
+  page: Page,
+  papel: Papel,
+  candidatos: string[],
+): Promise<void> {
+  await entrar(page, papel)
+  await page.goto('/filiacao/para-propor')
+  await expect(
+    page.getByRole('heading', { name: 'Pedidos de filiação', level: 1 }),
+  ).toBeVisible()
+  for (const nome of candidatos) {
+    const cartao = page.getByRole('listitem', { name: `Pedido de ${nome}` })
+    await expect(cartao).toBeVisible()
+    await cartao.getByRole('button', { name: `Propor ${nome}` }).click()
+    await expect(cartao.getByRole('status')).toContainText(
+      'Você propôs este candidato.',
+    )
+  }
+  await sair(page)
+}

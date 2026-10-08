@@ -3,6 +3,7 @@ sequencial e período de experiência) ou recusa. Cobre também o que a v1.1 dei
 "Em Experiência" agora existe e se conecta ao cálculo de categoria."""
 from tests.test_pessoas import _cpf_unico
 from tests.apoio_auth import cabecalho_admin
+from tests.apoio_filiacao import tres_socios_propoem
 
 
 def _propor(client, cpf=None, **overrides):
@@ -35,7 +36,7 @@ def test_propor_cpf_duplicado_em_andamento_e_recusado(client):
     assert segunda.status_code == 400
 
 
-def test_fluxo_completo_ate_aprovacao_atribui_matricula_e_experiencia(client, auth_headers):
+def test_fluxo_completo_ate_aprovacao_atribui_matricula_e_experiencia(client, auth_headers, db):
     proposta = _propor(client).json()
     id_proposta = proposta["id_proposta"]
 
@@ -45,6 +46,11 @@ def test_fluxo_completo_ate_aprovacao_atribui_matricula_e_experiencia(client, au
 
     conferir = client.post(f"/api/filiacao/propostas/{id_proposta}/conferir", headers=auth_headers)
     assert conferir.status_code == 200
+
+    # Estatuto Art. 12, par. único VI: sem os 3 sócios propondo, a Diretoria não aprova
+    sem_socios = client.post(f"/api/filiacao/propostas/{id_proposta}/aprovar", headers=auth_headers, json={"categoria": "Efetivo"})
+    assert sem_socios.status_code == 400 and "3 sócios" in sem_socios.json()["detail"] and "Faltam 3" in sem_socios.json()["detail"]
+    tres_socios_propoem(db, id_proposta)
 
     aprovar = client.post(f"/api/filiacao/propostas/{id_proposta}/aprovar", headers=auth_headers, json={"categoria": "Efetivo"})
     assert aprovar.status_code == 200, aprovar.text
@@ -57,11 +63,12 @@ def test_fluxo_completo_ate_aprovacao_atribui_matricula_e_experiencia(client, au
     assert calculada["categoria_calculada_agora"] == "Em Experiência"
 
 
-def test_matriculas_sao_sequenciais_e_unicas(client, auth_headers):
+def test_matriculas_sao_sequenciais_e_unicas(client, auth_headers, db):
     matriculas = []
     for _ in range(2):
         proposta = _propor(client).json()
         client.post(f"/api/filiacao/propostas/{proposta['id_proposta']}/conferir", headers=auth_headers)
+        tres_socios_propoem(db, proposta["id_proposta"])
         aprovado = client.post(f"/api/filiacao/propostas/{proposta['id_proposta']}/aprovar", headers=auth_headers, json={}).json()
         matriculas.append(aprovado["numero_matricula"])
     assert matriculas[1] == matriculas[0] + 1
@@ -79,9 +86,10 @@ def test_recusar_proposta_com_motivo(client, auth_headers):
     assert encontrada["motivo_recusa"] == "Documentação incompleta"
 
 
-def test_recusar_proposta_ja_aprovada_falha(client, auth_headers):
+def test_recusar_proposta_ja_aprovada_falha(client, auth_headers, db):
     proposta = _propor(client).json()
     client.post(f"/api/filiacao/propostas/{proposta['id_proposta']}/conferir", headers=auth_headers)
+    tres_socios_propoem(db, proposta["id_proposta"])
     client.post(f"/api/filiacao/propostas/{proposta['id_proposta']}/aprovar", headers=auth_headers, json={})
 
     resposta = client.post(

@@ -11,7 +11,7 @@ ainda. Quando a FASE 2 existir, este é o lugar certo pra conectar um caminho al
 aprovação - registrado aqui em vez de fingir uma distinção que não pode ser aplicada hoje."""
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, UniqueConstraint
 
 from app.database import Base
 
@@ -32,5 +32,25 @@ class PropostaFiliacao(Base):
     status = Column(String, default=PENDENTE, index=True)
     motivo_recusa = Column(String, nullable=True)
     id_associado_efetivado = Column(Integer, ForeignKey("associados.id_associado"), nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+    atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# v5.4h - Estatuto Art. 12, par. único VI: o pedido de adesão tem de ser PROPOSTO por 3 sócios. Cada sócio apto decide uma vez por pedido (propõe ou
+# recusa, com o motivo); a decisão pode ser mudada enquanto o pedido está aberto. Só quem PROPÕE conta para os 3.
+PROPOE = "Propõe"
+RECUSA = "Recusa"
+PROPONENTES_EXIGIDOS = 3
+
+
+class PropostaDeSocio(Base):
+    __tablename__ = "propostas_de_socios"
+    __table_args__ = (UniqueConstraint("id_proposta", "id_associado", name="uq_proposta_de_socio"),)
+    id_proposta_socio = Column(Integer, primary_key=True, index=True)
+    id_proposta = Column(Integer, ForeignKey("propostas_filiacao.id_proposta"), nullable=False, index=True)
+    id_associado = Column(Integer, ForeignKey("associados.id_associado"), nullable=False, index=True)
+    decisao = Column(String(10), nullable=False)
+    observacao = Column(String, nullable=True)
+    id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

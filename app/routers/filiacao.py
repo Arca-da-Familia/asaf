@@ -11,11 +11,12 @@ from app.auditoria import registrar_auditoria
 from app.config_cache import obter_configuracao
 from app.database import get_db
 from app.models.associados import Associado
-from app.models.filiacao import APROVADA, EM_CONFERENCIA, PENDENTE, RECUSADA, PropostaFiliacao
+from app.models.filiacao import APROVADA, EM_CONFERENCIA, PENDENTE, PROPOE, PROPONENTES_EXIGIDOS, RECUSADA, PropostaFiliacao
 from app.models.pessoas import Papel, Pessoa
-from app.schemas.filiacao import PropostaAprovar, PropostaFiliacaoCriar, PropostaRecusar
+from app.schemas.filiacao import PropostaAprovar, PropostaDoSocio, PropostaFiliacaoCriar, PropostaRecusar
 from app.security import exigir_permissao, get_current_user, usuario_tem_permissao
 from app.services.categoria_associado import ATIVO_EM_DIA, EM_EXPERIENCIA, calcular_categoria
+from app.services import filiacao_socios
 from app.services.duplicidade import detectar_cadastro_duplicado
 from app.services.linha_do_tempo import publicar_evento_linha_do_tempo
 from app.services.matricula import proximo_numero_matricula
@@ -41,6 +42,9 @@ def propor_filiacao(dados: PropostaFiliacaoCriar, db: Session = Depends(get_db))
     db.add(proposta)
     db.commit()
     db.refresh(proposta)
+    # v5.4h - Estatuto Art. 12, par. único VI: o pedido precisa ser proposto por 3 sócios; cada sócio apto é avisado no sino do painel
+    filiacao_socios.avisar_socios_da_nova_proposta(db, proposta)
+    db.commit()
     return {"mensagem": "Proposta de filiação recebida.", "id_proposta": proposta.id_proposta}
 
 
@@ -50,15 +54,40 @@ def listar_propostas(status: str = None, db: Session = Depends(get_db), _usuario
     if status:
         consulta = consulta.filter(PropostaFiliacao.status == status)
     propostas = consulta.order_by(PropostaFiliacao.criado_em.desc()).all()
+    decisoes = filiacao_socios.decisoes_dos_pedidos(db, [p.id_proposta for p in propostas])
     return [
         {
             "id_proposta": p.id_proposta, "nome_completo": p.nome_completo, "cpf": p.cpf,
             "email_contato": p.email_contato, "telefone_whatsapp": p.telefone_whatsapp,
             "status": p.status, "motivo_recusa": p.motivo_recusa,
             "id_associado_efetivado": p.id_associado_efetivado, "criado_em": p.criado_em,
+            # v5.4h - quem propôs ou recusou (com o motivo); aprovar exige 3 que propõem
+            "proponentes": decisoes[p.id_proposta],
+            "total_propoem": sum(1 for d in decisoes[p.id_proposta] if d["decisao"] == PROPOE),
+            "exigidos": PROPONENTES_EXIGIDOS,
         }
         for p in propostas
     ]
+
+
+@router.get("/api/filiacao/para-propor", summary="Pedidos de filiação abertos, para o sócio apto propor ou recusar (sem CPF, e-mail nem telefone)")
+def pedidos_para_propor(db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    associado = filiacao_socios.exigir_socio_apto(db, usuario)
+    return filiacao_socios.pedidos_abertos_para(db, associado)
+
+
+@router.post("/api/filiacao/propostas/{id_proposta}/propor", summary="O sócio apto propõe o candidato (ou recusa, com o motivo)")
+def propor_candidato(id_proposta: int, dados: PropostaDoSocio, request: Request, db: Session = Depends(get_db), usuario=Depends(get_current_user)):
+    associado = filiacao_socios.exigir_socio_apto(db, usuario)
+    proposta = _buscar_proposta_ou_404(db, id_proposta)
+    decisao = filiacao_socios.registrar_decisao_do_socio(db, proposta=proposta, associado=associado, decisao=dados.decisao, observacao=dados.observacao, usuario=usuario)
+    registrar_auditoria(
+        db, usuario, "propostas_de_socios", "PROPOSTA_DO_SOCIO", id_registro_afetado=decisao.id_proposta_socio,
+        dados_depois={"id_proposta": id_proposta, "decisao": decisao.decisao, "observacao": decisao.observacao},
+        ip_origem=request.client.host if request.client else None,
+    )
+    propoem = filiacao_socios.total_que_propoem(db, id_proposta)
+    return {"decisao": decisao.decisao, "total_propoem": propoem, "exigidos": PROPONENTES_EXIGIDOS, "faltam": max(0, PROPONENTES_EXIGIDOS - propoem)}
 
 
 def _buscar_proposta_ou_404(db: Session, id_proposta: int) -> PropostaFiliacao:
@@ -108,6 +137,8 @@ def aprovar_proposta(
     proposta = _buscar_proposta_ou_404(db, id_proposta)
     if proposta.status != EM_CONFERENCIA:
         raise HTTPException(status_code=400, detail=f"Proposta precisa estar '{EM_CONFERENCIA}' antes de aprovar (está '{proposta.status}').")
+    # v5.4h - Estatuto Art. 12, par. único VI: o pedido tem de ser proposto por 3 sócios
+    filiacao_socios.exigir_proponentes_suficientes(db, proposta)
 
     # v1.8 - mesma trava de cadastrar_ficha_master: nome + outro dado pessoal batendo bloqueia a
     # efetivação, a não ser que quem aprove tenha `forcar_cadastro_duplicado` (Presidente).

@@ -8,6 +8,7 @@ from datetime import date
 
 from tests.test_pessoas import _cpf_unico
 from tests.apoio_auth import cabecalho_admin
+from tests.apoio_filiacao import tres_socios_propoem
 
 
 def _payload_associado(**overrides):
@@ -90,7 +91,7 @@ def test_nomes_diferentes_ou_sem_outro_sinal_batendo_nao_bloqueia(client):
     assert mesmo_nome_sem_mais_nada.status_code == 200
 
 
-def test_filiacao_aprovar_bloqueia_duplicado_e_presidente_pode_forcar(client, auth_headers):
+def test_filiacao_aprovar_bloqueia_duplicado_e_presidente_pode_forcar(client, auth_headers, db):
     client.post("/associados-master/", json=_payload_associado(nome_completo="Filiado Duplicado Teste"), headers=cabecalho_admin(client))
 
     proposta = client.post(
@@ -101,6 +102,7 @@ def test_filiacao_aprovar_bloqueia_duplicado_e_presidente_pode_forcar(client, au
         },
     ).json()
     client.post(f"/api/filiacao/propostas/{proposta['id_proposta']}/conferir", headers=auth_headers)
+    tres_socios_propoem(db, proposta["id_proposta"])
 
     sem_forcar = client.post(
         f"/api/filiacao/propostas/{proposta['id_proposta']}/aprovar", headers=auth_headers, json={"categoria": "Efetivo"}

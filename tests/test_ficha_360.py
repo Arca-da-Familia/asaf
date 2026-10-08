@@ -6,6 +6,7 @@ from datetime import date, timedelta
 
 from tests.test_pessoas import _cpf_unico
 from tests.apoio_auth import cabecalho_admin
+from tests.apoio_filiacao import tres_socios_propoem
 
 
 def _criar_associado(client, **overrides):
@@ -76,7 +77,7 @@ def test_ficha_360_reune_dados_financeiro_cargos_e_linha_do_tempo(client, auth_h
     assert datas == sorted(datas, reverse=True)
 
 
-def test_ficha_360_registra_filiacao_aprovada_na_linha_do_tempo(client, auth_headers):
+def test_ficha_360_registra_filiacao_aprovada_na_linha_do_tempo(client, auth_headers, db):
     cpf = _cpf_unico()
     proposta = client.post(
         "/api/filiacao/propor",
@@ -86,6 +87,7 @@ def test_ficha_360_registra_filiacao_aprovada_na_linha_do_tempo(client, auth_hea
         },
     ).json()
     client.post(f"/api/filiacao/propostas/{proposta['id_proposta']}/conferir", headers=auth_headers)
+    tres_socios_propoem(db, proposta["id_proposta"])
     aprovacao = client.post(
         f"/api/filiacao/propostas/{proposta['id_proposta']}/aprovar", headers=auth_headers,
         json={"categoria": "Efetivo"},
