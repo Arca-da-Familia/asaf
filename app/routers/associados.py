@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from fastapi.concurrency import run_in_threadpool
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, date, timezone
 import os
 import re
+from typing import Optional
 
 import httpx2
 
@@ -113,13 +115,44 @@ def cadastrar_ficha_master(
     return {"mensagem": f"Ficha de {novo_associado.nome_completo} criada com sucesso!", "id_associado": novo_associado.id_associado}
 
 
-@router.get("/api/associados/", summary="Listar associados")
-def listar_associados(db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_associados)):
+def _associados_filtrados(db: Session, busca: Optional[str] = None, situacao: Optional[str] = None, categoria: Optional[str] = None):
+    """v5.4h - os filtros da lista de associados feitos no banco: o nome, o CPF (só os números), o e-mail, o telefone ou a matrícula contêm a busca; a
+    situação e a categoria são exatas."""
+    consulta = db.query(Associado).join(Pessoa, Associado.id_pessoa == Pessoa.id_pessoa)
+    if situacao:
+        consulta = consulta.filter(Associado.status_arrolamento == situacao)
+    if categoria:
+        consulta = consulta.filter(Associado.categoria == categoria)
+    texto = (busca or "").strip()
+    if texto:
+        digitos = "".join(c for c in texto if c.isdigit())
+        condicoes = [Pessoa.nome_completo.ilike(f"%{texto}%"), Pessoa.email_contato.ilike(f"%{texto}%")]
+        if digitos:
+            condicoes.append(Pessoa.cpf.contains(digitos))
+            condicoes.append(Pessoa.telefone_whatsapp.contains(digitos))
+            if digitos == texto:
+                condicoes.append(Associado.numero_matricula == int(digitos))
+        consulta = consulta.filter(or_(*condicoes))
+    return consulta
+
+
+@router.get("/api/associados/", summary="Listar associados (com busca, filtros e, se `pagina` vier, paginados)")
+def listar_associados(
+    busca: Optional[str] = None, situacao: Optional[str] = None, categoria: Optional[str] = None,
+    pagina: Optional[int] = Query(None, ge=1), por_pagina: int = Query(25, ge=1, le=200),
+    db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_associados),
+):
     """v3.0.2 (achado 2026-09-15) - o painel React só tinha `/api/associados/busca-simples`
     (id+nome, pra seletor); a página HTML `/admin/secretaria` (removida no mesmo dia - protótipo
     pré-plano) nunca devolvia JSON. Esta é a listagem de verdade que alimenta a tela
-    `/associados` do painel único."""
-    associados = db.query(Associado).join(Pessoa).order_by(Pessoa.nome_completo).all()
+    `/associados` do painel único.
+
+    v5.4h - com `pagina`, devolve só aquela página (o total vem de `/api/associados/resumo`); sem `pagina`, devolve todos, como sempre (os seletores e
+    conferências que precisam do quadro inteiro seguem funcionando)."""
+    consulta = _associados_filtrados(db, busca, situacao, categoria).order_by(Pessoa.nome_completo, Associado.id_associado)
+    if pagina is not None:
+        consulta = consulta.offset((pagina - 1) * por_pagina).limit(por_pagina)
+    associados = consulta.all()
     return [
         {
             "id_associado": a.id_associado,
@@ -388,6 +421,19 @@ def consultar_cep(cep: str):
 # ==========================================
 # LISTAS CONFIGURÁVEIS (categorias, status, estado civil, parentesco...)
 # ==========================================
+
+@router.get("/api/associados/resumo", summary="Quantos associados há, pelos mesmos filtros da lista, e como se dividem por situação e categoria")
+def resumir_associados(
+    busca: Optional[str] = None, situacao: Optional[str] = None, categoria: Optional[str] = None,
+    db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_associados),
+):
+    """v5.4h - `total` respeita todos os filtros; as divisões por situação e por categoria respeitam só a busca (para a tela mostrar o que há em cada filtro)."""
+    total = _associados_filtrados(db, busca, situacao, categoria).count()
+    so_a_busca = _associados_filtrados(db, busca).subquery()
+    por_situacao = dict(db.query(so_a_busca.c.status_arrolamento, func.count()).group_by(so_a_busca.c.status_arrolamento).all())
+    por_categoria = dict(db.query(so_a_busca.c.categoria, func.count()).group_by(so_a_busca.c.categoria).all())
+    return {"total": total, "por_situacao": por_situacao, "por_categoria": por_categoria}
+
 
 @router.get("/api/associados/busca-simples", summary="Buscar associados para vincular (seletores)")
 def buscar_associados_simples(excluir: int = None, db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_seletor_de_associado)):

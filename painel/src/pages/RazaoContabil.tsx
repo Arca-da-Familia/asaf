@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { z } from 'zod'
 
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
@@ -9,7 +9,7 @@ import {
   criarTransferencia,
   estornarLancamento,
   listarContasFinanceiras,
-  listarLivroCaixa,
+  listarLivroCaixaDaPagina,
   urlArquivo,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
@@ -195,13 +195,36 @@ function FormularioTransferencia({ onCancelar }: { onCancelar: () => void }) {
   )
 }
 
+const LANCAMENTOS_POR_PAGINA = 25
+
 export function RazaoContabilPage() {
   const [estornando, setEstornando] = useState<number | null>(null)
   const [transferindo, setTransferindo] = useState(false)
+  const [pagina, setPagina] = useState(1)
+  const [textoBusca, setTextoBusca] = useState('')
+  const [busca, setBusca] = useState('')
+  // a busca espera a pessoa parar de digitar antes de ir ao servidor, e volta para a primeira página
+  useEffect(() => {
+    const espera = setTimeout(() => {
+      setBusca(textoBusca.trim())
+      setPagina(1)
+    }, 400)
+    return () => clearTimeout(espera)
+  }, [textoBusca])
   const { data } = useQuery({
-    queryKey: ['livro-caixa'],
-    queryFn: listarLivroCaixa,
+    queryKey: ['livro-caixa', busca, pagina],
+    queryFn: () =>
+      listarLivroCaixaDaPagina({
+        busca: busca || undefined,
+        pagina,
+        por_pagina: LANCAMENTOS_POR_PAGINA,
+      }),
+    placeholderData: (anterior) => anterior,
   })
+  const totalDePaginas = Math.max(
+    1,
+    Math.ceil((data?.total ?? 0) / LANCAMENTOS_POR_PAGINA),
+  )
 
   return (
     <>
@@ -239,6 +262,22 @@ export function RazaoContabilPage() {
         {transferindo && (
           <FormularioTransferencia onCancelar={() => setTransferindo(false)} />
         )}
+
+        <div className="mb-3">
+          <input
+            type="search"
+            aria-label="Buscar lançamento"
+            placeholder="Buscar pelo histórico ou pelo número (#123)"
+            value={textoBusca}
+            onChange={(e) => setTextoBusca(e.target.value)}
+            className="h-9 w-80 max-w-full rounded-md border border-input bg-background px-3 text-sm"
+          />
+          {data && (
+            <span className="ml-3 text-sm text-muted-foreground">
+              {data.total} {data.total === 1 ? 'lançamento' : 'lançamentos'}
+            </span>
+          )}
+        </div>
 
         <div className="v3-space-y-2">
           {(data?.lancamentos ?? []).map((l) => (
@@ -315,10 +354,39 @@ export function RazaoContabilPage() {
           ))}
           {(data?.lancamentos ?? []).length === 0 && (
             <p className="text-sm text-muted-foreground">
-              Nenhum lançamento registrado ainda.
+              {busca
+                ? 'Nenhum lançamento encontrado.'
+                : 'Nenhum lançamento registrado ainda.'}
             </p>
           )}
         </div>
+
+        {totalDePaginas > 1 && (
+          <nav
+            aria-label="Páginas de lançamentos"
+            className="mt-4 flex items-center justify-between gap-2 text-sm"
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pagina <= 1}
+              onClick={() => setPagina(pagina - 1)}
+            >
+              Página anterior
+            </Button>
+            <span className="text-muted-foreground">
+              Página {pagina} de {totalDePaginas}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pagina >= totalDePaginas}
+              onClick={() => setPagina(pagina + 1)}
+            >
+              Próxima página
+            </Button>
+          </nav>
+        )}
       </section>
     </>
   )
