@@ -203,6 +203,7 @@ def listar_auditoria_financeira(
     for e in estados.values():
         resumo[e["situacao"]] += 1
     resumo["total"] = len(titulos)
+    resumo["com_discordancia"] = sum(1 for e in estados.values() if e["discordancias"])
 
     escolhidos = [t for t in titulos if not situacao or estados[t.id_titulo]["situacao"] == situacao]
     da_pagina = escolhidos[(pagina - 1) * por_pagina: pagina * por_pagina]
@@ -233,6 +234,7 @@ def listar_auditoria_financeira(
             "data_vencimento": t.data_vencimento.date().isoformat() if t.data_vencimento else None, "status": t.status,
             "situacao": e["situacao"], "aprovacoes": e["aprovacoes"], "quorum": e["quorum"],
             "minha_decisao": minha.decisao if minha else None,
+            "com_discordancia": bool(e["discordancias"]),
             "sou_parte": bool(conselheiro and t.id_associado and t.id_associado == conselheiro.id_associado),
             "decisoes": [
                 {

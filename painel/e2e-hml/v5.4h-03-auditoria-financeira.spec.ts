@@ -76,8 +76,9 @@ const resumo = (
   pendentes: number,
   suspensos: number,
   aprovados: number,
+  comDiscordancia = 0,
 ) =>
-  `${total} título(s) no mês · ${pendentes} pendente(s) · ${suspensos} suspenso(s) · ${aprovados} aprovado(s) · Para aprovar, 2 conselheiros precisam concordar.`
+  `${total} título(s) no mês · ${pendentes} pendente(s) · ${suspensos} suspenso(s) · ${aprovados} aprovado(s) · ${comDiscordancia > 0 ? `${comDiscordancia} com discordância · ` : ''}Para aprovar, 2 conselheiros precisam concordar.`
 
 async function esperarCarregar(page: Page) {
   await expect(page.getByText(/^Carregando/)).toHaveCount(0)
@@ -260,7 +261,7 @@ test('ressalva e reprovação só seguem com a explicação, e o título fica su
   await expect(cartao(page, 3)).toContainText(
     'Suspenso: aguardando a resposta da tesouraria',
   )
-  await expect(page.getByText(resumo(7, 5, 2, 0))).toBeVisible()
+  await expect(page.getByText(resumo(7, 5, 2, 0, 2))).toBeVisible()
   // quem pergunta não responde: o conselheiro não vê o botão de responder
   await expect(page.getByRole('button', { name: /^Responder a / })).toHaveCount(
     0,
@@ -281,7 +282,7 @@ test('a tesouraria só acompanha: não decide, mas responde à pergunta no próp
   await expect(
     page.getByRole('button', { name: 'Aprovar os pendentes do filtro' }),
   ).toHaveCount(0)
-  await expect(page.getByText(resumo(7, 5, 2, 0))).toBeVisible()
+  await expect(page.getByText(resumo(7, 5, 2, 0, 2))).toBeVisible()
 
   await cartao(page, 2)
     .getByRole('button', { name: /^Responder a .+: / })
@@ -302,7 +303,7 @@ test('a tesouraria só acompanha: não decide, mas responde à pergunta no próp
   await expect(cartao(page, 3)).toContainText(
     'Suspenso: aguardando a resposta da tesouraria',
   )
-  await expect(page.getByText(resumo(7, 6, 1, 0))).toBeVisible()
+  await expect(page.getByText(resumo(7, 6, 1, 0, 2))).toBeVisible()
   await ver(page, info, 'tesouraria-respondeu-a-ressalva')
   expect(vigia.problemas()).toEqual([])
 })
@@ -336,7 +337,7 @@ test('o 2º conselheiro completa a maioria: o título fica aprovado e travado; o
   await expect(page.locator(AVISO)).toContainText(
     '5 título(s) aprovado(s) por você. Pulados: 1 suspenso(s), 1 já aprovado(s) e travado(s).',
   )
-  await expect(page.getByText(resumo(7, 5, 1, 1))).toBeVisible()
+  await expect(page.getByText(resumo(7, 5, 1, 1, 2))).toBeVisible()
   await ver(page, info, 'lote-do-segundo-conselheiro')
   expect(vigia.problemas()).toEqual([])
 })
@@ -356,13 +357,30 @@ test('o 3º conselheiro aprova o lote (a maioria trava os títulos) e reabre um 
   await expect(page.locator(AVISO)).toContainText(
     '5 título(s) aprovado(s) por você. Pulados: 1 suspenso(s), 1 já aprovado(s) e travado(s).',
   )
-  await expect(page.getByText(resumo(7, 0, 1, 6))).toBeVisible()
+  await expect(page.getByText(resumo(7, 0, 1, 6, 2))).toBeVisible()
   // o nº 2 tinha a ressalva (já respondida): com os dois votos de aprovação, fica aprovado e travado
   await expect(cartao(page, 2)).toContainText('Aprovado (2 de 2) — travado')
   await expect(cartao(page, 3)).toContainText(
     'Suspenso: aguardando a resposta da tesouraria',
   )
   await ver(page, info, 'maioria-do-lote')
+
+  // o 3º conselheiro DISCORDA do título que a maioria já aprovou: o voto e o motivo ficam à vista, e o título segue aprovado e travado
+  await page.getByRole('button', { name: `Reprovar: ${descricao(1)}` }).click()
+  await cartao(page, 1)
+    .getByLabel('Explicação (obrigatória)')
+    .fill('O valor desta nota não bate com o contrato.')
+  await cartao(page, 1)
+    .getByRole('button', { name: 'Confirmar reprovação' })
+    .click()
+  await expect(cartao(page, 1)).toContainText('Aprovado (2 de 2) — travado')
+  await expect(
+    cartao(page, 1).getByRole('note', {
+      name: `Discordância sobre ${descricao(1)}`,
+    }),
+  ).toContainText('O valor desta nota não bate com o contrato.')
+  await expect(page.getByText(resumo(7, 0, 1, 6, 3))).toBeVisible()
+  await ver(page, info, 'discordancia-do-terceiro-com-a-maioria-aprovada')
 
   // reabrir exige a explicação; depois, as aprovações antigas não valem mais
   await page
@@ -381,12 +399,12 @@ test('o 3º conselheiro aprova o lote (a maioria trava os títulos) e reabre um 
   await expect(cartao(page, 1).getByRole('list')).toContainText(
     'Foi aprovado antes de conferir a nota.',
   )
-  await expect(page.getByText(resumo(7, 1, 1, 5))).toBeVisible()
+  await expect(page.getByText(resumo(7, 1, 1, 5, 2))).toBeVisible()
   await ver(page, info, 'reabertura-com-explicacao')
   expect(vigia.problemas()).toEqual([])
 })
 
-test('quem não é do Financeiro (Secretário) é barrado; a Auditoria do sistema guarda as 7 ações', async ({
+test('quem não é do Financeiro (Secretário) é barrado; a Auditoria do sistema guarda as 8 ações', async ({
   page,
 }, info) => {
   const vigia = vigiar(page)
@@ -399,8 +417,8 @@ test('quem não é do Financeiro (Secretário) é barrado; a Auditoria do sistem
 
   await entrar(page, 'presidente')
   const total = await totalNaAuditoriaDoSistema(page)
-  // decisões: 1ª aprovação, ressalva, reprovação, 2ª aprovação, reabertura (5) + 2 lotes = 7
-  expect(total - totalAntes, 'sete ações novas na Auditoria').toBe(7)
+  // decisões: 1ª aprovação, ressalva, reprovação, 2ª aprovação, discordância do 3º, reabertura (6) + 2 lotes = 8
+  expect(total - totalAntes, 'oito ações novas na Auditoria').toBe(8)
   await expect(
     page.getByRole('row').filter({
       has: page.getByRole('cell', {
