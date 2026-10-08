@@ -1,5 +1,5 @@
-from pydantic import BaseModel, field_validator
-from datetime import datetime
+from pydantic import BaseModel, field_validator, model_validator
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 import re
@@ -192,6 +192,73 @@ class TituloCriar(BaseModel):
         if v <= 0:
             raise ValueError("O valor deve ser maior que zero.")
         return v
+
+class SaidaRegistrar(BaseModel):
+    """v5.4h - registrar uma SAÍDA que JÁ ACONTECEU no mundo real (decisão do Presidente, 2026-10-08): o sistema é só o registro, sem fila de
+    assinatura (a dupla assinatura é do banco). Lança o título e dá a baixa de uma vez. Nota fiscal e comprovante do pagamento são obrigatórios e
+    chegam já enviados por `POST /api/comprovantes/` (o caminho que ela devolve)."""
+    id_conta_contabil: int  # a categoria da saída (conta de Despesa; o reembolso é uma categoria)
+    descricao: str
+    valor: Decimal
+    data_despesa: date
+    data_pagamento: date
+    forma_pagamento: str
+    id_conta_contabil_contrapartida: int  # de onde o dinheiro saiu (conta de Ativo: banco ou caixa)
+    id_fornecedor: Optional[int] = None
+    id_associado: Optional[int] = None
+    nota_fiscal: str
+    comprovante: str
+    id_centro_custo: Optional[int] = None
+
+    @field_validator("descricao")
+    @classmethod
+    def validar_descricao(cls, v):
+        if len(v.strip()) < 3:
+            raise ValueError("Descreva a saída (pelo menos 3 letras).")
+        return v.strip()
+
+    @field_validator("valor")
+    @classmethod
+    def validar_valor(cls, v):
+        if v <= 0:
+            raise ValueError("O valor deve ser maior que zero.")
+        return v
+
+    @field_validator("forma_pagamento")
+    @classmethod
+    def validar_forma(cls, v):
+        if not v.strip():
+            raise ValueError("Informe a forma de pagamento (Pix, transferência, dinheiro...).")
+        return v.strip()
+
+    @field_validator("nota_fiscal")
+    @classmethod
+    def validar_nota(cls, v):
+        if not v.strip():
+            raise ValueError("Anexe a nota fiscal da saída.")
+        return v.strip()
+
+    @field_validator("comprovante")
+    @classmethod
+    def validar_comprovante(cls, v):
+        if not v.strip():
+            raise ValueError("Anexe o comprovante do pagamento.")
+        return v.strip()
+
+    @field_validator("data_despesa", "data_pagamento")
+    @classmethod
+    def validar_que_ja_aconteceu(cls, v):
+        # a saída "já aconteceu": data no futuro é engano (um dia de folga para o fuso do servidor)
+        if v > date.today() + timedelta(days=1):
+            raise ValueError("A data não pode estar no futuro: o sistema só registra o que já aconteceu.")
+        return v
+
+    @model_validator(mode="after")
+    def validar_quem_recebeu(self):
+        if bool(self.id_fornecedor) == bool(self.id_associado):
+            raise ValueError("Informe quem recebeu: um fornecedor OU um associado (um dos dois, nunca os dois).")
+        return self
+
 
 class BaixarTitulo(BaseModel):
     id_titulo: int

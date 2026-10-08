@@ -1344,3 +1344,44 @@ export const readmissaoSchema = z.object({
   email_contato: z.string().optional(),
   telefone_whatsapp: z.string().optional(),
 })
+
+// Registrar saída (v5.4h): o que a pessoa preenche. O servidor repete as regras (e é ele quem manda a mensagem final); aqui só se avisa o que falta
+// antes de enviar. `quem_recebeu` escolhe entre fornecedor e associado (reembolso): um dos dois, nunca os dois.
+export const registrarSaidaSchema = z
+  .object({
+    id_conta_contabil: z.coerce
+      .number()
+      .int({ message: 'Escolha a categoria da saída.' })
+      .positive({ message: 'Escolha a categoria da saída.' }),
+    quem_recebeu: z.enum(['fornecedor', 'associado']),
+    id_fornecedor: numeroOpcional,
+    id_associado: numeroOpcional,
+    descricao: z.string().min(3, 'Descreva a saída (pelo menos 3 letras).'),
+    valor: z.coerce.number().positive('Informe um valor maior que zero.'),
+    data_despesa: z.string().min(1, 'Informe a data da despesa.'),
+    data_pagamento: z.string().min(1, 'Informe a data do pagamento.'),
+    forma_pagamento: z.string().min(1, 'Informe a forma de pagamento.'),
+    id_conta_contabil_contrapartida: z.coerce
+      .number()
+      .int({ message: 'Escolha de onde saiu o dinheiro.' })
+      .positive({ message: 'Escolha de onde saiu o dinheiro.' }),
+    id_centro_custo: numeroOpcional,
+    nota_fiscal: z.string().min(1, 'Anexe a nota fiscal.'),
+    comprovante: z.string().min(1, 'Anexe o comprovante do pagamento.'),
+  })
+  .superRefine((v, ctx) => {
+    if (v.quem_recebeu === 'fornecedor' && !(Number(v.id_fornecedor) > 0)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['id_fornecedor'],
+        message: 'Escolha o fornecedor.',
+      })
+    }
+    if (v.quem_recebeu === 'associado' && !(Number(v.id_associado) > 0)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['id_associado'],
+        message: 'Escolha o associado.',
+      })
+    }
+  })

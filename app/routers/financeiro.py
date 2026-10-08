@@ -40,7 +40,7 @@ from app.schemas.financeiro import (
     AplicarCreditoRequest, CampanhaDescontoAntecipadoCriar, CentroDeCustoCriar, ContaFinanceiraCriar,
     EstornoCriar, ExercicioAbrir, GerarCobrancaBlocoRequest, GerarCobrancasRequest, IsencaoCriar,
     NegociacaoDividaCriar, PlanoContaCriar, PlanoDeContribuicaoCriar, ReajusteCriar, FornecedorCriar,
-    TituloCriar, BaixarTitulo, TransferenciaCriar,
+    TituloCriar, BaixarTitulo, SaidaRegistrar, TransferenciaCriar,
 )
 from app.security import exigir_permissao
 from app.services import armazenamento, auditoria_financeira, conciliacao, contabilidade, contribuicoes, negociacao, pix as pix_service
@@ -510,6 +510,7 @@ def listar_titulos(
             "saldo_devedor": t.saldo_devedor,
             "data_vencimento": t.data_vencimento.date().isoformat() if t.data_vencimento else None,
             "status": t.status,
+            "nota_fiscal": t.nota_fiscal,
             "competencia": t.competencia,
             "competencia_fim": t.competencia_fim,
             "id_negociacao_origem": t.id_negociacao_origem,
@@ -653,6 +654,63 @@ def listar_livro_caixa(db: Session = Depends(get_db), _usuario=Depends(_permissa
         resultado.append(_serializar_lancamento(lancamento, contas))
     resultado.reverse()
     return {"lancamentos": resultado, "saldo_contas_ativo": saldo_contas_ativo}
+
+
+# v5.4h - SAÍDA REGISTRADA (decisão do Presidente, 2026-10-08). O sistema é só o REGISTRO do que já aconteceu: nada de fila de "aguardando
+# assinatura" (a dupla assinatura é do banco). A saída entra com categoria, nota fiscal e comprovante, e a Auditoria financeira do Conselho
+# Fiscal confere depois do fato. Se a baixa for recusada (exercício fechado, conta errada...), o título criado para ela não fica para trás.
+DIAS_PARA_LANCAMENTO_TARDIO = 5
+
+
+@router.post("/api/saidas/registrar", summary="Registrar uma saída que já aconteceu (lança o título e dá a baixa de uma vez)")
+def registrar_saida(dados: SaidaRegistrar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    conta = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == dados.id_conta_contabil).first()
+    if not conta:
+        raise HTTPException(status_code=404, detail="Categoria (conta contábil) não encontrada.")
+    contabilidade.exigir_tipo_conta(conta, ["Despesa"], "A categoria de uma saída")
+    if dados.id_associado and not db.query(Associado).filter(Associado.id_associado == dados.id_associado).first():
+        raise HTTPException(status_code=404, detail="Associado não encontrado.")
+    if dados.id_fornecedor and not db.query(Fornecedor).filter(Fornecedor.id_fornecedor == dados.id_fornecedor).first():
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado.")
+
+    titulo = TituloFinanceiro(
+        tipo_titulo="A Pagar", id_conta_contabil=dados.id_conta_contabil, id_associado=dados.id_associado, id_fornecedor=dados.id_fornecedor,
+        descricao=dados.descricao, valor_original=dados.valor, saldo_devedor=dados.valor,
+        data_vencimento=datetime.combine(dados.data_despesa, datetime.min.time()), nota_fiscal=dados.nota_fiscal,
+    )
+    db.add(titulo)
+    db.commit()
+    db.refresh(titulo)
+    try:
+        baixa = baixar_titulo(
+            BaixarTitulo(
+                id_titulo=titulo.id_titulo, valor_pago=dados.valor, forma_pagamento=dados.forma_pagamento,
+                id_conta_contabil_contrapartida=dados.id_conta_contabil_contrapartida, id_centro_custo=dados.id_centro_custo,
+                data_competencia=datetime.combine(dados.data_pagamento, datetime.min.time()), comprovante=dados.comprovante,
+            ),
+            request, db, usuario,
+        )
+    except HTTPException:
+        db.rollback()
+        db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == titulo.id_titulo).delete()
+        db.commit()
+        raise
+    dias_ate_o_lancamento = max(0, (date.today() - dados.data_pagamento).days)
+    tardio = dias_ate_o_lancamento > DIAS_PARA_LANCAMENTO_TARDIO
+    registrar_auditoria(
+        db, usuario, "titulos_financeiros", "REGISTRAR_SAIDA", id_registro_afetado=titulo.id_titulo,
+        dados_depois={
+            "descricao": titulo.descricao, "valor": str(dados.valor), "categoria": conta.descricao_conta,
+            "data_despesa": dados.data_despesa.isoformat(), "data_pagamento": dados.data_pagamento.isoformat(),
+            "forma_pagamento": dados.forma_pagamento, "dias_ate_o_lancamento": dias_ate_o_lancamento, "lancamento_tardio": tardio,
+            "id_lancamento": baixa["id_lancamento"],
+        },
+        ip_origem=_ip_origem(request),
+    )
+    return {
+        "mensagem": "Saída registrada.", "id_titulo": titulo.id_titulo, "id_lancamento": baixa["id_lancamento"],
+        "numero_sequencial": baixa["numero_sequencial"], "dias_ate_o_lancamento": dias_ate_o_lancamento, "lancamento_tardio": tardio,
+    }
 
 
 @router.post("/baixar-titulo/", summary="Baixar Título / Razão Contábil")

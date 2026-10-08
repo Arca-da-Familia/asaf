@@ -10,6 +10,7 @@ import {
   CalendarPlus,
   CalendarRange,
   FileCheck,
+  FilePlus,
   FileText,
   FileUp,
   Inbox,
@@ -142,6 +143,11 @@ export const modulos: Modulo[] = [
         rota: '/financeiro/saidas',
         rotulo: 'Saídas',
         icone: ArrowUpFromLine,
+      },
+      {
+        rota: '/financeiro/registrar-saida',
+        rotulo: 'Registrar saída',
+        icone: FilePlus,
       },
       {
         rota: '/financeiro/auditoria-financeira',

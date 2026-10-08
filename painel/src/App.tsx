@@ -77,6 +77,7 @@ import { PortariaGate } from '@/pages/PortariaGate'
 import { RazaoContabilPage } from '@/pages/RazaoContabil'
 import { SessaoAssembleiaPage } from '@/pages/SessaoAssembleia'
 import { AuditoriaFinanceiraPage } from '@/pages/AuditoriaFinanceira'
+import { RegistrarSaidaPage } from '@/pages/RegistrarSaida'
 import { TitulosPage } from '@/pages/Titulos'
 
 export function RequireAuth({ children }: { children: ReactNode }) {
@@ -353,6 +354,14 @@ function App() {
               element={
                 <ErrorBoundary tituloModulo="Saídas">
                   <TitulosPage tipoFixo="A Pagar" />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="registrar-saida"
+              element={
+                <ErrorBoundary tituloModulo="Registrar saída">
+                  <RegistrarSaidaPage />
                 </ErrorBoundary>
               }
             />
