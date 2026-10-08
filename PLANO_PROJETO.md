@@ -1894,9 +1894,23 @@ Tudo aqui é construído (não é "decidir se faz"), na ordem abaixo, cada item 
 - [ ] **Lançamento tardio entre os alertas do Conselho Fiscal:** hoje a saída tardia (mais de 5 dias entre o pagamento e o lançamento) fica marcada
       na Auditoria do sistema e no cartão da Auditoria financeira; falta aparecer também nos alertas de padrões suspeitos (v3.7) e poder
       ajustar o limite de 5 dias na tela de Instituição/configurações.
-- [ ] **Filiação de ponta a ponta (Estatuto Art. 12):** formulário público; o pedido precisa ser **proposto por 3 sócios** (qualquer sócio ativo
-      e apto pode propor) e passar pela **análise da Diretoria Executiva**; os sócios ativos **recebem a notificação no painel** para propor ou
-      recusar; sem prazo — sem resposta, o pedido fica pendente; aprovado, entra no livro de associados com a matrícula.
+- [x] **Filiação: os 3 sócios, o aviso no painel e a análise da Diretoria (Estatuto Art. 12):** o pedido precisa ser **proposto por 3 sócios**
+      (qualquer sócio ativo e apto pode propor) e passar pela **análise da Diretoria Executiva**; os sócios ativos **recebem a notificação
+      no painel** (sino) para propor ou recusar, com o motivo; sem prazo — sem resposta, o pedido fica pendente; aprovado, entra no livro de
+      associados com a matrícula. **Como funciona:** `GET /api/filiacao/para-propor` mostra ao sócio só nome e idade (CPF, e-mail e telefone são
+      da Diretoria); `POST /api/filiacao/propostas/{id}/propor` registra "Propõe" ou "Recusa" (recusar pede ao menos 5 letras de motivo); a
+      Diretoria vê quem propôs e quem recusou e **não consegue aprovar com menos de 3** (400 com a conta de quantos faltam); apto é "Ativo - Em
+      Dia" ou "Em Experiência"; o sino é `/api/minhas-notificacoes/` (lista, marcar uma ou todas como lidas). **Na homologação (2026-10-08):**
+      `v5.4h-09`, 5 de 5 (o pedido chega pela rota pública e o sócio é avisado no sino, abre o aviso e propõe; um segundo propõe e um terceiro
+      recusa com o motivo, e o motivo curto demais é barrado na tela; a Diretoria vê os dois lados e não aprova com 2 de 3; o terceiro propõe e
+      a aprovação entra com a matrícula; o pedido decidido sai da lista dos sócios e a Auditoria guarda as 4 decisões); regressão verde:
+      filiação e cadastros (`v5.4c-fase1`, 24 de 24, com o roteiro antigo adaptado: sem os 3 sócios a aprovação fica travada), relatórios e
+      antifraude (e-04 16/16), projetos e voluntariado (f-01 22/22) e base contábil e orçamento (e-01 16/16); o povoamento em volume da homologação passou a fazer 3
+      sócios proporem antes de aprovar (teste próprio). **Em produção (2026-10-08):** commit `4f195b7`, Deploy API e Painel verdes;
+      `version.json` bate; `GET /api/filiacao/para-propor` e `GET /api/minhas-notificacoes/` respondem 401 sem login e as rotas novas estão no
+      `openapi.json`; a produção não recebeu nenhum dado de teste.
+- [ ] **Filiação: formulário público no site:** o pedido sai do site (hoje a rota pública existe, mas o site só lê); exige idade mínima de 18
+      anos (16 a 17 com autorização do responsável), aviso de LGPD, limite por IP como nas outras rotas públicas e teste na homologação.
 - [x] **Telas que faltam:** inscrição no evento pelo painel (secretaria inscrevendo alguém); **núcleo familiar** do beneficiário;
       **alocar voluntário** direto num turno.
       **Na homologação (2026-10-07):** `v5.4h-06` inscrição pela secretaria, 4 de 4 (com 1 vaga: o primeiro fica Pré-inscrito, o segundo vai
