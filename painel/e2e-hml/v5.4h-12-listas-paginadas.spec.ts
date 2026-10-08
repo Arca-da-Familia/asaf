@@ -98,7 +98,10 @@ test('Associados: a busca acha pelo nome, fica no endereço e a lista volta quan
 
   // o que não existe: tabela sem linhas, sem erro
   await page.getByLabel('Filtrar').fill('zzzz-ninguem-tem-este-nome')
-  await expect(linhasDaTabela(page)).toHaveCount(0, { timeout: 15_000 })
+  // sem resultado a tabela mostra uma linha só, de aviso: nenhum associado (nenhum link de ficha)
+  await expect(linhasDaTabela(page).locator('a')).toHaveCount(0, {
+    timeout: 15_000,
+  })
   await expect(page.getByText(/0 registro\(s\)/)).toBeVisible()
 
   // apagar a busca devolve a lista inteira
