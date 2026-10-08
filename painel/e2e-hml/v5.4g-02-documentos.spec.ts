@@ -123,18 +123,28 @@ async function colarTexto(page: Page, texto: string) {
     .click()
 }
 
+/** O achado vem MASCARADO: o CPF inteiro não está escrito no resultado, no aviso nem no histórico (a caixa de texto, que é o que a pessoa digitou, fica de fora). */
+async function conferirQueOCpfNaoApareceInteiro(page: Page): Promise<void> {
+  await expect(resultadoDaConferencia(page)).not.toContainText(CPF_DE_MENTIRA)
+  await expect(page.getByRole('alert')).not.toContainText(CPF_DE_MENTIRA)
+  const amostra = await resultadoDaConferencia(page)
+    .locator('code')
+    .first()
+    .innerText()
+  expect(amostra).not.toBe(CPF_DE_MENTIRA)
+  expect(amostra).toContain('*')
+}
+
 async function enviarPdfPublico(
   page: Page,
   nome: string,
   conteudo: Buffer,
 ): Promise<void> {
-  await secaoPublica(page)
-    .locator('input[type="file"]')
-    .setInputFiles({
-      name: nome,
-      mimeType: 'application/pdf',
-      buffer: conteudo,
-    })
+  await secaoPublica(page).locator('input[type="file"]').setInputFiles({
+    name: nome,
+    mimeType: 'application/pdf',
+    buffer: conteudo,
+  })
   await secaoPublica(page)
     .getByRole('button', { name: 'Enviar e conferir' })
     .click()
@@ -213,7 +223,7 @@ test('a versão pública com dado pessoal é recusada (e nada é gravado): texto
   await expect(resultado).toContainText('e-mail que não é da ASAF')
   await expect(resultado).toContainText('celular que não é da ASAF')
   // o que a tela mostra do achado vem mascarado: o CPF inteiro não aparece escrito em lugar nenhum da página
-  await expect(page.getByText(CPF_DE_MENTIRA)).toHaveCount(0)
+  await conferirQueOCpfNaoApareceInteiro(page)
   await expect(page.getByRole('alert')).toContainText('NÃO foi aceita')
   await ver(page, info, 'versao-publica-recusada-com-dado-pessoal')
   await expect(secaoPublica(page)).toContainText(
@@ -231,7 +241,7 @@ test('a versão pública com dado pessoal é recusada (e nada é gravado): texto
   await expect(resultadoDaConferencia(page)).toContainText(
     'CPF na versão pública',
   )
-  await expect(page.getByText(CPF_DE_MENTIRA)).toHaveCount(0)
+  await conferirQueOCpfNaoApareceInteiro(page)
 
   await enviarPdfPublico(page, 'so-imagem.pdf', pdfSoImagem())
   await expect(resultadoDaConferencia(page)).toContainText('o PDF é só imagem')
