@@ -350,6 +350,29 @@ describe('iniciarFormularioDeFiliacao', () => {
     expect(document.activeElement).toBe(nome)
   })
 
+  it('quem corrige um campo vê o aviso dele sumir e o resumo acompanhar, sem esperar o próximo envio', () => {
+    const { form } = montar()
+    iniciarFormularioDeFiliacao(form, { hoje: () => HOJE, fetchImpl: vi.fn() })
+    enviar(form)
+    const resumo = textoDe('[data-resumo-de-erros]')
+    const total = Number(/\d+/.exec(resumo.textContent ?? '')![0])
+    const nome = form.elements.namedItem('nome_completo') as HTMLInputElement
+    nome.value = 'Maria de Teste'
+    nome.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(textoDe('[data-erro="nome_completo"]').hidden).toBe(true)
+    expect(nome.hasAttribute('aria-invalid')).toBe(false)
+    expect(resumo.textContent).toBe(
+      total - 1 === 1
+        ? 'Há 1 campo para corrigir.'
+        : `Há ${total - 1} campos para corrigir.`,
+    )
+    // o erro "sem contato" some quando se digita em qualquer um dos dois campos de contato
+    const email = form.elements.namedItem('email_contato') as HTMLInputElement
+    email.value = 'a@b.co'
+    email.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(textoDe('[data-erro="contato"]').hidden).toBe(true)
+  })
+
   it('só mostra a declaração da autorização para quem tem 16 ou 17 anos', () => {
     const { form } = montar()
     iniciarFormularioDeFiliacao(form, { hoje: () => HOJE, fetchImpl: vi.fn() })

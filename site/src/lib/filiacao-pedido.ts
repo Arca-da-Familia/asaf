@@ -210,6 +210,35 @@ function mostrarErros(form: HTMLFormElement, erros: ErrosDoPedido): void {
   }
 }
 
+/** Quem corrige um campo vê o aviso dele sumir na hora (e o resumo acompanhar), sem esperar o próximo envio. */
+function limparErroDoCampo(
+  form: HTMLFormElement,
+  campo: HTMLInputElement,
+): void {
+  const chaves = [campo.name]
+  if (campo.name === 'email_contato' || campo.name === 'telefone_whatsapp')
+    chaves.push('contato')
+  for (const chave of chaves) {
+    const mensagem = form.querySelector<HTMLElement>(`[data-erro="${chave}"]`)
+    if (mensagem) {
+      mensagem.textContent = ''
+      mensagem.hidden = true
+    }
+  }
+  campo.removeAttribute('aria-invalid')
+  const resumo = form.querySelector<HTMLElement>('[data-resumo-de-erros]')
+  if (resumo && !resumo.hidden) {
+    const restantes = form.querySelectorAll('[data-erro]:not([hidden])').length
+    resumo.textContent =
+      restantes === 0
+        ? ''
+        : restantes === 1
+          ? 'Há 1 campo para corrigir.'
+          : `Há ${restantes} campos para corrigir.`
+    resumo.hidden = restantes === 0
+  }
+}
+
 function primeiroCampoComErro(
   form: HTMLFormElement,
   erros: ErrosDoPedido,
@@ -248,6 +277,10 @@ export function iniciarFormularioDeFiliacao(
     mostrarAutorizacaoSeForMenor,
   )
   mostrarAutorizacaoSeForMenor()
+  form.addEventListener('input', (evento) => {
+    if (evento.target instanceof HTMLInputElement && evento.target.name)
+      limparErroDoCampo(form, evento.target)
+  })
 
   form.addEventListener('submit', (evento) => {
     evento.preventDefault()
