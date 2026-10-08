@@ -1421,6 +1421,18 @@ test('Compra simples: o Tesoureiro prepara e não aprova a própria, quem não t
       }),
     ).toBeVisible()
     await ver(page, info, 'auditoria: compras criadas, aprovada e reprovada')
+
+    // v5.4h: a recusa também deixa rastro. A tentativa do Tesoureiro de aprovar a própria compra (passo 1) ficou na Auditoria, com o nome dele,
+    // numa tabela à parte (`recusas`): as tabelas das compras acima continuam só com o que deu certo
+    await abrirAuditoria(page, 'recusas')
+    await expect(
+      linhaDaAuditoria(page, 'RECUSA_APROVACAO', { quem: FABIO }),
+    ).toBeVisible()
+    await ver(
+      page,
+      info,
+      'auditoria: a recusa de aprovar a propria compra tambem ficou',
+    )
   })
   expect(vigia.problemas()).toEqual([])
 })
