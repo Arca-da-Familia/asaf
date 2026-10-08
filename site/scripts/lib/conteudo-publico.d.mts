@@ -273,6 +273,8 @@ export interface DocumentoDetalhado extends DocumentoPublico {
 }
 
 export interface ConteudoPublico {
+  /** Os campos da Instituição que o painel marcou "vai para o site" (v5.4h); `{}` se a API não tem a rota. */
+  instituicao: Record<string, string>
   eventos: EventoDaLista[]
   detalhesDeEventos: Record<number, EventoDetalhado>
   projetos: ProjetoPublico[]

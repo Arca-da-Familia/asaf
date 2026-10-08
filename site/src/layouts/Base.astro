@@ -5,6 +5,7 @@ import Rodape from '../components/Rodape.astro'
 import type { Migalha } from '../config/navegacao'
 import { ORGANIZACAO, SITE_URL } from '../config/organizacao'
 import { ehHomologacao } from '../lib/ambiente'
+import { organizacaoDoSite } from '../lib/dados-publicos'
 import {
   jsonLdMigalhas,
   jsonLdOrganizacao,
@@ -113,7 +114,7 @@ const textoAlternativoImagem =
     <script
       is:inline
       type="application/ld+json"
-      set:html={serializarJsonLd(jsonLdOrganizacao())}
+      set:html={serializarJsonLd(jsonLdOrganizacao(await organizacaoDoSite()))}
     />
     {[...dadosMigalhas, ...jsonLd].map((dados) => (
       <script

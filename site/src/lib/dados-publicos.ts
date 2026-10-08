@@ -13,6 +13,10 @@ import {
 } from '../../scripts/lib/conteudo-publico.mjs'
 import { anunciarAvisosDeNoticias } from '../../scripts/lib/directus.mjs'
 import { API_URL } from '../config/organizacao'
+import {
+  organizacaoComInstituicao,
+  type OrganizacaoDoSite,
+} from './instituicao-publica'
 
 export type {
   AssembleiaPublica,
@@ -41,6 +45,12 @@ export function conteudoPublico(): Promise<ConteudoPublico> {
     return conteudo
   })
   return leitura
+}
+
+/** Os dados da associação como o site os mostra: os fixos (Estatuto), com o que a Instituição do painel marcou "vai para o site" e é válido por cima (v5.4h). */
+export async function organizacaoDoSite(): Promise<OrganizacaoDoSite> {
+  const { instituicao } = await conteudoPublico()
+  return organizacaoComInstituicao(instituicao)
 }
 
 /** Caminho estável de cada recurso (só o id: um título editado nunca quebra um link compartilhado). */

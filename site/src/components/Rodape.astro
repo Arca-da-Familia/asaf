@@ -1,6 +1,10 @@
 ---
 import { GRUPOS_DO_RODAPE } from '../config/navegacao'
-import { ENDERECO_LINHA, ORGANIZACAO, PAINEL_URL } from '../config/organizacao'
+import { ENDERECO_LINHA, PAINEL_URL } from '../config/organizacao'
+import { organizacaoDoSite } from '../lib/dados-publicos'
+
+// os dados da associação como o site os mostra: os fixos, com o que a Instituição do painel marcou "vai para o site" por cima (v5.4h)
+const ORGANIZACAO = await organizacaoDoSite()
 ---
 
 <footer class="border-t-4 border-brand-secondary bg-primary text-primary-foreground">
