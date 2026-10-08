@@ -1956,10 +1956,23 @@ Tudo aqui é construído (não é "decidir se faz"), na ordem abaixo, cada item 
       registrar saída (h-08 5/5). **Em produção (2026-10-08):** commit `27e963c`, Deploy API verde; não há rota nova (é comportamento): a rota de
       aprovação sem login segue 401 (que, por desenho, não grava recusa: não há quem tenha tentado). O efeito só se vê com login e foi provado
       na homologação; a produção nunca recebe dado de teste.
-- [ ] **Site e carga (decisão: manter páginas estáticas e deixar "vivo" o que é dinâmico):** inscrição em evento, voluntário e filiação passam
-      pela API, que não pode travar nem estourar o limite de vagas. **Meta:** ~150 pessoas por minuto (50 a 100 preenchendo ao mesmo tempo) sem
-      travar; teste de carga na homologação; réplicas da API sobem em dia de evento (sem servidor ligado 24 h); limite de inscrições por IP revisto
-      (hoje 5 a cada 10 minutos, o que barra muita gente atrás do mesmo provedor).
+- [x] **Carga, limite por IP e réplicas em dia de evento (decisão: manter páginas estáticas e deixar "vivo" o que é dinâmico):** a API aguenta a multidão de
+      um dia de evento e não estoura as vagas. **Teste de carga** (`scripts/teste_de_carga_hml.py`, fluxo manual `Testar Carga da Homologação`, recusa qualquer
+      endereço que não seja o da homologação): 150 pessoas por minuto, cada uma abrindo a lista e a página do evento, levando 20 s no formulário (50 a 100
+      ao mesmo tempo) e se inscrevendo de um IP próprio, num evento de 100 vagas; mais um grupo atrás do mesmo IP e 5% de cliques duplos. Reprova se houver erro
+      5xx, vaga estourada, vaga vazia com gente na espera, inscrição duplicada, limite por IP falho ou p95 acima de 5 s. **O teste achou um defeito real na
+      primeira rodada:** a mesma pessoa enviando duas vezes quase junto dava erro 500 (as duas passavam pela checagem do CPF antes de gravar e a segunda batia na
+      restrição única do banco) e prendia uma vaga; corrigido (quem perde a corrida é recusada com "já está inscrita" e a vaga volta), com testes que forçam a
+      corrida. **Na homologação (2026-10-08), depois da correção:** 150 por minuto, 100 vagas: 100 confirmadas, 80 na lista de espera, p95 da inscrição 0,52 s,
+      nenhum erro, os 7 cliques duplos viraram 1 inscrição cada, o grupo do mesmo IP teve 30 aceitas e 10 barradas; **400 por minuto** (2,7 vezes a meta), 250
+      vagas: 250 confirmadas, 180 na espera, p95 0,39 s, nenhum erro. A primeira chamada do dia (API dormindo) levou de 0,65 a 1,25 s nesses testes porque a API
+      estava acordada; o pior caso (acordar do zero) segue sendo 10 a 30 s e é o que as réplicas abaixo evitam. **Limite por IP** da inscrição pública: de 5 para
+      **30 a cada 10 minutos** (5 barrava a secretaria de uma igreja já na sexta pessoa). **Réplicas:** o fluxo `Réplicas da API em dia de evento` (a cada 3 horas)
+      lê a lista pública de eventos e deixa **1 réplica mínima** da API de 24 h antes do evento até 12 h depois, e volta a 0 depois (só mexe nesse número; se não
+      conseguir ler os eventos, mantém como está). Provado na homologação à mão: 0 → 1 → 0 em `asaf-api-hml`; na produção rodou em simulação e deu 0 (nenhum evento
+      público agora). **Em produção (2026-10-08):** commit `667ad62`, Deploy API verde; a lista pública de eventos e o texto de consentimento respondem 200 e o
+      preflight de CORS de `https://asaf.org.br` libera o POST da inscrição. Nenhuma inscrição de teste foi enviada à produção. **Falta (é da v5.5, não daqui):** o
+      formulário de inscrição em evento no site e a página de cancelar a inscrição que o e-mail promete (`/cancelar-inscricao`, que hoje não existe).
 
 ### FASE 6 — Comunicação e transparência
 
