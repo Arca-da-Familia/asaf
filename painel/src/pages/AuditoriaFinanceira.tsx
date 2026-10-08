@@ -179,7 +179,7 @@ function CartaoDoTitulo({
           }
         >
           {t.lancamento_tardio ? 'Lançamento tardio: ' : ''}lançada{' '}
-          {t.dias_ate_o_lancamento} dia(s) depois da despesa.
+          {t.dias_ate_o_lancamento} dia(s) depois do pagamento.
         </p>
       )}
 

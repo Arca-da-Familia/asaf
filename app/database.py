@@ -506,6 +506,7 @@ def seed_configuracoes_institucionais():
         {"chave": "VALOR_ALERTA_FORNECEDOR_NOVO", "valor": "1000", "tipo": "numero", "categoria": "regras", "descricao": "Valor (R$) a partir do qual a primeira operação com um fornecedor novo entra no relatório de exceção mensal."},
         {"chave": "QUANTIDADE_ALERTA_ESTORNOS_MESMO_USUARIO", "valor": "3", "tipo": "numero", "categoria": "regras", "descricao": "Quantidade de estornos no mesmo mês pelo mesmo usuário que entra no relatório de exceção mensal."},
         {"chave": "DIAS_ALERTA_TROCA_DADOS_BANCARIOS", "valor": "30", "tipo": "numero", "categoria": "regras", "descricao": "Dias após a aprovação de troca de dados bancários de fornecedor em que um pagamento a ele entra no relatório de exceção mensal."},
+        {"chave": "DIAS_ALERTA_LANCAMENTO_TARDIO", "valor": "5", "tipo": "numero", "categoria": "regras", "descricao": "Dias entre o pagamento de uma saída e o lançamento dela no sistema a partir dos quais o lançamento é tardio: a saída fica marcada no cartão da Auditoria financeira e entra no relatório de exceção mensal do Conselho Fiscal (v5.4h)."},
         # v2.0 - cláusulas pétreas do Art. 33 do estatuto: identidade institucional, não regra
         # operacional (nunca bloqueiam nenhuma ação do sistema, por isso NÃO entram em
         # RegraEstatutaria - ver seed_regras_estatutarias e PLANO_PROJETO.md v2.0).

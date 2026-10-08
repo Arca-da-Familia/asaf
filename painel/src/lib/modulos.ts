@@ -29,6 +29,7 @@ import {
   ScrollText,
   ShieldAlert,
   ShieldCheck,
+  SlidersHorizontal,
   Truck,
   UserCheck,
   UserPlus,
@@ -378,6 +379,12 @@ export const modulos: Modulo[] = [
     rotulo: 'Instituição',
     permissao: 'gerenciar_acesso',
     icone: Building2,
+  },
+  {
+    rota: '/regras',
+    rotulo: 'Regras do sistema',
+    permissao: 'gerenciar_acesso',
+    icone: SlidersHorizontal,
   },
   {
     rota: '/acesso',

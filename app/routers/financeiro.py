@@ -43,7 +43,7 @@ from app.schemas.financeiro import (
     TituloCriar, BaixarTitulo, SaidaRegistrar, TransferenciaCriar,
 )
 from app.security import exigir_permissao
-from app.services import armazenamento, auditoria_financeira, conciliacao, contabilidade, contribuicoes, negociacao, pix as pix_service
+from app.services import armazenamento, auditoria_financeira, conciliacao, contabilidade, contribuicoes, lancamento_tardio, negociacao, pix as pix_service
 from app.services.categoria_associado import recalcular_categoria_associado
 from app.services.formato import reais
 
@@ -659,7 +659,6 @@ def listar_livro_caixa(db: Session = Depends(get_db), _usuario=Depends(_permissa
 # v5.4h - SAÍDA REGISTRADA (decisão do Presidente, 2026-10-08). O sistema é só o REGISTRO do que já aconteceu: nada de fila de "aguardando
 # assinatura" (a dupla assinatura é do banco). A saída entra com categoria, nota fiscal e comprovante, e a Auditoria financeira do Conselho
 # Fiscal confere depois do fato. Se a baixa for recusada (exercício fechado, conta errada...), o título criado para ela não fica para trás.
-DIAS_PARA_LANCAMENTO_TARDIO = 5
 
 
 @router.post("/api/saidas/registrar", summary="Registrar uma saída que já aconteceu (lança o título e dá a baixa de uma vez)")
@@ -696,7 +695,7 @@ def registrar_saida(dados: SaidaRegistrar, request: Request, db: Session = Depen
         db.commit()
         raise
     dias_ate_o_lancamento = max(0, (date.today() - dados.data_pagamento).days)
-    tardio = dias_ate_o_lancamento > DIAS_PARA_LANCAMENTO_TARDIO
+    tardio = dias_ate_o_lancamento > lancamento_tardio.dias_para_lancamento_tardio(db)
     registrar_auditoria(
         db, usuario, "titulos_financeiros", "REGISTRAR_SAIDA", id_registro_afetado=titulo.id_titulo,
         dados_depois={

@@ -310,9 +310,44 @@ test('o Conselheiro Fiscal abre a nota e o comprovante na Auditoria financeira e
   )
   await expect(cartaoDe(DESCRICAO_TARDIA)).toHaveCount(1)
   await expect(cartaoDe(DESCRICAO_TARDIA)).toContainText(
-    'Lançamento tardio: lançada 20 dia(s) depois da despesa.',
+    'Lançamento tardio: lançada 20 dia(s) depois do pagamento.',
   )
   await ver(page, info, 'auditoria-financeira-lancamento-tardio')
+  expect(vigia.problemas()).toEqual([])
+})
+
+test('o relatório de exceção do mês (Padrões suspeitos) lista a saída lançada depois do limite e não lista a que está em dia', async ({
+  page,
+}, info) => {
+  const vigia = vigiar(page)
+  await entrar(page, 'presidente')
+  await page.goto('/financeiro/relatorios')
+  const secao = page.locator('section').filter({
+    has: page.getByRole('heading', {
+      name: 'Padrões suspeitos (Conselho Fiscal)',
+    }),
+  })
+  await expect(secao).toBeVisible()
+  // as saídas deste roteiro foram lançadas hoje: a competência do relatório é o mês de hoje
+  const mes = dia(0).slice(0, 7)
+  await secao.locator('input[type="month"]').fill(mes)
+  const alerta = secao
+    .locator('div.rounded-md.border')
+    .filter({ hasText: DESCRICAO_TARDIA })
+  await expect(alerta).toHaveCount(1)
+  await expect(alerta).toContainText('LANCAMENTO_TARDIO')
+  await expect(alerta).toContainText('20 dia(s) depois do pagamento')
+  await expect(
+    secao
+      .locator('div.rounded-md.border')
+      .filter({ hasText: DESCRICAO_EM_DIA }),
+  ).toHaveCount(0)
+  await expect(
+    secao
+      .locator('div.rounded-md.border')
+      .filter({ hasText: DESCRICAO_REEMBOLSO }),
+  ).toHaveCount(0)
+  await ver(page, info, 'relatorio-de-excecao-lancamento-tardio')
   expect(vigia.problemas()).toEqual([])
 })
 

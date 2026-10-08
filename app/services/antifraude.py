@@ -2,7 +2,8 @@
 Conselho Fiscal (v2.6), com os cinco padrões suspeitos pedidos pela pesquisa de mercado (seção 6):
 lançamento fora do horário habitual, valor logo abaixo do teto de alçada (fracionamento),
 fornecedor novo com pagamento alto na primeira operação, sequência de estornos pelo mesmo
-usuário, pagamento a conta bancária alterada recentemente. Nenhum padrão aqui BLOQUEIA nada
+usuário, pagamento a conta bancária alterada recentemente; e, desde a v5.4h, a saída registrada
+muito depois do pagamento (lançamento tardio). Nenhum padrão aqui BLOQUEIA nada
 sozinho - isto é um relatório de EXCEÇÃO pra revisão humana (Conselho Fiscal), nunca uma trava
 automática que impediria uma operação legítima só porque bateu num padrão estatístico."""
 from datetime import datetime, timedelta, timezone
@@ -16,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.config_cache import obter_configuracao
 from app.models.compras import AlcadaAprovacao, DadosBancariosFornecedor, SolicitacaoCompra
 from app.models.financeiro import Fornecedor, LancamentoContabil, TituloFinanceiro
+from app.services import lancamento_tardio
 from app.services.formato import reais
 
 
@@ -163,6 +165,26 @@ def _pagamento_apos_troca_de_dados_bancarios(db: Session, *, inicio: datetime, f
     return achados
 
 
+def _saidas_com_lancamento_tardio(db: Session, *, inicio: datetime, fim: datetime) -> list[dict]:
+    """v5.4h - a saída registrada no mês cujo pagamento foi lançado no sistema depois do limite de dias (configuração `DIAS_ALERTA_LANCAMENTO_TARDIO`).
+    O sistema é só o registro do que já aconteceu: quanto mais tarde o lançamento, mais difícil de conferir com o extrato do banco."""
+    limite = lancamento_tardio.dias_para_lancamento_tardio(db)
+    titulos = db.query(TituloFinanceiro).filter(
+        TituloFinanceiro.nota_fiscal.isnot(None), TituloFinanceiro.data_emissao >= inicio, TituloFinanceiro.data_emissao <= fim,
+    ).order_by(TituloFinanceiro.id_titulo).all()
+    pagamentos = lancamento_tardio.datas_de_pagamento(db, [t.id_titulo for t in titulos])
+    achados = []
+    for t in titulos:
+        dias = lancamento_tardio.dias_ate_o_lancamento(t, pagamentos)
+        if dias is not None and dias > limite:
+            achados.append({
+                "tipo": "LANCAMENTO_TARDIO",
+                "descricao": f"Saída «{t.descricao}» (título #{t.id_titulo}, {reais(t.valor_original)}) lançada {dias} dia(s) depois do pagamento (o limite é de {limite}).",
+                "id_titulo": t.id_titulo, "dias_ate_o_lancamento": dias,
+            })
+    return achados
+
+
 def relatorio_padroes_suspeitos(db: Session, *, competencia: str) -> list[dict]:
     inicio, fim = _intervalo_da_competencia(competencia)
     return (
@@ -171,4 +193,5 @@ def relatorio_padroes_suspeitos(db: Session, *, competencia: str) -> list[dict]:
         + _fornecedor_novo_com_pagamento_alto(db, inicio=inicio, fim=fim)
         + _sequencia_de_estornos_pelo_mesmo_usuario(db, inicio=inicio, fim=fim)
         + _pagamento_apos_troca_de_dados_bancarios(db, inicio=inicio, fim=fim)
+        + _saidas_com_lancamento_tardio(db, inicio=inicio, fim=fim)
     )

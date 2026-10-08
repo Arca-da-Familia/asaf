@@ -17,10 +17,10 @@ from app.database import get_db
 from app.models.associados import Associado
 from app.models.conselho_fiscal import RESPONDIDO, ParecerPrestacaoContas, QuestionamentoLancamento, RespostaQuestionamento
 from app.models.financeiro import Fornecedor, LancamentoContabil, PlanoDeContas, TituloFinanceiro
-from app.routers.financeiro import DIAS_PARA_LANCAMENTO_TARDIO, _consulta_de_titulos
+from app.routers.financeiro import _consulta_de_titulos
 from app.schemas.conselho_fiscal import AprovacaoEmLoteCriar, DecisaoDeTituloCriar, ParecerCriar, QuestionamentoCriar, RespostaCriar
 from app.security import exigir_permissao, get_current_user
-from app.services import auditoria_financeira
+from app.services import auditoria_financeira, lancamento_tardio
 from app.services.conselho_fiscal import usuario_e_conselho_fiscal
 
 router = APIRouter()
@@ -180,13 +180,6 @@ def _associado_do_usuario(db: Session, usuario) -> Optional[Associado]:
     return db.query(Associado).filter(Associado.id_usuario == usuario.id_usuario).first()
 
 
-def _dias_ate_o_lancamento(t: TituloFinanceiro) -> Optional[int]:
-    """Só para a saída registrada (a que veio com nota fiscal): quantos dias a despesa esperou até ser lançada no sistema."""
-    if not t.nota_fiscal or not t.data_emissao or not t.data_vencimento:
-        return None
-    return max(0, (t.data_emissao.date() - t.data_vencimento.date()).days)
-
-
 def _nome_dos_associados(db: Session, ids: set[int]) -> dict[int, str]:
     if not ids:
         return {}
@@ -231,9 +224,12 @@ def listar_auditoria_financeira(
         ).order_by(LancamentoContabil.id_lancamento).all():
             comprovantes.setdefault(l.id_titulo, []).append(l.comprovante)
 
+    pagamentos = lancamento_tardio.datas_de_pagamento(db, ids_da_pagina)
+    limite_de_dias = lancamento_tardio.dias_para_lancamento_tardio(db)
     itens = []
     for t in da_pagina:
         e = estados[t.id_titulo]
+        dias_ate_o_lancamento = lancamento_tardio.dias_ate_o_lancamento(t, pagamentos)
         vigentes_ids = {d.id_auditoria for d in e["vigentes"].values()}
         minha = e["vigentes"].get(conselheiro.id_associado) if conselheiro else None
         conta = contas.get(t.id_conta_contabil)
@@ -248,7 +244,7 @@ def listar_auditoria_financeira(
             "valor_original": t.valor_original, "saldo_devedor": t.saldo_devedor,
             "data_vencimento": t.data_vencimento.date().isoformat() if t.data_vencimento else None, "status": t.status,
             "nota_fiscal": t.nota_fiscal, "comprovantes": comprovantes.get(t.id_titulo, []),
-            "dias_ate_o_lancamento": _dias_ate_o_lancamento(t), "lancamento_tardio": (_dias_ate_o_lancamento(t) or 0) > DIAS_PARA_LANCAMENTO_TARDIO,
+            "dias_ate_o_lancamento": dias_ate_o_lancamento, "lancamento_tardio": (dias_ate_o_lancamento or 0) > limite_de_dias,
             "situacao": e["situacao"], "aprovacoes": e["aprovacoes"], "quorum": e["quorum"],
             "minha_decisao": minha.decisao if minha else None,
             "com_discordancia": bool(e["discordancias"]),

@@ -5816,6 +5816,31 @@ export function editarCampoDaInstituicao(
   })
 }
 
+// ---- Regras do sistema (v5.4h): os limites e prazos que o sistema usa (configurações da categoria "regras"), ajustáveis pela presidência.
+export type RegraDoSistema = {
+  chave: string
+  valor: string
+  tipo: string
+  categoria: string
+  descricao: string | null
+  atualizado_em: string | null
+}
+
+/** Todas as configurações do sistema; a tela de regras mostra só as da categoria "regras". */
+export function listarConfiguracoes(): Promise<RegraDoSistema[]> {
+  return apiFetch('/api/configuracoes/')
+}
+
+export function editarRegraDoSistema(
+  chave: string,
+  valor: string,
+): Promise<{ chave: string; valor: string }> {
+  return apiFetch(`/api/configuracoes/${encodeURIComponent(chave)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ valor }),
+  })
+}
+
 // ---- Auditoria financeira do Conselho Fiscal (v5.4h): o Conselho aprova, reprova ou ressalva cada título do mês.
 export type DecisaoNaAuditoria =
   'Aprovado' | 'Reprovado' | 'Com ressalva' | 'Reaberto'

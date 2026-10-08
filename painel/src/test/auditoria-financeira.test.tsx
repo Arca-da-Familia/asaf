@@ -426,19 +426,19 @@ describe('Auditoria financeira', () => {
     )
     expect(
       comDocumentos.getByText(
-        /Lançamento tardio: lançada 8 dia\(s\) depois da despesa\./,
+        /Lançamento tardio: lançada 8 dia\(s\) depois do pagamento\./,
       ),
     ).toBeInTheDocument()
     // lançada em dia: só informa, sem o alerta
     const emDia = within(cartao('Saída em dia'))
     expect(
-      emDia.getByText('lançada 2 dia(s) depois da despesa.'),
+      emDia.getByText('lançada 2 dia(s) depois do pagamento.'),
     ).toBeInTheDocument()
     expect(emDia.queryByText(/Lançamento tardio/)).toBeNull()
     // título que não é saída registrada não tem documento nem contagem
     const simples = within(cartao('Título simples'))
     expect(simples.queryByRole('link')).toBeNull()
-    expect(simples.queryByText(/depois da despesa/)).toBeNull()
+    expect(simples.queryByText(/depois do pagamento/)).toBeNull()
   })
 
   it('o rótulo do título aprovado mostra os votos de verdade (3 de 3 quando é unânime)', async () => {

@@ -29,6 +29,7 @@ import { AuditoriaPage } from '@/pages/Auditoria'
 import { CalendarioPage } from '@/pages/Calendario'
 import { ConcederAcessoPage } from '@/pages/ConcederAcesso'
 import { ConfiguracoesPage } from '@/pages/Configuracoes'
+import { RegrasDoSistemaPage } from '@/pages/RegrasDoSistema'
 import { ConselhoFiscalPage } from '@/pages/ConselhoFiscal'
 import { DevComponents } from '@/pages/DevComponents'
 import { DocumentoDetalhePage } from '@/pages/DocumentoDetalhe'
@@ -192,6 +193,16 @@ function App() {
               <RequirePermission permission="gerenciar_acesso">
                 <ErrorBoundary tituloModulo="Instituição">
                   <InstituicaoPage />
+                </ErrorBoundary>
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="/regras"
+            element={
+              <RequirePermission permission="gerenciar_acesso">
+                <ErrorBoundary tituloModulo="Regras do sistema">
+                  <RegrasDoSistemaPage />
                 </ErrorBoundary>
               </RequirePermission>
             }
