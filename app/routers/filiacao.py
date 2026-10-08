@@ -18,7 +18,7 @@ from app.security import exigir_permissao, get_current_user, usuario_tem_permiss
 from app.services.categoria_associado import ATIVO_EM_DIA, EM_EXPERIENCIA, calcular_categoria
 from app.services import filiacao_publica, filiacao_socios
 from app.services.duplicidade import detectar_cadastro_duplicado
-from app.services.protecao_publica import limitar_taxa_por_ip
+from app.services.protecao_publica import ip_publico as _ip_publico, limitar_taxa_por_ip
 from app.services.linha_do_tempo import publicar_evento_linha_do_tempo
 from app.services.matricula import proximo_numero_matricula
 
@@ -29,14 +29,6 @@ _permissao_associados = exigir_permissao("associados")
 # de uma hora e não de dez minutos)
 LIMITE_DE_PEDIDOS_POR_IP = 10
 JANELA_DE_PEDIDOS_MINUTOS = 60
-
-
-def _ip_publico(request: Request) -> str:
-    """IP de quem está do outro lado de verdade (o Container App entrega por trás de um ingress): o primeiro de `X-Forwarded-For`."""
-    encaminhado = request.headers.get("x-forwarded-for")
-    if encaminhado:
-        return encaminhado.split(",")[0].strip()
-    return request.client.host if request.client else "desconhecido"
 
 
 @router.post("/api/filiacao/propor", summary="Propor filiação (público - sem autenticação)")

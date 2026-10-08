@@ -57,7 +57,7 @@ test.describe('formulário de filiação', () => {
       await expect(page.getByLabel(rotulo)).toBeVisible()
     }
     await expect(page.locator('#aviso-de-privacidade')).toContainText(
-      'Aviso de privacidade (versão 1)',
+      'Aviso de privacidade (versão 2)',
     )
     await expect(
       page.locator('#aviso-de-privacidade').getByRole('link', {
@@ -139,7 +139,7 @@ test.describe('formulário de filiação', () => {
       email_contato: 'maria.nova@example.com',
       telefone_whatsapp: '91988887777',
       consentimento_lgpd: true,
-      versao_texto_consentimento: '1',
+      versao_texto_consentimento: '2',
       autorizacao_responsavel: false,
       pagina_web: '',
     })

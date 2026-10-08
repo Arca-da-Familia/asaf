@@ -12,7 +12,7 @@ import { ApiError, enviarJson } from './api'
  */
 
 /** Versão do aviso de privacidade do formulário. A API só aceita a versão que ela conhece: mudou o texto, muda o número nos dois lados. */
-export const VERSAO_DO_AVISO_DE_PRIVACIDADE = '1'
+export const VERSAO_DO_AVISO_DE_PRIVACIDADE = '2'
 
 export const IDADE_MINIMA = 16
 export const MAIORIDADE = 18

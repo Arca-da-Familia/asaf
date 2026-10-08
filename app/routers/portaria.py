@@ -13,15 +13,9 @@ from app.schemas.portaria import CheckinPortariaCriar, CheckoutPortariaCriar
 from app.services import checkin as servico_checkin
 from app.services.eventos import obter_evento
 from app.services.portaria import exigir_token_portaria
+from app.services.protecao_publica import ip_publico as _ip_publico
 
 router = APIRouter()
-
-
-def _ip_publico(request: Request) -> str:
-    encaminhado = request.headers.get("x-forwarded-for")
-    if encaminhado:
-        return encaminhado.split(",")[0].strip()
-    return (request.client.host if request.client else None) or "desconhecido"
 
 
 @router.get("/portaria/evento", summary="Dados mínimos do evento para o cabeçalho da tela da portaria (sem login)")

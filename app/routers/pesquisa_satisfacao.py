@@ -10,16 +10,9 @@ from app.database import get_db
 from app.schemas.pesquisa_satisfacao import PesquisaSatisfacaoResponder
 from app.services import eventos as servico_eventos
 from app.services import pesquisa_satisfacao as servico_pesquisa_satisfacao
-from app.services.protecao_publica import limitar_taxa_por_ip
+from app.services.protecao_publica import ip_publico as _ip_publico, limitar_taxa_por_ip
 
 router = APIRouter()
-
-
-def _ip_publico(request: Request) -> str:
-    encaminhado = request.headers.get("x-forwarded-for")
-    if encaminhado:
-        return encaminhado.split(",")[0].strip()
-    return (request.client.host if request.client else None) or "desconhecido"
 
 
 @router.get("/pesquisa-satisfacao/{token}", summary="Dados mínimos da pesquisa de satisfação (sem login)")

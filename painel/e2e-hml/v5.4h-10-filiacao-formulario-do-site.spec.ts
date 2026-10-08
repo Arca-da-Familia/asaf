@@ -174,7 +174,7 @@ test('a API descarta em silêncio o pedido de quem preencheu o campo escondido d
       email_contato: `robo.${S}@homologacao.example.com`,
       data_nascimento: '1990-05-10',
       consentimento_lgpd: true,
-      versao_texto_consentimento: '1',
+      versao_texto_consentimento: '2',
       pagina_web: 'http://spam.example',
     },
   })
@@ -197,7 +197,7 @@ test('a Diretoria vê os pedidos do site com o que a pessoa declarou; o robô de
     name: `Proposta de ${ADULTA.nome}`,
   })
   await expect(adulta).toContainText(ADULTA.email)
-  await expect(adulta).toContainText('Aviso de privacidade aceito (versão 1)')
+  await expect(adulta).toContainText('Aviso de privacidade aceito (versão 2)')
   await expect(adulta.getByText(/^Recebida em .* · \d+ anos$/)).toBeVisible()
   await expect(adulta.locator('[data-aviso-de-menor]')).toHaveCount(0)
 

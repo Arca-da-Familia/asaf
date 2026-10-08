@@ -145,3 +145,12 @@ def test_a_diretoria_ve_a_idade_a_declaracao_dos_pais_e_o_aceite_do_aviso(client
     assert pedido["autorizacao_responsavel_declarada"] is True
     assert pedido["consentimento_lgpd_versao"] == VERSAO_AVISO_DE_PRIVACIDADE_FILIACAO
     assert pedido["consentimento_lgpd_em"] is not None
+
+
+def test_e_mail_que_o_servidor_recusa_vem_com_a_mensagem_em_portugues(client):
+    # "a..b@exemplo.com" passa na conferência simples do site e o servidor o recusa: a mensagem não pode vir em inglês
+    resposta = _pedido(client, email_contato="a..b@exemplo.com")
+    assert resposta.status_code == 422
+    assert "Esse e-mail não parece certo" in resposta.text
+    assert "valid email" not in resposta.text
+    assert _pedido(client, email_contato="  Maria.Silva@Exemplo.COM ").status_code == 200
