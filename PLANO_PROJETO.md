@@ -1870,7 +1870,7 @@ Tudo aqui é construído (não é "decidir se faz"), na ordem abaixo, cada item 
       com discordância"), sem derrubar a aprovação; quem ainda não votou continua podendo votar num título aprovado, quem já votou só reabre; a
       Auditoria do sistema guarda as 8 ações. **Em produção (2026-10-08):** commit `40df78e` no `version.json`, Deploy API e Painel verdes,
       `GET /api/conselho-fiscal/auditoria-financeira/` responde 401 sem login.
-- [ ] **Saídas, reembolso e dupla assinatura:** a saída é lançada com a **nota fiscal anexa** e uma **categoria** (o **reembolso é uma categoria
+- [x] **Saídas, reembolso e dupla assinatura:** a saída é lançada com a **nota fiscal anexa** e uma **categoria** (o **reembolso é uma categoria
       de saída**, com as mesmas regras; entradas também têm categorias). **Dupla assinatura Presidente + 1º Tesoureiro** (Estatuto Art. 21, II).
       **Sem exigência de cotação/orçamento no dia a dia** (a regra de 2 cotações sai); orçamento só em **emenda parlamentar**, como documento
       anexado na parceria. **Prazos e alertas:** data da despesa e data do lançamento sempre registradas; alerta de lançamento tardio e de
@@ -1881,6 +1881,19 @@ Tudo aqui é construído (não é "decidir se faz"), na ordem abaixo, cada item 
       (reembolso incluso), data da despesa, data do pagamento, forma de pagamento e quem lançou; o controle é a **Auditoria financeira do
       Conselho Fiscal**, depois do fato. A compra com alçada, cotação e delegação (v3.3) continua existindo, mas **não é o caminho do dia a dia**.
       O que falta construir: o formulário único "Registrar saída" (lança e baixa de uma vez) e o alerta de lançamento tardio.
+      **Na homologação (2026-10-08):** `v5.4h-08`, 5 de 5: o caminho do dia a dia (Financeiro, Saídas, "Registrar saída (já paga)"); o
+      formulário vazio lista o que falta; data no futuro é recusada pelo servidor e não deixa saída nem rastro; a saída entra **já Paga**, com
+      categoria, nota fiscal e comprovante, e aparece em Saídas com o link da nota (o arquivo abre e é o enviado); saída lançada 20 dias depois
+      do pagamento avisa "lançamento tardio"; o reembolso é a mesma saída com um associado como quem recebeu; o Conselheiro Fiscal abre a nota e o
+      comprovante no cartão da Auditoria financeira e vê o aviso de lançamento tardio; a Auditoria do sistema guarda as 3 saídas; o Secretário é
+      barrado na tela e na API. Se a baixa é recusada (conta errada, exercício fechado) o título criado para ela é desfeito. Regressão verde:
+      Títulos 5/5, Auditoria financeira 8/8, receita (e-02) 29/29, despesa (e-03) 12/12. **Em produção (2026-10-08):** commit `1bfc17f` no
+      `version.json`, Deploy API e Painel verdes (migração `c4f9a1e6b270`, coluna `nota_fiscal` do título), `POST /api/saidas/registrar` responde
+      401 sem login e consta no `openapi.json`. A dupla assinatura **não virou etapa do sistema** (decisão do Presidente de 08/10: o sistema é só
+      o registro); a compra com alçada e cotação (v3.3) segue existindo fora do dia a dia.
+- [ ] **Lançamento tardio entre os alertas do Conselho Fiscal:** hoje a saída tardia (mais de 5 dias entre o pagamento e o lançamento) fica marcada
+      na Auditoria do sistema e no cartão da Auditoria financeira; falta aparecer também nos alertas de padrões suspeitos (v3.7) e poder
+      ajustar o limite de 5 dias na tela de Instituição/configurações.
 - [ ] **Filiação de ponta a ponta (Estatuto Art. 12):** formulário público; o pedido precisa ser **proposto por 3 sócios** (qualquer sócio ativo
       e apto pode propor) e passar pela **análise da Diretoria Executiva**; os sócios ativos **recebem a notificação no painel** para propor ou
       recusar; sem prazo — sem resposta, o pedido fica pendente; aprovado, entra no livro de associados com a matrícula.
