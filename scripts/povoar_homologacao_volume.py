@@ -96,12 +96,23 @@ def povoar(client, db, escrever=print) -> dict:
 
     # ---------------------------------------------------------------------------------------- 5 em experiência (pela filiação) e propostas
     def filiacao():
+        # o Estatuto (Art. 12) pede o pedido proposto por 3 sócios aptos antes de a Diretoria aprovar: o administrador (sócio ativo) e
+        # mais dois sócios com login propõem
+        socios = [adm, *eleitores[:2]]
+        if len(socios) < 3:
+            raise SystemExit("Faltam sócios com login para propor os candidatos: rode antes o roteiro `popular_homologacao.py`.")
+
+        def socios_propoem(proposta: int) -> None:
+            for socio in socios:
+                ok(client.post(f"/api/filiacao/propostas/{proposta}/propor", headers=socio, json={"decisao": "Propõe"}))
+
         for k in range(5):
             nome = NOMES_NOVOS[25 + k]
             proposta = ok(client.post("/api/filiacao/propor", json={
                 "nome_completo": f"{nome} de Teste", "cpf": ph.cpf_valido(444000000 + k * 7951),
                 "email_contato": f"{MARCA}{26 + k}@{ph.SUFIXO_EMAIL}", "telefone_whatsapp": f"9198{k:02d}{(k * 71) % 10000:04d}"[:11],
             })).json()["id_proposta"]
+            socios_propoem(proposta)
             ok(client.post(f"/api/filiacao/propostas/{proposta}/conferir", headers=adm))
             ok(client.post(f"/api/filiacao/propostas/{proposta}/aprovar", headers=adm, json={"categoria": "Efetivo"}))
         pendentes = []
