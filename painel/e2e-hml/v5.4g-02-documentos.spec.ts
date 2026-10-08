@@ -12,7 +12,7 @@ import {
   ver,
   vigiar,
 } from './apoio'
-import { pdfComTexto, pdfSoImagem } from './pdfs'
+import { pdfComTexto, pdfComTextoETarja, pdfSoImagem } from './pdfs'
 
 // v5.4g - FASE 5 ao vivo, item 2: DOCUMENTOS (a biblioteca de documentos institucionais e o que vai ao site de transparência), pela tela e conferindo a API pública:
 //  - o Secretário prepara (cadastra com o ORIGINAL em PDF, que tem dado pessoal de mentira, e a versão pública em texto);
@@ -205,7 +205,7 @@ test('o Secretário cadastra um documento Restrito para o site, com o original (
   expect(vigia.problemas()).toEqual([])
 })
 
-test('a versão pública com dado pessoal é recusada (e nada é gravado): texto com CPF, e-mail e celular; PDF com CPF; PDF só imagem; arquivo que não é PDF', async ({
+test('a versão pública com dado pessoal é recusada (e nada é gravado): texto com CPF, e-mail e celular; PDF com CPF; PDF com tarja só desenhada; PDF só imagem; arquivo que não é PDF', async ({
   page,
 }, info) => {
   const vigia = vigiar(page)
@@ -242,6 +242,21 @@ test('a versão pública com dado pessoal é recusada (e nada é gravado): texto
     'CPF na versão pública',
   )
   await conferirQueOCpfNaoApareceInteiro(page)
+
+  // uma tarja preta só DESENHADA por cima do CPF não o cobre: o texto continua lá, e o verificador lê o texto
+  await enviarPdfPublico(
+    page,
+    'com-tarja-desenhada.pdf',
+    pdfComTextoETarja([
+      'Ata de teste.',
+      `Fulana de Tal, CPF ${CPF_DE_MENTIRA}, presente na reuniao.`,
+    ]),
+  )
+  await expect(resultadoDaConferencia(page)).toContainText(
+    'CPF na versão pública',
+  )
+  await conferirQueOCpfNaoApareceInteiro(page)
+  await ver(page, info, 'tarja-so-desenhada-nao-cobre-o-cpf')
 
   await enviarPdfPublico(page, 'so-imagem.pdf', pdfSoImagem())
   await expect(resultadoDaConferencia(page)).toContainText('o PDF é só imagem')

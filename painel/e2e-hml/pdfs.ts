@@ -28,6 +28,21 @@ export function pdfComTexto(linhas: string[]): Buffer {
   ])
 }
 
+/** O mesmo PDF de texto, com uma TARJA PRETA desenhada por cima da primeira linha: o texto continua lá debaixo (quem copia ou busca lê tudo), então não conta como coberto. */
+export function pdfComTextoETarja(linhas: string[]): Buffer {
+  const conteudo = `BT /F1 12 Tf 72 720 Td 16 TL ${linhas.map((l) => `(${l}) Tj T*`).join(' ')} ET 0 0 0 rg 70 688 330 14 re f`
+  return montar([
+    '<</Type/Catalog/Pages 2 0 R>>',
+    '<</Type/Pages/Kids[3 0 R]/Count 1>>',
+    '<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>',
+    `<</Length ${conteudo.length}>>
+stream
+${conteudo}
+endstream`,
+    '<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>',
+  ])
+}
+
 /** Um PDF de uma página que é só uma imagem 2x2 (sem texto nenhum): o verificador tem de recusar como "só imagem". */
 export function pdfSoImagem(): Buffer {
   const desenho = 'q 200 0 0 200 100 500 cm /Im0 Do Q'
