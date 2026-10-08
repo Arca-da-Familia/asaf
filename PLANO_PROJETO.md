@@ -3407,6 +3407,16 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         avisos `EBADENGINE`; o `npm outdated` sob Node 26 mostrou só um patch de `@types/node`
         (26.6.3 → 26.6.4, aplicado). Suítes completas rodadas sob o Node 26 como padrão. As
         versões 24.19.0 e 20.20.2 seguem instaladas no `nvm` (candidatas a remoção).
+      - **Lote 8 ✅ FEITO, provado na homologação e confirmado em produção (2026-10-08, commit `944df23`)** (mesma versão-maior,
+        só última estável): servidor `fastapi` 0.142.2 → **0.143.0** e `sqlalchemy` 2.1.2 → **2.1.4**; painel `vite` 8.3.4, `eslint` 10.12,
+        `typescript-eslint` 8.71, `@tanstack/react-table` 9.2.6, `lucide-react` 1.53, radix (`alert-dialog` 1.1.24, `slot` 1.4.0), `idb` 8.0.4,
+        `applicationinsights-web` 3.4.5, `@playwright/test` 1.64, `jsdom` 30.1.2; site `astro` 7.3.7, `@playwright/test` 1.64, `jsdom` 30.1.2.
+        **Verificado:** suíte do servidor 984 de 984, rodada duas vezes (nas versões novas); painel: formatação, tipos (inclusive do robô), lint,
+        408 testes e build; site: tipos, 247 testes, formatação e build de teste. **Na homologação:** deploy da branch e o robô verde em fase0
+        (6/6), fase1 (24/24), filiação por sócios (h-09 5/5), Auditoria financeira (h-03 8/8), relatórios e antifraude (e-04 16/16), registrar
+        saída (h-08 5/5) e despesa/compras (e-03 12/12). **Em produção:** Deploy API, Painel e Site verdes; `version.json` = `944df23`;
+        `asaf.org.br` e o painel respondem 200; as rotas da filiação seguem 401 sem login; o `openapi.json` lista 406 rotas. Pré-lançamento
+        (beta/rc) segue só informativo.
 - [ ] Fator ônibus tratado como risco de projeto (v12.8): documentação suficiente para outra
       pessoa assumir, e pelo menos uma pessoa da associação treinada na operação básica.
 
