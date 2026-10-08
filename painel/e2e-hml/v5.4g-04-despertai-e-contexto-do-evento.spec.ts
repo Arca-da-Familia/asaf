@@ -494,8 +494,8 @@ async function cadastrarRelatorio(
   await expect(tipo.locator('option[value="RELATORIO_EVENTO"]')).toBeAttached()
   await tipo.selectOption('RELATORIO_EVENTO')
   await page.getByLabel('Título').fill(d.titulo)
-  await page.getByLabel('Pertence a', { exact: true }).selectOption(d.vinculo)
-  await page.getByLabel('Número', { exact: true }).fill(String(d.numero))
+  await page.getByLabel(/^Pertence a/).selectOption(d.vinculo)
+  await page.getByLabel(/^Número/).fill(String(d.numero))
   await expect(
     page.getByText(`Este documento pertence ao ${d.vinculo} nº ${d.numero}.`),
   ).toBeVisible()
@@ -802,52 +802,68 @@ test('editar o projeto: dado pessoal no texto público é barrado; destaque em p
   )
   await ver(page, info, 'projeto Interno: destaque recusado pelo servidor')
 
-  // ---- vários destaques ao mesmo tempo: o Interno vira Público e em destaque pela tela; o Despertai continua em destaque
-  const detalheInterno = await abrirProjeto(page, idInterno, NOME_INTERNO)
-  const editarInterno = await abrirEdicaoDoProjeto(page, detalheInterno)
-  await expect(caixaDeDestaque(editarInterno)).toBeDisabled()
-  await editarInterno
-    .getByLabel('Quem pode ver o projeto')
-    .selectOption('Pública')
-  await expect(caixaDeDestaque(editarInterno)).toBeEnabled()
-  await caixaDeDestaque(editarInterno).check()
-  expect((await salvarProjeto(page, editarInterno)).status()).toBe(200)
-  esperado.projetos_eventos += 1
-  const doisDestaques = await lerPublico<ProjetoPublico[]>(
-    page,
-    '/api/publico/projetos',
-  )
-  expect(doisDestaques.find((p) => p.id_projeto === id)?.destaque).toBe(true)
-  expect(doisDestaques.find((p) => p.id_projeto === idInterno)?.destaque).toBe(
-    true,
-  )
-  await expect(
-    itemDoProjeto(page, NOME_PROJETO).getByText('Em destaque no site'),
-  ).toBeVisible()
-  await expect(
-    itemDoProjeto(page, NOME_INTERNO).getByText('Em destaque no site'),
-  ).toBeVisible()
-  await ver(page, info, 'dois projetos em destaque ao mesmo tempo')
+  // o projeto Interno só fica Público por alguns passos: se algo falhar no meio, ele volta a Interno (é o controle negativo do roteiro do site)
+  let voltouAInterno = false
+  try {
+    // ---- vários destaques ao mesmo tempo: o Interno vira Público e em destaque pela tela; o Despertai continua em destaque
+    const detalheInterno = await abrirProjeto(page, idInterno, NOME_INTERNO)
+    const editarInterno = await abrirEdicaoDoProjeto(page, detalheInterno)
+    await expect(caixaDeDestaque(editarInterno)).toBeDisabled()
+    await editarInterno
+      .getByLabel('Quem pode ver o projeto')
+      .selectOption('Pública')
+    await expect(caixaDeDestaque(editarInterno)).toBeEnabled()
+    await caixaDeDestaque(editarInterno).check()
+    expect((await salvarProjeto(page, editarInterno)).status()).toBe(200)
+    esperado.projetos_eventos += 1
+    const doisDestaques = await lerPublico<ProjetoPublico[]>(
+      page,
+      '/api/publico/projetos',
+    )
+    expect(doisDestaques.find((p) => p.id_projeto === id)?.destaque).toBe(true)
+    expect(
+      doisDestaques.find((p) => p.id_projeto === idInterno)?.destaque,
+    ).toBe(true)
+    await expect(
+      itemDoProjeto(page, NOME_PROJETO).getByText('Em destaque no site'),
+    ).toBeVisible()
+    await expect(
+      itemDoProjeto(page, NOME_INTERNO).getByText('Em destaque no site'),
+    ).toBeVisible()
+    await ver(page, info, 'dois projetos em destaque ao mesmo tempo')
 
-  // ---- voltar a Interno: o destaque se desmarca sozinho e o projeto sai do site (o Despertai fica como estava)
-  const detalheDeNovo = await abrirProjeto(page, idInterno, NOME_INTERNO)
-  const editarDeNovo = await abrirEdicaoDoProjeto(page, detalheDeNovo)
-  await editarDeNovo
-    .getByLabel('Quem pode ver o projeto')
-    .selectOption('Interna')
-  await expect(caixaDeDestaque(editarDeNovo)).not.toBeChecked()
-  await expect(caixaDeDestaque(editarDeNovo)).toBeDisabled()
-  expect((await salvarProjeto(page, editarDeNovo)).status()).toBe(200)
-  esperado.projetos_eventos += 1
-  const depois = await lerPublico<ProjetoPublico[]>(
-    page,
-    '/api/publico/projetos',
-  )
-  expect(depois.some((p) => p.id_projeto === idInterno)).toBe(false)
-  expect(depois.find((p) => p.id_projeto === id)?.destaque).toBe(true)
-  expect(await statusPublico(page, `/api/publico/projetos/${idInterno}`)).toBe(
-    404,
-  )
+    // ---- voltar a Interno: o destaque se desmarca sozinho e o projeto sai do site (o Despertai fica como estava)
+    const detalheDeNovo = await abrirProjeto(page, idInterno, NOME_INTERNO)
+    const editarDeNovo = await abrirEdicaoDoProjeto(page, detalheDeNovo)
+    await editarDeNovo
+      .getByLabel('Quem pode ver o projeto')
+      .selectOption('Interna')
+    await expect(caixaDeDestaque(editarDeNovo)).not.toBeChecked()
+    await expect(caixaDeDestaque(editarDeNovo)).toBeDisabled()
+    expect((await salvarProjeto(page, editarDeNovo)).status()).toBe(200)
+    esperado.projetos_eventos += 1
+    voltouAInterno = true
+    const depois = await lerPublico<ProjetoPublico[]>(
+      page,
+      '/api/publico/projetos',
+    )
+    expect(depois.some((p) => p.id_projeto === idInterno)).toBe(false)
+    expect(depois.find((p) => p.id_projeto === id)?.destaque).toBe(true)
+    expect(
+      await statusPublico(page, `/api/publico/projetos/${idInterno}`),
+    ).toBe(404)
+  } finally {
+    if (!voltouAInterno) {
+      await page.request.fetch(`${API_HML}/api/projetos/${idInterno}`, {
+        method: 'PUT',
+        headers: { Authorization: token(), 'Content-Type': 'application/json' },
+        data: JSON.stringify({
+          visibilidade: 'Interna',
+          destaque_no_site: false,
+        }),
+      })
+    }
+  }
   expect(vigia.problemas()).toEqual([])
 })
 
@@ -929,12 +945,8 @@ test('a 1ª edição entra como evento Público ligado ao projeto: dado pessoal 
   await expect(page.getByLabel('Tipo de documento')).toHaveValue(
     'RELATORIO_EVENTO',
   )
-  await expect(page.getByLabel('Pertence a', { exact: true })).toHaveValue(
-    'evento',
-  )
-  await expect(page.getByLabel('Número', { exact: true })).toHaveValue(
-    String(idEvento1),
-  )
+  await expect(page.getByLabel(/^Pertence a/)).toHaveValue('evento')
+  await expect(page.getByLabel(/^Número/)).toHaveValue(String(idEvento1))
   await expect(
     page.getByText(`Este documento pertence ao evento nº ${idEvento1}.`),
   ).toBeVisible()
@@ -1368,12 +1380,12 @@ test('o relatório do evento: o Secretário cadastra ligado ao evento (e ao proj
     page.getByRole('heading', { name: 'Novo documento', level: 1 }),
   ).toBeVisible()
   await page.getByLabel('Título').fill(DOC_EVENTO)
-  await page.getByLabel('Pertence a', { exact: true }).selectOption('evento')
+  await page.getByLabel(/^Pertence a/).selectOption('evento')
   await page.getByRole('button', { name: 'Cadastrar documento' }).click()
   await expect(page.getByRole('alert')).toContainText(
     'Informe o número do evento ou do projeto a que o documento pertence (um número maior que zero).',
   )
-  await page.getByLabel('Número', { exact: true }).fill('999999999')
+  await page.getByLabel(/^Número/).fill('999999999')
   await page.getByRole('button', { name: 'Cadastrar documento' }).click()
   await expect(page.getByRole('alert')).toContainText(
     'Evento nº 999999999 não encontrado: confira o número do vínculo.',
