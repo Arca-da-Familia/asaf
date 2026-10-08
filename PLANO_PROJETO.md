@@ -1862,9 +1862,14 @@ Tudo aqui é construído (não é "decidir se faz"), na ordem abaixo, cada item 
       sistema guarda as 7 ações. Título aprovado também não é estornado nem renegociado enquanto estiver travado (testes do servidor).
       **Em produção (2026-10-08):** migração `b8e4c1a7d205` aplicada pelo pipeline; `GET /api/conselho-fiscal/auditoria-financeira/` e
       `POST .../aprovar-em-lote` respondem 401 sem login.
-- [ ] **Auditoria financeira: a discordância não trava a maioria.** Hoje uma ressalva ou reprovação com pergunta aberta ainda suspende o
+- [x] **Auditoria financeira: a discordância não trava a maioria.** Hoje uma ressalva ou reprovação com pergunta aberta ainda suspende o
       título mesmo com 2 aprovações. Decisão do Presidente (2026-10-08): com a maioria o título aprova; o motivo de quem discordou fica
       destacado no cartão e na Auditoria.
+      **Na homologação (2026-10-08):** `v5.4h-03` refeito, 8 de 8: com a maioria (2 de 3) o título aprova e trava mesmo com ressalva aberta; o 3º
+      conselheiro registra a reprovação de um título já aprovado e o motivo aparece em destaque no cartão ("Discordância de ...") e no resumo ("N
+      com discordância"), sem derrubar a aprovação; quem ainda não votou continua podendo votar num título aprovado, quem já votou só reabre; a
+      Auditoria do sistema guarda as 8 ações. **Em produção (2026-10-08):** commit `40df78e` no `version.json`, Deploy API e Painel verdes,
+      `GET /api/conselho-fiscal/auditoria-financeira/` responde 401 sem login.
 - [ ] **Saídas, reembolso e dupla assinatura:** a saída é lançada com a **nota fiscal anexa** e uma **categoria** (o **reembolso é uma categoria
       de saída**, com as mesmas regras; entradas também têm categorias). **Dupla assinatura Presidente + 1º Tesoureiro** (Estatuto Art. 21, II).
       **Sem exigência de cotação/orçamento no dia a dia** (a regra de 2 cotações sai); orçamento só em **emenda parlamentar**, como documento
