@@ -211,3 +211,13 @@ def test_a_sincronizacao_abre_e_fecha_o_aviso_de_defasagem():
     assert "issues: write" in texto and "alerta-site-defasado" in texto
     assert "actions/cache/restore@" in texto and "actions/cache/save@" in texto
     assert "gh issue close" in texto
+
+
+def test_os_vigilantes_olham_so_a_producao_nunca_a_homologacao():
+    """Monitor, sincronização e trava de tamanho rodam sozinhos, o dia inteiro: apontá-los para a homologação (que dorme para não custar) seria acordar o
+    ambiente de teste de 15 em 15 minutos para sempre. A conferência da v5.4g (2026-10-08) exige que eles olhem só a produção."""
+    for arquivo in ("monitorar-site.yml", "sincronizar-site.yml"):
+        texto = (RAIZ / ".github" / "workflows" / arquivo).read_text(encoding="utf-8").lower()
+        assert "hml" not in texto and "homolog" not in texto.replace("homologação", "").replace("homologacao", ""), arquivo
+        assert "https://asaf.org.br" in texto or "asaf.org.br" in texto, arquivo
+    assert "hml-" not in (RAIZ / "site" / "scripts" / "verificar-tamanho.mjs").read_text(encoding="utf-8").lower()
