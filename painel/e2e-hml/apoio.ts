@@ -127,11 +127,11 @@ export function vigiar(page: Page): { problemas: () => string[] } {
 /** A API de TESTE (nunca a de produção). O robô só a usa onde o sistema ainda não tem tela de entrada (ex.: o formulário público do site). */
 export const API_HML = 'https://hml-api.asaf.org.br'
 
-/** O que todo pedido de filiação pela rota pública traz além dos dados da pessoa (v5.4h): maior de idade e aviso de privacidade aceito (versão 1). */
+/** O que todo pedido de filiação pela rota pública traz além dos dados da pessoa (v5.4h): maior de idade e aviso de privacidade aceito (versão 2). */
 export const PEDIDO_PUBLICO = {
   data_nascimento: '1990-05-10',
   consentimento_lgpd: true,
-  versao_texto_consentimento: '1',
+  versao_texto_consentimento: '2',
 }
 
 /** Cadastra um associado pelo formulário (Novo associado); com `forcar`, aperta "cadastrar mesmo assim" depois do aviso de cadastro parecido. */

@@ -43,7 +43,7 @@ from app.services import portaria as servico_portaria
 from app.services import publico_contexto
 from app.services import precos_evento as servico_precos_evento
 from app.services import vagas as servico_vagas
-from app.services.protecao_publica import limitar_taxa_por_ip
+from app.services.protecao_publica import ip_publico as _ip_publico, limitar_taxa_por_ip
 
 router = APIRouter()
 _permissao_projetos = exigir_permissao("projetos")
@@ -58,18 +58,6 @@ JANELA_DE_INSCRICOES_MINUTOS = 10
 
 def _ip_origem(request: Request):
     return request.client.host if request.client else None
-
-
-def _ip_publico(request: Request) -> str:
-    """v4.6 - IP de quem está do outro lado de verdade, não do proxy - o Container App entrega a
-    requisição por trás de um ingress, então `request.client.host` seria o IP interno do
-    ingress/load balancer (o mesmo pra todo mundo), inutilizando o rate limiting por IP. Usa o
-    primeiro IP de `X-Forwarded-For` quando presente (padrão do Azure Container Apps), cai pro
-    `request.client.host` só quando não tem proxy no meio (dev local)."""
-    encaminhado = request.headers.get("x-forwarded-for")
-    if encaminhado:
-        return encaminhado.split(",")[0].strip()
-    return _ip_origem(request) or "desconhecido"
 
 
 def _vagas_livres(e) -> Optional[int]:

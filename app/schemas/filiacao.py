@@ -24,6 +24,19 @@ class PropostaFiliacaoCriar(BaseModel):
     autorizacao_responsavel: bool = False
     pagina_web: Optional[str] = None
 
+    @field_validator("email_contato", mode="before")
+    @classmethod
+    def validar_email_em_portugues(cls, v):
+        # a mensagem padrão da biblioteca vem em inglês e é a que aparece para quem preenche o formulário do site
+        if v is None or str(v).strip() == "":
+            return None
+        try:
+            from email_validator import EmailNotValidError, validate_email
+
+            return validate_email(str(v).strip(), check_deliverability=False).normalized
+        except EmailNotValidError:
+            raise ValueError("Esse e-mail não parece certo: confira se está escrito sem erro.")
+
     @field_validator("nome_completo")
     @classmethod
     def validar_nome(cls, v):
