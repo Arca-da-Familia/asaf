@@ -172,3 +172,43 @@ def test_mexer_so_no_robo_de_conferencia_nao_reconstroi_o_painel_de_producao():
         assert texto.count(ignorado) == 2, f"{ignorado} em push e em pull_request"
     # a negação vem DEPOIS de "painel/**" (a ordem importa nos filtros de caminho do GitHub)
     assert texto.index('"painel/**"') < texto.index('"!painel/e2e-hml/**"')
+
+
+# ------------------------------------------------------------------------------------------------ teste de carga (v5.4h)
+TEXTO_CARGA = (RAIZ / ".github" / "workflows" / "testar-carga-homologacao.yml").read_text(encoding="utf-8")
+CODIGO_CARGA = _sem_comentarios(TEXTO_CARGA)
+
+
+def test_a_carga_so_dispara_a_mao_e_usa_a_mesma_fila_da_homologacao():
+    """Carga contra a API de teste acorda o ambiente e custa dinheiro: nunca por push, agenda ou outro fluxo, e nunca no meio de uma publicação."""
+    gatilho = CODIGO_CARGA.split("permissions:")[0]
+    assert "workflow_dispatch:" in gatilho
+    for proibido in ("push:", "pull_request", "schedule:", "cron:", "workflow_run"):
+        assert proibido not in gatilho, proibido
+    assert "group: homologacao" in CODIGO_CARGA and "cancel-in-progress: false" in CODIGO_CARGA
+
+
+def test_a_carga_so_le_a_senha_do_presidente_de_teste_e_nunca_toca_na_producao():
+    assert re.findall(r"--name (\S+)", CODIGO_CARGA) == ["HML-ADMIN-SENHA"]
+    assert "secret set" not in CODIGO_CARGA, "o fluxo só lê o cofre"
+    for producao in ("https://api.asaf.org.br", "painel.asaf.org.br", "--name DATABASE-URL", "SWA-", "DIRECTUS", "az containerapp"):
+        assert producao not in CODIGO_CARGA, producao
+    assert CODIGO_CARGA.count("::add-mask::") >= 1
+
+
+def test_a_carga_confere_os_numeros_antes_de_usar_e_nunca_os_interpola_no_script():
+    passo = _passo_de(TEXTO_CARGA, "Confere os números pedidos")
+    assert "*[!0-9]*)" in passo and "exit 1" in passo and "-gt 600" in passo, "só inteiros, e no máximo 600 pessoas"
+    for entrada in ("pessoas", "vagas", "rampa", "preenchimento", "p95_maximo"):
+        assert f"${{{{ inputs.{entrada} }}}}" in CODIGO_CARGA
+    # cada `${{ inputs.* }}` aparece só em `env:` (ou no `ref:` do checkout), nunca dentro de um `run:`
+    for linha in CODIGO_CARGA.splitlines():
+        if "${{ inputs." in linha:
+            assert re.match(r"\s+([A-Z0-9_]+|ref): \$\{\{ inputs\.\w+ \}\}$", linha), linha
+
+
+def test_a_carga_varre_o_relatorio_atras_da_senha_antes_de_guardar():
+    varredura = _passo_de(TEXTO_CARGA, "Varre o relatório atrás de senha")
+    assert "if: ${{ always() }}" in varredura and "grep -rIlF -f" in varredura and "rm -rf resultado-de-carga" in varredura and "exit 1" in varredura
+    assert TEXTO_CARGA.index("Varre o relatório atrás de senha") < TEXTO_CARGA.index("Guarda o relatório")
+
