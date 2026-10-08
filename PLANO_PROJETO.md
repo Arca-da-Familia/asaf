@@ -1909,8 +1909,23 @@ Tudo aqui é construído (não é "decidir se faz"), na ordem abaixo, cada item 
       sócios proporem antes de aprovar (teste próprio). **Em produção (2026-10-08):** commit `4f195b7`, Deploy API e Painel verdes;
       `version.json` bate; `GET /api/filiacao/para-propor` e `GET /api/minhas-notificacoes/` respondem 401 sem login e as rotas novas estão no
       `openapi.json`; a produção não recebeu nenhum dado de teste.
-- [ ] **Filiação: formulário público no site:** o pedido sai do site (hoje a rota pública existe, mas o site só lê); exige idade mínima de 18
-      anos (16 a 17 com autorização do responsável), aviso de LGPD, limite por IP como nas outras rotas públicas e teste na homologação.
+- [x] **Filiação: formulário público no site:** o pedido sai de `/seja-associado/` (hoje o site só lê) e cai na caixa da Diretoria. **Como funciona:**
+      a página pede nome, CPF, data de nascimento e e-mail ou telefone, valida na hora (CPF, idade, contato) e mostra o aviso de privacidade (versão 1) com a
+      caixa de aceite; de 16 a 17 anos aparece a declaração de que os pais ou responsáveis autorizaram (o papel é conferido pela Diretoria: o cartão do pedido
+      mostra a idade, o aceite e essa declaração); abaixo de 16 não se filia (Estatuto, Art. 12). O servidor repete todas as regras em `POST
+      /api/filiacao/propor`: data de nascimento e aceite do aviso (com a versão que a pessoa viu) obrigatórios, ao menos um contato, limite de 10 pedidos por IP
+      por hora, campo escondido que descarta robôs em silêncio, a mesma frase para "já é associado" e "já tem pedido" (ninguém de fora descobre se um CPF é
+      de sócio) e o envio na Auditoria (`PROPOSTA_PUBLICA`, com o IP). Migração `e7c3d9a4b158` (aceite, versão e declaração no pedido). A Política de
+      Privacidade passou à versão 1.2 e descreve o formulário. **Na homologação (2026-10-08):** `v5.4h-10`, 5 de 5, preenchendo o formulário do site de teste
+      (formulário em branco recusado com o resumo e o foco no primeiro campo; CPF que não confere, menor de 16 anos e sem contato recusados na página; pedido
+      certo atravessa a API de outra origem e a página confirma; o mesmo CPF de novo é recusado com a frase única; de 16 a 17 anos a página pede a declaração
+      dos pais e só então aceita; a Diretoria vê idade, aceite do aviso e a declaração; o sócio vê o candidato só com nome e idade, sem CPF, e-mail nem
+      telefone; a Auditoria guarda os envios; o robô que preenche o campo escondido recebe sucesso e não deixa pedido); regressão verde: `v5.4h-09` 5/5 e
+      `v5.4c-fase1` 24/24. No servidor, 1000 testes verdes; no site, 26 testes novos, 10 de ponta a ponta do formulário e a suíte de acessibilidade inteira (inclui
+      o formulário com erros e com a declaração dos pais, no computador e no celular). **Em produção (2026-10-08):** commit `078344c`; Deploy API, Painel e Site
+      verdes (o do site com acessibilidade e Lighthouse); `version.json` bate; `asaf.org.br/seja-associado/` traz o formulário apontando para `api.asaf.org.br`; a
+      Política de Privacidade mostra a versão 1.2; o preflight de CORS de `https://asaf.org.br` para `POST /api/filiacao/propor` responde 200 liberando o POST; o
+      `openapi.json` mostra o corpo novo (nascimento obrigatório); `GET /api/filiacao/propostas` segue 401. Nenhum pedido de teste foi enviado à produção.
 - [x] **Telas que faltam:** inscrição no evento pelo painel (secretaria inscrevendo alguém); **núcleo familiar** do beneficiário;
       **alocar voluntário** direto num turno.
       **Na homologação (2026-10-07):** `v5.4h-06` inscrição pela secretaria, 4 de 4 (com 1 vaga: o primeiro fica Pré-inscrito, o segundo vai
