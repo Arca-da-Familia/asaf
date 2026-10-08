@@ -185,7 +185,22 @@ function Proposta({ proposta }: { proposta: PropostaDeFiliacao }) {
           </p>
           <p className="text-xs text-muted-foreground">
             Recebida em {formatarData(proposta.criado_em)}
+            {typeof proposta.idade === 'number' && ` · ${proposta.idade} anos`}
           </p>
+          {proposta.consentimento_lgpd_em && (
+            <p className="text-xs text-muted-foreground">
+              Aviso de privacidade aceito (versão{' '}
+              {proposta.consentimento_lgpd_versao}) em{' '}
+              {formatarData(proposta.consentimento_lgpd_em)}
+            </p>
+          )}
+          {proposta.autorizacao_responsavel_declarada && (
+            <p className="text-sm font-medium" data-aviso-de-menor>
+              Tem menos de 18 anos: declarou ter a autorização dos pais ou
+              responsáveis. Confira o papel (Estatuto, Art. 12) antes de
+              aprovar.
+            </p>
+          )}
         </div>
         <span
           className={`rounded px-2 py-0.5 text-xs font-medium ${COR_DA_SITUACAO[proposta.status] ?? ''}`}

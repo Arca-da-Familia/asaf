@@ -11,7 +11,7 @@ ainda. Quando a FASE 2 existir, este é o lugar certo pra conectar um caminho al
 aprovação - registrado aqui em vez de fingir uma distinção que não pode ser aplicada hoje."""
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint
 
 from app.database import Base
 
@@ -32,6 +32,11 @@ class PropostaFiliacao(Base):
     status = Column(String, default=PENDENTE, index=True)
     motivo_recusa = Column(String, nullable=True)
     id_associado_efetivado = Column(Integer, ForeignKey("associados.id_associado"), nullable=True)
+    # v5.4h - o que a pessoa declarou no formulário público do site: ciência do aviso de privacidade (com a versão do texto, que o servidor
+    # confere) e, de 16 a 17 anos, a declaração de que tem a autorização expressa dos pais ou responsáveis (o papel é conferido pela secretaria)
+    consentimento_lgpd_em = Column(DateTime, nullable=True)
+    consentimento_lgpd_versao = Column(String(20), nullable=True)
+    autorizacao_responsavel_declarada = Column(Boolean, nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

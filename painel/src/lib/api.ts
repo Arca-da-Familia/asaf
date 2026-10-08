@@ -5455,6 +5455,11 @@ export type PropostaDeFiliacao = {
   motivo_recusa: string | null
   id_associado_efetivado: number | null
   criado_em: string
+  // v5.4h - o que a pessoa declarou no formulário do site (nulo nos pedidos antigos): idade, declaração dos pais (16 a 17 anos) e aceite do aviso
+  idade?: number | null
+  autorizacao_responsavel_declarada?: boolean | null
+  consentimento_lgpd_em?: string | null
+  consentimento_lgpd_versao?: string | null
   // v5.4h - quem propôs ou recusou (com o motivo); o Estatuto pede 3 sócios propondo para a Diretoria aprovar
   proponentes?: DecisaoDoSocio[]
   total_propoem?: number

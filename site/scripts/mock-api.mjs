@@ -867,6 +867,14 @@ function semCampos(corpo, campos) {
   return Array.isArray(corpo) ? corpo.map(limpar) : limpar(corpo)
 }
 
+/** Pedidos de filiação que o formulário do site mandou ao mock (o teste confere o corpo que a API real receberia). */
+const pedidosDeFiliacao = []
+/** CPFs de teste que fazem o mock responder como a API real responderia a esses casos. */
+export const CPF_QUE_JA_TEM_PEDIDO = '11144477735'
+export const CPF_QUE_DERRUBA_A_API = '52998224725'
+export const RECUSA_DE_DUPLICIDADE =
+  'Já existe um pedido em andamento ou um cadastro com estes dados. Fale com a secretaria para saber a situação.'
+
 /**
  * `vazio`: a produção sem nenhum dado cadastrado. `antiga`: a API ANTES da v5.5 — mesmos dados, mas sem destaque, sem
  * projeto no evento, sem edições, relatórios nem fotos e sem os campos de ligação das notícias (o site precisa
@@ -885,7 +893,7 @@ export function criarServidor({ vazio = false, antiga = false } = {}) {
     if (req.method === 'OPTIONS') {
       res.writeHead(204, {
         ...cors,
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Accept, Content-Type',
       })
       res.end()
@@ -895,6 +903,39 @@ export function criarServidor({ vazio = false, antiga = false } = {}) {
     const responder = (corpo, status = 200) => {
       res.writeHead(status, { ...cors, 'Content-Type': 'application/json' })
       res.end(JSON.stringify(corpo))
+    }
+
+    // ---- Pedido de filiação (v5.4h): o formulário do site manda um POST; o mock guarda o corpo e responde como a API real.
+    if (
+      req.method === 'POST' &&
+      (req.url ?? '').split('?')[0] === '/api/filiacao/propor'
+    ) {
+      let texto = ''
+      req.on('data', (parte) => (texto += parte))
+      req.on('end', () => {
+        let corpo
+        try {
+          corpo = JSON.parse(texto)
+        } catch {
+          return responder({ detail: 'Corpo inválido.' }, 422)
+        }
+        pedidosDeFiliacao.push(corpo)
+        if (corpo.cpf === CPF_QUE_JA_TEM_PEDIDO)
+          return responder({ detail: RECUSA_DE_DUPLICIDADE }, 400)
+        if (corpo.cpf === CPF_QUE_DERRUBA_A_API)
+          return responder({ detail: 'Erro interno do servidor.' }, 500)
+        return responder({
+          mensagem: 'Proposta de filiação recebida.',
+          id_proposta: pedidosDeFiliacao.length,
+        })
+      })
+      return
+    }
+    if (
+      req.method === 'GET' &&
+      (req.url ?? '').split('?')[0] === '/__pedidos-de-filiacao'
+    ) {
+      return responder(pedidosDeFiliacao)
     }
 
     // ---- Directus simulado (v5.3): `Authorization: Bearer <token>` obrigatório, como no real.

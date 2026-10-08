@@ -6,6 +6,7 @@ import {
   cpfValido,
   entrar,
   exigirHomologacao,
+  PEDIDO_PUBLICO,
   RODADA,
   sair,
   socioPropoe,
@@ -83,6 +84,7 @@ test('o pedido chega pela rota pública e o sócio é avisado no sino, abre o av
       cpf: CPF,
       email_contato: EMAIL,
       telefone_whatsapp: TELEFONE,
+      ...PEDIDO_PUBLICO,
       data_nascimento: NASCIMENTO,
     },
   })

@@ -12,7 +12,8 @@
 /* Sem JavaScript a ilha de eventos nunca sai de "Carregando…" — esconder é mais honesto que
    mostrar um aviso que nunca muda; o <noscript> ao lado explica o que fazer. */
 @media (scripting: none) {
-  [data-eventos] {
+  [data-eventos],
+  [data-filiacao-form] {
     display: none;
   }
 }

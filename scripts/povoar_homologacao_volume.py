@@ -102,25 +102,35 @@ def povoar(client, db, escrever=print) -> dict:
         if len(socios) < 3:
             raise SystemExit("Faltam sócios com login para propor os candidatos: rode antes o roteiro `popular_homologacao.py`.")
 
+        def pedido(numero: int, corpo: dict) -> int:
+            """O pedido pelo formulário público (rota aberta): adulto, aviso de privacidade aceito, e um IP de origem próprio (o limite por IP não atrapalha)."""
+            from app.services.filiacao_publica import VERSAO_AVISO_DE_PRIVACIDADE_FILIACAO
+
+            completo = {
+                "data_nascimento": f"{1980 + numero % 15}-0{1 + numero % 9}-1{numero % 9}", "consentimento_lgpd": True,
+                "versao_texto_consentimento": VERSAO_AVISO_DE_PRIVACIDADE_FILIACAO, **corpo,
+            }
+            return ok(client.post("/api/filiacao/propor", json=completo, headers={"X-Forwarded-For": f"198.51.100.{numero + 1}"})).json()["id_proposta"]
+
         def socios_propoem(proposta: int) -> None:
             for socio in socios:
                 ok(client.post(f"/api/filiacao/propostas/{proposta}/propor", headers=socio, json={"decisao": "Propõe"}))
 
         for k in range(5):
             nome = NOMES_NOVOS[25 + k]
-            proposta = ok(client.post("/api/filiacao/propor", json={
+            proposta = pedido(k, {
                 "nome_completo": f"{nome} de Teste", "cpf": ph.cpf_valido(444000000 + k * 7951),
                 "email_contato": f"{MARCA}{26 + k}@{ph.SUFIXO_EMAIL}", "telefone_whatsapp": f"9198{k:02d}{(k * 71) % 10000:04d}"[:11],
-            })).json()["id_proposta"]
+            })
             socios_propoem(proposta)
             ok(client.post(f"/api/filiacao/propostas/{proposta}/conferir", headers=adm))
             ok(client.post(f"/api/filiacao/propostas/{proposta}/aprovar", headers=adm, json={"categoria": "Efetivo"}))
         pendentes = []
         for k in range(4):  # propostas que ainda esperam conferência
-            pendentes.append(ok(client.post("/api/filiacao/propor", json={
+            pendentes.append(pedido(10 + k, {
                 "nome_completo": f"Candidato Pendente {k + 1} de Teste", "cpf": ph.cpf_valido(555000000 + k * 7963),
                 "email_contato": f"pendente{k + 1}@{ph.SUFIXO_EMAIL}", "telefone_whatsapp": f"9197{k:02d}{(k * 91) % 10000:04d}"[:11],
-            })).json()["id_proposta"])
+            }))
         ok(client.post(f"/api/filiacao/propostas/{pendentes[0]}/conferir", headers=adm))
         ok(client.post(f"/api/filiacao/propostas/{pendentes[1]}/recusar", headers=adm, json={"motivo": "Documentação incompleta (teste)."}))
         return "5 em experiência e 4 propostas (1 conferida, 1 recusada, 2 novas)"

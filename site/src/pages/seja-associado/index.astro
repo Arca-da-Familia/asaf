@@ -1,5 +1,6 @@
 ---
 import FaleConosco from '../../components/FaleConosco.astro'
+import FormularioDeFiliacao from '../../components/FormularioDeFiliacao.astro'
 import TituloDePagina from '../../components/TituloDePagina.astro'
 import type { Migalha } from '../../config/navegacao'
 import Base from '../../layouts/Base.astro'
@@ -22,8 +23,8 @@ const deveres = incisosDoArtigo(estatuto, 14).map((i) =>
 const migalhas: Migalha[] = [{ rotulo: 'Seja associado' }]
 
 const passos = [
-  'Preencha a ficha de inscrição na secretaria da entidade.',
-  'A ficha é analisada pela Diretoria Executiva.',
+  'Faça o pedido pelo formulário desta página ou preencha a ficha de inscrição na secretaria da entidade.',
+  'O pedido deve ser proposto por três sócios e é analisado pela Diretoria Executiva, com a conferência dos documentos.',
   'Aprovada, seu nome é lançado no livro de associados, com o seu número de matrícula.',
 ]
 ---
@@ -77,6 +78,8 @@ const passos = [
       </ol>
       <p class="mt-4 text-sm text-muted-foreground">Art. 12 do Estatuto.</p>
     </section>
+
+    <FormularioDeFiliacao />
 
     <section aria-labelledby="exigencias">
       <h2 id="exigencias" class="text-2xl font-bold tracking-tight">
@@ -138,10 +141,10 @@ const passos = [
       </p>
     </section>
 
-    <FaleConosco titulo="Quer se associar?">
+    <FaleConosco titulo="Prefere falar com a secretaria?">
       <p>
-        Hoje, o primeiro passo é falar com a secretaria para saber como entregar
-        a ficha de inscrição e os documentos.
+        Também dá para tirar dúvidas e entregar a ficha de inscrição e os
+        documentos direto na secretaria.
       </p>
     </FaleConosco>
 

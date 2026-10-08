@@ -2,7 +2,7 @@
 app/models/filiacao.py para o que fica de fora de propósito (aprovação por assembleia, termo
 assinado eletronicamente, boas-vindas por e-mail de verdade - cada um com a pendência registrada
 na versão/fase que vai resolver, no PLANO_PROJETO.md)."""
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -16,32 +16,58 @@ from app.models.pessoas import Papel, Pessoa
 from app.schemas.filiacao import PropostaAprovar, PropostaDoSocio, PropostaFiliacaoCriar, PropostaRecusar
 from app.security import exigir_permissao, get_current_user, usuario_tem_permissao
 from app.services.categoria_associado import ATIVO_EM_DIA, EM_EXPERIENCIA, calcular_categoria
-from app.services import filiacao_socios
+from app.services import filiacao_publica, filiacao_socios
 from app.services.duplicidade import detectar_cadastro_duplicado
+from app.services.protecao_publica import limitar_taxa_por_ip
 from app.services.linha_do_tempo import publicar_evento_linha_do_tempo
 from app.services.matricula import proximo_numero_matricula
 
 router = APIRouter()
 _permissao_associados = exigir_permissao("associados")
 
+# v5.4h - o formulário público do site: poucos pedidos por vez (uma família ou uma igreja atrás do mesmo provedor pode mandar vários, por isso a janela é
+# de uma hora e não de dez minutos)
+LIMITE_DE_PEDIDOS_POR_IP = 10
+JANELA_DE_PEDIDOS_MINUTOS = 60
+
+
+def _ip_publico(request: Request) -> str:
+    """IP de quem está do outro lado de verdade (o Container App entrega por trás de um ingress): o primeiro de `X-Forwarded-For`."""
+    encaminhado = request.headers.get("x-forwarded-for")
+    if encaminhado:
+        return encaminhado.split(",")[0].strip()
+    return request.client.host if request.client else "desconhecido"
+
 
 @router.post("/api/filiacao/propor", summary="Propor filiação (público - sem autenticação)")
-def propor_filiacao(dados: PropostaFiliacaoCriar, db: Session = Depends(get_db)):
-    if db.query(Pessoa).filter(Pessoa.cpf == dados.cpf).join(Associado, Associado.id_pessoa == Pessoa.id_pessoa).first():
-        raise HTTPException(status_code=400, detail="Já existe associado cadastrado com este CPF.")
-    if db.query(PropostaFiliacao).filter(
+def propor_filiacao(dados: PropostaFiliacaoCriar, request: Request, db: Session = Depends(get_db)):
+    if dados.pagina_web:
+        # armadilha de robô disparada: finge sucesso, não grava nada e não avisa quem foi pego
+        return {"mensagem": "Proposta de filiação recebida.", "id_proposta": None}
+
+    ip = _ip_publico(request)
+    limitar_taxa_por_ip(db, ip=ip, rota="propor-filiacao", limite=LIMITE_DE_PEDIDOS_POR_IP, janela_minutos=JANELA_DE_PEDIDOS_MINUTOS)
+    filiacao_publica.exigir_aviso_de_privacidade(dados.consentimento_lgpd, dados.versao_texto_consentimento)
+    filiacao_publica.exigir_idade_do_estatuto(dados.data_nascimento, dados.autorizacao_responsavel)
+
+    # a mesma resposta para "já é associado" e "já tem pedido em andamento": quem está de fora não descobre se um CPF é de sócio
+    if db.query(Pessoa).filter(Pessoa.cpf == dados.cpf).join(Associado, Associado.id_pessoa == Pessoa.id_pessoa).first() or db.query(PropostaFiliacao).filter(
         PropostaFiliacao.cpf == dados.cpf, PropostaFiliacao.status.in_([PENDENTE, EM_CONFERENCIA])
     ).first():
-        raise HTTPException(status_code=400, detail="Já existe uma proposta em andamento para este CPF.")
+        raise HTTPException(status_code=400, detail=filiacao_publica.RECUSA_DE_DUPLICIDADE)
 
+    agora = datetime.utcnow()
     proposta = PropostaFiliacao(
         nome_completo=dados.nome_completo, cpf=dados.cpf, email_contato=dados.email_contato,
         telefone_whatsapp=dados.telefone_whatsapp,
-        data_nascimento=datetime.combine(dados.data_nascimento, datetime.min.time()) if dados.data_nascimento else None,
+        data_nascimento=datetime.combine(dados.data_nascimento, datetime.min.time()),
+        consentimento_lgpd_em=agora, consentimento_lgpd_versao=dados.versao_texto_consentimento,
+        autorizacao_responsavel_declarada=dados.autorizacao_responsavel,
     )
     db.add(proposta)
     db.commit()
     db.refresh(proposta)
+    registrar_auditoria(db, None, "propostas_filiacao", "PROPOSTA_PUBLICA", id_registro_afetado=proposta.id_proposta, ip_origem=ip)
     # v5.4h - Estatuto Art. 12, par. único VI: o pedido precisa ser proposto por 3 sócios; cada sócio apto é avisado no sino do painel
     filiacao_socios.avisar_socios_da_nova_proposta(db, proposta)
     db.commit()
@@ -61,6 +87,11 @@ def listar_propostas(status: str = None, db: Session = Depends(get_db), _usuario
             "email_contato": p.email_contato, "telefone_whatsapp": p.telefone_whatsapp,
             "status": p.status, "motivo_recusa": p.motivo_recusa,
             "id_associado_efetivado": p.id_associado_efetivado, "criado_em": p.criado_em,
+            # v5.4h - o que a pessoa declarou no formulário do site: a idade (para a Diretoria conferir o papel dos pais de quem tem 16 ou 17 anos) e o aceite
+            # do aviso de privacidade
+            "idade": filiacao_publica.idade_em(p.data_nascimento.date(), date.today()) if p.data_nascimento else None,
+            "autorizacao_responsavel_declarada": p.autorizacao_responsavel_declarada,
+            "consentimento_lgpd_em": p.consentimento_lgpd_em, "consentimento_lgpd_versao": p.consentimento_lgpd_versao,
             # v5.4h - quem propôs ou recusou (com o motivo); aprovar exige 3 que propõem
             "proponentes": decisoes[p.id_proposta],
             "total_propoem": sum(1 for d in decisoes[p.id_proposta] if d["decisao"] == PROPOE),

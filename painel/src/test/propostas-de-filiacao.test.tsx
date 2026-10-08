@@ -366,6 +366,50 @@ describe('Propostas de filiação (v5.4c: a caixa de entrada que faltava para as
     ).toBeEnabled()
   })
 
+  it('mostra o que a pessoa declarou no formulário do site: idade, aceite do aviso e, de 16 a 17 anos, a declaração dos pais para a Diretoria conferir o papel', async () => {
+    vi.mocked(api.listarPropostasDeFiliacao).mockResolvedValue([
+      proposta({
+        id_proposta: 1,
+        nome_completo: 'Menor de Teste',
+        idade: 17,
+        autorizacao_responsavel_declarada: true,
+        consentimento_lgpd_em: '2026-10-08T12:00:00',
+        consentimento_lgpd_versao: '1',
+      }),
+      proposta({
+        id_proposta: 2,
+        nome_completo: 'Adulta de Teste',
+        idade: 34,
+        autorizacao_responsavel_declarada: false,
+        consentimento_lgpd_em: '2026-10-08T12:00:00',
+        consentimento_lgpd_versao: '1',
+      }),
+      proposta({ id_proposta: 3, nome_completo: 'Pedido Antigo de Teste' }),
+    ])
+    desenhar()
+    const menor = within(
+      await screen.findByLabelText('Proposta de Menor de Teste'),
+    )
+    expect(menor.getByText(/17 anos/)).toBeInTheDocument()
+    expect(
+      menor.getByText(/Aviso de privacidade aceito \(versão 1\)/),
+    ).toBeInTheDocument()
+    expect(
+      menor.getByText(/autorização dos pais ou responsáveis/),
+    ).toBeInTheDocument()
+    const adulta = within(screen.getByLabelText('Proposta de Adulta de Teste'))
+    expect(adulta.getByText(/34 anos/)).toBeInTheDocument()
+    expect(
+      adulta.queryByText(/autorização dos pais ou responsáveis/),
+    ).toBeNull()
+    // pedido feito antes do formulário do site: nada disso aparece (e nada quebra)
+    const antiga = within(
+      screen.getByLabelText('Proposta de Pedido Antigo de Teste'),
+    )
+    expect(antiga.queryByText(/anos/)).toBeNull()
+    expect(antiga.queryByText(/Aviso de privacidade/)).toBeNull()
+  })
+
   it('não tem violação de acessibilidade (axe)', async () => {
     vi.mocked(api.listarPropostasDeFiliacao).mockResolvedValue([
       proposta(),

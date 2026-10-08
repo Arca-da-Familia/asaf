@@ -6,6 +6,7 @@ import {
   cpfValido,
   entrar,
   exigirHomologacao,
+  PEDIDO_PUBLICO,
   RODADA,
   sair,
   socioPropoe,
@@ -53,16 +54,16 @@ test('as propostas entram pela rota pública e aparecem na caixa; proposta repet
   })
   for (const proposta of [A, B, C]) {
     const r = await page.request.post(`${API_HML}/api/filiacao/propor`, {
-      data: proposta,
+      data: { ...PEDIDO_PUBLICO, ...proposta },
     })
     expect(r.status(), await r.text()).toBe(200)
   }
   // recusa provocada: o mesmo CPF não abre uma segunda proposta enquanto a primeira está em andamento
   const repetida = await page.request.post(`${API_HML}/api/filiacao/propor`, {
-    data: A,
+    data: { ...PEDIDO_PUBLICO, ...A },
   })
   expect(repetida.status()).toBe(400)
-  expect(await repetida.text()).toContain('proposta em andamento')
+  expect(await repetida.text()).toContain('pedido em andamento')
 
   await page.goto('/associados/propostas')
   await expect(

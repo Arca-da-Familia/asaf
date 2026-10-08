@@ -1,0 +1,275 @@
+---
+import { API_URL } from '../config/organizacao'
+import { VERSAO_DO_AVISO_DE_PRIVACIDADE } from '../lib/filiacao-pedido'
+
+// O formulário do pedido de filiação (v5.4h). Quem se comporta é `lib/filiacao-pedido.ts`; aqui só o HTML, para ele ser acessível sem JavaScript
+// de enfeite: cada campo tem rótulo, dica e mensagem de erro ligadas por `aria-describedby`.
+const campo =
+  'h-11 w-full rounded-md border bg-background px-3 text-base aria-[invalid=true]:border-destructive'
+const erro = 'mt-1 text-sm font-medium text-destructive'
+const dica = 'mt-1 text-sm text-muted-foreground'
+---
+
+<section
+  aria-labelledby="pedido"
+  class="rounded-lg border bg-card p-6 shadow-card sm:p-8"
+>
+  <h2 id="pedido" class="text-2xl font-bold tracking-tight">
+    Faça o seu pedido de filiação
+  </h2>
+  <p class="mt-3 max-w-3xl">
+    Preencha os dados abaixo. O pedido é só o primeiro passo: a Diretoria
+    Executiva o analisa, três sócios propõem o seu nome e a secretaria confere
+    os documentos que o Estatuto exige (a lista está mais abaixo, nesta página).
+  </p>
+  <noscript>
+    <p class="mt-3 font-medium">
+      Para enviar o pedido por esta página é preciso ativar o JavaScript do
+      navegador. Se preferir, fale com a secretaria.
+    </p>
+  </noscript>
+
+  <form
+    data-filiacao-form
+    data-api-url={API_URL}
+    data-confirmacao="#pedido-enviado"
+    novalidate
+    class="relative mt-6 grid max-w-2xl gap-5"
+  >
+    <p
+      data-resumo-de-erros
+      role="alert"
+      hidden
+      class="rounded-md border border-destructive bg-background p-3 font-medium text-destructive"
+    ></p>
+
+    <div>
+      <label for="f-nome" class="block text-sm font-medium">
+        Nome completo
+      </label>
+      <input
+        id="f-nome"
+        name="nome_completo"
+        type="text"
+        autocomplete="name"
+        aria-describedby="erro-nome"
+        class={`mt-1 ${campo}`}
+      />
+      <p id="erro-nome" data-erro="nome_completo" hidden class={erro}></p>
+    </div>
+
+    <div>
+      <label for="f-cpf" class="block text-sm font-medium">
+        CPF
+      </label>
+      <input
+        id="f-cpf"
+        name="cpf"
+        type="text"
+        inputmode="numeric"
+        autocomplete="off"
+        aria-describedby="dica-cpf erro-cpf"
+        class={`mt-1 ${campo}`}
+      />
+      <p id="dica-cpf" class={dica}>
+        Só os números, ou com pontos e traço.
+      </p>
+      <p id="erro-cpf" data-erro="cpf" hidden class={erro}></p>
+    </div>
+
+    <div>
+      <label for="f-nascimento" class="block text-sm font-medium">
+        Data de nascimento
+      </label>
+      <input
+        id="f-nascimento"
+        name="data_nascimento"
+        type="date"
+        autocomplete="bday"
+        aria-describedby="dica-nascimento erro-nascimento"
+        class={`mt-1 ${campo}`}
+      />
+      <p id="dica-nascimento" class={dica}>
+        Maiores de 18 anos; de 16 a 17 anos, com autorização dos pais ou
+        responsáveis (Estatuto, Art. 12).
+      </p>
+      <p
+        id="erro-nascimento"
+        data-erro="data_nascimento"
+        hidden
+        class={erro}
+      ></p>
+    </div>
+
+    <div data-bloco-autorizacao hidden>
+      <label class="flex items-start gap-3 text-sm font-medium">
+        <input
+          name="autorizacao_responsavel"
+          type="checkbox"
+          aria-describedby="erro-autorizacao"
+          class="mt-1 h-5 w-5 shrink-0"
+        />
+        <span>
+          Declaro que tenho a autorização expressa e por escrito dos meus pais
+          ou responsáveis para me filiar. Vou entregá-la à secretaria.
+        </span>
+      </label>
+      <p
+        id="erro-autorizacao"
+        data-erro="autorizacao_responsavel"
+        hidden
+        class={erro}
+      ></p>
+    </div>
+
+    <fieldset class="grid gap-5">
+      <legend class="text-sm font-medium">
+        Como a secretaria fala com você (informe pelo menos um)
+      </legend>
+      <div>
+        <label for="f-email" class="block text-sm font-medium">
+          E-mail
+        </label>
+        <input
+          id="f-email"
+          name="email_contato"
+          type="email"
+          autocomplete="email"
+          aria-describedby="erro-email erro-contato"
+          class={`mt-1 ${campo}`}
+        />
+        <p id="erro-email" data-erro="email_contato" hidden class={erro}></p>
+      </div>
+      <div>
+        <label for="f-telefone" class="block text-sm font-medium">
+          Telefone ou WhatsApp
+        </label>
+        <input
+          id="f-telefone"
+          name="telefone_whatsapp"
+          type="tel"
+          inputmode="tel"
+          autocomplete="tel-national"
+          aria-describedby="dica-telefone erro-telefone erro-contato"
+          class={`mt-1 ${campo}`}
+        />
+        <p id="dica-telefone" class={dica}>
+          Com o DDD. Exemplo: 91 98888-7777.
+        </p>
+        <p
+          id="erro-telefone"
+          data-erro="telefone_whatsapp"
+          hidden
+          class={erro}
+        ></p>
+      </div>
+      <p id="erro-contato" data-erro="contato" hidden class={erro}></p>
+    </fieldset>
+
+    <div
+      class="rounded-md border bg-background p-4 text-sm"
+      id="aviso-de-privacidade"
+    >
+      <p class="font-medium">
+        Aviso de privacidade (versão {VERSAO_DO_AVISO_DE_PRIVACIDADE})
+      </p>
+      <p class="mt-2">
+        Os dados deste formulário (nome, CPF, data de nascimento, e-mail e
+        telefone) vão para o sistema de gestão da ASAF e servem para a Diretoria
+        Executiva analisar o seu pedido de filiação e, se ele for aprovado, para
+        o seu cadastro de associado. Para que três sócios possam propor o seu
+        nome, eles veem só o seu nome e a sua idade. Guardamos também o endereço
+        IP de quem envia, por segurança. Os seus direitos e os detalhes estão na{' '}
+        <a
+          href="/privacidade/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          Política de Privacidade
+        </a>
+        .
+      </p>
+    </div>
+
+    <div>
+      <label class="flex items-start gap-3 text-sm font-medium">
+        <input
+          name="consentimento_lgpd"
+          type="checkbox"
+          aria-describedby="aviso-de-privacidade erro-consentimento"
+          class="mt-1 h-5 w-5 shrink-0"
+        />
+        <span>
+          Li o aviso de privacidade e concordo com o uso dos meus dados para
+          analisar o meu pedido de filiação.
+        </span>
+      </label>
+      <p
+        id="erro-consentimento"
+        data-erro="consentimento_lgpd"
+        hidden
+        class={erro}
+      ></p>
+    </div>
+
+    <!-- Armadilha para robôs: ninguém vê nem preenche; quem preenche é descartado pela API sem aviso. -->
+    <div
+      aria-hidden="true"
+      class="absolute -left-[9999px] h-px w-px overflow-hidden"
+    >
+      <label>
+        Não preencha este campo
+        <input type="text" name="pagina_web" tabindex="-1" autocomplete="off" />
+      </label>
+    </div>
+
+    <p
+      data-falha-do-envio
+      role="alert"
+      tabindex="-1"
+      hidden
+      class="rounded-md border border-destructive bg-background p-3 font-medium text-destructive"
+    ></p>
+
+    <div>
+      <button
+        type="submit"
+        data-enviar
+        class="rounded-md bg-primary px-6 py-3 font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+      >
+        Enviar pedido de filiação
+      </button>
+    </div>
+  </form>
+
+  <div
+    id="pedido-enviado"
+    data-confirmacao
+    role="status"
+    tabindex="-1"
+    hidden
+    class="mt-6 max-w-2xl rounded-md border bg-background p-5"
+  >
+    <h3 class="text-lg font-bold">Recebemos o seu pedido de filiação</h3>
+    <p class="mt-2">
+      Agora três sócios precisam propor o seu nome e a Diretoria Executiva
+      analisa o pedido (Estatuto, Art. 12). Para dar andamento, procure a
+      secretaria com os documentos exigidos.
+    </p>
+    <p class="mt-3">
+      <a
+        href="/contato/"
+        class="font-medium text-primary underline underline-offset-4"
+      >
+        Endereço e como falar com a secretaria
+      </a>
+    </p>
+  </div>
+</section>
+
+<script>
+  import { iniciarFormularioDeFiliacao } from '../lib/filiacao-pedido'
+
+  document
+    .querySelectorAll<HTMLFormElement>('[data-filiacao-form]')
+    .forEach((form) => iniciarFormularioDeFiliacao(form))
+</script>

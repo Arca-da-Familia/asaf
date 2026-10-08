@@ -27,3 +27,26 @@ def tres_socios_propoem(db, id_proposta: int) -> list[int]:
         ids.append(socio.id_associado)
     db.commit()
     return ids
+
+
+def corpo_do_pedido(**sobrescritas) -> dict:
+    """Corpo de um pedido de filiação do formulário público: dados completos, adulto, com o aviso de privacidade aceito (versão atual)."""
+    from datetime import date
+
+    from app.services.filiacao_publica import VERSAO_AVISO_DE_PRIVACIDADE_FILIACAO
+
+    hoje = date.today()
+    corpo = {
+        "email_contato": f"pedido.{uuid.uuid4().hex[:12]}@example.com",
+        "data_nascimento": str(date(hoje.year - 30, hoje.month, 1)),
+        "consentimento_lgpd": True,
+        "versao_texto_consentimento": VERSAO_AVISO_DE_PRIVACIDADE_FILIACAO,
+    }
+    corpo.update(sobrescritas)
+    return corpo
+
+
+def propor_pedido(client, ip: str | None = None, **sobrescritas):
+    """Envia o pedido pela rota pública. Cada chamada vem de um IP próprio (o limite por IP não atrapalha os testes que mandam vários pedidos)."""
+    ip = ip or f"198.51.100.{uuid.uuid4().int % 250 + 1}"
+    return client.post("/api/filiacao/propor", json=corpo_do_pedido(**sobrescritas), headers={"X-Forwarded-For": ip})

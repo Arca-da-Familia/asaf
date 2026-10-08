@@ -3,7 +3,7 @@ sequencial e período de experiência) ou recusa. Cobre também o que a v1.1 dei
 "Em Experiência" agora existe e se conecta ao cálculo de categoria."""
 from tests.test_pessoas import _cpf_unico
 from tests.apoio_auth import cabecalho_admin
-from tests.apoio_filiacao import tres_socios_propoem
+from tests.apoio_filiacao import propor_pedido, tres_socios_propoem
 
 
 def _propor(client, cpf=None, **overrides):
@@ -15,7 +15,7 @@ def _propor(client, cpf=None, **overrides):
         "email_contato": f"{cpf}@x.com", "telefone_whatsapp": "11900000000",
         **overrides,
     }
-    return client.post("/api/filiacao/propor", json=payload)
+    return propor_pedido(client, **payload)
 
 
 def test_propor_sem_autenticacao_funciona(client):

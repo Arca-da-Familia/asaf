@@ -8,11 +8,14 @@
 
 export class ApiError extends Error {
   readonly status?: number
+  /** O motivo que a API deu, em português (só nas respostas 4xx de quem envia dados): é para mostrar à pessoa. */
+  readonly detalhe?: string
 
-  constructor(mensagem: string, status?: number) {
+  constructor(mensagem: string, status?: number, detalhe?: string) {
     super(mensagem)
     this.name = 'ApiError'
     this.status = status
+    this.detalhe = detalhe
   }
 }
 
@@ -80,6 +83,65 @@ async function umaTentativa<T>(
   } finally {
     clearTimeout(timer)
   }
+}
+
+/**
+ * Envia um JSON por POST à API pública (v5.4h: o pedido de filiação). UMA tentativa só, de propósito: repetir um envio que talvez já tenha chegado
+ * criaria um pedido duplicado. A API escala a zero, então o tempo de espera é longo (acordar o contêiner leva alguns segundos).
+ */
+export async function enviarJson<T>(
+  caminho: string,
+  corpo: unknown,
+  { baseUrl, timeoutMs = 35_000, fetchImpl = fetch }: OpcoesBusca,
+): Promise<T> {
+  const controlador = new AbortController()
+  const timer = setTimeout(() => controlador.abort(), timeoutMs)
+  try {
+    const resposta = await fetchImpl(`${baseUrl}${caminho}`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(corpo),
+      signal: controlador.signal,
+      credentials: 'omit',
+    })
+    if (!resposta.ok) {
+      throw new ApiError(
+        `A API respondeu ${resposta.status}.`,
+        resposta.status,
+        await detalheDaResposta(resposta),
+      )
+    }
+    return (await resposta.json()) as T
+  } catch (erro) {
+    if (erro instanceof ApiError) throw erro
+    if (erro instanceof DOMException && erro.name === 'AbortError') {
+      throw new ApiError('A API demorou demais para responder.')
+    }
+    throw new ApiError('Não foi possível falar com a API.')
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** `detail` do FastAPI: texto (regra de negócio) ou lista (validação do formato); da lista sai só a primeira mensagem. */
+async function detalheDaResposta(
+  resposta: Response,
+): Promise<string | undefined> {
+  try {
+    const { detail } = (await resposta.json()) as { detail?: unknown }
+    if (typeof detail === 'string') return detail
+    if (Array.isArray(detail)) {
+      const primeira = (detail[0] as { msg?: unknown } | undefined)?.msg
+      if (typeof primeira === 'string')
+        return primeira.replace(/^Value error, /, '')
+    }
+  } catch {
+    // corpo que não é JSON: sem detalhe
+  }
+  return undefined
 }
 
 /** Formato de `GET /api/publico/eventos` (app/routers/eventos.py::_serializar_evento_publico). */
