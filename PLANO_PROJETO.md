@@ -1906,7 +1906,16 @@ Tudo aqui é construído (não é "decidir se faz"), na ordem abaixo, cada item 
       fica na Auditoria; Secretário barrado); `v5.4h-05` núcleo familiar do beneficiário, 3 de 3 (a mãe vê o filho, o filho vê a mãe, sem
       vínculo diz onde cadastrar). **Em produção (2026-10-08):** `POST /api/eventos/{id}/inscrever-associado`,
       `GET /api/projetos/{id}/alocacoes` e `GET /api/beneficiarios/{id}/nucleo-familiar` respondem 401 sem login.
-- [ ] **Rastro de recusas:** recusa de aprovação/assinatura também fica na Auditoria.
+- [x] **Rastro de recusas:** recusa de aprovação/assinatura também fica na Auditoria.
+      **Como funciona:** um tratador de erro do servidor (`app/recusas.py`, ligado em `app/main.py`) grava na Auditoria (tabela `recusas`, ação
+      `RECUSA_APROVACAO`) quem tentou, a rota, o resultado (400, 403 ou 409) e o motivo, nas 25 rotas de aprovação, reprovação, assinatura,
+      homologação e confirmação; 404, 401 e o que não é aprovação não gravam; se o registro falhar, a recusa sai igual para quem tentou. **Na
+      homologação (2026-10-08):** o roteiro das compras (e-03, 12 de 12) confere que o Tesoureiro tentando aprovar a própria compra aparece em
+      `recusas` com o nome dele, enquanto as tabelas das compras seguem só com o que deu certo; regressão verde nas telas que recusam aprovação:
+      despesa (e-03), relatórios e antifraude (e-04 16/16), projetos e voluntariado (f-01 22/22), atas (d-05 16/16), disciplina (d-08 7/7) e
+      registrar saída (h-08 5/5). **Em produção (2026-10-08):** commit `27e963c`, Deploy API verde; não há rota nova (é comportamento): a rota de
+      aprovação sem login segue 401 (que, por desenho, não grava recusa: não há quem tenha tentado). O efeito só se vê com login e foi provado
+      na homologação; a produção nunca recebe dado de teste.
 - [ ] **Site e carga (decisão: manter páginas estáticas e deixar "vivo" o que é dinâmico):** inscrição em evento, voluntário e filiação passam
       pela API, que não pode travar nem estourar o limite de vagas. **Meta:** ~150 pessoas por minuto (50 a 100 preenchendo ao mesmo tempo) sem
       travar; teste de carga na homologação; réplicas da API sobem em dia de evento (sem servidor ligado 24 h); limite de inscrições por IP revisto
