@@ -18,9 +18,10 @@ const PREFIXO_INTERNO = 'Despertai Interno de Teste (robô v5.4g)'
 const reais = (valor: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
     .format(valor)
-    .replace(/ /g, ' ')
+    .replace(/\u00a0/g, ' ')
 
-const limpo = (texto: string) => texto.replace(/ /g, ' ').replace(/\s+/g, ' ')
+const limpo = (texto: string) =>
+  texto.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ')
 
 async function textoDaPagina(page: Page, caminho: string): Promise<string> {
   const resposta = await page.goto(`${SITE}${caminho}`, {
