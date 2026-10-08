@@ -318,12 +318,19 @@ export async function escolherPorTexto(
   seletor: Locator,
   trecho: string,
 ): Promise<void> {
-  const valor = await seletor.evaluate((el, t) => {
-    const opcao = [...(el as HTMLSelectElement).options].find((o) =>
-      o.textContent?.includes(t),
-    )
-    return opcao?.value ?? null
-  }, trecho)
+  const procurar = () =>
+    seletor.evaluate((el, t) => {
+      const opcao = [...(el as HTMLSelectElement).options].find((o) =>
+        o.textContent?.includes(t),
+      )
+      return opcao?.value ?? null
+    }, trecho)
+  // a lista de opções chega do servidor depois de a tela abrir: espera a opção aparecer antes de dizer que ela não existe
+  let valor = (await procurar()) as string | null
+  for (let tentativa = 0; valor === null && tentativa < 30; tentativa += 1) {
+    await seletor.page().waitForTimeout(500)
+    valor = await procurar()
+  }
   if (valor === null)
     throw new Error(`opção com "${trecho}" não existe neste campo`)
   await seletor.selectOption(valor)
