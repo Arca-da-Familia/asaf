@@ -1891,9 +1891,20 @@ Tudo aqui é construído (não é "decidir se faz"), na ordem abaixo, cada item 
       `version.json`, Deploy API e Painel verdes (migração `c4f9a1e6b270`, coluna `nota_fiscal` do título), `POST /api/saidas/registrar` responde
       401 sem login e consta no `openapi.json`. A dupla assinatura **não virou etapa do sistema** (decisão do Presidente de 08/10: o sistema é só
       o registro); a compra com alçada e cotação (v3.3) segue existindo fora do dia a dia.
-- [ ] **Lançamento tardio entre os alertas do Conselho Fiscal:** hoje a saída tardia (mais de 5 dias entre o pagamento e o lançamento) fica marcada
-      na Auditoria do sistema e no cartão da Auditoria financeira; falta aparecer também nos alertas de padrões suspeitos (v3.7) e poder
-      ajustar o limite de 5 dias na tela de Instituição/configurações.
+- [x] **Lançamento tardio entre os alertas do Conselho Fiscal, com o limite ajustável:** a saída registrada que foi lançada mais de N dias depois do
+      **pagamento** (a conta é da data do pagamento, não da despesa) entra no relatório de exceção mensal (Relatórios, "Padrões suspeitos") como
+      `LANCAMENTO_TARDIO`, além de continuar marcada no cartão da Auditoria financeira e na Auditoria do sistema. O limite é a configuração
+      `DIAS_ALERTA_LANCAMENTO_TARDIO` (padrão 5) e vale igual nos três lugares; nasceu a tela **Regras do sistema** (`/regras`, só quem administra o acesso),
+      que lista as configurações da categoria "regras" (limites e prazos), salva cada uma e deixa a mudança na Auditoria com o valor antes e depois.
+      **Na homologação (2026-10-08):** `v5.4h-11`, 3 de 3 (a tela lista as regras sem dado institucional; o limite muda para 7, continua 7 ao recarregar e
+      vale no servidor; valor que não é número é recusado com 422 em português e nada muda; as mudanças ficam na Auditoria; o Secretário é barrado na
+      tela e na API); `v5.4h-08`, 6 de 6 (o relatório de exceção do mês lista a saída lançada 20 dias depois do pagamento, com o texto certo, e não lista
+      a em dia nem o reembolso); regressão verde: Auditoria financeira (h-03 8/8) e relatórios e antifraude (e-04 16/16). No servidor, 1005 testes verdes
+      (6 novos do lançamento tardio, entre eles "a data que conta é a do pagamento" e "o limite configurado vale igual no registro, no cartão e no
+      relatório"); no painel, 3 testes da tela de regras. **Em produção (2026-10-08):** commit `0678f0e`, Deploy API verde e Deploy Painel verde (o teste
+      de ponta a ponta do "ver como" falhou duas vezes seguidas no CI sem relação com a mudança e passou ao rodar de novo, e passa local: fica de olho
+      como instável, sem esconder); `version.json` bate; o pacote do painel traz "Regras do sistema"; `/api/configuracoes/` e
+      `/api/antifraude/padroes-suspeitos` respondem 401 sem login. A produção não recebeu dado de teste.
 - [x] **Filiação: os 3 sócios, o aviso no painel e a análise da Diretoria (Estatuto Art. 12):** o pedido precisa ser **proposto por 3 sócios**
       (qualquer sócio ativo e apto pode propor) e passar pela **análise da Diretoria Executiva**; os sócios ativos **recebem a notificação
       no painel** (sino) para propor ou recusar, com o motivo; sem prazo — sem resposta, o pedido fica pendente; aprovado, entra no livro de
