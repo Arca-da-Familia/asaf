@@ -8,6 +8,7 @@ import {
   exigirHomologacao,
   RODADA,
   sair,
+  socioPropoe,
   ver,
   vigiar,
 } from './apoio'
@@ -104,6 +105,49 @@ test('recusar: sem motivo é barrado; com motivo a proposta vira Recusada e o mo
   await ver(page, info, 'proposta recusada com o motivo')
 })
 
+test('o Estatuto pede 3 sócios propondo: sem eles a Diretoria não aprova; com eles a aprovação fica liberada (v5.4h)', async ({
+  page,
+}, info) => {
+  const vigia = vigiar(page)
+  await entrar(page, 'presidente')
+  await page.goto('/associados/propostas')
+  const doCandidatoA = page.getByRole('listitem', {
+    name: `Proposta de ${A.nome_completo}`,
+  })
+  await expect(doCandidatoA).toContainText('Sócios que propõem: 0 de 3')
+  await doCandidatoA
+    .getByRole('button', { name: 'Marcar documentação conferida' })
+    .click()
+  await expect(
+    doCandidatoA.getByText('Em Conferência', { exact: true }),
+  ).toBeVisible()
+  await expect(
+    doCandidatoA.getByRole('button', { name: 'Aprovar e efetivar' }),
+  ).toBeDisabled()
+  await ver(page, info, 'sem os 3 socios a aprovacao esta travada')
+  await sair(page)
+
+  // três sócios (Secretário, Tesoureiro e 1º Vice-Presidente) propõem A e C; a decisão da Diretoria continua sendo dela
+  for (const papel of [
+    'secretario',
+    'tesoureiro',
+    'vice_presidente',
+  ] as const) {
+    await socioPropoe(page, papel, [A.nome_completo, C.nome_completo])
+  }
+  await entrar(page, 'presidente')
+  await page.goto('/associados/propostas')
+  const liberado = page.getByRole('listitem', {
+    name: `Proposta de ${A.nome_completo}`,
+  })
+  await expect(liberado).toContainText('Sócios que propõem: 3 de 3')
+  await expect(
+    liberado.getByRole('button', { name: 'Aprovar e efetivar' }),
+  ).toBeEnabled()
+  await ver(page, info, 'com os 3 socios a aprovacao esta liberada')
+  expect(vigia.problemas()).toEqual([])
+})
+
 test('aprovar: só depois de conferir a documentação; efetiva o associado e abre o cadastro dele', async ({
   page,
 }, info) => {
@@ -112,15 +156,12 @@ test('aprovar: só depois de conferir a documentação; efetiva o associado e ab
   const item = page.getByRole('listitem', {
     name: `Proposta de ${A.nome_completo}`,
   })
-  // ainda não conferida: não dá para aprovar
+  // a documentação já foi conferida e os 3 sócios já propuseram (teste anterior): a aprovação está liberada
+  await expect(item.getByText('Em Conferência', { exact: true })).toBeVisible()
   await expect(
     item.getByRole('button', { name: 'Aprovar e efetivar' }),
-  ).toHaveCount(0)
-  await item
-    .getByRole('button', { name: 'Marcar documentação conferida' })
-    .click()
-  await expect(item.getByText('Em Conferência', { exact: true })).toBeVisible()
-  await ver(page, info, 'documentacao conferida')
+  ).toBeEnabled()
+  await ver(page, info, 'documentacao conferida e socios propuseram')
 
   await item.getByRole('button', { name: 'Aprovar e efetivar' }).click()
   await item.getByRole('button', { name: 'Efetivar associado' }).click()

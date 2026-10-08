@@ -5455,6 +5455,18 @@ export type PropostaDeFiliacao = {
   motivo_recusa: string | null
   id_associado_efetivado: number | null
   criado_em: string
+  // v5.4h - quem propôs ou recusou (com o motivo); o Estatuto pede 3 sócios propondo para a Diretoria aprovar
+  proponentes?: DecisaoDoSocio[]
+  total_propoem?: number
+  exigidos?: number
+}
+
+export type DecisaoDoSocio = {
+  id_associado: number
+  socio: string
+  decisao: 'Propõe' | 'Recusa'
+  observacao: string | null
+  em: string | null
 }
 
 export function listarPropostasDeFiliacao(
@@ -5954,5 +5966,71 @@ export function registrarSaida(dados: DadosDaSaida): Promise<SaidaRegistrada> {
   return apiFetch('/api/saidas/registrar', {
     method: 'POST',
     body: JSON.stringify(dados),
+  })
+}
+
+// ---- Filiação proposta por 3 sócios (v5.4h, Estatuto Art. 12, par. único VI) e o sino do painel.
+export type PedidoParaPropor = {
+  id_proposta: number
+  nome_completo: string
+  idade: number | null
+  criado_em: string
+  total_propoem: number
+  exigidos: number
+  faltam: number
+  minha_decisao: 'Propõe' | 'Recusa' | null
+  meu_motivo: string | null
+}
+
+// Os pedidos abertos como o SÓCIO apto os vê: sem CPF, e-mail nem telefone do candidato.
+export function listarPedidosParaPropor(): Promise<PedidoParaPropor[]> {
+  return apiFetch('/api/filiacao/para-propor')
+}
+
+export function proporCandidato(
+  idProposta: number,
+  dados: { decisao: 'Propõe' | 'Recusa'; observacao?: string },
+): Promise<{
+  decisao: string
+  total_propoem: number
+  exigidos: number
+  faltam: number
+}> {
+  return apiFetch(`/api/filiacao/propostas/${idProposta}/propor`, {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export type AvisoDoPainel = {
+  id_notificacao: number
+  tipo: string
+  titulo: string
+  texto: string | null
+  link: string | null
+  criado_em: string
+  lida: boolean
+}
+
+export type MinhasNotificacoes = {
+  nao_lidas: number
+  avisos: AvisoDoPainel[]
+}
+
+export function listarMinhasNotificacoes(): Promise<MinhasNotificacoes> {
+  return apiFetch('/api/minhas-notificacoes/')
+}
+
+export function marcarAvisoComoLido(
+  idNotificacao: number,
+): Promise<AvisoDoPainel> {
+  return apiFetch(`/api/minhas-notificacoes/${idNotificacao}/lida`, {
+    method: 'POST',
+  })
+}
+
+export function marcarTodosOsAvisosComoLidos(): Promise<{ marcadas: number }> {
+  return apiFetch('/api/minhas-notificacoes/marcar-todas-lidas', {
+    method: 'POST',
   })
 }

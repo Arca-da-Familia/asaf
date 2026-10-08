@@ -66,6 +66,7 @@ import { PropostasDeFiliacaoPage } from '@/pages/PropostasDeFiliacao'
 import { QualidadeDaBasePage } from '@/pages/QualidadeDaBase'
 import { Login } from '@/pages/Login'
 import { MandatosPage } from '@/pages/Mandatos'
+import { FiliacaoParaProporPage } from '@/pages/FiliacaoParaPropor'
 import { MeuVoluntariadoPage } from '@/pages/MeuVoluntariado'
 import { MfaSetup } from '@/pages/MfaSetup'
 import { MinhasAssembleiasPage } from '@/pages/MinhasAssembleias'
@@ -208,6 +209,14 @@ function App() {
             element={
               <ErrorBoundary tituloModulo="Calendário institucional">
                 <CalendarioPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/filiacao/para-propor"
+            element={
+              <ErrorBoundary tituloModulo="Pedidos de filiação">
+                <FiliacaoParaProporPage />
               </ErrorBoundary>
             }
           />

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
   ArrowLeft,
-  Bell,
   CalendarCheck,
   CalendarDays,
   ChevronLeft,
@@ -16,6 +15,7 @@ import {
   Search,
   ShieldAlert,
   Sun,
+  UserPlus,
   UserRound,
 } from 'lucide-react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
@@ -32,6 +32,7 @@ import { useVersaoBuild } from '@/lib/versao'
 import { cn } from '@/lib/utils'
 
 import { AvisoDeAmbiente } from './AvisoDeAmbiente'
+import { SinoDeAvisos } from './SinoDeAvisos'
 import { StatusBar } from './StatusBar'
 
 // Altura total da faixa fixa do topo: 64px (barra normal) + 40px a mais quando o aviso
@@ -187,9 +188,7 @@ export function Shell() {
             )}
           </Button>
 
-          <Button variant="ghost" size="icon" aria-label="Notificações">
-            <Bell className="h-5 w-5" />
-          </Button>
+          <SinoDeAvisos />
 
           <div className="flex items-center gap-2">
             <span className="hidden text-sm text-muted-foreground sm:block">
@@ -296,6 +295,17 @@ export function Shell() {
               >
                 <Handshake className="h-5 w-5 shrink-0" />
                 {!collapsed && <span>Petições de convocação</span>}
+              </NavLink>
+
+              {/* v5.4h - Estatuto Art. 12, par. único VI: o pedido de filiação é proposto por 3 sócios. Qualquer sócio ativo e em dia
+                  propõe ou recusa, então a tela vive fora de qualquer módulo (o servidor decide quem é "apto"). */}
+              <NavLink
+                to="/filiacao/para-propor"
+                className={navCls}
+                onClick={() => setMobileOpen(false)}
+              >
+                <UserPlus className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>Pedidos de filiação</span>}
               </NavLink>
 
               {/* v4.4 - mesmo padrão de "Minhas assembleias": autoatendimento do próprio

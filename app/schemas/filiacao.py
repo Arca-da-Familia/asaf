@@ -45,6 +45,12 @@ class PropostaFiliacaoCriar(BaseModel):
         return v
 
 
+class PropostaDoSocio(BaseModel):
+    """v5.4h - o que um sócio apto diz sobre um pedido de filiação (Estatuto Art. 12, par. único VI): propõe ou recusa; recusar exige o motivo."""
+    decisao: str
+    observacao: Optional[str] = None
+
+
 class PropostaRecusar(BaseModel):
     motivo: str
 
