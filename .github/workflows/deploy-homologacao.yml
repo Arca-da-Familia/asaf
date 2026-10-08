@@ -112,13 +112,15 @@ jobs:
 
       # O papel do banco de teste aceita no máximo 5 conexões (o servidor é compartilhado com a produção): o conjunto de conexões da
       # API de teste fica em 3 + 1 de estouro, deixando uma de folga para quem administra o banco. A produção não define estas variáveis.
+      # CONFIAR_NO_PRIMEIRO_IP=1 (só aqui): o teste de carga simula centenas de pessoas a partir de uma máquina só, cada uma com o seu primeiro item de
+      # `X-Forwarded-For`; na produção vale o ÚLTIMO item (o que o ingress anotou), que ninguém inventa (app/services/protecao_publica.py::ip_publico).
       - name: Atualiza a API de TESTE com a nova imagem
         run: |
           az containerapp update \
             --name "$CONTAINER_APP" \
             --resource-group "$RESOURCE_GROUP" \
             --image "$REGISTRY.azurecr.io/$IMAGE_NAME:hml-${CODIGO_SHA}" \
-            --set-env-vars DB_POOL_SIZE=3 DB_MAX_OVERFLOW=1
+            --set-env-vars DB_POOL_SIZE=3 DB_MAX_OVERFLOW=1 CONFIAR_NO_PRIMEIRO_IP=1
 
       - name: Espera a API de teste responder
         run: |
