@@ -1093,12 +1093,12 @@ test('a nova edição segue no mesmo projeto; dado pessoal no título da nova ed
   ] as const) {
     const link = contexto.getByRole('link', { name: titulo, exact: true })
     await expect(link).toHaveAttribute('href', `/eventos?evento=${id}`)
-    await expect(contexto.locator('li').filter({ has: link })).toContainText(
-      `nº ${id} ·`,
-    )
-    await expect(contexto.locator('li').filter({ has: link })).toContainText(
-      rotulo,
-    )
+    // o filtro `has` procura DENTRO de cada item da lista: o link tem de ser montado a partir da página, não da região
+    const item = contexto
+      .locator('li')
+      .filter({ has: page.getByRole('link', { name: titulo, exact: true }) })
+    await expect(item).toContainText(`nº ${id} ·`)
+    await expect(item).toContainText(rotulo)
   }
   await ver(page, info, 'contexto do projeto: edicoes e evento Interno')
   expect(vigia.problemas()).toEqual([])
