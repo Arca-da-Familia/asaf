@@ -1,0 +1,99 @@
+name: Réplicas da API em dia de evento
+
+# A API escala a zero (decisão de custo): depois de alguns minutos sem uso ela dorme e a primeira pessoa espera ela acordar (10 a 30 segundos). Perto de um
+# evento isso é ruim (inscrição, check-in). Este fluxo olha a lista pública de eventos a cada 3 horas e liga UMA réplica mínima da API de 24 horas antes
+# do evento até 12 horas depois; fora disso volta a zero. A regra (scripts/escalar_api_por_evento.py) é uma função pura, testada sem rede.
+#
+# Garantias (cada uma tem teste em tests/test_workflows_de_homologacao.py):
+#   - só mexe em UMA coisa: `--min-replicas` (0 ou 1) do Container App da produção (asaf-api) ou do de teste (asaf-api-hml); não troca imagem, variável,
+#     segredo, rede nem o máximo de réplicas;
+#   - se a lista de eventos não puder ser lida, MANTÉM como está (um erro de leitura nunca liga nem desliga nada);
+#   - só muda quando o número é diferente do atual (nada de nova revisão à toa);
+#   - o custo de uma réplica ligada é de poucos centavos por dia, e só nos dias de evento.
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        description: "Qual API: producao (asaf-api) ou homologacao (asaf-api-hml, para provar o mecanismo sem tocar na produção)"
+        type: choice
+        options: [producao, homologacao]
+        default: homologacao
+      forcar:
+        description: "Ignorar os eventos e deixar o mínimo em 0 ou 1 (vazio = decidir pelos eventos). Use na homologação para provar o mecanismo."
+        type: choice
+        options: ["", "0", "1"]
+        default: ""
+      modo:
+        description: "aplicar muda de verdade; simular só mostra o que faria"
+        type: choice
+        options: [aplicar, simular]
+        default: aplicar
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: escalar-api
+  cancel-in-progress: false
+
+env:
+  RESOURCE_GROUP: Associacao-RG
+
+jobs:
+  escalar:
+    name: Decidir e ajustar as réplicas mínimas
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Configura Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      # Agendado = produção, decidindo pelos eventos. À mão = o que foi escolhido (o padrão é a homologação).
+      - name: Escolhe o ambiente
+        env:
+          AMBIENTE: ${{ inputs.ambiente || 'producao' }}
+        run: |
+          case "$AMBIENTE" in
+            producao)    echo "CONTAINER_APP=asaf-api"     >> "$GITHUB_ENV"; echo "API_URL=https://api.asaf.org.br"     >> "$GITHUB_ENV" ;;
+            homologacao) echo "CONTAINER_APP=asaf-api-hml" >> "$GITHUB_ENV"; echo "API_URL=https://hml-api.asaf.org.br" >> "$GITHUB_ENV" ;;
+            *) echo "::error::Ambiente desconhecido."; exit 1 ;;
+          esac
+
+      - name: Decide pelos eventos
+        env:
+          FORCAR: ${{ inputs.forcar }}
+        run: python scripts/escalar_api_por_evento.py --api-url "$API_URL" --forcar "$FORCAR" --saida decisao.json
+
+      - name: Login no Azure via OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ajusta a réplica mínima (só se mudou)
+        env:
+          MODO: ${{ inputs.modo || 'aplicar' }}
+        run: |
+          MINIMO=$(python3 -c "import json; d=json.load(open('decisao.json')); print('manter' if d['manter'] else d['minimo'])")
+          MOTIVO=$(python3 -c "import json; print(json.load(open('decisao.json'))['motivo'])")
+          ATUAL=$(az containerapp show --name "$CONTAINER_APP" --resource-group "$RESOURCE_GROUP" --query properties.template.scale.minReplicas -o tsv)
+          echo "App: $CONTAINER_APP | mínimo atual: $ATUAL | decisão: $MINIMO | $MOTIVO"
+          if [ "$MINIMO" = "manter" ]; then echo "Mantém como está."; exit 0; fi
+          case "$MINIMO" in 0|1) ;; *) echo "::error::Mínimo fora de 0 e 1."; exit 1 ;; esac
+          if [ "$MINIMO" = "$ATUAL" ]; then echo "Já está em $ATUAL: nada a fazer."; exit 0; fi
+          if [ "$MODO" != "aplicar" ]; then echo "Simulação: mudaria o mínimo de $ATUAL para $MINIMO."; exit 0; fi
+          az containerapp update --name "$CONTAINER_APP" --resource-group "$RESOURCE_GROUP" --min-replicas "$MINIMO" --query "properties.template.scale" -o json
+          echo "Mínimo de réplicas de $CONTAINER_APP: $ATUAL -> $MINIMO"
+
+      - name: Logout
+        if: always()
+        run: az logout || true

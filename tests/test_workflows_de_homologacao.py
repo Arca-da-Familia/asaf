@@ -212,3 +212,35 @@ def test_a_carga_varre_o_relatorio_atras_da_senha_antes_de_guardar():
     assert "if: ${{ always() }}" in varredura and "grep -rIlF -f" in varredura and "rm -rf resultado-de-carga" in varredura and "exit 1" in varredura
     assert TEXTO_CARGA.index("Varre o relatório atrás de senha") < TEXTO_CARGA.index("Guarda o relatório")
 
+
+
+# ------------------------------------------------------------------------------------------------ réplicas da API em dia de evento (v5.4h)
+TEXTO_ESCALA = (RAIZ / ".github" / "workflows" / "escalar-api-em-dia-de-evento.yml").read_text(encoding="utf-8")
+CODIGO_ESCALA = _sem_comentarios(TEXTO_ESCALA)
+
+
+def test_a_escala_mexe_so_na_replica_minima_e_so_nos_dois_apps_conhecidos():
+    atualizacoes = re.findall(r"az containerapp update [^\n]*", CODIGO_ESCALA)
+    assert len(atualizacoes) == 1 and "--min-replicas" in atualizacoes[0]
+    for proibido in ("--image", "--set-env-vars", "--secrets", "--max-replicas", "--revision-suffix", "az containerapp delete", "az containerapp create", "az postgres"):
+        assert proibido not in CODIGO_ESCALA, proibido
+    assert sorted(set(re.findall(r"CONTAINER_APP=([\w-]+)", CODIGO_ESCALA))) == ["asaf-api", "asaf-api-hml"]
+    assert "case \"$MINIMO\" in 0|1) ;;" in CODIGO_ESCALA, "o mínimo só pode ser 0 ou 1"
+
+
+def test_a_escala_mantem_como_esta_quando_nao_leu_os_eventos_e_so_muda_se_for_diferente():
+    passo = _passo_de(TEXTO_ESCALA, "Ajusta a réplica mínima (só se mudou)")
+    assert 'if [ "$MINIMO" = "manter" ]' in passo and "exit 0" in passo
+    assert 'if [ "$MINIMO" = "$ATUAL" ]' in passo
+    assert 'if [ "$MODO" != "aplicar" ]' in passo, "o modo simular não muda nada"
+
+
+def test_a_escala_agendada_cuida_da_producao_e_a_mao_comeca_pela_homologacao():
+    assert re.search(r'cron: "17 \*/3 \* \* \*"', CODIGO_ESCALA), "a cada 3 horas"
+    assert "${{ inputs.ambiente || 'producao' }}" in CODIGO_ESCALA, "agendado (sem inputs) = produção"
+    assert "default: homologacao" in CODIGO_ESCALA, "à mão, o padrão é provar na homologação"
+    for entrada in ("ambiente", "forcar", "modo"):
+        assert f"${{{{ inputs.{entrada}" in CODIGO_ESCALA
+    for linha in CODIGO_ESCALA.splitlines():
+        if "${{ inputs." in linha:
+            assert re.match(r"\s+[A-Z_]+: \$\{\{ inputs\.\w+( \|\| '\w+')? \}\}$", linha), f"entrada interpolada fora de env: {linha}"
