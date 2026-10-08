@@ -50,6 +50,12 @@ _permissao_projetos = exigir_permissao("projetos")
 _permissao_checkin = exigir_permissao("gerenciar_checkin_evento")
 
 
+# v5.4h - inscrição pública: o limite por IP era 5 a cada 10 minutos, o que barrava a secretaria de uma igreja, uma escola ou um provedor móvel (todos atrás do
+# mesmo IP) já na sexta pessoa. Agora são 30 a cada 10 minutos: um humano digitando não chega a isso (uma inscrição a cada 20 s), e quem tenta em massa é barrado.
+LIMITE_DE_INSCRICOES_POR_IP = 30
+JANELA_DE_INSCRICOES_MINUTOS = 10
+
+
 def _ip_origem(request: Request):
     return request.client.host if request.client else None
 
@@ -726,7 +732,7 @@ def inscrever_publicamente_endpoint(id_evento: int, dados: InscricaoPublicaCriar
         # Honeypot disparado - finge sucesso, nunca grava nada e nunca avisa o robô que foi pego.
         return {"mensagem": "Inscrição registrada.", "codigo_checkin": None, "email_enviado": False}
 
-    limitar_taxa_por_ip(db, ip=_ip_publico(request), rota="inscrever-se-evento", limite=5, janela_minutos=10)
+    limitar_taxa_por_ip(db, ip=_ip_publico(request), rota="inscrever-se-evento", limite=LIMITE_DE_INSCRICOES_POR_IP, janela_minutos=JANELA_DE_INSCRICOES_MINUTOS)
 
     resultado = eventos.inscrever_publicamente(
         db, id_evento=id_evento, id_sessao=dados.id_sessao, nome_completo=dados.nome_completo, cpf=dados.cpf,

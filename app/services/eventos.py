@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Optional
 
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import uuid
@@ -461,10 +462,19 @@ def _dedupicar_pessoa_por_cpf(db: Session, *, nome_completo: str, cpf: str, emai
         if not pessoa.telefone_whatsapp:
             pessoa.telefone_whatsapp = telefone
     else:
-        pessoa = Pessoa(nome_completo=nome_completo, cpf=cpf, email_contato=email, telefone_whatsapp=telefone)
-        db.add(pessoa)
-        db.flush()
-        db.add(Papel(id_pessoa=pessoa.id_pessoa, tipo_papel=TIPO_PAPEL_PARTICIPANTE_EXTERNO))
+        try:
+            # dentro de um ponto de retorno: se a mesma pessoa for criada ao mesmo tempo por outra requisição (clique duplo, duas abas), a conta fica a salvo
+            with db.begin_nested():
+                pessoa = Pessoa(nome_completo=nome_completo, cpf=cpf, email_contato=email, telefone_whatsapp=telefone)
+                db.add(pessoa)
+                db.flush()
+                db.add(Papel(id_pessoa=pessoa.id_pessoa, tipo_papel=TIPO_PAPEL_PARTICIPANTE_EXTERNO))
+        except IntegrityError:
+            # achado pelo teste de carga na homologação (2026-10-08): a outra requisição venceu a corrida. Esta passa a usar a pessoa que ela criou;
+            # a segunda inscrição da mesma pessoa é recusada mais adiante, com a frase de sempre ("já está inscrita")
+            pessoa = db.query(Pessoa).filter(Pessoa.cpf == cpf).first()
+            if pessoa is None:
+                raise
     db.commit()
     db.refresh(pessoa)
     return pessoa

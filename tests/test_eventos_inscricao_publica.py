@@ -5,6 +5,7 @@ check-in + autocancelamento por token, rate limiting por IP e honeypot."""
 import uuid
 from datetime import datetime, timedelta
 
+from app.routers.eventos import LIMITE_DE_INSCRICOES_POR_IP
 from tests.test_pessoas import _cpf_unico
 
 _ISO = "%Y-%m-%dT%H:%M:%S"
@@ -187,9 +188,9 @@ def test_endpoint_publico_de_consentimento_lgpd_nao_colide_com_detalhe_do_evento
 
 def test_rate_limiting_por_ip_no_endpoint_publico_de_inscricao(client, auth_headers):
     id_evento = _criar_evento_publico(client, auth_headers)
-    ip = _ip_de_teste()  # UM ip fixo, reaproveitado nas 6 chamadas - é isso que está sendo testado
+    ip = _ip_de_teste()  # UM ip fixo, reaproveitado em todas as chamadas - é isso que está sendo testado
 
-    for _ in range(5):
+    for _ in range(LIMITE_DE_INSCRICOES_POR_IP):
         r = client.post(f"/api/publico/eventos/{id_evento}/inscrever-se", json=_payload_inscricao(), headers=ip)
         assert r.status_code == 200, r.text
 
