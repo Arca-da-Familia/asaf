@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.financeiro import TituloFinanceiro
@@ -67,7 +68,17 @@ def inscrever(
         identificador_grupo=identificador_grupo,
     )
     db.add(inscricao)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # a mesma pessoa foi inscrita neste mesmo instante por outra requisição (clique duplo): vale a primeira; esta é recusada como qualquer repetição
+        db.rollback()
+        vencedora = db.query(Inscricao).filter(
+            Inscricao.contexto_tipo == contexto_tipo, Inscricao.id_contexto == id_contexto, Inscricao.id_pessoa == id_pessoa,
+        ).first()
+        if vencedora is None:
+            raise
+        raise HTTPException(status_code=400, detail=f"Esta pessoa já está inscrita neste contexto (status '{vencedora.status}').")
     db.refresh(inscricao)
     return inscricao
 
