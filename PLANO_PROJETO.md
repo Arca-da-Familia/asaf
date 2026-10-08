@@ -1655,9 +1655,17 @@ retrabalho que a seção 4.1 existe pra evitar.
       cada), cobrança e reembolso configuráveis, **crachá com QR**, portaria sem login (check-in e check-out, recusas), **certificado** (só quem
       esteve presente, abre com o nome), documentos emitidos, fechamento do evento e exportações com Auditoria. (CPF repetido pelo site: provado
       na suíte automática; ao vivo, pelo painel.)
-- [ ] **Despertai e o contexto do evento:** página do projeto no `hml-site` (fotos, edições, relatórios aprovados, notícias vinculadas),
+- [x] **Despertai e o contexto do evento:** página do projeto no `hml-site` (fotos, edições, relatórios aprovados, notícias vinculadas),
       destaque na Home, página do evento com o projeto de origem, foto de evento, **relatório de evento aprovado** na Transparência;
-      dado pessoal digitado no texto público é **barrado**. *(Falta conferir ao vivo no `hml-site`: entra junto com a v5.4g, que olha o site.)*
+      dado pessoal digitado no texto público é **barrado**. **Na homologação (2026-10-08):** `v5.4g-04`, 9 de 9, pelo painel: o projeto Público em destaque
+      (CPF e e-mail no texto público barrados sem gravar; destaque em projeto Interno recusado; vários destaques convivem), a 1ª edição e a nova edição no mesmo
+      projeto, sessão, um evento Interno também ligado, a foto do evento (sem a autorização de imagem é recusada; com ela entra e o JPEG servido ao público é
+      regravado, sem GPS, aparelho nem comentário, com o mesmo SHA-256 que a API declara), o relatório cadastrado pelo Secretário e aprovado pelo Presidente (antes
+      de aprovado não aparece; depois aparece no evento, no projeto e na Transparência com o vínculo), a API pública sem nenhum campo de gestão, o Interno
+      que nunca aparece (virar Interno tira tudo do ar e voltar a Público devolve) e a Auditoria com a contagem exata. Depois de reconstruir o site de teste,
+      `v5.4g-05`, 6 de 6, abrindo o `hml-site` como visitante: a Home destaca o Despertai e não mostra o Interno; a página do projeto traz as edições, o relatório e
+      a foto (carregada); a página da 1ª edição traz o projeto de origem, a outra edição, o relatório e a foto. Fica de fora: **notícias vinculadas** (o site de
+      teste não tem notícias; o editor é um só, o de produção, e ainda não há conteúdo).
 - [x] Lista de **achados** corrigidos e refeitos; prints do painel e do site.
       **Achados corrigidos (todos provados na homologação antes da produção):** vaga gasta por inscrição recusada; cancelar pelo painel não
       liberava a vaga; configurações do evento aceitavam 150% e prazo negativo; sessão de evento com hora com fuso derrubava o servidor (refeita
@@ -1669,15 +1677,59 @@ retrabalho que a seção 4.1 existe pra evitar.
 
 #### v5.4g — FASE 5 ao vivo (v5.0 a v5.4b): site e Transparência
 
-- [ ] **Todas as páginas do `hml-site`** abertas e conferidas (links, imagens, acessibilidade, `noindex`, faixa de teste): início, a associação,
+- [x] **Todas as páginas do `hml-site`** abertas e conferidas (links, imagens, acessibilidade, `noindex`, faixa de teste): início, a associação,
       diretoria (Art. 19), projetos, eventos, notícias (a de teste não tem — o editor é um só), contato, privacidade, termos, transparência.
-- [ ] **Documentos:** Secretário prepara (original PDF + versão pública em texto), Presidente **aprova** (quem enviou **não** aprova o próprio);
+      **Na homologação (2026-10-08):** `v5.4g-01`, 5 de 5, num navegador de verdade sobre o `sitemap-0.xml` publicado (as 38 páginas, incluindo as de cada evento,
+      projeto, assembleia, documento e emenda): todas abrem (200), têm um `h1` só, a faixa AMBIENTE DE TESTE e o `noindex`, passam no axe (WCAG 2.1 A e AA e
+      boas práticas) sem nenhuma violação, nenhuma imagem quebrada nem erro na página; no celular (390 px) nenhuma vaza para o lado; todo link interno responde 200
+      e os e-mails e telefones estão no formato certo; uma página inexistente cai na 404 do site (com a faixa) e o `robots.txt` proíbe tudo. Repetido depois das
+      correções de texto (item abaixo): 5 de 5.
+- [x] **Documentos:** Secretário prepara (original PDF + versão pública em texto), Presidente **aprova** (quem enviou **não** aprova o próprio);
       o **original nunca** sai pela API pública nem por `/uploads`; PDF só-imagem recusado; documento **Interno/Restrito** não aparece;
-      retirar uma publicação e ver sair do site.
-- [ ] **Parcerias e emendas:** cadastrar, parcelas, etapas **com foto**, movimentos classificados, relatório, publicação aprovada por segunda
+      retirar uma publicação e ver sair do site. **Na homologação (2026-10-08):** `v5.4g-02`, 7 de 7, pela tela e conferindo a API pública: o Secretário cadastra um
+      documento Restrito com o original em PDF (que traz um CPF de mentira) e o original fica só na área privada; a versão pública é recusada com CPF, e-mail e
+      celular (o achado volta **mascarado**, sem gravar nada), com PDF que traz CPF, com **tarja preta só desenhada por cima** do CPF (o texto continua lá e o
+      verificador o lê), com PDF **só imagem** e com arquivo que não é PDF; o texto limpo é aceito; quem enviou para revisão não vê o botão de aprovar e a API
+      recusa (403, "Quem criou ou enviou o documento…"); o Presidente aprova; a API pública mostra o texto e **nenhuma** menção ao original, não serve o PDF
+      (404) e nenhum endereço de `/uploads` o serve; o original só baixa autenticado (o arquivo baixado é byte a byte o enviado) e o download fica na Auditoria;
+      documento Interno e documento em rascunho nunca aparecem (404 no detalhe); retirar pede o motivo (curto demais é recusado) e o documento sai da API
+      pública, com o histórico preservado. No `hml-site` reconstruído (`v5.4g-05`): a Transparência lista o aprovado e nenhum retirado, Interno ou rascunho, e a
+      página do documento mostra o texto aprovado sem CPF.
+- [x] **Parcerias e emendas:** cadastrar, parcelas, etapas **com foto**, movimentos classificados, relatório, publicação aprovada por segunda
       pessoa; o **valor mostrado no site bate** com o livro-caixa do centro de custo; edição depois de aprovada vai direto (decisão de 2026-10-04).
-- [ ] **Vigilantes e avisos** (monitor do site, alerta de 2 h, trava de tamanho) conferidos **sem** apontá-los para a homologação (custo).
+      **Na homologação (2026-10-08):** `v5.4g-03`, 8 de 8, pelas telas (Parcerias e o Financeiro): cadastro (formulário vazio, objeto com e-mail, valor e ano
+      inválidos e identificador repetido recusados; nasce rascunho, com centro de custo próprio e fora da API pública); parcelas (a soma nunca passa do valor),
+      etapas, relatório de prestação de contas e situação, cada regra recusando o errado; fotos da etapa (sem autorização, sem descrição, com CPF na descrição e
+      arquivo que não é imagem recusados; a foto boa abre só com login e fica fora do público até aprovar); o dinheiro entra **só pelo livro-caixa** (1 receita e 2
+      despesas lançadas no centro de custo da parceria) e a Razão e o relatório por centro de custo mostram os mesmos valores; cada movimento é classificado por uma
+      pessoa (equipe só com a função, sem nome nem CPF) e sem classificar a publicação trava; o Tesoureiro envia e **não aprova** (a tela não oferece o botão e a
+      API recusa, tanto por falta da permissão quanto por ser quem enviou), o Presidente e o Secretário aprovam; a API pública bate com o relatório por centro de
+      custo, o resumo e a soma dos itens; nunca traz CPF, e-mail, celular, o nome do oficineiro nem o nome interno do centro de custo; a foto pública é a
+      regravada; **editar depois de aprovada vai direto ao site** (e receita nova muda `recebido` na hora, ficando "em classificação" até alguém classificar);
+      retirar tira da API; quem não tem a permissão é barrado na tela e na API (403) e a Auditoria cresce exatamente 24 (mais 2 recusas de aprovação na tabela
+      `recusas`). No `hml-site` reconstruído (`v5.4g-05`): a emenda aparece com os **mesmos** valor da parceria, recebido, pago e saldo da API (que vêm do
+      livro-caixa), e a parceria retirada não aparece. Fica de fora: o pagamento a fornecedor (razão social e CNPJ no site), que depende de fornecedor semeado.
+- [x] **Vigilantes e avisos** (monitor do site, alerta de 2 h, trava de tamanho) conferidos **sem** apontá-los para a homologação (custo).
+      **Conferido (2026-10-08), sem tocar na homologação:** o monitor e a sincronização do site, disparados à mão, terminaram verdes, e as últimas 60 execuções de
+      cada um (agendadas) estão todas verdes, sem nenhum aviso aberto no GitHub; os scripts de **alerta** dos dois são EXECUTADOS pela suíte (bash de verdade:
+      site atrás do sistema por mais de 2 horas vira alerta, menos que isso não, e o registro zera quando o site alcança o sistema; o monitor lista o que não
+      respondeu), 12 testes; a **trava de tamanho** tem 8 testes (aviso a 60%, erro que para a publicação a 85%) e hoje o site tem 1,2 MB dos 250 MB; um teste novo
+      garante que nenhum dos três (nem a trava) aponta para a homologação.
 - [ ] **Checklist do Ponto de Revisão FASE 5 (1/2) executado inteiro na homologação**, item a item, com o resultado registrado ali.
+      **Andamento (2026-10-08):** feito e provado: (a) **Directus isolado** — `isolar_directus.py verificar` na PRODUÇÃO (só leitura): "o Directus não alcança nenhuma
+      tabela do sistema", e `directus_configurar.py verificar --producao`: "conforme o modelo" (só coleções editoriais, nenhuma de negócio) — o que também prova
+      "uma fonte só"; (b) **SEO e acessibilidade rodando no CI** (todo deploy do site passa por axe, Lighthouse e e2e: o último, verde) e agora também sobre as 38
+      páginas do `hml-site` com dado real; (c) **rascunho não vaza, perfis do Directus e token de serviço só de leitura** — 45 testes do modelo do Directus e os do
+      site (só publica o "publicado" com data vencida); (d) **nenhum PDF só imagem publicado**, **nenhum dado de exemplo na produção** (o `conteudo.json` de
+      produção tem 0 eventos, 0 projetos, 0 dirigentes, 0 documentos) e **consistência de valores** (`v5.4g-03` e `v5.4g-05`); (e) **dado pessoal**: o original
+      nunca sai, a tarja só desenhada não engana, Interno/Restrito não aparece, quem enviou não aprova (`v5.4g-02`); (f) **verificação independente de fatos** (um
+      agente que não escreveu os textos) dos textos públicos mudados desde 03/10: 14 achados, dos quais corrigi e provei (privacidade 1.3, aviso do formulário na
+      versão 2, frases de documento e de parceria, idade "18 anos ou mais", mensagem de e-mail em português) e **deixei para decisão do Presidente** os dois textos
+      que são palavras dele: "A associação ainda não recebeu recursos de emendas parlamentares" (hoje sai de uma lista vazia, não de um fato) e "atualizada em até
+      24 horas após qualquer recebimento" (depende de alguém lançar e aprovar). **Falta, e depende de você:** o Estatuto do site ser a versão registrada em
+      cartório (você confirma), a revisão jurídica de Transparência, Privacidade e Termos (leitura de quem é do ramo; a política ainda não nomeia o encarregado
+      de dados, LGPD art. 41), a conferência da diretoria contra a vedação do STF de 15/01/2026 e os dados reais da diretoria. Falta ainda fechar a v5.4h
+      (paginação, o site ler a Instituição) para o ponto abrir.
 
 ##### Regra de trabalho a partir da v5.5 — a homologação é o portão (decisão do presidente, 2026-10-05)
 
@@ -1973,6 +2025,13 @@ Tudo aqui é construído (não é "decidir se faz"), na ordem abaixo, cada item 
       público agora). **Em produção (2026-10-08):** commit `667ad62`, Deploy API verde; a lista pública de eventos e o texto de consentimento respondem 200 e o
       preflight de CORS de `https://asaf.org.br` libera o POST da inscrição. Nenhuma inscrição de teste foi enviada à produção. **Falta (é da v5.5, não daqui):** o
       formulário de inscrição em evento no site e a página de cancelar a inscrição que o e-mail promete (`/cancelar-inscricao`, que hoje não existe).
+      **Achado de segurança do mesmo teste (2026-10-08):** o limite por IP e o IP gravado na Auditoria usavam o PRIMEIRO item de `X-Forwarded-For`, que é do cliente:
+      400 "pessoas" de uma máquina só, cada uma com um primeiro item inventado, nunca eram barradas (qualquer um burlava o limite). Agora vale o ÚLTIMO item, o que o
+      ingress anotou (`app/services/protecao_publica.py::ip_publico`, usado na inscrição em evento, na pesquisa de satisfação, na portaria e na filiação). **Provado na
+      homologação:** com a correção, 60 "pessoas" da mesma máquina foram limitadas a 30 (28 inscrições aceitas, 2 repetidas, 33 barradas) e o grupo do mesmo IP teve 0
+      aceitas; só a API de TESTE liga `CONFIAR_NO_PRIMEIRO_IP=1` (para o teste de carga simular muita gente de uma máquina), com teste garantindo que a produção nunca
+      define; com a variável, a carga normal voltou a passar (150 por minuto: 100 confirmadas, 80 na espera, p95 0,28 s). **Em produção:** commit `5b26086`, Deploy API e
+      Site verdes.
 
 ### FASE 6 — Comunicação e transparência
 
