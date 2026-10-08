@@ -1179,6 +1179,11 @@ test.describe('A. Reserva de espaço', () => {
     await expect(
       page.getByRole('heading', { name: 'Títulos', level: 1 }),
     ).toBeVisible()
+    // a lista de Títulos é paginada e a homologação acumula títulos de outras rodadas: a busca leva direto aos desta reserva
+    const buscar = page.getByPlaceholder(
+      'Buscar por descrição, nome ou fornecedor',
+    )
+    await buscar.fill(`título original #${idTitulo}`)
     const reembolso = page
       .locator('div.rounded-md.border')
       .filter({ hasText: `título original #${idTitulo}` })
@@ -1186,6 +1191,7 @@ test.describe('A. Reserva de espaço', () => {
     await expect(reembolso).toContainText('A Pagar')
     await expect(reembolso).toContainText(/Reembolso \(50(\.0+)?%\)/)
     await expect(reembolso).toContainText(/Original\s+R\$\s*75,00/)
+    await buscar.fill(`Taxa de cancelamento tardio - reserva de '${nome}'`)
     const taxa = page.locator('div.rounded-md.border').filter({
       hasText: `Taxa de cancelamento tardio - reserva de '${nome}'`,
     })
