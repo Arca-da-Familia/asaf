@@ -28,19 +28,19 @@
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
-    "astro": "^7.3.5",
+    "astro": "^7.3.7",
     "sanitize-html": "^2.18.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "@axe-core/playwright": "^4.13.0",
     "@lhci/cli": "^0.15.1",
-    "@playwright/test": "^1.63.0",
+    "@playwright/test": "^1.64.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.6.3",
     "@types/sanitize-html": "^2.16.2",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "jsdom": "^30.1.1",
+    "jsdom": "^30.1.2",
     "prettier": "^3.4.2",
     "prettier-plugin-astro": "^1.1.0",
     "sharp": "^0.35.5",
