@@ -37,6 +37,10 @@ export const GRUPOS_DO_RODAPE: GrupoDoRodape[] = [
       { rotulo: 'Transparência', href: '/transparencia/' },
       { rotulo: 'Emendas parlamentares', href: '/transparencia/emendas/' },
       { rotulo: 'Documentos publicados', href: '/transparencia/documentos/' },
+      {
+        rotulo: 'Pedido de informação',
+        href: '/transparencia/pedido-de-informacao/',
+      },
     ],
   },
   {
@@ -60,6 +64,10 @@ export const GRUPOS_DO_RODAPE: GrupoDoRodape[] = [
     titulo: 'Informações legais',
     itens: [
       { rotulo: 'Política de Privacidade', href: '/privacidade/' },
+      {
+        rotulo: 'Solicitação do titular de dados',
+        href: '/privacidade/solicitacao-do-titular/',
+      },
       { rotulo: 'Termos de Uso', href: '/termos/' },
     ],
   },

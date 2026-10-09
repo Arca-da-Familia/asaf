@@ -4,6 +4,7 @@ import {
   comFusoDaAsaf,
   formatarDataCurta,
   formatarDia,
+  formatarDiaDeInstanteUtc,
   formatarHora,
   formatarInstanteUtc,
   jaAconteceu,
@@ -30,6 +31,27 @@ describe('formatarInstanteUtc (momento gravado em UTC, ex.: emissão do edital)'
   it('respeita fuso explícito', () => {
     expect(formatarInstanteUtc('2026-10-03T11:30:00-03:00')).toBe(
       '03/10/2026 11:30',
+    )
+  })
+})
+
+describe('formatarDiaDeInstanteUtc (prazo gravado em UTC sem fuso)', () => {
+  it('mostra o dia no horário de Parauapebas, por extenso', () => {
+    expect(formatarDiaDeInstanteUtc('2026-10-19T14:30:00.123456')).toBe(
+      '19 de outubro de 2026',
+    )
+  })
+  it('vira o dia anterior quando passa da meia-noite UTC', () => {
+    expect(formatarDiaDeInstanteUtc('2026-10-24T01:00:00')).toBe(
+      '23 de outubro de 2026',
+    )
+  })
+  it('respeita fuso explícito', () => {
+    expect(formatarDiaDeInstanteUtc('2026-10-24T01:00:00Z')).toBe(
+      '23 de outubro de 2026',
+    )
+    expect(formatarDiaDeInstanteUtc('2026-10-24T01:00:00-03:00')).toBe(
+      '24 de outubro de 2026',
     )
   })
 })

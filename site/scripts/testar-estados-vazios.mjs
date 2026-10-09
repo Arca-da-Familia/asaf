@@ -315,6 +315,38 @@ exigir(
   'API antiga: o contato mostra horário/redes sem haver dado da Instituição',
 )
 
+// v5.5a - os formulários da fila única de atendimento são HTML estático: existem com a API sem nenhum dado e com a API antiga (que ainda não tem a rota). O PRAZO
+// de resposta nunca é escrito na página: vem da API, no navegador (a página sem ele só deixa o texto de fora).
+for (const [caminho, tipo] of [
+  ['/contato/', 'CONTATO'],
+  ['/transparencia/pedido-de-informacao/', 'PEDIDO_INFORMACAO'],
+  ['/privacidade/solicitacao-do-titular/', 'TITULAR_LGPD'],
+]) {
+  for (const [rotulo, ler] of [
+    ['vazio', lerPagina],
+    ['API antiga', lerAntiga],
+  ]) {
+    if (
+      !existsSync(
+        `${rotulo === 'vazio' ? 'dist-vazio' : 'dist-antiga'}${caminho}index.html`,
+      )
+    ) {
+      exigir(false, `${rotulo}: ${caminho} não foi gerada`)
+      continue
+    }
+    const html = ler(caminho)
+    exigir(
+      html.includes('data-atendimento-form') &&
+        html.includes(`data-tipo="${tipo}"`),
+      `${rotulo}: ${caminho} sem o formulário de atendimento do tipo ${tipo}`,
+    )
+    exigir(
+      !html.includes('Respondemos em até'),
+      `${rotulo}: ${caminho} traz um prazo escrito na página (ele só pode vir da API)`,
+    )
+  }
+}
+
 if (problemas.length > 0) {
   console.error('\nESTADO VAZIO COM PROBLEMA:')
   for (const p of problemas) console.error('  -', p)

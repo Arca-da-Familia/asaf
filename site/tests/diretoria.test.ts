@@ -5,6 +5,7 @@ import {
   CARGOS_DA_DIRETORIA,
   MEMBROS_DO_CONSELHO,
   montarComposicao,
+  presidenteDaDiretoria,
 } from '../src/lib/diretoria'
 
 const membro = (
@@ -91,5 +92,28 @@ describe('montarComposicao', () => {
     expect(
       CARGOS_DA_DIRETORIA.every((c) => c.artigo.startsWith('Art. 19')),
     ).toBe(true)
+  })
+})
+
+describe('presidenteDaDiretoria (o encarregado de dados da Política de Privacidade)', () => {
+  it('sem mandato registrado não há nome (a Política manda olhar a página Diretoria)', () => {
+    expect(presidenteDaDiretoria([])).toBeNull()
+  })
+
+  it('é o ocupante do cargo PRESIDENTE da Diretoria Executiva, e só ele', () => {
+    const lista = [
+      membro('DIRETORIA_EXECUTIVA', 'VICE_PRESIDENTE', 'Vice'),
+      membro('CONSELHO_FISCAL', 'PRESIDENTE', 'Presidente de outro órgão'),
+      membro('DIRETORIA_EXECUTIVA', 'PRESIDENTE', 'Fulano de Tal'),
+    ]
+    expect(presidenteDaDiretoria(lista)).toBe('Fulano de Tal')
+  })
+
+  it('nome em branco não conta', () => {
+    expect(
+      presidenteDaDiretoria([
+        membro('DIRETORIA_EXECUTIVA', 'PRESIDENTE', '  '),
+      ]),
+    ).toBeNull()
   })
 })

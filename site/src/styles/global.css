@@ -13,7 +13,8 @@
    mostrar um aviso que nunca muda; o <noscript> ao lado explica o que fazer. */
 @media (scripting: none) {
   [data-eventos],
-  [data-filiacao-form] {
+  [data-filiacao-form],
+  [data-atendimento-form] {
     display: none;
   }
 }
