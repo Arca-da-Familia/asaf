@@ -1,0 +1,70 @@
+---
+import FormularioDeAtendimento from '../../../components/FormularioDeAtendimento.astro'
+import TituloDePagina from '../../../components/TituloDePagina.astro'
+import type { Migalha } from '../../../config/navegacao'
+import Base from '../../../layouts/Base.astro'
+import { DIREITOS_DO_TITULAR } from '../../../lib/atendimento-pedido'
+
+// O formulário manda a solicitação para a fila única de atendimento do sistema (tipo TITULAR_LGPD). A lista abaixo é a MESMA do campo "O que você quer pedir":
+// um lugar só (`lib/atendimento-pedido.ts`), para a página e o formulário nunca divergirem. Nada aqui promete resultado nem cita lei: quem explica o
+// tratamento dos dados é a Política de Privacidade.
+const migalhas: Migalha[] = [
+  { rotulo: 'Política de Privacidade', href: '/privacidade/' },
+  { rotulo: 'Solicitação do titular de dados' },
+]
+---
+
+<Base
+  titulo="Solicitação do titular de dados"
+  descricao="Peça à ASAF, pelo formulário, o que você quer saber ou mudar sobre os seus dados pessoais: confirmação, acesso, correção, eliminação e outros pedidos."
+  caminho="/privacidade/solicitacao-do-titular/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Solicitação do titular de dados"
+    resumo="Titular dos dados é a pessoa a quem os dados se referem. Aqui você pode fazer um pedido sobre os seus dados pessoais."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-12">
+    <section aria-labelledby="o-que-pedir">
+      <h2 id="o-que-pedir" class="text-2xl font-bold tracking-tight">
+        O que você pode pedir
+      </h2>
+      <p class="mt-4 max-w-3xl">
+        Se a ASAF guarda dados seus, você pode pedir à associação, por exemplo:
+      </p>
+      <ul class="mt-4 flex max-w-3xl list-disc flex-col gap-2 pl-6">
+        {DIREITOS_DO_TITULAR.map((direito) => (
+          <li>{direito.rotulo}</li>
+        ))}
+      </ul>
+      <p class="mt-4 max-w-3xl">
+        Para saber como a associação trata os dados pessoais, leia a{' '}
+        <a
+          href="/privacidade/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          Política de Privacidade
+        </a>
+        .
+      </p>
+    </section>
+
+    <FormularioDeAtendimento
+      tipo="TITULAR_LGPD"
+      titulo="Faça a sua solicitação"
+      idDoFormulario="solicitacao-do-titular"
+      instrucao="Escolha o que você quer pedir, conte o que precisa e informe o seu CPF e uma forma de contato."
+    />
+
+    <p class="text-sm">
+      <a
+        href="/privacidade/"
+        class="font-medium text-primary underline underline-offset-4"
+      >
+        Voltar para a Política de Privacidade
+      </a>
+    </p>
+  </div>
+</Base>

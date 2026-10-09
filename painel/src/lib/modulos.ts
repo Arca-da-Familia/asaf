@@ -19,6 +19,7 @@ import {
   Gavel,
   Globe,
   Handshake,
+  Headset,
   HeartHandshake,
   Landmark,
   ListChecks,
@@ -112,6 +113,14 @@ export const modulos: Modulo[] = [
       },
       { rota: '/associados/graficos', rotulo: 'Gráficos', icone: BarChart3 },
     ],
+  },
+  // v5.5a - fila única de atendimento: o que chega pelo formulário do site (contato, pedido de informação sobre recursos públicos, solicitação
+  // de titular de dados da LGPD, voluntariado) com protocolo e prazo. Só quem tem a permissão `atendimento`.
+  {
+    rota: '/atendimentos',
+    rotulo: 'Atendimento',
+    permissao: 'atendimento',
+    icone: Headset,
   },
   {
     rota: '/financeiro',

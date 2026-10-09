@@ -6,18 +6,21 @@ import {
   ENDERECO_LINHA,
   PAINEL_URL,
 } from '../../config/organizacao'
-import { organizacaoDoSite } from '../../lib/dados-publicos'
+import { conteudoPublico, organizacaoDoSite } from '../../lib/dados-publicos'
+import { presidenteDaDiretoria } from '../../lib/diretoria'
 import Base from '../../layouts/Base.astro'
 
 // os dados da associação como o site os mostra: os fixos, com o que a Instituição do painel marcou "vai para o site" por cima (v5.4h)
 const ORGANIZACAO = await organizacaoDoSite()
+// o encarregado pelo tratamento de dados é o Presidente (LGPD, art. 41): o nome vem do mandato vigente que o sistema publica
+const presidente = presidenteDaDiretoria((await conteudoPublico()).diretoria)
 
 // Texto escrito SÓ com o que o site e o sistema realmente fazem hoje. Versionado em
 // config/organizacao.ts (v1.1: corrigido pela verificação de fatos de 2026-10-03, que apontou
 // promessas sem lastro — eliminação automática por prazo, base legal por formulário, consentimento
 // de menor imposto pelo sistema — tudo isso ainda é a FASE 7 e por isso NÃO está prometido aqui).
-// Revisão jurídica e a designação do encarregado pelo tratamento de dados (LGPD, art. 41) cabem à
-// diretoria — ver o registro no PLANO_PROJETO.md.
+// Revisão jurídica: a associação não contrata advogado e o Presidente deu o texto por válido (2026-10-09).
+// Encarregado pelo tratamento de dados (LGPD, art. 41): o Presidente, por decisão dele (2026-10-09); v1.4.
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -73,7 +76,14 @@ const direitos = [
           fotos de atividades feitas com autorização de imagem.
         </li>
         <li>
-          Não vendemos dados. Você pode exercer os seus direitos escrevendo para{' '}
+          Não vendemos dados. Você pode exercer os seus direitos pelo{' '}
+          <a
+            href="/privacidade/solicitacao-do-titular/"
+            class="font-medium text-primary underline underline-offset-4"
+          >
+            formulário de solicitação do titular de dados
+          </a>{' '}
+          ou escrevendo para{' '}
           <a
             href={`mailto:${ORGANIZACAO.email}`}
             class="font-medium text-primary underline underline-offset-4"
@@ -99,6 +109,35 @@ const direitos = [
           class="font-medium text-primary underline underline-offset-4"
         >
           {ORGANIZACAO.email}
+        </a>
+        .
+      </p>
+      <p class="mt-3" data-encarregado>
+        <strong>Encarregado pelo tratamento de dados pessoais</strong> (Lei nº
+        13.709/2018, art. 41): o Presidente da ASAF
+        {presidente ? (
+          <>
+            , <strong>{presidente}</strong>
+          </>
+        ) : (
+          <>
+            {' '}
+            (o nome consta na página{' '}
+            <a
+              href="/diretoria/"
+              class="font-medium text-primary underline underline-offset-4"
+            >
+              Diretoria
+            </a>
+            )
+          </>
+        )}
+        . O contato é o mesmo e-mail acima ou o{' '}
+        <a
+          href="/privacidade/solicitacao-do-titular/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          formulário de solicitação do titular de dados
         </a>
         .
       </p>
@@ -157,8 +196,10 @@ const direitos = [
         Cadastros e formulários
       </h2>
       <p class="mt-3">
-        O único formulário deste site, por enquanto, é o pedido de filiação (na
-        página{' '}
+        Este site tem quatro formulários: o pedido de filiação e três
+        formulários de atendimento (contato, pedido de informação sobre recursos
+        públicos e solicitação do titular de dados). O pedido de filiação fica
+        na página{' '}
         <a
           href="/seja-associado/"
           class="font-medium text-primary underline underline-offset-4"
@@ -179,10 +220,26 @@ const direitos = [
         recusados ou sem andamento ficam guardados no sistema; para pedir a
         eliminação, escreva para o e-mail acima e o pedido será analisado.
       </p>
+      <p class="mt-3" data-formularios-de-atendimento>
+        <strong>Formulários de atendimento.</strong> O de contato e o de pedido
+        de informação sobre recursos públicos pedem nome, e-mail ou telefone,
+        assunto e a sua mensagem; o de solicitação do titular de dados pede
+        nome, e-mail ou telefone, o CPF (só para conferir que quem pede é o
+        titular), o direito que você quer exercer e a sua mensagem. Antes do
+        envio, a página mostra o aviso de privacidade e só envia o pedido depois
+        que você o aceita; a versão do aviso e o momento do aceite ficam
+        registrados no pedido. Cada pedido recebe um número de protocolo e um
+        prazo de resposta, mostrados na hora na própria página. Os dados vão
+        para o sistema de gestão da ASAF, onde só vê o pedido quem atende na
+        associação (hoje, a Presidência e a Diretoria). Guardamos o pedido, o
+        protocolo e a nossa resposta para provar que atendemos no prazo, e a
+        resposta pode seguir pelo e-mail que você informar. O endereço IP de
+        quem envia também fica registrado, por segurança. Para pedir que
+        apaguemos o que guardamos, use a solicitação do titular de dados.
+      </p>
       <p class="mt-3">
-        Quando houver outros formulários (inscrição em evento, voluntariado,
-        contato), cada um informará, antes do envio, quais dados pede e para
-        quê.
+        Quando houver outros formulários (inscrição em evento e voluntariado),
+        cada um informará, antes do envio, quais dados pede e para quê.
       </p>
       <p class="mt-3">
         Fora do site, a ASAF trata, no seu sistema de gestão, dados de
@@ -250,7 +307,14 @@ const direitos = [
         ))}
       </ul>
       <p class="mt-3">
-        Para exercer qualquer desses direitos, escreva para{' '}
+        Para exercer qualquer desses direitos, use o{' '}
+        <a
+          href="/privacidade/solicitacao-do-titular/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          formulário de solicitação do titular de dados
+        </a>{' '}
+        ou escreva para{' '}
         <a
           href={`mailto:${ORGANIZACAO.email}`}
           class="font-medium text-primary underline underline-offset-4"

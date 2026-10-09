@@ -104,3 +104,14 @@ const FORMATO_DATA_LONGA = new Intl.DateTimeFormat('pt-BR', {
 export function formatarDataLonga(instanteIso: string): string {
   return FORMATO_DATA_LONGA.format(new Date(instanteIso))
 }
+
+/**
+ * Instante gravado pelo sistema em UTC SEM fuso ("2026-10-19T14:30:00.123456", ex.: o prazo de resposta de um pedido) -> "19 de outubro de 2026", o DIA
+ * no horário de Parauapebas (um prazo que cai à 1h da manhã em UTC ainda é o dia anterior aqui).
+ */
+export function formatarDiaDeInstanteUtc(isoUtcSemFuso: string): string {
+  const instante = new Date(
+    TEM_FUSO.test(isoUtcSemFuso) ? isoUtcSemFuso : `${isoUtcSemFuso}Z`,
+  )
+  return FORMATO_DATA_LONGA.format(instante)
+}

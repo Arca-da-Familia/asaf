@@ -30,7 +30,7 @@ export interface ValoresDoPedido {
 export type CampoComErro = keyof ValoresDoPedido | 'contato'
 export type ErrosDoPedido = Partial<Record<CampoComErro, string>>
 
-const somenteDigitos = (texto: string) => texto.replace(/\D/g, '')
+export const somenteDigitos = (texto: string) => texto.replace(/\D/g, '')
 
 export function cpfValido(cpf: string): boolean {
   const d = somenteDigitos(cpf)
@@ -73,9 +73,9 @@ export function precisaDeAutorizacao(nascimento: string, hoje: Date): boolean {
   return idade !== null && idade >= IDADE_MINIMA && idade < MAIORIDADE
 }
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+export const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-function telefoneValido(telefone: string): boolean {
+export function telefoneValido(telefone: string): boolean {
   const d = somenteDigitos(telefone)
   if (d.length !== 10 && d.length !== 11) return false
   if (Number(d.slice(0, 2)) < 11) return false

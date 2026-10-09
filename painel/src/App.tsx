@@ -25,6 +25,7 @@ import { AssociadoDetalhePage } from '@/pages/AssociadoDetalhe'
 import { AssociadoNovoPage } from '@/pages/AssociadoNovo'
 import { AssociadosGraficosPage } from '@/pages/AssociadosGraficos'
 import { AssociadosPage } from '@/pages/Associados'
+import { AtendimentosPage } from '@/pages/Atendimentos'
 import { AuditoriaPage } from '@/pages/Auditoria'
 import { CalendarioPage } from '@/pages/Calendario'
 import { ConcederAcessoPage } from '@/pages/ConcederAcesso'
@@ -329,6 +330,16 @@ function App() {
               }
             />
           </Route>
+          <Route
+            path="/atendimentos"
+            element={
+              <RequirePermission permission="atendimento">
+                <ErrorBoundary tituloModulo="Atendimento">
+                  <AtendimentosPage />
+                </ErrorBoundary>
+              </RequirePermission>
+            }
+          />
           <Route
             path="/financeiro"
             element={

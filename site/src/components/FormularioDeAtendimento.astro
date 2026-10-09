@@ -1,0 +1,314 @@
+---
+import { API_URL } from '../config/organizacao'
+import {
+  DIREITOS_DO_TITULAR,
+  MENSAGEM_MAXIMA,
+  VERSAO_DO_AVISO_DE_PRIVACIDADE_DO_ATENDIMENTO,
+  type TipoDePedido,
+} from '../lib/atendimento-pedido'
+
+// O formulário da fila única de atendimento (v5.5a): contato, pedido de informação sobre recursos públicos e solicitação do titular de dados. Quem se comporta é
+// `lib/atendimento-pedido.ts`; aqui só o HTML, para ele ser acessível sem JavaScript de enfeite: cada campo tem rótulo, dica e mensagem de erro ligadas por
+// `aria-describedby`. Cada formulário usa o `idDoFormulario` como prefixo dos seus ids (assim dois formulários na mesma página nunca repetem um id).
+interface Props {
+  tipo: TipoDePedido
+  titulo: string
+  idDoFormulario: string
+  /** Frase de apresentação, sob o título (opcional). */
+  instrucao?: string
+}
+
+const { tipo, titulo, idDoFormulario, instrucao } = Astro.props
+const titular = tipo === 'TITULAR_LGPD'
+const id = (parte: string) => `${idDoFormulario}-${parte}`
+
+const campo =
+  'h-11 w-full rounded-md border bg-background px-3 text-base aria-[invalid=true]:border-destructive'
+const erro = 'mt-1 text-sm font-medium text-destructive'
+const dica = 'mt-1 text-sm text-muted-foreground'
+const link = 'font-medium text-primary underline underline-offset-4'
+---
+
+<section
+  aria-labelledby={id('titulo')}
+  class="rounded-lg border bg-card p-6 shadow-card sm:p-8"
+>
+  <h2 id={id('titulo')} class="text-2xl font-bold tracking-tight">
+    {titulo}
+  </h2>
+  {instrucao && <p class="mt-3 max-w-3xl">{instrucao}</p>}
+  <noscript>
+    <p class="mt-3 font-medium">
+      Para enviar o pedido por esta página é preciso ativar o JavaScript do
+      navegador. Se preferir, ligue ou escreva para a associação: o telefone e o
+      e-mail estão no rodapé desta página.
+    </p>
+  </noscript>
+
+  <form
+    id={idDoFormulario}
+    data-atendimento-form
+    data-tipo={tipo}
+    data-api-url={API_URL}
+    data-confirmacao={`#${id('enviado')}`}
+    novalidate
+    class="relative mt-6 grid max-w-2xl gap-5"
+  >
+    <p data-prazo hidden class="font-medium"></p>
+
+    <p
+      data-resumo-de-erros
+      role="alert"
+      hidden
+      class="rounded-md border border-destructive bg-background p-3 font-medium text-destructive"
+    ></p>
+
+    <div>
+      <label for={id('nome')} class="block text-sm font-medium">
+        Nome completo
+      </label>
+      <input
+        id={id('nome')}
+        name="nome_completo"
+        type="text"
+        autocomplete="name"
+        aria-describedby={id('erro-nome')}
+        class={`mt-1 ${campo}`}
+      />
+      <p id={id('erro-nome')} data-erro="nome_completo" hidden class={erro}></p>
+    </div>
+
+    <fieldset class="grid gap-5" aria-describedby={id('dica-contato')}>
+      <legend class="text-sm font-medium">Como podemos responder você</legend>
+      <p id={id('dica-contato')} class="text-sm text-muted-foreground">
+        Informe ao menos um dos dois, para podermos responder.
+      </p>
+      <div>
+        <label for={id('email')} class="block text-sm font-medium">
+          E-mail
+        </label>
+        <input
+          id={id('email')}
+          name="email_contato"
+          type="email"
+          autocomplete="email"
+          aria-describedby={`${id('erro-email')} ${id('erro-contato')}`}
+          class={`mt-1 ${campo}`}
+        />
+        <p
+          id={id('erro-email')}
+          data-erro="email_contato"
+          hidden
+          class={erro}
+        ></p>
+      </div>
+      <div>
+        <label for={id('telefone')} class="block text-sm font-medium">
+          Telefone/WhatsApp
+        </label>
+        <input
+          id={id('telefone')}
+          name="telefone_whatsapp"
+          type="tel"
+          inputmode="tel"
+          autocomplete="tel-national"
+          aria-describedby={`${id('dica-telefone')} ${id('erro-telefone')} ${id('erro-contato')}`}
+          class={`mt-1 ${campo}`}
+        />
+        <p id={id('dica-telefone')} class={dica}>
+          Com o DDD. Exemplo: 91 98888-7777.
+        </p>
+        <p
+          id={id('erro-telefone')}
+          data-erro="telefone_whatsapp"
+          hidden
+          class={erro}
+        ></p>
+      </div>
+      <p id={id('erro-contato')} data-erro="contato" hidden class={erro}></p>
+    </fieldset>
+
+    {titular && (
+      <div>
+        <label for={id('cpf')} class="block text-sm font-medium">
+          CPF
+        </label>
+        <input
+          id={id('cpf')}
+          name="cpf"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          aria-describedby={`${id('dica-cpf')} ${id('erro-cpf')}`}
+          class={`mt-1 ${campo}`}
+        />
+        <p id={id('dica-cpf')} class={dica}>
+          Só os números, ou com pontos e traço. O CPF serve apenas para conferir
+          que quem pede é o titular dos dados.
+        </p>
+        <p id={id('erro-cpf')} data-erro="cpf" hidden class={erro} />
+      </div>
+    )}
+
+    {titular ? (
+      <div>
+        <label for={id('subtipo')} class="block text-sm font-medium">
+          O que você quer pedir
+        </label>
+        <select
+          id={id('subtipo')}
+          name="subtipo"
+          aria-describedby={id('erro-subtipo')}
+          class={`mt-1 ${campo}`}
+        >
+          <option value="">Escolha uma opção</option>
+          {DIREITOS_DO_TITULAR.map((direito) => (
+            <option value={direito.valor}>{direito.rotulo}</option>
+          ))}
+        </select>
+        <p id={id('erro-subtipo')} data-erro="subtipo" hidden class={erro} />
+      </div>
+    ) : (
+      <div>
+        <label for={id('assunto')} class="block text-sm font-medium">
+          Assunto
+        </label>
+        <input
+          id={id('assunto')}
+          name="assunto"
+          type="text"
+          autocomplete="off"
+          aria-describedby={id('erro-assunto')}
+          class={`mt-1 ${campo}`}
+        />
+        <p id={id('erro-assunto')} data-erro="assunto" hidden class={erro} />
+      </div>
+    )}
+
+    <div>
+      <label for={id('mensagem')} class="block text-sm font-medium">
+        Mensagem
+      </label>
+      <textarea
+        id={id('mensagem')}
+        name="mensagem"
+        rows="6"
+        aria-describedby={`${id('contagem')} ${id('erro-mensagem')}`}
+        class="mt-1 min-h-32 w-full rounded-md border bg-background px-3 py-2 text-base aria-[invalid=true]:border-destructive"
+      ></textarea>
+      <p id={id('contagem')} data-contador class={dica}>
+        0 de {MENSAGEM_MAXIMA.toLocaleString('pt-BR')} letras
+      </p>
+      <p id={id('erro-mensagem')} data-erro="mensagem" hidden class={erro}></p>
+    </div>
+
+    <div class="rounded-md border bg-background p-4 text-sm" id={id('aviso')}>
+      <p class="font-medium">
+        Aviso de privacidade (versão{' '}
+        {VERSAO_DO_AVISO_DE_PRIVACIDADE_DO_ATENDIMENTO})
+      </p>
+      <p class="mt-2">
+        Usamos o que você escrever aqui só para responder ao seu pedido. Quem lê
+        o seu pedido é quem atende na associação (hoje, a Presidência e a
+        Diretoria). Guardamos o pedido, o protocolo e a nossa resposta para
+        provar que atendemos no prazo. Para saber mais, ou para pedir que
+        apaguemos o que guardamos, leia a{' '}
+        <a href="/privacidade/" class={link}>
+          Política de Privacidade
+        </a>
+        {titular ? (
+          '.'
+        ) : (
+          <>
+            {' '}
+            ou use a{' '}
+            <a href="/privacidade/solicitacao-do-titular/" class={link}>
+              solicitação do titular de dados
+            </a>
+            .
+          </>
+        )}
+      </p>
+    </div>
+
+    <div>
+      <label class="flex items-start gap-3 text-sm font-medium">
+        <input
+          name="consentimento_lgpd"
+          type="checkbox"
+          aria-describedby={`${id('aviso')} ${id('erro-consentimento')}`}
+          class="mt-1 h-5 w-5 shrink-0"
+        />
+        <span>Li e aceito o aviso de privacidade.</span>
+      </label>
+      <p
+        id={id('erro-consentimento')}
+        data-erro="consentimento_lgpd"
+        hidden
+        class={erro}
+      ></p>
+    </div>
+
+    <!-- Armadilha para robôs: ninguém vê nem preenche; quem preenche é descartado pela API sem aviso. -->
+    <div
+      aria-hidden="true"
+      class="absolute -left-[9999px] h-px w-px overflow-hidden"
+    >
+      <label>
+        Não preencha este campo
+        <input type="text" name="pagina_web" tabindex="-1" autocomplete="off" />
+      </label>
+    </div>
+
+    <p
+      data-falha-do-envio
+      role="alert"
+      tabindex="-1"
+      hidden
+      class="rounded-md border border-destructive bg-background p-3 font-medium text-destructive"
+    ></p>
+
+    <div>
+      <button
+        type="submit"
+        data-enviar
+        class="rounded-md bg-primary px-6 py-3 font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+      >
+        Enviar pedido
+      </button>
+    </div>
+  </form>
+
+  <div
+    id={id('enviado')}
+    data-confirmacao
+    role="status"
+    tabindex="-1"
+    hidden
+    class="mt-6 max-w-2xl rounded-md border bg-background p-5"
+  >
+    <h3 class="text-lg font-bold">Recebemos o seu pedido.</h3>
+    <div data-bloco-do-protocolo hidden class="mt-3">
+      <p class="text-lg">
+        Protocolo:
+        <strong
+          data-protocolo
+          class="ml-1 rounded-md border-2 border-primary px-2 py-1 text-xl tracking-wide"
+        ></strong>
+      </p>
+      <p class="mt-2 font-medium">Guarde este número.</p>
+    </div>
+    <p data-prazo-da-resposta hidden class="mt-3"></p>
+    <p class="mt-3">
+      Se informou e-mail, a resposta também pode chegar por lá.
+    </p>
+  </div>
+</section>
+
+<script>
+  import { iniciarFormularioDeAtendimento } from '../lib/atendimento-pedido'
+
+  document
+    .querySelectorAll<HTMLFormElement>('[data-atendimento-form]')
+    .forEach((form) => iniciarFormularioDeAtendimento(form))
+</script>

@@ -85,6 +85,23 @@ describe('Associados: a lista é paginada e filtrada no servidor', () => {
     )
   })
 
+  it('digitar na busca e escolher uma situação logo em seguida mantém as duas (achado do robô na homologação)', async () => {
+    const u = userEvent.setup()
+    desenhar(<AssociadosPage />)
+    await screen.findByText('Ana de Teste')
+    await u.type(screen.getByLabelText('Filtrar'), 'Carla')
+    // sem esperar a pausa da busca
+    await u.selectOptions(
+      screen.getByRole('combobox', { name: /Situação/ }),
+      'Licenciado',
+    )
+    await waitFor(() =>
+      expect(api.listarAssociadosDaPagina).toHaveBeenLastCalledWith(
+        expect.objectContaining({ busca: 'Carla', situacao: 'Licenciado' }),
+      ),
+    )
+  })
+
   it('escolher uma situação e uma categoria vai na consulta', async () => {
     const u = userEvent.setup()
     desenhar(<AssociadosPage />)

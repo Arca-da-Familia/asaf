@@ -876,6 +876,26 @@ export const RECUSA_DE_DUPLICIDADE =
   'Já existe um pedido em andamento ou um cadastro com estes dados. Fale com a secretaria para saber a situação.'
 
 /**
+ * Fila única de atendimento (v5.5a): contato, pedido de informação e solicitação do titular de dados. O mock guarda o corpo recebido (o teste confere o que a API
+ * real receberia), dá protocolos em sequência e responde como a API real. Nomes de teste fazem o mock responder aos dois casos que só a API sabe provocar:
+ * o limite de pedidos por endereço (429) e o erro de servidor (500). (Prazos em dias iguais aos padrões do sistema.)
+ */
+const pedidosDeAtendimento = []
+let protocolosDeAtendimento = 0
+export const PRAZOS_DE_ATENDIMENTO = {
+  CONTATO: 10,
+  PEDIDO_INFORMACAO: 20,
+  TITULAR_LGPD: 15,
+}
+export const NOME_QUE_ESTOURA_O_LIMITE = 'Teste Limite Por IP'
+export const NOME_QUE_DERRUBA_O_ATENDIMENTO = 'Teste Erro De Servidor'
+export const RECUSA_DE_LIMITE =
+  'Muitas tentativas - aguarde 60 minutos antes de tentar novamente.'
+export const RECUSA_DE_AVISO_DESATUALIZADO =
+  'O aviso de privacidade foi atualizado: recarregue a página, leia e aceite a versão atual.'
+const VERSAO_DO_AVISO_DE_ATENDIMENTO = '1'
+
+/**
  * `vazio`: a produção sem nenhum dado cadastrado. `antiga`: a API ANTES da v5.5 — mesmos dados, mas sem destaque, sem
  * projeto no evento, sem edições, relatórios nem fotos e sem os campos de ligação das notícias (o site precisa
  * continuar construindo se for publicado antes da API nova). `instituicaoPreenchida`: a diretoria preencheu a Instituição (v5.4h);
@@ -943,6 +963,80 @@ export function criarServidor({
       return responder(pedidosDeFiliacao)
     }
 
+    // ---- Pedido de atendimento (v5.5a): contato, pedido de informação, solicitação do titular. API ANTIGA: a rota não existe (cai no 404 do fim).
+    if (
+      !antiga &&
+      req.method === 'POST' &&
+      (req.url ?? '').split('?')[0] === '/api/publico/atendimentos'
+    ) {
+      let texto = ''
+      req.on('data', (parte) => (texto += parte))
+      req.on('end', () => {
+        let corpo
+        try {
+          corpo = JSON.parse(texto)
+        } catch {
+          return responder({ detail: 'Corpo inválido.' }, 422)
+        }
+        pedidosDeAtendimento.push(corpo)
+        // armadilha de robô disparada: finge sucesso, sem protocolo e sem gravar nada
+        if (corpo.pagina_web)
+          return responder({
+            mensagem: 'Pedido recebido.',
+            protocolo: null,
+            prazo_dias: null,
+            prazo_em: null,
+          })
+        const dias = PRAZOS_DE_ATENDIMENTO[corpo.tipo]
+        if (!dias)
+          return responder(
+            {
+              detail: [
+                {
+                  type: 'literal_error',
+                  loc: ['body', 'tipo'],
+                  msg: "Input should be 'CONTATO', 'PEDIDO_INFORMACAO' or 'TITULAR_LGPD'",
+                },
+              ],
+            },
+            422,
+          )
+        if (corpo.nome_completo === NOME_QUE_ESTOURA_O_LIMITE)
+          return responder({ detail: RECUSA_DE_LIMITE }, 429)
+        if (corpo.nome_completo === NOME_QUE_DERRUBA_O_ATENDIMENTO)
+          return responder({ detail: 'Erro interno do servidor.' }, 500)
+        if (!corpo.consentimento_lgpd)
+          return responder(
+            {
+              detail:
+                'Para enviar o pedido é preciso ler e aceitar o aviso de privacidade.',
+            },
+            400,
+          )
+        if (corpo.versao_texto_consentimento !== VERSAO_DO_AVISO_DE_ATENDIMENTO)
+          return responder({ detail: RECUSA_DE_AVISO_DESATUALIZADO }, 422)
+        protocolosDeAtendimento += 1
+        const ano = new Date(agora()).getUTCFullYear()
+        // `prazo_em` como a API real devolve: UTC, sem fuso na ponta
+        const prazoEm = new Date(agora() + dias * 86_400_000)
+          .toISOString()
+          .replace(/Z$/, '')
+        return responder({
+          mensagem: 'Pedido recebido.',
+          protocolo: `ASAF-${ano}-${String(protocolosDeAtendimento).padStart(5, '0')}`,
+          prazo_dias: dias,
+          prazo_em: prazoEm,
+        })
+      })
+      return
+    }
+    if (
+      req.method === 'GET' &&
+      (req.url ?? '').split('?')[0] === '/__pedidos-de-atendimento'
+    ) {
+      return responder(pedidosDeAtendimento)
+    }
+
     // ---- Directus simulado (v5.3): `Authorization: Bearer <token>` obrigatório, como no real.
     if (
       req.method === 'GET' &&
@@ -998,6 +1092,11 @@ export function criarServidor({
                 COR_SECUNDARIA: '#64748B',
               },
         )
+      }
+      // v5.5a - os prazos de resposta de cada tipo de pedido, em dias. API antiga: a rota não existe.
+      if (caminho === '/api/publico/atendimentos/prazos') {
+        if (antiga) return responder({ detail: 'Not Found' }, 404)
+        return responder(PRAZOS_DE_ATENDIMENTO)
       }
       if (caminho === '/api/publico/eventos')
         return responder(comoVier(lista(eventos), CAMPOS_NOVOS.eventoDaLista))

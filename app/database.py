@@ -403,12 +403,13 @@ def seed_niveis_e_permissoes():
         {"modulo": "documentos", "codigo_permissao": "documentos_originais", "descricao": "Baixar o ORIGINAL de documento Interno/Restrito, que pode ter RG/CPF (v5.4a - separada de 'documentos' de propósito, mesmo padrão de 'exportar_dados_pessoais')."},
         {"modulo": "documentos", "codigo_permissao": "aprovar_publicacao", "descricao": "Aprovar, recusar e retirar publicações no site de transparência; nunca o que a própria pessoa enviou (v5.4a)."},
         {"modulo": "parcerias", "codigo_permissao": "parcerias", "descricao": "Gerenciar parcerias, emendas parlamentares, parcelas, etapas e relatórios (v5.4a)."},
+        {"modulo": "atendimento", "codigo_permissao": "atendimento", "descricao": "Atender a fila única: contato, pedidos de informação, solicitações de titular de dados (LGPD) e voluntariado que chegam pelo site (v5.5a)."},
     ]
     # Nível -> lista de códigos de permissão que ele recebe por padrão (ajustável depois pela
     # própria tela de administração de acesso, isto aqui é só ponto de partida).
     atribuicoes_padrao = {
-        "Presidente": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria", "exportar_dados_pessoais", "forcar_cadastro_duplicado", "gerenciar_checkin_evento", "exportar_presencas_evento", "exportar_inscricoes_evento", "exportar_beneficiarios", "exportar_reservas_espaco", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias"],
-        "Diretoria": ["associados", "financeiro", "governanca", "projetos", "gerenciar_checkin_evento", "documentos", "parcerias"],
+        "Presidente": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria", "exportar_dados_pessoais", "forcar_cadastro_duplicado", "gerenciar_checkin_evento", "exportar_presencas_evento", "exportar_inscricoes_evento", "exportar_beneficiarios", "exportar_reservas_espaco", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias", "atendimento"],
+        "Diretoria": ["associados", "financeiro", "governanca", "projetos", "gerenciar_checkin_evento", "documentos", "parcerias", "atendimento"],
         "Conselho Fiscal": ["financeiro", "auditoria"],
         "Associado": [],
         "Voluntário Externo": [],
@@ -507,6 +508,12 @@ def seed_configuracoes_institucionais():
         {"chave": "QUANTIDADE_ALERTA_ESTORNOS_MESMO_USUARIO", "valor": "3", "tipo": "numero", "categoria": "regras", "descricao": "Quantidade de estornos no mesmo mês pelo mesmo usuário que entra no relatório de exceção mensal."},
         {"chave": "DIAS_ALERTA_TROCA_DADOS_BANCARIOS", "valor": "30", "tipo": "numero", "categoria": "regras", "descricao": "Dias após a aprovação de troca de dados bancários de fornecedor em que um pagamento a ele entra no relatório de exceção mensal."},
         {"chave": "DIAS_ALERTA_LANCAMENTO_TARDIO", "valor": "5", "tipo": "numero", "categoria": "regras", "descricao": "Dias entre o pagamento de uma saída e o lançamento dela no sistema a partir dos quais o lançamento é tardio: a saída fica marcada no cartão da Auditoria financeira e entra no relatório de exceção mensal do Conselho Fiscal (v5.4h)."},
+        # v5.5a - prazo de resposta de cada tipo de pedido que chega pelo site (fila única de atendimento). O pedido de titular da LGPD é de 15 dias (art. 19, II); o
+        # pedido de informação sobre recursos públicos segue de referência a Lei de Acesso à Informação (20 dias, art. 11); a diretoria muda aqui quando quiser.
+        {"chave": "PRAZO_DIAS_ATENDIMENTO_CONTATO", "valor": "10", "tipo": "numero", "categoria": "regras", "descricao": "Dias para responder uma mensagem de contato que chega pelo site."},
+        {"chave": "PRAZO_DIAS_PEDIDO_INFORMACAO", "valor": "20", "tipo": "numero", "categoria": "regras", "descricao": "Dias para responder um pedido de informação sobre recursos públicos que chega pelo site."},
+        {"chave": "PRAZO_DIAS_TITULAR_LGPD", "valor": "15", "tipo": "numero", "categoria": "regras", "descricao": "Dias para responder uma solicitação de titular de dados (LGPD) que chega pelo site (a lei fixa 15 dias para a declaração completa)."},
+        {"chave": "PRAZO_DIAS_ATENDIMENTO_VOLUNTARIO", "valor": "10", "tipo": "numero", "categoria": "regras", "descricao": "Dias para responder quem se oferece como voluntário pelo site."},
         # v2.0 - cláusulas pétreas do Art. 33 do estatuto: identidade institucional, não regra
         # operacional (nunca bloqueiam nenhuma ação do sistema, por isso NÃO entram em
         # RegraEstatutaria - ver seed_regras_estatutarias e PLANO_PROJETO.md v2.0).

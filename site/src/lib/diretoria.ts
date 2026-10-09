@@ -99,3 +99,20 @@ export function montarComposicao(membros: MembroDaDiretoria[]): Composicao {
     temOcupantes: membros.length > 0,
   }
 }
+
+/**
+ * O nome do Presidente da Diretoria Executiva (mandato vigente publicado pelo sistema), ou `null` se o mandato ainda não foi registrado. É quem a Política de
+ * Privacidade nomeia como encarregado pelo tratamento de dados pessoais (decisão do Presidente, 2026-10-09: a associação não tem segunda pessoa para o papel).
+ */
+export function presidenteDaDiretoria(
+  membros: MembroDaDiretoria[],
+): string | null {
+  return (
+    membros.find(
+      (m) =>
+        m.orgao_codigo === ORGAO_DIRETORIA &&
+        m.cargo_codigo === 'PRESIDENTE' &&
+        m.nome.trim() !== '',
+    )?.nome ?? null
+  )
+}

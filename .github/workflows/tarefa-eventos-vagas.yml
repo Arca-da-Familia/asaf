@@ -61,6 +61,12 @@ jobs:
       - name: Rodar expiração de promoções de lista de espera vencidas
         run: PYTHONPATH=. python scripts/expirar_promocoes_vagas.py
 
+      # v5.5a - o prazo de resposta da fila de atendimento é acompanhado de verdade: quem atende é avisado no sino dos pedidos vencidos ou perto de vencer
+      # (uma vez por dia por pedido). O passo roda mesmo se o de cima falhar, e a falha dele não derruba a expiração das promoções.
+      - name: Avisar os prazos da fila de atendimento
+        if: always()
+        run: PYTHONPATH=. python scripts/avisar_prazos_de_atendimento.py
+
       - name: Logout
         if: always()
         run: az logout || true

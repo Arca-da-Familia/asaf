@@ -1,0 +1,63 @@
+---
+import FormularioDeAtendimento from '../../../components/FormularioDeAtendimento.astro'
+import TituloDePagina from '../../../components/TituloDePagina.astro'
+import type { Migalha } from '../../../config/navegacao'
+import Base from '../../../layouts/Base.astro'
+
+// O formulário manda o pedido para a fila única de atendimento do sistema (tipo PEDIDO_INFORMACAO); o prazo que a página mostra vem da API, nunca é escrito aqui.
+const migalhas: Migalha[] = [
+  { rotulo: 'Transparência', href: '/transparencia/' },
+  { rotulo: 'Pedido de informação' },
+]
+---
+
+<Base
+  titulo="Pedido de informação sobre recursos públicos"
+  descricao="Peça informação sobre os recursos públicos recebidos pela ASAF. O pedido recebe um número de protocolo e um prazo de resposta."
+  caminho="/transparencia/pedido-de-informacao/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Pedido de informação sobre recursos públicos"
+    resumo="Qualquer pessoa pode pedir informação sobre os recursos públicos que a ASAF recebe."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-12">
+    <section aria-labelledby="como-pedir">
+      <h2 id="como-pedir" class="text-2xl font-bold tracking-tight">
+        Como funciona
+      </h2>
+      <p class="mt-4 max-w-3xl">
+        Qualquer pessoa pode pedir informação sobre os recursos públicos
+        recebidos pela associação, como emendas parlamentares e parcerias com
+        órgãos públicos. O seu pedido recebe um número de protocolo e um prazo
+        de resposta.
+      </p>
+      <p class="mt-3 max-w-3xl">
+        Antes de pedir, veja o que já está publicado: a página de{' '}
+        <a
+          href="/transparencia/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          Transparência
+        </a>{' '}
+        e a lista de{' '}
+        <a
+          href="/transparencia/emendas/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          emendas parlamentares
+        </a>
+        .
+      </p>
+    </section>
+
+    <FormularioDeAtendimento
+      tipo="PEDIDO_INFORMACAO"
+      titulo="Faça o seu pedido de informação"
+      idDoFormulario="pedido-de-informacao"
+      instrucao="Diga qual informação você procura, sobre qual recurso ou período, se souber."
+    />
+  </div>
+</Base>

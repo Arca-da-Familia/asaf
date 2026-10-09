@@ -6121,3 +6121,149 @@ export function marcarTodosOsAvisosComoLidos(): Promise<{ marcadas: number }> {
     method: 'POST',
   })
 }
+
+// ---------------------------------------------------------------------------
+// v5.5a (FASE 5) - Fila única de atendimento: tudo que chega pelo formulário do site (contato, pedido de informação sobre recursos públicos,
+// solicitação de titular de dados da LGPD, voluntariado) cai numa fila só, com protocolo e prazo. Exige a permissão `atendimento`.
+// (`listarAtendimentos`, mais acima, é outra coisa: o prontuário dos beneficiários de um projeto.)
+// ---------------------------------------------------------------------------
+export type TipoDeAtendimento =
+  'CONTATO' | 'PEDIDO_INFORMACAO' | 'TITULAR_LGPD' | 'VOLUNTARIO'
+
+export type StatusDeAtendimento =
+  'Novo' | 'Em atendimento' | 'Respondido' | 'Encerrado'
+
+export type SituacaoDoPrazo =
+  | 'no_prazo'
+  | 'vence_logo'
+  | 'vencido'
+  | 'cumprido'
+  | 'cumprido_com_atraso'
+  | 'encerrado'
+
+export type AtendimentoDaFila = {
+  id_atendimento: number
+  protocolo: string
+  tipo: TipoDeAtendimento
+  tipo_rotulo: string
+  subtipo: string | null
+  subtipo_rotulo: string | null
+  assunto: string | null
+  mensagem: string
+  nome_completo: string
+  email_contato: string | null
+  telefone_whatsapp: string | null
+  cpf_mascarado: string | null
+  id_pessoa: number | null
+  status: StatusDeAtendimento
+  prazo_dias: number
+  prazo_em: string
+  situacao_do_prazo: SituacaoDoPrazo
+  dias_restantes: number
+  id_responsavel: number | null
+  assumido_em: string | null
+  resposta: string | null
+  respondido_em: string | null
+  // true = o e-mail com a resposta saiu; false = a tentativa falhou; null = a pessoa não tem e-mail (ou ainda não foi respondido)
+  resposta_enviada_por_email: boolean | null
+  motivo_encerramento: string | null
+  encerrado_em: string | null
+  criado_em: string
+  consentimento_lgpd_versao: string | null
+}
+
+// O que as três ações (assumir, responder, encerrar) devolvem: o pedido com o CPF inteiro (só na abertura do pedido).
+export type AtendimentoCompleto = AtendimentoDaFila & { cpf: string | null }
+
+export type OutroPedidoDoRemetente = {
+  id_atendimento: number
+  protocolo: string
+  tipo_rotulo: string
+  status: StatusDeAtendimento
+  criado_em: string
+}
+
+export type AtendimentoAberto = AtendimentoCompleto & {
+  outros_do_remetente: OutroPedidoDoRemetente[]
+}
+
+export type ResumoDaFilaDeAtendimento = {
+  novos: number
+  em_atendimento: number
+  abertos: number
+  vencidos: number
+  vencem_em_3_dias: number
+  por_tipo: Record<TipoDeAtendimento, number>
+}
+
+export type FiltrosDaFilaDeAtendimento = {
+  tipo?: string
+  // `abertos` (Novo + Em atendimento), uma situação exata ou nada (todas)
+  situacao?: string
+  vencidos?: boolean
+  busca?: string
+  pagina?: number
+  por_pagina?: number
+}
+
+export type PaginaDeAtendimentos = {
+  total: number
+  pagina: number
+  por_pagina: number
+  itens: AtendimentoDaFila[]
+}
+
+export function resumirAtendimentos(): Promise<ResumoDaFilaDeAtendimento> {
+  return apiFetch('/api/atendimentos/resumo')
+}
+
+export function listarAtendimentosDaFila(
+  filtros: FiltrosDaFilaDeAtendimento = {},
+): Promise<PaginaDeAtendimentos> {
+  const params = new URLSearchParams()
+  for (const [chave, valor] of Object.entries(filtros)) {
+    if (
+      valor !== undefined &&
+      valor !== '' &&
+      valor !== null &&
+      valor !== false
+    )
+      params.set(chave, String(valor))
+  }
+  const query = params.toString()
+  return apiFetch(`/api/atendimentos/${query ? `?${query}` : ''}`)
+}
+
+export function abrirAtendimento(
+  idAtendimento: number,
+): Promise<AtendimentoAberto> {
+  return apiFetch(`/api/atendimentos/${idAtendimento}`)
+}
+
+export function assumirAtendimento(
+  idAtendimento: number,
+): Promise<AtendimentoCompleto> {
+  return apiFetch(`/api/atendimentos/${idAtendimento}/assumir`, {
+    method: 'POST',
+  })
+}
+
+export function responderAtendimento(
+  idAtendimento: number,
+  resposta: string,
+): Promise<AtendimentoCompleto> {
+  return apiFetch(`/api/atendimentos/${idAtendimento}/responder`, {
+    method: 'POST',
+    body: JSON.stringify({ resposta }),
+  })
+}
+
+export function encerrarAtendimento(
+  idAtendimento: number,
+  motivo: string,
+): Promise<AtendimentoCompleto> {
+  return apiFetch(`/api/atendimentos/${idAtendimento}/encerrar`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo }),
+  })
+}
