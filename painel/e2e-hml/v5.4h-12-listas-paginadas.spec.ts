@@ -220,13 +220,21 @@ test('Razão Contábil: a busca acha pelo número do lançamento e pelo históri
   await ver(page, info, 'razao-busca-por-numero')
 
   await page.getByLabel('Buscar lançamento').fill(historico)
-  await expect(
-    titulosDasEntradas(page).filter({ hasText: historico }).first(),
-  ).toBeVisible({ timeout: 15_000 })
-  const achados = await titulosDasEntradas(page).allInnerTexts()
-  expect(
-    achados.every((t) => t.toLowerCase().includes(historico.toLowerCase())),
-  ).toBe(true)
+  // a lista é refeita no servidor: espera ficar só com o que tem o histórico (nunca lê a lista de antes da busca)
+  await expect
+    .poll(
+      async () => {
+        const achados = await titulosDasEntradas(page).allInnerTexts()
+        return (
+          achados.length > 0 &&
+          achados.every((t) =>
+            t.toLowerCase().includes(historico.toLowerCase()),
+          )
+        )
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(true)
 
   await page.getByLabel('Buscar lançamento').fill('nada-disso-existe-xyz')
   await expect(page.getByText('Nenhum lançamento encontrado.')).toBeVisible({
