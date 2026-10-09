@@ -389,10 +389,15 @@ type LancamentoLido = {
   partidas: PartidaLida[]
 }
 
-/** Lê todos os lançamentos do razão (título, situação, partidas) e o "Saldo em caixa (contas Ativo)". */
-async function lerRazao(
-  page: Page,
-): Promise<{ lancamentos: LancamentoLido[]; saldoAtivo: number }> {
+/**
+ * Lê os lançamentos que o razão mostra (título, situação, partidas), o "Saldo em caixa (contas Ativo)" e o TOTAL de lançamentos que a tela informa. Desde a v5.4h a
+ * tela mostra 25 por página (os mais novos primeiro): os lançamentos lidos são os da primeira página, e para contar quantos existem vale o `total`.
+ */
+async function lerRazao(page: Page): Promise<{
+  lancamentos: LancamentoLido[]
+  saldoAtivo: number
+  total: number
+}> {
   await expect(cartoes(page).first()).toBeVisible()
   const bruto = await page.evaluate(() => {
     const limpo = (t: string | null | undefined) =>
@@ -409,8 +414,18 @@ async function lerRazao(
     const saldo = [...document.querySelectorAll('p')].find((p) =>
       (p.textContent ?? '').includes('Saldo em caixa (contas Ativo):'),
     )
-    return { lista, saldo: limpo(saldo?.textContent) }
+    const contagem = [...document.querySelectorAll('span')]
+      .map((s) => /^(\d+) lançamentos?$/.exec(limpo(s.textContent)))
+      .find((m) => m !== null)
+    return {
+      lista,
+      saldo: limpo(saldo?.textContent),
+      total: contagem ? Number(contagem[1]) : -1,
+    }
   })
+  expect(bruto.total, 'a tela informa o total de lançamentos').toBeGreaterThan(
+    -1,
+  )
   const lancamentos = bruto.lista.map((c) => {
     const linhaDasPartidas =
       c.linhas.find((l) => /^(Debito|Credito) /.test(l)) ?? ''
@@ -427,7 +442,11 @@ async function lerRazao(
       }))
     return { ...c, partidas }
   })
-  return { lancamentos, saldoAtivo: emCentavos(bruto.saldo) }
+  return {
+    lancamentos,
+    saldoAtivo: emCentavos(bruto.saldo),
+    total: bruto.total,
+  }
 }
 
 /** Partida dobrada vista pela tela: em TODO lançamento, a soma dos débitos é igual à dos créditos (e maior que zero), ao centavo. */
@@ -1728,7 +1747,7 @@ test('razão: todo lançamento fecha (débitos = créditos); transferência recu
     final.saldoAtivo,
     'três transferências entre contas Ativo não podem mudar o saldo total em caixa',
   ).toBe(inicial.saldoAtivo)
-  expect(final.lancamentos.length).toBe(inicial.lancamentos.length + 3)
+  expect(final.total).toBe(inicial.total + 3)
   await ver(
     page,
     info,
@@ -1859,9 +1878,9 @@ test('razão: lançamento nunca some, só se estorna (motivo curto é recusado; 
   const depoisDoEstorno = await lerRazao(page)
   exigirPartidasQueFecham(depoisDoEstorno.lancamentos)
   expect(
-    depoisDoEstorno.lancamentos.length,
+    depoisDoEstorno.total,
     'estornar acrescenta um lançamento; nenhum some',
-  ).toBe(inicial.lancamentos.length + 1)
+  ).toBe(inicial.total + 1)
   expect(depoisDoEstorno.saldoAtivo).toBe(inicial.saldoAtivo)
 
   // recusa 3: estornar o que já foi estornado (a aba parada ainda mostra o botão)
@@ -3043,9 +3062,9 @@ test('exercício: ano inválido e segundo exercício aberto são recusados; fech
     'Razão Contábil',
   )
   expect(
-    (await lerRazao(page)).lancamentos.length,
+    (await lerRazao(page)).total,
     'as recusas em exercício fechado não criam lançamento',
-  ).toBe(razaoAntes.lancamentos.length)
+  ).toBe(razaoAntes.total)
 
   // reabrir o mesmo ano é recusado (só um exercício por ano); o do ano seguinte abre
   await abrirTela(
