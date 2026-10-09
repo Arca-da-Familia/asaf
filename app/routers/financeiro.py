@@ -21,9 +21,9 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -44,6 +44,7 @@ from app.schemas.financeiro import (
 )
 from app.security import exigir_permissao
 from app.services import armazenamento, auditoria_financeira, conciliacao, contabilidade, contribuicoes, lancamento_tardio, negociacao, pix as pix_service
+from app.services.busca import numero_que_cabe_no_banco
 from app.services.categoria_associado import recalcular_categoria_associado
 from app.services.formato import reais
 
@@ -636,24 +637,43 @@ def _serializar_lancamento(lancamento: LancamentoContabil, contas: dict) -> dict
     }
 
 
-@router.get("/api/livro-caixa/", summary="Extrato do Razão Contábil (partida dobrada)")
-def listar_livro_caixa(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
-    lancamentos = db.query(LancamentoContabil).order_by(LancamentoContabil.id_exercicio, LancamentoContabil.numero_sequencial).all()
+@router.get("/api/livro-caixa/", summary="Extrato do Razão Contábil (partida dobrada); com `pagina`, paginado e com busca")
+def listar_livro_caixa(
+    busca: Optional[str] = None, pagina: Optional[int] = Query(None, ge=1), por_pagina: int = Query(25, ge=1, le=200),
+    db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro),
+):
+    """v5.4h - com `pagina`, devolve só aquela página (do lançamento mais novo para o mais antigo) e o `total` pelo mesmo filtro; sem `pagina`, devolve todos,
+    como sempre (quem precisa do extrato inteiro segue funcionando). A `busca` acha pelo histórico ou pelo número do lançamento. O saldo das contas Ativo é
+    sempre o de TODOS os lançamentos, calculado no banco (não depende da página)."""
+    consulta = db.query(LancamentoContabil)
+    texto = (busca or "").strip()
+    if texto:
+        condicoes = [LancamentoContabil.historico.ilike(f"%{texto}%")]
+        numero = numero_que_cabe_no_banco(texto.lstrip("#"))
+        if numero is not None:
+            condicoes.append(LancamentoContabil.numero_sequencial == numero)
+        consulta = consulta.filter(or_(*condicoes))
+    total = consulta.count()
+    consulta = consulta.order_by(LancamentoContabil.id_exercicio.desc(), LancamentoContabil.numero_sequencial.desc())
+    if pagina is not None:
+        consulta = consulta.offset((pagina - 1) * por_pagina).limit(por_pagina)
+    lancamentos = consulta.all()
     contas = {c.id_conta: c for c in db.query(PlanoDeContas).all()}
 
     # v3.0 - "saldo em caixa" só tem sentido definido para contas Ativo (Caixa/Banco formal -
     # ContaFinanceira - é v3.1); somamos o efeito líquido (débito aumenta, crédito diminui) de
     # toda partida que toca uma conta Ativo, como indicador enquanto isso não existe.
-    saldo_contas_ativo = Decimal("0")
-    resultado = []
-    for lancamento in lancamentos:
-        for p in lancamento.partidas:
-            conta = contas.get(p.id_conta)
-            if conta and conta.tipo == "Ativo":
-                saldo_contas_ativo += p.valor if p.tipo_partida == contabilidade.DEBITO else -p.valor
-        resultado.append(_serializar_lancamento(lancamento, contas))
-    resultado.reverse()
-    return {"lancamentos": resultado, "saldo_contas_ativo": saldo_contas_ativo}
+    efeito = case((PartidaContabil.tipo_partida == contabilidade.DEBITO, PartidaContabil.valor), else_=-PartidaContabil.valor)
+    saldo = (
+        db.query(func.coalesce(func.sum(efeito), 0))
+        .join(PlanoDeContas, PlanoDeContas.id_conta == PartidaContabil.id_conta)
+        .filter(PlanoDeContas.tipo == "Ativo")
+        .scalar()
+    )
+    resposta = {"lancamentos": [_serializar_lancamento(l, contas) for l in lancamentos], "saldo_contas_ativo": Decimal(str(saldo))}
+    if pagina is not None:
+        resposta.update({"total": total, "pagina": pagina, "por_pagina": por_pagina})
+    return resposta
 
 
 # v5.4h - SAÍDA REGISTRADA (decisão do Presidente, 2026-10-08). O sistema é só o REGISTRO do que já aconteceu: nada de fila de "aguardando

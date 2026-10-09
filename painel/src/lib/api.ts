@@ -924,6 +924,44 @@ export function listarAssociados(): Promise<AssociadoListagem[]> {
   return apiFetch('/api/associados/')
 }
 
+// A lista de associados da tela, paginada e filtrada no servidor (v5.4h): busca por nome, CPF, e-mail, telefone ou matrícula; situação e categoria exatas;
+// `pagina` (a partir de 1) liga a paginação. `listarAssociados()` (sem filtros) segue devolvendo todos, para as telas que precisam do quadro inteiro.
+export type FiltrosDeAssociados = {
+  busca?: string
+  situacao?: string
+  categoria?: string
+  pagina?: number
+  por_pagina?: number
+}
+
+function consultaDeAssociados(filtros?: FiltrosDeAssociados): string {
+  const params = new URLSearchParams()
+  for (const [chave, valor] of Object.entries(filtros ?? {})) {
+    if (valor !== undefined && valor !== '' && valor !== null)
+      params.set(chave, String(valor))
+  }
+  const query = params.toString()
+  return query ? `?${query}` : ''
+}
+
+export function listarAssociadosDaPagina(
+  filtros: FiltrosDeAssociados,
+): Promise<AssociadoListagem[]> {
+  return apiFetch(`/api/associados/${consultaDeAssociados(filtros)}`)
+}
+
+export type ResumoDeAssociados = {
+  total: number
+  por_situacao: Record<string, number>
+  por_categoria: Record<string, number>
+}
+
+export function resumirAssociados(
+  filtros?: Omit<FiltrosDeAssociados, 'pagina' | 'por_pagina'>,
+): Promise<ResumoDeAssociados> {
+  return apiFetch(`/api/associados/resumo${consultaDeAssociados(filtros)}`)
+}
+
 // Só quem escolhe o associado (título, isenção, delegação, reembolso...): id, nome e os dois últimos dígitos do CPF. Quem cuida do financeiro não
 // precisa da ficha completa (CPF, e-mail, telefone) e por isso não a recebe.
 export type AssociadoParaSelecao = {
@@ -3158,6 +3196,25 @@ export function listarLivroCaixa(): Promise<{
   saldo_contas_ativo: number
 }> {
   return apiFetch('/api/livro-caixa/')
+}
+
+// O extrato da tela do Razão, paginado e com busca (pelo histórico ou pelo número do lançamento) no servidor; o saldo é sempre o de todos os lançamentos.
+export function listarLivroCaixaDaPagina(filtros: {
+  busca?: string
+  pagina: number
+  por_pagina: number
+}): Promise<{
+  lancamentos: LancamentoContabil[]
+  saldo_contas_ativo: number
+  total: number
+  pagina: number
+  por_pagina: number
+}> {
+  const params = new URLSearchParams()
+  if (filtros.busca) params.set('busca', filtros.busca)
+  params.set('pagina', String(filtros.pagina))
+  params.set('por_pagina', String(filtros.por_pagina))
+  return apiFetch(`/api/livro-caixa/?${params.toString()}`)
 }
 
 export function estornarLancamento(
