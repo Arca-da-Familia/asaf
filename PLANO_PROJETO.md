@@ -1899,7 +1899,18 @@ Tudo aqui é construído (não é "decidir se faz"), na ordem abaixo, cada item 
       categoria combinando; "Todo o período" tirando o mês; os filtros guardados no endereço; o Secretário barrado. A regressão na pilha final
       ficou verde (e-01 13, e-02 29, e-03 12, e-04 16, f-01 22, f-02 16, f-03 16). **Em produção (2026-10-08):** commit `66642bd` no
       `version.json`; Deploy API e Deploy Painel verdes; `GET /api/titulos/resumo` responde 401 sem login.
-- [ ] **Paginação nas outras listas que crescem** (Associados, Razão Contábil, Auditoria): o mesmo padrão dos Títulos.
+- [x] **Paginação nas outras listas que crescem** (Associados, Razão Contábil, Auditoria): o mesmo padrão dos Títulos. A Auditoria já era paginada no servidor;
+      Associados e Razão passaram a ser (25 por página, total vindo do servidor, busca e filtros feitos no banco).
+      **Na homologação (2026-10-09):** `v5.4h-12`, 4 de 4: Associados (a primeira página traz 25 e o total vem do servidor; a seguinte traz outros nomes; a busca
+      acha pelo nome, fica no endereço e some ao apagar; situação e categoria filtram de verdade) e Razão Contábil (os 25 mais novos, o total e o saldo vêm do
+      servidor; a busca acha pelo número e pelo histórico e diz quando não acha). Regressão das telas que usam as duas listas, todas verdes: `v5.4c-fase0` 6,
+      `v5.4c-fase1` 24, `v5.4d-06` 16, `v5.4e-01` 16 (1 teste, o do fechamento do exercício, só roda no fim da bateria), `v5.4e-02` 29, `v5.4e-03` 12,
+      `v5.4e-04` 16, `v5.4f-01` 22, `v5.4g-03` 8 e `v5.4h-04` 4. **Achados do robô, corrigidos e refeitos:** (1) buscar um número grande (o da rodada de testes,
+      13 dígitos) também comparava com a matrícula e com o número do lançamento, que são inteiros de 32 bits no Postgres, e dava erro lá sem aparecer no SQLite dos
+      testes (auxiliar `app/services/busca.py`; o teste compila a consulta como o Postgres a recebe e falha sem a correção); (2) três roteiros liam a tabela antes
+      de ela refiltrar ou contavam as linhas da tela (agora ela mostra 25 por página): passaram a esperar o resultado e a ler o total que a tela informa.
+      **Em produção (2026-10-09):** commit `aa89969` no `version.json` do painel; Deploy API e Deploy Painel verdes; `GET /api/associados/resumo`,
+      `GET /api/associados/?pagina=1` e `GET /api/livro-caixa/?pagina=1` respondem 401 sem login e a rota nova consta no `openapi.json`.
 - [x] **Módulo "Instituição" no painel:** cadastro de tudo da instituição (nome, CNPJ, endereço, contatos, redes, logo, chave Pix, textos
       institucionais), cada campo marcado **"vai para o site"** ou **"só interno"**; o site passa a ler de lá.
       **Na homologação (2026-10-07):** `v5.4h-02`, 5 de 5: os campos por grupo com a marca "aparece no site" ou "só interno"; salvar grava e
