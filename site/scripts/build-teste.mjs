@@ -14,11 +14,14 @@ const vazio = process.argv.includes('--vazio')
 // `--antiga`: a API ANTES do contexto de projeto/evento (v5.5), em `dist-antiga` — prova que o site continua
 // construindo (sem as seções novas) se for publicado antes de a API nova entrar no ar.
 const antiga = process.argv.includes('--antiga')
+// `--instituicao`: a diretoria preencheu os dados da Instituição (v5.4h), em `dist-instituicao`.
+const instituicaoPreenchida = process.argv.includes('--instituicao')
 const argumentos = [
   'astro',
   'build',
   ...(vazio ? ['--outDir', 'dist-vazio'] : []),
   ...(antiga ? ['--outDir', 'dist-antiga'] : []),
+  ...(instituicaoPreenchida ? ['--outDir', 'dist-instituicao'] : []),
 ]
 
 /**
@@ -36,5 +39,8 @@ function rodarAstro() {
   })
 }
 
-const status = await comMock({ vazio, antiga }, rodarAstro)
+const status = await comMock(
+  { vazio, antiga, instituicaoPreenchida },
+  rodarAstro,
+)
 process.exit(status)

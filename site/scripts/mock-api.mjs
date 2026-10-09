@@ -878,9 +878,14 @@ export const RECUSA_DE_DUPLICIDADE =
 /**
  * `vazio`: a produção sem nenhum dado cadastrado. `antiga`: a API ANTES da v5.5 — mesmos dados, mas sem destaque, sem
  * projeto no evento, sem edições, relatórios nem fotos e sem os campos de ligação das notícias (o site precisa
- * continuar construindo se for publicado antes da API nova).
+ * continuar construindo se for publicado antes da API nova). `instituicaoPreenchida`: a diretoria preencheu a Instituição (v5.4h);
+ * sem isso, a Instituição é a da produção de hoje (nome e o CNPJ de exemplo, que é inválido).
  */
-export function criarServidor({ vazio = false, antiga = false } = {}) {
+export function criarServidor({
+  vazio = false,
+  antiga = false,
+  instituicaoPreenchida = false,
+} = {}) {
   const lista = (dados) => (vazio ? [] : dados())
   const comoVier = (corpo, campos) =>
     antiga ? semCampos(corpo, campos) : corpo
@@ -971,6 +976,29 @@ export function criarServidor({ vazio = false, antiga = false } = {}) {
 
     if (req.method === 'GET') {
       const caminho = (req.url ?? '').split('?')[0]
+      // v5.4h - os dados da Instituição marcados "vai para o site". Como na produção de hoje: o nome e o CNPJ de exemplo (inválido: o site o ignora); com
+      // `instituicaoPreenchida`, a diretoria "preencheu" (para o teste provar que o site passa a mostrar). API antiga: a rota não existe.
+      if (caminho === '/api/publico/instituicao') {
+        if (antiga) return responder({ detail: 'Not Found' }, 404)
+        return responder(
+          instituicaoPreenchida
+            ? {
+                NOME_INSTITUICAO: 'ASAF - Associação Arca da Família',
+                CNPJ: '11.222.333/0001-81',
+                TELEFONE_INSTITUCIONAL: '(94) 99999-8888',
+                EMAIL_INSTITUCIONAL: 'contato.teste@asaf.org.br',
+                HORARIO_ATENDIMENTO: 'Segunda a sexta, das 8h às 17h',
+                SITE_INSTAGRAM: '@asaf.teste',
+                SITE_FACEBOOK: 'https://www.facebook.com/asaf.teste',
+              }
+            : {
+                NOME_INSTITUICAO: 'ASAF - Associação Arca da Família',
+                CNPJ: '00.000.000/0001-00',
+                COR_PRIMARIA: '#1D4ED8',
+                COR_SECUNDARIA: '#64748B',
+              },
+        )
+      }
       if (caminho === '/api/publico/eventos')
         return responder(comoVier(lista(eventos), CAMPOS_NOVOS.eventoDaLista))
       if (caminho === '/api/publico/projetos')
@@ -1080,6 +1108,7 @@ if (executadoDireto) {
   criarServidor({
     vazio: process.env.MOCK_API_VAZIO === '1',
     antiga: process.env.MOCK_API_ANTIGA === '1',
+    instituicaoPreenchida: process.env.MOCK_INSTITUICAO_PREENCHIDA === '1',
   }).listen(PORTA_DO_MOCK, '127.0.0.1', () =>
     console.log(`mock-api em http://127.0.0.1:${PORTA_DO_MOCK}`),
   )

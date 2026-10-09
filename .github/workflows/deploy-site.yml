@@ -93,6 +93,9 @@ jobs:
       - name: Estado VAZIO (a API sem nenhum dado — é o que a produção mostra no 1º dia)
         run: npm run test:vazio
 
+      - name: Instituição preenchida (o site passa a mostrar os dados válidos que a diretoria cadastrou)
+        run: npm run test:instituicao
+
       - name: Sincronização (igual não reconstrói; diferente e 1º deploy reconstroem)
         run: npm run test:sincronizacao
 

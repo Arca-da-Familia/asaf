@@ -81,8 +81,50 @@ describe('buscarConteudoPublico', () => {
     expect(c.parcerias).toHaveLength(1)
     expect(Object.keys(c.detalhesDeParcerias)).toEqual(['3'])
     expect(c.documentos).toEqual([{ id_documento: 9 }])
-    expect(chamadas).toHaveLength(10) // 6 listas + 2 detalhes de evento + 1 de projeto + 1 de parceria
+    expect(chamadas).toHaveLength(11) // 6 listas + a Instituição + 2 detalhes de evento + 1 de projeto + 1 de parceria
     expect(chamadas).toContain('/api/publico/projetos/7')
+    expect(chamadas).toContain('/api/publico/instituicao')
+  })
+
+  it('a Instituição entra no conteúdo (só os valores de texto) e, se a API ainda não tem a rota, o site segue com o texto fixo', async () => {
+    const com = apiFalsa({
+      ...rotasBase,
+      '/api/publico/instituicao': {
+        CNPJ: '11.222.333/0001-81',
+        TELEFONE_INSTITUCIONAL: '(94) 99999-8888',
+        NUMERO_QUALQUER: 7,
+        VAZIO: null,
+      },
+    })
+    const preenchida = await buscarConteudoPublico('https://api.teste', {
+      fetchImpl: com.fetchImpl,
+      esperaMs: 0,
+    })
+    expect(preenchida.instituicao).toEqual({
+      CNPJ: '11.222.333/0001-81',
+      TELEFONE_INSTITUCIONAL: '(94) 99999-8888',
+    })
+    // 404 (a API é antiga e não tem a rota) não derruba o build: vale o texto fixo
+    const sem = apiFalsa(rotasBase)
+    const antiga = await buscarConteudoPublico('https://api.teste', {
+      fetchImpl: sem.fetchImpl,
+      esperaMs: 0,
+    })
+    expect(antiga.instituicao).toEqual({})
+  })
+
+  it('FALHA o build se a rota da Instituição existir e estiver quebrada (nunca publica com o dado pela metade)', async () => {
+    const { fetchImpl } = apiFalsa(
+      { ...rotasBase, '/api/publico/instituicao': {} },
+      { '/api/publico/instituicao': [503, 503, 503] },
+    )
+    await expect(
+      buscarConteudoPublico('https://api.teste', {
+        fetchImpl,
+        esperaMs: 0,
+        tentativas: 3,
+      }),
+    ).rejects.toThrow(/instituicao/)
   })
 
   it('FALHA o build se a lista de parcerias não responder (nunca publica uma Transparência incompleta)', async () => {

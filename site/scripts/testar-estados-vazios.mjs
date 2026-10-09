@@ -297,6 +297,24 @@ exigir(
   'API antiga: nasceu /midia/eventos/ sem haver foto de evento',
 )
 
+// v5.4h - API antiga também não tem a rota da Instituição (404): o site constrói com os dados fixos do Estatuto, sem buraco.
+const contatoAntiga = lerAntiga('/contato/')
+for (const fixo of [
+  '17.631.942/0001-70',
+  '(94) 98412-0703',
+  'asaf@asaf.org.br',
+]) {
+  exigir(
+    contatoAntiga.includes(fixo),
+    `API antiga: o contato perdeu o dado fixo "${fixo}"`,
+  )
+}
+exigir(
+  !contatoAntiga.includes('data-horario-de-atendimento') &&
+    !contatoAntiga.includes('data-redes'),
+  'API antiga: o contato mostra horário/redes sem haver dado da Instituição',
+)
+
 if (problemas.length > 0) {
   console.error('\nESTADO VAZIO COM PROBLEMA:')
   for (const p of problemas) console.error('  -', p)

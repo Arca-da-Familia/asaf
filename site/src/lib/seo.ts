@@ -57,7 +57,18 @@ const ENDERECO_SEDE = {
  * Organização (aparece em todas as páginas). `NGO` = organização não governamental. Carrega a
  * logo institucional: é o que o Google usa para mostrar a marca nos resultados de busca.
  */
-export function jsonLdOrganizacao() {
+export function jsonLdOrganizacao(
+  organizacao: {
+    cnpj: string
+    telefoneInternacional: string
+    email: string
+    redes?: { instagram: string | null; facebook: string | null }
+  } = ORGANIZACAO,
+) {
+  const redes = [
+    organizacao.redes?.instagram,
+    organizacao.redes?.facebook,
+  ].filter((endereco): endereco is string => Boolean(endereco))
   return {
     '@context': 'https://schema.org',
     '@type': 'NGO',
@@ -74,11 +85,12 @@ export function jsonLdOrganizacao() {
     slogan: ORGANIZACAO.lema,
     description: ORGANIZACAO.descricaoCurta,
     foundingDate: ORGANIZACAO.fundacao,
-    taxID: ORGANIZACAO.cnpj,
-    telephone: ORGANIZACAO.telefoneInternacional,
-    email: ORGANIZACAO.email,
+    taxID: organizacao.cnpj,
+    telephone: organizacao.telefoneInternacional,
+    email: organizacao.email,
     address: ENDERECO_SEDE,
     areaServed: { '@type': 'City', name: ORGANIZACAO.cidade },
+    ...(redes.length > 0 ? { sameAs: redes } : {}),
   }
 }
 

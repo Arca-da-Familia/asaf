@@ -1,5 +1,8 @@
 ---
-import { ORGANIZACAO } from '../config/organizacao'
+import { organizacaoDoSite } from '../lib/dados-publicos'
+
+// os dados da associação como o site os mostra: os fixos, com o que a Instituição do painel marcou "vai para o site" por cima (v5.4h)
+const ORGANIZACAO = await organizacaoDoSite()
 
 interface Props {
   titulo?: string

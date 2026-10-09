@@ -5,6 +5,7 @@ import Rodape from '../components/Rodape.astro'
 import type { Migalha } from '../config/navegacao'
 import { ORGANIZACAO, SITE_URL } from '../config/organizacao'
 import { ehHomologacao } from '../lib/ambiente'
+import { organizacaoDoSite } from '../lib/dados-publicos'
 import {
   jsonLdMigalhas,
   jsonLdOrganizacao,
@@ -68,6 +69,9 @@ const canonica = urlCanonica(caminho)
 const imagemAbsoluta = `${SITE_URL}${imagem}`
 const textoAlternativoImagem =
   imagemAlt ?? `${ORGANIZACAO.nome} — ${ORGANIZACAO.lema}`
+
+// o JSON-LD da organização com os dados da Instituição que o painel marcou "vai para o site" (v5.4h); `await` não pode ficar dentro do HTML da página
+const jsonLdDaOrganizacao = jsonLdOrganizacao(await organizacaoDoSite())
 ---
 
 <!doctype html>
@@ -113,7 +117,7 @@ const textoAlternativoImagem =
     <script
       is:inline
       type="application/ld+json"
-      set:html={serializarJsonLd(jsonLdOrganizacao())}
+      set:html={serializarJsonLd(jsonLdDaOrganizacao)}
     />
     {[...dadosMigalhas, ...jsonLd].map((dados) => (
       <script

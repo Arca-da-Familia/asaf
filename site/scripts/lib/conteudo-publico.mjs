@@ -147,6 +147,25 @@ export function ligarNoticias(noticias, { projetos, eventos }) {
 }
 
 /**
+ * v5.4h - os dados da Instituição que o painel marcou "vai para o site". TOLERANTE a uma API que ainda não tem a rota (404/405): sem dado, vale o texto fixo do
+ * site. Só entram valores de texto (o resto não é desta rota).
+ */
+async function buscarInstituicao(base, config) {
+  let dados
+  try {
+    dados = await buscarJson(base, '/api/publico/instituicao', config)
+  } catch (erro) {
+    if (/respondeu 40[45]/.test(String(erro?.message))) return {}
+    throw erro
+  }
+  const instituicao = {}
+  for (const [chave, valor] of Object.entries(dados ?? {})) {
+    if (typeof valor === 'string') instituicao[chave] = valor
+  }
+  return instituicao
+}
+
+/**
  * Lê TODO o conteúdo público. A API escala a zero (partida a frio de ~20-35 s), então o tempo por
  * tentativa é generoso. Qualquer falha derruba o build: melhor não publicar do que publicar um
  * site sem a diretoria, sem projetos e sem eventos por causa de uma API acordando.
@@ -165,6 +184,7 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
   )
   const { diretoria, assembleias, parcerias, documentos, ...listas } =
     Object.fromEntries(chaves.map((chave, i) => [chave, respostas[i]]))
+  const instituicao = await buscarInstituicao(base, config)
   const eventos = listas.eventos.map(normalizarEvento)
   const projetos = listas.projetos.map(normalizarProjeto)
   const detalhesDeEventos = {}
@@ -236,6 +256,7 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
     eventos,
   })
   return {
+    instituicao,
     eventos,
     detalhesDeEventos,
     projetos,
