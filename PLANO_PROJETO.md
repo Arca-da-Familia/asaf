@@ -1738,8 +1738,12 @@ retrabalho que a seção 4.1 existe pra evitar.
       API, a sincronização reconstrói o site sozinha e a página se preenche, sem ninguém mexer no site. O mesmo vale para a Instituição (CNPJ real, telefone,
       e-mail, horário e redes marcados "vai para o site"): na v5.4h o site passa a lê-la. **Na homologação isso é simulado**: a população de teste tem 10 mandatos
       (7 da Diretoria Executiva e 3 do Conselho Fiscal) e uma Instituição com CNPJ válido, telefone e horário, e o roteiro `v5.4h-13` confere o `hml-site`.
-      **Falta:** fechar a v5.4h (paginação, o site ler a Instituição) para o ponto abrir; e a **conferência da diretoria contra a vedação do STF de 15/01/2026**,
-      que só pode ser feita quando houver composição real registrada (hoje há uma pessoa só), por isso fica marcada para o dia em que os mandatos reais forem lançados.
+      **Estado em 2026-10-09:** a v5.4h está **fechada** (paginação de Associados e Razão e o site lendo a Instituição, os dois em produção) e todos os itens da
+      lista abaixo estão conferidos, com as decisões do Presidente registradas acima (os cargos já estão alinhados ao Art. 19 e a página da Diretoria foi conferida
+      no `hml-site` com os 10 mandatos de teste, sem CPF, e-mail nem telefone de dirigente). **Resta uma única pendência, que não se pode executar ainda:** a
+      **conferência da diretoria contra a vedação do STF de 15/01/2026** (parentes de parlamentar), porque só há uma pessoa cadastrada; ela passa a ser **condição
+      para lançar os mandatos reais** (o nome aparece no site em até cerca de 30 minutos depois do lançamento). Por isso este item fica aberto, e fica a decisão do
+      Presidente de abrir a v5.5 com ele pendente.
 
 ##### Regra de trabalho a partir da v5.5 — a homologação é o portão (decisão do presidente, 2026-10-05)
 
@@ -1920,8 +1924,28 @@ Tudo aqui é construído (não é "decidir se faz"), na ordem abaixo, cada item 
       `GET /api/instituicao/` responde 401 sem login; `GET /api/publico/instituicao` responde 200 só com os campos marcados e preenchidos.
       **Atenção:** o CNPJ de produção ainda é o de exemplo (`00.000.000/0001-00`) e está marcado para o site: a diretoria precisa preencher o
       real na tela Instituição **antes** de o site passar a ler de lá.
-- [ ] **O site lê a Instituição:** nome, contatos, redes, endereço e Pix do site vêm de `/api/publico/instituicao` (hoje o site ainda usa o
-      texto fixo dele); só depois de a diretoria preencher os dados reais.
+- [x] **O site lê a Instituição:** os dados da Instituição marcados "vai para o site" (`/api/publico/instituicao`) passam a valer no site, **só o que está
+      preenchido E válido**: CNPJ com dígitos que conferem, e-mail, telefone brasileiro, horário de atendimento e endereço de Instagram/Facebook de verdade (qualquer
+      outro destino é descartado). O que está vazio ou inválido cai no texto fixo do Estatuto, então o CNPJ de exemplo da produção (`00.000.000/0001-00`) nunca
+      vai ao ar e um campo apagado não deixa buraco. Nome, endereço da sede e apresentação ficam sempre os do Estatuto. Contato, rodapé, Privacidade, Termos,
+      Transparência e os dados estruturados do Google usam os dados sobrepostos; o contato ganha horário e redes e o rodapé ganha as redes. A rota ausente (API
+      antiga) não derruba o build, e a Instituição entra na impressão digital do conteúdo: a diretoria muda um dado e a sincronização (15 em 15 minutos)
+      reconstrói o site sozinha. O site **não usa** Pix nem dados bancários (por padrão são internos).
+      **Testes:** função pura (validadores e sobreposição), leitura tolerante e impressão digital (vitest), build com a Instituição preenchida (`npm run
+      test:instituicao`, passo novo do CI do site), contato com a API antiga e o estado de hoje no navegador (CNPJ de exemplo ignorado); 356 testes de navegador
+      e a suíte unitária do site verdes. Defeito achado no caminho: um `await` dentro do HTML do layout não compila (o `astro check` não pega; o build, sim).
+      **Na homologação (2026-10-09):** `v5.4h-13` preenche a Instituição pela tela com valores fixos e válidos e a rota pública entrega exatamente isso; a
+      homologação é publicada de novo (o site de teste lê a API no build) e `v5.4h-14` abre o `hml-site` como visitante: o contato mostra CNPJ, telefone, e-mail,
+      horário e as duas redes (com `rel="noopener noreferrer"`) no lugar dos dados fixos; o rodapé mostra o e-mail e as redes; Privacidade, Termos e Transparência
+      mostram o e-mail e o CNPJ novos e nenhum fixo; o CNPJ de exemplo não aparece em página nenhuma; o JSON-LD traz o CNPJ, o e-mail e as redes; e a página da
+      **Diretoria** lista os 10 mandatos do sistema (7 da Diretoria Executiva e 3 do Conselho Fiscal) na seção do próprio órgão, sem CPF, e-mail ou telefone de
+      dirigente. Regressão no `hml-site`: `v5.4g-01` 5 de 5 (axe, celular, links internos), `v5.4g-05` 6 de 6, `v5.4h-10` 5 de 5 (formulário de filiação do site).
+      Achado do robô: o `v5.4h-02` alterna o CNPJ de propósito, então o roteiro do site passou a preparar os próprios dados (`v5.4h-13`) em vez de depender dele.
+      **Em produção (2026-10-09):** commit `325f2e4` no `version.json` do site; Deploy Site verde (inclusive o passo novo, axe e Lighthouse); contato, Privacidade
+      e Transparência seguem com o CNPJ, o telefone e o e-mail do Estatuto, nenhuma página mostra o CNPJ de exemplo, o contato não tem bloco de horário nem de
+      redes (a Instituição de produção ainda não tem esses dados) e a sincronização disparada à mão respondeu "o site voltou a bater com o sistema" (nenhuma
+      reconstrução em ciclo). **Quando a diretoria preencher a Instituição real** (CNPJ, telefone, e-mail, horário, redes, marcados "vai para o site"), o site
+      passa a mostrar em até cerca de 30 minutos, sem ninguém mexer nele.
 - [x] **Auditoria financeira (Conselho Fiscal):** o Conselho **não opera** o Financeiro, **audita**. Página própria: escolhe o **mês**, vê todas
       as entradas e saídas já consolidadas, abre cada título (comprovantes e informações) e **aprova, reprova ou manda ressalva**; a ressalva
       volta ao Tesoureiro, que corrige e submete de novo; dá para aprovar **tudo de uma vez, um por um ou por categoria**; **título aprovado pelo
