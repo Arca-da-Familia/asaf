@@ -1,16 +1,27 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe } from 'jest-axe'
 import { MemoryRouter, useLocation } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as api from '@/lib/api'
-import type { AtendimentoAberto } from '@/lib/api'
+import type { AtendimentoAberto, TermoDeVoluntario } from '@/lib/api'
 import {
   avisoDoEnvioDaResposta,
+  cargaHorariaSemanal,
+  hojeParaCampoDeData,
   previaDaMensagem,
+  recusaPorFaltaDeAutorizacao,
+  textoDaDataDeNascimento,
   textoDoPrazo,
+  validarTermoDeAdesao,
 } from '@/lib/atendimentos'
 import { moduloVisivel, modulos } from '@/lib/modulos'
 import { useMe } from '@/lib/use-me'
@@ -25,6 +36,9 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   assumirAtendimento: vi.fn(),
   responderAtendimento: vi.fn(),
   encerrarAtendimento: vi.fn(),
+  cadastrarVoluntarioDoAtendimento: vi.fn(),
+  obterTermoVigente: vi.fn(),
+  registrarTermoDeVoluntario: vi.fn(),
 }))
 vi.mock('@/lib/use-me', () => ({ useMe: vi.fn() }))
 
@@ -33,6 +47,8 @@ vi.mock('@/lib/use-me', () => ({ useMe: vi.fn() }))
 let base: AtendimentoAberto[] = []
 // o que o servidor responde sobre o e-mail da resposta: saiu (true), falhou (false), a pessoa não tem e-mail (null)
 let envioDaResposta: boolean | null = true
+// o termo de adesão vigente de cada pessoa do cadastro (por id_pessoa); quem não está aqui não tem termo
+let termos: Record<number, TermoDeVoluntario> = {}
 
 function pedido(
   n: number,
@@ -66,10 +82,33 @@ function pedido(
     encerrado_em: null,
     criado_em: '2026-10-09T12:00:00',
     consentimento_lgpd_versao: '1',
+    data_nascimento: null,
+    idade: null,
+    menor_de_idade: null,
     cpf: null,
     outros_do_remetente: [],
     ...sobrescrever,
   }
+}
+
+// o pedido de voluntariado: o site pede a data de nascimento (a idade manda no termo de adesão)
+function pedidoDeVoluntario(
+  n: number,
+  sobrescrever: Partial<AtendimentoAberto> = {},
+): AtendimentoAberto {
+  return pedido(n, {
+    tipo: 'VOLUNTARIO',
+    tipo_rotulo: 'Voluntariado',
+    assunto: 'Quero ser voluntário',
+    mensagem: 'Quero ajudar nas atividades de sábado.',
+    nome_completo: 'Joana Voluntária',
+    cpf: '52998224725',
+    cpf_mascarado: '***.***.***-25',
+    data_nascimento: '1990-05-10',
+    idade: 36,
+    menor_de_idade: false,
+    ...sobrescrever,
+  })
 }
 
 function alterar(
@@ -147,6 +186,26 @@ function prepararServidor() {
       situacao_do_prazo: 'encerrado',
     }),
   )
+  // v5.5b: cadastrar como voluntário liga o pedido a uma pessoa do cadastro; o termo de adesão fica guardado por pessoa
+  vi.mocked(api.cadastrarVoluntarioDoAtendimento).mockImplementation(
+    async (id) => alterar(id, { id_pessoa: 501 }),
+  )
+  vi.mocked(api.obterTermoVigente).mockImplementation(
+    async (idPessoa) => termos[idPessoa] ?? { vigente: false },
+  )
+  vi.mocked(api.registrarTermoDeVoluntario).mockImplementation(
+    async (idPessoa, dados) => {
+      termos[idPessoa] = {
+        vigente: true,
+        id_termo: 1,
+        atividade: dados.atividade,
+        carga_horaria_semanal: dados.carga_horaria_semanal,
+        data_fim_vigencia: `${dados.data_fim_vigencia}T00:00:00`,
+        versao: 1,
+      }
+      return { mensagem: 'Termo de adesão registrado.', id_termo: 1, versao: 1 }
+    },
+  )
 }
 
 function Endereco() {
@@ -184,6 +243,7 @@ async function cartaoCarregado(protocolo: string) {
 beforeEach(() => {
   vi.resetAllMocks()
   envioDaResposta = true
+  termos = {}
   base = [pedido(1)]
   prepararServidor()
 })
@@ -913,6 +973,416 @@ describe('Atendimento: assumir, responder e encerrar', () => {
   })
 })
 
+// v5.5b - o pedido de voluntariado: cadastrar como voluntário, registrar o termo de adesão e escalar
+async function abrirVoluntario(
+  protocolo = 'ASAF-2026-00001',
+  entrada = '/atendimentos',
+) {
+  const u = userEvent.setup()
+  desenhar(entrada)
+  const dentro = await cartaoCarregado(protocolo)
+  await u.click(await dentro.findByRole('button', { name: 'Abrir' }))
+  const secao = within(
+    await dentro.findByRole('region', { name: 'Voluntário' }),
+  )
+  return { u, dentro, secao }
+}
+
+describe('Atendimento: pedido de voluntariado', () => {
+  it('mostra a data de nascimento com a idade, sem aviso de menor para quem é adulto', async () => {
+    base = [pedidoDeVoluntario(1)]
+    const { secao } = await abrirVoluntario()
+    expect(
+      secao.getByText('Data de nascimento: 10/05/1990 (36 anos)'),
+    ).toBeVisible()
+    expect(secao.queryByText(/Menor de 18 anos/)).toBeNull()
+  })
+
+  it('o pedido de outro tipo não tem a seção "Voluntário"', async () => {
+    const u = userEvent.setup()
+    base = [pedido(1)]
+    desenhar()
+    const dentro = await cartaoCarregado('ASAF-2026-00001')
+    await u.click(await dentro.findByRole('button', { name: 'Abrir' }))
+    await dentro.findByRole('region', { name: 'Mensagem recebida' })
+    expect(dentro.queryByRole('region', { name: 'Voluntário' })).toBeNull()
+    expect(dentro.queryByText(/Data de nascimento/)).toBeNull()
+    expect(
+      dentro.queryByRole('button', { name: 'Cadastrar como voluntário' }),
+    ).toBeNull()
+  })
+
+  it('menor de 18 anos: aviso âmbar dizendo que o termo precisa da autorização de um responsável', async () => {
+    base = [
+      pedidoDeVoluntario(1, {
+        data_nascimento: '2012-03-01',
+        idade: 14,
+        menor_de_idade: true,
+      }),
+    ]
+    const { secao } = await abrirVoluntario()
+    expect(
+      secao.getByText('Data de nascimento: 01/03/2012 (14 anos)'),
+    ).toBeVisible()
+    const aviso = secao.getByText(
+      'Menor de 18 anos: o termo de adesão só é aceito com a autorização de um responsável (anote a referência do documento no termo).',
+    )
+    expect(aviso).toBeVisible()
+    expect(aviso).toHaveClass('bg-amber-100')
+  })
+
+  it('sem o pedido no cadastro: oferece "Cadastrar como voluntário", com o texto de apoio, e ainda não oferece o termo', async () => {
+    base = [pedidoDeVoluntario(1)]
+    const { secao } = await abrirVoluntario()
+    expect(
+      secao.getByRole('button', { name: 'Cadastrar como voluntário' }),
+    ).toBeEnabled()
+    expect(
+      secao.getByText('Cria o cadastro da pessoa, sem precisar ser associada.'),
+    ).toBeVisible()
+    expect(secao.queryByRole('form', { name: 'Termo de adesão' })).toBeNull()
+    expect(api.obterTermoVigente).not.toHaveBeenCalled()
+  })
+
+  it('Cadastrar como voluntário chama o servidor, atualiza o cartão e passa a mostrar o termo de adesão', async () => {
+    base = [pedidoDeVoluntario(1)]
+    const { u, dentro, secao } = await abrirVoluntario()
+    await u.click(
+      secao.getByRole('button', { name: 'Cadastrar como voluntário' }),
+    )
+    await waitFor(() =>
+      expect(api.cadastrarVoluntarioDoAtendimento).toHaveBeenCalledWith(1),
+    )
+    // o formulário do termo aparece (a pessoa agora está no cadastro) e o botão some
+    expect(
+      await secao.findByRole('form', { name: 'Termo de adesão' }),
+    ).toBeVisible()
+    expect(api.obterTermoVigente).toHaveBeenCalledWith(501)
+    expect(
+      secao.queryByRole('button', { name: 'Cadastrar como voluntário' }),
+    ).toBeNull()
+    expect(dentro.getByText(/Esta pessoa já consta no cadastro/)).toBeVisible()
+    // a lista e o resumo são refeitos
+    await waitFor(() =>
+      expect(
+        vi.mocked(api.resumirAtendimentos).mock.calls.length,
+      ).toBeGreaterThan(1),
+    )
+  })
+
+  it('se o servidor recusa o cadastro, o erro aparece em português no cartão e o botão continua', async () => {
+    vi.mocked(api.cadastrarVoluntarioDoAtendimento).mockRejectedValue(
+      new api.ApiError(400, 'Esta pessoa já está no cadastro.'),
+    )
+    base = [pedidoDeVoluntario(1)]
+    const { u, secao } = await abrirVoluntario()
+    await u.click(
+      secao.getByRole('button', { name: 'Cadastrar como voluntário' }),
+    )
+    expect(await secao.findByRole('alert')).toHaveTextContent(
+      'Esta pessoa já está no cadastro.',
+    )
+    expect(
+      secao.getByRole('button', { name: 'Cadastrar como voluntário' }),
+    ).toBeEnabled()
+  })
+
+  it('o formulário do termo tem todos os campos; a autorização do responsável só aparece para menor de idade', async () => {
+    base = [pedidoDeVoluntario(1, { id_pessoa: 501 })]
+    const { secao } = await abrirVoluntario()
+    const formulario = within(
+      await secao.findByRole('form', { name: 'Termo de adesão' }),
+    )
+    for (const campo of [
+      'Atividade',
+      'Carga horária semanal (horas)',
+      'Início da vigência',
+      'Fim da vigência',
+      'Local (opcional)',
+      'Documento de referência (opcional)',
+    ])
+      expect(formulario.getByLabelText(campo)).toBeVisible()
+    // o início já vem com o dia de hoje
+    expect(formulario.getByLabelText('Início da vigência')).toHaveValue(
+      hojeParaCampoDeData(),
+    )
+    expect(
+      formulario.queryByLabelText('Autorização do responsável (referência)'),
+    ).toBeNull()
+    expect(
+      formulario.getByRole('button', { name: 'Registrar termo de adesão' }),
+    ).toBeEnabled()
+    expect(api.obterTermoVigente).toHaveBeenCalledWith(501)
+  })
+
+  it('o termo incompleto é recusado na tela, com o que falta, sem chamar o servidor', async () => {
+    base = [pedidoDeVoluntario(1, { id_pessoa: 501 })]
+    const { u, secao } = await abrirVoluntario()
+    await u.click(
+      await secao.findByRole('button', { name: 'Registrar termo de adesão' }),
+    )
+    expect(await secao.findByRole('alert')).toHaveTextContent(
+      'Informe a atividade do voluntário.',
+    )
+    await u.type(secao.getByLabelText('Atividade'), 'Apoio na cozinha')
+    await u.type(secao.getByLabelText('Carga horária semanal (horas)'), '0')
+    await u.click(
+      secao.getByRole('button', { name: 'Registrar termo de adesão' }),
+    )
+    expect(await secao.findByRole('alert')).toHaveTextContent(
+      'A carga horária semanal precisa ser um número maior que zero.',
+    )
+    await u.clear(secao.getByLabelText('Carga horária semanal (horas)'))
+    await u.type(secao.getByLabelText('Carga horária semanal (horas)'), '4')
+    await u.click(
+      secao.getByRole('button', { name: 'Registrar termo de adesão' }),
+    )
+    expect(await secao.findByRole('alert')).toHaveTextContent(
+      'Informe o fim da vigência.',
+    )
+    // o que foi digitado fica
+    expect(secao.getByLabelText('Atividade')).toHaveValue('Apoio na cozinha')
+    expect(api.registrarTermoDeVoluntario).not.toHaveBeenCalled()
+  })
+
+  it('registrar o termo manda os campos ao servidor e passa a mostrar o termo vigente, com o link para escalar em um projeto', async () => {
+    base = [pedidoDeVoluntario(1, { id_pessoa: 501 })]
+    const { u, secao } = await abrirVoluntario()
+    await secao.findByRole('form', { name: 'Termo de adesão' })
+    await u.type(secao.getByLabelText('Atividade'), ' Apoio na cozinha ')
+    await u.type(secao.getByLabelText('Carga horária semanal (horas)'), '4,5')
+    fireEvent.change(secao.getByLabelText('Início da vigência'), {
+      target: { value: '2026-10-10' },
+    })
+    fireEvent.change(secao.getByLabelText('Fim da vigência'), {
+      target: { value: '2027-10-09' },
+    })
+    await u.type(secao.getByLabelText('Local (opcional)'), 'Cozinha da sede')
+    await u.click(
+      secao.getByRole('button', { name: 'Registrar termo de adesão' }),
+    )
+    await waitFor(() =>
+      expect(api.registrarTermoDeVoluntario).toHaveBeenCalledTimes(1),
+    )
+    expect(api.registrarTermoDeVoluntario).toHaveBeenCalledWith(501, {
+      atividade: 'Apoio na cozinha',
+      carga_horaria_semanal: 4.5,
+      data_inicio: '2026-10-10',
+      data_fim_vigencia: '2027-10-09',
+      local: 'Cozinha da sede',
+      documento_referencia: undefined,
+      autorizacao_responsavel_referencia: undefined,
+    })
+    // depois de gravar, o termo vigente é lido de novo e mostrado no lugar do formulário
+    expect(
+      await secao.findByText(
+        'Termo de adesão vigente até 09/10/2027 (Apoio na cozinha, 4,5 h por semana).',
+      ),
+    ).toBeVisible()
+    expect(secao.queryByRole('form', { name: 'Termo de adesão' })).toBeNull()
+    expect(secao.getByRole('status')).toHaveTextContent(
+      'Termo de adesão registrado. Versão 1.',
+    )
+    expect(
+      secao.getByRole('link', { name: 'Escalar em um projeto' }),
+    ).toHaveAttribute('href', '/projetos')
+  })
+
+  it('com termo vigente já registrado, mostra o termo e o link para escalar, sem formulário', async () => {
+    termos[501] = {
+      vigente: true,
+      id_termo: 9,
+      atividade: 'Recepção',
+      carga_horaria_semanal: 6,
+      data_fim_vigencia: '2027-03-31T00:00:00',
+      versao: 2,
+    }
+    base = [pedidoDeVoluntario(1, { id_pessoa: 501 })]
+    const { secao } = await abrirVoluntario()
+    expect(
+      await secao.findByText(
+        'Termo de adesão vigente até 31/03/2027 (Recepção, 6 h por semana).',
+      ),
+    ).toBeVisible()
+    expect(secao.queryByRole('form', { name: 'Termo de adesão' })).toBeNull()
+    expect(
+      secao.queryByRole('button', { name: 'Registrar termo de adesão' }),
+    ).toBeNull()
+    expect(
+      secao.getByRole('link', { name: 'Escalar em um projeto' }),
+    ).toHaveAttribute('href', '/projetos')
+  })
+
+  it('sem termo vigente, não oferece o link para escalar', async () => {
+    base = [pedidoDeVoluntario(1, { id_pessoa: 501 })]
+    const { secao } = await abrirVoluntario()
+    await secao.findByRole('form', { name: 'Termo de adesão' })
+    expect(
+      secao.queryByRole('link', { name: 'Escalar em um projeto' }),
+    ).toBeNull()
+  })
+
+  it('menor de idade: a autorização do responsável aparece, é exigida na tela e vai junto com o termo', async () => {
+    base = [
+      pedidoDeVoluntario(1, {
+        id_pessoa: 501,
+        data_nascimento: '2012-03-01',
+        idade: 14,
+        menor_de_idade: true,
+      }),
+    ]
+    const { u, secao } = await abrirVoluntario()
+    await secao.findByRole('form', { name: 'Termo de adesão' })
+    await u.type(secao.getByLabelText('Atividade'), 'Oficina de leitura')
+    await u.type(secao.getByLabelText('Carga horária semanal (horas)'), '2')
+    fireEvent.change(secao.getByLabelText('Fim da vigência'), {
+      target: { value: '2099-12-31' },
+    })
+    await u.click(
+      secao.getByRole('button', { name: 'Registrar termo de adesão' }),
+    )
+    expect(await secao.findByRole('alert')).toHaveTextContent(
+      'Informe a referência da autorização do responsável',
+    )
+    expect(api.registrarTermoDeVoluntario).not.toHaveBeenCalled()
+
+    await u.type(
+      secao.getByLabelText('Autorização do responsável (referência)'),
+      'Documento anexado no protocolo 12',
+    )
+    await u.click(
+      secao.getByRole('button', { name: 'Registrar termo de adesão' }),
+    )
+    await waitFor(() =>
+      expect(api.registrarTermoDeVoluntario).toHaveBeenCalledWith(
+        501,
+        expect.objectContaining({
+          atividade: 'Oficina de leitura',
+          autorizacao_responsavel_referencia:
+            'Documento anexado no protocolo 12',
+        }),
+      ),
+    )
+    expect(
+      await secao.findByText(/Termo de adesão vigente até 31\/12\/2099/),
+    ).toBeVisible()
+  })
+
+  it('o erro 422 do servidor aparece em português; se ele exige a autorização do responsável, o campo aparece', async () => {
+    vi.mocked(api.registrarTermoDeVoluntario).mockRejectedValue(
+      new api.ApiError(
+        422,
+        'Voluntário menor de idade exige autorização de responsável anexada.',
+      ),
+    )
+    // o pedido diz que é adulto, mas o cadastro da pessoa não tem a data de nascimento: o servidor pede a autorização do mesmo jeito
+    base = [pedidoDeVoluntario(1, { id_pessoa: 501 })]
+    const { u, secao } = await abrirVoluntario()
+    await secao.findByRole('form', { name: 'Termo de adesão' })
+    expect(
+      secao.queryByLabelText('Autorização do responsável (referência)'),
+    ).toBeNull()
+    await u.type(secao.getByLabelText('Atividade'), 'Recepção')
+    await u.type(secao.getByLabelText('Carga horária semanal (horas)'), '3')
+    fireEvent.change(secao.getByLabelText('Fim da vigência'), {
+      target: { value: '2099-12-31' },
+    })
+    await u.click(
+      secao.getByRole('button', { name: 'Registrar termo de adesão' }),
+    )
+    expect(await secao.findByRole('alert')).toHaveTextContent(
+      'Voluntário menor de idade exige autorização de responsável anexada.',
+    )
+    expect(
+      await secao.findByLabelText('Autorização do responsável (referência)'),
+    ).toBeVisible()
+    // o que foi digitado fica, e o termo não foi gravado
+    expect(secao.getByLabelText('Atividade')).toHaveValue('Recepção')
+    expect(secao.queryByText(/Termo de adesão vigente/)).toBeNull()
+  })
+
+  it('outra recusa do servidor (datas) também aparece em português, no formulário', async () => {
+    vi.mocked(api.registrarTermoDeVoluntario).mockRejectedValue(
+      new api.ApiError(
+        422,
+        'Data de fim de vigência precisa ser depois da data de início.',
+      ),
+    )
+    base = [pedidoDeVoluntario(1, { id_pessoa: 501 })]
+    const { u, secao } = await abrirVoluntario()
+    await secao.findByRole('form', { name: 'Termo de adesão' })
+    await u.type(secao.getByLabelText('Atividade'), 'Recepção')
+    await u.type(secao.getByLabelText('Carga horária semanal (horas)'), '3')
+    fireEvent.change(secao.getByLabelText('Fim da vigência'), {
+      target: { value: '2099-12-31' },
+    })
+    await u.click(
+      secao.getByRole('button', { name: 'Registrar termo de adesão' }),
+    )
+    expect(await secao.findByRole('alert')).toHaveTextContent(
+      'Data de fim de vigência precisa ser depois da data de início.',
+    )
+    expect(
+      secao.queryByLabelText('Autorização do responsável (referência)'),
+    ).toBeNull()
+  })
+
+  it('quem não pode consultar o termo (sem a permissão de associados) vê o motivo em vez de um formulário', async () => {
+    vi.mocked(api.obterTermoVigente).mockRejectedValue(
+      new api.ApiError(403, 'Você não tem permissão para esta ação.'),
+    )
+    base = [pedidoDeVoluntario(1, { id_pessoa: 501 })]
+    const { secao } = await abrirVoluntario()
+    expect(await secao.findByRole('alert')).toHaveTextContent(
+      'Você não tem permissão para esta ação.',
+    )
+    expect(secao.queryByRole('form', { name: 'Termo de adesão' })).toBeNull()
+  })
+
+  it('o cartão do pedido de voluntariado passa no axe: sem cadastro, com o formulário do termo (menor de idade) e com o termo vigente', async () => {
+    base = [
+      pedidoDeVoluntario(1),
+      pedidoDeVoluntario(2, {
+        id_pessoa: 501,
+        data_nascimento: '2012-03-01',
+        idade: 14,
+        menor_de_idade: true,
+      }),
+      pedidoDeVoluntario(3, { id_pessoa: 502 }),
+    ]
+    termos[502] = {
+      vigente: true,
+      id_termo: 3,
+      atividade: 'Recepção',
+      carga_horaria_semanal: 6,
+      data_fim_vigencia: '2027-03-31T00:00:00',
+      versao: 1,
+    }
+    const u = userEvent.setup()
+    const { container } = desenhar()
+    // um cartão aberto por vez: dois cartões abertos repetem os mesmos nomes de região (o mesmo já vale para "Mensagem recebida")
+    const conferir = async (
+      protocolo: string,
+      espera: (dentro: ReturnType<typeof within>) => Promise<unknown>,
+    ) => {
+      const dentro = await cartaoCarregado(protocolo)
+      await u.click(await dentro.findByRole('button', { name: 'Abrir' }))
+      await espera(dentro)
+      expect(await axe(container)).toHaveNoViolations()
+      await u.click(dentro.getByRole('button', { name: 'Fechar' }))
+    }
+    await conferir('ASAF-2026-00001', (d) =>
+      d.findByRole('button', { name: 'Cadastrar como voluntário' }),
+    )
+    await conferir('ASAF-2026-00002', (d) =>
+      d.findByRole('form', { name: 'Termo de adesão' }),
+    )
+    await conferir('ASAF-2026-00003', (d) =>
+      d.findByText(/Termo de adesão vigente até 31\/03\/2027/),
+    )
+  })
+})
+
 describe('Atendimento: acessibilidade', () => {
   it('a lista, com um pedido aberto, não tem violação (axe)', async () => {
     const u = userEvent.setup()
@@ -1083,5 +1553,80 @@ describe('Atendimento: textos de prazo e aviso do e-mail', () => {
     expect(longa.endsWith('…')).toBe(true)
     expect(longa.length).toBeLessThanOrEqual(51)
     expect(longa).not.toMatch(/abcdefghi…$/)
+  })
+})
+
+describe('Atendimento: o pedido de voluntariado (textos e regras)', () => {
+  it('a data de nascimento sai em dia/mês/ano, com a idade no singular e no plural', () => {
+    expect(
+      textoDaDataDeNascimento({ data_nascimento: '1990-05-10', idade: 36 }),
+    ).toBe('Data de nascimento: 10/05/1990 (36 anos)')
+    expect(
+      textoDaDataDeNascimento({ data_nascimento: '2025-10-01', idade: 1 }),
+    ).toBe('Data de nascimento: 01/10/2025 (1 ano)')
+    expect(
+      textoDaDataDeNascimento({ data_nascimento: '1990-05-10', idade: null }),
+    ).toBe('Data de nascimento: 10/05/1990')
+    expect(
+      textoDaDataDeNascimento({ data_nascimento: null, idade: null }),
+    ).toBe('Data de nascimento: não informada.')
+  })
+
+  it('a carga horária aceita vírgula e só vale se for maior que zero', () => {
+    expect(cargaHorariaSemanal('4')).toBe(4)
+    expect(cargaHorariaSemanal(' 4,5 ')).toBe(4.5)
+    expect(cargaHorariaSemanal('0')).toBeNull()
+    expect(cargaHorariaSemanal('-2')).toBeNull()
+    expect(cargaHorariaSemanal('abc')).toBeNull()
+    expect(cargaHorariaSemanal('')).toBeNull()
+  })
+
+  it('o dia de hoje para o campo de data sai pelo relógio local (aaaa-mm-dd)', () => {
+    expect(hojeParaCampoDeData(new Date(2026, 9, 9, 23, 30))).toBe('2026-10-09')
+    expect(hojeParaCampoDeData(new Date(2026, 0, 5, 0, 5))).toBe('2026-01-05')
+  })
+
+  it('o termo diz a primeira coisa que falta, e a autorização só é exigida quando for o caso', () => {
+    const ok = {
+      atividade: 'Recepção',
+      carga: '4',
+      inicio: '2026-10-10',
+      fim: '2027-10-10',
+      autorizacao: '',
+    }
+    expect(validarTermoDeAdesao(ok, false)).toBeNull()
+    expect(validarTermoDeAdesao({ ...ok, atividade: '  ' }, false)).toBe(
+      'Informe a atividade do voluntário.',
+    )
+    expect(validarTermoDeAdesao({ ...ok, carga: '' }, false)).toBe(
+      'Informe a carga horária semanal.',
+    )
+    expect(validarTermoDeAdesao({ ...ok, carga: '0' }, false)).toBe(
+      'A carga horária semanal precisa ser um número maior que zero.',
+    )
+    expect(validarTermoDeAdesao({ ...ok, inicio: '' }, false)).toBe(
+      'Informe o início da vigência.',
+    )
+    expect(validarTermoDeAdesao({ ...ok, fim: '' }, false)).toBe(
+      'Informe o fim da vigência.',
+    )
+    expect(validarTermoDeAdesao({ ...ok, fim: '2026-10-10' }, false)).toBe(
+      'O fim da vigência precisa ser depois do início.',
+    )
+    expect(validarTermoDeAdesao(ok, true)).toMatch(
+      /^Informe a referência da autorização do responsável/,
+    )
+    expect(
+      validarTermoDeAdesao({ ...ok, autorizacao: 'Protocolo 12' }, true),
+    ).toBeNull()
+  })
+
+  it('reconhece a recusa do servidor por falta da autorização do responsável', () => {
+    expect(
+      recusaPorFaltaDeAutorizacao(
+        'Voluntário menor de idade exige autorização de responsável anexada.',
+      ),
+    ).toBe(true)
+    expect(recusaPorFaltaDeAutorizacao('Pessoa não encontrada.')).toBe(false)
   })
 })

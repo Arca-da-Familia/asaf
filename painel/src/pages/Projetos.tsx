@@ -708,7 +708,9 @@ function SecaoVoluntariado({ idProjeto }: { idProjeto: number }) {
               className="flex items-center justify-between rounded-md border border-border p-2 text-sm"
             >
               <span>
-                Associado #{a.id_associado} — {a.funcao_desempenhada}
+                {a.nome_voluntario}
+                {a.eh_associado ? '' : ' (não associado)'} —{' '}
+                {a.funcao_desempenhada}
                 {a.turno_data_hora_inicio &&
                   ` · ${formatarData(a.turno_data_hora_inicio, { comHora: true })}`}
               </span>

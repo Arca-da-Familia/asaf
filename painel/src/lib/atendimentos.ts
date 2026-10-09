@@ -4,7 +4,7 @@ import type {
   StatusDeAtendimento,
   TipoDeAtendimento,
 } from '@/lib/api'
-import { formatarData } from '@/lib/datas'
+import { formatarData, formatarDia } from '@/lib/datas'
 
 // v5.5a - o que a fila de atendimento mostra: textos e cores dos avisos de prazo, o aviso sobre o e-mail da resposta e a prévia da mensagem.
 // Fica fora da tela para poder ser testado sozinho, sem depender de relógio nem de servidor.
@@ -131,4 +131,62 @@ export function previaDaMensagem(texto: string, limite = 180): string {
   const corte = limpo.slice(0, limite)
   const ultimoEspaco = corte.lastIndexOf(' ')
   return `${(ultimoEspaco > limite / 2 ? corte.slice(0, ultimoEspaco) : corte).trimEnd()}…`
+}
+
+// ---------------------------------------------------------------------------
+// v5.5b - o pedido de voluntariado: a data de nascimento (a idade manda no termo de adesão) e o formulário do termo de adesão.
+// ---------------------------------------------------------------------------
+export const AVISO_DE_MENOR_DE_IDADE =
+  'Menor de 18 anos: o termo de adesão só é aceito com a autorização de um responsável (anote a referência do documento no termo).'
+
+export function textoDaDataDeNascimento(
+  a: Pick<AtendimentoDaFila, 'data_nascimento' | 'idade'>,
+): string {
+  if (!a.data_nascimento) return 'Data de nascimento: não informada.'
+  const idade =
+    a.idade === null ? '' : ` (${a.idade} ${a.idade === 1 ? 'ano' : 'anos'})`
+  return `Data de nascimento: ${formatarDia(a.data_nascimento)}${idade}`
+}
+
+// O dia de hoje no formato do campo de data (aaaa-mm-dd), pelo relógio de quem está na tela (não pelo UTC: depois das 21h em Belém o UTC já é amanhã).
+export function hojeParaCampoDeData(agora: Date = new Date()): string {
+  const dois = (n: number) => String(n).padStart(2, '0')
+  return `${agora.getFullYear()}-${dois(agora.getMonth() + 1)}-${dois(agora.getDate())}`
+}
+
+export type CamposDoTermoDeAdesao = {
+  atividade: string
+  carga: string
+  inicio: string
+  fim: string
+  autorizacao: string
+}
+
+// A carga horária pode vir com vírgula (4,5): devolve o número, ou null quando não é um número maior que zero.
+export function cargaHorariaSemanal(texto: string): number | null {
+  const numero = Number(texto.trim().replace(',', '.'))
+  return Number.isFinite(numero) && numero > 0 ? numero : null
+}
+
+// A primeira coisa que falta no termo, em português; null = pode enviar. O servidor confere tudo de novo (principalmente a menoridade).
+export function validarTermoDeAdesao(
+  c: CamposDoTermoDeAdesao,
+  exigeAutorizacao: boolean,
+): string | null {
+  if (!c.atividade.trim()) return 'Informe a atividade do voluntário.'
+  if (c.carga.trim() === '') return 'Informe a carga horária semanal.'
+  if (cargaHorariaSemanal(c.carga) === null)
+    return 'A carga horária semanal precisa ser um número maior que zero.'
+  if (!c.inicio) return 'Informe o início da vigência.'
+  if (!c.fim) return 'Informe o fim da vigência.'
+  if (c.fim <= c.inicio)
+    return 'O fim da vigência precisa ser depois do início.'
+  if (exigeAutorizacao && !c.autorizacao.trim())
+    return 'Informe a referência da autorização do responsável: sem ela o termo de menor de 18 anos não vale.'
+  return null
+}
+
+// A recusa do servidor ao termo de quem é menor de idade (ou de quem ainda não tem data de nascimento no cadastro).
+export function recusaPorFaltaDeAutorizacao(mensagem: string): boolean {
+  return /menor de idade/i.test(mensagem)
 }
