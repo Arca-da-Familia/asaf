@@ -65,10 +65,8 @@ async function totalNaAuditoria(page: Page, tabela: string): Promise<number> {
 }
 
 async function abrirOPedido(page: Page, protocolo: string): Promise<Locator> {
-  await page
-    .getByRole('link', { name: /^Atendimento/ })
-    .first()
-    .click()
+  // pelo endereço da fila: depois da primeira vez já se está dentro do módulo, e o cartão do Início não está mais na tela (o caminho pelo Início é provado em v5.5a-02)
+  await page.goto('/atendimentos')
   await expect(
     page.getByRole('heading', { name: 'Atendimento', level: 1 }),
   ).toBeVisible()
