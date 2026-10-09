@@ -1,12 +1,15 @@
 ---
 import FaleConosco from '../../components/FaleConosco.astro'
+import FormularioDeAtendimento from '../../components/FormularioDeAtendimento.astro'
 import TituloDePagina from '../../components/TituloDePagina.astro'
 import type { Migalha } from '../../config/navegacao'
 import Base from '../../layouts/Base.astro'
 
 // Fonte: regras do módulo de voluntariado do sistema da ASAF (app/models/voluntariado.py,
-// app/services/voluntariado.py, app/services/projetos.py — v1.6 e v4.4) e Lei nº 9.608/1998.
+// app/services/voluntariado.py, app/services/projetos.py — v1.6, v4.4 e v5.5b) e Lei nº 9.608/1998.
 // Não prometemos o que o sistema ainda não faz (ex.: certificado de voluntariado).
+// Desde a v5.5b o pedido para ser voluntário sai do formulário desta página para a fila única de atendimento;
+// para ser voluntário NÃO é preciso ser associado.
 const migalhas: Migalha[] = [{ rotulo: 'Seja voluntário' }]
 
 const etapas = [
@@ -14,6 +17,10 @@ const etapas = [
     titulo: 'Fale com a gente',
     texto:
       'Conte em qual atividade você gostaria de ajudar e quanto tempo tem disponível por semana.',
+    link: {
+      rotulo: 'Ir para o formulário',
+      href: '#quero-ser-voluntario-titulo',
+    },
   },
   {
     titulo: 'Assine o termo de adesão',
@@ -23,7 +30,7 @@ const etapas = [
   {
     titulo: 'Seja escalado em um projeto',
     texto:
-      'As atividades em projetos são organizadas em turnos. Hoje, a escala usa o cadastro de associados da ASAF: a secretaria explica como se cadastrar. O coordenador do projeto confirma a participação.',
+      'As atividades em projetos são organizadas em turnos. A equipe do projeto escala você nos turnos combinados; para ser voluntário não é preciso ser associado.',
   },
   {
     titulo: 'Registre as suas horas',
@@ -73,6 +80,16 @@ const etapas = [
             <div>
               <h3 class="font-semibold">{etapa.titulo}</h3>
               <p class="mt-1 text-sm">{etapa.texto}</p>
+              {etapa.link && (
+                <p class="mt-2 text-sm">
+                  <a
+                    href={etapa.link.href}
+                    class="font-medium text-primary underline underline-offset-4"
+                  >
+                    {etapa.link.rotulo}
+                  </a>
+                </p>
+              )}
             </div>
           </li>
         ))}
@@ -89,10 +106,17 @@ const etapas = [
       </p>
     </section>
 
-    <FaleConosco titulo="Quero ser voluntário">
+    <FormularioDeAtendimento
+      tipo="VOLUNTARIO"
+      titulo="Quero ser voluntário"
+      idDoFormulario="quero-ser-voluntario"
+      instrucao="Conte quem você é e como gostaria de ajudar. A secretaria responde pelo contato que você informar, para combinar a atividade e o termo de adesão. Ao enviar, você recebe um número de protocolo."
+    />
+
+    <FaleConosco titulo="Prefere falar com a secretaria?">
       <p>
-        Entre em contato com a secretaria para combinar a atividade e assinar o
-        termo de adesão.
+        Também dá para combinar a atividade e assinar o termo de adesão direto
+        com a secretaria.
       </p>
     </FaleConosco>
   </div>

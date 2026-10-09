@@ -3,7 +3,8 @@ import { expect, test, type Page } from '@playwright/test'
 
 // v5.5a — os formulários públicos da fila única de atendimento (contato, pedido de informação, solicitação do titular de dados), no navegador de verdade,
 // contra o build de teste e a API simulada (`scripts/mock-api.mjs`, que guarda o corpo recebido e responde como a API real: protocolo em sequência,
-// prazo por tipo, 429 e erro de servidor provocados por nomes de teste).
+// prazo por tipo, 429 e erro de servidor provocados por nomes de teste). Na v5.5b entrou o pedido para ser voluntário (`/seja-voluntario/`): data de nascimento
+// obrigatória, CPF opcional, sem assunto.
 
 const PORTA_DA_API = process.env.MOCK_API_PORT ?? '4322'
 const NOME_QUE_ESTOURA_O_LIMITE = 'Teste Limite Por IP'
@@ -11,13 +12,15 @@ const NOME_QUE_DERRUBA_A_API = 'Teste Erro De Servidor'
 const CPF_VALIDO = '390.533.447-05'
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']
 
-type Tipo = 'CONTATO' | 'PEDIDO_INFORMACAO' | 'TITULAR_LGPD'
+type Tipo = 'CONTATO' | 'PEDIDO_INFORMACAO' | 'TITULAR_LGPD' | 'VOLUNTARIO'
 interface Formulario {
   tipo: Tipo
   caminho: string
   titulo: string
   idDoFormulario: string
   dias: number
+  /** O rótulo do campo de texto livre: "Mensagem", menos no voluntariado. */
+  rotuloDaMensagem: string
 }
 
 const FORMULARIOS: Formulario[] = [
@@ -27,6 +30,7 @@ const FORMULARIOS: Formulario[] = [
     titulo: 'Escreva para a associação',
     idDoFormulario: 'contato',
     dias: 10,
+    rotuloDaMensagem: 'Mensagem',
   },
   {
     tipo: 'PEDIDO_INFORMACAO',
@@ -34,6 +38,7 @@ const FORMULARIOS: Formulario[] = [
     titulo: 'Faça o seu pedido de informação',
     idDoFormulario: 'pedido-de-informacao',
     dias: 20,
+    rotuloDaMensagem: 'Mensagem',
   },
   {
     tipo: 'TITULAR_LGPD',
@@ -41,6 +46,15 @@ const FORMULARIOS: Formulario[] = [
     titulo: 'Faça a sua solicitação',
     idDoFormulario: 'solicitacao-do-titular',
     dias: 15,
+    rotuloDaMensagem: 'Mensagem',
+  },
+  {
+    tipo: 'VOLUNTARIO',
+    caminho: '/seja-voluntario/',
+    titulo: 'Quero ser voluntário',
+    idDoFormulario: 'quero-ser-voluntario',
+    dias: 10,
+    rotuloDaMensagem: 'Como você gostaria de ajudar e quando tem tempo?',
   },
 ]
 
@@ -74,6 +88,8 @@ async function preencher(
     email?: string
     telefone?: string
     cpf?: string
+    /** Só no voluntariado: "AAAA-MM-DD". Sem ele, vai uma data certa. */
+    nascimento?: string
   } = {},
 ) {
   const form = formulario(page)
@@ -84,11 +100,17 @@ async function preencher(
   if (f.tipo === 'TITULAR_LGPD') {
     await form.getByLabel('CPF').fill(extra.cpf ?? CPF_VALIDO)
     await form.getByLabel('O que você quer pedir').selectOption('ACESSO')
+  } else if (f.tipo === 'VOLUNTARIO') {
+    await form
+      .getByLabel('Data de nascimento')
+      .fill(extra.nascimento ?? '1990-05-20')
+    // o CPF é opcional: só se preenche quando o teste pede
+    if (extra.cpf) await form.getByLabel('CPF').fill(extra.cpf)
   } else {
     await form.getByLabel('Assunto').fill('Dúvida sobre os projetos')
   }
   await form
-    .getByLabel('Mensagem')
+    .getByLabel(f.rotuloDaMensagem)
     .fill('Gostaria de saber mais sobre os projetos da associação.')
 }
 
@@ -137,7 +159,7 @@ test.describe('formulários de atendimento', () => {
           'Nome completo',
           'E-mail',
           'Telefone/WhatsApp',
-          'Mensagem',
+          f.rotuloDaMensagem,
         ]) {
           await expect(form.getByLabel(rotulo)).toBeVisible()
         }
@@ -159,10 +181,36 @@ test.describe('formulários de atendimento', () => {
             .locator('option:not([value=""])')
             .allTextContents()
           expect(opcoes).toEqual(DIREITOS)
+          await expect(form.getByLabel('Data de nascimento')).toHaveCount(0)
+        } else if (f.tipo === 'VOLUNTARIO') {
+          // o voluntariado pede a data de nascimento (obrigatória) e o CPF (opcional); não tem assunto nem direito do titular
+          await expect(form.getByLabel('Data de nascimento')).toBeVisible()
+          await expect(form.getByLabel('Data de nascimento')).toHaveAttribute(
+            'type',
+            'date',
+          )
+          await expect(
+            form.getByText(
+              'Para sabermos se é preciso a autorização de um responsável (menores de 18 anos).',
+            ),
+          ).toBeVisible()
+          await expect(form.getByLabel('CPF (opcional)')).toBeVisible()
+          await expect(
+            form.getByText(
+              'Se quiser informar agora, ajuda a secretaria a preparar o termo de adesão.',
+            ),
+          ).toBeVisible()
+          await expect(form.getByLabel('Assunto')).toHaveCount(0)
+          await expect(form.getByLabel('O que você quer pedir')).toHaveCount(0)
+          // o campo de texto livre tem o rótulo do voluntariado, não o "Mensagem" dos outros
+          await expect(
+            form.getByLabel('Mensagem', { exact: true }),
+          ).toHaveCount(0)
         } else {
           await expect(form.getByLabel('Assunto')).toBeVisible()
-          // contato e pedido de informação NÃO pedem CPF nem o direito do titular
+          // contato e pedido de informação NÃO pedem CPF, data de nascimento nem o direito do titular
           await expect(form.getByLabel('CPF')).toHaveCount(0)
+          await expect(form.getByLabel('Data de nascimento')).toHaveCount(0)
           await expect(form.getByLabel('O que você quer pedir')).toHaveCount(0)
         }
         // o prazo vem da API (o mock devolve 10, 20 e 15 dias) e só aparece depois de ela responder
@@ -236,6 +284,17 @@ test.describe('formulários de atendimento', () => {
           await expect(
             page.locator(`#${f.idDoFormulario}-erro-subtipo`),
           ).toContainText('Escolha o que você quer pedir')
+        } else if (f.tipo === 'VOLUNTARIO') {
+          await expect(
+            page.locator(`#${f.idDoFormulario}-erro-nascimento`),
+          ).toContainText('Informe a sua data de nascimento.')
+          // o CPF é opcional: em branco não vira erro
+          await expect(
+            page.locator(`#${f.idDoFormulario}-erro-cpf`),
+          ).toBeHidden()
+          await expect(
+            page.locator(`#${f.idDoFormulario}-erro-assunto`),
+          ).toHaveCount(0)
         } else {
           await expect(
             page.locator(`#${f.idDoFormulario}-erro-assunto`),
@@ -291,10 +350,18 @@ test.describe('formulários de atendimento', () => {
         if (f.tipo === 'TITULAR_LGPD') {
           expect(corpo).toMatchObject({ cpf: '39053344705', subtipo: 'ACESSO' })
           expect(corpo).not.toHaveProperty('assunto')
+          expect(corpo).not.toHaveProperty('data_nascimento')
+        } else if (f.tipo === 'VOLUNTARIO') {
+          // a data de nascimento vai; sem assunto (a API fixa "Quero ser voluntário"), sem subtipo e, como o CPF ficou em branco, sem CPF
+          expect(corpo).toMatchObject({ data_nascimento: '1990-05-20' })
+          expect(corpo).not.toHaveProperty('assunto')
+          expect(corpo).not.toHaveProperty('subtipo')
+          expect(corpo).not.toHaveProperty('cpf')
         } else {
           expect(corpo).toMatchObject({ assunto: 'Dúvida sobre os projetos' })
           expect(corpo).not.toHaveProperty('cpf')
           expect(corpo).not.toHaveProperty('subtipo')
+          expect(corpo).not.toHaveProperty('data_nascimento')
         }
       })
 
@@ -356,18 +423,18 @@ test.describe('formulários de atendimento', () => {
         await expect(form.locator('[data-contador]')).toHaveText(
           '0 de 4.000 letras',
         )
-        await form.getByLabel('Mensagem').fill('Olá')
+        await form.getByLabel(f.rotuloDaMensagem).fill('Olá')
         await expect(form.locator('[data-contador]')).toHaveText(
           '3 de 4.000 letras',
         )
         await preencher(page, f)
-        await form.getByLabel('Mensagem').fill('Olá')
+        await form.getByLabel(f.rotuloDaMensagem).fill('Olá')
         await aceitar(page)
         await enviar(page)
         await expect(
           page.locator(`#${f.idDoFormulario}-erro-mensagem`),
         ).toContainText('pelo menos 10 letras')
-        await expect(form.getByLabel('Mensagem')).toBeFocused()
+        await expect(form.getByLabel(f.rotuloDaMensagem)).toBeFocused()
       })
 
       test('a API recusa por excesso de pedidos (429): a pessoa lê o motivo e não perde o que digitou', async ({
@@ -490,7 +557,9 @@ test.describe('formulários de atendimento', () => {
         page,
       }) => {
         await page.setViewportSize({ width: 375, height: 700 })
-        await expect(formulario(page).getByLabel('Mensagem')).toBeVisible()
+        await expect(
+          formulario(page).getByLabel(f.rotuloDaMensagem),
+        ).toBeVisible()
         const semRolagemLateral = await page.evaluate(
           () =>
             document.documentElement.scrollWidth <=
@@ -569,6 +638,139 @@ test.describe('formulários de atendimento', () => {
       })
     }
   })
+
+  // v5.5b — o pedido para ser voluntário: a data de nascimento é obrigatória e tem de fazer sentido; o CPF é opcional, mas, se vier, tem de conferir
+  test.describe('voluntariado: data de nascimento e CPF', () => {
+    const f = FORMULARIOS[3]!
+    const erroDaData = (page: Page) =>
+      page.locator(`#${f.idDoFormulario}-erro-nascimento`)
+
+    test.beforeEach(async ({ page }) => {
+      await page.goto(f.caminho)
+    })
+
+    test('sem a data de nascimento não envia: avisa, foca o campo e não chama a API', async ({
+      page,
+    }) => {
+      await preencher(page, f, { nascimento: '' })
+      await aceitar(page)
+      const antes = (await pedidosRecebidos(page)).length
+      await enviar(page)
+      await expect(erroDaData(page)).toHaveText(
+        'Informe a sua data de nascimento.',
+      )
+      const data = formulario(page).getByLabel('Data de nascimento')
+      await expect(data).toBeFocused()
+      await expect(data).toHaveAttribute('aria-invalid', 'true')
+      await expect(data).toHaveAttribute(
+        'aria-describedby',
+        `${f.idDoFormulario}-dica-nascimento ${f.idDoFormulario}-erro-nascimento`,
+      )
+      await expect(confirmacao(page)).toBeHidden()
+      expect((await pedidosRecebidos(page)).length).toBe(antes)
+      // escolheu a data: o aviso some na hora
+      await data.fill('1990-05-20')
+      await expect(erroDaData(page)).toBeHidden()
+      await expect(data).not.toHaveAttribute('aria-invalid', 'true')
+    })
+
+    test('data de nascimento no futuro é recusada pela página, com a frase da API', async ({
+      page,
+    }) => {
+      const futuro = `${new Date().getFullYear() + 1}-01-01`
+      await preencher(page, f, { nascimento: futuro })
+      await aceitar(page)
+      const antes = (await pedidosRecebidos(page)).length
+      await enviar(page)
+      await expect(erroDaData(page)).toHaveText(
+        'A data de nascimento não pode ser no futuro.',
+      )
+      await expect(
+        formulario(page).getByLabel('Data de nascimento'),
+      ).toBeFocused()
+      expect((await pedidosRecebidos(page)).length).toBe(antes)
+    })
+
+    test('data de nascimento anterior a 1900 é recusada pela página', async ({
+      page,
+    }) => {
+      await preencher(page, f, { nascimento: '1899-12-31' })
+      await aceitar(page)
+      const antes = (await pedidosRecebidos(page)).length
+      await enviar(page)
+      await expect(erroDaData(page)).toHaveText('Confira a data de nascimento.')
+      expect((await pedidosRecebidos(page)).length).toBe(antes)
+    })
+
+    test('menor de 18 anos pode se candidatar: a página envia e a secretaria cuida da autorização do responsável', async ({
+      page,
+    }) => {
+      const ano = new Date().getFullYear() - 12
+      await preencher(page, f, { nascimento: `${ano}-06-01` })
+      await aceitar(page)
+      await enviar(page)
+      await expect(confirmacao(page)).toBeVisible()
+      expect((await pedidosRecebidos(page)).at(-1)).toMatchObject({
+        tipo: 'VOLUNTARIO',
+        data_nascimento: `${ano}-06-01`,
+      })
+    })
+
+    test('o CPF é opcional: sem ele o pedido segue; com ele, vai só com os dígitos', async ({
+      page,
+    }) => {
+      await preencher(page, f, { cpf: CPF_VALIDO })
+      await aceitar(page)
+      await enviar(page)
+      await expect(confirmacao(page)).toBeVisible()
+      expect((await pedidosRecebidos(page)).at(-1)).toMatchObject({
+        tipo: 'VOLUNTARIO',
+        cpf: '39053344705',
+      })
+    })
+
+    test('CPF preenchido que não confere é recusado e leva o foco até ele; esvaziado o campo, o pedido segue', async ({
+      page,
+    }) => {
+      await preencher(page, f, { cpf: '111.444.777-36' })
+      await aceitar(page)
+      const antes = (await pedidosRecebidos(page)).length
+      await enviar(page)
+      await expect(page.locator(`#${f.idDoFormulario}-erro-cpf`)).toContainText(
+        'não confere',
+      )
+      await expect(formulario(page).getByLabel('CPF')).toBeFocused()
+      expect((await pedidosRecebidos(page)).length).toBe(antes)
+      await formulario(page).getByLabel('CPF').fill('')
+      await enviar(page)
+      await expect(confirmacao(page)).toBeVisible()
+      expect((await pedidosRecebidos(page)).at(-1)).not.toHaveProperty('cpf')
+    })
+
+    test('se a API recusa a data (a página foi burlada), a pessoa lê a frase em português, sem "Value error"', async ({
+      page,
+    }) => {
+      await page.route('**/api/publico/atendimentos', async (rota) => {
+        if (rota.request().method() !== 'POST') return rota.continue()
+        const corpo = rota.request().postDataJSON() as Record<string, unknown>
+        await rota.continue({
+          postData: JSON.stringify({ ...corpo, data_nascimento: '2999-01-01' }),
+        })
+      })
+      await preencher(page, f)
+      await aceitar(page)
+      await enviar(page)
+      const aviso = page.getByRole('alert').filter({
+        hasText: 'A data de nascimento não pode ser no futuro.',
+      })
+      await expect(aviso).toBeVisible()
+      await expect(aviso).not.toContainText('Value error')
+      await expect(formulario(page).getByLabel('Nome completo')).toHaveValue(
+        'Maria de Teste',
+      )
+      await expect(confirmacao(page)).toBeHidden()
+    })
+  })
 })
 
 test.describe('as páginas dos formulários', () => {
@@ -595,6 +797,55 @@ test.describe('as páginas dos formulários', () => {
     await expect(
       texto.getByRole('link', { name: 'Fazer um pedido de informação' }),
     ).toHaveAttribute('href', '/transparencia/pedido-de-informacao/')
+  })
+
+  test('Seja voluntário: não diz mais que é preciso ser associado, a etapa 1 leva ao formulário e o contato com a secretaria continua', async ({
+    page,
+  }) => {
+    await page.goto('/seja-voluntario/')
+    await expect(
+      page.getByRole('heading', { name: 'Seja voluntário', level: 1 }),
+    ).toBeVisible()
+    const principal = page.locator('main')
+    // o texto antigo (a escala usava o cadastro de associados) saiu: voluntário NÃO precisa ser associado
+    await expect(principal).not.toContainText('usa o cadastro de associados')
+    await expect(principal).not.toContainText(
+      'a secretaria explica como se cadastrar',
+    )
+    await expect(principal).toContainText(
+      'A equipe do projeto escala você nos turnos combinados; para ser voluntário não é preciso ser associado.',
+    )
+    // as outras etapas e a seção de menores seguem como estavam
+    for (const titulo of [
+      'Fale com a gente',
+      'Assine o termo de adesão',
+      'Seja escalado em um projeto',
+      'Registre as suas horas',
+    ])
+      await expect(
+        principal.getByRole('heading', { name: titulo, level: 3 }),
+      ).toBeVisible()
+    await expect(
+      principal.getByRole('heading', { name: 'Menores de 18 anos' }),
+    ).toBeVisible()
+    // a etapa 1 aponta o formulário (o título dele é a âncora)
+    await expect(
+      principal.getByRole('link', { name: 'Ir para o formulário' }),
+    ).toHaveAttribute('href', '#quero-ser-voluntario-titulo')
+    await expect(page.locator('#quero-ser-voluntario-titulo')).toHaveText(
+      'Quero ser voluntário',
+    )
+    await expect(formulario(page)).toBeVisible()
+    // o contato alternativo: telefone e e-mail da secretaria
+    await expect(
+      principal.getByRole('heading', {
+        name: 'Prefere falar com a secretaria?',
+      }),
+    ).toBeVisible()
+    await expect(
+      principal.locator('a[href="tel:+5594984120703"]').first(),
+    ).toBeVisible()
+    await expect(principal.locator('a[href^="mailto:"]').first()).toBeVisible()
   })
 
   test('Pedido de informação: explica, leva a Transparência e às emendas e tem o formulário', async ({

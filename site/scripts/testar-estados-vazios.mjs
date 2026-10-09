@@ -316,11 +316,12 @@ exigir(
 )
 
 // v5.5a - os formulários da fila única de atendimento são HTML estático: existem com a API sem nenhum dado e com a API antiga (que ainda não tem a rota). O PRAZO
-// de resposta nunca é escrito na página: vem da API, no navegador (a página sem ele só deixa o texto de fora).
+// de resposta nunca é escrito na página: vem da API, no navegador (a página sem ele só deixa o texto de fora). v5.5b: o pedido para ser voluntário também.
 for (const [caminho, tipo] of [
   ['/contato/', 'CONTATO'],
   ['/transparencia/pedido-de-informacao/', 'PEDIDO_INFORMACAO'],
   ['/privacidade/solicitacao-do-titular/', 'TITULAR_LGPD'],
+  ['/seja-voluntario/', 'VOLUNTARIO'],
 ]) {
   for (const [rotulo, ler] of [
     ['vazio', lerPagina],
@@ -344,6 +345,28 @@ for (const [caminho, tipo] of [
       !html.includes('Respondemos em até'),
       `${rotulo}: ${caminho} traz um prazo escrito na página (ele só pode vir da API)`,
     )
+    if (tipo === 'VOLUNTARIO') {
+      // o voluntariado: data de nascimento (obrigatória) e CPF (opcional), sem assunto; e a página não diz mais que é preciso ser associado
+      exigir(
+        html.includes('name="data_nascimento"') &&
+          html.includes('type="date"') &&
+          html.includes('CPF (opcional)'),
+        `${rotulo}: ${caminho} sem a data de nascimento e o CPF opcional do voluntariado`,
+      )
+      exigir(
+        !html.includes('name="assunto"'),
+        `${rotulo}: ${caminho} pede o assunto (o voluntariado não tem assunto)`,
+      )
+      exigir(
+        html.includes('Como você gostaria de ajudar e quando tem tempo?'),
+        `${rotulo}: ${caminho} sem o rótulo do campo de mensagem do voluntariado`,
+      )
+      exigir(
+        html.includes('para ser voluntário não é preciso ser associado') &&
+          !html.includes('usa o cadastro de associados'),
+        `${rotulo}: ${caminho} com o texto antigo da escala (ou sem o novo)`,
+      )
+    }
   }
 }
 

@@ -876,9 +876,9 @@ export const RECUSA_DE_DUPLICIDADE =
   'Já existe um pedido em andamento ou um cadastro com estes dados. Fale com a secretaria para saber a situação.'
 
 /**
- * Fila única de atendimento (v5.5a): contato, pedido de informação e solicitação do titular de dados. O mock guarda o corpo recebido (o teste confere o que a API
- * real receberia), dá protocolos em sequência e responde como a API real. Nomes de teste fazem o mock responder aos dois casos que só a API sabe provocar:
- * o limite de pedidos por endereço (429) e o erro de servidor (500). (Prazos em dias iguais aos padrões do sistema.)
+ * Fila única de atendimento (v5.5a): contato, pedido de informação e solicitação do titular de dados; na v5.5b, também o pedido para ser voluntário. O mock guarda o
+ * corpo recebido (o teste confere o que a API real receberia), dá protocolos em sequência e responde como a API real. Nomes de teste fazem o mock responder aos dois
+ * casos que só a API sabe provocar: o limite de pedidos por endereço (429) e o erro de servidor (500). (Prazos em dias iguais aos padrões do sistema.)
  */
 const pedidosDeAtendimento = []
 let protocolosDeAtendimento = 0
@@ -886,6 +886,49 @@ export const PRAZOS_DE_ATENDIMENTO = {
   CONTATO: 10,
   PEDIDO_INFORMACAO: 20,
   TITULAR_LGPD: 15,
+  VOLUNTARIO: 10,
+}
+
+const cpfConfere = (texto) => {
+  const d = String(texto).replace(/\D/g, '')
+  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false
+  const digito = (n) => {
+    let soma = 0
+    for (let i = 0; i < n; i++) soma += Number(d[i]) * (n + 1 - i)
+    const resto = (soma * 10) % 11
+    return resto === 10 ? 0 : resto
+  }
+  return digito(9) === Number(d[9]) && digito(10) === Number(d[10])
+}
+
+/**
+ * O que o servidor recusa no pedido de voluntário (app/schemas/atendimento.py): data de nascimento obrigatória, que exista, que não seja no futuro e de 1900 em
+ * diante; o CPF é opcional, mas, se vier, tem de conferir. Devolve a frase em português (ou `null`); a resposta sai no formato 422 do FastAPI.
+ */
+function recusaDoVoluntariado(corpo) {
+  const nascimento = corpo.data_nascimento
+  if (nascimento === undefined || nascimento === null || nascimento === '')
+    return 'Informe a sua data de nascimento.'
+  const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(nascimento))
+  const data = partes
+    ? new Date(
+        Date.UTC(Number(partes[1]), Number(partes[2]) - 1, Number(partes[3])),
+      )
+    : null
+  if (
+    !partes ||
+    data.getUTCFullYear() !== Number(partes[1]) ||
+    data.getUTCMonth() !== Number(partes[2]) - 1 ||
+    data.getUTCDate() !== Number(partes[3])
+  )
+    return 'Input should be a valid date or datetime, day value is outside expected range'
+  const hoje = new Date(agora()).toISOString().slice(0, 10)
+  if (String(nascimento) > hoje)
+    return 'A data de nascimento não pode ser no futuro.'
+  if (Number(partes[1]) < 1900) return 'Confira a data de nascimento.'
+  if (corpo.cpf && String(corpo.cpf).trim() && !cpfConfere(corpo.cpf))
+    return 'CPF inválido (dígito verificador não confere).'
+  return null
 }
 export const NOME_QUE_ESTOURA_O_LIMITE = 'Teste Limite Por IP'
 export const NOME_QUE_DERRUBA_O_ATENDIMENTO = 'Teste Erro De Servidor'
@@ -995,12 +1038,28 @@ export function criarServidor({
                 {
                   type: 'literal_error',
                   loc: ['body', 'tipo'],
-                  msg: "Input should be 'CONTATO', 'PEDIDO_INFORMACAO' or 'TITULAR_LGPD'",
+                  msg: "Input should be 'CONTATO', 'PEDIDO_INFORMACAO', 'TITULAR_LGPD' or 'VOLUNTARIO'",
                 },
               ],
             },
             422,
           )
+        if (corpo.tipo === 'VOLUNTARIO') {
+          const recusa = recusaDoVoluntariado(corpo)
+          if (recusa)
+            return responder(
+              {
+                detail: [
+                  {
+                    type: 'value_error',
+                    loc: ['body'],
+                    msg: `Value error, ${recusa}`,
+                  },
+                ],
+              },
+              422,
+            )
+        }
         if (corpo.nome_completo === NOME_QUE_ESTOURA_O_LIMITE)
           return responder({ detail: RECUSA_DE_LIMITE }, 429)
         if (corpo.nome_completo === NOME_QUE_DERRUBA_O_ATENDIMENTO)
