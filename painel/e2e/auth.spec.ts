@@ -1,6 +1,11 @@
 import crypto from 'node:crypto'
 
 import { expect, test, type Page } from '@playwright/test'
+import { isolarDaProducao } from './apoio'
+
+test.beforeEach(async ({ page }) => {
+  await isolarDaProducao(page)
+})
 
 // v0.2.8 — fluxos de autenticação que não podem quebrar. A API é mockada via page.route: estes
 // testes validam o comportamento do PAINEL diante de cada resposta possível da API (sucesso,

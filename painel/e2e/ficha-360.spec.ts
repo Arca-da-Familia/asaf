@@ -1,4 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
+import { isolarDaProducao } from './apoio'
+
+test.beforeEach(async ({ page }) => {
+  await isolarDaProducao(page)
+})
 
 // v1.5 — a aba "Linha do tempo" do Meu Perfil junta situação financeira, cargos e o histórico
 // unificado (EventoLinhaDoTempo) numa tela só. API mockada via page.route, mesmo padrão de

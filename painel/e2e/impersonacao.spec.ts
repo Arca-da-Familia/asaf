@@ -1,4 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
+import { isolarDaProducao } from './apoio'
+
+test.beforeEach(async ({ page }) => {
+  await isolarDaProducao(page)
+})
 
 // v0.2.9 — "ver como" (impersonação de papel). Cobre o caminho que mais importa: o banner
 // aparece, o menu passa a refletir as permissões do papel impersonado (não do admin real), e
