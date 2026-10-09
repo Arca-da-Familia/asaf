@@ -59,7 +59,10 @@ class AlocacaoVoluntario(Base):
     __tablename__ = "alocacoes_voluntarios"
     id_alocacao = Column(Integer, primary_key=True, index=True)
     id_projeto = Column(Integer, ForeignKey("projetos_eventos.id_projeto"))
-    id_associado = Column(Integer, ForeignKey("associados.id_associado"))
+    # v5.5b - o voluntário é uma PESSOA (quem se oferece pelo site e assina o termo de adesão não precisa ser associado); `id_associado` fica preenchido só quando a
+    # pessoa é também associada (a autocandidatura e a "minha escala" do painel continuam por associado)
+    id_pessoa = Column(Integer, ForeignKey("pessoas.id_pessoa"), nullable=False, index=True)
+    id_associado = Column(Integer, ForeignKey("associados.id_associado"), nullable=True)
     funcao_desempenhada = Column(String)
     id_vaga = Column(Integer, ForeignKey("vagas_escala_voluntario.id_vaga"), nullable=True)
     turno_data_hora_inicio = Column(DateTime, nullable=True)

@@ -41,9 +41,12 @@ def enviar_pedido(dados: AtendimentoPublicoCriar, request: Request, db: Session 
     atendimento, novo = servico.registrar_pelo_site(
         db, tipo=dados.tipo, subtipo=dados.subtipo, assunto=dados.assunto, mensagem=dados.mensagem, nome_completo=dados.nome_completo,
         email=dados.email_contato, telefone=dados.telefone_whatsapp, cpf=dados.cpf, versao_do_aviso=dados.versao_texto_consentimento or "",
+        data_nascimento=dados.data_nascimento,
     )
     if novo:
         registrar_auditoria(db, None, "atendimentos", "ATENDIMENTO_PUBLICO", id_registro_afetado=atendimento.id_atendimento, ip_origem=ip)
+        # confirmação por e-mail (protocolo e prazo), só para o pedido novo e só se a pessoa informou e-mail; melhor esforço
+        servico.confirmar_recebimento_por_email(atendimento)
     # a resposta é a mesma para um pedido novo e para o mesmo pedido mandado de novo: quem está de fora só recebe o protocolo e o prazo
     return {
         "mensagem": "Pedido recebido.", "protocolo": atendimento.protocolo, "prazo_dias": atendimento.prazo_dias, "prazo_em": atendimento.prazo_em,
@@ -112,6 +115,17 @@ def responder_atendimento(id_atendimento: int, dados: AtendimentoResponder, requ
             "status": atendimento.status, "situacao_do_prazo": servico.situacao_do_prazo(atendimento), "resposta_enviada_por_email": atendimento.resposta_enviada_por_email,
         },
         ip_origem=_ip(request),
+    )
+    return servico.serializar(atendimento, completo=True)
+
+
+@router.post("/api/atendimentos/{id_atendimento}/cadastrar-voluntario", summary="Cadastrar quem se ofereceu como voluntário (pessoa do cadastro, sem precisar ser associada)")
+def cadastrar_voluntario_do_atendimento(id_atendimento: int, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_da_fila)):
+    atendimento = _buscar_ou_404(db, id_atendimento)
+    pessoa = servico.cadastrar_voluntario(db, atendimento, usuario)
+    registrar_auditoria(
+        db, usuario, "atendimentos", "ATENDIMENTO_VOLUNTARIO_CADASTRADO", id_registro_afetado=atendimento.id_atendimento,
+        dados_depois={"id_pessoa": pessoa.id_pessoa}, ip_origem=_ip(request),
     )
     return servico.serializar(atendimento, completo=True)
 

@@ -1,11 +1,13 @@
+from datetime import date
 from typing import Literal, Optional
 
 from pydantic import BaseModel, field_validator, model_validator
 
 from app.validadores import somente_digitos, validar_cpf, validar_telefone_br
 
-# v5.5a - os tipos que o site manda (o voluntariado entra na v5.5b)
-TipoPublico = Literal["CONTATO", "PEDIDO_INFORMACAO", "TITULAR_LGPD"]
+# os tipos que o site manda (o voluntariado entrou na v5.5b)
+TipoPublico = Literal["CONTATO", "PEDIDO_INFORMACAO", "TITULAR_LGPD", "VOLUNTARIO"]
+ASSUNTO_DO_VOLUNTARIADO = "Quero ser voluntário"
 SUBTIPOS_DA_SOLICITACAO_DE_TITULAR = ("CONFIRMACAO", "ACESSO", "CORRECAO", "ELIMINACAO", "PORTABILIDADE", "COMPARTILHAMENTO", "REVOGACAO", "OUTRO")
 
 
@@ -21,6 +23,7 @@ class AtendimentoPublicoCriar(BaseModel):
     email_contato: Optional[str] = None
     telefone_whatsapp: Optional[str] = None
     cpf: Optional[str] = None
+    data_nascimento: Optional[date] = None
     consentimento_lgpd: bool = False
     versao_texto_consentimento: Optional[str] = None
     pagina_web: Optional[str] = None
@@ -95,10 +98,23 @@ class AtendimentoPublicoCriar(BaseModel):
                 raise ValueError("Escolha o que você quer pedir sobre os seus dados.")
             if not self.cpf:
                 raise ValueError("Informe o seu CPF: é com ele que a associação confere quem está pedindo.")
+        elif self.tipo == "VOLUNTARIO":
+            # o voluntariado não pede assunto (é sempre o mesmo) nem direito do titular; pede a data de nascimento (o termo de adesão de menor de 18 anos exige a autorização
+            # de um responsável) e o CPF é opcional (a secretaria pede depois, para o termo)
+            self.subtipo = None
+            self.assunto = ASSUNTO_DO_VOLUNTARIADO
+            if self.data_nascimento is None:
+                raise ValueError("Informe a sua data de nascimento.")
+            if self.data_nascimento > date.today():
+                raise ValueError("A data de nascimento não pode ser no futuro.")
+            if self.data_nascimento.year < 1900:
+                raise ValueError("Confira a data de nascimento.")
         else:
             self.subtipo = None
             if not self.assunto or len(self.assunto) < 3:
                 raise ValueError("Informe o assunto.")
+        if self.tipo != "VOLUNTARIO":
+            self.data_nascimento = None
         return self
 
 

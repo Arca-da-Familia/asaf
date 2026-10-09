@@ -5,6 +5,7 @@ import { ApiError } from '../src/lib/api'
 import {
   buscarPrazos,
   DIREITOS_DO_TITULAR,
+  erroDaDataDeNascimento,
   iniciarFormularioDeAtendimento,
   mensagemDeFalhaDoEnvio,
   montarCorpo,
@@ -21,7 +22,15 @@ const resposta = (corpo: unknown, status = 200) =>
     headers: { 'Content-Type': 'application/json' },
   })
 
-const PRAZOS = { CONTATO: 10, PEDIDO_INFORMACAO: 20, TITULAR_LGPD: 15 }
+const PRAZOS = {
+  CONTATO: 10,
+  PEDIDO_INFORMACAO: 20,
+  TITULAR_LGPD: 15,
+  VOLUNTARIO: 10,
+}
+
+/** "Hoje" fixo dos testes (9 de outubro de 2026, no relógio de quem preenche): a data de nascimento é comparada com ele. */
+const HOJE = new Date(2026, 9, 9, 15, 30)
 
 const valoresOk = (
   tipo: TipoDePedido,
@@ -29,12 +38,16 @@ const valoresOk = (
 ): ValoresDoPedido => ({
   tipo,
   subtipo: tipo === 'TITULAR_LGPD' ? 'ACESSO' : '',
-  assunto: tipo === 'TITULAR_LGPD' ? '' : 'Dúvida sobre os projetos',
+  assunto:
+    tipo === 'TITULAR_LGPD' || tipo === 'VOLUNTARIO'
+      ? ''
+      : 'Dúvida sobre os projetos',
   mensagem: 'Gostaria de saber mais sobre os projetos da associação.',
   nome_completo: 'Maria de Teste Silva',
   email_contato: 'maria@example.com',
   telefone_whatsapp: '(91) 98888-7777',
   cpf: tipo === 'TITULAR_LGPD' ? '111.444.777-35' : '',
+  data_nascimento: tipo === 'VOLUNTARIO' ? '1990-05-20' : '',
   consentimento_lgpd: true,
   ...extra,
 })
@@ -76,8 +89,21 @@ describe('validarPedido', () => {
       'CONTATO',
       'PEDIDO_INFORMACAO',
       'TITULAR_LGPD',
+      'VOLUNTARIO',
     ] as const) {
-      expect(validarPedido(valoresOk(tipo))).toEqual({})
+      expect(validarPedido(valoresOk(tipo), HOJE)).toEqual({})
+    }
+  })
+
+  it('só o voluntariado olha a data de nascimento: nos outros tipos ela nem é lida', () => {
+    for (const tipo of [
+      'CONTATO',
+      'PEDIDO_INFORMACAO',
+      'TITULAR_LGPD',
+    ] as const) {
+      expect(
+        validarPedido(valoresOk(tipo, { data_nascimento: 'lixo' }), HOJE),
+      ).toEqual({})
     }
   })
 
@@ -197,12 +223,21 @@ describe('validarPedido', () => {
       email_contato: '',
       telefone_whatsapp: '',
       cpf: '',
+      data_nascimento: '',
       consentimento_lgpd: false,
     })
     expect(Object.keys(validarPedido(vazio('CONTATO'))).sort()).toEqual([
       'assunto',
       'consentimento_lgpd',
       'contato',
+      'mensagem',
+      'nome_completo',
+    ])
+    // o voluntariado não tem assunto, e o CPF (opcional) em branco não é erro
+    expect(Object.keys(validarPedido(vazio('VOLUNTARIO'))).sort()).toEqual([
+      'consentimento_lgpd',
+      'contato',
+      'data_nascimento',
       'mensagem',
       'nome_completo',
     ])
@@ -214,6 +249,107 @@ describe('validarPedido', () => {
       'nome_completo',
       'subtipo',
     ])
+  })
+})
+
+describe('pedido para ser voluntário (v5.5b)', () => {
+  const v = (extra: Partial<ValoresDoPedido>) =>
+    validarPedido(valoresOk('VOLUNTARIO', extra), HOJE)
+
+  it('não pede assunto (é sempre o mesmo, fixado pela API) nem o direito do titular', () => {
+    expect(v({ assunto: '', subtipo: '' })).toEqual({})
+    // um assunto de outro formulário que sobrou no campo nem é olhado
+    expect(v({ assunto: 'ab' }).assunto).toBeUndefined()
+    expect(v({ subtipo: 'APAGAR_TUDO' }).subtipo).toBeUndefined()
+  })
+
+  it('a data de nascimento é obrigatória, com a mesma frase da API', () => {
+    expect(v({ data_nascimento: '' }).data_nascimento).toBe(
+      'Informe a sua data de nascimento.',
+    )
+    expect(v({ data_nascimento: '   ' }).data_nascimento).toBe(
+      'Informe a sua data de nascimento.',
+    )
+  })
+
+  it('a data de nascimento não pode ser no futuro (hoje vale, amanhã não)', () => {
+    expect(v({ data_nascimento: '2026-10-09' }).data_nascimento).toBeUndefined()
+    expect(v({ data_nascimento: '2026-10-10' }).data_nascimento).toBe(
+      'A data de nascimento não pode ser no futuro.',
+    )
+    expect(v({ data_nascimento: '2027-01-01' }).data_nascimento).toBe(
+      'A data de nascimento não pode ser no futuro.',
+    )
+    // "hoje" é o dia de quem preenche, qualquer que seja a hora
+    expect(
+      erroDaDataDeNascimento('2026-10-09', new Date(2026, 9, 9, 0, 0, 0)),
+    ).toBeUndefined()
+    expect(
+      erroDaDataDeNascimento('2026-10-09', new Date(2026, 9, 9, 23, 59, 59)),
+    ).toBeUndefined()
+    expect(
+      erroDaDataDeNascimento('2026-10-10', new Date(2026, 9, 9, 23, 59, 59)),
+    ).toBe('A data de nascimento não pode ser no futuro.')
+  })
+
+  it('de 1900 em diante: antes disso, ou uma data que não existe, é "Confira a data de nascimento."', () => {
+    expect(v({ data_nascimento: '1900-01-01' }).data_nascimento).toBeUndefined()
+    for (const data of [
+      '1899-12-31',
+      '0001-01-01',
+      '0050-06-15',
+      '2023-02-29',
+      '2026-13-01',
+      '2026-00-10',
+      '1990-04-31',
+      '20/05/1990',
+      '1990-5-20',
+      '27576-01-01',
+      'ontem',
+    ]) {
+      expect(v({ data_nascimento: data }).data_nascimento, data).toBe(
+        'Confira a data de nascimento.',
+      )
+    }
+    // ano bissexto
+    expect(v({ data_nascimento: '2024-02-29' }).data_nascimento).toBeUndefined()
+    expect(v({ data_nascimento: '2000-02-29' }).data_nascimento).toBeUndefined()
+  })
+
+  it('menor de 18 anos pode se candidatar: a data só precisa ser coerente (a autorização do responsável é com a secretaria)', () => {
+    expect(v({ data_nascimento: '2015-01-01' })).toEqual({})
+    expect(v({ data_nascimento: '2026-10-08' })).toEqual({})
+  })
+
+  it('o CPF é opcional: em branco não é erro', () => {
+    expect(v({ cpf: '' }).cpf).toBeUndefined()
+    expect(v({ cpf: '   ' }).cpf).toBeUndefined()
+  })
+
+  it('o CPF, se preenchido, tem de ter os dígitos verificadores certos (com ou sem pontuação)', () => {
+    for (const cpf of ['390.533.447-05', '39053344705', '  390.533.447-05  ']) {
+      expect(v({ cpf }).cpf, cpf).toBeUndefined()
+    }
+    for (const cpf of ['111.444.777-36', '11111111111', '123', 'abc']) {
+      expect(v({ cpf }).cpf, cpf).toContain('não confere')
+    }
+  })
+
+  it('pede ao menos um contato e o aceite do aviso, como os outros tipos', () => {
+    expect(v({ email_contato: '', telefone_whatsapp: '' }).contato).toContain(
+      'e-mail ou um telefone',
+    )
+    expect(v({ email_contato: '' })).toEqual({})
+    expect(v({ telefone_whatsapp: '' })).toEqual({})
+    expect(v({ consentimento_lgpd: false }).consentimento_lgpd).toContain(
+      'aviso de privacidade',
+    )
+  })
+
+  it('a mensagem (como ajudar e quando tem tempo) segue de 10 a 4.000 letras', () => {
+    expect(v({ mensagem: 'Posso ajudar' }).mensagem).toBeUndefined()
+    expect(v({ mensagem: 'Oi' }).mensagem).toContain('pelo menos 10 letras')
+    expect(v({ mensagem: 'a'.repeat(4001) }).mensagem).toContain('4.000 letras')
   })
 })
 
@@ -257,6 +393,53 @@ describe('montarCorpo', () => {
       cpf: '11144477735',
     })
     expect(corpo).not.toHaveProperty('assunto')
+  })
+
+  it('voluntário: leva a data de nascimento, sem assunto, sem subtipo e sem CPF quando ele não foi preenchido', () => {
+    const corpo = montarCorpo(
+      valoresOk('VOLUNTARIO', {
+        nome_completo: '  Maria   Silva ',
+        mensagem: '  Posso ajudar aos sábados.  ',
+        data_nascimento: ' 1990-05-20 ',
+        assunto: 'Quero ser voluntário',
+        subtipo: 'ACESSO',
+      }),
+    )
+    expect(corpo).toEqual({
+      tipo: 'VOLUNTARIO',
+      mensagem: 'Posso ajudar aos sábados.',
+      nome_completo: 'Maria Silva',
+      email_contato: 'maria@example.com',
+      telefone_whatsapp: '91988887777',
+      data_nascimento: '1990-05-20',
+      consentimento_lgpd: true,
+      versao_texto_consentimento: VERSAO_DO_AVISO_DE_PRIVACIDADE_DO_ATENDIMENTO,
+      pagina_web: '',
+    })
+    expect(corpo).not.toHaveProperty('assunto')
+    expect(corpo).not.toHaveProperty('subtipo')
+    expect(corpo).not.toHaveProperty('cpf')
+  })
+
+  it('voluntário com CPF: vai só com os dígitos; em branco (ou só espaços), não vai', () => {
+    expect(
+      montarCorpo(valoresOk('VOLUNTARIO', { cpf: '390.533.447-05' })),
+    ).toHaveProperty('cpf', '39053344705')
+    expect(
+      montarCorpo(valoresOk('VOLUNTARIO', { cpf: '   ' })),
+    ).not.toHaveProperty('cpf')
+  })
+
+  it('os outros tipos nunca levam a data de nascimento', () => {
+    for (const tipo of [
+      'CONTATO',
+      'PEDIDO_INFORMACAO',
+      'TITULAR_LGPD',
+    ] as const) {
+      expect(
+        montarCorpo(valoresOk(tipo, { data_nascimento: '1990-05-20' })),
+      ).not.toHaveProperty('data_nascimento')
+    }
   })
 
   it('o que ficou em branco não vai no corpo', () => {
@@ -342,7 +525,27 @@ describe('buscarPrazos', () => {
     )
     await expect(
       buscarPrazos({ baseUrl: 'https://api.teste', fetchImpl }),
-    ).resolves.toEqual({ CONTATO: 10 })
+    ).resolves.toEqual({ CONTATO: 10, VOLUNTARIO: 10 })
+  })
+
+  it('a API sem o prazo do voluntariado (versão anterior) devolve só os três tipos antigos: o do voluntariado simplesmente não aparece', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      resposta({
+        CONTATO: 10,
+        PEDIDO_INFORMACAO: 20,
+        TITULAR_LGPD: 15,
+      }),
+    )
+    const prazos = await buscarPrazos({
+      baseUrl: 'https://api.teste',
+      fetchImpl,
+    })
+    expect(prazos).toEqual({
+      CONTATO: 10,
+      PEDIDO_INFORMACAO: 20,
+      TITULAR_LGPD: 15,
+    })
+    expect(textoDoPrazo(prazos.VOLUNTARIO)).toBeNull()
   })
 
   it('falha em silêncio: sem a API (ou com API antiga, 404) devolve um objeto vazio', async () => {
@@ -369,6 +572,7 @@ function montar(tipo: TipoDePedido = 'CONTATO'): {
   confirmacao: HTMLElement
 } {
   const titular = tipo === 'TITULAR_LGPD'
+  const voluntario = tipo === 'VOLUNTARIO'
   document.body.innerHTML = `
     <form data-tipo="${tipo}" data-api-url="https://api.teste" data-confirmacao="#enviado" novalidate>
       <p data-prazo hidden></p>
@@ -377,13 +581,16 @@ function montar(tipo: TipoDePedido = 'CONTATO'): {
       <input name="email_contato"><p data-erro="email_contato" hidden></p>
       <input name="telefone_whatsapp"><p data-erro="telefone_whatsapp" hidden></p>
       <p data-erro="contato" hidden></p>
-      ${titular ? '<input name="cpf"><p data-erro="cpf" hidden></p>' : ''}
+      ${voluntario ? '<input name="data_nascimento" type="date"><p data-erro="data_nascimento" hidden></p>' : ''}
+      ${titular || voluntario ? '<input name="cpf"><p data-erro="cpf" hidden></p>' : ''}
       ${
         titular
           ? `<select name="subtipo"><option value="">Escolha</option>${DIREITOS_DO_TITULAR.map(
               (d) => `<option value="${d.valor}">${d.rotulo}</option>`,
             ).join('')}</select><p data-erro="subtipo" hidden></p>`
-          : '<input name="assunto"><p data-erro="assunto" hidden></p>'
+          : voluntario
+            ? ''
+            : '<input name="assunto"><p data-erro="assunto" hidden></p>'
       }
       <textarea name="mensagem"></textarea>
       <p data-contador>0 de 4.000 letras</p>
@@ -413,6 +620,7 @@ function preencher(form: HTMLFormElement, v: ValoresDoPedido): void {
   c('email_contato')!.value = v.email_contato
   c('telefone_whatsapp')!.value = v.telefone_whatsapp
   if (c('cpf')) c('cpf')!.value = v.cpf
+  if (c('data_nascimento')) c('data_nascimento')!.value = v.data_nascimento
   if (c('subtipo')) c('subtipo')!.value = v.subtipo
   if (c('assunto')) c('assunto')!.value = v.assunto
   c('mensagem')!.value = v.mensagem
@@ -730,6 +938,155 @@ describe('iniciarFormularioDeAtendimento', () => {
     await esperar()
     await esperar()
     expect(form.hasAttribute('aria-busy')).toBe(false)
+  })
+
+  describe('voluntário (v5.5b)', () => {
+    const iniciar = (fetchImpl = vi.fn()) => {
+      const { form, confirmacao } = montar('VOLUNTARIO')
+      iniciarFormularioDeAtendimento(form, {
+        fetchImpl,
+        fetchDosPrazos: prazosOk(),
+        hoje: () => HOJE,
+      })
+      return { form, confirmacao, fetchImpl }
+    }
+
+    it('em branco: aponta nome, contato, data de nascimento, mensagem e aceite (CPF e assunto não existem) e não chama a API', () => {
+      const { form, fetchImpl } = iniciar()
+      enviar(form)
+      expect(fetchImpl).not.toHaveBeenCalled()
+      expect(textoDe('[data-resumo-de-erros]').textContent).toBe(
+        'Há 5 campos para corrigir.',
+      )
+      expect(textoDe('[data-erro="data_nascimento"]').textContent).toBe(
+        'Informe a sua data de nascimento.',
+      )
+      expect(campo(form, 'data_nascimento').getAttribute('aria-invalid')).toBe(
+        'true',
+      )
+      expect(textoDe('[data-erro="cpf"]').hidden).toBe(true)
+      expect(form.elements.namedItem('assunto')).toBeNull()
+    })
+
+    it('o foco vai ao primeiro erro na ordem da página: nome, contato, data de nascimento, CPF, mensagem, aceite', () => {
+      const { form } = iniciar()
+      preencher(form, valoresOk('VOLUNTARIO', { data_nascimento: '' }))
+      enviar(form)
+      expect(document.activeElement).toBe(campo(form, 'data_nascimento'))
+      preencher(form, valoresOk('VOLUNTARIO', { cpf: '111.444.777-36' }))
+      enviar(form)
+      expect(document.activeElement).toBe(campo(form, 'cpf'))
+      expect(textoDe('[data-erro="cpf"]').textContent).toContain('não confere')
+      preencher(form, valoresOk('VOLUNTARIO', { mensagem: 'curta' }))
+      enviar(form)
+      expect(document.activeElement).toBe(campo(form, 'mensagem'))
+    })
+
+    it('data de nascimento no futuro é recusada na página, com a frase da API', () => {
+      const { form, fetchImpl } = iniciar()
+      preencher(
+        form,
+        valoresOk('VOLUNTARIO', { data_nascimento: '2026-10-10' }),
+      )
+      enviar(form)
+      expect(fetchImpl).not.toHaveBeenCalled()
+      expect(textoDe('[data-erro="data_nascimento"]').textContent).toBe(
+        'A data de nascimento não pode ser no futuro.',
+      )
+      expect(document.activeElement).toBe(campo(form, 'data_nascimento'))
+    })
+
+    it('corrigir a data faz o aviso dela sumir na hora', () => {
+      const { form } = iniciar()
+      enviar(form)
+      const data = campo(form, 'data_nascimento')
+      data.value = '1990-05-20'
+      data.dispatchEvent(new Event('input', { bubbles: true }))
+      expect(textoDe('[data-erro="data_nascimento"]').hidden).toBe(true)
+      expect(data.hasAttribute('aria-invalid')).toBe(false)
+      expect(textoDe('[data-resumo-de-erros]').textContent).toBe(
+        'Há 4 campos para corrigir.',
+      )
+    })
+
+    it('pedido certo, sem CPF: o corpo leva a data de nascimento, sem assunto, subtipo nem CPF; a confirmação mostra protocolo e prazo', async () => {
+      const fetchImpl = vi.fn().mockResolvedValue(
+        resposta({
+          mensagem: 'Pedido recebido.',
+          protocolo: 'ASAF-2026-00004',
+          prazo_dias: 10,
+          prazo_em: '2026-10-19T14:30:00.123456',
+        }),
+      )
+      const { form, confirmacao } = iniciar(fetchImpl)
+      preencher(form, valoresOk('VOLUNTARIO'))
+      enviar(form)
+      await esperar()
+      await esperar()
+      expect(fetchImpl).toHaveBeenCalledTimes(1)
+      const [url, init] = fetchImpl.mock.calls[0]!
+      expect(url).toBe('https://api.teste/api/publico/atendimentos')
+      const corpo = JSON.parse(init.body as string)
+      expect(corpo).toMatchObject({
+        tipo: 'VOLUNTARIO',
+        data_nascimento: '1990-05-20',
+        telefone_whatsapp: '91988887777',
+        consentimento_lgpd: true,
+        versao_texto_consentimento:
+          VERSAO_DO_AVISO_DE_PRIVACIDADE_DO_ATENDIMENTO,
+      })
+      for (const chave of ['assunto', 'subtipo', 'cpf'])
+        expect(corpo).not.toHaveProperty(chave)
+      expect(form.hidden).toBe(true)
+      expect(confirmacao.hidden).toBe(false)
+      expect(textoDe('[data-protocolo]').textContent).toBe('ASAF-2026-00004')
+      expect(textoDe('[data-prazo-da-resposta]').textContent).toBe(
+        'Respondemos em até 10 dias (até 19 de outubro de 2026).',
+      )
+    })
+
+    it('com CPF válido, ele vai só com os dígitos', async () => {
+      const fetchImpl = vi
+        .fn()
+        .mockResolvedValue(
+          resposta({ protocolo: 'ASAF-2026-00005', prazo_dias: 10 }),
+        )
+      const { form } = iniciar(fetchImpl)
+      preencher(form, valoresOk('VOLUNTARIO', { cpf: '390.533.447-05' }))
+      enviar(form)
+      await esperar()
+      await esperar()
+      expect(
+        JSON.parse(fetchImpl.mock.calls[0]![1].body as string),
+      ).toHaveProperty('cpf', '39053344705')
+    })
+
+    it('a API recusa a data (422 em lista, como o FastAPI): a página mostra a frase sem o "Value error"', async () => {
+      const fetchImpl = vi.fn().mockResolvedValue(
+        resposta(
+          {
+            detail: [
+              {
+                type: 'value_error',
+                loc: ['body'],
+                msg: 'Value error, A data de nascimento não pode ser no futuro.',
+              },
+            ],
+          },
+          422,
+        ),
+      )
+      const { form, confirmacao } = iniciar(fetchImpl)
+      preencher(form, valoresOk('VOLUNTARIO'))
+      enviar(form)
+      await esperar()
+      await esperar()
+      expect(textoDe('[data-falha-do-envio]').textContent).toBe(
+        'A data de nascimento não pode ser no futuro.',
+      )
+      expect(form.hidden).toBe(false)
+      expect(confirmacao.hidden).toBe(true)
+    })
   })
 
   it('um tipo que a página não conhece é erro de programação, não um pedido perdido', () => {

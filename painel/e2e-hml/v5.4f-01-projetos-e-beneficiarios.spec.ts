@@ -2348,8 +2348,9 @@ test.describe('D. Voluntariado vinculado ao projeto', () => {
       secaoVoluntariado(detalhe),
       'Candidaturas pendentes',
     )
+    // desde a v5.5b a candidatura mostra o NOME do voluntário (ele nem precisa ser associado), não "Associado #id"
     const dele = cartoes(candidaturas).filter({
-      hasText: new RegExp(`Associado #${idAssociado.daniel}\\b`),
+      hasText: DANIEL,
     })
     await expect(dele).toBeVisible()
     const [recusa] = await Promise.all([
@@ -2386,10 +2387,10 @@ test.describe('D. Voluntariado vinculado ao projeto', () => {
       'Candidaturas pendentes',
     )
     const doFabio = cartoes(candidaturas).filter({
-      hasText: new RegExp(`Associado #${idAssociado.fabio}\\b`),
+      hasText: FABIO,
     })
     const doDaniel = cartoes(candidaturas).filter({
-      hasText: new RegExp(`Associado #${idAssociado.daniel}\\b`),
+      hasText: DANIEL,
     })
     await expect(doFabio).toContainText(FUNCAO)
     await expect(doDaniel).toBeVisible()

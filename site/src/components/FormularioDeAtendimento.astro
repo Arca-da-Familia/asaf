@@ -7,9 +7,10 @@ import {
   type TipoDePedido,
 } from '../lib/atendimento-pedido'
 
-// O formulário da fila única de atendimento (v5.5a): contato, pedido de informação sobre recursos públicos e solicitação do titular de dados. Quem se comporta é
-// `lib/atendimento-pedido.ts`; aqui só o HTML, para ele ser acessível sem JavaScript de enfeite: cada campo tem rótulo, dica e mensagem de erro ligadas por
-// `aria-describedby`. Cada formulário usa o `idDoFormulario` como prefixo dos seus ids (assim dois formulários na mesma página nunca repetem um id).
+// O formulário da fila única de atendimento (v5.5a): contato, pedido de informação sobre recursos públicos e solicitação do titular de dados; na v5.5b, também o
+// pedido para ser voluntário (data de nascimento obrigatória, CPF opcional, sem assunto). Quem se comporta é `lib/atendimento-pedido.ts`; aqui só o HTML, para
+// ele ser acessível sem JavaScript de enfeite: cada campo tem rótulo, dica e mensagem de erro ligadas por `aria-describedby`. Cada formulário usa o
+// `idDoFormulario` como prefixo dos seus ids (assim dois formulários na mesma página nunca repetem um id).
 interface Props {
   tipo: TipoDePedido
   titulo: string
@@ -20,6 +21,10 @@ interface Props {
 
 const { tipo, titulo, idDoFormulario, instrucao } = Astro.props
 const titular = tipo === 'TITULAR_LGPD'
+const voluntario = tipo === 'VOLUNTARIO'
+const rotuloDaMensagem = voluntario
+  ? 'Como você gostaria de ajudar e quando tem tempo?'
+  : 'Mensagem'
 const id = (parte: string) => `${idDoFormulario}-${parte}`
 
 const campo =
@@ -128,6 +133,32 @@ const link = 'font-medium text-primary underline underline-offset-4'
       <p id={id('erro-contato')} data-erro="contato" hidden class={erro}></p>
     </fieldset>
 
+    {voluntario && (
+      <div>
+        <label for={id('nascimento')} class="block text-sm font-medium">
+          Data de nascimento
+        </label>
+        <input
+          id={id('nascimento')}
+          name="data_nascimento"
+          type="date"
+          autocomplete="bday"
+          aria-describedby={`${id('dica-nascimento')} ${id('erro-nascimento')}`}
+          class={`mt-1 ${campo}`}
+        />
+        <p id={id('dica-nascimento')} class={dica}>
+          Para sabermos se é preciso a autorização de um responsável (menores de
+          18 anos).
+        </p>
+        <p
+          id={id('erro-nascimento')}
+          data-erro="data_nascimento"
+          hidden
+          class={erro}
+        ></p>
+      </div>
+    )}
+
     {titular && (
       <div>
         <label for={id('cpf')} class="block text-sm font-medium">
@@ -145,6 +176,28 @@ const link = 'font-medium text-primary underline underline-offset-4'
         <p id={id('dica-cpf')} class={dica}>
           Só os números, ou com pontos e traço. O CPF serve apenas para conferir
           que quem pede é o titular dos dados.
+        </p>
+        <p id={id('erro-cpf')} data-erro="cpf" hidden class={erro} />
+      </div>
+    )}
+
+    {voluntario && (
+      <div>
+        <label for={id('cpf')} class="block text-sm font-medium">
+          CPF (opcional)
+        </label>
+        <input
+          id={id('cpf')}
+          name="cpf"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          aria-describedby={`${id('dica-cpf')} ${id('erro-cpf')}`}
+          class={`mt-1 ${campo}`}
+        />
+        <p id={id('dica-cpf')} class={dica}>
+          Se quiser informar agora, ajuda a secretaria a preparar o termo de
+          adesão.
         </p>
         <p id={id('erro-cpf')} data-erro="cpf" hidden class={erro} />
       </div>
@@ -169,25 +222,27 @@ const link = 'font-medium text-primary underline underline-offset-4'
         <p id={id('erro-subtipo')} data-erro="subtipo" hidden class={erro} />
       </div>
     ) : (
-      <div>
-        <label for={id('assunto')} class="block text-sm font-medium">
-          Assunto
-        </label>
-        <input
-          id={id('assunto')}
-          name="assunto"
-          type="text"
-          autocomplete="off"
-          aria-describedby={id('erro-assunto')}
-          class={`mt-1 ${campo}`}
-        />
-        <p id={id('erro-assunto')} data-erro="assunto" hidden class={erro} />
-      </div>
+      !voluntario && (
+        <div>
+          <label for={id('assunto')} class="block text-sm font-medium">
+            Assunto
+          </label>
+          <input
+            id={id('assunto')}
+            name="assunto"
+            type="text"
+            autocomplete="off"
+            aria-describedby={id('erro-assunto')}
+            class={`mt-1 ${campo}`}
+          />
+          <p id={id('erro-assunto')} data-erro="assunto" hidden class={erro} />
+        </div>
+      )
     )}
 
     <div>
       <label for={id('mensagem')} class="block text-sm font-medium">
-        Mensagem
+        {rotuloDaMensagem}
       </label>
       <textarea
         id={id('mensagem')}

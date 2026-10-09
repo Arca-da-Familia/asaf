@@ -6,22 +6,29 @@ import { Button } from '@/components/ui/button'
 import {
   alocarVoluntario,
   listarAlocacoesDoProjeto,
-  listarAssociadosParaSelecao,
+  listarVoluntariosParaSelecao,
+  type VoluntarioParaSelecao,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
 import { alocacaoDiretaSchema } from '@/lib/schemas'
 
-// Alocar voluntário direto num turno (sem passar por vaga e candidatura) e ver a escala do projeto. A equipe escolhe a pessoa, a função e o
-// turno; a alocação já nasce confirmada. O servidor exige o termo de voluntariado vigente da pessoa e recusa em português quando não há.
+// Alocar voluntário direto num turno (sem passar por vaga e candidatura) e ver a escala do projeto. A equipe escolhe a pessoa (associada ou não), a
+// função e o turno; a alocação já nasce confirmada. O servidor exige o termo de voluntariado vigente da pessoa e recusa em português quando não há.
+
+// O nome vem primeiro (quem escolhe a opção pelo nome continua achando); depois, o que a equipe precisa saber antes de tentar escalar.
+function textoDaOpcao(v: VoluntarioParaSelecao): string {
+  return `${v.nome_completo}${v.eh_associado ? '' : ' (não associado)'}${v.tem_termo_vigente ? '' : ' — sem termo vigente'}`
+}
+
 export function AlocarVoluntarioNoTurno({ idProjeto }: { idProjeto: number }) {
   const queryClient = useQueryClient()
   const { data: escala } = useQuery({
     queryKey: ['escala-do-projeto', idProjeto],
     queryFn: () => listarAlocacoesDoProjeto(idProjeto),
   })
-  const { data: pessoas } = useQuery({
-    queryKey: ['associados-para-selecao'],
-    queryFn: listarAssociadosParaSelecao,
+  const { data: voluntarios } = useQuery({
+    queryKey: ['voluntarios-para-selecao'],
+    queryFn: listarVoluntariosParaSelecao,
   })
   const alocar = useMutation({
     mutationFn: (v: z.infer<typeof alocacaoDiretaSchema>) =>
@@ -40,7 +47,7 @@ export function AlocarVoluntarioNoTurno({ idProjeto }: { idProjeto: number }) {
       <FormShell<z.infer<typeof alocacaoDiretaSchema>>
         schema={alocacaoDiretaSchema}
         defaultValues={{
-          id_associado: 0,
+          id_pessoa: 0,
           funcao_desempenhada: '',
           turno_data_hora_inicio: '',
           turno_data_hora_fim: '',
@@ -54,19 +61,17 @@ export function AlocarVoluntarioNoTurno({ idProjeto }: { idProjeto: number }) {
             <div>
               <select
                 aria-label="Voluntário"
-                {...form.register('id_associado')}
+                {...form.register('id_pessoa')}
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
               >
                 <option value="0">Escolha o voluntário</option>
-                {(pessoas ?? []).map((p) => (
-                  <option key={p.id_associado} value={p.id_associado}>
-                    {p.nome_completo}
+                {(voluntarios ?? []).map((v) => (
+                  <option key={v.id_pessoa} value={v.id_pessoa}>
+                    {textoDaOpcao(v)}
                   </option>
                 ))}
               </select>
-              <ErroCampo
-                mensagem={form.formState.errors.id_associado?.message}
-              />
+              <ErroCampo mensagem={form.formState.errors.id_pessoa?.message} />
             </div>
             <div className="flex-1">
               <input
@@ -125,7 +130,8 @@ export function AlocarVoluntarioNoTurno({ idProjeto }: { idProjeto: number }) {
             key={a.id_alocacao}
             className="rounded-md border border-border p-2 text-sm"
           >
-            {a.nome_associado} — {a.funcao_desempenhada}
+            {a.nome_voluntario}
+            {a.eh_associado ? '' : ' (não associado)'} — {a.funcao_desempenhada}
             {a.turno_data_hora_inicio &&
               ` · ${formatarData(a.turno_data_hora_inicio, { comHora: true })}`}
             {a.turno_data_hora_fim &&

@@ -4459,7 +4459,9 @@ export function listarIsencoesTaxaEspaco(
 export type AlocacaoVoluntario = {
   id_alocacao: number
   id_projeto: number
-  id_associado: number
+  // v5.5b: o voluntário é a PESSOA (associada ou não); `id_associado` é nulo para quem não é associado
+  id_pessoa: number
+  id_associado: number | null
   funcao_desempenhada: string
   id_vaga: number | null
   turno_data_hora_inicio: string | null
@@ -4527,13 +4529,39 @@ export function listarVagasEscala(
   return apiFetch(`/api/projetos/${idProjeto}/vagas-escala`)
 }
 
+export type CandidaturaPendente = AlocacaoVoluntario & {
+  nome_voluntario: string
+  eh_associado: boolean
+}
+
 export function listarCandidaturasPendentes(
   idProjeto: number,
-): Promise<AlocacaoVoluntario[]> {
+): Promise<CandidaturaPendente[]> {
   return apiFetch(`/api/projetos/${idProjeto}/candidaturas-pendentes`)
 }
 
-export type AlocacaoDoProjeto = AlocacaoVoluntario & { nome_associado: string }
+// `nome_voluntario` é o nome certo (o voluntário pode não ser associado); `nome_associado` traz o mesmo valor e fica só por compatibilidade.
+export type AlocacaoDoProjeto = AlocacaoVoluntario & {
+  nome_voluntario: string
+  nome_associado: string
+  eh_associado: boolean
+}
+
+// Quem a equipe pode escalar: todos os associados e, além deles, as pessoas NÃO associadas que já têm termo de voluntário. `tem_termo_vigente` = falso
+// avisa quem o servidor vai recusar (a alocação exige o termo de adesão vigente).
+export type VoluntarioParaSelecao = {
+  id_pessoa: number
+  id_associado: number | null
+  nome_completo: string
+  eh_associado: boolean
+  tem_termo_vigente: boolean
+}
+
+export function listarVoluntariosParaSelecao(): Promise<
+  VoluntarioParaSelecao[]
+> {
+  return apiFetch('/api/projetos/voluntarios-selecao')
+}
 
 // A escala do projeto inteira (confirmadas, pendentes, recusadas e canceladas), por turno.
 export function listarAlocacoesDoProjeto(
@@ -4542,10 +4570,10 @@ export function listarAlocacoesDoProjeto(
   return apiFetch(`/api/projetos/${idProjeto}/alocacoes`)
 }
 
-// Alocação direta pela equipe: já nasce confirmada (exige o termo de voluntariado vigente da pessoa).
+// Alocação direta pela equipe: já nasce confirmada (exige o termo de voluntariado vigente da pessoa). Escolhe-se a PESSOA (`id_pessoa`), associada ou não.
 export function alocarVoluntario(dados: {
   id_projeto: number
-  id_associado: number
+  id_pessoa: number
   funcao_desempenhada: string
   turno_data_hora_inicio: string
   turno_data_hora_fim: string
@@ -6170,9 +6198,13 @@ export type AtendimentoDaFila = {
   encerrado_em: string | null
   criado_em: string
   consentimento_lgpd_versao: string | null
+  // v5.5b: só o pedido de voluntariado tem data de nascimento (data ISO, aaaa-mm-dd); `menor_de_idade` = a pessoa tem menos de 18 anos hoje
+  data_nascimento: string | null
+  idade: number | null
+  menor_de_idade: boolean | null
 }
 
-// O que as três ações (assumir, responder, encerrar) devolvem: o pedido com o CPF inteiro (só na abertura do pedido).
+// O que as quatro ações (assumir, responder, encerrar, cadastrar como voluntário) devolvem: o pedido com o CPF inteiro (só na abertura do pedido).
 export type AtendimentoCompleto = AtendimentoDaFila & { cpf: string | null }
 
 export type OutroPedidoDoRemetente = {
@@ -6265,5 +6297,14 @@ export function encerrarAtendimento(
   return apiFetch(`/api/atendimentos/${idAtendimento}/encerrar`, {
     method: 'POST',
     body: JSON.stringify({ motivo }),
+  })
+}
+
+// v5.5b: o pedido de voluntariado vira uma pessoa no cadastro (sem precisar ser associada), ou liga à que já tem o mesmo CPF. Devolve o pedido já com `id_pessoa`.
+export function cadastrarVoluntarioDoAtendimento(
+  idAtendimento: number,
+): Promise<AtendimentoCompleto> {
+  return apiFetch(`/api/atendimentos/${idAtendimento}/cadastrar-voluntario`, {
+    method: 'POST',
   })
 }

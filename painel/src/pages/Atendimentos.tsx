@@ -3,6 +3,7 @@ import { Headset } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
 
+import { VoluntarioDoPedido } from '@/components/atendimentos/VoluntarioDoPedido'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -34,6 +35,7 @@ import { formatarData } from '@/lib/datas'
 // v5.5a (FASE 5) - a fila única de atendimento: tudo que chega pelo formulário do site (contato, pedido de informação sobre recursos públicos,
 // solicitação de titular de dados da LGPD) cai aqui com protocolo e prazo. Quem tem a permissão `atendimento` assume o pedido, responde (a resposta
 // também sai por e-mail, quando a pessoa deixou um) e encerra com o motivo; cada passo fica na Auditoria.
+// v5.5b: o pedido de voluntariado também tem o caminho "cadastrar como voluntário, registrar o termo de adesão, escalar" (VoluntarioDoPedido).
 const POR_PAGINA = 25
 const classeCampo =
   'h-9 rounded-md border border-input bg-background px-3 text-sm'
@@ -549,6 +551,18 @@ function Detalhe({
         <p className="text-xs text-muted-foreground">
           Esta pessoa já consta no cadastro da associação.
         </p>
+      )}
+
+      {a.tipo === 'VOLUNTARIO' && (
+        <VoluntarioDoPedido
+          a={a}
+          aoCadastrar={(r) =>
+            atualizar(
+              r,
+              `${r.nome_completo} foi cadastrado(a) como voluntário(a) (pedido ${r.protocolo}). Falta o termo de adesão.`,
+            )
+          }
+        />
       )}
 
       {a.outros_do_remetente.length > 0 && (

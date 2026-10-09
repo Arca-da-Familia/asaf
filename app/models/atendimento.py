@@ -39,6 +39,8 @@ class Atendimento(Base):
     email_contato = Column(String(150), nullable=True)
     telefone_whatsapp = Column(String(30), nullable=True)
     cpf = Column(String(11), nullable=True)
+    # só no pedido de voluntariado: com a idade a secretaria sabe se o termo de adesão precisa da autorização de um responsável (menor de 18 anos)
+    data_nascimento = Column(DateTime, nullable=True)
     # a pessoa do cadastro, quando o CPF (ou o e-mail) já é de alguém que o sistema conhece: a mesma deduplicação dos demais formulários
     id_pessoa = Column(Integer, ForeignKey("pessoas.id_pessoa"), nullable=True, index=True)
     # quem é o remetente para agrupar os pedidos dele: o CPF, senão o e-mail, senão o telefone

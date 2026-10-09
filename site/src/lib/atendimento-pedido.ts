@@ -8,8 +8,9 @@ import {
 } from './filiacao-pedido'
 
 /**
- * Formulários públicos da FILA ÚNICA DE ATENDIMENTO (v5.5a): contato, pedido de informação sobre recursos públicos e solicitação do titular de dados.
- * O pedido sai do site para a API (`POST /api/publico/atendimentos`), ganha protocolo e prazo e cai na fila de quem atende no painel.
+ * Formulários públicos da FILA ÚNICA DE ATENDIMENTO (v5.5a): contato, pedido de informação sobre recursos públicos e solicitação do titular de dados; na v5.5b,
+ * também o pedido para ser voluntário (não é preciso ser associado). O pedido sai do site para a API (`POST /api/publico/atendimentos`), ganha protocolo e prazo
+ * e cai na fila de quem atende no painel.
  *
  * A API repete todas as regras (quem manda o pedido sem passar pela página também é barrado); aqui elas existem para a pessoa saber o que corrigir antes de
  * enviar. O prazo de resposta NÃO é escrito na página: vem da API (`GET /api/publico/atendimentos/prazos` e a resposta do envio), porque é a diretoria que o
@@ -25,6 +26,7 @@ export const TIPOS_DE_PEDIDO = [
   'CONTATO',
   'PEDIDO_INFORMACAO',
   'TITULAR_LGPD',
+  'VOLUNTARIO',
 ] as const
 export type TipoDePedido = (typeof TIPOS_DE_PEDIDO)[number]
 
@@ -65,19 +67,23 @@ export const ASSUNTO_MINIMO = 3
 export const ASSUNTO_MAXIMO = 150
 export const NOME_MINIMO = 3
 export const NOME_MAXIMO = 150
+/** Como a API: antes de 1900 a data de nascimento é tida como engano de digitação. */
+export const ANO_MINIMO_DE_NASCIMENTO = 1900
 
 export interface ValoresDoPedido {
   tipo: TipoDePedido
   /** Só na solicitação do titular: um dos `valor` de `DIREITOS_DO_TITULAR`. */
   subtipo: string
-  /** Em todos os tipos, menos na solicitação do titular. */
+  /** Só em contato e pedido de informação (a solicitação do titular e o voluntariado não têm assunto). */
   assunto: string
   mensagem: string
   nome_completo: string
   email_contato: string
   telefone_whatsapp: string
-  /** Só na solicitação do titular. */
+  /** Obrigatório na solicitação do titular; opcional (mas, se vier, tem de ser válido) no voluntariado. */
   cpf: string
+  /** Só no voluntariado: "AAAA-MM-DD", como o campo de data entrega. */
+  data_nascimento: string
   consentimento_lgpd: boolean
 }
 
@@ -90,6 +96,7 @@ const CAMPOS_DO_FORMULARIO: CampoDoFormulario[] = [
   'nome_completo',
   'email_contato',
   'telefone_whatsapp',
+  'data_nascimento',
   'cpf',
   'assunto',
   'subtipo',
@@ -103,8 +110,45 @@ const normalizado = (texto: string) => texto.trim().replace(/\s+/g, ' ')
 
 export const ehSolicitacaoDeTitular = (tipo: TipoDePedido) =>
   tipo === 'TITULAR_LGPD'
+export const ehVoluntario = (tipo: TipoDePedido) => tipo === 'VOLUNTARIO'
 
-export function validarPedido(v: ValoresDoPedido): ErrosDoPedido {
+const doisDigitos = (n: number) => String(n).padStart(2, '0')
+
+/**
+ * A data de nascimento do voluntário (`valor` no formato AAAA-MM-DD do campo de data), com as mesmas regras e as mesmas palavras da API: obrigatória, uma data que
+ * existe, nunca no futuro (o dia de hoje vale) e de 1900 em diante. `undefined` = está certa.
+ */
+export function erroDaDataDeNascimento(
+  valor: string,
+  hoje: Date,
+): string | undefined {
+  const texto = valor.trim()
+  if (!texto) return 'Informe a sua data de nascimento.'
+  const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(texto)
+  if (!partes) return 'Confira a data de nascimento.'
+  const [ano, mes, dia] = [
+    Number(partes[1]),
+    Number(partes[2]),
+    Number(partes[3]),
+  ] as [number, number, number]
+  const data = new Date(Date.UTC(ano, mes - 1, dia))
+  if (
+    data.getUTCFullYear() !== ano ||
+    data.getUTCMonth() !== mes - 1 ||
+    data.getUTCDate() !== dia
+  )
+    return 'Confira a data de nascimento.'
+  // AAAA-MM-DD compara como texto; "hoje" é o dia de quem preenche
+  const dataDeHoje = `${String(hoje.getFullYear()).padStart(4, '0')}-${doisDigitos(hoje.getMonth() + 1)}-${doisDigitos(hoje.getDate())}`
+  if (texto > dataDeHoje) return 'A data de nascimento não pode ser no futuro.'
+  if (ano < ANO_MINIMO_DE_NASCIMENTO) return 'Confira a data de nascimento.'
+  return undefined
+}
+
+export function validarPedido(
+  v: ValoresDoPedido,
+  hoje: Date = new Date(),
+): ErrosDoPedido {
   const erros: ErrosDoPedido = {}
   const nome = tamanho(normalizado(v.nome_completo))
   if (nome < NOME_MINIMO) erros.nome_completo = 'Informe o seu nome completo.'
@@ -127,6 +171,12 @@ export function validarPedido(v: ValoresDoPedido): ErrosDoPedido {
       erros.cpf = 'Esse CPF não confere: veja se os números estão certos.'
     if (!DIREITOS_DO_TITULAR.some((d) => d.valor === v.subtipo))
       erros.subtipo = 'Escolha o que você quer pedir sobre os seus dados.'
+  } else if (ehVoluntario(v.tipo)) {
+    // sem assunto (é sempre "Quero ser voluntário"); o CPF é opcional, mas o que for digitado tem de conferir
+    const nascimento = erroDaDataDeNascimento(v.data_nascimento, hoje)
+    if (nascimento) erros.data_nascimento = nascimento
+    if (v.cpf.trim() && !cpfValido(v.cpf))
+      erros.cpf = 'Esse CPF não confere: veja se os números estão certos.'
   } else {
     const assunto = tamanho(normalizado(v.assunto))
     if (assunto < ASSUNTO_MINIMO)
@@ -148,8 +198,9 @@ export function validarPedido(v: ValoresDoPedido): ErrosDoPedido {
 }
 
 /**
- * O corpo que a API espera (`AtendimentoPublicoCriar`): CPF e telefone só com dígitos; o que não existe no tipo (CPF e direito só na solicitação do titular,
- * assunto em todos os outros) e o que ficou em branco não vai.
+ * O corpo que a API espera (`AtendimentoPublicoCriar`): CPF e telefone só com dígitos; o que não existe no tipo (CPF e direito só na solicitação do titular, e o
+ * CPF também no voluntariado, quando preenchido; a data de nascimento só no voluntariado; assunto só em contato e pedido de informação) e o que ficou em branco
+ * não vai.
  */
 export function montarCorpo(
   v: ValoresDoPedido,
@@ -166,6 +217,10 @@ export function montarCorpo(
   if (ehSolicitacaoDeTitular(v.tipo)) {
     corpo.subtipo = v.subtipo
     corpo.cpf = somenteDigitos(v.cpf)
+  } else if (ehVoluntario(v.tipo)) {
+    corpo.data_nascimento = v.data_nascimento.trim()
+    const cpf = somenteDigitos(v.cpf)
+    if (cpf) corpo.cpf = cpf
   } else {
     corpo.assunto = normalizado(v.assunto)
   }
@@ -239,6 +294,8 @@ export interface OpcoesDoFormulario {
   /** A consulta dos prazos (nos testes, separada do envio para não misturar as chamadas). */
   fetchDosPrazos?: typeof fetch
   timeoutMs?: number
+  /** O "hoje" de quem preenche (nos testes, fixo): a data de nascimento não pode ser depois dele. */
+  hoje?: () => Date
 }
 
 type Campo = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -277,6 +334,7 @@ function lerValores(form: HTMLFormElement): ValoresDoPedido {
     email_contato: texto('email_contato'),
     telefone_whatsapp: texto('telefone_whatsapp'),
     cpf: texto('cpf'),
+    data_nascimento: texto('data_nascimento'),
     consentimento_lgpd: aceite instanceof HTMLInputElement && aceite.checked,
   }
 }
@@ -426,7 +484,7 @@ export function iniciarFormularioDeAtendimento(
     if (form.getAttribute('aria-busy') === 'true') return
     if (falha) falha.hidden = true
     const valores = lerValores(form)
-    const erros = validarPedido(valores)
+    const erros = validarPedido(valores, (opcoes.hoje ?? (() => new Date()))())
     mostrarErros(form, erros)
     if (Object.keys(erros).length > 0) {
       primeiroCampoComErro(form, erros)?.focus()

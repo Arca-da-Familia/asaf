@@ -43,7 +43,8 @@ def test_a_migracao_cria_exatamente_o_que_o_modelo_descreve():
     sobre_a_tabela = []
     for item in diferencas:
         for d in item if isinstance(item, list) else [item]:
-            if any(tabela in repr(d) for tabela in _TABELAS):
+            # `data_nascimento` chegou depois, na migração a8d4f1c7e592 (v5.5b), que tem o teste dela
+            if any(tabela in repr(d) for tabela in _TABELAS) and "data_nascimento" not in repr(d):
                 sobre_a_tabela.append(repr(d))
     assert sobre_a_tabela == [], "a migração e o modelo divergem:\n" + "\n".join(sobre_a_tabela)
     # o protocolo é único no banco, não só na lógica

@@ -1032,10 +1032,10 @@ export const devolucaoEspacoSchema = z.object({
 })
 
 // v4.4 - escala de voluntariado vinculada a projeto.
-// Alocar voluntário direto num turno (sem passar por vaga e candidatura): a equipe escolhe a pessoa, a função e o turno. O servidor exige o
-// termo de voluntariado vigente da pessoa (e recusa em português quando não há).
+// Alocar voluntário direto num turno (sem passar por vaga e candidatura): a equipe escolhe a pessoa (associada ou não), a função e o turno. O
+// servidor exige o termo de voluntariado vigente da pessoa (e recusa em português quando não há).
 export const alocacaoDiretaSchema = z.object({
-  id_associado: z.coerce.number().int().min(1, 'Escolha o voluntário.'),
+  id_pessoa: z.coerce.number().int().min(1, 'Escolha o voluntário.'),
   funcao_desempenhada: z.string().min(2, 'Informe a função.'),
   turno_data_hora_inicio: z
     .string()

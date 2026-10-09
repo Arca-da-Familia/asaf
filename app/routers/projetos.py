@@ -29,7 +29,7 @@ _permissao_projetos = exigir_permissao("projetos")
 
 def _serializar_alocacao(a) -> dict:
     return {
-        "id_alocacao": a.id_alocacao, "id_projeto": a.id_projeto, "id_associado": a.id_associado,
+        "id_alocacao": a.id_alocacao, "id_projeto": a.id_projeto, "id_pessoa": a.id_pessoa, "id_associado": a.id_associado,
         "funcao_desempenhada": a.funcao_desempenhada, "id_vaga": a.id_vaga,
         "turno_data_hora_inicio": a.turno_data_hora_inicio, "turno_data_hora_fim": a.turno_data_hora_fim,
         "habilidades_exigidas": a.habilidades_exigidas, "horas_previstas": a.horas_previstas,
@@ -99,6 +99,11 @@ def listar_projetos_endpoint(db: Session = Depends(get_db), _usuario=Depends(_pe
     return [_serializar_projeto(p) for p in projetos.listar_projetos(db)]
 
 
+@router.get("/api/projetos/voluntarios-selecao", summary="Quem pode ser escalado: os associados e as pessoas com termo de voluntário (não associadas)")
+def voluntarios_para_selecao_endpoint(db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    return projetos.voluntarios_para_selecao(db)
+
+
 @router.get("/api/projetos/{id_projeto}", summary="Detalhe de um Projeto")
 def obter_projeto_endpoint(id_projeto: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
     return _serializar_projeto(projetos.obter_projeto(db, id_projeto))
@@ -127,13 +132,16 @@ def alterar_status_endpoint(id_projeto: int, dados: ProjetoAlterarStatus, reques
 @router.post("/projetos/alocar/", summary="Alocar Voluntário")
 def alocar_voluntario(dados: VoluntarioAlocar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
     alocacao = projetos.alocar_voluntario(
-        db, id_projeto=dados.id_projeto, id_associado=dados.id_associado, funcao_desempenhada=dados.funcao_desempenhada,
+        db, id_projeto=dados.id_projeto, id_associado=dados.id_associado, id_pessoa=dados.id_pessoa, funcao_desempenhada=dados.funcao_desempenhada,
         turno_data_hora_inicio=dados.turno_data_hora_inicio, turno_data_hora_fim=dados.turno_data_hora_fim,
         habilidades_exigidas=dados.habilidades_exigidas, horas_previstas=dados.horas_previstas, id_usuario=usuario.id_usuario,
     )
     registrar_auditoria(
         db, usuario, "alocacoes_voluntarios", "CREATE", id_registro_afetado=alocacao.id_alocacao,
-        dados_depois={"id_projeto": alocacao.id_projeto, "id_associado": alocacao.id_associado, "funcao_desempenhada": alocacao.funcao_desempenhada},
+        dados_depois={
+            "id_projeto": alocacao.id_projeto, "id_pessoa": alocacao.id_pessoa, "id_associado": alocacao.id_associado,
+            "funcao_desempenhada": alocacao.funcao_desempenhada,
+        },
         ip_origem=_ip_origem(request),
     )
     return {"mensagem": "Voluntário escalado com sucesso!"}
@@ -164,20 +172,29 @@ def listar_vagas_escala_endpoint(id_projeto: int, db: Session = Depends(get_db),
 
 @router.get("/api/projetos/{id_projeto}/alocacoes", summary="Escala do projeto: quem está alocado, em que turno e em que situação")
 def listar_alocacoes_do_projeto_endpoint(id_projeto: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
-    from app.models.associados import Associado
+    from app.models.pessoas import Pessoa
     from app.models.projetos import ProjetoEvento
 
     if not db.query(ProjetoEvento).filter(ProjetoEvento.id_projeto == id_projeto).first():
         raise HTTPException(status_code=404, detail="Projeto não encontrado.")
     alocacoes = projetos.listar_alocacoes_do_projeto(db, id_projeto=id_projeto)
-    ids = {a.id_associado for a in alocacoes}
-    nomes = {x.id_associado: x.nome_completo for x in db.query(Associado).filter(Associado.id_associado.in_(ids)).all()} if ids else {}
-    return [{**_serializar_alocacao(a), "nome_associado": nomes.get(a.id_associado, "-")} for a in alocacoes]
+    ids = {a.id_pessoa for a in alocacoes}
+    nomes = {x.id_pessoa: x.nome_completo for x in db.query(Pessoa).filter(Pessoa.id_pessoa.in_(ids)).all()} if ids else {}
+    # `nome_associado` segue no retorno (o mesmo valor) para quem já lê assim; `nome_voluntario` é o nome certo agora que o voluntário não precisa ser associado
+    return [
+        {**_serializar_alocacao(a), "nome_voluntario": nomes.get(a.id_pessoa, "-"), "nome_associado": nomes.get(a.id_pessoa, "-"), "eh_associado": a.id_associado is not None}
+        for a in alocacoes
+    ]
 
 
 @router.get("/api/projetos/{id_projeto}/candidaturas-pendentes", summary="Listar candidaturas de voluntário pendentes do projeto")
 def listar_candidaturas_pendentes_endpoint(id_projeto: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
-    return [_serializar_alocacao(a) for a in projetos.listar_candidaturas_pendentes(db, id_projeto=id_projeto)]
+    from app.models.pessoas import Pessoa
+
+    pendentes = projetos.listar_candidaturas_pendentes(db, id_projeto=id_projeto)
+    ids = {a.id_pessoa for a in pendentes}
+    nomes = {x.id_pessoa: x.nome_completo for x in db.query(Pessoa).filter(Pessoa.id_pessoa.in_(ids)).all()} if ids else {}
+    return [{**_serializar_alocacao(a), "nome_voluntario": nomes.get(a.id_pessoa, "-"), "eh_associado": a.id_associado is not None} for a in pendentes]
 
 
 @router.post("/api/alocacoes/{id_alocacao}/confirmar", summary="Coordenador confirma candidatura de voluntário")
