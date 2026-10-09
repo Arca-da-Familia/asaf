@@ -137,13 +137,19 @@ test('Associados: a busca acha pelo nome, fica no endereço e a lista volta quan
     .getByRole('combobox', { name: /Categoria/ })
     .selectOption({ index: 1 })
   await expect(page).toHaveURL(/categoria=/)
-  const categorias = await linhasDaTabela(page)
-    .locator('td:nth-child(3)')
-    .allInnerTexts()
   const doFiltro = await page
     .getByRole('combobox', { name: /Categoria/ })
     .inputValue()
-  expect(categorias.every((c) => c.trim() === doFiltro)).toBe(true)
+  // a lista é refeita no servidor: espera a tabela mostrar o resultado do filtro (nunca lê a lista de antes da troca)
+  await expect
+    .poll(
+      async () =>
+        (
+          await linhasDaTabela(page).locator('td:nth-child(3)').allInnerTexts()
+        ).every((c) => c.trim() === doFiltro),
+      { timeout: 15_000 },
+    )
+    .toBe(true)
   expect(vigia.problemas()).toEqual([])
 })
 
