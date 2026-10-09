@@ -50,8 +50,10 @@ class ProjetoAlterarStatus(BaseModel):
 
 
 class VoluntarioAlocar(BaseModel):
+    """v5.5b - o voluntário é a PESSOA (`id_pessoa`, associada ou não); `id_associado` segue aceito (quem já chama assim). Informe um dos dois."""
     id_projeto: int
-    id_associado: int
+    id_pessoa: Optional[int] = None
+    id_associado: Optional[int] = None
     funcao_desempenhada: str
     turno_data_hora_inicio: Optional[datetime] = None
     turno_data_hora_fim: Optional[datetime] = None

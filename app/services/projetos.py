@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.models.associados import Associado
 from app.models.core import Usuario
 from app.models.financeiro import CentroDeCusto
+from app.models.pessoas import Pessoa
 from app.models.projetos import (
     STATUS_ATRASADO,
     STATUS_CONCLUIDO,
@@ -23,7 +24,7 @@ from app.models.projetos import (
     TrocaTurnoVoluntario,
     VagaEscalaVoluntario,
 )
-from app.models.voluntariado import RegistroHorasVoluntariado
+from app.models.voluntariado import RegistroHorasVoluntariado, TermoAdesaoVoluntario
 from app.services import indicadores as servico_indicadores
 from app.services import orcamento as servico_orcamento
 from app.services.catalogos import validar_codigo_em_catalogo
@@ -131,17 +132,56 @@ def _exigir_termo_vigente_ou_403(db: Session, id_pessoa: int) -> None:
         raise HTTPException(status_code=403, detail="Voluntário sem termo de adesão vigente - não pode ser alocado em projeto.")
 
 
+def resolver_voluntario(db: Session, *, id_pessoa: Optional[int] = None, id_associado: Optional[int] = None) -> tuple[Pessoa, Optional[Associado]]:
+    """v5.5b - quem vai ser alocado: a PESSOA (associada ou não) ou, como antes, o associado. Informar um dos dois; se vierem os dois, têm de ser a mesma pessoa."""
+    if id_pessoa is None and id_associado is None:
+        raise HTTPException(status_code=422, detail="Escolha o voluntário.")
+    associado = None
+    if id_associado is not None:
+        associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
+        if not associado:
+            raise HTTPException(status_code=404, detail="Associado não encontrado.")
+        if id_pessoa is not None and associado.id_pessoa != id_pessoa:
+            raise HTTPException(status_code=422, detail="O associado informado não é a pessoa informada.")
+        id_pessoa = associado.id_pessoa
+    pessoa = db.query(Pessoa).filter(Pessoa.id_pessoa == id_pessoa).first()
+    if not pessoa:
+        raise HTTPException(status_code=404, detail="Pessoa não encontrada.")
+    if associado is None:
+        associado = db.query(Associado).filter(Associado.id_pessoa == pessoa.id_pessoa).first()
+    return pessoa, associado
+
+
+def voluntarios_para_selecao(db: Session) -> list[dict]:
+    """v5.5b - quem a equipe pode escalar: todos os associados e, além deles, as pessoas que têm termo de adesão de voluntário e não são associadas. `tem_termo_vigente`
+    avisa quem poderia ser recusado (a alocação continua exigindo o termo vigente, no servidor)."""
+    hoje = datetime.utcnow()
+    com_termo_vigente = {
+        linha[0] for linha in db.query(TermoAdesaoVoluntario.id_pessoa).filter(TermoAdesaoVoluntario.ativo.is_(True), TermoAdesaoVoluntario.data_fim_vigencia >= hoje).all()
+    }
+    associados = db.query(Associado.id_associado, Pessoa.id_pessoa, Pessoa.nome_completo).join(Pessoa, Pessoa.id_pessoa == Associado.id_pessoa).all()
+    ids_de_associados = {a.id_pessoa for a in associados}
+    com_termo = db.query(Pessoa.id_pessoa, Pessoa.nome_completo).filter(Pessoa.id_pessoa.in_(db.query(TermoAdesaoVoluntario.id_pessoa))).all()
+    nao_associados = [p for p in com_termo if p.id_pessoa not in ids_de_associados]
+    itens = [
+        {"id_pessoa": a.id_pessoa, "id_associado": a.id_associado, "nome_completo": a.nome_completo, "eh_associado": True, "tem_termo_vigente": a.id_pessoa in com_termo_vigente}
+        for a in associados
+    ] + [
+        {"id_pessoa": p.id_pessoa, "id_associado": None, "nome_completo": p.nome_completo, "eh_associado": False, "tem_termo_vigente": p.id_pessoa in com_termo_vigente}
+        for p in nao_associados
+    ]
+    return sorted(itens, key=lambda i: (i["nome_completo"] or "").lower())
+
+
 def alocar_voluntario(
-    db: Session, *, id_projeto: int, id_associado: int, funcao_desempenhada: str,
+    db: Session, *, id_projeto: int, funcao_desempenhada: str, id_associado: Optional[int] = None, id_pessoa: Optional[int] = None,
     turno_data_hora_inicio: Optional[datetime] = None, turno_data_hora_fim: Optional[datetime] = None,
     habilidades_exigidas: Optional[str] = None, horas_previstas: float = 0.0, id_usuario: Optional[int] = None,
 ):
     if not db.query(ProjetoEvento).filter(ProjetoEvento.id_projeto == id_projeto).first():
         raise HTTPException(status_code=404, detail="Projeto não encontrado.")
-    associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
-    if not associado:
-        raise HTTPException(status_code=404, detail="Associado não encontrado.")
-    _exigir_termo_vigente_ou_403(db, associado.id_pessoa)
+    pessoa, associado = resolver_voluntario(db, id_pessoa=id_pessoa, id_associado=id_associado)
+    _exigir_termo_vigente_ou_403(db, pessoa.id_pessoa)
     if habilidades_exigidas:
         for codigo in habilidades_exigidas.split(","):
             if codigo.strip():
@@ -150,7 +190,8 @@ def alocar_voluntario(
     # Alocação direta pela equipe (não passa por candidatura/escala) já nasce CONFIRMADA - fluxo
     # original desde a v2.9, mantido para quem já usa isto assim.
     alocacao = AlocacaoVoluntario(
-        id_projeto=id_projeto, id_associado=id_associado, funcao_desempenhada=funcao_desempenhada,
+        id_projeto=id_projeto, id_pessoa=pessoa.id_pessoa, id_associado=associado.id_associado if associado else None,
+        funcao_desempenhada=funcao_desempenhada,
         turno_data_hora_inicio=turno_data_hora_inicio, turno_data_hora_fim=turno_data_hora_fim,
         habilidades_exigidas=habilidades_exigidas, horas_previstas=horas_previstas, status="CONFIRMADA",
         id_usuario_criacao=id_usuario,
@@ -348,14 +389,14 @@ def candidatar_se_a_vaga(db: Session, *, id_vaga: int, usuario: Usuario) -> Aloc
     if _vagas_ocupadas(db, id_vaga) >= vaga.vagas_disponiveis:
         raise HTTPException(status_code=400, detail="Não há mais posições livres nesta vaga.")
     ja_candidatado = db.query(AlocacaoVoluntario).filter(
-        AlocacaoVoluntario.id_vaga == id_vaga, AlocacaoVoluntario.id_associado == associado.id_associado,
+        AlocacaoVoluntario.id_vaga == id_vaga, AlocacaoVoluntario.id_pessoa == associado.id_pessoa,
         AlocacaoVoluntario.status.in_(["PENDENTE", "CONFIRMADA"]),
     ).first()
     if ja_candidatado:
         raise HTTPException(status_code=400, detail="Você já está candidatado(a) ou confirmado(a) nesta vaga.")
 
     alocacao = AlocacaoVoluntario(
-        id_projeto=vaga.id_projeto, id_associado=associado.id_associado, funcao_desempenhada=vaga.funcao_desempenhada,
+        id_projeto=vaga.id_projeto, id_pessoa=associado.id_pessoa, id_associado=associado.id_associado, funcao_desempenhada=vaga.funcao_desempenhada,
         id_vaga=vaga.id_vaga, turno_data_hora_inicio=vaga.turno_data_hora_inicio, turno_data_hora_fim=vaga.turno_data_hora_fim,
         habilidades_exigidas=vaga.habilidades_exigidas, horas_previstas=vaga.horas_previstas, status="PENDENTE",
         id_usuario_criacao=usuario.id_usuario,
@@ -414,7 +455,7 @@ def cancelar_alocacao(db: Session, *, id_alocacao: int, usuario: Usuario) -> Alo
     projeto - nunca por quem não é nenhum dos dois."""
     alocacao = obter_alocacao(db, id_alocacao)
     associado = db.query(Associado).filter(Associado.id_usuario == usuario.id_usuario).first()
-    eh_o_proprio = associado is not None and associado.id_associado == alocacao.id_associado
+    eh_o_proprio = associado is not None and associado.id_pessoa == alocacao.id_pessoa
     if not eh_o_proprio:
         exigir_coordenador_do_projeto(db, usuario=usuario, id_projeto=alocacao.id_projeto)
     if alocacao.status not in ("PENDENTE", "CONFIRMADA"):
@@ -428,7 +469,7 @@ def cancelar_alocacao(db: Session, *, id_alocacao: int, usuario: Usuario) -> Alo
 def minha_escala(db: Session, *, usuario: Usuario) -> list[AlocacaoVoluntario]:
     associado = associado_do_usuario_ou_403(db, usuario)
     return db.query(AlocacaoVoluntario).filter(
-        AlocacaoVoluntario.id_associado == associado.id_associado,
+        AlocacaoVoluntario.id_pessoa == associado.id_pessoa,
     ).order_by(AlocacaoVoluntario.criado_em.desc()).all()
 
 
@@ -438,7 +479,7 @@ def minha_escala(db: Session, *, usuario: Usuario) -> list[AlocacaoVoluntario]:
 def solicitar_troca_turno(db: Session, *, id_alocacao: int, id_associado_substituto: int, motivo: Optional[str], usuario: Usuario) -> TrocaTurnoVoluntario:
     alocacao = obter_alocacao(db, id_alocacao)
     associado = associado_do_usuario_ou_403(db, usuario)
-    if associado.id_associado != alocacao.id_associado:
+    if associado.id_pessoa != alocacao.id_pessoa:
         raise HTTPException(status_code=403, detail="Só quem está alocado neste turno pode pedir a troca.")
     if alocacao.status != "CONFIRMADA":
         raise HTTPException(status_code=400, detail="Só uma alocação confirmada pode ter troca solicitada.")
@@ -474,7 +515,9 @@ def confirmar_troca_turno(db: Session, *, id_troca: int, usuario: Usuario) -> Tr
         raise HTTPException(status_code=400, detail="Só uma troca solicitada pode ser confirmada.")
     # A troca é sempre REGISTRADA (nunca silenciosa) - o substituto assume a MESMA alocação
     # (mesmo turno/habilidades exigidas/horas previstas), não uma nova candidatura do zero.
+    substituto = db.query(Associado).filter(Associado.id_associado == troca.id_associado_substituto).first()
     alocacao.id_associado = troca.id_associado_substituto
+    alocacao.id_pessoa = substituto.id_pessoa
     troca.status = "CONFIRMADA"
     troca.id_usuario_resolucao = usuario.id_usuario
     troca.resolvido_em = datetime.utcnow()

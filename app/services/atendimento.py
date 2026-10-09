@@ -7,7 +7,7 @@ import hashlib
 import math
 import re
 import uuid
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from fastapi import HTTPException
@@ -21,6 +21,7 @@ from app.models.atendimento import (
 from app.models.core import NivelAcesso, PermissaoSistema, Usuario, perfil_permissao
 from app.models.notificacoes_painel import NotificacaoPainel
 from app.models.pessoas import Pessoa
+from app.services.voluntariado import pessoa_e_menor_de_idade
 from app.services import notificacoes
 from app.services.notificacoes_painel import notificar
 
@@ -81,7 +82,7 @@ def prazo_em_dias(db: Session, tipo: str) -> int:
 
 
 def prazos_publicos(db: Session) -> dict[str, int]:
-    return {tipo: prazo_em_dias(db, tipo) for tipo in (CONTATO, PEDIDO_INFORMACAO, TITULAR_LGPD)}
+    return {tipo: prazo_em_dias(db, tipo) for tipo in (CONTATO, PEDIDO_INFORMACAO, TITULAR_LGPD, VOLUNTARIO)}
 
 
 def _so_digitos(texto: Optional[str]) -> str:
@@ -140,7 +141,7 @@ def responsavel_padrao(db: Session) -> Optional[int]:
 
 def registrar_pelo_site(
     db: Session, *, tipo: str, subtipo: Optional[str], assunto: Optional[str], mensagem: str, nome_completo: str, email: Optional[str],
-    telefone: Optional[str], cpf: Optional[str], versao_do_aviso: str, agora: Optional[datetime] = None,
+    telefone: Optional[str], cpf: Optional[str], versao_do_aviso: str, data_nascimento: Optional[date] = None, agora: Optional[datetime] = None,
 ) -> tuple[Atendimento, bool]:
     """Grava o pedido, dá o protocolo, calcula o prazo e avisa quem atende. Devolve (atendimento, novo): o mesmo pedido ainda aberto, mandado de novo em 24 horas
     (duplo clique, ou a pessoa que não viu a confirmação), devolve o mesmo protocolo e `novo=False`, sem avisar ninguém de novo. Faz commit."""
@@ -163,7 +164,7 @@ def registrar_pelo_site(
     atendimento = Atendimento(
         protocolo=f"TMP-{uuid.uuid4().hex[:20]}", tipo=tipo, subtipo=subtipo, assunto=assunto, mensagem=mensagem,
         nome_completo=nome_completo, email_contato=email, telefone_whatsapp=telefone, cpf=_so_digitos(cpf) or None,
-        id_pessoa=_pessoa_do_remetente(db, cpf, email), chave_remetente=chave, impressao_do_pedido=impressao, origem="site",
+        data_nascimento=datetime.combine(data_nascimento, datetime.min.time()) if data_nascimento else None, id_pessoa=_pessoa_do_remetente(db, cpf, email), chave_remetente=chave, impressao_do_pedido=impressao, origem="site",
         consentimento_lgpd_em=agora, consentimento_lgpd_versao=versao_do_aviso, status=NOVO, prazo_dias=dias, prazo_em=agora + timedelta(days=dias),
         id_responsavel=responsavel_padrao(db), criado_em=agora,
     )
@@ -194,6 +195,13 @@ def situacao_do_prazo(a: Atendimento, agora: Optional[datetime] = None) -> str:
     return "no_prazo"
 
 
+def _idade(nascimento: Optional[datetime], agora: datetime) -> Optional[int]:
+    if nascimento is None:
+        return None
+    n = nascimento.date()
+    return agora.year - n.year - ((agora.month, agora.day) < (n.month, n.day))
+
+
 def _cpf_mascarado(cpf: Optional[str]) -> Optional[str]:
     return f"***.***.***-{cpf[-2:]}" if cpf and len(cpf) == 11 else None
 
@@ -209,6 +217,8 @@ def serializar(a: Atendimento, agora: Optional[datetime] = None, *, completo: bo
         "id_responsavel": a.id_responsavel, "assumido_em": a.assumido_em, "resposta": a.resposta, "respondido_em": a.respondido_em,
         "resposta_enviada_por_email": a.resposta_enviada_por_email, "motivo_encerramento": a.motivo_encerramento, "encerrado_em": a.encerrado_em,
         "criado_em": a.criado_em, "consentimento_lgpd_versao": a.consentimento_lgpd_versao,
+        "data_nascimento": a.data_nascimento.date().isoformat() if a.data_nascimento else None,
+        "idade": _idade(a.data_nascimento, agora), "menor_de_idade": pessoa_e_menor_de_idade(a.data_nascimento.date(), agora.date()) if a.data_nascimento else None,
     }
     if completo:
         # o CPF inteiro só na abertura do pedido (a solicitação de titular precisa dele para conferir quem pede)
@@ -320,6 +330,51 @@ def responder(db: Session, a: Atendimento, usuario: Usuario, resposta: str, agor
     db.commit()
     db.refresh(a)
     return a
+
+
+def cadastrar_voluntario(db: Session, a: Atendimento, usuario: Usuario) -> Pessoa:
+    """O pedido de voluntariado vira uma pessoa no cadastro (sem precisar ser associada): é o passo antes do termo de adesão e da escala. Se o CPF já é de alguém do cadastro, liga a
+    essa pessoa em vez de criar outra. Faz commit."""
+    if a.tipo != VOLUNTARIO:
+        raise HTTPException(status_code=400, detail="Só um pedido de voluntariado vira cadastro de voluntário.")
+    if a.id_pessoa is not None:
+        raise HTTPException(status_code=400, detail="Esta pessoa já está no cadastro.")
+    pessoa = db.query(Pessoa).filter(Pessoa.cpf == a.cpf).first() if a.cpf else None
+    if pessoa is not None and pessoa.data_nascimento is None and a.data_nascimento is not None:
+        # a pessoa já estava no cadastro sem a data de nascimento: quem atende confirmou o pedido, e sem a data o termo de adesão a trataria como menor de idade
+        pessoa.data_nascimento = a.data_nascimento
+    if pessoa is None:
+        pessoa = Pessoa(
+            nome_completo=a.nome_completo, cpf=a.cpf, email_contato=a.email_contato, telefone_whatsapp=a.telefone_whatsapp, data_nascimento=a.data_nascimento,
+        )
+        db.add(pessoa)
+        db.flush()
+    a.id_pessoa = pessoa.id_pessoa
+    db.commit()
+    db.refresh(a)
+    return pessoa
+
+
+def _texto_do_email_de_recebimento(a: Atendimento) -> str:
+    return (
+        f"Olá, {a.nome_completo.split()[0]}.\n\n"
+        f"A Associação Arca da Família (ASAF) recebeu o seu pedido ({ROTULOS_DO_TIPO.get(a.tipo, a.tipo)}).\n\n"
+        f"Protocolo: {a.protocolo}\n"
+        f"Prazo de resposta: {a.prazo_dias} dias (até {a.prazo_em.strftime('%d/%m/%Y')}).\n\n"
+        "Guarde este número: é com ele que falamos do seu pedido.\n\nASAF - Associação Arca da Família\n"
+    )
+
+
+def confirmar_recebimento_por_email(a: Atendimento) -> bool:
+    """O e-mail que confirma o recebimento (protocolo e prazo), só quando a pessoa informou e-mail. Melhor esforço: nunca derruba o pedido, que já está gravado (SMTP fora do ar
+    ou não configurado). Devolve se saiu."""
+    if not a.email_contato:
+        return False
+    try:
+        notificacoes.enviar_email(a.email_contato, assunto=f"Recebemos o seu pedido - protocolo {a.protocolo}", corpo_texto=_texto_do_email_de_recebimento(a))
+        return True
+    except Exception:
+        return False
 
 
 def encerrar(db: Session, a: Atendimento, usuario: Usuario, motivo: str, agora: Optional[datetime] = None) -> Atendimento:

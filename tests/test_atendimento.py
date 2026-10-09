@@ -72,7 +72,7 @@ def test_pedido_de_contato_recebe_protocolo_e_prazo_e_nada_mais(client, db):
 def test_cada_tipo_tem_o_seu_prazo_e_a_rota_dos_prazos_e_publica(client):
     prazos = client.get("/api/publico/atendimentos/prazos")
     assert prazos.status_code == 200
-    assert prazos.json() == {"CONTATO": 10, "PEDIDO_INFORMACAO": 20, "TITULAR_LGPD": 15}
+    assert prazos.json() == {"CONTATO": 10, "PEDIDO_INFORMACAO": 20, "TITULAR_LGPD": 15, "VOLUNTARIO": 10}
     assert _enviar(client, "PEDIDO_INFORMACAO").json()["prazo_dias"] == 20
     assert _enviar(client, "TITULAR_LGPD").json()["prazo_dias"] == 15
 
@@ -129,7 +129,7 @@ def test_armadilha_de_robo_finge_sucesso_e_nao_grava(client, db):
         ({"mensagem": "curta"}, "pelo menos 10"),
         ({"nome_completo": "Zé"}, "Informe o seu nome"),
         ({"assunto": None}, "Informe o assunto"),
-        ({"tipo": "VOLUNTARIO"}, "tipo"),
+        ({"tipo": "MALUCO"}, "tipo"),
     ],
 )
 def test_contato_recusa_o_que_esta_errado_em_portugues(client, alteracao, trecho):
@@ -338,7 +338,10 @@ def test_a_resposta_sai_por_e_mail_quando_o_envio_funciona(client, db, auth_head
     id_atendimento = db.query(Atendimento).filter(Atendimento.protocolo == protocolo).one().id_atendimento
     r = client.post(f"/api/atendimentos/{id_atendimento}/responder", json={"resposta": "Segue a nossa resposta completa ao seu pedido."}, headers=auth_headers)
     assert r.json()["resposta_enviada_por_email"] is True
-    assert enviados[0][0] == email and protocolo in enviados[0][1] and "Segue a nossa resposta completa" in enviados[0][2]
+    # o primeiro e-mail é a confirmação do recebimento; o segundo, a resposta
+    assert [e[1].split(" - ")[0] for e in enviados] == ["Recebemos o seu pedido", "Resposta ao seu pedido"]
+    resposta = enviados[1]
+    assert resposta[0] == email and protocolo in resposta[1] and "Segue a nossa resposta completa" in resposta[2]
 
 
 def test_o_prazo_e_acompanhado_vencido_vence_logo_e_cumprido_com_atraso(client, db, auth_headers):
@@ -418,3 +421,122 @@ def test_a_rotina_avisa_no_sino_os_pedidos_vencidos_ou_perto_de_vencer_uma_vez_p
     assert servico.avisar_prazos(db, agora + timedelta(days=1)) >= 2
     db.query(NotificacaoPainel).filter(NotificacaoPainel.tipo == "atendimento_prazo").delete()
     db.commit()
+
+
+# ------------------------------------------------------------------------------------------ v5.5b: voluntariado e e-mail de confirmação
+def _corpo_voluntario(**sobrescritas) -> dict:
+    corpo = {
+        "tipo": "VOLUNTARIO", "mensagem": f"Gostaria de ajudar aos sábados de manhã. {uuid.uuid4().hex[:10]}", "nome_completo": "Pessoa Voluntária",
+        "telefone_whatsapp": "(91) 98888-6666", "data_nascimento": "1990-05-10",
+        "consentimento_lgpd": True, "versao_texto_consentimento": servico.VERSAO_AVISO_DE_PRIVACIDADE_ATENDIMENTO,
+    }
+    corpo.update(sobrescritas)
+    return corpo
+
+
+def _enviar_voluntario(client, **sobrescritas):
+    return client.post("/api/publico/atendimentos", json=_corpo_voluntario(**sobrescritas), headers={"X-Forwarded-For": _ip()})
+
+
+def test_o_pedido_de_voluntariado_exige_a_data_de_nascimento_e_fixa_o_assunto(client, db):
+    ok = _enviar_voluntario(client)
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["prazo_dias"] == 10
+    gravado = db.query(Atendimento).filter(Atendimento.protocolo == ok.json()["protocolo"]).one()
+    assert gravado.tipo == "VOLUNTARIO" and gravado.assunto == "Quero ser voluntário" and gravado.subtipo is None
+    assert gravado.data_nascimento is not None and gravado.data_nascimento.year == 1990
+    sem = _enviar_voluntario(client, data_nascimento=None)
+    assert sem.status_code == 422 and "data de nascimento" in sem.text.lower()
+    futuro = _enviar_voluntario(client, data_nascimento=str(datetime.utcnow().date() + timedelta(days=3)))
+    assert futuro.status_code == 422 and "no futuro" in futuro.text
+    antiga = _enviar_voluntario(client, data_nascimento="1850-01-01")
+    assert antiga.status_code == 422 and "Confira a data de nascimento" in antiga.text
+    # nos outros tipos a data de nascimento é descartada (não vira dado guardado à toa)
+    contato = _enviar(client, data_nascimento="1990-05-10")
+    assert db.query(Atendimento).filter(Atendimento.protocolo == contato.json()["protocolo"]).one().data_nascimento is None
+
+
+def test_a_fila_mostra_a_idade_e_se_e_menor_no_pedido_de_voluntariado(client, db, auth_headers):
+    hoje = datetime.utcnow().date()
+    menor = _enviar_voluntario(client, data_nascimento=str(hoje.replace(year=hoje.year - 16) - timedelta(days=30))).json()["protocolo"]
+    adulta = _enviar_voluntario(client).json()["protocolo"]
+    por_protocolo = {i["protocolo"]: i for i in _fila(client, auth_headers, tipo="VOLUNTARIO", por_pagina=100)["itens"]}
+    assert por_protocolo[menor]["idade"] == 16 and por_protocolo[menor]["menor_de_idade"] is True
+    assert por_protocolo[adulta]["idade"] >= 30 and por_protocolo[adulta]["menor_de_idade"] is False
+    assert por_protocolo[adulta]["tipo_rotulo"] == "Voluntariado"
+    # fora do voluntariado não há idade
+    contato = _fila(client, auth_headers, busca=_enviar(client).json()["protocolo"])["itens"][0]
+    assert contato["idade"] is None and contato["menor_de_idade"] is None
+
+
+def test_cadastrar_o_voluntario_cria_a_pessoa_sem_ser_associado_e_liga_ao_pedido(client, db, auth_headers):
+    from app.models.associados import Associado
+    from app.models.pessoas import Pessoa
+
+    cpf = _cpf_valido()
+    protocolo = _enviar_voluntario(client, cpf=cpf, email_contato=f"vol.{uuid.uuid4().hex[:8]}@example.com").json()["protocolo"]
+    id_atendimento = db.query(Atendimento).filter(Atendimento.protocolo == protocolo).one().id_atendimento
+    r = client.post(f"/api/atendimentos/{id_atendimento}/cadastrar-voluntario", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    id_pessoa = r.json()["id_pessoa"]
+    assert id_pessoa is not None
+    pessoa = db.query(Pessoa).filter(Pessoa.id_pessoa == id_pessoa).one()
+    assert pessoa.cpf == cpf and pessoa.nome_completo == "Pessoa Voluntária" and pessoa.data_nascimento.year == 1990
+    assert db.query(Associado).filter(Associado.id_pessoa == id_pessoa).count() == 0
+    # de novo: recusa em português; a Auditoria guardou uma vez só
+    outra = client.post(f"/api/atendimentos/{id_atendimento}/cadastrar-voluntario", headers=auth_headers)
+    assert outra.status_code == 400 and "já está no cadastro" in outra.json()["detail"]
+    assert db.query(AuditLog).filter(AuditLog.acao == "ATENDIMENTO_VOLUNTARIO_CADASTRADO", AuditLog.id_registro_afetado == id_atendimento).count() == 1
+
+
+def test_so_o_pedido_de_voluntariado_vira_cadastro_de_voluntario_e_so_quem_atende_faz(client, db, auth_headers):
+    contato = db.query(Atendimento).filter(Atendimento.protocolo == _enviar(client).json()["protocolo"]).one()
+    r = client.post(f"/api/atendimentos/{contato.id_atendimento}/cadastrar-voluntario", headers=auth_headers)
+    assert r.status_code == 400 and "voluntariado" in r.json()["detail"]
+    assert client.post("/api/atendimentos/1/cadastrar-voluntario").status_code == 401
+    assert client.post("/api/atendimentos/1/cadastrar-voluntario", headers=_usuario(db, "associados")).status_code == 403
+
+
+def test_cadastrar_o_voluntario_liga_a_pessoa_que_ja_tem_o_mesmo_cpf_em_vez_de_criar_outra(client, db, auth_headers):
+    from app.models.pessoas import Pessoa
+
+    cpf = _cpf_valido()
+    protocolo = _enviar_voluntario(client, cpf=cpf).json()["protocolo"]
+    # a pessoa entra no cadastro DEPOIS do pedido (por outro caminho): o pedido ainda não está ligado
+    pessoa = Pessoa(nome_completo="Já Cadastrada", cpf=cpf)
+    db.add(pessoa)
+    db.commit()
+    atendimento = db.query(Atendimento).filter(Atendimento.protocolo == protocolo).one()
+    assert atendimento.id_pessoa is None
+    r = client.post(f"/api/atendimentos/{atendimento.id_atendimento}/cadastrar-voluntario", headers=auth_headers)
+    assert r.status_code == 200 and r.json()["id_pessoa"] == pessoa.id_pessoa
+    assert db.query(Pessoa).filter(Pessoa.cpf == cpf).count() == 1
+
+
+def test_o_e_mail_de_confirmacao_sai_com_o_protocolo_e_o_prazo_so_para_pedido_novo_com_e_mail(client, db, monkeypatch):
+    enviados = []
+    monkeypatch.setattr(servico.notificacoes, "enviar_email", lambda destino, assunto, corpo_texto: enviados.append((destino, assunto, corpo_texto)))
+    email = f"confirma.{uuid.uuid4().hex[:8]}@example.com"
+    corpo = _corpo(email_contato=email)
+    ip = _ip()
+    a = client.post("/api/publico/atendimentos", json=corpo, headers={"X-Forwarded-For": ip}).json()
+    # o mesmo pedido de novo (duplo clique): o mesmo protocolo e NENHUM e-mail a mais
+    b = client.post("/api/publico/atendimentos", json=corpo, headers={"X-Forwarded-For": ip}).json()
+    assert a["protocolo"] == b["protocolo"] and len(enviados) == 1
+    destino, assunto, texto = enviados[0]
+    assert destino == email and assunto == f"Recebemos o seu pedido - protocolo {a['protocolo']}"
+    assert f"Protocolo: {a['protocolo']}" in texto and "Prazo de resposta: 10 dias (até " in texto
+    # sem e-mail (só telefone): nada é enviado
+    antes = len(enviados)
+    _enviar(client, email_contato=None, telefone_whatsapp="91988887777")
+    assert len(enviados) == antes
+
+
+def test_e_mail_de_confirmacao_que_falha_nao_derruba_o_pedido(client, db, monkeypatch):
+    def quebra(destino, assunto, corpo_texto):
+        raise RuntimeError("SMTP fora do ar")
+
+    monkeypatch.setattr(servico.notificacoes, "enviar_email", quebra)
+    r = _enviar(client, email_contato=f"falha.{uuid.uuid4().hex[:8]}@example.com")
+    assert r.status_code == 200 and r.json()["protocolo"]
+    assert db.query(Atendimento).filter(Atendimento.protocolo == r.json()["protocolo"]).count() == 1
