@@ -33,7 +33,7 @@ async function aceitarOAviso(page: Page): Promise<void> {
 }
 
 async function lerProtocolo(page: Page): Promise<string> {
-  const confirmacao = page.locator('[data-confirmacao]')
+  const confirmacao = page.locator('div[data-confirmacao]')
   await expect(confirmacao).toBeVisible({ timeout: 60_000 })
   await expect(confirmacao).toContainText('Recebemos o seu pedido.')
   const protocolo = (
@@ -81,7 +81,7 @@ test('contato: o formulário em branco diz o que falta; sem aceitar o aviso não
   // sem aceitar o aviso: não envia
   await page.getByRole('button', { name: 'Enviar pedido' }).click()
   await expect(page.locator('[data-erro="consentimento_lgpd"]')).toBeVisible()
-  await expect(page.locator('[data-confirmacao]')).toBeHidden()
+  await expect(page.locator('div[data-confirmacao]')).toBeHidden()
   await ver(page, info, 'contato-sem-aceitar-o-aviso')
 
   await aceitarOAviso(page)

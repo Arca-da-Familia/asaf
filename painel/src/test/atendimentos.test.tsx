@@ -469,6 +469,24 @@ describe('Atendimento: filtros, busca e páginas', () => {
     expect(screen.getByTestId('endereco')).toHaveTextContent('busca=Carla')
   })
 
+  it('digitar na busca e escolher um filtro logo em seguida mantém os dois (achado do robô na homologação)', async () => {
+    const u = userEvent.setup()
+    desenhar()
+    await screen.findAllByRole('listitem', { name: /^Atendimento ASAF-/ })
+    await u.type(screen.getByLabelText('Buscar atendimento'), 'Carla')
+    // sem esperar a pausa da busca
+    await u.selectOptions(screen.getByLabelText('Tipo'), 'PEDIDO_INFORMACAO')
+    await waitFor(() =>
+      expect(api.listarAtendimentosDaFila).toHaveBeenLastCalledWith(
+        expect.objectContaining({ busca: 'Carla', tipo: 'PEDIDO_INFORMACAO' }),
+      ),
+    )
+    expect(screen.getByTestId('endereco')).toHaveTextContent('busca=Carla')
+    expect(screen.getByTestId('endereco')).toHaveTextContent(
+      'tipo=PEDIDO_INFORMACAO',
+    )
+  })
+
   it('a lista é paginada de 25 em 25 e os botões pedem a página seguinte e a anterior', async () => {
     const u = userEvent.setup()
     base = Array.from({ length: 60 }, (_, i) => pedido(i + 1))

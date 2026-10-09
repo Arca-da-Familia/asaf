@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Headset } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
 
 import { EmptyState } from '@/components/feedback/EmptyState'
@@ -63,11 +63,21 @@ export function AtendimentosPage() {
     setPagina(1)
   }
 
+  // o temporizador da busca chama a versão MAIS NOVA de `mudar` (a do último desenho da tela), não a de quando a pessoa começou a digitar: sem isso, escolher
+  // um filtro logo depois de digitar na busca perdia o filtro (o endereço voltava ao que era antes do filtro)
+  const mudarAtual = useRef(mudar)
+  useEffect(() => {
+    mudarAtual.current = mudar
+  })
+
   // a busca espera a pessoa parar de digitar antes de ir ao servidor, e volta para a primeira página
   const [textoBusca, setTextoBusca] = useState(busca)
   useEffect(() => {
     if (textoBusca.trim() === busca) return
-    const espera = setTimeout(() => mudar({ busca: textoBusca.trim() }), 400)
+    const espera = setTimeout(
+      () => mudarAtual.current({ busca: textoBusca.trim() }),
+      400,
+    )
     return () => clearTimeout(espera)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [textoBusca])

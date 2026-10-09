@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { PaginationState } from '@tanstack/react-table'
 import { UserPlus, Users } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
 import { ExportarAssociados } from '@/components/associados/ExportarAssociados'
@@ -91,11 +91,21 @@ export function AssociadosPage() {
     setPaginacao((p) => ({ ...p, pageIndex: 0 }))
   }
 
+  // o temporizador da busca chama a versão MAIS NOVA de `mudar` (a do último desenho da tela), não a de quando a pessoa começou a digitar: sem isso, escolher
+  // um filtro logo depois de digitar na busca perdia o filtro (o endereço voltava ao que era antes do filtro)
+  const mudarAtual = useRef(mudar)
+  useEffect(() => {
+    mudarAtual.current = mudar
+  })
+
   // a busca por texto espera a pessoa parar de digitar antes de ir ao servidor
   const [textoBusca, setTextoBusca] = useState(busca)
   useEffect(() => {
     if (textoBusca === busca) return
-    const espera = setTimeout(() => mudar({ busca: textoBusca }), 400)
+    const espera = setTimeout(
+      () => mudarAtual.current({ busca: textoBusca }),
+      400,
+    )
     return () => clearTimeout(espera)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [textoBusca])
