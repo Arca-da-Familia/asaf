@@ -28,6 +28,24 @@ const ORGANIZACAO = await organizacaoDoSite()
         <a href={`mailto:${ORGANIZACAO.email}`} class="underline">
           {ORGANIZACAO.email}
         </a>
+        {ORGANIZACAO.redes.instagram && (
+          <a
+            href={ORGANIZACAO.redes.instagram}
+            rel="noopener noreferrer"
+            class="underline"
+          >
+            Instagram
+          </a>
+        )}
+        {ORGANIZACAO.redes.facebook && (
+          <a
+            href={ORGANIZACAO.redes.facebook}
+            rel="noopener noreferrer"
+            class="underline"
+          >
+            Facebook
+          </a>
+        )}
       </address>
     </div>
 

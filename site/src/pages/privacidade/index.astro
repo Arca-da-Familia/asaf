@@ -4,10 +4,13 @@ import type { Migalha } from '../../config/navegacao'
 import {
   DOCUMENTOS_LEGAIS,
   ENDERECO_LINHA,
-  ORGANIZACAO,
   PAINEL_URL,
 } from '../../config/organizacao'
+import { organizacaoDoSite } from '../../lib/dados-publicos'
 import Base from '../../layouts/Base.astro'
+
+// os dados da associação como o site os mostra: os fixos, com o que a Instituição do painel marcou "vai para o site" por cima (v5.4h)
+const ORGANIZACAO = await organizacaoDoSite()
 
 // Texto escrito SÓ com o que o site e o sistema realmente fazem hoje. Versionado em
 // config/organizacao.ts (v1.1: corrigido pela verificação de fatos de 2026-10-03, que apontou

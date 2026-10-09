@@ -69,6 +69,9 @@ const canonica = urlCanonica(caminho)
 const imagemAbsoluta = `${SITE_URL}${imagem}`
 const textoAlternativoImagem =
   imagemAlt ?? `${ORGANIZACAO.nome} — ${ORGANIZACAO.lema}`
+
+// o JSON-LD da organização com os dados da Instituição que o painel marcou "vai para o site" (v5.4h); `await` não pode ficar dentro do HTML da página
+const jsonLdDaOrganizacao = jsonLdOrganizacao(await organizacaoDoSite())
 ---
 
 <!doctype html>
@@ -114,7 +117,7 @@ const textoAlternativoImagem =
     <script
       is:inline
       type="application/ld+json"
-      set:html={serializarJsonLd(jsonLdOrganizacao(await organizacaoDoSite()))}
+      set:html={serializarJsonLd(jsonLdDaOrganizacao)}
     />
     {[...dadosMigalhas, ...jsonLd].map((dados) => (
       <script

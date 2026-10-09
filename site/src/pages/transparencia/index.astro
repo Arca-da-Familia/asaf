@@ -2,15 +2,22 @@
 import FaleConosco from '../../components/FaleConosco.astro'
 import TituloDePagina from '../../components/TituloDePagina.astro'
 import type { Migalha } from '../../config/navegacao'
-import { ENDERECO_LINHA, ORGANIZACAO } from '../../config/organizacao'
+import { ENDERECO_LINHA } from '../../config/organizacao'
 import Base from '../../layouts/Base.astro'
-import { caminhoDaAssembleia, conteudoPublico } from '../../lib/dados-publicos'
+import {
+  caminhoDaAssembleia,
+  conteudoPublico,
+  organizacaoDoSite,
+} from '../../lib/dados-publicos'
 import { formatarDataCurta, formatarDia, formatarHora } from '../../lib/datas'
 import {
   caminhoDoDocumento,
   ehEmenda,
   formatarReais,
 } from '../../lib/transparencia'
+
+// os dados da associação como o site os mostra: os fixos, com o que a Instituição do painel marcou "vai para o site" por cima (v5.4h)
+const ORGANIZACAO = await organizacaoDoSite()
 
 // Fontes: Estatuto Social (Arts. 1º, 5º, 8º, 20, 23, 24 e 28), dados institucionais confirmados pelo
 // usuário (CNPJ, sede, contato), GET /api/publico/assembleias (editais de assembleia JÁ convocada) e, desde a
