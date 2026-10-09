@@ -151,7 +151,7 @@ az containerapp create \
   --resource-group "$RESOURCE_GROUP" \
   --name "$APP_DIRECTUS" \
   --environment "$CONTAINERAPPS_ENV" \
-  --image "directus/directus:11" \
+  --image "directus/directus:12.4.1" \
   --target-port 8055 \
   --ingress external \
   --min-replicas 0 \

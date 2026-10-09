@@ -3560,6 +3560,26 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         saída (h-08 5/5) e despesa/compras (e-03 12/12). **Em produção:** Deploy API, Painel e Site verdes; `version.json` = `944df23`;
         `asaf.org.br` e o painel respondem 200; as rotas da filiação seguem 401 sem login; o `openapi.json` lista 406 rotas. Pré-lançamento
         (beta/rc) segue só informativo.
+      - **Lote 9 ✅ FEITO, provado na homologação e confirmado em produção (2026-10-09, commit `dfbad3c`)** (mesma versão-maior, só última estável): servidor
+        `pydantic` 2.13.5 → **2.14.0** (com `pydantic_core` 2.50.0) e `pypdf` 6.19.0 → **6.20.0**, mais as dependências de trás (`cryptography` 50.0.2, `dnspython` 2.9.0,
+        `idna` 3.20, `Mako` 1.4.3, `MarkupSafe` 3.0.4, `cbor2`, `greenlet`, `iniconfig`, `opentelemetry-api`, `pycparser`, `python-dotenv`, `tzdata`, `watchfiles`,
+        `websockets`); painel `@tanstack/react-table` 9.2.8 e `lucide-react` 1.54.0; site `astro` 7.3.8 (deixou de depender do `esbuild`, por isso o `package-lock.json`
+        encolheu) e `prettier-plugin-astro` 1.1.1. O Pydantic 2.14 estável saiu depois do aviso de 02/10 (na época só havia beta). Conferido em 09/10: imagem base
+        `python:3.14-slim` e Node 26 já eram as últimas estáveis; as ações do GitHub (`checkout` v7, `setup-python` v7, `setup-node` v7, `upload-artifact` v7, `cache` v6,
+        `azure/login` v3, `static-web-apps-deploy` v1) estão na última versão-maior.
+        **Verificado:** suíte do servidor 1046 de 1046, **rodada duas vezes** no código final (as duas primeiras rodadas, antes da correção abaixo, deram 1045 e
+        "1 falhou"); `pip check` sem conflito; painel: formatação, tipos, lint (0 erros), 421 testes e build; site: formatação, tipos, 287 testes, build de teste,
+        356 testes de navegador (uma falha única do axe em `/contato/`, na máquina local com a suíte pesada rodando ao lado, não reproduziu em duas rodadas seguintes
+        nem no CI) e os roteiros de estado vazio, Instituição e sincronização. **Na homologação:** deploy da branch e robô verde em `v5.4h-12` 4/4 (listas), `v5.4c-fase0`
+        6/6, `v5.4c-fase1` 24/24, `v5.4e-04` 16/16, `v5.4h-09` 5/5 e `v5.4g-02` 7/7 (o verificador de PDF, que usa o `pypdf`), mais `v5.4h-14` 2/2 no `hml-site`
+        reconstruído com o Astro novo. **Em produção:** Deploy API, Painel e Site verdes (o do site inclui axe, Lighthouse e o passo da Instituição); `version.json` do
+        painel e do site = `dfbad3c`; a API responde 200 nas rotas públicas e 401 nas protegidas, com 407 rotas no `openapi.json`.
+        **Defeito achado no caminho (já estava em produção desde a paginação, corrigido neste lote):** a busca de associados com letras e números juntos (`6fcd7dfd`)
+        extraía os dígitos (`67`) e os procurava no CPF e no telefone de todo mundo; só texto com cara de número (CPF ou telefone, com ou sem pontuação) vira busca por
+        dígitos. Apareceu como um teste instável na suíte (o CPF do administrador de teste tinha `67`); ganhou teste determinístico que falha sem a correção.
+      - **Directus 12.4.1 → 12.5.0: ADIADO, com motivo (não é silêncio).** É a única versão desatualizada que sobrou. É troca da imagem do contêiner de **produção** (infraestrutura),
+        e a regra do projeto pede provar antes: subir a 12.5.0 numa cópia descartável (como na 12.4.1), rodar `directus_configurar.py verificar` e `isolar_directus.py
+        verificar` e só então trocar a imagem, dizendo o plano ao Presidente. Não há motivo de segurança conhecido para pressa; fica para o próximo lote.
 - [ ] Fator ônibus tratado como risco de projeto (v12.8): documentação suficiente para outra
       pessoa assumir, e pelo menos uma pessoa da associação treinada na operação básica.
 
