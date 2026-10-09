@@ -1833,10 +1833,28 @@ Dividida em quatro partes (decisão do Presidente, 2026-10-09: "parte a parte");
       existe e nada foi gravado: **produção não recebeu nenhum pedido de teste**); as oito rotas constam no `openapi.json`; `/contato/` tem o formulário e as duas páginas novas respondem 200; a
       Política mostra a versão 1.4 e, sem mandato de Presidente registrado, "o Presidente da ASAF (o nome consta na página Diretoria)"; a rotina de prazos rodou à mão em produção:
       "avisos criados: 0". **Fica para a v5.5b:** o e-mail de confirmação ao remetente na hora do envio (hoje a confirmação é a tela, com o protocolo e o prazo; o e-mail só sai na resposta).
-- [ ] **v5.5b — Voluntário pelo site e voluntário que não é associado** (decisão do usuário, 2026-10-03: "se ele se voluntaria, ele precisa conseguir"): formulário público de
-      voluntariado caindo na mesma fila (tipo Voluntariado, já previsto, prazo `PRAZO_DIAS_ATENDIMENTO_VOLUNTARIO`); hoje a alocação em projeto **exige cadastro de Associado**
-      (`AlocacaoVoluntario.id_associado`); passa a apontar para `Pessoa`, com migração e testes, e a página `/seja-voluntario/` é atualizada (até lá ela diz o que acontece hoje);
-      e-mail de confirmação ao remetente quando o pedido chega (herdado da v5.5a).
+- [x] **v5.5b — Voluntário pelo site e voluntário que não é associado** (decisão do usuário, 2026-10-03: "se ele se voluntaria, ele precisa conseguir").
+      **O que existe:** o **voluntário é uma pessoa**: `alocacoes_voluntarios` ganhou `id_pessoa` (preenchido, na migração, a partir do associado de cada alocação que já existia;
+      `id_associado` fica só quando a pessoa também é associada); a equipe aloca por `id_pessoa` (ou, como antes, por `id_associado`); o termo de adesão vigente continua sendo a trava
+      real, para associado e para não associado; a lista de quem pode ser escalado (`GET /api/projetos/voluntarios-selecao`) traz os associados e as pessoas não associadas com termo; a
+      escala e as candidaturas mostram o **nome** do voluntário (e "não associado"). **Pedido de voluntariado pelo site** (`/seja-voluntario/`, que deixou de dizer que a escala usa o
+      cadastro de associados): cai na fila (tipo Voluntariado, prazo 10 dias, `PRAZO_DIAS_ATENDIMENTO_VOLUNTARIO`) com **data de nascimento obrigatória** (o termo de menor de 18 anos exige
+      a autorização de um responsável) e CPF opcional; no painel, o cartão do pedido mostra a idade e o aviso de menor, **cadastra a pessoa como voluntária** (liga à que já tem o mesmo CPF
+      e copia a data de nascimento se ela não tinha), registra o **termo de adesão** (o do menor exige a referência da autorização) e leva à escala. **E-mail de confirmação do
+      recebimento** (herdado da v5.5a): quem informa e-mail recebe protocolo e prazo, só no pedido novo, em melhor esforço. **Política de Privacidade 1.5**: descreve o formulário de
+      voluntariado e o e-mail de confirmação. **Testes:** servidor 1102 de 1102 (duas rodadas; 6 da escala por pessoa, 4 da migração com o estado anterior, o preenchimento, a recusa de
+      alocação sem associado e o downgrade), painel 489, site 352 unitários e 443 de navegador. **Na homologação (2026-10-09):** `v5.5b-01` 4 de 4 (o visitante envia pelo site, a página
+      recusa data de nascimento que falta ou no futuro e dá protocolo e prazo de 10 dias; o Presidente vê a idade, cadastra a voluntária que não é associada e registra o termo; o pedido
+      do menor avisa e o termo só entra com a autorização do responsável; ela é escalada no projeto e aparece na escala como "não associado" e CONFIRMADA, e continua lá ao recarregar; a
+      Auditoria guardou 4 ações de atendimento, 2 termos e 1 alocação). Regressão: `v5.4h-04` 4 (alocação direta), `v5.4f-01` 22 (projetos, equipe, candidatura, troca de turno, horas),
+      `v5.5a-02` 7, `v5.5a-01` 6, `v5.4c-fase0` 6, `v5.4g-01` 5. **Achados do robô, corrigidos:** (1) o roteiro de projetos procurava a candidatura pelo texto "Associado #id", que foi trocado de
+      propósito pelo nome (agora procura pelo nome); (2) quem já estava no cadastro com o mesmo CPF e sem data de nascimento seria tratada como menor de idade no termo (o servidor
+      passou a copiar a data do pedido, com teste); (3) duas falhas pontuais de acessibilidade (axe) em páginas que não mudaram, numa rodada local com a máquina ocupada, não reproduziram
+      em quatro repetições. **Em produção (2026-10-09):** commit `465d6e3` no `version.json` do painel e do site; Deploy API (com a migração `a8d4f1c7e592`), Painel e Site verdes;
+      `GET /api/publico/atendimentos/prazos` traz os quatro tipos; `GET /api/projetos/voluntarios-selecao` e `POST /api/atendimentos/{id}/cadastrar-voluntario` respondem 401 sem login e
+      constam no `openapi.json`; `POST /api/publico/atendimentos` com corpo incompleto dá 422 (nada gravado: **produção não recebeu pedido de teste**); `/seja-voluntario/` tem o formulário e
+      já não diz que a escala usa o cadastro de associados; a Política mostra a versão 1.5. **Limite conhecido:** a autocandidatura a vaga e "minha escala" no painel continuam por
+      associado (quem tem login é associado); o voluntário não associado é escalado pela equipe.
 - [ ] **v5.5c — Inscrição em evento pelo site** (a API já tem formulário, perguntas, consentimento, lista de espera e cancelamento por código): o formulário na página do evento, a página
       `/cancelar-inscricao` (hoje o e-mail de confirmação aponta para um endereço que não existe) e a de confirmar a vaga da lista de espera.
 - [ ] **v5.5d — Status do evento** — Programado / **Cancelado** / Adiado / Realizado, com motivo — no sistema, no painel e no site (`schema.org eventStatus`), no lugar do paliativo
