@@ -25,6 +25,7 @@ from app.models.eventos import CotaInscricaoEvento, Evento, SessaoEvento
 from app.models.motores import AUSENTE, CANCELADO, CONFIRMADO, LISTA_DE_ESPERA, PRE_INSCRITO, PRESENTE, Inscricao
 from app.models.pessoas import Pessoa
 from app.services import inscricao as servico_inscricao
+from app.services.site_publico import link_para_cancelar_inscricao, link_para_confirmar_inscricao
 from app.services import notificacoes
 
 CATEGORIA_ASSOCIADO = "ASSOCIADO"
@@ -195,8 +196,9 @@ def promover_proximo_da_espera(db: Session, *, contexto_tipo: str, id_contexto: 
                 pessoa.email_contato, assunto="Uma vaga abriu para você!",
                 corpo_texto=(
                     f"Uma vaga abriu na inscrição em que você estava na lista de espera.\n\n"
-                    f"Você tem até {proximo.prazo_confirmacao.strftime('%d/%m/%Y %H:%M')} (UTC) para confirmar, "
-                    f"usando o mesmo link/código já enviado - depois disso a vaga passa para o próximo da fila."
+                    f"Você tem até {proximo.prazo_confirmacao.strftime('%d/%m/%Y %H:%M')} (UTC) para confirmar - depois disso a vaga passa para o próximo da fila.\n\n"
+                    f"Para confirmar, acesse: {link_para_confirmar_inscricao(db, proximo.token_cancelamento)}\n"
+                    f"Se não puder ir, cancele em: {link_para_cancelar_inscricao(db, proximo.token_cancelamento)}"
                 ),
             )
     except Exception:

@@ -739,6 +739,12 @@ def inscrever_publicamente_endpoint(id_evento: int, dados: InscricaoPublicaCriar
     return {"mensagem": "Inscrição registrada.", **resultado}
 
 
+@router.get("/api/publico/inscricoes/{token_cancelamento}", summary="O que a pessoa com o link vê antes de cancelar ou confirmar: o evento, a situação e o que dá para fazer (sem login)")
+def resumo_da_inscricao_publica_endpoint(token_cancelamento: str, request: Request, db: Session = Depends(get_db)):
+    limitar_taxa_por_ip(db, ip=_ip_publico(request), rota="consultar-inscricao-evento", limite=30, janela_minutos=10)
+    return servico_inscricao.resumo_publico_por_token(db, token_cancelamento=token_cancelamento)
+
+
 @router.post("/api/publico/inscricoes/{token_cancelamento}/cancelar", summary="Autocancelar inscrição pelo link enviado por e-mail (sem login) - libera a vaga e promove o próximo da lista de espera")
 def cancelar_inscricao_publica_endpoint(token_cancelamento: str, request: Request, db: Session = Depends(get_db)):
     limitar_taxa_por_ip(db, ip=_ip_publico(request), rota="cancelar-inscricao-evento", limite=10, janela_minutos=10)

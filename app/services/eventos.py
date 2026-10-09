@@ -25,6 +25,7 @@ from app.models.espacos import Espaco
 from app.models.projetos import ProjetoEvento
 from app.models.pessoas import Papel, Pessoa
 from app.services import inscricao as servico_inscricao
+from app.services.site_publico import link_para_cancelar_inscricao
 from app.services import notificacoes
 from app.services import vagas as servico_vagas
 from app.services.catalogos import validar_codigo_em_catalogo
@@ -419,12 +420,15 @@ def listar_cotas(db: Session, *, contexto_tipo: str, id_contexto: int) -> list[C
 # INSCRIÇÃO PÚBLICA COM DEDUPLICAÇÃO (v4.6) - formulário do site, sem login. Rate limiting e
 # honeypot são checados no router (antes de chegar aqui); aqui é regra de negócio pura.
 # ==========================================
+def evento_ja_aconteceu(evento: Evento, agora: Optional[datetime] = None) -> bool:
+    """Passou do fim do evento (ou do início, se não tem fim): não se inscreve mais por fora."""
+    fim = evento.data_hora_fim or evento.data_hora_inicio
+    return fim is not None and fim < (agora or datetime.utcnow())
+
+
 def _texto_email_confirmacao(db: Session, *, evento: Evento, codigo_checkin: str, token_cancelamento: str, status: str) -> str:
-    url_base = obter_configuracao(db, "URL_BASE_SITE_PUBLICO", "")
-    if url_base:
-        linha_cancelamento = f"Para cancelar sua inscrição, acesse: {url_base.rstrip('/')}/cancelar-inscricao?token={token_cancelamento}"
-    else:
-        linha_cancelamento = f"Para cancelar sua inscrição, entre em contato com a secretaria informando o código {codigo_checkin}."
+    # v5.5c - o link leva à página `/cancelar-inscricao/` do site (config `URL_BASE_SITE_PUBLICO`, depois a variável de ambiente, depois o site de produção)
+    linha_cancelamento = f"Para cancelar sua inscrição, acesse: {link_para_cancelar_inscricao(db, token_cancelamento)}"
 
     if status == "Lista de Espera":
         # v4.7 - sem vaga agora, mas na fila - nunca tratado como recusa; a promoção automática
@@ -521,6 +525,8 @@ def _inscrever_um_participante(
     return {
         "nome_completo": nome_completo, "id_inscricao": inscricao_criada.id_inscricao,
         "status": inscricao_criada.status, "codigo_checkin": inscricao_criada.codigo_checkin,
+        # v5.5c - o mesmo código do link do e-mail: a tela do site mostra o link de cancelamento também (o e-mail pode não chegar). É de quem acabou de se inscrever.
+        "token_cancelamento": inscricao_criada.token_cancelamento or token_cancelamento,
         "email_enviado": email_enviado,
         "valor_cobrado": titulo_cobranca.valor_original if titulo_cobranca else None,
     }
@@ -539,6 +545,8 @@ def inscrever_publicamente(
     evento = obter_evento(db, id_evento)
     if evento.visibilidade != "Pública":
         raise HTTPException(status_code=404, detail="Evento não encontrado.")
+    if evento_ja_aconteceu(evento):
+        raise HTTPException(status_code=400, detail="As inscrições deste evento já foram encerradas: o evento já aconteceu.")
 
     versao_atual = obter_configuracao(db, "VERSAO_TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", "1")
     if versao_texto_consentimento != versao_atual:
@@ -577,6 +585,6 @@ def inscrever_publicamente(
     return {
         "identificador_grupo": identificador_grupo, "participantes": resultados,
         "id_inscricao": primeiro["id_inscricao"], "status": primeiro["status"],
-        "codigo_checkin": primeiro["codigo_checkin"], "email_enviado": primeiro["email_enviado"],
+        "codigo_checkin": primeiro["codigo_checkin"], "token_cancelamento": primeiro["token_cancelamento"], "email_enviado": primeiro["email_enviado"],
         "valor_cobrado": primeiro["valor_cobrado"],
     }
