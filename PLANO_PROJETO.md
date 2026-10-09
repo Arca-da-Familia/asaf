@@ -1726,10 +1726,20 @@ retrabalho que a seção 4.1 existe pra evitar.
       agente que não escreveu os textos) dos textos públicos mudados desde 03/10: 14 achados, dos quais corrigi e provei (privacidade 1.3, aviso do formulário na
       versão 2, frases de documento e de parceria, idade "18 anos ou mais", mensagem de e-mail em português) e **deixei para decisão do Presidente** os dois textos
       que são palavras dele: "A associação ainda não recebeu recursos de emendas parlamentares" (hoje sai de uma lista vazia, não de um fato) e "atualizada em até
-      24 horas após qualquer recebimento" (depende de alguém lançar e aprovar). **Falta, e depende de você:** o Estatuto do site ser a versão registrada em
-      cartório (você confirma), a revisão jurídica de Transparência, Privacidade e Termos (leitura de quem é do ramo; a política ainda não nomeia o encarregado
-      de dados, LGPD art. 41), a conferência da diretoria contra a vedação do STF de 15/01/2026 e os dados reais da diretoria. Falta ainda fechar a v5.4h
-      (paginação, o site ler a Instituição) para o ponto abrir.
+      24 horas após qualquer recebimento" (depende de alguém lançar e aprovar). **Decisões do Presidente (2026-10-09), em resposta ao que faltava:** (1) **o Estatuto do site É a versão do cartório**, idêntica; só faltam as assinaturas do
+      Presidente, do advogado e do Secretário, que não precisam estar no site, e o item está fechado; (2) **revisão jurídica**: a associação não contrata advogado e o
+      Presidente deu os textos de Transparência, Privacidade e Termos por válidos como estão ("podemos dar por real o que foi feito"), **sem leitura de advogado**,
+      e o registro fica assim, sem fingir que houve revisão jurídica; o que continua em aberto é **nomear o encarregado de dados** (LGPD, art. 41), pré-requisito da
+      v5.5, e eu pergunto a ele quando a v5.5 abrir; (3) **os dois textos das emendas ficam como estão** ("A associação ainda não recebeu recursos de emendas
+      parlamentares" e "atualizada em até 24 horas após qualquer recebimento"): conferido no código que a frase só aparece enquanto **não há emenda publicada** e some
+      sozinha na primeira, e que a sincronização do site roda de 15 em 15 minutos (o normal é 15 a 30 minutos), então as 24 horas são uma promessa que o sistema
+      cumpre com folga; (4) **dados reais da diretoria**: só o Presidente está cadastrado, e hoje `GET /api/publico/diretoria` devolve `[]` (a página diz que a
+      composição atual ainda não foi publicada e explica a composição prevista no Estatuto). A diretoria aparece no site **quando houver mandato vigente registrado** (painel, tela Mandatos): o nome entra na
+      API, a sincronização reconstrói o site sozinha e a página se preenche, sem ninguém mexer no site. O mesmo vale para a Instituição (CNPJ real, telefone,
+      e-mail, horário e redes marcados "vai para o site"): na v5.4h o site passa a lê-la. **Na homologação isso é simulado**: a população de teste tem 10 mandatos
+      (7 da Diretoria Executiva e 3 do Conselho Fiscal) e uma Instituição com CNPJ válido, telefone e horário, e o roteiro `v5.4h-13` confere o `hml-site`.
+      **Falta:** fechar a v5.4h (paginação, o site ler a Instituição) para o ponto abrir; e a **conferência da diretoria contra a vedação do STF de 15/01/2026**,
+      que só pode ser feita quando houver composição real registrada (hoje há uma pessoa só), por isso fica marcada para o dia em que os mandatos reais forem lançados.
 
 ##### Regra de trabalho a partir da v5.5 — a homologação é o portão (decisão do presidente, 2026-10-05)
 
