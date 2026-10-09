@@ -128,3 +128,36 @@ def test_o_razao_pagina_busca_e_mantem_o_saldo_de_todos_os_lancamentos(client, a
     assert client.get("/api/livro-caixa/?busca=nada-disso-existe-xyz&pagina=1", headers=auth_headers).json()["total"] == 0
     assert client.get("/api/livro-caixa/?pagina=0", headers=auth_headers).status_code == 422
     assert client.get("/api/livro-caixa/?pagina=1").status_code == 401
+
+
+def test_buscar_um_numero_grande_nao_estoura_o_inteiro_da_matricula(client, auth_headers):
+    """Achado do robô na homologação: buscar pelo número de uma rodada de testes (13 dígitos) dava erro no Postgres, porque a busca também comparava o número com a
+    matrícula, que é um inteiro de 32 bits ("integer out of range"). No SQLite dos testes isso passa em silêncio; por isso o primeiro teste confere a consulta como o
+    Postgres a recebe, e o segundo, o que a rota devolve."""
+    from sqlalchemy.dialects import postgresql
+    from sqlalchemy.orm import Session
+
+    from app.routers.associados import _associados_filtrados
+    from app.services.busca import LIMITE_DO_INTEIRO_DO_BANCO, numero_que_cabe_no_banco
+
+    for texto in ("1791491342239", "12345678901", "99999999999999999999", "4711"):
+        sql = _associados_filtrados(Session(), texto).statement.compile(dialect=postgresql.dialect())
+        inteiros = [v for v in sql.params.values() if isinstance(v, int) and not isinstance(v, bool)]
+        assert all(v <= LIMITE_DO_INTEIRO_DO_BANCO for v in inteiros), (texto, sql.params)
+    # um número que cabe continua sendo procurado como matrícula
+    sql = _associados_filtrados(Session(), "4711").statement.compile(dialect=postgresql.dialect())
+    assert 4711 in sql.params.values()
+
+    numero = str(int(uuid.uuid4().int % 10**13)).rjust(13, "7")
+    criado = _criar(client, f"Pessoa Cadastrada Pelo Robo {numero} de Teste")
+    r = client.get(f"/api/associados/?busca={numero}&pagina=1", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    assert [a["id_associado"] for a in r.json()] == [criado["id"]]
+    assert client.get(f"/api/associados/resumo?busca={numero}", headers=auth_headers).json()["total"] == 1
+
+    # o Razão tem a mesma busca por número ("#123" ou "123"): um número grande só procura no histórico
+    assert numero_que_cabe_no_banco("123") == 123 and numero_que_cabe_no_banco("0") == 0
+    assert numero_que_cabe_no_banco(numero) is None and numero_que_cabe_no_banco("12a") is None and numero_que_cabe_no_banco("") is None
+    for texto in (numero, f"%23{numero}"):
+        r = client.get(f"/api/livro-caixa/?busca={texto}&pagina=1", headers=auth_headers)
+        assert r.status_code == 200 and r.json()["total"] == 0, r.text

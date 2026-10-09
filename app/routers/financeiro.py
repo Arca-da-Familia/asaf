@@ -44,6 +44,7 @@ from app.schemas.financeiro import (
 )
 from app.security import exigir_permissao
 from app.services import armazenamento, auditoria_financeira, conciliacao, contabilidade, contribuicoes, lancamento_tardio, negociacao, pix as pix_service
+from app.services.busca import numero_que_cabe_no_banco
 from app.services.categoria_associado import recalcular_categoria_associado
 from app.services.formato import reais
 
@@ -648,8 +649,9 @@ def listar_livro_caixa(
     texto = (busca or "").strip()
     if texto:
         condicoes = [LancamentoContabil.historico.ilike(f"%{texto}%")]
-        if texto.lstrip("#").isdigit():
-            condicoes.append(LancamentoContabil.numero_sequencial == int(texto.lstrip("#")))
+        numero = numero_que_cabe_no_banco(texto.lstrip("#"))
+        if numero is not None:
+            condicoes.append(LancamentoContabil.numero_sequencial == numero)
         consulta = consulta.filter(or_(*condicoes))
     total = consulta.count()
     consulta = consulta.order_by(LancamentoContabil.id_exercicio.desc(), LancamentoContabil.numero_sequencial.desc())

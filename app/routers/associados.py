@@ -30,6 +30,7 @@ from app.schemas.associados import (
 from app.security import criar_token_carteirinha, decodificar_token_carteirinha, exigir_alguma_permissao, exigir_permissao, get_current_user, hash_senha, usuario_tem_permissao, validar_senha_forte
 from app.services import armazenamento
 from app.services.categoria_associado import calcular_categoria
+from app.services.busca import numero_que_cabe_no_banco
 from app.services.catalogos import validar_codigo_em_catalogo
 from app.services.duplicidade import detectar_cadastro_duplicado
 from app.services.linha_do_tempo import publicar_evento_linha_do_tempo
@@ -130,8 +131,9 @@ def _associados_filtrados(db: Session, busca: Optional[str] = None, situacao: Op
         if digitos:
             condicoes.append(Pessoa.cpf.contains(digitos))
             condicoes.append(Pessoa.telefone_whatsapp.contains(digitos))
-            if digitos == texto:
-                condicoes.append(Associado.numero_matricula == int(digitos))
+            matricula = numero_que_cabe_no_banco(texto)
+            if matricula is not None:
+                condicoes.append(Associado.numero_matricula == matricula)
         consulta = consulta.filter(or_(*condicoes))
     return consulta
 
