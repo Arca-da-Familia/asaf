@@ -1,0 +1,436 @@
+---
+import type { EventoDetalhado } from '../lib/dados-publicos'
+import { API_URL } from '../config/organizacao'
+import { formatarDia, formatarHora } from '../lib/datas'
+import {
+  AVISO_SEM_VAGAS,
+  CHAVE_DA_SESSAO,
+  CHAVE_DO_CONSENTIMENTO,
+  CHAVE_DO_EMAIL,
+  CHAVE_DO_TELEFONE,
+  chaveDoCpf,
+  chaveDoNome,
+  MAXIMO_DE_PESSOAS_ADICIONAIS,
+  NOME_MAXIMO,
+  perguntasOrdenadas,
+  textoDaOpcaoDaSessao,
+} from '../lib/inscricao-evento'
+import CampoDePergunta from './CampoDePergunta.astro'
+
+// O formulário de inscrição de um evento GRATUITO que ainda não aconteceu e sem pergunta de arquivo (v5.5c). Quem se comporta é `lib/inscricao-evento.ts`; aqui só o
+// HTML, para ele ser acessível sem JavaScript de enfeite: cada campo tem rótulo, dica e mensagem de erro ligadas por `aria-describedby`. O texto do
+// consentimento NÃO está aqui: a página o busca na API ao abrir e o mostra como veio. As pessoas adicionais (inscrição em grupo) nascem de um modelo
+// (`<template>`) que repete o nome, o CPF e as MESMAS perguntas; "__N__" é trocado pelo número da pessoa.
+interface Props {
+  evento: EventoDetalhado
+  /** Prefixo dos ids do formulário (dois formulários na mesma página nunca repetem um id). */
+  idDoFormulario?: string
+}
+
+const { evento, idDoFormulario = 'inscricao' } = Astro.props
+const id = (parte: string) => `${idDoFormulario}-${parte}`
+const perguntas = perguntasOrdenadas(evento.perguntas).filter(
+  (p) => p.tipo !== 'ARQUIVO',
+)
+const sessoes = evento.sessoes
+const esgotadoNoBuild = evento.vagas_livres === 0
+
+const campo =
+  'h-11 w-full rounded-md border bg-background px-3 text-base aria-[invalid=true]:border-destructive'
+const erro = 'mt-1 text-sm font-medium text-destructive'
+const dica = 'mt-1 text-sm text-muted-foreground'
+const link = 'font-medium text-primary underline underline-offset-4'
+const botaoSecundario =
+  'rounded-md border px-5 py-3 font-medium hover:bg-accent disabled:opacity-60'
+---
+
+<section
+  id={id('secao')}
+  aria-labelledby={id('titulo')}
+  data-inscricao-formulario
+  data-api-url={API_URL}
+  data-id-evento={evento.id_evento}
+  data-vagas-livres={evento.vagas_livres ?? undefined}
+  class="rounded-lg border bg-card p-6 shadow-card sm:p-8"
+>
+  <h2 id={id('titulo')} class="text-2xl font-bold tracking-tight">
+    Inscreva-se neste evento
+  </h2>
+  <p data-introducao class="mt-3 max-w-3xl">
+    Preencha os dados abaixo. Todos os campos são obrigatórios, menos os
+    marcados como “opcional”.
+  </p>
+  <noscript>
+    <p class="mt-3 font-medium">
+      Para se inscrever por esta página é preciso ativar o JavaScript do
+      navegador. Se preferir, fale com a secretaria: o telefone e o e-mail estão
+      no rodapé desta página.
+    </p>
+  </noscript>
+  <p
+    data-aviso-esgotado
+    role="status"
+    hidden={!esgotadoNoBuild}
+    class="mt-4 max-w-2xl rounded-md border-2 border-primary bg-background p-3 font-medium"
+  >
+    {AVISO_SEM_VAGAS}
+  </p>
+
+  <form
+    id={id('formulario')}
+    data-inscricao-form
+    data-perguntas={JSON.stringify(perguntas)}
+    novalidate
+    class="relative mt-6 grid max-w-2xl gap-5"
+  >
+    <p
+      data-resumo-de-erros
+      role="alert"
+      hidden
+      class="rounded-md border border-destructive bg-background p-3 font-medium text-destructive"
+    ></p>
+
+    <div data-participante data-indice="0" class="grid gap-5">
+      <div>
+        <label for={id('nome-0')} class="block text-sm font-medium">
+          Nome completo
+        </label>
+        <input
+          id={id('nome-0')}
+          name="nome_completo"
+          type="text"
+          autocomplete="name"
+          maxlength={NOME_MAXIMO}
+          data-campo={chaveDoNome(0)}
+          aria-required="true"
+          aria-describedby={id('erro-nome-0')}
+          class={`mt-1 ${campo}`}
+        />
+        <p
+          id={id('erro-nome-0')}
+          data-erro={chaveDoNome(0)}
+          hidden
+          class={erro}
+        ></p>
+      </div>
+
+      <div>
+        <label for={id('cpf-0')} class="block text-sm font-medium">
+          CPF
+        </label>
+        <input
+          id={id('cpf-0')}
+          name="cpf"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          data-campo={chaveDoCpf(0)}
+          aria-required="true"
+          aria-describedby={`${id('dica-cpf-0')} ${id('erro-cpf-0')}`}
+          class={`mt-1 ${campo}`}
+        />
+        <p id={id('dica-cpf-0')} class={dica}>
+          Só os números, ou com pontos e traço.
+        </p>
+        <p
+          id={id('erro-cpf-0')}
+          data-erro={chaveDoCpf(0)}
+          hidden
+          class={erro}
+        ></p>
+      </div>
+
+      <div>
+        <label for={id('email')} class="block text-sm font-medium">
+          E-mail
+        </label>
+        <input
+          id={id('email')}
+          name="email"
+          type="email"
+          autocomplete="email"
+          data-campo={CHAVE_DO_EMAIL}
+          aria-required="true"
+          aria-describedby={`${id('dica-email')} ${id('erro-email')}`}
+          class={`mt-1 ${campo}`}
+        />
+        <p id={id('dica-email')} class={dica}>
+          É para este e-mail que enviamos o código e o link da sua inscrição.
+        </p>
+        <p
+          id={id('erro-email')}
+          data-erro={CHAVE_DO_EMAIL}
+          hidden
+          class={erro}
+        ></p>
+      </div>
+
+      <div>
+        <label for={id('telefone')} class="block text-sm font-medium">
+          Telefone/WhatsApp
+        </label>
+        <input
+          id={id('telefone')}
+          name="telefone"
+          type="tel"
+          inputmode="tel"
+          autocomplete="tel-national"
+          data-campo={CHAVE_DO_TELEFONE}
+          aria-required="true"
+          aria-describedby={`${id('dica-telefone')} ${id('erro-telefone')}`}
+          class={`mt-1 ${campo}`}
+        />
+        <p id={id('dica-telefone')} class={dica}>
+          Com o DDD. Exemplo: 91 98888-7777.
+        </p>
+        <p
+          id={id('erro-telefone')}
+          data-erro={CHAVE_DO_TELEFONE}
+          hidden
+          class={erro}
+        ></p>
+      </div>
+
+      {sessoes.length > 0 && (
+        <div>
+          <label for={id('sessao')} class="block text-sm font-medium">
+            Sessão (opcional)
+          </label>
+          <select
+            id={id('sessao')}
+            name="id_sessao"
+            data-campo={CHAVE_DA_SESSAO}
+            aria-describedby={id('dica-sessao')}
+            class={`mt-1 ${campo}`}
+          >
+            <option value="">Todo o evento (sem escolher uma sessão)</option>
+            {sessoes.map((sessao) => {
+              const rotulo = `${sessao.titulo}, ${formatarDia(sessao.data_hora_inicio)}, ${formatarHora(sessao.data_hora_inicio)}`
+              return (
+                <option
+                  value={sessao.id_sessao}
+                  data-sessao={sessao.id_sessao}
+                  data-rotulo={rotulo}
+                  data-vagas-livres={sessao.vagas_livres ?? undefined}
+                >
+                  {textoDaOpcaoDaSessao(rotulo, sessao.vagas_livres)}
+                </option>
+              )
+            })}
+          </select>
+          <p id={id('dica-sessao')} class={dica}>
+            Escolha uma sessão só se quiser se inscrever em uma parte do evento.
+            Sem escolher, a inscrição vale para o evento todo.
+          </p>
+        </div>
+      )}
+
+      {perguntas.map((pergunta) => (
+        <CampoDePergunta
+          pergunta={pergunta}
+          indice={0}
+          idDoFormulario={idDoFormulario}
+        />
+      ))}
+    </div>
+
+    <div data-grupo class="grid gap-3">
+      <div data-participantes-adicionais class="grid gap-5"></div>
+      <p id={id('dica-grupo')} class="text-sm text-muted-foreground">
+        Quer inscrever mais gente junto com você? O e-mail e o telefone acima
+        valem para todas as pessoas, e cada pessoa tem a sua própria inscrição,
+        com código de check-in e link próprios. Pode ser até{' '}
+        {MAXIMO_DE_PESSOAS_ADICIONAIS + 1} pessoas.
+      </p>
+      <div>
+        <button
+          type="button"
+          data-adicionar-participante
+          aria-describedby={id('dica-grupo')}
+          class={botaoSecundario}
+        >
+          Inscrever mais uma pessoa
+        </button>
+      </div>
+      <p data-limite-de-pessoas hidden class="text-sm font-medium">
+        Chegou ao limite de {MAXIMO_DE_PESSOAS_ADICIONAIS + 1} pessoas por
+        inscrição.
+      </p>
+    </div>
+
+    <div data-consentimento class="grid gap-3">
+      <p class="text-sm font-medium">Consentimento</p>
+      <p
+        id={id('consentimento-estado')}
+        data-consentimento-estado
+        aria-live="polite"
+        class="text-sm"
+      >
+        Carregando o texto do consentimento…
+      </p>
+      <div>
+        <button
+          type="button"
+          data-recarregar-consentimento
+          hidden
+          class={botaoSecundario}
+        >
+          Tentar carregar de novo
+        </button>
+      </div>
+      <div
+        id={id('consentimento-texto')}
+        data-consentimento-texto
+        hidden
+        class="whitespace-pre-line rounded-md border bg-background p-4 text-sm"
+      ></div>
+      <p class="text-sm">
+        Leia também a{' '}
+        <a href="/privacidade/" class={link}>
+          Política de Privacidade
+        </a>
+        .
+      </p>
+      <div>
+        <label class="flex items-start gap-3 text-sm font-medium">
+          <input
+            name="consentimento_lgpd"
+            type="checkbox"
+            disabled
+            data-campo={CHAVE_DO_CONSENTIMENTO}
+            aria-describedby={`${id('consentimento-texto')} ${id('erro-consentimento')}`}
+            class="mt-1 h-5 w-5 shrink-0"
+          />
+          <span>Li e aceito.</span>
+        </label>
+        <p
+          id={id('erro-consentimento')}
+          data-erro={CHAVE_DO_CONSENTIMENTO}
+          hidden
+          class={erro}
+        ></p>
+      </div>
+    </div>
+
+    <!-- Armadilha para robôs: ninguém vê nem preenche; quem preenche é descartado pela API sem aviso. -->
+    <div
+      aria-hidden="true"
+      class="absolute -left-[9999px] h-px w-px overflow-hidden"
+    >
+      <label>
+        Não preencha este campo
+        <input type="text" name="pagina_web" tabindex="-1" autocomplete="off" />
+      </label>
+    </div>
+
+    <p
+      data-falha-do-envio
+      role="alert"
+      tabindex="-1"
+      hidden
+      class="rounded-md border border-destructive bg-background p-3 font-medium text-destructive"
+    ></p>
+
+    <div>
+      <button
+        type="submit"
+        data-enviar
+        class="rounded-md bg-primary px-6 py-3 font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+      >
+        Enviar inscrição
+      </button>
+    </div>
+  </form>
+
+  <template data-modelo-participante>
+    <fieldset
+      data-participante
+      data-indice="__N__"
+      class="grid gap-5 rounded-md border p-4"
+    >
+      <legend class="px-1 font-medium" data-titulo-da-pessoa>
+        Pessoa
+      </legend>
+      <div>
+        <label for={id('nome-__N__')} class="block text-sm font-medium">
+          Nome completo
+        </label>
+        <input
+          id={id('nome-__N__')}
+          name="nome_completo_adicional"
+          type="text"
+          autocomplete="off"
+          maxlength={NOME_MAXIMO}
+          data-campo={chaveDoNome('__N__')}
+          aria-required="true"
+          aria-describedby={id('erro-nome-__N__')}
+          class={`mt-1 ${campo}`}
+        />
+        <p
+          id={id('erro-nome-__N__')}
+          data-erro={chaveDoNome('__N__')}
+          hidden
+          class={erro}
+        ></p>
+      </div>
+      <div>
+        <label for={id('cpf-__N__')} class="block text-sm font-medium">
+          CPF
+        </label>
+        <input
+          id={id('cpf-__N__')}
+          name="cpf_adicional"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          data-campo={chaveDoCpf('__N__')}
+          aria-required="true"
+          aria-describedby={`${id('dica-cpf-__N__')} ${id('erro-cpf-__N__')}`}
+          class={`mt-1 ${campo}`}
+        />
+        <p id={id('dica-cpf-__N__')} class={dica}>
+          Só os números, ou com pontos e traço.
+        </p>
+        <p
+          id={id('erro-cpf-__N__')}
+          data-erro={chaveDoCpf('__N__')}
+          hidden
+          class={erro}
+        ></p>
+      </div>
+      {perguntas.map((pergunta) => (
+        <CampoDePergunta
+          pergunta={pergunta}
+          indice="__N__"
+          idDoFormulario={idDoFormulario}
+        />
+      ))}
+      <div>
+        <button type="button" data-remover-participante class={botaoSecundario}>
+          Remover esta pessoa
+        </button>
+      </div>
+    </fieldset>
+  </template>
+
+  <div
+    id={id('enviado')}
+    data-resultado
+    role="status"
+    tabindex="-1"
+    hidden
+    class="mt-6 max-w-2xl rounded-md border bg-background p-5"
+  >
+    <h3 class="text-lg font-bold">Recebemos a sua inscrição.</h3>
+    <p data-resultado-email hidden class="mt-3"></p>
+    <ul data-resultado-lista class="mt-4 grid gap-4"></ul>
+  </div>
+</section>
+
+<script>
+  import { iniciarFormularioDeInscricao } from '../lib/inscricao-evento'
+
+  document
+    .querySelectorAll<HTMLElement>('[data-inscricao-formulario]')
+    .forEach((secao) => iniciarFormularioDeInscricao(secao))
+</script>

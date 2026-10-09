@@ -1,0 +1,193 @@
+---
+import { API_URL } from '../config/organizacao'
+import {
+  MENSAGEM_DE_LINK_INVALIDO,
+  MENSAGEM_SEM_TOKEN,
+  type ModoDoLink,
+} from '../lib/inscricao-link'
+
+// O miolo das páginas /cancelar-inscricao/ e /confirmar-inscricao/ (v5.5c): o mesmo HTML, com o botão da página (`modo`). Quem se comporta é
+// `lib/inscricao-link.ts`, que lê o `?token=` no navegador e fala com a API; aqui só o HTML, com cada estado (carregando, sem código, código inválido, falha, a
+// inscrição) num bloco que a ilha mostra ou esconde.
+interface Props {
+  modo: ModoDoLink
+}
+
+const { modo } = Astro.props
+const cancelar = modo === 'cancelar'
+
+const link = 'font-medium text-primary underline underline-offset-4'
+const botaoPrimario =
+  'rounded-md bg-primary px-6 py-3 font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60'
+const botaoSecundario =
+  'rounded-md border px-6 py-3 font-medium hover:bg-accent disabled:opacity-60'
+const linha = 'grid gap-1 sm:grid-cols-[12rem_1fr] sm:gap-4'
+---
+
+<div
+  class="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-12"
+  data-inscricao-link
+  data-modo={modo}
+  data-api-url={API_URL}
+  aria-live="polite"
+>
+  <noscript>
+    <p class="font-medium">
+      Para {cancelar ? 'cancelar' : 'confirmar'} a inscrição por esta página é
+      preciso ativar o JavaScript do navegador. Se preferir, fale com a
+      secretaria: o telefone e o e-mail estão no rodapé desta página.
+    </p>
+  </noscript>
+
+  <p data-estado="carregando" role="status">
+    Buscando a sua inscrição…
+  </p>
+
+  <div data-estado="sem-token" hidden class="rounded-lg border bg-card p-6">
+    <p class="font-medium">{MENSAGEM_SEM_TOKEN}</p>
+  </div>
+
+  <div
+    data-estado="invalido"
+    hidden
+    class="rounded-lg border-2 border-destructive bg-card p-6"
+  >
+    <p class="font-medium">{MENSAGEM_DE_LINK_INVALIDO}</p>
+  </div>
+
+  <div
+    data-estado="erro"
+    hidden
+    class="rounded-lg border-2 border-destructive bg-card p-6"
+  >
+    <p data-mensagem class="font-medium"></p>
+    <p class="mt-4">
+      <button type="button" data-tentar-de-novo class={botaoSecundario}>
+        Tentar de novo
+      </button>
+    </p>
+  </div>
+
+  <div data-estado="resumo" hidden class="grid gap-6">
+    <div
+      data-resultado-da-acao
+      role="status"
+      tabindex="-1"
+      hidden
+      class="rounded-lg border-2 border-primary bg-card p-6"
+    >
+      <div data-frases class="font-medium"></div>
+    </div>
+
+    <section
+      aria-labelledby="sua-inscricao"
+      class="rounded-lg border bg-card p-6 shadow-card"
+    >
+      <h2 id="sua-inscricao" class="text-xl font-bold tracking-tight">
+        A sua inscrição
+      </h2>
+      <dl class="mt-4 grid gap-3">
+        <div data-linha class={linha}>
+          <dt class="font-medium">Evento</dt>
+          <dd data-evento-titulo></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Quando</dt>
+          <dd data-quando></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Onde</dt>
+          <dd data-onde></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Sessão</dt>
+          <dd data-sessao></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Inscrição de</dt>
+          <dd data-inscrito></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Situação</dt>
+          <dd data-situacao class="font-semibold"></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Código de check-in</dt>
+          <dd>
+            <strong
+              data-codigo
+              class="rounded-md border-2 border-primary px-2 py-1 text-xl tracking-wide"
+            ></strong>
+          </dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Confirme até</dt>
+          <dd data-prazo></dd>
+        </div>
+      </dl>
+    </section>
+
+    <p data-explicacao hidden class="max-w-2xl text-lg font-medium"></p>
+
+    <div data-acoes class="grid gap-4">
+      {cancelar ? (
+        <>
+          <div>
+            <button type="button" data-cancelar class={botaoPrimario}>
+              Cancelar a minha inscrição
+            </button>
+          </div>
+          <div
+            data-passo-de-confirmacao
+            hidden
+            class="grid max-w-xl gap-4 rounded-lg border-2 border-destructive bg-card p-5"
+          >
+            <p data-pergunta-do-cancelamento class="text-lg font-bold" />
+            <div class="flex flex-wrap gap-3">
+              <button
+                type="button"
+                data-confirmar-cancelamento
+                class={botaoPrimario}
+              >
+                Sim, cancelar a minha inscrição
+              </button>
+              <button type="button" data-voltar class={botaoSecundario}>
+                Não, voltar
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div>
+          <button type="button" data-confirmar class={botaoPrimario}>
+            Confirmar a minha vaga
+          </button>
+        </div>
+      )}
+      <p>
+        <a data-acao-cruzada hidden href="/" class={link}></a>
+      </p>
+      <p
+        data-falha-da-acao
+        role="alert"
+        tabindex="-1"
+        hidden
+        class="rounded-md border border-destructive bg-background p-3 font-medium text-destructive"
+      ></p>
+    </div>
+  </div>
+
+  <p>
+    <a href="/eventos/" class={link}>
+      Ver os eventos
+    </a>
+  </p>
+</div>
+
+<script>
+  import { iniciarPaginaDeInscricao } from '../lib/inscricao-link'
+
+  document
+    .querySelectorAll<HTMLElement>('[data-inscricao-link]')
+    .forEach((raiz) => iniciarPaginaDeInscricao(raiz))
+</script>

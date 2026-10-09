@@ -792,3 +792,42 @@ describe('ligarNoticias', () => {
     expect(avisos).toEqual([])
   })
 })
+
+describe('as perguntas da inscrição no detalhe do evento (v5.5c)', () => {
+  it('chegam como a API as deu e, quando faltam (API antiga), viram lista vazia — junto com as sessões', () => {
+    const pergunta = {
+      id_pergunta: 7,
+      id_evento: 2,
+      enunciado: 'Como você ficou sabendo?',
+      tipo: 'SELECAO_UNICA',
+      opcoes: 'Redes,Amigos',
+      obrigatoria: true,
+      ordem: 1,
+    }
+    expect(
+      normalizarEventoDetalhado({ id_evento: 2, perguntas: [pergunta] })
+        .perguntas,
+    ).toEqual([pergunta])
+    const antigo = normalizarEventoDetalhado({ id_evento: 2 })
+    expect(antigo.perguntas).toEqual([])
+    expect(antigo.sessoes).toEqual([])
+    expect(
+      normalizarEventoDetalhado({
+        id_evento: 2,
+        perguntas: 'x' as never,
+        sessoes: null as never,
+      }),
+    ).toMatchObject({ perguntas: [], sessoes: [] })
+  })
+
+  it('mudar uma pergunta muda a impressão do conteúdo (o site é reconstruído e o formulário acompanha)', () => {
+    const com = (enunciado: string) =>
+      impressaoDoConteudo({
+        detalhesDeEventos: {
+          2: { id_evento: 2, perguntas: [{ id_pergunta: 7, enunciado }] },
+        },
+      })
+    expect(com('A')).toBe(com('A'))
+    expect(com('A')).not.toBe(com('B'))
+  })
+})

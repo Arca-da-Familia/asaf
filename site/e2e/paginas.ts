@@ -20,8 +20,12 @@ export function caminhosIndexaveis(): string[] {
   return urls.map((url) => new URL(url).pathname)
 }
 
-/** Páginas que NÃO entram no sitemap mas precisam passar na acessibilidade. */
-export const PAGINAS_NAO_INDEXAVEIS = ['/404.html']
+/** Páginas que NÃO entram no sitemap mas precisam passar na acessibilidade (a 404 e as dos links do e-mail de inscrição, v5.5c). */
+export const PAGINAS_NAO_INDEXAVEIS = [
+  '/404.html',
+  '/cancelar-inscricao/',
+  '/confirmar-inscricao/',
+]
 
 /** Dimensões (largura, altura) lidas do cabeçalho de um PNG. */
 export function dimensoesPng(bytes: Buffer): {

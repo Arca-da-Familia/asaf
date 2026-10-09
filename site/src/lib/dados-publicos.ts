@@ -31,6 +31,7 @@ export type {
   NoticiaPublica,
   ParceriaDetalhada,
   ParceriaPublica,
+  PerguntaDoEvento,
   ProjetoDetalhado,
   ProjetoPublico,
   ResumoDeEvento,

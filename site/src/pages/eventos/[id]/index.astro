@@ -4,6 +4,7 @@ import GaleriaDeFotos from '../../../components/contexto/GaleriaDeFotos.astro'
 import NoticiasRelacionadas from '../../../components/contexto/NoticiasRelacionadas.astro'
 import RelatoriosEDocumentos from '../../../components/contexto/RelatoriosEDocumentos.astro'
 import FaleConosco from '../../../components/FaleConosco.astro'
+import FormularioDeInscricao from '../../../components/FormularioDeInscricao.astro'
 import TituloDePagina from '../../../components/TituloDePagina.astro'
 import type { Migalha } from '../../../config/navegacao'
 import {
@@ -25,7 +26,13 @@ import {
   type EventoDetalhado,
   type NoticiaPublica,
 } from '../../../lib/dados-publicos'
-import { comFusoDaAsaf, formatarDia, formatarHora } from '../../../lib/datas'
+import {
+  comFusoDaAsaf,
+  formatarDia,
+  formatarHora,
+  jaAconteceu,
+} from '../../../lib/datas'
+import { pedeArquivo } from '../../../lib/inscricao-evento'
 import { jsonLdEvento } from '../../../lib/seo'
 import { descricaoParaMeta, tituloCurto } from '../../../lib/texto'
 
@@ -35,6 +42,10 @@ import { descricaoParaMeta, tituloCurto } from '../../../lib/texto'
 //
 // v5.5: o contexto do evento — projeto a que pertence, outras edições, relatório, fotos e notícias ligadas pelo
 // número. Cada bloco SÓ existe quando há conteúdo.
+//
+// v5.5c: a inscrição. Evento GRATUITO que ainda não aconteceu e sem pergunta de arquivo tem o formulário (a ilha dele fica em
+// src/lib/inscricao-evento.ts); evento com valor, ou que pede um arquivo, manda falar com a secretaria. Um evento que já aconteceu
+// (no build, ou quando a ilha `evento-vivo` descobre no navegador) não oferece inscrição.
 export async function getStaticPaths() {
   const { eventos, projetos, documentos, detalhesDeEventos, noticias } =
     await conteudoPublico()
@@ -81,6 +92,13 @@ const mesmoDia =
   formatarDia(evento.data_hora_fim) === formatarDia(evento.data_hora_inicio)
 const reserva = `${evento.titulo} — ${formatarDia(evento.data_hora_inicio)}, ${formatarHora(evento.data_hora_inicio)}. Evento da ${ORGANIZACAO.nome} (${ORGANIZACAO.sigla}).`
 const fimDoEvento = evento.data_hora_fim ?? evento.data_hora_inicio
+const comoParticipar = jaAconteceu(fimDoEvento)
+  ? 'nenhum'
+  : !evento.gratuito
+    ? 'com-valor'
+    : pedeArquivo(evento.perguntas)
+      ? 'com-arquivo'
+      : 'formulario'
 
 let vagasTexto: string | null = null
 if (evento.vagas_livres !== null) {
@@ -242,12 +260,21 @@ if (evento.vagas_livres !== null) {
       />
     )}
 
-    <FaleConosco titulo="Como participar">
-      <p>
-        A inscrição pelo site ainda não está disponível. Fale com a secretaria
-        para garantir a sua participação.
-      </p>
-    </FaleConosco>
+    {comoParticipar !== 'nenhum' && (
+      <div data-como-participar>
+        {comoParticipar === 'formulario' ? (
+          <FormularioDeInscricao evento={evento} />
+        ) : (
+          <FaleConosco titulo="Como participar">
+            <p>
+              {comoParticipar === 'com-valor'
+                ? 'Este evento tem inscrição com valor. A inscrição é feita com a secretaria: fale com a gente para garantir a sua participação.'
+                : 'Este evento pede o envio de um arquivo; faça a inscrição com a secretaria.'}
+            </p>
+          </FaleConosco>
+        )}
+      </div>
+    )}
 
     <p>
       <a

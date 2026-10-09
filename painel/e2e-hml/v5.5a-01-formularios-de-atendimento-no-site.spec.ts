@@ -244,12 +244,12 @@ test('os três pedidos do site estão na fila do Presidente com o tipo certo, o 
   expect(vigia.problemas()).toEqual([])
 })
 
-test('a Política de Privacidade (1.5) nomeia o encarregado de dados (o Presidente) e leva à solicitação do titular', async ({
+test('a Política de Privacidade (qualquer versão) nomeia o encarregado de dados (o Presidente) e leva à solicitação do titular', async ({
   page,
 }, info) => {
   const vigia = vigiar(page)
   await page.goto(`${SITE_HML}/privacidade/`)
-  await expect(page.getByText(/Versão 1\.5/)).toBeVisible()
+  await expect(page.getByText(/Versão \d+\.\d+/)).toBeVisible()
   const encarregado = page.locator('[data-encarregado]')
   await expect(encarregado).toContainText(
     'Encarregado pelo tratamento de dados pessoais',

@@ -1,0 +1,25 @@
+---
+import GerenciarInscricao from '../../components/GerenciarInscricao.astro'
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import Base from '../../layouts/Base.astro'
+
+// Página do link "Para confirmar, acesse..." do e-mail "Uma vaga abriu para você!" (v5.5c): quem estava na lista de espera e foi chamado confirma a vaga aqui.
+// Não é página de conteúdo: fora do Google (noindex) e fora do sitemap (astro.config.mjs). Lê o `?token=` no navegador (lib/inscricao-link.ts).
+const migalhas: Migalha[] = [{ rotulo: 'Confirmar inscrição' }]
+---
+
+<Base
+  titulo="Confirmar inscrição"
+  descricao="Confirme a sua vaga em um evento da ASAF pelo link que enviamos para o seu e-mail."
+  caminho="/confirmar-inscricao/"
+  migalhas={migalhas}
+  indexavel={false}
+>
+  <TituloDePagina
+    titulo="Confirmar inscrição"
+    resumo="Veja a sua inscrição e confirme a sua vaga."
+    migalhas={migalhas}
+  />
+  <GerenciarInscricao modo="confirmar" />
+</Base>

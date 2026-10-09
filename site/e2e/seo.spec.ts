@@ -98,7 +98,7 @@ test('imagem de compartilhamento existe e tem 1200x630', async ({
   })
 })
 
-test('páginas não indexáveis (404) têm noindex e ficam fora do sitemap', async ({
+test('páginas não indexáveis (404 e os links do e-mail de inscrição) têm noindex e ficam fora do sitemap', async ({
   page,
   request,
 }) => {
@@ -112,6 +112,8 @@ test('páginas não indexáveis (404) têm noindex e ficam fora do sitemap', asy
   }
   const sitemap = await (await request.get('/sitemap-0.xml')).text()
   expect(sitemap).not.toContain('404')
+  expect(sitemap).not.toContain('cancelar-inscricao')
+  expect(sitemap).not.toContain('confirmar-inscricao')
 })
 
 test('robots.txt libera o site e aponta o sitemap', async ({ request }) => {
