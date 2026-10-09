@@ -1799,24 +1799,48 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 
 #### v5.5 — Formulários públicos, fila única e módulo de eventos (era a v5.3)
 
-- [ ] **Pré-requisito**: encarregado pelo tratamento de dados designado (LGPD, art. 41) e Política de
-      Privacidade revisada juridicamente — o texto só pode prometer base legal por formulário quando o
-      sistema registrar isso (FASE 7).
-- [ ] Formulário público de voluntariado, de proposta de filiação (v1.2), de contato, de solicitação de
-      titular LGPD (FASE 7) **e de pedido de informação sobre recursos públicos (R7)** — todos com a
-      mesma deduplicação por CPF/e-mail, todos caindo em **uma fila única de atendimento** no painel,
-      com status, responsável e **prazo**. Formulário que vira e-mail solto é o jeito conhecido de perder
-      gente interessada.
-- [ ] Confirmação automática ao remetente e prazo de resposta acompanhado (liga com o protocolo interno
-      da v13.3).
-- [ ] **Voluntário que não é associado** (decisão do usuário, 2026-10-03: "se ele se voluntaria, ele
-      precisa conseguir"): hoje a alocação em projeto **exige cadastro de Associado**
-      (`AlocacaoVoluntario.id_associado`); passa a apontar para `Pessoa`, com migração e testes, e a
-      página `/seja-voluntario/` é atualizada (até lá ela diz o que acontece hoje).
-- [ ] **Inscrição em evento pelo site** (a API já tem formulário, perguntas, consentimento e lista de
-      espera) e **status do evento** — Programado / **Cancelado** / Adiado / Realizado, com motivo —
-      no sistema, no painel e no site (`schema.org eventStatus`), no lugar do paliativo "voltar a
-      Interna". "Módulo de eventos" do usuário: este é o ponto de entrada dele.
+Dividida em quatro partes (decisão do Presidente, 2026-10-09: "parte a parte"); cada uma pelo caminho de sempre: branch → homologação → robô → só então a `main`.
+
+- [x] **Pré-requisito resolvido (2026-10-09): encarregado pelo tratamento de dados (LGPD, art. 41) = o Presidente** (decisão dele: "somos uma associação que não tem 20 pessoas; coloca eu"),
+      e a associação não contrata advogado: ele deu a Política de Privacidade por válida (aceite dele, não revisão jurídica). O texto continua sem prometer base legal por
+      formulário (isso é da FASE 7). Regra geral dele para qualquer "responsável" que o plano pedir: o Presidente, ou quem tiver cargo na Diretoria Executiva ou no Conselho Fiscal;
+      não existe segunda pessoa.
+- [x] **v5.5a — Fila única de atendimento + formulários de contato, de pedido de informação sobre recursos públicos (R7) e de solicitação do titular de dados (LGPD).**
+      **O que existe:** a tabela `atendimentos` (protocolo `ASAF-AAAA-NNNNN`, situação Novo / Em atendimento / Respondido / Encerrado, responsável, prazo), as rotas públicas
+      `POST /api/publico/atendimentos` e `GET /api/publico/atendimentos/prazos`, a fila no painel (módulo **Atendimento**, permissão `atendimento`, dada ao Presidente e à Diretoria;
+      cartões de resumo, filtros e busca no endereço, páginas de 25, abrir o pedido inteiro com os outros pedidos da mesma pessoa, assumir, responder e encerrar) e, no site, os três
+      formulários (`/contato/`, `/transparencia/pedido-de-informacao/` e `/privacidade/solicitacao-do-titular/`), com protocolo e prazo na tela. **Prazos** (Regras do sistema, a
+      diretoria muda): contato 10 dias, pedido de informação 20 (referência da Lei de Acesso à Informação, não uma obrigação confirmada para a ASAF), titular LGPD 15 (LGPD, art. 19, II).
+      **Garantias:** o mesmo pedido mandado duas vezes é um protocolo só; armadilha de robô; limite por IP; aviso de privacidade com versão (1) que o servidor confere; o remetente é ligado ao
+      cadastro pelo CPF (ou pelo e-mail, se for uma pessoa só) sem aparecer para quem está de fora; o CPF só vem inteiro dentro do pedido; quem atende é avisado no sino; uma rotina
+      (a cada 15 minutos, no mesmo agendamento da lista de espera) avisa no sino os pedidos vencidos ou que vencem em 3 dias, no máximo uma vez por dia por pedido; cada ação fica na
+      Auditoria; a resposta segue por e-mail em melhor esforço e a tela diz se não saiu. **Política de Privacidade 1.4:** nomeia o Presidente como encarregado (o nome vem do mandato
+      vigente que o sistema publica; enquanto não houver, a página manda olhar a Diretoria) e descreve os formulários de atendimento.
+      **Testes:** servidor 1084 de 1084 (35 do atendimento e 3 da migração, contra o modelo), painel 464, site 331 unitários e 420 de navegador; três testes de contagem exata de
+      configurações passaram de 59 para 63. **Na homologação (2026-10-09):** `v5.5a-02` 7 de 7 (três pedidos chegam pela rota pública; o Presidente é avisado no sino, abre a fila e
+      vê cada um com protocolo e prazo do tipo; filtros por tipo, situação e protocolo; assumir; resposta curta recusada em português e a boa registrada; o pedido com e-mail mostra o
+      resultado do envio; encerrar com motivo curto recusado; o CPF do titular mascarado na lista e inteiro dentro do pedido, com os outros pedidos da mesma pessoa; a Auditoria
+      cresceu exatamente 9; o Secretário não vê o módulo, é barrado na tela e a API devolve 403) e `v5.5a-01` 6 de 6 (o visitante, no `hml-site`: formulário em branco diz o que falta, sem
+      aceitar o aviso não envia, protocolo e prazo do tipo na tela, CPF inválido recusado, duplo envio = um protocolo, armadilha e aviso velho recusados, os pedidos aparecem na fila
+      do Presidente, e a Política 1.4 nomeia o encarregado). Regressão: `v5.4c-fase0` 6, `v5.4c-fase1` 24, `v5.4g-01` 5 (axe, celular e links nas páginas novas), `v5.4h-10` 5,
+      `v5.4h-12` 4, `v5.4h-14` 2. **Achados do robô e do CI, corrigidos:** (1) escolher um filtro logo depois de digitar na busca (dentro dos 400 ms da pausa) perdia o filtro, porque
+      o temporizador chamava a versão antiga de `mudar`; a tela de Associados, já em produção, tinha o mesmo padrão; corrigidas as duas, com um teste em cada (falham sem a correção);
+      (2) o teste de navegador do painel de "ver como" falhava no CI e travou o deploy do painel: no CI o painel é montado apontando para a API de PRODUÇÃO, e o que o teste não simulava
+      (o sino de avisos) ia para lá com um token de mentira, a produção respondia 401 e o painel deslogava; era também a causa das falhas intermitentes de antes; reproduzido localmente
+      (3 de 3 falhas) e corrigido: nenhum teste do painel fala mais com a API de produção (10 de 10 sob as mesmas condições, três vezes); (3) a contagem exata de configurações.
+      **Em produção (2026-10-09):** commits `32c937f` (API e site) e `d09c0b2` (painel: o deploy do painel de `32c937f` ficou parado pelo teste acima e foi refeito depois da correção); `GET
+      /api/publico/atendimentos/prazos` responde 10, 20 e 15; `GET /api/atendimentos/`, `/resumo` e `/{id}` respondem 401 sem login; `POST /api/publico/atendimentos` sem corpo dá 422 (a rota
+      existe e nada foi gravado: **produção não recebeu nenhum pedido de teste**); as oito rotas constam no `openapi.json`; `/contato/` tem o formulário e as duas páginas novas respondem 200; a
+      Política mostra a versão 1.4 e, sem mandato de Presidente registrado, "o Presidente da ASAF (o nome consta na página Diretoria)"; a rotina de prazos rodou à mão em produção:
+      "avisos criados: 0". **Fica para a v5.5b:** o e-mail de confirmação ao remetente na hora do envio (hoje a confirmação é a tela, com o protocolo e o prazo; o e-mail só sai na resposta).
+- [ ] **v5.5b — Voluntário pelo site e voluntário que não é associado** (decisão do usuário, 2026-10-03: "se ele se voluntaria, ele precisa conseguir"): formulário público de
+      voluntariado caindo na mesma fila (tipo Voluntariado, já previsto, prazo `PRAZO_DIAS_ATENDIMENTO_VOLUNTARIO`); hoje a alocação em projeto **exige cadastro de Associado**
+      (`AlocacaoVoluntario.id_associado`); passa a apontar para `Pessoa`, com migração e testes, e a página `/seja-voluntario/` é atualizada (até lá ela diz o que acontece hoje);
+      e-mail de confirmação ao remetente quando o pedido chega (herdado da v5.5a).
+- [ ] **v5.5c — Inscrição em evento pelo site** (a API já tem formulário, perguntas, consentimento, lista de espera e cancelamento por código): o formulário na página do evento, a página
+      `/cancelar-inscricao` (hoje o e-mail de confirmação aponta para um endereço que não existe) e a de confirmar a vaga da lista de espera.
+- [ ] **v5.5d — Status do evento** — Programado / **Cancelado** / Adiado / Realizado, com motivo — no sistema, no painel e no site (`schema.org eventStatus`), no lugar do paliativo
+      "voltar a Interna". "Módulo de eventos" do usuário: este é o ponto de entrada dele.
 
 #### v5.6 — Doação online (era a v5.4)
 
