@@ -161,3 +161,25 @@ def test_buscar_um_numero_grande_nao_estoura_o_inteiro_da_matricula(client, auth
     for texto in (numero, f"%23{numero}"):
         r = client.get(f"/api/livro-caixa/?busca={texto}&pagina=1", headers=auth_headers)
         assert r.status_code == 200 and r.json()["total"] == 0, r.text
+
+
+def test_texto_com_letras_e_numeros_nao_vira_busca_por_digitos_no_cpf_e_no_telefone(client, auth_headers):
+    """Achado da suíte (teste instável): "6fcd7dfd" tem os dígitos "67", e a busca procurava "67" no CPF de todo mundo (o Admin de Teste tem 67 no CPF). Só um texto
+    com cara de número (CPF ou telefone, com ou sem pontuação) é busca por dígitos; com letras junto, vale só o nome e o e-mail."""
+    marca = uuid.uuid4().hex[:8]
+    alvo = _criar(client, f"Digitos {marca} Pessoa")
+
+    def ids(busca):
+        return [a["id_associado"] for a in client.get("/api/associados/", params={"busca": busca}, headers=auth_headers).json()]
+
+    meio = alvo["cpf"][3:6]
+    # letras + os dígitos do meio do CPF dele: não há nome nem e-mail assim, e o CPF NÃO pode casar só pelos dígitos
+    assert ids(f"zzqx-{meio}") == []
+    assert ids(f"zzqx {alvo['cpf']}") == []
+    # o mesmo texto, só numérico (com a pontuação de sempre), continua achando pelo CPF
+    assert alvo["id"] in ids(alvo["cpf"])
+    assert ids(f"{alvo['cpf'][:3]}.{alvo['cpf'][3:6]}.{alvo['cpf'][6:9]}-{alvo['cpf'][9:]}") == [alvo["id"]]
+    # o telefone com pontuação também: todos os criados pelo teste têm o mesmo
+    assert alvo["id"] in ids("(11) 90000-0000")
+    # e o resumo conta do mesmo jeito
+    assert client.get(f"/api/associados/resumo?busca=zzqx-{meio}", headers=auth_headers).json()["total"] == 0

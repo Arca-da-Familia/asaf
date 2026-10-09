@@ -126,7 +126,10 @@ def _associados_filtrados(db: Session, busca: Optional[str] = None, situacao: Op
         consulta = consulta.filter(Associado.categoria == categoria)
     texto = (busca or "").strip()
     if texto:
-        digitos = "".join(c for c in texto if c.isdigit())
+        # só um texto com cara de número (CPF ou telefone, com ou sem pontuação) vira busca pelos dígitos: com letras junto ("Maria 2", um trecho de e-mail) os dígitos
+        # soltos casariam com o CPF ou o telefone de qualquer pessoa
+        so_numero = re.fullmatch(r"[\d\s.\-/()+]+", texto) is not None
+        digitos = "".join(c for c in texto if c.isdigit()) if so_numero else ""
         condicoes = [Pessoa.nome_completo.ilike(f"%{texto}%"), Pessoa.email_contato.ilike(f"%{texto}%")]
         if digitos:
             condicoes.append(Pessoa.cpf.contains(digitos))
