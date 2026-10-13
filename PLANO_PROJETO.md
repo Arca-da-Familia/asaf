@@ -1855,8 +1855,28 @@ Dividida em quatro partes (decisão do Presidente, 2026-10-09: "parte a parte");
       constam no `openapi.json`; `POST /api/publico/atendimentos` com corpo incompleto dá 422 (nada gravado: **produção não recebeu pedido de teste**); `/seja-voluntario/` tem o formulário e
       já não diz que a escala usa o cadastro de associados; a Política mostra a versão 1.5. **Limite conhecido:** a autocandidatura a vaga e "minha escala" no painel continuam por
       associado (quem tem login é associado); o voluntário não associado é escalado pela equipe.
-- [ ] **v5.5c — Inscrição em evento pelo site** (a API já tem formulário, perguntas, consentimento, lista de espera e cancelamento por código): o formulário na página do evento, a página
-      `/cancelar-inscricao` (hoje o e-mail de confirmação aponta para um endereço que não existe) e a de confirmar a vaga da lista de espera.
+- [x] **v5.5c — Inscrição em evento pelo site** (a API já tinha formulário, perguntas, consentimento, lista de espera e cancelamento por código; faltava o site).
+      **O que existe:** na página do evento **gratuito**, ainda não encerrado e sem pergunta de arquivo, o **formulário de inscrição** (as perguntas do evento, o texto do consentimento
+      sempre lido da API, CPF validado, até 10 pessoas na mesma inscrição); ao enviar, a própria tela mostra o **código de check-in**, a situação de cada pessoa (vaga reservada ou lista de
+      espera) e o **link para cancelar**; os e-mails de inscrição e de promoção da fila trazem os links certos (`/cancelar-inscricao/?token=` e `/confirmar-inscricao/?token=`, antes o e-mail
+      apontava para um endereço que não existia); as duas páginas novas ficam fora do Google (`noindex`, fora do sitemap), pedem confirmação em dois passos para cancelar e dão mensagem
+      clara para link inválido; `GET /api/publico/inscricoes/{token}` devolve o resumo sem dado pessoal (limite 30 a cada 10 min por IP); evento que já aconteceu recusa inscrição (400);
+      evento com valor ou com pergunta de arquivo continua "com a secretaria". **Falha antiga fechada:** quem estava na lista de espera conseguia se confirmar sozinha pelo link e furar a
+      fila; agora a API recusa (400) e a página diz que ainda está na fila. **Política de Privacidade 1.6:** descreve a inscrição em evento pelo site. O endereço do site nos e-mails vem de
+      `URL_BASE_SITE_PUBLICO` (configuração, depois variável de ambiente, depois `https://asaf.org.br`; a homologação define a dela no `deploy-homologacao.yml`). **Testes:** servidor 1111 de
+      1111 (duas rodadas completas; 9 novos em `tests/test_inscricao_no_site.py`), site 457 unitários e 521 de navegador, 46 páginas no `build:teste`. **Na homologação (2026-10-13):**
+      `v5.5c-01` 1 de 1 (cria pelo sistema de teste um evento público gratuito de 2 vagas com duas perguntas e um evento com valor) e, depois de publicar a homologação de novo, `v5.5c-02`
+      7 de 7 (o formulário aparece com as perguntas e o consentimento idêntico ao da API e recusa o que falta e CPF que não confere; o evento com valor não tem formulário; uma pessoa se
+      inscreve e vê vaga reservada, código e link; duas pessoas juntas: uma fica com a vaga e a outra na lista de espera, e o evento passa a dizer que as vagas acabaram; a da fila não se
+      confirma sozinha; quem cancela pelo link libera a vaga, a fila anda e a promovida confirma e vê o código; link inventado dá mensagem clara e as duas páginas ficam fora do Google; a
+      Auditoria guardou exatamente 3 inscrições, 1 cancelamento e 1 confirmação pelo link). Regressão: `v5.4f-02` 16, `v5.4f-03` 16, `v5.5a-02` 7, `v5.5a-01` 6, `v5.4g-01` 5,
+      `v5.4c-fase0` 6, `v5.4h-10` 5. **Achados, corrigidos:** (1) a falha da fila acima, achada ao escrever o servidor (com teste que reprova sem a correção); (2) o auxiliar de print do robô
+      contava como "Carregando" um aviso já escondido (`hidden`) do consentimento e reprovava o primeiro teste: era do roteiro, não do site (agora só conta o que está visível);
+      (3) o roteiro da v5.5a-01 passou a aceitar qualquer versão da Política. **Em produção (2026-10-13):** commit `f47c6d9` no `version.json` do site (o painel segue em `465d6e3`: a
+      mudança não tocou o painel, só os roteiros do robô); Deploy API e Deploy Site verdes (sem migração); `GET /api/publico/inscricoes/codigo-inexistente` dá 404 com a mensagem
+      "Link inválido"; as três rotas novas constam no `openapi.json`; `/cancelar-inscricao/` e `/confirmar-inscricao/` respondem 200, com `noindex, nofollow` e fora do `sitemap`; a Política
+      mostra a versão 1.6 com o parágrafo da inscrição em evento; `GET /api/publico/eventos` está vazio e `/eventos/999999/` dá 404 (**produção não recebeu inscrição de teste**).
+      **Limite conhecido:** o link de cancelar vale para quem o tem (vem na tela e no e-mail da inscrição).
 - [ ] **v5.5d — Status do evento** — Programado / **Cancelado** / Adiado / Realizado, com motivo — no sistema, no painel e no site (`schema.org eventStatus`), no lugar do paliativo
       "voltar a Interna". "Módulo de eventos" do usuário: este é o ponto de entrada dele.
 
