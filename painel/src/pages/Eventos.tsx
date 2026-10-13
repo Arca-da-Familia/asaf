@@ -6,6 +6,10 @@ import { z } from 'zod'
 
 import { ContextoDoEvento } from '@/components/eventos/ContextoDoEvento'
 import { EditarEvento } from '@/components/eventos/EditarEvento'
+import {
+  SeloDoStatusDoEvento,
+  StatusDoEvento,
+} from '@/components/eventos/StatusDoEvento'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { InscreverAssociadoNoEvento } from '@/components/eventos/InscreverAssociadoNoEvento'
@@ -2296,6 +2300,7 @@ function DetalheEvento({ evento }: { evento: Evento }) {
           {evento.vagas != null &&
             ` · ${evento.vagas_ocupadas}/${evento.vagas} vaga(s) ocupada(s) (${evento.vagas_livres} livre(s))`}
         </p>
+        <StatusDoEvento evento={evento} podeAlterar={podeEditar} />
         {podeEditar &&
           (editando ? (
             <EditarEvento evento={evento} onFechar={() => setEditando(false)} />
@@ -2395,7 +2400,12 @@ export function EventosPage() {
                     nº {e.id_evento}
                   </span>
                 </p>
-                <span className="text-muted-foreground">{e.visibilidade}</span>
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  {e.status !== 'Programado' && (
+                    <SeloDoStatusDoEvento status={e.status} />
+                  )}
+                  {e.visibilidade}
+                </span>
               </div>
               <p className="text-muted-foreground">
                 {formatarData(e.data_hora_inicio, { comHora: true })} ·{' '}

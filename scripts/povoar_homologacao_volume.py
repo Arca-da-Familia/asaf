@@ -325,7 +325,32 @@ def povoar(client, db, escrever=print) -> dict:
                     "telefone": f"9196{k}{p:02d}{(p * 13) % 1000:03d}"[:11], "consentimento_lgpd": True, "versao_texto_consentimento": "1",
                 })
                 total += 1
-        return f"3 projetos com cronograma e 3 eventos com {total} inscrições"
+        # v5.5d - um evento em cada situação, para a tela e o site mostrarem cancelado, adiado, remarcado e realizado (com inscritos nos que ainda recebem aviso)
+        for k, (titulo_evento, dias_ate, situacao, motivo, inscritos) in enumerate((
+            ("Encontro de teste cancelado", 12, "Cancelado", "Salão indisponível no dia (evento de teste)", 3),
+            ("Retiro de teste adiado", 25, "Adiado", "Aguardando a liberação do espaço (evento de teste)", 2),
+            ("Culto de teste remarcado", 8, "Remarcado", "Mudança de data a pedido da igreja anfitriã (evento de teste)", 2),
+            ("Confraternização de teste já realizada", -6, "Realizado", None, 0),
+        ), start=3):
+            inicio = (hoje + timedelta(days=dias_ate)).replace(hour=19, minute=0, second=0, microsecond=0)
+            id_evento = ok(client.post("/api/eventos/", headers=adm, json={
+                "titulo": titulo_evento, "categoria": "PALESTRA", "visibilidade": "Pública", "vagas": 12, "data_hora_inicio": inicio.strftime(ISO),
+                "data_hora_fim": (inicio + timedelta(hours=3)).strftime(ISO),
+            })).json()["id_evento"]
+            for p in range(inscritos):
+                client.post(f"/api/publico/eventos/{id_evento}/inscrever-se", headers={"X-Forwarded-For": f"203.0.113.{uuid.uuid4().hex}"}, json={
+                    "nome_completo": f"Participante {p + 1} do evento {k + 1} de Teste", "cpf": ph.cpf_valido(777000000 + k * 1000 + p * 31),
+                    "email": f"participante{k}{p}@{ph.SUFIXO_EMAIL}", "telefone": f"9196{k}{p:02d}{(p * 13) % 1000:03d}"[:11],
+                    "consentimento_lgpd": True, "versao_texto_consentimento": "1",
+                })
+                total += 1
+            if situacao == "Remarcado":
+                ok(client.post(f"/api/eventos/{id_evento}/status", headers=adm, json={
+                    "status": "Programado", "motivo": motivo, "nova_data_hora_inicio": (inicio + timedelta(days=14)).strftime(ISO),
+                }))
+            else:
+                ok(client.post(f"/api/eventos/{id_evento}/status", headers=adm, json={"status": situacao, "motivo": motivo}))
+        return f"3 projetos com cronograma e 7 eventos (3 de pé, 1 cancelado, 1 adiado, 1 remarcado e 1 realizado) com {total} inscrições"
 
     roteiro.area("Projetos e eventos", projetos_e_eventos)
 

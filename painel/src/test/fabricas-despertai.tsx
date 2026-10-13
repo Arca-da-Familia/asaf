@@ -47,6 +47,10 @@ export function evento(sobrescrever: Partial<Evento> = {}): Evento {
     visibilidade: 'Pública',
     id_edicao_anterior: null,
     id_projeto: 3,
+    status: 'Programado',
+    motivo_status: null,
+    status_alterado_em: null,
+    data_hora_inicio_anterior: null,
     ...sobrescrever,
   }
 }

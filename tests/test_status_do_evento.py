@@ -189,10 +189,8 @@ def test_remarcar_guarda_a_data_de_antes_leva_a_programacao_e_avisa(client, auth
     assert _mudar(client, auth_headers, id_evento, "Adiado", motivo="Aguardando a liberação do espaço").status_code == 200
     emails.clear()
 
-    # adiado só volta com a data nova; data nova no passado ou igual à atual é recusada
-    assert _mudar(client, auth_headers, id_evento, "Programado").status_code == 422
+    # data nova no passado, ou com fim antes do início, é recusada
     assert _mudar(client, auth_headers, id_evento, "Programado", nova_data_hora_inicio=(datetime.utcnow() - timedelta(days=1)).strftime(_ISO)).status_code == 422
-    assert _mudar(client, auth_headers, id_evento, "Programado", nova_data_hora_inicio=inicio.strftime(_ISO)).status_code == 422
     assert _mudar(client, auth_headers, id_evento, "Programado", nova_data_hora_inicio=(inicio + timedelta(days=30)).strftime(_ISO), nova_data_hora_fim=(inicio + timedelta(days=20)).strftime(_ISO)).status_code == 422
     assert _mudar(client, auth_headers, id_evento, "Adiado", nova_data_hora_inicio=(inicio + timedelta(days=30)).strftime(_ISO), motivo="Motivo de teste").status_code == 400
 
@@ -209,6 +207,34 @@ def test_remarcar_guarda_a_data_de_antes_leva_a_programacao_e_avisa(client, auth
     assert publico["status"] == "Programado" and publico["motivo_status"] == "Espaço liberado" and publico["data_hora_inicio_anterior"].startswith(inicio.strftime("%Y-%m-%dT%H:%M"))
     assert len(emails) == 1 and emails[0][0] == "remarca@exemplo.org" and "REMARCADO" in emails[0][2]
     assert nova.strftime("%d/%m/%Y") in emails[0][2] and inicio.strftime("%d/%m/%Y") in emails[0][2]
+
+
+def test_adiado_volta_para_a_data_original_enquanto_ela_ainda_e_futura(client, auth_headers, monkeypatch, db):
+    emails = _emails(monkeypatch)
+    inicio = (datetime.utcnow() + timedelta(days=10)).replace(microsecond=0)
+    for informando_a_mesma_data in (False, True):
+        id_evento = _criar_evento_publico(client, auth_headers, data_hora_inicio=inicio.strftime(_ISO))
+        assert _inscrever(client, id_evento, email=f"mesma.data.{informando_a_mesma_data}@exemplo.org").status_code == 200
+        assert _mudar(client, auth_headers, id_evento, "Adiado", motivo="Aguardando a liberação do espaço").status_code == 200
+        emails.clear()
+        campos = {"nova_data_hora_inicio": inicio.strftime(_ISO)} if informando_a_mesma_data else {}
+        r = _mudar(client, auth_headers, id_evento, "Programado", **campos)
+        assert r.status_code == 200, r.text
+        evento = _no_banco(db, id_evento)
+        assert evento.status == "Programado" and evento.data_hora_inicio == inicio and evento.data_hora_inicio_anterior is None, "voltar na mesma data não é remarcação"
+        assert len(emails) == 1 and "voltou a estar programado" in emails[0][2]
+    # a data original já passou: aí precisa de data nova
+    id_evento = _criar_evento_publico(client, auth_headers, data_hora_inicio=inicio.strftime(_ISO))
+    assert _mudar(client, auth_headers, id_evento, "Adiado", motivo="Aguardando a liberação do espaço").status_code == 200
+    evento = _no_banco(db, id_evento)
+    evento.data_hora_inicio = datetime.utcnow() - timedelta(days=1)
+    db.commit()
+    r = _mudar(client, auth_headers, id_evento, "Programado")
+    assert r.status_code == 422 and "já passou" in r.json()["detail"]
+    # e programado para a mesma data de hoje não é remarcação: recusado
+    outro = _criar_evento_publico(client, auth_headers, data_hora_inicio=inicio.strftime(_ISO))
+    r = _mudar(client, auth_headers, outro, "Programado", nova_data_hora_inicio=inicio.strftime(_ISO))
+    assert r.status_code == 422 and "igual à atual" in r.json()["detail"]
 
 
 def test_remarcar_um_evento_programado_direto_tambem_vale(client, auth_headers, db):

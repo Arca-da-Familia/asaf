@@ -4697,6 +4697,9 @@ export function registrarMinhasHoras(dados: {
 // (programação) e edições recorrentes ligadas entre si (`id_edicao_anterior`). Inscrição
 // reaproveita o motor genérico da v4.0 (contexto "Evento"/"SessaoEvento").
 // ---------------------------------------------------------------------------
+// v5.5d - a situação do evento (sempre preenchida; um evento novo nasce Programado).
+export type StatusDoEvento = 'Programado' | 'Adiado' | 'Cancelado' | 'Realizado'
+
 export type Evento = {
   id_evento: number
   titulo: string
@@ -4715,6 +4718,12 @@ export type Evento = {
   id_edicao_anterior: number | null
   // v5.5 - o projeto a que o evento pertence (ex.: Despertai); nulo = evento sem projeto.
   id_projeto: number | null
+  // v5.5d - a situação do evento e o que a acompanha: o motivo (adiado, cancelado ou remarcado), quando mudou e o começo
+  // de ANTES da última remarcação (nulo se nunca foi remarcado).
+  status: StatusDoEvento
+  motivo_status: string | null
+  status_alterado_em: string | null
+  data_hora_inicio_anterior: string | null
 }
 
 export type SessaoEvento = {
@@ -4770,6 +4779,44 @@ export function editarEvento(
 ): Promise<Evento> {
   return apiFetch(`/api/eventos/${idEvento}`, {
     method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+}
+
+// v5.5d - mudar a situação do evento (adiar, cancelar, remarcar, reativar, marcar como realizado). `motivo` é obrigatório
+// para Adiado e Cancelado; a data nova (UTC) só vale junto de `status: 'Programado'` (remarcar). O servidor decide as
+// regras e responde em português (400/422 em `detail`).
+export type DadosDaMudancaDeStatusDoEvento = {
+  status: StatusDoEvento
+  motivo?: string
+  nova_data_hora_inicio?: string
+  nova_data_hora_fim?: string
+}
+
+// O aviso por e-mail a quem está inscrito: um por ENDEREÇO (família junta recebe um só), em melhor esforço.
+export type AvisosDaMudancaDeStatusDoEvento = {
+  inscricoes_a_avisar: number
+  avisos_enviados: number
+  inscritos_sem_email: number
+  enderecos: number
+}
+
+export type ResultadoDaMudancaDeStatusDoEvento = {
+  mensagem: string
+  evento: Evento
+  // nulo ao marcar como realizado (ninguém é avisado)
+  avisos: AvisosDaMudancaDeStatusDoEvento | null
+  sessoes_deslocadas: number
+  // só vem maior que zero ao cancelar: há inscrição paga neste evento
+  inscricoes_com_cobranca: number
+}
+
+export function alterarStatusDoEvento(
+  idEvento: number,
+  dados: DadosDaMudancaDeStatusDoEvento,
+): Promise<ResultadoDaMudancaDeStatusDoEvento> {
+  return apiFetch(`/api/eventos/${idEvento}/status`, {
+    method: 'POST',
     body: JSON.stringify(dados),
   })
 }

@@ -52,6 +52,10 @@ MOTORISTA = textwrap.dedent(
             "atas_assinadas": contagem("select count(*) from atas where status = 'Assinada'"),
             "projetos": contagem("select count(*) from projetos_eventos"),
             "eventos": contagem("select count(*) from eventos"),
+            "eventos_cancelados": contagem("select count(*) from eventos where status = 'Cancelado' and motivo_status is not null"),
+            "eventos_adiados": contagem("select count(*) from eventos where status = 'Adiado' and motivo_status is not null"),
+            "eventos_remarcados": contagem("select count(*) from eventos where status = 'Programado' and data_hora_inicio_anterior is not null"),
+            "eventos_realizados": contagem("select count(*) from eventos where status = 'Realizado'"),
             "inscricoes": contagem("select count(*) from inscricoes"),
             "reservas": contagem("select count(*) from reservas_espaco"),
             "propostas": contagem("select count(*) from propostas_filiacao"),
@@ -91,7 +95,8 @@ def test_o_que_foi_criado_bate_com_o_prometido(execucao):
     assert r["titulos_pagos"] >= 60 and r["titulos_abertos"] > 20
     assert r["fornecedores"] == 3 and r["doacoes"] == 4
     assert r["atas"] >= 2 and r["atas_assinadas"] >= 1
-    assert r["projetos"] >= 3 + 2 and r["eventos"] >= 3 + 3 and r["inscricoes"] >= 30
+    assert r["projetos"] >= 3 + 2 and r["eventos"] >= 3 + 3 + 4 and r["inscricoes"] >= 30
+    assert (r["eventos_cancelados"], r["eventos_adiados"], r["eventos_remarcados"], r["eventos_realizados"]) == (1, 1, 1, 1), "um evento de teste em cada situação (v5.5d)"
     assert r["reservas"] == 3
     assert r["propostas"] >= 9
 

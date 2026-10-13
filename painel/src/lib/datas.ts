@@ -32,10 +32,15 @@ export function mascaraData(valor: string): string {
 // "YYYY-MM-DDTHH:mm:ss" sem `Z` como hora LOCAL do navegador — uma auditoria feita agora em
 // horário de Brasília aparecia ~3h adiantada (e depois das 21h, no dia seguinte), porque o valor
 // gravado (UTC de verdade) era mostrado sem converter.
-function comoUtc(dataHoraIso: string): string {
+export function comoUtc(dataHoraIso: string): string {
   return /Z$|[+-]\d{2}:?\d{2}$/.test(dataHoraIso)
     ? dataHoraIso
     : `${dataHoraIso}Z`
+}
+
+// v5.5d - o INSTANTE de um datetime que veio da API (ingênuo = UTC), para comparar com "agora" (ex.: o evento já começou?).
+export function paraInstante(dataHoraUtc: string): Date {
+  return new Date(comoUtc(dataHoraUtc))
 }
 
 // v4.10 - inverso de `paraUtcIso`: pré-preencher um <input type="datetime-local"> com um

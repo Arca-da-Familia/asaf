@@ -156,8 +156,8 @@ def alterar_status(
     nova_data_hora_inicio: Optional[datetime] = None, nova_data_hora_fim: Optional[datetime] = None, agora: Optional[datetime] = None,
 ) -> dict:
     """Muda a situação do evento e devolve `{"antes", "depois", "avisos", "inscricoes_com_cobranca", "sessoes_deslocadas"}` (a rota grava na Auditoria). Cancelar e adiar exigem
-    motivo; realizado só depois de o evento começar; voltar a Programado (reativar ou remarcar) pede data nova quando a de antes já passou ou o evento estava adiado, e a
-    programação (sessões) acompanha a data nova."""
+    motivo; realizado só depois de o evento começar; voltar a Programado (reativar, retomar ou remarcar) só pede data nova quando a data do evento já passou, e a programação (sessões)
+    acompanha a data nova."""
     agora = agora or datetime.utcnow()
     if novo_status not in STATUS_DO_EVENTO:
         raise HTTPException(status_code=422, detail=f"Situação inválida: use uma de {', '.join(STATUS_DO_EVENTO)}.")
@@ -189,16 +189,23 @@ def alterar_status(
     inicio_anterior_para_o_aviso: Optional[datetime] = None
     sessoes_deslocadas = 0
     if novo_status == STATUS_EVENTO_PROGRAMADO:
+        if nova_inicio is not None and nova_inicio == evento.data_hora_inicio:
+            if atual == STATUS_EVENTO_PROGRAMADO:
+                raise HTTPException(status_code=422, detail="A nova data é igual à atual: não há o que remarcar.")
+            if nova_inicio <= agora:
+                raise HTTPException(status_code=422, detail="A nova data precisa estar no futuro.")
+            # adiado ou cancelado que volta para a MESMA data (a data original ainda está no futuro): é retomada, não remarcação
+            if nova_fim is not None:
+                if nova_fim <= nova_inicio:
+                    raise HTTPException(status_code=422, detail="O fim do evento precisa ser depois do início.")
+                evento.data_hora_fim = nova_fim
+            nova_inicio = None
         if nova_inicio is None:
-            if atual == STATUS_EVENTO_ADIADO:
-                raise HTTPException(status_code=422, detail="Informe a nova data: um evento adiado só volta a ser programado com a data nova.")
             if evento.data_hora_inicio <= agora:
                 raise HTTPException(status_code=422, detail="A data do evento já passou: informe a nova data.")
         else:
             if nova_inicio <= agora:
                 raise HTTPException(status_code=422, detail="A nova data precisa estar no futuro.")
-            if nova_inicio == evento.data_hora_inicio:
-                raise HTTPException(status_code=422, detail="A nova data é igual à atual: não há o que remarcar.")
             if nova_fim is not None and nova_fim <= nova_inicio:
                 raise HTTPException(status_code=422, detail="O fim do evento precisa ser depois do início.")
             duracao = (evento.data_hora_fim - evento.data_hora_inicio) if evento.data_hora_fim else None
