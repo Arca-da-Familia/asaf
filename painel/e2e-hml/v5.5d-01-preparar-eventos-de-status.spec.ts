@@ -70,8 +70,8 @@ test('o sistema de teste ganha os três eventos de situação e as inscrições 
 
   const idCancelar = await criar(
     `${PREFIXO_CANCELAR} ${S}`,
-    hora(10),
-    hora(10, 2),
+    hora(1),
+    hora(1, 2),
   )
   const idAdiar = await criar(`${PREFIXO_ADIAR} ${S}`, hora(15), hora(15, 2))
   await criar(`${PREFIXO_REALIZAR} ${S}`, hora(-3), hora(-3, 2))

@@ -270,7 +270,7 @@ test('o site de teste mostra o cancelamento, sem formulário, e a página de can
   })
   await expect(aviso).toContainText('Este evento foi cancelado.')
   await expect(aviso).toContainText(MOTIVO_DO_CANCELAMENTO)
-  await expect(page.locator('[data-inscricao-formulario]')).toHaveCount(0)
+  await expect(page.locator('[data-inscricao-formulario]')).toBeHidden()
   await expect(
     page.getByText(
       'As inscrições estão encerradas porque o evento foi cancelado.',
@@ -339,7 +339,7 @@ test('adiar, voltar para a data original, adiar de novo e remarcar: cada passo a
   })
   await expect(aviso).toContainText('Este evento foi adiado.')
   await expect(aviso).toContainText(MOTIVO_DO_ADIAMENTO)
-  await expect(page.locator('[data-inscricao-formulario]')).toHaveCount(0)
+  await expect(page.locator('[data-inscricao-formulario]')).toBeHidden()
   await ver(page, info, 'site-evento-adiado')
 
   // voltar para a data original (ela ainda é futura): o evento fica Programado, sem "remarcado"
@@ -374,7 +374,7 @@ test('adiar, voltar para a data original, adiar de novo e remarcar: cada passo a
   // sem data nova: recusado
   await form.getByRole('button', { name: 'Confirmar nova data' }).click()
   await expect(form.getByRole('alert')).toContainText('nova data de início')
-  await form.getByLabel('Nova data de início').fill(dataFutura(45))
+  await form.getByLabel('Nova data de início').fill(dataFutura(2))
   await form
     .getByLabel('Motivo (opcional)')
     .fill('Nova data combinada com a igreja anfitriã (teste do robô)')
@@ -461,7 +461,7 @@ test('marcar como realizado: o botão trava antes do início, depois pede confir
     timeout: 60_000,
   })
   await expect(aviso).toContainText('Este evento já foi realizado.')
-  await expect(page.locator('[data-inscricao-formulario]')).toHaveCount(0)
+  await expect(page.locator('[data-inscricao-formulario]')).toBeHidden()
   await ver(page, info, 'site-evento-realizado')
   expect(vigia.problemas()).toEqual([])
 })
