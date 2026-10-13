@@ -9,6 +9,8 @@ interface Props {
   titulo?: string
   /** Ids com página própria no site publicado: só esses viram link (senão seria um 404). */
   idsComPagina?: number[]
+  /** A Home não anuncia evento cancelado (v5.5d); a agenda completa o mostra, com o selo "Cancelado". */
+  semCancelados?: boolean
 }
 
 const {
@@ -16,6 +18,7 @@ const {
   id = 'eventos',
   titulo = 'Próximos eventos',
   idsComPagina = [],
+  semCancelados = false,
 } = Astro.props
 ---
 
@@ -36,6 +39,7 @@ const {
     data-modo={modo}
     data-api-url={API_URL}
     data-ids-com-pagina={idsComPagina.join(',')}
+    data-sem-cancelados={semCancelados ? '' : undefined}
     aria-live="polite"
     aria-busy="true"
     class="mt-6"

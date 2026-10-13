@@ -88,16 +88,40 @@ export function normalizarProjeto(projeto) {
 export function normalizarProjetoDetalhado(detalhe) {
   return {
     ...normalizarProjeto(detalhe),
-    eventos: lista(detalhe.eventos),
+    eventos: lista(detalhe.eventos).map(normalizarResumoDeEvento),
     documentos: lista(detalhe.documentos),
     fotos: lista(detalhe.fotos),
   }
 }
 
-/** Evento da lista: sem `id_projeto` (API antiga) = sem projeto. */
+/** Situações que o sistema conhece (v5.5d). O que não for uma delas (ou vier ausente, de uma API antiga) vale `Programado`. */
+const STATUS_DO_EVENTO = ['Programado', 'Adiado', 'Cancelado', 'Realizado']
+
+const statusDoEvento = (valor) =>
+  STATUS_DO_EVENTO.includes(valor) ? valor : 'Programado'
+
+const textoOuNulo = (valor) =>
+  typeof valor === 'string' && valor.trim() !== '' ? valor.trim() : null
+
+/**
+ * Evento da lista: sem `id_projeto` (API antiga) = sem projeto. v5.5d: a situação do evento (`status`, o `motivo_status` e o começo de antes da remarcação,
+ * `data_hora_inicio_anterior`) — API antiga, sem esses campos = evento `Programado`, sem motivo e nunca remarcado.
+ */
 export function normalizarEvento(evento) {
-  return { ...evento, id_projeto: evento.id_projeto ?? null }
+  return {
+    ...evento,
+    id_projeto: evento.id_projeto ?? null,
+    status: statusDoEvento(evento.status),
+    motivo_status: textoOuNulo(evento.motivo_status),
+    data_hora_inicio_anterior: textoOuNulo(evento.data_hora_inicio_anterior),
+  }
 }
+
+/** Evento nas listas de contexto (edições do projeto, cadeia de edições): só traz o `status` (API antiga = `Programado`). */
+const normalizarResumoDeEvento = (resumo) => ({
+  ...resumo,
+  status: statusDoEvento(resumo.status),
+})
 
 /** Detalhe do evento: projeto ausente = null; sessões, perguntas, edições, documentos e fotos ausentes = lista vazia. */
 export function normalizarEventoDetalhado(detalhe) {
@@ -106,7 +130,7 @@ export function normalizarEventoDetalhado(detalhe) {
     sessoes: lista(detalhe.sessoes),
     perguntas: lista(detalhe.perguntas),
     projeto: detalhe.projeto ?? null,
-    edicoes: lista(detalhe.edicoes),
+    edicoes: lista(detalhe.edicoes).map(normalizarResumoDeEvento),
     documentos: lista(detalhe.documentos),
     fotos: lista(detalhe.fotos),
   }

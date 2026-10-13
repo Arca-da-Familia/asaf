@@ -75,6 +75,10 @@ function eventos() {
     gratuito: true,
     data_hora_fim: null,
     id_projeto: null,
+    // v5.5d - a situação do evento: todo evento é "Programado", sem motivo e nunca remarcado, salvo os de teste da situação (10 a 13).
+    status: 'Programado',
+    motivo_status: null,
+    data_hora_inicio_anterior: null,
   }
   return [
     {
@@ -158,6 +162,64 @@ function eventos() {
       titulo: 'Evento de teste — pede um arquivo',
       data_hora_inicio: dataLocal(40),
     },
+    // v5.5d - a SITUAÇÃO do evento. Os quatro são do projeto 1 (reforço escolar) e edições da mesma série (a cadeia 10..13): cada página mostra os outros três em
+    // "Outras edições", com o selo. Ficam depois dos seis eventos que a Home mostra (ela mostra seis), de propósito: os testes que precisam deles na lista pedem a lista
+    // à API e ficam só com estes (id 10 a 13).
+    //   10: cancelado, com motivo. 11: adiado, com motivo (a data é a original). 12: remarcado (programado, com a data de antes e um motivo), com duas sessões.
+    //   13: realizado (já aconteceu).
+    {
+      ...base,
+      id_evento: 10,
+      id_projeto: 1,
+      titulo: 'Evento de teste — cancelado',
+      descricao: 'Descrição de teste do evento cancelado.',
+      endereco_avulso: 'Salão de teste, Parauapebas',
+      status: 'Cancelado',
+      motivo_status: 'O local ficou indisponível por causa da chuva.',
+      vagas: 25,
+      vagas_livres: 25,
+      data_hora_inicio: dataLocal(60),
+      data_hora_fim: dataLocal(60, 21),
+    },
+    {
+      ...base,
+      id_evento: 11,
+      id_projeto: 1,
+      titulo: 'Evento de teste — adiado',
+      descricao: 'Descrição de teste do evento adiado.',
+      status: 'Adiado',
+      motivo_status:
+        'Estamos aguardando a liberação do espaço pela prefeitura.',
+      vagas: 20,
+      vagas_livres: 20,
+      data_hora_inicio: dataLocal(62),
+      data_hora_fim: dataLocal(62, 21),
+    },
+    {
+      ...base,
+      id_evento: 12,
+      id_projeto: 1,
+      titulo: 'Evento de teste — remarcado',
+      descricao: 'Descrição de teste do evento remarcado.',
+      endereco_avulso: 'Quadra de teste, Parauapebas',
+      status: 'Programado',
+      motivo_status: 'O espaço estava ocupado na data original.',
+      data_hora_inicio_anterior: dataLocal(50),
+      vagas: 15,
+      vagas_livres: 9,
+      data_hora_inicio: dataLocal(64),
+      data_hora_fim: dataLocal(64, 21),
+    },
+    {
+      ...base,
+      id_evento: 13,
+      id_projeto: 1,
+      titulo: 'Evento de teste — realizado',
+      descricao: 'Descrição de teste do evento realizado.',
+      status: 'Realizado',
+      data_hora_inicio: dataLocal(-120),
+      data_hora_fim: dataLocal(-120, 21),
+    },
   ]
 }
 
@@ -183,6 +245,31 @@ function sessoesDoEvento(id) {
         descricao: null,
         data_hora_inicio: dataLocal(7, 20),
         data_hora_fim: dataLocal(7, 21),
+        vagas: null,
+        vagas_ocupadas: 0,
+        vagas_livres: null,
+      },
+    ]
+  if (id === 12)
+    return [
+      {
+        id_sessao: 121,
+        id_evento: 12,
+        titulo: 'Abertura do evento remarcado',
+        descricao: null,
+        data_hora_inicio: dataLocal(64, 19),
+        data_hora_fim: dataLocal(64, 20),
+        vagas: null,
+        vagas_ocupadas: 0,
+        vagas_livres: null,
+      },
+      {
+        id_sessao: 122,
+        id_evento: 12,
+        titulo: 'Encerramento do evento remarcado',
+        descricao: null,
+        data_hora_inicio: dataLocal(64, 20),
+        data_hora_fim: dataLocal(64, 21),
         vagas: null,
         vagas_ocupadas: 0,
         vagas_livres: null,
@@ -264,10 +351,20 @@ const resumoDoEvento = (e) => ({
   data_hora_inicio: e.data_hora_inicio,
   data_hora_fim: e.data_hora_fim,
   endereco_avulso: e.endereco_avulso,
+  status: e.status,
 })
 
-/** Cadeia de edições (nova-edicao): as duas edições do projeto principal. Evento sem cadeia = só ele mesmo. */
-const CADEIA_DE_EDICOES = { 4: [4, 5], 5: [4, 5] }
+/**
+ * Cadeia de edições (nova-edicao): as duas edições do projeto principal e (v5.5d) as quatro do evento em cada situação. Evento sem cadeia = só ele mesmo.
+ */
+const CADEIA_DE_EDICOES = {
+  4: [4, 5],
+  5: [4, 5],
+  10: [10, 11, 12, 13],
+  11: [10, 11, 12, 13],
+  12: [10, 11, 12, 13],
+  13: [10, 11, 12, 13],
+}
 
 /** Foto na forma pública (campos explícitos; a galeria do projeto acrescenta `id_evento`). */
 const fotoPublica = (f) => ({
@@ -946,8 +1043,22 @@ function fotoWebp() {
 
 /** Campos que a API (v5.5) acrescentou: a API ANTIGA não os tem. */
 const CAMPOS_NOVOS = {
-  eventoDaLista: ['id_projeto'],
-  eventoDetalhado: ['id_projeto', 'projeto', 'edicoes', 'documentos', 'fotos'],
+  eventoDaLista: [
+    'id_projeto',
+    'status',
+    'motivo_status',
+    'data_hora_inicio_anterior',
+  ],
+  eventoDetalhado: [
+    'id_projeto',
+    'projeto',
+    'edicoes',
+    'documentos',
+    'fotos',
+    'status',
+    'motivo_status',
+    'data_hora_inicio_anterior',
+  ],
   projetoDaLista: ['destaque'],
   projetoDetalhado: ['destaque', 'eventos', 'documentos', 'fotos'],
   documento: ['vinculo_tipo', 'vinculo_id'],
@@ -1049,6 +1160,13 @@ export const RECUSA_DE_INSCRICAO_REPETIDA =
   "Esta pessoa já está inscrita neste contexto (status 'Pré-inscrito')."
 export const RECUSA_DE_EVENTO_ENCERRADO =
   'As inscrições deste evento já foram encerradas: o evento já aconteceu.'
+/** As recusas do servidor (app/services/status_do_evento.py) a quem tenta se inscrever em evento cancelado, adiado ou realizado. */
+export const RECUSAS_POR_SITUACAO = {
+  Cancelado: 'Este evento foi cancelado: não recebe inscrições.',
+  Adiado:
+    'Este evento foi adiado: as inscrições reabrem quando a nova data for definida.',
+  Realizado: 'Este evento já foi realizado: as inscrições estão encerradas.',
+}
 export const RECUSA_DE_CONSENTIMENTO_NOVO =
   'O texto de consentimento LGPD foi atualizado - recarregue a página e aceite a versão atual.'
 export const NOME_QUE_VAI_PARA_A_LISTA_DE_ESPERA = 'Teste Lista De Espera'
@@ -1097,6 +1215,17 @@ const INSCRICOES_FIXAS = {
     codigo: 'F6A7B8C9',
     falhaAoAgir: 429,
   },
+  // v5.5d - quem abre o link de um evento cancelado (vaga reservada, ainda sem confirmar) ou adiado (vaga confirmada)
+  'fixo-evento-cancelado': {
+    status: 'Pré-inscrito',
+    idEvento: 10,
+    codigo: 'A7B8C9D0',
+  },
+  'fixo-evento-adiado': {
+    status: 'Confirmado',
+    idEvento: 11,
+    codigo: 'B8C9D0E1',
+  },
   'fixo-limite-de-consultas': { consulta: 429 },
   'fixo-erro-de-servidor': { consulta: 500 },
 }
@@ -1137,6 +1266,9 @@ function resumoDaInscricao(inscricao) {
       data_hora_inicio: evento.data_hora_inicio,
       data_hora_fim: evento.data_hora_fim,
       endereco_avulso: evento.endereco_avulso,
+      // v5.5d - quem abre o link de um evento cancelado ou adiado precisa ver isso antes de qualquer coisa
+      status: evento.status,
+      motivo_status: evento.motivo_status,
     },
     sessao: sessao
       ? { titulo: sessao.titulo, data_hora_inicio: sessao.data_hora_inicio }
@@ -1148,7 +1280,11 @@ function resumoDaInscricao(inscricao) {
       ['Pré-inscrito', 'Confirmado', 'Lista de Espera'].includes(
         inscricao.status,
       ) && !acabou,
-    pode_confirmar: inscricao.status === 'Pré-inscrito' && !acabou,
+    // como o servidor: em evento cancelado não há o que confirmar (o cancelar continua)
+    pode_confirmar:
+      inscricao.status === 'Pré-inscrito' &&
+      !acabou &&
+      evento.status !== 'Cancelado',
   }
 }
 
@@ -1179,6 +1315,8 @@ function inscreverNoEvento(idEvento, corpo) {
     return [429, { detail: RECUSA_DE_LIMITE }]
   if (corpo.nome_completo === NOME_QUE_DERRUBA_O_ATENDIMENTO)
     return [500, { detail: 'Erro interno do servidor.' }]
+  if (RECUSAS_POR_SITUACAO[evento.status])
+    return [400, { detail: RECUSAS_POR_SITUACAO[evento.status] }]
   if (encerrado(evento)) return [400, { detail: RECUSA_DE_EVENTO_ENCERRADO }]
   if (corpo.versao_texto_consentimento !== VERSAO_DO_CONSENTIMENTO_DE_EVENTO)
     return [422, { detail: RECUSA_DE_CONSENTIMENTO_NOVO }]

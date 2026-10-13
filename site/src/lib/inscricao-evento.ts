@@ -692,12 +692,18 @@ export function aplicarVagasAoVivo(raiz: HTMLElement, vivo: VagasAoVivo): void {
   atualizarAvisoDeVagas(secao)
 }
 
-/** O formulário some (evento que já aconteceu, ou retirado da programação) — salvo se a pessoa já acabou de se inscrever: aí a tela dela fica. */
+/** O formulário some (evento que já aconteceu, foi cancelado, adiado ou retirado da programação) — salvo se a pessoa já acabou de se inscrever: aí a tela dela fica. */
 export function esconderComoParticipar(raiz: HTMLElement): void {
   const bloco = raiz.querySelector<HTMLElement>('[data-como-participar]')
   if (!bloco) return
   if (bloco.querySelector('[data-inscricao-formulario][data-concluida]')) return
   bloco.hidden = true
+}
+
+/** O contrário: o evento voltou a receber inscrição (foi reativado ou remarcado) e o bloco "Como participar", que o build deixou escondido, volta. */
+export function mostrarComoParticipar(raiz: HTMLElement): void {
+  const bloco = raiz.querySelector<HTMLElement>('[data-como-participar]')
+  if (bloco) bloco.hidden = false
 }
 
 function criar<K extends keyof HTMLElementTagNameMap>(

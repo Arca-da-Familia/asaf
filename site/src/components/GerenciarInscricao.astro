@@ -69,6 +69,14 @@ const linha = 'grid gap-1 sm:grid-cols-[12rem_1fr] sm:gap-4'
   </div>
 
   <div data-estado="resumo" hidden class="grid gap-6">
+    <!--
+      v5.5d: o evento foi cancelado ou adiado. O aviso vem ANTES de tudo (a pessoa abriu o link do e-mail para saber da inscrição) e o texto, com o motivo, é
+      escrito pela ilha como TEXTO. As cores do aviso mudam com a situação (lib/situacao-do-evento.ts); o que vale é a frase.
+    -->
+    <div data-aviso-do-evento role="status" hidden>
+      <p data-aviso-do-evento-texto class="text-lg font-bold"></p>
+    </div>
+
     <div
       data-resultado-da-acao
       role="status"

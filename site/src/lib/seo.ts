@@ -1,5 +1,6 @@
 import { LOGO, ORGANIZACAO, SITE_URL } from '../config/organizacao'
 import { comFusoDaAsaf } from './datas'
+import { situacaoDoEvento, type CamposDaSituacao } from './situacao-do-evento'
 
 /**
  * SEO técnico (v5.0): título, URL canônica e dados estruturados schema.org.
@@ -118,7 +119,7 @@ export function jsonLdMigalhas(trilha: MigalhaParaJsonLd[]) {
   }
 }
 
-export interface EventoParaJsonLd {
+export interface EventoParaJsonLd extends CamposDaSituacao {
   id_evento: number
   titulo: string
   descricao: string | null
@@ -126,6 +127,28 @@ export interface EventoParaJsonLd {
   data_hora_fim: string | null
   endereco_avulso: string | null
   gratuito: boolean
+}
+
+/**
+ * Situação do evento em schema.org (v5.5d): é o que o Google usa para riscar o evento cancelado e avisar do adiado ou remarcado, em vez de seguir anunciando a
+ * data de antes. Segue o guia do Google: cancelado e adiado mantêm `startDate` (a data original); remarcado traz a data NOVA em `startDate` e a de antes em
+ * `previousStartDate`. Programado e realizado ficam como `EventScheduled`.
+ */
+function situacaoParaJsonLd(evento: EventoParaJsonLd): {
+  eventStatus: string
+  previousStartDate?: string
+} {
+  const { status, remarcado, inicioAnterior } = situacaoDoEvento(evento)
+  if (status === 'Cancelado')
+    return { eventStatus: 'https://schema.org/EventCancelled' }
+  if (status === 'Adiado')
+    return { eventStatus: 'https://schema.org/EventPostponed' }
+  if (remarcado && inicioAnterior)
+    return {
+      eventStatus: 'https://schema.org/EventRescheduled',
+      previousStartDate: comFusoDaAsaf(inicioAnterior),
+    }
+  return { eventStatus: 'https://schema.org/EventScheduled' }
 }
 
 /**
@@ -151,7 +174,7 @@ export function jsonLdEvento(evento: EventoParaJsonLd, urlPagina: string) {
     ...(evento.data_hora_fim
       ? { endDate: comFusoDaAsaf(evento.data_hora_fim) }
       : {}),
-    eventStatus: 'https://schema.org/EventScheduled',
+    ...situacaoParaJsonLd(evento),
     isAccessibleForFree: evento.gratuito,
     url: urlPagina,
     ...(localProprio

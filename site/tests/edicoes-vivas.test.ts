@@ -93,3 +93,73 @@ describe('mostrarSoAProximaEdicao', () => {
     ).not.toThrow()
   })
 })
+
+// v5.5d — a situação do evento (`data-status-do-evento`) manda mais que o relógio
+describe('a situação do evento nas edições', () => {
+  const item = (status: string | null, fim: string) =>
+    `<li data-edicao data-fim="${fim}" ${status ? `data-status-do-evento="${status}"` : ''}><span data-realizado hidden>Já realizado</span></li>`
+  const marcas = (raiz: HTMLElement) =>
+    [...raiz.querySelectorAll<HTMLElement>('[data-realizado]')].map(
+      (m) => m.hidden,
+    )
+
+  it('"Já realizado" é só do evento programado: o cancelado e o adiado NÃO aconteceram, e o realizado já tem o selo escrito', () => {
+    const raiz = pagina(
+      `<ul>
+        ${item('Programado', '2025-10-10T21:00:00')}
+        ${item('Cancelado', '2025-10-10T21:00:00')}
+        ${item('Adiado', '2025-10-10T21:00:00')}
+        ${item('Realizado', '2025-10-10T21:00:00')}
+        ${item(null, '2025-10-10T21:00:00')}
+      </ul>`,
+    )
+    marcarEdicoesRealizadas(raiz, AGORA)
+    expect(marcas(raiz)).toEqual([false, true, true, true, false])
+  })
+
+  const bloco = (itens: Array<[string, string]>) =>
+    pagina(
+      `<div data-proximas-edicoes>${itens
+        .map(
+          ([status, fim], i) =>
+            `<p data-proxima-edicao data-fim="${fim}" data-status-do-evento="${status}" ${i > 0 ? 'hidden' : ''}>edição ${i}</p>`,
+        )
+        .join('')}</div>`,
+    )
+  const escondidos = (raiz: HTMLElement) =>
+    [...raiz.querySelectorAll<HTMLElement>('[data-proxima-edicao]')].map(
+      (p) => p.hidden,
+    )
+
+  it('a edição ADIADA continua sendo a próxima mesmo com a data original no passado (ela não tem data nova)', () => {
+    const raiz = bloco([
+      ['Adiado', '2026-10-01T21:00:00'],
+      ['Programado', '2026-11-20T21:00:00'],
+    ])
+    mostrarSoAProximaEdicao(raiz, AGORA)
+    expect(escondidos(raiz)).toEqual([false, true])
+    expect(
+      raiz.querySelector<HTMLElement>('[data-proximas-edicoes]')!.hidden,
+    ).toBe(false)
+  })
+
+  it('cancelada e realizada nunca são "a próxima": a seguinte ocupa o lugar; se só há essas, o bloco some', () => {
+    const outra = bloco([
+      ['Cancelado', '2026-11-01T21:00:00'],
+      ['Realizado', '2026-11-02T21:00:00'],
+      ['Programado', '2026-11-20T21:00:00'],
+    ])
+    mostrarSoAProximaEdicao(outra, AGORA)
+    expect(escondidos(outra)).toEqual([true, true, false])
+
+    const so = bloco([
+      ['Cancelado', '2026-11-01T21:00:00'],
+      ['Realizado', '2026-11-02T21:00:00'],
+    ])
+    mostrarSoAProximaEdicao(so, AGORA)
+    expect(escondidos(so)).toEqual([true, true])
+    expect(
+      so.querySelector<HTMLElement>('[data-proximas-edicoes]')!.hidden,
+    ).toBe(true)
+  })
+})

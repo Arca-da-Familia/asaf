@@ -104,7 +104,7 @@ test.describe('Agenda e página de cada evento', () => {
 
     await page.goto('/eventos/')
     const realizados = page.locator('#anteriores [data-estado="lista"] li')
-    await expect(realizados).toHaveCount(3) // o já realizado, a 1ª edição do projeto principal e a do reforço escolar
+    await expect(realizados).toHaveCount(4) // o já realizado, a 1ª edição do projeto principal, a do reforço escolar e o evento realizado (v5.5d)
     await expect(realizados.first()).toContainText('já realizado')
     // Evento que passou não anuncia vagas.
     await expect(realizados.first()).not.toContainText('vaga')
@@ -229,7 +229,7 @@ test('/conteudo.json traz a impressão do conteúdo (para a sincronização auto
   const dados = await r.json()
   expect(dados.impressao).toMatch(/^[0-9a-f]{64}$/)
   expect(dados.contagem).toEqual({
-    eventos: 9,
+    eventos: 13, // v5.5d: os quatro eventos de situação (cancelado, adiado, remarcado, realizado)
     projetos: 3,
     diretoria: 3,
     assembleias: 1,

@@ -1,0 +1,23 @@
+---
+import {
+  CLASSES_DO_SELO,
+  seloDoEvento,
+  type CamposDaSituacao,
+} from '../lib/situacao-do-evento'
+
+/**
+ * O selo da situação de um evento (v5.5d): "Cancelado", "Adiado", "Remarcado" ou "Realizado". Evento só programado não leva selo. O TEXTO é sempre escrito
+ * (a cor nunca é a única pista); quem desenha o mesmo selo no navegador (lista de eventos) usa as mesmas classes, de `lib/situacao-do-evento.ts`.
+ */
+interface Props {
+  evento: CamposDaSituacao
+}
+
+const selo = seloDoEvento(Astro.props.evento)
+---
+
+{selo && (
+  <span data-selo-do-evento={selo} class={CLASSES_DO_SELO[selo]}>
+    {selo}
+  </span>
+)}

@@ -31,9 +31,17 @@ import {
   formatarDia,
   formatarHora,
   jaAconteceu,
+  quandoEmPartes,
 } from '../../../lib/datas'
 import { pedeArquivo } from '../../../lib/inscricao-evento'
 import { jsonLdEvento } from '../../../lib/seo'
+import {
+  avisoDaSituacao,
+  CLASSES_DO_AVISO,
+  fraseDeInscricaoParada,
+  inscricoesParadas,
+  situacaoDoEvento,
+} from '../../../lib/situacao-do-evento'
 import { descricaoParaMeta, tituloCurto } from '../../../lib/texto'
 
 // Uma página por evento público, com URL estável e compartilhável (/eventos/<id>/): título, data e
@@ -46,6 +54,10 @@ import { descricaoParaMeta, tituloCurto } from '../../../lib/texto'
 // v5.5c: a inscrição. Evento GRATUITO que ainda não aconteceu e sem pergunta de arquivo tem o formulário (a ilha dele fica em
 // src/lib/inscricao-evento.ts); evento com valor, ou que pede um arquivo, manda falar com a secretaria. Um evento que já aconteceu
 // (no build, ou quando a ilha `evento-vivo` descobre no navegador) não oferece inscrição.
+//
+// v5.5d: a situação do evento (cancelado, adiado, remarcado, realizado). O aviso vai NO TOPO, escrito (nunca só cor), logo depois do título; o
+// formulário não aparece em evento cancelado, adiado ou realizado e, no lugar, vai a frase curta. O bloco "Como participar" fica no HTML mesmo assim (só
+// escondido): se a diretoria reativar ou remarcar o evento, a ilha `evento-vivo` o devolve na hora, sem esperar o site ser reconstruído.
 export async function getStaticPaths() {
   const { eventos, projetos, documentos, detalhesDeEventos, noticias } =
     await conteudoPublico()
@@ -87,9 +99,11 @@ const migalhas: Migalha[] = [
 // (o evento pode ser online ou em outro lugar): a página manda falar com a secretaria.
 const local =
   evento.endereco_avulso?.trim() || 'A confirmar: fale com a secretaria.'
-const mesmoDia =
-  !evento.data_hora_fim ||
-  formatarDia(evento.data_hora_fim) === formatarDia(evento.data_hora_inicio)
+const quando = quandoEmPartes(evento.data_hora_inicio, evento.data_hora_fim)
+const situacao = situacaoDoEvento(evento)
+const aviso = avisoDaSituacao(evento)
+const parado = inscricoesParadas(situacao.status)
+const fraseParada = fraseDeInscricaoParada(situacao.status)
 const reserva = `${evento.titulo} — ${formatarDia(evento.data_hora_inicio)}, ${formatarHora(evento.data_hora_inicio)}. Evento da ${ORGANIZACAO.nome} (${ORGANIZACAO.sigla}).`
 const fimDoEvento = evento.data_hora_fim ?? evento.data_hora_inicio
 const comoParticipar = jaAconteceu(fimDoEvento)
@@ -126,7 +140,26 @@ if (evento.vagas_livres !== null) {
     data-id={evento.id_evento}
     data-api-url={API_URL}
     data-fim={fimDoEvento}
+    data-status={situacao.status}
   >
+    <div
+      data-aviso-situacao
+      data-situacao-do-evento={situacao.status}
+      data-evento-remarcado={situacao.remarcado ? '' : undefined}
+      role="status"
+      hidden={aviso === null}
+      class={CLASSES_DO_AVISO[aviso?.selo ?? 'Realizado']}
+    >
+      <p data-situacao-frase class="text-lg font-bold">
+        {aviso?.frase}
+      </p>
+      <p data-situacao-motivo hidden={!aviso?.motivo} class="mt-2">
+        {aviso?.motivo}
+      </p>
+      <p data-situacao-complemento hidden={!aviso?.complemento} class="mt-2">
+        {aviso?.complemento}
+      </p>
+    </div>
     <p
       data-aviso-retirado
       hidden
@@ -163,20 +196,12 @@ if (evento.vagas_livres !== null) {
       </h2>
       <dl class="grid max-w-3xl gap-x-8 gap-y-4 sm:grid-cols-[auto_1fr]">
         <dt class="font-medium">Quando</dt>
-        <dd>
-          <time datetime={comFusoDaAsaf(evento.data_hora_inicio)}>
-            {formatarDia(evento.data_hora_inicio)}, às{' '}
-            {formatarHora(evento.data_hora_inicio)}
-          </time>
-          {evento.data_hora_fim && (
+        <dd data-quando>
+          <time datetime={quando.inicio.iso}>{quando.inicio.texto}</time>
+          {quando.fim && (
             <>
               {' '}
-              até{' '}
-              <time datetime={comFusoDaAsaf(evento.data_hora_fim)}>
-                {mesmoDia
-                  ? formatarHora(evento.data_hora_fim)
-                  : `${formatarDia(evento.data_hora_fim)}, ${formatarHora(evento.data_hora_fim)}`}
-              </time>
+              até <time datetime={quando.fim.iso}>{quando.fim.texto}</time>
             </>
           )}
         </dd>
@@ -186,8 +211,12 @@ if (evento.vagas_livres !== null) {
         <dd>{evento.gratuito ? 'Gratuita' : 'Paga'}</dd>
         {vagasTexto && (
           <>
-            <dt class="font-medium">Vagas</dt>
-            <dd data-vagas>{vagasTexto}</dd>
+            <dt data-vagas-rotulo hidden={parado} class="font-medium">
+              Vagas
+            </dt>
+            <dd data-vagas hidden={parado}>
+              {vagasTexto}
+            </dd>
           </>
         )}
       </dl>
@@ -213,7 +242,10 @@ if (evento.vagas_livres !== null) {
           {evento.sessoes.map((sessao) => (
             <li class="rounded-lg border bg-card p-4 shadow-card">
               <p class="text-sm font-medium text-primary">
-                <time datetime={comFusoDaAsaf(sessao.data_hora_inicio)}>
+                <time
+                  datetime={comFusoDaAsaf(sessao.data_hora_inicio)}
+                  data-sessao-horario={sessao.id_sessao}
+                >
                   {formatarDia(sessao.data_hora_inicio)},{' '}
                   {formatarHora(sessao.data_hora_inicio)}
                 </time>
@@ -260,8 +292,16 @@ if (evento.vagas_livres !== null) {
       />
     )}
 
+    <p
+      data-inscricoes-paradas
+      hidden={fraseParada === null}
+      class="rounded-lg border bg-muted p-4 font-medium"
+    >
+      {fraseParada}
+    </p>
+
     {comoParticipar !== 'nenhum' && (
-      <div data-como-participar>
+      <div data-como-participar hidden={parado}>
         {comoParticipar === 'formulario' ? (
           <FormularioDeInscricao evento={evento} />
         ) : (
