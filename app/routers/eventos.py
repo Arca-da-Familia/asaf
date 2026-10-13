@@ -21,6 +21,7 @@ from app.schemas.eventos import (
     EventoEditar,
     EventoElegibilidadeConfig,
     EventoReembolsoConfig,
+    EventoStatusAlterar,
     FaixaPrecoEventoCriar,
     InscricaoPublicaCriar,
     IsencaoTaxaCriar,
@@ -42,6 +43,7 @@ from app.services import pesquisa_satisfacao as servico_pesquisa_satisfacao
 from app.services import portaria as servico_portaria
 from app.services import publico_contexto
 from app.services import precos_evento as servico_precos_evento
+from app.services import status_do_evento as servico_status_do_evento
 from app.services import vagas as servico_vagas
 from app.services.protecao_publica import ip_publico as _ip_publico, limitar_taxa_por_ip
 
@@ -71,7 +73,8 @@ def _serializar_evento(e) -> dict:
         "endereco_avulso": e.endereco_avulso, "id_associado_responsavel": e.id_associado_responsavel,
         "vagas": e.vagas, "vagas_ocupadas": e.vagas_ocupadas, "vagas_livres": _vagas_livres(e),
         "gratuito": e.gratuito, "visibilidade": e.visibilidade, "id_edicao_anterior": e.id_edicao_anterior,
-        "id_projeto": e.id_projeto,
+        "id_projeto": e.id_projeto, "status": e.status, "motivo_status": e.motivo_status, "status_alterado_em": e.status_alterado_em,
+        "data_hora_inicio_anterior": e.data_hora_inicio_anterior,
     }
 
 
@@ -83,6 +86,8 @@ def _serializar_evento_publico(e, projetos_publicos: set) -> dict:
         "data_hora_inicio": e.data_hora_inicio, "data_hora_fim": e.data_hora_fim, "id_espaco": e.id_espaco,
         "endereco_avulso": e.endereco_avulso, "vagas": e.vagas, "vagas_livres": _vagas_livres(e), "gratuito": e.gratuito,
         "id_projeto": e.id_projeto if e.id_projeto in projetos_publicos else None,
+        # v5.5d - a situação do evento e o motivo (cancelado, adiado ou remarcado) vão ao site; `data_hora_inicio_anterior` é o começo de antes da última remarcação
+        "status": e.status, "motivo_status": e.motivo_status, "data_hora_inicio_anterior": e.data_hora_inicio_anterior,
     }
 
 
@@ -153,6 +158,28 @@ def editar_evento_endpoint(id_evento: int, dados: EventoEditar, request: Request
         dados_antes=antes, dados_depois={c: getattr(evento, c) for c in antes}, ip_origem=_ip_origem(request),
     )
     return _serializar_evento(evento)
+
+
+_MENSAGEM_DO_STATUS = {
+    "Programado": "Evento programado.", "Adiado": "Evento adiado.", "Cancelado": "Evento cancelado.", "Realizado": "Evento marcado como realizado.",
+}
+
+
+@router.post("/api/eventos/{id_evento}/status", summary="Mudar a situação do evento (programado, adiado, cancelado, realizado) com motivo; avisa quem estava inscrito")
+def alterar_status_do_evento_endpoint(id_evento: int, dados: EventoStatusAlterar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+    evento = eventos.obter_evento(db, id_evento)
+    resultado = servico_status_do_evento.alterar_status(
+        db, evento, novo_status=dados.status, motivo=dados.motivo, nova_data_hora_inicio=dados.nova_data_hora_inicio, nova_data_hora_fim=dados.nova_data_hora_fim,
+    )
+    registrar_auditoria(
+        db, usuario, "eventos", "STATUS_ALTERADO", id_registro_afetado=evento.id_evento, dados_antes=resultado["antes"],
+        dados_depois={**resultado["depois"], "avisos": resultado["avisos"], "sessoes_deslocadas": resultado["sessoes_deslocadas"], "inscricoes_com_cobranca": resultado["inscricoes_com_cobranca"]},
+        ip_origem=_ip_origem(request),
+    )
+    return {
+        "mensagem": _MENSAGEM_DO_STATUS[evento.status], "evento": _serializar_evento(evento), "avisos": resultado["avisos"],
+        "sessoes_deslocadas": resultado["sessoes_deslocadas"], "inscricoes_com_cobranca": resultado["inscricoes_com_cobranca"],
+    }
 
 
 # ==========================================

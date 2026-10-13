@@ -125,6 +125,11 @@ def confirmar_por_token(db: Session, *, token_cancelamento: str) -> Inscricao:
         raise HTTPException(status_code=400, detail="Você ainda está na lista de espera: avisamos por e-mail quando uma vaga abrir.")
     if inscricao.status not in _TRANSICOES_VALIDAS or CONFIRMADO not in _TRANSICOES_VALIDAS[inscricao.status]:
         raise HTTPException(status_code=400, detail=f"Não é possível confirmar uma inscrição com status '{inscricao.status}'.")
+    from app.services.status_do_evento import evento_do_contexto
+
+    evento_da_inscricao = evento_do_contexto(db, inscricao.contexto_tipo, inscricao.id_contexto)
+    if evento_da_inscricao is not None and evento_da_inscricao.status == "Cancelado":
+        raise HTTPException(status_code=400, detail="Este evento foi cancelado: não há mais o que confirmar.")
     inscricao.status = CONFIRMADO
     inscricao.prazo_confirmacao = None
     db.commit()
@@ -157,12 +162,14 @@ def resumo_publico_por_token(db: Session, *, token_cancelamento: str) -> dict:
         "evento": {
             "titulo": evento.titulo if evento else None, "data_hora_inicio": evento.data_hora_inicio if evento else None,
             "data_hora_fim": evento.data_hora_fim if evento else None, "endereco_avulso": evento.endereco_avulso if evento else None,
+            # v5.5d - a pessoa que abre o link de um evento cancelado ou adiado precisa ver isso antes de qualquer coisa
+            "status": evento.status if evento else None, "motivo_status": evento.motivo_status if evento else None,
         },
         "sessao": {"titulo": sessao.titulo, "data_hora_inicio": sessao.data_hora_inicio} if sessao else None,
         "codigo_checkin": inscricao.codigo_checkin if inscricao.status in (PRE_INSCRITO, CONFIRMADO) else None,
         "prazo_confirmacao": inscricao.prazo_confirmacao, "evento_encerrado": encerrado,
         "pode_cancelar": CANCELADO in transicoes and not encerrado,
-        "pode_confirmar": inscricao.status == PRE_INSCRITO and not encerrado,
+        "pode_confirmar": inscricao.status == PRE_INSCRITO and not encerrado and not (evento and evento.status == "Cancelado"),
     }
 
 

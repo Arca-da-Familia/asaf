@@ -108,6 +108,7 @@ def resumo_do_evento(e: Evento) -> dict:
     return {
         "id_evento": e.id_evento, "titulo": e.titulo, "categoria": e.categoria,
         "data_hora_inicio": e.data_hora_inicio, "data_hora_fim": e.data_hora_fim, "endereco_avulso": e.endereco_avulso,
+        "status": e.status,
     }
 
 

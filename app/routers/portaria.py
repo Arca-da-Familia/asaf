@@ -12,6 +12,7 @@ from app.models.portaria import TokenPortaria
 from app.schemas.portaria import CheckinPortariaCriar, CheckoutPortariaCriar
 from app.services import checkin as servico_checkin
 from app.services.eventos import obter_evento
+from app.services.status_do_evento import exigir_evento_aceita_checkin
 from app.services.portaria import exigir_token_portaria
 from app.services.protecao_publica import ip_publico as _ip_publico
 
@@ -23,7 +24,7 @@ def obter_evento_da_portaria_endpoint(db: Session = Depends(get_db), token: Toke
     evento = obter_evento(db, token.id_evento)
     return {
         "id_evento": evento.id_evento, "titulo": evento.titulo,
-        "data_hora_inicio": evento.data_hora_inicio, "data_hora_fim": evento.data_hora_fim,
+        "data_hora_inicio": evento.data_hora_inicio, "data_hora_fim": evento.data_hora_fim, "status": evento.status,
     }
 
 
@@ -32,6 +33,7 @@ def checkin_endpoint(
     dados: CheckinPortariaCriar, request: Request, db: Session = Depends(get_db),
     token: TokenPortaria = Depends(exigir_token_portaria),
 ):
+    exigir_evento_aceita_checkin(obter_evento(db, token.id_evento))  # v5.5d
     registro = servico_checkin.realizar_checkin(
         db, id_evento=token.id_evento, id_sessao=dados.id_sessao, metodo=dados.metodo, codigo=dados.codigo,
         token_carteirinha=dados.token_carteirinha, chave_idempotencia=dados.chave_idempotencia,
