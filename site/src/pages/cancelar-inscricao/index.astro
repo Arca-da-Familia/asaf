@@ -1,0 +1,25 @@
+---
+import GerenciarInscricao from '../../components/GerenciarInscricao.astro'
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import Base from '../../layouts/Base.astro'
+
+// Página do link "Para cancelar sua inscrição, acesse..." do e-mail de inscrição (v5.5c). Não é página de conteúdo: fora do Google (noindex) e fora do
+// sitemap (astro.config.mjs). Lê o `?token=` no navegador (lib/inscricao-link.ts).
+const migalhas: Migalha[] = [{ rotulo: 'Cancelar inscrição' }]
+---
+
+<Base
+  titulo="Cancelar inscrição"
+  descricao="Cancele a sua inscrição em um evento da ASAF pelo link que enviamos para o seu e-mail."
+  caminho="/cancelar-inscricao/"
+  migalhas={migalhas}
+  indexavel={false}
+>
+  <TituloDePagina
+    titulo="Cancelar inscrição"
+    resumo="Veja a sua inscrição e confirme se quer cancelá-la."
+    migalhas={migalhas}
+  />
+  <GerenciarInscricao modo="cancelar" />
+</Base>

@@ -95,7 +95,7 @@ test.describe('Agenda e página de cada evento', () => {
   }) => {
     await page.goto('/eventos/')
     const proximos = page.locator('#eventos [data-estado="lista"] li')
-    await expect(proximos).toHaveCount(3) // encontro, vagas esgotadas e a 2ª edição do projeto principal
+    await expect(proximos).toHaveCount(6) // encontro, vagas esgotadas, a 2ª edição do projeto principal e os três eventos da inscrição pelo site (v5.5c)
     await proximos
       .first()
       .getByRole('link', { name: /encontro de famílias/ })
@@ -121,7 +121,9 @@ test.describe('Agenda e página de cada evento', () => {
     await expect(
       page.getByRole('heading', { name: 'Programação' }),
     ).toBeVisible()
-    await expect(page.getByText('Roda de conversa')).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Roda de conversa' }),
+    ).toBeVisible()
     await expect(page.locator('dd', { hasText: 'Gratuita' })).toBeVisible()
 
     const blocos = await page
@@ -227,7 +229,7 @@ test('/conteudo.json traz a impressão do conteúdo (para a sincronização auto
   const dados = await r.json()
   expect(dados.impressao).toMatch(/^[0-9a-f]{64}$/)
   expect(dados.contagem).toEqual({
-    eventos: 6,
+    eventos: 9,
     projetos: 3,
     diretoria: 3,
     assembleias: 1,

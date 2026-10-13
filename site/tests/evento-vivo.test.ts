@@ -106,3 +106,82 @@ describe('iniciarEventoVivo', () => {
     expect(raiz.querySelector('img')).toBeNull()
   })
 })
+
+// v5.5c — a inscrição acompanha o evento ao vivo: vagas de agora no formulário, e o bloco "Como participar" some quando o evento já aconteceu ou saiu do ar.
+describe('a inscrição na página do evento', () => {
+  function paginaComInscricao(fim = '2026-10-10T21:00:00'): HTMLElement {
+    const raiz = pagina(fim)
+    raiz.insertAdjacentHTML(
+      'beforeend',
+      `<div data-como-participar>
+        <section data-inscricao-formulario data-vagas-livres="12">
+          <p data-aviso-esgotado hidden>As vagas acabaram.</p>
+          <select data-campo="sessao">
+            <option value="">Todo o evento</option>
+            <option value="21" data-sessao="21" data-rotulo="Oficina" data-vagas-livres="5">Oficina — 5 vagas</option>
+          </select>
+        </section>
+      </div>`,
+    )
+    return raiz
+  }
+
+  it('as vagas de agora chegam ao formulário: o aviso aparece quando o evento esgota e o texto das sessões muda', async () => {
+    const raiz = paginaComInscricao()
+    await iniciarEventoVivo(raiz, {
+      agora: AGORA,
+      fetchImpl: vi.fn().mockResolvedValue(
+        resposta({
+          vagas_livres: 0,
+          sessoes: [{ id_sessao: 21, vagas_livres: 2 }],
+        }),
+      ),
+    })
+    expect(oculto(raiz, '[data-aviso-esgotado]')).toBe(false)
+    expect(raiz.querySelector('option[data-sessao="21"]')!.textContent).toBe(
+      'Oficina — 2 vagas',
+    )
+    expect(oculto(raiz, '[data-como-participar]')).toBe(false)
+  })
+
+  it('evento que já aconteceu: o bloco "Como participar" (e o formulário) some', async () => {
+    const raiz = paginaComInscricao('2026-09-30T18:00:00')
+    await iniciarEventoVivo(raiz, {
+      agora: AGORA,
+      fetchImpl: vi.fn().mockResolvedValue(resposta({ vagas_livres: 1 })),
+    })
+    expect(oculto(raiz, '[data-como-participar]')).toBe(true)
+  })
+
+  it('evento retirado do ar (404): o bloco "Como participar" some', async () => {
+    const raiz = paginaComInscricao()
+    await iniciarEventoVivo(raiz, {
+      agora: AGORA,
+      fetchImpl: vi.fn().mockResolvedValue(resposta({ detail: 'x' }, 404)),
+    })
+    expect(oculto(raiz, '[data-como-participar]')).toBe(true)
+  })
+
+  it('API fora do ar: a inscrição continua como foi publicada', async () => {
+    const raiz = paginaComInscricao()
+    await iniciarEventoVivo(raiz, {
+      agora: AGORA,
+      fetchImpl: vi.fn().mockRejectedValue(new TypeError('rede')),
+      esperaEntreTentativasMs: 0,
+    })
+    expect(oculto(raiz, '[data-como-participar]')).toBe(false)
+    expect(oculto(raiz, '[data-aviso-esgotado]')).toBe(true)
+  })
+
+  it('quem acabou de se inscrever não perde a tela de resultado, mesmo que o evento "acabe" depois', async () => {
+    const raiz = paginaComInscricao('2026-09-30T18:00:00')
+    raiz
+      .querySelector('[data-inscricao-formulario]')!
+      .setAttribute('data-concluida', '')
+    await iniciarEventoVivo(raiz, {
+      agora: AGORA,
+      fetchImpl: vi.fn().mockResolvedValue(resposta({ vagas_livres: 1 })),
+    })
+    expect(oculto(raiz, '[data-como-participar]')).toBe(false)
+  })
+})

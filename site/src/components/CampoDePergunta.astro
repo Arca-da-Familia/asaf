@@ -1,0 +1,136 @@
+---
+import {
+  chaveDaPergunta,
+  escolhaUnicaEmRadios,
+  opcoesDaPergunta,
+  RESPOSTA_CURTA_MAXIMA,
+  RESPOSTA_LONGA_MAXIMA,
+} from '../lib/inscricao-evento'
+import type { PerguntaDoEvento } from '../../scripts/lib/conteudo-publico.mjs'
+
+// Uma pergunta do formulário de inscrição do evento (v5.5c), no controle certo do tipo: texto curto e longo, número, data, escolha única (botões de marcar até
+// 5 opções, lista acima disso) e escolha múltipla (caixas). `indice` é o número da pessoa no formulário (0 = a principal; "__N__" no modelo das pessoas
+// adicionais, que a página troca pelo número de cada uma). Quem se comporta é `lib/inscricao-evento.ts`; aqui só o HTML, com rótulo, aviso de erro e
+// `aria-describedby` ligados. Pergunta de arquivo não chega aqui: o evento com ela não mostra o formulário.
+interface Props {
+  pergunta: PerguntaDoEvento
+  indice: number | string
+  idDoFormulario: string
+}
+
+const { pergunta, indice, idDoFormulario } = Astro.props
+const chave = chaveDaPergunta(indice, pergunta.id_pergunta)
+const id = `${idDoFormulario}-p${indice}-q${pergunta.id_pergunta}`
+const idDoErro = `${id}-erro`
+const rotulo = pergunta.obrigatoria
+  ? pergunta.enunciado
+  : `${pergunta.enunciado} (opcional)`
+const obrigatoria = pergunta.obrigatoria ? 'true' : undefined
+const opcoes = opcoesDaPergunta(pergunta)
+
+const campo =
+  'h-11 w-full rounded-md border bg-background px-3 text-base aria-[invalid=true]:border-destructive'
+const erro = 'mt-1 text-sm font-medium text-destructive'
+---
+
+{pergunta.tipo === 'SELECAO_UNICA' && escolhaUnicaEmRadios(pergunta) ? (
+  <fieldset
+    role="radiogroup"
+    data-campo={chave}
+    aria-required={obrigatoria}
+    aria-describedby={idDoErro}
+    class="min-w-0"
+  >
+    <legend class="text-sm font-medium">{rotulo}</legend>
+    <div class="mt-2 grid gap-2">
+      {opcoes.map((opcao) => (
+        <label class="flex items-start gap-3">
+          <input
+            type="radio"
+            name={id}
+            value={opcao}
+            class="mt-1 h-5 w-5 shrink-0"
+          />
+          <span>{opcao}</span>
+        </label>
+      ))}
+    </div>
+    <p id={idDoErro} data-erro={chave} hidden class={erro} />
+  </fieldset>
+) : pergunta.tipo === 'SELECAO_UNICA' ? (
+  <div>
+    <label for={id} class="block text-sm font-medium">
+      {rotulo}
+    </label>
+    <select
+      id={id}
+      name={id}
+      data-campo={chave}
+      aria-required={obrigatoria}
+      aria-describedby={idDoErro}
+      class={`mt-1 ${campo}`}
+    >
+      <option value="">Escolha uma opção</option>
+      {opcoes.map((opcao) => (
+        <option value={opcao}>{opcao}</option>
+      ))}
+    </select>
+    <p id={idDoErro} data-erro={chave} hidden class={erro} />
+  </div>
+) : pergunta.tipo === 'SELECAO_MULTIPLA' ? (
+  <fieldset data-campo={chave} aria-describedby={idDoErro} class="min-w-0">
+    <legend class="text-sm font-medium">{rotulo}</legend>
+    <div class="mt-2 grid gap-2">
+      {opcoes.map((opcao) => (
+        <label class="flex items-start gap-3">
+          <input
+            type="checkbox"
+            name={id}
+            value={opcao}
+            class="mt-1 h-5 w-5 shrink-0"
+          />
+          <span>{opcao}</span>
+        </label>
+      ))}
+    </div>
+    <p id={idDoErro} data-erro={chave} hidden class={erro} />
+  </fieldset>
+) : pergunta.tipo === 'TEXTO_LONGO' ? (
+  <div>
+    <label for={id} class="block text-sm font-medium">
+      {rotulo}
+    </label>
+    <textarea
+      id={id}
+      name={id}
+      rows="4"
+      maxlength={RESPOSTA_LONGA_MAXIMA}
+      data-campo={chave}
+      aria-required={obrigatoria}
+      aria-describedby={idDoErro}
+      class="mt-1 min-h-24 w-full rounded-md border bg-background px-3 py-2 text-base aria-[invalid=true]:border-destructive"
+    />
+    <p id={idDoErro} data-erro={chave} hidden class={erro} />
+  </div>
+) : (
+  <div>
+    <label for={id} class="block text-sm font-medium">
+      {rotulo}
+    </label>
+    <input
+      id={id}
+      name={id}
+      type={pergunta.tipo === 'DATA' ? 'date' : 'text'}
+      inputmode={pergunta.tipo === 'NUMERO' ? 'decimal' : undefined}
+      maxlength={
+        pergunta.tipo === 'TEXTO_CURTO' ? RESPOSTA_CURTA_MAXIMA : undefined
+      }
+      autocomplete="off"
+      data-campo={chave}
+      aria-required={obrigatoria}
+      aria-describedby={idDoErro}
+      class={`mt-1 ${campo}`}
+    />
+    <p id={idDoErro} data-erro={chave} hidden class={erro} />
+  </div>
+)}

@@ -18,12 +18,16 @@ test('lista só os eventos que ainda vão acontecer, do mais próximo ao mais di
     'Evento de teste — encontro de famílias',
     'Evento de teste — vagas esgotadas',
     'Projeto Principal de Teste — 2ª edição',
+    // v5.5c — os três eventos de teste da inscrição pelo site (com perguntas, com as vagas esgotadas e que pede arquivo)
+    'Evento de teste — inscrição com perguntas',
+    'Evento de teste — lista de espera',
+    'Evento de teste — pede um arquivo',
   ])
   await expect(secao).not.toContainText('já realizado')
   await expect(secao).toContainText('Local de teste, Parauapebas')
   await expect(secao).toContainText('12 vagas disponíveis')
   await expect(secao).toContainText('Vagas esgotadas')
-  await expect(secao.getByText('Gratuito')).toHaveCount(2) // o encontro e a 2ª edição (a de vagas esgotadas é paga)
+  await expect(secao.getByText('Gratuito')).toHaveCount(5) // o encontro, a 2ª edição e os três eventos da inscrição pelo site (o de vagas esgotadas, o 3, é pago)
   await expect(page.locator('[data-eventos]')).toHaveAttribute(
     'aria-busy',
     'false',

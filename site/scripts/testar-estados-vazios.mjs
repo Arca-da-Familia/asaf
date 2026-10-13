@@ -370,6 +370,67 @@ for (const [caminho, tipo] of [
   }
 }
 
+// v5.5c - a inscrição em evento pelo site. As páginas dos links do e-mail (cancelar e confirmar) são estáticas e existem com a API sem nenhum dado e com a API antiga:
+// fora do Google (noindex) e fora do sitemap. O formulário de inscrição só existe em evento gratuito sem pergunta de arquivo, e o TEXTO do consentimento nunca é escrito
+// na página (vem da API, no navegador): com a API antiga (que ainda não tem a rota do consentimento) a página constrói do mesmo jeito.
+for (const [rotulo, pasta] of [
+  ['vazio', 'dist-vazio'],
+  ['API antiga', 'dist-antiga'],
+]) {
+  for (const caminho of ['/cancelar-inscricao/', '/confirmar-inscricao/']) {
+    if (!existsSync(`${pasta}${caminho}index.html`)) {
+      exigir(false, `${rotulo}: ${caminho} não foi gerada`)
+      continue
+    }
+    const html = readFileSync(`${pasta}${caminho}index.html`, 'utf-8')
+    exigir(
+      html.includes('name="robots" content="noindex'),
+      `${rotulo}: ${caminho} sem noindex (não é página de conteúdo)`,
+    )
+    exigir(
+      html.includes('data-inscricao-link') && html.includes('data-api-url='),
+      `${rotulo}: ${caminho} sem o miolo que lê o ?token= no navegador`,
+    )
+    if (existsSync(`${pasta}/sitemap-0.xml`))
+      exigir(
+        !readFileSync(`${pasta}/sitemap-0.xml`, 'utf-8').includes(
+          caminho.replaceAll('/', ''),
+        ),
+        `${rotulo}: ${caminho} entrou no sitemap`,
+      )
+  }
+}
+for (const [caminho, formulario, rotulo] of [
+  ['/eventos/2/', true, 'gratuito'],
+  ['/eventos/7/', true, 'gratuito com perguntas'],
+  ['/eventos/8/', true, 'gratuito com as vagas esgotadas'],
+  ['/eventos/3/', false, 'com valor'],
+  ['/eventos/9/', false, 'que pede um arquivo'],
+  ['/eventos/1/', false, 'que já aconteceu'],
+]) {
+  if (!existsSync(`dist-antiga${caminho}index.html`)) {
+    exigir(false, `API antiga: o evento ${rotulo} (${caminho}) não foi gerado`)
+    continue
+  }
+  const html = lerAntiga(caminho)
+  exigir(
+    html.includes('data-inscricao-formulario') === formulario,
+    `API antiga: o evento ${rotulo} (${caminho}) ${formulario ? 'perdeu' : 'tem'} o formulário de inscrição`,
+  )
+  exigir(
+    !html.includes('Texto de teste do consentimento'),
+    `API antiga: ${caminho} traz o texto do consentimento escrito na página (ele só pode vir da API)`,
+  )
+}
+exigir(
+  lerAntiga('/eventos/3/').includes('inscrição com valor'),
+  'API antiga: o evento com valor não diz que a inscrição é com a secretaria',
+)
+exigir(
+  lerAntiga('/eventos/9/').includes('pede o envio de um arquivo'),
+  'API antiga: o evento que pede arquivo não manda falar com a secretaria',
+)
+
 if (problemas.length > 0) {
   console.error('\nESTADO VAZIO COM PROBLEMA:')
   for (const p of problemas) console.error('  -', p)

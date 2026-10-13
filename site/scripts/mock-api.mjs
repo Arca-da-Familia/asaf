@@ -131,7 +131,129 @@ function eventos() {
       titulo: 'Edição de teste do reforço escolar',
       data_hora_inicio: dataLocal(-90),
     },
+    // v5.5c - a inscrição pelo site. O 2 é o gratuito simples (duas sessões sem limite de vagas, sem perguntas) e o 3 é o pago e esgotado (a inscrição é com a
+    // secretaria). O 7 é gratuito, com sessões (uma lotada) e perguntas de todos os tipos; o 8, gratuito com as vagas esgotadas (lista de espera); o 9 pede um arquivo.
+    {
+      ...base,
+      id_evento: 7,
+      titulo: 'Evento de teste — inscrição com perguntas',
+      descricao: 'Descrição de teste do evento com perguntas na inscrição.',
+      endereco_avulso: 'Salão de teste, Parauapebas',
+      vagas: 30,
+      vagas_livres: 18,
+      data_hora_inicio: dataLocal(30),
+      data_hora_fim: dataLocal(30, 21),
+    },
+    {
+      ...base,
+      id_evento: 8,
+      titulo: 'Evento de teste — lista de espera',
+      vagas: 5,
+      vagas_livres: 0,
+      data_hora_inicio: dataLocal(35),
+    },
+    {
+      ...base,
+      id_evento: 9,
+      titulo: 'Evento de teste — pede um arquivo',
+      data_hora_inicio: dataLocal(40),
+    },
   ]
+}
+
+/** As sessões de cada evento (como a API devolve: com as vagas ocupadas e livres). */
+function sessoesDoEvento(id) {
+  if (id === 2)
+    return [
+      {
+        id_sessao: 21,
+        id_evento: 2,
+        titulo: 'Acolhimento e boas-vindas',
+        descricao: 'Recepção das famílias.',
+        data_hora_inicio: dataLocal(7, 19),
+        data_hora_fim: dataLocal(7, 20),
+        vagas: null,
+        vagas_ocupadas: 0,
+        vagas_livres: null,
+      },
+      {
+        id_sessao: 22,
+        id_evento: 2,
+        titulo: 'Roda de conversa',
+        descricao: null,
+        data_hora_inicio: dataLocal(7, 20),
+        data_hora_fim: dataLocal(7, 21),
+        vagas: null,
+        vagas_ocupadas: 0,
+        vagas_livres: null,
+      },
+    ]
+  if (id === 7)
+    return [
+      {
+        id_sessao: 71,
+        id_evento: 7,
+        titulo: 'Oficina da manhã',
+        descricao: null,
+        data_hora_inicio: dataLocal(30, 9),
+        data_hora_fim: dataLocal(30, 12),
+        vagas: 10,
+        vagas_ocupadas: 4,
+        vagas_livres: 6,
+      },
+      {
+        id_sessao: 72,
+        id_evento: 7,
+        titulo: 'Oficina da tarde',
+        descricao: null,
+        data_hora_inicio: dataLocal(30, 14),
+        data_hora_fim: dataLocal(30, 17),
+        vagas: 8,
+        vagas_ocupadas: 8,
+        vagas_livres: 0,
+      },
+    ]
+  return []
+}
+
+/** As perguntas do formulário de inscrição (como a API devolve: `opcoes` em CSV). Evento sem pergunta = lista vazia. */
+function perguntasDoEvento(id) {
+  const pergunta = (id_pergunta, ordem, enunciado, tipo, extra = {}) => ({
+    id_pergunta,
+    id_evento: id,
+    enunciado,
+    tipo,
+    opcoes: null,
+    obrigatoria: true,
+    ordem,
+    ...extra,
+  })
+  if (id === 7)
+    return [
+      pergunta(701, 1, 'Como você ficou sabendo do evento?', 'SELECAO_UNICA', {
+        opcoes: 'Redes sociais,Indicação de amigo,Igreja,Outro',
+      }),
+      pergunta(702, 2, 'Qual é a sua idade?', 'NUMERO'),
+      pergunta(703, 3, 'Qual o seu nome para o crachá?', 'TEXTO_CURTO'),
+      pergunta(704, 4, 'Tem alguma restrição alimentar?', 'TEXTO_LONGO', {
+        obrigatoria: false,
+      }),
+      pergunta(
+        705,
+        5,
+        'Quais refeições você vai fazer no local?',
+        'SELECAO_MULTIPLA',
+        { opcoes: 'Café da manhã,Almoço,Jantar' },
+      ),
+      pergunta(706, 6, 'Data de nascimento', 'DATA', { obrigatoria: false }),
+      pergunta(707, 7, 'Tamanho da camiseta', 'SELECAO_UNICA', {
+        opcoes: 'PP,P,M,G,GG,XG',
+        obrigatoria: false,
+      }),
+    ]
+  if (id === 9)
+    return [pergunta(901, 1, 'Envie o comprovante de residência', 'ARQUIVO')]
+  return []
 }
 
 /** O mínimo de um evento nas listas de contexto (edições do projeto, cadeia de edições). */
@@ -177,34 +299,8 @@ function detalheDoEvento(id) {
     ),
     fotos: FOTOS_DE_EVENTO.filter((f) => f.id_evento === id).map(fotoPublica),
   }
-  const sessoes =
-    id === 2
-      ? [
-          {
-            id_sessao: 21,
-            id_evento: 2,
-            titulo: 'Acolhimento e boas-vindas',
-            descricao: 'Recepção das famílias.',
-            data_hora_inicio: dataLocal(7, 19),
-            data_hora_fim: dataLocal(7, 20),
-            vagas: null,
-            vagas_ocupadas: 0,
-            vagas_livres: null,
-          },
-          {
-            id_sessao: 22,
-            id_evento: 2,
-            titulo: 'Roda de conversa',
-            descricao: null,
-            data_hora_inicio: dataLocal(7, 20),
-            data_hora_fim: dataLocal(7, 21),
-            vagas: null,
-            vagas_ocupadas: 0,
-            vagas_livres: null,
-          },
-        ]
-      : []
-  return { ...evento, sessoes, perguntas: [], ...contexto }
+  const sessoes = sessoesDoEvento(id)
+  return { ...evento, sessoes, perguntas: perguntasDoEvento(id), ...contexto }
 }
 
 const projetos = () => [
@@ -939,6 +1035,287 @@ export const RECUSA_DE_AVISO_DESATUALIZADO =
 const VERSAO_DO_AVISO_DE_ATENDIMENTO = '1'
 
 /**
+ * Inscrição em evento pelo site (v5.5c): consentimento, inscrever-se, resumo do link e cancelar/confirmar, com as regras do servidor
+ * (app/services/eventos.py, vagas.py e inscricao.py). O mock guarda o corpo recebido (o teste confere o que a API real receberia) e cada inscrição criada (a
+ * página do link a encontra pelo código). Casos que só a API sabe provocar, por dado de teste: o limite por endereço (429) e o erro de servidor (500) — os
+ * mesmos nomes do atendimento —, o CPF já inscrito (400), o nome que cai na lista de espera, o e-mail que não consegue enviar. Evento sem vaga livre manda
+ * para a lista de espera. E os códigos "fixo-..." têm situação fixa e NUNCA mudam (cancelar/confirmar só respondem): os testes da página do link não se atrapalham.
+ */
+export const VERSAO_DO_CONSENTIMENTO_DE_EVENTO = '3'
+export const TEXTO_DO_CONSENTIMENTO_DE_EVENTO =
+  'Texto de teste do consentimento da inscrição (versão 3).\nSegunda linha do texto de teste.'
+export const CPF_JA_INSCRITO_NO_EVENTO = '12345678062'
+export const RECUSA_DE_INSCRICAO_REPETIDA =
+  "Esta pessoa já está inscrita neste contexto (status 'Pré-inscrito')."
+export const RECUSA_DE_EVENTO_ENCERRADO =
+  'As inscrições deste evento já foram encerradas: o evento já aconteceu.'
+export const RECUSA_DE_CONSENTIMENTO_NOVO =
+  'O texto de consentimento LGPD foi atualizado - recarregue a página e aceite a versão atual.'
+export const NOME_QUE_VAI_PARA_A_LISTA_DE_ESPERA = 'Teste Lista De Espera'
+export const EMAIL_QUE_NAO_RECEBE = 'sem-envio@example.com'
+export const AVISO_DA_LISTA_NO_CONFIRMAR =
+  'Você ainda está na lista de espera: avisamos por e-mail quando uma vaga abrir.'
+
+/** Os corpos de inscrição que o formulário mandou ao mock. */
+const inscricoesDeEvento = []
+/** As inscrições criadas pelo mock, por código de cancelamento (o código é o que a página do link usa). */
+const inscricoesPorCodigo = new Map()
+let sequenciaDeInscricoes = 0
+
+const horasDaquiAUtc = (horas) =>
+  new Date(agora() + horas * 3_600_000).toISOString().replace(/Z$/, '')
+
+/** As inscrições de situação fixa, para testar a página do link: só o código "fixo-..." as chama e nada as altera. */
+const INSCRICOES_FIXAS = {
+  'fixo-reservada': { status: 'Pré-inscrito', idEvento: 7, codigo: 'A1B2C3D4' },
+  'fixo-promovida': {
+    status: 'Pré-inscrito',
+    idEvento: 7,
+    idSessao: 71,
+    codigo: 'B2C3D4E5',
+    prazo: () => horasDaquiAUtc(20),
+  },
+  'fixo-confirmada': { status: 'Confirmado', idEvento: 2, codigo: '0F1E2D3C' },
+  'fixo-lista-de-espera': { status: 'Lista de Espera', idEvento: 8 },
+  'fixo-cancelada': { status: 'Cancelado', idEvento: 2 },
+  'fixo-encerrada': { status: 'Confirmado', idEvento: 1, codigo: 'C3D4E5F6' },
+  'fixo-com-reembolso': {
+    status: 'Confirmado',
+    idEvento: 3,
+    codigo: 'D4E5F6A7',
+    reembolso: 50,
+  },
+  'fixo-falha-ao-cancelar': {
+    status: 'Confirmado',
+    idEvento: 2,
+    codigo: 'E5F6A7B8',
+    falhaAoAgir: 500,
+  },
+  'fixo-falha-ao-confirmar': {
+    status: 'Pré-inscrito',
+    idEvento: 2,
+    codigo: 'F6A7B8C9',
+    falhaAoAgir: 429,
+  },
+  'fixo-limite-de-consultas': { consulta: 429 },
+  'fixo-erro-de-servidor': { consulta: 500 },
+}
+
+const encerrado = (evento) =>
+  Date.parse(`${evento.data_hora_fim ?? evento.data_hora_inicio}-03:00`) <
+  agora()
+
+function inscricaoPorCodigo(codigo) {
+  const criada = inscricoesPorCodigo.get(codigo)
+  if (criada) return { ...criada, persistida: true }
+  const fixa = INSCRICOES_FIXAS[codigo]
+  return fixa
+    ? { nome: 'Maria de Teste Silva', ...fixa, persistida: false }
+    : null
+}
+
+/** O que `GET /api/publico/inscricoes/{código}` devolve: as mesmas regras do servidor (cancelar e confirmar dependem da situação e de o evento ter acontecido). */
+function resumoDaInscricao(inscricao) {
+  const evento = eventos().find((e) => e.id_evento === inscricao.idEvento)
+  const sessao = inscricao.idSessao
+    ? sessoesDoEvento(inscricao.idEvento).find(
+        (x) => x.id_sessao === inscricao.idSessao,
+      )
+    : null
+  const acabou = encerrado(evento)
+  const tem =
+    inscricao.status === 'Pré-inscrito' || inscricao.status === 'Confirmado'
+  const prazo =
+    typeof inscricao.prazo === 'function'
+      ? inscricao.prazo()
+      : (inscricao.prazo ?? null)
+  return {
+    status: inscricao.status,
+    primeiro_nome: inscricao.nome.split(' ')[0],
+    evento: {
+      titulo: evento.titulo,
+      data_hora_inicio: evento.data_hora_inicio,
+      data_hora_fim: evento.data_hora_fim,
+      endereco_avulso: evento.endereco_avulso,
+    },
+    sessao: sessao
+      ? { titulo: sessao.titulo, data_hora_inicio: sessao.data_hora_inicio }
+      : null,
+    codigo_checkin: tem ? (inscricao.codigo ?? null) : null,
+    prazo_confirmacao: tem ? prazo : null,
+    evento_encerrado: acabou,
+    pode_cancelar:
+      ['Pré-inscrito', 'Confirmado', 'Lista de Espera'].includes(
+        inscricao.status,
+      ) && !acabou,
+    pode_confirmar: inscricao.status === 'Pré-inscrito' && !acabou,
+  }
+}
+
+const DIGITOS_HEX = '0123456789ABCDEF'
+/** Código de check-in de 8 caracteres hexadecimais maiúsculos, como o do servidor. */
+const codigoDeCheckin = (n) =>
+  Array.from(
+    { length: 8 },
+    (_, i) => DIGITOS_HEX[(n * 7 + i * 5 + n) % 16],
+  ).join('')
+
+/** `POST /api/publico/eventos/{id}/inscrever-se`: devolve `[status HTTP, corpo]`. */
+function inscreverNoEvento(idEvento, corpo) {
+  const evento = eventos().find((e) => e.id_evento === idEvento)
+  if (!evento) return [404, { detail: 'Evento não encontrado.' }]
+  inscricoesDeEvento.push({ idEvento, ...corpo })
+  // armadilha de robô disparada: finge sucesso, sem participantes e sem código
+  if (corpo.pagina_web)
+    return [
+      200,
+      {
+        mensagem: 'Inscrição registrada.',
+        codigo_checkin: null,
+        email_enviado: false,
+      },
+    ]
+  if (corpo.nome_completo === NOME_QUE_ESTOURA_O_LIMITE)
+    return [429, { detail: RECUSA_DE_LIMITE }]
+  if (corpo.nome_completo === NOME_QUE_DERRUBA_O_ATENDIMENTO)
+    return [500, { detail: 'Erro interno do servidor.' }]
+  if (encerrado(evento)) return [400, { detail: RECUSA_DE_EVENTO_ENCERRADO }]
+  if (corpo.versao_texto_consentimento !== VERSAO_DO_CONSENTIMENTO_DE_EVENTO)
+    return [422, { detail: RECUSA_DE_CONSENTIMENTO_NOVO }]
+  const pessoas = [
+    {
+      nome_completo: corpo.nome_completo,
+      cpf: corpo.cpf,
+      respostas: corpo.respostas ?? {},
+    },
+    ...(corpo.participantes_adicionais ?? []),
+  ]
+  for (const pessoa of pessoas) {
+    for (const pergunta of perguntasDoEvento(idEvento)) {
+      const valor = (pessoa.respostas ?? {})[String(pergunta.id_pergunta)]
+      const emBranco =
+        valor === undefined ||
+        valor === null ||
+        valor === '' ||
+        (Array.isArray(valor) && valor.length === 0)
+      if (pergunta.obrigatoria && emBranco)
+        return [
+          422,
+          { detail: `A pergunta "${pergunta.enunciado}" é obrigatória.` },
+        ]
+    }
+    if (pessoa.cpf === CPF_JA_INSCRITO_NO_EVENTO)
+      return [400, { detail: RECUSA_DE_INSCRICAO_REPETIDA }]
+  }
+  const sessao = corpo.id_sessao
+    ? sessoesDoEvento(idEvento).find((x) => x.id_sessao === corpo.id_sessao)
+    : null
+  if (corpo.id_sessao && !sessao)
+    return [404, { detail: 'Sessão não encontrada.' }]
+  const semVaga = (sessao ?? evento).vagas_livres === 0
+  const grupo = pessoas.length > 1 ? `grupo-${++sequenciaDeInscricoes}` : null
+  const participantes = pessoas.map((pessoa) => {
+    const n = ++sequenciaDeInscricoes
+    const status =
+      semVaga || pessoa.nome_completo === NOME_QUE_VAI_PARA_A_LISTA_DE_ESPERA
+        ? 'Lista de Espera'
+        : 'Pré-inscrito'
+    const codigo = `mock-${n}-${Math.random().toString(36).slice(2, 12)}`
+    const codigoDeEntrada = codigoDeCheckin(n)
+    inscricoesPorCodigo.set(codigo, {
+      status,
+      nome: pessoa.nome_completo,
+      idEvento,
+      idSessao: sessao?.id_sessao ?? null,
+      codigo: codigoDeEntrada,
+    })
+    return {
+      nome_completo: pessoa.nome_completo,
+      id_inscricao: n,
+      status,
+      // como o servidor: o código de check-in existe para todos, mas só quem tem vaga o usa (o resumo só o mostra a quem tem vaga)
+      codigo_checkin: codigoDeEntrada,
+      token_cancelamento: codigo,
+      email_enviado: corpo.email !== EMAIL_QUE_NAO_RECEBE,
+      valor_cobrado: null,
+    }
+  })
+  const primeiro = participantes[0]
+  return [
+    200,
+    {
+      mensagem: 'Inscrição registrada.',
+      identificador_grupo: grupo,
+      participantes,
+      id_inscricao: primeiro.id_inscricao,
+      status: primeiro.status,
+      codigo_checkin: primeiro.codigo_checkin,
+      token_cancelamento: primeiro.token_cancelamento,
+      email_enviado: primeiro.email_enviado,
+      valor_cobrado: null,
+    },
+  ]
+}
+
+/** `POST /api/publico/inscricoes/{código}/cancelar|confirmar`: devolve `[status HTTP, corpo]`. */
+function agirNaInscricao(codigo, acao) {
+  const inscricao = inscricaoPorCodigo(codigo)
+  if (!inscricao)
+    return [
+      404,
+      {
+        detail:
+          acao === 'cancelar'
+            ? 'Link de cancelamento inválido.'
+            : 'Link de confirmação inválido.',
+      },
+    ]
+  if (inscricao.falhaAoAgir === 500)
+    return [500, { detail: 'Erro interno do servidor.' }]
+  if (inscricao.falhaAoAgir === 429) return [429, { detail: RECUSA_DE_LIMITE }]
+  const mudar = (status) => {
+    if (inscricao.persistida) inscricoesPorCodigo.get(codigo).status = status
+  }
+  if (acao === 'cancelar') {
+    if (inscricao.status === 'Cancelado')
+      return [400, { detail: 'Esta inscrição já estava cancelada.' }]
+    if (
+      !['Pré-inscrito', 'Confirmado', 'Lista de Espera'].includes(
+        inscricao.status,
+      )
+    )
+      return [
+        400,
+        {
+          detail: `Não é possível cancelar uma inscrição com status '${inscricao.status}'.`,
+        },
+      ]
+    mudar('Cancelado')
+    return [
+      200,
+      {
+        mensagem: 'Inscrição cancelada.',
+        status: 'Cancelado',
+        reembolso: inscricao.reembolso
+          ? { id_titulo: 99, valor: inscricao.reembolso }
+          : null,
+      },
+    ]
+  }
+  if (inscricao.status === 'Lista de Espera')
+    return [400, { detail: AVISO_DA_LISTA_NO_CONFIRMAR }]
+  if (inscricao.status !== 'Pré-inscrito')
+    return [
+      400,
+      {
+        detail: `Não é possível confirmar uma inscrição com status '${inscricao.status}'.`,
+      },
+    ]
+  mudar('Confirmado')
+  return [200, { mensagem: 'Inscrição confirmada.', status: 'Confirmado' }]
+}
+
+/**
  * `vazio`: a produção sem nenhum dado cadastrado. `antiga`: a API ANTES da v5.5 — mesmos dados, mas sem destaque, sem
  * projeto no evento, sem edições, relatórios nem fotos e sem os campos de ligação das notícias (o site precisa
  * continuar construindo se for publicado antes da API nova). `instituicaoPreenchida`: a diretoria preencheu a Instituição (v5.4h);
@@ -1096,6 +1473,50 @@ export function criarServidor({
       return responder(pedidosDeAtendimento)
     }
 
+    // ---- Inscrição em evento pelo site (v5.5c): inscrever-se, cancelar e confirmar pelo código do link. API ANTIGA: as rotas não existem (caem no 404 do fim).
+    if (!antiga && req.method === 'POST') {
+      const caminhoPost = (req.url ?? '').split('?')[0]
+      const inscrever = /^\/api\/publico\/eventos\/(\d+)\/inscrever-se$/.exec(
+        caminhoPost,
+      )
+      const agir =
+        /^\/api\/publico\/inscricoes\/([^/]+)\/(cancelar|confirmar)$/.exec(
+          caminhoPost,
+        )
+      if (inscrever || agir) {
+        let texto = ''
+        req.on('data', (parte) => (texto += parte))
+        req.on('end', () => {
+          if (agir) {
+            const [status, resposta] = agirNaInscricao(
+              decodeURIComponent(agir[1]),
+              agir[2],
+            )
+            return responder(resposta, status)
+          }
+          let corpo
+          try {
+            corpo = JSON.parse(texto)
+          } catch {
+            return responder({ detail: 'Corpo inválido.' }, 422)
+          }
+          const [status, resposta] = inscreverNoEvento(
+            Number(inscrever[1]),
+            corpo,
+          )
+          return responder(resposta, status)
+        })
+        return
+      }
+    }
+    if (
+      !antiga &&
+      req.method === 'GET' &&
+      (req.url ?? '').split('?')[0] === '/__inscricoes-de-evento'
+    ) {
+      return responder(inscricoesDeEvento)
+    }
+
     // ---- Directus simulado (v5.3): `Authorization: Bearer <token>` obrigatório, como no real.
     if (
       req.method === 'GET' &&
@@ -1156,6 +1577,32 @@ export function criarServidor({
       if (caminho === '/api/publico/atendimentos/prazos') {
         if (antiga) return responder({ detail: 'Not Found' }, 404)
         return responder(PRAZOS_DE_ATENDIMENTO)
+      }
+      // v5.5c - o texto do consentimento da inscrição e a versão que a API confere; e o resumo de uma inscrição pelo código do link. API antiga: não existem.
+      if (!antiga && caminho === '/api/publico/eventos/consentimento-lgpd')
+        return responder({
+          texto: TEXTO_DO_CONSENTIMENTO_DE_EVENTO,
+          versao: VERSAO_DO_CONSENTIMENTO_DE_EVENTO,
+        })
+      const inscricaoDoLink = /^\/api\/publico\/inscricoes\/([^/]+)$/.exec(
+        caminho,
+      )
+      if (!antiga && inscricaoDoLink) {
+        const inscricao = inscricaoPorCodigo(
+          decodeURIComponent(inscricaoDoLink[1]),
+        )
+        if (inscricao?.consulta === 429)
+          return responder({ detail: RECUSA_DE_LIMITE }, 429)
+        if (inscricao?.consulta === 500)
+          return responder({ detail: 'Erro interno do servidor.' }, 500)
+        return inscricao
+          ? responder(resumoDaInscricao(inscricao))
+          : responder(
+              {
+                detail: 'Link inválido: confira o endereço que veio no e-mail.',
+              },
+              404,
+            )
       }
       if (caminho === '/api/publico/eventos')
         return responder(comoVier(lista(eventos), CAMPOS_NOVOS.eventoDaLista))

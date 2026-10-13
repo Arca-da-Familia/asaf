@@ -120,6 +120,9 @@ def confirmar_por_token(db: Session, *, token_cancelamento: str) -> Inscricao:
     inscricao = db.query(Inscricao).filter(Inscricao.token_cancelamento == token_cancelamento).first()
     if not inscricao:
         raise HTTPException(status_code=404, detail="Link de confirmação inválido.")
+    if inscricao.status == LISTA_DE_ESPERA:
+        # v5.5c - quem está na fila NÃO se confirma sozinho: a vaga só é dele quando o sistema o promove (sem isto, o link da fila furaria a fila e estouraria o limite de vagas)
+        raise HTTPException(status_code=400, detail="Você ainda está na lista de espera: avisamos por e-mail quando uma vaga abrir.")
     if inscricao.status not in _TRANSICOES_VALIDAS or CONFIRMADO not in _TRANSICOES_VALIDAS[inscricao.status]:
         raise HTTPException(status_code=400, detail=f"Não é possível confirmar uma inscrição com status '{inscricao.status}'.")
     inscricao.status = CONFIRMADO
@@ -127,6 +130,40 @@ def confirmar_por_token(db: Session, *, token_cancelamento: str) -> Inscricao:
     db.commit()
     db.refresh(inscricao)
     return inscricao
+
+
+def resumo_publico_por_token(db: Session, *, token_cancelamento: str) -> dict:
+    """v5.5c - o que a pessoa que tem o link vê na página de cancelar ou confirmar: o evento, o primeiro nome, a situação e o que dá para fazer. Só quem tem o código (secreto)
+    chega aqui; nenhum dado de outra pessoa."""
+    from app.models.eventos import Evento, SessaoEvento
+    from app.models.pessoas import Pessoa
+    from app.services.eventos import evento_ja_aconteceu
+
+    inscricao = db.query(Inscricao).filter(Inscricao.token_cancelamento == token_cancelamento).first()
+    if not inscricao:
+        raise HTTPException(status_code=404, detail="Link inválido: confira o endereço que veio no e-mail.")
+    sessao = None
+    if inscricao.contexto_tipo == "SessaoEvento":
+        sessao = db.query(SessaoEvento).filter(SessaoEvento.id_sessao == inscricao.id_contexto).first()
+        evento = db.query(Evento).filter(Evento.id_evento == sessao.id_evento).first() if sessao else None
+    else:
+        evento = db.query(Evento).filter(Evento.id_evento == inscricao.id_contexto).first()
+    pessoa = db.query(Pessoa).filter(Pessoa.id_pessoa == inscricao.id_pessoa).first()
+    encerrado = bool(evento and evento_ja_aconteceu(evento))
+    transicoes = _TRANSICOES_VALIDAS.get(inscricao.status, set())
+    return {
+        "status": inscricao.status,
+        "primeiro_nome": (pessoa.nome_completo.split()[0] if pessoa and pessoa.nome_completo else None),
+        "evento": {
+            "titulo": evento.titulo if evento else None, "data_hora_inicio": evento.data_hora_inicio if evento else None,
+            "data_hora_fim": evento.data_hora_fim if evento else None, "endereco_avulso": evento.endereco_avulso if evento else None,
+        },
+        "sessao": {"titulo": sessao.titulo, "data_hora_inicio": sessao.data_hora_inicio} if sessao else None,
+        "codigo_checkin": inscricao.codigo_checkin if inscricao.status in (PRE_INSCRITO, CONFIRMADO) else None,
+        "prazo_confirmacao": inscricao.prazo_confirmacao, "evento_encerrado": encerrado,
+        "pode_cancelar": CANCELADO in transicoes and not encerrado,
+        "pode_confirmar": inscricao.status == PRE_INSCRITO and not encerrado,
+    }
 
 
 def vincular_cobranca(db: Session, *, id_inscricao: int, id_titulo: int) -> Inscricao:

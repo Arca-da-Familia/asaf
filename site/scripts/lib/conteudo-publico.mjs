@@ -99,10 +99,12 @@ export function normalizarEvento(evento) {
   return { ...evento, id_projeto: evento.id_projeto ?? null }
 }
 
-/** Detalhe do evento: projeto ausente = null; edições, documentos e fotos ausentes = lista vazia. */
+/** Detalhe do evento: projeto ausente = null; sessões, perguntas, edições, documentos e fotos ausentes = lista vazia. */
 export function normalizarEventoDetalhado(detalhe) {
   return {
     ...normalizarEvento(detalhe),
+    sessoes: lista(detalhe.sessoes),
+    perguntas: lista(detalhe.perguntas),
     projeto: detalhe.projeto ?? null,
     edicoes: lista(detalhe.edicoes),
     documentos: lista(detalhe.documentos),

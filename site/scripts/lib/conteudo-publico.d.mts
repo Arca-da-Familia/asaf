@@ -37,6 +37,19 @@ export interface SessaoDoEvento {
   vagas_livres: number | null
 }
 
+/**
+ * Pergunta do formulário de inscrição do evento (app/routers/eventos.py::_serializar_pergunta). `tipo`: TEXTO_CURTO, TEXTO_LONGO, SELECAO_UNICA,
+ * SELECAO_MULTIPLA, NUMERO, DATA ou ARQUIVO. `opcoes`: as opções das perguntas de seleção, separadas por vírgula (CSV); nulo nas demais.
+ */
+export interface PerguntaDoEvento {
+  id_pergunta: number
+  enunciado: string
+  tipo: string
+  opcoes: string | null
+  obrigatoria: boolean
+  ordem: number
+}
+
 /** O mínimo de um evento nas listas de contexto (edições de um projeto, cadeia de edições). */
 export interface ResumoDeEvento {
   id_evento: number
@@ -73,6 +86,8 @@ export interface FotoDoProjeto extends FotoDoEvento {
 
 export interface EventoDetalhado extends EventoDaLista {
   sessoes: SessaoDoEvento[]
+  /** As perguntas do formulário de inscrição (v5.5c); vazia se o evento não tem (ou na API antiga). */
+  perguntas: PerguntaDoEvento[]
   /** Projeto público do evento, ou null. */
   projeto: { id_projeto: number; nome: string } | null
   /** Cadeia de edições públicas (da mais antiga à mais nova); vazia na API antiga. */

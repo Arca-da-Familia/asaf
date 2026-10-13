@@ -11,8 +11,13 @@ export default defineConfig({
   // Domínio canônico: base de canonical, Open Graph, sitemap e robots.txt (v5.0).
   site: 'https://asaf.org.br',
   integrations: [
-    // A página 404 não entra no sitemap (não é conteúdo indexável).
-    sitemap({ filter: (pagina) => !pagina.includes('/404') }),
+    // Fora do sitemap: a página 404 e as páginas dos links do e-mail de inscrição (cancelar e confirmar) — não são conteúdo indexável (v5.5c).
+    sitemap({
+      filter: (pagina) =>
+        !pagina.includes('/404') &&
+        !pagina.includes('/cancelar-inscricao') &&
+        !pagina.includes('/confirmar-inscricao'),
+    }),
   ],
   server: { port: 4321, host: '127.0.0.1' },
   devToolbar: { enabled: false },
