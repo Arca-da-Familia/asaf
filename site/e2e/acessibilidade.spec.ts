@@ -55,12 +55,16 @@ test.describe('home com a ilha de eventos em cada estado', () => {
   })
 })
 
-test('navegação por teclado: o primeiro Tab leva ao "Pular para o conteúdo"', async ({
-  page,
-}) => {
-  await page.goto('/')
-  await page.keyboard.press('Tab')
-  const foco = page.locator(':focus')
-  await expect(foco).toHaveText('Pular para o conteúdo')
-  await expect(foco).toBeVisible()
-})
+// A declaração de acessibilidade afirma "em toda página, o primeiro item para quem navega pelo teclado é o link para pular ao conteúdo": cada página prova isso.
+for (const caminho of TODAS) {
+  test(`navegação por teclado: o primeiro Tab leva ao "Pular para o conteúdo" — ${caminho}`, async ({
+    page,
+  }) => {
+    await page.goto(caminho)
+    await page.keyboard.press('Tab')
+    const foco = page.locator(':focus')
+    await expect(foco).toHaveText('Pular para o conteúdo')
+    await expect(foco).toBeVisible()
+    await expect(foco).toHaveAttribute('href', '#conteudo')
+  })
+}

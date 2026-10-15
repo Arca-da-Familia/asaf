@@ -9,7 +9,8 @@ import Base from '../../layouts/Base.astro'
 const ORGANIZACAO = await organizacaoDoSite()
 
 // Declaração de acessibilidade (v5.7). Texto escrito SÓ com o que o site e a sua publicação realmente fazem hoje: o que é verificado (axe em toda página, no computador e no
-// celular, a cada publicação; nota de acessibilidade do Lighthouse exigida), o que existe na página (link para pular ao conteúdo, foco visível, idioma) e o que AINDA NÃO foi
+// celular, a cada mudança de CÓDIGO e sobre o site montado com dados de exemplo — a publicação automática de conteúdo pula esses portões, ver deploy-site.yml; nota de acessibilidade
+// do Lighthouse exigida numa amostra de páginas), o que existe na página (link para pular ao conteúdo, foco visível, idioma) e o que AINDA NÃO foi
 // feito (revisão manual com teclado e leitor de tela, auditoria por pessoas). Versionada em config/organizacao.ts: mudou o texto, aumente a versão e a data lá.
 const migalhas: Migalha[] = [{ rotulo: 'Declaração de acessibilidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.acessibilidade
@@ -42,13 +43,14 @@ const classeDoLink = 'font-medium text-primary underline underline-offset-4'
         A {ORGANIZACAO.nome} ({ORGANIZACAO.sigla}) quer que o seu site possa ser
         usado por todas as pessoas, com ou sem deficiência, no computador e no
         celular. A meta é seguir as Diretrizes de Acessibilidade para Conteúdo
-        Web (WCAG) 2.1, nível AA.
+        Web (WCAG), nível AA; hoje as verificações automáticas descritas abaixo
+        cobrem a versão 2.1.
       </p>
       <p class="mt-3">
         <strong>Situação hoje: conformidade parcial.</strong> As verificações
-        automáticas descritas abaixo não encontram problema, mas elas não pegam
-        tudo e a revisão manual ainda não foi feita. Por isso não afirmamos que
-        o site está totalmente de acordo com a WCAG 2.1 AA.
+        automáticas não encontram problema no site montado com dados de exemplo,
+        mas elas não pegam tudo e a revisão manual ainda não foi feita. Por isso
+        não afirmamos que o site está totalmente de acordo com a WCAG 2.1 AA.
       </p>
     </section>
 
@@ -58,19 +60,29 @@ const classeDoLink = 'font-medium text-primary underline underline-offset-4'
       </h2>
       <ul class="mt-3 list-disc space-y-2 pl-6">
         <li>
-          <strong>Verificação automática em todas as páginas.</strong> A cada
-          publicação do site, todas as páginas passam pelo verificador axe-core,
-          com as regras das WCAG 2.1 níveis A e AA e as boas práticas dele
-          (entre elas contraste de cores, rótulos de campos, texto alternativo
-          de imagens, idioma da página, nomes de botões e links e ordem dos
-          títulos), tanto em tela de computador quanto em tela de celular (375
-          pixels de largura). Se uma página tiver problema, a publicação não
-          sai.
+          <strong>
+            Verificação automática a cada mudança no código do site.
+          </strong>
+          Toda vez que o código do site muda, todas as páginas, montadas com
+          dados de exemplo, passam pelo verificador axe-core, com as regras das
+          WCAG 2.1 níveis A e AA e as boas práticas dele (entre elas contraste
+          de cores, rótulos de campos, texto alternativo de imagens, idioma da
+          página, nomes de botões e links e ordem dos títulos). Isso inclui a
+          página de erro e as de cancelar e confirmar inscrição, em largura de
+          computador e em largura de 375 pixels, como a de um celular; e, no
+          computador, os avisos de erro dos formulários e as telas de
+          confirmação da inscrição em evento e dos formulários de atendimento.
+          Os testes usam o Chromium, o motor do navegador Chrome. Se o
+          verificador acusar problema, aquela mudança não é publicada; porém a
+          publicação automática de conteúdo novo (veja abaixo) não repete a
+          verificação e leva junto o código que estiver na versão principal do
+          site.
         </li>
         <li>
-          <strong>Nota de acessibilidade do Lighthouse.</strong> Nas páginas que
-          a publicação mede com o Lighthouse, a nota de acessibilidade tem de
-          ser 100, senão a publicação também não sai.
+          <strong>Nota de acessibilidade do Lighthouse.</strong> Em uma amostra
+          de páginas do site (entre elas esta declaração), a nota de
+          acessibilidade do Lighthouse tem de ser 100 para a mudança de código
+          ser publicada.
         </li>
         <li>
           <strong>Link para pular ao conteúdo.</strong> Em toda página, o
@@ -78,8 +90,9 @@ const classeDoLink = 'font-medium text-primary underline underline-offset-4'
           conteúdo&rdquo;, que leva direto ao texto principal.
         </li>
         <li>
-          <strong>Foco visível.</strong> Todo link, botão e campo mostra um
-          contorno quando está selecionado pelo teclado.
+          <strong>Foco visível.</strong> O estilo geral do site define um
+          contorno para todo link, botão e campo selecionado pelo teclado; esse
+          contorno ainda não foi conferido tela a tela.
         </li>
         <li>
           <strong>Idioma.</strong> Toda página informa que está em português do
@@ -96,9 +109,24 @@ const classeDoLink = 'font-medium text-primary underline underline-offset-4'
         Ferramentas automáticas encontram só uma parte dos problemas de
         acessibilidade. Ainda não foram feitas a revisão manual de todo o site
         só com o teclado e com leitor de tela, nem a avaliação por pessoas que
-        usam tecnologia assistiva. Quando forem feitas, esta declaração será
-        atualizada, com a data e o que foi encontrado.
+        usam tecnologia assistiva. Quando forem feitas, pretendemos atualizar
+        esta declaração.
       </p>
+      <ul class="mt-3 list-disc space-y-2 pl-6">
+        <li>
+          Notícias, eventos, projetos e documentos novos entram no ar por uma
+          publicação automática que não repete a verificação descrita acima: só
+          as mudanças no código do site passam por ela.
+        </li>
+        <li>O menu do celular aberto não passa pelo verificador automático.</li>
+        <li>
+          Os testes automáticos usam um único navegador (o Chromium, motor do
+          Chrome) e não emulam um aparelho de celular, só a largura da tela. As
+          telas de confirmação dos formulários de atendimento só são verificadas
+          na largura de computador, e a de filiação depois de enviada não passa
+          pelo verificador automático.
+        </li>
+      </ul>
     </section>
 
     <section aria-labelledby="limitacoes">
@@ -107,14 +135,20 @@ const classeDoLink = 'font-medium text-primary underline underline-offset-4'
       </h2>
       <ul class="mt-3 list-disc space-y-2 pl-6">
         <li>
-          Os documentos publicados em PDF (como atas e demonstrativos, quando
-          existirem) podem não ter sido preparados para leitores de tela. Se
-          você precisar de um deles em outro formato, peça pelo canal abaixo.
+          Os documentos publicados em PDF (como atas, certidões, balanços e
+          relatórios, quando existirem) podem não ter sido preparados para
+          leitores de tela. Se você precisar de um deles em outro formato, peça
+          pelo canal abaixo.
         </li>
         <li>
-          Os endereços do mapa (por exemplo, o da sede, na página de Contato)
-          levam para um serviço de terceiros, que tem a sua própria
-          acessibilidade.
+          Os formulários do site precisam do JavaScript ativado no navegador.
+          Sem ele, os formulários de pedido, de filiação e de voluntariado não
+          aparecem, e o de inscrição em evento aparece com um aviso, mas não
+          envia. Nesses casos, use o e-mail ou o telefone abaixo.
+        </li>
+        <li>
+          O botão &ldquo;Abrir no Google Maps&rdquo;, na página de Contato, leva
+          ao site do Google, que tem a sua própria acessibilidade.
         </li>
       </ul>
     </section>
@@ -130,8 +164,8 @@ const classeDoLink = 'font-medium text-primary underline underline-offset-4'
         <a href="/contato/" class={classeDoLink}>
           Contato
         </a>
-        (o pedido recebe um número de protocolo e um prazo de resposta), escreva
-        para{' '}
+        (com o JavaScript ativado, o pedido recebe um número de protocolo e um
+        prazo de resposta), escreva para{' '}
         <a href={`mailto:${ORGANIZACAO.email}`} class={classeDoLink}>
           {ORGANIZACAO.email}
         </a>{' '}
@@ -149,7 +183,7 @@ const classeDoLink = 'font-medium text-primary underline underline-offset-4'
       </h2>
       <p class="mt-3">
         Esta é a versão {versao} da declaração, em vigor desde {dataExtenso}.
-        Ela é revista sempre que o que o site verifica ou faz pela
+        Pretendemos revê-la quando o que o site verifica ou faz pela
         acessibilidade mudar.
       </p>
     </section>
