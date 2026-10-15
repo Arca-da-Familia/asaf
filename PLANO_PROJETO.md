@@ -3671,6 +3671,17 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       - **Directus 12.4.1 → 12.5.0: ADIADO, com motivo (não é silêncio).** É a única versão desatualizada que sobrou. É troca da imagem do contêiner de **produção** (infraestrutura),
         e a regra do projeto pede provar antes: subir a 12.5.0 numa cópia descartável (como na 12.4.1), rodar `directus_configurar.py verificar` e `isolar_directus.py
         verificar` e só então trocar a imagem, dizendo o plano ao Presidente. Não há motivo de segurança conhecido para pressa; fica para o próximo lote.
+      - **Lote 10 ✅ FEITO, provado na homologação e confirmado em produção (2026-10-15, commit `d99a2b8`)** (mesma versão-maior, só última estável): servidor `fastapi` 0.143.0 → **0.143.2**,
+        `pydantic` 2.14.0 → **2.14.1** (com `pydantic_core` 2.50.1) e `pypdf` 6.20.0 → **6.20.1** (as três fixadas em `requirements.txt`), mais as de trás que o `pip` resolve (`starlette` 1.8.0,
+        `httptools` 0.9.0, `truststore` 0.10.5, `pluggy` 1.7.0); painel e site dentro das faixas (React 19.3.1, `astro` 7.4.0, `vitest` 5.0.5, TanStack Query 5.104.3 e Table 9.3.1, Zod 4.6.7,
+        Radix, `lucide-react` 1.57, `react-hook-form` 7.90, Playwright 1.64.1, `@axe-core/playwright` 4.14.0, Prettier 3.9.10, `jsdom` 30.1.3, `sanitize-html` 2.18.1 e outros). Conferido pacote a pacote
+        com `npm view`: nada mais desatualizado; **TypeScript 7** (`@typescript/native` 7.0.2) e o 6 lado a lado (`@typescript/typescript6` 6.0.2) seguem nas últimas. **Verificado:** suíte do servidor
+        1138 de 1138, **rodada duas vezes** no código final; painel: formatação, tipos, lint (0 erros), 534 testes, build e 10 de 10 no navegador (com a API apontada para a produção, como no CI);
+        site: formatação, tipos, 537 testes, build de teste, **584 de 584 no navegador com o `axe` novo** e os roteiros de estado vazio, Instituição, sincronização e tamanho. **Na homologação:**
+        `v5.4c-fase0` 6, `v5.4c-fase1` 24, `v5.4g-02` 7 (o verificador de PDF, com o `pypdf` novo), `v5.4h-12` 4, `v5.4h-09` 5, `v5.5a-01` 6, `v5.5a-02` 7 e `v5.4g-01` 5 (acessibilidade de todas as
+        páginas do site reconstruído). **Em produção:** Deploy API, Painel e Site verdes; `version.json` do painel e do site = `d99a2b8`; a API responde 200 nas rotas públicas e 401 na protegida, com 419
+        rotas no `openapi.json`. **Limite conhecido (informativo):** `npm audit` do site lista 13 avisos, todos na cadeia do `@lhci/cli` 0.15.1 (Lighthouse CI: `tmp`, `uuid`, `extract-zip`, `basic-ftp`
+        etc.), que é ferramenta só do CI (nunca vai para o site), já está na última versão e não tem correção publicada; o `npm audit` do painel dá 0. Rever a cada lote.
 - [ ] Fator ônibus tratado como risco de projeto (v12.8): documentação suficiente para outra
       pessoa assumir, e pelo menos uma pessoa da associação treinada na operação básica.
 
