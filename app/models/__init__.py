@@ -68,7 +68,7 @@ from app.models.eventos import Evento, FotoEvento, SessaoEvento, PerguntaEvento,
 from app.models.protecao_publica import TentativaAcessoPublico
 from app.models.linha_do_tempo import EventoLinhaDoTempo
 from app.models.estatuto import DocumentoEstatuto, RegraEstatutaria
-from app.models.mandatos import DeclaracaoConflitoInteresse, Mandato
+from app.models.mandatos import DeclaracaoConflitoInteresse, FotoDaDiretoria, Mandato
 from app.models.compras import (
     DadosBancariosFornecedor,
     AlcadaAprovacao,
