@@ -1908,6 +1908,30 @@ Dividida em quatro partes (decisão do Presidente, 2026-10-09: "parte a parte");
       `/eventos/`, `/cancelar-inscricao/` e `/confirmar-inscricao/` respondem 200 (**produção não recebeu evento nem inscrição de teste**). **Limites conhecidos:** (a) "Remarcado" não aparece como selo nas
       listas de edições e na página do projeto (o resumo do evento do servidor só traz a situação); (b) o reembolso de quem pagou e NÃO desiste pelo link é tratado no Financeiro (não é automático); (c) o aviso por
       e-mail depende do SMTP configurado (a hml não tem: o painel mostra "alguns e-mails não saíram").
+- [x] **Conferência independente dos textos públicos de evento e da Política (2026-10-15)** — um verificador que não via a minha conclusão conferiu cada afirmação contra o código e achou o que segue; tudo
+      corrigido, provado na homologação e confirmado em produção (commit `b58b746`). **Defeito real: a hora do evento no site estava 3 horas errada.** O painel e o servidor guardam a hora em UTC (quem digita
+      19:00 em Belém manda 22:00Z); o site lia a hora crua como horário local de Belém e mostrava 22:00 (e mandava o horário errado ao Google). Nunca apareceu porque os robôs e o CI rodam em UTC, onde as
+      duas convenções coincidem. **Provado na homologação** com um navegador no fuso de Belém (`v5.5d-05`: digitou 18:00, o site mostrava 21:00) e corrigido: o site passa a ler a data da API como UTC e a
+      mostrar em Belém (`site/src/lib/datas.ts`; o `<time datetime>` e o dado do Google saem com `-03:00`), o mock da API do site escreve UTC, e os e-mails (mudança de situação, vaga que abriu) e a data do
+      certificado passam a sair em horário de Belém (`app/services/fuso.py`), dizendo qual é. **Outros achados corrigidos:** trocar a data pelo "Editar evento" não avisava ninguém nem marcava "remarcado" (agora, com
+      inscritos, o servidor recusa e manda usar "Remarcar"; a comparação da data com e sem fuso também deixou de dar erro 500); aumentar o limite de vagas não chamava a lista de espera (quem chegasse depois
+      passava na frente: agora a fila anda na hora, na ordem); o e-mail de cancelamento de evento pago agora diz como pedir a devolução do valor inteiro; o e-mail "uma vaga abriu" mostra o prazo em horário de
+      Belém (era UTC). **Textos públicos corrigidos (Política de Privacidade 1.8):** o parágrafo da inscrição em evento (o formulário nem sempre existe; o e-mail é tentativa; a lista de espera não recebe código;
+      o contato do cadastro é o que recebe os avisos; o IP também fica registrado ao abrir, cancelar ou confirmar; o registro técnico aparece na Auditoria; a inscrição NÃO é cancelada pelo sistema quando o evento
+      é cancelado ou adiado); o encarregado só é nomeado quando o mandato está publicado (a frase "o nome consta na página Diretoria" era falsa em produção); "as inscrições reabrem quando a nova data for
+      definida" virou frase condicional; os avisos da lista de espera dizem "se uma vaga abrir" e do prazo para confirmar; evento com valor ou com arquivo não promete mais que a secretaria faz a inscrição.
+      **Testes:** servidor 1144 de 1144 (duas rodadas; 6 testes novos de fuso e das duas correções, que reprovam sem elas), site 556 unitários e 749 de navegador; **na homologação** `v5.5d-05` 2, `v5.4g-04` 9,
+      `v5.4f-02` 16, `v5.4f-03` 16, `v5.4h-06` 4, `v5.5a-01` 6, `v5.4h-10` 5 e `v5.4g-01` 5. **Em produção:** Deploy API e Site verdes; Política 1.8 no ar com as frases corrigidas e sem a promessa do nome;
+      a política de conteúdo continua nos cabeçalhos.
+      **ABERTO — decisão do Presidente (nada disto foi mexido sem ele):**
+      (1) **O e-mail da API está desligado em produção.** O contêiner `asaf-api` NÃO tem as variáveis `SMTP_*` (só as rotinas agendadas do GitHub as leem do cofre `kv-asaf-arca`, onde os cinco segredos
+      existem e estão ativos). Por isso NENHUM e-mail que a API manda na hora sai de verdade em produção: confirmação de inscrição, aviso de vaga, aviso de mudança de situação do evento, confirmação de
+      pedido do site, resposta a pedido. A inscrição continua valendo (o envio é tentativa) e os textos públicos já dizem "tenta enviar", mas a pessoa fica sem o e-mail. Ligar é mudança de infraestrutura de
+      produção que passa a mandar e-mail real: plano proposto = copiar as cinco variáveis do cofre para o contêiner como segredos (sem mostrar valores), nova revisão, e provar com um e-mail de teste ao
+      endereço do Presidente; a homologação continua sem e-mail de propósito. (2) **Encarregado:** o Presidente cadastrar o próprio mandato (a Política e a página Diretoria só mostram o nome depois).
+      (3) **Prazo de guarda do participante externo (LGPD):** o consentimento padrão diz "para fins de organização deste evento", mas a pessoa fica no cadastro sem prazo de eliminação; precisa de decisão
+      (FASE 7). (4) Quem pagou e foi inscrito pela secretaria não tem link: a devolução dele é tratada à mão no Financeiro. (5) **Lacuna no fluxo do site:** a publicação automática de conteúdo
+      (`sincronizar-site` e Directus) pula os portões de qualidade e publica o código que estiver na `main`; sugestão: recusar a publicação se a última verificação da `main` falhou.
 
 #### v5.6 — Doação online (era a v5.4)
 
@@ -1921,16 +1945,27 @@ Dividida em quatro partes (decisão do Presidente, 2026-10-09: "parte a parte");
 
 #### v5.7 — Confiança, privacidade e conformidade do site (era a v5.5)
 
-- [ ] Banner de cookies honesto: se o site não usa rastreamento de terceiro, não fingir que usa —
-      preferência por métrica sem cookie (Application Insights ou analytics respeitoso), evitando
-      consentimento desnecessário. (Hoje o site **não** instala cookie; a Política de Privacidade já diz
-      isso.)
-- [ ] Headers de segurança (CSP, `X-Content-Type-Options`, `X-Frame-Options`, HSTS) configurados no
-      Static Web App — a CSP precisa conhecer o Directus (imagens/arquivos), as ilhas e o Google Maps.
-- [ ] Página "Transparência" e página "Privacidade" sempre acessíveis a partir do rodapé de
-      qualquer página (**já feito na v5.2**).
-- [ ] **Declaração de acessibilidade** do site e `security.txt`; mapa com pino **só** com coordenadas
-      exatas informadas pela diretoria (decisão de 2026-10-03: fica para o futuro).
+- [x] **Banner de cookies honesto** — o site não instala cookie nem fala com servidor de terceiro, então NÃO há banner (seria fingir o contrário); a Política já dizia isso. **Provado:** teste de
+      navegador em cada página (nenhum cookie, nenhum armazenamento local, nenhuma origem fora do site e da API), na homologação e, por leitura, em produção (23 páginas abertas num navegador:
+      nenhum cookie, nenhum terceiro, nenhum `Set-Cookie`).
+- [x] **Headers de segurança** (2026-10-15) — escritos no build de CADA ambiente (integração do Astro em `astro.config.mjs` + `site/scripts/lib/cabecalhos-de-seguranca.mjs`, dentro de
+      `dist/staticwebapp.config.json`; a homologação recebe a política com a API de teste e a produção com a de produção): `Content-Security-Policy` fechada (`default-src 'none'`; script e estilo só
+      do próprio site; imagens e chamadas só do site e da API; `frame-ancestors 'none'`; sem `unsafe-*`), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Permissions-Policy` (câmera,
+      microfone, localização e pagamento desligados) e `Cross-Origin-Opener-Policy: same-origin`; o HSTS e o `Referrer-Policy` já vinham do Azure. A CSP NÃO precisou conhecer o Directus nem o Google
+      Maps (o site é autocontido: a mídia entra no build e o mapa é só um link). **Achado pelo teste:** três páginas da Transparência tinham um script de 685 bytes escrito DENTRO da página (o Astro
+      inlina script pequeno), que a política bloquearia; o build agora não inlina script (`assetsInlineLimit: 0`) e um teste confere que nenhuma página tem script, estilo ou `on…=""` dentro dela.
+      O `astro preview` do teste de navegador manda os MESMOS cabeçalhos que o build publicou, então os 749 testes de navegador do site rodam sob a política. **Verificado:** 16 testes unitários do gerador;
+      109 de navegador no arquivo novo (`e2e/seguranca.spec.ts`: política em cada página, nada de terceiro, a política realmente bloqueia o que é de fora, sem cookie); Lighthouse local nas 16 páginas da
+      amostra; na homologação `v5.7-01` 5 de 5 com os cabeçalhos REAIS do Azure (cada página responde com a política da API de teste e abre sem violá-la; a agenda ao vivo funciona; embutir o site em
+      outra página é recusado; `security.txt` no ar; declaração aberta e no rodapé) e regressão `v5.5a-01` 6, `v5.4h-10` 5, `v5.4g-01` 5. **Em produção (2026-10-15, commit `f26d2ee`):** o CI do site
+      (axe, SEO e Lighthouse) verde; Home e página 404 trazem os cinco cabeçalhos (a política com a API de PRODUÇÃO); nenhum `Set-Cookie`; abertura das páginas públicas num navegador sem nenhuma violação.
+- [x] Página "Transparência" e página "Privacidade" sempre acessíveis a partir do rodapé de qualquer página (**já feito na v5.2**).
+- [x] **Declaração de acessibilidade** (`/acessibilidade/`, versão 1.0 de 2026-10-15, no rodapé e no sitemap) e `security.txt` (`/.well-known/security.txt`, RFC 9116: contato `asaf@asaf.org.br` e a
+      página de Contato; validade de 330 dias, renovada a cada publicação do site). **A declaração passou por conferência independente DUAS vezes:** a 1ª achou 3 afirmações falsas ou exageradas; a 2ª, 2 falsas
+      e 4 exageradas (a principal: a publicação automática de conteúdo pula os portões de qualidade e publica o código que estiver na `main`). O texto agora diz só o que se sustenta: conformidade
+      parcial; verificação automática a cada mudança de CÓDIGO, com dados de exemplo; revisão manual e avaliação por pessoas ainda não feitas; limites conhecidos. O primeiro Tab → "Pular para o conteúdo"
+      passou a ser testado em TODA página, e a declaração entrou na amostra do Lighthouse.
+- [ ] Mapa com pino **só** com coordenadas exatas informadas pela diretoria (decisão de 2026-10-03: fica para o futuro).
 
 ##### 🔍 Ponto de Revisão — FASE 5 (2/2 — fim, fecha v5.5–v5.7)
 
@@ -1940,6 +1975,10 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - Headers de segurança (v5.7) presentes de fato na resposta HTTP do site em produção.
 - Voluntário não associado consegue ser escalado; evento cancelado aparece como **cancelado** (não some).
 - Verificação independente de fatos das páginas novas e alteradas.
+
+  **Estado em 2026-10-15 (o Ponto só fecha com a v5.6):** headers de segurança presentes na resposta de produção ✔ (v5.7); formulários públicos na fila única ✔ (v5.5a/b); voluntário não associado
+  escalado ✔ (v5.5b); evento cancelado aparece como cancelado ✔ (v5.5d); verificação independente de fatos feita para a declaração de acessibilidade (2 passagens) e para os textos de inscrição em evento,
+  situação do evento e Política de Privacidade (ver o item da conferência, abaixo); **pendente:** v5.6 (doação online), que depende de a diretoria escolher o banco ou provedor do Pix.
 
 ##### Decisões pendentes → onde cada uma será tratada (resposta do usuário em 2026-10-03)
 
