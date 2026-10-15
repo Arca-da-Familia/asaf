@@ -276,11 +276,11 @@ describe('a situação do evento na página', () => {
       'Motivo: Aguardando a prefeitura.',
     )
     expect(texto(raiz, '[data-situacao-complemento]')).toBe(
-      'As inscrições reabrem quando a nova data for definida.',
+      'Enquanto estiver adiado, o evento não recebe novas inscrições; se voltar a ser programado, elas reabrem nesta página.',
     )
     expect(oculto(raiz, '[data-como-participar]')).toBe(true)
     expect(texto(raiz, '[data-inscricoes-paradas]')).toBe(
-      'As inscrições reabrem quando a nova data for definida.',
+      'Enquanto o evento estiver adiado, não recebemos novas inscrições.',
     )
     expect(
       raiz.querySelector<HTMLElement>('[data-aviso-situacao]')!.className,
@@ -294,13 +294,13 @@ describe('a situação do evento na página', () => {
       fetchImpl: api({
         status: 'Programado',
         motivo_status: 'O espaço estava ocupado.',
-        data_hora_inicio_anterior: '2026-10-10T19:00:00',
-        data_hora_inicio: '2026-10-17T19:00:00',
-        data_hora_fim: '2026-10-17T21:30:00',
+        data_hora_inicio_anterior: '2026-10-10T22:00:00',
+        data_hora_inicio: '2026-10-17T22:00:00',
+        data_hora_fim: '2026-10-18T00:30:00',
         vagas_livres: 9,
         sessoes: [
-          { id_sessao: 21, data_hora_inicio: '2026-10-17T19:00:00' },
-          { id_sessao: 22, data_hora_inicio: '2026-10-17T20:00:00' },
+          { id_sessao: 21, data_hora_inicio: '2026-10-17T22:00:00' },
+          { id_sessao: 22, data_hora_inicio: '2026-10-17T23:00:00' },
         ],
       }),
     })

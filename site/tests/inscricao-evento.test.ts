@@ -1021,7 +1021,7 @@ describe('enviar a inscrição', () => {
     const item = resultado.querySelector('[data-resultado-lista] li')!
     expect(item.textContent).toContain('Situação: Lista de espera')
     expect(item.textContent).toContain(
-      'Você será avisado(a) por e-mail se uma vaga abrir.',
+      'Se uma vaga abrir e chegar a sua vez, você recebe um e-mail e tem um prazo para confirmar; sem confirmar, a vaga passa ao próximo.',
     )
     expect(item.querySelector('[data-codigo]')).toBeNull()
     expect(item.textContent).not.toContain('Código de check-in')

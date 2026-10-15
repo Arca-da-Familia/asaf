@@ -15,7 +15,7 @@ function evento(parcial: Partial<EventoPublico> = {}): EventoPublico {
     titulo: 'Encontro de Famílias',
     descricao: null,
     categoria: 'Encontro',
-    data_hora_inicio: '2026-10-10T19:00:00',
+    data_hora_inicio: '2026-10-10T22:00:00',
     data_hora_fim: null,
     id_espaco: null,
     endereco_avulso: null,

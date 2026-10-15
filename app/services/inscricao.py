@@ -122,7 +122,7 @@ def confirmar_por_token(db: Session, *, token_cancelamento: str) -> Inscricao:
         raise HTTPException(status_code=404, detail="Link de confirmação inválido.")
     if inscricao.status == LISTA_DE_ESPERA:
         # v5.5c - quem está na fila NÃO se confirma sozinho: a vaga só é dele quando o sistema o promove (sem isto, o link da fila furaria a fila e estouraria o limite de vagas)
-        raise HTTPException(status_code=400, detail="Você ainda está na lista de espera: avisamos por e-mail quando uma vaga abrir.")
+        raise HTTPException(status_code=400, detail="Você ainda está na lista de espera: se uma vaga abrir e chegar a sua vez, você recebe um e-mail.")
     if inscricao.status not in _TRANSICOES_VALIDAS or CONFIRMADO not in _TRANSICOES_VALIDAS[inscricao.status]:
         raise HTTPException(status_code=400, detail=f"Não é possível confirmar uma inscrição com status '{inscricao.status}'.")
     from app.services.status_do_evento import evento_do_contexto

@@ -24,6 +24,7 @@ from app.models.eventos import (
 from app.models.motores import CONFIRMADO, LISTA_DE_ESPERA, PRE_INSCRITO, Inscricao
 from app.models.pessoas import Pessoa
 from app.services import notificacoes
+from app.services.fuso import ROTULO_DO_FUSO, dia_e_hora_em_belem
 from app.services.documentos_verificacao import exigir_texto_sem_dado_pessoal
 from app.services.site_publico import url_base_do_site
 
@@ -75,7 +76,7 @@ def evento_em_andamento_normal(db: Session, contexto_tipo: str, id_contexto: int
     return evento is None or evento.status == STATUS_EVENTO_PROGRAMADO
 
 
-def _sem_fuso(momento: Optional[datetime]) -> Optional[datetime]:
+def sem_fuso(momento: Optional[datetime]) -> Optional[datetime]:
     """Os instantes ficam em UTC sem fuso: o que chega com fuso (o painel manda com "Z") é trazido para UTC antes de comparar."""
     if momento is None:
         return None
@@ -92,8 +93,14 @@ def _inscricoes_do_evento(db: Session, evento: Evento, status: tuple) -> list:
     return consulta.filter(de_evento).all()
 
 
+def tem_inscritos_ativos(db: Session, evento: Evento) -> bool:
+    """Alguém inscrito (ou na lista de espera) que precisaria saber de uma mudança no evento."""
+    return bool(_inscricoes_do_evento(db, evento, (PRE_INSCRITO, CONFIRMADO, LISTA_DE_ESPERA)))
+
+
 def _formatar(momento: datetime) -> str:
-    return momento.strftime("%d/%m/%Y às %H:%M")
+    """A hora que o sistema guarda é UTC: o e-mail mostra a de Belém, dizendo qual é."""
+    return f"{dia_e_hora_em_belem(momento)} ({ROTULO_DO_FUSO})"
 
 
 def _texto_do_aviso(db: Session, evento: Evento, *, situacao_nova: str, motivo: Optional[str], inicio_anterior: Optional[datetime]) -> tuple:
@@ -101,9 +108,15 @@ def _texto_do_aviso(db: Session, evento: Evento, *, situacao_nova: str, motivo: 
     pagina = f"\n\nA página do evento: {url_base_do_site(db)}/eventos/{evento.id_evento}/" if evento.visibilidade == "Pública" else ""
     linha_do_motivo = f"\nMotivo: {motivo}" if motivo else ""
     if situacao_nova == STATUS_EVENTO_CANCELADO:
+        # evento com cobrança: quem pagou e cancela a inscrição pelo link do e-mail de confirmação recebe o valor INTEIRO (o sistema registra a devolução; a secretaria faz o pagamento)
+        devolucao = (
+            "\n\nSe você pagou a inscrição, cancele-a pelo link do e-mail de confirmação: o sistema registra a devolução do valor inteiro e a secretaria faz o pagamento."
+            if evento.valor_base is not None
+            else ""
+        )
         return (
             f"Evento cancelado - {evento.titulo}",
-            f"Aviso importante sobre o evento \"{evento.titulo}\":\n\nO evento foi CANCELADO.{linha_do_motivo}{pagina}",
+            f"Aviso importante sobre o evento \"{evento.titulo}\":\n\nO evento foi CANCELADO.{linha_do_motivo}{devolucao}{pagina}",
         )
     if situacao_nova == STATUS_EVENTO_ADIADO:
         return (
@@ -162,7 +175,7 @@ def alterar_status(
     if novo_status not in STATUS_DO_EVENTO:
         raise HTTPException(status_code=422, detail=f"Situação inválida: use uma de {', '.join(STATUS_DO_EVENTO)}.")
     atual = evento.status or STATUS_EVENTO_PROGRAMADO
-    nova_inicio, nova_fim = _sem_fuso(nova_data_hora_inicio), _sem_fuso(nova_data_hora_fim)
+    nova_inicio, nova_fim = sem_fuso(nova_data_hora_inicio), sem_fuso(nova_data_hora_fim)
     motivo = (motivo or "").strip() or None
     antes = {"status": atual, "motivo_status": evento.motivo_status, "data_hora_inicio": evento.data_hora_inicio}
 
@@ -212,9 +225,9 @@ def alterar_status(
             deslocamento = nova_inicio - evento.data_hora_inicio
             inicio_anterior_para_o_aviso = evento.data_hora_inicio
             for sessao in db.query(SessaoEvento).filter(SessaoEvento.id_evento == evento.id_evento).all():
-                sessao.data_hora_inicio = _sem_fuso(sessao.data_hora_inicio) + deslocamento
+                sessao.data_hora_inicio = sem_fuso(sessao.data_hora_inicio) + deslocamento
                 if sessao.data_hora_fim is not None:
-                    sessao.data_hora_fim = _sem_fuso(sessao.data_hora_fim) + deslocamento
+                    sessao.data_hora_fim = sem_fuso(sessao.data_hora_fim) + deslocamento
                 sessoes_deslocadas += 1
             evento.data_hora_inicio_anterior = evento.data_hora_inicio
             evento.data_hora_inicio = nova_inicio

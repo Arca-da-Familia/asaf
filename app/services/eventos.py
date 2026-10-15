@@ -32,7 +32,7 @@ from app.services.catalogos import validar_codigo_em_catalogo
 from app.services.documentos_verificacao import exigir_texto_sem_dado_pessoal
 from app.services.projetos import associado_do_usuario_ou_403
 from app.services.protecao_publica import gerar_codigo_checkin, gerar_token_cancelamento
-from app.services.status_do_evento import exigir_evento_aceita_inscricao
+from app.services.status_do_evento import exigir_evento_aceita_inscricao, sem_fuso, tem_inscritos_ativos
 from app.config_cache import obter_configuracao
 
 TIPO_PAPEL_PARTICIPANTE_EXTERNO = "participante_externo"
@@ -88,6 +88,9 @@ def editar_evento(db: Session, id_evento: int, campos: dict) -> tuple[Evento, di
     Evento que já está no site continua no site: a edição entra na próxima sincronização (a cada 15 minutos)."""
     evento = obter_evento(db, id_evento)
     campos = {k: v for k, v in campos.items() if k in CAMPOS_EDITAVEIS}
+    for campo_de_data in ("data_hora_inicio", "data_hora_fim"):  # o painel manda com fuso ("Z"); o banco e as comparações usam UTC sem fuso
+        if campos.get(campo_de_data) is not None:
+            campos[campo_de_data] = sem_fuso(campos[campo_de_data])
     if campos.get("titulo") is not None and len(campos["titulo"].strip()) < 3:
         raise HTTPException(status_code=422, detail="O título do evento precisa ter pelo menos 3 letras.")
     if "titulo" in campos and campos["titulo"] is None:
@@ -107,6 +110,15 @@ def editar_evento(db: Session, id_evento: int, campos: dict) -> tuple[Evento, di
         raise HTTPException(status_code=422, detail="O fim do evento precisa ser depois do início.")
     if campos.get("vagas") is not None and campos["vagas"] < (evento.vagas_ocupadas or 0):
         raise HTTPException(status_code=422, detail=f"O evento já tem {evento.vagas_ocupadas} vagas ocupadas: o limite não pode ser menor que isso.")
+    if (
+        campos.get("data_hora_inicio") is not None and campos["data_hora_inicio"] != evento.data_hora_inicio
+        and evento.status in ("Programado", "Adiado") and tem_inscritos_ativos(db, evento)
+    ):
+        # achado da conferência independente da v5.5d: trocar a data aqui não avisava ninguém nem marcava "remarcado" no site
+        raise HTTPException(
+            status_code=422,
+            detail="Este evento já tem inscritos: para mudar a data use \"Remarcar\" na situação do evento (o site mostra a data anterior e quem está inscrito é avisado por e-mail).",
+        )
     final = {c: campos.get(c, getattr(evento, c)) for c in CAMPOS_EDITAVEIS}
     if final["visibilidade"] == "Pública":
         exigir_texto_sem_dado_pessoal({"título": final["titulo"], "descrição": final["descricao"], "local": final["endereco_avulso"]})
@@ -115,6 +127,9 @@ def editar_evento(db: Session, id_evento: int, campos: dict) -> tuple[Evento, di
         setattr(evento, campo, campos[campo])
     db.commit()
     db.refresh(evento)
+    # o limite de vagas subiu (ou saiu): a lista de espera anda antes de qualquer inscrição nova
+    if "vagas" in antes and (evento.vagas is None or (antes["vagas"] is not None and evento.vagas > antes["vagas"])):
+        servico_vagas.promover_a_espera_apos_mudar_o_limite(db, id_evento=evento.id_evento)
     return evento, antes
 
 

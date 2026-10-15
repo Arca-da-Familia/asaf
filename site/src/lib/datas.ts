@@ -1,8 +1,9 @@
 /**
- * Datas de evento (v5.0). A API devolve horário LOCAL do evento, sem fuso ("2026-10-10T19:00:00").
- * Parauapebas fica em America/Belem (UTC-3, sem horário de verão desde 2019). Tratar a data crua
- * com `new Date(...)` usaria o fuso de QUEM ESTÁ VENDO — um visitante em Lisboa veria o evento
- * três horas errado. Por isso: fixar o fuso da ASAF ao ler e formatar sempre nele.
+ * Datas de evento. A API devolve o instante em UTC, SEM fuso ("2026-10-10T22:00:00"): é assim que o painel manda (a diretoria digita 19:00 em Belém, o navegador envia 22:00Z) e que o
+ * servidor guarda e compara. Parauapebas fica em America/Belem (UTC-3, sem horário de verão desde 2019). Duas regras, juntas, dão sempre a hora certa:
+ *  1. ler a data crua como UTC (nunca com `new Date(...)` puro, que usaria o fuso de QUEM ESTÁ VENDO — um visitante em Lisboa veria o evento três horas errado);
+ *  2. formatar sempre no fuso da ASAF (`TIMEZONE_ASAF`): "22:00" em UTC aparece como "19:00".
+ * (Até a v5.7 a leitura tratava a data crua como horário LOCAL de Belém, e todo evento criado pelo painel aparecia no site três horas depois do digitado.)
  *
  * Módulo separado de seo.ts de propósito: o navegador carrega este arquivo (ilha de eventos) e
  * não deve arrastar junto os dados institucionais.
@@ -12,14 +13,35 @@ export const TIMEZONE_ASAF = 'America/Belem'
 
 const TEM_FUSO = /(Z|[+-]\d{2}:?\d{2})$/
 
-/** Acrescenta o deslocamento da ASAF a uma data sem fuso; datas que já têm fuso passam intactas. */
-export function comFusoDaAsaf(isoLocal: string): string {
-  return TEM_FUSO.test(isoLocal) ? isoLocal : `${isoLocal}${FUSO_ASAF}`
+const PARTES_DE_BELEM = new Intl.DateTimeFormat('en-CA', {
+  timeZone: TIMEZONE_ASAF,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+})
+
+/** O instante absoluto da data da API (sem fuso = UTC; nunca depende do fuso do navegador). */
+export function paraInstante(isoDaApi: string): Date {
+  return new Date(TEM_FUSO.test(isoDaApi) ? isoDaApi : `${isoDaApi}Z`)
 }
 
-/** O instante absoluto da data da API (nunca depende do fuso do navegador). */
-export function paraInstante(isoDaApi: string): Date {
-  return new Date(comFusoDaAsaf(isoDaApi))
+/**
+ * A data da API como ISO com o fuso da ASAF ("2026-10-10T22:00:00" -> "2026-10-10T19:00:00-03:00"), para `<time datetime>` e para o dado estruturado que o Google lê. Data que já
+ * traz fuso passa intacta.
+ */
+export function comFusoDaAsaf(isoDaApi: string): string {
+  if (TEM_FUSO.test(isoDaApi)) return isoDaApi
+  const p = Object.fromEntries(
+    PARTES_DE_BELEM.formatToParts(paraInstante(isoDaApi)).map((x) => [
+      x.type,
+      x.value,
+    ]),
+  )
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}${FUSO_ASAF}`
 }
 
 const FORMATO_DIA = new Intl.DateTimeFormat('pt-BR', {
@@ -108,8 +130,7 @@ const FORMATO_DATA_HORA = new Intl.DateTimeFormat('pt-BR', {
 
 /**
  * Instante gravado pelo sistema em UTC SEM fuso ("2026-10-03T14:30:00", ex.: quando o edital foi
- * emitido) -> "03/10/2026 11:30" no horário de Parauapebas. É o oposto de `paraInstante`: aquele
- * trata a data da API como horário LOCAL do evento; este trata como UTC.
+ * emitido) -> "03/10/2026 11:30" no horário de Parauapebas. Faz o mesmo que `paraInstante` (sem fuso = UTC) e devolve o texto já no horário de Parauapebas.
  */
 export function formatarInstanteUtc(isoUtcSemFuso: string): string {
   const instante = new Date(

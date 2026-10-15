@@ -133,7 +133,8 @@ export function avisoDaSituacao(e: CamposDaSituacao): AvisoDaSituacao | null {
       selo: 'Adiado',
       frase: 'Este evento foi adiado. A nova data ainda não foi definida.',
       motivo: linhaDoMotivo,
-      complemento: 'As inscrições reabrem quando a nova data for definida.',
+      complemento:
+        'Enquanto estiver adiado, o evento não recebe novas inscrições; se voltar a ser programado, elas reabrem nesta página.',
     }
   if (status === 'Realizado')
     return {
@@ -161,7 +162,7 @@ export function fraseDeInscricaoParada(status: StatusDoEvento): string | null {
   if (status === 'Cancelado')
     return 'As inscrições estão encerradas porque o evento foi cancelado.'
   if (status === 'Adiado')
-    return 'As inscrições reabrem quando a nova data for definida.'
+    return 'Enquanto o evento estiver adiado, não recebemos novas inscrições.'
   if (status === 'Realizado') return 'As inscrições estão encerradas.'
   return null
 }

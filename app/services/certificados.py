@@ -15,6 +15,7 @@ from app.models.motores import CANCELADO, Inscricao, RegistroPresenca
 from app.models.pessoas import Pessoa
 from app.services import documentos as servico_documentos
 from app.services.eventos import CONTEXTO_EVENTO, CONTEXTO_SESSAO_EVENTO, obter_evento
+from app.services.fuso import dia_em_belem
 from app.services.protecao_publica import gerar_codigo_verificacao_documento
 
 _CHAVE_PERCENTUAL_PADRAO = "PERCENTUAL_MINIMO_CERTIFICADO_PADRAO"
@@ -112,7 +113,7 @@ def _emitir_documento_de_evento(
 
     variaveis = {
         "nome_completo": pessoa.nome_completo, "titulo_evento": evento.titulo,
-        "data_evento": evento.data_hora_inicio.strftime("%d/%m/%Y"),
+        "data_evento": dia_em_belem(evento.data_hora_inicio),  # o dia em Belém: o banco guarda UTC e um evento às 23h de Belém não é do dia seguinte
         "carga_horaria_horas": str(evento.carga_horaria_horas) if evento.carga_horaria_horas is not None else "",
     }
     return servico_documentos.emitir_documento(
