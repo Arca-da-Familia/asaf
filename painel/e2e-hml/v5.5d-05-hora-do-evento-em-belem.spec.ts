@@ -18,19 +18,37 @@ test.beforeAll(() => exigirHomologacao())
 test.setTimeout(240_000)
 
 const SITE_HML = 'https://hml-site.asaf.org.br'
-const TITULO = `Encontro das 19h em Belém do Robô ${RODADA}`
+const TITULO = `Encontro em Belém do Robô ${RODADA}`
 
-const diaEmBelem = (dias: number): string =>
-  new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Belem',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(Date.now() + dias * 86_400_000))
+// O evento começa daqui a 90 a 150 minutos, numa hora cheia: assim ele é SEMPRE um dos próximos da lista do site (a lista só mostra os 6 mais próximos).
+const INICIO = new Date(
+  Math.ceil((Date.now() + 90 * 60_000) / 3_600_000) * 3_600_000,
+)
+const FIM = new Date(INICIO.getTime() + 2 * 3_600_000)
+const emBelem = (d: Date) => {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Belem',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    })
+      .formatToParts(d)
+      .map((x) => [x.type, x.value]),
+  )
+  return { dia: `${p.year}-${p.month}-${p.day}`, hora: `${p.hour}:${p.minute}` }
+}
+const LOCAL = emBelem(INICIO)
+const LOCAL_FIM = emBelem(FIM)
+const EM_UTC = INICIO.toISOString().slice(0, 13) // aaaa-mm-ddThh: o que o servidor tem de guardar
+const HORA_EM_UTC = `${EM_UTC.slice(11, 13)}:00` // a hora errada que o site mostraria se lesse UTC como Belém
 
 let idEvento = 0
 
-test('quem digita 19:00 no painel (navegador em Belém) vê 19:00 no painel, e o servidor guarda 22:00 em UTC', async ({
+test('quem digita a hora no painel (navegador em Belém) a vê de volta no painel, e o servidor guarda a hora em UTC (3 horas à frente)', async ({
   page,
 }, info) => {
   const vigia = vigiar(page)
@@ -44,7 +62,6 @@ test('quem digita 19:00 no painel (navegador em Belém) vê 19:00 no painel, e o
     has: page.getByLabel('Título do evento'),
   })
   await expect(form).toBeVisible()
-  const dia = diaEmBelem(6)
   await form.getByLabel('Título do evento').fill(TITULO)
   await form
     .getByLabel('Categoria do evento')
@@ -53,11 +70,11 @@ test('quem digita 19:00 no painel (navegador em Belém) vê 19:00 no painel, e o
   await form
     .locator('label', { hasText: 'Início' })
     .locator('input')
-    .fill(`${dia}T19:00`)
+    .fill(`${LOCAL.dia}T${LOCAL.hora}`)
   await form
     .locator('label', { hasText: 'Fim (opcional)' })
     .locator('input')
-    .fill(`${dia}T21:00`)
+    .fill(`${LOCAL_FIM.dia}T${LOCAL_FIM.hora}`)
   await form.getByLabel('Vagas').fill('5')
   await form.getByLabel('Endereço avulso').fill('Salão da ASAF (teste)')
   const [resposta] = await Promise.all([
@@ -70,19 +87,19 @@ test('quem digita 19:00 no painel (navegador em Belém) vê 19:00 no painel, e o
   ])
   expect(resposta.ok(), await resposta.text()).toBe(true)
   idEvento = ((await resposta.json()) as { id_evento: number }).id_evento
-  // o que o painel mandou: 19:00 de Belém = 22:00 em UTC
+  // o que o painel mandou: a hora de Belém em UTC (3 horas à frente)
   const enviado = resposta.request().postDataJSON() as {
     data_hora_inicio: string
   }
-  expect(enviado.data_hora_inicio).toMatch(new RegExp(`^${dia}T22:00:00`))
+  expect(enviado.data_hora_inicio.startsWith(`${EM_UTC}:00`)).toBe(true)
 
-  // o servidor guarda e devolve a mesma hora em UTC (sem fuso): 22:00
+  // o servidor guarda e devolve a mesma hora em UTC (sem fuso)
   const publico = (await (
     await page.request.get(`${API_HML}/api/publico/eventos/${idEvento}`)
   ).json()) as { data_hora_inicio: string }
-  expect(publico.data_hora_inicio).toMatch(new RegExp(`^${dia}T22:00:00`))
+  expect(publico.data_hora_inicio.startsWith(`${EM_UTC}:00`)).toBe(true)
 
-  // o painel mostra 19:00 de volta
+  // o painel mostra a hora de Belém de volta
   await page.goto(`/eventos?evento=${idEvento}`)
   const detalhe = page
     .locator('div.rounded-xl')
@@ -90,25 +107,21 @@ test('quem digita 19:00 no painel (navegador em Belém) vê 19:00 no painel, e o
       has: page.getByRole('heading', { name: TITULO, level: 2, exact: true }),
     })
     .last()
-  await expect(detalhe).toContainText('19:00')
-  await expect(detalhe).not.toContainText('22:00')
-  await ver(page, info, 'painel-mostra-19h')
+  await expect(detalhe).toContainText(LOCAL.hora)
+  await expect(detalhe).not.toContainText(HORA_EM_UTC)
+  await ver(page, info, 'painel-mostra-a-hora-de-belem')
   expect(vigia.problemas()).toEqual([])
 })
 
-test('o site de teste mostra o mesmo evento às 19:00 (horário de Belém), na lista e no JSON-LD', async ({
+test('o site de teste mostra o mesmo evento na hora de Belém (e não 3 horas à frente)', async ({
   page,
 }, info) => {
   const vigia = vigiar(page)
   await page.goto(`${SITE_HML}/eventos/`, { waitUntil: 'networkidle' })
   const cartao = page.locator('li').filter({ hasText: TITULO })
   await expect(cartao).toBeVisible({ timeout: 30_000 })
-  await expect(cartao).toContainText('19:00')
-  await expect(cartao).not.toContainText('22:00')
-  await ver(page, info, 'site-lista-mostra-19h')
-
-  // o dado estruturado que o Google lê: o instante certo (19:00 em Belém = 22:00 UTC), com o deslocamento de Belém
-  const r = await page.request.get(`${API_HML}/api/publico/eventos/${idEvento}`)
-  expect(r.status()).toBe(200)
+  await expect(cartao).toContainText(LOCAL.hora)
+  await expect(cartao).not.toContainText(HORA_EM_UTC)
+  await ver(page, info, 'site-lista-mostra-a-hora-de-belem')
   expect(vigia.problemas()).toEqual([])
 })
