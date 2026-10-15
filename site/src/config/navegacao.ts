@@ -69,6 +69,7 @@ export const GRUPOS_DO_RODAPE: GrupoDoRodape[] = [
         href: '/privacidade/solicitacao-do-titular/',
       },
       { rotulo: 'Termos de Uso', href: '/termos/' },
+      { rotulo: 'Acessibilidade', href: '/acessibilidade/' },
     ],
   },
 ]

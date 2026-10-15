@@ -29,6 +29,11 @@ export default defineConfig({
     },
     {
       command: `npm run preview -- --port ${PORTA_SITE}`,
+      // v5.7: o preview manda os cabeçalhos de segurança que o build publicou (a política de conteúdo vale em TODO teste de navegador)
+      env: { ...process.env, SITE_PREVIEW_COM_CABECALHOS: '1' } as Record<
+        string,
+        string
+      >,
       url: `http://127.0.0.1:${PORTA_SITE}`,
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,

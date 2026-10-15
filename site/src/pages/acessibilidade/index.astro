@@ -1,0 +1,157 @@
+---
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import { DOCUMENTOS_LEGAIS } from '../../config/organizacao'
+import { organizacaoDoSite } from '../../lib/dados-publicos'
+import Base from '../../layouts/Base.astro'
+
+// os dados da associação como o site os mostra: os fixos, com o que a Instituição do painel marcou "vai para o site" por cima (v5.4h)
+const ORGANIZACAO = await organizacaoDoSite()
+
+// Declaração de acessibilidade (v5.7). Texto escrito SÓ com o que o site e a sua publicação realmente fazem hoje: o que é verificado (axe em toda página, no computador e no
+// celular, a cada publicação; nota de acessibilidade do Lighthouse exigida), o que existe na página (link para pular ao conteúdo, foco visível, idioma) e o que AINDA NÃO foi
+// feito (revisão manual com teclado e leitor de tela, auditoria por pessoas). Versionada em config/organizacao.ts: mudou o texto, aumente a versão e a data lá.
+const migalhas: Migalha[] = [{ rotulo: 'Declaração de acessibilidade' }]
+const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.acessibilidade
+const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
+  dateStyle: 'long',
+  timeZone: 'UTC',
+}).format(new Date(`${vigenteDesde}T00:00:00Z`))
+
+const classeDoLink = 'font-medium text-primary underline underline-offset-4'
+---
+
+<Base
+  titulo="Declaração de acessibilidade"
+  descricao="O que o site da ASAF faz e verifica para ser acessível, o que ainda não foi verificado, as limitações conhecidas e como avisar quando você encontrar uma barreira."
+  caminho="/acessibilidade/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Declaração de acessibilidade"
+    resumo={`Versão ${versao} · em vigor desde ${dataExtenso}`}
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-3xl flex-col gap-10 px-4 py-12 leading-relaxed">
+    <section aria-labelledby="compromisso">
+      <h2 id="compromisso" class="text-xl font-bold tracking-tight">
+        Nosso objetivo
+      </h2>
+      <p class="mt-3">
+        A {ORGANIZACAO.nome} ({ORGANIZACAO.sigla}) quer que o seu site possa ser
+        usado por todas as pessoas, com ou sem deficiência, no computador e no
+        celular. A meta é seguir as Diretrizes de Acessibilidade para Conteúdo
+        Web (WCAG) 2.1, nível AA.
+      </p>
+      <p class="mt-3">
+        <strong>Situação hoje: conformidade parcial.</strong> As verificações
+        automáticas descritas abaixo não encontram problema, mas elas não pegam
+        tudo e a revisão manual ainda não foi feita. Por isso não afirmamos que
+        o site está totalmente de acordo com a WCAG 2.1 AA.
+      </p>
+    </section>
+
+    <section aria-labelledby="verificado">
+      <h2 id="verificado" class="text-xl font-bold tracking-tight">
+        O que já é verificado
+      </h2>
+      <ul class="mt-3 list-disc space-y-2 pl-6">
+        <li>
+          <strong>Verificação automática em todas as páginas.</strong> A cada
+          publicação do site, todas as páginas passam pelo verificador axe-core,
+          com as regras das WCAG 2.1 níveis A e AA e as boas práticas dele
+          (entre elas contraste de cores, rótulos de campos, texto alternativo
+          de imagens, idioma da página, nomes de botões e links e ordem dos
+          títulos), tanto em tela de computador quanto em tela de celular (375
+          pixels de largura). Se uma página tiver problema, a publicação não
+          sai.
+        </li>
+        <li>
+          <strong>Nota de acessibilidade do Lighthouse.</strong> Nas páginas que
+          a publicação mede com o Lighthouse, a nota de acessibilidade tem de
+          ser 100, senão a publicação também não sai.
+        </li>
+        <li>
+          <strong>Link para pular ao conteúdo.</strong> Em toda página, o
+          primeiro item para quem navega pelo teclado é &ldquo;Pular para o
+          conteúdo&rdquo;, que leva direto ao texto principal.
+        </li>
+        <li>
+          <strong>Foco visível.</strong> Todo link, botão e campo mostra um
+          contorno quando está selecionado pelo teclado.
+        </li>
+        <li>
+          <strong>Idioma.</strong> Toda página informa que está em português do
+          Brasil, para os leitores de tela lerem com a pronúncia certa.
+        </li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="pendente">
+      <h2 id="pendente" class="text-xl font-bold tracking-tight">
+        O que ainda não foi verificado
+      </h2>
+      <p class="mt-3">
+        Ferramentas automáticas encontram só uma parte dos problemas de
+        acessibilidade. Ainda não foram feitas a revisão manual de todo o site
+        só com o teclado e com leitor de tela, nem a avaliação por pessoas que
+        usam tecnologia assistiva. Quando forem feitas, esta declaração será
+        atualizada, com a data e o que foi encontrado.
+      </p>
+    </section>
+
+    <section aria-labelledby="limitacoes">
+      <h2 id="limitacoes" class="text-xl font-bold tracking-tight">
+        Limitações conhecidas
+      </h2>
+      <ul class="mt-3 list-disc space-y-2 pl-6">
+        <li>
+          Os documentos publicados em PDF (como atas e demonstrativos, quando
+          existirem) podem não ter sido preparados para leitores de tela. Se
+          você precisar de um deles em outro formato, peça pelo canal abaixo.
+        </li>
+        <li>
+          Os endereços do mapa (por exemplo, o da sede, na página de Contato)
+          levam para um serviço de terceiros, que tem a sua própria
+          acessibilidade.
+        </li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="barreira">
+      <h2 id="barreira" class="text-xl font-bold tracking-tight">
+        Encontrou uma barreira?
+      </h2>
+      <p class="mt-3">
+        Se alguma parte do site não funciona para você, ou se precisa de uma
+        informação em outro formato, avise a associação. Use o formulário da
+        página de{' '}
+        <a href="/contato/" class={classeDoLink}>
+          Contato
+        </a>
+        (o pedido recebe um número de protocolo e um prazo de resposta), escreva
+        para{' '}
+        <a href={`mailto:${ORGANIZACAO.email}`} class={classeDoLink}>
+          {ORGANIZACAO.email}
+        </a>{' '}
+        ou ligue para{' '}
+        <a href={ORGANIZACAO.telefoneLink} class={classeDoLink}>
+          {ORGANIZACAO.telefone}
+        </a>
+        . Diga qual página e qual foi a dificuldade: isso ajuda a corrigir.
+      </p>
+    </section>
+
+    <section aria-labelledby="versao-declaracao">
+      <h2 id="versao-declaracao" class="text-xl font-bold tracking-tight">
+        Esta declaração
+      </h2>
+      <p class="mt-3">
+        Esta é a versão {versao} da declaração, em vigor desde {dataExtenso}.
+        Ela é revista sempre que o que o site verifica ou faz pela
+        acessibilidade mudar.
+      </p>
+    </section>
+  </div>
+</Base>
