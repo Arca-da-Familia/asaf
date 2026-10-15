@@ -73,8 +73,11 @@ def povoar(client, db, escrever=print) -> dict:
 
     # ---------------------------------------------------------------------------------------- chave Pix de teste (sem ela o Pix das cobranças não abre)
     def chave_pix():
-        ok(client.put("/api/configuracoes/CHAVE_PIX", headers=adm, json={"valor": f"chave-pix-de-teste@{ph.SUFIXO_EMAIL}"}))
-        return "chave Pix de teste (inventada) para o Pix Copia e Cola das cobranças"
+        # "vai para o site" ligado: sem isso a página de doação do site não abre (v5.6a); na produção quem decide isso é o Presidente
+        ok(client.put("/api/instituicao/CHAVE_PIX", headers=adm, json={"valor": f"chave-pix-de-teste@{ph.SUFIXO_EMAIL}", "publico": True}))
+        ok(client.put("/api/instituicao/NOME_BENEFICIARIO_PIX", headers=adm, json={"valor": "ASAF Teste"}))
+        ok(client.put("/api/instituicao/CIDADE_BENEFICIARIO_PIX", headers=adm, json={"valor": "Belem"}))
+        return "chave Pix de teste (inventada, marcada para o site) para o Pix Copia e Cola das cobranças e para a doação pelo site"
 
     roteiro.area("Chave Pix de teste", chave_pix)
 
@@ -262,7 +265,20 @@ def povoar(client, db, escrever=print) -> dict:
             "nome_doador": "Doador de Bens de Teste", "tipo_doacao": "Bens", "valor": 400, "descricao_bem": "Cadeiras usadas (teste)",
             "id_campanha": campanha, "id_conta_contabil": contas["doacao"],
         }))
-        return "1 campanha, 3 doações em dinheiro (uma anônima) e 1 em bens"
+        # v5.6a - doações feitas pelo site (Pix): uma confirmada pela tesouraria (vira doação com recibo), uma esperando conferência e uma "Pix não localizado"
+        aviso = ok(client.get("/api/publico/doacao")).json()["versao_aviso_de_privacidade"]
+        intencoes = []
+        for i, (nome, valor) in enumerate((("Doadora Pix Confirmada (teste)", 100), ("Doador Pix Esperando (teste)", 120), ("Doadora Pix Sumida (teste)", 60)), start=1):
+            intencoes.append(ok(client.post("/api/publico/doacoes/intencoes", json={
+                "nome_completo": nome, "email": f"doacao{i}@{ph.SUFIXO_EMAIL}", "cpf": ph.cpf_valido(777000 + i) if i == 1 else None, "valor": valor, "id_campanha": campanha,
+                "consentimento_lgpd": True, "versao_texto_consentimento": aviso,
+            }, headers={"X-Forwarded-For": f"10.9.0.{i}"})).json()["protocolo"])
+        lista = {x["protocolo"]: x["id_intencao"] for x in ok(client.get("/api/intencoes-doacao/?por_pagina=100", headers=adm)).json()["itens"]}
+        ok(client.post(f"/api/intencoes-doacao/{lista[intencoes[0]]}/confirmar", headers=adm, json={
+            "valor_recebido": 100, "id_conta_contabil": contas["doacao"], "id_conta_contabil_caixa": contas["caixa"],
+        }))
+        ok(client.post(f"/api/intencoes-doacao/{lista[intencoes[2]]}/nao-localizada", headers=adm, json={"observacao": "Não achei no extrato de teste."}))
+        return "1 campanha, 4 doações em dinheiro (uma anônima, uma confirmada do site) e 1 em bens; 3 doações do site (1 confirmada, 1 esperando, 1 Pix não localizado)"
 
     if contas.get("doacao"):
         roteiro.area("Campanha e doações", doacoes)

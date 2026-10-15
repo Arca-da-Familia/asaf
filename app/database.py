@@ -516,6 +516,9 @@ def seed_configuracoes_institucionais():
         {"chave": "PRAZO_DIAS_ATENDIMENTO_VOLUNTARIO", "valor": "10", "tipo": "numero", "categoria": "regras", "descricao": "Dias para responder quem se oferece como voluntário pelo site."},
         # v5.7d - o QR da carteirinha não vale por tempo indeterminado (decisão do Presidente: 10 a 20 dias): vale este número de dias a partir da emissão, também para os QR já emitidos.
         {"chave": "DIAS_VALIDADE_CARTEIRINHA", "valor": "15", "tipo": "numero", "categoria": "regras", "descricao": "Dias que o QR da carteirinha digital vale a partir do momento em que é gerado, de 1 a 20 (a verificação pública, a foto dela, a portaria e o credenciamento deixam de aceitá-lo depois disso)."},
+        # v5.6a - quem doa pelo site se identificando deixa uma intenção que a tesouraria confirma olhando o extrato do banco; passado este prazo sem confirmação ela vira
+        # "Prazo vencido sem confirmação" (sai da frente da tesouraria, mas ainda pode ser confirmada se o dinheiro chegar atrasado).
+        {"chave": "PRAZO_DIAS_INTENCAO_DOACAO", "valor": "15", "tipo": "numero", "categoria": "regras", "descricao": "Dias que uma doação feita pelo site espera a conferência da tesouraria no extrato do banco antes de aparecer como prazo vencido."},
         # v2.0 - cláusulas pétreas do Art. 33 do estatuto: identidade institucional, não regra
         # operacional (nunca bloqueiam nenhuma ação do sistema, por isso NÃO entram em
         # RegraEstatutaria - ver seed_regras_estatutarias e PLANO_PROJETO.md v2.0).

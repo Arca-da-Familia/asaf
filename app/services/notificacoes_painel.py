@@ -22,6 +22,21 @@ def notificar(db: Session, ids_usuarios: Iterable[int], *, tipo: str, titulo: st
     return len(vistos)
 
 
+def usuarios_com_permissao(db: Session, codigo_permissao: str) -> list[int]:
+    """Quem tem a permissão (pelo nível de acesso) e está ativo: para quem o aviso do sino vai."""
+    from app.models.core import NivelAcesso, PermissaoSistema, Usuario, perfil_permissao
+
+    linhas = (
+        db.query(Usuario.id_usuario)
+        .join(NivelAcesso, NivelAcesso.id_nivel == Usuario.id_nivel)
+        .join(perfil_permissao, perfil_permissao.c.id_nivel == NivelAcesso.id_nivel)
+        .join(PermissaoSistema, PermissaoSistema.id_permissao == perfil_permissao.c.id_permissao)
+        .filter(PermissaoSistema.codigo_permissao == codigo_permissao, Usuario.ativo.is_(True))
+        .all()
+    )
+    return sorted({linha[0] for linha in linhas})
+
+
 def listar_do_usuario(db: Session, id_usuario: int) -> list[NotificacaoPainel]:
     """Mais novas primeiro; as não lidas aparecem antes das lidas."""
     return (

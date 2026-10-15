@@ -18,12 +18,12 @@ from app.config_cache import obter_configuracao
 from app.models.atendimento import (
     CONTATO, ENCERRADO, EM_ATENDIMENTO, NOVO, PEDIDO_INFORMACAO, RESPONDIDO, TITULAR_LGPD, VOLUNTARIO, Atendimento,
 )
-from app.models.core import NivelAcesso, PermissaoSistema, Usuario, perfil_permissao
+from app.models.core import NivelAcesso, Usuario
 from app.models.notificacoes_painel import NotificacaoPainel
 from app.models.pessoas import Pessoa
 from app.services.voluntariado import pessoa_e_menor_de_idade
 from app.services import notificacoes
-from app.services.notificacoes_painel import notificar
+from app.services.notificacoes_painel import notificar, usuarios_com_permissao
 
 # o texto do aviso de privacidade dos formulários de atendimento tem versão: o site manda a versão que mostrou e o servidor recusa se o texto mudou
 VERSAO_AVISO_DE_PRIVACIDADE_ATENDIMENTO = "1"
@@ -116,15 +116,7 @@ def _pessoa_do_remetente(db: Session, cpf: Optional[str], email: Optional[str]) 
 
 def usuarios_que_atendem(db: Session) -> list[int]:
     """Quem tem a permissão da fila (pelo nível de acesso)."""
-    linhas = (
-        db.query(Usuario.id_usuario)
-        .join(NivelAcesso, NivelAcesso.id_nivel == Usuario.id_nivel)
-        .join(perfil_permissao, perfil_permissao.c.id_nivel == NivelAcesso.id_nivel)
-        .join(PermissaoSistema, PermissaoSistema.id_permissao == perfil_permissao.c.id_permissao)
-        .filter(PermissaoSistema.codigo_permissao == PERMISSAO_DA_FILA, Usuario.ativo.is_(True))
-        .all()
-    )
-    return sorted({linha[0] for linha in linhas})
+    return usuarios_com_permissao(db, PERMISSAO_DA_FILA)
 
 
 def responsavel_padrao(db: Session) -> Optional[int]:

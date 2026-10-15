@@ -80,6 +80,7 @@ from app.models.compras import (
     ContaAPagarRecorrente,
 )
 from app.models.doacoes import CampanhaArrecadacao, Doacao, RemanejamentoDestinacao
+from app.models.intencoes_de_doacao import IntencaoDeDoacao
 from app.models.orcamento import Orcamento, ReservaContingencia
 from app.models.relatorios import PrestacaoDeContas
 from app.models.fechamento import FechamentoMensal
