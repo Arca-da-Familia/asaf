@@ -1,0 +1,82 @@
+---
+/**
+ * Cartão de quem ocupa um cargo na Diretoria ou no Conselho Fiscal (v5.7c): a FOTO (só de quem autorizou o uso da imagem), o cargo, o nome
+ * e o período do mandato. Quem não tem foto mostra um círculo com as iniciais, do mesmo tamanho, para a grade ficar uniforme; o círculo é
+ * só enfeite (`aria-hidden`, sem texto alternativo): o nome e o cargo estão logo ao lado, em texto.
+ *
+ * A foto vem SEMPRE da cópia que o build guardou no próprio site (`caminhoDaFotoDaDiretoria`), nunca da API, e a conferência (JPEG e SHA-256)
+ * já foi feita. O formato da imagem é sempre o mesmo, redondo e com a proporção fixa por classe (a política de conteúdo do site proíbe estilo
+ * dentro da página), então nenhuma foto, de pé ou deitada, desmancha a grade. O texto alternativo é o que a API entrega ("Foto de <nome>, <cargo>").
+ */
+import { formatarDataCurta } from '../lib/datas'
+import { caminhoDaFotoDaDiretoria } from '../lib/dados-publicos'
+import type { MembroDaDiretoria } from '../lib/dados-publicos'
+import { iniciaisDoNome } from '../lib/diretoria'
+
+interface Props {
+  membro: MembroDaDiretoria
+  /** O que vai acima do nome: o cargo (ou "cargo · órgão", nos cargos fora do Estatuto). */
+  cargo: string
+  /** Maior que os demais, na largura toda da grade (o Presidente). */
+  destaque?: boolean
+}
+
+const { membro, cargo, destaque = false } = Astro.props
+const { foto } = membro
+const iniciais = iniciaisDoNome(membro.nome)
+---
+
+<li
+  class:list={[
+    'flex items-center gap-4 rounded-lg border bg-card p-5 shadow-card',
+    destaque && 'sm:col-span-2 sm:gap-6 sm:p-6 lg:col-span-3',
+  ]}
+  data-ocupante
+  data-destaque={destaque ? '' : undefined}
+>
+  {foto ? (
+    <img
+      src={caminhoDaFotoDaDiretoria(foto)}
+      alt={foto.alt}
+      width={foto.largura}
+      height={foto.altura}
+      loading={destaque ? 'eager' : 'lazy'}
+      decoding="async"
+      class:list={[
+        'shrink-0 rounded-full border object-cover object-top',
+        destaque ? 'size-28 sm:size-40' : 'size-20 sm:size-24',
+      ]}
+      data-foto-da-diretoria
+    />
+  ) : (
+    <span
+      aria-hidden="true"
+      class:list={[
+        'flex shrink-0 items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground select-none',
+        destaque
+          ? 'size-28 text-4xl sm:size-40 sm:text-5xl'
+          : 'size-20 text-2xl sm:size-24',
+      ]}
+      data-iniciais
+    >
+      {iniciais}
+    </span>
+  )}
+  <div class="min-w-0">
+    <p class="text-sm font-medium text-primary">{cargo}</p>
+    <p
+      class:list={[
+        'mt-1 font-semibold break-words',
+        destaque ? 'text-xl sm:text-3xl' : 'text-lg',
+      ]}
+    >
+      {membro.nome}
+    </p>
+    {membro.data_inicio && membro.data_fim_previsto && (
+      <p class="mt-2 text-sm text-muted-foreground">
+        Mandato: {formatarDataCurta(membro.data_inicio)} a{' '}
+        {formatarDataCurta(membro.data_fim_previsto)}
+      </p>
+    )}
+  </div>
+</li>

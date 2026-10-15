@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { FotoDaDiretoria } from '@/components/mandatos/FotoDaDiretoria'
 import { Button } from '@/components/ui/button'
 import {
   criarMandato,
@@ -124,6 +125,14 @@ function BlocoMandatos() {
   )
   const rotuloOrgao = new Map((orgaos ?? []).map((o) => [o.codigo, o.rotulo]))
   const rotuloCargo = new Map((cargos ?? []).map((o) => [o.codigo, o.rotulo]))
+
+  // A foto no site é da PESSOA, não do mandato: quem tem dois mandatos vigentes ganha o bloco "Foto no site" uma vez só
+  // (no primeiro da lista), senão a mesma foto apareceria duplicada.
+  const mandatoDaFoto = new Map<number, number>()
+  for (const m of mandatos ?? []) {
+    if (m.vigente && !mandatoDaFoto.has(m.id_associado))
+      mandatoDaFoto.set(m.id_associado, m.id_mandato)
+  }
 
   const criar = useMutation({
     // Campos opcionais em branco chegam do formulário como '' (react-hook-form nunca deixa
@@ -318,6 +327,15 @@ function BlocoMandatos() {
               {m.data_fim_efetivo && ' (encerramento antecipado)'}
               {m.motivo_encerramento && ` - ${m.motivo_encerramento}`}
             </p>
+            {mandatoDaFoto.get(m.id_associado) === m.id_mandato && (
+              <FotoDaDiretoria
+                idAssociado={m.id_associado}
+                nome={
+                  nomesPorId.get(m.id_associado) ??
+                  `Associado #${m.id_associado}`
+                }
+              />
+            )}
             {m.vigente && idParaEncerrar !== m.id_mandato && (
               <Button
                 variant="outline"

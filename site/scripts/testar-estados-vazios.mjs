@@ -105,6 +105,10 @@ exigir(
   !existsSync('dist-vazio/midia/eventos'),
   'nasceu /midia/eventos/ (foto de evento) sem haver evento com foto',
 )
+exigir(
+  !existsSync('dist-vazio/midia/diretoria'),
+  'nasceu /midia/diretoria/ (foto da Diretoria) sem haver ninguém na Diretoria',
+)
 const transparencia = lerPagina('/transparencia/')
 exigir(
   transparencia.includes('o Estatuto é o único documento publicado'),
@@ -297,6 +301,28 @@ exigir(
   'API antiga: nasceu /midia/eventos/ sem haver foto de evento',
 )
 
+// v5.7c - a API antiga também não tem a foto da Diretoria (o campo `foto` nem existe): a página constrói, cada pessoa aparece com o nome, o cargo e as INICIAIS, e não
+// nasce nenhuma cópia de foto nem imagem quebrada.
+const diretoriaAntiga = lerAntiga('/diretoria/')
+exigir(
+  diretoriaAntiga.includes('Maria de Teste da Silva') &&
+    diretoriaAntiga.includes('Ana de Teste Lima'),
+  'API antiga: a Diretoria perdeu as pessoas',
+)
+exigir(
+  (diretoriaAntiga.match(/data-iniciais/g) ?? []).length === 3,
+  'API antiga: as 3 pessoas da Diretoria deviam aparecer com as iniciais (sem foto)',
+)
+exigir(
+  !diretoriaAntiga.includes('data-foto-da-diretoria') &&
+    !diretoriaAntiga.includes('/midia/diretoria/'),
+  'API antiga: a Diretoria mostra foto sem haver foto na API',
+)
+exigir(
+  !existsSync('dist-antiga/midia/diretoria'),
+  'API antiga: nasceu /midia/diretoria/ sem haver foto da Diretoria',
+)
+
 // v5.5d - a API antiga também não tem a situação do evento (status, motivo, data anterior): o evento que hoje está cancelado no mock vale como PROGRAMADO,
 // sem aviso, sem selo e com o bloco de inscrição à vista — nunca "undefined" nem um aviso inventado.
 if (existsSync('dist-antiga/eventos/10/index.html')) {
@@ -456,11 +482,57 @@ exigir(
   'API antiga: o evento que pede arquivo não manda falar com a secretaria',
 )
 
+// 7. v5.7c - FOTO ADULTERADA. A API serve para a Diretoria um arquivo que NÃO é o declarado (SHA-256 diferente). Diferente da foto de evento e da de etapa (que
+// derrubam o build), a foto da Diretoria é a parte opcional da página: o build TEM de terminar, a página sai com todas as pessoas (nome, cargo e iniciais), nenhuma
+// cópia da foto recusada vai ao ar e o motivo aparece no log do build.
+const construcaoAdulterada = spawnSync(
+  'node',
+  ['scripts/build-teste.mjs', '--foto-adulterada'],
+  { encoding: 'utf-8' },
+)
+const saidaDoBuild = `${construcaoAdulterada.stdout ?? ''}${construcaoAdulterada.stderr ?? ''}`
+if (construcaoAdulterada.status !== 0) {
+  console.error(saidaDoBuild)
+  console.error(
+    'O build com uma foto da Diretoria ADULTERADA falhou: uma foto recusada só pode deixar a pessoa sem foto (v5.7c).',
+  )
+  process.exit(1)
+}
+exigir(
+  saidaDoBuild.includes('Foto da Diretoria NÃO publicada') &&
+    saidaDoBuild.includes('não confere com a aprovada'),
+  'foto adulterada: o log do build não registrou o aviso da foto recusada',
+)
+const diretoriaAdulterada = readFileSync(
+  'dist-foto-adulterada/diretoria/index.html',
+  'utf-8',
+)
+exigir(
+  ['Maria de Teste da Silva', 'João de Teste Souza', 'Ana de Teste Lima'].every(
+    (nome) => diretoriaAdulterada.includes(nome),
+  ),
+  'foto adulterada: alguém sumiu da página da Diretoria (só a foto podia sumir)',
+)
+exigir(
+  (diretoriaAdulterada.match(/data-iniciais/g) ?? []).length === 3 &&
+    !diretoriaAdulterada.includes('data-foto-da-diretoria'),
+  'foto adulterada: as 3 pessoas deviam aparecer com as iniciais, nenhuma com a foto recusada',
+)
+exigir(
+  !existsSync('dist-foto-adulterada/midia/diretoria'),
+  'foto adulterada: a cópia da foto recusada foi publicada',
+)
+exigir(
+  JSON.parse(readFileSync('dist-foto-adulterada/conteudo.json', 'utf-8'))
+    .contagem.diretoria === 3,
+  'foto adulterada: a contagem da Diretoria devia continuar 3',
+)
+
 if (problemas.length > 0) {
   console.error('\nESTADO VAZIO COM PROBLEMA:')
   for (const p of problemas) console.error('  -', p)
   process.exit(1)
 }
 console.log(
-  `OK: estado vazio conferido em ${paginas.length} páginas; build contra a API antiga (sem o contexto de projeto/evento) conferido.`,
+  `OK: estado vazio conferido em ${paginas.length} páginas; build contra a API antiga (sem o contexto de projeto/evento nem a foto da Diretoria) e com uma foto da Diretoria adulterada conferidos.`,
 )

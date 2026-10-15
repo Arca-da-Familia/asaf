@@ -412,7 +412,8 @@ def test_a_rotina_avisa_no_sino_os_pedidos_vencidos_ou_perto_de_vencer_uma_vez_p
     protocolo_perto = _enviar(client).json()["protocolo"]
     protocolo_longe = _enviar(client).json()["protocolo"]
     protocolo_respondido = _enviar(client).json()["protocolo"]
-    agora = datetime.utcnow()
+    # 9h UTC de hoje, não "agora": a rotina conta o dia em UTC, e `agora + 3h` passava da meia-noite UTC quando a suíte rodava depois das 21h UTC (18h em Belém), virando "outro dia"
+    agora = datetime.utcnow().replace(hour=9, minute=0, second=0, microsecond=0)
     pedidos = {p: db.query(Atendimento).filter(Atendimento.protocolo == p).one() for p in (protocolo_vencido, protocolo_perto, protocolo_longe, protocolo_respondido)}
     pedidos[protocolo_vencido].prazo_em = agora - timedelta(days=2)
     pedidos[protocolo_perto].prazo_em = agora + timedelta(days=1)

@@ -5,7 +5,9 @@ import calendar
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
@@ -15,6 +17,7 @@ from app.models.core import Catalogo, OpcaoCatalogo
 from app.models.mandatos import DeclaracaoConflitoInteresse, Mandato
 from app.schemas.mandatos import DeclaracaoConflitoInteresseCriar, MandatoCriar, MandatoEncerrar
 from app.security import exigir_permissao, get_current_user
+from app.services import fotos_da_diretoria as servico_fotos
 from app.services.estatuto import obter_regra_vigente
 from app.services.mandatos import mandatos_que_ocupam_a_vaga, mandatos_vencendo, mandatos_vigentes_do_associado, vagas_do_cargo
 
@@ -42,6 +45,68 @@ def _serializar_mandato(m: Mandato) -> dict:
         "data_fim_efetivo": m.data_fim_efetivo, "motivo_encerramento": m.motivo_encerramento,
         "ato_origem": m.ato_origem, "vigente": m.vigente(),
     }
+
+
+# ==========================================
+# FOTO PÚBLICA DA DIRETORIA (v5.7c) - só com a autorização de uso de imagem; aparece no site enquanto a pessoa tem mandato vigente
+# ==========================================
+def _rotulo_do_cargo_vigente(db: Session, id_associado: int) -> Optional[str]:
+    vigentes = mandatos_vigentes_do_associado(db, id_associado)
+    if not vigentes:
+        return None
+    opcao = (
+        db.query(OpcaoCatalogo).join(Catalogo, Catalogo.id_catalogo == OpcaoCatalogo.id_catalogo)
+        .filter(Catalogo.chave == "titulo_cargo", OpcaoCatalogo.codigo == vigentes[0].cargo_codigo).first()
+    )
+    return opcao.rotulo if opcao else None
+
+
+@router.get("/api/mandatos/associados/{id_associado}/foto-publica", summary="A foto da pessoa para o site (dados, sem o arquivo)")
+def ver_foto_da_diretoria(id_associado: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_governanca)):
+    associado = servico_fotos._associado(db, id_associado)
+    resposta = servico_fotos.para_o_painel(servico_fotos.foto_da_pessoa(db, associado.id_pessoa))
+    resposta["aparece_no_site"] = bool(resposta["foto"]) and servico_fotos.pessoa_tem_mandato_vigente(db, associado.id_pessoa)
+    return resposta
+
+
+@router.post("/api/mandatos/associados/{id_associado}/foto-publica", summary="Enviar (ou trocar) a foto da pessoa para o site; exige a autorização de uso de imagem", status_code=201)
+async def enviar_foto_da_diretoria(
+    id_associado: int, request: Request, arquivo: UploadFile = File(...), autorizacao_imagem: bool = Form(False),
+    id_documento_autorizacao: Optional[int] = Form(None), db: Session = Depends(get_db), usuario=Depends(_permissao_governanca),
+):
+    conteudo = await arquivo.read()
+    foto = await run_in_threadpool(
+        servico_fotos.salvar_foto, db, usuario, id_associado, conteudo, autorizacao_imagem=autorizacao_imagem,
+        id_documento_autorizacao=id_documento_autorizacao, cargo=_rotulo_do_cargo_vigente(db, id_associado),
+    )
+    registrar_auditoria(
+        db, usuario, "fotos_da_diretoria", "FOTO_ENVIADA", id_registro_afetado=foto.id_foto,
+        dados_depois={"id_associado": id_associado, "id_documento": id_documento_autorizacao}, ip_origem=request.client.host if request.client else None,
+    )
+    associado = servico_fotos._associado(db, id_associado)
+    resposta = servico_fotos.para_o_painel(foto)
+    resposta["aparece_no_site"] = servico_fotos.pessoa_tem_mandato_vigente(db, associado.id_pessoa)
+    return resposta
+
+
+@router.get("/api/mandatos/associados/{id_associado}/foto-publica/arquivo", summary="Ver a foto da pessoa (autenticado; o arquivo fica em área privada)")
+async def ver_arquivo_da_foto_da_diretoria(id_associado: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_governanca)):
+    associado = servico_fotos._associado(db, id_associado)
+    foto = servico_fotos.foto_da_pessoa(db, associado.id_pessoa)
+    if not foto:
+        raise HTTPException(status_code=404, detail="Esta pessoa não tem foto cadastrada para o site.")
+    conteudo = await run_in_threadpool(servico_fotos.ler_arquivo, foto)
+    return Response(content=conteudo, media_type="image/jpeg", headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=60"})
+
+
+@router.delete("/api/mandatos/associados/{id_associado}/foto-publica", summary="Apagar a foto da pessoa (retirou a autorização): some do sistema na hora e do site na próxima publicação")
+def apagar_foto_da_diretoria(id_associado: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_governanca)):
+    foto = servico_fotos.apagar_foto(db, id_associado)
+    registrar_auditoria(
+        db, usuario, "fotos_da_diretoria", "FOTO_APAGADA", id_registro_afetado=foto.id_foto,
+        dados_antes={"id_associado": id_associado}, ip_origem=request.client.host if request.client else None,
+    )
+    return {"mensagem": "Foto apagada."}
 
 
 @router.post("/api/mandatos/", summary="Criar mandato (posse em cargo/órgão)")

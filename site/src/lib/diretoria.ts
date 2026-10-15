@@ -4,6 +4,9 @@
  * todos os cargos desde o primeiro dia; o cargo sem ocupante registrado aparece como "ocupante ainda não publicado" (não
  * "vago": a diretoria pode estar empossada e ainda não registrada no sistema) e se preenche sozinho quando o mandato é
  * registrado.
+ *
+ * v5.7c: cada ocupante pode ter a FOTO (só de quem autorizou o uso da imagem); o Presidente fica em destaque e quem não tem foto ganha o círculo de
+ * iniciais (`iniciaisDoNome`). As funções daqui são puras: a página e o cartão (components/CartaoDeMembro.astro) só as aplicam.
  */
 import type { MembroDaDiretoria } from '../../scripts/lib/conteudo-publico.mjs'
 
@@ -17,6 +20,8 @@ export interface Assento {
 
 export const ORGAO_DIRETORIA = 'DIRETORIA_EXECUTIVA'
 export const ORGAO_CONSELHO = 'CONSELHO_FISCAL'
+/** O cargo que a página mostra em destaque, maior que os demais: o Presidente, primeiro do Art. 19. */
+export const CARGO_EM_DESTAQUE = 'PRESIDENTE'
 
 /** Art. 19, na ordem do Estatuto. */
 export const CARGOS_DA_DIRETORIA: Assento[] = [
@@ -52,6 +57,8 @@ export const MEMBROS_DO_CONSELHO = 3
 export interface CargoComOcupantes {
   assento: Assento
   ocupantes: MembroDaDiretoria[]
+  /** O primeiro cargo da Diretoria (o Presidente) aparece em destaque, maior que os demais (v5.7c). */
+  destaque: boolean
 }
 
 export interface Composicao {
@@ -75,17 +82,22 @@ export function montarComposicao(membros: MembroDaDiretoria[]): Composicao {
     return lista
   }
 
-  const diretoria = CARGOS_DA_DIRETORIA.map((assento) => ({
+  const diretoria: CargoComOcupantes[] = CARGOS_DA_DIRETORIA.map((assento) => ({
     assento,
     ocupantes: doCargo(ORGAO_DIRETORIA, assento.codigo),
+    destaque: assento.codigo === CARGO_EM_DESTAQUE,
   }))
   const doConselho = doCargo(ORGAO_CONSELHO, CARGO_DO_CONSELHO.codigo)
   // Um cartão por conselheiro publicado; os lugares que faltam para os três viram cartão "sem ocupante publicado".
   const conselho: CargoComOcupantes[] = [
-    ...doConselho.map((m) => ({ assento: CARGO_DO_CONSELHO, ocupantes: [m] })),
+    ...doConselho.map((m) => ({
+      assento: CARGO_DO_CONSELHO,
+      ocupantes: [m],
+      destaque: false,
+    })),
     ...Array.from(
       { length: Math.max(0, MEMBROS_DO_CONSELHO - doConselho.length) },
-      () => ({ assento: CARGO_DO_CONSELHO, ocupantes: [] }),
+      () => ({ assento: CARGO_DO_CONSELHO, ocupantes: [], destaque: false }),
     ),
   ]
   return {
@@ -98,6 +110,26 @@ export function montarComposicao(membros: MembroDaDiretoria[]): Composicao {
     outros: membros.filter((m) => !usados.has(m)),
     temOcupantes: membros.length > 0,
   }
+}
+
+/** Palavras de ligação que não entram nas iniciais ("Maria de Teste da Silva" -> "MS"). */
+const PALAVRAS_DE_LIGACAO = new Set(['de', 'da', 'do', 'das', 'dos', 'e'])
+
+/**
+ * As iniciais do círculo de quem não tem foto (v5.7c): a primeira letra do primeiro nome e a do último sobrenome, sem as palavras de ligação
+ * ("de", "da", "do", "das", "dos", "e"). Um nome só vale uma letra. Em maiúscula, com acento mantido ("Ágata" -> "Á"); palavra sem letra
+ * (número, sinal) não conta. Nome vazio devolve texto vazio.
+ */
+export function iniciaisDoNome(nome: string): string {
+  const letras = nome
+    .split(/\s+/)
+    .filter((palavra) => !PALAVRAS_DE_LIGACAO.has(palavra.toLowerCase()))
+    .map((palavra) => /^[^\p{L}\p{N}]*(\p{L})/u.exec(palavra)?.[1])
+    .filter((letra): letra is string => letra !== undefined)
+  if (letras.length === 0) return ''
+  const escolhidas =
+    letras.length === 1 ? [letras[0]!] : [letras[0]!, letras.at(-1)!]
+  return escolhidas.join('').toLocaleUpperCase('pt-BR')
 }
 
 /**

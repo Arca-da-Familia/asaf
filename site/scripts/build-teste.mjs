@@ -16,12 +16,15 @@ const vazio = process.argv.includes('--vazio')
 const antiga = process.argv.includes('--antiga')
 // `--instituicao`: a diretoria preencheu os dados da Instituição (v5.4h), em `dist-instituicao`.
 const instituicaoPreenchida = process.argv.includes('--instituicao')
+// `--foto-adulterada`: a API serve uma foto da Diretoria que NÃO é a declarada (v5.7c), em `dist-foto-adulterada` — prova que o build não cai: só a pessoa dela sai sem foto.
+const fotoDaDiretoriaAdulterada = process.argv.includes('--foto-adulterada')
 const argumentos = [
   'astro',
   'build',
   ...(vazio ? ['--outDir', 'dist-vazio'] : []),
   ...(antiga ? ['--outDir', 'dist-antiga'] : []),
   ...(instituicaoPreenchida ? ['--outDir', 'dist-instituicao'] : []),
+  ...(fotoDaDiretoriaAdulterada ? ['--outDir', 'dist-foto-adulterada'] : []),
 ]
 
 /**
@@ -40,7 +43,7 @@ function rodarAstro() {
 }
 
 const status = await comMock(
-  { vazio, antiga, instituicaoPreenchida },
+  { vazio, antiga, instituicaoPreenchida, fotoDaDiretoriaAdulterada },
   rodarAstro,
 )
 process.exit(status)

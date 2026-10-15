@@ -46,6 +46,24 @@ class Mandato(Base):
         return self.data_inicio <= momento <= self.data_fim_previsto
 
 
+class FotoDaDiretoria(Base):
+    """v5.7c - a foto pública de quem está na Diretoria ou no Conselho: uma por pessoa, só com a autorização de uso de imagem registrada, regravada em JPEG sem metadado e em armazenamento
+    PRIVADO (`fotos-diretoria`). Ver `app/services/fotos_da_diretoria.py`."""
+    __tablename__ = "fotos_da_diretoria"
+    id_foto = Column(Integer, primary_key=True, index=True)
+    id_pessoa = Column(Integer, ForeignKey("pessoas.id_pessoa"), nullable=False, unique=True, index=True)
+    arquivo_nome = Column(String(150), nullable=False)  # nome opaco (uuid) no armazenamento
+    sha256 = Column(String(64), nullable=False)
+    tamanho = Column(Integer, nullable=False)
+    largura = Column(Integer, nullable=False)
+    altura = Column(Integer, nullable=False)
+    alt = Column(String(300), nullable=False)
+    autorizacao_imagem = Column(Boolean, nullable=False, default=False)
+    id_documento_autorizacao = Column(Integer, ForeignKey("documentos_institucionais.id_documento"), nullable=True)
+    id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class DeclaracaoConflitoInteresse(Base):
     """v2.1 - conflito de interesse declarado por um dirigente (parente em fornecedor, interesse
     em contrato).

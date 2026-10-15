@@ -32,10 +32,11 @@ from app.models.associados import Associado
 from app.models.core import Catalogo, OpcaoCatalogo
 from app.models.documentos import FORMATO_TEXTO
 from app.models.governanca import Assembleia, RASCUNHO
-from app.models.mandatos import Mandato
+from app.models.mandatos import FotoDaDiretoria, Mandato
 from app.models.parcerias import FotoEtapaParceria
 from app.models.projetos import ProjetoEvento
 from app.services import armazenamento
+from app.services import fotos_da_diretoria as servico_fotos_da_diretoria
 from app.services import parcerias as servico_de_parcerias
 from app.services import parcerias_fotos as servico_de_fotos
 from app.services import publico_contexto
@@ -64,15 +65,31 @@ def _data(valor: Optional[datetime]) -> Optional[str]:
 # ==========================================
 # DIRETORIA E CONSELHO (mandatos vigentes)
 # ==========================================
+def _foto_publica_da_diretoria(foto, nome: str, cargo: str) -> Optional[dict]:
+    if foto is None:
+        return None
+    return {
+        # o texto alternativo sai do nome e do cargo DE HOJE, não do que foi gravado no envio (quem muda de cargo, ou recebeu a foto antes do mandato, não fica com texto errado)
+        "id_foto": foto.id_foto, "alt": servico_fotos_da_diretoria.texto_alternativo(nome, cargo), "sha256": foto.sha256, "largura": foto.largura, "altura": foto.altura,
+        "arquivo": f"/api/publico/diretoria/fotos/{foto.id_foto}",
+    }
+
+
 @router.get("/api/publico/diretoria", summary="Diretoria e Conselho vigentes (leitura, sem autenticação, pro site institucional)")
 def diretoria_publica(db: Session = Depends(get_db)):
     orgaos = _catalogo(db, "orgao_direcao")
     cargos = _catalogo(db, "titulo_cargo")
     vigentes = [m for m in db.query(Mandato).all() if m.vigente()]
-    nomes = {
-        a.id_associado: a.nome_completo
-        for a in db.query(Associado).filter(Associado.id_associado.in_({m.id_associado for m in vigentes})).all()
+    associados = {
+        a.id_associado: a for a in db.query(Associado).filter(Associado.id_associado.in_({m.id_associado for m in vigentes})).all()
     } if vigentes else {}
+    nomes = {i: a.nome_completo for i, a in associados.items()}
+    # v5.7c: só quem AUTORIZOU a imagem tem foto aqui (a foto do cadastro de associado nunca sai por esta rota); quem não tem aparece sem foto
+    fotos = {
+        f.id_pessoa: f for f in db.query(FotoDaDiretoria).filter(
+            FotoDaDiretoria.id_pessoa.in_({a.id_pessoa for a in associados.values()}), FotoDaDiretoria.autorizacao_imagem.is_(True),
+        ).all()
+    } if associados else {}
 
     linhas = []
     for m in vigentes:
@@ -87,9 +104,19 @@ def diretoria_publica(db: Session = Depends(get_db)):
                 "orgao_codigo": m.orgao_codigo, "orgao": orgao_rotulo,
                 "cargo_codigo": m.cargo_codigo, "cargo": cargo_rotulo,
                 "nome": nome, "data_inicio": _data(m.data_inicio), "data_fim_previsto": _data(m.data_fim_previsto),
+                "foto": _foto_publica_da_diretoria(fotos.get(associados[m.id_associado].id_pessoa), nome, cargo_rotulo),
             },
         ))
     return [dados for _, dados in sorted(linhas, key=lambda par: par[0])]
+
+
+@router.get("/api/publico/diretoria/fotos/{id_foto}", summary="Foto de quem está na Diretoria ou no Conselho (a autorização de imagem existe e a pessoa tem mandato vigente)")
+async def foto_publica_da_diretoria(id_foto: int, db: Session = Depends(get_db)):
+    foto = servico_fotos_da_diretoria.foto_publica(db, id_foto)
+    if foto is None:  # não existe, sem autorização ou sem mandato vigente: todos respondem igual
+        raise HTTPException(status_code=404, detail="Foto não encontrada.")
+    conteudo = await run_in_threadpool(servico_fotos_da_diretoria.ler_arquivo, foto)
+    return Response(content=conteudo, media_type="image/jpeg", headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "public, max-age=300"})
 
 
 # ==========================================

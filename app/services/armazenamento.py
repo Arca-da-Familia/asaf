@@ -64,6 +64,8 @@ PASTAS_PRIVADAS: dict[str, str] = {
     "fotos-etapas": "fotos-etapas",
     # v5.5: foto de evento (com pessoas): mesma regra da foto de etapa; a rota pública confere que o evento é Público.
     "fotos-eventos": "fotos-eventos",
+    # v5.7c: foto de quem está na Diretoria/Conselho (só com autorização de imagem): mesma regra; a rota pública confere que a pessoa tem mandato vigente.
+    "fotos-diretoria": "fotos-diretoria",
 }
 
 # Só estes tipos são servidos — nada de HTML/SVG/JS vindo de upload (XSS armazenado).

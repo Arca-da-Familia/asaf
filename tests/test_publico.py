@@ -17,7 +17,8 @@ from app.routers import publico
 from app.security import hash_senha
 
 _ISO = "%Y-%m-%dT%H:%M:%S"
-CAMPOS_DIRETORIA = {"orgao_codigo", "orgao", "cargo_codigo", "cargo", "nome", "data_inicio", "data_fim_previsto"}
+# v5.7c: `foto` só traz alguma coisa para quem autorizou o uso da imagem (ver tests/test_foto_da_diretoria.py); sem foto autorizada é `None`
+CAMPOS_DIRETORIA = {"orgao_codigo", "orgao", "cargo_codigo", "cargo", "nome", "data_inicio", "data_fim_previsto", "foto"}
 CAMPOS_PROJETO = {
     "id_projeto", "nome", "descricao", "tipo_codigo", "tipo", "status_codigo", "status",
     "publico_alvo", "data_inicio", "data_fim_prevista", "destaque",
@@ -71,6 +72,7 @@ def test_diretoria_publica_nao_exige_login_e_traz_so_os_campos_permitidos(client
     assert set(linha) == CAMPOS_DIRETORIA
     assert (linha["orgao"], linha["cargo"]) == ("Diretoria Executiva", "Presidente")  # rótulos do catálogo, não códigos
     assert linha["data_fim_previsto"] == "2030-01-01"  # mandato de 4 anos (Art. 25/32)
+    assert linha["foto"] is None, "a foto do cadastro de associado (privada) nunca vira foto pública"
 
     corpo = r.text
     for segredo in (cpf, email, tel, "segredo.jpg", "uploads"):

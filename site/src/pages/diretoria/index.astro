@@ -1,9 +1,9 @@
 ---
+import CartaoDeMembro from '../../components/CartaoDeMembro.astro'
 import TituloDePagina from '../../components/TituloDePagina.astro'
 import type { Migalha } from '../../config/navegacao'
 import Base from '../../layouts/Base.astro'
 import { conteudoPublico } from '../../lib/dados-publicos'
-import { formatarDataCurta } from '../../lib/datas'
 import {
   MEMBROS_DO_CONSELHO,
   montarComposicao,
@@ -11,8 +11,9 @@ import {
 } from '../../lib/diretoria'
 
 // Cargos: ESTATUTO (Art. 19 e Art. 24). Ocupantes: GET /api/publico/diretoria — só mandatos VIGENTES, só nome, cargo,
-// órgão e datas do mandato (nunca CPF, e-mail, telefone ou foto). Nenhum nome é digitado à mão aqui: se a diretoria muda
-// no sistema (posse, vacância), o site é reconstruído sozinho (workflow sincronizar-site) e o cargo se preenche.
+// órgão, datas do mandato e, de quem AUTORIZOU o uso da imagem, a foto (nunca CPF, e-mail ou telefone; v5.7c). Nenhum nome é
+// digitado à mão aqui: se a diretoria muda no sistema (posse, vacância, foto nova ou retirada), o site é reconstruído sozinho
+// (workflow sincronizar-site) e o cargo se preenche. A foto é a cópia que o build guardou no próprio site, nunca a da API.
 const { diretoria } = await conteudoPublico()
 const composicao = montarComposicao(diretoria)
 const migalhas: Migalha[] = [{ rotulo: 'Diretoria e Conselho' }]
@@ -91,21 +92,11 @@ const orgaos: {
               </li>
             ) : (
               cargo.ocupantes.map((membro) => (
-                <li
-                  class="rounded-lg border bg-card p-5 shadow-card"
-                  data-ocupante
-                >
-                  <p class="text-sm font-medium text-primary">
-                    {cargo.assento.rotulo}
-                  </p>
-                  <p class="mt-1 text-lg font-semibold">{membro.nome}</p>
-                  {membro.data_inicio && membro.data_fim_previsto && (
-                    <p class="mt-2 text-sm text-muted-foreground">
-                      Mandato: {formatarDataCurta(membro.data_inicio)} a{' '}
-                      {formatarDataCurta(membro.data_fim_previsto)}
-                    </p>
-                  )}
-                </li>
+                <CartaoDeMembro
+                  membro={membro}
+                  cargo={cargo.assento.rotulo}
+                  destaque={cargo.destaque}
+                />
               ))
             ),
           )}
@@ -120,12 +111,10 @@ const orgaos: {
         </h2>
         <ul class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {composicao.outros.map((membro) => (
-            <li class="rounded-lg border bg-card p-5 shadow-card" data-ocupante>
-              <p class="text-sm font-medium text-primary">
-                {membro.cargo} · {membro.orgao}
-              </p>
-              <p class="mt-1 text-lg font-semibold">{membro.nome}</p>
-            </li>
+            <CartaoDeMembro
+              membro={membro}
+              cargo={`${membro.cargo} · ${membro.orgao}`}
+            />
           ))}
         </ul>
       </section>
@@ -149,6 +138,18 @@ const orgaos: {
           Os cargos são preenchidos por escrutínio secreto em Assembleia Geral,
           de quatro em quatro anos, na primeira quinzena de fevereiro, e os
           mandatos duram quatro anos (Arts. 18, 25 e 32).
+        </li>
+        <li data-sobre-as-fotos>
+          A foto só é publicada de quem autorizou o uso da imagem; quem não tem
+          foto publicada aparece com o nome, o cargo e as iniciais no lugar dela
+          (veja a{' '}
+          <a
+            href="/privacidade/"
+            class="font-medium text-primary underline underline-offset-4"
+          >
+            Política de Privacidade
+          </a>
+          ).
         </li>
       </ul>
       <p class="mt-6">
