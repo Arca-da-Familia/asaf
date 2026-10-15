@@ -80,9 +80,10 @@ test('a Auditoria guardou as seis mudanças de situação e a lista do painel mo
     page.getByRole('heading', { name: 'Auditoria', level: 1 }),
   ).toBeVisible()
   await campo(page, 'Tabela').fill('eventos')
-  await expect(page.getByText('STATUS_ALTERADO').first()).toBeVisible({
-    timeout: 30_000,
-  })
+  await campo(page, 'Ação').selectOption('STATUS_ALTERADO')
+  await expect(
+    page.getByRole('cell', { name: 'STATUS_ALTERADO', exact: true }).first(),
+  ).toBeVisible({ timeout: 30_000 })
   await ver(page, info, 'auditoria-com-as-mudancas-de-situacao')
 
   // a lista de eventos do painel mostra o selo da situação (o evento programado, mesmo remarcado, não leva selo)
