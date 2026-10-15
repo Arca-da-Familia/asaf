@@ -856,17 +856,17 @@ test.describe('o link do e-mail de quem está inscrito (cancelar e confirmar)', 
   })
 })
 
-test.describe('Política de Privacidade 1.8', () => {
-  test('mostra a versão 1.8 e o aviso por e-mail quando a ASAF muda a situação do evento, sem prometer o cancelamento das inscrições', async ({
+test.describe('Política de Privacidade (o aviso de mudança de situação do evento, desde a 1.8)', () => {
+  test('mostra a versão atual (1.9) e o aviso por e-mail quando a ASAF muda a situação do evento, sem prometer o cancelamento das inscrições', async ({
     page,
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 1.8 · em vigor desde 15 de outubro de 2026'),
+      page.getByText('Versão 1.9 · em vigor desde 16 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 1\.8, em vigor desde 15 de outubro de 2026/,
+        /Esta é a versão 1\.9, em vigor desde 16 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-inscricao-em-evento]')

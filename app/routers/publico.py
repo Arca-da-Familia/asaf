@@ -65,11 +65,12 @@ def _data(valor: Optional[datetime]) -> Optional[str]:
 # ==========================================
 # DIRETORIA E CONSELHO (mandatos vigentes)
 # ==========================================
-def _foto_publica_da_diretoria(foto) -> Optional[dict]:
+def _foto_publica_da_diretoria(foto, nome: str, cargo: str) -> Optional[dict]:
     if foto is None:
         return None
     return {
-        "id_foto": foto.id_foto, "alt": foto.alt, "sha256": foto.sha256, "largura": foto.largura, "altura": foto.altura,
+        # o texto alternativo sai do nome e do cargo DE HOJE, não do que foi gravado no envio (quem muda de cargo, ou recebeu a foto antes do mandato, não fica com texto errado)
+        "id_foto": foto.id_foto, "alt": servico_fotos_da_diretoria.texto_alternativo(nome, cargo), "sha256": foto.sha256, "largura": foto.largura, "altura": foto.altura,
         "arquivo": f"/api/publico/diretoria/fotos/{foto.id_foto}",
     }
 
@@ -103,7 +104,7 @@ def diretoria_publica(db: Session = Depends(get_db)):
                 "orgao_codigo": m.orgao_codigo, "orgao": orgao_rotulo,
                 "cargo_codigo": m.cargo_codigo, "cargo": cargo_rotulo,
                 "nome": nome, "data_inicio": _data(m.data_inicio), "data_fim_previsto": _data(m.data_fim_previsto),
-                "foto": _foto_publica_da_diretoria(fotos.get(associados[m.id_associado].id_pessoa)),
+                "foto": _foto_publica_da_diretoria(fotos.get(associados[m.id_associado].id_pessoa), nome, cargo_rotulo),
             },
         ))
     return [dados for _, dados in sorted(linhas, key=lambda par: par[0])]

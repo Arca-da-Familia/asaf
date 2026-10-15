@@ -484,6 +484,7 @@ const diretoria = () => [
     nome: 'Maria de Teste da Silva',
     data_inicio: soData(-100),
     data_fim_previsto: soData(1360),
+    foto: fotoPublicaDaDiretoria(FOTOS_DA_DIRETORIA.PRESIDENTE),
   },
   {
     orgao_codigo: 'DIRETORIA_EXECUTIVA',
@@ -493,6 +494,8 @@ const diretoria = () => [
     nome: 'João de Teste Souza',
     data_inicio: soData(-100),
     data_fim_previsto: soData(1360),
+    // sem foto autorizada: a página mostra as iniciais
+    foto: null,
   },
   {
     orgao_codigo: 'CONSELHO_FISCAL',
@@ -502,6 +505,7 @@ const diretoria = () => [
     nome: 'Ana de Teste Lima',
     data_inicio: soData(-100),
     data_fim_previsto: soData(1360),
+    foto: fotoPublicaDaDiretoria(FOTOS_DA_DIRETORIA.CONSELHO_FISCAL),
   },
 ]
 
@@ -582,6 +586,40 @@ const FOTOS_DE_EVENTO = [
     bytes: await jpegDeTeste(400, 600, '#8a5a14'),
   },
 ]
+
+/**
+ * Fotos da Diretoria de teste (v5.7c): JPEG de verdade, cada um com o SHA-256 que a API declara. A da Presidente é de PÉ (300x400) e a da conselheira é
+ * DEITADA (400x300), para a página provar que o círculo de proporção fixa aceita as duas. O texto alternativo é o que a API real gera ("Foto de <nome>, <cargo>").
+ */
+const FOTOS_DA_DIRETORIA = {
+  PRESIDENTE: {
+    id_foto: 21,
+    alt: 'Foto de Maria de Teste da Silva, Presidente',
+    largura: 300,
+    altura: 400,
+    bytes: await jpegDeTeste(300, 400, '#8a5a14'),
+  },
+  CONSELHO_FISCAL: {
+    id_foto: 22,
+    alt: 'Foto de Ana de Teste Lima, Conselheiro Fiscal',
+    largura: 400,
+    altura: 300,
+    bytes: await jpegDeTeste(400, 300, '#145238'),
+  },
+}
+
+/** A foto na forma pública da API (`null` = a pessoa não tem foto autorizada). */
+const fotoPublicaDaDiretoria = (foto) =>
+  foto
+    ? {
+        id_foto: foto.id_foto,
+        alt: foto.alt,
+        sha256: sha256(foto.bytes),
+        largura: foto.largura,
+        altura: foto.altura,
+        arquivo: `/api/publico/diretoria/fotos/${foto.id_foto}`,
+      }
+    : null
 
 const documentos = () =>
   [
@@ -1069,6 +1107,7 @@ const CAMPOS_NOVOS = {
   projetoDetalhado: ['destaque', 'eventos', 'documentos', 'fotos'],
   documento: ['vinculo_tipo', 'vinculo_id'],
   noticia: ['projeto_id', 'evento_id'],
+  membroDaDiretoria: ['foto'],
 }
 
 /** Tira os campos novos (lista ou objeto): é assim que a API antiga responderia. */
@@ -1468,6 +1507,7 @@ export function criarServidor({
   vazio = false,
   antiga = false,
   instituicaoPreenchida = false,
+  fotoDaDiretoriaAdulterada = false,
 } = {}) {
   const lista = (dados) => (vazio ? [] : dados())
   const comoVier = (corpo, campos) =>
@@ -1759,7 +1799,29 @@ export function criarServidor({
           : responder({ detail: 'Projeto não encontrado.' }, 404)
       }
       if (caminho === '/api/publico/diretoria')
-        return responder(lista(diretoria))
+        return responder(
+          comoVier(lista(diretoria), CAMPOS_NOVOS.membroDaDiretoria),
+        )
+      // Foto de quem está na Diretoria (v5.7c): o JPEG já regravado, com o mesmo SHA-256 que a lista declara. API antiga: a rota não existe.
+      // `fotoDaDiretoriaAdulterada`: serve um arquivo DIFERENTE do declarado (o build tem de recusar a foto, e só ela).
+      const fotoDaDiretoria = /^\/api\/publico\/diretoria\/fotos\/(\d+)$/.exec(
+        caminho,
+      )
+      if (fotoDaDiretoria) {
+        const foto =
+          vazio || antiga
+            ? undefined
+            : Object.values(FOTOS_DA_DIRETORIA).find(
+                (f) => f.id_foto === Number(fotoDaDiretoria[1]),
+              )
+        if (!foto) return responder({ detail: 'Foto não encontrada.' }, 404)
+        const bytes = fotoDaDiretoriaAdulterada
+          ? Buffer.concat([foto.bytes, Buffer.from([0])])
+          : foto.bytes
+        res.writeHead(200, { ...cors, 'Content-Type': 'image/jpeg' })
+        res.end(bytes)
+        return
+      }
       if (caminho === '/api/publico/assembleias') {
         return responder(lista(assembleias))
       }
@@ -1857,6 +1919,8 @@ if (executadoDireto) {
     vazio: process.env.MOCK_API_VAZIO === '1',
     antiga: process.env.MOCK_API_ANTIGA === '1',
     instituicaoPreenchida: process.env.MOCK_INSTITUICAO_PREENCHIDA === '1',
+    fotoDaDiretoriaAdulterada:
+      process.env.MOCK_FOTO_DA_DIRETORIA_ADULTERADA === '1',
   }).listen(PORTA_DO_MOCK, '127.0.0.1', () =>
     console.log(`mock-api em http://127.0.0.1:${PORTA_DO_MOCK}`),
   )

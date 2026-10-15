@@ -21,6 +21,7 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   listarMandatosVencendo: vi.fn(),
   listarConflitosInteresse: vi.fn(),
   encerrarMandato: vi.fn(),
+  obterFotoDaDiretoria: vi.fn(),
   // dissolução
   obterProcessoDissolucao: vi.fn(),
   cancelarProcessoDissolucao: vi.fn(),
@@ -103,6 +104,11 @@ describe('Mandatos', () => {
       { ...mandato, id_mandato: 6, dias_restantes: 12 },
     ])
     vi.mocked(api.listarConflitosInteresse).mockResolvedValue([])
+    // v5.7c: cada mandato vigente consulta a foto da pessoa para o site (detalhes em foto-da-diretoria.test.tsx)
+    vi.mocked(api.obterFotoDaDiretoria).mockResolvedValue({
+      foto: null,
+      aparece_no_site: false,
+    })
   })
 
   it('mostra o DIA gravado (15/01) mesmo no fuso de Belém, e os mandatos que vencem na janela', async () => {

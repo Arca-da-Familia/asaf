@@ -84,6 +84,17 @@ def test_a_foto_vai_ao_site_so_de_quem_autorizou_e_o_arquivo_bate_com_a_impressa
     assert "segredo.jpg" not in client.get("/api/publico/diretoria").text
 
 
+def test_o_texto_alternativo_acompanha_o_cargo_de_hoje_e_nao_o_do_dia_do_envio(client, auth_headers, db):
+    dirigente, _ = _novo_dirigente(db, cargo="PRESIDENTE", client=client, auth_headers=auth_headers)
+    assert _enviar(client, auth_headers, dirigente.id_associado, _jpeg()).status_code == 201
+    assert _linha_publica(client, dirigente.nome_completo)["foto"]["alt"] == f"Foto de {dirigente.nome_completo}, Presidente"
+    # o que ficou gravado no envio está velho (cargo que a pessoa deixou, ou foto recebida antes do mandato): o site recebe o texto de hoje
+    foto = db.query(FotoDaDiretoria).filter(FotoDaDiretoria.id_pessoa == dirigente.id_pessoa).one()
+    foto.alt = f"Foto de {dirigente.nome_completo}, Tesoureiro antigo"
+    db.commit()
+    assert _linha_publica(client, dirigente.nome_completo)["foto"]["alt"] == f"Foto de {dirigente.nome_completo}, Presidente"
+
+
 def test_a_foto_e_regravada_sem_nenhum_metadado_e_cabe_no_limite(client, auth_headers, db):
     dirigente, _ = _novo_dirigente(db, client=client, auth_headers=auth_headers)
     assert _enviar(client, auth_headers, dirigente.id_associado, _jpeg(tamanho=(3000, 2400), com_metadado=True)).status_code == 201

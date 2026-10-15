@@ -9,6 +9,12 @@ import { readFileSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
 
 import {
+  baixarFotosDaDiretoria,
+  buscarConteudoPublico,
+  impressaoDoConteudo,
+} from './lib/conteudo-publico.mjs'
+import { configuracaoDoDirectus } from './lib/directus.mjs'
+import {
   ambienteDeTeste,
   criarServidor,
   PREFIXO_DO_DIRECTUS,
@@ -17,6 +23,23 @@ import {
 const PORTA_CHEIA = 4322
 const PORTA_VAZIA = 4323
 const PORTA_SITE = 4324
+const PORTA_ADULTERADA = 4326
+
+/**
+ * A impressão do conteúdo que o BUILD publicaria lendo esta API: o mesmo caminho do site (`src/lib/dados-publicos.ts`): lê tudo, baixa a foto de cada pessoa da
+ * Diretoria e, se uma foto falha, publica a pessoa sem ela.
+ */
+async function impressaoQueOBuildPublicaria(porta) {
+  const url = `http://127.0.0.1:${porta}`
+  const lido = await buscarConteudoPublico(url, {
+    directus: configuracaoDoDirectus(ambienteDeTeste(porta)),
+    esperaMs: 0,
+  })
+  const { diretoria } = await baixarFotosDaDiretoria(url, lido.diretoria, {
+    esperaMs: 0,
+  })
+  return impressaoDoConteudo({ ...lido, diretoria })
+}
 
 const escutar = (servidor, porta) =>
   new Promise((resolver, rejeitar) => {
@@ -47,6 +70,8 @@ const publicado = readFileSync('dist/conteudo.json', 'utf-8')
 process.env.MOCK_AGORA ??= statSync('dist/conteudo.json').mtime.toISOString()
 const cheia = criarServidor()
 const vazia = criarServidor({ vazio: true })
+// A API cujas fotos da Diretoria NÃO são as declaradas (o build as recusa, uma a uma).
+const adulterada = criarServidor({ fotoDaDiretoriaAdulterada: true })
 // "Site publicado": serve o /conteudo.json do build; qualquer outro caminho é 404.
 const site = createServer((req, res) => {
   if ((req.url ?? '').startsWith('/conteudo.json')) {
@@ -65,6 +90,7 @@ try {
     escutar(vazia, PORTA_VAZIA),
     escutar(site, PORTA_SITE),
     escutar(semArquivo, PORTA_SITE + 1),
+    escutar(adulterada, PORTA_ADULTERADA),
   ])
   const base = { SITE_URL: `http://127.0.0.1:${PORTA_SITE}` }
 
@@ -130,8 +156,20 @@ try {
     problemas.push(
       'site SEM /conteudo.json (1º deploy da v5.2) devia contar como "mudou"',
     )
+
+  // v5.7c - foto da Diretoria. (1) Com todas as fotos no ar, o que o build publica tem a MESMA impressão da API (senão o site seria reconstruído a cada 15 min).
+  // (2) Se uma foto foi recusada no build (a pessoa saiu sem foto), o publicado difere da API, que ainda declara a foto: a sincronização reconstrói e tenta de
+  // novo, em vez de deixar a pessoa sem foto até a próxima mudança qualquer.
+  if ((await impressaoQueOBuildPublicaria(PORTA_CHEIA)) !== igual.atual)
+    problemas.push(
+      'com as fotos da Diretoria no ar, o conteúdo publicado devia ter a MESMA impressão da API',
+    )
+  if ((await impressaoQueOBuildPublicaria(PORTA_ADULTERADA)) === igual.atual)
+    problemas.push(
+      'uma foto da Diretoria recusada no build não mudou a impressão: a sincronização nunca tentaria de novo',
+    )
 } finally {
-  for (const s of [cheia, vazia, site, semArquivo]) s.close()
+  for (const s of [cheia, vazia, site, semArquivo, adulterada]) s.close()
 }
 
 if (problemas.length > 0) {

@@ -133,6 +133,19 @@ export interface ProjetoDetalhado extends ProjetoPublico {
   fotos: FotoDoProjeto[]
 }
 
+/** Foto de quem está na Diretoria ou no Conselho (v5.7c): só de quem autorizou o uso da imagem, já regravada pela API (JPEG sem metadado, até 2000 px). */
+export interface FotoDaDiretoria {
+  id_foto: number
+  /** Texto alternativo já pronto: "Foto de <nome>, <cargo>". */
+  alt: string
+  largura: number
+  altura: number
+  /** SHA-256 do JPEG: o build só aceita o arquivo que bater com ele. */
+  sha256: string
+  /** Caminho na API (`/api/publico/diretoria/fotos/<id_foto>`); o site usa a cópia do build (`caminhoDaFotoDaDiretoria`). */
+  arquivo: string
+}
+
 export interface MembroDaDiretoria {
   orgao_codigo: string
   orgao: string
@@ -141,6 +154,8 @@ export interface MembroDaDiretoria {
   nome: string
   data_inicio: string | null
   data_fim_previsto: string | null
+  /** `null` = sem foto autorizada (ou API antiga, sem o campo, ou a cópia da foto não passou na conferência do build). */
+  foto: FotoDaDiretoria | null
 }
 
 export interface AssembleiaPublica {
@@ -354,6 +369,46 @@ export function normalizarProjeto<T extends object>(
 export function normalizarProjetoDetalhado(
   detalhe: Partial<ProjetoDetalhado> & { id_projeto: number },
 ): ProjetoDetalhado
+
+/** Foto da Diretoria da API -> a do site, ou `null` (ausente, sem autorização ou fora do formato do contrato). */
+export function normalizarFotoDaDiretoria(foto: unknown): FotoDaDiretoria | null
+
+/** Membro da Diretoria da API -> o do site: `foto` ausente (API antiga) ou inválida = null. */
+export function normalizarMembroDaDiretoria<T extends object>(
+  membro: T,
+): Omit<T, 'foto'> & { foto: FotoDaDiretoria | null }
+
+/** Nome da cópia da foto no site (`/midia/diretoria/<nome>.jpg`): número da foto + começo do SHA-256. */
+export function nomeDaFotoDaDiretoria(
+  foto: Pick<FotoDaDiretoria, 'id_foto' | 'sha256'>,
+): string
+
+export interface AvisoDeFotoDaDiretoria {
+  id_foto: number
+  cargo: string
+  motivo: string
+}
+
+/**
+ * Baixa a foto de cada membro que tem uma, conferindo JPEG e SHA-256. Foto que falha NÃO derruba o build: o membro volta com `foto: null` e o
+ * motivo vai em `avisos`. `fotos` guarda os bytes pelo `nomeDaFotoDaDiretoria`.
+ */
+export function baixarFotosDaDiretoria(
+  apiUrl: string,
+  diretoria: MembroDaDiretoria[],
+  opcoes?: Omit<OpcoesDeBusca, 'directus'>,
+): Promise<{
+  diretoria: MembroDaDiretoria[]
+  fotos: Map<string, Buffer>
+  avisos: AvisoDeFotoDaDiretoria[]
+}>
+
+/** Uma linha de aviso no log do build por foto da Diretoria que ficou de fora. */
+export function anunciarAvisosDeFotosDaDiretoria(
+  avisos: AvisoDeFotoDaDiretoria[],
+  escrever?: (texto: string) => void,
+  noGitHub?: boolean,
+): void
 
 /** Evento da lista: `id_projeto` ausente (API antiga) = null; sem situação (API antiga) = `Programado`, sem motivo e nunca remarcado. */
 export function normalizarEvento<T extends object>(

@@ -4876,6 +4876,68 @@ export function apagarFotoDoEvento(
   })
 }
 
+// v5.7c - a foto de quem está na Diretoria Executiva ou no Conselho Fiscal, mostrada na página Diretoria do site. Uma foto
+// por pessoa (enviar de novo substitui) e só com a AUTORIZAÇÃO de uso de imagem. O arquivo fica em área privada: a
+// miniatura é buscada com o token (`apiFetchBlob`). `aparece_no_site` só é verdadeiro com foto E mandato vigente.
+export type FotoDaDiretoria = {
+  id_foto: number
+  alt: string
+  largura: number
+  altura: number
+  tamanho: number
+  autorizacao_imagem: boolean
+  id_documento_autorizacao: number | null
+  criado_em: string
+}
+
+export type SituacaoDaFotoDaDiretoria = {
+  foto: FotoDaDiretoria | null
+  aparece_no_site: boolean
+}
+
+export function obterFotoDaDiretoria(
+  idAssociado: number,
+): Promise<SituacaoDaFotoDaDiretoria> {
+  return apiFetch(`/api/mandatos/associados/${idAssociado}/foto-publica`)
+}
+
+// A foto trocada mantém o mesmo endereço e o servidor deixa o navegador guardar a imagem por 1 minuto: `versao` (a data
+// de envio) vai na consulta só para a miniatura nova não vir da cópia antiga.
+export function caminhoDaFotoDaDiretoria(
+  idAssociado: number,
+  versao?: string,
+): string {
+  const base = `/api/mandatos/associados/${idAssociado}/foto-publica/arquivo`
+  return versao ? `${base}?v=${encodeURIComponent(versao)}` : base
+}
+
+export function enviarFotoDaDiretoria(
+  idAssociado: number,
+  dados: {
+    arquivo: File
+    autorizacaoImagem: boolean
+    idDocumentoAutorizacao?: string
+  },
+): Promise<SituacaoDaFotoDaDiretoria> {
+  const form = new FormData()
+  form.append('arquivo', dados.arquivo)
+  form.append('autorizacao_imagem', String(dados.autorizacaoImagem))
+  if (dados.idDocumentoAutorizacao)
+    form.append('id_documento_autorizacao', dados.idDocumentoAutorizacao)
+  return apiFetch(`/api/mandatos/associados/${idAssociado}/foto-publica`, {
+    method: 'POST',
+    body: form,
+  })
+}
+
+export function apagarFotoDaDiretoria(
+  idAssociado: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/mandatos/associados/${idAssociado}/foto-publica`, {
+    method: 'DELETE',
+  })
+}
+
 export function listarEventos(): Promise<Evento[]> {
   return apiFetch('/api/eventos/')
 }

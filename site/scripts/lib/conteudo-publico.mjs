@@ -4,6 +4,8 @@
 // (v5.4b: junta as parcerias/emendas e os documentos APROVADOS da Transparência, que moram no SISTEMA.)
 // (v5.5: o detalhe de cada projeto (edições, relatórios, fotos), o contexto de cada evento e a ligação das notícias
 //  com projeto/evento. TOLERANTE a API antiga: o que ainda não existe nela vira lista vazia / null.)
+// (v5.7c: a foto de quem está na Diretoria e no Conselho Fiscal, só de quem autorizou a imagem. O JPEG é baixado NO BUILD
+//  (`baixarFotosDaDiretoria`) e uma foto que falha deixa só aquela pessoa sem foto; nunca derruba o build.)
 // COMPARTILHADO por dois usuários, de propósito, para nunca divergirem:
 //   1. o BUILD das páginas (src/lib/dados-publicos.ts): gera Diretoria, Projetos, cada Evento etc.;
 //   2. a SINCRONIZAÇÃO (scripts/verificar-conteudo.mjs, rodada pelo workflow sincronizar-site): compara
@@ -117,6 +119,54 @@ export function normalizarEvento(evento) {
   }
 }
 
+/** Caminho, na API, da foto de quem está na Diretoria: o contrato é exatamente este prefixo mais o número da foto. */
+const PREFIXO_DA_FOTO_DA_DIRETORIA = '/api/publico/diretoria/fotos/'
+
+const inteiroPositivo = (valor) => Number.isInteger(valor) && valor > 0
+
+/**
+ * Foto de um membro da Diretoria (v5.7c) -> forma que o site usa, ou `null`. TOLERANTE: API antiga (sem o campo), pessoa sem foto autorizada
+ * (`null`) e qualquer formato que não seja o do contrato (campo faltando, impressão digital que não é SHA-256, endereço fora de
+ * `/api/publico/diretoria/fotos/<id_foto>`) valem "sem foto" — nunca derrubam o build, e uma resposta estranha da API não vira endereço a baixar.
+ */
+export function normalizarFotoDaDiretoria(foto) {
+  if (!foto || typeof foto !== 'object' || Array.isArray(foto)) return null
+  const { id_foto, sha256, largura, altura, arquivo } = foto
+  const alt = textoOuNulo(foto.alt)
+  if (
+    !inteiroPositivo(id_foto) ||
+    alt === null ||
+    typeof sha256 !== 'string' ||
+    !/^[0-9a-f]{64}$/i.test(sha256) ||
+    !inteiroPositivo(largura) ||
+    !inteiroPositivo(altura) ||
+    arquivo !== `${PREFIXO_DA_FOTO_DA_DIRETORIA}${id_foto}`
+  ) {
+    return null
+  }
+  return {
+    id_foto,
+    alt,
+    sha256: sha256.toLowerCase(),
+    largura,
+    altura,
+    arquivo,
+  }
+}
+
+/** Membro da Diretoria/Conselho: `foto` ausente (API antiga) ou inválida = `null`. */
+export function normalizarMembroDaDiretoria(membro) {
+  return { ...membro, foto: normalizarFotoDaDiretoria(membro.foto) }
+}
+
+/**
+ * Nome da cópia da foto da Diretoria no site (`/midia/diretoria/<nome>.jpg`): o número da foto e o começo da impressão digital. O número
+ * não muda quando a pessoa troca de foto (a nova substitui a antiga), a impressão muda: com ela no nome, o endereço de uma foto nova
+ * nunca é o de uma foto velha que algum navegador ou rede de distribuição ainda guarde.
+ */
+export const nomeDaFotoDaDiretoria = (foto) =>
+  `${foto.id_foto}-${foto.sha256.slice(0, 12)}`
+
 /** Evento nas listas de contexto (edições do projeto, cadeia de edições): só traz o `status` (API antiga = `Programado`). */
 const normalizarResumoDeEvento = (resumo) => ({
   ...resumo,
@@ -195,6 +245,7 @@ async function buscarInstituicao(base, config) {
  * Lê TODO o conteúdo público. A API escala a zero (partida a frio de ~20-35 s), então o tempo por
  * tentativa é generoso. Qualquer falha derruba o build: melhor não publicar do que publicar um
  * site sem a diretoria, sem projetos e sem eventos por causa de uma API acordando.
+ * (As FOTOS da Diretoria são a exceção, e só no build: aqui só se lê a lista, com a foto normalizada; quem baixa e confere o JPEG é `baixarFotosDaDiretoria`.)
  */
 export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
   const config = {
@@ -287,7 +338,7 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
     detalhesDeEventos,
     projetos,
     detalhesDeProjetos,
-    diretoria,
+    diretoria: diretoria.map(normalizarMembroDaDiretoria),
     assembleias,
     parcerias,
     detalhesDeParcerias,
@@ -329,6 +380,72 @@ export async function baixarFotoDaTransparencia(apiUrl, foto, opcoes = {}) {
     )
   }
   return bytes
+}
+
+/**
+ * Baixa, NO BUILD, a foto de cada pessoa da Diretoria e do Conselho que tem foto (v5.7c), conferindo que é JPEG e que o SHA-256 é o declarado
+ * (`baixarFotoDaTransparencia`). Diferente das fotos de evento e de etapa, uma foto que falha (API fora do ar, 404 porque a pessoa deixou
+ * o cargo ou retirou a autorização no meio do caminho, arquivo adulterado) NÃO derruba o build: só aquela pessoa sai sem foto, e o motivo
+ * volta em `avisos` para o build registrar. A página da Diretoria tem de sair do ar com ou sem rosto; a foto é a parte opcional.
+ *
+ * Devolve `diretoria` (os membros cuja foto não veio ficam com `foto: null`), `fotos` (nome da cópia -> bytes; ver `nomeDaFotoDaDiretoria`) e
+ * `avisos`. A mesma foto em dois mandatos da mesma pessoa é baixada uma vez.
+ *
+ * O conteúdo devolvido é o que o site publica: se uma foto falhou, a impressão dele difere da da API (que ainda declara a foto), e a próxima
+ * sincronização reconstrói o site para tentar de novo, em vez de deixar a pessoa sem foto até a próxima mudança qualquer.
+ */
+export async function baixarFotosDaDiretoria(apiUrl, diretoria, opcoes = {}) {
+  const fotos = new Map()
+  const avisos = []
+  const porNome = new Map()
+  for (const membro of diretoria) {
+    if (membro.foto) porNome.set(nomeDaFotoDaDiretoria(membro.foto), membro)
+  }
+  await Promise.all(
+    [...porNome].map(async ([nome, membro]) => {
+      try {
+        fotos.set(
+          nome,
+          await baixarFotoDaTransparencia(apiUrl, membro.foto, {
+            ...opcoes,
+            descricao: 'da Diretoria',
+          }),
+        )
+      } catch (erro) {
+        avisos.push({
+          id_foto: membro.foto.id_foto,
+          cargo: membro.cargo,
+          motivo: erro instanceof Error ? erro.message : String(erro),
+        })
+      }
+    }),
+  )
+  avisos.sort((a, b) => a.id_foto - b.id_foto)
+  return {
+    diretoria: diretoria.map((membro) =>
+      membro.foto && !fotos.has(nomeDaFotoDaDiretoria(membro.foto))
+        ? { ...membro, foto: null }
+        : membro,
+    ),
+    fotos,
+    avisos,
+  }
+}
+
+/** Escreve no log do build uma linha por foto da Diretoria que ficou de fora (no GitHub Actions, como aviso destacado). */
+export function anunciarAvisosDeFotosDaDiretoria(
+  avisos,
+  escrever = console.warn,
+  noGitHub = process.env.GITHUB_ACTIONS === 'true',
+) {
+  for (const aviso of avisos ?? []) {
+    const texto = `Foto da Diretoria NÃO publicada (foto nº ${aviso.id_foto}, ${aviso.cargo}): ${aviso.motivo}. A pessoa aparece só com nome e cargo; a próxima sincronização tenta de novo.`
+    escrever(
+      noGitHub
+        ? `::warning title=Foto da Diretoria não publicada::${texto.replace(/[\r\n]+/g, ' ')}`
+        : texto,
+    )
+  }
 }
 
 /**

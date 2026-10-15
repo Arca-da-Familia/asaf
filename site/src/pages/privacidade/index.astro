@@ -24,6 +24,9 @@ const presidente = presidenteDaDiretoria((await conteudoPublico()).diretoria)
 // v1.7 (2026-10-13): evento cancelado, adiado ou remarcado => o sistema avisa por e-mail quem está inscrito (inclusive na lista de espera) — app/services/status_do_evento.py.
 // v1.8 (2026-10-15): o parágrafo da inscrição em evento passou pela conferência independente de fatos e foi corrigido (o formulário nem sempre existe; o e-mail é tentativa; sem código na
 // lista de espera; contato do cadastro; IP na Auditoria e ao abrir/cancelar/confirmar; a inscrição não é cancelada pelo sistema) e o encarregado só é nomeado quando o mandato está publicado.
+// v1.9 (2026-10-16): a página Diretoria passa a mostrar a foto de quem autorizou o uso da imagem (decisão do Presidente, 2026-10-15) — app/services/fotos_da_diretoria.py: sem a autorização a foto não é
+// guardada; só é pública com mandato vigente; quem retira a autorização tem a foto apagada do sistema na hora e do site na próxima publicação. A foto do cadastro de associado (a da carteirinha) nunca vai ao
+// site. (A carteirinha digital, ao ser verificada pelo QR, mostra a foto do cadastro a quem tem o link: por isso o texto diz "nunca é usada no site", não "nunca é pública".)
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -76,7 +79,7 @@ const direitos = [
           sistema de gestão. O que o site publica é o que a diretoria aprova: a
           lista de dirigentes, documentos e dados de emendas e parcerias
           (conferidos para não trazer CPF, RG, e-mail ou celular de pessoas) e
-          fotos de atividades feitas com autorização de imagem.
+          fotos de atividades e de dirigentes, só com autorização de imagem.
         </li>
         <li>
           Não vendemos dados. Você pode exercer os seus direitos pelo{' '}
@@ -183,8 +186,8 @@ const direitos = [
           <strong>Diretoria e Conselho Fiscal.</strong> A página de Diretoria e
           Conselho Fiscal publica o nome, o cargo e as datas do mandato de quem
           ocupa cargos na ASAF, em respeito ao princípio da publicidade adotado
-          pelo Estatuto (Art. 2º). Não publicamos CPF, telefone, e-mail nem
-          foto.
+          pelo Estatuto (Art. 2º), e a foto de quem autorizou o uso da imagem
+          (veja abaixo). Não publicamos CPF, telefone nem e-mail.
         </li>
         <li>
           <strong>Links para outros sites.</strong> Ao clicar em um link para um
@@ -192,6 +195,22 @@ const direitos = [
           contato), você passa a ser regido pela política desse site.
         </li>
       </ul>
+      <p class="mt-3" data-diretoria-foto>
+        <strong>Foto de quem está na Diretoria ou no Conselho Fiscal.</strong> A
+        página{' '}
+        <a
+          href="/diretoria/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          Diretoria
+        </a>{' '}
+        mostra o nome, o cargo, o período do mandato e, de quem autorizou o uso
+        da imagem, a foto. Sem a autorização a foto não é guardada no sistema, e
+        a foto só aparece no site enquanto a pessoa está em mandato vigente.
+        Quem retira a autorização tem a foto apagada do sistema na hora e do
+        site na próxima publicação do site. A foto do cadastro de associado (a
+        da carteirinha) nunca é usada nesta página nem em outra página do site.
+      </p>
     </section>
 
     <section aria-labelledby="formularios">
