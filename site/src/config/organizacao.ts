@@ -72,6 +72,7 @@ export const ORGANIZACAO = {
 export const DOCUMENTOS_LEGAIS = {
   privacidade: { versao: '1.7', vigenteDesde: '2026-10-13' },
   termos: { versao: '1.1', vigenteDesde: '2026-10-03' },
+  acessibilidade: { versao: '1.0', vigenteDesde: '2026-10-15' },
 } as const
 
 /** "Rua Paulo Afonso, 150 — Bairro da Paz" */
