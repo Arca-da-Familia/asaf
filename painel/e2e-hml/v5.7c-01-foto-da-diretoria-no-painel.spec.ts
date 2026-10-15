@@ -129,7 +129,7 @@ test('sem a autorização de imagem a foto não é aceita; com ela aparece, sem 
   await expect(sem.getByRole('status')).toContainText('Foto enviada', {
     timeout: 30_000,
   })
-  await expect(b.getByText('Aparece no site')).toBeVisible()
+  await expect(b.getByText('Aparece no site', { exact: true })).toBeVisible()
   await ver(page, info, 'foto-enviada-aparece-no-site')
 
   // 3. a API pública: a foto de quem autorizou, com o texto alternativo do nome e do cargo, e o arquivo SEM login
@@ -237,7 +237,7 @@ test('apagar a foto (a pessoa retirou a autorização) pede confirmação e a ti
     .getByRole('alertdialog')
     .getByRole('button', { name: 'Apagar a foto', exact: true })
     .click()
-  await expect(b.getByText('Sem foto')).toBeVisible({ timeout: 30_000 })
+  await expect(b.getByText(/^Sem foto/)).toBeVisible({ timeout: 30_000 })
   expect(
     (await dirigente(page, OUTRO)).foto,
     'a API pública não a traz mais',
