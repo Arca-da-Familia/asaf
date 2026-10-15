@@ -1877,8 +1877,37 @@ Dividida em quatro partes (decisão do Presidente, 2026-10-09: "parte a parte");
       "Link inválido"; as três rotas novas constam no `openapi.json`; `/cancelar-inscricao/` e `/confirmar-inscricao/` respondem 200, com `noindex, nofollow` e fora do `sitemap`; a Política
       mostra a versão 1.6 com o parágrafo da inscrição em evento; `GET /api/publico/eventos` está vazio e `/eventos/999999/` dá 404 (**produção não recebeu inscrição de teste**).
       **Limite conhecido:** o link de cancelar vale para quem o tem (vem na tela e no e-mail da inscrição).
-- [ ] **v5.5d — Status do evento** — Programado / **Cancelado** / Adiado / Realizado, com motivo — no sistema, no painel e no site (`schema.org eventStatus`), no lugar do paliativo
-      "voltar a Interna". "Módulo de eventos" do usuário: este é o ponto de entrada dele.
+- [x] **v5.5d — Status do evento** — Programado / Adiado / Cancelado / Realizado, com motivo — no sistema, no painel e no site (`schema.org eventStatus`), no lugar do paliativo "voltar a Interna".
+      "Módulo de eventos" do usuário: este foi o ponto de entrada dele. **O que existe:** o evento tem **situação** (`Programado` de partida; `Adiado`, `Cancelado`, `Realizado`), `motivo_status`,
+      `status_alterado_em` e `data_hora_inicio_anterior` (migração `b3e8c5a1d7f4`; todo evento que já existia fica `Programado`). `POST /api/eventos/{id}/status` (permissão `projetos`, Auditoria
+      `STATUS_ALTERADO`): **cancelar e adiar exigem motivo** (mínimo 5 letras; em evento Público o motivo vai ao site e passa pela mesma conferência de dado pessoal do resto do texto público);
+      **realizado** só depois de o evento começar e não volta atrás; **adiado ou cancelado volta** à MESMA data (retomada, enquanto a data original ainda é futura) ou com **data nova** (remarcar: guarda
+      a data de antes, a programação em sessões acompanha, a duração é mantida, e quem foi promovido da fila e ainda não confirmou ganha prazo novo). **Quem estava inscrito recebe e-mail** (um por
+      endereço, em melhor esforço; a inscrição NÃO é cancelada pelo sistema; o painel mostra quantos avisos saíram e quantos inscritos estão sem e-mail). **O evento parado** (cancelado, adiado ou
+      realizado) não recebe inscrição por nenhuma porta (site, associado, secretaria), a vaga que abre não chama ninguém da fila, o prazo de confirmação não vence, a portaria não faz check-in e a
+      pesquisa de satisfação não gera convite. **Decisão do Presidente (2026-10-15, "é o ressarcimento", Código de Defesa do Consumidor):** quem desiste pelo link de um evento CANCELADO pela ASAF recebe
+      o valor INTEIRO de volta (sem a taxa de quem desiste); o painel avisa quantas inscrições pagas o evento tem (`inscricoes_com_cobranca`). **Painel:** selo da situação (sempre com texto) no detalhe e na
+      lista, motivo, "Remarcado: a data anterior era…", botões conforme a situação (Adiar, Cancelar evento em dois passos, Remarcar, Voltar para a data original, Reativar, Marcar como realizado), e o
+      resultado do aviso por e-mail. **Site:** aviso no topo da página do evento (cancelado, adiado, remarcado, realizado) com o motivo escrito como texto, formulário de inscrição que some e volta ao vivo
+      sem reconstruir o site, selos nas listas, a Home sem evento cancelado, aviso nas páginas de cancelar e confirmar a inscrição (sem botão de confirmar em evento cancelado) e o `eventStatus` do Google
+      (`EventCancelled`, `EventPostponed`, `EventRescheduled` com `previousStartDate`; `EventScheduled` no programado e no realizado). **Política de Privacidade 1.7:** diz que, se o evento for cancelado,
+      adiado ou remarcado, o sistema envia aviso por e-mail a quem está inscrito. A hml ganhou, nos dados inventados, um evento em cada situação (`povoar_homologacao_volume.py`). **Testes:** servidor 1138 de
+      1138 (rodadas completas; 23 novos em `tests/test_status_do_evento.py`, 3 da migração, e os da hml), painel 534 (489 antes), site 537 unitários e 584 de navegador, 50 páginas no `build:teste`; cada
+      proteção foi provada quebrando o código de propósito. **Na homologação (2026-10-15):** `v5.5d-01` 1 de 1 (cria os três eventos e as inscrições), `v5.5d-02` 4 de 4 (cancelar: motivo vazio, curto e com e-mail
+      são recusados, o motivo certo pede confirmação, avisa e fecha as inscrições, a API recusa inscrição nova; o site mostra o cancelamento sem formulário e a página de cancelar a inscrição avisa e não
+      oferece confirmar; adiar, voltar à data original, adiar de novo e remarcar aparecem no painel, na API e no site, com as inscrições fechando e reabrindo e o formulário voltando; realizado trava antes do
+      início, pede confirmação e não volta atrás), `v5.5d-04` 1 de 1 (a Auditoria guardou as 6 mudanças e a lista do painel mostra o selo de cada uma) e, depois de publicar a hml de novo, `v5.5d-03` 2 de 2
+      (o HTML que o Google lê, sem JavaScript, já traz o aviso e `EventCancelled`, `EventRescheduled` com a data de antes e `EventScheduled` no realizado; a lista mostra os selos e a Home não lista o
+      cancelado). Regressão: `v5.5c-02` 7, `v5.4f-02` 16, `v5.4f-03` 16, `v5.5a-02` 7, `v5.5a-01` 6, `v5.4g-01` 5 (acessibilidade de todas as páginas), `v5.4c-fase0` 6, `v5.4h-10` 5. **Achados,
+      corrigidos:** (1) o evento adiado não tinha como voltar à data original (achado na revisão do painel; o servidor e o painel passaram a aceitar a retomada na mesma data, com teste); (2) um teste antigo
+      do atendimento (v5.5a) sorteava o IP entre 250 e, às vezes, caía no IP que o teste do limite esgota de propósito (429 e `KeyError: 'protocolo'`): agora o IP nunca se repete e um teste trava isso;
+      (3) dois erros do meu roteiro, não do produto: o teste da Auditoria procurava o evento pelo número da rodada (que muda a cada execução) e depois pela opção escondida do filtro — passou a ler o estado
+      deixado pelo `v5.5d-02` (roteiro `v5.5d-04`); (4) rodar um segundo `pytest` junto com a suíte apaga a pasta temporária da primeira (21 falsos erros): nunca em paralelo. **Em produção (2026-10-15):**
+      commit `74ff52f` no `version.json` do painel e do site; Deploy API (com a migração `b3e8c5a1d7f4`), Painel e Site verdes; `GET /api/publico/eventos` responde 200 (a migração rodou) e `/api/publico/eventos/999999`
+      dá 404; `POST /api/eventos/1/status` sem login dá 401 e a rota e o esquema `EventoStatusAlterar` constam no `openapi.json`; a Política mostra a versão 1.7 com a frase do aviso por e-mail;
+      `/eventos/`, `/cancelar-inscricao/` e `/confirmar-inscricao/` respondem 200 (**produção não recebeu evento nem inscrição de teste**). **Limites conhecidos:** (a) "Remarcado" não aparece como selo nas
+      listas de edições e na página do projeto (o resumo do evento do servidor só traz a situação); (b) o reembolso de quem pagou e NÃO desiste pelo link é tratado no Financeiro (não é automático); (c) o aviso por
+      e-mail depende do SMTP configurado (a hml não tem: o painel mostra "alguns e-mails não saíram").
 
 #### v5.6 — Doação online (era a v5.4)
 
