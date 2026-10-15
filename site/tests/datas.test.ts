@@ -5,10 +5,12 @@ import {
   formatarDataCurta,
   formatarDia,
   formatarDiaDeInstanteUtc,
+  formatarDiaEHora,
   formatarHora,
   formatarInstanteUtc,
   jaAconteceu,
   paraInstante,
+  quandoEmPartes,
 } from '../src/lib/datas'
 
 describe('formatarDataCurta (mandato, projeto: data sem hora)', () => {
@@ -105,5 +107,39 @@ describe('formatação sempre no fuso da ASAF', () => {
 
   it('evento às 23h não vira o dia seguinte', () => {
     expect(formatarDia('2026-10-10T23:30:00')).toContain('10 de outubro')
+  })
+})
+
+describe('formatarDiaEHora e quandoEmPartes (o "Quando" do evento, no build e ao vivo)', () => {
+  it('o dia e a hora no horário de Parauapebas, numa frase só', () => {
+    expect(formatarDiaEHora('2026-10-10T19:00:00')).toBe(
+      'sábado, 10 de outubro de 2026, às 19:00',
+    )
+    // 22h UTC = 19h em Belém, onde quer que o visitante esteja
+    expect(formatarDiaEHora('2026-10-10T22:00:00Z')).toBe(
+      'sábado, 10 de outubro de 2026, às 19:00',
+    )
+  })
+
+  it('evento de um dia só: o fim é só a hora; sem fim, não há "até"', () => {
+    expect(
+      quandoEmPartes('2026-10-10T19:00:00', '2026-10-10T21:30:00'),
+    ).toEqual({
+      inicio: {
+        texto: 'sábado, 10 de outubro de 2026, às 19:00',
+        iso: '2026-10-10T19:00:00-03:00',
+      },
+      fim: { texto: '21:30', iso: '2026-10-10T21:30:00-03:00' },
+    })
+    expect(quandoEmPartes('2026-10-10T19:00:00', null).fim).toBeNull()
+  })
+
+  it('evento que termina em outro dia: o fim leva o dia e a hora', () => {
+    expect(
+      quandoEmPartes('2026-10-10T19:00:00', '2026-10-11T10:00:00').fim,
+    ).toEqual({
+      texto: 'domingo, 11 de outubro de 2026, 10:00',
+      iso: '2026-10-11T10:00:00-03:00',
+    })
   })
 })

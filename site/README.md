@@ -130,8 +130,11 @@ WhatsApp. Rotas da API (`app/routers/publico.py`, sem login, só leitura, lista 
   qualquer pessoa); o SHA-256 do edital é calculado sobre o texto publicado.
 - **Mock da API** (`scripts/mock-api.mjs`) é ligado durante o `build:teste` (`scripts/com-mock.mjs`);
   dados fixos no dia — um campo que mude a cada chamada faria a sincronização reconstruir sem parar.
-- Cancelar um evento hoje = voltar a visibilidade para "Interna" (some do site na próxima sincronização;
-  enquanto isso a página mostra o aviso de "retirado"). O sistema ainda não tem status "cancelado".
+- **Situação do evento (v5.5d)**: o sistema tem o status Programado, Adiado, Cancelado ou Realizado (com motivo) e, quando o
+  evento é remarcado, a data de antes. O site mostra o aviso no topo da página, o selo nas listas, não oferece inscrição em
+  evento cancelado, adiado ou realizado e manda ao Google o `eventStatus` certo (`jsonLdEvento`). A ilha `evento-vivo.ts`
+  acompanha a mudança sem esperar o site ser reconstruído. Voltar a visibilidade para "Interna" continua tirando o evento do
+  ar (some do site na próxima sincronização; enquanto isso a página mostra o aviso de "retirado").
 
 ## SEO técnico
 

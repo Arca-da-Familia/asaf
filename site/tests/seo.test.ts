@@ -168,6 +168,92 @@ describe('jsonLdEvento', () => {
   })
 })
 
+// v5.5d — o `eventStatus` que o Google recebe acompanha a situação do evento (cancelado e adiado mantêm a data original; remarcado traz a nova e a anterior)
+describe('jsonLdEvento — a situação do evento', () => {
+  const base = {
+    id_evento: 7,
+    titulo: 'Encontro de Famílias',
+    descricao: null,
+    data_hora_inicio: '2026-10-10T19:00:00',
+    data_hora_fim: '2026-10-10T21:30:00',
+    endereco_avulso: null,
+    gratuito: true,
+  }
+  const url = 'https://asaf.org.br/eventos/7/'
+
+  it('evento programado (e sem situação, de API antiga) segue como EventScheduled, sem data anterior', () => {
+    for (const evento of [base, { ...base, status: 'Programado' }]) {
+      const ev = jsonLdEvento(evento, url)
+      expect(ev.eventStatus).toBe('https://schema.org/EventScheduled')
+      expect(Object.keys(ev)).not.toContain('previousStartDate')
+    }
+  })
+
+  it('cancelado: EventCancelled, com a data ORIGINAL em startDate/endDate (como o Google pede)', () => {
+    const ev = jsonLdEvento(
+      { ...base, status: 'Cancelado', motivo_status: 'Chuva forte.' },
+      url,
+    )
+    expect(ev.eventStatus).toBe('https://schema.org/EventCancelled')
+    expect(ev.startDate).toBe('2026-10-10T19:00:00-03:00')
+    expect(ev.endDate).toBe('2026-10-10T21:30:00-03:00')
+    expect(Object.keys(ev)).not.toContain('previousStartDate')
+  })
+
+  it('adiado: EventPostponed, com a data original', () => {
+    const ev = jsonLdEvento({ ...base, status: 'Adiado' }, url)
+    expect(ev.eventStatus).toBe('https://schema.org/EventPostponed')
+    expect(ev.startDate).toBe('2026-10-10T19:00:00-03:00')
+    expect(Object.keys(ev)).not.toContain('previousStartDate')
+  })
+
+  it('remarcado (programado com a data de antes): EventRescheduled, startDate NOVO e previousStartDate com fuso', () => {
+    const ev = jsonLdEvento(
+      {
+        ...base,
+        status: 'Programado',
+        data_hora_inicio_anterior: '2026-10-03T19:00:00',
+      },
+      url,
+    )
+    expect(ev.eventStatus).toBe('https://schema.org/EventRescheduled')
+    expect(ev.startDate).toBe('2026-10-10T19:00:00-03:00')
+    expect(ev.previousStartDate).toBe('2026-10-03T19:00:00-03:00')
+    expect(Number.isNaN(Date.parse(ev.previousStartDate!))).toBe(false)
+  })
+
+  it('realizado: EventScheduled (o evento aconteceu como programado)', () => {
+    const ev = jsonLdEvento(
+      {
+        ...base,
+        status: 'Realizado',
+        data_hora_inicio_anterior: '2026-10-03T19:00:00',
+      },
+      url,
+    )
+    expect(ev.eventStatus).toBe('https://schema.org/EventScheduled')
+    expect(Object.keys(ev)).not.toContain('previousStartDate')
+  })
+
+  it('cancelado ou adiado que tinha data de antes NÃO vira "remarcado" (o status manda)', () => {
+    for (const [status, esperado] of [
+      ['Cancelado', 'https://schema.org/EventCancelled'],
+      ['Adiado', 'https://schema.org/EventPostponed'],
+    ] as const) {
+      const ev = jsonLdEvento(
+        {
+          ...base,
+          status,
+          data_hora_inicio_anterior: '2026-10-03T19:00:00',
+        },
+        url,
+      )
+      expect(ev.eventStatus).toBe(esperado)
+      expect(Object.keys(ev)).not.toContain('previousStartDate')
+    }
+  })
+})
+
 describe('jsonLdNoticia', () => {
   const noticia = {
     titulo: 'Encontro de famílias',

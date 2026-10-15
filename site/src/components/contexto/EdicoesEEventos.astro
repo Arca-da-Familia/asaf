@@ -5,12 +5,16 @@
  * marcada e SEM link — a pessoa já está nela).
  *
  * O build não sabe que dia é quando alguém abre a página: "Já realizado" é acrescentado no navegador
- * (src/lib/edicoes-vivas.ts), por isso o item leva `data-fim`.
+ * (src/lib/edicoes-vivas.ts), por isso o item leva `data-fim`. v5.5d: a edição cancelada, adiada ou realizada leva o selo da situação
+ * (escrito), e o item leva `data-status-do-evento`: quem tem selo de situação nunca ganha "Já realizado" do relógio. O resumo de uma edição só traz a
+ * situação (`status`), não a data de antes da remarcação: a edição remarcada é, aqui, uma edição programada (o aviso "remarcado" está na página dela).
  */
 import { caminhoDoEvento } from '../../lib/dados-publicos'
 import { comFusoDaAsaf, formatarDia, formatarHora } from '../../lib/datas'
 import { fimDoEvento } from '../../lib/contexto'
 import type { ResumoDeEvento } from '../../lib/dados-publicos'
+import { statusDoEvento } from '../../lib/situacao-do-evento'
+import SeloDoEvento from '../SeloDoEvento.astro'
 
 interface Props {
   id: string
@@ -31,6 +35,7 @@ const { id, titulo, eventos } = Astro.props
         class="rounded-lg border bg-card p-4 shadow-card"
         data-edicao
         data-fim={fimDoEvento(evento)}
+        data-status-do-evento={statusDoEvento(evento.status)}
       >
         <p class="text-sm font-medium text-primary">
           <time datetime={comFusoDaAsaf(evento.data_hora_inicio)}>
@@ -40,7 +45,8 @@ const { id, titulo, eventos } = Astro.props
           <span data-realizado hidden>
             {' '}
             · Já realizado
-          </span>
+          </span>{' '}
+          <SeloDoEvento evento={evento} />
         </p>
         <h3 class="mt-1 text-lg font-semibold">
           {evento.atual ? (

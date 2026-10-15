@@ -46,6 +46,39 @@ export function formatarHora(isoDaApi: string): string {
   return FORMATO_HORA.format(paraInstante(isoDaApi))
 }
 
+/** "sábado, 10 de outubro de 2026, às 19:00" — o dia e a hora do evento, no horário de Parauapebas. */
+export function formatarDiaEHora(isoDaApi: string): string {
+  return `${formatarDia(isoDaApi)}, às ${formatarHora(isoDaApi)}`
+}
+
+/** Um instante de evento em duas formas: o texto que a pessoa lê e o ISO COM fuso (para `<time datetime>`). */
+export interface InstanteDoEvento {
+  texto: string
+  iso: string
+}
+
+/**
+ * O "Quando" de um evento, em partes (a página do evento e a ilha que a atualiza ao vivo escrevem exatamente a mesma coisa):
+ * o começo ("sábado, 10 de outubro de 2026, às 19:00") e, se houver, o fim — só a hora quando é no mesmo dia, o dia e a hora quando não é.
+ */
+export function quandoEmPartes(
+  inicio: string,
+  fim: string | null,
+): { inicio: InstanteDoEvento; fim: InstanteDoEvento | null } {
+  const mesmoDia = !fim || formatarDia(fim) === formatarDia(inicio)
+  return {
+    inicio: { texto: formatarDiaEHora(inicio), iso: comFusoDaAsaf(inicio) },
+    fim: fim
+      ? {
+          texto: mesmoDia
+            ? formatarHora(fim)
+            : `${formatarDia(fim)}, ${formatarHora(fim)}`,
+          iso: comFusoDaAsaf(fim),
+        }
+      : null,
+  }
+}
+
 const FORMATO_DATA_CURTA = new Intl.DateTimeFormat('pt-BR', {
   timeZone: 'UTC',
   day: '2-digit',

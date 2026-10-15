@@ -33,6 +33,14 @@ TIPOS_PERGUNTA_EVENTO = {
     TIPO_PERGUNTA_SELECAO_MULTIPLA, TIPO_PERGUNTA_NUMERO, TIPO_PERGUNTA_DATA, TIPO_PERGUNTA_ARQUIVO,
 }
 
+# v5.5d - situação do evento. `Programado` é o normal; `Adiado` = sem data nova ainda; `Cancelado` e `Realizado` encerram as inscrições. O motivo de cancelar e de adiar
+# é obrigatório e é o texto que vai ao site (por isso passa pela mesma conferência de dado pessoal do resto do texto público).
+STATUS_EVENTO_PROGRAMADO = "Programado"
+STATUS_EVENTO_ADIADO = "Adiado"
+STATUS_EVENTO_CANCELADO = "Cancelado"
+STATUS_EVENTO_REALIZADO = "Realizado"
+STATUS_DO_EVENTO = (STATUS_EVENTO_PROGRAMADO, STATUS_EVENTO_ADIADO, STATUS_EVENTO_CANCELADO, STATUS_EVENTO_REALIZADO)
+
 
 class Evento(Base):
     __tablename__ = "eventos"
@@ -86,6 +94,12 @@ class Evento(Base):
     # global (`PERCENTUAL_REEMBOLSO_CANCELAMENTO_PADRAO`, mesma convenção de elegibilidade v4.8).
     prazo_cancelamento_horas = Column(Integer, nullable=False, default=24)
     percentual_reembolso_cancelamento = Column(Numeric(5, 2), nullable=True)
+    # v5.5d - situação do evento (ver `STATUS_DO_EVENTO`). `data_hora_inicio_anterior` é o começo de antes da última remarcação (o site mostra "remarcado" e o
+    # Google, `EventRescheduled`); `motivo_status` vale para Cancelado, Adiado e para o aviso de remarcação.
+    status = Column(String, nullable=False, default=STATUS_EVENTO_PROGRAMADO, server_default=STATUS_EVENTO_PROGRAMADO)
+    motivo_status = Column(Text, nullable=True)
+    status_alterado_em = Column(DateTime, nullable=True)
+    data_hora_inicio_anterior = Column(DateTime, nullable=True)
 
 
 class SessaoEvento(Base):

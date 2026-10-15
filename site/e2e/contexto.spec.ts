@@ -189,14 +189,19 @@ test.describe('Página do projeto principal', () => {
     )
   })
 
-  test('projeto de outro tema: só mostra o que é dele (uma edição) e nenhuma seção vazia', async ({
+  test('projeto de outro tema: só mostra o que é dele (as edições dele, sem as do projeto principal) e nenhuma seção vazia', async ({
     page,
   }) => {
     await page.goto('/projetos/1/')
     const edicoes = secao(page, 'edicoes')
-    await expect(edicoes.locator('li[data-edicao]')).toHaveCount(1)
+    // a edição do reforço escolar e (v5.5d) os quatro eventos de situação, da data mais nova para a mais antiga
+    await expect(edicoes.locator('li[data-edicao]')).toHaveCount(5)
     await expect(edicoes.locator('li h3')).toHaveText([
+      'Evento de teste — remarcado',
+      'Evento de teste — adiado',
+      'Evento de teste — cancelado',
       'Edição de teste do reforço escolar',
+      'Evento de teste — realizado',
     ])
     await expect(page.locator('[data-secao]')).toHaveCount(1)
     await expect(page.locator('#relatorios-e-documentos')).toHaveCount(0)

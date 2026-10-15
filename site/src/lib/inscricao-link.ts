@@ -1,5 +1,11 @@
 import { ApiError, buscarJson, enviarJson } from './api'
-import { formatarDia, formatarHora, formatarInstanteUtc } from './datas'
+import { formatarDiaEHora, formatarInstanteUtc } from './datas'
+import {
+  CLASSES_DO_AVISO,
+  statusDoEvento,
+  textoOuNulo as textoDoSistema,
+  type StatusDoEvento,
+} from './situacao-do-evento'
 
 /**
  * As páginas `/cancelar-inscricao/` e `/confirmar-inscricao/` (v5.5c): os e-mails do sistema levam a elas com `?token=<código>`. O código é o segredo de quem se
@@ -44,6 +50,10 @@ export interface ResumoDaInscricao {
     data_hora_inicio: string | null
     data_hora_fim: string | null
     endereco_avulso: string | null
+    /** v5.5d — a situação do evento; ausente (API antiga) = 'Programado'. */
+    status: StatusDoEvento
+    /** Por que foi cancelado ou adiado (texto do sistema: só se escreve como TEXTO). */
+    motivo_status: string | null
   }
   sessao: { titulo: string; data_hora_inicio: string | null } | null
   codigo_checkin: string | null
@@ -78,6 +88,8 @@ export function lerResumo(dados: unknown): ResumoDaInscricao | null {
       data_hora_inicio: textoOuNada(evento.data_hora_inicio),
       data_hora_fim: textoOuNada(evento.data_hora_fim),
       endereco_avulso: textoOuNada(evento.endereco_avulso),
+      status: statusDoEvento(evento.status),
+      motivo_status: textoDoSistema(evento.motivo_status),
     },
     sessao:
       sessao && textoOuNada(sessao.titulo)
@@ -118,8 +130,7 @@ export function situacaoDoLink(status: string): string {
 
 /** "sábado, 10 de outubro de 2026, às 19:00" — a data do evento é horário local de Parauapebas, sem fuso. */
 export function quandoDoEvento(inicio: string | null): string | null {
-  if (!inicio) return null
-  return `${formatarDia(inicio)}, às ${formatarHora(inicio)}`
+  return inicio ? formatarDiaEHora(inicio) : null
 }
 
 /** O prazo para confirmar: a API manda em UTC sem fuso; a pessoa lê no horário de Belém ("10/10/2026 11:30"). */
@@ -155,6 +166,8 @@ export function explicacaoDaSituacao(
     return modo === 'cancelar'
       ? 'Este evento já aconteceu: não é mais possível cancelar a inscrição.'
       : 'Este evento já aconteceu: não é mais possível confirmar a vaga.'
+  if (modo === 'confirmar' && r.evento.status === 'Cancelado')
+    return 'Este evento foi cancelado: não há o que confirmar.'
   if (modo === 'confirmar') {
     if (r.status === LISTA_DE_ESPERA)
       return 'Você ainda está na lista de espera; avisamos por e-mail quando uma vaga abrir.'
@@ -167,6 +180,10 @@ export function explicacaoDaSituacao(
   return null
 }
 
+/** A API manda `pode_confirmar` falso em evento cancelado; o site não oferece "Confirmar a minha vaga" nesse caso nem se a resposta vier torta. */
+const podeConfirmar = (r: ResumoDaInscricao): boolean =>
+  r.pode_confirmar && r.evento.status !== 'Cancelado'
+
 /** O que a página oferece: o botão da própria página e, quando faz sentido, o caminho para a outra. */
 export function acoesDisponiveis(
   r: ResumoDaInscricao,
@@ -175,12 +192,28 @@ export function acoesDisponiveis(
   if (modo === 'cancelar')
     return {
       principal: r.pode_cancelar,
-      // quem foi promovido da lista de espera (tem prazo) pode preferir ficar com a vaga
-      cruzada: r.pode_confirmar && r.prazo_confirmacao ? 'confirmar' : null,
+      // quem foi promovido da lista de espera (tem prazo) pode preferir ficar com a vaga — salvo se o evento foi cancelado
+      cruzada: podeConfirmar(r) && r.prazo_confirmacao ? 'confirmar' : null,
     }
   return {
-    principal: r.pode_confirmar,
+    principal: podeConfirmar(r),
     cruzada: r.pode_cancelar ? 'cancelar' : null,
+  }
+}
+
+/**
+ * O aviso do topo quando o evento foi cancelado ou adiado: "O evento foi cancelado: <motivo>" / "O evento foi adiado: <motivo>". O motivo é texto do sistema (a página o
+ * escreve como TEXTO). Sem motivo, só a frase. Evento programado, remarcado ou realizado: sem aviso aqui (`null`).
+ */
+export function avisoDoEventoNoLink(
+  r: ResumoDaInscricao,
+): { situacao: 'Cancelado' | 'Adiado'; texto: string } | null {
+  const { status, motivo_status: motivo } = r.evento
+  if (status !== 'Cancelado' && status !== 'Adiado') return null
+  const frase = `O evento foi ${status === 'Cancelado' ? 'cancelado' : 'adiado'}`
+  return {
+    situacao: status,
+    texto: motivo ? `${frase}: ${motivo}` : `${frase}.`,
   }
 }
 
@@ -296,6 +329,17 @@ export function iniciarPaginaDeInscricao(
   ) as HTMLButtonElement | null
   const botaoVoltar = campo(raiz, '[data-voltar]')
 
+  function mostrarAvisoDoEvento(aviso: ReturnType<typeof avisoDoEventoNoLink>) {
+    const bloco = campo(raiz, '[data-aviso-do-evento]')
+    if (!bloco) return
+    bloco.hidden = aviso === null
+    if (!aviso) return
+    bloco.dataset.situacaoDoEvento = aviso.situacao
+    bloco.className = CLASSES_DO_AVISO[aviso.situacao]
+    const frase = campo(bloco, '[data-aviso-do-evento-texto]')
+    if (frase) frase.textContent = aviso.texto
+  }
+
   function mostrarResumo(r: ResumoDaInscricao) {
     texto(raiz, '[data-evento-titulo]', r.evento.titulo)
     texto(raiz, '[data-quando]', quandoDoEvento(r.evento.data_hora_inicio))
@@ -315,6 +359,7 @@ export function iniciarPaginaDeInscricao(
     texto(raiz, '[data-prazo]', prazoEmPalavras(r.prazo_confirmacao))
     const explicacao = explicacaoDaSituacao(r, modo)
     texto(raiz, '[data-explicacao]', explicacao)
+    mostrarAvisoDoEvento(avisoDoEventoNoLink(r))
 
     const { principal, cruzada } = acoesDisponiveis(r, modo)
     if (botaoPrincipal) botaoPrincipal.hidden = !principal

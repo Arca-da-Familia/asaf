@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, EmailStr, field_validator
 
-from app.models.eventos import TIPOS_PERGUNTA_EVENTO
+from app.models.eventos import STATUS_DO_EVENTO, TIPOS_PERGUNTA_EVENTO
 from app.validadores import somente_digitos, validar_cpf, validar_telefone_br
 
 
@@ -56,6 +56,21 @@ class EventoEditar(BaseModel):
     def validar_visibilidade(cls, v):
         if v is not None and v not in ("Pública", "Interna"):
             raise ValueError("Visibilidade deve ser 'Pública' ou 'Interna'.")
+        return v
+
+
+class EventoStatusAlterar(BaseModel):
+    """v5.5d - muda a situação do evento. `motivo` é obrigatório para Cancelado e Adiado (aparece no site); a data nova só vale ao voltar para Programado (remarcar)."""
+    status: str
+    motivo: Optional[str] = None
+    nova_data_hora_inicio: Optional[datetime] = None
+    nova_data_hora_fim: Optional[datetime] = None
+
+    @field_validator("status")
+    @classmethod
+    def validar_status(cls, v):
+        if v not in STATUS_DO_EVENTO:
+            raise ValueError(f"Situação inválida: use uma de {', '.join(STATUS_DO_EVENTO)}.")
         return v
 
 

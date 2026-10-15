@@ -6,6 +6,7 @@ As promessas que estes testes travam:
   3. a solicitação de titular exige o CPF e o direito pedido; o remetente é ligado ao cadastro sem que isso apareça para quem está de fora;
   4. só quem tem a permissão da fila a vê (401 sem login, 403 sem a permissão); quem atende é avisado no sino;
   5. responder e encerrar exigem texto, registram quem fez e quando, e ficam na Auditoria; o prazo é acompanhado (vencido, vence logo, cumprido)."""
+import itertools
 import uuid
 from datetime import datetime, timedelta
 
@@ -28,8 +29,14 @@ def _cpf_valido() -> str:
     return "".join(str(d) for d in base)
 
 
+_PROXIMO_IP = itertools.count(uuid.uuid4().int % 4_000_000)
+
+
 def _ip() -> str:
-    return f"203.0.113.{uuid.uuid4().int % 250 + 1}"
+    """Um IP que NUNCA se repete na execução. Sorteando entre 250 endereços, de vez em quando o sorteio caía no IP que o teste do limite esgota de propósito (11 pedidos): o pedido
+    seguinte vinha com 429, sem protocolo, e o teste quebrava com `KeyError: 'protocolo'` (visto na suíte da v5.5d, sem relação com ela)."""
+    n = next(_PROXIMO_IP)
+    return f"10.{(n >> 16) & 255}.{(n >> 8) & 255}.{n & 255}"
 
 
 def _corpo(tipo="CONTATO", **sobrescritas) -> dict:
@@ -175,6 +182,11 @@ def test_depois_de_respondido_o_mesmo_texto_vira_um_pedido_novo(client, auth_hea
     assert client.post(f"/api/atendimentos/{achado['id_atendimento']}/responder", json={"resposta": "Respondido, obrigado pela mensagem."}, headers=auth_headers).status_code == 200
     segundo = client.post("/api/publico/atendimentos", json=corpo, headers={"X-Forwarded-For": _ip()}).json()
     assert segundo["protocolo"] != primeiro["protocolo"]
+
+
+def test_o_ip_de_teste_nunca_se_repete():
+    # trava a causa da instabilidade: com IP sorteado entre poucos, o do teste do limite (esgotado de propósito) era sorteado de novo por outro teste
+    assert len({_ip() for _ in range(3000)}) == 3000
 
 
 def test_o_limite_por_ip_barra_o_excesso_e_nao_afeta_outro_ip(client):

@@ -34,6 +34,28 @@ describe('formatarData/paraUtcIso - convenção UTC ingênuo (achado 2026-09-18)
     expect(paraUtcIso('2026-09-18T19:00')).toBe('2026-09-18T22:00:00.000Z')
   })
 
+  it('comoUtc marca o ingênuo como UTC (preservando a fração) e não mexe no que já tem fuso', async () => {
+    const { comoUtc } = await import('@/lib/datas')
+    expect(comoUtc('2026-09-18T22:00:00.123456')).toBe(
+      '2026-09-18T22:00:00.123456Z',
+    )
+    expect(comoUtc('2026-09-18T22:00:00Z')).toBe('2026-09-18T22:00:00Z')
+    expect(comoUtc('2026-09-18T19:00:00-03:00')).toBe(
+      '2026-09-18T19:00:00-03:00',
+    )
+  })
+
+  it('paraInstante lê o datetime ingênuo da API como UTC (não como hora local)', async () => {
+    const { paraInstante } = await import('@/lib/datas')
+    expect(paraInstante('2026-09-18T22:00:00').toISOString()).toBe(
+      '2026-09-18T22:00:00.000Z',
+    )
+    // com fuso explícito, respeita o fuso
+    expect(paraInstante('2026-09-18T19:00:00-03:00').toISOString()).toBe(
+      '2026-09-18T22:00:00.000Z',
+    )
+  })
+
   it('paraUtcIso e formatarData são inversos - o que o usuário digita é o que ele vê de volta', async () => {
     const { formatarData, paraUtcIso } = await import('@/lib/datas')
     const digitado = '2026-09-18T19:00'

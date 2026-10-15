@@ -15,6 +15,7 @@ import type {
   ResumoDeEvento,
 } from '../../scripts/lib/conteudo-publico.mjs'
 import { jaAconteceu, paraInstante } from './datas'
+import { aindaVaiAcontecer, statusDoEvento } from './situacao-do-evento'
 
 /** Quantas notícias a página de um projeto mostra (as mais recentes). */
 export const NOTICIAS_NA_PAGINA_DO_PROJETO = 6
@@ -106,6 +107,9 @@ export const fimDoEvento = (
  * As próximas edições (as que ainda não terminaram), da mais próxima para a mais distante. É conta do BUILD: a página
  * estática não sabe que dia é quando alguém a abre meses depois — por isso quem mostra isto ao visitante confere de
  * novo no navegador (src/lib/edicoes-vivas.ts).
+ *
+ * v5.5d: edição CANCELADA ou já REALIZADA nunca é "próxima"; a ADIADA continua (não aconteceu e ainda não tem data nova — a Home mostra o selo
+ * "Adiado" ao lado dela) e a REMARCADA entra pela data nova.
  */
 export function proximasEdicoes<T extends ResumoDeEvento>(
   eventos: T[],
@@ -113,7 +117,12 @@ export function proximasEdicoes<T extends ResumoDeEvento>(
   limite = PROXIMAS_EDICOES_NA_HOME,
 ): T[] {
   return eventos
-    .filter((e) => !jaAconteceu(fimDoEvento(e), agora))
+    .filter((e) =>
+      aindaVaiAcontecer(
+        statusDoEvento(e.status),
+        jaAconteceu(fimDoEvento(e), agora),
+      ),
+    )
     .sort(
       (a, b) =>
         paraInstante(a.data_hora_inicio).getTime() -

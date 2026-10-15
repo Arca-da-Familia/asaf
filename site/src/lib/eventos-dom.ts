@@ -1,5 +1,10 @@
 import { buscarEventosPublicos, type EventoPublico } from './api'
 import { comFusoDaAsaf, formatarDia, formatarHora, paraInstante } from './datas'
+import {
+  CLASSES_DO_SELO,
+  seloDoEvento,
+  statusDoEvento,
+} from './situacao-do-evento'
 
 /**
  * Ilha "Próximos eventos" (v5.0): busca `GET /api/publico/eventos` NO NAVEGADOR, a cada visita.
@@ -14,22 +19,33 @@ import { comFusoDaAsaf, formatarDia, formatarHora, paraInstante } from './datas'
 const LIMITE_PADRAO = 6
 const LIMITE_ARQUIVO = 12
 
+const terminou = (e: EventoPublico, agora: Date): boolean =>
+  paraInstante(e.data_hora_fim ?? e.data_hora_inicio).getTime() <
+  agora.getTime()
+
+export interface OpcoesDaListaDeFuturos {
+  /** A Home não anuncia evento cancelado (ele continua na agenda e na própria página); a agenda completa (/eventos/) o mostra, com o selo. */
+  semCancelados?: boolean
+}
+
 /**
- * A API pública lista TODO evento marcado como público, inclusive os que já passaram, e não tem
- * campo de cancelamento (achado da v5.0, registrado para a v5.2). Aqui ficam só os que ainda
- * não terminaram, do mais próximo para o mais distante.
+ * A API pública lista TODO evento marcado como público, inclusive os que já passaram e os que mudaram de situação (v5.5d: `status`). Aqui ficam só os que ainda
+ * não terminaram, do mais próximo para o mais distante. A situação manda mais que o relógio: o evento ADIADO fica (não aconteceu e ainda não tem data nova:
+ * a data que o site tem é a original) e o REALIZADO sai (já aconteceu, mesmo que o horário de fim ainda não tenha passado). Sem `status` (API antiga) = programado.
  */
 export function eventosFuturos(
   eventos: EventoPublico[],
   agora: Date = new Date(),
   limite: number = LIMITE_PADRAO,
+  opcoes: OpcoesDaListaDeFuturos = {},
 ): EventoPublico[] {
   return eventos
-    .filter(
-      (e) =>
-        paraInstante(e.data_hora_fim ?? e.data_hora_inicio).getTime() >=
-        agora.getTime(),
-    )
+    .filter((e) => {
+      const status = statusDoEvento(e.status)
+      if (status === 'Realizado') return false
+      if (status === 'Cancelado' && opcoes.semCancelados) return false
+      return status === 'Adiado' || !terminou(e, agora)
+    })
     .sort(
       (a, b) =>
         paraInstante(a.data_hora_inicio).getTime() -
@@ -38,18 +54,18 @@ export function eventosFuturos(
     .slice(0, limite)
 }
 
-/** Eventos que já terminaram, do mais recente para o mais antigo (arquivo da agenda). */
+/** Eventos que já terminaram, do mais recente para o mais antigo (arquivo da agenda): o realizado sempre; o adiado nunca (ele ainda vai acontecer). */
 export function eventosPassados(
   eventos: EventoPublico[],
   agora: Date = new Date(),
   limite: number = LIMITE_ARQUIVO,
 ): EventoPublico[] {
   return eventos
-    .filter(
-      (e) =>
-        paraInstante(e.data_hora_fim ?? e.data_hora_inicio).getTime() <
-        agora.getTime(),
-    )
+    .filter((e) => {
+      const status = statusDoEvento(e.status)
+      if (status === 'Adiado') return false
+      return status === 'Realizado' || terminou(e, agora)
+    })
     .sort(
       (a, b) =>
         paraInstante(b.data_hora_inicio).getTime() -
@@ -100,6 +116,21 @@ function cartaoDoEvento(
     'flex flex-col rounded-lg border bg-card p-5 shadow-card',
   )
 
+  // v5.5d: a situação do evento, escrita (cancelado, adiado, remarcado, realizado). Na lista dos que já passaram, "remarcado" não diz nada que ajude.
+  const selo = seloDoEvento(evento)
+  if (selo && !(selo === 'Remarcado' && modo === 'passados')) {
+    const situacao = criar('p', 'mb-2 flex flex-wrap items-center gap-2')
+    const distintivo = criar('span', CLASSES_DO_SELO[selo], selo)
+    distintivo.setAttribute('data-selo-do-evento', selo)
+    situacao.append(distintivo)
+    if (selo === 'Adiado') {
+      situacao.append(
+        criar('span', 'text-sm text-muted-foreground', 'Nova data a definir'),
+      )
+    }
+    item.append(situacao)
+  }
+
   const quando = criar('p', 'text-sm font-medium text-primary')
   const tempo = criar(
     'time',
@@ -140,8 +171,11 @@ function cartaoDoEvento(
       ),
     )
   }
-  // Vaga de evento que já passou não interessa a ninguém.
-  const vagas = modo === 'futuros' ? rotuloDeVagas(evento) : null
+  // Vaga de evento que já passou não interessa a ninguém — nem a de evento parado (cancelado, adiado, realizado), que não recebe inscrição.
+  const vagas =
+    modo === 'futuros' && statusDoEvento(evento.status) === 'Programado'
+      ? rotuloDeVagas(evento)
+      : null
   if (vagas) selos.append(criar('span', 'text-muted-foreground', vagas))
   if (selos.childElementCount > 0) item.append(selos)
 
@@ -233,7 +267,9 @@ export async function iniciarEventos(
     const escolhidos =
       modo === 'passados'
         ? eventosPassados(todos, opcoes.agora)
-        : eventosFuturos(todos, opcoes.agora)
+        : eventosFuturos(todos, opcoes.agora, undefined, {
+            semCancelados: container.dataset.semCancelados !== undefined,
+          })
     if (escolhidos.length === 0) {
       mostrarMensagem(
         container,

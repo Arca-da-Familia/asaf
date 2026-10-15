@@ -831,3 +831,130 @@ describe('as perguntas da inscrição no detalhe do evento (v5.5c)', () => {
     expect(com('A')).not.toBe(com('B'))
   })
 })
+
+// v5.5d — a situação do evento (Programado, Adiado, Cancelado, Realizado) e o começo de antes da remarcação chegam do build às páginas
+describe('a situação do evento no conteúdo público (v5.5d)', () => {
+  it('evento da lista: sem os campos novos (API antiga) é "Programado", sem motivo e nunca remarcado', () => {
+    expect(normalizarEvento({ id_evento: 2 })).toMatchObject({
+      status: 'Programado',
+      motivo_status: null,
+      data_hora_inicio_anterior: null,
+    })
+  })
+
+  it('o que a API mandou é mantido (com o motivo sem os espaços das pontas)', () => {
+    expect(
+      normalizarEvento({
+        id_evento: 2,
+        status: 'Cancelado',
+        motivo_status: '  Chuva forte.  ',
+        data_hora_inicio_anterior: '2026-10-03T19:00:00',
+      }),
+    ).toMatchObject({
+      status: 'Cancelado',
+      motivo_status: 'Chuva forte.',
+      data_hora_inicio_anterior: '2026-10-03T19:00:00',
+    })
+    for (const status of ['Programado', 'Adiado', 'Cancelado', 'Realizado'])
+      expect(normalizarEvento({ id_evento: 2, status }).status).toBe(status)
+  })
+
+  it('situação desconhecida ou torta, motivo em branco e data de antes que não é texto: o build segue, como programado', () => {
+    expect(
+      normalizarEvento({
+        id_evento: 2,
+        status: 'Suspenso',
+        motivo_status: '   ',
+        data_hora_inicio_anterior: 5 as never,
+      }),
+    ).toMatchObject({
+      status: 'Programado',
+      motivo_status: null,
+      data_hora_inicio_anterior: null,
+    })
+  })
+
+  it('o detalhe do evento leva a situação, e as edições e as edições do projeto também (cada uma com o seu status)', () => {
+    const detalhe = normalizarEventoDetalhado({
+      id_evento: 2,
+      status: 'Adiado',
+      motivo_status: 'Aguardando o espaço.',
+      edicoes: [
+        { id_evento: 1, titulo: 'A', status: 'Cancelado' },
+        { id_evento: 2, titulo: 'B' },
+      ] as never,
+    })
+    expect(detalhe).toMatchObject({
+      status: 'Adiado',
+      motivo_status: 'Aguardando o espaço.',
+    })
+    expect(detalhe.edicoes.map((e) => e.status)).toEqual([
+      'Cancelado',
+      'Programado',
+    ])
+    const projeto = normalizarProjetoDetalhado({
+      id_projeto: 1,
+      eventos: [
+        { id_evento: 1, titulo: 'A', status: 'Realizado' },
+        { id_evento: 2, titulo: 'B' },
+      ] as never,
+    })
+    expect(projeto.eventos.map((e) => e.status)).toEqual([
+      'Realizado',
+      'Programado',
+    ])
+  })
+
+  it('a leitura da API traz a situação de cada evento da lista e do detalhe até as páginas', async () => {
+    const cancelado = evento(1, {
+      status: 'Cancelado',
+      motivo_status: 'Chuva.',
+    })
+    const remarcado = evento(2, {
+      status: 'Programado',
+      data_hora_inicio_anterior: '2026-10-03T19:00:00',
+    })
+    const { fetchImpl } = apiFalsa({
+      '/api/publico/eventos': [cancelado, remarcado],
+      '/api/publico/eventos/1': { ...cancelado, sessoes: [] },
+      '/api/publico/eventos/2': { ...remarcado, sessoes: [] },
+      '/api/publico/projetos': [],
+      '/api/publico/diretoria': [],
+      '/api/publico/assembleias': [],
+      '/api/publico/transparencia/parcerias': [],
+      '/api/publico/transparencia/documentos': [],
+    })
+    const c = await buscarConteudoPublico('https://api.teste', {
+      fetchImpl,
+      esperaMs: 0,
+    })
+    expect(c.eventos.map((e) => e.status)).toEqual(['Cancelado', 'Programado'])
+    expect(c.detalhesDeEventos[1]).toMatchObject({
+      status: 'Cancelado',
+      motivo_status: 'Chuva.',
+    })
+    expect(c.detalhesDeEventos[2]!.data_hora_inicio_anterior).toBe(
+      '2026-10-03T19:00:00',
+    )
+  })
+
+  it('mudar a situação, o motivo ou a data de antes muda a impressão (o site é reconstruído); só a vaga que muda sozinha não', () => {
+    const com = (extra: object) =>
+      impressaoDoConteudo({
+        eventos: [normalizarEvento({ id_evento: 1, ...extra })],
+        detalhesDeEventos: {
+          1: normalizarEventoDetalhado({ id_evento: 1, ...extra }),
+        },
+      })
+    const original = com({})
+    expect(com({})).toBe(original)
+    expect(com({ status: 'Cancelado' })).not.toBe(original)
+    expect(com({ status: 'Cancelado', motivo_status: 'A' })).not.toBe(
+      com({ status: 'Cancelado', motivo_status: 'B' }),
+    )
+    expect(com({ data_hora_inicio_anterior: '2026-10-03T19:00:00' })).not.toBe(
+      original,
+    )
+    expect(com({ vagas_livres: 0 })).toBe(com({ vagas_livres: 5 }))
+  })
+})

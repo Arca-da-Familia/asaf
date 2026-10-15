@@ -159,6 +159,13 @@ export interface EventoPublico {
   /** `null` = evento sem limite de vagas declarado. */
   vagas_livres: number | null
   gratuito: boolean
+  /**
+   * v5.5d — a situação do evento: 'Programado', 'Adiado', 'Cancelado' ou 'Realizado'. Ausente (API antiga) vale 'Programado' (ver `statusDoEvento`, em
+   * situacao-do-evento.ts). `motivo_status` é texto do sistema; `data_hora_inicio_anterior` é o começo de antes da última remarcação.
+   */
+  status?: string
+  motivo_status?: string | null
+  data_hora_inicio_anterior?: string | null
 }
 
 export function buscarEventosPublicos(opcoes: OpcoesBusca) {

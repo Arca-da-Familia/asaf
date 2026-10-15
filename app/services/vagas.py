@@ -14,6 +14,7 @@ pra um contexto, ELA passa a controlar a vaga de cada categoria; sem nenhuma cot
 limite genérico do evento/sessão (`Evento.vagas`/`SessaoEvento.vagas`) vale pra todo mundo, como
 já era desde a v4.5 (só que agora de verdade, não só como metadado)."""
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Optional
 
 from fastapi import HTTPException
@@ -21,10 +22,11 @@ from sqlalchemy.orm import Session
 
 from app.config_cache import obter_configuracao
 from app.models.associados import Associado
-from app.models.eventos import CotaInscricaoEvento, Evento, SessaoEvento
+from app.models.eventos import STATUS_EVENTO_CANCELADO, CotaInscricaoEvento, Evento, SessaoEvento
 from app.models.motores import AUSENTE, CANCELADO, CONFIRMADO, LISTA_DE_ESPERA, PRE_INSCRITO, PRESENTE, Inscricao
 from app.models.pessoas import Pessoa
 from app.services import inscricao as servico_inscricao
+from app.services import status_do_evento as servico_status_do_evento
 from app.services.site_publico import link_para_cancelar_inscricao, link_para_confirmar_inscricao
 from app.services import notificacoes
 
@@ -167,6 +169,8 @@ def promover_proximo_da_espera(db: Session, *, contexto_tipo: str, id_contexto: 
     """Promove o próximo da lista de espera (FIFO por `data_inscricao`) pra uma vaga que acabou
     de abrir NA MESMA categoria/bucket (`categoria_cota` igual - nunca promove alguém de uma
     categoria pra vaga liberada de outra)."""
+    if not servico_status_do_evento.evento_em_andamento_normal(db, contexto_tipo, id_contexto):
+        return None  # v5.5d - evento cancelado, adiado ou realizado: a vaga que abre não chama ninguém da fila
     proximo = (
         db.query(Inscricao)
         .filter(
@@ -237,6 +241,8 @@ def _reembolsar_inscricao_se_devido(db: Session, *, inscricao: Inscricao, contex
         db, horas_ate_evento=horas_ate_evento, prazo_horas=evento.prazo_cancelamento_horas,
         percentual_override=evento.percentual_reembolso_cancelamento,
     )
+    if evento.status == STATUS_EVENTO_CANCELADO:
+        percentual = Decimal("100")  # v5.5d - quem cancelou foi a ASAF: a pessoa recebe tudo de volta, sem a taxa de quem desiste
     return reembolso_cancelamento.gerar_reembolso(
         db, titulo_original=titulo_original, percentual=percentual,
         motivo=f"cancelamento da inscrição em '{evento.titulo}'",
@@ -273,6 +279,8 @@ def expirar_promocoes_vencidas(db: Session) -> list[dict]:
 
     resultado = []
     for insc in vencidas:
+        if not servico_status_do_evento.evento_em_andamento_normal(db, insc.contexto_tipo, insc.id_contexto):
+            continue  # v5.5d - evento parado (adiado, cancelado, realizado): o prazo de confirmação não vence
         contexto_tipo, id_contexto, categoria_cota = insc.contexto_tipo, insc.id_contexto, insc.categoria_cota
         servico_inscricao.alterar_status(db, id_inscricao=insc.id_inscricao, novo_status=CANCELADO)
         insc.prazo_confirmacao = None

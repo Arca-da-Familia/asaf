@@ -32,6 +32,7 @@ from app.services.catalogos import validar_codigo_em_catalogo
 from app.services.documentos_verificacao import exigir_texto_sem_dado_pessoal
 from app.services.projetos import associado_do_usuario_ou_403
 from app.services.protecao_publica import gerar_codigo_checkin, gerar_token_cancelamento
+from app.services.status_do_evento import exigir_evento_aceita_inscricao
 from app.config_cache import obter_configuracao
 
 TIPO_PAPEL_PARTICIPANTE_EXTERNO = "participante_externo"
@@ -306,6 +307,7 @@ def _cobrar_inscricao_se_devido(
 
 def inscrever_no_evento(db: Session, *, id_evento: int, usuario: Usuario, codigo_cupom: Optional[str] = None):
     evento = obter_evento(db, id_evento)
+    exigir_evento_aceita_inscricao(evento)
     associado = associado_do_usuario_ou_403(db, usuario)
     inscricao_criada = servico_vagas.inscrever_com_controle_de_vaga(
         db, contexto_tipo=CONTEXTO_EVENTO, id_contexto=id_evento, id_pessoa=associado.id_pessoa,
@@ -322,6 +324,7 @@ def inscrever_associado_no_evento(
     mesma cobrança da inscrição do próprio associado: o limite de vagas nunca estoura por esta via (a rota genérica `/api/inscricoes/` não controla
     vaga). Quem inscreveu fica na Auditoria."""
     evento = obter_evento(db, id_evento)
+    exigir_evento_aceita_inscricao(evento)
     associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
     if not associado:
         raise HTTPException(status_code=404, detail="Associado não encontrado.")
@@ -337,6 +340,7 @@ def inscrever_associado_no_evento(
 def inscrever_na_sessao(db: Session, *, id_sessao: int, usuario: Usuario, codigo_cupom: Optional[str] = None):
     sessao = obter_sessao(db, id_sessao)
     evento = obter_evento(db, sessao.id_evento)
+    exigir_evento_aceita_inscricao(evento)
     associado = associado_do_usuario_ou_403(db, usuario)
     inscricao_criada = servico_vagas.inscrever_com_controle_de_vaga(
         db, contexto_tipo=CONTEXTO_SESSAO_EVENTO, id_contexto=id_sessao, id_pessoa=associado.id_pessoa,
@@ -545,6 +549,7 @@ def inscrever_publicamente(
     evento = obter_evento(db, id_evento)
     if evento.visibilidade != "Pública":
         raise HTTPException(status_code=404, detail="Evento não encontrado.")
+    exigir_evento_aceita_inscricao(evento)
     if evento_ja_aconteceu(evento):
         raise HTTPException(status_code=400, detail="As inscrições deste evento já foram encerradas: o evento já aconteceu.")
 

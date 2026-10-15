@@ -10,6 +10,9 @@ export type {
   NoticiaPublica,
 } from './directus.mjs'
 
+/** A situação do evento (v5.5d). Remarcado não é um status: é `Programado` com `data_hora_inicio_anterior`. */
+export type StatusDoEvento = 'Programado' | 'Adiado' | 'Cancelado' | 'Realizado'
+
 export interface EventoDaLista {
   id_evento: number
   titulo: string
@@ -25,6 +28,12 @@ export interface EventoDaLista {
   gratuito: boolean
   /** Projeto público a que o evento pertence (v5.5); null = evento avulso (ou projeto interno, nunca revelado). */
   id_projeto: number | null
+  /** Situação do evento (v5.5d); API antiga, sem o campo = `Programado`. */
+  status: StatusDoEvento
+  /** Por que foi cancelado ou adiado (e, se informado, por que foi remarcado); null = sem motivo. */
+  motivo_status: string | null
+  /** O começo de ANTES da última remarcação (ISO sem fuso); null = nunca foi remarcado. */
+  data_hora_inicio_anterior: string | null
 }
 
 export interface SessaoDoEvento {
@@ -59,6 +68,8 @@ export interface ResumoDeEvento {
   data_hora_inicio: string
   data_hora_fim: string | null
   endereco_avulso: string | null
+  /** Situação do evento (v5.5d); ausente (ou API antiga) = `Programado`. */
+  status?: StatusDoEvento
 }
 
 /** Uma edição da cadeia do evento; `atual` marca a da própria página. */
@@ -344,10 +355,18 @@ export function normalizarProjetoDetalhado(
   detalhe: Partial<ProjetoDetalhado> & { id_projeto: number },
 ): ProjetoDetalhado
 
-/** Evento da lista: `id_projeto` ausente (API antiga) = null. */
+/** Evento da lista: `id_projeto` ausente (API antiga) = null; sem situação (API antiga) = `Programado`, sem motivo e nunca remarcado. */
 export function normalizarEvento<T extends object>(
   evento: T,
-): Omit<T, 'id_projeto'> & { id_projeto: number | null }
+): Omit<
+  T,
+  'id_projeto' | 'status' | 'motivo_status' | 'data_hora_inicio_anterior'
+> & {
+  id_projeto: number | null
+  status: StatusDoEvento
+  motivo_status: string | null
+  data_hora_inicio_anterior: string | null
+}
 
 /** Detalhe de evento: projeto ausente = null; edições, documentos e fotos ausentes = lista vazia. */
 export function normalizarEventoDetalhado(

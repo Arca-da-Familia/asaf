@@ -36,6 +36,7 @@ export type {
   ProjetoPublico,
   ResumoDeEvento,
   SessaoDoEvento,
+  StatusDoEvento,
 } from '../../scripts/lib/conteudo-publico.mjs'
 
 let leitura: Promise<ConteudoPublico> | undefined

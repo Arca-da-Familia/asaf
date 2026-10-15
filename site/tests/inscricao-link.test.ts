@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../src/lib/api'
 import {
   acoesDisponiveis,
+  avisoDoEventoNoLink,
   caminhoDeCancelar,
   caminhoDeConfirmar,
   explicacaoDaSituacao,
@@ -34,6 +35,8 @@ const resumo = (extra: Partial<ResumoDaInscricao> = {}): ResumoDaInscricao => ({
     data_hora_inicio: '2026-10-10T19:00:00',
     data_hora_fim: '2026-10-10T21:00:00',
     endereco_avulso: 'Salão de teste, Parauapebas',
+    status: 'Programado',
+    motivo_status: null,
   },
   sessao: null,
   codigo_checkin: 'A1B2C3D4',
@@ -112,6 +115,8 @@ describe('o que a API devolveu', () => {
         data_hora_inicio: '2026-10-10T19:00:00',
         data_hora_fim: null,
         endereco_avulso: null,
+        status: 'Programado',
+        motivo_status: null,
       },
       sessao: { titulo: 'Oficina', data_hora_inicio: '2026-10-10T20:00:00' },
       codigo_checkin: 'AA',
@@ -374,6 +379,7 @@ function montar(modo: ModoDoLink): HTMLElement {
       <div data-estado="invalido" hidden>inválido</div>
       <div data-estado="erro" hidden><p data-mensagem></p><button type="button" data-tentar-de-novo>Tentar de novo</button></div>
       <div data-estado="resumo" hidden>
+        <div data-aviso-do-evento role="status" hidden><p data-aviso-do-evento-texto></p></div>
         <div data-resultado-da-acao role="status" tabindex="-1" hidden><div data-frases></div></div>
         <dl>
           ${linha('Evento', 'data-evento-titulo')}${linha('Quando', 'data-quando')}${linha('Onde', 'data-onde')}
@@ -487,6 +493,8 @@ describe('a página dos links do e-mail', () => {
             data_hora_inicio: '2026-10-10T19:00:00',
             data_hora_fim: null,
             endereco_avulso: null,
+            status: 'Programado',
+            motivo_status: null,
           },
         }),
       ),
@@ -859,5 +867,215 @@ describe('confirmar', () => {
     )
     await esperarVarias()
     expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+})
+
+// v5.5d — quem abre o link do e-mail de um evento cancelado ou adiado vê isso antes de qualquer coisa
+describe('a situação do evento nos links do e-mail', () => {
+  const cancelado = (extra: Partial<ResumoDaInscricao> = {}) =>
+    resumo({
+      evento: {
+        ...resumo().evento,
+        status: 'Cancelado',
+        motivo_status: 'Chuva forte prevista para o dia.',
+      },
+      pode_confirmar: false,
+      ...extra,
+    })
+  const adiado = (extra: Partial<ResumoDaInscricao> = {}) =>
+    resumo({
+      status: 'Confirmado',
+      evento: {
+        ...resumo().evento,
+        status: 'Adiado',
+        motivo_status: 'Aguardando o espaço.',
+      },
+      pode_confirmar: false,
+      ...extra,
+    })
+
+  it('lerResumo traz a situação do evento e o motivo; sem eles (API antiga) o evento é programado e sem motivo', () => {
+    const lido = lerResumo({
+      status: 'Confirmado',
+      evento: {
+        titulo: 'Encontro',
+        status: 'Cancelado',
+        motivo_status: '  Chuva.  ',
+      },
+    })
+    expect(lido!.evento).toMatchObject({
+      status: 'Cancelado',
+      motivo_status: 'Chuva.',
+    })
+    expect(lerResumo({ status: 'Confirmado' })!.evento).toMatchObject({
+      status: 'Programado',
+      motivo_status: null,
+    })
+    expect(
+      lerResumo({
+        status: 'Confirmado',
+        evento: { status: 'Suspenso', motivo_status: 7 },
+      })!.evento,
+    ).toMatchObject({ status: 'Programado', motivo_status: null })
+  })
+
+  it('o aviso: "O evento foi cancelado: <motivo>" e "O evento foi adiado: <motivo>"; sem motivo, só a frase', () => {
+    expect(avisoDoEventoNoLink(cancelado())).toEqual({
+      situacao: 'Cancelado',
+      texto: 'O evento foi cancelado: Chuva forte prevista para o dia.',
+    })
+    expect(avisoDoEventoNoLink(adiado())).toEqual({
+      situacao: 'Adiado',
+      texto: 'O evento foi adiado: Aguardando o espaço.',
+    })
+    expect(
+      avisoDoEventoNoLink(
+        cancelado({
+          evento: {
+            ...resumo().evento,
+            status: 'Cancelado',
+            motivo_status: null,
+          },
+        }),
+      )!.texto,
+    ).toBe('O evento foi cancelado.')
+  })
+
+  it('evento programado, remarcado ou realizado não leva aviso nestas páginas', () => {
+    expect(avisoDoEventoNoLink(resumo())).toBeNull()
+    for (const status of ['Realizado', 'Programado'] as const)
+      expect(
+        avisoDoEventoNoLink(
+          resumo({
+            evento: { ...resumo().evento, status, motivo_status: 'x' },
+          }),
+        ),
+      ).toBeNull()
+  })
+
+  it('evento cancelado: a página de confirmar explica que não há o que confirmar (mesmo na lista de espera) e a de cancelar não explica nada (o botão fala por si)', () => {
+    expect(explicacaoDaSituacao(cancelado(), 'confirmar')).toBe(
+      'Este evento foi cancelado: não há o que confirmar.',
+    )
+    expect(
+      explicacaoDaSituacao(
+        cancelado({ status: 'Lista de Espera' }),
+        'confirmar',
+      ),
+    ).toBe('Este evento foi cancelado: não há o que confirmar.')
+    expect(explicacaoDaSituacao(cancelado(), 'cancelar')).toBeNull()
+  })
+
+  it('evento cancelado: SEM botão de confirmar a vaga (nem se a resposta vier dizendo que pode); o cancelar da inscrição continua', () => {
+    const torta = cancelado({ pode_confirmar: true })
+    expect(acoesDisponiveis(torta, 'confirmar').principal).toBe(false)
+    expect(acoesDisponiveis(torta, 'confirmar').cruzada).toBe('cancelar')
+    expect(acoesDisponiveis(cancelado(), 'cancelar').principal).toBe(true)
+    // quem foi chamado da fila e tem prazo não é levado a "confirmar" um evento cancelado
+    expect(
+      acoesDisponiveis(
+        cancelado({
+          pode_confirmar: true,
+          prazo_confirmacao: '2026-10-10T14:30:00',
+        }),
+        'cancelar',
+      ).cruzada,
+    ).toBeNull()
+  })
+
+  it('evento adiado: confirmar e cancelar continuam como a API disse', () => {
+    const r = adiado({ status: 'Pré-inscrito', pode_confirmar: true })
+    expect(acoesDisponiveis(r, 'confirmar').principal).toBe(true)
+    expect(acoesDisponiveis(r, 'cancelar').principal).toBe(true)
+    expect(explicacaoDaSituacao(r, 'confirmar')).toBeNull()
+  })
+
+  const aviso = () => el('[data-aviso-do-evento]')
+  const textoDoAviso = () => el('[data-aviso-do-evento-texto]').textContent
+
+  it('página de CANCELAR com o evento cancelado: o aviso com o motivo vem no topo e o botão de cancelar a inscrição continua', async () => {
+    abrir('cancelar', vi.fn().mockResolvedValue(resposta(cancelado())))
+    await esperarVarias()
+    expect(aviso().hidden).toBe(false)
+    expect(aviso().getAttribute('role')).toBe('status')
+    expect(aviso().dataset.situacaoDoEvento).toBe('Cancelado')
+    expect(aviso().className).toContain('border-destructive')
+    expect(textoDoAviso()).toBe(
+      'O evento foi cancelado: Chuva forte prevista para o dia.',
+    )
+    // o aviso é a primeira coisa do resumo
+    expect(el('[data-estado="resumo"]').firstElementChild).toBe(aviso())
+    expect(aberto('[data-cancelar]')).toBe(true)
+  })
+
+  it('página de CONFIRMAR com o evento cancelado: o aviso, a explicação, SEM o botão de confirmar e com o caminho para cancelar', async () => {
+    abrir('confirmar', vi.fn().mockResolvedValue(resposta(cancelado())))
+    await esperarVarias()
+    expect(textoDoAviso()).toBe(
+      'O evento foi cancelado: Chuva forte prevista para o dia.',
+    )
+    expect(aberto('[data-confirmar]')).toBe(false)
+    expect(el('[data-explicacao]').textContent).toBe(
+      'Este evento foi cancelado: não há o que confirmar.',
+    )
+    const cruzada = el<HTMLAnchorElement>('[data-acao-cruzada]')
+    expect(cruzada.hidden).toBe(false)
+    expect(cruzada.getAttribute('href')).toBe(caminhoDeCancelar(TOKEN))
+  })
+
+  it('página de confirmar com a resposta torta (cancelado, mas "pode confirmar"): o botão de confirmar NÃO aparece', async () => {
+    abrir(
+      'confirmar',
+      vi.fn().mockResolvedValue(resposta(cancelado({ pode_confirmar: true }))),
+    )
+    await esperarVarias()
+    expect(aberto('[data-confirmar]')).toBe(false)
+  })
+
+  it('evento ADIADO: o aviso com o motivo aparece e as ações seguem (confirmar continua)', async () => {
+    abrir(
+      'confirmar',
+      vi
+        .fn()
+        .mockResolvedValue(
+          resposta(adiado({ status: 'Pré-inscrito', pode_confirmar: true })),
+        ),
+    )
+    await esperarVarias()
+    expect(aviso().hidden).toBe(false)
+    expect(aviso().dataset.situacaoDoEvento).toBe('Adiado')
+    expect(aviso().className).toContain('border-brand-secondary')
+    expect(textoDoAviso()).toBe('O evento foi adiado: Aguardando o espaço.')
+    expect(aberto('[data-confirmar]')).toBe(true)
+  })
+
+  it('evento programado: nenhum aviso (o bloco fica escondido)', async () => {
+    abrir('cancelar', vi.fn().mockResolvedValue(resposta(resumo())))
+    await esperarVarias()
+    expect(aviso().hidden).toBe(true)
+  })
+
+  it('SEGURANÇA: o motivo do cancelamento vira texto, nunca HTML', async () => {
+    abrir(
+      'cancelar',
+      vi.fn().mockResolvedValue(
+        resposta(
+          cancelado({
+            evento: {
+              ...resumo().evento,
+              status: 'Cancelado',
+              motivo_status: '<img src=x onerror="window.__xss=1"><b>x</b>',
+            },
+          }),
+        ),
+      ),
+    )
+    await esperarVarias()
+    expect(textoDoAviso()).toBe(
+      'O evento foi cancelado: <img src=x onerror="window.__xss=1"><b>x</b>',
+    )
+    expect(document.querySelector('img')).toBeNull()
+    expect(aviso().querySelector('b')).toBeNull()
+    expect((window as unknown as { __xss?: number }).__xss).toBeUndefined()
   })
 })

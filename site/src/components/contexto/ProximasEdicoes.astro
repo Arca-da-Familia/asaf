@@ -5,11 +5,16 @@
  * navegador mostra só o primeiro que ainda vale (src/lib/edicoes-vivas.ts): sem isso a Home anunciaria, por semanas, um
  * "próximo evento" que já aconteceu — o site só é reconstruído quando o conteúdo muda, não porque o relógio andou. Quem
  * navega SEM JavaScript vê o primeiro como foi construído, COM a data escrita ao lado (nunca sem data).
+ *
+ * v5.5d: a edição adiada leva o selo escrito ao lado do título; a cancelada nem chega aqui (`proximasEdicoes` a tira) e a adiada nunca "passa" com o
+ * relógio (`data-status-do-evento`, lido por src/lib/edicoes-vivas.ts). A remarcada entra pela data nova, sem selo: o resumo da edição só traz a situação.
  */
 import { fimDoEvento } from '../../lib/contexto'
 import { caminhoDoEvento } from '../../lib/dados-publicos'
 import type { ResumoDeEvento } from '../../lib/dados-publicos'
 import { comFusoDaAsaf, formatarDia } from '../../lib/datas'
+import { statusDoEvento } from '../../lib/situacao-do-evento'
+import SeloDoEvento from '../SeloDoEvento.astro'
 
 interface Props {
   edicoes: ResumoDeEvento[]
@@ -24,6 +29,7 @@ const { edicoes } = Astro.props
       class="font-medium"
       data-proxima-edicao
       data-fim={fimDoEvento(edicao)}
+      data-status-do-evento={statusDoEvento(edicao.status)}
       hidden={i > 0}
     >
       Próximo evento:{' '}
@@ -36,7 +42,8 @@ const { edicoes } = Astro.props
         class="text-primary underline underline-offset-4"
       >
         {edicao.titulo}
-      </a>
+      </a>{' '}
+      <SeloDoEvento evento={edicao} />
     </p>
   ))}
 </div>

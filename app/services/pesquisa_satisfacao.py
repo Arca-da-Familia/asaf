@@ -24,7 +24,9 @@ def gerar_convites(db: Session, *, id_evento: int) -> list[RespostaPesquisaSatis
     """Um convite por inscrito não-cancelado que ainda não tinha nenhum - chamada tanto pelo
     disparo manual quanto pela tarefa diária de fechamento de evento (v4.9), nunca duplica quem já
     foi convidado antes (`UniqueConstraint` em (id_evento, id_inscricao) garante isso no banco)."""
-    servico_eventos.obter_evento(db, id_evento)
+    evento = servico_eventos.obter_evento(db, id_evento)
+    if evento.status in ("Cancelado", "Adiado"):
+        return []  # v5.5d - evento que não aconteceu não pede nota a ninguém (a tarefa diária de fechamento chama esta função para todo evento encerrado)
     inscritos = (
         db.query(Inscricao)
         .filter(Inscricao.contexto_tipo == CONTEXTO_EVENTO, Inscricao.id_contexto == id_evento, Inscricao.status != CANCELADO)

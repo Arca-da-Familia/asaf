@@ -260,6 +260,23 @@ describe('proximasEdicoes', () => {
     proximasEdicoes(eventos, AGORA)
     expect(eventos).toEqual(copia)
   })
+  // v5.5d — a situação do evento manda mais que o relógio
+  it('a edição CANCELADA nunca é "próxima" (mesmo com a data no futuro); a REALIZADA também não', () => {
+    const com = [
+      edicao(1, '2026-10-20T19:00:00', { status: 'Cancelado' }),
+      edicao(2, '2026-10-21T19:00:00', { status: 'Realizado' }),
+      edicao(3, '2026-10-22T19:00:00', { status: 'Programado' }),
+    ]
+    expect(proximasEdicoes(com, AGORA).map((e) => e.id_evento)).toEqual([3])
+  })
+  it('a edição ADIADA continua (não aconteceu e não tem data nova), mesmo com a data original já no passado; a remarcada entra pela data nova', () => {
+    const com = [
+      edicao(1, '2026-09-01T19:00:00', { status: 'Adiado' }),
+      edicao(2, '2026-10-25T19:00:00', { status: 'Programado' }),
+      edicao(3, '2026-09-02T19:00:00', { status: 'Programado' }), // programada que já passou: sai
+    ]
+    expect(proximasEdicoes(com, AGORA).map((e) => e.id_evento)).toEqual([1, 2])
+  })
   it('o fim do evento é o fim, ou o início quando o sistema não tem o fim', () => {
     expect(fimDoEvento(edicao(1, '2026-10-10T19:00:00'))).toBe(
       '2026-10-10T19:00:00',

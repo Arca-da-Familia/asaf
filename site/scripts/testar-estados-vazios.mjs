@@ -297,6 +297,31 @@ exigir(
   'API antiga: nasceu /midia/eventos/ sem haver foto de evento',
 )
 
+// v5.5d - a API antiga também não tem a situação do evento (status, motivo, data anterior): o evento que hoje está cancelado no mock vale como PROGRAMADO,
+// sem aviso, sem selo e com o bloco de inscrição à vista — nunca "undefined" nem um aviso inventado.
+if (existsSync('dist-antiga/eventos/10/index.html')) {
+  const semSituacao = lerAntiga('/eventos/10/')
+  exigir(
+    semSituacao.includes('schema.org/EventScheduled') &&
+      !semSituacao.includes('EventCancelled'),
+    'API antiga: o evento sem situação devia sair como EventScheduled no JSON-LD',
+  )
+  exigir(
+    /<div data-aviso-situacao[^>]*\shidden[\s>]/.test(semSituacao),
+    'API antiga: o aviso da situação devia estar escondido num evento sem situação',
+  )
+  exigir(
+    /<div data-como-participar>/.test(semSituacao),
+    'API antiga: o bloco "Como participar" devia estar à mostra num evento sem situação',
+  )
+  exigir(
+    !semSituacao.includes('undefined') && !semSituacao.includes('Motivo:'),
+    'API antiga: a página do evento mostra "undefined" ou um motivo sem haver situação',
+  )
+} else {
+  exigir(false, 'API antiga: a página /eventos/10/ não foi gerada')
+}
+
 // v5.4h - API antiga também não tem a rota da Instituição (404): o site constrói com os dados fixos do Estatuto, sem buraco.
 const contatoAntiga = lerAntiga('/contato/')
 for (const fixo of [

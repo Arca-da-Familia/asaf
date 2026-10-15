@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EventoPublico } from '../src/lib/api'
 import {
   eventosFuturos,
+  eventosPassados,
   iniciarEventos,
   renderizarEventos,
 } from '../src/lib/eventos-dom'
@@ -217,5 +218,199 @@ describe('iniciarEventos', () => {
     await carregando
     expect(container.querySelector('[data-estado="lista"]')).not.toBeNull()
     expect(container.textContent).not.toContain('pode levar alguns segundos')
+  })
+})
+
+// v5.5d — a situação do evento (cancelado, adiado, remarcado, realizado) na lista da Agenda e da Home
+describe('eventosFuturos e eventosPassados — a situação do evento', () => {
+  const ids = (lista: EventoPublico[]) => lista.map((e) => e.id_evento)
+
+  it('evento cancelado com data futura fica na lista; a Home (semCancelados) o tira, e só ele', () => {
+    const lista = [
+      evento({ id_evento: 1, status: 'Cancelado' }),
+      evento({ id_evento: 2, status: 'Programado' }),
+      evento({ id_evento: 3 }), // sem situação (API antiga)
+    ]
+    expect(ids(eventosFuturos(lista, AGORA))).toEqual([1, 2, 3])
+    expect(
+      ids(eventosFuturos(lista, AGORA, undefined, { semCancelados: true })),
+    ).toEqual([2, 3])
+  })
+
+  it('tirar o cancelado vale ANTES do limite (o cancelado não ocupa vaga da Home)', () => {
+    const lista = [
+      evento({ id_evento: 1, status: 'Cancelado' }),
+      evento({ id_evento: 2 }),
+      evento({ id_evento: 3 }),
+    ]
+    expect(
+      ids(eventosFuturos(lista, AGORA, 2, { semCancelados: true })),
+    ).toEqual([2, 3])
+  })
+
+  it('evento ADIADO continua nos próximos mesmo com a data original já passada; o REALIZADO sai, ainda que o horário de fim não tenha chegado', () => {
+    const lista = [
+      evento({
+        id_evento: 1,
+        status: 'Adiado',
+        data_hora_inicio: '2026-09-01T19:00:00',
+      }),
+      evento({
+        id_evento: 2,
+        status: 'Realizado',
+        data_hora_inicio: '2026-09-30T08:00:00',
+        data_hora_fim: '2026-10-02T18:00:00',
+      }),
+      evento({ id_evento: 3 }),
+    ]
+    expect(ids(eventosFuturos(lista, AGORA))).toEqual([1, 3])
+    expect(ids(eventosPassados(lista, AGORA))).toEqual([2])
+  })
+
+  it('no arquivo: o adiado nunca entra; o cancelado entra só quando a data já passou', () => {
+    const lista = [
+      evento({
+        id_evento: 1,
+        status: 'Adiado',
+        data_hora_inicio: '2026-09-01T19:00:00',
+      }),
+      evento({
+        id_evento: 2,
+        status: 'Cancelado',
+        data_hora_inicio: '2026-09-02T19:00:00',
+      }),
+      evento({ id_evento: 3, status: 'Cancelado' }), // data futura
+    ]
+    expect(ids(eventosPassados(lista, AGORA))).toEqual([2])
+  })
+})
+
+describe('renderizarEventos — o selo da situação', () => {
+  let container: HTMLElement
+  beforeEach(() => {
+    container = document.createElement('div')
+  })
+  const selo = () =>
+    container.querySelector<HTMLElement>('[data-selo-do-evento]')
+
+  it('evento só programado (ou de API antiga) não leva selo', () => {
+    renderizarEventos(container, [evento(), evento({ status: 'Programado' })])
+    expect(selo()).toBeNull()
+  })
+
+  it('cada situação aparece ESCRITA no cartão: Cancelado, Adiado, Realizado e Remarcado', () => {
+    const casos: Array<[Partial<EventoPublico>, string]> = [
+      [{ status: 'Cancelado' }, 'Cancelado'],
+      [{ status: 'Adiado' }, 'Adiado'],
+      [{ status: 'Realizado' }, 'Realizado'],
+      [
+        {
+          status: 'Programado',
+          data_hora_inicio_anterior: '2026-10-03T19:00:00',
+        },
+        'Remarcado',
+      ],
+    ]
+    for (const [parcial, esperado] of casos) {
+      renderizarEventos(container, [evento(parcial)])
+      expect(selo()!.textContent, esperado).toBe(esperado)
+      expect(selo()!.getAttribute('data-selo-do-evento')).toBe(esperado)
+    }
+  })
+
+  it('o evento adiado diz que a nova data está por definir', () => {
+    renderizarEventos(container, [evento({ status: 'Adiado' })])
+    expect(container.textContent).toContain('Nova data a definir')
+    renderizarEventos(container, [evento({ status: 'Cancelado' })])
+    expect(container.textContent).not.toContain('Nova data a definir')
+  })
+
+  it('na lista dos que já passaram, "Remarcado" não aparece (já passou); os outros selos continuam', () => {
+    renderizarEventos(
+      container,
+      [
+        evento({
+          data_hora_inicio_anterior: '2026-10-03T19:00:00',
+          data_hora_inicio: '2026-09-01T19:00:00',
+        }),
+      ],
+      new Set(),
+      'passados',
+    )
+    expect(selo()).toBeNull()
+    renderizarEventos(
+      container,
+      [
+        evento({
+          status: 'Realizado',
+          data_hora_inicio: '2026-09-01T19:00:00',
+        }),
+      ],
+      new Set(),
+      'passados',
+    )
+    expect(selo()!.textContent).toBe('Realizado')
+  })
+
+  it('evento parado (cancelado, adiado, realizado) não anuncia vagas — ele não recebe inscrição', () => {
+    for (const status of ['Cancelado', 'Adiado', 'Realizado']) {
+      renderizarEventos(container, [evento({ status, vagas_livres: 5 })])
+      expect(container.textContent, status).not.toMatch(/vaga/i)
+    }
+    renderizarEventos(container, [evento({ vagas_livres: 5 })])
+    expect(container.textContent).toContain('5 vagas disponíveis')
+  })
+
+  it('o selo vem antes da data no cartão (a pessoa lê a situação primeiro)', () => {
+    renderizarEventos(container, [evento({ status: 'Cancelado' })])
+    const cartao = container.querySelector('li')!
+    expect(cartao.firstElementChild!.contains(selo())).toBe(true)
+  })
+})
+
+describe('iniciarEventos — a Home não lista o evento cancelado', () => {
+  const lista = [
+    evento({ id_evento: 1, titulo: 'Cancelado', status: 'Cancelado' }),
+    evento({ id_evento: 2, titulo: 'Adiado', status: 'Adiado' }),
+    evento({
+      id_evento: 3,
+      titulo: 'Remarcado',
+      data_hora_inicio_anterior: '2026-10-03T19:00:00',
+    }),
+    evento({ id_evento: 4, titulo: 'Normal' }),
+  ]
+  const titulos = (container: HTMLElement) =>
+    [...container.querySelectorAll('h3')].map((h) => h.textContent)
+  const selos = (container: HTMLElement) =>
+    [...container.querySelectorAll('[data-selo-do-evento]')].map(
+      (e) => e.textContent,
+    )
+
+  async function abrir(semCancelados: boolean) {
+    const container = document.createElement('div')
+    container.dataset.apiUrl = 'https://api.exemplo.org'
+    if (semCancelados) container.dataset.semCancelados = ''
+    await iniciarEventos(container, {
+      agora: AGORA,
+      fetchImpl: vi.fn().mockResolvedValue(respostaJson(lista)),
+    })
+    return container
+  }
+
+  it('com data-sem-cancelados (a Home): o cancelado some; o adiado e o remarcado ficam, com o selo', async () => {
+    const container = await abrir(true)
+    expect(titulos(container)).toEqual(['Adiado', 'Remarcado', 'Normal'])
+    expect(selos(container)).toEqual(['Adiado', 'Remarcado'])
+  })
+
+  it('sem o atributo (a agenda completa): o cancelado aparece, com o selo', async () => {
+    const container = await abrir(false)
+    expect(titulos(container)).toEqual([
+      'Cancelado',
+      'Adiado',
+      'Remarcado',
+      'Normal',
+    ])
+    expect(selos(container)).toEqual(['Cancelado', 'Adiado', 'Remarcado'])
   })
 })
