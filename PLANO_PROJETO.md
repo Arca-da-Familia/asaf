@@ -1932,16 +1932,54 @@ Dividida em quatro partes (decisão do Presidente, 2026-10-09: "parte a parte");
       (3) **Prazo de guarda do participante externo (LGPD):** o consentimento padrão diz "para fins de organização deste evento", mas a pessoa fica no cadastro sem prazo de eliminação; precisa de decisão
       (FASE 7). (4) Quem pagou e foi inscrito pela secretaria não tem link: a devolução dele é tratada à mão no Financeiro. (5) **Lacuna no fluxo do site:** a publicação automática de conteúdo
       (`sincronizar-site` e Directus) pula os portões de qualidade e publica o código que estiver na `main`; sugestão: recusar a publicação se a última verificação da `main` falhou.
+      **Respostas do Presidente em 2026-10-15 e o que foi feito:** (1) **e-mail da API LIGADO em produção** (autorizado por ele): os cinco segredos `smtp-*` foram copiados do cofre para o contêiner `asaf-api`
+      (revisão `asaf-api--0000126`, saudável, 100% do tráfego); provado com um e-mail de teste aceito pelo servidor (Google Workspace, porta 587) e, DENTRO do contêiner de produção, as cinco variáveis presentes e a
+      porta de e-mail alcançável; a publicação da API só troca a imagem, então a configuração persiste; a homologação segue SEM e-mail de propósito. (2) **Nome e foto da Diretoria no site:** entra como v5.7c
+      (o cadastro dos mandatos e das fotos é ato dele no painel). (3) **Prazos de guarda:** proposta com base legal na tabela de temporalidade (v5.6) e a rotina na v5.7b. (4) **Pix:** estático, sem QR dinâmico
+      (v5.6 reformulada). O item (4) das "limitações" (devolução de quem foi inscrito pela secretaria) e o item (5) (lacuna do fluxo do site) seguem como estão.
 
-#### v5.6 — Doação online (era a v5.4)
+#### v5.6 — Doação online (era a v5.4) — REFORMULADA em 2026-10-15 (decisão do Presidente)
 
-- [ ] PIX com QR code dinâmico por doação (identificação automática do pagamento), doação
-      recorrente via Pix Automático (v3.2.1) quando disponível, e opção de doação anônima.
-- [ ] Recibo automático por e-mail e, para doador identificado, área de acompanhamento das próprias
-      doações.
-- [ ] Transparência do destino: cada campanha mostra quanto arrecadou e em que foi aplicado,
-      puxando do centro de custo real (FASE 3) — não texto escrito à mão. **Liga com a v5.4**: a
-      campanha aparece na Transparência.
+**Decisão (2026-10-15):** o QR code dinâmico do Pix NÃO existe para a ASAF (é serviço pago e exige API de um banco que ela não tem) e a recorrência por Pix Automático idem. A doação online usa o **Pix
+ESTÁTICO** (a chave da associação, em `CHAVE_PIX`; Pix Copia e Cola e QR code estático gerados pelo sistema) e a **confirmação é MANUAL**: o Tesoureiro confere o extrato do banco e confirma no painel; só
+então nasce a doação com o recibo. O sistema nunca diz que recebeu antes disso.
+
+- [ ] **v5.6a — Doar pelo site (Pix estático) com confirmação manual.** Página de doação (a de "Como ajudar" deixa de dizer que não existe): escolhe a campanha (ou "onde for mais necessário") e o valor,
+      escolhe entre **doação anônima** (o site só mostra o Pix e não guarda nada da pessoa) e **doação identificada** (nome, e-mail, CPF opcional, aviso de privacidade); a identificada vira uma
+      *intenção de doação* "Aguardando confirmação" com protocolo; o painel do Tesoureiro lista as intenções, confirma quando acha o dinheiro no extrato (cria a `Doacao` e o recibo, que sai por e-mail) ou
+      marca "não localizada"; intenção sem confirmação por 30 dias expira. Transparência por campanha: quanto arrecadou (só doação CONFIRMADA) e em que foi aplicado, lendo o centro de custo real (FASE 3).
+- [ ] **v5.6b — Conta de visitante (por e-mail + código, sem senha).** A pessoa pede um código, recebe no e-mail e entra numa área onde ficam as inscrições dela em eventos (o evento encerrado fica
+      **inativo, não é apagado**, e continua consultável), os certificados e as doações com recibo. É o que dá sentido ao prazo de guarda dos dados (abaixo). Sessão curta, código de uso único e com
+      limite de tentativas; a pessoa pode pedir o apagamento dos próprios dados.
+- [ ] Recibo automático por e-mail (entra na v5.6a, agora que o e-mail da API está ligado em produção) e área de acompanhamento das próprias doações (entra na v5.6b).
+- [ ] Transparência do destino por campanha (entra na v5.6a): arrecadado e aplicado puxados do centro de custo real; **liga com a v5.4**: a campanha aparece na Transparência.
+- [x] ~~PIX dinâmico com identificação automática~~ e ~~Pix Automático~~: **descartados** (sem API de banco). Só voltam se a ASAF contratar um provedor de pagamento no futuro.
+
+##### Prazos de guarda de dados pessoais (proposta de 2026-10-15, a partir da ideia do Presidente: 5 anos, depois até 10, depois só o financeiro) — Tabela de temporalidade v1
+
+Base: LGPD art. 15 (o tratamento termina quando a finalidade acaba) e art. 16 (a regra é eliminar; guardar só para obrigação legal, estudo anonimizado etc. — **não** vale guardar para sempre "por
+cautela"), art. 18, VI (eliminação a pedido); Código Civil art. 206 (cobrança de dívida documentada: 5 anos; reparação civil: 3 anos; prazo geral: 10 anos, art. 205); Lei 13.019/2014 art. 68, parágrafo
+único (a OSC guarda os originais da prestação de contas de parceria com o poder público por **10 anos**); comprovantes de receita e despesa por **5 anos** (condição da imunidade/isenção, modelo de
+declaração da Receita). Não é parecer jurídico: é o raciocínio adotado; o Presidente pode ajustar os números.
+
+| Dado | Conta a partir de | Guarda completa | Depois |
+| --- | --- | --- | --- |
+| Pessoa que só se inscreveu em evento ou doou (nome, CPF, e-mail, telefone, respostas do formulário) | último evento em que participou ou último acesso à conta de visitante | 5 anos | anonimiza; o evento e a contagem ficam |
+| Inscrições e presenças | idem | 5 anos | anonimizadas junto com a pessoa; o evento fica **inativo e consultável** |
+| Certificados | emissão | 10 anos | a verificação pública continua dizendo "certificado válido", sem o nome |
+| Pedidos da fila de atendimento (contato, informação, titular) | encerramento | 5 anos | apaga mensagem e contato; ficam protocolo, tipo e datas |
+| Registro técnico de acesso (IP das tentativas) | data do registro | 6 meses | apaga |
+| Auditoria do sistema | data da ação | 10 anos | — |
+| Proposta de filiação não aprovada | decisão | 2 anos | apaga |
+| Voluntário (termo de adesão e dados) | fim do voluntariado | 5 anos | anonimiza |
+| Associado e dependentes | desligamento | livro de associados (nome, matrícula, datas): permanente; contato e endereço: 5 anos | apaga contato e endereço |
+| Doador identificado e recibo | emissão do recibo | 10 anos | anonimiza o doador; ficam valor, data e destino (dado financeiro permanente) |
+| Escrituração financeira (livro-caixa, títulos, contas) | — | permanente | — |
+| Atas e Estatuto | — | permanente | — |
+| Prestação de contas de parceria ou emenda | prestação de contas | 10 anos | — |
+| Conta de visitante | último acesso | enquanto ativa; 5 anos sem acesso | encerra e anonimiza |
+
+**Regra de honestidade:** a Política de Privacidade só passa a prometer um prazo quando a rotina que o aplica existe e está testada (item v5.7b, abaixo); até lá ela segue sem prometer eliminação automática.
 
 #### v5.7 — Confiança, privacidade e conformidade do site (era a v5.5)
 
@@ -1967,6 +2005,12 @@ Dividida em quatro partes (decisão do Presidente, 2026-10-09: "parte a parte");
       passou a ser testado em TODA página, e a declaração entrou na amostra do Lighthouse.
 - [ ] Mapa com pino **só** com coordenadas exatas informadas pela diretoria (decisão de 2026-10-03: fica para o futuro).
 
+- [ ] **v5.7b — Rotina de retenção (LGPD, FASE 7 em fatia):** os prazos da tabela acima ficam em configuração; uma tarefa periódica anonimiza ou apaga o que venceu, registra na Auditoria só as
+      contagens, e a Política de Privacidade passa a publicar os prazos que a rotina de fato aplica.
+- [ ] **v5.7c — Nome e FOTO da Diretoria Executiva no site (decisão de 2026-10-15):** "a pessoa se sente representada quando vê o rosto de quem responde pela instituição". Hoje a API pública da
+      diretoria nunca traz foto; passa a trazer a foto de quem **autorizou o uso da imagem** (registro da autorização no painel, como nas fotos de evento), regravada sem metadado; a página mostra nome,
+      cargo, foto e período do mandato. Depende de o Presidente cadastrar os mandatos e as fotos no painel (ato dele).
+
 ##### 🔍 Ponto de Revisão — FASE 5 (2/2 — fim, fecha v5.5–v5.7)
 
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
@@ -1978,7 +2022,7 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 
   **Estado em 2026-10-15 (o Ponto só fecha com a v5.6):** headers de segurança presentes na resposta de produção ✔ (v5.7); formulários públicos na fila única ✔ (v5.5a/b); voluntário não associado
   escalado ✔ (v5.5b); evento cancelado aparece como cancelado ✔ (v5.5d); verificação independente de fatos feita para a declaração de acessibilidade (2 passagens) e para os textos de inscrição em evento,
-  situação do evento e Política de Privacidade (ver o item da conferência, abaixo); **pendente:** v5.6 (doação online), que depende de a diretoria escolher o banco ou provedor do Pix.
+  situação do evento e Política de Privacidade (ver o item da conferência, abaixo); **pendente:** v5.6 (doação online com Pix estático e conta de visitante), v5.7b (rotina de retenção) e v5.7c (foto da Diretoria).
 
 ##### Decisões pendentes → onde cada uma será tratada (resposta do usuário em 2026-10-03)
 
