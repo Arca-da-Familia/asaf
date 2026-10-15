@@ -2,7 +2,6 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 
 import {
   API_HML,
-  campo,
   cpfValido,
   entrar,
   exigirHomologacao,
@@ -14,7 +13,7 @@ import {
 // v5.5d - a SITUAÇÃO do evento (Programado, Adiado, Cancelado, Realizado), de ponta a ponta: o Presidente muda a situação pelo painel (motivo obrigatório, cancelar em dois passos,
 // voltar para a data original, remarcar, marcar como realizado) e o efeito aparece na API pública e no SITE de teste (aviso na página do evento, formulário que some e volta,
 // página de cancelar a inscrição). Roda DEPOIS do v5.5d-01 (que cria os três eventos e as inscrições) e de a homologação ser publicada de novo com esta versão (o site de teste
-// só ganha a página de cada evento no deploy).
+// só ganha a página de cada evento no deploy). A Auditoria e a lista do painel são conferidas pelo v5.5d-04.
 test.describe.configure({ mode: 'serial' })
 test.beforeAll(() => exigirHomologacao())
 test.setTimeout(420_000)
@@ -32,7 +31,6 @@ const MOTIVO_DO_ADIAMENTO =
 
 const ids: Record<string, number> = {}
 const tokens: Record<string, string> = {}
-const antes: Record<string, number> = {}
 const autorizacao: { valor: string } = { valor: '' }
 
 type EventoPublico = {
@@ -64,22 +62,6 @@ async function eventoPorId(page: Page, id: number): Promise<EventoPublico> {
   const r = await page.request.get(`${API_HML}/api/publico/eventos/${id}`)
   expect(r.status()).toBe(200)
   return (await r.json()) as EventoPublico
-}
-
-async function totalNaAuditoria(page: Page, tabela: string): Promise<number> {
-  await page.goto('/auditoria')
-  await expect(
-    page.getByRole('heading', { name: 'Auditoria', level: 1 }),
-  ).toBeVisible()
-  const resposta = page.waitForResponse(
-    (r) =>
-      r.url().includes('/api/auditoria/?') &&
-      r.url().includes(`tabela_afetada=${tabela}`),
-  )
-  await campo(page, 'Tabela').fill(tabela)
-  const { total } = (await (await resposta).json()) as { total: number }
-  await expect(page.getByText(/^Carregando/)).toHaveCount(0)
-  return total
 }
 
 const detalheDoEvento = (page: Page, titulo: string) =>
@@ -176,7 +158,6 @@ test('cancelar: sem motivo, com motivo curto ou com dado pessoal é recusado; co
   })
   await entrar(page, 'presidente')
   await expect.poll(() => autorizacao.valor, { timeout: 15_000 }).not.toBe('')
-  antes['eventos'] = await totalNaAuditoria(page, 'eventos')
 
   const evento = await eventoMaisNovo(page, PREFIXO_CANCELAR)
   ids['cancelar'] = evento.id_evento
@@ -463,31 +444,5 @@ test('marcar como realizado: o botão trava antes do início, depois pede confir
   await expect(aviso).toContainText('Este evento já foi realizado.')
   await expect(page.locator('[data-inscricao-formulario]')).toBeHidden()
   await ver(page, info, 'site-evento-realizado')
-  expect(vigia.problemas()).toEqual([])
-})
-
-test('a Auditoria guardou cada mudança de situação (6) e a lista do painel mostra o selo de cada uma', async ({
-  page,
-}, info) => {
-  const vigia = vigiar(page)
-  await entrar(page, 'presidente')
-  // cancelar (1) + adiar, voltar, adiar, remarcar (4) + realizar (1)
-  const depois = await totalNaAuditoria(page, 'eventos')
-  expect(depois - antes['eventos']!).toBe(6)
-
-  await page.goto('/eventos')
-  await expect(
-    page.getByRole('heading', { name: 'Eventos', level: 1 }),
-  ).toBeVisible()
-  for (const [prefixo, selo] of [
-    [PREFIXO_CANCELAR, 'Cancelado'],
-    [PREFIXO_REALIZAR, 'Realizado'],
-  ] as const) {
-    const linha = page
-      .locator('div[role="button"]')
-      .filter({ hasText: `${prefixo} ${S}` })
-    await expect(linha.getByText(selo, { exact: true })).toBeVisible()
-  }
-  await ver(page, info, 'lista-de-eventos-com-os-selos')
   expect(vigia.problemas()).toEqual([])
 })
