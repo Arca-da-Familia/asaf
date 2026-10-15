@@ -2,7 +2,7 @@
   1. a foto só é guardada com a autorização de uso de imagem, e só se for imagem de verdade; é regravada em JPEG sem nenhum metadado;
   2. a API pública só traz a foto de quem autorizou E tem mandato vigente; o arquivo público responde 404 igual para tudo o que não pode aparecer;
   3. trocar a foto substitui a anterior (o arquivo velho sai) e apagar (retirou a autorização) some do sistema e do site na hora;
-  4. a foto do cadastro de associado (privada) nunca sai por aqui; só a `governanca` mexe; tudo fica na Auditoria."""
+  4. a foto do cadastro de associado nunca sai por aqui; só a `governanca` mexe; tudo fica na Auditoria."""
 import io
 import uuid
 from datetime import datetime, timedelta
@@ -80,7 +80,7 @@ def test_a_foto_vai_ao_site_so_de_quem_autorizou_e_o_arquivo_bate_com_a_impressa
     import hashlib
 
     assert hashlib.sha256(arquivo.content).hexdigest() == linha["foto"]["sha256"]
-    # a foto de cadastro do associado (privada) não vazou
+    # a foto de cadastro do associado não vazou por esta rota
     assert "segredo.jpg" not in client.get("/api/publico/diretoria").text
 
 

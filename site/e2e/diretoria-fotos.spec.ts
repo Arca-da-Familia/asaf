@@ -290,10 +290,17 @@ test.describe('Diretoria com fotos (v5.7c)', () => {
       'Sem a autorização a foto não é guardada no sistema',
     )
     await expect(paragrafo).toContainText(
-      'Quem retira a autorização tem a foto apagada do sistema na hora e do site na próxima publicação do site',
+      'A foto só é mostrada enquanto a pessoa está em mandato vigente',
     )
     await expect(paragrafo).toContainText(
-      'A foto do cadastro de associado (a da carteirinha) nunca é usada nesta página nem em outra página do site',
+      'depois disso ela continua guardada, sem uso, até a Diretoria apagá-la',
+    )
+    await expect(paragrafo).toContainText(
+      'a foto é apagada na hora (ficam apenas cópias de segurança internas, que não são públicas)',
+    )
+    await expect(paragrafo).toContainText('mas pode demorar mais')
+    await expect(paragrafo).toContainText(
+      'não é usada em nenhuma página deste site; ela aparece apenas na verificação da carteirinha digital',
     )
     await expect(
       paragrafo.getByRole('link', { name: 'Diretoria' }),

@@ -135,8 +135,9 @@ test('a Política de Privacidade está na versão 1.9, com o parágrafo da foto 
   expect(texto).toContain('1.9')
   const paragrafo = page.locator('[data-diretoria-foto]')
   await expect(paragrafo).toBeVisible()
-  await expect(paragrafo).toContainText('só aparece no site enquanto a pessoa')
-  await expect(paragrafo).toContainText('Quem retira a autorização')
+  await expect(paragrafo).toContainText('só é mostrada enquanto a pessoa')
+  await expect(paragrafo).toContainText('cópias de segurança internas')
+  await expect(paragrafo).toContainText('verificação da carteirinha digital')
   expect(
     texto,
     'a frase antiga (nenhuma foto de dirigente) saiu',

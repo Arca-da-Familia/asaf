@@ -84,7 +84,7 @@ def diretoria_publica(db: Session = Depends(get_db)):
         a.id_associado: a for a in db.query(Associado).filter(Associado.id_associado.in_({m.id_associado for m in vigentes})).all()
     } if vigentes else {}
     nomes = {i: a.nome_completo for i, a in associados.items()}
-    # v5.7c: só quem AUTORIZOU a imagem tem foto aqui (a foto do cadastro de associado, privada, nunca sai); quem não tem aparece sem foto
+    # v5.7c: só quem AUTORIZOU a imagem tem foto aqui (a foto do cadastro de associado nunca sai por esta rota); quem não tem aparece sem foto
     fotos = {
         f.id_pessoa: f for f in db.query(FotoDaDiretoria).filter(
             FotoDaDiretoria.id_pessoa.in_({a.id_pessoa for a in associados.values()}), FotoDaDiretoria.autorizacao_imagem.is_(True),

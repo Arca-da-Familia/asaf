@@ -25,8 +25,11 @@ const presidente = presidenteDaDiretoria((await conteudoPublico()).diretoria)
 // v1.8 (2026-10-15): o parágrafo da inscrição em evento passou pela conferência independente de fatos e foi corrigido (o formulário nem sempre existe; o e-mail é tentativa; sem código na
 // lista de espera; contato do cadastro; IP na Auditoria e ao abrir/cancelar/confirmar; a inscrição não é cancelada pelo sistema) e o encarregado só é nomeado quando o mandato está publicado.
 // v1.9 (2026-10-16): a página Diretoria passa a mostrar a foto de quem autorizou o uso da imagem (decisão do Presidente, 2026-10-15) — app/services/fotos_da_diretoria.py: sem a autorização a foto não é
-// guardada; só é pública com mandato vigente; quem retira a autorização tem a foto apagada do sistema na hora e do site na próxima publicação. A foto do cadastro de associado (a da carteirinha) nunca vai ao
-// site. (A carteirinha digital, ao ser verificada pelo QR, mostra a foto do cadastro a quem tem o link: por isso o texto diz "nunca é usada no site", não "nunca é pública".)
+// guardada; só é pública com mandato vigente (a API confere a cada pedido; a cópia do site sai na publicação seguinte); apagar (pedido de quem retirou a autorização, registrado por quem tem a permissão
+// `governanca`) tira do sistema na hora e do site na publicação seguinte, mas o armazenamento privado mantém cópias de segurança internas (versionamento do Azure) e o Postgres tem backup de 35 dias:
+// por isso o texto diz "ficam apenas cópias de segurança internas", nunca "apagada de todo lugar". A foto do cadastro de associado (a da carteirinha) não vai a NENHUMA página do site, mas a verificação
+// pública da carteirinha (QR, GET /carteirinha/verificar/{token}) a devolve, com nome, situação e validade: o texto diz isso. (Conferência independente de fatos, 2026-10-15, corrigiu duas frases que
+// prometiam demais: "apagada na hora" como se fosse de todo lugar e "nunca em outra página" calando a verificação da carteirinha.)
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -205,11 +208,19 @@ const direitos = [
           Diretoria
         </a>{' '}
         mostra o nome, o cargo, o período do mandato e, de quem autorizou o uso
-        da imagem, a foto. Sem a autorização a foto não é guardada no sistema, e
-        a foto só aparece no site enquanto a pessoa está em mandato vigente.
-        Quem retira a autorização tem a foto apagada do sistema na hora e do
-        site na próxima publicação do site. A foto do cadastro de associado (a
-        da carteirinha) nunca é usada nesta página nem em outra página do site.
+        da imagem, a foto. Sem a autorização a foto não é guardada no sistema. A
+        foto só é mostrada enquanto a pessoa está em mandato vigente (o site
+        deixa de mostrá-la na publicação seguinte ao fim do mandato); depois
+        disso ela continua guardada, sem uso, até a Diretoria apagá-la. Quem
+        retira a autorização pode pedir à Diretoria que apague a foto: ao
+        registrar o pedido no sistema, a foto é apagada na hora (ficam apenas
+        cópias de segurança internas, que não são públicas) e deixa de aparecer
+        no site na publicação seguinte, que em geral leva de 15 a 30 minutos,
+        mas pode demorar mais. A foto do cadastro de associado (a da
+        carteirinha) não é usada em nenhuma página deste site; ela aparece
+        apenas na verificação da carteirinha digital, para quem lê o QR da
+        carteirinha (sem precisar de login), junto com o nome, a situação de
+        associado e a validade.
       </p>
     </section>
 
