@@ -248,7 +248,7 @@ test('duas pessoas se inscrevem juntas: uma tem vaga e a outra cai na lista de e
   await expect(dois.item).toContainText('Vaga reservada')
   await expect(tres.item).toContainText('Lista de espera')
   await expect(tres.item).toContainText(
-    'Você será avisado(a) por e-mail se uma vaga abrir.',
+    'Se uma vaga abrir e chegar a sua vez, você recebe um e-mail e tem um prazo para confirmar; sem confirmar, a vaga passa ao próximo.',
   )
   // quem está na lista de espera não tem código de check-in
   await expect(tres.item.locator('[data-codigo]')).toHaveCount(0)

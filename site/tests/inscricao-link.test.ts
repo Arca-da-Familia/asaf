@@ -32,8 +32,8 @@ const resumo = (extra: Partial<ResumoDaInscricao> = {}): ResumoDaInscricao => ({
   primeiro_nome: 'Maria',
   evento: {
     titulo: 'Encontro de teste',
-    data_hora_inicio: '2026-10-10T19:00:00',
-    data_hora_fim: '2026-10-10T21:00:00',
+    data_hora_inicio: '2026-10-10T22:00:00',
+    data_hora_fim: '2026-10-11T00:00:00',
     endereco_avulso: 'Salão de teste, Parauapebas',
     status: 'Programado',
     motivo_status: null,
@@ -96,11 +96,11 @@ describe('o que a API devolveu', () => {
         primeiro_nome: 'Maria',
         evento: {
           titulo: 'Encontro',
-          data_hora_inicio: '2026-10-10T19:00:00',
+          data_hora_inicio: '2026-10-10T22:00:00',
           data_hora_fim: null,
           endereco_avulso: null,
         },
-        sessao: { titulo: 'Oficina', data_hora_inicio: '2026-10-10T20:00:00' },
+        sessao: { titulo: 'Oficina', data_hora_inicio: '2026-10-10T23:00:00' },
         codigo_checkin: 'AA',
         prazo_confirmacao: null,
         evento_encerrado: false,
@@ -112,13 +112,13 @@ describe('o que a API devolveu', () => {
       primeiro_nome: 'Maria',
       evento: {
         titulo: 'Encontro',
-        data_hora_inicio: '2026-10-10T19:00:00',
+        data_hora_inicio: '2026-10-10T22:00:00',
         data_hora_fim: null,
         endereco_avulso: null,
         status: 'Programado',
         motivo_status: null,
       },
-      sessao: { titulo: 'Oficina', data_hora_inicio: '2026-10-10T20:00:00' },
+      sessao: { titulo: 'Oficina', data_hora_inicio: '2026-10-10T23:00:00' },
       codigo_checkin: 'AA',
       prazo_confirmacao: null,
       evento_encerrado: false,
@@ -146,7 +146,7 @@ describe('o que a API devolveu', () => {
     expect(situacaoDoLink('Presente')).toBe('Presença registrada')
     expect(situacaoDoLink('Ausente')).toBe('Ausência registrada')
     expect(situacaoDoLink('Outra')).toBe('Outra')
-    expect(quandoDoEvento('2026-10-10T19:00:00')).toBe(
+    expect(quandoDoEvento('2026-10-10T22:00:00')).toBe(
       'sábado, 10 de outubro de 2026, às 19:00',
     )
     expect(quandoDoEvento(null)).toBeNull()
@@ -233,7 +233,7 @@ describe('o que a página oferece em cada situação', () => {
       pode_confirmar: false,
     })
     expect(explicacaoDaSituacao(fila, confirmar)).toBe(
-      'Você ainda está na lista de espera; avisamos por e-mail quando uma vaga abrir.',
+      'Você ainda está na lista de espera. Se uma vaga abrir e chegar a sua vez, você recebe um e-mail e tem um prazo para confirmar.',
     )
     expect(explicacaoDaSituacao(fila, cancelar)).toBeNull()
   })
@@ -328,12 +328,12 @@ describe('mensagens de falha', () => {
         new ApiError(
           'x',
           400,
-          'Você ainda está na lista de espera: avisamos por e-mail quando uma vaga abrir.',
+          'Você ainda está na lista de espera: se uma vaga abrir e chegar a sua vez, você recebe um e-mail.',
         ),
         'confirmar',
       ),
     ).toBe(
-      'Você ainda está na lista de espera: avisamos por e-mail quando uma vaga abrir.',
+      'Você ainda está na lista de espera: se uma vaga abrir e chegar a sua vez, você recebe um e-mail.',
     )
     expect(
       mensagemDeFalhaDaAcao(
@@ -453,7 +453,7 @@ describe('a página dos links do e-mail', () => {
         resumo({
           sessao: {
             titulo: 'Oficina da manhã',
-            data_hora_inicio: '2026-10-10T09:00:00',
+            data_hora_inicio: '2026-10-10T12:00:00',
           },
         }),
       ),
@@ -490,7 +490,7 @@ describe('a página dos links do e-mail', () => {
           codigo_checkin: null,
           evento: {
             titulo: 'Encontro',
-            data_hora_inicio: '2026-10-10T19:00:00',
+            data_hora_inicio: '2026-10-10T22:00:00',
             data_hora_fim: null,
             endereco_avulso: null,
             status: 'Programado',
@@ -796,7 +796,7 @@ describe('confirmar', () => {
     )
     await esperarVarias()
     expect(el('[data-explicacao]').textContent).toBe(
-      'Você ainda está na lista de espera; avisamos por e-mail quando uma vaga abrir.',
+      'Você ainda está na lista de espera. Se uma vaga abrir e chegar a sua vez, você recebe um e-mail e tem um prazo para confirmar.',
     )
     expect(aberto('[data-confirmar]')).toBe(false)
     const cruzado = el<HTMLAnchorElement>('[data-acao-cruzada]')

@@ -22,6 +22,8 @@ const presidente = presidenteDaDiretoria((await conteudoPublico()).diretoria)
 // Revisão jurídica: a associação não contrata advogado e o Presidente deu o texto por válido (2026-10-09).
 // Encarregado pelo tratamento de dados (LGPD, art. 41): o Presidente, por decisão dele (2026-10-09); v1.4.
 // v1.7 (2026-10-13): evento cancelado, adiado ou remarcado => o sistema avisa por e-mail quem está inscrito (inclusive na lista de espera) — app/services/status_do_evento.py.
+// v1.8 (2026-10-15): o parágrafo da inscrição em evento passou pela conferência independente de fatos e foi corrigido (o formulário nem sempre existe; o e-mail é tentativa; sem código na
+// lista de espera; contato do cadastro; IP na Auditoria e ao abrir/cancelar/confirmar; a inscrição não é cancelada pelo sistema) e o encarregado só é nomeado quando o mandato está publicado.
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -123,14 +125,14 @@ const direitos = [
         ) : (
           <>
             {' '}
-            (o nome consta na página{' '}
+            (a página{' '}
             <a
               href="/diretoria/"
               class="font-medium text-primary underline underline-offset-4"
             >
               Diretoria
-            </a>
-            )
+            </a>{' '}
+            mostra o nome quando o mandato vigente está cadastrado no sistema)
           </>
         )}
         . O contato é o mesmo e-mail acima ou o{' '}
@@ -246,21 +248,33 @@ const direitos = [
         guardamos, use a solicitação do titular de dados.
       </p>
       <p class="mt-3" data-inscricao-em-evento>
-        <strong>Inscrição em eventos.</strong> A página de cada evento gratuito
-        tem um formulário de inscrição que pede nome, CPF, e-mail, telefone, as
-        respostas às perguntas daquele evento e, se você inscrever mais pessoas,
-        o nome, o CPF e as respostas de cada uma. Antes do envio, a página
-        mostra o texto de consentimento do evento, e só envia depois que você o
-        aceita; a versão do texto fica registrada na inscrição. Os dados vão
-        para o sistema de gestão da ASAF, onde só vê quem organiza os eventos
-        (hoje, a Presidência e a Diretoria). Depois de enviar, você recebe na
-        própria página o código de check-in e o link para cancelar ou confirmar
-        a vaga, e o sistema também envia o mesmo por e-mail. Quem se inscreve só
-        para um evento passa a constar do cadastro da ASAF como participante
-        externo, e isso não faz da pessoa uma associada. Se o evento for
-        cancelado, adiado ou remarcado, o sistema envia um aviso por e-mail a
-        quem está inscrito, inclusive a quem está na lista de espera. O endereço
-        IP de quem envia também fica registrado, por segurança.
+        <strong>Inscrição em eventos.</strong> A página de um evento gratuito
+        que ainda vai acontecer pode ter um formulário de inscrição (se o evento
+        pede o envio de um arquivo, está cancelado ou adiado, ou já passou, a
+        página não oferece o formulário). Ele pede nome, CPF, e-mail, telefone,
+        as respostas às perguntas daquele evento e, se você inscrever mais
+        pessoas, o nome, o CPF e as respostas de cada uma; o e-mail e o telefone
+        que você informa valem como contato de todas as pessoas da mesma
+        inscrição. Antes do envio, a página mostra o texto de consentimento e só
+        envia depois que você o aceita; a versão do texto fica registrada na
+        inscrição. Os dados vão para o sistema de gestão da ASAF, onde só vê
+        quem organiza os eventos (hoje, a Presidência e a Diretoria); o registro
+        técnico da inscrição, com o endereço IP, também aparece na Auditoria do
+        sistema, que o Conselho Fiscal consulta. Depois de enviar, a página
+        mostra o link da sua inscrição (para cancelar e, se você for chamado da
+        lista de espera, para confirmar a vaga) e, havendo vaga, o código de
+        check-in; o sistema também tenta enviar o mesmo por e-mail, mas esse
+        envio pode falhar: guarde o link da página. Quem se inscreve só para um
+        evento passa a constar do cadastro da ASAF como participante externo, e
+        isso não faz da pessoa uma associada; se você já tinha cadastro, o
+        contato que já estava nele é mantido, e é para esse contato que vão os
+        avisos seguintes, como o de uma vaga que abriu na lista de espera.
+        Quando a ASAF muda a situação do evento (cancela, adia, remarca ou volta
+        a programá-lo), o sistema tenta avisar por e-mail, no contato do
+        cadastro, quem está inscrito ou na lista de espera; a inscrição em si
+        não é cancelada pelo sistema. O endereço IP de quem envia, abre, cancela
+        ou confirma uma inscrição pelo link também fica registrado, por
+        segurança.
       </p>
       <p class="mt-3">
         Cada formulário informa, antes do envio, quais dados pede e para quê.

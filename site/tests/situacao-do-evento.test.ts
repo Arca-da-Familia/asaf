@@ -152,14 +152,15 @@ describe('avisoDaSituacao — o texto do aviso do topo da página do evento', ()
       selo: 'Adiado',
       frase: 'Este evento foi adiado. A nova data ainda não foi definida.',
       motivo: 'Motivo: Aguardando a prefeitura.',
-      complemento: 'As inscrições reabrem quando a nova data for definida.',
+      complemento:
+        'Enquanto estiver adiado, o evento não recebe novas inscrições; se voltar a ser programado, elas reabrem nesta página.',
     })
   })
 
   it('remarcado: diz a data anterior (dia e hora de Parauapebas) e o motivo, se houver', () => {
     const aviso = avisoDaSituacao({
       status: 'Programado',
-      data_hora_inicio_anterior: '2026-10-10T19:00:00',
+      data_hora_inicio_anterior: '2026-10-10T22:00:00',
       motivo_status: 'O espaço estava ocupado.',
     })
     expect(aviso).toEqual({
@@ -174,7 +175,7 @@ describe('avisoDaSituacao — o texto do aviso do topo da página do evento', ()
     expect(
       avisoDaSituacao({
         status: 'Programado',
-        data_hora_inicio_anterior: '2026-10-10T19:00:00',
+        data_hora_inicio_anterior: '2026-10-10T22:00:00',
       })!.motivo,
     ).toBeNull()
   })
@@ -221,7 +222,7 @@ describe('a inscrição quando o evento está parado', () => {
       'As inscrições estão encerradas porque o evento foi cancelado.',
     )
     expect(fraseDeInscricaoParada('Adiado')).toBe(
-      'As inscrições reabrem quando a nova data for definida.',
+      'Enquanto o evento estiver adiado, não recebemos novas inscrições.',
     )
     expect(fraseDeInscricaoParada('Realizado')).toBe(
       'As inscrições estão encerradas.',

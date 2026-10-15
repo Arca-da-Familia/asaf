@@ -109,8 +109,8 @@ describe('jsonLdEvento', () => {
     id_evento: 7,
     titulo: 'Encontro de Famílias',
     descricao: 'Tarde de convivência.',
-    data_hora_inicio: '2026-10-10T19:00:00',
-    data_hora_fim: '2026-10-10T21:30:00',
+    data_hora_inicio: '2026-10-10T22:00:00',
+    data_hora_fim: '2026-10-11T00:30:00',
     endereco_avulso: 'Salão Paroquial, Parauapebas',
     gratuito: true,
   }
@@ -174,8 +174,8 @@ describe('jsonLdEvento — a situação do evento', () => {
     id_evento: 7,
     titulo: 'Encontro de Famílias',
     descricao: null,
-    data_hora_inicio: '2026-10-10T19:00:00',
-    data_hora_fim: '2026-10-10T21:30:00',
+    data_hora_inicio: '2026-10-10T22:00:00',
+    data_hora_fim: '2026-10-11T00:30:00',
     endereco_avulso: null,
     gratuito: true,
   }
@@ -212,7 +212,7 @@ describe('jsonLdEvento — a situação do evento', () => {
       {
         ...base,
         status: 'Programado',
-        data_hora_inicio_anterior: '2026-10-03T19:00:00',
+        data_hora_inicio_anterior: '2026-10-03T22:00:00',
       },
       url,
     )
@@ -227,7 +227,7 @@ describe('jsonLdEvento — a situação do evento', () => {
       {
         ...base,
         status: 'Realizado',
-        data_hora_inicio_anterior: '2026-10-03T19:00:00',
+        data_hora_inicio_anterior: '2026-10-03T22:00:00',
       },
       url,
     )
@@ -244,7 +244,7 @@ describe('jsonLdEvento — a situação do evento', () => {
         {
           ...base,
           status,
-          data_hora_inicio_anterior: '2026-10-03T19:00:00',
+          data_hora_inicio_anterior: '2026-10-03T22:00:00',
         },
         url,
       )

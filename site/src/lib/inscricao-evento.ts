@@ -41,9 +41,9 @@ export const RESPOSTA_CURTA_MAXIMA = 200
 export const RESPOSTA_LONGA_MAXIMA = 2000
 
 export const AVISO_SEM_VAGAS =
-  'As vagas acabaram. Você pode se inscrever na lista de espera e será avisado por e-mail se uma vaga abrir.'
+  'As vagas acabaram. Você pode entrar na lista de espera: se uma vaga abrir, a pessoa chamada recebe um e-mail e tem um prazo para confirmar; sem confirmar, a vaga passa ao próximo.'
 export const AVISO_DA_LISTA_DE_ESPERA =
-  'Você será avisado(a) por e-mail se uma vaga abrir.'
+  'Se uma vaga abrir e chegar a sua vez, você recebe um e-mail e tem um prazo para confirmar; sem confirmar, a vaga passa ao próximo.'
 export const AVISO_DO_LINK =
   'Guarde este link: é por ele que você cancela ou confirma a sua vaga.'
 const FALHA_DO_CONSENTIMENTO =

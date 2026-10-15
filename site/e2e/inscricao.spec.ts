@@ -25,7 +25,7 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']
 const TEXTO_DO_CONSENTIMENTO =
   'Texto de teste do consentimento da inscrição (versão 3).\nSegunda linha do texto de teste.'
 const AVISO_SEM_VAGAS =
-  'As vagas acabaram. Você pode se inscrever na lista de espera e será avisado por e-mail se uma vaga abrir.'
+  'As vagas acabaram. Você pode entrar na lista de espera: se uma vaga abrir, a pessoa chamada recebe um e-mail e tem um prazo para confirmar; sem confirmar, a vaga passa ao próximo.'
 
 let contador = 0
 /** Um nome que só este teste usa: o mock guarda TODOS os corpos recebidos e o teste acha o seu pelo nome. */
@@ -449,7 +449,7 @@ test.describe('formulário de inscrição — evento gratuito com sessões e per
     const item = resultado(page).locator('li')
     await expect(item).toContainText('Situação: Lista de espera')
     await expect(item).toContainText(
-      'Você será avisado(a) por e-mail se uma vaga abrir.',
+      'Se uma vaga abrir e chegar a sua vez, você recebe um e-mail e tem um prazo para confirmar; sem confirmar, a vaga passa ao próximo.',
     )
     await expect(item.locator('[data-codigo]')).toHaveCount(0)
     await expect(item).not.toContainText('Código de check-in')
@@ -991,7 +991,7 @@ test.describe('inscrição em evento gratuito simples (evento 2) e com as vagas 
     const item = resultado(page).locator('li')
     await expect(item).toContainText('Situação: Lista de espera')
     await expect(item).toContainText(
-      'Você será avisado(a) por e-mail se uma vaga abrir.',
+      'Se uma vaga abrir e chegar a sua vez, você recebe um e-mail e tem um prazo para confirmar; sem confirmar, a vaga passa ao próximo.',
     )
     await expect(item.locator('[data-codigo]')).toHaveCount(0)
     await expect(item.getByRole('link')).toHaveAttribute(
@@ -1051,14 +1051,14 @@ test.describe('inscrição em evento gratuito simples (evento 2) e com as vagas 
 })
 
 test.describe('quando NÃO há formulário', () => {
-  test('evento com valor (3): a inscrição é com a secretaria, e a página diz que o evento tem inscrição com valor', async ({
+  test('evento com valor (3): manda falar com a secretaria, e a página diz que o evento tem inscrição com valor', async ({
     page,
   }) => {
     await page.goto('/eventos/3/')
     await expect(page.locator('form[data-inscricao-form]')).toHaveCount(0)
     const bloco = page.getByRole('region', { name: 'Como participar' })
     await expect(bloco).toContainText(
-      'Este evento tem inscrição com valor. A inscrição é feita com a secretaria',
+      'Este evento tem inscrição com valor, que o formulário do site ainda não cobra. Fale com a secretaria para saber como participar.',
     )
     await expect(bloco.getByRole('link', { name: /Ligar:/ })).toBeVisible()
     await expect(
@@ -1067,14 +1067,14 @@ test.describe('quando NÃO há formulário', () => {
     await semViolacoes(page)
   })
 
-  test('evento que pede um arquivo (9): "faça a inscrição com a secretaria", sem formulário', async ({
+  test('evento que pede um arquivo (9): manda falar com a secretaria, sem formulário', async ({
     page,
   }) => {
     await page.goto('/eventos/9/')
     await expect(page.locator('form[data-inscricao-form]')).toHaveCount(0)
     const bloco = page.getByRole('region', { name: 'Como participar' })
     await expect(bloco).toContainText(
-      'Este evento pede o envio de um arquivo; faça a inscrição com a secretaria.',
+      'Este evento pede o envio de um arquivo na inscrição, e o formulário do site ainda não recebe arquivos. Fale com a secretaria para saber como participar.',
     )
     await expect(bloco.getByRole('link', { name: /Ligar:/ })).toBeVisible()
     await semViolacoes(page)
@@ -1521,7 +1521,7 @@ test.describe('/confirmar-inscricao/', () => {
     await page.goto(confirmar('fixo-lista-de-espera'))
     await expect(
       page.getByText(
-        'Você ainda está na lista de espera; avisamos por e-mail quando uma vaga abrir.',
+        'Você ainda está na lista de espera. Se uma vaga abrir e chegar a sua vez, você recebe um e-mail e tem um prazo para confirmar.',
       ),
     ).toBeVisible()
     await expect(
@@ -1633,7 +1633,7 @@ test.describe('do formulário aos links (a jornada de quem se inscreve)', () => 
     await page.goto(confirmar(token))
     await expect(
       page.getByText(
-        'Você ainda está na lista de espera; avisamos por e-mail quando uma vaga abrir.',
+        'Você ainda está na lista de espera. Se uma vaga abrir e chegar a sua vez, você recebe um e-mail e tem um prazo para confirmar.',
       ),
     ).toBeVisible()
     await expect(

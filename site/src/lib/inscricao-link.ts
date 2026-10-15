@@ -170,7 +170,7 @@ export function explicacaoDaSituacao(
     return 'Este evento foi cancelado: não há o que confirmar.'
   if (modo === 'confirmar') {
     if (r.status === LISTA_DE_ESPERA)
-      return 'Você ainda está na lista de espera; avisamos por e-mail quando uma vaga abrir.'
+      return 'Você ainda está na lista de espera. Se uma vaga abrir e chegar a sua vez, você recebe um e-mail e tem um prazo para confirmar.'
     if (r.status === 'Confirmado') return 'A sua vaga está confirmada.'
     if (!r.pode_confirmar)
       return 'Não é possível confirmar esta inscrição por aqui. Fale com a secretaria.'

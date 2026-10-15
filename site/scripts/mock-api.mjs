@@ -52,11 +52,17 @@ const ORIGENS_PERMITIDAS = new Set([
 const agora = () =>
   process.env.MOCK_AGORA ? Date.parse(process.env.MOCK_AGORA) : Date.now()
 
-/** "AAAA-MM-DDT19:00:00" daqui a `dias` dias — formato sem fuso, como a API real devolve. */
+/**
+ * O instante, daqui a `dias` dias, em que são `hora` horas em Belém (UTC-3), no formato que a API real devolve: UTC, SEM fuso ("AAAA-MM-DDT22:00:00" para as 19h de Belém). É assim que o
+ * painel manda e o servidor guarda; o site converte de volta para Belém ao mostrar (até a v5.7 ele lia a hora crua como local e todo evento aparecia 3 horas depois do digitado).
+ */
 function dataLocal(dias, hora = 19) {
   const d = new Date(agora() + dias * 86_400_000)
   const dia = d.toISOString().slice(0, 10)
-  return `${dia}T${String(hora).padStart(2, '0')}:00:00`
+  const emBelem = Date.parse(
+    `${dia}T${String(hora).padStart(2, '0')}:00:00-03:00`,
+  )
+  return new Date(emBelem).toISOString().slice(0, 19)
 }
 
 const soData = (dias) => dataLocal(dias).slice(0, 10)
@@ -1231,8 +1237,7 @@ const INSCRICOES_FIXAS = {
 }
 
 const encerrado = (evento) =>
-  Date.parse(`${evento.data_hora_fim ?? evento.data_hora_inicio}-03:00`) <
-  agora()
+  Date.parse(`${evento.data_hora_fim ?? evento.data_hora_inicio}Z`) < agora()
 
 function inscricaoPorCodigo(codigo) {
   const criada = inscricoesPorCodigo.get(codigo)

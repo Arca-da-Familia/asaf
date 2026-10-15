@@ -17,6 +17,7 @@ from app.models.motores import LISTA_DE_ESPERA, PRE_INSCRITO, Inscricao
 from app.services import eventos as servico_eventos
 from app.services import status_do_evento as servico_status
 from app.services import vagas as servico_vagas
+from app.services.fuso import dia_em_belem
 from tests.test_eventos import _criar_evento
 from tests.test_eventos_inscricao_publica import _criar_evento_publico, _ip_de_teste, _payload_inscricao
 from tests.test_portaria import _emitir_token_portaria
@@ -206,7 +207,7 @@ def test_remarcar_guarda_a_data_de_antes_leva_a_programacao_e_avisa(client, auth
     publico = client.get(f"/api/publico/eventos/{id_evento}").json()
     assert publico["status"] == "Programado" and publico["motivo_status"] == "Espaço liberado" and publico["data_hora_inicio_anterior"].startswith(inicio.strftime("%Y-%m-%dT%H:%M"))
     assert len(emails) == 1 and emails[0][0] == "remarca@exemplo.org" and "REMARCADO" in emails[0][2]
-    assert nova.strftime("%d/%m/%Y") in emails[0][2] and inicio.strftime("%d/%m/%Y") in emails[0][2]
+    assert dia_em_belem(nova) in emails[0][2] and dia_em_belem(inicio) in emails[0][2], "o e-mail mostra o dia em Belém (o banco guarda UTC)"
 
 
 def test_adiado_volta_para_a_data_original_enquanto_ela_ainda_e_futura(client, auth_headers, monkeypatch, db):
@@ -375,3 +376,65 @@ def test_a_mudanca_de_status_fica_na_auditoria(client, auth_headers):
     achada = [e for e in entradas if e.get("acao") == "STATUS_ALTERADO" and e.get("id_registro_afetado") == id_evento]
     assert achada, entradas[:3]
     assert "Adiado" in str(achada[0]) and "Programado" in str(achada[0])
+
+
+# ---------------------------------------------------------------------------------------------------------------- achados da conferência independente da v5.5d
+def test_editar_o_cadastro_nao_troca_a_data_de_evento_com_inscritos(client, auth_headers, db):
+    inicio = (datetime.utcnow() + timedelta(days=10)).replace(microsecond=0)
+    id_evento = _criar_evento_publico(client, auth_headers, data_hora_inicio=inicio.strftime(_ISO), data_hora_fim=(inicio + timedelta(hours=2)).strftime(_ISO))
+    nova = (inicio + timedelta(days=3)).strftime(_ISO) + "Z"  # o painel manda a data com fuso
+    # com o fim antes do novo início, o servidor recusa (e a comparação não mistura data com fuso e sem fuso: antes isso dava erro 500)
+    r = client.put(f"/api/eventos/{id_evento}", json={"data_hora_inicio": nova}, headers=auth_headers)
+    assert r.status_code == 422 and "fim do evento" in r.json()["detail"], r.text
+    # sem inscritos, trocar a data pelo cadastro vale (ninguém a ser avisado)
+    r = client.put(f"/api/eventos/{id_evento}", json={"data_hora_inicio": nova, "data_hora_fim": (inicio + timedelta(days=3, hours=2)).strftime(_ISO) + "Z"}, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    assert _no_banco(db, id_evento).data_hora_inicio == inicio + timedelta(days=3)
+    # com inscritos, recusa e manda usar "Remarcar", que avisa e marca a data anterior
+    assert _inscrever(client, id_evento).status_code == 200
+    outra = (inicio + timedelta(days=6)).strftime(_ISO) + "Z"
+    r = client.put(f"/api/eventos/{id_evento}", json={"data_hora_inicio": outra, "data_hora_fim": (inicio + timedelta(days=6, hours=2)).strftime(_ISO) + "Z"}, headers=auth_headers)
+    assert r.status_code == 422 and "Remarcar" in r.json()["detail"], r.text
+    assert _no_banco(db, id_evento).data_hora_inicio == inicio + timedelta(days=3), "nada mudou"
+    # mexer em outro campo continua valendo, e mandar a MESMA data não é mudança
+    assert client.put(f"/api/eventos/{id_evento}", json={"descricao": "Nova descrição do evento"}, headers=auth_headers).status_code == 200
+    mesma = (inicio + timedelta(days=3)).strftime(_ISO) + "Z"
+    assert client.put(f"/api/eventos/{id_evento}", json={"data_hora_inicio": mesma, "descricao": "Outra descrição"}, headers=auth_headers).status_code == 200
+    # e pelo caminho certo funciona
+    r = _mudar(client, auth_headers, id_evento, "Programado", nova_data_hora_inicio=(inicio + timedelta(days=6)).strftime(_ISO))
+    assert r.status_code == 200, r.text
+
+
+def test_aumentar_o_limite_de_vagas_chama_a_lista_de_espera_antes_de_qualquer_inscricao_nova(client, auth_headers, monkeypatch, db):
+    emails = _emails(monkeypatch)
+    id_evento = _criar_evento_publico(client, auth_headers, vagas=1)
+    primeira = _inscrever(client, id_evento, email="primeira.fila@exemplo.org").json()
+    segunda = _inscrever(client, id_evento, email="segunda.fila@exemplo.org").json()
+    terceira = _inscrever(client, id_evento, email="terceira.fila@exemplo.org").json()
+    assert (primeira["status"], segunda["status"], terceira["status"]) == (PRE_INSCRITO, LISTA_DE_ESPERA, LISTA_DE_ESPERA)
+    emails.clear()
+    # 1 -> 2 vagas: a primeira da fila é chamada (e só ela); a terceira continua esperando
+    r = client.put(f"/api/eventos/{id_evento}", json={"vagas": 2}, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    db.expire_all()
+    estados = {i.id_inscricao: i.status for i in db.query(Inscricao).filter(Inscricao.contexto_tipo == "Evento", Inscricao.id_contexto == id_evento).all()}
+    assert estados[segunda["id_inscricao"]] == PRE_INSCRITO and estados[terceira["id_inscricao"]] == LISTA_DE_ESPERA
+    assert [e[0] for e in emails if "vaga abriu" in e[1].lower()] == ["segunda.fila@exemplo.org"]
+    assert _no_banco(db, id_evento).vagas_ocupadas == 2
+    # quem chega agora não passa na frente: o evento está cheio de novo, entra na fila atrás da terceira
+    quarta = _inscrever(client, id_evento, email="quarta.fila@exemplo.org").json()
+    assert quarta["status"] == LISTA_DE_ESPERA
+    # tirar o limite chama todo mundo que esperava
+    emails.clear()
+    r = client.put(f"/api/eventos/{id_evento}", json={"vagas": None}, headers=auth_headers)
+    assert r.status_code == 200, r.text
+    db.expire_all()
+    estados = {i.id_inscricao: i.status for i in db.query(Inscricao).filter(Inscricao.contexto_tipo == "Evento", Inscricao.id_contexto == id_evento).all()}
+    assert estados[terceira["id_inscricao"]] == PRE_INSCRITO and estados[quarta["id_inscricao"]] == PRE_INSCRITO
+    # diminuir ou não mexer no limite não chama ninguém
+    outro = _criar_evento_publico(client, auth_headers, vagas=1)
+    _inscrever(client, outro)
+    espera = _inscrever(client, outro).json()
+    assert client.put(f"/api/eventos/{outro}", json={"descricao": "Só a descrição muda"}, headers=auth_headers).status_code == 200
+    db.expire_all()
+    assert db.query(Inscricao).filter(Inscricao.id_inscricao == espera["id_inscricao"]).one().status == LISTA_DE_ESPERA

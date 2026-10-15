@@ -196,12 +196,12 @@ test.describe('página do evento ADIADO (11)', () => {
       `Motivo: ${MOTIVO_DO_ADIADO}`,
     )
     await expect(topo.locator('[data-situacao-complemento]')).toHaveText(
-      'As inscrições reabrem quando a nova data for definida.',
+      'Enquanto estiver adiado, o evento não recebe novas inscrições; se voltar a ser programado, elas reabrem nesta página.',
     )
     await expect(formulario(page)).toBeHidden()
     await expect(page.locator('[data-como-participar]')).toBeHidden()
     await expect(page.locator('[data-inscricoes-paradas]')).toHaveText(
-      'As inscrições reabrem quando a nova data for definida.',
+      'Enquanto o evento estiver adiado, não recebemos novas inscrições.',
     )
     await expect(page.locator('[data-vagas]')).toBeHidden()
   })
@@ -591,7 +591,7 @@ test.describe('a situação muda DEPOIS do build: a página acompanha ao vivo', 
     const topo = aviso(page, 'Adiado')
     await expect(topo).toBeVisible()
     await expect(topo.locator('[data-situacao-complemento]')).toHaveText(
-      'As inscrições reabrem quando a nova data for definida.',
+      'Enquanto estiver adiado, o evento não recebe novas inscrições; se voltar a ser programado, elas reabrem nesta página.',
     )
     await expect(formulario(page)).toBeHidden()
     await semViolacoes(page)
@@ -624,9 +624,9 @@ test.describe('a situação muda DEPOIS do build: a página acompanha ao vivo', 
     await mudarDetalheAoVivo(page, 11, {
       status: 'Programado',
       motivo_status: 'A prefeitura liberou o espaço.',
-      data_hora_inicio_anterior: '2030-05-04T19:00:00',
-      data_hora_inicio: '2030-06-08T18:30:00',
-      data_hora_fim: '2030-06-08T21:00:00',
+      data_hora_inicio_anterior: '2030-05-04T22:00:00',
+      data_hora_inicio: '2030-06-08T21:30:00',
+      data_hora_fim: '2030-06-09T00:00:00',
     })
     await page.goto('/eventos/11/')
     const topo = aviso(page, 'Programado')
@@ -653,18 +653,18 @@ test.describe('a situação muda DEPOIS do build: a página acompanha ao vivo', 
     page,
   }) => {
     await mudarDetalheAoVivo(page, 12, {
-      data_hora_inicio_anterior: '2030-05-04T19:00:00',
-      data_hora_inicio: '2030-06-08T18:30:00',
-      data_hora_fim: '2030-06-08T21:00:00',
+      data_hora_inicio_anterior: '2030-05-04T22:00:00',
+      data_hora_inicio: '2030-06-08T21:30:00',
+      data_hora_fim: '2030-06-09T00:00:00',
       sessoes: [
         {
           id_sessao: 121,
-          data_hora_inicio: '2030-06-08T18:30:00',
+          data_hora_inicio: '2030-06-08T21:30:00',
           vagas_livres: null,
         },
         {
           id_sessao: 122,
-          data_hora_inicio: '2030-06-08T19:45:00',
+          data_hora_inicio: '2030-06-08T22:45:00',
           vagas_livres: null,
         },
       ],
@@ -856,22 +856,25 @@ test.describe('o link do e-mail de quem está inscrito (cancelar e confirmar)', 
   })
 })
 
-test.describe('Política de Privacidade 1.7', () => {
-  test('mostra a versão 1.7 e o aviso por e-mail quando o evento é cancelado, adiado ou remarcado', async ({
+test.describe('Política de Privacidade 1.8', () => {
+  test('mostra a versão 1.8 e o aviso por e-mail quando a ASAF muda a situação do evento, sem prometer o cancelamento das inscrições', async ({
     page,
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 1.7 · em vigor desde 13 de outubro de 2026'),
+      page.getByText('Versão 1.8 · em vigor desde 15 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 1\.7, em vigor desde 13 de outubro de 2026/,
+        /Esta é a versão 1\.8, em vigor desde 15 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-inscricao-em-evento]')
     await expect(paragrafo).toContainText(
-      'Se o evento for cancelado, adiado ou remarcado, o sistema envia um aviso por e-mail a quem está inscrito, inclusive a quem está na lista de espera',
+      'Quando a ASAF muda a situação do evento (cancela, adia, remarca ou volta a programá-lo), o sistema tenta avisar por e-mail',
+    )
+    await expect(paragrafo).toContainText(
+      'a inscrição em si não é cancelada pelo sistema',
     )
     expect(await page.locator('main').innerText()).not.toContain('versão 1.6')
   })

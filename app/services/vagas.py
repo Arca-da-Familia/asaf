@@ -29,6 +29,7 @@ from app.services import inscricao as servico_inscricao
 from app.services import status_do_evento as servico_status_do_evento
 from app.services.site_publico import link_para_cancelar_inscricao, link_para_confirmar_inscricao
 from app.services import notificacoes
+from app.services.fuso import ROTULO_DO_FUSO, dia_e_hora_em_belem
 
 CATEGORIA_ASSOCIADO = "ASSOCIADO"
 CATEGORIA_COMUNIDADE_EXTERNA = "COMUNIDADE_EXTERNA"
@@ -200,7 +201,7 @@ def promover_proximo_da_espera(db: Session, *, contexto_tipo: str, id_contexto: 
                 pessoa.email_contato, assunto="Uma vaga abriu para você!",
                 corpo_texto=(
                     f"Uma vaga abriu na inscrição em que você estava na lista de espera.\n\n"
-                    f"Você tem até {proximo.prazo_confirmacao.strftime('%d/%m/%Y %H:%M')} (UTC) para confirmar - depois disso a vaga passa para o próximo da fila.\n\n"
+                    f"Você tem até {dia_e_hora_em_belem(proximo.prazo_confirmacao)} ({ROTULO_DO_FUSO}) para confirmar - depois disso a vaga passa para o próximo da fila.\n\n"
                     f"Para confirmar, acesse: {link_para_confirmar_inscricao(db, proximo.token_cancelamento)}\n"
                     f"Se não puder ir, cancele em: {link_para_cancelar_inscricao(db, proximo.token_cancelamento)}"
                 ),
@@ -209,6 +210,18 @@ def promover_proximo_da_espera(db: Session, *, contexto_tipo: str, id_contexto: 
         pass  # e-mail é conveniência, nunca trava a promoção em si (mesma decisão da v4.6)
 
     return proximo
+
+
+def promover_a_espera_apos_mudar_o_limite(db: Session, *, id_evento: int) -> int:
+    """v5.5d - a secretaria aumentou o limite de vagas do evento (ou tirou o limite): quem estava na lista de espera é chamado, na ordem, até encher de novo. Sem isto, quem se
+    inscrevesse DEPOIS passava na frente da fila. Com cota por categoria configurada, o limite do evento não manda (a cota é quem controla): nada a fazer aqui. Devolve quantos
+    foram chamados."""
+    if _existe_alguma_cota(db, contexto_tipo="Evento", id_contexto=id_evento):
+        return 0
+    chamados = 0
+    while promover_proximo_da_espera(db, contexto_tipo="Evento", id_contexto=id_evento, categoria_cota=None) is not None:
+        chamados += 1
+    return chamados
 
 
 def _reembolsar_inscricao_se_devido(db: Session, *, inscricao: Inscricao, contexto_tipo: str, id_contexto: int):
