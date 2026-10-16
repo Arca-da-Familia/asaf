@@ -111,12 +111,10 @@ def test_anonimizar_antes_do_prazo_e_recusado(client, auth_headers):
 
 def test_anonimizar_depois_do_prazo_apaga_dado_sensivel_mas_preserva_nome_e_matricula(client, auth_headers):
     associado = _criar_associado(client)
-    client.put(
-        f"/api/configuracoes/PRAZO_RETENCAO_DESLIGADO_DIAS", headers=auth_headers, json={"valor": "0"},
-    )
+    # o prazo é o de verdade (5 anos): desligado há mais que isso. A regra tem piso (um "0" na configuração não vale), então o teste não pode mais contar com ele.
     client.post(
         f"/api/associados/{associado['id_associado']}/desligar", headers=auth_headers,
-        json={"motivo": "PEDIDO_VOLUNTARIO", "data_efetiva": str(date.today() - timedelta(days=1))},
+        json={"motivo": "PEDIDO_VOLUNTARIO", "data_efetiva": str(date.today() - timedelta(days=2000))},
     )
     resposta = client.post(f"/api/associados/{associado['id_associado']}/anonimizar", headers=auth_headers)
     assert resposta.status_code == 200, resposta.text
@@ -130,12 +128,10 @@ def test_anonimizar_depois_do_prazo_apaga_dado_sensivel_mas_preserva_nome_e_matr
 
 
 def test_anonimizar_em_lote_processa_so_os_vencidos(client, auth_headers):
-    client.put(f"/api/configuracoes/PRAZO_RETENCAO_DESLIGADO_DIAS", headers=auth_headers, json={"valor": "0"})
-
     vencido = _criar_associado(client)
     client.post(
         f"/api/associados/{vencido['id_associado']}/desligar", headers=auth_headers,
-        json={"motivo": "PEDIDO_VOLUNTARIO", "data_efetiva": str(date.today() - timedelta(days=1))},
+        json={"motivo": "PEDIDO_VOLUNTARIO", "data_efetiva": str(date.today() - timedelta(days=2000))},
     )
     ainda_ativo = _criar_associado(client)
 
@@ -166,3 +162,19 @@ def test_endpoints_de_situacao_exigem_autenticacao(client):
     assert client.post(f"/api/associados/{associado_qualquer}/desligar", json={"motivo": "x", "data_efetiva": str(date.today())}).status_code == 401
     assert client.post(f"/api/associados/{associado_qualquer}/readmitir", json={}).status_code == 401
     assert client.post("/api/associados/anonimizar-vencidos").status_code == 401
+
+
+def test_o_botao_manual_tambem_respeita_o_piso_de_30_dias(client, auth_headers):
+    """Antes (achado da conferência independente), um "0" gravado em Configurações fazia o botão anonimizar quem tinha acabado de sair; agora vale o padrão de 5 anos."""
+    associado = _criar_associado(client)
+    antigo = client.get("/api/configuracoes/PRAZO_RETENCAO_DESLIGADO_DIAS", headers=auth_headers).json()["valor"]
+    try:
+        client.put("/api/configuracoes/PRAZO_RETENCAO_DESLIGADO_DIAS", headers=auth_headers, json={"valor": "0"})
+        client.post(
+            f"/api/associados/{associado['id_associado']}/desligar", headers=auth_headers,
+            json={"motivo": "PEDIDO_VOLUNTARIO", "data_efetiva": str(date.today() - timedelta(days=1))},
+        )
+        resposta = client.post(f"/api/associados/{associado['id_associado']}/anonimizar", headers=auth_headers)
+        assert resposta.status_code == 400 and "prazo de retenção" in resposta.json()["detail"]
+    finally:
+        client.put("/api/configuracoes/PRAZO_RETENCAO_DESLIGADO_DIAS", headers=auth_headers, json={"valor": antigo})

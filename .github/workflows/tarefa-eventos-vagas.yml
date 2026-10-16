@@ -81,6 +81,15 @@ jobs:
         if: always()
         run: PYTHONPATH=. python scripts/expirar_intencoes_de_doacao.py
 
+      # v5.7b - os PRAZOS DE GUARDA de dado pessoal (LGPD, arts. 15 e 16; Tabela de temporalidade do PLANO_PROJETO.md) são aplicados aqui: apaga ou anonimiza só o que JÁ passou do prazo de cada regra
+      # (Configurações > Regras do sistema). Cada regra tem a sua transação; se alguma falhar o passo FALHA (sai com 1), em vez de deixar o dado guardado sem ninguém saber.
+      #  O associado desligado perde também o ARQUIVO da foto (contêiner `fotos-associados`, onde a identidade do GitHub tem papel de dados só nesse contêiner e no `fotos-diretoria`).
+      - name: Aplicar os prazos de guarda de dados pessoais
+        if: always()
+        env:
+          ARMAZENAMENTO_BLOB_URL: https://stasafprivado.blob.core.windows.net
+        run: PYTHONPATH=. python scripts/aplicar_retencao_de_dados.py
+
       - name: Logout
         if: always()
         run: az logout || true

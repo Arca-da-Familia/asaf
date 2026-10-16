@@ -28,7 +28,8 @@ from app.services.notificacoes_painel import notificar, usuarios_com_permissao
 from app.services.pix import gerar_payload_pix
 
 # o texto do aviso de privacidade do formulário de doação tem versão: o site manda a versão que mostrou e o servidor recusa se o texto mudou
-VERSAO_AVISO_DE_PRIVACIDADE_DOACAO = "1"
+# versão 2 (2026-10-16): o aviso passou a dizer o prazo de guarda do pedido sem confirmação (a versão 1 dizia que não havia prazo para apagá-lo)
+VERSAO_AVISO_DE_PRIVACIDADE_DOACAO = "2"
 
 PERMISSAO_DA_TESOURARIA = "financeiro"
 JANELA_DO_DUPLO_CLIQUE = timedelta(hours=24)

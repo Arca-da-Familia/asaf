@@ -53,7 +53,7 @@ const pedido = (extra: Record<string, unknown> = {}) => ({
   nome_completo: 'Maria de Teste',
   email: 'maria@example.com',
   consentimento_lgpd: true,
-  versao_texto_consentimento: '1',
+  versao_texto_consentimento: '2',
   pagina_web: '',
   ...extra,
 })
@@ -139,7 +139,7 @@ describe('mock — GET /api/publico/doacao', () => {
       chave_pix: CHAVE_PIX_DE_TESTE,
       beneficiario: BENEFICIARIO_DE_TESTE,
       cidade: CIDADE_DE_TESTE,
-      versao_aviso_de_privacidade: '1',
+      versao_aviso_de_privacidade: '2',
       dias_de_validade_do_pedido: 15,
     })
     expect(corpo.campanhas).toHaveLength(3)
