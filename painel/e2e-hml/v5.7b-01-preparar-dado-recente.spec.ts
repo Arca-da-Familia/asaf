@@ -75,7 +75,7 @@ test('prepara dado RECENTE (um pedido da fila e um pedido de doação) para prov
         nome_completo: nome,
         email_contato: `retencao.${RODADA}@homologacao.example.com`,
         consentimento_lgpd: true,
-        versao_texto_consentimento: '1',
+        versao_texto_consentimento: '2',
       },
     },
   )

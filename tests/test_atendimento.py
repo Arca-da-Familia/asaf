@@ -226,6 +226,35 @@ def test_e_mail_repetido_em_duas_pessoas_nao_adivinha_quem_e(client, db):
     assert db.query(Atendimento).filter(Atendimento.protocolo == protocolo).one().id_pessoa is None
 
 
+def test_o_pedido_de_voluntariado_nunca_liga_a_pessoa_pelo_e_mail_so_pelo_cpf(client, db):
+    """Achado do Ponto de Revisão da FASE 5: ligado à pessoa pelo e-mail, o painel pulava o cadastro e abria o termo de adesão no nome DELA (o filho que escreve com o e-mail da mãe). O
+    e-mail único ainda liga os outros tipos de pedido (só informa); o voluntariado só liga pelo CPF."""
+    from app.models.pessoas import Pessoa
+
+    email = f"mae.{uuid.uuid4().hex[:8]}@example.com"
+    mae = Pessoa(nome_completo="Mãe Cadastrada", email_contato=email)
+    db.add(mae)
+    db.commit()
+    voluntario = _enviar_voluntario(client, email_contato=email).json()["protocolo"]
+    contato = _enviar(client, email_contato=email).json()["protocolo"]
+    assert db.query(Atendimento).filter(Atendimento.protocolo == voluntario).one().id_pessoa is None, "voluntariado: o e-mail não liga"
+    assert db.query(Atendimento).filter(Atendimento.protocolo == contato).one().id_pessoa == mae.id_pessoa, "contato: o e-mail único continua ligando"
+
+    cpf = _cpf_valido()
+    com_cpf = Pessoa(nome_completo="Quem Tem CPF", cpf=cpf)
+    db.add(com_cpf)
+    db.commit()
+    pelo_cpf = _enviar_voluntario(client, cpf=cpf).json()["protocolo"]
+    assert db.query(Atendimento).filter(Atendimento.protocolo == pelo_cpf).one().id_pessoa == com_cpf.id_pessoa, "o CPF liga, como sempre"
+
+
+def test_o_aviso_de_privacidade_do_atendimento_esta_na_versao_2_e_a_versao_antiga_e_recusada(client):
+    assert servico.VERSAO_AVISO_DE_PRIVACIDADE_ATENDIMENTO == "2"
+    velho = _enviar(client, versao_texto_consentimento="1")
+    assert velho.status_code == 422 and "recarregue" in velho.json()["detail"]
+    assert _enviar(client).status_code == 200
+
+
 # ------------------------------------------------------------------------------------------ a fila no painel
 def test_a_fila_pede_login_e_a_permissao_propria(client, db):
     ids = [client.get(rota) for rota in ("/api/atendimentos/", "/api/atendimentos/resumo", "/api/atendimentos/1")]

@@ -26,7 +26,7 @@ from app.services import notificacoes
 from app.services.notificacoes_painel import notificar, usuarios_com_permissao
 
 # o texto do aviso de privacidade dos formulários de atendimento tem versão: o site manda a versão que mostrou e o servidor recusa se o texto mudou
-VERSAO_AVISO_DE_PRIVACIDADE_ATENDIMENTO = "1"
+VERSAO_AVISO_DE_PRIVACIDADE_ATENDIMENTO = "2"  # 2 (2026-10-16): o aviso do voluntariado diz que a oferta aceita vira cadastro de voluntário (nome, CPF se informado, contato, data de nascimento)
 
 PERMISSAO_DA_FILA = "atendimento"
 LIMITE_DA_MENSAGEM = 4000
@@ -104,7 +104,8 @@ def _impressao(tipo: str, subtipo: Optional[str], chave: Optional[str], assunto:
 
 
 def _pessoa_do_remetente(db: Session, cpf: Optional[str], email: Optional[str]) -> Optional[int]:
-    """A pessoa do cadastro (a mesma deduplicação dos demais formulários): pelo CPF; sem CPF, pelo e-mail, mas só se for UMA pessoa (e-mail repetido não adivinha)."""
+    """A pessoa do cadastro (a mesma deduplicação dos demais formulários): pelo CPF; sem CPF, pelo e-mail, mas só se for UMA pessoa (e-mail repetido não adivinha). O pedido de
+    VOLUNTARIADO nunca passa o e-mail aqui (ver `registrar_pelo_site`): ligado à pessoa, o painel pula o cadastro e vai direto ao termo de adesão DAQUELA pessoa."""
     if cpf:
         pessoa = db.query(Pessoa).filter(Pessoa.cpf == _so_digitos(cpf)).first()
         return pessoa.id_pessoa if pessoa else None
@@ -156,7 +157,7 @@ def registrar_pelo_site(
     atendimento = Atendimento(
         protocolo=f"TMP-{uuid.uuid4().hex[:20]}", tipo=tipo, subtipo=subtipo, assunto=assunto, mensagem=mensagem,
         nome_completo=nome_completo, email_contato=email, telefone_whatsapp=telefone, cpf=_so_digitos(cpf) or None,
-        data_nascimento=datetime.combine(data_nascimento, datetime.min.time()) if data_nascimento else None, id_pessoa=_pessoa_do_remetente(db, cpf, email), chave_remetente=chave, impressao_do_pedido=impressao, origem="site",
+        data_nascimento=datetime.combine(data_nascimento, datetime.min.time()) if data_nascimento else None, id_pessoa=_pessoa_do_remetente(db, cpf, None if tipo == VOLUNTARIO else email), chave_remetente=chave, impressao_do_pedido=impressao, origem="site",
         consentimento_lgpd_em=agora, consentimento_lgpd_versao=versao_do_aviso, status=NOVO, prazo_dias=dias, prazo_em=agora + timedelta(days=dias),
         id_responsavel=responsavel_padrao(db), criado_em=agora,
     )

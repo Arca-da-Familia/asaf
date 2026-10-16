@@ -219,7 +219,7 @@ test.describe('formulários de atendimento', () => {
         )
         // o aviso de privacidade, com o texto da versão 1 e os links certos para o tipo
         const aviso = page.locator(`#${f.idDoFormulario}-aviso`)
-        await expect(aviso).toContainText('Aviso de privacidade (versão 1)')
+        await expect(aviso).toContainText('Aviso de privacidade (versão 2)')
         await expect(aviso).toContainText(
           'Usamos o que você escrever aqui só para responder ao seu pedido. Quem lê o seu pedido é quem atende na associação (hoje, a Presidência e a Diretoria). Guardamos o pedido, o protocolo e a nossa resposta para provar que atendemos no prazo.',
         )
@@ -344,7 +344,7 @@ test.describe('formulários de atendimento', () => {
           telefone_whatsapp: '91988887777',
           mensagem: 'Gostaria de saber mais sobre os projetos da associação.',
           consentimento_lgpd: true,
-          versao_texto_consentimento: '1',
+          versao_texto_consentimento: '2',
           pagina_web: '',
         })
         if (f.tipo === 'TITULAR_LGPD') {
@@ -934,4 +934,27 @@ test.describe('as páginas dos formulários', () => {
       await contexto.close()
     })
   }
+})
+
+test.describe('o aviso de privacidade do voluntariado (versão 2)', () => {
+  test('só o formulário de voluntariado diz que a oferta aceita vira cadastro de voluntário', async ({
+    page,
+  }) => {
+    await page.goto('/seja-voluntario/')
+    const aviso = page.locator('[data-aviso-do-voluntariado]')
+    await expect(aviso).toBeVisible()
+    await expect(aviso).toContainText(
+      'a secretaria cadastra você como voluntário(a)',
+    )
+    await expect(aviso).toContainText('o CPF (se você informar)')
+    await expect(aviso).toContainText('a data de nascimento')
+    for (const caminho of [
+      '/contato/',
+      '/transparencia/pedido-de-informacao/',
+      '/privacidade/solicitacao-do-titular/',
+    ]) {
+      await page.goto(caminho)
+      await expect(page.locator('[data-aviso-do-voluntariado]')).toHaveCount(0)
+    }
+  })
 })

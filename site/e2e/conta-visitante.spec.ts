@@ -470,6 +470,16 @@ test.describe('a Política de Privacidade', () => {
       trecho.getByRole('link', { name: 'Minha conta' }),
     ).toHaveAttribute('href', '/minha-conta/')
     await expect(page.locator('[data-prazos-de-guarda] > li')).toHaveCount(7)
+    // a Política não pode dizer que o site não guarda nada no navegador: a sessão da conta fica no `sessionStorage` da aba
+    const dados = page.locator('[data-cookies-e-dados]')
+    await expect(dados).toContainText('Este site não instala cookies.')
+    await expect(dados).toContainText(
+      'a sessão de até 60 minutos, só naquela aba',
+    )
+    await expect(dados).not.toContainText('nem guarda dados no seu navegador')
+    await expect(
+      dados.getByRole('link', { name: 'Minha conta' }),
+    ).toHaveAttribute('href', '/minha-conta/')
   })
 })
 

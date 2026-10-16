@@ -200,9 +200,18 @@ const direitos = [
           escolhe para gerar o código Pix vão na consulta, mas nenhum dado
           pessoal informado por você é enviado.
         </li>
-        <li>
+        <li data-cookies-e-dados>
           <strong>Cookies e dados no navegador.</strong> Este site não instala
-          cookies nem guarda dados no seu navegador. A{' '}
+          cookies. Só a página{' '}
+          <a
+            href="/minha-conta/"
+            class="font-medium text-primary underline underline-offset-4"
+          >
+            Minha conta
+          </a>{' '}
+          guarda um dado no seu navegador: a sessão de até 60 minutos, só
+          naquela aba (o botão Sair a apaga; ela nunca vai para o endereço da
+          página nem para um cookie). A{' '}
           <a
             href={PAINEL_URL}
             class="font-medium text-primary underline underline-offset-4"
