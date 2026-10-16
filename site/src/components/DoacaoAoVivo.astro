@@ -1,0 +1,493 @@
+---
+import { API_URL } from '../config/organizacao'
+import { organizacaoDoSite } from '../lib/dados-publicos'
+
+// A parte da página de doação que muda sem novo publicar do site (v5.6a): as campanhas, o quanto cada uma já recebeu e se a doação pelo site está aberta (a chave Pix só vai para o site
+// depois que a Presidência a marca em Instituição). Tudo isso é buscado na API NO NAVEGADOR (`src/lib/doacao-vivo.ts`); o HTML sai pronto do build, com as caixas de cada estado
+// (carregando, erro, indisponível, pronto) e os dois formulários escondidos até a API responder. A chave Pix, o beneficiário e o código NUNCA são escritos aqui: vêm da API.
+// Cada campo tem rótulo, dica e mensagem de erro ligadas por `aria-describedby`; os ids são fixos porque a página tem uma doação só.
+
+// os dados da associação como o site os mostra: os fixos, com o que a Instituição do painel marcou "vai para o site" por cima (v5.4h)
+const ORGANIZACAO = await organizacaoDoSite()
+
+const campo =
+  'h-11 w-full rounded-md border bg-background px-3 text-base aria-[invalid=true]:border-destructive'
+const erro = 'mt-1 text-sm font-medium text-destructive'
+const dica = 'mt-1 text-sm text-muted-foreground'
+const link = 'font-medium text-primary underline underline-offset-4'
+const botao =
+  'rounded-md bg-primary px-6 py-3 font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60'
+const botaoClaro = 'rounded-md border px-5 py-3 font-medium hover:bg-accent'
+const caixa = 'rounded-lg border bg-card p-6 shadow-card sm:p-8'
+const caixaDeFalha =
+  'rounded-md border border-destructive bg-background p-3 font-medium text-destructive'
+---
+
+<section
+  id="doar-agora"
+  aria-labelledby="doar-agora-titulo"
+  class="scroll-mt-4"
+>
+  <h2 id="doar-agora-titulo" class="text-2xl font-bold tracking-tight">
+    Doar agora
+  </h2>
+  <noscript>
+    <p class="mt-3 font-medium" data-sem-javascript>
+      Para ver as campanhas e o código Pix por esta página é preciso ativar o
+      JavaScript do navegador. Se preferir, ligue ou escreva para a associação:
+      o telefone e o e-mail estão no rodapé desta página.
+    </p>
+  </noscript>
+
+  <div
+    data-doacao-vivo
+    data-api-url={API_URL}
+    aria-busy="true"
+    class="mt-6 grid gap-10"
+  >
+    <p data-estado="carregando" class="text-muted-foreground">
+      Carregando as formas de doar…
+    </p>
+
+    <div data-estado="erro" hidden role="alert" class={`${caixa} max-w-2xl`}>
+      <p class="font-medium">
+        Não conseguimos carregar as formas de doar agora. Tente de novo em
+        alguns instantes.
+      </p>
+      <p class="mt-4">
+        <button type="button" data-tentar-de-novo class={botao}>
+          Tentar de novo
+        </button>
+      </p>
+      <p class="mt-4">
+        Se preferir, fale com a secretaria: ligue para{' '}
+        <a href={ORGANIZACAO.telefoneLink} class={link}>
+          {ORGANIZACAO.telefone}
+        </a>{' '}
+        ou escreva para{' '}
+        <a href={`mailto:${ORGANIZACAO.email}`} class={link}>
+          {ORGANIZACAO.email}
+        </a>
+        .
+      </p>
+    </div>
+
+    <div data-estado="indisponivel" hidden class={`${caixa} max-w-2xl`}>
+      <h3 class="text-lg font-bold">
+        A doação pelo site ainda não está disponível
+      </h3>
+      <p class="mt-3">
+        Para doar, fale com a secretaria: ligue para{' '}
+        <a href={ORGANIZACAO.telefoneLink} class={link}>
+          {ORGANIZACAO.telefone}
+        </a>{' '}
+        ou escreva para{' '}
+        <a href={`mailto:${ORGANIZACAO.email}`} class={link}>
+          {ORGANIZACAO.email}
+        </a>
+        . Esta página mostra as formas de doar assim que a associação as abrir.
+      </p>
+    </div>
+
+    <div data-estado="pronto" hidden class="grid gap-10">
+      <section aria-labelledby="campanhas-titulo" data-secao-campanhas>
+        <h3 id="campanhas-titulo" class="text-xl font-bold tracking-tight">
+          Campanhas em andamento
+        </h3>
+        <p data-sem-campanhas hidden class="mt-3 max-w-3xl">
+          No momento não há nenhuma campanha em andamento. Você pode doar para a
+          associação, sem campanha.
+        </p>
+        <ul data-campanhas class="mt-4 grid gap-4 sm:grid-cols-2"></ul>
+        <p
+          data-nota-recebido
+          hidden
+          class="mt-4 max-w-3xl text-sm text-muted-foreground"
+        >
+          “Já recebido” conta só as doações em dinheiro que a tesouraria já
+          conferiu e registrou no sistema. Um Pix que acabou de ser pago só
+          entra nessa conta depois que a tesouraria o confere e o registra.
+        </p>
+      </section>
+
+      <section aria-labelledby="anonima-titulo" class={caixa}>
+        <h3 id="anonima-titulo" class="text-xl font-bold tracking-tight">
+          Doar sem se identificar
+        </h3>
+        <p class="mt-3 max-w-3xl">
+          Escolha para onde vai a sua doação e, se quiser, o valor. Em seguida o
+          site mostra o código Pix e o QR Code. Não pedimos nenhum dado seu.
+        </p>
+        <form
+          id="doar-anonima"
+          data-doacao-anonima
+          novalidate
+          class="mt-6 grid max-w-2xl gap-5"
+        >
+          <div>
+            <label
+              for="doar-anonima-campanha"
+              class="block text-sm font-medium"
+            >
+              Para onde vai a sua doação
+            </label>
+            <select
+              id="doar-anonima-campanha"
+              name="id_campanha"
+              data-campo-campanha
+              aria-describedby="doar-anonima-erro-campanha"
+              class={`mt-1 ${campo}`}
+            >
+              <option value="">Para a associação, sem campanha</option>
+            </select>
+            <p
+              id="doar-anonima-erro-campanha"
+              data-erro="id_campanha"
+              hidden
+              class={erro}
+            ></p>
+          </div>
+          <div>
+            <label for="doar-anonima-valor" class="block text-sm font-medium">
+              Valor (opcional)
+            </label>
+            <input
+              id="doar-anonima-valor"
+              name="valor"
+              type="text"
+              inputmode="decimal"
+              autocomplete="off"
+              aria-describedby="doar-anonima-dica-valor doar-anonima-erro-valor"
+              class={`mt-1 ${campo}`}
+            />
+            <p id="doar-anonima-dica-valor" class={dica}>
+              Se deixar em branco, você digita o valor no aplicativo do seu
+              banco. Exemplo: 50 ou 25,50.
+            </p>
+            <p
+              id="doar-anonima-erro-valor"
+              data-erro="valor"
+              hidden
+              class={erro}
+            ></p>
+          </div>
+          <p
+            data-falha-do-envio
+            role="alert"
+            tabindex="-1"
+            hidden
+            class={caixaDeFalha}
+          ></p>
+          <div>
+            <button type="submit" data-enviar class={botao}>
+              Mostrar o código Pix
+            </button>
+          </div>
+        </form>
+        <div
+          data-resultado-anonimo
+          tabindex="-1"
+          hidden
+          class="mt-6 max-w-2xl rounded-md border bg-background p-5"
+        >
+          <p class="font-medium">
+            Pronto. Pague pelo aplicativo do seu banco. Como você não se
+            identificou, o site não guarda nada sobre você e não manda recibo.
+          </p>
+          <div data-painel class="mt-5"></div>
+        </div>
+      </section>
+
+      <section aria-labelledby="identificada-titulo" class={caixa}>
+        <h3 id="identificada-titulo" class="text-xl font-bold tracking-tight">
+          Quero me identificar
+        </h3>
+        <p class="mt-3 max-w-3xl">
+          Informe os seus dados e receba um protocolo e o código Pix. Depois que
+          a tesouraria encontrar o seu Pix no extrato do banco e confirmar, a
+          doação passa a constar no sistema e o recibo numerado é emitido. Nome
+          completo e e-mail são obrigatórios; CPF e valor são opcionais.
+        </p>
+        <form
+          id="doar-identificada"
+          data-doacao-identificada
+          novalidate
+          class="relative mt-6 grid max-w-2xl gap-5"
+        >
+          <p data-resumo-de-erros role="alert" hidden class={caixaDeFalha}></p>
+
+          <div>
+            <label
+              for="doar-identificada-nome"
+              class="block text-sm font-medium"
+            >
+              Nome completo
+            </label>
+            <input
+              id="doar-identificada-nome"
+              name="nome_completo"
+              type="text"
+              autocomplete="name"
+              aria-describedby="doar-identificada-erro-nome"
+              class={`mt-1 ${campo}`}
+            />
+            <p
+              id="doar-identificada-erro-nome"
+              data-erro="nome_completo"
+              hidden
+              class={erro}
+            ></p>
+          </div>
+
+          <div>
+            <label
+              for="doar-identificada-email"
+              class="block text-sm font-medium"
+            >
+              E-mail
+            </label>
+            <input
+              id="doar-identificada-email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              aria-describedby="doar-identificada-dica-email doar-identificada-erro-email"
+              class={`mt-1 ${campo}`}
+            />
+            <p id="doar-identificada-dica-email" class={dica}>
+              Tentamos mandar para este e-mail o protocolo, o código Pix e,
+              depois da confirmação, o recibo.
+            </p>
+            <p
+              id="doar-identificada-erro-email"
+              data-erro="email"
+              hidden
+              class={erro}
+            ></p>
+          </div>
+
+          <div>
+            <label
+              for="doar-identificada-cpf"
+              class="block text-sm font-medium"
+            >
+              CPF (opcional)
+            </label>
+            <input
+              id="doar-identificada-cpf"
+              name="cpf"
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+              aria-describedby="doar-identificada-dica-cpf doar-identificada-erro-cpf"
+              class={`mt-1 ${campo}`}
+            />
+            <p id="doar-identificada-dica-cpf" class={dica}>
+              Só os números, ou com pontos e traço. Se você informar, o CPF
+              aparece no recibo.
+            </p>
+            <p
+              id="doar-identificada-erro-cpf"
+              data-erro="cpf"
+              hidden
+              class={erro}
+            ></p>
+          </div>
+
+          <div>
+            <label
+              for="doar-identificada-campanha"
+              class="block text-sm font-medium"
+            >
+              Para onde vai a sua doação
+            </label>
+            <select
+              id="doar-identificada-campanha"
+              name="id_campanha"
+              data-campo-campanha
+              aria-describedby="doar-identificada-erro-campanha"
+              class={`mt-1 ${campo}`}
+            >
+              <option value="">Para a associação, sem campanha</option>
+            </select>
+            <p
+              id="doar-identificada-erro-campanha"
+              data-erro="id_campanha"
+              hidden
+              class={erro}
+            ></p>
+          </div>
+
+          <div>
+            <label
+              for="doar-identificada-valor"
+              class="block text-sm font-medium"
+            >
+              Valor (opcional)
+            </label>
+            <input
+              id="doar-identificada-valor"
+              name="valor"
+              type="text"
+              inputmode="decimal"
+              autocomplete="off"
+              aria-describedby="doar-identificada-dica-valor doar-identificada-erro-valor"
+              class={`mt-1 ${campo}`}
+            />
+            <p id="doar-identificada-dica-valor" class={dica}>
+              Se deixar em branco, você digita o valor no aplicativo do seu
+              banco. Exemplo: 50 ou 25,50. Vale o valor que a tesouraria
+              encontrar no extrato.
+            </p>
+            <p
+              id="doar-identificada-erro-valor"
+              data-erro="valor"
+              hidden
+              class={erro}
+            ></p>
+          </div>
+
+          <div
+            class="rounded-md border bg-background p-4 text-sm"
+            id="doar-identificada-aviso"
+          >
+            <p class="font-medium">
+              Aviso de privacidade (versão <span data-versao-do-aviso></span>)
+            </p>
+            <p class="mt-2">
+              Vamos guardar o seu nome, o seu e-mail, o CPF (se você informar),
+              o valor e a campanha que escolheu, o seu aceite deste aviso e o
+              endereço de internet (IP) de onde veio o pedido. Usamos esses
+              dados só para conferir o seu Pix no extrato do banco da associação
+              e emitir o recibo, que tentamos enviar por e-mail. Quem confere é
+              a tesouraria da associação. Se ninguém confirmar o pedido, ele
+              continua guardado no sistema: hoje não há prazo para apagá-lo.
+              Para saber mais, ou para pedir que apaguemos os seus dados, leia a{' '}
+              <a href="/privacidade/#doacao-pelo-site" class={link}>
+                Política de Privacidade
+              </a>{' '}
+              ou use a{' '}
+              <a href="/privacidade/solicitacao-do-titular/" class={link}>
+                solicitação do titular de dados
+              </a>
+              .
+            </p>
+          </div>
+
+          <div>
+            <label class="flex items-start gap-3 text-sm font-medium">
+              <input
+                name="consentimento_lgpd"
+                type="checkbox"
+                aria-describedby="doar-identificada-aviso doar-identificada-erro-consentimento"
+                class="mt-1 h-5 w-5 shrink-0"
+              />
+              <span>Li e aceito o aviso de privacidade.</span>
+            </label>
+            <p
+              id="doar-identificada-erro-consentimento"
+              data-erro="consentimento_lgpd"
+              hidden
+              class={erro}
+            ></p>
+          </div>
+
+          <!-- Armadilha para robôs: ninguém vê nem preenche; quem preenche é descartado pela API sem aviso. -->
+          <div
+            aria-hidden="true"
+            class="absolute -left-[9999px] h-px w-px overflow-hidden"
+          >
+            <label>
+              Não preencha este campo
+              <input
+                type="text"
+                name="pagina_web"
+                tabindex="-1"
+                autocomplete="off"
+              />
+            </label>
+          </div>
+
+          <p
+            data-falha-do-envio
+            role="alert"
+            tabindex="-1"
+            hidden
+            class={caixaDeFalha}
+          ></p>
+
+          <div>
+            <button type="submit" data-enviar class={botao}>
+              Enviar e ver o código Pix
+            </button>
+          </div>
+        </form>
+
+        <div
+          data-confirmacao-identificada
+          role="status"
+          tabindex="-1"
+          hidden
+          class="mt-6 max-w-2xl rounded-md border bg-background p-5"
+        >
+          <h4 class="text-lg font-bold">Recebemos o seu pedido.</h4>
+          <div data-bloco-do-protocolo hidden class="mt-3">
+            <p class="text-lg">
+              Protocolo:
+              <strong
+                data-protocolo
+                class="ml-1 inline-block select-all whitespace-nowrap rounded-md border-2 border-primary px-2 py-1 text-xl tracking-wide"
+              ></strong>
+            </p>
+            <p class="mt-3 flex flex-wrap items-center gap-3">
+              <button type="button" data-copiar-protocolo class={botaoClaro}>
+                Copiar o protocolo
+              </button>
+              <span
+                role="status"
+                data-aviso-da-copia-do-protocolo
+                class="text-sm font-medium"
+              ></span>
+            </p>
+            <p class="mt-3 font-medium">Guarde este número.</p>
+          </div>
+          <div
+            data-aviso-de-pagamento
+            hidden
+            class="mt-4 rounded-md border-2 border-primary p-4"
+          >
+            <p class="font-medium">Ainda falta pagar.</p>
+            <p class="mt-2">
+              O pedido não é uma doação: o dinheiro só sai da sua conta quando
+              você paga o Pix, pelo aplicativo do seu banco. A doação só passa a
+              constar no sistema depois que a tesouraria da ASAF encontrar o seu
+              Pix no extrato do banco e confirmar. Isso não é instantâneo e não
+              há prazo prometido.
+            </p>
+          </div>
+          <p data-validade hidden class="mt-3"></p>
+          <p data-aviso-do-vencimento hidden class="mt-3">
+            Passado esse prazo, o pedido fica marcado como “prazo vencido”, mas,
+            se você tiver pago, a tesouraria ainda pode confirmá-lo.
+          </p>
+          <p data-aviso-do-email hidden class="mt-3">
+            Se o e-mail chegar, ele traz o protocolo e o código Pix. O envio
+            pode falhar: guarde o protocolo e o código desta página. Depois da
+            confirmação, o sistema tenta mandar o recibo para o e-mail que você
+            informou; se pagou e não recebeu o recibo em alguns dias, fale com a
+            secretaria, citando o protocolo.
+          </p>
+          <div data-painel class="mt-5"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { iniciarDoacao } from '../lib/doacao-vivo'
+
+  document
+    .querySelectorAll<HTMLElement>('[data-doacao-vivo]')
+    .forEach((raiz) => void iniciarDoacao(raiz))
+</script>

@@ -55,6 +55,7 @@ export const GRUPOS_DO_RODAPE: GrupoDoRodape[] = [
     titulo: 'Participe',
     itens: [
       { rotulo: 'Como ajudar', href: '/como-ajudar/' },
+      { rotulo: 'Doar', href: '/como-ajudar/doar/' },
       { rotulo: 'Seja associado', href: '/seja-associado/' },
       { rotulo: 'Seja voluntário', href: '/seja-voluntario/' },
       { rotulo: 'Contato', href: '/contato/' },

@@ -14,7 +14,8 @@
 @media (scripting: none) {
   [data-eventos],
   [data-filiacao-form],
-  [data-atendimento-form] {
+  [data-atendimento-form],
+  [data-doacao-vivo] {
     display: none;
   }
 }

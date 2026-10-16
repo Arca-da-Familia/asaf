@@ -5,6 +5,8 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 
+import { criarServidor } from './mock-api.mjs'
+
 const construcao = spawnSync('node', ['scripts/build-teste.mjs', '--vazio'], {
   stdio: 'inherit',
 })
@@ -528,11 +530,106 @@ exigir(
   'foto adulterada: a contagem da Diretoria devia continuar 3',
 )
 
+// v5.6a - a página de DOAÇÃO é estática e existe com a API sem nenhum dado (a produção de hoje: sem chave Pix e sem campanha) e com a API antiga (que ainda não tem as rotas da
+// doação). O que muda sem novo publicar (a chave Pix, o beneficiário, as campanhas, o quanto cada uma recebeu e se a doação pelo site está aberta) NUNCA é escrito na página: vem da API,
+// no navegador. Aqui: a página traz a explicação honesta, as caixas de cada estado e o contato; nenhum dado ao vivo; está no sitemap; a Política é a 2.0 com o parágrafo da doação.
+for (const [rotulo, ler, pasta] of [
+  ['vazio', lerPagina, 'dist-vazio'],
+  ['API antiga', lerAntiga, 'dist-antiga'],
+]) {
+  const caminho = '/como-ajudar/doar/'
+  if (!existsSync(`${pasta}${caminho}index.html`)) {
+    exigir(false, `${rotulo}: ${caminho} não foi gerada`)
+    continue
+  }
+  const html = ler(caminho)
+  for (const marca of [
+    'data-doacao-vivo',
+    'data-estado="carregando"',
+    'data-estado="erro"',
+    'data-estado="indisponivel"',
+    'data-estado="pronto"',
+    'data-tentar-de-novo',
+    'name="pagina_web"',
+    'Nada avisa o sistema quando você paga',
+    'Não é instantâneo, e não há prazo prometido.',
+    'não constitui, por si só, declaração de dedutibilidade fiscal',
+    'A doação pelo site ainda não está disponível',
+  ])
+    exigir(html.includes(marca), `${rotulo}: ${caminho} sem "${marca}"`)
+  exigir(
+    !/123e4567|ASAF TESTE|PARAUAPEBAS|Campanha de teste|R\$\s*\d|DOA-\d{4}-\d/.test(
+      html,
+    ),
+    `${rotulo}: ${caminho} traz dado ao vivo (chave Pix, beneficiário, campanha, valor ou protocolo) escrito na página`,
+  )
+  exigir(
+    !html.includes('copia_e_cola') && !html.includes('00020126'),
+    `${rotulo}: ${caminho} traz um código Pix escrito na página`,
+  )
+  exigir(
+    html.includes('<noscript>') && html.includes('data-sem-javascript'),
+    `${rotulo}: ${caminho} sem o aviso de quem está sem JavaScript`,
+  )
+  exigir(
+    readFileSync(`${pasta}/sitemap-0.xml`, 'utf-8').includes(caminho),
+    `${rotulo}: ${caminho} fora do sitemap`,
+  )
+  const politica = ler('/privacidade/')
+  exigir(
+    politica.includes('Versão 2.0') &&
+      politica.includes('data-doacao') &&
+      politica.includes('id="doacao-pelo-site"'),
+    `${rotulo}: a Política não é a 2.0 com o parágrafo da doação`,
+  )
+  exigir(
+    ler('/como-ajudar/').includes('href="/como-ajudar/doar/"'),
+    `${rotulo}: Como ajudar não leva à página Doar`,
+  )
+}
+
+// v5.6a - os MODOS da API simulada para a doação (o que o e2e e este teste assumem): `vazio` (a produção de hoje) = sem Pix e sem campanha; `semPix` = campanhas, mas Pix fechado,
+// com o 503 no código Pix; API antiga = a rota não existe. Servidores em porta livre, só para ler.
+async function lerDoMock(opcoes, caminho) {
+  const servidor = criarServidor(opcoes)
+  await new Promise((resolver) => servidor.listen(0, '127.0.0.1', resolver))
+  try {
+    const resposta = await fetch(
+      `http://127.0.0.1:${servidor.address().port}${caminho}`,
+    )
+    return { status: resposta.status, corpo: await resposta.json() }
+  } finally {
+    await new Promise((resolver) => servidor.close(resolver))
+  }
+}
+const doacaoVazia = await lerDoMock({ vazio: true }, '/api/publico/doacao')
+exigir(
+  doacaoVazia.corpo.pix_disponivel === false &&
+    doacaoVazia.corpo.chave_pix === null &&
+    doacaoVazia.corpo.campanhas.length === 0,
+  'mock vazio: a doação devia estar sem Pix e sem campanha',
+)
+const doacaoSemPix = await lerDoMock({ semPix: true }, '/api/publico/doacao')
+exigir(
+  doacaoSemPix.corpo.pix_disponivel === false &&
+    doacaoSemPix.corpo.chave_pix === null &&
+    doacaoSemPix.corpo.campanhas.length > 0,
+  'mock --sem-pix: a doação devia estar sem Pix, com as campanhas',
+)
+exigir(
+  (await lerDoMock({ semPix: true }, '/api/publico/doacao/pix')).status === 503,
+  'mock --sem-pix: o código Pix devia responder 503',
+)
+exigir(
+  (await lerDoMock({ antiga: true }, '/api/publico/doacao')).status === 404,
+  'mock antigo: a rota da doação devia responder 404',
+)
+
 if (problemas.length > 0) {
   console.error('\nESTADO VAZIO COM PROBLEMA:')
   for (const p of problemas) console.error('  -', p)
   process.exit(1)
 }
 console.log(
-  `OK: estado vazio conferido em ${paginas.length} páginas; build contra a API antiga (sem o contexto de projeto/evento nem a foto da Diretoria) e com uma foto da Diretoria adulterada conferidos.`,
+  `OK: estado vazio conferido em ${paginas.length} páginas; build contra a API antiga (sem o contexto de projeto/evento, sem a foto da Diretoria e sem as rotas da doação) e com uma foto da Diretoria adulterada conferidos; a página de doação sem dado ao vivo; os modos vazio e sem Pix do mock.`,
 )

@@ -30,6 +30,7 @@
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
     "astro": "^7.3.8",
+    "qr": "0.7.2",
     "sanitize-html": "^2.18.0"
   },
   "devDependencies": {

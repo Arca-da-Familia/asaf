@@ -12,6 +12,8 @@ import { PAGINAS_NAO_INDEXAVEIS, caminhosIndexaveis } from './paginas'
 
 const PORTA_DA_API = process.env.MOCK_API_PORT ?? '4322'
 const ORIGEM_DA_API = `http://127.0.0.1:${PORTA_DA_API}`
+// a porta do servidor de teste do site (a mesma de playwright.config.ts): outra cópia do projeto pode ocupar a 4321
+const ORIGEM_DO_SITE = `http://127.0.0.1:${process.env.PORTA_DO_SITE_DE_TESTE ?? '4321'}`
 
 const cabecalhos = (
   JSON.parse(readFileSync('dist/staticwebapp.config.json', 'utf-8')) as {
@@ -176,10 +178,7 @@ test.describe('sem rastreamento: nenhum cookie, nenhum servidor de terceiro', ()
   const caminhos = [...caminhosIndexaveis(), ...PAGINAS_NAO_INDEXAVEIS]
   for (const caminho of caminhos) {
     test(`${caminho}`, async ({ page, context }) => {
-      const origensPermitidas = new Set([
-        'http://127.0.0.1:4321',
-        ORIGEM_DA_API,
-      ])
+      const origensPermitidas = new Set([ORIGEM_DO_SITE, ORIGEM_DA_API])
       const deFora = new Set<string>()
       page.on('request', (r) => {
         const url = new URL(r.url())

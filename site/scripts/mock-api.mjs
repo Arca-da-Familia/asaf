@@ -1191,6 +1191,335 @@ export const RECUSA_DE_AVISO_DESATUALIZADO =
 const VERSAO_DO_AVISO_DE_ATENDIMENTO = '1'
 
 /**
+ * Doar pelo site com Pix estático (v5.6a): as três rotas públicas, com o contrato do servidor (app/routers/doacao_online.py, app/services/doacao_online.py,
+ * app/schemas/doacao_online.py e app/services/pix.py), incluindo as frases de recusa em português. O código "copia e cola" é um BR Code de verdade (CRC-16/CCITT-FALSE),
+ * montado como o servidor monta. `semPix` (`MOCK_API_SEM_PIX=1` quando o mock roda direto) = a Presidência ainda não marcou a chave Pix "vai para o site": `pix_disponivel: false` e o 503 nos pedidos; `vazio` (a produção de
+ * hoje) é a mesma coisa e, além disso, sem nenhuma campanha. API antiga: as rotas não existem (404).
+ */
+export const CHAVE_PIX_DE_TESTE = '123e4567-e89b-12d3-a456-426614174000'
+export const BENEFICIARIO_DE_TESTE = 'ASAF TESTE'
+export const CIDADE_DE_TESTE = 'PARAUAPEBAS'
+export const VERSAO_DO_AVISO_DE_DOACAO = '1'
+export const DIAS_DE_VALIDADE_DA_DOACAO = 15
+export const VALOR_MAXIMO_DA_DOACAO = 1_000_000
+export const RECUSA_DE_PIX_INDISPONIVEL =
+  'A doação pelo site ainda não está disponível. Fale com a secretaria da associação.'
+export const RECUSA_DE_CAMPANHA_ENCERRADA =
+  'Essa campanha não está recebendo doações. Escolha outra ou doe sem campanha.'
+export const RECUSA_DE_AVISO_NAO_ACEITO =
+  'Para continuar é preciso ler e aceitar o aviso de privacidade.'
+
+const campoDoPix = (id, valor) =>
+  `${id}${String(valor.length).padStart(2, '0')}${valor}`
+
+/** CRC-16/CCITT-FALSE (polinômio 0x1021, início 0xFFFF, sem reflexão), como app/services/pix.py::_crc16_ccitt_false. */
+function crc16DoPix(texto) {
+  let resultado = 0xffff
+  for (const byte of Buffer.from(texto, 'utf8')) {
+    resultado ^= byte << 8
+    for (let i = 0; i < 8; i++)
+      resultado =
+        resultado & 0x8000
+          ? ((resultado << 1) ^ 0x1021) & 0xffff
+          : (resultado << 1) & 0xffff
+  }
+  return resultado.toString(16).toUpperCase().padStart(4, '0')
+}
+
+const semAcentoParaOPix = (texto, maximo) =>
+  (
+    texto
+      .normalize('NFKD')
+      .replace(/[^\x00-\x7F]/g, '')
+      .trim() || 'NA'
+  ).slice(0, maximo)
+
+/**
+ * O "copia e cola" de um Pix estático (app/services/pix.py::gerar_payload_pix). Sem `valor`, o campo do valor não existe e quem paga o digita no aplicativo do banco.
+ * @param {{ chave: string, beneficiario: string, cidade: string, valor?: number | null, txid: string, descricao?: string | null }} dados
+ */
+export function gerarPayloadPix({
+  chave,
+  beneficiario,
+  cidade,
+  valor = null,
+  txid,
+  descricao = null,
+}) {
+  const txidNormalizado =
+    [...txid]
+      .filter((c) => /[A-Za-z0-9]/.test(c))
+      .join('')
+      .slice(0, 25) || '***'
+  let conta =
+    campoDoPix('00', 'br.gov.bcb.pix') + campoDoPix('01', chave.trim())
+  if (descricao) conta += campoDoPix('02', semAcentoParaOPix(descricao, 40))
+  const campos =
+    campoDoPix('00', '01') +
+    campoDoPix('26', conta) +
+    campoDoPix('52', '0000') +
+    campoDoPix('53', '986') +
+    (valor === null ? '' : campoDoPix('54', Number(valor).toFixed(2))) +
+    campoDoPix('58', 'BR') +
+    campoDoPix('59', semAcentoParaOPix(beneficiario, 25)) +
+    campoDoPix('60', semAcentoParaOPix(cidade, 15)) +
+    campoDoPix('62', campoDoPix('05', txidNormalizado))
+  return `${campos}6304${crc16DoPix(`${campos}6304`)}`
+}
+
+/** As campanhas em andamento (a API só manda essas): uma com um quarto da meta, uma que passou da meta (120%, sem prazo) e uma recém-aberta, com prazo. */
+const campanhasDeDoacao = () => [
+  {
+    id_campanha: 1,
+    titulo: 'Campanha de teste — cestas básicas',
+    descricao:
+      'Descrição de teste da campanha de cestas básicas para famílias da comunidade.',
+    meta_valor: 10000,
+    valor_arrecadado: 2500,
+    percentual: 25,
+    prazo: soData(60),
+  },
+  {
+    id_campanha: 2,
+    titulo: 'Campanha de teste — meta ultrapassada',
+    descricao: null,
+    meta_valor: 5000,
+    valor_arrecadado: 6000,
+    percentual: 120,
+    prazo: null,
+  },
+  {
+    id_campanha: 3,
+    titulo: 'Campanha de teste — recém-aberta',
+    descricao: 'Ainda sem nenhuma doação confirmada.',
+    meta_valor: 800,
+    valor_arrecadado: 0,
+    percentual: 0,
+    prazo: soData(10),
+  },
+]
+
+/** `GET /api/publico/doacao`. */
+function dadosDaDoacao({ vazio, semPix }) {
+  const aberta = !vazio && !semPix
+  return {
+    pix_disponivel: aberta,
+    chave_pix: aberta ? CHAVE_PIX_DE_TESTE : null,
+    beneficiario: aberta ? BENEFICIARIO_DE_TESTE : null,
+    cidade: aberta ? CIDADE_DE_TESTE : null,
+    campanhas: vazio ? [] : campanhasDeDoacao(),
+    versao_aviso_de_privacidade: VERSAO_DO_AVISO_DE_DOACAO,
+    dias_de_validade_do_pedido: DIAS_DE_VALIDADE_DA_DOACAO,
+  }
+}
+
+const doisDecimais = (n) => Math.round(Number(n) * 100) / 100
+
+/** A frase do servidor para um valor fora do que vale (`validar_valor_da_doacao`), ou `null` se o valor serve. */
+function recusaDoValorDaDoacao(valor) {
+  if (valor <= 0) return 'O valor da doação precisa ser maior que zero.'
+  if (valor > VALOR_MAXIMO_DA_DOACAO)
+    return 'Esse valor é alto demais para o Pix pelo site: fale com a secretaria.'
+  return null
+}
+
+const campanhaQueRecebe = (id) =>
+  campanhasDeDoacao().find((c) => c.id_campanha === id) ?? null
+
+/**
+ * `GET /api/publico/doacao/pix?valor=&id_campanha=`: o código para doar SEM se identificar. Ordem do servidor: o formato da consulta (422), o Pix disponível (503),
+ * o valor (400) e a campanha (400). Devolve `[status HTTP, corpo]`.
+ */
+function pixDaDoacaoAnonima(consulta, { vazio, semPix }) {
+  const bruto = consulta.get('valor')
+  const brutoDaCampanha = consulta.get('id_campanha')
+  const comValor = bruto !== null && bruto !== ''
+  const comCampanha = brutoDaCampanha !== null && brutoDaCampanha !== ''
+  const formato = []
+  if (comValor && !/^[+-]?\d+(\.\d+)?$/.test(bruto))
+    formato.push({
+      type: 'decimal_parsing',
+      loc: ['query', 'valor'],
+      msg: 'Input should be a valid decimal',
+      input: bruto,
+    })
+  if (comCampanha && !/^[+-]?\d+$/.test(brutoDaCampanha))
+    formato.push({
+      type: 'int_parsing',
+      loc: ['query', 'id_campanha'],
+      msg: 'Input should be a valid integer, unable to parse string as an integer',
+      input: brutoDaCampanha,
+    })
+  if (formato.length > 0) return [422, { detail: formato }]
+  if (vazio || semPix) return [503, { detail: RECUSA_DE_PIX_INDISPONIVEL }]
+  const valor = comValor ? Number(bruto) : null
+  if (valor !== null) {
+    const recusa = recusaDoValorDaDoacao(valor)
+    if (recusa) return [400, { detail: recusa }]
+  }
+  const idDaCampanha = comCampanha ? Number(brutoDaCampanha) : null
+  if (idDaCampanha !== null && !campanhaQueRecebe(idDaCampanha))
+    return [400, { detail: RECUSA_DE_CAMPANHA_ENCERRADA }]
+  const valorDoCodigo = valor === null ? null : doisDecimais(valor)
+  return [
+    200,
+    {
+      copia_e_cola: gerarPayloadPix({
+        chave: CHAVE_PIX_DE_TESTE,
+        beneficiario: BENEFICIARIO_DE_TESTE,
+        cidade: CIDADE_DE_TESTE,
+        valor: valorDoCodigo,
+        txid: idDaCampanha === null ? 'ASAFDOACAO' : `ASAFCAMP${idDaCampanha}`,
+        descricao: 'Doacao ASAF',
+      }),
+      valor: valorDoCodigo,
+      id_campanha: idDaCampanha,
+      chave_pix: CHAVE_PIX_DE_TESTE,
+      beneficiario: BENEFICIARIO_DE_TESTE,
+      cidade: CIDADE_DE_TESTE,
+    },
+  ]
+}
+
+/** Os corpos dos pedidos identificados que o formulário mandou ao mock (o teste confere o que a API real receberia) e os protocolos já dados (o mesmo pedido devolve o mesmo). */
+const pedidosDeDoacao = []
+const intencoesDeDoacao = new Map()
+let protocolosDeDoacao = 0
+
+/** O que o pydantic do servidor recusa no corpo (IntencaoDeDoacaoCriar), com as mesmas frases, no formato 422 do FastAPI: uma entrada por campo. */
+function errosDoPedidoDeDoacao(corpo) {
+  const erros = []
+  const recusa = (campo, msg) =>
+    erros.push({
+      type: 'value_error',
+      loc: ['body', campo],
+      msg: `Value error, ${msg}`,
+      input: corpo[campo] ?? null,
+    })
+  const faltando = (campo) =>
+    erros.push({
+      type: 'missing',
+      loc: ['body', campo],
+      msg: 'Field required',
+      input: corpo,
+    })
+  if (typeof corpo.nome_completo !== 'string') faltando('nome_completo')
+  else {
+    const letras = [
+      ...corpo.nome_completo.split(/\s+/).filter(Boolean).join(' '),
+    ].length
+    if (letras < 3) recusa('nome_completo', 'Informe o seu nome completo.')
+    else if (letras > 120)
+      recusa('nome_completo', 'O nome ficou grande demais: confira.')
+  }
+  if (typeof corpo.email !== 'string') faltando('email')
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(corpo.email.trim()))
+    recusa(
+      'email',
+      'Esse e-mail não parece certo: confira se está escrito sem erro.',
+    )
+  if (
+    corpo.cpf !== undefined &&
+    corpo.cpf !== null &&
+    String(corpo.cpf).trim() !== '' &&
+    !cpfConfere(corpo.cpf)
+  )
+    recusa(
+      'cpf',
+      'Esse CPF não confere: confira os números ou deixe em branco.',
+    )
+  if (corpo.valor !== undefined && corpo.valor !== null) {
+    const numero = typeof corpo.valor === 'number' ? corpo.valor : Number.NaN
+    if (!Number.isFinite(numero))
+      erros.push({
+        type: 'decimal_parsing',
+        loc: ['body', 'valor'],
+        msg: 'Input should be a valid decimal',
+        input: corpo.valor,
+      })
+    else {
+      const frase = recusaDoValorDaDoacao(numero)
+      if (frase) recusa('valor', frase)
+    }
+  }
+  return erros
+}
+
+/** `POST /api/publico/doacoes/intencoes`: devolve `[status HTTP, corpo]`. Ordem do servidor: validação (422) -> armadilha de robô -> limite por endereço (429) -> Pix (503) -> aviso (400, 422) -> campanha (400) -> pedido novo ou o mesmo de antes. */
+function registrarIntencaoDeDoacao(corpo, { vazio, semPix }) {
+  pedidosDeDoacao.push(corpo)
+  const erros = errosDoPedidoDeDoacao(corpo)
+  if (erros.length > 0) return [422, { detail: erros }]
+  if (corpo.pagina_web)
+    return [
+      200,
+      {
+        mensagem: 'Pedido recebido.',
+        protocolo: null,
+        valor: null,
+        copia_e_cola: null,
+        expira_em: null,
+      },
+    ]
+  if (corpo.nome_completo === NOME_QUE_ESTOURA_O_LIMITE)
+    return [429, { detail: RECUSA_DE_LIMITE }]
+  if (corpo.nome_completo === NOME_QUE_DERRUBA_O_ATENDIMENTO)
+    return [500, { detail: 'Erro interno do servidor.' }]
+  if (vazio || semPix) return [503, { detail: RECUSA_DE_PIX_INDISPONIVEL }]
+  if (!corpo.consentimento_lgpd)
+    return [400, { detail: RECUSA_DE_AVISO_NAO_ACEITO }]
+  if (corpo.versao_texto_consentimento !== VERSAO_DO_AVISO_DE_DOACAO)
+    return [422, { detail: RECUSA_DE_AVISO_DESATUALIZADO }]
+  const idDaCampanha = corpo.id_campanha ?? null
+  if (idDaCampanha !== null && !campanhaQueRecebe(idDaCampanha))
+    return [400, { detail: RECUSA_DE_CAMPANHA_ENCERRADA }]
+
+  const valor =
+    corpo.valor === undefined || corpo.valor === null
+      ? null
+      : doisDecimais(corpo.valor)
+  const impressao = [
+    corpo.nome_completo.split(/\s+/).filter(Boolean).join(' ').toLowerCase(),
+    corpo.email.trim().toLowerCase(),
+    String(corpo.cpf ?? '').replace(/\D/g, ''),
+    valor ?? '',
+    idDaCampanha ?? '',
+  ].join('|')
+  let intencao = intencoesDeDoacao.get(impressao)
+  if (!intencao) {
+    protocolosDeDoacao += 1
+    intencao = {
+      protocolo: `DOA-${new Date(agora()).getUTCFullYear()}-${String(protocolosDeDoacao).padStart(5, '0')}`,
+      expiraEm: new Date(agora() + DIAS_DE_VALIDADE_DA_DOACAO * 86_400_000)
+        .toISOString()
+        .replace(/Z$/, ''),
+    }
+    intencoesDeDoacao.set(impressao, intencao)
+  }
+  return [
+    200,
+    {
+      mensagem: 'Pedido recebido.',
+      protocolo: intencao.protocolo,
+      valor,
+      id_campanha: idDaCampanha,
+      copia_e_cola: gerarPayloadPix({
+        chave: CHAVE_PIX_DE_TESTE,
+        beneficiario: BENEFICIARIO_DE_TESTE,
+        cidade: CIDADE_DE_TESTE,
+        valor,
+        txid: `ASAF${intencao.protocolo}`,
+        descricao: 'Doacao ASAF',
+      }),
+      chave_pix: CHAVE_PIX_DE_TESTE,
+      beneficiario: BENEFICIARIO_DE_TESTE,
+      cidade: CIDADE_DE_TESTE,
+      expira_em: intencao.expiraEm,
+    },
+  ]
+}
+
+/**
  * Inscrição em evento pelo site (v5.5c): consentimento, inscrever-se, resumo do link e cancelar/confirmar, com as regras do servidor
  * (app/services/eventos.py, vagas.py e inscricao.py). O mock guarda o corpo recebido (o teste confere o que a API real receberia) e cada inscrição criada (a
  * página do link a encontra pelo código). Casos que só a API sabe provocar, por dado de teste: o limite por endereço (429) e o erro de servidor (500) — os
@@ -1508,6 +1837,7 @@ export function criarServidor({
   antiga = false,
   instituicaoPreenchida = false,
   fotoDaDiretoriaAdulterada = false,
+  semPix = false,
 } = {}) {
   const lista = (dados) => (vazio ? [] : dados())
   const comoVier = (corpo, campos) =>
@@ -1700,6 +2030,37 @@ export function criarServidor({
       return responder(inscricoesDeEvento)
     }
 
+    // ---- Doar pelo site (v5.6a): o pedido identificado (protocolo e código Pix). API ANTIGA: a rota não existe (cai no 404 do fim).
+    if (
+      !antiga &&
+      req.method === 'POST' &&
+      (req.url ?? '').split('?')[0] === '/api/publico/doacoes/intencoes'
+    ) {
+      let texto = ''
+      req.on('data', (parte) => (texto += parte))
+      req.on('end', () => {
+        let corpo
+        try {
+          corpo = JSON.parse(texto)
+        } catch {
+          return responder({ detail: 'Corpo inválido.' }, 422)
+        }
+        const [status, resposta] = registrarIntencaoDeDoacao(corpo, {
+          vazio,
+          semPix,
+        })
+        return responder(resposta, status)
+      })
+      return
+    }
+    if (
+      !antiga &&
+      req.method === 'GET' &&
+      (req.url ?? '').split('?')[0] === '/__pedidos-de-doacao'
+    ) {
+      return responder(pedidosDeDoacao)
+    }
+
     // ---- Directus simulado (v5.3): `Authorization: Bearer <token>` obrigatório, como no real.
     if (
       req.method === 'GET' &&
@@ -1760,6 +2121,16 @@ export function criarServidor({
       if (caminho === '/api/publico/atendimentos/prazos') {
         if (antiga) return responder({ detail: 'Not Found' }, 404)
         return responder(PRAZOS_DE_ATENDIMENTO)
+      }
+      // v5.6a - doar pelo site: o Pix da associação, as campanhas e a versão do aviso; e o código Pix para doar sem se identificar. API antiga: as rotas não existem.
+      if (!antiga && caminho === '/api/publico/doacao')
+        return responder(dadosDaDoacao({ vazio, semPix }))
+      if (!antiga && caminho === '/api/publico/doacao/pix') {
+        const [status, resposta] = pixDaDoacaoAnonima(
+          new URL(req.url ?? '', 'http://mock').searchParams,
+          { vazio, semPix },
+        )
+        return responder(resposta, status)
       }
       // v5.5c - o texto do consentimento da inscrição e a versão que a API confere; e o resumo de uma inscrição pelo código do link. API antiga: não existem.
       if (!antiga && caminho === '/api/publico/eventos/consentimento-lgpd')
@@ -1921,6 +2292,7 @@ if (executadoDireto) {
     instituicaoPreenchida: process.env.MOCK_INSTITUICAO_PREENCHIDA === '1',
     fotoDaDiretoriaAdulterada:
       process.env.MOCK_FOTO_DA_DIRETORIA_ADULTERADA === '1',
+    semPix: process.env.MOCK_API_SEM_PIX === '1',
   }).listen(PORTA_DO_MOCK, '127.0.0.1', () =>
     console.log(`mock-api em http://127.0.0.1:${PORTA_DO_MOCK}`),
   )

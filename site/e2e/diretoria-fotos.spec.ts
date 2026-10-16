@@ -269,16 +269,16 @@ test.describe('Diretoria com fotos (v5.7c)', () => {
     expect(readdirSync('dist/midia/diretoria')).toHaveLength(2)
   })
 
-  test('a Política de Privacidade (1.10) conta o que o sistema faz com a foto, e nunca mais diz "nem foto"', async ({
+  test('a Política de Privacidade (2.0, que mantém o texto da foto da 1.10) conta o que o sistema faz com a foto, e nunca mais diz "nem foto"', async ({
     page,
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 1.10 · em vigor desde 16 de outubro de 2026'),
+      page.getByText('Versão 2.0 · em vigor desde 16 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 1\.10, em vigor desde 16 de outubro de 2026/,
+        /Esta é a versão 2\.0, em vigor desde 16 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-diretoria-foto]')
@@ -312,6 +312,7 @@ test.describe('Diretoria com fotos (v5.7c)', () => {
     const texto = await page.locator('main').innerText()
     expect(texto).not.toMatch(/Não publicamos CPF, telefone, e-mail nem foto/)
     expect(texto).not.toContain('Esta é a versão 1.9')
+    expect(texto).not.toContain('Esta é a versão 1.10')
     // a página Diretoria avisa a mesma regra, com link para a Política
     await page.goto('/diretoria/')
     await expect(page.locator('[data-sobre-as-fotos]')).toContainText(

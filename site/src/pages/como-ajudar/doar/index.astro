@@ -1,0 +1,143 @@
+---
+import DoacaoAoVivo from '../../../components/DoacaoAoVivo.astro'
+import FaleConosco from '../../../components/FaleConosco.astro'
+import TituloDePagina from '../../../components/TituloDePagina.astro'
+import type { Migalha } from '../../../config/navegacao'
+import Base from '../../../layouts/Base.astro'
+
+// Doar pelo site com Pix ESTÁTICO (v5.6a). A ASAF não tem Pix dinâmico (exige convênio e API paga do banco): o dinheiro cai direto na chave Pix da associação e NADA avisa o sistema.
+// Por isso a página só diz o que o servidor de fato faz (app/services/doacao_online.py): quem se identifica ganha um protocolo e o código; a tesouraria acha o Pix no extrato do banco e
+// CONFIRMA no painel, e só aí nasce a doação e o recibo numerado (que o sistema tenta mandar por e-mail). A intenção nunca é dinheiro. Nada de "na hora", nada de prazo prometido.
+// A chave Pix, o beneficiário e as campanhas NUNCA são escritos aqui: vêm da API, no navegador (src/components/DoacaoAoVivo.astro), porque mudam sem novo publicar do site.
+// Fonte do destino do dinheiro: Estatuto Social, Art. 28, § 3º. O texto do recibo (a frase da dedutibilidade) é o de app/services/doacoes.py::gerar_texto_recibo.
+const migalhas: Migalha[] = [
+  { rotulo: 'Como ajudar', href: '/como-ajudar/' },
+  { rotulo: 'Doar' },
+]
+
+const link = 'font-medium text-primary underline underline-offset-4'
+---
+
+<Base
+  titulo="Doar"
+  descricao="Doe pelo Pix à ASAF, com ou sem se identificar. Veja as campanhas em andamento, como a doação é conferida e como receber o recibo."
+  caminho="/como-ajudar/doar/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Doar"
+    resumo="Doe pelo Pix, com ou sem se identificar. O dinheiro vai direto para a conta da associação."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-5xl flex-col gap-14 px-4 py-12">
+    <section aria-labelledby="formas">
+      <h2 id="formas" class="text-2xl font-bold tracking-tight">
+        Duas formas de doar
+      </h2>
+      <div class="mt-6 grid gap-4 sm:grid-cols-2">
+        <div
+          class="flex flex-col rounded-lg border bg-card p-6 shadow-card"
+          data-forma="sem-identificar"
+        >
+          <h3 class="text-lg font-semibold">Sem se identificar</h3>
+          <div class="mt-2 flex-1 text-sm">
+            <p>
+              Você escolhe para onde vai a doação (a associação ou uma campanha)
+              e, se quiser, o valor. O site mostra o código Pix e um QR Code.
+              Ele não pede nenhum dado seu e não registra a sua doação: o
+              dinheiro vai direto para a conta da associação.
+            </p>
+            <p class="mt-2">
+              Sem se identificar, o site não tem como mandar o recibo. E o Pix
+              não é anônimo para o banco: como em qualquer Pix, o extrato do
+              banco da associação mostra quem pagou.
+            </p>
+          </div>
+        </div>
+        <div
+          class="flex flex-col rounded-lg border bg-card p-6 shadow-card"
+          data-forma="identificando-se"
+        >
+          <h3 class="text-lg font-semibold">Identificando-se</h3>
+          <div class="mt-2 flex-1 text-sm">
+            <p>
+              Você informa o nome completo, o e-mail e, se quiser, o CPF. Recebe
+              um protocolo e o código Pix. Depois que a tesouraria da associação
+              encontrar o seu Pix no extrato do banco e confirmar, a doação
+              passa a constar no sistema e o recibo numerado é emitido. O
+              sistema tenta enviá-lo para o seu e-mail.
+            </p>
+          </div>
+        </div>
+      </div>
+      <p class="mt-6">
+        <a href="#doar-agora" class={link}>
+          Ir para a doação ↓
+        </a>
+      </p>
+    </section>
+
+    <section aria-labelledby="antes-de-doar" data-antes-de-doar>
+      <h2 id="antes-de-doar" class="text-2xl font-bold tracking-tight">
+        O que você precisa saber antes de doar
+      </h2>
+      <ul class="mt-4 flex max-w-3xl list-disc flex-col gap-3 pl-6">
+        <li>
+          <strong>O Pix cai direto na conta da associação.</strong> Nada avisa o
+          sistema quando você paga: quem registra a doação é a tesouraria,
+          depois de conferir o extrato do banco.
+        </li>
+        <li>
+          <strong>Não é instantâneo, e não há prazo prometido.</strong> Se você
+          se identificou, guarde o protocolo. Se passarem alguns dias e o recibo
+          não chegar, fale com a secretaria, citando o protocolo.
+        </li>
+        <li>
+          <strong>O pedido não é uma doação.</strong> Quem se identifica recebe
+          um protocolo e o código, mas o dinheiro só sai da sua conta quando
+          você paga o Pix pelo aplicativo do banco.
+        </li>
+        <li>
+          <strong>Confira quem vai receber antes de pagar.</strong> O aplicativo
+          do seu banco mostra o nome do beneficiário antes de você confirmar.
+          Ele deve ser o da ASAF (pode aparecer sem acento ou abreviado, porque
+          o padrão do Pix limita o tamanho do nome). Se for outro nome, não
+          pague.
+        </li>
+        <li>
+          <strong>O recibo não é declaração para abater imposto.</strong> O
+          recibo da associação traz o aviso de que “não constitui, por si só,
+          declaração de dedutibilidade fiscal”. Se você pretende usar a doação
+          para abater imposto, consulte antes a situação tributária da entidade.
+        </li>
+        <li>
+          <strong>Para onde vai o dinheiro.</strong> O Estatuto determina que os
+          recursos, o patrimônio e os rendimentos da ASAF sejam integralmente
+          aplicados no território brasileiro, no desenvolvimento dos seus
+          objetivos sociais (Art. 28, § 3º).{' '}
+          <a href="/transparencia/" class={link}>
+            Veja como a ASAF presta contas
+          </a>
+          .
+        </li>
+        <li>
+          <strong>Os seus dados.</strong> A{' '}
+          <a href="/privacidade/#doacao-pelo-site" class={link}>
+            Política de Privacidade
+          </a>{' '}
+          conta o que o sistema guarda em cada forma de doar.
+        </li>
+      </ul>
+    </section>
+
+    <DoacaoAoVivo />
+
+    <FaleConosco titulo="Prefere doar de outro jeito?">
+      <p>
+        Fale com a secretaria. Teremos prazer em explicar como doar e como
+        acompanhar a sua doação.
+      </p>
+    </FaleConosco>
+  </div>
+</Base>
