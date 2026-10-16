@@ -1188,7 +1188,7 @@ export const RECUSA_DE_LIMITE =
   'Muitas tentativas - aguarde 60 minutos antes de tentar novamente.'
 export const RECUSA_DE_AVISO_DESATUALIZADO =
   'O aviso de privacidade foi atualizado: recarregue a página, leia e aceite a versão atual.'
-const VERSAO_DO_AVISO_DE_ATENDIMENTO = '1'
+const VERSAO_DO_AVISO_DE_ATENDIMENTO = '2'
 
 /**
  * Doar pelo site com Pix estático (v5.6a): as três rotas públicas, com o contrato do servidor (app/routers/doacao_online.py, app/services/doacao_online.py,

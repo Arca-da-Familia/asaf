@@ -144,7 +144,7 @@ test('o visitante se oferece pelo site: a página não diz mais que precisa ser 
       data_nascimento: dataDeAnosAtras(16, 40),
       mensagem: `Quero ajudar nas oficinas depois da escola. Rodada ${S}.`,
       consentimento_lgpd: true,
-      versao_texto_consentimento: '1',
+      versao_texto_consentimento: '2',
     },
   })
   expect(r.status(), await r.text()).toBe(200)

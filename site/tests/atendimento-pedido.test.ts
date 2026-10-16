@@ -53,8 +53,8 @@ const valoresOk = (
 })
 
 describe('versão do aviso de privacidade', () => {
-  it('é a 1: a mesma que a API conhece (mudou o texto, muda o número nos dois lados)', () => {
-    expect(VERSAO_DO_AVISO_DE_PRIVACIDADE_DO_ATENDIMENTO).toBe('1')
+  it('é a 2: a mesma que a API conhece (mudou o texto, muda o número nos dois lados)', () => {
+    expect(VERSAO_DO_AVISO_DE_PRIVACIDADE_DO_ATENDIMENTO).toBe('2')
   })
 })
 

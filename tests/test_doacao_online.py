@@ -388,10 +388,15 @@ def test_a_intencao_sem_confirmacao_expira_e_ainda_pode_ser_confirmada(client, a
     db.query(IntencaoDeDoacao).filter(IntencaoDeDoacao.id_intencao == id_vencida).update({"expira_em": datetime.utcnow() - timedelta(hours=1)})
     db.commit()
 
+    antes = db.query(AuditLog).filter(AuditLog.acao == "INTENCOES_DE_DOACAO_EXPIRADAS").count()
     assert servico.expirar_vencidas(db) >= 1
     db.expire_all()
     assert db.get(IntencaoDeDoacao, id_vencida).status == EXPIRADA and db.get(IntencaoDeDoacao, id_em_dia).status == PENDENTE
+    entradas = db.query(AuditLog).filter(AuditLog.acao == "INTENCOES_DE_DOACAO_EXPIRADAS").all()
+    assert len(entradas) == antes + 1 and entradas[-1].id_usuario is None, "a rotina deixa rastro na Auditoria, como SISTEMA, só com a contagem"
+    assert "nome" not in (entradas[-1].dados_depois or "") and "@" not in (entradas[-1].dados_depois or "")
     assert servico.expirar_vencidas(db) == 0, "rodar de novo não muda nada"
+    assert db.query(AuditLog).filter(AuditLog.acao == "INTENCOES_DE_DOACAO_EXPIRADAS").count() == antes + 1, "e sem nada a expirar não grava nada"
 
     a_conferir = {i["id_intencao"] for i in client.get("/api/intencoes-doacao/?situacao=a_conferir&por_pagina=100", headers=auth_headers).json()["itens"]}
     assert {id_vencida, id_em_dia} <= a_conferir

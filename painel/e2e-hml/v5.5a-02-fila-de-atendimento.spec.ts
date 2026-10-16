@@ -22,7 +22,7 @@ test.setTimeout(300_000)
 
 const S = String(RODADA)
 const CPF_TITULAR = cpfValido(700000000 + (RODADA % 200000000))
-const VERSAO_DO_AVISO = '1'
+const VERSAO_DO_AVISO = '2'
 
 const CONTATO = {
   tipo: 'CONTATO',

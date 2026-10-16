@@ -45,13 +45,13 @@ az storage account update -g "$RESOURCE_GROUP" -n "$STORAGE_ACCOUNT" \
 
 az storage account blob-service-properties update \
   --resource-group "$RESOURCE_GROUP" --account-name "$STORAGE_ACCOUNT" \
-  --enable-delete-retention true --delete-retention-days 30 \
+  --enable-delete-retention true --delete-retention-days 25 \
   --enable-container-delete-retention true --container-delete-retention-days 30 \
   --enable-versioning true >/dev/null
 
 # v5.7d (decisão do Presidente, 2026-10-15: "tem que apagar; não pode ficar guardado"): apagar uma foto cria uma VERSÃO ANTERIOR que o versionamento guarda para sempre se nada a apagar (o soft delete de
-# 30 dias não vale para ela). Esta regra apaga as versões antigas das FOTOS (diretoria, eventos, etapas, associados) um dia depois de gravadas; a versão apagada ainda fica 30 dias no soft delete,
-# então uma foto apagada some do armazenamento em até ~32 dias (a Política diz "até 35"). Documentos e comprovantes ficam como estavam. A política roda uma vez por dia (Azure).
+# 30 dias não vale para ela). Esta regra apaga as versões antigas das FOTOS (diretoria, eventos, etapas, associados) um dia depois de gravadas; a versão apagada ainda fica 25 dias no soft delete
+# dos blobs (era 30; baixado para 25 em 2026-10-16 para caber no teto de 20 a 30 dias do Presidente), então uma foto apagada some do armazenamento em até ~26-28 dias (a Política diz "cerca de 30 dias"). Documentos e comprovantes ficam como estavam. A política roda uma vez por dia (Azure).
 az storage account management-policy create --resource-group "$RESOURCE_GROUP" --account-name "$STORAGE_ACCOUNT"   --policy @"$(dirname "$0")/ciclo-de-vida-das-fotos.json" >/dev/null
 
 # Contêineres pelo plano de controle (ARM): funciona com a chave desligada e sem papel de dados.

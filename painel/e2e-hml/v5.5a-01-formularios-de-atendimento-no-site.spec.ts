@@ -54,8 +54,8 @@ test('contato: o formulário em branco diz o que falta; sem aceitar o aviso não
   ).toBeVisible()
   // o contato não pede CPF
   await expect(page.getByLabel('CPF', { exact: true })).toHaveCount(0)
-  // o aviso de privacidade (versão 1) está na página, com o texto de verdade
-  await expect(page.getByText('Aviso de privacidade (versão 1)')).toBeVisible()
+  // o aviso de privacidade (versão 2) está na página, com o texto de verdade
+  await expect(page.getByText('Aviso de privacidade (versão 2)')).toBeVisible()
   await expect(
     page.getByText(
       'Usamos o que você escrever aqui só para responder ao seu pedido.',
@@ -178,7 +178,7 @@ test('o mesmo pedido mandado duas vezes é um protocolo só; a armadilha de rob�
     nome_completo: `Duplo Clique ${S} de Teste`,
     telefone_whatsapp: '(91) 98888-5555',
     consentimento_lgpd: true,
-    versao_texto_consentimento: '1',
+    versao_texto_consentimento: '2',
   }
   const a = await page.request.post(`${API_HML}/api/publico/atendimentos`, {
     data: corpo,

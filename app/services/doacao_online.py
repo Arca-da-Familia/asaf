@@ -16,6 +16,7 @@ from fastapi import HTTPException
 from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 
+from app.auditoria import registrar_auditoria
 from app.config_cache import obter_configuracao
 from app.models.associados import Associado
 from app.models.core import ConfiguracaoInstitucional, Usuario
@@ -283,6 +284,9 @@ def expirar_vencidas(db: Session, agora: Optional[datetime] = None) -> int:
     for intencao in vencidas:
         intencao.status = EXPIRADA
     db.commit()
+    if vencidas:
+        # a rotina muda a situação de registros com dado pessoal e financeiro: fica na Auditoria, como SISTEMA, só com a contagem
+        registrar_auditoria(db, None, "intencoes_de_doacao", "INTENCOES_DE_DOACAO_EXPIRADAS", dados_depois={"expiradas": len(vencidas)})
     return len(vencidas)
 
 
