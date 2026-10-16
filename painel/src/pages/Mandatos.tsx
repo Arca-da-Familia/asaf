@@ -37,7 +37,7 @@ function BlocoEncerrarMandato({
 }: {
   idMandato: number
   onFechar: () => void
-  onEncerrado: (pendencia: string | null) => void
+  onEncerrado: (pendencia: string | null, fotoApagada: boolean) => void
 }) {
   const queryClient = useQueryClient()
   const encerrar = useMutation({
@@ -47,7 +47,7 @@ function BlocoEncerrarMandato({
       queryClient.invalidateQueries({ queryKey: ['mandatos'] })
       queryClient.invalidateQueries({ queryKey: ['mandatos-vencendo'] })
       // o bloco fecha ao encerrar, então o aviso da vacância (Art. 26) sobe para a tela em vez de morrer junto com ele
-      onEncerrado(mandato.pendencia ?? null)
+      onEncerrado(mandato.pendencia ?? null, mandato.foto_apagada === true)
       onFechar()
     },
   })
@@ -77,6 +77,10 @@ function BlocoEncerrarMandato({
             placeholder="Referência do ato (opcional)"
             className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
           />
+          <p className="text-xs text-muted-foreground">
+            Quem fica sem nenhum mandato tem a foto do site apagada junto: a
+            foto só existe enquanto há mandato.
+          </p>
           <div className="flex gap-2">
             <Button type="submit" size="sm" disabled={encerrar.isPending}>
               {encerrar.isPending ? 'Encerrando…' : 'Confirmar encerramento'}
@@ -101,6 +105,7 @@ function BlocoMandatos() {
   const [idParaEncerrar, setIdParaEncerrar] = useState<number | null>(null)
   const [mostrarNovo, setMostrarNovo] = useState(false)
   const [avisoDaVacancia, setAvisoDaVacancia] = useState<string | null>(null)
+  const [avisoDaFoto, setAvisoDaFoto] = useState(false)
   const queryClient = useQueryClient()
 
   const { data: mandatos, isLoading: carregandoMandatos } = useQuery({
@@ -294,6 +299,16 @@ function BlocoMandatos() {
         </p>
       )}
 
+      {avisoDaFoto && (
+        <p
+          role="status"
+          className="mb-3 rounded-md border border-amber-600/30 bg-amber-600/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-400"
+        >
+          A foto desta pessoa no site foi apagada junto com o mandato. Se ela
+          voltar a ter mandato, é preciso enviar a foto de novo.
+        </p>
+      )}
+
       <div className="v3-space-y-2">
         {(mandatos ?? []).map((m) => (
           <div
@@ -350,7 +365,10 @@ function BlocoMandatos() {
               <BlocoEncerrarMandato
                 idMandato={m.id_mandato}
                 onFechar={() => setIdParaEncerrar(null)}
-                onEncerrado={setAvisoDaVacancia}
+                onEncerrado={(pendencia, fotoApagada) => {
+                  setAvisoDaVacancia(pendencia)
+                  setAvisoDaFoto(fotoApagada)
+                }}
               />
             )}
           </div>

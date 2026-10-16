@@ -5,12 +5,14 @@ próxima publicação). É uma foto por pessoa (a nova substitui a anterior), e 
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime
+import logging
+from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.auditoria import registrar_auditoria
 from app.models.associados import Associado
 from app.models.documentos import DocumentoInstitucional
 from app.models.mandatos import FotoDaDiretoria, Mandato
@@ -18,6 +20,9 @@ from app.services import armazenamento
 from app.services.fotos import MENSAGEM_SEM_AUTORIZACAO, remover_arquivo, tratar_imagem
 
 PASTA_DAS_FOTOS = "fotos-diretoria"
+LOG = logging.getLogger("asaf.fotos_da_diretoria")
+# quem recebeu a foto ANTES de ter o mandato cadastrado (a diretoria costuma fotografar na posse) tem este prazo para o mandato aparecer; quem já teve mandato e não tem mais, não tem prazo
+CARENCIA_SEM_NENHUM_MANDATO = timedelta(hours=24)
 
 
 def foto_da_pessoa(db: Session, id_pessoa: int) -> Optional[FotoDaDiretoria]:
@@ -118,3 +123,62 @@ def foto_publica(db: Session, id_foto: int) -> Optional[FotoDaDiretoria]:
     if foto is None or not foto.autorizacao_imagem or not pessoa_tem_mandato_vigente(db, foto.id_pessoa):
         return None
     return foto
+
+
+def _mandato_futuro(m: Mandato, agora: datetime) -> bool:
+    return m.data_inicio > agora and m.data_fim_efetivo is None
+
+
+def _sem_direito_a_foto(db: Session, foto: FotoDaDiretoria, agora: datetime) -> bool:
+    """A foto só existe para quem está em mandato vigente OU vai começar um (a posse marcada). Terminou o mandato (no vencimento ou por vacância) e não há outro: a foto não pode ficar guardada. Quem nunca teve
+    mandato cadastrado tem `CARENCIA_SEM_NENHUM_MANDATO` desde o envio da foto para o mandato aparecer."""
+    ids_associados = [i for (i,) in db.query(Associado.id_associado).filter(Associado.id_pessoa == foto.id_pessoa).all()]
+    mandatos = db.query(Mandato).filter(Mandato.id_associado.in_(ids_associados)).all() if ids_associados else []
+    if any(m.vigente(agora) or _mandato_futuro(m, agora) for m in mandatos):
+        return False
+    if not mandatos:
+        return foto.criado_em <= agora - CARENCIA_SEM_NENHUM_MANDATO
+    return True
+
+
+def _apagar_automaticamente(db: Session, foto: FotoDaDiretoria, *, usuario=None, ip: Optional[str] = None) -> bool:
+    """Apaga o arquivo e a linha (nessa ordem: se o armazenamento falhar a foto continua cadastrada e a próxima rodada tenta de novo) e registra na Auditoria só o fato (sem dado pessoal)."""
+    id_foto = foto.id_foto
+    try:
+        remover_arquivo(PASTA_DAS_FOTOS, foto.arquivo_nome)
+    except HTTPException:
+        LOG.warning("foto da diretoria %s ficou: o armazenamento não apagou o arquivo (a próxima rodada tenta de novo)", id_foto)
+        return False
+    db.delete(foto)
+    db.commit()
+    registrar_auditoria(
+        db, usuario, "fotos_da_diretoria", "FOTO_APAGADA_AUTOMATICAMENTE", id_registro_afetado=id_foto,
+        dados_depois={"motivo": "a pessoa não tem mandato vigente nem marcado"}, ip_origem=ip,
+    )
+    return True
+
+
+def apagar_foto_se_sem_mandato(db: Session, id_associado: int, *, usuario=None, ip: Optional[str] = None, agora: Optional[datetime] = None) -> bool:
+    """Chamada na hora em que um mandato é encerrado (vacância): se a pessoa ficou sem mandato, a foto dela sai na hora. Devolve se apagou."""
+    agora = agora or datetime.utcnow()
+    associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
+    foto = foto_da_pessoa(db, associado.id_pessoa) if associado else None
+    if foto is None or not _sem_direito_a_foto(db, foto, agora):
+        return False
+    return _apagar_automaticamente(db, foto, usuario=usuario, ip=ip)
+
+
+def apagar_fotos_sem_mandato(db: Session, agora: Optional[datetime] = None) -> tuple[int, int]:
+    """Rotina do sistema (junto das outras tarefas periódicas, que o GitHub dispara algumas vezes ao dia: ele atrasa o agendamento, de 2 a 5 horas): apaga a foto de quem não tem mais mandato vigente nem
+    marcado, que é o caso do vencimento natural (nenhum clique o provoca). Devolve (apagadas, falhas): uma foto que o armazenamento não conseguiu apagar fica para a próxima rodada, e quem chama
+    (o roteiro do sistema) NÃO pode deixar essa falha passar em silêncio, senão a foto fica guardada sem ninguém saber (achado da conferência independente, 2026-10-15)."""
+    agora = agora or datetime.utcnow()
+    apagadas = falhas = 0
+    for foto in db.query(FotoDaDiretoria).order_by(FotoDaDiretoria.id_foto).all():
+        if not _sem_direito_a_foto(db, foto, agora):
+            continue
+        if _apagar_automaticamente(db, foto):
+            apagadas += 1
+        else:
+            falhas += 1
+    return apagadas, falhas

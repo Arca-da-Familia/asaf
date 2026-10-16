@@ -11,6 +11,16 @@ from tests.test_compras import _criar_fornecedor, _criar_usuario_com_mandato
 _ROTA = "/api/saidas/registrar"
 
 
+def _hoje() -> date:
+    """O dia de hoje NA ASSOCIAÇÃO (Belém), que é o dia que o sistema usa para contar os dias do pagamento ao lançamento. `date.today()` é o dia da máquina que roda o teste (UTC no CI, Belém aqui): entre
+    21h e meia-noite de Belém os dois diferem e o teste reprovava (visto na suíte da v5.7d, às 22h30)."""
+    from zoneinfo import ZoneInfo
+
+    from app.services.calendario import dia_local
+
+    return dia_local(datetime.utcnow(), ZoneInfo("America/Sao_Paulo"))
+
+
 def _anexo(client, auth_headers) -> str:
     r = client.post("/api/comprovantes/", files={"arquivo": ("nota.pdf", b"%PDF-1.4 conteudo de teste " + uuid.uuid4().bytes, "application/pdf")}, headers=auth_headers)
     assert r.status_code == 200, r.text
@@ -20,7 +30,7 @@ def _anexo(client, auth_headers) -> str:
 def _pedido(client, auth_headers, conta_despesa, conta_banco, fornecedor, **ajustes):
     base = {
         "id_conta_contabil": conta_despesa, "descricao": f"Material de limpeza {uuid.uuid4().hex[:6]}", "valor": "123.45",
-        "data_despesa": date.today().isoformat(), "data_pagamento": date.today().isoformat(), "forma_pagamento": "Pix",
+        "data_despesa": _hoje().isoformat(), "data_pagamento": _hoje().isoformat(), "forma_pagamento": "Pix",
         "id_conta_contabil_contrapartida": conta_banco, "id_fornecedor": fornecedor,
         "nota_fiscal": _anexo(client, auth_headers), "comprovante": _anexo(client, auth_headers),
     }
@@ -64,7 +74,7 @@ def test_o_que_falta_ou_esta_errado_e_recusado_em_portugues(client, auth_headers
         "sem forma de pagamento": ({"forma_pagamento": " "}, "forma de pagamento"),
         "valor zero": ({"valor": "0"}, "maior que zero"),
         "descrição curta": ({"descricao": "ab"}, "Descreva"),
-        "data no futuro": ({"data_despesa": (date.today() + timedelta(days=5)).isoformat()}, "futuro"),
+        "data no futuro": ({"data_despesa": (_hoje() + timedelta(days=5)).isoformat()}, "futuro"),
         "sem quem recebeu": ({"id_fornecedor": None}, "quem recebeu"),
         "dois destinatários": ({"id_associado": 1}, "quem recebeu"),
     }
@@ -92,11 +102,11 @@ def test_se_a_baixa_e_recusada_o_titulo_nao_fica_para_tras(client, auth_headers,
 
 def test_saida_lancada_muito_depois_do_pagamento_e_marcada_como_tardia(client, auth_headers, exercicio_financeiro_aberto):
     despesa, banco, fornecedor = _preparo(client, auth_headers)
-    antiga = (date.today() - timedelta(days=20)).isoformat()
+    antiga = (_hoje() - timedelta(days=20)).isoformat()
     r = client.post(_ROTA, json=_pedido(client, auth_headers, despesa, banco, fornecedor, data_despesa=antiga, data_pagamento=antiga), headers=auth_headers)
     assert r.status_code == 200, r.text
     assert r.json()["lancamento_tardio"] is True and r.json()["dias_ate_o_lancamento"] == 20
-    recente = (date.today() - timedelta(days=2)).isoformat()
+    recente = (_hoje() - timedelta(days=2)).isoformat()
     r = client.post(_ROTA, json=_pedido(client, auth_headers, despesa, banco, fornecedor, data_despesa=recente, data_pagamento=recente), headers=auth_headers)
     assert r.json()["lancamento_tardio"] is False and r.json()["dias_ate_o_lancamento"] == 2
 
@@ -111,7 +121,7 @@ def test_so_quem_tem_o_financeiro_registra(client, auth_headers, exercicio_finan
 
 def test_a_auditoria_financeira_abre_a_nota_o_comprovante_e_diz_quando_foi_lancada(client, auth_headers, exercicio_financeiro_aberto):
     despesa, banco, fornecedor = _preparo(client, auth_headers)
-    oito_dias = date.today() - timedelta(days=8)
+    oito_dias = _hoje() - timedelta(days=8)
     pedido = _pedido(client, auth_headers, despesa, banco, fornecedor, data_despesa=oito_dias.isoformat(), data_pagamento=oito_dias.isoformat())
     id_titulo = client.post(_ROTA, json=pedido, headers=auth_headers).json()["id_titulo"]
     mes = oito_dias.strftime("%Y-%m")

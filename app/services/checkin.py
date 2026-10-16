@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.models.eventos import SessaoEvento
 from app.models.motores import AUSENTE, CANCELADO, CONFIRMADO, LISTA_DE_ESPERA, PRESENTE, PRE_INSCRITO, Inscricao, RegistroPresenca
 from app.models.portaria import OperacaoPortariaIdempotente
-from app.security import decodificar_token_carteirinha
+from app.services import carteirinha
 from app.services import inscricao as servico_inscricao
 from app.services import presenca as servico_presenca
 from app.services.eventos import CONTEXTO_EVENTO, CONTEXTO_SESSAO_EVENTO
@@ -74,7 +74,7 @@ def _resolver_pessoa_e_inscricao_por_codigo(db: Session, *, codigo: str, id_even
 def _resolver_pessoa_e_inscricao_por_carteirinha(
     db: Session, *, token_carteirinha: str, contexto_tipo: str, id_contexto: int,
 ) -> tuple[int, Optional[Inscricao]]:
-    payload = decodificar_token_carteirinha(token_carteirinha)
+    payload = carteirinha.decodificar(db, token_carteirinha)
     id_pessoa = payload["id_pessoa"]
     inscricao_encontrada = db.query(Inscricao).filter(
         Inscricao.contexto_tipo == contexto_tipo, Inscricao.id_contexto == id_contexto, Inscricao.id_pessoa == id_pessoa,
@@ -165,7 +165,7 @@ def realizar_checkout(
         if not token_carteirinha:
             raise HTTPException(status_code=422, detail="Informe a carteirinha digital.")
         contexto_tipo, id_contexto = _resolver_contexto_pedido(db, id_evento=id_evento, id_sessao=id_sessao)
-        payload = decodificar_token_carteirinha(token_carteirinha)
+        payload = carteirinha.decodificar(db, token_carteirinha)
         id_pessoa = payload["id_pessoa"]
 
     # Resolve pela chave natural (contexto + pessoa + sem saída), nunca pelo id do registro - o

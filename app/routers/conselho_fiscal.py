@@ -21,6 +21,7 @@ from app.routers.financeiro import _consulta_de_titulos
 from app.schemas.conselho_fiscal import AprovacaoEmLoteCriar, DecisaoDeTituloCriar, ParecerCriar, QuestionamentoCriar, RespostaCriar
 from app.security import exigir_permissao, get_current_user
 from app.services import auditoria_financeira, lancamento_tardio
+from app.services.calendario import fuso_da_associacao
 from app.services.conselho_fiscal import usuario_e_conselho_fiscal
 
 router = APIRouter()
@@ -226,10 +227,11 @@ def listar_auditoria_financeira(
 
     pagamentos = lancamento_tardio.datas_de_pagamento(db, ids_da_pagina)
     limite_de_dias = lancamento_tardio.dias_para_lancamento_tardio(db)
+    fuso = fuso_da_associacao(db)
     itens = []
     for t in da_pagina:
         e = estados[t.id_titulo]
-        dias_ate_o_lancamento = lancamento_tardio.dias_ate_o_lancamento(t, pagamentos)
+        dias_ate_o_lancamento = lancamento_tardio.dias_ate_o_lancamento(t, pagamentos, fuso)
         vigentes_ids = {d.id_auditoria for d in e["vigentes"].values()}
         minha = e["vigentes"].get(conselheiro.id_associado) if conselheiro else None
         conta = contas.get(t.id_conta_contabil)
