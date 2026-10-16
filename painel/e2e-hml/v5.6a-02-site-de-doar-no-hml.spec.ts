@@ -69,12 +69,25 @@ async function marcarChavePixParaOSite(
   expect(r.status(), await r.text()).toBe(200)
 }
 
+/** A doação pelo site só abre com a Chave Pix marcada "vai para o site" (o v5.6a-01 deixa assim; aqui se garante, para o roteiro valer sozinho). */
+async function garantirPixAberto(page: Page): Promise<void> {
+  const r = await page.request.put(`${API_HML}/api/instituicao/CHAVE_PIX`, {
+    headers: cabecalho(),
+    data: {
+      valor: 'chave-pix-de-teste@homologacao.example.com',
+      publico: true,
+    },
+  })
+  expect(r.status(), await r.text()).toBe(200)
+}
+
 test('a página Doar do site de teste: campanha ao vivo, Pix sem se identificar com código e QR, e a Política 2.0', async ({
   page,
 }, info) => {
   const vigia = vigiar(page)
   await vigiarViolacoes(page)
   await entrarComoPresidente(page)
+  await garantirPixAberto(page)
 
   await abrir(page)
   await expect(page.locator('[data-antes-de-doar]')).toContainText(
@@ -134,6 +147,7 @@ test('quem se identifica no site recebe o protocolo, e a tesouraria o enxerga na
   const vigia = vigiar(page)
   await vigiarViolacoes(page)
   await entrarComoPresidente(page)
+  await garantirPixAberto(page)
   await abrir(page)
 
   const forma = identificada(page)

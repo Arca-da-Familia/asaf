@@ -64,6 +64,32 @@ async function entrarComoPresidente(page: Page): Promise<void> {
   await expect.poll(() => autorizacao, { timeout: 15_000 }).not.toBe('')
 }
 
+const CHAVE_DE_TESTE = 'chave-pix-de-teste@homologacao.example.com'
+
+/** O que a Presidência faz em Instituição: grava a chave e decide se ela "vai para o site". */
+async function chavePixNaInstituicao(
+  page: Page,
+  dados: { valor?: string; publico: boolean },
+): Promise<void> {
+  const r = await page.request.put(`${API_HML}/api/instituicao/CHAVE_PIX`, {
+    headers: cabecalho(),
+    data: dados,
+  })
+  expect(r.status(), await r.text()).toBe(200)
+}
+
+async function campoDaInstituicao(
+  page: Page,
+  chave: string,
+  valor: string,
+): Promise<void> {
+  const r = await page.request.put(`${API_HML}/api/instituicao/${chave}`, {
+    headers: cabecalho(),
+    data: { valor },
+  })
+  expect(r.status(), await r.text()).toBe(200)
+}
+
 async function paginaPublica(page: Page): Promise<PaginaPublica> {
   const r = await page.request.get(`${API_HML}/api/publico/doacao`)
   expect(r.status()).toBe(200)
@@ -138,12 +164,32 @@ test('a API pública da doação: Pix aberto, campanhas sem a destinação inter
   const vigia = vigiar(page)
   await entrarComoPresidente(page)
 
+  // a TRAVA: com a chave só interna (o padrão de fábrica), a doação pelo site NÃO existe, mesmo com a chave preenchida
+  await chavePixNaInstituicao(page, { valor: CHAVE_DE_TESTE, publico: false })
+  const fechada = await paginaPublica(page)
+  expect(fechada.pix_disponivel, 'chave só interna: a doação não abre').toBe(
+    false,
+  )
+  expect(fechada.chave_pix).toBeNull()
+  const pixFechado = await page.request.get(`${API_HML}/api/publico/doacao/pix`)
+  expect(pixFechado.status()).toBe(503)
+  const pedidoFechado = await pedir(page, {
+    nome_completo: 'Pessoa de Teste',
+    email: `fechada.${RODADA}@homologacao.example.com`,
+  })
+  expect(pedidoFechado.status()).toBe(503)
+
+  // a Presidência marca "vai para o site" (e preenche nome e cidade do Pix): a doação abre, sem novo publicar
+  await campoDaInstituicao(page, 'NOME_BENEFICIARIO_PIX', 'ASAF Teste')
+  await campoDaInstituicao(page, 'CIDADE_BENEFICIARIO_PIX', 'Belem')
+  await chavePixNaInstituicao(page, { publico: true })
   const antes = await paginaPublica(page)
   expect(
     antes.pix_disponivel,
-    'a população de teste marcou a chave como "vai para o site"',
+    'chave marcada "vai para o site": a doação abre',
   ).toBe(true)
-  expect(antes.chave_pix).toBeTruthy()
+  expect(antes.chave_pix).toBe(CHAVE_DE_TESTE)
+  expect(antes.beneficiario).toBe('ASAF Teste')
   expect(antes.dias_de_validade_do_pedido).toBeGreaterThanOrEqual(1)
 
   // uma campanha de teste, com a meta redonda para o percentual não depender de arredondamento
