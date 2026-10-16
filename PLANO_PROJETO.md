@@ -2023,10 +2023,33 @@ declaração da Receita). Não é parecer jurídico: é o raciocínio adotado; o
   (2) a foto da Diretoria é **apagada automaticamente** quando acaba o mandato (não fica guardada); (3) a verificação pública da carteirinha por QR não pode valer por tempo indeterminado: validade curta
   (10 a 20 dias). Viram o item **v5.7d** abaixo.
 
-- [ ] **v5.7d — Apagar de verdade (decisões do Presidente, 2026-10-15 à noite):** (a) rotina que apaga sozinha a foto de quem não tem mais mandato vigente nem futuro (banco e arquivo, com Auditoria);
+- [x] **v5.7d — Apagar de verdade (decisões do Presidente, 2026-10-15 à noite):** (a) rotina que apaga sozinha a foto de quem não tem mais mandato vigente nem futuro (banco e arquivo, com Auditoria);
       (b) o armazenamento privado do Azure (`stasafprivado`, versionamento ligado, soft delete de 30 dias, sem política de ciclo de vida) passa a apagar as versões anteriores das fotos em prazo curto e
       declarado, provado primeiro na homologação; (c) o QR da carteirinha deixa de valer por 365 dias: validade curta e configurável (10 a 20 dias), também para os QR já emitidos; (d) a Política passa a
       dizer exatamente isso (versão 1.10), depois de uma conferência independente.
+  **Feito (2026-10-15 à noite):** (a) `apagar_foto_se_sem_mandato` (no ato de encerrar o mandato: `POST /api/mandatos/{id}/encerrar` devolve `foto_apagada` e o painel avisa antes e depois) e
+  `apagar_fotos_sem_mandato` (rotina `scripts/apagar_fotos_da_diretoria_vencidas.py`, passo do `tarefa-eventos-vagas.yml` e da publicação de teste; devolve (apagadas, falhas) e **sai com 1 se alguma foto não
+  puder ser apagada**; 24 h de carência só para quem nunca teve mandato cadastrado). (b) Regra de ciclo de vida (`infra/ciclo-de-vida-das-fotos.json`: versões antigas dos contêineres `fotos-*` apagadas 1 dia
+  depois de gravadas) e soft delete de blobs de 30 para **25 dias** nas duas contas (`stasafprivado` e `stasafhmlprivado`, que agora espelha a produção com versionamento e soft delete); papel de dados da
+  identidade `asaf-github-actions` só no contêiner `fotos-diretoria` da produção. A 1ª atribuição foi criada com o `appId` no lugar do `objectId` (a conferência independente achou: a rotina falharia em
+  silêncio); apagada a órfã e recriada com o objectId `f026eaf3-…` (**`az role assignment list` mostra o appId em `principalName`; o objectId é o `principalId`**). Máximo real da imagem depois de apagada: cerca
+  de 26 a 28 dias (1 a 2 dias para a versão ficar elegível + até 1 dia até a rodada diária da Azure + 25 de soft delete); o backup do banco (35 dias) guarda só o nome do arquivo e a descrição. (c) `app/services/carteirinha.py`:
+  regra `DIAS_VALIDADE_CARTEIRINHA` (padrão 15, teto 20) na emissão, na verificação pública, no credenciamento de assembleia e na portaria, também para QR já emitido (conta da data de emissão); a verificação
+  deixou de entregar o endereço aberto `/uploads/...` da foto do cadastro: entrega `/carteirinha/verificar/{token}/foto`, que confere o QR a cada pedido. (d) Política **1.10**, corrigida pela conferência
+  independente (2 rodadas; a 2ª sem nenhuma afirmação falsa); o tempo para a foto sair do site foi corrigido de "15 a 30 minutos" para "algumas horas" (o GitHub atrasa o agendamento: 2 a 9,5 h entre
+  rodadas), também nos textos do painel. Achado de passagem e corrigido: `lancamento_tardio` e `financeiro.py` contavam os dias do pagamento ao lançamento no dia do servidor (UTC); agora no dia de Belém
+  (a suíte reprovava das 21h à meia-noite de Belém).
+  **Na homologação:** robôs `v5.7c-01` 4/4 (regressão da foto), `v5.7d-01` 3/3 (encerrar o mandato apaga a foto na hora, com aviso na tela e Auditoria sem nome; prepara pessoa com mandato antigo e foto; QR novo de
+  15 dias e a regra na tela), `v5.7d-02` 1/1 (depois da publicação de teste, que roda a rotina contra o banco e o armazenamento de TESTE: a foto de quem ficou sem mandato SAIU, a Auditoria guardou
+  `FOTO_APAGADA_AUTOMATICAMENTE` sem usuário e a foto da Presidente ficou), `v5.7c-02` 2/2 (site, Política 1.10) e `v5.4d-04` 7/7 (regressão dos mandatos); suíte do servidor 1170 (2 rodadas), painel 553,
+  site 589 + 763 de navegador.
+  **Em produção:** `main` = `5168dca`; `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `5168dca`; `openapi.json` da API traz `/carteirinha/verificar/{token}/foto` e a rota responde 400 "Carteirinha
+  inválida ou expirada." a um token inválido; `/privacidade/` em "Versão 1.10"; a tarefa periódica, disparada à mão em produção, rodou o passo novo com sucesso (`fotos apagadas: 0; que não foi possível
+  apagar: 0`; produção ainda não tem mandato nem foto); regra de ciclo de vida, soft delete de 25 dias e papel conferidos por leitura (`az`).
+  **Abertos desta versão:** (1) o efeito da regra de ciclo de vida sobre uma versão real só aparece depois que a Azure roda a política (uma vez por dia): conferir daqui a uns 2 dias na homologação com
+  `az storage blob list --include v` (precisa de papel de leitura de dados); a janela de cerca de 30 dias é a da documentação da Microsoft, ainda não observada; (2) foto de cadastro de associado já emitida segue
+  abrindo por `/uploads/fotos/<uuid>` a quem já tem o endereço (a verificação do QR não o entrega mais; o painel o usa): uma migração que regrave cada foto com nome novo é uma opção; (3) a foto sai do site em
+  horas por causa do agendamento do GitHub: melhoria possível, a tarefa periódica disparar o deploy do site quando apagar uma foto.
 
 ##### 🔍 Ponto de Revisão — FASE 5 (2/2 — fim, fecha v5.5–v5.7)
 
