@@ -49,7 +49,12 @@ export interface OpcoesBusca {
   tentativas?: number
   esperaEntreTentativasMs?: number
   fetchImpl?: typeof fetch
+  /** v5.6b — a sessão da conta de visitante: vai no cabeçalho `Authorization: Bearer`. Só as rotas `/api/visitante/...` a pedem; nunca é guardada aqui. */
+  token?: string
 }
+
+const cabecalhoDaSessao = (token?: string): Record<string, string> =>
+  token ? { Authorization: `Bearer ${token}` } : {}
 
 export async function buscarJson<T>(
   caminho: string,
@@ -73,13 +78,13 @@ export async function buscarJson<T>(
 
 async function umaTentativa<T>(
   caminho: string,
-  { baseUrl, timeoutMs = 10_000, fetchImpl = fetch }: OpcoesBusca,
+  { baseUrl, timeoutMs = 10_000, fetchImpl = fetch, token }: OpcoesBusca,
 ): Promise<T> {
   const controlador = new AbortController()
   const timer = setTimeout(() => controlador.abort(), timeoutMs)
   try {
     const resposta = await fetchImpl(`${baseUrl}${caminho}`, {
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...cabecalhoDaSessao(token) },
       signal: controlador.signal,
       // Rotas públicas: nunca enviar cookie/credencial do navegador.
       credentials: 'omit',
@@ -113,7 +118,7 @@ async function umaTentativa<T>(
 export async function enviarJson<T>(
   caminho: string,
   corpo: unknown,
-  { baseUrl, timeoutMs = 35_000, fetchImpl = fetch }: OpcoesBusca,
+  { baseUrl, timeoutMs = 35_000, fetchImpl = fetch, token }: OpcoesBusca,
 ): Promise<T> {
   const controlador = new AbortController()
   const timer = setTimeout(() => controlador.abort(), timeoutMs)
@@ -123,6 +128,7 @@ export async function enviarJson<T>(
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
+        ...cabecalhoDaSessao(token),
       },
       body: JSON.stringify(corpo),
       signal: controlador.signal,

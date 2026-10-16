@@ -47,6 +47,10 @@ const presidente = presidenteDaDiretoria((await conteudoPublico()).diretoria)
 // A conferência independente de fatos achou 4 defeitos de código (piso ignorado no desligado, ligação do doador que sobrava no título financeiro, foto do desligado sem apagar o arquivo, voto de sócio que não contava
 // como mudança), corrigidos, e frases incompletas, corrigidas (a Auditoria e o IP dela, o desligado que fica com dependentes, documentos e histórico, o pedido de filiação aprovado).
 // SÓ essas regras são prometidas: inscrição em evento, voluntário, certificado e conta de visitante ainda não têm rotina. As frases que diziam "hoje o sistema não apaga sozinho" (pedido de doação) foram trocadas.
+// v2.2 (2026-10-16): a CONTA DO VISITANTE (v5.6b, `app/services/conta_de_visitante.py`, `app/routers/visitante.py`): o parágrafo `data-conta-visitante-politica` diz SÓ o que o código faz — código de 6 números (10 minutos,
+// uso único, 5 tentativas, só a impressão HMAC guardada), enviado só se há vínculo (inscrição feita pelo site com o e-mail DIGITADO, nunca o do cadastro, ou pedido de doação com o e-mail) e com resposta igual nos dois casos; sessão de 60 minutos na aba do navegador (só a
+// impressão no servidor); o IP e uma impressão do e-mail (nunca o endereço) no controle de limite; a Auditoria sem o e-mail; a limpeza de 1 dia pela rotina de manutenção (`conta_de_visitante.limpar_vencidos`); o pedido de
+// eliminação vira solicitação de titular na fila, sem apagar nada na hora. A limpeza de 1 dia NÃO entra na lista de prazos (é resíduo técnico, não prazo de guarda): a lista segue com 7 itens.
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -392,6 +396,46 @@ const direitos = [
         não vão para ninguém além dos prestadores de infraestrutura e das
         autoridades citados em “Com quem compartilhamos”; o pagamento em si
         passa pelo banco que você mesmo escolhe.
+      </p>
+      <p class="mt-3" id="conta-do-visitante" data-conta-visitante-politica>
+        <strong>Conta do visitante.</strong> A página{' '}
+        <a
+          href="/minha-conta/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          Minha conta
+        </a>{' '}
+        deixa quem se inscreveu em um evento pelo site ou fez um pedido de
+        doação pelo site consultar o que está ligado ao seu e-mail, sem senha.
+        Você informa o e-mail e, só se houver uma inscrição em evento feita pelo
+        site com esse e-mail digitado ou um pedido de doação com esse endereço,
+        o sistema tenta enviar um código de 6 números por e-mail; a resposta na
+        tela é a mesma exista ou não algo ligado ao endereço. O código vale 10
+        minutos, serve uma vez e aceita 5 tentativas; o sistema não guarda o
+        código, só uma impressão dele (calculada com um segredo do servidor), o
+        e-mail e o número de tentativas. O endereço IP de quem pede o código ou
+        tenta entrar fica registrado no controle do limite de pedidos (e, de
+        quem pede o código, uma impressão do e-mail, nunca o endereço, para
+        limitar a 3 pedidos por hora); a Auditoria do sistema registra que
+        alguém entrou, com o IP e sem o e-mail, e registra o pedido de
+        eliminação com o IP e o número do pedido (que guarda o e-mail). A sessão
+        vale no máximo 60 minutos, fica guardada só na aba do seu navegador (o
+        botão Sair a apaga; fechar a aba em geral também) e, no servidor, ficam
+        o e-mail e uma impressão dela. A rotina de manutenção, que roda algumas
+        vezes ao dia, apaga os códigos, as sessões e esses controles de pedido
+        com mais de 1 dia. Dentro da conta você vê as inscrições feitas pelo
+        site com esse e-mail (o evento, a situação, o primeiro nome de quem foi
+        inscrito e, quando há, o código de check-in; a inscrição feita pela
+        secretaria não aparece), os certificados dessas inscrições (a atividade,
+        o primeiro nome, o código de verificação e o PDF) e os seus pedidos de
+        doação pelo site (o protocolo, a situação, o valor e, depois da
+        confirmação da tesouraria, o número do recibo); quem controla a caixa de
+        e-mail desse endereço vê o que está ligado a ele. O botão “Pedir a
+        eliminação dos meus dados” abre uma solicitação de titular de dados na
+        fila de atendimento, e o sistema tenta confirmar por e-mail com o
+        protocolo e o prazo de resposta; nada é apagado na hora: a equipe
+        analisa o pedido conforme a lei e as obrigações da ASAF (recibos e
+        escrituração contábil são guardados).
       </p>
       <p class="mt-3">
         Cada formulário informa, antes do envio, quais dados pede e para quê.

@@ -106,6 +106,7 @@ def inscrever_com_controle_de_vaga(
     db: Session, *, contexto_tipo: str, id_contexto: int, id_pessoa: int, respostas_formulario: Optional[dict],
     codigo_checkin: Optional[str] = None, token_cancelamento: Optional[str] = None,
     consentimento_lgpd_versao: Optional[str] = None, identificador_grupo: Optional[str] = None,
+    email_da_inscricao: Optional[str] = None,
 ) -> Inscricao:
     """Ponto de entrada único pra inscrever alguém respeitando vaga/cota - acima do limite, vira
     LISTA_DE_ESPERA automaticamente, nunca um erro pra quem se inscreve (a pessoa está na fila,
@@ -119,6 +120,7 @@ def inscrever_com_controle_de_vaga(
             respostas_formulario=respostas_formulario, codigo_checkin=codigo_checkin,
             token_cancelamento=token_cancelamento, consentimento_lgpd_versao=consentimento_lgpd_versao,
             status_inicial=status_inicial, categoria_cota=categoria_cota, identificador_grupo=identificador_grupo,
+            email_da_inscricao=email_da_inscricao,
         )
     except HTTPException:
         # a inscrição foi recusada (já inscrita, pessoa inexistente...): a vaga reservada para ela volta, senão cada tentativa repetida comeria uma vaga

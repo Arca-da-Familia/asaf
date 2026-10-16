@@ -425,7 +425,20 @@ def test_o_roteiro_do_sistema_roda_a_rotina_e_sai_com_1_se_alguma_regra_falhou(d
 
     vermelho = _carregar_roteiro("aplicar_retencao_de_dados_vermelho")
     monkeypatch.setattr(vermelho, "SessaoLocal", lambda: _SemFechar(db))
-    monkeypatch.setattr(vermelho.retencao, "aplicar_todas", lambda _db: {"aplicadas": {"acessos": 3}, "falhas": ["atendimentos"]})
+    monkeypatch.setattr(vermelho.retencao, "aplicar_todas", lambda _db: {"aplicadas": {"acessos": 3}, "falhas": ["atendimentos"], "limpeza_tecnica": {"conta_de_visitante": 2}})
     assert vermelho.main() == 1
     saida = capsys.readouterr().out
     assert "[aplicar-retencao] acessos: 3" in saida and "::error::1 regra(s) de retenção falharam: atendimentos" in saida
+    assert "[aplicar-retencao] limpeza técnica (conta_de_visitante): 2" in saida
+
+
+def test_se_a_limpeza_da_conta_de_visitante_falha_a_rotina_fica_vermelha_e_as_regras_seguem(db, monkeypatch):
+    from app.services import conta_de_visitante
+
+    def quebra(*_a, **_k):
+        raise RuntimeError("banco indisponível")
+
+    monkeypatch.setattr(conta_de_visitante, "limpar_vencidos", quebra)
+    resultado = _rodar(db)
+    assert resultado["falhas"] == ["conta_de_visitante"] and "conta_de_visitante" not in resultado["limpeza_tecnica"]
+    assert set(resultado["aplicadas"]) == {r.codigo for r in retencao.REGRAS}, "as regras da tabela rodaram normalmente"

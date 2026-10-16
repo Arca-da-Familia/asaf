@@ -84,6 +84,9 @@ class Inscricao(Base):
     categoria_cota = Column(String, nullable=True)
     prazo_confirmacao = Column(DateTime, nullable=True)
     identificador_grupo = Column(String, nullable=True, index=True)
+    # v5.6b - o e-mail que a pessoa DIGITOU nesta inscrição pelo site (minúsculo): é ele que dá acesso à conta do visitante. NÃO se usa o e-mail do cadastro da pessoa (`Pessoa.email_contato`):
+    # a deduplicação por CPF grava o e-mail de quem se inscreveu no cadastro de outra pessoa que não tinha e-mail, e isso viraria a chave da conta dela. Nula em inscrição feita pela secretaria.
+    email_da_inscricao = Column(String, nullable=True, index=True)
 
 
 class TemplateDocumento(Base):

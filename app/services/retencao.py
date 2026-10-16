@@ -10,8 +10,10 @@ O que ela faz e o que NUNCA faz:
     pessoa, com o id e a lista dos campos, nunca os valores);
   - uma regra que falha não derruba as outras (cada uma tem a sua transação) e o roteiro do sistema fica VERMELHO se alguma falhou;
   - é idempotente: rodar de novo no mesmo dia não faz nada.
-Regras ainda NÃO implementadas (dependem de dado que ainda não existe, por exemplo a conta de visitante da v5.6b): pessoa que só se inscreveu em evento, inscrições e presenças, voluntário, certificados
-e conta de visitante. A Política de Privacidade só promete o prazo das regras que existem aqui."""
+Além das regras da tabela, a rotina varre o RESÍDUO TÉCNICO da conta de visitante (v5.6b): código de acesso e sessão já vencem em minutos; o que sobra deles (e o contador de pedidos por e-mail) é
+apagado depois de 1 dia, sem configuração, porque não é prazo de guarda de dado pessoal e sim limpeza. Vai no resultado como `limpeza_tecnica`, fora de `aplicadas` e da tabela.
+Regras ainda NÃO implementadas (dependem de dado que ainda não existe): pessoa que só se inscreveu em evento, inscrições e presenças, voluntário e certificados. A Política de Privacidade só
+promete o prazo das regras que existem aqui."""
 from __future__ import annotations
 
 import logging
@@ -182,4 +184,13 @@ def aplicar_todas(db: Session, agora: Optional[datetime] = None) -> dict:
             falhas.append(regra.codigo)
     if any(aplicadas.values()):
         registrar_auditoria(db, None, "retencao", "RETENCAO_APLICADA", dados_depois={"aplicadas": {k: v for k, v in aplicadas.items() if v}})
-    return {"aplicadas": aplicadas, "falhas": falhas}
+    limpeza_tecnica: dict[str, int] = {}
+    try:
+        from app.services import conta_de_visitante
+
+        limpeza_tecnica["conta_de_visitante"] = conta_de_visitante.limpar_vencidos(db, agora)
+    except Exception:  # noqa: BLE001 - mesma regra: quem roda precisa saber que a limpeza falhou
+        db.rollback()
+        LOG.exception("a limpeza técnica da conta de visitante falhou")
+        falhas.append("conta_de_visitante")
+    return {"aplicadas": aplicadas, "falhas": falhas, "limpeza_tecnica": limpeza_tecnica}

@@ -1,0 +1,437 @@
+---
+import { API_URL } from '../config/organizacao'
+
+// O miolo da página /minha-conta/ (v5.6b): entrar com o e-mail e um código de uso único (sem senha) e ver, numa área só, as inscrições em eventos, os certificados e as doações
+// feitas pelo site. Quem se comporta é `lib/conta-visitante-dom.ts` (o navegador); aqui só o HTML, com cada estado num bloco que a ilha mostra ou esconde e um modelo
+// (`<template>`) para cada tipo de cartão, que a ilha copia e preenche só com texto.
+const campo =
+  'h-11 w-full rounded-md border bg-background px-3 text-base aria-[invalid=true]:border-destructive'
+const erro = 'mt-1 text-sm font-medium text-destructive'
+const dica = 'mt-1 text-sm text-muted-foreground'
+const link = 'font-medium text-primary underline underline-offset-4'
+const botaoPrimario =
+  'rounded-md bg-primary px-6 py-3 font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60'
+const botaoSecundario =
+  'rounded-md border px-6 py-3 font-medium hover:bg-accent disabled:opacity-60'
+const cartao = 'rounded-lg border bg-card p-5 shadow-card'
+const linha = 'grid gap-1 sm:grid-cols-[12rem_1fr] sm:gap-4'
+const falha =
+  'rounded-md border border-destructive bg-background p-3 font-medium text-destructive'
+---
+
+<div
+  class="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-12"
+  data-conta-visitante
+  data-api-url={API_URL}
+>
+  <noscript>
+    <p class="font-medium">
+      Para entrar na sua conta é preciso ativar o JavaScript do navegador. Se
+      preferir, fale com a secretaria: o telefone e o e-mail estão no rodapé
+      desta página.
+    </p>
+  </noscript>
+
+  <p data-estado="carregando" role="status">
+    Abrindo a sua conta…
+  </p>
+
+  <!-- Aviso que vale em qualquer tela: "Você saiu", "A sua sessão acabou". -->
+  <p
+    data-aviso-geral
+    role="status"
+    tabindex="-1"
+    hidden
+    class="rounded-lg border-2 border-primary bg-card p-4 font-medium"
+  ></p>
+
+  <!-- 1. o e-mail -->
+  <section
+    data-estado="email"
+    hidden
+    aria-labelledby="conta-entrar"
+    class="rounded-lg border bg-card p-6 shadow-card sm:p-8"
+  >
+    <h2 id="conta-entrar" class="text-2xl font-bold tracking-tight">
+      Entrar na sua conta
+    </h2>
+    <p class="mt-3 max-w-2xl">
+      Aqui ficam as suas inscrições em eventos, os certificados e as doações
+      feitas pelo site. Não existe senha: você informa o e-mail e, se houver
+      algo ligado a ele, recebe um código de 6 números e digita aqui.
+    </p>
+    <form
+      data-formulario-email
+      novalidate
+      class="relative mt-6 grid max-w-xl gap-5"
+    >
+      <div>
+        <label for="conta-email" class="block text-sm font-medium">
+          E-mail usado na inscrição ou na doação
+        </label>
+        <input
+          id="conta-email"
+          name="email"
+          type="email"
+          autocomplete="email"
+          aria-describedby="conta-erro-email"
+          class={`mt-1 ${campo}`}
+        />
+        <p id="conta-erro-email" data-erro-do-email hidden class={erro}></p>
+      </div>
+
+      <!-- Armadilha para robôs: ninguém vê nem preenche; quem preenche é descartado pela API sem aviso. -->
+      <div
+        aria-hidden="true"
+        class="absolute -left-[9999px] h-px w-px overflow-hidden"
+      >
+        <label>
+          Não preencha este campo
+          <input
+            type="text"
+            name="pagina_web"
+            tabindex="-1"
+            autocomplete="off"
+          />
+        </label>
+      </div>
+
+      <div>
+        <button type="submit" data-pedir-codigo class={botaoPrimario}>
+          Receber o código por e-mail
+        </button>
+      </div>
+      <p class={dica}>
+        O seu e-mail é usado para enviar o código, para mostrar o que está
+        ligado a ele e para limitar os pedidos; fica guardado junto do código e
+        da sessão pelo tempo descrito na
+        <a href="/privacidade/#conta-do-visitante" class={link}>
+          Política de Privacidade
+        </a>
+        .
+      </p>
+    </form>
+  </section>
+
+  <!-- 2. o código -->
+  <section
+    data-estado="codigo"
+    hidden
+    aria-labelledby="conta-codigo-titulo"
+    class="rounded-lg border bg-card p-6 shadow-card sm:p-8"
+  >
+    <h2 id="conta-codigo-titulo" class="text-2xl font-bold tracking-tight">
+      Digite o código
+    </h2>
+    <p data-mensagem-do-pedido class="mt-3 max-w-2xl"></p>
+    <p class="mt-2 max-w-2xl">
+      E-mail informado: <strong data-email-informado></strong>
+    </p>
+    <form data-formulario-codigo novalidate class="mt-6 grid max-w-xl gap-5">
+      <div>
+        <label for="conta-codigo" class="block text-sm font-medium">
+          Código de 6 números
+        </label>
+        <input
+          id="conta-codigo"
+          name="codigo"
+          type="text"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          maxlength="12"
+          aria-describedby="conta-erro-codigo"
+          class={`mt-1 ${campo} tracking-widest`}
+        />
+        <p id="conta-erro-codigo" data-erro-do-codigo hidden class={erro}></p>
+      </div>
+      <div class="flex flex-wrap gap-3">
+        <button type="submit" data-entrar class={botaoPrimario}>
+          Entrar
+        </button>
+        <button type="button" data-pedir-outro-codigo class={botaoSecundario}>
+          Pedir um novo código
+        </button>
+        <button type="button" data-usar-outro-email class={botaoSecundario}>
+          Usar outro e-mail
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- falha geral (rede, servidor) -->
+  <div
+    data-estado="erro"
+    hidden
+    class="rounded-lg border-2 border-destructive bg-card p-6"
+  >
+    <p data-mensagem-de-erro class="font-medium"></p>
+    <p class="mt-4">
+      <button type="button" data-tentar-de-novo class={botaoSecundario}>
+        Tentar de novo
+      </button>
+    </p>
+  </div>
+
+  <!-- 3. a conta -->
+  <div data-estado="conta" hidden class="grid gap-10">
+    <section
+      aria-labelledby="conta-ola"
+      class="flex flex-wrap items-start justify-between gap-4"
+    >
+      <div>
+        <h2 id="conta-ola" class="text-2xl font-bold tracking-tight">
+          Sua conta
+        </h2>
+        <p class="mt-1">
+          E-mail: <strong data-email-da-conta></strong>
+        </p>
+        <p data-fim-da-sessao class={dica}></p>
+      </div>
+      <button type="button" data-sair class={botaoSecundario}>
+        Sair
+      </button>
+    </section>
+
+    <section aria-labelledby="conta-inscricoes" class="grid gap-4">
+      <h2 id="conta-inscricoes" class="text-xl font-bold tracking-tight">
+        Inscrições em eventos
+      </h2>
+      <p data-vazio="inscricoes" hidden>
+        Nenhuma inscrição feita pelo site com este e-mail.
+      </p>
+      <p data-nota-de-eventos-encerrados class={dica} hidden>
+        O evento que já aconteceu fica aqui só para consulta: ele não é apagado.
+      </p>
+      <ul data-lista="inscricoes" class="grid gap-4"></ul>
+    </section>
+
+    <section aria-labelledby="conta-certificados" class="grid gap-4">
+      <h2 id="conta-certificados" class="text-xl font-bold tracking-tight">
+        Certificados
+      </h2>
+      <p data-vazio="certificados" hidden>
+        Nenhum certificado das inscrições deste e-mail.
+      </p>
+      <ul data-lista="certificados" class="grid gap-4"></ul>
+    </section>
+
+    <section aria-labelledby="conta-doacoes" class="grid gap-4">
+      <h2 id="conta-doacoes" class="text-xl font-bold tracking-tight">
+        Doações feitas pelo site
+      </h2>
+      <p data-vazio="doacoes" hidden>
+        Nenhuma doação feita pelo site com este e-mail.
+      </p>
+      <ul data-lista="doacoes" class="grid gap-4"></ul>
+    </section>
+
+    <section
+      aria-labelledby="conta-apagar"
+      class="grid gap-4 rounded-lg border bg-card p-6"
+    >
+      <h2 id="conta-apagar" class="text-xl font-bold tracking-tight">
+        Pedir a eliminação dos meus dados
+      </h2>
+      <p class="max-w-2xl">
+        Você pode pedir que apaguemos os dados ligados a este e-mail. O pedido
+        vai para a fila de atendimento da ASAF, que responde dentro do prazo
+        mostrado no protocolo. Recibos e registros contábeis a lei manda
+        guardar: nesses, a ASAF avalia o que pode sair.
+      </p>
+      <div
+        data-apagamento-em-andamento
+        hidden
+        class="rounded-md border-2 border-primary p-4"
+      >
+        <p class="font-medium">
+          Já existe um pedido seu em andamento. Protocolo
+          <strong data-protocolo-em-andamento></strong>.
+        </p>
+        <p data-prazo-em-andamento class="mt-1"></p>
+      </div>
+      <div data-apagamento-formulario>
+        <button type="button" data-apagar class={botaoSecundario}>
+          Pedir a eliminação dos meus dados
+        </button>
+        <div
+          data-passo-de-confirmacao
+          hidden
+          class="mt-4 grid max-w-xl gap-4 rounded-lg border-2 border-destructive bg-card p-5"
+        >
+          <p class="text-lg font-bold">
+            Tem certeza? Abriremos um pedido para eliminar os dados ligados a
+            este e-mail.
+          </p>
+          <div class="flex flex-wrap gap-3">
+            <button
+              type="button"
+              data-confirmar-apagamento
+              class={botaoPrimario}
+            >
+              Sim, pedir a eliminação
+            </button>
+            <button type="button" data-voltar class={botaoSecundario}>
+              Não, voltar
+            </button>
+          </div>
+        </div>
+      </div>
+      <div
+        data-resultado-do-apagamento
+        role="status"
+        tabindex="-1"
+        hidden
+        class="rounded-lg border-2 border-primary bg-card p-4"
+      >
+        <p class="font-medium">
+          <span data-frase-do-resultado>Pedido recebido.</span> Protocolo
+          <strong data-protocolo-do-pedido></strong>.
+        </p>
+        <p data-prazo-do-pedido class="mt-1"></p>
+        <p data-confirmacao-por-email class="mt-1">
+          Se o e-mail estiver funcionando, você recebe a confirmação com o
+          protocolo.
+        </p>
+      </div>
+      <p
+        data-falha-do-apagamento
+        role="alert"
+        tabindex="-1"
+        hidden
+        class={falha}
+      ></p>
+    </section>
+  </div>
+
+  <p>
+    <a href="/eventos/" class={link}>
+      Ver os eventos
+    </a>
+  </p>
+
+  <!-- Modelos dos cartões (copiados pela ilha; nada vindo da API entra como HTML). -->
+  <template data-modelo="inscricao">
+    <li data-cartao class={cartao}>
+      <h3 data-i-titulo class="text-lg font-bold"></h3>
+      <div
+        data-i-aviso
+        role="status"
+        hidden
+        class="mt-3 rounded-md border-2 border-destructive p-3 font-bold"
+      ></div>
+      <dl class="mt-3 grid gap-2">
+        <div data-linha class={linha}>
+          <dt class="font-medium">Quando</dt>
+          <dd data-i-quando></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Onde</dt>
+          <dd data-i-onde></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Sessão</dt>
+          <dd data-i-sessao></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Inscrição de</dt>
+          <dd data-i-inscrito></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Situação</dt>
+          <dd data-i-situacao class="font-semibold"></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Código de check-in</dt>
+          <dd>
+            <strong
+              data-i-codigo
+              class="rounded-md border-2 border-primary px-2 py-1 text-lg tracking-wide"
+            ></strong>
+          </dd>
+        </div>
+      </dl>
+      <p data-i-encerrado hidden class="mt-3 font-medium">
+        Evento encerrado: esta inscrição fica aqui só para consulta.
+      </p>
+      <p data-i-links class="mt-4 flex flex-wrap gap-4" hidden>
+        <a data-i-cancelar hidden href="/" class={link}>
+          Cancelar a minha inscrição
+        </a>
+        <a data-i-confirmar hidden href="/" class={link}>
+          Confirmar a minha vaga
+        </a>
+      </p>
+    </li>
+  </template>
+
+  <template data-modelo="certificado">
+    <li data-cartao class={cartao}>
+      <h3 data-c-tipo class="text-lg font-bold"></h3>
+      <dl class="mt-3 grid gap-2">
+        <div data-linha class={linha}>
+          <dt class="font-medium">Atividade</dt>
+          <dd data-c-atividade></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Em nome de</dt>
+          <dd data-c-nome></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Emitido em</dt>
+          <dd data-c-emitido></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Código de verificação</dt>
+          <dd>
+            <strong data-c-codigo class="tracking-wide"></strong>
+          </dd>
+        </div>
+      </dl>
+      <p class="mt-4">
+        <a data-c-baixar hidden href="/" rel="noopener" class={link}>
+          Abrir o certificado (PDF)
+        </a>
+      </p>
+    </li>
+  </template>
+
+  <template data-modelo="doacao">
+    <li data-cartao class={cartao}>
+      <h3 class="text-lg font-bold">
+        Protocolo <span data-d-protocolo></span>
+      </h3>
+      <dl class="mt-3 grid gap-2">
+        <div data-linha class={linha}>
+          <dt class="font-medium">Situação</dt>
+          <dd data-d-situacao class="font-semibold"></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Pedida em</dt>
+          <dd data-d-pedida></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Valor informado</dt>
+          <dd data-d-informado></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Campanha</dt>
+          <dd data-d-campanha></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Recibo</dt>
+          <dd data-d-recibo class="font-semibold"></dd>
+        </div>
+      </dl>
+      <p data-d-explicacao hidden class="mt-3"></p>
+      <p data-d-aviso-do-recibo hidden class="mt-3 font-medium"></p>
+    </li>
+  </template>
+</div>
+
+<script>
+  import { iniciarContaDoVisitante } from '../lib/conta-visitante-dom'
+
+  document
+    .querySelectorAll<HTMLElement>('[data-conta-visitante]')
+    .forEach((raiz) => iniciarContaDoVisitante(raiz))
+</script>

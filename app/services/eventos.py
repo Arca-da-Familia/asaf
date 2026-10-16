@@ -517,7 +517,7 @@ def _inscrever_um_participante(
         db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, id_pessoa=pessoa.id_pessoa,
         respostas_formulario=respostas or None, codigo_checkin=codigo_checkin,
         token_cancelamento=token_cancelamento, consentimento_lgpd_versao=versao_texto_consentimento,
-        identificador_grupo=identificador_grupo,
+        identificador_grupo=identificador_grupo, email_da_inscricao=email,
     )
     titulo_cobranca = _cobrar_inscricao_se_devido(
         db, evento=evento, inscricao=inscricao_criada, id_pessoa=pessoa.id_pessoa, codigo_cupom=codigo_cupom,

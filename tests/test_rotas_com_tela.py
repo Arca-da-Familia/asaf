@@ -23,6 +23,8 @@ PAINEL_SRC = RAIZ / "painel" / "src"
 ISENTAS = (
     "/api/publico", "/api/filiacao/propor", "/auth/bootstrap-admin", "/carteirinha/verificar", "/certificado/verificar",
     "/pesquisa-satisfacao", "/setup-cerebro/", "/openapi", "/docs", "/redoc", "/uploads", "/health",
+    # v5.6b: a área do visitante é uma página do SITE (sessão própria, por e-mail e código), nunca do painel
+    "/api/visitante/",
 )
 
 # Rotas que AINDA não têm tela, e a versão do plano que vai criá-la. Só pode encolher.
