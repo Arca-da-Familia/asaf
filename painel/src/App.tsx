@@ -188,6 +188,12 @@ function App() {
               </ErrorBoundary>
             }
           />
+          {/* v5.6a - o aviso do sino que o servidor manda a cada doação nova do site leva a /doacoes, mas a tela de Doações vive em /financeiro/doacoes
+              (guardada pela permissão `financeiro`): sem este atalho o link caía na página inicial. */}
+          <Route
+            path="/doacoes"
+            element={<Navigate to="/financeiro/doacoes" replace />}
+          />
           <Route
             path="/instituicao"
             element={

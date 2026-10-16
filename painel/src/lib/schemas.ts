@@ -815,6 +815,27 @@ export const doacaoCriarSchema = z.object({
   id_conta_contabil_caixa: numeroOpcional,
 })
 
+// v5.6a - confirmar o Pix de uma doação feita pelo site: o valor RECEBIDO (como se escreve no Brasil, "1.200,50"), as duas contas e a destinação
+// (opcional). No formulário tudo é texto (campo de valor e selects); quem envia converte para número.
+export const confirmarDoacaoDoSiteSchema = z.object({
+  valor_recebido: z
+    .string()
+    .refine(
+      (v) => lerValorEmReais(v) !== null,
+      'Informe o valor que chegou no extrato, maior que zero (ex.: 50,00).',
+    ),
+  id_conta_contabil: z.string().min(1, 'Escolha a conta de receita.'),
+  id_conta_contabil_caixa: z
+    .string()
+    .min(1, 'Escolha a conta de caixa ou banco onde o Pix caiu.'),
+  id_centro_custo_destinacao: z.string(),
+})
+
+// v5.6a - "Pix não localizado": a observação é opcional e tem até 300 letras (o servidor corta o que passar).
+export const doacaoDoSiteNaoLocalizadaSchema = z.object({
+  observacao: z.string().max(300, 'Escreva até 300 letras.'),
+})
+
 // v3.4 - remanejamento formal e auditado de saldo restrito entre destinações.
 export const remanejamentoDestinacaoCriarSchema = z.object({
   id_centro_custo_origem: z.coerce

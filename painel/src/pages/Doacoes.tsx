@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { z } from 'zod'
 
+import { BotaoRecibo } from '@/components/doacoes/BotaoRecibo'
+import { DoacoesDoSite } from '@/components/doacoes/DoacoesDoSite'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -12,7 +14,6 @@ import {
   listarCentrosCusto,
   listarDoacoes,
   listarPlanoContas,
-  obterReciboDoacao,
   registrarDoacao,
 } from '@/lib/api'
 import {
@@ -310,31 +311,6 @@ function FormularioDoacao({ onCancelar }: { onCancelar: () => void }) {
   )
 }
 
-function BotaoRecibo({ idDoacao }: { idDoacao: number }) {
-  const [texto, setTexto] = useState<string | null>(null)
-  const recibo = useMutation({
-    mutationFn: () => obterReciboDoacao(idDoacao),
-    onSuccess: (resultado) => setTexto(resultado.texto),
-  })
-  return (
-    <div>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={recibo.isPending}
-        onClick={() => recibo.mutate()}
-      >
-        Ver recibo
-      </Button>
-      {texto && (
-        <pre className="mt-2 whitespace-pre-wrap rounded-md border border-border bg-muted/20 p-3 text-xs">
-          {texto}
-        </pre>
-      )}
-    </div>
-  )
-}
-
 export function DoacoesPage() {
   const [mostrarFormCampanha, setMostrarFormCampanha] = useState(false)
   const [mostrarFormDoacao, setMostrarFormDoacao] = useState(false)
@@ -366,6 +342,8 @@ export function DoacoesPage() {
           { rotulo: 'Doações' },
         ]}
       />
+
+      <DoacoesDoSite />
 
       <section className="mb-6 rounded-xl border border-border bg-card p-6">
         <div className="mb-4 flex items-center justify-between">
