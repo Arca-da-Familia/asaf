@@ -172,6 +172,54 @@ describe('Mandatos', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('quem fica sem mandato tem a foto do site apagada junto, e a tela avisa (e antes avisa no formulário)', async () => {
+    const u = userEvent.setup()
+    vi.mocked(api.encerrarMandato).mockResolvedValue({
+      ...mandato,
+      vigente: false,
+      vaga_aberta: false,
+      foto_apagada: true,
+    })
+    desenhar('/governanca/mandatos', '/governanca/mandatos', <MandatosPage />)
+    await u.click(
+      await screen.findByRole('button', { name: 'Encerrar mandato' }),
+    )
+    expect(
+      screen.getByText(/tem a foto do site apagada junto: a foto só existe/),
+    ).toBeInTheDocument()
+    await u.click(
+      screen.getByRole('button', { name: 'Confirmar encerramento' }),
+    )
+    const aviso = await screen.findByRole('status')
+    expect(aviso).toHaveTextContent(
+      'A foto desta pessoa no site foi apagada junto com o mandato. Se ela voltar a ter mandato, é preciso enviar a foto de novo.',
+    )
+    expect(screen.queryByText(/Vaga aberta/)).not.toBeInTheDocument()
+  })
+
+  it('sem foto apagada, a tela não fala de foto depois de encerrar', async () => {
+    const u = userEvent.setup()
+    vi.mocked(api.encerrarMandato).mockResolvedValue({
+      ...mandato,
+      vigente: false,
+      vaga_aberta: false,
+      foto_apagada: false,
+    })
+    desenhar('/governanca/mandatos', '/governanca/mandatos', <MandatosPage />)
+    await u.click(
+      await screen.findByRole('button', { name: 'Encerrar mandato' }),
+    )
+    await u.click(
+      screen.getByRole('button', { name: 'Confirmar encerramento' }),
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Confirmar encerramento' }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(screen.queryByText(/foto desta pessoa/)).not.toBeInTheDocument()
+  })
+
   it('a recusa ao encerrar (outra aba já encerrou) aparece UMA vez', async () => {
     const u = userEvent.setup()
     vi.mocked(api.encerrarMandato).mockRejectedValue(

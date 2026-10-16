@@ -103,6 +103,18 @@ jobs:
       - name: Aplicar migrações no banco de TESTE
         run: DATABASE_URL="$HML_DATABASE_URL" alembic upgrade head
 
+      # v5.7d - as rotinas periódicas que na PRODUÇÃO o agendamento roda (tarefa-eventos-vagas.yml) não têm agendamento na homologação: aqui rodam a cada publicação de teste, para provar com dado de
+      # verdade (o robô prepara, a publicação roda a rotina, o robô confere). Só contra o banco de TESTE (HML_DATABASE_URL) e o armazenamento de TESTE; uma versão do código sem o roteiro não faz nada.
+      - name: Rotinas do sistema no banco de TESTE (apagar a foto da Diretoria de quem ficou sem mandato)
+        env:
+          ARMAZENAMENTO_BLOB_URL: https://stasafhmlprivado.blob.core.windows.net
+        run: |
+          if [ -f scripts/apagar_fotos_da_diretoria_vencidas.py ]; then
+            DATABASE_URL="$HML_DATABASE_URL" PYTHONPATH=. python scripts/apagar_fotos_da_diretoria_vencidas.py
+          else
+            echo "Esta versão do código ainda não tem a rotina: nada a rodar."
+          fi
+
       - name: Build da imagem no ACR
         run: |
           az acr build \

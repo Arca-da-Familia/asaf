@@ -18,6 +18,7 @@ from app.config_cache import obter_configuracao
 from app.models.compras import AlcadaAprovacao, DadosBancariosFornecedor, SolicitacaoCompra
 from app.models.financeiro import Fornecedor, LancamentoContabil, TituloFinanceiro
 from app.services import lancamento_tardio
+from app.services.calendario import fuso_da_associacao
 from app.services.formato import reais
 
 
@@ -173,9 +174,10 @@ def _saidas_com_lancamento_tardio(db: Session, *, inicio: datetime, fim: datetim
         TituloFinanceiro.nota_fiscal.isnot(None), TituloFinanceiro.data_emissao >= inicio, TituloFinanceiro.data_emissao <= fim,
     ).order_by(TituloFinanceiro.id_titulo).all()
     pagamentos = lancamento_tardio.datas_de_pagamento(db, [t.id_titulo for t in titulos])
+    fuso = fuso_da_associacao(db)
     achados = []
     for t in titulos:
-        dias = lancamento_tardio.dias_ate_o_lancamento(t, pagamentos)
+        dias = lancamento_tardio.dias_ate_o_lancamento(t, pagamentos, fuso)
         if dias is not None and dias > limite:
             achados.append({
                 "tipo": "LANCAMENTO_TARDIO",

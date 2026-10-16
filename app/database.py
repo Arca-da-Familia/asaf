@@ -514,6 +514,8 @@ def seed_configuracoes_institucionais():
         {"chave": "PRAZO_DIAS_PEDIDO_INFORMACAO", "valor": "20", "tipo": "numero", "categoria": "regras", "descricao": "Dias para responder um pedido de informação sobre recursos públicos que chega pelo site."},
         {"chave": "PRAZO_DIAS_TITULAR_LGPD", "valor": "15", "tipo": "numero", "categoria": "regras", "descricao": "Dias para responder uma solicitação de titular de dados (LGPD) que chega pelo site (a lei fixa 15 dias para a declaração completa)."},
         {"chave": "PRAZO_DIAS_ATENDIMENTO_VOLUNTARIO", "valor": "10", "tipo": "numero", "categoria": "regras", "descricao": "Dias para responder quem se oferece como voluntário pelo site."},
+        # v5.7d - o QR da carteirinha não vale por tempo indeterminado (decisão do Presidente: 10 a 20 dias): vale este número de dias a partir da emissão, também para os QR já emitidos.
+        {"chave": "DIAS_VALIDADE_CARTEIRINHA", "valor": "15", "tipo": "numero", "categoria": "regras", "descricao": "Dias que o QR da carteirinha digital vale a partir do momento em que é gerado, de 1 a 20 (a verificação pública, a foto dela, a portaria e o credenciamento deixam de aceitá-lo depois disso)."},
         # v2.0 - cláusulas pétreas do Art. 33 do estatuto: identidade institucional, não regra
         # operacional (nunca bloqueiam nenhuma ação do sistema, por isso NÃO entram em
         # RegraEstatutaria - ver seed_regras_estatutarias e PLANO_PROJETO.md v2.0).

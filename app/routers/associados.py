@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, File
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -27,8 +27,8 @@ from app.schemas.associados import (
     HistoricoCargoCriar,
     HistoricoCargoEncerrar,
 )
-from app.security import criar_token_carteirinha, decodificar_token_carteirinha, exigir_alguma_permissao, exigir_permissao, get_current_user, hash_senha, usuario_tem_permissao, validar_senha_forte
-from app.services import armazenamento
+from app.security import exigir_alguma_permissao, exigir_permissao, get_current_user, hash_senha, usuario_tem_permissao, validar_senha_forte
+from app.services import armazenamento, carteirinha
 from app.services.categoria_associado import calcular_categoria
 from app.services.busca import numero_que_cabe_no_banco
 from app.services.catalogos import validar_codigo_em_catalogo
@@ -682,28 +682,60 @@ async def enviar_foto_associado(id_associado: int, foto: UploadFile = File(...),
 def gerar_carteirinha(id_associado: int, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
     # v5.4c: antes qualquer pessoa gerava uma carteirinha VÁLIDA (assinada) de qualquer associado, só com o número dele.
     associado = _associado_do_proprio_ou_de_quem_tem_permissao(db, usuario, id_associado)
-    token = criar_token_carteirinha(associado.id_pessoa)
+    token = carteirinha.emitir(db, associado.id_pessoa)
     return {"token": token, "url_verificacao": f"/carteirinha/verificar/{token}"}
 
 
-@router.get("/carteirinha/verificar/{token}", summary="Verificar carteirinha digital (público)")
-def verificar_carteirinha(token: str, db: Session = Depends(get_db)):
-    """Endpoint público de propósito (é o que a portaria/parceiro escaneia) - por isso devolve
-    só o mínimo pra confirmar identidade visual (nome, foto, categoria, validade). Nunca CPF,
-    telefone ou endereço, mesmo que o token seja válido."""
-    payload = decodificar_token_carteirinha(token)
+def _pessoa_da_carteirinha(db: Session, payload: dict) -> Pessoa:
     pessoa = db.query(Pessoa).filter(Pessoa.id_pessoa == payload["id_pessoa"]).first()
     if not pessoa:
         raise HTTPException(status_code=404, detail="Pessoa não encontrada.")
     papel = db.query(Papel).filter(Papel.id_pessoa == pessoa.id_pessoa, Papel.tipo_papel == "associado", Papel.ativo == True).first()
     if not papel:
         raise HTTPException(status_code=404, detail="Papel de associado inativo ou não encontrado.")
+    return pessoa
+
+
+def _arquivo_da_foto(pessoa: Pessoa) -> Optional[tuple[str, str]]:
+    """(pasta, nome) da foto do cadastro, só se for uma imagem que o sistema serve."""
+    alvo = armazenamento.separar_url(pessoa.foto)
+    if alvo is None or armazenamento.tipo_servido(alvo[1]) not in ("image/jpeg", "image/png", "image/webp"):
+        return None
+    return alvo
+
+
+@router.get("/carteirinha/verificar/{token}/foto", summary="Foto da carteirinha digital, só enquanto o QR vale (público)")
+def foto_da_carteirinha(token: str, db: Session = Depends(get_db)):
+    payload = carteirinha.decodificar(db, token)
+    pessoa = _pessoa_da_carteirinha(db, payload)
+    alvo = _arquivo_da_foto(pessoa)
+    try:
+        conteudo = armazenamento.obter().ler(*alvo) if alvo else None
+    except Exception:  # noqa: BLE001 - rede, permissão: quem pede a foto recebe um erro claro, não um 500 sem explicação
+        armazenamento.LOG.exception("não foi possível ler a foto da carteirinha")
+        raise HTTPException(status_code=502, detail="Não consegui ler a foto agora. Tente de novo em instantes.")
+    if alvo is None or conteudo is None:
+        raise HTTPException(status_code=404, detail="Foto não encontrada.")
+    return Response(
+        content=conteudo, media_type=armazenamento.tipo_servido(alvo[1]),
+        headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "no-store"},
+    )
+
+
+@router.get("/carteirinha/verificar/{token}", summary="Verificar carteirinha digital (público)")
+def verificar_carteirinha(token: str, db: Session = Depends(get_db)):
+    """Endpoint público de propósito (é o que a portaria/parceiro escaneia) - por isso devolve
+    só o mínimo pra confirmar identidade visual (nome, foto, categoria, validade). Nunca CPF,
+    telefone ou endereço, mesmo que o token seja válido. A foto NÃO é o endereço `/uploads/...` (aberto
+    sem login e sem prazo): é uma rota que confere o QR a cada pedido (v5.7d), então a foto some junto com a validade."""
+    payload = carteirinha.decodificar(db, token)
+    pessoa = _pessoa_da_carteirinha(db, payload)
     associado = db.query(Associado).filter(Associado.id_pessoa == pessoa.id_pessoa).first()
 
     validade = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
     return {
         "nome_completo": pessoa.nome_completo,
-        "foto": pessoa.foto,
+        "foto": f"/carteirinha/verificar/{token}/foto" if _arquivo_da_foto(pessoa) else None,
         "categoria": associado.status_arrolamento if associado else None,
         "valido_ate": validade.isoformat(),
         "valido": validade > datetime.now(timezone.utc),

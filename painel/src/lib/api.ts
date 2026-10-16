@@ -1892,7 +1892,9 @@ export function listarMandatosVencendo(
 export function encerrarMandato(
   idMandato: number,
   dados: { motivo: string; referencia_ato?: string },
-): Promise<Mandato & { vaga_aberta: boolean; pendencia?: string }> {
+): Promise<
+  Mandato & { vaga_aberta: boolean; pendencia?: string; foto_apagada?: boolean }
+> {
   return apiFetch(`/api/mandatos/${idMandato}/encerrar`, {
     method: 'POST',
     body: JSON.stringify(dados),

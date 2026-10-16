@@ -269,16 +269,16 @@ test.describe('Diretoria com fotos (v5.7c)', () => {
     expect(readdirSync('dist/midia/diretoria')).toHaveLength(2)
   })
 
-  test('a Política de Privacidade (1.9) conta o que o sistema faz com a foto, e nunca mais diz "nem foto"', async ({
+  test('a Política de Privacidade (1.10) conta o que o sistema faz com a foto, e nunca mais diz "nem foto"', async ({
     page,
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 1.9 · em vigor desde 16 de outubro de 2026'),
+      page.getByText('Versão 1.10 · em vigor desde 16 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 1\.9, em vigor desde 16 de outubro de 2026/,
+        /Esta é a versão 1\.10, em vigor desde 16 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-diretoria-foto]')
@@ -289,25 +289,29 @@ test.describe('Diretoria com fotos (v5.7c)', () => {
     await expect(paragrafo).toContainText(
       'Sem a autorização a foto não é guardada no sistema',
     )
-    await expect(paragrafo).toContainText(
-      'A foto só é mostrada enquanto a pessoa está em mandato vigente',
-    )
-    await expect(paragrafo).toContainText(
-      'depois disso ela continua guardada, sem uso, até a Diretoria apagá-la',
-    )
-    await expect(paragrafo).toContainText(
-      'a foto é apagada na hora (ficam apenas cópias de segurança internas, que não são públicas)',
-    )
-    await expect(paragrafo).toContainText('mas pode demorar mais')
-    await expect(paragrafo).toContainText(
-      'não é usada em nenhuma página deste site; ela aparece apenas na verificação da carteirinha digital',
-    )
+    for (const trecho of [
+      'A foto só existe enquanto a pessoa tem mandato vigente ou marcado',
+      'o sistema apaga a foto sozinho',
+      'tem até 24 horas para ele aparecer',
+      'ao registrar o pedido no sistema, ela é apagada na hora',
+      'isso costuma levar algumas horas e pode passar de meio dia',
+      'ficam apenas cópias de segurança internas, que não são públicas, por até cerca de 30 dias',
+      'duram até 35 dias',
+      'é preciso enviar a foto de novo',
+      'não é usada em nenhuma página deste site; para o público ela só aparece na verificação da carteirinha digital',
+      'e só enquanto o QR vale',
+      'Esse QR vale por poucos dias a partir de quando é gerado (hoje, 15 dias; no máximo 20)',
+    ]) {
+      await expect(paragrafo).toContainText(trecho)
+    }
+    await expect(paragrafo).not.toContainText('15 a 30 minutos')
+    await expect(paragrafo).not.toContainText('continua guardada, sem uso')
     await expect(
       paragrafo.getByRole('link', { name: 'Diretoria' }),
     ).toHaveAttribute('href', '/diretoria/')
     const texto = await page.locator('main').innerText()
     expect(texto).not.toMatch(/Não publicamos CPF, telefone, e-mail nem foto/)
-    expect(texto).not.toContain('Esta é a versão 1.8')
+    expect(texto).not.toContain('Esta é a versão 1.9')
     // a página Diretoria avisa a mesma regra, com link para a Política
     await page.goto('/diretoria/')
     await expect(page.locator('[data-sobre-as-fotos]')).toContainText(

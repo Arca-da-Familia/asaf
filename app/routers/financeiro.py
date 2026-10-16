@@ -714,7 +714,7 @@ def registrar_saida(dados: SaidaRegistrar, request: Request, db: Session = Depen
         db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == titulo.id_titulo).delete()
         db.commit()
         raise
-    dias_ate_o_lancamento = max(0, (date.today() - dados.data_pagamento).days)
+    dias_ate_o_lancamento = max(0, (lancamento_tardio.hoje_da_associacao(db) - dados.data_pagamento).days)
     tardio = dias_ate_o_lancamento > lancamento_tardio.dias_para_lancamento_tardio(db)
     registrar_auditoria(
         db, usuario, "titulos_financeiros", "REGISTRAR_SAIDA", id_registro_afetado=titulo.id_titulo,

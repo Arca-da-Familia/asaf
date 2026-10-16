@@ -1,15 +1,15 @@
 """v5.4h - lançamento tardio: a saída registrada muito depois do pagamento entra no relatório de exceção mensal do Conselho Fiscal (padrões suspeitos), e o
 limite de dias é uma configuração (`DIAS_ALERTA_LANCAMENTO_TARDIO`, padrão 5) que vale igual no registro, no cartão da Auditoria financeira e no relatório."""
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 from app.services.lancamento_tardio import CHAVE_DO_LIMITE, LIMITE_PADRAO_EM_DIAS
-from tests.test_registrar_saida import _pedido, _preparo, _ROTA
+from tests.test_registrar_saida import _hoje, _pedido, _preparo, _ROTA
 
 
 def _registrar(client, auth_headers, dias_atras: int, despesa_dias_atras: int | None = None) -> int:
     despesa, banco, fornecedor = _preparo(client, auth_headers)
-    pago = (date.today() - timedelta(days=dias_atras)).isoformat()
-    gasto = (date.today() - timedelta(days=despesa_dias_atras if despesa_dias_atras is not None else dias_atras)).isoformat()
+    pago = (_hoje() - timedelta(days=dias_atras)).isoformat()
+    gasto = (_hoje() - timedelta(days=despesa_dias_atras if despesa_dias_atras is not None else dias_atras)).isoformat()
     r = client.post(_ROTA, json=_pedido(client, auth_headers, despesa, banco, fornecedor, data_despesa=gasto, data_pagamento=pago), headers=auth_headers)
     assert r.status_code == 200, r.text
     return r.json()["id_titulo"]
@@ -24,7 +24,7 @@ def _achados(client, auth_headers) -> list[dict]:
 
 def _item_do_cartao(client, auth_headers, id_titulo: int, dias_atras: int) -> dict:
     # o cartão lista os títulos pelo mês da data da despesa (o vencimento do título)
-    mes = (date.today() - timedelta(days=dias_atras)).strftime("%Y-%m")
+    mes = (_hoje() - timedelta(days=dias_atras)).strftime("%Y-%m")
     itens = client.get(f"/api/conselho-fiscal/auditoria-financeira/?mes={mes}&por_pagina=200", headers=auth_headers).json()["itens"]
     return next(i for i in itens if i["id_titulo"] == id_titulo)
 
@@ -59,7 +59,7 @@ def test_o_limite_vale_igual_no_registro_no_cartao_e_no_relatorio(client, auth_h
         assert _item_do_cartao(client, auth_headers, id_titulo, 10)["lancamento_tardio"] is False
         assert all(a["id_titulo"] != id_titulo for a in _achados(client, auth_headers))
         despesa, banco, fornecedor = _preparo(client, auth_headers)
-        dez = (date.today() - timedelta(days=10)).isoformat()
+        dez = (_hoje() - timedelta(days=10)).isoformat()
         novo = client.post(_ROTA, json=_pedido(client, auth_headers, despesa, banco, fornecedor, data_despesa=dez, data_pagamento=dez), headers=auth_headers)
         assert novo.json()["lancamento_tardio"] is False and novo.json()["dias_ate_o_lancamento"] == 10
         # e com o limite em 0 até o lançamento de ontem é tardio

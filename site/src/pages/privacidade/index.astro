@@ -30,6 +30,12 @@ const presidente = presidenteDaDiretoria((await conteudoPublico()).diretoria)
 // por isso o texto diz "ficam apenas cópias de segurança internas", nunca "apagada de todo lugar". A foto do cadastro de associado (a da carteirinha) não vai a NENHUMA página do site, mas a verificação
 // pública da carteirinha (QR, GET /carteirinha/verificar/{token}) a devolve, com nome, situação e validade: o texto diz isso. (Conferência independente de fatos, 2026-10-15, corrigiu duas frases que
 // prometiam demais: "apagada na hora" como se fosse de todo lugar e "nunca em outra página" calando a verificação da carteirinha.)
+// v1.10 (2026-10-16): decisões do Presidente depois da v1.9 — "tem que apagar, não pode ficar guardado": a foto da Diretoria é apagada SOZINHA quando o mandato termina (no ato de encerrar o mandato e, no
+// vencimento natural, pela rotina `scripts/apagar_fotos_da_diretoria_vencidas.py`, que roda com as demais tarefas periódicas do GitHub, algumas vezes ao dia; 24 horas de prazo só para quem NUNCA teve mandato
+// cadastrado); o armazenamento privado do Azure apaga as versões antigas das fotos (regra de ciclo de vida: 1 dia depois de gravadas; mais o soft delete de 25 dias = cerca de 30 dias; o banco guarda só o
+// nome do arquivo e a descrição, em backup de 35 dias); o QR da carteirinha deixa de valer 365 dias: vale `DIAS_VALIDADE_CARTEIRINHA` (padrão 15, teto 20) a partir da emissão, também para os QR já
+// emitidos, e a verificação pública entrega a foto por uma rota que confere o QR a cada pedido (`app/routers/associados.py`), nunca o endereço aberto `/uploads/...`. A conferência independente de fatos
+// (2026-10-15) corrigiu: o tempo da publicação do site (o GitHub atrasa o agendamento: são horas, não "15 a 30 minutos"), a regra das 24 horas e o teto da validade do QR.
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -209,18 +215,28 @@ const direitos = [
         </a>{' '}
         mostra o nome, o cargo, o período do mandato e, de quem autorizou o uso
         da imagem, a foto. Sem a autorização a foto não é guardada no sistema. A
-        foto só é mostrada enquanto a pessoa está em mandato vigente (o site
-        deixa de mostrá-la na publicação seguinte ao fim do mandato); depois
-        disso ela continua guardada, sem uso, até a Diretoria apagá-la. Quem
-        retira a autorização pode pedir à Diretoria que apague a foto: ao
-        registrar o pedido no sistema, a foto é apagada na hora (ficam apenas
-        cópias de segurança internas, que não são públicas) e deixa de aparecer
-        no site na publicação seguinte, que em geral leva de 15 a 30 minutos,
-        mas pode demorar mais. A foto do cadastro de associado (a da
-        carteirinha) não é usada em nenhuma página deste site; ela aparece
-        apenas na verificação da carteirinha digital, para quem lê o QR da
-        carteirinha (sem precisar de login), junto com o nome, a situação de
-        associado e a validade.
+        foto só existe enquanto a pessoa tem mandato vigente ou marcado: quando
+        o mandato termina e a pessoa não tem outro, o sistema apaga a foto
+        sozinho (na hora, se o mandato for encerrado no sistema; no vencimento
+        natural, na conferência automática que roda algumas vezes ao dia), e
+        quem recebeu a foto antes de ter o primeiro mandato cadastrado tem até
+        24 horas para ele aparecer. Quem retira a autorização pode pedir à
+        Diretoria que apague a foto: ao registrar o pedido no sistema, ela é
+        apagada na hora. Apagada a foto, ela deixa de aparecer no site na
+        publicação seguinte: o site confere o sistema algumas vezes ao dia,
+        então isso costuma levar algumas horas e pode passar de meio dia. Do
+        arquivo da foto ficam apenas cópias de segurança internas, que não são
+        públicas, por até cerca de 30 dias; as cópias de segurança do banco de
+        dados (que guardam o nome do arquivo e a descrição da foto, não a
+        imagem) duram até 35 dias. Depois de apagada, se a pessoa voltar a ter
+        mandato, é preciso enviar a foto de novo. A foto do cadastro de
+        associado (a da carteirinha) não é usada em nenhuma página deste site;
+        para o público ela só aparece na verificação da carteirinha digital,
+        para quem lê o QR da carteirinha (sem precisar de login), junto com o
+        nome, a situação de associado e a validade, e só enquanto o QR vale.
+        Esse QR vale por poucos dias a partir de quando é gerado (hoje, 15 dias;
+        no máximo 20): depois disso a verificação não mostra mais nada, nem a
+        foto.
       </p>
     </section>
 

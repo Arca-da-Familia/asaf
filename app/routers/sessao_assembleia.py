@@ -16,7 +16,8 @@ from app.models.sessao_assembleia import (
     AGUARDANDO, EM_DISCUSSAO, EM_VOTACAO, ENCERRADO, Credenciamento, ItemPauta, OcorrenciaSessao,
 )
 from app.schemas.sessao_assembleia import CredenciarRequest, ItemPautaCriar, OcorrenciaCriar
-from app.security import decodificar_token_carteirinha, exigir_permissao, get_current_user
+from app.security import exigir_permissao, get_current_user
+from app.services import carteirinha
 from app.services.sessao_assembleia import JaPresente, credenciar_ou_reentrar, quorum_instalacao_atual
 
 router = APIRouter()
@@ -40,7 +41,7 @@ def credenciar(id_assembleia: int, dados: CredenciarRequest, request: Request, d
     assembleia = _buscar_assembleia_em_andamento_ou_404(db, id_assembleia)
 
     if dados.token_carteirinha:
-        payload = decodificar_token_carteirinha(dados.token_carteirinha)
+        payload = carteirinha.decodificar(db, dados.token_carteirinha)
         associado = db.query(Associado).filter(Associado.id_pessoa == payload["id_pessoa"]).first()
         if not associado:
             raise HTTPException(status_code=404, detail="Carteirinha não corresponde a nenhum associado.")

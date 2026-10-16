@@ -1,0 +1,20 @@
+{
+  "rules": [
+    {
+      "enabled": true,
+      "name": "apagar-versoes-antigas-das-fotos",
+      "type": "Lifecycle",
+      "definition": {
+        "filters": {
+          "blobTypes": ["blockBlob"],
+          "prefixMatch": ["fotos-diretoria/", "fotos-eventos/", "fotos-etapas/", "fotos-associados/"]
+        },
+        "actions": {
+          "version": {
+            "delete": { "daysAfterCreationGreaterThan": 1 }
+          }
+        }
+      }
+    }
+  ]
+}

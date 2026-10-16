@@ -67,6 +67,15 @@ jobs:
         if: always()
         run: PYTHONPATH=. python scripts/avisar_prazos_de_atendimento.py
 
+      # v5.7d - a foto de quem ficou sem mandato vigente nem marcado é apagada sozinha (decisão do Presidente: "a foto da diretoria tem que apagar automaticamente; não pode ficar guardada"). Usa a conta
+      # de armazenamento privada pela identidade do GitHub, que na PRODUÇÃO só tem papel de dados no contêiner `fotos-diretoria` (na homologação, na conta inteira). Se alguma foto não puder ser apagada o passo FALHA (sai com 1): foi
+      # assim que se achou que o papel tinha sido criado para o identificador errado. Sem foto para apagar, nem toca no armazenamento.
+      - name: Apagar a foto da Diretoria de quem ficou sem mandato
+        if: always()
+        env:
+          ARMAZENAMENTO_BLOB_URL: https://stasafprivado.blob.core.windows.net
+        run: PYTHONPATH=. python scripts/apagar_fotos_da_diretoria_vencidas.py
+
       - name: Logout
         if: always()
         run: az logout || true

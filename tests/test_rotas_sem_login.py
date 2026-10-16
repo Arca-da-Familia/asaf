@@ -31,6 +31,7 @@ ABERTAS_DE_PROPOSITO = {
     ("POST", "/auth/webauthn/login/concluir"),
     ("POST", "/auth/webauthn/login/iniciar"),
     ("GET", "/carteirinha/verificar/{token}"),  # o que a portaria escaneia (só nome, foto e validade)
+    ("GET", "/carteirinha/verificar/{token}/foto"),  # a foto do cadastro de quem o QR identifica, só enquanto o QR vale (v5.7d): o QR é a credencial
     ("GET", "/certificado/verificar/{codigo}"),
     ("GET", "/pesquisa-satisfacao/{token}"),  # link recebido por quem participou do evento
     ("POST", "/pesquisa-satisfacao/{token}/responder"),

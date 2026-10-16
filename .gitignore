@@ -34,3 +34,4 @@ dist/
 
 # Claude Code (config local da ferramenta, não é código do projeto)
 .claude/
+*.db-journal

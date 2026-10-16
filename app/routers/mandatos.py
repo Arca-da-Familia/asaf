@@ -225,8 +225,14 @@ def encerrar_mandato(id_mandato: int, dados: MandatoEncerrar, request: Request, 
             ip_origem=request.client.host if request.client else None,
         )
 
+    # v5.7d: a pessoa que ficou sem mandato não pode ficar com a foto guardada (decisão do Presidente): sai na hora (o vencimento natural é apanhado pela rotina periódica)
+    foto_apagada = servico_fotos.apagar_foto_se_sem_mandato(
+        db, mandato.id_associado, usuario=usuario, ip=request.client.host if request.client else None,
+    )
+
     resposta = _serializar_mandato(mandato)
     resposta["vaga_aberta"] = vaga_aberta
+    resposta["foto_apagada"] = foto_apagada
     if vaga_aberta:
         resposta["pendencia"] = "Art. 26 do estatuto exige Assembleia Geral Extraordinária para recomposição do órgão - convocação automática ainda não implementada (v2.2)."
     return resposta

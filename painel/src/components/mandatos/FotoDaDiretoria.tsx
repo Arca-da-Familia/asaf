@@ -124,7 +124,7 @@ export function FotoDaDiretoria({
       setAvisoAoApagar(null)
       setAviso(
         nova.aparece_no_site
-          ? 'Foto enviada. Ela aparece no site na próxima publicação (normalmente em 15 a 30 minutos).'
+          ? 'Foto enviada. Ela aparece no site na próxima publicação (o site se atualiza algumas vezes ao dia: pode levar algumas horas).'
           : 'Foto enviada, mas ela não aparece no site: a pessoa não tem mandato vigente.',
       )
     },
@@ -141,7 +141,7 @@ export function FotoDaDiretoria({
       setConfirmandoApagar(false)
       setAviso(null)
       setAvisoAoApagar(
-        'Foto apagada. Ela saiu do sistema na hora e some do site na próxima publicação (normalmente em 15 a 30 minutos).',
+        'Foto apagada. Ela saiu do sistema na hora e some do site na próxima publicação (o site se atualiza algumas vezes ao dia: pode levar algumas horas).',
       )
     },
     onError: (e) => {
@@ -367,7 +367,8 @@ export function FotoDaDiretoria({
           )}
           <p className="text-xs text-muted-foreground">
             A foto é guardada sem localização nem dados do aparelho, e cada
-            pessoa tem uma só: enviar de novo troca a anterior.
+            pessoa tem uma só: enviar de novo troca a anterior. Quando o mandato
+            termina, a foto é apagada sozinha.
           </p>
         </form>
       )}
@@ -389,7 +390,7 @@ export function FotoDaDiretoria({
           if (!aberto) setConfirmandoApagar(false)
         }}
         titulo={`Apagar a foto de ${nome}?`}
-        descricao="Use quando a pessoa retirar a autorização de uso da imagem. A foto some do sistema na hora, e do site na próxima publicação (normalmente em 15 a 30 minutos). Não dá para desfazer: para voltar, é preciso enviar a foto de novo. Fica registrado na Auditoria."
+        descricao="Use quando a pessoa retirar a autorização de uso da imagem. A foto some do sistema na hora, e do site na próxima publicação (o site se atualiza algumas vezes ao dia: pode levar algumas horas). Não dá para desfazer: para voltar, é preciso enviar a foto de novo. Fica registrado na Auditoria."
         rotuloConfirmar="Apagar a foto"
         carregando={apagar.isPending}
         onConfirmar={() => apagar.mutate()}
