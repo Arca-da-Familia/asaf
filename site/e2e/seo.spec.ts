@@ -114,6 +114,7 @@ test('páginas não indexáveis (404 e os links do e-mail de inscrição) têm n
   expect(sitemap).not.toContain('404')
   expect(sitemap).not.toContain('cancelar-inscricao')
   expect(sitemap).not.toContain('confirmar-inscricao')
+  expect(sitemap).not.toContain('minha-conta')
 })
 
 test('robots.txt libera o site e aponta o sitemap', async ({ request }) => {

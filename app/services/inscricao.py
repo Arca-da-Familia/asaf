@@ -36,7 +36,10 @@ def inscrever(
     # documentados em app/models/motores.py::Inscricao.
     status_inicial: str = PRE_INSCRITO, categoria_cota: Optional[str] = None,
     identificador_grupo: Optional[str] = None,
+    # v5.6b - o e-mail digitado na inscrição pública (a chave da conta de visitante); quem inscreve pelo painel não passa
+    email_da_inscricao: Optional[str] = None,
 ) -> Inscricao:
+    email_da_inscricao = email_da_inscricao.strip().lower() if email_da_inscricao else None
     if not db.query(Pessoa).filter(Pessoa.id_pessoa == id_pessoa).first():
         raise HTTPException(status_code=404, detail="Pessoa não encontrada.")
 
@@ -56,6 +59,7 @@ def inscrever(
             existente.codigo_checkin = codigo_checkin
             existente.token_cancelamento = token_cancelamento
             existente.consentimento_lgpd_versao = consentimento_lgpd_versao
+            existente.email_da_inscricao = email_da_inscricao
         db.commit()
         db.refresh(existente)
         return existente
@@ -65,7 +69,7 @@ def inscrever(
         respostas_formulario=json.dumps(respostas_formulario) if respostas_formulario else None,
         codigo_checkin=codigo_checkin, token_cancelamento=token_cancelamento,
         consentimento_lgpd_versao=consentimento_lgpd_versao, categoria_cota=categoria_cota,
-        identificador_grupo=identificador_grupo,
+        identificador_grupo=identificador_grupo, email_da_inscricao=email_da_inscricao,
     )
     db.add(inscricao)
     try:
@@ -140,13 +144,18 @@ def confirmar_por_token(db: Session, *, token_cancelamento: str) -> Inscricao:
 def resumo_publico_por_token(db: Session, *, token_cancelamento: str) -> dict:
     """v5.5c - o que a pessoa que tem o link vê na página de cancelar ou confirmar: o evento, o primeiro nome, a situação e o que dá para fazer. Só quem tem o código (secreto)
     chega aqui; nenhum dado de outra pessoa."""
+    inscricao = db.query(Inscricao).filter(Inscricao.token_cancelamento == token_cancelamento).first()
+    if not inscricao:
+        raise HTTPException(status_code=404, detail="Link inválido: confira o endereço que veio no e-mail.")
+    return resumo_publico_da_inscricao(db, inscricao)
+
+
+def resumo_publico_da_inscricao(db: Session, inscricao: Inscricao) -> dict:
+    """O mesmo resumo, para quem já provou ser dono da inscrição (o link secreto da v5.5c ou a conta de visitante da v5.6b): o evento, o primeiro nome, a situação e o que dá para fazer."""
     from app.models.eventos import Evento, SessaoEvento
     from app.models.pessoas import Pessoa
     from app.services.eventos import evento_ja_aconteceu
 
-    inscricao = db.query(Inscricao).filter(Inscricao.token_cancelamento == token_cancelamento).first()
-    if not inscricao:
-        raise HTTPException(status_code=404, detail="Link inválido: confira o endereço que veio no e-mail.")
     sessao = None
     if inscricao.contexto_tipo == "SessaoEvento":
         sessao = db.query(SessaoEvento).filter(SessaoEvento.id_sessao == inscricao.id_contexto).first()

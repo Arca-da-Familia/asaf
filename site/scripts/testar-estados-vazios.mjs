@@ -453,6 +453,33 @@ for (const [rotulo, pasta] of [
       )
   }
 }
+// v5.6b - a conta do visitante: página estática, fora do Google e do sitemap; entrar, pedir o código e ler a conta acontecem no navegador (a API pode estar vazia ou antiga).
+for (const [rotulo, pasta] of [
+  ['vazio', 'dist-vazio'],
+  ['API antiga', 'dist-antiga'],
+]) {
+  const caminho = '/minha-conta/'
+  if (!existsSync(`${pasta}${caminho}index.html`)) {
+    exigir(false, `${rotulo}: ${caminho} não foi gerada`)
+    continue
+  }
+  const html = readFileSync(`${pasta}${caminho}index.html`, 'utf-8')
+  exigir(
+    html.includes('name="robots" content="noindex'),
+    `${rotulo}: ${caminho} sem noindex (não é página de conteúdo)`,
+  )
+  exigir(
+    html.includes('data-conta-visitante') &&
+      html.includes('data-api-url=') &&
+      html.includes('data-formulario-email'),
+    `${rotulo}: ${caminho} sem o miolo que pede o código e lê a conta no navegador`,
+  )
+  if (existsSync(`${pasta}/sitemap-0.xml`))
+    exigir(
+      !readFileSync(`${pasta}/sitemap-0.xml`, 'utf-8').includes('minha-conta'),
+      `${rotulo}: ${caminho} entrou no sitemap`,
+    )
+}
 for (const [caminho, formulario, rotulo] of [
   ['/eventos/2/', true, 'gratuito'],
   ['/eventos/7/', true, 'gratuito com perguntas'],
@@ -577,7 +604,7 @@ for (const [rotulo, ler, pasta] of [
   )
   const politica = ler('/privacidade/')
   exigir(
-    politica.includes('Versão 2.1') &&
+    politica.includes('Versão 2.2') &&
       politica.includes('data-doacao') &&
       politica.includes('id="doacao-pelo-site"'),
     `${rotulo}: a Política não é a 2.0 com o parágrafo da doação`,

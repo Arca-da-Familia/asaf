@@ -1832,6 +1832,159 @@ function agirNaInscricao(codigo, acao) {
  * continuar construindo se for publicado antes da API nova). `instituicaoPreenchida`: a diretoria preencheu a Instituição (v5.4h);
  * sem isso, a Instituição é a da produção de hoje (nome e o CNPJ de exemplo, que é inválido).
  */
+// ---- Conta do visitante (v5.6b): o mock repete as regras do servidor que a página precisa ver. Os e-mails de teste mandam no resultado: só `visitante@example.com` tem vínculo (o código
+// é sempre 123456); `limite@example.com` é recusado pelo limite de pedidos (429); `falha@example.com` dá erro de servidor (500); `sessao-curta@example.com` entra e logo depois a sessão
+// "acaba" (a próxima leitura da conta dá 401). Qualquer outro e-mail recebe a MESMA resposta de sempre e nenhum código vale (o servidor real não diz se há vínculo).
+const MENSAGEM_DO_PEDIDO_DE_CODIGO =
+  'Se houver inscrição em evento ou pedido de doação feitos pelo site com este e-mail, tentamos enviar um código de 6 números. Ele vale por 10 minutos e só pode ser usado uma vez. Se não chegar em alguns minutos, olhe também a caixa de spam.'
+const MENSAGEM_DO_CODIGO_INVALIDO =
+  'Código inválido ou vencido: confira os números ou peça um novo código.'
+const CODIGO_DO_VISITANTE = '123456'
+const MINUTOS_DA_SESSAO_DO_VISITANTE = 60
+const TENTATIVAS_POR_CODIGO_DO_VISITANTE = 5
+const sessoesDeVisitante = new Map()
+const tentativasDeVisitante = new Map()
+const eventosDoVisitante = []
+let sequenciaDeSessoes = 0
+const pedidosDeApagamentoDosVisitantes = new Map()
+
+/** Quem tem vínculo: `visitante@example.com`, `sessao-curta@example.com` e as variações com um sufixo (`visitante.abc@example.com`), para cada teste de navegador ter o seu e-mail e o seu contador de tentativas. */
+const TEM_VINCULO = /^(visitante|sessao-curta)(\.[a-z0-9-]+)?@example\.com$/
+const EMAIL_PARECE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const dataUtcDaquiA = (minutos) =>
+  new Date(agora() + minutos * 60_000).toISOString().replace(/\.\d+Z$/, '')
+
+/** O que `GET /api/visitante/minha-conta` devolve para `visitante@example.com`: três inscrições (vaga reservada, evento encerrado e evento cancelado), um certificado e duas doações. */
+function contaDoVisitante(email, expiraEm) {
+  const inscricoes = [
+    'fixo-reservada',
+    'fixo-evento-cancelado',
+    'fixo-encerrada',
+  ].map((codigo) => {
+    const inscricao = inscricaoPorCodigo(codigo)
+    const resumo = resumoDaInscricao(inscricao)
+    return {
+      ...resumo,
+      token: resumo.pode_cancelar || resumo.pode_confirmar ? codigo : null,
+      inscrito_em: horasDaquiAUtc(-240),
+    }
+  })
+  return {
+    email,
+    sessao_expira_em: expiraEm,
+    inscricoes,
+    certificados: [
+      {
+        tipo_documento: 'Certificado de participação',
+        atividade: 'Encontro de Famílias',
+        primeiro_nome: 'Maria',
+        emitida_em: horasDaquiAUtc(-120),
+        codigo_verificacao: '9F8E7D6C5B4A3210',
+        arquivo: '/uploads/documentos/9F8E7D6C5B4A3210.pdf',
+      },
+    ],
+    doacoes: [
+      {
+        protocolo: 'DOA-2026-00012',
+        situacao: 'PENDENTE',
+        pedida_em: horasDaquiAUtc(-5),
+        valor_informado: 30,
+        campanha: null,
+        expira_em: horasDaquiAUtc(24 * 14),
+        valor_recebido: null,
+        data_da_doacao: null,
+        numero_do_recibo: null,
+        recibo_enviado_por_email: null,
+      },
+      {
+        protocolo: 'DOA-2026-00007',
+        situacao: 'CONFIRMADA',
+        pedida_em: horasDaquiAUtc(-72),
+        valor_informado: 50,
+        campanha: 'Cestas de Natal',
+        expira_em: horasDaquiAUtc(24 * 11),
+        valor_recebido: 45,
+        data_da_doacao: horasDaquiAUtc(-48),
+        numero_do_recibo: 12,
+        recibo_enviado_por_email: false,
+      },
+    ],
+    pedido_de_apagamento: pedidosDeApagamentoDosVisitantes.get(email) ?? null,
+  }
+}
+
+/** `POST /api/publico/visitante/codigo`: devolve `[status HTTP, corpo]`. */
+function pedirCodigoDoVisitante(corpo) {
+  const email = String(corpo?.email ?? '')
+    .trim()
+    .toLowerCase()
+  if (!EMAIL_PARECE.test(email))
+    return [
+      422,
+      {
+        detail: [
+          {
+            loc: ['body', 'email'],
+            msg: 'Value error, Esse e-mail não parece certo: confira se está escrito sem erro.',
+          },
+        ],
+      },
+    ]
+  if (corpo.pagina_web) {
+    eventosDoVisitante.push({ tipo: 'armadilha', email })
+    return [
+      200,
+      { mensagem: MENSAGEM_DO_PEDIDO_DE_CODIGO, minutos_de_validade: 10 },
+    ]
+  }
+  if (email === 'limite@example.com')
+    return [
+      429,
+      {
+        detail:
+          'Muitas tentativas - aguarde 60 minutos antes de tentar novamente.',
+      },
+    ]
+  if (email === 'falha@example.com') return [500, { detail: 'Erro interno.' }]
+  eventosDoVisitante.push({ tipo: 'codigo', email })
+  tentativasDeVisitante.set(email, 0)
+  return [
+    200,
+    { mensagem: MENSAGEM_DO_PEDIDO_DE_CODIGO, minutos_de_validade: 10 },
+  ]
+}
+
+/** `POST /api/publico/visitante/entrar`: devolve `[status HTTP, corpo]`. */
+function entrarDoVisitante(corpo) {
+  const email = String(corpo?.email ?? '')
+    .trim()
+    .toLowerCase()
+  const codigo = String(corpo?.codigo ?? '')
+  const tentativas = tentativasDeVisitante.get(email)
+  const comVinculo = TEM_VINCULO.test(email)
+  if (
+    tentativas === undefined ||
+    tentativas >= TENTATIVAS_POR_CODIGO_DO_VISITANTE
+  )
+    return [400, { detail: MENSAGEM_DO_CODIGO_INVALIDO }]
+  tentativasDeVisitante.set(email, tentativas + 1)
+  if (!comVinculo || codigo !== CODIGO_DO_VISITANTE)
+    return [400, { detail: MENSAGEM_DO_CODIGO_INVALIDO }]
+  tentativasDeVisitante.delete(email)
+  const token = `sessao-de-teste-${(sequenciaDeSessoes += 1)}-${email.split('@')[0]}`
+  const expiraEm = dataUtcDaquiA(MINUTOS_DA_SESSAO_DO_VISITANTE)
+  sessoesDeVisitante.set(token, { email, expiraEm, leituras: 0 })
+  eventosDoVisitante.push({ tipo: 'entrou', email })
+  return [200, { token, expira_em: expiraEm }]
+}
+
+const sessaoDoCabecalho = (req) => {
+  const cabecalho = String(req.headers.authorization ?? '')
+  const token = cabecalho.startsWith('Bearer ') ? cabecalho.slice(7) : ''
+  return { token, sessao: sessoesDeVisitante.get(token) ?? null }
+}
+
 export function criarServidor({
   vazio = false,
   antiga = false,
@@ -1852,7 +2005,7 @@ export function criarServidor({
       res.writeHead(204, {
         ...cors,
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Accept, Content-Type',
+        'Access-Control-Allow-Headers': 'Accept, Content-Type, Authorization',
       })
       res.end()
       return
@@ -1984,6 +2137,87 @@ export function criarServidor({
       (req.url ?? '').split('?')[0] === '/__pedidos-de-atendimento'
     ) {
       return responder(pedidosDeAtendimento)
+    }
+
+    // ---- Conta do visitante (v5.6b). API ANTIGA: as rotas não existem (caem no 404 do fim).
+    if (!antiga) {
+      const caminhoDoVisitante = (req.url ?? '').split('?')[0]
+      if (
+        req.method === 'POST' &&
+        (caminhoDoVisitante === '/api/publico/visitante/codigo' ||
+          caminhoDoVisitante === '/api/publico/visitante/entrar')
+      ) {
+        let texto = ''
+        req.on('data', (parte) => (texto += parte))
+        req.on('end', () => {
+          let corpo
+          try {
+            corpo = JSON.parse(texto)
+          } catch {
+            return responder({ detail: 'Corpo inválido.' }, 422)
+          }
+          const [status, resposta] =
+            caminhoDoVisitante === '/api/publico/visitante/codigo'
+              ? pedirCodigoDoVisitante(corpo)
+              : entrarDoVisitante(corpo)
+          return responder(resposta, status)
+        })
+        return
+      }
+      if (caminhoDoVisitante.startsWith('/api/visitante/')) {
+        const { token, sessao } = sessaoDoCabecalho(req)
+        const vencida =
+          sessao &&
+          sessao.email.startsWith('sessao-curta') &&
+          sessao.leituras >= 1
+        if (!sessao || vencida) {
+          if (token) sessoesDeVisitante.delete(token)
+          return responder(
+            { detail: 'A sua sessão acabou: peça um novo código para entrar.' },
+            401,
+          )
+        }
+        if (
+          req.method === 'GET' &&
+          caminhoDoVisitante === '/api/visitante/minha-conta'
+        ) {
+          sessao.leituras += 1
+          return responder(contaDoVisitante(sessao.email, sessao.expiraEm))
+        }
+        if (
+          req.method === 'POST' &&
+          caminhoDoVisitante === '/api/visitante/sair'
+        ) {
+          sessoesDeVisitante.delete(token)
+          eventosDoVisitante.push({ tipo: 'saiu', email: sessao.email })
+          return responder({ mensagem: 'Sessão encerrada.' })
+        }
+        if (
+          req.method === 'POST' &&
+          caminhoDoVisitante === '/api/visitante/pedir-apagamento'
+        ) {
+          const jaExistia = pedidosDeApagamentoDosVisitantes.has(sessao.email)
+          if (!jaExistia)
+            pedidosDeApagamentoDosVisitantes.set(sessao.email, {
+              protocolo: 'ASAF-2026-00042',
+              prazo_em: dataUtcDaquiA(15 * 24 * 60),
+              status: 'Novo',
+            })
+          const pedido = pedidosDeApagamentoDosVisitantes.get(sessao.email)
+          if (!jaExistia)
+            eventosDoVisitante.push({ tipo: 'apagamento', email: sessao.email })
+          return responder({
+            mensagem: 'Pedido recebido.',
+            protocolo: pedido.protocolo,
+            prazo_dias: 15,
+            prazo_em: pedido.prazo_em,
+            ja_existia: jaExistia,
+          })
+        }
+      }
+      if (req.method === 'GET' && caminhoDoVisitante === '/__visitante') {
+        return responder(eventosDoVisitante)
+      }
     }
 
     // ---- Inscrição em evento pelo site (v5.5c): inscrever-se, cancelar e confirmar pelo código do link. API ANTIGA: as rotas não existem (caem no 404 do fim).

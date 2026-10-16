@@ -16,6 +16,8 @@ def main() -> int:
         for regra in retencao.REGRAS:
             if regra.codigo in resultado["aplicadas"]:
                 print(f"[aplicar-retencao] {regra.codigo}: {resultado['aplicadas'][regra.codigo]}")
+        for nome, quantos in resultado["limpeza_tecnica"].items():
+            print(f"[aplicar-retencao] limpeza técnica ({nome}): {quantos}")
         falhas = resultado["falhas"]
         if falhas:
             print(f"::error::{len(falhas)} regra(s) de retenção falharam: {', '.join(falhas)} (veja o log acima).")

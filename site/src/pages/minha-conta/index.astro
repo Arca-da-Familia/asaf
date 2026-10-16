@@ -1,0 +1,25 @@
+---
+import ContaDoVisitante from '../../components/ContaDoVisitante.astro'
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import Base from '../../layouts/Base.astro'
+
+// A conta do visitante (v5.6b): entrar com o e-mail e um código de uso único e ver as inscrições, os certificados e as doações feitas pelo site. Não é página de conteúdo:
+// fora do Google (noindex) e fora do sitemap (astro.config.mjs). Tudo acontece no navegador (lib/conta-visitante-dom.ts).
+const migalhas: Migalha[] = [{ rotulo: 'Minha conta' }]
+---
+
+<Base
+  titulo="Minha conta"
+  descricao="Entre com o seu e-mail para ver as suas inscrições em eventos, os certificados e as doações feitas pelo site da ASAF."
+  caminho="/minha-conta/"
+  migalhas={migalhas}
+  indexavel={false}
+>
+  <TituloDePagina
+    titulo="Minha conta"
+    resumo="Veja as suas inscrições em eventos, os certificados e as doações feitas pelo site. Sem senha: você entra com um código enviado para o seu e-mail."
+    migalhas={migalhas}
+  />
+  <ContaDoVisitante />
+</Base>
