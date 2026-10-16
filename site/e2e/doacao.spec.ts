@@ -315,7 +315,7 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
       'conferir o seu Pix no extrato do banco da associação, registrar a doação e emitir o recibo, que o sistema tenta enviar por e-mail',
       'quem tem a permissão do financeiro',
       'O que nos autoriza a tratar esses dados é o seu consentimento (o aceite do aviso) e, depois que a tesouraria confirma a doação, a escrituração contábil e financeira dela',
-      'fica marcado como “prazo vencido” depois dos dias informados na página (o padrão é 15) e continua guardado no sistema',
+      'passa a ser marcado como “prazo vencido” depois dos dias informados na página (o padrão é 15), por uma rotina que roda algumas vezes ao dia, e continua guardado no sistema',
       'hoje o sistema não apaga esses pedidos sozinho e não há prazo definido para apagá-los',
       'a doação já confirmada faz parte da escrituração contábil',
       'o pagamento em si passa pelo banco que você mesmo escolhe',
@@ -734,7 +734,7 @@ test.describe('doar se identificando', () => {
     await expect(aviso).toContainText('Aviso de privacidade (versão 1)')
     for (const trecho of [
       'Vamos guardar o seu nome, o seu e-mail, o CPF (se você informar), o valor e a campanha que escolheu, o seu aceite deste aviso e o endereço de internet (IP) de onde veio o pedido.',
-      'só para conferir o seu Pix no extrato do banco da associação e emitir o recibo, que tentamos enviar por e-mail',
+      'para conferir o seu Pix no extrato do banco da associação, registrar a doação e emitir o recibo, que tentamos enviar por e-mail. Se o CPF for de um associado, a doação fica ligada ao cadastro dele',
       'Quem confere é a tesouraria da associação.',
       'continua guardado no sistema: hoje não há prazo para apagá-lo',
     ])
@@ -957,7 +957,7 @@ test.describe('doar se identificando', () => {
     const depois = ate.format(new Date(Date.now() + 15 * 86_400_000))
     expect([antes, depois]).toContain(/\(até (.+)\)/.exec(textoDaValidade)![1])
     await expect(c.locator('[data-aviso-do-vencimento]')).toContainText(
-      'Passado esse prazo, o pedido fica marcado como “prazo vencido”, mas, se você tiver pago, a tesouraria ainda pode confirmá-lo.',
+      'Passado esse prazo, o pedido que ainda espera conferência passa a ser marcado como “prazo vencido” (uma rotina faz isso algumas vezes ao dia). Mas, se você tiver pago, a tesouraria ainda pode confirmá-lo.',
     )
     // o e-mail é "se chegar": melhor esforço, nunca promessa
     await expect(c.locator('[data-aviso-do-email]')).toContainText(

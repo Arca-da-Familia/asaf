@@ -179,10 +179,14 @@ export function criarPainelDoPix(
 
   // quem prefere digitar
   const lista = criar('dl', 'grid gap-3 text-sm sm:grid-cols-3')
+  const cidadeParaDigitar =
+    dados.cidade.trim().toUpperCase() === 'NA'
+      ? []
+      : ([['Cidade', dados.cidade, 'data-cidade']] as const)
   for (const [nome, texto, marca] of [
     ['Chave Pix', dados.chave_pix, 'data-chave-pix'],
     ['Beneficiário', dados.beneficiario, 'data-beneficiario'],
-    ['Cidade', dados.cidade, 'data-cidade'],
+    ...cidadeParaDigitar,
   ] as const) {
     const item = criar('div')
     const descricao = criar('dd', 'break-all text-muted-foreground', texto)

@@ -106,7 +106,9 @@ const caixaDeFalha =
         >
           “Já recebido” conta só as doações em dinheiro que a tesouraria já
           conferiu e registrou no sistema. Um Pix que acabou de ser pago só
-          entra nessa conta depois que a tesouraria o confere e o registra.
+          entra nessa conta depois que a tesouraria o confere e o registra. Quem
+          doa sem se identificar depende de a tesouraria reconhecer o Pix no
+          extrato do banco.
         </p>
       </section>
 
@@ -358,11 +360,14 @@ const caixaDeFalha =
               Vamos guardar o seu nome, o seu e-mail, o CPF (se você informar),
               o valor e a campanha que escolheu, o seu aceite deste aviso e o
               endereço de internet (IP) de onde veio o pedido. Usamos esses
-              dados só para conferir o seu Pix no extrato do banco da associação
-              e emitir o recibo, que tentamos enviar por e-mail. Quem confere é
-              a tesouraria da associação. Se ninguém confirmar o pedido, ele
-              continua guardado no sistema: hoje não há prazo para apagá-lo.
-              Para saber mais, ou para pedir que apaguemos os seus dados, leia a{' '}
+              dados para conferir o seu Pix no extrato do banco da associação,
+              registrar a doação e emitir o recibo, que tentamos enviar por
+              e-mail. Se o CPF for de um associado, a doação fica ligada ao
+              cadastro dele. O endereço de internet (IP) serve à segurança
+              (limite de pedidos e Auditoria). Quem confere é a tesouraria da
+              associação. Se ninguém confirmar o pedido, ele continua guardado
+              no sistema: hoje não há prazo para apagá-lo. Para saber mais, ou
+              para pedir que apaguemos os seus dados, leia a{' '}
               <a href="/privacidade/#doacao-pelo-site" class={link}>
                 Política de Privacidade
               </a>{' '}
@@ -467,8 +472,10 @@ const caixaDeFalha =
           </div>
           <p data-validade hidden class="mt-3"></p>
           <p data-aviso-do-vencimento hidden class="mt-3">
-            Passado esse prazo, o pedido fica marcado como “prazo vencido”, mas,
-            se você tiver pago, a tesouraria ainda pode confirmá-lo.
+            Passado esse prazo, o pedido que ainda espera conferência passa a
+            ser marcado como “prazo vencido” (uma rotina faz isso algumas vezes
+            ao dia). Mas, se você tiver pago, a tesouraria ainda pode
+            confirmá-lo.
           </p>
           <p data-aviso-do-email hidden class="mt-3">
             Se o e-mail chegar, ele traz o protocolo e o código Pix. O envio

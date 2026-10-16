@@ -193,7 +193,7 @@ def confirmar_recebimento_por_email(intencao: IntencaoDeDoacao, pix: dict) -> bo
         f"Protocolo: {intencao.protocolo}\n{valor}\n"
         "Para concluir, pague pelo Pix do seu banco. Código Pix (copia e cola):\n\n"
         f"{codigo}\n\n"
-        "Atenção: a doação só é registrada depois que a tesouraria localizar o Pix no extrato do banco da associação. Quando isso acontecer, você recebe o recibo por e-mail. "
+        "Atenção: a doação só é registrada depois que a tesouraria localizar o Pix no extrato do banco da associação. Quando isso acontecer, o sistema tenta enviar o recibo por e-mail. "
         "Se pagou e não recebeu o recibo em alguns dias, fale com a secretaria citando o protocolo.\n\nASAF - Associação Arca da Família\n"
     )
     try:

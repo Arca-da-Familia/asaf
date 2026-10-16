@@ -365,10 +365,11 @@ const direitos = [
         aviso) e, depois que a tesouraria confirma a doação, a escrituração
         contábil e financeira dela, em que o recibo é numerado; se o CPF for de
         quem já é associado, a doação fica ligada ao cadastro dessa pessoa. O
-        pedido que ninguém confirma fica marcado como “prazo vencido” depois dos
-        dias informados na página (o padrão é 15) e continua guardado no
-        sistema: hoje o sistema não apaga esses pedidos sozinho e não há prazo
-        definido para apagá-los. Para pedir que sejam apagados, use a{' '}
+        pedido que ainda espera conferência passa a ser marcado como “prazo
+        vencido” depois dos dias informados na página (o padrão é 15), por uma
+        rotina que roda algumas vezes ao dia, e continua guardado no sistema:
+        hoje o sistema não apaga esses pedidos sozinho e não há prazo definido
+        para apagá-los. Para pedir que sejam apagados, use a{' '}
         <a
           href="/privacidade/solicitacao-do-titular/"
           class="font-medium text-primary underline underline-offset-4"
