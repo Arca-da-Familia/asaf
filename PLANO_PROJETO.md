@@ -1944,15 +1944,34 @@ Dividida em quatro partes (decisão do Presidente, 2026-10-09: "parte a parte");
 ESTÁTICO** (a chave da associação, em `CHAVE_PIX`; Pix Copia e Cola e QR code estático gerados pelo sistema) e a **confirmação é MANUAL**: o Tesoureiro confere o extrato do banco e confirma no painel; só
 então nasce a doação com o recibo. O sistema nunca diz que recebeu antes disso.
 
-- [ ] **v5.6a — Doar pelo site (Pix estático) com confirmação manual.** Página de doação (a de "Como ajudar" deixa de dizer que não existe): escolhe a campanha (ou "onde for mais necessário") e o valor,
+- [x] **v5.6a — Doar pelo site (Pix estático) com confirmação manual.** Página de doação (a de "Como ajudar" deixa de dizer que não existe): escolhe a campanha (ou "onde for mais necessário") e o valor,
       escolhe entre **doação anônima** (o site só mostra o Pix e não guarda nada da pessoa) e **doação identificada** (nome, e-mail, CPF opcional, aviso de privacidade); a identificada vira uma
       *intenção de doação* "Aguardando confirmação" com protocolo; o painel do Tesoureiro lista as intenções, confirma quando acha o dinheiro no extrato (cria a `Doacao` e o recibo, que sai por e-mail) ou
       marca "não localizada"; intenção sem confirmação por 30 dias expira. Transparência por campanha: quanto arrecadou (só doação CONFIRMADA) e em que foi aplicado, lendo o centro de custo real (FASE 3).
+  **Feito (2026-10-16):** servidor (`IntencaoDeDoacao`, migração `d5a2b8c1e7f3`, `app/services/doacao_online.py`; rotas públicas `GET /api/publico/doacao`, `GET /api/publico/doacao/pix` e
+  `POST /api/publico/doacoes/intencoes`; rotas do painel `/api/intencoes-doacao/` com resumo, confirmar e não-localizada). Só a confirmação da tesouraria cria a doação (título pago, lançamento e recibo
+  numerado, na mesma transação) e com o valor RECEBIDO; o recibo por e-mail é tentativa (o painel avisa se não saiu); a intenção expira em `PRAZO_DIAS_INTENCAO_DOACAO` (padrão **15** dias, não os 30 do rascunho;
+  regra editável) para "Prazo vencido sem confirmação" e ainda pode ser confirmada; nada é apagado. **A página só abre com a Chave Pix preenchida E marcada "vai para o site" em Instituição** (para a chave nunca
+  ser publicada sem o Presidente decidir; o Pix das cobranças já pode estar cadastrado). Painel: seção "Doações do site (Pix)" em Doações (lista, filtros, busca, confirmar com valor recebido e contas, "Pix não
+  localizado", aviso de recibo que não saiu por e-mail, linha "página aberta/fechada"). Site: `/como-ajudar/doar/` (campanhas com o RECEBIDO ao vivo; Pix sem se identificar com código e QR Code desenhado no
+  navegador pela biblioteca `qr` 0.7.2, sem dependências e sem serviço de terceiros; formulário de quem se identifica, com protocolo) e Política **2.0**. Os textos passaram por conferência independente de
+  fatos (3 exageros e 5 incompletudes corrigidos, entre eles "você escolhe para onde vai" no Pix sem identificação, que o servidor não registra).
+  **Na homologação:** robôs `v5.6a-01` 5/5 (a trava: chave só interna = doação fechada, marcada = abre; campanha sem a destinação interna; BR Code com CRC conferido de forma independente; mesmo pedido, mesmo
+  protocolo; aviso no sino; confirmar no painel com recibo e aviso de que o e-mail não saiu, porque a homologação não manda e-mail; a campanha passa a contar o recebido; "Pix não localizado" não apaga;
+  armadilha de robô, aviso com versão, dado errado em português, conferência só com login) e `v5.6a-02` 3/3 (página Doar do site de teste com campanha ao vivo, Pix com código e QR, formulário de quem se
+  identifica visto na conferência, Política 2.0, e a página fechando sozinha ao desmarcar a chave); regressões `v5.7c-02`, `v5.4e-02` (29), `v5.5a-02` e `v5.4h-02`; suíte do servidor 1204 (2 rodadas), painel
+  629, site 719 + 818 de navegador.
+  **Em produção:** `main` = `2c53328`; `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `2c53328`; `openapi.json` traz as 6 rotas; `GET /api/publico/doacao` responde `pix_disponivel:false`
+  (fechada: a chave ainda não foi marcada "vai para o site"), `/api/publico/doacao/pix` = 503, `/api/intencoes-doacao/` sem login = 401; `/como-ajudar/doar/` = 200; `/privacidade/` "Versão 2.0" com o
+  parágrafo da doação; a tarefa periódica disparada à mão rodou o passo novo no banco real (`intenções expiradas: 0`). Nenhuma intenção nem doação foi criada em produção.
+  **Abertos:** (1) quem abre a doação é a Presidência: preencher CHAVE_PIX (e nome e cidade do Pix) e marcar "vai para o site" em Instituição; (2) "em que foi aplicado" por campanha (a Transparência lendo
+  o centro de custo real) NÃO foi feito: só o RECEBIDO; (3) o pedido não confirmado e os dados de quem se identificou não são apagados sozinhos (v5.7b); (4) o Pix sem se identificar não deixa registro: a
+  tesouraria só o vê no extrato do banco e precisa registrá-lo à mão; (5) o e-mail do pedido e do recibo é só tentativa (o site diz isso).
 - [ ] **v5.6b — Conta de visitante (por e-mail + código, sem senha).** A pessoa pede um código, recebe no e-mail e entra numa área onde ficam as inscrições dela em eventos (o evento encerrado fica
       **inativo, não é apagado**, e continua consultável), os certificados e as doações com recibo. É o que dá sentido ao prazo de guarda dos dados (abaixo). Sessão curta, código de uso único e com
       limite de tentativas; a pessoa pode pedir o apagamento dos próprios dados.
-- [ ] Recibo automático por e-mail (entra na v5.6a, agora que o e-mail da API está ligado em produção) e área de acompanhamento das próprias doações (entra na v5.6b).
-- [ ] Transparência do destino por campanha (entra na v5.6a): arrecadado e aplicado puxados do centro de custo real; **liga com a v5.4**: a campanha aparece na Transparência.
+- [x] Recibo automático por e-mail (v5.6a: ao confirmar, o sistema tenta enviar o recibo; se não sair, o painel avisa) — falta a área de acompanhamento das próprias doações (entra na v5.6b).
+- [ ] Transparência do destino por campanha (a v5.6a entregou só o RECEBIDO por campanha na página Doar; falta o APLICADO): arrecadado e aplicado puxados do centro de custo real; **liga com a v5.4**: a campanha aparece na Transparência.
 - [x] ~~PIX dinâmico com identificação automática~~ e ~~Pix Automático~~: **descartados** (sem API de banco). Só voltam se a ASAF contratar um provedor de pagamento no futuro.
 
 ##### Prazos de guarda de dados pessoais (proposta de 2026-10-15, a partir da ideia do Presidente: 5 anos, depois até 10, depois só o financeiro) — Tabela de temporalidade v1
