@@ -114,6 +114,10 @@ jobs:
           else
             echo "Esta versão do código ainda não tem a rotina: nada a rodar."
           fi
+          # v5.7b - os prazos de guarda de dado pessoal (só aplica o que já venceu: na homologação, dado recente fica intacto)
+          if [ -f scripts/aplicar_retencao_de_dados.py ]; then
+            DATABASE_URL="$HML_DATABASE_URL" PYTHONPATH=. python scripts/aplicar_retencao_de_dados.py
+          fi
 
       - name: Build da imagem no ACR
         run: |
