@@ -1849,7 +1849,7 @@ Dividida em quatro partes (decisão do Presidente, 2026-10-09: "parte a parte");
       Auditoria guardou 4 ações de atendimento, 2 termos e 1 alocação). Regressão: `v5.4h-04` 4 (alocação direta), `v5.4f-01` 22 (projetos, equipe, candidatura, troca de turno, horas),
       `v5.5a-02` 7, `v5.5a-01` 6, `v5.4c-fase0` 6, `v5.4g-01` 5. **Achados do robô, corrigidos:** (1) o roteiro de projetos procurava a candidatura pelo texto "Associado #id", que foi trocado de
       propósito pelo nome (agora procura pelo nome); (2) quem já estava no cadastro com o mesmo CPF e sem data de nascimento seria tratada como menor de idade no termo (o servidor
-      passou a copiar a data do pedido, com teste); (3) duas falhas pontuais de acessibilidade (axe) em páginas que não mudaram, numa rodada local com a máquina ocupada, não reproduziram
+      copia a data do pedido só quando a pessoa entra no cadastro DEPOIS do pedido, com teste; se o pedido já chegou ligado pelo CPF, ver o Ponto de Revisão da FASE 5 (2/2)); (3) duas falhas pontuais de acessibilidade (axe) em páginas que não mudaram, numa rodada local com a máquina ocupada, não reproduziram
       em quatro repetições. **Em produção (2026-10-09):** commit `465d6e3` no `version.json` do painel e do site; Deploy API (com a migração `a8d4f1c7e592`), Painel e Site verdes;
       `GET /api/publico/atendimentos/prazos` traz os quatro tipos; `GET /api/projetos/voluntarios-selecao` e `POST /api/atendimentos/{id}/cadastrar-voluntario` respondem 401 sem login e
       constam no `openapi.json`; `POST /api/publico/atendimentos` com corpo incompleto dá 422 (nada gravado: **produção não recebeu pedido de teste**); `/seja-voluntario/` tem o formulário e
@@ -1874,7 +1874,7 @@ Dividida em quatro partes (decisão do Presidente, 2026-10-09: "parte a parte");
       contava como "Carregando" um aviso já escondido (`hidden`) do consentimento e reprovava o primeiro teste: era do roteiro, não do site (agora só conta o que está visível);
       (3) o roteiro da v5.5a-01 passou a aceitar qualquer versão da Política. **Em produção (2026-10-13):** commit `f47c6d9` no `version.json` do site (o painel segue em `465d6e3`: a
       mudança não tocou o painel, só os roteiros do robô); Deploy API e Deploy Site verdes (sem migração); `GET /api/publico/inscricoes/codigo-inexistente` dá 404 com a mensagem
-      "Link inválido"; as três rotas novas constam no `openapi.json`; `/cancelar-inscricao/` e `/confirmar-inscricao/` respondem 200, com `noindex, nofollow` e fora do `sitemap`; a Política
+      "Link inválido"; a rota nova (`GET /api/publico/inscricoes/{token}`; cancelar e confirmar já existiam) consta no `openapi.json`; `/cancelar-inscricao/` e `/confirmar-inscricao/` respondem 200, com `noindex, nofollow` e fora do `sitemap`; a Política
       mostra a versão 1.6 com o parágrafo da inscrição em evento; `GET /api/publico/eventos` está vazio e `/eventos/999999/` dá 404 (**produção não recebeu inscrição de teste**).
       **Limite conhecido:** o link de cancelar vale para quem o tem (vem na tela e no e-mail da inscrição).
 - [x] **v5.5d — Status do evento** — Programado / Adiado / Cancelado / Realizado, com motivo — no sistema, no painel e no site (`schema.org eventStatus`), no lugar do paliativo "voltar a Interna".
@@ -1961,11 +1961,11 @@ então nasce a doação com o recibo. O sistema nunca diz que recebeu antes diss
   armadilha de robô, aviso com versão, dado errado em português, conferência só com login) e `v5.6a-02` 3/3 (página Doar do site de teste com campanha ao vivo, Pix com código e QR, formulário de quem se
   identifica visto na conferência, Política 2.0, e a página fechando sozinha ao desmarcar a chave); regressões `v5.7c-02`, `v5.4e-02` (29), `v5.5a-02` e `v5.4h-02`; suíte do servidor 1204 (2 rodadas), painel
   629, site 719 + 818 de navegador.
-  **Em produção:** `main` = `2c53328`; `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `2c53328`; `openapi.json` traz as 6 rotas; `GET /api/publico/doacao` responde `pix_disponivel:false`
+  **Em produção:** `main` = `2c53328`; `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `2c53328`; `openapi.json` traz as 7 rotas; `GET /api/publico/doacao` responde `pix_disponivel:false`
   (fechada: a chave ainda não foi marcada "vai para o site"), `/api/publico/doacao/pix` = 503, `/api/intencoes-doacao/` sem login = 401; `/como-ajudar/doar/` = 200; `/privacidade/` "Versão 2.0" com o
   parágrafo da doação; a tarefa periódica disparada à mão rodou o passo novo no banco real (`intenções expiradas: 0`). Nenhuma intenção nem doação foi criada em produção.
   **Abertos:** (1) quem abre a doação é a Presidência: preencher CHAVE_PIX (e nome e cidade do Pix) e marcar "vai para o site" em Instituição; (2) "em que foi aplicado" por campanha (a Transparência lendo
-  o centro de custo real) NÃO foi feito: só o RECEBIDO; (3) o pedido não confirmado e os dados de quem se identificou não são apagados sozinhos (v5.7b); (4) o Pix sem se identificar não deixa registro: a
+  o centro de custo real) NÃO foi feito: só o RECEBIDO; (3) o pedido não confirmado e os dados de quem se identificou não eram apagados sozinhos (resolvido pela v5.7b); (4) o Pix sem se identificar não deixa registro: a
   tesouraria só o vê no extrato do banco e precisa registrá-lo à mão; (5) o e-mail do pedido e do recibo é só tentativa (o site diz isso).
 - [x] **v5.6b — Conta de visitante (por e-mail + código, sem senha).** A pessoa pede um código, recebe no e-mail e entra numa área onde ficam as inscrições dela em eventos (o evento encerrado fica
       **inativo, não é apagado**, e continua consultável), os certificados e as doações com recibo. É o que dá sentido ao prazo de guarda dos dados (abaixo). Sessão curta, código de uso único e com
@@ -2002,7 +2002,7 @@ então nasce a doação com o recibo. O sistema nunca diz que recebeu antes diss
   resposta de "pedir código" difere alguns milissegundos entre os dois casos; (5) a Tabela de temporalidade previa "conta de visitante: 5 anos sem acesso", mas a conta não guarda dado próprio (é uma
   janela sobre a inscrição e a doação, que seguem as suas regras): a linha da tabela foi ajustada; (6) seguem sem regra de retenção as inscrições em evento, os voluntários e os certificados, e o IP da
   Auditoria.
-- [x] Recibo automático por e-mail (v5.6a: ao confirmar, o sistema tenta enviar o recibo; se não sair, o painel avisa) — falta a área de acompanhamento das próprias doações (entra na v5.6b).
+- [x] Recibo automático por e-mail (v5.6a: ao confirmar, o sistema tenta enviar o recibo; se não sair, o painel avisa) — a área de acompanhamento das próprias doações é a conta de visitante (v5.6b, feita).
 - [ ] Transparência do destino por campanha (a v5.6a entregou só o RECEBIDO por campanha na página Doar; falta o APLICADO): arrecadado e aplicado puxados do centro de custo real; **liga com a v5.4**: a campanha aparece na Transparência.
 - [x] ~~PIX dinâmico com identificação automática~~ e ~~Pix Automático~~: **descartados** (sem API de banco). Só voltam se a ASAF contratar um provedor de pagamento no futuro.
 
@@ -2015,7 +2015,7 @@ declaração da Receita). Não é parecer jurídico: é o raciocínio adotado; o
 
 | Dado | Conta a partir de | Guarda completa | Depois |
 | --- | --- | --- | --- |
-| Pessoa que só se inscreveu em evento ou doou (nome, CPF, e-mail, telefone, respostas do formulário) | último evento em que participou ou último acesso à conta de visitante | 5 anos | anonimiza; o evento e a contagem ficam |
+| Pessoa que só se inscreveu em evento ou doou (nome, CPF, e-mail, telefone, respostas do formulário) | último evento em que participou (a conta de visitante não guarda acesso) | 5 anos | anonimiza; o evento e a contagem ficam |
 | Inscrições e presenças | idem | 5 anos | anonimizadas junto com a pessoa; o evento fica **inativo e consultável** |
 | Certificados | emissão | 10 anos | a verificação pública continua dizendo "certificado válido", sem o nome |
 | Pedidos da fila de atendimento (contato, informação, titular) | encerramento | 5 anos | apaga mensagem e contato; ficam protocolo, tipo e datas |
@@ -2075,7 +2075,7 @@ declaração da Receita). Não é parecer jurídico: é o raciocínio adotado; o
   `2c53328`); `asaf.org.br/version.json` = `f8bb6ae`; `/privacidade/` em "Versão 2.1" com a lista de 7 prazos e a frase do limite; `GET /api/publico/doacao` segue com `pix_disponivel:false` e aviso na
   versão 2. A tarefa periódica agendada rodou SOZINHA sobre o código novo (14:35 UTC): todos os passos verdes, a retenção imprimiu as 7 regras com `0` e nenhuma falha, o que é o esperado (o sistema é
   novo e não há dado vencido); o passo da foto da Diretoria, com o armazenamento de produção, `fotos apagadas: 0; que não foi possível apagar: 0`.
-  **Abertos desta versão:** (1) ainda sem regra automática: inscritos em evento, voluntários, certificados, conta de visitante (v5.6b) e o IP da própria Auditoria, que não tem prazo; (2) a tabela de
+  **Abertos desta versão:** (1) ainda sem regra automática: inscritos em evento, voluntários, certificados e o IP da própria Auditoria, que não tem prazo (a conta de visitante, da v5.6b, não guarda dado próprio: só a limpeza técnica de 1 dia); (2) a tabela de
   prazos é proposta minha e aguarda ajuste do Presidente (os valores estão em Configurações, com piso e teto); (3) a transparência "aplicado por campanha" da doação não foi feita; (4) a primeira
   rodada com dado vencido de verdade só vai acontecer quando houver dado vencido: a prova até lá é a da homologação.
 - [x] **v5.7c — Nome e FOTO da Diretoria Executiva no site (decisão de 2026-10-15):** "a pessoa se sente representada quando vê o rosto de quem responde pela instituição". Hoje a API pública da
@@ -2136,6 +2136,52 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
   situação do evento e Política de Privacidade (ver o item da conferência, abaixo); **pendente:** v5.6 (doação online com Pix estático e conta de visitante), v5.7b (rotina de retenção) e v5.7c (foto da Diretoria).
   **Atualização de 2026-10-16:** v5.6a, v5.6b, v5.7b, v5.7c e v5.7d estão feitas e em produção; os itens do checklist acima seguem ✔ (a conta de visitante e os
   formulários passam pela mesma fila de atendimento quando é pedido de titular); falta só rodar o Ponto de Revisão (2/2) como revisão formal.
+
+  **Revisão de 2026-10-16 (v5.5a a v5.7d: 69 commits, de `d6034d9^` até `d090e3b`) — checklist da seção 4.1.** A leitura de código e plano foi feita por um agente SEPARADO, só leitura
+  (não ancorado na minha conclusão); os itens que dependem de rodar coisas (2, 4, 9, 12) foram feitos por mim. Resultado:
+  1. **`[x]` implementado e testado — OK**, com um texto corrigido: o "Feito" da v5.5b dizia que a data de nascimento do pedido de voluntariado era copiada "com teste" para quem já estava no
+     cadastro; na verdade só é copiada quando a pessoa entra no cadastro DEPOIS do pedido (`cadastrar_voluntario`); quando o pedido já chegou ligado pelo CPF, o servidor segue pedindo a autorização do
+     responsável a quem não tem data de nascimento (seguro, mas trava um adulto até a data entrar no cadastro). Texto da v5.5b corrigido; o comportamento fica como **aberto** (abaixo). Faltava o teste da
+     migração da v5.6b: criado (`tests/test_migracao_conta_de_visitante.py`).
+  2. **Testes — OK:** suíte do servidor 1267 em duas rodadas seguidas; site 744 unitários + 846 de navegador; painel 629; robôs da homologação verdes (v5.5a-01 6, v5.5b-01 4, v5.5a-02 7, v5.7b-01 2,
+     v5.7b-02 2, v5.6b-01 6, v5.6b-02 4, mais as regressões da v5.6b).
+  3. **Decisões congeladas — OK** (nenhuma violada: banco, framework, MFA e JWT intactos; a sessão do visitante é um mecanismo à parte e não abre o painel). Ressalva baixa: o responsável padrão da fila
+     é escolhido pelo NOME do nível "Presidente" (decisão do Presidente de 09/10, `app/services/atendimento.py::responsavel_padrao`); não é checagem de permissão (a fila usa `exigir_permissao`).
+  4. **Segredos — OK:** varredura das 48.581 linhas adicionadas no intervalo (chave privada, AKIA, tokens do GitHub, `sk-`, `AccountKey=`, SAS, URL de banco com senha, JWT, atribuição de segredo
+     longo): nenhum achado real (o único acerto é um token falso, `sessao-que-nao-existe`, dentro de um teste); o revisor também não achou segredo em texto claro nos diffs.
+  5. **Auditoria — OK, com um achado corrigido:** toda rota que muda dado do intervalo grava (atendimento, doação, inscrição pública, situação do evento, foto da Diretoria, retenção, conta de
+     visitante); a rotina que expira pedidos de doação NÃO gravava: agora grava `INTENCOES_DE_DOACAO_EXPIRADAS` (SISTEMA, só a contagem, e nada quando não há o que expirar). Pedir o código e sair não
+     gravam, de propósito (não mudam dado pessoal).
+  6. **Permissão no backend — OK:** atendimento, financeiro (doações), projetos (situação do evento, voluntários) e governança (foto) por permissão; as públicas estão em `/api/publico/` ou na lista
+     `ABERTAS_DE_PROPOSITO`, cada uma com razão e limite; `/api/visitante/*` exige a sessão do visitante. **Para o Presidente decidir:** o nível "Conselho Fiscal" recebe a permissão `financeiro` por
+     padrão (`app/database.py`, anterior ao intervalo), então pode confirmar doação do site, e a decisão de 07/10 diz que o Conselho tem a Auditoria própria e não opera o Financeiro.
+  7. **Escopo — OK, com notas cruzadas acrescentadas:** a v5.5a, a v5.7 e a v5.7b entregaram partes de itens da FASE 7 e da v9.1 que seguiam `[ ]` sem nota; cada um ganhou a nota do que já existe e do
+     que falta (encarregado, retenção como rotina real, canal único, headers, limite por IP, declaração de acessibilidade).
+  8. **Plano × código — corrigido:** a v5.5c dizia "as três rotas novas" (só uma é nova: `GET /api/publico/inscricoes/{token}`), a v5.6a dizia "6 rotas" (são 7), a v5.6a ainda listava como aberto o que a
+     v5.7b resolveu, a v5.6a ainda dizia que a área de doações era "da v5.6b" (feita), a v5.7b ainda listava a conta de visitante como sem regra e a tabela de temporalidade contava prazo do "último
+     acesso" à conta (ela não guarda acesso).
+  9. **Suíte completa — OK** (item 2).
+  10/11. **Telas e links:** as telas do intervalo (Atendimento, Doações do site, foto no mandato, Regras do sistema, situação do evento, voluntário) foram usadas pelos robôs na homologação, com print,
+     e o que elas oferecem para abrir (links de cancelar e confirmar, PDF do certificado, foto) foi aberto lá; em produção só se confirma por leitura (o MFA do painel está congelado, `DECISOES_CONGELADAS.md`
+     §3.1). A conta do visitante é uma página do SITE, não do painel.
+  12. **No ar — OK:** `main` igual ao remoto; Deploy API, Painel e Site verdes para cada commit de código; `asaf.org.br/version.json` bate com o último commit de código (`cbade9f`) e `painel.asaf.org.br/version.json` com o último que mexeu no painel (`6eaf9da`: o `cbade9f` só mudou roteiros de robô dele);
+     as falhas vermelhas do dia são todas de robôs da homologação (nome de roteiro errado, ordem da cadeia, máquina sem memória), explicadas e resolvidas.
+  **Específicos deste ponto:** (a) formulários na fila única — o revisor leu os 11 usos de `enviar_email` em `app/`: nenhum manda texto de visitante para a equipe (ela é avisada só pelo sino); os
+  e-mails são recibos automáticos ao endereço digitado, avisos ao contato do cadastro e respostas da equipe; ✔. (b) cabeçalhos de segurança do site (CSP `default-src 'none'`, `frame-ancestors 'none'`,
+  X-Frame-Options, nosniff, Permissions-Policy, COOP no build; o HSTS vem do Azure e o robô v5.7-01 o confere ao vivo) ✔. (c) voluntário não associado escalado ✔ (`test_voluntario_nao_associado.py`).
+  (d) evento cancelado continua visível e marcado ✔ (`test_status_do_evento.py`, `situacao-do-evento.spec.ts`).
+  **Achados da revisão corrigidos ANTES de fechar (branch → homologação → `main`, `cbade9f`):** (A1) o pedido de voluntariado era ligado, na chegada, à pessoa do cadastro com o mesmo CPF OU o mesmo
+  e-mail (se fosse uma pessoa só): o painel pulava o cadastro e abria o termo no nome dela (o filho que escreve com o e-mail da mãe); agora o voluntariado só liga pelo CPF, e o e-mail único segue
+  ligando os outros tipos, que só informam; (A2) a Política 2.2 dizia "não guarda dados no seu navegador", e a conta guarda a sessão no `sessionStorage`: o texto agora diz isso (e a Política continua em
+  2.2: é correção do texto no mesmo dia); (A3) `infra/armazenamento-privado.sh` voltaria o soft delete dos blobs para 30 dias se alguém recriasse o armazenamento: agora diz 25, como está aplicado nas duas
+  contas; (A7) a Auditoria da rotina de expirar (item 5); (A8) o aviso do formulário de voluntariado não dizia que a oferta aceita vira cadastro de voluntário (nome, CPF se informado, contato e data de
+  nascimento): ganhou a frase e o aviso do atendimento passou à **versão 2** (o servidor recusa a 1); (A9) o teste da migração (item 1).
+  **Abertos, registrados (sem correção nesta rodada):** (1) **solicitação de titular: a resposta vai para o e-mail digitado, sem verificar quem pede** (o CPF não é segredo): quem sabe o CPF de alguém pode
+  pedir "acesso aos dados" e receber a resposta; a validação de identidade é da v7.2; até lá, quem atende confere o CPF mostrado dentro do pedido e o cadastro antes de mandar dado pessoal; (2) pedido de
+  voluntariado ligado pelo CPF a quem não tem data de nascimento no cadastro continua exigindo a autorização do responsável (item 1); (3) o nível "Conselho Fiscal" com `financeiro` (item 6): decisão
+  do Presidente; (4) o papel de dados do armazenamento foi conferido por leitura (`az role assignment list`): a identidade do GitHub tem "Storage Blob Data Contributor" em `fotos-associados` e em
+  `fotos-diretoria` da produção e na conta inteira de teste. **Ponto de Revisão FASE 5 (2/2): fechado em 2026-10-16** (com a ressalva de que o Ponto (1/2) ainda espera a conferência da diretoria contra
+  a vedação do STF, que precisa de composição real).
 
 ##### Decisões pendentes → onde cada uma será tratada (resposta do usuário em 2026-10-03)
 
@@ -2436,7 +2482,7 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 
 #### v7.0 — Governança de privacidade
 
-- [ ] Encarregado (DPO) designado e publicado no site com canal de contato — exigência do Art. 41
+- [ ] Encarregado (DPO) designado e publicado no site com canal de contato — exigência do Art. 41 **[parcial, v5.5a: o encarregado (o Presidente, decisão de 09/10) e o canal já estão na Política e no formulário de solicitação do titular; conferir o que falta antes de refazer]**
       da LGPD, frequentemente ignorada por associações.
 - [ ] **Inventário de dados (ROPA)** vivo: para cada tipo de dado tratado — quem é o titular, qual
       a finalidade, qual a base legal, quanto tempo fica, com quem é compartilhado, onde está
@@ -2458,7 +2504,7 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - [ ] Dado de criança e adolescente (Art. 14): consentimento específico de ao menos um dos pais ou
       responsável, com registro do vínculo — relevante direto para projetos assistenciais e
       educacionais da FASE 4/14.
-- [ ] Política de retenção por tipo de dado, implementada como **rotina real** de anonimização/
+- [ ] **[parcial, v5.7b: rotina real feita para 7 regras; faltam inscritos em evento, voluntários e certificados]** Política de retenção por tipo de dado, implementada como **rotina real** de anonimização/
       descarte (participante externo de evento: X meses; candidato a voluntário não aprovado: Y
       meses; associado desligado: prazo legal/contábil), com relatório do que foi descartado.
       Retenção que só existe no papel não é retenção.
@@ -2474,7 +2520,7 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 
 #### v7.2 — Direitos do titular, operacionalizados
 
-- [ ] Canal único de solicitação: pelo painel (autenticado) e pelo site (formulário com validação
+- [ ] **[parcial, v5.5a e v5.6b: o site tem o formulário (fila única, protocolo e prazo) e a conta de visitante pede a eliminação com o e-mail provado por código; falta a validação de identidade no formulário público e o canal pelo painel]** Canal único de solicitação: pelo painel (autenticado) e pelo site (formulário com validação
       de identidade), gerando protocolo com prazo legal acompanhado.
 - [ ] Atendimento real de cada direito: confirmação de tratamento, acesso, correção,
       anonimização/eliminação, portabilidade (exportação em formato legível por máquina),
@@ -2488,9 +2534,9 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - [ ] Minimização por padrão: cada tela e cada exportação mostram só o necessário; CPF completo
       exibido apenas para quem tem permissão específica, mascarado para os demais.
 - [ ] Headers de segurança HTTP (CSP, `X-Content-Type-Options`, `X-Frame-Options`, HSTS) no site
-      estático e no painel.
+      estático e no painel. **[parcial, v5.7: feito no site; o painel e a API não foram tratados neste item]**
 - [ ] Rate limiting nos endpoints públicos (inscrição de evento, contato, filiação) — proteção
-      contra spam/abuso sem CAPTCHA comercial pago.
+      contra spam/abuso sem CAPTCHA comercial pago. **[já existe por IP: inscrição (v4.6), atendimento (v5.5a), filiação (v5.4h), doação (v5.6a) e conta de visitante (v5.6b); falta só conferir e marcar]**
 - [ ] Contratos/termos com operadores (Azure, provedor de e-mail, PSP de pagamento, BSP de
       WhatsApp) registrados no inventário, com a finalidade de cada compartilhamento.
 
@@ -2646,7 +2692,7 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - [ ] Modo alto contraste e aumento de fonte no site público; respeito a `prefers-reduced-motion`.
 - [ ] Linguagem simples nos textos de interface — acessibilidade cognitiva importa tanto quanto a
       técnica para o público de uma associação comunitária.
-- [ ] Declaração de acessibilidade publicada, com canal para relatar barreira encontrada.
+- [ ] Declaração de acessibilidade publicada, com canal para relatar barreira encontrada. **[parcial, v5.7: publicada em `/acessibilidade/` (conformidade parcial declarada); falta a revisão manual]**
 
 #### v9.2 — Performance
 
