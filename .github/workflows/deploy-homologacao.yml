@@ -131,13 +131,15 @@ jobs:
       # CONFIAR_NO_PRIMEIRO_IP=1 (só aqui): o teste de carga simula centenas de pessoas a partir de uma máquina só, cada uma com o seu primeiro item de
       # `X-Forwarded-For`; na produção vale o ÚLTIMO item (o que o ingress anotou), que ninguém inventa (app/services/protecao_publica.py::ip_publico).
       # URL_BASE_SITE_PUBLICO (só aqui): os e-mails de cancelar e confirmar inscrição levam ao site de TESTE, nunca ao de verdade (app/services/site_publico.py).
+      # VISITANTE_CODIGO_NA_RESPOSTA=1 (só aqui): a API de teste não tem e-mail e o robô não lê caixa de entrada; por isso o código da conta de visitante volta na
+      # resposta do pedido, e SÓ quando o ambiente não tem SMTP configurado (a produção tem: lá a variável não faz nada; tem teste que garante as duas coisas).
       - name: Atualiza a API de TESTE com a nova imagem
         run: |
           az containerapp update \
             --name "$CONTAINER_APP" \
             --resource-group "$RESOURCE_GROUP" \
             --image "$REGISTRY.azurecr.io/$IMAGE_NAME:hml-${CODIGO_SHA}" \
-            --set-env-vars DB_POOL_SIZE=3 DB_MAX_OVERFLOW=1 CONFIAR_NO_PRIMEIRO_IP=1 URL_BASE_SITE_PUBLICO=https://hml-site.asaf.org.br
+            --set-env-vars DB_POOL_SIZE=3 DB_MAX_OVERFLOW=1 CONFIAR_NO_PRIMEIRO_IP=1 VISITANTE_CODIGO_NA_RESPOSTA=1 URL_BASE_SITE_PUBLICO=https://hml-site.asaf.org.br
 
       - name: Espera a API de teste responder
         run: |
