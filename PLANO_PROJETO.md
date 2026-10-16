@@ -1967,9 +1967,41 @@ então nasce a doação com o recibo. O sistema nunca diz que recebeu antes diss
   **Abertos:** (1) quem abre a doação é a Presidência: preencher CHAVE_PIX (e nome e cidade do Pix) e marcar "vai para o site" em Instituição; (2) "em que foi aplicado" por campanha (a Transparência lendo
   o centro de custo real) NÃO foi feito: só o RECEBIDO; (3) o pedido não confirmado e os dados de quem se identificou não são apagados sozinhos (v5.7b); (4) o Pix sem se identificar não deixa registro: a
   tesouraria só o vê no extrato do banco e precisa registrá-lo à mão; (5) o e-mail do pedido e do recibo é só tentativa (o site diz isso).
-- [ ] **v5.6b — Conta de visitante (por e-mail + código, sem senha).** A pessoa pede um código, recebe no e-mail e entra numa área onde ficam as inscrições dela em eventos (o evento encerrado fica
+- [x] **v5.6b — Conta de visitante (por e-mail + código, sem senha).** A pessoa pede um código, recebe no e-mail e entra numa área onde ficam as inscrições dela em eventos (o evento encerrado fica
       **inativo, não é apagado**, e continua consultável), os certificados e as doações com recibo. É o que dá sentido ao prazo de guarda dos dados (abaixo). Sessão curta, código de uso único e com
       limite de tentativas; a pessoa pode pedir o apagamento dos próprios dados.
+  **Feito (2026-10-16):** servidor (migração `e6b3c9d2f8a4`: tabelas `codigos_de_visitante` e `sessoes_de_visitante` e a coluna `inscricoes.email_da_inscricao`; `app/services/conta_de_visitante.py`,
+  `app/routers/visitante.py`): rotas públicas `POST /api/publico/visitante/codigo` e `/entrar`, e as da sessão `GET /api/visitante/minha-conta`, `POST /api/visitante/sair` e `/pedir-apagamento`. Código de
+  6 números, 10 minutos, uso único, 5 tentativas (contadas de forma atômica no banco), só a impressão HMAC guardada; a resposta ao pedir o código é idêntica com ou sem vínculo (o código só é gerado e
+  enviado se existe vínculo) e o 4º pedido do mesmo e-mail na hora dá 429 para qualquer e-mail; sessão de 60 minutos, só a impressão no servidor; a sessão do visitante não abre o painel e o token do
+  painel não abre a conta. **O vínculo é o e-mail DIGITADO na inscrição pelo site** (coluna nova), nunca o do cadastro: a conferência independente achou que a deduplicação por CPF grava o e-mail de quem
+  se inscreveu no cadastro de uma pessoa que não tinha e-mail, o que daria a conta dela a quem soubesse o CPF. A conta mostra as inscrições (o evento encerrado fica, inativo; o link secreto de cancelar ou
+  confirmar só aparece quando há o que fazer), os certificados dessas inscrições (PDF e código de verificação) e os pedidos de doação (o recibo só depois da confirmação da tesouraria), sem CPF, telefone
+  nem dado de outra pessoa. "Pedir a eliminação dos meus dados" abre uma solicitação de titular (eliminação) na fila de atendimento, com o prazo de 15 dias, sem apagar nada na hora. A rotina de retenção
+  ganhou a limpeza técnica de 1 dia (códigos, sessões e o contador de pedidos). Site: página `/minha-conta/` (noindex, fora do sitemap, link no rodapé), sessão só no `sessionStorage` da aba, Política
+  **2.2** (trecho `data-conta-visitante-politica`, com SÓ o que o código faz). Junto foi o lote 11 de atualizações (fastapi 0.143.3, pypdf 6.21.0, eslint 10.13.0, lucide-react 1.58.0).
+  **Na homologação:** robôs `v5.6b-01` 6/6 (API, fila e Auditoria: resposta igual com e sem vínculo, código errado, de e-mail sem vínculo e certo, conta sem CPF nem telefone, sessões que não se cruzam
+  com o painel, uso único, cinco erros queimam o código, 4º pedido = 429, pedido de eliminação visto na tela da fila e o segundo devolve o mesmo, Auditoria sem o e-mail, sair encerra) e `v5.6b-02` 4/4
+  (o visitante no site de teste: e-mail, código, conta, link de cancelar aberto sem cancelar e sessão que continua ao voltar, eliminação em dois passos, sair com a sessão apagada da aba, política de
+  conteúdo sem violação, Política 2.2 e rodapé); regressões `v5.5c-01` 1/1 e `v5.5c-02` 7/7 (inscrição pelo site), `v5.4h-06` 4/4, `v5.4f-03` 16/16, `v5.5a-02` 7/7, `v5.6a-01` 5/5, `v5.6a-02` 3/3,
+  `v5.7b-01` 2/2, `v5.7b-02` 2/2 e `v5.7c-02` 2/2. Suíte do servidor 1262 em duas rodadas seguidas (a primeira rodada, antes das correções, reprovou 2 testes de registro: um literal de caminho no
+  serviço e as rotas do visitante fora da lista de rotas sem tela do painel; corrigidos), site 744 unitários + 845 de navegador, painel 629. A conferência independente (agente separado, só leitura)
+  achou defeitos reais, corrigidos e provados de novo (testes e homologação) ANTES da `main`: a contagem de tentativas não era atômica (pedidos em paralelo furavam o limite de 5), o vínculo pelo cadastro (acima) e
+  frases do site que prometiam mais que o código ("enviamos" virou "tentamos enviar", o limite de pedidos é de 1 hora, o e-mail sai da tela ao sair, o pedido que já existia não promete outro e-mail).
+  Defeitos dos robôs (não do produto): números fixos de conta contábil e a ordem da cadeia (a página de evento só existe no site depois de nova publicação). A máquina ficou sem memória no meio da
+  cadeia (dois robôs nem foram disparados): foram rodados de novo, sozinhos.
+  **Em produção:** `main` = `6eaf9da`; Deploy API, Painel e Site verdes; `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `6eaf9da`; `openapi.json` da API traz as 5 rotas novas;
+  `GET /api/visitante/minha-conta` sem sessão e com token inventado = 401; `/minha-conta/` = 200, noindex, fora do sitemap, e o rodapé da home leva a ela; `/privacidade/` em "Versão 2.2" com o trecho
+  da conta e a lista dos 7 prazos; `GET /api/publico/doacao` segue com `pix_disponivel:false`; o contêiner `asaf-api` tem as variáveis `SMTP_*` e NÃO tem `VISITANTE_CODIGO_NA_RESPOSTA` (só nomes lidos);
+  a tarefa periódica, disparada à mão, rodou sobre o código novo: as 7 regras em 0, "limpeza técnica (conta_de_visitante): 0" e nenhuma falha (a migração está aplicada: as tabelas novas respondem).
+  Nenhum e-mail, código ou inscrição foi criado em produção.
+  **Abertos:** (1) o primeiro código real só será enviado quando alguém tiver inscrição em evento ou pedido de doação com e-mail em produção (ainda não há evento público); o envio é tentativa; (2) a
+  inscrição feita pela secretaria (sem e-mail digitado pelo site) NÃO aparece na conta: é decisão de segurança, dita na Política; (3) quem sabe o CPF de uma pessoa ainda pode reinscrevê-la, pelo
+  formulário público, em um evento em que a inscrição dela está CANCELADA (o motor reaproveita a linha e emite novo link): é anterior à v5.6b, e agora quem fez isso também vê essa inscrição na conta
+  dele; (4) trade-offs conhecidos: quem sabe o e-mail de alguém pode gastar os 3 pedidos por hora dele (bloqueio de 1 hora), dois cliques simultâneos podem abrir 2 pedidos de eliminação, e o tempo de
+  resposta de "pedir código" difere alguns milissegundos entre os dois casos; (5) a Tabela de temporalidade previa "conta de visitante: 5 anos sem acesso", mas a conta não guarda dado próprio (é uma
+  janela sobre a inscrição e a doação, que seguem as suas regras): a linha da tabela foi ajustada; (6) seguem sem regra de retenção as inscrições em evento, os voluntários e os certificados, e o IP da
+  Auditoria.
 - [x] Recibo automático por e-mail (v5.6a: ao confirmar, o sistema tenta enviar o recibo; se não sair, o painel avisa) — falta a área de acompanhamento das próprias doações (entra na v5.6b).
 - [ ] Transparência do destino por campanha (a v5.6a entregou só o RECEBIDO por campanha na página Doar; falta o APLICADO): arrecadado e aplicado puxados do centro de custo real; **liga com a v5.4**: a campanha aparece na Transparência.
 - [x] ~~PIX dinâmico com identificação automática~~ e ~~Pix Automático~~: **descartados** (sem API de banco). Só voltam se a ASAF contratar um provedor de pagamento no futuro.
@@ -1996,7 +2028,7 @@ declaração da Receita). Não é parecer jurídico: é o raciocínio adotado; o
 | Escrituração financeira (livro-caixa, títulos, contas) | — | permanente | — |
 | Atas e Estatuto | — | permanente | — |
 | Prestação de contas de parceria ou emenda | prestação de contas | 10 anos | — |
-| Conta de visitante | último acesso | enquanto ativa; 5 anos sem acesso | encerra e anonimiza |
+| Conta de visitante (código e sessão) | criação | 1 dia (limpeza técnica); a conta não guarda dado próprio: mostra a inscrição e a doação, que seguem as suas regras | apaga |
 
 **Regra de honestidade:** a Política de Privacidade só passa a prometer um prazo quando a rotina que o aplica existe e está testada (item v5.7b, abaixo); até lá ela segue sem prometer eliminação automática.
 
@@ -2102,6 +2134,8 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
   **Estado em 2026-10-15 (o Ponto só fecha com a v5.6):** headers de segurança presentes na resposta de produção ✔ (v5.7); formulários públicos na fila única ✔ (v5.5a/b); voluntário não associado
   escalado ✔ (v5.5b); evento cancelado aparece como cancelado ✔ (v5.5d); verificação independente de fatos feita para a declaração de acessibilidade (2 passagens) e para os textos de inscrição em evento,
   situação do evento e Política de Privacidade (ver o item da conferência, abaixo); **pendente:** v5.6 (doação online com Pix estático e conta de visitante), v5.7b (rotina de retenção) e v5.7c (foto da Diretoria).
+  **Atualização de 2026-10-16:** v5.6a, v5.6b, v5.7b, v5.7c e v5.7d estão feitas e em produção; os itens do checklist acima seguem ✔ (a conta de visitante e os
+  formulários passam pela mesma fila de atendimento quando é pedido de titular); falta só rodar o Ponto de Revisão (2/2) como revisão formal.
 
 ##### Decisões pendentes → onde cada uma será tratada (resposta do usuário em 2026-10-03)
 
