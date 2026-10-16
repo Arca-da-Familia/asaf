@@ -193,14 +193,29 @@ test('preparar: evento público, inscrição pelo formulário público e dois pe
   }
   const dela = itens.find((i) => i.protocolo === protocoloConfirmado)
   expect(dela, 'a conferência lista o pedido').toBeDefined()
+  // as contas do plano: uma de Receita e uma de Ativo (caixa), criadas aqui (os números fixos não valem: a ordem do plano de contas muda)
+  const conta = async (tipo: 'Receita' | 'Ativo'): Promise<number> => {
+    const r = await page.request.post(`${API_HML}/plano-contas/`, {
+      headers: cabecalho(),
+      data: {
+        codigo_contabil: `R56B${RODADA}${tipo[0]}`,
+        descricao_conta: `Conta ${tipo} do robô da conta de visitante`,
+        tipo,
+      },
+    })
+    expect(r.status(), await r.text()).toBe(200)
+    return ((await r.json()) as { id_conta: number }).id_conta
+  }
+  const receita = await conta('Receita')
+  const caixa = await conta('Ativo')
   const confirmada = await page.request.post(
     `${API_HML}/api/intencoes-doacao/${dela!.id_intencao}/confirmar`,
     {
       headers: cabecalho(),
       data: {
         valor_recebido: 45,
-        id_conta_contabil: 1,
-        id_conta_contabil_caixa: 2,
+        id_conta_contabil: receita,
+        id_conta_contabil_caixa: caixa,
       },
     },
   )
