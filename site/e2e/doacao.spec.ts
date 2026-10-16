@@ -290,16 +290,43 @@ test.describe('a página Doar (o que ela explica, sem depender da API)', () => {
 })
 
 test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
-  test('versão 2.0 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
+  test('"Por quanto tempo guardamos" lista os prazos que a rotina aplica, e só esses, com o limite dito com franqueza', async ({
+    page,
+  }) => {
+    await page.goto('/privacidade/')
+    const lista = page.locator('[data-prazos-de-guarda]')
+    await expect(lista).toBeVisible()
+    await expect(lista.locator('li')).toHaveCount(7)
+    for (const trecho of [
+      'Endereço de rede (IP) guardado no controle do limite de pedidos dos formulários públicos: 6 meses, depois é apagado. O IP que também fica na Auditoria do sistema ainda não tem prazo de eliminação automática.',
+      'Avisos do painel da equipe (que podem trazer o nome de quem pediu): 1 ano, depois são apagados.',
+      '(contato, informação, solicitação de titular e voluntariado): 5 anos depois de respondidos ou encerrados, apagamos o nome, o assunto, a mensagem, a resposta, o motivo do encerramento e os dados de contato e de identificação (e-mail, telefone, CPF, data de nascimento); ficam o número do protocolo, o tipo, a situação e as datas. O pedido que ainda não foi respondido nem encerrado não é apagado.',
+      'Pedido de filiação que não virou associado (recusado, ou pendente sem decisão): 2 anos depois da última mudança no pedido ou no voto de um sócio, ele e as decisões dos sócios sobre ele são apagados',
+      'Pedido de doação pelo site que ninguém confirmou: 2 anos depois do prazo do pedido, é apagado.',
+      'Doador identificado: 10 anos depois da doação, tiramos o nome, o documento, o e-mail e a ligação com o cadastro de associado; ficam o valor, a data e o destino',
+      'Associado desligado: 5 anos depois do desligamento, apagamos CPF, e-mail, telefone, data de nascimento, estado civil, profissão, naturalidade, a foto (inclusive o arquivo) e o endereço; ficam o nome e a matrícula do livro de associados. Quem tem ou já teve outro papel no cadastro (por exemplo, voluntário) não é incluído. Ainda não há prazo automático para os dependentes cadastrados, os documentos anexados, o histórico de cargos e as observações internas da ficha.',
+    ])
+      await expect(lista).toContainText(trecho)
+    await expect(
+      page.locator('[data-prazos-de-guarda-introducao]'),
+    ).toContainText(
+      'Os prazos abaixo são os de hoje: ficam nas Regras do sistema, a Presidência pode ajustá-los e nenhum fica abaixo de 30 dias. O que é apagado ainda fica, por até 35 dias, nas cópias de segurança do banco de dados, que não são públicas.',
+    )
+    await expect(page.locator('[data-prazos-de-guarda-limite]')).toContainText(
+      'Ainda não há rotina automática de prazo para os demais dados (por exemplo, quem só se inscreveu em um evento, voluntários, certificados, a Auditoria do sistema e o pedido de filiação aprovado)',
+    )
+  })
+
+  test('versão 2.1 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
     page,
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.0 · em vigor desde 16 de outubro de 2026'),
+      page.getByText('Versão 2.1 · em vigor desde 16 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.0, em vigor desde 16 de outubro de 2026/,
+        /Esta é a versão 2\.1, em vigor desde 16 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-doacao]')
@@ -316,7 +343,7 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
       'quem tem a permissão do financeiro',
       'O que nos autoriza a tratar esses dados é o seu consentimento (o aceite do aviso) e, depois que a tesouraria confirma a doação, a escrituração contábil e financeira dela',
       'passa a ser marcado como “prazo vencido” depois dos dias informados na página (o padrão é 15), por uma rotina que roda algumas vezes ao dia, e continua guardado no sistema',
-      'hoje o sistema não apaga esses pedidos sozinho e não há prazo definido para apagá-los',
+      'até 2 anos depois do prazo do pedido (é o prazo de hoje), quando o sistema o apaga sozinho',
       'a doação já confirmada faz parte da escrituração contábil',
       'o pagamento em si passa pelo banco que você mesmo escolhe',
     ])
@@ -353,7 +380,7 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
   }) => {
     await abrir(page)
     const aviso = page.locator('#doar-identificada-aviso')
-    await expect(aviso).toContainText('Aviso de privacidade (versão 1)')
+    await expect(aviso).toContainText('Aviso de privacidade (versão 2)')
     const link = aviso.getByRole('link', { name: 'Política de Privacidade' })
     await expect(link).toHaveAttribute('href', '/privacidade/#doacao-pelo-site')
     await link.click()
@@ -731,12 +758,12 @@ test.describe('doar se identificando', () => {
     await expect(form.getByLabel('E-mail')).toHaveAttribute('type', 'email')
     // o aviso, com a versão que a API mandou ler, o que se guarda e para quê
     const aviso = page.locator('#doar-identificada-aviso')
-    await expect(aviso).toContainText('Aviso de privacidade (versão 1)')
+    await expect(aviso).toContainText('Aviso de privacidade (versão 2)')
     for (const trecho of [
       'Vamos guardar o seu nome, o seu e-mail, o CPF (se você informar), o valor e a campanha que escolheu, o seu aceite deste aviso e o endereço de internet (IP) de onde veio o pedido.',
       'para conferir o seu Pix no extrato do banco da associação, registrar a doação e emitir o recibo, que tentamos enviar por e-mail. Se o CPF for de um associado, a doação fica ligada ao cadastro dele',
       'Quem confere é a tesouraria da associação.',
-      'continua guardado no sistema: hoje não há prazo para apagá-lo',
+      'continua guardado no sistema por um prazo (hoje, 2 anos depois do prazo do pedido) e depois o sistema o apaga sozinho',
     ])
       await expect(aviso).toContainText(trecho)
     await expect(
@@ -890,7 +917,7 @@ test.describe('doar se identificando', () => {
       valor: 25.5,
       id_campanha: 1,
       consentimento_lgpd: true,
-      versao_texto_consentimento: '1',
+      versao_texto_consentimento: '2',
       pagina_web: '',
     })
     expect(pedidos[0]!.url).toBe(
@@ -1190,7 +1217,7 @@ test.describe('doar se identificando', () => {
     await preencherIdentificada(page)
     await enviarIdentificada(page)
     expect(pedidos[0]!.corpo.versao_texto_consentimento).toBe('9')
-    // o mock só conhece a versão 1: recusa com a frase do servidor
+    // o mock só conhece a versão 2: recusa com a frase do servidor
     await expect(falha(identificada(page))).toHaveText(
       'O aviso de privacidade foi atualizado: recarregue a página, leia e aceite a versão atual.',
     )

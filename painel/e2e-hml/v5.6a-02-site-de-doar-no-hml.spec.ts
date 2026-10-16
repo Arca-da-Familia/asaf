@@ -81,7 +81,7 @@ async function garantirPixAberto(page: Page): Promise<void> {
   expect(r.status(), await r.text()).toBe(200)
 }
 
-test('a página Doar do site de teste: campanha ao vivo, Pix sem se identificar com código e QR, e a Política 2.0', async ({
+test('a página Doar do site de teste: campanha ao vivo, Pix sem se identificar com código e QR, e a Política 2.1', async ({
   page,
 }, info) => {
   const vigia = vigiar(page)
@@ -130,7 +130,7 @@ test('a página Doar do site de teste: campanha ao vivo, Pix sem se identificar 
   await page.goto(`${SITE}/privacidade/`, { waitUntil: 'networkidle' })
   expect(
     (await page.locator('body').innerText()).replace(/\s+/g, ' '),
-  ).toContain('Versão 2.0')
+  ).toContain('Versão 2.1')
   await expect(page.locator('[data-doacao]')).toBeVisible()
   await ver(page, info, 'politica-de-privacidade-2-0')
 
