@@ -6,7 +6,7 @@ import { API_HML, exigirHomologacao, ver, vigiar } from './apoio'
 
 // v5.7c - o que o VISITANTE do site de teste (hml-site) vê na página Diretoria, num navegador de verdade, DEPOIS de a homologação ser publicada de novo (o site lê a API no build):
 // a foto de quem autorizou o uso da imagem (a da Presidente, subida pelo v5.7c-01), no próprio site e não na API, com o texto alternativo do nome e do cargo; quem não tem foto
-// (o Bruno, cuja foto o v5.7c-01 apagou) aparece com as iniciais; a Política de Privacidade está na versão 1.10 com o parágrafo da foto. Nada violou a política de conteúdo do site.
+// (o Bruno, cuja foto o v5.7c-01 apagou) aparece com as iniciais; a Política de Privacidade está na versão 2.0 com o parágrafo da foto. Nada violou a política de conteúdo do site.
 test.describe.configure({ mode: 'serial' })
 test.beforeAll(() => exigirHomologacao())
 test.setTimeout(240_000)
@@ -124,7 +124,7 @@ test('a página Diretoria mostra a foto da Presidente, do próprio site, e as in
   expect(vigia.problemas()).toEqual([])
 })
 
-test('a Política de Privacidade está na versão 1.10, com o parágrafo da foto da Diretoria', async ({
+test('a Política de Privacidade está na versão 2.0 (a da doação pelo site), com o parágrafo da foto da Diretoria', async ({
   page,
 }, info) => {
   const resposta = await page.goto(`${SITE}/privacidade/`, {
@@ -132,7 +132,7 @@ test('a Política de Privacidade está na versão 1.10, com o parágrafo da foto
   })
   expect(resposta?.status()).toBe(200)
   const texto = (await page.locator('body').innerText()).replace(/\s+/g, ' ')
-  expect(texto).toContain('Versão 1.10')
+  expect(texto).toContain('Versão 2.0')
   const paragrafo = page.locator('[data-diretoria-foto]')
   await expect(paragrafo).toBeVisible()
   await expect(paragrafo).toContainText(
