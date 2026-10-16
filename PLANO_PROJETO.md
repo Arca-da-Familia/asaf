@@ -2007,9 +2007,26 @@ declaração da Receita). Não é parecer jurídico: é o raciocínio adotado; o
 
 - [ ] **v5.7b — Rotina de retenção (LGPD, FASE 7 em fatia):** os prazos da tabela acima ficam em configuração; uma tarefa periódica anonimiza ou apaga o que venceu, registra na Auditoria só as
       contagens, e a Política de Privacidade passa a publicar os prazos que a rotina de fato aplica.
-- [ ] **v5.7c — Nome e FOTO da Diretoria Executiva no site (decisão de 2026-10-15):** "a pessoa se sente representada quando vê o rosto de quem responde pela instituição". Hoje a API pública da
+- [x] **v5.7c — Nome e FOTO da Diretoria Executiva no site (decisão de 2026-10-15):** "a pessoa se sente representada quando vê o rosto de quem responde pela instituição". Hoje a API pública da
       diretoria nunca traz foto; passa a trazer a foto de quem **autorizou o uso da imagem** (registro da autorização no painel, como nas fotos de evento), regravada sem metadado; a página mostra nome,
       cargo, foto e período do mandato. Depende de o Presidente cadastrar os mandatos e as fotos no painel (ato dele).
+  **Feito (2026-10-15):** servidor (`FotoDaDiretoria`, migração `c4f1a9d6e8b2`; só com a autorização de imagem marcada; regravada em JPEG sem Exif/GPS/comentário, até 2000 px; uma foto por pessoa; pública só
+  com mandato vigente, conferido a cada pedido; apagar tira banco e arquivo; Auditoria `FOTO_ENVIADA`/`FOTO_APAGADA`; texto alternativo montado na leitura com o nome e o cargo de hoje), painel (bloco "Foto no
+  site" em cada mandato vigente: enviar, trocar, apagar com confirmação), site (cartão com a foto COPIADA para o próprio site com conferência de SHA-256, ou círculo de iniciais; Presidente em destaque; Política **1.9**).
+  **Na homologação:** robôs `v5.7c-01` (painel e API: recusa sem a autorização, foto sem metadado e com a impressão digital certa, troca, apagar com confirmação e 404 depois, só com login) 4 de 4 e `v5.7c-02`
+  (site de teste: foto da Presidente do próprio site, iniciais de quem não tem foto, Política 1.9) 2 de 2, em três rodadas; suíte do servidor 1155 (2 rodadas), painel 551, site 589 + 763 de navegador. A conferência
+  independente de fatos achou dois exageros no texto ("apagada na hora" não é literal por causa das cópias de segurança; a verificação pública da carteirinha entrega a foto do cadastro): textos corrigidos e
+  provados de novo na hml.
+  **Em produção:** `main` = `2c3f8be`; `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `2c3f8be`; `openapi.json` da API traz `/api/publico/diretoria/fotos/{id_foto}`; foto inexistente = 404;
+  `/privacidade/` em "Versão 1.9" com o parágrafo da foto. Produção ainda sem mandato cadastrado (`/api/publico/diretoria` = `[]`): o cadastro dos mandatos e das fotos é ato do Presidente.
+  **Decisões do Presidente depois da conferência (2026-10-15 à noite):** (1) o armazenamento NÃO pode reter foto sem prazo: tem que apagar de verdade, com janela de 20 a 30 dias no máximo, declarada na Política;
+  (2) a foto da Diretoria é **apagada automaticamente** quando acaba o mandato (não fica guardada); (3) a verificação pública da carteirinha por QR não pode valer por tempo indeterminado: validade curta
+  (10 a 20 dias). Viram o item **v5.7d** abaixo.
+
+- [ ] **v5.7d — Apagar de verdade (decisões do Presidente, 2026-10-15 à noite):** (a) rotina que apaga sozinha a foto de quem não tem mais mandato vigente nem futuro (banco e arquivo, com Auditoria);
+      (b) o armazenamento privado do Azure (`stasafprivado`, versionamento ligado, soft delete de 30 dias, sem política de ciclo de vida) passa a apagar as versões anteriores das fotos em prazo curto e
+      declarado, provado primeiro na homologação; (c) o QR da carteirinha deixa de valer por 365 dias: validade curta e configurável (10 a 20 dias), também para os QR já emitidos; (d) a Política passa a
+      dizer exatamente isso (versão 1.10), depois de uma conferência independente.
 
 ##### 🔍 Ponto de Revisão — FASE 5 (2/2 — fim, fecha v5.5–v5.7)
 
