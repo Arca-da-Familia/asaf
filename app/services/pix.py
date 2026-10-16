@@ -44,11 +44,12 @@ def _sanitizar(texto: str, tamanho_maximo: int) -> str:
 
 def gerar_payload_pix(
     *, chave_pix: str, nome_beneficiario: str, cidade_beneficiario: str,
-    valor: Decimal, txid: str, descricao: Optional[str] = None,
+    valor: Optional[Decimal], txid: str, descricao: Optional[str] = None,
 ) -> str:
     """Gera o "copia e cola" (BR Code) de uma cobrança Pix ESTÁTICA com valor fixo, identificada
     por `txid` (usado aqui como o id do título - permite reconhecer de qual cobrança veio quando
-    o comprovante chegar, mesmo sem confirmação automática)."""
+    o comprovante chegar, mesmo sem confirmação automática). Sem `valor` (doação livre, v5.6a) o
+    campo do valor não existe no código e quem paga digita o valor no aplicativo do banco."""
     txid_normalizado = "".join(c for c in txid if c.isalnum())[:25] or "***"
     conta_pix = _campo("00", _GUI_PIX) + _campo("01", chave_pix.strip())
     if descricao:
@@ -59,7 +60,7 @@ def gerar_payload_pix(
         + _campo("26", conta_pix)
         + _campo("52", "0000")
         + _campo("53", "986")
-        + _campo("54", f"{valor:.2f}")
+        + (_campo("54", f"{valor:.2f}") if valor is not None else "")
         + _campo("58", "BR")
         + _campo("59", _sanitizar(nome_beneficiario, 25))
         + _campo("60", _sanitizar(cidade_beneficiario, 15))

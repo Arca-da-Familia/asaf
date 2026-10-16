@@ -2573,6 +2573,121 @@ export function obterReciboDoacao(
   return apiFetch(`/api/doacoes/${idDoacao}/recibo`)
 }
 
+// v5.6a - doações pelo site com Pix estático: o Pix cai direto na conta da associação e NADA avisa o sistema. Quem se identifica no site deixa uma
+// "intenção" (nome, e-mail, CPF opcional, valor opcional) e ganha um protocolo; a tesouraria acha o Pix no extrato do banco e CONFIRMA aqui: só a
+// confirmação cria a doação (título pago, lançamento, recibo numerado) e manda o recibo por e-mail. A intenção sozinha nunca é dinheiro.
+// Datas vêm em UTC sem fuso (o mesmo que o resto do painel). Exigem a permissão `financeiro`, a da tela de Doações.
+export type SituacaoDaIntencaoDeDoacao =
+  'PENDENTE' | 'EXPIRADA' | 'NAO_LOCALIZADA' | 'CONFIRMADA'
+
+export type IntencaoDeDoacao = {
+  id_intencao: number
+  protocolo: string
+  nome_doador: string
+  email_doador: string
+  documento_doador: string | null
+  valor_informado: number | null
+  id_campanha: number | null
+  campanha_titulo: string | null
+  // a destinação (centro de custo) da campanha, se ela tiver uma
+  id_centro_custo_sugerido: number | null
+  status: SituacaoDaIntencaoDeDoacao
+  status_rotulo: string
+  criado_em: string
+  expira_em: string
+  resolvido_em: string | null
+  id_doacao: number | null
+  numero_recibo: number | null
+  valor_recebido: number | null
+  observacao: string | null
+  recibo_enviado_por_email: boolean | null
+  pode_confirmar: boolean
+}
+
+export type ResumoDasIntencoesDeDoacao = {
+  pendentes: number
+  expiradas: number
+  nao_localizadas: number
+  confirmadas: number
+  // pendentes + expiradas: o que ainda espera uma decisão da tesouraria
+  a_conferir: number
+}
+
+// `situacao`: uma das situações, `a_conferir` (aguardando + prazo vencido) ou vazio (todas). `busca`: protocolo, nome, e-mail ou CPF (só dígitos).
+export type FiltroDeIntencoesDeDoacao = {
+  situacao?: string
+  busca?: string
+  pagina?: number
+  por_pagina?: number
+}
+
+export type PaginaDeIntencoesDeDoacao = {
+  total: number
+  pagina: number
+  por_pagina: number
+  itens: IntencaoDeDoacao[]
+}
+
+export function listarIntencoesDeDoacao(
+  filtro: FiltroDeIntencoesDeDoacao = {},
+): Promise<PaginaDeIntencoesDeDoacao> {
+  const params = new URLSearchParams()
+  for (const [chave, valor] of Object.entries(filtro)) {
+    if (valor !== undefined && valor !== '') params.set(chave, String(valor))
+  }
+  const query = params.toString()
+  return apiFetch(`/api/intencoes-doacao/${query ? `?${query}` : ''}`)
+}
+
+export function resumoDasIntencoesDeDoacao(): Promise<ResumoDasIntencoesDeDoacao> {
+  return apiFetch('/api/intencoes-doacao/resumo')
+}
+
+// O valor é o RECEBIDO (o que entrou no extrato), que pode diferir do informado. As contas: a de Receita e a de Ativo (caixa/banco) onde o Pix caiu.
+// Sem destinação, o servidor usa a do centro de custo da campanha.
+export type ConfirmacaoDeIntencaoDeDoacao = {
+  valor_recebido: number
+  id_conta_contabil: number
+  id_conta_contabil_caixa: number
+  id_centro_custo_destinacao?: number
+}
+
+export type IntencaoDeDoacaoConfirmada = IntencaoDeDoacao & {
+  mensagem: string
+  id_doacao: number
+  numero_recibo: number
+  recibo_enviado_por_email: boolean
+}
+
+export function confirmarIntencaoDeDoacao(
+  idIntencao: number,
+  corpo: ConfirmacaoDeIntencaoDeDoacao,
+): Promise<IntencaoDeDoacaoConfirmada> {
+  return apiFetch(`/api/intencoes-doacao/${idIntencao}/confirmar`, {
+    method: 'POST',
+    body: JSON.stringify(corpo),
+  })
+}
+
+// "Pix não localizado" não apaga nada: se o dinheiro chegar depois, ainda dá para confirmar.
+export function marcarIntencaoNaoLocalizada(
+  idIntencao: number,
+  observacao?: string,
+): Promise<IntencaoDeDoacao> {
+  return apiFetch(`/api/intencoes-doacao/${idIntencao}/nao-localizada`, {
+    method: 'POST',
+    body: JSON.stringify(observacao ? { observacao } : {}),
+  })
+}
+
+// A página de doação do site só abre quando a Chave Pix está preenchida E marcada "vai para o site" em Instituição; `pix_disponivel` é exatamente essa
+// conta, feita pelo servidor (a mesma que a página pública usa), e a rota é pública: a tesouraria não precisa da permissão de Instituição para ver.
+export type SituacaoDaDoacaoNoSite = { pix_disponivel: boolean }
+
+export function obterSituacaoDaDoacaoNoSite(): Promise<SituacaoDaDoacaoNoSite> {
+  return apiFetch('/api/publico/doacao')
+}
+
 export type ContaFinanceira = {
   id_conta_financeira: number
   id_conta: number

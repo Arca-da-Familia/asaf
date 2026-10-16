@@ -48,6 +48,9 @@ MOTORISTA = textwrap.dedent(
             "titulos_abertos": contagem("select count(*) from titulos_financeiros where status = 'Pendente'"),
             "fornecedores": contagem("select count(*) from fornecedores"),
             "doacoes": contagem("select count(*) from doacoes"),
+            "intencoes_pendentes": contagem("select count(*) from intencoes_de_doacao where status = 'PENDENTE'"),
+            "intencoes_confirmadas": contagem("select count(*) from intencoes_de_doacao where status = 'CONFIRMADA' and id_doacao is not null"),
+            "intencoes_nao_localizadas": contagem("select count(*) from intencoes_de_doacao where status = 'NAO_LOCALIZADA'"),
             "atas": contagem("select count(*) from atas"),
             "atas_assinadas": contagem("select count(*) from atas where status = 'Assinada'"),
             "projetos": contagem("select count(*) from projetos_eventos"),
@@ -93,7 +96,8 @@ def test_o_que_foi_criado_bate_com_o_prometido(execucao):
     assert r["inadimplentes"] >= 6, "os que ficaram com mensalidade vencida e nunca paga"
     assert r["em_dia"] >= 10
     assert r["titulos_pagos"] >= 60 and r["titulos_abertos"] > 20
-    assert r["fornecedores"] == 3 and r["doacoes"] == 4
+    assert r["fornecedores"] == 3 and r["doacoes"] == 5, "4 do painel (3 em dinheiro + 1 em bens) + 1 confirmada a partir de uma doação do site"
+    assert (r["intencoes_pendentes"], r["intencoes_confirmadas"], r["intencoes_nao_localizadas"]) == (1, 1, 1), "uma doação do site em cada situação (v5.6a)"
     assert r["atas"] >= 2 and r["atas_assinadas"] >= 1
     assert r["projetos"] >= 3 + 2 and r["eventos"] >= 3 + 3 + 4 and r["inscricoes"] >= 30
     assert (r["eventos_cancelados"], r["eventos_adiados"], r["eventos_remarcados"], r["eventos_realizados"]) == (1, 1, 1, 1), "um evento de teste em cada situação (v5.5d)"

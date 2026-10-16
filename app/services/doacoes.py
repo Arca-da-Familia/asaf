@@ -32,8 +32,9 @@ def registrar_doacao(
     db: Session, *, anonima: bool, nome_doador: Optional[str], documento_doador: Optional[str],
     id_associado: Optional[int], tipo_doacao: str, recorrente: bool, valor: Decimal,
     descricao_bem: Optional[str], id_campanha: Optional[int], id_centro_custo_destinacao: Optional[int],
-    id_conta_contabil: int, id_conta_contabil_caixa: Optional[str], id_usuario: Optional[int],
+    id_conta_contabil: int, id_conta_contabil_caixa: Optional[str], id_usuario: Optional[int], commit: bool = True,
 ) -> Doacao:
+    """`commit=False` deixa a transação aberta para quem chama (a confirmação de uma doação pelo site grava a doação e a baixa da intenção juntas: nunca uma sem a outra)."""
     if valor <= 0:
         raise HTTPException(status_code=400, detail="Valor da doação deve ser maior que zero.")
     if tipo_doacao not in ("Monetaria", "Bens"):
@@ -86,8 +87,11 @@ def registrar_doacao(
             ],
         )
 
-    db.commit()
-    db.refresh(doacao)
+    if commit:
+        db.commit()
+        db.refresh(doacao)
+    else:
+        db.flush()
     return doacao
 
 

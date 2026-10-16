@@ -75,6 +75,11 @@ jobs:
         env:
           ARMAZENAMENTO_BLOB_URL: https://stasafprivado.blob.core.windows.net
         run: PYTHONPATH=. python scripts/apagar_fotos_da_diretoria_vencidas.py
+      # v5.6a - a doação feita pelo site (Pix) que a tesouraria não confirmou no prazo passa para "Prazo vencido sem confirmação"; segue podendo ser confirmada. Mesma regra
+      # dos passos de cima: roda mesmo se um falhar, e a falha dele não derruba os outros.
+      - name: Expirar as doações do site sem confirmação no prazo
+        if: always()
+        run: PYTHONPATH=. python scripts/expirar_intencoes_de_doacao.py
 
       - name: Logout
         if: always()

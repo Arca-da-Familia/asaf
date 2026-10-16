@@ -6,8 +6,8 @@ import type { Migalha } from '../../config/navegacao'
 import Base from '../../layouts/Base.astro'
 
 // Fonte: Estatuto Social, Art. 28 (fontes de custeio) e § 3º (aplicação dos recursos no Brasil).
-// Doação online (Pix): ainda NÃO existe no site (PLANO, v5.6) — a página diz isso com clareza em
-// vez de sugerir um caminho que não funciona.
+// Doação online (Pix estático, v5.6a): a página /como-ajudar/doar/ explica as duas formas (sem se identificar e identificando-se). Se a doação pelo site está ABERTA ou não é
+// decidido ao vivo, naquela página (a Presidência marca a chave Pix como "vai para o site" no painel); esta página, que é estática, só aponta o caminho e nunca afirma que já está aberta.
 const migalhas: Migalha[] = [{ rotulo: 'Como ajudar' }]
 ---
 
@@ -24,6 +24,30 @@ const migalhas: Migalha[] = [{ rotulo: 'Como ajudar' }]
   />
 
   <div class="mx-auto flex max-w-5xl flex-col gap-14 px-4 py-12">
+    <section
+      aria-labelledby="doar"
+      data-chamada-para-doar
+      class="rounded-lg border-2 border-primary bg-card p-6 shadow-card sm:p-8"
+    >
+      <h2 id="doar" class="text-2xl font-bold tracking-tight">
+        Doar pelo Pix
+      </h2>
+      <p class="mt-3 max-w-3xl">
+        Doe para a associação ou para uma campanha em andamento, com ou sem se
+        identificar. O dinheiro vai direto para a conta da ASAF e a tesouraria
+        confere cada doação identificada. A página explica cada passo e mostra
+        se a doação pelo site está aberta.
+      </p>
+      <p class="mt-5">
+        <a
+          href="/como-ajudar/doar/"
+          class="inline-block rounded-md bg-primary px-6 py-3 font-medium text-primary-foreground hover:opacity-90"
+        >
+          Quero doar
+        </a>
+      </p>
+    </section>
+
     <section aria-labelledby="formas">
       <h2 id="formas" class="text-2xl font-bold tracking-tight">
         Formas de ajudar
@@ -52,13 +76,13 @@ const migalhas: Migalha[] = [{ rotulo: 'Como ajudar' }]
         </CartaoDeLink>
         <CartaoDeLink
           titulo="Faça uma doação"
-          href="/contato/"
-          rotulo="Fale com a secretaria"
+          href="/como-ajudar/doar/"
+          rotulo="Veja como doar"
         >
           <p>
             A ASAF recebe doações de pessoas físicas e jurídicas (Estatuto, Art.
-            28). A doação pelo site ainda não está disponível: para doar, fale
-            com a secretaria.
+            28). A página Doar mostra se a doação pelo Pix pelo site está
+            aberta. Se preferir, fale com a secretaria.
           </p>
         </CartaoDeLink>
         <CartaoDeLink

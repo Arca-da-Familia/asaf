@@ -6,16 +6,30 @@
  * rebuild. Só o que é editorial (texto, notícia, banner) é gerado no build, vindo do Directus.
  */
 
+/** Um erro de validação do FastAPI ligado ao campo que o causou (`loc` = ["body", "email"] -> campo "email"), com a frase já em português. */
+export interface ErroDeCampoDaApi {
+  campo: string
+  mensagem: string
+}
+
 export class ApiError extends Error {
   readonly status?: number
   /** O motivo que a API deu, em português (só nas respostas 4xx de quem envia dados): é para mostrar à pessoa. */
   readonly detalhe?: string
+  /** Quando a API recusa por validação (422 com uma lista), TODOS os motivos, cada um ligado ao seu campo (v5.6a: a doação aponta o campo errado). */
+  readonly erros?: ErroDeCampoDaApi[]
 
-  constructor(mensagem: string, status?: number, detalhe?: string) {
+  constructor(
+    mensagem: string,
+    status?: number,
+    detalhe?: string,
+    erros?: ErroDeCampoDaApi[],
+  ) {
     super(mensagem)
     this.name = 'ApiError'
     this.status = status
     this.detalhe = detalhe
+    this.erros = erros
   }
 }
 
@@ -71,7 +85,14 @@ async function umaTentativa<T>(
       credentials: 'omit',
     })
     if (!resposta.ok) {
-      throw new ApiError(`A API respondeu ${resposta.status}.`, resposta.status)
+      // o motivo que a API deu (uma consulta recusada com 400/503 explica por quê); sem corpo legível, só o status
+      const { detalhe, erros } = await detalheDaResposta(resposta)
+      throw new ApiError(
+        `A API respondeu ${resposta.status}.`,
+        resposta.status,
+        detalhe,
+        erros,
+      )
     }
     return (await resposta.json()) as T
   } catch (erro) {
@@ -108,10 +129,12 @@ export async function enviarJson<T>(
       credentials: 'omit',
     })
     if (!resposta.ok) {
+      const { detalhe, erros } = await detalheDaResposta(resposta)
       throw new ApiError(
         `A API respondeu ${resposta.status}.`,
         resposta.status,
-        await detalheDaResposta(resposta),
+        detalhe,
+        erros,
       )
     }
     return (await resposta.json()) as T
@@ -126,22 +149,34 @@ export async function enviarJson<T>(
   }
 }
 
-/** `detail` do FastAPI: texto (regra de negócio) ou lista (validação do formato); da lista sai só a primeira mensagem. */
+const SEM_PREFIXO_DO_PYDANTIC = /^Value error, /
+
+/**
+ * `detail` do FastAPI: texto (regra de negócio) ou lista (validação do formato). `detalhe` é o texto, ou a PRIMEIRA mensagem da lista; `erros` (só na lista) traz todas,
+ * cada uma com o campo (o último item de `loc`, sem o "body"/"query" na frente).
+ */
 async function detalheDaResposta(
   resposta: Response,
-): Promise<string | undefined> {
+): Promise<{ detalhe?: string; erros?: ErroDeCampoDaApi[] }> {
   try {
     const { detail } = (await resposta.json()) as { detail?: unknown }
-    if (typeof detail === 'string') return detail
+    if (typeof detail === 'string') return { detalhe: detail }
     if (Array.isArray(detail)) {
-      const primeira = (detail[0] as { msg?: unknown } | undefined)?.msg
-      if (typeof primeira === 'string')
-        return primeira.replace(/^Value error, /, '')
+      const erros: ErroDeCampoDaApi[] = []
+      for (const item of detail as Array<{ loc?: unknown; msg?: unknown }>) {
+        if (typeof item?.msg !== 'string') continue
+        const ultimo = Array.isArray(item.loc) ? item.loc.at(-1) : undefined
+        erros.push({
+          campo: typeof ultimo === 'string' ? ultimo : '',
+          mensagem: item.msg.replace(SEM_PREFIXO_DO_PYDANTIC, ''),
+        })
+      }
+      if (erros.length > 0) return { detalhe: erros[0]!.mensagem, erros }
     }
   } catch {
     // corpo que não é JSON: sem detalhe
   }
-  return undefined
+  return {}
 }
 
 /** Formato de `GET /api/publico/eventos` (app/routers/eventos.py::_serializar_evento_publico). */

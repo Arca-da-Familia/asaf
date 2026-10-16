@@ -36,6 +36,11 @@ const presidente = presidenteDaDiretoria((await conteudoPublico()).diretoria)
 // nome do arquivo e a descrição, em backup de 35 dias); o QR da carteirinha deixa de valer 365 dias: vale `DIAS_VALIDADE_CARTEIRINHA` (padrão 15, teto 20) a partir da emissão, também para os QR já
 // emitidos, e a verificação pública entrega a foto por uma rota que confere o QR a cada pedido (`app/routers/associados.py`), nunca o endereço aberto `/uploads/...`. A conferência independente de fatos
 // (2026-10-15) corrigiu: o tempo da publicação do site (o GitHub atrasa o agendamento: são horas, não "15 a 30 minutos"), a regra das 24 horas e o teto da validade do QR.
+// v2.0 (2026-10-16): doação pelo site com Pix estático (v5.6a) — a página /como-ajudar/doar/ passa a coletar nome, e-mail e CPF (opcional) de quem doa identificando-se: o parágrafo `data-doacao` diz SÓ o que o
+// servidor faz (app/services/doacao_online.py, app/routers/doacao_online.py, app/services/protecao_publica.py): a doação sem se identificar não grava dado pessoal nenhum (só devolve o código Pix); a identificada grava
+// nome, e-mail, CPF se informado, valor, campanha, a versão do aviso e o momento do aceite, uma impressão (SHA-256) do pedido que só reconhece o mesmo pedido enviado duas vezes, e o IP (no limite de pedidos por hora e na
+// Auditoria); a tesouraria é avisada no painel e só a confirmação dela cria a doação e o recibo numerado; o pedido que ninguém confirma fica "prazo vencido" mas NÃO é apagado (a rotina de eliminação não existe: nenhum prazo é
+// prometido aqui). A base legal vai no texto como consentimento e escrituração contábil (sem prazo de guarda).
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -178,6 +183,14 @@ const direitos = [
           enviado.
         </li>
         <li>
+          <strong>Campanhas e Pix da doação.</strong> A página Doar consulta o
+          sistema da ASAF (no endereço api.asaf.org.br) para mostrar as
+          campanhas em andamento e o Pix da associação. Como em qualquer acesso,
+          o seu endereço IP chega ao servidor; o valor e a campanha que você
+          escolhe para gerar o código Pix vão na consulta, mas nenhum dado
+          pessoal informado por você é enviado.
+        </li>
+        <li>
           <strong>Cookies e dados no navegador.</strong> Este site não instala
           cookies nem guarda dados no seu navegador. A{' '}
           <a
@@ -245,17 +258,19 @@ const direitos = [
         Cadastros e formulários
       </h2>
       <p class="mt-3">
-        Este site tem seis formulários: o pedido de filiação, quatro formulários
-        de atendimento (contato, pedido de informação sobre recursos públicos,
-        solicitação do titular de dados e voluntariado) e a inscrição em
-        eventos. O pedido de filiação fica na página{' '}
+        Este site tem sete formulários que pedem dados pessoais: o pedido de
+        filiação, quatro formulários de atendimento (contato, pedido de
+        informação sobre recursos públicos, solicitação do titular de dados e
+        voluntariado), a inscrição em eventos e a doação em que você se
+        identifica (a doação sem se identificar não pede dado nenhum). O pedido
+        de filiação fica na página{' '}
         <a
           href="/seja-associado/"
           class="font-medium text-primary underline underline-offset-4"
         >
           Seja associado
         </a>
-        ). Ele pede nome completo, CPF, data de nascimento e e-mail ou telefone
+        . Ele pede nome completo, CPF, data de nascimento e e-mail ou telefone
         e, de quem tem 16 ou 17 anos, a declaração de que os pais ou
         responsáveis autorizaram. Antes do envio, a própria página mostra o
         aviso de privacidade e só envia o pedido depois que você o aceita; a
@@ -321,6 +336,51 @@ const direitos = [
         não é cancelada pelo sistema. O endereço IP de quem envia, abre, cancela
         ou confirma uma inscrição pelo link também fica registrado, por
         segurança.
+      </p>
+      <p class="mt-3" id="doacao-pelo-site" data-doacao>
+        <strong>Doação pelo site.</strong> A página{' '}
+        <a
+          href="/como-ajudar/doar/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          Doar
+        </a>{' '}
+        tem duas formas de doar pelo Pix. <em>Sem se identificar:</em> o site só
+        mostra o código Pix e o QR Code (desenhado no seu navegador) e não grava
+        nenhum dado pessoal seu no sistema da ASAF; o pagamento é feito no
+        aplicativo do seu banco e, como em qualquer Pix, o extrato do banco da
+        associação mostra quem pagou. <em>Identificando-se:</em> o formulário
+        pede nome completo, e-mail e, se você quiser, CPF, valor e campanha. O
+        sistema guarda esses dados, o seu aceite do aviso de privacidade (a
+        versão do aviso e o momento do aceite) e um código calculado a partir do
+        pedido, que serve só para reconhecer o mesmo pedido enviado duas vezes;
+        o endereço IP de quem envia fica registrado, por segurança, no controle
+        do limite de pedidos por hora e na Auditoria do sistema. Usamos esses
+        dados para conferir o seu Pix no extrato do banco da associação,
+        registrar a doação e emitir o recibo, que o sistema tenta enviar por
+        e-mail (o sistema também tenta mandar, quando você envia o pedido, o
+        protocolo e o código Pix). O sistema avisa quem cuida da tesouraria
+        (quem tem a permissão do financeiro), que vê o pedido no painel. O que
+        nos autoriza a tratar esses dados é o seu consentimento (o aceite do
+        aviso) e, depois que a tesouraria confirma a doação, a escrituração
+        contábil e financeira dela, em que o recibo é numerado; se o CPF for de
+        quem já é associado, a doação fica ligada ao cadastro dessa pessoa. O
+        pedido que ainda espera conferência passa a ser marcado como “prazo
+        vencido” depois dos dias informados na página (o padrão é 15), por uma
+        rotina que roda algumas vezes ao dia, e continua guardado no sistema:
+        hoje o sistema não apaga esses pedidos sozinho e não há prazo definido
+        para apagá-los. Para pedir que sejam apagados, use a{' '}
+        <a
+          href="/privacidade/solicitacao-do-titular/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          solicitação do titular de dados
+        </a>
+        ; o pedido será analisado conforme a lei e as obrigações da ASAF (a
+        doação já confirmada faz parte da escrituração contábil). Esses dados
+        não vão para ninguém além dos prestadores de infraestrutura e das
+        autoridades citados em “Com quem compartilhamos”; o pagamento em si
+        passa pelo banco que você mesmo escolhe.
       </p>
       <p class="mt-3">
         Cada formulário informa, antes do envio, quais dados pede e para quê.
