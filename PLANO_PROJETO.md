@@ -2024,8 +2024,28 @@ declaração da Receita). Não é parecer jurídico: é o raciocínio adotado; o
       passou a ser testado em TODA página, e a declaração entrou na amostra do Lighthouse.
 - [ ] Mapa com pino **só** com coordenadas exatas informadas pela diretoria (decisão de 2026-10-03: fica para o futuro).
 
-- [ ] **v5.7b — Rotina de retenção (LGPD, FASE 7 em fatia):** os prazos da tabela acima ficam em configuração; uma tarefa periódica anonimiza ou apaga o que venceu, registra na Auditoria só as
+- [x] **v5.7b — Rotina de retenção (LGPD, FASE 7 em fatia):** os prazos da tabela acima ficam em configuração; uma tarefa periódica anonimiza ou apaga o que venceu, registra na Auditoria só as
       contagens, e a Política de Privacidade passa a publicar os prazos que a rotina de fato aplica.
+  **Feito (2026-10-16):** `app/services/retencao.py` com 7 regras, cada uma na sua transação (uma que falha não derruba as outras): tentativas de acesso aos formulários públicos, o registro do IP do
+  limite por hora (183 dias, a linha é apagada), avisos do sino (365, apagados), pedidos da fila de atendimento (1825, o texto vira marcador e o nome some), propostas de filiação não aprovadas (730, sem as que têm voto recente de sócio), pedidos de doação sem confirmação
+  (730), doador identificado (3650: some o vínculo com a pessoa, fica o valor para a contabilidade) e associado desligado (1825). Prazos em configuração (6 chaves novas `PRAZO_RETENCAO_*`, 71 no
+  total), **com piso de 30 dias e teto de 36500**: um "0" digitado por engano não apaga ninguém (valia também para o botão manual de anonimizar, que antes obedecia ao "0"). A anonimização passou a ser
+  idempotente, a apagar também o **arquivo da foto** (falha do armazenamento = 502, nada é mexido e a pessoa fica para a próxima rodada) e o **endereço**, e a pular quem tem ou já teve outro papel
+  (voluntário, por exemplo). A Auditoria guarda só contagens (`RETENCAO_APLICADA`). O roteiro `scripts/aplicar_retencao_de_dados.py` sai com erro (o passo agendado fica **vermelho**) se qualquer regra
+  falhar; entrou na tarefa periódica com o endereço do armazenamento de produção e na publicação da homologação. Política de Privacidade **2.1** com os 7 prazos, o que ainda NÃO tem prazo automático
+  (dependentes, documentos anexados, histórico de cargos, observações internas da ficha) e o limite do que apagamos; versão do aviso da doação passou a 2.
+  **Na homologação:** robôs `v5.7b-01` 2/2 (as regras na tela de Configurações e a preparação de dado recente), `v5.7b-02` 2/2 (depois de uma segunda publicação que roda a rotina de novo contra o
+  banco e o armazenamento de TESTE: o dado recente segue intacto e a Política está em 2.1), e as regressões que mexem em dado pessoal: `v5.5a-02` 7/7, `v5.6a-01` 5/5, `v5.6a-02` 3/3, `v5.4h-10` 5/5,
+  `v5.7c-02` 2/2 e `v5.4c-fase1` 24/24 (associados: desligar, a recusa de anonimizar antes do prazo, foto, propostas, importação, exportação, vínculos, recadastramento). Suíte do servidor 1226 em duas
+  rodadas seguidas; site 719 unitários + 819 de navegador; painel formato, tipos e lint limpos. A conferência independente achou 4 defeitos de CÓDIGO (o botão manual ignorava o piso; a foto do arquivo
+  não era apagada; a anonimização não era idempotente; a rotina engolia falha do armazenamento e ficava verde com o problema vivo) e erros no texto da Política: tudo corrigido e conferido de novo.
+  **Em produção:** `main` = `f8bb6ae`; Deploy API e Deploy Site verdes (o painel não foi republicado: nesta versão só mudaram os robôs de teste dele, então `painel.asaf.org.br/version.json` segue em
+  `2c53328`); `asaf.org.br/version.json` = `f8bb6ae`; `/privacidade/` em "Versão 2.1" com a lista de 7 prazos e a frase do limite; `GET /api/publico/doacao` segue com `pix_disponivel:false` e aviso na
+  versão 2. A tarefa periódica agendada rodou SOZINHA sobre o código novo (14:35 UTC): todos os passos verdes, a retenção imprimiu as 7 regras com `0` e nenhuma falha, o que é o esperado (o sistema é
+  novo e não há dado vencido); o passo da foto da Diretoria, com o armazenamento de produção, `fotos apagadas: 0; que não foi possível apagar: 0`.
+  **Abertos desta versão:** (1) ainda sem regra automática: inscritos em evento, voluntários, certificados, conta de visitante (v5.6b) e o IP da própria Auditoria, que não tem prazo; (2) a tabela de
+  prazos é proposta minha e aguarda ajuste do Presidente (os valores estão em Configurações, com piso e teto); (3) a transparência "aplicado por campanha" da doação não foi feita; (4) a primeira
+  rodada com dado vencido de verdade só vai acontecer quando houver dado vencido: a prova até lá é a da homologação.
 - [x] **v5.7c — Nome e FOTO da Diretoria Executiva no site (decisão de 2026-10-15):** "a pessoa se sente representada quando vê o rosto de quem responde pela instituição". Hoje a API pública da
       diretoria nunca traz foto; passa a trazer a foto de quem **autorizou o uso da imagem** (registro da autorização no painel, como nas fotos de evento), regravada sem metadado; a página mostra nome,
       cargo, foto e período do mandato. Depende de o Presidente cadastrar os mandatos e as fotos no painel (ato dele).
