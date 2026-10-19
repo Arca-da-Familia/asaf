@@ -111,7 +111,13 @@ export async function ver(
     pasta,
     `${numero}-${nome.replace(/[^a-zA-Z0-9À-ÿ]+/g, '-').slice(0, 70)}.png`,
   )
-  await page.screenshot({ path: arquivo, fullPage: paginaInteira })
+  try {
+    await page.screenshot({ path: arquivo, fullPage: paginaInteira })
+  } catch (erro) {
+    // tela alta demais para o navegador fotografar inteira (a do Conselho Fiscal lista todos os títulos): fica o print da parte visível, e só se ESTE também falhar o roteiro reprova
+    if (!paginaInteira) throw erro
+    await page.screenshot({ path: arquivo, fullPage: false })
+  }
   await info.attach(nome, { path: arquivo, contentType: 'image/png' })
 }
 
