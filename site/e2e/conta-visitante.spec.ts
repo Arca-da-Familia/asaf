@@ -272,6 +272,9 @@ test.describe('entrar com o código', () => {
     await expect(telaVisivel(page, 'conta')).toBeHidden()
 
     await page.getByRole('button', { name: 'Pedir um novo código' }).click()
+    // ao receber o novo código a página limpa o campo e some com o aviso de código inválido: só depois disso se digita (antes, o teste digitava
+    // cedo demais, a página limpava o campo e a entrada falhava na máquina mais lenta do CI)
+    await expect(page.getByText(MENSAGEM_DO_CODIGO_INVALIDO)).toBeHidden()
     await page.getByLabel('Código de 6 números').fill(CODIGO)
     await page.getByRole('button', { name: 'Entrar', exact: true }).click()
     await expect(telaVisivel(page, 'conta')).toBeVisible()
