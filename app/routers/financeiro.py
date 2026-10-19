@@ -42,7 +42,7 @@ from app.schemas.financeiro import (
     NegociacaoDividaCriar, PlanoContaCriar, PlanoDeContribuicaoCriar, ReajusteCriar, FornecedorCriar,
     TituloCriar, BaixarTitulo, SaidaRegistrar, TransferenciaCriar,
 )
-from app.security import exigir_permissao
+from app.security import exigir_alguma_permissao, exigir_permissao
 from app.services import armazenamento, auditoria_financeira, conciliacao, contabilidade, contribuicoes, lancamento_tardio, negociacao, pix as pix_service
 from app.services.busca import numero_que_cabe_no_banco
 from app.services.categoria_associado import recalcular_categoria_associado
@@ -50,6 +50,8 @@ from app.services.formato import reais
 
 router = APIRouter()
 _permissao_financeiro = exigir_permissao("financeiro")
+# v5.7e: quem audita (Conselho Fiscal) LÊ o plano de contas (a tela de auditoria o usa); cadastrar e editar continuam só de quem opera
+_permissao_leitura_financeira = exigir_alguma_permissao("financeiro", "financeiro_auditar")
 
 
 def _ip_origem(request: Request) -> str:
@@ -130,7 +132,7 @@ def _validar_pai(db: Session, codigo_contabil_pai: str, codigo_contabil_propria:
 
 
 @router.get("/api/plano-contas/", summary="Listar Plano de Contas")
-def listar_plano_contas(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+def listar_plano_contas(db: Session = Depends(get_db), _usuario=Depends(_permissao_leitura_financeira)):
     contas = db.query(PlanoDeContas).order_by(PlanoDeContas.codigo_contabil).all()
     codigos_com_filha = {c.codigo_contabil_pai for c in contas if c.codigo_contabil_pai}
     return [

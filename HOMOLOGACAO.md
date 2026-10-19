@@ -63,7 +63,7 @@ Os CPFs são inventados e não são segredo:
 | Presidente do cargo (Ana Lúcia) | 222.000.000-14 | `HML-USUARIOS` (cargo_presidente) | tudo que o cargo de Presidente dá; um dos 4 diretores que decidem a disciplina |
 | 1º Vice-Presidente (Bruno) | 222.007.919-84 | `HML-USUARIOS` (vice_presidente) | associados e governança; manifesta na disciplina |
 | 2ª Vice-Presidente (Carla) | 222.015.838-11 | `HML-USUARIOS` (vice_presidente_2) | associados e governança; manifesta na disciplina |
-| Conselheiro Fiscal (Heitor) | 222.055.433-34 | `HML-USUARIOS` (conselheiro) | financeiro e auditoria; emite parecer e questiona (cargo no Conselho Fiscal) |
+| Conselheiro Fiscal (Heitor) | 222.055.433-34 | `HML-USUARIOS` (conselheiro) | AUDITA o financeiro (`financeiro_auditar`, só leitura e parecer; NÃO opera) e auditoria; emite parecer e questiona (cargo no Conselho Fiscal; v5.7e) |
 | 2º Conselheiro Fiscal | 222.063.352-71 | `HML-USUARIOS` (conselheiro_2) | igual ao Heitor; com ele a auditoria financeira alcança a maioria (2 de 3) |
 | 3º Conselheiro Fiscal | 222.071.271-09 | `HML-USUARIOS` (conselheiro_3) | igual ao Heitor; o terceiro voto da auditoria financeira |
 

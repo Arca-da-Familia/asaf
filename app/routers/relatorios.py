@@ -10,11 +10,13 @@ from sqlalchemy.orm import Session
 from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.schemas.relatorios import PrestacaoDeContasCriar
-from app.security import exigir_permissao
+from app.security import exigir_alguma_permissao, exigir_permissao
 from app.services import relatorios
 
 router = APIRouter()
 _permissao_financeiro = exigir_permissao("financeiro")
+# v5.7e: quem audita (Conselho Fiscal) LÊ os relatórios; gerar a prestação de contas continua só de quem opera
+_permissao_leitura_financeira = exigir_alguma_permissao("financeiro", "financeiro_auditar")
 
 
 def _ip_origem(request: Request) -> str:
@@ -29,29 +31,29 @@ def _parse_data(valor: str, nome_campo: str) -> datetime:
 
 
 @router.get("/api/relatorios/balancete", summary="Balancete por período (saldo anterior + movimento do período + saldo atual, por conta)")
-def balancete_endpoint(data_inicio: str, data_fim: str, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+def balancete_endpoint(data_inicio: str, data_fim: str, db: Session = Depends(get_db), _usuario=Depends(_permissao_leitura_financeira)):
     return relatorios.balancete_por_periodo(db, data_inicio=_parse_data(data_inicio, "data_inicio"), data_fim=_parse_data(data_fim, "data_fim"))
 
 
 @router.get("/api/relatorios/receitas-despesas", summary="Receitas x despesas do período, por conta")
-def receitas_despesas_endpoint(data_inicio: str, data_fim: str, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+def receitas_despesas_endpoint(data_inicio: str, data_fim: str, db: Session = Depends(get_db), _usuario=Depends(_permissao_leitura_financeira)):
     return relatorios.receitas_e_despesas_por_conta(db, data_inicio=_parse_data(data_inicio, "data_inicio"), data_fim=_parse_data(data_fim, "data_fim"))
 
 
 @router.get("/api/relatorios/receitas-despesas-por-centro-custo", summary="Receitas x despesas do período, por centro de custo")
-def receitas_despesas_por_centro_custo_endpoint(data_inicio: str, data_fim: str, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+def receitas_despesas_por_centro_custo_endpoint(data_inicio: str, data_fim: str, db: Session = Depends(get_db), _usuario=Depends(_permissao_leitura_financeira)):
     return relatorios.receitas_e_despesas_por_centro_custo(db, data_inicio=_parse_data(data_inicio, "data_inicio"), data_fim=_parse_data(data_fim, "data_fim"))
 
 
 @router.get("/api/relatorios/inadimplencia", summary="Relatório de inadimplência (associados com título vencido)")
-def inadimplencia_endpoint(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+def inadimplencia_endpoint(db: Session = Depends(get_db), _usuario=Depends(_permissao_leitura_financeira)):
     return relatorios.relatorio_inadimplencia(db)
 
 
 @router.get("/api/relatorios/extrato-conta-financeira/{id_conta_financeira}", summary="Extrato de uma Conta Financeira (movimentos + saldo corrente)")
 def extrato_conta_financeira_endpoint(
     id_conta_financeira: int, data_inicio: Optional[str] = None, data_fim: Optional[str] = None,
-    db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro),
+    db: Session = Depends(get_db), _usuario=Depends(_permissao_leitura_financeira),
 ):
     return relatorios.extrato_conta_financeira(
         db, id_conta_financeira=id_conta_financeira,
@@ -61,7 +63,7 @@ def extrato_conta_financeira_endpoint(
 
 
 @router.get("/api/relatorios/por-projeto", summary="Receitas x despesas do período, por projeto (via centro de custo vinculado)")
-def relatorio_por_projeto_endpoint(data_inicio: str, data_fim: str, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+def relatorio_por_projeto_endpoint(data_inicio: str, data_fim: str, db: Session = Depends(get_db), _usuario=Depends(_permissao_leitura_financeira)):
     return relatorios.relatorio_por_projeto(db, data_inicio=_parse_data(data_inicio, "data_inicio"), data_fim=_parse_data(data_fim, "data_fim"))
 
 
@@ -73,7 +75,7 @@ def _serializar_prestacao(p) -> dict:
 
 
 @router.get("/api/prestacoes-de-contas/", summary="Listar Prestações de Contas (histórico de versões por exercício)")
-def listar_prestacoes_endpoint(ano_exercicio: Optional[int] = None, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+def listar_prestacoes_endpoint(ano_exercicio: Optional[int] = None, db: Session = Depends(get_db), _usuario=Depends(_permissao_leitura_financeira)):
     return [_serializar_prestacao(p) for p in relatorios.listar_prestacoes_de_contas(db, ano_exercicio=ano_exercicio)]
 
 

@@ -116,6 +116,16 @@ export function RequirePermission({
   return <>{children}</>
 }
 
+// v5.7e - o Início do Financeiro é o retrato de quem OPERA (saldo, vencidos, compras): quem só audita (`financeiro_auditar`) cai direto no Conselho Fiscal, que é a janela de leitura dele.
+export function InicioDoFinanceiro() {
+  const { data, isLoading } = useMe()
+  if (isLoading) return null
+  if (!data?.permissoes.includes('financeiro')) {
+    return <Navigate to="/financeiro/conselho-fiscal" replace />
+  }
+  return <FinanceiroInicioPage />
+}
+
 // v5.4a - Documentos: três permissões abrem o módulo (preparar, aprovar publicação, baixar originais sigilosos).
 export function RequireAnyPermission({
   permissions,
@@ -349,16 +359,18 @@ function App() {
           <Route
             path="/financeiro"
             element={
-              <RequirePermission permission="financeiro">
+              <RequireAnyPermission
+                permissions={['financeiro', 'financeiro_auditar']}
+              >
                 <Outlet />
-              </RequirePermission>
+              </RequireAnyPermission>
             }
           >
             <Route
               index
               element={
                 <ErrorBoundary tituloModulo="Financeiro">
-                  <FinanceiroInicioPage />
+                  <InicioDoFinanceiro />
                 </ErrorBoundary>
               }
             />
@@ -371,170 +383,10 @@ function App() {
               }
             />
             <Route
-              path="titulos"
-              element={
-                <ErrorBoundary tituloModulo="Títulos">
-                  <TitulosPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="entradas"
-              element={
-                <ErrorBoundary tituloModulo="Entradas">
-                  <TitulosPage tipoFixo="A Receber" />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="saidas"
-              element={
-                <ErrorBoundary tituloModulo="Saídas">
-                  <TitulosPage tipoFixo="A Pagar" />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="registrar-saida"
-              element={
-                <ErrorBoundary tituloModulo="Registrar saída">
-                  <RegistrarSaidaPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
               path="auditoria-financeira"
               element={
                 <ErrorBoundary tituloModulo="Auditoria financeira">
                   <AuditoriaFinanceiraPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="plano-contas"
-              element={
-                <ErrorBoundary tituloModulo="Plano de Contas">
-                  <PlanoContasPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="fornecedores"
-              element={
-                <ErrorBoundary tituloModulo="Fornecedores">
-                  <FornecedoresPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="exercicios"
-              element={
-                <ErrorBoundary tituloModulo="Exercícios">
-                  <ExerciciosPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="razao-contabil"
-              element={
-                <ErrorBoundary tituloModulo="Razão Contábil">
-                  <RazaoContabilPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="contas-financeiras"
-              element={
-                <ErrorBoundary tituloModulo="Contas Financeiras">
-                  <ContasFinanceirasPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="centros-custo"
-              element={
-                <ErrorBoundary tituloModulo="Centros de Custo">
-                  <CentrosCustoPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="planos-contribuicao"
-              element={
-                <ErrorBoundary tituloModulo="Planos de Contribuição">
-                  <PlanosContribuicaoPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="gerar-cobrancas"
-              element={
-                <ErrorBoundary tituloModulo="Gerar Cobranças">
-                  <GerarCobrancasPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="conciliacao"
-              element={
-                <ErrorBoundary tituloModulo="Conciliação Bancária">
-                  <ConciliacaoPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="negociacao-divida"
-              element={
-                <ErrorBoundary tituloModulo="Negociação de Dívida">
-                  <NegociacaoDividaPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="compras"
-              element={
-                <ErrorBoundary tituloModulo="Compras">
-                  <ComprasPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="reembolso-despesa"
-              element={
-                <ErrorBoundary tituloModulo="Reembolso de Despesa">
-                  <ReembolsoDespesaPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="alcadas-aprovacao"
-              element={
-                <ErrorBoundary tituloModulo="Alçadas de Aprovação">
-                  <AlcadasAprovacaoPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="contas-a-pagar-recorrentes"
-              element={
-                <ErrorBoundary tituloModulo="Contas a Pagar Recorrentes">
-                  <ContasAPagarRecorrentesPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="doacoes"
-              element={
-                <ErrorBoundary tituloModulo="Doações">
-                  <DoacoesPage />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="orcamento"
-              element={
-                <ErrorBoundary tituloModulo="Orçamento e Fluxo de Caixa">
-                  <OrcamentoPage />
                 </ErrorBoundary>
               }
             />
@@ -546,6 +398,175 @@ function App() {
                 </ErrorBoundary>
               }
             />
+            {/* v5.7e: daqui para baixo é o que OPERA o financeiro: pede a permissão geral (`financeiro`). Antes, quem só audita (Conselho Fiscal) já passou pelo guarda do módulo. */}
+            <Route
+              element={
+                <RequirePermission permission="financeiro">
+                  <Outlet />
+                </RequirePermission>
+              }
+            >
+              <Route
+                path="titulos"
+                element={
+                  <ErrorBoundary tituloModulo="Títulos">
+                    <TitulosPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="entradas"
+                element={
+                  <ErrorBoundary tituloModulo="Entradas">
+                    <TitulosPage tipoFixo="A Receber" />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="saidas"
+                element={
+                  <ErrorBoundary tituloModulo="Saídas">
+                    <TitulosPage tipoFixo="A Pagar" />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="registrar-saida"
+                element={
+                  <ErrorBoundary tituloModulo="Registrar saída">
+                    <RegistrarSaidaPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="plano-contas"
+                element={
+                  <ErrorBoundary tituloModulo="Plano de Contas">
+                    <PlanoContasPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="fornecedores"
+                element={
+                  <ErrorBoundary tituloModulo="Fornecedores">
+                    <FornecedoresPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="exercicios"
+                element={
+                  <ErrorBoundary tituloModulo="Exercícios">
+                    <ExerciciosPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="razao-contabil"
+                element={
+                  <ErrorBoundary tituloModulo="Razão Contábil">
+                    <RazaoContabilPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="contas-financeiras"
+                element={
+                  <ErrorBoundary tituloModulo="Contas Financeiras">
+                    <ContasFinanceirasPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="centros-custo"
+                element={
+                  <ErrorBoundary tituloModulo="Centros de Custo">
+                    <CentrosCustoPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="planos-contribuicao"
+                element={
+                  <ErrorBoundary tituloModulo="Planos de Contribuição">
+                    <PlanosContribuicaoPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="gerar-cobrancas"
+                element={
+                  <ErrorBoundary tituloModulo="Gerar Cobranças">
+                    <GerarCobrancasPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="conciliacao"
+                element={
+                  <ErrorBoundary tituloModulo="Conciliação Bancária">
+                    <ConciliacaoPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="negociacao-divida"
+                element={
+                  <ErrorBoundary tituloModulo="Negociação de Dívida">
+                    <NegociacaoDividaPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="compras"
+                element={
+                  <ErrorBoundary tituloModulo="Compras">
+                    <ComprasPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="reembolso-despesa"
+                element={
+                  <ErrorBoundary tituloModulo="Reembolso de Despesa">
+                    <ReembolsoDespesaPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="alcadas-aprovacao"
+                element={
+                  <ErrorBoundary tituloModulo="Alçadas de Aprovação">
+                    <AlcadasAprovacaoPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="contas-a-pagar-recorrentes"
+                element={
+                  <ErrorBoundary tituloModulo="Contas a Pagar Recorrentes">
+                    <ContasAPagarRecorrentesPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="doacoes"
+                element={
+                  <ErrorBoundary tituloModulo="Doações">
+                    <DoacoesPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="orcamento"
+                element={
+                  <ErrorBoundary tituloModulo="Orçamento e Fluxo de Caixa">
+                    <OrcamentoPage />
+                  </ErrorBoundary>
+                }
+              />
+            </Route>
           </Route>
           <Route
             path="/governanca"

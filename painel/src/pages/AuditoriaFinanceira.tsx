@@ -16,6 +16,7 @@ import {
   urlArquivo,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
+import { useMe } from '@/lib/use-me'
 
 const POR_PAGINA = 25
 const TAMANHO_MINIMO_DA_EXPLICACAO = 10
@@ -106,12 +107,16 @@ function CartaoDoTitulo({
       queryClient.invalidateQueries({ queryKey: ['auditoria-financeira'] })
     },
   })
-  const perguntasAbertas = podeDecidir
-    ? []
-    : t.decisoes.filter(
-        (d) =>
-          d.vigente && d.questionamento === 'Aberto' && d.id_questionamento,
-      )
+  // responder é da tesouraria (`financeiro`); quem só audita nunca vê o botão (o servidor também recusa)
+  const { data: eu } = useMe()
+  const podeResponder = !!eu?.permissoes.includes('financeiro')
+  const perguntasAbertas =
+    podeDecidir || !podeResponder
+      ? []
+      : t.decisoes.filter(
+          (d) =>
+            d.vigente && d.questionamento === 'Aberto' && d.id_questionamento,
+        )
 
   const aprovado = t.situacao === 'Aprovado'
   // a discordância de quem não concorda fica sempre à vista, mesmo quando a maioria já aprovou

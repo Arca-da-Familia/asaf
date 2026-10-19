@@ -25,7 +25,7 @@ import { logout } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 import { useImpersonacao } from '@/lib/impersonacao'
 import { mensagens } from '@/lib/i18n/pt-BR'
-import { modulos } from '@/lib/modulos'
+import { itensVisiveis, modulos } from '@/lib/modulos'
 import { useTheme } from '@/lib/theme'
 import { useMe } from '@/lib/use-me'
 import { useVersaoBuild } from '@/lib/versao'
@@ -234,13 +234,8 @@ export function Shell() {
                   {moduloAtivo.rotulo}
                 </p>
               )}
-              {moduloAtivo.itens
-                ?.filter(
-                  (item) =>
-                    !item.permissao ||
-                    data?.permissoes.includes(item.permissao),
-                )
-                .map((item) => (
+              {itensVisiveis(moduloAtivo, data?.permissoes ?? []).map(
+                (item) => (
                   <NavLink
                     key={item.rota}
                     to={item.rota}
@@ -251,7 +246,8 @@ export function Shell() {
                     <item.icone className="h-5 w-5 shrink-0" />
                     {!collapsed && <span>{item.rotulo}</span>}
                   </NavLink>
-                ))}
+                ),
+              )}
             </>
           ) : (
             <>
