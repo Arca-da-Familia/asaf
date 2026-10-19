@@ -56,7 +56,6 @@ const MENU_DO_AUDITOR = [
   'Relatórios',
 ]
 const MENU_QUE_OPERA = [
-  'Início',
   'Títulos',
   'Registrar saída',
   'Doações',
@@ -82,6 +81,10 @@ async function abrirOFinanceiro(page: Page) {
     .click()
   await expect(page).toHaveURL(/\/financeiro/)
 }
+
+// o Início DO MÓDULO é o link para /financeiro (há também o "← Início" que volta para a tela inicial do painel, com o mesmo nome)
+const inicioDoModulo = (page: Page) =>
+  page.getByRole('navigation').locator('a[href="/financeiro"]')
 
 const itemDoMenu = (page: Page, rotulo: string) =>
   page.getByRole('navigation').getByRole('link', { name: rotulo, exact: true })
@@ -119,6 +122,7 @@ test('no painel o conselheiro vê só o que audita; o que opera some do menu e �
     await expect(itemDoMenu(page, item), item).toBeVisible()
   for (const item of MENU_QUE_OPERA)
     await expect(itemDoMenu(page, item), item).toHaveCount(0)
+  await expect(inicioDoModulo(page), 'Início do módulo').toHaveCount(0)
   await ver(page, info, 'menu-do-conselheiro-so-o-que-audita')
 
   // a Auditoria financeira abre e lista o mês
@@ -187,7 +191,7 @@ test('o tesoureiro continua com o módulo inteiro e as mesmas leituras', async (
     ...MENU_DO_AUDITOR,
   ])
     await expect(itemDoMenu(page, item), item).toBeVisible()
-  await expect(itemDoMenu(page, 'Início')).toBeVisible()
+  await expect(inicioDoModulo(page)).toBeVisible()
   await ver(page, info, 'menu-do-tesoureiro-inteiro')
   for (const rota of LEITURAS) {
     const r = await page.request.get(`${API_HML}${rota}`, {

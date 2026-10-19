@@ -7,6 +7,7 @@ import {
 } from '@playwright/test'
 
 import {
+  API_HML,
   campo,
   entrar,
   escolherPorTexto,
@@ -15,6 +16,7 @@ import {
   inventariar,
   RODADA,
   sair,
+  senhaDe,
   ver,
   vigiar,
   type Papel,
@@ -27,14 +29,14 @@ import {
 // O que este roteiro SABE do ambiente de teste (lido em scripts/popular_homologacao.py e no servidor, não suposto):
 //  - Quem aprova uma compra é decidido pelo CARGO em mandato vigente (app/services/compras.py::_pode_aprovar), não pelo nível de acesso. O
 //    Presidente de teste (Marta, nível "Presidente") NÃO tem mandato: não aprova nada por conta própria. Quem aprova é a Ana (cargo PRESIDENTE),
-//    o Fábio (cargo TESOUREIRO) e, por delegação, o Heitor (Conselho Fiscal, que tem a permissão `financeiro` pelo cargo).
+//    o Fábio (cargo TESOUREIRO) e, por delegação, a Gisele (2ª Tesoureira, que tem a permissão `financeiro` pelo cargo e não o cargo da alçada; o Conselheiro Fiscal NÃO opera mais, v5.7e).
 //  - A ordem das checagens ao aprovar uma compra é: situação -> cotações (a partir de R$ 1.000,00, mínimo de 2) -> alçada do valor -> quem
 //    solicitou -> associado do aprovador -> conflito de interesse -> cargo da alçada (ou delegação) -> já aprovou. Cada recusa abaixo cai na
 //    ordem certa porque o roteiro prepara só o que falta.
 //  - A base de teste nasce SEM fornecedor e SEM alçada: este roteiro cria os seus (nomes e CNPJs com a RODADA) e as faixas de valor.
 //  - O que NÃO cabe pela tela: o formulário de compra não escolhe fornecedor nem centro de custo; a declaração de conflito de interesse não
 //    escolhe fornecedor (vale para QUALQUER compra); a delegação não tem como ser revogada. Por isso o roteiro deixa a delegação (curta, 2 dias)
-//    só para o Heitor, e as faixas "de lixo" que as tentativas inválidas criarem ficam INATIVAS ao fim.
+//    só para a Gisele, e as faixas "de lixo" que as tentativas inválidas criarem ficam INATIVAS ao fim.
 //
 // Cada roteiro é uma história sozinha (sem `serial`): um achado numa história não pode esconder as outras, e o robô só roda ao vivo. O que é
 // DEFEITO PROVÁVEL do sistema (e não erro do roteiro) usa `expect.soft`, com a explicação na mensagem.
@@ -51,7 +53,7 @@ const NAVEGADOR = {
 const MARTA = 'Marta Souza' // Presidente de teste (administrador), SEM mandato
 const FABIO = 'Fábio Henrique Dias' // 1º Tesoureiro
 const ANA = 'Ana Lúcia Ferreira' // Presidente pelo cargo
-const HEITOR = 'Heitor Almeida Rocha' // Conselheiro Fiscal
+const GISELE = 'Gisele Moraes Pinto' // 2º Tesoureiro (cargo VICE_TESOUREIRO): tem `financeiro` e NÃO tem o cargo das alçadas
 const KARINA = 'Karina Duarte Melo' // associada sem cargo e sem login
 const BRUNO = 'Bruno Carvalho Lima' // 1º Vice-Presidente (associados e governança, sem financeiro)
 
@@ -1707,9 +1709,9 @@ test('Dupla assinatura: a primeira aprovação não gera título, a mesma pessoa
 })
 
 // =====================================================================================================================================
-// 6. DELEGAÇÃO TEMPORÁRIA (a Presidente delega a aprovação ao Heitor, que não tem o cargo): rastreável, e só vale por pouco tempo
+// 6. DELEGAÇÃO TEMPORÁRIA (a Presidente delega a aprovação à Gisele, que não tem o cargo): rastreável, e só vale por pouco tempo
 // =====================================================================================================================================
-test('Delegação temporária: recusas do formulário, a Presidente delega ao Heitor (que não tem o cargo) e a aprovação dele vale como delegada, com o Tesoureiro dando a segunda assinatura', async ({
+test('Delegação temporária: recusas do formulário, a Presidente delega à Gisele (que não tem o cargo) e a aprovação dela vale como delegada, com o Tesoureiro dando a segunda assinatura', async ({
   page,
 }, info) => {
   test.setTimeout(600_000)
@@ -1719,6 +1721,42 @@ test('Delegação temporária: recusas do formulário, a Presidente delega ao He
   const validaAte = diaEmBelem(2)
   let idCompra = 0
   let idDelegacao = 0
+
+  await test.step('0. o Presidente de teste dá acesso à Gisele (2ª Tesoureira), se ainda não tem: é a delegada desta rodada', async () => {
+    let autorizacao = ''
+    page.on('request', (r) => {
+      const cab = r.headers()['authorization']
+      if (cab && r.url().startsWith(API_HML)) autorizacao = cab
+    })
+    await entrar(page, 'presidente')
+    await expect.poll(() => autorizacao, { timeout: 15_000 }).not.toBe('')
+    const lista = await page.request.get(`${API_HML}/api/associados/`, {
+      headers: { Authorization: autorizacao },
+    })
+    const associados = (await lista.json()) as {
+      id_associado: number
+      cpf: string | null
+    }[]
+    const gisele = associados.find(
+      (a) => (a.cpf ?? '').replace(/\D/g, '') === '22204751405',
+    )
+    expect(gisele, 'a Gisele existe como associada na homologação').toBeTruthy()
+    const concedido = await page.request.post(
+      `${API_HML}/api/associados/${gisele!.id_associado}/conceder-acesso`,
+      {
+        headers: { Authorization: autorizacao },
+        data: {
+          email: 'vice_tesoureiro@homologacao.example.com',
+          senha_provisoria: senhaDe('vice_tesoureiro'),
+        },
+      },
+    )
+    if (concedido.status() !== 200) {
+      expect(concedido.status(), await concedido.text()).toBe(400)
+      expect(await concedido.text()).toContain('já tem acesso')
+    }
+    await sair(page)
+  })
 
   await test.step('1. Marta prepara a compra de R$ 8.765,43 (dupla assinatura) com duas cotações', async () => {
     await entrarNoFinanceiro(page, 'presidente')
@@ -1734,7 +1772,7 @@ test('Delegação temporária: recusas do formulário, a Presidente delega ao He
     await sair(page)
   })
 
-  await test.step('2. a Presidente pelo cargo registra a delegação ao Heitor (com as recusas do formulário)', async () => {
+  await test.step('2. a Presidente pelo cargo registra a delegação à Gisele (com as recusas do formulário)', async () => {
     await entrarNoFinanceiro(page, 'cargo_presidente')
     await abrirTela(
       page,
@@ -1763,7 +1801,7 @@ test('Delegação temporária: recusas do formulário, a Presidente delega ao He
 
     // recusa 2: motivo curto demais
     await escolherOpcao(quemDelega, ANA)
-    await escolherOpcao(delegado, HEITOR)
+    await escolherOpcao(delegado, GISELE)
     await form.locator('input[type="date"]').fill(validaAte.iso)
     await form.getByPlaceholder('Motivo (ex.: férias)').fill('abc')
     await form.getByRole('button', { name: 'Registrar delegação' }).click()
@@ -1809,7 +1847,7 @@ test('Delegação temporária: recusas do formulário, a Presidente delega ao He
         linha.first(),
         'a delegação aparece como "Associado #n → Associado #n": quem delegou e quem recebeu têm de aparecer pelo nome',
       )
-      .toContainText(HEITOR)
+      .toContainText(GISELE)
     await expect
       .soft(
         linha.first(),
@@ -1820,18 +1858,18 @@ test('Delegação temporária: recusas do formulário, a Presidente delega ao He
     await sair(page)
   })
 
-  await test.step('3. o Heitor, que não tem o cargo, dá a primeira aprovação como delegado', async () => {
-    await entrarNoFinanceiro(page, 'conselheiro')
+  await test.step('3. a Gisele, que não tem o cargo, dá a primeira aprovação como delegada', async () => {
+    await entrarNoFinanceiro(page, 'vice_tesoureiro')
     await abrirTela(page, '/financeiro/compras', 'Compras')
     const cartao = cartaoDe(page, compra)
     await expect(cartao).toBeVisible()
     const delegada = await tentarAprovarCompra(page, cartao)
     expect(
       delegada.status(),
-      'com a delegação da Presidente, o Heitor deveria poder aprovar (1/2)',
+      'com a delegação da Presidente, a Gisele deveria poder aprovar (1/2)',
     ).toBe(200)
     await expect(cartao.getByText(MENSAGEM.primeiraDeDuas)).toBeVisible()
-    await ver(page, info, 'Heitor aprova por delegacao (1/2)')
+    await ver(page, info, 'Gisele aprova por delegacao (1/2)')
     await sair(page)
   })
 
@@ -1843,9 +1881,9 @@ test('Delegação temporária: recusas do formulário, a Presidente delega ao He
     await expect
       .soft(
         cartao.getByText(
-          new RegExp(`${HEITOR}.* — \\d{2}/\\d{2}/\\d{4}.*\\(por delegação\\)`),
+          new RegExp(`${GISELE}.* — \\d{2}/\\d{2}/\\d{4}.*\\(por delegação\\)`),
         ),
-        'a trilha de aprovação deve mostrar o Heitor e "(por delegação)": é o rastro de que a aprovação foi no lugar de quem tem o cargo',
+        'a trilha de aprovação deve mostrar a Gisele e "(por delegação)": é o rastro de que a aprovação foi no lugar de quem tem o cargo',
       )
       .toBeVisible()
     const segunda = await tentarAprovarCompra(page, cartao)
@@ -1853,7 +1891,7 @@ test('Delegação temporária: recusas do formulário, a Presidente delega ao He
     await expect(cartao.getByText('Aprovada', { exact: true })).toBeVisible()
     await conferirTrilhaDeAprovacao(
       cartao,
-      [{ nome: HEITOR, porDelegacao: true }, { nome: FABIO }],
+      [{ nome: GISELE, porDelegacao: true }, { nome: FABIO }],
       [MARTA],
     )
     await ver(page, info, 'segunda assinatura do Tesoureiro: compra aprovada')
@@ -1902,7 +1940,7 @@ test('Delegação temporária: recusas do formulário, a Presidente delega ao He
     await sair(page)
   })
 
-  await test.step('5. Auditoria: a delegação (pela Presidente) e as duas aprovações (do Heitor e do Tesoureiro)', async () => {
+  await test.step('5. Auditoria: a delegação (pela Presidente) e as duas aprovações (da Gisele e do Tesoureiro)', async () => {
     await entrarNoFinanceiro(page, 'cargo_presidente')
     await abrirAuditoria(page, 'delegacoes_aprovacao')
     await expect(
@@ -1914,7 +1952,7 @@ test('Delegação temporária: recusas do formulário, a Presidente delega ao He
       linhasDaAuditoria(page, 'APROVACAO', { registro: idCompra }),
     ).toHaveCount(2)
     await expect(
-      linhaDaAuditoria(page, 'APROVACAO', { registro: idCompra, quem: HEITOR }),
+      linhaDaAuditoria(page, 'APROVACAO', { registro: idCompra, quem: GISELE }),
     ).toBeVisible()
     await expect(
       linhaDaAuditoria(page, 'APROVACAO', { registro: idCompra, quem: FABIO }),

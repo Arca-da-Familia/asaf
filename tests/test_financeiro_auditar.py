@@ -25,6 +25,9 @@ LEITURAS_DA_AUDITORIA = [
     f"/api/relatorios/balancete?data_inicio={_HOJE}&data_fim={_HOJE}",
     f"/api/relatorios/receitas-despesas?data_inicio={_HOJE}&data_fim={_HOJE}",
     "/api/prestacoes-de-contas/",
+    f"/api/antifraude/padroes-suspeitos?competencia={_HOJE[:7]}",
+    "/api/fechamentos-mensais/",
+    "/api/contas-financeiras/",
 ]
 
 # rotas que OPERAM: quem só audita é recusado
@@ -36,6 +39,8 @@ OPERACOES_QUE_O_AUDITOR_NAO_FAZ = [
     ("get", "/api/intencoes-doacao/", None),
     ("post", "/api/prestacoes-de-contas/", {"ano_exercicio": 2026}),
     ("post", "/api/questionamentos/1/respostas", {"texto": "resposta qualquer da tesouraria"}),
+    ("post", "/api/fechamentos-mensais/", {"competencia": "2026-09", "id_conta_financeira": 1, "saldo_extrato_bancario": 0}),
+    ("post", "/api/contas-financeiras/", {"nome": "Conta do auditor", "tipo": "Banco", "id_conta_contabil": 1}),
 ]
 
 

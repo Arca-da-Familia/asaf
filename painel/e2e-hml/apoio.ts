@@ -21,6 +21,8 @@ export type Papel =
   | 'cargo_presidente'
   | 'vice_presidente'
   | 'vice_presidente_2'
+  // v5.7e: o 2º Tesoureiro (Gisele): tem `financeiro` pelo cargo e NÃO tem o cargo das alçadas; é quem recebe uma delegação de aprovação (o Conselheiro Fiscal não opera mais)
+  | 'vice_tesoureiro'
   | 'conselheiro'
   // os outros dois do Conselho Fiscal (Art. 24: três membros): a auditoria financeira só aprova e trava com a maioria, 2 de 3
   | 'conselheiro_2'
@@ -34,6 +36,7 @@ const CPF: Record<Papel, string> = {
   cargo_presidente: '222.000.000-14',
   vice_presidente: '222.007.919-84',
   vice_presidente_2: '222.015.838-11',
+  vice_tesoureiro: '222.047.514-05',
   conselheiro: '222.055.433-34',
   conselheiro_2: '222.063.352-71',
   conselheiro_3: '222.071.271-09',

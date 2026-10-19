@@ -193,7 +193,7 @@ def popular(client, db, admin_headers: dict | None = None, admin_senha: str | No
     PERSONAS_FIXAS = (("secretario", 3), ("tesoureiro", 5))
     # os três do Conselho Fiscal têm login: a auditoria financeira exige a MAIORIA (2 de 3) para aprovar e travar um título
     PERSONAS_EXTRAS = (
-        ("cargo_presidente", 0), ("vice_presidente", 1), ("vice_presidente_2", 2), ("conselheiro", 7), ("conselheiro_2", 8), ("conselheiro_3", 9),
+        ("cargo_presidente", 0), ("vice_presidente", 1), ("vice_presidente_2", 2), ("vice_tesoureiro", 6), ("conselheiro", 7), ("conselheiro_2", 8), ("conselheiro_3", 9),
     )
 
     def logins():

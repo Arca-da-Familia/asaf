@@ -283,7 +283,7 @@ def alternar_centro_custo(id_centro_custo: int, ativo: bool, request: Request, d
 # CONTAS FINANCEIRAS (Caixa/Banco)
 # ==========================================
 @router.get("/api/contas-financeiras/", summary="Listar Contas Financeiras (com saldo)")
-def listar_contas_financeiras(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+def listar_contas_financeiras(db: Session = Depends(get_db), _usuario=Depends(_permissao_leitura_financeira)):
     contas_financeiras = db.query(ContaFinanceira).order_by(ContaFinanceira.id_conta_financeira).all()
     planos = {c.id_conta: c for c in db.query(PlanoDeContas).all()}
     resultado = []
