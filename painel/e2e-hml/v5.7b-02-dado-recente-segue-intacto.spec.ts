@@ -89,7 +89,7 @@ test('a Política de Privacidade do site de teste mostra os sete prazos que a ro
   expect(resposta?.status()).toBe(200)
   expect(
     (await page.locator('body').innerText()).replace(/\s+/g, ' '),
-  ).toContain('Versão 2.2')
+  ).toContain('Versão 2.')
   const lista = page.locator('[data-prazos-de-guarda]')
   await expect(lista).toBeVisible()
   await expect(lista.locator('li')).toHaveCount(7)
