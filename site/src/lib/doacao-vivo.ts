@@ -75,6 +75,13 @@ function mostrarEstado(raiz: HTMLElement, estado: Estado): void {
 
 // ------------------------------------------------------------------------------------------------ as campanhas
 
+/** v5.7g: o que já foi gasto no centro de custo da campanha; campanha sem centro de custo diz que o gasto não é acompanhado à parte; sem o dado (API antiga), nada. */
+export function fraseDoAplicado(c: CampanhaPublica): string | null {
+  if (c.valor_aplicado === undefined) return null
+  if (c.valor_aplicado === null) return 'não acompanhado à parte'
+  return formatarReais(c.valor_aplicado)
+}
+
 function itemDaCampanha(c: CampanhaPublica): HTMLLIElement {
   const item = criar(
     'li',
@@ -91,8 +98,11 @@ function itemDaCampanha(c: CampanhaPublica): HTMLLIElement {
   for (const [nome, valor, marca] of [
     ['Meta', c.meta_valor > 0 ? formatarReais(c.meta_valor) : '—', 'meta'],
     ['Já recebido', formatarReais(c.valor_arrecadado), 'recebido'],
+    ['Já aplicado', fraseDoAplicado(c), 'aplicado'],
     ['Prazo', frasePrazo(c.prazo), 'prazo'],
   ] as const) {
+    // a API antiga não manda o aplicado: a página não fala dele
+    if (valor === null) continue
     const linha = criar('div', 'flex flex-wrap justify-between gap-x-3')
     const dd = criar('dd', 'font-medium', valor)
     dd.setAttribute(`data-${marca}`, '')

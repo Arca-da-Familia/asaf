@@ -194,7 +194,7 @@ def seed_catalogos():
             # Estatuto: Presidente, 1º/2º Vice-Presidente, 1º/2º Secretário, 1º/2º Tesoureiro e Conselheiro Fiscal. O
             # CÓDIGO nunca muda (o banco e as alçadas o referenciam): "2º Secretário" é o código VICE_SECRETARIO, e assim por
             # diante. A ordem da lista é a ordem em que a Diretoria aparece no site. Cargo fora do Estatuto não existe.
-            ("PRESIDENTE", "Presidente", {"permissoes": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias"]}),
+            ("PRESIDENTE", "Presidente", {"permissoes": ["gerenciar_acesso", "editar_site", "associados", "financeiro", "governanca", "projetos", "auditoria", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias"]}),
             ("VICE_PRESIDENTE", "1º Vice-Presidente", {"permissoes": ["associados", "governanca"]}),
             ("VICE_PRESIDENTE_2", "2º Vice-Presidente", {"permissoes": ["associados", "governanca"]}),
             ("SECRETARIO", "1º Secretário", {"permissoes": ["associados", "governanca", "documentos", "documentos_originais", "aprovar_publicacao"]}),
@@ -386,6 +386,7 @@ def seed_niveis_e_permissoes():
         {"nome_nivel": "Parcerias e emendas - gestão", "descricao": "Cadastra parcerias, emendas, parcelas, etapas e relatórios (v5.4a).", "is_conselho_fiscal": False, "exige_mfa": False},
     ]
     permissoes_padrao = [
+        {"modulo": "core", "codigo_permissao": "editar_site", "descricao": "Abrir o editor do site (Directus) pelo atalho \"Editar o site\" do painel (v5.7g). É só o atalho: o que cada pessoa pode mudar lá é decidido pelo papel dela no próprio Directus."},
         {"modulo": "core", "codigo_permissao": "gerenciar_acesso", "descricao": "Gerenciar níveis de acesso e permissões."},
         {"modulo": "associados", "codigo_permissao": "associados", "descricao": "Gerenciar cadastro de associados."},
         {"modulo": "financeiro", "codigo_permissao": "financeiro", "descricao": "Gerenciar lançamentos e plano de contas."},
@@ -410,7 +411,7 @@ def seed_niveis_e_permissoes():
     # Nível -> lista de códigos de permissão que ele recebe por padrão (ajustável depois pela
     # própria tela de administração de acesso, isto aqui é só ponto de partida).
     atribuicoes_padrao = {
-        "Presidente": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria", "exportar_dados_pessoais", "forcar_cadastro_duplicado", "gerenciar_checkin_evento", "exportar_presencas_evento", "exportar_inscricoes_evento", "exportar_beneficiarios", "exportar_reservas_espaco", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias", "atendimento"],
+        "Presidente": ["gerenciar_acesso", "editar_site", "associados", "financeiro", "governanca", "projetos", "auditoria", "exportar_dados_pessoais", "forcar_cadastro_duplicado", "gerenciar_checkin_evento", "exportar_presencas_evento", "exportar_inscricoes_evento", "exportar_beneficiarios", "exportar_reservas_espaco", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias", "atendimento"],
         "Diretoria": ["associados", "financeiro", "governanca", "projetos", "gerenciar_checkin_evento", "documentos", "parcerias", "atendimento"],
         "Conselho Fiscal": ["financeiro_auditar", "auditoria"],  # v5.7e: audita, não opera (antes tinha `financeiro`)
         "Associado": [],

@@ -186,7 +186,7 @@ def test_a_pagina_publica_mostra_so_campanhas_em_andamento_e_so_o_que_foi_recebi
     assert em_andamento in antes and no_ultimo_dia in antes
     assert vencida not in antes and encerrada not in antes
     assert antes[em_andamento]["valor_arrecadado"] == 0 and antes[em_andamento]["percentual"] == 0
-    assert set(antes[em_andamento]) == {"id_campanha", "titulo", "descricao", "meta_valor", "valor_arrecadado", "percentual", "prazo"}, "a destinação interna não sai"
+    assert set(antes[em_andamento]) == {"id_campanha", "titulo", "descricao", "meta_valor", "valor_arrecadado", "valor_aplicado", "percentual", "prazo"}, "a destinação interna não sai"
 
     # a intenção não conta; só a confirmação, com o valor recebido
     protocolo = _doar(client, id_campanha=em_andamento, valor=300).json()["protocolo"]

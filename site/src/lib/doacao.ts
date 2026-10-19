@@ -46,6 +46,12 @@ export interface CampanhaPublica {
   meta_valor: number
   /** Só o que a tesouraria já registrou no sistema (a intenção, sozinha, nunca conta). */
   valor_arrecadado: number
+  /**
+   * v5.7g: o TOTAL já gasto no centro de custo da campanha, conforme os lançamentos da tesouraria. `null` = a campanha não tem centro de custo, então o gasto dela não é acompanhado à parte;
+   * `undefined` = a API não manda este dado (API antiga): a página não fala dele, nunca inventa.
+   */
+  valor_aplicado?: number | null
+
   /** Inteiro, como o servidor calcula; pode passar de 100. */
   percentual: number
   /** "AAAA-MM-DD" (o dia do prazo ainda vale) ou nulo (sem prazo). */
@@ -105,6 +111,14 @@ function lerCampanha(bruta: unknown): CampanhaPublica | null {
     descricao: textoNaoVazio(descricao) ? descricao.trim() : null,
     meta_valor,
     valor_arrecadado,
+    ...('valor_aplicado' in bruta
+      ? {
+          valor_aplicado:
+            numeroFinito(bruta.valor_aplicado) && bruta.valor_aplicado >= 0
+              ? bruta.valor_aplicado
+              : null,
+        }
+      : {}),
     percentual:
       numeroFinito(percentual) && percentual >= 0
         ? Math.round(percentual)

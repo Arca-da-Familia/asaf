@@ -42,37 +42,72 @@ def _exigir_conselho_fiscal(db: Session, usuario) -> Associado:
 # ==========================================
 # LEITURA IRRESTRITA DO FINANCEIRO, AUDITADA
 # ==========================================
-@router.get("/api/conselho-fiscal/financeiro/titulos", summary="Leitura irrestrita de títulos financeiros (auditada)")
-def listar_titulos(status: str = None, db: Session = Depends(get_db), usuario=Depends(_permissao_leitura_financeira)):
+# v5.7g: as duas leituras do Conselho Fiscal são paginadas (25 por vez) e aceitam busca pelo texto: com o tempo a lista inteira deixa a tela alta e pesada demais. A leitura segue "irrestrita"
+# (nada fica escondido do Conselho: é só ir de página em página ou buscar) e CADA consulta, de cada página, continua registrada na Auditoria.
+POR_PAGINA_DA_AUDITORIA = 25
+
+
+@router.get("/api/conselho-fiscal/financeiro/titulos", summary="Leitura irrestrita de títulos financeiros, paginada (auditada)")
+def listar_titulos(
+    status: Optional[str] = None, busca: Optional[str] = None, pagina: int = Query(1, ge=1), por_pagina: int = Query(POR_PAGINA_DA_AUDITORIA, ge=1, le=200),
+    db: Session = Depends(get_db), usuario=Depends(_permissao_leitura_financeira),
+):
     consulta = db.query(TituloFinanceiro)
     if status:
         consulta = consulta.filter(TituloFinanceiro.status == status)
-    titulos = consulta.order_by(TituloFinanceiro.data_vencimento.desc()).all()
-    registrar_auditoria(db, usuario, "titulos_financeiros", "CONSULTA_CONSELHO_FISCAL", dados_depois={"qtd_resultados": len(titulos), "filtro_status": status})
-    return [
-        {
-            "id_titulo": t.id_titulo, "tipo_titulo": t.tipo_titulo, "id_associado": t.id_associado,
-            "id_fornecedor": t.id_fornecedor, "descricao": t.descricao, "valor_original": t.valor_original,
-            "saldo_devedor": t.saldo_devedor, "data_emissao": t.data_emissao, "data_vencimento": t.data_vencimento,
-            "status": t.status,
-        }
-        for t in titulos
-    ]
+    texto = (busca or "").strip()
+    if texto:
+        consulta = consulta.filter(TituloFinanceiro.descricao.ilike(f"%{texto}%"))
+    total = consulta.count()
+    titulos = consulta.order_by(TituloFinanceiro.data_vencimento.desc(), TituloFinanceiro.id_titulo.desc()).offset((pagina - 1) * por_pagina).limit(por_pagina).all()
+    registrar_auditoria(
+        db, usuario, "titulos_financeiros", "CONSULTA_CONSELHO_FISCAL",
+        dados_depois={"qtd_resultados": len(titulos), "total": total, "pagina": pagina, "filtro_status": status, "com_busca": bool(texto)},
+    )
+    return {
+        "total": total, "pagina": pagina, "por_pagina": por_pagina,
+        "itens": [
+            {
+                "id_titulo": t.id_titulo, "tipo_titulo": t.tipo_titulo, "id_associado": t.id_associado,
+                "id_fornecedor": t.id_fornecedor, "descricao": t.descricao, "valor_original": t.valor_original,
+                "saldo_devedor": t.saldo_devedor, "data_emissao": t.data_emissao, "data_vencimento": t.data_vencimento,
+                "status": t.status,
+            }
+            for t in titulos
+        ],
+    }
 
 
-@router.get("/api/conselho-fiscal/financeiro/caixa", summary="Leitura irrestrita do razão contábil (auditada)")
-def listar_caixa(db: Session = Depends(get_db), usuario=Depends(_permissao_leitura_financeira)):
-    lancamentos = db.query(LancamentoContabil).order_by(LancamentoContabil.id_exercicio.desc(), LancamentoContabil.numero_sequencial.desc()).all()
-    registrar_auditoria(db, usuario, "lancamentos_contabeis", "CONSULTA_CONSELHO_FISCAL", dados_depois={"qtd_resultados": len(lancamentos)})
-    return [
-        {
-            "id_lancamento": l.id_lancamento, "numero_sequencial": l.numero_sequencial, "id_titulo": l.id_titulo,
-            "historico": l.historico, "data_lancamento": l.data_lancamento, "forma_pagamento": l.forma_pagamento,
-            "estornado": l.estornado,
-            "partidas": [{"id_conta": p.id_conta, "tipo_partida": p.tipo_partida, "valor": p.valor} for p in l.partidas],
-        }
-        for l in lancamentos
-    ]
+@router.get("/api/conselho-fiscal/financeiro/caixa", summary="Leitura irrestrita do razão contábil, paginada (auditada)")
+def listar_caixa(
+    busca: Optional[str] = None, pagina: int = Query(1, ge=1), por_pagina: int = Query(POR_PAGINA_DA_AUDITORIA, ge=1, le=200),
+    db: Session = Depends(get_db), usuario=Depends(_permissao_leitura_financeira),
+):
+    consulta = db.query(LancamentoContabil)
+    texto = (busca or "").strip()
+    if texto:
+        consulta = consulta.filter(LancamentoContabil.historico.ilike(f"%{texto}%"))
+    total = consulta.count()
+    lancamentos = (
+        consulta.order_by(LancamentoContabil.id_exercicio.desc(), LancamentoContabil.numero_sequencial.desc(), LancamentoContabil.id_lancamento.desc())
+        .offset((pagina - 1) * por_pagina).limit(por_pagina).all()
+    )
+    registrar_auditoria(
+        db, usuario, "lancamentos_contabeis", "CONSULTA_CONSELHO_FISCAL",
+        dados_depois={"qtd_resultados": len(lancamentos), "total": total, "pagina": pagina, "com_busca": bool(texto)},
+    )
+    return {
+        "total": total, "pagina": pagina, "por_pagina": por_pagina,
+        "itens": [
+            {
+                "id_lancamento": l.id_lancamento, "numero_sequencial": l.numero_sequencial, "id_titulo": l.id_titulo,
+                "historico": l.historico, "data_lancamento": l.data_lancamento, "forma_pagamento": l.forma_pagamento,
+                "estornado": l.estornado,
+                "partidas": [{"id_conta": p.id_conta, "tipo_partida": p.tipo_partida, "valor": p.valor} for p in l.partidas],
+            }
+            for l in lancamentos
+        ],
+    }
 
 
 # ==========================================

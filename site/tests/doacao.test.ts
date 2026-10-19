@@ -111,6 +111,24 @@ describe('lerDoacaoPublica', () => {
     expect(lida?.campanhas.map((c) => c.id_campanha)).toEqual([1, 2])
   })
 
+  it('v5.7g: o aplicado vem como número, como vazio (campanha sem centro de custo) ou nem vem (API antiga); dado quebrado vira vazio', () => {
+    const lerAplicado = (extra: Record<string, unknown>) =>
+      lerDoacaoPublica({
+        ...aberta,
+        campanhas: [{ ...aberta.campanhas[0], ...extra }],
+      })?.campanhas[0]
+    expect(lerAplicado({ valor_aplicado: 1800.5 })?.valor_aplicado).toBe(1800.5)
+    expect(lerAplicado({ valor_aplicado: 0 })?.valor_aplicado).toBe(0)
+    expect(lerAplicado({ valor_aplicado: null })?.valor_aplicado).toBeNull()
+    // sem a chave (API antiga): `undefined`, para a página não falar do que não sabe
+    const antiga = lerAplicado({})
+    expect(antiga && 'valor_aplicado' in antiga).toBe(false)
+    for (const quebrado of [-1, 'muito', Number.NaN, {}])
+      expect(
+        lerAplicado({ valor_aplicado: quebrado })?.valor_aplicado,
+      ).toBeNull()
+  })
+
   it('campanha sem percentual ou sem prazo válido: o percentual é calculado e o prazo some', () => {
     const lida = lerDoacaoPublica({
       ...aberta,

@@ -21,9 +21,11 @@ from app.config_cache import obter_configuracao
 from app.models.associados import Associado
 from app.models.core import ConfiguracaoInstitucional, Usuario
 from app.models.doacoes import CampanhaArrecadacao, Doacao
+from app.models.financeiro import PartidaContabil, PlanoDeContas
 from app.models.intencoes_de_doacao import CONFIRMADA, EXPIRADA, NAO_LOCALIZADA, PENDENTE, IntencaoDeDoacao
 from app.models.pessoas import Pessoa
 from app.services import doacoes, instituicao, notificacoes
+from app.services.contabilidade import DEBITO
 from app.services.formato import reais
 from app.services.notificacoes_painel import notificar, usuarios_com_permissao
 from app.services.pix import gerar_payload_pix
@@ -116,16 +118,38 @@ def arrecadado_por_campanha(db: Session, ids: list[int]) -> dict[int, Decimal]:
     return {id_campanha: Decimal(str(total)) for id_campanha, total in linhas}
 
 
+def aplicado_por_centro_de_custo(db: Session, ids_centros: list[int]) -> dict[int, Decimal]:
+    """O que já foi GASTO em cada centro de custo (v5.7g): as despesas líquidas do razão contábil, a mesma conta do relatório "Receitas x despesas por centro de custo" sem recorte de período: a
+    partida de débito numa conta de despesa soma, a de crédito (o estorno) subtrai. Só o total: nenhum lançamento, fornecedor ou data sai daqui."""
+    if not ids_centros:
+        return {}
+    linhas = (
+        db.query(PartidaContabil.id_centro_custo, PartidaContabil.tipo_partida, func.coalesce(func.sum(PartidaContabil.valor), 0))
+        .join(PlanoDeContas, PlanoDeContas.id_conta == PartidaContabil.id_conta)
+        .filter(PartidaContabil.id_centro_custo.in_(ids_centros), PlanoDeContas.tipo == "Despesa")
+        .group_by(PartidaContabil.id_centro_custo, PartidaContabil.tipo_partida)
+        .all()
+    )
+    aplicado: dict[int, Decimal] = {}
+    for id_centro, tipo_partida, soma in linhas:
+        valor = Decimal(str(soma))
+        aplicado[id_centro] = aplicado.get(id_centro, Decimal("0")) + (valor if tipo_partida == DEBITO else -valor)
+    return aplicado
+
+
 def campanhas_publicas(db: Session, agora: Optional[datetime] = None) -> list[dict]:
-    """Transparência: o que cada campanha em andamento pede, quanto já recebeu e até quando (a destinação, o centro de custo, é interna e não sai)."""
+    """Transparência: o que cada campanha em andamento pede, quanto já recebeu, quanto já foi aplicado e até quando. A destinação (o centro de custo) é interna e não sai: o que sai do centro é
+    só o TOTAL gasto nele (`valor_aplicado`). Campanha sem centro de custo não tem como separar o gasto: `valor_aplicado` vem vazio e a página diz que o gasto dela não é acompanhado à parte."""
     campanhas = db.query(CampanhaArrecadacao).filter(*_recebendo(agora or datetime.utcnow())).order_by(CampanhaArrecadacao.criado_em.desc(), CampanhaArrecadacao.id_campanha.desc()).all()
     arrecadado = arrecadado_por_campanha(db, [c.id_campanha for c in campanhas])
+    aplicado = aplicado_por_centro_de_custo(db, [c.id_centro_custo for c in campanhas if c.id_centro_custo is not None])
     resultado = []
     for c in campanhas:
         recebido = arrecadado.get(c.id_campanha, Decimal("0"))
         meta = Decimal(str(c.meta_valor))
         resultado.append({
             "id_campanha": c.id_campanha, "titulo": c.titulo, "descricao": c.descricao, "meta_valor": meta, "valor_arrecadado": recebido,
+            "valor_aplicado": aplicado.get(c.id_centro_custo, Decimal("0")) if c.id_centro_custo is not None else None,
             "percentual": int((recebido / meta * 100).to_integral_value()) if meta > 0 else 0,
             "prazo": c.prazo.date().isoformat() if c.prazo else None,
         })

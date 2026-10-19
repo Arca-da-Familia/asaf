@@ -403,6 +403,9 @@ test.describe('as campanhas em andamento', () => {
     await expect(a).toContainText('campanha de cestas básicas para famílias')
     await expect(a.locator('[data-meta]')).toHaveText('R$ 10.000,00')
     await expect(a.locator('[data-recebido]')).toHaveText('R$ 2.500,00')
+    // v5.7g: o aplicado (o total gasto no centro de custo da campanha) aparece logo abaixo do recebido
+    await expect(a.locator('[data-aplicado]')).toHaveText('R$ 1.800,50')
+    await expect(a.getByText('Já aplicado')).toBeVisible()
     await expect(a.locator('[data-prazo]')).toHaveText(
       /^Até \d{2}\/\d{2}\/\d{4}$/,
     )
@@ -418,6 +421,9 @@ test.describe('as campanhas em andamento', () => {
     await expect(page.locator('[data-nota-recebido]')).toContainText(
       '“Já recebido” conta só as doações em dinheiro que a tesouraria já conferiu e registrou no sistema',
     )
+    await expect(page.locator('[data-nota-recebido]')).toContainText(
+      '“Já aplicado” é o total que a tesouraria já registrou como gasto ligado à campanha',
+    )
   })
 
   test('meta ultrapassada (120%): a barra fica cheia e o texto diz o percentual de verdade; sem prazo diz isso; sem descrição não inventa', async ({
@@ -431,11 +437,16 @@ test.describe('as campanhas em andamento', () => {
     await expect(b.locator('progress')).toHaveAttribute('value', '5000')
     await expect(b.locator('progress')).toHaveAttribute('max', '5000')
     await expect(b.locator('[data-recebido]')).toHaveText('R$ 6.000,00')
+    // sem centro de custo, o gasto não é acompanhado à parte, e a página diz isso (não inventa um zero)
+    await expect(b.locator('[data-aplicado]')).toHaveText(
+      'não acompanhado à parte',
+    )
     await expect(b.locator('[data-prazo]')).toHaveText('Sem prazo definido')
     await expect(b.locator('p')).toHaveCount(1) // só o percentual: nada de descrição inventada
     const c = page.locator('[data-campanha="3"]')
     await expect(c.locator('[data-percentual]')).toHaveText('0% da meta.')
     await expect(c.locator('[data-recebido]')).toHaveText('R$ 0,00')
+    await expect(c.locator('[data-aplicado]')).toHaveText('R$ 0,00')
   })
 
   test('as campanhas aparecem nas duas listas de escolha dos formulários', async ({
