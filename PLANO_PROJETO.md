@@ -2448,18 +2448,28 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 dele (mapa com pino, seção F); **9 continuam abertos de verdade** (A1, A2, B2, C1, C2, C6, C7, C9 e C10, abaixo). Há ainda o que estava **só escrito em notas** ("Falta", "Abertos") e nunca virou item:
 B1 (o Ponto 2/2 reaberto), C3, C4, C5, C8 e C11 (achado novo de 2026-10-19).
 
+**Atualização (2026-10-19, à noite):** a **A1 (v5.7e) está concluída e em produção** (registro abaixo). A próxima, uma de cada vez, é a **A2 (v5.7f)**.
+
 ##### A. Versões que faltam construir (uma por vez, nesta ordem)
 
-- [ ] **A1 — v5.7e — Auditoria como permissão SECUNDÁRIA do Financeiro (decisão do Presidente, 2026-10-19; achado do Ponto de Revisão 2/2).** "O Conselho Fiscal não opera o financeiro: ele audita." Hoje o
+- [x] **A1 — v5.7e — Auditoria como permissão SECUNDÁRIA do Financeiro (decisão do Presidente, 2026-10-19; achado do Ponto de Revisão 2/2).** "O Conselho Fiscal não opera o financeiro: ele audita." Hoje o
       nível Conselho Fiscal recebe a permissão geral `financeiro` (a que opera: confirmar doação, registrar saída, pagar título...) só para conseguir auditar. Passa a valer: cada módulo tem a permissão
       GERAL e as SECUNDÁRIAS; a primeira secundária é `financeiro_auditar` (ler o que a auditoria precisa e dar o parecer: lançamento certo ou errado, comprovante confere). O Conselho Fiscal perde o
       `financeiro` e ganha `financeiro_auditar` (mais a `auditoria` que já tem). No painel ele só vê o que audita, sem os botões de operar; o servidor recusa por trás. Uma migração tira o `financeiro` do
       nível Conselho Fiscal nos bancos que já existem. Provado na homologação com um usuário do Conselho Fiscal (vê e audita; é barrado ao tentar operar).
-      **Situação (2026-10-19): EM ANDAMENTO**, na branch `v57e-conselho-audita` (**ainda não está na `main`**). Pronto: permissão `financeiro_auditar`; nível e cargo Conselho Fiscal sem `financeiro` (migração
-      com teste); leituras da auditoria aceitas com `financeiro` OU `financeiro_auditar`; painel do auditor só com Conselho Fiscal, Auditoria financeira e Relatórios; testes do servidor, da migração e do painel;
-      robô `v5.7e-01` **5 de 5 verde** na homologação. **Falta:** (a) os roteiros de regressão `v5.4e-04` (teste 15) e `v5.4d-08` (teste 2) ainda estavam **vermelhos** nas últimas rodadas na homologação: descobrir se é
-      defeito do sistema ou do roteiro, corrigir e refazer; (b) as duas rodadas finais da suíte do servidor; (c) `main` e confirmação em produção por leitura; (d) registrar aqui, em linhas separadas, o visto na
-      homologação e o confirmado em produção.
+      **Na homologação (2026-10-19):** a branch `v57e-conselho-audita` foi publicada lá (a migração rodou primeiro no banco de TESTE). Robô `v5.7e-01`, 5 de 5, com as pessoas de teste: o Conselheiro tem
+      `financeiro_auditar` e `auditoria` e **não** tem `financeiro`; no painel ele entra no Financeiro e o menu mostra **só** Conselho Fiscal, Auditoria financeira e Relatórios (sem Títulos, Registrar saída,
+      Doações, Gerar Cobranças nem Compras), em Relatórios não há o botão de gerar a prestação de contas, e digitar o endereço de uma tela que opera dá "sem permissão"; o servidor responde **403** com o token
+      DELE a seis operações (listar títulos, listar doações, cadastrar conta, confirmar doação, gerar a prestação, responder questionamento) e **200** a seis leituras da auditoria; o Tesoureiro segue com o módulo
+      inteiro; o Secretário segue sem o módulo. **Regressão, tudo verde no código final:** `v5.4h-03` 8/8 (o Conselho decide títulos), `v5.4d-06` 16/16, `v5.4e-03` 12/12, `v5.4e-04` 16/16, `v5.4d-08` 7/7 e
+      `v5.4h-08` 6/6. **Achados, corrigidos e refeitos:** (1) a página de Relatórios também lê os padrões suspeitos, os fechamentos e as contas financeiras, e o auditor era barrado: as leituras passaram a aceitar
+      `financeiro` OU `financeiro_auditar` (só leituras; operar segue só com `financeiro`); (2) a delegação de aprovação do roteiro `v5.4e-03` ia para o Conselheiro, que não opera mais: passou para a 2ª Tesoureira
+      (Gisele, com login de teste próprio no cofre); (3) o roteiro `v5.4e-04` agora **afirma** que o Conselheiro não gera a prestação de contas (antes era um defeito anotado); (4) o print da tela do Conselho
+      Fiscal, que lista todos os títulos, estourava o navegador: o auxiliar cai para o print da parte visível (isso virou o item C11, a paginação dessa tela). **Testes locais:** servidor 1318 em duas rodadas
+      seguidas, painel 640 (47 arquivos), tipos, lint e formatação limpos; testes novos do servidor, da migração e do painel.
+      **Em produção (2026-10-19):** `main` = `e61bc0b`; Deploy API verde (1318 testes contra Postgres e o log mostra `Running upgrade e6b3c9d2f8a4 -> f7c4d0e3a915`, a migração que tira o `financeiro` do nível e do
+      cargo Conselho Fiscal) e Deploy Painel verde; `painel.asaf.org.br/version.json` = `e61bc0b`; `asaf.org.br/version.json` segue `cbade9f` (o site não mudou); `openapi.json` da API responde. O efeito da migração
+      só se lê pelo log, porque olhar o painel pede login com MFA (congelado). Nota: o Deploy API ficou cerca de 30 minutos "em andamento" sem passos na tela do GitHub e terminou sozinho com sucesso.
 - [ ] **A2 — v5.7f — Validar quem pede dado pessoal: a solicitação do titular (decisão do Presidente, 2026-10-19; achado do Ponto de Revisão 2/2).** Hoje a resposta vai por e-mail para o endereço digitado,
       sem conferir que quem pede é a pessoa (o CPF não é segredo). Passa a valer: (1) a resposta com dado pessoal NUNCA vai solta por e-mail: o e-mail só avisa que há resposta, e ela aparece na
       **Minha conta**, depois de a pessoa provar o e-mail com o código; (2) o sistema só deixa a equipe responder depois de a **identidade estar validada**: automaticamente, quando o e-mail digitado
