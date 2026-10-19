@@ -126,5 +126,6 @@ def test_a_migracao_continua_a_cadeia_do_alembic_sem_segunda_cabeca():
     config = Config()
     config.set_main_option("script_location", str(Path(__file__).resolve().parent.parent / "alembic"))
     diretorio = ScriptDirectory.from_config(config)
-    assert diretorio.get_heads() == ["f7c4d0e3a915"], diretorio.get_heads()
+    assert len(diretorio.get_heads()) == 1, diretorio.get_heads()
+    assert "f7c4d0e3a915" in {revisao.revision for revisao in diretorio.walk_revisions()}
     assert diretorio.get_revision("f7c4d0e3a915").down_revision == "e6b3c9d2f8a4"
