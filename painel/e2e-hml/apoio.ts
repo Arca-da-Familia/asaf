@@ -96,6 +96,8 @@ export async function ver(
   page: Page,
   info: TestInfo,
   nome: string,
+  // `paginaInteira: false` tira o print só da parte visível: a tela do Conselho Fiscal lista TODOS os títulos e, na homologação cheia de dado, fica alta demais para o navegador fotografar
+  { paginaInteira = true }: { paginaInteira?: boolean } = {},
 ): Promise<void> {
   // print de tela "Carregando…" não prova nada: espera o dado chegar (uma tela travada nisso é defeito e reprova aqui); aviso escondido (`hidden`) não conta
   await expect(
@@ -109,7 +111,7 @@ export async function ver(
     pasta,
     `${numero}-${nome.replace(/[^a-zA-Z0-9À-ÿ]+/g, '-').slice(0, 70)}.png`,
   )
-  await page.screenshot({ path: arquivo, fullPage: true })
+  await page.screenshot({ path: arquivo, fullPage: paginaInteira })
   await info.attach(nome, { path: arquivo, contentType: 'image/png' })
 }
 
