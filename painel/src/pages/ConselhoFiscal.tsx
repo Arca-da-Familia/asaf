@@ -16,6 +16,7 @@ import {
   responderQuestionamento,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
+import { useMe } from '@/lib/use-me'
 import {
   parecerCriarSchema,
   questionamentoCriarSchema,
@@ -117,6 +118,9 @@ function BlocoRespostas({
 }) {
   const [mostrarForm, setMostrarForm] = useState(false)
   const queryClient = useQueryClient()
+  // responder o questionamento é da tesouraria (`financeiro`): quem só audita não vê o botão (o servidor também recusa)
+  const { data: eu } = useMe()
+  const podeResponder = !!eu?.permissoes.includes('financeiro')
 
   const { data: respostas } = useQuery({
     queryKey: ['respostas', questionamento.id_questionamento],
@@ -154,7 +158,7 @@ function BlocoRespostas({
           → {r.texto}
         </p>
       ))}
-      {questionamento.status !== 'Respondido' && (
+      {questionamento.status !== 'Respondido' && podeResponder && (
         <div className="mt-1">
           <Button
             variant="outline"

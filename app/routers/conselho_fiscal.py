@@ -19,13 +19,15 @@ from app.models.conselho_fiscal import RESPONDIDO, ParecerPrestacaoContas, Quest
 from app.models.financeiro import Fornecedor, LancamentoContabil, PlanoDeContas, TituloFinanceiro
 from app.routers.financeiro import _consulta_de_titulos
 from app.schemas.conselho_fiscal import AprovacaoEmLoteCriar, DecisaoDeTituloCriar, ParecerCriar, QuestionamentoCriar, RespostaCriar
-from app.security import exigir_permissao, get_current_user
+from app.security import exigir_alguma_permissao, exigir_permissao, get_current_user
 from app.services import auditoria_financeira, lancamento_tardio
 from app.services.calendario import fuso_da_associacao
 from app.services.conselho_fiscal import usuario_e_conselho_fiscal
 
 router = APIRouter()
 _permissao_financeiro = exigir_permissao("financeiro")
+# v5.7e (decisão do Presidente, 2026-10-19): o Conselho Fiscal AUDITA, não opera. As leituras da auditoria aceitam `financeiro` OU `financeiro_auditar`; responder questionamento (tesouraria) segue só `financeiro`.
+_permissao_leitura_financeira = exigir_alguma_permissao("financeiro", "financeiro_auditar")
 
 
 def _exigir_conselho_fiscal(db: Session, usuario) -> Associado:
@@ -41,7 +43,7 @@ def _exigir_conselho_fiscal(db: Session, usuario) -> Associado:
 # LEITURA IRRESTRITA DO FINANCEIRO, AUDITADA
 # ==========================================
 @router.get("/api/conselho-fiscal/financeiro/titulos", summary="Leitura irrestrita de títulos financeiros (auditada)")
-def listar_titulos(status: str = None, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+def listar_titulos(status: str = None, db: Session = Depends(get_db), usuario=Depends(_permissao_leitura_financeira)):
     consulta = db.query(TituloFinanceiro)
     if status:
         consulta = consulta.filter(TituloFinanceiro.status == status)
@@ -59,7 +61,7 @@ def listar_titulos(status: str = None, db: Session = Depends(get_db), usuario=De
 
 
 @router.get("/api/conselho-fiscal/financeiro/caixa", summary="Leitura irrestrita do razão contábil (auditada)")
-def listar_caixa(db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+def listar_caixa(db: Session = Depends(get_db), usuario=Depends(_permissao_leitura_financeira)):
     lancamentos = db.query(LancamentoContabil).order_by(LancamentoContabil.id_exercicio.desc(), LancamentoContabil.numero_sequencial.desc()).all()
     registrar_auditoria(db, usuario, "lancamentos_contabeis", "CONSULTA_CONSELHO_FISCAL", dados_depois={"qtd_resultados": len(lancamentos)})
     return [
@@ -132,7 +134,7 @@ def criar_questionamento(id_titulo: int, dados: QuestionamentoCriar, request: Re
 
 
 @router.get("/api/financeiro/titulos/{id_titulo}/questionamentos", summary="Listar questionamentos de um título")
-def listar_questionamentos(id_titulo: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+def listar_questionamentos(id_titulo: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_leitura_financeira)):
     questionamentos = db.query(QuestionamentoLancamento).filter(QuestionamentoLancamento.id_titulo == id_titulo).order_by(QuestionamentoLancamento.criado_em).all()
     return [
         {
@@ -166,7 +168,7 @@ def responder_questionamento(id_questionamento: int, dados: RespostaCriar, reque
 
 
 @router.get("/api/questionamentos/{id_questionamento}/respostas", summary="Listar respostas de um questionamento")
-def listar_respostas(id_questionamento: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+def listar_respostas(id_questionamento: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_leitura_financeira)):
     respostas = db.query(RespostaQuestionamento).filter(RespostaQuestionamento.id_questionamento == id_questionamento).order_by(RespostaQuestionamento.criado_em).all()
     return [{"id_resposta": r.id_resposta, "texto": r.texto, "criado_em": r.criado_em} for r in respostas]
 
@@ -191,7 +193,7 @@ def _nome_dos_associados(db: Session, ids: set[int]) -> dict[int, str]:
 def listar_auditoria_financeira(
     mes: Optional[str] = None, tipo_titulo: Optional[str] = None, id_conta_contabil: Optional[int] = None, situacao: Optional[str] = None,
     busca: Optional[str] = None, pagina: int = Query(1, ge=1), por_pagina: int = Query(25, ge=1, le=200),
-    db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro),
+    db: Session = Depends(get_db), usuario=Depends(_permissao_leitura_financeira),
 ):
     if situacao and situacao not in auditoria_financeira.SITUACOES:
         raise HTTPException(status_code=422, detail=f"A situação deve ser uma de: {', '.join(auditoria_financeira.SITUACOES)}.")

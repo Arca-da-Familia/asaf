@@ -8,11 +8,13 @@ from sqlalchemy.orm import Session
 from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.schemas.fechamento import FechamentoMensalCriar
-from app.security import exigir_permissao
+from app.security import exigir_alguma_permissao, exigir_permissao
 from app.services import antifraude, fechamento
 
 router = APIRouter()
 _permissao_financeiro = exigir_permissao("financeiro")
+# v5.7e: o relatório de padrões suspeitos é do Conselho Fiscal: quem AUDITA lê (e a lista de meses fechados); fechar o mês continua só de quem opera
+_permissao_leitura_financeira = exigir_alguma_permissao("financeiro", "financeiro_auditar")
 
 
 def _ip_origem(request: Request) -> str:
@@ -20,7 +22,7 @@ def _ip_origem(request: Request) -> str:
 
 
 @router.get("/api/antifraude/padroes-suspeitos", summary="Relatório de exceção mensal - padrões suspeitos (Conselho Fiscal)")
-def padroes_suspeitos_endpoint(competencia: str, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+def padroes_suspeitos_endpoint(competencia: str, db: Session = Depends(get_db), _usuario=Depends(_permissao_leitura_financeira)):
     return antifraude.relatorio_padroes_suspeitos(db, competencia=competencia)
 
 
@@ -33,7 +35,7 @@ def _serializar_fechamento(f) -> dict:
 
 
 @router.get("/api/fechamentos-mensais/", summary="Listar Fechamentos Mensais (conciliação assinada)")
-def listar_fechamentos_endpoint(competencia: str = None, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+def listar_fechamentos_endpoint(competencia: str = None, db: Session = Depends(get_db), _usuario=Depends(_permissao_leitura_financeira)):
     return [_serializar_fechamento(f) for f in fechamento.listar_fechamentos(db, competencia=competencia)]
 
 

@@ -159,7 +159,9 @@ test.describe('A. Conselho Fiscal com poder real', () => {
       .first()
     await expect(questionamento).toBeVisible()
     await expect(questionamento).toContainText('Aberto')
-    await ver(page, info, 'questionamento aberto pelo conselheiro')
+    await ver(page, info, 'questionamento aberto pelo conselheiro', {
+      paginaInteira: false,
+    })
     await sair(page)
 
     // a tesouraria responde

@@ -4,6 +4,7 @@ import { useId, useState } from 'react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { formatarVigencia } from '@/lib/datas'
+import { useMe } from '@/lib/use-me'
 import {
   gerarPrestacaoDeContas,
   listarContasFinanceiras,
@@ -450,6 +451,9 @@ function SecaoPorProjeto() {
 
 function SecaoPrestacaoDeContas() {
   const queryClient = useQueryClient()
+  // gerar a prestação de contas é de quem opera (`financeiro`): quem só audita (Conselho Fiscal) LÊ as versões geradas
+  const { data: eu } = useMe()
+  const podeGerar = !!eu?.permissoes.includes('financeiro')
   const [ano, setAno] = useState(new Date().getFullYear())
   const [aberta, setAberta] = useState<number | null>(null)
   const {
@@ -470,30 +474,32 @@ function SecaoPrestacaoDeContas() {
   return (
     <section className="rounded-xl border border-border bg-card p-6">
       <h2 className="mb-4 font-semibold">Prestação de contas do exercício</h2>
-      <div className="mb-4 flex flex-wrap items-end gap-2">
-        <div>
-          <label
-            htmlFor="prestacao-ano"
-            className="mb-1 block text-xs text-muted-foreground"
+      {podeGerar && (
+        <div className="mb-4 flex flex-wrap items-end gap-2">
+          <div>
+            <label
+              htmlFor="prestacao-ano"
+              className="mb-1 block text-xs text-muted-foreground"
+            >
+              Ano do exercício
+            </label>
+            <input
+              id="prestacao-ano"
+              type="number"
+              value={ano}
+              onChange={(e) => setAno(Number(e.target.value))}
+              className="h-9 w-32 rounded-md border border-input bg-background px-3 text-sm"
+            />
+          </div>
+          <Button
+            size="sm"
+            disabled={gerar.isPending}
+            onClick={() => gerar.mutate(ano)}
           >
-            Ano do exercício
-          </label>
-          <input
-            id="prestacao-ano"
-            type="number"
-            value={ano}
-            onChange={(e) => setAno(Number(e.target.value))}
-            className="h-9 w-32 rounded-md border border-input bg-background px-3 text-sm"
-          />
+            {gerar.isPending ? 'Gerando…' : 'Gerar nova versão'}
+          </Button>
         </div>
-        <Button
-          size="sm"
-          disabled={gerar.isPending}
-          onClick={() => gerar.mutate(ano)}
-        >
-          {gerar.isPending ? 'Gerando…' : 'Gerar nova versão'}
-        </Button>
-      </div>
+      )}
       {gerar.isError && (
         <p className="mb-2 text-sm text-destructive">
           {(gerar.error as Error).message}

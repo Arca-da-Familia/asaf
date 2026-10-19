@@ -201,7 +201,7 @@ def seed_catalogos():
             ("VICE_SECRETARIO", "2º Secretário", {"permissoes": ["associados", "documentos"]}),
             ("TESOUREIRO", "1º Tesoureiro", {"permissoes": ["financeiro", "parcerias"]}),
             ("VICE_TESOUREIRO", "2º Tesoureiro", {"permissoes": ["financeiro", "parcerias"]}),
-            ("CONSELHO_FISCAL", "Conselheiro Fiscal", {"permissoes": ["financeiro", "auditoria"]}),
+            ("CONSELHO_FISCAL", "Conselheiro Fiscal", {"permissoes": ["financeiro_auditar", "auditoria"]}),
         ]),
         # v2.1 (Art. 18 do estatuto) - órgãos de direção da ASAF: Diretoria Executiva e Conselho
         # Fiscal. Catálogo editável - a ASAF pode criar um Conselho Deliberativo sem deploy.
@@ -389,6 +389,8 @@ def seed_niveis_e_permissoes():
         {"modulo": "core", "codigo_permissao": "gerenciar_acesso", "descricao": "Gerenciar níveis de acesso e permissões."},
         {"modulo": "associados", "codigo_permissao": "associados", "descricao": "Gerenciar cadastro de associados."},
         {"modulo": "financeiro", "codigo_permissao": "financeiro", "descricao": "Gerenciar lançamentos e plano de contas."},
+        # v5.7e (decisão do Presidente, 2026-10-19) - permissão SECUNDÁRIA do módulo Financeiro: ler o que a auditoria precisa e dar o parecer, sem operar (o Conselho Fiscal audita, não opera).
+        {"modulo": "financeiro", "codigo_permissao": "financeiro_auditar", "descricao": "Auditar o financeiro (só leitura e parecer, sem operar)."},
         {"modulo": "governanca", "codigo_permissao": "governanca", "descricao": "Gerenciar assembleias e votações."},
         {"modulo": "projetos", "codigo_permissao": "projetos", "descricao": "Gerenciar projetos e voluntários."},
         {"modulo": "core", "codigo_permissao": "auditoria", "descricao": "Consultar a trilha de auditoria."},
@@ -410,7 +412,7 @@ def seed_niveis_e_permissoes():
     atribuicoes_padrao = {
         "Presidente": ["gerenciar_acesso", "associados", "financeiro", "governanca", "projetos", "auditoria", "exportar_dados_pessoais", "forcar_cadastro_duplicado", "gerenciar_checkin_evento", "exportar_presencas_evento", "exportar_inscricoes_evento", "exportar_beneficiarios", "exportar_reservas_espaco", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias", "atendimento"],
         "Diretoria": ["associados", "financeiro", "governanca", "projetos", "gerenciar_checkin_evento", "documentos", "parcerias", "atendimento"],
-        "Conselho Fiscal": ["financeiro", "auditoria"],
+        "Conselho Fiscal": ["financeiro_auditar", "auditoria"],  # v5.7e: audita, não opera (antes tinha `financeiro`)
         "Associado": [],
         "Voluntário Externo": [],
         "Documentos - preparo": ["documentos"],

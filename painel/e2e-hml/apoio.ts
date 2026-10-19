@@ -21,6 +21,8 @@ export type Papel =
   | 'cargo_presidente'
   | 'vice_presidente'
   | 'vice_presidente_2'
+  // v5.7e: o 2º Tesoureiro (Gisele): tem `financeiro` pelo cargo e NÃO tem o cargo das alçadas; é quem recebe uma delegação de aprovação (o Conselheiro Fiscal não opera mais)
+  | 'vice_tesoureiro'
   | 'conselheiro'
   // os outros dois do Conselho Fiscal (Art. 24: três membros): a auditoria financeira só aprova e trava com a maioria, 2 de 3
   | 'conselheiro_2'
@@ -34,6 +36,7 @@ const CPF: Record<Papel, string> = {
   cargo_presidente: '222.000.000-14',
   vice_presidente: '222.007.919-84',
   vice_presidente_2: '222.015.838-11',
+  vice_tesoureiro: '222.047.514-05',
   conselheiro: '222.055.433-34',
   conselheiro_2: '222.063.352-71',
   conselheiro_3: '222.071.271-09',
@@ -93,6 +96,8 @@ export async function ver(
   page: Page,
   info: TestInfo,
   nome: string,
+  // `paginaInteira: false` tira o print só da parte visível: a tela do Conselho Fiscal lista TODOS os títulos e, na homologação cheia de dado, fica alta demais para o navegador fotografar
+  { paginaInteira = true }: { paginaInteira?: boolean } = {},
 ): Promise<void> {
   // print de tela "Carregando…" não prova nada: espera o dado chegar (uma tela travada nisso é defeito e reprova aqui); aviso escondido (`hidden`) não conta
   await expect(
@@ -106,7 +111,13 @@ export async function ver(
     pasta,
     `${numero}-${nome.replace(/[^a-zA-Z0-9À-ÿ]+/g, '-').slice(0, 70)}.png`,
   )
-  await page.screenshot({ path: arquivo, fullPage: true })
+  try {
+    await page.screenshot({ path: arquivo, fullPage: paginaInteira })
+  } catch (erro) {
+    // tela alta demais para o navegador fotografar inteira (a do Conselho Fiscal lista todos os títulos): fica o print da parte visível, e só se ESTE também falhar o roteiro reprova
+    if (!paginaInteira) throw erro
+    await page.screenshot({ path: arquivo, fullPage: false })
+  }
   await info.attach(nome, { path: arquivo, contentType: 'image/png' })
 }
 

@@ -95,10 +95,11 @@ def test_aprovacao_exige_cargo_da_alcada(client, auth_headers):
     _criar_alcada(client, auth_headers, ["TESOUREIRO"], valor_minimo=200, valor_maximo=280)
     id_solicitacao = _criar_solicitacao(client, auth_headers, conta, valor=250)
 
-    # CONSELHO_FISCAL já tem permissão 'financeiro' (passa no Depends do endpoint), mas não é o
+    # VICE_TESOUREIRO tem permissão 'financeiro' (passa no Depends do endpoint), mas não é o
     # cargo exigido por ESTA alçada (só TESOUREIRO) - testa a checagem de alçada, não a de
-    # permissão genérica do endpoint.
-    _, headers_sem_cargo = _criar_usuario_com_mandato(client, auth_headers, "CONSELHO_FISCAL")
+    # permissão genérica do endpoint. (Era o CONSELHO_FISCAL até a v5.7e: o Conselho Fiscal passou a
+    # só AUDITAR e não tem mais `financeiro`.)
+    _, headers_sem_cargo = _criar_usuario_com_mandato(client, auth_headers, "VICE_TESOUREIRO")
     r = client.post(f"/api/solicitacoes-compra/{id_solicitacao}/aprovar", headers=headers_sem_cargo)
     assert r.status_code == 403
     assert "cargo" in r.json()["detail"].lower()
@@ -184,9 +185,9 @@ def test_delegacao_temporaria_permite_aprovacao_por_outra_pessoa(client, auth_he
     id_solicitacao = _criar_solicitacao(client, auth_headers, conta, valor=550)
 
     id_associado_tesoureiro, headers_tesoureiro = _criar_usuario_com_mandato(client, auth_headers, "TESOUREIRO")
-    # CONSELHO_FISCAL tem permissão 'financeiro' (passa no Depends do endpoint) mas não é
+    # VICE_TESOUREIRO tem permissão 'financeiro' (passa no Depends do endpoint) mas não é
     # TESOUREIRO - só a delegação deve permitir aprovar esta alçada.
-    id_associado_delegado, headers_delegado = _criar_usuario_com_mandato(client, auth_headers, "CONSELHO_FISCAL")
+    id_associado_delegado, headers_delegado = _criar_usuario_com_mandato(client, auth_headers, "VICE_TESOUREIRO")
 
     hoje = datetime.utcnow()
     # quem delega é o próprio Tesoureiro: ninguém registra a delegação no lugar dele
@@ -319,7 +320,7 @@ def test_trilha_de_aprovacao_diz_quem_aprovou_pelo_nome(client, auth_headers):
 
 def test_delegacao_so_pode_ser_registrada_por_quem_delega_e_recusa_dado_ruim(client, auth_headers):
     id_tesoureiro, headers_tesoureiro = _criar_usuario_com_mandato(client, auth_headers, "TESOUREIRO")
-    id_colega, headers_colega = _criar_usuario_com_mandato(client, auth_headers, "CONSELHO_FISCAL")
+    id_colega, headers_colega = _criar_usuario_com_mandato(client, auth_headers, "VICE_TESOUREIRO")
     fim = (datetime.utcnow() + timedelta(days=5)).isoformat()
     corpo = {"id_associado_delegante": id_tesoureiro, "id_associado_delegado": id_colega, "data_fim": fim, "motivo": "Teste de quem registra."}
 
@@ -358,7 +359,7 @@ def test_beneficiario_do_reembolso_nao_aprova_nem_reprova_o_proprio_reembolso(cl
     r = client.post(f"/api/reembolsos-despesa/{id_reembolso}/reprovar", json={"motivo": "Tentando reprovar o meu"}, headers=headers_beneficiario)
     assert r.status_code == 400 and "Quem vai receber" in r.json()["detail"]
     # outra pessoa (nem quem lançou, nem quem recebe) decide normalmente
-    _, headers_outro = _criar_usuario_com_mandato(client, auth_headers, "CONSELHO_FISCAL")
+    _, headers_outro = _criar_usuario_com_mandato(client, auth_headers, "VICE_TESOUREIRO")
     assert client.post(f"/api/reembolsos-despesa/{id_reembolso}/aprovar", headers=headers_outro).status_code == 200
 
 
@@ -384,7 +385,7 @@ def test_titulo_do_reembolso_diz_a_quem_pagar_sem_prender_o_titulo_ao_associado(
         "comprovante": "/uploads/comprovantes/teste.pdf", "id_conta_contabil": conta,
     }, headers=auth_headers)
     id_reembolso = r.json()["id_reembolso"]
-    _, headers_outro = _criar_usuario_com_mandato(client, auth_headers, "CONSELHO_FISCAL")
+    _, headers_outro = _criar_usuario_com_mandato(client, auth_headers, "VICE_TESOUREIRO")
     r = client.post(f"/api/reembolsos-despesa/{id_reembolso}/aprovar", headers=headers_outro)
     assert r.status_code == 200, r.text
     titulo = next(t for t in client.get("/api/titulos/", headers=auth_headers).json() if t["id_titulo"] == r.json()["id_titulo_gerado"])

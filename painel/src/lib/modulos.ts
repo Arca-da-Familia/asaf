@@ -82,6 +82,16 @@ export function moduloVisivel(modulo: Modulo, permissoes: string[]): boolean {
   )
 }
 
+// Os itens do módulo que a pessoa vê: sem `permissao` própria, todos de quem entra no módulo; com ela, só de quem a tem (v5.4a; v5.7e usa para o Conselho Fiscal ver só o que audita).
+export function itensVisiveis(
+  modulo: Modulo,
+  permissoes: string[],
+): ItemModulo[] {
+  return (modulo.itens ?? []).filter(
+    (item) => !item.permissao || permissoes.includes(item.permissao),
+  )
+}
+
 export const modulos: Modulo[] = [
   {
     rota: '/associados',
@@ -126,11 +136,15 @@ export const modulos: Modulo[] = [
     rota: '/financeiro',
     rotulo: 'Financeiro',
     permissao: 'financeiro',
+    // v5.7e (decisão do Presidente, 2026-10-19): o Conselho Fiscal AUDITA, não opera. `financeiro_auditar` é a permissão SECUNDÁRIA do módulo: abre só Conselho Fiscal,
+    // Auditoria financeira e Relatórios (cada item sem `permissao` própria); o resto do módulo pede `financeiro`. O servidor revalida cada ação.
+    permissoesAlternativas: ['financeiro_auditar'],
     icone: Wallet,
     itens: [
       {
         rota: '/financeiro',
         rotulo: 'Início',
+        permissao: 'financeiro',
         icone: Wallet,
         fim: true,
       },
@@ -141,21 +155,25 @@ export const modulos: Modulo[] = [
       },
       {
         rota: '/financeiro/titulos',
+        permissao: 'financeiro',
         rotulo: 'Títulos',
         icone: Receipt,
       },
       {
         rota: '/financeiro/entradas',
+        permissao: 'financeiro',
         rotulo: 'Entradas',
         icone: ArrowDownToLine,
       },
       {
         rota: '/financeiro/saidas',
+        permissao: 'financeiro',
         rotulo: 'Saídas',
         icone: ArrowUpFromLine,
       },
       {
         rota: '/financeiro/registrar-saida',
+        permissao: 'financeiro',
         rotulo: 'Registrar saída',
         icone: FilePlus,
       },
@@ -166,81 +184,97 @@ export const modulos: Modulo[] = [
       },
       {
         rota: '/financeiro/plano-contas',
+        permissao: 'financeiro',
         rotulo: 'Plano de Contas',
         icone: BookOpen,
       },
       {
         rota: '/financeiro/fornecedores',
+        permissao: 'financeiro',
         rotulo: 'Fornecedores',
         icone: Truck,
       },
       {
         rota: '/financeiro/exercicios',
+        permissao: 'financeiro',
         rotulo: 'Exercícios',
         icone: CalendarRange,
       },
       {
         rota: '/financeiro/razao-contabil',
+        permissao: 'financeiro',
         rotulo: 'Razão Contábil',
         icone: BookText,
       },
       {
         rota: '/financeiro/contas-financeiras',
+        permissao: 'financeiro',
         rotulo: 'Contas Financeiras',
         icone: Wallet,
       },
       {
         rota: '/financeiro/centros-custo',
+        permissao: 'financeiro',
         rotulo: 'Centros de Custo',
         icone: BookOpen,
       },
       {
         rota: '/financeiro/planos-contribuicao',
+        permissao: 'financeiro',
         rotulo: 'Planos de Contribuição',
         icone: Receipt,
       },
       {
         rota: '/financeiro/gerar-cobrancas',
+        permissao: 'financeiro',
         rotulo: 'Gerar Cobranças',
         icone: Receipt,
       },
       {
         rota: '/financeiro/conciliacao',
+        permissao: 'financeiro',
         rotulo: 'Conciliação',
         icone: BookText,
       },
       {
         rota: '/financeiro/negociacao-divida',
+        permissao: 'financeiro',
         rotulo: 'Negociação de Dívida',
         icone: Receipt,
       },
       {
         rota: '/financeiro/compras',
+        permissao: 'financeiro',
         rotulo: 'Compras',
         icone: Receipt,
       },
       {
         rota: '/financeiro/reembolso-despesa',
+        permissao: 'financeiro',
         rotulo: 'Reembolso de Despesa',
         icone: Receipt,
       },
       {
         rota: '/financeiro/alcadas-aprovacao',
+        permissao: 'financeiro',
         rotulo: 'Alçadas de Aprovação',
         icone: BookText,
       },
       {
         rota: '/financeiro/contas-a-pagar-recorrentes',
+        permissao: 'financeiro',
         rotulo: 'Contas a Pagar Recorrentes',
         icone: Receipt,
       },
       {
         rota: '/financeiro/doacoes',
+        permissao: 'financeiro',
         rotulo: 'Doações',
         icone: Receipt,
       },
       {
         rota: '/financeiro/orcamento',
+        permissao: 'financeiro',
         rotulo: 'Orçamento e Fluxo de Caixa',
         icone: BarChart3,
       },

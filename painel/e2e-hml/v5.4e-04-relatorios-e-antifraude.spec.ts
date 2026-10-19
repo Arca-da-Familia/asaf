@@ -2362,15 +2362,13 @@ test('11. quem lê os relatórios e os alertas: Presidente, Tesoureiro, 1ª Pres
         sec.getByText(doC[0]?.descricao ?? 'sem alerta', { exact: true }),
       ).toBeVisible()
       if (papel === 'conselheiro') {
-        const gerar = secao(page, 'Prestação de contas do exercício').getByRole(
-          'button',
-          { name: 'Gerar nova versão' },
-        )
-        if (await gerar.isEnabled()) {
-          observar(
-            'quem fiscaliza (o Conselheiro Fiscal) também pode gerar versões novas da prestação de contas: o botão e a rota só pedem a permissão "financeiro"',
-          )
-        }
+        // v5.7e: quem fiscaliza LÊ a prestação de contas e não gera versão nova (antes, o botão e a rota só pediam `financeiro`, e o roteiro anotava isso como defeito)
+        await expect(
+          secao(page, 'Prestação de contas do exercício').getByRole('button', {
+            name: 'Gerar nova versão',
+          }),
+          'o Conselheiro Fiscal não gera a prestação de contas',
+        ).toHaveCount(0)
       }
       if (papel === 'tesoureiro' && lista.some(ehDoRobo)) {
         observar(

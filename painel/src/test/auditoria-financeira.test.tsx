@@ -15,6 +15,7 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   aprovarEmLoteNaAuditoria: vi.fn(),
   listarPlanoContas: vi.fn(),
   responderQuestionamento: vi.fn(),
+  me: vi.fn(),
 }))
 
 const titulo = (
@@ -84,8 +85,13 @@ const cartao = (descricao: string) =>
     .getByText(new RegExp(`— ${descricao}$`))
     .closest('div.rounded-md') as HTMLElement
 
+// quem a página mostra: por padrão a tesouraria (`financeiro`); quem só audita (`financeiro_auditar`) nunca vê o botão de responder
+const comoQuem = (...permissoes: string[]) =>
+  vi.mocked(api.me).mockResolvedValue({ permissoes } as never)
+
 beforeEach(() => {
   vi.resetAllMocks()
+  comoQuem('financeiro')
   vi.mocked(api.listarPlanoContas).mockResolvedValue([])
   vi.mocked(api.decidirTituloNaAuditoria).mockResolvedValue({
     id_auditoria: 1,
@@ -220,6 +226,35 @@ describe('Auditoria financeira', () => {
           ],
         }),
       ]),
+    )
+    desenhar()
+    await screen.findByText(/— Toner$/)
+    expect(screen.queryByRole('button', { name: /Responder a/ })).toBeNull()
+  })
+
+  it('quem só audita (`financeiro_auditar`) não vê o botão de responder, nem lendo a lista sem poder de decidir (v5.7e)', async () => {
+    comoQuem('financeiro_auditar')
+    vi.mocked(api.listarAuditoriaFinanceira).mockResolvedValue(
+      lista(
+        [
+          titulo(2, 'Toner', {
+            situacao: 'Suspenso',
+            decisoes: [
+              {
+                id_auditoria: 5,
+                conselheiro: 'Heitor',
+                decisao: 'Com ressalva',
+                observacao: 'Falta a nota fiscal.',
+                em: null,
+                vigente: true,
+                id_questionamento: 7,
+                questionamento: 'Aberto',
+              },
+            ],
+          }),
+        ],
+        false,
+      ),
     )
     desenhar()
     await screen.findByText(/— Toner$/)
