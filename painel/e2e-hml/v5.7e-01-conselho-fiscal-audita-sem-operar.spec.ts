@@ -82,9 +82,9 @@ async function abrirOFinanceiro(page: Page) {
   await expect(page).toHaveURL(/\/financeiro/)
 }
 
-// o Início DO MÓDULO é o link para /financeiro (há também o "← Início" que volta para a tela inicial do painel, com o mesmo nome)
+// o Início DO MÓDULO é o link "Início" para /financeiro (há também o "← Início" que volta à tela inicial do painel e o "Financeiro" da trilha, que também aponta para /financeiro)
 const inicioDoModulo = (page: Page) =>
-  page.getByRole('navigation').locator('a[href="/financeiro"]')
+  page.locator('a[href="/financeiro"]', { hasText: /^Início$/ })
 
 const itemDoMenu = (page: Page, rotulo: string) =>
   page.getByRole('navigation').getByRole('link', { name: rotulo, exact: true })
