@@ -146,6 +146,10 @@ test('solicitação do titular: lista os direitos, exige o CPF que confere e o d
     `Titular do Site ${S} de Teste`,
   )
   await campoPorRotulo(page, 'Telefone/WhatsApp').fill('(91) 98888-4444')
+  // v5.7f: na solicitação do titular o e-mail é obrigatório (a resposta é lida na área Minha conta)
+  await campoPorRotulo(page, /^E-mail/).fill(
+    `titular.site.${S}@homologacao.example.com`,
+  )
   await campoPorRotulo(page, 'Mensagem').fill(
     `Quero ver todos os dados que a associação guarda sobre mim. Rodada ${S}.`,
   )

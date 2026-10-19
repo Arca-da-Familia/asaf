@@ -43,6 +43,8 @@ const TITULAR = {
   subtipo: 'ACESSO',
   mensagem: `Quero ver todos os dados que a associação guarda sobre mim. Rodada ${S}.`,
   nome_completo: `Titular do Robô ${S} de Teste`,
+  // v5.7f: a solicitação do titular exige e-mail (a resposta é lida na área Minha conta)
+  email_contato: `titular.${S}@homologacao.example.com`,
   telefone_whatsapp: '(91) 98888-2222',
   cpf: CPF_TITULAR,
 }
