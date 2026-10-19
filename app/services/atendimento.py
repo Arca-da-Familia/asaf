@@ -15,15 +15,19 @@ from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 
 from app.config_cache import obter_configuracao
+from app.models.associados import Associado
 from app.models.atendimento import (
-    CONTATO, ENCERRADO, EM_ATENDIMENTO, NOVO, PEDIDO_INFORMACAO, RESPONDIDO, TITULAR_LGPD, VOLUNTARIO, Atendimento,
+    CONTATO, ENCERRADO, EM_ATENDIMENTO, IDENTIDADE_AUTOMATICA_CADASTRO, IDENTIDADE_CODIGO_NO_EMAIL, IDENTIDADE_MANUAL, NOVO, PEDIDO_INFORMACAO, RESPONDIDO, TITULAR_LGPD,
+    VOLUNTARIO, Atendimento,
 )
 from app.models.core import NivelAcesso, Usuario
+from app.models.motores import Inscricao
 from app.models.notificacoes_painel import NotificacaoPainel
 from app.models.pessoas import Pessoa
 from app.services.voluntariado import pessoa_e_menor_de_idade
 from app.services import notificacoes
 from app.services.notificacoes_painel import notificar, usuarios_com_permissao
+from app.services.site_publico import url_base_do_site
 
 # o texto do aviso de privacidade dos formulários de atendimento tem versão: o site manda a versão que mostrou e o servidor recusa se o texto mudou
 VERSAO_AVISO_DE_PRIVACIDADE_ATENDIMENTO = "2"  # 2 (2026-10-16): o aviso do voluntariado diz que a oferta aceita vira cadastro de voluntário (nome, CPF se informado, contato, data de nascimento)
@@ -32,6 +36,8 @@ PERMISSAO_DA_FILA = "atendimento"
 LIMITE_DA_MENSAGEM = 4000
 TAMANHO_MINIMO_DA_RESPOSTA = 10
 TAMANHO_MINIMO_DO_MOTIVO = 5
+TAMANHO_MINIMO_DA_NOTA_DE_IDENTIDADE = 10
+LIMITE_DA_NOTA_DE_IDENTIDADE = 500
 DIAS_DE_AVISO_ANTES_DO_PRAZO = 3
 JANELA_DO_DUPLO_CLIQUE = timedelta(hours=24)
 
@@ -52,6 +58,13 @@ ROTULOS_DO_SUBTIPO_LGPD = {
     "COMPARTILHAMENTO": "Saber com quem a associação compartilhou meus dados",
     "REVOGACAO": "Retirar um consentimento que dei",
     "OUTRO": "Outro pedido sobre os meus dados pessoais",
+}
+
+# como a identidade de quem pede dado pessoal foi validada (v5.7f): o que o painel mostra
+ROTULOS_DA_IDENTIDADE = {
+    IDENTIDADE_AUTOMATICA_CADASTRO: "Automática: o e-mail digitado é o do cadastro de associado daquele CPF",
+    IDENTIDADE_CODIGO_NO_EMAIL: "Automática: o pedido foi aberto dentro da área Minha conta, com o e-mail confirmado por código",
+    IDENTIDADE_MANUAL: "Conferida pela equipe",
 }
 
 # dias de prazo por tipo, usados se a regra não existir no banco (as regras ficam em Configurações > Regras do sistema e a diretoria muda)
@@ -115,6 +128,23 @@ def _pessoa_do_remetente(db: Session, cpf: Optional[str], email: Optional[str]) 
     return None
 
 
+def identidade_valida_pelo_cadastro(db: Session, cpf: Optional[str], email: Optional[str]) -> bool:
+    """A validação AUTOMÁTICA da identidade (v5.7f): o e-mail digitado no pedido é o do cadastro de ASSOCIADO daquele CPF. Só vale para quem é associado: o e-mail de quem é só participante de
+    evento pode ter sido preenchido por outra pessoa que digitou o CPF dele numa inscrição (a deduplicação por CPF completa o contato que estava vazio), e o e-mail do cadastro de associado foi
+    escrito pela secretaria ou conferido na filiação. Nunca prova sozinha que quem pede é o titular: a resposta ainda só é entregue na área Minha conta, depois do código enviado a esse e-mail."""
+    if not cpf or not email:
+        return False
+    pessoa = db.query(Pessoa).filter(Pessoa.cpf == _so_digitos(cpf)).first()
+    if pessoa is None or not pessoa.email_contato:
+        return False
+    if pessoa.email_contato.strip().lower() != email.strip().lower():
+        return False
+    # defesa em profundidade: se uma inscrição pública DESTA pessoa digitou exatamente este e-mail, não dá para saber se ele veio dela ou de quem digitou o CPF dela: a equipe confere à mão
+    if db.query(Inscricao.id_inscricao).filter(Inscricao.id_pessoa == pessoa.id_pessoa, func.lower(Inscricao.email_da_inscricao) == email.strip().lower()).first() is not None:
+        return False
+    return db.query(Associado.id_associado).filter(Associado.id_pessoa == pessoa.id_pessoa).first() is not None
+
+
 def usuarios_que_atendem(db: Session) -> list[int]:
     """Quem tem a permissão da fila (pelo nível de acesso)."""
     return usuarios_com_permissao(db, PERMISSAO_DA_FILA)
@@ -135,9 +165,11 @@ def responsavel_padrao(db: Session) -> Optional[int]:
 def registrar_pelo_site(
     db: Session, *, tipo: str, subtipo: Optional[str], assunto: Optional[str], mensagem: str, nome_completo: str, email: Optional[str],
     telefone: Optional[str], cpf: Optional[str], versao_do_aviso: str, data_nascimento: Optional[date] = None, agora: Optional[datetime] = None,
+    identidade: Optional[str] = None,
 ) -> tuple[Atendimento, bool]:
     """Grava o pedido, dá o protocolo, calcula o prazo e avisa quem atende. Devolve (atendimento, novo): o mesmo pedido ainda aberto, mandado de novo em 24 horas
-    (duplo clique, ou a pessoa que não viu a confirmação), devolve o mesmo protocolo e `novo=False`, sem avisar ninguém de novo. Faz commit."""
+    (duplo clique, ou a pessoa que não viu a confirmação), devolve o mesmo protocolo e `novo=False`, sem avisar ninguém de novo. Na solicitação do titular, `identidade` diz que a identidade
+    já vem validada (o pedido aberto dentro da área Minha conta); sem ela, o pedido nasce validado só se o e-mail for o do cadastro de associado daquele CPF. Faz commit."""
     agora = agora or datetime.utcnow()
     chave = chave_do_remetente(cpf, email, telefone)
     impressao = _impressao(tipo, subtipo, chave, assunto, mensagem)
@@ -161,6 +193,11 @@ def registrar_pelo_site(
         consentimento_lgpd_em=agora, consentimento_lgpd_versao=versao_do_aviso, status=NOVO, prazo_dias=dias, prazo_em=agora + timedelta(days=dias),
         id_responsavel=responsavel_padrao(db), criado_em=agora,
     )
+    if tipo == TITULAR_LGPD:
+        como = identidade or (IDENTIDADE_AUTOMATICA_CADASTRO if identidade_valida_pelo_cadastro(db, cpf, email) else None)
+        if como:
+            atendimento.identidade_validacao = como
+            atendimento.identidade_validada_em = agora
     db.add(atendimento)
     db.flush()
     atendimento.protocolo = f"ASAF-{agora.year}-{atendimento.id_atendimento:05d}"
@@ -199,7 +236,7 @@ def _cpf_mascarado(cpf: Optional[str]) -> Optional[str]:
     return f"***.***.***-{cpf[-2:]}" if cpf and len(cpf) == 11 else None
 
 
-def serializar(a: Atendimento, agora: Optional[datetime] = None, *, completo: bool = False) -> dict:
+def serializar(a: Atendimento, agora: Optional[datetime] = None, *, completo: bool = False, db: Optional[Session] = None) -> dict:
     agora = agora or datetime.utcnow()
     dados = {
         "id_atendimento": a.id_atendimento, "protocolo": a.protocolo, "tipo": a.tipo, "tipo_rotulo": ROTULOS_DO_TIPO.get(a.tipo, a.tipo),
@@ -212,10 +249,17 @@ def serializar(a: Atendimento, agora: Optional[datetime] = None, *, completo: bo
         "criado_em": a.criado_em, "consentimento_lgpd_versao": a.consentimento_lgpd_versao,
         "data_nascimento": a.data_nascimento.date().isoformat() if a.data_nascimento else None,
         "idade": _idade(a.data_nascimento, agora), "menor_de_idade": pessoa_e_menor_de_idade(a.data_nascimento.date(), agora.date()) if a.data_nascimento else None,
+        # v5.7f: a solicitação do titular só pode ser respondida com a identidade validada
+        "exige_identidade_validada": a.tipo == TITULAR_LGPD, "identidade_validada": a.identidade_validada_em is not None, "identidade_validacao": a.identidade_validacao,
+        "identidade_validacao_rotulo": ROTULOS_DA_IDENTIDADE.get(a.identidade_validacao or ""), "identidade_validada_em": a.identidade_validada_em,
+        "identidade_nota": a.identidade_nota, "id_usuario_validacao": a.id_usuario_validacao,
     }
     if completo:
         # o CPF inteiro só na abertura do pedido (a solicitação de titular precisa dele para conferir quem pede)
         dados["cpf"] = a.cpf
+        if db is not None and a.id_usuario_validacao is not None:
+            quem = db.query(Usuario.email).filter(Usuario.id_usuario == a.id_usuario_validacao).first()
+            dados["identidade_validada_por"] = quem[0] if quem else None
     return dados
 
 
@@ -292,6 +336,28 @@ def assumir(db: Session, a: Atendimento, usuario: Usuario, agora: Optional[datet
     return a
 
 
+def _texto_do_aviso_de_resposta_do_titular(db: Session, a: Atendimento) -> str:
+    """Solicitação do titular: o e-mail NÃO leva a resposta (ela pode ter dado pessoal e o e-mail pode ter sido digitado por outra pessoa): só avisa que ela existe e onde ler."""
+    return (
+        f"Olá, {a.nome_completo.split()[0]}.\n\n"
+        f"A Associação Arca da Família (ASAF) respondeu ao seu pedido sobre dados pessoais, protocolo {a.protocolo}.\n\n"
+        "Por segurança, a resposta não vai neste e-mail. Para lê-la, entre na área Minha conta do site com este mesmo e-mail (você recebe um código de 6 números):\n"
+        f"{url_base_do_site(db)}/minha-conta/\n\n"
+        "Se não foi você quem fez o pedido, ignore esta mensagem: ninguém de fora da associação lê a resposta sem o código enviado a este e-mail.\n\nASAF - Associação Arca da Família\n"
+    )
+
+
+def _texto_do_aviso_de_encerramento_do_titular(db: Session, a: Atendimento) -> str:
+    """Solicitação do titular encerrada (por exemplo, a identidade não pôde ser conferida): o e-mail só avisa; o motivo é lido na área Minha conta, como a resposta."""
+    return (
+        f"Olá, {a.nome_completo.split()[0]}.\n\n"
+        f"A Associação Arca da Família (ASAF) encerrou o seu pedido sobre dados pessoais, protocolo {a.protocolo}.\n\n"
+        "O motivo não vai neste e-mail. Para lê-lo, entre na área Minha conta do site com este mesmo e-mail (você recebe um código de 6 números):\n"
+        f"{url_base_do_site(db)}/minha-conta/\n\n"
+        "Se não foi você quem fez o pedido, ignore esta mensagem: ninguém de fora da associação lê nada sem o código enviado a este e-mail.\n\nASAF - Associação Arca da Família\n"
+    )
+
+
 def _texto_do_email_de_resposta(a: Atendimento, resposta: str) -> str:
     return (
         f"Olá, {a.nome_completo.split()[0]}.\n\n"
@@ -306,6 +372,15 @@ def responder(db: Session, a: Atendimento, usuario: Usuario, resposta: str, agor
     texto = (resposta or "").strip()
     if len(texto) < TAMANHO_MINIMO_DA_RESPOSTA:
         raise HTTPException(status_code=400, detail=f"Escreva a resposta (pelo menos {TAMANHO_MINIMO_DA_RESPOSTA} letras).")
+    if a.tipo == TITULAR_LGPD:
+        # v5.7f: dado pessoal só vai para quem provou ser o titular, e só pela área Minha conta (que exige o e-mail do pedido e o código enviado a ele)
+        if a.identidade_validada_em is None:
+            raise HTTPException(status_code=400, detail="Antes de responder, valide a identidade de quem fez o pedido. Se não for possível validar, encerre o pedido com o motivo.")
+        if not a.email_contato:
+            raise HTTPException(
+                status_code=400,
+                detail="Este pedido não tem e-mail, e a resposta com dado pessoal só é entregue pela área Minha conta, que pede o e-mail. Encerre o pedido com o motivo e peça que a pessoa refaça o pedido com e-mail.",
+            )
     a.resposta = texto
     a.respondido_em = agora or datetime.utcnow()
     a.id_usuario_resposta = usuario.id_usuario
@@ -315,11 +390,39 @@ def responder(db: Session, a: Atendimento, usuario: Usuario, resposta: str, agor
     a.resposta_enviada_por_email = None
     if a.email_contato:
         try:
-            notificacoes.enviar_email(a.email_contato, assunto=f"Resposta ao seu pedido - protocolo {a.protocolo}", corpo_texto=_texto_do_email_de_resposta(a, texto))
+            if a.tipo == TITULAR_LGPD:
+                notificacoes.enviar_email(
+                    a.email_contato, assunto=f"Há uma resposta ao seu pedido - protocolo {a.protocolo}", corpo_texto=_texto_do_aviso_de_resposta_do_titular(db, a),
+                )
+            else:
+                notificacoes.enviar_email(a.email_contato, assunto=f"Resposta ao seu pedido - protocolo {a.protocolo}", corpo_texto=_texto_do_email_de_resposta(a, texto))
             a.resposta_enviada_por_email = True
         except Exception:
             # a resposta já está registrada; o e-mail é conveniência (SMTP fora do ar ou não configurado): a tela avisa que a pessoa precisa ser avisada por outro meio
             a.resposta_enviada_por_email = False
+    db.commit()
+    db.refresh(a)
+    return a
+
+
+def validar_identidade(db: Session, a: Atendimento, usuario: Usuario, nota: str, agora: Optional[datetime] = None) -> Atendimento:
+    """A equipe confere, por outro meio (documento, telefone do cadastro, presença), que quem pediu é o titular dos dados e registra o que conferiu. Só na solicitação do titular, só enquanto
+    o pedido está aberto, uma vez. Faz commit."""
+    if a.tipo != TITULAR_LGPD:
+        raise HTTPException(status_code=400, detail="Só a solicitação do titular de dados pede validação de identidade.")
+    if a.status in (RESPONDIDO, ENCERRADO):
+        raise HTTPException(status_code=400, detail=f"Este atendimento já está {a.status.lower()}.")
+    if a.identidade_validada_em is not None:
+        raise HTTPException(status_code=400, detail="A identidade deste pedido já está validada.")
+    texto = " ".join((nota or "").split())
+    if len(texto) < TAMANHO_MINIMO_DA_NOTA_DE_IDENTIDADE:
+        raise HTTPException(status_code=400, detail=f"Escreva o que você conferiu para validar a identidade (pelo menos {TAMANHO_MINIMO_DA_NOTA_DE_IDENTIDADE} letras).")
+    if len(texto) > LIMITE_DA_NOTA_DE_IDENTIDADE:
+        raise HTTPException(status_code=400, detail=f"O que você conferiu está comprido demais (até {LIMITE_DA_NOTA_DE_IDENTIDADE} letras).")
+    a.identidade_validacao = IDENTIDADE_MANUAL
+    a.identidade_validada_em = agora or datetime.utcnow()
+    a.id_usuario_validacao = usuario.id_usuario
+    a.identidade_nota = texto
     db.commit()
     db.refresh(a)
     return a
@@ -349,6 +452,16 @@ def cadastrar_voluntario(db: Session, a: Atendimento, usuario: Usuario) -> Pesso
 
 
 def _texto_do_email_de_recebimento(a: Atendimento) -> str:
+    if a.tipo == TITULAR_LGPD:
+        return (
+            f"Olá, {a.nome_completo.split()[0]}.\n\n"
+            f"A Associação Arca da Família (ASAF) recebeu o seu pedido ({ROTULOS_DO_TIPO.get(a.tipo, a.tipo)}).\n\n"
+            f"Protocolo: {a.protocolo}\n"
+            f"Prazo de resposta: {a.prazo_dias} dias (até {a.prazo_em.strftime('%d/%m/%Y')}).\n\n"
+            "Antes de responder, a associação confere que quem pede é o titular dos dados. A resposta não vai por e-mail: quando ela estiver pronta, avisamos por aqui e você a lê na área "
+            "Minha conta do site, entrando com este e-mail e o código de 6 números que o site envia.\n\n"
+            "Guarde este número: é com ele que falamos do seu pedido.\n\nASAF - Associação Arca da Família\n"
+        )
     return (
         f"Olá, {a.nome_completo.split()[0]}.\n\n"
         f"A Associação Arca da Família (ASAF) recebeu o seu pedido ({ROTULOS_DO_TIPO.get(a.tipo, a.tipo)}).\n\n"
@@ -382,6 +495,21 @@ def encerrar(db: Session, a: Atendimento, usuario: Usuario, motivo: str, agora: 
     a.id_usuario_encerramento = usuario.id_usuario
     db.commit()
     db.refresh(a)
+    if a.tipo == TITULAR_LGPD and a.respondido_em is None:
+        # v5.7f: o pedido acabou sem resposta (por exemplo, sem a identidade validada): o motivo é escrito PARA a pessoa, que o lê na Minha conta, e o aviso por e-mail é tentativa que fica registrada
+        # (`resposta_enviada_por_email`: a equipe vê se a pessoa não foi avisada). Quem já foi respondido não recebe aviso de encerramento: a resposta continua na Minha conta.
+        a.motivo_visivel_ao_titular = True
+        a.resposta_enviada_por_email = None
+        if a.email_contato:
+            try:
+                notificacoes.enviar_email(
+                    a.email_contato, assunto=f"Seu pedido foi encerrado - protocolo {a.protocolo}", corpo_texto=_texto_do_aviso_de_encerramento_do_titular(db, a),
+                )
+                a.resposta_enviada_por_email = True
+            except Exception:
+                a.resposta_enviada_por_email = False
+        db.commit()
+        db.refresh(a)
     return a
 
 

@@ -92,6 +92,22 @@ export interface PedidoDeApagamentoAberto {
   prazo_em: string | null
 }
 
+/** v5.7f: uma solicitação do titular de dados (LGPD) feita com este e-mail. A resposta com dado pessoal só é entregue AQUI (nunca por e-mail). Nunca o CPF nem o texto do pedido. */
+export interface PedidoDoTitularDaConta {
+  protocolo: string
+  /** O direito pedido, em palavras ("Acessar os dados que a associação tem sobre mim"). */
+  o_que_pediu: string | null
+  /** 'Novo', 'Em atendimento', 'Respondido' ou 'Encerrado'. */
+  situacao: string
+  pedido_em: string | null
+  prazo_em: string | null
+  respondido_em: string | null
+  resposta: string | null
+  encerrado_em: string | null
+  /** Só no pedido encerrado: o motivo que a equipe escreveu. */
+  motivo_do_encerramento: string | null
+}
+
 export interface ContaDoVisitante {
   email: string
   /** UTC SEM fuso. */
@@ -99,6 +115,7 @@ export interface ContaDoVisitante {
   inscricoes: InscricaoDaConta[]
   certificados: CertificadoDaConta[]
   doacoes: DoacaoDaConta[]
+  pedidos_do_titular: PedidoDoTitularDaConta[]
   pedido_de_apagamento: PedidoDeApagamentoAberto | null
 }
 
@@ -164,6 +181,24 @@ export function lerConta(dados: unknown): ContaDoVisitante | null {
     })
   }
 
+  const pedidosDoTitular: PedidoDoTitularDaConta[] = []
+  for (const bruto of lista(r.pedidos_do_titular)) {
+    const p = objeto(bruto)
+    const protocolo = p ? textoOuNada(p.protocolo) : null
+    if (!p || !protocolo) continue
+    pedidosDoTitular.push({
+      protocolo,
+      o_que_pediu: textoOuNada(p.o_que_pediu),
+      situacao: textoOuNada(p.situacao) ?? '',
+      pedido_em: textoOuNada(p.pedido_em),
+      prazo_em: textoOuNada(p.prazo_em),
+      respondido_em: textoOuNada(p.respondido_em),
+      resposta: textoOuNada(p.resposta),
+      encerrado_em: textoOuNada(p.encerrado_em),
+      motivo_do_encerramento: textoOuNada(p.motivo_do_encerramento),
+    })
+  }
+
   const pedido = objeto(r.pedido_de_apagamento)
   const protocoloDoPedido = pedido ? textoOuNada(pedido.protocolo) : null
   return {
@@ -172,6 +207,7 @@ export function lerConta(dados: unknown): ContaDoVisitante | null {
     inscricoes,
     certificados,
     doacoes,
+    pedidos_do_titular: pedidosDoTitular,
     pedido_de_apagamento:
       pedido && protocoloDoPedido
         ? {
@@ -358,6 +394,32 @@ export function explicacaoDaDoacao(d: DoacaoDaConta): string | null {
       return 'Passou o prazo sem confirmação. Se você pagou, fale com a secretaria citando o protocolo: ainda é possível confirmar.'
     default:
       return null
+  }
+}
+
+/** A situação do pedido sobre dados pessoais, em palavras: a resposta só existe quando ela está pronta (e foi entregue aqui, nunca por e-mail). */
+export function situacaoDoPedidoDoTitular(p: PedidoDoTitularDaConta): string {
+  if (p.situacao === 'Respondido') return 'Respondido'
+  if (p.situacao === 'Encerrado') return 'Encerrado'
+  return 'Em andamento'
+}
+
+/** A explicação curta de cada situação: quando a resposta ainda não está pronta, a página diz que ela só aparece aqui. */
+export function explicacaoDoPedidoDoTitular(
+  p: PedidoDoTitularDaConta,
+): string | null {
+  switch (situacaoDoPedidoDoTitular(p)) {
+    case 'Em andamento':
+      return 'A associação ainda está atendendo este pedido. Antes de responder, ela confere que quem pediu é o titular dos dados. Quando houver resposta, ela aparece aqui e o sistema tenta avisar você por e-mail.'
+    case 'Encerrado':
+      return p.motivo_do_encerramento
+        ? 'A associação encerrou este pedido sem responder com dados pessoais. O motivo está abaixo; se o pedido era seu, faça um novo ou procure a secretaria.'
+        : 'A associação encerrou este pedido sem responder com dados pessoais. Se precisar de uma explicação, ou se o pedido era seu, procure a secretaria citando o protocolo.'
+    default:
+      // respondido sem texto para mostrar: pedido de antes de a resposta passar a ser entregue só aqui (ela foi por e-mail)
+      return p.resposta
+        ? null
+        : 'Este pedido já foi respondido, antes de a resposta passar a ser entregue só aqui. Se precisar de uma cópia, procure a secretaria citando o protocolo.'
   }
 }
 

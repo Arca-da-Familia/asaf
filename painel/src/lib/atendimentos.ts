@@ -100,9 +100,28 @@ export function avisoDoEnvioDaResposta(
   a: Pick<
     AtendimentoDaFila,
     'resposta_enviada_por_email' | 'email_contato' | 'telefone_whatsapp'
-  >,
+  > & { tipo?: TipoDeAtendimento },
   noAviso = false,
 ): { texto: string; atencao: boolean } {
+  // v5.7f: na solicitação do titular o e-mail leva só o AVISO de que há resposta; o texto (que tem dado pessoal) a pessoa lê na área Minha conta do site
+  if (a.tipo === 'TITULAR_LGPD') {
+    if (a.resposta_enviada_por_email === true)
+      return {
+        texto:
+          'A pessoa foi avisada por e-mail. A resposta não vai por e-mail: ela a lê na área Minha conta do site, entrando com o e-mail do pedido e um código.',
+        atencao: false,
+      }
+    const contato = [
+      a.email_contato && `E-mail: ${a.email_contato}`,
+      a.telefone_whatsapp && `Telefone: ${a.telefone_whatsapp}`,
+    ].filter(Boolean)
+    return {
+      texto: `Não foi possível avisar a pessoa por e-mail. A resposta já está na área Minha conta do site, mas ela precisa saber disso: avise por outro meio${
+        noAviso && contato.length ? ` (${contato.join(' · ')})` : ''
+      }, dizendo que entre com o e-mail do pedido.`,
+      atencao: true,
+    }
+  }
   if (a.resposta_enviada_por_email === true)
     return { texto: 'A resposta foi enviada por e-mail.', atencao: false }
   const contato = [
@@ -122,6 +141,105 @@ export function avisoDoEnvioDaResposta(
       : 'Sem e-mail cadastrado: avise a pessoa pelo telefone.',
     atencao: false,
   }
+}
+
+// ---------------------------------------------------------------------------
+// v5.7f - a identidade de quem pede dado pessoal (solicitação do titular): o que o painel diz e o que ele exige antes de responder.
+// ---------------------------------------------------------------------------
+export const TAMANHO_MINIMO_DA_NOTA_DE_IDENTIDADE = 10
+
+type IdentidadeDoAtendimento = Pick<
+  AtendimentoDaFila,
+  | 'exige_identidade_validada'
+  | 'identidade_validada'
+  | 'identidade_validacao'
+  | 'identidade_validada_em'
+  | 'identidade_nota'
+> & { identidade_validada_por?: string | null }
+
+// A frase do cartão "Identidade de quem pediu"; `null` = o pedido não é uma solicitação do titular (não tem o que validar).
+export function textoDaIdentidade(
+  a: IdentidadeDoAtendimento,
+): { validada: boolean; texto: string } | null {
+  if (!a.exige_identidade_validada) return null
+  if (!a.identidade_validada)
+    return {
+      validada: false,
+      texto:
+        'Identidade ainda não validada. Confira que quem pediu é mesmo o titular dos dados (documento com foto, telefone do cadastro, a pessoa na secretaria...) e registre abaixo o que você conferiu. Sem isso o sistema não deixa responder; se não for possível validar, encerre o pedido com o motivo.',
+    }
+  const quando = a.identidade_validada_em
+    ? ` em ${formatarData(a.identidade_validada_em, { comHora: true })}`
+    : ''
+  switch (a.identidade_validacao) {
+    case 'AUTOMATICA_CADASTRO':
+      return {
+        validada: true,
+        texto: `Identidade validada automaticamente${quando}: o e-mail digitado é o do cadastro de associado deste CPF.`,
+      }
+    case 'CODIGO_NO_EMAIL':
+      return {
+        validada: true,
+        texto: `Identidade validada automaticamente${quando}: o pedido foi aberto dentro da área Minha conta, com o e-mail confirmado por código.`,
+      }
+    default: {
+      const por = a.identidade_validada_por
+        ? ` por ${a.identidade_validada_por}`
+        : ''
+      const nota = a.identidade_nota
+        ? ` O que foi conferido: ${a.identidade_nota}`
+        : ''
+      return {
+        validada: true,
+        texto: `Identidade validada pela equipe${por}${quando}.${nota}`,
+      }
+    }
+  }
+}
+
+// O que falta para poder validar: a primeira coisa errada, em português; null = pode enviar. O servidor confere de novo.
+export function validarNotaDeIdentidade(nota: string): string | null {
+  const limpa = nota.replace(/\s+/g, ' ').trim()
+  if (limpa.length < TAMANHO_MINIMO_DA_NOTA_DE_IDENTIDADE)
+    return `Escreva o que você conferiu para validar a identidade (pelo menos ${TAMANHO_MINIMO_DA_NOTA_DE_IDENTIDADE} letras).`
+  if (limpa.length > 500)
+    return 'O que você conferiu está comprido demais (até 500 letras).'
+  return null
+}
+
+// v5.7f: ao encerrar uma solicitação do titular que NÃO foi respondida, o sistema tenta avisar a pessoa por e-mail (o motivo é lido na área Minha conta) e guarda se o aviso saiu.
+// `null` = não há o que dizer (outro tipo de pedido, pedido já respondido, ou a pessoa não tem e-mail).
+export function avisoDoEncerramentoDoTitular(
+  a: Pick<
+    AtendimentoDaFila,
+    | 'tipo'
+    | 'respondido_em'
+    | 'resposta_enviada_por_email'
+    | 'email_contato'
+    | 'telefone_whatsapp'
+  >,
+  noAviso = false,
+): { texto: string; atencao: boolean } | null {
+  if (a.tipo !== 'TITULAR_LGPD' || a.respondido_em) return null
+  if (a.resposta_enviada_por_email === true)
+    return {
+      texto:
+        'A pessoa foi avisada por e-mail; ela lê o motivo na área Minha conta do site.',
+      atencao: false,
+    }
+  if (a.resposta_enviada_por_email === false) {
+    const contato = [
+      a.email_contato && `E-mail: ${a.email_contato}`,
+      a.telefone_whatsapp && `Telefone: ${a.telefone_whatsapp}`,
+    ].filter(Boolean)
+    return {
+      texto: `Não foi possível avisar a pessoa por e-mail. O motivo está na área Minha conta do site, mas ela precisa saber disso: avise por outro meio${
+        noAviso && contato.length ? ` (${contato.join(' · ')})` : ''
+      }.`,
+      atencao: true,
+    }
+  }
+  return null
 }
 
 // As primeiras linhas da mensagem para o cartão da lista, cortadas numa palavra inteira.

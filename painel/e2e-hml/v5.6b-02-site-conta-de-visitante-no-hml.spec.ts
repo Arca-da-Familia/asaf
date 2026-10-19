@@ -13,7 +13,7 @@ import {
 // v5.6b - o que o VISITANTE faz no site de teste (hml-site), num navegador de verdade, DEPOIS de a homologação ser publicada (o site é construído no Deploy Homologação): entra em /minha-conta/
 // com o e-mail e o código (a API de teste devolve o código na resposta; o robô o lê da rede, como um e-mail faria), vê a inscrição, o pedido de doação que espera a tesouraria (sem recibo),
 // abre o link de cancelar (sem cancelar) e volta com a sessão ainda valendo, pede a eliminação dos dados (dois passos) e sai: a sessão some da aba e os dados saem da tela.
-// Confere ainda a política de conteúdo (nenhuma violação), a Política de Privacidade 2.2 com o trecho da conta e o link no rodapé.
+// Confere ainda a política de conteúdo (nenhuma violação), a Política de Privacidade com o trecho da conta e o link no rodapé.
 // Fica na homologação, para explorar: a inscrição, o pedido de doação e o pedido de eliminação do visitante de teste.
 test.describe.configure({ mode: 'serial' })
 test.beforeAll(() => exigirHomologacao())
@@ -154,7 +154,11 @@ test('o visitante entra pelo e-mail e o código, vê a conta, abre o link de can
   await ver(page, info, 'tela-do-e-mail')
 
   // e-mail torto: a página recusa antes de ir à API
-  await page.getByLabel('E-mail usado na inscrição ou na doação').fill('torto')
+  await page
+    .getByLabel(
+      'E-mail usado na inscrição, na doação ou no pedido sobre dados pessoais',
+    )
+    .fill('torto')
   await page
     .getByRole('button', { name: 'Receber o código por e-mail' })
     .click()
@@ -165,7 +169,11 @@ test('o visitante entra pelo e-mail e o código, vê a conta, abre o link de can
   ).toBeVisible()
 
   // o pedido de verdade: o robô lê o código da resposta de teste (um e-mail faria o mesmo papel)
-  await page.getByLabel('E-mail usado na inscrição ou na doação').fill(EMAIL)
+  await page
+    .getByLabel(
+      'E-mail usado na inscrição, na doação ou no pedido sobre dados pessoais',
+    )
+    .fill(EMAIL)
   const pedido = page.waitForResponse((r) =>
     r.url().endsWith('/api/publico/visitante/codigo'),
   )
@@ -316,7 +324,7 @@ test('o pedido de eliminação feito pelo site chegou à fila de atendimento do 
   expect(dele?.status).toBe('Novo')
 })
 
-test('a Política de Privacidade 2.2 tem o trecho da conta e o rodapé leva à página', async ({
+test('a Política de Privacidade tem o trecho da conta e o rodapé leva à página', async ({
   page,
 }) => {
   const vigia = vigiar(page)
@@ -326,7 +334,7 @@ test('a Política de Privacidade 2.2 tem o trecho da conta e o rodapé leva à p
   })
   expect(resposta?.status()).toBe(200)
   await expect(
-    page.getByText(/Versão 2\.2 · em vigor desde \d+ de \w+ de 2026/),
+    page.getByText(/Versão 2\.\d+ · em vigor desde \d+ de \w+ de 2026/),
   ).toBeVisible()
   const trecho = page.locator('[data-conta-visitante-politica]')
   await expect(trecho).toBeVisible()

@@ -163,9 +163,12 @@ test.describe('formulários de atendimento', () => {
         ]) {
           await expect(form.getByLabel(rotulo)).toBeVisible()
         }
+        // v5.7f: na solicitação do titular o e-mail é obrigatório (a resposta é lida na área Minha conta); nos outros, basta um dos dois
         await expect(
           form.getByText(
-            'Informe ao menos um dos dois, para podermos responder.',
+            f.tipo === 'TITULAR_LGPD'
+              ? 'O e-mail é obrigatório: a resposta sobre os seus dados não vai por e-mail'
+              : 'Informe ao menos um dos dois, para podermos responder.',
           ),
         ).toBeVisible()
         if (f.tipo === 'TITULAR_LGPD') {
@@ -268,9 +271,14 @@ test.describe('formulários de atendimento', () => {
         await expect(
           page.locator(`#${f.idDoFormulario}-erro-nome`),
         ).toContainText('Informe o seu nome completo.')
-        await expect(
-          page.locator(`#${f.idDoFormulario}-erro-contato`),
-        ).toContainText('e-mail ou um telefone')
+        if (f.tipo === 'TITULAR_LGPD')
+          await expect(
+            page.locator(`#${f.idDoFormulario}-erro-email`),
+          ).toContainText('Informe o seu e-mail')
+        else
+          await expect(
+            page.locator(`#${f.idDoFormulario}-erro-contato`),
+          ).toContainText('e-mail ou um telefone')
         await expect(
           page.locator(`#${f.idDoFormulario}-erro-mensagem`),
         ).toContainText('pelo menos 10 letras')
@@ -331,7 +339,9 @@ test.describe('formulários de atendimento', () => {
           ),
         )
         await expect(aviso).toContainText(
-          'Se informou e-mail, a resposta também pode chegar por lá.',
+          f.tipo === 'TITULAR_LGPD'
+            ? 'A resposta sobre os seus dados não vai por e-mail'
+            : 'Se informou e-mail, a resposta também pode chegar por lá.',
         )
         // a tela de confirmação também passa no axe
         await semViolacoes(page)
@@ -368,6 +378,8 @@ test.describe('formulários de atendimento', () => {
       test('só com telefone (sem e-mail) também vale; só com e-mail, idem', async ({
         page,
       }) => {
+        // v5.7f: a solicitação do titular exige e-mail (a resposta é lida na área Minha conta): o caso dela tem teste próprio, mais abaixo
+        test.skip(f.tipo === 'TITULAR_LGPD', 'o titular exige e-mail (v5.7f)')
         await preencher(page, f, { email: '', telefone: '9133334444' })
         await aceitar(page)
         await enviar(page)
@@ -769,6 +781,84 @@ test.describe('formulários de atendimento', () => {
         'Maria de Teste',
       )
       await expect(confirmacao(page)).toBeHidden()
+    })
+  })
+
+  // v5.7f - a solicitação do titular: o e-mail é obrigatório (a resposta com dado pessoal é lida na área Minha conta, nunca por e-mail) e a página explica o caminho.
+  test.describe('solicitação do titular: e-mail obrigatório e como a resposta chega (v5.7f)', () => {
+    const titular = FORMULARIOS.find((f) => f.tipo === 'TITULAR_LGPD')!
+    const contato = FORMULARIOS.find((f) => f.tipo === 'CONTATO')!
+
+    test('só telefone não basta: o erro aparece no campo do e-mail e nada vai para a API', async ({
+      page,
+    }) => {
+      await page.goto(titular.caminho)
+      const antes = (await pedidosRecebidos(page)).length
+      await preencher(page, titular, { email: '', telefone: '(91) 98888-7777' })
+      await aceitar(page)
+      await enviar(page)
+      const email = formulario(page).getByLabel('E-mail (obrigatório)')
+      await expect(email).toHaveAttribute('aria-invalid', 'true')
+      await expect(
+        page.locator(`#${titular.idDoFormulario}-erro-email`),
+      ).toContainText('Informe o seu e-mail')
+      await expect(
+        page.locator(`#${titular.idDoFormulario}-erro-contato`),
+      ).toBeHidden()
+      expect((await pedidosRecebidos(page)).length).toBe(antes)
+    })
+
+    test('com e-mail e sem telefone o pedido segue, e a confirmação diz que a resposta não vai por e-mail e leva à Minha conta', async ({
+      page,
+    }) => {
+      await page.goto(titular.caminho)
+      await preencher(page, titular, { email: 'maria.titular@example.com' })
+      await aceitar(page)
+      await enviar(page)
+      const aviso = confirmacao(page)
+      await expect(aviso).toBeVisible()
+      const frase = aviso.locator('[data-resposta-do-titular]')
+      await expect(frase).toContainText('não vai por e-mail')
+      await expect(frase).toContainText('confere que quem pediu é o titular')
+      await expect(
+        frase.getByRole('link', { name: 'Minha conta' }),
+      ).toHaveAttribute('href', '/minha-conta/')
+      await expect(aviso).not.toContainText(
+        'a resposta também pode chegar por lá',
+      )
+    })
+
+    test('nos outros formulários a confirmação segue como era', async ({
+      page,
+    }) => {
+      await page.goto(contato.caminho)
+      await preencher(page, contato)
+      await aceitar(page)
+      await enviar(page)
+      const aviso = confirmacao(page)
+      await expect(aviso).toBeVisible()
+      await expect(aviso).toContainText('a resposta também pode chegar por lá')
+      await expect(aviso.locator('[data-resposta-do-titular]')).toHaveCount(0)
+    })
+
+    test('a página explica, em três passos, como a identidade é conferida e como a resposta chega', async ({
+      page,
+    }) => {
+      await page.goto(titular.caminho)
+      const secao = page.locator('[data-como-a-resposta-chega]')
+      await expect(
+        secao.getByRole('heading', { name: 'Como a resposta chega até você' }),
+      ).toBeVisible()
+      await expect(secao.locator('ol > li')).toHaveCount(3)
+      await expect(secao).toContainText('o e-mail é obrigatório')
+      await expect(secao).toContainText(
+        'Se o e-mail é o do seu cadastro de associado',
+      )
+      await expect(secao).toContainText('A resposta não vai nesse e-mail')
+      await expect(
+        secao.getByRole('link', { name: 'Minha conta' }),
+      ).toHaveAttribute('href', '/minha-conta/')
+      await semViolacoes(page)
     })
   })
 })

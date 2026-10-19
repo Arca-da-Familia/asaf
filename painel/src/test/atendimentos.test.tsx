@@ -14,13 +14,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '@/lib/api'
 import type { AtendimentoAberto, TermoDeVoluntario } from '@/lib/api'
 import {
+  avisoDoEncerramentoDoTitular,
   avisoDoEnvioDaResposta,
   cargaHorariaSemanal,
   hojeParaCampoDeData,
   previaDaMensagem,
   recusaPorFaltaDeAutorizacao,
   textoDaDataDeNascimento,
+  textoDaIdentidade,
   textoDoPrazo,
+  validarNotaDeIdentidade,
   validarTermoDeAdesao,
 } from '@/lib/atendimentos'
 import { moduloVisivel, modulos } from '@/lib/modulos'
@@ -36,6 +39,7 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   assumirAtendimento: vi.fn(),
   responderAtendimento: vi.fn(),
   encerrarAtendimento: vi.fn(),
+  validarIdentidadeDoAtendimento: vi.fn(),
   cadastrarVoluntarioDoAtendimento: vi.fn(),
   obterTermoVigente: vi.fn(),
   registrarTermoDeVoluntario: vi.fn(),
@@ -85,10 +89,37 @@ function pedido(
     data_nascimento: null,
     idade: null,
     menor_de_idade: null,
+    exige_identidade_validada: false,
+    identidade_validada: false,
+    identidade_validacao: null,
+    identidade_validacao_rotulo: null,
+    identidade_validada_em: null,
+    identidade_nota: null,
+    id_usuario_validacao: null,
     cpf: null,
     outros_do_remetente: [],
     ...sobrescrever,
   }
+}
+
+// v5.7f: a solicitação do titular, que só pode ser respondida depois de validada a identidade de quem pediu
+function pedidoDoTitular(
+  n: number,
+  sobrescrever: Partial<AtendimentoAberto> = {},
+): AtendimentoAberto {
+  return pedido(n, {
+    tipo: 'TITULAR_LGPD',
+    tipo_rotulo: 'Solicitação de titular de dados (LGPD)',
+    subtipo: 'ACESSO',
+    subtipo_rotulo: 'Acessar os dados que a associação tem sobre mim',
+    assunto: null,
+    mensagem: 'Quero saber quais dados a associação guarda sobre mim.',
+    nome_completo: 'Titular de Teste',
+    cpf: '52998224725',
+    cpf_mascarado: '***.***.***-25',
+    exige_identidade_validada: true,
+    ...sobrescrever,
+  })
 }
 
 // o pedido de voluntariado: o site pede a data de nascimento (a idade manda no termo de adesão)
@@ -169,14 +200,33 @@ function prepararServidor() {
       id_responsavel: 7,
     }),
   )
-  vi.mocked(api.responderAtendimento).mockImplementation(async (id, resposta) =>
-    alterar(id, {
-      status: 'Respondido',
-      resposta,
-      respondido_em: '2026-10-09T14:00:00',
-      resposta_enviada_por_email: envioDaResposta,
-      situacao_do_prazo: 'cumprido',
-    }),
+  vi.mocked(api.validarIdentidadeDoAtendimento).mockImplementation(
+    async (id, nota) =>
+      alterar(id, {
+        identidade_validada: true,
+        identidade_validacao: 'MANUAL',
+        identidade_validada_em: '2026-10-09T13:30:00',
+        identidade_nota: nota,
+        id_usuario_validacao: 7,
+        identidade_validada_por: 'secretaria@homologacao.example.com',
+      }),
+  )
+  vi.mocked(api.responderAtendimento).mockImplementation(
+    async (id, resposta) => {
+      const atual = base.find((a) => a.id_atendimento === id)
+      if (atual?.exige_identidade_validada && !atual.identidade_validada)
+        throw new api.ApiError(
+          400,
+          'Antes de responder, valide a identidade de quem fez o pedido.',
+        )
+      return alterar(id, {
+        status: 'Respondido',
+        resposta,
+        respondido_em: '2026-10-09T14:00:00',
+        resposta_enviada_por_email: envioDaResposta,
+        situacao_do_prazo: 'cumprido',
+      })
+    },
   )
   vi.mocked(api.encerrarAtendimento).mockImplementation(async (id, motivo) =>
     alterar(id, {
@@ -1628,5 +1678,411 @@ describe('Atendimento: o pedido de voluntariado (textos e regras)', () => {
       ),
     ).toBe(true)
     expect(recusaPorFaltaDeAutorizacao('Pessoa não encontrada.')).toBe(false)
+  })
+})
+
+describe('Atendimento: a identidade de quem pede dado pessoal (v5.7f)', () => {
+  async function abrirOTitular(
+    sobrescrever: Partial<AtendimentoAberto> = {},
+    entrada = '/atendimentos',
+  ) {
+    const u = userEvent.setup()
+    base = [pedidoDoTitular(1, sobrescrever)]
+    desenhar(entrada)
+    const dentro = await cartaoCarregado('ASAF-2026-00001')
+    await u.click(await dentro.findByRole('button', { name: 'Abrir' }))
+    await dentro.findByRole('region', { name: 'Mensagem recebida' })
+    return { u, dentro }
+  }
+
+  it('com a identidade por validar: o cartão avisa, o campo de resposta e o botão ficam travados e o motivo está escrito', async () => {
+    const { dentro } = await abrirOTitular()
+    const cartaoDaIdentidade = dentro.getByRole('region', {
+      name: 'Identidade de quem pediu',
+    })
+    expect(cartaoDaIdentidade).toHaveAttribute('data-identidade', 'pendente')
+    expect(cartaoDaIdentidade).toHaveTextContent(
+      'Identidade ainda não validada',
+    )
+    expect(dentro.getByLabelText('Resposta')).toBeDisabled()
+    expect(
+      dentro.getByRole('button', { name: 'Registrar resposta' }),
+    ).toBeDisabled()
+    expect(dentro.getByText(/Valide a identidade de quem pediu/)).toBeVisible()
+    // o que a equipe pode fazer: validar (campo próprio) ou encerrar com o motivo
+    expect(dentro.getByLabelText('O que você conferiu')).toBeEnabled()
+    expect(
+      dentro.getByRole('button', { name: 'Validar identidade' }),
+    ).toBeEnabled()
+    expect(
+      dentro.getByRole('button', { name: 'Encerrar atendimento' }),
+    ).toBeEnabled()
+  })
+
+  it('validar sem dizer o que conferiu é recusado na tela, sem ir ao servidor', async () => {
+    const { u, dentro } = await abrirOTitular()
+    await u.type(dentro.getByLabelText('O que você conferiu'), 'ok')
+    await u.click(dentro.getByRole('button', { name: 'Validar identidade' }))
+    expect(await dentro.findByRole('alert')).toHaveTextContent(
+      'Escreva o que você conferiu',
+    )
+    expect(api.validarIdentidadeDoAtendimento).not.toHaveBeenCalled()
+    expect(dentro.getByLabelText('Resposta')).toBeDisabled()
+  })
+
+  it('a equipe valida à mão: o servidor recebe o que ela escreveu, o cartão passa a dizer quem e o quê, e a resposta destrava', async () => {
+    const { u, dentro } = await abrirOTitular()
+    await u.type(
+      dentro.getByLabelText('O que você conferiu'),
+      'Conferi o documento com foto na secretaria.',
+    )
+    await u.click(dentro.getByRole('button', { name: 'Validar identidade' }))
+    await waitFor(() =>
+      expect(api.validarIdentidadeDoAtendimento).toHaveBeenCalledWith(
+        1,
+        'Conferi o documento com foto na secretaria.',
+      ),
+    )
+    const cartaoDaIdentidade = await dentro.findByText(
+      /Identidade validada pela equipe/,
+    )
+    expect(
+      dentro.getByRole('region', { name: 'Identidade de quem pediu' }),
+    ).toHaveAttribute('data-identidade', 'validada')
+    expect(cartaoDaIdentidade).toHaveTextContent(
+      'por secretaria@homologacao.example.com',
+    )
+    expect(cartaoDaIdentidade).toHaveTextContent(
+      'O que foi conferido: Conferi o documento com foto na secretaria.',
+    )
+    // o formulário de validar some e a resposta destrava
+    expect(dentro.queryByLabelText('O que você conferiu')).toBeNull()
+    expect(dentro.getByLabelText('Resposta')).toBeEnabled()
+    expect(
+      dentro.getByRole('button', { name: 'Registrar resposta' }),
+    ).toBeEnabled()
+    expect(dentro.queryByText(/Valide a identidade de quem pediu/)).toBeNull()
+  })
+
+  it('validada pelo sistema (e-mail do cadastro de associado): sem formulário de validação e com a resposta liberada', async () => {
+    const { dentro } = await abrirOTitular({
+      identidade_validada: true,
+      identidade_validacao: 'AUTOMATICA_CADASTRO',
+      identidade_validada_em: '2026-10-09T12:00:00',
+    })
+    const cartaoDaIdentidade = dentro.getByRole('region', {
+      name: 'Identidade de quem pediu',
+    })
+    expect(cartaoDaIdentidade).toHaveAttribute('data-identidade', 'validada')
+    expect(cartaoDaIdentidade).toHaveTextContent(
+      'o e-mail digitado é o do cadastro de associado deste CPF',
+    )
+    expect(dentro.queryByLabelText('O que você conferiu')).toBeNull()
+    expect(dentro.getByLabelText('Resposta')).toBeEnabled()
+  })
+
+  it('validada pelo código dentro da Minha conta: a frase diz isso', async () => {
+    const { dentro } = await abrirOTitular({
+      identidade_validada: true,
+      identidade_validacao: 'CODIGO_NO_EMAIL',
+      identidade_validada_em: '2026-10-09T12:00:00',
+    })
+    expect(
+      dentro.getByRole('region', { name: 'Identidade de quem pediu' }),
+    ).toHaveTextContent('aberto dentro da área Minha conta')
+  })
+
+  it('o texto embaixo da resposta diz que ela é lida na Minha conta e não vai por e-mail', async () => {
+    const { dentro } = await abrirOTitular({
+      identidade_validada: true,
+      identidade_validacao: 'AUTOMATICA_CADASTRO',
+      identidade_validada_em: '2026-10-09T12:00:00',
+    })
+    expect(
+      dentro.getByText(/a pessoa a lê na área Minha conta do site/),
+    ).toBeVisible()
+    expect(dentro.getByText(/a resposta não vai por e-mail/)).toBeVisible()
+    expect(dentro.queryByText(/também é enviada por e-mail/)).toBeNull()
+  })
+
+  it('responder o titular: o aviso conta que a pessoa foi avisada por e-mail e lê a resposta na Minha conta', async () => {
+    const { u, dentro } = await abrirOTitular(
+      {
+        identidade_validada: true,
+        identidade_validacao: 'AUTOMATICA_CADASTRO',
+        identidade_validada_em: '2026-10-09T12:00:00',
+      },
+      '/atendimentos?situacao=todas',
+    )
+    await u.type(
+      dentro.getByLabelText('Resposta'),
+      'Guardamos o seu nome e o seu telefone.',
+    )
+    await u.click(dentro.getByRole('button', { name: 'Registrar resposta' }))
+    const registrada = await dentro.findByRole('region', {
+      name: 'Resposta registrada',
+    })
+    expect(registrada).toHaveTextContent('Guardamos o seu nome')
+    expect(
+      within(registrada).getByText(/A pessoa foi avisada por e-mail/),
+    ).toBeVisible()
+    expect(
+      within(registrada).getByText(/ela a lê na área Minha conta do site/),
+    ).toBeVisible()
+  })
+
+  it('o aviso do titular quando o e-mail de aviso falha: chama a atenção e manda avisar por outro meio, sem prometer que a resposta foi por e-mail', async () => {
+    envioDaResposta = false
+    const { u, dentro } = await abrirOTitular(
+      {
+        identidade_validada: true,
+        identidade_validacao: 'AUTOMATICA_CADASTRO',
+        identidade_validada_em: '2026-10-09T12:00:00',
+      },
+      '/atendimentos?situacao=todas',
+    )
+    await u.type(dentro.getByLabelText('Resposta'), 'Guardamos o seu nome.')
+    await u.click(dentro.getByRole('button', { name: 'Registrar resposta' }))
+    const registrada = await dentro.findByRole('region', {
+      name: 'Resposta registrada',
+    })
+    const aviso = within(registrada).getByText(
+      /Não foi possível avisar a pessoa por e-mail/,
+    )
+    expect(aviso).toHaveClass('bg-amber-100')
+    expect(aviso).toHaveTextContent('avise por outro meio')
+  })
+
+  it('o servidor recusando responder sem validação aparece como alerta (a tela nunca esconde o motivo)', async () => {
+    const u = userEvent.setup()
+    // a tela travaria; forçamos um pedido que ela julga validado e que o servidor recusa (dados fora de sincronia)
+    base = [
+      pedidoDoTitular(1, {
+        identidade_validada: true,
+        identidade_validacao: 'AUTOMATICA_CADASTRO',
+        identidade_validada_em: '2026-10-09T12:00:00',
+      }),
+    ]
+    desenhar()
+    const dentro = await cartaoCarregado('ASAF-2026-00001')
+    await u.click(await dentro.findByRole('button', { name: 'Abrir' }))
+    await u.type(await dentro.findByLabelText('Resposta'), 'Resposta de teste.')
+    base[0]!.identidade_validada = false // o servidor de mentira passa a recusar
+    await u.click(dentro.getByRole('button', { name: 'Registrar resposta' }))
+    expect(await dentro.findByRole('alert')).toHaveTextContent(
+      'valide a identidade',
+    )
+  })
+
+  it('encerrar o titular avisa que o motivo aparece para a pessoa na Minha conta; os outros tipos não têm esse aviso', async () => {
+    const { dentro } = await abrirOTitular()
+    expect(
+      dentro.getByText(/este motivo aparece para a pessoa na área Minha conta/),
+    ).toBeVisible()
+  })
+
+  it.each([
+    {
+      envio: true,
+      texto: /A pessoa foi avisada por e-mail; ela lê o motivo/,
+      atencao: false,
+    },
+    {
+      envio: false,
+      texto: /Não foi possível avisar a pessoa por e-mail/,
+      atencao: true,
+    },
+  ])(
+    'encerrar o titular sem responder (aviso por e-mail = $envio): a tela diz se a pessoa foi avisada',
+    async ({ envio, texto, atencao }) => {
+      const u = userEvent.setup()
+      vi.mocked(api.encerrarAtendimento).mockImplementation(
+        async (id, motivo) =>
+          alterar(id, {
+            status: 'Encerrado',
+            motivo_encerramento: motivo,
+            encerrado_em: '2026-10-09T15:00:00',
+            situacao_do_prazo: 'encerrado',
+            resposta_enviada_por_email: envio,
+          }),
+      )
+      base = [pedidoDoTitular(1)]
+      desenhar('/atendimentos?situacao=todas')
+      const dentro = await cartaoCarregado('ASAF-2026-00001')
+      await u.click(await dentro.findByRole('button', { name: 'Abrir' }))
+      await u.type(
+        await dentro.findByLabelText('Motivo do encerramento'),
+        'Não foi possível conferir a identidade.',
+      )
+      await u.click(
+        dentro.getByRole('button', { name: 'Encerrar atendimento' }),
+      )
+      const aviso = await dentro.findByText(texto)
+      expect(aviso.closest('[data-envio-do-encerramento]')).not.toBeNull()
+      if (atencao) expect(aviso).toHaveClass('bg-amber-100')
+      else expect(aviso).not.toHaveClass('bg-amber-100')
+    },
+  )
+
+  it('o pedido de contato não fala de Minha conta ao encerrar', async () => {
+    const u = userEvent.setup()
+    desenhar()
+    const dentro = await cartaoCarregado('ASAF-2026-00001')
+    await u.click(await dentro.findByRole('button', { name: 'Abrir' }))
+    await dentro.findByLabelText('Motivo do encerramento')
+    expect(dentro.queryByText(/este motivo aparece para a pessoa/)).toBeNull()
+  })
+
+  it('os outros tipos de pedido não têm cartão de identidade e respondem como sempre', async () => {
+    const u = userEvent.setup()
+    desenhar()
+    const dentro = await cartaoCarregado('ASAF-2026-00001')
+    await u.click(await dentro.findByRole('button', { name: 'Abrir' }))
+    await dentro.findByRole('region', { name: 'Mensagem recebida' })
+    expect(
+      dentro.queryByRole('region', { name: 'Identidade de quem pediu' }),
+    ).toBeNull()
+    expect(dentro.getByLabelText('Resposta')).toBeEnabled()
+    expect(dentro.getByText(/também é enviada por e-mail/)).toBeVisible()
+  })
+
+  it('a tela do titular, com a identidade por validar, não tem violação de acessibilidade (axe)', async () => {
+    const u = userEvent.setup()
+    base = [pedidoDoTitular(1)]
+    const { container } = desenhar()
+    const dentro = await cartaoCarregado('ASAF-2026-00001')
+    await u.click(await dentro.findByRole('button', { name: 'Abrir' }))
+    await dentro.findByLabelText('O que você conferiu')
+    expect(await axe(container)).toHaveNoViolations()
+  })
+})
+
+describe('Atendimento: textos da identidade (v5.7f)', () => {
+  const base7f = {
+    exige_identidade_validada: true,
+    identidade_validada: true,
+    identidade_validada_em: '2026-10-09T12:00:00',
+    identidade_nota: null,
+  } as const
+
+  it('só a solicitação do titular tem o que validar', () => {
+    expect(
+      textoDaIdentidade({
+        ...base7f,
+        exige_identidade_validada: false,
+        identidade_validada: false,
+        identidade_validacao: null,
+      }),
+    ).toBeNull()
+  })
+
+  it('por validar, validada pelo sistema, pelo código e à mão: cada caso tem a sua frase', () => {
+    const pendente = textoDaIdentidade({
+      ...base7f,
+      identidade_validada: false,
+      identidade_validada_em: null,
+      identidade_validacao: null,
+    })
+    expect(pendente?.validada).toBe(false)
+    expect(pendente?.texto).toMatch(/Sem isso o sistema não deixa responder/)
+
+    const cadastro = textoDaIdentidade({
+      ...base7f,
+      identidade_validacao: 'AUTOMATICA_CADASTRO',
+    })
+    expect(cadastro?.validada).toBe(true)
+    expect(cadastro?.texto).toMatch(/validada automaticamente em 09\/10\/2026/)
+    expect(cadastro?.texto).toMatch(/cadastro de associado/)
+
+    expect(
+      textoDaIdentidade({ ...base7f, identidade_validacao: 'CODIGO_NO_EMAIL' })
+        ?.texto,
+    ).toMatch(/Minha conta/)
+
+    const manual = textoDaIdentidade({
+      ...base7f,
+      identidade_validacao: 'MANUAL',
+      identidade_nota: 'Conferi o RG.',
+      identidade_validada_por: 'ana@homologacao.example.com',
+    })
+    expect(manual?.texto).toMatch(/validada pela equipe por ana@homologacao/)
+    expect(manual?.texto).toMatch(/O que foi conferido: Conferi o RG\./)
+  })
+
+  it('a nota de validação: mínimo de 10 letras (espaços repetidos não contam) e máximo de 500', () => {
+    expect(validarNotaDeIdentidade('   ok   ')).toMatch(/pelo menos 10 letras/)
+    expect(validarNotaDeIdentidade('abc     defg')).toMatch(/pelo menos 10/)
+    expect(validarNotaDeIdentidade('Conferi o documento.')).toBeNull()
+    expect(validarNotaDeIdentidade('x'.repeat(501))).toMatch(/até 500 letras/)
+  })
+
+  it('o aviso do encerramento do titular: avisada, não avisada (com o contato) e os casos em que não há o que dizer', () => {
+    const base = {
+      tipo: 'TITULAR_LGPD' as const,
+      respondido_em: null,
+      email_contato: 'maria@homologacao.example.com',
+      telefone_whatsapp: '91988887777',
+    }
+    expect(
+      avisoDoEncerramentoDoTitular({
+        ...base,
+        resposta_enviada_por_email: true,
+      }),
+    ).toEqual({
+      texto:
+        'A pessoa foi avisada por e-mail; ela lê o motivo na área Minha conta do site.',
+      atencao: false,
+    })
+    const falhou = avisoDoEncerramentoDoTitular(
+      { ...base, resposta_enviada_por_email: false },
+      true,
+    )
+    expect(falhou?.atencao).toBe(true)
+    expect(falhou?.texto).toMatch(/Não foi possível avisar a pessoa por e-mail/)
+    expect(falhou?.texto).toMatch(/E-mail: maria@homologacao.example.com/)
+    // sem e-mail (null), outro tipo de pedido ou pedido que já tinha sido respondido: nada a dizer
+    expect(
+      avisoDoEncerramentoDoTitular({
+        ...base,
+        resposta_enviada_por_email: null,
+      }),
+    ).toBeNull()
+    expect(
+      avisoDoEncerramentoDoTitular({
+        ...base,
+        tipo: 'CONTATO',
+        resposta_enviada_por_email: true,
+      }),
+    ).toBeNull()
+    expect(
+      avisoDoEncerramentoDoTitular({
+        ...base,
+        respondido_em: '2026-10-09T14:00:00',
+        resposta_enviada_por_email: true,
+      }),
+    ).toBeNull()
+  })
+
+  it('o aviso do e-mail da solicitação do titular nunca diz que a resposta foi enviada por e-mail', () => {
+    const titular = {
+      tipo: 'TITULAR_LGPD' as const,
+      email_contato: 'maria@homologacao.example.com',
+      telefone_whatsapp: '91988887777',
+    }
+    const enviado = avisoDoEnvioDaResposta({
+      ...titular,
+      resposta_enviada_por_email: true,
+    })
+    expect(enviado.atencao).toBe(false)
+    expect(enviado.texto).toMatch(/avisada por e-mail/)
+    expect(enviado.texto).toMatch(/não vai por e-mail/)
+    const falhou = avisoDoEnvioDaResposta(
+      { ...titular, resposta_enviada_por_email: false },
+      true,
+    )
+    expect(falhou.atencao).toBe(true)
+    expect(falhou.texto).toMatch(/E-mail: maria@homologacao.example.com/)
+    expect(falhou.texto).toMatch(/Telefone: 91988887777/)
+    expect(falhou.texto).not.toMatch(/foi enviada por e-mail/)
   })
 })

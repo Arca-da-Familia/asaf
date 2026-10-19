@@ -64,6 +64,9 @@ def sair(sessao: SessaoDeVisitante = Depends(sessao_do_visitante), db: Session =
 def pedir_apagamento(request: Request, sessao: SessaoDeVisitante = Depends(sessao_do_visitante), db: Session = Depends(get_db)):
     atendimento, novo = servico.pedir_apagamento(db, sessao)
     if novo:
-        registrar_auditoria(db, None, "atendimentos", "VISITANTE_PEDIU_APAGAMENTO", id_registro_afetado=atendimento.id_atendimento, ip_origem=_ip_publico(request))
+        registrar_auditoria(
+            db, None, "atendimentos", "VISITANTE_PEDIU_APAGAMENTO", id_registro_afetado=atendimento.id_atendimento, dados_depois={"identidade": atendimento.identidade_validacao},
+            ip_origem=_ip_publico(request),
+        )
         atendimentos.confirmar_recebimento_por_email(atendimento)
     return {"mensagem": "Pedido recebido.", "protocolo": atendimento.protocolo, "prazo_dias": atendimento.prazo_dias, "prazo_em": atendimento.prazo_em, "ja_existia": not novo}

@@ -161,7 +161,12 @@ export function validarPedido(
     erros.email_contato = 'Esse e-mail não parece certo.'
   if (telefone && !telefoneValido(telefone))
     erros.telefone_whatsapp = 'Use o DDD e o número, com 10 ou 11 dígitos.'
-  if (!email && !telefone)
+  if (ehSolicitacaoDeTitular(v.tipo)) {
+    // v5.7f: a resposta sobre dados pessoais é lida na área Minha conta, que pede o e-mail e um código enviado a ele
+    if (!email)
+      erros.email_contato =
+        'Informe o seu e-mail: a resposta sobre os seus dados é lida na área Minha conta, com este e-mail e um código.'
+  } else if (!email && !telefone)
     erros.contato =
       'Informe um e-mail ou um telefone para a associação conseguir responder.'
 

@@ -21,7 +21,7 @@ from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.atendimento import EM_ATENDIMENTO, NOVO, TITULAR_LGPD, Atendimento
+from app.models.atendimento import ENCERRADO, EM_ATENDIMENTO, IDENTIDADE_CODIGO_NO_EMAIL, NOVO, RESPONDIDO, TITULAR_LGPD, Atendimento
 from app.models.conta_de_visitante import CodigoDeVisitante, SessaoDeVisitante
 from app.models.doacoes import CampanhaArrecadacao, Doacao
 from app.models.eventos import Evento
@@ -48,7 +48,7 @@ ENTRADAS_POR_IP_EM_15_MINUTOS = 20
 VERSAO_AVISO_DE_PRIVACIDADE_VISITANTE = "1"
 MENSAGEM_DO_CODIGO_INVALIDO = "Código inválido ou vencido: confira os números ou peça um novo código."
 MENSAGEM_DO_PEDIDO = (
-    "Se houver inscrição em evento ou pedido de doação feitos pelo site com este e-mail, tentamos enviar um código de 6 números. Ele vale por 10 minutos e só pode ser usado uma vez. "
+    "Se houver inscrição em evento, pedido de doação ou solicitação do titular de dados feitos pelo site com este e-mail, tentamos enviar um código de 6 números. Ele vale por 10 minutos e só pode ser usado uma vez. "
     "Se não chegar em alguns minutos, olhe também a caixa de spam."
 )
 
@@ -87,11 +87,24 @@ def _inscricoes_do_email(db: Session, email: str, so_uma: bool = False) -> list[
     return consulta.limit(1).all() if so_uma else consulta.all()
 
 
+def _pedidos_do_titular_do_email(db: Session, email: str) -> list[Atendimento]:
+    """As solicitações do titular de dados (LGPD) feitas com este e-mail DIGITADO (v5.7f): é por aqui, e só aqui, que a resposta com dado pessoal é entregue."""
+    return (
+        db.query(Atendimento)
+        .filter(Atendimento.tipo == TITULAR_LGPD, func.lower(Atendimento.email_contato) == email)
+        .order_by(Atendimento.criado_em.desc(), Atendimento.id_atendimento.desc())
+        .all()
+    )
+
+
 def email_tem_vinculo(db: Session, email: str) -> bool:
-    """Existe algo para mostrar? Uma inscrição em evento feita pelo site COM ESTE E-MAIL (o certificado só aparece junto de uma inscrição assim) ou um pedido de doação pelo site com ele."""
+    """Existe algo para mostrar? Uma inscrição em evento feita pelo site COM ESTE E-MAIL (o certificado só aparece junto de uma inscrição assim), um pedido de doação pelo site com ele ou uma
+    solicitação do titular de dados feita com ele (a resposta é lida aqui, v5.7f)."""
     if _inscricoes_do_email(db, email, so_uma=True):
         return True
-    return db.query(IntencaoDeDoacao.id_intencao).filter(func.lower(IntencaoDeDoacao.email_doador) == email).first() is not None
+    if db.query(IntencaoDeDoacao.id_intencao).filter(func.lower(IntencaoDeDoacao.email_doador) == email).first() is not None:
+        return True
+    return db.query(Atendimento.id_atendimento).filter(Atendimento.tipo == TITULAR_LGPD, func.lower(Atendimento.email_contato) == email).first() is not None
 
 
 # ------------------------------------------------------------------------------------------------ pedir o código
@@ -267,12 +280,32 @@ def _pedido_de_apagamento_aberto(db: Session, email: str) -> Optional[Atendiment
     )
 
 
+def meus_pedidos_do_titular(db: Session, email: str) -> list[dict]:
+    """As solicitações do titular de dados feitas com este e-mail e a resposta da equipe (v5.7f). A resposta só aparece quando o pedido foi respondido E a identidade tinha sido validada (o servidor
+    já recusa responder sem isso; aqui é a segunda trava). Nunca o CPF nem o texto do pedido."""
+    itens = []
+    for a in _pedidos_do_titular_do_email(db, email):
+        # a resposta fica na conta mesmo que o pedido tenha sido encerrado depois de respondido (encerrar é o último passo de quem atende)
+        entregue = a.resposta is not None and a.respondido_em is not None and a.identidade_validada_em is not None
+        sem_resposta_e_encerrado = a.status == ENCERRADO and a.respondido_em is None
+        itens.append({
+            "protocolo": a.protocolo, "o_que_pediu": atendimentos.ROTULOS_DO_SUBTIPO_LGPD.get(a.subtipo or ""), "situacao": RESPONDIDO if a.respondido_em is not None else a.status,
+            "pedido_em": a.criado_em, "prazo_em": a.prazo_em,
+            "respondido_em": a.respondido_em if entregue else None, "resposta": a.resposta if entregue else None,
+            # o pedido encerrado SEM resposta (por exemplo, sem a identidade validada) mostra o motivo, mas só o que foi escrito já sabendo que a pessoa o lê (o de antes da v5.7f era nota interna)
+            "encerrado_em": a.encerrado_em if sem_resposta_e_encerrado else None,
+            "motivo_do_encerramento": a.motivo_encerramento if sem_resposta_e_encerrado and a.motivo_visivel_ao_titular else None,
+        })
+    return itens
+
+
 def minha_conta(db: Session, sessao: SessaoDeVisitante) -> dict:
     email = sessao.email
     pedido = _pedido_de_apagamento_aberto(db, email)
     return {
         "email": email, "sessao_expira_em": sessao.expira_em,
         "inscricoes": minhas_inscricoes(db, email), "certificados": meus_certificados(db, email), "doacoes": minhas_doacoes(db, email),
+        "pedidos_do_titular": meus_pedidos_do_titular(db, email),
         "pedido_de_apagamento": {"protocolo": pedido.protocolo, "prazo_em": pedido.prazo_em, "status": pedido.status} if pedido else None,
     }
 
@@ -296,7 +329,7 @@ def pedir_apagamento(db: Session, sessao: SessaoDeVisitante, agora: Optional[dat
     )
     atendimento, novo = atendimentos.registrar_pelo_site(
         db, tipo=TITULAR_LGPD, subtipo="ELIMINACAO", assunto="Eliminação de dados pela área do visitante", mensagem=mensagem, nome_completo=nome, email=sessao.email,
-        telefone=None, cpf=None, versao_do_aviso=VERSAO_AVISO_DE_PRIVACIDADE_VISITANTE, agora=agora,
+        telefone=None, cpf=None, versao_do_aviso=VERSAO_AVISO_DE_PRIVACIDADE_VISITANTE, agora=agora, identidade=IDENTIDADE_CODIGO_NO_EMAIL,
     )
     return atendimento, novo
 

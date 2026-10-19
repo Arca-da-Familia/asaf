@@ -241,14 +241,38 @@ describe('validarPedido', () => {
       'mensagem',
       'nome_completo',
     ])
+    // v5.7f: na solicitação do titular o e-mail é obrigatório (a resposta é lida na área Minha conta), então o erro vai no campo do e-mail
     expect(Object.keys(validarPedido(vazio('TITULAR_LGPD'))).sort()).toEqual([
       'consentimento_lgpd',
-      'contato',
       'cpf',
+      'email_contato',
       'mensagem',
       'nome_completo',
       'subtipo',
     ])
+  })
+
+  it('v5.7f: a solicitação do titular exige e-mail (só telefone não basta) e os outros tipos continuam aceitando só telefone', () => {
+    const soTelefone = { email_contato: '', telefone_whatsapp: '91988887777' }
+    const titular = validarPedido(valoresOk('TITULAR_LGPD', soTelefone))
+    expect(titular.email_contato).toContain('Informe o seu e-mail')
+    expect(titular.email_contato).toContain('Minha conta')
+    expect(titular.contato).toBeUndefined()
+    for (const tipo of ['CONTATO', 'PEDIDO_INFORMACAO', 'VOLUNTARIO'] as const)
+      expect(validarPedido(valoresOk(tipo, soTelefone), HOJE), tipo).toEqual({})
+    // com e-mail e sem telefone, a solicitação do titular passa; e-mail torto continua com a frase de sempre
+    expect(
+      validarPedido(
+        valoresOk('TITULAR_LGPD', {
+          email_contato: 'a@b.com',
+          telefone_whatsapp: '',
+        }),
+      ),
+    ).toEqual({})
+    expect(
+      validarPedido(valoresOk('TITULAR_LGPD', { email_contato: 'torto' }))
+        .email_contato,
+    ).toBe('Esse e-mail não parece certo.')
   })
 })
 

@@ -23,6 +23,12 @@ RESPONDIDO = "Respondido"
 ENCERRADO = "Encerrado"
 SITUACOES = (NOVO, EM_ATENDIMENTO, RESPONDIDO, ENCERRADO)
 
+# v5.7f - como a identidade de quem pede dado pessoal foi validada
+IDENTIDADE_AUTOMATICA_CADASTRO = "AUTOMATICA_CADASTRO"  # o e-mail digitado é o do cadastro de associado daquele CPF
+IDENTIDADE_CODIGO_NO_EMAIL = "CODIGO_NO_EMAIL"  # o pedido foi aberto de dentro da área Minha conta: o e-mail já tinha sido provado por código de uso único
+IDENTIDADE_MANUAL = "MANUAL"  # a equipe conferiu por outro meio e registrou o que conferiu
+IDENTIDADES = (IDENTIDADE_AUTOMATICA_CADASTRO, IDENTIDADE_CODIGO_NO_EMAIL, IDENTIDADE_MANUAL)
+
 
 class Atendimento(Base):
     __tablename__ = "atendimentos"
@@ -58,13 +64,24 @@ class Atendimento(Base):
     id_responsavel = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     assumido_em = Column(DateTime, nullable=True)
 
+    # v5.7f - quem pede dado pessoal tem a identidade validada ANTES de a equipe responder (só na solicitação do titular): `identidade_validacao` diz como (as três constantes acima), `identidade_nota`
+    # guarda o que a equipe conferiu (só na validação à mão) e `id_usuario_validacao` quem a fez. Pedido antigo, sem validação, fica com tudo vazio.
+    identidade_validacao = Column(String(24), nullable=True)
+    identidade_validada_em = Column(DateTime, nullable=True)
+    id_usuario_validacao = Column(Integer, ForeignKey("usuarios.id_usuario", name="fk_atendimentos_id_usuario_validacao"), nullable=True)
+    identidade_nota = Column(String(500), nullable=True)
+
     resposta = Column(Text, nullable=True)
     respondido_em = Column(DateTime, nullable=True)
     id_usuario_resposta = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
-    # a resposta foi enviada por e-mail de verdade? (None = não havia e-mail ou não se tentou; False = tentou e falhou: a pessoa precisa ser avisada por outro meio)
+    # a resposta foi enviada por e-mail de verdade? (None = não havia e-mail ou não se tentou; False = tentou e falhou: a pessoa precisa ser avisada por outro meio).
+    # v5.7f: na solicitação do titular o e-mail leva só o AVISO de que há resposta (o texto, que tem dado pessoal, só aparece na área Minha conta, depois do código): aqui vale "o aviso saiu?"
     resposta_enviada_por_email = Column(Boolean, nullable=True)
 
     motivo_encerramento = Column(String(300), nullable=True)
+    # v5.7f: o motivo de encerramento da solicitação do titular aparece para a pessoa na área Minha conta SÓ quando foi escrito já sabendo disso (True, gravado ao encerrar); o de antes
+    # da v5.7f (None) foi escrito como nota interna e nunca aparece
+    motivo_visivel_ao_titular = Column(Boolean, nullable=True)
     encerrado_em = Column(DateTime, nullable=True)
     id_usuario_encerramento = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
 

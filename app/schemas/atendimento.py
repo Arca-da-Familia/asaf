@@ -98,6 +98,9 @@ class AtendimentoPublicoCriar(BaseModel):
                 raise ValueError("Escolha o que você quer pedir sobre os seus dados.")
             if not self.cpf:
                 raise ValueError("Informe o seu CPF: é com ele que a associação confere quem está pedindo.")
+            if not self.email_contato:
+                # v5.7f: a resposta com dado pessoal não vai solta por e-mail nem por telefone: ela é lida na área Minha conta, que pede o e-mail e um código enviado a ele
+                raise ValueError("Informe o seu e-mail: a resposta sobre os seus dados é lida na área Minha conta do site, com este e-mail e um código que enviamos a ele.")
         elif self.tipo == "VOLUNTARIO":
             # o voluntariado não pede assunto (é sempre o mesmo) nem direito do titular; pede a data de nascimento (o termo de adesão de menor de 18 anos exige a autorização
             # de um responsável) e o CPF é opcional (a secretaria pede depois, para o termo)
@@ -124,3 +127,8 @@ class AtendimentoResponder(BaseModel):
 
 class AtendimentoEncerrar(BaseModel):
     motivo: str
+
+
+class AtendimentoValidarIdentidade(BaseModel):
+    """v5.7f: o que a equipe conferiu para validar a identidade de quem pediu (a solicitação do titular)."""
+    nota: str
