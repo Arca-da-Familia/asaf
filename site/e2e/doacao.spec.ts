@@ -1032,9 +1032,10 @@ test.describe('doar se identificando', () => {
       await abrir(page)
       await preencherIdentificada(page, { email, valor })
       await enviarIdentificada(page)
-      protocolos.push(
-        (await confirmacao(page).locator('[data-protocolo]').textContent())!,
-      )
+      // o protocolo só chega depois da resposta da API: lê o texto SÓ quando ele já está na tela (antes, o teste lia o campo vazio e reprovava na máquina mais lenta do CI)
+      const numero = confirmacao(page).locator('[data-protocolo]')
+      await expect(numero).toHaveText(/^DOA-\d{4}-\d{5}$/)
+      protocolos.push((await numero.textContent())!)
     }
     expect(protocolos[1]).toBe(protocolos[0])
     expect(protocolos[2]).not.toBe(protocolos[0])
