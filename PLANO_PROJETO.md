@@ -251,6 +251,8 @@ retrabalho que a seção 4.1 existe pra evitar.
 > a face pública da transparência. Tudo que é **dado** vem do FastAPI; só o que é **editorial** vem
 > do Directus. Essa fronteira é o que impede o site de virar um segundo sistema.
 
+> **O que ainda falta da FASE 5 está numa lista só: o "Fechamento da FASE 5", no fim desta fase** (organizada em 2026-10-19). Os `[ ]` e as notas "Falta" dentro das versões são o histórico; quando divergirem, vale o Fechamento.
+
 #### v5.0 — Fundação técnica do site
 
 - [x] Astro com geração estática + ilhas interativas, publicado no Static Web App `asaf-site` (já
@@ -258,10 +260,11 @@ retrabalho que a seção 4.1 existe pra evitar.
 - [x] Rebuild sob demanda: o workflow `deploy-site.yml` aceita disparo (`workflow_dispatch`) com
       token de mínimo privilégio; dado dinâmico do FastAPI (eventos, transparência) é buscado no
       cliente (ilha), para não exigir rebuild a cada inscrição.
-- [ ] **Flow do Directus que chama esse disparo** quando o conteúdo muda — **movido para a
+- [x] **Flow do Directus que chama esse disparo** quando o conteúdo muda — **movido para a
       v5.1**: um Flow precisa de coleção para escutar, e as coleções só nascem na v5.3 (era v5.1). O
       receptor (workflow) já está pronto e testado; o procedimento exato está em
       [`site/README.md`](site/README.md#rebuild-quando-o-conteúdo-do-directus-muda).
+      **Resolvido de outro jeito (conferido em 2026-10-19):** o fluxo `sincronizar-site.yml` roda de 15 em 15 minutos e reconstrói o site quando a API **ou** o Directus mudou (v5.3); ver a seção G do Fechamento da FASE 5.
 - [x] Mesmos tokens de design do painel (v0.2.4) — identidade visual única, mantida num lugar só
       (`design/`, consumido por `painel/` e `site/`).
 - [x] SEO técnico desde o início: metadados por página, Open Graph, `sitemap.xml`, `robots.txt`,
@@ -469,16 +472,17 @@ retrabalho que a seção 4.1 existe pra evitar.
 > - [x] **Identidade do git trocada para `asaf@asaf.org.br`** (`.git/config` local, a pedido do
 >       usuário em 2026-10-01: "a partir de hoje tem que sair no org.br"). Vale para os commits
 >       novos; o histórico (147 commits como `asaf@arcadafamilia.org`) não é reescrito.
-> - [ ] **Chave de automação do Directus no Key Vault — BLOQUEADA pelo sistema de segurança do
+> - [x] **Chave de automação do Directus no Key Vault — BLOQUEADA pelo sistema de segurança do
 >       Claude Code** (regra "escrita em cofre de segredos", 2026-10-01): a tentativa de gerar um
 >       token estático para a conta real e gravá-lo em `DIRECTUS-ADMIN-TOKEN` foi negada, e não
 >       foi contornada. Nada depende disso até as coleções (v5.1); opções: o usuário libera a
 >       regra, ou grava o segredo pelo Portal do Azure (Cofre → Segredos → Gerar/Importar).
+>       **Resolvido de outro jeito (2026-10-03, decisão do usuário; conferido em 2026-10-19):** o token de administrador fica cifrado em `CREDENCIAIS_AZURE.md` (SOPS), lido só em memória (ver a v5.3); o Key Vault não recebeu `DIRECTUS-ADMIN-TOKEN`.
 > - [x] **Atalho no painel**: cartão "Editar o site" na tela inicial, visível a quem tem
 >       `gerenciar_acesso` (presidência), abre o Directus em nova aba. É conveniência; quem
 >       protege é o login do Directus. Papel de editor próprio (`editar_site`) nasce com os
 >       papéis do Directus, abaixo.
-> - [ ] **Chave do plano gratuito (Open Innovation Grant) — o usuário JÁ TEM a chave, mas não há
+> - [x] **Chave do plano gratuito (Open Innovation Grant) — o usuário JÁ TEM a chave, mas não há
 >       onde digitá-la: a aba Settings → License NÃO existe na versão em uso.** Achado de
 >       2026-10-01: o sistema de licença é da **versão 12** do Directus (licença *Monospace
 >       Sustainable Core License*, MSCL); a instância roda a **11.17.4**, que não tem a aba. A 12
@@ -507,6 +511,7 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       (as tabelas `directus_*` só tinham 2 usuários e configuração padrão — se a migração
 >       impedisse a volta, recria-se do zero, e o `ADMIN_EMAIL` corrigido recria a conta real).
 >       **Falta só o usuário digitar a chave em Settings → License.**
+>       **Feito (conferido em 2026-10-19):** a chave foi aplicada em 2026-10-03 (`license.source = settings`, "OIG") e as 8 permissões que dependiam dela foram criadas; `verificar --producao` limpo (ver a v5.3).
 > - [x] **Chave `SECRET` do Directus curta demais — CORRIGIDA em 2026-10-02** (aviso do log da
 >       12): tinha **27 caracteres** (o Directus exige ≥ 32; ela assina os tokens de sessão).
 >       Trocada por uma aleatória de **64 caracteres**, no Key Vault (`DIRECTUS-SECRET`) e no
@@ -656,19 +661,25 @@ retrabalho que a seção 4.1 existe pra evitar.
 >       o Directus **só** à pública — e, dentro de cada conta, um contêiner por assunto. A
 >       separação por conta é a forte; contêiner separado na mesma conta só isola de verdade se
 >       o acesso for restrito por contêiner. **Decisão do usuário** antes de implementar.
-> - [ ] **Usuário de serviço + token estático somente-leitura** para o build do site, guardado
+> - [x] **Usuário de serviço + token estático somente-leitura** para o build do site, guardado
 >       no Key Vault (`DIRECTUS-SITE-TOKEN`) — só depois das coleções de conteúdo e do papel
 >       restrito. Com ele, o administrador pode ter MFA obrigatório (`enforce_tfa`) sem quebrar
 >       automação.
+>       **Feito na v5.3** (`criar-leitor --producao`; autoteste do token em produção). O MFA do administrador do Directus segue aberto (C2 do Fechamento da FASE 5).
 > - [ ] Nota de saúde: `GET /server/health` do Directus devolve `warn` por tempo de resposta do
 >       Postgres (518 ms contra limite de 150 ms) — latência do banco Burstable; acompanhar.
 
 - [ ] Coleções: páginas institucionais, notícias, banners, galeria, depoimentos, parceiros,
       perguntas frequentes — **só conteúdo público**, nunca dado de associado/financeiro.
-- [ ] Fluxo editorial com rascunho → revisão → publicado, agendamento de publicação e histórico de
+      **Situação (conferida em 2026-10-19): só a coleção `noticias` foi construída** (v5.3, com a ligação a projeto e a evento da v5.5). Textos de página, banners, galeria, FAQ, depoimentos e parceiros
+      **não** existem no Directus; ver C6 do Fechamento da FASE 5 (decisão do Presidente).
+- [x] Fluxo editorial com rascunho → revisão → publicado, agendamento de publicação e histórico de
       versão com possibilidade de reverter.
-- [ ] Papéis do Directus mapeados à realidade (editor de conteúdo x administrador), sem dar
+      **Feito na v5.3** (rascunho → revisão → publicado → arquivado, agendamento pela data "Publicar em", histórico de versões com reversão; o rascunho nunca chega ao site, provado ao vivo).
+- [x] Papéis do Directus mapeados à realidade (editor de conteúdo x administrador), sem dar
       administrador para quem só escreve notícia.
+      **Feito na v5.3:** 5 perfis (Editor de transparência, Editor de conteúdo, Redator, Colaborador de mídia, Leitor do site) criados em produção, nenhum com acesso de administrador. Restam, no
+      Fechamento da FASE 5: o teste ao vivo dos demais perfis (C3) e o atalho `editar_site` (C4).
       > **Requisito do usuário (2026-10-01) — VÁRIOS perfis de acesso, desde já**: hoje só existe
       > o administrador (o próprio usuário), mas a FASE 5 e as seguintes vão ter muita gente
       > com funções diferentes, e **cada um só pode ter acesso ao que a função dele precisa**:
@@ -684,15 +695,19 @@ retrabalho que a seção 4.1 existe pra evitar.
       > do isolamento acima); cada perfil novo entra com teste de "esta pessoa NÃO consegue
       > fazer X". No painel, o atalho "Editar o site" passa a ter permissão própria
       > (`editar_site`) em vez de reaproveitar `gerenciar_acesso`.
-- [ ] Biblioteca de mídia com texto alternativo **obrigatório** (acessibilidade não é opcional) e
+- [x] Biblioteca de mídia com texto alternativo **obrigatório** (acessibilidade não é opcional) e
       geração de tamanhos responsivos.
+      **Feito na v5.3 para a foto da notícia (hoje o único uso):** texto alternativo e autorização de imagem obrigatórios; a foto sai em WebP de até 1280 px. Os tamanhos responsivos (`srcset`)
+      ficaram como melhoria futura (seção F do Fechamento da FASE 5).
 
 #### v5.2 — Páginas essenciais
 
-- [ ] Home, Quem Somos/História, Diretoria e Conselho (lendo os mandatos vigentes da FASE 2, nunca
+- [x] Home, Quem Somos/História, Diretoria e Conselho (lendo os mandatos vigentes da FASE 2, nunca
       digitados de novo), Projetos (lendo os projetos públicos da FASE 4), Notícias, Agenda de
       Eventos (FastAPI), Transparência (FASE 3/12.7), Como Ajudar/Doe, Seja Voluntário, Seja
       Associado, Contato com mapa, Política de Privacidade e Termos de Uso versionados (FASE 7).
+      **Conferido em 2026-10-19:** as 16 páginas existem em `site/src/pages` e respondem 200 em `asaf.org.br` (lista na seção G do Fechamento da FASE 5); o **mapa com pino** ficou adiado por
+      decisão do Presidente (seção F).
       > **Pendências registradas pela v2.0/v2.1 (2026-09-15)**, já prontas para esta página
       > consumir: "Diretoria e Conselho" lê `GET /api/mandatos/?apenas_vigentes=true` (v2.1) -
       > nenhum nome de dirigente digitado à mão no site. Uma página "Estatuto" (ou seção dentro de
@@ -1108,9 +1123,12 @@ retrabalho que a seção 4.1 existe pra evitar.
       **Ainda aberto na v5.3:** SMTP do Directus (convite e recuperação de senha), administrador de reserva, MFA do
       administrador, teste ao vivo dos demais perfis com usuários de teste, e a verificação `isolar_directus.py
       verificar` (16/16) — exige a conexão do banco, que não foi aberta neste ciclo.
-- [ ] **Verificação em produção**: `isolar_directus.py verificar` (16/16) + nenhuma coleção fora do
+- [x] **Verificação em produção**: `isolar_directus.py verificar` (16/16) + nenhuma coleção fora do
       schema `directus` + `GET /items/…` sem token = 403 + rascunho ausente do site + token de serviço
       não consegue escrever.
+      **Conferido (2026-10-08 e 2026-10-19):** `isolar_directus.py verificar` na produção, só leitura, "o Directus não alcança nenhuma tabela do sistema" (2026-10-08, bloco do Ponto 1/2); `directus_configurar.py
+      verificar --producao` "conforme o modelo"; em 2026-10-19, `GET cms.asaf.org.br/items/paginas` e `/items/noticias` sem token = **403** e `server/ping` 200; rascunho fora do site e token só de leitura
+      provados pelos testes do modelo e do site e pelo autoteste do token.
 
 #### v5.4 — Transparência e Emendas Parlamentares (o site "pronto para receber") — fonte da verdade no SISTEMA
 
@@ -1766,6 +1784,193 @@ Para **cada versão** (v5.5 em diante), nesta ordem — pular um passo é descum
 Mudança que não toca tela nem regra (documento, ajuste de pipeline) segue o fluxo curto do `CLAUDE.md`.
 
 
+#### v5.4h — Lacunas achadas ao vivo (telas e módulos que faltam; decisões do Presidente em 2026-10-07)
+
+Tudo aqui é construído (não é "decidir se faz"), na ordem abaixo, cada item pelo caminho de sempre: branch → homologação → robô → só então a
+`main`. As decisões do Presidente (voz, 2026-10-07; Estatuto em `ESTATUTO_ASAF.txt`) estão resumidas em cada item.
+
+- [x] **Títulos com filtros e paginação.** Título = cada **entrada** (a receber) ou **saída** (a pagar). A tela passa a filtrar por **mês**
+      (filtro principal), intervalo de datas, **entradas ou saídas** (uma página para cada), situação, categoria e texto; lista paginada.
+      **Na homologação (2026-10-07):** o robô (`v5.4h-01`, 5 de 5) lançou 31 saídas e 3 entradas em meses de 2088 e conferiu: o mês filtra; 31
+      títulos são 2 páginas de 25 (a segunda com os 6 que sobram); Entradas e Saídas em páginas próprias; busca por texto; tipo, situação e
+      categoria combinando; "Todo o período" tirando o mês; os filtros guardados no endereço; o Secretário barrado. A regressão na pilha final
+      ficou verde (e-01 13, e-02 29, e-03 12, e-04 16, f-01 22, f-02 16, f-03 16). **Em produção (2026-10-08):** commit `66642bd` no
+      `version.json`; Deploy API e Deploy Painel verdes; `GET /api/titulos/resumo` responde 401 sem login.
+- [x] **Paginação nas outras listas que crescem** (Associados, Razão Contábil, Auditoria): o mesmo padrão dos Títulos. A Auditoria já era paginada no servidor;
+      Associados e Razão passaram a ser (25 por página, total vindo do servidor, busca e filtros feitos no banco).
+      **Na homologação (2026-10-09):** `v5.4h-12`, 4 de 4: Associados (a primeira página traz 25 e o total vem do servidor; a seguinte traz outros nomes; a busca
+      acha pelo nome, fica no endereço e some ao apagar; situação e categoria filtram de verdade) e Razão Contábil (os 25 mais novos, o total e o saldo vêm do
+      servidor; a busca acha pelo número e pelo histórico e diz quando não acha). Regressão das telas que usam as duas listas, todas verdes: `v5.4c-fase0` 6,
+      `v5.4c-fase1` 24, `v5.4d-06` 16, `v5.4e-01` 16 (1 teste, o do fechamento do exercício, só roda no fim da bateria), `v5.4e-02` 29, `v5.4e-03` 12,
+      `v5.4e-04` 16, `v5.4f-01` 22, `v5.4g-03` 8 e `v5.4h-04` 4. **Achados do robô, corrigidos e refeitos:** (1) buscar um número grande (o da rodada de testes,
+      13 dígitos) também comparava com a matrícula e com o número do lançamento, que são inteiros de 32 bits no Postgres, e dava erro lá sem aparecer no SQLite dos
+      testes (auxiliar `app/services/busca.py`; o teste compila a consulta como o Postgres a recebe e falha sem a correção); (2) três roteiros liam a tabela antes
+      de ela refiltrar ou contavam as linhas da tela (agora ela mostra 25 por página): passaram a esperar o resultado e a ler o total que a tela informa.
+      **Em produção (2026-10-09):** commit `aa89969` no `version.json` do painel; Deploy API e Deploy Painel verdes; `GET /api/associados/resumo`,
+      `GET /api/associados/?pagina=1` e `GET /api/livro-caixa/?pagina=1` respondem 401 sem login e a rota nova consta no `openapi.json`.
+- [x] **Módulo "Instituição" no painel:** cadastro de tudo da instituição (nome, CNPJ, endereço, contatos, redes, logo, chave Pix, textos
+      institucionais), cada campo marcado **"vai para o site"** ou **"só interno"**; o site passa a ler de lá.
+      **Na homologação (2026-10-07):** `v5.4h-02`, 5 de 5: os campos por grupo com a marca "aparece no site" ou "só interno"; salvar grava e
+      continua gravado ao recarregar; a marca decide o que a rota pública entrega (some e volta na hora); CNPJ inválido, e-mail sem arroba, cor
+      fora do formato e nome do Pix longo são recusados em português com o nome do campo (não a chave técnica) e não deixam rastro; o CNPJ
+      válido grava e as alterações aparecem na Auditoria; o Secretário não vê o módulo nem entra pelo endereço. **Em produção (2026-10-08):**
+      `GET /api/instituicao/` responde 401 sem login; `GET /api/publico/instituicao` responde 200 só com os campos marcados e preenchidos.
+      **Atenção:** o CNPJ de produção ainda é o de exemplo (`00.000.000/0001-00`) e está marcado para o site: a diretoria precisa preencher o
+      real na tela Instituição **antes** de o site passar a ler de lá.
+- [x] **O site lê a Instituição:** os dados da Instituição marcados "vai para o site" (`/api/publico/instituicao`) passam a valer no site, **só o que está
+      preenchido E válido**: CNPJ com dígitos que conferem, e-mail, telefone brasileiro, horário de atendimento e endereço de Instagram/Facebook de verdade (qualquer
+      outro destino é descartado). O que está vazio ou inválido cai no texto fixo do Estatuto, então o CNPJ de exemplo da produção (`00.000.000/0001-00`) nunca
+      vai ao ar e um campo apagado não deixa buraco. Nome, endereço da sede e apresentação ficam sempre os do Estatuto. Contato, rodapé, Privacidade, Termos,
+      Transparência e os dados estruturados do Google usam os dados sobrepostos; o contato ganha horário e redes e o rodapé ganha as redes. A rota ausente (API
+      antiga) não derruba o build, e a Instituição entra na impressão digital do conteúdo: a diretoria muda um dado e a sincronização (15 em 15 minutos)
+      reconstrói o site sozinha. O site **não usa** Pix nem dados bancários (por padrão são internos).
+      **Testes:** função pura (validadores e sobreposição), leitura tolerante e impressão digital (vitest), build com a Instituição preenchida (`npm run
+      test:instituicao`, passo novo do CI do site), contato com a API antiga e o estado de hoje no navegador (CNPJ de exemplo ignorado); 356 testes de navegador
+      e a suíte unitária do site verdes. Defeito achado no caminho: um `await` dentro do HTML do layout não compila (o `astro check` não pega; o build, sim).
+      **Na homologação (2026-10-09):** `v5.4h-13` preenche a Instituição pela tela com valores fixos e válidos e a rota pública entrega exatamente isso; a
+      homologação é publicada de novo (o site de teste lê a API no build) e `v5.4h-14` abre o `hml-site` como visitante: o contato mostra CNPJ, telefone, e-mail,
+      horário e as duas redes (com `rel="noopener noreferrer"`) no lugar dos dados fixos; o rodapé mostra o e-mail e as redes; Privacidade, Termos e Transparência
+      mostram o e-mail e o CNPJ novos e nenhum fixo; o CNPJ de exemplo não aparece em página nenhuma; o JSON-LD traz o CNPJ, o e-mail e as redes; e a página da
+      **Diretoria** lista os 10 mandatos do sistema (7 da Diretoria Executiva e 3 do Conselho Fiscal) na seção do próprio órgão, sem CPF, e-mail ou telefone de
+      dirigente. Regressão no `hml-site`: `v5.4g-01` 5 de 5 (axe, celular, links internos), `v5.4g-05` 6 de 6, `v5.4h-10` 5 de 5 (formulário de filiação do site).
+      Achado do robô: o `v5.4h-02` alterna o CNPJ de propósito, então o roteiro do site passou a preparar os próprios dados (`v5.4h-13`) em vez de depender dele.
+      **Em produção (2026-10-09):** commit `325f2e4` no `version.json` do site; Deploy Site verde (inclusive o passo novo, axe e Lighthouse); contato, Privacidade
+      e Transparência seguem com o CNPJ, o telefone e o e-mail do Estatuto, nenhuma página mostra o CNPJ de exemplo, o contato não tem bloco de horário nem de
+      redes (a Instituição de produção ainda não tem esses dados) e a sincronização disparada à mão respondeu "o site voltou a bater com o sistema" (nenhuma
+      reconstrução em ciclo). **Quando a diretoria preencher a Instituição real** (CNPJ, telefone, e-mail, horário, redes, marcados "vai para o site"), o site
+      passa a mostrar em até cerca de 30 minutos, sem ninguém mexer nele.
+- [x] **Auditoria financeira (Conselho Fiscal):** o Conselho **não opera** o Financeiro, **audita**. Página própria: escolhe o **mês**, vê todas
+      as entradas e saídas já consolidadas, abre cada título (comprovantes e informações) e **aprova, reprova ou manda ressalva**; a ressalva
+      volta ao Tesoureiro, que corrige e submete de novo; dá para aprovar **tudo de uma vez, um por um ou por categoria**; **título aprovado pelo
+      Conselho não pode mais ser alterado**. Tudo na Auditoria. (Estatuto Art. 24: fiscalizar toda a movimentação financeira e contábil.)
+      **Regra decidida (Presidente, 2026-10-07/08):** o título é aprovado e travado quando a **maioria** do Conselho (2 de 3) aprova; quem
+      discorda tem de dizer por quê (explicação obrigatória, sempre visível). **Na homologação (2026-10-07):** `v5.4h-03`, 8 de 8, com os três
+      conselheiros de teste: o resumo do mês; aprovar um por um; ressalva e reprovação só seguem com a explicação (10 letras) e suspendem o
+      título; a tesouraria responde no próprio cartão e isso libera; o 2º conselheiro completa a maioria e o título fica **Aprovado e travado**
+      (só oferece "Reabrir auditoria"); aprovar em lote vale para um mês e pula suspensos, travados e os já aprovados por quem aprova; o 3º
+      conselheiro reabre com explicação e as aprovações antigas deixam de valer (o histórico fica); o Secretário é barrado; a Auditoria do
+      sistema guarda as 7 ações. Título aprovado também não é estornado nem renegociado enquanto estiver travado (testes do servidor).
+      **Em produção (2026-10-08):** migração `b8e4c1a7d205` aplicada pelo pipeline; `GET /api/conselho-fiscal/auditoria-financeira/` e
+      `POST .../aprovar-em-lote` respondem 401 sem login.
+- [x] **Auditoria financeira: a discordância não trava a maioria.** Hoje uma ressalva ou reprovação com pergunta aberta ainda suspende o
+      título mesmo com 2 aprovações. Decisão do Presidente (2026-10-08): com a maioria o título aprova; o motivo de quem discordou fica
+      destacado no cartão e na Auditoria.
+      **Na homologação (2026-10-08):** `v5.4h-03` refeito, 8 de 8: com a maioria (2 de 3) o título aprova e trava mesmo com ressalva aberta; o 3º
+      conselheiro registra a reprovação de um título já aprovado e o motivo aparece em destaque no cartão ("Discordância de ...") e no resumo ("N
+      com discordância"), sem derrubar a aprovação; quem ainda não votou continua podendo votar num título aprovado, quem já votou só reabre; a
+      Auditoria do sistema guarda as 8 ações. **Em produção (2026-10-08):** commit `40df78e` no `version.json`, Deploy API e Painel verdes,
+      `GET /api/conselho-fiscal/auditoria-financeira/` responde 401 sem login.
+- [x] **Saídas, reembolso e dupla assinatura:** a saída é lançada com a **nota fiscal anexa** e uma **categoria** (o **reembolso é uma categoria
+      de saída**, com as mesmas regras; entradas também têm categorias). **Dupla assinatura Presidente + 1º Tesoureiro** (Estatuto Art. 21, II).
+      **Sem exigência de cotação/orçamento no dia a dia** (a regra de 2 cotações sai); orçamento só em **emenda parlamentar**, como documento
+      anexado na parceria. **Prazos e alertas:** data da despesa e data do lançamento sempre registradas; alerta de lançamento tardio e de
+      assinatura parada (lembrete ao outro assinante; delegação já existe), para a associação não perder prazo nem ter multa.
+      **Decisão do Presidente (2026-10-08, vale mais que o texto acima):** o sistema é só o **registro** das entradas e saídas que **já
+      aconteceram no mundo real**. A dupla assinatura é do banco (quem faz o Pix já tem a aprovação da outra parte): **não há fila de
+      "aguardando assinatura" nem a mesma burocracia dentro do sistema**. A saída entra como fato consumado, com nota fiscal anexa, categoria
+      (reembolso incluso), data da despesa, data do pagamento, forma de pagamento e quem lançou; o controle é a **Auditoria financeira do
+      Conselho Fiscal**, depois do fato. A compra com alçada, cotação e delegação (v3.3) continua existindo, mas **não é o caminho do dia a dia**.
+      O que falta construir: o formulário único "Registrar saída" (lança e baixa de uma vez) e o alerta de lançamento tardio.
+      **Na homologação (2026-10-08):** `v5.4h-08`, 5 de 5: o caminho do dia a dia (Financeiro, Saídas, "Registrar saída (já paga)"); o
+      formulário vazio lista o que falta; data no futuro é recusada pelo servidor e não deixa saída nem rastro; a saída entra **já Paga**, com
+      categoria, nota fiscal e comprovante, e aparece em Saídas com o link da nota (o arquivo abre e é o enviado); saída lançada 20 dias depois
+      do pagamento avisa "lançamento tardio"; o reembolso é a mesma saída com um associado como quem recebeu; o Conselheiro Fiscal abre a nota e o
+      comprovante no cartão da Auditoria financeira e vê o aviso de lançamento tardio; a Auditoria do sistema guarda as 3 saídas; o Secretário é
+      barrado na tela e na API. Se a baixa é recusada (conta errada, exercício fechado) o título criado para ela é desfeito. Regressão verde:
+      Títulos 5/5, Auditoria financeira 8/8, receita (e-02) 29/29, despesa (e-03) 12/12. **Em produção (2026-10-08):** commit `1bfc17f` no
+      `version.json`, Deploy API e Painel verdes (migração `c4f9a1e6b270`, coluna `nota_fiscal` do título), `POST /api/saidas/registrar` responde
+      401 sem login e consta no `openapi.json`. A dupla assinatura **não virou etapa do sistema** (decisão do Presidente de 08/10: o sistema é só
+      o registro); a compra com alçada e cotação (v3.3) segue existindo fora do dia a dia.
+- [x] **Lançamento tardio entre os alertas do Conselho Fiscal, com o limite ajustável:** a saída registrada que foi lançada mais de N dias depois do
+      **pagamento** (a conta é da data do pagamento, não da despesa) entra no relatório de exceção mensal (Relatórios, "Padrões suspeitos") como
+      `LANCAMENTO_TARDIO`, além de continuar marcada no cartão da Auditoria financeira e na Auditoria do sistema. O limite é a configuração
+      `DIAS_ALERTA_LANCAMENTO_TARDIO` (padrão 5) e vale igual nos três lugares; nasceu a tela **Regras do sistema** (`/regras`, só quem administra o acesso),
+      que lista as configurações da categoria "regras" (limites e prazos), salva cada uma e deixa a mudança na Auditoria com o valor antes e depois.
+      **Na homologação (2026-10-08):** `v5.4h-11`, 3 de 3 (a tela lista as regras sem dado institucional; o limite muda para 7, continua 7 ao recarregar e
+      vale no servidor; valor que não é número é recusado com 422 em português e nada muda; as mudanças ficam na Auditoria; o Secretário é barrado na
+      tela e na API); `v5.4h-08`, 6 de 6 (o relatório de exceção do mês lista a saída lançada 20 dias depois do pagamento, com o texto certo, e não lista
+      a em dia nem o reembolso); regressão verde: Auditoria financeira (h-03 8/8) e relatórios e antifraude (e-04 16/16). No servidor, 1005 testes verdes
+      (6 novos do lançamento tardio, entre eles "a data que conta é a do pagamento" e "o limite configurado vale igual no registro, no cartão e no
+      relatório"); no painel, 3 testes da tela de regras. **Em produção (2026-10-08):** commit `0678f0e`, Deploy API verde e Deploy Painel verde (o teste
+      de ponta a ponta do "ver como" falhou duas vezes seguidas no CI sem relação com a mudança e passou ao rodar de novo, e passa local: fica de olho
+      como instável, sem esconder); `version.json` bate; o pacote do painel traz "Regras do sistema"; `/api/configuracoes/` e
+      `/api/antifraude/padroes-suspeitos` respondem 401 sem login. A produção não recebeu dado de teste.
+- [x] **Filiação: os 3 sócios, o aviso no painel e a análise da Diretoria (Estatuto Art. 12):** o pedido precisa ser **proposto por 3 sócios**
+      (qualquer sócio ativo e apto pode propor) e passar pela **análise da Diretoria Executiva**; os sócios ativos **recebem a notificação
+      no painel** (sino) para propor ou recusar, com o motivo; sem prazo — sem resposta, o pedido fica pendente; aprovado, entra no livro de
+      associados com a matrícula. **Como funciona:** `GET /api/filiacao/para-propor` mostra ao sócio só nome e idade (CPF, e-mail e telefone são
+      da Diretoria); `POST /api/filiacao/propostas/{id}/propor` registra "Propõe" ou "Recusa" (recusar pede ao menos 5 letras de motivo); a
+      Diretoria vê quem propôs e quem recusou e **não consegue aprovar com menos de 3** (400 com a conta de quantos faltam); apto é "Ativo - Em
+      Dia" ou "Em Experiência"; o sino é `/api/minhas-notificacoes/` (lista, marcar uma ou todas como lidas). **Na homologação (2026-10-08):**
+      `v5.4h-09`, 5 de 5 (o pedido chega pela rota pública e o sócio é avisado no sino, abre o aviso e propõe; um segundo propõe e um terceiro
+      recusa com o motivo, e o motivo curto demais é barrado na tela; a Diretoria vê os dois lados e não aprova com 2 de 3; o terceiro propõe e
+      a aprovação entra com a matrícula; o pedido decidido sai da lista dos sócios e a Auditoria guarda as 4 decisões); regressão verde:
+      filiação e cadastros (`v5.4c-fase1`, 24 de 24, com o roteiro antigo adaptado: sem os 3 sócios a aprovação fica travada), relatórios e
+      antifraude (e-04 16/16), projetos e voluntariado (f-01 22/22) e base contábil e orçamento (e-01 16/16); o povoamento em volume da homologação passou a fazer 3
+      sócios proporem antes de aprovar (teste próprio). **Em produção (2026-10-08):** commit `4f195b7`, Deploy API e Painel verdes;
+      `version.json` bate; `GET /api/filiacao/para-propor` e `GET /api/minhas-notificacoes/` respondem 401 sem login e as rotas novas estão no
+      `openapi.json`; a produção não recebeu nenhum dado de teste.
+- [x] **Filiação: formulário público no site:** o pedido sai de `/seja-associado/` (hoje o site só lê) e cai na caixa da Diretoria. **Como funciona:**
+      a página pede nome, CPF, data de nascimento e e-mail ou telefone, valida na hora (CPF, idade, contato) e mostra o aviso de privacidade (versão 1) com a
+      caixa de aceite; de 16 a 17 anos aparece a declaração de que os pais ou responsáveis autorizaram (o papel é conferido pela Diretoria: o cartão do pedido
+      mostra a idade, o aceite e essa declaração); abaixo de 16 não se filia (Estatuto, Art. 12). O servidor repete todas as regras em `POST
+      /api/filiacao/propor`: data de nascimento e aceite do aviso (com a versão que a pessoa viu) obrigatórios, ao menos um contato, limite de 10 pedidos por IP
+      por hora, campo escondido que descarta robôs em silêncio, a mesma frase para "já é associado" e "já tem pedido" (ninguém de fora descobre se um CPF é
+      de sócio) e o envio na Auditoria (`PROPOSTA_PUBLICA`, com o IP). Migração `e7c3d9a4b158` (aceite, versão e declaração no pedido). A Política de
+      Privacidade passou à versão 1.2 e descreve o formulário. **Na homologação (2026-10-08):** `v5.4h-10`, 5 de 5, preenchendo o formulário do site de teste
+      (formulário em branco recusado com o resumo e o foco no primeiro campo; CPF que não confere, menor de 16 anos e sem contato recusados na página; pedido
+      certo atravessa a API de outra origem e a página confirma; o mesmo CPF de novo é recusado com a frase única; de 16 a 17 anos a página pede a declaração
+      dos pais e só então aceita; a Diretoria vê idade, aceite do aviso e a declaração; o sócio vê o candidato só com nome e idade, sem CPF, e-mail nem
+      telefone; a Auditoria guarda os envios; o robô que preenche o campo escondido recebe sucesso e não deixa pedido); regressão verde: `v5.4h-09` 5/5 e
+      `v5.4c-fase1` 24/24. No servidor, 1000 testes verdes; no site, 26 testes novos, 10 de ponta a ponta do formulário e a suíte de acessibilidade inteira (inclui
+      o formulário com erros e com a declaração dos pais, no computador e no celular). **Em produção (2026-10-08):** commit `078344c`; Deploy API, Painel e Site
+      verdes (o do site com acessibilidade e Lighthouse); `version.json` bate; `asaf.org.br/seja-associado/` traz o formulário apontando para `api.asaf.org.br`; a
+      Política de Privacidade mostra a versão 1.2; o preflight de CORS de `https://asaf.org.br` para `POST /api/filiacao/propor` responde 200 liberando o POST; o
+      `openapi.json` mostra o corpo novo (nascimento obrigatório); `GET /api/filiacao/propostas` segue 401. Nenhum pedido de teste foi enviado à produção.
+- [x] **Telas que faltam:** inscrição no evento pelo painel (secretaria inscrevendo alguém); **núcleo familiar** do beneficiário;
+      **alocar voluntário** direto num turno.
+      **Na homologação (2026-10-07):** `v5.4h-06` inscrição pela secretaria, 4 de 4 (com 1 vaga: o primeiro fica Pré-inscrito, o segundo vai
+      para a Lista de Espera; a mesma pessoa de novo é recusada sem rastro; 2 inscrições na Auditoria; Secretário barrado na tela e na API; a
+      rota nova passa pelo controle de vagas, ao contrário da genérica `/api/inscricoes/`); `v5.4h-04` alocar voluntário direto num turno, 4
+      de 4 (formulário vazio diz o que falta; sem termo vigente é recusado em português; com termo entra na escala, continua ao recarregar e
+      fica na Auditoria; Secretário barrado); `v5.4h-05` núcleo familiar do beneficiário, 3 de 3 (a mãe vê o filho, o filho vê a mãe, sem
+      vínculo diz onde cadastrar). **Em produção (2026-10-08):** `POST /api/eventos/{id}/inscrever-associado`,
+      `GET /api/projetos/{id}/alocacoes` e `GET /api/beneficiarios/{id}/nucleo-familiar` respondem 401 sem login.
+- [x] **Rastro de recusas:** recusa de aprovação/assinatura também fica na Auditoria.
+      **Como funciona:** um tratador de erro do servidor (`app/recusas.py`, ligado em `app/main.py`) grava na Auditoria (tabela `recusas`, ação
+      `RECUSA_APROVACAO`) quem tentou, a rota, o resultado (400, 403 ou 409) e o motivo, nas 25 rotas de aprovação, reprovação, assinatura,
+      homologação e confirmação; 404, 401 e o que não é aprovação não gravam; se o registro falhar, a recusa sai igual para quem tentou. **Na
+      homologação (2026-10-08):** o roteiro das compras (e-03, 12 de 12) confere que o Tesoureiro tentando aprovar a própria compra aparece em
+      `recusas` com o nome dele, enquanto as tabelas das compras seguem só com o que deu certo; regressão verde nas telas que recusam aprovação:
+      despesa (e-03), relatórios e antifraude (e-04 16/16), projetos e voluntariado (f-01 22/22), atas (d-05 16/16), disciplina (d-08 7/7) e
+      registrar saída (h-08 5/5). **Em produção (2026-10-08):** commit `27e963c`, Deploy API verde; não há rota nova (é comportamento): a rota de
+      aprovação sem login segue 401 (que, por desenho, não grava recusa: não há quem tenha tentado). O efeito só se vê com login e foi provado
+      na homologação; a produção nunca recebe dado de teste.
+- [x] **Carga, limite por IP e réplicas em dia de evento (decisão: manter páginas estáticas e deixar "vivo" o que é dinâmico):** a API aguenta a multidão de
+      um dia de evento e não estoura as vagas. **Teste de carga** (`scripts/teste_de_carga_hml.py`, fluxo manual `Testar Carga da Homologação`, recusa qualquer
+      endereço que não seja o da homologação): 150 pessoas por minuto, cada uma abrindo a lista e a página do evento, levando 20 s no formulário (50 a 100
+      ao mesmo tempo) e se inscrevendo de um IP próprio, num evento de 100 vagas; mais um grupo atrás do mesmo IP e 5% de cliques duplos. Reprova se houver erro
+      5xx, vaga estourada, vaga vazia com gente na espera, inscrição duplicada, limite por IP falho ou p95 acima de 5 s. **O teste achou um defeito real na
+      primeira rodada:** a mesma pessoa enviando duas vezes quase junto dava erro 500 (as duas passavam pela checagem do CPF antes de gravar e a segunda batia na
+      restrição única do banco) e prendia uma vaga; corrigido (quem perde a corrida é recusada com "já está inscrita" e a vaga volta), com testes que forçam a
+      corrida. **Na homologação (2026-10-08), depois da correção:** 150 por minuto, 100 vagas: 100 confirmadas, 80 na lista de espera, p95 da inscrição 0,52 s,
+      nenhum erro, os 7 cliques duplos viraram 1 inscrição cada, o grupo do mesmo IP teve 30 aceitas e 10 barradas; **400 por minuto** (2,7 vezes a meta), 250
+      vagas: 250 confirmadas, 180 na espera, p95 0,39 s, nenhum erro. A primeira chamada do dia (API dormindo) levou de 0,65 a 1,25 s nesses testes porque a API
+      estava acordada; o pior caso (acordar do zero) segue sendo 10 a 30 s e é o que as réplicas abaixo evitam. **Limite por IP** da inscrição pública: de 5 para
+      **30 a cada 10 minutos** (5 barrava a secretaria de uma igreja já na sexta pessoa). **Réplicas:** o fluxo `Réplicas da API em dia de evento` (a cada 3 horas)
+      lê a lista pública de eventos e deixa **1 réplica mínima** da API de 24 h antes do evento até 12 h depois, e volta a 0 depois (só mexe nesse número; se não
+      conseguir ler os eventos, mantém como está). Provado na homologação à mão: 0 → 1 → 0 em `asaf-api-hml`; na produção rodou em simulação e deu 0 (nenhum evento
+      público agora). **Em produção (2026-10-08):** commit `667ad62`, Deploy API verde; a lista pública de eventos e o texto de consentimento respondem 200 e o
+      preflight de CORS de `https://asaf.org.br` libera o POST da inscrição. Nenhuma inscrição de teste foi enviada à produção. **Falta (é da v5.5, não daqui):** o
+      formulário de inscrição em evento no site e a página de cancelar a inscrição que o e-mail promete (`/cancelar-inscricao`, que hoje não existe).
+      **Achado de segurança do mesmo teste (2026-10-08):** o limite por IP e o IP gravado na Auditoria usavam o PRIMEIRO item de `X-Forwarded-For`, que é do cliente:
+      400 "pessoas" de uma máquina só, cada uma com um primeiro item inventado, nunca eram barradas (qualquer um burlava o limite). Agora vale o ÚLTIMO item, o que o
+      ingress anotou (`app/services/protecao_publica.py::ip_publico`, usado na inscrição em evento, na pesquisa de satisfação, na portaria e na filiação). **Provado na
+      homologação:** com a correção, 60 "pessoas" da mesma máquina foram limitadas a 30 (28 inscrições aceitas, 2 repetidas, 33 barradas) e o grupo do mesmo IP teve 0
+      aceitas; só a API de TESTE liga `CONFIAR_NO_PRIMEIRO_IP=1` (para o teste de carga simular muita gente de uma máquina), com teste garantindo que a produção nunca
+      define; com a variável, a carga normal voltou a passar (150 por minuto: 100 confirmadas, 80 na espera, p95 0,28 s). **Em produção:** commit `5b26086`, Deploy API e
+      Site verdes.
+
 ##### 🔍 Ponto de Revisão — FASE 5 (1/2 — meio, fecha v5.0–v5.4)
 
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
@@ -2122,16 +2327,7 @@ declaração da Receita). Não é parecer jurídico: é o raciocínio adotado; o
   abrindo por `/uploads/fotos/<uuid>` a quem já tem o endereço (a verificação do QR não o entrega mais; o painel o usa): uma migração que regrave cada foto com nome novo é uma opção; (3) a foto sai do site em
   horas por causa do agendamento do GitHub: melhoria possível, a tarefa periódica disparar o deploy do site quando apagar uma foto.
 
-- [ ] **v5.7e — Auditoria como permissão SECUNDÁRIA do Financeiro (decisão do Presidente, 2026-10-19; achado do Ponto de Revisão 2/2).** "O Conselho Fiscal não opera o financeiro: ele audita." Hoje o
-      nível Conselho Fiscal recebe a permissão geral `financeiro` (a que opera: confirmar doação, registrar saída, pagar título...) só para conseguir auditar. Passa a valer: cada módulo tem a permissão
-      GERAL e as SECUNDÁRIAS; a primeira secundária é `financeiro_auditar` (ler o que a auditoria precisa e dar o parecer: lançamento certo ou errado, comprovante confere). O Conselho Fiscal perde o
-      `financeiro` e ganha `financeiro_auditar` (mais a `auditoria` que já tem). No painel ele só vê o que audita, sem os botões de operar; o servidor recusa por trás. Uma migração tira o `financeiro` do
-      nível Conselho Fiscal nos bancos que já existem. Provado na homologação com um usuário do Conselho Fiscal (vê e audita; é barrado ao tentar operar).
-- [ ] **v5.7f — Validar quem pede dado pessoal: a solicitação do titular (decisão do Presidente, 2026-10-19; achado do Ponto de Revisão 2/2).** Hoje a resposta vai por e-mail para o endereço digitado,
-      sem conferir que quem pede é a pessoa (o CPF não é segredo). Passa a valer: (1) a resposta com dado pessoal NUNCA vai solta por e-mail: o e-mail só avisa que há resposta, e ela aparece na
-      **Minha conta**, depois de a pessoa provar o e-mail com o código; (2) o sistema só deixa a equipe responder depois de a **identidade estar validada**: automaticamente, quando o e-mail digitado
-      é o do cadastro daquele CPF, ou à mão, pela equipe, com um registro do que foi conferido (a Auditoria guarda quem e quando); (3) o painel mostra no pedido se a identidade está validada e como.
-      Provado na homologação (pedido de quem tem cadastro, de quem não tem, e de quem digita o CPF de outra pessoa).
+- [ ] **v5.7e e v5.7f** (os dois achados do Ponto de Revisão 2/2, decisões do Presidente de 2026-10-19): o texto e a situação de cada uma estão no **Fechamento da FASE 5**, no fim desta fase (itens A1 e A2), onde fica a lista única do que falta.
 
 ##### 🔍 Ponto de Revisão — FASE 5 (2/2 — fim, fecha v5.5–v5.7)
 
@@ -2192,11 +2388,13 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
   voluntariado ligado pelo CPF a quem não tem data de nascimento no cadastro continua exigindo a autorização do responsável (item 1); (3) o nível "Conselho Fiscal" com `financeiro` (item 6): decisão
   do Presidente; (4) o papel de dados do armazenamento foi conferido por leitura (`az role assignment list`): a identidade do GitHub tem "Storage Blob Data Contributor" em `fotos-associados` e em
   `fotos-diretoria` da produção e na conta inteira de teste. **Ponto de Revisão FASE 5 (2/2): REVISÃO FEITA em 2026-10-16, FECHAMENTO REABERTO em 2026-10-19:** o Presidente não autorizou o fechamento (o Ponto só fecha com o OK dele) e decidiu que os
-  dois achados abertos não esperam a v7.2: viram a **v5.7e** (Conselho Fiscal audita sem operar) e a **v5.7f** (validar quem pede dado pessoal), acima. O Ponto (1/2) também segue esperando a
+  dois achados abertos não esperam a v7.2: viram a **v5.7e** (Conselho Fiscal audita sem operar) e a **v5.7f** (validar quem pede dado pessoal), itens A1 e A2 do **Fechamento da FASE 5** (fim desta fase). O Ponto (1/2) também segue esperando a
   conferência da diretoria contra a vedação do STF, que precisa de composição real. **Decisão de 2026-10-19 sobre dados de teste:** a homologação é para inventar dado (chave Pix, CNPJ, mandato,
   prazos, o que for preciso); nenhuma versão espera o Presidente preencher dado real, que ele cadastra depois, quando tiver tempo.
 
 ##### Decisões pendentes → onde cada uma será tratada (resposta do usuário em 2026-10-03)
+
+> **Histórico de 2026-10-03.** O que ainda vale de tudo isto está no **Fechamento da FASE 5**, no fim desta fase.
 
 | # | Decisão | Resposta | Onde / quando |
 | --- | --- | --- | --- |
@@ -2210,6 +2408,8 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 | — | Estatuto do site = versão registrada em cartório? "Sede provisória" omitida; Art. 34 cita "Conselho Administrativo" que o Art. 18 não lista; titularidade do logotipo (INPI) | Em aberto | O Estatuto/PDF registrado é necessário para a v5.4 (R5); o resto, backlog |
 
 ##### O que preciso do usuário (para não travar a v5.3 e a v5.4)
+
+> **Histórico de 2026-10-03** (token, documentos e Despertai: a v5.3 e a v5.4 já foram entregues). O que ainda depende do Presidente está na seção D do **Fechamento da FASE 5**.
 
 1. **Token** — pelo caminho seguro acima (nada de colar no chat).
 2. **Documentos para a v5.4a** — **NÃO enviar ao Directus nem pelo chat**: guardar com cuidado (atas têm RG/CPF) até o
@@ -2237,192 +2437,103 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
   (ver acima) e a **Lei Municipal 5.574/2025 segue não confirmada** — não citar no site. Revisão jurídica final
   continua sendo condição para publicar texto de lei na página.
 
-#### v5.4h — Lacunas achadas ao vivo (telas e módulos que faltam; decisões do Presidente em 2026-10-07)
+#### 🧭 Fechamento da FASE 5 — a lista única do que falta antes de abrir a FASE 6 (organizada em 2026-10-19, a pedido do Presidente)
 
-Tudo aqui é construído (não é "decidir se faz"), na ordem abaixo, cada item pelo caminho de sempre: branch → homologação → robô → só então a
-`main`. As decisões do Presidente (voz, 2026-10-07; Estatuto em `ESTATUTO_ASAF.txt`) estão resumidas em cada item.
+> **Por que existe:** a FASE 5 cresceu por versões (v5.0 a v5.7 e as v5.4c–h) e o que faltava ficou espalhado em itens `[ ]` antigos, em notas "Abertos" e "Falta". Em 2026-10-19 **cada `[ ]` da FASE 5 foi
+> conferido contra o código, o plano e a produção** (leitura de `cms.asaf.org.br`, de `asaf.org.br` e dos arquivos). **Esta é a única lista que vale:** ao concluir um item, marca-se aqui **e** no bloco da
+> versão dele. Nada abaixo foi decidido por mim: o que depende de decisão do Presidente está marcado **DECISÃO**. Regras da casa: uma versão por vez, na ordem; Ponto de Revisão só fecha com o OK dele;
+> a FASE 6 só abre quando ele liberar.
 
-- [x] **Títulos com filtros e paginação.** Título = cada **entrada** (a receber) ou **saída** (a pagar). A tela passa a filtrar por **mês**
-      (filtro principal), intervalo de datas, **entradas ou saídas** (uma página para cada), situação, categoria e texto; lista paginada.
-      **Na homologação (2026-10-07):** o robô (`v5.4h-01`, 5 de 5) lançou 31 saídas e 3 entradas em meses de 2088 e conferiu: o mês filtra; 31
-      títulos são 2 páginas de 25 (a segunda com os 6 que sobram); Entradas e Saídas em páginas próprias; busca por texto; tipo, situação e
-      categoria combinando; "Todo o período" tirando o mês; os filtros guardados no endereço; o Secretário barrado. A regressão na pilha final
-      ficou verde (e-01 13, e-02 29, e-03 12, e-04 16, f-01 22, f-02 16, f-03 16). **Em produção (2026-10-08):** commit `66642bd` no
-      `version.json`; Deploy API e Deploy Painel verdes; `GET /api/titulos/resumo` responde 401 sem login.
-- [x] **Paginação nas outras listas que crescem** (Associados, Razão Contábil, Auditoria): o mesmo padrão dos Títulos. A Auditoria já era paginada no servidor;
-      Associados e Razão passaram a ser (25 por página, total vindo do servidor, busca e filtros feitos no banco).
-      **Na homologação (2026-10-09):** `v5.4h-12`, 4 de 4: Associados (a primeira página traz 25 e o total vem do servidor; a seguinte traz outros nomes; a busca
-      acha pelo nome, fica no endereço e some ao apagar; situação e categoria filtram de verdade) e Razão Contábil (os 25 mais novos, o total e o saldo vêm do
-      servidor; a busca acha pelo número e pelo histórico e diz quando não acha). Regressão das telas que usam as duas listas, todas verdes: `v5.4c-fase0` 6,
-      `v5.4c-fase1` 24, `v5.4d-06` 16, `v5.4e-01` 16 (1 teste, o do fechamento do exercício, só roda no fim da bateria), `v5.4e-02` 29, `v5.4e-03` 12,
-      `v5.4e-04` 16, `v5.4f-01` 22, `v5.4g-03` 8 e `v5.4h-04` 4. **Achados do robô, corrigidos e refeitos:** (1) buscar um número grande (o da rodada de testes,
-      13 dígitos) também comparava com a matrícula e com o número do lançamento, que são inteiros de 32 bits no Postgres, e dava erro lá sem aparecer no SQLite dos
-      testes (auxiliar `app/services/busca.py`; o teste compila a consulta como o Postgres a recebe e falha sem a correção); (2) três roteiros liam a tabela antes
-      de ela refiltrar ou contavam as linhas da tela (agora ela mostra 25 por página): passaram a esperar o resultado e a ler o total que a tela informa.
-      **Em produção (2026-10-09):** commit `aa89969` no `version.json` do painel; Deploy API e Deploy Painel verdes; `GET /api/associados/resumo`,
-      `GET /api/associados/?pagina=1` e `GET /api/livro-caixa/?pagina=1` respondem 401 sem login e a rota nova consta no `openapi.json`.
-- [x] **Módulo "Instituição" no painel:** cadastro de tudo da instituição (nome, CNPJ, endereço, contatos, redes, logo, chave Pix, textos
-      institucionais), cada campo marcado **"vai para o site"** ou **"só interno"**; o site passa a ler de lá.
-      **Na homologação (2026-10-07):** `v5.4h-02`, 5 de 5: os campos por grupo com a marca "aparece no site" ou "só interno"; salvar grava e
-      continua gravado ao recarregar; a marca decide o que a rota pública entrega (some e volta na hora); CNPJ inválido, e-mail sem arroba, cor
-      fora do formato e nome do Pix longo são recusados em português com o nome do campo (não a chave técnica) e não deixam rastro; o CNPJ
-      válido grava e as alterações aparecem na Auditoria; o Secretário não vê o módulo nem entra pelo endereço. **Em produção (2026-10-08):**
-      `GET /api/instituicao/` responde 401 sem login; `GET /api/publico/instituicao` responde 200 só com os campos marcados e preenchidos.
-      **Atenção:** o CNPJ de produção ainda é o de exemplo (`00.000.000/0001-00`) e está marcado para o site: a diretoria precisa preencher o
-      real na tela Instituição **antes** de o site passar a ler de lá.
-- [x] **O site lê a Instituição:** os dados da Instituição marcados "vai para o site" (`/api/publico/instituicao`) passam a valer no site, **só o que está
-      preenchido E válido**: CNPJ com dígitos que conferem, e-mail, telefone brasileiro, horário de atendimento e endereço de Instagram/Facebook de verdade (qualquer
-      outro destino é descartado). O que está vazio ou inválido cai no texto fixo do Estatuto, então o CNPJ de exemplo da produção (`00.000.000/0001-00`) nunca
-      vai ao ar e um campo apagado não deixa buraco. Nome, endereço da sede e apresentação ficam sempre os do Estatuto. Contato, rodapé, Privacidade, Termos,
-      Transparência e os dados estruturados do Google usam os dados sobrepostos; o contato ganha horário e redes e o rodapé ganha as redes. A rota ausente (API
-      antiga) não derruba o build, e a Instituição entra na impressão digital do conteúdo: a diretoria muda um dado e a sincronização (15 em 15 minutos)
-      reconstrói o site sozinha. O site **não usa** Pix nem dados bancários (por padrão são internos).
-      **Testes:** função pura (validadores e sobreposição), leitura tolerante e impressão digital (vitest), build com a Instituição preenchida (`npm run
-      test:instituicao`, passo novo do CI do site), contato com a API antiga e o estado de hoje no navegador (CNPJ de exemplo ignorado); 356 testes de navegador
-      e a suíte unitária do site verdes. Defeito achado no caminho: um `await` dentro do HTML do layout não compila (o `astro check` não pega; o build, sim).
-      **Na homologação (2026-10-09):** `v5.4h-13` preenche a Instituição pela tela com valores fixos e válidos e a rota pública entrega exatamente isso; a
-      homologação é publicada de novo (o site de teste lê a API no build) e `v5.4h-14` abre o `hml-site` como visitante: o contato mostra CNPJ, telefone, e-mail,
-      horário e as duas redes (com `rel="noopener noreferrer"`) no lugar dos dados fixos; o rodapé mostra o e-mail e as redes; Privacidade, Termos e Transparência
-      mostram o e-mail e o CNPJ novos e nenhum fixo; o CNPJ de exemplo não aparece em página nenhuma; o JSON-LD traz o CNPJ, o e-mail e as redes; e a página da
-      **Diretoria** lista os 10 mandatos do sistema (7 da Diretoria Executiva e 3 do Conselho Fiscal) na seção do próprio órgão, sem CPF, e-mail ou telefone de
-      dirigente. Regressão no `hml-site`: `v5.4g-01` 5 de 5 (axe, celular, links internos), `v5.4g-05` 6 de 6, `v5.4h-10` 5 de 5 (formulário de filiação do site).
-      Achado do robô: o `v5.4h-02` alterna o CNPJ de propósito, então o roteiro do site passou a preparar os próprios dados (`v5.4h-13`) em vez de depender dele.
-      **Em produção (2026-10-09):** commit `325f2e4` no `version.json` do site; Deploy Site verde (inclusive o passo novo, axe e Lighthouse); contato, Privacidade
-      e Transparência seguem com o CNPJ, o telefone e o e-mail do Estatuto, nenhuma página mostra o CNPJ de exemplo, o contato não tem bloco de horário nem de
-      redes (a Instituição de produção ainda não tem esses dados) e a sincronização disparada à mão respondeu "o site voltou a bater com o sistema" (nenhuma
-      reconstrução em ciclo). **Quando a diretoria preencher a Instituição real** (CNPJ, telefone, e-mail, horário, redes, marcados "vai para o site"), o site
-      passa a mostrar em até cerca de 30 minutos, sem ninguém mexer nele.
-- [x] **Auditoria financeira (Conselho Fiscal):** o Conselho **não opera** o Financeiro, **audita**. Página própria: escolhe o **mês**, vê todas
-      as entradas e saídas já consolidadas, abre cada título (comprovantes e informações) e **aprova, reprova ou manda ressalva**; a ressalva
-      volta ao Tesoureiro, que corrige e submete de novo; dá para aprovar **tudo de uma vez, um por um ou por categoria**; **título aprovado pelo
-      Conselho não pode mais ser alterado**. Tudo na Auditoria. (Estatuto Art. 24: fiscalizar toda a movimentação financeira e contábil.)
-      **Regra decidida (Presidente, 2026-10-07/08):** o título é aprovado e travado quando a **maioria** do Conselho (2 de 3) aprova; quem
-      discorda tem de dizer por quê (explicação obrigatória, sempre visível). **Na homologação (2026-10-07):** `v5.4h-03`, 8 de 8, com os três
-      conselheiros de teste: o resumo do mês; aprovar um por um; ressalva e reprovação só seguem com a explicação (10 letras) e suspendem o
-      título; a tesouraria responde no próprio cartão e isso libera; o 2º conselheiro completa a maioria e o título fica **Aprovado e travado**
-      (só oferece "Reabrir auditoria"); aprovar em lote vale para um mês e pula suspensos, travados e os já aprovados por quem aprova; o 3º
-      conselheiro reabre com explicação e as aprovações antigas deixam de valer (o histórico fica); o Secretário é barrado; a Auditoria do
-      sistema guarda as 7 ações. Título aprovado também não é estornado nem renegociado enquanto estiver travado (testes do servidor).
-      **Em produção (2026-10-08):** migração `b8e4c1a7d205` aplicada pelo pipeline; `GET /api/conselho-fiscal/auditoria-financeira/` e
-      `POST .../aprovar-em-lote` respondem 401 sem login.
-- [x] **Auditoria financeira: a discordância não trava a maioria.** Hoje uma ressalva ou reprovação com pergunta aberta ainda suspende o
-      título mesmo com 2 aprovações. Decisão do Presidente (2026-10-08): com a maioria o título aprova; o motivo de quem discordou fica
-      destacado no cartão e na Auditoria.
-      **Na homologação (2026-10-08):** `v5.4h-03` refeito, 8 de 8: com a maioria (2 de 3) o título aprova e trava mesmo com ressalva aberta; o 3º
-      conselheiro registra a reprovação de um título já aprovado e o motivo aparece em destaque no cartão ("Discordância de ...") e no resumo ("N
-      com discordância"), sem derrubar a aprovação; quem ainda não votou continua podendo votar num título aprovado, quem já votou só reabre; a
-      Auditoria do sistema guarda as 8 ações. **Em produção (2026-10-08):** commit `40df78e` no `version.json`, Deploy API e Painel verdes,
-      `GET /api/conselho-fiscal/auditoria-financeira/` responde 401 sem login.
-- [x] **Saídas, reembolso e dupla assinatura:** a saída é lançada com a **nota fiscal anexa** e uma **categoria** (o **reembolso é uma categoria
-      de saída**, com as mesmas regras; entradas também têm categorias). **Dupla assinatura Presidente + 1º Tesoureiro** (Estatuto Art. 21, II).
-      **Sem exigência de cotação/orçamento no dia a dia** (a regra de 2 cotações sai); orçamento só em **emenda parlamentar**, como documento
-      anexado na parceria. **Prazos e alertas:** data da despesa e data do lançamento sempre registradas; alerta de lançamento tardio e de
-      assinatura parada (lembrete ao outro assinante; delegação já existe), para a associação não perder prazo nem ter multa.
-      **Decisão do Presidente (2026-10-08, vale mais que o texto acima):** o sistema é só o **registro** das entradas e saídas que **já
-      aconteceram no mundo real**. A dupla assinatura é do banco (quem faz o Pix já tem a aprovação da outra parte): **não há fila de
-      "aguardando assinatura" nem a mesma burocracia dentro do sistema**. A saída entra como fato consumado, com nota fiscal anexa, categoria
-      (reembolso incluso), data da despesa, data do pagamento, forma de pagamento e quem lançou; o controle é a **Auditoria financeira do
-      Conselho Fiscal**, depois do fato. A compra com alçada, cotação e delegação (v3.3) continua existindo, mas **não é o caminho do dia a dia**.
-      O que falta construir: o formulário único "Registrar saída" (lança e baixa de uma vez) e o alerta de lançamento tardio.
-      **Na homologação (2026-10-08):** `v5.4h-08`, 5 de 5: o caminho do dia a dia (Financeiro, Saídas, "Registrar saída (já paga)"); o
-      formulário vazio lista o que falta; data no futuro é recusada pelo servidor e não deixa saída nem rastro; a saída entra **já Paga**, com
-      categoria, nota fiscal e comprovante, e aparece em Saídas com o link da nota (o arquivo abre e é o enviado); saída lançada 20 dias depois
-      do pagamento avisa "lançamento tardio"; o reembolso é a mesma saída com um associado como quem recebeu; o Conselheiro Fiscal abre a nota e o
-      comprovante no cartão da Auditoria financeira e vê o aviso de lançamento tardio; a Auditoria do sistema guarda as 3 saídas; o Secretário é
-      barrado na tela e na API. Se a baixa é recusada (conta errada, exercício fechado) o título criado para ela é desfeito. Regressão verde:
-      Títulos 5/5, Auditoria financeira 8/8, receita (e-02) 29/29, despesa (e-03) 12/12. **Em produção (2026-10-08):** commit `1bfc17f` no
-      `version.json`, Deploy API e Painel verdes (migração `c4f9a1e6b270`, coluna `nota_fiscal` do título), `POST /api/saidas/registrar` responde
-      401 sem login e consta no `openapi.json`. A dupla assinatura **não virou etapa do sistema** (decisão do Presidente de 08/10: o sistema é só
-      o registro); a compra com alçada e cotação (v3.3) segue existindo fora do dia a dia.
-- [x] **Lançamento tardio entre os alertas do Conselho Fiscal, com o limite ajustável:** a saída registrada que foi lançada mais de N dias depois do
-      **pagamento** (a conta é da data do pagamento, não da despesa) entra no relatório de exceção mensal (Relatórios, "Padrões suspeitos") como
-      `LANCAMENTO_TARDIO`, além de continuar marcada no cartão da Auditoria financeira e na Auditoria do sistema. O limite é a configuração
-      `DIAS_ALERTA_LANCAMENTO_TARDIO` (padrão 5) e vale igual nos três lugares; nasceu a tela **Regras do sistema** (`/regras`, só quem administra o acesso),
-      que lista as configurações da categoria "regras" (limites e prazos), salva cada uma e deixa a mudança na Auditoria com o valor antes e depois.
-      **Na homologação (2026-10-08):** `v5.4h-11`, 3 de 3 (a tela lista as regras sem dado institucional; o limite muda para 7, continua 7 ao recarregar e
-      vale no servidor; valor que não é número é recusado com 422 em português e nada muda; as mudanças ficam na Auditoria; o Secretário é barrado na
-      tela e na API); `v5.4h-08`, 6 de 6 (o relatório de exceção do mês lista a saída lançada 20 dias depois do pagamento, com o texto certo, e não lista
-      a em dia nem o reembolso); regressão verde: Auditoria financeira (h-03 8/8) e relatórios e antifraude (e-04 16/16). No servidor, 1005 testes verdes
-      (6 novos do lançamento tardio, entre eles "a data que conta é a do pagamento" e "o limite configurado vale igual no registro, no cartão e no
-      relatório"); no painel, 3 testes da tela de regras. **Em produção (2026-10-08):** commit `0678f0e`, Deploy API verde e Deploy Painel verde (o teste
-      de ponta a ponta do "ver como" falhou duas vezes seguidas no CI sem relação com a mudança e passou ao rodar de novo, e passa local: fica de olho
-      como instável, sem esconder); `version.json` bate; o pacote do painel traz "Regras do sistema"; `/api/configuracoes/` e
-      `/api/antifraude/padroes-suspeitos` respondem 401 sem login. A produção não recebeu dado de teste.
-- [x] **Filiação: os 3 sócios, o aviso no painel e a análise da Diretoria (Estatuto Art. 12):** o pedido precisa ser **proposto por 3 sócios**
-      (qualquer sócio ativo e apto pode propor) e passar pela **análise da Diretoria Executiva**; os sócios ativos **recebem a notificação
-      no painel** (sino) para propor ou recusar, com o motivo; sem prazo — sem resposta, o pedido fica pendente; aprovado, entra no livro de
-      associados com a matrícula. **Como funciona:** `GET /api/filiacao/para-propor` mostra ao sócio só nome e idade (CPF, e-mail e telefone são
-      da Diretoria); `POST /api/filiacao/propostas/{id}/propor` registra "Propõe" ou "Recusa" (recusar pede ao menos 5 letras de motivo); a
-      Diretoria vê quem propôs e quem recusou e **não consegue aprovar com menos de 3** (400 com a conta de quantos faltam); apto é "Ativo - Em
-      Dia" ou "Em Experiência"; o sino é `/api/minhas-notificacoes/` (lista, marcar uma ou todas como lidas). **Na homologação (2026-10-08):**
-      `v5.4h-09`, 5 de 5 (o pedido chega pela rota pública e o sócio é avisado no sino, abre o aviso e propõe; um segundo propõe e um terceiro
-      recusa com o motivo, e o motivo curto demais é barrado na tela; a Diretoria vê os dois lados e não aprova com 2 de 3; o terceiro propõe e
-      a aprovação entra com a matrícula; o pedido decidido sai da lista dos sócios e a Auditoria guarda as 4 decisões); regressão verde:
-      filiação e cadastros (`v5.4c-fase1`, 24 de 24, com o roteiro antigo adaptado: sem os 3 sócios a aprovação fica travada), relatórios e
-      antifraude (e-04 16/16), projetos e voluntariado (f-01 22/22) e base contábil e orçamento (e-01 16/16); o povoamento em volume da homologação passou a fazer 3
-      sócios proporem antes de aprovar (teste próprio). **Em produção (2026-10-08):** commit `4f195b7`, Deploy API e Painel verdes;
-      `version.json` bate; `GET /api/filiacao/para-propor` e `GET /api/minhas-notificacoes/` respondem 401 sem login e as rotas novas estão no
-      `openapi.json`; a produção não recebeu nenhum dado de teste.
-- [x] **Filiação: formulário público no site:** o pedido sai de `/seja-associado/` (hoje o site só lê) e cai na caixa da Diretoria. **Como funciona:**
-      a página pede nome, CPF, data de nascimento e e-mail ou telefone, valida na hora (CPF, idade, contato) e mostra o aviso de privacidade (versão 1) com a
-      caixa de aceite; de 16 a 17 anos aparece a declaração de que os pais ou responsáveis autorizaram (o papel é conferido pela Diretoria: o cartão do pedido
-      mostra a idade, o aceite e essa declaração); abaixo de 16 não se filia (Estatuto, Art. 12). O servidor repete todas as regras em `POST
-      /api/filiacao/propor`: data de nascimento e aceite do aviso (com a versão que a pessoa viu) obrigatórios, ao menos um contato, limite de 10 pedidos por IP
-      por hora, campo escondido que descarta robôs em silêncio, a mesma frase para "já é associado" e "já tem pedido" (ninguém de fora descobre se um CPF é
-      de sócio) e o envio na Auditoria (`PROPOSTA_PUBLICA`, com o IP). Migração `e7c3d9a4b158` (aceite, versão e declaração no pedido). A Política de
-      Privacidade passou à versão 1.2 e descreve o formulário. **Na homologação (2026-10-08):** `v5.4h-10`, 5 de 5, preenchendo o formulário do site de teste
-      (formulário em branco recusado com o resumo e o foco no primeiro campo; CPF que não confere, menor de 16 anos e sem contato recusados na página; pedido
-      certo atravessa a API de outra origem e a página confirma; o mesmo CPF de novo é recusado com a frase única; de 16 a 17 anos a página pede a declaração
-      dos pais e só então aceita; a Diretoria vê idade, aceite do aviso e a declaração; o sócio vê o candidato só com nome e idade, sem CPF, e-mail nem
-      telefone; a Auditoria guarda os envios; o robô que preenche o campo escondido recebe sucesso e não deixa pedido); regressão verde: `v5.4h-09` 5/5 e
-      `v5.4c-fase1` 24/24. No servidor, 1000 testes verdes; no site, 26 testes novos, 10 de ponta a ponta do formulário e a suíte de acessibilidade inteira (inclui
-      o formulário com erros e com a declaração dos pais, no computador e no celular). **Em produção (2026-10-08):** commit `078344c`; Deploy API, Painel e Site
-      verdes (o do site com acessibilidade e Lighthouse); `version.json` bate; `asaf.org.br/seja-associado/` traz o formulário apontando para `api.asaf.org.br`; a
-      Política de Privacidade mostra a versão 1.2; o preflight de CORS de `https://asaf.org.br` para `POST /api/filiacao/propor` responde 200 liberando o POST; o
-      `openapi.json` mostra o corpo novo (nascimento obrigatório); `GET /api/filiacao/propostas` segue 401. Nenhum pedido de teste foi enviado à produção.
-- [x] **Telas que faltam:** inscrição no evento pelo painel (secretaria inscrevendo alguém); **núcleo familiar** do beneficiário;
-      **alocar voluntário** direto num turno.
-      **Na homologação (2026-10-07):** `v5.4h-06` inscrição pela secretaria, 4 de 4 (com 1 vaga: o primeiro fica Pré-inscrito, o segundo vai
-      para a Lista de Espera; a mesma pessoa de novo é recusada sem rastro; 2 inscrições na Auditoria; Secretário barrado na tela e na API; a
-      rota nova passa pelo controle de vagas, ao contrário da genérica `/api/inscricoes/`); `v5.4h-04` alocar voluntário direto num turno, 4
-      de 4 (formulário vazio diz o que falta; sem termo vigente é recusado em português; com termo entra na escala, continua ao recarregar e
-      fica na Auditoria; Secretário barrado); `v5.4h-05` núcleo familiar do beneficiário, 3 de 3 (a mãe vê o filho, o filho vê a mãe, sem
-      vínculo diz onde cadastrar). **Em produção (2026-10-08):** `POST /api/eventos/{id}/inscrever-associado`,
-      `GET /api/projetos/{id}/alocacoes` e `GET /api/beneficiarios/{id}/nucleo-familiar` respondem 401 sem login.
-- [x] **Rastro de recusas:** recusa de aprovação/assinatura também fica na Auditoria.
-      **Como funciona:** um tratador de erro do servidor (`app/recusas.py`, ligado em `app/main.py`) grava na Auditoria (tabela `recusas`, ação
-      `RECUSA_APROVACAO`) quem tentou, a rota, o resultado (400, 403 ou 409) e o motivo, nas 25 rotas de aprovação, reprovação, assinatura,
-      homologação e confirmação; 404, 401 e o que não é aprovação não gravam; se o registro falhar, a recusa sai igual para quem tentou. **Na
-      homologação (2026-10-08):** o roteiro das compras (e-03, 12 de 12) confere que o Tesoureiro tentando aprovar a própria compra aparece em
-      `recusas` com o nome dele, enquanto as tabelas das compras seguem só com o que deu certo; regressão verde nas telas que recusam aprovação:
-      despesa (e-03), relatórios e antifraude (e-04 16/16), projetos e voluntariado (f-01 22/22), atas (d-05 16/16), disciplina (d-08 7/7) e
-      registrar saída (h-08 5/5). **Em produção (2026-10-08):** commit `27e963c`, Deploy API verde; não há rota nova (é comportamento): a rota de
-      aprovação sem login segue 401 (que, por desenho, não grava recusa: não há quem tenha tentado). O efeito só se vê com login e foi provado
-      na homologação; a produção nunca recebe dado de teste.
-- [x] **Carga, limite por IP e réplicas em dia de evento (decisão: manter páginas estáticas e deixar "vivo" o que é dinâmico):** a API aguenta a multidão de
-      um dia de evento e não estoura as vagas. **Teste de carga** (`scripts/teste_de_carga_hml.py`, fluxo manual `Testar Carga da Homologação`, recusa qualquer
-      endereço que não seja o da homologação): 150 pessoas por minuto, cada uma abrindo a lista e a página do evento, levando 20 s no formulário (50 a 100
-      ao mesmo tempo) e se inscrevendo de um IP próprio, num evento de 100 vagas; mais um grupo atrás do mesmo IP e 5% de cliques duplos. Reprova se houver erro
-      5xx, vaga estourada, vaga vazia com gente na espera, inscrição duplicada, limite por IP falho ou p95 acima de 5 s. **O teste achou um defeito real na
-      primeira rodada:** a mesma pessoa enviando duas vezes quase junto dava erro 500 (as duas passavam pela checagem do CPF antes de gravar e a segunda batia na
-      restrição única do banco) e prendia uma vaga; corrigido (quem perde a corrida é recusada com "já está inscrita" e a vaga volta), com testes que forçam a
-      corrida. **Na homologação (2026-10-08), depois da correção:** 150 por minuto, 100 vagas: 100 confirmadas, 80 na lista de espera, p95 da inscrição 0,52 s,
-      nenhum erro, os 7 cliques duplos viraram 1 inscrição cada, o grupo do mesmo IP teve 30 aceitas e 10 barradas; **400 por minuto** (2,7 vezes a meta), 250
-      vagas: 250 confirmadas, 180 na espera, p95 0,39 s, nenhum erro. A primeira chamada do dia (API dormindo) levou de 0,65 a 1,25 s nesses testes porque a API
-      estava acordada; o pior caso (acordar do zero) segue sendo 10 a 30 s e é o que as réplicas abaixo evitam. **Limite por IP** da inscrição pública: de 5 para
-      **30 a cada 10 minutos** (5 barrava a secretaria de uma igreja já na sexta pessoa). **Réplicas:** o fluxo `Réplicas da API em dia de evento` (a cada 3 horas)
-      lê a lista pública de eventos e deixa **1 réplica mínima** da API de 24 h antes do evento até 12 h depois, e volta a 0 depois (só mexe nesse número; se não
-      conseguir ler os eventos, mantém como está). Provado na homologação à mão: 0 → 1 → 0 em `asaf-api-hml`; na produção rodou em simulação e deu 0 (nenhum evento
-      público agora). **Em produção (2026-10-08):** commit `667ad62`, Deploy API verde; a lista pública de eventos e o texto de consentimento respondem 200 e o
-      preflight de CORS de `https://asaf.org.br` libera o POST da inscrição. Nenhuma inscrição de teste foi enviada à produção. **Falta (é da v5.5, não daqui):** o
-      formulário de inscrição em evento no site e a página de cancelar a inscrição que o e-mail promete (`/cancelar-inscricao`, que hoje não existe).
-      **Achado de segurança do mesmo teste (2026-10-08):** o limite por IP e o IP gravado na Auditoria usavam o PRIMEIRO item de `X-Forwarded-For`, que é do cliente:
-      400 "pessoas" de uma máquina só, cada uma com um primeiro item inventado, nunca eram barradas (qualquer um burlava o limite). Agora vale o ÚLTIMO item, o que o
-      ingress anotou (`app/services/protecao_publica.py::ip_publico`, usado na inscrição em evento, na pesquisa de satisfação, na portaria e na filiação). **Provado na
-      homologação:** com a correção, 60 "pessoas" da mesma máquina foram limitadas a 30 (28 inscrições aceitas, 2 repetidas, 33 barradas) e o grupo do mesmo IP teve 0
-      aceitas; só a API de TESTE liga `CONFIAR_NO_PRIMEIRO_IP=1` (para o teste de carga simular muita gente de uma máquina), com teste garantindo que a produção nunca
-      define; com a variável, a carga normal voltou a passar (150 por minuto: 100 confirmadas, 80 na espera, p95 0,28 s). **Em produção:** commit `5b26086`, Deploy API e
-      Site verdes.
+**Resultado da conferência.** Eram 19 itens `[ ]` na FASE 5 (14 no corpo e 5 em citações). **9 só estavam sem marcar** (estão feitos; marcados agora, com a prova, na seção G); **1 foi adiado por decisão**
+dele (mapa com pino, seção F); **9 continuam abertos de verdade** (A1, A2, B2, C1, C2, C6, C7, C9 e C10, abaixo). Há ainda o que estava **só escrito em notas** ("Falta", "Abertos") e nunca virou item:
+B1 (o Ponto 2/2 reaberto), C3, C4, C5, C8 e C11 (achado novo de 2026-10-19).
+
+##### A. Versões que faltam construir (uma por vez, nesta ordem)
+
+- [ ] **A1 — v5.7e — Auditoria como permissão SECUNDÁRIA do Financeiro (decisão do Presidente, 2026-10-19; achado do Ponto de Revisão 2/2).** "O Conselho Fiscal não opera o financeiro: ele audita." Hoje o
+      nível Conselho Fiscal recebe a permissão geral `financeiro` (a que opera: confirmar doação, registrar saída, pagar título...) só para conseguir auditar. Passa a valer: cada módulo tem a permissão
+      GERAL e as SECUNDÁRIAS; a primeira secundária é `financeiro_auditar` (ler o que a auditoria precisa e dar o parecer: lançamento certo ou errado, comprovante confere). O Conselho Fiscal perde o
+      `financeiro` e ganha `financeiro_auditar` (mais a `auditoria` que já tem). No painel ele só vê o que audita, sem os botões de operar; o servidor recusa por trás. Uma migração tira o `financeiro` do
+      nível Conselho Fiscal nos bancos que já existem. Provado na homologação com um usuário do Conselho Fiscal (vê e audita; é barrado ao tentar operar).
+      **Situação (2026-10-19): EM ANDAMENTO**, na branch `v57e-conselho-audita` (**ainda não está na `main`**). Pronto: permissão `financeiro_auditar`; nível e cargo Conselho Fiscal sem `financeiro` (migração
+      com teste); leituras da auditoria aceitas com `financeiro` OU `financeiro_auditar`; painel do auditor só com Conselho Fiscal, Auditoria financeira e Relatórios; testes do servidor, da migração e do painel;
+      robô `v5.7e-01` **5 de 5 verde** na homologação. **Falta:** (a) os roteiros de regressão `v5.4e-04` (teste 15) e `v5.4d-08` (teste 2) ainda estavam **vermelhos** nas últimas rodadas na homologação: descobrir se é
+      defeito do sistema ou do roteiro, corrigir e refazer; (b) as duas rodadas finais da suíte do servidor; (c) `main` e confirmação em produção por leitura; (d) registrar aqui, em linhas separadas, o visto na
+      homologação e o confirmado em produção.
+- [ ] **A2 — v5.7f — Validar quem pede dado pessoal: a solicitação do titular (decisão do Presidente, 2026-10-19; achado do Ponto de Revisão 2/2).** Hoje a resposta vai por e-mail para o endereço digitado,
+      sem conferir que quem pede é a pessoa (o CPF não é segredo). Passa a valer: (1) a resposta com dado pessoal NUNCA vai solta por e-mail: o e-mail só avisa que há resposta, e ela aparece na
+      **Minha conta**, depois de a pessoa provar o e-mail com o código; (2) o sistema só deixa a equipe responder depois de a **identidade estar validada**: automaticamente, quando o e-mail digitado
+      é o do cadastro daquele CPF, ou à mão, pela equipe, com um registro do que foi conferido (a Auditoria guarda quem e quando); (3) o painel mostra no pedido se a identidade está validada e como.
+      Provado na homologação (pedido de quem tem cadastro, de quem não tem, e de quem digita o CPF de outra pessoa).
+      **Situação (2026-10-19): NÃO COMEÇADA** (só começa depois da v5.7e).
+
+##### B. Pontos de Revisão (só o Presidente fecha)
+
+- [ ] **B1 — Ponto de Revisão FASE 5 (2/2), reaberto.** A revisão foi feita em 2026-10-16 (texto acima, no bloco do Ponto); o fechamento foi **reaberto em 2026-10-19** porque o Presidente não autorizou e decidiu que dois
+      achados viram a v5.7e e a v5.7f. Só volta a "revisão feita, aguardando o OK do Presidente" depois de A1 e A2, e só fecha com o OK dele.
+- [ ] **B2 — Ponto de Revisão FASE 5 (1/2): resta uma única pendência** (todo o resto da lista foi conferido na homologação; ver o bloco do Ponto): a **conferência da diretoria contra a vedação do STF de 15/01/2026**
+      (parentes de parlamentar). Só se faz com a composição real da diretoria, que ainda não está cadastrada (hoje só o Presidente). Passa a ser **condição para lançar os mandatos reais** (D2), não para continuar
+      as versões. **DECISÃO:** o Presidente já decidiu abrir a v5.5 com ela pendente (2026-10-09); falta dizer se a FASE 5 pode fechar com ela registrada como condição do lançamento dos mandatos reais.
+
+##### C. Itens de versões antigas que continuam abertos (a construir ou a conferir)
+
+| # | Item | Origem | Situação em 2026-10-19 |
+| --- | --- | --- | --- |
+| C1 | **E-mail do Directus (SMTP)** para convite de editores e recuperação de senha, **e administrador de reserva** | v5.3 (`[ ]` na lista) | Não feito. Hoje só existe 1 administrador e recuperar a senha dele é por SQL. O e-mail da API já está ligado (decisão de 15/10), o do Directus não. Mexe em infraestrutura de produção: eu digo o plano antes e provo por leitura |
+| C2 | **MFA obrigatório do administrador do Directus** (`enforce_tfa`) | v5.3 (`[ ]` na lista) | Não feito. É o login do **Directus**, não o do painel (o MFA do painel é decisão congelada e não muda). O token de administrador é estático, então a automação não quebra |
+| C3 | **Teste ao vivo dos demais perfis do Directus** (Redator, Colaborador de mídia, Editor de conteúdo, Editor de transparência) com usuários de teste | v5.3 ("Falta") | Não feito: só o Leitor do site foi provado ao vivo; os outros estão provados pelos testes do modelo (45) |
+| C4 | **Atalho "Editar o site" com permissão própria `editar_site`** (hoje usa `gerenciar_acesso`) | v5.1/v5.3 ("Falta") | Não feito |
+| C5 | **Notícia ligada a uma emenda** | v5.3 ("Falta") | Ligação a **projeto** e a **evento** já existe (v5.5); a de emenda não (a v5.4 que ela esperava já existe) |
+| C6 | **Coleções do Directus além de Notícias**: textos de página, banners da Home, galeria, FAQ, depoimentos, parceiros | v5.1 (`[ ]` na lista) | **Não feitas.** Só a coleção `noticias` existe (conferido em `scripts/directus_modelo.py`). Os textos das páginas estão no código do site (v5.2) e só mudam por mim. **DECISÃO:** continua valendo o editor do site para esses textos, ou fica como está (cada texto público passa por conferência de fatos antes de entrar) |
+| C7 | **Transparência do destino por campanha (o APLICADO)**: arrecadado e aplicado puxados do centro de custo real | v5.6a/v5.7b (`[ ]` na lista) | Não feito: a página Doar mostra só o RECEBIDO por campanha. **DECISÃO:** fazer agora, ou levar à FASE 12.7 junto com a integração automática da Transparência (o plano já previa isso para o centro de custo da emenda) |
+| C8 | **Conferir o efeito da regra de ciclo de vida das fotos** sobre uma versão real | v5.7d ("Abertos", 1) | Venceu o prazo (uns 2 dias depois de 15/10). Precisa de papel de leitura de dados **só na homologação**, temporário, para rodar `az storage blob list --include v`; depois o papel é retirado |
+| C9 | **Chave da conta de armazenamento inteira no Directus** (`STORAGE_AZURE_ACCOUNT_KEY` da conta `stasafarcadafamilia`) em vez de conta própria ou SAS do contêiner `uploads` | v5.0 (citação com `[ ]`) | Não feito; alcance pequeno hoje (o Directus só guarda editorial). Depende de gravar segredo |
+| C10 | **Acompanhar** a nota de saúde do Directus (`warn` por tempo de resposta do Postgres, banco Burstable) | v5.0 (citação com `[ ]`) | Só acompanhamento; na versão 12 o `/server/health` exige login, então é lido pelo painel do Directus |
+| C11 | **Tela do Conselho Fiscal lista todos os títulos sem paginação** | achado dos robôs na v5.7e (2026-10-19) | Não feito: com muitos títulos a página fica muito alta e pesada (a v5.4h paginou Associados, Razão e Títulos, mas não esta). Mesmo padrão dos Títulos |
+
+##### D. Dado real que só o Presidente tem (não trava nenhuma versão: a homologação usa dado inventado; ele cadastra depois)
+
+1. **Chave Pix** (e nome e cidade do Pix) e marcar "vai para o site" em Instituição: abre a doação online (hoje FECHADA).
+2. **Mandatos reais** da Diretoria e do Conselho Fiscal (painel → Mandatos), depois da conferência do STF (B2); o nome e a foto aparecem no site em cerca de 30 minutos.
+3. **Dados da Instituição** (CNPJ, telefone, e-mail, horário, redes) marcados "vai para o site".
+4. **Despertai**: o projeto com o texto real (nada foi inventado sobre ele), a edição como evento ligado a ele, e o documento que comprove o calendário oficial do município.
+5. **Tabela de prazos de guarda** (proposta minha, em Configurações, com piso de 30 dias): ajustar se quiser.
+
+##### E. Limitações conhecidas (consequência de uma decisão ou trade-off já escrito; sem item a construir)
+
+- A foto de cadastro de associado já emitida segue abrindo por `/uploads/fotos/<uuid>` a quem já tem o endereço (a verificação do QR não o entrega mais); regravar cada foto com nome novo é uma opção (v5.7d).
+- A foto da Diretoria apagada leva **horas** para sair do site (o GitHub atrasa o agendamento); melhoria possível: a rotina disparar a publicação do site quando apagar uma foto (v5.7d).
+- Pedido de voluntariado ligado pelo CPF a quem não tem data de nascimento no cadastro continua exigindo a autorização do responsável, até a data entrar no cadastro (v5.5b).
+- O Pix feito sem se identificar não deixa registro: a tesouraria o vê no extrato do banco e o registra à mão (v5.6a). O e-mail do pedido, do recibo e do código é só tentativa, e o site diz isso.
+- A inscrição feita pela secretaria (sem e-mail digitado no site) não aparece na conta do visitante (decisão de segurança dita na Política); quem sabe o CPF de uma pessoa ainda pode reinscrevê-la em evento em que
+  a inscrição dela está cancelada (anterior à v5.6b); e os trade-offs da conta do visitante (bloqueio de 1 hora, dois cliques abrindo 2 pedidos de eliminação) estão no bloco da v5.6b.
+- O primeiro código real de conta de visitante só sai quando houver inscrição em evento ou pedido de doação com e-mail em produção (ainda não há evento público).
+
+##### F. Adiado por decisão (não bloqueia a FASE 6) e o que é de outra fase
+
+- **Mapa com pino** na página Contato: só com coordenadas exatas da diretoria (decisão do Presidente, 2026-10-03: "fica para o futuro").
+- **Tamanhos responsivos (`srcset`) das fotos:** hoje cada foto sai num tamanho só (WebP de até 1280 px); melhoria futura.
+- **FASE 7 (não é FASE 5):** regra automática de retenção para inscritos em evento, voluntários, certificados e para o IP da Auditoria (v5.7b); o restante do processo de resposta ao titular (a parte de **validar quem
+  pede** é a v5.7f, A2).
+
+##### G. Só faltava marcar (marcado agora, com a prova)
+
+| Item que estava `[ ]` | Prova |
+| --- | --- |
+| Flow do Directus que dispara a publicação do site (v5.0) | Resolvido de outro jeito: o fluxo `sincronizar-site.yml` roda **de 15 em 15 minutos** e reconstrói o site quando a API **ou** o Directus mudou (v5.3, "sincronização real em CI"); o receptor de disparo continua pronto. Um Flow só adiantaria de uns 15 minutos para segundos; se o Presidente quiser publicação instantânea, vira item novo |
+| Chave de automação do Directus no Key Vault (v5.0) | Resolvido de outro jeito (2026-10-03, decisão do usuário): o token de administrador fica **cifrado** em `CREDENCIAIS_AZURE.md` (SOPS), lido só em memória; `aplicar --producao` rodou assim |
+| Directus 12.4.1 e licença (v5.0) | Imagem `12.4.1` no ar desde 2026-10-01; licença aplicada em 2026-10-03 (`license.source = settings`, "OIG"), as 8 permissões que dependiam dela criadas, `verificar --producao` limpo |
+| Usuário de serviço e token só de leitura do site (v5.0) | `criar-leitor --producao`; token no Key Vault (`DIRECTUS-SITE-TOKEN`); autoteste em produção: lê notícias, não cria (403), não lista usuários |
+| Fluxo editorial: rascunho → revisão → publicado, agendamento, histórico (v5.1) | Feito na v5.3 e provado ao vivo (rascunho e agendada não chegam ao leitor do site) |
+| Papéis do Directus (v5.1) | 5 perfis criados em produção, nenhum com acesso de administrador (v5.3). Restam C3 e C4 |
+| Biblioteca de mídia com texto alternativo obrigatório (v5.1) | Feito na v5.3 para a foto da notícia (único uso hoje): texto alternativo e autorização de imagem obrigatórios, foto em WebP. O `srcset` está em F |
+| Páginas essenciais (v5.2) | As 16 páginas respondem 200 em `asaf.org.br` em 2026-10-19 (início, quem somos, diretoria, projetos, notícias, eventos, transparência, como ajudar, seja voluntário, seja associado, contato, privacidade, termos, estatuto, acessibilidade, minha conta); o mapa com pino está em F |
+| Verificação do Directus em produção (v5.3) | `isolar_directus.py verificar` na produção, só leitura, em 2026-10-08 ("o Directus não alcança nenhuma tabela do sistema") e `directus_configurar.py verificar --producao` "conforme o modelo"; em 2026-10-19, `GET cms.asaf.org.br/items/paginas` e `/items/noticias` **sem token = 403** e `server/ping` 200; rascunho fora do site e token só de leitura: testes do modelo e do site |
+
+##### H. Quando a FASE 5 fecha
+
+A FASE 5 só é dada por fechada quando: **A1 e A2** estiverem em produção e provadas na homologação; **B1** tiver o OK do Presidente; **B2** tiver o destino decidido por ele; e cada item de **C** estiver
+feito ou levado por decisão dele para outra fase (com a nota no lugar). **D** e **E** não bloqueiam. Só depois disso a FASE 6 (Comunicação) pode abrir, e só quando ele liberar.
 
 ### FASE 6 — Comunicação e transparência
 
