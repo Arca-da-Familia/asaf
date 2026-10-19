@@ -2122,6 +2122,17 @@ declaração da Receita). Não é parecer jurídico: é o raciocínio adotado; o
   abrindo por `/uploads/fotos/<uuid>` a quem já tem o endereço (a verificação do QR não o entrega mais; o painel o usa): uma migração que regrave cada foto com nome novo é uma opção; (3) a foto sai do site em
   horas por causa do agendamento do GitHub: melhoria possível, a tarefa periódica disparar o deploy do site quando apagar uma foto.
 
+- [ ] **v5.7e — Auditoria como permissão SECUNDÁRIA do Financeiro (decisão do Presidente, 2026-10-19; achado do Ponto de Revisão 2/2).** "O Conselho Fiscal não opera o financeiro: ele audita." Hoje o
+      nível Conselho Fiscal recebe a permissão geral `financeiro` (a que opera: confirmar doação, registrar saída, pagar título...) só para conseguir auditar. Passa a valer: cada módulo tem a permissão
+      GERAL e as SECUNDÁRIAS; a primeira secundária é `financeiro_auditar` (ler o que a auditoria precisa e dar o parecer: lançamento certo ou errado, comprovante confere). O Conselho Fiscal perde o
+      `financeiro` e ganha `financeiro_auditar` (mais a `auditoria` que já tem). No painel ele só vê o que audita, sem os botões de operar; o servidor recusa por trás. Uma migração tira o `financeiro` do
+      nível Conselho Fiscal nos bancos que já existem. Provado na homologação com um usuário do Conselho Fiscal (vê e audita; é barrado ao tentar operar).
+- [ ] **v5.7f — Validar quem pede dado pessoal: a solicitação do titular (decisão do Presidente, 2026-10-19; achado do Ponto de Revisão 2/2).** Hoje a resposta vai por e-mail para o endereço digitado,
+      sem conferir que quem pede é a pessoa (o CPF não é segredo). Passa a valer: (1) a resposta com dado pessoal NUNCA vai solta por e-mail: o e-mail só avisa que há resposta, e ela aparece na
+      **Minha conta**, depois de a pessoa provar o e-mail com o código; (2) o sistema só deixa a equipe responder depois de a **identidade estar validada**: automaticamente, quando o e-mail digitado
+      é o do cadastro daquele CPF, ou à mão, pela equipe, com um registro do que foi conferido (a Auditoria guarda quem e quando); (3) o painel mostra no pedido se a identidade está validada e como.
+      Provado na homologação (pedido de quem tem cadastro, de quem não tem, e de quem digita o CPF de outra pessoa).
+
 ##### 🔍 Ponto de Revisão — FASE 5 (2/2 — fim, fecha v5.5–v5.7)
 
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
@@ -2176,12 +2187,14 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
   2.2: é correção do texto no mesmo dia); (A3) `infra/armazenamento-privado.sh` voltaria o soft delete dos blobs para 30 dias se alguém recriasse o armazenamento: agora diz 25, como está aplicado nas duas
   contas; (A7) a Auditoria da rotina de expirar (item 5); (A8) o aviso do formulário de voluntariado não dizia que a oferta aceita vira cadastro de voluntário (nome, CPF se informado, contato e data de
   nascimento): ganhou a frase e o aviso do atendimento passou à **versão 2** (o servidor recusa a 1); (A9) o teste da migração (item 1).
-  **Abertos, registrados (sem correção nesta rodada):** (1) **solicitação de titular: a resposta vai para o e-mail digitado, sem verificar quem pede** (o CPF não é segredo): quem sabe o CPF de alguém pode
+  **Abertos (o 1 e o 3 viraram a v5.7f e a v5.7e, em 2026-10-19):** (1) **solicitação de titular: a resposta vai para o e-mail digitado, sem verificar quem pede** (o CPF não é segredo): quem sabe o CPF de alguém pode
   pedir "acesso aos dados" e receber a resposta; a validação de identidade é da v7.2; até lá, quem atende confere o CPF mostrado dentro do pedido e o cadastro antes de mandar dado pessoal; (2) pedido de
   voluntariado ligado pelo CPF a quem não tem data de nascimento no cadastro continua exigindo a autorização do responsável (item 1); (3) o nível "Conselho Fiscal" com `financeiro` (item 6): decisão
   do Presidente; (4) o papel de dados do armazenamento foi conferido por leitura (`az role assignment list`): a identidade do GitHub tem "Storage Blob Data Contributor" em `fotos-associados` e em
-  `fotos-diretoria` da produção e na conta inteira de teste. **Ponto de Revisão FASE 5 (2/2): fechado em 2026-10-16** (com a ressalva de que o Ponto (1/2) ainda espera a conferência da diretoria contra
-  a vedação do STF, que precisa de composição real).
+  `fotos-diretoria` da produção e na conta inteira de teste. **Ponto de Revisão FASE 5 (2/2): REVISÃO FEITA em 2026-10-16, FECHAMENTO REABERTO em 2026-10-19:** o Presidente não autorizou o fechamento (o Ponto só fecha com o OK dele) e decidiu que os
+  dois achados abertos não esperam a v7.2: viram a **v5.7e** (Conselho Fiscal audita sem operar) e a **v5.7f** (validar quem pede dado pessoal), acima. O Ponto (1/2) também segue esperando a
+  conferência da diretoria contra a vedação do STF, que precisa de composição real. **Decisão de 2026-10-19 sobre dados de teste:** a homologação é para inventar dado (chave Pix, CNPJ, mandato,
+  prazos, o que for preciso); nenhuma versão espera o Presidente preencher dado real, que ele cadastra depois, quando tiver tempo.
 
 ##### Decisões pendentes → onde cada uma será tratada (resposta do usuário em 2026-10-03)
 
@@ -2535,8 +2548,8 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       exibido apenas para quem tem permissão específica, mascarado para os demais.
 - [ ] Headers de segurança HTTP (CSP, `X-Content-Type-Options`, `X-Frame-Options`, HSTS) no site
       estático e no painel. **[parcial, v5.7: feito no site; o painel e a API não foram tratados neste item]**
-- [ ] Rate limiting nos endpoints públicos (inscrição de evento, contato, filiação) — proteção
-      contra spam/abuso sem CAPTCHA comercial pago. **[já existe por IP: inscrição (v4.6), atendimento (v5.5a), filiação (v5.4h), doação (v5.6a) e conta de visitante (v5.6b); falta só conferir e marcar]**
+- [x] Rate limiting nos endpoints públicos (inscrição de evento, contato, filiação) — proteção
+      contra spam/abuso sem CAPTCHA comercial pago. **[feito antes, na FASE 5, por IP e por hora: inscrição (v4.6), atendimento (v5.5a), filiação (v5.4h), doação (v5.6a) e conta de visitante (v5.6b)]**
 - [ ] Contratos/termos com operadores (Azure, provedor de e-mail, PSP de pagamento, BSP de
       WhatsApp) registrados no inventário, com a finalidade de cada compartilhamento.
 
@@ -2692,7 +2705,7 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - [ ] Modo alto contraste e aumento de fonte no site público; respeito a `prefers-reduced-motion`.
 - [ ] Linguagem simples nos textos de interface — acessibilidade cognitiva importa tanto quanto a
       técnica para o público de uma associação comunitária.
-- [ ] Declaração de acessibilidade publicada, com canal para relatar barreira encontrada. **[parcial, v5.7: publicada em `/acessibilidade/` (conformidade parcial declarada); falta a revisão manual]**
+- [x] Declaração de acessibilidade publicada, com canal para relatar barreira encontrada. **[feito antes, na v5.7: publicada em `/acessibilidade/` com a conformidade parcial declarada; a revisão manual continua pendente e é outro item]**
 
 #### v9.2 — Performance
 
