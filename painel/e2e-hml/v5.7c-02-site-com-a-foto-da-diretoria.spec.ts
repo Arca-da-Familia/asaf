@@ -124,7 +124,7 @@ test('a página Diretoria mostra a foto da Presidente, do próprio site, e as in
   expect(vigia.problemas()).toEqual([])
 })
 
-test('a Política de Privacidade está na versão 2.2 (a da rotina de retenção), com o parágrafo da foto da Diretoria', async ({
+test('a Política de Privacidade está na versão 2.x (a da rotina de retenção em diante), com o parágrafo da foto da Diretoria', async ({
   page,
 }, info) => {
   const resposta = await page.goto(`${SITE}/privacidade/`, {
@@ -132,7 +132,7 @@ test('a Política de Privacidade está na versão 2.2 (a da rotina de retenção
   })
   expect(resposta?.status()).toBe(200)
   const texto = (await page.locator('body').innerText()).replace(/\s+/g, ' ')
-  expect(texto).toContain('Versão 2.2')
+  expect(texto).toContain('Versão 2.')
   const paragrafo = page.locator('[data-diretoria-foto]')
   await expect(paragrafo).toBeVisible()
   await expect(paragrafo).toContainText(

@@ -51,6 +51,10 @@ const presidente = presidenteDaDiretoria((await conteudoPublico()).diretoria)
 // uso único, 5 tentativas, só a impressão HMAC guardada), enviado só se há vínculo (inscrição feita pelo site com o e-mail DIGITADO, nunca o do cadastro, ou pedido de doação com o e-mail) e com resposta igual nos dois casos; sessão de 60 minutos na aba do navegador (só a
 // impressão no servidor); o IP e uma impressão do e-mail (nunca o endereço) no controle de limite; a Auditoria sem o e-mail; a limpeza de 1 dia pela rotina de manutenção (`conta_de_visitante.limpar_vencidos`); o pedido de
 // eliminação vira solicitação de titular na fila, sem apagar nada na hora. A limpeza de 1 dia NÃO entra na lista de prazos (é resíduo técnico, não prazo de guarda): a lista segue com 7 itens.
+// v2.3 (2026-10-19): a SOLICITAÇÃO DO TITULAR confere a identidade de quem pede antes de responder (v5.7f, `app/services/atendimento.py`, `app/routers/atendimento.py`, `app/services/conta_de_visitante.py`): o e-mail passa a ser
+// obrigatório no formulário do titular; a identidade é validada sozinha só quando o e-mail digitado é o do cadastro de ASSOCIADO daquele CPF, ou à mão pela equipe (com o que conferiu, e a Auditoria registra quem, quando e como),
+// ou já nasce validada quando o pedido é aberto dentro da Minha conta; sem validação o servidor recusa a resposta; a resposta e o motivo do encerramento NÃO vão por e-mail (só o aviso) e são lidos na Minha conta; o parágrafo
+// `data-identidade-do-titular` diz SÓ isso, e a conta do visitante também abre por causa de uma solicitação do titular. A frase antiga "a resposta também pode seguir por e-mail" vale agora só para os outros tipos de pedido.
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -309,26 +313,48 @@ const direitos = [
         <strong>Formulários de atendimento.</strong> O de contato e o de pedido
         de informação sobre recursos públicos pedem nome, e-mail ou telefone,
         assunto e a sua mensagem; o de solicitação do titular de dados pede
-        nome, e-mail ou telefone, o CPF (só para conferir que quem pede é o
-        titular), o direito que você quer exercer e a sua mensagem; o de
-        voluntariado pede nome, e-mail ou telefone, a data de nascimento (para
-        sabermos se é preciso a autorização de um responsável, no caso de quem
-        tem menos de 18 anos), o CPF, se você quiser informar, e a sua mensagem.
-        Antes do envio, a página mostra o aviso de privacidade e só envia o
-        pedido depois que você o aceita; a versão do aviso e o momento do aceite
-        ficam registrados no pedido. Cada pedido recebe um número de protocolo e
-        um prazo de resposta, mostrados na hora na própria página. Os dados vão
-        para o sistema de gestão da ASAF, onde só vê o pedido quem atende na
-        associação (hoje, a Presidência e a Diretoria). Guardamos o pedido, o
-        protocolo e a nossa resposta, por 5 anos depois de respondido ou
-        encerrado, para provar que atendemos no prazo. Se você informar e-mail,
-        mandamos um e-mail confirmando o recebimento (com o protocolo e o
-        prazo), e a resposta também pode seguir por ele. Quando a secretaria
-        cadastra você como voluntário, o seu nome, o seu contato, a data de
-        nascimento e o CPF (se informado) passam a constar do cadastro da ASAF e
-        do termo de adesão de voluntário. O endereço IP de quem envia também
-        fica registrado, por segurança. Para pedir que apaguemos o que
-        guardamos, use a solicitação do titular de dados.
+        nome, e-mail (obrigatório), telefone (se você quiser), o CPF (para
+        conferir que quem pede é o titular), o direito que você quer exercer e a
+        sua mensagem; o de voluntariado pede nome, e-mail ou telefone, a data de
+        nascimento (para sabermos se é preciso a autorização de um responsável,
+        no caso de quem tem menos de 18 anos), o CPF, se você quiser informar, e
+        a sua mensagem. Antes do envio, a página mostra o aviso de privacidade e
+        só envia o pedido depois que você o aceita; a versão do aviso e o
+        momento do aceite ficam registrados no pedido. Cada pedido recebe um
+        número de protocolo e um prazo de resposta, mostrados na hora na própria
+        página. Os dados vão para o sistema de gestão da ASAF, onde só vê o
+        pedido quem atende na associação (hoje, a Presidência e a Diretoria).
+        Guardamos o pedido, o protocolo e a nossa resposta, por 5 anos depois de
+        respondido ou encerrado, para provar que atendemos no prazo. Se você
+        informar e-mail, mandamos um e-mail confirmando o recebimento (com o
+        protocolo e o prazo); a resposta ao contato, ao pedido de informação e
+        ao voluntariado também pode seguir por ele, mas a resposta à solicitação
+        do titular de dados nunca vai por e-mail (veja o parágrafo seguinte).
+        Quando a secretaria cadastra você como voluntário, o seu nome, o seu
+        contato, a data de nascimento e o CPF (se informado) passam a constar do
+        cadastro da ASAF e do termo de adesão de voluntário. O endereço IP de
+        quem envia também fica registrado, por segurança. Para pedir que
+        apaguemos o que guardamos, use a solicitação do titular de dados.
+      </p>
+      <p class="mt-3" data-identidade-do-titular>
+        <strong>
+          Solicitação do titular de dados: como conferimos quem pede e como a
+          resposta chega.
+        </strong>{' '}
+        Dado pessoal só é entregue depois de a ASAF conferir a identidade de
+        quem pediu: o sistema confere sozinho quando o e-mail do pedido é o
+        e-mail do cadastro de associado daquele CPF; nos outros casos, a equipe
+        confere por outro meio (por exemplo, um documento com foto) e escreve no
+        pedido o que conferiu, e a Auditoria do sistema registra quem validou,
+        quando e como (sem o que foi conferido). Enquanto a identidade não
+        estiver validada, o sistema não deixa a equipe responder; ela pode
+        encerrar o pedido e escrever o motivo. A resposta não vai por e-mail: o
+        sistema tenta avisar por e-mail que há resposta, ou que o pedido foi
+        encerrado, e você lê a resposta, ou o motivo, na área Minha conta do
+        site, depois de entrar com o e-mail do pedido e um código de 6 números.
+        O texto da resposta e o que a equipe anotou ao conferir a identidade
+        ficam guardados com o pedido e são apagados junto com ele (veja “Por
+        quanto tempo guardamos”).
       </p>
       <p class="mt-3" data-inscricao-em-evento>
         <strong>Inscrição em eventos.</strong> A página de um evento gratuito
@@ -417,34 +443,39 @@ const direitos = [
         deixa quem se inscreveu em um evento pelo site ou fez um pedido de
         doação pelo site consultar o que está ligado ao seu e-mail, sem senha.
         Você informa o e-mail e, só se houver uma inscrição em evento feita pelo
-        site com esse e-mail digitado ou um pedido de doação com esse endereço,
-        o sistema tenta enviar um código de 6 números por e-mail; a resposta na
-        tela é a mesma exista ou não algo ligado ao endereço. O código vale 10
-        minutos, serve uma vez e aceita 5 tentativas; o sistema não guarda o
-        código, só uma impressão dele (calculada com um segredo do servidor), o
-        e-mail e o número de tentativas. O endereço IP de quem pede o código ou
-        tenta entrar fica registrado no controle do limite de pedidos (e, de
-        quem pede o código, uma impressão do e-mail, nunca o endereço, para
-        limitar a 3 pedidos por hora); a Auditoria do sistema registra que
-        alguém entrou, com o IP e sem o e-mail, e registra o pedido de
-        eliminação com o IP e o número do pedido (que guarda o e-mail). A sessão
-        vale no máximo 60 minutos, fica guardada só na aba do seu navegador (o
-        botão Sair a apaga; fechar a aba em geral também) e, no servidor, ficam
-        o e-mail e uma impressão dela. A rotina de manutenção, que roda algumas
-        vezes ao dia, apaga os códigos, as sessões e esses controles de pedido
-        com mais de 1 dia. Dentro da conta você vê as inscrições feitas pelo
-        site com esse e-mail (o evento, a situação, o primeiro nome de quem foi
-        inscrito e, quando há, o código de check-in; a inscrição feita pela
-        secretaria não aparece), os certificados dessas inscrições (a atividade,
-        o primeiro nome, o código de verificação e o PDF) e os seus pedidos de
-        doação pelo site (o protocolo, a situação, o valor e, depois da
-        confirmação da tesouraria, o número do recibo); quem controla a caixa de
-        e-mail desse endereço vê o que está ligado a ele. O botão “Pedir a
-        eliminação dos meus dados” abre uma solicitação de titular de dados na
-        fila de atendimento, e o sistema tenta confirmar por e-mail com o
-        protocolo e o prazo de resposta; nada é apagado na hora: a equipe
-        analisa o pedido conforme a lei e as obrigações da ASAF (recibos e
-        escrituração contábil são guardados).
+        site com esse e-mail digitado, um pedido de doação com esse endereço ou
+        uma solicitação do titular de dados feita com ele, o sistema tenta
+        enviar um código de 6 números por e-mail; a resposta na tela é a mesma
+        exista ou não algo ligado ao endereço. O código vale 10 minutos, serve
+        uma vez e aceita 5 tentativas; o sistema não guarda o código, só uma
+        impressão dele (calculada com um segredo do servidor), o e-mail e o
+        número de tentativas. O endereço IP de quem pede o código ou tenta
+        entrar fica registrado no controle do limite de pedidos (e, de quem pede
+        o código, uma impressão do e-mail, nunca o endereço, para limitar a 3
+        pedidos por hora); a Auditoria do sistema registra que alguém entrou,
+        com o IP e sem o e-mail, e registra o pedido de eliminação com o IP e o
+        número do pedido (que guarda o e-mail). A sessão vale no máximo 60
+        minutos, fica guardada só na aba do seu navegador (o botão Sair a apaga;
+        fechar a aba em geral também) e, no servidor, ficam o e-mail e uma
+        impressão dela. A rotina de manutenção, que roda algumas vezes ao dia,
+        apaga os códigos, as sessões e esses controles de pedido com mais de 1
+        dia. Dentro da conta você vê as inscrições feitas pelo site com esse
+        e-mail (o evento, a situação, o primeiro nome de quem foi inscrito e,
+        quando há, o código de check-in; a inscrição feita pela secretaria não
+        aparece), os certificados dessas inscrições (a atividade, o primeiro
+        nome, o código de verificação e o PDF) e os seus pedidos de doação pelo
+        site (o protocolo, a situação, o valor e, depois da confirmação da
+        tesouraria, o número do recibo) e as suas solicitações do titular de
+        dados (o protocolo, o direito pedido, a situação, o prazo e a resposta
+        da ASAF ou o motivo do encerramento, nunca o CPF nem o texto do seu
+        pedido); quem controla a caixa de e-mail desse endereço vê o que está
+        ligado a ele. O botão “Pedir a eliminação dos meus dados” abre uma
+        solicitação de titular de dados na fila de atendimento, que já nasce com
+        a identidade validada (o e-mail acabou de ser confirmado pelo código), e
+        o sistema tenta confirmar por e-mail com o protocolo e o prazo de
+        resposta; nada é apagado na hora: a equipe analisa o pedido conforme a
+        lei e as obrigações da ASAF (recibos e escrituração contábil são
+        guardados).
       </p>
       <p class="mt-3">
         Cada formulário informa, antes do envio, quais dados pede e para quê.

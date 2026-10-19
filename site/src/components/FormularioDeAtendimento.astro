@@ -86,11 +86,13 @@ const link = 'font-medium text-primary underline underline-offset-4'
     <fieldset class="grid gap-5" aria-describedby={id('dica-contato')}>
       <legend class="text-sm font-medium">Como podemos responder você</legend>
       <p id={id('dica-contato')} class="text-sm text-muted-foreground">
-        Informe ao menos um dos dois, para podermos responder.
+        {titular
+          ? 'O e-mail é obrigatório: a resposta sobre os seus dados não vai por e-mail, você a lê na área Minha conta do site, entrando com este e-mail e um código que enviamos a ele. O telefone é opcional.'
+          : 'Informe ao menos um dos dois, para podermos responder.'}
       </p>
       <div>
         <label for={id('email')} class="block text-sm font-medium">
-          E-mail
+          {titular ? 'E-mail (obrigatório)' : 'E-mail'}
         </label>
         <input
           id={id('email')}
@@ -362,9 +364,22 @@ const link = 'font-medium text-primary underline underline-offset-4'
       <p class="mt-2 font-medium">Guarde este número.</p>
     </div>
     <p data-prazo-da-resposta hidden class="mt-3"></p>
-    <p class="mt-3">
-      Se informou e-mail, a resposta também pode chegar por lá.
-    </p>
+    {titular ? (
+      <p class="mt-3" data-resposta-do-titular>
+        A resposta sobre os seus dados não vai por e-mail: quando estiver
+        pronta, tentamos avisar pelo e-mail que você informou e você a lê na
+        área{' '}
+        <a href="/minha-conta/" class={link}>
+          Minha conta
+        </a>
+        , entrando com esse e-mail e um código de 6 números. Antes de responder,
+        a associação confere que quem pediu é o titular dos dados.
+      </p>
+    ) : (
+      <p class="mt-3">
+        Se informou e-mail, a resposta também pode chegar por lá.
+      </p>
+    )}
   </div>
 </section>
 

@@ -7,9 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
 from app.database import get_db
-from app.models.atendimento import ENCERRADO, SITUACOES, TIPOS, Atendimento
+from app.models.atendimento import ENCERRADO, IDENTIDADE_AUTOMATICA_CADASTRO, SITUACOES, TIPOS, Atendimento
 from app.models.core import Usuario
-from app.schemas.atendimento import AtendimentoEncerrar, AtendimentoPublicoCriar, AtendimentoResponder
+from app.schemas.atendimento import AtendimentoEncerrar, AtendimentoPublicoCriar, AtendimentoResponder, AtendimentoValidarIdentidade
 from app.security import exigir_permissao
 from app.services import atendimento as servico
 from app.services.protecao_publica import ip_publico as _ip_publico, limitar_taxa_por_ip
@@ -45,6 +45,12 @@ def enviar_pedido(dados: AtendimentoPublicoCriar, request: Request, db: Session 
     )
     if novo:
         registrar_auditoria(db, None, "atendimentos", "ATENDIMENTO_PUBLICO", id_registro_afetado=atendimento.id_atendimento, ip_origem=ip)
+        if atendimento.identidade_validacao == IDENTIDADE_AUTOMATICA_CADASTRO:
+            # o e-mail digitado é o do cadastro de associado daquele CPF: fica registrado que o sistema validou, sem usuário (v5.7f)
+            registrar_auditoria(
+                db, None, "atendimentos", "ATENDIMENTO_IDENTIDADE_VALIDADA_AUTOMATICAMENTE", id_registro_afetado=atendimento.id_atendimento,
+                dados_depois={"como": atendimento.identidade_validacao}, ip_origem=ip,
+            )
         # confirmação por e-mail (protocolo e prazo), só para o pedido novo e só se a pessoa informou e-mail; melhor esforço
         servico.confirmar_recebimento_por_email(atendimento)
     # a resposta é a mesma para um pedido novo e para o mesmo pedido mandado de novo: quem está de fora só recebe o protocolo e o prazo
@@ -89,7 +95,7 @@ def listar_atendimentos(
 @router.get("/api/atendimentos/{id_atendimento}", summary="Abrir um atendimento (com os outros pedidos da mesma pessoa)")
 def abrir_atendimento(id_atendimento: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_da_fila)):
     atendimento = _buscar_ou_404(db, id_atendimento)
-    return {**servico.serializar(atendimento, completo=True), "outros_do_remetente": servico.outros_do_remetente(db, atendimento)}
+    return {**servico.serializar(atendimento, completo=True, db=db), "outros_do_remetente": servico.outros_do_remetente(db, atendimento)}
 
 
 @router.post("/api/atendimentos/{id_atendimento}/assumir", summary="Assumir o atendimento (passa a ser o responsável e a situação vira Em atendimento)")
@@ -101,7 +107,7 @@ def assumir_atendimento(id_atendimento: int, request: Request, db: Session = Dep
         db, usuario, "atendimentos", "ATENDIMENTO_ASSUMIDO", id_registro_afetado=atendimento.id_atendimento, dados_antes=antes,
         dados_depois={"status": atendimento.status, "id_responsavel": atendimento.id_responsavel}, ip_origem=_ip(request),
     )
-    return servico.serializar(atendimento, completo=True)
+    return servico.serializar(atendimento, completo=True, db=db)
 
 
 @router.post("/api/atendimentos/{id_atendimento}/responder", summary="Registrar a resposta (e tentar mandá-la por e-mail)")
@@ -116,7 +122,21 @@ def responder_atendimento(id_atendimento: int, dados: AtendimentoResponder, requ
         },
         ip_origem=_ip(request),
     )
-    return servico.serializar(atendimento, completo=True)
+    return servico.serializar(atendimento, completo=True, db=db)
+
+
+@router.post("/api/atendimentos/{id_atendimento}/validar-identidade", summary="Validar a identidade de quem fez a solicitação do titular, registrando o que foi conferido")
+def validar_identidade_do_atendimento(
+    id_atendimento: int, dados: AtendimentoValidarIdentidade, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_da_fila),
+):
+    atendimento = _buscar_ou_404(db, id_atendimento)
+    servico.validar_identidade(db, atendimento, usuario, dados.nota)
+    # a Auditoria guarda quem validou, quando e como; o que foi conferido (que pode ter dado da pessoa) fica só no pedido
+    registrar_auditoria(
+        db, usuario, "atendimentos", "ATENDIMENTO_IDENTIDADE_VALIDADA", id_registro_afetado=atendimento.id_atendimento,
+        dados_depois={"como": atendimento.identidade_validacao}, ip_origem=_ip(request),
+    )
+    return servico.serializar(atendimento, completo=True, db=db)
 
 
 @router.post("/api/atendimentos/{id_atendimento}/cadastrar-voluntario", summary="Cadastrar quem se ofereceu como voluntário (pessoa do cadastro, sem precisar ser associada)")
@@ -127,7 +147,7 @@ def cadastrar_voluntario_do_atendimento(id_atendimento: int, request: Request, d
         db, usuario, "atendimentos", "ATENDIMENTO_VOLUNTARIO_CADASTRADO", id_registro_afetado=atendimento.id_atendimento,
         dados_depois={"id_pessoa": pessoa.id_pessoa}, ip_origem=_ip(request),
     )
-    return servico.serializar(atendimento, completo=True)
+    return servico.serializar(atendimento, completo=True, db=db)
 
 
 @router.post("/api/atendimentos/{id_atendimento}/encerrar", summary="Encerrar o atendimento, com o motivo")
@@ -139,4 +159,4 @@ def encerrar_atendimento(id_atendimento: int, dados: AtendimentoEncerrar, reques
         db, usuario, "atendimentos", "ATENDIMENTO_ENCERRADO", id_registro_afetado=atendimento.id_atendimento, dados_antes=antes,
         dados_depois={"status": ENCERRADO, "motivo": atendimento.motivo_encerramento}, ip_origem=_ip(request),
     )
-    return servico.serializar(atendimento, completo=True)
+    return servico.serializar(atendimento, completo=True, db=db)

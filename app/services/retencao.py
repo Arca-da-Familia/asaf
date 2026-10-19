@@ -90,7 +90,7 @@ def _pedidos_de_atendimento(db: Session, agora: datetime, dias: int) -> int:
     for a in candidatos:
         a.nome_completo = NOME_APAGADO
         a.email_contato = a.telefone_whatsapp = a.cpf = a.data_nascimento = a.id_pessoa = a.chave_remetente = a.impressao_do_pedido = None
-        a.assunto = a.motivo_encerramento = None
+        a.assunto = a.motivo_encerramento = a.identidade_nota = None
         a.mensagem = MARCADOR_DE_TEXTO
         if a.resposta is not None:
             a.resposta = MARCADOR_DE_TEXTO

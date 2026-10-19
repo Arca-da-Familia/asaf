@@ -51,11 +51,47 @@ const migalhas: Migalha[] = [
       </p>
     </section>
 
+    <section aria-labelledby="como-a-resposta-chega" data-como-a-resposta-chega>
+      <h2 id="como-a-resposta-chega" class="text-2xl font-bold tracking-tight">
+        Como a resposta chega até você
+      </h2>
+      <p class="mt-4 max-w-3xl">
+        Dado pessoal só pode ir para quem prova ser a pessoa a quem ele se
+        refere; se não fosse assim, qualquer um que soubesse o seu CPF poderia
+        pedir os seus dados. Por isso o caminho tem três passos:
+      </p>
+      <ol class="mt-4 flex max-w-3xl list-decimal flex-col gap-2 pl-6">
+        <li>
+          Você envia o pedido com o seu CPF e o seu e-mail (o e-mail é
+          obrigatório).
+        </li>
+        <li>
+          A associação confere que quem pediu é o titular. Se o e-mail é o do
+          seu cadastro de associado, o sistema confere sozinho; nos outros
+          casos, a equipe confere por outro meio (por exemplo, um documento com
+          foto) e registra o que conferiu. Sem essa conferência, a associação
+          não responde com dado pessoal; se não conseguir conferir, encerra o
+          pedido, e o motivo aparece na área Minha conta.
+        </li>
+        <li>
+          Quando há resposta, tentamos avisar pelo e-mail que você informou. A
+          resposta não vai nesse e-mail: você entra na área{' '}
+          <a
+            href="/minha-conta/"
+            class="font-medium text-primary underline underline-offset-4"
+          >
+            Minha conta
+          </a>{' '}
+          com o mesmo e-mail e digita o código de 6 números que o site envia.
+        </li>
+      </ol>
+    </section>
+
     <FormularioDeAtendimento
       tipo="TITULAR_LGPD"
       titulo="Faça a sua solicitação"
       idDoFormulario="solicitacao-do-titular"
-      instrucao="Escolha o que você quer pedir, conte o que precisa e informe o seu CPF e uma forma de contato."
+      instrucao="Escolha o que você quer pedir, conte o que precisa e informe o seu CPF e o seu e-mail."
     />
 
     <p class="text-sm">

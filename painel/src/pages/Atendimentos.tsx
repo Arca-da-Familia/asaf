@@ -14,27 +14,33 @@ import {
   listarAtendimentosDaFila,
   responderAtendimento,
   resumirAtendimentos,
+  validarIdentidadeDoAtendimento,
   type AtendimentoAberto,
   type AtendimentoCompleto,
   type AtendimentoDaFila,
 } from '@/lib/api'
 import { formatarCpf } from '@/lib/cpf'
 import {
+  avisoDoEncerramentoDoTitular,
   avisoDoEnvioDaResposta,
   COR_DA_SITUACAO_DO_ATENDIMENTO,
   COR_DO_PRAZO,
   previaDaMensagem,
   SITUACAO_PADRAO_DA_FILA,
   SITUACOES_DA_FILA,
+  textoDaIdentidade,
   textoDoPrazo,
   TIPOS_DE_ATENDIMENTO,
   TODAS_AS_SITUACOES,
+  validarNotaDeIdentidade,
 } from '@/lib/atendimentos'
 import { formatarData } from '@/lib/datas'
 
 // v5.5a (FASE 5) - a fila única de atendimento: tudo que chega pelo formulário do site (contato, pedido de informação sobre recursos públicos,
 // solicitação de titular de dados da LGPD) cai aqui com protocolo e prazo. Quem tem a permissão `atendimento` assume o pedido, responde (a resposta
 // também sai por e-mail, quando a pessoa deixou um) e encerra com o motivo; cada passo fica na Auditoria.
+// v5.7f: a solicitação do titular só pode ser respondida depois de validada a identidade de quem pediu (automática, ou conferida pela equipe com o que foi conferido anotado);
+// a resposta não vai por e-mail: a pessoa a lê na área Minha conta do site.
 // v5.5b: o pedido de voluntariado também tem o caminho "cadastrar como voluntário, registrar o termo de adesão, escalar" (VoluntarioDoPedido).
 const POR_PAGINA = 25
 const classeCampo =
@@ -419,6 +425,7 @@ function Detalhe({
   const queryClient = useQueryClient()
   const [resposta, setResposta] = useState('')
   const [motivo, setMotivo] = useState('')
+  const [nota, setNota] = useState('')
   const [erro, setErro] = useState<string | null>(null)
 
   const {
@@ -469,20 +476,51 @@ function Detalhe({
     },
     onError: falhar,
   })
+  const validar = useMutation({
+    mutationFn: () => validarIdentidadeDoAtendimento(id, nota),
+    onMutate: () => setErro(null),
+    onSuccess: (r) => {
+      setNota('')
+      atualizar(
+        r,
+        `Identidade do pedido ${r.protocolo} validada. Agora você pode responder.`,
+      )
+    },
+    onError: falhar,
+  })
   const encerrar = useMutation({
     mutationFn: () => encerrarAtendimento(id, motivo),
     onMutate: () => setErro(null),
     onSuccess: (r) => {
       setMotivo('')
-      atualizar(r, `Atendimento ${r.protocolo} encerrado.`)
+      const aviso = avisoDoEncerramentoDoTitular(r, true)
+      atualizar(
+        r,
+        `Atendimento ${r.protocolo} encerrado.${aviso ? ` ${aviso.texto}` : ''}`,
+        aviso?.atencao ?? false,
+      )
     },
     onError: falhar,
   })
-  const ocupado = assumir.isPending || responder.isPending || encerrar.isPending
+  const ocupado =
+    assumir.isPending ||
+    responder.isPending ||
+    encerrar.isPending ||
+    validar.isPending
 
   function enviarResposta(e: FormEvent) {
     e.preventDefault()
     responder.mutate()
+  }
+
+  function enviarValidacao(e: FormEvent) {
+    e.preventDefault()
+    const problema = validarNotaDeIdentidade(nota)
+    if (problema) {
+      setErro(problema)
+      return
+    }
+    validar.mutate()
   }
 
   function enviarEncerramento(e: FormEvent) {
@@ -509,6 +547,9 @@ function Detalhe({
 
   const emAberto = a.status === 'Novo' || a.status === 'Em atendimento'
   const envio = a.resposta ? avisoDoEnvioDaResposta(a) : null
+  const identidade = textoDaIdentidade(a)
+  const encerramentoDoTitular = avisoDoEncerramentoDoTitular(a)
+  const faltaValidar = identidade !== null && !identidade.validada
 
   return (
     <div
@@ -551,6 +592,44 @@ function Detalhe({
         <p className="text-xs text-muted-foreground">
           Esta pessoa já consta no cadastro da associação.
         </p>
+      )}
+
+      {identidade && (
+        <section
+          aria-label="Identidade de quem pediu"
+          data-identidade={identidade.validada ? 'validada' : 'pendente'}
+          className={
+            identidade.validada
+              ? 'rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900'
+              : 'rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900'
+          }
+        >
+          <h2 className="text-sm font-semibold">Identidade de quem pediu</h2>
+          <p className="mt-1">{identidade.texto}</p>
+          {faltaValidar && emAberto && (
+            <form onSubmit={enviarValidacao} noValidate className="mt-3">
+              <label className="block text-sm font-medium">
+                O que você conferiu
+                <textarea
+                  aria-label="O que você conferiu"
+                  placeholder="Ex.: conferi o documento com foto da pessoa na secretaria"
+                  rows={2}
+                  value={nota}
+                  onChange={(e) => setNota(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                />
+              </label>
+              <Button
+                type="submit"
+                size="sm"
+                className="mt-2"
+                disabled={ocupado}
+              >
+                Validar identidade
+              </Button>
+            </form>
+          )}
+        </section>
       )}
 
       {a.tipo === 'VOLUNTARIO' && (
@@ -614,6 +693,21 @@ function Detalhe({
         </p>
       )}
 
+      {a.status === 'Encerrado' && encerramentoDoTitular && (
+        <p
+          data-envio-do-encerramento={
+            a.resposta_enviada_por_email === false ? 'falhou' : 'ok'
+          }
+          className={
+            encerramentoDoTitular.atencao
+              ? 'rounded-md border border-amber-300 bg-amber-100 px-3 py-2 text-sm text-amber-900'
+              : 'text-sm'
+          }
+        >
+          {encerramentoDoTitular.texto}
+        </p>
+      )}
+
       {erro && (
         <p
           role="alert"
@@ -651,14 +745,36 @@ function Detalhe({
             placeholder="Escreva a resposta para a pessoa"
             rows={4}
             value={resposta}
+            disabled={faltaValidar}
             onChange={(e) => setResposta(e.target.value)}
-            className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
           />
-          <p className="mt-1 text-xs text-muted-foreground">
-            A resposta fica registrada aqui e também é enviada por e-mail, se a
-            pessoa deixou um.
-          </p>
-          <Button type="submit" size="sm" className="mt-2" disabled={ocupado}>
+          {faltaValidar ? (
+            <p
+              data-bloqueio="identidade"
+              className="mt-1 text-xs font-medium text-amber-900"
+            >
+              Valide a identidade de quem pediu (cartão acima) antes de
+              responder.
+            </p>
+          ) : a.tipo === 'TITULAR_LGPD' ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              A resposta fica registrada aqui e a pessoa a lê na área Minha
+              conta do site. O e-mail só avisa que ela existe: a resposta não
+              vai por e-mail.
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">
+              A resposta fica registrada aqui e também é enviada por e-mail, se
+              a pessoa deixou um.
+            </p>
+          )}
+          <Button
+            type="submit"
+            size="sm"
+            className="mt-2"
+            disabled={ocupado || faltaValidar}
+          >
             Registrar resposta
           </Button>
         </form>
@@ -678,6 +794,12 @@ function Detalhe({
             onChange={(e) => setMotivo(e.target.value)}
             className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
           />
+          {a.tipo === 'TITULAR_LGPD' && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Na solicitação do titular, este motivo aparece para a pessoa na
+              área Minha conta do site, e ela é avisada por e-mail.
+            </p>
+          )}
           <Button
             type="submit"
             variant="outline"

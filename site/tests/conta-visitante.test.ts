@@ -10,6 +10,7 @@ import {
   entrarComCodigo,
   esquecerSessao,
   explicacaoDaDoacao,
+  explicacaoDoPedidoDoTitular,
   frasePeloFimDaSessao,
   guardarSessao,
   instanteEmPalavras,
@@ -28,9 +29,11 @@ import {
   sairDaConta,
   sessaoAcabou,
   situacaoDaDoacao,
+  situacaoDoPedidoDoTitular,
   soOsNumeros,
   type DoacaoDaConta,
   type InscricaoDaConta,
+  type PedidoDoTitularDaConta,
 } from '../src/lib/conta-visitante'
 
 const SEM_NBSP = (texto: string | null) => texto?.replace(/ /g, ' ') ?? null
@@ -140,6 +143,20 @@ describe('lerConta', () => {
       { ...doacao(), situacao: 'CONFIRMADA', numero_do_recibo: 12 },
       { sem: 'protocolo' },
     ],
+    pedidos_do_titular: [
+      {
+        protocolo: 'ASAF-2026-00031',
+        o_que_pediu: 'Acessar os dados que a associação tem sobre mim',
+        situacao: 'Respondido',
+        pedido_em: '2026-10-10T12:00:00',
+        prazo_em: '2026-10-25T12:00:00',
+        respondido_em: '2026-10-12T12:00:00',
+        resposta: 'Guardamos o seu nome.',
+        encerrado_em: null,
+        motivo_do_encerramento: null,
+      },
+      { situacao: 'Novo' },
+    ],
     pedido_de_apagamento: {
       protocolo: 'ASAF-2026-00042',
       prazo_em: '2026-10-31T12:00:00',
@@ -157,6 +174,19 @@ describe('lerConta', () => {
     expect(conta.certificados[0]!.codigo_verificacao).toBe('9F8E7D6C')
     expect(conta.doacoes).toHaveLength(1)
     expect(conta.doacoes[0]!.numero_do_recibo).toBe(12)
+    // v5.7f: o pedido do titular sem protocolo é descartado; o bom vem inteiro
+    expect(conta.pedidos_do_titular).toHaveLength(1)
+    expect(conta.pedidos_do_titular[0]).toEqual({
+      protocolo: 'ASAF-2026-00031',
+      o_que_pediu: 'Acessar os dados que a associação tem sobre mim',
+      situacao: 'Respondido',
+      pedido_em: '2026-10-10T12:00:00',
+      prazo_em: '2026-10-25T12:00:00',
+      respondido_em: '2026-10-12T12:00:00',
+      resposta: 'Guardamos o seu nome.',
+      encerrado_em: null,
+      motivo_do_encerramento: null,
+    })
     expect(conta.pedido_de_apagamento).toEqual({
       protocolo: 'ASAF-2026-00042',
       prazo_em: '2026-10-31T12:00:00',
@@ -171,6 +201,7 @@ describe('lerConta', () => {
     expect(conta.inscricoes).toEqual([])
     expect(conta.certificados).toEqual([])
     expect(conta.doacoes).toEqual([])
+    expect(conta.pedidos_do_titular).toEqual([])
     expect(conta.pedido_de_apagamento).toBeNull()
   })
 })
@@ -440,6 +471,69 @@ describe('as doações', () => {
     expect(
       avisoDoReciboPorEmail(
         doacao({ situacao: 'PENDENTE', recibo_enviado_por_email: false }),
+      ),
+    ).toBeNull()
+  })
+})
+
+describe('os pedidos sobre dados pessoais (v5.7f)', () => {
+  const pedido = (extra: Partial<PedidoDoTitularDaConta> = {}) => ({
+    protocolo: 'ASAF-2026-00031',
+    o_que_pediu: 'Acessar os dados que a associação tem sobre mim',
+    situacao: 'Novo',
+    pedido_em: '2026-10-10T12:00:00',
+    prazo_em: '2026-10-25T12:00:00',
+    respondido_em: null,
+    resposta: null,
+    encerrado_em: null,
+    motivo_do_encerramento: null,
+    ...extra,
+  })
+
+  it('só é "Respondido" quando há resposta; encerrado é encerrado; o resto está em andamento', () => {
+    expect(situacaoDoPedidoDoTitular(pedido())).toBe('Em andamento')
+    expect(
+      situacaoDoPedidoDoTitular(pedido({ situacao: 'Em atendimento' })),
+    ).toBe('Em andamento')
+    expect(
+      situacaoDoPedidoDoTitular(
+        pedido({ situacao: 'Respondido', resposta: 'Guardamos o seu nome.' }),
+      ),
+    ).toBe('Respondido')
+    // pedido de antes da v5.7f: respondido por e-mail, sem texto para mostrar aqui; continua "Respondido" (nunca "Em andamento")
+    expect(situacaoDoPedidoDoTitular(pedido({ situacao: 'Respondido' }))).toBe(
+      'Respondido',
+    )
+    expect(situacaoDoPedidoDoTitular(pedido({ situacao: 'Encerrado' }))).toBe(
+      'Encerrado',
+    )
+  })
+
+  it('a explicação diz que a associação confere quem pediu; respondido não precisa de explicação', () => {
+    expect(explicacaoDoPedidoDoTitular(pedido())).toContain(
+      'confere que quem pediu é o titular dos dados',
+    )
+    expect(explicacaoDoPedidoDoTitular(pedido())).toContain(
+      'tenta avisar você por e-mail',
+    )
+    expect(
+      explicacaoDoPedidoDoTitular(
+        pedido({ situacao: 'Encerrado', motivo_do_encerramento: 'Sem prova.' }),
+      ),
+    ).toContain('O motivo está abaixo')
+    // encerrado sem motivo para mostrar (pedido de antes da v5.7f): não manda olhar um motivo que não existe
+    const semMotivo = explicacaoDoPedidoDoTitular(
+      pedido({ situacao: 'Encerrado' }),
+    )
+    expect(semMotivo).toContain('sem responder com dados pessoais')
+    expect(semMotivo).not.toContain('O motivo está abaixo')
+    // respondido antes da v5.7f: diz que já foi respondido e onde pedir a cópia
+    expect(
+      explicacaoDoPedidoDoTitular(pedido({ situacao: 'Respondido' })),
+    ).toContain('já foi respondido')
+    expect(
+      explicacaoDoPedidoDoTitular(
+        pedido({ situacao: 'Respondido', resposta: 'Guardamos o seu nome.' }),
       ),
     ).toBeNull()
   })

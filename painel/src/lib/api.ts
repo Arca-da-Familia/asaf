@@ -6428,10 +6428,24 @@ export type AtendimentoDaFila = {
   data_nascimento: string | null
   idade: number | null
   menor_de_idade: boolean | null
+  // v5.7f: a solicitação do titular (e só ela) exige a identidade de quem pediu validada ANTES de responder. `identidade_validacao`: AUTOMATICA_CADASTRO (o e-mail digitado é o do
+  // cadastro de associado daquele CPF), CODIGO_NO_EMAIL (pedido aberto dentro da área Minha conta) ou MANUAL (a equipe conferiu e anotou o que conferiu).
+  exige_identidade_validada: boolean
+  identidade_validada: boolean
+  identidade_validacao:
+    'AUTOMATICA_CADASTRO' | 'CODIGO_NO_EMAIL' | 'MANUAL' | null
+  identidade_validacao_rotulo: string | null
+  identidade_validada_em: string | null
+  identidade_nota: string | null
+  id_usuario_validacao: number | null
 }
 
-// O que as quatro ações (assumir, responder, encerrar, cadastrar como voluntário) devolvem: o pedido com o CPF inteiro (só na abertura do pedido).
-export type AtendimentoCompleto = AtendimentoDaFila & { cpf: string | null }
+// O que as ações (assumir, responder, encerrar, validar a identidade, cadastrar como voluntário) devolvem: o pedido com o CPF inteiro (só na abertura do pedido) e, se a identidade foi
+// validada à mão, o e-mail de quem validou.
+export type AtendimentoCompleto = AtendimentoDaFila & {
+  cpf: string | null
+  identidade_validada_por?: string | null
+}
 
 export type OutroPedidoDoRemetente = {
   id_atendimento: number
@@ -6523,6 +6537,17 @@ export function encerrarAtendimento(
   return apiFetch(`/api/atendimentos/${idAtendimento}/encerrar`, {
     method: 'POST',
     body: JSON.stringify({ motivo }),
+  })
+}
+
+// v5.7f: a equipe confere, por outro meio, que quem pediu é o titular dos dados e registra o que conferiu (a Auditoria guarda quem, quando e como). Devolve o pedido já validado.
+export function validarIdentidadeDoAtendimento(
+  idAtendimento: number,
+  nota: string,
+): Promise<AtendimentoCompleto> {
+  return apiFetch(`/api/atendimentos/${idAtendimento}/validar-identidade`, {
+    method: 'POST',
+    body: JSON.stringify({ nota }),
   })
 }
 

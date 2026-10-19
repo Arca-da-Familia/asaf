@@ -480,7 +480,10 @@ def _dedupicar_pessoa_por_cpf(db: Session, *, nome_completo: str, cpf: str, emai
     de inscrição em evento)."""
     pessoa = db.query(Pessoa).filter(Pessoa.cpf == cpf).first()
     if pessoa:
-        if not pessoa.email_contato:
+        # v5.7f: quem é ASSOCIADO nunca tem o e-mail do cadastro preenchido por uma inscrição pública: quem digitasse o CPF dele plantaria ali o próprio e-mail, e esse e-mail passaria por "o do cadastro"
+        # na validação automática da solicitação do titular (a inscrição já guarda o e-mail digitado em `email_da_inscricao`, e é por ele que a conta do visitante reconhece a pessoa)
+        e_associado = db.query(Associado.id_associado).filter(Associado.id_pessoa == pessoa.id_pessoa).first() is not None
+        if not pessoa.email_contato and not e_associado:
             pessoa.email_contato = email
         if not pessoa.telefone_whatsapp:
             pessoa.telefone_whatsapp = telefone

@@ -56,9 +56,10 @@ const falha =
       Entrar na sua conta
     </h2>
     <p class="mt-3 max-w-2xl">
-      Aqui ficam as suas inscrições em eventos, os certificados e as doações
-      feitas pelo site. Não existe senha: você informa o e-mail e, se houver
-      algo ligado a ele, recebe um código de 6 números e digita aqui.
+      Aqui ficam as suas inscrições em eventos, os certificados, as doações
+      feitas pelo site e a resposta aos pedidos sobre os seus dados pessoais.
+      Não existe senha: você informa o e-mail e, se houver algo ligado a ele,
+      recebe um código de 6 números e digita aqui.
     </p>
     <form
       data-formulario-email
@@ -67,7 +68,7 @@ const falha =
     >
       <div>
         <label for="conta-email" class="block text-sm font-medium">
-          E-mail usado na inscrição ou na doação
+          E-mail usado na inscrição, na doação ou no pedido sobre dados pessoais
         </label>
         <input
           id="conta-email"
@@ -223,6 +224,23 @@ const falha =
         Nenhuma doação feita pelo site com este e-mail.
       </p>
       <ul data-lista="doacoes" class="grid gap-4"></ul>
+    </section>
+
+    <section aria-labelledby="conta-pedidos-do-titular" class="grid gap-4">
+      <h2
+        id="conta-pedidos-do-titular"
+        class="text-xl font-bold tracking-tight"
+      >
+        Meus pedidos sobre dados pessoais
+      </h2>
+      <p class={dica}>
+        A resposta a um pedido sobre os seus dados pessoais só é mostrada aqui:
+        ela nunca vai por e-mail.
+      </p>
+      <p data-vazio="pedidos-do-titular" hidden>
+        Nenhum pedido sobre dados pessoais feito com este e-mail.
+      </p>
+      <ul data-lista="pedidos-do-titular" class="grid gap-4"></ul>
     </section>
 
     <section
@@ -392,6 +410,42 @@ const falha =
           Abrir o certificado (PDF)
         </a>
       </p>
+    </li>
+  </template>
+
+  <template data-modelo="pedido-do-titular">
+    <li data-cartao class={cartao}>
+      <h3 class="text-lg font-bold">
+        Protocolo <span data-p-protocolo></span>
+      </h3>
+      <dl class="mt-3 grid gap-2">
+        <div data-linha class={linha}>
+          <dt class="font-medium">O que você pediu</dt>
+          <dd data-p-o-que></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Situação</dt>
+          <dd data-p-situacao class="font-semibold"></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Pedido feito em</dt>
+          <dd data-p-pedido></dd>
+        </div>
+        <div data-linha class={linha}>
+          <dt class="font-medium">Prazo de resposta</dt>
+          <dd data-p-prazo></dd>
+        </div>
+      </dl>
+      <p data-p-explicacao hidden class="mt-3"></p>
+      <div
+        data-p-resposta-caixa
+        hidden
+        class="mt-4 rounded-md border-2 border-primary p-4"
+      >
+        <h4 data-p-resposta-rotulo class="font-bold"></h4>
+        <p data-p-resposta class="mt-2 whitespace-pre-wrap"></p>
+        <p data-p-resposta-quando class={dica}></p>
+      </div>
     </li>
   </template>
 

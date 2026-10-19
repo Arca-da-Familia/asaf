@@ -9,6 +9,7 @@ import {
   entrarComCodigo,
   esquecerSessao,
   explicacaoDaDoacao,
+  explicacaoDoPedidoDoTitular,
   frasePeloFimDaSessao,
   guardarSessao,
   instanteEmPalavras,
@@ -32,6 +33,7 @@ import {
   sessaoAcabou,
   situacaoDaDoacao,
   situacaoDaInscricao,
+  situacaoDoPedidoDoTitular,
   type ContaDoVisitante,
 } from './conta-visitante'
 import { valorEmReais } from './inscricao-link'
@@ -288,6 +290,61 @@ export async function iniciarContaDoVisitante(
     if (vazio) vazio.hidden = conta.doacoes.length > 0
   }
 
+  const desenharPedidosDoTitular = (conta: ContaDoVisitante) => {
+    const lista = um('[data-lista="pedidos-do-titular"]')
+    if (!lista) return
+    for (const p of conta.pedidos_do_titular) {
+      const cartao = clonar('pedido-do-titular')
+      if (!cartao) continue
+      preencher(cartao, '[data-p-protocolo]', p.protocolo)
+      preencher(cartao, '[data-p-o-que]', p.o_que_pediu)
+      preencher(cartao, '[data-p-situacao]', situacaoDoPedidoDoTitular(p))
+      preencher(cartao, '[data-p-pedido]', instanteEmPalavras(p.pedido_em))
+      preencher(cartao, '[data-p-prazo]', diaEmPalavras(p.prazo_em))
+      const explicacao = explicacaoDoPedidoDoTitular(p)
+      const caixaDaExplicacao = cartao.querySelector<HTMLElement>(
+        '[data-p-explicacao]',
+      )
+      if (caixaDaExplicacao && explicacao) {
+        caixaDaExplicacao.textContent = explicacao
+        caixaDaExplicacao.hidden = false
+      }
+      // a resposta (ou o motivo do encerramento) é texto da equipe: só `textContent`, nunca HTML
+      const caixaDaResposta = cartao.querySelector<HTMLElement>(
+        '[data-p-resposta-caixa]',
+      )
+      const textoDaResposta =
+        cartao.querySelector<HTMLElement>('[data-p-resposta]')
+      const rotuloDaResposta = cartao.querySelector<HTMLElement>(
+        '[data-p-resposta-rotulo]',
+      )
+      const quandoRespondeu = cartao.querySelector<HTMLElement>(
+        '[data-p-resposta-quando]',
+      )
+      const encerrado = situacaoDoPedidoDoTitular(p) === 'Encerrado'
+      const conteudo = encerrado ? p.motivo_do_encerramento : p.resposta
+      if (caixaDaResposta && textoDaResposta && conteudo) {
+        if (rotuloDaResposta)
+          rotuloDaResposta.textContent = encerrado
+            ? 'Motivo do encerramento'
+            : 'Resposta da associação'
+        textoDaResposta.textContent = conteudo
+        if (quandoRespondeu) {
+          const quando = instanteEmPalavras(
+            encerrado ? p.encerrado_em : p.respondido_em,
+          )
+          quandoRespondeu.textContent = quando
+            ? `${encerrado ? 'Encerrado' : 'Respondido'} em ${quando}`
+            : ''
+        }
+        caixaDaResposta.hidden = false
+      }
+      lista.append(cartao)
+    }
+    const vazio = um('[data-vazio="pedidos-do-titular"]')
+    if (vazio) vazio.hidden = conta.pedidos_do_titular.length > 0
+  }
+
   const desenharApagamento = (conta: ContaDoVisitante) => {
     const andamento = um('[data-apagamento-em-andamento]')
     const formulario = um('[data-apagamento-formulario]')
@@ -326,6 +383,7 @@ export async function iniciarContaDoVisitante(
     desenharInscricoes(conta)
     desenharCertificados(conta)
     desenharDoacoes(conta)
+    desenharPedidosDoTitular(conta)
     desenharApagamento(conta)
   }
 

@@ -1836,7 +1836,7 @@ function agirNaInscricao(codigo, acao) {
 // é sempre 123456); `limite@example.com` é recusado pelo limite de pedidos (429); `falha@example.com` dá erro de servidor (500); `sessao-curta@example.com` entra e logo depois a sessão
 // "acaba" (a próxima leitura da conta dá 401). Qualquer outro e-mail recebe a MESMA resposta de sempre e nenhum código vale (o servidor real não diz se há vínculo).
 const MENSAGEM_DO_PEDIDO_DE_CODIGO =
-  'Se houver inscrição em evento ou pedido de doação feitos pelo site com este e-mail, tentamos enviar um código de 6 números. Ele vale por 10 minutos e só pode ser usado uma vez. Se não chegar em alguns minutos, olhe também a caixa de spam.'
+  'Se houver inscrição em evento, pedido de doação ou solicitação do titular de dados feitos pelo site com este e-mail, tentamos enviar um código de 6 números. Ele vale por 10 minutos e só pode ser usado uma vez. Se não chegar em alguns minutos, olhe também a caixa de spam.'
 const MENSAGEM_DO_CODIGO_INVALIDO =
   'Código inválido ou vencido: confira os números ou peça um novo código.'
 const CODIGO_DO_VISITANTE = '123456'
@@ -1908,6 +1908,45 @@ function contaDoVisitante(email, expiraEm) {
         data_da_doacao: horasDaquiAUtc(-48),
         numero_do_recibo: 12,
         recibo_enviado_por_email: false,
+      },
+    ],
+    // v5.7f: as solicitações do titular de dados feitas com este e-mail; a resposta só é entregue aqui (nunca por e-mail), e o pedido encerrado mostra o motivo
+    pedidos_do_titular: [
+      {
+        protocolo: 'ASAF-2026-00031',
+        o_que_pediu: 'Acessar os dados que a associação tem sobre mim',
+        situacao: 'Respondido',
+        pedido_em: horasDaquiAUtc(-96),
+        prazo_em: horasDaquiAUtc(24 * 11),
+        respondido_em: horasDaquiAUtc(-24),
+        resposta:
+          'Guardamos o seu <strong>nome</strong>, o seu e-mail e o histórico das suas inscrições.\nNão guardamos o seu CPF completo.',
+        encerrado_em: null,
+        motivo_do_encerramento: null,
+      },
+      {
+        protocolo: 'ASAF-2026-00040',
+        o_que_pediu: 'Corrigir dados incompletos, inexatos ou desatualizados',
+        situacao: 'Em atendimento',
+        pedido_em: horasDaquiAUtc(-10),
+        prazo_em: horasDaquiAUtc(24 * 14),
+        respondido_em: null,
+        resposta: null,
+        encerrado_em: null,
+        motivo_do_encerramento: null,
+      },
+      {
+        protocolo: 'ASAF-2026-00022',
+        o_que_pediu:
+          'Receber meus dados para levar a outra entidade (portabilidade)',
+        situacao: 'Encerrado',
+        pedido_em: horasDaquiAUtc(-240),
+        prazo_em: horasDaquiAUtc(24 * 5),
+        respondido_em: null,
+        resposta: null,
+        encerrado_em: horasDaquiAUtc(-200),
+        motivo_do_encerramento:
+          'Não foi possível conferir a identidade de quem fez o pedido.',
       },
     ],
     pedido_de_apagamento: pedidosDeApagamentoDosVisitantes.get(email) ?? null,

@@ -46,7 +46,11 @@ const telaVisivel = (page: Page, estado: string) =>
   page.locator(`[data-estado="${estado}"]`)
 
 async function pedirOCodigo(page: Page, email: string) {
-  await page.getByLabel('E-mail usado na inscrição ou na doação').fill(email)
+  await page
+    .getByLabel(
+      'E-mail usado na inscrição, na doação ou no pedido sobre dados pessoais',
+    )
+    .fill(email)
   await page
     .getByRole('button', { name: 'Receber o código por e-mail' })
     .click()
@@ -155,7 +159,9 @@ test.describe('pedir o código', () => {
       ),
     ).toBeVisible()
     await expect(
-      page.getByLabel('E-mail usado na inscrição ou na doação'),
+      page.getByLabel(
+        'E-mail usado na inscrição, na doação ou no pedido sobre dados pessoais',
+      ),
     ).toHaveAttribute('aria-invalid', 'true')
     expect(chamadas).toEqual([])
     await expect(telaVisivel(page, 'email')).toBeVisible()
@@ -181,7 +187,7 @@ test.describe('pedir o código', () => {
 
     expect(semVinculo).toBe(comVinculo)
     expect(comVinculo).toContain(
-      'Se houver inscrição em evento ou pedido de doação feitos pelo site',
+      'Se houver inscrição em evento, pedido de doação ou solicitação do titular de dados feitos pelo site',
     )
     await expect(page.locator('[data-email-informado]')).toHaveText(
       'ninguem@example.com',
@@ -356,6 +362,56 @@ test.describe('dentro da conta', () => {
     await expect(page.locator('[data-vazio]:not([hidden])')).toHaveCount(0)
   })
 
+  test('mostra os pedidos sobre dados pessoais: a resposta (só aqui), o pedido em andamento e o encerrado com o motivo; texto da equipe nunca vira HTML', async ({
+    page,
+  }) => {
+    await entrarNaConta(page)
+    await expect(
+      page.getByRole('heading', { name: 'Meus pedidos sobre dados pessoais' }),
+    ).toBeVisible()
+    await expect(
+      page.getByText(
+        'A resposta a um pedido sobre os seus dados pessoais só é mostrada aqui',
+      ),
+    ).toBeVisible()
+    const pedidos = page.locator('[data-lista="pedidos-do-titular"] > li')
+    await expect(pedidos).toHaveCount(3)
+
+    const respondido = pedidos.filter({ hasText: 'ASAF-2026-00031' })
+    await expect(respondido).toContainText('Acessar os dados que a associação')
+    await expect(respondido).toContainText('Respondido')
+    const resposta = respondido.locator('[data-p-resposta]')
+    await expect(resposta).toContainText(
+      'Guardamos o seu <strong>nome</strong>',
+    )
+    await expect(resposta).toContainText('Não guardamos o seu CPF completo.')
+    await expect(resposta.locator('strong')).toHaveCount(0)
+    await expect(respondido.locator('[data-p-resposta-rotulo]')).toHaveText(
+      'Resposta da associação',
+    )
+    await expect(respondido.locator('[data-p-resposta-quando]')).toContainText(
+      'Respondido em',
+    )
+    await expect(respondido.locator('[data-p-explicacao]')).toBeHidden()
+
+    const andamento = pedidos.filter({ hasText: 'ASAF-2026-00040' })
+    await expect(andamento).toContainText('Em andamento')
+    await expect(andamento.locator('[data-p-explicacao]')).toContainText(
+      'ela confere que quem pediu é o titular dos dados',
+    )
+    await expect(andamento.locator('[data-p-resposta-caixa]')).toBeHidden()
+
+    const encerrado = pedidos.filter({ hasText: 'ASAF-2026-00022' })
+    await expect(encerrado).toContainText('Encerrado')
+    await expect(encerrado.locator('[data-p-resposta-rotulo]')).toHaveText(
+      'Motivo do encerramento',
+    )
+    await expect(encerrado.locator('[data-p-resposta]')).toHaveText(
+      'Não foi possível conferir a identidade de quem fez o pedido.',
+    )
+    await expect(page.locator('[data-vazio="pedidos-do-titular"]')).toBeHidden()
+  })
+
   test('a sessão fica só na aba e o endereço da página nunca a leva', async ({
     page,
   }) => {
@@ -404,7 +460,9 @@ test.describe('dentro da conta', () => {
     // o e-mail também sai da tela (computador compartilhado): nem no campo, nem no texto
     expect(texto).not.toContain(EMAIL)
     await expect(
-      page.getByLabel('E-mail usado na inscrição ou na doação'),
+      page.getByLabel(
+        'E-mail usado na inscrição, na doação ou no pedido sobre dados pessoais',
+      ),
     ).toHaveValue('')
     await expect(page.locator('[data-email-informado]')).toHaveText('')
 
