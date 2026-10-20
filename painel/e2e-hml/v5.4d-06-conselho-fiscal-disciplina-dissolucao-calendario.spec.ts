@@ -310,6 +310,15 @@ test.describe('A. Conselho Fiscal', () => {
     )
 
     await page.goto('/financeiro/conselho-fiscal')
+    // v5.7g: a leitura de títulos é paginada (25 por vez): o roteiro busca o título que a tesouraria lançou antes de abri-lo
+    const buscaDoTitulo = page.waitForResponse(
+      (r) =>
+        r.url().includes('/api/conselho-fiscal/financeiro/titulos') &&
+        r.url().includes('busca=') &&
+        r.ok(),
+    )
+    await page.getByLabel('Buscar título').fill(descricaoTitulo)
+    await buscaDoTitulo
     const cartao = page
       .locator('div.rounded-md.border')
       .filter({ hasText: descricaoTitulo })
