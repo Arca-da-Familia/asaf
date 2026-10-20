@@ -25,6 +25,7 @@ vi.mock('@/lib/comunicacao', async (importOriginal) => ({
   detalharAviso: vi.fn(),
   incluirNovosNoAviso: vi.fn(),
   retirarAviso: vi.fn(),
+  reenviarEmailsDoAviso: vi.fn(),
 }))
 
 function desenhar(rota: string, caminho: string, elemento: React.ReactNode) {
@@ -70,6 +71,7 @@ const destinatario = (
   incluido_em: '2026-10-20T12:00:00',
   lido_em: null,
   confirmado_em: null,
+  email: null,
   ...extra,
 })
 
@@ -89,6 +91,8 @@ const avisoCompleto = (
   retirado_em: null,
   motivo_retirada: null,
   leitura_apagada_em: null,
+  por_email: false,
+  email: null,
   totais: { destinatarios: 3, lidos: 1, confirmados: 1, sem_acesso: 1 },
   texto: 'Convocamos todos.',
   nomes_ocultos: false,
@@ -118,8 +122,8 @@ const OPCOES: com.OpcoesDePublico = {
   ],
   projetos: [{ id_projeto: 3, nome: 'Despertai' }],
   categorias_de_aviso: [
-    { codigo: 'GERAL', rotulo: 'Geral' },
-    { codigo: 'CONVOCACAO', rotulo: 'Convocação' },
+    { codigo: 'GERAL', rotulo: 'Geral', obrigatoria: false },
+    { codigo: 'CONVOCACAO', rotulo: 'Convocação', obrigatoria: true },
   ],
 }
 
@@ -331,9 +335,10 @@ describe('publicar um aviso', () => {
       descricao: 'Associados em situação Ativo - Em Dia',
       total: 2,
       sem_acesso: 1,
+      com_email: 1,
       pessoas: [
-        { nome: 'Ana', tem_acesso: true },
-        { nome: 'Carla', tem_acesso: false },
+        { nome: 'Ana', tem_acesso: true, tem_email: true },
+        { nome: 'Carla', tem_acesso: false, tem_email: false },
       ],
     })
     vi.mocked(com.publicarAviso).mockResolvedValue(avisoCompleto())
@@ -383,6 +388,7 @@ describe('publicar um aviso', () => {
       descricao: 'Todos os associados (menos os desligados)',
       total: 5,
       sem_acesso: 0,
+      com_email: 0,
       pessoas: [],
     })
     desenhar('/comunicacao/novo', '/comunicacao/novo', <AvisoNovoPage />)
@@ -402,6 +408,7 @@ describe('publicar um aviso', () => {
       descricao: 'Todos',
       total: 5,
       sem_acesso: 0,
+      com_email: 0,
       pessoas: [],
     })
     vi.mocked(com.publicarAviso).mockRejectedValue(
@@ -532,6 +539,7 @@ describe('a conferência só vale para o grupo conferido', () => {
       descricao: 'Todos os associados (menos os desligados)',
       total: 12,
       sem_acesso: 0,
+      com_email: 0,
       pessoas: [],
     })
     await waitFor(() => expect(com.conferirPublico).toHaveBeenCalledTimes(1))
@@ -559,5 +567,212 @@ describe('a conferência só vale para o grupo conferido', () => {
     ).toBeVisible()
     expect(screen.getByText(/Receberam: 3/)).toBeVisible()
     expect(screen.queryByRole('table')).toBeNull()
+  })
+})
+
+// v6.2a - o aviso também por e-mail
+describe('o aviso também por e-mail', () => {
+  it('a caixa segue a categoria até a pessoa mexer: marcada em Convocação, desmarcada em Geral', async () => {
+    vi.mocked(com.conferirPublico).mockResolvedValue({
+      descricao: 'Todos os associados (menos os desligados)',
+      total: 3,
+      sem_acesso: 0,
+      com_email: 2,
+      pessoas: [
+        { nome: 'Ana', tem_acesso: true, tem_email: true },
+        { nome: 'Bruno', tem_acesso: true, tem_email: true },
+        { nome: 'Carla', tem_acesso: true, tem_email: false },
+      ],
+    })
+    vi.mocked(com.publicarAviso).mockResolvedValue(avisoCompleto())
+    desenhar('/comunicacao/novo', '/comunicacao/novo', <AvisoNovoPage />)
+    await userEvent.type(await screen.findByLabelText('Título'), 'Aviso')
+    await userEvent.type(screen.getByLabelText(/^Texto/), 'Texto')
+    const caixa = screen.getByRole('checkbox', { name: /Também por e-mail/ })
+    expect(caixa).not.toBeChecked()
+    await userEvent.selectOptions(
+      screen.getByLabelText(/^Categoria/),
+      'CONVOCACAO',
+    )
+    expect(caixa).toBeChecked()
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Conferir quem vai receber' }),
+    )
+    expect(
+      await screen.findByText(
+        /Por e-mail: 2 de 3 têm e-mail no cadastro; 1 ficam só com o painel/,
+      ),
+    ).toBeVisible()
+    await userEvent.click(screen.getByText('Ver os nomes'))
+    expect(screen.getByText(/\(sem e-mail\)/)).toBeVisible()
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Publicar para 3 pessoas' }),
+    )
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      'Também sai por e-mail para 2 com e-mail no cadastro',
+    )
+    await userEvent.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', {
+        name: 'Publicar para 3 pessoas',
+      }),
+    )
+    await waitFor(() =>
+      expect(com.publicarAviso).toHaveBeenCalledWith(
+        expect.objectContaining({ categoria: 'CONVOCACAO', por_email: true }),
+      ),
+    )
+  })
+
+  it('desmarcar a caixa numa categoria obrigatória vale (publica só no painel)', async () => {
+    vi.mocked(com.conferirPublico).mockResolvedValue({
+      descricao: 'Todos',
+      total: 1,
+      sem_acesso: 0,
+      com_email: 1,
+      pessoas: [{ nome: 'Ana', tem_acesso: true, tem_email: true }],
+    })
+    vi.mocked(com.publicarAviso).mockResolvedValue(avisoCompleto())
+    desenhar('/comunicacao/novo', '/comunicacao/novo', <AvisoNovoPage />)
+    await userEvent.type(await screen.findByLabelText('Título'), 'Aviso')
+    await userEvent.type(screen.getByLabelText(/^Texto/), 'Texto')
+    await userEvent.selectOptions(
+      screen.getByLabelText(/^Categoria/),
+      'CONVOCACAO',
+    )
+    await userEvent.click(
+      screen.getByRole('checkbox', { name: /Também por e-mail/ }),
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Conferir quem vai receber' }),
+    )
+    expect(screen.queryByText(/Por e-mail:/)).toBeNull()
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Publicar para 1 pessoa' }),
+    )
+    await userEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Publicar para 1 pessoa',
+      }),
+    )
+    await waitFor(() =>
+      expect(com.publicarAviso).toHaveBeenCalledWith(
+        expect.objectContaining({ por_email: false }),
+      ),
+    )
+  })
+
+  it('o relatório mostra o e-mail de cada pessoa e reenvia os que falharam', async () => {
+    const comEmail = avisoCompleto({
+      por_email: true,
+      email: {
+        'Na fila': 0,
+        Enviando: 0,
+        Enviado: 1,
+        Falhou: 1,
+        'Sem e-mail no cadastro': 1,
+        Cancelado: 0,
+      },
+      destinatarios: [
+        destinatario({
+          id_destinatario: 1,
+          nome: 'Ana',
+          email: {
+            situacao: 'Enviado',
+            tentativas: 1,
+            enviado_em: '2026-10-20T15:00:00',
+            erro: null,
+          },
+        }),
+        destinatario({
+          id_destinatario: 2,
+          nome: 'Bruno',
+          email: {
+            situacao: 'Falhou',
+            tentativas: 1,
+            enviado_em: null,
+            erro: 'SMTPDataError: (552, 5.7.0 rejected)',
+          },
+        }),
+        destinatario({
+          id_destinatario: 3,
+          nome: 'Carla',
+          email: {
+            situacao: 'Sem e-mail no cadastro',
+            tentativas: 0,
+            enviado_em: null,
+            erro: null,
+          },
+        }),
+      ],
+    })
+    vi.mocked(com.detalharAviso).mockResolvedValue(comEmail)
+    vi.mocked(com.reenviarEmailsDoAviso).mockResolvedValue({
+      voltaram_para_a_fila: 1,
+      aviso: comEmail,
+    })
+    const { container } = desenhar(
+      '/comunicacao/7',
+      '/comunicacao/:id',
+      <AvisoDetalhePage />,
+    )
+    expect(
+      await screen.findByText('E-mail: 1 enviados · 1 falharam · 1 sem e-mail'),
+    ).toBeVisible()
+    expect(screen.getByRole('columnheader', { name: 'E-mail' })).toBeVisible()
+    expect(screen.getByText(/Falhou: SMTPDataError/)).toBeVisible()
+    expect(screen.getByText('Sem e-mail no cadastro')).toBeVisible()
+    expect(await axe(container)).toHaveNoViolations()
+    await userEvent.selectOptions(
+      screen.getByLabelText(/^Mostrar/),
+      'email_falhou',
+    )
+    expect(
+      screen
+        .getAllByRole('row')
+        .slice(1)
+        .map((l) => within(l).getAllByRole('cell')[0]?.textContent),
+    ).toEqual(['Bruno'])
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Reenviar os e-mails que falharam' }),
+    )
+    expect(com.reenviarEmailsDoAviso).toHaveBeenCalledWith(7)
+    expect(await screen.findByText(/1 e-mail voltou para a fila/)).toBeVisible()
+  })
+
+  it('sem e-mail no aviso, o relatório não tem a coluna nem o botão', async () => {
+    vi.mocked(com.detalharAviso).mockResolvedValue(avisoCompleto())
+    desenhar('/comunicacao/7', '/comunicacao/:id', <AvisoDetalhePage />)
+    expect(await screen.findByText(/Receberam: 3/)).toBeVisible()
+    expect(screen.queryByRole('columnheader', { name: 'E-mail' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Reenviar/ })).toBeNull()
+    expect(
+      screen.queryByRole('option', { name: 'E-mail que falhou' }),
+    ).toBeNull()
+  })
+
+  it('os textos do e-mail', () => {
+    expect(com.textoDoEmail(null)).toBe('—')
+    expect(
+      com.textoDoEmail({
+        situacao: 'Na fila',
+        tentativas: 2,
+        enviado_em: null,
+        erro: 'x',
+      }),
+    ).toBe('Na fila (nova tentativa; 2 até agora)')
+    expect(com.resumoDoEmail(null)).toBe('Só no painel')
+    expect(com.resumoDoEmail(null, true)).toBe(
+      'Foi também por e-mail (o registro foi apagado pelo prazo de guarda)',
+    )
+    expect(
+      com.resumoDoEmail({
+        'Na fila': 4,
+        Enviando: 0,
+        Enviado: 0,
+        Falhou: 0,
+        'Sem e-mail no cadastro': 0,
+        Cancelado: 2,
+      }),
+    ).toBe('4 na fila · 2 cancelados')
   })
 })

@@ -435,18 +435,51 @@ Deploy Painel verde e `painel.asaf.org.br/version.json` = `ff1e3d3` (o código p
 > nova. Detalhar o desenho quando esta versão for construída - também alimenta a fila de
 > higienização de contato da v1.8 (e-mail que retorna) quando existir.
 
-- [ ] `Comunicacao` (assunto, corpo com variáveis, canal, público-alvo, agendamento, status) com
-      envio por e-mail, notificação no painel e, quando a v11.3 existir, WhatsApp. **[parcial, v6.1: a notificação no painel (mural,
-      Meus avisos e sino) e o público-alvo calculado já existem; faltam e-mail, variáveis no corpo, agendamento e o status por canal]**
-- [ ] Registro de entrega e falha por destinatário, com reprocessamento — mensagem que não chegou
-      precisa ser visível, não silenciosa.
-- [ ] Preferências de contato por pessoa e **descadastro real** de comunicação não essencial
-      (comunicação estatutária obrigatória, como convocação, não é descadastrável, e o sistema
-      deixa essa distinção explícita).
-- [ ] Modelos de mensagem versionados, com pré-visualização e envio de teste antes do disparo.
-- [ ] Limite de segurança: disparo em massa exige permissão própria e confirmação com contagem de
-      destinatários — evita o erro de mandar para 2.000 pessoas por engano. **[parcial, v6.1: no canal do painel já vale
-      (`comunicar`, contagem no botão e na confirmação, `total_confirmado` recusado com 409 se o grupo mudou); o e-mail tem de passar pela mesma trava]**
+> **Decisões do Presidente (2026-10-20), ao liberar a v6.2:** (1) o aviso vai **também por e-mail quando quem publica escolhe** (a caixa vem marcada nas categorias obrigatórias); o
+> painel recebe sempre; (2) **obrigatórias** (a pessoa não pode pedir para parar de receber) são **só Convocação e Mudança de regra**; lembrete de mensalidade e aviso de evento inscrito a pessoa pode
+> desligar; o e-mail que a própria pessoa pediu (código de acesso, recibo, resposta de atendimento, confirmação de inscrição) é resposta, não comunicação, e não entra no descadastro; (3) o remetente
+> continua **asaf@asaf.org.br** (as respostas caem na caixa da associação). **Fato conferido:** a conta Google Workspace, pelo caminho que o sistema usa (smtp.gmail.com com senha de app), envia até
+> **2.000 mensagens por dia** (ajuda do Google: support.google.com/a/answer/166852 e /176600); o sistema fica num teto configurável abaixo disso, para sobrar para os e-mails automáticos.
+> **Achado ao levantar o que existe:** os lembretes de mensalidade (v3.2.1) só rodam na tarefa MENSAL (dia 1º), então "N dias antes" e "N dias de atraso" só saem quando a data cai no dia 1º, e uma
+> falha de e-mail derruba o lote inteiro: corrigido na v6.2d.
+
+Em quatro partes, uma por vez (cada uma: branch → homologação → `main`):
+
+##### v6.2a — O aviso também por e-mail, com registro de entrega por pessoa
+
+- [ ] Ao publicar, a caixa **"Também por e-mail"** (marcada por padrão em Convocação e Mudança de regra; a categoria ganha a marca `obrigatoria` no catálogo); a conferência do grupo diz quantos
+      **têm e-mail** e quantos não têm.
+- [ ] **Registro de entrega por pessoa e por canal** (`entregas_de_aviso`): na fila, enviado (com a hora), falhou (com o motivo, sem o endereço) ou sem e-mail no cadastro. O endereço não é guardado:
+      é lido do cadastro na hora de enviar. A lista some junto com a prova de leitura (o mesmo prazo de 5 anos).
+- [ ] **Envio em lotes pela tarefa de 15 em 15 minutos** (nunca dentro do clique de publicar), com uma conexão por lote, um teto por rodada e um **teto diário configurável** (padrão 1.500, abaixo das
+      2.000 do Google); falha passageira volta para a fila (até 3 tentativas); recusa definitiva do endereço (ex.: caixa inexistente) não tenta de novo e manda o contato para a fila de higienização da
+      v1.8 (e-mail suspeito); estourar o limite do Google para o lote e deixa o resto para depois.
+- [ ] **Relatório de leitura com a coluna do e-mail** e o botão **"Reenviar os que falharam"** (volta para a fila, vai para a Auditoria); retirar o aviso cancela o que ainda estava na fila; incluir quem
+      entrou no grupo depois também põe o e-mail dessas pessoas na fila.
+- [ ] O e-mail leva o texto do aviso, quem publicou e o link para abrir no painel (quem tem acesso confirma a leitura lá); o endereço do painel fica em configuração (`URL_BASE_PAINEL`).
+- [ ] **Na homologação:** o ambiente de teste não tem e-mail (decisão de 2026-10-05: nada sai para gente inventada); o robô prova a fila, o relatório e o reenvio, e o envio em si é provado pelos testes
+      do servidor contra um servidor de e-mail simulado. A produção é conferida por leitura (a rodada da tarefa no GitHub mostra quantos saíram).
+
+##### v6.2b — Preferências de contato e descadastro de verdade
+
+- [ ] Cada e-mail de comunicação **não obrigatória** (aviso não obrigatório, lembrete de mensalidade, aviso de evento inscrito) leva o link **"Não quero mais receber este tipo de e-mail"** e o cabeçalho
+      `List-Unsubscribe`; o link abre uma página do site que confirma e grava a preferência (link assinado, sem guardar senha nem token).
+- [ ] O associado vê e muda as preferências em **Meu Perfil**; a convocação e a mudança de regra **não** se desligam, e a tela diz por quê.
+- [ ] O envio respeita a preferência em todos os canais e mostra "não recebe por escolha da pessoa" no relatório; Política de Privacidade com o descadastro.
+
+##### v6.2c — Modelos de mensagem, pré-visualização, envio de teste e agendamento
+
+- [ ] Modelos versionados com variáveis (`{primeiro_nome}`, `{nome}`), pré-visualização com uma pessoa real do grupo e **envio de teste** para o próprio e-mail antes do disparo.
+- [ ] **Publicar depois** (data e hora): quem publica escolhe; a tela diz com franqueza que a tarefa do GitHub pode atrasar (de minutos a horas).
+
+##### v6.2d — Os automáticos
+
+- [ ] **Boas-vindas** ao associado aceito (aviso no painel e e-mail), no lugar do registro só na Auditoria (pendência da v1.2).
+- [ ] **Aviso à secretaria** (sino) quando acaba o período de experiência de um associado.
+- [ ] **Lembretes de mensalidade** na tarefa diária, com o registro de entrega e sem derrubar o lote por uma falha (o achado acima).
+
+**Fora de escopo de propósito:** WhatsApp (v11.3), e-mail com HTML e imagens (texto simples chega melhor e não cai no lixo eletrônico), leitura do e-mail ("abriu ou não": exige pixel de rastreio,
+que a Política não promete e a LGPD desaconselha), o endereço só de envio (o Presidente escolheu asaf@asaf.org.br).
 
 #### v6.3 — Transparência pública ativa
 

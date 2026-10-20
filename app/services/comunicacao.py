@@ -11,6 +11,7 @@ Regras que este módulo garante:
   - publicar, incluir, retirar e confirmar vão para a Auditoria (ler não: abrir só grava a data na linha do destinatário, e nem isso no modo "ver como")."""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from typing import Iterable, Optional
@@ -22,6 +23,13 @@ from sqlalchemy.orm import Session, joinedload
 from app.auditoria import registrar_auditoria
 from app.models.associados import Associado
 from app.models.comunicacao import (
+    CANAL_EMAIL,
+    CANCELADO,
+    ENVIADO,
+    ENVIANDO,
+    FALHOU,
+    NA_FILA,
+    SEM_EMAIL,
     PARTES_DO_PROJETO,
     PROJETO_EQUIPE,
     PROJETO_VOLUNTARIOS,
@@ -30,6 +38,7 @@ from app.models.comunicacao import (
     TIPOS_DE_PUBLICO,
     Aviso,
     AvisoDestinatario,
+    EntregaDeAviso,
 )
 from app.models.core import Catalogo, OpcaoCatalogo, PermissaoSistema, Usuario
 from app.models.projetos import AlocacaoVoluntario, EquipeProjeto, ProjetoEvento
@@ -80,11 +89,12 @@ def _nome_do_associado(associado: Associado) -> str:
     return associado.nome_completo or f"Associado nº {associado.id_associado}"
 
 
-def _usuarios_ativos(db: Session, ids: Iterable[Optional[int]]) -> set[int]:
+def _usuarios_ativos(db: Session, ids: Iterable[Optional[int]]) -> dict[int, Optional[str]]:
+    """Os usuários ATIVOS entre os ids, com o e-mail do login de cada um."""
     lista = sorted({i for i in ids if i is not None})
-    ativos: set[int] = set()
+    ativos: dict[int, Optional[str]] = {}
     for lote in _em_lotes(lista):
-        ativos |= {i for (i,) in db.query(Usuario.id_usuario).filter(Usuario.id_usuario.in_(lote), Usuario.ativo.is_(True)).all()}
+        ativos.update(dict(db.query(Usuario.id_usuario, Usuario.email).filter(Usuario.id_usuario.in_(lote), Usuario.ativo.is_(True)).all()))
     return ativos
 
 
@@ -107,12 +117,43 @@ class _Nomes:
         return self.cache[id_usuario]
 
 
+# endereço que o servidor de e-mail aceita: só ASCII, sem espaço nem separador (um endereço com acento quebraria a conversa com o servidor no meio do lote)
+_EMAIL = re.compile(r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$")
+EMAIL_DO_CONTATO, EMAIL_DO_LOGIN = "contato", "login"
+
+
+def _email_valido(email: Optional[str]) -> Optional[str]:
+    email = (email or "").strip()
+    return email if _EMAIL.match(email) and not email.endswith("@exemplo.invalid") else None
+
+
+def email_de(email_do_contato: Optional[str], email_do_login: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+    """v6.2a - A regra única do e-mail de uma pessoa (para contar na conferência e para enviar): o e-mail de CONTATO do cadastro; sem ele, o do LOGIN de um usuário
+    ativo. Devolve (endereço, origem), a origem para só mandar para a higienização o e-mail de contato."""
+    if _email_valido(email_do_contato):
+        return _email_valido(email_do_contato), EMAIL_DO_CONTATO
+    if _email_valido(email_do_login):
+        return _email_valido(email_do_login), EMAIL_DO_LOGIN
+    return None, None
+
+
+def email_atual(db: Session, linha: AvisoDestinatario) -> tuple[Optional[str], Optional[str]]:
+    """v6.2a - o e-mail de quem recebeu o aviso, lido do cadastro NA HORA de enviar (a mesma regra da conferência)."""
+    associado = None
+    if linha.id_associado is not None:
+        associado = db.query(Associado).options(joinedload(Associado.pessoa)).filter(Associado.id_associado == linha.id_associado).first()
+    id_usuario = linha.id_usuario if linha.id_usuario is not None else (associado.id_usuario if associado is not None else None)
+    login = _usuarios_ativos(db, [id_usuario]).get(id_usuario) if id_usuario is not None else None
+    return email_de(associado.pessoa.email_contato if associado is not None and associado.pessoa else None, login)
+
+
 # ------------------------------------------------------------------------------------------------ a regra do grupo
 @dataclass(frozen=True)
 class Destino:
     id_associado: Optional[int]
     id_usuario: Optional[int]
     nome: str
+    email: Optional[str] = None  # v6.2a: o e-mail do cadastro AGORA (só para contar; a entrega lê de novo na hora de enviar)
 
     @property
     def tem_acesso(self) -> bool:
@@ -128,6 +169,15 @@ def _rotulos_do_catalogo(db: Session, chave: str) -> list[tuple[str, str]]:
         .order_by(OpcaoCatalogo.ordem, OpcaoCatalogo.id_opcao).all()
     )
     return [(o.codigo, o.rotulo or o.codigo) for o in opcoes]
+
+
+def categorias_obrigatorias(db: Session) -> set[str]:
+    """v6.2a - as categorias de aviso marcadas `obrigatoria` no catálogo (decisão do Presidente: Convocação e Mudança de regra)."""
+    catalogo = db.query(Catalogo).filter(Catalogo.chave == CATALOGO_DE_CATEGORIA).first()
+    if catalogo is None:
+        return set()
+    opcoes = db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_catalogo == catalogo.id_catalogo, OpcaoCatalogo.ativo.is_(True)).all()
+    return {o.codigo for o in opcoes if isinstance(o.metadados, dict) and o.metadados.get("obrigatoria")}
 
 
 def _sem_repetir(valores: list) -> list:
@@ -193,7 +243,8 @@ def _destinos_por_associados(db: Session, ids: Optional[set[int]], situacoes: li
         if situacoes and situacao not in situacoes:
             continue
         id_usuario = associado.id_usuario if associado.id_usuario in ativos else None
-        destinos.append(Destino(associado.id_associado, id_usuario, _nome_do_associado(associado)))
+        email, _ = email_de(associado.pessoa.email_contato if associado.pessoa else None, ativos.get(associado.id_usuario))
+        destinos.append(Destino(associado.id_associado, id_usuario, _nome_do_associado(associado), email))
     return destinos
 
 
@@ -211,7 +262,8 @@ def _destinos_por_permissao(db: Session, codigo: str) -> list[Destino]:
             continue
         if not usuario_tem_permissao(db, usuario, codigo):
             continue
-        destinos.append(Destino(associado.id_associado if associado else None, usuario.id_usuario, _nome_do_associado(associado) if associado else usuario.email))
+        email, _ = email_de(associado.pessoa.email_contato if associado is not None and associado.pessoa else None, usuario.email)
+        destinos.append(Destino(associado.id_associado if associado else None, usuario.id_usuario, _nome_do_associado(associado) if associado else usuario.email, email))
     return destinos
 
 
@@ -272,7 +324,8 @@ def conferir_publico(db: Session, usuario: Usuario, publico: dict) -> dict:
         "descricao": descrever_publico(db, normalizado),
         "total": len(destinos),
         "sem_acesso": sum(1 for d in destinos if not d.tem_acesso),
-        "pessoas": [{"nome": d.nome, "tem_acesso": d.tem_acesso} for d in destinos],
+        "com_email": sum(1 for d in destinos if d.email),
+        "pessoas": [{"nome": d.nome, "tem_acesso": d.tem_acesso, "tem_email": bool(d.email)} for d in destinos],
     }
 
 
@@ -287,12 +340,25 @@ def _avisar_no_sino(db: Session, aviso: Aviso, destinos: list[Destino]) -> None:
 
 
 def _gravar_destinos(db: Session, aviso: Aviso, destinos: list[Destino]) -> None:
+    """Uma linha por pessoa (a prova) e, se o aviso vai também por e-mail, a entrega dela na fila (ou "sem e-mail no cadastro")."""
     agora = datetime.utcnow()
-    for d in destinos:
-        db.add(AvisoDestinatario(id_aviso=aviso.id_aviso, id_associado=d.id_associado, id_usuario=d.id_usuario, tinha_acesso=d.tem_acesso, incluido_em=agora))
+    linhas = [
+        AvisoDestinatario(id_aviso=aviso.id_aviso, id_associado=d.id_associado, id_usuario=d.id_usuario, tinha_acesso=d.tem_acesso, incluido_em=agora)
+        for d in destinos
+    ]
+    db.add_all(linhas)
+    if aviso.por_email:
+        db.flush()
+        db.add_all([
+            EntregaDeAviso(id_destinatario=linha.id_destinatario, canal=CANAL_EMAIL, situacao=NA_FILA if d.email else SEM_EMAIL, tentativas=0, criado_em=agora)
+            for linha, d in zip(linhas, destinos)
+        ])
 
 
-def publicar(db: Session, usuario: Usuario, *, titulo: str, texto: str, categoria: str, valido_ate: date, exige_confirmacao: bool, publico: dict, total_confirmado: int) -> Aviso:
+def publicar(
+    db: Session, usuario: Usuario, *, titulo: str, texto: str, categoria: str, valido_ate: date, exige_confirmacao: bool, publico: dict, total_confirmado: int,
+    por_email: bool = False,
+) -> Aviso:
     titulo, texto = (titulo or "").strip(), (texto or "").strip()
     if not titulo or len(titulo) > TAMANHO_DO_TITULO:
         raise HTTPException(status_code=422, detail=f"O título é obrigatório e tem até {TAMANHO_DO_TITULO} letras.")
@@ -314,7 +380,7 @@ def publicar(db: Session, usuario: Usuario, *, titulo: str, texto: str, categori
             detail=f"O grupo mudou desde a conferência: agora são {len(destinos)} pessoa(s), não {total_confirmado}. Confira de novo antes de publicar.",
         )
     aviso = Aviso(
-        titulo=titulo, texto=texto, categoria=categoria, exige_confirmacao=bool(exige_confirmacao), valido_ate=valido_ate, publico=normalizado,
+        titulo=titulo, texto=texto, categoria=categoria, exige_confirmacao=bool(exige_confirmacao), por_email=bool(por_email), valido_ate=valido_ate, publico=normalizado,
         publico_descricao=descrever_publico(db, normalizado), total_destinatarios=len(destinos), id_usuario_autor=usuario.id_usuario, publicado_em=datetime.utcnow(),
     )
     db.add(aviso)
@@ -326,6 +392,7 @@ def publicar(db: Session, usuario: Usuario, *, titulo: str, texto: str, categori
         dados_depois={
             "titulo": titulo, "categoria": categoria, "publico": aviso.publico_descricao, "total_destinatarios": len(destinos),
             "sem_acesso": sum(1 for d in destinos if not d.tem_acesso), "exige_confirmacao": aviso.exige_confirmacao, "valido_ate": valido_ate.isoformat(),
+            "por_email": aviso.por_email, "com_email": sum(1 for d in destinos if d.email) if aviso.por_email else 0,
         },
     )
     db.refresh(aviso)
@@ -379,9 +446,48 @@ def retirar(db: Session, usuario: Usuario, id_aviso: int, motivo: str) -> Aviso:
     aviso.retirado_em = datetime.utcnow()
     aviso.id_usuario_retirada = usuario.id_usuario
     aviso.motivo_retirada = motivo
+    # o e-mail que ainda não saiu não sai mais (o que já saiu fica registrado como enviado)
+    ids = [i for (i,) in db.query(AvisoDestinatario.id_destinatario).filter(AvisoDestinatario.id_aviso == id_aviso).all()]
+    for lote in _em_lotes(ids):
+        db.query(EntregaDeAviso).filter(EntregaDeAviso.id_destinatario.in_(lote), EntregaDeAviso.situacao == NA_FILA).update(
+            {"situacao": CANCELADO}, synchronize_session=False,
+        )
     registrar_auditoria(db, usuario, "avisos", "AVISO_RETIRADO", id_registro_afetado=id_aviso, dados_depois={"motivo": motivo})
     db.refresh(aviso)
     return aviso
+
+
+def reenviar_falhas(db: Session, usuario: Usuario, id_aviso: int) -> int:
+    """v6.2a - os e-mails que falharam voltam para a fila (com as tentativas zeradas). Só com o aviso no mural; vai para a Auditoria."""
+    aviso = obter(db, id_aviso)
+    if situacao(aviso) != NO_MURAL:
+        raise HTTPException(status_code=409, detail="Só se reenvia o e-mail de aviso que ainda está no mural.")
+    ids = [i for (i,) in db.query(AvisoDestinatario.id_destinatario).filter(AvisoDestinatario.id_aviso == id_aviso).all()]
+    voltaram = 0
+    for lote in _em_lotes(ids):
+        voltaram += db.query(EntregaDeAviso).filter(EntregaDeAviso.id_destinatario.in_(lote), EntregaDeAviso.situacao == FALHOU).update(
+            {"situacao": NA_FILA, "tentativas": 0, "proxima_tentativa_em": None, "ultimo_erro": None}, synchronize_session=False,
+        )
+    if voltaram:
+        registrar_auditoria(db, usuario, "avisos", "AVISO_EMAILS_REENVIADOS", id_registro_afetado=id_aviso, dados_depois={"voltaram_para_a_fila": voltaram})
+    else:
+        db.commit()
+    return voltaram
+
+
+def _totais_de_email(db: Session, ids_avisos: list[int]) -> dict[int, dict]:
+    if not ids_avisos:
+        return {}
+    linhas = (
+        db.query(AvisoDestinatario.id_aviso, EntregaDeAviso.situacao, func.count(EntregaDeAviso.id_entrega))
+        .join(EntregaDeAviso, EntregaDeAviso.id_destinatario == AvisoDestinatario.id_destinatario)
+        .filter(AvisoDestinatario.id_aviso.in_(ids_avisos), EntregaDeAviso.canal == CANAL_EMAIL)
+        .group_by(AvisoDestinatario.id_aviso, EntregaDeAviso.situacao).all()
+    )
+    totais: dict[int, dict] = {}
+    for id_aviso, situacao_da_entrega, n in linhas:
+        totais.setdefault(id_aviso, {s: 0 for s in (NA_FILA, ENVIANDO, ENVIADO, FALHOU, SEM_EMAIL, CANCELADO)})[situacao_da_entrega] = n
+    return totais
 
 
 # ------------------------------------------------------------------------------------------------ a lista e o relatório (quem tem `comunicar`)
@@ -398,7 +504,7 @@ def _totais(db: Session, ids: list[int]) -> dict[int, dict]:
     return {i: {"destinatarios": n, "lidos": lidos, "confirmados": conf, "sem_acesso": int(sem or 0)} for i, n, lidos, conf, sem in linhas}
 
 
-def _resumo(aviso: Aviso, totais: Optional[dict], dia: date, rotulos: dict[str, str], nomes: _Nomes) -> dict:
+def _resumo(aviso: Aviso, totais: Optional[dict], dia: date, rotulos: dict[str, str], nomes: _Nomes, email: Optional[dict] = None) -> dict:
     if aviso.leitura_apagada_em is not None or totais is None:
         totais = {"destinatarios": aviso.total_destinatarios, "lidos": aviso.total_lidos, "confirmados": aviso.total_confirmados, "sem_acesso": None}
     return {
@@ -406,6 +512,7 @@ def _resumo(aviso: Aviso, totais: Optional[dict], dia: date, rotulos: dict[str, 
         "exige_confirmacao": aviso.exige_confirmacao, "valido_ate": aviso.valido_ate, "publicado_em": aviso.publicado_em, "publico_descricao": aviso.publico_descricao,
         "autor": nomes(aviso.id_usuario_autor), "situacao": situacao(aviso, dia), "retirado_em": aviso.retirado_em, "motivo_retirada": aviso.motivo_retirada,
         "leitura_apagada_em": aviso.leitura_apagada_em, "totais": totais,
+        "por_email": aviso.por_email, "email": email if aviso.por_email else None,
     }
 
 
@@ -425,13 +532,20 @@ def listar(db: Session, *, situacao_filtro: Optional[str], busca: Optional[str],
     total = consulta.count()
     avisos = consulta.order_by(Aviso.publicado_em.desc(), Aviso.id_aviso.desc()).offset((pagina - 1) * por_pagina).limit(por_pagina).all()
     totais = _totais(db, [a.id_aviso for a in avisos])
+    emails = _totais_de_email(db, [a.id_aviso for a in avisos if a.por_email])
     rotulos, nomes = dict(_rotulos_do_catalogo(db, CATALOGO_DE_CATEGORIA)), _Nomes(db)
-    return {"total": total, "pagina": pagina, "por_pagina": por_pagina, "itens": [_resumo(a, totais.get(a.id_aviso), dia, rotulos, nomes) for a in avisos]}
+    return {
+        "total": total, "pagina": pagina, "por_pagina": por_pagina,
+        "itens": [_resumo(a, totais.get(a.id_aviso), dia, rotulos, nomes, emails.get(a.id_aviso)) for a in avisos],
+    }
 
 
 def detalhar(db: Session, usuario: Usuario, id_aviso: int) -> dict:
     aviso = obter(db, id_aviso)
-    resumo = _resumo(aviso, _totais(db, [id_aviso]).get(id_aviso), hoje(), dict(_rotulos_do_catalogo(db, CATALOGO_DE_CATEGORIA)), _Nomes(db))
+    resumo = _resumo(
+        aviso, _totais(db, [id_aviso]).get(id_aviso), hoje(), dict(_rotulos_do_catalogo(db, CATALOGO_DE_CATEGORIA)), _Nomes(db),
+        _totais_de_email(db, [id_aviso]).get(id_aviso) if aviso.por_email else None,
+    )
     # os nomes de um grupo escolhido pela situação (ex.: os inadimplentes) só para quem já enxerga a situação do associado
     nomes_ocultos = bool((aviso.publico or {}).get("situacoes")) and not pode_ver_a_situacao(db, usuario)
     pessoas = []
@@ -442,6 +556,11 @@ def detalhar(db: Session, usuario: Usuario, id_aviso: int) -> dict:
             associados.update({a.id_associado: a for a in db.query(Associado).options(joinedload(Associado.pessoa)).filter(Associado.id_associado.in_(lote)).all()})
         ativos = _usuarios_ativos(db, [l.id_usuario for l in linhas] + [a.id_usuario for a in associados.values()])
         nomes = _Nomes(db)
+        entregas: dict[int, EntregaDeAviso] = {}
+        for lote in _em_lotes([l.id_destinatario for l in linhas]):
+            entregas.update({
+                e.id_destinatario: e for e in db.query(EntregaDeAviso).filter(EntregaDeAviso.id_destinatario.in_(lote), EntregaDeAviso.canal == CANAL_EMAIL).all()
+            })
         for linha in linhas:
             associado = associados.get(linha.id_associado)
             nome = _nome_do_associado(associado) if associado is not None else (nomes(linha.id_usuario) or "—")
@@ -449,9 +568,16 @@ def detalhar(db: Session, usuario: Usuario, id_aviso: int) -> dict:
             pessoas.append({
                 "id_destinatario": linha.id_destinatario, "nome": nome, "tinha_acesso": linha.tinha_acesso, "tem_acesso_hoje": id_usuario_hoje in ativos,
                 "incluido_em": linha.incluido_em, "lido_em": linha.lido_em, "confirmado_em": linha.confirmado_em,
+                "email": _entrega_para_a_tela(entregas.get(linha.id_destinatario)),
             })
         pessoas.sort(key=lambda p: p["nome"].casefold())
     return {**resumo, "texto": aviso.texto, "nomes_ocultos": nomes_ocultos, "destinatarios": pessoas}
+
+
+def _entrega_para_a_tela(entrega: Optional[EntregaDeAviso]) -> Optional[dict]:
+    if entrega is None:
+        return None
+    return {"situacao": entrega.situacao, "tentativas": entrega.tentativas, "enviado_em": entrega.enviado_em, "erro": entrega.ultimo_erro}
 
 
 def opcoes_de_publico(db: Session, usuario: Usuario) -> dict:
@@ -464,7 +590,9 @@ def opcoes_de_publico(db: Session, usuario: Usuario) -> dict:
             for p in db.query(PermissaoSistema).order_by(PermissaoSistema.modulo, PermissaoSistema.codigo_permissao).all()
         ],
         "projetos": [{"id_projeto": p.id_projeto, "nome": p.nome_projeto} for p in db.query(ProjetoEvento).order_by(ProjetoEvento.nome_projeto).all()],
-        "categorias_de_aviso": [{"codigo": c, "rotulo": r} for c, r in _rotulos_do_catalogo(db, CATALOGO_DE_CATEGORIA)],
+        "categorias_de_aviso": [
+            {"codigo": c, "rotulo": r, "obrigatoria": c in categorias_obrigatorias(db)} for c, r in _rotulos_do_catalogo(db, CATALOGO_DE_CATEGORIA)
+        ],
     }
 
 
@@ -575,6 +703,9 @@ def apagar_leituras_vencidas(db: Session, agora: datetime, dias: int) -> int:
         totais = _totais(db, [aviso.id_aviso]).get(aviso.id_aviso, {"lidos": 0, "confirmados": 0})
         aviso.total_lidos, aviso.total_confirmados = totais["lidos"], totais["confirmados"]
         aviso.leitura_apagada_em = agora
+        ids = [i for (i,) in db.query(AvisoDestinatario.id_destinatario).filter(AvisoDestinatario.id_aviso == aviso.id_aviso).all()]
+        for lote in _em_lotes(ids):
+            db.query(EntregaDeAviso).filter(EntregaDeAviso.id_destinatario.in_(lote)).delete(synchronize_session=False)
         apagadas += db.query(AvisoDestinatario).filter(AvisoDestinatario.id_aviso == aviso.id_aviso).delete(synchronize_session=False)
     db.commit()
     return apagadas

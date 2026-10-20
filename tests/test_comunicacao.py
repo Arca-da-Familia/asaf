@@ -407,7 +407,8 @@ def test_a_migracao_continua_a_cadeia_sem_segunda_cabeca():
     config = Config()
     config.set_main_option("script_location", str(Path(__file__).resolve().parent.parent / "alembic"))
     diretorio = ScriptDirectory.from_config(config)
-    assert diretorio.get_heads() == ["e5b1d7a3c820"] and diretorio.get_revision("e5b1d7a3c820").down_revision == "c4a8e2f6d913"
+    assert "e5b1d7a3c820" in {r.revision for r in diretorio.walk_revisions()} and len(diretorio.get_heads()) == 1
+    assert diretorio.get_revision("e5b1d7a3c820").down_revision == "c4a8e2f6d913"
 
 
 # ------------------------------------------------------------------------------------------------ achados da conferência independente (2026-10-20)

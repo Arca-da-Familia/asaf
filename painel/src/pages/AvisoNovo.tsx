@@ -53,6 +53,8 @@ export function AvisoNovoPage() {
   const [categoria, setCategoria] = useState('GERAL')
   const [validoAte, setValidoAte] = useState(() => dataDaquiA(30))
   const [exigeConfirmacao, setExigeConfirmacao] = useState(false)
+  // v6.2a - "também por e-mail": enquanto a pessoa não mexe na caixa, ela segue a categoria (marcada nas obrigatórias: Convocação e Mudança de regra)
+  const [porEmail, setPorEmail] = useState<boolean | null>(null)
   const [publico, setPublico] = useState<PublicoDoAviso>(PUBLICO_INICIAL)
   // a conferência guarda o grupo que foi conferido: só vale enquanto o grupo escolhido for o MESMO (uma resposta que chega depois de a pessoa mudar o
   // grupo não habilita o botão), e o que se publica é exatamente o grupo conferido
@@ -68,6 +70,10 @@ export function AvisoNovoPage() {
   const categoriaEscolhida = categorias.some((c) => c.codigo === categoria)
     ? categoria
     : (categorias[0]?.codigo ?? categoria)
+  const categoriaObrigatoria =
+    categorias.find((c) => c.codigo === categoriaEscolhida)?.obrigatoria ??
+    false
+  const porEmailEscolhido = porEmail ?? categoriaObrigatoria
   const [confirmando, setConfirmando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -96,6 +102,7 @@ export function AvisoNovoPage() {
         categoria: categoriaEscolhida,
         valido_ate: validoAte,
         exige_confirmacao: exigeConfirmacao,
+        por_email: porEmailEscolhido,
         publico: conferencia ? conferencia.publico : publicoParaEnviar(publico),
         total_confirmado: conferencia?.total ?? 0,
       }),
@@ -203,6 +210,23 @@ export function AvisoNovoPage() {
             <span className="block text-xs text-muted-foreground">
               Cada pessoa vê o botão “Li e estou ciente”; a data fica
               registrada. Use em convocação e mudança de regra.
+            </span>
+          </span>
+        </label>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={porEmailEscolhido}
+            onChange={(e) => setPorEmail(e.target.checked)}
+          />
+          <span>
+            <span className="font-medium">Também por e-mail</span>
+            <span className="block text-xs text-muted-foreground">
+              Além do painel, cada pessoa com e-mail no cadastro recebe o aviso
+              por e-mail. O envio é feito em lotes pela rotina do sistema (de 15
+              em 15 minutos, às vezes mais) e o relatório mostra quem recebeu.
+              Vem marcada em convocação e mudança de regra.
             </span>
           </span>
         </label>
@@ -363,9 +387,20 @@ export function AvisoNovoPage() {
                   ? '1 pessoa'
                   : `${conferencia.total} pessoas`}
                 {conferencia.sem_acesso > 0 &&
-                  ` (${conferencia.sem_acesso} sem acesso ao painel: o aviso fica guardado no nome delas, mas elas não são avisadas agora)`}
+                  (porEmailEscolhido
+                    ? ` (${conferencia.sem_acesso} sem acesso ao painel: o aviso fica guardado no nome delas)`
+                    : ` (${conferencia.sem_acesso} sem acesso ao painel: o aviso fica guardado no nome delas, mas elas não são avisadas agora)`)}
                 .
               </p>
+              {porEmailEscolhido && conferencia.total > 0 && (
+                <p className="mt-1">
+                  Por e-mail: {conferencia.com_email} de {conferencia.total} têm
+                  e-mail no cadastro
+                  {conferencia.com_email < conferencia.total &&
+                    `; ${conferencia.total - conferencia.com_email} ficam só com o painel`}
+                  .
+                </p>
+              )}
               {conferencia.total === 0 ? (
                 <p className="mt-1">
                   Ninguém está neste grupo hoje. Mude a escolha.
@@ -383,6 +418,12 @@ export function AvisoNovoPage() {
                           <span className="text-muted-foreground">
                             {' '}
                             (sem acesso ao painel)
+                          </span>
+                        )}
+                        {porEmailEscolhido && !p.tem_email && (
+                          <span className="text-muted-foreground">
+                            {' '}
+                            (sem e-mail)
                           </span>
                         )}
                       </li>
@@ -427,7 +468,7 @@ export function AvisoNovoPage() {
         aberto={confirmando}
         onAbertoChange={setConfirmando}
         titulo="Publicar este aviso?"
-        descricao={`O aviso “${titulo.trim()}” vai para ${conferencia?.total === 1 ? '1 pessoa' : `${conferencia?.total ?? 0} pessoas`}. Depois de publicado, ele não se edita; dá para retirar com um motivo.`}
+        descricao={`O aviso “${titulo.trim()}” vai para ${conferencia?.total === 1 ? '1 pessoa' : `${conferencia?.total ?? 0} pessoas`}. ${porEmailEscolhido ? `Também sai por e-mail para ${conferencia?.com_email ?? 0} com e-mail no cadastro, em lotes, pela rotina do sistema. ` : ''}Depois de publicado, ele não se edita; dá para retirar com um motivo.`}
         rotuloConfirmar={`Publicar para ${conferencia?.total === 1 ? '1 pessoa' : `${conferencia?.total ?? 0} pessoas`}`}
         onConfirmar={() => publicar.mutate()}
         carregando={publicar.isPending}

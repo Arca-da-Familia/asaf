@@ -30,7 +30,7 @@ def conferir_publico(dados: AvisoConferirPublico, db: Session = Depends(get_db),
 def publicar(dados: AvisoPublicar, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_comunicar)):
     aviso = servico.publicar(
         db, usuario, titulo=dados.titulo, texto=dados.texto, categoria=dados.categoria, valido_ate=dados.valido_ate,
-        exige_confirmacao=dados.exige_confirmacao, publico=dados.publico.model_dump(), total_confirmado=dados.total_confirmado,
+        exige_confirmacao=dados.exige_confirmacao, publico=dados.publico.model_dump(), total_confirmado=dados.total_confirmado, por_email=dados.por_email,
     )
     return servico.detalhar(db, usuario, aviso.id_aviso)
 
@@ -62,6 +62,12 @@ def incluir_novos(id_aviso: int, db: Session = Depends(get_db), usuario: Usuario
 def retirar(id_aviso: int, dados: AvisoRetirar, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_comunicar)):
     servico.retirar(db, usuario, id_aviso, dados.motivo)
     return servico.detalhar(db, usuario, id_aviso)
+
+
+@router.post("/api/avisos/{id_aviso}/reenviar-emails", summary="Pôr de volta na fila os e-mails deste aviso que falharam (v6.2a)")
+def reenviar_emails(id_aviso: int, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_comunicar)):
+    voltaram = servico.reenviar_falhas(db, usuario, id_aviso)
+    return {"voltaram_para_a_fila": voltaram, "aviso": servico.detalhar(db, usuario, id_aviso)}
 
 
 # ------------------------------------------------------------------------------------------------ o mural e a caixa de entrada de cada pessoa

@@ -26,6 +26,7 @@ class AvisoPublicar(BaseModel):
     categoria: str
     valido_ate: date
     exige_confirmacao: bool = False
+    por_email: bool = False  # v6.2a: também por e-mail (quem publica escolhe)
     publico: PublicoDoAviso
     total_confirmado: int
 
