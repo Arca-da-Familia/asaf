@@ -22,8 +22,8 @@ function renderHome(permissoes: string[]) {
 
 // v5.1 — atalho para o Directus (CMS do site) na tela inicial.
 describe('cartão "Editar o site" (atalho para o Directus)', () => {
-  it('aparece para quem tem gerenciar_acesso e abre o Directus em nova aba, com segurança', () => {
-    renderHome(['gerenciar_acesso'])
+  it('aparece para quem tem editar_site e abre o Directus em nova aba, com segurança', () => {
+    renderHome(['editar_site'])
     const link = screen.getByRole('link', { name: /Editar o site/ })
     expect(link).toHaveAttribute('href', URL_DIRECTUS)
     expect(link).toHaveAttribute('target', '_blank')
@@ -33,7 +33,7 @@ describe('cartão "Editar o site" (atalho para o Directus)', () => {
   })
 
   it('avisa leitores de tela que abre em nova aba', () => {
-    renderHome(['gerenciar_acesso'])
+    renderHome(['editar_site'])
     expect(
       screen.getByRole('link', { name: /abre em uma nova aba/ }),
     ).toBeInTheDocument()
@@ -42,6 +42,20 @@ describe('cartão "Editar o site" (atalho para o Directus)', () => {
   it('NÃO aparece para quem não tem a permissão', () => {
     renderHome(['associados'])
     expect(screen.queryByText('Editar o site')).not.toBeInTheDocument()
+  })
+
+  it('v5.7g: gerenciar o acesso do sistema NÃO abre o atalho (a permissão é a própria: editar_site)', () => {
+    renderHome(['gerenciar_acesso'])
+    expect(screen.queryByText('Editar o site')).not.toBeInTheDocument()
+  })
+
+  it('v5.7g: quem só tem editar_site vê o atalho e nenhuma tela de acesso', () => {
+    renderHome(['editar_site'])
+    expect(
+      screen.getByRole('link', { name: /Editar o site/ }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Níveis e permissões')).not.toBeInTheDocument()
+    expect(screen.queryByText('Regras do sistema')).not.toBeInTheDocument()
   })
 
   it('o endereço é o definitivo do Directus (a chave do plano fica amarrada a ele)', () => {

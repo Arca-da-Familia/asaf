@@ -221,9 +221,11 @@ test('a API pública da doação: Pix aberto, campanhas sem a destinação inter
       'percentual',
       'prazo',
       'titulo',
+      'valor_aplicado',
       'valor_arrecadado',
     ].sort(),
-  ) // a destinação (centro de custo) é interna e não sai
+  ) // a destinação (centro de custo) é interna e não sai: só o TOTAL gasto (v5.7g), e vazio nesta campanha (sem centro de custo)
+  expect(dela!.valor_aplicado).toBeNull()
 
   // o código sem se identificar: livre e com valor
   const livre = await page.request.get(`${API_HML}/api/publico/doacao/pix`)

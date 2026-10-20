@@ -1969,11 +1969,34 @@ export type TituloFinanceiroCF = {
   status: string
 }
 
+// v5.7g: as duas leituras do Conselho Fiscal são paginadas (25 por vez) e aceitam busca pelo texto; o total vem do servidor.
+export type PaginaDoConselhoFiscal<T> = {
+  total: number
+  pagina: number
+  por_pagina: number
+  itens: T[]
+}
+
+export type FiltrosDaLeituraDoConselho = {
+  status?: string
+  busca?: string
+  pagina?: number
+}
+
+function consultaDaLeituraDoConselho(f: FiltrosDaLeituraDoConselho): string {
+  const params = new URLSearchParams()
+  if (f.status) params.set('status', f.status)
+  if (f.busca) params.set('busca', f.busca)
+  if (f.pagina && f.pagina > 1) params.set('pagina', String(f.pagina))
+  const texto = params.toString()
+  return texto ? `?${texto}` : ''
+}
+
 export function listarTitulosConselhoFiscal(
-  status?: string,
-): Promise<TituloFinanceiroCF[]> {
+  filtros: FiltrosDaLeituraDoConselho = {},
+): Promise<PaginaDoConselhoFiscal<TituloFinanceiroCF>> {
   return apiFetch(
-    `/api/conselho-fiscal/financeiro/titulos${status ? `?status=${encodeURIComponent(status)}` : ''}`,
+    `/api/conselho-fiscal/financeiro/titulos${consultaDaLeituraDoConselho(filtros)}`,
   )
 }
 
@@ -1994,8 +2017,12 @@ export type LancamentoContabilCF = {
   partidas: PartidaContabilCF[]
 }
 
-export function listarCaixaConselhoFiscal(): Promise<LancamentoContabilCF[]> {
-  return apiFetch('/api/conselho-fiscal/financeiro/caixa')
+export function listarCaixaConselhoFiscal(
+  filtros: Pick<FiltrosDaLeituraDoConselho, 'busca' | 'pagina'> = {},
+): Promise<PaginaDoConselhoFiscal<LancamentoContabilCF>> {
+  return apiFetch(
+    `/api/conselho-fiscal/financeiro/caixa${consultaDaLeituraDoConselho(filtros)}`,
+  )
 }
 
 export type ParecerPrestacaoContas = {

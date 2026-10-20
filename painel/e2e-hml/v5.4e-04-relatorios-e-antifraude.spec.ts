@@ -490,6 +490,24 @@ const secao = (page: Page, titulo: string): Locator =>
 const cartao = (escopo: Page | Locator, texto: string | RegExp): Locator =>
   escopo.locator('div.rounded-md.border').filter({ hasText: texto })
 
+/** v5.7g: as leituras do Conselho Fiscal (títulos e razão) são paginadas (25 por vez) e têm busca: o roteiro busca pelo texto do que criou e espera a resposta do servidor antes de olhar a tela. */
+async function buscarNoConselho(
+  page: Page,
+  bloco: Locator,
+  rotulo: string,
+  texto: string,
+  rota: 'titulos' | 'caixa',
+): Promise<void> {
+  const resposta = page.waitForResponse(
+    (r) =>
+      r.url().includes(`/api/conselho-fiscal/financeiro/${rota}`) &&
+      r.url().includes('busca=') &&
+      r.ok(),
+  )
+  await bloco.getByLabel(rotulo).fill(texto)
+  await resposta
+}
+
 /** Abre a Auditoria filtrada por tabela e devolve o total de registros dela (lido da resposta da própria tela). */
 async function abrirAuditoria(page: Page, tabela: string): Promise<number> {
   await page.goto('/auditoria')
@@ -3116,6 +3134,13 @@ test('15. o Conselho Fiscal lê os mesmos números das telas de Títulos e de Ra
       E: { saldo: 0, status: 'Pago' },
     }
   for (const chave of CHAVES_TITULO) {
+    await buscarNoConselho(
+      page,
+      titulosCf,
+      'Buscar título',
+      TITULOS[chave].descricao,
+      'titulos',
+    )
     const c = cartao(titulosCf, TITULOS[chave].descricao)
     await expect(c, `Conselho Fiscal: título ${chave}`).toHaveCount(1)
     const texto = await c.innerText()
@@ -3140,6 +3165,13 @@ test('15. o Conselho Fiscal lê os mesmos números das telas de Títulos e de Ra
   // o razão do Conselho Fiscal e o da tela de Razão Contábil: mesmo número, mesmas partidas, mesma situação
   const linhasCf = razaoCf.getByRole('row')
   for (const l of livro) {
+    await buscarNoConselho(
+      page,
+      razaoCf,
+      'Buscar lançamento',
+      l.historico,
+      'caixa',
+    )
     const linha = linhasCf.filter({ hasText: l.historico })
     await expect(
       linha,

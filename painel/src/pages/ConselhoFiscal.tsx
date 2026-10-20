@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { z } from 'zod'
 
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
@@ -200,13 +200,88 @@ function BlocoRespostas({
   )
 }
 
+// v5.7g: a leitura é paginada (25 por vez) e tem busca pelo texto; a busca espera a pessoa parar de digitar antes de ir ao servidor e volta para a primeira página
+const POR_PAGINA_DO_CONSELHO = 25
+const classeDoCampo =
+  'h-9 rounded-md border border-input bg-background px-3 text-sm'
+
+function useBuscaComEspera(): {
+  texto: string
+  setTexto: (v: string) => void
+  busca: string
+} {
+  const [texto, setTexto] = useState('')
+  const [busca, setBusca] = useState('')
+  useEffect(() => {
+    if (texto.trim() === busca) return
+    const espera = setTimeout(() => setBusca(texto.trim()), 400)
+    return () => clearTimeout(espera)
+  }, [texto, busca])
+  return { texto, setTexto, busca }
+}
+
+function Paginas({
+  rotulo,
+  pagina,
+  total,
+  aoMudar,
+}: {
+  rotulo: string
+  pagina: number
+  total: number
+  aoMudar: (pagina: number) => void
+}) {
+  const totalDePaginas = Math.max(1, Math.ceil(total / POR_PAGINA_DO_CONSELHO))
+  if (totalDePaginas <= 1) return null
+  return (
+    <nav
+      aria-label={rotulo}
+      className="mt-3 flex items-center justify-between gap-2 text-sm"
+    >
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={pagina <= 1}
+        onClick={() => aoMudar(pagina - 1)}
+      >
+        Página anterior
+      </Button>
+      <span className="text-muted-foreground">
+        Página {pagina} de {totalDePaginas}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={pagina >= totalDePaginas}
+        onClick={() => aoMudar(pagina + 1)}
+      >
+        Próxima página
+      </Button>
+    </nav>
+  )
+}
+
 function BlocoTitulos() {
   const [status, setStatus] = useState('')
+  const [pagina, setPagina] = useState(1)
   const [expandido, setExpandido] = useState<number | null>(null)
-  const { data: titulos } = useQuery({
-    queryKey: ['cf-titulos', status],
-    queryFn: () => listarTitulosConselhoFiscal(status || undefined),
+  const { texto, setTexto, busca } = useBuscaComEspera()
+  const { data, isPlaceholderData } = useQuery({
+    queryKey: ['cf-titulos', status, busca, pagina],
+    queryFn: () =>
+      listarTitulosConselhoFiscal({
+        status: status || undefined,
+        busca: busca || undefined,
+        pagina,
+      }),
+    placeholderData: (anterior) => anterior,
   })
+  const titulos = data?.itens
+  const total = data?.total ?? 0
+  const ultimaPagina = Math.max(1, Math.ceil(total / POR_PAGINA_DO_CONSELHO))
+  // a lista encolheu (outro filtro, outra busca): volta para a última página que existe
+  if (data && !isPlaceholderData && pagina > ultimaPagina)
+    setPagina(ultimaPagina)
 
   return (
     <section className="rounded-xl border border-border bg-card p-6">
@@ -214,17 +289,33 @@ function BlocoTitulos() {
         <h2 className="font-semibold">
           Títulos financeiros (leitura irrestrita)
         </h2>
-        <select
-          aria-label="Filtrar títulos por situação"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-        >
-          <option value="">Todos os status</option>
-          <option value="Pendente">Pendente</option>
-          <option value="Pago">Pago</option>
-          <option value="Cancelado">Cancelado</option>
-        </select>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="search"
+            aria-label="Buscar título"
+            placeholder="Buscar pela descrição"
+            value={texto}
+            onChange={(e) => {
+              setTexto(e.target.value)
+              setPagina(1)
+            }}
+            className={`${classeDoCampo} w-56`}
+          />
+          <select
+            aria-label="Filtrar títulos por situação"
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value)
+              setPagina(1)
+            }}
+            className={classeDoCampo}
+          >
+            <option value="">Todos os status</option>
+            <option value="Pendente">Pendente</option>
+            <option value="Pago">Pago</option>
+            <option value="Cancelado">Cancelado</option>
+          </select>
+        </div>
       </div>
       <p className="mb-3 text-xs text-muted-foreground">
         Toda consulta aqui é registrada em auditoria - o Conselho Fiscal lê
@@ -270,21 +361,52 @@ function BlocoTitulos() {
           </p>
         )}
       </div>
+      {data && total > 0 && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {total} {total === 1 ? 'título' : 'títulos'}
+        </p>
+      )}
+      <Paginas
+        rotulo="Páginas de títulos"
+        pagina={pagina}
+        total={total}
+        aoMudar={setPagina}
+      />
     </section>
   )
 }
 
 function BlocoCaixa() {
-  const { data: lancamentos } = useQuery({
-    queryKey: ['cf-caixa'],
-    queryFn: listarCaixaConselhoFiscal,
+  const [pagina, setPagina] = useState(1)
+  const { texto, setTexto, busca } = useBuscaComEspera()
+  const { data, isPlaceholderData } = useQuery({
+    queryKey: ['cf-caixa', busca, pagina],
+    queryFn: () =>
+      listarCaixaConselhoFiscal({ busca: busca || undefined, pagina }),
+    placeholderData: (anterior) => anterior,
   })
+  const lancamentos = data?.itens
+  const total = data?.total ?? 0
+  const ultimaPagina = Math.max(1, Math.ceil(total / POR_PAGINA_DO_CONSELHO))
+  if (data && !isPlaceholderData && pagina > ultimaPagina)
+    setPagina(ultimaPagina)
 
   return (
     <section className="mt-6 rounded-xl border border-border bg-card p-6">
-      <h2 className="mb-2 font-semibold">
-        Razão contábil (leitura irrestrita)
-      </h2>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="font-semibold">Razão contábil (leitura irrestrita)</h2>
+        <input
+          type="search"
+          aria-label="Buscar lançamento"
+          placeholder="Buscar pelo histórico"
+          value={texto}
+          onChange={(e) => {
+            setTexto(e.target.value)
+            setPagina(1)
+          }}
+          className={`${classeDoCampo} w-56`}
+        />
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -320,10 +442,23 @@ function BlocoCaixa() {
         </table>
         {(lancamentos ?? []).length === 0 && (
           <p className="mt-2 text-sm text-muted-foreground">
-            Nenhum lançamento registrado ainda.
+            {busca
+              ? 'Nenhum lançamento encontrado.'
+              : 'Nenhum lançamento registrado ainda.'}
           </p>
         )}
       </div>
+      {data && total > 0 && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {total} {total === 1 ? 'lançamento' : 'lançamentos'}
+        </p>
+      )}
+      <Paginas
+        rotulo="Páginas do razão"
+        pagina={pagina}
+        total={total}
+        aoMudar={setPagina}
+      />
     </section>
   )
 }

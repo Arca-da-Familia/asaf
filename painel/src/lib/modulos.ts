@@ -442,13 +442,13 @@ export const modulos: Modulo[] = [
     icone: ScrollText,
   },
   // v5.1 - atalho para o Directus (CMS do site). Mostrar o cartão é só conveniência: quem
-  // protege o conteúdo é o login do próprio Directus (usuário, papel e MFA lá). Por ora reaproveita
-  // `gerenciar_acesso` (presidência); quando os papéis de editor do Directus forem mapeados
-  // (v5.1), nasce uma permissão própria (`editar_site`) para a secretaria/comunicação.
+  // protege o conteúdo é o login do próprio Directus (usuário, papel e MFA lá). v5.7g: a permissão
+  // é a própria (`editar_site`), que a secretaria/comunicação recebe pela tela Níveis e permissões
+  // sem ganhar nenhum poder sobre o acesso do sistema (antes o atalho reaproveitava `gerenciar_acesso`).
   {
     rota: '/editar-site',
     rotulo: 'Editar o site',
-    permissao: 'gerenciar_acesso',
+    permissao: 'editar_site',
     icone: Globe,
     externo: URL_DIRECTUS,
   },

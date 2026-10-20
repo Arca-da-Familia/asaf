@@ -64,6 +64,7 @@ const campanhas = () => [
     descricao: 'Para famílias da comunidade.',
     meta_valor: 10000,
     valor_arrecadado: 2500,
+    valor_aplicado: 1800.5,
     percentual: 25,
     prazo: '2026-12-31',
   },
@@ -73,6 +74,7 @@ const campanhas = () => [
     descricao: null,
     meta_valor: 5000,
     valor_arrecadado: 6000,
+    valor_aplicado: null,
     percentual: 120,
     prazo: null,
   },
@@ -197,6 +199,13 @@ describe('os estados da ilha', () => {
       'R$ 2.500,00',
     )
     expect(a.querySelector('[data-prazo]')!.textContent).toBe('Até 31/12/2026')
+    // v5.7g: o aplicado é o total gasto no centro de custo da campanha; sem centro de custo, a página diz que o gasto não é acompanhado à parte
+    expect(limpo(a.querySelector('[data-aplicado]')!.textContent)).toBe(
+      'R$ 1.800,50',
+    )
+    expect(limpo(b.querySelector('[data-aplicado]')!.textContent)).toBe(
+      'não acompanhado à parte',
+    )
     expect(a.querySelector('[data-percentual]')!.textContent).toBe(
       '25% da meta.',
     )
@@ -217,6 +226,36 @@ describe('os estados da ilha', () => {
       'Sem prazo definido',
     )
     expect(b.textContent).not.toContain('Para famílias')
+  })
+
+  it('v5.7g: aplicado zero aparece como R$ 0,00; API sem o dado (antiga) não fala de aplicado', async () => {
+    const { raiz } = await iniciar({
+      '/api/publico/doacao': () =>
+        json(
+          doacao({
+            campanhas: [
+              { ...campanhas()[0], valor_aplicado: 0 },
+              (({ valor_aplicado: _ignorado, ...resto }) => resto)(
+                campanhas()[1] as Record<string, unknown> & {
+                  valor_aplicado: unknown
+                },
+              ),
+            ],
+          }),
+        ),
+    })
+    const [a, b] = raiz.querySelectorAll('[data-campanha]') as unknown as [
+      HTMLElement,
+      HTMLElement,
+    ]
+    expect(
+      (a.querySelector('[data-aplicado]')!.textContent ?? '').replace(
+        /\s/g,
+        ' ',
+      ),
+    ).toBe('R$ 0,00')
+    expect(b.querySelector('[data-aplicado]')).toBeNull()
+    expect(b.textContent).not.toContain('Já aplicado')
   })
 
   it('as listas "Para onde vai a sua doação" dos dois formulários trazem as campanhas depois de "sem campanha"', async () => {
