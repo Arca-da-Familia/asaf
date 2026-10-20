@@ -39,6 +39,7 @@ const ROTULO_GRUPO: Record<string, string> = {
   financeiro: 'Financeiro',
   projetos: 'Projetos',
   auditoria: 'Auditoria',
+  comunicar: 'Comunicação', // v6.1 - o catálogo `categoria_aviso` (categoria do aviso do mural)
 }
 const GRUPO_SISTEMA = '__sistema__'
 

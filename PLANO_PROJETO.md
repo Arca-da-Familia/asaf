@@ -356,7 +356,7 @@ fazia várias consultas por pessoa (agora a situação de todos sai de uma consu
 (8) o relatório dizia "não foi avisado" a quem ganhou acesso depois; (9) o voluntário alocado como pessoa que depois se associou ficava fora do grupo; (10) a Política chamava o sino de "painel da
 equipe" (o sino agora também avisa o associado); (11) o fim do mural na retenção não era a meia-noite de Belém. Também: o teste que confere as pendências de tela passou a procurar a versão no plano
 OU no histórico (quebrou com a ida da FASE 5 para o `HISTORICO.md`; corrigido na `main`, `977f8f6`).
-**Testes locais:** servidor 1388 em duas rodadas seguidas (35 testes novos; cada proteção nova confirmada por mutação), painel 690 (19 novos), site 761 unitários e 865 de navegador, tipos, lint e
+**Testes locais:** servidor 1388 em duas rodadas seguidas (25 testes novos; cada proteção nova confirmada por mutação), painel 690 (19 novos), site 761 unitários e 865 de navegador, tipos, lint e
 formatação limpos; a migração subiu, desceu e subiu de novo num banco descartável com o `alembic check` limpo.
 **Na homologação (2026-10-20):** a branch `v61-comunicacao-interna` foi publicada lá e a migração rodou no banco de TESTE (`Running upgrade c4a8e2f6d913 -> e5b1d7a3c820`). Robô `v6.1-01`, 5 de 5: o
 **Secretário** (que tem `comunicar` pelo CARGO de 1º Secretário) confere "associados em dia" (a tela diz quantos não têm acesso ao painel e mostra os nomes), troca o grupo (a contagem some e o
@@ -378,13 +378,48 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 
 - Mural de avisos respeita a segmentação por permissão/categoria — testar que um nível sem permissão não vê aviso restrito.
 
+**Revisão feita em 2026-10-20 — aguardando o OK do Presidente para fechar** (o Ponto só fecha com o OK dele). Intervalo: `4f61730..8bb4d25` (a v6.1 e os ajustes dela). A leitura de código e
+plano foi feita por um agente SEPARADO, só leitura (não ancorado na minha conclusão); o que depende de rodar coisas (itens 2, 4, 9, 11 e 12) foi feito por mim. Resultado do checklist da seção 4.1:
+1. **`[x]` implementado e testado — OK**, com um achado: a recusa de TEXTO vazio, que o plano anuncia, não tinha teste (só o título vazio): teste acrescentado.
+2. **Testes — OK:** servidor 1388 em duas rodadas seguidas e no CI contra Postgres (`aa3c08c`); painel 690; site 761 unitários e 865 de navegador; robô `v6.1-01` 5/5 na homologação e as regressões
+   `v5.7f-02`, `v5.4c-fase0`, `v5.4h-09` e `v5.4c-fase1` verdes. Depois dos achados desta revisão: ver o fim deste bloco.
+3. **Decisões congeladas — OK:** toda checagem de acesso usa `exigir_permissao`/`usuario_tem_permissao` (nenhum `if nivel ==`), tabela nova por Alembic com `upgrade` e `downgrade`, categoria do aviso
+   é catálogo, nada mudou em JWT, MFA ou no token do painel.
+4. **Segredos — OK:** varredura das 4.180 linhas acrescentadas no intervalo (chave privada, AKIA, tokens do GitHub, `sk-`, `AccountKey=`, SAS, URL de banco com senha, JWT, atribuição de segredo
+   longo): nenhum achado.
+5. **Auditoria — OK no código**, com um achado de prova: `AVISO_DESTINATARIOS_INCLUIDOS` não era conferido por teste (o robô inclui zero, e zero não grava): o teste agora confere a entrada com a
+   quantidade e que incluir ninguém não grava. Publicar, retirar e confirmar já eram conferidos (teste e robô). Abrir não grava na Auditoria de propósito (a data fica na linha do destinatário).
+6. **Permissão no servidor — OK:** as 7 rotas do módulo pedem `comunicar` (403 provado em todas, e no robô com o token do Tesoureiro), o filtro por situação pede também `associados` ou `financeiro`,
+   e as 3 rotas de "Meus avisos" pedem login e devolvem 404 a quem não está no grupo. Observação, sem achado: quem tivesse SÓ `comunicar` veria, na prévia sem filtro, a lista de nomes do grupo;
+   hoje todo cargo com `comunicar` já tem `associados`.
+7. **Escopo — OK:** nada de e-mail, WhatsApp, agendamento, modelos ou descadastro (v6.2); a trava do "desfazer lote" e a regra de retenção são consequência da v6.1 e estão registradas.
+8. **Plano × código — 3 achados, corrigidos:** o registro da v6.1 dizia "35 testes novos" (eram 25); a FASE 7 (v7.1) ainda dizia "7 regras" de retenção (são 8); e a v6.2 descrevia como futuro o
+   que a v6.1 já fez (notificação no painel, público calculado, confirmação com contagem) e ainda dizia que "não existe envio de e-mail/notificação de verdade em lugar nenhum do sistema": ganhou as
+   marcas `[parcial, v6.1]` e o aviso "reaproveitar, não reconstruir" o motor de público da v6.1.
+9. **Suíte completa — OK** (item 2).
+10. **Tela real — OK**, com um achado: cada rota tem a tela que a usa (Novo aviso, Avisos publicados, relatório, Mural no Início, Meus avisos, o aviso); o catálogo `categoria_aviso` aparecia em
+    Configurações sob o código cru "comunicar": agora aparece como "Comunicação" (com teste de painel).
+11. **O que a tela oferece para abrir foi aberto — OK, com o robô reforçado:** o `v6.1-01` agora abre o aviso CLICANDO no link do sino e o relatório clicando na lista de avisos publicados (antes ele via o
+    link do sino e entrava pelo mural; o relatório era aberto pelo endereço); rodado de novo na homologação: 5/5 (`8bb4d25`). O mural e a lista de "Meus avisos" já eram clicados.
+12. **No ar — OK:** `main` igual ao remoto; Deploy API, Painel e Site verdes para `aa3c08c` (o último commit de código; os seguintes são só do plano e do robô, que não publicam nada);
+    `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `aa3c08c`; a API de produção tem as 9 rotas novas e a migração `e5b1d7a3c820` aplicada (log do Deploy API).
+**Específico deste ponto (segmentação):** provado pelo robô (o Tesoureiro, fora do grupo "quem tem `financeiro_auditar`", não vê o aviso no mural e recebe 404 pela tela e pela API) e pelos testes do servidor
+para grupo de projeto, por situação e, depois do achado do revisor (só o grupo de projeto era provado no servidor), também para **grupo por permissão** (a Diretoria vê, o associado não vê e recebe 404) e
+**grupo por categoria** (o Fundador recebe, o Efetivo não vê e recebe 404); cada proteção confirmada por mutação.
+
 #### v6.2 — Central de comunicação multicanal (base para v11.3)
 >
 > **Pendência registrada pela v1.2 (2026-09-14)**: "boas-vindas automáticas" na efetivação de
 > filiação (`app/routers/filiacao.py`, `aprovar_proposta`) e o "aviso à secretaria" quando o
-> período de experiência acaba hoje só gravam `AuditLog` (`BOAS_VINDAS_REGISTRADAS`) - não
-> existe envio de e-mail/notificação de verdade em lugar nenhum do sistema ainda. Quando esta
-> versão existir, conectar os dois eventos aqui em vez de deixar só no log.
+> período de experiência acaba hoje só gravam `AuditLog` (`BOAS_VINDAS_REGISTRADAS`). Quando esta
+> versão existir, conectar os dois eventos aqui em vez de deixar só no log. **(Atualizado em 2026-10-20, Ponto de Revisão FASE 6 1/2:**
+> a frase antiga "não existe envio de e-mail/notificação de verdade em lugar nenhum do sistema" deixou de valer: já existem o sino do
+> painel (v5.4h), o e-mail da API (ligado em produção em 2026-10-15) e o mural de avisos (v6.1); as boas-vindas é que seguem só no log.)
+>
+> **O que a v6.1 já entregou e esta versão reaproveita (não reconstruir):** o canal "painel" (mural, Meus avisos, sino), o motor de
+> público (`app/services/comunicacao.py`: a REGRA do grupo guardada no aviso, `resolver_publico` calculando o grupo de hoje, a lista
+> gravada como prova em `avisos_destinatarios`), a permissão própria `comunicar` e a confirmação com a contagem conferida (409 se o
+> grupo mudou). O e-mail e o WhatsApp entram como canais novos sobre o MESMO público e a MESMA prova.
 >
 > **Ideia registrada pelo usuário (2026-09-15), ainda não detalhada**: "grupo de comunicação"
 > configurável - um endereço/canal que **só envia, nunca recebe** (o usuário mesmo reconheceu
@@ -395,7 +430,8 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > higienização de contato da v1.8 (e-mail que retorna) quando existir.
 
 - [ ] `Comunicacao` (assunto, corpo com variáveis, canal, público-alvo, agendamento, status) com
-      envio por e-mail, notificação no painel e, quando a v11.3 existir, WhatsApp.
+      envio por e-mail, notificação no painel e, quando a v11.3 existir, WhatsApp. **[parcial, v6.1: a notificação no painel (mural,
+      Meus avisos e sino) e o público-alvo calculado já existem; faltam e-mail, variáveis no corpo, agendamento e o status por canal]**
 - [ ] Registro de entrega e falha por destinatário, com reprocessamento — mensagem que não chegou
       precisa ser visível, não silenciosa.
 - [ ] Preferências de contato por pessoa e **descadastro real** de comunicação não essencial
@@ -403,7 +439,8 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       deixa essa distinção explícita).
 - [ ] Modelos de mensagem versionados, com pré-visualização e envio de teste antes do disparo.
 - [ ] Limite de segurança: disparo em massa exige permissão própria e confirmação com contagem de
-      destinatários — evita o erro de mandar para 2.000 pessoas por engano.
+      destinatários — evita o erro de mandar para 2.000 pessoas por engano. **[parcial, v6.1: no canal do painel já vale
+      (`comunicar`, contagem no botão e na confirmação, `total_confirmado` recusado com 409 se o grupo mudou); o e-mail tem de passar pela mesma trava]**
 
 #### v6.3 — Transparência pública ativa
 
@@ -454,7 +491,7 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - [ ] Dado de criança e adolescente (Art. 14): consentimento específico de ao menos um dos pais ou
       responsável, com registro do vínculo — relevante direto para projetos assistenciais e
       educacionais da FASE 4/14.
-- [ ] **[parcial, v5.7b: rotina real feita para 7 regras; faltam inscritos em evento, voluntários e certificados]** Política de retenção por tipo de dado, implementada como **rotina real** de anonimização/
+- [ ] **[parcial, v5.7b: rotina real feita para 7 regras, e a v6.1 acrescentou a 8ª (quem recebeu, leu e confirmou um aviso do mural); faltam inscritos em evento, voluntários e certificados]** Política de retenção por tipo de dado, implementada como **rotina real** de anonimização/
       descarte (participante externo de evento: X meses; candidato a voluntário não aprovado: Y
       meses; associado desligado: prazo legal/contábil), com relatório do que foi descartado.
       Retenção que só existe no papel não é retenção.
