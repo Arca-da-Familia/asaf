@@ -84,6 +84,7 @@ def test_a_lista_de_pendencias_nao_apodrece():
 
 
 def test_cada_pendencia_aponta_para_uma_versao_que_existe_no_plano():
-    plano = (RAIZ / "PLANO_PROJETO.md").read_text(encoding="utf-8")
+    # a versão concluída sai do plano e vai, sem alteração, para o HISTORICO.md (a FASE 5 foi em 2026-10-20): vale achá-la em qualquer um dos dois
+    plano = (RAIZ / "PLANO_PROJETO.md").read_text(encoding="utf-8") + "\n" + (RAIZ / "HISTORICO.md").read_text(encoding="utf-8")
     for caminho, versao in SEM_TELA_CONHECIDAS.items():
-        assert re.search(rf"^#### {re.escape(versao)}\b", plano, flags=re.MULTILINE), f"{caminho} aponta para {versao}, que não está no plano"
+        assert re.search(rf"^#### {re.escape(versao)}\b", plano, flags=re.MULTILINE), f"{caminho} aponta para {versao}, que não está no plano nem no histórico"
