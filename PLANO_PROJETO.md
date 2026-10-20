@@ -2506,6 +2506,20 @@ e depois a **v5.7h** (o que é do Directus: C1, C2, C3, C5, C9), e os itens C6 e
       **Limitações conhecidas:** a validação automática só vale para associado (quem é só participante de evento passa pela equipe, de propósito); pedidos de titular **de antes** da v5.7f aparecem na Minha conta como
       "Respondido" sem o texto (a resposta foi por e-mail) e os encerrados antigos sem o motivo; a validação à mão depende de a equipe conferir de verdade (o sistema só exige o registro do que foi conferido).
 
+- [x] **A3 — v5.7g — As pontas do painel e da transparência (C4, C7 e C11; pedido do Presidente, 2026-10-19: "termina a fase 5").** (1) **C11:** a leitura do Conselho Fiscal (títulos e livro-caixa) é
+      **paginada, com busca** (25 por página; o servidor aceita `busca`, `pagina` e `por_pagina` e devolve o total), e a tela tem "anterior/próxima" e o campo de busca: deixa de estourar com muitos títulos;
+      (2) **C4:** o atalho "Editar o site" tem **permissão própria**, `editar_site` (antes usava `gerenciar_acesso`, a da Presidência); a migração `c4a8e2f6d913` a dá a todo nível e a todo cargo que já tinha
+      `gerenciar_acesso` (nada some), e a secretaria ou a comunicação pode recebê-la pela tela Níveis e permissões sem ganhar poder sobre o acesso do sistema; (3) **C7:** a página **Doar** mostra, por
+      campanha, o **APLICADO** (o total já gasto no centro de custo da campanha: despesas líquidas do razão, o estorno subtrai) ao lado do recebido; campanha sem centro de custo diz que o gasto dela não é
+      acompanhado à parte. Só o total sai: nenhum lançamento, fornecedor ou data.
+      **Na homologação (antes de ir à produção):** a branch `v57g-painel-e-transparencia` foi publicada lá (a migração rodou no banco de TESTE). Robôs `v5.7g-01` (painel), 4 de 4, e `v5.7g-02` (o `hml-site`), 1 de 1;
+      regressões verdes: `v5.4e-04`, `v5.4d-06`, `v5.4d-08`, `v5.7e-01`, `v5.6a-01`, `v5.6a-02` e `v5.4c-fase0` (os roteiros `v5.4d-06`, `v5.4e-04` e `v5.6a-01` foram ajustados para a leitura paginada e
+      para o aplicado). Testes locais: servidor 1363 em duas rodadas seguidas, painel 670, site 749 unitários e os de navegador; testes novos do servidor (com mutação), da migração, do painel e do site.
+      **Em produção (2026-10-20):** `main` = `82119bc`; Deploy API verde (1363 testes contra Postgres e o log mostra `Running upgrade b9e2c5a7d014 -> c4a8e2f6d913`), Deploy Painel e Deploy Site verdes;
+      `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `82119bc`; o `openapi.json` da API traz `busca`, `pagina` e `por_pagina` nas leituras do Conselho Fiscal (títulos, livro-caixa e
+      auditoria) e a página `/como-ajudar/doar/` traz a explicação do "aplicado". O campo `valor_aplicado` só aparece com campanha em andamento e a doação está fechada (sem campanha), então ele não pôde ser
+      lido em produção; a produção não recebeu nenhum dado de teste.
+
 ##### B. Pontos de Revisão (só o Presidente fecha)
 
 - [ ] **B1 — Ponto de Revisão FASE 5 (2/2), reaberto.** A revisão foi feita em 2026-10-16 (texto acima, no bloco do Ponto); o fechamento foi **reaberto em 2026-10-19** porque o Presidente não autorizou e decidiu que dois
@@ -2521,14 +2535,14 @@ e depois a **v5.7h** (o que é do Directus: C1, C2, C3, C5, C9), e os itens C6 e
 | C1 | **E-mail do Directus (SMTP)** para convite de editores e recuperação de senha, **e administrador de reserva** | v5.3 (`[ ]` na lista) | Não feito. Hoje só existe 1 administrador e recuperar a senha dele é por SQL. O e-mail da API já está ligado (decisão de 15/10), o do Directus não. Mexe em infraestrutura de produção: eu digo o plano antes e provo por leitura |
 | C2 | **MFA obrigatório do administrador do Directus** (`enforce_tfa`) | v5.3 (`[ ]` na lista) | Não feito. É o login do **Directus**, não o do painel (o MFA do painel é decisão congelada e não muda). O token de administrador é estático, então a automação não quebra |
 | C3 | **Teste ao vivo dos demais perfis do Directus** (Redator, Colaborador de mídia, Editor de conteúdo, Editor de transparência) com usuários de teste | v5.3 ("Falta") | Não feito: só o Leitor do site foi provado ao vivo; os outros estão provados pelos testes do modelo (45) |
-| C4 | **Atalho "Editar o site" com permissão própria `editar_site`** (hoje usa `gerenciar_acesso`) | v5.1/v5.3 ("Falta") | Não feito |
+| C4 | **Atalho "Editar o site" com permissão própria `editar_site`** (hoje usa `gerenciar_acesso`) | v5.1/v5.3 ("Falta") | **Feito na v5.7g (2026-10-20), item A3:** permissão `editar_site`; a migração `c4a8e2f6d913` a deu a quem já tinha o atalho |
 | C5 | **Notícia ligada a uma emenda** | v5.3 ("Falta") | Ligação a **projeto** e a **evento** já existe (v5.5); a de emenda não (a v5.4 que ela esperava já existe) |
 | C6 | **Coleções do Directus além de Notícias**: textos de página, banners da Home, galeria, FAQ, depoimentos, parceiros | v5.1 (`[ ]` na lista) | **Não feitas.** Só a coleção `noticias` existe (conferido em `scripts/directus_modelo.py`). Os textos das páginas estão no código do site (v5.2) e só mudam por mim. **DECISÃO:** continua valendo o editor do site para esses textos, ou fica como está (cada texto público passa por conferência de fatos antes de entrar) |
-| C7 | **Transparência do destino por campanha (o APLICADO)**: arrecadado e aplicado puxados do centro de custo real | v5.6a/v5.7b (`[ ]` na lista) | Não feito: a página Doar mostra só o RECEBIDO por campanha. **DECISÃO:** fazer agora, ou levar à FASE 12.7 junto com a integração automática da Transparência (o plano já previa isso para o centro de custo da emenda) |
+| C7 | **Transparência do destino por campanha (o APLICADO)**: arrecadado e aplicado puxados do centro de custo real | v5.6a/v5.7b (`[ ]` na lista) | **Feito na v5.7g (2026-10-20), item A3:** a página Doar mostra o RECEBIDO e o APLICADO (centro de custo real) por campanha. A integração automática da Transparência segue na FASE 12.7 |
 | C8 | **Conferir o efeito da regra de ciclo de vida das fotos** sobre uma versão real | v5.7d ("Abertos", 1) | Venceu o prazo (uns 2 dias depois de 15/10). Precisa de papel de leitura de dados **só na homologação**, temporário, para rodar `az storage blob list --include v`; depois o papel é retirado |
 | C9 | **Chave da conta de armazenamento inteira no Directus** (`STORAGE_AZURE_ACCOUNT_KEY` da conta `stasafarcadafamilia`) em vez de conta própria ou SAS do contêiner `uploads` | v5.0 (citação com `[ ]`) | Não feito; alcance pequeno hoje (o Directus só guarda editorial). Depende de gravar segredo |
 | C10 | **Acompanhar** a nota de saúde do Directus (`warn` por tempo de resposta do Postgres, banco Burstable) | v5.0 (citação com `[ ]`) | Só acompanhamento; na versão 12 o `/server/health` exige login, então é lido pelo painel do Directus |
-| C11 | **Tela do Conselho Fiscal lista todos os títulos sem paginação** | achado dos robôs na v5.7e (2026-10-19) | Não feito: com muitos títulos a página fica muito alta e pesada (a v5.4h paginou Associados, Razão e Títulos, mas não esta). Mesmo padrão dos Títulos |
+| C11 | **Tela do Conselho Fiscal lista todos os títulos sem paginação** | achado dos robôs na v5.7e (2026-10-19) | **Feito na v5.7g (2026-10-20), item A3:** títulos e livro-caixa do Conselho Fiscal paginados, com busca |
 
 ##### D. Dado real que só o Presidente tem (não trava nenhuma versão: a homologação usa dado inventado; ele cadastra depois)
 
