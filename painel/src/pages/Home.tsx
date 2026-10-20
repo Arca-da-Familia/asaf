@@ -1,6 +1,7 @@
 import { ExternalLink } from 'lucide-react'
 import { Link } from 'react-router'
 
+import { MuralDeAvisos } from '@/components/comunicacao/MuralDeAvisos'
 import { moduloVisivel, modulos } from '@/lib/modulos'
 import { useMe } from '@/lib/use-me'
 
@@ -25,6 +26,9 @@ export function Home() {
         Bem-vindo{data?.nome_completo ? `, ${data.nome_completo}` : ''} ao
         painel da ASAF.
       </p>
+
+      {/* v6.1 - o mural: os avisos que estão no mural para a própria pessoa (o servidor só devolve os dela) */}
+      <MuralDeAvisos />
 
       <section className="mt-6">
         <h2 className="mb-3 font-semibold">Módulos</h2>

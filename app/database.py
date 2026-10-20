@@ -194,17 +194,21 @@ def seed_catalogos():
             # Estatuto: Presidente, 1º/2º Vice-Presidente, 1º/2º Secretário, 1º/2º Tesoureiro e Conselheiro Fiscal. O
             # CÓDIGO nunca muda (o banco e as alçadas o referenciam): "2º Secretário" é o código VICE_SECRETARIO, e assim por
             # diante. A ordem da lista é a ordem em que a Diretoria aparece no site. Cargo fora do Estatuto não existe.
-            ("PRESIDENTE", "Presidente", {"permissoes": ["gerenciar_acesso", "editar_site", "associados", "financeiro", "governanca", "projetos", "auditoria", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias"]}),
+            ("PRESIDENTE", "Presidente", {"permissoes": ["gerenciar_acesso", "editar_site", "associados", "financeiro", "governanca", "projetos", "auditoria", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias", "comunicar"]}),
             ("VICE_PRESIDENTE", "1º Vice-Presidente", {"permissoes": ["associados", "governanca"]}),
             ("VICE_PRESIDENTE_2", "2º Vice-Presidente", {"permissoes": ["associados", "governanca"]}),
-            ("SECRETARIO", "1º Secretário", {"permissoes": ["associados", "governanca", "documentos", "documentos_originais", "aprovar_publicacao"]}),
-            ("VICE_SECRETARIO", "2º Secretário", {"permissoes": ["associados", "documentos"]}),
+            ("SECRETARIO", "1º Secretário", {"permissoes": ["associados", "governanca", "documentos", "documentos_originais", "aprovar_publicacao", "comunicar"]}),
+            ("VICE_SECRETARIO", "2º Secretário", {"permissoes": ["associados", "documentos", "comunicar"]}),
             ("TESOUREIRO", "1º Tesoureiro", {"permissoes": ["financeiro", "parcerias"]}),
             ("VICE_TESOUREIRO", "2º Tesoureiro", {"permissoes": ["financeiro", "parcerias"]}),
             ("CONSELHO_FISCAL", "Conselheiro Fiscal", {"permissoes": ["financeiro_auditar", "auditoria"]}),
         ]),
         # v2.1 (Art. 18 do estatuto) - órgãos de direção da ASAF: Diretoria Executiva e Conselho
         # Fiscal. Catálogo editável - a ASAF pode criar um Conselho Deliberativo sem deploy.
+        # v6.1 - categoria do aviso do mural do painel (o tipo de assunto); a diretoria ajusta sem deploy.
+        "categoria_aviso": ("Categoria de aviso", True, "comunicar", [
+            ("GERAL", "Geral"), ("CONVOCACAO", "Convocação"), ("MUDANCA_DE_REGRA", "Mudança de regra"), ("PROJETO", "Projeto"), ("EVENTO", "Evento"), ("FINANCEIRO", "Financeiro"),
+        ]),
         "orgao_direcao": ("Órgão de direção", True, "governanca", [
             ("DIRETORIA_EXECUTIVA", "Diretoria Executiva", {}), ("CONSELHO_FISCAL", "Conselho Fiscal", {}),
         ]),
@@ -407,11 +411,13 @@ def seed_niveis_e_permissoes():
         {"modulo": "documentos", "codigo_permissao": "aprovar_publicacao", "descricao": "Aprovar, recusar e retirar publicações no site de transparência; nunca o que a própria pessoa enviou (v5.4a)."},
         {"modulo": "parcerias", "codigo_permissao": "parcerias", "descricao": "Gerenciar parcerias, emendas parlamentares, parcelas, etapas e relatórios (v5.4a)."},
         {"modulo": "atendimento", "codigo_permissao": "atendimento", "descricao": "Atender a fila única: contato, pedidos de informação, solicitações de titular de dados (LGPD) e voluntariado que chegam pelo site (v5.5a)."},
+        # v6.1 (decisão do Presidente, 2026-10-20) - quem publica aviso no mural do painel: o Presidente e os Secretários (pelo cargo); os outros recebem pela tela Níveis e permissões.
+        {"modulo": "comunicacao", "codigo_permissao": "comunicar", "descricao": "Publicar avisos no mural do painel para um grupo calculado, ver quem leu e confirmou, incluir quem entrou no grupo depois e retirar o aviso (v6.1)."},
     ]
     # Nível -> lista de códigos de permissão que ele recebe por padrão (ajustável depois pela
     # própria tela de administração de acesso, isto aqui é só ponto de partida).
     atribuicoes_padrao = {
-        "Presidente": ["gerenciar_acesso", "editar_site", "associados", "financeiro", "governanca", "projetos", "auditoria", "exportar_dados_pessoais", "forcar_cadastro_duplicado", "gerenciar_checkin_evento", "exportar_presencas_evento", "exportar_inscricoes_evento", "exportar_beneficiarios", "exportar_reservas_espaco", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias", "atendimento"],
+        "Presidente": ["gerenciar_acesso", "editar_site", "associados", "financeiro", "governanca", "projetos", "auditoria", "exportar_dados_pessoais", "forcar_cadastro_duplicado", "gerenciar_checkin_evento", "exportar_presencas_evento", "exportar_inscricoes_evento", "exportar_beneficiarios", "exportar_reservas_espaco", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias", "atendimento", "comunicar"],
         "Diretoria": ["associados", "financeiro", "governanca", "projetos", "gerenciar_checkin_evento", "documentos", "parcerias", "atendimento"],
         "Conselho Fiscal": ["financeiro_auditar", "auditoria"],  # v5.7e: audita, não opera (antes tinha `financeiro`)
         "Associado": [],
@@ -525,6 +531,8 @@ def seed_configuracoes_institucionais():
         {"chave": "PRAZO_RETENCAO_PROPOSTAS_DIAS", "valor": "730", "tipo": "numero", "categoria": "regras", "descricao": "Dias depois da última mudança em que uma proposta de filiação que não virou associado é apagada (padrão 2 anos). Valor abaixo de 30 é ignorado."},
         {"chave": "PRAZO_RETENCAO_PEDIDOS_DE_DOACAO_DIAS", "valor": "730", "tipo": "numero", "categoria": "regras", "descricao": "Dias depois do prazo do pedido em que um pedido de doação pelo site que ninguém confirmou é apagado (padrão 2 anos). Valor abaixo de 30 é ignorado."},
         {"chave": "PRAZO_RETENCAO_DOADOR_DIAS", "valor": "3650", "tipo": "numero", "categoria": "regras", "descricao": "Dias depois da doação em que o doador identificado é anonimizado (nome, documento e ligação com o cadastro); ficam valor, data e destino (padrão 10 anos). Valor abaixo de 30 é ignorado."},
+        # v6.1 - a prova de quem recebeu, leu e confirmou um aviso do painel: o prazo da lei (decisão de 2026-10-20; ver PLANO_PROJETO.md v6.1), contado do fim da validade do aviso.
+        {"chave": "PRAZO_RETENCAO_LEITURA_DE_AVISOS_DIAS", "valor": "1825", "tipo": "numero", "categoria": "regras", "descricao": "Dias depois de um aviso do mural vencer (ou ser retirado) em que a lista de quem o recebeu, leu e confirmou é apagada; o aviso e os totais ficam (padrão 5 anos). Valor abaixo de 30 é ignorado."},
         {"chave": "DIAS_VALIDADE_CARTEIRINHA", "valor": "15", "tipo": "numero", "categoria": "regras", "descricao": "Dias que o QR da carteirinha digital vale a partir do momento em que é gerado, de 1 a 20 (a verificação pública, a foto dela, a portaria e o credenciamento deixam de aceitá-lo depois disso)."},
         # v5.6a - quem doa pelo site se identificando deixa uma intenção que a tesouraria confirma olhando o extrato do banco; passado este prazo sem confirmação ela vira
         # "Prazo vencido sem confirmação" (sai da frente da tesouraria, mas ainda pode ser confirmada se o dinheiro chegar atrasado).

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
@@ -7,6 +8,15 @@ import { URL_DIRECTUS } from '@/lib/modulos'
 import { useMe } from '@/lib/use-me'
 
 vi.mock('@/lib/use-me', () => ({ useMe: vi.fn() }))
+// v6.1: o Início também mostra o mural de avisos (aqui, vazio)
+vi.mock('@/lib/comunicacao', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/comunicacao')>()),
+  listarMeusAvisos: vi.fn().mockResolvedValue({
+    nao_lidos: 0,
+    confirmacoes_pendentes: 0,
+    avisos: [],
+  }),
+}))
 const useMeMock = vi.mocked(useMe)
 
 function renderHome(permissoes: string[]) {
@@ -14,9 +24,11 @@ function renderHome(permissoes: string[]) {
     data: { nome_completo: 'Fulano', permissoes },
   } as unknown as ReturnType<typeof useMe>)
   return render(
-    <MemoryRouter>
-      <Home />
-    </MemoryRouter>,
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter>
+        <Home />
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 

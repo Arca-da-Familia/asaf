@@ -10,6 +10,7 @@ import {
   HeartHandshake,
   House,
   LogOut,
+  Megaphone,
   Menu,
   Moon,
   Search,
@@ -268,6 +269,16 @@ export function Shell() {
               >
                 <UserRound className="h-5 w-5 shrink-0" />
                 {!collapsed && <span>{mensagens.navegacao.meuPerfil}</span>}
+              </NavLink>
+
+              {/* v6.1 - a caixa de entrada: tudo que a pessoa recebeu no mural (qualquer pessoa com acesso recebe aviso, sem permissão de módulo). */}
+              <NavLink
+                to="/meus-avisos"
+                className={navCls}
+                onClick={() => setMobileOpen(false)}
+              >
+                <Megaphone className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>Meus avisos</span>}
               </NavLink>
 
               {/* v2.5.3b (achado do usuário 2026-09-15) - "cada membro tem a sua ficha de

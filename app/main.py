@@ -11,7 +11,7 @@ import os
 
 from app.database import preparar_banco, seed_catalogos, seed_niveis_e_permissoes, seed_configuracoes_institucionais, seed_regras_estatutarias
 from app.services import armazenamento
-from app.routers import atendimento, notificacoes_painel, instituicao, publico, arquivos, auth, core, associados, financeiro, governanca, projetos, filiacao, importacao, situacao, voluntariado, qualidade_cadastro, estatuto, mandatos, sessao_assembleia, votacao, ata, conselho_fiscal, disciplina, dissolucao, calendario, chamada, compras, doacoes, doacao_online, visitante, orcamento, relatorios, antifraude, motores, beneficiarios, espacos, eventos, portaria, certificados, pesquisa_satisfacao, documentos, parcerias
+from app.routers import atendimento, notificacoes_painel, instituicao, publico, arquivos, auth, core, associados, financeiro, governanca, projetos, filiacao, importacao, situacao, voluntariado, qualidade_cadastro, estatuto, mandatos, sessao_assembleia, votacao, ata, conselho_fiscal, disciplina, dissolucao, calendario, chamada, compras, doacoes, doacao_online, visitante, orcamento, relatorios, antifraude, motores, beneficiarios, espacos, eventos, portaria, certificados, pesquisa_satisfacao, documentos, parcerias, comunicacao
 from app import recusas
 from app.security import decodificar_access_token_silencioso
 
@@ -183,6 +183,7 @@ app.include_router(pesquisa_satisfacao.router)
 app.include_router(arquivos.router)
 app.include_router(documentos.router)
 app.include_router(parcerias.router)
+app.include_router(comunicacao.router)
 app.include_router(publico.router)
 
 @app.get("/", response_class=HTMLResponse, summary="Página Inicial (Landing Page)")

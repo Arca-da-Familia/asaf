@@ -72,6 +72,11 @@ import { FiliacaoParaProporPage } from '@/pages/FiliacaoParaPropor'
 import { MeuVoluntariadoPage } from '@/pages/MeuVoluntariado'
 import { MfaSetup } from '@/pages/MfaSetup'
 import { MinhasAssembleiasPage } from '@/pages/MinhasAssembleias'
+import { AvisoDetalhePage } from '@/pages/AvisoDetalhe'
+import { AvisoNovoPage } from '@/pages/AvisoNovo'
+import { ComunicacaoPage } from '@/pages/Comunicacao'
+import { MeuAvisoPage } from '@/pages/MeuAviso'
+import { MeusAvisosPage } from '@/pages/MeusAvisos'
 import { PerfilPage } from '@/pages/Perfil'
 import { DeliberacoesPendentesPage } from '@/pages/DeliberacoesPendentes'
 import { PeticoesConvocacaoPage } from '@/pages/PeticoesConvocacao'
@@ -342,6 +347,55 @@ function App() {
               element={
                 <ErrorBoundary tituloModulo="Conceder acesso">
                   <ConcederAcessoPage />
+                </ErrorBoundary>
+              }
+            />
+          </Route>
+          <Route
+            path="/meus-avisos"
+            element={
+              <ErrorBoundary tituloModulo="Meus avisos">
+                <MeusAvisosPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/meus-avisos/:id"
+            element={
+              <ErrorBoundary tituloModulo="Meus avisos">
+                <MeuAvisoPage />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/comunicacao"
+            element={
+              <RequirePermission permission="comunicar">
+                <Outlet />
+              </RequirePermission>
+            }
+          >
+            <Route
+              index
+              element={
+                <ErrorBoundary tituloModulo="Comunicação">
+                  <ComunicacaoPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="novo"
+              element={
+                <ErrorBoundary tituloModulo="Comunicação">
+                  <AvisoNovoPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path=":id"
+              element={
+                <ErrorBoundary tituloModulo="Comunicação">
+                  <AvisoDetalhePage />
                 </ErrorBoundary>
               }
             />
