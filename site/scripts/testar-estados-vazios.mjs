@@ -241,7 +241,7 @@ exigir(
 // 6. v5.5 - API ANTIGA. O site e a API são publicados juntos: se o build do site ler a API ANTES de ela ter o contexto de
 // projeto/evento (destaque, edições, relatórios, fotos, projeto no evento), o site TEM que construir do mesmo jeito, só
 // sem as seções novas — nunca quebrar o deploy nem mostrar bloco vazio. O mock `--antiga` responde como a API antiga
-// (mesmos dados, sem nenhum campo novo) e as notícias chegam sem `projeto_id`/`evento_id`.
+// (mesmos dados, sem nenhum campo novo) e as notícias chegam sem `projeto_id`/`evento_id`/`emenda_id`.
 const construcaoAntiga = spawnSync(
   'node',
   ['scripts/build-teste.mjs', '--antiga'],

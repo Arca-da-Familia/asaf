@@ -257,6 +257,54 @@ describe('validarNoticias - ligação com projeto e evento (v5.5)', () => {
     ])
   })
 
+  it('v5.7h: a emenda é a terceira ligação, opcional como as outras duas', () => {
+    expect(CAMPOS_DA_NOTICIA).toContain('emenda_id')
+    for (const vazio of [null, undefined, '']) {
+      const { noticias, avisos } = validarNoticias(
+        [bruta({ emenda_id: vazio })],
+        AGORA,
+      )
+      expect(noticias[0]).toMatchObject({ emendaId: null })
+      expect(avisos).toEqual([])
+    }
+    // notícia de antes da v5.7h (o Directus nem devolve o campo)
+    expect(validarNoticias([bruta()], AGORA).noticias[0]).toMatchObject({
+      emendaId: null,
+    })
+    const { noticias, avisos } = validarNoticias(
+      [bruta({ projeto_id: 3, evento_id: 4, emenda_id: 7 })],
+      AGORA,
+    )
+    expect(noticias[0]).toMatchObject({
+      projetoId: 3,
+      eventoId: 4,
+      emendaId: 7,
+    })
+    expect(avisos).toEqual([])
+  })
+
+  it.each([
+    ['texto', 'abc'],
+    ['negativo', -2],
+    ['zero', 0],
+    ['decimal', 1.5],
+  ])(
+    'v5.7h: emenda_id inválido (%s) vira null e avisa, em português correto, SEM derrubar a notícia',
+    (_nome, invalido) => {
+      const { noticias, avisos } = validarNoticias(
+        [bruta({ emenda_id: invalido, projeto_id: 3 })],
+        AGORA,
+      )
+      expect(noticias).toHaveLength(1)
+      expect(noticias[0]).toMatchObject({ projetoId: 3, emendaId: null })
+      expect(avisos).toHaveLength(1)
+      expect(avisos[0]).toMatchObject({ id: 'n1', publicada: true })
+      expect(avisos[0]!.motivo).toMatch(/emenda_id tem um valor inválido/)
+      expect(avisos[0]!.motivo).toMatch(/precisa ser o número de uma emenda/)
+      expect(avisos[0]!.motivo).toMatch(/sem a ligação com a emenda/)
+    },
+  )
+
   it('texto enorme no campo não infla o aviso', () => {
     const { avisos } = validarNoticias(
       [bruta({ projeto_id: 'z'.repeat(500) })],
@@ -545,6 +593,16 @@ describe('notícias ligadas a projeto e evento dentro do conteúdo público (v5.
     const ligada = await ler([bruta({ projeto_id: 3 })])
     expect(impressaoDoConteudo(ligada)).not.toBe(
       impressaoDoConteudo(semLigacao),
+    )
+  })
+
+  it('v5.7h: emenda que NÃO é pública (ou não existe): a notícia vai ao ar sem a ligação e o aviso explica', async () => {
+    const c = await ler([bruta({ emenda_id: 7 })])
+    expect(c.noticias).toHaveLength(1)
+    expect(c.noticias[0]).toMatchObject({ emendaId: null })
+    expect(c.avisosDeNoticias).toHaveLength(1)
+    expect(c.avisosDeNoticias[0]!.motivo).toBe(
+      'a emenda nº 7 não existe ou não é pública. A notícia foi publicada sem a ligação com a emenda',
     )
   })
 

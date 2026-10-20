@@ -191,14 +191,21 @@ export function normalizarEventoDetalhado(detalhe) {
  * Directus nunca tira a notícia do ar, nem faz um link que daria 404. Cada ligação desfeita vira um aviso (mesmo
  * formato dos avisos de `validarNoticias`, com `publicada: true`) para o editor corrigir o número.
  */
-export function ligarNoticias(noticias, { projetos, eventos }) {
+export function ligarNoticias(noticias, { projetos, eventos, parcerias = [] }) {
   const idsDeProjetos = new Set(projetos.map((p) => p.id_projeto))
   const idsDeEventos = new Set(eventos.map((e) => e.id_evento))
+  // v5.7h: a emenda é uma parceria do tipo EMENDA, e só tem página quando está aprovada (a lista pública só traz as aprovadas)
+  const idsDeEmendas = new Set(
+    parcerias
+      .filter((p) => p.tipo_codigo === 'EMENDA')
+      .map((p) => p.id_parceria),
+  )
   const avisos = []
   const ligadas = noticias.map((noticia) => {
-    let { projetoId, eventoId } = noticia
+    let { projetoId, eventoId, emendaId } = noticia
     projetoId ??= null
     eventoId ??= null
+    emendaId ??= null
     if (projetoId !== null && !idsDeProjetos.has(projetoId)) {
       avisos.push({
         id: noticia.id,
@@ -217,7 +224,16 @@ export function ligarNoticias(noticias, { projetos, eventos }) {
       })
       eventoId = null
     }
-    return { ...noticia, projetoId, eventoId }
+    if (emendaId !== null && !idsDeEmendas.has(emendaId)) {
+      avisos.push({
+        id: noticia.id,
+        titulo: noticia.titulo,
+        motivo: `a emenda nº ${emendaId} não existe ou não é pública. A notícia foi publicada sem a ligação com a emenda`,
+        publicada: true,
+      })
+      emendaId = null
+    }
+    return { ...noticia, projetoId, eventoId, emendaId }
   })
   return { noticias: ligadas, avisos }
 }
@@ -331,6 +347,7 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
   const { noticias, avisos } = ligarNoticias(lidas.noticias, {
     projetos,
     eventos,
+    parcerias,
   })
   return {
     instituicao,

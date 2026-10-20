@@ -33,9 +33,10 @@ export const CAMPOS_DA_NOTICIA = [
   'imagem.height',
   'imagem_alt',
   'autorizacao_imagem',
-  // v5.5: número do projeto e do evento a que a notícia se liga (campos opcionais, inteiros).
+  // v5.5: número do projeto e do evento a que a notícia se liga; v5.7h: e da emenda (campos opcionais, inteiros).
   'projeto_id',
   'evento_id',
+  'emenda_id',
 ]
 
 /** Endereço da notícia: minúsculas, números e hífen (o que o editor vê como "slug"). */
@@ -123,7 +124,7 @@ function lerLigacao(valor) {
 /**
  * Valida as notícias lidas do Directus. Devolve `{ noticias, avisos }`: `noticias` já limpas e ordenadas da mais
  * recente para a mais antiga; `avisos` lista cada notícia NÃO publicada e o motivo (aparece no resumo do deploy).
- * Cada notícia leva `projetoId` e `eventoId` (inteiro positivo ou `null`); número inválido vira `null` e gera um
+ * Cada notícia leva `projetoId`, `eventoId` e `emendaId` (inteiro positivo ou `null`); número inválido vira `null` e gera um
  * aviso com `publicada: true` (a notícia foi ao ar, só sem a ligação).
  */
 export function validarNoticias(brutas, agora = new Date()) {
@@ -202,12 +203,13 @@ export function validarNoticias(brutas, agora = new Date()) {
       }
     }
 
-    // Ligação com um projeto/evento (v5.5): valor que não é número de verdade NÃO derruba a notícia — ela vai ao
-    // ar sem a ligação e o aviso diz o que corrigir no Directus.
+    // Ligação com um projeto/evento (v5.5) ou emenda (v5.7h): valor que não é número de verdade NÃO derruba a
+    // notícia — ela vai ao ar sem a ligação e o aviso diz o que corrigir no Directus.
     const ligacoes = {}
-    for (const [campo, chave, rotulo] of [
-      ['projeto_id', 'projetoId', 'projeto'],
-      ['evento_id', 'eventoId', 'evento'],
+    for (const [campo, chave, rotulo, artigo] of [
+      ['projeto_id', 'projetoId', 'projeto', 'um'],
+      ['evento_id', 'eventoId', 'evento', 'um'],
+      ['emenda_id', 'emendaId', 'emenda', 'uma'],
     ]) {
       const { id, invalido } = lerLigacao(bruta[campo])
       ligacoes[chave] = id
@@ -215,7 +217,7 @@ export function validarNoticias(brutas, agora = new Date()) {
         avisos.push({
           id: String(bruta.id ?? ''),
           titulo: nome,
-          motivo: `o campo ${campo} tem um valor inválido ("${textoSimples(bruta[campo]).slice(0, 40)}"): precisa ser o número de um ${rotulo}. A notícia foi publicada sem a ligação com o ${rotulo}`,
+          motivo: `o campo ${campo} tem um valor inválido ("${textoSimples(bruta[campo]).slice(0, 40)}"): precisa ser o número de ${artigo} ${rotulo}. A notícia foi publicada sem a ligação com ${artigo === 'uma' ? 'a' : 'o'} ${rotulo}`,
           publicada: true,
         })
       }
@@ -235,6 +237,7 @@ export function validarNoticias(brutas, agora = new Date()) {
       imagem,
       projetoId: ligacoes.projetoId,
       eventoId: ligacoes.eventoId,
+      emendaId: ligacoes.emendaId,
     })
   }
   noticias.sort(

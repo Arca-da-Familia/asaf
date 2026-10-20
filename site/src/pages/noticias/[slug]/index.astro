@@ -4,6 +4,7 @@ import type { Migalha } from '../../../config/navegacao'
 import Base from '../../../layouts/Base.astro'
 import { ligacoesDaNoticia } from '../../../lib/contexto'
 import {
+  caminhoDaEmenda,
   caminhoDaFotoDaNoticia,
   caminhoDaNoticia,
   caminhoDoEvento,
@@ -21,10 +22,13 @@ import { descricaoParaMeta, tituloCurto } from '../../../lib/texto'
 // v5.5: a notícia pode estar ligada a um projeto e/ou a um evento (números no Directus). O link só aparece para o que
 // EXISTE no site: número que não existe já foi desfeito na leitura (conteudo-publico.mjs) e aqui se confere de novo.
 export async function getStaticPaths() {
-  const { noticias, projetos, eventos } = await conteudoPublico()
+  const { noticias, projetos, eventos, parcerias } = await conteudoPublico()
   return noticias.map((noticia) => ({
     params: { slug: noticia.slug },
-    props: { noticia, ligacoes: ligacoesDaNoticia(noticia, projetos, eventos) },
+    props: {
+      noticia,
+      ligacoes: ligacoesDaNoticia(noticia, projetos, eventos, parcerias),
+    },
   }))
 }
 
@@ -96,7 +100,7 @@ const migalhas: Migalha[] = [
       set:html={noticia.corpoHtml}
     />
 
-    {(ligacoes.projeto || ligacoes.evento) && (
+    {(ligacoes.projeto || ligacoes.evento || ligacoes.emenda) && (
       <ul class="flex flex-col gap-2" data-ligacoes-da-noticia>
         {ligacoes.projeto && (
           <li>
@@ -115,6 +119,16 @@ const migalhas: Migalha[] = [
               class="font-medium text-primary underline underline-offset-4"
             >
               Sobre o evento {ligacoes.evento.titulo}
+            </a>
+          </li>
+        )}
+        {ligacoes.emenda && (
+          <li>
+            <a
+              href={caminhoDaEmenda(ligacoes.emenda.id_parceria)}
+              class="font-medium text-primary underline underline-offset-4"
+            >
+              Sobre a emenda {ligacoes.emenda.titulo}
             </a>
           </li>
         )}

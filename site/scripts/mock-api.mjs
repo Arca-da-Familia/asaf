@@ -963,6 +963,7 @@ function noticiasDoDirectus() {
     autorizacao_imagem: false,
     projeto_id: null,
     evento_id: null,
+    emenda_id: null,
   }
   return [
     {
@@ -1065,6 +1066,21 @@ function noticiasDoDirectus() {
       date_updated: instante(10),
       projeto_id: 999,
       evento_id: 998,
+      // v5.7h: a parceria 3 existe, mas é termo de fomento (não é emenda): a ligação também é desfeita
+      emenda_id: 3,
+    },
+    // v5.7h - ligada à emenda 123/2026 (parceria 1), pelo número, como o editor faz.
+    {
+      ...publicada,
+      id: 'noticia-9',
+      titulo: 'Notícia de teste ligada à emenda',
+      slug: 'noticia-de-teste-ligada-a-emenda',
+      resumo:
+        'Resumo da notícia de teste que está ligada a uma emenda parlamentar de teste.',
+      corpo: '<p>Texto da notícia ligada à emenda.</p>',
+      publicada_em: instante(11),
+      date_updated: instante(11),
+      emenda_id: 1,
     },
   ]
 }
@@ -1106,7 +1122,7 @@ const CAMPOS_NOVOS = {
   projetoDaLista: ['destaque'],
   projetoDetalhado: ['destaque', 'eventos', 'documentos', 'fotos'],
   documento: ['vinculo_tipo', 'vinculo_id'],
-  noticia: ['projeto_id', 'evento_id'],
+  noticia: ['projeto_id', 'evento_id', 'emenda_id'],
   membroDaDiretoria: ['foto'],
 }
 

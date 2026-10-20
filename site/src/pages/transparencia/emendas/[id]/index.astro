@@ -1,8 +1,10 @@
 ---
+import NoticiasRelacionadas from '../../../../components/contexto/NoticiasRelacionadas.astro'
 import TituloDePagina from '../../../../components/TituloDePagina.astro'
 import DetalheDaParceria from '../../../../components/transparencia/DetalheDaParceria.astro'
 import type { Migalha } from '../../../../config/navegacao'
 import Base from '../../../../layouts/Base.astro'
+import { noticiasDaEmenda } from '../../../../lib/contexto'
 import {
   caminhoDaEmenda,
   conteudoPublico,
@@ -12,14 +14,17 @@ import { ehEmenda } from '../../../../lib/transparencia'
 
 // Uma página por emenda APROVADA. Sem emenda aprovada, nenhuma página nasce.
 export async function getStaticPaths() {
-  const { parcerias, detalhesDeParcerias } = await conteudoPublico()
+  const { parcerias, detalhesDeParcerias, noticias } = await conteudoPublico()
   return parcerias.filter(ehEmenda).map((p) => ({
     params: { id: String(p.id_parceria) },
-    props: { parceria: detalhesDeParcerias[p.id_parceria]! },
+    props: {
+      parceria: detalhesDeParcerias[p.id_parceria]!,
+      noticias: noticiasDaEmenda(noticias, p.id_parceria),
+    },
   }))
 }
 
-const { parceria } = Astro.props
+const { parceria, noticias } = Astro.props
 const caminho = caminhoDaEmenda(parceria.id_parceria)
 const migalhas: Migalha[] = [
   { rotulo: 'Transparência', href: '/transparencia/' },
@@ -43,4 +48,13 @@ const migalhas: Migalha[] = [
     migalhas={migalhas}
   />
   <DetalheDaParceria parceria={parceria} />
+  {noticias.length > 0 && (
+    <div class="mx-auto max-w-5xl px-4 pb-12">
+      <NoticiasRelacionadas
+        id="noticias-da-emenda"
+        titulo="Notícias sobre esta emenda"
+        noticias={noticias}
+      />
+    </div>
+  )}
 </Base>
