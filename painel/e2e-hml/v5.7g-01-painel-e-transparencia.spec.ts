@@ -322,7 +322,11 @@ test('Conselho Fiscal: 25 por página, o total do servidor, outra página, busca
   const { entradas } = (await r.json()) as {
     entradas: Array<{ dados_depois: unknown }>
   }
-  const textos = entradas.map((e) => JSON.stringify(e.dados_depois))
+  const textos = entradas.map((e) =>
+    typeof e.dados_depois === 'string'
+      ? e.dados_depois
+      : JSON.stringify(e.dados_depois),
+  )
   expect(
     textos.some((t) => t.includes('"pagina": 2') || t.includes('"pagina":2')),
   ).toBe(true)

@@ -140,7 +140,17 @@ test.describe('A. Conselho Fiscal', () => {
     await expect(
       page.getByText(/Toda consulta aqui é registrada em auditoria/),
     ).toBeVisible()
-    // o razão semeado na homologação (emenda de teste) tem que estar à vista do conselho
+    // o razão semeado na homologação (emenda de teste) tem que estar à vista do conselho (v5.7g: o razão é paginado, então se busca pelo histórico)
+    const buscaDoRazao = page.waitForResponse(
+      (r) =>
+        r.url().includes('/api/conselho-fiscal/financeiro/caixa') &&
+        r.url().includes('busca=') &&
+        r.ok(),
+    )
+    await page
+      .getByLabel('Buscar lançamento')
+      .fill('Repasse da 1ª parcela (teste)')
+    await buscaDoRazao
     await expect
       .soft(
         page
