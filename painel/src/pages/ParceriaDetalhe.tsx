@@ -111,6 +111,16 @@ export function ParceriaDetalhePage() {
           </span>
         </div>
 
+        {d.tipo === 'EMENDA' && (
+          <p className="text-sm">
+            Nº da emenda: <strong className="text-lg">{d.id_parceria}</strong>{' '}
+            <span className="text-muted-foreground">
+              (é este número que se digita no editor do site para ligar uma
+              notícia à emenda; só vale depois de a emenda ser publicada)
+            </span>
+          </p>
+        )}
+
         <p
           role="status"
           className="rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-sm"

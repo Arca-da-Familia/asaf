@@ -10,6 +10,7 @@ import {
   fimDoEvento,
   fotosDosEventosParaCopiar,
   ligacoesDaNoticia,
+  noticiasDaEmenda,
   noticiasDoEvento,
   noticiasDoProjeto,
   ordenarDocumentos,
@@ -41,6 +42,7 @@ const noticia = (
   imagem: null,
   projetoId: null,
   eventoId: null,
+  emendaId: null,
   ...extra,
 })
 
@@ -184,9 +186,37 @@ describe('noticiasDoEvento', () => {
   })
 })
 
+describe('noticiasDaEmenda', () => {
+  it('só as ligadas àquela emenda, da mais recente para a mais antiga', () => {
+    const todas = [
+      noticia('a', '2026-09-01T10:00:00Z', { emendaId: 7 }),
+      noticia('b', '2026-09-03T10:00:00Z', { emendaId: 7 }),
+      noticia('c', '2026-09-02T10:00:00Z', { emendaId: 8 }),
+      noticia('d', '2026-09-04T10:00:00Z', { projetoId: 7, eventoId: 7 }),
+    ]
+    expect(noticiasDaEmenda(todas, 7).map((n) => n.slug)).toEqual(['b', 'a'])
+    expect(noticiasDaEmenda(todas, 99)).toEqual([])
+  })
+
+  it('notícia de versão antiga (sem o campo) nunca casa por engano', () => {
+    const antiga = { ...noticia('antiga', '2026-09-01T10:00:00Z') } as Record<
+      string,
+      unknown
+    >
+    delete antiga.emendaId
+    expect(noticiasDaEmenda([antiga as unknown as NoticiaPublica], 7)).toEqual(
+      [],
+    )
+  })
+})
+
 describe('ligacoesDaNoticia', () => {
   const projetos = [{ id_projeto: 3, nome: 'Principal' }]
   const eventos = [{ id_evento: 4, titulo: '1ª edição' }]
+  const emendas = [
+    { id_parceria: 7, titulo: 'Emenda 123/2026', tipo_codigo: 'EMENDA' },
+    { id_parceria: 8, titulo: 'Termo 9/2026', tipo_codigo: 'TERMO_FOMENTO' },
+  ]
 
   it('devolve só o que existe, com o nome para o link', () => {
     expect(
@@ -194,16 +224,39 @@ describe('ligacoesDaNoticia', () => {
     ).toEqual({
       projeto: { id_projeto: 3, nome: 'Principal' },
       evento: { id_evento: 4, titulo: '1ª edição' },
+      emenda: null,
     })
     expect(
       ligacoesDaNoticia({ projetoId: 3, eventoId: 9 }, projetos, eventos),
     ).toEqual({
       projeto: { id_projeto: 3, nome: 'Principal' },
       evento: null,
+      emenda: null,
     })
     expect(
       ligacoesDaNoticia({ projetoId: null, eventoId: null }, projetos, eventos),
-    ).toEqual({ projeto: null, evento: null })
+    ).toEqual({ projeto: null, evento: null, emenda: null })
+  })
+
+  it('v5.7h: a emenda aparece com o título para o link; parceria que não é emenda ou número que não existe, não', () => {
+    expect(
+      ligacoesDaNoticia(
+        { projetoId: null, eventoId: null, emendaId: 7 },
+        projetos,
+        eventos,
+        emendas,
+      ).emenda,
+    ).toEqual({ id_parceria: 7, titulo: 'Emenda 123/2026' })
+    for (const numero of [8, 99, null]) {
+      expect(
+        ligacoesDaNoticia(
+          { projetoId: null, eventoId: null, emendaId: numero },
+          projetos,
+          eventos,
+          emendas,
+        ).emenda,
+      ).toBeNull()
+    }
   })
 })
 

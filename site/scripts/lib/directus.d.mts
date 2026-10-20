@@ -29,6 +29,8 @@ export interface NoticiaPublica {
   projetoId: number | null
   /** Número do evento a que a notícia se liga (inteiro positivo) ou null. */
   eventoId: number | null
+  /** Número da emenda parlamentar a que a notícia se liga (inteiro positivo) ou null (v5.7h). */
+  emendaId: number | null
 }
 
 export interface AvisoDeNoticia {

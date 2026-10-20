@@ -362,6 +362,10 @@ describe('telas de Parcerias e emendas (renderizadas de verdade)', () => {
       }),
     ).toBeInTheDocument()
     expect(screen.getByText(/Próximo passo/)).toBeInTheDocument()
+    // v5.7h: o número que o editor do site digita para ligar uma notícia à emenda
+    expect(
+      screen.getByText('Nº da emenda:', { exact: false }),
+    ).toHaveTextContent(/Nº da emenda:\s*7/)
     expect(
       screen.getByText('Pendências que impedem a publicação'),
     ).toBeInTheDocument()
@@ -393,6 +397,17 @@ describe('telas de Parcerias e emendas (renderizadas de verdade)', () => {
       screen.queryByRole('button', { name: 'Enviar para revisão' }),
     ).not.toBeInTheDocument()
     expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('detalhe de outra parceria (não é emenda): não mostra o número "da emenda" (a ligação da notícia é só com emenda)', async () => {
+    parcerias.obterParceria.mockResolvedValue({
+      ...detalhe,
+      tipo: 'TERMO_FOMENTO',
+      tipo_rotulo: 'Termo de fomento',
+    })
+    renderizar('/parcerias/7')
+    await screen.findByRole('heading', { level: 1, name: /Emenda 123\/2026/ })
+    expect(screen.queryByText(/Nº da emenda/)).not.toBeInTheDocument()
   })
 
   it('detalhe de quem só lê: nenhum botão de escrita aparece', async () => {

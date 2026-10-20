@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 // v5.3 — Notícias vindas do Directus (editor do site), lidas no build. O servidor de teste (scripts/mock-api.mjs)
-// simula o Directus: 5 notícias boas (2 comuns e 3 ligadas a projeto/evento, v5.5) e 3 que a validação do site TEM que
+// simula o Directus: 6 notícias boas (2 comuns e 4 ligadas a projeto/evento/emenda, v5.5/v5.7h) e 3 que a validação do site TEM que
 // recusar (foto sem autorização, rascunho que escapou do filtro, agendada). Aqui se prova, no navegador, o que aparece
 // e o que NÃO pode aparecer.
 
@@ -20,6 +20,7 @@ test.describe('Lista de notícias', () => {
       'Notícia de teste ligada ao projeto',
       'Notícia de teste ligada ao evento',
       'Notícia de teste com ligação quebrada',
+      'Notícia de teste ligada à emenda',
     ])
     const html = await page.content()
     expect(html).not.toContain('RECUSADA')
@@ -157,7 +158,7 @@ test.describe('Feed, Home e rodapé', () => {
     const xml = await resposta.text()
     expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true)
     expect(xml).toContain('<rss version="2.0"')
-    expect(xml.match(/<item>/g)).toHaveLength(5)
+    expect(xml.match(/<item>/g)).toHaveLength(6)
     expect(xml).toContain('<title>Notícia de teste com foto</title>')
     expect(xml).toContain(
       '<link>https://asaf.org.br/noticias/noticia-de-teste-com-foto/</link>',
@@ -189,6 +190,6 @@ test.describe('Feed, Home e rodapé', () => {
     request,
   }) => {
     const dados = await (await request.get('/conteudo.json')).json()
-    expect(dados.contagem.noticias).toBe(5)
+    expect(dados.contagem.noticias).toBe(6)
   })
 })

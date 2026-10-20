@@ -437,6 +437,8 @@ export function ligarNoticias(
   existentes: {
     projetos: Pick<ProjetoPublico, 'id_projeto'>[]
     eventos: Pick<EventoDaLista, 'id_evento'>[]
+    /** As parcerias PÚBLICAS (a lista só traz as aprovadas); só as do tipo EMENDA valem para a ligação (v5.7h). */
+    parcerias?: { id_parceria: number; tipo_codigo: string }[]
   },
 ): { noticias: NoticiaPublica[]; avisos: AvisoDeNoticia[] }
 

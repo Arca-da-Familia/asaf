@@ -393,7 +393,7 @@ test.describe('Página de um evento com contexto', () => {
   })
 })
 
-test.describe('Notícia ligada a projeto ou evento', () => {
+test.describe('Notícia ligada a projeto, evento ou emenda', () => {
   test('a ligada ao projeto mostra o link "Sobre o projeto" (e só ele)', async ({
     page,
   }) => {
@@ -416,6 +416,40 @@ test.describe('Notícia ligada a projeto ou evento', () => {
     await expect(ligacoes.getByRole('link')).toHaveCount(1)
   })
 
+  test('v5.7h: a ligada à emenda mostra o link "Sobre a emenda" (e só ele), e a página da emenda lista a notícia', async ({
+    page,
+  }) => {
+    await page.goto('/noticias/noticia-de-teste-ligada-a-emenda/')
+    const ligacoes = page.locator('[data-ligacoes-da-noticia]')
+    await expect(
+      ligacoes.getByRole('link', {
+        name: /^Sobre a emenda .*Emenda 123\/2026/,
+      }),
+    ).toHaveAttribute('href', '/transparencia/emendas/1/')
+    await expect(ligacoes.getByRole('link')).toHaveCount(1)
+
+    await ligacoes.getByRole('link').click()
+    await expect(page).toHaveURL(/\/transparencia\/emendas\/1\/$/)
+    const secao = page.locator('[data-secao="noticias-da-emenda"]')
+    await expect(
+      secao.getByRole('heading', { name: 'Notícias sobre esta emenda' }),
+    ).toBeVisible()
+    await expect(secao.locator('li h3')).toHaveText([
+      'Notícia de teste ligada à emenda',
+    ])
+    await expect(
+      secao.getByRole('link', { name: 'Notícia de teste ligada à emenda' }),
+    ).toHaveAttribute('href', '/noticias/noticia-de-teste-ligada-a-emenda/')
+  })
+
+  test('v5.7h: emenda sem notícia ligada não mostra a seção (nada de bloco vazio)', async ({
+    page,
+  }) => {
+    await page.goto('/transparencia/emendas/2/')
+    await expect(page.locator('#noticias-da-emenda')).toHaveCount(0)
+    await expect(page.getByText('Notícias sobre esta emenda')).toHaveCount(0)
+  })
+
   test('ligação com número que não existe: a notícia VAI ao ar, sem a ligação (nenhum link quebrado)', async ({
     page,
     request,
@@ -429,7 +463,9 @@ test.describe('Notícia ligada a projeto ou evento', () => {
       'Notícia de teste com ligação quebrada',
     )
     await expect(page.locator('[data-ligacoes-da-noticia]')).toHaveCount(0)
-    await expect(page.getByText(/Sobre o (projeto|evento)/)).toHaveCount(0)
+    await expect(
+      page.getByText(/Sobre (o projeto|o evento|a emenda)/),
+    ).toHaveCount(0)
   })
 
   test('notícia sem ligação: nada de "Sobre o projeto"', async ({ page }) => {
@@ -535,6 +571,8 @@ test.describe('Acessibilidade e celular das páginas novas', () => {
     '/eventos/5/',
     '/noticias/noticia-de-teste-ligada-ao-projeto/',
     '/noticias/noticia-de-teste-ligada-ao-evento/',
+    '/noticias/noticia-de-teste-ligada-a-emenda/',
+    '/transparencia/emendas/1/',
   ]
   const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']
 

@@ -142,6 +142,11 @@ COLECOES: list[dict] = [
             _campo("evento_id", "integer", meta={"interface": "input", "width": "half", "options": {"min": 1, "placeholder": "Ex.: 12"},
                                                  "note": "Opcional. Número do evento (no painel do sistema, em Eventos, aparece no alto da página do evento)."},
                    schema={"is_nullable": True}),
+            # v5.7h: ligação com uma EMENDA parlamentar (a emenda mora no sistema; o número aparece no alto da página da emenda, em Parcerias e emendas).
+            # Mesma regra das outras duas: número que não existe, ou de emenda que ainda não é pública, NÃO tira a notícia do ar (vai sem a ligação e o resumo do deploy avisa).
+            _campo("emenda_id", "integer", meta={"interface": "input", "width": "half", "options": {"min": 1, "placeholder": "Ex.: 7"},
+                                                 "note": "Opcional. Número da emenda (no painel do sistema, em Parcerias e emendas, aparece no alto da página da emenda)."},
+                   schema={"is_nullable": True}),
             *_campos_de_controle(),
         ],
         "relacoes": [{"campo": "imagem", "para": "directus_files"}],
@@ -186,7 +191,7 @@ _organizar(
     [
         ("grupo_conteudo", "Conteúdo", "edit_note", True, ["titulo", "slug", "resumo", "corpo"]),
         ("grupo_foto", "Foto da notícia (opcional)", "photo_camera", True, ["imagem", "imagem_alt", "autorizacao_imagem"]),
-        ("grupo_ligacao", "Ligada a um projeto ou evento (opcional)", "link", True, ["projeto_id", "evento_id"]),
+        ("grupo_ligacao", "Ligada a um projeto, evento ou emenda (opcional)", "link", True, ["projeto_id", "evento_id", "emenda_id"]),
         ("grupo_publicacao", "Publicação", "event_available", True, ["status", "publicada_em"]),
         ("grupo_historico", "Histórico", "history", False, ["user_created", "date_created", "user_updated", "date_updated"]),
     ],
@@ -194,7 +199,7 @@ _organizar(
         "titulo": "Título", "slug": "Endereço da notícia (slug)", "resumo": "Resumo", "corpo": "Texto",
         "imagem": "Foto", "imagem_alt": "Descrição da foto (texto alternativo)",
         "autorizacao_imagem": "Autorização de imagem",
-        "projeto_id": "Número do projeto", "evento_id": "Número do evento",
+        "projeto_id": "Número do projeto", "evento_id": "Número do evento", "emenda_id": "Número da emenda",
         "status": "Situação", "publicada_em": "Publicar em",
         "user_created": "Criada por", "date_created": "Criada em",
         "user_updated": "Alterada por", "date_updated": "Última alteração",

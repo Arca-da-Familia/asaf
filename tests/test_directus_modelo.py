@@ -59,10 +59,10 @@ def test_foto_exige_texto_alternativo_e_autorizacao_de_imagem():
     assert campos["autorizacao_imagem"]["schema"]["default_value"] is False
 
 
-def test_noticia_pode_ser_ligada_a_um_projeto_e_a_um_evento_do_sistema():
-    """v5.5: o número do projeto (ex.: Despertai) e/ou do evento. Opcionais, inteiros, numa seção própria do formulário, em português."""
+def test_noticia_pode_ser_ligada_a_um_projeto_a_um_evento_e_a_uma_emenda_do_sistema():
+    """v5.5: o número do projeto (ex.: Despertai) e/ou do evento; v5.7h: e/ou da emenda. Opcionais, inteiros, numa seção própria do formulário, em português."""
     campos = {f["field"]: f for f in next(c for c in m.COLECOES if c["colecao"] == "noticias")["campos"]}
-    for nome, rotulo in (("projeto_id", "Número do projeto"), ("evento_id", "Número do evento")):
+    for nome, rotulo in (("projeto_id", "Número do projeto"), ("evento_id", "Número do evento"), ("emenda_id", "Número da emenda")):
         assert campos[nome]["type"] == "integer" and campos[nome]["schema"]["is_nullable"] is True, nome
         assert not campos[nome]["meta"].get("required"), "ligar a notícia a um projeto/evento nunca é obrigatório"
         assert campos[nome]["meta"]["group"] == "grupo_ligacao"

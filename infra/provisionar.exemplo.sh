@@ -168,7 +168,7 @@ az storage account create \
   --kind StorageV2
 
 az storage container create --account-name "$STORAGE_ACCOUNT" --name uploads --auth-mode login
-az storage container create --account-name "$STORAGE_ACCOUNT" --name documentos-institucionais --auth-mode login
+# (o contêiner `documentos-institucionais` foi RETIRADO em 2026-10-20: estava vazio desde que os documentos passaram para o sistema; a chave desta conta é do Directus e alcança só `uploads`)
 
 az storage account blob-service-properties update \
   --account-name "$STORAGE_ACCOUNT" \

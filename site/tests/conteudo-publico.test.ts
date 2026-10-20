@@ -737,11 +737,16 @@ describe('ligarNoticias', () => {
     imagem: null,
     projetoId: null,
     eventoId: null,
+    emendaId: null,
     ...extra,
   })
   const existentes = {
     projetos: [{ id_projeto: 3 }],
     eventos: [{ id_evento: 4 }],
+    parcerias: [
+      { id_parceria: 7, tipo_codigo: 'EMENDA' },
+      { id_parceria: 8, tipo_codigo: 'TERMO_FOMENTO' },
+    ],
   }
 
   it('mantém a ligação com projeto e evento que existem (e públicos)', () => {
@@ -784,12 +789,51 @@ describe('ligarNoticias', () => {
   })
 
   it('notícia sem ligação (ou de uma versão antiga sem os campos) passa intacta, com null', () => {
-    const { projetoId, eventoId, ...antiga } = noticia()
+    const { projetoId, eventoId, emendaId, ...antiga } = noticia()
     void projetoId
     void eventoId
+    void emendaId
     const { noticias, avisos } = ligarNoticias([antiga as never], existentes)
-    expect(noticias[0]).toMatchObject({ projetoId: null, eventoId: null })
+    expect(noticias[0]).toMatchObject({
+      projetoId: null,
+      eventoId: null,
+      emendaId: null,
+    })
     expect(avisos).toEqual([])
+  })
+
+  it('v5.7h: mantém a ligação com uma emenda pública', () => {
+    const { noticias, avisos } = ligarNoticias(
+      [noticia({ emendaId: 7 })],
+      existentes,
+    )
+    expect(noticias[0]).toMatchObject({ emendaId: 7 })
+    expect(avisos).toEqual([])
+  })
+
+  it('v5.7h: número que não existe, ou de uma parceria que NÃO é emenda, é desfeito com aviso e a notícia vai ao ar', () => {
+    for (const numero of [999, 8]) {
+      const { noticias, avisos } = ligarNoticias(
+        [noticia({ projetoId: 3, emendaId: numero })],
+        existentes,
+      )
+      expect(noticias).toHaveLength(1)
+      expect(noticias[0]).toMatchObject({ projetoId: 3, emendaId: null })
+      expect(avisos).toHaveLength(1)
+      expect(avisos[0]).toMatchObject({ id: 'n1', publicada: true })
+      expect(avisos[0]!.motivo).toBe(
+        `a emenda nº ${numero} não existe ou não é pública. A notícia foi publicada sem a ligação com a emenda`,
+      )
+    }
+  })
+
+  it('v5.7h: sem a lista de parcerias (chamada antiga) nenhuma emenda existe, e nada quebra', () => {
+    const { noticias, avisos } = ligarNoticias([noticia({ emendaId: 7 })], {
+      projetos: existentes.projetos,
+      eventos: existentes.eventos,
+    })
+    expect(noticias[0]).toMatchObject({ emendaId: null })
+    expect(avisos).toHaveLength(1)
   })
 })
 

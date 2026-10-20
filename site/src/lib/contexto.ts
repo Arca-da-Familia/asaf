@@ -56,18 +56,37 @@ export function noticiasDoEvento(
     .sort(maisRecentePrimeiro)
 }
 
-/** O projeto e o evento a que uma notícia se liga (só os que existem), com o nome para o link. */
+/** Notícias ligadas a uma emenda (v5.7h), da mais recente para a mais antiga. */
+export function noticiasDaEmenda(
+  noticias: NoticiaPublica[],
+  idParceria: number,
+): NoticiaPublica[] {
+  return noticias
+    .filter((n) => n.emendaId === idParceria)
+    .sort(maisRecentePrimeiro)
+}
+
+/** O projeto, o evento e a emenda a que uma notícia se liga (só os que existem), com o nome para o link. */
 export function ligacoesDaNoticia(
-  noticia: Pick<NoticiaPublica, 'projetoId' | 'eventoId'>,
+  noticia: Pick<NoticiaPublica, 'projetoId' | 'eventoId'> &
+    Partial<Pick<NoticiaPublica, 'emendaId'>>,
   projetos: Pick<ProjetoPublico, 'id_projeto' | 'nome'>[],
   eventos: Pick<EventoDaLista, 'id_evento' | 'titulo'>[],
+  emendas: { id_parceria: number; titulo: string; tipo_codigo: string }[] = [],
 ): {
   projeto: { id_projeto: number; nome: string } | null
   evento: { id_evento: number; titulo: string } | null
+  emenda: { id_parceria: number; titulo: string } | null
 } {
   const projeto = projetos.find((p) => p.id_projeto === noticia.projetoId)
   const evento = eventos.find((e) => e.id_evento === noticia.eventoId)
+  const emenda = emendas.find(
+    (p) => p.tipo_codigo === 'EMENDA' && p.id_parceria === noticia.emendaId,
+  )
   return {
+    emenda: emenda
+      ? { id_parceria: emenda.id_parceria, titulo: emenda.titulo }
+      : null,
     projeto: projeto
       ? { id_projeto: projeto.id_projeto, nome: projeto.nome }
       : null,
