@@ -44,7 +44,7 @@ async function cadastrar(
     has: page.getByRole('button', { name: 'Cadastrar parceria' }),
   })
   if (tipo !== null) {
-    await escolherPorTexto(form.getByLabel('Tipo', { exact: true }), tipo)
+    await escolherPorTexto(form.getByLabel(/^Tipo/), tipo)
   }
   await form.getByLabel(/^Título/).fill(titulo)
   await form.getByLabel(/^Objeto/).fill(OBJETO)
