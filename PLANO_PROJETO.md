@@ -406,6 +406,10 @@ plano foi feita por um agente SEPARADO, só leitura (não ancorado na minha conc
 **Específico deste ponto (segmentação):** provado pelo robô (o Tesoureiro, fora do grupo "quem tem `financeiro_auditar`", não vê o aviso no mural e recebe 404 pela tela e pela API) e pelos testes do servidor
 para grupo de projeto, por situação e, depois do achado do revisor (só o grupo de projeto era provado no servidor), também para **grupo por permissão** (a Diretoria vê, o associado não vê e recebe 404) e
 **grupo por categoria** (o Fundador recebe, o Efetivo não vê e recebe 404); cada proteção confirmada por mutação.
+**Correção dos achados (2026-10-20):** branch `ponto-fase6-rotulo-comunicacao` → homologação (o robô `v6.1-01`, agora também abrindo Configurações e vendo o grupo "Comunicação" com a
+"Categoria de aviso", 5/5) → `main`. Servidor 1390 em duas rodadas seguidas (2 testes novos e 2 reforçados, cada um confirmado por mutação), painel 691. **Em produção:** `main` = `ff1e3d3`;
+Deploy Painel verde e `painel.asaf.org.br/version.json` = `ff1e3d3` (o código publicado já traz o rótulo "Comunicação"); a API não mudou (segue `aa3c08c`: a correção só tocou o painel e os testes).
+**Falta só o OK do Presidente para fechar este Ponto.**
 
 #### v6.2 — Central de comunicação multicanal (base para v11.3)
 >
