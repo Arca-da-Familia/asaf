@@ -230,7 +230,10 @@ test('o Conselheiro vê o aviso no sino e no mural, abre e confirma que leu', as
   ).toHaveCount(0)
   await ver(page, info, 'aviso-aberto-e-confirmado')
 
-  await page.getByRole('link', { name: 'Meus avisos', exact: true }).click()
+  await page
+    .getByRole('link', { name: 'Meus avisos', exact: true })
+    .first()
+    .click()
   await expect(
     page.getByRole('listitem').filter({ hasText: TITULO }),
   ).toContainText('confirmado em')
@@ -322,7 +325,10 @@ test('o Conselheiro vê o aviso retirado, com o motivo, fora do mural e sem o bo
     page.getByRole('heading', { name: 'Mural de avisos' }),
   ).toBeVisible()
   await expect(page.getByRole('link', { name: TITULO })).toHaveCount(0)
-  await page.getByRole('link', { name: 'Meus avisos', exact: true }).click()
+  await page
+    .getByRole('link', { name: 'Meus avisos', exact: true })
+    .first()
+    .click()
   const item = page.getByRole('listitem').filter({ hasText: TITULO })
   await expect(item).toContainText('Retirado')
   await item.getByRole('link', { name: TITULO }).click()
