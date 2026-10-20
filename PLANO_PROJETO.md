@@ -247,6 +247,9 @@ retrabalho que a seção 4.1 existe pra evitar.
 
 ### FASE 5 — Site institucional (conteúdo público)
 
+✅ **Concluída em 2026-10-20.** O Presidente fechou os dois Pontos de Revisão (1/2 e 2/2) e decidiu os últimos itens do **Fechamento da FASE 5** (no fim desta fase). O conteúdo da fase continua neste arquivo, porque
+o `CLAUDE.md` e outros blocos o citam; a mudança para o `HISTORICO.md` fica para quando a FASE 6 abrir. **A FASE 6 só abre quando o Presidente liberar.**
+
 > O site não é folheto: é a porta de entrada de associado, voluntário, doador e beneficiário — e é
 > a face pública da transparência. Tudo que é **dado** vem do FastAPI; só o que é **editorial** vem
 > do Directus. Essa fronteira é o que impede o site de virar um segundo sistema.
@@ -1733,7 +1736,7 @@ retrabalho que a seção 4.1 existe pra evitar.
       site atrás do sistema por mais de 2 horas vira alerta, menos que isso não, e o registro zera quando o site alcança o sistema; o monitor lista o que não
       respondeu), 12 testes; a **trava de tamanho** tem 8 testes (aviso a 60%, erro que para a publicação a 85%) e hoje o site tem 1,2 MB dos 250 MB; um teste novo
       garante que nenhum dos três (nem a trava) aponta para a homologação.
-- [ ] **Checklist do Ponto de Revisão FASE 5 (1/2) executado inteiro na homologação**, item a item, com o resultado registrado ali.
+- [x] **Checklist do Ponto de Revisão FASE 5 (1/2) executado inteiro na homologação**, item a item, com o resultado registrado ali.
       **Andamento (2026-10-08):** feito e provado: (a) **Directus isolado** — `isolar_directus.py verificar` na PRODUÇÃO (só leitura): "o Directus não alcança nenhuma
       tabela do sistema", e `directus_configurar.py verificar --producao`: "conforme o modelo" (só coleções editoriais, nenhuma de negócio) — o que também prova
       "uma fonte só"; (b) **SEO e acessibilidade rodando no CI** (todo deploy do site passa por axe, Lighthouse e e2e: o último, verde) e agora também sobre as 38
@@ -1762,6 +1765,9 @@ retrabalho que a seção 4.1 existe pra evitar.
       **conferência da diretoria contra a vedação do STF de 15/01/2026** (parentes de parlamentar), porque só há uma pessoa cadastrada; ela passa a ser **condição
       para lançar os mandatos reais** (o nome aparece no site em até cerca de 30 minutos depois do lançamento). Por isso este item fica aberto, e fica a decisão do
       Presidente de abrir a v5.5 com ele pendente.
+      **Fechado em 2026-10-20, por decisão do Presidente:** a conferência contra a vedação do STF **não é feita pelo sistema nem pela IA**: é feita por ele e pela diretoria, com a composição real, que ainda não pode ser
+      cadastrada (o sistema ainda não está pronto para receber essas pessoas). O Ponto (1/2) fica **fechado** e a conferência fica registrada, **sem ser dada por feita**, como condição para lançar os mandatos reais
+      (seção D, item 2 do Fechamento da FASE 5): antes de cadastrar a Diretoria e o Conselho Fiscal reais, quem os cadastra confere cada nome contra a vedação.
 
 ##### Regra de trabalho a partir da v5.5 — a homologação é o portão (decisão do presidente, 2026-10-05)
 
@@ -1972,6 +1978,8 @@ Tudo aqui é construído (não é "decidir se faz"), na ordem abaixo, cada item 
       Site verdes.
 
 ##### 🔍 Ponto de Revisão — FASE 5 (1/2 — meio, fecha v5.0–v5.4)
+
+✅ **FECHADO em 2026-10-20, por decisão do Presidente.** Tudo foi conferido na homologação (v5.4c–v5.4g); a conferência da diretoria contra a vedação do STF fica como condição para lançar os mandatos reais, feita por quem cadastra.
 
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 
@@ -2327,9 +2335,11 @@ declaração da Receita). Não é parecer jurídico: é o raciocínio adotado; o
   abrindo por `/uploads/fotos/<uuid>` a quem já tem o endereço (a verificação do QR não o entrega mais; o painel o usa): uma migração que regrave cada foto com nome novo é uma opção; (3) a foto sai do site em
   horas por causa do agendamento do GitHub: melhoria possível, a tarefa periódica disparar o deploy do site quando apagar uma foto.
 
-- [ ] **v5.7e e v5.7f** (os dois achados do Ponto de Revisão 2/2, decisões do Presidente de 2026-10-19): o texto e a situação de cada uma estão no **Fechamento da FASE 5**, no fim desta fase (itens A1 e A2), onde fica a lista única do que falta.
+- [x] **v5.7e e v5.7f** (os dois achados do Ponto de Revisão 2/2, decisões do Presidente de 2026-10-19): o texto e a situação de cada uma estão no **Fechamento da FASE 5**, no fim desta fase (itens A1 e A2), onde fica a lista única do que falta.
 
 ##### 🔍 Ponto de Revisão — FASE 5 (2/2 — fim, fecha v5.5–v5.7)
+
+✅ **FECHADO em 2026-10-20, com o OK do Presidente** (revisão feita em 2026-10-16; os dois achados viraram a v5.7e e a v5.7f, em produção desde 2026-10-19).
 
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 
@@ -2451,7 +2461,10 @@ B1 (o Ponto 2/2 reaberto), C3, C4, C5, C8 e C11 (achado novo de 2026-10-19).
 **Atualização (2026-10-19, à noite):** a **A1 (v5.7e) e a A2 (v5.7f) estão concluídas e em produção** (registro abaixo). Por pedido do Presidente ("termina a fase 5"), seguem, uma versão por vez: a **v5.7g** (C4, C7, C11)
 e depois a **v5.7h** (o que é do Directus: C1, C2, C3, C5, C9), e os itens C6 e C8 no fim.
 
-**Atualização (2026-10-20):** a **v5.7g (A3) e a v5.7h (A4) estão concluídas e em produção**. Dos itens C: **feitos** C4, C5, C7, C8, C9 e C11, e o e-mail do C1. **Sobram só atos do Presidente** (administrador
+**Atualização (2026-10-20, mais tarde): a FASE 5 está FECHADA.** O Presidente fechou os dois Pontos de Revisão (B1 e B2), deixou de lado o administrador de reserva e o MFA do Directus (C1 e C2), dispensou os testes
+ao vivo dos perfis (C3) e aceitou fechar o C6 sem construir. A conferência contra a vedação do STF segue como condição para lançar os mandatos reais (D2). **A FASE 6 só abre quando ele liberar.**
+
+**Atualização (2026-10-20, antes disso):** a **v5.7g (A3) e a v5.7h (A4) estão concluídas e em produção**. Dos itens C: **feitos** C4, C5, C7, C8, C9 e C11, e o e-mail do C1. **Sobram só atos do Presidente** (administrador
 de reserva do Directus, MFA do administrador, contas de teste dos perfis: C1, C2 e C3, passo a passo no A4), **uma decisão** (C6, proposta de fechar) e o que já era dele (B1, B2 e a seção D). C10 é só acompanhamento.
 
 ##### A. Versões que faltam construir (uma por vez, nesta ordem)
@@ -2551,25 +2564,30 @@ de reserva do Directus, MFA do administrador, contas de teste dos perfis: C1, C2
       código); só depois, em Configurações → Políticas de acesso → "Administrator", ligue "Exigir autenticação de dois fatores" (as políticas dos editores já exigem); (c) **teste ao vivo dos perfis (C3):** convide
       uma conta de teste (um e-mail seu) para cada perfil (Redator, Colaborador de mídia, Editor de conteúdo), entre com ela e confira o que ela vê e não vê; depois apague as contas de teste. Eu não crio contas
       nem mudo configuração de segurança, nem em produção nem a pedido: é regra minha.
+      **Decisão do Presidente (2026-10-20):** (a), (b) e (c) ficam de lado por enquanto (ver C1, C2 e C3). Conferiu que o e-mail de teste do Directus chegou; o pedido de teste não troca nenhuma senha (só trocaria se
+      alguém clicasse no link do e-mail), e a senha do administrador segue a mesma.
 
 ##### B. Pontos de Revisão (só o Presidente fecha)
 
-- [ ] **B1 — Ponto de Revisão FASE 5 (2/2), reaberto.** A revisão foi feita em 2026-10-16 (texto acima, no bloco do Ponto); o fechamento foi **reaberto em 2026-10-19** porque o Presidente não autorizou e decidiu que dois
+- [x] **B1 — Ponto de Revisão FASE 5 (2/2): FECHADO em 2026-10-20, com o OK do Presidente** (antes: reaberto). A revisão foi feita em 2026-10-16 (texto acima, no bloco do Ponto); o fechamento foi **reaberto em 2026-10-19** porque o Presidente não autorizou e decidiu que dois
       achados viram a v5.7e e a v5.7f. Só volta a "revisão feita, aguardando o OK do Presidente" depois de A1 e A2, e só fecha com o OK dele.
-- [ ] **B2 — Ponto de Revisão FASE 5 (1/2): resta uma única pendência** (todo o resto da lista foi conferido na homologação; ver o bloco do Ponto): a **conferência da diretoria contra a vedação do STF de 15/01/2026**
+      **Fechado em 2026-10-20:** A1 e A2 estão em produção e o Presidente disse, na conversa, para fechar os pontos de revisão.
+- [x] **B2 — Ponto de Revisão FASE 5 (1/2): FECHADO em 2026-10-20, por decisão do Presidente** (antes: resta uma única pendência) (todo o resto da lista foi conferido na homologação; ver o bloco do Ponto): a **conferência da diretoria contra a vedação do STF de 15/01/2026**
       (parentes de parlamentar). Só se faz com a composição real da diretoria, que ainda não está cadastrada (hoje só o Presidente). Passa a ser **condição para lançar os mandatos reais** (D2), não para continuar
       as versões. **DECISÃO:** o Presidente já decidiu abrir a v5.5 com ela pendente (2026-10-09); falta dizer se a FASE 5 pode fechar com ela registrada como condição do lançamento dos mandatos reais.
+      **Decidido em 2026-10-20:** sim. O Presidente disse que a conferência é da diretoria ("quem faz é a gente"), com a composição real, que ele ainda não pode cadastrar porque o sistema não está pronto para receber
+      essas pessoas, e mandou fechar. A conferência segue como **condição para lançar os mandatos reais** (D2), feita por quem cadastra; ela **não** foi dada por feita.
 
 ##### C. Itens de versões antigas que continuam abertos (a construir ou a conferir)
 
 | # | Item | Origem | Situação em 2026-10-19 |
 | --- | --- | --- | --- |
-| C1 | **E-mail do Directus (SMTP)** para convite de editores e recuperação de senha, **e administrador de reserva** | v5.3 (`[ ]` na lista) | **E-mail feito na v5.7h (2026-10-20), item A4** (`infra/directus-email.sh`; revisão saudável; login no servidor de e-mail aceito). **Resta o administrador de reserva: ato do Presidente** (convidar uma pessoa de confiança; o convite já vai por e-mail; passo a passo no A4). Hoje há 1 administrador |
-| C2 | **MFA obrigatório do administrador do Directus** (`enforce_tfa`) | v5.3 (`[ ]` na lista) | **Ato do Presidente** (mudar configuração de segurança é regra minha de não fazer). É o login do **Directus**, não o do painel (o MFA do painel é decisão congelada e não muda). Lido em 2026-10-20: as políticas dos editores (Redator, Colaborador de mídia, Editor de conteúdo) **já exigem** MFA; a do Administrador não, e o único administrador ainda não ligou o dele. O token de administrador é estático, então a automação não quebra. Passo a passo no A4 |
-| C3 | **Teste ao vivo dos demais perfis do Directus** (Redator, Colaborador de mídia, Editor de conteúdo, Editor de transparência) com usuários de teste | v5.3 ("Falta") | **Depende do Presidente** (criar conta é regra minha de não fazer): só o Leitor do site foi provado ao vivo; os outros estão provados pelos testes do modelo (45) e pelo `verificar --producao` (as permissões de produção são as do modelo, inclusive MFA exigido nos três perfis de editor). Passo a passo no A4. O Directus local de teste não serve: a licença dele não permite regras de permissão personalizadas |
+| C1 | **E-mail do Directus (SMTP)** para convite de editores e recuperação de senha, **e administrador de reserva** | v5.3 (`[ ]` na lista) | **E-mail feito na v5.7h (2026-10-20), item A4** (`infra/directus-email.sh`; revisão saudável; login no servidor de e-mail aceito). **O administrador de reserva ficou de lado por decisão do Presidente (2026-10-20: "deixa quieto por enquanto").** Risco registrado: hoje há 1 administrador; perdida a senha, recupera-se por SQL. Quando ele quiser, é convidar uma pessoa de confiança (o convite já vai por e-mail) |
+| C2 | **MFA obrigatório do administrador do Directus** (`enforce_tfa`) | v5.3 (`[ ]` na lista) | **Adiado por decisão do Presidente (2026-10-20: "deixa quieto por enquanto").** É o login do **Directus**, não o do painel (o MFA do painel é decisão congelada e não muda). Lido em 2026-10-20: as políticas dos editores (Redator, Colaborador de mídia, Editor de conteúdo) **já exigem** MFA; a do Administrador não, e o único administrador ainda não ligou o dele. O token de administrador é estático, então a automação não quebra. Quando ele quiser ligar: passo a passo no A4 (mudar configuração de segurança é ato dele, não meu) |
+| C3 | **Teste ao vivo dos demais perfis do Directus** (Redator, Colaborador de mídia, Editor de conteúdo, Editor de transparência) com usuários de teste | v5.3 ("Falta") | **Dispensado por decisão do Presidente (2026-10-20):** ele não vai criar contas de teste e confia no que foi construído. Só o Leitor do site foi provado ao vivo; os outros estão provados pelos testes do modelo (45) e pelo `verificar --producao` (as permissões de produção são as do modelo, inclusive MFA exigido nos três perfis de editor). O Directus local de teste não serve: a licença dele não permite regras de permissão personalizadas |
 | C4 | **Atalho "Editar o site" com permissão própria `editar_site`** (hoje usa `gerenciar_acesso`) | v5.1/v5.3 ("Falta") | **Feito na v5.7g (2026-10-20), item A3:** permissão `editar_site`; a migração `c4a8e2f6d913` a deu a quem já tinha o atalho |
 | C5 | **Notícia ligada a uma emenda** | v5.3 ("Falta") | **Feito na v5.7h (2026-10-20), item A4:** campo `emenda_id` no Directus, "Sobre a emenda" na notícia, "Notícias sobre esta emenda" na página da emenda e o "Nº da emenda" no painel |
-| C6 | **Coleções do Directus além de Notícias**: textos de página, banners da Home, galeria, FAQ, depoimentos, parceiros | v5.1 (`[ ]` na lista) | **Não feitas, e proponho fechar assim.** Só a coleção `noticias` existe (conferido em `scripts/directus_modelo.py`), e nenhuma página do site lê as outras coleções: criar a coleção sem a página que a lê seria um editor que não muda nada. Os textos das páginas estão no código do site (v5.2) e só mudam por mim, depois de conferidos contra o Estatuto e o código (regra do Presidente para texto público). **DECISÃO do Presidente:** fechar assim (cada tema vira versão própria quando ele pedir o editor daquele texto), ou construir agora |
+| C6 | **Coleções do Directus além de Notícias**: textos de página, banners da Home, galeria, FAQ, depoimentos, parceiros | v5.1 (`[ ]` na lista) | **Fechado sem construir, por decisão do Presidente (2026-10-20: "proponho fechar sem fazer. Ok").** Só a coleção `noticias` existe (conferido em `scripts/directus_modelo.py`), e nenhuma página do site lê as outras coleções: criar a coleção sem a página que a lê seria um editor que não muda nada. Os textos das páginas estão no código do site (v5.2) e só mudam por mim, depois de conferidos contra o Estatuto e o código (regra do Presidente para texto público). Cada tema vira versão própria quando ele pedir o editor daquele texto |
 | C7 | **Transparência do destino por campanha (o APLICADO)**: arrecadado e aplicado puxados do centro de custo real | v5.6a/v5.7b (`[ ]` na lista) | **Feito na v5.7g (2026-10-20), item A3:** a página Doar mostra o RECEBIDO e o APLICADO (centro de custo real) por campanha. A integração automática da Transparência segue na FASE 12.7 |
 | C8 | **Conferir o efeito da regra de ciclo de vida das fotos** sobre uma versão real | v5.7d ("Abertos", 1) | **Feito na v5.7h (2026-10-20), item A4:** conferido na homologação; 0 versões antigas vivas nas fotos da Diretoria e dos associados, 5 apagadas na lixeira de 25 dias |
 | C9 | **Chave da conta de armazenamento inteira no Directus** (`STORAGE_AZURE_ACCOUNT_KEY` da conta `stasafarcadafamilia`) em vez de conta própria ou SAS do contêiner `uploads` | v5.0 (citação com `[ ]`) | **Feito na v5.7h (2026-10-20), item A4:** a conta do Directus só tem o contêiner `uploads` (o vazio `documentos-institucionais` foi removido); a chave de conta inteira, que o Directus exige, só alcança o que ele mesmo guarda |
@@ -2579,7 +2597,7 @@ de reserva do Directus, MFA do administrador, contas de teste dos perfis: C1, C2
 ##### D. Dado real que só o Presidente tem (não trava nenhuma versão: a homologação usa dado inventado; ele cadastra depois)
 
 1. **Chave Pix** (e nome e cidade do Pix) e marcar "vai para o site" em Instituição: abre a doação online (hoje FECHADA).
-2. **Mandatos reais** da Diretoria e do Conselho Fiscal (painel → Mandatos), depois da conferência do STF (B2); o nome e a foto aparecem no site em cerca de 30 minutos.
+2. **Mandatos reais** da Diretoria e do Conselho Fiscal (painel → Mandatos), depois da conferência do STF (B2), que é feita por quem cadastra, com a composição real, e não pelo sistema nem pela IA; o nome e a foto aparecem no site em cerca de 30 minutos.
 3. **Dados da Instituição** (CNPJ, telefone, e-mail, horário, redes) marcados "vai para o site".
 4. **Despertai**: o projeto com o texto real (nada foi inventado sobre ele), a edição como evento ligado a ele, e o documento que comprove o calendário oficial do município.
 5. **Tabela de prazos de guarda** (proposta minha, em Configurações, com piso de 30 dias): ajustar se quiser.
@@ -2619,6 +2637,9 @@ de reserva do Directus, MFA do administrador, contas de teste dos perfis: C1, C2
 
 A FASE 5 só é dada por fechada quando: **A1 e A2** estiverem em produção e provadas na homologação; **B1** tiver o OK do Presidente; **B2** tiver o destino decidido por ele; e cada item de **C** estiver
 feito ou levado por decisão dele para outra fase (com a nota no lugar). **D** e **E** não bloqueiam. Só depois disso a FASE 6 (Comunicação) pode abrir, e só quando ele liberar.
+
+✅ **FASE 5 fechada em 2026-10-20.** A1 a A4 estão em produção; B1 fechado com o OK do Presidente; B2 com o destino decidido (a conferência do STF é condição dos mandatos reais, feita por quem cadastra); cada item de C
+está feito ou foi decidido por ele (C1 e C2 de lado por enquanto, C3 dispensado, C6 fechado sem construir; C10 é só acompanhamento). **A FASE 6 só abre quando ele liberar.**
 
 ### FASE 6 — Comunicação e transparência
 
