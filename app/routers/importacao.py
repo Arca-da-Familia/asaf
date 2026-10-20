@@ -115,6 +115,18 @@ def desfazer_lote(id_lote: int, request: Request, db: Session = Depends(get_db),
             status_code=409,
             detail=f"{len(com_financeiro)} associado(s) deste lote já têm lançamento financeiro - desfazer bloqueado (dado financeiro nunca é apagado, só estornado).",
         )
+    # v6.1 - quem já recebeu um aviso do mural faz parte da PROVA de quem foi avisado (avisos_destinatarios): apagar o cadastro apagaria a prova (e o banco recusa)
+    from app.models.comunicacao import AvisoDestinatario
+
+    com_aviso = (
+        db.query(AvisoDestinatario.id_associado).filter(AvisoDestinatario.id_associado.in_(ids)).distinct().all()
+        if ids else []
+    )
+    if com_aviso:
+        raise HTTPException(
+            status_code=409,
+            detail=f"{len(com_aviso)} associado(s) deste lote já receberam aviso do mural - desfazer bloqueado (a lista de quem recebeu é a prova de que foi avisado).",
+        )
 
     for associado in associados_do_lote:
         db.query(Endereco).filter(Endereco.id_associado == associado.id_associado).delete()

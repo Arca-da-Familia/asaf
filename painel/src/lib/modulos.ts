@@ -23,6 +23,7 @@ import {
   HeartHandshake,
   Landmark,
   ListChecks,
+  Megaphone,
   MessageCircleQuestion,
   PartyPopper,
   Receipt,
@@ -131,6 +132,23 @@ export const modulos: Modulo[] = [
     rotulo: 'Atendimento',
     permissao: 'atendimento',
     icone: Headset,
+  },
+  // v6.1 - comunicação interna: publicar avisos no mural de um grupo calculado e acompanhar quem leu e confirmou. Só quem tem `comunicar`
+  // (por padrão o Presidente e os Secretários); o mural e "Meus avisos" de cada pessoa ficam fora do módulo (menu pessoal e Início).
+  {
+    rota: '/comunicacao',
+    rotulo: 'Comunicação',
+    permissao: 'comunicar',
+    icone: Megaphone,
+    itens: [
+      {
+        rota: '/comunicacao',
+        rotulo: 'Avisos publicados',
+        icone: Megaphone,
+        fim: true,
+      },
+      { rota: '/comunicacao/novo', rotulo: 'Novo aviso', icone: FilePlus },
+    ],
   },
   {
     rota: '/financeiro',

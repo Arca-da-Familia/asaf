@@ -55,6 +55,10 @@ const presidente = presidenteDaDiretoria((await conteudoPublico()).diretoria)
 // obrigatório no formulário do titular; a identidade é validada sozinha só quando o e-mail digitado é o do cadastro de ASSOCIADO daquele CPF, ou à mão pela equipe (com o que conferiu, e a Auditoria registra quem, quando e como),
 // ou já nasce validada quando o pedido é aberto dentro da Minha conta; sem validação o servidor recusa a resposta; a resposta e o motivo do encerramento NÃO vão por e-mail (só o aviso) e são lidos na Minha conta; o parágrafo
 // `data-identidade-do-titular` diz SÓ isso, e a conta do visitante também abre por causa de uma solicitação do titular. A frase antiga "a resposta também pode seguir por e-mail" vale agora só para os outros tipos de pedido.
+// v2.4 (2026-10-20): o MURAL DE AVISOS do painel (v6.1, `app/services/comunicacao.py`, regra `leitura_de_avisos` de `app/services/retencao.py`): a lista de quem recebeu, leu e confirmou um aviso
+// é apagada 5 anos depois de o aviso sair do mural (vencer ou ser retirado, o que vier primeiro); ficam o aviso e os totais. A confirmação ("Li e estou ciente") também vai para a Auditoria, que
+// não tem prazo automático: o item diz isso. O item do sino deixa de dizer "da equipe": desde a v6.1 o sino também avisa o associado de um aviso novo
+// (o prazo de 1 ano é o mesmo). A lista de prazos passa a ter 8 itens (decisão do Presidente: o prazo da lei, 5 anos; ver PLANO_PROJETO.md v6.1).
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -533,8 +537,16 @@ const direitos = [
           na Auditoria do sistema ainda não tem prazo de eliminação automática.
         </li>
         <li>
-          Avisos do painel da equipe (que podem trazer o nome de quem pediu): 1
-          ano, depois são apagados.
+          Avisos do sino do painel (da equipe e dos associados; podem trazer o
+          nome de quem pediu): 1 ano, depois são apagados.
+        </li>
+        <li>
+          Registro de quem recebeu, leu e confirmou um aviso do mural do painel:
+          5 anos depois de o aviso sair do mural (vencer ou ser retirado), a
+          lista de quem o recebeu, com as datas de leitura e de confirmação, é
+          apagada; ficam o aviso e os totais. A confirmação de leitura também
+          fica registrada na Auditoria do sistema, que ainda não tem prazo de
+          eliminação automática.
         </li>
         <li>
           Pedidos dos formulários de atendimento (contato, informação,

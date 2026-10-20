@@ -281,9 +281,7 @@ test('a Política de Privacidade 2.3 tem o parágrafo de como a identidade é co
     waitUntil: 'networkidle',
   })
   expect(resposta?.status()).toBe(200)
-  await expect(
-    page.getByText(/Versão 2\.3 · em vigor desde 19 de outubro de 2026/),
-  ).toBeVisible()
+  await expect(page.getByText(/Versão 2\.\d+ · em vigor desde /)).toBeVisible()
   const trecho = page.locator('[data-identidade-do-titular]')
   await expect(trecho).toBeVisible()
   await expect(trecho).toContainText(

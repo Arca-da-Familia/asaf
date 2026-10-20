@@ -31,6 +31,15 @@ import { useMe } from '@/lib/use-me'
 import { AtendimentosPage } from '@/pages/Atendimentos'
 import { Home } from '@/pages/Home'
 
+// v6.1: o Início também mostra o mural de avisos (aqui, vazio)
+vi.mock('@/lib/comunicacao', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/comunicacao')>()),
+  listarMeusAvisos: vi.fn().mockResolvedValue({
+    nao_lidos: 0,
+    confirmacoes_pendentes: 0,
+    avisos: [],
+  }),
+}))
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   resumirAtendimentos: vi.fn(),
@@ -1474,9 +1483,11 @@ describe('Atendimento: o módulo no painel', () => {
       data: { nome_completo: 'Fulano', permissoes: ['atendimento'] },
     } as unknown as ReturnType<typeof useMe>)
     const { unmount } = render(
-      <MemoryRouter>
-        <Home />
-      </MemoryRouter>,
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter>
+          <Home />
+        </MemoryRouter>
+      </QueryClientProvider>,
     )
     expect(screen.getByRole('link', { name: 'Atendimento' })).toHaveAttribute(
       'href',
@@ -1488,9 +1499,11 @@ describe('Atendimento: o módulo no painel', () => {
       data: { nome_completo: 'Fulano', permissoes: ['associados'] },
     } as unknown as ReturnType<typeof useMe>)
     render(
-      <MemoryRouter>
-        <Home />
-      </MemoryRouter>,
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter>
+          <Home />
+        </MemoryRouter>
+      </QueryClientProvider>,
     )
     expect(screen.queryByRole('link', { name: 'Atendimento' })).toBeNull()
   })

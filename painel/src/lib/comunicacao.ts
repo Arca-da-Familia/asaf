@@ -1,0 +1,307 @@
+import { apiFetch } from '@/lib/api'
+
+// v6.1 (FASE 6) - comunicação interna no painel: o módulo Comunicação (quem tem `comunicar` publica, acompanha a leitura e retira) e o mural e a caixa de
+// entrada de cada pessoa. O grupo de um aviso é uma REGRA que o servidor calcula; a tela nunca manda uma lista de pessoas.
+
+export const PERMISSAO_DE_COMUNICAR = 'comunicar'
+
+export type TipoDePublico = 'associados' | 'permissao' | 'projeto'
+export type ParteDoProjeto = 'equipe' | 'voluntarios'
+export type SituacaoDoAviso = 'No mural' | 'Vencido' | 'Retirado'
+
+export type PublicoDoAviso = {
+  tipo: TipoDePublico
+  situacoes: string[]
+  categorias: string[]
+  codigo_permissao?: string
+  id_projeto?: number
+  partes_do_projeto: ParteDoProjeto[]
+}
+
+export type OpcoesDePublico = {
+  situacoes: string[]
+  categorias_de_associado: string[]
+  permissoes: { codigo: string; modulo: string; descricao: string }[]
+  projetos: { id_projeto: number; nome: string }[]
+  categorias_de_aviso: { codigo: string; rotulo: string }[]
+}
+
+export type ConferenciaDoPublico = {
+  descricao: string
+  total: number
+  sem_acesso: number
+  pessoas: { nome: string; tem_acesso: boolean }[]
+}
+
+export type TotaisDoAviso = {
+  destinatarios: number
+  lidos: number | null
+  confirmados: number | null
+  sem_acesso: number | null
+}
+
+export type AvisoResumo = {
+  id_aviso: number
+  titulo: string
+  categoria: string
+  categoria_rotulo: string
+  exige_confirmacao: boolean
+  valido_ate: string
+  publicado_em: string
+  publico_descricao: string
+  autor: string | null
+  situacao: SituacaoDoAviso
+  retirado_em: string | null
+  motivo_retirada: string | null
+  leitura_apagada_em: string | null
+  totais: TotaisDoAviso
+}
+
+export type DestinatarioDoAviso = {
+  id_destinatario: number
+  nome: string
+  // tinha acesso ao painel quando entrou no grupo / tem hoje (ganhou acesso depois)
+  tinha_acesso: boolean
+  tem_acesso_hoje: boolean
+  incluido_em: string
+  lido_em: string | null
+  confirmado_em: string | null
+}
+
+export type AvisoCompleto = AvisoResumo & {
+  texto: string
+  // grupo escolhido pela situação do associado (ex.: os inadimplentes) e quem olha não tem `associados` nem `financeiro`: só os totais, sem os nomes
+  nomes_ocultos: boolean
+  destinatarios: DestinatarioDoAviso[]
+}
+
+export type PaginaDeAvisos = {
+  total: number
+  pagina: number
+  por_pagina: number
+  itens: AvisoResumo[]
+}
+
+export type MeuAviso = {
+  id_aviso: number
+  titulo: string
+  categoria_rotulo: string
+  exige_confirmacao: boolean
+  valido_ate: string
+  publicado_em: string
+  autor: string | null
+  situacao: SituacaoDoAviso
+  retirado_em: string | null
+  motivo_retirada: string | null
+  lido_em: string | null
+  confirmado_em: string | null
+  texto?: string
+}
+
+export type MeusAvisos = {
+  nao_lidos: number
+  confirmacoes_pendentes: number
+  avisos: MeuAviso[]
+}
+
+export type NovoAviso = {
+  titulo: string
+  texto: string
+  categoria: string
+  valido_ate: string
+  exige_confirmacao: boolean
+  publico: PublicoDoAviso
+  total_confirmado: number
+}
+
+// ------------------------------------------------------------------ chamadas ao servidor
+export function opcoesDePublico(): Promise<OpcoesDePublico> {
+  return apiFetch('/api/avisos/opcoes-de-publico')
+}
+
+export function conferirPublico(
+  publico: PublicoDoAviso,
+): Promise<ConferenciaDoPublico> {
+  return apiFetch('/api/avisos/conferir-publico', {
+    method: 'POST',
+    body: JSON.stringify({ publico }),
+  })
+}
+
+export function publicarAviso(aviso: NovoAviso): Promise<AvisoCompleto> {
+  return apiFetch('/api/avisos/', {
+    method: 'POST',
+    body: JSON.stringify(aviso),
+  })
+}
+
+export function listarAvisos(filtros: {
+  situacao?: SituacaoDoAviso
+  busca?: string
+  pagina: number
+  por_pagina: number
+}): Promise<PaginaDeAvisos> {
+  const qs = new URLSearchParams()
+  if (filtros.situacao) qs.set('situacao', filtros.situacao)
+  if (filtros.busca) qs.set('busca', filtros.busca)
+  qs.set('pagina', String(filtros.pagina))
+  qs.set('por_pagina', String(filtros.por_pagina))
+  return apiFetch(`/api/avisos/?${qs}`)
+}
+
+export function detalharAviso(idAviso: number): Promise<AvisoCompleto> {
+  return apiFetch(`/api/avisos/${idAviso}`)
+}
+
+export function incluirNovosNoAviso(
+  idAviso: number,
+): Promise<{ incluidos: number; aviso: AvisoCompleto }> {
+  return apiFetch(`/api/avisos/${idAviso}/incluir-novos`, { method: 'POST' })
+}
+
+export function retirarAviso(
+  idAviso: number,
+  motivo: string,
+): Promise<AvisoCompleto> {
+  return apiFetch(`/api/avisos/${idAviso}/retirar`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo }),
+  })
+}
+
+export function listarMeusAvisos(soMural = false): Promise<MeusAvisos> {
+  return apiFetch(`/api/meus-avisos/${soMural ? '?mural=true' : ''}`)
+}
+
+export function abrirMeuAviso(idAviso: number): Promise<MeuAviso> {
+  return apiFetch(`/api/meus-avisos/${idAviso}`)
+}
+
+export function confirmarMeuAviso(idAviso: number): Promise<MeuAviso> {
+  return apiFetch(`/api/meus-avisos/${idAviso}/confirmar`, { method: 'POST' })
+}
+
+// ------------------------------------------------------------------ regras da tela (puras, testadas à parte)
+export const MOTIVO_MINIMO = 10
+export const MOTIVO_MAXIMO = 500
+export const TAMANHO_DO_TITULO = 150
+export const TAMANHO_DO_TEXTO = 5000
+
+export const PUBLICO_INICIAL: PublicoDoAviso = {
+  tipo: 'associados',
+  situacoes: [],
+  categorias: [],
+  partes_do_projeto: ['equipe', 'voluntarios'],
+}
+
+/** O público que vai ao servidor: só os campos do tipo escolhido (a regra que fica guardada no aviso não leva sobra de outro tipo). */
+export function publicoParaEnviar(publico: PublicoDoAviso): PublicoDoAviso {
+  if (publico.tipo === 'permissao')
+    return {
+      tipo: 'permissao',
+      situacoes: [],
+      categorias: [],
+      partes_do_projeto: [],
+      codigo_permissao: publico.codigo_permissao,
+    }
+  const base = {
+    tipo: publico.tipo,
+    situacoes: publico.situacoes,
+    categorias: publico.categorias,
+    partes_do_projeto: [] as ParteDoProjeto[],
+  }
+  if (publico.tipo === 'projeto')
+    return {
+      ...base,
+      id_projeto: publico.id_projeto,
+      partes_do_projeto: publico.partes_do_projeto,
+    }
+  return base
+}
+
+/** O que ainda falta escolher para o grupo poder ser conferido (null = pronto). */
+export function faltaNoPublico(publico: PublicoDoAviso): string | null {
+  if (publico.tipo === 'permissao' && !publico.codigo_permissao)
+    return 'Escolha a permissão.'
+  if (publico.tipo === 'projeto') {
+    if (!publico.id_projeto) return 'Escolha o projeto.'
+    if (publico.partes_do_projeto.length === 0)
+      return 'Escolha a equipe, os voluntários ou os dois.'
+  }
+  return null
+}
+
+/** Liga ou desliga um valor numa lista (as caixas de situação e de categoria). */
+export function alternar<T>(lista: T[], valor: T): T[] {
+  return lista.includes(valor)
+    ? lista.filter((v) => v !== valor)
+    : [...lista, valor]
+}
+
+/** A leitura de uma pessoa, em português, para o relatório. */
+export function textoDaLeitura(d: DestinatarioDoAviso): string {
+  if (d.lido_em === null) {
+    if (d.tinha_acesso) return 'Ainda não leu'
+    return d.tem_acesso_hoje
+      ? 'Ganhou acesso depois; ainda não leu'
+      : 'Sem acesso ao painel: não foi avisado'
+  }
+  return d.tinha_acesso ? 'Leu' : 'Ganhou acesso depois e leu'
+}
+
+/** A conferência vale só para o MESMO grupo que foi conferido (a resposta que chega depois de a pessoa mudar o grupo não conta). */
+export function mesmoPublico(a: PublicoDoAviso, b: PublicoDoAviso): boolean {
+  return (
+    JSON.stringify(publicoParaEnviar(a)) ===
+    JSON.stringify(publicoParaEnviar(b))
+  )
+}
+
+export type FiltroDaLeitura =
+  'todos' | 'nao_leram' | 'nao_confirmaram' | 'sem_acesso'
+
+export function filtrarDestinatarios(
+  destinatarios: DestinatarioDoAviso[],
+  filtro: FiltroDaLeitura,
+): DestinatarioDoAviso[] {
+  if (filtro === 'nao_leram')
+    return destinatarios.filter((d) => d.lido_em === null)
+  if (filtro === 'nao_confirmaram')
+    return destinatarios.filter((d) => d.confirmado_em === null)
+  if (filtro === 'sem_acesso')
+    return destinatarios.filter((d) => !d.tinha_acesso)
+  return destinatarios
+}
+
+/** Para o aviso que pede confirmação: está pendente para a pessoa (no mural e ainda não confirmado). */
+export function confirmacaoPendente(aviso: MeuAviso): boolean {
+  return (
+    aviso.exige_confirmacao &&
+    aviso.confirmado_em === null &&
+    aviso.situacao === 'No mural'
+  )
+}
+
+export const COR_DA_SITUACAO: Record<SituacaoDoAviso, string> = {
+  'No mural': 'bg-primary/10 text-primary',
+  Vencido: 'bg-muted text-muted-foreground',
+  Retirado: 'bg-destructive/10 text-destructive',
+}
+
+/** A data daqui a N dias, no fuso de quem usa (yyyy-mm-dd): o padrão de "válido até" (o servidor recusa data no passado). */
+export function dataDaquiA(dias: number, agora = new Date()): string {
+  const d = new Date(agora)
+  d.setDate(d.getDate() + dias)
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
+}
+
+/** O botão "Li e estou ciente": vale enquanto o aviso não foi retirado (depois de vencido ainda dá; a data mostra que foi depois), como o servidor. */
+export function podeConfirmar(aviso: MeuAviso): boolean {
+  return (
+    aviso.exige_confirmacao &&
+    aviso.confirmado_em === null &&
+    aviso.situacao !== 'Retirado'
+  )
+}

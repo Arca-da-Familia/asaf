@@ -319,12 +319,32 @@ evento, voluntários, certificados e o IP da Auditoria.
 
 #### v6.1 — Comunicação interna no painel
 
-- [ ] Mural de avisos segmentado por permissão/categoria/projeto, com data de validade e
-      confirmação de leitura quando o aviso for relevante (convocação, mudança de regra).
-- [ ] Comunicados dirigidos a um grupo calculado (ex.: "todos os associados adimplentes do
-      projeto X") — segmento é consulta, nunca lista colada à mão que envelhece.
-- [ ] Caixa de entrada do associado dentro do painel, com histórico de tudo que ele recebeu — o
-      associado consegue provar que foi (ou não foi) avisado.
+> **Decisões do Presidente (2026-10-20), ao liberar a FASE 6:** (1) quem publica são o **Presidente e os Secretários**: permissão nova `comunicar`, por padrão no nível Presidente e nos cargos
+> Presidente, 1º e 2º Secretário (os outros recebem pela tela Níveis e permissões); (2) o associado **sem acesso ao painel** tem o aviso guardado no nome dele (aparece quando ganhar acesso) e o
+> relatório de leitura diz "sem acesso ao painel: não foi avisado"; e-mail e WhatsApp são da v6.2; (3) a prova de leitura fica pelo **prazo da lei**, que ele me deixou escolher: **5 anos depois de o
+> aviso vencer** (Código Civil art. 206: 3 anos para reparação civil e 5 para cobrança; o prazo geral de 10 anos do art. 205 só vale sem prazo específico; LGPD art. 16 manda eliminar quando a finalidade
+> acaba). Depois disso some a lista de quem recebeu, leu e confirmou; o aviso (texto, autor, data, grupo e os totais) fica, como a ata, e a confirmação continua na Auditoria (que não tem prazo automático). O prazo fica em Configurações (piso de 30 dias) e entra na Política de Privacidade.
+
+**Desenho.** Um **aviso** tem título, texto (só texto, nunca HTML), categoria (catálogo `categoria_aviso`: Geral, Convocação, Mudança de regra, Projeto, Evento, Financeiro; editável), **válido até**
+e, quando importa, **pede confirmação** ("Li e estou ciente"). O **público é uma regra, nunca uma lista colada**, de três tipos: (a) **associados** (não desligados) filtrados por situação (ex.: "em
+dia", calculada na hora pelo financeiro, não o rótulo guardado) e categoria (filtrar pela situação revela dado financeiro e de disciplina: exige também `associados` ou `financeiro`, e quem só tem `comunicar` vê só os totais de um aviso assim); (b) **quem tem uma permissão** (pelo nível ou pelo cargo em mandato vigente, igual ao servidor decide o acesso); (c) **equipe
+e/ou voluntários de um projeto** (o voluntário que não é associado não tem acesso ao painel e fica para a v6.2), com o mesmo filtro de situação ("os associados em dia do projeto X"). Ao publicar, o
+sistema calcula o grupo e **guarda quem estava nele naquele momento** (é a prova); a regra fica guardada junto, e "incluir quem entrou no grupo depois" acrescenta os novos sem tirar ninguém.
+
+- [ ] **Permissão e catálogo:** `comunicar` (módulo `comunicacao`) e o catálogo `categoria_aviso`; migração que dá `comunicar` a quem tem `gerenciar_acesso` (a Presidência) e aos cargos Presidente, 1º e 2º
+      Secretário nos bancos que já existem.
+- [ ] **Publicar com contagem:** a tela mostra **quantas pessoas** vão receber e quem são (quem não tem acesso ao painel aparece marcado) antes de publicar; o servidor só publica se o total
+      confirmado for o mesmo que ele calcula na hora (o grupo mudou → pede para conferir de novo) e recusa grupo vazio, validade no passado e texto vazio. Publicar avisa no sino quem tem acesso.
+- [ ] **Mural** na página Início: os avisos vigentes para a pessoa, os que pedem confirmação e ainda não foram confirmados primeiro. Quem não está no grupo não vê o aviso (nem pelo endereço: 404).
+- [ ] **Meus avisos** (caixa de entrada, no menu pessoal): tudo que a pessoa recebeu, inclusive vencidos e retirados (com o motivo); abrir marca como lido; "Li e estou ciente" grava a data e vai para a
+      Auditoria.
+- [ ] **Módulo Comunicação** (permissão `comunicar`): lista dos avisos com os totais (destinatários, sem acesso, lidos, confirmados), o **relatório de leitura** de cada um (quem leu, quem confirmou,
+      quem não tem acesso), incluir quem entrou no grupo depois, e **retirar** o aviso com motivo (sai do mural, fica no histórico de quem recebeu). Publicar, incluir, retirar e confirmar vão para a Auditoria.
+- [ ] **Prazo de guarda** `PRAZO_RETENCAO_LEITURA_DE_AVISOS_DIAS` (1825) na rotina de retenção, contado do fim da validade (ou da retirada); Política de Privacidade com o item novo.
+- [ ] **Na homologação:** robô `v6.1-01` pelas telas (publicar com a contagem, mural, abrir, confirmar, relatório, retirar, Auditoria; e o que tem de ser recusado: quem não tem `comunicar` não publica,
+      quem não está no grupo não abre, total errado é recusado).
+
+**Fora de escopo de propósito:** e-mail, WhatsApp, agendamento, modelos e descadastro (v6.2); anexos no aviso; editar aviso publicado (corrige-se retirando e publicando outro: a prova não muda por baixo).
 
 ##### 🔍 Ponto de Revisão — FASE 6 (1/2 — meio, fecha v6.1)
 

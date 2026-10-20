@@ -153,6 +153,13 @@ def _associado_desligado(db: Session, agora: datetime, dias: int) -> tuple[int, 
     return anonimizar_vencidos_com_falhas(db, dias=dias, agora=agora, respeitar_outros_papeis=True)
 
 
+def _leitura_de_avisos(db: Session, agora: datetime, dias: int) -> int:
+    """v6.1 - a prova de leitura de um aviso do mural (quem recebeu, leu e confirmou): o prazo da lei (5 anos) depois de o aviso sair do mural; o aviso e os totais ficam."""
+    from app.services.comunicacao import apagar_leituras_vencidas
+
+    return apagar_leituras_vencidas(db, agora, dias)
+
+
 REGRAS: tuple[Regra, ...] = (
     Regra("acessos", "Registro técnico de acesso (IP das tentativas)", "PRAZO_RETENCAO_ACESSOS_DIAS", 183, _registro_tecnico_de_acesso),
     Regra("avisos_do_sino", "Avisos do sino do painel", "PRAZO_RETENCAO_AVISOS_DO_SINO_DIAS", 365, _avisos_do_sino),
@@ -161,6 +168,7 @@ REGRAS: tuple[Regra, ...] = (
     Regra("intencoes_de_doacao", "Pedido de doação pelo site sem confirmação", "PRAZO_RETENCAO_PEDIDOS_DE_DOACAO_DIAS", 730, _intencoes_de_doacao_sem_confirmacao),
     Regra("doador_identificado", "Doador identificado e recibo", "PRAZO_RETENCAO_DOADOR_DIAS", 3650, _doador_identificado),
     Regra("associado_desligado", "Associado desligado", "PRAZO_RETENCAO_DESLIGADO_DIAS", 1825, _associado_desligado),
+    Regra("leitura_de_avisos", "Quem recebeu, leu e confirmou um aviso do mural", "PRAZO_RETENCAO_LEITURA_DE_AVISOS_DIAS", 1825, _leitura_de_avisos),
 )
 
 

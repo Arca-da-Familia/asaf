@@ -64,6 +64,33 @@ def calcular_categoria(db: Session, id_associado: int) -> str:
     return ATIVO_INADIMPLENTE if existe_titulo_vencido else ATIVO_EM_DIA
 
 
+def calcular_categorias(db: Session, associados: list[Associado]) -> dict[int, str]:
+    """v6.1 - a MESMA regra de `calcular_categoria`, para muitos associados de uma vez (o grupo de um aviso do mural): uma consulta só para os títulos vencidos, em vez
+    de duas por pessoa. Quem mudar a regra acima muda esta junto (o teste de comunicação confere as duas com licença, experiência e título vencido)."""
+    agora = datetime.utcnow()
+    tolerancia_dias = int(obter_configuracao(db, "DIAS_TOLERANCIA_INADIMPLENCIA", "30") or "30")
+    limite = agora - timedelta(days=tolerancia_dias)
+    ids = [a.id_associado for a in associados]
+    devedores: set[int] = set()
+    for inicio in range(0, len(ids), 500):  # o IN do banco tem limite de parâmetros
+        devedores |= {
+            i for (i,) in db.query(TituloFinanceiro.id_associado).filter(
+                TituloFinanceiro.id_associado.in_(ids[inicio:inicio + 500]),
+                TituloFinanceiro.status.notin_(["Pago", "Renegociado", "Cancelado"]),
+                TituloFinanceiro.data_vencimento < limite,
+            ).distinct().all()
+        }
+    resultado: dict[int, str] = {}
+    for a in associados:
+        if a.data_fim_licenca and agora < a.data_fim_licenca:
+            resultado[a.id_associado] = LICENCIADO
+        elif a.data_fim_experiencia and agora < a.data_fim_experiencia:
+            resultado[a.id_associado] = EM_EXPERIENCIA
+        else:
+            resultado[a.id_associado] = ATIVO_INADIMPLENTE if a.id_associado in devedores else ATIVO_EM_DIA
+    return resultado
+
+
 def recalcular_categoria_associado(
     db: Session, id_associado: int, usuario=None, ip_origem: Optional[str] = None
 ) -> Optional[str]:
