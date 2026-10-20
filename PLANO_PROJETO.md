@@ -374,6 +374,8 @@ com as outras permissões padrão (tirar só pelo nível não dura; o caminho é
 
 ##### 🔍 Ponto de Revisão — FASE 6 (1/2 — meio, fecha v6.1)
 
+✅ **FECHADO em 2026-10-20, com o OK do Presidente** ("está ok, e já pode seguir para a próxima versão, a 6.2"). A revisão e a correção dos achados estão abaixo.
+
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 
 - Mural de avisos respeita a segmentação por permissão/categoria — testar que um nível sem permissão não vê aviso restrito.
@@ -409,7 +411,7 @@ para grupo de projeto, por situação e, depois do achado do revisor (só o grup
 **Correção dos achados (2026-10-20):** branch `ponto-fase6-rotulo-comunicacao` → homologação (o robô `v6.1-01`, agora também abrindo Configurações e vendo o grupo "Comunicação" com a
 "Categoria de aviso", 5/5) → `main`. Servidor 1390 em duas rodadas seguidas (2 testes novos e 2 reforçados, cada um confirmado por mutação), painel 691. **Em produção:** `main` = `ff1e3d3`;
 Deploy Painel verde e `painel.asaf.org.br/version.json` = `ff1e3d3` (o código publicado já traz o rótulo "Comunicação"); a API não mudou (segue `aa3c08c`: a correção só tocou o painel e os testes).
-**Falta só o OK do Presidente para fechar este Ponto.**
+**Fechado com o OK do Presidente em 2026-10-20.**
 
 #### v6.2 — Central de comunicação multicanal (base para v11.3)
 >
