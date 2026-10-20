@@ -80,6 +80,7 @@ test('o número persiste ao reabrir a página e a emenda em rascunho ainda não 
   page,
 }, info) => {
   const vigia = vigiar(page)
+  await entrar(page, 'presidente')
   await page.goto(`/parcerias/${idDaEmenda}`)
   await expect(
     page.getByRole('heading', { name: TITULO_DA_EMENDA, level: 1 }),
@@ -109,6 +110,7 @@ test('uma parceria que não é emenda (termo de fomento) não mostra o número d
   page,
 }, info) => {
   const vigia = vigiar(page)
+  await entrar(page, 'presidente')
   idDoTermo = await cadastrar(page, TITULO_DO_TERMO, 'Termo de fomento')
   expect(idDoTermo).not.toBe(idDaEmenda)
   await expect(page.getByText('Termo de fomento').first()).toBeVisible()
