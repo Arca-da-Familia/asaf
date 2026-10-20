@@ -36,7 +36,7 @@ no fim das rodadas do robô (`scripts/povoar_homologacao_volume.py`).
 ## A partir da v5.5: a homologação é o portão (decisão do usuário, 2026-10-05)
 
 O que vale **até a v5.4g** (conferir ao vivo, na homologação, tudo que as FASES 0–5 já construíram) e **a partir da v5.5**
-(`PLANO_PROJETO.md`, blocos "v5.4c a v5.4g" e "Regra de trabalho a partir da v5.5"). Nas palavras do usuário: "tudo vai ser feito
+(`HISTORICO.md`, bloco "v5.4c a v5.4g"; `PLANO_PROJETO.md`, seção 4.2 "Regra de trabalho: a homologação é o portão"). Nas palavras do usuário: "tudo vai ser feito
 teste a teste; não vai ter mais teste simulado, é real; a IA testa na homologação, de fato; se estiver certo lá, aí sim manda para o
 real". Em resumo, para **versão de funcionalidade** (mexe em tela ou regra):
 
