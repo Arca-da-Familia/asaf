@@ -209,7 +209,13 @@ test('o Conselheiro vê o aviso no sino e no mural, abre e confirma que leu', as
     page.getByRole('link', { name: `Novo aviso: ${TITULO}` }),
   ).toBeVisible()
   await ver(page, info, 'o-sino-avisa')
-  await page.keyboard.press('Escape')
+  // item 11 do Ponto de Revisão: o link do sino abre o aviso de verdade
+  await page.getByRole('link', { name: `Novo aviso: ${TITULO}` }).click()
+  await expect(page).toHaveURL(new RegExp(`/meus-avisos/${idDoAviso}$`))
+  await expect(page.getByRole('heading', { name: TITULO })).toBeVisible()
+  await ver(page, info, 'o-link-do-sino-abre-o-aviso')
+  await page.getByRole('link', { name: 'Início', exact: true }).first().click()
+  await expect(page.getByRole('heading', { name: 'Início' })).toBeVisible()
 
   const noMural = page
     .getByRole('listitem')
@@ -246,7 +252,11 @@ test('o relatório mostra quem leu e confirmou; incluir não acha ninguém novo;
 }, info) => {
   const vigia = vigiar(page)
   await comoPapel(page, 'secretario')
-  await page.goto(`/comunicacao/${idDoAviso}`)
+  // item 11 do Ponto de Revisão: o relatório se abre pela lista de avisos publicados (busca pelo título e clica)
+  await page.getByRole('link', { name: 'Comunicação' }).first().click()
+  await page.getByLabel('Buscar pelo título').fill(TITULO)
+  await page.getByRole('link', { name: TITULO }).click()
+  await expect(page).toHaveURL(new RegExp(`/comunicacao/${idDoAviso}$`))
   await expect(page.getByRole('heading', { name: TITULO })).toBeVisible()
   const linha = page.getByRole('row').filter({ hasText: nomeDoConselheiro })
   await expect(linha).toContainText('Leu')
