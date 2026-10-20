@@ -131,6 +131,14 @@ test('o Secretário (pelo cargo) confere o grupo e publica para o Conselho Fisca
   expect((await lista.json()).total, 'um aviso só: o 409 não gravou nada').toBe(
     1,
   )
+
+  // Ponto de Revisão FASE 6 (1/2): a categoria do aviso é um catálogo editável e aparece em Configurações no grupo "Comunicação" (não o código cru)
+  await page.goto('/configuracoes')
+  await expect(page.getByText('Comunicação', { exact: true })).toBeVisible()
+  await expect(page.getByText('comunicar', { exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Categoria de aviso' }).click()
+  await expect(page.getByText('Convocação').first()).toBeVisible()
+  await ver(page, info, 'configuracoes-categoria-de-aviso')
   expect(vigia.problemas()).toEqual([])
 })
 
