@@ -331,20 +331,46 @@ dia", calculada na hora pelo financeiro, não o rótulo guardado) e categoria (f
 e/ou voluntários de um projeto** (o voluntário que não é associado não tem acesso ao painel e fica para a v6.2), com o mesmo filtro de situação ("os associados em dia do projeto X"). Ao publicar, o
 sistema calcula o grupo e **guarda quem estava nele naquele momento** (é a prova); a regra fica guardada junto, e "incluir quem entrou no grupo depois" acrescenta os novos sem tirar ninguém.
 
-- [ ] **Permissão e catálogo:** `comunicar` (módulo `comunicacao`) e o catálogo `categoria_aviso`; migração que dá `comunicar` a quem tem `gerenciar_acesso` (a Presidência) e aos cargos Presidente, 1º e 2º
+- [x] **Permissão e catálogo:** `comunicar` (módulo `comunicacao`) e o catálogo `categoria_aviso`; migração que dá `comunicar` a quem tem `gerenciar_acesso` (a Presidência) e aos cargos Presidente, 1º e 2º
       Secretário nos bancos que já existem.
-- [ ] **Publicar com contagem:** a tela mostra **quantas pessoas** vão receber e quem são (quem não tem acesso ao painel aparece marcado) antes de publicar; o servidor só publica se o total
+- [x] **Publicar com contagem:** a tela mostra **quantas pessoas** vão receber e quem são (quem não tem acesso ao painel aparece marcado) antes de publicar; o servidor só publica se o total
       confirmado for o mesmo que ele calcula na hora (o grupo mudou → pede para conferir de novo) e recusa grupo vazio, validade no passado e texto vazio. Publicar avisa no sino quem tem acesso.
-- [ ] **Mural** na página Início: os avisos vigentes para a pessoa, os que pedem confirmação e ainda não foram confirmados primeiro. Quem não está no grupo não vê o aviso (nem pelo endereço: 404).
-- [ ] **Meus avisos** (caixa de entrada, no menu pessoal): tudo que a pessoa recebeu, inclusive vencidos e retirados (com o motivo); abrir marca como lido; "Li e estou ciente" grava a data e vai para a
+- [x] **Mural** na página Início: os avisos vigentes para a pessoa, os que pedem confirmação e ainda não foram confirmados primeiro. Quem não está no grupo não vê o aviso (nem pelo endereço: 404).
+- [x] **Meus avisos** (caixa de entrada, no menu pessoal): tudo que a pessoa recebeu, inclusive vencidos e retirados (com o motivo); abrir marca como lido; "Li e estou ciente" grava a data e vai para a
       Auditoria.
-- [ ] **Módulo Comunicação** (permissão `comunicar`): lista dos avisos com os totais (destinatários, sem acesso, lidos, confirmados), o **relatório de leitura** de cada um (quem leu, quem confirmou,
+- [x] **Módulo Comunicação** (permissão `comunicar`): lista dos avisos com os totais (destinatários, sem acesso, lidos, confirmados), o **relatório de leitura** de cada um (quem leu, quem confirmou,
       quem não tem acesso), incluir quem entrou no grupo depois, e **retirar** o aviso com motivo (sai do mural, fica no histórico de quem recebeu). Publicar, incluir, retirar e confirmar vão para a Auditoria.
-- [ ] **Prazo de guarda** `PRAZO_RETENCAO_LEITURA_DE_AVISOS_DIAS` (1825) na rotina de retenção, contado do fim da validade (ou da retirada); Política de Privacidade com o item novo.
-- [ ] **Na homologação:** robô `v6.1-01` pelas telas (publicar com a contagem, mural, abrir, confirmar, relatório, retirar, Auditoria; e o que tem de ser recusado: quem não tem `comunicar` não publica,
+- [x] **Prazo de guarda** `PRAZO_RETENCAO_LEITURA_DE_AVISOS_DIAS` (1825) na rotina de retenção, contado do fim da validade (ou da retirada); Política de Privacidade com o item novo.
+- [x] **Na homologação:** robô `v6.1-01` pelas telas (publicar com a contagem, mural, abrir, confirmar, relatório, retirar, Auditoria; e o que tem de ser recusado: quem não tem `comunicar` não publica,
       quem não está no grupo não abre, total errado é recusado).
 
 **Fora de escopo de propósito:** e-mail, WhatsApp, agendamento, modelos e descadastro (v6.2); anexos no aviso; editar aviso publicado (corrige-se retirando e publicando outro: a prova não muda por baixo).
+
+✅ **v6.1 concluída (2026-10-20).**
+
+**Conferência independente (agente `opus`, só leitura) achou 11 pontos, todos corrigidos antes de publicar e reconferidos pelo mesmo agente:** (1) desfazer um lote de importação dava erro 500 se um associado do
+lote já tivesse recebido aviso (agora recusa com o motivo: a lista é a prova); (2) quem tivesse SÓ `comunicar` conseguia listar os inadimplentes pelo filtro de situação (agora o filtro por situação exige
+também `associados` ou `financeiro`, e quem só comunica vê só os totais de um aviso assim); (3) a resposta de "Conferir" que chegasse depois de a pessoa mudar o grupo habilitava o publicar com a contagem
+velha (agora a conferência só vale para o MESMO grupo, e o que se publica é o grupo conferido); (4) abrir um aviso no modo "ver como" gravava a leitura; (5) comentário errado na migração; (6) o grupo
+fazia várias consultas por pessoa (agora a situação de todos sai de uma consulta só, `calcular_categorias`, com teste que a compara com `calcular_categoria`); (7) dava para retirar aviso já vencido;
+(8) o relatório dizia "não foi avisado" a quem ganhou acesso depois; (9) o voluntário alocado como pessoa que depois se associou ficava fora do grupo; (10) a Política chamava o sino de "painel da
+equipe" (o sino agora também avisa o associado); (11) o fim do mural na retenção não era a meia-noite de Belém. Também: o teste que confere as pendências de tela passou a procurar a versão no plano
+OU no histórico (quebrou com a ida da FASE 5 para o `HISTORICO.md`; corrigido na `main`, `977f8f6`).
+**Testes locais:** servidor 1388 em duas rodadas seguidas (35 testes novos; cada proteção nova confirmada por mutação), painel 690 (19 novos), site 761 unitários e 865 de navegador, tipos, lint e
+formatação limpos; a migração subiu, desceu e subiu de novo num banco descartável com o `alembic check` limpo.
+**Na homologação (2026-10-20):** a branch `v61-comunicacao-interna` foi publicada lá e a migração rodou no banco de TESTE (`Running upgrade c4a8e2f6d913 -> e5b1d7a3c820`). Robô `v6.1-01`, 5 de 5: o
+**Secretário** (que tem `comunicar` pelo CARGO de 1º Secretário) confere "associados em dia" (a tela diz quantos não têm acesso ao painel e mostra os nomes), troca o grupo (a contagem some e o
+publicar trava), escolhe "quem tem `financeiro_auditar`" (o Conselho Fiscal), publica com o número de pessoas no botão e na confirmação, e o servidor recusa um total errado (409) sem gravar nada; o
+**Tesoureiro** (sem `comunicar`) não vê o módulo, o endereço dá "sem permissão", o servidor responde 403 à lista, ao relatório e a retirar, e, fora do grupo, abrir o aviso dá 404; o **Conselheiro**
+vê o aviso no sino e no mural com "Pede a sua confirmação", abre, confirma ("Li e estou ciente") e vê a confirmação em Meus avisos; o relatório mostra que ele leu e confirmou, "incluir quem entrou
+depois" não acha ninguém, retirar recusa motivo curto e retira com o motivo; a **Auditoria**, lida pelo Presidente, tem uma entrada de publicação, uma de confirmação e uma de retirada, cada uma com
+quem fez; e o Conselheiro vê o aviso retirado, com o motivo, fora do mural e sem o botão de confirmar. Na 1ª rodada o roteiro falhou por defeito dele mesmo (dois links "Meus avisos" na página do
+aviso), corrigido e refeito. Regressões verdes: `v5.7f-02` 4/4 (a Política no site de teste), `v5.4c-fase0` 6/6, `v5.4h-09` 5/5 (o sino da filiação) e `v5.4c-fase1` 24/24.
+**Em produção (2026-10-20):** `main` = `aa3c08c`; Deploy API verde (1388 testes contra Postgres e o log mostra `Running upgrade c4a8e2f6d913 -> e5b1d7a3c820`), Deploy Painel e Deploy Site verdes;
+`painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `aa3c08c`; o `openapi.json` da API traz as 9 rotas novas (`/api/avisos/...` e `/api/meus-avisos/...`) e `GET /api/meus-avisos/` sem
+login responde 401; `/privacidade/` diz "Versão 2.4 · em vigor desde 20 de outubro de 2026" e traz o item do mural. Nenhum aviso foi publicado em produção (a produção não recebe dado de teste).
+**Limitações conhecidas:** o grupo por permissão confere a permissão de cada usuário ativo um a um (aceitável para centenas); o semeador repõe `comunicar` ao nível Presidente a cada partida, como faz
+com as outras permissões padrão (tirar só pelo nível não dura; o caminho é o cargo); o voluntário que não é associado não tem acesso ao painel e só será alcançado pelo e-mail da v6.2.
 
 ##### 🔍 Ponto de Revisão — FASE 6 (1/2 — meio, fecha v6.1)
 
