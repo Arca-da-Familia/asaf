@@ -12,7 +12,10 @@ import {
   detalharAviso,
   filtrarDestinatarios,
   incluirNovosNoAviso,
+  reenviarEmailsDoAviso,
+  resumoDoEmail,
   retirarAviso,
+  textoDoEmail,
   textoDaLeitura,
   type FiltroDaLeitura,
 } from '@/lib/comunicacao'
@@ -25,6 +28,7 @@ const FILTROS: { valor: FiltroDaLeitura; rotulo: string }[] = [
   { valor: 'nao_leram', rotulo: 'Não leram' },
   { valor: 'nao_confirmaram', rotulo: 'Não confirmaram' },
   { valor: 'sem_acesso', rotulo: 'Sem acesso ao painel' },
+  { valor: 'email_falhou', rotulo: 'E-mail que falhou' },
 ]
 
 export function AvisoDetalhePage() {
@@ -48,6 +52,22 @@ export function AvisoDetalhePage() {
     setAviso(null)
     setErro(e instanceof ApiError ? e.detail : padrao)
   }
+
+  // v6.2a - os e-mails que falharam voltam para a fila (a rotina tenta de novo na próxima rodada)
+  const reenviar = useMutation({
+    mutationFn: () => reenviarEmailsDoAviso(idAviso),
+    onSuccess: (r) => {
+      setErro(null)
+      queryClient.setQueryData(chave, r.aviso)
+      queryClient.invalidateQueries({ queryKey: ['avisos'] })
+      setAviso(
+        r.voltaram_para_a_fila === 0
+          ? 'Nenhum e-mail com falha para reenviar.'
+          : `${r.voltaram_para_a_fila} ${r.voltaram_para_a_fila === 1 ? 'e-mail voltou' : 'e-mails voltaram'} para a fila; a rotina do sistema tenta de novo na próxima rodada.`,
+      )
+    },
+    onError: (e) => falhou(e, 'Não foi possível reenviar.'),
+  })
 
   const incluir = useMutation({
     mutationFn: () => incluirNovosNoAviso(idAviso),
@@ -167,6 +187,16 @@ export function AvisoDetalhePage() {
             ? ` · Confirmaram: ${data.totais.confirmados ?? '—'}`
             : ''}
         </p>
+        {data.por_email && (
+          <p className="-mt-2 mb-3 text-sm">
+            E-mail: {resumoDoEmail(data.email, data.por_email)}
+            <span className="block text-xs text-muted-foreground">
+              “Enviado” quer dizer que saiu do e-mail da ASAF. Se a caixa de
+              destino devolver depois, a devolução chega à caixa
+              asaf@asaf.org.br.
+            </span>
+          </p>
+        )}
         {data.leitura_apagada_em ? (
           <p className="text-sm text-muted-foreground">
             A lista de quem recebeu, leu e confirmou foi apagada em{' '}
@@ -188,7 +218,9 @@ export function AvisoDetalhePage() {
                 value={filtro}
                 onChange={(e) => setFiltro(e.target.value as FiltroDaLeitura)}
               >
-                {FILTROS.map((f) => (
+                {FILTROS.filter(
+                  (f) => data.por_email || f.valor !== 'email_falhou',
+                ).map((f) => (
                   <option key={f.valor} value={f.valor}>
                     {f.rotulo}
                   </option>
@@ -205,6 +237,9 @@ export function AvisoDetalhePage() {
                     {data.exige_confirmacao && (
                       <th className="px-3 py-2 font-medium">Confirmado em</th>
                     )}
+                    {data.por_email && (
+                      <th className="px-3 py-2 font-medium">E-mail</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -212,7 +247,11 @@ export function AvisoDetalhePage() {
                     <tr>
                       <td
                         className="px-3 py-3 text-muted-foreground"
-                        colSpan={data.exige_confirmacao ? 4 : 3}
+                        colSpan={
+                          3 +
+                          (data.exige_confirmacao ? 1 : 0) +
+                          (data.por_email ? 1 : 0)
+                        }
                       >
                         Ninguém nesta lista.
                       </td>
@@ -235,6 +274,14 @@ export function AvisoDetalhePage() {
                             {d.confirmado_em
                               ? formatarData(d.confirmado_em, { comHora: true })
                               : '—'}
+                          </td>
+                        )}
+                        {data.por_email && (
+                          <td className="px-3 py-2">
+                            {textoDoEmail(d.email)}
+                            {d.email?.enviado_em
+                              ? ` em ${formatarData(d.email.enviado_em, { comHora: true })}`
+                              : ''}
                           </td>
                         )}
                       </tr>
@@ -262,6 +309,21 @@ export function AvisoDetalhePage() {
               lista; ninguém sai dela.
             </p>
           </div>
+          {data.por_email && (data.email?.['Falhou'] ?? 0) > 0 && (
+            <div>
+              <Button
+                variant="outline"
+                disabled={reenviar.isPending}
+                onClick={() => reenviar.mutate()}
+              >
+                Reenviar os e-mails que falharam
+              </Button>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Antes, confira o motivo de cada falha na coluna E-mail (ex.:
+                endereço errado no cadastro).
+              </p>
+            </div>
+          )}
           {retirando ? (
             <div className="rounded-xl border border-border p-4">
               <label className="block text-sm">

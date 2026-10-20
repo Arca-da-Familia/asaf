@@ -23,14 +23,20 @@ export type OpcoesDePublico = {
   categorias_de_associado: string[]
   permissoes: { codigo: string; modulo: string; descricao: string }[]
   projetos: { id_projeto: number; nome: string }[]
-  categorias_de_aviso: { codigo: string; rotulo: string }[]
+  // v6.2a: `obrigatoria` (Convocação e Mudança de regra) deixa a caixa "também por e-mail" marcada por padrão
+  categorias_de_aviso: {
+    codigo: string
+    rotulo: string
+    obrigatoria: boolean
+  }[]
 }
 
 export type ConferenciaDoPublico = {
   descricao: string
   total: number
   sem_acesso: number
-  pessoas: { nome: string; tem_acesso: boolean }[]
+  com_email: number
+  pessoas: { nome: string; tem_acesso: boolean; tem_email: boolean }[]
 }
 
 export type TotaisDoAviso = {
@@ -39,6 +45,24 @@ export type TotaisDoAviso = {
   confirmados: number | null
   sem_acesso: number | null
 }
+
+// v6.2a - a entrega por e-mail: uma por pessoa, e os totais do aviso por situação
+export type SituacaoDoEmail =
+  | 'Na fila'
+  | 'Enviando'
+  | 'Enviado'
+  | 'Falhou'
+  | 'Sem e-mail no cadastro'
+  | 'Cancelado'
+
+export type EntregaDoEmail = {
+  situacao: SituacaoDoEmail
+  tentativas: number
+  enviado_em: string | null
+  erro: string | null
+}
+
+export type TotaisDeEmail = Record<SituacaoDoEmail, number>
 
 export type AvisoResumo = {
   id_aviso: number
@@ -55,6 +79,8 @@ export type AvisoResumo = {
   motivo_retirada: string | null
   leitura_apagada_em: string | null
   totais: TotaisDoAviso
+  por_email: boolean
+  email: TotaisDeEmail | null
 }
 
 export type DestinatarioDoAviso = {
@@ -66,6 +92,7 @@ export type DestinatarioDoAviso = {
   incluido_em: string
   lido_em: string | null
   confirmado_em: string | null
+  email: EntregaDoEmail | null
 }
 
 export type AvisoCompleto = AvisoResumo & {
@@ -110,6 +137,7 @@ export type NovoAviso = {
   categoria: string
   valido_ate: string
   exige_confirmacao: boolean
+  por_email: boolean
   publico: PublicoDoAviso
   total_confirmado: number
 }
@@ -167,6 +195,12 @@ export function retirarAviso(
     method: 'POST',
     body: JSON.stringify({ motivo }),
   })
+}
+
+export function reenviarEmailsDoAviso(
+  idAviso: number,
+): Promise<{ voltaram_para_a_fila: number; aviso: AvisoCompleto }> {
+  return apiFetch(`/api/avisos/${idAviso}/reenviar-emails`, { method: 'POST' })
 }
 
 export function listarMeusAvisos(soMural = false): Promise<MeusAvisos> {
@@ -258,7 +292,7 @@ export function mesmoPublico(a: PublicoDoAviso, b: PublicoDoAviso): boolean {
 }
 
 export type FiltroDaLeitura =
-  'todos' | 'nao_leram' | 'nao_confirmaram' | 'sem_acesso'
+  'todos' | 'nao_leram' | 'nao_confirmaram' | 'sem_acesso' | 'email_falhou'
 
 export function filtrarDestinatarios(
   destinatarios: DestinatarioDoAviso[],
@@ -268,6 +302,8 @@ export function filtrarDestinatarios(
     return destinatarios.filter((d) => d.lido_em === null)
   if (filtro === 'nao_confirmaram')
     return destinatarios.filter((d) => d.confirmado_em === null)
+  if (filtro === 'email_falhou')
+    return destinatarios.filter((d) => d.email?.situacao === 'Falhou')
   if (filtro === 'sem_acesso')
     return destinatarios.filter((d) => !d.tinha_acesso)
   return destinatarios
@@ -304,4 +340,35 @@ export function podeConfirmar(aviso: MeuAviso): boolean {
     aviso.confirmado_em === null &&
     aviso.situacao !== 'Retirado'
   )
+}
+
+/** v6.2a - a entrega por e-mail de uma pessoa, em português, para o relatório. */
+export function textoDoEmail(entrega: EntregaDoEmail | null): string {
+  if (entrega === null) return '—'
+  if (entrega.situacao === 'Falhou')
+    return entrega.erro ? `Falhou: ${entrega.erro}` : 'Falhou'
+  if (entrega.situacao === 'Na fila' && entrega.tentativas > 0)
+    return `Na fila (nova tentativa; ${entrega.tentativas} até agora)`
+  return entrega.situacao
+}
+
+/** v6.2a - os totais do e-mail de um aviso, numa frase (só o que existe). */
+// Aviso que foi por e-mail e não tem mais o registro (apagado pelo prazo de guarda) diz isso, em vez de "só no painel".
+export function resumoDoEmail(
+  email: TotaisDeEmail | null,
+  porEmail = email !== null,
+): string {
+  if (email === null)
+    return porEmail
+      ? 'Foi também por e-mail (o registro foi apagado pelo prazo de guarda)'
+      : 'Só no painel'
+  const partes: string[] = []
+  if (email['Enviado']) partes.push(`${email['Enviado']} enviados`)
+  if (email['Na fila']) partes.push(`${email['Na fila']} na fila`)
+  if (email['Enviando']) partes.push(`${email['Enviando']} saindo agora`)
+  if (email['Falhou']) partes.push(`${email['Falhou']} falharam`)
+  if (email['Sem e-mail no cadastro'])
+    partes.push(`${email['Sem e-mail no cadastro']} sem e-mail`)
+  if (email['Cancelado']) partes.push(`${email['Cancelado']} cancelados`)
+  return partes.length ? partes.join(' · ') : 'Nenhum e-mail'
 }

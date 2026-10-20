@@ -14,20 +14,52 @@ def smtp_configurado() -> bool:
     return bool(os.environ.get("SMTP_HOST") and os.environ.get("SMTP_USUARIO") and os.environ.get("SMTP_SENHA"))
 
 
-def enviar_email(destinatario: str, assunto: str, corpo_texto: str) -> None:
-    if not smtp_configurado():
-        raise RuntimeError("SMTP não configurado no ambiente (SMTP_HOST/SMTP_USUARIO/SMTP_SENHA ausentes).")
+def _remetente() -> str:
+    return os.environ.get("SMTP_REMETENTE") or os.environ["SMTP_USUARIO"]
 
-    remetente = os.environ.get("SMTP_REMETENTE") or os.environ["SMTP_USUARIO"]
+
+def _montar(remetente: str, destinatario: str, assunto: str, corpo_texto: str) -> str:
     mensagem = MIMEMultipart()
     mensagem["From"] = remetente
     mensagem["To"] = destinatario
     mensagem["Subject"] = assunto
     mensagem.attach(MIMEText(corpo_texto, "plain", "utf-8"))
+    return mensagem.as_string()
 
-    host = os.environ["SMTP_HOST"]
-    porta = int(os.environ.get("SMTP_PORTA", "587"))
-    with smtplib.SMTP(host, porta, timeout=30) as servidor:
+
+def _conectar() -> smtplib.SMTP:
+    if not smtp_configurado():
+        raise RuntimeError("SMTP não configurado no ambiente (SMTP_HOST/SMTP_USUARIO/SMTP_SENHA ausentes).")
+    servidor = smtplib.SMTP(os.environ["SMTP_HOST"], int(os.environ.get("SMTP_PORTA", "587")), timeout=30)
+    try:
         servidor.starttls()
         servidor.login(os.environ["SMTP_USUARIO"], os.environ["SMTP_SENHA"])
-        servidor.sendmail(remetente, [destinatario], mensagem.as_string())
+    except Exception:
+        servidor.close()
+        raise
+    return servidor
+
+
+def enviar_email(destinatario: str, assunto: str, corpo_texto: str) -> None:
+    with _conectar() as servidor:
+        remetente = _remetente()
+        servidor.sendmail(remetente, [destinatario], _montar(remetente, destinatario, assunto, corpo_texto))
+
+
+class ConexaoDeEmail:
+    """v6.2a - várias mensagens numa conexão só (o envio em lotes dos avisos do mural): `with ConexaoDeEmail() as c: c.enviar(...)`. Cada `enviar` levanta a exceção do servidor
+    de e-mail daquela mensagem (quem chama decide se é recusa do endereço, falha passageira ou o limite diário do Google)."""
+
+    def __enter__(self) -> "ConexaoDeEmail":
+        self.servidor = _conectar()
+        self.remetente = _remetente()
+        return self
+
+    def enviar(self, destinatario: str, assunto: str, corpo_texto: str) -> None:
+        self.servidor.sendmail(self.remetente, [destinatario], _montar(self.remetente, destinatario, assunto, corpo_texto))
+
+    def __exit__(self, *_erro) -> None:
+        try:
+            self.servidor.quit()
+        except Exception:  # noqa: BLE001 - a conexão já caiu: não há o que fechar
+            self.servidor.close()

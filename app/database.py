@@ -207,7 +207,9 @@ def seed_catalogos():
         # Fiscal. Catálogo editável - a ASAF pode criar um Conselho Deliberativo sem deploy.
         # v6.1 - categoria do aviso do mural do painel (o tipo de assunto); a diretoria ajusta sem deploy.
         "categoria_aviso": ("Categoria de aviso", True, "comunicar", [
-            ("GERAL", "Geral"), ("CONVOCACAO", "Convocação"), ("MUDANCA_DE_REGRA", "Mudança de regra"), ("PROJETO", "Projeto"), ("EVENTO", "Evento"), ("FINANCEIRO", "Financeiro"),
+            # v6.2a - `obrigatoria` (decisão do Presidente, 2026-10-20: só Convocação e Mudança de regra): a caixa "também por e-mail" vem marcada e, na v6.2b, a pessoa não pode desligar
+            ("GERAL", "Geral"), ("CONVOCACAO", "Convocação", {"obrigatoria": True}), ("MUDANCA_DE_REGRA", "Mudança de regra", {"obrigatoria": True}), ("PROJETO", "Projeto"),
+            ("EVENTO", "Evento"), ("FINANCEIRO", "Financeiro"),
         ]),
         "orgao_direcao": ("Órgão de direção", True, "governanca", [
             ("DIRETORIA_EXECUTIVA", "Diretoria Executiva", {}), ("CONSELHO_FISCAL", "Conselho Fiscal", {}),
@@ -551,6 +553,10 @@ def seed_configuracoes_institucionais():
         {"chave": "TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", "valor": "Ao me inscrever, autorizo o uso dos meus dados pessoais (nome, CPF, e-mail, telefone e respostas deste formulário) para fins de organização deste evento, nos termos da LGPD.", "tipo": "texto", "categoria": "regras", "descricao": "Texto de consentimento LGPD exibido no formulário público de inscrição em evento."},
         {"chave": "VERSAO_TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", "valor": "1", "tipo": "texto", "categoria": "regras", "descricao": "Versão do texto de consentimento LGPD de inscrição - mude este valor sempre que o texto acima for editado de forma relevante."},
         {"chave": "URL_BASE_SITE_PUBLICO", "valor": "", "tipo": "texto", "categoria": "geral", "descricao": "URL base do site institucional (Astro/Directus) - usada para montar o link de autocancelamento enviado por e-mail. Vazio = e-mail orienta contatar a secretaria com o código."},
+        # v6.2a - o link "abrir no painel" do e-mail de um aviso, e o ritmo do envio em lotes (a conta Google Workspace envia até 2.000 mensagens por dia: o teto fica abaixo, para sobrar para os automáticos)
+        {"chave": "URL_BASE_PAINEL", "valor": "", "tipo": "texto", "categoria": "geral", "descricao": "Endereço do painel usado nos links dos e-mails (ex.: https://painel.asaf.org.br). Vazio = a variável de ambiente URL_BASE_PAINEL ou o painel de produção."},
+        {"chave": "EMAIL_LIMITE_DIARIO", "valor": "1500", "tipo": "numero", "categoria": "regras", "descricao": "Quantos e-mails de aviso podem sair em 24 horas (a conta do Google envia até 2.000 por dia, contando os automáticos: recibos, códigos, lembretes)."},
+        {"chave": "EMAIL_LOTE_POR_RODADA", "valor": "100", "tipo": "numero", "categoria": "regras", "descricao": "Quantos e-mails de aviso saem a cada rodada da tarefa periódica (de 15 em 15 minutos)."},
         # v4.7 - vagas/lista de espera: quantas horas quem é promovido da lista de espera tem
         # pra confirmar antes de perder a vaga pro próximo da fila (ver app/services/vagas.py).
         {"chave": "PRAZO_CONFIRMACAO_LISTA_ESPERA_HORAS", "valor": "24", "tipo": "numero", "categoria": "regras", "descricao": "Horas que quem é promovido da lista de espera de um evento tem para confirmar a inscrição antes de perder a vaga para o próximo da fila."},

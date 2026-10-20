@@ -12,7 +12,7 @@ Prazo de guarda (decisão de 2026-10-20, o prazo da lei): 5 anos depois de o avi
 totais (`total_lidos`, `total_confirmados`) e a data em que a leitura foi apagada."""
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, false
 
 from app.database import Base
 from app.models.core import _TipoJson
@@ -28,6 +28,16 @@ PROJETO_EQUIPE = "equipe"
 PROJETO_VOLUNTARIOS = "voluntarios"
 PARTES_DO_PROJETO = (PROJETO_EQUIPE, PROJETO_VOLUNTARIOS)
 
+# v6.2a - a entrega do aviso por um canal além do painel (hoje o e-mail; o WhatsApp da v11.3 entra como outro canal)
+CANAL_EMAIL = "email"
+NA_FILA = "Na fila"
+ENVIANDO = "Enviando"  # a rodada pegou esta entrega (só uma rodada pega cada uma: é o que impede o e-mail em dobro)
+ENVIADO = "Enviado"  # saiu do servidor de e-mail da ASAF (a caixa de destino ainda pode devolver depois)
+FALHOU = "Falhou"
+SEM_EMAIL = "Sem e-mail no cadastro"
+CANCELADO = "Cancelado"  # o aviso foi retirado antes de o e-mail sair
+SITUACOES_DA_ENTREGA = (NA_FILA, ENVIANDO, ENVIADO, FALHOU, SEM_EMAIL, CANCELADO)
+
 
 class Aviso(Base):
     __tablename__ = "avisos"
@@ -36,6 +46,7 @@ class Aviso(Base):
     texto = Column(Text, nullable=False)  # só texto: a tela nunca o trata como HTML
     categoria = Column(String(40), nullable=False)  # código do catálogo `categoria_aviso`
     exige_confirmacao = Column(Boolean, nullable=False, default=False)
+    por_email = Column(Boolean, nullable=False, default=False, server_default=false())  # v6.2a: também por e-mail (quem publica escolhe)
     valido_ate = Column(Date, nullable=False, index=True)  # último dia no mural (dia de Belém)
     publico = Column(_TipoJson, nullable=False)  # a regra do grupo, como foi escolhida
     publico_descricao = Column(String(400), nullable=False)  # a regra em português, para a tela e o relatório
@@ -65,3 +76,20 @@ class AvisoDestinatario(Base):
     incluido_em = Column(DateTime, nullable=False, default=datetime.utcnow)
     lido_em = Column(DateTime, nullable=True)
     confirmado_em = Column(DateTime, nullable=True)
+
+
+class EntregaDeAviso(Base):
+    """v6.2a - a entrega do aviso a UMA pessoa por UM canal além do painel (o e-mail). O endereço NÃO é guardado: é lido do cadastro na hora de enviar (se a pessoa trocar o e-mail
+    antes de sair, vai para o novo). O motivo da falha é guardado sem o endereço. Apagada junto com a linha do destinatário pela rotina de retenção (o mesmo prazo da prova de leitura)."""
+    __tablename__ = "entregas_de_aviso"
+    __table_args__ = (UniqueConstraint("id_destinatario", "canal", name="uq_entrega_de_aviso_canal"),)
+    id_entrega = Column(Integer, primary_key=True, index=True)
+    id_destinatario = Column(Integer, ForeignKey("avisos_destinatarios.id_destinatario"), nullable=False, index=True)
+    canal = Column(String(20), nullable=False)
+    situacao = Column(String(30), nullable=False, index=True)
+    tentativas = Column(Integer, nullable=False, default=0)
+    proxima_tentativa_em = Column(DateTime, nullable=True)
+    pego_em = Column(DateTime, nullable=True)  # quando a rodada pegou a entrega (Enviando): a que ficou presa (a rodada caiu no meio) é achada por aqui
+    ultimo_erro = Column(String(300), nullable=True)
+    criado_em = Column(DateTime, nullable=False, default=datetime.utcnow)
+    enviado_em = Column(DateTime, nullable=True, index=True)

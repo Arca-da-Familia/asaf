@@ -14,6 +14,12 @@ permissions:
   id-token: write # necessário para login OIDC no Azure (sem senha salva)
   contents: read
 
+# v6.2a - uma rodada por vez (a agendada atrasada, ou um disparo à mão, espera a anterior terminar; nenhuma é cancelada no meio): junto com a troca condicional
+# Na fila -> Enviando no banco, é o que impede o e-mail de um aviso de sair em dobro.
+concurrency:
+  group: tarefa-periodica-de-15-minutos
+  cancel-in-progress: false
+
 jobs:
   expirar-promocoes:
     runs-on: ubuntu-latest
@@ -89,6 +95,12 @@ jobs:
         env:
           ARMAZENAMENTO_BLOB_URL: https://stasafprivado.blob.core.windows.net
         run: PYTHONPATH=. python scripts/aplicar_retencao_de_dados.py
+
+      # v6.2a - os avisos do mural marcados "também por e-mail" saem em lotes (teto por rodada e por dia, em Configurações > Regras do sistema; a conta do Google envia até 2.000 por dia).
+      # Recusa de um endereço fica registrada no aviso e não derruba o passo; ele FALHA (sai com 1) se não conseguir conectar ao servidor de e-mail ou se o servidor recusar o remetente.
+      - name: Enviar por e-mail os avisos do mural
+        if: always()
+        run: PYTHONPATH=. python scripts/enviar_emails_de_avisos.py
 
       - name: Logout
         if: always()

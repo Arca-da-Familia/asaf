@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import {
   COR_DA_SITUACAO,
   listarAvisos,
+  resumoDoEmail,
   type SituacaoDoAviso,
 } from '@/lib/comunicacao'
 import { formatarData } from '@/lib/datas'
@@ -146,6 +147,11 @@ export function ComunicacaoPage() {
                     {a.totais.sem_acesso
                       ? ` (${a.totais.sem_acesso} sem acesso)`
                       : ''}
+                    {a.por_email && (
+                      <span className="block text-xs text-muted-foreground">
+                        E-mail: {resumoDoEmail(a.email, a.por_email)}
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2">{a.totais.lidos ?? '—'}</td>
                   <td className="px-3 py-2">
