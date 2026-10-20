@@ -179,6 +179,7 @@ def test_publicar_recusa_o_que_tem_de_recusar(client, db, auth_headers):
         (_corpo(publico, 1, valido_ate=(HOJE + timedelta(days=800)).isoformat()), 422, "2 anos"),
         (_corpo(publico, 1, categoria="NAO_EXISTE"), 422, "Categoria"),
         (_corpo(publico, 1, titulo="   "), 422, "título"),
+        ({**_corpo(publico, 1), "texto": "   "}, 422, "texto"),
         (_corpo({"tipo": "projeto", "id_projeto": projeto.id_projeto, "partes_do_projeto": []}, 1), 422, "equipe"),
         (_corpo({"tipo": "qualquer"}, 1), 422, "quem recebe"),
     ]
@@ -290,8 +291,11 @@ def test_incluir_acrescenta_quem_entrou_no_grupo_e_nao_tira_ninguem(client, db, 
     db.commit()
     r = client.post(f"/api/avisos/{aviso['id_aviso']}/incluir-novos", headers=auth_headers).json()
     assert r["incluidos"] == 1 and r["aviso"]["totais"]["destinatarios"] == 3
+    incluidos = db.query(AuditLog).filter(AuditLog.acao == "AVISO_DESTINATARIOS_INCLUIDOS", AuditLog.id_registro_afetado == aviso["id_aviso"]).all()
+    assert len(incluidos) == 1 and '"incluidos": 1' in incluidos[0].dados_depois
     assert {p["nome"] for p in r["aviso"]["destinatarios"]} == {primeira.nome_completo, saiu.nome_completo, nova.nome_completo}
     assert client.post(f"/api/avisos/{aviso['id_aviso']}/incluir-novos", headers=auth_headers).json()["incluidos"] == 0
+    assert db.query(AuditLog).filter(AuditLog.acao == "AVISO_DESTINATARIOS_INCLUIDOS", AuditLog.id_registro_afetado == aviso["id_aviso"]).count() == 1, "incluir ninguém não grava"
     assert [a["id_aviso"] for a in client.get("/api/meus-avisos/", headers=_headers(usuario_nova)).json()["avisos"]] == [aviso["id_aviso"]]
 
 
@@ -535,3 +539,36 @@ def test_o_aviso_sai_do_mural_no_fim_do_dia_em_belem():
     assert comunicacao.saiu_do_mural_em(aviso) == datetime(2026, 10, 21, 3, 0), "meia-noite de Belém = 03:00 UTC"
     aviso.retirado_em = datetime(2026, 10, 15, 12, 0)
     assert comunicacao.saiu_do_mural_em(aviso) == datetime(2026, 10, 15, 12, 0), "a retirada antes do fim conta"
+
+
+# ------------------------------------------------------------------------------------------------ Ponto de Revisão FASE 6 (1/2): a segmentação por permissão e por categoria
+def _ids_no_mural(client, usuario) -> list[int]:
+    return [a["id_aviso"] for a in client.get("/api/meus-avisos/?mural=true", headers=_headers(usuario)).json()["avisos"]]
+
+
+def test_aviso_para_quem_tem_uma_permissao_so_aparece_para_quem_a_tem(client, db, auth_headers):
+    _, diretor = _criar_associado(db, _nome("Diretor Com Financeiro"), nome_nivel="Diretoria")
+    _, associado = _criar_associado(db, _nome("Associado Sem Financeiro"))
+    aviso = _publicar(client, auth_headers, {"tipo": "permissao", "codigo_permissao": "financeiro"})
+    assert aviso["id_aviso"] in _ids_no_mural(client, diretor)
+    assert aviso["id_aviso"] not in _ids_no_mural(client, associado)
+    assert aviso["id_aviso"] not in [a["id_aviso"] for a in client.get("/api/meus-avisos/", headers=_headers(associado)).json()["avisos"]]
+    assert client.get(f"/api/meus-avisos/{aviso['id_aviso']}", headers=_headers(associado)).status_code == 404
+    assert client.get(f"/api/meus-avisos/{aviso['id_aviso']}", headers=_headers(diretor)).status_code == 200
+
+
+def test_aviso_para_uma_categoria_de_associado_so_aparece_para_quem_e_dela(client, db, auth_headers):
+    fundador, usuario_fundador = _criar_associado(db, _nome("Socio Fundador"))
+    efetivo, usuario_efetivo = _criar_associado(db, _nome("Socio Efetivo"))
+    db.get(Associado, fundador.id_associado).categoria = "Fundador"
+    db.get(Associado, efetivo.id_associado).categoria = "Efetivo"
+    db.commit()
+    aviso = _publicar(client, auth_headers, {"tipo": "associados", "categorias": ["Fundador"]})
+    assert aviso["publico_descricao"] == "Associados, da categoria Fundador"
+    assert aviso["id_aviso"] in _ids_no_mural(client, usuario_fundador)
+    assert aviso["id_aviso"] not in _ids_no_mural(client, usuario_efetivo)
+    assert client.get(f"/api/meus-avisos/{aviso['id_aviso']}", headers=_headers(usuario_efetivo)).status_code == 404
+    assert all(
+        db.get(Associado, d.id_associado).categoria == "Fundador"
+        for d in db.query(AvisoDestinatario).filter(AvisoDestinatario.id_aviso == aviso["id_aviso"]).all()
+    ), "só associados da categoria escolhida entram no grupo"
