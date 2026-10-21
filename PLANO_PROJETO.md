@@ -525,8 +525,8 @@ outubro de 2026" e traz o parágrafo `data-emails-da-asaf`. Nenhuma preferência
 
 ##### v6.2c — Modelos de mensagem, pré-visualização, envio de teste e agendamento
 
-- [ ] Modelos versionados com variáveis (`{primeiro_nome}`, `{nome}`), pré-visualização com uma pessoa real do grupo e **envio de teste** para o próprio e-mail antes do disparo.
-- [ ] **Publicar depois** (data e hora): quem publica escolhe; a tela diz com franqueza que a tarefa do GitHub pode atrasar (de minutos a horas).
+- [x] Modelos versionados com variáveis (`{primeiro_nome}`, `{nome}`), pré-visualização com uma pessoa real do grupo e **envio de teste** para o próprio e-mail antes do disparo.
+- [x] **Publicar depois** (data e hora): quem publica escolhe; a tela diz com franqueza que a tarefa do GitHub pode atrasar (de minutos a horas).
 
 **Como ficou decidido ao construir (2026-10-21):** as variáveis valem só no TEXTO (o título aparece igual para todos no sino e nas listas); quem recebe vê o próprio nome no painel
 e no e-mail, e o relatório mostra o texto como foi escrito. O modelo é versionado por grupo (editar cria a versão nova e desativa a anterior; arquivar tira da lista sem apagar) e o
@@ -534,6 +534,25 @@ aviso guarda a versão usada. O envio de teste vai só para o e-mail de quem pub
 publicado na primeira rodada da tarefa periódica depois da hora (entre 5 minutos e 90 dias à frente), com o grupo recalculado naquela hora; se o autor perdeu `comunicar`, se a
 validade passou ou se ninguém está mais no grupo, é cancelado com o motivo. Na homologação (que não tem tarefa agendada) a rotina roda a cada nova publicação de teste, como as
 rotinas de foto e de guarda.
+
+✅ **v6.2c concluída (2026-10-21).**
+
+**Conferência independente (agente `opus`, só leitura), todos os pontos corrigidos e cada garantia confirmada por mutação:** o risco de o mesmo agendado sair duas vezes (a rotina agora
+toma o agendamento com uma troca condicional antes de publicar, e uma falha depois de publicar não o devolve à fila); cancelar ao mesmo tempo que a rotina publica (o cancelamento só vale se ainda
+está "Agendado"); a lista de publicados e cancelados começando pelo mais novo; a prévia de quem não tem cadastro usava o e-mail como nome (agora "associado(a)"); o "também por e-mail" do modelo
+sobrepondo a escolha de quem publica; prévia velha depois de mudar o texto; duas versões iguais do mesmo modelo (agora barradas pelo banco); o autor avisado no sino quando o sistema cancela o
+agendado; o nome da chave estrangeira; uma dica de tela com a palavra "título" que confundia a busca do robô pelo campo; e textos.
+**Testes locais:** servidor 1451 em duas rodadas seguidas (20 testes novos), painel 705, tipos, lint e formatação limpos; a migração subiu, desceu e subiu de novo num banco descartável.
+**Na homologação (2026-10-21):** a branch `v62c-modelos-e-agendamento` foi publicada lá (`Running upgrade b8d4f0a2c357 -> c9e5a1b3d468` no banco de TESTE). Robô `v6.2c-01`, 2 de 2: o
+**Secretário** cria um modelo com `{primeiro_nome}` e o edita (a versão 2 entra em uso e a 1 fica no histórico); no Novo aviso começa do modelo, pré-visualiza (o texto chega com o primeiro nome
+de uma pessoa do Conselho Fiscal) e pede o envio de teste, que a homologação RECUSA com a explicação (não tem servidor de e-mail; o envio em si é provado pelos testes do servidor); agenda um
+aviso para dali a 7 minutos e um segundo, que cancela com motivo; o servidor recusa agendar para dali a 1 minuto e recusa variável que não existe. Nova publicação da homologação: a rotina
+publicou o agendado (`{'publicados': 1, 'cancelados': 0, 'falhas': 0}`). Robô `v6.2c-02`, 3 de 3: em Agendados aparece "Publicado" com o link do aviso, o relatório diz o modelo e a versão
+usada, o **Conselheiro** lê o texto com o PRÓPRIO primeiro nome e a Auditoria guarda a publicação pelo sistema (o aviso de teste é retirado no fim). Regressões verdes: `v6.2b-01` 4/4,
+`v6.2a-01` 4/4 e `v6.1-01` 5/5.
+**Em produção (2026-10-21):** `main` = `24f0f05`; Deploy API verde (1451 testes contra Postgres; o log mostra `Running upgrade b8d4f0a2c357 -> c9e5a1b3d468`) e Deploy Painel verde;
+`painel.asaf.org.br/version.json` = `24f0f05`; o `openapi.json` traz `/api/modelos-de-aviso/`, `/api/avisos-agendados/`, `/api/avisos/pre-visualizar` e `/api/avisos/enviar-teste`, e
+`GET /api/modelos-de-aviso/` e `GET /api/avisos-agendados/` sem login respondem 401. Nenhum modelo nem agendamento de teste foi gravado em produção.
 
 ##### v6.2d — Os automáticos
 
