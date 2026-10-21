@@ -238,7 +238,7 @@ def enviar_pendentes(db: Session, agora: Optional[datetime] = None, conexao: Cal
                         entrega.situacao = FALHOU
                         resultado["falharam"] += 1
                         if tipo == ENDERECO_INEXISTENTE and origem == comunicacao.EMAIL_DO_CONTATO:
-                            _marcar_contato(db, linha)
+                            marcar_contato_inexistente(db, db.get(Associado, linha.id_associado) if linha.id_associado is not None else None, "um aviso do mural (v6.2a)")
                     db.commit()
                     if tipo == CONEXAO:
                         break  # a conexão caiu (ou o servidor a fechou): o resto fica para a próxima rodada
@@ -260,18 +260,16 @@ def enviar_pendentes(db: Session, agora: Optional[datetime] = None, conexao: Cal
     return resultado
 
 
-def _marcar_contato(db: Session, linha: AvisoDestinatario) -> None:
-    """O servidor disse que o endereço de CONTATO não existe: o contato vai para a fila de higienização da v1.8 (uma vez por pessoa enquanto estiver lá)."""
+def marcar_contato_inexistente(db: Session, associado: Optional[Associado], ao_enviar: str) -> None:
+    """O servidor disse que o endereço de CONTATO não existe: o contato vai para a fila de higienização da v1.8 (uma vez por pessoa enquanto estiver lá). `ao_enviar` diz o quê
+    (ex.: "um aviso do mural (v6.2a)", "um lembrete de mensalidade (v6.2d)")."""
     from app.models.qualidade_cadastro import CONTATO_EMAIL_SUSPEITO, PENDENTE, FilaRevisaoCadastro
     from app.services.higienizacao_contato import marcar_email_suspeito
 
-    if linha.id_associado is None:
-        return
-    associado = db.get(Associado, linha.id_associado)
     if associado is None or associado.pessoa is None:
         return
     ja_na_fila = db.query(FilaRevisaoCadastro).filter(
         FilaRevisaoCadastro.tipo_sinal == CONTATO_EMAIL_SUSPEITO, FilaRevisaoCadastro.id_pessoa_a == associado.id_pessoa, FilaRevisaoCadastro.status == PENDENTE,
     ).first()
     if ja_na_fila is None:
-        marcar_email_suspeito(db, associado.pessoa, "O servidor de e-mail recusou o endereço como inexistente ao enviar um aviso do mural (v6.2a).")
+        marcar_email_suspeito(db, associado.pessoa, f"O servidor de e-mail recusou o endereço como inexistente ao enviar {ao_enviar}.")

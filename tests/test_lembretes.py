@@ -65,17 +65,19 @@ def test_lembrete_nunca_duplicado_mesmo_rodando_duas_vezes(client, auth_headers,
     conta_receita = _criar_conta(client, auth_headers, "3.2.9901", "Receita Lembrete Teste 2", tipo="Receita")
     associado = _criar_associado(client)
     hoje = datetime(2094, 2, 10)
-    _criar_titulo_a_receber(client, auth_headers, conta_receita, associado["id_associado"], 50, hoje)
+    id_titulo = _criar_titulo_a_receber(client, auth_headers, conta_receita, associado["id_associado"], 50, hoje)
 
     chamadas = []
     monkeypatch.setattr(lembretes.notificacoes, "enviar_email", lambda destinatario, assunto, corpo_texto, cabecalhos=None: chamadas.append(destinatario))
 
-    primeira = lembretes.enviar_lembretes_do_dia(db, hoje=hoje)
+    # v6.2d: só o título deste teste (o banco é da sessão inteira, e o título de 10/01 do teste anterior está, de verdade, 31 dias atrasado
+    # hoje - cabe no degrau de 30 dias com a tolerância de uma rodada perdida)
+    primeira = [r for r in lembretes.enviar_lembretes_do_dia(db, hoje=hoje) if r["id_titulo"] == id_titulo]
     segunda = lembretes.enviar_lembretes_do_dia(db, hoje=hoje)
 
     assert len(primeira) == 1
     assert segunda == []  # já enviado - trava por UniqueConstraint(id_titulo, tipo_lembrete)
-    assert len(chamadas) == 1
+    assert chamadas.count(primeira[0]["email"]) == 1
 
 
 def test_lembrete_pula_titulo_sem_associado_ou_sem_email(client, auth_headers, db, monkeypatch):

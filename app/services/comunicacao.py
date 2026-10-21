@@ -154,7 +154,7 @@ _EMAIL = re.compile(r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(\.[A-Za-z0
 EMAIL_DO_CONTATO, EMAIL_DO_LOGIN = "contato", "login"
 
 
-def _email_valido(email: Optional[str]) -> Optional[str]:
+def email_valido(email: Optional[str]) -> Optional[str]:
     email = (email or "").strip()
     return email if _EMAIL.match(email) and not email.endswith("@exemplo.invalid") else None
 
@@ -162,10 +162,10 @@ def _email_valido(email: Optional[str]) -> Optional[str]:
 def email_de(email_do_contato: Optional[str], email_do_login: Optional[str]) -> tuple[Optional[str], Optional[str]]:
     """v6.2a - A regra única do e-mail de uma pessoa (para contar na conferência e para enviar): o e-mail de CONTATO do cadastro; sem ele, o do LOGIN de um usuário
     ativo. Devolve (endereço, origem), a origem para só mandar para a higienização o e-mail de contato."""
-    if _email_valido(email_do_contato):
-        return _email_valido(email_do_contato), EMAIL_DO_CONTATO
-    if _email_valido(email_do_login):
-        return _email_valido(email_do_login), EMAIL_DO_LOGIN
+    if email_valido(email_do_contato):
+        return email_valido(email_do_contato), EMAIL_DO_CONTATO
+    if email_valido(email_do_login):
+        return email_valido(email_do_login), EMAIL_DO_LOGIN
     return None, None
 
 
