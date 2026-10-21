@@ -101,10 +101,10 @@ test('o Conselheiro vê as três escolhas no Meu Perfil e desliga os avisos por 
   )
   await expect(page.getByText(/não podem ser desligadas/)).toBeVisible()
   if (!(await avisosPorEmail.isChecked())) {
-    await avisosPorEmail.check() // começa do estado padrão
+    await avisosPorEmail.click() // começa do estado padrão (a caixa muda logo depois do clique)
     await expect(avisosPorEmail).toBeChecked()
   }
-  await avisosPorEmail.uncheck()
+  await avisosPorEmail.click()
   await expect(
     page.getByText(/Você não receberá mais: avisos do mural/),
   ).toBeVisible()
