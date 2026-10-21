@@ -60,7 +60,10 @@ test('o sino avisa o fim da experiência, o cadastro mostra a situação nova e 
   await expect(
     page.getByRole('heading', { name: doRobo!.nome_completo }),
   ).toBeVisible()
-  await expect(page.getByText(doRobo!.status_arrolamento).first()).toBeVisible()
+  await page.getByRole('button', { name: 'Situação', exact: true }).click()
+  await expect(page.getByTestId('situacao-atual')).toHaveText(
+    doRobo!.status_arrolamento,
+  )
   await ver(page, info, 'o cadastro com a situacao nova')
 
   const { entradas } = (await (

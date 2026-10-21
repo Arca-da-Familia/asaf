@@ -89,7 +89,8 @@ test('aprovar a filiação registra as boas-vindas na Auditoria', async ({
     .click()
   await expect(page).toHaveURL(/\/associados\/\d+$/)
   idAssociado = Number(page.url().match(/\/associados\/(\d+)$/)![1])
-  await expect(page.getByText('Em Experiência').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Situação', exact: true }).click()
+  await expect(page.getByTestId('situacao-atual')).toHaveText('Em Experiência')
 
   // a Auditoria: as boas-vindas do novo associado, com o resultado e sem o endereço
   await expect.poll(() => token(), { timeout: 15_000 }).not.toBe('')
