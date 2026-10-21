@@ -864,3 +864,29 @@ describe('os e-mails da ASAF no Meu Perfil', () => {
     expect(screen.queryByRole('checkbox')).toBeNull()
   })
 })
+
+describe('a caixa da preferência muda na hora', () => {
+  it('se o servidor recusar, volta ao que era e diz por quê', async () => {
+    vi.mocked(com.minhasPreferencias).mockResolvedValue({
+      tem_cadastro: true,
+      obrigatorias: 'obrigatórias',
+      tipos: [{ tipo: 'avisos', rotulo: 'Avisos do mural', recebe: true }],
+    })
+    let recusar: (e: unknown) => void = () => {}
+    vi.mocked(com.mudarPreferencia).mockImplementation(
+      () =>
+        new Promise((_, rejeitar) => {
+          recusar = rejeitar
+        }),
+    )
+    desenhar('/perfil', '/perfil', <PreferenciasDeEmail />)
+    const caixa = await screen.findByRole('checkbox', {
+      name: /Avisos do mural/,
+    })
+    await userEvent.click(caixa)
+    expect(caixa).not.toBeChecked()
+    recusar(new ApiError(409, 'Não deu.'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não deu.')
+    expect(caixa).toBeChecked()
+  })
+})

@@ -5,6 +5,7 @@ import { ApiError } from '@/lib/api'
 import {
   minhasPreferencias,
   mudarPreferencia,
+  type MinhasPreferencias,
   type TipoDeEmail,
 } from '@/lib/comunicacao'
 
@@ -20,12 +21,25 @@ export function PreferenciasDeEmail() {
     queryFn: minhasPreferencias,
   })
 
+  const CHAVE = ['minhas-preferencias-de-comunicacao']
   const mudar = useMutation({
     mutationFn: (v: { tipo: TipoDeEmail; recebe: boolean; rotulo: string }) =>
       mudarPreferencia(v.tipo, v.recebe),
+    // a caixa muda na hora (quem clica vê o clique); se o servidor recusar, volta ao que era
+    onMutate: (v) => {
+      const antes = queryClient.getQueryData<MinhasPreferencias>(CHAVE)
+      if (antes)
+        queryClient.setQueryData<MinhasPreferencias>(CHAVE, {
+          ...antes,
+          tipos: antes.tipos.map((t) =>
+            t.tipo === v.tipo ? { ...t, recebe: v.recebe } : t,
+          ),
+        })
+      return { antes }
+    },
     onSuccess: (novas, v) => {
       setErro(null)
-      queryClient.setQueryData(['minhas-preferencias-de-comunicacao'], novas)
+      queryClient.setQueryData(CHAVE, novas)
       const rotulo = v.rotulo.charAt(0).toLowerCase() + v.rotulo.slice(1)
       setAviso(
         v.recebe
@@ -33,7 +47,8 @@ export function PreferenciasDeEmail() {
           : `Você não receberá mais: ${rotulo}.`,
       )
     },
-    onError: (e) => {
+    onError: (e, _v, contexto) => {
+      if (contexto?.antes) queryClient.setQueryData(CHAVE, contexto.antes)
       setAviso(null)
       setErro(e instanceof ApiError ? e.detail : 'Não foi possível salvar.')
     },
@@ -67,7 +82,6 @@ export function PreferenciasDeEmail() {
                     type="checkbox"
                     className="mt-1"
                     checked={t.recebe}
-                    disabled={mudar.isPending}
                     onChange={(e) =>
                       mudar.mutate({
                         tipo: t.tipo,
