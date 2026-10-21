@@ -118,6 +118,11 @@ jobs:
           if [ -f scripts/aplicar_retencao_de_dados.py ]; then
             DATABASE_URL="$HML_DATABASE_URL" PYTHONPATH=. python scripts/aplicar_retencao_de_dados.py
           fi
+          # v6.2c - os avisos agendados cuja hora já passou são publicados (o robô agenda, a publicação seguinte roda a rotina, o robô confere). O e-mail não sai: a
+          # homologação não tem servidor de e-mail.
+          if [ -f scripts/publicar_avisos_agendados.py ]; then
+            DATABASE_URL="$HML_DATABASE_URL" PYTHONPATH=. python scripts/publicar_avisos_agendados.py
+          fi
 
       - name: Build da imagem no ACR
         run: |
