@@ -4943,6 +4943,8 @@ export type AvisosDaMudancaDeStatusDoEvento = {
   avisos_enviados: number
   inscritos_sem_email: number
   enderecos: number
+  // v6.2b: endereços em que alguém desligou os avisos de evento (não recebem)
+  enderecos_que_desligaram?: number
 }
 
 export type ResultadoDaMudancaDeStatusDoEvento = {

@@ -1,0 +1,25 @@
+---
+import Descadastro from '../../components/Descadastro.astro'
+import TituloDePagina from '../../components/TituloDePagina.astro'
+import type { Migalha } from '../../config/navegacao'
+import Base from '../../layouts/Base.astro'
+
+// Página do link "Não quer mais receber este tipo de e-mail?" que vem no fim dos e-mails da ASAF que a pessoa pode desligar (v6.2b). Não é página de conteúdo:
+// fora do Google (noindex) e fora do sitemap (astro.config.mjs). Lê o `?token=` no navegador (lib/descadastro.ts).
+const migalhas: Migalha[] = [{ rotulo: 'E-mails da ASAF' }]
+---
+
+<Base
+  titulo="E-mails da ASAF"
+  descricao="Escolha se quer continuar recebendo um tipo de e-mail da ASAF, pelo link que vem no próprio e-mail."
+  caminho="/descadastrar/"
+  migalhas={migalhas}
+  indexavel={false}
+>
+  <TituloDePagina
+    titulo="E-mails da ASAF"
+    resumo="Pare de receber (ou volte a receber) o tipo de e-mail deste link."
+    migalhas={migalhas}
+  />
+  <Descadastro />
+</Base>

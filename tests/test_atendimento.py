@@ -373,7 +373,7 @@ def test_responder_sem_e_mail_nao_diz_que_falhou_o_envio(client, db, auth_header
 
 def test_a_resposta_sai_por_e_mail_quando_o_envio_funciona(client, db, auth_headers, monkeypatch):
     enviados = []
-    monkeypatch.setattr(servico.notificacoes, "enviar_email", lambda destino, assunto, corpo_texto: enviados.append((destino, assunto, corpo_texto)))
+    monkeypatch.setattr(servico.notificacoes, "enviar_email", lambda destino, assunto, corpo_texto, cabecalhos=None: enviados.append((destino, assunto, corpo_texto)))
     email = f"recebe.{uuid.uuid4().hex[:6]}@example.com"
     protocolo = _enviar(client, email_contato=email).json()["protocolo"]
     id_atendimento = db.query(Atendimento).filter(Atendimento.protocolo == protocolo).one().id_atendimento
@@ -557,7 +557,7 @@ def test_cadastrar_o_voluntario_liga_a_pessoa_que_ja_tem_o_mesmo_cpf_em_vez_de_c
 
 def test_o_e_mail_de_confirmacao_sai_com_o_protocolo_e_o_prazo_so_para_pedido_novo_com_e_mail(client, db, monkeypatch):
     enviados = []
-    monkeypatch.setattr(servico.notificacoes, "enviar_email", lambda destino, assunto, corpo_texto: enviados.append((destino, assunto, corpo_texto)))
+    monkeypatch.setattr(servico.notificacoes, "enviar_email", lambda destino, assunto, corpo_texto, cabecalhos=None: enviados.append((destino, assunto, corpo_texto)))
     email = f"confirma.{uuid.uuid4().hex[:8]}@example.com"
     corpo = _corpo(email_contato=email)
     ip = _ip()

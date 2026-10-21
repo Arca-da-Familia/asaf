@@ -29,8 +29,9 @@ from sqlalchemy.orm import Session
 from app.auditoria import registrar_auditoria
 from app.config_cache import obter_configuracao
 from app.models.associados import Associado
-from app.models.comunicacao import CANAL_EMAIL, CANCELADO, ENVIADO, ENVIANDO, FALHOU, NA_FILA, SEM_EMAIL, Aviso, AvisoDestinatario, EntregaDeAviso
-from app.services import comunicacao, notificacoes
+from app.models.comunicacao import CANAL_EMAIL, CANCELADO, ENVIADO, ENVIANDO, FALHOU, NA_FILA, NAO_RECEBE, SEM_EMAIL, Aviso, AvisoDestinatario, EntregaDeAviso
+from app.models.preferencias_de_comunicacao import AVISOS as AVISO_POR_EMAIL
+from app.services import comunicacao, notificacoes, preferencias_de_comunicacao
 from app.services.fuso import dia_e_hora_em_belem
 from app.services.site_publico import link_para_o_aviso
 
@@ -98,7 +99,9 @@ def motivo_legivel(erro: Exception, tipo: str) -> str:
     return _ENDERECO.sub("(endereço)", frases.get(tipo, "Falha no envio") + sufixo)[:300]
 
 
-def montar_email(db: Session, aviso: Aviso, linha: AvisoDestinatario, nomes: Callable[[Optional[int]], Optional[str]]) -> tuple[str, str]:
+def montar_email(
+    db: Session, aviso: Aviso, linha: AvisoDestinatario, nomes: Callable[[Optional[int]], Optional[str]], *, obrigatorio: bool = False, id_pessoa: Optional[int] = None,
+) -> tuple[str, str, dict]:
     """O assunto e o texto (só texto). Quem tem acesso ao painel recebe o link para abrir (e confirmar a leitura, quando o aviso pede); quem não tem, a explicação de que o aviso também
     está guardado no nome dele. Nunca diz a regra do grupo (ela pode revelar a situação da pessoa, ex.: inadimplente)."""
     assunto = f"ASAF: {aviso.titulo}"[:200]
@@ -110,7 +113,14 @@ def montar_email(db: Session, aviso: Aviso, linha: AvisoDestinatario, nomes: Cal
     else:
         partes.append("Este aviso também fica guardado no seu nome no painel da ASAF: você o verá quando tiver acesso ao painel.")
     partes += ["", "Este e-mail foi enviado pela ASAF (asaf.org.br). Responda a este e-mail se precisar falar com a associação."]
-    return assunto, "\n".join(partes)
+    cabecalhos: dict = {}
+    if obrigatorio:
+        partes.append("Este é um aviso obrigatório da associação (convocação ou mudança de regra): ele chega mesmo a quem desligou os outros avisos por e-mail.")
+    elif id_pessoa is not None:
+        # v6.2b: o aviso que não é obrigatório leva o link para parar de receber (e o cabeçalho que os programas de e-mail usam para o botão de cancelar)
+        texto, cabecalhos = preferencias_de_comunicacao.rodape(db, id_pessoa, AVISO_POR_EMAIL)
+        partes.append(texto.strip())
+    return assunto, "\n".join(partes), cabecalhos
 
 
 def _pegar(db: Session, entrega: EntregaDeAviso) -> bool:
@@ -186,15 +196,22 @@ def enviar_pendentes(db: Session, agora: Optional[datetime] = None, conexao: Cal
             for entrega, linha, aviso in fila:
                 if not _pegar(db, entrega):
                     continue  # outra rodada pegou, ou o aviso foi retirado no meio
+                obrigatorio = aviso.categoria in obrigatorias
+                id_pessoa = db.query(Associado.id_pessoa).filter(Associado.id_associado == linha.id_associado).scalar() if linha.id_associado is not None else None
+                if not obrigatorio and not preferencias_de_comunicacao.recebe(db, id_pessoa, AVISO_POR_EMAIL):
+                    entrega.situacao = NAO_RECEBE  # desligou depois de o aviso ser publicado
+                    resultado["nao_recebe"] = resultado.get("nao_recebe", 0) + 1
+                    db.commit()
+                    continue
                 endereco, origem = comunicacao.email_atual(db, linha)
                 if endereco is None:
                     entrega.situacao = SEM_EMAIL
                     resultado["sem_email"] += 1
                     db.commit()
                     continue
-                assunto, corpo = montar_email(db, aviso, linha, nomes)
+                assunto, corpo, cabecalhos = montar_email(db, aviso, linha, nomes, obrigatorio=obrigatorio, id_pessoa=id_pessoa)
                 try:
-                    smtp.enviar(endereco, assunto, corpo)
+                    smtp.enviar(endereco, assunto, corpo, cabecalhos)
                 except Exception as erro:  # noqa: BLE001 - cada erro é classificado; só os que tornam a conexão (ou a conta) inútil param a rodada
                     tipo = classificar(erro)
                     if tipo in (LIMITE, REMETENTE, PAUSA):

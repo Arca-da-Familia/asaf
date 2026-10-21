@@ -27,6 +27,7 @@ from app.models.comunicacao import (
     CANCELADO,
     ENVIADO,
     ENVIANDO,
+    NAO_RECEBE,
     FALHOU,
     NA_FILA,
     SEM_EMAIL,
@@ -42,7 +43,8 @@ from app.models.comunicacao import (
 )
 from app.models.core import Catalogo, OpcaoCatalogo, PermissaoSistema, Usuario
 from app.models.projetos import AlocacaoVoluntario, EquipeProjeto, ProjetoEvento
-from app.services import notificacoes_painel
+from app.models.preferencias_de_comunicacao import AVISOS as AVISO_POR_EMAIL
+from app.services import notificacoes_painel, preferencias_de_comunicacao
 from app.services.catalogos import validar_codigo_em_catalogo
 from app.services.categoria_associado import ATIVO_EM_DIA, ATIVO_INADIMPLENTE, EM_EXPERIENCIA, LICENCIADO, calcular_categorias
 from app.services.fuso import para_belem
@@ -154,6 +156,7 @@ class Destino:
     id_usuario: Optional[int]
     nome: str
     email: Optional[str] = None  # v6.2a: o e-mail do cadastro AGORA (só para contar; a entrega lê de novo na hora de enviar)
+    id_pessoa: Optional[int] = None  # v6.2b: para respeitar a preferência de contato
 
     @property
     def tem_acesso(self) -> bool:
@@ -244,7 +247,7 @@ def _destinos_por_associados(db: Session, ids: Optional[set[int]], situacoes: li
             continue
         id_usuario = associado.id_usuario if associado.id_usuario in ativos else None
         email, _ = email_de(associado.pessoa.email_contato if associado.pessoa else None, ativos.get(associado.id_usuario))
-        destinos.append(Destino(associado.id_associado, id_usuario, _nome_do_associado(associado), email))
+        destinos.append(Destino(associado.id_associado, id_usuario, _nome_do_associado(associado), email, associado.id_pessoa))
     return destinos
 
 
@@ -263,7 +266,10 @@ def _destinos_por_permissao(db: Session, codigo: str) -> list[Destino]:
         if not usuario_tem_permissao(db, usuario, codigo):
             continue
         email, _ = email_de(associado.pessoa.email_contato if associado is not None and associado.pessoa else None, usuario.email)
-        destinos.append(Destino(associado.id_associado if associado else None, usuario.id_usuario, _nome_do_associado(associado) if associado else usuario.email, email))
+        destinos.append(Destino(
+            associado.id_associado if associado else None, usuario.id_usuario, _nome_do_associado(associado) if associado else usuario.email, email,
+            associado.id_pessoa if associado else None,
+        ))
     return destinos
 
 
@@ -325,6 +331,8 @@ def conferir_publico(db: Session, usuario: Usuario, publico: dict) -> dict:
         "total": len(destinos),
         "sem_acesso": sum(1 for d in destinos if not d.tem_acesso),
         "com_email": sum(1 for d in destinos if d.email),
+        # v6.2b: dos que têm e-mail, quantos desligaram os avisos NÃO obrigatórios por e-mail (a convocação e a mudança de regra chegam a eles mesmo assim)
+        "desligaram_os_avisos": len(preferencias_de_comunicacao.quem_nao_recebe(db, (d.id_pessoa for d in destinos if d.email), AVISO_POR_EMAIL)),
         "pessoas": [{"nome": d.nome, "tem_acesso": d.tem_acesso, "tem_email": bool(d.email)} for d in destinos],
     }
 
@@ -342,6 +350,10 @@ def _avisar_no_sino(db: Session, aviso: Aviso, destinos: list[Destino]) -> None:
 def _gravar_destinos(db: Session, aviso: Aviso, destinos: list[Destino]) -> None:
     """Uma linha por pessoa (a prova) e, se o aviso vai também por e-mail, a entrega dela na fila (ou "sem e-mail no cadastro")."""
     agora = datetime.utcnow()
+    # v6.2b: quem desligou os avisos por e-mail não recebe o e-mail de um aviso NÃO obrigatório (no painel, recebe sempre)
+    fora = set()
+    if aviso.por_email and aviso.categoria not in categorias_obrigatorias(db):
+        fora = preferencias_de_comunicacao.quem_nao_recebe(db, (d.id_pessoa for d in destinos), AVISO_POR_EMAIL)
     linhas = [
         AvisoDestinatario(id_aviso=aviso.id_aviso, id_associado=d.id_associado, id_usuario=d.id_usuario, tinha_acesso=d.tem_acesso, incluido_em=agora)
         for d in destinos
@@ -350,7 +362,10 @@ def _gravar_destinos(db: Session, aviso: Aviso, destinos: list[Destino]) -> None
     if aviso.por_email:
         db.flush()
         db.add_all([
-            EntregaDeAviso(id_destinatario=linha.id_destinatario, canal=CANAL_EMAIL, situacao=NA_FILA if d.email else SEM_EMAIL, tentativas=0, criado_em=agora)
+            EntregaDeAviso(
+                id_destinatario=linha.id_destinatario, canal=CANAL_EMAIL, tentativas=0, criado_em=agora,
+                situacao=(NAO_RECEBE if d.id_pessoa in fora else NA_FILA) if d.email else SEM_EMAIL,
+            )
             for linha, d in zip(linhas, destinos)
         ])
 
@@ -486,7 +501,7 @@ def _totais_de_email(db: Session, ids_avisos: list[int]) -> dict[int, dict]:
     )
     totais: dict[int, dict] = {}
     for id_aviso, situacao_da_entrega, n in linhas:
-        totais.setdefault(id_aviso, {s: 0 for s in (NA_FILA, ENVIANDO, ENVIADO, FALHOU, SEM_EMAIL, CANCELADO)})[situacao_da_entrega] = n
+        totais.setdefault(id_aviso, {s: 0 for s in (NA_FILA, ENVIANDO, ENVIADO, FALHOU, SEM_EMAIL, CANCELADO, NAO_RECEBE)})[situacao_da_entrega] = n
     return totais
 
 

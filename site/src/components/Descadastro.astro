@@ -1,0 +1,87 @@
+---
+import { API_URL } from '../config/organizacao'
+import {
+  MENSAGEM_DE_FALHA,
+  MENSAGEM_DE_LINK_INVALIDO,
+  MENSAGEM_SEM_TOKEN,
+} from '../lib/descadastro'
+
+// O miolo da página /descadastrar/ (v6.2b). Quem se comporta é `lib/descadastro.ts`, que lê o `?token=` no navegador e fala com a API; aqui só o HTML, com cada
+// estado (carregando, sem link, link inválido, falha, a escolha) num bloco que a ilha mostra ou esconde.
+const botaoPrimario =
+  'rounded-md bg-primary px-6 py-3 font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60'
+const botaoSecundario =
+  'rounded-md border px-6 py-3 font-medium hover:bg-accent disabled:opacity-60'
+---
+
+<div
+  class="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-12"
+  data-descadastro
+  data-api-url={API_URL}
+  aria-live="polite"
+>
+  <noscript>
+    <p class="font-medium">
+      Para escolher os e-mails por esta página é preciso ativar o JavaScript do
+      navegador. Quem tem acesso ao painel também pode escolher no Meu Perfil.
+    </p>
+  </noscript>
+
+  <p data-estado="carregando" role="status">
+    Buscando o seu link…
+  </p>
+
+  <div data-estado="sem-token" hidden class="rounded-lg border bg-card p-6">
+    <p class="font-medium">{MENSAGEM_SEM_TOKEN}</p>
+  </div>
+
+  <div
+    data-estado="invalido"
+    hidden
+    class="rounded-lg border-2 border-destructive bg-card p-6"
+  >
+    <p class="font-medium">{MENSAGEM_DE_LINK_INVALIDO}</p>
+  </div>
+
+  <div
+    data-estado="erro"
+    hidden
+    class="rounded-lg border-2 border-destructive bg-card p-6"
+  >
+    <p class="font-medium">{MENSAGEM_DE_FALHA}</p>
+  </div>
+
+  <div data-estado="ok" hidden class="flex flex-col gap-6">
+    <p class="text-lg font-medium" data-situacao></p>
+    <div class="flex flex-wrap gap-3">
+      <button type="button" class={botaoPrimario} data-parar hidden>
+        Não quero mais receber
+      </button>
+      <button
+        type="button"
+        class={botaoSecundario}
+        data-voltar-a-receber
+        hidden
+      >
+        Quero voltar a receber
+      </button>
+    </div>
+    <p role="status" class="font-medium" data-resultado hidden></p>
+    <p role="alert" class="font-medium text-destructive" data-falha hidden></p>
+    <p class="text-sm text-muted-foreground" data-obrigatorias>
+      A convocação de assembleia e a mudança de regra são comunicações
+      obrigatórias da associação e não se desligam: quando a ASAF as manda por
+      e-mail, elas chegam também a quem desligou os outros avisos. O e-mail que
+      você mesmo pede (um código de acesso, um recibo, a resposta a um pedido)
+      também continua chegando.
+    </p>
+  </div>
+</div>
+
+<script>
+  import { iniciarPaginaDeDescadastro } from '../lib/descadastro'
+
+  document
+    .querySelectorAll<HTMLElement>('[data-descadastro]')
+    .forEach((raiz) => iniciarPaginaDeDescadastro(raiz))
+</script>

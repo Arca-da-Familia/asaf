@@ -42,7 +42,7 @@ def test_lembrete_no_vencimento_e_antes_do_vencimento(client, auth_headers, db, 
     titulo_futuro = _criar_titulo_a_receber(client, auth_headers, conta_receita, associado["id_associado"], 60, hoje + timedelta(days=5))
 
     enviados = []
-    monkeypatch.setattr(lembretes.notificacoes, "enviar_email", lambda destinatario, assunto, corpo_texto: enviados.append((destinatario, assunto, corpo_texto)))
+    monkeypatch.setattr(lembretes.notificacoes, "enviar_email", lambda destinatario, assunto, corpo_texto, cabecalhos=None: enviados.append((destinatario, assunto, corpo_texto)))
 
     resultado = lembretes.enviar_lembretes_do_dia(db, hoje=hoje)
 
@@ -68,7 +68,7 @@ def test_lembrete_nunca_duplicado_mesmo_rodando_duas_vezes(client, auth_headers,
     _criar_titulo_a_receber(client, auth_headers, conta_receita, associado["id_associado"], 50, hoje)
 
     chamadas = []
-    monkeypatch.setattr(lembretes.notificacoes, "enviar_email", lambda destinatario, assunto, corpo_texto: chamadas.append(destinatario))
+    monkeypatch.setattr(lembretes.notificacoes, "enviar_email", lambda destinatario, assunto, corpo_texto, cabecalhos=None: chamadas.append(destinatario))
 
     primeira = lembretes.enviar_lembretes_do_dia(db, hoje=hoje)
     segunda = lembretes.enviar_lembretes_do_dia(db, hoje=hoje)
@@ -105,7 +105,7 @@ def test_lembrete_pula_titulo_sem_associado_ou_sem_email(client, auth_headers, d
     db.commit()
 
     enviados = []
-    monkeypatch.setattr(lembretes.notificacoes, "enviar_email", lambda destinatario, assunto, corpo_texto: enviados.append(destinatario))
+    monkeypatch.setattr(lembretes.notificacoes, "enviar_email", lambda destinatario, assunto, corpo_texto, cabecalhos=None: enviados.append(destinatario))
 
     resultado = lembretes.enviar_lembretes_do_dia(db, hoje=hoje)
     assert resultado == []
@@ -128,7 +128,7 @@ def test_dias_lembrete_e_configuravel(client, auth_headers, db, monkeypatch):
     titulo_5_dias = _criar_titulo_a_receber(client, auth_headers, conta_receita, associado["id_associado"], 50, hoje + timedelta(days=5))
 
     enviados = []
-    monkeypatch.setattr(lembretes.notificacoes, "enviar_email", lambda destinatario, assunto, corpo_texto: enviados.append(destinatario))
+    monkeypatch.setattr(lembretes.notificacoes, "enviar_email", lambda destinatario, assunto, corpo_texto, cabecalhos=None: enviados.append(destinatario))
 
     resultado = lembretes.enviar_lembretes_do_dia(db, hoje=hoje)
     ids_notificados = {r["id_titulo"] for r in resultado}
@@ -153,7 +153,7 @@ def test_lembrete_escalonado_pos_vencimento_configuravel(client, auth_headers, d
     titulo_atraso_15 = _criar_titulo_a_receber(client, auth_headers, conta_receita, associado["id_associado"], 50, hoje - timedelta(days=15))
 
     enviados = []
-    monkeypatch.setattr(lembretes.notificacoes, "enviar_email", lambda destinatario, assunto, corpo_texto: enviados.append(destinatario))
+    monkeypatch.setattr(lembretes.notificacoes, "enviar_email", lambda destinatario, assunto, corpo_texto, cabecalhos=None: enviados.append(destinatario))
 
     resultado = lembretes.enviar_lembretes_do_dia(db, hoje=hoje)
     tipos_por_titulo = {r["id_titulo"]: r["tipo_lembrete"] for r in resultado}

@@ -6,6 +6,7 @@ agendada - nunca hardcoded, mesmo padrão de DATABASE_URL/JWT_SECRET. Usa só a 
 (`smtplib`) - nenhuma dependência nova."""
 import os
 import smtplib
+from typing import Optional
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -18,11 +19,13 @@ def _remetente() -> str:
     return os.environ.get("SMTP_REMETENTE") or os.environ["SMTP_USUARIO"]
 
 
-def _montar(remetente: str, destinatario: str, assunto: str, corpo_texto: str) -> str:
+def _montar(remetente: str, destinatario: str, assunto: str, corpo_texto: str, cabecalhos: Optional[dict] = None) -> str:
     mensagem = MIMEMultipart()
     mensagem["From"] = remetente
     mensagem["To"] = destinatario
     mensagem["Subject"] = assunto
+    for nome, valor in (cabecalhos or {}).items():  # v6.2b: List-Unsubscribe nos e-mails que a pessoa pode desligar
+        mensagem[nome] = valor
     mensagem.attach(MIMEText(corpo_texto, "plain", "utf-8"))
     return mensagem.as_string()
 
@@ -40,10 +43,10 @@ def _conectar() -> smtplib.SMTP:
     return servidor
 
 
-def enviar_email(destinatario: str, assunto: str, corpo_texto: str) -> None:
+def enviar_email(destinatario: str, assunto: str, corpo_texto: str, cabecalhos: Optional[dict] = None) -> None:
     with _conectar() as servidor:
         remetente = _remetente()
-        servidor.sendmail(remetente, [destinatario], _montar(remetente, destinatario, assunto, corpo_texto))
+        servidor.sendmail(remetente, [destinatario], _montar(remetente, destinatario, assunto, corpo_texto, cabecalhos))
 
 
 class ConexaoDeEmail:
@@ -55,8 +58,8 @@ class ConexaoDeEmail:
         self.remetente = _remetente()
         return self
 
-    def enviar(self, destinatario: str, assunto: str, corpo_texto: str) -> None:
-        self.servidor.sendmail(self.remetente, [destinatario], _montar(self.remetente, destinatario, assunto, corpo_texto))
+    def enviar(self, destinatario: str, assunto: str, corpo_texto: str, cabecalhos: Optional[dict] = None) -> None:
+        self.servidor.sendmail(self.remetente, [destinatario], _montar(self.remetente, destinatario, assunto, corpo_texto, cabecalhos))
 
     def __exit__(self, *_erro) -> None:
         try:

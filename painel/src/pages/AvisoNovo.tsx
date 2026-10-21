@@ -399,6 +399,10 @@ export function AvisoNovoPage() {
                   {conferencia.com_email < conferencia.total &&
                     `; ${conferencia.total - conferencia.com_email} ficam só com o painel`}
                   .
+                  {conferencia.desligaram_os_avisos > 0 &&
+                    (categoriaObrigatoria
+                      ? ` ${conferencia.desligaram_os_avisos} desligaram os avisos por e-mail, mas este é obrigatório e chega a eles também.`
+                      : ` ${conferencia.desligaram_os_avisos} desligaram os avisos por e-mail e não recebem este por e-mail (só no painel).`)}
                 </p>
               )}
               {conferencia.total === 0 ? (

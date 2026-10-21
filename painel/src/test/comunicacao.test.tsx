@@ -6,6 +6,7 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MuralDeAvisos } from '@/components/comunicacao/MuralDeAvisos'
+import { PreferenciasDeEmail } from '@/components/comunicacao/PreferenciasDeEmail'
 import { ApiError } from '@/lib/api'
 import * as com from '@/lib/comunicacao'
 import { moduloVisivel, modulos } from '@/lib/modulos'
@@ -26,6 +27,8 @@ vi.mock('@/lib/comunicacao', async (importOriginal) => ({
   incluirNovosNoAviso: vi.fn(),
   retirarAviso: vi.fn(),
   reenviarEmailsDoAviso: vi.fn(),
+  minhasPreferencias: vi.fn(),
+  mudarPreferencia: vi.fn(),
 }))
 
 function desenhar(rota: string, caminho: string, elemento: React.ReactNode) {
@@ -336,6 +339,7 @@ describe('publicar um aviso', () => {
       total: 2,
       sem_acesso: 1,
       com_email: 1,
+      desligaram_os_avisos: 0,
       pessoas: [
         { nome: 'Ana', tem_acesso: true, tem_email: true },
         { nome: 'Carla', tem_acesso: false, tem_email: false },
@@ -389,6 +393,7 @@ describe('publicar um aviso', () => {
       total: 5,
       sem_acesso: 0,
       com_email: 0,
+      desligaram_os_avisos: 0,
       pessoas: [],
     })
     desenhar('/comunicacao/novo', '/comunicacao/novo', <AvisoNovoPage />)
@@ -409,6 +414,7 @@ describe('publicar um aviso', () => {
       total: 5,
       sem_acesso: 0,
       com_email: 0,
+      desligaram_os_avisos: 0,
       pessoas: [],
     })
     vi.mocked(com.publicarAviso).mockRejectedValue(
@@ -540,6 +546,7 @@ describe('a conferência só vale para o grupo conferido', () => {
       total: 12,
       sem_acesso: 0,
       com_email: 0,
+      desligaram_os_avisos: 0,
       pessoas: [],
     })
     await waitFor(() => expect(com.conferirPublico).toHaveBeenCalledTimes(1))
@@ -578,6 +585,7 @@ describe('o aviso também por e-mail', () => {
       total: 3,
       sem_acesso: 0,
       com_email: 2,
+      desligaram_os_avisos: 0,
       pessoas: [
         { nome: 'Ana', tem_acesso: true, tem_email: true },
         { nome: 'Bruno', tem_acesso: true, tem_email: true },
@@ -629,6 +637,7 @@ describe('o aviso também por e-mail', () => {
       total: 1,
       sem_acesso: 0,
       com_email: 1,
+      desligaram_os_avisos: 0,
       pessoas: [{ nome: 'Ana', tem_acesso: true, tem_email: true }],
     })
     vi.mocked(com.publicarAviso).mockResolvedValue(avisoCompleto())
@@ -671,6 +680,7 @@ describe('o aviso também por e-mail', () => {
         Falhou: 1,
         'Sem e-mail no cadastro': 1,
         Cancelado: 0,
+        'Desligou por escolha': 0,
       },
       destinatarios: [
         destinatario({
@@ -772,7 +782,111 @@ describe('o aviso também por e-mail', () => {
         Falhou: 0,
         'Sem e-mail no cadastro': 0,
         Cancelado: 2,
+        'Desligou por escolha': 3,
       }),
-    ).toBe('4 na fila · 2 cancelados')
+    ).toBe('4 na fila · 2 cancelados · 3 desligaram os avisos por e-mail')
+  })
+})
+
+// v6.2b - preferências de e-mail no Meu Perfil
+describe('os e-mails da ASAF no Meu Perfil', () => {
+  const preferencias = (
+    extra: Partial<com.MinhasPreferencias> = {},
+  ): com.MinhasPreferencias => ({
+    tem_cadastro: true,
+    obrigatorias:
+      'Convocação de assembleia e mudança de regra: são comunicações obrigatórias da associação e não podem ser desligadas.',
+    tipos: [
+      { tipo: 'avisos', rotulo: 'Avisos do mural', recebe: true },
+      {
+        tipo: 'lembretes_de_mensalidade',
+        rotulo: 'Lembretes de mensalidade',
+        recebe: true,
+      },
+      { tipo: 'eventos', rotulo: 'Avisos sobre eventos', recebe: false },
+    ],
+    ...extra,
+  })
+
+  it('mostra as três escolhas, diz quais são obrigatórias e desliga uma', async () => {
+    vi.mocked(com.minhasPreferencias).mockResolvedValue(preferencias())
+    vi.mocked(com.mudarPreferencia).mockResolvedValue(
+      preferencias({
+        tipos: [
+          { tipo: 'avisos', rotulo: 'Avisos do mural', recebe: true },
+          {
+            tipo: 'lembretes_de_mensalidade',
+            rotulo: 'Lembretes de mensalidade',
+            recebe: false,
+          },
+          { tipo: 'eventos', rotulo: 'Avisos sobre eventos', recebe: false },
+        ],
+      }),
+    )
+    const { container } = desenhar(
+      '/perfil',
+      '/perfil',
+      <PreferenciasDeEmail />,
+    )
+    const lembretes = await screen.findByRole('checkbox', {
+      name: /Lembretes de mensalidade/,
+    })
+    expect(lembretes).toBeChecked()
+    expect(
+      screen.getByRole('checkbox', { name: /Avisos sobre eventos/ }),
+    ).not.toBeChecked()
+    expect(screen.getByText(/não podem ser desligadas/)).toBeVisible()
+    expect(screen.queryByRole('checkbox', { name: /Convocação/ })).toBeNull()
+    expect(await axe(container)).toHaveNoViolations()
+    await userEvent.click(lembretes)
+    expect(com.mudarPreferencia).toHaveBeenCalledWith(
+      'lembretes_de_mensalidade',
+      false,
+    )
+    expect(
+      await screen.findByText(
+        /Você não receberá mais: lembretes de mensalidade/,
+      ),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('checkbox', { name: /Lembretes de mensalidade/ }),
+    ).not.toBeChecked()
+  })
+
+  it('sem cadastro de pessoa, não há o que escolher', async () => {
+    vi.mocked(com.minhasPreferencias).mockResolvedValue(
+      preferencias({ tem_cadastro: false, tipos: [] }),
+    )
+    desenhar('/perfil', '/perfil', <PreferenciasDeEmail />)
+    expect(
+      await screen.findByText(/não há e-mails da ASAF para escolher/),
+    ).toBeVisible()
+    expect(screen.queryByRole('checkbox')).toBeNull()
+  })
+})
+
+describe('a caixa da preferência muda na hora', () => {
+  it('se o servidor recusar, volta ao que era e diz por quê', async () => {
+    vi.mocked(com.minhasPreferencias).mockResolvedValue({
+      tem_cadastro: true,
+      obrigatorias: 'obrigatórias',
+      tipos: [{ tipo: 'avisos', rotulo: 'Avisos do mural', recebe: true }],
+    })
+    let recusar: (e: unknown) => void = () => {}
+    vi.mocked(com.mudarPreferencia).mockImplementation(
+      () =>
+        new Promise((_, rejeitar) => {
+          recusar = rejeitar
+        }),
+    )
+    desenhar('/perfil', '/perfil', <PreferenciasDeEmail />)
+    const caixa = await screen.findByRole('checkbox', {
+      name: /Avisos do mural/,
+    })
+    await userEvent.click(caixa)
+    expect(caixa).not.toBeChecked()
+    recusar(new ApiError(409, 'Não deu.'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não deu.')
+    expect(caixa).toBeChecked()
   })
 })

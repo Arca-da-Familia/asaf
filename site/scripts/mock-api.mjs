@@ -1635,6 +1635,21 @@ function inscricaoPorCodigo(codigo) {
     : null
 }
 
+// v6.2b - os links de descadastro que o mock reconhece (a assinatura é de mentira: o servidor de verdade confere com o segredo dele)
+export const TOKEN_DE_DESCADASTRO =
+  '101.avisos.0123456789abcdef0123456789abcdef'
+export const TOKEN_JA_DESCADASTRADO =
+  '102.lembretes_de_mensalidade.fedcba9876543210fedcba9876543210'
+const TOKENS_DE_DESCADASTRO = {
+  [TOKEN_DE_DESCADASTRO]: 'avisos',
+  [TOKEN_JA_DESCADASTRADO]: 'lembretes_de_mensalidade',
+}
+const ROTULOS_DE_DESCADASTRO = {
+  avisos: 'Avisos do mural da ASAF que não são obrigatórios (por e-mail)',
+  lembretes_de_mensalidade: 'Lembretes de mensalidade',
+}
+const escolhasDeDescadastro = new Map()
+
 /** O que `GET /api/publico/inscricoes/{código}` devolve: as mesmas regras do servidor (cancelar e confirmar dependem da situação e de o evento ter acontecido). */
 function resumoDaInscricao(inscricao) {
   const evento = eventos().find((e) => e.id_evento === inscricao.idEvento)
@@ -2195,6 +2210,50 @@ export function criarServidor({
       (req.url ?? '').split('?')[0] === '/__pedidos-de-atendimento'
     ) {
       return responder(pedidosDeAtendimento)
+    }
+
+    // ---- Descadastro (v6.2b): o link assinado do fim dos e-mails que se podem desligar. Só os tokens de TOKENS_DE_DESCADASTRO valem (como o servidor, qualquer
+    // outro é 404); a escolha fica na memória do mock, por token. API ANTIGA: a rota não existe.
+    if (
+      !antiga &&
+      (req.url ?? '').split('?')[0] === '/api/publico/descadastro'
+    ) {
+      if (req.method === 'GET') {
+        const token =
+          new URL(req.url ?? '', 'http://x').searchParams.get('token') ?? ''
+        const tipo = TOKENS_DE_DESCADASTRO[token]
+        if (!tipo)
+          return responder({ detail: 'Link inválido ou incompleto.' }, 404)
+        return responder({
+          tipo,
+          rotulo: ROTULOS_DE_DESCADASTRO[tipo],
+          recebe:
+            escolhasDeDescadastro.get(token) ??
+            token !== TOKEN_JA_DESCADASTRADO,
+        })
+      }
+      if (req.method === 'POST') {
+        let texto = ''
+        req.on('data', (parte) => (texto += parte))
+        req.on('end', () => {
+          let corpo
+          try {
+            corpo = JSON.parse(texto)
+          } catch {
+            return responder({ detail: 'Corpo inválido.' }, 422)
+          }
+          const tipo = TOKENS_DE_DESCADASTRO[corpo.token]
+          if (!tipo)
+            return responder({ detail: 'Link inválido ou incompleto.' }, 404)
+          escolhasDeDescadastro.set(corpo.token, corpo.recebe === true)
+          return responder({
+            tipo,
+            rotulo: ROTULOS_DE_DESCADASTRO[tipo],
+            recebe: corpo.recebe === true,
+          })
+        })
+        return
+      }
     }
 
     // ---- Conta do visitante (v5.6b). API ANTIGA: as rotas não existem (caem no 404 do fim).

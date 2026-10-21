@@ -59,6 +59,10 @@ const presidente = presidenteDaDiretoria((await conteudoPublico()).diretoria)
 // é apagada 5 anos depois de o aviso sair do mural (vencer ou ser retirado, o que vier primeiro); ficam o aviso e os totais. A confirmação ("Li e estou ciente") também vai para a Auditoria, que
 // não tem prazo automático: o item diz isso. O item do sino deixa de dizer "da equipe": desde a v6.1 o sino também avisa o associado de um aviso novo
 // (o prazo de 1 ano é o mesmo). A lista de prazos passa a ter 8 itens (decisão do Presidente: o prazo da lei, 5 anos; ver PLANO_PROJETO.md v6.1).
+// v2.5 (2026-10-21): os E-MAILS DA ASAF e o descadastro (v6.2b, `app/services/preferencias_de_comunicacao.py`, `app/services/envio_de_avisos.py`, `app/services/lembretes.py`,
+// `app/services/status_do_evento.py`): o parágrafo `data-emails-da-asaf` diz SÓ o que o código faz — quais e-mails saem, o link assinado no fim dos que se podem desligar (e o
+// cabeçalho List-Unsubscribe), o Meu Perfil, as obrigatórias (Convocação e Mudança de regra, decisão do Presidente de 2026-10-20), a escolha guardada com data e origem, a Auditoria
+// (pelo link, com o IP) e que o sistema não registra a abertura do e-mail (não há pixel de rastreio).
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -384,10 +388,10 @@ const direitos = [
         avisos seguintes, como o de uma vaga que abriu na lista de espera.
         Quando a ASAF muda a situação do evento (cancela, adia, remarca ou volta
         a programá-lo), o sistema tenta avisar por e-mail, no contato do
-        cadastro, quem está inscrito ou na lista de espera; a inscrição em si
-        não é cancelada pelo sistema. O endereço IP de quem envia, abre, cancela
-        ou confirma uma inscrição pelo link também fica registrado, por
-        segurança.
+        cadastro, quem está inscrito ou na lista de espera (menos quem desligou
+        esses avisos, como explicado abaixo); a inscrição em si não é cancelada
+        pelo sistema. O endereço IP de quem envia, abre, cancela ou confirma uma
+        inscrição pelo link também fica registrado, por segurança.
       </p>
       <p class="mt-3" id="doacao-pelo-site" data-doacao>
         <strong>Doação pelo site.</strong> A página{' '}
@@ -490,6 +494,25 @@ const direitos = [
         geral informados por essas pessoas à secretaria — para cumprir o
         Estatuto e a lei (como o livro de associados e a escrituração contábil)
         e para realizar as suas atividades.
+      </p>
+      <p class="mt-3" id="emails-da-asaf" data-emails-da-asaf>
+        <strong>E-mails da ASAF.</strong> O sistema envia por e-mail, a quem tem
+        e-mail no cadastro, lembretes de mensalidade, avisos de mudança na
+        situação de um evento em que a pessoa se inscreveu (cancelamento,
+        adiamento, remarcação ou volta à programação) e os avisos do mural do
+        painel que quem os publica marca para irem também por e-mail. Esses
+        e-mails, menos os obrigatórios, trazem no fim um link para parar de
+        receber aquele tipo de mensagem (o mesmo link deixa voltar a receber);
+        quem tem acesso ao painel também escolhe no Meu Perfil. Como o aviso de
+        evento vai uma vez por endereço, quando alguém que usa aquele endereço
+        desliga esses avisos, o endereço deixa de recebê-los. A convocação de
+        assembleia e a mudança de regra são comunicações obrigatórias da
+        associação e não se desligam; o e-mail que você mesmo pede (um código de
+        acesso, um recibo, a resposta a um pedido) e o aviso de que abriu uma
+        vaga para você na lista de espera também não. A escolha fica guardada no
+        seu cadastro, com a data e de onde veio (o link ou o painel), e a
+        Auditoria do sistema registra a mudança (pelo link, com o endereço IP).
+        O sistema não registra se você abriu o e-mail.
       </p>
       <p class="mt-3">
         Sobre menores: quem tem 16 ou 17 anos só se filia com a autorização dos
