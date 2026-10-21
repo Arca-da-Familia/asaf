@@ -447,18 +447,43 @@ Em quatro partes, uma por vez (cada uma: branch → homologação → `main`):
 
 ##### v6.2a — O aviso também por e-mail, com registro de entrega por pessoa
 
-- [ ] Ao publicar, a caixa **"Também por e-mail"** (marcada por padrão em Convocação e Mudança de regra; a categoria ganha a marca `obrigatoria` no catálogo); a conferência do grupo diz quantos
+- [x] Ao publicar, a caixa **"Também por e-mail"** (marcada por padrão em Convocação e Mudança de regra; a categoria ganha a marca `obrigatoria` no catálogo); a conferência do grupo diz quantos
       **têm e-mail** e quantos não têm.
-- [ ] **Registro de entrega por pessoa e por canal** (`entregas_de_aviso`): na fila, enviado (com a hora), falhou (com o motivo, sem o endereço) ou sem e-mail no cadastro. O endereço não é guardado:
+- [x] **Registro de entrega por pessoa e por canal** (`entregas_de_aviso`): na fila, enviado (com a hora), falhou (com o motivo, sem o endereço) ou sem e-mail no cadastro. O endereço não é guardado:
       é lido do cadastro na hora de enviar. A lista some junto com a prova de leitura (o mesmo prazo de 5 anos).
-- [ ] **Envio em lotes pela tarefa de 15 em 15 minutos** (nunca dentro do clique de publicar), com uma conexão por lote, um teto por rodada e um **teto diário configurável** (padrão 1.500, abaixo das
+- [x] **Envio em lotes pela tarefa de 15 em 15 minutos** (nunca dentro do clique de publicar), com uma conexão por lote, um teto por rodada e um **teto diário configurável** (padrão 1.500, abaixo das
       2.000 do Google); falha passageira volta para a fila (até 3 tentativas); recusa definitiva do endereço (ex.: caixa inexistente) não tenta de novo e manda o contato para a fila de higienização da
       v1.8 (e-mail suspeito); estourar o limite do Google para o lote e deixa o resto para depois.
-- [ ] **Relatório de leitura com a coluna do e-mail** e o botão **"Reenviar os que falharam"** (volta para a fila, vai para a Auditoria); retirar o aviso cancela o que ainda estava na fila; incluir quem
+- [x] **Relatório de leitura com a coluna do e-mail** e o botão **"Reenviar os que falharam"** (volta para a fila, vai para a Auditoria); retirar o aviso cancela o que ainda estava na fila; incluir quem
       entrou no grupo depois também põe o e-mail dessas pessoas na fila.
-- [ ] O e-mail leva o texto do aviso, quem publicou e o link para abrir no painel (quem tem acesso confirma a leitura lá); o endereço do painel fica em configuração (`URL_BASE_PAINEL`).
-- [ ] **Na homologação:** o ambiente de teste não tem e-mail (decisão de 2026-10-05: nada sai para gente inventada); o robô prova a fila, o relatório e o reenvio, e o envio em si é provado pelos testes
+- [x] O e-mail leva o texto do aviso, quem publicou e o link para abrir no painel (quem tem acesso confirma a leitura lá); o endereço do painel fica em configuração (`URL_BASE_PAINEL`).
+- [x] **Na homologação:** o ambiente de teste não tem e-mail (decisão de 2026-10-05: nada sai para gente inventada); o robô prova a fila, o relatório e o reenvio, e o envio em si é provado pelos testes
       do servidor contra um servidor de e-mail simulado. A produção é conferida por leitura (a rodada da tarefa no GitHub mostra quantos saíram).
+
+✅ **v6.2a concluída (2026-10-20/21).**
+
+**Como ficou (além do desenho acima):** cada entrega é **pega por uma rodada só** antes de sair (troca condicional `Na fila` → `Enviando` no banco, e o fluxo do GitHub com `concurrency`): duas rodadas
+juntas nunca mandam o mesmo e-mail duas vezes, e o aviso retirado no meio da rodada não sai mais; a entrega que ficou `Enviando` por mais de 1 hora (a rodada caiu no meio) vira "Falhou" dizendo que pode ter
+saído ou não. As categorias obrigatórias saem primeiro. A regra do e-mail é uma só (o de contato do cadastro; sem ele, o do login de um usuário ativo), na conferência e no envio; endereço fora do ASCII
+conta como "sem e-mail". Param a rodada: o limite diário do Google (5.4.5, a entrega volta sem gastar tentativa), a queda da conexão ou o 421, e a recusa do REMETENTE (configuração: o passo fica vermelho);
+o servidor pedindo para esperar no remetente (4xx) para sem alarme. A recusa de UMA pessoa não para a rodada. O motivo da falha é uma frase em português com o código do servidor, sem endereço. **"Enviado"
+quer dizer que saiu do e-mail da ASAF:** o Google recusa na hora só caixa inexistente do próprio Google; a devolução que chega depois, de outros provedores, cai na caixa asaf@asaf.org.br e não é lida pelo
+sistema (a tela diz isso; ler essas devoluções fica para uma versão futura, se o Presidente quiser).
+**Conferência independente (agente `opus`, só leitura) achou 16 pontos, todos corrigidos e reconferidos pelo mesmo agente:** os dois médios eram (1) a primeira recusa de um destinatário parava a rodada
+inteira (o `SMTPRecipientsRefused` herda de `OSError`; um aviso para 300 pessoas levaria horas) e (2) duas rodadas ao mesmo tempo mandariam o e-mail em dobro; os outros: retirada no meio da rodada, recusa
+do remetente tratada como culpa da pessoa (e mandando contatos para a higienização), 421 cobrando tentativa da pessoa seguinte, endereço com acento quebrando a conversa com o servidor, regra do e-mail
+diferente entre os tipos de grupo, higienização do contato quando a recusa era do login, aviso vencido ainda enviando, fila sem prioridade, motivo cru na tela, "Só no painel" falso em aviso antigo, a
+tarefa rodando antes da migração, e detalhes de texto e desempenho.
+**Testes locais:** servidor 1417 em duas rodadas seguidas (27 testes novos do envio, cada garantia confirmada por mutação), painel 696, tipos, lint e formatação limpos; a migração subiu, desceu e subiu de
+novo num banco descartável com o `alembic check` limpo.
+**Na homologação (2026-10-20):** a branch `v62a-aviso-por-email` foi publicada lá (`Running upgrade e5b1d7a3c820 -> a7c3e9f1b246` no banco de TESTE). A homologação não tem servidor de e-mail (de propósito):
+o robô `v6.2a-01`, 4 de 4, provou pelas telas que a Convocação vem com "Também por e-mail" marcada, a conferência diz quantos têm e-mail, o relatório mostra a coluna do e-mail com todos "Na fila" e
+nenhum "Enviado", o diálogo de publicar diz que também sai por e-mail, retirar cancela o que estava na fila, um aviso Geral sai só no painel (sem a coluna), quem não tem `comunicar` recebe 403 ao reenviar,
+e a Auditoria guarda `"por_email": true`. O envio em si (enviado, falha, limite, tetos, rodadas simultâneas) é provado pelos testes do servidor contra um servidor de e-mail simulado. Regressões verdes:
+`v6.1-01` 5/5, `v5.4c-fase0` 6/6 e `v5.4h-09` 5/5.
+**Em produção (2026-10-20/21):** `main` = `0754d14`; Deploy API verde (1417 testes contra Postgres e o log mostra `Running upgrade e5b1d7a3c820 -> a7c3e9f1b246`) e Deploy Painel verde;
+`painel.asaf.org.br/version.json` = `0754d14`; o `openapi.json` traz `/api/avisos/{id_aviso}/reenviar-emails` e o `POST` sem login responde 401; a tarefa periódica já rodou o passo novo em produção,
+verde, com `{'enviados': 0, ...}` (ainda não há aviso marcado para e-mail). Nenhum e-mail de teste saiu em produção.
 
 ##### v6.2b — Preferências de contato e descadastro de verdade
 
