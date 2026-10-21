@@ -96,6 +96,12 @@ jobs:
           ARMAZENAMENTO_BLOB_URL: https://stasafprivado.blob.core.windows.net
         run: PYTHONPATH=. python scripts/aplicar_retencao_de_dados.py
 
+      # v6.2c - os avisos agendados cuja hora já passou são publicados (antes do passo do e-mail, para o e-mail deles sair na mesma rodada). Agendamento que não pode mais sair é
+      # cancelado com o motivo; o passo só FALHA (sai com 1) se um agendamento der erro inesperado.
+      - name: Publicar os avisos agendados
+        if: always()
+        run: PYTHONPATH=. python scripts/publicar_avisos_agendados.py
+
       # v6.2a - os avisos do mural marcados "também por e-mail" saem em lotes (teto por rodada e por dia, em Configurações > Regras do sistema; a conta do Google envia até 2.000 por dia).
       # Recusa de um endereço fica registrada no aviso e não derruba o passo; ele FALHA (sai com 1) se não conseguir conectar ao servidor de e-mail ou se o servidor recusar o remetente.
       - name: Enviar por e-mail os avisos do mural

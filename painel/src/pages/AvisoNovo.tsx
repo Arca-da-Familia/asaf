@@ -7,8 +7,14 @@ import { Campo } from '@/components/forms/Campo'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { ApiError } from '@/lib/api'
+import { paraUtcIso } from '@/lib/datas'
 import {
   PUBLICO_INICIAL,
+  agendarAviso,
+  enviarTesteDoAviso,
+  listarModelos,
+  preVisualizarAviso,
+  variaveisDesconhecidas,
   TAMANHO_DO_TEXTO,
   TAMANHO_DO_TITULO,
   alternar,
@@ -76,10 +82,79 @@ export function AvisoNovoPage() {
   const porEmailEscolhido = porEmail ?? categoriaObrigatoria
   const [confirmando, setConfirmando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  // v6.2c - modelo de partida, pré-visualização, envio de teste e "publicar depois"
+  const { data: modelos } = useQuery({
+    queryKey: ['modelos-de-aviso'],
+    queryFn: listarModelos,
+  })
+  const [idModelo, setIdModelo] = useState<number | null>(null)
+  const [quando, setQuando] = useState<'agora' | 'depois'>('agora')
+  const [publicarEm, setPublicarEm] = useState('')
+  const [previa, setPrevia] = useState<{
+    para: string
+    titulo: string
+    texto: string
+  } | null>(null)
+  const [resultadoDoTeste, setResultadoDoTeste] = useState<string | null>(null)
+  const desconhecidas = variaveisDesconhecidas(texto)
+  const agendando = quando === 'depois'
+
+  function usarModelo(id: string) {
+    const modelo = (modelos ?? []).find((m) => String(m.id_modelo) === id)
+    setIdModelo(modelo ? modelo.id_modelo : null)
+    if (!modelo) return
+    setTitulo(modelo.titulo)
+    setTexto(modelo.texto)
+    setCategoria(modelo.categoria)
+    setExigeConfirmacao(modelo.exige_confirmacao)
+    setPorEmail(modelo.por_email ? true : null)
+    setPrevia(null)
+  }
+
+  const preVisualizar = useMutation({
+    mutationFn: () =>
+      preVisualizarAviso({
+        titulo,
+        texto,
+        publico: faltaNoPublico(publico)
+          ? undefined
+          : publicoParaEnviar(publico),
+      }),
+    onSuccess: (r) => {
+      setErro(null)
+      setPrevia(r)
+    },
+    onError: (e) =>
+      setErro(
+        e instanceof ApiError ? e.detail : 'Não foi possível pré-visualizar.',
+      ),
+  })
+
+  const enviarTeste = useMutation({
+    mutationFn: () =>
+      enviarTesteDoAviso({
+        titulo,
+        texto,
+        exige_confirmacao: exigeConfirmacao,
+      }),
+    onSuccess: (r) => {
+      setErro(null)
+      setResultadoDoTeste(
+        `Teste enviado para ${r.enviado_para}. Confira a sua caixa de entrada.`,
+      )
+    },
+    onError: (e) => {
+      setResultadoDoTeste(null)
+      setErro(
+        e instanceof ApiError ? e.detail : 'Não foi possível enviar o teste.',
+      )
+    },
+  })
 
   function mudarPublico(novo: Partial<PublicoDoAviso>) {
     setPublico((atual) => ({ ...atual, ...novo }))
     setConferencia(null) // o grupo mudou: a contagem anterior não vale mais
+    setPrevia(null)
   }
 
   const conferir = useMutation({
@@ -95,8 +170,8 @@ export function AvisoNovoPage() {
   })
 
   const publicar = useMutation({
-    mutationFn: () =>
-      publicarAviso({
+    mutationFn: async () => {
+      const dados = {
         titulo,
         texto,
         categoria: categoriaEscolhida,
@@ -105,12 +180,25 @@ export function AvisoNovoPage() {
         por_email: porEmailEscolhido,
         publico: conferencia ? conferencia.publico : publicoParaEnviar(publico),
         total_confirmado: conferencia?.total ?? 0,
-      }),
+        ...(idModelo !== null ? { id_modelo: idModelo } : {}),
+      }
+      if (agendando) {
+        await agendarAviso({
+          ...dados,
+          publicar_em: paraUtcIso(publicarEm),
+        })
+        return null
+      }
+      return publicarAviso(dados)
+    },
     onSuccess: (aviso) => {
       queryClient.invalidateQueries({ queryKey: ['avisos'] })
+      queryClient.invalidateQueries({ queryKey: ['avisos-agendados'] })
       queryClient.invalidateQueries({ queryKey: ['meus-avisos'] })
       queryClient.invalidateQueries({ queryKey: ['minhas-notificacoes'] })
-      navegar(`/comunicacao/${aviso.id_aviso}`)
+      navegar(
+        aviso ? `/comunicacao/${aviso.id_aviso}` : '/comunicacao/agendados',
+      )
     },
     onError: (e) => {
       setConfirmando(false)
@@ -121,7 +209,11 @@ export function AvisoNovoPage() {
   })
 
   const falta = faltaNoPublico(publico)
-  const textoPronto = titulo.trim() !== '' && texto.trim() !== ''
+  const textoPronto =
+    titulo.trim() !== '' &&
+    texto.trim() !== '' &&
+    desconhecidas.length === 0 &&
+    (!agendando || publicarEm !== '')
 
   function aoEnviar(e: FormEvent) {
     e.preventDefault()
@@ -149,27 +241,58 @@ export function AvisoNovoPage() {
         </p>
       )}
       <form className="max-w-3xl space-y-4" onSubmit={aoEnviar}>
+        {(modelos ?? []).length > 0 && (
+          <Campo
+            rotulo="Começar de um modelo"
+            dica="Preenche os campos abaixo; dá para mudar depois."
+          >
+            <select
+              className={classeCampo}
+              value={idModelo ?? ''}
+              onChange={(e) => usarModelo(e.target.value)}
+            >
+              <option value="">Nenhum (escrever do zero)</option>
+              {(modelos ?? []).map((m) => (
+                <option key={m.id_modelo} value={m.id_modelo}>
+                  {m.nome} (versão {m.versao})
+                </option>
+              ))}
+            </select>
+          </Campo>
+        )}
         <Campo rotulo="Título">
           <input
             className={classeCampo}
             value={titulo}
             maxLength={TAMANHO_DO_TITULO}
-            onChange={(e) => setTitulo(e.target.value)}
+            onChange={(e) => {
+              setTitulo(e.target.value)
+              setPrevia(null)
+            }}
             required
           />
         </Campo>
         <Campo
           rotulo="Texto"
-          dica="Só texto; as quebras de linha são mantidas."
+          dica="Só texto; as quebras de linha são mantidas. Pode usar {primeiro_nome} e {nome}: cada pessoa vê o próprio nome no lugar."
         >
           <textarea
             className="min-h-32 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             value={texto}
             maxLength={TAMANHO_DO_TEXTO}
-            onChange={(e) => setTexto(e.target.value)}
+            onChange={(e) => {
+              setTexto(e.target.value)
+              setPrevia(null)
+            }}
             required
           />
         </Campo>
+        {desconhecidas.length > 0 && (
+          <p role="alert" className="text-sm text-destructive">
+            Variável que não existe: {desconhecidas.join(', ')}. As que existem:
+            {' {primeiro_nome}'} e {'{nome}'}.
+          </p>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <Campo rotulo="Categoria">
             <select
@@ -439,6 +562,92 @@ export function AvisoNovoPage() {
           )}
         </fieldset>
 
+        <section
+          className="space-y-3 rounded-xl border border-border p-4"
+          aria-label="Antes de publicar"
+        >
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={
+                titulo.trim() === '' ||
+                texto.trim() === '' ||
+                preVisualizar.isPending
+              }
+              onClick={() => preVisualizar.mutate()}
+            >
+              Pré-visualizar
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={
+                titulo.trim() === '' ||
+                texto.trim() === '' ||
+                enviarTeste.isPending
+              }
+              onClick={() => enviarTeste.mutate()}
+            >
+              Enviar um teste para o meu e-mail
+            </Button>
+          </div>
+          {previa && (
+            <div className="rounded-md bg-muted p-3 text-sm" role="status">
+              <p className="text-xs text-muted-foreground">
+                Como chega para {previa.para}:
+              </p>
+              <p className="mt-1 font-medium">{previa.titulo}</p>
+              <p className="whitespace-pre-wrap break-words">{previa.texto}</p>
+            </div>
+          )}
+          {resultadoDoTeste && (
+            <p role="status" className="text-sm">
+              {resultadoDoTeste}
+            </p>
+          )}
+        </section>
+
+        <fieldset className="space-y-2 rounded-xl border border-border p-4">
+          <legend className="px-1 text-sm font-semibold">
+            Quando publicar
+          </legend>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="quando-publicar"
+                checked={!agendando}
+                onChange={() => setQuando('agora')}
+              />
+              Agora
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="quando-publicar"
+                checked={agendando}
+                onChange={() => setQuando('depois')}
+              />
+              Depois (agendar)
+            </label>
+          </div>
+          {agendando && (
+            <Campo
+              rotulo="Data e hora da publicação"
+              dica="O aviso sai na primeira rodada da rotina do sistema depois desta hora (ela roda de 15 em 15 minutos e às vezes atrasa), com o grupo calculado naquela hora."
+            >
+              <input
+                type="datetime-local"
+                className={classeCampo}
+                value={publicarEm}
+                onChange={(e) => setPublicarEm(e.target.value)}
+                required
+              />
+            </Campo>
+          )}
+        </fieldset>
+
         <div className="flex flex-wrap gap-2">
           <Button
             type="submit"
@@ -450,8 +659,10 @@ export function AvisoNovoPage() {
             }
           >
             {conferencia && conferencia.total > 0
-              ? `Publicar para ${conferencia.total === 1 ? '1 pessoa' : `${conferencia.total} pessoas`}`
-              : 'Publicar'}
+              ? `${agendando ? 'Agendar' : 'Publicar'} para ${conferencia.total === 1 ? '1 pessoa' : `${conferencia.total} pessoas`}`
+              : agendando
+                ? 'Agendar'
+                : 'Publicar'}
           </Button>
           <Button
             type="button"
@@ -471,9 +682,9 @@ export function AvisoNovoPage() {
       <ConfirmDialog
         aberto={confirmando}
         onAbertoChange={setConfirmando}
-        titulo="Publicar este aviso?"
-        descricao={`O aviso “${titulo.trim()}” vai para ${conferencia?.total === 1 ? '1 pessoa' : `${conferencia?.total ?? 0} pessoas`}. ${porEmailEscolhido ? `Também sai por e-mail para ${conferencia?.com_email ?? 0} com e-mail no cadastro, em lotes, pela rotina do sistema. ` : ''}Depois de publicado, ele não se edita; dá para retirar com um motivo.`}
-        rotuloConfirmar={`Publicar para ${conferencia?.total === 1 ? '1 pessoa' : `${conferencia?.total ?? 0} pessoas`}`}
+        titulo={agendando ? 'Agendar este aviso?' : 'Publicar este aviso?'}
+        descricao={`O aviso “${titulo.trim()}” vai para ${conferencia?.total === 1 ? '1 pessoa' : `${conferencia?.total ?? 0} pessoas`}. ${porEmailEscolhido ? `Também sai por e-mail para ${conferencia?.com_email ?? 0} com e-mail no cadastro, em lotes, pela rotina do sistema. ` : ''}${agendando ? 'Ele será publicado depois da hora marcada, com o grupo calculado naquela hora; até lá dá para cancelar em Agendados. ' : ''}Depois de publicado, ele não se edita; dá para retirar com um motivo.`}
+        rotuloConfirmar={`${agendando ? 'Agendar' : 'Publicar'} para ${conferencia?.total === 1 ? '1 pessoa' : `${conferencia?.total ?? 0} pessoas`}`}
         onConfirmar={() => publicar.mutate()}
         carregando={publicar.isPending}
       />

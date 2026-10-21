@@ -74,6 +74,8 @@ import { MfaSetup } from '@/pages/MfaSetup'
 import { MinhasAssembleiasPage } from '@/pages/MinhasAssembleias'
 import { AvisoDetalhePage } from '@/pages/AvisoDetalhe'
 import { AvisoNovoPage } from '@/pages/AvisoNovo'
+import { AvisosAgendadosPage } from '@/pages/AvisosAgendados'
+import { ModelosDeAvisoPage } from '@/pages/ModelosDeAviso'
 import { ComunicacaoPage } from '@/pages/Comunicacao'
 import { MeuAvisoPage } from '@/pages/MeuAviso'
 import { MeusAvisosPage } from '@/pages/MeusAvisos'
@@ -388,6 +390,22 @@ function App() {
               element={
                 <ErrorBoundary tituloModulo="Comunicação">
                   <AvisoNovoPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="modelos"
+              element={
+                <ErrorBoundary tituloModulo="Comunicação">
+                  <ModelosDeAvisoPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="agendados"
+              element={
+                <ErrorBoundary tituloModulo="Comunicação">
+                  <AvisosAgendadosPage />
                 </ErrorBoundary>
               }
             />
