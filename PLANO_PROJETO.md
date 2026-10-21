@@ -487,15 +487,41 @@ verde, com `{'enviados': 0, ...}` (ainda não há aviso marcado para e-mail). Ne
 
 ##### v6.2b — Preferências de contato e descadastro de verdade
 
-- [ ] Cada e-mail de comunicação **não obrigatória** (aviso não obrigatório, lembrete de mensalidade, aviso de evento inscrito) leva o link **"Não quero mais receber este tipo de e-mail"** e o cabeçalho
+- [x] Cada e-mail de comunicação **não obrigatória** (aviso não obrigatório, lembrete de mensalidade, aviso de evento inscrito) leva o link **"Não quero mais receber este tipo de e-mail"** e o cabeçalho
       `List-Unsubscribe`; o link abre uma página do site que confirma e grava a preferência (link assinado, sem guardar senha nem token).
-- [ ] O associado vê e muda as preferências em **Meu Perfil**; a convocação e a mudança de regra **não** se desligam, e a tela diz por quê.
-- [ ] O envio respeita a preferência em todos os canais e mostra "não recebe por escolha da pessoa" no relatório; Política de Privacidade com o descadastro.
+- [x] O associado vê e muda as preferências em **Meu Perfil**; a convocação e a mudança de regra **não** se desligam, e a tela diz por quê.
+- [x] O envio respeita a preferência em todos os canais e mostra "não recebe por escolha da pessoa" no relatório; Política de Privacidade com o descadastro.
 
 **Como ficou decidido ao construir (2026-10-21):** o aviso de evento vai UMA vez por endereço (família inscrita junta), então a escolha vale para o ENDEREÇO: se alguém que usa
 aquele endereço desligou, o endereço não recebe (senão quem desligou continuaria recebendo pelo link de outra pessoa da família). O aviso de vaga aberta na lista de espera
 continua chegando a todos (é a única chance de confirmar a vaga). Quem é anonimizado pela rotina de guarda (associado desligado) tem a escolha apagada junto. O usuário só de
 equipe, sem cadastro de pessoa, não tem preferência (recebe os avisos não obrigatórios sem o link).
+
+✅ **v6.2b concluída (2026-10-21).**
+
+**Como ficou:** o link do fim de cada e-mail que se pode desligar é `<pessoa>.<tipo>.<assinatura>` (HMAC com o segredo do servidor, prefixo próprio): não guarda token, não serve para outra
+pessoa nem para outro tipo, e tudo que está errado recebe o mesmo 404 (a página não revela se a pessoa existe nem dado dela). As rotas públicas têm limite por IP; o mesmo link deixa voltar a receber;
+cada mudança vai para a Auditoria (pelo link, sem usuário e com o IP; pelo painel, com o usuário), e repetir a mesma escolha não grava de novo. O e-mail que se pode desligar leva também o cabeçalho
+`List-Unsubscribe` (o botão "cancelar inscrição" dos programas de e-mail); o obrigatório diz que é obrigatório. Na homologação (sem e-mail), e só ali, o painel entrega à própria pessoa o link dela, para o
+robô provar a página do site.
+**Conferência independente (agente `opus`, só leitura) achou 13 pontos, todos corrigidos:** o alto era que o valor "Não recebe por escolha da pessoa" (32 letras) não cabia na coluna de 30 do banco: no Postgres
+a publicação daria erro (os testes locais em SQLite não pegavam; agora é "Desligou por escolha" e um teste confere o tamanho de cada valor); os médios: a família que divide o endereço recebia o aviso de
+evento pelo link de outra pessoa (agora a escolha vale para o endereço) e a Política prometia o link em e-mails que não o têm (o de vaga aberta e o enviado a quem não tem cadastro); os outros: textos públicos
+("quem é associado escolhe no Meu Perfil" valia só para quem tem acesso ao painel; "chegam a todos os associados"; "o botão abaixo"), a primeira letra do rótulo, a contagem na tela da situação do evento e
+na conferência, a anonimização do desligado passando a apagar a escolha (LGPD), dois cliques ao mesmo tempo, a mensagem do limite por IP e a limpeza do robô se ele falhar no meio.
+**Testes locais:** servidor 1431 em duas rodadas seguidas (14 testes novos, cada garantia confirmada por mutação), painel 699, site 766 unitários e 870 de navegador, tipos, lint e formatação limpos; a
+migração subiu, desceu e subiu de novo num banco descartável com o `alembic check` limpo.
+**Na homologação (2026-10-21):** a branch `v62b-descadastro` foi publicada lá (`Running upgrade a7c3e9f1b246 -> b8d4f0a2c357` no banco de TESTE). Robô `v6.2b-01`, 4 de 4: o **Conselheiro** vê em
+Meu Perfil > E-mails da ASAF as três escolhas (sem a convocação nem a mudança de regra, e a tela diz por quê) e desliga os avisos; o **Secretário** publica para o Conselho Fiscal um aviso Geral e uma
+Convocação, os dois por e-mail: a conferência diz que alguém desligou, e no relatório o conselheiro aparece "Desligou por escolha" no Geral e "Na fila" na Convocação; o link do conselheiro abre a página
+do SITE DE TESTE, que diz que ele não recebe mais, e ele volta a receber por ela (o Meu Perfil mostra de volta); um link adulterado é recusado pela página e pela API (404); a Auditoria guarda a mudança pelo
+painel (com o usuário) e a pelo link (sem usuário). Na 1ª rodada o robô achou um defeito de tela: a caixa só mudava depois da resposta do servidor; agora muda no clique e volta se o servidor recusar
+(corrigido e refeito). Regressões verdes: `v6.2a-01` 4/4, `v6.1-01` 5/5, a cadeia `v5.5d` inteira na ordem certa (01, nova publicação, 02, nova publicação, 03, 04, 05: 8 testes), `v5.7f-02` 4/4
+e `v5.4c-fase0` 6/6.
+**Em produção (2026-10-21):** `main` = `895d70a`; Deploy API verde (1431 testes contra Postgres e o log mostra `Running upgrade a7c3e9f1b246 -> b8d4f0a2c357`), Deploy Painel e Deploy Site verdes;
+`painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `895d70a`; `GET /api/publico/descadastro` com um link adulterado responde 404 "Link inválido ou incompleto." e
+`/api/minhas-preferencias-de-comunicacao/` sem login responde 401; `/descadastrar/` responde 200 com `noindex` e fica fora do `sitemap-0.xml`; `/privacidade/` diz "Versão 2.5 · em vigor desde 21 de
+outubro de 2026" e traz o parágrafo `data-emails-da-asaf`. Nenhuma preferência de teste foi gravada em produção.
 
 ##### v6.2c — Modelos de mensagem, pré-visualização, envio de teste e agendamento
 
