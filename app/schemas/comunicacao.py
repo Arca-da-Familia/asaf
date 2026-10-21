@@ -1,5 +1,5 @@
 """v6.1 (FASE 6) - o que a tela do painel manda para publicar, conferir o grupo e retirar um aviso (ver app/services/comunicacao.py)."""
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -29,6 +29,37 @@ class AvisoPublicar(BaseModel):
     por_email: bool = False  # v6.2a: também por e-mail (quem publica escolhe)
     publico: PublicoDoAviso
     total_confirmado: int
+    id_modelo: Optional[int] = None  # v6.2c: a versão do modelo usada (se usou)
+
+
+class AvisoAgendar(AvisoPublicar):
+    """v6.2c - o mesmo aviso, para publicar depois: `publicar_em` com fuso (o painel manda a hora de Belém convertida) ou em UTC."""
+    publicar_em: datetime
+
+
+class AvisoPreVisualizar(BaseModel):
+    titulo: str
+    texto: str
+    publico: Optional[PublicoDoAviso] = None
+
+
+class AvisoEnviarTeste(BaseModel):
+    titulo: str
+    texto: str
+    exige_confirmacao: bool = False
+
+
+class ModeloDeAvisoDados(BaseModel):
+    nome: str
+    titulo: str
+    texto: str
+    categoria: str
+    exige_confirmacao: bool = False
+    por_email: bool = False
+
+
+class AgendamentoCancelar(BaseModel):
+    motivo: str
 
 
 class AvisoRetirar(BaseModel):

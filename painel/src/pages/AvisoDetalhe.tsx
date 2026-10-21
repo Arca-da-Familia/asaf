@@ -159,6 +159,12 @@ export function AvisoDetalhePage() {
           <span className="font-medium">Para quem:</span>{' '}
           {data.publico_descricao}
         </p>
+        {data.modelo && (
+          <p className="mb-3 text-sm">
+            <span className="font-medium">Modelo usado:</span>{' '}
+            {data.modelo.nome} (versão {data.modelo.versao})
+          </p>
+        )}
         {data.situacao === 'Retirado' && (
           <p className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm">
             Retirado

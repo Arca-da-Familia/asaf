@@ -528,6 +528,13 @@ outubro de 2026" e traz o parágrafo `data-emails-da-asaf`. Nenhuma preferência
 - [ ] Modelos versionados com variáveis (`{primeiro_nome}`, `{nome}`), pré-visualização com uma pessoa real do grupo e **envio de teste** para o próprio e-mail antes do disparo.
 - [ ] **Publicar depois** (data e hora): quem publica escolhe; a tela diz com franqueza que a tarefa do GitHub pode atrasar (de minutos a horas).
 
+**Como ficou decidido ao construir (2026-10-21):** as variáveis valem só no TEXTO (o título aparece igual para todos no sino e nas listas); quem recebe vê o próprio nome no painel
+e no e-mail, e o relatório mostra o texto como foi escrito. O modelo é versionado por grupo (editar cria a versão nova e desativa a anterior; arquivar tira da lista sem apagar) e o
+aviso guarda a versão usada. O envio de teste vai só para o e-mail de quem publica (o de contato; sem ele, o do login), marcado "[TESTE]", com até 10 por hora. O agendado é
+publicado na primeira rodada da tarefa periódica depois da hora (entre 5 minutos e 90 dias à frente), com o grupo recalculado naquela hora; se o autor perdeu `comunicar`, se a
+validade passou ou se ninguém está mais no grupo, é cancelado com o motivo. Na homologação (que não tem tarefa agendada) a rotina roda a cada nova publicação de teste, como as
+rotinas de foto e de guarda.
+
 ##### v6.2d — Os automáticos
 
 - [ ] **Boas-vindas** ao associado aceito (aviso no painel e e-mail), no lugar do registro só na Auditoria (pendência da v1.2).

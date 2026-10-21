@@ -7,8 +7,18 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.core import Usuario
-from app.schemas.comunicacao import AvisoConferirPublico, AvisoPublicar, AvisoRetirar
+from app.schemas.comunicacao import (
+    AgendamentoCancelar,
+    AvisoAgendar,
+    AvisoConferirPublico,
+    AvisoEnviarTeste,
+    AvisoPreVisualizar,
+    AvisoPublicar,
+    AvisoRetirar,
+    ModeloDeAvisoDados,
+)
 from app.security import exigir_permissao, get_current_user
+from app.services import avisos_agendados, modelos_de_aviso
 from app.services import comunicacao as servico
 
 router = APIRouter()
@@ -31,8 +41,63 @@ def publicar(dados: AvisoPublicar, db: Session = Depends(get_db), usuario: Usuar
     aviso = servico.publicar(
         db, usuario, titulo=dados.titulo, texto=dados.texto, categoria=dados.categoria, valido_ate=dados.valido_ate,
         exige_confirmacao=dados.exige_confirmacao, publico=dados.publico.model_dump(), total_confirmado=dados.total_confirmado, por_email=dados.por_email,
+        id_modelo=dados.id_modelo,
     )
     return servico.detalhar(db, usuario, aviso.id_aviso)
+
+
+@router.post("/api/avisos/pre-visualizar", summary="Ver o aviso como chega a uma pessoa real do grupo (as variáveis com o nome dela); não grava nada (v6.2c)")
+def pre_visualizar(dados: AvisoPreVisualizar, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_comunicar)):
+    return modelos_de_aviso.pre_visualizar(db, usuario, titulo=dados.titulo, texto=dados.texto, publico=dados.publico.model_dump() if dados.publico else None)
+
+
+@router.post("/api/avisos/enviar-teste", summary="Mandar o aviso, ainda não publicado, só para o meu e-mail (v6.2c)")
+def enviar_teste(dados: AvisoEnviarTeste, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_comunicar)):
+    return modelos_de_aviso.enviar_teste(db, usuario, titulo=dados.titulo, texto=dados.texto, exige_confirmacao=dados.exige_confirmacao)
+
+
+@router.post("/api/avisos-agendados/", summary="Agendar um aviso para publicar depois (data e hora), com o total de pessoas conferido antes (v6.2c)")
+def agendar(dados: AvisoAgendar, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_comunicar)):
+    return avisos_agendados.agendar(
+        db, usuario, titulo=dados.titulo, texto=dados.texto, categoria=dados.categoria, valido_ate=dados.valido_ate, exige_confirmacao=dados.exige_confirmacao,
+        por_email=dados.por_email, publico=dados.publico.model_dump(), total_confirmado=dados.total_confirmado, publicar_em=dados.publicar_em, id_modelo=dados.id_modelo,
+    )
+
+
+@router.get("/api/avisos-agendados/", summary="Os avisos agendados (situação: Agendado, Publicado ou Cancelado)")
+def listar_agendados(situacao: Optional[str] = None, db: Session = Depends(get_db), _usuario: Usuario = Depends(_pode_comunicar)):
+    return avisos_agendados.listar(db, situacao=situacao)
+
+
+@router.post("/api/avisos-agendados/{id_agendado}/cancelar", summary="Cancelar um aviso agendado antes da hora, com o motivo")
+def cancelar_agendado(id_agendado: int, dados: AgendamentoCancelar, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_comunicar)):
+    return avisos_agendados.cancelar(db, usuario, id_agendado, dados.motivo)
+
+
+@router.get("/api/modelos-de-aviso/", summary="Os modelos de aviso em uso (a versão mais nova de cada um)")
+def listar_modelos(db: Session = Depends(get_db), _usuario: Usuario = Depends(_pode_comunicar)):
+    return modelos_de_aviso.listar(db)
+
+
+@router.post("/api/modelos-de-aviso/", summary="Criar um modelo de aviso")
+def criar_modelo(dados: ModeloDeAvisoDados, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_comunicar)):
+    return modelos_de_aviso.criar(db, usuario, dados.model_dump())
+
+
+@router.put("/api/modelos-de-aviso/{id_modelo}", summary="Editar um modelo: cria uma versão nova (a anterior fica guardada)")
+def editar_modelo(id_modelo: int, dados: ModeloDeAvisoDados, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_comunicar)):
+    return modelos_de_aviso.editar(db, usuario, id_modelo, dados.model_dump())
+
+
+@router.post("/api/modelos-de-aviso/{id_modelo}/arquivar", summary="Tirar o modelo de uso (as versões ficam guardadas)")
+def arquivar_modelo(id_modelo: int, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_comunicar)):
+    modelos_de_aviso.arquivar(db, usuario, id_modelo)
+    return {"arquivado": True}
+
+
+@router.get("/api/modelos-de-aviso/{id_modelo}/versoes", summary="Todas as versões de um modelo, da mais nova para a mais antiga")
+def versoes_do_modelo(id_modelo: int, db: Session = Depends(get_db), _usuario: Usuario = Depends(_pode_comunicar)):
+    return modelos_de_aviso.versoes(db, id_modelo)
 
 
 @router.get("/api/avisos/", summary="Os avisos publicados, com os totais de leitura (situação: No mural, Vencido ou Retirado)")

@@ -148,6 +148,16 @@ export const modulos: Modulo[] = [
         fim: true,
       },
       { rota: '/comunicacao/novo', rotulo: 'Novo aviso', icone: FilePlus },
+      {
+        rota: '/comunicacao/agendados',
+        rotulo: 'Agendados',
+        icone: CalendarRange,
+      },
+      {
+        rota: '/comunicacao/modelos',
+        rotulo: 'Modelos',
+        icone: FileText,
+      },
     ],
   },
   {

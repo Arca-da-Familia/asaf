@@ -106,7 +106,10 @@ def montar_email(
     está guardado no nome dele. Nunca diz a regra do grupo (ela pode revelar a situação da pessoa, ex.: inadimplente)."""
     assunto = f"ASAF: {aviso.titulo}"[:200]
     autor = nomes(aviso.id_usuario_autor) or "a Diretoria"
-    partes = [aviso.texto.strip(), "", "—", f"Aviso publicado por {autor} em {dia_e_hora_em_belem(aviso.publicado_em)} (horário de Belém) no painel da ASAF."]
+    # v6.2c: as variáveis do texto ({primeiro_nome}, {nome}) viram o nome de quem recebe
+    associado = db.get(Associado, linha.id_associado) if linha.id_associado is not None else None
+    texto = comunicacao.personalizar(aviso.texto.strip(), associado.nome_completo if associado is not None else None)
+    partes = [texto, "", "—", f"Aviso publicado por {autor} em {dia_e_hora_em_belem(aviso.publicado_em)} (horário de Belém) no painel da ASAF."]
     if linha.id_usuario is not None or linha.tinha_acesso:
         acao = "abrir o aviso e confirmar que leu" if aviso.exige_confirmacao else "abrir o aviso"
         partes.append(f"Para {acao} no painel: {link_para_o_aviso(db, aviso.id_aviso)}")

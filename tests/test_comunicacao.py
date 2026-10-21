@@ -90,7 +90,10 @@ def test_por_padrao_so_a_presidencia_e_os_cargos_de_presidente_e_secretarios_tem
         n for (n,) in db.query(NivelAcesso.nome_nivel).join(perfil_permissao, perfil_permissao.c.id_nivel == NivelAcesso.id_nivel)
         .filter(perfil_permissao.c.id_permissao == permissao.id_permissao).all()
     }
-    assert niveis == {"Presidente"}, niveis
+    # só os níveis que o sistema SEMEIA (outros testes criam níveis de teste com `comunicar` no banco compartilhado)
+    semeados = {"Presidente", "Diretoria", "Conselho Fiscal", "Associado", "Voluntário Externo", "Documentos - preparo", "Documentos - originais sigilosos",
+                "Publicação - aprovação", "Parcerias e emendas - gestão"}
+    assert niveis & semeados == {"Presidente"}, niveis
     cargos = {
         o.codigo for o in db.query(OpcaoCatalogo).join(Catalogo, Catalogo.id_catalogo == OpcaoCatalogo.id_catalogo).filter(Catalogo.chave == "titulo_cargo").all()
         if "comunicar" in (o.metadados or {}).get("permissoes", [])

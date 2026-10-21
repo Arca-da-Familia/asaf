@@ -48,6 +48,7 @@ class Aviso(Base):
     categoria = Column(String(40), nullable=False)  # código do catálogo `categoria_aviso`
     exige_confirmacao = Column(Boolean, nullable=False, default=False)
     por_email = Column(Boolean, nullable=False, default=False, server_default=false())  # v6.2a: também por e-mail (quem publica escolhe)
+    id_modelo = Column(Integer, ForeignKey("modelos_de_aviso.id_modelo", name="fk_avisos_id_modelo"), nullable=True)  # v6.2c: a VERSÃO do modelo que o aviso usou (se usou)
     valido_ate = Column(Date, nullable=False, index=True)  # último dia no mural (dia de Belém)
     publico = Column(_TipoJson, nullable=False)  # a regra do grupo, como foi escolhida
     publico_descricao = Column(String(400), nullable=False)  # a regra em português, para a tela e o relatório
@@ -94,3 +95,53 @@ class EntregaDeAviso(Base):
     ultimo_erro = Column(String(300), nullable=True)
     criado_em = Column(DateTime, nullable=False, default=datetime.utcnow)
     enviado_em = Column(DateTime, nullable=True, index=True)
+
+
+# v6.2c - situação de um aviso agendado
+AGENDADO = "Agendado"
+PUBLICADO = "Publicado"
+AGENDAMENTO_CANCELADO = "Cancelado"
+
+
+class ModeloDeAviso(Base):
+    """v6.2c - um texto pronto para avisos (ex.: "Convocação de assembleia"). VERSIONADO: editar cria uma linha nova com `versao` + 1 no mesmo `grupo` e desativa a anterior; a
+    anterior fica (o aviso que a usou aponta para ela). O texto aceita as variáveis {primeiro_nome} e {nome}; o título não."""
+    __tablename__ = "modelos_de_aviso"
+    __table_args__ = (UniqueConstraint("grupo", "versao", name="uq_modelo_de_aviso_versao"),)  # duas edições ao mesmo tempo não criam duas "versão N+1"
+    id_modelo = Column(Integer, primary_key=True, index=True)
+    grupo = Column(String(36), nullable=False, index=True)  # o mesmo para todas as versões de um modelo
+    versao = Column(Integer, nullable=False)
+    nome = Column(String(100), nullable=False)
+    titulo = Column(String(150), nullable=False)
+    texto = Column(Text, nullable=False)
+    categoria = Column(String(40), nullable=False)
+    exige_confirmacao = Column(Boolean, nullable=False, default=False)
+    por_email = Column(Boolean, nullable=False, default=False)
+    ativo = Column(Boolean, nullable=False, default=True)  # só a versão mais nova de um modelo em uso fica ativa
+    id_usuario_autor = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=False)
+    criado_em = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class AvisoAgendado(Base):
+    """v6.2c - um aviso para publicar DEPOIS (data e hora escolhidas por quem publica). Guarda o que vai ser publicado; a tarefa periódica publica na hora (o grupo é calculado de
+    novo naquele momento, pela mesma regra) e grava aqui o aviso que nasceu. Quem tem `comunicar` pode cancelar antes. O autor precisa continuar com `comunicar` na hora de
+    publicar; se não tiver, o agendamento é cancelado com o motivo."""
+    __tablename__ = "avisos_agendados"
+    id_agendado = Column(Integer, primary_key=True, index=True)
+    publicar_em = Column(DateTime, nullable=False, index=True)  # UTC
+    situacao = Column(String(20), nullable=False, index=True)
+    titulo = Column(String(150), nullable=False)
+    texto = Column(Text, nullable=False)
+    categoria = Column(String(40), nullable=False)
+    valido_ate = Column(Date, nullable=False)
+    exige_confirmacao = Column(Boolean, nullable=False, default=False)
+    por_email = Column(Boolean, nullable=False, default=False)
+    publico = Column(_TipoJson, nullable=False)
+    publico_descricao = Column(String(400), nullable=False)
+    total_conferido = Column(Integer, nullable=False)  # quantas pessoas a conferência mostrou ao agendar
+    id_modelo = Column(Integer, ForeignKey("modelos_de_aviso.id_modelo"), nullable=True)
+    id_usuario_autor = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=False)
+    criado_em = Column(DateTime, nullable=False, default=datetime.utcnow)
+    id_aviso = Column(Integer, ForeignKey("avisos.id_aviso"), nullable=True)  # o aviso que nasceu da publicação
+    motivo = Column(String(500), nullable=True)  # por que foi cancelado
+    id_usuario_cancelamento = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)

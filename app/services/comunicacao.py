@@ -66,8 +66,38 @@ MOTIVO_MINIMO, MOTIVO_MAXIMO = 10, 500
 # meia-noite de Belém em UTC (Belém é UTC-3, sem horário de verão): o aviso "até 20/10" sai do mural às 03:00 UTC do dia 21
 FIM_DO_DIA_EM_BELEM_UTC = time(3, 0)
 
+# v6.2c - as variáveis do TEXTO do aviso (o título não aceita): viram o nome de cada pessoa no painel e no e-mail
+VARIAVEIS = ("primeiro_nome", "nome")
+_VARIAVEL = re.compile(r"\{([A-Za-z_]+)\}")
+NOME_QUANDO_NAO_HA = "associado(a)"
+
 NO_MURAL, VENCIDO, RETIRADO = "No mural", "Vencido", "Retirado"
 SITUACOES_DO_AVISO = (NO_MURAL, VENCIDO, RETIRADO)
+
+
+def validar_texto_e_titulo(titulo: str, texto: str) -> tuple[str, str]:
+    """Título e texto obrigatórios e no tamanho; o título sem variável (ele aparece no sino e na lista de todos igual); o texto só com as variáveis que existem."""
+    titulo, texto = (titulo or "").strip(), (texto or "").strip()
+    if not titulo or len(titulo) > TAMANHO_DO_TITULO:
+        raise HTTPException(status_code=422, detail=f"O título é obrigatório e tem até {TAMANHO_DO_TITULO} letras.")
+    if not texto or len(texto) > TAMANHO_DO_TEXTO:
+        raise HTTPException(status_code=422, detail=f"O texto é obrigatório e tem até {TAMANHO_DO_TEXTO} letras.")
+    if _VARIAVEL.search(titulo):
+        raise HTTPException(status_code=422, detail="O título não aceita variáveis como {primeiro_nome}: use-as só no texto.")
+    desconhecidas = sorted({v for v in _VARIAVEL.findall(texto) if v not in VARIAVEIS})
+    if desconhecidas:
+        raise HTTPException(
+            status_code=422,
+            detail="Variável que não existe no texto: " + ", ".join("{" + v + "}" for v in desconhecidas) + ". As que existem: {primeiro_nome} e {nome}.",
+        )
+    return titulo, texto
+
+
+def personalizar(texto: str, nome: Optional[str]) -> str:
+    """O texto com o nome da pessoa no lugar das variáveis (quem não tem nome no cadastro vê "associado(a)")."""
+    nome = (nome or "").strip()
+    valores = {"nome": nome or NOME_QUANDO_NAO_HA, "primeiro_nome": nome.split()[0] if nome else NOME_QUANDO_NAO_HA}
+    return _VARIAVEL.sub(lambda m: valores.get(m.group(1), m.group(0)), texto)
 
 
 def hoje() -> date:
@@ -372,14 +402,12 @@ def _gravar_destinos(db: Session, aviso: Aviso, destinos: list[Destino]) -> None
 
 def publicar(
     db: Session, usuario: Usuario, *, titulo: str, texto: str, categoria: str, valido_ate: date, exige_confirmacao: bool, publico: dict, total_confirmado: int,
-    por_email: bool = False,
+    por_email: bool = False, id_modelo: Optional[int] = None, conferir_total: bool = True,
 ) -> Aviso:
-    titulo, texto = (titulo or "").strip(), (texto or "").strip()
-    if not titulo or len(titulo) > TAMANHO_DO_TITULO:
-        raise HTTPException(status_code=422, detail=f"O título é obrigatório e tem até {TAMANHO_DO_TITULO} letras.")
-    if not texto or len(texto) > TAMANHO_DO_TEXTO:
-        raise HTTPException(status_code=422, detail=f"O texto é obrigatório e tem até {TAMANHO_DO_TEXTO} letras.")
+    """`conferir_total=False` só para o aviso AGENDADO (o total foi conferido ao agendar; na hora de publicar o grupo é recalculado pela mesma regra)."""
+    titulo, texto = validar_texto_e_titulo(titulo, texto)
     validar_codigo_em_catalogo(db, CATALOGO_DE_CATEGORIA, categoria, "Categoria do aviso")
+    validar_modelo(db, id_modelo)
     dia = hoje()
     if valido_ate < dia:
         raise HTTPException(status_code=422, detail="A data \"válido até\" já passou.")
@@ -389,13 +417,14 @@ def publicar(
     destinos = resolver_publico(db, normalizado)
     if not destinos:
         raise HTTPException(status_code=422, detail="Ninguém está neste grupo hoje: o aviso não foi publicado.")
-    if total_confirmado != len(destinos):
+    if conferir_total and total_confirmado != len(destinos):
         raise HTTPException(
             status_code=409,
             detail=f"O grupo mudou desde a conferência: agora são {len(destinos)} pessoa(s), não {total_confirmado}. Confira de novo antes de publicar.",
         )
     aviso = Aviso(
         titulo=titulo, texto=texto, categoria=categoria, exige_confirmacao=bool(exige_confirmacao), por_email=bool(por_email), valido_ate=valido_ate, publico=normalizado,
+        id_modelo=id_modelo,
         publico_descricao=descrever_publico(db, normalizado), total_destinatarios=len(destinos), id_usuario_autor=usuario.id_usuario, publicado_em=datetime.utcnow(),
     )
     db.add(aviso)
@@ -412,6 +441,15 @@ def publicar(
     )
     db.refresh(aviso)
     return aviso
+
+
+def validar_modelo(db: Session, id_modelo: Optional[int]) -> None:
+    if id_modelo is None:
+        return
+    from app.models.comunicacao import ModeloDeAviso
+
+    if db.get(ModeloDeAviso, id_modelo) is None:
+        raise HTTPException(status_code=422, detail="Modelo de aviso inexistente.")
 
 
 def obter(db: Session, id_aviso: int) -> Aviso:
@@ -586,7 +624,13 @@ def detalhar(db: Session, usuario: Usuario, id_aviso: int) -> dict:
                 "email": _entrega_para_a_tela(entregas.get(linha.id_destinatario)),
             })
         pessoas.sort(key=lambda p: p["nome"].casefold())
-    return {**resumo, "texto": aviso.texto, "nomes_ocultos": nomes_ocultos, "destinatarios": pessoas}
+    modelo = None
+    if aviso.id_modelo is not None:
+        from app.models.comunicacao import ModeloDeAviso
+
+        usado = db.get(ModeloDeAviso, aviso.id_modelo)
+        modelo = {"id_modelo": usado.id_modelo, "nome": usado.nome, "versao": usado.versao} if usado is not None else None
+    return {**resumo, "texto": aviso.texto, "nomes_ocultos": nomes_ocultos, "destinatarios": pessoas, "modelo": modelo}
 
 
 def _entrega_para_a_tela(entrega: Optional[EntregaDeAviso]) -> Optional[dict]:
@@ -675,7 +719,9 @@ def abrir_meu(db: Session, usuario: Usuario, id_aviso: int) -> dict:
         if linha.id_usuario is None and db.query(AvisoDestinatario).filter(AvisoDestinatario.id_aviso == id_aviso, AvisoDestinatario.id_usuario == usuario.id_usuario).first() is None:
             linha.id_usuario = usuario.id_usuario
         db.commit()
-    return _para_quem_recebeu(db.get(Aviso, id_aviso), linha, hoje(), dict(_rotulos_do_catalogo(db, CATALOGO_DE_CATEGORIA)), _Nomes(db), com_texto=True)
+    dados = _para_quem_recebeu(db.get(Aviso, id_aviso), linha, hoje(), dict(_rotulos_do_catalogo(db, CATALOGO_DE_CATEGORIA)), _Nomes(db), com_texto=True)
+    dados["texto"] = personalizar(dados["texto"], _Nomes(db)(usuario.id_usuario) if _pessoa_do_usuario(db, usuario) else None)
+    return dados
 
 
 def confirmar_meu(db: Session, usuario: Usuario, id_aviso: int) -> dict:
@@ -690,7 +736,14 @@ def confirmar_meu(db: Session, usuario: Usuario, id_aviso: int) -> dict:
         linha.confirmado_em = agora
         linha.lido_em = linha.lido_em or agora
         registrar_auditoria(db, usuario, "avisos", "AVISO_CONFIRMADO", id_registro_afetado=id_aviso, dados_depois={"id_destinatario": linha.id_destinatario})
-    return _para_quem_recebeu(aviso, linha, hoje(), dict(_rotulos_do_catalogo(db, CATALOGO_DE_CATEGORIA)), _Nomes(db), com_texto=True)
+    dados = _para_quem_recebeu(aviso, linha, hoje(), dict(_rotulos_do_catalogo(db, CATALOGO_DE_CATEGORIA)), _Nomes(db), com_texto=True)
+    dados["texto"] = personalizar(dados["texto"], _Nomes(db)(usuario.id_usuario) if _pessoa_do_usuario(db, usuario) else None)
+    return dados
+
+
+def _pessoa_do_usuario(db: Session, usuario: Usuario) -> Optional[int]:
+    associado = db.query(Associado).filter(Associado.id_usuario == usuario.id_usuario).first()
+    return associado.id_pessoa if associado is not None else None
 
 
 # ------------------------------------------------------------------------------------------------ prazo de guarda (chamado pela rotina de retenção)

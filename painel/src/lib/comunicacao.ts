@@ -103,6 +103,8 @@ export type AvisoCompleto = AvisoResumo & {
   // grupo escolhido pela situação do associado (ex.: os inadimplentes) e quem olha não tem `associados` nem `financeiro`: só os totais, sem os nomes
   nomes_ocultos: boolean
   destinatarios: DestinatarioDoAviso[]
+  // v6.2c: a versão do modelo que o aviso usou
+  modelo?: { id_modelo: number; nome: string; versao: number } | null
 }
 
 export type PaginaDeAvisos = {
@@ -143,6 +145,7 @@ export type NovoAviso = {
   por_email: boolean
   publico: PublicoDoAviso
   total_confirmado: number
+  id_modelo?: number
 }
 
 // ------------------------------------------------------------------ chamadas ao servidor
@@ -407,4 +410,136 @@ export function mudarPreferencia(
     method: 'PUT',
     body: JSON.stringify({ tipo, recebe }),
   })
+}
+
+// ------------------------------------------------------------------ v6.2c - modelos, variáveis, pré-visualização, teste e agendamento
+export const VARIAVEIS_DO_TEXTO = ['{primeiro_nome}', '{nome}'] as const
+
+export type ModeloDeAviso = {
+  id_modelo: number
+  grupo: string
+  versao: number
+  nome: string
+  titulo: string
+  texto: string
+  categoria: string
+  exige_confirmacao: boolean
+  por_email: boolean
+  ativo: boolean
+  criado_em: string
+}
+
+export type DadosDoModelo = Pick<
+  ModeloDeAviso,
+  'nome' | 'titulo' | 'texto' | 'categoria' | 'exige_confirmacao' | 'por_email'
+>
+
+export type SituacaoDoAgendamento = 'Agendado' | 'Publicado' | 'Cancelado'
+
+export type AvisoAgendado = {
+  id_agendado: number
+  publicar_em: string
+  situacao: SituacaoDoAgendamento
+  titulo: string
+  categoria: string
+  valido_ate: string
+  exige_confirmacao: boolean
+  por_email: boolean
+  publico_descricao: string
+  total_conferido: number
+  id_aviso: number | null
+  motivo: string | null
+  criado_em: string
+}
+
+export function listarModelos(): Promise<ModeloDeAviso[]> {
+  return apiFetch('/api/modelos-de-aviso/')
+}
+
+export function criarModelo(dados: DadosDoModelo): Promise<ModeloDeAviso> {
+  return apiFetch('/api/modelos-de-aviso/', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function editarModelo(
+  idModelo: number,
+  dados: DadosDoModelo,
+): Promise<ModeloDeAviso> {
+  return apiFetch(`/api/modelos-de-aviso/${idModelo}`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function arquivarModelo(idModelo: number): Promise<{ arquivado: true }> {
+  return apiFetch(`/api/modelos-de-aviso/${idModelo}/arquivar`, {
+    method: 'POST',
+  })
+}
+
+export function versoesDoModelo(idModelo: number): Promise<ModeloDeAviso[]> {
+  return apiFetch(`/api/modelos-de-aviso/${idModelo}/versoes`)
+}
+
+export function preVisualizarAviso(dados: {
+  titulo: string
+  texto: string
+  publico?: PublicoDoAviso
+}): Promise<{ para: string; titulo: string; texto: string }> {
+  return apiFetch('/api/avisos/pre-visualizar', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function enviarTesteDoAviso(dados: {
+  titulo: string
+  texto: string
+  exige_confirmacao: boolean
+}): Promise<{ enviado_para: string }> {
+  return apiFetch('/api/avisos/enviar-teste', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+}
+
+export function agendarAviso(
+  aviso: NovoAviso & { publicar_em: string },
+): Promise<AvisoAgendado> {
+  return apiFetch('/api/avisos-agendados/', {
+    method: 'POST',
+    body: JSON.stringify(aviso),
+  })
+}
+
+export function listarAgendados(
+  situacao?: SituacaoDoAgendamento,
+): Promise<AvisoAgendado[]> {
+  return apiFetch(
+    `/api/avisos-agendados/${situacao ? `?situacao=${encodeURIComponent(situacao)}` : ''}`,
+  )
+}
+
+export function cancelarAgendado(
+  idAgendado: number,
+  motivo: string,
+): Promise<AvisoAgendado> {
+  return apiFetch(`/api/avisos-agendados/${idAgendado}/cancelar`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo }),
+  })
+}
+
+/** Variáveis escritas no texto que não existem (o servidor também recusa): para avisar antes de enviar. */
+export function variaveisDesconhecidas(texto: string): string[] {
+  const achadas = texto.match(/\{[A-Za-z_]+\}/g) ?? []
+  return [
+    ...new Set(
+      achadas.filter(
+        (v) => !(VARIAVEIS_DO_TEXTO as readonly string[]).includes(v),
+      ),
+    ),
+  ]
 }
