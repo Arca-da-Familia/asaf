@@ -274,11 +274,11 @@ test.describe('Diretoria com fotos (v5.7c)', () => {
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.4 · em vigor desde 20 de outubro de 2026'),
+      page.getByText('Versão 2.5 · em vigor desde 21 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.4, em vigor desde 20 de outubro de 2026/,
+        /Esta é a versão 2\.5, em vigor desde 21 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-diretoria-foto]')

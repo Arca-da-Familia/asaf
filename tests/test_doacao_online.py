@@ -54,7 +54,7 @@ def sem_pix(db):
 @pytest.fixture
 def emails(monkeypatch):
     enviados = []
-    monkeypatch.setattr(servico.notificacoes, "enviar_email", lambda destino, assunto, corpo_texto: enviados.append((destino, assunto, corpo_texto)))
+    monkeypatch.setattr(servico.notificacoes, "enviar_email", lambda destino, assunto, corpo_texto, cabecalhos=None: enviados.append((destino, assunto, corpo_texto)))
     return enviados
 
 

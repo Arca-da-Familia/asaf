@@ -448,6 +448,12 @@ export function StatusDoEvento({
               )}
             </>
           )}
+          {avisos && (avisos.enderecos_que_desligaram ?? 0) > 0 && (
+            <p>
+              {avisos.enderecos_que_desligaram} endereço(s) não recebem: quem
+              usa o endereço desligou os avisos de evento por e-mail.
+            </p>
+          )}
           {avisos && avisos.inscritos_sem_email > 0 && (
             <p>
               {avisos.inscritos_sem_email} inscrição(ões) sem e-mail cadastrado.

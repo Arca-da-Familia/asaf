@@ -23,7 +23,8 @@ from app.models.eventos import (
 )
 from app.models.motores import CONFIRMADO, LISTA_DE_ESPERA, PRE_INSCRITO, Inscricao
 from app.models.pessoas import Pessoa
-from app.services import notificacoes
+from app.models.preferencias_de_comunicacao import EVENTOS
+from app.services import notificacoes, preferencias_de_comunicacao
 from app.services.fuso import ROTULO_DO_FUSO, dia_e_hora_em_belem
 from app.services.documentos_verificacao import exigir_texto_sem_dado_pessoal
 from app.services.site_publico import url_base_do_site
@@ -122,7 +123,7 @@ def _texto_do_aviso(db: Session, evento: Evento, *, situacao_nova: str, motivo: 
         return (
             f"Evento adiado - {evento.titulo}",
             f"Aviso importante sobre o evento \"{evento.titulo}\":\n\nO evento foi ADIADO e a nova data ainda não foi definida.{linha_do_motivo}\n\n"
-            f"Sua inscrição (ou o seu lugar na lista de espera) continua registrada. Quando a nova data for definida, você receberá um novo aviso por e-mail.{pagina}",
+            f"Sua inscrição (ou o seu lugar na lista de espera) continua registrada. Quando a nova data for definida, a ASAF enviará um novo aviso por e-mail (a menos que você desligue esses avisos).{pagina}",
         )
     if inicio_anterior is not None and inicio_anterior != evento.data_hora_inicio:
         return (
@@ -147,16 +148,30 @@ def _avisar_inscritos(db: Session, evento: Evento, *, situacao_nova: str, motivo
         for id_pessoa, email in db.query(Pessoa.id_pessoa, Pessoa.email_contato).filter(Pessoa.id_pessoa.in_(ids_pessoas)).all()
     } if ids_pessoas else {}
     sem_email = sum(1 for i in inscricoes if not emails_por_pessoa.get(i.id_pessoa))
-    destinatarios = sorted({e for e in emails_por_pessoa.values() if e})
+    # v6.2b: o e-mail vai UMA vez por endereço; por isso a escolha vale para o endereço: se alguém que usa aquele endereço desligou os avisos de evento (pelo link
+    # do e-mail ou no Meu Perfil), o endereço não recebe (senão quem desligou continuaria recebendo pelo link de outra pessoa da família)
+    com_email = {i for i in ids_pessoas if emails_por_pessoa.get(i)}
+    desligaram = preferencias_de_comunicacao.quem_nao_recebe(db, com_email, EVENTOS)
+    enderecos_desligados = {emails_por_pessoa[i] for i in desligaram}
+    pessoa_do_endereco: dict[str, int] = {}
+    for id_pessoa in sorted(com_email):
+        email = emails_por_pessoa[id_pessoa]
+        if email not in enderecos_desligados:
+            pessoa_do_endereco.setdefault(email, id_pessoa)
+    destinatarios = sorted(pessoa_do_endereco)
     assunto, corpo = _texto_do_aviso(db, evento, situacao_nova=situacao_nova, motivo=motivo, inicio_anterior=inicio_anterior)
     enviados = 0
     for destinatario in destinatarios:
+        rodape, cabecalhos = preferencias_de_comunicacao.rodape(db, pessoa_do_endereco[destinatario], EVENTOS)
         try:
-            notificacoes.enviar_email(destinatario, assunto=assunto, corpo_texto=corpo)
+            notificacoes.enviar_email(destinatario, assunto=assunto, corpo_texto=corpo + rodape, cabecalhos=cabecalhos)
             enviados += 1
         except Exception:
             pass  # SMTP fora do ar ou não configurado (a homologação não tem): a mudança de status já está gravada
-    return {"inscricoes_a_avisar": len(inscricoes), "avisos_enviados": enviados, "inscritos_sem_email": sem_email, "enderecos": len(destinatarios)}
+    return {
+        "inscricoes_a_avisar": len(inscricoes), "avisos_enviados": enviados, "inscritos_sem_email": sem_email, "enderecos": len(destinatarios),
+        "enderecos_que_desligaram": len(enderecos_desligados),
+    }
 
 
 def _inscricoes_com_cobranca(db: Session, evento: Evento) -> int:

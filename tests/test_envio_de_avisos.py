@@ -43,7 +43,7 @@ class _ServidorFalso:
     """Faz o papel do servidor de e-mail: guarda o que "saiu" e recusa com o erro escolhido por endereço."""
 
     def __init__(self, recusas=None):
-        self.enviados, self.recusas, self.conexoes = [], dict(recusas or {}), 0
+        self.enviados, self.recusas, self.conexoes, self.cabecalhos = [], dict(recusas or {}), 0, {}
 
     def __call__(self):
         self.conexoes += 1
@@ -55,11 +55,12 @@ class _ServidorFalso:
     def __exit__(self, *_):
         return None
 
-    def enviar(self, para, assunto, corpo):
+    def enviar(self, para, assunto, corpo, cabecalhos=None):
         erro = self.recusas.get(para)
         if erro is not None:
             raise erro
         self.enviados.append((para, assunto, corpo))
+        self.cabecalhos[para] = cabecalhos or {}
 
     def para(self, email):
         return [e for e in self.enviados if e[0] == email]
@@ -363,7 +364,7 @@ def test_a_migracao_continua_a_cadeia_sem_segunda_cabeca():
     config = Config()
     config.set_main_option("script_location", str(Path(__file__).resolve().parent.parent / "alembic"))
     diretorio = ScriptDirectory.from_config(config)
-    assert diretorio.get_heads() == ["a7c3e9f1b246"] and diretorio.get_revision("a7c3e9f1b246").down_revision == "e5b1d7a3c820"
+    assert len(diretorio.get_heads()) == 1 and diretorio.get_revision("a7c3e9f1b246").down_revision == "e5b1d7a3c820"
 
 
 # ------------------------------------------------------------------------------------------------ achados da conferência independente (2026-10-20)
@@ -396,8 +397,8 @@ def test_uma_rodada_so_pega_cada_entrega_e_a_retirada_no_meio_vale(client, db, a
     ordem = sorted(entregas.values(), key=lambda e: e.id_entrega)
 
     class _RetiraNoMeio(_ServidorFalso):
-        def enviar(self, para, assunto, corpo):
-            super().enviar(para, assunto, corpo)
+        def enviar(self, para, assunto, corpo, cabecalhos=None):
+            super().enviar(para, assunto, corpo, cabecalhos)
             # enquanto a rodada envia a 1ª, alguém retira o aviso (a 2ª, já lida da fila, não pode sair)
             client.post(f"/api/avisos/{aviso['id_aviso']}/retirar", json={"motivo": "Retirado durante a rodada de envio."}, headers=auth_headers)
 

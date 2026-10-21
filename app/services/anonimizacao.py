@@ -92,6 +92,10 @@ def anonimizar_associado(
     for campo in CAMPOS_ANONIMIZAVEIS:
         setattr(pessoa, campo, None)
     enderecos.delete(synchronize_session=False)
+    # v6.2b: a escolha de e-mails (descadastro) é dado da pessoa e, sem o e-mail, não serve para mais nada
+    from app.models.preferencias_de_comunicacao import PreferenciaDeComunicacao
+
+    db.query(PreferenciaDeComunicacao).filter(PreferenciaDeComunicacao.id_pessoa == pessoa.id_pessoa).delete(synchronize_session=False)
     db.commit()
 
     # Nunca gravar os VALORES apagados no log - o AuditLog não pode virar um segundo lugar onde

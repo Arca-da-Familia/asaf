@@ -24,7 +24,7 @@ def test_a_hora_guardada_em_utc_vira_a_hora_de_belem():
 def _capturar_emails(monkeypatch):
     enviados = []
     for modulo in (servico_status.notificacoes, servico_eventos.notificacoes, servico_vagas.notificacoes):
-        monkeypatch.setattr(modulo, "enviar_email", lambda destino, assunto, corpo_texto: enviados.append((destino, assunto, corpo_texto)))
+        monkeypatch.setattr(modulo, "enviar_email", lambda destino, assunto, corpo_texto, cabecalhos=None: enviados.append((destino, assunto, corpo_texto)))
     return enviados
 
 

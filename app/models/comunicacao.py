@@ -36,7 +36,8 @@ ENVIADO = "Enviado"  # saiu do servidor de e-mail da ASAF (a caixa de destino ai
 FALHOU = "Falhou"
 SEM_EMAIL = "Sem e-mail no cadastro"
 CANCELADO = "Cancelado"  # o aviso foi retirado antes de o e-mail sair
-SITUACOES_DA_ENTREGA = (NA_FILA, ENVIANDO, ENVIADO, FALHOU, SEM_EMAIL, CANCELADO)
+NAO_RECEBE = "Desligou por escolha"  # v6.2b: a pessoa desligou os avisos não obrigatórios por e-mail (cabe nos 30 da coluna `situacao`)
+SITUACOES_DA_ENTREGA = (NA_FILA, ENVIANDO, ENVIADO, FALHOU, SEM_EMAIL, CANCELADO, NAO_RECEBE)
 
 
 class Aviso(Base):

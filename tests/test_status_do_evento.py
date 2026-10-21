@@ -36,7 +36,7 @@ def _mudar(client, auth_headers, id_evento, status, **campos):
 def _emails(monkeypatch):
     enviados = []
     for modulo in (servico_status.notificacoes, servico_eventos.notificacoes, servico_vagas.notificacoes):
-        monkeypatch.setattr(modulo, "enviar_email", lambda destino, assunto, corpo_texto: enviados.append((destino, assunto, corpo_texto)))
+        monkeypatch.setattr(modulo, "enviar_email", lambda destino, assunto, corpo_texto, cabecalhos=None: enviados.append((destino, assunto, corpo_texto)))
     return enviados
 
 

@@ -18,7 +18,8 @@ from sqlalchemy.orm import Session
 from app.models.associados import Associado
 from app.models.core import ConfiguracaoInstitucional
 from app.models.financeiro import LembreteMensalidadeEnviado, TituloFinanceiro
-from app.services import notificacoes, pix
+from app.models.preferencias_de_comunicacao import LEMBRETES_DE_MENSALIDADE
+from app.services import notificacoes, pix, preferencias_de_comunicacao
 from app.services.formato import reais
 
 _DIAS_LEMBRETE_PADRAO = 5
@@ -103,12 +104,17 @@ def enviar_lembretes_do_dia(db: Session, hoje: Optional[datetime] = None) -> lis
             email = associado.email_contato if associado else None
             if not email:
                 continue
+            # v6.2b: quem desligou os lembretes de mensalidade (pelo link do e-mail ou no Meu Perfil) não recebe; o título continua o mesmo
+            if not preferencias_de_comunicacao.recebe(db, associado.id_pessoa, LEMBRETES_DE_MENSALIDADE):
+                continue
 
             payload_pix = pix.payload_pix_do_titulo(db, titulo)
+            rodape, cabecalhos = preferencias_de_comunicacao.rodape(db, associado.id_pessoa, LEMBRETES_DE_MENSALIDADE)
             notificacoes.enviar_email(
                 email,
                 assunto=f"Lembrete de mensalidade - {titulo.descricao}",
-                corpo_texto=_corpo_lembrete(titulo, payload_pix, tipo_lembrete),
+                corpo_texto=_corpo_lembrete(titulo, payload_pix, tipo_lembrete) + rodape,
+                cabecalhos=cabecalhos,
             )
             db.add(LembreteMensalidadeEnviado(id_titulo=titulo.id_titulo, tipo_lembrete=tipo_lembrete))
             db.commit()

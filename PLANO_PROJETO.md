@@ -492,6 +492,11 @@ verde, com `{'enviados': 0, ...}` (ainda não há aviso marcado para e-mail). Ne
 - [ ] O associado vê e muda as preferências em **Meu Perfil**; a convocação e a mudança de regra **não** se desligam, e a tela diz por quê.
 - [ ] O envio respeita a preferência em todos os canais e mostra "não recebe por escolha da pessoa" no relatório; Política de Privacidade com o descadastro.
 
+**Como ficou decidido ao construir (2026-10-21):** o aviso de evento vai UMA vez por endereço (família inscrita junta), então a escolha vale para o ENDEREÇO: se alguém que usa
+aquele endereço desligou, o endereço não recebe (senão quem desligou continuaria recebendo pelo link de outra pessoa da família). O aviso de vaga aberta na lista de espera
+continua chegando a todos (é a única chance de confirmar a vaga). Quem é anonimizado pela rotina de guarda (associado desligado) tem a escolha apagada junto. O usuário só de
+equipe, sem cadastro de pessoa, não tem preferência (recebe os avisos não obrigatórios sem o link).
+
 ##### v6.2c — Modelos de mensagem, pré-visualização, envio de teste e agendamento
 
 - [ ] Modelos versionados com variáveis (`{primeiro_nome}`, `{nome}`), pré-visualização com uma pessoa real do grupo e **envio de teste** para o próprio e-mail antes do disparo.

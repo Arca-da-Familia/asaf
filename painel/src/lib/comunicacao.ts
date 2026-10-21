@@ -36,6 +36,8 @@ export type ConferenciaDoPublico = {
   total: number
   sem_acesso: number
   com_email: number
+  // v6.2b: dos que têm e-mail, quantos desligaram os avisos NÃO obrigatórios por e-mail
+  desligaram_os_avisos: number
   pessoas: { nome: string; tem_acesso: boolean; tem_email: boolean }[]
 }
 
@@ -54,6 +56,7 @@ export type SituacaoDoEmail =
   | 'Falhou'
   | 'Sem e-mail no cadastro'
   | 'Cancelado'
+  | 'Desligou por escolha'
 
 export type EntregaDoEmail = {
   situacao: SituacaoDoEmail
@@ -370,5 +373,38 @@ export function resumoDoEmail(
   if (email['Sem e-mail no cadastro'])
     partes.push(`${email['Sem e-mail no cadastro']} sem e-mail`)
   if (email['Cancelado']) partes.push(`${email['Cancelado']} cancelados`)
+  if (email['Desligou por escolha'])
+    partes.push(
+      `${email['Desligou por escolha']} desligaram os avisos por e-mail`,
+    )
   return partes.length ? partes.join(' · ') : 'Nenhum e-mail'
+}
+
+// ------------------------------------------------------------------ v6.2b - preferências de e-mail (Meu Perfil)
+export type TipoDeEmail = 'avisos' | 'lembretes_de_mensalidade' | 'eventos'
+
+export type MinhasPreferencias = {
+  tem_cadastro: boolean
+  obrigatorias: string
+  // `link_de_teste` só vem na homologação (sem e-mail configurado): o robô não lê e-mail
+  tipos: {
+    tipo: TipoDeEmail
+    rotulo: string
+    recebe: boolean
+    link_de_teste?: string
+  }[]
+}
+
+export function minhasPreferencias(): Promise<MinhasPreferencias> {
+  return apiFetch('/api/minhas-preferencias-de-comunicacao/')
+}
+
+export function mudarPreferencia(
+  tipo: TipoDeEmail,
+  recebe: boolean,
+): Promise<MinhasPreferencias> {
+  return apiFetch('/api/minhas-preferencias-de-comunicacao/', {
+    method: 'PUT',
+    body: JSON.stringify({ tipo, recebe }),
+  })
 }

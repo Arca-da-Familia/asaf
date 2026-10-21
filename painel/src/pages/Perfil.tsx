@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router'
 import { z } from 'zod'
 
 import { ConfirmarMeusDados } from '@/components/associados/ConfirmarMeusDados'
+import { PreferenciasDeEmail } from '@/components/comunicacao/PreferenciasDeEmail'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -59,7 +60,8 @@ const schemaRegenerar = z.object({
   senha: z.string().min(1, 'Informe a senha.'),
 })
 
-type Aba = 'dados' | 'seguranca' | 'sessoes' | 'documentos' | 'linha-do-tempo'
+type Aba =
+  'dados' | 'seguranca' | 'sessoes' | 'documentos' | 'linha-do-tempo' | 'emails'
 
 function DadosForm({ perfil }: { perfil: Perfil }) {
   const queryClient = useQueryClient()
@@ -177,6 +179,7 @@ export function PerfilPage() {
     { id: 'seguranca', rotulo: 'Segurança' },
     { id: 'sessoes', rotulo: 'Sessões ativas' },
     { id: 'documentos', rotulo: 'Meus documentos' },
+    { id: 'emails', rotulo: 'E-mails da ASAF' },
   ]
 
   return (
@@ -252,6 +255,7 @@ export function PerfilPage() {
       )}
       {aba === 'sessoes' && <SessoesSection />}
       {aba === 'documentos' && <DocumentosSection />}
+      {aba === 'emails' && <PreferenciasDeEmail />}
     </>
   )
 }
