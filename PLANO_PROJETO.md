@@ -556,9 +556,37 @@ usada, o **Conselheiro** lê o texto com o PRÓPRIO primeiro nome e a Auditoria 
 
 ##### v6.2d — Os automáticos
 
-- [ ] **Boas-vindas** ao associado aceito (aviso no painel e e-mail), no lugar do registro só na Auditoria (pendência da v1.2).
-- [ ] **Aviso à secretaria** (sino) quando acaba o período de experiência de um associado.
-- [ ] **Lembretes de mensalidade** na tarefa diária, com o registro de entrega e sem derrubar o lote por uma falha (o achado acima).
+- [x] **Boas-vindas** ao associado aceito (aviso no painel e e-mail), no lugar do registro só na Auditoria (pendência da v1.2).
+- [x] **Aviso à secretaria** (sino) quando acaba o período de experiência de um associado.
+- [x] **Lembretes de mensalidade** na tarefa diária, com o registro de entrega e sem derrubar o lote por uma falha (o achado acima).
+
+✅ **v6.2d concluída (2026-10-21).**
+
+**Como ficou:** na aprovação da filiação sai o e-mail de boas-vindas (matrícula e fim do período de experiência; melhor esforço: a falha do e-mail nunca desfaz a aprovação); a
+Auditoria guarda o resultado (`BOAS_VINDAS_ENVIADAS`: enviado, sem e-mail, falhou, sem servidor de e-mail), nunca o endereço, e o log da API também não. Quando a secretaria libera o acesso,
+o primeiro aviso do sino é "Bem-vindo(a) ao painel da ASAF" (o título serve também ao associado antigo que só agora ganhou acesso). O fim da experiência: a rotina de 15 minutos recalcula
+quem passou do prazo, e a SAÍDA de "Em Experiência" com o prazo vencido avisa no sino quem tem `associados` (pelo nível ou pelo cargo) no mesmo commit da situação nova, venha da rotina ou de
+um lançamento financeiro: o aviso nunca se perde e sai uma vez por pessoa (quem entrou de licença no meio da experiência não recebe aviso de fim). Os lembretes de mensalidade saem de uma tarefa
+diária própria (`tarefa-diaria-lembretes.yml`, 09:00 de Belém; a tarefa mensal ficou só com a cobrança e as contas a pagar): o "hoje" é o dia de Belém; uma rodada perdida é recuperada (até 2
+dias, menos o "vence hoje", cujo texto ficaria errado) e o texto do atraso conta os dias de verdade; um lembrete por título por rodada (degrau de atraso só de 1 dia ou mais) e nunca um atraso
+menor depois de um maior; um e-mail que falha não derruba o lote (sai no dia seguinte, dentro da tolerância), o endereço que o servidor diz não existir vai para a fila de higienização da v1.8,
+e só a falha da conta ou da conexão para a rodada (a pausa pedida pelo servidor para sem alarme); a rodada fica na Auditoria (`LEMBRETES_DO_DIA`, sem endereço). O endereço segue a regra única dos
+e-mails do sistema (endereço com acento não é tentado). A Política de Privacidade não muda: as boas-vindas são "a resposta a um pedido" (a filiação), que ela já lista entre os e-mails que não se desligam.
+**Conferência independente (agente `opus`, só leitura), todos os pontos corrigidos:** os médios eram o endereço indo para o log da API quando as boas-vindas falhavam (o texto da recusa do servidor
+traz o destinatário) e um endereço com acento que pararia a rodada diária por até 3 dias, deixando sem lembrete os títulos depois dele; os outros: um teste que quebraria no Postgres, o robô que
+filmaria a senha provisória (a tela "Conceder acesso" a mostra em texto: o roteiro roda sem vídeo e sem print automático), a pausa do servidor deixando a tarefa vermelha, o aviso de fim de
+experiência que se perdia se um lançamento financeiro recalculasse a situação antes da rotina (agora sai na própria transição, no mesmo commit), o endereço inexistente fora da higienização, um
+comentário antigo ("não existe cron") e código repetido. **Testes locais:** servidor 1470 em duas rodadas seguidas (21 testes novos); 22 mutações, cada uma pega pelo seu teste.
+**Achado no caminho (vira correção própria, a seguir):** a tela "Conceder acesso" diz que o associado "será obrigado a trocar a senha no primeiro login", mas o painel não obriga.
+**Na homologação (2026-10-21):** a branch `v62d-automaticos` foi publicada lá (cada publicação roda a rotina do fim da experiência e, antes dela e só no `asaf_hml`, um roteiro que faz passar
+os 90 dias do candidato do robô). Na 1ª rodada o robô achou um defeito dele mesmo (procurava a situação na tela errada; ela fica na aba Situação), corrigido e refeito. Robô `v6.2d-01`, 2 de 2: um
+candidato pede a filiação, o Presidente confere, três sócios propõem e o Presidente aprova pela tela; a Auditoria guarda as boas-vindas ("sem servidor de e-mail": a homologação não tem, e o envio em
+si é provado pelos testes do servidor) sem o endereço; o Presidente libera o acesso pela tela, o novo associado entra pela primeira vez e o sino diz "Bem-vindo(a) ao painel da ASAF". Nova
+publicação (`{'fim_de_experiencia': 1}`). Robô `v6.2d-02`, 1 de 1: o sino do Presidente avisa "Fim do período de experiência: matrícula nº …", o link abre o cadastro, a aba Situação mostra a
+situação nova e a Auditoria guarda a mudança pelo sistema, com "Em Experiência" antes. Regressões verdes: `v5.4c-fase1` 24/24 (a filiação inteira), `v6.2a-01` 4/4, `v6.2b-01` 4/4 e `v6.1-01` 5/5.
+**Em produção (2026-10-21):** `main` = `a7ca7d6`; Deploy API verde (1470 testes contra Postgres; a imagem `asaf-api:a7ca7d6…` em execução; não há migração nesta versão nem mudança de tela, então
+o painel continua no `24f0f05`); a API responde; a "Tarefa Diária (lembretes de mensalidade por e-mail)" está registrada e ativa (primeira rodada no agendamento de 22/10, 09:00 de Belém) e a
+"Tarefa Mensal" passou a ser só "cobrança do mês + contas a pagar recorrentes". Nada de teste foi gravado em produção.
 
 **Fora de escopo de propósito:** WhatsApp (v11.3), e-mail com HTML e imagens (texto simples chega melhor e não cai no lixo eletrônico), leitura do e-mail ("abriu ou não": exige pixel de rastreio,
 que a Política não promete e a LGPD desaconselha), o endereço só de envio (o Presidente escolheu asaf@asaf.org.br).
