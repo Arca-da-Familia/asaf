@@ -274,7 +274,7 @@ test.describe('Diretoria com fotos (v5.7c)', () => {
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.5 · em vigor desde 21 de outubro de 2026'),
+      page.getByText('Versão 2.6 · em vigor desde 21 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(

@@ -1751,10 +1751,11 @@ test('Delegação temporária: recusas do formulário, a Presidente delega à Gi
         },
       },
     )
-    if (concedido.status() !== 200) {
-      expect(concedido.status(), await concedido.text()).toBe(400)
-      expect(await concedido.text()).toContain('já tem acesso')
-    }
+    expect(
+      concedido.status(),
+      'a conta do cofre ainda não existia e nasceu com a senha PROVISÓRIA (o painel obriga a trocá-la e o robô não pode trocar a senha do cofre): republique a homologação (o passo "Contas de teste do cofre com a senha definitiva" a acerta) e rode de novo',
+    ).toBe(400)
+    expect(await concedido.text()).toContain('já tem acesso')
     await sair(page)
   })
 

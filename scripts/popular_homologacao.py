@@ -204,6 +204,8 @@ def popular(client, db, admin_headers: dict | None = None, admin_senha: str | No
             _ok(client.post(f"/api/associados/{ids_associados[indice]}/conceder-acesso", headers=admin_headers,
                             json={"email": email, "senha_provisoria": senha}))
             usuario = db.query(Usuario).filter(Usuario.email == email).first()
+            usuario.senha_provisoria = False  # a senha do cofre não é provisória: o robô entra sempre com ela (o painel obriga a trocar a provisória)
+            db.commit()
             cabecalhos[papel] = _cabecalho(usuario)
             cpf = db.query(Associado).filter(Associado.id_associado == ids_associados[indice]).first().cpf
             contexto["usuarios"][papel] = {"cpf": cpf, "email": email, "senha": senha}

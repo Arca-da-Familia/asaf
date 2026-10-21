@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import {
   createContext,
   useContext,
@@ -32,16 +33,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     Boolean(getAccessToken()),
   )
   const [isBootstrapping, setIsBootstrapping] = useState(true)
+  // Quem sai e quem entra numa mesma aba não herda nada do anterior: sem isto o /auth/me (nome, permissões, senha provisória) de uma pessoa
+  // ficava no cache e a seguinte via o menu da outra ou caía na troca de senha dela (achado da conferência da correção da senha provisória).
+  const queryClient = useQueryClient()
 
   // Liga o callback global do interceptor à UI: quando o refresh falha, a sessão
   // cai e os componentes protegidos redirecionam para /login.
   useEffect(() => {
     setSessionExpiredHandler(() => {
       setAccessToken(null)
+      queryClient.clear()
       setIsAuthenticated(false)
     })
     return () => setSessionExpiredHandler(null)
-  }, [])
+  }, [queryClient])
 
   // Sessão só existe em memória (v0.2.1) - ao montar a aplicação (primeiro carregamento ou
   // F5), tenta renovar silenciosamente a partir do cookie HttpOnly antes de decidir se
@@ -65,15 +70,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated,
       isBootstrapping,
       signIn: (accessToken) => {
+        queryClient.clear()
         setAccessToken(accessToken)
         setIsAuthenticated(true)
       },
       signOut: () => {
         setAccessToken(null)
+        queryClient.clear()
         setIsAuthenticated(false)
       },
     }),
-    [isAuthenticated, isBootstrapping],
+    [isAuthenticated, isBootstrapping, queryClient],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

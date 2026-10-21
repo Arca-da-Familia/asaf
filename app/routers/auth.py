@@ -263,6 +263,7 @@ def me(usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_d
         mfa_ativado=usuario.mfa_ativado,
         mfa_obrigatorio=mfa_obrigatorio,
         mfa_pendente=mfa_obrigatorio and not usuario.mfa_ativado,
+        senha_provisoria=bool(usuario.senha_provisoria),
         permissoes=sorted(codigos_de_permissao),
         impersonando=impersonando,
     )
@@ -438,6 +439,9 @@ def alterar_senha(dados: AlterarSenhaRequest, request: Request, usuario: Usuario
     erro = validar_senha_forte(dados.senha_nova)
     if erro:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=erro)
+    # trocar pela mesma não troca nada (e, com a senha provisória, ela continuaria sendo a que a secretaria conhece)
+    if dados.senha_nova == dados.senha_atual:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A senha nova precisa ser diferente da atual.")
     usuario.senha_hash = hash_senha(dados.senha_nova)
     usuario.senha_provisoria = False
     db.commit()

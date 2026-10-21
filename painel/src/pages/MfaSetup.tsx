@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 
 import { Button } from '@/components/ui/button'
-import { ApiError, mfaAtivar, mfaConfirmar } from '@/lib/api'
+import { ApiError, mfaAtivar, mfaConfirmar, type Me } from '@/lib/api'
 import { somenteDigitos } from '@/lib/cpf'
 
 function mensagemDeErro(err: unknown): string {
@@ -55,8 +55,13 @@ export function MfaSetup() {
   }
 
   function concluir() {
-    // Revalida o /auth/me para o gate liberar a navegação (mfa_pendente passa a false).
-    queryClient.invalidateQueries({ queryKey: ['me'] })
+    // Achado ao construir a troca obrigatória da senha (depois da v6.2d): só invalidar o /auth/me não bastava, porque a guarda lia a cópia
+    // guardada (até 30 s), ainda com mfa_pendente, e mandava de volta para cá. O MFA acabou de ser ativado: a cópia é atualizada aqui mesmo
+    // (sem depender da rede) e a busca de verdade vem em seguida.
+    queryClient.setQueryData<Me>(['me'], (antes) =>
+      antes ? { ...antes, mfa_pendente: false, mfa_ativado: true } : antes,
+    )
+    void queryClient.invalidateQueries({ queryKey: ['me'] })
     navigate('/', { replace: true })
   }
 

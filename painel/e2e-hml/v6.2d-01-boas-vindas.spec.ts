@@ -18,7 +18,8 @@ import {
 // v6.2d - OS AUTOMÁTICOS (parte 1). Pelas telas:
 //  1. um candidato pede a filiação (pela rota pública que o site usa), o Presidente confere, três sócios propõem e o Presidente aprova: a Auditoria guarda as boas-vindas
 //     (a homologação não tem servidor de e-mail, então o registro diz "sem servidor de e-mail"; o envio em si é provado pelos testes do servidor);
-//  2. o Presidente libera o acesso do novo associado ao painel; ele entra pela primeira vez e o sino diz "Bem-vindo(a) ao painel da ASAF".
+//  2. o Presidente libera o acesso do novo associado ao painel; ele entra pela primeira vez com a senha provisória e o painel o OBRIGA a trocá-la (a correção do achado
+//     da v6.2d: nenhuma tela abre antes; a senha atual errada é recusada pelo servidor); trocada, o painel abre e o sino diz "Bem-vindo(a) ao painel da ASAF".
 // A parte 2 (v6.2d-02) roda depois de uma nova publicação da homologação: ali (e só ali) os "90 dias" do candidato passam e a rotina do fim da experiência roda.
 test.describe.configure({ mode: 'serial' })
 // a tela "Conceder acesso" mostra a senha provisória em texto (é para a secretaria entregar ao associado): sem vídeo e sem o print automático neste roteiro, para ela nunca
@@ -36,6 +37,7 @@ const CANDIDATO = {
 }
 // senha provisória só desta rodada, inventada aqui: nunca é impressa, fotografada nem filmada (ver acima)
 const SENHA_PROVISORIA = `Hml-${randomBytes(9).toString('base64url')}`
+const SENHA_DEFINITIVA = `Hml-${randomBytes(9).toString('base64url')}`
 let idAssociado = 0
 
 async function comToken(page: Page): Promise<() => string> {
@@ -153,6 +155,32 @@ test('liberar o acesso: no primeiro login o sino dá as boas-vindas ao painel', 
       await page.getByLabel('CPF').fill(CANDIDATO.cpf)
       await page.getByLabel('Senha').fill(SENHA_PROVISORIA)
       await page.getByRole('button', { name: 'Entrar', exact: true }).click()
+      await expect(
+        page.getByRole('heading', { name: 'Troque a sua senha' }),
+      ).toBeVisible()
+    },
+    { box: true },
+  )
+  await ver(page, info, 'o primeiro login leva a troca da senha')
+  // nenhuma tela abre antes da troca: o endereço direto volta para ela
+  await page.goto('/perfil')
+  await expect(
+    page.getByRole('heading', { name: 'Troque a sua senha' }),
+  ).toBeVisible()
+  await test.step(
+    'a senha atual errada é recusada; a certa troca a senha',
+    async () => {
+      await page.getByLabel('Senha provisória').fill(`${SENHA_PROVISORIA}x`)
+      await page
+        .getByLabel('Senha nova', { exact: true })
+        .fill(SENHA_DEFINITIVA)
+      await page.getByLabel('Repita a senha nova').fill(SENHA_DEFINITIVA)
+      await page.getByRole('button', { name: 'Trocar a senha' }).click()
+      await expect(page.getByRole('alert')).toContainText(
+        'Senha atual incorreta.',
+      )
+      await page.getByLabel('Senha provisória').fill(SENHA_PROVISORIA)
+      await page.getByRole('button', { name: 'Trocar a senha' }).click()
       await expect(page.getByRole('heading', { name: 'Início' })).toBeVisible()
     },
     { box: true },

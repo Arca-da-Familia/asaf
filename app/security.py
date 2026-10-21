@@ -143,6 +143,9 @@ def validar_senha_forte(senha: str) -> Optional[str]:
     """Retorna uma mensagem de erro se a senha não atende à política, ou None se é aceitável."""
     if len(senha) < 8:
         return "A senha deve ter pelo menos 8 caracteres."
+    # o bcrypt só aceita até 72 bytes (achado da conferência do "Esqueci a minha senha": passar disso dava erro 500 em vez de uma recusa)
+    if len(senha.encode("utf-8")) > 72:
+        return "A senha é longa demais: use no máximo 72 caracteres (letras com acento contam como dois)."
     if senha.lower() in SENHAS_COMUNS:
         return "Essa senha é muito comum e fácil de adivinhar. Escolha outra."
     return None
