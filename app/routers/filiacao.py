@@ -16,7 +16,7 @@ from app.models.pessoas import Papel, Pessoa
 from app.schemas.filiacao import PropostaAprovar, PropostaDoSocio, PropostaFiliacaoCriar, PropostaRecusar
 from app.security import exigir_permissao, get_current_user, usuario_tem_permissao
 from app.services.categoria_associado import ATIVO_EM_DIA, EM_EXPERIENCIA, calcular_categoria
-from app.services import filiacao_publica, filiacao_socios
+from app.services import automaticos_de_associado, filiacao_publica, filiacao_socios
 from app.services.duplicidade import detectar_cadastro_duplicado
 from app.services.protecao_publica import ip_publico as _ip_publico, limitar_taxa_por_ip
 from app.services.linha_do_tempo import publicar_evento_linha_do_tempo
@@ -204,13 +204,9 @@ def aprovar_proposta(
         dados_depois={"id_associado_efetivado": novo_associado.id_associado, "numero_matricula": novo_associado.numero_matricula},
         ip_origem=request.client.host if request.client else None,
     )
-    # v1.2 - "boas-vindas automáticas": sem infra de envio de e-mail ainda (pendência
-    # registrada na v6.2), o evento fica gravado na auditoria - é o registro que garante que
-    # a efetivação "avisou" alguém, mesmo que o e-mail de verdade venha depois.
-    registrar_auditoria(
-        db, usuario, "associados", "BOAS_VINDAS_REGISTRADAS", id_registro_afetado=novo_associado.id_associado,
-        ip_origem=request.client.host if request.client else None,
-    )
+    # v1.2 registrava só a intenção (BOAS_VINDAS_REGISTRADAS); v6.2d: o e-mail de boas-vindas sai de verdade (melhor esforço: falha
+    # nunca desfaz a aprovação) e a Auditoria guarda o resultado (BOAS_VINDAS_ENVIADAS), sem o endereço.
+    automaticos_de_associado.enviar_boas_vindas(db, novo_associado, usuario, ip=request.client.host if request.client else None)
     publicar_evento_linha_do_tempo(
         db, novo_associado.id_pessoa, "filiacao", "FILIACAO_APROVADA", "Filiação aprovada",
         descricao=f"Matrícula {novo_associado.numero_matricula} atribuída.",

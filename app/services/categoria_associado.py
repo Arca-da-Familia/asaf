@@ -13,13 +13,13 @@ ainda; o segundo é definitivo até uma READMISSÃO explícita (nunca "expira" s
 `app/routers/situacao.py`). Isso é intencional, não uma lacuna esquecida: categoria calculada
 sem o dado que a sustenta seria só fingir precisão que não existe.
 
-**Limitação aceita (mesma da v1.1a)**: a transição de "Em Experiência" pra Ativo/Inadimplente ao
-fim do prazo só é recalculada no PRÓXIMO evento financeiro (lançamento/baixa de título) ou numa
-chamada explícita a `recalcular_categoria_associado` - não existe scheduler/cron neste projeto
-pra recalcular sozinho no instante exato em que o prazo vence. `calcular_categoria` (a fonte da
-verdade) sempre reflete o estado correto na hora que é chamada; só o campo MATERIALIZADO pode
-ficar temporariamente desatualizado - por isso o endpoint `/categoria-calculada` existe, pra
-essa divergência ser visível e auditável em vez de escondida."""
+v6.2d: a transição de "Em Experiência" ao fim do prazo também é recalculada pela rotina periódica
+(a cada 15 minutos, `scripts/avisar_fim_de_experiencia.py`), não só no próximo evento financeiro.
+Venha de onde vier (a rotina ou um lançamento/baixa de título), a saída de "Em Experiência" com o
+prazo vencido avisa no sino quem cuida de Associados NO MESMO commit da situação nova: o aviso
+nunca se perde entre um e outro. `calcular_categoria` (a fonte da verdade) sempre reflete o estado
+correto na hora que é chamada; entre duas rodadas só o campo MATERIALIZADO pode ficar
+desatualizado - por isso o endpoint `/categoria-calculada` existe."""
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -107,6 +107,10 @@ def recalcular_categoria_associado(
     if novo != associado.status_arrolamento:
         antes = associado.status_arrolamento
         associado.status_arrolamento = novo
+        if antes == EM_EXPERIENCIA and associado.data_fim_experiencia and associado.data_fim_experiencia <= datetime.utcnow():
+            from app.services.automaticos_de_associado import avisar_no_sino_o_fim_da_experiencia  # import local: aquele módulo importa este
+
+            avisar_no_sino_o_fim_da_experiencia(db, associado, novo)
         db.commit()
         registrar_auditoria(
             db, usuario, "associados", "CATEGORIA_RECALCULADA", id_registro_afetado=id_associado,

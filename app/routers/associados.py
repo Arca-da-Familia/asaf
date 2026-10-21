@@ -28,7 +28,7 @@ from app.schemas.associados import (
     HistoricoCargoEncerrar,
 )
 from app.security import exigir_alguma_permissao, exigir_permissao, get_current_user, hash_senha, usuario_tem_permissao, validar_senha_forte
-from app.services import armazenamento, carteirinha
+from app.services import armazenamento, automaticos_de_associado, carteirinha
 from app.services.categoria_associado import calcular_categoria
 from app.services.busca import numero_que_cabe_no_banco
 from app.services.catalogos import validar_codigo_em_catalogo
@@ -207,6 +207,7 @@ def conceder_acesso(id_associado: int, dados: ConcederAcessoCriar, db: Session =
         db.rollback()
         raise HTTPException(status_code=400, detail="Já existe um usuário com esse e-mail.")
     associado.id_usuario = novo_usuario.id_usuario
+    automaticos_de_associado.boas_vindas_no_sino(db, novo_usuario.id_usuario)  # v6.2d: o primeiro aviso do sino é o de boas-vindas
     db.commit()
     registrar_auditoria(
         db, usuario_secretaria, "usuarios", "CONCESSAO_ACESSO", id_registro_afetado=novo_usuario.id_usuario,

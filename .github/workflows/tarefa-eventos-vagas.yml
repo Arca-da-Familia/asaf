@@ -96,6 +96,11 @@ jobs:
           ARMAZENAMENTO_BLOB_URL: https://stasafprivado.blob.core.windows.net
         run: PYTHONPATH=. python scripts/aplicar_retencao_de_dados.py
 
+      # v6.2d - quem estava "Em Experiência" e cujo período acabou tem a situação recalculada; quem cuida de Associados é avisado no sino (uma vez por pessoa).
+      - name: Avisar o fim do período de experiência
+        if: always()
+        run: PYTHONPATH=. python scripts/avisar_fim_de_experiencia.py
+
       # v6.2c - os avisos agendados cuja hora já passou são publicados (antes do passo do e-mail, para o e-mail deles sair na mesma rodada). Agendamento que não pode mais sair é
       # cancelado com o motivo; o passo só FALHA (sai com 1) se um agendamento der erro inesperado.
       - name: Publicar os avisos agendados
