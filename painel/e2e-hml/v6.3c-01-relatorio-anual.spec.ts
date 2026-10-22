@@ -120,11 +120,12 @@ test('o ano corrente e o anterior ao sistema são recusados; o relatório é mon
   await expect(page.getByRole('alert').first()).toContainText(
     'A apresentação tem dado pessoal',
   )
-  await expect(
-    page.getByRole('region', {
-      name: 'Resultado da conferência da versão pública',
-    }),
-  ).not.toContainText(CPF_DE_MENTIRA)
+  // (a página mostra também a conferência da versão gerada, que passou: aqui é a da RECUSA)
+  const recusa = page
+    .getByRole('region', { name: 'Resultado da conferência da versão pública' })
+    .filter({ hasText: 'Não pode ir ao site' })
+  await expect(recusa).toBeVisible()
+  await expect(recusa).not.toContainText(CPF_DE_MENTIRA)
   await ver(page, info, 'o cpf na apresentacao e recusado')
   await sair(page)
 
