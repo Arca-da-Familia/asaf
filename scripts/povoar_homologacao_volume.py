@@ -301,6 +301,8 @@ def povoar(client, db, escrever=print) -> dict:
             client.post(f"/api/votacoes/{id_votacao}/votar", headers=cab, json={"opcao": "Sim" if n % 4 else "Não"})
         ok(client.post(f"/api/votacoes/{id_votacao}/encerrar", headers=adm))
         ok(client.post(f"/api/assembleias/{id_a}/ocorrencias", headers=adm, json={"descricao": "Sessão sem incidentes (ata de teste)."}))
+        if assinar:  # como na vida real: a ata assinada é de assembleia já realizada (só ela tem a tela da ata)
+            ok(client.post(f"/api/assembleias/{id_a}/encerrar-sessao", headers=adm))
         id_ata = ok(client.post(f"/api/assembleias/{id_a}/ata", headers=adm)).json()["id_ata"]
         if assinar:
             ok(client.post(f"/api/atas/{id_ata}/assinar", headers=adm))

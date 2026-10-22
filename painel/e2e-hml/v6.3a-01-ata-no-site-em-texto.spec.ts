@@ -1,6 +1,14 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { API_HML, entrar, exigirHomologacao, sair, ver, vigiar } from './apoio'
+import {
+  API_HML,
+  ataAssinadaDeAssembleiaRealizada,
+  entrar,
+  exigirHomologacao,
+  sair,
+  ver,
+  vigiar,
+} from './apoio'
 
 // v6.3a - A ATA NO SITE, EM TEXTO, E QUEM APROVOU (parte 1: prepara). Pelas telas:
 //  1. o Presidente abre uma ata ASSINADA da homologação e clica "Publicar no site (em texto)": abre o documento com o texto da ata, sem a opção de PDF;
@@ -66,40 +74,9 @@ test('a ata assinada abre o documento do site com o texto da ata, sem PDF; CPF �
   const token = await comToken(page)
   await entrar(page, 'presidente')
   await expect.poll(() => token(), { timeout: 15_000 }).not.toBe('')
-  const atas = (await (
-    await page.request.get(`${API_HML}/api/atas/`, {
-      headers: { Authorization: token() },
-    })
-  ).json()) as Array<{
-    id_ata: number
-    id_assembleia: number
-    status: string
-    id_ata_retificada: number | null
-  }>
-  // uma ata ASSINADA, sem retificação (a retificada não vai ao site), de assembleia já REALIZADA (só ela tem a tela da ata)
-  const retificadas = new Set(
-    atas.map((a) => a.id_ata_retificada).filter(Boolean),
-  )
-  let assinada: (typeof atas)[number] | undefined
-  for (const a of atas
-    .filter((x) => x.status === 'Assinada' && !retificadas.has(x.id_ata))
-    .sort((x, y) => x.id_ata - y.id_ata)) {
-    const assembleia = (await (
-      await page.request.get(`${API_HML}/api/assembleias/${a.id_assembleia}`, {
-        headers: { Authorization: token() },
-      })
-    ).json()) as { status: string }
-    if (assembleia.status === 'Realizada') {
-      assinada = a
-      break
-    }
-  }
-  expect(
-    assinada,
-    'uma ata assinada, sem retificação, de assembleia realizada',
-  ).toBeTruthy()
-  idAta = assinada!.id_ata
-  idAssembleia = assinada!.id_assembleia
+  const assinada = await ataAssinadaDeAssembleiaRealizada(page, token())
+  idAta = assinada.id_ata
+  idAssembleia = assinada.id_assembleia
 
   v1 = await prepararPelaAta(page)
   await expect(

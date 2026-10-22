@@ -4,6 +4,7 @@ import path from 'node:path'
 import {
   expect,
   test,
+  type APIResponse,
   type Locator,
   type Page,
   type TestInfo,
@@ -398,4 +399,65 @@ export async function socioPropoe(
     )
   }
   await sair(page)
+}
+
+// Uma ata ASSINADA, sem retificação, de assembleia já REALIZADA (só ela tem a tela da ata; a retificada não vai ao site). Se a homologação não tiver
+// nenhuma (o povoamento até 22/10 assinava a ata com a sessão ainda em andamento), o robô monta uma pelas rotas de verdade: cria, convoca, abre e
+// encerra a sessão, gera e assina a ata.
+export async function ataAssinadaDeAssembleiaRealizada(
+  page: Page,
+  autorizacao: string,
+): Promise<{ id_ata: number; id_assembleia: number }> {
+  const cab = { headers: { Authorization: autorizacao } }
+  const json = async <T>(r: Promise<APIResponse>) => {
+    const resposta = await r
+    expect(resposta.ok(), await resposta.text()).toBe(true)
+    return (await resposta.json()) as T
+  }
+  const atas = await json<
+    Array<{
+      id_ata: number
+      id_assembleia: number
+      status: string
+      id_ata_retificada: number | null
+    }>
+  >(page.request.get(`${API_HML}/api/atas/`, cab))
+  const retificadas = new Set(
+    atas.map((a) => a.id_ata_retificada).filter(Boolean),
+  )
+  for (const a of atas
+    .filter((x) => x.status === 'Assinada' && !retificadas.has(x.id_ata))
+    .sort((x, y) => x.id_ata - y.id_ata)) {
+    const assembleia = await json<{ status: string }>(
+      page.request.get(`${API_HML}/api/assembleias/${a.id_assembleia}`, cab),
+    )
+    if (assembleia.status === 'Realizada')
+      return { id_ata: a.id_ata, id_assembleia: a.id_assembleia }
+  }
+  const quando = new Date(Date.now() + 20 * 86_400_000)
+    .toISOString()
+    .slice(0, 19)
+  const { id_assembleia } = await json<{ id_assembleia: number }>(
+    page.request.post(`${API_HML}/api/assembleias/`, {
+      ...cab,
+      data: {
+        tipo: 'Ordinária',
+        pauta: `Assembleia de teste do robô (${RODADA})`,
+        data_hora_convocacao: quando,
+        local_fisico: 'Sede de teste',
+      },
+    }),
+  )
+  for (const passo of ['convocar', 'abrir-sessao', 'encerrar-sessao'])
+    await json(
+      page.request.post(
+        `${API_HML}/api/assembleias/${id_assembleia}/${passo}`,
+        cab,
+      ),
+    )
+  const { id_ata } = await json<{ id_ata: number }>(
+    page.request.post(`${API_HML}/api/assembleias/${id_assembleia}/ata`, cab),
+  )
+  await json(page.request.post(`${API_HML}/api/atas/${id_ata}/assinar`, cab))
+  return { id_ata, id_assembleia }
 }
