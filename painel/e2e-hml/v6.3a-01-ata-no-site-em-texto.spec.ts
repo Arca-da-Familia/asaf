@@ -70,11 +70,34 @@ test('a ata assinada abre o documento do site com o texto da ata, sem PDF; CPF �
     await page.request.get(`${API_HML}/api/atas/`, {
       headers: { Authorization: token() },
     })
-  ).json()) as Array<{ id_ata: number; id_assembleia: number; status: string }>
-  const assinada = atas
-    .filter((a) => a.status === 'Assinada')
-    .sort((a, b) => a.id_ata - b.id_ata)[0]
-  expect(assinada, 'uma ata assinada na homologação').toBeTruthy()
+  ).json()) as Array<{
+    id_ata: number
+    id_assembleia: number
+    status: string
+    id_ata_retificada: number | null
+  }>
+  // uma ata ASSINADA, sem retificação (a retificada não vai ao site), de assembleia já REALIZADA (só ela tem a tela da ata)
+  const retificadas = new Set(
+    atas.map((a) => a.id_ata_retificada).filter(Boolean),
+  )
+  let assinada: (typeof atas)[number] | undefined
+  for (const a of atas
+    .filter((x) => x.status === 'Assinada' && !retificadas.has(x.id_ata))
+    .sort((x, y) => x.id_ata - y.id_ata)) {
+    const assembleia = (await (
+      await page.request.get(`${API_HML}/api/assembleias/${a.id_assembleia}`, {
+        headers: { Authorization: token() },
+      })
+    ).json()) as { status: string }
+    if (assembleia.status === 'Realizada') {
+      assinada = a
+      break
+    }
+  }
+  expect(
+    assinada,
+    'uma ata assinada, sem retificação, de assembleia realizada',
+  ).toBeTruthy()
   idAta = assinada!.id_ata
   idAssembleia = assinada!.id_assembleia
 
