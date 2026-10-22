@@ -587,6 +587,44 @@ situação nova e a Auditoria guarda a mudança pelo sistema, com "Em Experiênc
 **Em produção (2026-10-21):** `main` = `a7ca7d6`; Deploy API verde (1470 testes contra Postgres; a imagem `asaf-api:a7ca7d6…` em execução; não há migração nesta versão nem mudança de tela, então
 o painel continua no `24f0f05`); a API responde; a "Tarefa Diária (lembretes de mensalidade por e-mail)" está registrada e ativa (primeira rodada no agendamento de 22/10, 09:00 de Belém) e a
 "Tarefa Mensal" passou a ser só "cobrança do mês + contas a pagar recorrentes". Nada de teste foi gravado em produção.
+**A rotina em produção (22/10):** a tarefa periódica de 15 minutos rodou VERDE com os passos novos da v6.2c e da v6.2d (`[fim-de-experiencia] {'fim_de_experiencia': 0}` e
+`[publicar-avisos-agendados] {'publicados': 0, ...}`: ainda não há experiência vencida nem aviso agendado em produção).
+
+##### Correção do achado da v6.2d + "Esqueci a minha senha" (pedido do Presidente)
+
+- [x] **A troca obrigatória da senha provisória.** A tela "Conceder acesso" prometia que o associado seria "obrigado a trocar a senha no primeiro login", mas o painel ignorava a
+  marca `senha_provisoria`. Agora o `/auth/me` a informa e a guarda `RequireSenhaDefinitiva` leva o painel inteiro à tela "Troque a sua senha" (antes do MFA obrigatório; quem chega lá sem
+  a senha provisória volta ao início); a senha nova não pode ser igual à atual. Na homologação, as contas de teste do cofre (cuja senha não é provisória) ficam marcadas com a senha
+  definitiva por um roteiro que só roda no `asaf_hml`.
+- [x] **"Esqueci a minha senha"** (pedido do Presidente em 21/10: "manda um e-mail para ela com um código e ele vai colocar esse código e troca a senha"): na tela de entrar, o CPF pede um
+  código de 6 números que vai ao e-mail de acesso ao painel (sem ele, ao de contato); vale 10 minutos, serve uma vez e aceita 5 tentativas (contadas antes de conferir, de forma atômica). A
+  resposta é a mesma, no conteúdo e no tempo, exista ou não a conta (procurar a conta, gerar o código e enviar o e-mail ficam para depois da resposta). Limites por IP, por CPF, por conta (6
+  códigos e 10 tentativas em 24 h, somando os códigos: pedir código novo não dá palpites novos; o teto fica na Auditoria) e do sistema (300 por dia, para não esgotar a cota do Google). A
+  troca é um commit só: código gasto, senha nova, fim da senha provisória e do bloqueio por senha errada, sessões encerradas (nenhuma se renova; o acesso já aberto vale até 45 minutos) e
+  Auditoria (`SENHA_TROCADA_PELO_CODIGO`, com o IP, sem o e-mail); a pessoa recebe o aviso de senha trocada; o MFA continua exigido no próximo login. Na homologação (sem e-mail) o código
+  aparece na tela, e só para conta fora do cofre e sem permissão do sistema (os CPFs das contas de teste estão no repositório). Migração `d3f6b2c8e571`; Política de Privacidade **2.6**.
+
+**Achados no caminho, corrigidos junto:** ao concluir a ativação do MFA, o painel podia voltar para ela (lia a cópia de 30 s do `/auth/me`); essa cópia sobrevivia a sair e entrar com
+outra conta na mesma aba (agora sair e entrar apagam tudo); o Meu Perfil pedia 10 caracteres (a regra do sistema é 8 desde a v3.0.1); senha com mais de 72 bytes dava erro 500 (o bcrypt
+não aceita; agora é recusada com mensagem, em todos os caminhos).
+**Conferência independente (agente `opus`, só leitura), duas, todos os pontos corrigidos:** na troca obrigatória, o alto era o próprio defeito da cópia velha do `/auth/me` (o robô cairia
+nele); no "Esqueci a minha senha", os altos eram que, na homologação, qualquer pessoa trocaria a senha do Presidente de teste (o código voltava na resposta e o CPF é público no
+repositório) e um teste existente das rotas sem login que reprovaria a publicação; os médios: palpites sem teto por conta, e-mail em massa contra a cota diária, senha longa dando 500,
+o tempo da resposta revelando quem tem conta; os baixos: textos das sessões, transação única, segredo ausente, Política, testes. A reconferência achou os 11 resolvidos.
+**Risco que fica registrado:** o servidor não recusa as rotas para quem ainda tem senha provisória (a obrigação é do painel, como a do MFA pendente); não foi possível contar, só lendo, quantos
+usuários de produção ainda têm a senha provisória (o banco só aceita conexão de dentro do Azure, e eu não abro o firewall); com o "Esqueci a minha senha", quem esqueceu a provisória não
+fica preso.
+**Testes locais:** servidor 1494 em duas rodadas seguidas; painel 716; site 766 unitários e 870 de navegador; 23 mutações, 22 pegas (a que escapa é uma conferência que o banco também faz).
+**Na homologação (21–22/10):** a branch `correcao-senha-provisoria` foi publicada lá (`Running upgrade c9e5a1b3d468 -> d3f6b2c8e571`; 9 contas do cofre marcadas com a senha definitiva).
+Robô `v6.2d-01`, 2 de 2: o associado novo entra com a senha provisória, o painel o OBRIGA a trocar (nem o endereço direto abre outra tela), a senha atual errada é recusada e, trocada, o
+sino dá as boas-vindas. Robô `v6.2d-03`, 2 de 2 (na 1ª rodada o robô achou defeito dele mesmo: a faixa de ambiente de teste também é um aviso na tela; corrigido): pela tela de entrar,
+"Esqueci a minha senha", o código errado é recusado, o certo troca a senha e a pessoa entra com a nova; o mesmo código não serve de novo, um CPF sem conta recebe a mesma resposta e a
+Auditoria guarda a troca. Regressões verdes: `v6.2d-02` 1/1, `v5.4c-fase0` 6/6, `v5.4c-fase1` 24/24, `v5.4h-03` 8/8, `v6.1-01` 5/5, `v6.2a-01` 4/4, `v6.2b-01` 4/4 e `v6.2c-01` 2/2.
+**Em produção (22/10):** `main` = `b4beb6b`; Deploy API verde (1494 testes contra Postgres; `Running upgrade c9e5a1b3d468 -> d3f6b2c8e571`) e Deploy Painel verde (`version.json` =
+`b4beb6b`); o `openapi.json` traz `/auth/senha/esqueci` e `/auth/senha/trocar-com-codigo`; `/auth/me` sem login responde 401; `painel.asaf.org.br/esqueci-a-senha` abre. A publicação do
+site reprovou duas vezes por testes que ainda esperavam a Política 2.5 (a rodada local tinha reaproveitado um servidor de pré-visualização antigo; lição: rodar o e2e do site sem reaproveitar
+servidor): corrigidos e publicada, `asaf.org.br/version.json` = `879c4d3` e `/privacidade/` diz "Versão 2.6 · em vigor desde 21 de outubro de 2026" com o parágrafo `data-esqueci-a-senha`.
+Nenhum código nem senha de teste foi gerado em produção.
 
 **Fora de escopo de propósito:** WhatsApp (v11.3), e-mail com HTML e imagens (texto simples chega melhor e não cai no lixo eletrônico), leitura do e-mail ("abriu ou não": exige pixel de rastreio,
 que a Política não promete e a LGPD desaconselha), o endereço só de envio (o Presidente escolheu asaf@asaf.org.br).
