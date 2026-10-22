@@ -111,6 +111,14 @@ jobs:
             DATABASE_URL="$HML_DATABASE_URL" PYTHONPATH=. python scripts/hml_contas_do_cofre_definitivas.py
           fi
 
+      # v6.3c - o relatório anual só sai de ano encerrado em que o sistema já era usado (o primeiro registro da Auditoria); a homologação nasceu em 2026,
+      # então grava ali um início de uso FICTÍCIO em 02/01/2025 para o robô conferir o relatório de 2025. Só no banco de TESTE; a produção nunca recebe isto.
+      - name: Início de uso fictício do sistema de teste (relatório anual)
+        run: |
+          if [ -f scripts/hml_inicio_do_sistema.py ]; then
+            DATABASE_URL="$HML_DATABASE_URL" PYTHONPATH=. python scripts/hml_inicio_do_sistema.py
+          fi
+
       # v5.7d - as rotinas periódicas que na PRODUÇÃO o agendamento roda (tarefa-eventos-vagas.yml) não têm agendamento na homologação: aqui rodam a cada publicação de teste, para provar com dado de
       # verdade (o robô prepara, a publicação roda a rotina, o robô confere). Só contra o banco de TESTE (HML_DATABASE_URL) e o armazenamento de TESTE; uma versão do código sem o roteiro não faz nada.
       - name: Rotinas do sistema no banco de TESTE (apagar a foto da Diretoria de quem ficou sem mandato)
