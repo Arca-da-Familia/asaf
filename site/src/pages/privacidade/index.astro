@@ -63,6 +63,9 @@ const presidente = presidenteDaDiretoria((await conteudoPublico()).diretoria)
 // `app/services/status_do_evento.py`): o parágrafo `data-emails-da-asaf` diz SÓ o que o código faz — quais e-mails saem, o link assinado no fim dos que se podem desligar (e o
 // cabeçalho List-Unsubscribe), o Meu Perfil, as obrigatórias (Convocação e Mudança de regra, decisão do Presidente de 2026-10-20), a escolha guardada com data e origem, a Auditoria
 // (pelo link, com o IP) e que o sistema não registra a abertura do e-mail (não há pixel de rastreio).
+// v2.6 (2026-10-21): "ESQUECI A MINHA SENHA" do painel (`app/services/esqueci_a_senha.py`): o código vai ao e-mail de login da conta (sem ele, ao de contato); vale 10 minutos, uma vez;
+// o sistema guarda a impressão do código, as tentativas, a impressão do CPF e o IP de quem pede ou tenta usar (os limites), tudo apagado depois de 1 dia por `limpar_vencidos` (rotina de
+// retenção); a troca (SENHA_TROCADA_PELO_CODIGO, com o IP) e o teto do dia (NOVA_SENHA_TRAVADA_NO_DIA) ficam na Auditoria; o aviso de que a senha foi trocada não se desliga.
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -508,11 +511,23 @@ const direitos = [
         desliga esses avisos, o endereço deixa de recebê-los. A convocação de
         assembleia e a mudança de regra são comunicações obrigatórias da
         associação e não se desligam; o e-mail que você mesmo pede (um código de
-        acesso, um recibo, a resposta a um pedido) e o aviso de que abriu uma
-        vaga para você na lista de espera também não. A escolha fica guardada no
-        seu cadastro, com a data e de onde veio (o link ou o painel), e a
-        Auditoria do sistema registra a mudança (pelo link, com o endereço IP).
-        O sistema não registra se você abriu o e-mail.
+        acesso, um recibo, a resposta a um pedido), o aviso de que a senha do
+        painel foi trocada e o aviso de que abriu uma vaga para você na lista de
+        espera também não. A escolha fica guardada no seu cadastro, com a data e
+        de onde veio (o link ou o painel), e a Auditoria do sistema registra a
+        mudança (pelo link, com o endereço IP). O sistema não registra se você
+        abriu o e-mail.
+      </p>
+      <p class="mt-3" data-esqueci-a-senha>
+        <strong>Esqueci a minha senha.</strong> Quem tem acesso ao painel e
+        esqueceu a senha informa o CPF e recebe um código que vale 10 minutos e
+        serve uma vez, no e-mail de acesso ao painel (sem ele, no e-mail de
+        contato do cadastro). O sistema guarda só uma impressão do código (não o
+        código), as tentativas e, para limitar os pedidos, uma impressão do CPF
+        e o endereço IP de quem pede o código ou tenta usá-lo; tudo isso é
+        apagado pela rotina de manutenção depois de 1 dia. A troca da senha fica
+        registrada na Auditoria do sistema, com o endereço IP, e também fica
+        registrado quando uma conta atinge o limite de pedidos do dia.
       </p>
       <p class="mt-3">
         Sobre menores: quem tem 16 ou 17 anos só se filia com a autorização dos

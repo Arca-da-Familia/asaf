@@ -306,6 +306,8 @@ export type Me = {
   mfa_ativado: boolean
   mfa_obrigatorio: boolean
   mfa_pendente: boolean
+  // achado da v6.2d: enquanto a senha dada em "Conceder acesso" não for trocada, o painel só abre a tela de troca
+  senha_provisoria?: boolean
   permissoes: string[]
   impersonando?: Impersonando | null
 }
@@ -455,6 +457,27 @@ export function atualizarPerfil(
 ): Promise<{ mensagem: string }> {
   return apiFetch('/auth/perfil', {
     method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+}
+
+// Esqueci a minha senha (público): o pedido do código por e-mail e a troca com ele. `codigo_de_teste` só vem da homologação (sem servidor de e-mail).
+export function pedirCodigoDeNovaSenha(
+  cpf: string,
+): Promise<{ mensagem: string; codigo_de_teste?: string }> {
+  return rawFetch('/auth/senha/esqueci', {
+    method: 'POST',
+    body: JSON.stringify({ cpf }),
+  })
+}
+
+export function trocarSenhaComCodigo(dados: {
+  cpf: string
+  codigo: string
+  senha_nova: string
+}): Promise<{ mensagem: string }> {
+  return rawFetch('/auth/senha/trocar-com-codigo', {
+    method: 'POST',
     body: JSON.stringify(dados),
   })
 }

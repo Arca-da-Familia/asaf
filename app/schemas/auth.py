@@ -84,6 +84,8 @@ class MeResponse(BaseModel):
     # v0.2.2 - o nível exige MFA (configurável no catálogo) e o usuário ainda não ativou.
     mfa_obrigatorio: bool = False
     mfa_pendente: bool = False
+    # achado da v6.2d: a senha dada pela secretaria em "Conceder acesso" é provisória; enquanto não for trocada, o painel só abre a tela de troca
+    senha_provisoria: bool = False
     permissoes: list[str] = []
     impersonando: Optional[ImpersonandoInfo] = None
 

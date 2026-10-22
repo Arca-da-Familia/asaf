@@ -3,7 +3,7 @@ import {
   startAuthentication,
 } from '@simplewebauthn/browser'
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 
 import { AvisoDeAmbiente } from '@/components/layout/AvisoDeAmbiente'
 import { Button } from '@/components/ui/button'
@@ -197,6 +197,14 @@ export function Login() {
               <Button type="submit" className="w-full" disabled={carregando}>
                 {carregando ? 'Entrando…' : 'Entrar'}
               </Button>
+              <p className="text-center text-sm">
+                <Link
+                  to="/esqueci-a-senha"
+                  className="text-primary underline-offset-4 hover:underline"
+                >
+                  Esqueci a minha senha
+                </Link>
+              </p>
               {passkeySuportada && (
                 <>
                   <div className="relative py-1 text-center text-xs text-muted-foreground">

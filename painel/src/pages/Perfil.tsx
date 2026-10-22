@@ -43,7 +43,8 @@ const schemaSenha = z
     senha_atual: z.string().min(1, 'Informe a senha atual.'),
     senha_nova: z
       .string()
-      .min(10, 'A senha deve ter pelo menos 10 caracteres.'),
+      // a regra do servidor (`validar_senha_forte`): 8 caracteres desde a v3.0.1
+      .min(8, 'A senha deve ter pelo menos 8 caracteres.'),
     confirmacao: z.string(),
   })
   .refine((d) => d.senha_nova === d.confirmacao, {

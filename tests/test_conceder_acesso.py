@@ -97,3 +97,90 @@ def test_fluxo_completo_concede_acesso_login_forca_troca_de_senha(client, auth_h
     login_depois = client.post("/auth/login", json={"cpf": cpf, "senha": "SenhaDefinitivaOk1"})
     assert login_depois.status_code == 200, login_depois.text
     assert login_depois.json()["senha_provisoria"] is False
+
+
+def test_o_me_diz_que_a_senha_e_provisoria_ate_ser_trocada_e_a_nova_nao_pode_ser_igual(client, auth_headers):
+    """Achado da v6.2d: a tela "Conceder acesso" promete que o associado é obrigado a trocar a senha no primeiro login; o painel obriga
+    pelo `senha_provisoria` do `/auth/me` (a guarda manda para a tela de troca, como o MFA obrigatório)."""
+    id_associado, cpf = _criar_ficha(client)
+    r = client.post(
+        f"/api/associados/{id_associado}/conceder-acesso",
+        json={"email": f"{cpf}@provisoria.example.com", "senha_provisoria": "Provisoria1"},
+        headers=auth_headers,
+    )
+    assert r.status_code == 200, r.text
+    token = client.post("/auth/login", json={"cpf": cpf, "senha": "Provisoria1"}).json()["access_token"]
+    cabecalho = {"Authorization": f"Bearer {token}"}
+    assert client.get("/auth/me", headers=cabecalho).json()["senha_provisoria"] is True
+
+    # a mesma senha não serve de "troca": ela continuaria sendo a que a secretaria conhece
+    igual = client.post("/auth/senha/alterar", json={"senha_atual": "Provisoria1", "senha_nova": "Provisoria1"}, headers=cabecalho)
+    assert igual.status_code == 400 and igual.json()["detail"] == "A senha nova precisa ser diferente da atual."
+    assert client.get("/auth/me", headers=cabecalho).json()["senha_provisoria"] is True
+
+    trocou = client.post("/auth/senha/alterar", json={"senha_atual": "Provisoria1", "senha_nova": "MinhaSenhaNova9"}, headers=cabecalho)
+    assert trocou.status_code == 200, trocou.text
+    assert client.get("/auth/me", headers=cabecalho).json()["senha_provisoria"] is False
+
+
+def test_quem_nao_recebeu_senha_provisoria_nao_e_mandado_para_a_troca(client, auth_headers):
+    assert client.get("/auth/me", headers=auth_headers).json()["senha_provisoria"] is False
+
+
+def test_o_roteiro_da_homologacao_das_contas_do_cofre_recusa_outro_banco(monkeypatch):
+    import importlib.util
+
+    import pytest
+
+    import app.database
+
+    esp = importlib.util.spec_from_file_location("hml_contas", "scripts/hml_contas_do_cofre_definitivas.py")
+    roteiro = importlib.util.module_from_spec(esp)
+    esp.loader.exec_module(roteiro)
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:s@servidor/asaf?sslmode=require")
+    with pytest.raises(SystemExit, match="RECUSADO"):
+        roteiro.main()
+
+    class Resultado:
+        def scalar(self):
+            return "asaf"
+
+    class SessaoDeOutroBanco:
+        def execute(self, *_a, **_k):
+            return Resultado()
+
+        def query(self, *_a, **_k):
+            raise AssertionError("consultou o banco errado")
+
+        def commit(self):
+            raise AssertionError("escreveu no banco errado")
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(app.database, "SessaoLocal", SessaoDeOutroBanco)
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:s@servidor/asaf_hml?sslmode=require")
+    with pytest.raises(SystemExit, match="RECUSADO"):
+        roteiro.main()
+
+
+def test_o_roteiro_da_homologacao_acerta_so_as_contas_do_cofre_e_pode_rodar_de_novo(client, auth_headers, db):
+    import importlib.util
+
+    from app.models.core import Usuario
+
+    esp = importlib.util.spec_from_file_location("hml_contas", "scripts/hml_contas_do_cofre_definitivas.py")
+    roteiro = importlib.util.module_from_spec(esp)
+    esp.loader.exec_module(roteiro)
+    contas = {}
+    for email in ("conselheiro_3@homologacao.example.com", "login.robo@homologacao.example.com"):
+        id_associado, _cpf = _criar_ficha(client)
+        r = client.post(f"/api/associados/{id_associado}/conceder-acesso", json={"email": email, "senha_provisoria": "Provisoria1"}, headers=auth_headers)
+        assert r.status_code == 200, r.text
+        contas[email] = r.json()["id_usuario"]
+
+    assert roteiro.acertar(db) >= 1  # (o banco é da sessão inteira: outra conta do cofre criada por outro teste também conta)
+    db.expire_all()
+    assert db.get(Usuario, contas["conselheiro_3@homologacao.example.com"]).senha_provisoria is False
+    assert db.get(Usuario, contas["login.robo@homologacao.example.com"]).senha_provisoria is True  # a conta que o robô cria prova a troca obrigatória
+    assert roteiro.acertar(db) == 0

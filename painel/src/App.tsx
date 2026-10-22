@@ -70,7 +70,9 @@ import { Login } from '@/pages/Login'
 import { MandatosPage } from '@/pages/Mandatos'
 import { FiliacaoParaProporPage } from '@/pages/FiliacaoParaPropor'
 import { MeuVoluntariadoPage } from '@/pages/MeuVoluntariado'
+import { EsqueciASenha } from '@/pages/EsqueciASenha'
 import { MfaSetup } from '@/pages/MfaSetup'
+import { TrocarSenhaObrigatoria } from '@/pages/TrocarSenhaObrigatoria'
 import { MinhasAssembleiasPage } from '@/pages/MinhasAssembleias'
 import { AvisoDetalhePage } from '@/pages/AvisoDetalhe'
 import { AvisoNovoPage } from '@/pages/AvisoNovo'
@@ -94,6 +96,15 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated, isBootstrapping } = useAuth()
   if (isBootstrapping) return null
   if (!isAuthenticated) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
+// Achado da v6.2d - trava o painel inteiro na troca da senha provisória (a que a secretaria dá em "Conceder acesso") enquanto ela não for
+// trocada, como o MFA abaixo. Vem antes do MFA: ninguém configura o segundo passo com uma senha que a secretaria conhece.
+export function RequireSenhaDefinitiva({ children }: { children: ReactNode }) {
+  const { data, isLoading } = useMe()
+  if (isLoading) return null
+  if (data?.senha_provisoria) return <Navigate to="/trocar-senha" replace />
   return <>{children}</>
 }
 
@@ -165,14 +176,25 @@ function App() {
       <AssociarRotulos />
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/esqueci-a-senha" element={<EsqueciASenha />} />
         {/* v4.8 - tela da portaria (check-in/check-out por token de evento, sem login do painel).
           Fora de RequireAuth/RequireMfa/Shell de propósito - ver PortariaGate.tsx. */}
         <Route path="/portaria/:token" element={<PortariaGate />} />
         <Route
+          path="/trocar-senha"
+          element={
+            <RequireAuth>
+              <TrocarSenhaObrigatoria />
+            </RequireAuth>
+          }
+        />
+        <Route
           path="/mfa/setup"
           element={
             <RequireAuth>
-              <MfaSetup />
+              <RequireSenhaDefinitiva>
+                <MfaSetup />
+              </RequireSenhaDefinitiva>
             </RequireAuth>
           }
         />
@@ -180,9 +202,11 @@ function App() {
         <Route
           element={
             <RequireAuth>
-              <RequireMfa>
-                <Shell />
-              </RequireMfa>
+              <RequireSenhaDefinitiva>
+                <RequireMfa>
+                  <Shell />
+                </RequireMfa>
+              </RequireSenhaDefinitiva>
             </RequireAuth>
           }
         >

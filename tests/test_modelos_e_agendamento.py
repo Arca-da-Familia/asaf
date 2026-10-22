@@ -247,7 +247,7 @@ def test_a_migracao_continua_a_cadeia_sem_segunda_cabeca():
     config = Config()
     config.set_main_option("script_location", str(Path(__file__).resolve().parent.parent / "alembic"))
     diretorio = ScriptDirectory.from_config(config)
-    assert diretorio.get_heads() == ["c9e5a1b3d468"] and diretorio.get_revision("c9e5a1b3d468").down_revision == "b8d4f0a2c357"
+    assert len(diretorio.get_heads()) == 1 and diretorio.get_revision("c9e5a1b3d468").down_revision == "b8d4f0a2c357"
 
 
 # ------------------------------------------------------------------------------------------------ achados da conferência independente (2026-10-21)

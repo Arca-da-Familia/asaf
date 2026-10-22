@@ -139,10 +139,11 @@ test('preparo: o Presidente de teste dá acesso ao 2º e ao 3º conselheiro fisc
         senha_provisoria: senhaDe(papel),
       },
     )
-    if (r.status !== 200) {
-      expect(r.status, `conceder acesso ao ${papel}`).toBe(400)
-      expect(JSON.stringify(r.corpo)).toContain('já tem acesso')
-    }
+    expect(
+      r.status,
+      `${papel}: a conta do cofre ainda não existia e nasceu com a senha PROVISÓRIA (o painel obriga a trocá-la e o robô não pode trocar a senha do cofre): republique a homologação (o passo "Contas de teste do cofre com a senha definitiva" a acerta) e rode de novo`,
+    ).toBe(400)
+    expect(JSON.stringify(r.corpo)).toContain('já tem acesso')
   }
   totalAntes = await totalNaAuditoriaDoSistema(page)
   expect(vigia.problemas()).toEqual([])

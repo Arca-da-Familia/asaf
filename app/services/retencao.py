@@ -201,4 +201,12 @@ def aplicar_todas(db: Session, agora: Optional[datetime] = None) -> dict:
         db.rollback()
         LOG.exception("a limpeza técnica da conta de visitante falhou")
         falhas.append("conta_de_visitante")
+    try:
+        from app.services import esqueci_a_senha
+
+        limpeza_tecnica["esqueci_a_senha"] = esqueci_a_senha.limpar_vencidos(db, agora)
+    except Exception:  # noqa: BLE001 - mesma regra
+        db.rollback()
+        LOG.exception("a limpeza técnica dos códigos de troca de senha falhou")
+        falhas.append("esqueci_a_senha")
     return {"aplicadas": aplicadas, "falhas": falhas, "limpeza_tecnica": limpeza_tecnica}

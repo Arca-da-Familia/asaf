@@ -663,6 +663,8 @@ export const meResponseSchema = z.object({
   mfa_ativado: z.boolean(),
   mfa_obrigatorio: z.boolean(),
   mfa_pendente: z.boolean(),
+  // opcional: o painel novo pode chegar antes da API nova (sem o campo, vale "não é provisória")
+  senha_provisoria: z.boolean().optional(),
   permissoes: z.array(z.string()),
   impersonando: impersonandoSchema.nullish(),
 })

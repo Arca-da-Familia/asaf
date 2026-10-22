@@ -28,6 +28,8 @@ ABERTAS_DE_PROPOSITO = {
     ("POST", "/auth/login"),
     ("POST", "/auth/login/mfa"),
     ("POST", "/auth/logout"),
+    ("POST", "/auth/senha/esqueci"),  # Esqueci a minha senha: a resposta é a mesma exista ou não a conta (testado em test_esqueci_a_senha)
+    ("POST", "/auth/senha/trocar-com-codigo"),  # a troca só acontece com o código que foi ao e-mail da conta (testado em test_esqueci_a_senha)
     ("POST", "/auth/webauthn/login/concluir"),
     ("POST", "/auth/webauthn/login/iniciar"),
     ("GET", "/carteirinha/verificar/{token}"),  # o que a portaria escaneia (só nome, foto e validade)
