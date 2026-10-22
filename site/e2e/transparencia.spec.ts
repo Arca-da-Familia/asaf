@@ -263,6 +263,7 @@ test.describe('Parcerias (termos)', () => {
 test.describe('Documentos publicados', () => {
   test('v6.3a: cada documento diz quem aprovou (nome e cargo) e a versão substituída continua no site, ligada à nova', async ({
     page,
+    request,
   }) => {
     await page.goto('/transparencia/documentos/')
     const ata = page.locator('li[data-documento]', {
@@ -297,11 +298,15 @@ test.describe('Documentos publicados', () => {
     await expect(page.locator('[data-aprovacao]')).toContainText(
       'EXEMPLO Presidente de Teste, Presidente',
     )
-    await page
+    // a ligação para a versão 2 (o PDF): confere o endereço e o arquivo, sem clicar (o navegador sem janela do CI BAIXA o PDF em vez de abri-lo)
+    const href = await page
       .locator('[data-substituida]')
       .getByRole('link', { name: 'versão 2' })
-      .click()
-    await expect(page).toHaveURL(/1-exemplo-estatuto-social-registrado\.pdf$/)
+      .getAttribute('href')
+    expect(href).toMatch(/1-exemplo-estatuto-social-registrado\.pdf$/)
+    const pdf = await request.get(href!)
+    expect(pdf.status()).toBe(200)
+    expect((await pdf.body()).subarray(0, 5).toString()).toBe('%PDF-')
   })
 
   test('organizados por tipo e ano, com link para o PDF permanente', async ({
