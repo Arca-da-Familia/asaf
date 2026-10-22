@@ -652,10 +652,28 @@ que a Política não promete e a LGPD desaconselha), o endereço só de envio (o
 
 ##### v6.3a — Documentos com responsável e histórico; atas em texto
 
-- [ ] Cada documento publicado mostra **quem aprovou (nome e cargo) e quando**; a versão substituída continua no site, ligada à que a substituiu (o histórico de versões na página do
+- [x] Cada documento publicado mostra **quem aprovou (nome e cargo) e quando**; a versão substituída continua no site, ligada à que a substituiu (o histórico de versões na página do
   documento). A retirada (documento publicado por engano) continua tirando do site.
-- [ ] **Publicar uma ata no site em texto:** a partir da ata assinada, o sistema abre um documento público em TEXTO já com o texto da ata para a pessoa retirar o dado pessoal (o verificador
+- [x] **Publicar uma ata no site em texto:** a partir da ata assinada, o sistema abre um documento público em TEXTO já com o texto da ata para a pessoa retirar o dado pessoal (o verificador
   aponta e bloqueia); só sai com a aprovação do Presidente ou do Secretário.
+
+**O que foi feito:** a API pública de documentos passa a trazer `aprovado_por` (nome e cargo de quem aprovou, só se a pessoa tinha mandato vigente no dia da aprovação; nome apagado pela
+anonimização não aparece) e `grupo_versao`; o site mostra "Aprovado para publicação por …, em …" em cada documento e guarda as versões anteriores sob "Versões anteriores", cada uma com a
+sua página ("Esta é a versão 1, substituída pela versão 2"). Na tela da ata assinada, "Publicar no site (em texto)" abre um documento Público em TEXTO ligado à ata, já preenchido com o
+texto da ata e o relato da secretaria (ou com o texto da última versão publicada); a ata nunca vai em PDF (todas as portas de PDF e de "usar o original" fecham para o tipo Ata, inclusive
+pela edição e pela criação direta), a ata retificada não vai ao site e o verificador recusa o dado pessoal. Achado no caminho: baixar um original com acento no nome dava erro 500 (corrigido).
+**Conferência independente (agente `opus`, só leitura), duas:** 12 achados na primeira (os altos: portas para o PDF da ata e o nome de quem não era da Diretoria no "aprovado por"),
+2 na reconferência (a ata podia virar Pública pela edição; documento ligado a ata pela criação direta); todos corrigidos.
+**Na homologação (22/10):** branch `v63a-documentos-e-atas`. O robô `v6.3a-01` achou dois defeitos DELE na primeira e na segunda rodada (escolhia uma ata de assembleia ainda em andamento,
+e depois a homologação não tinha nenhuma ata assinada de assembleia realizada: o povoamento assinava a ata com a sessão aberta, também corrigido); com o robô montando a sua assembleia
+pelas rotas de verdade, 2 de 2: a ata assinada abre o documento com o texto, sem opção de PDF, o CPF é recusado (mascarado), o Secretário aprova e o público vê quem aprovou; a correção
+vira a versão 2 e a 1 continua publicada no mesmo grupo. Depois de publicar a homologação, `v6.3a-02` 1 de 1 (o site de teste mostra a ata em texto, quem aprovou e as versões);
+regressões `v5.4g-02` 7/7, `v5.4d-05` 16/16, `v5.4g-05` 6/6 e `v5.4g-01` 5/5.
+**Em produção (22/10):** `main` = `7902c1a` (código) e `38bef2c` (teste do site); Deploy API verde (1507 testes contra Postgres; sem migração) e Deploy Painel verde (`version.json` =
+`7902c1a`); o `openapi.json` traz `/api/atas/{id_ata}/publicar-no-site` e a rota sem login responde 401. A publicação do site reprovou uma vez: um teste clicava no link do PDF e o
+navegador sem janela do CI baixa o PDF em vez de abri-lo (localmente passou porque usei o Chromium completo; lição: rodar o e2e do site com o navegador do CI). Corrigido (confere o link e
+o arquivo) e publicado: `asaf.org.br/version.json` = `38bef2c`. Em produção ainda não há documento publicado, então a linha "Aprovado para publicação por" aparece quando o primeiro for
+aprovado. Nada de teste foi criado em produção.
 
 ##### v6.3b — As contas do exercício no site
 
