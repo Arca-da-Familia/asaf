@@ -197,6 +197,83 @@ export function linhasDosDadosAbertos(
 export const documentosOrdenados = (p: Pick<ParceriaDetalhada, 'documentos'>) =>
   [...p.documentos].sort((a, b) => a.id_documento - b.id_documento)
 
+/** Uma versão substituída e a versão que a substituiu (v6.3a). */
+export type VersaoAnterior = {
+  documento: DocumentoPublico
+  substituidaPor: DocumentoPublico
+}
+
+/** O documento como aparece no site: a versão atual e as anteriores, que continuam publicadas (o histórico não some). */
+export type DocumentoComVersoes = {
+  atual: DocumentoPublico
+  anteriores: VersaoAnterior[]
+}
+
+/** Junta as versões do mesmo documento (o mesmo `grupo_versao`; na API antiga cada documento é o seu próprio grupo). A atual é a vigente
+ * (ou, sem vigente, a de número maior); cada anterior aponta para a versão seguinte, a que a substituiu. */
+export function agruparVersoes(
+  documentos: DocumentoPublico[],
+): DocumentoComVersoes[] {
+  const grupos = new Map<string, DocumentoPublico[]>()
+  for (const d of documentos) {
+    const chave = d.grupo_versao ?? `documento-${d.id_documento}`
+    grupos.set(chave, [...(grupos.get(chave) ?? []), d])
+  }
+  return [...grupos.values()].map((lista) => {
+    const ordenadas = [...lista].sort((a, b) => b.versao - a.versao)
+    const atual = ordenadas.find((d) => d.vigente) ?? ordenadas[0]!
+    const anteriores = ordenadas
+      .filter((d) => d.id_documento !== atual.id_documento)
+      .map((documento) => ({
+        documento,
+        substituidaPor:
+          [...ordenadas].reverse().find((d) => d.versao > documento.versao) ??
+          atual,
+      }))
+    return { atual, anteriores }
+  })
+}
+
+/** "Aprovado para publicação por Fulano, Presidente, em 10/03/2026" (sem nome: só a data; sem nada: vazio). */
+export function linhaDaAprovacao(
+  d: Pick<DocumentoPublico, 'aprovado_em' | 'aprovado_por'>,
+  formatarData: (iso: string) => string,
+): string {
+  const quando = d.aprovado_em ? ` em ${formatarData(d.aprovado_em)}` : ''
+  if (d.aprovado_por?.nome) {
+    const { nome, cargo } = d.aprovado_por
+    const quem = cargo
+      ? quando
+        ? `${nome}, ${cargo},`
+        : `${nome}, ${cargo}`
+      : nome
+    return `Aprovado para publicação por ${quem}${quando}.`
+  }
+  return quando ? `Aprovado para publicação${quando}.` : ''
+}
+
+/** Os documentos por tipo, cada um com as suas versões: por tipo (ordem alfabética) e, dentro do tipo, o ano mais novo primeiro. */
+export function agruparDocumentosPorTipoComVersoes(
+  documentos: DocumentoPublico[],
+): { tipo: string; documentos: DocumentoComVersoes[] }[] {
+  const porTipo = new Map<string, DocumentoComVersoes[]>()
+  for (const entrada of agruparVersoes(documentos)) {
+    const tipo = entrada.atual.tipo
+    porTipo.set(tipo, [...(porTipo.get(tipo) ?? []), entrada])
+  }
+  return [...porTipo.entries()]
+    .sort(([a], [b]) => a.localeCompare(b, 'pt-BR'))
+    .map(([tipo, lista]) => ({
+      tipo,
+      documentos: [...lista].sort(
+        (a, b) =>
+          (b.atual.ano ?? 0) - (a.atual.ano ?? 0) ||
+          b.atual.versao - a.atual.versao ||
+          a.atual.titulo.localeCompare(b.atual.titulo, 'pt-BR'),
+      ),
+    }))
+}
+
 /** Por tipo de documento (na ordem em que a API manda os tipos) e, dentro de cada tipo, o ano mais novo primeiro. */
 export function agruparDocumentosPorTipo(
   documentos: DocumentoPublico[],

@@ -64,6 +64,9 @@ export type Documento = {
   pode_editar: boolean
   pode_aprovar: boolean
   pode_retirar: boolean
+  // v6.3a: o texto da ata, ponto de partida da versão para o site (a pessoa retira o dado pessoal); a ata vai ao site só em texto
+  texto_sugerido?: string | null
+  so_texto?: boolean
 }
 
 export type TiposDeDocumento = {

@@ -37,7 +37,8 @@ def _usuario(db, *codigos: str) -> dict:
 
 
 def _criar(client, headers, *, arquivo=None, **campos):
-    dados = {"tipo": "ATA", "titulo": f"Ata de teste {uuid.uuid4().hex[:6]}", "classificacao": "Restrita", "publicar_no_site": "true", **campos}
+    # v6.3a: a ata vai ao site só em texto; o exemplo de documento com PDF passou a ser uma certidão
+    dados = {"tipo": "CERTIDAO", "titulo": f"Certidão de teste {uuid.uuid4().hex[:6]}", "classificacao": "Restrita", "publicar_no_site": "true", **campos}
     dados = {k: ("true" if v is True else "false" if v is False else v) for k, v in dados.items() if v is not None}
     arquivos = {"arquivo": arquivo} if arquivo else None
     return client.post("/api/documentos", data=dados, files=arquivos, headers=headers)
@@ -135,7 +136,7 @@ def test_criar_com_original_guarda_em_pasta_privada_e_nunca_devolve_o_nome_no_ar
     ({"tipo": "INVENTADO"}, "Tipo inválido"),
     ({"titulo": "ab"}, "título"),
     ({"classificacao": "Secreta"}, "Classificação inválida"),
-    ({"vinculo_tipo": "ata"}, "juntos"),
+    ({"vinculo_tipo": "projeto"}, "juntos"),
     ({"vinculo_tipo": "marte", "vinculo_id": "3"}, "Vínculo inválido"),
     ({"data_documento": "ontem"}, "Data inválida"),
 ])
@@ -378,6 +379,7 @@ CAMPOS_PUBLICOS = {
     "id_documento", "tipo_codigo", "tipo", "titulo", "descricao", "data_documento", "ano", "versao", "vigente",
     "paginas", "tamanho", "sha256", "aprovado_em", "formato", "arquivo",
     "vinculo_tipo", "vinculo_id",  # v5.5: a que evento/projeto o documento pertence (só esses dois; nulo nos demais)
+    "aprovado_por", "grupo_versao",  # v6.3a: quem aprovou (nome e cargo) e o grupo das versões do mesmo documento
 }
 
 
@@ -395,7 +397,7 @@ def test_o_publico_so_ve_o_aprovado_so_a_versao_publica_e_so_os_campos_da_lista_
     item = next(d for d in lista.json() if d["id_documento"] == publicado)
     assert set(item) == CAMPOS_PUBLICOS
     assert item["arquivo"] == f"/api/publico/transparencia/documentos/{publicado}/arquivo"
-    assert item["tipo"] == "Ata" and item["ano"] == 2026 and item["vigente"] is True
+    assert item["tipo"] == "Certidão" and item["ano"] == 2026 and item["vigente"] is True
     # v5.5: o vínculo só aparece para evento/projeto (a página deles lista o relatório); documento solto vem com nulo
     assert item["vinculo_tipo"] is None and item["vinculo_id"] is None
     for proibido in ("original", "classificacao", "texto", "id_usuario", "verificacao", "situacao"):
@@ -547,3 +549,13 @@ def test_data_de_aprovacao_publica_e_o_dia_de_belem(client, db, preparador, apro
     db.commit()
     lista = client.get("/api/publico/transparencia/documentos").json()
     assert next(d for d in lista if d["id_documento"] == id_documento)["aprovado_em"] == "2026-08-10"
+
+
+
+def test_baixar_arquivo_de_nome_com_acento_nao_quebra_o_download(client, db, preparador):
+    """Achado ao trocar o exemplo de "Ata" por "Certidão" (v6.3a): nome com acento derrubava o download (cabeçalho HTTP só aceita ASCII)."""
+    id_documento = _criar(client, preparador, arquivo=("Certidão de regularidade.pdf", ORIGINAL[1], "application/pdf")).json()["id_documento"]
+    r = client.get(f"/api/documentos/{id_documento}/original", headers=_usuario(db, "documentos_originais"))
+    assert r.status_code == 200 and r.content == ORIGINAL[1]
+    assert "filename*=UTF-8''Certid%C3%A3o%20de%20regularidade.pdf" in r.headers["content-disposition"]
+    assert 'filename="Certidao de regularidade.pdf"' in r.headers["content-disposition"]

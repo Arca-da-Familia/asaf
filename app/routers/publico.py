@@ -207,7 +207,9 @@ _serializar_documento_publico = publico_contexto.serializar_documento_publico
 @router.get("/api/publico/transparencia/documentos", summary="Documentos aprovados para a transparência (leitura, sem autenticação, pro site)")
 def listar_documentos_publicos(db: Session = Depends(get_db)):
     visiveis = publico_contexto.vinculos_visiveis(db)
-    return [_serializar_documento_publico(d, visiveis) for d in _documentos_publicos(db)]
+    documentos = _documentos_publicos(db)
+    responsaveis = publico_contexto.responsaveis_das_aprovacoes(db, documentos)
+    return [_serializar_documento_publico(d, visiveis, responsaveis) for d in documentos]
 
 
 @router.get("/api/publico/transparencia/documentos/{id_documento}", summary="Detalhe de um documento aprovado; no formato TEXTO traz o texto publicado")
@@ -216,7 +218,7 @@ def obter_documento_publico(id_documento: int, db: Session = Depends(get_db)):
     if d is None:
         raise HTTPException(status_code=404, detail="Documento não encontrado.")
     return {
-        **_serializar_documento_publico(d, publico_contexto.vinculos_visiveis(db)),
+        **_serializar_documento_publico(d, publico_contexto.vinculos_visiveis(db), publico_contexto.responsaveis_das_aprovacoes(db, [d])),
         "texto": d.publico_texto if d.publico_formato == FORMATO_TEXTO else None,
     }
 

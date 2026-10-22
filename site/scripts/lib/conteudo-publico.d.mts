@@ -306,6 +306,10 @@ export interface DocumentoPublico {
   /** A que evento ou projeto o documento pertence (v5.5); ausente/null = não é de um evento nem de um projeto. */
   vinculo_tipo?: 'evento' | 'projeto' | null
   vinculo_id?: number | null
+  /** Quem aprovou a publicação, nome e cargo (v6.3a, decisão do Presidente); ausente na API antiga, null sem cadastro de associado. */
+  aprovado_por?: { nome: string; cargo: string | null } | null
+  /** As versões do mesmo documento têm o mesmo grupo (v6.3a): a substituída continua no site, ligada à que a substituiu. Ausente na API antiga. */
+  grupo_versao?: string
 }
 
 export interface DocumentoDetalhado extends DocumentoPublico {

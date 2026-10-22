@@ -40,6 +40,7 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   listarCertidoes: vi.fn(),
   concluirDeliberacao: vi.fn(),
   gerarAta: vi.fn(),
+  prepararAtaParaOSite: vi.fn(),
 }))
 
 function desenhar(rota: string, caminho: string, pagina: React.ReactNode) {
@@ -527,6 +528,47 @@ describe('Ata', () => {
       within(versoes).getByRole('link', { name: /Retificação/ }),
     ).toHaveAttribute('href', '/governanca/7/ata?ata=40')
     expect(api.obterAta).toHaveBeenCalledWith(39)
+  })
+
+  it('v6.3a: a ata ASSINADA oferece "Publicar no site (em texto)" a quem tem Documentos e abre o documento', async () => {
+    const u = userEvent.setup()
+    vi.mocked(api.me).mockResolvedValue(
+      usuario(1, ['governanca', 'documentos']),
+    )
+    vi.mocked(api.obterAtaDaAssembleia).mockResolvedValue({
+      ...ata,
+      status: 'Assinada',
+      numero_sequencial: 5,
+    })
+    vi.mocked(api.prepararAtaParaOSite).mockResolvedValue({
+      id_documento: 77,
+      situacao: 'Rascunho',
+      versao: 1,
+    })
+    desenhar('/governanca/:id/ata', '/governanca/7/ata', <AtaAssembleiaPage />)
+    await u.click(
+      await screen.findByRole('button', {
+        name: 'Publicar no site (em texto)',
+      }),
+    )
+    await waitFor(() =>
+      expect(api.prepararAtaParaOSite).toHaveBeenCalledWith(40),
+    )
+  })
+
+  it('v6.3a: sem a permissão de Documentos, ou com a ata em rascunho, o botão não aparece', async () => {
+    vi.mocked(api.obterAtaDaAssembleia).mockResolvedValue({
+      ...ata,
+      status: 'Assinada',
+      numero_sequencial: 5,
+    })
+    desenhar('/governanca/:id/ata', '/governanca/7/ata', <AtaAssembleiaPage />)
+    expect(
+      await screen.findByText('Corpo gerado da ata de teste.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Publicar no site (em texto)' }),
+    ).not.toBeInTheDocument()
   })
 
   it('o que ainda falta fazer depois de concluir uma deliberação fica visível na linha', async () => {

@@ -1758,6 +1758,13 @@ export function atualizarRelatoSecretaria(
   })
 }
 
+// v6.3a: abre (ou devolve o que já está em preparo) o documento do texto da ata para o site
+export function prepararAtaParaOSite(
+  idAta: number,
+): Promise<{ id_documento: number; situacao: string; versao: number }> {
+  return apiFetch(`/api/atas/${idAta}/publicar-no-site`, { method: 'POST' })
+}
+
 export function assinarAta(idAta: number): Promise<Ata> {
   return apiFetch(`/api/atas/${idAta}/assinar`, { method: 'POST' })
 }

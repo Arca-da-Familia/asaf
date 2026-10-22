@@ -11,6 +11,7 @@ import {
 } from '../../lib/dados-publicos'
 import { formatarDataCurta, formatarDia, formatarHora } from '../../lib/datas'
 import {
+  agruparVersoes,
   caminhoDoDocumento,
   ehEmenda,
   formatarReais,
@@ -28,7 +29,9 @@ const emendas = parcerias.filter(ehEmenda)
 const demaisParcerias = parcerias.filter((p) => !ehEmenda(p))
 const somaRecebido = (lista: typeof parcerias) =>
   Math.round(lista.reduce((total, p) => total + p.recebido, 0) * 100) / 100
-const maisRecentes = [...documentos]
+// v6.3a: um documento é o conjunto das suas versões (a substituída continua publicada, mas não conta como outro documento nem aparece entre os recentes)
+const documentosAtuais = agruparVersoes(documentos).map((g) => g.atual)
+const maisRecentes = [...documentosAtuais]
   .sort((a, b) => (b.aprovado_em ?? '').localeCompare(a.aprovado_em ?? ''))
   .slice(0, 6)
 const migalhas: Migalha[] = [{ rotulo: 'Transparência' }]
@@ -172,9 +175,9 @@ const etapasDeContas = [
             </a>
           </h3>
           <p class="mt-2 text-sm">
-            {documentos.length === 0
+            {documentosAtuais.length === 0
               ? 'Atas, certidões, balanços e termos aparecerão aqui quando forem aprovados para publicação.'
-              : `${documentos.length} ${documentos.length === 1 ? 'documento publicado' : 'documentos publicados'}, organizados por tipo e ano.`}
+              : `${documentosAtuais.length} ${documentosAtuais.length === 1 ? 'documento publicado' : 'documentos publicados'}, organizados por tipo e ano.`}
           </p>
         </li>
         <li

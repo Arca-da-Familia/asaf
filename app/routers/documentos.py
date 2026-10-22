@@ -8,6 +8,8 @@ Permissões (app/database.py::seed_niveis_e_permissoes; o Presidente e o Secret�
 Ver a lista: qualquer uma das três (ou `auditoria`). O site só enxerga o que foi APROVADO, por
 `/api/publico/transparencia/...` (app/routers/publico.py)."""
 import json
+import unicodedata
+from urllib.parse import quote
 from datetime import date, datetime
 from typing import Optional
 
@@ -60,7 +62,7 @@ def _pode_baixar_original(db: Session, usuario: Usuario, doc: DocumentoInstituci
     return usuario_tem_permissao(db, usuario, "documentos_originais")
 
 
-def _serializar(db: Session, usuario: Usuario, doc: DocumentoInstitucional) -> dict:
+def _serializar(db: Session, usuario: Usuario, doc: DocumentoInstitucional, *, com_texto_sugerido: bool = True) -> dict:
     verificacao = json.loads(doc.verificacao_json) if doc.verificacao_json else None
     pode_aprovar = (
         doc.situacao == EM_REVISAO and usuario_tem_permissao(db, usuario, "aprovar_publicacao")
@@ -86,6 +88,9 @@ def _serializar(db: Session, usuario: Usuario, doc: DocumentoInstitucional) -> d
         "pode_editar": doc.situacao == RASCUNHO and usuario_tem_permissao(db, usuario, "documentos"),
         "pode_aprovar": pode_aprovar,
         "pode_retirar": doc.situacao == APROVADO and usuario_tem_permissao(db, usuario, "aprovar_publicacao"),
+        # v6.3a: o texto da ata, como ponto de partida da versão para o site (a pessoa retira o dado pessoal; o verificador confere)
+        "texto_sugerido": servico.texto_sugerido(db, doc) if com_texto_sugerido else None,
+        "so_texto": servico.e_texto_da_ata_no_site(doc),  # a ata vai ao site só em texto: o painel não oferece o PDF
     }
 
 
@@ -151,7 +156,7 @@ def listar_documentos(
         consulta.order_by(DocumentoInstitucional.ano.desc().nullslast(), DocumentoInstitucional.id_documento.desc())
         .offset(max(deslocamento, 0)).limit(min(max(limite, 1), 1000)).all()
     )
-    return [_serializar(db, usuario, d) for d in documentos]
+    return [_serializar(db, usuario, d, com_texto_sugerido=False) for d in documentos]
 
 
 @router.post("/api/documentos", summary="Cadastrar um documento (e, se vier, o arquivo ORIGINAL, que fica em armazenamento privado)")
@@ -164,6 +169,9 @@ async def criar_documento(
     arquivo: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db), usuario=Depends(_exigir_documentos),
 ):
+    if vinculo_tipo == "ata":
+        # v6.3a: os documentos de uma ata nascem na tela da ata (a ata assinada, privada; o texto para o site, público): aqui não se liga nada a uma ata
+        raise HTTPException(status_code=409, detail="Documento de uma ata se cria na tela da ata (anexar a ata assinada, ou publicar no site em texto).")
     conteudo = await arquivo.read() if arquivo is not None and arquivo.filename else None
     dados = {
         "tipo": tipo, "titulo": titulo, "descricao": descricao, "classificacao": classificacao,
@@ -294,13 +302,22 @@ def tornar_vigente(id_documento: int, request: Request, db: Session = Depends(ge
     return _serializar(db, usuario, doc)
 
 
+def _disposicao(nome_do_arquivo: str, privado: bool) -> str:
+    """O cabeçalho do download com o nome do arquivo. O cabeçalho HTTP só aceita ASCII: nome com acento ("Certidão.pdf") derrubava o download
+    com erro 500 (achado ao trocar o exemplo dos testes de "Ata" por "Certidão", v6.3a). Vai um nome sem acento (`filename`) e o nome inteiro
+    codificado (`filename*`, RFC 6266), que os navegadores usam."""
+    sem_acento = unicodedata.normalize("NFKD", nome_do_arquivo).encode("ascii", "ignore").decode("ascii").replace('"', "'").replace("\\", "_") or "arquivo"
+    modo = "attachment" if privado else "inline"
+    codificado = quote(nome_do_arquivo, safe="")
+    return f"{modo}; filename=\"{sem_acento}\"; filename*=UTF-8''{codificado}"
+
+
 def _resposta_de_arquivo(conteudo: bytes, nome_do_arquivo: str, tipo: str, privado: bool) -> Response:
-    seguro = nome_do_arquivo.replace('"', "'")
     return Response(
         content=conteudo, media_type=tipo,
         headers={
             "X-Content-Type-Options": "nosniff",
-            "Content-Disposition": f'attachment; filename="{seguro}"' if privado else f'inline; filename="{seguro}"',
+            "Content-Disposition": _disposicao(nome_do_arquivo, privado),
             "Cache-Control": "no-store",  # arquivo sigiloso nunca fica em cache de navegador ou de intermediário
         },
     )

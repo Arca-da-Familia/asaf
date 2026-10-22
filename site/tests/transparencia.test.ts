@@ -8,7 +8,9 @@ import type {
 import {
   COLUNAS_DOS_DADOS_ABERTOS,
   agruparDocumentosPorTipo,
+  agruparDocumentosPorTipoComVersoes,
   agruparPorAno,
+  agruparVersoes,
   beneficiarioDoPagamento,
   caminhoDoDocumento,
   caminhoDoPdf,
@@ -16,6 +18,7 @@ import {
   ehEmenda,
   formatarCnpj,
   formatarReais,
+  linhaDaAprovacao,
   linhasDosDadosAbertos,
   nomeDoPdf,
   paragrafosDoTexto,
@@ -250,5 +253,140 @@ describe('documento em texto', () => {
       ),
     ).toEqual(['ART. 1 - A\nsegue na linha.', 'ART. 2 - B'])
     expect(paragrafosDoTexto('   \n\n  ')).toEqual([])
+  })
+})
+
+describe('v6.3a: responsável e histórico de versões', () => {
+  const data = (iso: string) => iso.split('-').reverse().join('/')
+  it('a linha da aprovação traz nome e cargo; sem nome, só a data; sem nada, vazio', () => {
+    expect(
+      linhaDaAprovacao(
+        {
+          aprovado_em: '2026-03-10',
+          aprovado_por: { nome: 'Fulana', cargo: 'Presidente' },
+        },
+        data,
+      ),
+    ).toBe('Aprovado para publicação por Fulana, Presidente, em 10/03/2026.')
+    expect(
+      linhaDaAprovacao(
+        {
+          aprovado_em: '2026-03-10',
+          aprovado_por: { nome: 'Fulana', cargo: null },
+        },
+        data,
+      ),
+    ).toBe('Aprovado para publicação por Fulana em 10/03/2026.')
+    expect(
+      linhaDaAprovacao({ aprovado_em: '2026-03-10', aprovado_por: null }, data),
+    ).toBe('Aprovado para publicação em 10/03/2026.')
+    // API antiga: sem o campo
+    expect(linhaDaAprovacao({ aprovado_em: '2026-03-10' }, data)).toBe(
+      'Aprovado para publicação em 10/03/2026.',
+    )
+    expect(
+      linhaDaAprovacao({ aprovado_em: null, aprovado_por: null }, data),
+    ).toBe('')
+  })
+  it('as versões do mesmo grupo viram um documento só: a vigente é a atual e cada anterior aponta a que a substituiu', () => {
+    const g = 'grupo-1'
+    const grupos = agruparVersoes([
+      documento({
+        id_documento: 1,
+        versao: 1,
+        vigente: false,
+        grupo_versao: g,
+        aprovado_em: '2026-01-01',
+      }),
+      documento({
+        id_documento: 3,
+        versao: 3,
+        vigente: true,
+        grupo_versao: g,
+        aprovado_em: '2026-03-01',
+      }),
+      documento({
+        id_documento: 2,
+        versao: 2,
+        vigente: false,
+        grupo_versao: g,
+        aprovado_em: '2026-02-01',
+      }),
+      documento({
+        id_documento: 9,
+        versao: 1,
+        vigente: true,
+        grupo_versao: 'outro',
+      }),
+    ])
+    expect(grupos).toHaveLength(2)
+    const doc = grupos.find((x) => x.atual.id_documento === 3)!
+    expect(
+      doc.anteriores.map((a) => [
+        a.documento.id_documento,
+        a.substituidaPor.id_documento,
+      ]),
+    ).toEqual([
+      [2, 3],
+      [1, 2],
+    ])
+  })
+  it('na API antiga (sem grupo) cada documento é o seu próprio grupo; sem vigente, a atual é a de número maior', () => {
+    expect(
+      agruparVersoes([
+        documento({ id_documento: 1 }),
+        documento({ id_documento: 2 }),
+      ]),
+    ).toHaveLength(2)
+    const [g] = agruparVersoes([
+      documento({
+        id_documento: 1,
+        versao: 1,
+        vigente: false,
+        grupo_versao: 'x',
+      }),
+      documento({
+        id_documento: 2,
+        versao: 2,
+        vigente: false,
+        grupo_versao: 'x',
+      }),
+    ])
+    expect(g!.atual.id_documento).toBe(2)
+  })
+  it('por tipo com versões: o mesmo tipo e ordem de antes, um cartão por documento', () => {
+    const grupos = agruparDocumentosPorTipoComVersoes([
+      documento({
+        id_documento: 1,
+        tipo: 'Ata',
+        ano: 2026,
+        versao: 1,
+        vigente: false,
+        grupo_versao: 'a',
+      }),
+      documento({
+        id_documento: 2,
+        tipo: 'Ata',
+        ano: 2026,
+        versao: 2,
+        vigente: true,
+        grupo_versao: 'a',
+      }),
+      documento({
+        id_documento: 3,
+        tipo: 'Certidão',
+        ano: 2025,
+        grupo_versao: 'c',
+      }),
+    ])
+    expect(
+      grupos.map((x) => [
+        x.tipo,
+        x.documentos.map((d) => d.atual.id_documento),
+      ]),
+    ).toEqual([
+      ['Ata', [2]],
+      ['Certidão', [3]],
+    ])
   })
 })

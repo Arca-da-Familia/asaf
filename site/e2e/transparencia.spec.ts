@@ -261,6 +261,49 @@ test.describe('Parcerias (termos)', () => {
 })
 
 test.describe('Documentos publicados', () => {
+  test('v6.3a: cada documento diz quem aprovou (nome e cargo) e a versão substituída continua no site, ligada à nova', async ({
+    page,
+  }) => {
+    await page.goto('/transparencia/documentos/')
+    const ata = page.locator('li[data-documento]', {
+      hasText: 'Ata de eleição da diretoria',
+    })
+    await expect(ata.locator('[data-aprovacao]')).toContainText(
+      'Aprovado para publicação por EXEMPLO Secretária de Teste, 1º Secretário, em',
+    )
+    // o documento aprovado por quem não tinha mandato: só a data
+    const plano = page.locator('li[data-documento]', {
+      hasText: 'Plano de trabalho',
+    })
+    await expect(plano.locator('[data-aprovacao]')).toHaveText(
+      /^Aprovado para publicação em \d{2}\/\d{2}\/\d{4}\.$/,
+    )
+    // a versão 1 do estatuto registrado está dentro do cartão da versão 2 (não vira outro cartão)
+    const estatuto = page.locator('li[data-documento]', {
+      hasText: 'Estatuto Social registrado',
+    })
+    await expect(estatuto).toHaveCount(1)
+    await estatuto.locator('[data-versoes-anteriores] summary').click()
+    const anterior = estatuto.locator('[data-versao-anterior]')
+    await expect(anterior).toHaveCount(1)
+    await expect(anterior).toContainText('substituída pela versão 2')
+    await anterior.getByRole('link', { name: 'Versão 1' }).click()
+    await expect(page.locator('[data-substituida]')).toContainText(
+      'Esta é a versão 1, substituída pela versão 2',
+    )
+    await expect(page.locator('[data-documento-em-texto]')).toContainText(
+      'VERSÃO 1',
+    )
+    await expect(page.locator('[data-aprovacao]')).toContainText(
+      'EXEMPLO Presidente de Teste, Presidente',
+    )
+    await page
+      .locator('[data-substituida]')
+      .getByRole('link', { name: 'versão 2' })
+      .click()
+    await expect(page).toHaveURL(/1-exemplo-estatuto-social-registrado\.pdf$/)
+  })
+
   test('organizados por tipo e ano, com link para o PDF permanente', async ({
     page,
   }) => {
@@ -307,8 +350,9 @@ test.describe('Documentos publicados', () => {
     const item = page.locator('li[data-documento]', {
       hasText: 'Estatuto Social registrado',
     })
-    await item.locator('summary').click()
-    const sha = (await item.locator('details p').innerText())
+    // v6.3a: o cartão também tem o resumo das versões anteriores; o do código de verificação é o primeiro
+    await item.locator('summary', { hasText: 'Código de verificação' }).click()
+    const sha = (await item.locator('details p').first().innerText())
       .replace('SHA-256:', '')
       .trim()
     const href = await item.getByRole('link').first().getAttribute('href')

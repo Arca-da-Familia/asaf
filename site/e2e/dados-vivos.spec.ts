@@ -235,6 +235,6 @@ test('/conteudo.json traz a impressão do conteúdo (para a sincronização auto
     assembleias: 1,
     noticias: 6,
     parcerias: 3,
-    documentos: 5,
+    documentos: 6, // v6.3a: 5 documentos, um deles com a versão anterior também publicada (a contagem é de itens da API)
   })
 })

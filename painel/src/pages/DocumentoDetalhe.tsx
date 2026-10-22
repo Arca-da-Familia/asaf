@@ -81,6 +81,13 @@ export function DocumentoDetalhePage() {
     queryFn: () => listarDocumentos({ grupo_versao: doc!.grupo_versao }),
     enabled: !!doc,
   })
+  // v6.3a: o texto da ata (ou da versão anterior, já sem dado pessoal) chega preenchido para a pessoa só retirar o que não pode ir ao site
+  const textoSugerido = doc?.texto_sugerido ?? null
+  const [sugestaoUsada, setSugestaoUsada] = useState<string | null>(null)
+  if (textoSugerido && sugestaoUsada !== textoSugerido && !textoPublico) {
+    setSugestaoUsada(textoSugerido)
+    setTextoPublico(textoSugerido)
+  }
   const { data: trilha } = useQuery({
     queryKey: ['documento-historico', idDocumento],
     queryFn: () => listarHistoricoDoDocumento(idDocumento),
@@ -226,64 +233,74 @@ export function DocumentoDetalhePage() {
           </dl>
         </Secao>
 
-        <Secao titulo="Arquivo original (área privada)">
-          {d.tem_original ? (
-            <p className="text-sm">
-              {d.original_nome_arquivo} — {formatarTamanho(d.original_tamanho)}
-              <span className="block break-all text-xs text-muted-foreground">
-                SHA-256: {d.original_sha256}
-              </span>
-            </p>
-          ) : (
+        {d.so_texto ? (
+          <Secao titulo="Arquivo original (área privada)">
             <p className="text-sm text-muted-foreground">
-              Nenhum arquivo original enviado.
+              Este é o texto da ata para o site: ele não tem arquivo. A ata
+              assinada se anexa na tela da ata e fica guardada, privada.
             </p>
-          )}
-          <div className="flex flex-wrap items-end gap-3">
-            {d.tem_original && d.pode_baixar_original && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={executar(() => baixarOriginal(d))}
-              >
-                <Download aria-hidden="true" /> Baixar o original
-              </Button>
-            )}
-            {d.tem_original && !d.pode_baixar_original && (
+          </Secao>
+        ) : (
+          <Secao titulo="Arquivo original (área privada)">
+            {d.tem_original ? (
+              <p className="text-sm">
+                {d.original_nome_arquivo} —{' '}
+                {formatarTamanho(d.original_tamanho)}
+                <span className="block break-all text-xs text-muted-foreground">
+                  SHA-256: {d.original_sha256}
+                </span>
+              </p>
+            ) : (
               <p className="text-sm text-muted-foreground">
-                Você não tem a permissão para baixar este original (pode ter
-                dado pessoal).
+                Nenhum arquivo original enviado.
               </p>
             )}
-            {d.pode_editar && (
-              <div className="flex items-end gap-2">
-                <label className="text-sm">
-                  <span className="mb-1 block">
-                    {d.tem_original ? 'Trocar o arquivo' : 'Enviar o arquivo'}
-                  </span>
-                  <input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(e) =>
-                      setArquivoOriginal(e.target.files?.[0] ?? null)
-                    }
-                  />
-                </label>
+            <div className="flex flex-wrap items-end gap-3">
+              {d.tem_original && d.pode_baixar_original && (
                 <Button
                   type="button"
-                  variant="secondary"
-                  disabled={!arquivoOriginal || original.isPending}
-                  onClick={executar(
-                    () => original.mutateAsync(),
-                    () => setArquivoOriginal(null),
-                  )}
+                  variant="outline"
+                  onClick={executar(() => baixarOriginal(d))}
                 >
-                  <Upload aria-hidden="true" /> Enviar
+                  <Download aria-hidden="true" /> Baixar o original
                 </Button>
-              </div>
-            )}
-          </div>
-        </Secao>
+              )}
+              {d.tem_original && !d.pode_baixar_original && (
+                <p className="text-sm text-muted-foreground">
+                  Você não tem a permissão para baixar este original (pode ter
+                  dado pessoal).
+                </p>
+              )}
+              {d.pode_editar && (
+                <div className="flex items-end gap-2">
+                  <label className="text-sm">
+                    <span className="mb-1 block">
+                      {d.tem_original ? 'Trocar o arquivo' : 'Enviar o arquivo'}
+                    </span>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) =>
+                        setArquivoOriginal(e.target.files?.[0] ?? null)
+                      }
+                    />
+                  </label>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={!arquivoOriginal || original.isPending}
+                    onClick={executar(
+                      () => original.mutateAsync(),
+                      () => setArquivoOriginal(null),
+                    )}
+                  >
+                    <Upload aria-hidden="true" /> Enviar
+                  </Button>
+                </div>
+              )}
+            </div>
+          </Secao>
+        )}
 
         {noSite && (
           <Secao titulo="Versão pública (a que pode ir ao site)">
@@ -326,6 +343,7 @@ export function DocumentoDetalhePage() {
               )}
               {d.pode_editar &&
                 d.classificacao === 'Pública' &&
+                d.tipo !== 'ATA' &&
                 d.tem_original && (
                   <Button
                     type="button"
@@ -338,7 +356,7 @@ export function DocumentoDetalhePage() {
                     versão pública
                   </Button>
                 )}
-              {d.pode_editar && (
+              {d.pode_editar && d.tipo !== 'ATA' && (
                 <div className="flex items-end gap-2">
                   <label className="text-sm">
                     <span className="mb-1 block">
@@ -370,9 +388,21 @@ export function DocumentoDetalhePage() {
             </div>
             {d.pode_editar && (
               <div className="space-y-2 border-t border-border pt-3">
+                {d.so_texto && (
+                  <p className="rounded-md border border-amber-600/30 bg-amber-600/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
+                    A ata vai ao site só em texto. O texto da ata já está aqui:
+                    antes de enviar, retire os dados pessoais. O sistema não
+                    deixa passar CPF, RG, e-mail ou celular de pessoas e avisa
+                    quando acha telefone fixo, CEP ou palavras como
+                    &quot;residente&quot;; endereços e nomes de pessoas você
+                    mesmo confere.
+                  </p>
+                )}
                 <label className="block text-sm">
                   <span className="mb-1 block font-medium">
-                    Ou cole o texto da versão pública
+                    {d.so_texto
+                      ? 'Texto da ata para o site'
+                      : 'Ou cole o texto da versão pública'}
                   </span>
                   <textarea
                     className="min-h-40 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"

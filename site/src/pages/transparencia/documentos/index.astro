@@ -6,14 +6,16 @@ import Base from '../../../layouts/Base.astro'
 import { conteudoPublico } from '../../../lib/dados-publicos'
 import { formatarDataCurta } from '../../../lib/datas'
 import {
-  agruparDocumentosPorTipo,
+  agruparDocumentosPorTipoComVersoes,
   caminhoDoDocumento,
+  linhaDaAprovacao,
 } from '../../../lib/transparencia'
 
 // Fonte: o SISTEMA (módulo Documentos). Só a VERSÃO PÚBLICA de documento aprovado por outra pessoa da diretoria: o
 // original (que pode ter RG/CPF) nunca sai do sistema. O PDF é copiado para este site no build, num endereço fixo.
+// v6.3a: cada documento mostra quem aprovou a publicação (nome e cargo) e as versões anteriores, que continuam publicadas, ligadas à que as substituiu.
 const { documentos } = await conteudoPublico()
-const porTipo = agruparDocumentosPorTipo(documentos)
+const porTipo = agruparDocumentosPorTipoComVersoes(documentos)
 const migalhas: Migalha[] = [
   { rotulo: 'Transparência', href: '/transparencia/' },
   { rotulo: 'Documentos' },
@@ -92,7 +94,7 @@ const tamanho = (bytes: number | null) =>
                 {grupo.tipo}
               </h2>
               <ul class="mt-4 flex flex-col gap-3">
-                {grupo.documentos.map((d) => (
+                {grupo.documentos.map(({ atual: d, anteriores }) => (
                   <li
                     class="rounded-lg border bg-card p-5 shadow-card"
                     data-documento
@@ -125,6 +127,11 @@ const tamanho = (bytes: number | null) =>
                           : ''}
                     </p>
                     {d.descricao && <p class="mt-2 text-sm">{d.descricao}</p>}
+                    {linhaDaAprovacao(d, formatarDataCurta) && (
+                      <p class="mt-2 text-sm" data-aprovacao>
+                        {linhaDaAprovacao(d, formatarDataCurta)}
+                      </p>
+                    )}
                     <details class="mt-2 text-sm">
                       <summary class="cursor-pointer">
                         Código de verificação do arquivo
@@ -133,6 +140,37 @@ const tamanho = (bytes: number | null) =>
                         SHA-256: {d.sha256}
                       </p>
                     </details>
+                    {anteriores.length > 0 && (
+                      <details class="mt-2 text-sm" data-versoes-anteriores>
+                        <summary class="cursor-pointer">
+                          {anteriores.length === 1
+                            ? 'Versão anterior (1)'
+                            : `Versões anteriores (${anteriores.length})`}
+                        </summary>
+                        <ul class="mt-2 flex flex-col gap-2">
+                          {anteriores.map(
+                            ({ documento: v, substituidaPor }) => (
+                              <li data-versao-anterior>
+                                <a
+                                  href={caminhoDoDocumento(v)}
+                                  class="font-medium text-primary underline underline-offset-4"
+                                >
+                                  Versão {v.versao}
+                                </a>
+                                {v.aprovado_em
+                                  ? `, publicada em ${formatarDataCurta(v.aprovado_em)}`
+                                  : ''}
+                                {`; substituída pela versão ${substituidaPor.versao}`}
+                                {substituidaPor.aprovado_em
+                                  ? ` em ${formatarDataCurta(substituidaPor.aprovado_em)}`
+                                  : ''}
+                                .
+                              </li>
+                            ),
+                          )}
+                        </ul>
+                      </details>
+                    )}
                   </li>
                 ))}
               </ul>

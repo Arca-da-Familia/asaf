@@ -254,3 +254,47 @@ describe('biblioteca e documento mostram a que ele pertence', () => {
     ).not.toBeInTheDocument()
   })
 })
+
+describe('v6.3a: o texto da ata para o site', () => {
+  it('chega preenchido com o texto da ata, com o aviso de tirar o dado pessoal, e sem a opção de PDF', async () => {
+    documentos.obterDocumento.mockResolvedValue(
+      relatorio({
+        id_documento: 77,
+        tipo: 'ATA',
+        tipo_rotulo: 'Ata',
+        classificacao: 'Pública',
+        vinculo_tipo: 'ata',
+        vinculo_id: 40,
+        situacao: 'Rascunho',
+        pode_editar: true,
+        texto_sugerido: 'Texto da ata com o CPF de alguém para retirar.',
+        so_texto: true,
+      }),
+    )
+    renderizar('/documentos/77')
+    const campo = await screen.findByLabelText('Texto da ata para o site')
+    expect(campo).toHaveValue('Texto da ata com o CPF de alguém para retirar.')
+    expect(
+      screen.getByText(/A ata vai ao site só em texto/),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('Enviar a versão pública (PDF)'),
+    ).not.toBeInTheDocument()
+    // o texto da ata não tem arquivo original (a ata assinada fica na tela da ata, privada)
+    expect(screen.queryByText('Enviar o arquivo')).not.toBeInTheDocument()
+    expect(screen.getByText(/ele não tem arquivo/)).toBeInTheDocument()
+  })
+
+  it('outro documento do site continua com a opção de PDF e o campo vazio', async () => {
+    documentos.obterDocumento.mockResolvedValue(
+      relatorio({ situacao: 'Rascunho', pode_editar: true }),
+    )
+    renderizar('/documentos/5')
+    expect(
+      await screen.findByText('Enviar a versão pública (PDF)'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText('Ou cole o texto da versão pública'),
+    ).toHaveValue('')
+  })
+})

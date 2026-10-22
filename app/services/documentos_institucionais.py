@@ -189,6 +189,8 @@ def _gravar_original(doc: DocumentoInstitucional, nome_arquivo: str | None, cont
 
 def substituir_original(db, doc: DocumentoInstitucional, nome_arquivo: str | None, conteudo: bytes) -> str | None:
     _exigir_situacao(doc, RASCUNHO, acao="trocar o arquivo original")
+    if e_texto_da_ata_no_site(doc):
+        raise HTTPException(status_code=409, detail="O texto da ata para o site não tem arquivo: a ata assinada se anexa na tela da ata e fica privada.")
     anterior = _gravar_original(doc, nome_arquivo, conteudo)
     db.commit()
     db.refresh(doc)
@@ -200,6 +202,12 @@ def editar(db, doc: DocumentoInstitucional, dados: dict) -> dict:
     _exigir_situacao(doc, RASCUNHO, acao="editar o cadastro")
     campos = _validar_campos(dados)
     _exigir_vinculo_existente(db, campos)
+    # v6.3a: documento ligado a uma ata (a ata assinada, privada, e o texto para o site, público) não muda de tipo, de vínculo nem de classificação:
+    # tornar Pública a ata assinada daria o PDF com RG/CPF a quem só prepara documentos. E uma Ata não deixa de ser Ata para escapar da regra do texto.
+    if doc.vinculo_tipo == "ata" and any(k in campos and campos[k] != getattr(doc, k) for k in ("tipo", "vinculo_tipo", "vinculo_id", "classificacao")):
+        raise HTTPException(status_code=409, detail="Documento de uma ata não muda de tipo, vínculo nem classificação: a ata assinada fica privada e o que vai ao site é o texto.")
+    if doc.tipo == "ATA" and "tipo" in campos and campos["tipo"] != doc.tipo:
+        raise HTTPException(status_code=409, detail="Uma ata continua sendo ata: ela vai ao site só em texto.")
     antes = {k: getattr(doc, k) for k in campos}
     mudou_regra = any(k in campos and campos[k] != getattr(doc, k) for k in ("classificacao", "publicar_no_site"))
     for campo, valor in campos.items():
@@ -228,6 +236,8 @@ def anexar_versao_publica(db, doc: DocumentoInstitucional, conteudo: bytes, *, d
     _exigir_situacao(doc, RASCUNHO, acao="trocar a versão pública")
     if not doc.publicar_no_site:
         raise HTTPException(status_code=409, detail="Este documento não está marcado para o site: não há versão pública para anexar.")
+    if doc.tipo == "ATA":  # v6.3a: qualquer ata, em qualquer classificação ou vínculo (decisão do Presidente: "nunca o PDF")
+        raise HTTPException(status_code=409, detail="A ata vai ao site só em texto (decisão da Presidência): cole o texto, sem o dado pessoal.")
     resultado = verificar_versao_publica(conteudo)
     if not resultado.ok:
         return resultado
@@ -372,6 +382,15 @@ def retirar(db, usuario, doc: DocumentoInstitucional, motivo: str) -> None:
         raise HTTPException(status_code=400, detail=f"Explique o motivo da retirada (pelo menos {MOTIVO_MINIMO} caracteres).")
     doc.situacao = RETIRADO
     doc.motivo_retirada, doc.id_usuario_retirada, doc.retirado_em = motivo, usuario.id_usuario, datetime.utcnow()
+    if doc.vigente:
+        # v6.3a: a versão aprovada anterior volta a ser a vigente (sem isso o site ficaria só com versões "anteriores")
+        doc.vigente = False
+        anterior = (
+            _irmaos(db, doc).filter(DocumentoInstitucional.id_documento != doc.id_documento, DocumentoInstitucional.situacao == APROVADO)
+            .order_by(DocumentoInstitucional.versao.desc()).first()
+        )
+        if anterior is not None:
+            anterior.vigente = True
     db.commit()
 
 
@@ -429,13 +448,86 @@ def _titulo_da_ata(ata) -> str:
 
 
 def documento_da_ata(db, id_ata: int) -> DocumentoInstitucional | None:
-    """A versão mais nova do documento assinado de uma ata."""
+    """A versão mais nova do documento ASSINADO de uma ata (o original privado; o texto para o site, v6.3a, é outro documento: classificação Pública)."""
     return (
         db.query(DocumentoInstitucional)
-        .filter(DocumentoInstitucional.tipo == "ATA", DocumentoInstitucional.vinculo_tipo == "ata", DocumentoInstitucional.vinculo_id == id_ata)
-        .order_by(DocumentoInstitucional.versao.desc())
+        .filter(DocumentoInstitucional.tipo == "ATA", DocumentoInstitucional.vinculo_tipo == "ata", DocumentoInstitucional.vinculo_id == id_ata,
+                DocumentoInstitucional.classificacao != PUBLICA)
+        .order_by(DocumentoInstitucional.versao.desc(), DocumentoInstitucional.id_documento.desc())
         .first()
     )
+
+
+# --------------------------------------------------------------------------------- v6.3a: a ata no site, em TEXTO
+# Decisão do Presidente (2026-10-22): a ata vai ao site em TEXTO, nunca o PDF assinado ("risco de dados"). Parte-se do texto da ata, o verificador
+# de dado pessoal aponta e BLOQUEIA (CPF, RG, e-mail e celular de pessoas; avisa CEP, telefone fixo e expressões), a pessoa retira e só o necessário
+# vai ao público, com a aprovação do Presidente ou do Secretário (outra pessoa). É um documento PRÓPRIO (classificação Pública, sem arquivo
+# original), ligado à ata; a ata assinada continua guardada à parte, privada.
+def e_texto_da_ata_no_site(doc: DocumentoInstitucional) -> bool:
+    return doc.tipo == "ATA" and doc.vinculo_tipo == "ata" and doc.classificacao == PUBLICA
+
+
+def _textos_da_ata_no_site(db, id_ata: int):
+    return (
+        db.query(DocumentoInstitucional)
+        .filter(DocumentoInstitucional.tipo == "ATA", DocumentoInstitucional.vinculo_tipo == "ata", DocumentoInstitucional.vinculo_id == id_ata,
+                DocumentoInstitucional.classificacao == PUBLICA)
+        .order_by(DocumentoInstitucional.id_documento.desc())
+    )
+
+
+def documento_da_ata_no_site(db, id_ata: int) -> DocumentoInstitucional | None:
+    """O documento mais novo do texto da ata para o site (o de número maior: versões e grupos crescem juntos)."""
+    return _textos_da_ata_no_site(db, id_ata).first()
+
+
+def preparar_ata_para_o_site(db, usuario, ata) -> tuple[DocumentoInstitucional, str]:
+    """Abre (ou devolve o que já está em preparo) o documento do texto da ata para o site. Devolve (documento, ação para a auditoria). Só ata
+    ASSINADA: o rascunho ainda muda. Publicada, nasce uma versão nova (a do site continua no ar até a nova ser aprovada); retirada, um documento novo."""
+    from app.models.ata import ASSINADA, Ata
+
+    if ata.status != ASSINADA:
+        raise HTTPException(status_code=409, detail="Só a ata assinada vai ao site: o rascunho ainda pode mudar.")
+    retificacao = db.query(Ata.id_ata).filter(Ata.id_ata_retificada == ata.id_ata).first()
+    if retificacao is not None:
+        raise HTTPException(status_code=409, detail=f"Esta ata foi retificada (registro nº {retificacao[0]}): o que vai ao site é a retificação.")
+    textos = _textos_da_ata_no_site(db, ata.id_ata).all()
+    em_preparo = next((d for d in textos if d.situacao in (RASCUNHO, EM_REVISAO)), None)
+    if em_preparo is not None:
+        return em_preparo, "JA_EM_PREPARO"
+    publicado = next((d for d in textos if d.situacao == APROVADO), None)
+    if publicado is not None:  # a correção é uma versão nova do que está no ar (mesmo depois de outra versão retirada)
+        return nova_versao(db, usuario, publicado), "NOVA_VERSAO"
+    dados = {
+        "tipo": "ATA", "titulo": _titulo_da_ata(ata), "classificacao": PUBLICA, "publicar_no_site": True, "vinculo_tipo": "ata", "vinculo_id": ata.id_ata,
+        "descricao": "Texto da ata para o site, sem dado pessoal. A ata assinada fica guardada na associação.",
+    }
+    if ata.assinada_em:
+        dados["data_documento"] = ata.assinada_em.date()
+    return criar_documento(db, usuario, dados), "CRIADO"
+
+
+def texto_sugerido(db, doc: DocumentoInstitucional) -> str | None:
+    """O texto que a tela mostra para editar, no rascunho do texto da ata para o site: o já enviado (para corrigir depois de uma recusa); senão, numa
+    versão nova, o da última versão APROVADA (já sem o dado pessoal; nunca o de uma retirada); na primeira, o texto da ata com o relato da secretaria."""
+    if not e_texto_da_ata_no_site(doc) or doc.situacao != RASCUNHO:
+        return None
+    if doc.publico_texto:
+        return doc.publico_texto
+    anterior = (
+        _irmaos(db, doc).filter(DocumentoInstitucional.id_documento != doc.id_documento, DocumentoInstitucional.situacao == APROVADO,
+                                DocumentoInstitucional.publico_texto.isnot(None))
+        .order_by(DocumentoInstitucional.versao.desc()).first()
+    )
+    if anterior is not None:
+        return anterior.publico_texto
+    from app.models.ata import Ata
+
+    ata = db.query(Ata).filter(Ata.id_ata == doc.vinculo_id).first()
+    if ata is None:
+        return None
+    relato = (ata.relato_secretaria or "").strip()
+    return f"{ata.corpo_texto}\n\nRelato da secretaria:\n{relato}" if relato else ata.corpo_texto
 
 
 def anexar_documento_da_ata(db, usuario, ata, nome_arquivo: str | None, conteudo: bytes) -> tuple[DocumentoInstitucional, str]:

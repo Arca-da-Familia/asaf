@@ -85,6 +85,10 @@ async function cadastrar(
     page.getByRole('heading', { name: 'Novo documento', level: 1 }),
   ).toBeVisible()
   await page.getByLabel('Título').fill(d.titulo)
+  // v6.3a: a ata vai ao site só em texto (o PDF é recusado para o tipo Ata); este roteiro prova o caminho do PDF, então usa "Outro documento"
+  await page.getByLabel(/^Tipo de documento/).selectOption({
+    label: 'Outro documento',
+  })
   if (d.classificacao)
     await page
       .getByRole('radio', { name: new RegExp(`^${d.classificacao}`) })

@@ -6,7 +6,9 @@ import { conteudoPublico } from '../../../../lib/dados-publicos'
 import { formatarDataCurta } from '../../../../lib/datas'
 import { descricaoParaMeta, tituloCurto } from '../../../../lib/texto'
 import {
+  agruparVersoes,
   caminhoDoDocumento,
+  linhaDaAprovacao,
   nomeDoPdf,
   paragrafosDoTexto,
 } from '../../../../lib/transparencia'
@@ -20,11 +22,27 @@ export async function getStaticPaths() {
     .filter((d) => d.formato === 'TEXTO')
     .map((d) => ({
       params: { nome: nomeDoPdf(d) },
-      props: { documento: detalhesDeDocumentos[d.id_documento]! },
+      props: {
+        documento: detalhesDeDocumentos[d.id_documento]!,
+        // v6.3a: as outras versões do mesmo documento (o histórico continua no site)
+        versoes: agruparVersoes(documentos).find(
+          (g) =>
+            g.atual.id_documento === d.id_documento ||
+            g.anteriores.some(
+              (a) => a.documento.id_documento === d.id_documento,
+            ),
+        )!,
+      },
     }))
 }
 
-const { documento } = Astro.props
+const { documento, versoes } = Astro.props
+const todas = [versoes.atual, ...versoes.anteriores.map((a) => a.documento)]
+  .filter((v) => v.id_documento !== documento.id_documento)
+  .sort((a, b) => b.versao - a.versao)
+const substituidaPor = versoes.anteriores.find(
+  (a) => a.documento.id_documento === documento.id_documento,
+)?.substituidaPor
 const paragrafos = paragrafosDoTexto(documento.texto ?? '')
 const migalhas: Migalha[] = [
   { rotulo: 'Transparência', href: '/transparencia/' },
@@ -74,10 +92,48 @@ const migalhas: Migalha[] = [
       <p class="mt-2">
         Esta é a versão publicada do documento, em texto, conferida para não
         trazer CPF, RG, e-mail ou celular de pessoas.
-        {documento.aprovado_em
-          ? ` Aprovada para publicação em ${formatarDataCurta(documento.aprovado_em)}.`
-          : ''}
       </p>
+      {linhaDaAprovacao(documento, formatarDataCurta) && (
+        <p class="mt-2" data-aprovacao>
+          {linhaDaAprovacao(documento, formatarDataCurta)}
+        </p>
+      )}
+      {substituidaPor && (
+        <p class="mt-2 font-medium" data-substituida>
+          Esta é a versão {documento.versao}, substituída pela{' '}
+          <a
+            href={caminhoDoDocumento(substituidaPor)}
+            class="text-primary underline underline-offset-4"
+          >
+            versão {substituidaPor.versao}
+          </a>
+          {substituidaPor.aprovado_em
+            ? ` em ${formatarDataCurta(substituidaPor.aprovado_em)}`
+            : ''}
+          .
+        </p>
+      )}
+      {todas.length > 0 && (
+        <div class="mt-2" data-outras-versoes>
+          <p>Outras versões deste documento:</p>
+          <ul class="mt-1 list-disc pl-5">
+            {todas.map((v) => (
+              <li>
+                <a
+                  href={caminhoDoDocumento(v)}
+                  class="text-primary underline underline-offset-4"
+                >
+                  Versão {v.versao}
+                </a>
+                {v.vigente ? ' (a vigente)' : ''}
+                {v.aprovado_em
+                  ? `, publicada em ${formatarDataCurta(v.aprovado_em)}`
+                  : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <details class="mt-2">
         <summary class="cursor-pointer">Código de verificação do texto</summary>
         <p class="mt-1 break-all font-mono text-xs">

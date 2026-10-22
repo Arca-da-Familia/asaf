@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { z } from 'zod'
 
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
@@ -22,6 +22,7 @@ import {
   obterAssembleia,
   obterAta,
   obterAtaDaAssembleia,
+  prepararAtaParaOSite,
   regerarCorpoDaAta,
   retificarAta,
   revogarDeliberacao,
@@ -30,6 +31,7 @@ import {
 } from '@/lib/api'
 import { formatarDia } from '@/lib/datas'
 import { baixarArquivoDaApi } from '@/lib/documentos'
+import { useMe } from '@/lib/use-me'
 import {
   ataRetificarSchema,
   deliberacaoCriarSchema,
@@ -421,6 +423,13 @@ function BlocoAta({
   const [relato, setRelato] = useState(ata.relato_secretaria ?? '')
   const [mostrarRetificar, setMostrarRetificar] = useState(false)
   const emRascunho = ata.status === 'Rascunho'
+  const navigate = useNavigate()
+  const { data: eu } = useMe()
+  // v6.3a: a ata assinada vai ao site em TEXTO (decisão da Presidência): abre o documento com o texto da ata para tirar o dado pessoal
+  const paraOSite = useMutation({
+    mutationFn: () => prepararAtaParaOSite(ata.id_ata),
+    onSuccess: (r) => navigate(`/documentos/${r.id_documento}`),
+  })
 
   const [relatoSalvo, setRelatoSalvo] = useState(false)
   const salvarRelato = useMutation({
@@ -538,12 +547,33 @@ function BlocoAta({
         )}
       </div>
 
+      {!emRascunho && eu?.permissoes.includes('documentos') && (
+        <div className="mt-4 rounded-md border border-border p-3">
+          <p className="text-sm font-medium">No site da ASAF</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            A ata vai ao site só em texto, nunca o documento assinado: o texto
+            da ata abre num documento para você retirar os dados pessoais (o
+            sistema confere e não deixa passar CPF, RG, e-mail ou celular de
+            pessoas). A publicação é aprovada pelo Presidente ou pelo
+            Secretário.
+          </p>
+          <Button
+            className="mt-2"
+            size="sm"
+            variant="outline"
+            disabled={paraOSite.isPending}
+            onClick={() => paraOSite.mutate()}
+          >
+            {paraOSite.isPending ? 'Abrindo…' : 'Publicar no site (em texto)'}
+          </Button>
+        </div>
+      )}
       {relatoSalvo && (
         <p role="status" className="mt-2 text-sm text-green-600">
           Relato salvo.
         </p>
       )}
-      {[salvarRelato, assinar, refazerTexto].map(
+      {[salvarRelato, assinar, refazerTexto, paraOSite].map(
         (acao, i) =>
           acao.isError && (
             <p key={i} role="alert" className="mt-2 text-sm text-destructive">

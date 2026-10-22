@@ -555,10 +555,21 @@ const TEXTO_DO_ESTATUTO_DE_TESTE =
 const TEXTO_DO_RELATORIO_DE_TESTE =
   'EXEMPLO – RELATÓRIO DA 1ª EDIÇÃO DE TESTE\n\nTexto de teste do relatório da edição que já aconteceu.\n\nSegundo parágrafo de teste do relatório.'
 
+/** v6.3a - a versão 1 (em texto, substituída) do estatuto registrado de teste: continua publicada, ligada à versão 2 (o PDF). */
+const TEXTO_DO_ESTATUTO_ANTIGO_DE_TESTE =
+  'EXEMPLO – ESTATUTO REGISTRADO (VERSÃO 1)\n\nTexto de teste da primeira versão do estatuto, depois substituída.'
+
 /** O texto de cada documento em formato TEXTO (o detalhe do documento devolve o texto; o PDF não tem). */
 const TEXTOS_DE_TESTE = {
   4: TEXTO_DO_ESTATUTO_DE_TESTE,
   5: TEXTO_DO_RELATORIO_DE_TESTE,
+  6: TEXTO_DO_ESTATUTO_ANTIGO_DE_TESTE,
+}
+
+/** v6.3a - quem aprovou a publicação (nome e cargo); o documento 3 foi aprovado por quem não tem cadastro de associado (sem nome). */
+const PRESIDENTE_DE_TESTE = {
+  nome: 'EXEMPLO Presidente de Teste',
+  cargo: 'Presidente',
 }
 
 /** Fotos de evento de teste: JPEG de verdade (já regravado pela API, sem metadado), cada uma com o seu SHA-256. */
@@ -631,8 +642,9 @@ const documentos = () =>
       descricao: 'Texto de teste do estatuto.',
       data_documento: dataIso(-300),
       ano: 2024,
-      versao: 1,
+      versao: 2,
       vigente: true,
+      grupo_versao: 'grupo-estatuto-registrado',
       paginas: 12,
       tamanho: PDFS_DE_TESTE[1].length,
       sha256: sha256(PDFS_DE_TESTE[1]),
@@ -650,6 +662,10 @@ const documentos = () =>
       ano: 2026,
       versao: 1,
       vigente: true,
+      aprovado_por: {
+        nome: 'EXEMPLO Secretária de Teste',
+        cargo: '1º Secretário',
+      },
       paginas: 3,
       tamanho: PDFS_DE_TESTE[2].length,
       sha256: sha256(PDFS_DE_TESTE[2]),
@@ -690,6 +706,26 @@ const documentos = () =>
       aprovado_em: dataIso(-5),
       formato: 'PDF',
       arquivo: '/api/publico/transparencia/documentos/3/arquivo',
+      aprovado_por: null,
+    },
+    // v6.3a - a versão 1 do estatuto registrado, em texto: substituída pela versão 2 (o PDF acima), continua publicada no mesmo grupo
+    {
+      id_documento: 6,
+      tipo_codigo: 'ESTATUTO',
+      tipo: 'Estatuto e alterações',
+      titulo: 'EXEMPLO – Estatuto Social registrado',
+      descricao: null,
+      data_documento: dataIso(-500),
+      ano: 2024,
+      versao: 1,
+      vigente: false,
+      paginas: null,
+      tamanho: Buffer.byteLength(TEXTO_DO_ESTATUTO_ANTIGO_DE_TESTE, 'utf8'),
+      sha256: sha256(Buffer.from(TEXTO_DO_ESTATUTO_ANTIGO_DE_TESTE, 'utf8')),
+      aprovado_em: dataIso(-40),
+      formato: 'TEXTO',
+      arquivo: null,
+      grupo_versao: 'grupo-estatuto-registrado',
     },
     // v5.5 - relatório da edição passada do projeto principal: documento aprovado, em TEXTO, ligado ao EVENTO 4.
     {
@@ -711,7 +747,13 @@ const documentos = () =>
       vinculo_tipo: 'evento',
       vinculo_id: 4,
     },
-  ].map((d) => ({ vinculo_tipo: null, vinculo_id: null, ...d }))
+  ].map((d) => ({
+    vinculo_tipo: null,
+    vinculo_id: null,
+    grupo_versao: `grupo-${d.id_documento}`,
+    aprovado_por: PRESIDENTE_DE_TESTE,
+    ...d,
+  }))
 
 const parcerias = () => [
   {

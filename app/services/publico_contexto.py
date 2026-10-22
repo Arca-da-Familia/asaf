@@ -8,7 +8,9 @@ Regras (cada uma tem teste em tests/test_contexto_publico.py):
   - só aparece o que a diretoria JÁ liberou: evento Público, projeto Público, documento Aprovado para o site, foto com
     autorização de imagem;
   - evento ligado a um projeto Interno não revela o projeto (o campo vem vazio): projeto interno responde 404 como sempre;
-  - nunca quem enviou/aprovou, termo de autorização, nome do arquivo no armazenamento, responsável, centro de custo ou valores."""
+  - nunca quem enviou, termo de autorização, nome do arquivo no armazenamento, responsável, centro de custo ou valores. Única exceção, decisão do
+    Presidente de 2026-10-22 (v6.3a): o documento aprovado mostra QUEM APROVOU a publicação, o nome e o cargo, só de quem tinha mandato na Diretoria ou
+    no Conselho naquele dia (esses nomes já são públicos); sem mandato, só a data."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -17,6 +19,8 @@ from typing import Optional
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.models.associados import Associado
+from app.models.core import Catalogo, OpcaoCatalogo
 from app.models.documentos import APROVADO, FORMATO_TEXTO, TIPOS as TIPOS_DE_DOCUMENTO, DocumentoInstitucional
 from app.models.eventos import Evento, FotoEvento
 from app.models.projetos import ProjetoEvento
@@ -53,7 +57,42 @@ def vinculos_visiveis(db: Session) -> dict[str, set[int]]:
     }
 
 
-def serializar_documento_publico(d: DocumentoInstitucional, visiveis: dict[str, set[int]] | None = None) -> dict:
+def responsaveis_das_aprovacoes(db: Session, documentos: list[DocumentoInstitucional]) -> dict[int, dict | None]:
+    """v6.3a - quem aprovou cada documento para o site (decisão do Presidente: nome e cargo). Só aparece quem tinha MANDATO na Diretoria ou no
+    Conselho no dia da aprovação (os nomes deles já são públicos, na página da Diretoria); o cargo é o daquele dia (o histórico não muda quando o
+    mandato acaba). Quem aprovou sem mandato (só pelo nível de acesso), sem cadastro de associado ou com o nome já apagado pelo prazo de guarda não
+    tem nome publicado: o site mostra só a data."""
+    from app.services.mandatos import mandatos_vigentes_do_associado  # import local: mandatos importa modelos que importam serviços
+
+    ids = {d.id_usuario_aprovacao for d in documentos if d.id_usuario_aprovacao}
+    if not ids:
+        return {}
+    from app.services.retencao import NOME_APAGADO
+
+    associados = {a.id_usuario: a for a in db.query(Associado).filter(Associado.id_usuario.in_(ids)).all()}
+
+    def ordem(chave: str) -> dict[str, tuple[int, str]]:
+        opcoes = db.query(OpcaoCatalogo).join(Catalogo, Catalogo.id_catalogo == OpcaoCatalogo.id_catalogo).filter(Catalogo.chave == chave).all()
+        return {o.codigo: (o.ordem or 0, o.rotulo) for o in opcoes}
+
+    orgaos, cargos = ordem("orgao_direcao"), ordem("titulo_cargo")
+    resposta: dict[int, dict | None] = {}
+    for d in documentos:
+        associado = associados.get(d.id_usuario_aprovacao)
+        nome = associado.nome_completo if associado is not None else None
+        mandatos = mandatos_vigentes_do_associado(db, associado.id_associado, em=d.aprovado_em) if associado is not None and d.aprovado_em else []
+        if not nome or nome == NOME_APAGADO or not mandatos:
+            resposta[d.id_documento] = None
+            continue
+        # mais de um mandato no dia: o primeiro na ordem da página da Diretoria (órgão, depois cargo)
+        primeiro = min(mandatos, key=lambda m: (orgaos.get(m.orgao_codigo, (999, ""))[0], cargos.get(m.cargo_codigo, (999, ""))[0], m.id_mandato))
+        resposta[d.id_documento] = {"nome": nome, "cargo": cargos.get(primeiro.cargo_codigo, (0, primeiro.cargo_codigo))[1]}
+    return resposta
+
+
+def serializar_documento_publico(
+    d: DocumentoInstitucional, visiveis: dict[str, set[int]] | None = None, responsaveis: dict[int, dict | None] | None = None,
+) -> dict:
     ligado = d.vinculo_tipo in _VINCULOS_PUBLICOS and (visiveis is None or d.vinculo_id in visiveis.get(d.vinculo_tipo, ()))
     return {
         "id_documento": d.id_documento, "tipo_codigo": d.tipo, "tipo": TIPOS_DE_DOCUMENTO.get(d.tipo, d.tipo),
@@ -62,6 +101,9 @@ def serializar_documento_publico(d: DocumentoInstitucional, visiveis: dict[str, 
         "versao": d.versao, "vigente": bool(d.vigente),
         "paginas": d.publico_paginas, "tamanho": d.publico_tamanho, "sha256": d.publico_sha256,
         "aprovado_em": dia_de_belem(d.aprovado_em),
+        # v6.3a: quem aprovou a publicação (nome e cargo) e o grupo das versões do mesmo documento (o site liga a versão substituída à que a substituiu)
+        "aprovado_por": (responsaveis or {}).get(d.id_documento),
+        "grupo_versao": d.grupo_versao,
         # "PDF": o site copia o arquivo; "TEXTO": o site monta uma página com o texto (detalhe abaixo)
         "formato": d.publico_formato or "PDF",
         "arquivo": None if d.publico_formato == FORMATO_TEXTO else f"/api/publico/transparencia/documentos/{d.id_documento}/arquivo",
@@ -75,9 +117,10 @@ def documentos_ligados(db: Session, vinculos: list[tuple[str, int]]) -> list[dic
     if not vinculos:
         return []
     desejados = set(vinculos)
+    ligados = [d for d in documentos_publicos(db) if d.vinculo_tipo in _VINCULOS_PUBLICOS and (d.vinculo_tipo, d.vinculo_id) in desejados]
+    responsaveis = responsaveis_das_aprovacoes(db, ligados)
     return [
-        serializar_documento_publico(d) for d in documentos_publicos(db)
-        if d.vinculo_tipo in _VINCULOS_PUBLICOS and (d.vinculo_tipo, d.vinculo_id) in desejados
+        serializar_documento_publico(d, responsaveis=responsaveis) for d in ligados
     ]
 
 

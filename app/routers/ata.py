@@ -139,6 +139,19 @@ def assinar_ata(id_ata: int, request: Request, db: Session = Depends(get_db), us
     return _serializar_ata(ata)
 
 
+@router.post("/api/atas/{id_ata}/publicar-no-site", summary="Preparar o texto da ata para o site (v6.3a): abre o documento público em texto, para tirar o dado pessoal e aprovar")
+def preparar_ata_para_o_site(id_ata: int, request: Request, db: Session = Depends(get_db), usuario=Depends(exigir_permissao("documentos"))):
+    ata = _buscar_ata_ou_404(db, id_ata)
+    doc, acao = documentos_institucionais.preparar_ata_para_o_site(db, usuario, ata)
+    if acao != "JA_EM_PREPARO":
+        registrar_auditoria(
+            db, usuario, "documentos_institucionais", acao, id_registro_afetado=doc.id_documento,
+            dados_depois={"titulo": doc.titulo, "tipo": doc.tipo, "classificacao": doc.classificacao, "versao": doc.versao, "id_ata": ata.id_ata},
+            ip_origem=request.client.host if request.client else None,
+        )
+    return {"id_documento": doc.id_documento, "situacao": doc.situacao, "versao": doc.versao}
+
+
 @router.post("/api/atas/{id_ata}/documento-assinado", summary="Anexar o documento real, assinado e (se houver) protocolado no cartório")
 async def anexar_documento_assinado(
     id_ata: int, request: Request, documento: UploadFile = File(...),
