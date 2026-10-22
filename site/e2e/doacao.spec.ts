@@ -328,7 +328,7 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.5, em vigor desde 21 de outubro de 2026/,
+        /Esta é a versão 2\.6, em vigor desde 21 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-doacao]')
