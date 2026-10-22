@@ -640,6 +640,33 @@ que a Política não promete e a LGPD desaconselha), o endereço só de envio (o
       eventos e financeiro do exercício, com espaço editorial para texto da diretoria — a peça que
       toda associação faz na correria e que aqui nasce pronta.
 
+> **Decisões do Presidente (2026-10-22), ao liberar a v6.3** (e pedir o Ponto de Revisão FASE 6 2/2 logo em seguida): (1) as **contas do ano** só vão ao site **depois de a Assembleia
+> aprovar** (a deliberação de aprovação de contas) e de o Presidente ou o Secretário confirmar a publicação; resumo sem nome de ninguém, com o parecer do Conselho Fiscal; (2) as **atas** vão ao
+> site **em TEXTO, nunca o PDF** ("risco de dados"): parte-se do texto da ata, o verificador reconhece o dado pessoal, ele é retirado e só o necessário vai ao público, com aprovação do
+> Presidente ou do Secretário (no sistema toda ata é de Assembleia: não há ata de reunião da Diretoria); (3) o **responsável** de cada documento publicado é o **cargo e o nome** de quem
+> aprovou; (4) o **relatório anual**: o sistema monta os números do ano, a secretaria (permissão Documentos) escreve a apresentação e o Presidente ou o Secretário (outra pessoa) aprova.
+> **O que já existia (levantamento de 22/10):** as páginas da Transparência (emendas, parcerias, documentos aprovados por tipo e ano, editais de assembleia, dados abertos), o módulo
+> Documentos (tipos ESTATUTO, ATA, BALANCO, RELATORIO_ANUAL; versão pública em PDF ou TEXTO com o verificador de dado pessoal; aprovação por outra pessoa; versões em `grupo_versao`), a
+> prestação de contas por exercício (texto interno, sem publicação), o relatório final de projeto e o fechamento de evento (números sem nome). O Estatuto do site continua sendo a
+> transcrição do registro em cartório (decisão de 09/10). Em três partes, uma por vez (cada uma: branch → homologação → `main`):
+
+##### v6.3a — Documentos com responsável e histórico; atas em texto
+
+- [ ] Cada documento publicado mostra **quem aprovou (nome e cargo) e quando**; a versão substituída continua no site, ligada à que a substituiu (o histórico de versões na página do
+  documento). A retirada (documento publicado por engano) continua tirando do site.
+- [ ] **Publicar uma ata no site em texto:** a partir da ata assinada, o sistema abre um documento público em TEXTO já com o texto da ata para a pessoa retirar o dado pessoal (o verificador
+  aponta e bloqueia); só sai com a aprovação do Presidente ou do Secretário.
+
+##### v6.3b — As contas do exercício no site
+
+- [ ] Depois da deliberação de aprovação das contas do exercício, o sistema monta o resumo (receitas e despesas por grupo, resultado, parecer do Conselho Fiscal, data da aprovação em
+  Assembleia) como documento público gerado do dado, sem digitação, e ele só sai com a confirmação do Presidente ou do Secretário; página das contas por exercício na Transparência.
+
+##### v6.3c — Relatório anual de atividades
+
+- [ ] Os números do ano montados pelo sistema (projetos, eventos realizados com inscritos e presentes, beneficiários, horas de voluntariado, indicadores, as contas do exercício) mais a
+  apresentação escrita pela secretaria; aprovação do Presidente ou do Secretário; página do relatório anual por ano na Transparência.
+
 ##### 🔍 Ponto de Revisão — FASE 6 (2/2 — fim, fecha v6.2–v6.3)
 
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
