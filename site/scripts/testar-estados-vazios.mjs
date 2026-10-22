@@ -121,6 +121,18 @@ exigir(
   '/transparencia/ tem a seção de editais sem haver edital',
 )
 
+// v6.3b - sem nenhuma prestação de contas publicada, a página das contas existe com o estado vazio e sem tabela.
+const contasVazias = lerPagina('/transparencia/contas/')
+exigir(
+  contasVazias.includes('data-estado="vazio"') &&
+    contasVazias.includes('Nenhuma prestação de contas publicada ainda'),
+  '/transparencia/contas/ sem o estado vazio',
+)
+exigir(
+  !contasVazias.includes('data-contas=') && !contasVazias.includes('<table'),
+  '/transparencia/contas/ mostra exercício (ou tabela) sem haver contas publicadas',
+)
+
 // 3b. Transparência (v5.4b) sem nenhuma emenda, parcerias ou documento aprovado: a PRODUÇÃO no dia em que o módulo entra
 // no ar. O texto do estado vazio das emendas é o que o usuário pediu, palavra por palavra.
 const emendas = lerPagina('/transparencia/emendas/')

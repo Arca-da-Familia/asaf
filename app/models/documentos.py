@@ -109,6 +109,9 @@ class DocumentoInstitucional(Base):
     verificacao_ok = Column(Boolean, nullable=True)
     verificacao_json = Column(Text, nullable=True)  # bloqueios/avisos, sempre com amostra MASCARADA
     verificacao_em = Column(DateTime, nullable=True)
+    # v6.3b: documento GERADO PELO SISTEMA (as contas do exercício; o relatório anual na v6.3c): os números em JSON, para o site montar as tabelas.
+    # Preenchido, o texto público é o gerado (ninguém o digita nem troca por um arquivo).
+    dados_publicos_json = Column(Text, nullable=True)
 
     # publicação
     situacao = Column(String(15), nullable=False, default=RASCUNHO, index=True)

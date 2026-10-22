@@ -318,6 +318,7 @@ test.describe('Documentos publicados', () => {
       .allInnerTexts()
     expect(tipos).toEqual([
       'Ata',
+      'Balanço / prestação de contas anual', // v6.3b: as contas de 2025 geradas pelo sistema
       'Estatuto e alterações',
       'Plano de trabalho',
       'Relatório de evento ou de projeto',
@@ -344,7 +345,7 @@ test.describe('Documentos publicados', () => {
       'Nenhum documento encontrado.',
     )
     await busca.getByLabel('Buscar por título').fill('')
-    await expect(page.locator('li[data-documento]:visible')).toHaveCount(5)
+    await expect(page.locator('li[data-documento]:visible')).toHaveCount(6)
   })
 
   test('o PDF copiado é exatamente o aprovado (mesmo SHA-256 mostrado na página)', async ({
@@ -470,7 +471,7 @@ test.describe('Dados abertos', () => {
 })
 
 test.describe('Transparência (página principal) e demais páginas', () => {
-  test('mostra os quatro caminhos e o número de emendas, parcerias e documentos', async ({
+  test('mostra os caminhos e o número de emendas, parcerias, documentos e contas', async ({
     page,
   }) => {
     await page.goto('/transparencia/')
@@ -481,7 +482,11 @@ test.describe('Transparência (página principal) e demais páginas', () => {
       '1 parceria publicada',
     )
     await expect(page.locator('[data-cartao="documentos"]')).toContainText(
-      '5 documentos publicados',
+      '6 documentos publicados',
+    )
+    // v6.3b: as contas do exercício aprovadas pela Assembleia
+    await expect(page.locator('[data-cartao="contas"]')).toContainText(
+      'As contas de 2025, aprovadas pela Assembleia Geral',
     )
     await expect(page.locator('[data-cartao="dados"] a')).toHaveAttribute(
       'href',
@@ -551,5 +556,40 @@ test.describe('Transparência (página principal) e demais páginas', () => {
     expect(
       await (await request.get('/transparencia/dados/emendas.csv')).text(),
     ).not.toMatch(/centro_custo/)
+  })
+})
+
+test.describe('Contas do exercício (v6.3b)', () => {
+  test('cada exercício publicado mostra receitas, despesas, resultado, o parecer, quem aprovou e o texto publicado', async ({
+    page,
+  }) => {
+    await page.goto('/transparencia/contas/')
+    const ano = page.locator('section[data-contas="2025"]')
+    await expect(
+      ano.getByRole('heading', { name: 'Exercício 2025' }),
+    ).toBeVisible()
+    await expect(ano).toContainText('Contas aprovadas pela Assembleia Geral em')
+    await expect(ano).toContainText(
+      'Aprovado para publicação por EXEMPLO Presidente de Teste, Presidente, em',
+    )
+    const receitas = ano.getByRole('table', { name: 'Receitas de 2025' })
+    await expect(
+      receitas.getByRole('row', { name: /EXEMPLO – Mensalidades/ }),
+    ).toContainText('1.000,00')
+    await expect(receitas.locator('tfoot')).toContainText('1.500,00')
+    await expect(
+      ano.getByRole('table', { name: 'Despesas de 2025' }).locator('tfoot'),
+    ).toContainText('900,00')
+    await expect(ano.locator('[data-resultado-do-ano]')).toContainText('600,00')
+    await expect(ano).toContainText(
+      'Pareceres do Conselho Fiscal (2, um por conselheiro)',
+    )
+    await expect(ano.locator('[data-parecer="Com ressalva"]')).toContainText(
+      'emitido em',
+    )
+    await ano.getByRole('link', { name: /texto publicado/ }).click()
+    await expect(page.locator('[data-documento-em-texto]')).toContainText(
+      'Resultado do exercício: R$ 600,00',
+    )
   })
 })

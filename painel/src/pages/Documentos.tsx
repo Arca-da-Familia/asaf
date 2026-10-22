@@ -8,6 +8,7 @@ import {
   SeloDeSituacao,
   SeloDeValidade,
 } from '@/components/documentos/Selos'
+import { GeradosPeloSistema } from '@/components/documentos/GeradosPeloSistema'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -73,6 +74,8 @@ export function DocumentosPage() {
           ) : undefined
         }
       />
+
+      {podePreparar && <GeradosPeloSistema />}
 
       {paraAprovar.length > 0 && (
         <p

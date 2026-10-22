@@ -317,6 +317,34 @@ export interface DocumentoDetalhado extends DocumentoPublico {
   texto: string | null
 }
 
+/** Uma linha das contas do exercício (v6.3b): o valor em reais com 2 casas, em texto ("1234.56"). */
+export interface LinhaDasContas {
+  codigo: string
+  conta: string
+  valor: string
+}
+
+/** As contas de um exercício, aprovadas pela Assembleia e publicadas (v6.3b): os números gerados dos lançamentos, como foram aprovados. */
+export interface ContasDoExercicio {
+  ano: number
+  id_documento: number
+  titulo: string
+  versao: number
+  aprovado_em: string | null
+  aprovado_por: { nome: string; cargo: string | null } | null
+  dados: {
+    ano: number
+    receitas: LinhaDasContas[]
+    despesas: LinhaDasContas[]
+    total_receitas: string
+    total_despesas: string
+    resultado: string
+    /** Todos os pareceres do Conselho Fiscal do ano emitidos até a aprovação (cada conselheiro emite o seu), sem o nome de quem emitiu. */
+    pareceres: { tipo: string; texto: string; data: string | null }[]
+    aprovadas_em_assembleia_em: string | null
+  }
+}
+
 export interface ConteudoPublico {
   /** Os campos da Instituição que o painel marcou "vai para o site" (v5.4h); `{}` se a API não tem a rota. */
   instituicao: Record<string, string>
@@ -334,6 +362,8 @@ export interface ConteudoPublico {
   documentos: DocumentoPublico[]
   /** Só dos documentos em formato TEXTO: o texto aprovado (SHA-256 já conferido no build). */
   detalhesDeDocumentos: Record<number, DocumentoDetalhado>
+  /** As contas de cada exercício aprovadas pela Assembleia e publicadas (v6.3b), o mais novo primeiro; `[]` se a API não tem a rota. */
+  contas: ContasDoExercicio[]
   /** Notícias PUBLICADAS no Directus (editor do site), já validadas e com o HTML limpo. */
   noticias: NoticiaPublica[]
   /** Notícias que NÃO foram publicadas e o motivo (diagnóstico; fora da impressão digital). */

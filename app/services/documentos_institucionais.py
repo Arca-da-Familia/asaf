@@ -189,6 +189,8 @@ def _gravar_original(doc: DocumentoInstitucional, nome_arquivo: str | None, cont
 
 def substituir_original(db, doc: DocumentoInstitucional, nome_arquivo: str | None, conteudo: bytes) -> str | None:
     _exigir_situacao(doc, RASCUNHO, acao="trocar o arquivo original")
+    if doc.dados_publicos_json:  # v6.3b
+        raise HTTPException(status_code=409, detail="Este documento é gerado pelo sistema a partir dos dados: o texto não se digita nem se troca por arquivo (refaça pela tela de origem).")
     if e_texto_da_ata_no_site(doc):
         raise HTTPException(status_code=409, detail="O texto da ata para o site não tem arquivo: a ata assinada se anexa na tela da ata e fica privada.")
     anterior = _gravar_original(doc, nome_arquivo, conteudo)
@@ -200,6 +202,8 @@ def substituir_original(db, doc: DocumentoInstitucional, nome_arquivo: str | Non
 def editar(db, doc: DocumentoInstitucional, dados: dict) -> dict:
     """Edita o cadastro (só em rascunho). Mudar classificação ou 'publicar no site' invalida a versão pública."""
     _exigir_situacao(doc, RASCUNHO, acao="editar o cadastro")
+    if doc.dados_publicos_json:  # v6.3b
+        raise HTTPException(status_code=409, detail="Este documento é gerado pelo sistema a partir dos dados: o texto não se digita nem se troca por arquivo (refaça pela tela de origem).")
     campos = _validar_campos(dados)
     _exigir_vinculo_existente(db, campos)
     # v6.3a: documento ligado a uma ata (a ata assinada, privada, e o texto para o site, público) não muda de tipo, de vínculo nem de classificação:
@@ -236,6 +240,8 @@ def anexar_versao_publica(db, doc: DocumentoInstitucional, conteudo: bytes, *, d
     _exigir_situacao(doc, RASCUNHO, acao="trocar a versão pública")
     if not doc.publicar_no_site:
         raise HTTPException(status_code=409, detail="Este documento não está marcado para o site: não há versão pública para anexar.")
+    if doc.dados_publicos_json:  # v6.3b
+        raise HTTPException(status_code=409, detail="Este documento é gerado pelo sistema a partir dos dados: o texto não se digita nem se troca por arquivo (refaça pela tela de origem).")
     if doc.tipo == "ATA":  # v6.3a: qualquer ata, em qualquer classificação ou vínculo (decisão do Presidente: "nunca o PDF")
         raise HTTPException(status_code=409, detail="A ata vai ao site só em texto (decisão da Presidência): cole o texto, sem o dado pessoal.")
     resultado = verificar_versao_publica(conteudo)
@@ -289,6 +295,8 @@ def anexar_versao_publica_texto(db, doc: DocumentoInstitucional, texto: str | No
     _exigir_situacao(doc, RASCUNHO, acao="trocar a versão pública")
     if not doc.publicar_no_site:
         raise HTTPException(status_code=409, detail="Este documento não está marcado para o site: não há versão pública para anexar.")
+    if doc.dados_publicos_json:  # v6.3b
+        raise HTTPException(status_code=409, detail="Este documento é gerado pelo sistema a partir dos dados: o texto não se digita nem se troca por arquivo (refaça pela tela de origem).")
     limpo = _normalizar_texto(texto)
     if len(limpo) < TAMANHO_MINIMO_DO_TEXTO:
         raise HTTPException(status_code=400, detail=f"O texto é curto demais (pelo menos {TAMANHO_MINIMO_DO_TEXTO} caracteres).")
@@ -297,6 +305,13 @@ def anexar_versao_publica_texto(db, doc: DocumentoInstitucional, texto: str | No
     resultado = verificar_texto_publico(limpo)
     if not resultado.ok:
         return resultado
+    _guardar_texto_publico(doc, limpo, resultado)
+    db.commit()
+    db.refresh(doc)
+    return resultado
+
+
+def _guardar_texto_publico(doc: DocumentoInstitucional, limpo: str, resultado: Resultado) -> None:
     _remover_arquivo(PASTA_PUBLICOS, doc.publico_nome)  # se havia um PDF público, sai: a versão pública agora é o texto
     corpo = limpo.encode("utf-8")
     doc.publico_nome, doc.publico_paginas = None, None
@@ -304,6 +319,33 @@ def anexar_versao_publica_texto(db, doc: DocumentoInstitucional, texto: str | No
     doc.publico_texto, doc.publico_formato = limpo, FORMATO_TEXTO
     doc.verificacao_ok, doc.verificacao_em = True, datetime.utcnow()
     doc.verificacao_json = _json_do_resultado(resultado)
+
+
+def conferir_texto_gerado(texto: str) -> tuple[str, Resultado]:
+    """v6.3b - confere o texto de um documento GERADO antes de qualquer gravação (quem chama confere ANTES de criar o documento ou a versão, para
+    uma recusa não deixar rascunho órfão). Dado pessoal (ex.: no parecer do Conselho Fiscal): 422 com os achados MASCARADOS, para corrigir na ORIGEM."""
+    limpo = _normalizar_texto(texto)
+    if len(limpo) > TAMANHO_MAXIMO_DO_TEXTO:
+        raise HTTPException(status_code=422, detail={"mensagem": f"O texto gerado passa de {TAMANHO_MAXIMO_DO_TEXTO:,} caracteres.".replace(",", "."), "resultado": None})
+    resultado = verificar_texto_publico(limpo)
+    if not resultado.ok:
+        raise HTTPException(
+            status_code=422,
+            detail={"mensagem": "O texto gerado tem dado pessoal: corrija na origem (ex.: o parecer do Conselho Fiscal ou o nome de uma conta) e refaça.",
+                    "resultado": resultado.como_dicionario()},
+        )
+    return limpo, resultado
+
+
+def gravar_texto_gerado(db, doc: DocumentoInstitucional, texto: str, dados: dict) -> Resultado:
+    """v6.3b - a versão pública de um documento GERADO PELO SISTEMA (as contas do exercício; o relatório anual na v6.3c): o texto montado dos dados e os
+    números em JSON, gravados juntos. Passa pelo mesmo verificador (`conferir_texto_gerado`)."""
+    import json as _json
+
+    _exigir_situacao(doc, RASCUNHO, acao="refazer o documento gerado")
+    limpo, resultado = conferir_texto_gerado(texto)
+    _guardar_texto_publico(doc, limpo, resultado)
+    doc.dados_publicos_json = _json.dumps(dados, ensure_ascii=False)
     db.commit()
     db.refresh(doc)
     return resultado
@@ -324,7 +366,10 @@ def usar_original_como_versao_publica(db, doc: DocumentoInstitucional) -> Result
 
 # ----------------------------------------------------------------------------------- publicação
 def enviar_para_revisao(db, usuario, doc: DocumentoInstitucional) -> None:
+    from app.services import contas_publicas  # v6.3b (import aqui: contas_publicas usa este módulo)
+
     _exigir_situacao(doc, RASCUNHO, acao="enviar para revisão")
+    contas_publicas.exigir_aprovacao_vigente(db, doc)
     if not doc.publicar_no_site:
         raise HTTPException(status_code=409, detail="Este documento não está marcado para o site.")
     if not tem_versao_publica(doc) or not doc.verificacao_ok:
@@ -336,7 +381,10 @@ def enviar_para_revisao(db, usuario, doc: DocumentoInstitucional) -> None:
 
 
 def aprovar(db, usuario, doc: DocumentoInstitucional) -> Resultado:
+    from app.services import contas_publicas  # v6.3b (import aqui: contas_publicas usa este módulo)
+
     _exigir_situacao(doc, EM_REVISAO, acao="aprovar a publicação")
+    contas_publicas.exigir_aprovacao_vigente(db, doc)
     if usuario.id_usuario in (doc.id_usuario_envio_revisao, doc.id_usuario_criacao):
         raise HTTPException(
             status_code=403,
@@ -413,7 +461,11 @@ def tornar_vigente(db, doc: DocumentoInstitucional) -> None:
     db.commit()
 
 
-def nova_versao(db, usuario, doc: DocumentoInstitucional) -> DocumentoInstitucional:
+def nova_versao(db, usuario, doc: DocumentoInstitucional, *, gerado: bool = False) -> DocumentoInstitucional:
+    # v6.3b - documento GERADO pelo sistema só ganha versão nova pela tela de origem (que gera o texto e os números): pela biblioteca, a v2 nasceria
+    # sem a marca de gerado e aceitaria texto digitado à mão, tirando as contas do site.
+    if doc.dados_publicos_json and not gerado:
+        raise HTTPException(status_code=409, detail="Este documento é gerado pelo sistema a partir dos dados: a versão nova se faz pela tela de origem (ex.: Contas do exercício para o site).")
     # Documento do SITE: uma versão em andamento por vez. Documento que não vai ao site não tem fluxo de revisão
     # (fica em 'Rascunho' para sempre), então nada o bloqueia.
     aberta = _irmaos(db, doc).filter(DocumentoInstitucional.situacao.in_((RASCUNHO, EM_REVISAO))).first() if doc.publicar_no_site else None
@@ -423,6 +475,7 @@ def nova_versao(db, usuario, doc: DocumentoInstitucional) -> DocumentoInstitucio
     nova = DocumentoInstitucional(
         tipo=doc.tipo, titulo=doc.titulo, descricao=doc.descricao, classificacao=doc.classificacao,
         publicar_no_site=doc.publicar_no_site, vinculo_tipo=doc.vinculo_tipo, vinculo_id=doc.vinculo_id,
+        ano=doc.ano if gerado else None, data_documento=doc.data_documento if gerado else None,
         grupo_versao=doc.grupo_versao, versao=ultima.versao + 1, vigente=False, situacao=RASCUNHO,
         id_usuario_criacao=usuario.id_usuario,
     )

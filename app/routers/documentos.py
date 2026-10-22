@@ -91,6 +91,7 @@ def _serializar(db: Session, usuario: Usuario, doc: DocumentoInstitucional, *, c
         # v6.3a: o texto da ata, como ponto de partida da versão para o site (a pessoa retira o dado pessoal; o verificador confere)
         "texto_sugerido": servico.texto_sugerido(db, doc) if com_texto_sugerido else None,
         "so_texto": servico.e_texto_da_ata_no_site(doc),  # a ata vai ao site só em texto: o painel não oferece o PDF
+        "gerado_pelo_sistema": bool(doc.dados_publicos_json),  # v6.3b: o texto é o gerado dos dados; o painel não oferece texto nem arquivo
     }
 
 

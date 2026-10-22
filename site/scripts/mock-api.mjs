@@ -559,11 +559,16 @@ const TEXTO_DO_RELATORIO_DE_TESTE =
 const TEXTO_DO_ESTATUTO_ANTIGO_DE_TESTE =
   'EXEMPLO – ESTATUTO REGISTRADO (VERSÃO 1)\n\nTexto de teste da primeira versão do estatuto, depois substituída.'
 
+/** v6.3b - o texto gerado das contas de teste do exercício de 2025 (o documento 7, aprovado: a mesma informação das tabelas). */
+const TEXTO_DAS_CONTAS_DE_TESTE =
+  'EXEMPLO – Prestação de contas do exercício 2025\n\nReceitas: R$ 1.500,00. Despesas: R$ 900,00. Resultado do exercício: R$ 600,00.'
+
 /** O texto de cada documento em formato TEXTO (o detalhe do documento devolve o texto; o PDF não tem). */
 const TEXTOS_DE_TESTE = {
   4: TEXTO_DO_ESTATUTO_DE_TESTE,
   5: TEXTO_DO_RELATORIO_DE_TESTE,
   6: TEXTO_DO_ESTATUTO_ANTIGO_DE_TESTE,
+  7: TEXTO_DAS_CONTAS_DE_TESTE,
 }
 
 /** v6.3a - quem aprovou a publicação (nome e cargo); o documento 3 foi aprovado por quem não tem cadastro de associado (sem nome). */
@@ -727,6 +732,24 @@ const documentos = () =>
       arquivo: null,
       grupo_versao: 'grupo-estatuto-registrado',
     },
+    // v6.3b - as contas de 2025, geradas pelo sistema e aprovadas para o site (a página das contas lê os números de /api/publico/transparencia/contas)
+    {
+      id_documento: 7,
+      tipo_codigo: 'BALANCO',
+      tipo: 'Balanço / prestação de contas anual',
+      titulo: 'EXEMPLO – Prestação de contas do exercício 2025',
+      descricao: null,
+      data_documento: dataIso(-200),
+      ano: 2025,
+      versao: 1,
+      vigente: true,
+      paginas: null,
+      tamanho: Buffer.byteLength(TEXTO_DAS_CONTAS_DE_TESTE, 'utf8'),
+      sha256: sha256(Buffer.from(TEXTO_DAS_CONTAS_DE_TESTE, 'utf8')),
+      aprovado_em: dataIso(-190),
+      formato: 'TEXTO',
+      arquivo: null,
+    },
     // v5.5 - relatório da edição passada do projeto principal: documento aprovado, em TEXTO, ligado ao EVENTO 4.
     {
       id_documento: 5,
@@ -754,6 +777,48 @@ const documentos = () =>
     aprovado_por: PRESIDENTE_DE_TESTE,
     ...d,
   }))
+
+/** v6.3b - as contas de cada exercício publicadas (os números gravados na geração, como foram aprovados). */
+const contas = () => [
+  {
+    ano: 2025,
+    id_documento: 7,
+    titulo: 'EXEMPLO – Prestação de contas do exercício 2025',
+    versao: 1,
+    aprovado_em: dataIso(-190),
+    aprovado_por: PRESIDENTE_DE_TESTE,
+    dados: {
+      ano: 2025,
+      receitas: [
+        { codigo: '3.1.01', conta: 'EXEMPLO – Mensalidades', valor: '1000.00' },
+        { codigo: '3.1.02', conta: 'EXEMPLO – Doações', valor: '500.00' },
+      ],
+      despesas: [
+        {
+          codigo: '4.1.01',
+          conta: 'EXEMPLO – Material de oficinas',
+          valor: '900.00',
+        },
+      ],
+      total_receitas: '1500.00',
+      total_despesas: '900.00',
+      resultado: '600.00',
+      pareceres: [
+        {
+          tipo: 'Favorável',
+          texto: 'EXEMPLO – Contas conferidas, sem ressalvas.',
+          data: dataIso(-212),
+        },
+        {
+          tipo: 'Com ressalva',
+          texto: 'EXEMPLO – Faltou o comprovante de uma despesa pequena.',
+          data: dataIso(-210),
+        },
+      ],
+      aprovadas_em_assembleia_em: dataIso(-200),
+    },
+  },
+]
 
 const parcerias = () => [
   {
@@ -1163,7 +1228,7 @@ const CAMPOS_NOVOS = {
   ],
   projetoDaLista: ['destaque'],
   projetoDetalhado: ['destaque', 'eventos', 'documentos', 'fotos'],
-  documento: ['vinculo_tipo', 'vinculo_id'],
+  documento: ['vinculo_tipo', 'vinculo_id', 'aprovado_por', 'grupo_versao'],
   noticia: ['projeto_id', 'evento_id', 'emenda_id'],
   membroDaDiretoria: ['foto'],
 }
@@ -2591,6 +2656,11 @@ export function criarServidor({
       }
       if (caminho === '/api/publico/transparencia/parcerias')
         return responder(lista(parcerias))
+      // v6.3b - as contas do exercício publicadas; a API antiga não tem a rota (o build segue sem contas)
+      if (caminho === '/api/publico/transparencia/contas')
+        return antiga
+          ? responder({ detail: 'Not Found' }, 404)
+          : responder(lista(contas))
       if (caminho === '/api/publico/transparencia/documentos')
         return responder(comoVier(lista(documentos), CAMPOS_NOVOS.documento))
       const parceria = /^\/api\/publico\/transparencia\/parcerias\/(\d+)$/.exec(

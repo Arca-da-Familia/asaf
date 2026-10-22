@@ -233,7 +233,16 @@ export function DocumentoDetalhePage() {
           </dl>
         </Secao>
 
-        {d.so_texto ? (
+        {d.gerado_pelo_sistema ? (
+          <Secao titulo="Gerado pelo sistema">
+            <p className="text-sm text-muted-foreground">
+              O texto e os números deste documento são montados dos dados do
+              sistema (ninguém digita nem envia arquivo). Para atualizar os
+              números, use &quot;Contas do exercício para o site&quot; na tela
+              de Documentos; depois de publicado, isso abre uma versão nova.
+            </p>
+          </Secao>
+        ) : d.so_texto ? (
           <Secao titulo="Arquivo original (área privada)">
             <p className="text-sm text-muted-foreground">
               Este é o texto da ata para o site: ele não tem arquivo. A ata
@@ -344,6 +353,7 @@ export function DocumentoDetalhePage() {
               {d.pode_editar &&
                 d.classificacao === 'Pública' &&
                 d.tipo !== 'ATA' &&
+                !d.gerado_pelo_sistema &&
                 d.tem_original && (
                   <Button
                     type="button"
@@ -356,7 +366,7 @@ export function DocumentoDetalhePage() {
                     versão pública
                   </Button>
                 )}
-              {d.pode_editar && d.tipo !== 'ATA' && (
+              {d.pode_editar && d.tipo !== 'ATA' && !d.gerado_pelo_sistema && (
                 <div className="flex items-end gap-2">
                   <label className="text-sm">
                     <span className="mb-1 block">
@@ -386,7 +396,7 @@ export function DocumentoDetalhePage() {
                 </div>
               )}
             </div>
-            {d.pode_editar && (
+            {d.pode_editar && !d.gerado_pelo_sistema && (
               <div className="space-y-2 border-t border-border pt-3">
                 {d.so_texto && (
                   <p className="rounded-md border border-amber-600/30 bg-amber-600/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
@@ -483,7 +493,8 @@ export function DocumentoDetalhePage() {
                 Tornar esta a versão vigente
               </Button>
             )}
-            {podePreparar && (
+            {/* o documento gerado pelo sistema só ganha versão nova pela tela de origem (Documentos > Contas do exercício) */}
+            {podePreparar && !d.gerado_pelo_sistema && (
               <Button
                 type="button"
                 variant="outline"
