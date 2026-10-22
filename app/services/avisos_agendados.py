@@ -158,7 +158,7 @@ def publicar_os_que_chegaram_a_hora(db: Session, agora: Optional[datetime] = Non
                 aviso = comunicacao.publicar(
                     db, autor, titulo=agendado.titulo, texto=agendado.texto, categoria=agendado.categoria, valido_ate=agendado.valido_ate,
                     exige_confirmacao=agendado.exige_confirmacao, publico=agendado.publico, total_confirmado=0, por_email=agendado.por_email,
-                    id_modelo=agendado.id_modelo, conferir_total=False,
+                    id_modelo=agendado.id_modelo, conferir_total=False, total_maximo=agendado.total_conferido,
                 )
             except HTTPException as erro:
                 db.rollback()  # desfaz também a troca para Publicado

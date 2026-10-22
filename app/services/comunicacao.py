@@ -204,13 +204,15 @@ def _rotulos_do_catalogo(db: Session, chave: str) -> list[tuple[str, str]]:
     return [(o.codigo, o.rotulo or o.codigo) for o in opcoes]
 
 
+# Decisão do Presidente (2026-10-20): só Convocação e Mudança de regra são obrigatórias (chegam por e-mail a quem desligou, sem link de descadastro).
+# FIXAS no código (Ponto de Revisão FASE 6 2/2): a marca `obrigatoria` no catálogo é só informativa, porque quem tem `comunicar` edita o catálogo e não
+# pode, com isso, tornar obrigatória uma categoria qualquer (contra a escolha de quem desligou) nem deixar de entregar uma convocação.
+CATEGORIAS_OBRIGATORIAS = frozenset({"CONVOCACAO", "MUDANCA_DE_REGRA"})
+
+
 def categorias_obrigatorias(db: Session) -> set[str]:
-    """v6.2a - as categorias de aviso marcadas `obrigatoria` no catálogo (decisão do Presidente: Convocação e Mudança de regra)."""
-    catalogo = db.query(Catalogo).filter(Catalogo.chave == CATALOGO_DE_CATEGORIA).first()
-    if catalogo is None:
-        return set()
-    opcoes = db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_catalogo == catalogo.id_catalogo, OpcaoCatalogo.ativo.is_(True)).all()
-    return {o.codigo for o in opcoes if isinstance(o.metadados, dict) and o.metadados.get("obrigatoria")}
+    """v6.2a - as categorias de aviso obrigatórias (decisão do Presidente: Convocação e Mudança de regra), fixas no código."""
+    return set(CATEGORIAS_OBRIGATORIAS)
 
 
 def _sem_repetir(valores: list) -> list:
@@ -402,9 +404,11 @@ def _gravar_destinos(db: Session, aviso: Aviso, destinos: list[Destino]) -> None
 
 def publicar(
     db: Session, usuario: Usuario, *, titulo: str, texto: str, categoria: str, valido_ate: date, exige_confirmacao: bool, publico: dict, total_confirmado: int,
-    por_email: bool = False, id_modelo: Optional[int] = None, conferir_total: bool = True,
+    por_email: bool = False, id_modelo: Optional[int] = None, conferir_total: bool = True, total_maximo: Optional[int] = None,
 ) -> Aviso:
-    """`conferir_total=False` só para o aviso AGENDADO (o total foi conferido ao agendar; na hora de publicar o grupo é recalculado pela mesma regra)."""
+    """`conferir_total=False` só para o aviso AGENDADO (o total foi conferido ao agendar; na hora de publicar o grupo é recalculado pela mesma regra) e,
+    nele, `total_maximo` = o total conferido: se o grupo CRESCEU desde então, nada sai (ninguém recebe sem ter sido contado na confirmação; quem saiu do
+    grupo simplesmente não recebe)."""
     titulo, texto = validar_texto_e_titulo(titulo, texto)
     validar_codigo_em_catalogo(db, CATALOGO_DE_CATEGORIA, categoria, "Categoria do aviso")
     validar_modelo(db, id_modelo)
@@ -417,6 +421,12 @@ def publicar(
     destinos = resolver_publico(db, normalizado)
     if not destinos:
         raise HTTPException(status_code=422, detail="Ninguém está neste grupo hoje: o aviso não foi publicado.")
+    if total_maximo is not None and len(destinos) > total_maximo:
+        raise HTTPException(
+            status_code=409,
+            detail=f"O grupo cresceu desde a conferência do agendamento: agora são {len(destinos)} pessoa(s), e foram conferidas {total_maximo}. "
+                   "Confira de novo e publique (ou agende outra vez).",
+        )
     if conferir_total and total_confirmado != len(destinos):
         raise HTTPException(
             status_code=409,
@@ -465,18 +475,35 @@ def situacao(aviso: Aviso, dia: Optional[date] = None) -> str:
     return VENCIDO if aviso.valido_ate < (dia or hoje()) else NO_MURAL
 
 
-def incluir_novos(db: Session, usuario: Usuario, id_aviso: int) -> int:
-    """Acrescenta quem entrou no grupo depois da publicação (ninguém sai: a lista é a prova de quem estava). Só com o aviso no mural."""
-    aviso = obter(db, id_aviso)
-    if situacao(aviso) != NO_MURAL:
-        raise HTTPException(status_code=409, detail="Só se inclui gente em aviso que ainda está no mural.")
-    ja = db.query(AvisoDestinatario.id_associado, AvisoDestinatario.id_usuario).filter(AvisoDestinatario.id_aviso == id_aviso).all()
+def _novos_do_grupo(db: Session, aviso: Aviso) -> list:
+    ja = db.query(AvisoDestinatario.id_associado, AvisoDestinatario.id_usuario).filter(AvisoDestinatario.id_aviso == aviso.id_aviso).all()
     associados = {a for a, _ in ja if a is not None}
     usuarios = {u for _, u in ja if u is not None}
-    novos = [
+    return [
         d for d in resolver_publico(db, aviso.publico)
         if not ((d.id_associado is not None and d.id_associado in associados) or (d.id_usuario is not None and d.id_usuario in usuarios))
     ]
+
+
+def contar_novos(db: Session, id_aviso: int) -> dict:
+    """Quantos entraram no grupo depois da publicação (e quantos recebem por e-mail): a conferência que a tela mostra ANTES de incluir."""
+    aviso = obter(db, id_aviso)
+    novos = _novos_do_grupo(db, aviso) if situacao(aviso) == NO_MURAL else []
+    return {"novos": len(novos), "com_email": sum(1 for d in novos if d.email) if aviso.por_email else 0}
+
+
+def incluir_novos(db: Session, usuario: Usuario, id_aviso: int, total_confirmado: int) -> int:
+    """Acrescenta quem entrou no grupo depois da publicação (ninguém sai: a lista é a prova de quem estava). Só com o aviso no mural e com a contagem
+    CONFERIDA na tela (Ponto de Revisão FASE 6 2/2: o e-mail sai para essas pessoas; ninguém entra sem ter sido contado)."""
+    aviso = obter(db, id_aviso)
+    if situacao(aviso) != NO_MURAL:
+        raise HTTPException(status_code=409, detail="Só se inclui gente em aviso que ainda está no mural.")
+    novos = _novos_do_grupo(db, aviso)
+    if total_confirmado != len(novos):
+        raise HTTPException(
+            status_code=409,
+            detail=f"O grupo mudou desde a conferência: agora são {len(novos)} pessoa(s) a incluir, não {total_confirmado}. Confira de novo.",
+        )
     if not novos:
         return 0
     _gravar_destinos(db, aviso, novos)

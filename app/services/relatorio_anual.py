@@ -354,13 +354,30 @@ def exigir_apresentacao(doc: DocumentoInstitucional) -> None:
 
 
 def escreveu_a_apresentacao(db: Session, usuario, doc: DocumentoInstitucional) -> bool:
-    """Quem escreveu a apresentação DESTA versão (está na Auditoria) não aprova a publicação: a aprovação é de outra pessoa."""
+    """Quem escreveu a apresentação DESTA versão (está na Auditoria) não aprova a publicação: a aprovação é de outra pessoa. Vale também quando a versão
+    nova traz o MESMO texto que a pessoa escreveu numa versão anterior (a apresentação é levada para ser revista; Ponto FASE 6 2/2)."""
     if doc.tipo != TIPO or not doc.dados_publicos_json:
         return False
-    return db.query(AuditLog.id_log).filter(
-        AuditLog.tabela_afetada == "documentos_institucionais", AuditLog.acao == ACAO_APRESENTACAO,
-        AuditLog.id_registro_afetado == doc.id_documento, AuditLog.id_usuario == usuario.id_usuario,
-    ).first() is not None
+    escritas = db.query(AuditLog.id_registro_afetado, AuditLog.dados_depois).filter(
+        AuditLog.tabela_afetada == "documentos_institucionais", AuditLog.acao == ACAO_APRESENTACAO, AuditLog.id_usuario == usuario.id_usuario,
+    ).all()
+    if any(id_registro == doc.id_documento for id_registro, _ in escritas):
+        return True
+    apresentacao = _apresentacao_de(doc).strip()
+    if not apresentacao:
+        return False
+    sha = hashlib.sha256(apresentacao.encode("utf-8")).hexdigest()
+    da_mesma_familia = {
+        d for (d,) in db.query(DocumentoInstitucional.id_documento).filter(DocumentoInstitucional.grupo_versao == doc.grupo_versao).all()
+    }
+    for id_registro, depois in escritas:
+        if id_registro in da_mesma_familia:
+            try:
+                if json.loads(depois or "{}").get("sha256") == sha:
+                    return True
+            except ValueError:
+                continue
+    return False
 
 
 def preparar(db: Session, usuario, ano: int) -> tuple[DocumentoInstitucional, str]:

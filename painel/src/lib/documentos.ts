@@ -71,6 +71,8 @@ export type Documento = {
   gerado_pelo_sistema?: boolean
   // v6.3c: a apresentação da diretoria no relatório anual gerado (a única parte escrita); null nos outros documentos
   apresentacao?: string | null
+  // Ponto FASE 6 (2/2): para quem APROVA o texto da ata no site, o texto da ata assinada (para comparar); null nos outros casos
+  texto_da_ata_assinada?: string | null
 }
 
 export type SituacaoDasContasNoSite = {

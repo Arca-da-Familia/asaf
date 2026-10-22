@@ -25,6 +25,7 @@ vi.mock('@/lib/comunicacao', async (importOriginal) => ({
   publicarAviso: vi.fn(),
   detalharAviso: vi.fn(),
   incluirNovosNoAviso: vi.fn(),
+  contarNovosNoAviso: vi.fn(),
   retirarAviso: vi.fn(),
   reenviarEmailsDoAviso: vi.fn(),
   minhasPreferencias: vi.fn(),
@@ -477,8 +478,12 @@ describe('o relatório de leitura', () => {
     ).toEqual(['Bruno', 'Carla'])
   })
 
-  it('retirar exige o motivo e incluir diz quantos entraram', async () => {
+  it('retirar exige o motivo e incluir confere quantos entraram antes (e manda o total visto)', async () => {
     vi.mocked(com.detalharAviso).mockResolvedValue(avisoCompleto())
+    vi.mocked(com.contarNovosNoAviso).mockResolvedValue({
+      novos: 2,
+      com_email: 0,
+    })
     vi.mocked(com.incluirNovosNoAviso).mockResolvedValue({
       incluidos: 2,
       aviso: avisoCompleto(),
@@ -499,6 +504,17 @@ describe('o relatório de leitura', () => {
         name: 'Incluir quem entrou no grupo depois',
       }),
     )
+    // a conferência vem antes: nada é incluído sem a pessoa ver o total
+    expect(
+      await screen.findByText(
+        /2 pessoas entraram no grupo depois da publicação/,
+      ),
+    ).toBeVisible()
+    expect(com.incluirNovosNoAviso).not.toHaveBeenCalled()
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Incluir 2 pessoas' }),
+    )
+    expect(com.incluirNovosNoAviso).toHaveBeenCalledWith(7, 2)
     expect(await screen.findByText('2 pessoas incluídas.')).toBeVisible()
 
     await userEvent.click(

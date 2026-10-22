@@ -266,7 +266,8 @@ def atualizar_opcao_catalogo(
     catalogo = db.query(Catalogo).filter(Catalogo.id_catalogo == opcao.id_catalogo).first()
     if catalogo:
         _exigir_permissao_catalogo(db, usuario, catalogo)
-    antes = {"rotulo": opcao.rotulo, "ordem": opcao.ordem, "ativo": opcao.ativo, "cor": opcao.cor, "icone": opcao.icone}
+    # (Ponto FASE 6 2/2: os metadados também no "antes", para a Auditoria mostrar o que mudou)
+    antes = {"rotulo": opcao.rotulo, "ordem": opcao.ordem, "ativo": opcao.ativo, "cor": opcao.cor, "icone": opcao.icone, "metadados": opcao.metadados}
     dados_alterados = dados.model_dump(exclude_unset=True)
     for campo, valor in dados_alterados.items():
         setattr(opcao, campo, valor)

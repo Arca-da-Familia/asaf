@@ -41,13 +41,16 @@ def _trocar(client, cpf, codigo, senha_nova, ip=None):
 
 
 def test_a_resposta_e_a_mesma_com_conta_sem_conta_e_cpf_que_nao_existe(client, auth_headers, db, enviados):
-    cpf, _id, email = _conta(client, auth_headers, db)
+    cpf, id_usuario, email = _conta(client, auth_headers, db)
     _sem_acesso, cpf_sem_acesso = _criar_ficha(client)
     respostas = [_pedir(client, c) for c in (cpf, cpf_sem_acesso, "00000000000", "abc")]
     assert {r.status_code for r in respostas} == {200}
     assert len({json.dumps(r.json(), sort_keys=True) for r in respostas}) == 1  # nada diferencia quem tem conta
     assert "codigo_de_teste" not in respostas[0].json()
     assert [e for e, _c in enviados] == [email]  # só quem tem acesso recebe, no e-mail de login
+    # (Ponto FASE 6 2/2) o pedido fica na Auditoria da conta, sem o e-mail nem o código
+    pedidos = db.query(AuditLog).filter(AuditLog.acao == "NOVA_SENHA_PEDIDA", AuditLog.id_registro_afetado == id_usuario).all()
+    assert len(pedidos) == 1 and email not in (pedidos[0].dados_depois or "") and enviados[0][1] not in (pedidos[0].dados_depois or "")
 
 
 def test_o_codigo_troca_a_senha_e_as_sessoes_abertas_caem(client, auth_headers, db, enviados):

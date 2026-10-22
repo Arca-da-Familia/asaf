@@ -576,7 +576,7 @@ e-mails do sistema (endereço com acento não é tentado). A Política de Privac
 traz o destinatário) e um endereço com acento que pararia a rodada diária por até 3 dias, deixando sem lembrete os títulos depois dele; os outros: um teste que quebraria no Postgres, o robô que
 filmaria a senha provisória (a tela "Conceder acesso" a mostra em texto: o roteiro roda sem vídeo e sem print automático), a pausa do servidor deixando a tarefa vermelha, o aviso de fim de
 experiência que se perdia se um lançamento financeiro recalculasse a situação antes da rotina (agora sai na própria transição, no mesmo commit), o endereço inexistente fora da higienização, um
-comentário antigo ("não existe cron") e código repetido. **Testes locais:** servidor 1470 em duas rodadas seguidas (21 testes novos); 22 mutações, cada uma pega pelo seu teste.
+comentário antigo ("não existe cron") e código repetido. **Testes locais:** servidor 1470 em duas rodadas seguidas (19 testes novos; corrigido no Ponto de Revisão FASE 6 2/2, antes dizia 21); 22 mutações, cada uma pega pelo seu teste.
 **Achado no caminho (vira correção própria, a seguir):** a tela "Conceder acesso" diz que o associado "será obrigado a trocar a senha no primeiro login", mas o painel não obriga.
 **Na homologação (2026-10-21):** a branch `v62d-automaticos` foi publicada lá (cada publicação roda a rotina do fim da experiência e, antes dela e só no `asaf_hml`, um roteiro que faz passar
 os 90 dias do candidato do robô). Na 1ª rodada o robô achou um defeito dele mesmo (procurava a situação na tela errada; ela fica na aba Situação), corrigido e refeito. Robô `v6.2d-01`, 2 de 2: um
@@ -614,7 +614,7 @@ o tempo da resposta revelando quem tem conta; os baixos: textos das sessões, tr
 **Risco que fica registrado:** o servidor não recusa as rotas para quem ainda tem senha provisória (a obrigação é do painel, como a do MFA pendente); não foi possível contar, só lendo, quantos
 usuários de produção ainda têm a senha provisória (o banco só aceita conexão de dentro do Azure, e eu não abro o firewall); com o "Esqueci a minha senha", quem esqueceu a provisória não
 fica preso.
-**Testes locais:** servidor 1494 em duas rodadas seguidas; painel 716; site 766 unitários e 870 de navegador; 23 mutações, 22 pegas (a que escapa é uma conferência que o banco também faz).
+**Testes locais:** servidor 1494 em duas rodadas seguidas; painel 716; site 766 unitários e 867 de navegador (corrigido no Ponto FASE 6 2/2: antes dizia 870); 23 mutações, 22 pegas (a que escapa é uma conferência que o banco também faz).
 **Na homologação (21–22/10):** a branch `correcao-senha-provisoria` foi publicada lá (`Running upgrade c9e5a1b3d468 -> d3f6b2c8e571`; 9 contas do cofre marcadas com a senha definitiva).
 Robô `v6.2d-01`, 2 de 2: o associado novo entra com a senha provisória, o painel o OBRIGA a trocar (nem o endereço direto abre outra tela), a senha atual errada é recusada e, trocada, o
 sino dá as boas-vindas. Robô `v6.2d-03`, 2 de 2 (na 1ª rodada o robô achou defeito dele mesmo: a faixa de ambiente de teste também é um aviso na tela; corrigido): pela tela de entrar,
@@ -1318,7 +1318,10 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 #### v12.7 — Portal de transparência ativa
 
 > **Núcleo antecipado na v5.4a/b (2026-10-03):** documentos com versão pública, aprovação de publicação e páginas de
-> Transparência geradas do sistema. Aqui ficam os blocos restantes (prestação de contas anual, relatório de atividades).
+> Transparência geradas do sistema. **Os blocos que restavam já foram feitos na v6.3 (22/10/2026):** a prestação de contas anual
+> (v6.3b, `/transparencia/contas/`, só depois da Assembleia), o relatório anual de atividades (v6.3c, `/transparencia/relatorio-anual/`), as atas
+> em texto e o responsável e o histórico de cada documento (v6.3a). Aqui fica só o que ainda não existe (o relatório de parcerias com o poder
+> público quando a v12.1 estiver ativa); reaproveitar, não reconstruir.
 
 - [ ] Página pública dedicada reunindo automaticamente: prestação de contas, atas aprovadas,
       estatuto vigente, relatório anual de atividades, composição da diretoria e — quando o v12.1
@@ -1675,6 +1678,11 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       API) com desativação do que não é mais usado.
 
 #### v15.6 — Proteção da conta e do processo de recuperação
+
+> **[parcial, 22/10/2026 — "Esqueci a minha senha", registrado na v6.2]:** código de 6 números de uso único, válido por 10 minutos, enviado ao e-mail de
+> acesso; tetos por conta, por CPF, por IP e do sistema; a troca encerra todas as sessões e avisa o titular por e-mail; o pedido e a troca ficam na
+> Auditoria; o MFA continua exigido. **Falta daqui:** aviso de login em dispositivo novo, verificação reforçada para quem tem alçada financeira ou
+> gerencia acessos e o monitoramento de tentativa distribuída. Reaproveitar o que existe, não reconstruir.
 
 - [ ] Recuperação de senha é a porta dos fundos mais explorada: link de uso único com expiração
       curta, invalidação de todas as sessões ao trocar a senha, notificação ao titular a cada

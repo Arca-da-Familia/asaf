@@ -11,6 +11,7 @@ import {
   MOTIVO_MINIMO,
   detalharAviso,
   filtrarDestinatarios,
+  contarNovosNoAviso,
   incluirNovosNoAviso,
   reenviarEmailsDoAviso,
   resumoDoEmail,
@@ -69,10 +70,24 @@ export function AvisoDetalhePage() {
     onError: (e) => falhou(e, 'Não foi possível reenviar.'),
   })
 
-  const incluir = useMutation({
-    mutationFn: () => incluirNovosNoAviso(idAviso),
+  // a conferência ANTES de incluir: quantos entraram (e quantos recebem por e-mail); só inclui com o total que a pessoa viu
+  const [conferencia, setConferencia] = useState<{
+    novos: number
+    com_email: number
+  } | null>(null)
+  const conferir = useMutation({
+    mutationFn: () => contarNovosNoAviso(idAviso),
     onSuccess: (r) => {
       setErro(null)
+      setConferencia(r)
+    },
+    onError: (e) => falhou(e, 'Não foi possível conferir o grupo.'),
+  })
+  const incluir = useMutation({
+    mutationFn: (total: number) => incluirNovosNoAviso(idAviso, total),
+    onSuccess: (r) => {
+      setErro(null)
+      setConferencia(null)
       queryClient.setQueryData(chave, r.aviso)
       queryClient.invalidateQueries({ queryKey: ['avisos'] })
       setAviso(
@@ -81,7 +96,10 @@ export function AvisoDetalhePage() {
           : `${r.incluidos} ${r.incluidos === 1 ? 'pessoa incluída' : 'pessoas incluídas'}.`,
       )
     },
-    onError: (e) => falhou(e, 'Não foi possível incluir.'),
+    onError: (e) => {
+      setConferencia(null)
+      falhou(e, 'Não foi possível incluir.')
+    },
   })
 
   const retirar = useMutation({
@@ -303,13 +321,61 @@ export function AvisoDetalhePage() {
       {data.situacao === 'No mural' && (
         <section className="mt-6 max-w-3xl space-y-4" aria-label="Ações">
           <div>
-            <Button
-              variant="outline"
-              disabled={incluir.isPending}
-              onClick={() => incluir.mutate()}
-            >
-              Incluir quem entrou no grupo depois
-            </Button>
+            {conferencia === null ? (
+              <Button
+                variant="outline"
+                disabled={conferir.isPending}
+                onClick={() => conferir.mutate()}
+              >
+                Incluir quem entrou no grupo depois
+              </Button>
+            ) : conferencia.novos === 0 ? (
+              <p role="status" className="text-sm">
+                Ninguém novo no grupo: a lista já está completa.{' '}
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() => setConferencia(null)}
+                >
+                  Fechar
+                </button>
+              </p>
+            ) : (
+              <div
+                role="group"
+                aria-label="Conferir quem será incluído"
+                className="space-y-2 rounded-md border border-border p-3 text-sm"
+              >
+                <p>
+                  {conferencia.novos}{' '}
+                  {conferencia.novos === 1
+                    ? 'pessoa entrou no grupo'
+                    : 'pessoas entraram no grupo'}{' '}
+                  depois da publicação
+                  {data.por_email
+                    ? `; ${conferencia.com_email} ${conferencia.com_email === 1 ? 'recebe' : 'recebem'} também por e-mail`
+                    : ''}
+                  .
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    disabled={incluir.isPending}
+                    onClick={() => incluir.mutate(conferencia.novos)}
+                  >
+                    Incluir {conferencia.novos}{' '}
+                    {conferencia.novos === 1 ? 'pessoa' : 'pessoas'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setConferencia(null)}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
             <p className="mt-1 text-xs text-muted-foreground">
               Recalcula o grupo de hoje e acrescenta só quem ainda não estava na
               lista; ninguém sai dela.

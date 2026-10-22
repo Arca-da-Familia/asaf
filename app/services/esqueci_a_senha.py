@@ -150,7 +150,9 @@ def gerar_e_enviar(cpf: str) -> None:
     try:
         gerado = gerar_codigo(db, cpf=cpf)
         if gerado is not None:
-            codigo, email, _usuario = gerado
+            codigo, email, usuario = gerado
+            # (Ponto FASE 6 2/2) o pedido fica na Auditoria, com a conta e sem o e-mail nem o código: pedidos repetidos contra uma conta aparecem antes do teto
+            registrar_auditoria(db, None, "usuarios", "NOVA_SENHA_PEDIDA", id_registro_afetado=usuario.id_usuario)
             enviar_codigo(email, codigo)
     except Exception as erro:  # noqa: BLE001 - depois da resposta não há a quem devolver o erro: fica no log, só o TIPO (o texto de um erro do banco traria o CPF da consulta)
         db.rollback()

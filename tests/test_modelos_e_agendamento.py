@@ -154,19 +154,25 @@ def test_agendar_confere_a_hora_a_validade_e_o_grupo(client, db, auth_headers):
     assert r.status_code == 422 and "antes do dia" in r.json()["detail"]
     vazio = _publico_do_projeto(_projeto(db))
     assert _agendar(client, auth_headers, vazio, agora + timedelta(hours=1)).status_code == 422
+    # o total que a tela conferiu tem de bater com o grupo (como no "publicar já")
+    corpo_errado = {**_corpo(publico, 7), "publicar_em": (agora + timedelta(hours=2)).replace(tzinfo=timezone.utc).isoformat()}
+    r = client.post("/api/avisos-agendados/", json=corpo_errado, headers=auth_headers)
+    assert r.status_code == 409 and "Confira de novo" in r.json()["detail"]
     ok = _agendar(client, auth_headers, publico, agora + timedelta(hours=2))
     assert ok.status_code == 200 and ok.json()["situacao"] == AGENDADO and ok.json()["total_conferido"] == 1
     assert db.query(AuditLog).filter(AuditLog.acao == "AVISO_AGENDADO", AuditLog.id_registro_afetado == ok.json()["id_agendado"]).count() == 1
 
 
 def test_a_rodada_publica_so_depois_da_hora_e_recalcula_o_grupo(client, db, auth_headers):
-    primeira, _ = _criar_associado(db, _nome("Primeira Agendada"))
-    projeto = _projeto(db, equipe=[primeira])
+    primeira, usuario_primeira = _criar_associado(db, _nome("Primeira Agendada"))
+    saiu, usuario_saiu = _criar_associado(db, _nome("Saiu Antes Da Hora"))
+    projeto = _projeto(db, equipe=[primeira, saiu])
     agora = datetime.utcnow()
     agendado = _agendar(client, auth_headers, _publico_do_projeto(projeto), agora + timedelta(hours=1)).json()
+    assert agendado["total_conferido"] == 2
     assert avisos_agendados.publicar_os_que_chegaram_a_hora(db, agora=agora + timedelta(minutes=30))["publicados"] == 0, "nunca antes da hora"
-    segunda, usuario_segunda = _criar_associado(db, _nome("Entrou Antes Da Hora"))
-    db.add(EquipeProjeto(id_projeto=projeto.id_projeto, id_associado=segunda.id_associado, papel="VOLUNTARIO"))
+    db.query(EquipeProjeto).filter(EquipeProjeto.id_projeto == projeto.id_projeto, EquipeProjeto.id_associado == saiu.id_associado).update(
+        {"data_fim": datetime.utcnow()})
     db.commit()
     resultado = avisos_agendados.publicar_os_que_chegaram_a_hora(db, agora=agora + timedelta(hours=1, minutes=5))
     assert resultado["publicados"] >= 1 and resultado["falhas"] == 0
@@ -174,8 +180,9 @@ def test_a_rodada_publica_so_depois_da_hora_e_recalcula_o_grupo(client, db, auth
     linha = db.get(AvisoAgendado, agendado["id_agendado"])
     assert linha.situacao == PUBLICADO and linha.id_aviso is not None
     aviso = db.get(Aviso, linha.id_aviso)
-    assert aviso.total_destinatarios == 2, "o grupo da hora da publicação"
-    assert linha.id_aviso in [a["id_aviso"] for a in client.get("/api/meus-avisos/?mural=true", headers=_headers(usuario_segunda)).json()["avisos"]]
+    assert aviso.total_destinatarios == 1, "o grupo da hora da publicação (quem saiu não recebe)"
+    assert linha.id_aviso in [a["id_aviso"] for a in client.get("/api/meus-avisos/?mural=true", headers=_headers(usuario_primeira)).json()["avisos"]]
+    assert linha.id_aviso not in [a["id_aviso"] for a in client.get("/api/meus-avisos/", headers=_headers(usuario_saiu)).json()["avisos"]]
     assert db.query(AuditLog).filter(AuditLog.acao == "AVISO_AGENDADO_PUBLICADO", AuditLog.id_registro_afetado == linha.id_agendado).count() == 1
     avisos_publicados_antes = db.query(Aviso).count()
     avisos_agendados.publicar_os_que_chegaram_a_hora(db, agora=agora + timedelta(hours=2))
@@ -184,6 +191,31 @@ def test_a_rodada_publica_so_depois_da_hora_e_recalcula_o_grupo(client, db, auth
     assert db.query(Aviso).count() - avisos_publicados_antes == db.query(AvisoAgendado).filter(
         AvisoAgendado.situacao == PUBLICADO, AvisoAgendado.id_aviso > linha.id_aviso,
     ).count(), "só os agendados de outros testes podem ter saído"
+
+
+def test_grupo_que_cresceu_desde_a_conferencia_nao_sai_e_o_autor_fica_sabendo(client, db, auth_headers):
+    """Ponto de Revisão FASE 6 (2/2): o agendamento foi conferido para N pessoas; se, na hora, o grupo tem MAIS gente, nada sai (ninguém recebe sem ter
+    sido contado na confirmação) e quem agendou é avisado no sino para conferir de novo."""
+    from app.models.notificacoes_painel import NotificacaoPainel
+
+    primeira, _ = _criar_associado(db, _nome("Conferida Na Agenda"))
+    projeto = _projeto(db, equipe=[primeira])
+    agora = datetime.utcnow()
+    agendado = _agendar(client, auth_headers, _publico_do_projeto(projeto), agora + timedelta(hours=1)).json()
+    nova, usuario_nova = _criar_associado(db, _nome("Entrou Depois Da Agenda"))
+    db.add(EquipeProjeto(id_projeto=projeto.id_projeto, id_associado=nova.id_associado, papel="VOLUNTARIO"))
+    db.commit()
+    avisos_antes = max([a.id_aviso for a in db.query(Aviso.id_aviso).all()] or [0])
+    resultado = avisos_agendados.publicar_os_que_chegaram_a_hora(db, agora=agora + timedelta(hours=1, minutes=5))
+    assert resultado["falhas"] == 0
+    db.expire_all()
+    linha = db.get(AvisoAgendado, agendado["id_agendado"])
+    assert linha.situacao == AGENDAMENTO_CANCELADO and linha.id_aviso is None
+    assert "O grupo cresceu desde a conferência" in linha.motivo and "agora são 2" in linha.motivo
+    assert client.get("/api/meus-avisos/", headers=_headers(usuario_nova)).json()["avisos"] == []
+    autor = db.query(Usuario).filter(Usuario.id_usuario == linha.id_usuario_autor).one()
+    assert db.query(NotificacaoPainel).filter(NotificacaoPainel.id_usuario == autor.id_usuario, NotificacaoPainel.tipo == "aviso_agendado_cancelado").count() >= 1
+    assert not db.query(Aviso).filter(Aviso.id_aviso > avisos_antes, Aviso.titulo == linha.titulo).first(), "o aviso não nasceu"
 
 
 def test_a_rodada_cancela_com_motivo_o_que_nao_pode_mais_sair(client, db, auth_headers):

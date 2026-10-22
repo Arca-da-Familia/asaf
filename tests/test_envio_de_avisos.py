@@ -129,6 +129,27 @@ def test_sem_a_caixa_nenhuma_entrega_e_as_obrigatorias_vem_marcadas(client, db, 
     assert {c for c, obrigatoria in categorias.items() if obrigatoria} == {"CONVOCACAO", "MUDANCA_DE_REGRA"}
 
 
+def test_as_obrigatorias_sao_fixas_e_nao_mudam_pelo_catalogo(client, db, auth_headers):
+    """Ponto de Revisão FASE 6 (2/2): quem tem `comunicar` edita o catálogo de categorias, mas não pode tornar obrigatória uma categoria qualquer
+    (contra a escolha de quem desligou) nem tirar a obrigatoriedade da Convocação (decisão do Presidente: só Convocação e Mudança de regra)."""
+    from app.models.core import Catalogo, OpcaoCatalogo
+    from app.services import comunicacao
+
+    catalogo = db.query(Catalogo).filter(Catalogo.chave == "categoria_aviso").one()
+    opcoes = {o.codigo: o for o in db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_catalogo == catalogo.id_catalogo).all()}
+    geral, convocacao = opcoes["GERAL"], opcoes["CONVOCACAO"]
+    antes = (geral.metadados, convocacao.metadados)
+    try:
+        geral.metadados, convocacao.metadados = {"obrigatoria": True}, {}
+        db.commit()
+        assert comunicacao.categorias_obrigatorias(db) == {"CONVOCACAO", "MUDANCA_DE_REGRA"}
+        categorias = {c["codigo"]: c["obrigatoria"] for c in client.get("/api/avisos/opcoes-de-publico", headers=auth_headers).json()["categorias_de_aviso"]}
+        assert categorias["GERAL"] is False and categorias["CONVOCACAO"] is True
+    finally:
+        geral.metadados, convocacao.metadados = antes
+        db.commit()
+
+
 # ------------------------------------------------------------------------------------------------ 2. a rodada
 def test_a_rodada_envia_com_o_endereco_de_agora_e_o_link_so_para_quem_tem_acesso(client, db, auth_headers):
     com_acesso, _, email = _com_email(db, "Leitor Do Email")
@@ -263,7 +284,8 @@ def test_retirar_cancela_o_que_estava_na_fila_e_o_enviado_fica(client, db, auth_
     na_fila, _, _ = _com_email(db, "Ainda Na Fila")
     db.add(EquipeProjeto(id_projeto=projeto.id_projeto, id_associado=na_fila.id_associado, papel="VOLUNTARIO"))
     db.commit()
-    incluidos = client.post(f"/api/avisos/{aviso['id_aviso']}/incluir-novos", headers=auth_headers).json()
+    assert client.get(f"/api/avisos/{aviso['id_aviso']}/novos", headers=auth_headers).json() == {"novos": 1, "com_email": 1}
+    incluidos = client.post(f"/api/avisos/{aviso['id_aviso']}/incluir-novos", json={"total_confirmado": 1}, headers=auth_headers).json()
     assert incluidos["incluidos"] == 1 and incluidos["aviso"]["email"][NA_FILA] == 1, "incluir também põe o e-mail na fila"
     client.post(f"/api/avisos/{aviso['id_aviso']}/retirar", json={"motivo": "Assunto resolvido, aviso retirado."}, headers=auth_headers)
     entregas = _entregas(db, aviso["id_aviso"])
@@ -382,7 +404,7 @@ def test_a_recusa_de_um_destinatario_nao_para_a_rodada(client, db, auth_headers)
     db.add(EquipeProjeto(id_projeto=db.query(EquipeProjeto).filter(EquipeProjeto.id_associado == primeira.id_associado).first().id_projeto,
                          id_associado=terceira.id_associado, papel="VOLUNTARIO"))
     db.commit()
-    client.post(f"/api/avisos/{aviso['id_aviso']}/incluir-novos", headers=auth_headers)
+    client.post(f"/api/avisos/{aviso['id_aviso']}/incluir-novos", json={"total_confirmado": 1}, headers=auth_headers)
     servidor = _ServidorFalso({email2: smtplib.SMTPRecipientsRefused({"x": (451, b"4.3.0 Try again")})})
     _rodar(db, servidor, agora=datetime.utcnow() + timedelta(hours=2))
     assert len(servidor.para(email3)) == 1, "a falha passageira de uma pessoa não segura a próxima"

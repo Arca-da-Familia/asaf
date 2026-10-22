@@ -192,6 +192,22 @@ export function DocumentoDetalhePage() {
           <strong>Próximo passo:</strong> {proximoPasso(d)}
         </p>
 
+        {d.texto_da_ata_assinada && (
+          <details className="rounded-md border border-border p-3 text-sm">
+            <summary className="cursor-pointer font-medium">
+              Comparar com o texto da ata assinada
+            </summary>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Confira se o texto que vai ao site diz o mesmo que a ata (só sem
+              os dados pessoais): nenhuma deliberação, votação ou data pode
+              mudar.
+            </p>
+            <pre className="mt-2 whitespace-pre-wrap font-sans">
+              {d.texto_da_ata_assinada}
+            </pre>
+          </details>
+        )}
+
         {erro && (
           <p
             role="alert"

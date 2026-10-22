@@ -285,6 +285,31 @@ describe('v6.3a: o texto da ata para o site', () => {
     expect(screen.getByText(/ele não tem arquivo/)).toBeInTheDocument()
   })
 
+  it('quem aprova vê o texto da ata assinada para comparar', async () => {
+    documentos.obterDocumento.mockResolvedValue(
+      relatorio({
+        id_documento: 78,
+        tipo: 'ATA',
+        tipo_rotulo: 'Ata',
+        classificacao: 'Pública',
+        vinculo_tipo: 'ata',
+        vinculo_id: 40,
+        situacao: 'Em revisão',
+        pode_aprovar: true,
+        so_texto: true,
+        texto_da_ata_assinada:
+          'ATA ORIGINAL: a Assembleia aprovou as contas por 12 votos.',
+      }),
+    )
+    renderizar('/documentos/78')
+    expect(
+      await screen.findByText('Comparar com o texto da ata assinada'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/ATA ORIGINAL: a Assembleia aprovou as contas/),
+    ).toBeInTheDocument()
+  })
+
   it('outro documento do site continua com a opção de PDF e o campo vazio', async () => {
     documentos.obterDocumento.mockResolvedValue(
       relatorio({ situacao: 'Rascunho', pode_editar: true }),

@@ -187,10 +187,21 @@ export function detalharAviso(idAviso: number): Promise<AvisoCompleto> {
   return apiFetch(`/api/avisos/${idAviso}`)
 }
 
+// Ponto de Revisão FASE 6 (2/2): incluir quem entrou depois também passa pela conferência com a contagem (o e-mail sai para essas pessoas)
+export function contarNovosNoAviso(
+  idAviso: number,
+): Promise<{ novos: number; com_email: number }> {
+  return apiFetch(`/api/avisos/${idAviso}/novos`)
+}
+
 export function incluirNovosNoAviso(
   idAviso: number,
+  totalConfirmado: number,
 ): Promise<{ incluidos: number; aviso: AvisoCompleto }> {
-  return apiFetch(`/api/avisos/${idAviso}/incluir-novos`, { method: 'POST' })
+  return apiFetch(`/api/avisos/${idAviso}/incluir-novos`, {
+    method: 'POST',
+    body: JSON.stringify({ total_confirmado: totalConfirmado }),
+  })
 }
 
 export function retirarAviso(

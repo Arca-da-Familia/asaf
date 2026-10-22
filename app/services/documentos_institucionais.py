@@ -212,6 +212,9 @@ def editar(db, doc: DocumentoInstitucional, dados: dict) -> dict:
         raise HTTPException(status_code=409, detail="Documento de uma ata não muda de tipo, vínculo nem classificação: a ata assinada fica privada e o que vai ao site é o texto.")
     if doc.tipo == "ATA" and "tipo" in campos and campos["tipo"] != doc.tipo:
         raise HTTPException(status_code=409, detail="Uma ata continua sendo ata: ela vai ao site só em texto.")
+    # Ponto de Revisão FASE 6 (2/2): virar Ata com um PDF público já anexado levaria a ata ao site em PDF
+    if campos.get("tipo") == "ATA" and doc.tipo != "ATA" and doc.publico_nome:
+        raise HTTPException(status_code=409, detail="Uma ata vai ao site só em texto: tire o PDF da versão pública antes de mudar o tipo para Ata.")
     antes = {k: getattr(doc, k) for k in campos}
     mudou_regra = any(k in campos and campos[k] != getattr(doc, k) for k in ("classificacao", "publicar_no_site"))
     for campo, valor in campos.items():
@@ -365,10 +368,30 @@ def usar_original_como_versao_publica(db, doc: DocumentoInstitucional) -> Result
 
 
 # ----------------------------------------------------------------------------------- publicação
+# Ponto de Revisão FASE 6 (2/2) - o que vai ao site por tipo, conferido ao enviar e ao aprovar (a última porta antes do público):
+#  - Ata: só em TEXTO (decisão do Presidente: "risco de dados");
+#  - Balanço e Relatório anual: só GERADOS pelo sistema (as contas depois da Assembleia, v6.3b; o relatório com os números do sistema, v6.3c);
+#    um documento desses tipos montado à mão na biblioteca passaria por fora das duas regras.
+TIPOS_SO_GERADOS_NO_SITE = {"BALANCO": "Contas do exercício para o site", "RELATORIO_ANUAL": "Relatório anual de atividades"}
+
+
+def exigir_regra_do_site_por_tipo(doc: DocumentoInstitucional) -> None:
+    if not doc.publicar_no_site:
+        return
+    if doc.tipo == "ATA" and doc.publico_formato != FORMATO_TEXTO:
+        raise HTTPException(status_code=409, detail="Uma ata vai ao site só em texto, nunca em PDF.")
+    if doc.tipo in TIPOS_SO_GERADOS_NO_SITE and not doc.dados_publicos_json:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Este tipo de documento vai ao site só gerado pelo sistema, a partir dos dados: use \"{TIPOS_SO_GERADOS_NO_SITE[doc.tipo]}\" na tela de Documentos.",
+        )
+
+
 def enviar_para_revisao(db, usuario, doc: DocumentoInstitucional) -> None:
     from app.services import contas_publicas, relatorio_anual  # v6.3b/c (import aqui: os dois usam este módulo)
 
     _exigir_situacao(doc, RASCUNHO, acao="enviar para revisão")
+    exigir_regra_do_site_por_tipo(doc)
     contas_publicas.exigir_aprovacao_vigente(db, doc)
     relatorio_anual.exigir_apresentacao(doc)
     if not doc.publicar_no_site:
@@ -385,6 +408,7 @@ def aprovar(db, usuario, doc: DocumentoInstitucional) -> Resultado:
     from app.services import contas_publicas, relatorio_anual  # v6.3b/c (import aqui: os dois usam este módulo)
 
     _exigir_situacao(doc, EM_REVISAO, acao="aprovar a publicação")
+    exigir_regra_do_site_por_tipo(doc)
     contas_publicas.exigir_aprovacao_vigente(db, doc)
     relatorio_anual.exigir_apresentacao(doc)
     if usuario.id_usuario in (doc.id_usuario_envio_revisao, doc.id_usuario_criacao) or relatorio_anual.escreveu_a_apresentacao(db, usuario, doc):
@@ -582,7 +606,33 @@ def texto_sugerido(db, doc: DocumentoInstitucional) -> str | None:
     if ata is None:
         return None
     relato = (ata.relato_secretaria or "").strip()
-    return f"{ata.corpo_texto}\n\nRelato da secretaria:\n{relato}" if relato else ata.corpo_texto
+    corpo = corpo_da_ata_sem_nomes(ata.corpo_texto or "")
+    return f"{corpo}\n\nRelato da secretaria:\n{relato}" if relato else corpo
+
+
+def corpo_da_ata_sem_nomes(corpo: str) -> str:
+    """Ponto de Revisão FASE 6 (2/2) - o ponto de partida do texto para o site sai SEM a lista de presença com o nome e a hora de cada associado (o
+    verificador não reconhece nomes): fica a contagem ("Associados habilitados", "Credenciados"). O resto do texto, a pessoa ainda revisa."""
+    linhas, na_presenca = [], False
+    for linha in corpo.split("\n"):
+        if linha.strip() == "PRESENÇA":
+            na_presenca = True
+        elif not linha.strip():
+            na_presenca = False
+        if na_presenca and linha.startswith("  - "):
+            continue
+        linhas.append(linha)
+    return "\n".join(linhas)
+
+
+def texto_da_ata_assinada(db, doc: DocumentoInstitucional) -> str | None:
+    """Para quem APROVA o texto da ata no site: o texto da ata assinada, para comparar com o que vai a público (nada de deliberação mudada)."""
+    if not e_texto_da_ata_no_site(doc) or doc.situacao != EM_REVISAO:
+        return None
+    from app.models.ata import Ata
+
+    ata = db.query(Ata).filter(Ata.id_ata == doc.vinculo_id).first()
+    return ata.corpo_texto if ata else None
 
 
 def anexar_documento_da_ata(db, usuario, ata, nome_arquivo: str | None, conteudo: bytes) -> tuple[DocumentoInstitucional, str]:

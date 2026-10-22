@@ -3,6 +3,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -117,9 +118,18 @@ def detalhar(id_aviso: int, db: Session = Depends(get_db), usuario: Usuario = De
     return servico.detalhar(db, usuario, id_aviso)
 
 
-@router.post("/api/avisos/{id_aviso}/incluir-novos", summary="Incluir quem entrou no grupo depois da publicação (ninguém sai)")
-def incluir_novos(id_aviso: int, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_comunicar)):
-    incluidos = servico.incluir_novos(db, usuario, id_aviso)
+class IncluirNovos(BaseModel):
+    total_confirmado: int = Field(ge=0)
+
+
+@router.get("/api/avisos/{id_aviso}/novos", summary="Quantos entraram no grupo depois da publicação (a conferência antes de incluir)")
+def contar_novos(id_aviso: int, db: Session = Depends(get_db), _usuario: Usuario = Depends(_pode_comunicar)):
+    return servico.contar_novos(db, id_aviso)
+
+
+@router.post("/api/avisos/{id_aviso}/incluir-novos", summary="Incluir quem entrou no grupo depois da publicação (ninguém sai), com a contagem conferida")
+def incluir_novos(id_aviso: int, dados: IncluirNovos, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_comunicar)):
+    incluidos = servico.incluir_novos(db, usuario, id_aviso, dados.total_confirmado)
     return {"incluidos": incluidos, "aviso": servico.detalhar(db, usuario, id_aviso)}
 
 

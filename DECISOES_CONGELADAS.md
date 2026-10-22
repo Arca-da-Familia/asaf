@@ -338,9 +338,10 @@ quando a necessidade real aparecer, nunca antes:
   escolha comercial a fazer no momento da implementação, não hoje.
 - **Qual PSP para Pix Automático** (v3.2.1) — escolha de banco/fintech parceiro no momento da
   implementação daquela versão.
-- **Provedor de envio de e-mail** (recuperação de senha "esqueci minha senha", achado
-  2026-09-15) — hoje não existe nenhum serviço de e-mail transacional integrado; escolher
-  provedor (ex.: Azure Communication Services, SendGrid) quando esse fluxo for implementado.
+- ~~**Provedor de envio de e-mail**~~ — **decidido e fixado** (ver a tabela da seção 8): o envio
+  sai pela conta Google Workspace da ASAF por SMTP (remetente asaf@asaf.org.br, decisão do
+  Presidente para a v6.2; teto de 2.000 por dia da conta), usado pelos avisos (v6.2), pelos
+  lembretes e pelo "Esqueci a minha senha" (fechado no Ponto de Revisão FASE 6 2/2).
 
 ---
 
@@ -364,6 +365,7 @@ correspondente chegar, porque já foi decidido:
 | Reconhecimento de rosto (se ativado) | Azure AI Face | v20.3 |
 | Varredura de dependência vulnerável | `pip-audit` / Dependabot | v15.5 |
 | Vault de segredos | Azure Key Vault | Todas |
+| Envio de e-mail (avisos, lembretes, código de troca de senha) | SMTP da conta Google Workspace da ASAF (asaf@asaf.org.br) | v6.2 |
 
 Se, ao longo da implementação de qualquer fase, ficar claro que falta uma ferramenta/conector
 aqui, o lugar certo para registrar a decisão (fixando-a) é esta tabela — não uma escolha implícita

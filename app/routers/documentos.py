@@ -95,6 +95,8 @@ def _serializar(db: Session, usuario: Usuario, doc: DocumentoInstitucional, *, c
         "so_texto": servico.e_texto_da_ata_no_site(doc),  # a ata vai ao site só em texto: o painel não oferece o PDF
         "gerado_pelo_sistema": bool(doc.dados_publicos_json),  # v6.3b: o texto é o gerado dos dados; o painel não oferece texto nem arquivo
         "apresentacao": relatorio_anual.apresentacao_do_documento(doc),  # v6.3c: a única parte escrita do relatório anual (None nos outros)
+        # Ponto FASE 6 (2/2): quem aprova o texto da ata compara com a ata assinada
+        "texto_da_ata_assinada": servico.texto_da_ata_assinada(db, doc) if pode_aprovar else None,
     }
 
 

@@ -277,3 +277,60 @@ def test_a_ata_retificada_nao_vai_ao_site_a_retificacao_sim(client, auth_headers
     preparador = _usuario(db, "documentos")
     r = client.post(f"/api/atas/{id_ata}/publicar-no-site", headers=preparador)
     assert r.status_code == 409 and "retificada" in r.json()["detail"]
+
+
+# ------------------------------------------------------------------------------------------------ Ponto de Revisão FASE 6 (2/2)
+def test_ponto_fase6_a_ata_nao_vai_em_pdf_nem_virando_ata_depois(client, auth_headers, db):
+    """Um documento de outro tipo, Público, com PDF na versão pública, não vira Ata (levaria a ata ao site em PDF); e a conferência do envio e da
+    aprovação recusa qualquer Ata que não esteja em TEXTO."""
+    pdf = ("documento.pdf", b"%PDF-1.4 documento", "application/pdf")
+    outro = client.post(
+        "/api/documentos", headers=auth_headers, data={"tipo": "OUTRO", "titulo": "Documento que viraria ata", "classificacao": "Pública",
+                                                       "publicar_no_site": "true"},
+        files={"arquivo": pdf},
+    ).json()["id_documento"]
+    doc = db.get(DocumentoInstitucional, outro)
+    doc.publico_nome, doc.publico_formato, doc.verificacao_ok = "versao-publica.pdf", "PDF", True  # (como se o PDF já tivesse passado na conferência)
+    db.commit()
+    r = client.patch(f"/api/documentos/{outro}", headers=auth_headers, json={"tipo": "ATA"})
+    assert r.status_code == 409 and "só em texto" in r.json()["detail"]
+    # mesmo que uma Ata chegue com PDF por outro caminho, não passa do envio
+    doc.tipo = "ATA"
+    db.commit()
+    r = client.post(f"/api/documentos/{outro}/enviar-revisao", headers=auth_headers)
+    assert r.status_code == 409 and "só em texto, nunca em PDF" in r.json()["detail"]
+
+
+def test_ponto_fase6_balanco_e_relatorio_anual_so_vao_ao_site_gerados(client, auth_headers, db):
+    """Balanço e Relatório anual montados à mão na biblioteca não vão ao site (passariam por fora da aprovação em Assembleia e dos números do sistema)."""
+    preparador = _usuario(db, "documentos")
+    for tipo in ("BALANCO", "RELATORIO_ANUAL"):
+        r = client.post("/api/documentos", headers=preparador, data={"tipo": tipo, "titulo": f"{tipo} digitado à mão", "classificacao": "Pública",
+                                                                      "publicar_no_site": "true"})
+        assert r.status_code == 200, r.text
+        id_documento = r.json()["id_documento"]
+        r = client.post(f"/api/documentos/{id_documento}/versao-publica-texto", headers=preparador, json={"texto": TEXTO_LIMPO})
+        assert r.status_code == 200, r.text
+        r = client.post(f"/api/documentos/{id_documento}/enviar-revisao", headers=preparador)
+        assert r.status_code == 409 and "gerado pelo sistema" in r.json()["detail"], r.text
+
+
+def test_ponto_fase6_o_texto_sugerido_da_ata_sai_sem_os_nomes_da_presenca_e_quem_aprova_compara(client, auth_headers, db):
+    corpo = (
+        "ATA DE ASSEMBLEIA GERAL ORDINÁRIA\nConvocação: 10/03/2026 às 19:00 (horário de Belém)\n\nPRESENÇA\nAssociados habilitados: 12\nCredenciados: 2\n"
+        "  - Maria Nome Completo Da Silva (Presencial) - entrada 19:05\n  - João Outro Nome (Remota) - entrada 19:10, saída 21:00\n\n"
+        "ORDEM DO DIA\nAprovação das contas.\n\nITENS DA SESSÃO\n  1. Contas - Encerrado\n     Votação 'Contas' (Aberta/Nominal): {'Sim': 2} - aprovado: Sim"
+    )
+    id_ata = _ata_assinada(client, auth_headers, db, corpo=corpo)
+    preparador = _usuario(db, "documentos")
+    id_documento = client.post(f"/api/atas/{id_ata}/publicar-no-site", headers=preparador).json()["id_documento"]
+    sugerido = client.get(f"/api/documentos/{id_documento}", headers=preparador).json()["texto_sugerido"]
+    assert "Maria Nome Completo" not in sugerido and "João Outro Nome" not in sugerido
+    assert "Credenciados: 2" in sugerido and "ORDEM DO DIA" in sugerido and "{'Sim': 2}" in sugerido
+    # quem aprova vê o texto da ata assinada para comparar (quem prepara, não)
+    aprovador = _usuario(db, "aprovar_publicacao")
+    assert client.get(f"/api/documentos/{id_documento}", headers=aprovador).json()["texto_da_ata_assinada"] is None  # ainda em rascunho
+    assert client.post(f"/api/documentos/{id_documento}/versao-publica-texto", headers=preparador, json={"texto": sugerido}).status_code == 200
+    assert client.post(f"/api/documentos/{id_documento}/enviar-revisao", headers=preparador).status_code == 200
+    assert client.get(f"/api/documentos/{id_documento}", headers=aprovador).json()["texto_da_ata_assinada"] == corpo
+    assert client.get(f"/api/documentos/{id_documento}", headers=preparador).json()["texto_da_ata_assinada"] is None

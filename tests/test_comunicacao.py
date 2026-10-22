@@ -111,7 +111,8 @@ def test_quem_nao_tem_comunicar_e_barrado_em_tudo_do_modulo(client, db, auth_hea
     assert client.post("/api/avisos/", json=_corpo(publico, 0), headers=h).status_code == 403
     assert client.get("/api/avisos/", headers=h).status_code == 403
     assert client.get("/api/avisos/1", headers=h).status_code == 403
-    assert client.post("/api/avisos/1/incluir-novos", headers=h).status_code == 403
+    assert client.post("/api/avisos/1/incluir-novos", json={"total_confirmado": 0}, headers=h).status_code == 403
+    assert client.get("/api/avisos/1/novos", headers=h).status_code == 403
     assert client.post("/api/avisos/1/retirar", json={"motivo": "motivo qualquer longo"}, headers=h).status_code == 403
     assert client.get("/api/meus-avisos/").status_code == 401
     assert client.get("/api/avisos/").status_code == 401
@@ -276,7 +277,7 @@ def test_retirar_exige_motivo_tira_do_mural_e_fica_no_historico(client, db, auth
     historico = client.get("/api/meus-avisos/", headers=h).json()["avisos"]
     assert historico[0]["situacao"] == "Retirado" and historico[0]["motivo_retirada"] == "Data da reunião mudou, novo aviso a seguir."
     assert client.post(f"/api/meus-avisos/{aviso['id_aviso']}/confirmar", headers=h).status_code == 409
-    assert client.post(f"/api/avisos/{aviso['id_aviso']}/incluir-novos", headers=auth_headers).status_code == 409
+    assert client.post(f"/api/avisos/{aviso['id_aviso']}/incluir-novos", json={"total_confirmado": 0}, headers=auth_headers).status_code == 409
     assert db.query(AuditLog).filter(AuditLog.acao == "AVISO_RETIRADO", AuditLog.id_registro_afetado == aviso["id_aviso"]).count() == 1
     retirados = client.get("/api/avisos/?situacao=Retirado&busca=" + aviso["titulo"], headers=auth_headers).json()
     assert [i["id_aviso"] for i in retirados["itens"]] == [aviso["id_aviso"]]
@@ -292,12 +293,17 @@ def test_incluir_acrescenta_quem_entrou_no_grupo_e_nao_tira_ninguem(client, db, 
     membro = db.query(EquipeProjeto).filter(EquipeProjeto.id_projeto == projeto.id_projeto, EquipeProjeto.id_associado == saiu.id_associado).one()
     membro.data_fim = datetime.utcnow()
     db.commit()
-    r = client.post(f"/api/avisos/{aviso['id_aviso']}/incluir-novos", headers=auth_headers).json()
+    # a contagem vem ANTES (a tela mostra e pede a confirmação); sem ela, ou com ela errada, ninguém entra
+    assert client.get(f"/api/avisos/{aviso['id_aviso']}/novos", headers=auth_headers).json() == {"novos": 1, "com_email": 0}
+    assert client.post(f"/api/avisos/{aviso['id_aviso']}/incluir-novos", headers=auth_headers).status_code == 422
+    r = client.post(f"/api/avisos/{aviso['id_aviso']}/incluir-novos", json={"total_confirmado": 5}, headers=auth_headers)
+    assert r.status_code == 409 and "agora são 1 pessoa(s) a incluir" in r.json()["detail"]
+    r = client.post(f"/api/avisos/{aviso['id_aviso']}/incluir-novos", json={"total_confirmado": 1}, headers=auth_headers).json()
     assert r["incluidos"] == 1 and r["aviso"]["totais"]["destinatarios"] == 3
     incluidos = db.query(AuditLog).filter(AuditLog.acao == "AVISO_DESTINATARIOS_INCLUIDOS", AuditLog.id_registro_afetado == aviso["id_aviso"]).all()
     assert len(incluidos) == 1 and '"incluidos": 1' in incluidos[0].dados_depois
     assert {p["nome"] for p in r["aviso"]["destinatarios"]} == {primeira.nome_completo, saiu.nome_completo, nova.nome_completo}
-    assert client.post(f"/api/avisos/{aviso['id_aviso']}/incluir-novos", headers=auth_headers).json()["incluidos"] == 0
+    assert client.post(f"/api/avisos/{aviso['id_aviso']}/incluir-novos", json={"total_confirmado": 0}, headers=auth_headers).json()["incluidos"] == 0
     assert db.query(AuditLog).filter(AuditLog.acao == "AVISO_DESTINATARIOS_INCLUIDOS", AuditLog.id_registro_afetado == aviso["id_aviso"]).count() == 1, "incluir ninguém não grava"
     assert [a["id_aviso"] for a in client.get("/api/meus-avisos/", headers=_headers(usuario_nova)).json()["avisos"]] == [aviso["id_aviso"]]
 

@@ -257,6 +257,11 @@ def test_a_apresentacao_e_obrigatoria_conferida_e_quem_escreve_nao_aprova(client
     db.expire_all()
     assert json.loads(db.get(DocumentoInstitucional, v2).dados_publicos_json)["apresentacao"] == APRESENTACAO
     assert next(r for r in client.get("/api/publico/transparencia/relatorios-anuais").json() if r["ano"] == ANO)["id_documento"] == id_documento
+    # a v2 leva o MESMO texto que o escritor escreveu na v1: ele continua sem poder aprovar (Ponto FASE 6 2/2); outra pessoa aprova
+    assert client.post(f"/api/documentos/{v2}/enviar-revisao", headers=preparador).status_code == 200
+    assert client.get(f"/api/documentos/{v2}", headers=escritor).json()["pode_aprovar"] is False
+    assert client.post(f"/api/documentos/{v2}/aprovar", headers=escritor).status_code == 403
+    assert client.post(f"/api/documentos/{v2}/aprovar", headers=aprovador).status_code == 200
 
 
 def test_com_as_contas_publicadas_o_relatorio_traz_os_totais_aprovados(client, auth_headers, db, exercicio_financeiro_aberto):
