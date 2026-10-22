@@ -46,12 +46,12 @@ test('incluir quem entrou depois pede a contagem; o agendado é preparado para o
     return (await resposta.json()) as T
   }
 
-  // três associados quaisquer da homologação
+  // associados da homologação: só os que contam no grupo (não desligados) entram; acrescenta à equipe até o grupo (conferido pelo próprio
+  // sistema, como a tela faz) chegar ao tamanho pedido
   const associados = await ok<Array<{ id_associado: number }>>(
     page.request.get(`${API_HML}/api/associados/`, cab()),
   )
-  expect(associados.length).toBeGreaterThanOrEqual(3)
-  const [a, b, c] = associados.slice(-3).map((x) => x.id_associado)
+  const candidatos = associados.map((x) => x.id_associado).reverse()
   const hoje = new Date()
   const { id_projeto } = await ok<{ id_projeto: number }>(
     page.request.post(`${API_HML}/projetos/`, {
@@ -67,20 +67,34 @@ test('incluir quem entrou depois pede a contagem; o agendado é preparado para o
       },
     }),
   )
-  const naEquipe = (id: number) =>
-    ok(
-      page.request.post(`${API_HML}/api/projetos/${id_projeto}/equipe`, {
-        ...cab(),
-        data: { id_associado: id, papel: 'VOLUNTARIO' },
-      }),
-    )
-  await naEquipe(a)
   const publico = {
     tipo: 'projeto',
     id_projeto,
     partes_do_projeto: ['equipe'],
     situacoes: [],
   }
+  const totalDoGrupo = async () =>
+    (
+      await ok<{ total: number }>(
+        page.request.post(`${API_HML}/api/avisos/conferir-publico`, {
+          ...cab(),
+          data: { publico },
+        }),
+      )
+    ).total
+  const ateOGrupoTer = async (alvo: number) => {
+    while ((await totalDoGrupo()) < alvo) {
+      const id = candidatos.shift()
+      expect(id, 'associados suficientes na homologação').toBeTruthy()
+      await ok(
+        page.request.post(`${API_HML}/api/projetos/${id_projeto}/equipe`, {
+          ...cab(),
+          data: { id_associado: id, papel: 'VOLUNTARIO' },
+        }),
+      )
+    }
+  }
+  await ateOGrupoTer(1)
   const validoAte = new Date(hoje.getTime() + 10 * 86_400_000)
     .toISOString()
     .slice(0, 10)
@@ -100,7 +114,7 @@ test('incluir quem entrou depois pede a contagem; o agendado é preparado para o
       data: corpo(`Aviso do Ponto FASE 6 ${RODADA}`, 1),
     }),
   )
-  await naEquipe(b)
+  await ateOGrupoTer(2)
 
   // 1. incluir quem entrou: a contagem vem ANTES
   await page.goto(`/comunicacao/${aviso.id_aviso}`)
@@ -132,7 +146,7 @@ test('incluir quem entrou depois pede a contagem; o agendado é preparado para o
     }),
   )
   expect(agendado.total_conferido).toBe(2)
-  await naEquipe(c)
+  await ateOGrupoTer(3)
 
   // 3. Balanço digitado à mão: não vai para revisão
   const balanco = await page.request.post(`${API_HML}/api/documentos`, {
