@@ -677,8 +677,31 @@ aprovado. Nada de teste foi criado em produção.
 
 ##### v6.3b — As contas do exercício no site
 
-- [ ] Depois da deliberação de aprovação das contas do exercício, o sistema monta o resumo (receitas e despesas por grupo, resultado, parecer do Conselho Fiscal, data da aprovação em
+- [x] Depois da deliberação de aprovação das contas do exercício, o sistema monta o resumo (receitas e despesas por grupo, resultado, parecer do Conselho Fiscal, data da aprovação em
   Assembleia) como documento público gerado do dado, sem digitação, e ele só sai com a confirmação do Presidente ou do Secretário; página das contas por exercício na Transparência.
+
+**O que foi feito:** em Documentos, o bloco "Contas do exercício para o site" (permissão Documentos) monta o documento das contas (tipo Balanço, Público, em TEXTO, com os números
+também em JSON para o site montar as tabelas): receitas e despesas por conta, totais, resultado, o parecer de cada conselheiro (o último de cada um até a deliberação, sem nome) e a
+data da Assembleia. Só com a deliberação de aprovação de contas daquele ano numa ata assinada de assembleia REALIZADA DEPOIS do fim do exercício (ano parcial nunca vai a público), e
+isso é conferido de novo ao enviar para revisão e ao aprovar (a deliberação pode ter sido revogada no meio). Os números são os dos lançamentos registrados ATÉ a Assembleia (nova coluna
+`lancamentos_contabeis.registrado_em`, migração `e8a2c4f6b913`): um lançamento de competência retroativa registrado depois não muda o que foi aprovado, e o painel avisa quantos há.
+O texto é o gerado (nada de texto colado, PDF, edição ou "Criar nova versão" pela biblioteca: a versão nova só pela tela de origem, com confirmação; a publicada continua no ar até a nova
+ser aprovada); dado pessoal no parecer recusa a geração sem deixar rascunho e mostra o achado mascarado. A publicação segue o fluxo de sempre (aprovação de outra pessoa). No site,
+`/transparencia/contas/` por exercício (tabelas acessíveis, parecer com data, quem aprovou, ligação ao texto), cartão na Transparência e link no rodapé. Achado no caminho e corrigido:
+a ata imprimia a hora da convocação em UTC (3 horas a mais); como a ata agora vai ao site em texto, passou a sair a hora de Belém.
+**Conferência independente (agente `opus`, só leitura), duas:** 11 achados na primeira (os altos: "Criar nova versão" tirava as contas do site e aceitava texto à mão; a recusa por dado
+pessoal deixava rascunho órfão; os médios: números recalculados na hora em vez dos aprovados, só o último parecer, data da assinatura no lugar da Assembleia, botão "Abrir" que gerava
+versão nova), 8 na reconferência (o mais sério: a data da Assembleia é gravada em UTC, e eu tinha suposto hora local; também a falta de nova conferência na aprovação e de exigir
+Assembleia depois do fim do ano); todos corrigidos. 16 mutações das travas, 16 pegas pelos testes.
+**Na homologação (22/10):** branch `v63b-contas-no-site` publicada (`Running upgrade d3f6b2c8e571 -> e8a2c4f6b913`). Robô `v6.3b-01` 1 de 1: o Tesoureiro registra uma receita de
+competência de 2025, o Conselheiro dá o parecer, o Presidente registra a aprovação numa Assembleia realizada e assinada, o Secretário prepara pela tela (o documento é gerado, sem campo
+de texto nem de arquivo, e sem "Criar nova versão"), o Presidente aprova e a API pública traz as contas de 2025 com a receita do robô e o mesmo resultado do texto. Depois de publicar a
+homologação, `v6.3b-02` 1 de 1 (o site de teste mostra receitas, despesas e resultado iguais aos da API, os pareceres e a ligação ao texto; o cartão na Transparência). Regressões:
+`v6.3a-01` 2/2, `v5.4d-05` 16/16 e `v5.4g-02` 7/7.
+**Em produção (22/10):** `main` = `5318c62`; Deploy API verde (1521 testes contra Postgres; `Running upgrade d3f6b2c8e571 -> e8a2c4f6b913`), Deploy Painel e Deploy Site verdes
+(`version.json` = `5318c62` nos dois); o `openapi.json` traz `/api/prestacoes-de-contas/{ano}/no-site` e `/publicar-no-site` (sem login: 401); `/api/publico/transparencia/contas`
+responde `[]` e `asaf.org.br/transparencia/contas/` mostra "Nenhuma prestação de contas publicada ainda". Nada de teste foi criado em produção; as primeiras contas vão ao site quando a
+Assembleia aprovar as de 2025 e o Presidente ou o Secretário confirmar.
 
 ##### v6.3c — Relatório anual de atividades
 
