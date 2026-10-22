@@ -54,7 +54,7 @@ test('incluir quem entrou depois pede a contagem; o agendado é preparado para o
   const [a, b, c] = associados.slice(-3).map((x) => x.id_associado)
   const hoje = new Date()
   const { id_projeto } = await ok<{ id_projeto: number }>(
-    page.request.post(`${API_HML}/api/projetos/`, {
+    page.request.post(`${API_HML}/projetos/`, {
       ...cab(),
       data: {
         nome_projeto: NOME_DO_PROJETO,
