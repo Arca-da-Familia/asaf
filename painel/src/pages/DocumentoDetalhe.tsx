@@ -22,6 +22,7 @@ import {
   enviarVersaoPublica,
   enviarVersaoPublicaTexto,
   formatarTamanho,
+  gravarApresentacaoDoRelatorio,
   listarDocumentos,
   listarHistoricoDoDocumento,
   obterDocumento,
@@ -87,6 +88,20 @@ export function DocumentoDetalhePage() {
   if (textoSugerido && sugestaoUsada !== textoSugerido && !textoPublico) {
     setSugestaoUsada(textoSugerido)
     setTextoPublico(textoSugerido)
+  }
+  // v6.3c: a apresentação da diretoria no relatório anual gerado chega preenchida com a que já está gravada
+  const apresentacaoGravada = doc?.apresentacao ?? null
+  const [apresentacao, setApresentacao] = useState('')
+  const [salvandoApresentacao, setSalvandoApresentacao] = useState(false)
+  const [apresentacaoCarregada, setApresentacaoCarregada] = useState<
+    string | null
+  >(null)
+  if (
+    apresentacaoGravada !== null &&
+    apresentacaoCarregada !== apresentacaoGravada
+  ) {
+    setApresentacaoCarregada(apresentacaoGravada)
+    setApresentacao(apresentacaoGravada)
   }
   const { data: trilha } = useQuery({
     queryKey: ['documento-historico', idDocumento],
@@ -238,9 +253,69 @@ export function DocumentoDetalhePage() {
             <p className="text-sm text-muted-foreground">
               O texto e os números deste documento são montados dos dados do
               sistema (ninguém digita nem envia arquivo). Para atualizar os
-              números, use &quot;Contas do exercício para o site&quot; na tela
-              de Documentos; depois de publicado, isso abre uma versão nova.
+              números, use &quot;
+              {d.tipo === 'RELATORIO_ANUAL'
+                ? 'Relatório anual de atividades'
+                : 'Contas do exercício para o site'}
+              &quot; na tela de Documentos; depois de publicado, isso abre uma
+              versão nova.
             </p>
+            {d.tipo === 'RELATORIO_ANUAL' &&
+              d.ano !== null &&
+              (d.pode_editar ? (
+                <div className="space-y-2">
+                  <label className="block text-sm">
+                    <span className="mb-1 block font-medium">
+                      Apresentação da diretoria
+                    </span>
+                    <span className="mb-1 block text-xs text-muted-foreground">
+                      A única parte escrita do relatório (pelo menos 40
+                      caracteres). Passa pela mesma conferência de dado pessoal;
+                      sem ela o relatório não vai para revisão.
+                    </span>
+                    <textarea
+                      className="min-h-40 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      maxLength={6000}
+                      value={apresentacao}
+                      onChange={(e) => setApresentacao(e.target.value)}
+                    />
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      {apresentacao.length} de 6.000 caracteres
+                      {apresentacao.trim() !== (d.apresentacao ?? '').trim() &&
+                        ' — alteração ainda não salva'}
+                    </span>
+                  </label>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={
+                      apresentacao.trim().length < 40 || salvandoApresentacao
+                    }
+                    onClick={executar(async () => {
+                      setSalvandoApresentacao(true)
+                      try {
+                        return await gravarApresentacaoDoRelatorio(
+                          d.ano!,
+                          apresentacao,
+                        )
+                      } finally {
+                        setSalvandoApresentacao(false)
+                      }
+                    })}
+                  >
+                    Salvar a apresentação
+                  </Button>
+                </div>
+              ) : (
+                d.apresentacao && (
+                  <p className="whitespace-pre-line text-sm">
+                    <span className="block font-medium">
+                      Apresentação da diretoria
+                    </span>
+                    {d.apresentacao}
+                  </p>
+                )
+              ))}
           </Secao>
         ) : d.so_texto ? (
           <Secao titulo="Arquivo original (área privada)">
@@ -456,6 +531,11 @@ export function DocumentoDetalhePage() {
               d.tem_versao_publica && (
                 <Button
                   type="button"
+                  // v6.3c: com a apresentação alterada e não salva, salvar primeiro (senão iria a versão antiga)
+                  disabled={
+                    d.tipo === 'RELATORIO_ANUAL' &&
+                    apresentacao.trim() !== (d.apresentacao ?? '').trim()
+                  }
                   onClick={executar(() => enviarParaRevisao(idDocumento))}
                 >
                   Enviar para revisão

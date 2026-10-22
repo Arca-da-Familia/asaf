@@ -38,6 +38,7 @@ export const GRUPOS_DO_RODAPE: GrupoDoRodape[] = [
       { rotulo: 'Emendas parlamentares', href: '/transparencia/emendas/' },
       { rotulo: 'Documentos publicados', href: '/transparencia/documentos/' },
       { rotulo: 'Contas do exercício', href: '/transparencia/contas/' },
+      { rotulo: 'Relatório anual', href: '/transparencia/relatorio-anual/' },
       {
         rotulo: 'Pedido de informação',
         href: '/transparencia/pedido-de-informacao/',

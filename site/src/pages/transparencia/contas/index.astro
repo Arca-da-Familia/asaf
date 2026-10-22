@@ -77,7 +77,12 @@ const reais = (valor: string) => formatarReais(Number(valor))
                 total: c.dados.total_despesas,
               },
             ].map((bloco) => (
-              <div class="overflow-x-auto rounded-lg border bg-card">
+              <div
+                class="overflow-x-auto rounded-lg border bg-card"
+                role="region"
+                tabindex="0"
+                aria-label={`Tabela: ${bloco.titulo} de ${c.ano}`}
+              >
                 <table class="w-full text-left text-sm">
                   <caption class="px-4 pt-3 text-left text-base font-semibold">
                     {bloco.titulo} de {c.ano}

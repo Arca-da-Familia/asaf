@@ -563,12 +563,17 @@ const TEXTO_DO_ESTATUTO_ANTIGO_DE_TESTE =
 const TEXTO_DAS_CONTAS_DE_TESTE =
   'EXEMPLO – Prestação de contas do exercício 2025\n\nReceitas: R$ 1.500,00. Despesas: R$ 900,00. Resultado do exercício: R$ 600,00.'
 
+/** v6.3c - o texto gerado do relatório anual de teste de 2025 (o documento 8, aprovado). */
+const TEXTO_DO_RELATORIO_ANUAL_DE_TESTE =
+  'EXEMPLO – Relatório anual de atividades 2025\n\nApresentação da diretoria\nEXEMPLO – Um ano de oficinas e de encontros com a comunidade.\n\nProjetos em andamento no ano: 1\nVoluntariado: 120,5 horas, de 8 voluntário(s)'
+
 /** O texto de cada documento em formato TEXTO (o detalhe do documento devolve o texto; o PDF não tem). */
 const TEXTOS_DE_TESTE = {
   4: TEXTO_DO_ESTATUTO_DE_TESTE,
   5: TEXTO_DO_RELATORIO_DE_TESTE,
   6: TEXTO_DO_ESTATUTO_ANTIGO_DE_TESTE,
   7: TEXTO_DAS_CONTAS_DE_TESTE,
+  8: TEXTO_DO_RELATORIO_ANUAL_DE_TESTE,
 }
 
 /** v6.3a - quem aprovou a publicação (nome e cargo); o documento 3 foi aprovado por quem não tem cadastro de associado (sem nome). */
@@ -750,6 +755,24 @@ const documentos = () =>
       formato: 'TEXTO',
       arquivo: null,
     },
+    // v6.3c - o relatório anual de 2025, gerado pelo sistema e aprovado (a página do relatório anual lê /api/publico/transparencia/relatorios-anuais)
+    {
+      id_documento: 8,
+      tipo_codigo: 'RELATORIO_ANUAL',
+      tipo: 'Relatório anual de atividades',
+      titulo: 'EXEMPLO – Relatório anual de atividades 2025',
+      descricao: null,
+      data_documento: '2025-12-31',
+      ano: 2025,
+      versao: 1,
+      vigente: true,
+      paginas: null,
+      tamanho: Buffer.byteLength(TEXTO_DO_RELATORIO_ANUAL_DE_TESTE, 'utf8'),
+      sha256: sha256(Buffer.from(TEXTO_DO_RELATORIO_ANUAL_DE_TESTE, 'utf8')),
+      aprovado_em: dataIso(-30),
+      formato: 'TEXTO',
+      arquivo: null,
+    },
     // v5.5 - relatório da edição passada do projeto principal: documento aprovado, em TEXTO, ligado ao EVENTO 4.
     {
       id_documento: 5,
@@ -816,6 +839,58 @@ const contas = () => [
         },
       ],
       aprovadas_em_assembleia_em: dataIso(-200),
+    },
+  },
+]
+
+/** v6.3c - o relatório anual de cada ano publicado (os números e a apresentação gravados na geração, como foram aprovados). */
+const relatoriosAnuais = () => [
+  {
+    ano: 2025,
+    id_documento: 8,
+    titulo: 'EXEMPLO – Relatório anual de atividades 2025',
+    versao: 1,
+    aprovado_em: dataIso(-30),
+    aprovado_por: PRESIDENTE_DE_TESTE,
+    dados: {
+      ano: 2025,
+      apresentacao:
+        'EXEMPLO – Um ano de oficinas e de encontros com a comunidade.\nObrigado a quem fez parte.',
+      registros_desde: null,
+      projetos: [
+        { nome: 'EXEMPLO – Oficinas de música', situacao: 'Em execução' },
+        { nome: 'EXEMPLO – Reforço escolar', situacao: 'Concluído' },
+      ],
+      eventos: [
+        {
+          titulo: 'EXEMPLO – Festival de fim de ano',
+          data: '2025-12-06',
+          inscritos: 120,
+          presentes: 98,
+        },
+      ],
+      eventos_totais: { inscritos: 120, presentes: 98 },
+      beneficiarios: { pessoas: 'menos de 5', atendimentos: 37 },
+      voluntariado: { horas: '120.5', voluntarios: 8 },
+      associados_no_fim_do_ano: 42,
+      indicadores: [
+        {
+          projeto: 'EXEMPLO – Oficinas de música',
+          indicador: 'Crianças atendidas',
+          periodo: '2025-12',
+          valor: '35.00',
+          unidade: 'crianças',
+          meta: '40.00',
+        },
+      ],
+      contas: {
+        id_documento: 7,
+        titulo: 'EXEMPLO – Prestação de contas do exercício 2025',
+        total_receitas: '1500.00',
+        total_despesas: '900.00',
+        resultado: '600.00',
+        aprovadas_em_assembleia_em: dataIso(-200),
+      },
     },
   },
 ]
@@ -2661,6 +2736,11 @@ export function criarServidor({
         return antiga
           ? responder({ detail: 'Not Found' }, 404)
           : responder(lista(contas))
+      // v6.3c - o relatório anual publicado; a API antiga não tem a rota (o build segue sem relatório)
+      if (caminho === '/api/publico/transparencia/relatorios-anuais')
+        return antiga
+          ? responder({ detail: 'Not Found' }, 404)
+          : responder(lista(relatoriosAnuais))
       if (caminho === '/api/publico/transparencia/documentos')
         return responder(comoVier(lista(documentos), CAMPOS_NOVOS.documento))
       const parceria = /^\/api\/publico\/transparencia\/parcerias\/(\d+)$/.exec(

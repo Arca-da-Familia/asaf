@@ -81,9 +81,11 @@ describe('buscarConteudoPublico', () => {
     expect(c.parcerias).toHaveLength(1)
     expect(Object.keys(c.detalhesDeParcerias)).toEqual(['3'])
     expect(c.documentos).toEqual([{ id_documento: 9 }])
-    expect(chamadas).toHaveLength(12) // 6 listas + a Instituição + as contas (v6.3b) + 2 detalhes de evento + 1 de projeto + 1 de parceria
+    expect(chamadas).toHaveLength(13) // 6 listas + a Instituição + as contas (v6.3b) + o relatório anual (v6.3c) + 2 detalhes de evento + 1 de projeto + 1 de parceria
     expect(chamadas).toContain('/api/publico/transparencia/contas')
     expect(c.contas).toEqual([]) // a API falsa não tem a rota: o build segue sem contas
+    expect(chamadas).toContain('/api/publico/transparencia/relatorios-anuais')
+    expect(c.relatoriosAnuais).toEqual([])
     expect(chamadas).toContain('/api/publico/projetos/7')
     expect(chamadas).toContain('/api/publico/instituicao')
   })

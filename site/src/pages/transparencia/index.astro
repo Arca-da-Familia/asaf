@@ -24,7 +24,8 @@ const ORGANIZACAO = await organizacaoDoSite()
 // usuário (CNPJ, sede, contato), GET /api/publico/assembleias (editais de assembleia JÁ convocada) e, desde a
 // v5.4b, o que a diretoria APROVOU no sistema: emendas, parcerias e documentos. Só é listado como "publicado" o que
 // de fato existe — nunca prometido antes de existir.
-const { assembleias, parcerias, documentos, contas } = await conteudoPublico()
+const { assembleias, parcerias, documentos, contas, relatoriosAnuais } =
+  await conteudoPublico()
 const emendas = parcerias.filter(ehEmenda)
 const demaisParcerias = parcerias.filter((p) => !ehEmenda(p))
 const somaRecebido = (lista: typeof parcerias) =>
@@ -196,6 +197,24 @@ const etapasDeContas = [
             {contas.length === 0
               ? 'As receitas, as despesas e o resultado de cada ano aparecerão aqui depois de aprovados pela Assembleia Geral.'
               : `As contas de ${contas.map((c) => c.ano).join(', ')}, aprovadas pela Assembleia Geral, com o parecer do Conselho Fiscal.`}
+          </p>
+        </li>
+        <li
+          class="rounded-lg border bg-card p-5 shadow-card"
+          data-cartao="relatorio-anual"
+        >
+          <h3 class="text-lg font-semibold">
+            <a
+              href="/transparencia/relatorio-anual/"
+              class="text-primary underline underline-offset-4"
+            >
+              Relatório anual de atividades
+            </a>
+          </h3>
+          <p class="mt-2 text-sm">
+            {relatoriosAnuais.length === 0
+              ? 'O ano da ASAF em números (projetos, eventos, voluntariado e contas) aparecerá aqui depois que o relatório de cada ano for aprovado.'
+              : `O relatório de ${relatoriosAnuais.map((r) => r.ano).join(', ')}: os números do ano e a apresentação da diretoria.`}
           </p>
         </li>
         <li

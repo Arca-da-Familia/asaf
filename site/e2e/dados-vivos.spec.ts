@@ -235,7 +235,8 @@ test('/conteudo.json traz a impressão do conteúdo (para a sincronização auto
     assembleias: 1,
     noticias: 6,
     parcerias: 3,
-    documentos: 7, // v6.3a/b: 6 documentos (um deles com a versão anterior também publicada; a contagem é de itens da API)
+    documentos: 8, // v6.3a/b/c: 7 documentos (um deles com a versão anterior também publicada; a contagem é de itens da API)
     contas: 1, // v6.3b: as contas de 2025
+    relatoriosAnuais: 1, // v6.3c: o relatório anual de 2025
   })
 })

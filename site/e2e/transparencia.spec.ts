@@ -321,6 +321,7 @@ test.describe('Documentos publicados', () => {
       'Balanço / prestação de contas anual', // v6.3b: as contas de 2025 geradas pelo sistema
       'Estatuto e alterações',
       'Plano de trabalho',
+      'Relatório anual de atividades', // v6.3c: o relatório anual de 2025 gerado pelo sistema
       'Relatório de evento ou de projeto',
     ])
     const ata = page.getByRole('link', { name: /Ata de eleição da diretoria/ })
@@ -345,7 +346,7 @@ test.describe('Documentos publicados', () => {
       'Nenhum documento encontrado.',
     )
     await busca.getByLabel('Buscar por título').fill('')
-    await expect(page.locator('li[data-documento]:visible')).toHaveCount(6)
+    await expect(page.locator('li[data-documento]:visible')).toHaveCount(7)
   })
 
   test('o PDF copiado é exatamente o aprovado (mesmo SHA-256 mostrado na página)', async ({
@@ -482,7 +483,7 @@ test.describe('Transparência (página principal) e demais páginas', () => {
       '1 parceria publicada',
     )
     await expect(page.locator('[data-cartao="documentos"]')).toContainText(
-      '6 documentos publicados',
+      '7 documentos publicados',
     )
     // v6.3b: as contas do exercício aprovadas pela Assembleia
     await expect(page.locator('[data-cartao="contas"]')).toContainText(
@@ -590,6 +591,48 @@ test.describe('Contas do exercício (v6.3b)', () => {
     await ano.getByRole('link', { name: /texto publicado/ }).click()
     await expect(page.locator('[data-documento-em-texto]')).toContainText(
       'Resultado do exercício: R$ 600,00',
+    )
+  })
+})
+
+test.describe('Relatório anual de atividades (v6.3c)', () => {
+  test('cada ano publicado mostra a apresentação, os números, os eventos, os indicadores, as contas e o texto publicado', async ({
+    page,
+  }) => {
+    await page.goto('/transparencia/relatorio-anual/')
+    const ano = page.locator('section[data-relatorio-anual="2025"]')
+    await expect(
+      ano.getByRole('heading', { name: 'Relatório de 2025' }),
+    ).toBeVisible()
+    await expect(ano).toContainText(
+      'Aprovado para publicação por EXEMPLO Presidente de Teste, Presidente, em',
+    )
+    await expect(ano.locator('[data-apresentacao]')).toContainText(
+      'Um ano de oficinas e de encontros com a comunidade.',
+    )
+    const numeros = ano.locator('[data-numeros-do-ano]')
+    await expect(numeros).toContainText('Horas de voluntariado120,5')
+    await expect(numeros).toContainText('Beneficiários atendidosmenos de 5')
+    await expect(numeros).toContainText('Inscrições confirmadas120')
+    await expect(numeros).toContainText('Associados em 31/12/202542')
+    await expect(
+      ano
+        .getByRole('table', { name: 'Eventos de 2025' })
+        .getByRole('row', { name: /Festival de fim de ano/ }),
+    ).toContainText('98')
+    await expect(
+      ano.getByRole('table', { name: 'Indicadores dos projetos em 2025' }),
+    ).toContainText('35 crianças')
+    await expect(ano.locator('[data-contas-do-relatorio]')).toContainText(
+      'resultado R$ 600,00',
+    )
+    await ano.getByRole('link', { name: /texto publicado/ }).click()
+    await expect(page.locator('[data-documento-em-texto]')).toContainText(
+      'Apresentação da diretoria',
+    )
+    await page.goto('/transparencia/')
+    await expect(page.locator('[data-cartao="relatorio-anual"]')).toContainText(
+      'O relatório de 2025',
     )
   })
 })

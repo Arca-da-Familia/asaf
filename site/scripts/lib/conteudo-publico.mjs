@@ -262,12 +262,13 @@ async function buscarInstituicao(base, config) {
  * tem a rota (404/405): sem a rota, nenhuma conta publicada.
  */
 async function buscarContas(base, config) {
+  return buscarListaOpcional(base, '/api/publico/transparencia/contas', config)
+}
+
+/** v6.3b/c - uma lista que a API pode ainda não ter (404/405): sem a rota, lista vazia; outro erro derruba o build. */
+async function buscarListaOpcional(base, caminho, config) {
   try {
-    const dados = await buscarJson(
-      base,
-      '/api/publico/transparencia/contas',
-      config,
-    )
+    const dados = await buscarJson(base, caminho, config)
     return Array.isArray(dados) ? dados : []
   } catch (erro) {
     if (/respondeu 40[45]/.test(String(erro?.message))) return []
@@ -297,6 +298,12 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
     Object.fromEntries(chaves.map((chave, i) => [chave, respostas[i]]))
   const instituicao = await buscarInstituicao(base, config)
   const contas = await buscarContas(base, config)
+  // v6.3c - o relatório anual de atividades de cada ano publicado (mesma tolerância das contas)
+  const relatoriosAnuais = await buscarListaOpcional(
+    base,
+    '/api/publico/transparencia/relatorios-anuais',
+    config,
+  )
   const eventos = listas.eventos.map(normalizarEvento)
   const projetos = listas.projetos.map(normalizarProjeto)
   const detalhesDeEventos = {}
@@ -381,6 +388,7 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
     documentos,
     detalhesDeDocumentos,
     contas,
+    relatoriosAnuais,
     noticias,
     avisosDeNoticias: [...lidas.avisos, ...avisos],
   }

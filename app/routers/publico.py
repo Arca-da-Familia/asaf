@@ -241,6 +241,24 @@ def contas_publicas_por_exercicio(db: Session = Depends(get_db)):
     return [por_ano[a] for a in sorted(por_ano, reverse=True)]
 
 
+@router.get("/api/publico/transparencia/relatorios-anuais", summary="O relatório anual de atividades de cada ano, publicado (v6.3c): os números do sistema e a apresentação")
+def relatorios_anuais_publicados(db: Session = Depends(get_db)):
+    """Uma entrada por ano: a versão VIGENTE do relatório gerado, já aprovada para o site (o mesmo documento aparece na lista de documentos, em texto).
+    Os números e a apresentação vêm do JSON gravado na geração (o publicado é o que foi aprovado)."""
+    import json
+
+    gerados = [d for d in _documentos_publicos(db) if d.tipo == "RELATORIO_ANUAL" and d.dados_publicos_json and d.vigente]
+    responsaveis = publico_contexto.responsaveis_das_aprovacoes(db, gerados)
+    por_ano: dict[int, dict] = {}
+    for d in sorted(gerados, key=lambda x: x.versao):
+        por_ano[d.ano] = {
+            "ano": d.ano, "id_documento": d.id_documento, "titulo": d.titulo, "versao": d.versao,
+            "aprovado_em": publico_contexto.dia_de_belem(d.aprovado_em), "aprovado_por": responsaveis.get(d.id_documento),
+            "dados": json.loads(d.dados_publicos_json),
+        }
+    return [por_ano[a] for a in sorted(por_ano, reverse=True)]
+
+
 @router.get("/api/publico/transparencia/documentos/{id_documento}/arquivo", summary="PDF da versão pública de um documento aprovado")
 async def arquivo_do_documento_publico(id_documento: int, db: Session = Depends(get_db)):
     d = next((x for x in _documentos_publicos(db) if x.id_documento == id_documento and x.publico_formato != FORMATO_TEXTO), None)

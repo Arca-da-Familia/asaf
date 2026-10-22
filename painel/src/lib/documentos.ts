@@ -69,6 +69,8 @@ export type Documento = {
   so_texto?: boolean
   // v6.3b: o texto é o gerado dos dados (as contas do exercício): o painel não oferece texto, arquivo nem edição
   gerado_pelo_sistema?: boolean
+  // v6.3c: a apresentação da diretoria no relatório anual gerado (a única parte escrita); null nos outros documentos
+  apresentacao?: string | null
 }
 
 export type SituacaoDasContasNoSite = {
@@ -92,6 +94,38 @@ export function prepararContasParaOSite(
 ): Promise<{ id_documento: number; situacao: string; versao: number }> {
   return apiFetch(`/api/prestacoes-de-contas/${ano}/publicar-no-site`, {
     method: 'POST',
+  })
+}
+
+export type SituacaoDoRelatorioAnual = {
+  ano: number
+  ano_encerrado: boolean
+  // o ano do primeiro registro do sistema: antes dele, o relatório sairia com zeros que não correspondem à realidade
+  primeiro_ano: number | null
+  registros_desde: string | null
+  documento: { id_documento: number; situacao: string; versao: number } | null
+}
+
+// v6.3c - o relatório anual de atividades (números do sistema + apresentação da secretaria; só de ano encerrado)
+export function situacaoDoRelatorioAnual(
+  ano: number,
+): Promise<SituacaoDoRelatorioAnual> {
+  return apiFetch(`/api/relatorios-anuais/${ano}/no-site`)
+}
+
+export function prepararRelatorioAnual(
+  ano: number,
+): Promise<{ id_documento: number; situacao: string; versao: number }> {
+  return apiFetch(`/api/relatorios-anuais/${ano}/preparar`, { method: 'POST' })
+}
+
+export function gravarApresentacaoDoRelatorio(
+  ano: number,
+  apresentacao: string,
+): Promise<{ id_documento: number; situacao: string; versao: number }> {
+  return apiFetch(`/api/relatorios-anuais/${ano}/apresentacao`, {
+    method: 'PUT',
+    body: JSON.stringify({ apresentacao }),
   })
 }
 

@@ -1,0 +1,257 @@
+---
+import TituloDePagina from '../../../components/TituloDePagina.astro'
+import type { Migalha } from '../../../config/navegacao'
+import Base from '../../../layouts/Base.astro'
+import { conteudoPublico } from '../../../lib/dados-publicos'
+import { formatarDataCurta } from '../../../lib/datas'
+import {
+  caminhoDoDocumento,
+  formatarReais,
+  linhaDaAprovacao,
+} from '../../../lib/transparencia'
+
+// v6.3c - o relatório anual de atividades de cada ano: os números montados pelo sistema a partir dos próprios registros (nunca digitados) e a
+// apresentação escrita pela secretaria; só aparece DEPOIS de outra pessoa da diretoria aprovar a publicação (decisão do Presidente, 2026-10-22). Sem
+// nome de ninguém; beneficiários abaixo de 5 aparecem como "menos de 5". O mesmo conteúdo está em texto na lista de documentos.
+const { relatoriosAnuais } = await conteudoPublico()
+const migalhas: Migalha[] = [
+  { rotulo: 'Transparência', href: '/transparencia/' },
+  { rotulo: 'Relatório anual' },
+]
+const numero = (valor: string | number) =>
+  typeof valor === 'string' && Number.isNaN(Number(valor))
+    ? valor
+    : Number(valor).toLocaleString('pt-BR')
+---
+
+<Base
+  titulo="Relatório anual de atividades"
+  descricao="O ano da ASAF em números (projetos, eventos, beneficiários, voluntariado, indicadores e contas), montados pelo sistema, com a apresentação da diretoria."
+  caminho="/transparencia/relatorio-anual/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Relatório anual de atividades"
+    resumo="O ano da ASAF em números, com a apresentação da diretoria."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-5xl flex-col gap-12 px-4 py-12">
+    <p class="max-w-3xl">
+      Os números de cada ano são montados pelo sistema da ASAF a partir dos
+      próprios registros (projetos, eventos, atendimentos, voluntariado e
+      contas), sem digitar de novo e sem o nome de ninguém; uma contagem de
+      pessoas abaixo de 5 aparece como “menos de 5”. A apresentação é escrita
+      pela secretaria, e o relatório só é publicado depois de aprovado por outra
+      pessoa da diretoria.
+    </p>
+
+    {relatoriosAnuais.length === 0 ? (
+      <section data-estado="vazio" aria-labelledby="sem-relatorio">
+        <h2 id="sem-relatorio" class="text-2xl font-bold tracking-tight">
+          Nenhum relatório anual publicado ainda
+        </h2>
+        <p class="mt-4 max-w-3xl text-lg">
+          O relatório de cada ano aparecerá aqui depois de aprovado pela
+          diretoria.
+        </p>
+      </section>
+    ) : (
+      relatoriosAnuais.map((r) => {
+        const d = r.dados
+        const cartoes = [
+          ['Projetos do ano', d.projetos.length],
+          ['Eventos abertos ao público', d.eventos.length],
+          ['Inscrições confirmadas', d.eventos_totais.inscritos],
+          ['Presenças', d.eventos_totais.presentes],
+          ['Beneficiários atendidos', d.beneficiarios.pessoas],
+          ['Atendimentos registrados', d.beneficiarios.atendimentos],
+          ['Horas de voluntariado', d.voluntariado.horas],
+          ['Voluntários', d.voluntariado.voluntarios],
+          [`Associados em 31/12/${r.ano}`, d.associados_no_fim_do_ano],
+        ] as const
+        return (
+          <section
+            aria-labelledby={`relatorio-${r.ano}`}
+            data-relatorio-anual={r.ano}
+          >
+            <h2
+              id={`relatorio-${r.ano}`}
+              class="text-2xl font-bold tracking-tight"
+            >
+              Relatório de {r.ano}
+            </h2>
+            <p class="mt-2 text-sm text-muted-foreground">
+              {linhaDaAprovacao(r, formatarDataCurta)}
+            </p>
+            {d.registros_desde && (
+              <p class="mt-2 text-sm" data-registros-desde>
+                O sistema da ASAF começou a ser usado em{' '}
+                {formatarDataCurta(d.registros_desde)}: os números de {r.ano}{' '}
+                contam a partir dessa data.
+              </p>
+            )}
+
+            <div class="mt-6 rounded-lg border bg-card p-5" data-apresentacao>
+              <h3 class="font-semibold">Apresentação da diretoria</h3>
+              <p class="mt-2 whitespace-pre-line">{d.apresentacao}</p>
+            </div>
+
+            <h3 class="mt-8 text-lg font-semibold">Os números do ano</h3>
+            <dl class="mt-3 grid gap-3 sm:grid-cols-3" data-numeros-do-ano>
+              {cartoes.map(([rotulo, valor]) => (
+                <div class="rounded-lg border bg-card p-4">
+                  <dt class="text-sm text-muted-foreground">{rotulo}</dt>
+                  <dd class="text-2xl font-bold tabular-nums">
+                    {numero(valor)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+
+            {d.projetos.length > 0 && (
+              <>
+                <h3 class="mt-8 text-lg font-semibold">
+                  Projetos (com a situação de hoje)
+                </h3>
+                <ul class="mt-2 list-disc space-y-1 pl-6">
+                  {d.projetos.map((p) => (
+                    <li>
+                      {p.nome} ({p.situacao})
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {d.eventos.length > 0 && (
+              <div
+                class="mt-8 overflow-x-auto rounded-lg border bg-card"
+                role="region"
+                tabindex="0"
+                aria-label={`Tabela: eventos de ${r.ano}`}
+              >
+                <table class="w-full text-left text-sm">
+                  <caption class="px-4 pt-3 text-left text-base font-semibold">
+                    Eventos de {r.ano}
+                  </caption>
+                  <thead>
+                    <tr class="border-b">
+                      <th scope="col" class="px-4 py-2 font-medium">
+                        Evento
+                      </th>
+                      <th scope="col" class="px-4 py-2 font-medium">
+                        Data
+                      </th>
+                      <th scope="col" class="px-4 py-2 text-right font-medium">
+                        Inscrições
+                      </th>
+                      <th scope="col" class="px-4 py-2 text-right font-medium">
+                        Presenças
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {d.eventos.map((e) => (
+                      <tr class="border-b last:border-0">
+                        <th scope="row" class="px-4 py-2 font-normal">
+                          {e.titulo}
+                        </th>
+                        <td class="px-4 py-2">{formatarDataCurta(e.data)}</td>
+                        <td class="px-4 py-2 text-right tabular-nums">
+                          {numero(e.inscritos)}
+                        </td>
+                        <td class="px-4 py-2 text-right tabular-nums">
+                          {numero(e.presentes)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {d.indicadores.length > 0 && (
+              <div
+                class="mt-8 overflow-x-auto rounded-lg border bg-card"
+                role="region"
+                tabindex="0"
+                aria-label={`Tabela: indicadores de ${r.ano}`}
+              >
+                <table class="w-full text-left text-sm">
+                  <caption class="px-4 pt-3 text-left text-base font-semibold">
+                    Indicadores dos projetos em {r.ano}
+                  </caption>
+                  <thead>
+                    <tr class="border-b">
+                      <th scope="col" class="px-4 py-2 font-medium">
+                        Indicador
+                      </th>
+                      <th scope="col" class="px-4 py-2 text-right font-medium">
+                        Último valor do ano
+                      </th>
+                      <th scope="col" class="px-4 py-2 text-right font-medium">
+                        Meta
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {d.indicadores.map((i) => (
+                      <tr class="border-b last:border-0">
+                        <th scope="row" class="px-4 py-2 font-normal">
+                          {i.projeto} – {i.indicador} ({i.periodo})
+                        </th>
+                        <td class="px-4 py-2 text-right tabular-nums">
+                          {numero(i.valor)} {i.unidade}
+                        </td>
+                        <td class="px-4 py-2 text-right tabular-nums">
+                          {i.meta ? numero(i.meta) : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <p class="mt-8" data-contas-do-relatorio>
+              {d.contas ? (
+                <>
+                  <strong>Contas do exercício</strong> (aprovadas pela
+                  Assembleia Geral
+                  {d.contas.aprovadas_em_assembleia_em
+                    ? ` em ${formatarDataCurta(d.contas.aprovadas_em_assembleia_em)}`
+                    : ''}
+                  ): receitas {formatarReais(Number(d.contas.total_receitas))},
+                  despesas {formatarReais(Number(d.contas.total_despesas))},
+                  resultado {formatarReais(Number(d.contas.resultado))}.{' '}
+                  <a
+                    href="/transparencia/contas/"
+                    class="font-medium text-primary underline underline-offset-4"
+                  >
+                    Ver as contas do exercício
+                  </a>
+                </>
+              ) : (
+                'Contas do exercício: ainda não publicadas (vão ao site depois de aprovadas pela Assembleia Geral).'
+              )}
+            </p>
+
+            <p class="mt-4 text-sm">
+              <a
+                href={caminhoDoDocumento({
+                  id_documento: r.id_documento,
+                  titulo: r.titulo,
+                  formato: 'TEXTO',
+                })}
+                class="font-medium text-primary underline underline-offset-4"
+              >
+                {r.titulo} (texto publicado)
+              </a>
+            </p>
+          </section>
+        )
+      })
+    )}
+  </div>
+</Base>

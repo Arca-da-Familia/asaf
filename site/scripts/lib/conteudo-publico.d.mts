@@ -345,6 +345,50 @@ export interface ContasDoExercicio {
   }
 }
 
+/** O relatório anual de atividades de um ano (v6.3c): os números montados pelo sistema e a apresentação da diretoria, como foram aprovados. */
+export interface RelatorioAnual {
+  ano: number
+  id_documento: number
+  titulo: string
+  versao: number
+  aprovado_em: string | null
+  aprovado_por: { nome: string; cargo: string | null } | null
+  dados: {
+    ano: number
+    apresentacao: string
+    /** No ano em que o sistema começou a ser usado, a data desde a qual os números contam; senão, `null`. */
+    registros_desde: string | null
+    projetos: { nome: string; situacao: string }[]
+    /** Contagens de pessoas: abaixo de 5, o servidor manda "menos de 5" (ninguém reconhecido pelo número). */
+    eventos: {
+      titulo: string
+      data: string
+      inscritos: number | string
+      presentes: number | string
+    }[]
+    eventos_totais: { inscritos: number | string; presentes: number | string }
+    beneficiarios: { pessoas: number | string; atendimentos: number | string }
+    voluntariado: { horas: string; voluntarios: number | string }
+    associados_no_fim_do_ano: number | string
+    indicadores: {
+      projeto: string
+      indicador: string
+      periodo: string
+      valor: string
+      unidade: string
+      meta: string | null
+    }[]
+    contas: {
+      id_documento: number
+      titulo: string
+      total_receitas: string
+      total_despesas: string
+      resultado: string
+      aprovadas_em_assembleia_em: string | null
+    } | null
+  }
+}
+
 export interface ConteudoPublico {
   /** Os campos da Instituição que o painel marcou "vai para o site" (v5.4h); `{}` se a API não tem a rota. */
   instituicao: Record<string, string>
@@ -364,6 +408,8 @@ export interface ConteudoPublico {
   detalhesDeDocumentos: Record<number, DocumentoDetalhado>
   /** As contas de cada exercício aprovadas pela Assembleia e publicadas (v6.3b), o mais novo primeiro; `[]` se a API não tem a rota. */
   contas: ContasDoExercicio[]
+  /** O relatório anual de atividades de cada ano publicado (v6.3c), o mais novo primeiro; `[]` se a API não tem a rota. */
+  relatoriosAnuais: RelatorioAnual[]
   /** Notícias PUBLICADAS no Directus (editor do site), já validadas e com o HTML limpo. */
   noticias: NoticiaPublica[]
   /** Notícias que NÃO foram publicadas e o motivo (diagnóstico; fora da impressão digital). */

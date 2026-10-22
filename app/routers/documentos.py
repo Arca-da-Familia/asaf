@@ -28,6 +28,7 @@ from app.models.documentos import (
 from app.security import exigir_permissao, get_current_user, usuario_tem_permissao
 from app.services import armazenamento
 from app.services import documentos_institucionais as servico
+from app.services import relatorio_anual
 
 router = APIRouter()
 
@@ -67,6 +68,7 @@ def _serializar(db: Session, usuario: Usuario, doc: DocumentoInstitucional, *, c
     pode_aprovar = (
         doc.situacao == EM_REVISAO and usuario_tem_permissao(db, usuario, "aprovar_publicacao")
         and usuario.id_usuario not in (doc.id_usuario_envio_revisao, doc.id_usuario_criacao)
+        and not relatorio_anual.escreveu_a_apresentacao(db, usuario, doc)  # v6.3c: quem escreveu a apresentação não aprova
     )
     return {
         "id_documento": doc.id_documento, "tipo": doc.tipo, "tipo_rotulo": TIPOS.get(doc.tipo, doc.tipo),
@@ -92,6 +94,7 @@ def _serializar(db: Session, usuario: Usuario, doc: DocumentoInstitucional, *, c
         "texto_sugerido": servico.texto_sugerido(db, doc) if com_texto_sugerido else None,
         "so_texto": servico.e_texto_da_ata_no_site(doc),  # a ata vai ao site só em texto: o painel não oferece o PDF
         "gerado_pelo_sistema": bool(doc.dados_publicos_json),  # v6.3b: o texto é o gerado dos dados; o painel não oferece texto nem arquivo
+        "apresentacao": relatorio_anual.apresentacao_do_documento(doc),  # v6.3c: a única parte escrita do relatório anual (None nos outros)
     }
 
 

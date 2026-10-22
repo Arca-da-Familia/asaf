@@ -9,6 +9,7 @@ import {
   SeloDeValidade,
 } from '@/components/documentos/Selos'
 import { GeradosPeloSistema } from '@/components/documentos/GeradosPeloSistema'
+import { RelatorioAnualParaOSite } from '@/components/documentos/RelatorioAnualParaOSite'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -76,6 +77,7 @@ export function DocumentosPage() {
       />
 
       {podePreparar && <GeradosPeloSistema />}
+      {podePreparar && <RelatorioAnualParaOSite />}
 
       {paraAprovar.length > 0 && (
         <p

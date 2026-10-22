@@ -133,6 +133,19 @@ exigir(
   '/transparencia/contas/ mostra exercício (ou tabela) sem haver contas publicadas',
 )
 
+// v6.3c - sem relatório anual publicado, a página existe com o estado vazio e sem números.
+const relatorioVazio = lerPagina('/transparencia/relatorio-anual/')
+exigir(
+  relatorioVazio.includes('data-estado="vazio"') &&
+    relatorioVazio.includes('Nenhum relatório anual publicado ainda'),
+  '/transparencia/relatorio-anual/ sem o estado vazio',
+)
+exigir(
+  !relatorioVazio.includes('data-relatorio-anual=') &&
+    !relatorioVazio.includes('data-numeros-do-ano'),
+  '/transparencia/relatorio-anual/ mostra um ano sem haver relatório publicado',
+)
+
 // 3b. Transparência (v5.4b) sem nenhuma emenda, parcerias ou documento aprovado: a PRODUÇÃO no dia em que o módulo entra
 // no ar. O texto do estado vazio das emendas é o que o usuário pediu, palavra por palavra.
 const emendas = lerPagina('/transparencia/emendas/')

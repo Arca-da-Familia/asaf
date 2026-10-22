@@ -5,13 +5,14 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.schemas.relatorios import PrestacaoDeContasCriar
 from app.security import exigir_alguma_permissao, exigir_permissao
-from app.services import contas_publicas, relatorios
+from app.services import contas_publicas, documentos_institucionais, relatorio_anual, relatorios
 
 router = APIRouter()
 _permissao_financeiro = exigir_permissao("financeiro")
@@ -109,4 +110,40 @@ def preparar_contas_no_site(ano: int, request: Request, db: Session = Depends(ge
             db, usuario, "documentos_institucionais", acao, id_registro_afetado=doc.id_documento, ip_origem=_ip_origem(request),
             dados_depois={"titulo": doc.titulo, "tipo": doc.tipo, "ano": doc.ano, "versao": doc.versao, "gerado_pelo_sistema": True},
         )
+    return {"id_documento": doc.id_documento, "situacao": doc.situacao, "versao": doc.versao}
+
+
+# ==========================================
+# v6.3c - O RELATÓRIO ANUAL DE ATIVIDADES (números do sistema + apresentação da secretaria)
+# ==========================================
+class ApresentacaoDoRelatorio(BaseModel):
+    apresentacao: str = Field(max_length=relatorio_anual.TAMANHO_MAXIMO_DA_APRESENTACAO + 1000)
+
+
+@router.get("/api/relatorios-anuais/{ano}/no-site", summary="O relatório anual no site: o ano já acabou? há documento em preparo ou publicado?")
+def relatorio_anual_no_site(ano: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_contas_no_site)):
+    return relatorio_anual.situacao_no_site(db, ano)
+
+
+@router.post("/api/relatorios-anuais/{ano}/preparar", summary="Montar o relatório anual de atividades (números do sistema; só de ano encerrado)")
+def preparar_relatorio_anual(ano: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_contas_no_site)):
+    doc, acao = relatorio_anual.preparar(db, usuario, ano)
+    if acao != "JA_EM_REVISAO":
+        registrar_auditoria(
+            db, usuario, "documentos_institucionais", acao, id_registro_afetado=doc.id_documento, ip_origem=_ip_origem(request),
+            dados_depois={"titulo": doc.titulo, "tipo": doc.tipo, "ano": doc.ano, "versao": doc.versao, "gerado_pelo_sistema": True},
+        )
+    return {"id_documento": doc.id_documento, "situacao": doc.situacao, "versao": doc.versao}
+
+
+@router.put("/api/relatorios-anuais/{ano}/apresentacao", summary="Escrever a apresentação da diretoria no relatório anual em rascunho (conferida como o resto)")
+def escrever_apresentacao(ano: int, dados: ApresentacaoDoRelatorio, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_contas_no_site)):
+    doc, novos, corpo, sha256 = relatorio_anual.conferir_apresentacao(db, ano, dados.apresentacao)
+    # quem escreveu esta apresentação fica na Auditoria ANTES do texto ser gravado (e por isso não aprova a publicação desta versão); o SHA-256 diz o
+    # que foi escrito. Se a Auditoria falhar, o texto não é gravado.
+    registrar_auditoria(
+        db, usuario, "documentos_institucionais", relatorio_anual.ACAO_APRESENTACAO, id_registro_afetado=doc.id_documento, ip_origem=_ip_origem(request),
+        dados_depois={"ano": doc.ano, "versao": doc.versao, "caracteres": len(novos["apresentacao"]), "sha256": sha256},
+    )
+    documentos_institucionais.gravar_texto_gerado(db, doc, corpo, novos)
     return {"id_documento": doc.id_documento, "situacao": doc.situacao, "versao": doc.versao}

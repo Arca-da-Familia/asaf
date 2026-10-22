@@ -366,10 +366,11 @@ def usar_original_como_versao_publica(db, doc: DocumentoInstitucional) -> Result
 
 # ----------------------------------------------------------------------------------- publicação
 def enviar_para_revisao(db, usuario, doc: DocumentoInstitucional) -> None:
-    from app.services import contas_publicas  # v6.3b (import aqui: contas_publicas usa este módulo)
+    from app.services import contas_publicas, relatorio_anual  # v6.3b/c (import aqui: os dois usam este módulo)
 
     _exigir_situacao(doc, RASCUNHO, acao="enviar para revisão")
     contas_publicas.exigir_aprovacao_vigente(db, doc)
+    relatorio_anual.exigir_apresentacao(doc)
     if not doc.publicar_no_site:
         raise HTTPException(status_code=409, detail="Este documento não está marcado para o site.")
     if not tem_versao_publica(doc) or not doc.verificacao_ok:
@@ -381,14 +382,15 @@ def enviar_para_revisao(db, usuario, doc: DocumentoInstitucional) -> None:
 
 
 def aprovar(db, usuario, doc: DocumentoInstitucional) -> Resultado:
-    from app.services import contas_publicas  # v6.3b (import aqui: contas_publicas usa este módulo)
+    from app.services import contas_publicas, relatorio_anual  # v6.3b/c (import aqui: os dois usam este módulo)
 
     _exigir_situacao(doc, EM_REVISAO, acao="aprovar a publicação")
     contas_publicas.exigir_aprovacao_vigente(db, doc)
-    if usuario.id_usuario in (doc.id_usuario_envio_revisao, doc.id_usuario_criacao):
+    relatorio_anual.exigir_apresentacao(doc)
+    if usuario.id_usuario in (doc.id_usuario_envio_revisao, doc.id_usuario_criacao) or relatorio_anual.escreveu_a_apresentacao(db, usuario, doc):
         raise HTTPException(
             status_code=403,
-            detail="Quem criou ou enviou o documento para revisão não pode aprová-lo: a aprovação é de outra pessoa "
+            detail="Quem criou ou enviou o documento para revisão (ou escreveu a apresentação) não pode aprová-lo: a aprovação é de outra pessoa "
                    "(Presidente ou Secretário).",
         )
     if doc.publico_formato == FORMATO_TEXTO:
