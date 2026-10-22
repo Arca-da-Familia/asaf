@@ -23,6 +23,7 @@ export const GET: APIRoute = async () => {
         noticias: conteudo.noticias.length,
         parcerias: conteudo.parcerias.length,
         documentos: conteudo.documentos.length,
+        contas: conteudo.contas.length,
       },
     }),
     { headers: { 'Content-Type': 'application/json' } },

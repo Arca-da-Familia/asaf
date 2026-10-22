@@ -258,6 +258,24 @@ async function buscarInstituicao(base, config) {
 }
 
 /**
+ * v6.3b - as contas de cada exercício aprovadas pela Assembleia e publicadas (números gerados dos lançamentos). TOLERANTE a uma API que ainda não
+ * tem a rota (404/405): sem a rota, nenhuma conta publicada.
+ */
+async function buscarContas(base, config) {
+  try {
+    const dados = await buscarJson(
+      base,
+      '/api/publico/transparencia/contas',
+      config,
+    )
+    return Array.isArray(dados) ? dados : []
+  } catch (erro) {
+    if (/respondeu 40[45]/.test(String(erro?.message))) return []
+    throw erro
+  }
+}
+
+/**
  * Lê TODO o conteúdo público. A API escala a zero (partida a frio de ~20-35 s), então o tempo por
  * tentativa é generoso. Qualquer falha derruba o build: melhor não publicar do que publicar um
  * site sem a diretoria, sem projetos e sem eventos por causa de uma API acordando.
@@ -278,6 +296,7 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
   const { diretoria, assembleias, parcerias, documentos, ...listas } =
     Object.fromEntries(chaves.map((chave, i) => [chave, respostas[i]]))
   const instituicao = await buscarInstituicao(base, config)
+  const contas = await buscarContas(base, config)
   const eventos = listas.eventos.map(normalizarEvento)
   const projetos = listas.projetos.map(normalizarProjeto)
   const detalhesDeEventos = {}
@@ -361,6 +380,7 @@ export async function buscarConteudoPublico(apiUrl, opcoes = {}) {
     detalhesDeParcerias,
     documentos,
     detalhesDeDocumentos,
+    contas,
     noticias,
     avisosDeNoticias: [...lidas.avisos, ...avisos],
   }

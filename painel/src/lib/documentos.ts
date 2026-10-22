@@ -67,6 +67,32 @@ export type Documento = {
   // v6.3a: o texto da ata, ponto de partida da versão para o site (a pessoa retira o dado pessoal); a ata vai ao site só em texto
   texto_sugerido?: string | null
   so_texto?: boolean
+  // v6.3b: o texto é o gerado dos dados (as contas do exercício): o painel não oferece texto, arquivo nem edição
+  gerado_pelo_sistema?: boolean
+}
+
+export type SituacaoDasContasNoSite = {
+  ano: number
+  aprovadas_pela_assembleia: boolean
+  aprovadas_em: string | null
+  // lançamentos do exercício registrados depois da Assembleia: não entram no que vai ao site
+  lancamentos_registrados_depois: number
+  documento: { id_documento: number; situacao: string; versao: number } | null
+}
+
+// v6.3b - as contas do exercício no site (só depois da aprovação em Assembleia)
+export function situacaoDasContasNoSite(
+  ano: number,
+): Promise<SituacaoDasContasNoSite> {
+  return apiFetch(`/api/prestacoes-de-contas/${ano}/no-site`)
+}
+
+export function prepararContasParaOSite(
+  ano: number,
+): Promise<{ id_documento: number; situacao: string; versao: number }> {
+  return apiFetch(`/api/prestacoes-de-contas/${ano}/publicar-no-site`, {
+    method: 'POST',
+  })
 }
 
 export type TiposDeDocumento = {

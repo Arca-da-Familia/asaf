@@ -403,10 +403,12 @@ export async function socioPropoe(
 
 // Uma ata ASSINADA, sem retificação, de assembleia já REALIZADA (só ela tem a tela da ata; a retificada não vai ao site). Se a homologação não tiver
 // nenhuma (o povoamento até 22/10 assinava a ata com a sessão ainda em andamento), o robô monta uma pelas rotas de verdade: cria, convoca, abre e
-// encerra a sessão, gera e assina a ata.
+// encerra a sessão, gera e assina a ata. `nova: true` (v6.3b) monta sempre uma nova (a Assembleia de hoje: a das contas do ano passado, com os
+// lançamentos registrados até agora).
 export async function ataAssinadaDeAssembleiaRealizada(
   page: Page,
   autorizacao: string,
+  opcoes: { nova?: boolean } = {},
 ): Promise<{ id_ata: number; id_assembleia: number }> {
   const cab = { headers: { Authorization: autorizacao } }
   const json = async <T>(r: Promise<APIResponse>) => {
@@ -426,6 +428,7 @@ export async function ataAssinadaDeAssembleiaRealizada(
     atas.map((a) => a.id_ata_retificada).filter(Boolean),
   )
   for (const a of atas
+    .filter(() => !opcoes.nova)
     .filter((x) => x.status === 'Assinada' && !retificadas.has(x.id_ata))
     .sort((x, y) => x.id_ata - y.id_ata)) {
     const assembleia = await json<{ status: string }>(

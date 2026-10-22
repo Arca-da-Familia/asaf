@@ -9,7 +9,7 @@ from decimal import Decimal
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.models.associados import Associado
@@ -33,27 +33,30 @@ def _data_referencia_lancamento(lancamento: LancamentoContabil) -> datetime:
     return lancamento.data_competencia or lancamento.data_lancamento
 
 
-def _partidas_com_data(db: Session):
+def _partidas_com_data(db: Session, registrados_ate: Optional[datetime] = None):
     """Todas as partidas do razão contábil, cada uma com a data de referência do lançamento
     (`data_competencia`, ou `data_lancamento` quando nula - mesma regra usada em todo o resto do
-    financeiro desde a v3.1)."""
+    financeiro desde a v3.1). `registrados_ate` (v6.3b): só os lançamentos registrados no sistema até aquele instante (UTC) - os anteriores à
+    v6.3b, sem a hora do registro, entram sempre."""
     data_referencia = func.coalesce(LancamentoContabil.data_competencia, LancamentoContabil.data_lancamento)
-    return (
+    consulta = (
         db.query(PartidaContabil.id_conta, PartidaContabil.tipo_partida, PartidaContabil.valor, PartidaContabil.id_centro_custo, data_referencia)
         .join(LancamentoContabil, LancamentoContabil.id_lancamento == PartidaContabil.id_lancamento)
-        .all()
     )
+    if registrados_ate is not None:
+        consulta = consulta.filter(or_(LancamentoContabil.registrado_em.is_(None), LancamentoContabil.registrado_em <= registrados_ate))
+    return consulta.all()
 
 
 # ==========================================
 # BALANCETE POR PERÍODO
 # ==========================================
-def balancete_por_periodo(db: Session, *, data_inicio: datetime, data_fim: datetime) -> list[dict]:
+def balancete_por_periodo(db: Session, *, data_inicio: datetime, data_fim: datetime, registrados_ate: Optional[datetime] = None) -> list[dict]:
     if data_fim < data_inicio:
         raise HTTPException(status_code=400, detail="Data final não pode ser anterior à data inicial.")
 
     agregados: dict[int, dict] = {}
-    for id_conta, tipo_partida, valor, _id_centro_custo, data_ref in _partidas_com_data(db):
+    for id_conta, tipo_partida, valor, _id_centro_custo, data_ref in _partidas_com_data(db, registrados_ate):
         alvo = agregados.setdefault(id_conta, {"saldo_anterior": Decimal("0"), "debitos": Decimal("0"), "creditos": Decimal("0")})
         if data_ref < data_inicio:
             alvo["saldo_anterior"] += valor if tipo_partida == DEBITO else -valor
@@ -80,8 +83,8 @@ def balancete_por_periodo(db: Session, *, data_inicio: datetime, data_fim: datet
 # ==========================================
 # RECEITAS X DESPESAS
 # ==========================================
-def receitas_e_despesas_por_conta(db: Session, *, data_inicio: datetime, data_fim: datetime) -> list[dict]:
-    balancete = balancete_por_periodo(db, data_inicio=data_inicio, data_fim=data_fim)
+def receitas_e_despesas_por_conta(db: Session, *, data_inicio: datetime, data_fim: datetime, registrados_ate: Optional[datetime] = None) -> list[dict]:
+    balancete = balancete_por_periodo(db, data_inicio=data_inicio, data_fim=data_fim, registrados_ate=registrados_ate)
     return [
         {
             "id_conta": linha["id_conta"], "codigo_contabil": linha["codigo_contabil"], "descricao_conta": linha["descricao_conta"],

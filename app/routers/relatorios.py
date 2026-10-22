@@ -11,12 +11,15 @@ from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.schemas.relatorios import PrestacaoDeContasCriar
 from app.security import exigir_alguma_permissao, exigir_permissao
-from app.services import relatorios
+from app.services import contas_publicas, relatorios
 
 router = APIRouter()
 _permissao_financeiro = exigir_permissao("financeiro")
 # v5.7e: quem audita (Conselho Fiscal) LÊ os relatórios; gerar a prestação de contas continua só de quem opera
 _permissao_leitura_financeira = exigir_alguma_permissao("financeiro", "financeiro_auditar")
+# v6.3b: preparar as contas para o site é de quem prepara documentos (a secretaria: ela também envia para revisão); a aprovação da publicação é de outra
+# pessoa (aprovar_publicacao). Os números vêm dos lançamentos: ninguém digita nada.
+_permissao_contas_no_site = exigir_permissao("documentos")
 
 
 def _ip_origem(request: Request) -> str:
@@ -88,3 +91,22 @@ def gerar_prestacao_endpoint(dados: PrestacaoDeContasCriar, request: Request, db
         ip_origem=_ip_origem(request),
     )
     return _serializar_prestacao(prestacao)
+
+
+# ==========================================
+# v6.3b - AS CONTAS DO EXERCÍCIO NO SITE (depois da aprovação em Assembleia)
+# ==========================================
+@router.get("/api/prestacoes-de-contas/{ano}/no-site", summary="As contas do exercício no site: aprovadas pela Assembleia? há documento em preparo ou publicado?")
+def contas_no_site(ano: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_contas_no_site)):
+    return contas_publicas.situacao_no_site(db, ano)
+
+
+@router.post("/api/prestacoes-de-contas/{ano}/publicar-no-site", summary="Preparar as contas do exercício para o site (gerado dos lançamentos; só depois da aprovação em Assembleia)")
+def preparar_contas_no_site(ano: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_contas_no_site)):
+    doc, acao = contas_publicas.preparar(db, usuario, ano)
+    if acao != "JA_EM_REVISAO":
+        registrar_auditoria(
+            db, usuario, "documentos_institucionais", acao, id_registro_afetado=doc.id_documento, ip_origem=_ip_origem(request),
+            dados_depois={"titulo": doc.titulo, "tipo": doc.tipo, "ano": doc.ano, "versao": doc.versao, "gerado_pelo_sistema": True},
+        )
+    return {"id_documento": doc.id_documento, "situacao": doc.situacao, "versao": doc.versao}

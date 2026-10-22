@@ -24,7 +24,7 @@ const ORGANIZACAO = await organizacaoDoSite()
 // usuário (CNPJ, sede, contato), GET /api/publico/assembleias (editais de assembleia JÁ convocada) e, desde a
 // v5.4b, o que a diretoria APROVOU no sistema: emendas, parcerias e documentos. Só é listado como "publicado" o que
 // de fato existe — nunca prometido antes de existir.
-const { assembleias, parcerias, documentos } = await conteudoPublico()
+const { assembleias, parcerias, documentos, contas } = await conteudoPublico()
 const emendas = parcerias.filter(ehEmenda)
 const demaisParcerias = parcerias.filter((p) => !ehEmenda(p))
 const somaRecebido = (lista: typeof parcerias) =>
@@ -178,6 +178,24 @@ const etapasDeContas = [
             {documentosAtuais.length === 0
               ? 'Atas, certidões, balanços e termos aparecerão aqui quando forem aprovados para publicação.'
               : `${documentosAtuais.length} ${documentosAtuais.length === 1 ? 'documento publicado' : 'documentos publicados'}, organizados por tipo e ano.`}
+          </p>
+        </li>
+        <li
+          class="rounded-lg border bg-card p-5 shadow-card"
+          data-cartao="contas"
+        >
+          <h3 class="text-lg font-semibold">
+            <a
+              href="/transparencia/contas/"
+              class="text-primary underline underline-offset-4"
+            >
+              Contas do exercício
+            </a>
+          </h3>
+          <p class="mt-2 text-sm">
+            {contas.length === 0
+              ? 'As receitas, as despesas e o resultado de cada ano aparecerão aqui depois de aprovados pela Assembleia Geral.'
+              : `As contas de ${contas.map((c) => c.ano).join(', ')}, aprovadas pela Assembleia Geral, com o parecer do Conselho Fiscal.`}
           </p>
         </li>
         <li

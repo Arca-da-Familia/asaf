@@ -330,6 +330,10 @@ class LancamentoContabil(Base):
     # lançamentos antigos (pré-v3.1), tratada nesse caso como igual à data de caixa (ver a
     # migração desta versão, que faz o backfill).
     data_competencia = Column(DateTime, nullable=True)
+    # v6.3b - quando o lançamento foi REGISTRADO no sistema (nunca informado por quem lança; nulo nos lançamentos anteriores à v6.3b). As contas
+    # publicadas no site são as que existiam no dia da Assembleia que as aprovou: um lançamento registrado depois (ex.: competência retroativa)
+    # não muda o que a Assembleia aprovou - ver app/services/contas_publicas.py.
+    registrado_em = Column(DateTime, nullable=True, default=datetime.utcnow)
     # v3.1 - comprovante anexado (caminho `/uploads/comprovantes/...`, ver
     # app/routers/financeiro.py::enviar_comprovante) - obrigatoriedade por tipo de conta é
     # configurável via o catálogo `tipo_conta_contabil` (`metadados.exige_comprovante`), checada

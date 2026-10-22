@@ -1,0 +1,173 @@
+---
+import TituloDePagina from '../../../components/TituloDePagina.astro'
+import type { Migalha } from '../../../config/navegacao'
+import Base from '../../../layouts/Base.astro'
+import { conteudoPublico } from '../../../lib/dados-publicos'
+import { formatarDataCurta } from '../../../lib/datas'
+import {
+  caminhoDoDocumento,
+  formatarReais,
+  linhaDaAprovacao,
+} from '../../../lib/transparencia'
+
+// v6.3b - as contas de cada exercício, geradas do próprio sistema a partir dos lançamentos (nunca digitadas): só aparecem DEPOIS de a Assembleia
+// aprovar as contas e de outra pessoa da diretoria aprovar a publicação (decisão do Presidente, 2026-10-22). Os números são os que foram aprovados
+// (gravados na geração); o mesmo conteúdo está em texto na lista de documentos.
+const { contas } = await conteudoPublico()
+const migalhas: Migalha[] = [
+  { rotulo: 'Transparência', href: '/transparencia/' },
+  { rotulo: 'Contas do exercício' },
+]
+const reais = (valor: string) => formatarReais(Number(valor))
+---
+
+<Base
+  titulo="Contas do exercício"
+  descricao="As receitas, as despesas e o resultado de cada ano da ASAF, com os pareceres do Conselho Fiscal, publicados depois da aprovação das contas pela Assembleia Geral."
+  caminho="/transparencia/contas/"
+  migalhas={migalhas}
+>
+  <TituloDePagina
+    titulo="Contas do exercício"
+    resumo="Receitas, despesas e resultado de cada ano, aprovados pela Assembleia Geral."
+    migalhas={migalhas}
+  />
+
+  <div class="mx-auto flex max-w-5xl flex-col gap-12 px-4 py-12">
+    <p class="max-w-3xl">
+      Os números de cada ano são montados pelo sistema da ASAF a partir dos
+      lançamentos contábeis registrados até a Assembleia Geral que aprovou as
+      contas, sem digitação. As contas só são publicadas aqui depois dessa
+      aprovação, com os pareceres do Conselho Fiscal.
+    </p>
+
+    {contas.length === 0 ? (
+      <section data-estado="vazio" aria-labelledby="sem-contas">
+        <h2 id="sem-contas" class="text-2xl font-bold tracking-tight">
+          Nenhuma prestação de contas publicada ainda
+        </h2>
+        <p class="mt-4 max-w-3xl text-lg">
+          As contas de cada ano aparecerão aqui depois de aprovadas pela
+          Assembleia Geral.
+        </p>
+      </section>
+    ) : (
+      contas.map((c) => (
+        <section aria-labelledby={`contas-${c.ano}`} data-contas={c.ano}>
+          <h2 id={`contas-${c.ano}`} class="text-2xl font-bold tracking-tight">
+            Exercício {c.ano}
+          </h2>
+          <p class="mt-2 text-sm text-muted-foreground">
+            {c.dados.aprovadas_em_assembleia_em
+              ? `Contas aprovadas pela Assembleia Geral em ${formatarDataCurta(c.dados.aprovadas_em_assembleia_em)}. `
+              : ''}
+            {linhaDaAprovacao(c, formatarDataCurta)}
+          </p>
+
+          <div class="mt-6 grid gap-6 md:grid-cols-2">
+            {[
+              {
+                titulo: 'Receitas',
+                linhas: c.dados.receitas,
+                total: c.dados.total_receitas,
+              },
+              {
+                titulo: 'Despesas',
+                linhas: c.dados.despesas,
+                total: c.dados.total_despesas,
+              },
+            ].map((bloco) => (
+              <div class="overflow-x-auto rounded-lg border bg-card">
+                <table class="w-full text-left text-sm">
+                  <caption class="px-4 pt-3 text-left text-base font-semibold">
+                    {bloco.titulo} de {c.ano}
+                  </caption>
+                  <thead>
+                    <tr class="border-b">
+                      <th scope="col" class="px-4 py-2 font-medium">
+                        Conta
+                      </th>
+                      <th scope="col" class="px-4 py-2 text-right font-medium">
+                        Valor
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bloco.linhas.length === 0 ? (
+                      <tr>
+                        <td colspan="2" class="px-4 py-2 text-muted-foreground">
+                          Nenhum lançamento no ano.
+                        </td>
+                      </tr>
+                    ) : (
+                      bloco.linhas.map((l) => (
+                        <tr class="border-b last:border-0">
+                          <th scope="row" class="px-4 py-2 font-normal">
+                            {l.conta}
+                          </th>
+                          <td class="px-4 py-2 text-right tabular-nums">
+                            {reais(l.valor)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                  <tfoot>
+                    <tr class="border-t font-semibold">
+                      <th scope="row" class="px-4 py-2">
+                        Total
+                      </th>
+                      <td class="px-4 py-2 text-right tabular-nums">
+                        {reais(bloco.total)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            ))}
+          </div>
+
+          <p class="mt-4 text-lg font-semibold" data-resultado-do-ano>
+            Resultado do exercício: {reais(c.dados.resultado)}
+          </p>
+
+          {c.dados.pareceres.length > 0 && (
+            <div class="mt-4 rounded-lg border bg-card p-5 text-sm">
+              <h3 class="font-semibold">
+                {c.dados.pareceres.length === 1
+                  ? 'Parecer do Conselho Fiscal'
+                  : `Pareceres do Conselho Fiscal (${c.dados.pareceres.length}, um por conselheiro)`}
+              </h3>
+              <ul class="mt-2 space-y-3">
+                {c.dados.pareceres.map((p) => (
+                  <li data-parecer={p.tipo}>
+                    <p class="font-medium">
+                      {p.tipo}
+                      {p.data
+                        ? `, emitido em ${formatarDataCurta(p.data)}`
+                        : ''}
+                    </p>
+                    <p class="mt-1 whitespace-pre-line">{p.texto}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <p class="mt-4 text-sm">
+            <a
+              href={caminhoDoDocumento({
+                id_documento: c.id_documento,
+                titulo: c.titulo,
+                formato: 'TEXTO',
+              })}
+              class="font-medium text-primary underline underline-offset-4"
+            >
+              {c.titulo} (texto publicado)
+            </a>
+          </p>
+        </section>
+      ))
+    )}
+  </div>
+</Base>

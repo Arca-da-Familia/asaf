@@ -13,6 +13,7 @@ from app.models.governanca import Assembleia, HabilitadoAssembleia
 from app.models.sessao_assembleia import Credenciamento, ItemPauta, OcorrenciaSessao
 from app.models.votacao import ENCERRADA, Votacao
 from app.auditoria import registrar_auditoria
+from app.services.fuso import ROTULO_DO_FUSO, dia_e_hora_em_belem, para_belem
 
 
 def gerar_corpo_ata(db: Session, assembleia: Assembleia) -> str:
@@ -26,7 +27,8 @@ def gerar_corpo_ata(db: Session, assembleia: Assembleia) -> str:
 
     linhas = [
         f"ATA DE ASSEMBLEIA GERAL {assembleia.tipo.upper()}",
-        f"Convocação: {assembleia.data_hora_convocacao:%d/%m/%Y às %H:%M}",
+        # v6.3b - o instante é gravado em UTC; a ata (que agora também vai ao site em texto) imprime a hora de Belém, não a UTC (3 horas a mais)
+        f"Convocação: {dia_e_hora_em_belem(assembleia.data_hora_convocacao)} ({ROTULO_DO_FUSO})",
         "",
         "PRESENÇA",
         f"Associados habilitados: {total_habilitados}",
@@ -35,7 +37,7 @@ def gerar_corpo_ata(db: Session, assembleia: Assembleia) -> str:
     for c in credenciamentos:
         associado = db.query(Associado).filter(Associado.id_associado == c.id_associado).first()
         nome = associado.nome_completo if associado else f"associado #{c.id_associado}"
-        linhas.append(f"  - {nome} ({c.modalidade}) - entrada {c.hora_entrada:%H:%M}" + (f", saída {c.hora_saida:%H:%M}" if c.hora_saida else ""))
+        linhas.append(f"  - {nome} ({c.modalidade}) - entrada {para_belem(c.hora_entrada):%H:%M}" + (f", saída {para_belem(c.hora_saida):%H:%M}" if c.hora_saida else ""))
 
     linhas += ["", "ORDEM DO DIA", assembleia.pauta, "", "ITENS DA SESSÃO"]
     for item in itens:
