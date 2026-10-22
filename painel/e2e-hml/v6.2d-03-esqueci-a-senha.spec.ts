@@ -97,7 +97,10 @@ test('esqueci a minha senha: o código pela tela troca a senha e a pessoa entra 
 
   await page.getByLabel('Código recebido por e-mail').fill(codigoUsado)
   await page.getByRole('button', { name: 'Trocar a senha' }).click()
-  await expect(page.getByRole('status')).toContainText('Senha trocada.')
+  // a faixa de "ambiente de teste" também é um aviso (role=status): procura o da troca pelo texto
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Senha trocada.' }),
+  ).toBeVisible()
   await ver(page, info, 'senha trocada')
 
   await page.getByRole('link', { name: 'Voltar para entrar' }).click()
