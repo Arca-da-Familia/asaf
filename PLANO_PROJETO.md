@@ -823,6 +823,74 @@ verde, "enviados: 0, falhas: 0".
 - [ ] Avaliação de impacto (RIPD) obrigatória antes de ativar qualquer tratamento de alto risco —
       biometria (v20.3), prontuário de beneficiário (v4.2), perfilamento por score (v11.1).
 
+> **A FASE 7 foi liberada pelo Presidente em 2026-10-23** ("comece já pela versão 7.0, governança de privacidade").
+> **O que já existia (levantamento de 23/10):** a Política de Privacidade (versão 2.6) nomeia o Presidente como encarregado e dá o canal (o e-mail da Instituição e o formulário do
+> titular); o nome só aparece quando o mandato vigente de Presidente está cadastrado (em produção, `/api/publico/diretoria` ainda devolve `[]`: o nome não aparece hoje). Não existe ato
+> formal de designação, nem substituto, nem inventário, nem marca de sensibilidade nos dados (a única é a classificação Pública/Interna/Restrita dos documentos institucionais, por
+> documento). O **prontuário de beneficiário** (v4.2, `RegistroAtendimento.relato`, texto livre que pode ter dado de saúde de criança) **já está ligado** sem relatório de impacto;
+> biometria (v20.3) e score (v11.1) não existem.
+> **O que a norma pede, conferido no texto oficial (Resolução CD/ANPD nº 18/2024, regulamento do encarregado):** art. 3º — a indicação do encarregado é feita por **ato formal**
+> ("documento escrito, datado e assinado") do qual constem as formas de atuação e as atividades, apresentado à ANPD quando ela pedir; art. 4º — nas ausências, impedimentos e vacâncias, a
+> função é exercida por **substituto formalmente designado**; art. 8º e 9º — identidade (no mínimo o **nome completo**) e contato divulgados e mantidos atualizados, "em local de destaque
+> e de fácil acesso" no site; art. 15 e 16 — as atividades (receber reclamações dos titulares e comunicações da ANPD, orientar a equipe, assistir no registro das operações, no relatório de
+> impacto e no registro de incidentes); art. 19, § 1º, II, e art. 20 e 21 — **conflito de interesse** quando o encarregado também toma as decisões estratégicas sobre o tratamento (é o
+> caso do Presidente): o encarregado o declara e o controlador adota providência. A **Resolução CD/ANPD nº 2/2022** (agentes de pequeno porte, que inclui pessoa jurídica de direito privado
+> sem fins lucrativos) dispensa a indicação do encarregado (art. 11; basta um canal com o titular, e a indicação voluntária "será considerada política de boas práticas e governança"),
+> permite o **registro simplificado** das operações (art. 9º; a ANPD publicou um modelo em 2023: contato do agente, categorias de titulares, dados tratados, compartilhamento, medidas de
+> segurança, período de armazenamento, finalidade e base legal, observações) e dá **prazo em dobro** para responder ao titular (art. 14), mas **não vale para tratamento de alto risco**
+> (art. 3º e 4º: pelo menos um critério geral — larga escala ou afetar significativamente direitos — **e** um específico — tecnologia nova, vigilância, decisão só automatizada, **dado
+> sensível ou de criança, adolescente ou idoso**). O substituto vem do Estatuto: o **1º Vice-Presidente** (art. 21, parágrafo único: os Vice-Presidentes substituem o Presidente em suas
+> faltas e impedimentos), e na falta dele o 2º. Decisão do Presidente já registrada (2026-10-09): o encarregado é o Presidente; não se pergunta de novo.
+> Em quatro partes, uma por vez (cada uma: branch → homologação → `main`):
+
+##### v7.0a — O encarregado com ato formal, substituto e destaque no site
+
+- [ ] **Permissão `privacidade`** (módulo Privacidade no painel): para quem tem `gerenciar_acesso` (a Presidência) e para os cargos Presidente e 1º e 2º Vice-Presidente (o substituto).
+- [ ] **Ato de designação gerado pelo sistema** (Resolução 18, art. 3º e 4º): o nome do Presidente e do 1º Vice-Presidente saem dos **mandatos vigentes** (sem o mandato de Presidente o sistema
+      recusa e diz onde cadastrar); o texto traz a ASAF como controladora, o encarregado e o substituto pelo nome e cargo, os canais (e-mail da Instituição e o formulário do titular), as
+      atividades do art. 15 e 16 e a **declaração de conflito de interesse** (art. 20: o encarregado também é quem decide sobre o tratamento; associação de pequeno porte sem outra pessoa
+      para o papel). Sai em PDF para imprimir e assinar; o texto fica guardado como foi gerado (é a prova do que se assinou). **Registrar a assinatura** (data e quem registrou, com Auditoria)
+      torna o ato vigente e encerra o anterior.
+- [ ] **Avisos no painel:** sem ato assinado; ato que nomeia outra pessoa (o mandato mudou); o substituto sem mandato cadastrado.
+- [ ] **Site:** o encarregado em destaque em todas as páginas (link no rodapé para a seção do encarregado na Política) e o substituto na Política, com o nome vindo dos mandatos publicados;
+      Política com versão nova dizendo só o que o sistema faz.
+- [ ] **Na homologação:** robô pelas telas (gerar o ato, abrir o PDF, registrar a assinatura, Auditoria; recusas: quem não tem `privacidade` não vê o módulo nem gera pelo endereço; ato sem
+      mandato de Presidente é recusado) e o site de teste com o link no rodapé e o nome.
+
+**Fora de escopo de propósito:** assinatura eletrônica (assina-se no papel, como as atas); enviar o ato à ANPD (só se apresenta quando ela pedir).
+
+##### v7.0b — Classificação dos dados por sensibilidade, no próprio modelo
+
+- [ ] Cada coluna com dado de pessoa marcada **no modelo** (SQLAlchemy `info`) como **pessoal**, **pessoal sensível** (LGPD art. 5º, II, e art. 11) ou de **criança e adolescente** (art. 14),
+      e cada tabela com o titular a que se refere; uma lista central lida do próprio modelo (não um documento à parte).
+- [ ] **Teste que trava o esquecimento:** tabela nova com coluna de pessoa sem classificação reprova a suíte.
+- [ ] **Controles por classificação, não caso a caso:** (1) o que é sensível ou de criança não entra no "antes e depois" da Auditoria (só o fato e quem fez); (2) a anonimização do desligado
+      cobre todas as colunas pessoais da pessoa (o teste compara com a classificação); (3) a consulta a registro sensível é auditada (já é no prontuário; o teste passa a exigir de toda rota
+      que devolve coluna sensível).
+
+**Fora de escopo de propósito:** criptografia por coluna (FASE 15, v15.x); mascarar CPF nas telas (v7.3).
+
+##### v7.0c — Inventário de dados (registro das operações de tratamento) vivo no sistema
+
+- [ ] Cada **atividade de tratamento** registrada no sistema com as seções do modelo simplificado da ANPD: titulares, dados (e se há sensível ou de criança), finalidade, base legal (as
+      hipóteses do art. 7º e do art. 11, escolhidas de uma lista), com quem é compartilhado (Azure, Google Workspace do e-mail, GitHub, etc.), onde fica guardado, medidas de segurança e
+      **prazo de guarda lido da regra de retenção em vigor** (ou "sem rotina ainda", dito com todas as letras, até a v7.1).
+- [ ] **Vivo de verdade:** as tabelas de cada atividade vêm da classificação da v7.0b, e o teste reprova tabela com dado pessoal que nenhuma atividade cobre; editar uma atividade guarda o
+      histórico (quem, quando, o que mudou) e vai para a Auditoria.
+- [ ] **Exportar** o inventário (PDF e planilha) para apresentar à ANPD quando pedido.
+
+**Fora de escopo de propósito:** consentimento e retenção por finalidade (v7.1); contratos com operadores (v7.3) — aqui só o registro de com quem se compartilha.
+
+##### v7.0d — Relatório de impacto (RIPD) obrigatório antes do alto risco
+
+- [ ] Lista de **tratamentos de alto risco** no código (prontuário de beneficiário — já ligado; biometria — v20.3; score de engajamento — v11.1) e o **relatório de impacto** de cada um no
+      painel: descrição, necessidade e proporcionalidade, riscos aos titulares, medidas, parecer do encarregado e aprovação, com versões.
+- [ ] **Portão no servidor:** sem relatório aprovado o tratamento não roda (gravar no prontuário passa a ser recusado com o motivo); o sistema já traz o rascunho do relatório do prontuário
+      montado a partir do inventário para o Presidente revisar e aprovar. A v11.1 e a v20.3 chamam o mesmo portão.
+- [ ] **Na produção:** o prontuário fica travado até o Presidente aprovar o relatório (ato dele no painel); o painel avisa isso na tela do prontuário.
+
+**Fora de escopo de propósito:** enviar o relatório à ANPD (só quando ela pedir, LGPD art. 38).
+
 #### v7.1 — Base legal, consentimento e retenção
 
 - [ ] Base legal explícita por finalidade: execução do vínculo associativo (não precisa de
