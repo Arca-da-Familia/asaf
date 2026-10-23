@@ -812,7 +812,7 @@ verde, "enviados: 0, falhas: 0".
 
 #### v7.0 — Governança de privacidade
 
-- [ ] Encarregado (DPO) designado e publicado no site com canal de contato — exigência do Art. 41 **[parcial, v5.5a: o encarregado (o Presidente, decisão de 09/10) e o canal já estão na Política e no formulário de solicitação do titular; conferir o que falta antes de refazer]**
+- [ ] Encarregado (DPO) designado e publicado no site com canal de contato — exigência do Art. 41 **[parcial: v5.5a pôs o encarregado (o Presidente, decisão de 09/10) e o canal na Política; a v7.0a fez o ato formal, o substituto e o destaque em todas as páginas do site. Fecha quando o Presidente cadastrar o mandato (o nome aparece no site) e anexar o ato assinado]**
       da LGPD, frequentemente ignorada por associações.
 - [ ] **Inventário de dados (ROPA)** vivo: para cada tipo de dado tratado — quem é o titular, qual
       a finalidade, qual a base legal, quanto tempo fica, com quem é compartilhado, onde está
@@ -845,17 +845,60 @@ verde, "enviados: 0, falhas: 0".
 
 ##### v7.0a — O encarregado com ato formal, substituto e destaque no site
 
-- [ ] **Permissão `privacidade`** (módulo Privacidade no painel): para quem tem `gerenciar_acesso` (a Presidência) e para os cargos Presidente e 1º e 2º Vice-Presidente (o substituto).
-- [ ] **Ato de designação gerado pelo sistema** (Resolução 18, art. 3º e 4º): o nome do Presidente e do 1º Vice-Presidente saem dos **mandatos vigentes** (sem o mandato de Presidente o sistema
-      recusa e diz onde cadastrar); o texto traz a ASAF como controladora, o encarregado e o substituto pelo nome e cargo, os canais (e-mail da Instituição e o formulário do titular), as
-      atividades do art. 15 e 16 e a **declaração de conflito de interesse** (art. 20: o encarregado também é quem decide sobre o tratamento; associação de pequeno porte sem outra pessoa
-      para o papel). Sai em PDF para imprimir e assinar; o texto fica guardado como foi gerado (é a prova do que se assinou). **Registrar a assinatura** (data e quem registrou, com Auditoria)
-      torna o ato vigente e encerra o anterior.
-- [ ] **Avisos no painel:** sem ato assinado; ato que nomeia outra pessoa (o mandato mudou); o substituto sem mandato cadastrado.
-- [ ] **Site:** o encarregado em destaque em todas as páginas (link no rodapé para a seção do encarregado na Política) e o substituto na Política, com o nome vindo dos mandatos publicados;
-      Política com versão nova dizendo só o que o sistema faz.
-- [ ] **Na homologação:** robô pelas telas (gerar o ato, abrir o PDF, registrar a assinatura, Auditoria; recusas: quem não tem `privacidade` não vê o módulo nem gera pelo endereço; ato sem
-      mandato de Presidente é recusado) e o site de teste com o link no rodapé e o nome.
+- [x] **Permissões** (módulo Privacidade no painel): `privacidade` (ver o encarregado, o substituto e os atos, abrir o PDF e baixar a cópia assinada) para quem tem `gerenciar_acesso`
+      (a Presidência) e para os cargos Presidente e 1º e 2º Vice-Presidente; `privacidade_gerir` (gerar o ato e registrar a cópia assinada) **só** para a Presidência e o cargo de
+      Presidente (privilégio mínimo, achado da conferência independente: o Vice-Presidente vê, mas não troca o ato que o Presidente assinou).
+- [x] **Ato de designação gerado pelo sistema** (Resolução 18, art. 3º e 4º): os nomes do Presidente e do Vice-Presidente saem dos **mandatos vigentes**, contados pelo dia de Belém
+      (sem o mandato de Presidente o sistema recusa e diz onde cadastrar); o texto traz a ASAF como controladora, o encarregado e o substituto pelo nome e cargo (o 1º Vice-Presidente; o
+      2º na falta dele), os canais (e-mail da Instituição e o formulário do titular), as atividades do art. 15 (I a IV, como estão na Resolução) e as do art. 16, e o **conflito de
+      interesse** declarado (art. 19, § 1º, II) com a **medida** do art. 21, parágrafo único, II: a reclamação de titular ou a comunicação da ANPD que questione decisão do próprio
+      Presidente é encaminhada ao substituto, que a examina e responde. Sai em PDF para imprimir; o texto fica guardado como foi gerado (é a prova do que se assinou). **Anexar a cópia
+      assinada** (PDF, JPG ou PNG, no armazenamento privado; quem e quando, com Auditoria) torna o ato vigente e o anterior fica "Substituído"; gerar outro descarta o que não foi assinado.
+- [x] **Avisos no painel:** sem mandato de Presidente; sem ato assinado; ato aguardando assinatura; ato que nomeia outra pessoa (o mandato mudou); substituto diferente do Vice-Presidente
+      de hoje; sem Vice-Presidente (com texto próprio quando o ato vigente nomeia alguém que saiu do cargo).
+- [x] **Site:** o link "Encarregado de dados" no rodapé de **todas** as páginas leva à seção do encarregado na Política (`/privacidade/#encarregado`); a Política 2.7 diz que o Estatuto
+      (art. 21, parágrafo único) atribui a substituição aos Vice-Presidentes e, com o mandato publicado, quem é o Vice-Presidente hoje. Ela **não** diz que o ato está assinado (depende
+      do Presidente).
+- [x] **Na homologação:** robô pelas telas (gerar o ato, abrir o PDF, registrar a assinatura, Auditoria; recusas: quem não tem `privacidade` não vê o módulo nem pelo endereço; o
+      Vice-Presidente vê mas não gera; arquivo que não é PDF de verdade; segunda cópia num ato que já vale) e o site de teste com o link no rodapé e os nomes. O ato sem mandato de
+      Presidente é recusado pela suíte (encerrar o mandato da Presidente de teste quebraria os outros roteiros).
+
+✅ **v7.0a concluída (2026-10-23).**
+
+**Conferência independente (agente, só leitura) achou 10 pontos e, na reconferência, mais 7; todos corrigidos antes de publicar:** (1) na tela, o arquivo escolhido para um ato podia ser
+registrado como a assinatura do ato gerado depois (faltava a `key` do quadro; teste novo confirmado por mutação); (2) a cláusula de conflito de interesse admitia o conflito sem adotar a
+providência que o art. 21 exige e citava uma "revisão anual" que ainda não existe; (3) o texto dizia que o **Estatuto** põe o 1º Vice-Presidente antes do 2º — o Estatuto não põe ordem
+(é designação do ato); (4) os Vice-Presidentes podiam trocar o ato assinado do Presidente (permissão dividida); (5) dois cliques ao mesmo tempo davam erro 500 ou podiam deixar dois atos
+aguardando ou vigentes (trava de linha e **índice único parcial** no banco: no máximo um aguardando e um vigente; o que escapar vira 409); (6) o ato prometia protocolo para o pedido que
+chega por e-mail (só o do formulário vira protocolo); (7) os incisos do art. 15 estavam fora de ordem e parafraseados; (8) um aviso dizia "designa só pelo cargo" de um ato que nomeia
+alguém; (9) pelo relógio UTC, das 21h às 24h de Belém, o mandato de amanhã já contava (o ato sairia datado antes do mandato que cita) — agora conta pelo dia de Belém, no início e no fim;
+(10) a tela não relia a situação depois de uma recusa; e, na reconferência: a medida do conflito dependia de o Vice ver a fila do atendimento (agora o encarregado encaminha), a Política
+afirmava uma designação que só o ato assinado cria (agora diz só o fato do Estatuto e quem é o Vice-Presidente), o arquivo gravado ficava órfão se a gravação falhasse, textos para quem só vê.
+**Pipeline:** o fluxo `validar-postgres.yml` estava quebrado desde a v5.4a (o passo dos "7 índices" de 02/10 reaplicava migrações sobre tabelas já criadas); trocado por um passo que desce e
+sobe a migração mais nova no Postgres com o `alembic check` limpo.
+**Testes locais:** servidor 1551 em duas rodadas seguidas (17 testes novos do encarregado; as proteções do substituto, da permissão de gerir e do dia de Belém confirmadas por mutação) e
+1551 contra Postgres 18 no `validar-postgres.yml` (a migração desceu e subiu duas vezes com o `alembic check` limpo); painel 736 (7 novos), tipos, lint e formatação limpos; site 923 de
+navegador em duas rodadas com o código final (rodapé em quatro páginas, a seção do encarregado com o nome e o Vice-Presidente; o mock ganhou um 2º Vice-Presidente), estados vazios
+(sem Diretoria publicada a Política mantém a seção e não inventa substituto), Instituição, sincronização e tamanho; a migração subiu, desceu e subiu num banco descartável com o
+`alembic check` limpo.
+**Na homologação (2026-10-23):** a branch `v70a-encarregado` foi publicada lá e a migração rodou no banco de TESTE (`Running upgrade e8a2c4f6b913 -> 56d7ae211884`). Robô `v7.0a-02` 1/1:
+no site de teste o rodapé de três páginas leva à seção do encarregado, com o nome da Presidente de teste e do 1º Vice-Presidente que a API publica, e a Política 2.7. Robô `v7.0a-01` 4/4
+(3ª rodada): o **Tesoureiro** não vê o módulo, o endereço dá "sem permissão" e o servidor responde 403 a ver, gerar e anexar; o **1º Vice-Presidente** (pelo cargo) vê a Presidente como
+encarregada e ele mesmo como substituto, mas não tem gerar nem anexar e o servidor recusa gerar (403); a **Presidente do cargo** gera o Ato nº 3 (o nº 2, da rodada anterior, estava vigente e
+o nº 1 tinha ficado descartado), lê o texto com os nomes, abre o PDF (200, `application/pdf`, começa com `%PDF-`), o arquivo com nome de
+PDF que não é PDF é recusado, anexa a cópia assinada e o ato passa a vigente; baixa a cópia de volta (os mesmos bytes); o servidor recusa outra cópia num ato que já vale (409); o histórico
+mostra Vigente, Substituído e Descartado; a **Auditoria**, lida pelo Presidente, tem a geração, a assinatura e o download, cada um com quem fez. As duas primeiras rodadas falharam por
+defeito do roteiro (o corpo do PDF já consumido pelo painel não era legível para o robô; na 2ª, o número do ato lido do quadro antigo antes da troca), corrigidos e refeitos. Regressões
+verdes: `v5.7c-02` 2/2 (a Diretoria e a Política no site de teste) e `v5.4c-fase0` 6/6.
+**Em produção (2026-10-23):** `main` = `f0fcfd0`; Deploy API verde (1551 testes contra Postgres; `Running upgrade e8a2c4f6b913 -> 56d7ae211884`), Deploy Painel e Deploy Site verdes;
+`painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `f0fcfd0`; o `openapi.json` traz as 4 rotas `/api/privacidade/encarregado...` e `GET /api/privacidade/encarregado` sem
+login responde 401; `asaf.org.br/privacidade/` diz "Versão 2.7 · em vigor desde 23 de outubro de 2026", tem a seção `#encarregado` e a frase do Estatuto, sem nome de Vice-Presidente (a
+produção ainda não tem mandato cadastrado); a página inicial tem o link "Encarregado de dados" no rodapé. Nenhum ato foi gerado em produção.
+**O que depende do Presidente (atos dele, em produção):** (1) cadastrar o próprio mandato de Presidente e o do 1º Vice-Presidente em Governança > Mandatos — sem isso o site não mostra o
+nome do encarregado (a Resolução 18, art. 9º, § 1º, pede o nome completo) e o ato não pode ser gerado; (2) em Privacidade > Encarregado, gerar o ato, ler o item 5 (a medida contra o
+conflito de interesse), imprimir, assinar (ele e o 1º Vice-Presidente, ciente) e anexar a cópia assinada.
+**Riscos aceitos (registro):** o encarregado acumula a Presidência (conflito de interesse do art. 19, § 1º, II, declarado no ato, com a medida do item 5; decisão do Presidente de
+2026-10-09); a permissão pelo cargo segue o relógio UTC do resto do sistema (3 horas de diferença na troca de mandato), enquanto o encarregado mostrado conta pelo dia de Belém.
 
 **Fora de escopo de propósito:** assinatura eletrônica (assina-se no papel, como as atas); enviar o ato à ANPD (só se apresenta quando ela pedir).
 
