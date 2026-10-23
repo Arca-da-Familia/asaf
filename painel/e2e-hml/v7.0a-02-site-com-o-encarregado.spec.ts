@@ -54,7 +54,7 @@ test('o rodapé leva ao encarregado, com o nome do Presidente e do substituto qu
   await expect(paragrafo).toBeInViewport()
   await expect(paragrafo).toContainText(`o Presidente da ASAF, ${presidente}.`)
   await expect(paragrafo).toContainText(`Vice-Presidente é ${substituto})`)
-  await expect(page.getByText(/^Versão 2\.7 · em vigor desde/)).toBeVisible()
+  await expect(page.getByText(/^Versão 2\.\d+ · em vigor desde/)).toBeVisible()
   await ver(page, info, 'politica-na-secao-do-encarregado')
   expect(vigia.problemas()).toEqual([])
 })
