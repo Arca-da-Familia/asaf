@@ -8,6 +8,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, File, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
@@ -15,6 +16,7 @@ from app.database import get_db
 from app.models.core import Usuario
 from app.security import exigir_permissao, usuario_tem_permissao
 from app.services import encarregado as servico
+from app.services import inventario as servico_inventario
 
 router = APIRouter()
 _pode = exigir_permissao(servico.PERMISSAO)
@@ -83,3 +85,46 @@ async def baixar_assinado(id_ato: int, request: Request, db: Session = Depends(g
     registrar_auditoria(db, usuario, TABELA, "ATO_ASSINADO_BAIXADO", id_registro_afetado=ato.id_ato, ip_origem=_ip(request), dados_depois={"numero": ato.numero})
     extensao = ato.assinado_arquivo.rsplit(".", 1)[-1].lower()
     return _arquivo(conteudo, ato.assinado_nome_arquivo or f"ato-{ato.numero}.{extensao}", _TIPOS.get(extensao, "application/octet-stream"), baixar=True)
+
+
+# ------------------------------------------------------------------------------------------------ v7.0c - o inventário de dados (registro das operações de tratamento)
+class AtividadeAjustar(BaseModel):
+    finalidade: Optional[str] = Field(default=None, max_length=2000)
+    bases_legais: Optional[list[str]] = Field(default=None, max_length=12)
+    operadores: Optional[list[str]] = Field(default=None, max_length=10)
+    medidas: Optional[str] = Field(default=None, max_length=3000)
+    observacoes: Optional[str] = Field(default=None, max_length=2000)
+    base_legal_conferida: Optional[bool] = None
+
+
+@router.get("/api/privacidade/inventario", summary="O inventário de dados: cada atividade de tratamento com as seções do modelo da ANPD e o que falta")
+def inventario(db: Session = Depends(get_db), usuario: Usuario = Depends(_pode)):
+    return _com_quem_ve(db, usuario, servico_inventario.listar(db))
+
+
+@router.put("/api/privacidade/inventario/{codigo}", summary="Ajustar a finalidade, a base legal, os operadores, as medidas e as observações de uma atividade (versão nova)")
+def ajustar_atividade(codigo: str, dados: AtividadeAjustar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_gerir)):
+    antes, depois = servico_inventario.atualizar(db, usuario, codigo, dados.model_dump())
+    mudou = sorted(k for k in depois if depois[k] != antes.get(k))
+    registrar_auditoria(
+        db, usuario, "versoes_de_atividade_de_tratamento", "ATIVIDADE_AJUSTADA", ip_origem=_ip(request),
+        dados_antes={k: antes[k] for k in mudou}, dados_depois={"atividade": codigo, **{k: depois[k] for k in mudou}},
+    )
+    return _com_quem_ve(db, usuario, servico_inventario.listar(db))
+
+
+@router.get("/api/privacidade/inventario/{codigo}/historico", summary="As versões de uma atividade de tratamento: o que mudou, quando e por quem")
+def historico_da_atividade(codigo: str, db: Session = Depends(get_db), _usuario: Usuario = Depends(_pode)):
+    return servico_inventario.historico(db, codigo)
+
+
+@router.get("/api/privacidade/inventario-planilha", summary="O inventário em planilha (CSV com ponto e vírgula, abre no Excel), para apresentar à ANPD quando pedido")
+def inventario_planilha(request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode)):
+    registrar_auditoria(db, usuario, "versoes_de_atividade_de_tratamento", "INVENTARIO_EXPORTADO", ip_origem=_ip(request), dados_depois={"formato": "planilha"})
+    return _arquivo(servico_inventario.planilha(db), "Inventário de dados pessoais.csv", "text/csv; charset=utf-8", baixar=True)
+
+
+@router.get("/api/privacidade/inventario-pdf", summary="O inventário em PDF, para apresentar à ANPD quando pedido")
+def inventario_pdf(request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode)):
+    registrar_auditoria(db, usuario, "versoes_de_atividade_de_tratamento", "INVENTARIO_EXPORTADO", ip_origem=_ip(request), dados_depois={"formato": "pdf"})
+    return _arquivo(servico_inventario.pdf(db), "Inventário de dados pessoais.pdf", "application/pdf", baixar=False)

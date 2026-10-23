@@ -79,6 +79,11 @@ const substituto = substitutoDoEncarregado(diretoria)
 // v2.8 (2026-10-23): a anonimização do associado desligado passa a apagar também as HABILIDADES cadastradas e o MOTIVO das mudanças de situação (v7.0b: a
 // classificação dos dados mostrou que ficavam; `app/services/anonimizacao.py`). A conferência independente corrigiu duas frases: "quem tem ou já teve outro papel"
 // (o código só pula quem ainda tem outro papel ATIVO, e só na rotina automática) e a lista do que não tem prazo (faltava a linha do tempo da pessoa).
+// v2.9 (2026-10-23): o inventário de dados (v7.0c, `app/services/inventario.py::OPERADORES`) mostrou que a Política não nomeava os prestadores nem dizia que parte
+// do tratamento acontece FORA DO BRASIL: as cópias de segurança do banco (backup georredundante, 35 dias) e a réplica dos arquivos privados (armazenamento GRS) ficam na
+// região par do Azure, South Central US (Estados Unidos; par conferido na documentação da Microsoft); o site e o painel são servidos da Central US; as rotinas
+// agendadas rodam nos servidores do GitHub (leem o banco); o e-mail é do Google Workspace. O parágrafo `data-operadores` diz só isso (o mecanismo da transferência
+// internacional, LGPD art. 33, é a v7.3).
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -567,6 +572,20 @@ const direitos = [
         por prestadores de infraestrutura que trabalham por conta da ASAF
         (hospedagem, banco de dados e envio de e-mail) e fornecidos a
         autoridades quando houver exigência legal.
+      </p>
+      <p class="mt-3" data-operadores>
+        Os prestadores são: a <strong>Microsoft (Azure)</strong>, que hospeda o
+        sistema, o banco de dados e os arquivos no Brasil (região Brazil South),
+        guarda as cópias de segurança do banco e uma réplica dos arquivos nos
+        Estados Unidos (região South Central US) e publica as páginas do site e
+        do painel por um serviço registrado nos Estados Unidos (região Central
+        US); o <strong>GitHub</strong> (da Microsoft), em cujos servidores rodam
+        as rotinas agendadas do sistema (prazos de guarda, lembretes e avisos),
+        que leem e atualizam os dados enquanto rodam; e o{' '}
+        <strong>Google (Google Workspace)</strong>, que envia os e-mails do
+        sistema e guarda a caixa asaf@asaf.org.br, em servidores que podem ficar
+        fora do Brasil. Por isso, parte do tratamento dos seus dados acontece
+        fora do Brasil.
       </p>
     </section>
 

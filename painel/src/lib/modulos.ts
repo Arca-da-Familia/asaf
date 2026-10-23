@@ -175,6 +175,11 @@ export const modulos: Modulo[] = [
         icone: UserCheck,
         fim: true,
       },
+      {
+        rota: '/privacidade/inventario',
+        rotulo: 'Inventário de dados',
+        icone: ListChecks,
+      },
     ],
   },
   {

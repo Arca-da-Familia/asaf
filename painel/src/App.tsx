@@ -80,6 +80,7 @@ import { AvisosAgendadosPage } from '@/pages/AvisosAgendados'
 import { ModelosDeAvisoPage } from '@/pages/ModelosDeAviso'
 import { ComunicacaoPage } from '@/pages/Comunicacao'
 import { EncarregadoPage } from '@/pages/Encarregado'
+import { InventarioDeDadosPage } from '@/pages/InventarioDeDados'
 import { MeuAvisoPage } from '@/pages/MeuAviso'
 import { MeusAvisosPage } from '@/pages/MeusAvisos'
 import { PerfilPage } from '@/pages/Perfil'
@@ -398,12 +399,27 @@ function App() {
             path="/privacidade"
             element={
               <RequirePermission permission="privacidade">
+                <Outlet />
+              </RequirePermission>
+            }
+          >
+            <Route
+              index
+              element={
                 <ErrorBoundary tituloModulo="Privacidade">
                   <EncarregadoPage />
                 </ErrorBoundary>
-              </RequirePermission>
-            }
-          />
+              }
+            />
+            <Route
+              path="inventario"
+              element={
+                <ErrorBoundary tituloModulo="Privacidade">
+                  <InventarioDeDadosPage />
+                </ErrorBoundary>
+              }
+            />
+          </Route>
           <Route
             path="/comunicacao"
             element={

@@ -44,3 +44,21 @@ test('o link do rodapé abre a Política na seção do encarregado, com o nome e
   // o texto não promete o que depende de ato humano (a assinatura do ato de designação)
   await expect(paragrafo).not.toContainText('assinad')
 })
+
+test('a Política nomeia os prestadores e diz que parte do tratamento acontece fora do Brasil (v2.9)', async ({
+  page,
+}) => {
+  await page.goto('/privacidade/')
+  const paragrafo = page.locator('[data-operadores]')
+  await expect(paragrafo).toHaveCount(1)
+  for (const trecho of [
+    'Microsoft (Azure)',
+    'no Brasil (região Brazil South)',
+    'nos Estados Unidos (região South Central US)',
+    'GitHub',
+    'Google (Google Workspace)',
+    'parte do tratamento dos seus dados acontece fora do Brasil',
+  ]) {
+    await expect(paragrafo).toContainText(trecho)
+  }
+})

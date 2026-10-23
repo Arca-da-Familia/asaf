@@ -319,16 +319,16 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
     )
   })
 
-  test('versão 2.8 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
+  test('versão 2.9 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
     page,
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.8 · em vigor desde 23 de outubro de 2026'),
+      page.getByText('Versão 2.9 · em vigor desde 23 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.8, em vigor desde 23 de outubro de 2026/,
+        /Esta é a versão 2\.9, em vigor desde 23 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-doacao]')

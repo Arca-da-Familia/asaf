@@ -16,15 +16,10 @@ assinatura confere que o ato ainda nomeia quem os mandatos dizem: o mandato pode
 Os avisos (calculados na leitura) dizem o que falta: sem mandato de Presidente, sem ato assinado, ato aguardando a assinatura, ato que nomeia outra pessoa, substituto
 diferente do Vice-Presidente de hoje, sem Vice-Presidente."""
 import hashlib
-import io
 from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import cm
-from reportlab.pdfbase.pdfmetrics import stringWidth
-from reportlab.pdfgen import canvas
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -33,7 +28,7 @@ from app.config_cache import obter_configuracao
 from app.models.associados import Associado
 from app.models.mandatos import Mandato
 from app.models.privacidade import DESCARTADO, RASCUNHO, SUBSTITUIDO, VIGENTE, AtoDoEncarregado
-from app.services import armazenamento
+from app.services import armazenamento, pdf_de_texto
 from app.services.documentos_institucionais import PASTA_ORIGINAIS, _nome_para_exibir, _validar_original
 from app.services.fuso import para_belem
 from app.services.site_publico import url_base_do_site
@@ -352,47 +347,9 @@ def ler_copia_assinada(ato: AtoDoEncarregado) -> bytes:
 
 
 # ------------------------------------------------------------------------------------------------ o PDF para imprimir
-_FONTE, _FONTE_TITULO, _CORPO, _ENTRELINHA = "Helvetica", "Helvetica-Bold", 11, 0.55 * cm
-
-
-def _quebrar(texto: str, largura: float, fonte: str) -> list[str]:
-    linhas, atual = [], ""
-    for palavra in texto.split(" "):
-        candidato = f"{atual} {palavra}".strip()
-        if atual and stringWidth(candidato, fonte, _CORPO) > largura:
-            linhas.append(atual)
-            atual = palavra
-        else:
-            atual = candidato
-    linhas.append(atual)
-    return linhas
-
-
 def pdf(ato: AtoDoEncarregado) -> bytes:
     """O texto guardado do ato, em A4, com quebra de linha pela largura real e página nova quando acaba o espaço."""
-    saida = io.BytesIO()
-    c = canvas.Canvas(saida, pagesize=A4)
-    c.setTitle(f"Ato nº {ato.numero} - Designação do encarregado pelo tratamento de dados pessoais")
-    largura, altura = A4
-    margem = 2.2 * cm
-    util = largura - 2 * margem
-    y = altura - margem
-
-    def rodape():
-        c.setFont("Helvetica-Oblique", 8)
-        c.drawString(margem, margem / 2, f"Ato nº {ato.numero} — gerado pelo sistema da ASAF em {_data_por_extenso(ato.gerado_em)}; vale com as assinaturas.")
-
-    for indice, paragrafo in enumerate(ato.texto.split("\n")):
-        fonte = _FONTE_TITULO if indice == 0 else _FONTE
-        for linha in _quebrar(paragrafo, util, fonte) if paragrafo else [""]:
-            if y < margem + _ENTRELINHA:
-                rodape()
-                c.showPage()
-                y = altura - margem
-            c.setFont(fonte, _CORPO)
-            c.drawString(margem, y, linha)
-            y -= _ENTRELINHA
-    rodape()
-    c.showPage()
-    c.save()
-    return saida.getvalue()
+    return pdf_de_texto.gerar(
+        f"Ato nº {ato.numero} - Designação do encarregado pelo tratamento de dados pessoais", ato.texto.split("\n"),
+        f"Ato nº {ato.numero} — gerado pelo sistema da ASAF em {_data_por_extenso(ato.gerado_em)}; vale com as assinaturas.",
+    )

@@ -84,7 +84,10 @@ describe('Encarregado de dados (v7.0a)', () => {
   it('o módulo Privacidade só aparece para quem tem `privacidade`', () => {
     const modulo = modulos.find((m) => m.rota === '/privacidade')
     expect(modulo?.permissao).toBe('privacidade')
-    expect(modulo?.itens?.map((i) => i.rotulo)).toEqual(['Encarregado'])
+    expect(modulo?.itens?.map((i) => i.rotulo)).toEqual([
+      'Encarregado',
+      'Inventário de dados',
+    ])
   })
 
   it('sem mandato de Presidente: mostra o aviso e não deixa gerar; passa no axe', async () => {

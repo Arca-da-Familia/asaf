@@ -98,3 +98,90 @@ export async function baixarCopiaAssinada(
     'baixar',
   )
 }
+
+// ---------------------------------------------------------------------------------------------- v7.0c - o inventário de dados
+export type OperadorDoInventario = {
+  codigo: string
+  nome: string
+  o_que_faz: string
+  onde: string
+  fora_do_brasil: boolean
+}
+
+export type AtividadeDeTratamento = {
+  codigo: string
+  nome: string
+  finalidade: string
+  bases_legais: string[]
+  bases_legais_texto: string[]
+  operadores: string[]
+  operadores_detalhe: OperadorDoInventario[]
+  medidas: string
+  observacoes: string
+  base_legal_conferida: boolean
+  transferencia_internacional: boolean
+  tabelas: string[]
+  titulares: string[]
+  dados_pessoais: string[]
+  dados_sensiveis: string[]
+  texto_livre_que_pode_ter_sensivel: string[]
+  pode_ter_crianca: boolean
+  armazenamento: string[]
+  prazos_de_guarda: { regra: string; rotulo: string; dias: number }[]
+  sem_rotina_de_guarda: boolean
+  versao: number
+  alterado_em: string | null
+}
+
+export type Inventario = {
+  atividades: AtividadeDeTratamento[]
+  tabelas_sem_atividade: string[]
+  bases_legais: { codigo: string; texto: string }[]
+  operadores: OperadorDoInventario[]
+  base_legal_a_conferir: string[]
+  pode_gerir: boolean
+}
+
+export type AjusteDeAtividade = Partial<
+  Pick<
+    AtividadeDeTratamento,
+    | 'finalidade'
+    | 'bases_legais'
+    | 'operadores'
+    | 'medidas'
+    | 'observacoes'
+    | 'base_legal_conferida'
+  >
+>
+
+export type VersaoDeAtividade = {
+  versao: number
+  alterado_em: string | null
+  por: string | null
+  campos: AjusteDeAtividade
+}
+
+export const obterInventario = () =>
+  apiFetch<Inventario>('/api/privacidade/inventario')
+
+export const ajustarAtividade = (codigo: string, dados: AjusteDeAtividade) =>
+  apiFetch<Inventario>(`/api/privacidade/inventario/${codigo}`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+
+export const historicoDaAtividade = (codigo: string) =>
+  apiFetch<VersaoDeAtividade[]>(
+    `/api/privacidade/inventario/${codigo}/historico`,
+  )
+
+export async function baixarInventario(formato: 'planilha' | 'pdf') {
+  const { blob, nomeSugerido } = await apiFetchBlob(
+    `/api/privacidade/inventario-${formato}`,
+  )
+  entregar(
+    blob,
+    nomeSugerido ?? `inventario-de-dados.${formato === 'pdf' ? 'pdf' : 'csv'}`,
+    formato === 'pdf' ? 'abrir' : 'baixar',
+  )
+}
