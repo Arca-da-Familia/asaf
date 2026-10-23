@@ -184,8 +184,11 @@ export const historicoDaAtividade = (codigo: string) =>
   )
 
 export async function baixarInventario(formato: 'planilha' | 'pdf') {
+  // os dois endereços por extenso (o teste que confere que toda rota do servidor tem tela procura o endereço escrito)
   const { blob, nomeSugerido } = await apiFetchBlob(
-    `/api/privacidade/inventario-${formato}`,
+    formato === 'pdf'
+      ? '/api/privacidade/inventario-pdf'
+      : '/api/privacidade/inventario-planilha',
   )
   entregar(
     blob,
