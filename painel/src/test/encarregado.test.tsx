@@ -87,6 +87,7 @@ describe('Encarregado de dados (v7.0a)', () => {
     expect(modulo?.itens?.map((i) => i.rotulo)).toEqual([
       'Encarregado',
       'Inventário de dados',
+      'Relatório de impacto',
     ])
   })
 

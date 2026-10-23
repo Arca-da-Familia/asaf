@@ -180,6 +180,11 @@ export const modulos: Modulo[] = [
         rotulo: 'Inventário de dados',
         icone: ListChecks,
       },
+      {
+        rota: '/privacidade/relatorio-de-impacto',
+        rotulo: 'Relatório de impacto',
+        icone: ShieldAlert,
+      },
     ],
   },
   {

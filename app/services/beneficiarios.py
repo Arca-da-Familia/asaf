@@ -162,7 +162,16 @@ def exigir_membro_da_equipe_do_vinculo(db: Session, *, usuario: Usuario, id_vinc
 # ==========================================
 # PRONTUÁRIO DE ATENDIMENTO (imutável)
 # ==========================================
+def _exigir_relatorio_de_impacto(db: Session) -> None:
+    """v7.0d: o prontuário e o encaminhamento são tratamento de ALTO RISCO (dado sensível de criança e de família): só gravam com o relatório de impacto
+    aprovado (app/services/relatorio_de_impacto.py). A leitura do que já existe continua (auditada)."""
+    from app.services import relatorio_de_impacto
+
+    relatorio_de_impacto.exigir_aprovado(db, "ATENDIMENTO_SOCIAL")
+
+
 def registrar_atendimento(db: Session, *, id_vinculo: int, relato: str, id_usuario: Optional[int]) -> RegistroAtendimento:
+    _exigir_relatorio_de_impacto(db)
     registro = RegistroAtendimento(id_vinculo=id_vinculo, relato=relato, id_usuario_autor=id_usuario)
     db.add(registro)
     db.commit()
@@ -178,6 +187,7 @@ def listar_atendimentos(db: Session, *, id_vinculo: int) -> list[RegistroAtendim
 # ENCAMINHAMENTO À REDE EXTERNA
 # ==========================================
 def registrar_encaminhamento(db: Session, *, id_vinculo: int, tipo_rede: str, descricao: str, id_usuario: Optional[int]) -> EncaminhamentoRedeExterna:
+    _exigir_relatorio_de_impacto(db)
     validar_codigo_em_catalogo(db, "tipo_rede_externa", tipo_rede, "Tipo de rede externa")
     encaminhamento = EncaminhamentoRedeExterna(id_vinculo=id_vinculo, tipo_rede=tipo_rede, descricao=descricao, id_usuario_registro=id_usuario)
     db.add(encaminhamento)

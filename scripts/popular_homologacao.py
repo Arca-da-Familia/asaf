@@ -342,6 +342,18 @@ def popular(client, db, admin_headers: dict | None = None, admin_senha: str | No
     if "tesoureiro" in contexto["usuarios"] and contas:
         roteiro.area("Emenda parlamentar completa", emenda)
 
+    # ---------------------------------------------------------------------------------------- v7.0d: relatório de impacto aprovado
+    # O prontuário e o encaminhamento de beneficiários só gravam com o relatório de impacto aprovado; o ambiente de teste nasce com ele aprovado (com texto de
+    # teste) para os roteiros de beneficiários funcionarem; o robô v7.0d-01 suspende e aprova de novo pelas telas.
+    def relatorio_de_impacto():
+        secoes = {s["chave"]: f"Texto de teste da homologação para a seção \"{s['rotulo']}\"." for s in
+                  _ok(client.get("/api/privacidade/relatorios-de-impacto", headers=admin_headers)).json()["secoes"]}
+        _ok(client.put("/api/privacidade/relatorios-de-impacto/ATENDIMENTO_SOCIAL", headers=admin_headers, json={"secoes": secoes}))
+        _ok(client.post("/api/privacidade/relatorios-de-impacto/ATENDIMENTO_SOCIAL/aprovar", headers=admin_headers))
+        return "relatório de impacto do atendimento social aprovado (texto de teste)"
+
+    roteiro.area("Relatório de impacto do atendimento social", relatorio_de_impacto)
+
     # ---------------------------------------------------------------------------------------- assembleia convocada
     def assembleia():
         id_assembleia = _ok(client.post("/api/assembleias/", headers=admin_headers, json={

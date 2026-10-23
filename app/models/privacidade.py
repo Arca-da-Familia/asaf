@@ -65,3 +65,32 @@ class VersaoDeAtividadeDeTratamento(Base):
     id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=False)
 
     __table_args__ = (UniqueConstraint("codigo_atividade", "versao", name="uq_versao_de_atividade"),)
+
+
+# --- situação do relatório de impacto
+RIPD_RASCUNHO = "Rascunho"
+RIPD_APROVADO = "Aprovado"
+RIPD_SUSPENSO = "Suspenso"  # o tratamento fica fechado até nova aprovação
+RIPD_SUBSTITUIDO = "Substituído"
+
+
+class RelatorioDeImpacto(Base):
+    """v7.0d - o RELATÓRIO DE IMPACTO à proteção de dados pessoais (RIPD; LGPD art. 5º, XVII, e art. 38) de um tratamento de alto risco
+    (app/services/relatorio_de_impacto.py::TRATAMENTOS). Sem uma versão APROVADA o tratamento não roda (o servidor recusa gravar). Cada versão guarda as seções
+    como estavam; aprovar torna a versão a vigente e a anterior fica "Substituído"; suspender fecha o tratamento até aprovar de novo."""
+    __tablename__ = "relatorios_de_impacto"
+    id_relatorio = Column(Integer, primary_key=True, index=True)
+    codigo_tratamento = Column(String(40), nullable=False, index=True)
+    versao = Column(Integer, nullable=False)
+    situacao = Column(String(20), nullable=False, index=True)
+    secoes = Column(_TipoJson, nullable=False)
+    criado_em = Column(DateTime, nullable=False, default=datetime.utcnow)
+    id_usuario_criacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=False)
+    atualizado_em = Column(DateTime, nullable=True)
+    aprovado_em = Column(DateTime, nullable=True)
+    id_usuario_aprovacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+    suspenso_em = Column(DateTime, nullable=True)
+    id_usuario_suspensao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+    motivo_suspensao = Column(String(500), nullable=True)
+
+    __table_args__ = (UniqueConstraint("codigo_tratamento", "versao", name="uq_versao_de_relatorio_de_impacto"),)

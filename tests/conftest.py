@@ -83,6 +83,9 @@ def _admin_garantido_desde_o_inicio(client):
     from tests.apoio_auth import token_admin
 
     token_admin(client)
+    from tests.apoio_ripd import aprovar_relatorio_do_atendimento_social
+
+    aprovar_relatorio_do_atendimento_social()
 
 
 @pytest.fixture()

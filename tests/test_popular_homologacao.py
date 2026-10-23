@@ -84,7 +84,7 @@ def execucao(tmp_path_factory):
 def test_todas_as_areas_sao_criadas_sem_nenhuma_falha(execucao):
     dados, _ = execucao
     assert dados["resultado"]["falhas"] == [], dados["resultado"]["falhas"]
-    assert len(dados["resultado"]["feito"]) == 9
+    assert len(dados["resultado"]["feito"]) == 10  # v7.0d: + o relatório de impacto do atendimento social aprovado
 
 
 def test_o_que_foi_criado_bate_com_o_prometido(execucao):

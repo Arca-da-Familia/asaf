@@ -76,6 +76,7 @@ import {
   vagaEscalaCriarSchema,
   vincularBeneficiarioSchema,
 } from '@/lib/schemas'
+import { tratamentoLiberado } from '@/lib/privacidade'
 import { useMe } from '@/lib/use-me'
 
 // v4.1 (FASE 4) - Projeto como entidade única e configurável: tipo/status de catálogo,
@@ -945,6 +946,12 @@ function PainelProntuario({ idVinculo }: { idVinculo: number }) {
     queryKey: ['opcoes-catalogo', 'tipo_rede_externa'],
     queryFn: () => listarOpcoesCatalogo('tipo_rede_externa'),
   })
+  // v7.0d - tratamento de alto risco: sem o relatório de impacto aprovado, o servidor recusa registrar; a tela avisa e não oferece o formulário
+  const { data: situacaoDoTratamento } = useQuery({
+    queryKey: ['relatorio-de-impacto-liberado', 'ATENDIMENTO_SOCIAL'],
+    queryFn: () => tratamentoLiberado('ATENDIMENTO_SOCIAL'),
+  })
+  const fechado = situacaoDoTratamento?.liberado === false
 
   const registrarRelato = useMutation({
     mutationFn: (v: z.infer<typeof registroAtendimentoCriarSchema>) =>
@@ -975,32 +982,45 @@ function PainelProntuario({ idVinculo }: { idVinculo: number }) {
         <p className="mb-1 text-xs font-semibold text-muted-foreground">
           Prontuário de atendimento
         </p>
-        <FormShell<z.infer<typeof registroAtendimentoCriarSchema>>
-          schema={registroAtendimentoCriarSchema}
-          defaultValues={{ relato: '' }}
-          onSubmit={(v) => registrarRelato.mutateAsync(v)}
-          className="mb-2 flex flex-wrap items-end gap-2"
-        >
-          {(form) => (
-            <>
-              <div className="flex-1">
-                <input
-                  {...form.register('relato')}
-                  placeholder="Relato do atendimento"
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                />
-                <ErroCampo mensagem={form.formState.errors.relato?.message} />
-              </div>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={registrarRelato.isPending}
-              >
-                Registrar
-              </Button>
-            </>
-          )}
-        </FormShell>
+        {fechado && (
+          <p
+            role="alert"
+            data-testid="prontuario-fechado"
+            className="mb-2 rounded-md border border-amber-600/30 bg-amber-600/10 px-3 py-2 text-xs"
+          >
+            Registrar no prontuário e encaminhar à rede externa está fechado até
+            a Presidência aprovar o relatório de impacto (Privacidade &gt;
+            Relatório de impacto). O que já está registrado continua aqui.
+          </p>
+        )}
+        {!fechado && (
+          <FormShell<z.infer<typeof registroAtendimentoCriarSchema>>
+            schema={registroAtendimentoCriarSchema}
+            defaultValues={{ relato: '' }}
+            onSubmit={(v) => registrarRelato.mutateAsync(v)}
+            className="mb-2 flex flex-wrap items-end gap-2"
+          >
+            {(form) => (
+              <>
+                <div className="flex-1">
+                  <input
+                    {...form.register('relato')}
+                    placeholder="Relato do atendimento"
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  />
+                  <ErroCampo mensagem={form.formState.errors.relato?.message} />
+                </div>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={registrarRelato.isPending}
+                >
+                  Registrar
+                </Button>
+              </>
+            )}
+          </FormShell>
+        )}
         <div className="v3-space-y-1">
           {(atendimentos ?? []).map((a) => (
             <div
@@ -1024,45 +1044,47 @@ function PainelProntuario({ idVinculo }: { idVinculo: number }) {
         <p className="mb-1 text-xs font-semibold text-muted-foreground">
           Encaminhamento à rede externa
         </p>
-        <FormShell<z.infer<typeof encaminhamentoCriarSchema>>
-          schema={encaminhamentoCriarSchema}
-          defaultValues={{ tipo_rede: '', descricao: '' }}
-          onSubmit={(v) => registrarEncam.mutateAsync(v)}
-          className="mb-2 flex flex-wrap items-end gap-2"
-        >
-          {(form) => (
-            <>
-              <select
-                {...form.register('tipo_rede')}
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="">Tipo de rede…</option>
-                {(tiposRede ?? []).map((o) => (
-                  <option key={o.codigo} value={o.codigo}>
-                    {o.rotulo}
-                  </option>
-                ))}
-              </select>
-              <div className="flex-1">
-                <input
-                  {...form.register('descricao')}
-                  placeholder="Descrição do encaminhamento"
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                />
-                <ErroCampo
-                  mensagem={form.formState.errors.descricao?.message}
-                />
-              </div>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={registrarEncam.isPending}
-              >
-                Registrar
-              </Button>
-            </>
-          )}
-        </FormShell>
+        {!fechado && (
+          <FormShell<z.infer<typeof encaminhamentoCriarSchema>>
+            schema={encaminhamentoCriarSchema}
+            defaultValues={{ tipo_rede: '', descricao: '' }}
+            onSubmit={(v) => registrarEncam.mutateAsync(v)}
+            className="mb-2 flex flex-wrap items-end gap-2"
+          >
+            {(form) => (
+              <>
+                <select
+                  {...form.register('tipo_rede')}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">Tipo de rede…</option>
+                  {(tiposRede ?? []).map((o) => (
+                    <option key={o.codigo} value={o.codigo}>
+                      {o.rotulo}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex-1">
+                  <input
+                    {...form.register('descricao')}
+                    placeholder="Descrição do encaminhamento"
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  />
+                  <ErroCampo
+                    mensagem={form.formState.errors.descricao?.message}
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={registrarEncam.isPending}
+                >
+                  Registrar
+                </Button>
+              </>
+            )}
+          </FormShell>
+        )}
         <div className="v3-space-y-1">
           {(encaminhamentos ?? []).map((e) => (
             <div

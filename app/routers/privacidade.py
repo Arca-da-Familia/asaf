@@ -14,9 +14,10 @@ from sqlalchemy.orm import Session
 from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.core import Usuario
-from app.security import exigir_permissao, usuario_tem_permissao
+from app.security import exigir_permissao, get_current_user, usuario_tem_permissao
 from app.services import encarregado as servico
 from app.services import inventario as servico_inventario
+from app.services import relatorio_de_impacto as servico_ripd
 
 router = APIRouter()
 _pode = exigir_permissao(servico.PERMISSAO)
@@ -129,3 +130,54 @@ def inventario_planilha(request: Request, db: Session = Depends(get_db), usuario
 def inventario_pdf(request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode)):
     registrar_auditoria(db, usuario, "versoes_de_atividade_de_tratamento", "INVENTARIO_EXPORTADO", ip_origem=_ip(request), dados_depois={"formato": "pdf"})
     return _arquivo(servico_inventario.pdf(db), "Inventário de dados pessoais.pdf", "application/pdf", baixar=False)
+
+
+# ------------------------------------------------------------------------------------------------ v7.0d - o relatório de impacto (RIPD) antes do alto risco
+class RelatorioSalvar(BaseModel):
+    secoes: dict[str, str] = Field(default_factory=dict)
+
+
+class RelatorioSuspender(BaseModel):
+    motivo: str = Field(min_length=1, max_length=500)
+
+
+@router.get("/api/privacidade/relatorios-de-impacto", summary="Os tratamentos de alto risco: o relatório de impacto aprovado, o rascunho, a proposta do sistema e o histórico")
+def relatorios_de_impacto(db: Session = Depends(get_db), usuario: Usuario = Depends(_pode)):
+    return _com_quem_ve(db, usuario, servico_ripd.listar(db))
+
+
+@router.put("/api/privacidade/relatorios-de-impacto/{codigo}", summary="Salvar o rascunho do relatório de impacto (o aprovado continua valendo até este ser aprovado)")
+def salvar_relatorio(codigo: str, dados: RelatorioSalvar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_gerir)):
+    r = servico_ripd.salvar_rascunho(db, usuario, codigo, dados.secoes)
+    registrar_auditoria(db, usuario, "relatorios_de_impacto", "RIPD_RASCUNHO_SALVO", id_registro_afetado=r.id_relatorio, ip_origem=_ip(request),
+                        dados_depois={"tratamento": codigo, "versao": r.versao})
+    return _com_quem_ve(db, usuario, servico_ripd.listar(db))
+
+
+@router.post("/api/privacidade/relatorios-de-impacto/{codigo}/aprovar", summary="Aprovar o relatório de impacto (todas as seções, inclusive o parecer do encarregado): o tratamento passa a poder rodar")
+def aprovar_relatorio(codigo: str, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_gerir)):
+    r, anterior = servico_ripd.aprovar(db, usuario, codigo)
+    registrar_auditoria(db, usuario, "relatorios_de_impacto", "RIPD_APROVADO", id_registro_afetado=r.id_relatorio, ip_origem=_ip(request),
+                        dados_depois={"tratamento": codigo, "versao": r.versao, "substituiu_a_versao": anterior.versao if anterior else None})
+    return _com_quem_ve(db, usuario, servico_ripd.listar(db))
+
+
+@router.post("/api/privacidade/relatorios-de-impacto/{codigo}/suspender", summary="Suspender o tratamento de alto risco até aprovar de novo, com o motivo")
+def suspender_relatorio(codigo: str, dados: RelatorioSuspender, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_gerir)):
+    r = servico_ripd.suspender(db, usuario, codigo, dados.motivo)
+    registrar_auditoria(db, usuario, "relatorios_de_impacto", "RIPD_SUSPENSO", id_registro_afetado=r.id_relatorio, ip_origem=_ip(request),
+                        dados_depois={"tratamento": codigo, "versao": r.versao, "motivo": r.motivo_suspensao})
+    return _com_quem_ve(db, usuario, servico_ripd.listar(db))
+
+
+@router.get("/api/privacidade/relatorios-de-impacto/{codigo}/pdf", summary="O relatório de impacto em PDF (para apresentar à ANPD quando pedido, LGPD art. 38)")
+def relatorio_pdf(codigo: str, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode)):
+    conteudo = servico_ripd.pdf(db, codigo)
+    registrar_auditoria(db, usuario, "relatorios_de_impacto", "RIPD_EXPORTADO", ip_origem=_ip(request), dados_depois={"tratamento": codigo})
+    return _arquivo(conteudo, f"Relatório de impacto - {servico_ripd.buscar(codigo).nome}.pdf", "application/pdf", baixar=False)
+
+
+@router.get("/api/relatorios-de-impacto/{codigo}/liberado", summary="O tratamento de alto risco pode rodar? (para a tela do prontuário avisar; não traz dado)")
+def relatorio_liberado(codigo: str, db: Session = Depends(get_db), _usuario: Usuario = Depends(get_current_user)):
+    t = servico_ripd.buscar(codigo)
+    return {"codigo": t.codigo, "nome": t.nome, "liberado": servico_ripd.aprovado(db, codigo) is not None}

@@ -196,3 +196,78 @@ export async function baixarInventario(formato: 'planilha' | 'pdf') {
     formato === 'pdf' ? 'abrir' : 'baixar',
   )
 }
+
+// ---------------------------------------------------------------------------------------------- v7.0d - o relatório de impacto (RIPD)
+export type VersaoDoRelatorio = {
+  id_relatorio: number
+  versao: number
+  situacao: 'Rascunho' | 'Aprovado' | 'Suspenso' | 'Substituído'
+  secoes: Record<string, string>
+  criado_em: string
+  atualizado_em: string | null
+  aprovado_em: string | null
+  suspenso_em: string | null
+  motivo_suspensao: string | null
+}
+
+export type TratamentoDeAltoRisco = {
+  codigo: string
+  nome: string
+  ligado: boolean
+  versao_do_plano: string
+  por_que_alto_risco: string
+  liberado: boolean
+  aprovado: VersaoDoRelatorio | null
+  rascunho: VersaoDoRelatorio | null
+  suspenso: VersaoDoRelatorio | null
+  proposta: Record<string, string> | null
+  historico: {
+    versao: number
+    situacao: string
+    criado_em: string
+    aprovado_em: string | null
+  }[]
+}
+
+export type RelatoriosDeImpacto = {
+  tratamentos: TratamentoDeAltoRisco[]
+  secoes: { chave: string; rotulo: string }[]
+  pode_gerir: boolean
+}
+
+export const obterRelatoriosDeImpacto = () =>
+  apiFetch<RelatoriosDeImpacto>('/api/privacidade/relatorios-de-impacto')
+
+export const salvarRelatorioDeImpacto = (
+  codigo: string,
+  secoes: Record<string, string>,
+) =>
+  apiFetch<RelatoriosDeImpacto>(
+    `/api/privacidade/relatorios-de-impacto/${codigo}`,
+    { method: 'PUT', body: JSON.stringify({ secoes }) },
+  )
+
+export const aprovarRelatorioDeImpacto = (codigo: string) =>
+  apiFetch<RelatoriosDeImpacto>(
+    `/api/privacidade/relatorios-de-impacto/${codigo}/aprovar`,
+    { method: 'POST' },
+  )
+
+export const suspenderRelatorioDeImpacto = (codigo: string, motivo: string) =>
+  apiFetch<RelatoriosDeImpacto>(
+    `/api/privacidade/relatorios-de-impacto/${codigo}/suspender`,
+    { method: 'POST', body: JSON.stringify({ motivo }) },
+  )
+
+export async function abrirPdfDoRelatorio(codigo: string) {
+  const { blob } = await apiFetchBlob(
+    `/api/privacidade/relatorios-de-impacto/${codigo}/pdf`,
+  )
+  entregar(blob, `relatorio-de-impacto-${codigo}.pdf`, 'abrir')
+}
+
+// a tela do prontuário pergunta se o tratamento está liberado (qualquer pessoa logada; não traz dado)
+export const tratamentoLiberado = (codigo: string) =>
+  apiFetch<{ codigo: string; nome: string; liberado: boolean }>(
+    `/api/relatorios-de-impacto/${codigo}/liberado`,
+  )
