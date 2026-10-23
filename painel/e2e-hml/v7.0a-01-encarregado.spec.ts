@@ -172,8 +172,15 @@ test('a Presidente do cargo gera o ato, abre o PDF, anexa a cópia assinada e o 
   const pdf = await abrindo
   expect(pdf.status()).toBe(200)
   expect(pdf.headers()['content-type']).toContain('application/pdf')
-  expect((await pdf.body()).subarray(0, 5).toString('latin1')).toBe('%PDF-')
   idDoAto = Number(/atos\/(\d+)\/pdf$/.exec(new URL(pdf.url()).pathname)![1])
+  // o corpo da resposta que o painel já consumiu (e abriu numa aba) não fica legível para o robô: baixa o mesmo endereço de novo, como quem está logado
+  const deNovoPdf = await page.request.get(pdf.url(), {
+    headers: { Authorization: token },
+  })
+  expect(deNovoPdf.status()).toBe(200)
+  expect((await deNovoPdf.body()).subarray(0, 5).toString('latin1')).toBe(
+    '%PDF-',
+  )
   for (const aberta of page.context().pages()) {
     if (aberta !== page) await aberta.close()
   }
