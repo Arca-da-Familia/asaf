@@ -64,19 +64,23 @@ OPERADORES: dict[str, dict] = {
     "GITHUB": {
         "nome": "GitHub (Microsoft)",
         "o_que_faz": "executa as rotinas agendadas que leem o banco e agem sobre ele (prazos de guarda, lembretes, avisos, vagas de evento) e monta e publica o "
-                     "site a partir do que é público (Diretoria, fotos de evento e de parceria, documentos aprovados, notícias)",
+                     "site a partir do que é público (Diretoria, fotos de evento e de parceria, documentos aprovados, notícias) e aplica as migrações do banco ao "
+                     "publicar uma versão nova do sistema",
         "onde": "servidores do GitHub, fora do Brasil, enquanto a rotina ou a montagem do site roda",
         "fora_do_brasil": True,
     },
     "GOOGLE": {
         "nome": "Google (Google Workspace)",
-        "o_que_faz": "envia os e-mails do sistema e guarda a caixa asaf@asaf.org.br",
+        "o_que_faz": "envia os e-mails do sistema e guarda a caixa de e-mail da associação",
         "onde": "servidores do Google, que podem ficar fora do Brasil",
         "fora_do_brasil": True,
     },
 }
 
-ARMAZENAMENTO_BANCO = "Banco de dados PostgreSQL no Microsoft Azure (Brasil, região Brazil South), com cópias de segurança por 35 dias na região South Central US (Estados Unidos)"
+ARMAZENAMENTO_BANCO = (
+    "Banco de dados PostgreSQL no Microsoft Azure (Brasil, região Brazil South), com cópias de segurança por 35 dias e uma cópia delas na região South Central US "
+    "(Estados Unidos)"
+)
 ARMAZENAMENTO_ARQUIVOS = "Arquivos no armazenamento privado do Microsoft Azure (Brasil, região Brazil South), com réplica na região South Central US (Estados Unidos)"
 
 ARMAZENAMENTO_SITE = (
@@ -106,6 +110,9 @@ class Atividade:
     prazos_fixos: tuple[str, ...] = ()  # limpeza técnica que não é regra editável (o código do visitante vencido, por exemplo)
     publicado_no_site: bool = False  # parte do que é público vai ao site
     tabelas_externas: tuple[str, ...] = ()  # dado de pessoa fora do modelo deste sistema (o Directus, editor do site)
+    titulares_externos: tuple[str, ...] = ()  # de quem é o dado fora do modelo
+    criancas_externas: bool = False  # o dado fora do modelo pode ser de criança (foto de notícia)
+    armazenamento_proprio: tuple[str, ...] = ()  # onde fica, quando não é o armazenamento privado do sistema
 
 
 ATIVIDADES: tuple[Atividade, ...] = (
@@ -231,7 +238,8 @@ ATIVIDADES: tuple[Atividade, ...] = (
         "Manter as contas de quem edita as notícias do site, o registro do que cada um fez e as fotos publicadas nas notícias.",
         ("ART7_IX", "ART7_V"), ("AZURE", "GITHUB", "GOOGLE"),
         tabelas_externas=("directus_users (nome e e-mail de quem edita)", "directus_activity (IP e navegador de cada ação)", "fotos das notícias (podem ter pessoas)"),
-        arquivos=True, publicado_no_site=True,
+        titulares_externos=("quem edita as notícias do site", cl.FOTOGRAFADO), criancas_externas=True, publicado_no_site=True,
+        armazenamento_proprio=("Fotos e arquivos das notícias numa conta própria do Directus no Microsoft Azure (Brasil, região Brazil South)",),
         medidas="O Directus usa o mesmo servidor de banco, mas com usuário e área (schema) próprios, sem acesso aos dados do sistema; perfis de editor com "
                 "privilégio mínimo.",
         observacoes="Fica fora do modelo deste sistema: as tabelas são do Directus.",
@@ -292,9 +300,20 @@ def _proposta(a: Atividade) -> dict:
     }
 
 
+def _ajustes(versao: Optional[VersaoDeAtividadeDeTratamento]) -> dict:
+    if versao is None:
+        return {}
+    return versao.campos.get("ajustes", versao.campos) if isinstance(versao.campos, dict) else {}
+
+
 def _vigentes(a: Atividade, versao: Optional[VersaoDeAtividadeDeTratamento]) -> dict:
-    """A proposta do código com o que o encarregado ajustou por cima (a versão guarda só o que ficou diferente da proposta)."""
-    return {**_proposta(a), **{k: v for k, v in (versao.campos if versao else {}).items() if k in EDITAVEIS}}
+    """A proposta do código com o que o encarregado ajustou por cima (a versão guarda só o que ficou diferente da proposta). "Base legal conferida" só vale
+    para as bases que ele conferiu: se o código propõe outras depois, volta a "proposta" (a conferência guardou quais eram)."""
+    ajustes = _ajustes(versao)
+    vigentes = {**_proposta(a), **{k: v for k, v in ajustes.items() if k in EDITAVEIS}}
+    if vigentes["base_legal_conferida"] and sorted(ajustes.get("bases_conferidas", [])) != vigentes["bases_legais"]:
+        vigentes["base_legal_conferida"] = False
+    return vigentes
 
 
 def _vigente(db: Session, codigo: str) -> Optional[VersaoDeAtividadeDeTratamento]:
@@ -313,7 +332,7 @@ def _detalhar(db: Session, a: Atividade, inventario: list[dict]) -> dict:
     das_tabelas = [linhas[t] for t in tabelas if t in linhas]
     versao = _vigente(db, a.codigo)
     campos = _vigentes(a, versao)
-    pode_ter_crianca = any(linha["pode_ter_crianca"] for linha in das_tabelas)
+    pode_ter_crianca = any(linha["pode_ter_crianca"] for linha in das_tabelas) or a.criancas_externas
     return {
         "codigo": a.codigo, "nome": a.nome, **campos, "operadores": list(a.operadores),
         # código guardado que saiu da lista (renomeado) não derruba o inventário: aparece como "código antigo"
@@ -323,12 +342,13 @@ def _detalhar(db: Session, a: Atividade, inventario: list[dict]) -> dict:
         "requisito_crianca": REQUISITO_CRIANCA if pode_ter_crianca else None,
         "tabelas_externas": list(a.tabelas_externas),
         "tabelas": tabelas,
-        "titulares": sorted({t for linha in das_tabelas for t in linha["titulares"]}),
+        "titulares": sorted({t for linha in das_tabelas for t in linha["titulares"]} | set(a.titulares_externos)),
         "dados_pessoais": sorted({f"{linha['tabela']}.{c}" for linha in das_tabelas for c in linha["colunas_pessoais"]}),
         "dados_sensiveis": sorted({f"{linha['tabela']}.{c}" for linha in das_tabelas for c in linha["colunas_sensiveis"]}),
         "texto_livre_que_pode_ter_sensivel": sorted({f"{linha['tabela']}.{c}" for linha in das_tabelas for c in linha["texto_livre_que_pode_ter_sensivel"]}),
         "pode_ter_crianca": pode_ter_crianca,
-        "armazenamento": [ARMAZENAMENTO_BANCO] + ([ARMAZENAMENTO_ARQUIVOS] if a.arquivos else []) + ([ARMAZENAMENTO_SITE] if a.publicado_no_site else []),
+        "armazenamento": [ARMAZENAMENTO_BANCO] + ([ARMAZENAMENTO_ARQUIVOS] if a.arquivos else []) + list(a.armazenamento_proprio)
+        + ([ARMAZENAMENTO_SITE] if a.publicado_no_site else []),
         "prazos_de_guarda": _prazos(db, a),
         "prazos_fixos": list(a.prazos_fixos),
         "sem_rotina_de_guarda": not a.regras_de_retencao and not a.prazos_fixos,
@@ -373,8 +393,6 @@ def atualizar(db: Session, usuario: Usuario, codigo: str, dados: dict, versao_ba
         desconhecidas = [b for b in novos["bases_legais"] if b not in BASES_LEGAIS]
         if desconhecidas or not novos["bases_legais"]:
             raise HTTPException(status_code=422, detail="Escolha ao menos uma base legal da lista.")
-    if "operadores" in novos and any(o not in OPERADORES for o in novos["operadores"]):
-        raise HTTPException(status_code=422, detail="Operador fora da lista.")
     depois = {**antes, **{k: (v.strip() if isinstance(v, str) else v) for k, v in novos.items()}}
     if depois["bases_legais"] != antes["bases_legais"] and novos.get("base_legal_conferida") is not True:
         depois["base_legal_conferida"] = False  # base nova não nasce conferida: o encarregado confere de novo
@@ -382,8 +400,11 @@ def atualizar(db: Session, usuario: Usuario, codigo: str, dados: dict, versao_ba
         raise HTTPException(status_code=409, detail="Nada mudou.")
     numero = (db.query(func.max(VersaoDeAtividadeDeTratamento.versao)).filter(VersaoDeAtividadeDeTratamento.codigo_atividade == codigo).scalar() or 0) + 1
     proposta = _proposta(a)
-    so_o_diferente = {k: v for k, v in depois.items() if v != proposta[k]}
-    db.add(VersaoDeAtividadeDeTratamento(codigo_atividade=codigo, versao=numero, campos=so_o_diferente, id_usuario=usuario.id_usuario))
+    ajustes = {k: v for k, v in depois.items() if v != proposta[k]}
+    if depois["base_legal_conferida"]:
+        ajustes["bases_conferidas"] = depois["bases_legais"]  # o que foi conferido (se a proposta do código mudar depois, a conferência não passa para a nova)
+    # `como_ficou`: o texto inteiro que valia ao salvar (o histórico mostra isso, não a proposta de hoje)
+    db.add(VersaoDeAtividadeDeTratamento(codigo_atividade=codigo, versao=numero, campos={"ajustes": ajustes, "como_ficou": depois}, id_usuario=usuario.id_usuario))
     try:
         db.commit()
     except IntegrityError:
@@ -398,8 +419,9 @@ def historico(db: Session, codigo: str) -> list[dict]:
         VersaoDeAtividadeDeTratamento.versao.desc()).all()
     nomes = {u.id_usuario: u.email for u in db.query(Usuario).filter(Usuario.id_usuario.in_({v.id_usuario for v in versoes}))} if versoes else {}
     return [
-        {"versao": v.versao, "alterado_em": v.alterado_em.isoformat(), "por": nomes.get(v.id_usuario), "campos": _vigentes(a, v)} for v in versoes
-    ] + [{"versao": 0, "alterado_em": None, "por": "proposta do sistema", "campos": _proposta(a)}]
+        {"versao": v.versao, "alterado_em": v.alterado_em.isoformat(), "por": nomes.get(v.id_usuario), "campos": v.campos.get("como_ficou", _vigentes(a, v))}
+        for v in versoes
+    ] + [{"versao": 0, "alterado_em": None, "por": "proposta do sistema (a de hoje)", "campos": _proposta(a)}]
 
 
 # ---------------------------------------------------------------------------------------- exportar (apresentar à ANPD quando pedido)
@@ -417,7 +439,7 @@ def _prazo_em_texto(atividade: dict) -> str:
 
 def _linha(atividade: dict) -> list[str]:
     return [
-        atividade["nome"], atividade["finalidade"], "; ".join(atividade["titulares"]) or "ver as tabelas externas",
+        atividade["nome"], atividade["finalidade"], "; ".join(atividade["titulares"]),
         ", ".join(atividade["dados_pessoais"] + atividade["tabelas_externas"]), ", ".join(atividade["dados_sensiveis"]) or "nenhum",
         f"sim — {atividade['requisito_crianca']}" if atividade["pode_ter_crianca"] else "não", "; ".join(atividade["bases_legais_texto"]),
         "sim" if atividade["base_legal_conferida"] else "não (proposta do sistema)",
@@ -429,7 +451,7 @@ def _linha(atividade: dict) -> list[str]:
 
 def _celula(valor: str) -> str:
     """Texto que começa com = + - @ vira fórmula no Excel: um apóstrofo na frente o deixa como texto."""
-    return f"'{valor}" if valor[:1] in ("=", "+", "-", "@") else valor
+    return f"'{valor}" if valor[:1] in ("=", "+", "-", "@", "\t", "\r") else valor
 
 
 def _cabecalho(db: Session) -> list[str]:
@@ -437,9 +459,16 @@ def _cabecalho(db: Session) -> list[str]:
     org = servico_encarregado._organizacao(db)
     sit = servico_encarregado.situacao(db)
     vigente = sit["ato_vigente"]
-    encarregado = sit["encarregado"]["nome"] if sit["encarregado"] else "o Presidente (sem mandato vigente cadastrado)"
-    substituto = sit["substituto"]["nome"] if sit["substituto"] else "o Vice-Presidente em exercício"
-    ato = f"Ato nº {vigente['numero']}" if vigente else "ato de designação ainda não assinado"
+    if vigente:
+        # os nomes do ATO (é o que vale); se o mandato mudou e o ato não foi refeito, diz isso em vez de juntar um nome a um ato que nomeia outra pessoa
+        encarregado, substituto = vigente["nome_encarregado"], vigente["nome_substituto"] or "o Vice-Presidente em exercício"
+        ato = f"Ato nº {vigente['numero']}"
+        if any(a["codigo"] in ("ATO_DE_OUTRA_PESSOA", "SUBSTITUTO_DIFERENTE") for a in sit["avisos"]):
+            ato += "; os mandatos mudaram e um ato novo está pendente"
+    else:
+        encarregado = sit["encarregado"]["nome"] if sit["encarregado"] else "o Presidente (sem mandato vigente cadastrado)"
+        substituto = sit["substituto"]["nome"] if sit["substituto"] else "o Vice-Presidente em exercício"
+        ato = "ato de designação ainda não assinado"
     return [
         f"Controlador: {org['nome']}, CNPJ {org['cnpj']}, {org['endereco']}; contato: {org['email']}.",
         f"Encarregado pelo tratamento de dados pessoais: {encarregado}; substituto: {substituto} ({ato}).",

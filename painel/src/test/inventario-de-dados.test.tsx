@@ -75,6 +75,7 @@ function desenhar() {
   const cliente = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
+  ultimoCliente = cliente
   return render(
     <QueryClientProvider client={cliente}>
       <MemoryRouter>
@@ -83,6 +84,8 @@ function desenhar() {
     </QueryClientProvider>,
   )
 }
+
+let ultimoCliente: QueryClient
 
 beforeEach(() => vi.resetAllMocks())
 
@@ -190,5 +193,32 @@ describe('Inventário de dados (v7.0c)', () => {
     expect(
       await screen.findByText('Versão 0 — proposta do sistema'),
     ).toBeInTheDocument()
+  })
+
+  it('a versão de partida é a da abertura do formulário, mesmo se a lista for relida no meio (achado da conferência)', async () => {
+    vi.mocked(privacidade.obterInventario)
+      .mockResolvedValueOnce(inventario())
+      .mockResolvedValue(
+        inventario({
+          atividades: [
+            atividade({ versao: 3, alterado_em: '2026-10-23T15:00:00' }),
+          ],
+        }),
+      )
+    vi.mocked(privacidade.ajustarAtividade).mockResolvedValue(inventario())
+    desenhar()
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Ajustar' }),
+    )
+    await ultimoCliente.invalidateQueries({ queryKey: ['privacidade'] })
+    expect(await screen.findByText(/Versão 3, de/)).toBeInTheDocument()
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Salvar (versão nova)' }),
+    )
+    expect(privacidade.ajustarAtividade).toHaveBeenCalledWith(
+      'BENEFICIARIOS',
+      expect.anything(),
+      0,
+    )
   })
 })

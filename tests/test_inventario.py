@@ -21,6 +21,8 @@ import sqlalchemy as sa
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
+from fastapi import HTTPException
+import pytest
 
 import app.models  # noqa: F401
 from app import classificacao_de_dados as cl
@@ -111,7 +113,7 @@ def test_ajustar_grava_versao_nova_com_historico_e_auditoria(client, db, auth_he
     assert client.put(f"/api/privacidade/inventario/{codigo}", headers=auth_headers, json={"finalidade": texto + " velha", "versao_base": atual["versao"]}).status_code == 409, \
         "quem salva sobre a versão velha recebe 409"
     historico = client.get(f"/api/privacidade/inventario/{codigo}/historico", headers=auth_headers).json()
-    assert historico[0]["versao"] == depois["versao"] and historico[0]["campos"]["finalidade"] == texto and historico[-1]["por"] == "proposta do sistema"
+    assert historico[0]["versao"] == depois["versao"] and historico[0]["campos"]["finalidade"] == texto and historico[-1]["por"] == "proposta do sistema (a de hoje)"
     entrada = db.query(AuditLog).filter(AuditLog.acao == "ATIVIDADE_AJUSTADA").order_by(AuditLog.id_log.desc()).first()
     assert json.loads(entrada.dados_depois)["atividade"] == codigo and json.loads(entrada.dados_antes)["finalidade"] == atual["finalidade"]
     assert client.put(f"/api/privacidade/inventario/{codigo}", headers=auth_headers, json={"finalidade": texto}).status_code == 409, "nada mudou"
@@ -219,7 +221,7 @@ def test_a_versao_guarda_so_o_diferente_e_a_proposta_nova_aparece(client, db, au
     assert r.status_code == 200, r.text
     guardada = db.query(VersaoDeAtividadeDeTratamento).filter(VersaoDeAtividadeDeTratamento.codigo_atividade == codigo).order_by(
         VersaoDeAtividadeDeTratamento.versao.desc()).first()
-    assert set(guardada.campos) == {"observacoes"}, guardada.campos
+    assert set(guardada.campos["ajustes"]) == {"observacoes"} and guardada.campos["como_ficou"]["observacoes"] == observacao, guardada.campos
     original = inventario.buscar(codigo)
     mudada = inventario.Atividade(**{**original.__dict__, "finalidade": "Finalidade nova escrita no código depois."})
     monkeypatch.setattr(inventario, "_POR_CODIGO", {**inventario._POR_CODIGO, codigo: mudada})
@@ -234,11 +236,16 @@ def test_codigo_antigo_guardado_nao_derruba_o_inventario(db):
 
     usuario = db.query(Usuario).first()
     numero = (db.query(sa.func.max(VersaoDeAtividadeDeTratamento.versao)).filter(VersaoDeAtividadeDeTratamento.codigo_atividade == "OPERACAO").scalar() or 0) + 1
-    db.add(VersaoDeAtividadeDeTratamento(codigo_atividade="OPERACAO", versao=numero, campos={"bases_legais": ["ART14_P1"]}, id_usuario=usuario.id_usuario))
+    linha = VersaoDeAtividadeDeTratamento(codigo_atividade="OPERACAO", versao=numero, campos={"ajustes": {"bases_legais": ["ART14_P1"]}}, id_usuario=usuario.id_usuario)
+    db.add(linha)
     db.commit()
-    operacao = next(a for a in inventario.listar(db)["atividades"] if a["codigo"] == "OPERACAO")
-    assert operacao["bases_legais_texto"] == ["(código antigo: ART14_P1)"]
-    assert inventario.planilha(db) and inventario.pdf(db).startswith(b"%PDF")
+    try:
+        operacao = next(a for a in inventario.listar(db)["atividades"] if a["codigo"] == "OPERACAO")
+        assert operacao["bases_legais_texto"] == ["(código antigo: ART14_P1)"]
+        assert inventario.planilha(db) and inventario.pdf(db).startswith(b"%PDF")
+    finally:
+        db.delete(linha)  # não deixa o código antigo para os outros testes (o banco é compartilhado)
+        db.commit()
 
 
 def test_ordem_nao_e_mudanca_e_base_nova_nao_nasce_conferida(client, auth_headers):
@@ -300,8 +307,58 @@ def test_duas_gravacoes_ao_mesmo_tempo_dao_409(db, monkeypatch):
             return numero - 1
 
     monkeypatch.setattr(db, "query", lambda *a, **k: _Consulta(real_query(*a, **k)) if "max" in str(a) else real_query(*a, **k))
-    try:
+    with pytest.raises(HTTPException) as recusa:
         inventario.atualizar(db, usuario, codigo, {"observacoes": "y" * 12})
-        assert False, "devia recusar"
-    except Exception as erro:
-        assert getattr(erro, "status_code", None) == 409, erro
+    assert recusa.value.status_code == 409
+
+
+
+def test_conferida_nao_passa_para_a_base_que_o_codigo_propuser_depois(client, db, auth_headers, monkeypatch):
+    codigo = "VISITANTE"
+    atual = next(a for a in client.get("/api/privacidade/inventario", headers=auth_headers).json()["atividades"] if a["codigo"] == codigo)
+    if not atual["base_legal_conferida"]:
+        r = client.put(f"/api/privacidade/inventario/{codigo}", headers=auth_headers, json={"base_legal_conferida": True, "versao_base": atual["versao"]})
+        assert r.status_code == 200, r.text
+    assert next(a for a in inventario.listar(db)["atividades"] if a["codigo"] == codigo)["base_legal_conferida"] is True
+    original = inventario.buscar(codigo)
+    if atual["bases_legais"] == sorted(original.bases_legais):  # o encarregado conferiu a proposta: o código passa a propor outra base
+        mudada = inventario.Atividade(**{**original.__dict__, "bases_legais": tuple(sorted(set(original.bases_legais) | {"ART7_I"}))})
+        monkeypatch.setattr(inventario, "_POR_CODIGO", {**inventario._POR_CODIGO, codigo: mudada})
+        monkeypatch.setattr(inventario, "ATIVIDADES", tuple(mudada if a.codigo == codigo else a for a in inventario.ATIVIDADES))
+        depois = next(a for a in inventario.listar(db)["atividades"] if a["codigo"] == codigo)
+        assert depois["base_legal_conferida"] is False, "a base que o código propôs depois não foi conferida"
+
+
+def test_o_historico_mostra_o_que_valia_ao_salvar_e_nao_a_proposta_de_hoje(client, db, auth_headers, monkeypatch):
+    codigo = "TRANSPARENCIA"
+    original = inventario.buscar(codigo)
+    observacao = f"Observação que valia {uuid.uuid4().hex[:6]}."
+    atual = next(a for a in client.get("/api/privacidade/inventario", headers=auth_headers).json()["atividades"] if a["codigo"] == codigo)
+    assert client.put(f"/api/privacidade/inventario/{codigo}", headers=auth_headers, json={"observacoes": observacao, "versao_base": atual["versao"]}).status_code == 200
+    mudada = inventario.Atividade(**{**original.__dict__, "finalidade": "Finalidade que o código passou a propor depois."})
+    monkeypatch.setattr(inventario, "_POR_CODIGO", {**inventario._POR_CODIGO, codigo: mudada})
+    monkeypatch.setattr(inventario, "ATIVIDADES", tuple(mudada if a.codigo == codigo else a for a in inventario.ATIVIDADES))
+    historico = inventario.historico(db, codigo)
+    assert historico[0]["campos"]["finalidade"] == original.finalidade and historico[0]["campos"]["observacoes"] == observacao
+    assert historico[-1]["campos"]["finalidade"] == "Finalidade que o código passou a propor depois."
+
+
+def test_o_cabecalho_usa_os_nomes_do_ato_e_avisa_quando_os_mandatos_mudaram(db, monkeypatch):
+    from app.services import encarregado as servico_encarregado
+
+    monkeypatch.setattr(servico_encarregado, "situacao", lambda db_: {
+        "ato_vigente": {"numero": 7, "nome_encarregado": "Quem o Ato Nomeia", "nome_substituto": "Vice do Ato"},
+        "encarregado": {"nome": "Presidente de Hoje"}, "substituto": None,
+        "avisos": [{"codigo": "ATO_DE_OUTRA_PESSOA", "texto": "x"}],
+    })
+    cabecalho = inventario._cabecalho(db)
+    assert "Quem o Ato Nomeia" in cabecalho[1] and "Presidente de Hoje" not in cabecalho[1]
+    assert "Ato nº 7; os mandatos mudaram e um ato novo está pendente" in cabecalho[1]
+
+
+def test_o_site_editorial_tem_titulares_crianca_e_armazenamento_proprios(db):
+    editorial = next(a for a in inventario.listar(db)["atividades"] if a["codigo"] == "SITE_EDITORIAL")
+    assert "quem edita as notícias do site" in editorial["titulares"] and editorial["pode_ter_crianca"] and editorial["requisito_crianca"]
+    assert any("conta própria do Directus" in a for a in editorial["armazenamento"])
+    assert not any("armazenamento privado" in a for a in editorial["armazenamento"]), "a mídia do Directus não fica no armazenamento privado do sistema"
+    assert (_RAIZ / ".github" / "workflows" / "deploy-site.yml").exists(), "a montagem do site citada em ROTINAS_DO_GITHUB"

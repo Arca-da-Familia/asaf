@@ -58,6 +58,8 @@ function Ajustar({
   aoFechar: () => void
 }) {
   const queryClient = useQueryClient()
+  // a versão que estava na tela quando o formulário abriu: se a lista for relida enquanto se edita, o servidor ainda percebe que outra pessoa salvou (409)
+  const [versaoBase] = useState(atividade.versao)
   const [dados, setDados] = useState<Required<AjusteDeAtividade>>({
     finalidade: atividade.finalidade,
     bases_legais: atividade.bases_legais,
@@ -66,8 +68,7 @@ function Ajustar({
     base_legal_conferida: atividade.base_legal_conferida,
   })
   const salvar = useMutation({
-    mutationFn: () =>
-      ajustarAtividade(atividade.codigo, dados, atividade.versao),
+    mutationFn: () => ajustarAtividade(atividade.codigo, dados, versaoBase),
     onSuccess: (novo) => {
       queryClient.setQueryData(CHAVE, novo)
       void queryClient.invalidateQueries({
@@ -308,7 +309,9 @@ function Cartao({
           </p>
         )}
         <p className="mt-2 text-xs text-muted-foreground">
-          {atividade.dados_pessoais.join(', ') || 'só quem registrou'}
+          {atividade.dados_pessoais.join(', ') ||
+            atividade.tabelas_externas.join('; ') ||
+            'só quem registrou'}
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
           Tabelas: {atividade.tabelas.join(', ')}
