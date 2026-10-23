@@ -317,6 +317,9 @@ evento, voluntários, certificados e o IP da Auditoria.
 
 ### FASE 6 — Comunicação e transparência
 
+> ✅ **FASE 6 FECHADA em 2026-10-23, com o OK do Presidente** (os dois Pontos de Revisão fechados: 1/2 em 20/10 e 2/2 em 23/10). Tudo em produção (`c229176`). A FASE 7 só
+> começa quando ele liberar.
+
 #### v6.1 — Comunicação interna no painel
 
 > **Decisões do Presidente (2026-10-20), ao liberar a FASE 6:** (1) quem publica são o **Presidente e os Secretários**: permissão nova `comunicar`, por padrão no nível Presidente e nos cargos
@@ -733,6 +736,9 @@ traz o relatório com a apresentação. Depois de publicar a homologação, `v6.
 
 ##### 🔍 Ponto de Revisão — FASE 6 (2/2 — fim, fecha v6.2–v6.3)
 
+✅ **FECHADO em 2026-10-23, com o OK do Presidente** ("sim", depois de ler o resumo da revisão e decidir que balanço de anos anteriores fica de fora). A revisão e a correção dos achados
+estão abaixo.
+
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 
 - Disparo em massa (v6.2) exige confirmação com contagem de destinatários antes de enviar — testar a confirmação, não só o envio.
@@ -796,7 +802,7 @@ homologação com a hora já passada, `v6.3-ponto-02` 1 de 1: o agendado não sa
 Regressões verdes: `v6.3c-01/02`, `v6.3b-01/02`, `v5.4g-02` 7/7, `v6.3a-01` 2/2, `v6.1-01` 5/5 (o "Incluir" com a tela nova) e `v5.4d-05` 16/16.
 **Rotina diária em produção:** a "Tarefa Diária (lembretes de mensalidade por e-mail)" rodou pela primeira vez em 22/10 (agendada para 12:00 UTC, o GitHub a disparou às 16:51 UTC):
 verde, "enviados: 0, falhas: 0".
-**No ar (23/10):** as correções estão em produção junto com a v6.3c (`c229176`, ver o registro da v6.3c): o `openapi.json` traz `/api/avisos/{id_aviso}/novos` (sem login: 401). **O Ponto fica aguardando o OK do Presidente para fechar a FASE 6.**
+**No ar (23/10):** as correções estão em produção junto com a v6.3c (`c229176`, ver o registro da v6.3c): o `openapi.json` traz `/api/avisos/{id_aviso}/novos` (sem login: 401). (O Ponto foi fechado pelo Presidente em 23/10: ver o topo deste bloco.)
 
 ### FASE 7 — LGPD e proteção de dados (programa, não checklist)
 
