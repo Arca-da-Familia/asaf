@@ -904,12 +904,44 @@ conflito de interesse), imprimir, assinar (ele e o 1º Vice-Presidente, ciente) 
 
 ##### v7.0b — Classificação dos dados por sensibilidade, no próprio modelo
 
-- [ ] Cada coluna com dado de pessoa marcada **no modelo** (SQLAlchemy `info`) como **pessoal**, **pessoal sensível** (LGPD art. 5º, II, e art. 11) ou de **criança e adolescente** (art. 14),
-      e cada tabela com o titular a que se refere; uma lista central lida do próprio modelo (não um documento à parte).
-- [ ] **Teste que trava o esquecimento:** tabela nova com coluna de pessoa sem classificação reprova a suíte.
-- [ ] **Controles por classificação, não caso a caso:** (1) o que é sensível ou de criança não entra no "antes e depois" da Auditoria (só o fato e quem fez); (2) a anonimização do desligado
-      cobre todas as colunas pessoais da pessoa (o teste compara com a classificação); (3) a consulta a registro sensível é auditada (já é no prontuário; o teste passa a exigir de toda rota
-      que devolve coluna sensível).
+- [x] Cada coluna com dado de pessoa marcada **no modelo** (`Column.info["lgpd"]`, escrito a partir de um **mapa único**, `app/classificacao_de_dados.py`) como **pessoal**,
+      **pessoal sensível** (LGPD art. 5º, II, e art. 11; com a ação de Auditoria que a LEITURA grava), pessoal de **texto livre que pode ter dado sensível**, ou pessoal do
+      **andamento** (situação, datas, consentimento: visível na Auditoria, é a prova do que mudou); cada tabela com os **titulares** (das chaves estrangeiras e do mapa) e a marca
+      **pode ter criança ou adolescente** (art. 14; explícita ou derivada, um nível, pela chave estrangeira). `inventario_do_modelo()` lê tudo do modelo (é a base da v7.0c).
+      Sensíveis hoje: o prontuário do beneficiário, o encaminhamento à rede externa (posto de saúde, CRAS, Conselho Tutelar) e o motivo da mudança de situação (licença por saúde).
+- [x] **Testes que travam o esquecimento:** coluna cujo nome indica dado de pessoa — inclusive os nomes de dado sensível (saúde, raça, religião, deficiência, alergia, biometria...)
+      — sem classificação reprova; nas tabelas centrais de pessoa, nas que podem ter criança e nas que têm dado sensível, **toda** coluna tem de estar classificada (ali o nome não
+      basta); nome citado no mapa que não existe mais no modelo reprova.
+- [x] **Controles por classificação, não caso a caso:** (1) a Auditoria não grava o valor de coluna sensível nem o de coluna pessoal de tabela que pode ter criança (fica a chave, para
+      se saber o que mudou; o andamento continua visível); (2) a anonimização do desligado cobre toda coluna pessoal da pessoa (o teste compara com a classificação) — passaram a
+      ser apagados também as **habilidades** cadastradas e o **motivo e o documento de referência** das mudanças de situação; (3) toda coluna sensível declara a leitura auditada e o
+      teste confere a rota de cada uma — a classificação mostrou que **a leitura dos encaminhamentos e do histórico de situação não era auditada** (agora é:
+      `CONSULTA_ENCAMINHAMENTOS`, `CONSULTA_HISTORICO_SITUACAO`; o prontuário já era).
+
+✅ **v7.0b concluída (2026-10-23).**
+
+**Conferência independente (agente, só leitura) achou 12 pontos e, na reconferência, mais 4; todos corrigidos antes de publicar:** o motivo da licença ("Motivo: SAUDE") também ia para
+a **linha do tempo** da pessoa, que a ficha 360 mostra sem auditar, e nem a anonimização o apagava (saiu do texto; a migração `6f679ca3b6bd` limpou as linhas já gravadas; a
+anonimização apaga o motivo e o documento de referência); o desligamento gravava o motivo na Auditoria (o catálogo é editável); os **campos personalizados** de beneficiário (por
+exemplo, a alergia de uma criança) iam com o valor para a Auditoria (agora só quais campos mudaram) e a **mesclagem** gravava o nome da pessoa absorvida; o detector de nomes não
+reconhecia os nomes de dado sensível (`saude`, `raca`, `deficiencia`...) e a regra ficou mais forte (toda coluna das tabelas centrais, de criança e de dado sensível); tabelas que podem
+ter criança não estavam marcadas (fotos de eventos e de etapas, presença, linha do tempo, inscrição, respostas da pesquisa) — a marca passou a ser derivada pela chave estrangeira;
+colunas pessoais sem classificação (o texto do certificado emitido, a defesa e a decisão do processo disciplinar, o corpo da ata, o erro do envio de e-mail, que traz o endereço); a
+Política dizia "quem tem ou já teve outro papel não é incluído" (o código só pula quem ainda tem outro papel ATIVO, e só na rotina automática) e não citava a linha do tempo entre o que
+não tem prazo; e, na reconferência, colunas de andamento (o consentimento do responsável registrado, a situação da inscrição) que ficavam escondidas na Auditoria — justamente a prova.
+**Testes locais:** servidor 1573 em duas rodadas seguidas (22 testes novos da classificação; a máscara da Auditoria, a leitura auditada dos encaminhamentos e as habilidades na anonimização
+confirmadas por mutação) e 1573 contra Postgres 18 no `validar-postgres.yml` (a migração nova desceu e subiu duas vezes com o `alembic check` limpo); site 923 de navegador em duas
+rodadas (Política 2.8), estados vazios, Instituição, sincronização e tamanho; painel sem mudança de tela nesta versão (só o roteiro do robô).
+**Na homologação (2026-10-23):** a branch `v70b-classificacao` foi publicada lá e a migração rodou no banco de TESTE (`Running upgrade 56d7ae211884 -> 6f679ca3b6bd`). Robô `v7.0b-01`
+2/2: o **Presidente** cadastra uma associada pela tela, abre a aba Situação e registra uma licença por motivo de **Saúde** — o histórico mostra "Licença — Saúde"; a Auditoria tem a
+licença registrada **sem** o motivo e a leitura do histórico de situação com quem leu (também na tela da Auditoria); um encaminhamento ao **posto de saúde**: quem é da equipe lê, a
+Auditoria guarda o registro com a rede escondida ("[omitido: dado pessoal sensível]") e a leitura da lista com quem leu. Regressões verdes: `v7.0a-01` 4/4, `v5.4f-01` 22/22 (projetos,
+beneficiários, prontuário e encaminhamento pelas telas) e `v5.4c-fase1` 24/24 (cadastro, situação, família, mesclagem) — na 1ª rodada deste o teste da mesclagem falhou por um motivo
+alheio à versão (a tela de Qualidade da base mostrou primeiro os itens que rodadas antigas do robô deixaram na fila; a busca tinha achado os novos) e passou na 2ª: intermitente, registrado.
+**Em produção (2026-10-23):** `main` = `4e8217d`; Deploy API verde (a suíte contra Postgres e `Running upgrade 56d7ae211884 -> 6f679ca3b6bd`) e Deploy Site verde (o painel não mudou e segue em `f0fcfd0`); `asaf.org.br/version.json` = `4e8217d`; `asaf.org.br/privacidade/` diz "Versão 2.8 · em vigor desde 23 de outubro de 2026" e lista as habilidades e, nas mudanças de situação, o motivo e o documento de referência entre o que a anonimização apaga; as rotas de leitura agora auditadas respondem 401 sem login. Nenhum dado foi criado em produção.
+**Riscos aceitos (registro):** o associado pode ter 16 ou 17 anos (Estatuto, art. 12) e é adolescente (LGPD, art. 14): o inventário diz isso, mas a máscara da Auditoria **não** se
+liga no cadastro de associado (o que muda na ficha de um associado é prestação de contas da gestão); a marca derivada de criança esconde na Auditoria também o dado de adultos nas
+tabelas marcadas (a presença, a linha do tempo, a inscrição); a leitura do histórico de situação grava uma linha na Auditoria a cada vez que a aba é aberta, mesmo sem motivo sensível.
 
 **Fora de escopo de propósito:** criptografia por coluna (FASE 15, v15.x); mascarar CPF nas telas (v7.3).
 
