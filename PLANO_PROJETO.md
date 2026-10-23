@@ -947,14 +947,47 @@ tabelas marcadas (a presença, a linha do tempo, a inscrição); a leitura do hi
 
 ##### v7.0c — Inventário de dados (registro das operações de tratamento) vivo no sistema
 
-- [ ] Cada **atividade de tratamento** registrada no sistema com as seções do modelo simplificado da ANPD: titulares, dados (e se há sensível ou de criança), finalidade, base legal (as
-      hipóteses do art. 7º e do art. 11, escolhidas de uma lista), com quem é compartilhado (Azure, Google Workspace do e-mail, GitHub, etc.), onde fica guardado, medidas de segurança e
-      **prazo de guarda lido da regra de retenção em vigor** (ou "sem rotina ainda", dito com todas as letras, até a v7.1).
-- [ ] **Vivo de verdade:** as tabelas de cada atividade vêm da classificação da v7.0b, e o teste reprova tabela com dado pessoal que nenhuma atividade cobre; editar uma atividade guarda o
-      histórico (quem, quando, o que mudou) e vai para a Auditoria.
-- [ ] **Exportar** o inventário (PDF e planilha) para apresentar à ANPD quando pedido.
+- [x] Cada **atividade de tratamento** (15, em `app/services/inventario.py`) com as seções do modelo simplificado da ANPD: o controlador e o encarregado no cabeçalho;
+      titulares, dados pessoais, sensíveis e de criança (lidos do modelo, da classificação da v7.0b); finalidade; base legal (as hipóteses dos arts. 7º e 11 com o texto da
+      Lei nº 13.709/2018 conferido no Planalto, como **proposta do sistema até o encarregado marcar que conferiu**; o art. 14 aparece como **requisito** — melhor interesse,
+      Enunciado CD/ANPD nº 1/2023 —, não como base); com quem é compartilhado (Microsoft Azure, GitHub, Google Workspace: o que cada um faz e onde); onde fica guardado
+      (Brasil, região Brazil South, com uma cópia das cópias de segurança e uma réplica dos arquivos privados na região par **South Central US, nos Estados Unidos** —
+      conferido na documentação da Microsoft; o site publicado por serviço registrado na Central US); medidas de segurança; e o **prazo de guarda lido da regra de
+      retenção em vigor** (ou "sem rotina automática de eliminação ainda", dito com todas as letras). O Directus (editor do site) entra como atividade própria, com os
+      dados que ficam fora do modelo deste sistema.
+- [x] **Vivo de verdade:** as tabelas de cada atividade vêm da classificação, e a suíte reprova tabela com dado pessoal que nenhuma atividade cobre (a tela também mostra, se
+      acontecer); outros testes conferem com o código **quais rotinas do GitHub** rodam (os fluxos `tarefa-*.yml`) e **quais módulos mandam e-mail** — a atividade tocada
+      tem de citar o GitHub ou o Google. O que é fato (tabelas, dados, operadores, onde, prazo) vem do código; o que é decisão (finalidade, base legal, medidas,
+      observações e "base legal conferida") o encarregado ajusta: cada gravação é uma **versão nova** (guarda o ajuste e o texto inteiro que valia), com o histórico,
+      a Auditoria e a conferência da versão de partida (quem salva sobre uma versão velha recebe "recarregue"); a conferência da base legal vale só para as bases
+      conferidas. Ver: `privacidade`; ajustar: `privacidade_gerir` (só o Presidente).
+- [x] **Exportar** o inventário em planilha (CSV que abre no Excel, protegida contra fórmula) e em PDF, para apresentar à ANPD quando pedido (com Auditoria).
 
 **Fora de escopo de propósito:** consentimento e retenção por finalidade (v7.1); contratos com operadores (v7.3) — aqui só o registro de com quem se compartilha.
+
+✅ **v7.0c concluída (2026-10-23).**
+
+**Conferência independente (agente, só leitura) achou 25 pontos em três rodadas; todos corrigidos antes de publicar.** Os mais sérios: o texto das medidas de segurança dizia
+"banco sem acesso público" (há firewall com lista de permissões, mas o banco é alcançável) e iria para a ANPD; faltava o GitHub onde ele age (a limpeza diária do visitante, a
+montagem do site com fotos e nomes, a rotina mensal dos fornecedores, as migrações) e o Directus, que guarda nome, e-mail e IP de quem edita; o art. 14 aparecia como base
+legal; as respostas por e-mail e a doação "sem dado pessoal" estavam ditas além do que o código faz; a versão "congelava" a proposta do sistema (agora guarda só o
+ajuste); duas pessoas salvando ao mesmo tempo davam erro 500 e uma tela aberta podia apagar a versão de outra pessoa sem aviso; a planilha executava texto começando por
+"="; o histórico mostrava as versões antigas misturadas com a proposta de hoje; o cabeçalho podia juntar um nome a um ato que nomeia outra pessoa.
+**Política 2.9:** o inventário mostrou que a Política não nomeava os prestadores nem dizia que parte do tratamento acontece fora do Brasil: o parágrafo novo diz isso (o
+mecanismo da transferência internacional, LGPD art. 33, fica para a v7.3).
+**Pipeline:** os portões pegaram mais dois (o teste "toda rota tem tela" não reconhecia o endereço montado na tela; o parágrafo novo da Política tinha o e-mail fixo em vez do da
+Instituição) — corrigidos.
+**Testes locais:** servidor 1593 em duas rodadas seguidas (testes novos do inventário; a conferência presa às bases, os nomes do ato no cabeçalho e a versão de partida da tela
+confirmados por mutação) e 1593 contra Postgres 18 (`validar-postgres.yml`, a migração desce e sobe com o `alembic check` limpo); painel 740 em duas rodadas, tipos, lint e
+formatação limpos; site 924 de navegador em duas rodadas, estados vazios, Instituição, sincronização e tamanho.
+**Na homologação (2026-10-23):** a branch `v70c-inventario` foi publicada e a migração rodou no banco de TESTE (`Running upgrade 6f679ca3b6bd -> 30a03a70ba56`). Robô
+`v7.0c-01` 3/3: a **Presidente do cargo** abre Privacidade > Inventário de dados; o atendimento social a beneficiários mostra "Dado sensível", "Pode ter criança ou
+adolescente" e "Sem rotina automática de eliminação ainda"; o cadastro mostra o prazo do associado desligado e as cópias nos Estados Unidos; "O que falta" conta as bases
+ainda como proposta; nos Fornecedores, tirar todas as bases é recusado, e a finalidade nova com a base conferida vira versão nova, com o histórico; a planilha baixa com as
+seções e o PDF abre; o **1º Vice-Presidente** vê, não tem "Ajustar" e o servidor recusa (403); a **Auditoria** tem o ajuste e as exportações, com quem fez. Regressões verdes:
+`v7.0a-01` 4/4, `v7.0b-01` 2/2 e `v7.0a-02` 1/1 (este falhou por fixar a versão 2.7 da Política; o robô passou a conferir a versão em vigor). O GitHub devolveu erro 500 ao
+disparar dois robôs uma vez (falha do GitHub; disparados de novo).
+**Em produção (2026-10-23):** `main` = `d8fabe9`; Deploy API verde (a suíte contra Postgres e `Running upgrade 6f679ca3b6bd -> 30a03a70ba56`), Deploy Painel e Deploy Site verdes; `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `d8fabe9`; o `openapi.json` traz as 5 rotas do inventário e `GET /api/privacidade/inventario` sem login responde 401; `asaf.org.br/privacidade/` diz "Versão 2.9 · em vigor desde 23 de outubro de 2026" e que parte do tratamento acontece fora do Brasil. Nenhum ajuste foi feito no inventário de produção (a base legal fica como proposta até o encarregado conferir, quando o sistema estiver pronto).
 
 ##### v7.0d — Relatório de impacto (RIPD) obrigatório antes do alto risco
 
