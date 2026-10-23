@@ -53,9 +53,11 @@ test('a Presidente do cargo vê as seções, ajusta uma atividade (versão nova)
   const beneficiarios = page.getByRole('region', {
     name: 'Atendimento social a beneficiários',
   })
-  await expect(beneficiarios.getByText('Dado sensível')).toBeVisible()
   await expect(
-    beneficiarios.getByText('Pode ter criança ou adolescente'),
+    beneficiarios.getByText('Dado sensível', { exact: true }),
+  ).toBeVisible()
+  await expect(
+    beneficiarios.getByText('Pode ter criança ou adolescente', { exact: true }),
   ).toBeVisible()
   await expect(
     beneficiarios.getByText('Sem rotina automática de eliminação ainda.'),
@@ -97,7 +99,9 @@ test('a Presidente do cargo vê as seções, ajusta uma atividade (versão nova)
   await form.getByRole('button', { name: 'Salvar (versão nova)' }).click()
   await expect(form).toHaveCount(0)
   await expect(fornecedores).toContainText(FINALIDADE)
-  await expect(fornecedores.getByText('Base legal conferida')).toBeVisible()
+  await expect(
+    fornecedores.getByText('Base legal conferida', { exact: true }),
+  ).toBeVisible()
   await expect(fornecedores).toContainText(`Versão ${versaoAntes + 1}, de`)
   await fornecedores.getByRole('button', { name: 'Ver o histórico' }).click()
   await expect(

@@ -61,15 +61,18 @@ function Ajustar({
   const [dados, setDados] = useState<Required<AjusteDeAtividade>>({
     finalidade: atividade.finalidade,
     bases_legais: atividade.bases_legais,
-    operadores: atividade.operadores,
     medidas: atividade.medidas,
     observacoes: atividade.observacoes,
     base_legal_conferida: atividade.base_legal_conferida,
   })
   const salvar = useMutation({
-    mutationFn: () => ajustarAtividade(atividade.codigo, dados),
+    mutationFn: () =>
+      ajustarAtividade(atividade.codigo, dados, atividade.versao),
     onSuccess: (novo) => {
       queryClient.setQueryData(CHAVE, novo)
+      void queryClient.invalidateQueries({
+        queryKey: [...CHAVE, 'historico', atividade.codigo],
+      })
       aoFechar()
     },
   })
@@ -111,34 +114,15 @@ function Ajustar({
               className="mt-1"
               checked={dados.bases_legais.includes(b.codigo)}
               onChange={() =>
+                // base legal nova não nasce conferida: o encarregado marca de novo
                 setDados({
                   ...dados,
                   bases_legais: alternar(dados.bases_legais, b.codigo),
+                  base_legal_conferida: false,
                 })
               }
             />
             {b.texto}
-          </label>
-        ))}
-      </fieldset>
-      <fieldset>
-        <legend className="text-sm font-medium">
-          Com quem se compartilha (operadores)
-        </legend>
-        {inventario.operadores.map((o) => (
-          <label key={o.codigo} className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={dados.operadores.includes(o.codigo)}
-              onChange={() =>
-                setDados({
-                  ...dados,
-                  operadores: alternar(dados.operadores, o.codigo),
-                })
-              }
-            />
-            {o.nome} — {o.o_que_faz}
           </label>
         ))}
       </fieldset>
@@ -286,9 +270,22 @@ function Cartao({
                   {p.rotulo}: {p.dias} dias
                 </li>
               ))}
+              {atividade.prazos_fixos.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
             </ul>
           )}
         </Secao>
+        {atividade.requisito_crianca && (
+          <Secao titulo="Criança e adolescente">
+            {atividade.requisito_crianca}
+          </Secao>
+        )}
+        {atividade.tabelas_externas.length > 0 && (
+          <Secao titulo="Dados fora deste sistema">
+            {atividade.tabelas_externas.join('; ')}
+          </Secao>
+        )}
         <Secao titulo="Medidas de segurança">{atividade.medidas}</Secao>
         {atividade.observacoes && (
           <Secao titulo="Observações">{atividade.observacoes}</Secao>

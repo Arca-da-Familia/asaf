@@ -40,7 +40,9 @@ def gerar(titulo_do_arquivo: str, paragrafos: list[str], rodape: str, *, titulos
 
     for indice, paragrafo in enumerate(paragrafos):
         fonte = _FONTE_TITULO if indice in titulos else _FONTE
-        for linha in _quebrar(paragrafo, util, fonte, tamanho) if paragrafo else [""]:
+        # o texto digitado num campo pode ter quebras de linha: cada uma vira linha própria (sem isso, o PDF juntava tudo)
+        linhas = [pedaco for parte in paragrafo.split("\n") for pedaco in (_quebrar(parte, util, fonte, tamanho) if parte else [""])] if paragrafo else [""]
+        for linha in linhas:
             if y < margem + entrelinha:
                 escrever_rodape()
                 c.showPage()

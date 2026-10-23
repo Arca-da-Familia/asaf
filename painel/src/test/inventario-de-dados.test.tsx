@@ -45,8 +45,11 @@ const atividade = (
   dados_sensiveis: ['registros_atendimento.relato'],
   texto_livre_que_pode_ter_sensivel: [],
   pode_ter_crianca: true,
+  requisito_crianca: 'Art. 14: no melhor interesse da criança',
+  tabelas_externas: [],
   armazenamento: ['Banco de dados no Azure'],
   prazos_de_guarda: [],
+  prazos_fixos: [],
   sem_rotina_de_guarda: true,
   versao: 0,
   alterado_em: null,
@@ -157,7 +160,11 @@ describe('Inventário de dados (v7.0c)', () => {
         bases_legais: ['ART11_I', 'ART7_V'],
         base_legal_conferida: true,
       }),
+      0,
     )
+    expect(
+      screen.getByText('Art. 14: no melhor interesse da criança'),
+    ).toBeInTheDocument()
   })
 
   it('quem só vê não tem Ajustar, mas baixa e vê o histórico', async () => {

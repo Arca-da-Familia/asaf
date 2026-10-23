@@ -126,8 +126,11 @@ export type AtividadeDeTratamento = {
   dados_sensiveis: string[]
   texto_livre_que_pode_ter_sensivel: string[]
   pode_ter_crianca: boolean
+  requisito_crianca: string | null
+  tabelas_externas: string[]
   armazenamento: string[]
   prazos_de_guarda: { regra: string; rotulo: string; dias: number }[]
+  prazos_fixos: string[]
   sem_rotina_de_guarda: boolean
   versao: number
   alterado_em: string | null
@@ -142,12 +145,12 @@ export type Inventario = {
   pode_gerir: boolean
 }
 
+// os operadores (com quem se compartilha) são fato do sistema: não se ajustam na tela
 export type AjusteDeAtividade = Partial<
   Pick<
     AtividadeDeTratamento,
     | 'finalidade'
     | 'bases_legais'
-    | 'operadores'
     | 'medidas'
     | 'observacoes'
     | 'base_legal_conferida'
@@ -164,10 +167,15 @@ export type VersaoDeAtividade = {
 export const obterInventario = () =>
   apiFetch<Inventario>('/api/privacidade/inventario')
 
-export const ajustarAtividade = (codigo: string, dados: AjusteDeAtividade) =>
+// `versaoBase`: a versão que a tela mostrava; se outra pessoa salvou depois, o servidor recusa (409) em vez de apagar o que ela fez
+export const ajustarAtividade = (
+  codigo: string,
+  dados: AjusteDeAtividade,
+  versaoBase: number,
+) =>
   apiFetch<Inventario>(`/api/privacidade/inventario/${codigo}`, {
     method: 'PUT',
-    body: JSON.stringify(dados),
+    body: JSON.stringify({ ...dados, versao_base: versaoBase }),
   })
 
 export const historicoDaAtividade = (codigo: string) =>

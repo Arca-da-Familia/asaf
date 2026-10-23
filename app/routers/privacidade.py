@@ -90,11 +90,11 @@ async def baixar_assinado(id_ato: int, request: Request, db: Session = Depends(g
 # ------------------------------------------------------------------------------------------------ v7.0c - o inventário de dados (registro das operações de tratamento)
 class AtividadeAjustar(BaseModel):
     finalidade: Optional[str] = Field(default=None, max_length=2000)
-    bases_legais: Optional[list[str]] = Field(default=None, max_length=12)
-    operadores: Optional[list[str]] = Field(default=None, max_length=10)
+    bases_legais: Optional[list[str]] = Field(default=None, max_length=20)
     medidas: Optional[str] = Field(default=None, max_length=3000)
     observacoes: Optional[str] = Field(default=None, max_length=2000)
     base_legal_conferida: Optional[bool] = None
+    versao_base: Optional[int] = None  # a versão que a tela mostrava: se outra pessoa salvou depois, 409
 
 
 @router.get("/api/privacidade/inventario", summary="O inventário de dados: cada atividade de tratamento com as seções do modelo da ANPD e o que falta")
@@ -102,13 +102,14 @@ def inventario(db: Session = Depends(get_db), usuario: Usuario = Depends(_pode))
     return _com_quem_ve(db, usuario, servico_inventario.listar(db))
 
 
-@router.put("/api/privacidade/inventario/{codigo}", summary="Ajustar a finalidade, a base legal, os operadores, as medidas e as observações de uma atividade (versão nova)")
+@router.put("/api/privacidade/inventario/{codigo}", summary="Ajustar a finalidade, a base legal, as medidas e as observações de uma atividade (versão nova)")
 def ajustar_atividade(codigo: str, dados: AtividadeAjustar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_gerir)):
-    antes, depois = servico_inventario.atualizar(db, usuario, codigo, dados.model_dump())
+    campos = dados.model_dump(exclude={"versao_base"})
+    antes, depois, numero = servico_inventario.atualizar(db, usuario, codigo, campos, versao_base=dados.versao_base)
     mudou = sorted(k for k in depois if depois[k] != antes.get(k))
     registrar_auditoria(
         db, usuario, "versoes_de_atividade_de_tratamento", "ATIVIDADE_AJUSTADA", ip_origem=_ip(request),
-        dados_antes={k: antes[k] for k in mudou}, dados_depois={"atividade": codigo, **{k: depois[k] for k in mudou}},
+        dados_antes={k: antes[k] for k in mudou}, dados_depois={"atividade": codigo, "versao": numero, **{k: depois[k] for k in mudou}},
     )
     return _com_quem_ve(db, usuario, servico_inventario.listar(db))
 

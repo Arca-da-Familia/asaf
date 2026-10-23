@@ -5,9 +5,11 @@ sensível ou de criança), finalidade, base legal, compartilhamento, medidas de 
 
 O que é FATO DO SISTEMA vem do código e não se edita na tela: as tabelas de cada atividade (cobertas pela classificação da v7.0b: tabela nova com dado pessoal sem
 atividade reprova a suíte e aparece como pendência), os titulares, as colunas pessoais e sensíveis, se pode ter criança, onde fica guardado e o prazo de guarda
-LIDO DA REGRA DE RETENÇÃO EM VIGOR (ou "sem rotina automática ainda", dito com todas as letras). O que é DECISÃO da associação (finalidade, base legal, com quem
-se compartilha, medidas, observações e se o encarregado conferiu a base legal) nasce como proposta do sistema e o encarregado ajusta: cada gravação é uma versão
-nova (app/models/privacidade.py::VersaoDeAtividadeDeTratamento), com Auditoria. A base legal é PROPOSTA até o encarregado marcar que conferiu (a v7.1 trata a
+LIDO DA REGRA DE RETENÇÃO EM VIGOR (ou "sem rotina automática ainda", dito com todas as letras). Com quem se compartilha (os operadores) também é fato: vem do
+código e de testes que conferem as rotinas do GitHub e os envios de e-mail. O que é DECISÃO da associação (finalidade, base legal, medidas, observações e se o
+encarregado conferiu a base legal) nasce como proposta do sistema e o encarregado ajusta: cada gravação é uma versão nova (app/models/privacidade.py::
+VersaoDeAtividadeDeTratamento) que guarda SÓ o que ficou diferente da proposta (o que ele não mudou acompanha o código), com Auditoria e conferência da versão
+de partida (quem salva sobre uma versão velha recebe 409). A base legal é PROPOSTA até o encarregado marcar que conferiu (a v7.1 trata a
 base legal por finalidade a fundo)."""
 import csv
 import io
@@ -17,11 +19,13 @@ from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import classificacao_de_dados as cl
 from app.models.core import Usuario
 from app.models.privacidade import VersaoDeAtividadeDeTratamento
+from app.services import encarregado as servico_encarregado
 from app.services import pdf_de_texto, retencao
 from app.services.fuso import dia_e_hora_em_belem
 
@@ -39,22 +43,29 @@ BASES_LEGAIS: dict[str, str] = {
     "ART11_II_D": "Art. 11, II, d — exercício regular de direitos, inclusive em contrato (dado sensível)",
     "ART11_II_E": "Art. 11, II, e — proteção da vida ou da incolumidade física (dado sensível)",
     "ART11_II_G": "Art. 11, II, g — prevenção à fraude e segurança do titular na identificação e autenticação (dado sensível)",
-    "ART14_P1": "Art. 14, § 1º — consentimento específico e em destaque de pelo menos um dos pais ou do responsável legal (criança)",
 }
+
+# Criança e adolescente: o art. 14 não é base legal, é REQUISITO (Enunciado CD/ANPD nº 1/2023: vale qualquer hipótese do art. 7º ou do art. 11, desde que
+# observado e prevalecente o melhor interesse); se a base for o consentimento, o de criança é dado por um dos pais ou pelo responsável (art. 14, § 1º)
+REQUISITO_CRIANCA = (
+    "Art. 14: o tratamento é feito no melhor interesse da criança e do adolescente (Enunciado CD/ANPD nº 1/2023); quando a base é o consentimento, o de "
+    "criança é dado por pelo menos um dos pais ou pelo responsável legal (art. 14, § 1º)"
+)
 
 # ---------------------------------------------------------------------------------------- com quem (operadores) e onde (conferido na infraestrutura em 2026-10-23)
 OPERADORES: dict[str, dict] = {
     "AZURE": {
         "nome": "Microsoft (Azure)",
         "o_que_faz": "hospeda a API, o banco de dados, os arquivos privados, o cofre de segredos e o registro de erros do sistema",
-        "onde": "Brasil (região Brazil South); as cópias de segurança do banco (35 dias) e a réplica dos arquivos privados ficam na região par, South Central US "
-                "(Estados Unidos); as páginas do site e do painel são publicadas por um serviço registrado na região Central US (Estados Unidos)",
+        "onde": "Brasil (região Brazil South); uma cópia das cópias de segurança do banco (35 dias) e uma réplica dos arquivos privados ficam na região par, "
+                "South Central US (Estados Unidos); as páginas do site e do painel são publicadas por um serviço registrado na região Central US (Estados Unidos)",
         "fora_do_brasil": True,
     },
     "GITHUB": {
         "nome": "GitHub (Microsoft)",
-        "o_que_faz": "executa as rotinas agendadas que leem o banco e agem sobre ele (prazos de guarda, lembretes, avisos, vagas de evento)",
-        "onde": "servidores do GitHub, fora do Brasil; o dado passa pela rotina e não fica guardado lá",
+        "o_que_faz": "executa as rotinas agendadas que leem o banco e agem sobre ele (prazos de guarda, lembretes, avisos, vagas de evento) e monta e publica o "
+                     "site a partir do que é público (Diretoria, fotos de evento e de parceria, documentos aprovados, notícias)",
+        "onde": "servidores do GitHub, fora do Brasil, enquanto a rotina ou a montagem do site roda",
         "fora_do_brasil": True,
     },
     "GOOGLE": {
@@ -68,9 +79,14 @@ OPERADORES: dict[str, dict] = {
 ARMAZENAMENTO_BANCO = "Banco de dados PostgreSQL no Microsoft Azure (Brasil, região Brazil South), com cópias de segurança por 35 dias na região South Central US (Estados Unidos)"
 ARMAZENAMENTO_ARQUIVOS = "Arquivos no armazenamento privado do Microsoft Azure (Brasil, região Brazil South), com réplica na região South Central US (Estados Unidos)"
 
+ARMAZENAMENTO_SITE = (
+    "O que é público vai também ao site (montado no GitHub e publicado por serviço do Azure registrado na região Central US, Estados Unidos)"
+)
+
 MEDIDAS_GERAIS = (
     "Acesso só pelo painel, com login e permissão por função (privilégio mínimo); segundo passo (MFA) para a Presidência e a Diretoria; conexão cifrada (HTTPS); "
-    "banco com firewall e sem acesso público; segredos no cofre do Azure; toda alteração e toda exportação registrada na Auditoria"
+    "banco protegido por firewall (só serviços do Azure e os endereços da administração) e conexão cifrada; segredos no cofre do Azure; toda alteração e toda "
+    "exportação registrada na Auditoria"
 )
 
 
@@ -87,6 +103,9 @@ class Atividade:
     medidas: str = ""
     observacoes: str = ""
     so_rastro_de_operacao: bool = False  # cobre as tabelas cujo único dado de pessoa é QUEM registrou (o usuário do painel)
+    prazos_fixos: tuple[str, ...] = ()  # limpeza técnica que não é regra editável (o código do visitante vencido, por exemplo)
+    publicado_no_site: bool = False  # parte do que é público vai ao site
+    tabelas_externas: tuple[str, ...] = ()  # dado de pessoa fora do modelo deste sistema (o Directus, editor do site)
 
 
 ATIVIDADES: tuple[Atividade, ...] = (
@@ -119,7 +138,7 @@ ATIVIDADES: tuple[Atividade, ...] = (
         ("adesoes_peticao", "comprovantes_voto_secreto", "credenciamentos_assembleia", "deliberacoes", "habilitados_assembleia", "impugnacoes_votacao",
          "justificativas_falta_assembleia", "mandatos", "declaracoes_conflito_interesse", "votos_abertos", "atas", "ocorrencias_sessao",
          "pareceres_prestacao_contas", "fotos_da_diretoria", "processos_disciplinares", "manifestacoes_diretoria_disciplinar"),
-        arquivos=True,
+        arquivos=True, publicado_no_site=True,
         medidas="O voto secreto não é ligado a quem votou; a foto da Diretoria só com autorização e apagada ao fim do mandato.",
     ),
     Atividade(
@@ -129,7 +148,7 @@ ATIVIDADES: tuple[Atividade, ...] = (
         ("ART7_V", "ART7_IX", "ART7_I"), ("AZURE", "GITHUB", "GOOGLE"),
         ("projetos_eventos", "equipe_projeto", "itens_cronograma_projeto", "eventos", "inscricoes", "registros_presenca", "respostas_pesquisa_satisfacao",
          "fotos_evento", "documentos_emitidos", "reservas_espaco"),
-        arquivos=True,
+        arquivos=True, publicado_no_site=True,
         medidas="A foto de evento só vai ao site com autorização e com o evento público; exportação de inscritos e de presença com permissão própria.",
         observacoes="Inscrição de família pode ter criança. As perguntas livres do formulário de inscrição não devem pedir dado sensível.",
     ),
@@ -137,7 +156,7 @@ ATIVIDADES: tuple[Atividade, ...] = (
         "BENEFICIARIOS", "Atendimento social a beneficiários",
         "Acompanhar as famílias e as crianças atendidas nos projetos: vínculo ao projeto, prontuário de atendimento e encaminhamento à rede externa (CRAS, "
         "escola, posto de saúde, Conselho Tutelar).",
-        ("ART11_I", "ART14_P1", "ART7_I"), ("AZURE",),
+        ("ART11_I", "ART7_I"), ("AZURE",),
         ("beneficiarios", "beneficiarios_projeto", "registros_atendimento", "encaminhamentos_rede_externa"),
         medidas="Prontuário e encaminhamentos só para a equipe ATIVA do projeto, inclusive para a Presidência; toda leitura vai para a Auditoria; o valor "
                 "sensível não fica na Auditoria; exportação com permissão própria.",
@@ -155,14 +174,16 @@ ATIVIDADES: tuple[Atividade, ...] = (
         "Receber doações (inclusive o pedido pelo site com Pix), confirmar, emitir o recibo numerado e prestar contas das campanhas.",
         ("ART7_V", "ART7_II", "ART7_I"), ("AZURE", "GITHUB", "GOOGLE"),
         ("doacoes", "intencoes_de_doacao"), ("intencoes_de_doacao", "doador_identificado"),
-        medidas="A doação sem se identificar não grava dado pessoal; o pedido pelo site tem limite de pedidos por hora.",
+        medidas="A doação sem se identificar não grava nome nem contato (o IP fica no registro técnico de acesso, da atividade Acesso); o pedido pelo site tem "
+                "limite de pedidos por hora.",
     ),
     Atividade(
         "ATENDIMENTO", "Pedidos pelo site e direitos do titular",
         "Responder contato, pedido de informação, oferta de voluntariado e as solicitações do titular de dados (LGPD, art. 18), com protocolo e prazo.",
         ("ART7_V", "ART7_II", "ART7_IX"), ("AZURE", "GITHUB", "GOOGLE"),
         ("atendimentos",), ("atendimentos",),
-        medidas="A resposta ao titular só depois de conferida a identidade; a resposta não vai por e-mail (só o aviso).",
+        medidas="A resposta ao pedido do titular (art. 18) só depois de conferida a identidade, e não vai por e-mail (só o aviso); as demais respostas vão por "
+                "e-mail.",
     ),
     Atividade(
         "COMUNICACAO", "Avisos e e-mails da associação",
@@ -184,25 +205,36 @@ ATIVIDADES: tuple[Atividade, ...] = (
     Atividade(
         "VISITANTE", "Conta de visitante do site",
         "Deixar quem se inscreveu ou doou pelo site ver o que fez e pedir a eliminação, entrando com um código enviado ao e-mail.",
-        ("ART7_V", "ART7_IX"), ("AZURE", "GOOGLE"),
+        ("ART7_V", "ART7_IX"), ("AZURE", "GITHUB", "GOOGLE"),
         ("codigos_de_visitante", "sessoes_de_visitante"),
-        medidas="Código de 6 números, 10 minutos, uso único; só a impressão do código é guardada; limpeza diária do que venceu.",
+        medidas="Código de 6 números, 10 minutos, uso único; só a impressão do código é guardada.",
+        prazos_fixos=("Códigos e sessões vencidos: apagados em até 1 dia (limpeza técnica da rotina de retenção)",),
     ),
     Atividade(
         "TRANSPARENCIA", "Documentos, parcerias e transparência",
         "Guardar os documentos institucionais e os de parcerias e emendas (com a versão pública sem dado pessoal), as fotos das etapas de parceria e o ato do "
         "encarregado, e publicar no site o que a lei e o Estatuto pedem.",
-        ("ART7_II", "ART7_IX"), ("AZURE",),
+        ("ART7_II", "ART7_IX"), ("AZURE", "GITHUB"),
         ("documentos_institucionais", "fotos_etapa_parceria", "atos_do_encarregado"),
-        arquivos=True,
+        arquivos=True, publicado_no_site=True,
         medidas="O original fica privado; a versão pública passa pelo verificador de dado pessoal e pela aprovação de outra pessoa.",
     ),
     Atividade(
         "FORNECEDORES", "Fornecedores",
         "Cadastrar fornecedores (que podem ser pessoa física) e os dados bancários para pagamento.",
-        ("ART7_V", "ART7_II"), ("AZURE",),
+        ("ART7_V", "ART7_II"), ("AZURE", "GITHUB"),
         ("fornecedores", "dados_bancarios_fornecedor"),
         medidas="Dados bancários novos só valem depois de aprovados por outra pessoa.",
+    ),
+    Atividade(
+        "SITE_EDITORIAL", "Notícias e conteúdo do site (Directus)",
+        "Manter as contas de quem edita as notícias do site, o registro do que cada um fez e as fotos publicadas nas notícias.",
+        ("ART7_IX", "ART7_V"), ("AZURE", "GITHUB", "GOOGLE"),
+        tabelas_externas=("directus_users (nome e e-mail de quem edita)", "directus_activity (IP e navegador de cada ação)", "fotos das notícias (podem ter pessoas)"),
+        arquivos=True, publicado_no_site=True,
+        medidas="O Directus usa o mesmo servidor de banco, mas com usuário e área (schema) próprios, sem acesso aos dados do sistema; perfis de editor com "
+                "privilégio mínimo.",
+        observacoes="Fica fora do modelo deste sistema: as tabelas são do Directus.",
     ),
     Atividade(
         "OPERACAO", "Registro de quem faz cada operação no painel",
@@ -212,7 +244,32 @@ ATIVIDADES: tuple[Atividade, ...] = (
 )
 
 _POR_CODIGO = {a.codigo: a for a in ATIVIDADES}
-EDITAVEIS = ("finalidade", "bases_legais", "operadores", "medidas", "observacoes", "base_legal_conferida")
+EDITAVEIS = ("finalidade", "bases_legais", "medidas", "observacoes", "base_legal_conferida")
+
+# Cada roteiro que as tarefas agendadas do GitHub rodam em PRODUÇÃO (.github/workflows/tarefa-*.yml e escalar-*.yml) e as atividades cujos dados ele lê ou muda
+# (tests/test_inventario.py confere que a lista é a dos fluxos e que essas atividades citam o GitHub). A montagem do site (deploy-site.yml) também roda lá.
+ROTINAS_DO_GITHUB: dict[str, tuple[str, ...]] = {
+    "scripts/apagar_fotos_da_diretoria_vencidas.py": ("GOVERNANCA",),
+    "scripts/aplicar_retencao_de_dados.py": ("ACESSO", "ATENDIMENTO", "CADASTRO", "DOACOES", "COMUNICACAO", "VISITANTE"),
+    "scripts/avisar_fim_de_experiencia.py": ("CADASTRO",),
+    "scripts/avisar_prazos_de_atendimento.py": ("ATENDIMENTO",),
+    "scripts/enviar_emails_de_avisos.py": ("COMUNICACAO",),
+    "scripts/enviar_lembretes_de_mensalidade.py": ("FINANCEIRO",),
+    "scripts/escalar_api_por_evento.py": (),  # só lê a agenda pública de eventos
+    "scripts/expirar_intencoes_de_doacao.py": ("DOACOES",),
+    "scripts/expirar_promocoes_vagas.py": ("PROJETOS_EVENTOS",),
+    "scripts/fechar_eventos_encerrados.py": ("PROJETOS_EVENTOS",),
+    "scripts/publicar_avisos_agendados.py": ("COMUNICACAO",),
+    "scripts/tarefa_mensal_financeiro.py": ("FINANCEIRO", "FORNECEDORES"),
+    "montagem do site (deploy-site.yml)": ("GOVERNANCA", "PROJETOS_EVENTOS", "TRANSPARENCIA", "SITE_EDITORIAL"),
+}
+
+# Cada módulo que manda e-mail (app/services/notificacoes.py::enviar_email, pelo Google Workspace) e a atividade (o teste confere com o código)
+ENVIOS_DE_EMAIL: dict[str, str] = {
+    "atendimento": "ATENDIMENTO", "automaticos_de_associado": "CADASTRO", "conta_de_visitante": "VISITANTE", "doacao_online": "DOACOES",
+    "envio_de_avisos": "COMUNICACAO", "modelos_de_aviso": "COMUNICACAO", "esqueci_a_senha": "ACESSO", "eventos": "PROJETOS_EVENTOS",
+    "status_do_evento": "PROJETOS_EVENTOS", "vagas": "PROJETOS_EVENTOS", "lembretes": "FINANCEIRO",
+}
 
 
 def _rastro_de_operacao(inventario: list[dict]) -> list[str]:
@@ -230,9 +287,14 @@ def tabelas_sem_atividade(inventario: Optional[list[dict]] = None) -> list[str]:
 
 def _proposta(a: Atividade) -> dict:
     return {
-        "finalidade": a.finalidade, "bases_legais": list(a.bases_legais), "operadores": list(a.operadores),
+        "finalidade": a.finalidade, "bases_legais": sorted(a.bases_legais),
         "medidas": "; ".join(m for m in (MEDIDAS_GERAIS, a.medidas) if m) + ".", "observacoes": a.observacoes, "base_legal_conferida": False,
     }
+
+
+def _vigentes(a: Atividade, versao: Optional[VersaoDeAtividadeDeTratamento]) -> dict:
+    """A proposta do código com o que o encarregado ajustou por cima (a versão guarda só o que ficou diferente da proposta)."""
+    return {**_proposta(a), **{k: v for k, v in (versao.campos if versao else {}).items() if k in EDITAVEIS}}
 
 
 def _vigente(db: Session, codigo: str) -> Optional[VersaoDeAtividadeDeTratamento]:
@@ -250,21 +312,26 @@ def _detalhar(db: Session, a: Atividade, inventario: list[dict]) -> dict:
     tabelas = list(a.tabelas) if not a.so_rastro_de_operacao else _rastro_de_operacao(inventario)
     das_tabelas = [linhas[t] for t in tabelas if t in linhas]
     versao = _vigente(db, a.codigo)
-    campos = {**_proposta(a), **(versao.campos if versao else {})}
+    campos = _vigentes(a, versao)
+    pode_ter_crianca = any(linha["pode_ter_crianca"] for linha in das_tabelas)
     return {
-        "codigo": a.codigo, "nome": a.nome, **campos,
-        "bases_legais_texto": [BASES_LEGAIS[b] for b in campos["bases_legais"]],
-        "operadores_detalhe": [{"codigo": o, **OPERADORES[o]} for o in campos["operadores"]],
-        "transferencia_internacional": any(OPERADORES[o]["fora_do_brasil"] for o in campos["operadores"]),
+        "codigo": a.codigo, "nome": a.nome, **campos, "operadores": list(a.operadores),
+        # código guardado que saiu da lista (renomeado) não derruba o inventário: aparece como "código antigo"
+        "bases_legais_texto": [BASES_LEGAIS.get(b, f"(código antigo: {b})") for b in campos["bases_legais"]],
+        "operadores_detalhe": [{"codigo": o, **OPERADORES[o]} for o in a.operadores],
+        "transferencia_internacional": any(OPERADORES[o]["fora_do_brasil"] for o in a.operadores),
+        "requisito_crianca": REQUISITO_CRIANCA if pode_ter_crianca else None,
+        "tabelas_externas": list(a.tabelas_externas),
         "tabelas": tabelas,
         "titulares": sorted({t for linha in das_tabelas for t in linha["titulares"]}),
         "dados_pessoais": sorted({f"{linha['tabela']}.{c}" for linha in das_tabelas for c in linha["colunas_pessoais"]}),
         "dados_sensiveis": sorted({f"{linha['tabela']}.{c}" for linha in das_tabelas for c in linha["colunas_sensiveis"]}),
         "texto_livre_que_pode_ter_sensivel": sorted({f"{linha['tabela']}.{c}" for linha in das_tabelas for c in linha["texto_livre_que_pode_ter_sensivel"]}),
-        "pode_ter_crianca": any(linha["pode_ter_crianca"] for linha in das_tabelas),
-        "armazenamento": [ARMAZENAMENTO_BANCO] + ([ARMAZENAMENTO_ARQUIVOS] if a.arquivos else []),
+        "pode_ter_crianca": pode_ter_crianca,
+        "armazenamento": [ARMAZENAMENTO_BANCO] + ([ARMAZENAMENTO_ARQUIVOS] if a.arquivos else []) + ([ARMAZENAMENTO_SITE] if a.publicado_no_site else []),
         "prazos_de_guarda": _prazos(db, a),
-        "sem_rotina_de_guarda": not a.regras_de_retencao,
+        "prazos_fixos": list(a.prazos_fixos),
+        "sem_rotina_de_guarda": not a.regras_de_retencao and not a.prazos_fixos,
         "versao": versao.versao if versao else 0,
         "alterado_em": versao.alterado_em.isoformat() if versao else None,
     }
@@ -289,12 +356,16 @@ def buscar(codigo: str) -> Atividade:
     return a
 
 
-def atualizar(db: Session, usuario: Usuario, codigo: str, dados: dict) -> tuple[dict, dict]:
-    """Grava uma versão nova com o que o encarregado ajustou. Devolve (antes, depois) para a Auditoria."""
+def atualizar(db: Session, usuario: Usuario, codigo: str, dados: dict, versao_base: Optional[int] = None) -> tuple[dict, dict, int]:
+    """Grava uma versão nova com o que o encarregado ajustou. Devolve (antes, depois, número da versão) para a Auditoria."""
     a = buscar(codigo)
     atual = _vigente(db, codigo)
-    antes = {**_proposta(a), **(atual.campos if atual else {})}
+    if versao_base is not None and versao_base != (atual.versao if atual else 0):
+        raise HTTPException(status_code=409, detail="Outra pessoa salvou uma versão nova desta atividade enquanto você ajustava. Recarregue a página e confira.")
+    antes = _vigentes(a, atual)
     novos = {k: v for k, v in dados.items() if k in EDITAVEIS and v is not None}
+    if "bases_legais" in novos:
+        novos["bases_legais"] = sorted(set(novos["bases_legais"]))  # a ordem em que se marcou não é mudança
     for k in ("finalidade", "medidas"):
         if k in novos and len((novos[k] or "").strip()) < 10:
             raise HTTPException(status_code=422, detail="Escreva a finalidade e as medidas de segurança (pelo menos 10 letras).")
@@ -305,12 +376,20 @@ def atualizar(db: Session, usuario: Usuario, codigo: str, dados: dict) -> tuple[
     if "operadores" in novos and any(o not in OPERADORES for o in novos["operadores"]):
         raise HTTPException(status_code=422, detail="Operador fora da lista.")
     depois = {**antes, **{k: (v.strip() if isinstance(v, str) else v) for k, v in novos.items()}}
+    if depois["bases_legais"] != antes["bases_legais"] and novos.get("base_legal_conferida") is not True:
+        depois["base_legal_conferida"] = False  # base nova não nasce conferida: o encarregado confere de novo
     if depois == antes:
         raise HTTPException(status_code=409, detail="Nada mudou.")
     numero = (db.query(func.max(VersaoDeAtividadeDeTratamento.versao)).filter(VersaoDeAtividadeDeTratamento.codigo_atividade == codigo).scalar() or 0) + 1
-    db.add(VersaoDeAtividadeDeTratamento(codigo_atividade=codigo, versao=numero, campos=depois, id_usuario=usuario.id_usuario))
-    db.commit()
-    return antes, depois
+    proposta = _proposta(a)
+    so_o_diferente = {k: v for k, v in depois.items() if v != proposta[k]}
+    db.add(VersaoDeAtividadeDeTratamento(codigo_atividade=codigo, versao=numero, campos=so_o_diferente, id_usuario=usuario.id_usuario))
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Outra pessoa salvou uma versão nova desta atividade ao mesmo tempo. Recarregue a página e confira.")
+    return antes, depois, numero
 
 
 def historico(db: Session, codigo: str) -> list[dict]:
@@ -319,7 +398,7 @@ def historico(db: Session, codigo: str) -> list[dict]:
         VersaoDeAtividadeDeTratamento.versao.desc()).all()
     nomes = {u.id_usuario: u.email for u in db.query(Usuario).filter(Usuario.id_usuario.in_({v.id_usuario for v in versoes}))} if versoes else {}
     return [
-        {"versao": v.versao, "alterado_em": v.alterado_em.isoformat(), "por": nomes.get(v.id_usuario), "campos": v.campos} for v in versoes
+        {"versao": v.versao, "alterado_em": v.alterado_em.isoformat(), "por": nomes.get(v.id_usuario), "campos": _vigentes(a, v)} for v in versoes
     ] + [{"versao": 0, "alterado_em": None, "por": "proposta do sistema", "campos": _proposta(a)}]
 
 
@@ -333,13 +412,14 @@ COLUNAS_DA_PLANILHA = (
 def _prazo_em_texto(atividade: dict) -> str:
     if atividade["sem_rotina_de_guarda"]:
         return "Sem rotina automática de eliminação ainda (pelo tempo necessário à finalidade e às obrigações legais e estatutárias)"
-    return "; ".join(f"{p['rotulo']}: {p['dias']} dias" for p in atividade["prazos_de_guarda"])
+    return "; ".join([f"{p['rotulo']}: {p['dias']} dias" for p in atividade["prazos_de_guarda"]] + atividade["prazos_fixos"])
 
 
 def _linha(atividade: dict) -> list[str]:
     return [
-        atividade["nome"], atividade["finalidade"], "; ".join(atividade["titulares"]), ", ".join(atividade["dados_pessoais"]),
-        ", ".join(atividade["dados_sensiveis"]) or "nenhum", "sim" if atividade["pode_ter_crianca"] else "não", "; ".join(atividade["bases_legais_texto"]),
+        atividade["nome"], atividade["finalidade"], "; ".join(atividade["titulares"]) or "ver as tabelas externas",
+        ", ".join(atividade["dados_pessoais"] + atividade["tabelas_externas"]), ", ".join(atividade["dados_sensiveis"]) or "nenhum",
+        f"sim — {atividade['requisito_crianca']}" if atividade["pode_ter_crianca"] else "não", "; ".join(atividade["bases_legais_texto"]),
         "sim" if atividade["base_legal_conferida"] else "não (proposta do sistema)",
         "; ".join(f"{o['nome']}: {o['o_que_faz']}" for o in atividade["operadores_detalhe"]),
         "; ".join(f"{o['nome']}: {o['onde']}" for o in atividade["operadores_detalhe"] if o["fora_do_brasil"]) or "não",
@@ -347,19 +427,42 @@ def _linha(atividade: dict) -> list[str]:
     ]
 
 
+def _celula(valor: str) -> str:
+    """Texto que começa com = + - @ vira fórmula no Excel: um apóstrofo na frente o deixa como texto."""
+    return f"'{valor}" if valor[:1] in ("=", "+", "-", "@") else valor
+
+
+def _cabecalho(db: Session) -> list[str]:
+    """Quem é o controlador e o encarregado (a primeira parte do modelo da ANPD)."""
+    org = servico_encarregado._organizacao(db)
+    sit = servico_encarregado.situacao(db)
+    vigente = sit["ato_vigente"]
+    encarregado = sit["encarregado"]["nome"] if sit["encarregado"] else "o Presidente (sem mandato vigente cadastrado)"
+    substituto = sit["substituto"]["nome"] if sit["substituto"] else "o Vice-Presidente em exercício"
+    ato = f"Ato nº {vigente['numero']}" if vigente else "ato de designação ainda não assinado"
+    return [
+        f"Controlador: {org['nome']}, CNPJ {org['cnpj']}, {org['endereco']}; contato: {org['email']}.",
+        f"Encarregado pelo tratamento de dados pessoais: {encarregado}; substituto: {substituto} ({ato}).",
+    ]
+
+
 def planilha(db: Session) -> bytes:
     saida = io.StringIO()
     escritor = csv.writer(saida, delimiter=";")
+    for linha in _cabecalho(db):
+        escritor.writerow([_celula(linha)])
+    escritor.writerow([])
     escritor.writerow(COLUNAS_DA_PLANILHA)
     for atividade in listar(db)["atividades"]:
-        escritor.writerow(_linha(atividade))
+        escritor.writerow([_celula(c) for c in _linha(atividade)])
     return ("﻿" + saida.getvalue()).encode("utf-8")  # BOM: o Excel abre com acento
 
 
 def pdf(db: Session, agora: Optional[datetime] = None) -> bytes:
     dados = listar(db)
     quando = dia_e_hora_em_belem(agora or datetime.utcnow())
-    paragrafos, titulos = ["INVENTÁRIO DE DADOS PESSOAIS — REGISTRO DAS OPERAÇÕES DE TRATAMENTO (LGPD, art. 37)", f"Gerado pelo sistema em {quando}.", ""], {0}
+    paragrafos = ["INVENTÁRIO DE DADOS PESSOAIS — REGISTRO DAS OPERAÇÕES DE TRATAMENTO (LGPD, art. 37)", f"Gerado pelo sistema em {quando}.", *_cabecalho(db), ""]
+    titulos = {0}
     for atividade in dados["atividades"]:
         titulos.add(len(paragrafos))
         paragrafos.append(atividade["nome"])

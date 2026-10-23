@@ -419,8 +419,8 @@ def seed_niveis_e_permissoes():
         # v6.1 (decisão do Presidente, 2026-10-20) - quem publica aviso no mural do painel: o Presidente e os Secretários (pelo cargo); os outros recebem pela tela Níveis e permissões.
         {"modulo": "comunicacao", "codigo_permissao": "comunicar", "descricao": "Publicar avisos no mural do painel para um grupo calculado, ver quem leu e confirmou, incluir quem entrou no grupo depois e retirar o aviso (v6.1)."},
         # v7.0a - o módulo Privacidade (programa de privacidade da LGPD): o encarregado é o Presidente (decisão dele, 2026-10-09) e o substituto, o 1º Vice-Presidente (pelo cargo).
-        {"modulo": "privacidade", "codigo_permissao": "privacidade", "descricao": "Programa de privacidade (LGPD): ver o encarregado pelo tratamento de dados, o substituto e o ato de designação, e baixar a cópia assinada (v7.0a)."},
-        {"modulo": "privacidade", "codigo_permissao": "privacidade_gerir", "descricao": "Programa de privacidade (LGPD): gerar o ato de designação do encarregado e registrar a cópia assinada (v7.0a - separada de 'privacidade' de propósito: só o Presidente)."},
+        {"modulo": "privacidade", "codigo_permissao": "privacidade", "descricao": "Programa de privacidade (LGPD): ver o encarregado, o substituto e o ato de designação (e baixar a cópia assinada) e ver e exportar o inventário de dados (v7.0a/v7.0c)."},
+        {"modulo": "privacidade", "codigo_permissao": "privacidade_gerir", "descricao": "Programa de privacidade (LGPD): gerar o ato de designação do encarregado, registrar a cópia assinada e ajustar o inventário de dados (v7.0a/v7.0c - separada de 'privacidade' de propósito: só o Presidente)."},
     ]
     # Nível -> lista de códigos de permissão que ele recebe por padrão (ajustável depois pela
     # própria tela de administração de acesso, isto aqui é só ponto de partida).

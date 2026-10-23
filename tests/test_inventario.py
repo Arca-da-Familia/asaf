@@ -4,7 +4,10 @@
   2. cada atividade traz as seções do modelo da ANPD, com os dados, os sensíveis e a criança lidos do modelo e o prazo lido da regra de retenção EM VIGOR;
   3. ajustar grava uma versão nova (o histórico), recusa base legal fora da lista e "nada mudou", e vai para a Auditoria; só quem tem `privacidade_gerir`;
   4. exportar em planilha e em PDF (para apresentar à ANPD), com a Auditoria;
-  5. a migração 30a03a70ba56 cria exatamente a tabela que o modelo descreve."""
+  5. a migração 30a03a70ba56 cria exatamente a tabela que o modelo descreve;
+  6. achados da conferência independente: rotinas do GitHub e envios de e-mail conferidos com o código; o art. 14 é requisito, não base; versão guarda só o
+     diferente (a proposta nova do código aparece); código antigo não derruba; ordem não é mudança; base nova não nasce conferida; versão de partida (409);
+     planilha sem fórmula e com o controlador e o encarregado; PDF com quebra de linha."""
 import csv
 import importlib.util
 import io
@@ -61,7 +64,12 @@ def test_cada_atividade_traz_as_secoes_do_modelo_da_anpd(db):
     beneficiarios = dados["BENEFICIARIOS"]
     assert beneficiarios["pode_ter_crianca"] and "registros_atendimento.relato" in beneficiarios["dados_sensiveis"]
     assert cl.BENEFICIARIO in beneficiarios["titulares"] and beneficiarios["sem_rotina_de_guarda"]
-    assert "Art. 14, § 1º" in " ".join(beneficiarios["bases_legais_texto"]) and beneficiarios["base_legal_conferida"] is False
+    assert "Art. 14" not in " ".join(beneficiarios["bases_legais_texto"]), "o art. 14 é requisito (Enunciado CD/ANPD nº 1/2023), não base legal"
+    assert "melhor interesse" in beneficiarios["requisito_crianca"] and beneficiarios["base_legal_conferida"] is False
+    assert dados["ATENDIMENTO"]["requisito_crianca"] is not None or not dados["ATENDIMENTO"]["pode_ter_crianca"]
+    visitante = dados["VISITANTE"]
+    assert not visitante["sem_rotina_de_guarda"] and "apagados em até 1 dia" in visitante["prazos_fixos"][0]
+    assert dados["SITE_EDITORIAL"]["tabelas_externas"] and any("site" in a for a in dados["TRANSPARENCIA"]["armazenamento"])
     cadastro = dados["CADASTRO"]
     assert "pessoas.cpf" in cadastro["dados_pessoais"] and "mudancas_situacao.motivo" in cadastro["dados_sensiveis"]
     assert any("armazenamento privado" in a for a in cadastro["armazenamento"]) and cadastro["transferencia_internacional"]
@@ -100,6 +108,8 @@ def test_ajustar_grava_versao_nova_com_historico_e_auditoria(client, db, auth_he
     depois = next(a for a in r.json()["atividades"] if a["codigo"] == codigo)
     assert depois["finalidade"] == texto and depois["base_legal_conferida"] and depois["versao"] == atual["versao"] + 1
     assert codigo not in r.json()["base_legal_a_conferir"]
+    assert client.put(f"/api/privacidade/inventario/{codigo}", headers=auth_headers, json={"finalidade": texto + " velha", "versao_base": atual["versao"]}).status_code == 409, \
+        "quem salva sobre a versão velha recebe 409"
     historico = client.get(f"/api/privacidade/inventario/{codigo}/historico", headers=auth_headers).json()
     assert historico[0]["versao"] == depois["versao"] and historico[0]["campos"]["finalidade"] == texto and historico[-1]["por"] == "proposta do sistema"
     entrada = db.query(AuditLog).filter(AuditLog.acao == "ATIVIDADE_AJUSTADA").order_by(AuditLog.id_log.desc()).first()
@@ -107,7 +117,6 @@ def test_ajustar_grava_versao_nova_com_historico_e_auditoria(client, db, auth_he
     assert client.put(f"/api/privacidade/inventario/{codigo}", headers=auth_headers, json={"finalidade": texto}).status_code == 409, "nada mudou"
     assert client.put(f"/api/privacidade/inventario/{codigo}", headers=auth_headers, json={"bases_legais": ["ART99"]}).status_code == 422
     assert client.put(f"/api/privacidade/inventario/{codigo}", headers=auth_headers, json={"bases_legais": []}).status_code == 422
-    assert client.put(f"/api/privacidade/inventario/{codigo}", headers=auth_headers, json={"operadores": ["DROPBOX"]}).status_code == 422
     assert client.put(f"/api/privacidade/inventario/{codigo}", headers=auth_headers, json={"finalidade": "curta"}).status_code == 422
     assert client.put("/api/privacidade/inventario/NAO_EXISTE", headers=auth_headers, json={"finalidade": texto}).status_code == 404
 
@@ -140,9 +149,10 @@ def test_exportar_em_planilha_e_em_pdf_com_auditoria(client, db, auth_headers):
     r = client.get("/api/privacidade/inventario-planilha", headers=auth_headers)
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/csv")
     linhas = list(csv.reader(io.StringIO(r.content.decode("utf-8-sig")), delimiter=";"))
-    assert tuple(linhas[0]) == inventario.COLUNAS_DA_PLANILHA and len(linhas) == len(inventario.ATIVIDADES) + 1
-    beneficiarios = next(linha for linha in linhas if linha[0] == "Atendimento social a beneficiários")
-    assert "registros_atendimento.relato" in beneficiarios[4] and beneficiarios[5] == "sim" and "Sem rotina automática" in beneficiarios[11]
+    cabecalho = linhas.index(list(inventario.COLUNAS_DA_PLANILHA))
+    assert cabecalho == 3 and len(linhas) == cabecalho + 1 + len(inventario.ATIVIDADES), "controlador, encarregado, linha em branco, colunas, atividades"
+    beneficiarios = next(linha for linha in linhas if linha and linha[0] == "Atendimento social a beneficiários")
+    assert "registros_atendimento.relato" in beneficiarios[4] and beneficiarios[5].startswith("sim — Art. 14") and "Sem rotina automática" in beneficiarios[11]
     pdf = client.get("/api/privacidade/inventario-pdf", headers=auth_headers)
     assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
     texto = "\n".join(p.extract_text() for p in pypdf.PdfReader(io.BytesIO(pdf.content)).pages)
@@ -172,3 +182,126 @@ def test_a_migracao_cria_exatamente_a_tabela_que_o_modelo_descreve():
         with Operations.context(MigrationContext.configure(conexao)):
             migracao.downgrade()
     assert set(sa.inspect(motor).get_table_names()) == antes
+
+
+# ------------------------------------------------------------------------------------------------ 6. achados da conferência independente
+_RAIZ = Path(__file__).resolve().parent.parent
+
+
+def test_as_rotinas_do_github_sao_as_dos_fluxos_e_as_atividades_citam_o_github():
+    import re
+
+    fluxos = [p for p in (_RAIZ / ".github" / "workflows").glob("*.yml") if p.name.startswith(("tarefa-", "escalar-"))]
+    rodados = {m for p in fluxos for m in re.findall(r"python (scripts/[a-z_]+\.py)", p.read_text(encoding="utf-8"))}
+    declarados = {r for r in inventario.ROTINAS_DO_GITHUB if r.startswith("scripts/")}
+    assert rodados == declarados, f"rotinas do GitHub fora do inventário: {rodados - declarados}; a mais: {declarados - rodados}"
+    for rotina, atividades in inventario.ROTINAS_DO_GITHUB.items():
+        for codigo in atividades:
+            assert "GITHUB" in inventario.buscar(codigo).operadores, f"{codigo} é tocada por {rotina}"
+
+
+def test_quem_manda_email_esta_no_inventario_e_cita_o_google():
+    def manda_email(texto: str) -> bool:
+        return "enviar_email(" in texto or "ConexaoDeEmail" in texto  # um a um ou em lote (a conexão aberta uma vez)
+
+    modulos = {p.stem for p in (_RAIZ / "app" / "services").glob("*.py") if manda_email(p.read_text(encoding="utf-8")) and p.stem != "notificacoes"}
+    assert modulos == set(inventario.ENVIOS_DE_EMAIL), f"e-mail fora do inventário: {modulos - set(inventario.ENVIOS_DE_EMAIL)}"
+    for modulo, codigo in inventario.ENVIOS_DE_EMAIL.items():
+        assert "GOOGLE" in inventario.buscar(codigo).operadores, f"{codigo} manda e-mail por {modulo}"
+
+
+def test_a_versao_guarda_so_o_diferente_e_a_proposta_nova_aparece(client, db, auth_headers, monkeypatch):
+    from app.models.privacidade import VersaoDeAtividadeDeTratamento
+
+    codigo = "VOLUNTARIADO"
+    observacao = f"Observação do encarregado {uuid.uuid4().hex[:6]}."
+    r = client.put(f"/api/privacidade/inventario/{codigo}", headers=auth_headers, json={"observacoes": observacao})
+    assert r.status_code == 200, r.text
+    guardada = db.query(VersaoDeAtividadeDeTratamento).filter(VersaoDeAtividadeDeTratamento.codigo_atividade == codigo).order_by(
+        VersaoDeAtividadeDeTratamento.versao.desc()).first()
+    assert set(guardada.campos) == {"observacoes"}, guardada.campos
+    original = inventario.buscar(codigo)
+    mudada = inventario.Atividade(**{**original.__dict__, "finalidade": "Finalidade nova escrita no código depois."})
+    monkeypatch.setattr(inventario, "_POR_CODIGO", {**inventario._POR_CODIGO, codigo: mudada})
+    monkeypatch.setattr(inventario, "ATIVIDADES", tuple(mudada if a.codigo == codigo else a for a in inventario.ATIVIDADES))
+    atual = next(a for a in inventario.listar(db)["atividades"] if a["codigo"] == codigo)
+    assert atual["finalidade"] == "Finalidade nova escrita no código depois." and atual["observacoes"] == observacao
+
+
+def test_codigo_antigo_guardado_nao_derruba_o_inventario(db):
+    from app.models.privacidade import VersaoDeAtividadeDeTratamento
+    from app.models.core import Usuario
+
+    usuario = db.query(Usuario).first()
+    numero = (db.query(sa.func.max(VersaoDeAtividadeDeTratamento.versao)).filter(VersaoDeAtividadeDeTratamento.codigo_atividade == "OPERACAO").scalar() or 0) + 1
+    db.add(VersaoDeAtividadeDeTratamento(codigo_atividade="OPERACAO", versao=numero, campos={"bases_legais": ["ART14_P1"]}, id_usuario=usuario.id_usuario))
+    db.commit()
+    operacao = next(a for a in inventario.listar(db)["atividades"] if a["codigo"] == "OPERACAO")
+    assert operacao["bases_legais_texto"] == ["(código antigo: ART14_P1)"]
+    assert inventario.planilha(db) and inventario.pdf(db).startswith(b"%PDF")
+
+
+def test_ordem_nao_e_mudanca_e_base_nova_nao_nasce_conferida(client, auth_headers):
+    codigo = "COMUNICACAO"
+    atual = next(a for a in client.get("/api/privacidade/inventario", headers=auth_headers).json()["atividades"] if a["codigo"] == codigo)
+    bases = atual["bases_legais"]
+    if not atual["base_legal_conferida"]:
+        assert client.put(f"/api/privacidade/inventario/{codigo}", headers=auth_headers, json={"base_legal_conferida": True}).status_code == 200
+    invertida = client.put(f"/api/privacidade/inventario/{codigo}", headers=auth_headers, json={"bases_legais": list(reversed(bases)) + bases[:1]})
+    assert invertida.status_code == 409, "reordenar ou repetir não é mudança"
+    nova = sorted(set(bases) ^ {"ART7_I"}) or ["ART7_IX"]
+    r = client.put(f"/api/privacidade/inventario/{codigo}", headers=auth_headers, json={"bases_legais": nova})
+    assert r.status_code == 200, r.text
+    depois = next(a for a in r.json()["atividades"] if a["codigo"] == codigo)
+    assert depois["base_legal_conferida"] is False, "base legal nova não nasce conferida"
+
+
+def test_planilha_sem_formula_com_controlador_e_pdf_com_quebra_de_linha(client, db, auth_headers):
+    codigo = "FINANCEIRO"
+    atual = next(a for a in client.get("/api/privacidade/inventario", headers=auth_headers).json()["atividades"] if a["codigo"] == codigo)
+    texto = f"=1+1 não é fórmula {uuid.uuid4().hex[:6]}\nsegunda linha das observações"
+    assert client.put(f"/api/privacidade/inventario/{codigo}", headers=auth_headers, json={"observacoes": texto, "versao_base": atual["versao"]}).status_code == 200
+    planilha = inventario.planilha(db).decode("utf-8-sig")
+    linhas = list(csv.reader(io.StringIO(planilha), delimiter=";"))
+    assert linhas[0][0].startswith("Controlador: ") and linhas[1][0].startswith("Encarregado pelo tratamento de dados pessoais: ")
+    financeiro = next(linha for linha in linhas if linha and linha[0] == "Contribuições, cobranças e reembolsos")
+    assert financeiro[-1].startswith("'=1+1"), "começa com apóstrofo: o Excel não executa"
+    texto_pdf = "\n".join(p.extract_text() for p in pypdf.PdfReader(io.BytesIO(inventario.pdf(db))).pages)
+    assert "Controlador:" in texto_pdf and "segunda linha das observações" in texto_pdf
+    linha_com_quebra = next(linha for linha in texto_pdf.splitlines() if "segunda linha das observações" in linha)
+    assert "não é fórmula" not in linha_com_quebra, "a quebra de linha do campo vira linha nova no PDF"
+
+
+def test_duas_gravacoes_ao_mesmo_tempo_dao_409(db, monkeypatch):
+    from app.models.core import Usuario
+    from app.models.privacidade import VersaoDeAtividadeDeTratamento
+
+    usuario = db.query(Usuario).first()
+    codigo = "ACESSO"
+    numero = (db.query(sa.func.max(VersaoDeAtividadeDeTratamento.versao)).filter(VersaoDeAtividadeDeTratamento.codigo_atividade == codigo).scalar() or 0) + 1
+    db.add(VersaoDeAtividadeDeTratamento(codigo_atividade=codigo, versao=numero, campos={"observacoes": "x" * 12}, id_usuario=usuario.id_usuario))
+    db.commit()
+    # como se a outra gravação tivesse calculado o mesmo número: o "máximo" que ela leu é o de antes
+    original = inventario._vigente
+    monkeypatch.setattr(inventario, "_vigente", lambda db_, c: None if c == codigo else original(db_, c))
+    real_query = db.query
+
+    class _Consulta:
+        def __init__(self, q):
+            self._q = q
+
+        def __getattr__(self, nome):
+            return getattr(self._q, nome)
+
+        def filter(self, *a, **k):
+            return _Consulta(self._q.filter(*a, **k))
+
+        def scalar(self):
+            return numero - 1
+
+    monkeypatch.setattr(db, "query", lambda *a, **k: _Consulta(real_query(*a, **k)) if "max" in str(a) else real_query(*a, **k))
+    try:
+        inventario.atualizar(db, usuario, codigo, {"observacoes": "y" * 12})
+        assert False, "devia recusar"
+    except Exception as erro:
+        assert getattr(erro, "status_code", None) == 409, erro
