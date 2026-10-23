@@ -306,7 +306,7 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
       'Pedido de filiação que não virou associado (recusado, ou pendente sem decisão): 2 anos depois da última mudança no pedido ou no voto de um sócio, ele e as decisões dos sócios sobre ele são apagados',
       'Pedido de doação pelo site que ninguém confirmou: 2 anos depois do prazo do pedido, é apagado.',
       'Doador identificado: 10 anos depois da doação, tiramos o nome, o documento, o e-mail e a ligação com o cadastro de associado; ficam o valor, a data e o destino',
-      'Associado desligado: 5 anos depois do desligamento, apagamos CPF, e-mail, telefone, data de nascimento, estado civil, profissão, naturalidade, a foto (inclusive o arquivo) e o endereço; ficam o nome e a matrícula do livro de associados. Quem tem ou já teve outro papel no cadastro (por exemplo, voluntário) não é incluído. Ainda não há prazo automático para os dependentes cadastrados, os documentos anexados, o histórico de cargos e as observações internas da ficha.',
+      'Associado desligado: 5 anos depois do desligamento, apagamos CPF, e-mail, telefone, data de nascimento, estado civil, profissão, naturalidade, as habilidades cadastradas, a foto (inclusive o arquivo), o endereço e, nas mudanças de situação (licença, desligamento, advertência), o motivo e o documento de referência; ficam o nome e a matrícula do livro de associados e o tipo e as datas das mudanças de situação. A rotina automática não inclui quem ainda tem outro papel ativo no cadastro (por exemplo, voluntário). Ainda não há prazo automático para os dependentes cadastrados, os documentos anexados, o histórico de cargos, a linha do tempo da pessoa e as observações internas da ficha.',
     ])
       await expect(lista).toContainText(trecho)
     await expect(
@@ -319,16 +319,16 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
     )
   })
 
-  test('versão 2.7 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
+  test('versão 2.8 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
     page,
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.7 · em vigor desde 23 de outubro de 2026'),
+      page.getByText('Versão 2.8 · em vigor desde 23 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.7, em vigor desde 23 de outubro de 2026/,
+        /Esta é a versão 2\.8, em vigor desde 23 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-doacao]')

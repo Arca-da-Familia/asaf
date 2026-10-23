@@ -124,6 +124,12 @@ import pkgutil as _pkgutil
 for _modulo in _pkgutil.iter_modules(__path__):
     _importlib.import_module(f"{__name__}.{_modulo.name}")
 
+# v7.0b - com TODOS os modelos registrados, a classificação LGPD de cada coluna e tabela vai para o próprio modelo (`info`): ver app/classificacao_de_dados.py
+from app.classificacao_de_dados import aplicar as _aplicar_classificacao  # noqa: E402
+from app.database import Base as _Base  # noqa: E402
+
+_aplicar_classificacao(_Base.metadata)
+
 __all__ = [
     "perfil_permissao",
     "PermissaoSistema",

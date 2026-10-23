@@ -55,12 +55,14 @@ def registrar_licenca(
 
     registrar_auditoria(
         db, usuario, "associados", "LICENCA_REGISTRADA", id_registro_afetado=id_associado,
-        dados_depois={"motivo": dados.motivo, "data_fim_prevista": dados.data_fim_prevista.isoformat()},
+        # v7.0b: sem o motivo (pode ser de saúde, dado sensível; a Auditoria não tem prazo de guarda): ele fica no histórico de situação, de leitura auditada
+        dados_depois={"data_fim_prevista": dados.data_fim_prevista.isoformat()},
         ip_origem=request.client.host if request.client else None,
     )
     publicar_evento_linha_do_tempo(
+        # v7.0b: sem o motivo (pode ser de saúde): a linha do tempo sai na ficha 360, que não é leitura auditada; o motivo fica no histórico de situação
         db, associado.id_pessoa, "situacao", "LICENCA_REGISTRADA", "Licença registrada",
-        descricao=f"Motivo: {dados.motivo}. Retorno previsto em {dados.data_fim_prevista.isoformat()}.",
+        descricao=f"Retorno previsto em {dados.data_fim_prevista.isoformat()}.",
         data_evento=data_inicio,
     )
     return {"mensagem": "Licença registrada.", "status_arrolamento": associado.status_arrolamento}
@@ -104,12 +106,12 @@ def desligar_associado(
 
     registrar_auditoria(
         db, usuario, "associados", "DESLIGADO", id_registro_afetado=id_associado,
-        dados_depois={"motivo": dados.motivo, "data_efetiva": dados.data_efetiva.isoformat(), "titulos_cancelados": canceladas},
+        # v7.0b: sem o motivo, como na licença (o catálogo é editável: um motivo de saúde pode ser criado); ele fica no histórico de situação, de leitura auditada
+        dados_depois={"data_efetiva": dados.data_efetiva.isoformat(), "titulos_cancelados": canceladas},
         ip_origem=request.client.host if request.client else None,
     )
     publicar_evento_linha_do_tempo(
-        db, associado.id_pessoa, "situacao", "DESLIGAMENTO", "Desligamento registrado",
-        descricao=f"Motivo: {dados.motivo}.", data_evento=data_efetiva,
+        db, associado.id_pessoa, "situacao", "DESLIGAMENTO", "Desligamento registrado", data_evento=data_efetiva,
     )
     return {"mensagem": "Desligamento registrado.", "titulos_cancelados": canceladas}
 
@@ -158,13 +160,18 @@ def readmitir_associado(
 
 
 @router.get("/api/associados/{id_associado}/historico-situacao", summary="Histórico de mudanças de situação")
-def historico_situacao(id_associado: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_associados)):
+def historico_situacao(id_associado: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_associados)):
     _buscar_associado_ou_404(db, id_associado)
     eventos = (
         db.query(MudancaSituacao)
         .filter(MudancaSituacao.id_associado == id_associado)
         .order_by(MudancaSituacao.data_efetiva.desc())
         .all()
+    )
+    # v7.0b: o motivo pode ser de saúde (licença por motivo de saúde): dado SENSÍVEL, a leitura vai para a Auditoria
+    registrar_auditoria(
+        db, usuario, "mudancas_situacao", "CONSULTA_HISTORICO_SITUACAO", id_registro_afetado=id_associado,
+        dados_depois={"quantidade_resultados": len(eventos)}, ip_origem=request.client.host if request.client else None,
     )
     return [
         {

@@ -5,6 +5,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.classificacao_de_dados import mascarar_para_auditoria
 from app.models.core import AuditLog, Usuario
 
 
@@ -29,13 +30,15 @@ def registrar_auditoria(
     dados_depois=None,
     ip_origem: Optional[str] = None,
 ):
+    # v7.0b: o valor de coluna sensível, e o de coluna pessoal de tabela que pode ter dado de criança, não entra no "antes e depois" (a Auditoria não tem prazo
+    # de guarda); fica a chave, para se saber o que mudou. Ver app/classificacao_de_dados.py.
     entrada = AuditLog(
         id_usuario=usuario.id_usuario if usuario else None,
         tabela_afetada=tabela_afetada,
         id_registro_afetado=id_registro_afetado,
         acao=acao,
-        dados_antes=_serializar(dados_antes),
-        dados_depois=_serializar(dados_depois),
+        dados_antes=_serializar(mascarar_para_auditoria(tabela_afetada, dados_antes)),
+        dados_depois=_serializar(mascarar_para_auditoria(tabela_afetada, dados_depois)),
         ip_origem=ip_origem,
     )
     db.add(entrada)

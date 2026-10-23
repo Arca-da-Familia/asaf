@@ -162,7 +162,6 @@ def mesclar_pessoas(
         if getattr(mantida, campo) is None and getattr(absorvida, campo) is not None:
             setattr(mantida, campo, getattr(absorvida, campo))
 
-    nome_absorvida = absorvida.nome_completo
     try:
         _repontar_demais_referencias(db, id_pessoa_mantida, id_pessoa_absorvida, contagens)
         db.delete(absorvida)
@@ -178,6 +177,7 @@ def mesclar_pessoas(
 
     registrar_auditoria(
         db, usuario, "pessoas", "MESCLADO", id_registro_afetado=id_pessoa_mantida,
-        dados_depois={"id_pessoa_absorvida": id_pessoa_absorvida, "nome_absorvida": nome_absorvida, "contagens": contagens},
+        # v7.0b: sem o nome (a pessoa pode ser criança; a Auditoria não tem prazo de guarda): o número basta para saber quem foi absorvido
+        dados_depois={"id_pessoa_absorvida": id_pessoa_absorvida, "contagens": contagens},
     )
     return {"id_pessoa_mantida": id_pessoa_mantida, "contagens": contagens}

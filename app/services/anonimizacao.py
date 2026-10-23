@@ -17,12 +17,14 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
 from app.config_cache import obter_configuracao
 from app.models.associados import Associado, Endereco
 from app.models.pessoas import Papel
+from app.models.situacao import MudancaSituacao
 from app.services import armazenamento
 from app.services.linha_do_tempo import publicar_evento_linha_do_tempo
 
@@ -35,7 +37,15 @@ TETO_EM_DIAS = 36500
 CAMPOS_ANONIMIZAVEIS = [
     "cpf", "email_contato", "telefone_whatsapp", "data_nascimento",
     "estado_civil", "profissao", "naturalidade", "foto",
+    # v7.0b - achado da classificação (app/classificacao_de_dados.py): as habilidades cadastradas ("Primeiros socorros", "Motorista/CNH") ficavam
+    "habilidades",
 ]
+# O que é PESSOAL na pessoa e fica de propósito depois da anonimização (o teste compara com a classificação: coluna pessoal nova tem de entrar numa das listas)
+MANTIDOS_NA_ANONIMIZACAO = {
+    "nome_completo": "sustenta o livro de associados e o dado financeiro (com o número de matrícula)",
+    "data_ultima_confirmacao": "data técnica de quando a pessoa confirmou o cadastro; sem o contato, não identifica ninguém",
+    "contato_suspeito": "marca técnica sobre o contato, que é apagado",
+}
 
 
 def data_elegivel_para_anonimizacao(db: Session, associado: Associado, dias: Optional[int] = None) -> Optional[datetime]:
@@ -76,7 +86,12 @@ def anonimizar_associado(
     if respeitar_outros_papeis and _tem_outro_papel_ativo(db, pessoa.id_pessoa):
         return False
     enderecos = db.query(Endereco).filter(Endereco.id_associado == associado.id_associado)
-    if all(getattr(pessoa, campo) is None for campo in CAMPOS_ANONIMIZAVEIS) and enderecos.first() is None:
+    # v7.0b: o motivo e o documento de referência das mudanças de situação (licença por saúde, atestado, desligamento) são apagados também; fica o tipo e a
+    # data (o livro de associados)
+    motivos = db.query(MudancaSituacao).filter(
+        MudancaSituacao.id_associado == associado.id_associado, or_(MudancaSituacao.motivo.isnot(None), MudancaSituacao.documento_referencia.isnot(None)),
+    )
+    if all(getattr(pessoa, campo) is None for campo in CAMPOS_ANONIMIZAVEIS) and enderecos.first() is None and motivos.first() is None:
         # já anonimizado (a rotina agendada passa por aqui toda vez; sem isto ela "anonimizaria" a mesma pessoa de novo e gravaria na Auditoria de novo, para sempre)
         return False
 
@@ -92,6 +107,7 @@ def anonimizar_associado(
     for campo in CAMPOS_ANONIMIZAVEIS:
         setattr(pessoa, campo, None)
     enderecos.delete(synchronize_session=False)
+    motivos.update({MudancaSituacao.motivo: None, MudancaSituacao.documento_referencia: None}, synchronize_session=False)
     # v6.2b: a escolha de e-mails (descadastro) é dado da pessoa e, sem o e-mail, não serve para mais nada
     from app.models.preferencias_de_comunicacao import PreferenciaDeComunicacao
 
@@ -102,7 +118,7 @@ def anonimizar_associado(
     # o mesmo dado sensível que está sendo apagado continua vivo para sempre.
     registrar_auditoria(
         db, usuario, "pessoas", "ANONIMIZADO", id_registro_afetado=pessoa.id_pessoa,
-        dados_depois={"campos_apagados": CAMPOS_ANONIMIZAVEIS + ["endereco"], "id_associado": associado.id_associado},
+        dados_depois={"campos_apagados": CAMPOS_ANONIMIZAVEIS + ["endereco", "motivo_e_documento_das_mudancas_de_situacao"], "id_associado": associado.id_associado},
         ip_origem=ip_origem,
     )
     # Nunca listar OS VALORES apagados aqui também - mesmo cuidado do AuditLog acima.

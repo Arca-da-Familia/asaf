@@ -186,11 +186,18 @@ def registrar_encaminhamento_endpoint(id_vinculo: int, dados: EncaminhamentoRede
 
 
 @router.get("/api/beneficiarios-projeto/{id_vinculo}/encaminhamentos", summary="Listar encaminhamentos à rede externa")
-def listar_encaminhamentos_endpoint(id_vinculo: int, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+def listar_encaminhamentos_endpoint(id_vinculo: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
     beneficiarios.exigir_membro_da_equipe_do_vinculo(db, usuario=usuario, id_vinculo=id_vinculo)
+    encaminhamentos = beneficiarios.listar_encaminhamentos(db, id_vinculo=id_vinculo)
+    # v7.0b: o encaminhamento (posto de saúde, CRAS, Conselho Tutelar...) é dado SENSÍVEL e muitas vezes de criança: a LEITURA vai para a Auditoria, como a do
+    # prontuário (achado da classificação: só a escrita era auditada)
+    registrar_auditoria(
+        db, usuario, "encaminhamentos_rede_externa", "CONSULTA_ENCAMINHAMENTOS", id_registro_afetado=id_vinculo,
+        dados_depois={"quantidade_resultados": len(encaminhamentos)}, ip_origem=_ip_origem(request),
+    )
     return [
         {"id_encaminhamento": e.id_encaminhamento, "tipo_rede": e.tipo_rede, "descricao": e.descricao, "data_encaminhamento": e.data_encaminhamento}
-        for e in beneficiarios.listar_encaminhamentos(db, id_vinculo=id_vinculo)
+        for e in encaminhamentos
     ]
 
 

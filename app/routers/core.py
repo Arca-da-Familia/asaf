@@ -702,7 +702,8 @@ def definir_valores_campo(
     db.commit()
     registrar_auditoria(
         db, usuario, "valores_campo", "UPDATE", id_registro_afetado=id_registro,
-        dados_depois={"entidade": entidade, "valores": {v.id_definicao: v.valor for v in dados.valores}},
+        # v7.0b: QUAIS campos mudaram, sem os valores (campo de beneficiário pode ser alergia ou remédio de criança; a Auditoria não tem prazo de guarda)
+        dados_depois={"entidade": entidade, "campos": sorted({v.id_definicao for v in dados.valores})},
         ip_origem=request.client.host if request.client else None,
     )
     return {"mensagem": "Valores gravados."}

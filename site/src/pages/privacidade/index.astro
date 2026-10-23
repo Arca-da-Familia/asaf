@@ -76,6 +76,9 @@ const substituto = substitutoDoEncarregado(diretoria)
 // Presidente, SEM ordem entre eles (a conferência independente apontou: "o 1º e, na falta dele, o 2º" não é texto do Estatuto, é a designação que o ATO faz, e o ato ainda não
 // está assinado: por isso a Política diz só o fato do Estatuto e quem é o Vice-Presidente hoje, pelo mandato publicado — o 1º e, sem ele publicado, o 2º). O parágrafo ganha a âncora `#encarregado`, que o rodapé de TODAS as páginas aponta
 // ("local de destaque e de fácil acesso", art. 9º da mesma Resolução). O texto NÃO diz que o ato de designação está assinado: isso depende de o Presidente assinar (o sistema só guarda).
+// v2.8 (2026-10-23): a anonimização do associado desligado passa a apagar também as HABILIDADES cadastradas e o MOTIVO das mudanças de situação (v7.0b: a
+// classificação dos dados mostrou que ficavam; `app/services/anonimizacao.py`). A conferência independente corrigiu duas frases: "quem tem ou já teve outro papel"
+// (o código só pula quem ainda tem outro papel ATIVO, e só na rotina automática) e a lista do que não tem prazo (faltava a linha do tempo da pessoa).
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -633,11 +636,15 @@ const direitos = [
         <li>
           Associado desligado: 5 anos depois do desligamento, apagamos CPF,
           e-mail, telefone, data de nascimento, estado civil, profissão,
-          naturalidade, a foto (inclusive o arquivo) e o endereço; ficam o nome
-          e a matrícula do livro de associados. Quem tem ou já teve outro papel
-          no cadastro (por exemplo, voluntário) não é incluído. Ainda não há
-          prazo automático para os dependentes cadastrados, os documentos
-          anexados, o histórico de cargos e as observações internas da ficha.
+          naturalidade, as habilidades cadastradas, a foto (inclusive o
+          arquivo), o endereço e, nas mudanças de situação (licença,
+          desligamento, advertência), o motivo e o documento de referência;
+          ficam o nome e a matrícula do livro de associados e o tipo e as datas
+          das mudanças de situação. A rotina automática não inclui quem ainda
+          tem outro papel ativo no cadastro (por exemplo, voluntário). Ainda não
+          há prazo automático para os dependentes cadastrados, os documentos
+          anexados, o histórico de cargos, a linha do tempo da pessoa e as
+          observações internas da ficha.
         </li>
       </ul>
       <p class="mt-3" data-prazos-de-guarda-limite>
