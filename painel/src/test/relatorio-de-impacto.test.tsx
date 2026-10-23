@@ -36,6 +36,7 @@ const tratamento = (
   rascunho: null,
   suspenso: null,
   proposta: { descricao: 'Proposta do sistema.', parecer_do_encarregado: '' },
+  marcador_do_rascunho: null,
   historico: [],
   ...extra,
 })
@@ -90,7 +91,9 @@ describe('Relatório de impacto (v7.0d)', () => {
     vi.mocked(privacidade.obterRelatoriosDeImpacto).mockResolvedValue(dados())
     const { container } = desenhar()
     expect(
-      await screen.findByText('Fechado: sem relatório aprovado'),
+      await screen.findByText(
+        'Novos registros fechados: sem relatório aprovado',
+      ),
     ).toBeInTheDocument()
     expect(
       screen.getByText('Ainda não existe no sistema (v20.3)'),
@@ -129,6 +132,7 @@ describe('Relatório de impacto (v7.0d)', () => {
         descricao: 'Proposta do sistema.',
         parecer_do_encarregado: 'De acordo.',
       },
+      null,
     )
     await userEvent.click(
       await within(cartao).findByRole('button', {
@@ -140,6 +144,69 @@ describe('Relatório de impacto (v7.0d)', () => {
         'Preencha antes de aprovar: Parecer do encarregado.',
       ),
     ).toBeInTheDocument()
+  })
+
+  it('revisar parte do texto aprovado, não da proposta; com o rascunho aberto, "Aprovar" some; o marcador do rascunho volta no salvar', async () => {
+    const aprovado = {
+      ...rascunho,
+      situacao: 'Aprovado' as const,
+      secoes: { descricao: 'Texto aprovado.', parecer_do_encarregado: 'ok' },
+      aprovado_em: '2026-10-23T16:00:00',
+    }
+    vi.mocked(privacidade.obterRelatoriosDeImpacto).mockResolvedValue(
+      dados({
+        tratamentos: [tratamento({ liberado: true, aprovado, proposta: null })],
+      }),
+    )
+    const { unmount } = desenhar()
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Escrever o rascunho' }),
+    )
+    expect(screen.getByLabelText('Descrição do tratamento')).toHaveValue(
+      'Texto aprovado.',
+    )
+    unmount()
+
+    vi.mocked(privacidade.obterRelatoriosDeImpacto).mockResolvedValue(
+      dados({
+        tratamentos: [
+          tratamento({
+            liberado: true,
+            aprovado,
+            rascunho: { ...rascunho, id_relatorio: 2, versao: 2 },
+            proposta: null,
+            marcador_do_rascunho: '2:2026-10-23T15:00:00',
+          }),
+        ],
+      }),
+    )
+    vi.mocked(privacidade.salvarRelatorioDeImpacto).mockReturnValue(
+      new Promise(() => {}),
+    )
+    desenhar()
+    expect(
+      await screen.findByRole('button', { name: 'Aprovar o relatório' }),
+    ).toBeInTheDocument()
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Continuar o rascunho' }),
+    )
+    expect(screen.getByLabelText('Descrição do tratamento')).toHaveValue(
+      'Proposta do sistema.',
+    )
+    expect(
+      screen.queryByRole('button', { name: 'Aprovar o relatório' }),
+    ).toBeNull()
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Salvar o rascunho' }),
+    )
+    expect(privacidade.salvarRelatorioDeImpacto).toHaveBeenCalledWith(
+      'ATENDIMENTO_SOCIAL',
+      expect.any(Object),
+      '2:2026-10-23T15:00:00',
+    )
+    expect(
+      screen.queryByRole('button', { name: 'Aprovar o relatório' }),
+    ).toBeNull()
   })
 
   it('suspender pede o motivo; quem só vê não tem os botões de decidir', async () => {
@@ -169,7 +236,9 @@ describe('Relatório de impacto (v7.0d)', () => {
     )
     desenhar()
     await userEvent.click(
-      await screen.findByRole('button', { name: 'Suspender o tratamento' }),
+      await screen.findByRole('button', {
+        name: 'Suspender os novos registros',
+      }),
     )
     await userEvent.type(
       screen.getByLabelText('Motivo da suspensão'),
@@ -192,7 +261,7 @@ describe('Relatório de impacto (v7.0d)', () => {
       dados({ pode_gerir: false }),
     )
     desenhar()
-    await screen.findByText('Fechado: sem relatório aprovado')
+    await screen.findByText('Novos registros fechados: sem relatório aprovado')
     expect(screen.queryByRole('button', { name: /rascunho/ })).toBeNull()
     expect(
       screen.queryByRole('button', { name: 'Aprovar o relatório' }),

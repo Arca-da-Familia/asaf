@@ -8,8 +8,10 @@ mecanismos de mitigação de risco adotados". Alto risco: Resolução CD/ANPD n�
 
 Os tratamentos de alto risco ficam no código (`TRATAMENTOS`). O PORTÃO: `exigir_aprovado(db, codigo)` recusa (409) a gravação quando não há relatório APROVADO —
 o prontuário e o encaminhamento à rede externa já chamam; a biometria (v20.3) e a pontuação de engajamento (v11.1), quando forem construídas, chamam o mesmo.
-O sistema monta o rascunho a partir do inventário (v7.0c) e do que o código faz; o encarregado escreve o parecer e o Presidente aprova (`privacidade_gerir`).
-Suspender fecha o tratamento até aprovar de novo. Cada versão guarda as seções como estavam."""
+O sistema monta o rascunho a partir do inventário (v7.0c) e do que o código faz (cada afirmação do rascunho foi conferida com o código: tests/
+test_relatorio_de_impacto.py); o encarregado escreve o parecer e o Presidente aprova (`privacidade_gerir`). Suspender fecha os NOVOS REGISTROS até aprovar de novo
+(a leitura do que já existe continua, auditada). Cada versão guarda as seções como estavam; salvar e aprovar travam a linha (aprovar no meio de um salvar não muda o
+texto aprovado) e quem salva sobre um rascunho que outra pessoa mudou recebe 409."""
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
@@ -88,17 +90,19 @@ def _proposta(db: Session, t: Tratamento) -> dict:
             f"{atividade['requisito_crianca'] or ''}"
         ).strip(),
         "metodologia": (
-            "O relato e o encaminhamento são escritos no painel por quem está ATIVO na equipe daquele projeto (nem a Presidência entra sem estar na equipe); "
-            f"o beneficiário é cadastrado pela equipe, com o consentimento registrado. Onde fica: {' '.join(atividade['armazenamento'])}. "
-            f"Base legal (proposta): {'; '.join(atividade['bases_legais_texto'])}."
+            "O relato e o encaminhamento são escritos e lidos no painel só por quem está ATIVO na equipe daquele projeto (a Presidência também precisa estar "
+            "na equipe); quem tem a permissão Projetos pode pôr alguém (ou a si) na equipe de um projeto, e isso fica na Auditoria, como cada leitura. O cadastro "
+            "do beneficiário (por quem tem a permissão Projetos) tem um campo para marcar que o consentimento foi registrado, mas o sistema ainda não o exige "
+            f"para registrar o atendimento. Onde fica: {' '.join(atividade['armazenamento'])}. Base legal (proposta): {'; '.join(atividade['bases_legais_texto'])}."
         ),
         "necessidade": (
             "Sem o registro do atendimento e do encaminhamento a equipe não acompanha a família nem garante a continuidade quando muda quem atende. "
-            "O relato é texto curto, sem anexo; não se pede documento nem dado de saúde que o atendimento não precise."
+            "O relato e o encaminhamento são texto, sem anexo; a orientação é não escrever documento nem dado de saúde que o atendimento não precise."
         ),
         "riscos": (
-            "Exposição de dado de saúde ou de vulnerabilidade de criança ou de família (constrangimento, discriminação); acesso por quem não é da equipe; "
-            "cópia para fora do sistema por exportação; uso para outra finalidade; guarda sem prazo (ainda não há rotina automática de eliminação para este dado)."
+            "Exposição de dado de saúde ou de vulnerabilidade de criança ou de família (constrangimento, discriminação); leitura por quem entrou na equipe só "
+            "para ler (fica na Auditoria, mas não é impedida); registro sem o consentimento marcado (o sistema ainda não exige); cópia para fora do sistema; uso "
+            "para outra finalidade; guarda sem prazo (ainda não há rotina automática de eliminação para este dado)."
         ),
         "medidas": atividade["medidas"],
         "parecer_do_encarregado": "",
@@ -147,11 +151,25 @@ def listar(db: Session) -> dict:
             "codigo": t.codigo, "nome": t.nome, "ligado": t.ligado, "versao_do_plano": t.versao_do_plano, "por_que_alto_risco": t.por_que_alto_risco,
             "liberado": vigente is not None, "aprovado": _serializar(vigente), "rascunho": _serializar(rascunho),
             "suspenso": _serializar(suspenso) if vigente is None else None,
-            "proposta": _proposta(db, t) if rascunho is None else None,
+            # a proposta do sistema só serve de ponto de partida quando não existe versão nenhuma; depois, parte-se do aprovado ou do suspenso
+            "proposta": _proposta(db, t) if not historico else None,
+            "marcador_do_rascunho": _marcador(rascunho),
             "historico": [{"versao": r.versao, "situacao": r.situacao, "criado_em": r.criado_em.isoformat(),
                            "aprovado_em": r.aprovado_em.isoformat() if r.aprovado_em else None} for r in historico],
         })
     return {"tratamentos": tratamentos, "secoes": [{"chave": c, "rotulo": r} for c, r in SECOES]}
+
+
+def _marcador(rascunho: Optional[RelatorioDeImpacto]) -> Optional[str]:
+    """O que a tela tinha quando começou a editar: se outra pessoa salvou depois, o marcador muda e quem salva recebe 409."""
+    if rascunho is None:
+        return None
+    return f"{rascunho.id_relatorio}:{(rascunho.atualizado_em or rascunho.criado_em).isoformat()}"
+
+
+def _travado(db: Session, codigo: str, situacoes: tuple[str, ...]) -> Optional[RelatorioDeImpacto]:
+    return db.query(RelatorioDeImpacto).filter(RelatorioDeImpacto.codigo_tratamento == codigo, RelatorioDeImpacto.situacao.in_(situacoes)).order_by(
+        RelatorioDeImpacto.versao.desc()).with_for_update().first()
 
 
 def _gravar(db: Session) -> None:
@@ -162,12 +180,17 @@ def _gravar(db: Session) -> None:
         raise HTTPException(status_code=409, detail="Outra pessoa salvou este relatório ao mesmo tempo. Recarregue a página e confira.")
 
 
-def salvar_rascunho(db: Session, usuario: Usuario, codigo: str, secoes: dict, agora: Optional[datetime] = None) -> RelatorioDeImpacto:
-    """Grava as seções no rascunho (cria um, em versão nova, se não houver); o relatório aprovado continua valendo até o rascunho ser aprovado."""
+def salvar_rascunho(db: Session, usuario: Usuario, codigo: str, secoes: dict, agora: Optional[datetime] = None,
+                    marcador_base: Optional[str] = "") -> RelatorioDeImpacto:
+    """Grava as seções no rascunho (cria um, em versão nova, se não houver); o relatório aprovado continua valendo até o rascunho ser aprovado.
+    `marcador_base`: o marcador do rascunho que a tela carregou (None se não havia); "" = não conferir (uso interno)."""
     buscar(codigo)
     agora = agora or datetime.utcnow()
-    limpas = {c: (str(secoes.get(c) or "")).strip()[:8000] for c in _CHAVES}
-    rascunho = _atual(db, codigo, (RIPD_RASCUNHO,))
+    limpas = {c: (str(secoes.get(c) or "")).strip() for c in _CHAVES}
+    rascunho = _travado(db, codigo, (RIPD_RASCUNHO,))  # trava: um aprovar ao mesmo tempo espera, e não se reescreve o texto já aprovado
+    if marcador_base != "" and marcador_base != _marcador(rascunho):
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Outra pessoa salvou ou aprovou este relatório enquanto você editava. Recarregue a página e confira.")
     if rascunho is None:
         numero = (db.query(func.max(RelatorioDeImpacto.versao)).filter(RelatorioDeImpacto.codigo_tratamento == codigo).scalar() or 0) + 1
         rascunho = RelatorioDeImpacto(codigo_tratamento=codigo, versao=numero, situacao=RIPD_RASCUNHO, secoes=limpas, id_usuario_criacao=usuario.id_usuario,
@@ -184,8 +207,9 @@ def aprovar(db: Session, usuario: Usuario, codigo: str, agora: Optional[datetime
     """Aprova o rascunho: todas as seções preenchidas, inclusive o parecer do encarregado. O anterior (aprovado ou suspenso) fica "Substituído"."""
     buscar(codigo)
     agora = agora or datetime.utcnow()
-    rascunho = _atual(db, codigo, (RIPD_RASCUNHO,))
+    rascunho = _travado(db, codigo, (RIPD_RASCUNHO,))
     if rascunho is None:
+        db.rollback()
         raise HTTPException(status_code=409, detail="Não há rascunho para aprovar: salve o relatório primeiro.")
     faltando = [rotulo for chave, rotulo in SECOES if len((rascunho.secoes or {}).get(chave, "").strip()) < TAMANHO_MINIMO]
     if faltando:
@@ -202,7 +226,7 @@ def aprovar(db: Session, usuario: Usuario, codigo: str, agora: Optional[datetime
 
 
 def suspender(db: Session, usuario: Usuario, codigo: str, motivo: str, agora: Optional[datetime] = None) -> RelatorioDeImpacto:
-    """Fecha o tratamento até aprovar de novo (o relatório ficou desatualizado, houve incidente...)."""
+    """Fecha os NOVOS REGISTROS do tratamento até aprovar de novo (o relatório ficou desatualizado, houve incidente...); a leitura do que existe continua."""
     buscar(codigo)
     if len((motivo or "").strip()) < 10:
         raise HTTPException(status_code=422, detail="Diga o motivo da suspensão (pelo menos 10 letras).")
@@ -217,10 +241,18 @@ def suspender(db: Session, usuario: Usuario, codigo: str, motivo: str, agora: Op
 
 
 def pdf(db: Session, codigo: str) -> bytes:
+    """O texto que vale: o aprovado; sem ele, o suspenso (com a data e o motivo); sem eles, o rascunho; sem nada, a proposta do sistema."""
     t = buscar(codigo)
-    r = aprovado(db, codigo) or _atual(db, codigo, (RIPD_RASCUNHO,)) or _atual(db, codigo, (RIPD_SUSPENSO,))
+    r = aprovado(db, codigo) or _atual(db, codigo, (RIPD_SUSPENSO,)) or _atual(db, codigo, (RIPD_RASCUNHO,))
     secoes = r.secoes if r else _proposta(db, t)
-    situacao = f"versão {r.versao}, {r.situacao.lower()}" + (f" em {dia_e_hora_em_belem(r.aprovado_em)}" if r and r.aprovado_em else "") if r else "proposta do sistema"
+    if r is None:
+        situacao = "proposta do sistema (ainda não salva)"
+    elif r.situacao == RIPD_SUSPENSO:
+        situacao = f"versão {r.versao}, aprovada em {dia_e_hora_em_belem(r.aprovado_em)} e suspensa em {dia_e_hora_em_belem(r.suspenso_em)}: {r.motivo_suspensao}"
+    elif r.situacao == RIPD_APROVADO:
+        situacao = f"versão {r.versao}, aprovada em {dia_e_hora_em_belem(r.aprovado_em)}"
+    else:
+        situacao = f"versão {r.versao}, rascunho ainda não aprovado"
     paragrafos = [f"RELATÓRIO DE IMPACTO À PROTEÇÃO DE DADOS PESSOAIS — {t.nome.upper()}", f"Situação: {situacao}.", *inventario._cabecalho(db), ""]
     titulos = {0}
     for chave, rotulo in SECOES:

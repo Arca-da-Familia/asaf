@@ -1,4 +1,10 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import {
+  expect,
+  test,
+  type Locator,
+  type Page,
+  type TestInfo,
+} from '@playwright/test'
 
 import {
   API_HML,
@@ -12,16 +18,55 @@ import {
 
 // v7.0d - O RELATÓRIO DE IMPACTO (RIPD) ANTES DO ALTO RISCO. Pelas telas:
 //  1. o 1º VICE-PRESIDENTE vê Privacidade > Relatório de impacto, mas não escreve, não aprova e não suspende (a tela não oferece; o servidor recusa, 403);
-//  2. a PRESIDENTE DO CARGO suspende o atendimento social (se estiver liberado), com o motivo: "Fechado"; num projeto onde ela é da equipe, a tela do prontuário
+//  2. a PRESIDENTE DO CARGO suspende o atendimento social (se estiver liberado), com o motivo: "Novos registros fechados"; num projeto onde ela é da equipe, a tela do prontuário
 //     avisa que está fechado e não oferece o registro, e o servidor recusa gravar (409); a biometria e a pontuação aparecem como "ainda não existe";
 //  3. ela escreve o rascunho (nasce da proposta do sistema), tenta aprovar sem o parecer do encarregado (recusado), escreve o parecer e aprova: "Liberado";
 //     o prontuário volta a oferecer o registro e grava; o PDF abre;
-//  4. a Auditoria (lida pelo Presidente) tem a suspensão, o rascunho e a aprovação, com quem fez.
+//  4. a Auditoria (lida pelo Presidente) tem a suspensão, o rascunho e a aprovação DESTA rodada, feitos por ela.
+// Se o robô parar no meio com o tratamento fechado, ele aprova de novo pela API ao sair (os outros robôs de beneficiários dependem dele aprovado).
 test.describe.configure({ mode: 'serial' })
 test.beforeAll(() => exigirHomologacao())
 test.setTimeout(420_000)
 
 const NOME_DO_PROJETO = `Projeto RIPD ${RODADA}`
+const ROTA = `${API_HML}/api/privacidade/relatorios-de-impacto`
+// o que a 2ª parte deixa para a Auditoria conferir: quem fez, a partir de quando, e se suspendeu nesta rodada
+const desta = { idUsuario: 0, desde: '', suspendeu: false }
+
+type Tratamento = {
+  codigo: string
+  liberado: boolean
+  marcador_do_rascunho: string | null
+  aprovado: { secoes: Record<string, string> } | null
+  suspenso: { secoes: Record<string, string> } | null
+}
+
+/** Se a rodada parou com o atendimento social fechado, aprova de novo (texto do último relatório, parecer de teste) para não travar os outros robôs. */
+async function deixarAprovado(page: Page, cab: Record<string, string>) {
+  const atual = async () =>
+    (
+      (await (await page.request.get(ROTA, { headers: cab })).json()) as {
+        tratamentos: Tratamento[]
+      }
+    ).tratamentos.find((t) => t.codigo === 'ATENDIMENTO_SOCIAL')!
+  const t = await atual()
+  if (t.liberado) return
+  const base = t.aprovado?.secoes ?? t.suspenso?.secoes ?? {}
+  await page.request.put(`${ROTA}/ATENDIMENTO_SOCIAL`, {
+    headers: cab,
+    data: {
+      secoes: {
+        ...base,
+        parecer_do_encarregado: `De acordo (aprovado de novo ao sair do robô ${RODADA}).`,
+      },
+      marcador_base: t.marcador_do_rascunho,
+    },
+  })
+  const r = await page.request.post(`${ROTA}/ATENDIMENTO_SOCIAL/aprovar`, {
+    headers: cab,
+  })
+  expect(r.status(), 'aprovar de novo ao sair').toBe(200)
+}
 const CARTAO = 'Prontuário e encaminhamentos de beneficiários'
 
 async function comoPapel(page: Page, papel: Papel): Promise<string> {
@@ -75,7 +120,7 @@ test('o 1º Vice-Presidente vê os relatórios, mas não decide', async ({
     page.getByRole('button', { name: 'Aprovar o relatório' }),
   ).toHaveCount(0)
   await expect(
-    page.getByRole('button', { name: 'Suspender o tratamento' }),
+    page.getByRole('button', { name: 'Suspender os novos registros' }),
   ).toHaveCount(0)
   await ver(page, info, 'vice-so-ve-os-relatorios')
   for (const [metodo, rota, corpo] of [
@@ -97,6 +142,20 @@ test('a Presidente do cargo suspende, o prontuário fecha; escreve o rascunho, a
   const vigia = vigiar(page)
   const token = await comoPapel(page, 'cargo_presidente')
   const cab = { Authorization: token }
+  desta.desde = new Date(Date.now() - 60_000).toISOString().slice(0, 19)
+  try {
+    await suspenderEAprovar(page, info, cab)
+  } finally {
+    await deixarAprovado(page, cab)
+  }
+  expect(vigia.problemas()).toEqual([])
+})
+
+async function suspenderEAprovar(
+  page: Page,
+  info: TestInfo,
+  cab: Record<string, string>,
+) {
   // o cenário: um projeto com um beneficiário, ela na equipe (pela API, como a secretaria faria pelas telas de projeto)
   const iso = (d: Date) => d.toISOString().slice(0, 19)
   const agora = new Date()
@@ -136,6 +195,7 @@ test('a Presidente do cargo suspende, o prontuário fecha; escreve o rascunho, a
   const eu = await json(
     await page.request.get(`${API_HML}/auth/me`, { headers: cab }),
   )
+  desta.idUsuario = Number(eu.id_usuario)
   await json(
     await page.request.post(
       `${API_HML}/api/projetos/${String(projeto.id_projeto)}/equipe`,
@@ -156,15 +216,18 @@ test('a Presidente do cargo suspende, o prontuário fecha; escreve o rascunho, a
       .getByText('Ainda não existe no sistema (v20.3)'),
   ).toBeVisible()
   if (await cartao.getByText('Liberado (relatório aprovado)').isVisible()) {
-    await cartao.getByRole('button', { name: 'Suspender o tratamento' }).click()
+    await cartao
+      .getByRole('button', { name: 'Suspender os novos registros' })
+      .click()
     await cartao
       .getByLabel('Motivo da suspensão')
       .fill(`Revisar os riscos (robô v7.0d ${RODADA}).`)
     await cartao.getByRole('button', { name: 'Confirmar a suspensão' }).click()
     await expect(cartao.getByText(/^Suspenso: Revisar os riscos/)).toBeVisible()
+    desta.suspendeu = true
   }
   await expect(
-    cartao.getByText('Fechado: sem relatório aprovado'),
+    cartao.getByText('Novos registros fechados: sem relatório aprovado'),
   ).toBeVisible()
   await ver(page, info, 'atendimento-social-fechado')
 
@@ -192,6 +255,8 @@ test('a Presidente do cargo suspende, o prontuário fecha; escreve o rascunho, a
   await expect(form.getByLabel(/^Descrição do tratamento/)).not.toHaveValue('')
   await form.getByLabel(/^Parecer do encarregado/).fill('')
   await form.getByRole('button', { name: 'Salvar o rascunho' }).click()
+  // aprova o que está SALVO: o botão só aparece com o formulário fechado (depois que o servidor gravou)
+  await expect(form).toHaveCount(0)
   await cartao.getByRole('button', { name: 'Aprovar o relatório' }).click()
   await expect(cartao.getByRole('alert')).toContainText(
     'Parecer do encarregado',
@@ -208,6 +273,7 @@ test('a Presidente do cargo suspende, o prontuário fecha; escreve o rascunho, a
     .getByRole('form')
     .getByRole('button', { name: 'Salvar o rascunho' })
     .click()
+  await expect(cartao.getByRole('form')).toHaveCount(0)
   await cartao.getByRole('button', { name: 'Aprovar o relatório' }).click()
   await expect(cartao.getByText('Liberado (relatório aprovado)')).toBeVisible()
   await ver(page, info, 'atendimento-social-liberado')
@@ -228,28 +294,30 @@ test('a Presidente do cargo suspende, o prontuário fecha; escreve o rascunho, a
     `Atendimento de teste depois da aprovação (${RODADA}).`,
   )
   await ver(page, info, 'prontuario-grava-de-novo')
-  expect(vigia.problemas()).toEqual([])
-})
+}
 
 test('a Auditoria guarda a suspensão, o rascunho e a aprovação, com quem fez', async ({
   page,
 }, info) => {
   const token = await comoPapel(page, 'presidente')
+  expect(desta.idUsuario, 'a 2ª parte rodou').toBeGreaterThan(0)
   for (const acao of [
-    'RIPD_SUSPENSO',
+    ...(desta.suspendeu ? ['RIPD_SUSPENSO'] : []),
     'RIPD_RASCUNHO_SALVO',
     'RIPD_APROVADO',
   ]) {
     const r = await page.request.get(
-      `${API_HML}/api/auditoria/?tabela_afetada=relatorios_de_impacto&acao=${acao}&por_pagina=50`,
+      `${API_HML}/api/auditoria/?tabela_afetada=relatorios_de_impacto&acao=${acao}&id_usuario=${desta.idUsuario}&desde=${desta.desde}&por_pagina=50`,
       { headers: { Authorization: token } },
     )
     expect(r.status()).toBe(200)
     const { entradas } = (await r.json()) as {
       entradas: Array<{ id_usuario: number | null }>
     }
-    expect(entradas.length, `${acao} na Auditoria`).toBeGreaterThan(0)
-    expect(entradas[0]!.id_usuario).not.toBeNull()
+    expect(
+      entradas.length,
+      `${acao} desta rodada na Auditoria`,
+    ).toBeGreaterThan(0)
   }
   await page.goto('/auditoria')
   await ver(page, info, 'auditoria')

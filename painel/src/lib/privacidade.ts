@@ -221,6 +221,8 @@ export type TratamentoDeAltoRisco = {
   rascunho: VersaoDoRelatorio | null
   suspenso: VersaoDoRelatorio | null
   proposta: Record<string, string> | null
+  // o que a tela tinha do rascunho quando começou a editar (volta no salvar: se outra pessoa salvou no meio, o servidor recusa)
+  marcador_do_rascunho: string | null
   historico: {
     versao: number
     situacao: string
@@ -241,10 +243,14 @@ export const obterRelatoriosDeImpacto = () =>
 export const salvarRelatorioDeImpacto = (
   codigo: string,
   secoes: Record<string, string>,
+  marcadorBase: string | null,
 ) =>
   apiFetch<RelatoriosDeImpacto>(
     `/api/privacidade/relatorios-de-impacto/${codigo}`,
-    { method: 'PUT', body: JSON.stringify({ secoes }) },
+    {
+      method: 'PUT',
+      body: JSON.stringify({ secoes, marcador_base: marcadorBase }),
+    },
   )
 
 export const aprovarRelatorioDeImpacto = (codigo: string) =>

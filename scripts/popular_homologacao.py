@@ -346,9 +346,12 @@ def popular(client, db, admin_headers: dict | None = None, admin_senha: str | No
     # O prontuário e o encaminhamento de beneficiários só gravam com o relatório de impacto aprovado; o ambiente de teste nasce com ele aprovado (com texto de
     # teste) para os roteiros de beneficiários funcionarem; o robô v7.0d-01 suspende e aprova de novo pelas telas.
     def relatorio_de_impacto():
-        secoes = {s["chave"]: f"Texto de teste da homologação para a seção \"{s['rotulo']}\"." for s in
-                  _ok(client.get("/api/privacidade/relatorios-de-impacto", headers=admin_headers)).json()["secoes"]}
-        _ok(client.put("/api/privacidade/relatorios-de-impacto/ATENDIMENTO_SOCIAL", headers=admin_headers, json={"secoes": secoes}))
+        lista = _ok(client.get("/api/privacidade/relatorios-de-impacto", headers=admin_headers)).json()
+        secoes = {s["chave"]: f"Texto de teste da homologação para a seção \"{s['rotulo']}\"." for s in lista["secoes"]}
+        # o marcador do rascunho que existir (o servidor recusa salvar sobre um rascunho diferente do que se leu)
+        marcador = next(t for t in lista["tratamentos"] if t["codigo"] == "ATENDIMENTO_SOCIAL")["marcador_do_rascunho"]
+        _ok(client.put("/api/privacidade/relatorios-de-impacto/ATENDIMENTO_SOCIAL", headers=admin_headers,
+                       json={"secoes": secoes, "marcador_base": marcador}))
         _ok(client.post("/api/privacidade/relatorios-de-impacto/ATENDIMENTO_SOCIAL/aprovar", headers=admin_headers))
         return "relatório de impacto do atendimento social aprovado (texto de teste)"
 

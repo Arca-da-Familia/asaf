@@ -2,7 +2,8 @@
 
   1. o PORTÃO: sem relatório aprovado, gravar no prontuário e registrar encaminhamento são recusados (409, com o motivo); a leitura continua; aprovado, grava;
   2. o rascunho nasce montado do inventário (dados sensíveis, base, medidas) com o parecer do encarregado em branco; aprovar exige todas as seções;
-  3. aprovar torna a versão vigente e a anterior "Substituído"; um rascunho novo não fecha o tratamento; suspender fecha até aprovar de novo;
+  3. aprovar torna a versão vigente e a anterior (aprovada ou suspensa) "Substituído"; um rascunho novo não fecha o tratamento; suspender fecha os novos
+     registros até aprovar de novo; quem salva sobre um rascunho que outra pessoa mudou recebe 409 (o marcador do rascunho);
   4. ver: `privacidade`; salvar, aprovar e suspender: `privacidade_gerir`; saber se está liberado: qualquer pessoa logada (sem dado);
   5. a biometria e a pontuação de engajamento estão na lista, ainda não ligadas; o PDF; a Auditoria; a migração 13948ce981ad."""
 import importlib.util
@@ -31,6 +32,17 @@ CODIGO = "ATENDIMENTO_SOCIAL"
 SECOES_COMPLETAS = {chave: f"Texto suficiente da seção {chave} ({uuid.uuid4().hex[:4]})." for chave, _ in ripd.SECOES}
 
 
+def _marcador(client, auth_headers):
+    """O marcador do rascunho que a tela receberia ao abrir (None se não há rascunho)."""
+    tratamentos = client.get("/api/privacidade/relatorios-de-impacto", headers=auth_headers).json()["tratamentos"]
+    return next(t for t in tratamentos if t["codigo"] == CODIGO)["marcador_do_rascunho"]
+
+
+def _salvar(client, auth_headers, secoes, marcador=...):
+    marcador = _marcador(client, auth_headers) if marcador is ... else marcador
+    return client.put(f"/api/privacidade/relatorios-de-impacto/{CODIGO}", json={"secoes": secoes, "marcador_base": marcador}, headers=auth_headers)
+
+
 def _vinculo_com_equipe(client, db, auth_headers) -> int:
     id_projeto = _criar_projeto(client, auth_headers)
     id_vinculo = _vincular(client, auth_headers, _criar_beneficiario(client, auth_headers), id_projeto)
@@ -57,8 +69,21 @@ def test_sem_relatorio_aprovado_o_prontuario_e_o_encaminhamento_nao_gravam(clien
         assert leitura.status_code == 200 and len(leitura.json()) == 1, "o que já existe continua legível (auditado)"
         assert client.post(f"/api/privacidade/relatorios-de-impacto/{CODIGO}/suspender", json={"motivo": "Suspender de novo não pode."},
                            headers=auth_headers).status_code == 409
+        agora = next(t for t in suspenso.json()["tratamentos"] if t["codigo"] == CODIGO)
+        assert agora["aprovado"] is None and agora["suspenso"]["motivo_suspensao"] == "Revisar os riscos depois do incidente."
+        assert agora["proposta"] is None, "com versão na história, revisa-se do suspenso, não da proposta do sistema"
+        id_suspenso = agora["suspenso"]["id_relatorio"]
+        import io
+
+        import pypdf
+
+        pdf = client.get(f"/api/privacidade/relatorios-de-impacto/{CODIGO}/pdf", headers=auth_headers)
+        texto = " ".join(" ".join(p.extract_text().split()) for p in pypdf.PdfReader(io.BytesIO(pdf.content)).pages)
+        assert "suspensa em" in texto and "Revisar os riscos depois do incidente." in texto, "o PDF mostra o que está suspenso, com a data e o motivo"
     finally:
         aprovar_relatorio_do_atendimento_social()
+    db.expire_all()
+    assert db.get(RelatorioDeImpacto, id_suspenso).situacao == RIPD_SUBSTITUIDO, "aprovar de novo substitui a versão suspensa"
     assert client.post(f"/api/beneficiarios-projeto/{id_vinculo}/atendimentos", json={"relato": "Depois de aprovar de novo."}, headers=auth_headers).status_code == 200
 
 
@@ -67,17 +92,18 @@ def test_rascunho_montado_aprovar_exige_tudo_e_versoes(client, db, auth_headers)
     dados = {t["codigo"]: t for t in client.get("/api/privacidade/relatorios-de-impacto", headers=auth_headers).json()["tratamentos"]}
     atendimento = dados[CODIGO]
     assert atendimento["ligado"] and atendimento["liberado"]
-    if atendimento["proposta"] is not None:
-        assert "registros_atendimento.relato" in atendimento["proposta"]["dados"] and atendimento["proposta"]["parecer_do_encarregado"] == ""
-        assert "melhor interesse" in atendimento["proposta"]["dados"]
+    assert atendimento["proposta"] is None, "já há versão aprovada: revisa-se dela, não da proposta do sistema"
+    proposta = ripd._proposta(db, ripd.buscar(CODIGO))
+    assert "registros_atendimento.relato" in proposta["dados"] and proposta["parecer_do_encarregado"] == ""
+    assert "melhor interesse" in proposta["dados"]
     vigente_antes = atendimento["aprovado"]["versao"]
     sem_parecer = {**SECOES_COMPLETAS, "parecer_do_encarregado": ""}
-    assert client.put(f"/api/privacidade/relatorios-de-impacto/{CODIGO}", json={"secoes": sem_parecer}, headers=auth_headers).status_code == 200
+    assert _salvar(client, auth_headers, sem_parecer).status_code == 200
     depois_do_rascunho = client.get(f"/api/relatorios-de-impacto/{CODIGO}/liberado", headers=auth_headers).json()
     assert depois_do_rascunho["liberado"] is True, "um rascunho novo não fecha o tratamento: o aprovado continua valendo"
     recusa = client.post(f"/api/privacidade/relatorios-de-impacto/{CODIGO}/aprovar", headers=auth_headers)
     assert recusa.status_code == 422 and "Parecer do encarregado" in recusa.json()["detail"]
-    assert client.put(f"/api/privacidade/relatorios-de-impacto/{CODIGO}", json={"secoes": SECOES_COMPLETAS}, headers=auth_headers).status_code == 200
+    assert _salvar(client, auth_headers, SECOES_COMPLETAS).status_code == 200
     aprovado = client.post(f"/api/privacidade/relatorios-de-impacto/{CODIGO}/aprovar", headers=auth_headers)
     assert aprovado.status_code == 200, aprovado.text
     agora = next(t for t in aprovado.json()["tratamentos"] if t["codigo"] == CODIGO)
@@ -89,6 +115,36 @@ def test_rascunho_montado_aprovar_exige_tudo_e_versoes(client, db, auth_headers)
     assert client.post(f"/api/privacidade/relatorios-de-impacto/{CODIGO}/aprovar", headers=auth_headers).status_code == 409, "sem rascunho, nada a aprovar"
     acoes = {a for (a,) in db.query(AuditLog.acao).filter(AuditLog.tabela_afetada == "relatorios_de_impacto").all()}
     assert {"RIPD_RASCUNHO_SALVO", "RIPD_APROVADO"} <= acoes
+
+
+def test_a_proposta_do_sistema_diz_o_que_o_codigo_faz(db):
+    """Cada afirmação do rascunho montado foi conferida com o código: quem entra na equipe (e fica na Auditoria), o consentimento ainda não exigido."""
+    proposta = ripd._proposta(db, ripd.buscar(CODIGO))
+    tudo = " ".join(proposta.values())
+    assert "curto" not in tudo, "o relato não tem limite de tamanho curto"
+    assert "pode pôr alguém (ou a si) na equipe" in proposta["metodologia"] and "Auditoria" in proposta["metodologia"]
+    assert "ainda não o exige" in proposta["metodologia"] and "o sistema ainda não exige" in proposta["riscos"]
+    from app.models.beneficiarios import Beneficiario
+
+    assert hasattr(Beneficiario, "consentimento_lgpd_registrado"), "o campo citado no rascunho existe"
+
+
+def test_salvar_sobre_rascunho_que_outra_pessoa_mudou_recebe_409(client, db, auth_headers):
+    marcador = _marcador(client, auth_headers)
+    primeiro = _salvar(client, auth_headers, {**SECOES_COMPLETAS, "descricao": "Primeira pessoa."}, marcador)
+    assert primeiro.status_code == 200, primeiro.text
+    novo = next(t for t in primeiro.json()["tratamentos"] if t["codigo"] == CODIGO)["marcador_do_rascunho"]
+    assert novo and novo != marcador
+    segundo = _salvar(client, auth_headers, {**SECOES_COMPLETAS, "descricao": "Segunda pessoa."}, novo)
+    assert segundo.status_code == 200, segundo.text
+    recusa = _salvar(client, auth_headers, {**SECOES_COMPLETAS, "descricao": "A primeira de novo, com o marcador velho."}, novo)
+    assert recusa.status_code == 409 and "Outra pessoa salvou" in recusa.json()["detail"]
+    db.expire_all()
+    rascunho = db.query(RelatorioDeImpacto).filter(RelatorioDeImpacto.codigo_tratamento == CODIGO, RelatorioDeImpacto.situacao == "Rascunho").one()
+    assert rascunho.secoes["descricao"] == "Segunda pessoa.", "o texto de quem salvou por último com o marcador certo fica"
+    assert _salvar(client, auth_headers, SECOES_COMPLETAS, None).status_code == 409, "a tela que abriu sem rascunho não grava sobre um que surgiu"
+    assert _salvar(client, auth_headers, SECOES_COMPLETAS).status_code == 200
+    assert client.post(f"/api/privacidade/relatorios-de-impacto/{CODIGO}/aprovar", headers=auth_headers).status_code == 200
 
 
 def test_biometria_e_pontuacao_estao_na_lista_e_fechadas(client, auth_headers):

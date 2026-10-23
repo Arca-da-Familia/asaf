@@ -953,11 +953,17 @@ function PainelProntuario({ idVinculo }: { idVinculo: number }) {
   })
   const fechado = situacaoDoTratamento?.liberado === false
 
+  // a recusa por relatório de impacto (409) relê o "está liberado?": a tela passa a avisar em vez de oferecer o formulário
+  const releLiberado = () =>
+    void queryClient.invalidateQueries({
+      queryKey: ['relatorio-de-impacto-liberado'],
+    })
   const registrarRelato = useMutation({
     mutationFn: (v: z.infer<typeof registroAtendimentoCriarSchema>) =>
       registrarAtendimento(idVinculo, v.relato),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['atendimentos', idVinculo] }),
+    onError: releLiberado,
   })
   const registrarEncam = useMutation({
     mutationFn: (v: z.infer<typeof encaminhamentoCriarSchema>) =>
@@ -966,6 +972,7 @@ function PainelProntuario({ idVinculo }: { idVinculo: number }) {
       queryClient.invalidateQueries({
         queryKey: ['encaminhamentos', idVinculo],
       }),
+    onError: releLiberado,
   })
 
   if (erroAtendimentos) {

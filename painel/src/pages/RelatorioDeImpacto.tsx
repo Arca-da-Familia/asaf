@@ -30,7 +30,7 @@ function Selo({ t }: { t: TratamentoDeAltoRisco }) {
     </span>
   ) : (
     <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-900">
-      Fechado: sem relatório aprovado
+      Novos registros fechados: sem relatório aprovado
     </span>
   )
 }
@@ -45,19 +45,21 @@ function Editar({
   aoFechar: () => void
 }) {
   const queryClient = useQueryClient()
+  // revisar parte do rascunho, senão do texto aprovado (ou suspenso); a proposta do sistema só quando não há versão nenhuma
   const inicial =
     t.rascunho?.secoes ??
-    t.proposta ??
     t.aprovado?.secoes ??
     t.suspenso?.secoes ??
+    t.proposta ??
     {}
+  const [marcador] = useState(t.marcador_do_rascunho)
   const [secoes, setSecoes] = useState<Record<string, string>>(
     Object.fromEntries(
       dados.secoes.map((s) => [s.chave, inicial[s.chave] ?? '']),
     ),
   )
   const salvar = useMutation({
-    mutationFn: () => salvarRelatorioDeImpacto(t.codigo, secoes),
+    mutationFn: () => salvarRelatorioDeImpacto(t.codigo, secoes, marcador),
     onSuccess: (novo) => {
       queryClient.setQueryData(CHAVE, novo)
       aoFechar()
@@ -120,14 +122,23 @@ function Cartao({
   const [suspendendo, setSuspendendo] = useState(false)
   const [motivo, setMotivo] = useState('')
   const [erroDoPdf, setErroDoPdf] = useState<string | null>(null)
+  // a tela do prontuário pergunta "está liberado?": depois de aprovar ou suspender, ela relê (senão mostraria o estado velho)
+  const liberadoMudou = () =>
+    void queryClient.invalidateQueries({
+      queryKey: ['relatorio-de-impacto-liberado'],
+    })
   const aprovar = useMutation({
     mutationFn: () => aprovarRelatorioDeImpacto(t.codigo),
-    onSuccess: (novo) => queryClient.setQueryData(CHAVE, novo),
+    onSuccess: (novo) => {
+      queryClient.setQueryData(CHAVE, novo)
+      liberadoMudou()
+    },
   })
   const suspender = useMutation({
     mutationFn: () => suspenderRelatorioDeImpacto(t.codigo, motivo),
     onSuccess: (novo) => {
       queryClient.setQueryData(CHAVE, novo)
+      liberadoMudou()
       setSuspendendo(false)
       setMotivo('')
     },
@@ -193,7 +204,8 @@ function Cartao({
             {t.rascunho ? 'Continuar o rascunho' : 'Escrever o rascunho'}
           </Button>
         )}
-        {dados.pode_gerir && t.rascunho && (
+        {/* aprovar só com o formulário fechado: aprova o que está SALVO no servidor */}
+        {dados.pode_gerir && t.rascunho && !editando && (
           <Button
             size="sm"
             disabled={aprovar.isPending}
@@ -208,7 +220,7 @@ function Cartao({
             variant="outline"
             onClick={() => setSuspendendo(true)}
           >
-            Suspender o tratamento
+            Suspender os novos registros
           </Button>
         )}
         <Button

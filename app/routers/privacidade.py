@@ -2,7 +2,7 @@
 Ver e baixar exigem `privacidade` (a Presidência e os cargos de Presidente e Vice-Presidentes); gerar e registrar a cópia assinada exigem `privacidade_gerir` (só a
 Presidência e o cargo de Presidente). Gerar, registrar a assinatura e baixar a cópia assinada vão para a Auditoria."""
 import unicodedata
-from typing import Optional
+from typing import Annotated, Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Request, UploadFile
@@ -134,7 +134,9 @@ def inventario_pdf(request: Request, db: Session = Depends(get_db), usuario: Usu
 
 # ------------------------------------------------------------------------------------------------ v7.0d - o relatório de impacto (RIPD) antes do alto risco
 class RelatorioSalvar(BaseModel):
-    secoes: dict[str, str] = Field(default_factory=dict)
+    secoes: dict[str, Annotated[str, Field(max_length=8000)]] = Field(default_factory=dict)
+    # o marcador do rascunho que a tela carregou (None se não havia): se outra pessoa salvou ou aprovou no meio, 409
+    marcador_base: Optional[str] = None
 
 
 class RelatorioSuspender(BaseModel):
@@ -148,7 +150,7 @@ def relatorios_de_impacto(db: Session = Depends(get_db), usuario: Usuario = Depe
 
 @router.put("/api/privacidade/relatorios-de-impacto/{codigo}", summary="Salvar o rascunho do relatório de impacto (o aprovado continua valendo até este ser aprovado)")
 def salvar_relatorio(codigo: str, dados: RelatorioSalvar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_gerir)):
-    r = servico_ripd.salvar_rascunho(db, usuario, codigo, dados.secoes)
+    r = servico_ripd.salvar_rascunho(db, usuario, codigo, dados.secoes, marcador_base=dados.marcador_base)
     registrar_auditoria(db, usuario, "relatorios_de_impacto", "RIPD_RASCUNHO_SALVO", id_registro_afetado=r.id_relatorio, ip_origem=_ip(request),
                         dados_depois={"tratamento": codigo, "versao": r.versao})
     return _com_quem_ve(db, usuario, servico_ripd.listar(db))
@@ -162,7 +164,7 @@ def aprovar_relatorio(codigo: str, request: Request, db: Session = Depends(get_d
     return _com_quem_ve(db, usuario, servico_ripd.listar(db))
 
 
-@router.post("/api/privacidade/relatorios-de-impacto/{codigo}/suspender", summary="Suspender o tratamento de alto risco até aprovar de novo, com o motivo")
+@router.post("/api/privacidade/relatorios-de-impacto/{codigo}/suspender", summary="Suspender os novos registros do tratamento de alto risco até aprovar de novo, com o motivo (a leitura continua)")
 def suspender_relatorio(codigo: str, dados: RelatorioSuspender, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_gerir)):
     r = servico_ripd.suspender(db, usuario, codigo, dados.motivo)
     registrar_auditoria(db, usuario, "relatorios_de_impacto", "RIPD_SUSPENSO", id_registro_afetado=r.id_relatorio, ip_origem=_ip(request),
