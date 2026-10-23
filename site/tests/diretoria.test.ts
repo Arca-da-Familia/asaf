@@ -8,6 +8,7 @@ import {
   iniciaisDoNome,
   montarComposicao,
   presidenteDaDiretoria,
+  substitutoDoEncarregado,
 } from '../src/lib/diretoria'
 
 const membro = (
@@ -210,6 +211,40 @@ describe('presidenteDaDiretoria (o encarregado de dados da Política de Privacid
     expect(
       presidenteDaDiretoria([
         membro('DIRETORIA_EXECUTIVA', 'PRESIDENTE', '  '),
+      ]),
+    ).toBeNull()
+  })
+})
+
+describe('substitutoDoEncarregado (v7.0a: o 1º Vice-Presidente e, na falta dele, o 2º)', () => {
+  it('sem nenhum Vice-Presidente publicado não há substituto', () => {
+    expect(
+      substitutoDoEncarregado([
+        membro('DIRETORIA_EXECUTIVA', 'PRESIDENTE', 'Fulano'),
+      ]),
+    ).toBeNull()
+  })
+
+  it('o 1º vem antes do 2º; o do Conselho Fiscal e o nome em branco não contam', () => {
+    const segundo = membro(
+      'DIRETORIA_EXECUTIVA',
+      'VICE_PRESIDENTE_2',
+      'Segundo',
+    )
+    expect(substitutoDoEncarregado([segundo])).toEqual({
+      nome: 'Segundo',
+      cargo: '2º Vice-Presidente',
+    })
+    expect(
+      substitutoDoEncarregado([
+        segundo,
+        membro('CONSELHO_FISCAL', 'VICE_PRESIDENTE', 'De outro órgão'),
+        membro('DIRETORIA_EXECUTIVA', 'VICE_PRESIDENTE', 'Primeiro'),
+      ]),
+    ).toEqual({ nome: 'Primeiro', cargo: '1º Vice-Presidente' })
+    expect(
+      substitutoDoEncarregado([
+        membro('DIRETORIA_EXECUTIVA', 'VICE_PRESIDENTE', ' '),
       ]),
     ).toBeNull()
   })

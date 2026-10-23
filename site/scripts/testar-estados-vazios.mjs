@@ -36,6 +36,19 @@ exigir(
   diretoria.includes('Como a diretoria é composta'),
   '/diretoria/ perdeu a explicação estatutária (Arts. 19, 24, 25, 32)',
 )
+// v7.0a - sem Diretoria publicada (a produção de hoje), a Política continua com a seção do encarregado (o rodapé aponta para ela), diz quem substitui pelo
+// cargo e não inventa nome de substituto
+const politicaVazia = lerPagina('/privacidade/')
+exigir(
+  politicaVazia.includes('id="encarregado"') &&
+    politicaVazia.includes('atribui a substituição aos Vice-Presidentes') &&
+    !politicaVazia.includes('data-substituto'),
+  '/privacidade/ sem a seção do encarregado, ou com um substituto sem mandato publicado',
+)
+exigir(
+  lerPagina('/').includes('href="/privacidade/#encarregado"'),
+  '/ sem o link do encarregado no rodapé',
+)
 
 const projetos = lerPagina('/projetos/')
 exigir(
@@ -337,8 +350,8 @@ exigir(
   'API antiga: a Diretoria perdeu as pessoas',
 )
 exigir(
-  (diretoriaAntiga.match(/data-iniciais/g) ?? []).length === 3,
-  'API antiga: as 3 pessoas da Diretoria deviam aparecer com as iniciais (sem foto)',
+  (diretoriaAntiga.match(/data-iniciais/g) ?? []).length === 4,
+  'API antiga: as 4 pessoas da Diretoria deviam aparecer com as iniciais (sem foto)',
 )
 exigir(
   !diretoriaAntiga.includes('data-foto-da-diretoria') &&
@@ -568,9 +581,9 @@ exigir(
   'foto adulterada: alguém sumiu da página da Diretoria (só a foto podia sumir)',
 )
 exigir(
-  (diretoriaAdulterada.match(/data-iniciais/g) ?? []).length === 3 &&
+  (diretoriaAdulterada.match(/data-iniciais/g) ?? []).length === 4 &&
     !diretoriaAdulterada.includes('data-foto-da-diretoria'),
-  'foto adulterada: as 3 pessoas deviam aparecer com as iniciais, nenhuma com a foto recusada',
+  'foto adulterada: as 4 pessoas deviam aparecer com as iniciais, nenhuma com a foto recusada',
 )
 exigir(
   !existsSync('dist-foto-adulterada/midia/diretoria'),
@@ -578,8 +591,8 @@ exigir(
 )
 exigir(
   JSON.parse(readFileSync('dist-foto-adulterada/conteudo.json', 'utf-8'))
-    .contagem.diretoria === 3,
-  'foto adulterada: a contagem da Diretoria devia continuar 3',
+    .contagem.diretoria === 4,
+  'foto adulterada: a contagem da Diretoria devia continuar 4',
 )
 
 // v5.6a - a página de DOAÇÃO é estática e existe com a API sem nenhum dado (a produção de hoje: sem chave Pix e sem campanha) e com a API antiga (que ainda não tem as rotas da
@@ -629,7 +642,7 @@ for (const [rotulo, ler, pasta] of [
   )
   const politica = ler('/privacidade/')
   exigir(
-    politica.includes('Versão 2.6') &&
+    politica.includes('Versão 2.7') &&
       politica.includes('data-doacao') &&
       politica.includes('id="doacao-pelo-site"'),
     `${rotulo}: a Política não é a 2.0 com o parágrafo da doação`,

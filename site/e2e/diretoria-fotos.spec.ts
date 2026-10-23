@@ -274,11 +274,11 @@ test.describe('Diretoria com fotos (v5.7c)', () => {
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.6 · em vigor desde 21 de outubro de 2026'),
+      page.getByText('Versão 2.7 · em vigor desde 23 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.6, em vigor desde 21 de outubro de 2026/,
+        /Esta é a versão 2\.7, em vigor desde 23 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-diretoria-foto]')
@@ -346,7 +346,7 @@ test.describe('o que o build publicou da Diretoria (v5.7c)', () => {
     request,
   }) => {
     const dados = await (await request.get('/conteudo.json')).json()
-    expect(dados.contagem.diretoria).toBe(3)
+    expect(dados.contagem.diretoria).toBe(4)
     expect(dados.impressao).toMatch(/^[0-9a-f]{64}$/)
   })
 

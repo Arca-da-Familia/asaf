@@ -23,6 +23,7 @@ import {
   HeartHandshake,
   Landmark,
   ListChecks,
+  LockKeyhole,
   Megaphone,
   MessageCircleQuestion,
   PartyPopper,
@@ -157,6 +158,22 @@ export const modulos: Modulo[] = [
         rota: '/comunicacao/modelos',
         rotulo: 'Modelos',
         icone: FileText,
+      },
+    ],
+  },
+  // v7.0a - o programa de privacidade (LGPD): o encarregado pelo tratamento de dados e o ato de designação. Só quem tem `privacidade` (a Presidência e,
+  // pelo cargo, o Presidente e os Vice-Presidentes, que o substituem).
+  {
+    rota: '/privacidade',
+    rotulo: 'Privacidade',
+    permissao: 'privacidade',
+    icone: LockKeyhole,
+    itens: [
+      {
+        rota: '/privacidade',
+        rotulo: 'Encarregado',
+        icone: UserCheck,
+        fim: true,
       },
     ],
   },

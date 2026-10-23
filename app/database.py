@@ -194,9 +194,12 @@ def seed_catalogos():
             # Estatuto: Presidente, 1º/2º Vice-Presidente, 1º/2º Secretário, 1º/2º Tesoureiro e Conselheiro Fiscal. O
             # CÓDIGO nunca muda (o banco e as alçadas o referenciam): "2º Secretário" é o código VICE_SECRETARIO, e assim por
             # diante. A ordem da lista é a ordem em que a Diretoria aparece no site. Cargo fora do Estatuto não existe.
-            ("PRESIDENTE", "Presidente", {"permissoes": ["gerenciar_acesso", "editar_site", "associados", "financeiro", "governanca", "projetos", "auditoria", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias", "comunicar"]}),
-            ("VICE_PRESIDENTE", "1º Vice-Presidente", {"permissoes": ["associados", "governanca"]}),
-            ("VICE_PRESIDENTE_2", "2º Vice-Presidente", {"permissoes": ["associados", "governanca"]}),
+            ("PRESIDENTE", "Presidente", {"permissoes": ["gerenciar_acesso", "editar_site", "associados", "financeiro", "governanca", "projetos", "auditoria", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias", "comunicar", "privacidade", "privacidade_gerir"]}),
+            # v7.0a - os Vice-Presidentes substituem o Presidente nas faltas e impedimentos (Estatuto, art. 21, parágrafo único) e o ato designa o 1º (e, na falta
+            # dele, o 2º) substituto do encarregado pelo tratamento de dados (Resolução CD/ANPD nº 18/2024, art. 4º): os dois VEEM o módulo (`privacidade`); gerar e
+            # registrar o ato (`privacidade_gerir`) é só do Presidente (privilégio mínimo: o Vice não troca o ato que o Presidente assinou).
+            ("VICE_PRESIDENTE", "1º Vice-Presidente", {"permissoes": ["associados", "governanca", "privacidade"]}),
+            ("VICE_PRESIDENTE_2", "2º Vice-Presidente", {"permissoes": ["associados", "governanca", "privacidade"]}),
             ("SECRETARIO", "1º Secretário", {"permissoes": ["associados", "governanca", "documentos", "documentos_originais", "aprovar_publicacao", "comunicar"]}),
             ("VICE_SECRETARIO", "2º Secretário", {"permissoes": ["associados", "documentos", "comunicar"]}),
             ("TESOUREIRO", "1º Tesoureiro", {"permissoes": ["financeiro", "parcerias"]}),
@@ -415,11 +418,14 @@ def seed_niveis_e_permissoes():
         {"modulo": "atendimento", "codigo_permissao": "atendimento", "descricao": "Atender a fila única: contato, pedidos de informação, solicitações de titular de dados (LGPD) e voluntariado que chegam pelo site (v5.5a)."},
         # v6.1 (decisão do Presidente, 2026-10-20) - quem publica aviso no mural do painel: o Presidente e os Secretários (pelo cargo); os outros recebem pela tela Níveis e permissões.
         {"modulo": "comunicacao", "codigo_permissao": "comunicar", "descricao": "Publicar avisos no mural do painel para um grupo calculado, ver quem leu e confirmou, incluir quem entrou no grupo depois e retirar o aviso (v6.1)."},
+        # v7.0a - o módulo Privacidade (programa de privacidade da LGPD): o encarregado é o Presidente (decisão dele, 2026-10-09) e o substituto, o 1º Vice-Presidente (pelo cargo).
+        {"modulo": "privacidade", "codigo_permissao": "privacidade", "descricao": "Programa de privacidade (LGPD): ver o encarregado pelo tratamento de dados, o substituto e o ato de designação, e baixar a cópia assinada (v7.0a)."},
+        {"modulo": "privacidade", "codigo_permissao": "privacidade_gerir", "descricao": "Programa de privacidade (LGPD): gerar o ato de designação do encarregado e registrar a cópia assinada (v7.0a - separada de 'privacidade' de propósito: só o Presidente)."},
     ]
     # Nível -> lista de códigos de permissão que ele recebe por padrão (ajustável depois pela
     # própria tela de administração de acesso, isto aqui é só ponto de partida).
     atribuicoes_padrao = {
-        "Presidente": ["gerenciar_acesso", "editar_site", "associados", "financeiro", "governanca", "projetos", "auditoria", "exportar_dados_pessoais", "forcar_cadastro_duplicado", "gerenciar_checkin_evento", "exportar_presencas_evento", "exportar_inscricoes_evento", "exportar_beneficiarios", "exportar_reservas_espaco", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias", "atendimento", "comunicar"],
+        "Presidente": ["gerenciar_acesso", "editar_site", "associados", "financeiro", "governanca", "projetos", "auditoria", "exportar_dados_pessoais", "forcar_cadastro_duplicado", "gerenciar_checkin_evento", "exportar_presencas_evento", "exportar_inscricoes_evento", "exportar_beneficiarios", "exportar_reservas_espaco", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias", "atendimento", "comunicar", "privacidade", "privacidade_gerir"],
         "Diretoria": ["associados", "financeiro", "governanca", "projetos", "gerenciar_checkin_evento", "documentos", "parcerias", "atendimento"],
         "Conselho Fiscal": ["financeiro_auditar", "auditoria"],  # v5.7e: audita, não opera (antes tinha `financeiro`)
         "Associado": [],

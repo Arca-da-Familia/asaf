@@ -148,3 +148,26 @@ export function presidenteDaDiretoria(
     )?.nome ?? null
   )
 }
+
+/**
+ * O substituto do encarregado (v7.0a): o 1º Vice-Presidente e, na falta dele, o 2º — os Vice-Presidentes substituem o Presidente nas faltas e impedimentos
+ * (Estatuto, art. 21, parágrafo único; Resolução CD/ANPD nº 18/2024, art. 4º: "substituto formalmente designado"). `null` sem nenhum dos dois publicado.
+ */
+export function substitutoDoEncarregado(
+  membros: MembroDaDiretoria[],
+): { nome: string; cargo: string } | null {
+  for (const codigo of ['VICE_PRESIDENTE', 'VICE_PRESIDENTE_2']) {
+    const achado = membros.find(
+      (m) =>
+        m.orgao_codigo === ORGAO_DIRETORIA &&
+        m.cargo_codigo === codigo &&
+        m.nome.trim() !== '',
+    )
+    if (achado) {
+      const cargo =
+        CARGOS_DA_DIRETORIA.find((c) => c.codigo === codigo)?.rotulo ?? codigo
+      return { nome: achado.nome, cargo }
+    }
+  }
+  return null
+}

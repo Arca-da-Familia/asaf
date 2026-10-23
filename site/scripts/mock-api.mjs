@@ -486,6 +486,17 @@ const diretoria = () => [
     data_fim_previsto: soData(1360),
     foto: fotoPublicaDaDiretoria(FOTOS_DA_DIRETORIA.PRESIDENTE),
   },
+  // v7.0a: só o 2º Vice-Presidente (o 1º não publicado) - a Política mostra o 2º como o substituto do encarregado, na falta do 1º
+  {
+    orgao_codigo: 'DIRETORIA_EXECUTIVA',
+    orgao: 'Diretoria Executiva',
+    cargo_codigo: 'VICE_PRESIDENTE_2',
+    cargo: '2º Vice-Presidente',
+    nome: 'Pedro de Teste Alves',
+    data_inicio: soData(-100),
+    data_fim_previsto: soData(1360),
+    foto: null,
+  },
   {
     orgao_codigo: 'DIRETORIA_EXECUTIVA',
     orgao: 'Diretoria Executiva',

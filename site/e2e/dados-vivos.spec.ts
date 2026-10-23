@@ -34,12 +34,12 @@ test.describe('Diretoria e Conselho', () => {
     ])
     await expect(
       page.locator('[data-orgao="Diretoria Executiva"] [data-ocupante]'),
-    ).toHaveCount(2)
+    ).toHaveCount(3)
     // Cargo sem ocupante publicado diz isso — não diz "vago" (a posse pode não estar registrada ainda).
     const semOcupante = page.locator(
       '[data-orgao="Diretoria Executiva"] [data-vaga]',
     )
-    await expect(semOcupante).toHaveCount(5)
+    await expect(semOcupante).toHaveCount(4)
     await expect(semOcupante.first()).toContainText(
       'Ocupante ainda não publicado',
     )
@@ -231,7 +231,7 @@ test('/conteudo.json traz a impressão do conteúdo (para a sincronização auto
   expect(dados.contagem).toEqual({
     eventos: 13, // v5.5d: os quatro eventos de situação (cancelado, adiado, remarcado, realizado)
     projetos: 3,
-    diretoria: 3,
+    diretoria: 4, // v7.0a: o 2º Vice-Presidente (o substituto do encarregado, na falta do 1º)
     assembleias: 1,
     noticias: 6,
     parcerias: 3,

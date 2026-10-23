@@ -68,6 +68,8 @@ export const GRUPOS_DO_RODAPE: GrupoDoRodape[] = [
     titulo: 'Informações legais',
     itens: [
       { rotulo: 'Política de Privacidade', href: '/privacidade/' },
+      // v7.0a: o encarregado pelo tratamento de dados em destaque e de fácil acesso em todas as páginas (Resolução CD/ANPD nº 18/2024, art. 9º)
+      { rotulo: 'Encarregado de dados', href: '/privacidade/#encarregado' },
       {
         rotulo: 'Solicitação do titular de dados',
         href: '/privacidade/solicitacao-do-titular/',

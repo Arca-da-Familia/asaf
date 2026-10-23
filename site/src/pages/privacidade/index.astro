@@ -7,13 +7,19 @@ import {
   PAINEL_URL,
 } from '../../config/organizacao'
 import { conteudoPublico, organizacaoDoSite } from '../../lib/dados-publicos'
-import { presidenteDaDiretoria } from '../../lib/diretoria'
+import {
+  presidenteDaDiretoria,
+  substitutoDoEncarregado,
+} from '../../lib/diretoria'
 import Base from '../../layouts/Base.astro'
 
 // os dados da associação como o site os mostra: os fixos, com o que a Instituição do painel marcou "vai para o site" por cima (v5.4h)
 const ORGANIZACAO = await organizacaoDoSite()
 // o encarregado pelo tratamento de dados é o Presidente (LGPD, art. 41): o nome vem do mandato vigente que o sistema publica
-const presidente = presidenteDaDiretoria((await conteudoPublico()).diretoria)
+const { diretoria } = await conteudoPublico()
+const presidente = presidenteDaDiretoria(diretoria)
+// v2.7: o substituto do encarregado (o 1º Vice-Presidente; o 2º na falta dele), também pelo mandato publicado
+const substituto = substitutoDoEncarregado(diretoria)
 
 // Texto escrito SÓ com o que o site e o sistema realmente fazem hoje. Versionado em
 // config/organizacao.ts (v1.1: corrigido pela verificação de fatos de 2026-10-03, que apontou
@@ -66,6 +72,10 @@ const presidente = presidenteDaDiretoria((await conteudoPublico()).diretoria)
 // v2.6 (2026-10-21): "ESQUECI A MINHA SENHA" do painel (`app/services/esqueci_a_senha.py`): o código vai ao e-mail de login da conta (sem ele, ao de contato); vale 10 minutos, uma vez;
 // o sistema guarda a impressão do código, as tentativas, a impressão do CPF e o IP de quem pede ou tenta usar (os limites), tudo apagado depois de 1 dia por `limpar_vencidos` (rotina de
 // retenção); a troca (SENHA_TROCADA_PELO_CODIGO, com o IP) e o teto do dia (NOVA_SENHA_TRAVADA_NO_DIA) ficam na Auditoria; o aviso de que a senha foi trocada não se desliga.
+// v2.7 (2026-10-23): o SUBSTITUTO do encarregado (v7.0a; Resolução CD/ANPD nº 18/2024, art. 4º): o Estatuto (art. 21, parágrafo único) atribui aos Vice-Presidentes a substituição do
+// Presidente, SEM ordem entre eles (a conferência independente apontou: "o 1º e, na falta dele, o 2º" não é texto do Estatuto, é a designação que o ATO faz, e o ato ainda não
+// está assinado: por isso a Política diz só o fato do Estatuto e quem é o Vice-Presidente hoje, pelo mandato publicado — o 1º e, sem ele publicado, o 2º). O parágrafo ganha a âncora `#encarregado`, que o rodapé de TODAS as páginas aponta
+// ("local de destaque e de fácil acesso", art. 9º da mesma Resolução). O texto NÃO diz que o ato de designação está assinado: isso depende de o Presidente assinar (o sistema só guarda).
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -157,7 +167,7 @@ const direitos = [
         </a>
         .
       </p>
-      <p class="mt-3" data-encarregado>
+      <p class="mt-3 scroll-mt-24" id="encarregado" data-encarregado>
         <strong>Encarregado pelo tratamento de dados pessoais</strong> (Lei nº
         13.709/2018, art. 41): o Presidente da ASAF
         {presidente ? (
@@ -177,6 +187,14 @@ const direitos = [
             mostra o nome quando o mandato vigente está cadastrado no sistema)
           </>
         )}
+        . Nas faltas e impedimentos do Presidente, o Estatuto (art. 21,
+        parágrafo único) atribui a substituição aos Vice-Presidentes
+        {substituto ? (
+          <span data-substituto>
+            {' '}
+            (hoje, o {substituto.cargo} é <strong>{substituto.nome}</strong>)
+          </span>
+        ) : null}
         . O contato é o mesmo e-mail acima ou o{' '}
         <a
           href="/privacidade/solicitacao-do-titular/"

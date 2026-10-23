@@ -79,6 +79,7 @@ import { AvisoNovoPage } from '@/pages/AvisoNovo'
 import { AvisosAgendadosPage } from '@/pages/AvisosAgendados'
 import { ModelosDeAvisoPage } from '@/pages/ModelosDeAviso'
 import { ComunicacaoPage } from '@/pages/Comunicacao'
+import { EncarregadoPage } from '@/pages/Encarregado'
 import { MeuAvisoPage } from '@/pages/MeuAviso'
 import { MeusAvisosPage } from '@/pages/MeusAvisos'
 import { PerfilPage } from '@/pages/Perfil'
@@ -391,6 +392,16 @@ function App() {
               <ErrorBoundary tituloModulo="Meus avisos">
                 <MeuAvisoPage />
               </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/privacidade"
+            element={
+              <RequirePermission permission="privacidade">
+                <ErrorBoundary tituloModulo="Privacidade">
+                  <EncarregadoPage />
+                </ErrorBoundary>
+              </RequirePermission>
             }
           />
           <Route
