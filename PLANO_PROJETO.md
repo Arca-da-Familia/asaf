@@ -631,15 +631,17 @@ que a Política não promete e a LGPD desaconselha), o endereço só de envio (o
 
 #### v6.3 — Transparência pública ativa
 
-- [ ] Publicação automática do relatório financeiro resumido (FASE 3) e de documentos
+- [x] Publicação automática do relatório financeiro resumido (FASE 3) e de documentos
       institucionais (estatuto vigente, atas aprovadas, relatório anual) em `/transparencia/`,
       gerada do próprio dado — nunca digitada duas vezes.
-- [ ] Cada documento publicado com data, versão e responsável; documento substituído mantém o
+- [x] Cada documento publicado com data, versão e responsável; documento substituído mantém o
       histórico acessível em vez de sumir.
-- [ ] Relatório anual de atividades montado automaticamente a partir de projetos, indicadores,
+- [x] Relatório anual de atividades montado automaticamente a partir de projetos, indicadores,
       eventos e financeiro do exercício, com espaço editorial para texto da diretoria — a peça que
       toda associação faz na correria e que aqui nasce pronta.
 
+> **Os três itens acima foram feitos nas partes v6.3a, v6.3b e v6.3c (abaixo, com o que foi visto na homologação e confirmado em produção).**
+>
 > **Decisões do Presidente (2026-10-22), ao liberar a v6.3** (e pedir o Ponto de Revisão FASE 6 2/2 logo em seguida): (1) as **contas do ano** só vão ao site **depois de a Assembleia
 > aprovar** (a deliberação de aprovação de contas) e de o Presidente ou o Secretário confirmar a publicação; resumo sem nome de ninguém, com o parecer do Conselho Fiscal; (2) as **atas** vão ao
 > site **em TEXTO, nunca o PDF** ("risco de dados"): parte-se do texto da ata, o verificador reconhece o dado pessoal, ele é retirado e só o necessário vai ao público, com aprovação do
@@ -705,8 +707,29 @@ Assembleia aprovar as de 2025 e o Presidente ou o Secretário confirmar.
 
 ##### v6.3c — Relatório anual de atividades
 
-- [ ] Os números do ano montados pelo sistema (projetos, eventos realizados com inscritos e presentes, beneficiários, horas de voluntariado, indicadores, as contas do exercício) mais a
+- [x] Os números do ano montados pelo sistema (projetos, eventos realizados com inscritos e presentes, beneficiários, horas de voluntariado, indicadores, as contas do exercício) mais a
   apresentação escrita pela secretaria; aprovação do Presidente ou do Secretário; página do relatório anual por ano na Transparência.
+
+**O que foi feito:** em Documentos, o bloco "Relatório anual de atividades" (permissão Documentos) monta o relatório de um ano ENCERRADO em que o sistema já era usado (o
+primeiro registro da Auditoria): um ano anterior ao sistema sairia com zeros que não correspondem à realidade e é recusado; no ano em que o sistema começou, o texto diz a partir de
+quando os números contam. Os números, sem nome de ninguém: projetos PÚBLICOS do ano com a situação de hoje (o interno não aparece nem na contagem; suspenso não conta; concluído e
+cancelado pelo fim previsto, porque o sistema não guarda a data real do fim), eventos PÚBLICOS que aconteceram (marcados como realizados ou com presença registrada) com inscrições
+confirmadas e presenças (pessoas distintas, somando as sessões; a presença pela leitura na entrada ou pela marcação na inscrição), beneficiários ATENDIDOS no ano e atendimentos,
+horas de voluntariado APROVADAS e quantos voluntários, associados com vínculo em 31/12, o último valor do ano dos indicadores ATIVOS dos projetos públicos e, se já publicadas, as
+contas do exercício (v6.3b). Toda contagem de pessoas abaixo de 5 vira "menos de 5". A única parte escrita é a apresentação, no próprio documento: conferida pelo verificador de dado
+pessoal (recusa mascarada), obrigatória para ir à revisão; quem a escreveu não aprova (nem a versão nova com o mesmo texto), e a Auditoria guarda quem escreveu e o SHA-256 do texto,
+gravada ANTES do texto. O documento é gerado como as contas (sem texto colado, PDF ou versão nova pela biblioteca). No site, `/transparencia/relatorio-anual/` por ano (apresentação,
+números, eventos, indicadores, contas, ligação ao texto), cartão na Transparência e link no rodapé.
+**Conferência independente (agente `opus`, só leitura), duas:** na primeira, 1 alto (zeros falsos de ano anterior ao sistema), 4 médios (beneficiários acumulados em vez de
+atendidos no ano, quem escreve aprovava o próprio texto, projetos e indicadores mal recortados) e baixos (presença marcada na inscrição não contava, evento que não aconteceu
+contava, contagens pequenas por evento, textos do site, painel); na reconferência, nenhum alto, 1 médio (os robôs não provocavam as recusas) e baixos (Auditoria na mesma
+transação, mensagem da apresentação, desempate do indicador, projeto sem fim previsto, aviso de "não salva"); todos corrigidos. 15 mutações das travas, 15 pegas.
+**Na homologação (22/10):** como a homologação nasceu em 2026, um roteiro só-de-teste grava lá um início de uso fictício em 02/01/2025 (`scripts/hml_inicio_do_sistema.py`, passo
+no `deploy-homologacao.yml`; recusa qualquer banco que não seja o de teste). Robô `v6.3c-01`, 1 de 1 (na 1ª rodada o robô achou defeito dele: a página mostra duas áreas de
+conferência): o ano corrente e o anterior ao sistema (2024) são recusados na tela; o Secretário monta 2025; a apresentação com CPF é recusada mascarada; o Presidente escreve a boa;
+o Secretário envia; o Presidente (que escreveu) não tem o botão de aprovar e a API recusa (403); a Auditoria tem a linha com o SHA-256; a Presidente do cargo aprova e a API pública
+traz o relatório com a apresentação. Depois de publicar a homologação, `v6.3c-02` 1 de 1 (o site de teste mostra a apresentação, os números e liga ao texto; o cartão na Transparência).
+**Em produção (23/10):** `main` = `c229176` (a v6.3c e as correções do Ponto juntas, mescladas depois de provadas na homologação); Deploy API verde (1534 testes contra Postgres; sem migração), Deploy Painel e Deploy Site verdes (`version.json` = `c229176` nos dois); o `openapi.json` traz `/api/relatorios-anuais/{ano}/no-site`, `/preparar` e `/apresentacao` (sem login: 401); `/api/publico/transparencia/relatorios-anuais` responde `[]` e `asaf.org.br/transparencia/relatorio-anual/` mostra "Nenhum relatório anual publicado ainda". Em produção o primeiro relatório possível é o de 2026, a partir de 01/01/2027 (o sistema começou a ser usado em 2026). Nada de teste foi criado em produção.
 
 ##### 🔍 Ponto de Revisão — FASE 6 (2/2 — fim, fecha v6.2–v6.3)
 
@@ -715,6 +738,65 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - Disparo em massa (v6.2) exige confirmação com contagem de destinatários antes de enviar — testar a confirmação, não só o envio.
 - Opt-out (v6.2) é honrado em todos os canais simultaneamente, e comunicação estatutária obrigatória continua sendo entregue mesmo com opt-out de comunicação opcional.
 - Portal de transparência (v6.3) publica dado gerado do sistema, nunca digitado à mão.
+
+**Revisão feita em 2026-10-22 — aguardando o OK do Presidente para fechar** (o Ponto só fecha com o OK dele). Intervalo: `1332e7f..c229176` (v6.2a–d, a correção da senha provisória
+e o "Esqueci a minha senha", v6.3a–c). A leitura de código e plano foi feita por um agente SEPARADO, só leitura (não ancorado na minha conclusão); o que depende de rodar coisas foi
+feito por mim. Resultado do checklist da seção 4.1:
+1. **`[x]` implementado e testado — OK, com 1 achado médio corrigido:** o plano dizia que "todas as portas de PDF fecham para a Ata", mas um documento de outro tipo, Público, com
+   PDF, podia virar Ata depois e ir ao site em PDF. Agora virar Ata com PDF é recusado e o envio e a aprovação recusam qualquer Ata que não esteja em texto (teste). Duas contagens do
+   plano corrigidas (v6.2d: 19 testes novos, não 21; correção da senha: 867 testes de navegador, não 870).
+2. **Testes — OK:** servidor 1534 em duas rodadas seguidas (e no CI contra Postgres); painel 729; site 770 unitários e 918 de navegador (rodados com o navegador SEM JANELA do CI);
+   na homologação, os robôs de cada versão e as regressões (ver os registros das v6.3a–c e o fim deste bloco). Uma falha intermitente vista hoje no servidor
+   (`test_padroes_suspeitos_detecta_pagamento_apos_troca_de_dados_bancarios`, 1 em 4 rodadas completas, passa sozinha 6 de 6) é de código que o intervalo não tocou: fica registrada
+   para investigar.
+3. **Decisões congeladas — OK**, com 1 achado baixo corrigido: o `DECISOES_CONGELADAS.md` ainda tratava o provedor de e-mail como decisão em aberto; agora está fixado na tabela da
+   seção 8 (SMTP da conta Google Workspace, asaf@asaf.org.br).
+4. **Segredos — OK:** varredura das 14.742 linhas acrescentadas no intervalo (chave privada, AKIA, tokens do GitHub, `sk-`, `AccountKey=`, SAS, URL de banco com senha, JWT,
+   atribuição de segredo longo): nenhum achado (só dois falsos positivos de configuração com a palavra "chave").
+5. **Auditoria — OK**, com 2 achados baixos corrigidos: o pedido do código do "Esqueci a minha senha" passou a ficar na Auditoria (a conta, sem o e-mail nem o código: pedidos
+   repetidos aparecem antes do teto) e a edição de opção de catálogo guarda os metadados no "antes".
+6. **Permissão no servidor — OK** (comunicação pede `comunicar`; contas, relatório e ata para o site pedem `documentos`; a aprovação pede `aprovar_publicacao`; as rotas públicas de
+   descadastro e de senha têm link assinado ou limite por IP).
+7. **Escopo — OK**, com 2 anotações: a v15.6 ganhou a marca `[parcial]` (o "Esqueci a minha senha" já faz parte dela) e a v12.7 diz que a prestação de contas e o relatório anual
+   já existem (v6.3b/c), para ninguém reconstruí-los.
+8. **Plano × código — OK** depois das correções acima; os três itens-pai da v6.3 foram marcados como feitos pelas v6.3a/b/c.
+9. **Suíte completa — OK** (item 2).
+10. **Tela real — OK:** Novo aviso (pré-visualização, teste, agendar), Agendados, Modelos, relatório de leitura com e-mail e reenviar, "E-mails da ASAF" no Meu Perfil, descadastro no
+    site, "Esqueci a minha senha", "Troque a sua senha", "Publicar no site (em texto)" na Ata, "Contas do exercício para o site" e "Relatório anual de atividades" em Documentos.
+11. **O que a tela oferece para abrir foi aberto — OK:** os robôs abrem o documento publicado pelo link do site (contas, relatório anual e ata em texto), o aviso pelo sino e o
+    relatório pela lista.
+12. **No ar — OK:** ver o fim deste bloco.
+
+**Específico deste ponto:**
+- **Disparo em massa com contagem confirmada — tinha 2 lacunas (médio), corrigidas:** o "publicar já" e o "agendar" já exigiam o total conferido (testes do servidor e do painel;
+  faltava o teste do 409 ao agendar, acrescentado). Mas (a) o aviso AGENDADO era publicado na hora com o grupo recalculado sem limite (conferido para 5, podia sair para 300): agora,
+  se o grupo cresceu desde a conferência, ele NÃO sai, fica cancelado com o motivo e quem agendou é avisado no sino (quem saiu do grupo simplesmente não recebe); e (b) "Incluir quem
+  entrou no grupo depois" incluía e mandava e-mail num clique: agora a tela mostra antes quantos entraram (e quantos recebem por e-mail) e o servidor só inclui com o total conferido.
+- **Descadastro em todos os canais e obrigatórias entregues — OK nos testes, com 1 achado médio corrigido:** quem desligou recebe a Convocação e a Mudança de regra (sem link de sair) e
+  não recebe as outras, também quando desliga depois de publicado; lembretes e avisos de evento respeitam a escolha; o sino e o mural recebem sempre (decisão do Presidente). O achado:
+  o que era "obrigatório" vinha de uma marca no catálogo que quem tem `comunicar` edita; agora as obrigatórias são fixas no código (só Convocação e Mudança de regra), com teste de que
+  mudar a marca no catálogo não muda nada.
+- **Transparência só com dado do sistema — contas e relatório OK, com 2 achados médios corrigidos:** (a) a biblioteca deixava publicar um Balanço ou um Relatório anual montado à mão
+  (por fora da aprovação em Assembleia e dos números do sistema): agora esses dois tipos só vão ao site gerados pelo sistema; (b) o texto sugerido da ata trazia a lista de presença
+  com o nome e a hora de cada associado (o verificador não reconhece nomes): agora sai com a contagem, e quem aprova vê o texto da ata assinada para comparar (nenhuma deliberação pode
+  mudar). As partes escritas que vão a público são exceções decididas pelo Presidente: o parecer do Conselho Fiscal (texto do próprio Conselho), a apresentação do relatório anual e o
+  texto da ata, todos pelo verificador de dado pessoal e com a aprovação de outra pessoa.
+- Baixo corrigido: quem escreveu a apresentação também não aprova a versão nova que leva o MESMO texto.
+
+**Riscos que ficam registrados (aceitos, com o motivo):** os totais de inscrições e presenças do relatório anual permitem deduzir o número de um evento público pequeno (que aparece
+como "menos de 5"): são eventos públicos, sem nome de ninguém; um projeto concluído com atraso ou antes do previsto pode cair no ano vizinho (o sistema não guarda a data real do fim).
+**Decisão do Presidente (23/10/2026), sobre balanços de anos anteriores:** ficam de fora do site, sem exceção. Nas palavras dele: "não é bom mexer com anos anteriores"; a ASAF começa
+"literalmente do ano zero": o saldo anterior entra no sistema como lançamento de abertura e, daí em diante, só vai ao site o que nasce no sistema (a regra "Balanço e Relatório anual só
+gerados" fica como está).
+**Testes das correções:** servidor 1534 em duas rodadas seguidas; painel 729; 10 mutações das correções, 10 pegas.
+**Na homologação (22/10):** branch `ponto-fase6-2` (a v6.3c e as correções juntas). Robô `v6.3-ponto-01`, 1 de 1 (nas duas primeiras rodadas o robô achou defeitos dele: o endereço de
+criar projeto e associados desligados que não contam no grupo; agora ele monta o grupo pela conferência do próprio sistema): o "Incluir quem entrou depois" mostra "1 pessoa entrou"
+antes de incluir e o servidor recusa um total errado; um aviso é agendado para 2 pessoas e o grupo passa a 3; o Balanço digitado à mão é recusado no envio. Depois de publicar a
+homologação com a hora já passada, `v6.3-ponto-02` 1 de 1: o agendado não saiu, aparece cancelado com "O grupo cresceu desde a conferência" e o aviso chegou ao sino de quem agendou.
+Regressões verdes: `v6.3c-01/02`, `v6.3b-01/02`, `v5.4g-02` 7/7, `v6.3a-01` 2/2, `v6.1-01` 5/5 (o "Incluir" com a tela nova) e `v5.4d-05` 16/16.
+**Rotina diária em produção:** a "Tarefa Diária (lembretes de mensalidade por e-mail)" rodou pela primeira vez em 22/10 (agendada para 12:00 UTC, o GitHub a disparou às 16:51 UTC):
+verde, "enviados: 0, falhas: 0".
+**No ar (23/10):** as correções estão em produção junto com a v6.3c (`c229176`, ver o registro da v6.3c): o `openapi.json` traz `/api/avisos/{id_aviso}/novos` (sem login: 401). **O Ponto fica aguardando o OK do Presidente para fechar a FASE 6.**
 
 ### FASE 7 — LGPD e proteção de dados (programa, não checklist)
 
