@@ -141,12 +141,14 @@ test('a Presidente do cargo gera o ato, abre o PDF, anexa a cópia assinada e o 
   await page
     .getByRole('button', { name: /^Gerar (o ato de designação|de novo)/ })
     .click()
-  expect((await gerando).status()).toBe(200)
+  const gerado = await gerando
+  expect(gerado.status()).toBe(200)
+  // o número vem da resposta do servidor: numa rodada seguinte o quadro do ato anterior (ainda não assinado) está na tela até a troca
+  const numero = String(
+    ((await gerado.json()) as { rascunho: { numero: number } }).rascunho.numero,
+  )
   const quadro = page.getByTestId('ato-aguardando-assinatura')
-  await expect(quadro).toBeVisible()
-  const numero = /Ato nº (\d+)/.exec(
-    await quadro.getByRole('heading').innerText(),
-  )![1]
+  await expect(quadro.getByRole('heading')).toHaveText(`Ato nº ${numero}`)
   await expect(page.getByTestId('avisos-do-encarregado')).toContainText(
     `O Ato nº ${numero} foi gerado e aguarda a cópia assinada`,
   )
