@@ -814,14 +814,14 @@ verde, "enviados: 0, falhas: 0".
 
 - [ ] Encarregado (DPO) designado e publicado no site com canal de contato — exigência do Art. 41 **[parcial: v5.5a pôs o encarregado (o Presidente, decisão de 09/10) e o canal na Política; a v7.0a fez o ato formal, o substituto e o destaque em todas as páginas do site. Fecha quando o Presidente cadastrar o mandato (o nome aparece no site) e anexar o ato assinado]**
       da LGPD, frequentemente ignorada por associações.
-- [ ] **Inventário de dados (ROPA)** vivo: para cada tipo de dado tratado — quem é o titular, qual
+- [x] **Inventário de dados (ROPA)** vivo **[v7.0c]**: para cada tipo de dado tratado — quem é o titular, qual
       a finalidade, qual a base legal, quanto tempo fica, com quem é compartilhado, onde está
       armazenado. Mantido como registro no próprio sistema, não como documento Word esquecido.
-- [ ] Classificação de dado por sensibilidade (comum, pessoal sensível, dado de criança e
+- [x] Classificação de dado por sensibilidade **[v7.0b]** (comum, pessoal sensível, dado de criança e
       adolescente) marcada **no modelo de dados**, para que controles técnicos (criptografia,
       auditoria de consulta, retenção) sejam aplicados por classificação, não caso a caso.
-- [ ] Avaliação de impacto (RIPD) obrigatória antes de ativar qualquer tratamento de alto risco —
-      biometria (v20.3), prontuário de beneficiário (v4.2), perfilamento por score (v11.1).
+- [x] Avaliação de impacto (RIPD) obrigatória antes de ativar qualquer tratamento de alto risco —
+      biometria (v20.3), prontuário de beneficiário (v4.2), perfilamento por score (v11.1) **[v7.0d; a aprovação real é ato do Presidente, quando o sistema estiver pronto]**.
 
 > **A FASE 7 foi liberada pelo Presidente em 2026-10-23** ("comece já pela versão 7.0, governança de privacidade").
 > **O que já existia (levantamento de 23/10):** a Política de Privacidade (versão 2.6) nomeia o Presidente como encarregado e dá o canal (o e-mail da Instituição e o formulário do
@@ -991,13 +991,42 @@ disparar dois robôs uma vez (falha do GitHub; disparados de novo).
 
 ##### v7.0d — Relatório de impacto (RIPD) obrigatório antes do alto risco
 
-- [ ] Lista de **tratamentos de alto risco** no código (prontuário de beneficiário — já ligado; biometria — v20.3; score de engajamento — v11.1) e o **relatório de impacto** de cada um no
+- [x] Lista de **tratamentos de alto risco** no código (prontuário de beneficiário — já ligado; biometria — v20.3; score de engajamento — v11.1) e o **relatório de impacto** de cada um no
       painel: descrição, necessidade e proporcionalidade, riscos aos titulares, medidas, parecer do encarregado e aprovação, com versões.
-- [ ] **Portão no servidor:** sem relatório aprovado o tratamento não roda (gravar no prontuário passa a ser recusado com o motivo); o sistema já traz o rascunho do relatório do prontuário
+- [x] **Portão no servidor:** sem relatório aprovado o tratamento não roda (gravar no prontuário passa a ser recusado com o motivo); o sistema já traz o rascunho do relatório do prontuário
       montado a partir do inventário para o Presidente revisar e aprovar. A v11.1 e a v20.3 chamam o mesmo portão.
-- [ ] **Na produção:** o prontuário fica travado até o Presidente aprovar o relatório (ato dele no painel); o painel avisa isso na tela do prontuário.
+- [x] **Na produção:** o prontuário fica travado até o Presidente aprovar o relatório (ato dele no painel); o painel avisa isso na tela do prontuário.
 
 **Fora de escopo de propósito:** enviar o relatório à ANPD (só quando ela pedir, LGPD art. 38).
+
+✅ **v7.0d concluída (2026-10-23).**
+
+**O que foi feito:** `app/services/relatorio_de_impacto.py` lista os 3 tratamentos de alto risco (o atendimento social — prontuário e encaminhamentos de beneficiários —, ligado;
+a biometria, v20.3, e a pontuação de engajamento, v11.1, como "ainda não existe no sistema"). O relatório tem 7 seções (descrição, dados, metodologia, necessidade e
+proporcionalidade, riscos, medidas, parecer do encarregado), cada gravação numa **versão** (Rascunho → Aprovado; a aprovada anterior, ou a suspensa, vira Substituído), com a
+Auditoria. O sistema monta a **proposta** do rascunho a partir do inventário (v7.0c) e do que o código faz (cada afirmação conferida com o código, por teste); o parecer fica em
+branco, para o encarregado. **O portão no servidor:** sem relatório aprovado, gravar relato no prontuário e registrar encaminhamento são recusados (409, com o motivo); a leitura do
+que já existe continua (auditada); um rascunho novo não fecha o que está aprovado; **suspender** (com o motivo) fecha os novos registros até aprovar de novo. Ver:
+`privacidade`; escrever, aprovar e suspender: `privacidade_gerir` (o Presidente). A tela do prontuário pergunta "está liberado?" (`/api/relatorios-de-impacto/{codigo}/liberado`,
+qualquer pessoa logada, sem dado) e avisa quando está fechado. O PDF mostra o texto que vale (aprovado; senão o suspenso com a data e o motivo; senão o rascunho).
+**Conferência independente (agente, só leitura) achou defeitos reais; todos corrigidos antes de publicar.** Os mais sérios: o rascunho afirmava coisas que o código não faz (relato
+"curto", consentimento "registrado" — o campo existe mas não é exigido —, ninguém de fora da equipe lê — quem tem a permissão Projetos pode se pôr na equipe, o que fica na
+Auditoria); revisar um relatório aprovado partia da proposta do sistema, não do texto aprovado; aprovar com o formulário aberto aprovava o texto velho; duas pessoas
+salvando ao mesmo tempo: a segunda apagava a primeira sem aviso (agora recebe "recarregue", e salvar e aprovar travam a linha); depois de aprovar ou suspender, a tela do
+prontuário mostrava o estado velho; o PDF de um relatório suspenso mostrava o rascunho.
+**Testes locais:** servidor 1601 em duas rodadas seguidas e 1601 contra Postgres 18 (`validar-postgres.yml`, a migração `13948ce981ad` desce e sobe com o `alembic check` limpo);
+painel 745 em duas rodadas, tipos, lint e formatação limpos.
+**Na homologação (2026-10-23):** a branch `v70d-relatorio-de-impacto` foi publicada lá (`c65b60d`) e a migração rodou no banco de TESTE. Robô `v7.0d-01` 3/3: o **1º
+Vice-Presidente** vê Privacidade > Relatório de impacto, sem os botões de escrever, aprovar e suspender, e o servidor recusa (403); a **Presidente do cargo** suspende o
+atendimento social com o motivo ("Novos registros fechados"), a biometria aparece como "Ainda não existe no sistema (v20.3)"; num projeto onde ela é da equipe, a tela do
+prontuário avisa que está fechado e não oferece o registro, e o servidor recusa gravar (409, "relatório de impacto"); ela escreve o rascunho, aprovar sem o parecer do
+encarregado é recusado, com o parecer aprova ("Liberado"), o PDF abre e o prontuário grava de novo; a **Auditoria** tem a suspensão, o rascunho e a aprovação desta rodada,
+feitos por ela. Regressões verdes: `v5.4f` 54/54 (projetos e beneficiários), `v7.0a` 5/5, `v7.0b` 2/2, `v7.0c` 3/3. (O primeiro disparo da publicação saiu da branch em vez da
+`main` e o Azure recusou o login; disparado de novo pela `main` com `ref` = a branch.)
+**Em produção (2026-10-23):** `main` = `c65b60d`; Deploy API verde (1601 contra Postgres e `Running upgrade 30a03a70ba56 -> 13948ce981ad`) e Deploy Painel verde;
+`painel.asaf.org.br/version.json` = `c65b60d`; o `openapi.json` traz as 6 rotas do relatório de impacto, e `GET /api/privacidade/relatorios-de-impacto` e `GET
+/api/relatorios-de-impacto/ATENDIMENTO_SOCIAL/liberado` sem login respondem 401. **Na produção não há relatório aprovado:** gravar no prontuário e registrar encaminhamento ficam
+fechados até o Presidente revisar o rascunho, escrever o parecer e aprovar (Privacidade > Relatório de impacto) — ato dele, para quando o sistema estiver pronto (decisão de 23/10).
 
 #### v7.1 — Base legal, consentimento e retenção
 
