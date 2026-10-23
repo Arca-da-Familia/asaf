@@ -61,29 +61,14 @@ jobs:
           alembic current
       - name: Modelos x banco (alembic check) - tem que estar LIMPO
         run: alembic check
-      # Simula o banco de PRODUÇÃO antes da migração dos índices (ele não tem estes 7 índices) e prova que
-      # a migração os cria e deixa o `alembic check` limpo; depois repete (idempotência) e desfaz/refaz.
-      - name: Migração dos índices sobre um schema no formato da produção
+      # A migração MAIS NOVA, de verdade, no Postgres: desce e sobe de novo com o `alembic check` limpo nas duas pontas (índice parcial, JSONB e o
+      # que o SQLite aceita e o Postgres não aparecem aqui). O passo antigo (os 7 índices de 2026-10-02) recarimbava a revisão 85a120a27eb7 e reaplicava
+      # todas as migrações seguintes sobre tabelas que o create_all já tinha criado: quebrava com "relation already exists" desde a v5.4a (achado na v7.0a).
+      - name: A migração mais nova desce e sobe no Postgres
         run: |
-          python - <<'EOF'
-          from sqlalchemy import text
-          from app.database import engine
-          indices = ["ix_aprovacoes_compra_id_solicitacao", "ix_associados_id_pessoa", "ix_cotacoes_compra_id_solicitacao",
-                     "ix_dados_bancarios_fornecedor_id_fornecedor", "ix_dependentes_familiares_id_pessoa_titular",
-                     "ix_dependentes_familiares_id_pessoa_vinculada", "ix_opcoes_catalogo_codigo"]
-          with engine.begin() as c:
-              for i in indices:
-                  c.execute(text(f"DROP INDEX {i}"))
-          print("schema no formato da producao: 7 indices removidos")
-          EOF
-          # Prova que o `alembic check` ENXERGA a falta (versão = head, então só pode falhar por causa dos índices).
-          alembic check 2> "$RUNNER_TEMP/check.err" && { echo "ERRO: o alembic check devia acusar a falta dos índices"; exit 1; }
-          cat "$RUNNER_TEMP/check.err"
-          grep -q "New upgrade operations detected" "$RUNNER_TEMP/check.err" || { echo "ERRO: falhou por outro motivo"; exit 1; }
-          alembic stamp 85a120a27eb7
+          alembic downgrade -1
           alembic upgrade head
           alembic check
-          alembic upgrade head
           alembic downgrade -1
           alembic upgrade head
           alembic check
