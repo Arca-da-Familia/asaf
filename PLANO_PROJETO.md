@@ -1046,6 +1046,65 @@ fechados até o Presidente revisar o rascunho, escrever o parecer e aprovar (Pri
 - [ ] Anonimização preserva estatística (o evento continua sabendo que teve 300 presentes) sem
       preservar identificação — apagar linha inteira destruiria o histórico institucional.
 
+> **Levantamento de 27/10 (o que já existia):** cada formulário do site que recebe dado pessoal (inscrição em evento, filiação, contato, pedido de informação, solicitação do
+> titular, voluntariado, doação, conta de visitante) guardava só o NÚMERO da versão do aviso aceito; o texto ficava no código do site e mudava sem rastro no sistema. A
+> inscrição em evento pedia "consentimento" ("autorizo o uso dos meus dados", texto editável em Regras do sistema), embora a base seja o próprio pedido de inscrição
+> (art. 7º, V). O aviso da filiação dizia que o pedido recusado "fica guardado", mas desde a v5.7b ele é apagado 2 anos depois. Consentimento de verdade (foto, dado
+> sensível) existe só como uma marca (foto: "autorização confirmada" + termo anexo opcional; beneficiário: `consentimento_lgpd_registrado`, sem exigir). Prazos que faltam
+> (tabela de temporalidade de 15/10): inscrições e presenças 5 anos, voluntário 5 anos depois do fim, certificado 10 anos, Auditoria 10 anos.
+> Em quatro partes, uma por vez (cada uma: branch → homologação → `main`):
+
+##### v7.1a — Os avisos de privacidade com versão e a base legal de cada formulário
+
+- [x] **Catálogo dos textos** (`app/textos_de_privacidade.py`): cada formulário (ponto de coleta) com a base legal, a atividade do inventário, se é AVISO ou CONSENTIMENTO e
+      TODAS as versões com o texto exato (as antigas reconstituídas do histórico do código do site), o que a caixa dizia e se era consentimento naquela versão. A tabela
+      `textos_de_privacidade` grava cada versão ao subir e nunca a reescreve; a suíte prende a impressão (SHA-256) de cada versão publicada: mudar um texto exige versão nova.
+- [x] **Consentimento só onde ele é a base:** a inscrição em evento passa a mostrar um AVISO (versão 2, art. 7º, V), com o que o sistema faz de fato (inscrição em grupo,
+      cadastro de participantes, e-mails, presença, certificado, pesquisa de satisfação, IP na Auditoria), e a caixa "Li o aviso de privacidade."; o texto deixa de ser
+      configuração editável (texto editável sem versão quebrava a prova do que a pessoa leu). Filiação versão 3: o prazo de guarda que a rotina aplica. Política 2.10.
+- [x] **Reabrir o aviso que a pessoa leu:** "Ler o aviso desta versão" na fila de atendimento e nas propostas de filiação mostra o texto da versão aceita, não o de
+      hoje (pedido do Ponto de Revisão FASE 7, 1/3); Privacidade > Avisos de privacidade mostra cada formulário, a base e as versões. O site mostra os avisos a partir do
+      mesmo catálogo (arquivo gerado, conferido pela suíte).
+
+✅ **v7.1a concluída (2026-10-27).**
+
+**Conferência independente (agente, só leitura) conferiu palavra por palavra as versões antigas contra o histórico do site (todas certas) e achou 10 pontos; corrigidos
+antes de publicar.** Os mais sérios: a Política ainda chamava a inscrição de "consentimento" e dava à doação a base "consentimento" (Política 2.10: pedido de inscrição e de
+doação, art. 7º, V, e a escrituração, art. 7º, II; o inventário tirou o consentimento da doação); a migração podia gravar um texto editado com o mesmo número da versão 2
+nova (agora ela PARA antes de criar qualquer coisa, com a mensagem do que fazer); o aviso novo da inscrição não dizia da inscrição em grupo (dados de outras pessoas,
+inclusive crianças), do cadastro de participantes, da pesquisa de satisfação nem do IP na Auditoria; a filiação 3 dizia o prazo como fixo (é configurável: "hoje, 2 anos");
+pedidos de Minha conta de antes da v5.7f eram ligados ao aviso errado; cada versão passou a guardar o tipo e a caixa que a pessoa viu (a 1 da inscrição era
+consentimento, "Li e aceito."); as duas configurações antigas só saem quando a API nova sobe (a antiga ainda as lê durante a publicação); fins de linha; link com barra
+invertida; duas réplicas subindo juntas.
+**Testes locais:** servidor 1612 em três rodadas (a última sobre a árvore final, já com a correção da fila) e 1612 contra Postgres 18 (a migração `5b2d7e9c41f0` desce e
+sobe); painel 747 em duas rodadas, tipos, lint e formatação limpos; site 778 de unidade e 924 de navegador em duas rodadas, estados vazios, Instituição e sincronização.
+**Na homologação (2026-10-27):** a branch `v71a-textos-de-privacidade` foi publicada e a migração rodou no banco de TESTE (`Running upgrade 13948ce981ad -> 5b2d7e9c41f0`).
+Robô `v7.1a-01` 4/4: a **Presidente do cargo** vê Privacidade > Avisos de privacidade (a inscrição como aviso, art. 7º, V; a versão 1 com o "autorizo"; a filiação 2 com
+"ficam guardados" e a 3 com o prazo); o **site de teste** mostra o aviso da filiação versão 3 com o link da Política e a caixa "Li o aviso de privacidade.", o do voluntariado
+e o da conta de visitante; um pedido de filiação feito pelo site chega ao painel com a versão 3 e "Ler o aviso desta versão" mostra o texto dela; o aviso antigo (versão 2)
+reaberto traz o texto daquela época; o **Tesoureiro** lê um aviso, mas não a lista (403). Regressões verdes: `v5.4h-10` 5, `v5.5a-01` 6, `v5.5b-01` 4, `v5.6a-02` 3,
+`v5.7f-02` 4, `v7.0c` 3, `v7.0a` 5, `v5.5c-01` 1 + `v5.5c-02` 7 (o 02 depende do 01 e de publicar de novo; o robô passou a comparar o aviso sem depender da quebra entre
+parágrafos) e `v5.6b` 10 (o 02 esperava 7 prazos na Política, mas a v6.1 tinha posto o 8º: defeito antigo do robô, corrigido).
+**Em produção (2026-10-27):** `main` = `a76b980`; Deploy API verde (1612 contra Postgres e `Running upgrade 13948ce981ad -> 5b2d7e9c41f0`), Deploy Painel e Deploy Site
+verdes; `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `a76b980`; `GET /api/publico/eventos/consentimento-lgpd` responde a versão 2, a caixa "Li o aviso
+de privacidade." e os parágrafos; as duas rotas novas sem login respondem 401; `asaf.org.br/privacidade/` diz "Versão 2.10 · em vigor desde 27 de outubro de 2026" e
+`asaf.org.br/seja-associado/` mostra o "Aviso de privacidade (versão 3)".
+
+##### v7.1b — Consentimento versionado onde ele é a base (foto)
+
+- [ ] `Consentimento` (titular, finalidade, versão do texto, data, meio, IP, quem registrou, revogação) para a foto da Diretoria e as fotos de evento e de parceria; revogar
+      tira a foto do site e do armazenamento.
+
+##### v7.1c — Criança e adolescente: o consentimento de um dos pais ou do responsável
+
+- [ ] No beneficiário, o consentimento do responsável (com o vínculo registrado) passa a ser exigido para registrar atendimento (fecha o risco que o relatório de impacto
+      da v7.0d aponta); o voluntário adolescente e a filiação de 16 a 17 anos com o mesmo registro.
+
+##### v7.1d — Os prazos que faltam, com anonimização que preserva a estatística
+
+- [ ] Inscrições e presenças (5 anos), voluntário (5 anos depois do fim), certificado (10 anos: a verificação pública continua dizendo "válido", sem o nome) e Auditoria
+      (10 anos), anonimizando a pessoa e mantendo as contagens.
+
 ##### 🔍 Ponto de Revisão — FASE 7 (1/3, fecha v7.0–v7.1)
 
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
@@ -2467,6 +2526,26 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         páginas do site reconstruído). **Em produção:** Deploy API, Painel e Site verdes; `version.json` do painel e do site = `d99a2b8`; a API responde 200 nas rotas públicas e 401 na protegida, com 419
         rotas no `openapi.json`. **Limite conhecido (informativo):** `npm audit` do site lista 13 avisos, todos na cadeia do `@lhci/cli` 0.15.1 (Lighthouse CI: `tmp`, `uuid`, `extract-zip`, `basic-ftp`
         etc.), que é ferramenta só do CI (nunca vai para o site), já está na última versão e não tem correção publicada; o `npm audit` do painel dá 0. Rever a cada lote.
+      - **Lote 11 ✅ FEITO, provado na homologação e confirmado em produção (2026-10-27, commit `8333b5c`)** (mesma versão-maior, só última estável): servidor
+        `fastapi` 0.143.3 → **0.162.0**, `sqlalchemy` 2.1.4 → **2.1.6**, `httpx2` 2.13.1 → **2.16.0**, `reportlab` 5.0.1 → **5.1.0**, `azure-identity` 1.26.0 → **1.27.0**,
+        `pypdf` 6.21.0 → **6.21.2**, `alembic` 1.20.0 → **1.20.1**; painel e site dentro das faixas (`react-router` 8.5, `vite` 8.3.5, TanStack Query 5.105, `lucide-react`
+        1.62, `react-hook-form` 7.91, `typescript-eslint` 8.72, `astro` 7.4.2, `@astrojs/check` 0.9.12, `prettier-plugin-astro` 1.1.2). **Verificado:** servidor 1601 em duas
+        rodadas e contra Postgres; painel 745 e site 772 + 924 no navegador, duas rodadas. **Na homologação:** `v5.4c` 30 (a mescla de cadastros falhou uma vez e passou
+        de novo, 24 de 24: a lista recarregada demorava, ver abaixo), `v5.4g` 31 (o 05 confere o site depois de reconstruído: 6 de 6 depois de publicar de novo), `v5.5a` 13,
+        `v5.4f` 54, `v7.0d` 3, `v7.0c` 3. **Em produção:** Deploy API, Painel e Site verdes; `version.json` do painel e do site = `8333b5c`; 482 rotas no `openapi.json`;
+        rota pública 200 e protegida 401. **Achado ao vivo (corrigido à parte, `f818b38`, homologação `v5.4c-fase1` 24 + 24, produção Deploy API verde):** o par julgado
+        "não é duplicado" voltava à fila de revisão a cada busca, e a lista fazia 4 consultas por item (com a fila cheia, a tela demorava a se atualizar).
+      - **Lote 12 (Python 3.14 → 3.15) e Lote 13 (Pillow 12.3 → 13.0): PRONTOS, esperando a autorização do Presidente para a produção.** O Python 3.15 saiu estável
+        em 2026-10-09 (hoje 3.15.2). A imagem da API passa a `python:3.15-slim` e o CI ao 3.15; o `uvicorn[standard]` vira `uvicorn` + `httptools` + `uvloop` (as duas
+        peças que o extra usava para ser rápido; o resto — `pyyaml`, `python-dotenv`, `watchfiles`, `websockets` — o sistema não usa, e o `pyyaml` ainda não tem pacote
+        pronto para o 3.15). Pillow 13: nenhuma das APIs removidas é usada. **Verificado:** servidor 1601 em duas rodadas no 3.15.2 (lote 12) e mais duas com o Pillow 13
+        (lote 13); Postgres no 3.15.2 (1601); a homologação montou a imagem `python:3.15-slim` e os robôs `v5.4c` 30, `v5.4g-02` 7, `v5.5a` 13, `v5.4f` 54, `v7.0d` 3, `v7.0c` 3
+        e `v7.0a` 5 passaram. **Por que parou:** é troca da imagem base da produção; o sistema de segurança do Claude Code bloqueou o envio à `main` sem a autorização
+        explícita do Presidente nesta conversa (regra do projeto: parar e avisar, nunca contornar). **Plano de volta, se algo der errado:** reverter o commit na `main`
+        (a imagem 3.14 volta pelo mesmo pipeline) ou reativar a revisão anterior do Container App.
+      - **Lote 14 (`@hookform/resolvers` 5.9 → 6.0.1, só o painel): pronto na branch `atualizacao-lote-14`** (a única quebra da 6 é no resolvedor de effect-ts; o painel usa
+        o de Zod): painel 745 em duas rodadas, tipos, lint e build limpos. Falta a homologação (vai depois da v7.1a).
+      - **Directus 12.4.1 → 12.5.1:** continua adiado com o mesmo motivo (provar numa cópia descartável antes de trocar a imagem de produção e dizer o plano ao Presidente).
 - [ ] Fator ônibus tratado como risco de projeto (v12.8): documentação suficiente para outra
       pessoa assumir, e pelo menos uma pessoa da associação treinada na operação básica.
 
