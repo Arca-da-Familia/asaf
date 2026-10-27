@@ -96,6 +96,11 @@ def test_ignorar_item_da_fila(client, auth_headers, db):
     fila_pendente = client.get("/api/pessoas/fila-revisao?status=pendente", headers=auth_headers).json()
     assert all(i["id_fila"] != item["id_fila"] for i in fila_pendente)
 
+    # v7.1 (achado ao vivo): procurar de novo não traz de volta o par que alguém julgou "não é duplicado"
+    client.post("/api/pessoas/duplicidade/escanear", headers=auth_headers)
+    fila_pendente = client.get("/api/pessoas/fila-revisao?status=pendente", headers=auth_headers).json()
+    assert not [i for i in fila_pendente if "Par Ignorado A" in (i["nome_pessoa_a"], i["nome_pessoa_b"])], "o par ignorado voltou à fila"
+
 
 # ---------------------------------------------------------------------------
 # Mesclagem

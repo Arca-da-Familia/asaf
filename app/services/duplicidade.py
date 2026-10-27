@@ -62,8 +62,10 @@ def escanear_duplicidade_continua(db: Session) -> int:
     """Agrupa todas as Pessoas com nome normalizado + data de nascimento iguais - cada grupo
     com mais de uma pessoa vira um par candidato na fila de revisão (uma entrada por par, nunca
     duplicada se já existir uma pendente para o mesmo par). Devolve quantas entradas NOVAS foram
-    criadas nesta varredura."""
-    from app.models.qualidade_cadastro import DUPLICIDADE_NOME_NASCIMENTO, FilaRevisaoCadastro, PENDENTE
+    criadas nesta varredura.
+    v7.1 (achado ao vivo na homologação): o par que alguém julgou "não é duplicado" (ignorado) NÃO volta à fila na próxima busca - antes, só a
+    entrada pendente impedia a repetição, e o par ignorado reaparecia a cada busca."""
+    from app.models.qualidade_cadastro import DUPLICIDADE_NOME_NASCIMENTO, IGNORADO, FilaRevisaoCadastro, PENDENTE
 
     candidatas = db.query(Pessoa).filter(Pessoa.data_nascimento.isnot(None)).all()
     grupos: dict[tuple, list[Pessoa]] = {}
@@ -83,7 +85,7 @@ def escanear_duplicidade_continua(db: Session) -> int:
                     .filter(
                         FilaRevisaoCadastro.tipo_sinal == DUPLICIDADE_NOME_NASCIMENTO,
                         FilaRevisaoCadastro.id_pessoa_a == id_a, FilaRevisaoCadastro.id_pessoa_b == id_b,
-                        FilaRevisaoCadastro.status == PENDENTE,
+                        FilaRevisaoCadastro.status.in_((PENDENTE, IGNORADO)),
                     )
                     .first()
                 )

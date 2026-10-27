@@ -56,14 +56,18 @@ def reportar_email_suspeito(
 @router.get("/api/pessoas/fila-revisao", summary="Listar itens pendentes na fila de revisão de cadastro")
 def listar_fila_revisao(status: str = PENDENTE, db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_associados)):
     itens = db.query(FilaRevisaoCadastro).filter(FilaRevisaoCadastro.status == status).order_by(FilaRevisaoCadastro.criado_em.desc()).all()
+    # v7.1 (achado ao vivo): eram 4 consultas POR ITEM; com a fila cheia a tela demorava a se atualizar depois de uma busca. Agora 2 consultas no total.
+    ids = {i for item in itens for i in (item.id_pessoa_a, item.id_pessoa_b) if i}
+    pessoas = {p.id_pessoa: p for p in db.query(Pessoa).filter(Pessoa.id_pessoa.in_(ids))} if ids else {}
+    associados = {a.id_pessoa: a for a in db.query(Associado).filter(Associado.id_pessoa.in_(ids))} if ids else {}
     resultado = []
     for item in itens:
-        pessoa_a = db.query(Pessoa).filter(Pessoa.id_pessoa == item.id_pessoa_a).first()
-        pessoa_b = db.query(Pessoa).filter(Pessoa.id_pessoa == item.id_pessoa_b).first() if item.id_pessoa_b else None
+        pessoa_a = pessoas.get(item.id_pessoa_a)
+        pessoa_b = pessoas.get(item.id_pessoa_b) if item.id_pessoa_b else None
         # v5.4c (achado AO VIVO): dois cadastros duplicados costumam ter O MESMO NOME; sem dizer quem é associado (e a matrícula), a tela de
         # mesclar não tinha como distinguir um do outro.
-        associado_a = db.query(Associado).filter(Associado.id_pessoa == item.id_pessoa_a).first()
-        associado_b = db.query(Associado).filter(Associado.id_pessoa == item.id_pessoa_b).first() if item.id_pessoa_b else None
+        associado_a = associados.get(item.id_pessoa_a)
+        associado_b = associados.get(item.id_pessoa_b) if item.id_pessoa_b else None
         resultado.append({
             "id_fila": item.id_fila, "tipo_sinal": item.tipo_sinal, "detalhe": item.detalhe,
             "status": item.status, "criado_em": item.criado_em,
