@@ -64,7 +64,7 @@ jobs:
       - name: Configura Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
 
       # Os números vão por variável de ambiente (nunca interpolados no script) e só passam se forem inteiros.
       - name: Confere os números pedidos

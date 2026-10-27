@@ -54,7 +54,7 @@ jobs:
       - name: Configura Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
 
       # Agendado = produção, decidindo pelos eventos. À mão = o que foi escolhido (o padrão é a homologação).
       - name: Escolhe o ambiente
