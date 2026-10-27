@@ -297,7 +297,7 @@ describe('validarInscricao', () => {
 
   it('o consentimento: carregando, falhou ou não aceito — sempre o último erro', () => {
     expect(validarInscricao(valoresOk(), PERGUNTAS, 'carregando')).toEqual({
-      consentimento: 'Aguarde: o texto do consentimento ainda está carregando.',
+      consentimento: 'Aguarde: o aviso de privacidade ainda está carregando.',
     })
     expect(
       validarInscricao(valoresOk(), PERGUNTAS, 'falhou').consentimento,
@@ -305,7 +305,7 @@ describe('validarInscricao', () => {
     expect(
       validarInscricao(valoresOk({ consentimento_lgpd: false }), PERGUNTAS)
         .consentimento,
-    ).toContain('ler e aceitar o texto de consentimento')
+    ).toContain('marcar que leu o aviso de privacidade')
   })
 })
 
@@ -851,7 +851,7 @@ describe('o consentimento no formulário', () => {
     })
     expect(campo<HTMLInputElement>('consentimento').disabled).toBe(true)
     expect(el('[data-consentimento-estado]').textContent).toBe(
-      'Carregando o texto do consentimento…',
+      'Carregando o aviso de privacidade…',
     )
     await esperarVarias()
     expect(el('[data-consentimento-texto]').textContent).toBe(
@@ -873,7 +873,7 @@ describe('o consentimento no formulário', () => {
     })
     await esperarVarias()
     expect(el('[data-consentimento-estado]').textContent).toContain(
-      'Não foi possível carregar o texto do consentimento',
+      'Não foi possível carregar o aviso de privacidade',
     )
     expect(el('[data-recarregar-consentimento]').hidden).toBe(false)
     expect(campo<HTMLInputElement>('consentimento').disabled).toBe(true)

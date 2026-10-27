@@ -6,7 +6,7 @@ vigentes e GUARDA o texto como foi gerado (é a prova do que se assinou: o manda
 privado e é ela que torna o ato vigente. Nada se apaga: o ato substituído e o rascunho descartado ficam no histórico. Ver app/services/encarregado.py."""
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 
 from app.database import Base
 from app.models.core import _TipoJson
@@ -94,3 +94,21 @@ class RelatorioDeImpacto(Base):
     motivo_suspensao = Column(String(500), nullable=True)
 
     __table_args__ = (UniqueConstraint("codigo_tratamento", "versao", name="uq_versao_de_relatorio_de_impacto"),)
+
+
+class TextoDePrivacidade(Base):
+    """v7.1a - cada versão de um aviso ou termo de consentimento, com o texto exato que a pessoa leu (app/textos_de_privacidade.py). Gravada na primeira vez que o
+    sistema sobe com ela e NUNCA reescrita: se o catálogo do código divergir do que está aqui, vale o que está aqui (é o que foi mostrado) e o sistema avisa no registro."""
+    __tablename__ = "textos_de_privacidade"
+    __table_args__ = (UniqueConstraint("ponto", "versao", name="uq_texto_de_privacidade"),)
+    id_texto = Column(Integer, primary_key=True, index=True)
+    ponto = Column(String(40), nullable=False, index=True)
+    versao = Column(String(10), nullable=False)
+    tipo = Column(String(20), nullable=False)  # aviso ou consentimento, como era QUANDO esta versão foi mostrada
+    texto = Column(Text, nullable=False)
+    caixa = Column(Text, nullable=True)  # o que a caixa de marcar dizia nesta versão
+    impressao = Column(String(64), nullable=False)  # SHA-256 do texto
+    vigente_desde = Column(DateTime, nullable=False)
+    reconstituido = Column(Boolean, nullable=False, default=False)  # tirado do histórico do código do site (versões anteriores à v7.1a)
+    observacao = Column(Text, nullable=True)
+    registrado_em = Column(DateTime, nullable=False, default=datetime.utcnow)

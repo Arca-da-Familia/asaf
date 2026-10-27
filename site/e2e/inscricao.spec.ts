@@ -71,7 +71,7 @@ const aceitar = async (page: Page) => {
   await expect(
     formulario(page).locator('[data-consentimento-texto]'),
   ).toBeVisible()
-  await formulario(page).getByLabel('Li e aceito.').check()
+  await formulario(page).getByLabel('Li o aviso de privacidade.').check()
 }
 const pessoa = (page: Page, numero: number) =>
   page.getByRole('group', { name: `Pessoa ${numero}` })
@@ -195,14 +195,22 @@ test.describe('formulário de inscrição — evento gratuito com sessões e per
       /^Oficina da manhã, .* — 6 vagas$/,
       /^Oficina da tarde, .* — sem vagas: lista de espera$/,
     ])
-    // o consentimento: o texto da API, exatamente como veio (com a quebra de linha), e a caixa liberada só depois
+    // o aviso: os parágrafos da API, um por parágrafo, com o link desenhado como link (v7.1a), e a caixa liberada só depois
     const texto = form.locator('[data-consentimento-texto]')
     await expect(texto).toBeVisible()
-    expect(await texto.evaluate((e) => e.textContent)).toBe(
-      TEXTO_DO_CONSENTIMENTO,
-    )
-    await expect(texto).toHaveCSS('white-space', 'pre-line')
-    await expect(form.getByLabel('Li e aceito.')).toBeEnabled()
+    expect(
+      await texto
+        .locator('p')
+        .evaluateAll((ps) => ps.map((p) => p.textContent)),
+    ).toEqual([
+      'Texto de teste do consentimento da inscrição (versão 3).',
+      'Segunda linha do texto de teste. Leia a Política de Privacidade.',
+    ])
+    await expect(
+      texto.getByRole('link', { name: 'Política de Privacidade' }),
+    ).toHaveAttribute('href', '/privacidade/')
+    expect(TEXTO_DO_CONSENTIMENTO).toContain('Segunda linha')
+    await expect(form.getByLabel('Li o aviso de privacidade.')).toBeEnabled()
     await expect(
       form.getByRole('link', { name: 'Política de Privacidade' }),
     ).toHaveAttribute('href', '/privacidade/')
@@ -277,7 +285,7 @@ test.describe('formulário de inscrição — evento gratuito com sessões e per
     // as perguntas opcionais em branco não viram erro
     await expect(page.locator('#inscricao-p0-q704-erro')).toBeHidden()
     await expect(page.locator('#inscricao-erro-consentimento')).toContainText(
-      'ler e aceitar o texto de consentimento',
+      'marcar que leu o aviso de privacidade',
     )
     expect(envios.total).toBe(0)
     // o estado de erro também passa no axe, no computador e no celular
@@ -349,11 +357,13 @@ test.describe('formulário de inscrição — evento gratuito com sessões e per
     ).toBeVisible()
     await enviar(page)
     await expect(page.locator('#inscricao-erro-consentimento')).toContainText(
-      'Para se inscrever, é preciso ler e aceitar o texto de consentimento.',
+      'Para se inscrever, é preciso marcar que leu o aviso de privacidade.',
     )
-    await expect(formulario(page).getByLabel('Li e aceito.')).toBeFocused()
+    await expect(
+      formulario(page).getByLabel('Li o aviso de privacidade.'),
+    ).toBeFocused()
     expect(envios.total).toBe(0)
-    await formulario(page).getByLabel('Li e aceito.').check()
+    await formulario(page).getByLabel('Li o aviso de privacidade.').check()
     await expect(page.locator('#inscricao-erro-consentimento')).toBeHidden()
   })
 
@@ -668,12 +678,14 @@ test.describe('formulário de inscrição — o que dá errado', () => {
     await aceitar(page)
     await enviar(page)
     await expect(
-      falha(page, 'O texto do consentimento foi atualizado'),
+      falha(page, 'O aviso de privacidade foi atualizado'),
     ).toBeVisible()
     await expect(
       formulario(page).locator('[data-consentimento-texto]'),
     ).toHaveText('Texto NOVO do consentimento.')
-    await expect(formulario(page).getByLabel('Li e aceito.')).not.toBeChecked()
+    await expect(
+      formulario(page).getByLabel('Li o aviso de privacidade.'),
+    ).not.toBeChecked()
     await aceitar(page)
     await enviar(page)
     await expect(resultado(page)).toContainText(nome)
@@ -694,9 +706,11 @@ test.describe('formulário de inscrição — o que dá errado', () => {
     await page.goto('/eventos/7/')
     const estado = formulario(page).locator('[data-consentimento-estado]')
     await expect(estado).toContainText(
-      'Não foi possível carregar o texto do consentimento',
+      'Não foi possível carregar o aviso de privacidade',
     )
-    await expect(formulario(page).getByLabel('Li e aceito.')).toBeDisabled()
+    await expect(
+      formulario(page).getByLabel('Li o aviso de privacidade.'),
+    ).toBeDisabled()
     await expect(
       formulario(page).locator('[data-consentimento-texto]'),
     ).toBeHidden()
@@ -713,8 +727,10 @@ test.describe('formulário de inscrição — o que dá errado', () => {
     await expect(
       formulario(page).locator('[data-consentimento-texto]'),
     ).toBeVisible()
-    await expect(formulario(page).getByLabel('Li e aceito.')).toBeEnabled()
-    await formulario(page).getByLabel('Li e aceito.').check()
+    await expect(
+      formulario(page).getByLabel('Li o aviso de privacidade.'),
+    ).toBeEnabled()
+    await formulario(page).getByLabel('Li o aviso de privacidade.').check()
     await enviar(page)
     await expect(resultado(page)).toBeVisible()
   })
@@ -728,8 +744,10 @@ test.describe('formulário de inscrição — o que dá errado', () => {
     await page.goto('/eventos/7/')
     await expect(
       formulario(page).locator('[data-consentimento-estado]'),
-    ).toContainText('Não foi possível carregar o texto do consentimento')
-    await expect(formulario(page).getByLabel('Li e aceito.')).toBeDisabled()
+    ).toContainText('Não foi possível carregar o aviso de privacidade')
+    await expect(
+      formulario(page).getByLabel('Li o aviso de privacidade.'),
+    ).toBeDisabled()
   })
 })
 

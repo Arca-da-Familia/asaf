@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
+import textos from '../src/data/textos-de-privacidade.json' with { type: 'json' }
 
 // v5.4h — o formulário público do pedido de filiação (`/seja-associado/`), no navegador de verdade, contra o build de teste e a API simulada
 // (`scripts/mock-api.mjs`, que guarda o corpo recebido e responde como a API real: duplicado → 400 com o motivo; erro de servidor → 500).
@@ -57,7 +58,7 @@ test.describe('formulário de filiação', () => {
       await expect(page.getByLabel(rotulo)).toBeVisible()
     }
     await expect(page.locator('#aviso-de-privacidade')).toContainText(
-      'Aviso de privacidade (versão 2)',
+      `Aviso de privacidade (versão ${textos.FILIACAO.versao})`,
     )
     await expect(
       page.locator('#aviso-de-privacidade').getByRole('link', {
@@ -139,7 +140,7 @@ test.describe('formulário de filiação', () => {
       email_contato: 'maria.nova@example.com',
       telefone_whatsapp: '91988887777',
       consentimento_lgpd: true,
-      versao_texto_consentimento: '2',
+      versao_texto_consentimento: textos.FILIACAO.versao,
       autorizacao_responsavel: false,
       pagina_web: '',
     })

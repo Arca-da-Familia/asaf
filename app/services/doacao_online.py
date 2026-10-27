@@ -16,6 +16,7 @@ from fastapi import HTTPException
 from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 
+from app import textos_de_privacidade
 from app.auditoria import registrar_auditoria
 from app.config_cache import obter_configuracao
 from app.models.associados import Associado
@@ -32,7 +33,7 @@ from app.services.pix import gerar_payload_pix
 
 # o texto do aviso de privacidade do formulário de doação tem versão: o site manda a versão que mostrou e o servidor recusa se o texto mudou
 # versão 2 (2026-10-16): o aviso passou a dizer o prazo de guarda do pedido sem confirmação (a versão 1 dizia que não havia prazo para apagá-lo)
-VERSAO_AVISO_DE_PRIVACIDADE_DOACAO = "2"
+VERSAO_AVISO_DE_PRIVACIDADE_DOACAO = textos_de_privacidade.versao_atual("DOACAO")  # o texto exato de cada versão: app/textos_de_privacidade.py
 
 PERMISSAO_DA_TESOURARIA = "financeiro"
 JANELA_DO_DUPLO_CLIQUE = timedelta(hours=24)

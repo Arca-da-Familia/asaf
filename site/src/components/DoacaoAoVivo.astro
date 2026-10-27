@@ -1,4 +1,5 @@
 ---
+import TextoDePrivacidade from './TextoDePrivacidade.astro'
 import { API_URL } from '../config/organizacao'
 import { organizacaoDoSite } from '../lib/dados-publicos'
 
@@ -359,28 +360,7 @@ const caixaDeFalha =
             <p class="font-medium">
               Aviso de privacidade (versão <span data-versao-do-aviso></span>)
             </p>
-            <p class="mt-2">
-              Vamos guardar o seu nome, o seu e-mail, o CPF (se você informar),
-              o valor e a campanha que escolheu, o seu aceite deste aviso e o
-              endereço de internet (IP) de onde veio o pedido. Usamos esses
-              dados para conferir o seu Pix no extrato do banco da associação,
-              registrar a doação e emitir o recibo, que tentamos enviar por
-              e-mail. Se o CPF for de um associado, a doação fica ligada ao
-              cadastro dele. O endereço de internet (IP) serve à segurança
-              (limite de pedidos e Auditoria). Quem confere é a tesouraria da
-              associação. Se ninguém confirmar o pedido, ele continua guardado
-              no sistema por um prazo (hoje, 2 anos depois do prazo do pedido) e
-              depois o sistema o apaga sozinho. Para saber mais, ou para pedir
-              que apaguemos os seus dados, leia a{' '}
-              <a href="/privacidade/#doacao-pelo-site" class={link}>
-                Política de Privacidade
-              </a>{' '}
-              ou use a{' '}
-              <a href="/privacidade/solicitacao-do-titular/" class={link}>
-                solicitação do titular de dados
-              </a>
-              .
-            </p>
+            <TextoDePrivacidade ponto="DOACAO" />
           </div>
 
           <div>

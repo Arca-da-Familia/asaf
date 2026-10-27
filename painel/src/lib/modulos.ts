@@ -185,6 +185,11 @@ export const modulos: Modulo[] = [
         rotulo: 'Relatório de impacto',
         icone: ShieldAlert,
       },
+      {
+        rota: '/privacidade/avisos',
+        rotulo: 'Avisos de privacidade',
+        icone: ScrollText,
+      },
     ],
   },
   {

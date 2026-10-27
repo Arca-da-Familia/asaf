@@ -556,8 +556,6 @@ def seed_configuracoes_institucionais():
         # aceita se a versão enviada bater com esta - texto mudou, cadastro antigo continua
         # válido com a versão que aceitou, mas ninguém consegue mandar consentimento pra versão
         # que já não existe mais.
-        {"chave": "TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", "valor": "Ao me inscrever, autorizo o uso dos meus dados pessoais (nome, CPF, e-mail, telefone e respostas deste formulário) para fins de organização deste evento, nos termos da LGPD.", "tipo": "texto", "categoria": "regras", "descricao": "Texto de consentimento LGPD exibido no formulário público de inscrição em evento."},
-        {"chave": "VERSAO_TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", "valor": "1", "tipo": "texto", "categoria": "regras", "descricao": "Versão do texto de consentimento LGPD de inscrição - mude este valor sempre que o texto acima for editado de forma relevante."},
         {"chave": "URL_BASE_SITE_PUBLICO", "valor": "", "tipo": "texto", "categoria": "geral", "descricao": "URL base do site institucional (Astro/Directus) - usada para montar o link de autocancelamento enviado por e-mail. Vazio = e-mail orienta contatar a secretaria com o código."},
         # v6.2a - o link "abrir no painel" do e-mail de um aviso, e o ritmo do envio em lotes (a conta Google Workspace envia até 2.000 mensagens por dia: o teto fica abaixo, para sobrar para os automáticos)
         {"chave": "URL_BASE_PAINEL", "valor": "", "tipo": "texto", "categoria": "geral", "descricao": "Endereço do painel usado nos links dos e-mails (ex.: https://painel.asaf.org.br). Vazio = a variável de ambiente URL_BASE_PAINEL ou o painel de produção."},
@@ -709,5 +707,26 @@ def get_db():
     db = SessaoLocal()
     try:
         yield db
+    finally:
+        db.close()
+
+
+def seed_textos_de_privacidade():
+    """v7.1a - grava cada versão nova dos avisos de privacidade (app/textos_de_privacidade.py), sem nunca reescrever uma já gravada."""
+    import logging
+
+    from app import textos_de_privacidade
+
+    from app.models.core import ConfiguracaoInstitucional
+
+    db = SessaoLocal()
+    try:
+        for divergencia in textos_de_privacidade.sincronizar(db):
+            logging.getLogger("asaf.privacidade").error("Texto de privacidade publicado foi alterado no código sem versão nova: %s (vale o gravado)", divergencia)
+        # o texto da inscrição em evento era uma configuração editável: a migração 5b2d7e9c41f0 guardou o texto (se editado); a API nova tira as duas chaves
+        # (a migração não as tira, porque a API antiga ainda as lê enquanto a nova sobe)
+        db.query(ConfiguracaoInstitucional).filter(ConfiguracaoInstitucional.chave_configuracao.in_(
+            ("TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", "VERSAO_TEXTO_CONSENTIMENTO_LGPD_INSCRICAO"))).delete(synchronize_session=False)
+        db.commit()
     finally:
         db.close()

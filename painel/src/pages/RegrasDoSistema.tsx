@@ -10,8 +10,6 @@ import {
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
 
-const TEXTOS_LONGOS = new Set(['TEXTO_CONSENTIMENTO_LGPD_INSCRICAO'])
-
 function RegraLinha({ regra }: { regra: RegraDoSistema }) {
   const queryClient = useQueryClient()
   const [valor, setValor] = useState(regra.valor)
@@ -42,30 +40,17 @@ function RegraLinha({ regra }: { regra: RegraDoSistema }) {
       </label>
       <p className="mb-2 text-xs text-muted-foreground">{regra.chave}</p>
       <div className="flex flex-wrap items-start gap-2">
-        {TEXTOS_LONGOS.has(regra.chave) ? (
-          <textarea
-            id={id}
-            rows={4}
-            value={valor}
-            onChange={(e) => {
-              setValor(e.target.value)
-              setSalvo(false)
-            }}
-            className={`${classe} flex-1`}
-          />
-        ) : (
-          <input
-            id={id}
-            type={numerica ? 'number' : 'text'}
-            inputMode={numerica ? 'decimal' : undefined}
-            value={valor}
-            onChange={(e) => {
-              setValor(e.target.value)
-              setSalvo(false)
-            }}
-            className={`${classe} h-9 ${numerica ? 'w-40' : 'flex-1'}`}
-          />
-        )}
+        <input
+          id={id}
+          type={numerica ? 'number' : 'text'}
+          inputMode={numerica ? 'decimal' : undefined}
+          value={valor}
+          onChange={(e) => {
+            setValor(e.target.value)
+            setSalvo(false)
+          }}
+          className={`${classe} h-9 ${numerica ? 'w-40' : 'flex-1'}`}
+        />
         <Button
           size="sm"
           disabled={!mudou || salvar.isPending}

@@ -319,16 +319,16 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
     )
   })
 
-  test('versão 2.9 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
+  test('versão 2.10 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
     page,
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.9 · em vigor desde 23 de outubro de 2026'),
+      page.getByText('Versão 2.10 · em vigor desde 27 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.9, em vigor desde 23 de outubro de 2026/,
+        /Esta é a versão 2\.10, em vigor desde 27 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-doacao]')
@@ -343,7 +343,7 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
       'o endereço IP de quem envia fica registrado, por segurança, no controle do limite de pedidos por hora e na Auditoria do sistema',
       'conferir o seu Pix no extrato do banco da associação, registrar a doação e emitir o recibo, que o sistema tenta enviar por e-mail',
       'quem tem a permissão do financeiro',
-      'O que nos autoriza a tratar esses dados é o seu consentimento (o aceite do aviso) e, depois que a tesouraria confirma a doação, a escrituração contábil e financeira dela',
+      'O que nos autoriza a tratar esses dados é o seu pedido de doação (LGPD, art. 7º, V) e, depois que a tesouraria confirma a doação, a escrituração contábil e financeira dela, que a lei obriga a guardar (art. 7º, II)',
       'passa a ser marcado como “prazo vencido” depois dos dias informados na página (o padrão é 15), por uma rotina que roda algumas vezes ao dia, e continua guardado no sistema',
       'até 2 anos depois do prazo do pedido (é o prazo de hoje), quando o sistema o apaga sozinho',
       'a doação já confirmada faz parte da escrituração contábil',

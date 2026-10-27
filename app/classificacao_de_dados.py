@@ -213,6 +213,7 @@ NAO_PESSOAIS: dict[str, tuple[str, ...]] = {
     "prestacoes_de_contas": ("conteudo",),
     "registros_voto_secreto": ("opcao",),  # o voto secreto não é ligado a ninguém (v2.x)
     "relatorios_de_impacto": ("motivo_suspensao",),  # v7.0d: o relatório descreve o tratamento, não uma pessoa
+    "textos_de_privacidade": ("texto", "observacao"),  # v7.1a: o aviso que o site mostra a todos, não o dado de uma pessoa
     "relatorios_finais_projeto": ("conteudo",),
     "respostas_questionamento": ("texto",),
     "bloqueios_espaco": ("motivo", "descricao"),

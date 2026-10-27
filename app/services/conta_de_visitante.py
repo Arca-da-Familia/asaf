@@ -21,6 +21,7 @@ from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app import textos_de_privacidade
 from app.models.atendimento import ENCERRADO, EM_ATENDIMENTO, IDENTIDADE_CODIGO_NO_EMAIL, NOVO, RESPONDIDO, TITULAR_LGPD, Atendimento
 from app.models.conta_de_visitante import CodigoDeVisitante, SessaoDeVisitante
 from app.models.doacoes import CampanhaArrecadacao, Doacao
@@ -45,7 +46,7 @@ MINUTOS_DA_SESSAO = 60
 PEDIDOS_DE_CODIGO_POR_EMAIL_NA_HORA = 3
 PEDIDOS_DE_CODIGO_POR_IP_NA_HORA = 10
 ENTRADAS_POR_IP_EM_15_MINUTOS = 20
-VERSAO_AVISO_DE_PRIVACIDADE_VISITANTE = "1"
+VERSAO_AVISO_DE_PRIVACIDADE_VISITANTE = textos_de_privacidade.versao_atual("VISITANTE")  # o texto exato de cada versão: app/textos_de_privacidade.py
 MENSAGEM_DO_CODIGO_INVALIDO = "Código inválido ou vencido: confira os números ou peça um novo código."
 MENSAGEM_DO_PEDIDO = (
     "Se houver inscrição em evento, pedido de doação ou solicitação do titular de dados feitos pelo site com este e-mail, tentamos enviar um código de 6 números. Ele vale por 10 minutos e só pode ser usado uma vez. "

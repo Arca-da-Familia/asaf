@@ -177,7 +177,7 @@ test('o formulário aparece no evento gratuito, mostra as perguntas e o consenti
   // CPF que não confere
   await preencherPrincipal(page, { ...PESSOAS.um, cpf: '111.111.111-11' })
   await responderComoSoube(page.locator('form[data-inscricao-form]'), 'Amigos')
-  await page.getByLabel('Li e aceito.').check()
+  await page.getByLabel('Li o aviso de privacidade.').check()
   await page.getByRole('button', { name: 'Enviar inscrição' }).click()
   await expect(
     page.getByText('Esse CPF não confere', { exact: false }).first(),
@@ -204,7 +204,7 @@ test('uma pessoa se inscreve: vaga reservada, código de check-in e link de canc
   await esperarOConsentimento(page)
   await preencherPrincipal(page, PESSOAS.um)
   await responderComoSoube(page.locator('form[data-inscricao-form]'), 'Amigos')
-  await page.getByLabel('Li e aceito.').check()
+  await page.getByLabel('Li o aviso de privacidade.').check()
   await page.getByRole('button', { name: 'Enviar inscrição' }).click()
 
   const { item, token } = await lerResultado(page, PESSOAS.um.nome)
@@ -237,7 +237,7 @@ test('duas pessoas se inscrevem juntas: uma tem vaga e a outra cai na lista de e
   await adicional.getByLabel('Nome completo').fill(PESSOAS.tres.nome)
   await adicional.getByLabel('CPF').fill(PESSOAS.tres.cpf)
   await responderComoSoube(adicional, 'Igreja')
-  await page.getByLabel('Li e aceito.').check()
+  await page.getByLabel('Li o aviso de privacidade.').check()
   await ver(page, info, 'inscricao-em-grupo-preenchida')
   await page.getByRole('button', { name: 'Enviar inscrição' }).click()
 

@@ -5,6 +5,7 @@ e da atividade."""
 import uuid
 from datetime import datetime, timedelta
 
+from app.textos_de_privacidade import versao_atual
 from app.models.motores import CANCELADO, CONFIRMADO, PRESENTE, Inscricao, RegistroPresenca
 from app.models.associados import Associado
 from tests.test_eventos import _criar_associado_com_acesso, _criar_evento
@@ -99,7 +100,7 @@ def test_checkin_por_codigo_e_idempotente(client, auth_headers, db):
     cpf = _cpf_unico()
     payload_inscricao = {
         "nome_completo": "Participante Portaria", "cpf": cpf, "email": f"{cpf}@x.com", "telefone": "11988887777",
-        "consentimento_lgpd": True, "versao_texto_consentimento": "1",
+        "consentimento_lgpd": True, "versao_texto_consentimento": versao_atual("INSCRICAO_EVENTO"),
     }
     r = client.post(f"/api/publico/eventos/{id_evento}/inscrever-se", json=payload_inscricao, headers={"X-Forwarded-For": f"203.0.113.{uuid.uuid4().hex}"})
     assert r.status_code == 200, r.text

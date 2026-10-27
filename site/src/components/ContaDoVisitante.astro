@@ -1,4 +1,5 @@
 ---
+import TextoDePrivacidade from './TextoDePrivacidade.astro'
 import { API_URL } from '../config/organizacao'
 
 // O miolo da página /minha-conta/ (v5.6b): entrar com o e-mail e um código de uso único (sem senha) e ver, numa área só, as inscrições em eventos, os certificados e as doações
@@ -102,15 +103,7 @@ const falha =
           Receber o código por e-mail
         </button>
       </div>
-      <p class={dica}>
-        O seu e-mail é usado para enviar o código, para mostrar o que está
-        ligado a ele e para limitar os pedidos; fica guardado junto do código e
-        da sessão pelo tempo descrito na
-        <a href="/privacidade/#conta-do-visitante" class={link}>
-          Política de Privacidade
-        </a>
-        .
-      </p>
+      <TextoDePrivacidade ponto="VISITANTE" classe={dica} />
     </form>
   </section>
 

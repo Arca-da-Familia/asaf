@@ -1,6 +1,8 @@
 ---
 import { API_URL } from '../config/organizacao'
 import { VERSAO_DO_AVISO_DE_PRIVACIDADE } from '../lib/filiacao-pedido'
+import { aviso } from '../lib/texto-de-privacidade'
+import TextoDePrivacidade from './TextoDePrivacidade.astro'
 
 // O formulário do pedido de filiação (v5.4h). Quem se comporta é `lib/filiacao-pedido.ts`; aqui só o HTML, para ele ser acessível sem JavaScript
 // de enfeite: cada campo tem rótulo, dica e mensagem de erro ligadas por `aria-describedby`.
@@ -173,24 +175,7 @@ const dica = 'mt-1 text-sm text-muted-foreground'
       <p class="font-medium">
         Aviso de privacidade (versão {VERSAO_DO_AVISO_DE_PRIVACIDADE})
       </p>
-      <p class="mt-2">
-        Os dados deste formulário (nome, CPF, data de nascimento, e-mail e
-        telefone) vão para o sistema de gestão da ASAF e servem para a Diretoria
-        Executiva analisar o seu pedido de filiação e, se ele for aprovado, para
-        o seu cadastro de associado. Para que três sócios possam propor o seu
-        nome, todos os sócios ativos e em dia veem, no painel, o seu nome e a
-        sua idade; CPF, e-mail e telefone só a Diretoria vê. Guardamos também o
-        endereço IP de quem envia, por segurança. Pedidos recusados ou sem
-        andamento ficam guardados no sistema; você pode pedir a eliminação pelo
-        e-mail da associação. Os seus direitos e os detalhes estão na{' '}
-        <a
-          href="/privacidade/"
-          class="font-medium text-primary underline underline-offset-4"
-        >
-          Política de Privacidade
-        </a>
-        .
-      </p>
+      <TextoDePrivacidade ponto="FILIACAO" />
     </div>
 
     <div>
@@ -201,10 +186,7 @@ const dica = 'mt-1 text-sm text-muted-foreground'
           aria-describedby="aviso-de-privacidade erro-consentimento"
           class="mt-1 h-5 w-5 shrink-0"
         />
-        <span>
-          Li o aviso de privacidade e concordo com o uso dos meus dados para
-          analisar o meu pedido de filiação.
-        </span>
+        <span>{aviso('FILIACAO').caixa}</span>
       </label>
       <p
         id="erro-consentimento"

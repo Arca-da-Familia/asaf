@@ -6483,6 +6483,8 @@ export type AtendimentoDaFila = {
   encerrado_em: string | null
   criado_em: string
   consentimento_lgpd_versao: string | null
+  // v7.1a: qual aviso a pessoa leu (o do formulário do tipo, ou o da conta de visitante), para reabrir o texto exato daquela versão
+  ponto_do_aviso?: string
   // v5.5b: só o pedido de voluntariado tem data de nascimento (data ISO, aaaa-mm-dd); `menor_de_idade` = a pessoa tem menos de 18 anos hoje
   data_nascimento: string | null
   idade: number | null

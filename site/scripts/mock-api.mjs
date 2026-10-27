@@ -1741,6 +1741,11 @@ function registrarIntencaoDeDoacao(corpo, { vazio, semPix }) {
 export const VERSAO_DO_CONSENTIMENTO_DE_EVENTO = '3'
 export const TEXTO_DO_CONSENTIMENTO_DE_EVENTO =
   'Texto de teste do consentimento da inscrição (versão 3).\nSegunda linha do texto de teste.'
+// v7.1a: a API manda também os parágrafos com os links marcados ([texto](/endereco/)); o `texto` continua sem a marcação
+export const PARAGRAFOS_DO_AVISO_DE_EVENTO = [
+  'Texto de teste do consentimento da inscrição (versão 3).',
+  'Segunda linha do texto de teste. Leia a [Política de Privacidade](/privacidade/).',
+]
 export const CPF_JA_INSCRITO_NO_EVENTO = '12345678062'
 export const RECUSA_DE_INSCRICAO_REPETIDA =
   "Esta pessoa já está inscrita neste contexto (status 'Pré-inscrito')."
@@ -2681,6 +2686,7 @@ export function criarServidor({
         return responder({
           texto: TEXTO_DO_CONSENTIMENTO_DE_EVENTO,
           versao: VERSAO_DO_CONSENTIMENTO_DE_EVENTO,
+          paragrafos: PARAGRAFOS_DO_AVISO_DE_EVENTO,
         })
       const inscricaoDoLink = /^\/api\/publico\/inscricoes\/([^/]+)$/.exec(
         caminho,

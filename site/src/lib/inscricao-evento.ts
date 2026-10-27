@@ -1,5 +1,6 @@
 import type { PerguntaDoEvento } from '../../scripts/lib/conteudo-publico.mjs'
 import { ApiError, buscarJson, enviarJson } from './api'
+import { desenharAviso } from './texto-de-privacidade'
 import {
   cpfValido,
   EMAIL,
@@ -47,7 +48,7 @@ export const AVISO_DA_LISTA_DE_ESPERA =
 export const AVISO_DO_LINK =
   'Guarde este link: é por ele que você cancela ou confirma a sua vaga.'
 const FALHA_DO_CONSENTIMENTO =
-  'Não foi possível carregar o texto do consentimento, e sem ele não dá para enviar a inscrição. Tente de novo; se continuar, fale com a secretaria.'
+  'Não foi possível carregar o aviso de privacidade, e sem ele não dá para enviar a inscrição. Tente de novo; se continuar, fale com a secretaria.'
 
 /** O que a pessoa respondeu, ainda "em bruto": texto, ou a lista de opções marcadas (seleção múltipla). */
 export type RespostaBruta = string | string[]
@@ -288,13 +289,13 @@ export function validarInscricao(
   })
   if (consentimento === 'carregando')
     erros[CHAVE_DO_CONSENTIMENTO] =
-      'Aguarde: o texto do consentimento ainda está carregando.'
+      'Aguarde: o aviso de privacidade ainda está carregando.'
   else if (consentimento === 'falhou')
     erros[CHAVE_DO_CONSENTIMENTO] =
-      'Não foi possível carregar o texto do consentimento: use “Tentar carregar de novo”.'
+      'Não foi possível carregar o aviso de privacidade: use “Tentar carregar de novo”.'
   else if (!v.consentimento_lgpd)
     erros[CHAVE_DO_CONSENTIMENTO] =
-      'Para se inscrever, é preciso ler e aceitar o texto de consentimento.'
+      'Para se inscrever, é preciso marcar que leu o aviso de privacidade.'
   return erros
 }
 
@@ -353,12 +354,12 @@ export function montarCorpo(
   return corpo
 }
 
-/** A API recusou porque o texto do consentimento mudou desde que a página abriu (422 com a frase do consentimento)? */
+/** A API recusou porque o aviso de privacidade mudou desde que a página abriu (422 com a frase do aviso; a API antiga dizia "consentimento")? */
 export function consentimentoDesatualizado(erro: unknown): boolean {
   return (
     erro instanceof ApiError &&
     erro.status === 422 &&
-    /consentimento/i.test(erro.detalhe ?? '')
+    /aviso de privacidade|consentimento/i.test(erro.detalhe ?? '')
   )
 }
 
@@ -394,6 +395,8 @@ export function mensagemDeFalhaDoEnvio(
 export interface ConsentimentoLgpd {
   texto: string
   versao: string
+  // v7.1a: o aviso com os links marcados ([texto](/endereco/)), um item por parágrafo; a API antiga só mandava `texto`
+  paragrafos?: string[]
 }
 
 /**
@@ -406,19 +409,30 @@ export async function buscarConsentimento(opcoes: {
   timeoutMs?: number
   esperaEntreTentativasMs?: number
 }): Promise<ConsentimentoLgpd> {
-  const dados = await buscarJson<{ texto?: unknown; versao?: unknown }>(
-    '/api/publico/eventos/consentimento-lgpd',
-    { ...opcoes, timeoutMs: opcoes.timeoutMs ?? 35_000, tentativas: 2 },
-  )
-  const { texto, versao } = dados ?? {}
+  const dados = await buscarJson<{
+    texto?: unknown
+    versao?: unknown
+    paragrafos?: unknown
+  }>('/api/publico/eventos/consentimento-lgpd', {
+    ...opcoes,
+    timeoutMs: opcoes.timeoutMs ?? 35_000,
+    tentativas: 2,
+  })
+  const { texto, versao, paragrafos } = dados ?? {}
   if (
     typeof texto !== 'string' ||
     !texto.trim() ||
     (typeof versao !== 'string' && typeof versao !== 'number') ||
     String(versao).trim() === ''
   )
-    throw new ApiError('O texto do consentimento veio vazio.')
-  return { texto, versao: String(versao) }
+    throw new ApiError('O aviso de privacidade veio vazio.')
+  const comLinks =
+    Array.isArray(paragrafos) &&
+    paragrafos.length > 0 &&
+    paragrafos.every((p) => typeof p === 'string' && p.trim() !== '')
+      ? (paragrafos as string[])
+      : undefined
+  return { texto, versao: String(versao), paragrafos: comLinks }
 }
 
 /** Uma pessoa na resposta da inscrição. */
@@ -835,7 +849,7 @@ export function iniciarFormularioDeInscricao(
     if (caixaDeTexto) caixaDeTexto.hidden = true
     if (tentarDeNovo) tentarDeNovo.hidden = true
     if (avisoDoConsentimento) {
-      avisoDoConsentimento.textContent = 'Carregando o texto do consentimento…'
+      avisoDoConsentimento.textContent = 'Carregando o aviso de privacidade…'
       avisoDoConsentimento.hidden = false
     }
     try {
@@ -847,7 +861,14 @@ export function iniciarFormularioDeInscricao(
       })
       estadoDoConsentimento = 'pronto'
       if (caixaDeTexto) {
-        caixaDeTexto.textContent = consentimento.texto
+        // v7.1a: o aviso com os links (montados como elementos, nunca HTML vindo da API); a API antiga só tinha o texto
+        if (consentimento.paragrafos)
+          desenharAviso(
+            caixaDeTexto,
+            consentimento.paragrafos,
+            'font-medium text-primary underline underline-offset-4',
+          )
+        else caixaDeTexto.textContent = consentimento.texto
         caixaDeTexto.hidden = false
       }
       if (avisoDoConsentimento) avisoDoConsentimento.hidden = true
@@ -995,7 +1016,7 @@ export function iniciarFormularioDeInscricao(
           void carregarConsentimento()
           if (falha) {
             falha.textContent =
-              'O texto do consentimento foi atualizado. Leia a versão nova e marque a caixa de novo para enviar a inscrição.'
+              'O aviso de privacidade foi atualizado. Leia a versão nova e marque a caixa de novo para enviar a inscrição.'
             falha.hidden = false
             falha.focus()
           }

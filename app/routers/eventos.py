@@ -9,6 +9,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
+from app import textos_de_privacidade
 from app.auditoria import registrar_auditoria
 from app.config_cache import obter_configuracao
 from app.database import get_db
@@ -698,11 +699,14 @@ def listar_eventos_publicos_endpoint(db: Session = Depends(get_db)):
 # real já corrigido na v4.5 (`/api/eventos/minhas-inscricoes` vs `/api/eventos/{id_evento}`):
 # FastAPI/Starlette casa rota por ordem de registro, e um segmento parametrizado sem conversor
 # próprio casa com QUALQUER string, inclusive um literal registrado depois dele.
-@router.get("/api/publico/eventos/consentimento-lgpd", summary="Texto e versão atuais do consentimento LGPD de inscrição (leitura, sem autenticação)")
-def obter_texto_consentimento_lgpd_endpoint(db: Session = Depends(get_db)):
+@router.get("/api/publico/eventos/consentimento-lgpd", summary="Texto e versão atuais do aviso de privacidade da inscrição em evento (leitura, sem autenticação)")
+def obter_texto_consentimento_lgpd_endpoint():
+    """v7.1a - o aviso vem do catálogo de textos com versão (app/textos_de_privacidade.py): `texto` sem a marcação dos links (como sempre veio) e `paragrafos` com ela,
+    para o site desenhar os links. O endereço continua o mesmo (o site e os robôs o usam)."""
+    aviso = textos_de_privacidade.atual("INSCRICAO_EVENTO")
     return {
-        "texto": obter_configuracao(db, "TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", ""),
-        "versao": obter_configuracao(db, "VERSAO_TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", "1"),
+        "texto": textos_de_privacidade.sem_links(aviso.texto), "versao": aviso.versao, "paragrafos": aviso.texto.split("\n\n"),
+        "caixa": textos_de_privacidade.ponto("INSCRICAO_EVENTO").caixa,
     }
 
 

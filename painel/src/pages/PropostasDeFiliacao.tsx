@@ -19,6 +19,7 @@ import {
 import { formatarCpf } from '@/lib/cpf'
 import { formatarData } from '@/lib/datas'
 import { useMe } from '@/lib/use-me'
+import { LerAviso } from '@/components/privacidade/LerAviso'
 
 const SITUACOES: StatusDeProposta[] = [
   'Pendente',
@@ -193,6 +194,12 @@ function Proposta({ proposta }: { proposta: PropostaDeFiliacao }) {
               {proposta.consentimento_lgpd_versao}) em{' '}
               {formatarData(proposta.consentimento_lgpd_em)}
             </p>
+          )}
+          {proposta.consentimento_lgpd_versao && (
+            <LerAviso
+              ponto="FILIACAO"
+              versao={proposta.consentimento_lgpd_versao}
+            />
           )}
           {proposta.autorizacao_responsavel_declarada && (
             <p className="text-sm font-medium" data-aviso-de-menor>

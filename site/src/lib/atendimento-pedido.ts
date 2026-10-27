@@ -1,3 +1,4 @@
+import { aviso } from './texto-de-privacidade'
 import { ApiError, buscarJson, enviarJson } from './api'
 import { formatarDiaDeInstanteUtc } from './datas'
 import {
@@ -20,7 +21,9 @@ import {
  */
 
 /** Versão do aviso de privacidade dos formulários. A API só aceita a versão que ela conhece: mudou o texto, muda o número nos dois lados. */
-export const VERSAO_DO_AVISO_DE_PRIVACIDADE_DO_ATENDIMENTO = '2'
+// v7.1a: a versão do aviso sai do catálogo do servidor (src/data/textos-de-privacidade.json), o mesmo de onde vem o texto
+export const VERSAO_DO_AVISO_DE_PRIVACIDADE_DO_ATENDIMENTO =
+  aviso('ATENDIMENTO').versao
 
 export const TIPOS_DE_PEDIDO = [
   'CONTATO',

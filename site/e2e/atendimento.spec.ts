@@ -1031,7 +1031,9 @@ test.describe('o aviso de privacidade do voluntariado (versão 2)', () => {
     page,
   }) => {
     await page.goto('/seja-voluntario/')
-    const aviso = page.locator('[data-aviso-do-voluntariado]')
+    const aviso = page
+      .locator('[data-aviso="ATENDIMENTO_VOLUNTARIADO"]')
+      .first()
     await expect(aviso).toBeVisible()
     await expect(aviso).toContainText(
       'a secretaria cadastra você como voluntário(a)',
@@ -1044,7 +1046,9 @@ test.describe('o aviso de privacidade do voluntariado (versão 2)', () => {
       '/privacidade/solicitacao-do-titular/',
     ]) {
       await page.goto(caminho)
-      await expect(page.locator('[data-aviso-do-voluntariado]')).toHaveCount(0)
+      await expect(
+        page.locator('[data-aviso="ATENDIMENTO_VOLUNTARIADO"]'),
+      ).toHaveCount(0)
     }
   })
 })
