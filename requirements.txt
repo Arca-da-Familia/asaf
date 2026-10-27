@@ -1,5 +1,9 @@
 fastapi==0.162.0
-uvicorn[standard]==0.54.0
+uvicorn==0.54.0
+# do extra [standard] do uvicorn, só as duas peças que ele usa sozinho para ser rápido (o resto - pyyaml, dotenv, watchfiles, websockets - o sistema não usa,
+# e o pyyaml ainda não tem pacote pronto para o Python 3.15)
+httptools==0.9.0
+uvloop==0.23.0; sys_platform != "win32"
 sqlalchemy==2.1.6
 psycopg[binary]==3.3.6
 pydantic[email]==2.14.1
