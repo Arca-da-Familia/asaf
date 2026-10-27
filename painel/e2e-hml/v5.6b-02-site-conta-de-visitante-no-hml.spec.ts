@@ -343,7 +343,10 @@ test('a Política de Privacidade tem o trecho da conta e o rodapé leva à pági
     'vale 10 minutos, serve uma vez e aceita 5 tentativas',
   )
   await expect(trecho).toContainText('nada é apagado na hora')
-  await expect(page.locator('[data-prazos-de-guarda] > li')).toHaveCount(7)
+  // a lista cresce a cada regra nova de prazo (a v6.1 pôs a 8ª): confere que os da v5.6b continuam lá
+  expect(
+    await page.locator('[data-prazos-de-guarda] > li').count(),
+  ).toBeGreaterThanOrEqual(7)
 
   await page.goto(SITE, { waitUntil: 'networkidle' })
   const link = page.locator('footer').getByRole('link', { name: 'Minha conta' })
