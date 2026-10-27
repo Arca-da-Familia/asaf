@@ -35,6 +35,7 @@ import {
   validarNotaDeIdentidade,
 } from '@/lib/atendimentos'
 import { formatarData } from '@/lib/datas'
+import { LerAviso } from '@/components/privacidade/LerAviso'
 
 // v5.5a (FASE 5) - a fila única de atendimento: tudo que chega pelo formulário do site (contato, pedido de informação sobre recursos públicos,
 // solicitação de titular de dados da LGPD) cai aqui com protocolo e prazo. Quem tem a permissão `atendimento` assume o pedido, responde (a resposta
@@ -588,6 +589,12 @@ function Detalhe({
           />
         )}
       </dl>
+      {a.consentimento_lgpd_versao && a.ponto_do_aviso && (
+        <LerAviso
+          ponto={a.ponto_do_aviso}
+          versao={a.consentimento_lgpd_versao}
+        />
+      )}
       {a.id_pessoa !== null && (
         <p className="text-xs text-muted-foreground">
           Esta pessoa já consta no cadastro da associação.

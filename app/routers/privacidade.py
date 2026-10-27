@@ -5,12 +5,13 @@ import unicodedata
 from typing import Annotated, Optional
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app import textos_de_privacidade
 from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.core import Usuario
@@ -183,3 +184,17 @@ def relatorio_pdf(codigo: str, request: Request, db: Session = Depends(get_db), 
 def relatorio_liberado(codigo: str, db: Session = Depends(get_db), _usuario: Usuario = Depends(get_current_user)):
     t = servico_ripd.buscar(codigo)
     return {"codigo": t.codigo, "nome": t.nome, "liberado": servico_ripd.aprovado(db, codigo) is not None}
+
+
+# ------------------------------------------------------------------------------------------------ v7.1a: os textos de privacidade com versão
+@router.get("/api/privacidade/textos-de-privacidade", summary="Os avisos de privacidade de cada formulário, com a base legal e todas as versões (o texto exato de cada uma)")
+def listar_textos_de_privacidade(db: Session = Depends(get_db), _usuario: Usuario = Depends(_pode)):
+    return textos_de_privacidade.listar(db)
+
+
+@router.get("/api/textos-de-privacidade/{ponto}/{versao}", summary="O texto exato de uma versão de um aviso de privacidade (qualquer pessoa logada: o texto é o que o site mostrou)")
+def ler_texto_de_privacidade(ponto: str, versao: str, db: Session = Depends(get_db), _usuario: Usuario = Depends(get_current_user)):
+    texto = textos_de_privacidade.ler(db, ponto, versao)
+    if texto is None:
+        raise HTTPException(status_code=404, detail="Versão de aviso não encontrada.")
+    return texto

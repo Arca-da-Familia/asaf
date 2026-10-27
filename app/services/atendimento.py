@@ -14,6 +14,7 @@ from fastapi import HTTPException
 from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 
+from app import textos_de_privacidade
 from app.config_cache import obter_configuracao
 from app.models.associados import Associado
 from app.models.atendimento import (
@@ -30,7 +31,7 @@ from app.services.notificacoes_painel import notificar, usuarios_com_permissao
 from app.services.site_publico import url_base_do_site
 
 # o texto do aviso de privacidade dos formulários de atendimento tem versão: o site manda a versão que mostrou e o servidor recusa se o texto mudou
-VERSAO_AVISO_DE_PRIVACIDADE_ATENDIMENTO = "2"  # 2 (2026-10-16): o aviso do voluntariado diz que a oferta aceita vira cadastro de voluntário (nome, CPF se informado, contato, data de nascimento)
+VERSAO_AVISO_DE_PRIVACIDADE_ATENDIMENTO = textos_de_privacidade.versao_atual("ATENDIMENTO")  # 2 (2026-10-16): o aviso do voluntariado diz que a oferta aceita vira cadastro de voluntário (nome, CPF se informado, contato, data de nascimento)
 
 PERMISSAO_DA_FILA = "atendimento"
 LIMITE_DA_MENSAGEM = 4000
@@ -236,6 +237,18 @@ def _cpf_mascarado(cpf: Optional[str]) -> Optional[str]:
     return f"***.***.***-{cpf[-2:]}" if cpf and len(cpf) == 11 else None
 
 
+ASSUNTO_DO_PEDIDO_DO_VISITANTE = "Eliminação de dados pela área do visitante"  # app/services/conta_de_visitante.py
+
+
+def ponto_do_aviso(a: Atendimento) -> str:
+    """v7.1a - qual aviso de privacidade a pessoa leu (app/textos_de_privacidade.py): o do formulário do tipo, ou o da conta de visitante, de onde o pedido de eliminação
+    feito em Minha conta nasce (a versão gravada é a do aviso de lá)."""
+    # o pedido aberto em Minha conta antes da v5.7f (16 a 19/10/2026) não tinha a identidade marcada: o assunto é o que ele sempre teve
+    if a.tipo == TITULAR_LGPD and (a.identidade_validacao == IDENTIDADE_CODIGO_NO_EMAIL or a.assunto == ASSUNTO_DO_PEDIDO_DO_VISITANTE):
+        return "VISITANTE"
+    return {TITULAR_LGPD: "ATENDIMENTO_TITULAR", VOLUNTARIO: "ATENDIMENTO_VOLUNTARIADO"}.get(a.tipo, "ATENDIMENTO")
+
+
 def serializar(a: Atendimento, agora: Optional[datetime] = None, *, completo: bool = False, db: Optional[Session] = None) -> dict:
     agora = agora or datetime.utcnow()
     dados = {
@@ -246,7 +259,7 @@ def serializar(a: Atendimento, agora: Optional[datetime] = None, *, completo: bo
         "situacao_do_prazo": situacao_do_prazo(a, agora), "dias_restantes": math.ceil((a.prazo_em - agora).total_seconds() / 86400),
         "id_responsavel": a.id_responsavel, "assumido_em": a.assumido_em, "resposta": a.resposta, "respondido_em": a.respondido_em,
         "resposta_enviada_por_email": a.resposta_enviada_por_email, "motivo_encerramento": a.motivo_encerramento, "encerrado_em": a.encerrado_em,
-        "criado_em": a.criado_em, "consentimento_lgpd_versao": a.consentimento_lgpd_versao,
+        "criado_em": a.criado_em, "consentimento_lgpd_versao": a.consentimento_lgpd_versao, "ponto_do_aviso": ponto_do_aviso(a),
         "data_nascimento": a.data_nascimento.date().isoformat() if a.data_nascimento else None,
         "idade": _idade(a.data_nascimento, agora), "menor_de_idade": pessoa_e_menor_de_idade(a.data_nascimento.date(), agora.date()) if a.data_nascimento else None,
         # v5.7f: a solicitação do titular só pode ser respondida com a identidade validada

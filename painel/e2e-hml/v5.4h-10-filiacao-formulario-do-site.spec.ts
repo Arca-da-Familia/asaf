@@ -11,6 +11,7 @@ import {
   ver,
   vigiar,
 } from './apoio'
+import textos from '../../site/src/data/textos-de-privacidade.json' with { type: 'json' }
 
 // v5.4h - o formulário público de filiação no SITE de teste (hml-site), de ponta a ponta: a pessoa preenche a página, o pedido atravessa a API (de outra
 // origem, então o CORS também é provado aqui), cai na caixa da Diretoria COM o que ela declarou (idade, aceite do aviso, declaração dos pais de quem tem 16 a
@@ -197,7 +198,10 @@ test('a Diretoria vê os pedidos do site com o que a pessoa declarou; o robô de
     name: `Proposta de ${ADULTA.nome}`,
   })
   await expect(adulta).toContainText(ADULTA.email)
-  await expect(adulta).toContainText('Aviso de privacidade aceito (versão 2)')
+  // a versão em vigor do aviso (v7.1a: o mesmo arquivo do catálogo que o site mostra)
+  await expect(adulta).toContainText(
+    `Aviso de privacidade aceito (versão ${textos.FILIACAO.versao})`,
+  )
   await expect(adulta.getByText(/^Recebida em .* · \d+ anos$/)).toBeVisible()
   await expect(adulta.locator('[data-aviso-de-menor]')).toHaveCount(0)
 

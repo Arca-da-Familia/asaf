@@ -1,0 +1,53 @@
+{
+  "INSCRICAO_EVENTO": {
+    "versao": "2",
+    "paragrafos": [
+      "Os dados deste formulário (nome, CPF, e-mail, telefone e as respostas; numa inscrição em grupo, também o nome, o CPF e as respostas de cada pessoa que você inscrever) são usados para organizar a inscrição neste evento: a vaga ou a lista de espera, os e-mails sobre o evento, a presença, o certificado, quando houver, e a pesquisa de satisfação depois do evento (LGPD, art. 7º, V: a inscrição é feita a seu pedido). Quem inscreve outra pessoa, como uma criança da família, deve ser o responsável por ela ou ter a autorização dela.",
+      "Cada pessoa inscrita passa a constar do cadastro de participantes da associação; se o CPF já estava lá, o cadastro é completado com o contato que faltava. O registro do envio, com o endereço de internet (IP), fica na Auditoria do sistema, por segurança. Quem vê é quem organiza o evento na associação. Para saber mais, ou para pedir que apaguemos os seus dados, leia a [Política de Privacidade](/privacidade/) ou use a [solicitação do titular de dados](/privacidade/solicitacao-do-titular/)."
+    ],
+    "caixa": "Li o aviso de privacidade."
+  },
+  "FILIACAO": {
+    "versao": "3",
+    "paragrafos": [
+      "Os dados deste formulário (nome, CPF, data de nascimento, e-mail e telefone) vão para o sistema de gestão da ASAF e servem para a Diretoria Executiva analisar o seu pedido de filiação e, se ele for aprovado, para o seu cadastro de associado. Para que três sócios possam propor o seu nome, todos os sócios ativos e em dia veem, no painel, o seu nome e a sua idade; CPF, e-mail e telefone só a Diretoria vê. Guardamos também o endereço IP de quem envia, por segurança. Se o pedido não for aprovado, o sistema o apaga sozinho depois de um prazo (hoje, 2 anos depois da última mudança nele); antes disso, você pode pedir a eliminação pelo e-mail da associação. Os seus direitos e os detalhes estão na [Política de Privacidade](/privacidade/)."
+    ],
+    "caixa": "Li o aviso de privacidade."
+  },
+  "ATENDIMENTO": {
+    "versao": "2",
+    "paragrafos": [
+      "Usamos o que você escrever aqui só para responder ao seu pedido. Quem lê o seu pedido é quem atende na associação (hoje, a Presidência e a Diretoria). Guardamos o pedido, o protocolo e a nossa resposta para provar que atendemos no prazo. Para saber mais, ou para pedir que apaguemos o que guardamos, leia a [Política de Privacidade](/privacidade/) ou use a [solicitação do titular de dados](/privacidade/solicitacao-do-titular/)."
+    ],
+    "caixa": "Li e aceito o aviso de privacidade."
+  },
+  "ATENDIMENTO_TITULAR": {
+    "versao": "2",
+    "paragrafos": [
+      "Usamos o que você escrever aqui só para responder ao seu pedido. Quem lê o seu pedido é quem atende na associação (hoje, a Presidência e a Diretoria). Guardamos o pedido, o protocolo e a nossa resposta para provar que atendemos no prazo. Para saber mais, ou para pedir que apaguemos o que guardamos, leia a [Política de Privacidade](/privacidade/)."
+    ],
+    "caixa": "Li e aceito o aviso de privacidade."
+  },
+  "ATENDIMENTO_VOLUNTARIADO": {
+    "versao": "2",
+    "paragrafos": [
+      "Se a sua oferta for aceita, a secretaria cadastra você como voluntário(a) no sistema da ASAF, com o nome, o CPF (se você informar), o contato e a data de nascimento, para o termo de adesão e a escala.",
+      "Usamos o que você escrever aqui só para responder ao seu pedido. Quem lê o seu pedido é quem atende na associação (hoje, a Presidência e a Diretoria). Guardamos o pedido, o protocolo e a nossa resposta para provar que atendemos no prazo. Para saber mais, ou para pedir que apaguemos o que guardamos, leia a [Política de Privacidade](/privacidade/) ou use a [solicitação do titular de dados](/privacidade/solicitacao-do-titular/)."
+    ],
+    "caixa": "Li e aceito o aviso de privacidade."
+  },
+  "DOACAO": {
+    "versao": "2",
+    "paragrafos": [
+      "Vamos guardar o seu nome, o seu e-mail, o CPF (se você informar), o valor e a campanha que escolheu, o seu aceite deste aviso e o endereço de internet (IP) de onde veio o pedido. Usamos esses dados para conferir o seu Pix no extrato do banco da associação, registrar a doação e emitir o recibo, que tentamos enviar por e-mail. Se o CPF for de um associado, a doação fica ligada ao cadastro dele. O endereço de internet (IP) serve à segurança (limite de pedidos e Auditoria). Quem confere é a tesouraria da associação. Se ninguém confirmar o pedido, ele continua guardado no sistema por um prazo (hoje, 2 anos depois do prazo do pedido) e depois o sistema o apaga sozinho. Para saber mais, ou para pedir que apaguemos os seus dados, leia a [Política de Privacidade](/privacidade/#doacao-pelo-site) ou use a [solicitação do titular de dados](/privacidade/solicitacao-do-titular/)."
+    ],
+    "caixa": "Li e aceito o aviso de privacidade."
+  },
+  "VISITANTE": {
+    "versao": "1",
+    "paragrafos": [
+      "O seu e-mail é usado para enviar o código, para mostrar o que está ligado a ele e para limitar os pedidos; fica guardado junto do código e da sessão pelo tempo descrito na [Política de Privacidade](/privacidade/#conta-do-visitante)."
+    ],
+    "caixa": "(sem caixa: o aviso fica junto do botão)"
+  }
+}

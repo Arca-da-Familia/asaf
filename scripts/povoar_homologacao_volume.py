@@ -330,6 +330,7 @@ def povoar(client, db, escrever=print) -> dict:
             }))
             criados.append(id_projeto)
         total = 0
+        aviso_do_evento = ok(client.get("/api/publico/eventos/consentimento-lgpd")).json()["versao"]  # a versão em vigor do aviso da inscrição (v7.1a)
         for k, titulo_evento in enumerate(("Oficina de teste da horta", "Palestra de teste sobre educação", "Feira de saúde de teste")):
             id_evento = ok(client.post("/api/eventos/", headers=adm, json={
                 "titulo": titulo_evento, "categoria": "PALESTRA", "visibilidade": "Pública", "vagas": 12, "id_projeto": criados[k],
@@ -340,7 +341,7 @@ def povoar(client, db, escrever=print) -> dict:
                 cpf = ph.cpf_valido(777000000 + k * 1000 + p * 31)
                 client.post(f"/api/publico/eventos/{id_evento}/inscrever-se", headers={"X-Forwarded-For": f"203.0.113.{uuid.uuid4().hex}"}, json={
                     "nome_completo": f"Participante {p + 1} do evento {k + 1} de Teste", "cpf": cpf, "email": f"participante{k}{p}@{ph.SUFIXO_EMAIL}",
-                    "telefone": f"9196{k}{p:02d}{(p * 13) % 1000:03d}"[:11], "consentimento_lgpd": True, "versao_texto_consentimento": "1",
+                    "telefone": f"9196{k}{p:02d}{(p * 13) % 1000:03d}"[:11], "consentimento_lgpd": True, "versao_texto_consentimento": aviso_do_evento,
                 })
                 total += 1
         # v5.5d - um evento em cada situação, para a tela e o site mostrarem cancelado, adiado, remarcado e realizado (com inscritos nos que ainda recebem aviso)
@@ -359,7 +360,7 @@ def povoar(client, db, escrever=print) -> dict:
                 client.post(f"/api/publico/eventos/{id_evento}/inscrever-se", headers={"X-Forwarded-For": f"203.0.113.{uuid.uuid4().hex}"}, json={
                     "nome_completo": f"Participante {p + 1} do evento {k + 1} de Teste", "cpf": ph.cpf_valido(777000000 + k * 1000 + p * 31),
                     "email": f"participante{k}{p}@{ph.SUFIXO_EMAIL}", "telefone": f"9196{k}{p:02d}{(p * 13) % 1000:03d}"[:11],
-                    "consentimento_lgpd": True, "versao_texto_consentimento": "1",
+                    "consentimento_lgpd": True, "versao_texto_consentimento": aviso_do_evento,
                 })
                 total += 1
             if situacao == "Remarcado":

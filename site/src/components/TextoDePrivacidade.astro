@@ -1,0 +1,31 @@
+---
+// v7.1a - o aviso de privacidade de um formulário, como está no catálogo do servidor (src/data/textos-de-privacidade.json, gerado de app/textos_de_privacidade.py).
+import {
+  aviso,
+  segmentos,
+  type PontoDeAviso,
+} from '../lib/texto-de-privacidade'
+
+interface Props {
+  ponto: PontoDeAviso
+  // a classe de cada parágrafo (o padrão é o espaço entre parágrafos do cartão do aviso)
+  classe?: string
+}
+const { ponto, classe = 'mt-2' } = Astro.props
+const link = 'font-medium text-primary underline underline-offset-4'
+const { paragrafos } = aviso(ponto)
+---
+
+{paragrafos.map((paragrafo) => (
+  <p class={classe} data-aviso={ponto}>
+    {segmentos(paragrafo).map((s) =>
+      s.href ? (
+        <a href={s.href} class={link}>
+          {s.texto}
+        </a>
+      ) : (
+        s.texto
+      ),
+    )}
+  </p>
+))}

@@ -277,3 +277,48 @@ export const tratamentoLiberado = (codigo: string) =>
   apiFetch<{ codigo: string; nome: string; liberado: boolean }>(
     `/api/relatorios-de-impacto/${codigo}/liberado`,
   )
+
+// ------------------------------------------------------------------------------------------------ v7.1a: os avisos de privacidade com versão
+export type VersaoDeAviso = {
+  versao: string
+  vigente_desde: string
+  texto: string
+  texto_sem_links: string
+  impressao: string
+  reconstituido: boolean
+  observacao: string | null
+  registrado_em: string
+  diverge_do_codigo: boolean
+  // como era QUANDO esta versão foi mostrada (a 1 da inscrição em evento era consentimento, com a caixa "Li e aceito.")
+  tipo: 'aviso' | 'consentimento'
+  caixa: string | null
+}
+
+export type PontoDeColeta = {
+  codigo: string
+  nome: string
+  tipo: 'aviso' | 'consentimento'
+  onde: string
+  caixa: string
+  atividade: string
+  atividade_nome: string
+  bases_legais: { codigo: string; texto: string }[]
+  versao_atual: string
+  versoes: VersaoDeAviso[]
+}
+
+export type AvisoDeUmaVersao = VersaoDeAviso & {
+  codigo: string
+  nome: string
+  versao_atual: string
+}
+
+export const obterTextosDePrivacidade = () =>
+  apiFetch<{ pontos: PontoDeColeta[] }>(
+    '/api/privacidade/textos-de-privacidade',
+  )
+
+export const lerAvisoDeUmaVersao = (ponto: string, versao: string) =>
+  apiFetch<AvisoDeUmaVersao>(
+    `/api/textos-de-privacidade/${encodeURIComponent(ponto)}/${encodeURIComponent(versao)}`,
+  )

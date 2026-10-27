@@ -9,7 +9,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 import logging
 import os
 
-from app.database import preparar_banco, seed_catalogos, seed_niveis_e_permissoes, seed_configuracoes_institucionais, seed_regras_estatutarias
+from app.database import preparar_banco, seed_catalogos, seed_niveis_e_permissoes, seed_configuracoes_institucionais, seed_regras_estatutarias, seed_textos_de_privacidade
 from app.services import armazenamento
 from app.routers import atendimento, notificacoes_painel, instituicao, publico, arquivos, auth, core, associados, financeiro, governanca, projetos, filiacao, importacao, situacao, voluntariado, qualidade_cadastro, estatuto, mandatos, sessao_assembleia, votacao, ata, conselho_fiscal, disciplina, dissolucao, calendario, chamada, compras, doacoes, doacao_online, visitante, orcamento, relatorios, antifraude, motores, beneficiarios, espacos, eventos, portaria, certificados, pesquisa_satisfacao, documentos, parcerias, comunicacao, preferencias_de_comunicacao, esqueci_a_senha, privacidade
 from app import recusas
@@ -31,6 +31,7 @@ seed_catalogos()
 seed_niveis_e_permissoes()
 seed_configuracoes_institucionais()
 seed_regras_estatutarias()
+seed_textos_de_privacidade()
 
 
 

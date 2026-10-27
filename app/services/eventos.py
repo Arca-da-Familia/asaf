@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 import uuid
 
+from app import textos_de_privacidade
 from app.models.associados import Associado
 from app.models.core import Usuario
 from app.models.eventos import (
@@ -571,11 +572,11 @@ def inscrever_publicamente(
     if evento_ja_aconteceu(evento):
         raise HTTPException(status_code=400, detail="As inscrições deste evento já foram encerradas: o evento já aconteceu.")
 
-    versao_atual = obter_configuracao(db, "VERSAO_TEXTO_CONSENTIMENTO_LGPD_INSCRICAO", "1")
+    versao_atual = textos_de_privacidade.versao_atual("INSCRICAO_EVENTO")  # v7.1a: o aviso de privacidade do catálogo (app/textos_de_privacidade.py)
     if versao_texto_consentimento != versao_atual:
         raise HTTPException(
             status_code=422,
-            detail="O texto de consentimento LGPD foi atualizado - recarregue a página e aceite a versão atual.",
+            detail="O aviso de privacidade foi atualizado - recarregue a página e leia a versão atual.",
         )
 
     contexto_tipo = CONTEXTO_SESSAO_EVENTO if id_sessao is not None else CONTEXTO_EVENTO

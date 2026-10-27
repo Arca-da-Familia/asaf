@@ -15,6 +15,7 @@ import {
   perguntasOrdenadas,
   textoDaOpcaoDaSessao,
 } from '../lib/inscricao-evento'
+import { aviso } from '../lib/texto-de-privacidade'
 import CampoDePergunta from './CampoDePergunta.astro'
 
 // O formulário de inscrição de um evento GRATUITO que ainda não aconteceu e sem pergunta de arquivo (v5.5c). Quem se comporta é `lib/inscricao-evento.ts`; aqui só o
@@ -259,14 +260,14 @@ const botaoSecundario =
     </div>
 
     <div data-consentimento class="grid gap-3">
-      <p class="text-sm font-medium">Consentimento</p>
+      <p class="text-sm font-medium">Aviso de privacidade</p>
       <p
         id={id('consentimento-estado')}
         data-consentimento-estado
         aria-live="polite"
         class="text-sm"
       >
-        Carregando o texto do consentimento…
+        Carregando o aviso de privacidade…
       </p>
       <div>
         <button
@@ -284,13 +285,6 @@ const botaoSecundario =
         hidden
         class="whitespace-pre-line rounded-md border bg-background p-4 text-sm"
       ></div>
-      <p class="text-sm">
-        Leia também a{' '}
-        <a href="/privacidade/" class={link}>
-          Política de Privacidade
-        </a>
-        .
-      </p>
       <div>
         <label class="flex items-start gap-3 text-sm font-medium">
           <input
@@ -301,7 +295,7 @@ const botaoSecundario =
             aria-describedby={`${id('consentimento-texto')} ${id('erro-consentimento')}`}
             class="mt-1 h-5 w-5 shrink-0"
           />
-          <span>Li e aceito.</span>
+          <span>{aviso('INSCRICAO_EVENTO').caixa}</span>
         </label>
         <p
           id={id('erro-consentimento')}

@@ -4,6 +4,7 @@ espaço) e fechamento financeiro automático."""
 import uuid
 from datetime import datetime, timedelta
 
+from app.textos_de_privacidade import versao_atual
 from app.models.core import AuditLog
 from tests.test_eventos import _criar_associado_com_acesso, _criar_evento
 from tests.test_financeiro import _criar_conta
@@ -20,7 +21,7 @@ def _payload_inscricao_publica(**overrides) -> dict:
     cpf = _cpf_unico()
     payload = {
         "nome_completo": "Participante Financeiro Teste", "cpf": cpf, "email": f"{cpf}@x.com",
-        "telefone": "11988887777", "consentimento_lgpd": True, "versao_texto_consentimento": "1",
+        "telefone": "11988887777", "consentimento_lgpd": True, "versao_texto_consentimento": versao_atual("INSCRICAO_EVENTO"),
         **overrides,
     }
     return payload

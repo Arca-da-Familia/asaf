@@ -5,6 +5,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 
+from app.textos_de_privacidade import versao_atual
 from app.database import SessaoLocal
 from app.models.motores import Inscricao
 from tests.test_pessoas import _cpf_unico
@@ -44,7 +45,7 @@ def _payload_inscricao(**overrides) -> dict:
         "email": f"{cpf}@x.com",
         "telefone": "11988887777",
         "consentimento_lgpd": True,
-        "versao_texto_consentimento": "1",
+        "versao_texto_consentimento": versao_atual("INSCRICAO_EVENTO"),
         **overrides,
     }
     return payload

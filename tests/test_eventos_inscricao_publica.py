@@ -5,6 +5,7 @@ check-in + autocancelamento por token, rate limiting por IP e honeypot."""
 import uuid
 from datetime import datetime, timedelta
 
+from app.textos_de_privacidade import versao_atual
 from app.routers.eventos import LIMITE_DE_INSCRICOES_POR_IP
 from tests.test_pessoas import _cpf_unico
 
@@ -44,7 +45,7 @@ def _payload_inscricao(**overrides) -> dict:
         "email": f"{cpf}@x.com",
         "telefone": "11988887777",
         "consentimento_lgpd": True,
-        "versao_texto_consentimento": "1",
+        "versao_texto_consentimento": versao_atual("INSCRICAO_EVENTO"),
         **overrides,
     }
     return payload
@@ -104,7 +105,7 @@ def test_inscricao_publica_recusa_versao_de_consentimento_desatualizada(client, 
     id_evento = _criar_evento_publico(client, auth_headers)
     r = client.post(f"/api/publico/eventos/{id_evento}/inscrever-se", json=_payload_inscricao(versao_texto_consentimento="999"), headers=_ip_de_teste())
     assert r.status_code == 422
-    assert "consentimento" in r.json()["detail"].lower()
+    assert "aviso de privacidade" in r.json()["detail"].lower()
 
 
 def test_inscricao_publica_valida_cpf_invalido(client, auth_headers):

@@ -7,7 +7,9 @@ from datetime import date
 
 from fastapi import HTTPException
 
-VERSAO_AVISO_DE_PRIVACIDADE_FILIACAO = "2"
+from app import textos_de_privacidade
+
+VERSAO_AVISO_DE_PRIVACIDADE_FILIACAO = textos_de_privacidade.versao_atual("FILIACAO")  # o texto exato de cada versão: app/textos_de_privacidade.py
 IDADE_MINIMA_COM_AUTORIZACAO = 16
 MAIORIDADE = 18
 

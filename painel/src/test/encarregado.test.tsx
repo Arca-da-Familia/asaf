@@ -88,6 +88,7 @@ describe('Encarregado de dados (v7.0a)', () => {
       'Encarregado',
       'Inventário de dados',
       'Relatório de impacto',
+      'Avisos de privacidade',
     ])
   })
 

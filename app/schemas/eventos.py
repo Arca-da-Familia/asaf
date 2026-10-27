@@ -159,7 +159,7 @@ class InscricaoPublicaCriar(BaseModel):
     @classmethod
     def exigir_consentimento(cls, v):
         if not v:
-            raise ValueError("É necessário aceitar o termo de consentimento LGPD para se inscrever.")
+            raise ValueError("É necessário marcar que leu o aviso de privacidade para se inscrever.")
         return v
 
 

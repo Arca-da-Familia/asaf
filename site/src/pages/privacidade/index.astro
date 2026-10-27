@@ -85,6 +85,9 @@ const substituto = substitutoDoEncarregado(diretoria)
 // serviço registrado na Central US (a distribuição das páginas é global); as rotinas agendadas rodam nos servidores do GitHub (leem o banco) e o site é montado
 // lá; o e-mail é do Google Workspace. O parágrafo `data-operadores` diz só isso (o mecanismo da transferência
 // internacional, LGPD art. 33, é a v7.3).
+// v2.10 (2026-10-27): os avisos de privacidade com versão (v7.1a, `app/textos_de_privacidade.py`): a inscrição em evento deixou de pedir "consentimento"
+// (a base é o próprio pedido de inscrição, art. 7º, V; a página mostra um AVISO e a caixa diz "Li o aviso de privacidade.") e a base da doação passou a ser
+// o pedido de doação e a escrituração que a lei obriga a guardar (art. 7º, V e II), como no catálogo; antes a Política dizia "o seu consentimento (o aceite do aviso)".
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -402,26 +405,29 @@ const direitos = [
         as respostas às perguntas daquele evento e, se você inscrever mais
         pessoas, o nome, o CPF e as respostas de cada uma; o e-mail e o telefone
         que você informa valem como contato de todas as pessoas da mesma
-        inscrição. Antes do envio, a página mostra o texto de consentimento e só
-        envia depois que você o aceita; a versão do texto fica registrada na
-        inscrição. Os dados vão para o sistema de gestão da ASAF, onde só vê
-        quem organiza os eventos (hoje, a Presidência e a Diretoria); o registro
-        técnico da inscrição, com o endereço IP, também aparece na Auditoria do
-        sistema, que o Conselho Fiscal consulta. Depois de enviar, a página
-        mostra o link da sua inscrição (para cancelar e, se você for chamado da
-        lista de espera, para confirmar a vaga) e, havendo vaga, o código de
-        check-in; o sistema também tenta enviar o mesmo por e-mail, mas esse
-        envio pode falhar: guarde o link da página. Quem se inscreve só para um
-        evento passa a constar do cadastro da ASAF como participante externo, e
-        isso não faz da pessoa uma associada; se você já tinha cadastro, o
-        contato que já estava nele é mantido, e é para esse contato que vão os
-        avisos seguintes, como o de uma vaga que abriu na lista de espera.
-        Quando a ASAF muda a situação do evento (cancela, adia, remarca ou volta
-        a programá-lo), o sistema tenta avisar por e-mail, no contato do
-        cadastro, quem está inscrito ou na lista de espera (menos quem desligou
-        esses avisos, como explicado abaixo); a inscrição em si não é cancelada
-        pelo sistema. O endereço IP de quem envia, abre, cancela ou confirma uma
-        inscrição pelo link também fica registrado, por segurança.
+        inscrição. Antes do envio, a página mostra o aviso de privacidade da
+        inscrição e só envia depois que você marca que o leu; a versão do aviso
+        fica registrada na inscrição. O que nos autoriza a tratar esses dados é
+        o seu pedido de inscrição (LGPD, art. 7º, V); quem inscreve outra
+        pessoa, como uma criança da família, deve ser o responsável por ela ou
+        ter a autorização dela. Os dados vão para o sistema de gestão da ASAF,
+        onde só vê quem organiza os eventos (hoje, a Presidência e a Diretoria);
+        o registro técnico da inscrição, com o endereço IP, também aparece na
+        Auditoria do sistema, que o Conselho Fiscal consulta. Depois de enviar,
+        a página mostra o link da sua inscrição (para cancelar e, se você for
+        chamado da lista de espera, para confirmar a vaga) e, havendo vaga, o
+        código de check-in; o sistema também tenta enviar o mesmo por e-mail,
+        mas esse envio pode falhar: guarde o link da página. Quem se inscreve só
+        para um evento passa a constar do cadastro da ASAF como participante
+        externo, e isso não faz da pessoa uma associada; se você já tinha
+        cadastro, o contato que já estava nele é mantido, e é para esse contato
+        que vão os avisos seguintes, como o de uma vaga que abriu na lista de
+        espera. Quando a ASAF muda a situação do evento (cancela, adia, remarca
+        ou volta a programá-lo), o sistema tenta avisar por e-mail, no contato
+        do cadastro, quem está inscrito ou na lista de espera (menos quem
+        desligou esses avisos, como explicado abaixo); a inscrição em si não é
+        cancelada pelo sistema. O endereço IP de quem envia, abre, cancela ou
+        confirma uma inscrição pelo link também fica registrado, por segurança.
       </p>
       <p class="mt-3" id="doacao-pelo-site" data-doacao>
         <strong>Doação pelo site.</strong> A página{' '}
@@ -447,17 +453,18 @@ const direitos = [
         e-mail (o sistema também tenta mandar, quando você envia o pedido, o
         protocolo e o código Pix). O sistema avisa quem cuida da tesouraria
         (quem tem a permissão do financeiro), que vê o pedido no painel. O que
-        nos autoriza a tratar esses dados é o seu consentimento (o aceite do
-        aviso) e, depois que a tesouraria confirma a doação, a escrituração
-        contábil e financeira dela, em que o recibo é numerado; se o CPF for de
-        quem já é associado, a doação fica ligada ao cadastro dessa pessoa. O
-        pedido que ainda espera conferência passa a ser marcado como “prazo
-        vencido” depois dos dias informados na página (o padrão é 15), por uma
-        rotina que roda algumas vezes ao dia, e continua guardado no sistema até
-        2 anos depois do prazo do pedido (é o prazo de hoje), quando o sistema o
-        apaga sozinho (veja “Por quanto tempo guardamos”); do doador de uma
-        doação confirmada, o sistema tira o nome e o documento 10 anos depois da
-        doação. Para pedir que sejam apagados, use a{' '}
+        nos autoriza a tratar esses dados é o seu pedido de doação (LGPD, art.
+        7º, V) e, depois que a tesouraria confirma a doação, a escrituração
+        contábil e financeira dela, que a lei obriga a guardar (art. 7º, II), em
+        que o recibo é numerado; se o CPF for de quem já é associado, a doação
+        fica ligada ao cadastro dessa pessoa. O pedido que ainda espera
+        conferência passa a ser marcado como “prazo vencido” depois dos dias
+        informados na página (o padrão é 15), por uma rotina que roda algumas
+        vezes ao dia, e continua guardado no sistema até 2 anos depois do prazo
+        do pedido (é o prazo de hoje), quando o sistema o apaga sozinho (veja
+        “Por quanto tempo guardamos”); do doador de uma doação confirmada, o
+        sistema tira o nome e o documento 10 anos depois da doação. Para pedir
+        que sejam apagados, use a{' '}
         <a
           href="/privacidade/solicitacao-do-titular/"
           class="font-medium text-primary underline underline-offset-4"

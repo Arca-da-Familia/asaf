@@ -179,7 +179,7 @@ ATIVIDADES: tuple[Atividade, ...] = (
     Atividade(
         "DOACOES", "Doações e recibos",
         "Receber doações (inclusive o pedido pelo site com Pix), confirmar, emitir o recibo numerado e prestar contas das campanhas.",
-        ("ART7_V", "ART7_II", "ART7_I"), ("AZURE", "GITHUB", "GOOGLE"),
+        ("ART7_V", "ART7_II"), ("AZURE", "GITHUB", "GOOGLE"),
         ("doacoes", "intencoes_de_doacao"), ("intencoes_de_doacao", "doador_identificado"),
         medidas="A doação sem se identificar não grava nome nem contato (o IP fica no registro técnico de acesso, da atividade Acesso); o pedido pelo site tem "
                 "limite de pedidos por hora.",
