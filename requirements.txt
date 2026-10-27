@@ -1,6 +1,6 @@
-fastapi==0.143.3
+fastapi==0.162.0
 uvicorn[standard]==0.54.0
-sqlalchemy==2.1.4
+sqlalchemy==2.1.6
 psycopg[binary]==3.3.6
 pydantic[email]==2.14.1
 python-multipart==0.0.32
@@ -8,10 +8,10 @@ pyjwt==2.15.1
 bcrypt==5.0.0
 pyotp==2.10.0
 webauthn==3.0.1
-httpx2==2.13.1
-reportlab==5.0.1
+httpx2==2.16.0
+reportlab==5.1.0
 qrcode[pil]==8.2
 pillow==12.3.0
 azure-storage-blob==12.31.0
-azure-identity==1.26.0
-pypdf==6.21.0
+azure-identity==1.27.0
+pypdf==6.21.2
