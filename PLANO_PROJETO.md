@@ -2535,14 +2535,16 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         `v5.4f` 54, `v7.0d` 3, `v7.0c` 3. **Em produção:** Deploy API, Painel e Site verdes; `version.json` do painel e do site = `8333b5c`; 482 rotas no `openapi.json`;
         rota pública 200 e protegida 401. **Achado ao vivo (corrigido à parte, `f818b38`, homologação `v5.4c-fase1` 24 + 24, produção Deploy API verde):** o par julgado
         "não é duplicado" voltava à fila de revisão a cada busca, e a lista fazia 4 consultas por item (com a fila cheia, a tela demorava a se atualizar).
-      - **Lote 12 (Python 3.14 → 3.15) e Lote 13 (Pillow 12.3 → 13.0): PRONTOS, esperando a autorização do Presidente para a produção.** O Python 3.15 saiu estável
-        em 2026-10-09 (hoje 3.15.2). A imagem da API passa a `python:3.15-slim` e o CI ao 3.15; o `uvicorn[standard]` vira `uvicorn` + `httptools` + `uvloop` (as duas
-        peças que o extra usava para ser rápido; o resto — `pyyaml`, `python-dotenv`, `watchfiles`, `websockets` — o sistema não usa, e o `pyyaml` ainda não tem pacote
-        pronto para o 3.15). Pillow 13: nenhuma das APIs removidas é usada. **Verificado:** servidor 1601 em duas rodadas no 3.15.2 (lote 12) e mais duas com o Pillow 13
-        (lote 13); Postgres no 3.15.2 (1601); a homologação montou a imagem `python:3.15-slim` e os robôs `v5.4c` 30, `v5.4g-02` 7, `v5.5a` 13, `v5.4f` 54, `v7.0d` 3, `v7.0c` 3
-        e `v7.0a` 5 passaram. **Por que parou:** é troca da imagem base da produção; o sistema de segurança do Claude Code bloqueou o envio à `main` sem a autorização
-        explícita do Presidente nesta conversa (regra do projeto: parar e avisar, nunca contornar). **Plano de volta, se algo der errado:** reverter o commit na `main`
-        (a imagem 3.14 volta pelo mesmo pipeline) ou reativar a revisão anterior do Container App.
+      - **Lotes 12 e 13 ✅ FEITOS, provados na homologação e confirmados em produção (2026-10-27, commit `c1880a9`, autorizados pelo Presidente nesta data)**: **Python
+        3.14 → 3.15** (3.15.2, a última estável; a imagem `python:3.15-slim` pega sempre a correção mais nova da linha), **Pillow 12.3 → 13.0.0** e `pypdf` 6.21.2 → **6.21.3**
+        (saiu no mesmo dia; o Presidente pediu para conferir que tudo estava na última versão antes de publicar: conferido no PyPI, no Docker Hub e com `npm outdated`). O
+        `uvicorn[standard]` virou `uvicorn` + `httptools` + `uvloop` (as duas peças que o extra usava para ser rápido; o resto — `pyyaml`, `python-dotenv`, `watchfiles`,
+        `websockets` — o sistema não usa, e o `pyyaml` ainda não tem pacote pronto para o 3.15). Pillow 13: nenhuma das APIs removidas é usada. **Verificado:** servidor 1612
+        em duas rodadas no 3.15.2 (sobre a `main` com a v7.1a e o lote 14) e 1612 contra Postgres no 3.15.2. **Na homologação:** a imagem `python:3.15-slim` subiu e
+        passaram `v5.4c` 30, `v5.4g-02` 7, `v7.0d` 3, `v7.1a` 4, `v5.6a-01` 5 e `v5.4f` 54. **Por que esperou:** é troca da imagem base da produção; o sistema de segurança do
+        Claude Code bloqueou o primeiro envio sem a autorização explícita, que o Presidente deu. **Em produção:** Deploy API verde (1612 no Python 3.15.2); o Container App
+        `asaf-api` está na revisão `asaf-api--0000152` com a imagem `asaf-api:c1880a9…`; `openapi.json` 200, rota pública 200 e protegida 401. **Plano de volta (não foi
+        preciso):** reverter o commit na `main` ou reativar a revisão anterior do Container App.
       - **Lote 14 ✅ FEITO, provado na homologação e confirmado em produção (2026-10-27, commit `ef4e080`)** (`@hookform/resolvers` 5.9 → **6.0.1**, só o painel; a única
         quebra da 6 é no resolvedor de effect-ts, e o painel usa o de Zod): painel 747 em duas rodadas (já sobre a v7.1a), tipos, lint e build limpos. **Na homologação:** `v7.0c`
         3, `v7.0d` 3, `v7.1a` 4, `v5.4f` 54, `v5.4c` 30, `v5.4h-09` 5, `v6.2d-01` 2, `v5.5a` 13, `v5.5b-01` 4. **Achado:** o roteiro de filiação da v5.4c mandava a versão 2 do
