@@ -157,7 +157,16 @@ test('o formulário aparece no evento gratuito, mostra as perguntas e o consenti
   const consentimentoDaApi = (await (
     await page.request.get(`${API_HML}/api/publico/eventos/consentimento-lgpd`)
   ).json()) as { texto: string; versao: string }
-  expect(consentimentoDoSite).toBe(consentimentoDaApi.texto.trim())
+  // v7.1a: o aviso vem em parágrafos, com os links desenhados; o texto lido é o mesmo, só a quebra entre parágrafos pode variar
+  const semEspacos = (t: string) => t.replace(/\s+/g, ' ').trim()
+  expect(semEspacos(consentimentoDoSite)).toBe(
+    semEspacos(consentimentoDaApi.texto),
+  )
+  await expect(
+    page
+      .locator('[data-consentimento-texto]')
+      .getByRole('link', { name: 'Política de Privacidade' }),
+  ).toHaveAttribute('href', '/privacidade/')
   await expect(
     page.getByRole('radiogroup', { name: /Como você soube da oficina/ }),
   ).toBeVisible()
