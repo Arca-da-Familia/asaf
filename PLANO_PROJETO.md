@@ -2543,8 +2543,11 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         e `v7.0a` 5 passaram. **Por que parou:** é troca da imagem base da produção; o sistema de segurança do Claude Code bloqueou o envio à `main` sem a autorização
         explícita do Presidente nesta conversa (regra do projeto: parar e avisar, nunca contornar). **Plano de volta, se algo der errado:** reverter o commit na `main`
         (a imagem 3.14 volta pelo mesmo pipeline) ou reativar a revisão anterior do Container App.
-      - **Lote 14 (`@hookform/resolvers` 5.9 → 6.0.1, só o painel): pronto na branch `atualizacao-lote-14`** (a única quebra da 6 é no resolvedor de effect-ts; o painel usa
-        o de Zod): painel 745 em duas rodadas, tipos, lint e build limpos. Falta a homologação (vai depois da v7.1a).
+      - **Lote 14 ✅ FEITO, provado na homologação e confirmado em produção (2026-10-27, commit `ef4e080`)** (`@hookform/resolvers` 5.9 → **6.0.1**, só o painel; a única
+        quebra da 6 é no resolvedor de effect-ts, e o painel usa o de Zod): painel 747 em duas rodadas (já sobre a v7.1a), tipos, lint e build limpos. **Na homologação:** `v7.0c`
+        3, `v7.0d` 3, `v7.1a` 4, `v5.4f` 54, `v5.4c` 30, `v5.4h-09` 5, `v6.2d-01` 2, `v5.5a` 13, `v5.5b-01` 4. **Achado:** o roteiro de filiação da v5.4c mandava a versão 2 do
+        aviso fixa (a v7.1a a passou a 3): os robôs agora leem a versão em vigor do mesmo arquivo do catálogo que o site mostra. **Em produção:** Deploy Painel verde e
+        `painel.asaf.org.br/version.json` = `ef4e080`.
       - **Directus 12.4.1 → 12.5.1:** continua adiado com o mesmo motivo (provar numa cópia descartável antes de trocar a imagem de produção e dizer o plano ao Presidente).
 - [ ] Fator ônibus tratado como risco de projeto (v12.8): documentação suficiente para outra
       pessoa assumir, e pelo menos uma pessoa da associação treinada na operação básica.
