@@ -1092,8 +1092,38 @@ de privacidade." e os parágrafos; as duas rotas novas sem login respondem 401; 
 
 ##### v7.1b — Consentimento versionado onde ele é a base (foto)
 
-- [ ] `Consentimento` (titular, finalidade, versão do texto, data, meio, IP, quem registrou, revogação) para a foto da Diretoria e as fotos de evento e de parceria; revogar
+- [x] `Consentimento` (titular, finalidade, versão do texto, data, meio, IP, quem registrou, revogação) para a foto da Diretoria e as fotos de evento e de parceria; revogar
       tira a foto do site e do armazenamento.
+
+✅ **v7.1b concluída (2026-10-27).**
+
+**O que foi feito:** os TERMOS de autorização de uso de imagem entraram no catálogo dos textos (`app/textos_de_privacidade.py`): o da Diretoria e o das atividades (eventos,
+projetos e parcerias), cada um com versão; a versão 1 de cada é a DECLARAÇÃO que quem enviava a foto marcava no painel (antes não havia termo do sistema), reconstituída do
+código. O painel mostra o termo em vigor e gera o PDF para imprimir e assinar. Cada foto agora só entra com quem assinou, como (termo em papel guardado pela secretaria, ou
+digitalizado na biblioteca de Documentos, com o número), a **data da assinatura** e a versão do termo; o servidor recusa a versão velha ("recarregue") e nada fica pela
+metade. A tabela `consentimentos` guarda a prova (migração `7c4e1a9d2b63`, que registrou as fotos já existentes como "declaração antiga"); apagar a foto ENCERRA o
+consentimento — revogado (a pessoa retirou a autorização, com o motivo, que vai no corpo do pedido e não no endereço), apagado (foto errada, trocada, etapa apagada) ou fim
+do prazo (o mandato da Diretoria acabou e o sistema apagou a foto sozinho). A prova encerrada fica 5 anos e depois a rotina de retenção a apaga (regra nova
+`PRAZO_RETENCAO_CONSENTIMENTOS_DIAS`). Privacidade > Consentimentos lista tudo com busca pelo nome de quem assinou (quem revoga a autorização de atividade tem de ter TODAS as
+fotos em que aparece apagadas) e páginas; quem só lê a parceria não vê o nome de quem assinou. Inventário: atividade nova "Prova dos consentimentos e das revogações"; a
+Transparência ganhou a base do consentimento (fotos de parceria). **Política 2.11:** o parágrafo das fotos das atividades (que faltava), o do registro dos consentimentos, o
+prazo da prova e a revogação pela secretaria ou pela solicitação do titular.
+**Conferência independente (agente, só leitura) achou 17 pontos; todos corrigidos antes de publicar** (o termo é o que a pessoa assina): revogar valia só para uma foto
+(o termo diz "as fotos em que eu apareço"); o motivo da revogação ia no endereço e cairia no registro de acesso do servidor; a data gravada era a do envio, não a da
+assinatura; o art. 14, § 1º citado também para adolescente (agora: criança — um dos pais ou o responsável; adolescente — assina junto, em parágrafo próprio); a Política
+não falava das fotos de atividade nem do registro; a prova ficava para sempre; a cópia de segurança de 30 dias, o "na hora" e o mandato "vigente ou marcado" no termo; quem
+apagou a etapa; o nome para quem só lê; paginação; o apagar com "revogado" já marcado; duas trocas da mesma foto ao mesmo tempo (500).
+**Testes locais:** servidor 1623 em três rodadas e 1623 contra Postgres 18 (a migração desce e sobe); painel 750 em duas rodadas, tipos, lint e formatação limpos; site 778 de
+unidade e 924 de navegador em duas rodadas, estados vazios, Instituição e sincronização.
+**Na homologação (2026-10-27):** a branch `v71b-consentimento-de-foto` (`33c6503`) foi publicada e a migração rodou no banco de TESTE (`Running upgrade 5b2d7e9c41f0 ->
+7c4e1a9d2b63`). Robô `v7.1b-01` 3/3: o **Presidente** abre um evento e envia uma foto com o termo em vigor (o PDF abre; sem quem autorizou e com a versão velha do termo é
+recusado), a foto aparece com "Autorizado por … · termo versão 2"; apaga dizendo que a pessoa retirou a autorização, com o motivo, e Privacidade > Consentimentos mostra o
+consentimento **revogado**, com o motivo, e reabre o termo assinado; o **Tesoureiro** lê o termo, mas não a lista (403). Regressões verdes com o formulário novo:
+`v5.4g-03` 8 (parcerias), `v5.4g-04` 9 (fotos do evento), `v5.7c-01` 4 (foto da Diretoria), `v5.7d-01` 3 (apagar de verdade), `v7.1a` 4, `v7.0c` 3.
+**Em produção (2026-10-27):** `main` = `33c6503`; Deploy API verde (1623 contra Postgres e `Running upgrade 5b2d7e9c41f0 -> 7c4e1a9d2b63`), Deploy Painel e Deploy Site
+verdes; `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `33c6503`; o `openapi.json` traz as 3 rotas novas e, sem login, a lista e o termo respondem 401;
+`asaf.org.br/privacidade/` diz "Versão 2.11 · em vigor desde 27 de outubro de 2026" e tem o parágrafo do registro dos consentimentos. Nenhuma foto foi enviada na produção
+(fotos reais com termo assinado são para quando o sistema estiver pronto, decisão de 23/10).
 
 ##### v7.1c — Criança e adolescente: o consentimento de um dos pais ou do responsável
 
