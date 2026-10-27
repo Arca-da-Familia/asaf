@@ -9,6 +9,7 @@ import {
   type Page,
   type TestInfo,
 } from '@playwright/test'
+import textos from '../../site/src/data/textos-de-privacidade.json' with { type: 'json' }
 
 // Apoio dos roteiros de conferência ao vivo na homologação (v5.4c em diante). Nada aqui conhece a produção: o endereço é conferido
 // em playwright.hml.config.ts e de novo em `exigirHomologacao`.
@@ -141,11 +142,11 @@ export function vigiar(page: Page): { problemas: () => string[] } {
 /** A API de TESTE (nunca a de produção). O robô só a usa onde o sistema ainda não tem tela de entrada (ex.: o formulário público do site). */
 export const API_HML = 'https://hml-api.asaf.org.br'
 
-/** O que todo pedido de filiação pela rota pública traz além dos dados da pessoa (v5.4h): maior de idade e aviso de privacidade aceito (versão 2). */
+/** O que todo pedido de filiação pela rota pública traz além dos dados da pessoa (v5.4h): maior de idade e aviso de privacidade aceito (a versão em vigor, v7.1a). */
 export const PEDIDO_PUBLICO = {
   data_nascimento: '1990-05-10',
   consentimento_lgpd: true,
-  versao_texto_consentimento: '2',
+  versao_texto_consentimento: textos.FILIACAO.versao,
 }
 
 /** Cadastra um associado pelo formulário (Novo associado); com `forcar`, aperta "cadastrar mesmo assim" depois do aviso de cadastro parecido. */

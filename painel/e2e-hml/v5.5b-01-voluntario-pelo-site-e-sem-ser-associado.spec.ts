@@ -11,6 +11,7 @@ import {
   ver,
   vigiar,
 } from './apoio'
+import textos from '../../site/src/data/textos-de-privacidade.json' with { type: 'json' }
 
 // v5.5b - o voluntário é uma PESSOA: quem se oferece pelo site não precisa ser associado. De ponta a ponta, como na vida: o visitante preenche o formulário do site de teste
 // (hml-site, página "Seja voluntário") e recebe protocolo e prazo; o Presidente abre o pedido na fila, vê a idade (e o aviso de quem é menor de 18 anos), cadastra a pessoa como
@@ -144,7 +145,7 @@ test('o visitante se oferece pelo site: a página não diz mais que precisa ser 
       data_nascimento: dataDeAnosAtras(16, 40),
       mensagem: `Quero ajudar nas oficinas depois da escola. Rodada ${S}.`,
       consentimento_lgpd: true,
-      versao_texto_consentimento: '2',
+      versao_texto_consentimento: textos.ATENDIMENTO_VOLUNTARIADO.versao,
     },
   })
   expect(r.status(), await r.text()).toBe(200)

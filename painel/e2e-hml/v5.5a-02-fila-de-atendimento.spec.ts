@@ -11,6 +11,7 @@ import {
   ver,
   vigiar,
 } from './apoio'
+import textos from '../../site/src/data/textos-de-privacidade.json' with { type: 'json' }
 
 // v5.5a - a fila única de atendimento, vista pelo PAINEL: três pedidos chegam pela rota pública (contato, pedido de informação sobre recursos públicos e solicitação de
 // titular de dados da LGPD), o Presidente é avisado no sino, abre a fila e vê cada um com protocolo e prazo; abre, assume, responde (resposta curta recusada em português),
@@ -22,7 +23,7 @@ test.setTimeout(300_000)
 
 const S = String(RODADA)
 const CPF_TITULAR = cpfValido(700000000 + (RODADA % 200000000))
-const VERSAO_DO_AVISO = '2'
+const VERSAO_DO_AVISO = textos.ATENDIMENTO.versao
 
 const CONTATO = {
   tipo: 'CONTATO',

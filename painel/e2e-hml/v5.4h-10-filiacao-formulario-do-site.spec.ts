@@ -175,7 +175,7 @@ test('a API descarta em silêncio o pedido de quem preencheu o campo escondido d
       email_contato: `robo.${S}@homologacao.example.com`,
       data_nascimento: '1990-05-10',
       consentimento_lgpd: true,
-      versao_texto_consentimento: '2',
+      versao_texto_consentimento: textos.FILIACAO.versao,
       pagina_web: 'http://spam.example',
     },
   })

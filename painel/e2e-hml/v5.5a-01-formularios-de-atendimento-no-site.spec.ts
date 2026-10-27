@@ -9,6 +9,7 @@ import {
   ver,
   vigiar,
 } from './apoio'
+import textos from '../../site/src/data/textos-de-privacidade.json' with { type: 'json' }
 
 // v5.5a - os três formulários de atendimento do SITE de teste (hml-site), de ponta a ponta, como um visitante: a pessoa preenche a página, o pedido atravessa a API (de
 // outra origem, então o CORS também é provado aqui), a tela mostra o protocolo e o prazo que vieram do servidor, e o pedido aparece na fila do painel do Presidente com o
@@ -182,7 +183,7 @@ test('o mesmo pedido mandado duas vezes é um protocolo só; a armadilha de rob�
     nome_completo: `Duplo Clique ${S} de Teste`,
     telefone_whatsapp: '(91) 98888-5555',
     consentimento_lgpd: true,
-    versao_texto_consentimento: '2',
+    versao_texto_consentimento: textos.ATENDIMENTO.versao,
   }
   const a = await page.request.post(`${API_HML}/api/publico/atendimentos`, {
     data: corpo,
