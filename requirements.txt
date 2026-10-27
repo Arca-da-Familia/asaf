@@ -15,7 +15,7 @@ webauthn==3.0.1
 httpx2==2.16.0
 reportlab==5.1.0
 qrcode[pil]==8.2
-pillow==12.3.0
+pillow==13.0.0
 azure-storage-blob==12.31.0
 azure-identity==1.27.0
 pypdf==6.21.2
