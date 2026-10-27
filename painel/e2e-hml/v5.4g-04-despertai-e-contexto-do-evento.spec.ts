@@ -19,6 +19,7 @@ import {
   sair,
   ver,
   vigiar,
+  preencherOTermoDeImagem,
 } from './apoio'
 import {
   APARELHO_ESCONDIDO,
@@ -1126,10 +1127,10 @@ test('fotos do evento: sem a autorização de imagem a foto é recusada (pela te
     'Descrição da foto (para quem não enxerga)',
   )
   const caixaDeAutorizacao = contexto.getByRole('checkbox', {
-    name: /Há autorização de uso de imagem/,
+    name: /Todas as pessoas que aparecem na foto assinaram o termo/,
   })
   const campoDoTermo = contexto.getByLabel(
-    'Nº do documento do termo de autorização (opcional)',
+    'Nº do documento do termo digitalizado',
   )
   const botaoEnviar = contexto.getByRole('button', {
     name: 'Enviar a foto',
@@ -1199,6 +1200,7 @@ test('fotos do evento: sem a autorização de imagem a foto é recusada (pela te
 
   // ---- 2. com a autorização, mas a descrição (texto alternativo) traz dado pessoal: barrada
   await caixaDeAutorizacao.check()
+  await preencherOTermoDeImagem(contexto)
   await campoDaDescricao.fill(`Foto de Fulana, CPF ${CPF_DE_MENTIRA}, na roda`)
   const comCpf = await enviarFoto()
   expect(comCpf.status()).toBe(422)
@@ -1315,6 +1317,7 @@ test('fotos do evento: sem a autorização de imagem a foto é recusada (pela te
   await arquivo.setInputFiles({ ...foto, buffer: original })
   await campoDaDescricao.fill(ALT_2)
   await caixaDeAutorizacao.check()
+  await preencherOTermoDeImagem(contexto)
   const segunda = await enviarFoto()
   expect(segunda.status()).toBe(201)
   esperado.eventos += 1
@@ -1328,9 +1331,16 @@ test('fotos do evento: sem a autorização de imagem a foto é recusada (pela te
       `/api/publico/eventos/${ev1}/fotos/${idFotoApagada}`,
     ),
   ).toBe(200)
+  // v7.1b: apagar pergunta por quê; a pessoa retirou a autorização (o consentimento fica revogado)
+  await contexto
+    .getByRole('button', { name: `Apagar a foto: ${ALT_2}` })
+    .click()
+  await contexto.getByLabel('A pessoa retirou a autorização').check()
   const [apagada] = await Promise.all([
     esperarResposta(page, 'DELETE', /^\/api\/eventos\/\d+\/fotos\/\d+$/),
-    contexto.getByRole('button', { name: `Apagar a foto: ${ALT_2}` }).click(),
+    contexto
+      .getByRole('button', { name: `Confirmar: apagar a foto ${ALT_2}` })
+      .click(),
   ])
   expect(apagada.status()).toBe(200)
   esperado.eventos += 1

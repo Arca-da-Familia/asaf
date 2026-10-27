@@ -3,6 +3,15 @@ import { useEffect, useId, useState } from 'react'
 
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 import { Campo } from '@/components/forms/Campo'
+import {
+  ConsentimentoDaFoto,
+  TermoDeImagem,
+} from '@/components/privacidade/TermoDeImagem'
+import {
+  escolhasEmBranco,
+  faltaNoTermo,
+  useTermoDaTela,
+} from '@/lib/termo-de-imagem'
 import { Button } from '@/components/ui/button'
 import {
   apagarFotoDaDiretoria,
@@ -96,6 +105,12 @@ export function FotoDaDiretoria({
   const [arquivo, setArquivo] = useState<File | null>(null)
   const [autorizacao, setAutorizacao] = useState(false)
   const [documento, setDocumento] = useState('')
+  // v7.1b: o termo que a pessoa assinou (ela mesma: o nome é o do cadastro) e como
+  const [escolhas, setEscolhas] = useState(escolhasEmBranco)
+  const { data: termo, isError: termoFalhou } = useTermoDaTela(
+    'foto_da_diretoria',
+    pode && formularioAberto,
+  )
   const [erro, setErro] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
   // Trocar a chave recria o campo de arquivo: é a única forma de esvaziá-lo depois de enviar.
@@ -114,12 +129,16 @@ export function FotoDaDiretoria({
       arquivo: File
       autorizacaoImagem: boolean
       idDocumentoAutorizacao?: string
+      meio: string
+      versaoDoTermo: string
+      assinadoEm: string
     }) => enviarFotoDaDiretoria(idAssociado, dados),
     onSuccess: (nova) => {
       atualizar(nova)
       setArquivo(null)
       setAutorizacao(false)
       setDocumento('')
+      setEscolhas(escolhasEmBranco())
       setChaveDoArquivo((n) => n + 1)
       setAvisoAoApagar(null)
       setAviso(
@@ -159,10 +178,15 @@ export function FotoDaDiretoria({
     setAviso(null)
     if (!arquivo) return setErro('Escolha a foto.')
     if (!autorizacao) return setErro(FRASE_SEM_AUTORIZACAO)
+    const falta = faltaNoTermo(termo, escolhas, documento, false, termoFalhou)
+    if (falta || !termo) return setErro(falta)
     enviar.mutate({
       arquivo,
       autorizacaoImagem: autorizacao,
       idDocumentoAutorizacao: documento.trim() || undefined,
+      meio: escolhas.meio,
+      versaoDoTermo: termo.versao,
+      assinadoEm: escolhas.assinadoEm,
     })
   }
 
@@ -171,6 +195,7 @@ export function FotoDaDiretoria({
     setArquivo(null)
     setAutorizacao(false)
     setDocumento('')
+    setEscolhas(escolhasEmBranco())
     setErro(null)
     setAviso(null)
     setChaveDoArquivo((n) => n + 1)
@@ -240,6 +265,7 @@ export function FotoDaDiretoria({
                     ? 'Aparece no site'
                     : 'Cadastrada, mas não aparece no site (a pessoa não tem mandato vigente)'}
                 </p>
+                <ConsentimentoDaFoto c={foto.consentimento} />
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
@@ -304,6 +330,12 @@ export function FotoDaDiretoria({
               }}
             />
           </Campo>
+          <TermoDeImagem
+            origem="foto_da_diretoria"
+            escolhas={escolhas}
+            aoMudar={setEscolhas}
+            pedeQuem={false}
+          />
           <div className="flex items-start gap-2 text-sm">
             <input
               id={idCaixa}
@@ -318,7 +350,8 @@ export function FotoDaDiretoria({
             />
             <div>
               <label htmlFor={idCaixa} className="font-medium">
-                Esta pessoa autorizou o uso da imagem dela no site da ASAF
+                Esta pessoa assinou o termo de autorização de uso da imagem dela
+                no site da ASAF
               </label>
               <p
                 id={idExplicacao}
@@ -331,8 +364,8 @@ export function FotoDaDiretoria({
             </div>
           </div>
           <Campo
-            rotulo="Número do termo de autorização (documento do sistema)"
-            dica="Opcional. Se o termo assinado está na biblioteca de Documentos, informe o número dele."
+            rotulo="Número do termo digitalizado (documento do sistema)"
+            dica="Obrigatório se o termo foi digitalizado na biblioteca de Documentos."
           >
             <input
               className={classeCampo}

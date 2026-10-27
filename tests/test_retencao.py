@@ -75,6 +75,7 @@ def test_os_padroes_sao_os_da_tabela_de_temporalidade():
     assert padroes == {
         "acessos": 183, "avisos_do_sino": 365, "atendimentos": 1825, "propostas_de_filiacao": 730,
         "intencoes_de_doacao": 730, "doador_identificado": 3650, "associado_desligado": 1825, "leitura_de_avisos": 1825,
+        "consentimentos_encerrados": 1825,
     }
 
 

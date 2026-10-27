@@ -56,6 +56,44 @@ vi.mock('@/lib/parcerias', async (original) => ({
   ...parcerias,
 }))
 
+// v7.1b: o termo de imagem em vigor (a tela o pede ao servidor para mostrar e mandar a versão de volta)
+const termos = vi.hoisted(() => ({
+  obterTermoDaTela: vi.fn(),
+  abrirPdfDoTermo: vi.fn(),
+}))
+vi.mock('@/lib/consentimentos', async (original) => ({
+  ...(await original<typeof import('@/lib/consentimentos')>()),
+  ...termos,
+}))
+const TERMO = {
+  termo: 'IMAGEM_ATIVIDADE',
+  versao: '2',
+  nome: 'Autorização de uso de imagem: fotos das atividades (eventos e parcerias)',
+  texto: 'Eu, identificado(a) abaixo, autorizo...',
+  meios: [
+    {
+      codigo: 'termo_em_papel',
+      rotulo: 'Termo assinado em papel, guardado pela secretaria',
+    },
+    {
+      codigo: 'termo_digitalizado',
+      rotulo: 'Termo assinado e digitalizado na biblioteca de Documentos',
+    },
+  ],
+}
+
+/** Quem autorizou e como (o termo carrega do servidor de mentira). */
+async function preencherTermo(usuario: ReturnType<typeof userEvent.setup>) {
+  await usuario.type(
+    await screen.findByLabelText(/Quem autorizou/),
+    'Joana da Silva',
+  )
+  await usuario.selectOptions(
+    screen.getByLabelText('Como a autorização foi dada'),
+    'termo_em_papel',
+  )
+}
+
 const opcoes: Opcoes = {
   tipos: [
     { codigo: 'EMENDA', rotulo: 'Emenda parlamentar' },
@@ -299,6 +337,7 @@ function renderizar(caminhoInicial: string) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  termos.obterTermoDaTela.mockResolvedValue(TERMO)
   parcerias.opcoesDeParcerias.mockResolvedValue(opcoes)
   parcerias.listarParcerias.mockResolvedValue([resumo])
   parcerias.obterParceria.mockResolvedValue(detalhe)
@@ -561,8 +600,11 @@ describe('fotos das etapas (renderizadas de verdade)', () => {
     const arquivo = new File(['x'], 'foto.jpg', { type: 'image/jpeg' })
     await usuario.upload(screen.getByLabelText(/Enviar foto \(JPG/), arquivo)
     await usuario.click(
-      screen.getByRole('checkbox', { name: /Há autorização de uso de imagem/ }),
+      screen.getByRole('checkbox', {
+        name: /Todas as pessoas que aparecem na foto assinaram o termo/,
+      }),
     )
+    await preencherTermo(usuario)
     await usuario.click(screen.getByRole('button', { name: 'Enviar a foto' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(
       /Descreva a foto/,
@@ -608,6 +650,15 @@ describe('fotos das etapas (renderizadas de verdade)', () => {
     await usuario.click(
       within(bloco).getByText('Apagar', { selector: 'button' }),
     )
-    expect(parcerias.apagarFoto).toHaveBeenCalledWith(7, 9)
+    // v7.1b: apagar pergunta por quê; "outro motivo" não revoga o consentimento (fica "apagado")
+    expect(parcerias.apagarFoto).not.toHaveBeenCalled()
+    await usuario.click(within(bloco).getByLabelText(/Outro motivo/))
+    await usuario.click(
+      within(bloco).getByText('Apagar a foto', { selector: 'button' }),
+    )
+    expect(parcerias.apagarFoto).toHaveBeenCalledWith(7, 9, {
+      revogado: false,
+      motivo: '',
+    })
   })
 })

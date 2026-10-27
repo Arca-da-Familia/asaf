@@ -38,6 +38,11 @@ IMPRESSOES = {
     ("DOACAO", "1"): "815837bb5f4f7985dea205d71aa2852ee33b552f2336ebf94bb43bcb0fe7e44d",
     ("DOACAO", "2"): "ed94c8a3b0aa63fe4110bf04c7b13f009a032d647afdba7a9dc1908a0e6c2098",
     ("VISITANTE", "1"): "16fd159c7c2674b2ceadf3eb1fe893156f31061808e6488cb83cd47f4a0ac63f",
+    # v7.1b: os termos de imagem (a versão 1 é a declaração de quem enviava a foto; a 2, o termo que a pessoa assina)
+    ("IMAGEM_DIRETORIA", "1"): "78d3fb8ef3f15cd042c71238bfa83bd837fc1ca62c5f47697c449cb14600208d",
+    ("IMAGEM_DIRETORIA", "2"): "4611bbe4cbd7e4400bf3c1bb4d815353b3a3d9a2238945fc1ef4f4f3412c5499",
+    ("IMAGEM_ATIVIDADE", "1"): "171a3b3552f07a5f7a8af41b76b27787f84aed1548e5a8267a947d8df2393df3",
+    ("IMAGEM_ATIVIDADE", "2"): "8b13e68cd15ba90d63d699651fe31e95ea4574e91d97249943a99f9f1a88942a",
 }
 
 

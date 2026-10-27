@@ -63,6 +63,12 @@ PONTOS: tuple[Ponto, ...] = (
           "Li e aceito o aviso de privacidade."),
     Ponto("DOACAO", "Pedido de doação pelo site", AVISO, "site: Como ajudar > doação", "DOACOES", ("ART7_V", "ART7_II"), "Li e aceito o aviso de privacidade."),
     Ponto("VISITANTE", "Conta de visitante (entrar com o e-mail)", AVISO, "site: Minha conta", "VISITANTE", ("ART7_V", "ART7_IX"), "(sem caixa: o aviso fica junto do botão)"),
+    # v7.1b - os TERMOS de consentimento (a pessoa assina; quem envia a foto registra no painel quem autorizou e como)
+    Ponto("IMAGEM_DIRETORIA", "Autorização de uso de imagem: foto da Diretoria e do Conselho no site", CONSENTIMENTO,
+          "painel: Governança > mandatos, foto para o site (o termo é impresso e assinado)", "GOVERNANCA", ("ART7_I",), "Assinatura no termo"),
+    Ponto("IMAGEM_ATIVIDADE", "Autorização de uso de imagem: fotos das atividades (eventos e parcerias)", CONSENTIMENTO,
+          "painel: fotos de evento (Projetos e eventos) e de etapa de parceria (Transparência; o termo é impresso e assinado)", "PROJETOS_EVENTOS", ("ART7_I",),
+          "Assinatura no termo"),
 )
 
 _POLITICA = "[Política de Privacidade](/privacidade/)"
@@ -132,6 +138,42 @@ TEXTOS: tuple[Texto, ...] = (
     Texto("DOACAO", "2", date(2026, 10, 16),
           _DOACAO_INICIO + "Se ninguém confirmar o pedido, ele continua guardado no sistema por um prazo (hoje, 2 anos depois do prazo do pedido) e depois o sistema o apaga sozinho. "
           + _DOACAO_FIM, reconstituido=True),
+    # ---------------------------------------------------------------- os termos de imagem (v7.1b). A versão 1 é a DECLARAÇÃO que quem enviava a foto marcava no painel:
+    # antes da v7.1b o sistema não tinha o texto do termo que a pessoa assinava (se assinava)
+    Texto("IMAGEM_DIRETORIA", "1", date(2026, 10, 15),
+          "Esta pessoa autorizou o uso da imagem dela no site da ASAF. A foto fica pública na página Diretoria. Se ela retirar a autorização, use “Apagar a foto”: some "
+          "do sistema na hora e do site na próxima publicação.", reconstituido=True, caixa="Esta pessoa autorizou o uso da imagem dela no site da ASAF",
+          observacao="Declaração de quem enviou a foto no painel (o texto da caixa e a explicação ao lado). O termo que a pessoa assinou, se houve, ficava fora do sistema."),
+    Texto("IMAGEM_DIRETORIA", "2", date(2026, 10, 27),
+          "Eu, identificado(a) abaixo, autorizo a ASAF - Associação Arca da Família a publicar a minha fotografia na página Diretoria do site da associação, junto do "
+          "meu nome e do meu cargo, enquanto eu tiver mandato vigente ou já marcado na associação (LGPD, art. 7º, I). A foto fica guardada no sistema da ASAF, sem "
+          "localização nem dados do aparelho, e não é usada para outra finalidade nem vendida. Quando não há mais mandato vigente nem marcado, o sistema apaga a foto "
+          "sozinho.\n\n"
+          "Posso retirar esta autorização a qualquer momento, sem custo, pedindo à secretaria ou pela solicitação do titular de dados no site: assim que o pedido é "
+          "registrado, a foto sai do sistema, e sai do site na próxima publicação (o armazenamento ainda guarda uma cópia de segurança por cerca de 30 dias). A ASAF "
+          "guarda o registro desta autorização (quem assinou, quando e como) por 5 anos depois que ela termina, como prova. Saiba mais na Política de Privacidade "
+          "(asaf.org.br/privacidade).\n\n"
+          "Nome completo: ______________________________\nCPF: ______________________________\nLocal e data: ______________________________\n"
+          "Assinatura: ______________________________"),
+    Texto("IMAGEM_ATIVIDADE", "1", date(2026, 10, 4),
+          "Há autorização de uso de imagem de todas as pessoas que aparecem na foto (dos responsáveis, no caso de criança ou adolescente). Marque somente se existe de "
+          "verdade.", reconstituido=True, caixa="Há autorização de uso de imagem",
+          observacao="Declaração de quem enviou a foto no painel. O termo que as pessoas assinaram, se houve, ficava fora do sistema."),
+    Texto("IMAGEM_ATIVIDADE", "2", date(2026, 10, 27),
+          "Eu, identificado(a) abaixo, autorizo a ASAF - Associação Arca da Família a usar fotografias em que eu apareço, ou em que aparece a criança ou o adolescente "
+          "por quem sou responsável (identificado abaixo), tiradas nas atividades da associação (eventos, projetos e parcerias), para mostrar essas atividades no "
+          "site da associação, nas páginas dos eventos, dos projetos e da transparência (LGPD, art. 7º, I). As fotos ficam guardadas no sistema da ASAF, sem "
+          "localização nem dados do aparelho, e não são usadas para outra finalidade nem vendidas.\n\n"
+          "CRIANÇA OU ADOLESCENTE: se a pessoa da foto é criança, quem autoriza é um dos pais ou o responsável legal (LGPD, art. 14, § 1º); se é adolescente, um dos "
+          "pais ou o responsável legal assina junto, e a autorização é sempre no melhor interesse da criança ou do adolescente (LGPD, art. 14).\n\n"
+          "Posso retirar esta autorização a qualquer momento, sem custo, pedindo à secretaria ou pela solicitação do titular de dados no site: assim que o pedido é "
+          "registrado, as fotos em que eu (ou a criança ou o adolescente) apareço saem do sistema, e saem do site na próxima publicação (o armazenamento ainda guarda "
+          "uma cópia de segurança por cerca de 30 dias). A ASAF guarda o registro desta autorização (quem assinou, quando e como) por 5 anos depois que ela termina, "
+          "como prova. Saiba mais na Política de Privacidade (asaf.org.br/privacidade).\n\n"
+          "Nome completo de quem autoriza: ______________________________\nCPF: ______________________________\n"
+          "Se autoriza por uma criança ou um adolescente, o nome dela(e) e o vínculo (mãe, pai, responsável legal): ______________________________\n"
+          "Assinatura do adolescente (se for o caso): ______________________________\n"
+          "Atividade: ______________________________\nLocal e data: ______________________________\nAssinatura: ______________________________"),
     # ---------------------------------------------------------------- conta de visitante
     Texto("VISITANTE", "1", date(2026, 10, 16),
           "O seu e-mail é usado para enviar o código, para mostrar o que está ligado a ele e para limitar os pedidos; fica guardado junto do código e da sessão pelo tempo descrito "
@@ -176,10 +218,11 @@ def sem_links(texto: str) -> str:
 
 
 def para_o_site() -> dict:
-    """O que o site usa para mostrar o aviso (scripts/gerar_textos_de_privacidade_do_site.py grava em site/src/data/; o teste confere que é igual)."""
+    """O que o site usa para mostrar o aviso (scripts/gerar_textos_de_privacidade_do_site.py grava em site/src/data/; o teste confere que é igual). Só os avisos que o
+    SITE mostra: os termos de imagem são impressos pelo painel."""
     return {
         p.codigo: {"versao": atual(p.codigo).versao, "paragrafos": atual(p.codigo).texto.split("\n\n"), "caixa": p.caixa}
-        for p in PONTOS
+        for p in PONTOS if p.onde.startswith("site:")
     }
 
 

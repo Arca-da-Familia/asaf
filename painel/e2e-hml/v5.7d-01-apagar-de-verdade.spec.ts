@@ -12,6 +12,8 @@ import {
   RODADA,
   ver,
   vigiar,
+  preencherOTermoDeImagem,
+  versaoDoTermo,
 } from './apoio'
 import { jpegComLocalizacao } from './imagens'
 
@@ -148,8 +150,11 @@ async function enviarFotoPelaTela(b: Locator): Promise<void> {
     buffer: jpegComLocalizacao(),
   })
   await formulario
-    .getByLabel('Esta pessoa autorizou o uso da imagem dela no site da ASAF')
+    .getByLabel(
+      'Esta pessoa assinou o termo de autorização de uso da imagem dela no site da ASAF',
+    )
     .check()
+  await preencherOTermoDeImagem(formulario)
   await formulario.getByRole('button', { name: 'Enviar a foto' }).click()
   await expect(formulario.getByRole('status')).toContainText('Foto enviada', {
     timeout: 30_000,
@@ -310,6 +315,14 @@ test('prepara o vencimento natural: pessoa nova com mandato antigo e uma foto, p
       headers: cabecalho(),
       multipart: {
         autorizacao_imagem: 'true',
+        // v7.1b: o termo que a pessoa assinou (a versão em vigor) e como
+        meio: 'termo_em_papel',
+        assinado_em: new Date().toISOString().slice(0, 10),
+        versao_do_termo: await versaoDoTermo(
+          page,
+          cabecalho().Authorization,
+          'foto_da_diretoria',
+        ),
         arquivo: {
           name: 'foto.jpg',
           mimeType: 'image/jpeg',

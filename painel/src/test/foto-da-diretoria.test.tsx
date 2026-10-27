@@ -36,11 +36,13 @@ vi.mock('@/lib/api', async (original) => ({
 const ALT = 'Foto de Fábio de Teste, Tesoureiro'
 const SEM_AUTORIZACAO =
   'Sem a autorização de uso de imagem a foto não é aceita: confirme que as pessoas que aparecem (ou os responsáveis, no caso de criança e adolescente) autorizaram.'
-const CAIXA = 'Esta pessoa autorizou o uso da imagem dela no site da ASAF'
+const CAIXA =
+  'Esta pessoa assinou o termo de autorização de uso da imagem dela no site da ASAF'
 
 function fotoDe(sobrescrever: Partial<DadosDaFoto> = {}): DadosDaFoto {
   return {
     id_foto: 4,
+    consentimento: null,
     alt: ALT,
     largura: 600,
     altura: 800,
@@ -50,6 +52,23 @@ function fotoDe(sobrescrever: Partial<DadosDaFoto> = {}): DadosDaFoto {
     criado_em: '2026-10-15T12:00:00',
     ...sobrescrever,
   }
+}
+
+const TERMO = {
+  termo: 'IMAGEM_DIRETORIA',
+  versao: '2',
+  nome: 'Autorização de uso de imagem: foto da Diretoria e do Conselho no site',
+  texto: 'Eu, identificado(a) abaixo, autorizo...',
+  meios: [
+    {
+      codigo: 'termo_em_papel',
+      rotulo: 'Termo assinado em papel, guardado pela secretaria',
+    },
+    {
+      codigo: 'termo_digitalizado',
+      rotulo: 'Termo assinado e digitalizado na biblioteca de Documentos',
+    },
+  ],
 }
 
 // ----------------------------------------------------------------------------------------------- servidor de mentira
@@ -90,6 +109,9 @@ async function responder(entrada: string, init: RequestInit = {}) {
     caminho: url.pathname + url.search,
     corpo: init.body,
   })
+  // v7.1b: o termo de imagem em vigor (a versão volta no envio)
+  if (url.pathname === '/api/consentimentos/termo-da-tela/foto_da_diretoria')
+    return json(200, TERMO)
   const casou = ROTA.exec(url.pathname)
   if (!casou) return json(404, { detail: 'Rota fora do contrato do teste.' })
   const id = Number(casou[1])
@@ -111,6 +133,11 @@ async function responder(entrada: string, init: RequestInit = {}) {
     const form = init.body as FormData
     if (form.get('autorizacao_imagem') !== 'true')
       return json(400, { detail: SEM_AUTORIZACAO })
+    if (
+      form.get('meio') !== 'termo_em_papel' ||
+      form.get('versao_do_termo') !== TERMO.versao
+    )
+      return json(400, { detail: 'Faltou o termo (meio e versão).' })
     if (servidor.recusarEnvio)
       return json(400, { detail: servidor.recusarEnvio })
     servidor.envios += 1
@@ -274,7 +301,7 @@ describe('Foto no site: enviar e trocar', () => {
     )
     expect(
       within(formulario).getByLabelText(
-        'Número do termo de autorização (documento do sistema)',
+        'Número do termo digitalizado (documento do sistema)',
         { exact: false },
       ),
     ).toBeInTheDocument()
@@ -295,6 +322,10 @@ describe('Foto no site: enviar e trocar', () => {
     const formulario = await abrirFormulario(usuario)
     await usuario.click(
       within(formulario).getByRole('checkbox', { name: CAIXA }),
+    )
+    await usuario.selectOptions(
+      await within(formulario).findByLabelText('Como a autorização foi dada'),
+      'termo_em_papel',
     )
     await usuario.click(
       within(formulario).getByRole('button', { name: 'Enviar a foto' }),
@@ -336,6 +367,10 @@ describe('Foto no site: enviar e trocar', () => {
     )
     await usuario.click(
       within(formulario).getByRole('checkbox', { name: CAIXA }),
+    )
+    await usuario.selectOptions(
+      await within(formulario).findByLabelText('Como a autorização foi dada'),
+      'termo_em_papel',
     )
     await usuario.type(
       within(formulario).getByLabelText(/^Número do termo/),
@@ -388,6 +423,10 @@ describe('Foto no site: enviar e trocar', () => {
     await usuario.click(
       within(formulario).getByRole('checkbox', { name: CAIXA }),
     )
+    await usuario.selectOptions(
+      await within(formulario).findByLabelText('Como a autorização foi dada'),
+      'termo_em_papel',
+    )
     await usuario.click(
       within(formulario).getByRole('button', { name: 'Enviar a foto' }),
     )
@@ -408,6 +447,10 @@ describe('Foto no site: enviar e trocar', () => {
     )
     await usuario.click(
       within(formulario).getByRole('checkbox', { name: CAIXA }),
+    )
+    await usuario.selectOptions(
+      await within(formulario).findByLabelText('Como a autorização foi dada'),
+      'termo_em_papel',
     )
     await usuario.click(
       within(formulario).getByRole('button', { name: 'Enviar a foto' }),
@@ -433,6 +476,10 @@ describe('Foto no site: enviar e trocar', () => {
     )
     await usuario.click(
       within(formulario).getByRole('checkbox', { name: CAIXA }),
+    )
+    await usuario.selectOptions(
+      await within(formulario).findByLabelText('Como a autorização foi dada'),
+      'termo_em_papel',
     )
     await usuario.click(
       within(formulario).getByRole('button', { name: 'Enviar a foto' }),
@@ -465,6 +512,10 @@ describe('Foto no site: enviar e trocar', () => {
     )
     await usuario.click(
       within(formulario).getByRole('checkbox', { name: CAIXA }),
+    )
+    await usuario.selectOptions(
+      await within(formulario).findByLabelText('Como a autorização foi dada'),
+      'termo_em_papel',
     )
     await usuario.click(
       within(formulario).getByRole('button', { name: 'Enviar a foto' }),
@@ -640,6 +691,10 @@ describe('Tela Mandatos: onde o bloco aparece', () => {
     )
     await usuario.click(
       within(formulario).getByRole('checkbox', { name: CAIXA }),
+    )
+    await usuario.selectOptions(
+      await within(formulario).findByLabelText('Como a autorização foi dada'),
+      'termo_em_papel',
     )
     await usuario.click(
       within(formulario).getByRole('button', { name: 'Enviar a foto' }),

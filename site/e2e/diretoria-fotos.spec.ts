@@ -274,20 +274,34 @@ test.describe('Diretoria com fotos (v5.7c)', () => {
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.10 · em vigor desde 27 de outubro de 2026'),
+      page.getByText('Versão 2.11 · em vigor desde 27 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.10, em vigor desde 27 de outubro de 2026/,
+        /Esta é a versão 2\.11, em vigor desde 27 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-diretoria-foto]')
     await expect(paragrafo).toHaveCount(1)
     await expect(paragrafo).toContainText(
-      'mostra o nome, o cargo, o período do mandato e, de quem autorizou o uso da imagem, a foto',
+      'mostra o nome, o cargo, o período do mandato e, de quem assinou o termo de autorização de uso da imagem, a foto',
     )
     await expect(paragrafo).toContainText(
-      'Sem a autorização a foto não é guardada no sistema',
+      'Sem o termo assinado a foto não é guardada no sistema',
+    )
+    // v2.11: revogar pela secretaria ou pela solicitação do titular (como o termo diz)
+    await expect(paragrafo).toContainText(
+      'pode pedir à secretaria, ou pela solicitação do titular de dados, que apague a foto',
+    )
+    // v2.11: as fotos das atividades e o registro dos consentimentos (com o prazo da prova)
+    await expect(page.locator('[data-fotos-de-atividades]')).toContainText(
+      'todas as fotos em que a pessoa aparece são apagadas do sistema assim que o pedido é registrado',
+    )
+    await expect(
+      page.locator('[data-registro-de-consentimentos]'),
+    ).toContainText('o registro continua guardado como prova')
+    await expect(page.locator('[data-prazos-de-guarda]')).toContainText(
+      'Prova de um consentimento que acabou',
     )
     for (const trecho of [
       'A foto só existe enquanto a pessoa tem mandato vigente ou marcado',

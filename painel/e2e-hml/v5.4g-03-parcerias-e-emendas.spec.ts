@@ -24,6 +24,7 @@ import {
   sair,
   ver,
   vigiar,
+  preencherOTermoDeImagem,
 } from './apoio'
 
 // v5.4g - FASE 5 ao vivo, item "Parcerias e emendas": o módulo inteiro, pelas telas do hml-painel, e o que a API PÚBLICA (a fonte do site de transparência)
@@ -969,6 +970,7 @@ test('3. fotos da etapa: sem autorização de imagem, sem descrição, com CPF n
     }),
   ).toBeVisible()
   await autorizacao.check()
+  await preencherOTermoDeImagem(etapa)
   await descricao.fill('curta')
   await enviar.click()
   await expect(
@@ -1066,6 +1068,7 @@ test('3. fotos da etapa: sem autorização de imagem, sem descrição, com CPF n
     buffer: foto2,
   })
   await autorizacao.check()
+  await preencherOTermoDeImagem(etapa)
   await descricao.fill(ALT_2)
   const [segunda] = await Promise.all([envioDeFoto(), enviar.click()])
   expect(segunda.status(), await segunda.text()).toBe(201)
@@ -1078,6 +1081,11 @@ test('3. fotos da etapa: sem autorização de imagem, sem descrição, com CPF n
   await expect(etapa.getByRole('img', { name: ALT_2 })).toBeVisible()
   const apagar = etapa.getByRole('button', { name: `Apagar a foto: ${ALT_2}` })
   await apagar.click()
+  // v7.1b: apagar pergunta por quê; a pessoa retirou a autorização (o consentimento fica revogado)
+  await etapa.getByLabel('A pessoa retirou a autorização').check()
+  await etapa
+    .getByRole('button', { name: `Confirmar: apagar a foto ${ALT_2}` })
+    .click()
   await expect(apagar).toHaveCount(0)
   await expect(etapa.getByRole('img', { name: ALT_2 })).toHaveCount(0)
   trilhaA.push('FOTO_APAGADA')

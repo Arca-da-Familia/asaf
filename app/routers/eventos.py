@@ -4,12 +4,13 @@ Inscrição reaproveita o motor genérico da v4.0 (`/api/inscricoes/`, já exist
 (o próprio associado se inscrevendo) e a leitura pública pro site institucional."""
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app import textos_de_privacidade
+from app.services.consentimentos import ApagarFoto
 from app.auditoria import registrar_auditoria
 from app.config_cache import obter_configuracao
 from app.database import get_db
@@ -196,13 +197,14 @@ def listar_fotos_do_evento_endpoint(id_evento: int, db: Session = Depends(get_db
 async def enviar_foto_do_evento_endpoint(
     id_evento: int, request: Request, arquivo: UploadFile = File(...), alt: str = Form(""),
     autorizacao_imagem: bool = Form(False), id_documento_autorizacao: Optional[int] = Form(None),
+    quem_autorizou: str = Form(""), meio: str = Form(""), versao_do_termo: str = Form(""), assinado_em: str = Form(""),
     db: Session = Depends(get_db), usuario=Depends(_permissao_projetos),
 ):
     evento = eventos.obter_evento(db, id_evento)
     conteudo = await arquivo.read()
     foto = await run_in_threadpool(
         servico_de_fotos.adicionar_foto, db, usuario, evento, conteudo, alt=alt, autorizacao_imagem=autorizacao_imagem,
-        id_documento_autorizacao=id_documento_autorizacao,
+        id_documento_autorizacao=id_documento_autorizacao, quem_autorizou=quem_autorizou, meio=meio, versao_do_termo=versao_do_termo, assinado_em=assinado_em,
     )
     registrar_auditoria(
         db, usuario, "eventos", "FOTO_ENVIADA", id_registro_afetado=evento.id_evento,
@@ -220,12 +222,17 @@ async def ver_foto_do_evento_endpoint(id_evento: int, id_foto: int, db: Session 
 
 
 @router.delete("/api/eventos/{id_evento}/fotos/{id_foto}", summary="Apagar a foto (a autorização foi retirada): some do site e do armazenamento")
-def apagar_foto_do_evento_endpoint(id_evento: int, id_foto: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
+def apagar_foto_do_evento_endpoint(
+    id_evento: int, id_foto: int, request: Request, dados: Optional[ApagarFoto] = Body(None), db: Session = Depends(get_db),
+    usuario=Depends(_permissao_projetos),
+):
+    """`revogado`: a pessoa retirou a autorização (o consentimento fica como REVOGADO, com o motivo); sem ele, a foto foi apagada por outro motivo."""
+    dados = dados or ApagarFoto()
     evento = eventos.obter_evento(db, id_evento)
-    foto = servico_de_fotos.apagar_foto(db, evento, id_foto)
+    foto = servico_de_fotos.apagar_foto(db, evento, id_foto, usuario=usuario, revogado=dados.revogado, motivo=dados.motivo)
     registrar_auditoria(
         db, usuario, "eventos", "FOTO_APAGADA", id_registro_afetado=evento.id_evento,
-        dados_antes={"id_foto": foto.id_foto}, ip_origem=_ip_origem(request),
+        dados_antes={"id_foto": foto.id_foto}, dados_depois={"consentimento_revogado": dados.revogado}, ip_origem=_ip_origem(request),
     )
     return [servico_de_fotos.para_o_painel(f) for f in servico_de_fotos.fotos_do_evento(db, evento.id_evento)]
 

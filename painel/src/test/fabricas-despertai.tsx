@@ -104,6 +104,7 @@ export function foto(sobrescrever: Partial<FotoDoEvento> = {}): FotoDoEvento {
   return {
     id_foto: 9,
     id_evento: 12,
+    consentimento: null,
     alt: 'Crianças tocando tambores na quadra da escola',
     largura: 800,
     altura: 600,

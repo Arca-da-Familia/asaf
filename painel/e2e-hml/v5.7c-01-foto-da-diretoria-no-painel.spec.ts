@@ -9,6 +9,7 @@ import {
   fotoDeTeste,
   ver,
   vigiar,
+  preencherOTermoDeImagem,
 } from './apoio'
 import {
   APARELHO_ESCONDIDO,
@@ -79,8 +80,9 @@ async function prepararEnvio(
     buffer: arquivo,
   })
   const caixa = formulario.getByLabel(
-    'Esta pessoa autorizou o uso da imagem dela no site da ASAF',
+    'Esta pessoa assinou o termo de autorização de uso da imagem dela no site da ASAF',
   )
+  await preencherOTermoDeImagem(formulario)
   if (autorizar) await caixa.check()
   else await expect(caixa).not.toBeChecked()
   return formulario
@@ -123,7 +125,9 @@ test('sem a autorização de imagem a foto não é aceita; com ela aparece, sem 
 
   // 2. com a autorização: a foto entra
   await sem
-    .getByLabel('Esta pessoa autorizou o uso da imagem dela no site da ASAF')
+    .getByLabel(
+      'Esta pessoa assinou o termo de autorização de uso da imagem dela no site da ASAF',
+    )
     .check()
   await sem.getByRole('button', { name: 'Enviar a foto' }).click()
   await expect(sem.getByRole('status')).toContainText('Foto enviada', {

@@ -112,3 +112,43 @@ class TextoDePrivacidade(Base):
     reconstituido = Column(Boolean, nullable=False, default=False)  # tirado do histórico do código do site (versões anteriores à v7.1a)
     observacao = Column(Text, nullable=True)
     registrado_em = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+# v7.1b - como um consentimento termina
+REVOGADO = "revogado"  # a pessoa retirou a autorização
+APAGADO = "apagado"  # o registro que ele cobria foi apagado por outro motivo (foto errada, foto trocada)
+FIM_DO_PRAZO = "fim do prazo"  # acabou o que ele cobria (o mandato da foto da Diretoria)
+
+
+class Consentimento(Base):
+    """v7.1b - a PROVA de um consentimento (LGPD, art. 8º: o ônus da prova é de quem trata o dado): o texto que a pessoa assinou (ponto e versão em
+    `textos_de_privacidade`), quem consentiu (o próprio titular ou o responsável, com o vínculo: v7.1c), como (o meio e o documento), quando, quem registrou no
+    painel e, se acabou, quando e por quê. Cada consentimento cobre UM registro (`origem` + `id_origem`: a foto da Diretoria, a foto de um evento...); apagar o
+    registro encerra o consentimento, e revogar o consentimento apaga o registro. Nada aqui se apaga: o encerrado fica como prova."""
+    __tablename__ = "consentimentos"
+    id_consentimento = Column(Integer, primary_key=True, index=True)
+    ponto = Column(String(40), nullable=False)  # o termo (app/textos_de_privacidade.py)
+    versao = Column(String(10), nullable=False)  # a versão do termo que a pessoa assinou
+    titular = Column(String(300), nullable=False)  # quem consentiu, como foi informado (nome; numa foto de grupo, quem assinou os termos)
+    id_pessoa = Column(Integer, ForeignKey("pessoas.id_pessoa"), nullable=True, index=True)  # quando o titular tem cadastro
+    dado_por = Column(String(20), nullable=True)  # titular ou responsavel (v7.1c)
+    nome_responsavel = Column(String(200), nullable=True)
+    vinculo_responsavel = Column(String(60), nullable=True)
+    meio = Column(String(40), nullable=False)
+    id_documento = Column(Integer, ForeignKey("documentos_institucionais.id_documento"), nullable=True)  # o termo assinado, digitalizado
+    ip = Column(String(64), nullable=True)  # quando o consentimento é dado pela internet
+    dado_em = Column(DateTime, nullable=False)
+    id_usuario_registro = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+    registrado_em = Column(DateTime, nullable=False, default=datetime.utcnow)
+    origem = Column(String(40), nullable=False)
+    id_origem = Column(Integer, nullable=False)
+    encerrado_em = Column(DateTime, nullable=True)
+    encerramento = Column(String(20), nullable=True)  # REVOGADO, APAGADO ou FIM_DO_PRAZO
+    motivo_encerramento = Column(String(500), nullable=True)
+    id_usuario_encerramento = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+
+    __table_args__ = (
+        Index("ix_consentimentos_origem", "origem", "id_origem"),
+        Index("uq_consentimento_ativo_por_origem", "origem", "id_origem", unique=True, sqlite_where=text("encerrado_em IS NULL"),
+              postgresql_where=text("encerrado_em IS NULL")),
+    )

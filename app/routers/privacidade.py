@@ -18,6 +18,7 @@ from app.models.core import Usuario
 from app.security import exigir_permissao, get_current_user, usuario_tem_permissao
 from app.services import encarregado as servico
 from app.services import inventario as servico_inventario
+from app.services import consentimentos as servico_consentimentos
 from app.services import relatorio_de_impacto as servico_ripd
 
 router = APIRouter()
@@ -198,3 +199,24 @@ def ler_texto_de_privacidade(ponto: str, versao: str, db: Session = Depends(get_
     if texto is None:
         raise HTTPException(status_code=404, detail="Versão de aviso não encontrada.")
     return texto
+
+
+# ------------------------------------------------------------------------------------------------ v7.1b: os consentimentos (a prova) e os termos
+@router.get("/api/privacidade/consentimentos", summary="Os consentimentos registrados (vigentes e encerrados: a prova fica), com o termo, quem, como e quando")
+def listar_consentimentos(situacao: Optional[str] = None, origem: Optional[str] = None, busca: Optional[str] = None, pagina: int = 1,
+                          db: Session = Depends(get_db), _usuario: Usuario = Depends(_pode)):
+    return {**servico_consentimentos.listar(db, situacao=situacao, origem=origem, busca=busca, pagina=pagina),
+            "origens": servico_consentimentos.ROTULO_DA_ORIGEM}
+
+
+@router.get("/api/consentimentos/termo-da-tela/{origem}", summary="O termo de consentimento em vigor para a tela de envio (a versão volta no envio)")
+def termo_da_tela(origem: str, _usuario: Usuario = Depends(get_current_user)):
+    if origem not in servico_consentimentos.TERMO_DA_ORIGEM:
+        raise HTTPException(status_code=404, detail="Termo não encontrado.")
+    return servico_consentimentos.termo_para_a_tela(origem)
+
+
+@router.get("/api/consentimentos/termos/{termo}/pdf", summary="O termo de autorização de uso de imagem em vigor, em PDF, para imprimir e assinar")
+def pdf_do_termo(termo: str, _usuario: Usuario = Depends(get_current_user)):
+    return Response(content=servico_consentimentos.pdf_do_termo(termo), media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="termo-{termo.lower()}.pdf"'})

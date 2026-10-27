@@ -111,6 +111,12 @@ describe('chamadas à API do contexto do evento', () => {
       alt: 'Crianças tocando tambores na quadra',
       autorizacaoImagem: true,
       idDocumentoAutorizacao: '47',
+      consentimento: {
+        quemAutorizou: 'Joana da Silva',
+        meio: 'termo_digitalizado',
+        versaoDoTermo: '2',
+        assinadoEm: '2026-10-20',
+      },
     })
     const { url, init } = ultima()
     expect(url).toMatch(/\/api\/eventos\/12\/fotos$/)
@@ -120,11 +126,22 @@ describe('chamadas à API do contexto do evento', () => {
     expect(form.get('alt')).toBe('Crianças tocando tambores na quadra')
     expect(form.get('autorizacao_imagem')).toBe('true')
     expect(form.get('id_documento_autorizacao')).toBe('47')
+    // v7.1b: quem autorizou, como e a versão do termo vão junto
+    expect(form.get('quem_autorizou')).toBe('Joana da Silva')
+    expect(form.get('meio')).toBe('termo_digitalizado')
+    expect(form.get('versao_do_termo')).toBe('2')
+    expect(form.get('assinado_em')).toBe('2026-10-20')
 
     await enviarFotoDoEvento(12, {
       arquivo,
       alt: 'Crianças tocando tambores na quadra',
       autorizacaoImagem: true,
+      consentimento: {
+        quemAutorizou: 'Joana da Silva',
+        meio: 'termo_em_papel',
+        versaoDoTermo: '2',
+        assinadoEm: '2026-10-20',
+      },
     })
     expect(
       (ultima().init.body as FormData).has('id_documento_autorizacao'),
@@ -132,6 +149,17 @@ describe('chamadas à API do contexto do evento', () => {
 
     await apagarFotoDoEvento(12, 9)
     expect(ultima().url).toMatch(/\/api\/eventos\/12\/fotos\/9$/)
+    // v7.1b: a pessoa retirou a autorização: o consentimento fica revogado, com o motivo
+    await apagarFotoDoEvento(12, 9, {
+      revogado: true,
+      motivo: 'Pediu por telefone',
+    })
+    // o motivo vai no corpo, nunca no endereço (o endereço fica no registro de acesso do servidor)
+    expect(ultima().url).toMatch(/\/api\/eventos\/12\/fotos\/9$/)
+    expect(JSON.parse(ultima().init.body as string)).toEqual({
+      revogado: true,
+      motivo: 'Pediu por telefone',
+    })
     expect(ultima().init.method).toBe('DELETE')
   })
 

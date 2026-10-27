@@ -5,11 +5,12 @@ import calendar
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
+from app.services.consentimentos import ApagarFotoDaDiretoria
 from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.associados import Associado
@@ -72,12 +73,14 @@ def ver_foto_da_diretoria(id_associado: int, db: Session = Depends(get_db), _usu
 @router.post("/api/mandatos/associados/{id_associado}/foto-publica", summary="Enviar (ou trocar) a foto da pessoa para o site; exige a autorização de uso de imagem", status_code=201)
 async def enviar_foto_da_diretoria(
     id_associado: int, request: Request, arquivo: UploadFile = File(...), autorizacao_imagem: bool = Form(False),
-    id_documento_autorizacao: Optional[int] = Form(None), db: Session = Depends(get_db), usuario=Depends(_permissao_governanca),
+    id_documento_autorizacao: Optional[int] = Form(None), meio: str = Form(""), versao_do_termo: str = Form(""), assinado_em: str = Form(""),
+    db: Session = Depends(get_db), usuario=Depends(_permissao_governanca),
 ):
     conteudo = await arquivo.read()
     foto = await run_in_threadpool(
         servico_fotos.salvar_foto, db, usuario, id_associado, conteudo, autorizacao_imagem=autorizacao_imagem,
-        id_documento_autorizacao=id_documento_autorizacao, cargo=_rotulo_do_cargo_vigente(db, id_associado),
+        id_documento_autorizacao=id_documento_autorizacao, cargo=_rotulo_do_cargo_vigente(db, id_associado), meio=meio, versao_do_termo=versao_do_termo,
+        assinado_em=assinado_em,
     )
     registrar_auditoria(
         db, usuario, "fotos_da_diretoria", "FOTO_ENVIADA", id_registro_afetado=foto.id_foto,
@@ -100,11 +103,17 @@ async def ver_arquivo_da_foto_da_diretoria(id_associado: int, db: Session = Depe
 
 
 @router.delete("/api/mandatos/associados/{id_associado}/foto-publica", summary="Apagar a foto da pessoa (retirou a autorização): some do sistema na hora e do site na próxima publicação")
-def apagar_foto_da_diretoria(id_associado: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_governanca)):
-    foto = servico_fotos.apagar_foto(db, id_associado)
+def apagar_foto_da_diretoria(
+    id_associado: int, request: Request, dados: Optional[ApagarFotoDaDiretoria] = Body(None), db: Session = Depends(get_db),
+    usuario=Depends(_permissao_governanca),
+):
+    """A tela só oferece apagar porque a pessoa retirou a autorização (`revogado`, o padrão); o consentimento fica como REVOGADO, com o motivo."""
+    dados = dados or ApagarFotoDaDiretoria()
+    foto = servico_fotos.apagar_foto(db, id_associado, usuario=usuario, revogado=dados.revogado, motivo=dados.motivo)
     registrar_auditoria(
         db, usuario, "fotos_da_diretoria", "FOTO_APAGADA", id_registro_afetado=foto.id_foto,
-        dados_antes={"id_associado": id_associado}, ip_origem=request.client.host if request.client else None,
+        dados_antes={"id_associado": id_associado}, dados_depois={"consentimento_revogado": dados.revogado},
+        ip_origem=request.client.host if request.client else None,
     )
     return {"mensagem": "Foto apagada."}
 

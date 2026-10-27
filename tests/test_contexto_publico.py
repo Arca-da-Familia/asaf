@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 import pytest
 from PIL import Image
 
+from app.textos_de_privacidade import versao_atual
 from app.models.core import AuditLog
 from app.models.eventos import FotoEvento
 from app.services import armazenamento
@@ -53,7 +54,9 @@ def _evento_publico(client, headers, id_projeto=None, dias=10, **extra):
 
 def _enviar_foto(client, headers, id_evento, conteudo=None, alt=ALT, autorizacao="true", nome="foto.jpg", tipo="image/jpeg", **extra):
     return client.post(
-        f"/api/eventos/{id_evento}/fotos", data={"alt": alt, "autorizacao_imagem": autorizacao, **extra},
+        f"/api/eventos/{id_evento}/fotos", data={"alt": alt, "autorizacao_imagem": autorizacao, "quem_autorizou": "Maria de Teste (termo assinado)",
+                                                 "meio": "termo_em_papel", "versao_do_termo": versao_atual("IMAGEM_ATIVIDADE"),
+                                                 "assinado_em": (datetime.utcnow() - timedelta(days=1)).date().isoformat(), **extra},
         files={"arquivo": (nome, conteudo if conteudo is not None else _jpeg(), tipo)}, headers=headers,
     )
 

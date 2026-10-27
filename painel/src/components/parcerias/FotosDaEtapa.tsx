@@ -21,6 +21,7 @@ export function FotosDaEtapa({
 }) {
   return (
     <FotosComAutorizacao
+      origem="foto_de_etapa_de_parceria"
       className="mt-3 border-t border-border pt-3"
       titulo="Fotos da etapa"
       fotos={etapa.fotos}
@@ -31,7 +32,9 @@ export function FotosDaEtapa({
       onEnviar={(dados) =>
         executar(() => enviarFoto(d.id_parceria, etapa.id_etapa, dados))
       }
-      onApagar={(idFoto) => executar(() => apagarFoto(d.id_parceria, idFoto))}
+      onApagar={(idFoto, como) =>
+        executar(() => apagarFoto(d.id_parceria, idFoto, como))
+      }
     />
   )
 }

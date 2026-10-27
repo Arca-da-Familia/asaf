@@ -54,8 +54,47 @@ vi.mock('@/lib/documentos', async (original) => ({
 
 const ALT = 'Crianças tocando tambores na quadra da escola'
 
+// v7.1b: o termo de imagem em vigor (a tela o pede ao servidor para mostrar e mandar a versão de volta)
+const termos = vi.hoisted(() => ({
+  obterTermoDaTela: vi.fn(),
+  abrirPdfDoTermo: vi.fn(),
+}))
+vi.mock('@/lib/consentimentos', async (original) => ({
+  ...(await original<typeof import('@/lib/consentimentos')>()),
+  ...termos,
+}))
+const TERMO = {
+  termo: 'IMAGEM_ATIVIDADE',
+  versao: '2',
+  nome: 'Autorização de uso de imagem: fotos das atividades (eventos e parcerias)',
+  texto: 'Eu, identificado(a) abaixo, autorizo...',
+  meios: [
+    {
+      codigo: 'termo_em_papel',
+      rotulo: 'Termo assinado em papel, guardado pela secretaria',
+    },
+    {
+      codigo: 'termo_digitalizado',
+      rotulo: 'Termo assinado e digitalizado na biblioteca de Documentos',
+    },
+  ],
+}
+
+/** Quem autorizou e como (o termo carrega do servidor de mentira). */
+async function preencherTermo(usuario: ReturnType<typeof userEvent.setup>) {
+  await usuario.type(
+    await screen.findByLabelText(/Quem autorizou/),
+    'Joana da Silva',
+  )
+  await usuario.selectOptions(
+    screen.getByLabelText('Como a autorização foi dada'),
+    'termo_em_papel',
+  )
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
+  termos.obterTermoDaTela.mockResolvedValue(TERMO)
   permissoes.atuais = ['projetos', 'documentos']
   simularRedeSemResposta()
   URL.createObjectURL = vi.fn(() => 'blob:foto-de-teste')
@@ -552,7 +591,7 @@ describe('contexto do evento', () => {
       ).toBeInTheDocument()
       expect(
         screen.getByText(
-          /ela sai do sistema na hora e do\s+site na próxima publicação/,
+          /elas saem do sistema na hora e do\s+site na próxima publicação/,
         ),
       ).toBeInTheDocument()
       expect(await axe(container)).toHaveNoViolations()
@@ -583,9 +622,10 @@ describe('contexto do evento', () => {
       )
       await usuario.click(
         screen.getByRole('checkbox', {
-          name: /Há autorização de uso de imagem/,
+          name: /Todas as pessoas que aparecem na foto assinaram o termo/,
         }),
       )
+      await preencherTermo(usuario)
       await usuario.click(enviar())
       expect(await screen.findByRole('alert')).toHaveTextContent(
         /Descreva a foto/,
@@ -623,9 +663,10 @@ describe('contexto do evento', () => {
       )
       await usuario.click(
         screen.getByRole('checkbox', {
-          name: /Há autorização de uso de imagem/,
+          name: /Todas as pessoas que aparecem na foto assinaram o termo/,
         }),
       )
+      await preencherTermo(usuario)
       await usuario.type(
         screen.getByLabelText(/Nº do documento do termo/),
         '4x7',
@@ -642,6 +683,12 @@ describe('contexto do evento', () => {
         alt: 'Roda de conversa no pátio da associação',
         autorizacaoImagem: true,
         idDocumentoAutorizacao: '47', // só números
+        // v7.1b: quem autorizou, como e a versão do termo que estava na tela
+        consentimento: {
+          quemAutorizou: 'Joana da Silva',
+          meio: 'termo_em_papel',
+          versaoDoTermo: '2',
+        },
       })
       expect(
         await screen.findByRole('img', {
@@ -653,7 +700,7 @@ describe('contexto do evento', () => {
       )
       expect(
         screen.getByRole('checkbox', {
-          name: /Há autorização de uso de imagem/,
+          name: /Todas as pessoas que aparecem na foto assinaram o termo/,
         }),
       ).not.toBeChecked()
       expect(screen.getByRole('status')).toHaveTextContent('Foto enviada.')
@@ -679,9 +726,10 @@ describe('contexto do evento', () => {
       )
       await usuario.click(
         screen.getByRole('checkbox', {
-          name: /Há autorização de uso de imagem/,
+          name: /Todas as pessoas que aparecem na foto assinaram o termo/,
         }),
       )
+      await preencherTermo(usuario)
       await usuario.click(enviar())
       expect(await screen.findByRole('alert')).toHaveTextContent(
         'A descrição da foto tem dado pessoal (CPF).',
@@ -699,8 +747,25 @@ describe('contexto do evento', () => {
           name: new RegExp(`Apagar a foto: ${ALT}`),
         }),
       )
+      // v7.1b: apagar pergunta por quê; o padrão é "a pessoa retirou a autorização" (o consentimento fica revogado)
+      // sem escolha marcada (apagar uma foto errada não vira "revogado" por descuido): marca que a pessoa retirou a autorização
+      await usuario.click(
+        screen.getByLabelText('A pessoa retirou a autorização'),
+      )
+      await usuario.type(
+        screen.getByLabelText('Motivo (opcional)'),
+        'Pediu por telefone',
+      )
+      await usuario.click(
+        screen.getByRole('button', {
+          name: new RegExp(`Confirmar: apagar a foto ${ALT}`),
+        }),
+      )
       await waitFor(() =>
-        expect(api.apagarFotoDoEvento).toHaveBeenCalledWith(12, 9),
+        expect(api.apagarFotoDoEvento).toHaveBeenCalledWith(12, 9, {
+          revogado: true,
+          motivo: 'Pediu por telefone',
+        }),
       )
       expect(await screen.findByText('Nenhuma foto.')).toBeInTheDocument()
     })

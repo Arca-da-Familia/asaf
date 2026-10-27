@@ -1,4 +1,10 @@
 import { apiFetch } from './api'
+import {
+  anexarConsentimento,
+  corpoDeApagar,
+  type ComoApagar,
+  type DadosDoConsentimento,
+} from './consentimento-da-foto'
 import { formatarMoeda } from './datas'
 export { lerValorEmReais } from './valores'
 import type { Situacao } from './documentos'
@@ -218,6 +224,7 @@ export const enviarFoto = (
     alt: string
     autorizacaoImagem: boolean
     idDocumentoAutorizacao?: string
+    consentimento: DadosDoConsentimento
   },
 ) => {
   const form = new FormData()
@@ -226,6 +233,7 @@ export const enviarFoto = (
   form.append('autorizacao_imagem', String(d.autorizacaoImagem))
   if (d.idDocumentoAutorizacao)
     form.append('id_documento_autorizacao', d.idDocumentoAutorizacao)
+  anexarConsentimento(form, d.consentimento)
   return apiFetch<ParceriaDetalhe>(
     `/api/parcerias/${id}/etapas/${idEtapa}/fotos`,
     {
@@ -234,8 +242,11 @@ export const enviarFoto = (
     },
   )
 }
-export const apagarFoto = (id: number, idFoto: number) =>
-  parte(id, `fotos/${idFoto}`, 'DELETE')
+export const apagarFoto = (id: number, idFoto: number, como?: ComoApagar) =>
+  apiFetch<ParceriaDetalhe>(`/api/parcerias/${id}/fotos/${idFoto}`, {
+    method: 'DELETE',
+    body: corpoDeApagar(como),
+  })
 
 export const criarRelatorio = (id: number, d: object) =>
   parte(id, 'relatorios', 'POST', d)

@@ -174,6 +174,7 @@ export function ContextoDoEvento({ evento }: { evento: Evento }) {
         </p>
         {podeProjetos ? (
           <FotosComAutorizacao
+            origem="foto_de_evento"
             fotos={fotos ?? []}
             urlDoArquivo={(idFoto) => caminhoDaFotoDoEvento(idEvento, idFoto)}
             podeEditar={podeProjetos}
@@ -181,8 +182,8 @@ export function ContextoDoEvento({ evento }: { evento: Evento }) {
               atualizarFotos(await enviarFotoDoEvento(idEvento, dados))
               return true
             }}
-            onApagar={async (idFoto) => {
-              atualizarFotos(await apagarFotoDoEvento(idEvento, idFoto))
+            onApagar={async (idFoto, como) => {
+              atualizarFotos(await apagarFotoDoEvento(idEvento, idFoto, como))
             }}
           />
         ) : (

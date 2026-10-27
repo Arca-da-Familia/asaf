@@ -12,6 +12,7 @@ import uuid
 import pytest
 from PIL import Image
 
+from app.textos_de_privacidade import versao_atual
 from app.models.core import AuditLog
 from app.models.parcerias import FotoEtapaParceria
 from app.services import armazenamento
@@ -72,7 +73,8 @@ def _etapa(client, headers, id_parceria):
 
 
 def _enviar(client, headers, id_parceria, id_etapa, conteudo=None, nome="foto.jpg", alt=ALT, autorizacao="true", tipo="image/jpeg", **extra):
-    dados = {"alt": alt, "autorizacao_imagem": autorizacao, **extra}
+    dados = {"alt": alt, "autorizacao_imagem": autorizacao, "quem_autorizou": "Maria de Teste (termo assinado)", "meio": "termo_em_papel",
+             "versao_do_termo": versao_atual("IMAGEM_ATIVIDADE"), "assinado_em": "2026-10-01", **extra}
     return client.post(
         f"/api/parcerias/{id_parceria}/etapas/{id_etapa}/fotos", data=dados,
         files={"arquivo": (nome, conteudo if conteudo is not None else _jpeg(), tipo)}, headers=headers,

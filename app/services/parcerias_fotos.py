@@ -15,11 +15,11 @@ from __future__ import annotations
 import hashlib
 
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from app.models.documentos import DocumentoInstitucional
 from app.models.parcerias import EtapaParceria, FotoEtapaParceria, Parceria
-from app.services import armazenamento
+from app.services import armazenamento, consentimentos
 from app.services.fotos import FOTOS_POR_ETAPA, MENSAGEM_SEM_AUTORIZACAO, remover_arquivo, tratar_imagem, validar_alt
 from app.services.parcerias import _tocar
 
@@ -39,12 +39,17 @@ def fotos_da_etapa(db: Session, id_etapa: int) -> list[FotoEtapaParceria]:
 
 def adicionar_foto(
     db: Session, usuario, parceria: Parceria, id_etapa: int, conteudo: bytes, *, alt: str | None, autorizacao_imagem: bool,
-    id_documento_autorizacao: int | None = None,
+    id_documento_autorizacao: int | None = None, quem_autorizou: str | None = None, meio: str | None = None, versao_do_termo: str | None = None,
+    assinado_em: str | None = None,
 ) -> FotoEtapaParceria:
     etapa = _etapa(db, parceria, id_etapa)
     if not autorizacao_imagem:
         raise HTTPException(status_code=400, detail=MENSAGEM_SEM_AUTORIZACAO)
     texto = validar_alt(alt)
+    # v7.1b: quem autorizou, como e com que termo (conferido ANTES de gravar: não sobra foto sem consentimento)
+    termo, versao, quem, assinado = consentimentos.exigir_dados(db, origem=consentimentos.FOTO_DE_ETAPA, versao_do_termo=versao_do_termo,
+                                                                 quem_autorizou=quem_autorizou, meio=meio, id_documento=id_documento_autorizacao,
+                                                                 assinado_em=assinado_em)
     if id_documento_autorizacao is not None and not db.query(DocumentoInstitucional.id_documento).filter(
         DocumentoInstitucional.id_documento == id_documento_autorizacao
     ).first():
@@ -61,6 +66,9 @@ def adicionar_foto(
         id_documento_autorizacao=id_documento_autorizacao, id_usuario_criacao=usuario.id_usuario,
     )
     db.add(foto)
+    db.flush()
+    consentimentos.registrar(db, usuario, origem=consentimentos.FOTO_DE_ETAPA, id_origem=foto.id_foto, termo=termo, versao=versao, titular=quem, meio=meio,
+                             id_documento=id_documento_autorizacao, dado_em=assinado)
     _tocar(parceria)
     db.commit()
     db.refresh(foto)
@@ -74,20 +82,21 @@ def buscar_foto(db: Session, parceria: Parceria, id_foto: int) -> FotoEtapaParce
     return foto
 
 
-def apagar_foto(db: Session, parceria: Parceria, id_foto: int) -> FotoEtapaParceria:
-    """Apaga de verdade (a pessoa retirou a autorização): linha do banco e arquivo. A auditoria guarda quem apagou."""
+def apagar_foto(db: Session, parceria: Parceria, id_foto: int, *, usuario=None, revogado: bool = False, motivo: str | None = None) -> FotoEtapaParceria:
+    """Apaga de verdade (linha do banco e arquivo) e encerra o consentimento dela (v7.1b): REVOGADO quando a pessoa retirou a autorização. A auditoria guarda quem apagou."""
     foto = buscar_foto(db, parceria, id_foto)
     remover_arquivo(PASTA_DAS_FOTOS, foto.arquivo_nome)  # primeiro o arquivo: se falhar, a foto continua cadastrada
+    consentimentos.encerrar(db, usuario, origem=consentimentos.FOTO_DE_ETAPA, id_origem=foto.id_foto, como=consentimentos.como_encerrar(revogado), motivo=motivo)
     db.delete(foto)
     _tocar(parceria)
     db.commit()
     return foto
 
 
-def apagar_fotos_da_etapa(db: Session, parceria: Parceria, id_etapa: int) -> None:
-    """Etapa apagada leva as fotos junto (do banco e do armazenamento)."""
+def apagar_fotos_da_etapa(db: Session, parceria: Parceria, id_etapa: int, *, usuario=None) -> None:
+    """Etapa apagada leva as fotos junto (do banco e do armazenamento), encerrando o consentimento de cada uma."""
     for foto in fotos_da_etapa(db, id_etapa):
-        apagar_foto(db, parceria, foto.id_foto)
+        apagar_foto(db, parceria, foto.id_foto, usuario=usuario, motivo="A etapa da parceria foi apagada.")
 
 
 def ler_arquivo(foto: FotoEtapaParceria) -> bytes:
@@ -97,9 +106,11 @@ def ler_arquivo(foto: FotoEtapaParceria) -> bytes:
     return conteudo
 
 
-def para_o_painel(foto: FotoEtapaParceria) -> dict:
+def para_o_painel(foto: FotoEtapaParceria, *, com_quem_autorizou: bool = True) -> dict:
     return {
         "id_foto": foto.id_foto, "id_etapa": foto.id_etapa, "alt": foto.alt, "largura": foto.largura, "altura": foto.altura,
         "tamanho": foto.tamanho, "autorizacao_imagem": foto.autorizacao_imagem,
         "id_documento_autorizacao": foto.id_documento_autorizacao, "criado_em": foto.criado_em,
+        "consentimento": consentimentos.para_o_painel(consentimentos.vigente(object_session(foto), consentimentos.FOTO_DE_ETAPA, foto.id_foto),
+                                                      com_quem=com_quem_autorizou),
     }

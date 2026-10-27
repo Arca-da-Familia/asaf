@@ -465,3 +465,29 @@ export async function ataAssinadaDeAssembleiaRealizada(
   await json(page.request.post(`${API_HML}/api/atas/${id_ata}/assinar`, cab))
   return { id_ata, id_assembleia }
 }
+
+/** v7.1b - o termo de imagem no formulário de foto: quem autorizou (nas fotos de atividade) e como (termo em papel). Espera o termo carregar do servidor. */
+export async function preencherOTermoDeImagem(
+  escopo: Locator,
+  quem = 'Responsável de teste (termo assinado em papel)',
+): Promise<void> {
+  const meio = escopo.getByLabel('Como a autorização foi dada')
+  await expect(meio).toBeVisible({ timeout: 30_000 })
+  const campoQuem = escopo.getByLabel('Quem autorizou (quem assinou o termo)')
+  if (await campoQuem.count()) await campoQuem.fill(quem)
+  await meio.selectOption('termo_em_papel')
+}
+
+/** v7.1b - a versão em vigor do termo de imagem, para quem envia a foto pela rota (como a tela faria). */
+export async function versaoDoTermo(
+  page: Page,
+  autorizacao: string,
+  origem: 'foto_da_diretoria' | 'foto_de_evento' | 'foto_de_etapa_de_parceria',
+): Promise<string> {
+  const r = await page.request.get(
+    `${API_HML}/api/consentimentos/termo-da-tela/${origem}`,
+    { headers: { Authorization: autorizacao } },
+  )
+  expect(r.status()).toBe(200)
+  return ((await r.json()) as { versao: string }).versao
+}

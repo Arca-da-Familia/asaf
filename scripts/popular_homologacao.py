@@ -273,9 +273,13 @@ def popular(client, db, admin_headers: dict | None = None, admin_senha: str | No
             "visibilidade": "Interna", "id_projeto": interno,
         })).json()["id_evento"]
         ids.update({"passada": passada, "futura": futura, "interna": interna})
+        # v7.1b: o termo de imagem em vigor (a versão volta no envio) e quem autorizou (inventado: as fotos são cenas sem pessoas reais)
+        termo = _ok(client.get("/api/consentimentos/termo-da-tela/foto_de_evento", headers=admin_headers)).json()["versao"]
         for n, cor in enumerate(((20, 90, 60), (200, 120, 20), (40, 80, 160)), start=1):
             _ok(client.post(f"/api/eventos/{passada}/fotos", headers=admin_headers,
-                            data={"alt": f"Foto de teste {n}: cena inventada de uma atividade do encontro, sem pessoas reais", "autorizacao_imagem": "true"},
+                            data={"alt": f"Foto de teste {n}: cena inventada de uma atividade do encontro, sem pessoas reais", "autorizacao_imagem": "true",
+                                  "quem_autorizou": "Participantes inventados do encontro de teste", "meio": "termo_em_papel", "versao_do_termo": termo,
+                                  "assinado_em": date.today().isoformat()},
                             files={"arquivo": (f"foto{n}.jpg", imagem_jpeg(f"encontro 2025, foto {n}", cor), "image/jpeg")}))
         return "projeto em destaque, projeto interno, 3 eventos, programação e 3 fotos com autorização"
 
@@ -317,8 +321,11 @@ def popular(client, db, admin_headers: dict | None = None, admin_senha: str | No
             "titulo": "Oficina de percussão (teste)", "descricao": "Aulas de percussão para crianças, inventadas para o teste.",
             "data_realizacao": (date.today() - timedelta(days=30)).isoformat(), "local": "Quadra de teste", "publico_atendido": 40,
         })).json()["etapas"][-1]["id_etapa"]
+        termo = _ok(client.get("/api/consentimentos/termo-da-tela/foto_de_etapa_de_parceria", headers=gestor)).json()["versao"]
         _ok(client.post(f"/api/parcerias/{id_parceria}/etapas/{etapa}/fotos", headers=gestor,
-                        data={"alt": "Foto de teste: cena inventada de uma oficina de percussão, sem pessoas reais", "autorizacao_imagem": "true"},
+                        data={"alt": "Foto de teste: cena inventada de uma oficina de percussão, sem pessoas reais", "autorizacao_imagem": "true",
+                              "quem_autorizou": "Responsáveis inventados da oficina de teste", "meio": "termo_em_papel", "versao_do_termo": termo,
+                              "assinado_em": date.today().isoformat()},
                         files={"arquivo": ("oficina.jpg", imagem_jpeg("oficina de percussão", (120, 60, 140)), "image/jpeg")}))
         # livro-caixa: um recebimento e um pagamento no centro de custo exclusivo da emenda
         exercicio = db.query(Exercicio).filter(Exercicio.ano == 2026).first()

@@ -296,7 +296,7 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
     await page.goto('/privacidade/')
     const lista = page.locator('[data-prazos-de-guarda]')
     await expect(lista).toBeVisible()
-    await expect(lista.locator('li')).toHaveCount(8)
+    await expect(lista.locator('li')).toHaveCount(9)
     for (const trecho of [
       'Endereço de rede (IP) guardado no controle do limite de pedidos dos formulários públicos: 6 meses, depois é apagado. O IP que também fica na Auditoria do sistema ainda não tem prazo de eliminação automática.',
       'Avisos do sino do painel (da equipe e dos associados; podem trazer o nome de quem pediu): 1 ano, depois são apagados.',
@@ -305,6 +305,8 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
       '(contato, informação, solicitação de titular e voluntariado): 5 anos depois de respondidos ou encerrados, apagamos o nome, o assunto, a mensagem, a resposta, o motivo do encerramento e os dados de contato e de identificação (e-mail, telefone, CPF, data de nascimento); ficam o número do protocolo, o tipo, a situação e as datas. O pedido que ainda não foi respondido nem encerrado não é apagado.',
       'Pedido de filiação que não virou associado (recusado, ou pendente sem decisão): 2 anos depois da última mudança no pedido ou no voto de um sócio, ele e as decisões dos sócios sobre ele são apagados',
       'Pedido de doação pelo site que ninguém confirmou: 2 anos depois do prazo do pedido, é apagado.',
+      // v7.1b (Política 2.11): a prova de um consentimento que acabou
+      'Prova de um consentimento que acabou (a autorização de imagem retirada, a foto apagada ou o mandato terminado): 5 anos depois de acabar, é apagada.',
       'Doador identificado: 10 anos depois da doação, tiramos o nome, o documento, o e-mail e a ligação com o cadastro de associado; ficam o valor, a data e o destino',
       'Associado desligado: 5 anos depois do desligamento, apagamos CPF, e-mail, telefone, data de nascimento, estado civil, profissão, naturalidade, as habilidades cadastradas, a foto (inclusive o arquivo), o endereço e, nas mudanças de situação (licença, desligamento, advertência), o motivo e o documento de referência; ficam o nome e a matrícula do livro de associados e o tipo e as datas das mudanças de situação. A rotina automática não inclui quem ainda tem outro papel ativo no cadastro (por exemplo, voluntário). Ainda não há prazo automático para os dependentes cadastrados, os documentos anexados, o histórico de cargos, a linha do tempo da pessoa e as observações internas da ficha.',
     ])
@@ -319,16 +321,16 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
     )
   })
 
-  test('versão 2.10 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
+  test('versão 2.11 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
     page,
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.10 · em vigor desde 27 de outubro de 2026'),
+      page.getByText('Versão 2.11 · em vigor desde 27 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.10, em vigor desde 27 de outubro de 2026/,
+        /Esta é a versão 2\.11, em vigor desde 27 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-doacao]')

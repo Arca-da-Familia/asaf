@@ -10,13 +10,14 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, object_session
 
 from app.auditoria import registrar_auditoria
 from app.models.associados import Associado
 from app.models.documentos import DocumentoInstitucional
 from app.models.mandatos import FotoDaDiretoria, Mandato
-from app.services import armazenamento
+from app.services import armazenamento, consentimentos
 from app.services.fotos import MENSAGEM_SEM_AUTORIZACAO, remover_arquivo, tratar_imagem
 
 PASTA_DAS_FOTOS = "fotos-diretoria"
@@ -42,12 +43,16 @@ def texto_alternativo(nome: str, cargo: Optional[str]) -> str:
 
 def salvar_foto(
     db: Session, usuario, id_associado: int, conteudo: bytes, *, autorizacao_imagem: bool, id_documento_autorizacao: Optional[int] = None,
-    cargo: Optional[str] = None,
+    cargo: Optional[str] = None, meio: Optional[str] = None, versao_do_termo: Optional[str] = None, assinado_em: Optional[str] = None,
 ) -> FotoDaDiretoria:
-    """Guarda (ou troca) a foto da pessoa. Recusa sem a autorização de imagem, com arquivo que não é imagem de verdade, ou com um termo de autorização que não existe."""
+    """Guarda (ou troca) a foto da pessoa. Recusa sem a autorização de imagem, com arquivo que não é imagem de verdade, ou com um termo de autorização que não existe.
+    v7.1b: registra o consentimento (a própria pessoa, com o termo em vigor e o meio); trocar a foto encerra o consentimento da foto anterior e registra o novo."""
     if not autorizacao_imagem:
         raise HTTPException(status_code=400, detail=MENSAGEM_SEM_AUTORIZACAO)
     associado = _associado(db, id_associado)
+    termo, versao, quem, assinado = consentimentos.exigir_dados(db, origem=consentimentos.FOTO_DA_DIRETORIA, versao_do_termo=versao_do_termo,
+                                                                 quem_autorizou=associado.nome_completo, meio=meio, id_documento=id_documento_autorizacao,
+                                                                 assinado_em=assinado_em)
     if id_documento_autorizacao is not None and not db.query(DocumentoInstitucional.id_documento).filter(
         DocumentoInstitucional.id_documento == id_documento_autorizacao
     ).first():
@@ -63,13 +68,27 @@ def salvar_foto(
         id_usuario_criacao=usuario.id_usuario, criado_em=datetime.utcnow(),
     )
     if anterior:
+        consentimentos.encerrar(db, usuario, origem=consentimentos.FOTO_DA_DIRETORIA, id_origem=anterior.id_foto, como=consentimentos.APAGADO,
+                                motivo="A foto foi trocada por outra.")
+        db.flush()  # o consentimento da foto anterior encerra antes de o novo entrar (um vigente por foto)
         for campo, valor in dados.items():
             setattr(anterior, campo, valor)
         foto = anterior
     else:
         foto = FotoDaDiretoria(id_pessoa=associado.id_pessoa, **dados)
         db.add(foto)
-    db.commit()
+    db.flush()
+    consentimentos.registrar(db, usuario, origem=consentimentos.FOTO_DA_DIRETORIA, id_origem=foto.id_foto, termo=termo, versao=versao, titular=quem, meio=meio,
+                             id_documento=id_documento_autorizacao, id_pessoa=associado.id_pessoa, dado_por="titular", dado_em=assinado)
+    try:
+        db.commit()
+    except IntegrityError:  # duas trocas da mesma foto ao mesmo tempo: a outra venceu; o arquivo novo não fica órfão
+        db.rollback()
+        try:
+            remover_arquivo(PASTA_DAS_FOTOS, nome_do_arquivo)
+        except HTTPException:
+            pass
+        raise HTTPException(status_code=409, detail="A foto desta pessoa acabou de ser trocada por outra pessoa da equipe: recarregue a página e confira.") from None
     db.refresh(foto)
     if nome_antigo:  # a troca já está gravada: o arquivo velho sai (se falhar, sobra um arquivo órfão, nunca uma foto sem arquivo)
         try:
@@ -79,13 +98,14 @@ def salvar_foto(
     return foto
 
 
-def apagar_foto(db: Session, id_associado: int) -> FotoDaDiretoria:
-    """A pessoa retirou a autorização: apaga de verdade (linha e arquivo). A auditoria guarda quem apagou."""
+def apagar_foto(db: Session, id_associado: int, *, usuario=None, revogado: bool = False, motivo: Optional[str] = None) -> FotoDaDiretoria:
+    """Apaga de verdade (linha e arquivo) e encerra o consentimento (v7.1b): REVOGADO quando a pessoa retirou a autorização. A auditoria guarda quem apagou."""
     associado = _associado(db, id_associado)
     foto = foto_da_pessoa(db, associado.id_pessoa)
     if not foto:
         raise HTTPException(status_code=404, detail="Esta pessoa não tem foto cadastrada para o site.")
     remover_arquivo(PASTA_DAS_FOTOS, foto.arquivo_nome)  # primeiro o arquivo: se falhar, a foto continua cadastrada e dá para tentar de novo
+    consentimentos.encerrar(db, usuario, origem=consentimentos.FOTO_DA_DIRETORIA, id_origem=foto.id_foto, como=consentimentos.como_encerrar(revogado), motivo=motivo)
     db.delete(foto)
     db.commit()
     return foto
@@ -105,6 +125,7 @@ def para_o_painel(foto: Optional[FotoDaDiretoria]) -> dict:
         "foto": {
             "id_foto": foto.id_foto, "alt": foto.alt, "largura": foto.largura, "altura": foto.altura, "tamanho": foto.tamanho,
             "autorizacao_imagem": foto.autorizacao_imagem, "id_documento_autorizacao": foto.id_documento_autorizacao, "criado_em": foto.criado_em,
+            "consentimento": consentimentos.para_o_painel(consentimentos.vigente(object_session(foto), consentimentos.FOTO_DA_DIRETORIA, foto.id_foto)),
         }
     }
 
@@ -149,6 +170,8 @@ def _apagar_automaticamente(db: Session, foto: FotoDaDiretoria, *, usuario=None,
     except HTTPException:
         LOG.warning("foto da diretoria %s ficou: o armazenamento não apagou o arquivo (a próxima rodada tenta de novo)", id_foto)
         return False
+    consentimentos.encerrar(db, usuario, origem=consentimentos.FOTO_DA_DIRETORIA, id_origem=id_foto, como=consentimentos.FIM_DO_PRAZO,
+                            motivo="A pessoa não tem mandato vigente nem marcado.")
     db.delete(foto)
     db.commit()
     registrar_auditoria(

@@ -325,11 +325,11 @@ def editar_etapa(db: Session, parceria: Parceria, id_etapa: int, dados: dict) ->
     return etapa
 
 
-def excluir_etapa(db: Session, parceria: Parceria, id_etapa: int) -> EtapaParceria:
+def excluir_etapa(db: Session, parceria: Parceria, id_etapa: int, *, usuario=None) -> EtapaParceria:
     from app.services import parcerias_fotos  # import tardio: parcerias_fotos importa este módulo
 
     etapa = _etapa(db, parceria, id_etapa)
-    parcerias_fotos.apagar_fotos_da_etapa(db, parceria, etapa.id_etapa)  # a foto não fica órfã (nem no armazenamento)
+    parcerias_fotos.apagar_fotos_da_etapa(db, parceria, etapa.id_etapa, usuario=usuario)  # a foto não fica órfã (nem no armazenamento); o consentimento encerra
     db.delete(etapa)
     _tocar(parceria)
     db.commit()

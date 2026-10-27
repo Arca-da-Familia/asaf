@@ -88,6 +88,10 @@ const substituto = substitutoDoEncarregado(diretoria)
 // v2.10 (2026-10-27): os avisos de privacidade com versão (v7.1a, `app/textos_de_privacidade.py`): a inscrição em evento deixou de pedir "consentimento"
 // (a base é o próprio pedido de inscrição, art. 7º, V; a página mostra um AVISO e a caixa diz "Li o aviso de privacidade.") e a base da doação passou a ser
 // o pedido de doação e a escrituração que a lei obriga a guardar (art. 7º, V e II), como no catálogo; antes a Política dizia "o seu consentimento (o aceite do aviso)".
+// v2.11 (2026-10-27): o consentimento de foto com o termo e a versão (v7.1b, `app/services/consentimentos.py`): a foto da Diretoria e as das atividades só
+// entram com o TERMO assinado (antes era a declaração de quem enviava a foto); o parágrafo `data-fotos-de-atividades` (que faltava: só a Diretoria tinha
+// parágrafo), o `data-registro-de-consentimentos` (o que o registro guarda, quem vê e o prazo) e o prazo da prova (5 anos depois de acabar) na lista;
+// a revogação pela secretaria ou pela solicitação do titular (antes dizia "pedir à Diretoria", e o termo diz secretaria).
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -140,7 +144,8 @@ const direitos = [
           sistema de gestão. O que o site publica é o que a diretoria aprova: a
           lista de dirigentes, documentos e dados de emendas e parcerias
           (conferidos para não trazer CPF, RG, e-mail ou celular de pessoas) e
-          fotos de atividades e de dirigentes, só com autorização de imagem.
+          fotos de atividades e de dirigentes, só com o termo de autorização de
+          imagem assinado.
         </li>
         <li>
           Não vendemos dados. Você pode exercer os seus direitos pelo{' '}
@@ -290,30 +295,58 @@ const direitos = [
         >
           Diretoria
         </a>{' '}
-        mostra o nome, o cargo, o período do mandato e, de quem autorizou o uso
-        da imagem, a foto. Sem a autorização a foto não é guardada no sistema. A
+        mostra o nome, o cargo, o período do mandato e, de quem assinou o termo
+        de autorização de uso da imagem, a foto. Sem o termo assinado a foto não
+        é guardada no sistema (veja abaixo o registro dos consentimentos). A
         foto só existe enquanto a pessoa tem mandato vigente ou marcado: quando
         o mandato termina e a pessoa não tem outro, o sistema apaga a foto
         sozinho (na hora, se o mandato for encerrado no sistema; no vencimento
         natural, na conferência automática que roda algumas vezes ao dia), e
         quem recebeu a foto antes de ter o primeiro mandato cadastrado tem até
         24 horas para ele aparecer. Quem retira a autorização pode pedir à
-        Diretoria que apague a foto: ao registrar o pedido no sistema, ela é
-        apagada na hora. Apagada a foto, ela deixa de aparecer no site na
-        publicação seguinte: o site confere o sistema algumas vezes ao dia,
-        então isso costuma levar algumas horas e pode passar de meio dia. Do
-        arquivo da foto ficam apenas cópias de segurança internas, que não são
-        públicas, por até cerca de 30 dias; as cópias de segurança do banco de
-        dados (que guardam o nome do arquivo e a descrição da foto, não a
-        imagem) duram até 35 dias. Depois de apagada, se a pessoa voltar a ter
-        mandato, é preciso enviar a foto de novo. A foto do cadastro de
-        associado (a da carteirinha) não é usada em nenhuma página deste site;
-        para o público ela só aparece na verificação da carteirinha digital,
-        para quem lê o QR da carteirinha (sem precisar de login), junto com o
-        nome, a situação de associado e a validade, e só enquanto o QR vale.
-        Esse QR vale por poucos dias a partir de quando é gerado (hoje, 15 dias;
-        no máximo 20): depois disso a verificação não mostra mais nada, nem a
-        foto.
+        secretaria, ou pela solicitação do titular de dados, que apague a foto:
+        ao registrar o pedido no sistema, ela é apagada na hora. Apagada a foto,
+        ela deixa de aparecer no site na publicação seguinte: o site confere o
+        sistema algumas vezes ao dia, então isso costuma levar algumas horas e
+        pode passar de meio dia. Do arquivo da foto ficam apenas cópias de
+        segurança internas, que não são públicas, por até cerca de 30 dias; as
+        cópias de segurança do banco de dados (que guardam o nome do arquivo e a
+        descrição da foto, não a imagem) duram até 35 dias. Depois de apagada,
+        se a pessoa voltar a ter mandato, é preciso enviar a foto de novo. A
+        foto do cadastro de associado (a da carteirinha) não é usada em nenhuma
+        página deste site; para o público ela só aparece na verificação da
+        carteirinha digital, para quem lê o QR da carteirinha (sem precisar de
+        login), junto com o nome, a situação de associado e a validade, e só
+        enquanto o QR vale. Esse QR vale por poucos dias a partir de quando é
+        gerado (hoje, 15 dias; no máximo 20): depois disso a verificação não
+        mostra mais nada, nem a foto.
+      </p>
+      <p class="mt-3" data-fotos-de-atividades>
+        <strong>Fotos das atividades.</strong> As páginas dos eventos, dos
+        projetos e das parcerias (na Transparência) podem mostrar fotos das
+        atividades da associação. Uma foto só entra no sistema com o termo de
+        autorização de uso de imagem assinado por quem aparece nela; se é
+        criança, por um dos pais ou pelo responsável legal, e se é adolescente,
+        com um deles assinando junto. A foto é guardada sem localização nem
+        dados do aparelho, e a orientação é não escrever o nome das pessoas na
+        descrição da foto. Quem retira a autorização pode pedir à secretaria, ou
+        pela solicitação do titular de dados: todas as fotos em que a pessoa
+        aparece são apagadas do sistema assim que o pedido é registrado e saem
+        do site na publicação seguinte; do arquivo ficam apenas cópias de
+        segurança internas, que não são públicas, por até cerca de 30 dias.
+      </p>
+      <p class="mt-3" data-registro-de-consentimentos>
+        <strong>Registro dos consentimentos.</strong> Para cada foto, o sistema
+        guarda a prova da autorização: o termo e a versão assinada, o nome de
+        quem assinou (e do responsável, quando é o caso), como o termo foi
+        entregue (em papel, guardado pela secretaria, ou digitalizado), o número
+        do documento, a data da assinatura e quem registrou; o termo em papel
+        também traz o CPF de quem assina. Quando a autorização acaba (porque foi
+        retirada, porque a foto foi apagada ou porque o mandato terminou), o
+        registro continua guardado como prova, com a data e o motivo, pelo prazo
+        de guarda abaixo, e depois o sistema o apaga sozinho. Veem esses
+        registros quem cuida da privacidade na associação e, junto de cada foto,
+        quem cuida das fotos daquela atividade.
       </p>
     </section>
 
@@ -660,6 +693,11 @@ const direitos = [
           Doador identificado: 10 anos depois da doação, tiramos o nome, o
           documento, o e-mail e a ligação com o cadastro de associado; ficam o
           valor, a data e o destino, que são dado financeiro da associação.
+        </li>
+        <li>
+          Prova de um consentimento que acabou (a autorização de imagem
+          retirada, a foto apagada ou o mandato terminado): 5 anos depois de
+          acabar, é apagada.
         </li>
         <li>
           Associado desligado: 5 anos depois do desligamento, apagamos CPF,

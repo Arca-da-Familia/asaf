@@ -63,7 +63,7 @@ export function registrarAssinaturaDoAto(
   })
 }
 
-function entregar(blob: Blob, nome: string, modo: 'abrir' | 'baixar') {
+export function entregar(blob: Blob, nome: string, modo: 'abrir' | 'baixar') {
   const url = URL.createObjectURL(blob)
   if (modo === 'abrir') {
     window.open(url, '_blank', 'noopener,noreferrer')

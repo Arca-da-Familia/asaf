@@ -1,4 +1,11 @@
 import { z } from 'zod'
+import {
+  anexarConsentimento,
+  corpoDeApagar,
+  type ComoApagar,
+  type DadosDoConsentimento,
+  type ResumoDoConsentimento,
+} from './consentimento-da-foto'
 
 import { clearSession, getAccessToken, setAccessToken } from './auth'
 import { finalizarRequisicao, iniciarRequisicao } from './network-status'
@@ -5009,6 +5016,7 @@ export type FotoDoEvento = {
   autorizacao_imagem: boolean
   id_documento_autorizacao: number | null
   criado_em: string
+  consentimento: ResumoDoConsentimento | null
 }
 
 export function listarFotosDoEvento(idEvento: number): Promise<FotoDoEvento[]> {
@@ -5029,6 +5037,7 @@ export function enviarFotoDoEvento(
     alt: string
     autorizacaoImagem: boolean
     idDocumentoAutorizacao?: string
+    consentimento: DadosDoConsentimento
   },
 ): Promise<FotoDoEvento[]> {
   const form = new FormData()
@@ -5037,6 +5046,7 @@ export function enviarFotoDoEvento(
   form.append('autorizacao_imagem', String(dados.autorizacaoImagem))
   if (dados.idDocumentoAutorizacao)
     form.append('id_documento_autorizacao', dados.idDocumentoAutorizacao)
+  anexarConsentimento(form, dados.consentimento)
   return apiFetch(`/api/eventos/${idEvento}/fotos`, {
     method: 'POST',
     body: form,
@@ -5046,9 +5056,11 @@ export function enviarFotoDoEvento(
 export function apagarFotoDoEvento(
   idEvento: number,
   idFoto: number,
+  como?: ComoApagar,
 ): Promise<FotoDoEvento[]> {
   return apiFetch(`/api/eventos/${idEvento}/fotos/${idFoto}`, {
     method: 'DELETE',
+    body: corpoDeApagar(como),
   })
 }
 
@@ -5064,6 +5076,7 @@ export type FotoDaDiretoria = {
   autorizacao_imagem: boolean
   id_documento_autorizacao: number | null
   criado_em: string
+  consentimento: ResumoDoConsentimento | null
 }
 
 export type SituacaoDaFotoDaDiretoria = {
@@ -5093,6 +5106,9 @@ export function enviarFotoDaDiretoria(
     arquivo: File
     autorizacaoImagem: boolean
     idDocumentoAutorizacao?: string
+    meio: string
+    versaoDoTermo: string
+    assinadoEm: string
   },
 ): Promise<SituacaoDaFotoDaDiretoria> {
   const form = new FormData()
@@ -5100,6 +5116,9 @@ export function enviarFotoDaDiretoria(
   form.append('autorizacao_imagem', String(dados.autorizacaoImagem))
   if (dados.idDocumentoAutorizacao)
     form.append('id_documento_autorizacao', dados.idDocumentoAutorizacao)
+  form.append('meio', dados.meio)
+  form.append('versao_do_termo', dados.versaoDoTermo)
+  form.append('assinado_em', dados.assinadoEm)
   return apiFetch(`/api/mandatos/associados/${idAssociado}/foto-publica`, {
     method: 'POST',
     body: form,
@@ -5108,9 +5127,12 @@ export function enviarFotoDaDiretoria(
 
 export function apagarFotoDaDiretoria(
   idAssociado: number,
+  motivo = '',
 ): Promise<{ mensagem: string }> {
+  // na Diretoria, apagar é sempre porque a pessoa retirou a autorização (o consentimento fica revogado)
   return apiFetch(`/api/mandatos/associados/${idAssociado}/foto-publica`, {
     method: 'DELETE',
+    body: corpoDeApagar({ revogado: true, motivo }),
   })
 }
 

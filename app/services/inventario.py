@@ -221,7 +221,7 @@ ATIVIDADES: tuple[Atividade, ...] = (
         "TRANSPARENCIA", "Documentos, parcerias e transparência",
         "Guardar os documentos institucionais e os de parcerias e emendas (com a versão pública sem dado pessoal), as fotos das etapas de parceria e o ato do "
         "encarregado, e publicar no site o que a lei e o Estatuto pedem.",
-        ("ART7_II", "ART7_IX"), ("AZURE", "GITHUB"),
+        ("ART7_II", "ART7_IX", "ART7_I"), ("AZURE", "GITHUB"),
         ("documentos_institucionais", "fotos_etapa_parceria", "atos_do_encarregado"),
         arquivos=True, publicado_no_site=True,
         medidas="O original fica privado; a versão pública passa pelo verificador de dado pessoal e pela aprovação de outra pessoa.",
@@ -245,6 +245,16 @@ ATIVIDADES: tuple[Atividade, ...] = (
         observacoes="Fica fora do modelo deste sistema: as tabelas são do Directus.",
     ),
     Atividade(
+        "CONSENTIMENTOS", "Prova dos consentimentos e das revogações",
+        "Guardar a prova de cada consentimento dado (o termo e a versão, quem consentiu ou o responsável, como, quando, quem registrou) e de quando e por que ele "
+        "acabou (LGPD, art. 8º, § 2º: cabe a quem trata o dado provar o consentimento).",
+        ("ART7_VI",), ("AZURE", "GITHUB"),
+        ("consentimentos",), ("consentimentos_encerrados",),
+        medidas="O consentimento encerrado fica como prova pelo prazo da regra e depois é apagado pela rotina; revogar apaga a foto que ele cobria; só quem cuida "
+                "da privacidade vê a lista, e quem só lê a tela da foto não vê o nome de quem assinou.",
+        observacoes="Hoje cobre as fotos (Diretoria, eventos e parcerias); a v7.1c acrescenta o consentimento do responsável pelo beneficiário criança.",
+    ),
+    Atividade(
         "OPERACAO", "Registro de quem faz cada operação no painel",
         "Guardar, em cada registro do sistema, quem o criou ou alterou, para a prestação de contas da gestão e a segurança.",
         ("ART7_IX",), ("AZURE",), so_rastro_de_operacao=True,
@@ -258,7 +268,7 @@ EDITAVEIS = ("finalidade", "bases_legais", "medidas", "observacoes", "base_legal
 # (tests/test_inventario.py confere que a lista é a dos fluxos e que essas atividades citam o GitHub). A montagem do site (deploy-site.yml) também roda lá.
 ROTINAS_DO_GITHUB: dict[str, tuple[str, ...]] = {
     "scripts/apagar_fotos_da_diretoria_vencidas.py": ("GOVERNANCA",),
-    "scripts/aplicar_retencao_de_dados.py": ("ACESSO", "ATENDIMENTO", "CADASTRO", "DOACOES", "COMUNICACAO", "VISITANTE"),
+    "scripts/aplicar_retencao_de_dados.py": ("ACESSO", "ATENDIMENTO", "CADASTRO", "DOACOES", "COMUNICACAO", "VISITANTE", "CONSENTIMENTOS"),
     "scripts/avisar_fim_de_experiencia.py": ("CADASTRO",),
     "scripts/avisar_prazos_de_atendimento.py": ("ATENDIMENTO",),
     "scripts/enviar_emails_de_avisos.py": ("COMUNICACAO",),

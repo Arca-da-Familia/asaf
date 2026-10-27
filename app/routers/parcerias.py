@@ -10,13 +10,14 @@ from datetime import date
 from decimal import Decimal
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.services.consentimentos import ApagarFoto
 from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.core import AuditLog, Usuario
@@ -90,8 +91,9 @@ def _detalhar(db: Session, usuario: Usuario, p: Parceria) -> dict:
             recebido_por_parcela[v["id_parcela"]] = recebido_por_parcela.get(v["id_parcela"], Decimal("0")) + v["valor"]
     relatorios = db.query(RelatorioParceria).filter(RelatorioParceria.id_parceria == p.id_parceria).order_by(RelatorioParceria.id_relatorio).all()
     pendentes = servico.lancamentos_nao_classificados(db, p)
+    base = _serializar(db, usuario, p)
     return {
-        **_serializar(db, usuario, p),
+        **base,
         "total_das_parcelas": servico.total_das_parcelas(db, p),
         "parcelas": [
             {"id_parcela": x.id_parcela, "numero": x.numero, "valor_previsto": x.valor_previsto, "data_prevista": x.data_prevista,
@@ -101,7 +103,8 @@ def _detalhar(db: Session, usuario: Usuario, p: Parceria) -> dict:
         "etapas": [
             {"id_etapa": e.id_etapa, "titulo": e.titulo, "descricao": e.descricao, "data_prevista": e.data_prevista,
              "data_realizacao": e.data_realizacao, "local": e.local, "publico_atendido": e.publico_atendido, "situacao": e.situacao,
-             "fotos": [servico_de_fotos.para_o_painel(f) for f in servico_de_fotos.fotos_da_etapa(db, e.id_etapa)]}
+             # quem só lê a parceria (auditoria, aprovação de publicação) não vê o nome de quem assinou o termo (menor privilégio)
+             "fotos": [servico_de_fotos.para_o_painel(f, com_quem_autorizou=bool(base.get("pode_editar"))) for f in servico_de_fotos.fotos_da_etapa(db, e.id_etapa)]}
             for e in db.query(EtapaParceria).filter(EtapaParceria.id_parceria == p.id_parceria).order_by(EtapaParceria.data_prevista, EtapaParceria.id_etapa)
         ],
         "relatorios": [
@@ -285,7 +288,7 @@ def editar_etapa(id_parceria: int, id_etapa: int, dados: EtapaDados, request: Re
 @router.delete("/api/parcerias/{id_parceria}/etapas/{id_etapa}", summary="Apagar etapa")
 def excluir_etapa(id_parceria: int, id_etapa: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_exigir_gestao)):
     parceria = servico.buscar(db, id_parceria)
-    etapa = servico.excluir_etapa(db, parceria, id_etapa)
+    etapa = servico.excluir_etapa(db, parceria, id_etapa, usuario=usuario)
     _auditar(db, usuario, request, parceria, "ETAPA_APAGADA", depois={"titulo": etapa.titulo})
     return _detalhar(db, usuario, parceria)
 
@@ -294,13 +297,14 @@ def excluir_etapa(id_parceria: int, id_etapa: int, request: Request, db: Session
 async def enviar_foto_da_etapa(
     id_parceria: int, id_etapa: int, request: Request, arquivo: UploadFile = File(...), alt: str = Form(""),
     autorizacao_imagem: bool = Form(False), id_documento_autorizacao: Optional[int] = Form(None),
+    quem_autorizou: str = Form(""), meio: str = Form(""), versao_do_termo: str = Form(""), assinado_em: str = Form(""),
     db: Session = Depends(get_db), usuario=Depends(_exigir_gestao),
 ):
     parceria = servico.buscar(db, id_parceria)
     conteudo = await arquivo.read()
     foto = await run_in_threadpool(
         servico_de_fotos.adicionar_foto, db, usuario, parceria, id_etapa, conteudo, alt=alt, autorizacao_imagem=autorizacao_imagem,
-        id_documento_autorizacao=id_documento_autorizacao,
+        id_documento_autorizacao=id_documento_autorizacao, quem_autorizou=quem_autorizou, meio=meio, versao_do_termo=versao_do_termo, assinado_em=assinado_em,
     )
     _auditar(db, usuario, request, parceria, "FOTO_ENVIADA", depois={"id_foto": foto.id_foto, "id_etapa": id_etapa, "id_documento": id_documento_autorizacao})
     return _detalhar(db, usuario, parceria)
@@ -315,10 +319,16 @@ async def ver_foto_da_etapa(id_parceria: int, id_foto: int, db: Session = Depend
 
 
 @router.delete("/api/parcerias/{id_parceria}/fotos/{id_foto}", summary="Apagar a foto (a autorização foi retirada): some do site e do armazenamento")
-def apagar_foto_da_etapa(id_parceria: int, id_foto: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_exigir_gestao)):
+def apagar_foto_da_etapa(
+    id_parceria: int, id_foto: int, request: Request, dados: Optional[ApagarFoto] = Body(None), db: Session = Depends(get_db),
+    usuario=Depends(_exigir_gestao),
+):
+    """`revogado`: a pessoa retirou a autorização (o consentimento fica como REVOGADO, com o motivo); sem ele, a foto foi apagada por outro motivo."""
+    dados = dados or ApagarFoto()
     parceria = servico.buscar(db, id_parceria)
-    foto = servico_de_fotos.apagar_foto(db, parceria, id_foto)
-    _auditar(db, usuario, request, parceria, "FOTO_APAGADA", depois={"id_foto": foto.id_foto, "id_etapa": foto.id_etapa})
+    foto = servico_de_fotos.apagar_foto(db, parceria, id_foto, usuario=usuario, revogado=dados.revogado, motivo=dados.motivo)
+    _auditar(db, usuario, request, parceria, "FOTO_APAGADA",
+             depois={"id_foto": foto.id_foto, "id_etapa": foto.id_etapa, "consentimento_revogado": dados.revogado})
     return _detalhar(db, usuario, parceria)
 
 

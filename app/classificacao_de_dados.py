@@ -185,6 +185,11 @@ CLASSIFICACAO: dict[str, Tabela] = {
         "publico_texto": NP,  # a versão pública já passou pelo verificador de dado pessoal
     }),
     "fotos_evento": Tabela(titulares=(FOTOGRAFADO,), criancas=True, colunas={"arquivo_nome": P, "alt": P, "autorizacao_imagem": M, "sha256": NP, "tamanho": NP, "largura": NP, "altura": NP, "criado_em": NP}),  # crianças nas atividades
+    # v7.1b: a prova de cada consentimento (quem consentiu, o responsável, o vínculo, o IP); pode ser de criança (a foto de uma atividade, pelo responsável)
+    "consentimentos": Tabela(titulares=(FOTOGRAFADO, DIRIGENTE), criancas=True, colunas={
+        "titular": P, "nome_responsavel": P, "vinculo_responsavel": P, "ip": P, "motivo_encerramento": LIVRE, "ponto": NP, "versao": NP, "dado_por": NP,
+        "meio": NP, "dado_em": NP, "registrado_em": NP, "origem": NP, "encerrado_em": NP, "encerramento": NP,
+    }),
     "fotos_etapa_parceria": Tabela(titulares=(FOTOGRAFADO,), criancas=True, colunas={"arquivo_nome": P, "alt": P, "autorizacao_imagem": M, "sha256": NP, "tamanho": NP, "largura": NP, "altura": NP, "criado_em": NP}),
     "documentos_emitidos": Tabela(colunas={"variaveis_usadas": LIVRE, "caminho_arquivo": P}),  # o certificado traz o nome e os dados de quem o recebe
     "fila_revisao_cadastro": Tabela(colunas={"detalhe": P}),

@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from PIL import Image
 
+from app.textos_de_privacidade import versao_atual
 from app.models.mandatos import FotoDaDiretoria, Mandato
 from app.services import armazenamento
 from app.services.fotos_da_diretoria import PASTA_DAS_FOTOS
@@ -38,7 +39,9 @@ def _novo_dirigente(db, cargo="PRESIDENTE", orgao="DIRETORIA_EXECUTIVA", client=
 def _enviar(client, auth_headers, id_associado, conteudo, autorizacao=True, nome="foto.jpg", tipo="image/jpeg"):
     return client.post(
         f"/api/mandatos/associados/{id_associado}/foto-publica", headers=auth_headers,
-        files={"arquivo": (nome, conteudo, tipo)}, data={"autorizacao_imagem": "true" if autorizacao else "false"},
+        files={"arquivo": (nome, conteudo, tipo)},
+        data={"autorizacao_imagem": "true" if autorizacao else "false", "meio": "termo_em_papel", "versao_do_termo": versao_atual("IMAGEM_DIRETORIA"),
+              "assinado_em": "2026-10-01"},
     )
 
 

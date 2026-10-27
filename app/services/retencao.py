@@ -153,6 +153,16 @@ def _associado_desligado(db: Session, agora: datetime, dias: int) -> tuple[int, 
     return anonimizar_vencidos_com_falhas(db, dias=dias, agora=agora, respeitar_outros_papeis=True)
 
 
+def _consentimentos_encerrados(db: Session, agora: datetime, dias: int) -> int:
+    """v7.1b - a prova de um consentimento que acabou (revogado, foto apagada, fim do mandato): 5 anos depois de encerrado, apaga. O vigente nunca é tocado."""
+    from app.models.privacidade import Consentimento
+
+    n = db.query(Consentimento).filter(Consentimento.encerrado_em.isnot(None), Consentimento.encerrado_em < agora - timedelta(days=dias)).delete(
+        synchronize_session=False)
+    db.commit()
+    return n
+
+
 def _leitura_de_avisos(db: Session, agora: datetime, dias: int) -> int:
     """v6.1 - a prova de leitura de um aviso do mural (quem recebeu, leu e confirmou): o prazo da lei (5 anos) depois de o aviso sair do mural; o aviso e os totais ficam."""
     from app.services.comunicacao import apagar_leituras_vencidas
@@ -169,6 +179,7 @@ REGRAS: tuple[Regra, ...] = (
     Regra("doador_identificado", "Doador identificado e recibo", "PRAZO_RETENCAO_DOADOR_DIAS", 3650, _doador_identificado),
     Regra("associado_desligado", "Associado desligado", "PRAZO_RETENCAO_DESLIGADO_DIAS", 1825, _associado_desligado),
     Regra("leitura_de_avisos", "Quem recebeu, leu e confirmou um aviso do mural", "PRAZO_RETENCAO_LEITURA_DE_AVISOS_DIAS", 1825, _leitura_de_avisos),
+    Regra("consentimentos_encerrados", "Prova de consentimento encerrado (revogado ou acabado)", "PRAZO_RETENCAO_CONSENTIMENTOS_DIAS", 1825, _consentimentos_encerrados),
 )
 
 
