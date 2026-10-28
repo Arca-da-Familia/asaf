@@ -18,9 +18,9 @@ const beneficiario: api.Beneficiario = {
   id_pessoa: 50,
   nome_completo: 'Pedro Alves',
   data_nascimento: null,
-  consentimento_lgpd_registrado: true,
+  consentimento_lgpd_registrado: false,
+  consentimento: null,
   observacao_consentimento: null,
-  data_consentimento: null,
 }
 
 function desenhar(onFechar = vi.fn()) {

@@ -21,6 +21,8 @@ function Linha({ c }: { c: ResumoDoConsentimento }) {
     >
       <p className="font-medium">
         {c.origem_rotulo} nº {c.id_origem} · {c.titular}
+        {c.dado_por === 'responsavel' &&
+          ` · consentido por ${c.nome_responsavel ?? '—'} (${c.vinculo_rotulo ?? 'responsável'})`}
       </p>
       <p className="text-xs text-muted-foreground">
         Termo versão {c.versao}
@@ -45,7 +47,8 @@ function Linha({ c }: { c: ResumoDoConsentimento }) {
   )
 }
 
-// v7.1b - a PROVA de cada consentimento (LGPD, art. 8º): o termo e a versão que a pessoa assinou, quem, como, quando e, se acabou, quando e por quê. Revogar é
+// v7.1b - a PROVA de cada consentimento (LGPD, art. 8º): o termo e a versão que a pessoa assinou, quem, como, quando e, se acabou, quando e por quê (v7.1c:
+// também o do atendimento social, que se revoga na tela Beneficiários). Revogar a foto é
 // apagar a foto (na tela da foto); o consentimento encerrado continua aqui pelo prazo de guarda da prova (Regras do sistema) e depois a rotina o apaga.
 export function ConsentimentosPage() {
   const [situacao, setSituacao] = useState<'' | 'vigentes' | 'encerrados'>('')
@@ -74,7 +77,7 @@ export function ConsentimentosPage() {
     <>
       <PageHeader
         titulo="Consentimentos"
-        descricao="A prova de cada consentimento dado: o termo e a versão que a pessoa assinou, quem, como e quando; e, se acabou, quando e por quê. Revogar é apagar a foto, na tela dela."
+        descricao="A prova de cada consentimento dado: o termo e a versão que a pessoa assinou, quem, como e quando; e, se acabou, quando e por quê. Revogar a foto é apagá-la, na tela dela; o consentimento do atendimento social se revoga na tela Beneficiários."
         trilha={[
           { rotulo: 'Início', href: '/' },
           { rotulo: 'Privacidade' },

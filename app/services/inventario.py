@@ -165,7 +165,8 @@ ATIVIDADES: tuple[Atividade, ...] = (
         "escola, posto de saúde, Conselho Tutelar).",
         ("ART11_I", "ART7_I"), ("AZURE",),
         ("beneficiarios", "beneficiarios_projeto", "registros_atendimento", "encaminhamentos_rede_externa"),
-        medidas="Prontuário e encaminhamentos só para a equipe ATIVA do projeto, inclusive para a Presidência; toda leitura vai para a Auditoria; o valor "
+        medidas="Prontuário e encaminhamentos só gravam com o termo de consentimento assinado registrado (o da pessoa atendida ou, se era criança ou adolescente "
+                "na assinatura, o de um dos pais ou do responsável; a marca antiga do cadastro não vale); só para a equipe ATIVA do projeto, inclusive para a Presidência; toda leitura vai para a Auditoria; o valor "
                 "sensível não fica na Auditoria; exportação com permissão própria.",
         observacoes="Tratamento de alto risco (dado sensível e de criança): o relatório de impacto (RIPD) é a v7.0d.",
     ),
@@ -250,9 +251,10 @@ ATIVIDADES: tuple[Atividade, ...] = (
         "acabou (LGPD, art. 8º, § 2º: cabe a quem trata o dado provar o consentimento).",
         ("ART7_VI",), ("AZURE", "GITHUB"),
         ("consentimentos",), ("consentimentos_encerrados",),
-        medidas="O consentimento encerrado fica como prova pelo prazo da regra e depois é apagado pela rotina; revogar apaga a foto que ele cobria; só quem cuida "
-                "da privacidade vê a lista, e quem só lê a tela da foto não vê o nome de quem assinou.",
-        observacoes="Hoje cobre as fotos (Diretoria, eventos e parcerias); a v7.1c acrescenta o consentimento do responsável pelo beneficiário criança.",
+        medidas="O consentimento encerrado fica como prova pelo prazo da regra e depois é apagado pela rotina; na foto, revogar apaga a foto que ele cobria; no "
+                "atendimento social, revogar fecha os registros novos (o que já existe fica). A lista toda é de quem cuida da privacidade; quem só lê a tela da "
+                "foto não vê o nome de quem assinou; quem cuida dos projetos vê o consentimento de cada beneficiário (com o responsável e o vínculo).",
+        observacoes="Cobre as fotos (Diretoria, eventos e parcerias) e o atendimento social dos beneficiários (com o responsável, se é criança ou adolescente).",
     ),
     Atividade(
         "OPERACAO", "Registro de quem faz cada operação no painel",

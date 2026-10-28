@@ -10,6 +10,7 @@ import {
   RODADA,
   ver,
   vigiar,
+  consentimentoPelaRota,
 } from './apoio'
 
 // v7.0b - A CLASSIFICAÇÃO DOS DADOS LIGA CONTROLES (o que se vê na homologação):
@@ -161,6 +162,7 @@ test('encaminhamento ao posto de saúde: a Auditoria esconde a rede e registra q
   })
   const beneficiario = await api('post', '/api/beneficiarios/', {
     nome_completo: `Beneficiaria Encaminhamento ${RODADA}`,
+    data_nascimento: '1990-03-04T00:00:00',
   })
   const vinculo = await api('post', '/api/beneficiarios-projeto/', {
     id_beneficiario: beneficiario.id_beneficiario,
@@ -168,6 +170,12 @@ test('encaminhamento ao posto de saúde: a Auditoria esconde a rede e registra q
     papel: 'ATENDIDO',
     atendimento_por_familia: false,
   })
+  // v7.1c: sem o termo de consentimento registrado, o encaminhamento não grava
+  await consentimentoPelaRota(
+    page,
+    cab().Authorization,
+    beneficiario.id_beneficiario,
+  )
   const eu = await api('get', '/auth/me')
   await api('post', `/api/projetos/${String(projeto.id_projeto)}/equipe`, {
     id_associado: eu.id_associado,

@@ -15,11 +15,13 @@ from app.schemas.beneficiarios import (
     BeneficiarioAtualizar,
     BeneficiarioCriar,
     BeneficiarioProjetoCriar,
+    ConsentimentoDoBeneficiario,
     EncaminhamentoRedeExternaCriar,
     RegistroAtendimentoCriar,
+    RevogarConsentimento,
 )
 from app.security import exigir_permissao
-from app.services import beneficiarios
+from app.services import beneficiarios, consentimentos
 
 router = APIRouter()
 _permissao_projetos = exigir_permissao("projetos")
@@ -30,14 +32,27 @@ def _ip_origem(request: Request) -> str:
     return request.client.host if request.client else None
 
 
-def _serializar_beneficiario(b, pessoa=None) -> dict:
+def _serializar_beneficiario(b, pessoa=None, consentimento=None) -> dict:
+    """v7.1c: `consentimento` é o vigente (quem consentiu, o responsável e o vínculo, a versão, a data; pode ser só a marca antiga do cadastro);
+    `consentimento_lgpd_registrado` diz se há o TERMO que abre o atendimento (a marca antiga não abre); `observacao_consentimento` é a anotação da marca antiga
+    (só leitura)."""
     return {
         "id_beneficiario": b.id_beneficiario, "id_pessoa": b.id_pessoa,
         "nome_completo": pessoa.nome_completo if pessoa else None,
         "data_nascimento": pessoa.data_nascimento if pessoa else None,
-        "consentimento_lgpd_registrado": b.consentimento_lgpd_registrado,
-        "observacao_consentimento": b.observacao_consentimento, "data_consentimento": b.data_consentimento,
+        "consentimento_lgpd_registrado": consentimentos.vale_para_gravar(consentimento),
+        "consentimento": consentimentos.para_o_painel(consentimento),
+        "observacao_consentimento": b.observacao_consentimento,
     }
+
+
+def _consentimentos_vigentes(db: Session, ids: list[int]) -> dict:
+    from app.models.privacidade import Consentimento
+
+    if not ids:
+        return {}
+    return {c.id_origem: c for c in db.query(Consentimento).filter(
+        Consentimento.origem == consentimentos.BENEFICIARIO, Consentimento.id_origem.in_(set(ids)), Consentimento.encerrado_em.is_(None))}
 
 
 def _mapear_pessoas(db: Session, ids_pessoa: list[int]) -> dict:
@@ -49,9 +64,7 @@ def _mapear_pessoas(db: Session, ids_pessoa: list[int]) -> dict:
 @router.post("/api/beneficiarios/", summary="Cadastrar Beneficiário (papel de Pessoa)")
 def criar_beneficiario_endpoint(dados: BeneficiarioCriar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
     beneficiario = beneficiarios.criar_beneficiario(
-        db, id_pessoa=dados.id_pessoa, nome_completo=dados.nome_completo, data_nascimento=dados.data_nascimento,
-        consentimento_lgpd_registrado=dados.consentimento_lgpd_registrado, observacao_consentimento=dados.observacao_consentimento,
-        id_usuario=usuario.id_usuario,
+        db, id_pessoa=dados.id_pessoa, nome_completo=dados.nome_completo, data_nascimento=dados.data_nascimento, id_usuario=usuario.id_usuario,
     )
     registrar_auditoria(
         db, usuario, "beneficiarios", "CREATE", id_registro_afetado=beneficiario.id_beneficiario,
@@ -67,21 +80,38 @@ def listar_beneficiarios_endpoint(
 ):
     lista = beneficiarios.listar_beneficiarios(db, busca=busca, id_projeto=id_projeto)
     pessoas = _mapear_pessoas(db, [b.id_pessoa for b in lista])
-    return [_serializar_beneficiario(b, pessoas.get(b.id_pessoa)) for b in lista]
+    vigentes = _consentimentos_vigentes(db, [b.id_beneficiario for b in lista])
+    return [_serializar_beneficiario(b, pessoas.get(b.id_pessoa), vigentes.get(b.id_beneficiario)) for b in lista]
 
 
-@router.put("/api/beneficiarios/{id_beneficiario}", summary="Editar Beneficiário (dados de Pessoa + consentimento LGPD)")
+@router.put("/api/beneficiarios/{id_beneficiario}", summary="Editar Beneficiário (dados de Pessoa)")
 def atualizar_beneficiario_endpoint(id_beneficiario: int, dados: BeneficiarioAtualizar, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_projetos)):
     beneficiario = beneficiarios.atualizar_beneficiario(
-        db, id_beneficiario=id_beneficiario, nome_completo=dados.nome_completo, data_nascimento=dados.data_nascimento,
-        consentimento_lgpd_registrado=dados.consentimento_lgpd_registrado, observacao_consentimento=dados.observacao_consentimento,
-        id_usuario=usuario.id_usuario,
+        db, id_beneficiario=id_beneficiario, nome_completo=dados.nome_completo, data_nascimento=dados.data_nascimento, id_usuario=usuario.id_usuario,
     )
-    registrar_auditoria(
-        db, usuario, "beneficiarios", "UPDATE", id_registro_afetado=beneficiario.id_beneficiario,
-        dados_depois={"consentimento_lgpd_registrado": beneficiario.consentimento_lgpd_registrado}, ip_origem=_ip_origem(request),
-    )
+    registrar_auditoria(db, usuario, "beneficiarios", "UPDATE", id_registro_afetado=beneficiario.id_beneficiario, ip_origem=_ip_origem(request))
     return {"mensagem": "Beneficiário atualizado."}
+
+
+@router.post("/api/beneficiarios/{id_beneficiario}/consentimento", summary="Registrar o termo de consentimento do atendimento social assinado (substitui o vigente)")
+def registrar_consentimento_endpoint(id_beneficiario: int, dados: ConsentimentoDoBeneficiario, request: Request, db: Session = Depends(get_db),
+                                     usuario=Depends(_permissao_projetos)):
+    c = beneficiarios.registrar_consentimento(
+        db, usuario, id_beneficiario=id_beneficiario, dado_por=dados.dado_por, nome_responsavel=dados.nome_responsavel, vinculo=dados.vinculo, meio=dados.meio,
+        id_documento=dados.id_documento, assinado_em=dados.assinado_em, versao_do_termo=dados.versao_do_termo,
+    )
+    registrar_auditoria(db, usuario, "consentimentos", "CONSENTIMENTO_REGISTRADO", id_registro_afetado=c.id_consentimento,
+                        dados_depois={"id_beneficiario": id_beneficiario, "versao": c.versao, "dado_por": c.dado_por, "meio": c.meio}, ip_origem=_ip_origem(request))
+    return consentimentos.para_o_painel(c)
+
+
+@router.post("/api/beneficiarios/{id_beneficiario}/consentimento/revogar", summary="A pessoa (ou o responsável) retirou o consentimento: nada novo grava")
+def revogar_consentimento_endpoint(id_beneficiario: int, dados: RevogarConsentimento, request: Request, db: Session = Depends(get_db),
+                                   usuario=Depends(_permissao_projetos)):
+    c = beneficiarios.revogar_consentimento(db, usuario, id_beneficiario=id_beneficiario, motivo=dados.motivo)
+    registrar_auditoria(db, usuario, "consentimentos", "CONSENTIMENTO_REVOGADO", id_registro_afetado=c.id_consentimento,
+                        dados_depois={"id_beneficiario": id_beneficiario}, ip_origem=_ip_origem(request))
+    return consentimentos.para_o_painel(c)
 
 
 @router.get("/api/beneficiarios/exportar", summary="Exportar beneficiários (v4.10 - permissão própria, nunca casual)")
@@ -91,10 +121,11 @@ def exportar_beneficiarios_endpoint(
 ):
     lista = beneficiarios.listar_beneficiarios(db, busca=busca, id_projeto=id_projeto)
     pessoas = _mapear_pessoas(db, [b.id_pessoa for b in lista])
+    vigentes = _consentimentos_vigentes(db, [b.id_beneficiario for b in lista])
     registrar_auditoria(
         db, usuario, "beneficiarios", "EXPORTAR", dados_depois={"quantidade": len(lista)}, ip_origem=_ip_origem(request),
     )
-    return [_serializar_beneficiario(b, pessoas.get(b.id_pessoa)) for b in lista]
+    return [_serializar_beneficiario(b, pessoas.get(b.id_pessoa), vigentes.get(b.id_beneficiario)) for b in lista]
 
 
 @router.get("/api/beneficiarios/{id_beneficiario}/nucleo-familiar", summary="Núcleo familiar do beneficiário (reaproveita DependenteFamiliar, v1.7)")
@@ -134,12 +165,16 @@ def vincular_a_projeto_endpoint(dados: BeneficiarioProjetoCriar, request: Reques
 
 @router.get("/api/projetos/{id_projeto}/beneficiarios", summary="Listar beneficiários vinculados a um projeto")
 def listar_vinculos_do_projeto_endpoint(id_projeto: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos)):
+    vinculos = beneficiarios.listar_vinculos_do_projeto(db, id_projeto=id_projeto)
+    vigentes = _consentimentos_vigentes(db, [v.id_beneficiario for v in vinculos])
     return [
         {
             "id_vinculo": v.id_vinculo, "id_beneficiario": v.id_beneficiario, "papel": v.papel,
             "atendimento_por_familia": v.atendimento_por_familia, "data_inicio": v.data_inicio, "data_fim": v.data_fim,
+            # v7.1c: sem o consentimento vigente o prontuário e o encaminhamento não gravam (a tela avisa antes)
+            "consentimento_vigente": consentimentos.vale_para_gravar(vigentes.get(v.id_beneficiario)),
         }
-        for v in beneficiarios.listar_vinculos_do_projeto(db, id_projeto=id_projeto)
+        for v in vinculos
     ]
 
 

@@ -927,7 +927,13 @@ function SecaoOrcamentoRelatorio({ projeto }: { projeto: Projeto }) {
 // v4.2 (FASE 4) - prontuário e encaminhamento são **visíveis só pra equipe ativa deste projeto**
 // (dado sensível) - a API recusa com 403 quem não está na equipe, mesmo com permissão geral de
 // projetos; o painel só repassa a mensagem de erro, nunca finge que decide isso sozinho.
-function PainelProntuario({ idVinculo }: { idVinculo: number }) {
+function PainelProntuario({
+  idVinculo,
+  consentimentoVigente,
+}: {
+  idVinculo: number
+  consentimentoVigente: boolean
+}) {
   const queryClient = useQueryClient()
   const {
     data: atendimentos,
@@ -951,13 +957,17 @@ function PainelProntuario({ idVinculo }: { idVinculo: number }) {
     queryKey: ['relatorio-de-impacto-liberado', 'ATENDIMENTO_SOCIAL'],
     queryFn: () => tratamentoLiberado('ATENDIMENTO_SOCIAL'),
   })
-  const fechado = situacaoDoTratamento?.liberado === false
+  const fechadoPeloRelatorio = situacaoDoTratamento?.liberado === false
+  // v7.1c - sem o consentimento vigente (o termo assinado pela pessoa ou pelo responsável), o servidor também recusa
+  const fechado = fechadoPeloRelatorio || !consentimentoVigente
 
   // a recusa por relatório de impacto (409) relê o "está liberado?": a tela passa a avisar em vez de oferecer o formulário
-  const releLiberado = () =>
+  const releLiberado = () => {
     void queryClient.invalidateQueries({
       queryKey: ['relatorio-de-impacto-liberado'],
     })
+    void queryClient.invalidateQueries({ queryKey: ['beneficiarios-projeto'] })
+  }
   const registrarRelato = useMutation({
     mutationFn: (v: z.infer<typeof registroAtendimentoCriarSchema>) =>
       registrarAtendimento(idVinculo, v.relato),
@@ -989,7 +999,19 @@ function PainelProntuario({ idVinculo }: { idVinculo: number }) {
         <p className="mb-1 text-xs font-semibold text-muted-foreground">
           Prontuário de atendimento
         </p>
-        {fechado && (
+        {!consentimentoVigente && (
+          <p
+            role="alert"
+            data-testid="prontuario-sem-consentimento"
+            className="mb-2 rounded-md border border-amber-600/30 bg-amber-600/10 px-3 py-2 text-xs"
+          >
+            Sem o consentimento registrado da pessoa atendida (ou do
+            responsável, se é criança ou adolescente), o prontuário e o
+            encaminhamento não gravam: registre o termo assinado na tela
+            Beneficiários. O que já está registrado continua aqui.
+          </p>
+        )}
+        {fechadoPeloRelatorio && (
           <p
             role="alert"
             data-testid="prontuario-fechado"
@@ -1180,7 +1202,6 @@ function SecaoBeneficiarios({ idProjeto }: { idProjeto: number }) {
           schema={beneficiarioCriarSchema}
           defaultValues={{
             nome_completo: '',
-            consentimento_lgpd_registrado: false,
           }}
           onSubmit={(v) => criarENovo.mutateAsync(v)}
           className="mb-3 flex flex-wrap items-end gap-2 rounded-md border border-border p-2"
@@ -1197,16 +1218,14 @@ function SecaoBeneficiarios({ idProjeto }: { idProjeto: number }) {
                   mensagem={form.formState.errors.nome_completo?.message}
                 />
               </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  {...form.register('consentimento_lgpd_registrado')}
-                />
-                Consentimento registrado
-              </label>
               <Button type="submit" size="sm" disabled={criarENovo.isPending}>
                 Criar e vincular
               </Button>
+              <p className="w-full text-xs text-muted-foreground">
+                O consentimento (o termo assinado pela pessoa ou pelo
+                responsável) é registrado na tela Beneficiários; sem ele o
+                prontuário não grava.
+              </p>
             </>
           )}
         </FormShell>
@@ -1274,6 +1293,7 @@ function SecaoBeneficiarios({ idProjeto }: { idProjeto: number }) {
               <span>
                 Beneficiário #{v.id_beneficiario} — {v.papel}
                 {v.atendimento_por_familia && ' · por família'}
+                {!v.consentimento_vigente && ' · sem consentimento'}
               </span>
               <Button
                 variant="outline"
@@ -1288,7 +1308,10 @@ function SecaoBeneficiarios({ idProjeto }: { idProjeto: number }) {
               </Button>
             </div>
             {vinculoAberto === v.id_vinculo && (
-              <PainelProntuario idVinculo={v.id_vinculo} />
+              <PainelProntuario
+                idVinculo={v.id_vinculo}
+                consentimentoVigente={v.consentimento_vigente}
+              />
             )}
           </div>
         ))}

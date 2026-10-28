@@ -28,9 +28,22 @@ def _criar_projeto(client, auth_headers) -> int:
     return r.json()["id_projeto"]
 
 
-def _criar_beneficiario(client, auth_headers, nome=None) -> int:
-    r = client.post("/api/beneficiarios/", json={"nome_completo": nome or f"Beneficiário Teste {uuid.uuid4().hex[:6]}"}, headers=auth_headers)
+def _registrar_consentimento(client, auth_headers, id_beneficiario, **extra) -> dict:
+    """v7.1c: o termo de consentimento do atendimento social assinado (sem ele o prontuário não grava)."""
+    from app.textos_de_privacidade import versao_atual
+
+    corpo = {"dado_por": "titular", "meio": "termo_em_papel", "assinado_em": "2026-10-20", "versao_do_termo": versao_atual("ATENDIMENTO_SOCIAL"), **extra}
+    return client.post(f"/api/beneficiarios/{id_beneficiario}/consentimento", json=corpo, headers=auth_headers)
+
+
+def _criar_beneficiario(client, auth_headers, nome=None, com_consentimento=True) -> int:
+    # v7.1c: com a data de nascimento (de adulto): sem ela o termo não se registra
+    r = client.post("/api/beneficiarios/", json={"nome_completo": nome or f"Beneficiário Teste {uuid.uuid4().hex[:6]}",
+                                                 "data_nascimento": "1990-05-10T00:00:00"}, headers=auth_headers)
     assert r.status_code == 200, r.text
+    if com_consentimento:
+        c = _registrar_consentimento(client, auth_headers, r.json()["id_beneficiario"])
+        assert c.status_code == 200, c.text
     return r.json()["id_beneficiario"]
 
 
@@ -175,9 +188,10 @@ def test_listar_beneficiarios_filtra_por_busca_e_projeto(client, auth_headers):
     assert encontrados == [id_ana]
 
 
-def test_atualizar_beneficiario_edita_dados_de_pessoa_e_consentimento(client, auth_headers, db):
-    id_beneficiario = _criar_beneficiario(client, auth_headers, nome="Nome Antigo")
+def test_atualizar_beneficiario_edita_dados_de_pessoa_e_a_marca_antiga_nao_vale_mais(client, auth_headers, db):
+    id_beneficiario = _criar_beneficiario(client, auth_headers, nome="Nome Antigo", com_consentimento=False)
 
+    # v7.1c: a marca "consentimento registrado" não vale mais (é ignorada): o consentimento é o termo assinado, registrado à parte
     r = client.put(f"/api/beneficiarios/{id_beneficiario}", json={
         "nome_completo": "Nome Corrigido", "consentimento_lgpd_registrado": True, "observacao_consentimento": "Assinado em papel",
     }, headers=auth_headers)
@@ -185,9 +199,10 @@ def test_atualizar_beneficiario_edita_dados_de_pessoa_e_consentimento(client, au
 
     atualizado = next(b for b in client.get("/api/beneficiarios/", headers=auth_headers).json() if b["id_beneficiario"] == id_beneficiario)
     assert atualizado["nome_completo"] == "Nome Corrigido"
-    assert atualizado["consentimento_lgpd_registrado"] is True
-    assert atualizado["observacao_consentimento"] == "Assinado em papel"
-    assert atualizado["data_consentimento"] is not None
+    assert atualizado["consentimento_lgpd_registrado"] is False and atualizado["consentimento"] is None
+    assert _registrar_consentimento(client, auth_headers, id_beneficiario).status_code == 200
+    atualizado = next(b for b in client.get("/api/beneficiarios/", headers=auth_headers).json() if b["id_beneficiario"] == id_beneficiario)
+    assert atualizado["consentimento_lgpd_registrado"] is True and atualizado["consentimento"]["termo"] == "ATENDIMENTO_SOCIAL"
 
 
 def test_exportar_beneficiarios_exige_permissao_propria_e_grava_auditoria(client, auth_headers):

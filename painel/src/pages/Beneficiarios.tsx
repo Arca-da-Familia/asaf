@@ -7,6 +7,7 @@ import { DataTable, type ColunaTabela } from '@/components/data/DataTable'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { ConsentimentoDoBeneficiario } from '@/components/privacidade/ConsentimentoDoBeneficiario'
 import { NucleoFamiliarDoBeneficiario } from '@/components/projetos/NucleoFamiliarDoBeneficiario'
 import { Button } from '@/components/ui/button'
 import {
@@ -40,7 +41,6 @@ function FormularioEditarBeneficiario({
       editarBeneficiario(beneficiario.id_beneficiario, {
         ...v,
         data_nascimento: v.data_nascimento || undefined,
-        observacao_consentimento: v.observacao_consentimento || undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['beneficiarios'] })
@@ -64,9 +64,6 @@ function FormularioEditarBeneficiario({
           nome_completo: beneficiario.nome_completo ?? '',
           // a API devolve data e hora ("1990-03-04T00:00:00"); o campo de data só aceita aaaa-mm-dd
           data_nascimento: beneficiario.data_nascimento?.slice(0, 10) ?? '',
-          consentimento_lgpd_registrado:
-            beneficiario.consentimento_lgpd_registrado,
-          observacao_consentimento: beneficiario.observacao_consentimento ?? '',
         }}
         onSubmit={(v) => salvar.mutateAsync(v)}
         className="flex flex-wrap items-end gap-2"
@@ -95,22 +92,6 @@ function FormularioEditarBeneficiario({
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
               />
             </div>
-            <div className="w-full">
-              <label className="mb-1 block text-xs text-muted-foreground">
-                Observação sobre o consentimento
-              </label>
-              <input
-                {...form.register('observacao_consentimento')}
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              />
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                {...form.register('consentimento_lgpd_registrado')}
-              />
-              Consentimento LGPD registrado
-            </label>
             <Button type="submit" size="sm" disabled={salvar.isPending}>
               {salvar.isPending ? 'Salvando…' : 'Salvar'}
             </Button>
@@ -178,7 +159,11 @@ function SecaoExportarBeneficiarios({
                     {b.data_nascimento ? formatarDia(b.data_nascimento) : '—'}
                   </td>
                   <td className="px-3 py-2">
-                    {b.consentimento_lgpd_registrado ? 'Sim' : 'Não'}
+                    {b.consentimento_lgpd_registrado
+                      ? `Sim (termo versão ${b.consentimento?.versao ?? '—'})`
+                      : b.consentimento
+                        ? 'Só a marca antiga (sem o termo)'
+                        : 'Não'}
                   </td>
                 </tr>
               ))}
@@ -203,6 +188,7 @@ export function BeneficiariosPage() {
   )
   const [idEditando, setIdEditando] = useState<number | null>(null)
   const [idVendoNucleo, setIdVendoNucleo] = useState<number | null>(null)
+  const [idConsentimento, setIdConsentimento] = useState<number | null>(null)
 
   const { data: projetos } = useQuery({
     queryKey: ['projetos'],
@@ -222,6 +208,8 @@ export function BeneficiariosPage() {
   const editando = dados.find((b) => b.id_beneficiario === idEditando) ?? null
   const vendoNucleo =
     dados.find((b) => b.id_beneficiario === idVendoNucleo) ?? null
+  const vendoConsentimento =
+    dados.find((b) => b.id_beneficiario === idConsentimento) ?? null
 
   const colunas: ColunaTabela<Beneficiario>[] = [
     {
@@ -242,12 +230,16 @@ export function BeneficiariosPage() {
       id: 'consentimento',
       header: 'Consentimento LGPD',
       cell: ({ row }) =>
-        row.original.consentimento_lgpd_registrado ? (
+        row.original.consentimento ? (
           <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
-            Registrado
+            {row.original.consentimento.meio === 'declaracao_antiga'
+              ? 'Só a marca antiga (o prontuário não grava)'
+              : `Termo versão ${row.original.consentimento.versao}`}
           </span>
         ) : (
-          <span className="text-xs text-muted-foreground">Pendente</span>
+          <span className="text-xs text-destructive">
+            Sem consentimento (o prontuário não grava)
+          </span>
         ),
     },
     {
@@ -282,6 +274,20 @@ export function BeneficiariosPage() {
           >
             Núcleo familiar
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label={`Consentimento de ${row.original.nome_completo ?? `pessoa ${row.original.id_pessoa}`}`}
+            onClick={() =>
+              setIdConsentimento((atual) =>
+                atual === row.original.id_beneficiario
+                  ? null
+                  : row.original.id_beneficiario,
+              )
+            }
+          >
+            Consentimento
+          </Button>
         </div>
       ),
     },
@@ -291,7 +297,7 @@ export function BeneficiariosPage() {
     <>
       <PageHeader
         titulo="Beneficiários"
-        descricao="Busca cruzada entre projetos — identidade e consentimento LGPD. Vínculo, prontuário e encaminhamento continuam dentro de cada projeto."
+        descricao="Busca cruzada entre projetos — identidade e o consentimento do atendimento social (o termo assinado). Vínculo, prontuário e encaminhamento continuam dentro de cada projeto."
       />
 
       <section className="rounded-xl border border-border bg-card p-6">
@@ -339,6 +345,12 @@ export function BeneficiariosPage() {
           />
         )}
 
+        {vendoConsentimento && (
+          <ConsentimentoDoBeneficiario
+            key={vendoConsentimento.id_beneficiario}
+            beneficiario={vendoConsentimento}
+          />
+        )}
         {vendoNucleo && (
           <NucleoFamiliarDoBeneficiario
             beneficiario={vendoNucleo}

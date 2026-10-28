@@ -15,6 +15,52 @@ export type TermoDaTela = {
   meios: { codigo: string; rotulo: string }[]
 }
 
+// v7.1c - o consentimento do atendimento social de um beneficiário (o termo assinado; registrar de novo substitui o vigente)
+export type ConsentimentoDoBeneficiarioEnviado = {
+  dado_por: '' | 'titular' | 'responsavel'
+  nome_responsavel: string | null
+  vinculo: string | null
+  meio: string
+  id_documento: number | null
+  assinado_em: string
+  versao_do_termo: string
+}
+
+export const registrarConsentimentoDoBeneficiario = (
+  idBeneficiario: number,
+  dados: ConsentimentoDoBeneficiarioEnviado,
+) =>
+  apiFetch<ResumoDoConsentimento>(
+    `/api/beneficiarios/${idBeneficiario}/consentimento`,
+    { method: 'POST', body: JSON.stringify(dados) },
+  )
+
+export const revogarConsentimentoDoBeneficiario = (
+  idBeneficiario: number,
+  motivo: string,
+) =>
+  apiFetch<ResumoDoConsentimento>(
+    `/api/beneficiarios/${idBeneficiario}/consentimento/revogar`,
+    { method: 'POST', body: JSON.stringify({ motivo: motivo.trim() || null }) },
+  )
+
+/** Menor de 18 anos hoje (pelo relógio de quem está na tela); sem data de nascimento, não se sabe. */
+export function menorDeIdade(
+  nascimento: string | null,
+  hoje: Date = new Date(),
+): boolean {
+  if (!nascimento) return false
+  const [ano, mes, dia] = nascimento.slice(0, 10).split('-').map(Number)
+  if (!ano || !mes || !dia) return false
+  let idade = hoje.getFullYear() - ano
+  if (
+    hoje.getMonth() + 1 < mes ||
+    (hoje.getMonth() + 1 === mes && hoje.getDate() < dia)
+  )
+    idade -= 1
+  return idade < 18
+}
+
 export const obterTermoDaTela = (origem: OrigemDeConsentimento) =>
   apiFetch<TermoDaTela>(`/api/consentimentos/termo-da-tela/${origem}`)
 

@@ -64,7 +64,6 @@ test('preparo: três beneficiários e o vínculo de mãe e filho', async ({
   for (const nome of [MAE, FILHO, SOZINHO]) {
     const criado = await chamar('POST', '/api/beneficiarios/', {
       nome_completo: nome,
-      consentimento_lgpd_registrado: true,
     })
     expect(criado.status, `criar ${nome}`).toBe(200)
     const lista = (

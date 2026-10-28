@@ -45,6 +45,8 @@ class Texto:
     # dizia "Li e aceito."; a filiação 1 e 2, "Li o aviso ... e concordo com o uso dos meus dados ..."
     tipo: Optional[str] = None
     caixa: Optional[str] = None
+    # a caixa era marcada pela EQUIPE no painel (declaração de quem enviava a foto, marca no cadastro do beneficiário), não pela pessoa
+    pela_equipe: bool = False
 
     @property
     def impressao(self) -> str:
@@ -66,6 +68,10 @@ PONTOS: tuple[Ponto, ...] = (
     # v7.1b - os TERMOS de consentimento (a pessoa assina; quem envia a foto registra no painel quem autorizou e como)
     Ponto("IMAGEM_DIRETORIA", "Autorização de uso de imagem: foto da Diretoria e do Conselho no site", CONSENTIMENTO,
           "painel: Governança > mandatos, foto para o site (o termo é impresso e assinado)", "GOVERNANCA", ("ART7_I",), "Assinatura no termo"),
+    # v7.1c - o consentimento para o atendimento social (prontuário e encaminhamentos: dado sensível, muitas vezes de criança)
+    Ponto("ATENDIMENTO_SOCIAL", "Consentimento para o atendimento social (prontuário e encaminhamentos)", CONSENTIMENTO,
+          "painel: Beneficiários (o termo é impresso e assinado pela pessoa atendida ou pelo responsável)", "BENEFICIARIOS", ("ART11_I", "ART7_I"),
+          "Assinatura no termo"),
     Ponto("IMAGEM_ATIVIDADE", "Autorização de uso de imagem: fotos das atividades (eventos e parcerias)", CONSENTIMENTO,
           "painel: fotos de evento (Projetos e eventos) e de etapa de parceria (Transparência; o termo é impresso e assinado)", "PROJETOS_EVENTOS", ("ART7_I",),
           "Assinatura no termo"),
@@ -142,7 +148,7 @@ TEXTOS: tuple[Texto, ...] = (
     # antes da v7.1b o sistema não tinha o texto do termo que a pessoa assinava (se assinava)
     Texto("IMAGEM_DIRETORIA", "1", date(2026, 10, 15),
           "Esta pessoa autorizou o uso da imagem dela no site da ASAF. A foto fica pública na página Diretoria. Se ela retirar a autorização, use “Apagar a foto”: some "
-          "do sistema na hora e do site na próxima publicação.", reconstituido=True, caixa="Esta pessoa autorizou o uso da imagem dela no site da ASAF",
+          "do sistema na hora e do site na próxima publicação.", reconstituido=True, caixa="Esta pessoa autorizou o uso da imagem dela no site da ASAF", pela_equipe=True,
           observacao="Declaração de quem enviou a foto no painel (o texto da caixa e a explicação ao lado). O termo que a pessoa assinou, se houve, ficava fora do sistema."),
     Texto("IMAGEM_DIRETORIA", "2", date(2026, 10, 27),
           "Eu, identificado(a) abaixo, autorizo a ASAF - Associação Arca da Família a publicar a minha fotografia na página Diretoria do site da associação, junto do "
@@ -157,7 +163,7 @@ TEXTOS: tuple[Texto, ...] = (
           "Assinatura: ______________________________"),
     Texto("IMAGEM_ATIVIDADE", "1", date(2026, 10, 4),
           "Há autorização de uso de imagem de todas as pessoas que aparecem na foto (dos responsáveis, no caso de criança ou adolescente). Marque somente se existe de "
-          "verdade.", reconstituido=True, caixa="Há autorização de uso de imagem",
+          "verdade.", reconstituido=True, caixa="Há autorização de uso de imagem", pela_equipe=True,
           observacao="Declaração de quem enviou a foto no painel. O termo que as pessoas assinaram, se houve, ficava fora do sistema."),
     Texto("IMAGEM_ATIVIDADE", "2", date(2026, 10, 27),
           "Eu, identificado(a) abaixo, autorizo a ASAF - Associação Arca da Família a usar fotografias em que eu apareço, ou em que aparece a criança ou o adolescente "
@@ -174,6 +180,28 @@ TEXTOS: tuple[Texto, ...] = (
           "Se autoriza por uma criança ou um adolescente, o nome dela(e) e o vínculo (mãe, pai, responsável legal): ______________________________\n"
           "Assinatura do adolescente (se for o caso): ______________________________\n"
           "Atividade: ______________________________\nLocal e data: ______________________________\nAssinatura: ______________________________"),
+    # ---------------------------------------------------------------- o atendimento social (v7.1c). A versão 1 é a MARCA que quem cadastrava o beneficiário
+    # fazia no painel: o sistema não guardava texto nenhum nem a exigia para registrar atendimento
+    Texto("ATENDIMENTO_SOCIAL", "1", date(2026, 9, 30),
+          "Consentimento LGPD registrado", reconstituido=True, caixa="Consentimento LGPD registrado", pela_equipe=True,
+          observacao="Marca que quem cadastrava o beneficiário fazia no painel (com uma observação livre). O sistema não guardava o texto do consentimento, nem "
+                     "quem o deu, nem o exigia para registrar atendimento."),
+    Texto("ATENDIMENTO_SOCIAL", "2", date(2026, 10, 27),
+          "Eu, identificado(a) abaixo, autorizo a ASAF - Associação Arca da Família a registrar, no seu sistema, os dados do atendimento social que recebo, ou que "
+          "recebe a criança ou o adolescente por quem sou responsável (identificado abaixo), nos projetos da associação: o relato de cada atendimento e os "
+          "encaminhamentos à rede de proteção (CRAS, escola, posto de saúde, Conselho Tutelar), que podem trazer informação de saúde e da situação da família (dado "
+          "pessoal sensível; LGPD, art. 11, I). Esses registros servem só para acompanhar o atendimento e dar continuidade a ele; só a equipe do projeto os vê, e "
+          "cada leitura fica registrada no sistema. Se o atendimento é da família, o relato pode falar das pessoas da casa.\n\n"
+          "CRIANÇA OU ADOLESCENTE: se a pessoa atendida é criança, quem consente é um dos pais ou o responsável legal (LGPD, art. 14, § 1º); se é adolescente, um dos "
+          "pais ou o responsável legal assina junto, e o consentimento é sempre no melhor interesse da criança ou do adolescente (LGPD, art. 14).\n\n"
+          "Posso retirar este consentimento a qualquer momento, sem custo, pedindo à equipe do projeto, à secretaria ou pela solicitação do titular de dados no site: "
+          "assim que a retirada é registrada no sistema, nenhum atendimento novo é registrado. O que já foi registrado continua guardado, visto só pela equipe do "
+          "projeto, e a eliminação dele eu posso pedir pela solicitação do titular de dados (LGPD, art. 18, VI). A ASAF guarda o registro deste consentimento (quem assinou, quando e como) por 5 anos depois que ele termina, como prova. Saiba mais na Política de "
+          "Privacidade (asaf.org.br/privacidade).\n\n"
+          "Nome completo de quem consente: ______________________________\nCPF: ______________________________\n"
+          "Se consente por uma criança ou um adolescente, o nome dela(e) e o vínculo (mãe, pai, responsável legal): ______________________________\n"
+          "Assinatura do adolescente (se for o caso): ______________________________\n"
+          "Projeto(s) em que é atendido(a): ______________________________\nLocal e data: ______________________________\nAssinatura: ______________________________"),
     # ---------------------------------------------------------------- conta de visitante
     Texto("VISITANTE", "1", date(2026, 10, 16),
           "O seu e-mail é usado para enviar o código, para mostrar o que está ligado a ele e para limitar os pedidos; fica guardado junto do código e da sessão pelo tempo descrito "
@@ -260,6 +288,7 @@ def _versao_do_banco(r, catalogo: Optional[Texto]) -> dict:
         "reconstituido": bool(r.reconstituido), "observacao": r.observacao, "registrado_em": r.registrado_em, "tipo": r.tipo, "caixa": r.caixa,
         # o catálogo do código diverge do que foi gravado (vale o gravado: é o que foi mostrado)
         "diverge_do_codigo": catalogo is not None and catalogo.impressao != r.impressao,
+        "marcada_pela_equipe": bool(catalogo and catalogo.pela_equipe),
     }
 
 

@@ -491,3 +491,83 @@ export async function versaoDoTermo(
   expect(r.status()).toBe(200)
   return ((await r.json()) as { versao: string }).versao
 }
+
+/** v7.1c - na tela Beneficiários, registra o termo do atendimento social assinado pela própria pessoa (adulta), como a secretaria faria. */
+export async function registrarConsentimentoDoBeneficiario(
+  page: Page,
+  nome: string,
+  nascimento = '1990-03-04',
+): Promise<void> {
+  await page.goto('/beneficiarios')
+  await campo(page, 'Buscar por nome').fill(nome)
+  await page
+    .getByRole('row')
+    .filter({ hasText: nome })
+    .first()
+    .getByRole('button', { name: `Consentimento de ${nome}` })
+    .click()
+  const bloco = page.getByRole('region', {
+    name: `Consentimento do atendimento social de ${nome}`,
+  })
+  // sem a data de nascimento não se registra o termo (é ela que diz quem consente): informa a de um adulto, como a secretaria faria em Editar
+  if (await bloco.locator('[data-sem-nascimento]').isVisible()) {
+    await page
+      .getByRole('row')
+      .filter({ hasText: nome })
+      .first()
+      .getByRole('button', { name: 'Editar' })
+      .click()
+    await campo(page, 'Nascimento').fill(nascimento)
+    const edicao = page
+      .locator('div.rounded-md.border')
+      .filter({
+        has: page.getByRole('heading', { name: /^Editar beneficiário #/ }),
+      })
+    await edicao.getByRole('button', { name: 'Salvar', exact: true }).click()
+    await expect(edicao).toHaveCount(0)
+  }
+  await bloco
+    .getByRole('button', {
+      name: /^Registrar (o termo assinado|um termo novo)$/,
+    })
+    .click()
+  await bloco.getByRole('radio', { name: 'A própria pessoa atendida' }).check()
+  await preencherOTermoDeImagem(bloco)
+  await bloco.getByRole('button', { name: 'Registrar o consentimento' }).click()
+  await expect(bloco.getByRole('status')).toContainText(
+    'Consentimento registrado',
+  )
+  await expect(bloco.locator('[data-consentimento-vigente]')).toBeVisible()
+}
+
+/** v7.1c - o mesmo pela rota, para quem monta o cenário pela API: sem o consentimento o prontuário e o encaminhamento não gravam. */
+export async function consentimentoPelaRota(
+  page: Page,
+  autorizacao: string,
+  idBeneficiario: unknown,
+): Promise<void> {
+  const cab = { Authorization: autorizacao }
+  const termo = await page.request.get(
+    `${API_HML}/api/consentimentos/termo-da-tela/beneficiario`,
+    { headers: cab },
+  )
+  expect(termo.status()).toBe(200)
+  const r = await page.request.post(
+    `${API_HML}/api/beneficiarios/${String(idBeneficiario)}/consentimento`,
+    {
+      headers: cab,
+      data: {
+        dado_por: 'titular',
+        nome_responsavel: null,
+        vinculo: null,
+        meio: 'termo_em_papel',
+        id_documento: null,
+        assinado_em: new Date(Date.now() - 86_400_000)
+          .toISOString()
+          .slice(0, 10),
+        versao_do_termo: ((await termo.json()) as { versao: string }).versao,
+      },
+    },
+  )
+  expect(r.status(), await r.text()).toBe(200)
+}

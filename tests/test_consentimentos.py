@@ -164,7 +164,7 @@ def test_a_lista_e_de_quem_cuida_da_privacidade_e_o_termo_de_quem_esta_logado(cl
     texto = " ".join(p.extract_text() for p in pypdf.PdfReader(io.BytesIO(pdf.content)).pages)
     assert "TERMO DE AUTORIZAÇÃO DE USO DE IMAGEM" in texto and "Assinatura" in texto and f"versão {tp.versao_atual('IMAGEM_DIRETORIA')}" in texto
     assert client.get("/api/consentimentos/termos/FILIACAO/pdf", headers=h).status_code == 404
-    assert client.get("/api/consentimentos/termo-da-tela/beneficiario", headers=h).status_code == 404
+    assert client.get("/api/consentimentos/termo-da-tela/nao_existe", headers=h).status_code == 404
     assert client.get("/api/consentimentos/termo-da-tela/foto_de_evento").status_code == 401
 
 

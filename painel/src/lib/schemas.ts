@@ -936,8 +936,6 @@ export const equipeProjetoCriarSchema = z.object({
 // v4.2 - Beneficiários e atendimento.
 export const beneficiarioCriarSchema = z.object({
   nome_completo: z.string().min(3, 'Informe o nome do beneficiário.'),
-  consentimento_lgpd_registrado: z.boolean(),
-  observacao_consentimento: z.string().optional(),
 })
 
 export const vincularBeneficiarioSchema = z.object({
@@ -963,8 +961,6 @@ export const encaminhamentoCriarSchema = z.object({
 export const beneficiarioEditarSchema = z.object({
   nome_completo: z.string().min(3, 'Informe o nome do beneficiário.'),
   data_nascimento: textoOpcional,
-  consentimento_lgpd_registrado: z.boolean(),
-  observacao_consentimento: z.string().optional(),
 })
 
 // v4.3 - reserva de espaço.

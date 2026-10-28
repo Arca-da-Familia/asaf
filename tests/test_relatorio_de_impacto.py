@@ -118,15 +118,16 @@ def test_rascunho_montado_aprovar_exige_tudo_e_versoes(client, db, auth_headers)
 
 
 def test_a_proposta_do_sistema_diz_o_que_o_codigo_faz(db):
-    """Cada afirmação do rascunho montado foi conferida com o código: quem entra na equipe (e fica na Auditoria), o consentimento ainda não exigido."""
+    """Cada afirmação do rascunho montado foi conferida com o código: quem entra na equipe (e fica na Auditoria), o consentimento exigido (v7.1c)."""
     proposta = ripd._proposta(db, ripd.buscar(CODIGO))
     tudo = " ".join(proposta.values())
     assert "curto" not in tudo, "o relato não tem limite de tamanho curto"
     assert "pode pôr alguém (ou a si) na equipe" in proposta["metodologia"] and "Auditoria" in proposta["metodologia"]
-    assert "ainda não o exige" in proposta["metodologia"] and "o sistema ainda não exige" in proposta["riscos"]
-    from app.models.beneficiarios import Beneficiario
+    assert "só é registrado com o termo de consentimento assinado" in proposta["metodologia"] and "ainda não" not in proposta["metodologia"]
+    assert "o sistema confia em quem registra" in proposta["riscos"]
+    from app.services import beneficiarios
 
-    assert hasattr(Beneficiario, "consentimento_lgpd_registrado"), "o campo citado no rascunho existe"
+    assert hasattr(beneficiarios, "_exigir_consentimento"), "a trava que o rascunho cita existe"
 
 
 def test_salvar_sobre_rascunho_que_outra_pessoa_mudou_recebe_409(client, db, auth_headers):

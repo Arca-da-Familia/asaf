@@ -46,12 +46,24 @@ export function LerAviso({ ponto, versao }: { ponto: string; versao: string }) {
                   ` · hoje vale a versão ${data.versao_atual}`}
               </p>
               <p className="mt-2 whitespace-pre-line">{data.texto_sem_links}</p>
-              {data.caixa && (
+              {data.caixa === 'Assinatura no termo' ? (
                 <p className="mt-2 text-xs">
-                  A pessoa marcou a caixa: “{data.caixa}”
-                  {data.tipo === 'consentimento' &&
-                    ' (era um pedido de consentimento)'}
+                  Dado pela assinatura no termo impresso (da pessoa ou, se é o
+                  caso, do responsável).
                 </p>
+              ) : data.caixa && data.marcada_pela_equipe ? (
+                <p className="mt-2 text-xs">
+                  Quem registrava no painel marcava: “{data.caixa}” (não era a
+                  pessoa que marcava).
+                </p>
+              ) : (
+                data.caixa && (
+                  <p className="mt-2 text-xs">
+                    A pessoa marcou a caixa: “{data.caixa}”
+                    {data.tipo === 'consentimento' &&
+                      ' (era um pedido de consentimento)'}
+                  </p>
+                )
               )}
             </>
           )}

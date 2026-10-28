@@ -14,6 +14,7 @@ import {
   ver,
   vigiar,
   type Papel,
+  consentimentoPelaRota,
 } from './apoio'
 
 // v7.0d - O RELATÓRIO DE IMPACTO (RIPD) ANTES DO ALTO RISCO. Pelas telas:
@@ -178,8 +179,17 @@ async function suspenderEAprovar(
   const beneficiario = await json(
     await page.request.post(`${API_HML}/api/beneficiarios/`, {
       headers: cab,
-      data: { nome_completo: `Beneficiaria RIPD ${RODADA}` },
+      data: {
+        nome_completo: `Beneficiaria RIPD ${RODADA}`,
+        data_nascimento: '1990-03-04T00:00:00',
+      },
     }),
+  )
+  // v7.1c: o consentimento registrado (o prontuário só grava com ele); aqui o que se confere é a trava do relatório
+  await consentimentoPelaRota(
+    page,
+    cab.Authorization,
+    beneficiario.id_beneficiario,
   )
   const vinculo = await json(
     await page.request.post(`${API_HML}/api/beneficiarios-projeto/`, {

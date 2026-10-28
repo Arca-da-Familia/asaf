@@ -305,8 +305,8 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
       '(contato, informação, solicitação de titular e voluntariado): 5 anos depois de respondidos ou encerrados, apagamos o nome, o assunto, a mensagem, a resposta, o motivo do encerramento e os dados de contato e de identificação (e-mail, telefone, CPF, data de nascimento); ficam o número do protocolo, o tipo, a situação e as datas. O pedido que ainda não foi respondido nem encerrado não é apagado.',
       'Pedido de filiação que não virou associado (recusado, ou pendente sem decisão): 2 anos depois da última mudança no pedido ou no voto de um sócio, ele e as decisões dos sócios sobre ele são apagados',
       'Pedido de doação pelo site que ninguém confirmou: 2 anos depois do prazo do pedido, é apagado.',
-      // v7.1b (Política 2.11): a prova de um consentimento que acabou
-      'Prova de um consentimento que acabou (a autorização de imagem retirada, a foto apagada ou o mandato terminado): 5 anos depois de acabar, é apagada.',
+      // v7.1b e v7.1c (Política 2.11 e 2.12): a prova de um consentimento que acabou
+      'Prova de um consentimento que acabou (a autorização de imagem ou o consentimento do atendimento social retirado, a foto apagada, o consentimento substituído por outro ou o mandato terminado): 5 anos depois de acabar, é apagada.',
       'Doador identificado: 10 anos depois da doação, tiramos o nome, o documento, o e-mail e a ligação com o cadastro de associado; ficam o valor, a data e o destino',
       'Associado desligado: 5 anos depois do desligamento, apagamos CPF, e-mail, telefone, data de nascimento, estado civil, profissão, naturalidade, as habilidades cadastradas, a foto (inclusive o arquivo), o endereço e, nas mudanças de situação (licença, desligamento, advertência), o motivo e o documento de referência; ficam o nome e a matrícula do livro de associados e o tipo e as datas das mudanças de situação. A rotina automática não inclui quem ainda tem outro papel ativo no cadastro (por exemplo, voluntário). Ainda não há prazo automático para os dependentes cadastrados, os documentos anexados, o histórico de cargos, a linha do tempo da pessoa e as observações internas da ficha.',
     ])
@@ -321,16 +321,16 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
     )
   })
 
-  test('versão 2.11 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
+  test('versão 2.12 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
     page,
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.11 · em vigor desde 27 de outubro de 2026'),
+      page.getByText('Versão 2.12 · em vigor desde 27 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.11, em vigor desde 27 de outubro de 2026/,
+        /Esta é a versão 2\.12, em vigor desde 27 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-doacao]')
@@ -352,6 +352,20 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
       'o pagamento em si passa pelo banco que você mesmo escolhe',
     ])
       await expect(paragrafo).toContainText(trecho)
+    // v7.1c (Política 2.12): o atendimento social só com o termo assinado (pela pessoa ou, se criança ou adolescente, pelo responsável)
+    await expect(
+      page.locator('[data-registro-de-consentimentos]'),
+    ).toContainText('junto de cada pessoa atendida, quem cuida dos projetos')
+    const atendimento = page.locator('[data-atendimento-social]')
+    await expect(atendimento).toHaveCount(1)
+    for (const trecho of [
+      'só é feito com o termo de consentimento assinado pela pessoa atendida',
+      'por um dos pais ou pelo responsável legal (o adolescente assina junto)',
+      'só a equipe do projeto o vê, e cada leitura fica registrada',
+      'faz parar os registros novos assim que a retirada é registrada no sistema',
+      'o que já foi registrado continua guardado, visto só pela equipe do projeto, e a eliminação dele pode ser pedida pela solicitação do titular de dados',
+    ])
+      await expect(atendimento).toContainText(trecho)
     await expect(
       paragrafo.getByRole('link', { name: 'solicitação do titular de dados' }),
     ).toHaveAttribute('href', '/privacidade/solicitacao-do-titular/')

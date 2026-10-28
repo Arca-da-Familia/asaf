@@ -92,6 +92,9 @@ const substituto = substitutoDoEncarregado(diretoria)
 // entram com o TERMO assinado (antes era a declaração de quem enviava a foto); o parágrafo `data-fotos-de-atividades` (que faltava: só a Diretoria tinha
 // parágrafo), o `data-registro-de-consentimentos` (o que o registro guarda, quem vê e o prazo) e o prazo da prova (5 anos depois de acabar) na lista;
 // a revogação pela secretaria ou pela solicitação do titular (antes dizia "pedir à Diretoria", e o termo diz secretaria).
+// v2.12 (2026-10-27): o consentimento do atendimento social (v7.1c): o parágrafo `data-atendimento-social` (o prontuário e os encaminhamentos só com o termo
+// assinado pela pessoa ou, se criança ou adolescente, por um dos pais ou pelo responsável; revogar para o que é novo, o que já existe fica e a eliminação
+// se pede pela solicitação do titular), o item da prova na lista de prazos e o `data-registro-de-consentimentos` cobrindo as pessoas atendidas.
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -336,17 +339,19 @@ const direitos = [
         segurança internas, que não são públicas, por até cerca de 30 dias.
       </p>
       <p class="mt-3" data-registro-de-consentimentos>
-        <strong>Registro dos consentimentos.</strong> Para cada foto, o sistema
-        guarda a prova da autorização: o termo e a versão assinada, o nome de
-        quem assinou (e do responsável, quando é o caso), como o termo foi
-        entregue (em papel, guardado pela secretaria, ou digitalizado), o número
-        do documento, a data da assinatura e quem registrou; o termo em papel
-        também traz o CPF de quem assina. Quando a autorização acaba (porque foi
-        retirada, porque a foto foi apagada ou porque o mandato terminou), o
-        registro continua guardado como prova, com a data e o motivo, pelo prazo
-        de guarda abaixo, e depois o sistema o apaga sozinho. Veem esses
-        registros quem cuida da privacidade na associação e, junto de cada foto,
-        quem cuida das fotos daquela atividade.
+        <strong>Registro dos consentimentos.</strong> Para cada foto e para cada
+        pessoa atendida nos projetos, o sistema guarda a prova do consentimento:
+        o termo e a versão assinada, o nome de quem assinou (e do responsável,
+        quando é o caso), como o termo foi entregue (em papel, guardado pela
+        secretaria, ou digitalizado), o número do documento, a data da
+        assinatura e quem registrou; o termo em papel também traz o CPF de quem
+        assina. Quando o consentimento acaba (porque foi retirado, porque a foto
+        foi apagada, porque o mandato terminou ou porque um termo novo tomou o
+        lugar dele), o registro continua guardado como prova, com a data e o
+        motivo, pelo prazo de guarda abaixo, e depois o sistema o apaga sozinho.
+        Veem esses registros quem cuida da privacidade na associação; junto de
+        cada foto, quem cuida das fotos daquela atividade; e, junto de cada
+        pessoa atendida, quem cuida dos projetos.
       </p>
     </section>
 
@@ -565,6 +570,23 @@ const direitos = [
         Estatuto e a lei (como o livro de associados e a escrituração contábil)
         e para realizar as suas atividades.
       </p>
+      <p class="mt-3" data-atendimento-social>
+        <strong>Atendimento social.</strong> Nos projetos, a equipe registra o
+        atendimento das pessoas e das famílias atendidas (o relato de cada
+        atendimento e os encaminhamentos à rede de proteção, como CRAS, escola,
+        posto de saúde e Conselho Tutelar), o que pode trazer informação de
+        saúde e da situação da família. Esse registro só é feito com o termo de
+        consentimento assinado pela pessoa atendida ou, se é criança ou
+        adolescente, por um dos pais ou pelo responsável legal (o adolescente
+        assina junto), registrado no sistema com a versão do termo; só a equipe
+        do projeto o vê, e cada leitura fica registrada. Quem retira o
+        consentimento (à equipe, à secretaria ou pela solicitação do titular de
+        dados) faz parar os registros novos assim que a retirada é registrada no
+        sistema; o que já foi registrado continua guardado, visto só pela equipe
+        do projeto, e a eliminação dele pode ser pedida pela solicitação do
+        titular de dados. A prova do consentimento segue o prazo descrito em
+        “Por quanto tempo guardamos”.
+      </p>
       <p class="mt-3" id="emails-da-asaf" data-emails-da-asaf>
         <strong>E-mails da ASAF.</strong> O sistema envia por e-mail, a quem tem
         e-mail no cadastro, lembretes de mensalidade, avisos de mudança na
@@ -695,9 +717,10 @@ const direitos = [
           valor, a data e o destino, que são dado financeiro da associação.
         </li>
         <li>
-          Prova de um consentimento que acabou (a autorização de imagem
-          retirada, a foto apagada ou o mandato terminado): 5 anos depois de
-          acabar, é apagada.
+          Prova de um consentimento que acabou (a autorização de imagem ou o
+          consentimento do atendimento social retirado, a foto apagada, o
+          consentimento substituído por outro ou o mandato terminado): 5 anos
+          depois de acabar, é apagada.
         </li>
         <li>
           Associado desligado: 5 anos depois do desligamento, apagamos CPF,

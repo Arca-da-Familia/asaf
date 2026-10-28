@@ -91,9 +91,9 @@ def _proposta(db: Session, t: Tratamento) -> dict:
         ).strip(),
         "metodologia": (
             "O relato e o encaminhamento são escritos e lidos no painel só por quem está ATIVO na equipe daquele projeto (a Presidência também precisa estar "
-            "na equipe); quem tem a permissão Projetos pode pôr alguém (ou a si) na equipe de um projeto, e isso fica na Auditoria, como cada leitura. O cadastro "
-            "do beneficiário (por quem tem a permissão Projetos) tem um campo para marcar que o consentimento foi registrado, mas o sistema ainda não o exige "
-            f"para registrar o atendimento. Onde fica: {' '.join(atividade['armazenamento'])}. Base legal (proposta): {'; '.join(atividade['bases_legais_texto'])}."
+            "na equipe); quem tem a permissão Projetos pode pôr alguém (ou a si) na equipe de um projeto, e isso fica na Auditoria, como cada leitura. O "
+            "atendimento só é registrado com o termo de consentimento assinado (pela pessoa atendida ou, se era criança ou adolescente na assinatura, por um "
+            "dos pais ou pelo responsável) registrado no sistema, com a versão do termo (a marca antiga do cadastro não vale); revogado, nada novo grava. Onde fica: {' '.join(atividade['armazenamento'])}. Base legal (proposta): {'; '.join(atividade['bases_legais_texto'])}."
         ),
         "necessidade": (
             "Sem o registro do atendimento e do encaminhamento a equipe não acompanha a família nem garante a continuidade quando muda quem atende. "
@@ -101,8 +101,9 @@ def _proposta(db: Session, t: Tratamento) -> dict:
         ),
         "riscos": (
             "Exposição de dado de saúde ou de vulnerabilidade de criança ou de família (constrangimento, discriminação); leitura por quem entrou na equipe só "
-            "para ler (fica na Auditoria, mas não é impedida); registro sem o consentimento marcado (o sistema ainda não exige); cópia para fora do sistema; uso "
-            "para outra finalidade; guarda sem prazo (ainda não há rotina automática de eliminação para este dado)."
+            "para ler (fica na Auditoria, mas não é impedida); consentimento registrado sem o termo de fato assinado (o sistema confia em quem registra); no atendimento por família, o relato pode falar de outras "
+            "pessoas da casa, que não assinaram termo próprio; ainda não há como apagar do sistema o prontuário de quem pede a eliminação (previsto na v7.1d); cópia "
+            "para fora do sistema; uso para outra finalidade; guarda sem prazo (ainda não há rotina automática de eliminação para este dado)."
         ),
         "medidas": atividade["medidas"],
         "parecer_do_encarregado": "",

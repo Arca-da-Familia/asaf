@@ -292,6 +292,8 @@ export type VersaoDeAviso = {
   // como era QUANDO esta versão foi mostrada (a 1 da inscrição em evento era consentimento, com a caixa "Li e aceito.")
   tipo: 'aviso' | 'consentimento'
   caixa: string | null
+  // a caixa era marcada pela equipe no painel (a declaração de quem enviava a foto, a marca no cadastro do beneficiário), não pela pessoa
+  marcada_pela_equipe: boolean
 }
 
 export type PontoDeColeta = {

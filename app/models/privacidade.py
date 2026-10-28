@@ -118,6 +118,8 @@ class TextoDePrivacidade(Base):
 REVOGADO = "revogado"  # a pessoa retirou a autorização
 APAGADO = "apagado"  # o registro que ele cobria foi apagado por outro motivo (foto errada, foto trocada)
 FIM_DO_PRAZO = "fim do prazo"  # acabou o que ele cobria (o mandato da foto da Diretoria)
+SUBSTITUIDO = "substituido"  # v7.1c: um termo registrado depois tomou o lugar dele (atendimento social)
+INVALIDADO = "invalidado"  # v7.1c: o nascimento corrigido mostra que quem assinou sozinho era menor de idade na assinatura
 
 
 class Consentimento(Base):
@@ -143,7 +145,7 @@ class Consentimento(Base):
     origem = Column(String(40), nullable=False)
     id_origem = Column(Integer, nullable=False)
     encerrado_em = Column(DateTime, nullable=True)
-    encerramento = Column(String(20), nullable=True)  # REVOGADO, APAGADO ou FIM_DO_PRAZO
+    encerramento = Column(String(20), nullable=True)  # REVOGADO, APAGADO, FIM_DO_PRAZO, SUBSTITUIDO ou INVALIDADO
     motivo_encerramento = Column(String(500), nullable=True)
     id_usuario_encerramento = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
 

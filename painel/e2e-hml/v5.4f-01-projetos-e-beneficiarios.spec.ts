@@ -18,6 +18,7 @@ import {
   sair,
   ver,
   vigiar,
+  registrarConsentimentoDoBeneficiario,
 } from './apoio'
 
 // v5.4f — FASE 4 ao vivo, parte 1: PROJETO (criar, editar, publicar no site, em destaque, situação, cronograma, equipe, indicadores, relatório
@@ -1528,7 +1529,7 @@ test.describe('B. Cronograma, equipe e indicadores', () => {
 // C. BENEFICIÁRIOS: cadastro, vínculo, prontuário só da equipe, tela cruzada (consentimento LGPD) e exportação
 // =====================================================================================================================================
 test.describe('C. Beneficiários e atendimento', () => {
-  test('cadastrar beneficiário pelo projeto: nome faltando é recusado; entra vinculado como Atendido, com e sem consentimento LGPD; Auditoria', async ({
+  test('cadastrar beneficiário pelo projeto: nome faltando é recusado; entra vinculado como Atendido (o consentimento é o termo, registrado na tela Beneficiários); Auditoria', async ({
     page,
   }, info) => {
     test.setTimeout(300_000)
@@ -1549,9 +1550,7 @@ test.describe('C. Beneficiários e atendimento', () => {
     })
     await novo.click()
     const nome = beneficiarios.getByPlaceholder('Nome do beneficiário')
-    const consentimento = beneficiarios.getByRole('checkbox', {
-      name: 'Consentimento registrado',
-    })
+
     const criar = beneficiarios.getByRole('button', {
       name: 'Criar e vincular',
     })
@@ -1572,7 +1571,12 @@ test.describe('C. Beneficiários e atendimento', () => {
     ).toHaveCount(1)
     await ver(page, info, 'beneficiario sem nome: recusado')
 
-    // 1: sem o consentimento (fica "Pendente" na tela cruzada)
+    // v7.1c: o formulário não marca mais consentimento; diz onde registrar o termo
+    await expect(
+      beneficiarios.getByText(/sem ele o\s+prontuário não grava/),
+    ).toBeVisible()
+
+    // 1: a primeira
     await nome.fill(BENEFICIARIA_1)
     const [criou1, vinculou1] = await Promise.all([
       esperarResposta(page, 'POST', /^\/api\/beneficiarios\/$/),
@@ -1592,10 +1596,9 @@ test.describe('C. Beneficiários e atendimento', () => {
     await expect(cartao1).not.toContainText('por família')
     await expect(novo).toBeVisible() // o formulário se fechou sozinho: o botão voltou a "Novo beneficiário"
 
-    // 2: com o consentimento
+    // 2: o segundo
     await novo.click()
     await nome.fill(BENEFICIARIO_2)
-    await consentimento.check()
     const [criou2] = await Promise.all([
       esperarResposta(page, 'POST', /^\/api\/beneficiarios\/$/),
       esperarResposta(page, 'POST', /^\/api\/beneficiarios-projeto\/$/),
@@ -1739,8 +1742,26 @@ test.describe('C. Beneficiários e atendimento', () => {
 
     await entrar(page, 'presidente')
     const antes = await abrirAuditoria(page, 'registros_atendimento')
+
+    // v7.1c: sem o termo de consentimento registrado, o prontuário avisa e não abre o formulário; registrado na tela Beneficiários, grava
+    const semTermo = cartaoDe(await abrirProjeto(page, nomePublico))
+    await expect(semTermo).toContainText('sem consentimento')
+    await semTermo
+      .getByRole('button', { name: 'Prontuário', exact: true })
+      .click()
+    await expect(
+      semTermo.getByTestId('prontuario-sem-consentimento'),
+    ).toBeVisible()
+    await expect(
+      semTermo.getByPlaceholder('Relato do atendimento'),
+    ).toHaveCount(0)
+    await ver(page, info, 'prontuario sem consentimento: avisa e nao grava')
+    await registrarConsentimentoDoBeneficiario(page, BENEFICIARIA_1)
+    await ver(page, info, 'termo do atendimento social registrado')
+
     const detalhe = await abrirProjeto(page, nomePublico)
     const cartao = cartaoDe(detalhe)
+    await expect(cartao).not.toContainText('sem consentimento')
     await cartao
       .getByRole('button', { name: 'Prontuário', exact: true })
       .click()
@@ -1877,7 +1898,7 @@ test.describe('C. Beneficiários e atendimento', () => {
     expect(vigia.problemas()).toEqual([])
   })
 
-  test('tela de Beneficiários: busca, filtro por projeto, consentimento LGPD (registrar e retirar), edição com recusa, núcleo familiar só pela rota e exportação auditada', async ({
+  test('tela de Beneficiários: busca, filtro por projeto, consentimento (o termo: registrar e revogar), edição com recusa, núcleo familiar só pela rota e exportação auditada', async ({
     page,
   }, info) => {
     test.setTimeout(420_000)
@@ -1908,13 +1929,13 @@ test.describe('C. Beneficiários e atendimento', () => {
       semRotulo.push((erro as Error).message)
     }
 
-    // busca por nome e consentimento: um Pendente, outro Registrado
+    // busca por nome e consentimento: a primeira com o termo (registrado no teste do prontuário), o segundo sem
     await campo(page, 'Buscar por nome').fill(String(RODADA))
     await expect(linhaDe(BENEFICIARIA_1)).toBeVisible()
     await expect(linhaDe(BENEFICIARIO_2)).toBeVisible()
-    await expect(linhaDe(BENEFICIARIA_1)).toContainText('Pendente')
-    await expect(linhaDe(BENEFICIARIO_2)).toContainText('Registrado')
-    await ver(page, info, 'busca por nome: um pendente e um com consentimento')
+    await expect(linhaDe(BENEFICIARIA_1)).toContainText(/Termo versão \d+/)
+    await expect(linhaDe(BENEFICIARIO_2)).toContainText('Sem consentimento')
+    await ver(page, info, 'busca por nome: um com o termo e um sem')
 
     // filtro por projeto: o primeiro está nos dois projetos, o segundo só em um
     await campo(page, 'Projeto').selectOption({ label: NOME_INTERNO })
@@ -1931,7 +1952,7 @@ test.describe('C. Beneficiários e atendimento', () => {
     await campo(page, 'Buscar por nome').fill(String(RODADA))
     await expect(linhaDe(BENEFICIARIA_1)).toBeVisible()
 
-    // edição: recusa (nome vazio e curto), depois registrar o consentimento LGPD com observação e nascimento
+    // edição: recusa (nome vazio e curto), depois o nascimento (o consentimento não se marca mais aqui: é o termo, no bloco Consentimento)
     await linhaDe(BENEFICIARIA_1)
       .getByRole('button', { name: 'Editar' })
       .click()
@@ -1958,19 +1979,16 @@ test.describe('C. Beneficiários e atendimento', () => {
     await ver(page, info, 'editar beneficiario: nome recusado')
     await nome.fill(BENEFICIARIA_1)
     await campo(page, 'Nascimento').fill(nascimento)
-    await campo(page, 'Observação sobre o consentimento').fill(
-      'Consentimento colhido em papel (teste do robô).',
-    )
-    await edicao
-      .getByRole('checkbox', { name: 'Consentimento LGPD registrado' })
-      .check()
+    await expect(
+      edicao.getByRole('checkbox', { name: 'Consentimento LGPD registrado' }),
+    ).toHaveCount(0)
     const [salvou] = await Promise.all([
       esperarResposta(page, 'PUT', /^\/api\/beneficiarios\/\d+$/),
       salvar.click(),
     ])
     expect(salvou.status()).toBe(200)
     await expect(edicao).toHaveCount(0) // fecha sozinho
-    await expect(linhaDe(BENEFICIARIA_1)).toContainText('Registrado')
+    await expect(linhaDe(BENEFICIARIA_1)).toContainText(/Termo versão \d+/)
     // data só-dia: tem que aparecer o dia digitado
     await expect
       .soft(
@@ -1978,18 +1996,13 @@ test.describe('C. Beneficiários e atendimento', () => {
         'o nascimento digitado foi 04/03/1990: a tela mostra o dia anterior (Beneficiarios.tsx formatarData lê a meia-noite sem fuso como instante UTC; o certo é formatarDia)',
       )
       .toContainText('04/03/1990')
-    await ver(page, info, 'consentimento LGPD registrado')
+    await ver(page, info, 'beneficiario editado: nascimento gravado')
 
     // ao reabrir a edição, o que foi gravado volta nos campos
     await linhaDe(BENEFICIARIA_1)
       .getByRole('button', { name: 'Editar' })
       .click()
-    await expect(campo(page, 'Observação sobre o consentimento')).toHaveValue(
-      'Consentimento colhido em papel (teste do robô).',
-    )
-    await expect(
-      page.getByRole('checkbox', { name: 'Consentimento LGPD registrado' }),
-    ).toBeChecked()
+
     await expect
       .soft(
         campo(page, 'Nascimento'),
@@ -2002,25 +2015,49 @@ test.describe('C. Beneficiários e atendimento', () => {
       'editar beneficiario: o que foi gravado volta nos campos',
     )
 
-    // retirar o consentimento (LGPD: o titular pode retirar): volta a Pendente
     await page
-      .getByRole('checkbox', { name: 'Consentimento LGPD registrado' })
-      .uncheck()
-    const [retirou] = await Promise.all([
-      esperarResposta(page, 'PUT', /^\/api\/beneficiarios\/\d+$/),
-      page
-        .locator('div.rounded-md.border')
-        .filter({
-          has: page.getByRole('heading', {
-            name: `Editar beneficiário #${id1}`,
-          }),
-        })
-        .getByRole('button', { name: 'Salvar', exact: true })
-        .click(),
+      .locator('div.rounded-md.border')
+      .filter({
+        has: page.getByRole('heading', {
+          name: `Editar beneficiário #${id1}`,
+        }),
+      })
+      .getByRole('button', { name: 'Fechar' })
+      .click()
+
+    // o segundo recebe o termo (a própria pessoa assinou); a primeira o revoga (LGPD, art. 8º, § 5º): com confirmação, e o prontuário deixa de gravar
+    await registrarConsentimentoDoBeneficiario(page, BENEFICIARIO_2)
+    await expect(linhaDe(BENEFICIARIO_2)).toContainText(/Termo versão \d+/)
+    await campo(page, 'Buscar por nome').fill(BENEFICIARIA_1)
+    await linhaDe(BENEFICIARIA_1)
+      .getByRole('button', { name: `Consentimento de ${BENEFICIARIA_1}` })
+      .click()
+    const bloco = page.getByRole('region', {
+      name: `Consentimento do atendimento social de ${BENEFICIARIA_1}`,
+    })
+    await bloco.getByRole('button', { name: 'Revogar o consentimento' }).click()
+    await bloco
+      .getByLabel('Motivo da revogação (opcional)')
+      .fill(`Pedido de teste do robô (${RODADA}).`)
+    const [revogou] = await Promise.all([
+      esperarResposta(
+        page,
+        'POST',
+        /^\/api\/beneficiarios\/\d+\/consentimento\/revogar$/,
+      ),
+      bloco.getByRole('button', { name: 'Confirmar a revogação' }).click(),
     ])
-    expect(retirou.status()).toBe(200)
-    await expect(linhaDe(BENEFICIARIA_1)).toContainText('Pendente')
-    await ver(page, info, 'consentimento retirado: volta a Pendente')
+    expect(revogou.status()).toBe(200)
+    await expect(bloco.getByRole('status')).toContainText(
+      'Consentimento revogado',
+    )
+    await expect(bloco.locator('[data-sem-consentimento]')).toBeVisible()
+    await expect(linhaDe(BENEFICIARIA_1)).toContainText('Sem consentimento')
+    await ver(
+      page,
+      info,
+      'consentimento revogado: o prontuario deixa de gravar',
+    )
 
     // núcleo familiar: a rota responde (a tela dele é conferida no roteiro v5.4h-05)
     expect(token.atual()).toBeTruthy()
@@ -2049,9 +2086,20 @@ test.describe('C. Beneficiários e atendimento', () => {
     await expect(
       linhaDaAuditoria(page, 'UPDATE', { registro: id1, quem: PRESIDENTE }),
     ).toBeVisible()
+    await abrirAuditoria(page, 'consentimentos')
+    await expect(
+      linhaDaAuditoria(page, 'CONSENTIMENTO_REGISTRADO', {
+        quem: PRESIDENTE,
+      }).first(),
+    ).toBeVisible()
+    await expect(
+      linhaDaAuditoria(page, 'CONSENTIMENTO_REVOGADO', {
+        quem: PRESIDENTE,
+      }).first(),
+    ).toBeVisible()
     await ver(page, info, 'auditoria: consentimento e exportacao')
 
-    // o segundo beneficiário (cadastrado já com consentimento) continua Registrado e intacto
+    // o segundo beneficiário (com o termo registrado nesta tela) continua intacto
     expect(id2).toBeGreaterThan(0)
     expect
       .soft(

@@ -27,6 +27,7 @@ const versao = (
   observacao: null,
   registrado_em: '2026-10-27T12:00:00',
   diverge_do_codigo: false,
+  marcada_pela_equipe: false,
   tipo: 'aviso',
   caixa: 'Li o aviso de privacidade.',
   ...extra,

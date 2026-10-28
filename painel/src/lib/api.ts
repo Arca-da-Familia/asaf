@@ -4145,9 +4145,11 @@ export type Beneficiario = {
   // v4.10 - identidade do beneficiário, antes só visível aninhada dentro de um projeto.
   nome_completo: string | null
   data_nascimento: string | null
+  // v7.1c: há o termo assinado que abre o atendimento (a marca antiga não abre); `consentimento` é o vigente, mesmo que seja só a marca antiga
   consentimento_lgpd_registrado: boolean
+  consentimento: ResumoDoConsentimento | null
+  // a anotação da marca antiga (de antes do termo), só para ler
   observacao_consentimento: string | null
-  data_consentimento: string | null
 }
 
 // v4.10 - `busca` (substring no nome) e `id_projeto` são novos, opcionais - alimentam a tela
@@ -4168,8 +4170,6 @@ export function criarBeneficiario(dados: {
   id_pessoa?: number
   nome_completo?: string
   data_nascimento?: string
-  consentimento_lgpd_registrado?: boolean
-  observacao_consentimento?: string
 }): Promise<{ mensagem: string; id_beneficiario: number }> {
   return apiFetch('/api/beneficiarios/', {
     method: 'POST',
@@ -4201,8 +4201,6 @@ export function editarBeneficiario(
   dados: {
     nome_completo?: string
     data_nascimento?: string
-    consentimento_lgpd_registrado?: boolean
-    observacao_consentimento?: string
   },
 ): Promise<{ mensagem: string }> {
   return apiFetch(`/api/beneficiarios/${idBeneficiario}`, {
@@ -4231,6 +4229,8 @@ export type VinculoBeneficiarioProjeto = {
   atendimento_por_familia: boolean
   data_inicio: string
   data_fim: string | null
+  // v7.1c: sem o consentimento vigente o prontuário e o encaminhamento não gravam
+  consentimento_vigente: boolean
 }
 
 export function listarBeneficiariosDoProjeto(

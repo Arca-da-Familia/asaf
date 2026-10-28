@@ -70,7 +70,7 @@ export const ORGANIZACAO = {
  * do que estava em vigor em cada época (a mudança fica no Git).
  */
 export const DOCUMENTOS_LEGAIS = {
-  privacidade: { versao: '2.11', vigenteDesde: '2026-10-27' },
+  privacidade: { versao: '2.12', vigenteDesde: '2026-10-27' },
   termos: { versao: '1.1', vigenteDesde: '2026-10-03' },
   acessibilidade: { versao: '1.0', vigenteDesde: '2026-10-15' },
 } as const
