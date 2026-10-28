@@ -153,7 +153,7 @@ test('o encarregado gera pela tela o relatório de todos os dados de uma pessoa'
   await expect(
     relatorio.getByRole('region', { name: 'Dados na tabela audit_log' }),
   ).toHaveCount(0)
-  await expect(relatorio).toContainText('A Auditoria do sistema')
+  await expect(relatorio).toContainText('Não entram automaticamente: a Auditoria do sistema')
   await expect(page.getByRole('button', { name: 'Imprimir' })).toBeVisible()
   await ver(page, info, 'relatorio-dos-dados-de-uma-pessoa')
 
