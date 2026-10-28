@@ -69,18 +69,36 @@ test('o pedido da fila e o pedido de doação recentes seguem intactos, e a Audi
     expect(p.email_doador).not.toContain('exemplo.invalid')
   }
 
-  // nada na homologação passou do prazo: a rotina rodou e não aplicou nada
+  // o dado recente não passou do prazo: a rotina só aplicou as regras da v7.1d ao dado ANTIGO inventado que a publicação de teste semeia
+  // (scripts/hml_dados_antigos_da_retencao.py); nenhuma das regras do dado acima (fila, doação...) aplicou nada
   const auditoria = await page.request.get(
-    `${API_HML}/api/auditoria/?tabela_afetada=retencao&acao=RETENCAO_APLICADA&por_pagina=20`,
+    `${API_HML}/api/auditoria/?tabela_afetada=retencao&acao=RETENCAO_APLICADA&por_pagina=50`,
     { headers: cabecalho() },
   )
   expect(auditoria.status()).toBe(200)
-  const { entradas } = (await auditoria.json()) as { entradas: unknown[] }
-  expect(entradas, 'a retenção não aplicou nada a dado recente').toEqual([])
+  const { entradas } = (await auditoria.json()) as {
+    entradas: { dados_depois: string | null }[]
+  }
+  const DO_DADO_ANTIGO_SEMEADO = new Set([
+    'inscricoes_e_presencas',
+    'voluntarios_encerrados',
+    'participantes_externos',
+    'certificados',
+    'auditoria',
+  ])
+  for (const e of entradas) {
+    const aplicadas = Object.keys(
+      (JSON.parse(e.dados_depois ?? '{}') as { aplicadas?: object }).aplicadas ?? {},
+    )
+    expect(
+      aplicadas.filter((r) => !DO_DADO_ANTIGO_SEMEADO.has(r)),
+      'a retenção não aplicou nada a dado recente',
+    ).toEqual([])
+  }
   expect(vigia.problemas()).toEqual([])
 })
 
-test('a Política de Privacidade do site de teste mostra os sete prazos que a rotina aplica', async ({
+test('a Política de Privacidade do site de teste mostra os prazos que a rotina aplica', async ({
   page,
 }, info) => {
   const resposta = await page.goto(`${SITE}/privacidade/`, {
@@ -92,12 +110,16 @@ test('a Política de Privacidade do site de teste mostra os sete prazos que a ro
   ).toContain('Versão 2.')
   const lista = page.locator('[data-prazos-de-guarda]')
   await expect(lista).toBeVisible()
-  await expect(lista.locator('li')).toHaveCount(7)
+  await expect(lista.locator('li')).toHaveCount(14)
   await expect(lista).toContainText('6 meses, depois é apagado')
   await expect(lista).toContainText(
     '5 anos depois de respondidos ou encerrados',
   )
   await expect(lista).toContainText('10 anos depois da doação')
+  // v7.1d (Política 2.13)
+  await expect(lista).toContainText('Inscrição em evento e presença: 5 anos depois do evento')
+  await expect(lista).toContainText('Certificado e crachá de evento: 10 anos depois da emissão')
+  await expect(lista).toContainText('Este prazo não fica abaixo de 5 anos')
   await expect(page.locator('[data-prazos-de-guarda-limite]')).toContainText(
     'Ainda não há rotina automática de prazo para os demais dados',
   )
