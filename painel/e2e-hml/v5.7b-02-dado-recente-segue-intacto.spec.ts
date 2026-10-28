@@ -88,7 +88,8 @@ test('o pedido da fila e o pedido de doação recentes seguem intactos, e a Audi
   ])
   for (const e of entradas) {
     const aplicadas = Object.keys(
-      (JSON.parse(e.dados_depois ?? '{}') as { aplicadas?: object }).aplicadas ?? {},
+      (JSON.parse(e.dados_depois ?? '{}') as { aplicadas?: object })
+        .aplicadas ?? {},
     )
     expect(
       aplicadas.filter((r) => !DO_DADO_ANTIGO_SEMEADO.has(r)),
@@ -117,8 +118,12 @@ test('a Política de Privacidade do site de teste mostra os prazos que a rotina 
   )
   await expect(lista).toContainText('10 anos depois da doação')
   // v7.1d (Política 2.13)
-  await expect(lista).toContainText('Inscrição em evento e presença: 5 anos depois do evento')
-  await expect(lista).toContainText('Certificado e crachá de evento: 10 anos depois da emissão')
+  await expect(lista).toContainText(
+    'Inscrição em evento e presença: 5 anos depois do evento',
+  )
+  await expect(lista).toContainText(
+    'Certificado e crachá de evento: 10 anos depois da emissão',
+  )
   await expect(lista).toContainText('Este prazo não fica abaixo de 5 anos')
   await expect(page.locator('[data-prazos-de-guarda-limite]')).toContainText(
     'Ainda não há rotina automática de prazo para os demais dados',
