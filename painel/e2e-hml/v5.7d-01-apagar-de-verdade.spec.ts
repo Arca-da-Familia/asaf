@@ -293,13 +293,17 @@ test('prepara o vencimento natural: pessoa nova com mandato antigo e uma foto, p
     forcar: false,
   })
 
-  // um mandato que já terminou (2019 a 2023): no Conselho Fiscal, sem tocar nos três lugares de hoje
+  // um mandato que já terminou, no Conselho Fiscal, sem tocar nos três lugares de hoje. Cada rodada usa UM DIA antigo só dela (entre 2001 e 2018, tirado
+  // do número da rodada): com um período fixo (era 2019 a 2023), cada rodada ocupava uma das 3 vagas do cargo naquele período e a 4ª era recusada
+  const dia = new Date(Date.UTC(2001, 0, 1) + (RODADA % 6500) * 86_400_000)
+  const inicio = dia.toISOString().slice(0, 10)
+  const fim = new Date(dia.getTime() + 86_400_000).toISOString().slice(0, 10)
   const idMandato = await registrarPelaTela(page, {
     associado: nome,
     orgao: 'Conselho Fiscal',
     cargo: 'Conselheiro Fiscal',
-    inicio: '2019-01-01',
-    fim: '2023-01-01',
+    inicio,
+    fim,
     ato: `${MARCA_DO_VENCIDO} ${RODADA}`,
   })
   const dele = (await mandatos(page, '?apenas_vigentes=false')).find(
@@ -318,7 +322,9 @@ test('prepara o vencimento natural: pessoa nova com mandato antigo e uma foto, p
         // v7.1b: o termo que a pessoa assinou (a versão em vigor) e como
         meio: 'termo_em_papel',
         // ontem: o dia de hoje em UTC já é amanhã em Belém depois das 21h, e o servidor recusa a data futura
-        assinado_em: new Date(Date.now() - 86_400_000).toISOString().slice(0, 10),
+        assinado_em: new Date(Date.now() - 86_400_000)
+          .toISOString()
+          .slice(0, 10),
         versao_do_termo: await versaoDoTermo(
           page,
           cabecalho().Authorization,
