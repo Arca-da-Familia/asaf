@@ -80,7 +80,7 @@ def test_menor_de_18_so_com_um_dos_pais_ou_o_responsavel(client, db, auth_header
     corpo = ok.json()
     assert (corpo["dado_por"], corpo["nome_responsavel"], corpo["vinculo_rotulo"]) == ("responsavel", "Joana da Silva", "Mãe")
     [c] = _consentimentos_do(db, id_beneficiario)
-    assert c.ponto == "ATENDIMENTO_SOCIAL" and c.versao == tp.versao_atual("ATENDIMENTO_SOCIAL") and c.dado_em.date() == date(2026, 10, 20)
+    assert c.ponto == "ATENDIMENTO_SOCIAL" and c.versao == tp.versao_atual("ATENDIMENTO_SOCIAL") and c.dado_em.date() == date(2026, 10, 27)
     assert c.titular.startswith("Criança de Teste") and c.id_pessoa is not None
 
 
@@ -95,10 +95,10 @@ def test_sem_nascimento_nao_se_registra_e_a_idade_e_a_da_assinatura(client, db, 
     """Revisão independente: sem o nascimento a criança "consentia sozinha"; a idade vale na DATA DA ASSINATURA (fez 18 depois de assinar sozinha: não vale)."""
     sem = _registrar_consentimento(client, auth_headers, _novo(client, auth_headers))
     assert sem.status_code == 400 and "data de nascimento" in sem.json()["detail"]
-    fez_18_depois = _novo(client, auth_headers, "2008-09-01")
-    r = _registrar_consentimento(client, auth_headers, fez_18_depois, assinado_em="2026-08-15")
+    fez_18_depois = _novo(client, auth_headers, "2008-10-28")  # fez 18 em 28/10/2026, um dia depois de o termo versão 2 existir
+    r = _registrar_consentimento(client, auth_headers, fez_18_depois, assinado_em="2026-10-27")
     assert r.status_code == 400 and "menos de 18 anos" in r.json()["detail"]
-    assert _registrar_consentimento(client, auth_headers, fez_18_depois, assinado_em="2026-09-01").status_code == 200, "no dia dos 18 anos já consente"
+    assert _registrar_consentimento(client, auth_headers, fez_18_depois, assinado_em="2026-10-28").status_code == 200, "no dia dos 18 anos já consente"
 
 
 def test_adulto_pelo_responsavel_so_com_o_responsavel_legal(client, db, auth_headers):
@@ -167,7 +167,7 @@ def test_registrar_de_novo_substitui_e_revogar_fecha_o_que_e_novo(client, db, au
     id_beneficiario = _criar_beneficiario(client, auth_headers)
     id_vinculo = _vinculo_com_equipe(client, db, auth_headers, id_beneficiario)
     assert _atender(client, auth_headers, id_vinculo).status_code == 200
-    assert _registrar_consentimento(client, auth_headers, id_beneficiario, assinado_em="2026-10-25").status_code == 200
+    assert _registrar_consentimento(client, auth_headers, id_beneficiario, assinado_em="2026-10-28").status_code == 200
     anterior, novo = _consentimentos_do(db, id_beneficiario)
     assert anterior.encerramento == SUBSTITUIDO and "Substituído" in anterior.motivo_encerramento and novo.encerrado_em is None
     assert consentimentos.para_o_painel(anterior)["encerramento_rotulo"] == "Encerrado: substituído por um termo registrado depois"

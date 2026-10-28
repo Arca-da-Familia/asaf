@@ -1030,20 +1030,25 @@ fechados até o Presidente revisar o rascunho, escrever o parecer e aprovar (Pri
 
 #### v7.1 — Base legal, consentimento e retenção
 
-- [ ] Base legal explícita por finalidade: execução do vínculo associativo (não precisa de
+- [x] **[v7.0c (a base de cada atividade no inventário) e v7.1a (aviso onde a base não é o consentimento; consentimento só para foto e atendimento social)]**
+      Base legal explícita por finalidade: execução do vínculo associativo (não precisa de
       consentimento para cobrar mensalidade), obrigação legal (contabilidade), e consentimento
       apenas onde é de fato necessário (foto, comunicação de marketing, biometria). Pedir
       consentimento para tudo é erro comum e enfraquece o consentimento onde ele importa.
-- [ ] `Consentimento` versionado (titular, finalidade, versão do texto, data, meio, IP, revogação)
+- [x] **[v7.1a–c; a versão gravada é a da data da assinatura e os textos têm trava no banco desde o Ponto de Revisão (1/3)]**
+      `Consentimento` versionado (titular, finalidade, versão do texto, data, meio, IP, revogação)
       — prova de quando e a quê a pessoa consentiu, com o texto exato daquela época.
-- [ ] Dado de criança e adolescente (Art. 14): consentimento específico de ao menos um dos pais ou
+- [x] **[v7.1b (termo de imagem) e v7.1c (atendimento social: o responsável com nome e vínculo; aos 18 anos, o termo da própria pessoa)]**
+      Dado de criança e adolescente (Art. 14): consentimento específico de ao menos um dos pais ou
       responsável, com registro do vínculo — relevante direto para projetos assistenciais e
       educacionais da FASE 4/14.
-- [ ] **[parcial, v5.7b: rotina real feita para 7 regras, e a v6.1 acrescentou a 8ª (quem recebeu, leu e confirmou um aviso do mural); faltam inscritos em evento, voluntários e certificados]** Política de retenção por tipo de dado, implementada como **rotina real** de anonimização/
+- [x] **[v5.7b (7 regras), v6.1 (a 8ª), v7.1b (a prova dos consentimentos) e v7.1d (inscrições e presenças, participante externo, voluntário, certificado e
+      Auditoria: 14 regras); ressalva: o papel de dados no contêiner `documentos-emitidos` para o certificado, pendente na v7.1d]** Política de retenção por tipo de dado, implementada como **rotina real** de anonimização/
       descarte (participante externo de evento: X meses; candidato a voluntário não aprovado: Y
       meses; associado desligado: prazo legal/contábil), com relatório do que foi descartado.
       Retenção que só existe no papel não é retenção.
-- [ ] Anonimização preserva estatística (o evento continua sabendo que teve 300 presentes) sem
+- [x] **[v7.1d: nenhuma linha de inscrição, presença, hora, certificado ou Auditoria é apagada; sai a pessoa]**
+      Anonimização preserva estatística (o evento continua sabendo que teve 300 presentes) sem
       preservar identificação — apagar linha inteira destruiria o histórico institucional.
 
 > **Levantamento de 27/10 (o que já existia):** cada formulário do site que recebe dado pessoal (inscrição em evento, filiação, contato, pedido de informação, solicitação do
@@ -1233,7 +1238,8 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 
 - [ ] **[parcial, v5.5a e v5.6b: o site tem o formulário (fila única, protocolo e prazo) e a conta de visitante pede a eliminação com o e-mail provado por código; falta a validação de identidade no formulário público e o canal pelo painel]** Canal único de solicitação: pelo painel (autenticado) e pelo site (formulário com validação
       de identidade), gerando protocolo com prazo legal acompanhado.
-- [ ] Atendimento real de cada direito: confirmação de tratamento, acesso, correção,
+- [ ] **[parcial, v7.1b–d: a revogação do consentimento (apagar a foto; revogar o do atendimento social) e a eliminação do prontuário a pedido já existem; não
+      reconstruir]** Atendimento real de cada direito: confirmação de tratamento, acesso, correção,
       anonimização/eliminação, portabilidade (exportação em formato legível por máquina),
       informação sobre compartilhamento, e revogação de consentimento.
 - [ ] Limites explicados ao titular quando houver: dado retido por obrigação legal (contábil,
@@ -1248,6 +1254,8 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       estático e no painel. **[parcial, v5.7: feito no site; o painel e a API não foram tratados neste item]**
 - [x] Rate limiting nos endpoints públicos (inscrição de evento, contato, filiação) — proteção
       contra spam/abuso sem CAPTCHA comercial pago. **[feito antes, na FASE 5, por IP e por hora: inscrição (v4.6), atendimento (v5.5a), filiação (v5.4h), doação (v5.6a) e conta de visitante (v5.6b)]**
+- [ ] Transferência internacional (LGPD, art. 33): o mecanismo (cláusulas-padrão da ANPD ou outro) para cada operador fora do Brasil (Azure, GitHub, Google), como
+      a v7.0c deixou registrado no inventário e na Política.
 - [ ] Contratos/termos com operadores (Azure, provedor de e-mail, PSP de pagamento, BSP de
       WhatsApp) registrados no inventário, com a finalidade de cada compartilhamento.
 

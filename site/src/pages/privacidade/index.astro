@@ -98,6 +98,8 @@ const substituto = substitutoDoEncarregado(diretoria)
 // v2.13 (2026-10-28): os prazos que faltavam (v7.1d), que anonimizam a pessoa e mantêm as contagens: inscrição e presença (5 anos), quem só se inscreveu em evento
 // (5 anos), voluntário (5 anos), certificado (10 anos, a verificação continua) e a Auditoria (10 anos: saem quem fez, o IP e os valores); a eliminação do
 // registro do atendimento social a pedido; o IP e a confirmação de leitura na Auditoria deixam de dizer "sem prazo".
+// v2.14 (2026-10-28): Ponto de Revisão da FASE 7 (1/3): a prova do consentimento do atendimento social fica enquanto existir o registro que ela autorizou;
+// aos 18 anos, o consentimento dado pelo responsável deixa de valer para registros novos (a própria pessoa assina).
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -589,8 +591,10 @@ const direitos = [
         do projeto, e a eliminação dele pode ser pedida pela solicitação do
         titular de dados: confirmada a identidade de quem pede, o relato de cada
         atendimento e a descrição de cada encaminhamento são apagados (ficam as
-        datas e os tipos, para as contagens). A prova do consentimento segue o
-        prazo descrito em “Por quanto tempo guardamos”.
+        datas e os tipos, para as contagens). Quando a criança ou o adolescente
+        faz 18 anos, o consentimento dado pelo responsável deixa de valer para
+        os registros novos: a própria pessoa assina o termo. A prova do
+        consentimento segue o prazo descrito em “Por quanto tempo guardamos”.
       </p>
       <p class="mt-3" id="emails-da-asaf" data-emails-da-asaf>
         <strong>E-mails da ASAF.</strong> O sistema envia por e-mail, a quem tem
@@ -758,7 +762,8 @@ const direitos = [
           Prova de um consentimento que acabou (a autorização de imagem ou o
           consentimento do atendimento social retirado, a foto apagada, o
           consentimento substituído por outro ou o mandato terminado): 5 anos
-          depois de acabar, é apagada.
+          depois de acabar, é apagada; a do atendimento social fica enquanto
+          existir o registro do atendimento que ela autorizou.
         </li>
         <li>
           Associado desligado: 5 anos depois do desligamento, apagamos CPF,

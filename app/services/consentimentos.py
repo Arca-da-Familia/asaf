@@ -93,10 +93,21 @@ def exigir_dados(db: Session, *, origem: str, versao_do_termo: Optional[str], qu
                  id_documento: Optional[int], assinado_em: Optional[str] = None) -> tuple[str, str, str, datetime]:
     """Confere o que a tela mandou ANTES de gravar a foto (para não sobrar foto sem consentimento). Devolve (termo, versão, quem autorizou, data da assinatura)."""
     termo = TERMO_DA_ORIGEM[origem]
-    vigente = textos_de_privacidade.versao_atual(termo)
-    if versao_do_termo != vigente:
+    # Ponto de Revisão FASE 7 (1/3): a versão gravada é a que a pessoa ASSINOU. Só versão que é um termo para assinar (não a marca antiga da equipe); a data da
+    # assinatura tem de caber na vigência dela (um termo não é assinado antes de existir, nem depois de outra versão o substituir)
+    assinaveis = [t for t in textos_de_privacidade.versoes(termo) if not t.pela_equipe]
+    informada = next((t for t in assinaveis if t.versao == versao_do_termo), None)
+    if informada is None:
         raise HTTPException(status_code=422, detail=f"O termo ({textos_de_privacidade.ponto(termo).nome}) foi atualizado: recarregue a página e confira a "
                                                     "versão em vigor.")
+    dia = _data_da_assinatura(assinado_em).date()
+    if dia < informada.vigente_desde:
+        raise HTTPException(status_code=400, detail=f"A versão {informada.versao} do termo só existe desde {informada.vigente_desde.strftime('%d/%m/%Y')}: "
+                                                    "confira a data da assinatura.")
+    que_valia = max((t for t in assinaveis if t.vigente_desde <= dia), key=lambda t: t.vigente_desde)
+    if que_valia.versao != informada.versao:
+        raise HTTPException(status_code=400, detail=f"Na data da assinatura já valia a versão {que_valia.versao} do termo: confira a data ou o papel assinado.")
+    vigente = informada.versao
     quem = " ".join((quem_autorizou or "").split())
     if len(quem) < 3:
         raise HTTPException(status_code=400, detail="Diga quem autorizou o uso da imagem (o nome de quem assinou o termo).")

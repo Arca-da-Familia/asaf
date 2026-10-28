@@ -366,5 +366,6 @@ def serializar_lista(db: Session, intencoes: list[IntencaoDeDoacao]) -> list[dic
             "criado_em": i.criado_em, "expira_em": i.expira_em, "resolvido_em": i.resolvido_em, "id_doacao": i.id_doacao,
             "numero_recibo": doacao.numero_recibo if doacao else None, "valor_recebido": doacao.valor if doacao else None, "observacao": i.observacao,
             "recibo_enviado_por_email": i.recibo_enviado_por_email, "pode_confirmar": i.status != CONFIRMADA,
+            "consentimento_lgpd_versao": i.consentimento_lgpd_versao,
         })
     return itens

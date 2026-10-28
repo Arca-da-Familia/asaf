@@ -79,6 +79,7 @@ import {
   templateDocumentoCriarSchema,
   tokenPortariaCriarSchema,
 } from '@/lib/schemas'
+import { LerAviso } from '@/components/privacidade/LerAviso'
 import { useDebounce } from '@/lib/use-debounce'
 import { useMe } from '@/lib/use-me'
 
@@ -735,7 +736,19 @@ function LinhaInscrito({
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-2 text-sm">
-      <span>{inscrito.nome_pessoa ?? `Pessoa #${inscrito.id_pessoa}`}</span>
+      <span>
+        {inscrito.nome_pessoa ?? `Pessoa #${inscrito.id_pessoa}`}
+        {inscrito.consentimento_lgpd_versao && (
+          <span className="block text-xs text-muted-foreground">
+            Aviso de privacidade aceito: versão{' '}
+            {inscrito.consentimento_lgpd_versao}
+            <LerAviso
+              ponto="INSCRICAO_EVENTO"
+              versao={inscrito.consentimento_lgpd_versao}
+            />
+          </span>
+        )}
+      </span>
       <div className="flex items-center gap-2">
         <span className="text-muted-foreground">{inscrito.status}</span>
         {transicoes.length > 0 ? (

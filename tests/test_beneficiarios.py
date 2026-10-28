@@ -32,7 +32,7 @@ def _registrar_consentimento(client, auth_headers, id_beneficiario, **extra) -> 
     """v7.1c: o termo de consentimento do atendimento social assinado (sem ele o prontuário não grava)."""
     from app.textos_de_privacidade import versao_atual
 
-    corpo = {"dado_por": "titular", "meio": "termo_em_papel", "assinado_em": "2026-10-20", "versao_do_termo": versao_atual("ATENDIMENTO_SOCIAL"), **extra}
+    corpo = {"dado_por": "titular", "meio": "termo_em_papel", "assinado_em": "2026-10-27", "versao_do_termo": versao_atual("ATENDIMENTO_SOCIAL"), **extra}
     return client.post(f"/api/beneficiarios/{id_beneficiario}/consentimento", json=corpo, headers=auth_headers)
 
 

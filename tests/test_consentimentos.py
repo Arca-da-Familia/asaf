@@ -95,7 +95,7 @@ def test_a_foto_da_diretoria_troca_revoga_e_acaba_com_o_mandato(client, db, auth
     desde = _ultimo_id(db)
     dirigente, id_mandato = _novo_dirigente(db, client=client, auth_headers=auth_headers)
     rota = f"/api/mandatos/associados/{dirigente.id_associado}/foto-publica"
-    dados = {"autorizacao_imagem": "true", "meio": servico.TERMO_EM_PAPEL, "versao_do_termo": tp.versao_atual("IMAGEM_DIRETORIA"), "assinado_em": "2026-10-20"}
+    dados = {"autorizacao_imagem": "true", "meio": servico.TERMO_EM_PAPEL, "versao_do_termo": tp.versao_atual("IMAGEM_DIRETORIA"), "assinado_em": "2026-10-27"}
     primeira = client.post(rota, headers=auth_headers, files={"arquivo": ("a.jpg", _jpeg(), "image/jpeg")}, data=dados)
     assert primeira.status_code == 201, primeira.text
     id_foto = primeira.json()["foto"]["id_foto"]

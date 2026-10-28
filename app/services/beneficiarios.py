@@ -61,20 +61,22 @@ def listar_beneficiarios(
 
 def atualizar_beneficiario(
     db: Session, *, id_beneficiario: int, nome_completo: Optional[str], data_nascimento: Optional[datetime], id_usuario: Optional[int],
-) -> Beneficiario:
+) -> tuple[Beneficiario, bool]:
+    """Devolve (beneficiário, se o consentimento foi invalidado pela correção do nascimento) - a rota põe isso na Auditoria do UPDATE."""
     beneficiario = obter_beneficiario(db, id_beneficiario)
     pessoa = db.query(Pessoa).filter(Pessoa.id_pessoa == beneficiario.id_pessoa).first()
+    invalidou = False
     if nome_completo is not None:
         pessoa.nome_completo = nome_completo
     if data_nascimento is not None:
         pessoa.data_nascimento = data_nascimento
-        _conferir_consentimento_pelo_nascimento(db, beneficiario, pessoa, id_usuario)
+        invalidou = _conferir_consentimento_pelo_nascimento(db, beneficiario, pessoa, id_usuario)
     db.commit()
     db.refresh(beneficiario)
-    return beneficiario
+    return beneficiario, invalidou
 
 
-def _conferir_consentimento_pelo_nascimento(db: Session, beneficiario: Beneficiario, pessoa: Pessoa, id_usuario: Optional[int]) -> None:
+def _conferir_consentimento_pelo_nascimento(db: Session, beneficiario: Beneficiario, pessoa: Pessoa, id_usuario: Optional[int]) -> bool:
     """v7.1c: o nascimento corrigido pode mostrar que quem consentiu sozinho era menor de idade na data da assinatura: esse consentimento deixa de valer
     (fica INVALIDADO, como prova) e o prontuário fecha até o termo do responsável ser registrado."""
     from types import SimpleNamespace
@@ -83,10 +85,11 @@ def _conferir_consentimento_pelo_nascimento(db: Session, beneficiario: Beneficia
 
     c = consentimentos.vigente(db, consentimentos.BENEFICIARIO, beneficiario.id_beneficiario)
     if c is None or c.dado_por != consentimentos.TITULAR or not _menor_de_idade(pessoa, c.dado_em.date()):
-        return
+        return False
     consentimentos.encerrar(db, SimpleNamespace(id_usuario=id_usuario), origem=consentimentos.BENEFICIARIO, id_origem=beneficiario.id_beneficiario,
                             como=consentimentos.INVALIDADO, motivo="A data de nascimento corrigida mostra que tinha menos de 18 anos ao assinar: falta o termo "
                                                                    "de um dos pais ou do responsável.")
+    return True
 
 
 def obter_beneficiario(db: Session, id_beneficiario: int) -> Beneficiario:
@@ -181,6 +184,11 @@ def _exigir_consentimento(db: Session, id_vinculo: int) -> None:
 
     vinculo = obter_vinculo(db, id_vinculo)
     c = consentimentos.vigente(db, consentimentos.BENEFICIARIO, vinculo.id_beneficiario)
+    beneficiario = obter_beneficiario(db, vinculo.id_beneficiario)
+    pessoa = db.query(Pessoa).filter(Pessoa.id_pessoa == beneficiario.id_pessoa).first()
+    if fez_18_depois_do_responsavel(c, pessoa):
+        raise HTTPException(status_code=409, detail="A pessoa atendida fez 18 anos depois de o responsável consentir por ela: registre o termo assinado por "
+                                                    "ela mesma na tela Beneficiários antes de gravar o atendimento.")
     if c is not None and not consentimentos.vale_para_gravar(c):
         raise HTTPException(status_code=409, detail="Há só a marca antiga do cadastro (de antes do termo): registre o termo de consentimento assinado na tela "
                                                     "Beneficiários antes de gravar o atendimento.")
@@ -190,6 +198,25 @@ def _exigir_consentimento(db: Session, id_vinculo: int) -> None:
 
 
 IDADE_ADULTA = 18
+
+
+def fez_18_depois_do_responsavel(c, pessoa: Optional[Pessoa], hoje=None) -> bool:
+    """Ponto de Revisão FASE 7 (1/3): o consentimento dado por um dos pais ou pelo responsável por uma pessoa que era menor NA ASSINATURA deixa de abrir o
+    atendimento quando ela faz 18 anos (aí quem consente é ela). O dado pelo responsável legal de um adulto (curatela) continua."""
+    from app.services import consentimentos
+    from app.services.fuso import FUSO_ASAF
+
+    if c is None or c.dado_por != consentimentos.RESPONSAVEL or pessoa is None or pessoa.data_nascimento is None:
+        return False
+    hoje = hoje or datetime.now(FUSO_ASAF).date()
+    return _menor_de_idade(pessoa, c.dado_em.date()) and not _menor_de_idade(pessoa, hoje)
+
+
+def consentimento_abre_o_atendimento(c, pessoa: Optional[Pessoa]) -> bool:
+    """O vigente que abre o prontuário: o termo assinado (não a marca antiga) e, se foi o responsável que consentiu, a pessoa ainda menor (ou curatela)."""
+    from app.services import consentimentos
+
+    return consentimentos.vale_para_gravar(c) and not fez_18_depois_do_responsavel(c, pessoa)
 
 
 def _menor_de_idade(pessoa: Pessoa, no_dia) -> bool:

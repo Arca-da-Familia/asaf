@@ -306,7 +306,7 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
       'Pedido de filiação que não virou associado (recusado, ou pendente sem decisão): 2 anos depois da última mudança no pedido ou no voto de um sócio, ele e as decisões dos sócios sobre ele são apagados',
       'Pedido de doação pelo site que ninguém confirmou: 2 anos depois do prazo do pedido, é apagado.',
       // v7.1b e v7.1c (Política 2.11 e 2.12): a prova de um consentimento que acabou
-      'Prova de um consentimento que acabou (a autorização de imagem ou o consentimento do atendimento social retirado, a foto apagada, o consentimento substituído por outro ou o mandato terminado): 5 anos depois de acabar, é apagada.',
+      'Prova de um consentimento que acabou (a autorização de imagem ou o consentimento do atendimento social retirado, a foto apagada, o consentimento substituído por outro ou o mandato terminado): 5 anos depois de acabar, é apagada; a do atendimento social fica enquanto existir o registro do atendimento que ela autorizou.',
       // v7.1d (Política 2.13): os prazos que faltavam anonimizam a pessoa e mantêm as contagens
       'Inscrição em evento e presença: 5 anos depois do evento, saem da inscrição as respostas do formulário, o e-mail usado, o código do QR de entrada e o do link de cancelamento, e o comentário da pesquisa de satisfação; ficam a inscrição, a situação (presente, ausente...) e o registro da presença, para as contagens do evento.',
       'Quem só se inscreveu em eventos (sem outro vínculo com a ASAF: não é associado, não é atendido nos projetos e não tem outro papel no cadastro): 5 anos depois do último evento, apagamos o nome, o CPF, o e-mail e o telefone; ficam as contagens. O nome de quem pagou uma inscrição continua na descrição da cobrança, que é escrituração financeira da associação.',
@@ -327,16 +327,16 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
     )
   })
 
-  test('versão 2.13 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
+  test('versão 2.14 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
     page,
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.13 · em vigor desde 28 de outubro de 2026'),
+      page.getByText('Versão 2.14 · em vigor desde 28 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.13, em vigor desde 28 de outubro de 2026/,
+        /Esta é a versão 2\.14, em vigor desde 28 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-doacao]')
@@ -371,6 +371,7 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
       'faz parar os registros novos assim que a retirada é registrada no sistema',
       'o que já foi registrado continua guardado, visto só pela equipe do projeto, e a eliminação dele pode ser pedida pela solicitação do titular de dados',
       'confirmada a identidade de quem pede, o relato de cada atendimento e a descrição de cada encaminhamento são apagados (ficam as datas e os tipos, para as contagens)',
+      'Quando a criança ou o adolescente faz 18 anos, o consentimento dado pelo responsável deixa de valer para os registros novos: a própria pessoa assina o termo.',
     ])
       await expect(atendimento).toContainText(trecho)
     await expect(

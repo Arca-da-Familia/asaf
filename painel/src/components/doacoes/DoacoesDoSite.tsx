@@ -33,6 +33,7 @@ import {
   cpfParaATela,
   reais,
 } from '@/lib/doacoes-do-site'
+import { LerAviso } from '@/components/privacidade/LerAviso'
 import { useDebounce } from '@/lib/use-debounce'
 import { useMe } from '@/lib/use-me'
 
@@ -133,6 +134,16 @@ function ItemDaLista({
           <p className="break-all text-muted-foreground">
             {intencao.email_doador}
           </p>
+          {intencao.consentimento_lgpd_versao && (
+            <div className="text-xs text-muted-foreground">
+              Aviso de privacidade aceito: versão{' '}
+              {intencao.consentimento_lgpd_versao}
+              <LerAviso
+                ponto="DOACAO"
+                versao={intencao.consentimento_lgpd_versao}
+              />
+            </div>
+          )}
         </div>
         <SeloDaSituacao intencao={intencao} />
       </div>

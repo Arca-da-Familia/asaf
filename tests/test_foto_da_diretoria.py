@@ -41,7 +41,7 @@ def _enviar(client, auth_headers, id_associado, conteudo, autorizacao=True, nome
         f"/api/mandatos/associados/{id_associado}/foto-publica", headers=auth_headers,
         files={"arquivo": (nome, conteudo, tipo)},
         data={"autorizacao_imagem": "true" if autorizacao else "false", "meio": "termo_em_papel", "versao_do_termo": versao_atual("IMAGEM_DIRETORIA"),
-              "assinado_em": "2026-10-01"},
+              "assinado_em": "2026-10-27"},
     )
 
 

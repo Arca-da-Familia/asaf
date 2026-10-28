@@ -183,6 +183,12 @@ export function ConsentimentoDoBeneficiario({
           beneficiário não gravam.
         </p>
       )}
+      {beneficiario.consentimento_precisa_do_termo_da_pessoa && (
+        <p role="alert" className="text-destructive" data-fez-18>
+          Fez 18 anos depois de o responsável consentir: o prontuário e o
+          encaminhamento só gravam com o termo assinado pela própria pessoa.
+        </p>
+      )}
       {semNascimento ? (
         <p className="text-xs text-destructive" data-sem-nascimento>
           Falta a data de nascimento no cadastro (Editar): é ela que diz se quem

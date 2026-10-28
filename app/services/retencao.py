@@ -157,11 +157,22 @@ def _associado_desligado(db: Session, agora: datetime, dias: int) -> tuple[int, 
 
 
 def _consentimentos_encerrados(db: Session, agora: datetime, dias: int) -> int:
-    """v7.1b - a prova de um consentimento que acabou (revogado, foto apagada, fim do mandato): 5 anos depois de encerrado, apaga. O vigente nunca é tocado."""
+    """v7.1b - a prova de um consentimento que acabou (revogado, foto apagada, fim do mandato): 5 anos depois de encerrado, apaga. O vigente nunca é tocado.
+    Ponto de Revisão FASE 7 (1/3): a do atendimento social FICA enquanto o beneficiário tiver relato ou encaminhamento não eliminado (a prova não some antes do
+    dado que ela legitima; LGPD, art. 8º, § 2º)."""
+    from app.models.beneficiarios import BeneficiarioProjeto, EncaminhamentoRedeExterna, RegistroAtendimento
     from app.models.privacidade import Consentimento
+    from app.services.beneficiarios import MARCADOR_DO_PRONTUARIO
+    from app.services.consentimentos import BENEFICIARIO
 
-    n = db.query(Consentimento).filter(Consentimento.encerrado_em.isnot(None), Consentimento.encerrado_em < agora - timedelta(days=dias)).delete(
-        synchronize_session=False)
+    com_relato = select(BeneficiarioProjeto.id_beneficiario).join(RegistroAtendimento, RegistroAtendimento.id_vinculo == BeneficiarioProjeto.id_vinculo).where(
+        RegistroAtendimento.relato != MARCADOR_DO_PRONTUARIO)
+    com_encaminhamento = select(BeneficiarioProjeto.id_beneficiario).join(
+        EncaminhamentoRedeExterna, EncaminhamentoRedeExterna.id_vinculo == BeneficiarioProjeto.id_vinculo).where(
+        EncaminhamentoRedeExterna.descricao != MARCADOR_DO_PRONTUARIO)
+    prontuario_vivo = (Consentimento.origem == BENEFICIARIO) & (Consentimento.id_origem.in_(com_relato) | Consentimento.id_origem.in_(com_encaminhamento))
+    n = db.query(Consentimento).filter(Consentimento.encerrado_em.isnot(None), Consentimento.encerrado_em < agora - timedelta(days=dias),
+                                       ~prontuario_vivo).delete(synchronize_session=False)
     db.commit()
     return n
 

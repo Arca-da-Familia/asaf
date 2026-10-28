@@ -116,6 +116,8 @@ def listar_inscricoes_endpoint(
         {
             "id_inscricao": i.id_inscricao, "id_pessoa": i.id_pessoa, "nome_pessoa": nomes.get(i.id_pessoa),
             "status": i.status, "id_titulo_cobranca": i.id_titulo_cobranca, "data_inscricao": i.data_inscricao,
+            # Ponto de Revisão FASE 7 (1/3): a versão do aviso que a pessoa aceitou ao se inscrever pelo site (a 1 era um consentimento)
+            "consentimento_lgpd_versao": i.consentimento_lgpd_versao,
         }
         for i in inscritos
     ]

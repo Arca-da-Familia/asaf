@@ -203,10 +203,18 @@ def ler_texto_de_privacidade(ponto: str, versao: str, db: Session = Depends(get_
 
 # ------------------------------------------------------------------------------------------------ v7.1b: os consentimentos (a prova) e os termos
 @router.get("/api/privacidade/consentimentos", summary="Os consentimentos registrados (vigentes e encerrados: a prova fica), com o termo, quem, como e quando")
-def listar_consentimentos(situacao: Optional[str] = None, origem: Optional[str] = None, busca: Optional[str] = None, pagina: int = 1,
-                          db: Session = Depends(get_db), _usuario: Usuario = Depends(_pode)):
-    return {**servico_consentimentos.listar(db, situacao=situacao, origem=origem, busca=busca, pagina=pagina),
-            "origens": servico_consentimentos.ROTULO_DA_ORIGEM}
+def listar_consentimentos(request: Request, situacao: Optional[str] = None, origem: Optional[str] = None, busca: Optional[str] = None, pagina: int = 1,
+                          db: Session = Depends(get_db), usuario: Usuario = Depends(_pode)):
+    from app.auditoria import registrar_auditoria
+    from app.classificacao_de_dados import CONSULTA_CONSENTIMENTOS
+
+    resultado = servico_consentimentos.listar(db, situacao=situacao, origem=origem, busca=busca, pagina=pagina)
+    # Ponto de Revisão FASE 7 (1/3): a lista traz nomes de crianças atendidas e dos responsáveis: a leitura fica na Auditoria (os filtros e o total; a busca,
+    # que é um nome, não)
+    registrar_auditoria(db, usuario, "consentimentos", CONSULTA_CONSENTIMENTOS, ip_origem=request.client.host if request.client else None,
+                        dados_depois={"situacao": situacao, "origem": origem, "com_busca": bool((busca or "").strip()), "pagina": resultado["pagina"],
+                                      "total": resultado["total"]})
+    return {**resultado, "origens": servico_consentimentos.ROTULO_DA_ORIGEM}
 
 
 @router.get("/api/consentimentos/termo-da-tela/{origem}", summary="O termo de consentimento em vigor para a tela de envio (a versão volta no envio)")

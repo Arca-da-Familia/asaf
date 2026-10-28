@@ -105,7 +105,8 @@ pedra.
 
 ### 2.3 Versão do Python e imagem base
 
-- **Decidido**: `python:3.12-slim` como imagem base do contêiner (fixada no `Dockerfile`).
+- **Decidido**: `python:<versão estável mais nova>-slim` como imagem base do contêiner (fixada no `Dockerfile`; hoje `python:3.15-slim`, lote 12 de 2026-10-27,
+  autorizado pelo Presidente; a regra "tudo na última versão" do CLAUDE.md manda subir a cada versão nova estável).
 - **Por que está congelado**: a versão exata do Python é o que garante que "funciona na minha
   máquina" e "funciona em produção" sejam a mesma coisa. Trocar a versão maior do Python é decisão
   deliberada de upgrade, não acidente de ambiente.

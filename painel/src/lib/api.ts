@@ -2647,6 +2647,8 @@ export type SituacaoDaIntencaoDeDoacao =
 export type IntencaoDeDoacao = {
   id_intencao: number
   protocolo: string
+  // a versão do aviso de privacidade aceita no pedido (Ponto de Revisão FASE 7: para reabrir o texto daquela época)
+  consentimento_lgpd_versao?: string | null
   nome_doador: string
   email_doador: string
   documento_doador: string | null
@@ -4150,6 +4152,8 @@ export type Beneficiario = {
   consentimento: ResumoDoConsentimento | null
   // a anotação da marca antiga (de antes do termo), só para ler
   observacao_consentimento: string | null
+  // fez 18 anos depois de o responsável consentir: o atendimento só grava com o termo da própria pessoa
+  consentimento_precisa_do_termo_da_pessoa?: boolean
 }
 
 // v4.10 - `busca` (substring no nome) e `id_projeto` são novos, opcionais - alimentam a tela
@@ -5186,6 +5190,8 @@ export type InscricaoMotor = {
   status: string
   id_titulo_cobranca: number | null
   data_inscricao: string
+  // a versão do aviso de privacidade aceita na inscrição pelo site (nula na inscrição feita pela equipe)
+  consentimento_lgpd_versao?: string | null
 }
 
 export function listarInscricoesDoContexto(

@@ -101,7 +101,12 @@ def test_o_arquivo_do_site_e_o_catalogo():
 
 
 # ------------------------------------------------------------------------------------------------ 4. o banco grava e nunca reescreve
-def test_o_banco_tem_cada_versao_e_nunca_reescreve_a_gravada(db):
+def test_o_banco_tem_cada_versao_e_nunca_reescreve_a_gravada(db, monkeypatch):
+    import dataclasses
+
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+
     tp.sincronizar(db)
     gravados = {(r.ponto, r.versao): r for r in db.query(TextoDePrivacidade).all()}
     assert set(IMPRESSOES) <= set(gravados)
@@ -109,17 +114,24 @@ def test_o_banco_tem_cada_versao_e_nunca_reescreve_a_gravada(db):
     antes = db.query(TextoDePrivacidade).count()
     assert tp.sincronizar(db) == [] and db.query(TextoDePrivacidade).count() == antes, "sincronizar de novo não duplica"
 
+    # Ponto de Revisão FASE 7 (1/3): o BANCO recusa alterar ou apagar a versão gravada (não só o código)
     r = gravados[("VISITANTE", "1")]
-    original = r.texto, r.impressao
-    try:
-        r.texto, r.impressao = "Texto que estava gravado.", "0" * 64
+    original = r.texto
+    r.texto = "Texto que alguém tentou trocar."
+    with pytest.raises(IntegrityError, match="não muda nem é apagado"):
         db.commit()
-        assert tp.sincronizar(db) == ["VISITANTE versão 1"]
-        db.refresh(r)
-        assert r.texto == "Texto que estava gravado.", "vale o gravado: é o que foi mostrado"
-    finally:
-        r.texto, r.impressao = original
-        db.commit()
+    db.rollback()
+    with pytest.raises(IntegrityError, match="não muda nem é apagado"):
+        db.query(TextoDePrivacidade).filter(TextoDePrivacidade.id_texto == r.id_texto).delete(synchronize_session=False)
+    db.rollback()
+    db.expire_all()
+    assert db.get(TextoDePrivacidade, r.id_texto).texto == original
+
+    # o catálogo do código mudou um texto já gravado: vale o gravado (é o que foi mostrado) e a divergência é avisada
+    mudado = tuple(dataclasses.replace(t, texto=t.texto + " (mudado no código)") if (t.ponto, t.versao) == ("VISITANTE", "1") else t for t in tp.TEXTOS)
+    monkeypatch.setattr(tp, "TEXTOS", mudado)
+    assert tp.sincronizar(db) == ["VISITANTE versão 1"]
+    assert db.get(TextoDePrivacidade, r.id_texto).texto == original
 
 
 # ------------------------------------------------------------------------------------------------ 5. reabrir o aviso antigo

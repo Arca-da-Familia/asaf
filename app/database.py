@@ -66,6 +66,7 @@ def preparar_banco():
                     conn.execute(text(f'ALTER TABLE "{tabela.name}" ADD COLUMN "{coluna.name}" {tipo_sql}'))
 
     criar_trava_delete_imutavel()
+    criar_trava_dos_textos_de_privacidade()
 
 
 # v3.7 - "nenhum usuário, em nenhum nível (inclusive Presidente), pode apagar lançamento ou log -
@@ -111,6 +112,35 @@ def criar_trava_delete_imutavel():
                 conn.execute(text(
                     f"CREATE TRIGGER IF NOT EXISTS {nome_trigger} BEFORE DELETE ON {tabela} "
                     f"BEGIN SELECT RAISE(ABORT, 'Registro imutável ({tabela}) - correção é sempre por estorno/novo registro, nunca exclusão.'); END;"
+                ))
+
+
+# Ponto de Revisão FASE 7 (1/3) - os textos de privacidade (avisos e termos) gravados são a prova do que a pessoa viu ou assinou: o banco recusa
+# ALTERAR ou APAGAR uma versão gravada (versão nova é sempre uma linha nova). Idempotente, como a trava acima.
+_TABELA_DOS_TEXTOS = "textos_de_privacidade"
+_TRAVA_DOS_TEXTOS = "trg_bloquear_mudanca_textos_de_privacidade"
+
+
+def criar_trava_dos_textos_de_privacidade():
+    if not inspect(engine).has_table(_TABELA_DOS_TEXTOS):
+        return
+    mensagem = "Texto de privacidade gravado não muda nem é apagado: a versão nova é sempre um registro novo."
+    with engine.begin() as conn:
+        if engine.dialect.name == "postgresql":
+            conn.execute(text(
+                "CREATE OR REPLACE FUNCTION bloquear_mudanca_texto_de_privacidade() RETURNS trigger AS $$ "
+                f"BEGIN RAISE EXCEPTION '{mensagem}'; RETURN NULL; END; $$ LANGUAGE plpgsql;"
+            ))
+            if not conn.execute(text("SELECT 1 FROM pg_trigger WHERE tgname = :nome"), {"nome": _TRAVA_DOS_TEXTOS}).first():
+                conn.execute(text(
+                    f"CREATE TRIGGER {_TRAVA_DOS_TEXTOS} BEFORE UPDATE OR DELETE ON {_TABELA_DOS_TEXTOS} "
+                    "FOR EACH ROW EXECUTE FUNCTION bloquear_mudanca_texto_de_privacidade();"
+                ))
+        else:
+            for operacao in ("UPDATE", "DELETE"):
+                conn.execute(text(
+                    f"CREATE TRIGGER IF NOT EXISTS {_TRAVA_DOS_TEXTOS}_{operacao.lower()} BEFORE {operacao} ON {_TABELA_DOS_TEXTOS} "
+                    f"BEGIN SELECT RAISE(ABORT, '{mensagem}'); END;"
                 ))
 
 

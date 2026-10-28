@@ -40,6 +40,7 @@ USUARIO = "usuário do painel"
 DIRIGENTE = "membro da Diretoria ou do Conselho Fiscal"
 FORNECEDOR = "fornecedor pessoa física"
 FOTOGRAFADO = "pessoa que aparece em foto"
+RESPONSAVEL_DO_ATENDIDO = "um dos pais ou o responsável legal de quem é atendido nos projetos"
 
 # a chave estrangeira diz de quem é a linha
 TITULAR_POR_CHAVE = {
@@ -82,6 +83,7 @@ class Tabela:
 CONSULTA_PRONTUARIO = "CONSULTA_PRONTUARIO"
 CONSULTA_ENCAMINHAMENTOS = "CONSULTA_ENCAMINHAMENTOS"
 CONSULTA_HISTORICO_SITUACAO = "CONSULTA_HISTORICO_SITUACAO"
+CONSULTA_CONSENTIMENTOS = "CONSULTA_CONSENTIMENTOS"  # Ponto de Revisão FASE 7 (1/3): a lista traz nomes de crianças atendidas e dos responsáveis
 
 CLASSIFICACAO: dict[str, Tabela] = {
     # ---------------------------------------------------------------- a pessoa e o associado
@@ -186,7 +188,7 @@ CLASSIFICACAO: dict[str, Tabela] = {
     }),
     "fotos_evento": Tabela(titulares=(FOTOGRAFADO,), criancas=True, colunas={"arquivo_nome": P, "alt": P, "autorizacao_imagem": M, "sha256": NP, "tamanho": NP, "largura": NP, "altura": NP, "criado_em": NP}),  # crianças nas atividades
     # v7.1b: a prova de cada consentimento (quem consentiu, o responsável, o vínculo, o IP); pode ser de criança (a foto de uma atividade, pelo responsável)
-    "consentimentos": Tabela(titulares=(FOTOGRAFADO, DIRIGENTE), criancas=True, colunas={
+    "consentimentos": Tabela(titulares=(FOTOGRAFADO, DIRIGENTE, BENEFICIARIO, RESPONSAVEL_DO_ATENDIDO), criancas=True, colunas={
         "titular": P, "nome_responsavel": P, "vinculo_responsavel": P, "ip": P, "motivo_encerramento": LIVRE, "ponto": NP, "versao": NP, "dado_por": NP,
         "meio": NP, "dado_em": NP, "registrado_em": NP, "origem": NP, "encerrado_em": NP, "encerramento": NP,
     }),

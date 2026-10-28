@@ -199,6 +199,19 @@ describe('Consentimento do atendimento social', () => {
     )
   })
 
+  it('fez 18 anos depois de o responsável consentir: avisa que falta o termo da própria pessoa', () => {
+    desenhar(
+      beneficiario({
+        data_nascimento: '2008-01-01T00:00:00',
+        consentimento: vigente,
+        consentimento_precisa_do_termo_da_pessoa: true,
+      }),
+    )
+    expect(document.querySelector('[data-fez-18]')).toHaveTextContent(
+      'só gravam com o termo assinado pela própria pessoa',
+    )
+  })
+
   it('sem a data de nascimento não deixa registrar (é ela que diz quem consente)', () => {
     desenhar(beneficiario({ data_nascimento: null }))
     expect(document.querySelector('[data-sem-nascimento]')).toBeInTheDocument()
