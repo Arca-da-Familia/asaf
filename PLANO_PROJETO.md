@@ -1043,7 +1043,7 @@ fechados até o Presidente revisar o rascunho, escrever o parecer e aprovar (Pri
       responsável, com registro do vínculo — relevante direto para projetos assistenciais e
       educacionais da FASE 4/14.
 - [x] **[v5.7b (7 regras), v6.1 (a 8ª), v7.1b (a prova dos consentimentos) e v7.1d (inscrições e presenças, participante externo, voluntário, certificado e
-      Auditoria: 14 regras); ressalva: o papel de dados no contêiner `documentos-emitidos` para o certificado, pendente na v7.1d]** Política de retenção por tipo de dado, implementada como **rotina real** de anonimização/
+      Auditoria: 14 regras)]** Política de retenção por tipo de dado, implementada como **rotina real** de anonimização/
       descarte (participante externo de evento: X meses; candidato a voluntário não aprovado: Y
       meses; associado desligado: prazo legal/contábil), com relatório do que foi descartado.
       Retenção que só existe no papel não é retenção.
@@ -1185,7 +1185,8 @@ estiver pronto, decisão de 23/10).
       (10 anos), anonimizando a pessoa e mantendo as contagens.
 - [x] A eliminação do prontuário a pedido (v7.1c): quem revogou o consentimento do atendimento social e pede a eliminação pela solicitação do titular tem o
       que já foi registrado apagado ou anonimizado (por vínculo), com a Auditoria; hoje o termo e a Política só dizem que se pode **pedir**.
-- [ ] **Pendente de autorização do Presidente (infraestrutura):** dar à identidade da rotina do GitHub (`asaf-github-actions`, objectId `f026eaf3-…`) o papel
+- [x] **Feito em 2026-10-28, com a autorização do Presidente (conferido por leitura: `az role assignment list` mostra "Storage Blob Data Contributor" em
+      `fotos-diretoria`, `fotos-associados` e `documentos-emitidos`):** dar à identidade da rotina do GitHub (`asaf-github-actions`, objectId `f026eaf3-…`) o papel
       "Storage Blob Data Contributor" **só** no contêiner `documentos-emitidos` da produção (`stasafprivado`), como já tem em `fotos-diretoria` e `fotos-associados`.
       Sem ele, a regra do certificado não consegue apagar o PDF e fica vermelha **quando houver o primeiro certificado com 10 anos** (ou antes, se o prazo for
       reduzido); hoje não há nenhum, então nada falha. O sistema de segurança do Claude Code bloqueou a concessão (2026-10-28): só com o OK expresso dele.
@@ -1276,8 +1277,8 @@ coisas foi feito por mim. Resultado do checklist da seção 4.1:
 - **Robôs na homologação (branch `ponto-fase7-revisao-1`, migração `a3c5e7f9b1d2` aplicada no banco de teste):** `v7.1-ponto-01` 1, `v7.1c-01` 3, `v7.1d-01` 2,
   `v7.1a-01` 4, `v7.1b-01` 3, `v5.4f-01` 22, `v5.4f-03` 16 (pegou que o aviso novo na linha do inscrito entrava antes da situação: virou um bloco próprio), `v5.6a-01` 5,
   `v5.6a-02` 3, `v7.0c-01` 3.
-- **Pendência de infraestrutura que continua:** o papel de dados da identidade do GitHub no contêiner `documentos-emitidos` (item da v7.1d). O Presidente autorizou
-  em 28/10, mas o sistema de segurança do Claude Code bloqueou de novo (exige uma regra de permissão nas configurações): fica com ele decidir como fazer.
+- **Pendência de infraestrutura resolvida (2026-10-28):** o papel de dados da identidade do GitHub no contêiner `documentos-emitidos` (item da v7.1d) foi dado com a
+  autorização do Presidente e conferido por leitura; a regra do certificado consegue apagar o PDF quando o prazo chegar.
 
 #### v7.2 — Direitos do titular, operacionalizados
 
