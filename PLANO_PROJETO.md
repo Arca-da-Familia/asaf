@@ -1234,6 +1234,51 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - Encarregado (DPO) está de fato nomeado e publicado, não só planejado.
 - Consentimento (v7.1) é versionado com o texto exato da época — testar que reabrir um consentimento antigo mostra o texto que valia então, não o atual.
 
+**Revisão feita em 2026-10-28 — aguardando o OK do Presidente para fechar** (o Ponto só fecha com o OK dele). Intervalo: `921a7dd^..04ffd4e` (v7.0a–d, v7.1a–d, lotes
+11–15 e as correções desta revisão). A leitura de código e plano foi feita por um agente SEPARADO, só leitura (não ancorado na minha conclusão); o que depende de rodar
+coisas foi feito por mim. Resultado do checklist da seção 4.1:
+1. **`[x]` implementado e testado — OK** (as contagens dos blocos ✅ batem com o código: rotas, testes e as 14 regras da rotina de guarda).
+2. **Testes — OK:** servidor 1664 em duas rodadas e 1664 contra Postgres 18 (a migração nova desce e sobe); painel 760; site 778 de unidade e 924 de navegador, estados
+   vazios; na homologação, os robôs da v7.1 e as regressões (fim deste bloco). A validação em Postgres achou que a trava nova recusa com outra classe de erro lá (o teste
+   passou a aceitar as duas).
+3. **Decisões congeladas — OK**, com 1 achado baixo corrigido: o `DECISOES_CONGELADAS.md` ainda dizia `python:3.12-slim` (está em 3.15 desde o lote 12, autorizado).
+4. **Segredos — OK:** varredura das 15.674 linhas acrescentadas no intervalo (chave privada, AKIA, tokens do GitHub, `sk-`, `AccountKey=`, SAS, URL de banco com senha, JWT,
+   atribuição de segredo longo): nenhum achado.
+5. **Auditoria — OK**, com 2 achados baixos corrigidos: a leitura da lista de consentimentos (nomes de crianças atendidas e dos responsáveis) passou a gravar
+   `CONSULTA_CONSENTIMENTOS` (os filtros e o total; a busca, que é um nome, não); a correção do nascimento que invalida o consentimento aparece no UPDATE do beneficiário.
+6. **Permissão no servidor — OK** (`privacidade` para ver, `privacidade_gerir` para gerar, ajustar, aprovar, suspender e eliminar o prontuário, `projetos` para o
+   consentimento do beneficiário; os 403 têm teste).
+7. **Escopo — OK**, com 2 anotações: a v7.2 ganhou a marca `[parcial]` (a revogação e a eliminação do prontuário a pedido já existem) e a v7.3 ganhou o item da
+   transferência internacional (art. 33), que a v7.0c tinha prometido sem item.
+8. **Plano × código — OK** depois das correções: os itens-pai da v7.1 foram marcados `[x]` com as versões que os fizeram (o da retenção com a ressalva do contêiner
+   do certificado); o inventário passou a dizer que a prova dos consentimentos tem também beneficiários e responsáveis como titulares.
+9. **Suíte completa — OK** (item 2).
+10. **Tela real — OK:** Privacidade > Encarregado, Inventário, Relatório de impacto, Avisos e Consentimentos; o termo no envio de foto (eventos, parcerias, Diretoria); o
+    bloco Consentimento do beneficiário (registrar, revogar, eliminar o prontuário); o aviso no prontuário; "Ler o aviso desta versão" no atendimento, na filiação e,
+    desde esta revisão, na inscrição do evento e no pedido de doação; "PDF apagado" em Documentos emitidos; os prazos em Configurações.
+11. **O que a tela oferece para abrir foi aberto — OK:** os robôs abrem o PDF do termo e o do ato, o aviso de cada versão e o certificado pela verificação pública.
+12. **No ar — OK:** `main` = `04ffd4e`; Deploy API (1664 contra Postgres e `Running upgrade 9d1b6c3e5f27 -> a3c5e7f9b1d2`), Deploy Painel e Deploy Site verdes;
+    `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `04ffd4e`; `asaf.org.br/privacidade/` diz "Versão 2.14 · em vigor desde 28 de outubro de 2026".
+
+**Específico deste ponto:**
+- **Encarregado nomeado e publicado — PENDENTE de ato do Presidente, não de código.** O sistema gera o ato com os nomes dos mandatos, imprime, recebe a cópia
+  assinada e publica; o site já diz, em todas as páginas, que o encarregado é o Presidente da ASAF, com o e-mail e o formulário do titular. **Falta o NOME**
+  (Resolução CD/ANPD 18/2024, art. 9º), que aparece sozinho quando o mandato do Presidente estiver cadastrado, e o ato assinado. Pela decisão de 23/10 (cadastro
+  real só com o sistema pronto), fica como **risco aceito** até lá; o item da v7.0 continua `[ ]` e é o primeiro passo do cadastro real.
+- **Consentimento com o texto exato da época — OK, com 2 achados médios corrigidos:** o mecanismo (textos com impressão SHA-256 gravados por versão, lidos do banco,
+  nunca reescritos) já tinha teste; a revisão achou que (a) a versão gravada podia não ser a assinada: agora a data da assinatura tem de caber na vigência da versão
+  (um termo não é assinado antes de existir nem depois de outro o substituir) e (b) a prova do consentimento do atendimento social seria apagada em 5 anos enquanto o
+  prontuário ficava: agora ela fica enquanto houver relato ou encaminhamento. Também: **trava no banco** contra alterar ou apagar um texto gravado (migração
+  `a3c5e7f9b1d2`, também no Postgres) e **aos 18 anos** o consentimento dado pelo responsável deixa de abrir o atendimento (a própria pessoa assina; o da curatela de
+  um adulto continua) — risco que o agente apontou. **Prova pela tela:** robô `v7.1-ponto-01` 1/1 na homologação (Privacidade > Consentimentos > um consentimento da
+  versão 1 > "Ler o aviso desta versão" mostra o texto da versão 1, "hoje vale a versão 2" e que quem marcava a caixa era a equipe; o da versão 2 mostra o termo
+  assinado). **Política 2.14.**
+- **Robôs na homologação (branch `ponto-fase7-revisao-1`, migração `a3c5e7f9b1d2` aplicada no banco de teste):** `v7.1-ponto-01` 1, `v7.1c-01` 3, `v7.1d-01` 2,
+  `v7.1a-01` 4, `v7.1b-01` 3, `v5.4f-01` 22, `v5.4f-03` 16 (pegou que o aviso novo na linha do inscrito entrava antes da situação: virou um bloco próprio), `v5.6a-01` 5,
+  `v5.6a-02` 3, `v7.0c-01` 3.
+- **Pendência de infraestrutura que continua:** o papel de dados da identidade do GitHub no contêiner `documentos-emitidos` (item da v7.1d). O Presidente autorizou
+  em 28/10, mas o sistema de segurança do Claude Code bloqueou de novo (exige uma regra de permissão nas configurações): fica com ele decidir como fazer.
+
 #### v7.2 — Direitos do titular, operacionalizados
 
 - [ ] **[parcial, v5.5a e v5.6b: o site tem o formulário (fila única, protocolo e prazo) e a conta de visitante pede a eliminação com o e-mail provado por código; falta a validação de identidade no formulário público e o canal pelo painel]** Canal único de solicitação: pelo painel (autenticado) e pelo site (formulário com validação
