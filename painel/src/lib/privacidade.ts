@@ -324,3 +324,66 @@ export const lerAvisoDeUmaVersao = (ponto: string, versao: string) =>
   apiFetch<AvisoDeUmaVersao>(
     `/api/textos-de-privacidade/${encodeURIComponent(ponto)}/${encodeURIComponent(versao)}`,
   )
+
+// ------------------------------------------------------------------------------------------------ v7.2b: o relatório dos dados de uma pessoa (só o encarregado)
+export type PessoaAchada = {
+  id_pessoa: number
+  nome_completo: string
+  cpf_final: string | null
+  associado: boolean
+  beneficiario: boolean
+}
+
+export type AtividadeDoRelatorio = {
+  codigo: string
+  nome: string
+  finalidade: string
+  bases_legais: string[]
+  base_legal_conferida: boolean
+  compartilhado_com: string[]
+  transferencia_internacional: boolean
+  prazos_de_guarda: string[]
+}
+
+export type SecaoDoRelatorio = {
+  tabela: string
+  atividades: AtividadeDoRelatorio[]
+  tem_dado_sensivel: boolean
+  cortado: boolean
+  linhas: Array<Record<string, string | number | boolean | null>>
+}
+
+export type RelatorioDoTitular = {
+  gerado_em: string
+  pessoa: {
+    id_pessoa: number
+    nome_completo: string
+    cpf: string | null
+  } | null
+  secoes: SecaoDoRelatorio[]
+  total_de_linhas: number
+  algum_corte: boolean
+  fora_do_relatorio: string
+}
+
+// de quem é o relatório: o número do cadastro, ou (quem só escreveu pelo site) o e-mail; `id_atendimento` = quem responde a solicitação dela gera também
+export type QuemNoRelatorio = {
+  id_pessoa?: number
+  email?: string
+  id_atendimento?: number
+}
+
+export const buscarTitulares = (busca: string) =>
+  apiFetch<PessoaAchada[]>(
+    `/api/privacidade/titulares?busca=${encodeURIComponent(busca)}`,
+  )
+
+export const obterRelatorioDoTitular = (quem: QuemNoRelatorio) => {
+  const p = new URLSearchParams()
+  if (quem.id_pessoa) p.set('id_pessoa', String(quem.id_pessoa))
+  if (quem.email) p.set('email', quem.email)
+  if (quem.id_atendimento) p.set('id_atendimento', String(quem.id_atendimento))
+  return apiFetch<RelatorioDoTitular>(
+    `/api/privacidade/titulares/relatorio?${p.toString()}`,
+  )
+}

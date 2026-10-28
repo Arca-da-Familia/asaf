@@ -645,6 +645,19 @@ function Detalhe({
               </Link>
             </>
           ) : null}
+          {a.id_pessoa !== null &&
+          (podeVer('privacidade_gerir') ||
+            a.id_responsavel === eu?.id_usuario) ? (
+            <>
+              {' '}
+              <Link
+                className="text-primary underline"
+                to={`/privacidade/titulares?id_pessoa=${a.id_pessoa}&id_atendimento=${a.id_atendimento}`}
+              >
+                Gerar o relatório dos dados desta pessoa
+              </Link>
+            </>
+          ) : null}
           {a.nome_no_cadastro && podeVer('privacidade') ? (
             <>
               {' '}

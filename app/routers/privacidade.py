@@ -217,6 +217,44 @@ def listar_consentimentos(request: Request, situacao: Optional[str] = None, orig
     return {**resultado, "origens": servico_consentimentos.ROTULO_DA_ORIGEM}
 
 
+def _exigir_quem_gera_o_relatorio(db: Session, usuario: Usuario, id_atendimento: Optional[int], id_pessoa: Optional[int]) -> None:
+    """O encarregado (`privacidade_gerir`) ou quem é o RESPONSÁVEL pela solicitação do titular daquela pessoa ainda aberta (o pedido sobre o próprio Presidente fica
+    com o 1º Vice-Presidente: decisão 10 de 2026-10-28). Ninguém gera pelo pedido sobre os próprios dados."""
+    if usuario_tem_permissao(db, usuario, servico.PERMISSAO_GERIR):
+        return
+    from app.models.atendimento import EM_ATENDIMENTO, NOVO, TITULAR_LGPD, Atendimento
+
+    pedido = db.get(Atendimento, id_atendimento) if id_atendimento else None
+    if (pedido is None or pedido.tipo != TITULAR_LGPD or pedido.status not in (NOVO, EM_ATENDIMENTO) or pedido.id_responsavel != usuario.id_usuario
+            or id_pessoa is None or pedido.id_pessoa != id_pessoa):
+        raise HTTPException(status_code=403, detail="Só o encarregado gera o relatório dos dados de uma pessoa (ou quem responde a solicitação dela).")
+
+
+@router.get("/api/privacidade/titulares", summary="v7.2b - achar a pessoa do relatório dos dados (pelo nome, CPF ou e-mail do cadastro); só o encarregado")
+def buscar_titulares(busca: str, db: Session = Depends(get_db), _usuario: Usuario = Depends(_pode_gerir)):
+    from app.services import relatorio_do_titular
+
+    return relatorio_do_titular.buscar_pessoas(db, busca)
+
+
+@router.get("/api/privacidade/titulares/relatorio", summary="v7.2b - o relatório de todos os dados de uma pessoa (sem a Auditoria); só o encarregado")
+def relatorio_do_titular_endpoint(request: Request, id_pessoa: Optional[int] = None, cpf: Optional[str] = None, email: Optional[str] = None,
+                                  id_atendimento: Optional[int] = None, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+    from app.auditoria import registrar_auditoria
+    from app.services import relatorio_do_titular
+
+    _exigir_quem_gera_o_relatorio(db, usuario, id_atendimento, id_pessoa)
+    relatorio = relatorio_do_titular.montar(db, id_pessoa=id_pessoa, cpf=cpf, email=email)
+    # a leitura de todos os dados de uma pessoa fica na Auditoria (quantas tabelas e linhas, como foi procurada; nunca os valores, nem o CPF ou o e-mail)
+    registrar_auditoria(db, usuario, "pessoas", "CONSULTA_RELATORIO_DO_TITULAR",
+                        id_registro_afetado=relatorio["pessoa"]["id_pessoa"] if relatorio["pessoa"] else None,
+                        dados_depois={"procurado_por": relatorio["procurado_por"], "tabelas": len(relatorio["secoes"]),
+                                      "linhas": relatorio["total_de_linhas"], "id_atendimento": id_atendimento,
+                                      "tabelas_com_dado_sensivel": [s["tabela"] for s in relatorio["secoes"] if s["tem_dado_sensivel"]]},
+                        ip_origem=request.client.host if request.client else None)
+    return relatorio
+
+
 @router.get("/api/consentimentos/termo-da-tela/{origem}", summary="O termo de consentimento em vigor para a tela de envio (a versão volta no envio)")
 def termo_da_tela(origem: str, _usuario: Usuario = Depends(get_current_user)):
     if origem not in servico_consentimentos.TERMO_DA_ORIGEM:
