@@ -1299,6 +1299,15 @@ coisas foi feito por mim. Resultado do checklist da seção 4.1:
 > em 28/10** (com a minha recomendação): quem gera o relatório, formato e canal de entrega, o que entra, como a eliminação é decidida, bloqueio, lista do que é
 > retido por lei (inclusive as atas), associado ativo que pede eliminação, prazo, pedido feito por responsável, pedido sobre o próprio Presidente, escopo da
 > portabilidade e destino do relatório de atendimento.
+>
+> **Decisões do Presidente (2026-10-28, "aprovo" às 12 recomendações):** (1) o relatório dos dados de uma pessoa só pelo encarregado (`privacidade_gerir`); (2) PDF
+> legível + arquivo para a portabilidade, pela Minha conta, válidos 15 dias (em mãos, o encarregado imprime); (3) entra todo dado pessoal dela, inclusive anotações
+> da equipe e histórico, sem a Auditoria; (4) eliminação a pedido sempre decidida pelo encarregado, vendo antes o que sai e o que fica e por quê; (5) sem bloqueio;
+> (6) nunca apagado por lei: financeiro e recibos, atas e votações, livro de associados (nome e matrícula), prova dos consentimentos pelo prazo dela; (7) associado
+> ativo: explicar que os dados servem ao vínculo; desligado: anonimização na hora, a pedido; (8) 15 dias para tudo, contados do pedido, confirmação simples na hora,
+> regra do prazo com teto de 15; (9) pai ou mãe pede pelo filho menor, com o documento do vínculo conferido e registrado; (10) pedido sobre o próprio Presidente:
+> responde o 1º Vice-Presidente; (11) portabilidade: o que a pessoa forneceu + o que é dela no financeiro; (12) relatório de atendimento: tela para a Diretoria +
+> resumo no relatório anual.
 
 - [ ] **[parcial, v5.5a e v5.6b: o site tem o formulário (fila única, protocolo e prazo) e a conta de visitante pede a eliminação com o e-mail provado por código; falta a validação de identidade no formulário público e o canal pelo painel]** Canal único de solicitação: pelo painel (autenticado) e pelo site (formulário com validação
       de identidade), gerando protocolo com prazo legal acompanhado.
