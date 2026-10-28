@@ -1285,6 +1285,21 @@ coisas foi feito por mim. Resultado do checklist da seção 4.1:
 
 #### v7.2 — Direitos do titular, operacionalizados
 
+> **Levantamento de 2026-10-28** (agente só leitura, depois do Ponto 1/3). **Já existe:** a fila da solicitação do titular (subtipos do art. 18, prazo de 15 dias,
+> responsável = Presidente, identidade validada antes de responder — v5.5a/v5.7f), a resposta em texto lida na Minha conta, a conta de visitante (o que a pessoa fez
+> pelo site e o pedido de eliminação), a revogação do consentimento (v7.1b/c) e a eliminação do prontuário a pedido (v7.1d). **Falta:** (1) nenhuma busca reúne os dados
+> de UMA pessoa em todas as tabelas (a equipe responderia de memória); (2) nenhum arquivo legível por máquina para a portabilidade; (3) a eliminação a pedido de
+> associado, participante, doador ou voluntário (só existe a do prontuário e as da rotina, presas ao prazo); (4) o associado logado não tem como pedir pelo painel;
+> (5) o resultado de cada pedido não é registrado de forma contável (só texto livre) e não há relatório; (6) não há subtipos "consequência de não consentir" e
+> "oposição"; a regra do prazo não tem teto. **Partes propostas:** v7.2a fila completa (subtipos que faltam, resultado com fundamento escolhido de lista, teto de 15
+> dias, atalhos do pedido para a ficha, o prontuário e os consentimentos); v7.2b relatório dos dados de uma pessoa (guiado pela classificação de dados e pelo
+> inventário: o dado, a finalidade, a base legal, com quem é compartilhado e o prazo; leitura de dado sensível na Auditoria); v7.2c entrega ao titular (PDF legível +
+> arquivo para a portabilidade, pela Minha conta, com validade curta); v7.2d eliminação a pedido (mostra antes o que sai e o que fica, com o fundamento de cada
+> retido); v7.2e pedido pelo painel (Meu Perfil); v7.2f relatório de atendimento das solicitações; v7.2g textos (Política e avisos). **Decisões pedidas ao Presidente
+> em 28/10** (com a minha recomendação): quem gera o relatório, formato e canal de entrega, o que entra, como a eliminação é decidida, bloqueio, lista do que é
+> retido por lei (inclusive as atas), associado ativo que pede eliminação, prazo, pedido feito por responsável, pedido sobre o próprio Presidente, escopo da
+> portabilidade e destino do relatório de atendimento.
+
 - [ ] **[parcial, v5.5a e v5.6b: o site tem o formulário (fila única, protocolo e prazo) e a conta de visitante pede a eliminação com o e-mail provado por código; falta a validação de identidade no formulário público e o canal pelo painel]** Canal único de solicitação: pelo painel (autenticado) e pelo site (formulário com validação
       de identidade), gerando protocolo com prazo legal acompanhado.
 - [ ] **[parcial, v7.1b–d: a revogação do consentimento (apagar a foto; revogar o do atendimento social) e a eliminação do prontuário a pedido já existem; não
