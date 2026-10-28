@@ -60,6 +60,13 @@ RELATORIO_DE_TESTE = (
 
 
 # ------------------------------------------------------------------------------------------------ geradores
+
+def _hoje_em_belem() -> str:
+    """O dia de hoje em Belém (o servidor recusa a assinatura "depois de hoje" pelo dia de Belém; o CI roda em UTC, que passa da meia-noite às 21h)."""
+    from app.services.fuso import FUSO_ASAF
+
+    return datetime.now(FUSO_ASAF).date().isoformat()
+
 def cpf_valido(base: int) -> str:
     """CPF com dígitos verificadores corretos a partir de um número de 9 dígitos (inventado: não é de ninguém conhecido)."""
     digitos = [int(c) for c in f"{base:09d}"]
@@ -279,7 +286,7 @@ def popular(client, db, admin_headers: dict | None = None, admin_senha: str | No
             _ok(client.post(f"/api/eventos/{passada}/fotos", headers=admin_headers,
                             data={"alt": f"Foto de teste {n}: cena inventada de uma atividade do encontro, sem pessoas reais", "autorizacao_imagem": "true",
                                   "quem_autorizou": "Participantes inventados do encontro de teste", "meio": "termo_em_papel", "versao_do_termo": termo,
-                                  "assinado_em": date.today().isoformat()},
+                                  "assinado_em": _hoje_em_belem()},
                             files={"arquivo": (f"foto{n}.jpg", imagem_jpeg(f"encontro 2025, foto {n}", cor), "image/jpeg")}))
         return "projeto em destaque, projeto interno, 3 eventos, programação e 3 fotos com autorização"
 
@@ -325,7 +332,7 @@ def popular(client, db, admin_headers: dict | None = None, admin_senha: str | No
         _ok(client.post(f"/api/parcerias/{id_parceria}/etapas/{etapa}/fotos", headers=gestor,
                         data={"alt": "Foto de teste: cena inventada de uma oficina de percussão, sem pessoas reais", "autorizacao_imagem": "true",
                               "quem_autorizou": "Responsáveis inventados da oficina de teste", "meio": "termo_em_papel", "versao_do_termo": termo,
-                              "assinado_em": date.today().isoformat()},
+                              "assinado_em": _hoje_em_belem()},
                         files={"arquivo": ("oficina.jpg", imagem_jpeg("oficina de percussão", (120, 60, 140)), "image/jpeg")}))
         # livro-caixa: um recebimento e um pagamento no centro de custo exclusivo da emenda
         exercicio = db.query(Exercicio).filter(Exercicio.ano == 2026).first()

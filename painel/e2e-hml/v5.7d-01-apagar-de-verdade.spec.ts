@@ -317,7 +317,8 @@ test('prepara o vencimento natural: pessoa nova com mandato antigo e uma foto, p
         autorizacao_imagem: 'true',
         // v7.1b: o termo que a pessoa assinou (a versão em vigor) e como
         meio: 'termo_em_papel',
-        assinado_em: new Date().toISOString().slice(0, 10),
+        // ontem: o dia de hoje em UTC já é amanhã em Belém depois das 21h, e o servidor recusa a data futura
+        assinado_em: new Date(Date.now() - 86_400_000).toISOString().slice(0, 10),
         versao_do_termo: await versaoDoTermo(
           page,
           cabecalho().Authorization,
