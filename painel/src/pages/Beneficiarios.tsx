@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { HeartHandshake } from 'lucide-react'
 import { useState } from 'react'
 import { z } from 'zod'
@@ -202,6 +207,9 @@ export function BeneficiariosPage() {
         busca: busca || undefined,
         idProjeto: idProjetoFiltro,
       }),
+    // v7.1c: enquanto a busca nova carrega, a lista anterior fica: sem isso o bloco aberto (consentimento, edição, núcleo) era desmontado e perdia o que
+    // estava sendo preenchido (o robô v7.1c-01 pegou: digitar o nome e abrir o bloco antes de a busca responder)
+    placeholderData: keepPreviousData,
   })
 
   const dados = beneficiarios ?? []

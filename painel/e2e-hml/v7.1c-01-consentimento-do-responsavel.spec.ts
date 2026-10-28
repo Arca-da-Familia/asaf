@@ -42,7 +42,14 @@ async function entrarComToken(page: Page): Promise<string> {
 
 async function abrirBloco(page: Page): Promise<Locator> {
   await page.goto('/beneficiarios')
+  // espera a busca responder (a lista muda depois da digitação) antes de abrir o bloco
+  const respondeu = page.waitForResponse(
+    (r) =>
+      new URL(r.url()).pathname === '/api/beneficiarios/' &&
+      new URL(r.url()).searchParams.get('busca') === CRIANCA,
+  )
   await campo(page, 'Buscar por nome').fill(CRIANCA)
+  await respondeu
   await page
     .getByRole('row')
     .filter({ hasText: CRIANCA })

@@ -499,7 +499,14 @@ export async function registrarConsentimentoDoBeneficiario(
   nascimento = '1990-03-04',
 ): Promise<void> {
   await page.goto('/beneficiarios')
+  // espera a busca responder (a lista muda depois da digitação) antes de abrir o bloco
+  const respondeu = page.waitForResponse(
+    (r) =>
+      new URL(r.url()).pathname === '/api/beneficiarios/' &&
+      new URL(r.url()).searchParams.get('busca') === nome,
+  )
   await campo(page, 'Buscar por nome').fill(nome)
+  await respondeu
   await page
     .getByRole('row')
     .filter({ hasText: nome })
@@ -510,7 +517,12 @@ export async function registrarConsentimentoDoBeneficiario(
     name: `Consentimento do atendimento social de ${nome}`,
   })
   // sem a data de nascimento não se registra o termo (é ela que diz quem consente): informa a de um adulto, como a secretaria faria em Editar
-  if (await bloco.locator('[data-sem-nascimento]').isVisible()) {
+  const registrar = bloco.getByRole('button', {
+    name: /^Registrar (o termo assinado|um termo novo)$/,
+  })
+  const semNascimento = bloco.locator('[data-sem-nascimento]')
+  await expect(registrar.or(semNascimento)).toBeVisible()
+  if (await semNascimento.isVisible()) {
     await page
       .getByRole('row')
       .filter({ hasText: nome })
@@ -518,19 +530,13 @@ export async function registrarConsentimentoDoBeneficiario(
       .getByRole('button', { name: 'Editar' })
       .click()
     await campo(page, 'Nascimento').fill(nascimento)
-    const edicao = page
-      .locator('div.rounded-md.border')
-      .filter({
-        has: page.getByRole('heading', { name: /^Editar beneficiário #/ }),
-      })
+    const edicao = page.locator('div.rounded-md.border').filter({
+      has: page.getByRole('heading', { name: /^Editar beneficiário #/ }),
+    })
     await edicao.getByRole('button', { name: 'Salvar', exact: true }).click()
     await expect(edicao).toHaveCount(0)
   }
-  await bloco
-    .getByRole('button', {
-      name: /^Registrar (o termo assinado|um termo novo)$/,
-    })
-    .click()
+  await registrar.click()
   await bloco.getByRole('radio', { name: 'A própria pessoa atendida' }).check()
   await preencherOTermoDeImagem(bloco)
   await bloco.getByRole('button', { name: 'Registrar o consentimento' }).click()
