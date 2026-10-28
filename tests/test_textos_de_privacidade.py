@@ -105,7 +105,7 @@ def test_o_banco_tem_cada_versao_e_nunca_reescreve_a_gravada(db, monkeypatch):
     import dataclasses
 
     import pytest
-    from sqlalchemy.exc import IntegrityError
+    from sqlalchemy.exc import DBAPIError  # o SQLite recusa com IntegrityError; o Postgres, com o RAISE da função (ProgrammingError)
 
     tp.sincronizar(db)
     gravados = {(r.ponto, r.versao): r for r in db.query(TextoDePrivacidade).all()}
@@ -118,10 +118,10 @@ def test_o_banco_tem_cada_versao_e_nunca_reescreve_a_gravada(db, monkeypatch):
     r = gravados[("VISITANTE", "1")]
     original = r.texto
     r.texto = "Texto que alguém tentou trocar."
-    with pytest.raises(IntegrityError, match="não muda nem é apagado"):
+    with pytest.raises(DBAPIError, match="não muda nem é apagado"):
         db.commit()
     db.rollback()
-    with pytest.raises(IntegrityError, match="não muda nem é apagado"):
+    with pytest.raises(DBAPIError, match="não muda nem é apagado"):
         db.query(TextoDePrivacidade).filter(TextoDePrivacidade.id_texto == r.id_texto).delete(synchronize_session=False)
     db.rollback()
     db.expire_all()
