@@ -6,6 +6,7 @@ import {
   API_HML,
   campo,
   consentimentoPelaRota,
+  cpfValido,
   entrar,
   exigirHomologacao,
   RODADA,
@@ -243,6 +244,7 @@ test('o encarregado elimina o prontuário a pedido do titular, pela tela', async
       data: {
         tipo: 'TITULAR_LGPD',
         subtipo: 'ELIMINACAO',
+        cpf: cpfValido(RODADA % 999_999_999),
         nome_completo: BENEFICIARIA,
         email_contato: `eliminacao.${RODADA}@example.com`,
         mensagem:
