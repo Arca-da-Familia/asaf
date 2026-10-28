@@ -130,6 +130,11 @@ jobs:
           else
             echo "Esta versão do código ainda não tem a rotina: nada a rodar."
           fi
+          # v7.1d - dado ANTIGO inventado (só no banco e no armazenamento de TESTE: um evento de 6 anos, um voluntário encerrado, um certificado e uma entrada da Auditoria
+          # de 11 anos), para os prazos novos agirem de verdade aqui e o robô v7.1d-01 conferir. Uma versão do código sem o roteiro não faz nada.
+          if [ -f scripts/hml_dados_antigos_da_retencao.py ]; then
+            DATABASE_URL="$HML_DATABASE_URL" PYTHONPATH=. python scripts/hml_dados_antigos_da_retencao.py
+          fi
           # v5.7b - os prazos de guarda de dado pessoal (só aplica o que já venceu: na homologação, dado recente fica intacto)
           if [ -f scripts/aplicar_retencao_de_dados.py ]; then
             DATABASE_URL="$HML_DATABASE_URL" PYTHONPATH=. python scripts/aplicar_retencao_de_dados.py
