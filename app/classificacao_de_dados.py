@@ -144,6 +144,7 @@ CLASSIFICACAO: dict[str, Tabela] = {
         "assunto": LIVRE, "mensagem": LIVRE, "nome_completo": P, "email_contato": P, "telefone_whatsapp": P, "cpf": P, "data_nascimento": P, "chave_remetente": P,
         "identidade_nota": P, "resposta": LIVRE, "resposta_enviada_por_email": NP, "motivo_encerramento": LIVRE, "motivo_visivel_ao_titular": NP,
         "protocolo": M, "tipo": NP, "subtipo": NP, "impressao_do_pedido": NP, "origem": NP, "consentimento_lgpd_em": M, "consentimento_lgpd_versao": NP,
+        "resultado": NP, "fundamento": NP, "por_representante": M,
         "status": NP, "prazo_dias": NP, "prazo_em": NP, "assumido_em": NP, "identidade_validacao": M, "identidade_validada_em": M, "respondido_em": NP,
         "encerrado_em": NP, "criado_em": NP, "atualizado_em": NP,
     }),

@@ -296,6 +296,9 @@ def meus_pedidos_do_titular(db: Session, email: str) -> list[dict]:
             # o pedido encerrado SEM resposta (por exemplo, sem a identidade validada) mostra o motivo, mas só o que foi escrito já sabendo que a pessoa o lê (o de antes da v5.7f era nota interna)
             "encerrado_em": a.encerrado_em if sem_resposta_e_encerrado else None,
             "motivo_do_encerramento": a.motivo_encerramento if sem_resposta_e_encerrado and a.motivo_visivel_ao_titular else None,
+            # v7.2a: o resultado e, se o pedido não foi atendido por inteiro, o fundamento (o que a lei manda guardar), com a resposta
+            "resultado": atendimentos.ROTULOS_DO_RESULTADO.get(a.resultado or "") if entregue else None,
+            "fundamento": atendimentos.FUNDAMENTOS.get(a.fundamento or "") if entregue else None,
         })
     return itens
 

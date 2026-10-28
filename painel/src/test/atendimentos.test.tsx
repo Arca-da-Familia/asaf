@@ -872,6 +872,7 @@ describe('Atendimento: assumir, responder e encerrar', () => {
         expect(api.responderAtendimento).toHaveBeenCalledWith(
           1,
           'Obrigado pelo contato, vamos receber você.',
+          { resultado: '', fundamento: '' },
         ),
       )
       const registrada = await dentro.findByRole('region', {
@@ -1754,6 +1755,7 @@ describe('Atendimento: a identidade de quem pede dado pessoal (v5.7f)', () => {
       expect(api.validarIdentidadeDoAtendimento).toHaveBeenCalledWith(
         1,
         'Conferi o documento com foto na secretaria.',
+        false,
       ),
     )
     const cartaoDaIdentidade = await dentro.findByText(
@@ -1794,6 +1796,41 @@ describe('Atendimento: a identidade de quem pede dado pessoal (v5.7f)', () => {
     expect(dentro.getByLabelText('Resposta')).toBeEnabled()
   })
 
+  it('v7.2a: o titular exige o resultado e, se não atendido por inteiro, o fundamento escolhido da lista', async () => {
+    const u = userEvent.setup()
+    const { dentro } = await abrirOTitular({
+      identidade_validada: true,
+      identidade_validacao: 'AUTOMATICA_CADASTRO',
+      identidade_validada_em: '2026-10-09T12:00:00',
+    })
+    await u.type(
+      dentro.getByLabelText('Resposta'),
+      'Você ainda é associada: os dados ficam.',
+    )
+    await u.click(dentro.getByRole('button', { name: 'Registrar resposta' }))
+    expect(await dentro.findByRole('alert')).toHaveTextContent(
+      'Diga o resultado do pedido',
+    )
+    await u.selectOptions(dentro.getByLabelText('Resultado'), 'NEGADO')
+    await u.click(dentro.getByRole('button', { name: 'Registrar resposta' }))
+    expect(await dentro.findByRole('alert')).toHaveTextContent(
+      'Escolha o fundamento',
+    )
+    expect(api.responderAtendimento).not.toHaveBeenCalled()
+    await u.selectOptions(dentro.getByLabelText('Fundamento'), 'VINCULO_ATIVO')
+    await u.click(dentro.getByRole('button', { name: 'Registrar resposta' }))
+    await waitFor(() =>
+      expect(api.responderAtendimento).toHaveBeenCalledWith(
+        1,
+        'Você ainda é associada: os dados ficam.',
+        {
+          resultado: 'NEGADO',
+          fundamento: 'VINCULO_ATIVO',
+        },
+      ),
+    )
+  })
+
   it('validada pelo código dentro da Minha conta: a frase diz isso', async () => {
     const { dentro } = await abrirOTitular({
       identidade_validada: true,
@@ -1831,6 +1868,7 @@ describe('Atendimento: a identidade de quem pede dado pessoal (v5.7f)', () => {
       dentro.getByLabelText('Resposta'),
       'Guardamos o seu nome e o seu telefone.',
     )
+    await u.selectOptions(dentro.getByLabelText('Resultado'), 'ATENDIDO') // v7.2a: o titular exige o resultado
     await u.click(dentro.getByRole('button', { name: 'Registrar resposta' }))
     const registrada = await dentro.findByRole('region', {
       name: 'Resposta registrada',
@@ -1855,6 +1893,7 @@ describe('Atendimento: a identidade de quem pede dado pessoal (v5.7f)', () => {
       '/atendimentos?situacao=todas',
     )
     await u.type(dentro.getByLabelText('Resposta'), 'Guardamos o seu nome.')
+    await u.selectOptions(dentro.getByLabelText('Resultado'), 'ATENDIDO') // v7.2a: o titular exige o resultado
     await u.click(dentro.getByRole('button', { name: 'Registrar resposta' }))
     const registrada = await dentro.findByRole('region', {
       name: 'Resposta registrada',
@@ -1880,6 +1919,7 @@ describe('Atendimento: a identidade de quem pede dado pessoal (v5.7f)', () => {
     const dentro = await cartaoCarregado('ASAF-2026-00001')
     await u.click(await dentro.findByRole('button', { name: 'Abrir' }))
     await u.type(await dentro.findByLabelText('Resposta'), 'Resposta de teste.')
+    await u.selectOptions(dentro.getByLabelText('Resultado'), 'ATENDIDO') // v7.2a: o titular exige o resultado
     base[0]!.identidade_validada = false // o servidor de mentira passa a recusar
     await u.click(dentro.getByRole('button', { name: 'Registrar resposta' }))
     expect(await dentro.findByRole('alert')).toHaveTextContent(

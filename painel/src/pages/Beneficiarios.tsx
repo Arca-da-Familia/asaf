@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query'
 import { HeartHandshake } from 'lucide-react'
 import { useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { z } from 'zod'
 
 import { DataTable, type ColunaTabela } from '@/components/data/DataTable'
@@ -186,7 +187,11 @@ function SecaoExportarBeneficiarios({
 }
 
 export function BeneficiariosPage() {
-  const [buscaInput, setBuscaInput] = useState('')
+  // v7.2a: o atalho do pedido do titular abre a tela já filtrada (`?busca=`)
+  const [parametros] = useSearchParams()
+  const [buscaInput, setBuscaInput] = useState(
+    () => parametros.get('busca') ?? '',
+  )
   const busca = useDebounce(buscaInput)
   const [idProjetoFiltro, setIdProjetoFiltro] = useState<number | undefined>(
     undefined,

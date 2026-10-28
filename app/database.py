@@ -559,7 +559,7 @@ def seed_configuracoes_institucionais():
         # pedido de informação sobre recursos públicos segue de referência a Lei de Acesso à Informação (20 dias, art. 11); a diretoria muda aqui quando quiser.
         {"chave": "PRAZO_DIAS_ATENDIMENTO_CONTATO", "valor": "10", "tipo": "numero", "categoria": "regras", "descricao": "Dias para responder uma mensagem de contato que chega pelo site."},
         {"chave": "PRAZO_DIAS_PEDIDO_INFORMACAO", "valor": "20", "tipo": "numero", "categoria": "regras", "descricao": "Dias para responder um pedido de informação sobre recursos públicos que chega pelo site."},
-        {"chave": "PRAZO_DIAS_TITULAR_LGPD", "valor": "15", "tipo": "numero", "categoria": "regras", "descricao": "Dias para responder uma solicitação de titular de dados (LGPD) que chega pelo site (a lei fixa 15 dias para a declaração completa)."},
+        {"chave": "PRAZO_DIAS_TITULAR_LGPD", "valor": "15", "tipo": "numero", "categoria": "regras", "descricao": "Nunca mais que 15 dias (LGPD, art. 19, II): um valor maior é ignorado. Dias para responder uma solicitação de titular de dados (LGPD) que chega pelo site (a lei fixa 15 dias para a declaração completa)."},
         {"chave": "PRAZO_DIAS_ATENDIMENTO_VOLUNTARIO", "valor": "10", "tipo": "numero", "categoria": "regras", "descricao": "Dias para responder quem se oferece como voluntário pelo site."},
         # v5.7d - o QR da carteirinha não vale por tempo indeterminado (decisão do Presidente: 10 a 20 dias): vale este número de dias a partir da emissão, também para os QR já emitidos.
         # v5.7b - prazos de guarda de dado pessoal (LGPD, arts. 15 e 16), da Tabela de temporalidade do PLANO_PROJETO.md; a rotina `scripts/aplicar_retencao_de_dados.py` aplica o que já venceu.

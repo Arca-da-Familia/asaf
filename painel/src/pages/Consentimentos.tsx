@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
+import { useSearchParams } from 'react-router'
 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { LerAviso } from '@/components/privacidade/LerAviso'
@@ -53,7 +54,9 @@ function Linha({ c }: { c: ResumoDoConsentimento }) {
 export function ConsentimentosPage() {
   const [situacao, setSituacao] = useState<'' | 'vigentes' | 'encerrados'>('')
   const [origem, setOrigem] = useState<'' | OrigemDeConsentimento>('')
-  const [busca, setBusca] = useState('')
+  // v7.2a: o atalho do pedido do titular abre a lista já filtrada pelo nome (`?busca=`)
+  const [parametros] = useSearchParams()
+  const [busca, setBusca] = useState(() => parametros.get('busca') ?? '')
   const [pagina, setPagina] = useState(1)
   const idSituacao = useId()
   const idOrigem = useId()

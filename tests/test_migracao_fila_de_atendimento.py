@@ -43,9 +43,11 @@ def test_a_migracao_cria_exatamente_o_que_o_modelo_descreve():
     sobre_a_tabela = []
     for item in diferencas:
         for d in item if isinstance(item, list) else [item]:
-            # `data_nascimento` chegou depois, na migração a8d4f1c7e592 (v5.5b), e as colunas da identidade do titular (e o motivo visível ao titular), na b9e2c5a7d014 (v5.7f): cada uma tem o teste dela
+            # `data_nascimento` chegou depois, na migração a8d4f1c7e592 (v5.5b), as colunas da identidade do titular (e o motivo visível ao titular), na b9e2c5a7d014 (v5.7f),
+            # e o resultado, o fundamento e o pedido pelo representante, na b0227d30a6a9 (v7.2a): cada uma tem o teste dela
             if any(tabela in repr(d) for tabela in _TABELAS) and not any(
-                nova in repr(d) for nova in ("data_nascimento", "identidade_", "id_usuario_validacao", "motivo_visivel_ao_titular")
+                nova in repr(d) for nova in ("data_nascimento", "identidade_", "id_usuario_validacao", "motivo_visivel_ao_titular", "'resultado'", "'fundamento'",
+                                              "'por_representante'")
             ):
                 sobre_a_tabela.append(repr(d))
     assert sobre_a_tabela == [], "a migração e o modelo divergem:\n" + "\n".join(sobre_a_tabela)

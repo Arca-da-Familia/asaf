@@ -106,6 +106,9 @@ export interface PedidoDoTitularDaConta {
   encerrado_em: string | null
   /** Só no pedido encerrado: o motivo que a equipe escreveu. */
   motivo_do_encerramento: string | null
+  /** v7.2a: o resultado da resposta (atendido, em parte, não atendido) e, se não foi atendido por inteiro, o fundamento (o que a lei manda guardar). */
+  resultado?: string | null
+  fundamento?: string | null
 }
 
 export interface ContaDoVisitante {
@@ -196,6 +199,8 @@ export function lerConta(dados: unknown): ContaDoVisitante | null {
       resposta: textoOuNada(p.resposta),
       encerrado_em: textoOuNada(p.encerrado_em),
       motivo_do_encerramento: textoOuNada(p.motivo_do_encerramento),
+      resultado: textoOuNada(p.resultado),
+      fundamento: textoOuNada(p.fundamento),
     })
   }
 

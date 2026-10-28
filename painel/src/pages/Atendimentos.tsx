@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Headset } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 
 import { VoluntarioDoPedido } from '@/components/atendimentos/VoluntarioDoPedido'
 import { EmptyState } from '@/components/feedback/EmptyState'
@@ -11,8 +11,10 @@ import {
   abrirAtendimento,
   assumirAtendimento,
   encerrarAtendimento,
+  FUNDAMENTOS_DO_TITULAR,
   listarAtendimentosDaFila,
   responderAtendimento,
+  RESULTADOS_DO_TITULAR,
   resumirAtendimentos,
   validarIdentidadeDoAtendimento,
   type AtendimentoAberto,
@@ -20,6 +22,7 @@ import {
   type AtendimentoDaFila,
 } from '@/lib/api'
 import { formatarCpf } from '@/lib/cpf'
+import { useMe } from '@/lib/use-me'
 import {
   avisoDoEncerramentoDoTitular,
   avisoDoEnvioDaResposta,
@@ -427,6 +430,12 @@ function Detalhe({
   const [resposta, setResposta] = useState('')
   const [motivo, setMotivo] = useState('')
   const [nota, setNota] = useState('')
+  const [porRepresentante, setPorRepresentante] = useState(false)
+  // v7.2a: os atalhos do pedido só aparecem para quem pode abrir a tela de destino
+  const eu = useMe()?.data
+  const podeVer = (permissao: string) => !!eu?.permissoes.includes(permissao)
+  const [resultado, setResultado] = useState('')
+  const [fundamento, setFundamento] = useState('')
   const [erro, setErro] = useState<string | null>(null)
 
   const {
@@ -464,11 +473,14 @@ function Detalhe({
     onError: falhar,
   })
   const responder = useMutation({
-    mutationFn: () => responderAtendimento(id, resposta),
+    mutationFn: () =>
+      responderAtendimento(id, resposta, { resultado, fundamento }),
     onMutate: () => setErro(null),
     onSuccess: (r) => {
       const envio = avisoDoEnvioDaResposta(r, true)
       setResposta('')
+      setResultado('')
+      setFundamento('')
       atualizar(
         r,
         `Atendimento ${r.protocolo} respondido. ${envio.texto}`,
@@ -478,7 +490,8 @@ function Detalhe({
     onError: falhar,
   })
   const validar = useMutation({
-    mutationFn: () => validarIdentidadeDoAtendimento(id, nota),
+    mutationFn: () =>
+      validarIdentidadeDoAtendimento(id, nota, porRepresentante),
     onMutate: () => setErro(null),
     onSuccess: (r) => {
       setNota('')
@@ -511,6 +524,18 @@ function Detalhe({
 
   function enviarResposta(e: FormEvent) {
     e.preventDefault()
+    if (a?.tipo === 'TITULAR_LGPD') {
+      if (!resultado) {
+        setErro(
+          'Diga o resultado do pedido: atendido, atendido em parte ou não atendido.',
+        )
+        return
+      }
+      if (resultado !== 'ATENDIDO' && !fundamento) {
+        setErro('Escolha o fundamento de não atender o pedido por inteiro.')
+        return
+      }
+    }
     responder.mutate()
   }
 
@@ -596,8 +621,53 @@ function Detalhe({
         />
       )}
       {a.id_pessoa !== null && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground" data-atalhos>
           Esta pessoa já consta no cadastro da associação.
+          {a.id_associado && podeVer('associados') ? (
+            <>
+              {' '}
+              <Link
+                className="text-primary underline"
+                to={`/associados/${a.id_associado}`}
+              >
+                Abrir a ficha do associado
+              </Link>
+            </>
+          ) : null}
+          {a.id_beneficiario && a.nome_no_cadastro && podeVer('projetos') ? (
+            <>
+              {' '}
+              <Link
+                className="text-primary underline"
+                to={`/beneficiarios?busca=${encodeURIComponent(a.nome_no_cadastro)}`}
+              >
+                Abrir o beneficiário (prontuário e consentimento)
+              </Link>
+            </>
+          ) : null}
+          {a.nome_no_cadastro && podeVer('privacidade') ? (
+            <>
+              {' '}
+              <Link
+                className="text-primary underline"
+                to={`/privacidade/consentimentos?busca=${encodeURIComponent(a.nome_no_cadastro)}`}
+              >
+                Ver os consentimentos dela
+              </Link>
+            </>
+          ) : null}
+        </p>
+      )}
+      {a.resultado_rotulo && (
+        <p className="text-sm" data-resultado>
+          <strong>Resultado:</strong> {a.resultado_rotulo}
+          {a.fundamento_texto && ` · Fundamento: ${a.fundamento_texto}`}
+        </p>
+      )}
+      {a.por_representante && (
+        <p className="text-xs text-muted-foreground" data-por-representante>
+          Pedido feito por um dos pais ou pelo responsável legal (vínculo
+          conferido).
         </p>
       )}
 
@@ -625,6 +695,15 @@ function Detalhe({
                   onChange={(e) => setNota(e.target.value)}
                   className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
                 />
+              </label>
+              <label className="mt-2 flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={porRepresentante}
+                  onChange={(e) => setPorRepresentante(e.target.checked)}
+                />
+                Quem pediu é um dos pais ou o responsável legal pelo titular
+                (conferi o documento do vínculo)
               </label>
               <Button
                 type="submit"
@@ -775,6 +854,47 @@ function Detalhe({
               A resposta fica registrada aqui e também é enviada por e-mail, se
               a pessoa deixou um.
             </p>
+          )}
+          {a.tipo === 'TITULAR_LGPD' && !faltaValidar && (
+            <div
+              className="mt-2 flex flex-wrap gap-2"
+              data-resultado-do-titular
+            >
+              <label className="text-sm">
+                Resultado
+                <select
+                  aria-label="Resultado"
+                  value={resultado}
+                  onChange={(e) => setResultado(e.target.value)}
+                  className="ml-1 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                >
+                  <option value="">Escolha…</option>
+                  {RESULTADOS_DO_TITULAR.map((r) => (
+                    <option key={r.codigo} value={r.codigo}>
+                      {r.rotulo}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {resultado && resultado !== 'ATENDIDO' && (
+                <label className="text-sm">
+                  Fundamento
+                  <select
+                    aria-label="Fundamento"
+                    value={fundamento}
+                    onChange={(e) => setFundamento(e.target.value)}
+                    className="ml-1 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                  >
+                    <option value="">Escolha…</option>
+                    {FUNDAMENTOS_DO_TITULAR.map((f) => (
+                      <option key={f.codigo} value={f.codigo}>
+                        {f.rotulo}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
           )}
           <Button
             type="submit"

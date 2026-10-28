@@ -123,7 +123,7 @@ def test_os_outros_tipos_de_pedido_nao_tem_validacao_de_identidade(client, db, a
 # ------------------------------------------------------------------------------------------------ 3. responder só com a identidade validada
 def test_o_servidor_recusa_responder_a_solicitacao_do_titular_sem_a_identidade_validada(client, db, auth_headers, emails):
     a = _pedido(client, db)
-    r = client.post(f"{_url(a)}/responder", json={"resposta": TEXTO_DA_RESPOSTA}, headers=auth_headers)
+    r = client.post(f"{_url(a)}/responder", json={"resposta": TEXTO_DA_RESPOSTA, "resultado": "ATENDIDO"}, headers=auth_headers)
     assert r.status_code == 400 and "valide a identidade" in r.json()["detail"]
     db.refresh(a)
     assert a.status != RESPONDIDO and a.resposta is None
@@ -150,7 +150,7 @@ def test_a_equipe_valida_a_mao_com_o_que_conferiu_e_so_depois_responde(client, d
     de_novo = client.post(url, json={"nota": "Conferi mais uma vez o documento."}, headers=auth_headers)
     assert de_novo.status_code == 400 and "já está validada" in de_novo.json()["detail"]
     # agora a resposta é aceita
-    resposta = client.post(f"{_url(a)}/responder", json={"resposta": TEXTO_DA_RESPOSTA}, headers=auth_headers)
+    resposta = client.post(f"{_url(a)}/responder", json={"resposta": TEXTO_DA_RESPOSTA, "resultado": "ATENDIDO"}, headers=auth_headers)
     assert resposta.status_code == 200, resposta.text
     # e depois de respondido não se valida mais
     tarde = client.post(url, json={"nota": "Conferi o documento depois da hora."}, headers=auth_headers)
@@ -188,7 +188,7 @@ def test_pedido_antigo_sem_e_mail_nao_pode_receber_resposta_com_dado_pessoal(cli
     a.telefone_whatsapp = "91988887777"
     db.commit()
     assert client.post(f"{_url(a)}/validar-identidade", json={"nota": "Conferi o documento com foto."}, headers=auth_headers).status_code == 200
-    r = client.post(f"{_url(a)}/responder", json={"resposta": TEXTO_DA_RESPOSTA}, headers=auth_headers)
+    r = client.post(f"{_url(a)}/responder", json={"resposta": TEXTO_DA_RESPOSTA, "resultado": "ATENDIDO"}, headers=auth_headers)
     assert r.status_code == 400 and "Minha conta" in r.json()["detail"]
     assert client.post(f"{_url(a)}/encerrar", json={"motivo": "Pedido sem e-mail: a pessoa deve refazer."}, headers=auth_headers).status_code == 200
 
@@ -199,7 +199,7 @@ def test_o_e_mail_do_titular_so_avisa_e_nao_leva_a_resposta(client, db, auth_hea
     _associado(db, cpf, email)
     a = _pedido(client, db, cpf=cpf, email_contato=email)
     emails.clear()  # descarta o e-mail de recebimento (outro teste confere o texto dele)
-    r = client.post(f"{_url(a)}/responder", json={"resposta": TEXTO_DA_RESPOSTA}, headers=auth_headers)
+    r = client.post(f"{_url(a)}/responder", json={"resposta": TEXTO_DA_RESPOSTA, "resultado": "ATENDIDO"}, headers=auth_headers)
     assert r.status_code == 200 and r.json()["resposta_enviada_por_email"] is True
     assert len(emails) == 1 and emails[0][0] == email
     _destino, assunto, corpo = emails[0]
@@ -249,10 +249,11 @@ def test_a_resposta_aparece_na_minha_conta_so_para_o_e_mail_do_pedido(client, db
     assert antes[0]["o_que_pediu"] and "Acessar os dados" in antes[0]["o_que_pediu"]
     assert set(antes[0]) == {
         "protocolo", "o_que_pediu", "situacao", "pedido_em", "prazo_em", "respondido_em", "resposta", "encerrado_em", "motivo_do_encerramento",
+        "resultado", "fundamento",  # v7.2a
     }, "nunca o CPF nem o texto do pedido"
     assert antes[0]["encerrado_em"] is None and antes[0]["motivo_do_encerramento"] is None
 
-    assert client.post(f"{_url(a)}/responder", json={"resposta": TEXTO_DA_RESPOSTA}, headers=auth_headers).status_code == 200
+    assert client.post(f"{_url(a)}/responder", json={"resposta": TEXTO_DA_RESPOSTA, "resultado": "ATENDIDO"}, headers=auth_headers).status_code == 200
     depois = client.get("/api/visitante/minha-conta", headers=_cabecalho(token)).json()["pedidos_do_titular"]
     assert depois[0]["resposta"] == TEXTO_DA_RESPOSTA and depois[0]["situacao"] == RESPONDIDO and depois[0]["respondido_em"] is not None
 
@@ -298,7 +299,8 @@ def test_o_pedido_aberto_dentro_da_minha_conta_nasce_validado_pelo_codigo(client
     a = db.query(Atendimento).filter(Atendimento.protocolo == r.json()["protocolo"]).one()
     assert a.subtipo == "ELIMINACAO" and a.identidade_validacao == IDENTIDADE_CODIGO_NO_EMAIL and a.identidade_validada_em is not None
     # a equipe pode responder direto, e a resposta aparece na conta
-    assert client.post(f"{_url(a)}/responder", json={"resposta": "Eliminamos o que a lei permite e guardamos os recibos."}, headers=auth_headers).status_code == 200
+    assert client.post(f"{_url(a)}/responder", json={"resposta": "Eliminamos o que a lei permite e guardamos os recibos.", "resultado": "ATENDIDO_EM_PARTE",
+                                                    "fundamento": "ESCRITURACAO_FINANCEIRA"}, headers=auth_headers).status_code == 200
     itens = client.get("/api/visitante/minha-conta", headers=_cabecalho(token)).json()["pedidos_do_titular"]
     assert any(i["protocolo"] == a.protocolo and i["resposta"] for i in itens)
     registro = db.query(AuditLog).filter(AuditLog.acao == "VISITANTE_PEDIU_APAGAMENTO", AuditLog.id_registro_afetado == a.id_atendimento).one()
@@ -308,7 +310,7 @@ def test_o_pedido_aberto_dentro_da_minha_conta_nasce_validado_pelo_codigo(client
 def test_a_rotina_de_retencao_apaga_o_que_a_equipe_anotou_ao_validar(client, db, auth_headers):
     a = _pedido(client, db)
     assert client.post(f"{_url(a)}/validar-identidade", json={"nota": "Conferi o RG número 1234567 na secretaria."}, headers=auth_headers).status_code == 200
-    assert client.post(f"{_url(a)}/responder", json={"resposta": TEXTO_DA_RESPOSTA}, headers=auth_headers).status_code == 200
+    assert client.post(f"{_url(a)}/responder", json={"resposta": TEXTO_DA_RESPOSTA, "resultado": "ATENDIDO"}, headers=auth_headers).status_code == 200
     db.refresh(a)
     a.respondido_em = datetime.utcnow() - timedelta(days=5 * 365 + 40)
     db.commit()
@@ -387,7 +389,7 @@ def test_encerrar_depois_de_responder_nao_some_com_a_resposta_nem_manda_aviso_de
     cpf, email = _cpf_valido(), _email()
     _associado(db, cpf, email)
     a = _pedido(client, db, cpf=cpf, email_contato=email)
-    assert client.post(f"{_url(a)}/responder", json={"resposta": TEXTO_DA_RESPOSTA}, headers=auth_headers).status_code == 200
+    assert client.post(f"{_url(a)}/responder", json={"resposta": TEXTO_DA_RESPOSTA, "resultado": "ATENDIDO"}, headers=auth_headers).status_code == 200
     emails.clear()
     r = client.post(f"{_url(a)}/encerrar", json={"motivo": "Atendimento concluído e arquivado."}, headers=auth_headers)
     assert r.status_code == 200 and r.json()["resposta_enviada_por_email"] is True, "o aviso da resposta não é apagado por quem encerra depois"

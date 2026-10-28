@@ -302,7 +302,7 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
       'Avisos do sino do painel (da equipe e dos associados; podem trazer o nome de quem pediu): 1 ano, depois são apagados.',
       // v6.1 (Política 2.4): a prova de leitura do mural de avisos do painel
       'Registro de quem recebeu, leu e confirmou um aviso do mural do painel: 5 anos depois de o aviso sair do mural (vencer ou ser retirado), a lista de quem o recebeu, com as datas de leitura e de confirmação, é apagada; ficam o aviso e os totais. A confirmação de leitura também fica registrada na Auditoria do sistema, que tem o prazo dela (abaixo).',
-      '(contato, informação, solicitação de titular e voluntariado): 5 anos depois de respondidos ou encerrados, apagamos o nome, o assunto, a mensagem, a resposta, o motivo do encerramento e os dados de contato e de identificação (e-mail, telefone, CPF, data de nascimento); ficam o número do protocolo, o tipo, a situação e as datas. O pedido que ainda não foi respondido nem encerrado não é apagado.',
+      '(contato, informação, solicitação de titular e voluntariado): 5 anos depois de respondidos ou encerrados, apagamos o nome, o assunto, a mensagem, a resposta, o motivo do encerramento e os dados de contato e de identificação (e-mail, telefone, CPF, data de nascimento); ficam o número do protocolo, o tipo, a situação, o resultado (com o fundamento, quando o pedido não foi atendido por inteiro), se foi feito por um responsável e as datas. O pedido que ainda não foi respondido nem encerrado não é apagado.',
       'Pedido de filiação que não virou associado (recusado, ou pendente sem decisão): 2 anos depois da última mudança no pedido ou no voto de um sócio, ele e as decisões dos sócios sobre ele são apagados',
       'Pedido de doação pelo site que ninguém confirmou: 2 anos depois do prazo do pedido, é apagado.',
       // v7.1b e v7.1c (Política 2.11 e 2.12): a prova de um consentimento que acabou
@@ -327,16 +327,16 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
     )
   })
 
-  test('versão 2.14 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
+  test('versão 2.15 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
     page,
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.14 · em vigor desde 28 de outubro de 2026'),
+      page.getByText('Versão 2.15 · em vigor desde 28 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.14, em vigor desde 28 de outubro de 2026/,
+        /Esta é a versão 2\.15, em vigor desde 28 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-doacao]')

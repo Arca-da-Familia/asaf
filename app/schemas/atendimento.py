@@ -8,7 +8,8 @@ from app.validadores import somente_digitos, validar_cpf, validar_telefone_br
 # os tipos que o site manda (o voluntariado entrou na v5.5b)
 TipoPublico = Literal["CONTATO", "PEDIDO_INFORMACAO", "TITULAR_LGPD", "VOLUNTARIO"]
 ASSUNTO_DO_VOLUNTARIADO = "Quero ser voluntário"
-SUBTIPOS_DA_SOLICITACAO_DE_TITULAR = ("CONFIRMACAO", "ACESSO", "CORRECAO", "ELIMINACAO", "PORTABILIDADE", "COMPARTILHAMENTO", "REVOGACAO", "OUTRO")
+SUBTIPOS_DA_SOLICITACAO_DE_TITULAR = ("CONFIRMACAO", "ACESSO", "CORRECAO", "ELIMINACAO", "PORTABILIDADE", "COMPARTILHAMENTO", "REVOGACAO", "NAO_CONSENTIR",
+                                      "OPOSICAO", "OUTRO")
 
 
 class AtendimentoPublicoCriar(BaseModel):
@@ -123,6 +124,9 @@ class AtendimentoPublicoCriar(BaseModel):
 
 class AtendimentoResponder(BaseModel):
     resposta: str
+    # v7.2a: só na solicitação do titular (o servidor exige)
+    resultado: Optional[str] = None
+    fundamento: Optional[str] = None
 
 
 class AtendimentoEncerrar(BaseModel):
@@ -132,3 +136,5 @@ class AtendimentoEncerrar(BaseModel):
 class AtendimentoValidarIdentidade(BaseModel):
     """v5.7f: o que a equipe conferiu para validar a identidade de quem pediu (a solicitação do titular)."""
     nota: str
+    # v7.2a: o pedido foi feito por um dos pais ou pelo responsável legal pelo titular (documento do vínculo conferido)
+    por_representante: bool = False

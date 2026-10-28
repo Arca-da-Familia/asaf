@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
 from app.database import get_db
-from app.models.atendimento import ENCERRADO, IDENTIDADE_AUTOMATICA_CADASTRO, SITUACOES, TIPOS, Atendimento
+from app.models.atendimento import ENCERRADO, IDENTIDADE_AUTOMATICA_CADASTRO, RESPONDIDO, SITUACOES, TIPOS, Atendimento
 from app.models.core import Usuario
 from app.schemas.atendimento import AtendimentoEncerrar, AtendimentoPublicoCriar, AtendimentoResponder, AtendimentoValidarIdentidade
 from app.security import exigir_permissao
@@ -51,8 +51,15 @@ def enviar_pedido(dados: AtendimentoPublicoCriar, request: Request, db: Session 
                 db, None, "atendimentos", "ATENDIMENTO_IDENTIDADE_VALIDADA_AUTOMATICAMENTE", id_registro_afetado=atendimento.id_atendimento,
                 dados_depois={"como": atendimento.identidade_validacao}, ip_origem=ip,
             )
-        # confirmação por e-mail (protocolo e prazo), só para o pedido novo e só se a pessoa informou e-mail; melhor esforço
-        servico.confirmar_recebimento_por_email(atendimento)
+        if atendimento.status == RESPONDIDO:
+            # v7.2a: a confirmação simples respondida na hora pelo sistema fica na Auditoria como resposta, sem usuário
+            registrar_auditoria(db, None, "atendimentos", "ATENDIMENTO_RESPONDIDO", id_registro_afetado=atendimento.id_atendimento,
+                                dados_depois={"como": "automatico", "resultado": atendimento.resultado}, ip_origem=ip)
+        # confirmação por e-mail (protocolo e prazo; ou "a resposta já está pronta"), só para o pedido novo e só se a pessoa informou e-mail; melhor esforço
+        enviado = servico.confirmar_recebimento_por_email(atendimento)
+        if atendimento.status == RESPONDIDO and atendimento.email_contato:
+            atendimento.resposta_enviada_por_email = enviado
+            db.commit()
     # a resposta é a mesma para um pedido novo e para o mesmo pedido mandado de novo: quem está de fora só recebe o protocolo e o prazo
     return {
         "mensagem": "Pedido recebido.", "protocolo": atendimento.protocolo, "prazo_dias": atendimento.prazo_dias, "prazo_em": atendimento.prazo_em,
@@ -114,11 +121,12 @@ def assumir_atendimento(id_atendimento: int, request: Request, db: Session = Dep
 def responder_atendimento(id_atendimento: int, dados: AtendimentoResponder, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_da_fila)):
     atendimento = _buscar_ou_404(db, id_atendimento)
     antes = {"status": atendimento.status}
-    servico.responder(db, atendimento, usuario, dados.resposta)
+    servico.responder(db, atendimento, usuario, dados.resposta, resultado=dados.resultado, fundamento=dados.fundamento)
     registrar_auditoria(
         db, usuario, "atendimentos", "ATENDIMENTO_RESPONDIDO", id_registro_afetado=atendimento.id_atendimento, dados_antes=antes,
         dados_depois={
             "status": atendimento.status, "situacao_do_prazo": servico.situacao_do_prazo(atendimento), "resposta_enviada_por_email": atendimento.resposta_enviada_por_email,
+            "resultado": atendimento.resultado, "fundamento": atendimento.fundamento,
         },
         ip_origem=_ip(request),
     )
@@ -130,11 +138,11 @@ def validar_identidade_do_atendimento(
     id_atendimento: int, dados: AtendimentoValidarIdentidade, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_da_fila),
 ):
     atendimento = _buscar_ou_404(db, id_atendimento)
-    servico.validar_identidade(db, atendimento, usuario, dados.nota)
+    servico.validar_identidade(db, atendimento, usuario, dados.nota, por_representante=dados.por_representante)
     # a Auditoria guarda quem validou, quando e como; o que foi conferido (que pode ter dado da pessoa) fica só no pedido
     registrar_auditoria(
         db, usuario, "atendimentos", "ATENDIMENTO_IDENTIDADE_VALIDADA", id_registro_afetado=atendimento.id_atendimento,
-        dados_depois={"como": atendimento.identidade_validacao}, ip_origem=_ip(request),
+        dados_depois={"como": atendimento.identidade_validacao, "por_representante": bool(atendimento.por_representante)}, ip_origem=_ip(request),
     )
     return servico.serializar(atendimento, completo=True, db=db)
 
@@ -157,6 +165,6 @@ def encerrar_atendimento(id_atendimento: int, dados: AtendimentoEncerrar, reques
     servico.encerrar(db, atendimento, usuario, dados.motivo)
     registrar_auditoria(
         db, usuario, "atendimentos", "ATENDIMENTO_ENCERRADO", id_registro_afetado=atendimento.id_atendimento, dados_antes=antes,
-        dados_depois={"status": ENCERRADO, "motivo": atendimento.motivo_encerramento}, ip_origem=_ip(request),
+        dados_depois={"status": ENCERRADO, "motivo": atendimento.motivo_encerramento, "resultado": atendimento.resultado}, ip_origem=_ip(request),
     )
     return servico.serializar(atendimento, completo=True, db=db)

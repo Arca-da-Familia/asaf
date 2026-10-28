@@ -6527,6 +6527,12 @@ export type AtendimentoDaFila = {
   identidade_validada_em: string | null
   identidade_nota: string | null
   id_usuario_validacao: number | null
+  // v7.2a: o resultado da solicitação do titular e, se não foi atendida por inteiro, o fundamento; o pedido feito por um dos pais ou pelo responsável
+  resultado?: string | null
+  resultado_rotulo?: string | null
+  fundamento?: string | null
+  fundamento_texto?: string | null
+  por_representante?: boolean
 }
 
 // O que as ações (assumir, responder, encerrar, validar a identidade, cadastrar como voluntário) devolvem: o pedido com o CPF inteiro (só na abertura do pedido) e, se a identidade foi
@@ -6534,7 +6540,45 @@ export type AtendimentoDaFila = {
 export type AtendimentoCompleto = AtendimentoDaFila & {
   cpf: string | null
   identidade_validada_por?: string | null
+  // v7.2a: os atalhos para a ficha do associado e para o beneficiário (prontuário e consentimento)
+  id_associado?: number | null
+  id_beneficiario?: number | null
+  nome_no_cadastro?: string | null
 }
+
+// v7.2a - o resultado de cada solicitação do titular e o fundamento de não atender por inteiro (decisões do Presidente, 2026-10-28)
+export const RESULTADOS_DO_TITULAR = [
+  { codigo: 'ATENDIDO', rotulo: 'Atendido' },
+  { codigo: 'ATENDIDO_EM_PARTE', rotulo: 'Atendido em parte' },
+  { codigo: 'NEGADO', rotulo: 'Não atendido' },
+] as const
+export const FUNDAMENTOS_DO_TITULAR = [
+  {
+    codigo: 'ESCRITURACAO_FINANCEIRA',
+    rotulo: 'Escrituração financeira e recibos (a lei manda guardar)',
+  },
+  {
+    codigo: 'ATAS_E_VOTACOES',
+    rotulo: 'Ata ou votação de assembleia (registro permanente)',
+  },
+  {
+    codigo: 'LIVRO_DE_ASSOCIADOS',
+    rotulo: 'Livro de associados (nome e matrícula)',
+  },
+  {
+    codigo: 'PROVA_DE_CONSENTIMENTO',
+    rotulo: 'Prova do consentimento (pelo prazo dela)',
+  },
+  {
+    codigo: 'VINCULO_ATIVO',
+    rotulo: 'Ainda é associado (os dados servem ao vínculo)',
+  },
+  {
+    codigo: 'IDENTIDADE_NAO_CONFIRMADA',
+    rotulo: 'Não foi possível confirmar a identidade',
+  },
+  { codigo: 'OUTRO', rotulo: 'Outro (explicado na resposta)' },
+] as const
 
 export type OutroPedidoDoRemetente = {
   id_atendimento: number
@@ -6612,10 +6656,16 @@ export function assumirAtendimento(
 export function responderAtendimento(
   idAtendimento: number,
   resposta: string,
+  // v7.2a: na solicitação do titular, o resultado e (se não atendida por inteiro) o fundamento
+  extra: { resultado?: string; fundamento?: string } = {},
 ): Promise<AtendimentoCompleto> {
   return apiFetch(`/api/atendimentos/${idAtendimento}/responder`, {
     method: 'POST',
-    body: JSON.stringify({ resposta }),
+    body: JSON.stringify({
+      resposta,
+      resultado: extra.resultado || null,
+      fundamento: extra.fundamento || null,
+    }),
   })
 }
 
@@ -6633,10 +6683,11 @@ export function encerrarAtendimento(
 export function validarIdentidadeDoAtendimento(
   idAtendimento: number,
   nota: string,
+  porRepresentante = false,
 ): Promise<AtendimentoCompleto> {
   return apiFetch(`/api/atendimentos/${idAtendimento}/validar-identidade`, {
     method: 'POST',
-    body: JSON.stringify({ nota }),
+    body: JSON.stringify({ nota, por_representante: porRepresentante }),
   })
 }
 

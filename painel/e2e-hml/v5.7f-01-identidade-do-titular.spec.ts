@@ -282,6 +282,7 @@ test('a dona pede com o e-mail do cadastro: nasce validada, a equipe responde pe
 
   // a equipe responde pela tela
   await dentro.getByLabel('Resposta').fill(RESPOSTA_DA_DONA)
+  await dentro.getByLabel('Resultado').selectOption('ATENDIDO') // v7.2a: a solicitação do titular registra o resultado
   await dentro.getByRole('button', { name: 'Registrar resposta' }).click()
   const registrada = dentro.getByRole('region', {
     name: 'Resposta registrada',
@@ -448,6 +449,7 @@ test('a dona pede com OUTRO e-mail dela: por validar; a equipe valida pela tela 
     (await conta(page, tokenDoOutroEmail)).pedidos_do_titular[0]!.resposta,
   ).toBeNull()
   await dentro.getByLabel('Resposta').fill(RESPOSTA_DO_OUTRO_EMAIL)
+  await dentro.getByLabel('Resultado').selectOption('ATENDIDO') // v7.2a: a solicitação do titular registra o resultado
   await dentro.getByRole('button', { name: 'Registrar resposta' }).click()
   await expect(
     dentro.getByRole('region', { name: 'Resposta registrada' }),

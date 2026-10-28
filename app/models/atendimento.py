@@ -78,6 +78,13 @@ class Atendimento(Base):
     # v5.7f: na solicitação do titular o e-mail leva só o AVISO de que há resposta (o texto, que tem dado pessoal, só aparece na área Minha conta, depois do código): aqui vale "o aviso saiu?"
     resposta_enviada_por_email = Column(Boolean, nullable=True)
 
+    # v7.2a - na solicitação do titular, o RESULTADO de cada pedido (atendido, em parte, negado, encerrado sem resposta) e, quando não foi atendido por inteiro, o
+    # FUNDAMENTO escolhido de uma lista (o que a lei manda guardar): a pessoa lê o fundamento na Minha conta e o relatório de atendimento conta; não é dado pessoal
+    resultado = Column(String(30), nullable=True)
+    fundamento = Column(String(40), nullable=True)
+    # v7.2a - o pedido foi feito por um dos pais ou pelo responsável legal pelo titular (criança ou adolescente); a equipe conferiu o documento do vínculo
+    por_representante = Column(Boolean, nullable=True)
+
     motivo_encerramento = Column(String(300), nullable=True)
     # v5.7f: o motivo de encerramento da solicitação do titular aparece para a pessoa na área Minha conta SÓ quando foi escrito já sabendo disso (True, gravado ao encerrar); o de antes
     # da v5.7f (None) foi escrito como nota interna e nunca aparece

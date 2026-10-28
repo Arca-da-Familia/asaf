@@ -186,6 +186,8 @@ describe('lerConta', () => {
       resposta: 'Guardamos o seu nome.',
       encerrado_em: null,
       motivo_do_encerramento: null,
+      resultado: null,
+      fundamento: null,
     })
     expect(conta.pedido_de_apagamento).toEqual({
       protocolo: 'ASAF-2026-00042',

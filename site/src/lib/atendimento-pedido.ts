@@ -50,7 +50,7 @@ export const DIREITOS_DO_TITULAR = [
   {
     valor: 'ELIMINACAO',
     rotulo:
-      'Anonimizar, bloquear ou eliminar dados desnecessários ou tratados sem base legal',
+      'Anonimizar ou eliminar dados meus (desnecessários, tratados sem base legal ou que dei com o meu consentimento)',
   },
   {
     valor: 'PORTABILIDADE',
@@ -61,6 +61,16 @@ export const DIREITOS_DO_TITULAR = [
     rotulo: 'Saber com quem a associação compartilhou meus dados',
   },
   { valor: 'REVOGACAO', rotulo: 'Retirar um consentimento que dei' },
+  // v7.2a: os dois direitos que faltavam (LGPD, art. 18, VIII, e art. 18, § 2º)
+  {
+    valor: 'NAO_CONSENTIR',
+    rotulo: 'Saber o que acontece se eu não der (ou retirar) o consentimento',
+  },
+  {
+    valor: 'OPOSICAO',
+    rotulo:
+      'Me opor a um uso dos meus dados que não depende do meu consentimento',
+  },
   { valor: 'OUTRO', rotulo: 'Outro pedido sobre os meus dados pessoais' },
 ] as const
 

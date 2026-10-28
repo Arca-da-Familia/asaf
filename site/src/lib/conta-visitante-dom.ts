@@ -329,6 +329,15 @@ export async function iniciarContaDoVisitante(
             ? 'Motivo do encerramento'
             : 'Resposta da associação'
         textoDaResposta.textContent = conteudo
+        // v7.2a: o resultado e, se o pedido não foi atendido por inteiro, o fundamento
+        const resultadoEl =
+          cartao.querySelector<HTMLElement>('[data-p-resultado]')
+        if (resultadoEl && !encerrado && p.resultado) {
+          resultadoEl.textContent = p.fundamento
+            ? `${p.resultado}. Fundamento: ${p.fundamento}`
+            : p.resultado
+          resultadoEl.hidden = false
+        }
         if (quandoRespondeu) {
           const quando = instanteEmPalavras(
             encerrado ? p.encerrado_em : p.respondido_em,

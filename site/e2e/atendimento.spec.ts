@@ -62,10 +62,13 @@ const DIREITOS = [
   'Confirmar se a associação trata dados meus',
   'Acessar os dados que a associação tem sobre mim',
   'Corrigir dados incompletos, inexatos ou desatualizados',
-  'Anonimizar, bloquear ou eliminar dados desnecessários ou tratados sem base legal',
+  'Anonimizar ou eliminar dados meus (desnecessários, tratados sem base legal ou que dei com o meu consentimento)',
   'Receber meus dados para levar a outra entidade (portabilidade)',
   'Saber com quem a associação compartilhou meus dados',
   'Retirar um consentimento que dei',
+  // v7.2a
+  'Saber o que acontece se eu não der (ou retirar) o consentimento',
+  'Me opor a um uso dos meus dados que não depende do meu consentimento',
   'Outro pedido sobre os meus dados pessoais',
 ]
 
@@ -622,7 +625,7 @@ test.describe('formulários de atendimento', () => {
     ).toContainText('Escolha o que você quer pedir')
   })
 
-  test('na solicitação do titular, cada um dos oito pedidos chega à API com o seu código', async ({
+  test('na solicitação do titular, cada um dos dez pedidos chega à API com o seu código', async ({
     page,
   }) => {
     const f = FORMULARIOS[2]!
@@ -634,6 +637,8 @@ test.describe('formulários de atendimento', () => {
       'PORTABILIDADE',
       'COMPARTILHAMENTO',
       'REVOGACAO',
+      'NAO_CONSENTIR',
+      'OPOSICAO',
       'OUTRO',
     ]
     for (const [i, codigo] of codigos.entries()) {
@@ -984,7 +989,7 @@ test.describe('as páginas dos formulários', () => {
     ).toHaveAttribute('href', '/privacidade/solicitacao-do-titular/')
   })
 
-  test('Solicitação do titular: lista os oito pedidos em palavras simples e volta para a Política de Privacidade', async ({
+  test('Solicitação do titular: lista os dez pedidos em palavras simples e volta para a Política de Privacidade', async ({
     page,
   }) => {
     await page.goto('/privacidade/solicitacao-do-titular/')

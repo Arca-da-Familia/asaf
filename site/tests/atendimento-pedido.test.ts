@@ -59,7 +59,7 @@ describe('versão do aviso de privacidade', () => {
 })
 
 describe('DIREITOS_DO_TITULAR', () => {
-  it('são os oito pedidos da API, com os rótulos que a pessoa lê', () => {
+  it('são os dez pedidos da API, com os rótulos que a pessoa lê (v7.2a: não consentir e oposição)', () => {
     expect(DIREITOS_DO_TITULAR.map((d) => d.valor)).toEqual([
       'CONFIRMACAO',
       'ACESSO',
@@ -68,16 +68,20 @@ describe('DIREITOS_DO_TITULAR', () => {
       'PORTABILIDADE',
       'COMPARTILHAMENTO',
       'REVOGACAO',
+      'NAO_CONSENTIR',
+      'OPOSICAO',
       'OUTRO',
     ])
     expect(DIREITOS_DO_TITULAR.map((d) => d.rotulo)).toEqual([
       'Confirmar se a associação trata dados meus',
       'Acessar os dados que a associação tem sobre mim',
       'Corrigir dados incompletos, inexatos ou desatualizados',
-      'Anonimizar, bloquear ou eliminar dados desnecessários ou tratados sem base legal',
+      'Anonimizar ou eliminar dados meus (desnecessários, tratados sem base legal ou que dei com o meu consentimento)',
       'Receber meus dados para levar a outra entidade (portabilidade)',
       'Saber com quem a associação compartilhou meus dados',
       'Retirar um consentimento que dei',
+      'Saber o que acontece se eu não der (ou retirar) o consentimento',
+      'Me opor a um uso dos meus dados que não depende do meu consentimento',
       'Outro pedido sobre os meus dados pessoais',
     ])
   })
