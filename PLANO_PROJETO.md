@@ -1176,10 +1176,51 @@ estiver pronto, decisão de 23/10).
 
 ##### v7.1d — Os prazos que faltam, com anonimização que preserva a estatística
 
-- [ ] Inscrições e presenças (5 anos), voluntário (5 anos depois do fim), certificado (10 anos: a verificação pública continua dizendo "válido", sem o nome) e Auditoria
+- [x] Inscrições e presenças (5 anos), voluntário (5 anos depois do fim), certificado (10 anos: a verificação pública continua dizendo "válido", sem o nome) e Auditoria
       (10 anos), anonimizando a pessoa e mantendo as contagens.
-- [ ] A eliminação do prontuário a pedido (v7.1c): quem revogou o consentimento do atendimento social e pede a eliminação pela solicitação do titular tem o
+- [x] A eliminação do prontuário a pedido (v7.1c): quem revogou o consentimento do atendimento social e pede a eliminação pela solicitação do titular tem o
       que já foi registrado apagado ou anonimizado (por vínculo), com a Auditoria; hoje o termo e a Política só dizem que se pode **pedir**.
+- [ ] **Pendente de autorização do Presidente (infraestrutura):** dar à identidade da rotina do GitHub (`asaf-github-actions`, objectId `f026eaf3-…`) o papel
+      "Storage Blob Data Contributor" **só** no contêiner `documentos-emitidos` da produção (`stasafprivado`), como já tem em `fotos-diretoria` e `fotos-associados`.
+      Sem ele, a regra do certificado não consegue apagar o PDF e fica vermelha **quando houver o primeiro certificado com 10 anos** (ou antes, se o prazo for
+      reduzido); hoje não há nenhum, então nada falha. O sistema de segurança do Claude Code bloqueou a concessão (2026-10-28): só com o OK expresso dele.
+
+✅ **v7.1d concluída (2026-10-28).**
+
+**O que foi feito:** os prazos que faltavam da Tabela de temporalidade entraram na rotina de guarda (`app/services/retencao_participacao.py`), sempre **anonimizando a
+pessoa e mantendo as contagens** (nenhuma linha de inscrição, presença, hora, certificado ou Auditoria é apagada): **inscrição e presença** (5 anos depois do evento,
+contado pela última sessão: saem as respostas, o e-mail, o QR, o código do cancelamento e o comentário da pesquisa de todo inscrito); **quem só se inscreveu em evento**
+(5 anos depois do último evento: o papel acaba e, sem outro vínculo — associado, beneficiário, funcionário, familiar/dependente, papel ativo ou inscrição que ainda não
+venceu —, o nome, o CPF e o contato saem; vale também para quem se inscreveu pelo CPF sem ganhar o papel); **voluntário** (5 anos depois do fim do último termo: saem as
+referências e o texto livre, o papel acaba — antes ele ficava ativo para sempre e travava a anonimização do associado desligado que tinha sido voluntário); **certificado
+e crachá** (10 anos: o arquivo sai do armazenamento, que é pasta pública, e o nome sai; a verificação pública continua dizendo que é válido e passou a mostrar o nome
+IMPRESSO, não o do cadastro de hoje); **Auditoria** (10 anos, com piso de 5: saem quem fez, o IP e os valores; a trava do banco contra apagar continua). Cinco regras
+novas em Configurações. **Eliminação do prontuário a pedido** (bloco Consentimento, só para o encarregado — `privacidade_gerir`): com o consentimento retirado e o
+protocolo de uma solicitação do titular **desta pessoa** (ou do responsável registrado), com a identidade validada e não encerrada; apaga os relatos e as descrições,
+ficam datas e tipos; Auditoria `PRONTUARIO_ELIMINADO`. A tela Documentos emitidos diz "PDF apagado pelo prazo de guarda". Inventário e relatório de impacto
+atualizados. **Política 2.13:** cinco prazos novos (a lista tem 14), a Auditoria e o IP deixam de dizer "sem prazo", a eliminação do atendimento social a pedido.
+Também o **lote 15** (`@hookform/resolvers` 6.0.2, `lucide-react` 1.63.0, `react-router` 8.5.1, `pytest` 9.2.0; o site já estava todo em dia).
+**Conferência independente (agente, só leitura) achou 4 defeitos e 6 suspeitas; tratados antes de publicar:** a anonimização apagava quem tinha inscrição futura
+(pelo CPF, sem o papel) e familiares/dependentes; o comentário da pesquisa de quem foi inscrito pelo painel nunca saía; a entrada antiga de teste da Auditoria mudaria o
+início do relatório anual da homologação; a regra do certificado pegava qualquer documento do evento; o protocolo de outra pessoa (ou já encerrado) destravava a
+eliminação; o fim do evento ignorava as sessões; quem se inscreveu sem o papel nunca vencia; o piso da Auditoria. A suspeita da permissão do armazenamento se
+confirmou por leitura (item pendente acima).
+**Testes locais:** servidor 1657 em duas rodadas (17 testes novos) e 1657 contra Postgres 18; painel 759, tipos, lint e formatação; site 778 de unidade e 924 de
+navegador, estados vazios.
+**Na homologação (2026-10-28):** a publicação de teste passou a **semear dado antigo inventado** antes da rotina (só no banco e no armazenamento de TESTE:
+`scripts/hml_dados_antigos_da_retencao.py`, passo novo no fluxo) e a rotina agiu de verdade, em Postgres e no armazenamento da Azure (inscrições 2, voluntário 1,
+participante 1, certificado 1 — o PDF saiu do armazenamento —, Auditoria 1). Robô `v7.1d-01` 2/2: o evento de 6 anos continua com a inscrição e a presença, com a
+pessoa "removida"; o voluntário ficou com as horas, sem o texto; o certificado de 11 anos é válido sem o nome e a tela diz que o PDF foi apagado; a Auditoria antiga
+ficou sem quem e sem IP; as 5 regras estão em Configurações; e o **encarregado elimina o prontuário pela tela** com o protocolo de uma solicitação do titular enviada
+pelo site e validada: o relato some e o atendimento continua contado. Regressões verdes: `v7.1c-01` 3, `v5.4f-03` 16 (certificado e check-in), `v5.6b-02` 4,
+`v6.3c-01` 1 e `v6.3c-02` 1, `v7.0c-01` 3, `v5.7b-01` 2 e `v5.7b-02` 2 (este robô exigia que a rotina não aplicasse nada e contava 7 prazos na Política: agora confere
+que o dado recente fica intacto e que só as regras do dado antigo semeado agiram, e os 14 prazos).
+**Em produção (2026-10-28):** `main` = `977d299` (código) e `819da56` (fluxo do painel); Deploy API verde (1657 contra Postgres; sem migração: as 5 regras
+novas nascem pelas configurações do sistema) e Deploy Site verde; o Deploy Painel falhou só pela formatação de um robô (`format:check`) e o disparo manual pulava a
+publicação: o robô foi formatado e o fluxo do painel passou a publicar também no disparo manual na `main`. `painel.asaf.org.br/version.json` = `819da56` e
+`asaf.org.br/version.json` = `977d299`; o `openapi.json` traz a rota de eliminação do prontuário, que sem login responde 401; a verificação de certificado com código
+inexistente responde 404; `asaf.org.br/privacidade/` diz "Versão 2.13 · em vigor desde 28 de outubro de 2026", com os prazos do certificado e da Auditoria ("Este prazo não
+fica abaixo de 5 anos"). Nenhum dado foi criado na produção; a rotina de guarda de produção não tem hoje nada com 5 ou 10 anos.
 
 ##### 🔍 Ponto de Revisão — FASE 7 (1/3, fecha v7.0–v7.1)
 
@@ -2626,6 +2667,9 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         3, `v7.0d` 3, `v7.1a` 4, `v5.4f` 54, `v5.4c` 30, `v5.4h-09` 5, `v6.2d-01` 2, `v5.5a` 13, `v5.5b-01` 4. **Achado:** o roteiro de filiação da v5.4c mandava a versão 2 do
         aviso fixa (a v7.1a a passou a 3): os robôs agora leem a versão em vigor do mesmo arquivo do catálogo que o site mostra. **Em produção:** Deploy Painel verde e
         `painel.asaf.org.br/version.json` = `ef4e080`.
+      - **Lote 15 ✅ FEITO, provado na homologação e confirmado em produção (2026-10-28, junto da v7.1d)**: `@hookform/resolvers` 6.0.1 → **6.0.2**, `lucide-react`
+        1.62 → **1.63.0**, `react-router` 8.5.0 → **8.5.1** (painel) e `pytest` 9.1.1 → **9.2.0** (correções; o site já estava todo na última estável). Painel 759 e
+        servidor 1657 em duas rodadas; regressões da v7.1d verdes na homologação.
       - **Directus 12.4.1 → 12.5.1:** continua adiado com o mesmo motivo (provar numa cópia descartável antes de trocar a imagem de produção e dizer o plano ao Presidente).
 - [ ] Fator ônibus tratado como risco de projeto (v12.8): documentação suficiente para outra
       pessoa assumir, e pelo menos uma pessoa da associação treinada na operação básica.
