@@ -16,6 +16,7 @@ from app.schemas.beneficiarios import (
     BeneficiarioCriar,
     BeneficiarioProjetoCriar,
     ConsentimentoDoBeneficiario,
+    EliminarProntuario,
     EncaminhamentoRedeExternaCriar,
     RegistroAtendimentoCriar,
     RevogarConsentimento,
@@ -26,6 +27,7 @@ from app.services import beneficiarios, consentimentos
 router = APIRouter()
 _permissao_projetos = exigir_permissao("projetos")
 _permissao_exportar = exigir_permissao("exportar_beneficiarios")
+_permissao_eliminar = exigir_permissao("privacidade_gerir")  # v7.1d: quem decide a eliminação é o encarregado
 
 
 def _ip_origem(request: Request) -> str:
@@ -112,6 +114,16 @@ def revogar_consentimento_endpoint(id_beneficiario: int, dados: RevogarConsentim
     registrar_auditoria(db, usuario, "consentimentos", "CONSENTIMENTO_REVOGADO", id_registro_afetado=c.id_consentimento,
                         dados_depois={"id_beneficiario": id_beneficiario}, ip_origem=_ip_origem(request))
     return consentimentos.para_o_painel(c)
+
+
+@router.post("/api/beneficiarios/{id_beneficiario}/eliminar-prontuario",
+             summary="v7.1d - eliminar o prontuário a pedido do titular (os relatos e as descrições; ficam datas e tipos para as contagens)")
+def eliminar_prontuario_endpoint(id_beneficiario: int, dados: EliminarProntuario, request: Request, db: Session = Depends(get_db),
+                                 usuario=Depends(_permissao_eliminar)):
+    resultado = beneficiarios.eliminar_prontuario(db, usuario, id_beneficiario=id_beneficiario, protocolo=dados.protocolo)
+    registrar_auditoria(db, usuario, "beneficiarios", "PRONTUARIO_ELIMINADO", id_registro_afetado=id_beneficiario, dados_depois=resultado,
+                        ip_origem=_ip_origem(request))
+    return {"mensagem": f"Prontuário eliminado: {resultado['relatos']} relato(s) e {resultado['encaminhamentos']} encaminhamento(s) apagados.", **resultado}
 
 
 @router.get("/api/beneficiarios/exportar", summary="Exportar beneficiários (v4.10 - permissão própria, nunca casual)")

@@ -155,9 +155,12 @@ ATIVIDADES: tuple[Atividade, ...] = (
         ("ART7_V", "ART7_IX", "ART7_I"), ("AZURE", "GITHUB", "GOOGLE"),
         ("projetos_eventos", "equipe_projeto", "itens_cronograma_projeto", "eventos", "inscricoes", "registros_presenca", "respostas_pesquisa_satisfacao",
          "fotos_evento", "documentos_emitidos", "reservas_espaco"),
+        ("inscricoes_e_presencas", "participantes_externos", "certificados"),
         arquivos=True, publicado_no_site=True,
-        medidas="A foto de evento só vai ao site com autorização e com o evento público; exportação de inscritos e de presença com permissão própria.",
-        observacoes="Inscrição de família pode ter criança. As perguntas livres do formulário de inscrição não devem pedir dado sensível.",
+        medidas="A foto de evento só vai ao site com autorização e com o evento público; exportação de inscritos e de presença com permissão própria; os prazos "
+                "anonimizam a pessoa e mantêm as contagens (a inscrição, a presença e o certificado ficam, sem o dado da pessoa).",
+        observacoes="Inscrição de família pode ter criança. As perguntas livres do formulário de inscrição não devem pedir dado sensível. O nome de quem pagou "
+                    "uma inscrição fica na descrição da cobrança, que é escrituração financeira (permanente).",
     ),
     Atividade(
         "BENEFICIARIOS", "Atendimento social a beneficiários",
@@ -173,9 +176,10 @@ ATIVIDADES: tuple[Atividade, ...] = (
     Atividade(
         "VOLUNTARIADO", "Voluntários e funcionários",
         "Registrar o termo de adesão do voluntário (Lei nº 9.608/1998), a escala, as horas e as trocas de turno, e o cadastro de funcionários.",
-        ("ART7_II", "ART7_V"), ("AZURE",),
+        ("ART7_II", "ART7_V"), ("AZURE", "GITHUB"),
         ("termos_adesao_voluntario", "alocacoes_voluntarios", "registros_horas_voluntariado", "trocas_turno_voluntario", "funcionarios"),
-        observacoes="Voluntário adolescente só com autorização do responsável (registrada no termo).",
+        ("voluntarios_encerrados",),
+        observacoes="Voluntário adolescente só com autorização do responsável (registrada no termo). O cadastro de funcionários ainda não tem prazo automático.",
     ),
     Atividade(
         "DOACOES", "Doações e recibos",
@@ -206,9 +210,9 @@ ATIVIDADES: tuple[Atividade, ...] = (
         "Auditoria de quem fez o quê.",
         ("ART7_IX", "ART7_II"), ("AZURE", "GITHUB", "GOOGLE"),
         ("usuarios", "tokens_acesso", "credenciais_webauthn", "codigos_de_nova_senha", "codigos_recuperacao_mfa", "tentativas_acesso_publico", "audit_log"),
-        ("acessos",),
-        medidas="Senha guardada só como impressão (hash); códigos de uso único com validade curta; a Auditoria não se apaga e não guarda valor sensível.",
-        observacoes="A Auditoria ainda não tem prazo de guarda automático (v7.1).",
+        ("acessos", "auditoria"),
+        medidas="Senha guardada só como impressão (hash); códigos de uso único com validade curta; a Auditoria não se apaga (trava no banco) e não guarda valor "
+                "sensível; depois do prazo perde quem fez, o IP e os valores, e fica o que aconteceu e quando.",
     ),
     Atividade(
         "VISITANTE", "Conta de visitante do site",
@@ -270,7 +274,8 @@ EDITAVEIS = ("finalidade", "bases_legais", "medidas", "observacoes", "base_legal
 # (tests/test_inventario.py confere que a lista é a dos fluxos e que essas atividades citam o GitHub). A montagem do site (deploy-site.yml) também roda lá.
 ROTINAS_DO_GITHUB: dict[str, tuple[str, ...]] = {
     "scripts/apagar_fotos_da_diretoria_vencidas.py": ("GOVERNANCA",),
-    "scripts/aplicar_retencao_de_dados.py": ("ACESSO", "ATENDIMENTO", "CADASTRO", "DOACOES", "COMUNICACAO", "VISITANTE", "CONSENTIMENTOS"),
+    "scripts/aplicar_retencao_de_dados.py": ("ACESSO", "ATENDIMENTO", "CADASTRO", "DOACOES", "COMUNICACAO", "VISITANTE", "CONSENTIMENTOS", "PROJETOS_EVENTOS",
+                                             "VOLUNTARIADO"),
     "scripts/avisar_fim_de_experiencia.py": ("CADASTRO",),
     "scripts/avisar_prazos_de_atendimento.py": ("ATENDIMENTO",),
     "scripts/enviar_emails_de_avisos.py": ("COMUNICACAO",),

@@ -30,8 +30,8 @@ def registrar_auditoria(
     dados_depois=None,
     ip_origem: Optional[str] = None,
 ):
-    # v7.0b: o valor de coluna sensível, e o de coluna pessoal de tabela que pode ter dado de criança, não entra no "antes e depois" (a Auditoria não tem prazo
-    # de guarda); fica a chave, para se saber o que mudou. Ver app/classificacao_de_dados.py.
+    # v7.0b: o valor de coluna sensível, e o de coluna pessoal de tabela que pode ter dado de criança, não entra no "antes e depois" (a Auditoria fica 10 anos
+    # inteira: v7.1d, app/services/retencao_participacao.py::auditoria); fica a chave, para se saber o que mudou. Ver app/classificacao_de_dados.py.
     entrada = AuditLog(
         id_usuario=usuario.id_usuario if usuario else None,
         tabela_afetada=tabela_afetada,

@@ -95,6 +95,9 @@ const substituto = substitutoDoEncarregado(diretoria)
 // v2.12 (2026-10-27): o consentimento do atendimento social (v7.1c): o parágrafo `data-atendimento-social` (o prontuário e os encaminhamentos só com o termo
 // assinado pela pessoa ou, se criança ou adolescente, por um dos pais ou pelo responsável; revogar para o que é novo, o que já existe fica e a eliminação
 // se pede pela solicitação do titular), o item da prova na lista de prazos e o `data-registro-de-consentimentos` cobrindo as pessoas atendidas.
+// v2.13 (2026-10-28): os prazos que faltavam (v7.1d), que anonimizam a pessoa e mantêm as contagens: inscrição e presença (5 anos), quem só se inscreveu em evento
+// (5 anos), voluntário (5 anos), certificado (10 anos, a verificação continua) e a Auditoria (10 anos: saem quem fez, o IP e os valores); a eliminação do
+// registro do atendimento social a pedido; o IP e a confirmação de leitura na Auditoria deixam de dizer "sem prazo".
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -584,8 +587,10 @@ const direitos = [
         dados) faz parar os registros novos assim que a retirada é registrada no
         sistema; o que já foi registrado continua guardado, visto só pela equipe
         do projeto, e a eliminação dele pode ser pedida pela solicitação do
-        titular de dados. A prova do consentimento segue o prazo descrito em
-        “Por quanto tempo guardamos”.
+        titular de dados: confirmada a identidade de quem pede, o relato de cada
+        atendimento e a descrição de cada encaminhamento são apagados (ficam as
+        datas e os tipos, para as contagens). A prova do consentimento segue o
+        prazo descrito em “Por quanto tempo guardamos”.
       </p>
       <p class="mt-3" id="emails-da-asaf" data-emails-da-asaf>
         <strong>E-mails da ASAF.</strong> O sistema envia por e-mail, a quem tem
@@ -676,7 +681,7 @@ const direitos = [
         <li>
           Endereço de rede (IP) guardado no controle do limite de pedidos dos
           formulários públicos: 6 meses, depois é apagado. O IP que também fica
-          na Auditoria do sistema ainda não tem prazo de eliminação automática.
+          na Auditoria do sistema sai dela no prazo da Auditoria (abaixo).
         </li>
         <li>
           Avisos do sino do painel (da equipe e dos associados; podem trazer o
@@ -687,8 +692,8 @@ const direitos = [
           5 anos depois de o aviso sair do mural (vencer ou ser retirado), a
           lista de quem o recebeu, com as datas de leitura e de confirmação, é
           apagada; ficam o aviso e os totais. A confirmação de leitura também
-          fica registrada na Auditoria do sistema, que ainda não tem prazo de
-          eliminação automática.
+          fica registrada na Auditoria do sistema, que tem o prazo dela
+          (abaixo).
         </li>
         <li>
           Pedidos dos formulários de atendimento (contato, informação,
@@ -716,6 +721,39 @@ const direitos = [
           documento, o e-mail e a ligação com o cadastro de associado; ficam o
           valor, a data e o destino, que são dado financeiro da associação.
         </li>
+        <li data-prazo-inscricoes>
+          Inscrição em evento e presença: 5 anos depois do evento, saem da
+          inscrição as respostas do formulário, o e-mail usado, o código do QR
+          de entrada e o do link de cancelamento, e o comentário da pesquisa de
+          satisfação; ficam a inscrição, a situação (presente, ausente...) e o
+          registro da presença, para as contagens do evento.
+        </li>
+        <li data-prazo-participante>
+          Quem só se inscreveu em eventos (sem outro vínculo com a ASAF: não é
+          associado, não é atendido nos projetos e não tem outro papel no
+          cadastro): 5 anos depois do último evento, apagamos o nome, o CPF, o
+          e-mail e o telefone; ficam as contagens. O nome de quem pagou uma
+          inscrição continua na descrição da cobrança, que é escrituração
+          financeira da associação.
+        </li>
+        <li data-prazo-voluntario>
+          Voluntário: 5 anos depois do fim do último termo de adesão, apagamos a
+          referência do termo e a da autorização do responsável, a descrição das
+          horas e o motivo das trocas de turno; ficam a atividade, as horas e as
+          datas. Quem não tem outro vínculo com a ASAF tem também o nome, o CPF
+          e o contato apagados.
+        </li>
+        <li data-prazo-certificados>
+          Certificado e crachá de evento: 10 anos depois da emissão, o arquivo é
+          apagado e o nome sai do registro; a verificação pública pelo código
+          continua dizendo que o documento é válido, sem o nome.
+        </li>
+        <li data-prazo-auditoria>
+          Auditoria do sistema (o registro de quem fez o quê no painel e de cada
+          envio dos formulários): 10 anos depois de cada ação, saem quem fez, o
+          endereço de rede (IP) e os valores registrados; ficam o que aconteceu,
+          onde e quando. Este prazo não fica abaixo de 5 anos.
+        </li>
         <li>
           Prova de um consentimento que acabou (a autorização de imagem ou o
           consentimento do atendimento social retirado, a foto apagada, o
@@ -730,17 +768,19 @@ const direitos = [
           desligamento, advertência), o motivo e o documento de referência;
           ficam o nome e a matrícula do livro de associados e o tipo e as datas
           das mudanças de situação. A rotina automática não inclui quem ainda
-          tem outro papel ativo no cadastro (por exemplo, voluntário). Ainda não
-          há prazo automático para os dependentes cadastrados, os documentos
+          tem outro papel ativo no cadastro (por exemplo, voluntário: esse papel
+          acaba 5 anos depois do fim do último termo de adesão). Ainda não há
+          prazo automático para os dependentes cadastrados, os documentos
           anexados, o histórico de cargos, a linha do tempo da pessoa e as
           observações internas da ficha.
         </li>
       </ul>
       <p class="mt-3" data-prazos-de-guarda-limite>
         Ainda não há rotina automática de prazo para os demais dados (por
-        exemplo, quem só se inscreveu em um evento, voluntários, certificados, a
-        Auditoria do sistema e o pedido de filiação aprovado): para esses vale o
-        que está acima, e você pode pedir a eliminação a qualquer momento.
+        exemplo, o pedido de filiação aprovado, o cadastro de funcionários e o
+        registro do atendimento social, cuja eliminação pode ser pedida, como
+        está acima): para esses vale o que está acima, e você pode pedir a
+        eliminação a qualquer momento.
       </p>
     </section>
 

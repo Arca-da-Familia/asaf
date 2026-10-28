@@ -59,13 +59,14 @@ def test_cada_prazo_e_uma_regra_editavel_com_piso_de_30_dias(db, regra):
     antigo = _config(db, regra.chave_de_config, str(regra.padrao_em_dias))
     try:
         assert retencao.dias_da_regra(db, regra) == regra.padrao_em_dias
-        _config(db, regra.chave_de_config, "400")
-        assert retencao.dias_da_regra(db, regra) == 400
-        for lixo in ("5", "29", "0", "-3", "abc", ""):
+        piso = max(30, regra.piso_em_dias)
+        _config(db, regra.chave_de_config, str(piso + 370))
+        assert retencao.dias_da_regra(db, regra) == piso + 370
+        for lixo in ("5", "29", "0", "-3", "abc", "", str(piso - 1)):
             _config(db, regra.chave_de_config, lixo)
             assert retencao.dias_da_regra(db, regra) == regra.padrao_em_dias, f"{lixo!r} não pode virar prazo"
-        _config(db, regra.chave_de_config, "30")
-        assert retencao.dias_da_regra(db, regra) == 30, "o piso em si vale"
+        _config(db, regra.chave_de_config, str(piso))
+        assert retencao.dias_da_regra(db, regra) == piso, "o piso em si vale"
     finally:
         _config(db, regra.chave_de_config, antigo)
 
@@ -76,6 +77,8 @@ def test_os_padroes_sao_os_da_tabela_de_temporalidade():
         "acessos": 183, "avisos_do_sino": 365, "atendimentos": 1825, "propostas_de_filiacao": 730,
         "intencoes_de_doacao": 730, "doador_identificado": 3650, "associado_desligado": 1825, "leitura_de_avisos": 1825,
         "consentimentos_encerrados": 1825,
+        # v7.1d
+        "inscricoes_e_presencas": 1825, "voluntarios_encerrados": 1825, "participantes_externos": 1825, "certificados": 3650, "auditoria": 3650,
     }
 
 

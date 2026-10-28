@@ -36,6 +36,11 @@ class ConsentimentoDoBeneficiario(BaseModel):
     versao_do_termo: str
 
 
+class EliminarProntuario(BaseModel):
+    """v7.1d: o protocolo da solicitação do titular de dados que pede a eliminação (com a identidade validada)."""
+    protocolo: str = Field(..., min_length=4, max_length=24)
+
+
 class RevogarConsentimento(BaseModel):
     motivo: Optional[str] = Field(None, max_length=500)
 

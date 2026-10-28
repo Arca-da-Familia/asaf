@@ -7,12 +7,14 @@ import { Button } from '@/components/ui/button'
 import type { Beneficiario } from '@/lib/api'
 import { classeCampo } from '@/lib/campos'
 import {
+  eliminarProntuario,
   menorDeIdade,
   registrarConsentimentoDoBeneficiario,
   revogarConsentimentoDoBeneficiario,
 } from '@/lib/consentimentos'
 import { formatarData } from '@/lib/datas'
 import { mensagemDoErro } from '@/lib/erro-da-api'
+import { useMe } from '@/lib/use-me'
 import {
   escolhasEmBranco,
   faltaNoTermo,
@@ -45,7 +47,12 @@ export function ConsentimentoDoBeneficiario({
   const [documento, setDocumento] = useState('')
   const [revogando, setRevogando] = useState(false)
   const [motivo, setMotivo] = useState('')
+  const [eliminando, setEliminando] = useState(false)
+  const [protocolo, setProtocolo] = useState('')
   const [erro, setErro] = useState<string | null>(null)
+  const { data: eu } = useMe()
+  // v7.1d: quem decide a eliminação a pedido é o encarregado
+  const podeEliminar = !!eu?.permissoes.includes('privacidade_gerir')
   const [aviso, setAviso] = useState<string | null>(null)
   const { data: termo, isError: termoFalhou } = useTermoDaTela(
     'beneficiario',
@@ -107,6 +114,18 @@ export function ConsentimentoDoBeneficiario({
       )
     },
     onError: (e) => setErro(mensagemDoErro(e, 'Não foi possível revogar.')),
+  })
+  const eliminar = useMutation({
+    mutationFn: () =>
+      eliminarProntuario(beneficiario.id_beneficiario, protocolo),
+    onSuccess: (r) => {
+      atualizar()
+      setEliminando(false)
+      setProtocolo('')
+      setAviso(r.mensagem)
+    },
+    onError: (e) =>
+      setErro(mensagemDoErro(e, 'Não foi possível eliminar o prontuário.')),
   })
 
   function tentarRegistrar() {
@@ -194,6 +213,20 @@ export function ConsentimentoDoBeneficiario({
               : 'Registrar o termo assinado'}
           </Button>
         )}
+        {podeEliminar && (!c || soMarcaAntiga) && !eliminando && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setEliminando(true)
+              setErro(null)
+              setAviso(null)
+            }}
+          >
+            Eliminar o prontuário (pedido do titular)
+          </Button>
+        )}
         {c && !revogando && (
           <Button
             type="button"
@@ -233,6 +266,52 @@ export function ConsentimentoDoBeneficiario({
               size="sm"
               variant="outline"
               onClick={() => setRevogando(false)}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      )}
+      {eliminando && (
+        <div
+          className="v3-space-y-2 rounded-md border border-destructive/40 p-2"
+          data-eliminar-prontuario
+        >
+          <p className="text-xs">
+            Apaga o relato de cada atendimento e a descrição de cada
+            encaminhamento desta pessoa, em todos os projetos (ficam as datas e
+            os tipos, para as contagens). Confira antes que o pedido é desta
+            pessoa (ou do responsável por ela), que a identidade foi validada na
+            fila de atendimento e que não há obrigação de guardar.
+          </p>
+          <Campo rotulo="Protocolo da solicitação do titular de dados">
+            <input
+              className={classeCampo}
+              maxLength={24}
+              value={protocolo}
+              onChange={(e) => setProtocolo(e.target.value)}
+            />
+          </Campo>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              disabled={eliminar.isPending}
+              onClick={() => {
+                setErro(null)
+                if (protocolo.trim().length < 4)
+                  return setErro('Informe o protocolo da solicitação.')
+                eliminar.mutate()
+              }}
+            >
+              Confirmar a eliminação
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setEliminando(false)}
             >
               Cancelar
             </Button>

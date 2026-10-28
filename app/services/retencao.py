@@ -12,8 +12,8 @@ O que ela faz e o que NUNCA faz:
   - é idempotente: rodar de novo no mesmo dia não faz nada.
 Além das regras da tabela, a rotina varre o RESÍDUO TÉCNICO da conta de visitante (v5.6b): código de acesso e sessão já vencem em minutos; o que sobra deles (e o contador de pedidos por e-mail) é
 apagado depois de 1 dia, sem configuração, porque não é prazo de guarda de dado pessoal e sim limpeza. Vai no resultado como `limpeza_tecnica`, fora de `aplicadas` e da tabela.
-Regras ainda NÃO implementadas (dependem de dado que ainda não existe): pessoa que só se inscreveu em evento, inscrições e presenças, voluntário e certificados. A Política de Privacidade só
-promete o prazo das regras que existem aqui."""
+v7.1d: as regras que faltavam (inscrições e presenças, quem só se inscreveu em evento, voluntário, certificado e Auditoria) estão em `app/services/retencao_participacao.py`:
+anonimizam a PESSOA e mantêm as contagens. A Política de Privacidade só promete o prazo das regras que existem aqui."""
 from __future__ import annotations
 
 import logging
@@ -33,6 +33,7 @@ from app.models.filiacao import APROVADA, PropostaDeSocio, PropostaFiliacao
 from app.models.intencoes_de_doacao import CONFIRMADA, IntencaoDeDoacao
 from app.models.notificacoes_painel import NotificacaoPainel
 from app.models.protecao_publica import TentativaAcessoPublico
+from app.services import retencao_participacao
 from app.services.anonimizacao import anonimizar_vencidos_com_falhas
 
 LOG = logging.getLogger("asaf.retencao")
@@ -52,6 +53,8 @@ class Regra:
     padrao_em_dias: int
     # devolve quantos afetou, ou (quantos afetou, quantas falhas) quando uma falha de uma pessoa não pode impedir as outras (a regra inteira conta como falha e o roteiro fica vermelho)
     aplicar: Callable[[Session, datetime, int], int | tuple[int, int]]
+    # v7.1d: o piso da regra (a Auditoria não desce de 5 anos: o "quem fez" ainda serve a regras como "quem escreveu a apresentação do relatório anual não a aprova")
+    piso_em_dias: int = 30
 
 
 def dias_da_regra(db: Session, regra: Regra) -> int:
@@ -61,7 +64,7 @@ def dias_da_regra(db: Session, regra: Regra) -> int:
         dias = int(float(str(valor).strip()))
     except (TypeError, ValueError, OverflowError):
         return regra.padrao_em_dias
-    return min(dias, TETO_EM_DIAS) if dias >= PISO_EM_DIAS else regra.padrao_em_dias
+    return min(dias, TETO_EM_DIAS) if dias >= max(PISO_EM_DIAS, regra.piso_em_dias) else regra.padrao_em_dias
 
 
 # ------------------------------------------------------------------------------------------------ as regras (uma por linha da tabela)
@@ -180,6 +183,15 @@ REGRAS: tuple[Regra, ...] = (
     Regra("associado_desligado", "Associado desligado", "PRAZO_RETENCAO_DESLIGADO_DIAS", 1825, _associado_desligado),
     Regra("leitura_de_avisos", "Quem recebeu, leu e confirmou um aviso do mural", "PRAZO_RETENCAO_LEITURA_DE_AVISOS_DIAS", 1825, _leitura_de_avisos),
     Regra("consentimentos_encerrados", "Prova de consentimento encerrado (revogado ou acabado)", "PRAZO_RETENCAO_CONSENTIMENTOS_DIAS", 1825, _consentimentos_encerrados),
+    # v7.1d - anonimizam a pessoa e mantêm as contagens (a ordem importa: o voluntário e o participante encerram o papel antes de o associado desligado ser conferido de novo
+    # na próxima rodada; cada regra só anonimiza quem não tem outro vínculo)
+    Regra("inscricoes_e_presencas", "Inscrições e presenças em evento", "PRAZO_RETENCAO_INSCRICOES_DIAS", 1825, retencao_participacao.inscricoes_e_presencas),
+    Regra("voluntarios_encerrados", "Voluntário (termo de adesão, horas e trocas de turno)", "PRAZO_RETENCAO_VOLUNTARIO_DIAS", 1825,
+          retencao_participacao.voluntarios_encerrados),
+    Regra("participantes_externos", "Quem só se inscreveu em evento (participante externo)", "PRAZO_RETENCAO_PARTICIPANTE_DIAS", 1825,
+          retencao_participacao.participantes_externos),
+    Regra("certificados", "Certificado e crachá de evento", "PRAZO_RETENCAO_CERTIFICADOS_DIAS", 3650, retencao_participacao.certificados),
+    Regra("auditoria", "Auditoria do sistema (quem fez, IP e valores)", "PRAZO_RETENCAO_AUDITORIA_DIAS", 3650, retencao_participacao.auditoria, piso_em_dias=1825),
 )
 
 

@@ -295,3 +295,82 @@ def registrar_encaminhamento(db: Session, *, id_vinculo: int, tipo_rede: str, de
 
 def listar_encaminhamentos(db: Session, *, id_vinculo: int) -> list[EncaminhamentoRedeExterna]:
     return db.query(EncaminhamentoRedeExterna).filter(EncaminhamentoRedeExterna.id_vinculo == id_vinculo).order_by(EncaminhamentoRedeExterna.data_encaminhamento.desc()).all()
+
+
+# ==========================================
+# v7.1d - ELIMINAÇÃO DO PRONTUÁRIO A PEDIDO (LGPD, art. 18, VI: o titular pode pedir a eliminação do que foi tratado com o consentimento dele)
+# ==========================================
+SUBTIPOS_QUE_PEDEM_ELIMINACAO = ("ELIMINACAO", "REVOGACAO", "OUTRO")
+
+
+def _so_letras(texto: Optional[str]) -> str:
+    import unicodedata
+
+    sem_acento = unicodedata.normalize("NFKD", texto or "").encode("ascii", "ignore").decode()
+    return " ".join(sem_acento.lower().split())
+
+
+def _pedido_e_desta_pessoa(db: Session, pedido, beneficiario: Beneficiario) -> bool:
+    """O pedido é da pessoa atendida (o mesmo cadastro, o mesmo CPF ou o mesmo nome) ou de quem consentiu por ela (o nome do responsável em algum consentimento
+    registrado, vigente ou encerrado)."""
+    from app.models.privacidade import Consentimento
+    from app.services import consentimentos
+
+    pessoa = db.query(Pessoa).filter(Pessoa.id_pessoa == beneficiario.id_pessoa).first()
+    if pedido.id_pessoa is not None and pedido.id_pessoa == beneficiario.id_pessoa:
+        return True
+    cpf_do_pedido = "".join(c for c in (pedido.cpf or "") if c.isdigit())
+    if cpf_do_pedido and pessoa is not None and cpf_do_pedido == "".join(c for c in (pessoa.cpf or "") if c.isdigit()):
+        return True
+    nome = _so_letras(pedido.nome_completo)
+    if not nome:
+        return False
+    responsaveis = {_so_letras(n) for (n,) in db.query(Consentimento.nome_responsavel).filter(
+        Consentimento.origem == consentimentos.BENEFICIARIO, Consentimento.id_origem == beneficiario.id_beneficiario,
+        Consentimento.nome_responsavel.isnot(None))}
+    return nome == _so_letras(pessoa.nome_completo if pessoa else "") or nome in responsaveis
+MARCADOR_DO_PRONTUARIO = "(texto apagado a pedido do titular)"
+
+
+def eliminar_prontuario(db: Session, usuario, *, id_beneficiario: int, protocolo: str) -> dict:
+    """Apaga o RELATO de cada atendimento e a DESCRIÇÃO de cada encaminhamento do beneficiário, em todos os projetos; ficam a data, o tipo da rede e quem registrou
+    (as contagens do relatório anual não mudam). Só com: o consentimento retirado (sem consentimento que abra o atendimento) e o protocolo de uma solicitação do titular
+    de dados com a identidade validada (v5.7f), que pede a eliminação, a revogação ou outro pedido sobre os dados. Quem decide é o encarregado (a permissão
+    `privacidade_gerir`, na rota): ele confere que o pedido é desta pessoa (ou do responsável por ela) e que não há obrigação de guardar (art. 16)."""
+    from app.models.atendimento import TITULAR_LGPD, Atendimento
+    from app.services import consentimentos
+
+    beneficiario = obter_beneficiario(db, id_beneficiario)
+    vigente = consentimentos.vigente(db, consentimentos.BENEFICIARIO, id_beneficiario)
+    if consentimentos.vale_para_gravar(vigente):
+        raise HTTPException(status_code=409, detail="O consentimento ainda está vigente: registre antes a revogação (a pessoa ou o responsável retirou o "
+                                                    "consentimento) e depois elimine o prontuário.")
+    pedido = db.query(Atendimento).filter(Atendimento.protocolo == (protocolo or "").strip().upper()).first()
+    if pedido is None or pedido.tipo != TITULAR_LGPD:
+        raise HTTPException(status_code=404, detail="Não há solicitação do titular de dados com esse protocolo.")
+    if pedido.subtipo not in SUBTIPOS_QUE_PEDEM_ELIMINACAO:
+        raise HTTPException(status_code=400, detail="Essa solicitação não pede a eliminação nem a revogação: confira o protocolo.")
+    if not pedido.identidade_validacao:
+        raise HTTPException(status_code=409, detail="A identidade de quem pediu ainda não foi validada: valide na fila de atendimento antes de eliminar.")
+    from app.models.atendimento import ENCERRADO
+
+    if pedido.status == ENCERRADO:
+        raise HTTPException(status_code=409, detail="Essa solicitação já foi encerrada: a eliminação vale para um pedido em andamento ou respondido.")
+    if not _pedido_e_desta_pessoa(db, pedido, beneficiario):
+        raise HTTPException(status_code=400, detail="Essa solicitação não é desta pessoa nem do responsável registrado no consentimento dela: confira o "
+                                                    "protocolo.")
+    ids_vinculo = [v for (v,) in db.query(BeneficiarioProjeto.id_vinculo).filter(BeneficiarioProjeto.id_beneficiario == id_beneficiario)]
+    relatos = encaminhamentos = 0
+    if ids_vinculo:
+        relatos = db.query(RegistroAtendimento).filter(
+            RegistroAtendimento.id_vinculo.in_(ids_vinculo), RegistroAtendimento.relato != MARCADOR_DO_PRONTUARIO,
+        ).update({RegistroAtendimento.relato: MARCADOR_DO_PRONTUARIO}, synchronize_session=False)
+        encaminhamentos = db.query(EncaminhamentoRedeExterna).filter(
+            EncaminhamentoRedeExterna.id_vinculo.in_(ids_vinculo), EncaminhamentoRedeExterna.descricao != MARCADOR_DO_PRONTUARIO,
+        ).update({EncaminhamentoRedeExterna.descricao: MARCADOR_DO_PRONTUARIO}, synchronize_session=False)
+    if vigente is not None:  # só a marca antiga do cadastro: acaba junto (o pedido de eliminação retira o consentimento)
+        consentimentos.encerrar(db, usuario, origem=consentimentos.BENEFICIARIO, id_origem=id_beneficiario, como=consentimentos.REVOGADO,
+                                motivo=f"Eliminação pedida pelo titular (protocolo {pedido.protocolo}).")
+    beneficiario.observacao_consentimento = None
+    db.commit()
+    return {"relatos": relatos, "encaminhamentos": encaminhamentos, "protocolo": pedido.protocolo}

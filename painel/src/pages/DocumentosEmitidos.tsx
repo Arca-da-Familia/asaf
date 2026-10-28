@@ -85,14 +85,21 @@ export function DocumentosEmitidosPage() {
                 Emitido em {formatarData(d.emitida_em, { comHora: true })}
               </p>
             </div>
-            <a
-              className="text-primary underline"
-              href={urlArquivo(d.caminho_arquivo)}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Abrir o PDF
-            </a>
+            {d.caminho_arquivo ? (
+              <a
+                className="text-primary underline"
+                href={urlArquivo(d.caminho_arquivo)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Abrir o PDF
+              </a>
+            ) : (
+              // v7.1d: 10 anos depois da emissão o arquivo do certificado é apagado (o número e a verificação continuam)
+              <span className="text-xs text-muted-foreground" data-pdf-apagado>
+                PDF apagado pelo prazo de guarda
+              </span>
+            )}
           </div>
         ))}
       </div>

@@ -4,6 +4,8 @@ público (sem autenticação), mesmo padrão de `GET /carteirinha/verificar/{tok
 atividade. Cuidado de ordenação de rota (mesmo achado já corrigido duas vezes em v4.5/v4.6):
 `verificar` precisa continuar sendo o único segmento literal sob `/certificado/` - qualquer rota
 literal futura nesse prefixo tem que vir antes de um `{algo}` parametrizado."""
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -21,7 +23,17 @@ def verificar_certificado_endpoint(codigo: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Código de verificação não encontrado.")
 
     template = db.query(TemplateDocumento).filter(TemplateDocumento.id_template == documento.id_template).first()
-    pessoa = db.query(Pessoa).filter(Pessoa.id_pessoa == documento.id_pessoa).first() if documento.id_pessoa else None
+    # v7.1d: o nome é o que foi IMPRESSO no documento (guardado na emissão), não o do cadastro de hoje: a pessoa pode ter sido anonimizada (5 anos depois do último
+    # evento) e o certificado continua com o nome até os 10 anos; depois disso o nome sai e o documento continua válido
+    try:
+        variaveis = json.loads(documento.variaveis_usadas or "{}")
+    except ValueError:
+        variaveis = {}
+    if "nome_completo" in variaveis:
+        nome = variaveis["nome_completo"]
+    else:
+        pessoa = db.query(Pessoa).filter(Pessoa.id_pessoa == documento.id_pessoa).first() if documento.id_pessoa else None
+        nome = pessoa.nome_completo if pessoa else None
 
     from app.services.eventos import obter_evento
 
@@ -30,7 +42,9 @@ def verificar_certificado_endpoint(codigo: str, db: Session = Depends(get_db)):
         atividade = obter_evento(db, documento.id_contexto).titulo
 
     return {
-        "nome_completo": pessoa.nome_completo if pessoa else None,
+        "nome_completo": nome,
+        # v7.1d: 10 anos depois da emissão o nome sai (o documento continua válido)
+        "nome_retirado": nome is None and not documento.caminho_arquivo,
         "atividade": atividade,
         "tipo_documento": template.nome if template else None,
         "emitida_em": documento.emitida_em,

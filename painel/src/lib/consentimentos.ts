@@ -35,6 +35,18 @@ export const registrarConsentimentoDoBeneficiario = (
     { method: 'POST', body: JSON.stringify(dados) },
   )
 
+// v7.1d - a eliminação do prontuário a pedido do titular (o encarregado: `privacidade_gerir`), com o protocolo da solicitação
+export const eliminarProntuario = (idBeneficiario: number, protocolo: string) =>
+  apiFetch<{
+    mensagem: string
+    relatos: number
+    encaminhamentos: number
+    protocolo: string
+  }>(`/api/beneficiarios/${idBeneficiario}/eliminar-prontuario`, {
+    method: 'POST',
+    body: JSON.stringify({ protocolo: protocolo.trim() }),
+  })
+
 export const revogarConsentimentoDoBeneficiario = (
   idBeneficiario: number,
   motivo: string,

@@ -283,7 +283,7 @@ def test_verificar_certificado_publico_nao_expoe_dado_pessoal(client, auth_heade
     r = client.get(f"/certificado/verificar/{codigo}")
     assert r.status_code == 200, r.text
     corpo = r.json()
-    assert set(corpo.keys()) == {"nome_completo", "atividade", "tipo_documento", "emitida_em"}
+    assert set(corpo.keys()) == {"nome_completo", "atividade", "tipo_documento", "emitida_em", "nome_retirado"}  # v7.1d: o nome sai em 10 anos
     assert "cpf" not in corpo
     assert "email" not in corpo
     assert "telefone" not in corpo

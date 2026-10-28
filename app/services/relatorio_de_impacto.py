@@ -102,7 +102,7 @@ def _proposta(db: Session, t: Tratamento) -> dict:
         "riscos": (
             "Exposição de dado de saúde ou de vulnerabilidade de criança ou de família (constrangimento, discriminação); leitura por quem entrou na equipe só "
             "para ler (fica na Auditoria, mas não é impedida); consentimento registrado sem o termo de fato assinado (o sistema confia em quem registra); no atendimento por família, o relato pode falar de outras "
-            "pessoas da casa, que não assinaram termo próprio; ainda não há como apagar do sistema o prontuário de quem pede a eliminação (previsto na v7.1d); cópia "
+            "pessoas da casa, que não assinaram termo próprio; a eliminação a pedido apaga o relato e a descrição, mas ficam as datas e os tipos (o relatório anual conta os atendimentos); cópia "
             "para fora do sistema; uso para outra finalidade; guarda sem prazo (ainda não há rotina automática de eliminação para este dado)."
         ),
         "medidas": atividade["medidas"],

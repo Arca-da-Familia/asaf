@@ -296,19 +296,25 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
     await page.goto('/privacidade/')
     const lista = page.locator('[data-prazos-de-guarda]')
     await expect(lista).toBeVisible()
-    await expect(lista.locator('li')).toHaveCount(9)
+    await expect(lista.locator('li')).toHaveCount(14)
     for (const trecho of [
-      'Endereço de rede (IP) guardado no controle do limite de pedidos dos formulários públicos: 6 meses, depois é apagado. O IP que também fica na Auditoria do sistema ainda não tem prazo de eliminação automática.',
+      'Endereço de rede (IP) guardado no controle do limite de pedidos dos formulários públicos: 6 meses, depois é apagado. O IP que também fica na Auditoria do sistema sai dela no prazo da Auditoria (abaixo).',
       'Avisos do sino do painel (da equipe e dos associados; podem trazer o nome de quem pediu): 1 ano, depois são apagados.',
       // v6.1 (Política 2.4): a prova de leitura do mural de avisos do painel
-      'Registro de quem recebeu, leu e confirmou um aviso do mural do painel: 5 anos depois de o aviso sair do mural (vencer ou ser retirado), a lista de quem o recebeu, com as datas de leitura e de confirmação, é apagada; ficam o aviso e os totais. A confirmação de leitura também fica registrada na Auditoria do sistema, que ainda não tem prazo de eliminação automática.',
+      'Registro de quem recebeu, leu e confirmou um aviso do mural do painel: 5 anos depois de o aviso sair do mural (vencer ou ser retirado), a lista de quem o recebeu, com as datas de leitura e de confirmação, é apagada; ficam o aviso e os totais. A confirmação de leitura também fica registrada na Auditoria do sistema, que tem o prazo dela (abaixo).',
       '(contato, informação, solicitação de titular e voluntariado): 5 anos depois de respondidos ou encerrados, apagamos o nome, o assunto, a mensagem, a resposta, o motivo do encerramento e os dados de contato e de identificação (e-mail, telefone, CPF, data de nascimento); ficam o número do protocolo, o tipo, a situação e as datas. O pedido que ainda não foi respondido nem encerrado não é apagado.',
       'Pedido de filiação que não virou associado (recusado, ou pendente sem decisão): 2 anos depois da última mudança no pedido ou no voto de um sócio, ele e as decisões dos sócios sobre ele são apagados',
       'Pedido de doação pelo site que ninguém confirmou: 2 anos depois do prazo do pedido, é apagado.',
       // v7.1b e v7.1c (Política 2.11 e 2.12): a prova de um consentimento que acabou
       'Prova de um consentimento que acabou (a autorização de imagem ou o consentimento do atendimento social retirado, a foto apagada, o consentimento substituído por outro ou o mandato terminado): 5 anos depois de acabar, é apagada.',
+      // v7.1d (Política 2.13): os prazos que faltavam anonimizam a pessoa e mantêm as contagens
+      'Inscrição em evento e presença: 5 anos depois do evento, saem da inscrição as respostas do formulário, o e-mail usado, o código do QR de entrada e o do link de cancelamento, e o comentário da pesquisa de satisfação; ficam a inscrição, a situação (presente, ausente...) e o registro da presença, para as contagens do evento.',
+      'Quem só se inscreveu em eventos (sem outro vínculo com a ASAF: não é associado, não é atendido nos projetos e não tem outro papel no cadastro): 5 anos depois do último evento, apagamos o nome, o CPF, o e-mail e o telefone; ficam as contagens. O nome de quem pagou uma inscrição continua na descrição da cobrança, que é escrituração financeira da associação.',
+      'Voluntário: 5 anos depois do fim do último termo de adesão, apagamos a referência do termo e a da autorização do responsável, a descrição das horas e o motivo das trocas de turno; ficam a atividade, as horas e as datas. Quem não tem outro vínculo com a ASAF tem também o nome, o CPF e o contato apagados.',
+      'Certificado e crachá de evento: 10 anos depois da emissão, o arquivo é apagado e o nome sai do registro; a verificação pública pelo código continua dizendo que o documento é válido, sem o nome.',
+      'Auditoria do sistema (o registro de quem fez o quê no painel e de cada envio dos formulários): 10 anos depois de cada ação, saem quem fez, o endereço de rede (IP) e os valores registrados; ficam o que aconteceu, onde e quando. Este prazo não fica abaixo de 5 anos.',
       'Doador identificado: 10 anos depois da doação, tiramos o nome, o documento, o e-mail e a ligação com o cadastro de associado; ficam o valor, a data e o destino',
-      'Associado desligado: 5 anos depois do desligamento, apagamos CPF, e-mail, telefone, data de nascimento, estado civil, profissão, naturalidade, as habilidades cadastradas, a foto (inclusive o arquivo), o endereço e, nas mudanças de situação (licença, desligamento, advertência), o motivo e o documento de referência; ficam o nome e a matrícula do livro de associados e o tipo e as datas das mudanças de situação. A rotina automática não inclui quem ainda tem outro papel ativo no cadastro (por exemplo, voluntário). Ainda não há prazo automático para os dependentes cadastrados, os documentos anexados, o histórico de cargos, a linha do tempo da pessoa e as observações internas da ficha.',
+      'Associado desligado: 5 anos depois do desligamento, apagamos CPF, e-mail, telefone, data de nascimento, estado civil, profissão, naturalidade, as habilidades cadastradas, a foto (inclusive o arquivo), o endereço e, nas mudanças de situação (licença, desligamento, advertência), o motivo e o documento de referência; ficam o nome e a matrícula do livro de associados e o tipo e as datas das mudanças de situação. A rotina automática não inclui quem ainda tem outro papel ativo no cadastro (por exemplo, voluntário: esse papel acaba 5 anos depois do fim do último termo de adesão). Ainda não há prazo automático para os dependentes cadastrados, os documentos anexados, o histórico de cargos, a linha do tempo da pessoa e as observações internas da ficha.',
     ])
       await expect(lista).toContainText(trecho)
     await expect(
@@ -317,20 +323,20 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
       'Os prazos abaixo são os de hoje: ficam nas Regras do sistema, a Presidência pode ajustá-los e nenhum fica abaixo de 30 dias. O que é apagado ainda fica, por até 35 dias, nas cópias de segurança do banco de dados, que não são públicas.',
     )
     await expect(page.locator('[data-prazos-de-guarda-limite]')).toContainText(
-      'Ainda não há rotina automática de prazo para os demais dados (por exemplo, quem só se inscreveu em um evento, voluntários, certificados, a Auditoria do sistema e o pedido de filiação aprovado)',
+      'Ainda não há rotina automática de prazo para os demais dados (por exemplo, o pedido de filiação aprovado, o cadastro de funcionários e o registro do atendimento social, cuja eliminação pode ser pedida, como está acima)',
     )
   })
 
-  test('versão 2.12 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
+  test('versão 2.13 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
     page,
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.12 · em vigor desde 27 de outubro de 2026'),
+      page.getByText('Versão 2.13 · em vigor desde 28 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.12, em vigor desde 27 de outubro de 2026/,
+        /Esta é a versão 2\.13, em vigor desde 28 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-doacao]')
@@ -364,6 +370,7 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
       'só a equipe do projeto o vê, e cada leitura fica registrada',
       'faz parar os registros novos assim que a retirada é registrada no sistema',
       'o que já foi registrado continua guardado, visto só pela equipe do projeto, e a eliminação dele pode ser pedida pela solicitação do titular de dados',
+      'confirmada a identidade de quem pede, o relato de cada atendimento e a descrição de cada encaminhamento são apagados (ficam as datas e os tipos, para as contagens)',
     ])
       await expect(atendimento).toContainText(trecho)
     await expect(

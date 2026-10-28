@@ -7,13 +7,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ConsentimentoDoBeneficiario } from '@/components/privacidade/ConsentimentoDoBeneficiario'
 import type * as api from '@/lib/api'
 import * as consentimentos from '@/lib/consentimentos'
+import { useMe } from '@/lib/use-me'
 
 vi.mock('@/lib/consentimentos', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/consentimentos')>()),
   obterTermoDaTela: vi.fn(),
+  eliminarProntuario: vi.fn(),
   registrarConsentimentoDoBeneficiario: vi.fn(),
   revogarConsentimentoDoBeneficiario: vi.fn(),
 }))
+
+vi.mock('@/lib/use-me', () => ({ useMe: vi.fn() }))
+
+function comPermissoes(permissoes: string[]) {
+  vi.mocked(useMe).mockReturnValue({
+    data: { permissoes },
+  } as unknown as ReturnType<typeof useMe>)
+}
 
 const beneficiario = (
   extra: Partial<api.Beneficiario> = {},
@@ -64,6 +74,7 @@ function desenhar(b: api.Beneficiario) {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  comPermissoes(['projetos'])
   vi.mocked(consentimentos.obterTermoDaTela).mockResolvedValue({
     termo: 'ATENDIMENTO_SOCIAL',
     nome: 'Termo de consentimento do atendimento social',
@@ -236,6 +247,69 @@ describe('Consentimento do atendimento social', () => {
       ).options,
     ).map((o) => o.value)
     expect(opcoes).toEqual(['', 'responsavel_legal'])
+  })
+
+  it('eliminar o prontuário: só o encarregado, só sem consentimento, com o protocolo', async () => {
+    const user = userEvent.setup()
+    comPermissoes(['projetos'])
+    const { unmount } = desenhar(beneficiario())
+    expect(
+      screen.queryByRole('button', {
+        name: 'Eliminar o prontuário (pedido do titular)',
+      }),
+    ).not.toBeInTheDocument()
+    unmount()
+
+    comPermissoes(['projetos', 'privacidade_gerir'])
+    const vigenteUnmount = desenhar(
+      beneficiario({
+        consentimento_lgpd_registrado: true,
+        consentimento: vigente,
+      }),
+    )
+    expect(
+      screen.queryByRole('button', {
+        name: 'Eliminar o prontuário (pedido do titular)',
+      }),
+    ).not.toBeInTheDocument()
+    vigenteUnmount.unmount()
+
+    vi.mocked(consentimentos.eliminarProntuario).mockResolvedValue({
+      mensagem:
+        'Prontuário eliminado: 2 relato(s) e 1 encaminhamento(s) apagados.',
+      relatos: 2,
+      encaminhamentos: 1,
+      protocolo: 'TIT-2026-0001',
+    })
+    desenhar(beneficiario())
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Eliminar o prontuário (pedido do titular)',
+      }),
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Confirmar a eliminação' }),
+    )
+    expect(
+      screen.getByText('Informe o protocolo da solicitação.'),
+    ).toBeInTheDocument()
+    expect(consentimentos.eliminarProntuario).not.toHaveBeenCalled()
+    await user.type(
+      screen.getByLabelText('Protocolo da solicitação do titular de dados'),
+      'TIT-2026-0001',
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Confirmar a eliminação' }),
+    )
+    await waitFor(() =>
+      expect(consentimentos.eliminarProntuario).toHaveBeenCalledWith(
+        7,
+        'TIT-2026-0001',
+      ),
+    )
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Prontuário eliminado',
+    )
   })
 
   it('revogar pede confirmação e envia o motivo', async () => {
