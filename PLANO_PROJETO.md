@@ -1230,12 +1230,15 @@ fica abaixo de 5 anos"). Nenhum dado foi criado na produção; a rotina de guard
 
 ##### 🔍 Ponto de Revisão — FASE 7 (1/3, fecha v7.0–v7.1)
 
+✅ **FECHADO em 2026-10-28, com o OK do Presidente** ("ok", depois de ler o resumo da revisão; o papel de dados do certificado foi concedido antes, com a autorização
+dele). Fica registrada a única pendência, que depende de ato dele e não de código: o NOME do encarregado e o ato assinado entram com o cadastro real da Diretoria.
+
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 
 - Encarregado (DPO) está de fato nomeado e publicado, não só planejado.
 - Consentimento (v7.1) é versionado com o texto exato da época — testar que reabrir um consentimento antigo mostra o texto que valia então, não o atual.
 
-**Revisão feita em 2026-10-28 — aguardando o OK do Presidente para fechar** (o Ponto só fecha com o OK dele). Intervalo: `921a7dd^..04ffd4e` (v7.0a–d, v7.1a–d, lotes
+**Revisão feita em 2026-10-28** (o Ponto só fecha com o OK do Presidente: dado no mesmo dia). Intervalo: `921a7dd^..04ffd4e` (v7.0a–d, v7.1a–d, lotes
 11–15 e as correções desta revisão). A leitura de código e plano foi feita por um agente SEPARADO, só leitura (não ancorado na minha conclusão); o que depende de rodar
 coisas foi feito por mim. Resultado do checklist da seção 4.1:
 1. **`[x]` implementado e testado — OK** (as contagens dos blocos ✅ batem com o código: rotas, testes e as 14 regras da rotina de guarda).
