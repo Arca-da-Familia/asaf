@@ -1309,13 +1309,38 @@ coisas foi feito por mim. Resultado do checklist da seção 4.1:
 > responde o 1º Vice-Presidente; (11) portabilidade: o que a pessoa forneceu + o que é dela no financeiro; (12) relatório de atendimento: tela para a Diretoria +
 > resumo no relatório anual.
 
+✅ **v7.2a concluída (2026-10-28) — a fila do titular completa.** O formulário do site ganhou os dois direitos que faltavam (saber a consequência de não
+consentir; oposição) e o rótulo da eliminação deixou de oferecer "bloqueio" (decisão 5). O prazo da solicitação do titular não passa de 15 dias, mesmo que a
+regra seja mudada (a regra diz isso). Ao responder, a equipe registra o **resultado** (atendido, em parte, não atendido) e, se não atendido por inteiro, o
+**fundamento** escolhido de uma lista (escrituração financeira, atas e votações, livro de associados, prova do consentimento, vínculo ativo, identidade não
+confirmada, outro), que a pessoa lê na Minha conta junto da resposta; encerrar sem resposta fica registrado como tal (migração `b0227d30a6a9`). Ao validar a
+identidade, marca-se o pedido feito por um dos pais ou pelo responsável (decisão 9). A **confirmação simples sai na hora** quando a identidade já nasce validada
+(decisão 8), num e-mail só, como qualquer pedido, e fica na Auditoria como resposta do sistema. O pedido sobre os dados do **próprio Presidente** fica com o 1º
+Vice-Presidente que tem acesso à fila (o 2º na falta), e **ninguém atende pedido sobre os próprios dados** (decisão 10). O pedido no painel tem atalhos para a
+ficha do associado, o beneficiário e os consentimentos da pessoa (só para quem pode abrir). **Política 2.15.**
+**Conferência independente (agente, só leitura) achou 12 defeitos e 4 suspeitas; tratados antes de publicar:** o resultado era exigido antes da identidade (o
+robô da v5.7f quebraria); a confirmação na hora não ia para a Auditoria, mandava dois e-mails contraditórios e — pelo tempo do envio — deixaria descobrir se
+alguém é associado; o duplo clique abria outro protocolo; o pedido sobre o Presidente podia cair em quem não atende (ou voltar a ele) e ele ainda podia assumi-lo;
+o atalho do beneficiário não filtrava; o rótulo "o motivo foi dito à pessoa" era falso em pedidos antigos; o teto do prazo era silencioso; a Auditoria não guardava
+o responsável nem o resultado do encerramento; duas citações de lei (atas e livro de associados) trocadas pelo Estatuto; a Política não falava da oposição nem do
+resultado guardado.
+**Testes locais:** servidor 1673 em duas rodadas e 1673 contra Postgres 18; painel 761; site 778 de unidade e 924 de navegador, estados vazios.
+**Na homologação (2026-10-28):** migração aplicada no banco de TESTE (`Running upgrade a3c5e7f9b1d2 -> b0227d30a6a9`). Robô `v7.2a-01` 3/3: o site mostra os dois
+direitos novos; a associada pede a confirmação e ela sai na hora ("Sim…"), com o resultado e o atalho para a ficha na tela; a mãe pede a eliminação pelo filho: a
+equipe valida marcando o responsável, o painel exige o resultado e o fundamento, o cartão mostra os dois, a Auditoria guarda, e a Minha conta da mãe mostra o
+resultado e o fundamento. Regressões verdes: `v5.7f-01` 5, `v5.5a-01` 6, `v5.5a-02` 7, `v5.6b-01` 6, `v5.6b-02` 4.
+**Em produção (2026-10-28):** `main` = `e6bda58`; Deploy API (1673 contra Postgres e `Running upgrade a3c5e7f9b1d2 -> b0227d30a6a9`), Deploy Painel e Deploy Site
+verdes; `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `e6bda58`; `asaf.org.br/privacidade/` diz "Versão 2.15" e lista a oposição; o formulário
+`asaf.org.br/privacidade/solicitacao-do-titular/` tem os dois direitos novos. Nenhum pedido foi feito na produção.
+
 - [ ] **[parcial, v5.5a e v5.6b: o site tem o formulário (fila única, protocolo e prazo) e a conta de visitante pede a eliminação com o e-mail provado por código; falta a validação de identidade no formulário público e o canal pelo painel]** Canal único de solicitação: pelo painel (autenticado) e pelo site (formulário com validação
       de identidade), gerando protocolo com prazo legal acompanhado.
 - [ ] **[parcial, v7.1b–d: a revogação do consentimento (apagar a foto; revogar o do atendimento social) e a eliminação do prontuário a pedido já existem; não
       reconstruir]** Atendimento real de cada direito: confirmação de tratamento, acesso, correção,
       anonimização/eliminação, portabilidade (exportação em formato legível por máquina),
       informação sobre compartilhamento, e revogação de consentimento.
-- [ ] Limites explicados ao titular quando houver: dado retido por obrigação legal (contábil,
+- [x] **[v7.2a: a resposta registra o resultado e, se não atendida por inteiro, o fundamento escolhido de uma lista, que a pessoa lê na Minha conta]**
+      Limites explicados ao titular quando houver: dado retido por obrigação legal (contábil,
       fiscal) não é apagável, e o sistema responde isso com fundamento, não com silêncio.
 - [ ] Relatório de atendimento de solicitações (quantas, prazo médio, resultado) para a diretoria.
 
