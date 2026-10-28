@@ -736,19 +736,19 @@ function LinhaInscrito({
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-2 text-sm">
-      <span>
-        {inscrito.nome_pessoa ?? `Pessoa #${inscrito.id_pessoa}`}
+      <div>
+        <span>{inscrito.nome_pessoa ?? `Pessoa #${inscrito.id_pessoa}`}</span>
         {inscrito.consentimento_lgpd_versao && (
-          <span className="block text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground" data-aviso-aceito>
             Aviso de privacidade aceito: versão{' '}
             {inscrito.consentimento_lgpd_versao}
             <LerAviso
               ponto="INSCRICAO_EVENTO"
               versao={inscrito.consentimento_lgpd_versao}
             />
-          </span>
+          </div>
         )}
-      </span>
+      </div>
       <div className="flex items-center gap-2">
         <span className="text-muted-foreground">{inscrito.status}</span>
         {transicoes.length > 0 ? (
