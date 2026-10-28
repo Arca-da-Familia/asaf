@@ -1127,13 +1127,59 @@ verdes; `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `33c650
 
 ##### v7.1c — Criança e adolescente: o consentimento de um dos pais ou do responsável
 
-- [ ] No beneficiário, o consentimento do responsável (com o vínculo registrado) passa a ser exigido para registrar atendimento (fecha o risco que o relatório de impacto
-      da v7.0d aponta); o voluntário adolescente e a filiação de 16 a 17 anos com o mesmo registro.
+- [x] No beneficiário, o consentimento do responsável (com o vínculo registrado) passa a ser exigido para registrar atendimento (fecha o risco que o relatório de impacto
+      da v7.0d aponta).
+- [x] O voluntário adolescente e a filiação de 16 a 17 anos **ficam fora, com o motivo**: ali a base legal não é o consentimento (é o pedido da própria pessoa e o
+      termo de adesão, LGPD art. 7º, V), e a autorização dos pais é ato da vida civil, não consentimento da LGPD: a filiação de 16 a 17 anos já exige a
+      declaração da autorização (Estatuto, Art. 12; `app/services/filiacao_publica.py`) e o pedido de voluntariado guarda o nascimento para a secretaria
+      colher a autorização no termo de adesão (`app/models/atendimento.py`). O art. 14, § 1º (um dos pais consente) é da criança, e nem filiação nem
+      voluntariado aceitam criança.
+
+✅ **v7.1c concluída (2026-10-28).**
+
+**O que foi feito:** o atendimento social (prontuário e encaminhamentos à rede) passou a exigir o **termo de consentimento assinado**, registrado no sistema
+com a versão: o termo novo "Consentimento para o atendimento social" entrou no catálogo (versão 2; a versão 1 é a marca antiga "Consentimento LGPD registrado",
+reconstituída), com o PDF para imprimir e assinar. Na tela **Beneficiários**, cada pessoa tem o bloco **Consentimento**: quem consentiu (a própria pessoa ou um
+dos pais / o responsável, com o nome e o vínculo), como o termo foi entregue, a data da assinatura; registrar de novo **substitui** o vigente; **revogar** pede
+confirmação e fecha os registros novos (o que já existe fica, só para a equipe). A idade vale **na data da assinatura** e o nascimento passou a ser obrigatório
+para registrar: quem tinha menos de 18 anos só consente por um dos pais ou o responsável legal; o adulto, por si (ou pelo responsável legal, se há curatela);
+corrigir o nascimento para menor encerra o consentimento dado sozinho ("invalidado"). O prontuário no projeto avisa antes ("sem consentimento") e o servidor
+recusa (409). A marca antiga virou prova (migração `9d1b6c3e5f27`, "declaração antiga"), mas **não abre** o prontuário. Privacidade > Consentimentos acha também
+pelo nome do responsável e mostra quem consentiu pela criança. Inventário e relatório de impacto atualizados. **Política 2.12:** o parágrafo do atendimento
+social, o registro dos consentimentos cobrindo as pessoas atendidas e o prazo da prova.
+**Conferência independente (agente, só leitura) achou 9 defeitos e 6 suspeitas; todos tratados antes de publicar:** criança sem nascimento "consentia sozinha";
+a idade era a de hoje, não a da assinatura; a marca antiga abria o prontuário sem termo nem responsável; o termo, a Política e a tela prometiam apagar o que
+já foi registrado, o que o sistema ainda não faz (agora dizem que a eliminação se **pede** pela solicitação do titular; a ferramenta entra na v7.1d); rótulos de
+foto ("a foto foi apagada") no consentimento do beneficiário; a tela não se atualizava depois de registrar; a busca não achava o responsável; a Política e o
+inventário falavam só de foto; mensagens de "imagem"; corrida que reescrevia a prova da revogação (agora a linha é travada); adulto consentido pela "mãe";
+"assim que o pedido é registrado" (agora: a retirada registrada no sistema); o campo "Projeto" do termo; a anotação da marca antiga sumida; o aviso antigo
+dizendo que a pessoa marcou a caixa que a equipe marcava (vale também para as fotos da v7.1b).
+**Testes locais:** servidor 1635 em duas rodadas (e 1629 antes da revisão) e 1635 contra Postgres 18 (a migração desce e sobe); painel 758 em duas rodadas, tipos,
+lint e formatação limpos; site 778 de unidade e 924 de navegador, estados vazios. A validação em Postgres achou um defeito da v7.1b: o povoamento da
+homologação mandava a data da assinatura pelo dia UTC (depois das 21h de Belém já é "amanhã" e o servidor recusa) — corrigido com o fuso do sistema, e o
+robô `v5.7d-01` também.
+**Na homologação (2026-10-28):** a branch `v71c-consentimento-do-responsavel` foi publicada e a migração rodou no banco de TESTE (`Running upgrade 7c4e1a9d2b63 ->
+9d1b6c3e5f27`). Robô `v7.1c-01` 3/3: o **Presidente** monta um projeto com uma **criança** de 10 anos; o prontuário avisa "sem consentimento" e não abre; no
+bloco Consentimento a própria criança não pode consentir, sem o nome e sem o vínculo do responsável é recusado, com a **mãe** entra ("dado por … (Mãe)", termo
+versão 2) e o prontuário grava; a rota recusa a própria criança (400) e o PDF abre; Privacidade > Consentimentos mostra quem consentiu pela criança e reabre
+o termo; a mãe revoga (com confirmação e motivo): o prontuário avisa, o atendimento já feito continua e a rota recusa o novo (409); a Auditoria guarda o
+registro e a revogação. O robô pegou um defeito real: digitar a busca e abrir o bloco antes de a busca responder desmontava o bloco e perdia o que estava sendo
+preenchido (agora a lista anterior fica enquanto a nova carrega). Regressões verdes: `v5.4f-01` 22 (o cadastro pelo projeto sem a marca, o prontuário fechado
+sem o termo e aberto com ele, registrar e revogar na tela Beneficiários), `v7.0d-01` 3, `v7.0b-01` 2, `v5.4h-05` 3, `v7.1b-01` 3, `v7.1a-01` 4, `v7.0c-01` 3,
+`v5.7d-01` e `v5.7d-02` (o `v5.7d-01` registrava sempre o mesmo mandato antigo e a 4ª rodada encheu as 3 vagas do cargo naquele período: agora cada rodada usa
+um dia só dela).
+**Em produção (2026-10-28):** `main` = `fda51f3`; Deploy API verde (1635 contra Postgres e `Running upgrade 7c4e1a9d2b63 -> 9d1b6c3e5f27`), Deploy Painel e Deploy Site
+verdes; `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `fda51f3`; o `openapi.json` traz as 2 rotas novas e, sem login, registrar o consentimento
+e o termo da tela respondem 401; `asaf.org.br/privacidade/` diz "Versão 2.12 · em vigor desde 27 de outubro de 2026" e tem o parágrafo do atendimento social e o
+registro dos consentimentos cobrindo as pessoas atendidas. Nenhum consentimento foi registrado na produção (pessoas e termos reais são para quando o sistema
+estiver pronto, decisão de 23/10).
 
 ##### v7.1d — Os prazos que faltam, com anonimização que preserva a estatística
 
 - [ ] Inscrições e presenças (5 anos), voluntário (5 anos depois do fim), certificado (10 anos: a verificação pública continua dizendo "válido", sem o nome) e Auditoria
       (10 anos), anonimizando a pessoa e mantendo as contagens.
+- [ ] A eliminação do prontuário a pedido (v7.1c): quem revogou o consentimento do atendimento social e pede a eliminação pela solicitação do titular tem o
+      que já foi registrado apagado ou anonimizado (por vínculo), com a Auditoria; hoje o termo e a Política só dizem que se pode **pedir**.
 
 ##### 🔍 Ponto de Revisão — FASE 7 (1/3, fecha v7.0–v7.1)
 
