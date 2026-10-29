@@ -102,6 +102,9 @@ const substituto = substitutoDoEncarregado(diretoria)
 // aos 18 anos, o consentimento dado pelo responsável deixa de valer para registros novos (a própria pessoa assina).
 // v2.15 (2026-10-28): v7.2a - o direito de oposição na lista; a solicitação do titular guarda o resultado e o fundamento (também depois dos 5 anos) e a Minha
 // conta os mostra.
+// v2.16 (2026-10-29): v7.2g - como o pedido é atendido (v7.2b a v7.2f): os canais (formulário, Minha conta e o painel do associado), a identidade (o código do
+// e-mail só vale para o que foi feito com o e-mail), o relatório dos seus dados para baixar por 15 dias (PDF e arquivo para levar a outro serviço), a
+// eliminação (o que sai, o que fica e por quê) e o total de pedidos no relatório anual; na lista de prazos, a cópia do relatório entregue (15 dias).
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -681,8 +684,9 @@ const direitos = [
         Para alguns dados há prazo certo, e o sistema os apaga ou anonimiza
         sozinho, por uma rotina que roda algumas vezes ao dia. Os prazos abaixo
         são os de hoje: ficam nas Regras do sistema, a Presidência pode
-        ajustá-los e nenhum fica abaixo de 30 dias. O que é apagado ainda fica,
-        por até 35 dias, nas cópias de segurança do banco de dados, que não são
+        ajustá-los e nenhum fica abaixo de 30 dias, salvo a cópia do relatório
+        entregue a você, de 15 dias, que é fixa. O que é apagado ainda fica, por
+        até 35 dias, nas cópias de segurança do banco de dados, que não são
         públicas.
       </p>
       <ul class="mt-3 flex list-disc flex-col gap-1 pl-6" data-prazos-de-guarda>
@@ -771,6 +775,11 @@ const direitos = [
           depois de acabar, é apagada; a do atendimento social fica enquanto
           existir o registro do atendimento que ela autorizou.
         </li>
+        <li data-prazo-relatorio-entregue>
+          Relatório dos seus dados liberado para você baixar (o PDF e o arquivo
+          para levar a outro serviço): 15 dias depois de liberado, a cópia é
+          apagada (prazo fixo, não ajustável).
+        </li>
         <li>
           Associado desligado: 5 anos depois do desligamento, apagamos CPF,
           e-mail, telefone, data de nascimento, estado civil, profissão,
@@ -839,6 +848,69 @@ const direitos = [
         até 15 dias (art. 19, II). Se achar que o seu pedido não foi atendido,
         você também pode reclamar à Autoridade Nacional de Proteção de Dados
         (ANPD).
+      </p>
+      <p class="mt-3" data-como-atendemos>
+        <strong>Como o pedido é atendido.</strong> Você pode pedir pelo
+        formulário e, se for associado, também pelo painel da ASAF (Meu perfil,
+        Meus dados pessoais). Na área{' '}
+        <a
+          href="/minha-conta/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          Minha conta
+        </a>{' '}
+        (com o código enviado ao seu e-mail) você pode pedir que apaguemos o que
+        foi feito com aquele e-mail. Antes de responder, a ASAF confere que quem
+        pede é o titular dos dados. A confirmação vem do próprio sistema quando
+        o CPF e o e-mail do pedido são os do seu cadastro de associado, ou
+        quando você pede pelo painel tendo entrado com senha e segundo passo;
+        nos outros casos, a equipe confere por outro meio. Para eliminar o seu
+        cadastro, que não tem volta, a confirmação pelo e-mail não basta: sem a
+        conferência da equipe ou o painel, sai só o que foi feito com aquele
+        e-mail. A resposta não vai por e-mail: você a lê na Minha conta, ou no
+        painel, se pediu por ele.
+      </p>
+      <p class="mt-3" data-relatorio-dos-seus-dados>
+        <strong>O relatório dos seus dados.</strong> No pedido de acesso, de
+        portabilidade ou sobre o compartilhamento, o encarregado confere o
+        relatório do que o sistema guarda sobre você (para que serve cada dado,
+        a base legal, com quem é compartilhado e por quanto tempo; o próprio
+        relatório diz o que fica de fora, como as atas, que ele confere à mão)
+        e, se for o caso, o libera para você baixar. Por 15 dias você baixa o
+        relatório em PDF e um arquivo em formato aberto (JSON) com os dados que
+        você nos forneceu e os seus no financeiro, para levar a outro serviço;
+        depois, a cópia é apagada, e cada download fica registrado. Quando não
+        dá para baixar, ele entrega o relatório impresso. A confirmação simples
+        (se tratamos ou não dados seus) pode sair na hora.
+      </p>
+      <p class="mt-3" data-eliminacao-a-pedido>
+        <strong>A eliminação.</strong> O encarregado vê antes o que sai e o que
+        fica, e por quê. Fica o que a lei ou o Estatuto mandam guardar: o
+        financeiro e os recibos, as atas, as votações e os mandatos, o nome e a
+        matrícula no livro de associados, a prova dos consentimentos, o termo de
+        adesão do voluntário, o processo disciplinar e a prova de que um aviso
+        obrigatório foi entregue. O cadastro também fica enquanto servir a um
+        vínculo: por exemplo, enquanto você for associado (até a data do
+        desligamento), tiver mandato ou débito em aberto com a associação,
+        estiver inscrito num evento que ainda vai acontecer, fizer parte do
+        núcleo familiar de um associado ou tiver trabalhado na associação. O
+        atendimento social tem eliminação própria, pedida da mesma forma e
+        conferida em Beneficiários. De um evento que já passou saem as respostas
+        do formulário, o e-mail e os códigos da inscrição, e o certificado perde
+        o arquivo e o nome; o registro de que você participou fica, para a
+        contagem do evento. A resposta diz o resultado e, se algo ficou, o
+        motivo.
+      </p>
+      <p class="mt-3" data-prestacao-de-contas>
+        O total de pedidos do ano e se foram respondidos no prazo saem no{' '}
+        <a
+          href="/transparencia/relatorio-anual/"
+          class="font-medium text-primary underline underline-offset-4"
+        >
+          relatório anual de atividades
+        </a>
+        , só em números e sem nomes: um número de 1 a 4 aparece como “menos de
+        5”, e o detalhe que permitiria descobrir um número pequeno não aparece.
       </p>
     </section>
 

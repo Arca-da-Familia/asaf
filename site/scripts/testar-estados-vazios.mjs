@@ -642,7 +642,7 @@ for (const [rotulo, ler, pasta] of [
   )
   const politica = ler('/privacidade/')
   exigir(
-    politica.includes('Versão 2.15') &&
+    politica.includes('Versão 2.16') &&
       politica.includes('data-doacao') &&
       politica.includes('id="doacao-pelo-site"'),
     `${rotulo}: a Política não é a 2.0 com o parágrafo da doação`,

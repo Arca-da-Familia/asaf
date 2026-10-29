@@ -65,6 +65,10 @@ ROTULOS_DO_SUBTIPO_LGPD = {
     "OUTRO": "Outro pedido sobre os meus dados pessoais",
 }
 
+# v7.2g: as validações automáticas que provam só o e-mail (e o CPF digitado): bastam para responder e para entregar pela Minha conta (o código vai ao e-mail),
+# não para tirar o cadastro numa eliminação; a equipe pode reforçá-las conferindo por outro meio
+IDENTIDADES_AUTOMATICAS_FRACAS = (IDENTIDADE_AUTOMATICA_CADASTRO, IDENTIDADE_CODIGO_NO_EMAIL)
+
 # como a identidade de quem pede dado pessoal foi validada (v5.7f): o que o painel mostra
 ROTULOS_DA_IDENTIDADE = {
     IDENTIDADE_AUTOMATICA_CADASTRO: "Automática: o e-mail digitado é o do cadastro de associado daquele CPF",
@@ -556,12 +560,13 @@ def responder(db: Session, a: Atendimento, usuario: Usuario, resposta: str, agor
 
 def validar_identidade(db: Session, a: Atendimento, usuario: Usuario, nota: str, agora: Optional[datetime] = None, *, por_representante: bool = False) -> Atendimento:
     """A equipe confere, por outro meio (documento, telefone do cadastro, presença), que quem pediu é o titular dos dados e registra o que conferiu. Só na solicitação do titular, só enquanto
-    o pedido está aberto, uma vez. Faz commit."""
+    o pedido está aberto, uma vez - ou para REFORÇAR a validação automática (o e-mail do cadastro, ou o código do e-mail), que não basta para tirar o cadastro numa
+    eliminação, que não tem volta (v7.2g). Faz commit."""
     if a.tipo != TITULAR_LGPD:
         raise HTTPException(status_code=400, detail="Só a solicitação do titular de dados pede validação de identidade.")
     if a.status in (RESPONDIDO, ENCERRADO):
         raise HTTPException(status_code=400, detail=f"Este atendimento já está {a.status.lower()}.")
-    if a.identidade_validada_em is not None:
+    if a.identidade_validada_em is not None and a.identidade_validacao not in IDENTIDADES_AUTOMATICAS_FRACAS:
         raise HTTPException(status_code=400, detail="A identidade deste pedido já está validada.")
     _exigir_que_nao_seja_sobre_si(db, a, usuario)
     texto = " ".join((nota or "").split())

@@ -128,3 +128,11 @@ def test_a_virada_do_ano_e_a_de_belem_e_o_encerrado_sem_resposta_tem_o_seu_rotul
     de_2036 = servico.resumo(db, *_instantes_do_ano(2036))
     assert de_2035["total"] == 1 and de_2036["total"] == 1
     assert [d["codigo"] for d in de_2035["por_resultado"]] == ["ENCERRADO_SEM_RESPOSTA"], "encerrado sem resposta não é 'respondido'"
+
+
+def test_o_prazo_tambem_nao_se_descobre_pelos_que_faltam_responder():
+    # 12 pedidos, 8 respondidos no prazo e 0 fora: publicar daria os 4 sem resposta por subtração
+    dados = {"total": 12, "por_resultado": [{"codigo": "ATENDIDO", "total": 12}], "respondidos": 8, "respondidos_no_prazo": 8,
+             "respondidos_fora_do_prazo": 0, "tempo_medio_de_resposta_dias": 2.0}
+    publico = servico.para_o_relatorio_anual(dados)
+    assert publico["respondidos_no_prazo"] is None and publico["respondidos_fora_do_prazo"] is None

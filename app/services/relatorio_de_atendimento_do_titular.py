@@ -100,7 +100,7 @@ def para_o_relatorio_anual(dados: dict) -> dict:
     resto = dados["total"] - sum(resultado)  # em andamento, encerrados sem resposta, respondidos antes do resultado
     prazo = (dados["respondidos_no_prazo"], dados["respondidos_fora_do_prazo"])
     mostra_resultado = seguro(*resultado, resto) and seguro(dados["total"])
-    mostra_prazo = seguro(*prazo) and seguro(dados["total"])
+    mostra_prazo = seguro(*prazo, dados["total"] - sum(prazo)) and seguro(dados["total"])  # o que sobra: os ainda sem resposta
     return {
         "total": _protegido(dados["total"]),
         "atendidos": resultado[0] if mostra_resultado else None,

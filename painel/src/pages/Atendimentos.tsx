@@ -578,6 +578,12 @@ function Detalhe({
   const identidade = textoDaIdentidade(a)
   const encerramentoDoTitular = avisoDoEncerramentoDoTitular(a)
   const faltaValidar = identidade !== null && !identidade.validada
+  // v7.2g: a validação automática (o e-mail do cadastro, ou o código do e-mail) não basta para tirar o cadastro numa eliminação: a equipe pode reforçá-la
+  const podeReforcar =
+    a.tipo === 'TITULAR_LGPD' &&
+    a.subtipo === 'ELIMINACAO' &&
+    (a.identidade_validacao === 'AUTOMATICA_CADASTRO' ||
+      a.identidade_validacao === 'CODIGO_NO_EMAIL')
 
   return (
     <div
@@ -698,7 +704,14 @@ function Detalhe({
         >
           <h2 className="text-sm font-semibold">Identidade de quem pediu</h2>
           <p className="mt-1">{identidade.texto}</p>
-          {faltaValidar && emAberto && (
+          {podeReforcar && emAberto && (
+            <p className="mt-2" data-reforcar-identidade>
+              Para tirar o cadastro nesta eliminação (que não tem volta),
+              confira a identidade por outro meio e registre abaixo; sem isso,
+              sai só o que foi feito com este e-mail.
+            </p>
+          )}
+          {(faltaValidar || podeReforcar) && emAberto && (
             <form onSubmit={enviarValidacao} noValidate className="mt-3">
               <label className="block text-sm font-medium">
                 O que você conferiu

@@ -358,3 +358,20 @@ def test_o_desligado_perde_a_conta_do_painel_os_anexos_e_a_foto_da_diretoria(cli
     assert db.query(DocumentoAnexo).filter(DocumentoAnexo.id_associado == associado.id_associado).count() == 0
     assert armazenamento.obter().ler(*armazenamento.separar_url(caminho)) is None
     assert db.query(PreferenciaDeComunicacao).filter(PreferenciaDeComunicacao.id_pessoa == pessoa.id_pessoa).count() == 0
+
+
+# ------------------------------------------------------------------------------------------------ 9. v7.2g: a identidade automática não tira o cadastro
+def test_a_identidade_automatica_nao_tira_o_cadastro_ate_a_equipe_reforcar(client, db, auth_headers):
+    pessoa, _ = _pessoa(db, associado_status="Desligado", desligado_em=datetime.utcnow() - timedelta(days=30))
+    a = _pedido(db, pessoa, identidade="AUTOMATICA_CADASTRO")
+    previa = _previa(client, auth_headers, a)
+    assert previa["cadastro_sai"] is False and previa["pessoa"] is None, "o e-mail e o CPF digitados não bastam para uma eliminação"
+    assert any(f["fundamento"] == "IDENTIDADE_NAO_CONFIRMADA" and "outro meio" in f["por_que"] for f in previa["fica"])
+    reforco = client.post(f"/api/atendimentos/{a.id_atendimento}/validar-identidade",
+                          json={"nota": "Conferi o documento com foto da pessoa na secretaria."}, headers=auth_headers)
+    assert reforco.status_code == 200, reforco.text
+    assert reforco.json()["identidade_validacao"] == "MANUAL"
+    assert _previa(client, auth_headers, a)["cadastro_sai"] is True
+    de_novo = client.post(f"/api/atendimentos/{a.id_atendimento}/validar-identidade",
+                          json={"nota": "Conferi outra vez o documento da pessoa."}, headers=auth_headers)
+    assert de_novo.status_code == 400 and "já está validada" in de_novo.json()["detail"], "a conferida pela equipe não se repete"

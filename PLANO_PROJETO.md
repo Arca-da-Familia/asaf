@@ -1475,6 +1475,16 @@ Regressões verdes: `v7.2e-01` 3, `v7.2d-01` 2.
 
 #### v7.3 — Segurança aplicada à privacidade
 
+> **Levantamento (2026-10-29, agente só leitura) e decisões do Presidente (29/10, "aprovo" às duas recomendações).** Hoje o CPF sai inteiro em 6 rotas
+> (lista e ficha de associados, propostas de filiação, pedido do atendimento, doações e doações do site) e em 9 telas, com 4 jeitos diferentes de mascarar; o
+> painel e a API não têm cabeçalhos de segurança; o inventário não diz o mecanismo do art. 33 nem os termos de cada prestador, e faltam dois serviços de
+> consulta (o de CEP e o de CNPJ). **Decisão 1 (CPF):** nas listas sempre escondido (`***.***.***-NN`, um formato só) para todos; na ficha o completo só
+> aparece por clique em "Mostrar o CPF", registrado na Auditoria, e só para quem tem tarefa que precisa dele: o Presidente, os Secretários (cadastro e
+> filiação), os Tesoureiros (o recibo de doação leva o CPF do doador) e quem atende a solicitação do titular (conferir a identidade); Vice-Presidentes e
+> Conselho Fiscal veem sempre escondido; a busca por CPF continua no servidor. **Decisão 2 (art. 33):** a base é a das cláusulas-padrão de proteção de dados
+> que cada provedor oferece nos termos aceitos ao criar a conta; o documento de cada um (nome, link, data) vai ao inventário e à Política, sem advogado.
+> Partes: v7.3a o CPF; v7.3b os cabeçalhos do painel e da API; v7.3c a transferência internacional e os termos dos operadores (Política 2.17).
+
 - [ ] Minimização por padrão: cada tela e cada exportação mostram só o necessário; CPF completo
       exibido apenas para quem tem permissão específica, mascarado para os demais.
 - [ ] Headers de segurança HTTP (CSP, `X-Content-Type-Options`, `X-Frame-Options`, HSTS) no site

@@ -296,7 +296,7 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
     await page.goto('/privacidade/')
     const lista = page.locator('[data-prazos-de-guarda]')
     await expect(lista).toBeVisible()
-    await expect(lista.locator('li')).toHaveCount(14)
+    await expect(lista.locator('li')).toHaveCount(15)
     for (const trecho of [
       'Endereço de rede (IP) guardado no controle do limite de pedidos dos formulários públicos: 6 meses, depois é apagado. O IP que também fica na Auditoria do sistema sai dela no prazo da Auditoria (abaixo).',
       'Avisos do sino do painel (da equipe e dos associados; podem trazer o nome de quem pediu): 1 ano, depois são apagados.',
@@ -320,23 +320,23 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
     await expect(
       page.locator('[data-prazos-de-guarda-introducao]'),
     ).toContainText(
-      'Os prazos abaixo são os de hoje: ficam nas Regras do sistema, a Presidência pode ajustá-los e nenhum fica abaixo de 30 dias. O que é apagado ainda fica, por até 35 dias, nas cópias de segurança do banco de dados, que não são públicas.',
+      'Os prazos abaixo são os de hoje: ficam nas Regras do sistema, a Presidência pode ajustá-los e nenhum fica abaixo de 30 dias, salvo a cópia do relatório entregue a você, de 15 dias, que é fixa. O que é apagado ainda fica, por até 35 dias, nas cópias de segurança do banco de dados, que não são públicas.',
     )
     await expect(page.locator('[data-prazos-de-guarda-limite]')).toContainText(
       'Ainda não há rotina automática de prazo para os demais dados (por exemplo, o pedido de filiação aprovado, o cadastro de funcionários e o registro do atendimento social, cuja eliminação pode ser pedida, como está acima)',
     )
   })
 
-  test('versão 2.15 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
+  test('versão 2.16 e o parágrafo da doação, com SÓ o que o servidor faz', async ({
     page,
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.15 · em vigor desde 28 de outubro de 2026'),
+      page.getByText('Versão 2.16 · em vigor desde 29 de outubro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.15, em vigor desde 28 de outubro de 2026/,
+        /Esta é a versão 2\.16, em vigor desde 29 de outubro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-doacao]')

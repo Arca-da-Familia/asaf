@@ -29,8 +29,9 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
-from app.models.atendimento import EM_ATENDIMENTO, ENCERRADO, IDENTIDADE_CODIGO_NO_EMAIL, NOVO, RESPONDIDO, TITULAR_LGPD, Atendimento
+from app.models.atendimento import EM_ATENDIMENTO, ENCERRADO, NOVO, RESPONDIDO, TITULAR_LGPD, Atendimento
 from app.services import armazenamento, entrega_ao_titular, relatorio_do_titular
+from app.services import atendimento as atendimentos
 
 LOG = logging.getLogger("asaf.eliminacao")
 
@@ -209,9 +210,11 @@ def planejar(db: Session, a: Atendimento, agora: Optional[datetime] = None) -> d
 
     agora = agora or _agora()
     _pedido_valido(a)
-    relatorio = relatorio_do_titular.montar(db, **entrega_ao_titular.quem_do_pedido(a))
+    # v7.2g: a validação automática (o e-mail e o CPF digitados, ou o código do e-mail) prova só o e-mail: a eliminação, que não tem volta, fica no que foi
+    # feito com ele até a equipe conferir a identidade por outro meio (o reforço em "Identidade de quem pediu")
+    so_email = a.identidade_validacao in atendimentos.IDENTIDADES_AUTOMATICAS_FRACAS
+    relatorio = relatorio_do_titular.montar(db, email=a.email_contato) if so_email else relatorio_do_titular.montar(db, **entrega_ao_titular.quem_do_pedido(a))
     id_pessoa = (relatorio.get("pessoa") or {}).get("id_pessoa")
-    so_email = a.identidade_validacao == IDENTIDADE_CODIGO_NO_EMAIL
     pessoa = db.get(Pessoa, id_pessoa) if id_pessoa is not None else None
     cpf = relatorio_do_titular._so_digitos(pessoa.cpf if pessoa else a.cpf)
     vinculos = vinculos_vivos(db, id_pessoa, agora) if id_pessoa is not None else []
@@ -297,7 +300,8 @@ def planejar(db: Session, a: Atendimento, agora: Optional[datetime] = None) -> d
         fica.append({"tabela": t, "registros": n, "fundamento": codigo, "por_que": porque, "nome": nome})
     if so_email and db.query(Pessoa.id_pessoa).filter(func.lower(Pessoa.email_contato) == (a.email_contato or "").strip().lower()).first():
         fica.append({"tabela": "pessoas", "registros": 1, "fundamento": "IDENTIDADE_NAO_CONFIRMADA", "nome": "O cadastro ligado a este e-mail",
-                     "por_que": "O pedido provou só o e-mail: o cadastro só sai depois de a equipe conferir a identidade da pessoa (por outro meio, num novo pedido)."})
+                     "por_que": "O pedido provou só o e-mail: o cadastro só sai depois de a equipe conferir a identidade da pessoa por outro meio (em "
+                                "\"Identidade de quem pediu\", neste pedido) e abrir a prévia de novo."})
     resultado = "ATENDIDO" if not fica else ("ATENDIDO_EM_PARTE" if sai else "NEGADO")
     fundamento = next((f["fundamento"] for f in fica if f["fundamento"] == "VINCULO_ATIVO"), fica[0]["fundamento"] if fica else None)
     fica.append({"tabela": "atendimentos", "registros": 1, "fundamento": "OUTRO", "nome": "Este pedido de eliminação",
@@ -451,7 +455,7 @@ def executar(db: Session, a: Atendimento, impressao_conferida: str, usuario, ip:
     registrar_auditoria(db, usuario, "atendimentos", "ELIMINACAO_A_PEDIDO", id_registro_afetado=a.id_atendimento, ip_origem=ip,
                         dados_depois={"protocolo": a.protocolo, "id_pessoa": plano["id_pessoa"], "cadastro_sai": plano["cadastro_sai"], "sai": plano["sai"],
                                       "fica": [{"tabela": f["tabela"], "fundamento": f["fundamento"]} for f in plano["fica"]]})
-    ids, so_email = plano["ids"], a.identidade_validacao == IDENTIDADE_CODIGO_NO_EMAIL
+    ids, so_email = plano["ids"], a.identidade_validacao in atendimentos.IDENTIDADES_AUTOMATICAS_FRACAS
     etapas = [
         ("pedidos", lambda: _pedidos(db, ids["atendimentos"])),
         ("intencoes", lambda: _intencoes(db, ids["intencoes_de_doacao"])),

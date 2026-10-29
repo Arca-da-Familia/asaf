@@ -605,6 +605,44 @@ test.describe('dentro da conta', () => {
 })
 
 test.describe('a Política de Privacidade', () => {
+  test('v7.2g (2.16): como o pedido é atendido, o relatório para baixar por 15 dias, a eliminação e o total no relatório anual', async ({
+    page,
+  }) => {
+    await page.goto('/privacidade/')
+    await expect(
+      page.getByText('Versão 2.16 · em vigor desde 29 de outubro de 2026'),
+    ).toBeVisible()
+    const como = page.locator('[data-como-atendemos]')
+    await expect(como).toContainText(
+      'pelo painel da ASAF (Meu perfil, Meus dados pessoais)',
+    )
+    await expect(como).toContainText(
+      'Para eliminar o seu cadastro, que não tem volta, a confirmação pelo e-mail não basta',
+    )
+    await expect(
+      como.getByRole('link', { name: 'Minha conta' }),
+    ).toHaveAttribute('href', '/minha-conta/')
+    await expect(page.locator('[data-relatorio-dos-seus-dados]')).toContainText(
+      'Por 15 dias você baixa o relatório em PDF e um arquivo em formato aberto (JSON)',
+    )
+    const eliminacao = page.locator('[data-eliminacao-a-pedido]')
+    await expect(eliminacao).toContainText(
+      'o nome e a matrícula no livro de associados',
+    )
+    await expect(eliminacao).toContainText(
+      'o registro de que você participou fica, para a contagem do evento',
+    )
+    await expect(
+      page
+        .locator('[data-prestacao-de-contas]')
+        .getByRole('link', { name: 'relatório anual de atividades' }),
+    ).toHaveAttribute('href', '/transparencia/relatorio-anual/')
+    await expect(page.locator('[data-prazo-relatorio-entregue]')).toContainText(
+      '15 dias depois de liberado, a cópia é apagada',
+    )
+    await semViolacoesNosDois(page)
+  })
+
   test('o trecho da conta diz o que o servidor faz e o formulário aponta para ele', async ({
     page,
   }) => {
@@ -621,7 +659,7 @@ test.describe('a Política de Privacidade', () => {
     await expect(
       trecho.getByRole('link', { name: 'Minha conta' }),
     ).toHaveAttribute('href', '/minha-conta/')
-    await expect(page.locator('[data-prazos-de-guarda] > li')).toHaveCount(14)
+    await expect(page.locator('[data-prazos-de-guarda] > li')).toHaveCount(15)
     // a Política não pode dizer que o site não guarda nada no navegador: a sessão da conta fica no `sessionStorage` da aba
     const dados = page.locator('[data-cookies-e-dados]')
     await expect(dados).toContainText('Este site não instala cookies.')

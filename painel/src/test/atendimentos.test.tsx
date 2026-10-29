@@ -2213,3 +2213,33 @@ describe('Atendimento: entregar o relatório pela Minha conta', () => {
     ).toBeNull()
   })
 })
+
+// v7.2g - a validação automática não basta para tirar o cadastro numa eliminação: o pedido oferece o reforço por outro meio
+describe('Atendimento: reforçar a identidade na eliminação', () => {
+  it('no pedido de eliminação com a identidade automática, oferece conferir por outro meio; no de acesso, não', async () => {
+    const u = userEvent.setup()
+    base = [
+      pedidoDoTitular(1, {
+        subtipo: 'ELIMINACAO',
+        identidade_validada: true,
+        identidade_validacao: 'AUTOMATICA_CADASTRO',
+      }),
+      pedidoDoTitular(2, {
+        subtipo: 'ACESSO',
+        identidade_validada: true,
+        identidade_validacao: 'AUTOMATICA_CADASTRO',
+      }),
+    ]
+    desenhar()
+    const eliminacao = await cartaoCarregado('ASAF-2026-00001')
+    await u.click(await eliminacao.findByRole('button', { name: 'Abrir' }))
+    expect(
+      await eliminacao.findByText(/Para tirar o cadastro nesta eliminação/),
+    ).toBeVisible()
+    expect(eliminacao.getByLabelText('O que você conferiu')).toBeVisible()
+    const acesso = await cartaoCarregado('ASAF-2026-00002')
+    await u.click(await acesso.findByRole('button', { name: 'Abrir' }))
+    await acesso.findByText('O que a pessoa pede')
+    expect(acesso.queryByLabelText('O que você conferiu')).toBeNull()
+  })
+})
