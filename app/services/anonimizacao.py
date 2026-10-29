@@ -112,6 +112,10 @@ def anonimizar_associado(
     from app.models.preferencias_de_comunicacao import PreferenciaDeComunicacao
 
     db.query(PreferenciaDeComunicacao).filter(PreferenciaDeComunicacao.id_pessoa == pessoa.id_pessoa).delete(synchronize_session=False)
+    # v7.2c: a cópia do relatório entregue pela Minha conta não sobrevive à anonimização
+    from app.services import entrega_ao_titular
+
+    entrega_ao_titular.apagar_da_pessoa(db, pessoa.id_pessoa)
     db.commit()
 
     # Nunca gravar os VALORES apagados no log - o AuditLog não pode virar um segundo lugar onde

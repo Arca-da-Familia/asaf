@@ -83,6 +83,7 @@ class Tabela:
 CONSULTA_PRONTUARIO = "CONSULTA_PRONTUARIO"
 CONSULTA_ENCAMINHAMENTOS = "CONSULTA_ENCAMINHAMENTOS"
 CONSULTA_HISTORICO_SITUACAO = "CONSULTA_HISTORICO_SITUACAO"
+DOWNLOAD_RELATORIO_DO_TITULAR = "DOWNLOAD_RELATORIO_DO_TITULAR"  # v7.2c: a pessoa baixa pela Minha conta o relatório dos dados dela
 CONSULTA_CONSENTIMENTOS = "CONSULTA_CONSENTIMENTOS"  # Ponto de Revisão FASE 7 (1/3): a lista traz nomes de crianças atendidas e dos responsáveis
 
 CLASSIFICACAO: dict[str, Tabela] = {
@@ -147,6 +148,10 @@ CLASSIFICACAO: dict[str, Tabela] = {
         "resultado": NP, "fundamento": NP, "por_representante": M,
         "status": NP, "prazo_dias": NP, "prazo_em": NP, "assumido_em": NP, "identidade_validacao": M, "identidade_validada_em": M, "respondido_em": NP,
         "encerrado_em": NP, "criado_em": NP, "atualizado_em": NP,
+    }),
+    # v7.2c: a cópia do relatório entregue ao titular (pode ser de criança, no pedido feito pelo responsável); só sai pela Minha conta, com a leitura na Auditoria
+    "entregas_ao_titular": Tabela(titulares=(PESSOA,), criancas=True, colunas={
+        "conteudo": S(DOWNLOAD_RELATORIO_DO_TITULAR), "liberado_em": NP, "valido_ate": NP, "apagado_em": NP,
     }),
     "propostas_filiacao": Tabela(titulares=(CANDIDATO,), criancas=True, colunas={  # 16 e 17 anos, com a autorização do responsável declarada
         "nome_completo": P, "cpf": P, "email_contato": P, "telefone_whatsapp": P, "data_nascimento": P, "motivo_recusa": P,

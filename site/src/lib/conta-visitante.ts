@@ -1,4 +1,10 @@
-import { ApiError, buscarJson, enviarJson, type OpcoesBusca } from './api'
+import {
+  ApiError,
+  buscarArquivo,
+  buscarJson,
+  enviarJson,
+  type OpcoesBusca,
+} from './api'
 import { formatarDiaDeInstanteUtc, formatarInstanteUtc } from './datas'
 import {
   avisoDoEventoNoLink,
@@ -109,6 +115,8 @@ export interface PedidoDoTitularDaConta {
   /** v7.2a: o resultado da resposta (atendido, em parte, não atendido) e, se não foi atendido por inteiro, o fundamento (o que a lei manda guardar). */
   resultado?: string | null
   fundamento?: string | null
+  /** v7.2c: até quando (UTC SEM fuso) a pessoa baixa o relatório dos dados dela que o encarregado conferiu e liberou; `null` = nada a baixar. */
+  relatorio_disponivel_ate?: string | null
 }
 
 export interface ContaDoVisitante {
@@ -201,6 +209,7 @@ export function lerConta(dados: unknown): ContaDoVisitante | null {
       motivo_do_encerramento: textoOuNada(p.motivo_do_encerramento),
       resultado: textoOuNada(p.resultado),
       fundamento: textoOuNada(p.fundamento),
+      relatorio_disponivel_ate: textoOuNada(p.relatorio_disponivel_ate),
     })
   }
 
@@ -261,6 +270,25 @@ export interface RespostaDoApagamento {
   prazo_em: string | null
   ja_existia: boolean
 }
+
+/** v7.2c: os dois arquivos do relatório dos dados: o PDF para ler e o arquivo (JSON) para levar a outro serviço (portabilidade). */
+export type FormatoDoRelatorio = 'pdf' | 'json'
+
+export const NOME_DO_ARQUIVO_DO_RELATORIO = (
+  protocolo: string,
+  formato: FormatoDoRelatorio,
+): string => `meus-dados-asaf-${protocolo}.${formato}`
+
+export const baixarRelatorio = (
+  token: string,
+  protocolo: string,
+  formato: FormatoDoRelatorio,
+  opcoes: OpcoesBusca,
+) =>
+  buscarArquivo(
+    `/api/visitante/pedidos/${encodeURIComponent(protocolo)}/relatorio?formato=${formato}`,
+    { ...opcoes, token },
+  )
 
 export const pedirApagamento = (token: string, opcoes: OpcoesBusca) =>
   enviarJson<RespostaDoApagamento>(
@@ -371,6 +399,23 @@ export const sessaoAcabou = (erro: unknown): boolean =>
 export function mensagemDaConta(erro: unknown): string {
   if (sessaoAcabou(erro)) return MENSAGEM_DE_SESSAO_ACABOU
   return 'Não foi possível buscar a sua conta agora. Tente de novo em alguns instantes; se continuar, fale com a secretaria.'
+}
+
+/** v7.2c: baixar o relatório - 404 = o prazo acabou ou não há relatório liberado (o servidor diz qual); o resto é rede ou servidor. */
+export function mensagemDoRelatorio(erro: unknown): string {
+  if (sessaoAcabou(erro)) return MENSAGEM_DE_SESSAO_ACABOU
+  if (erro instanceof ApiError && erro.status === 404)
+    return (
+      erro.detalhe ??
+      'Não há relatório disponível para este pedido. Se o prazo de 15 dias acabou, faça um novo pedido.'
+    )
+  return 'Não foi possível baixar agora. Tente de novo em alguns instantes; se continuar, fale com a secretaria.'
+}
+
+/** v7.2c: "Disponível para baixar até 13/11/2026 às 09:30 (horário de Belém)." - o prazo vence na hora da liberação, 15 dias depois */
+export function fraseDoRelatorio(p: PedidoDoTitularDaConta): string | null {
+  const ate = instanteEmPalavras(p.relatorio_disponivel_ate ?? null)
+  return ate ? `Disponível para baixar até ${ate}.` : null
 }
 
 export function mensagemDoApagamento(erro: unknown): string {

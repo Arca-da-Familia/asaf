@@ -193,9 +193,10 @@ ATIVIDADES: tuple[Atividade, ...] = (
         "ATENDIMENTO", "Pedidos pelo site e direitos do titular",
         "Responder contato, pedido de informação, oferta de voluntariado e as solicitações do titular de dados (LGPD, art. 18), com protocolo e prazo.",
         ("ART7_V", "ART7_II", "ART7_IX"), ("AZURE", "GITHUB", "GOOGLE"),
-        ("atendimentos",), ("atendimentos",),
+        ("atendimentos", "entregas_ao_titular"), ("atendimentos",),
         medidas="A resposta ao pedido do titular (art. 18) só depois de conferida a identidade, e não vai por e-mail (só o aviso); as demais respostas vão por "
-                "e-mail.",
+                "e-mail. O relatório dos dados entregue ao titular fica na Minha conta por 15 dias e depois é apagado; cada download fica na Auditoria.",
+        prazos_fixos=("Relatório dos dados entregue ao titular pela Minha conta: apagado 15 dias depois de liberado (limpeza técnica da rotina de retenção)",),
     ),
     Atividade(
         "COMUNICACAO", "Avisos e e-mails da associação",

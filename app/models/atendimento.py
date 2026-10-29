@@ -94,3 +94,18 @@ class Atendimento(Base):
 
     criado_em = Column(DateTime, default=datetime.utcnow, index=True)
     atualizado_em = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class EntregaAoTitular(Base):
+    """v7.2c (FASE 7) - o relatório dos dados que o encarregado CONFERIU e liberou para a pessoa baixar pela Minha conta (decisão 2 do Presidente, 2026-10-28: PDF
+    legível + arquivo para a portabilidade, válidos 15 dias). O conteúdo é uma cópia congelada no momento da liberação (o que a pessoa baixa é exatamente o que foi
+    conferido; nada anotado depois entra sem nova conferência) e é APAGADO quando vence, pela limpeza da rotina de retenção; ficam só as datas (o relatório de
+    atendimento conta). Liberar de novo substitui a anterior. Quem liberou e cada download ficam na Auditoria."""
+    __tablename__ = "entregas_ao_titular"
+    id_entrega = Column(Integer, primary_key=True, index=True)
+    id_atendimento = Column(Integer, ForeignKey("atendimentos.id_atendimento"), nullable=False, index=True)
+    # o relatório (app/services/relatorio_do_titular.montar) em JSON; None depois de vencido ou substituído
+    conteudo = Column(Text, nullable=True)
+    liberado_em = Column(DateTime, nullable=False, default=datetime.utcnow)
+    valido_ate = Column(DateTime, nullable=False, index=True)
+    apagado_em = Column(DateTime, nullable=True)

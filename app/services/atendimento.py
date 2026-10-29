@@ -348,6 +348,12 @@ def serializar(a: Atendimento, agora: Optional[datetime] = None, *, completo: bo
             # o nome do CADASTRO (o do formulário foi digitado pela pessoa): é por ele que os atalhos buscam
             pessoa = db.get(Pessoa, a.id_pessoa)
             dados["nome_no_cadastro"] = pessoa.nome_completo if pessoa else None
+        if db is not None and a.tipo == TITULAR_LGPD:
+            # v7.2c: o relatório liberado para a pessoa baixar pela Minha conta (até quando vale)
+            from app.services import entrega_ao_titular
+
+            entrega = entrega_ao_titular.vigente(db, a)
+            dados["relatorio_liberado_ate"] = entrega.valido_ate if entrega else None
         if db is not None and a.id_usuario_validacao is not None:
             quem = db.query(Usuario.email).filter(Usuario.id_usuario == a.id_usuario_validacao).first()
             dados["identidade_validada_por"] = quem[0] if quem else None

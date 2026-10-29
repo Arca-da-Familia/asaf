@@ -21,7 +21,7 @@ from decimal import Decimal
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app import classificacao_de_dados as cl
@@ -30,6 +30,7 @@ from app import classificacao_de_dados as cl
 FORA_DO_RELATORIO = {
     "audit_log", "textos_de_privacidade", "tokens_acesso", "codigos_de_nova_senha", "codigos_recuperacao_mfa", "credenciais_webauthn", "codigos_de_visitante",
     "sessoes_de_visitante", "operacoes_portaria_idempotentes", "notificacoes_painel", "fila_revisao_cadastro", "versoes_de_atividade_de_tratamento",
+    "entregas_ao_titular",  # v7.2c: a cópia do próprio relatório entregue (repeti-la dentro do relatório seguinte não diz nada novo)
 }
 # as ligações em que a pessoa aparece como quem OPEROU, como responsável institucional, ou em que o conteúdo é sobre outra pessoa (o titular dele é outro)
 LIGACOES_DE_OUTRA_NATUREZA = {
@@ -131,15 +132,26 @@ def _ancoras(db: Session, *, id_pessoa: Optional[int], cpf: Optional[str], email
     beneficiarios = _ids(db, Beneficiario.id_beneficiario, em_pessoas(Beneficiario.id_pessoa))
     vinculos = _ids(db, BeneficiarioProjeto.id_vinculo, BeneficiarioProjeto.id_beneficiario.in_(beneficiarios) if beneficiarios else None)
     usuarios = {i for (i,) in db.query(Associado.id_usuario).filter(Associado.id_associado.in_(associados), Associado.id_usuario.isnot(None))} if associados else set()
-    so_email = (lambda coluna: func.lower(coluna) == email) if email else (lambda coluna: None)
     so_cpf = (lambda coluna: coluna == cpf) if cpf else (lambda coluna: None)
+
+    def so_email(coluna, outra=None, dela=None):
+        """Pelo e-mail - mas, quando a linha diz de quem é (outra pessoa do cadastro, outro CPF), só se for dela: a família que usa um e-mail só não mistura os
+        pedidos e as inscrições dos irmãos ou dos pais."""
+        if not email:
+            return None
+        condicao = func.lower(coluna) == email
+        if outra is not None and dela:
+            condicao = and_(condicao, or_(outra.is_(None), outra.in_(dela)))
+        return condicao
     return {
         "pessoas": pessoas, "associados": associados, "beneficiarios": beneficiarios, "beneficiarios_projeto": vinculos, "usuarios": usuarios,
-        "inscricoes": _ids(db, Inscricao.id_inscricao, em_pessoas(Inscricao.id_pessoa), so_email(Inscricao.email_da_inscricao)),
-        "atendimentos": _ids(db, Atendimento.id_atendimento, em_pessoas(Atendimento.id_pessoa), so_email(Atendimento.email_contato), so_cpf(Atendimento.cpf)),
-        "intencoes_de_doacao": _ids(db, IntencaoDeDoacao.id_intencao, so_email(IntencaoDeDoacao.email_doador), so_cpf(IntencaoDeDoacao.documento_doador)),
+        "inscricoes": _ids(db, Inscricao.id_inscricao, em_pessoas(Inscricao.id_pessoa), so_email(Inscricao.email_da_inscricao, Inscricao.id_pessoa, pessoas)),
+        "atendimentos": _ids(db, Atendimento.id_atendimento, em_pessoas(Atendimento.id_pessoa), so_email(Atendimento.email_contato, Atendimento.id_pessoa, pessoas),
+                             so_cpf(Atendimento.cpf)),
+        "intencoes_de_doacao": _ids(db, IntencaoDeDoacao.id_intencao, so_email(IntencaoDeDoacao.email_doador, IntencaoDeDoacao.documento_doador, {cpf} if cpf else None),
+                                    so_cpf(IntencaoDeDoacao.documento_doador)),
         "propostas_filiacao": _ids(db, PropostaFiliacao.id_proposta, em_associados(PropostaFiliacao.id_associado_efetivado), so_cpf(PropostaFiliacao.cpf),
-                                   so_email(PropostaFiliacao.email_contato)),
+                                   so_email(PropostaFiliacao.email_contato, PropostaFiliacao.cpf, {cpf} if cpf else None)),
         "doacoes": _ids(db, Doacao.id_doacao, em_associados(Doacao.id_associado), so_cpf(Doacao.documento_doador)),
         "processos_disciplinares": _processos(db, associados),
         "termos_adesao_voluntario": _ids(db, TermoAdesaoVoluntario.id_termo, em_pessoas(TermoAdesaoVoluntario.id_pessoa)),
@@ -238,15 +250,26 @@ def montar(db: Session, *, id_pessoa: Optional[int] = None, cpf: Optional[str] =
         secoes.append({"tabela": "valores_campo", "atividades": atividades.get("valores_campo", []), "tem_dado_sensivel": False, "cortado": False,
                        "linhas": campos})
     pessoa = db.get(Pessoa, min(ancoras["pessoas"])) if ancoras["pessoas"] else None
+    dados_da_pessoa = {"id_pessoa": pessoa.id_pessoa, "nome_completo": pessoa.nome_completo, "cpf": pessoa.cpf} if pessoa else None
     return {
         "gerado_em": datetime.utcnow().isoformat(),
-        "pessoa": {"id_pessoa": pessoa.id_pessoa, "nome_completo": pessoa.nome_completo, "cpf": pessoa.cpf} if pessoa else None,
+        "pessoa": dados_da_pessoa,
         "procurado_por": {"cadastro": id_pessoa is not None, "cpf": bool(cpf_usado), "email": bool(email_usado)},
+        # v7.2c: a impressão do conteúdo (sem a hora): a liberação ao titular só aceita o relatório igual ao que o encarregado conferiu
+        "impressao": impressao(dados_da_pessoa, secoes),
         "secoes": secoes,
         "total_de_linhas": sum(len(s["linhas"]) for s in secoes),
         "algum_corte": any(s["cortado"] for s in secoes),
         "fora_do_relatorio": NAO_LOCALIZAVEL,
     }
+
+
+def impressao(pessoa: Optional[dict], secoes: list) -> str:
+    import hashlib
+    import json
+
+    texto = json.dumps({"pessoa": pessoa, "secoes": secoes}, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(texto.encode("utf-8")).hexdigest()
 
 
 def _nomes_dos_numeros(db: Session, colunas, linhas) -> dict:

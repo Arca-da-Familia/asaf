@@ -5,7 +5,8 @@ site (ver app/models/conta_de_visitante.py e app/services/conta_de_visitante.py)
 rota do painel: a sessão do visitante não é um token de usuário e o painel nunca a aceita."""
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
@@ -52,6 +53,31 @@ def entrar(dados: EntrarComCodigo, request: Request, db: Session = Depends(get_d
 @router.get("/api/visitante/minha-conta", summary="O que está ligado ao meu e-mail: inscrições em eventos, certificados e doações pelo site (sessão do visitante)")
 def minha_conta(sessao: SessaoDeVisitante = Depends(sessao_do_visitante), db: Session = Depends(get_db)):
     return servico.minha_conta(db, sessao)
+
+
+@router.get("/api/visitante/pedidos/{protocolo}/relatorio", summary="v7.2c - baixar o relatório dos meus dados liberado pelo encarregado: PDF ou o arquivo da "
+            "portabilidade (JSON), por 15 dias (sessão do visitante)")
+def baixar_relatorio(protocolo: str, request: Request, formato: str = "pdf", sessao: SessaoDeVisitante = Depends(sessao_do_visitante),
+                     db: Session = Depends(get_db)):
+    from app.services import entrega_ao_titular
+
+    if formato not in entrega_ao_titular.FORMATOS:
+        raise HTTPException(status_code=400, detail="Formato desconhecido.")
+    pedido = servico.pedido_do_titular_do_email(db, sessao.email, protocolo)
+    entrega = entrega_ao_titular.vigente(db, pedido) if pedido is not None and pedido.identidade_validada_em is not None else None
+    if entrega is None:
+        # pedido de outro e-mail, sem relatório liberado ou já vencido: a mesma resposta (não diz se o protocolo existe)
+        raise HTTPException(status_code=404, detail="Não há relatório disponível para este pedido. Se o prazo de 15 dias acabou, faça um novo pedido.")
+    if formato == "pdf":
+        conteudo, tipo, nome = entrega_ao_titular.pdf(entrega, pedido), "application/pdf", f"meus-dados-asaf-{pedido.protocolo}.pdf"
+    else:
+        conteudo, tipo, nome = entrega_ao_titular.arquivo_de_portabilidade(entrega, pedido), "application/json", f"meus-dados-asaf-{pedido.protocolo}.json"
+    # a leitura do relatório (pode ter dado sensível) fica na Auditoria: classificacao_de_dados.DOWNLOAD_RELATORIO_DO_TITULAR
+    registrar_auditoria(db, None, "atendimentos", "DOWNLOAD_RELATORIO_DO_TITULAR", id_registro_afetado=pedido.id_atendimento,
+                        dados_depois={"id_entrega": entrega.id_entrega, "formato": formato}, ip_origem=_ip_publico(request))
+    return Response(content=conteudo, media_type=tipo, headers={
+        "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store", "Content-Disposition": f'attachment; filename="{nome}"',
+    })
 
 
 @router.post("/api/visitante/sair", summary="Encerrar a sessão do visitante (sessão do visitante)")

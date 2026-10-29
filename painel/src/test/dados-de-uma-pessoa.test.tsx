@@ -48,6 +48,7 @@ beforeEach(() => {
     total_de_linhas: 1,
     algum_corte: true,
     fora_do_relatorio: 'A Auditoria do sistema não entra neste relatório.',
+    impressao: 'b'.repeat(64),
     secoes: [
       {
         tabela: 'pessoas',
@@ -70,6 +71,7 @@ beforeEach(() => {
             numero: 9,
             nome_completo: 'Joana da Silva',
             email_contato: 'joana@exemplo.com',
+            data_nascimento: '1990-03-04T00:00:00',
           },
         ],
       },
@@ -117,8 +119,39 @@ describe('Dados de uma pessoa', () => {
 
   it('o atalho do pedido abre direto o relatório da pessoa', async () => {
     desenhar('/privacidade/titulares?id_pessoa=9')
+    const relatorio = await screen.findByRole('article', {
+      name: 'Relatório dos dados',
+    })
+    expect(relatorio).toHaveTextContent('Joana da Silva')
+    // o nascimento guardado à meia-noite sai no dia certo (não na véspera às 21h, pelo fuso de Belém)
+    expect(relatorio).toHaveTextContent('04/03/1990')
+  })
+
+  it('v7.2c: só o número do pedido também abre o relatório (o que será entregue)', async () => {
+    desenhar('/privacidade/titulares?id_atendimento=41')
     expect(
       await screen.findByRole('article', { name: 'Relatório dos dados' }),
     ).toHaveTextContent('Joana da Silva')
+    expect(privacidade.obterRelatorioDoTitular).toHaveBeenCalledWith({
+      id_pessoa: undefined,
+      email: undefined,
+      id_atendimento: 41,
+    })
+    // aberto pelo pedido, libera-se ESTE relatório
+    expect(
+      screen.getByRole('region', {
+        name: 'Liberar este relatório na Minha conta',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('v7.2c: aberto pelo cadastro (não pelo pedido), não oferece liberar', async () => {
+    desenhar('/privacidade/titulares?id_pessoa=9&id_atendimento=41')
+    await screen.findByRole('article', { name: 'Relatório dos dados' })
+    expect(
+      screen.queryByRole('region', {
+        name: 'Liberar este relatório na Minha conta',
+      }),
+    ).toBeNull()
   })
 })

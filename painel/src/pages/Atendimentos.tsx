@@ -3,6 +3,7 @@ import { Headset } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
+import { EntregaDoRelatorio } from '@/components/atendimentos/EntregaDoRelatorio'
 import { VoluntarioDoPedido } from '@/components/atendimentos/VoluntarioDoPedido'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -730,6 +731,19 @@ function Detalhe({
           )}
         </section>
       )}
+
+      {/* v7.2c: a entrega do relatório pela Minha conta - quem pode gerá-lo (o encarregado, ou quem responde o pedido em aberto), com a identidade validada;
+          o pedido feito pelo responsável sem ligação ao cadastro não entra (o e-mail é de quem pediu) */}
+      {a.tipo === 'TITULAR_LGPD' &&
+        a.identidade_validada &&
+        a.email_contato &&
+        !(a.id_pessoa === null && a.por_representante) &&
+        (podeVer('privacidade_gerir') ||
+          (emAberto &&
+            a.id_pessoa !== null &&
+            a.id_responsavel === eu?.id_usuario)) && (
+          <EntregaDoRelatorio a={a} />
+        )}
 
       {a.tipo === 'VOLUNTARIO' && (
         <VoluntarioDoPedido

@@ -399,5 +399,9 @@ def eliminar_prontuario(db: Session, usuario, *, id_beneficiario: int, protocolo
         consentimentos.encerrar(db, usuario, origem=consentimentos.BENEFICIARIO, id_origem=id_beneficiario, como=consentimentos.REVOGADO,
                                 motivo=f"Eliminação pedida pelo titular (protocolo {pedido.protocolo}).")
     beneficiario.observacao_consentimento = None
+    # v7.2c: a cópia do relatório entregue pela Minha conta (com o relato) não sobrevive à eliminação
+    from app.services import entrega_ao_titular
+
+    entrega_ao_titular.apagar_da_pessoa(db, beneficiario.id_pessoa)
     db.commit()
     return {"relatos": relatos, "encaminhamentos": encaminhamentos, "protocolo": pedido.protocolo}

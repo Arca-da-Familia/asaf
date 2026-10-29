@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useId, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
 
+import { LiberarRelatorio } from '@/components/atendimentos/EntregaDoRelatorio'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { classeCampo } from '@/lib/campos'
@@ -17,6 +18,9 @@ import {
 function emPalavras(v: string | number | boolean | null | undefined): string {
   if (v === undefined || v === null) return ''
   if (typeof v === 'boolean') return v ? 'Sim' : 'Não'
+  // a data sem hora (o nascimento é guardado à meia-noite): o dia como está, sem converter o fuso (senão vira a véspera às 21h)
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T00:00:00(\.0+)?$/.test(v))
+    return formatarData(v.slice(0, 10))
   if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v))
     return formatarData(v, { comHora: true })
   if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v))
@@ -124,7 +128,10 @@ export function DadosDeUmaPessoaPage() {
   const relatorio = useQuery({
     queryKey: ['privacidade', 'relatorio-do-titular', quem],
     queryFn: () => obterRelatorioDoTitular(quem),
-    enabled: idPessoa !== undefined || email !== undefined,
+    enabled:
+      idPessoa !== undefined ||
+      email !== undefined ||
+      idAtendimento !== undefined,
     staleTime: 0,
   })
 
@@ -230,6 +237,16 @@ export function DadosDeUmaPessoaPage() {
           <p className="text-xs text-muted-foreground">
             {relatorio.data.fora_do_relatorio}
           </p>
+          {/* v7.2c: aberto pelo número do pedido (a pessoa sai dele, pela regra da entrega), libera-se ESTE relatório */}
+          {idAtendimento !== undefined &&
+            idPessoa === undefined &&
+            email === undefined && (
+              <LiberarRelatorio
+                idAtendimento={idAtendimento}
+                impressao={relatorio.data.impressao}
+                aoMudar={() => void relatorio.refetch()}
+              />
+            )}
           {relatorio.data.secoes.map((s) => (
             <Secao key={s.tabela} s={s} />
           ))}

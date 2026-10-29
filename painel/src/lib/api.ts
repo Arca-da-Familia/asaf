@@ -6544,6 +6544,8 @@ export type AtendimentoCompleto = AtendimentoDaFila & {
   id_associado?: number | null
   id_beneficiario?: number | null
   nome_no_cadastro?: string | null
+  // v7.2c: até quando a pessoa baixa pela Minha conta o relatório liberado (só na solicitação do titular)
+  relatorio_liberado_ate?: string | null
 }
 
 // v7.2a - o resultado de cada solicitação do titular e o fundamento de não atender por inteiro (decisões do Presidente, 2026-10-28)

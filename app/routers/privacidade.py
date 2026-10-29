@@ -243,8 +243,20 @@ def relatorio_do_titular_endpoint(request: Request, id_pessoa: Optional[int] = N
     from app.auditoria import registrar_auditoria
     from app.services import relatorio_do_titular
 
-    _exigir_quem_gera_o_relatorio(db, usuario, id_atendimento, id_pessoa)
-    relatorio = relatorio_do_titular.montar(db, id_pessoa=id_pessoa, cpf=cpf, email=email)
+    quem = {"id_pessoa": id_pessoa, "cpf": cpf, "email": email}
+    if id_atendimento is not None and id_pessoa is None and not cpf and not email:
+        # v7.2c: só o pedido - a pessoa sai dele pela mesma regra da entrega (o que se confere aqui é o que a liberação congela)
+        from app.models.atendimento import TITULAR_LGPD, Atendimento
+        from app.services import entrega_ao_titular
+
+        pedido = db.get(Atendimento, id_atendimento)
+        # quem não pode recebe 403 antes de qualquer coisa ser dita sobre o pedido (se existe, se foi feito pelo responsável)
+        _exigir_quem_gera_o_relatorio(db, usuario, id_atendimento, pedido.id_pessoa if pedido is not None else None)
+        if pedido is None or pedido.tipo != TITULAR_LGPD:
+            raise HTTPException(status_code=404, detail="Solicitação do titular não encontrada.")
+        quem = {"id_pessoa": None, "cpf": None, "email": None, **entrega_ao_titular.quem_do_pedido(pedido)}
+    _exigir_quem_gera_o_relatorio(db, usuario, id_atendimento, quem["id_pessoa"])
+    relatorio = relatorio_do_titular.montar(db, **quem)
     # a leitura de todos os dados de uma pessoa fica na Auditoria (quantas tabelas e linhas, como foi procurada; nunca os valores, nem o CPF ou o e-mail)
     registrar_auditoria(db, usuario, "pessoas", "CONSULTA_RELATORIO_DO_TITULAR",
                         id_registro_afetado=relatorio["pessoa"]["id_pessoa"] if relatorio["pessoa"] else None,
@@ -253,6 +265,36 @@ def relatorio_do_titular_endpoint(request: Request, id_pessoa: Optional[int] = N
                                       "tabelas_com_dado_sensivel": [s["tabela"] for s in relatorio["secoes"] if s["tem_dado_sensivel"]]},
                         ip_origem=request.client.host if request.client else None)
     return relatorio
+
+
+class ImpressaoConferida(BaseModel):
+    # a impressão do relatório que a pessoa da equipe conferiu (vem com ele na pré-visualização pelo número do pedido)
+    impressao: str = Field(min_length=64, max_length=64)
+
+
+@router.post("/api/privacidade/titulares/entregas/{id_atendimento}", summary="v7.2c - liberar o relatório conferido para a pessoa baixar pela Minha conta "
+             "(PDF e arquivo da portabilidade, 15 dias); só o encarregado (ou quem responde a solicitação dela)")
+def liberar_relatorio_ao_titular(id_atendimento: int, dados: ImpressaoConferida, request: Request, db: Session = Depends(get_db),
+                                 usuario: Usuario = Depends(get_current_user)):
+    from app.models.atendimento import Atendimento
+    from app.services import atendimento as servico_atendimento
+    from app.services import entrega_ao_titular
+
+    pedido = db.get(Atendimento, id_atendimento)
+    if pedido is None:
+        _exigir_quem_gera_o_relatorio(db, usuario, None, None)  # quem não pode recebe 403, sem saber se o número existe
+        raise HTTPException(status_code=404, detail="Pedido não encontrado.")
+    _exigir_quem_gera_o_relatorio(db, usuario, id_atendimento, pedido.id_pessoa)
+    servico_atendimento._exigir_que_nao_seja_sobre_si(db, pedido, usuario)
+    entrega_ao_titular.exigir_que_nao_seja_o_proprio(db, usuario, pedido)
+    entrega, relatorio = entrega_ao_titular.liberar(db, pedido, dados.impressao)
+    # quem liberou, até quando e o tamanho (nunca os valores)
+    registrar_auditoria(db, usuario, "atendimentos", "RELATORIO_DO_TITULAR_LIBERADO", id_registro_afetado=pedido.id_atendimento,
+                        dados_depois={"id_entrega": entrega.id_entrega, "valido_ate": entrega.valido_ate.isoformat(), "tabelas": len(relatorio["secoes"]),
+                                      "linhas": relatorio["total_de_linhas"],
+                                      "tabelas_com_dado_sensivel": [s["tabela"] for s in relatorio["secoes"] if s["tem_dado_sensivel"]]},
+                        ip_origem=request.client.host if request.client else None)
+    return {"id_entrega": entrega.id_entrega, "liberado_em": entrega.liberado_em, "valido_ate": entrega.valido_ate}
 
 
 @router.get("/api/consentimentos/termo-da-tela/{origem}", summary="O termo de consentimento em vigor para a tela de envio (a versão volta no envio)")

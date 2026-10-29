@@ -250,6 +250,7 @@ def test_a_resposta_aparece_na_minha_conta_so_para_o_e_mail_do_pedido(client, db
     assert set(antes[0]) == {
         "protocolo", "o_que_pediu", "situacao", "pedido_em", "prazo_em", "respondido_em", "resposta", "encerrado_em", "motivo_do_encerramento",
         "resultado", "fundamento",  # v7.2a
+        "relatorio_disponivel_ate",  # v7.2c
     }, "nunca o CPF nem o texto do pedido"
     assert antes[0]["encerrado_em"] is None and antes[0]["motivo_do_encerramento"] is None
 

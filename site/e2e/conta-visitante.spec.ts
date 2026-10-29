@@ -415,6 +415,97 @@ test.describe('dentro da conta', () => {
     await expect(page.locator('[data-vazio="pedidos-do-titular"]')).toBeHidden()
   })
 
+  test('v7.2c: o relatório liberado é baixado em PDF e no arquivo para levar a outro serviço, com a sessão; só no pedido que tem', async ({
+    page,
+  }) => {
+    await entrarNaConta(page)
+    const pedidos = page.locator('[data-lista="pedidos-do-titular"] > li')
+    const respondido = pedidos.filter({ hasText: 'ASAF-2026-00031' })
+    const caixa = respondido.locator('[data-p-relatorio]')
+    await expect(caixa).toBeVisible()
+    await expect(caixa).toContainText('O relatório dos seus dados')
+    await expect(caixa.locator('[data-p-relatorio-ate]')).toContainText(
+      'Disponível para baixar até',
+    )
+    await expect(
+      pedidos
+        .filter({ hasText: 'ASAF-2026-00040' })
+        .locator('[data-p-relatorio]'),
+    ).toBeHidden()
+
+    const [pdf] = await Promise.all([
+      page.waitForEvent('download'),
+      caixa.getByRole('button', { name: 'Baixar o relatório (PDF)' }).click(),
+    ])
+    expect(pdf.suggestedFilename()).toBe('meus-dados-asaf-ASAF-2026-00031.pdf')
+    const [json] = await Promise.all([
+      page.waitForEvent('download'),
+      caixa
+        .getByRole('button', {
+          name: 'Baixar os dados em arquivo (para levar a outro serviço)',
+        })
+        .click(),
+    ])
+    expect(json.suggestedFilename()).toBe(
+      'meus-dados-asaf-ASAF-2026-00031.json',
+    )
+    const eventos = (await eventosDoMock(page)).filter((e) => e.email === EMAIL)
+    expect(eventos.map((e) => e.tipo)).toEqual(
+      expect.arrayContaining(['relatorio-pdf', 'relatorio-json']),
+    )
+    await expect(caixa.locator('[data-p-relatorio-falha]')).toBeHidden()
+    await expect(caixa.locator('[data-p-relatorio-status]')).toHaveText(
+      'Arquivo baixado: meus-dados-asaf-ASAF-2026-00031.json.',
+    )
+    await semViolacoesNosDois(page)
+  })
+
+  test('v7.2c: o prazo vencido mostra o motivo; a sessão que acabou leva de volta ao e-mail', async ({
+    page,
+  }) => {
+    await entrarNaConta(page)
+    const caixa = page
+      .locator('[data-lista="pedidos-do-titular"] > li')
+      .filter({ hasText: 'ASAF-2026-00031' })
+      .locator('[data-p-relatorio]')
+    await page.route('**/api/visitante/pedidos/**', (rota) =>
+      rota.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({
+          detail:
+            'Não há relatório disponível para este pedido. Se o prazo de 15 dias acabou, faça um novo pedido.',
+        }),
+      }),
+    )
+    await caixa
+      .getByRole('button', { name: 'Baixar o relatório (PDF)' })
+      .click()
+    const falha = caixa.locator('[data-p-relatorio-falha]')
+    await expect(falha).toBeVisible()
+    await expect(falha).toContainText('Se o prazo de 15 dias acabou')
+    await expect(
+      caixa.getByRole('button', { name: 'Baixar o relatório (PDF)' }),
+    ).toBeEnabled()
+
+    await page.unroute('**/api/visitante/pedidos/**')
+    await page.route('**/api/visitante/pedidos/**', (rota) =>
+      rota.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({
+          detail: 'A sua sessão acabou: peça um novo código para entrar.',
+        }),
+      }),
+    )
+    await caixa
+      .getByRole('button', { name: 'Baixar o relatório (PDF)' })
+      .click()
+    await expect(telaVisivel(page, 'email')).toBeVisible()
+  })
+
   test('a sessão fica só na aba e o endereço da página nunca a leva', async ({
     page,
   }) => {

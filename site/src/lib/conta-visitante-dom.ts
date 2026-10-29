@@ -2,6 +2,7 @@ import { ApiError } from './api'
 import {
   avisoDoEventoNoLink,
   avisoDoReciboPorEmail,
+  baixarRelatorio,
   buscarConta,
   codigoTemOTamanhoCerto,
   diaEmPalavras,
@@ -10,6 +11,7 @@ import {
   esquecerSessao,
   explicacaoDaDoacao,
   explicacaoDoPedidoDoTitular,
+  fraseDoRelatorio,
   frasePeloFimDaSessao,
   guardarSessao,
   instanteEmPalavras,
@@ -26,6 +28,8 @@ import {
   mensagemDeEntrada,
   mensagemDoApagamento,
   mensagemDoPedidoDeCodigo,
+  mensagemDoRelatorio,
+  NOME_DO_ARQUIVO_DO_RELATORIO,
   pedirApagamento,
   pedirCodigo,
   quandoDoEvento,
@@ -35,6 +39,7 @@ import {
   situacaoDaInscricao,
   situacaoDoPedidoDoTitular,
   type ContaDoVisitante,
+  type FormatoDoRelatorio,
 } from './conta-visitante'
 import { valorEmReais } from './inscricao-link'
 
@@ -51,6 +56,22 @@ export interface OpcoesDaConta {
   armazenamento?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null
   /** O relógio (nos testes, fixo). */
   agora?: () => number
+  /** v7.2c: entrega ao navegador o arquivo baixado com a sessão (nos testes, um falso). Padrão: um link temporário com `download`. */
+  entregarArquivo?: (arquivo: Blob, nome: string) => void
+}
+
+// o arquivo veio por `fetch` (com a sessão no cabeçalho): um link temporário com `download` o entrega ao navegador, e o endereço é liberado depois
+function entregarAoNavegador(arquivo: Blob, nome: string): void {
+  const endereco = URL.createObjectURL(arquivo)
+  const link = document.createElement('a')
+  link.href = endereco
+  link.download = nome
+  link.rel = 'noopener'
+  link.hidden = true
+  document.body.append(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(endereco), 60_000)
 }
 
 type Estado = 'carregando' | 'email' | 'codigo' | 'conta' | 'erro'
@@ -348,10 +369,73 @@ export async function iniciarContaDoVisitante(
         }
         caixaDaResposta.hidden = false
       }
+      // v7.2c: o relatório liberado pelo encarregado - o PDF e o arquivo da portabilidade, baixados com a sessão
+      const fraseDoPrazo = fraseDoRelatorio(p)
+      const caixaDoRelatorio =
+        cartao.querySelector<HTMLElement>('[data-p-relatorio]')
+      if (caixaDoRelatorio && fraseDoPrazo) {
+        preencher(caixaDoRelatorio, '[data-p-relatorio-ate]', fraseDoPrazo)
+        caixaDoRelatorio.hidden = false
+        for (const botao of caixaDoRelatorio.querySelectorAll<HTMLButtonElement>(
+          '[data-p-baixar]',
+        )) {
+          const formato = botao.dataset.pBaixar as FormatoDoRelatorio
+          botao.addEventListener('click', () =>
+            baixar(p.protocolo, formato, botao, caixaDoRelatorio),
+          )
+        }
+      }
       lista.append(cartao)
     }
     const vazio = um('[data-vazio="pedidos-do-titular"]')
     if (vazio) vazio.hidden = conta.pedidos_do_titular.length > 0
+  }
+
+  const baixar = async (
+    protocolo: string,
+    formato: FormatoDoRelatorio,
+    botao: HTMLButtonElement,
+    caixa: HTMLElement,
+  ) => {
+    const sessao = token
+    if (!sessao) return
+    const falha = caixa.querySelector<HTMLElement>('[data-p-relatorio-falha]')
+    const situacao = caixa.querySelector<HTMLElement>(
+      '[data-p-relatorio-status]',
+    )
+    if (falha) falha.hidden = true
+    // a API pode levar alguns segundos para acordar e gerar o arquivo: o botão diz que está baixando e o leitor de tela ouve o resultado
+    const rotulo = botao.textContent
+    botao.disabled = true
+    botao.setAttribute('aria-busy', 'true')
+    botao.textContent = 'Baixando…'
+    if (situacao) situacao.textContent = 'Baixando o arquivo…'
+    try {
+      const arquivo = await baixarRelatorio(
+        sessao,
+        protocolo,
+        formato,
+        opcoesDaApi(),
+      )
+      const nome = NOME_DO_ARQUIVO_DO_RELATORIO(protocolo, formato)
+      ;(opcoes.entregarArquivo ?? entregarAoNavegador)(arquivo, nome)
+      if (situacao) situacao.textContent = `Arquivo baixado: ${nome}.`
+    } catch (erro) {
+      if (situacao) situacao.textContent = ''
+      if (sessaoAcabou(erro)) {
+        voltarParaOEmail(MENSAGEM_DE_SESSAO_ACABOU)
+        return
+      }
+      if (falha) {
+        falha.textContent = mensagemDoRelatorio(erro)
+        falha.hidden = false
+        falha.focus()
+      }
+    } finally {
+      botao.disabled = false
+      botao.removeAttribute('aria-busy')
+      botao.textContent = rotulo
+    }
   }
 
   const desenharApagamento = (conta: ContaDoVisitante) => {

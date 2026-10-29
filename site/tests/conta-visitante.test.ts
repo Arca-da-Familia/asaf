@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../src/lib/api'
 import {
   avisoDoReciboPorEmail,
+  baixarRelatorio,
   buscarConta,
   codigoTemOTamanhoCerto,
   diaEmPalavras,
@@ -24,6 +25,8 @@ import {
   mensagemDeEntrada,
   mensagemDoApagamento,
   mensagemDoPedidoDeCodigo,
+  mensagemDoRelatorio,
+  NOME_DO_ARQUIVO_DO_RELATORIO,
   pedirApagamento,
   pedirCodigo,
   sairDaConta,
@@ -188,6 +191,7 @@ describe('lerConta', () => {
       motivo_do_encerramento: null,
       resultado: null,
       fundamento: null,
+      relatorio_disponivel_ate: null,
     })
     expect(conta.pedido_de_apagamento).toEqual({
       protocolo: 'ASAF-2026-00042',
@@ -262,6 +266,50 @@ describe('as chamadas à API', () => {
     c = ultimaChamada(f)
     expect(c.url).toBe('https://api.teste/api/visitante/pedir-apagamento')
     expect(c.cabecalhos.Authorization).toBe('Bearer sessao-secreta')
+  })
+
+  it('v7.2c: baixar o relatório leva a sessão no cabeçalho, pede o formato e devolve o arquivo', async () => {
+    const pdf = new Blob(['%PDF-1.4'], { type: 'application/pdf' })
+    const f = vi.fn().mockResolvedValue(new Response(pdf, { status: 200 }))
+    const arquivo = await baixarRelatorio(
+      'sessao-secreta',
+      'ASAF-2026-00031',
+      'pdf',
+      opcoes(f),
+    )
+    const c = ultimaChamada(f)
+    expect(c.url).toBe(
+      'https://api.teste/api/visitante/pedidos/ASAF-2026-00031/relatorio?formato=pdf',
+    )
+    expect(c.cabecalhos.Authorization).toBe('Bearer sessao-secreta')
+    expect(c.credenciais).toBe('omit')
+    expect(await arquivo.text()).toBe('%PDF-1.4')
+    expect(NOME_DO_ARQUIVO_DO_RELATORIO('ASAF-2026-00031', 'json')).toBe(
+      'meus-dados-asaf-ASAF-2026-00031.json',
+    )
+
+    const vencido = vi.fn().mockResolvedValue(
+      respostaJson(
+        {
+          detail:
+            'Não há relatório disponível para este pedido. Se o prazo de 15 dias acabou, faça um novo pedido.',
+        },
+        404,
+      ),
+    )
+    const erro = await baixarRelatorio(
+      's',
+      'ASAF-2026-00031',
+      'json',
+      opcoes(vencido),
+    ).catch((e: unknown) => e)
+    expect(mensagemDoRelatorio(erro)).toMatch(/prazo de 15 dias acabou/)
+    expect(mensagemDoRelatorio(new ApiError('x', 401))).toBe(
+      MENSAGEM_DE_SESSAO_ACABOU,
+    )
+    expect(mensagemDoRelatorio(new ApiError('x', 500))).toMatch(
+      /Não foi possível baixar/,
+    )
   })
 
   it('a falha da API chega como ApiError com o motivo em português', async () => {

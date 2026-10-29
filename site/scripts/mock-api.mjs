@@ -2155,6 +2155,8 @@ function contaDoVisitante(email, expiraEm) {
           'Guardamos o seu <strong>nome</strong>, o seu e-mail e o histórico das suas inscrições.\nNão guardamos o seu CPF completo.',
         encerrado_em: null,
         motivo_do_encerramento: null,
+        // v7.2c: o relatório liberado pelo encarregado, para baixar por 15 dias
+        relatorio_disponivel_ate: horasDaquiAUtc(24 * 15),
       },
       {
         protocolo: 'ASAF-2026-00040',
@@ -2498,6 +2500,33 @@ export function criarServidor({
         ) {
           sessao.leituras += 1
           return responder(contaDoVisitante(sessao.email, sessao.expiraEm))
+        }
+        // v7.2c: o relatório liberado (só o do pedido ASAF-2026-00031); o formato vai na consulta; o resto é 404, como na API real
+        const doRelatorio = caminhoDoVisitante.match(
+          /^\/api\/visitante\/pedidos\/([^/]+)\/relatorio$/,
+        )
+        if (req.method === 'GET' && doRelatorio) {
+          const formato = new URL(
+            req.url ?? '',
+            'http://mock',
+          ).searchParams.get('formato')
+          if (decodeURIComponent(doRelatorio[1]) !== 'ASAF-2026-00031')
+            return responder(
+              {
+                detail:
+                  'Não há relatório disponível para este pedido. Se o prazo de 15 dias acabou, faça um novo pedido.',
+              },
+              404,
+            )
+          eventosDoVisitante.push({
+            tipo: `relatorio-${formato}`,
+            email: sessao.email,
+          })
+          if (formato === 'json')
+            return responder({ protocolo: 'ASAF-2026-00031', dados: {} })
+          res.writeHead(200, { ...cors, 'Content-Type': 'application/pdf' })
+          res.end('%PDF-1.4 relatório de teste')
+          return
         }
         if (
           req.method === 'POST' &&

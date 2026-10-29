@@ -243,4 +243,13 @@ def aplicar_todas(db: Session, agora: Optional[datetime] = None) -> dict:
         db.rollback()
         LOG.exception("a limpeza técnica dos códigos de troca de senha falhou")
         falhas.append("esqueci_a_senha")
+    try:
+        from app.services import entrega_ao_titular
+
+        # v7.2c: o relatório liberado ao titular vale 15 dias; vencido, a cópia é apagada (ficam as datas)
+        limpeza_tecnica["entrega_ao_titular"] = entrega_ao_titular.limpar_vencidas(db, agora)
+    except Exception:  # noqa: BLE001 - mesma regra
+        db.rollback()
+        LOG.exception("a limpeza das entregas vencidas ao titular falhou")
+        falhas.append("entrega_ao_titular")
     return {"aplicadas": aplicadas, "falhas": falhas, "limpeza_tecnica": limpeza_tecnica}

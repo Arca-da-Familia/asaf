@@ -2139,3 +2139,71 @@ describe('Atendimento: textos da identidade (v5.7f)', () => {
     expect(falhou.texto).not.toMatch(/foi enviada por e-mail/)
   })
 })
+
+// v7.2c - a entrega do relatório pela Minha conta só aparece para quem pode gerá-lo, com a identidade validada
+describe('Atendimento: entregar o relatório pela Minha conta', () => {
+  function comPermissoes(permissoes: string[]) {
+    vi.mocked(useMe).mockReturnValue({
+      data: { id_usuario: 3, nome_completo: 'Encarregado', permissoes },
+    } as unknown as ReturnType<typeof useMe>)
+  }
+
+  it('o encarregado vê o bloco no pedido com a identidade validada; sem validar, não', async () => {
+    const u = userEvent.setup()
+    comPermissoes(['atendimento', 'privacidade_gerir'])
+    base = [
+      pedidoDoTitular(1, { identidade_validada: true, id_pessoa: 9 }),
+      pedidoDoTitular(2, { identidade_validada: false }),
+    ]
+    desenhar()
+    const validado = await cartaoCarregado('ASAF-2026-00001')
+    await u.click(await validado.findByRole('button', { name: 'Abrir' }))
+    expect(
+      await validado.findByRole('region', {
+        name: 'Entregar o relatório pela Minha conta',
+      }),
+    ).toBeVisible()
+    const sem = await cartaoCarregado('ASAF-2026-00002')
+    await u.click(await sem.findByRole('button', { name: 'Abrir' }))
+    await sem.findByText('O que a pessoa pede')
+    expect(
+      sem.queryByRole('region', {
+        name: 'Entregar o relatório pela Minha conta',
+      }),
+    ).toBeNull()
+  })
+
+  it('sem a permissão do encarregado e sem ser quem responde, não aparece; o pedido do responsável sem cadastro também não', async () => {
+    const u = userEvent.setup()
+    comPermissoes(['atendimento'])
+    base = [pedidoDoTitular(1, { identidade_validada: true, id_pessoa: 9 })]
+    const { unmount } = desenhar()
+    const dentro = await cartaoCarregado('ASAF-2026-00001')
+    await u.click(await dentro.findByRole('button', { name: 'Abrir' }))
+    await dentro.findByText('O que a pessoa pede')
+    expect(
+      dentro.queryByRole('region', {
+        name: 'Entregar o relatório pela Minha conta',
+      }),
+    ).toBeNull()
+    unmount()
+
+    comPermissoes(['atendimento', 'privacidade_gerir'])
+    base = [
+      pedidoDoTitular(1, {
+        identidade_validada: true,
+        id_pessoa: null,
+        por_representante: true,
+      }),
+    ]
+    desenhar()
+    const doResponsavel = await cartaoCarregado('ASAF-2026-00001')
+    await u.click(await doResponsavel.findByRole('button', { name: 'Abrir' }))
+    await doResponsavel.findByText('O que a pessoa pede')
+    expect(
+      doResponsavel.queryByRole('region', {
+        name: 'Entregar o relatório pela Minha conta',
+      }),
+    ).toBeNull()
+  })
+})

@@ -364,9 +364,12 @@ export type RelatorioDoTitular = {
   total_de_linhas: number
   algum_corte: boolean
   fora_do_relatorio: string
+  // v7.2c: a impressão do conteúdo; a liberação ao titular a manda de volta e o servidor recusa (409) se o relatório mudou desde a conferência
+  impressao: string
 }
 
-// de quem é o relatório: o número do cadastro, ou (quem só escreveu pelo site) o e-mail; `id_atendimento` = quem responde a solicitação dela gera também
+// de quem é o relatório: o número do cadastro, ou (quem só escreveu pelo site) o e-mail; `id_atendimento` = quem responde a solicitação dela gera também;
+// só o `id_atendimento` (v7.2c) = a pessoa sai do pedido, pela mesma regra da entrega
 export type QuemNoRelatorio = {
   id_pessoa?: number
   email?: string
@@ -387,3 +390,19 @@ export const obterRelatorioDoTitular = (quem: QuemNoRelatorio) => {
     `/api/privacidade/titulares/relatorio?${p.toString()}`,
   )
 }
+
+// v7.2c - liberar o relatório conferido para a pessoa baixar pela Minha conta (PDF e arquivo da portabilidade, 15 dias); liberar de novo substitui o anterior
+export type EntregaLiberada = {
+  id_entrega: number
+  liberado_em: string
+  valido_ate: string
+}
+
+export const liberarRelatorioAoTitular = (
+  idAtendimento: number,
+  impressao: string,
+) =>
+  apiFetch<EntregaLiberada>(
+    `/api/privacidade/titulares/entregas/${idAtendimento}`,
+    { method: 'POST', body: JSON.stringify({ impressao }) },
+  )

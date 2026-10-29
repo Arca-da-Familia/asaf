@@ -168,8 +168,8 @@ def test_toda_coluna_sensivel_tem_a_leitura_auditada_e_a_acao_existe_no_codigo()
                 acoes.add(c.leitura_auditada)
     for acao in acoes:
         assert re.search(rf'registrar_auditoria\([^)]*"{acao}"', codigo, re.S), f"nenhuma rota grava {acao}"
-    # cada ação tem o seu teste de rota abaixo (ou em tests/test_beneficiarios.py, o do prontuário)
-    assert acoes == {cl.CONSULTA_PRONTUARIO, cl.CONSULTA_ENCAMINHAMENTOS, cl.CONSULTA_HISTORICO_SITUACAO}
+    # cada ação tem o seu teste de rota abaixo (ou em tests/test_beneficiarios.py, o do prontuário; em tests/test_entrega_ao_titular.py, o download do titular)
+    assert acoes == {cl.CONSULTA_PRONTUARIO, cl.CONSULTA_ENCAMINHAMENTOS, cl.CONSULTA_HISTORICO_SITUACAO, cl.DOWNLOAD_RELATORIO_DO_TITULAR}
 
 
 def test_ler_os_encaminhamentos_vai_para_a_auditoria(client, auth_headers, db):

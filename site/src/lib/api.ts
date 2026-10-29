@@ -155,6 +155,43 @@ export async function enviarJson<T>(
   }
 }
 
+/**
+ * v7.2c - baixa um ARQUIVO de uma rota com a sessão do visitante (o relatório dos dados da pessoa): um link direto não leva o cabeçalho `Authorization`, por isso
+ * o arquivo vem por aqui e a página o entrega ao navegador. Uma tentativa só; a API escala a zero, então a espera é longa (o PDF é gerado na hora).
+ */
+export async function buscarArquivo(
+  caminho: string,
+  { baseUrl, timeoutMs = 35_000, fetchImpl = fetch, token }: OpcoesBusca,
+): Promise<Blob> {
+  const controlador = new AbortController()
+  const timer = setTimeout(() => controlador.abort(), timeoutMs)
+  try {
+    const resposta = await fetchImpl(`${baseUrl}${caminho}`, {
+      headers: cabecalhoDaSessao(token),
+      signal: controlador.signal,
+      credentials: 'omit',
+    })
+    if (!resposta.ok) {
+      const { detalhe, erros } = await detalheDaResposta(resposta)
+      throw new ApiError(
+        `A API respondeu ${resposta.status}.`,
+        resposta.status,
+        detalhe,
+        erros,
+      )
+    }
+    return await resposta.blob()
+  } catch (erro) {
+    if (erro instanceof ApiError) throw erro
+    if (erro instanceof DOMException && erro.name === 'AbortError') {
+      throw new ApiError('A API demorou demais para responder.')
+    }
+    throw new ApiError('Não foi possível falar com a API.')
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 const SEM_PREFIXO_DO_PYDANTIC = /^Value error, /
 
 /**
