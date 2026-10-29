@@ -1309,6 +1309,18 @@ coisas foi feito por mim. Resultado do checklist da seção 4.1:
 > responde o 1º Vice-Presidente; (11) portabilidade: o que a pessoa forneceu + o que é dela no financeiro; (12) relatório de atendimento: tela para a Diretoria +
 > resumo no relatório anual.
 
+> **Levantamento da v7.2d (2026-10-29, agente só leitura) e decisões pedidas ao Presidente** (com a minha recomendação). Já existe: a anonimização do associado
+> desligado (pela rotina, depois do prazo), a da pessoa sem vínculo (participante, voluntário encerrado), a eliminação do prontuário a pedido (v7.1d) e o pedido de
+> eliminação pela Minha conta (que hoje só entra na fila; ninguém apaga nada automaticamente). Nenhuma linha de pessoa pode ser apagada (35 chaves apontam para o
+> associado): tudo é anonimizado campo a campo. O que as decisões de 28/10 ainda não dizem: (A) pedido feito pela Minha conta (identidade só pelo código do e-mail):
+> elimina só o que foi feito com aquele e-mail, nunca o cadastro; (B) quem ainda tem outro vínculo vivo (voluntário com termo vigente, atendido em projeto,
+> funcionário, membro com mandato): o cadastro fica enquanto durar o vínculo, explicando qual, e sai o resto; (C) inscrições e presenças em eventos que já
+> passaram: a pessoa é anonimizada e as contagens ficam (como na rotina de 5 anos), e o certificado emitido perde o arquivo e o nome; (D) pedidos antigos pelo site:
+> texto e contatos apagados; o próprio pedido de eliminação fica como prova até a rotina de 5 anos; (E) intenção de doação sem recibo: contatos apagados (a doação
+> confirmada e o recibo ficam); (F) a conta de acesso ao painel de quem foi desligado perde o e-mail; a foto da Diretoria de quem não tem mais mandato e os
+> documentos anexados ao cadastro são apagados; (G) a execução em dois passos — prévia do que sai e do que fica, com o fundamento de cada coisa que fica, a marca
+> "conferi" e o botão — com o protocolo na Auditoria; a resposta à pessoa continua escrita pelo encarregado, já com o resultado e o fundamento sugeridos.
+
 ✅ **v7.2a concluída (2026-10-28) — a fila do titular completa.** O formulário do site ganhou os dois direitos que faltavam (saber a consequência de não
 consentir; oposição) e o rótulo da eliminação deixou de oferecer "bloqueio" (decisão 5). O prazo da solicitação do titular não passa de 15 dias, mesmo que a
 regra seja mudada (a regra diz isso). Ao responder, a equipe registra o **resultado** (atendido, em parte, não atendido) e, se não atendido por inteiro, o
