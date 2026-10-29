@@ -68,7 +68,7 @@ async function idDoPedido(
   protocolo: string,
 ): Promise<number> {
   const r = await page.request.get(
-    `${API_HML}/api/atendimentos/?situacao=todas&busca=${encodeURIComponent(protocolo)}`,
+    `${API_HML}/api/atendimentos/?busca=${encodeURIComponent(protocolo)}`,
     { headers: { Authorization: token } },
   )
   const { itens } = (await r.json()) as {
