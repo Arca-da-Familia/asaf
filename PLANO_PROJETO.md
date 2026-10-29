@@ -1445,6 +1445,21 @@ Auditoria guarda quem pediu; a Secretária baixa o PDF pelo próprio painel. Reg
 **Em produção (2026-10-29):** `main` = `2cf9362`; Deploy API (1723 contra Postgres) e Deploy Painel verdes; `painel.asaf.org.br/version.json` = `2cf9362`;
 `/api/meus-pedidos-do-titular` e `/api/meus-pedidos-do-titular/{protocolo}/relatorio` no `openapi.json`, respondendo 401 sem login. Nenhum pedido foi feito na
 produção.
+✅ **v7.2f concluída (2026-10-29) — o relatório de atendimento.** Em Privacidade > **Relatório de atendimento** (permissão `privacidade`, a Diretoria), os
+pedidos sobre dados pessoais do ano: quantos, de que direito, por que canal (formulário do site, Minha conta, painel), com que resultado e fundamento,
+respondidos no prazo e fora dele, em andamento já vencidos, o tempo médio de resposta, os relatórios entregues e as eliminações feitas (contando pedidos: liberar
+de novo ou terminar uma eliminação que parou não conta duas vezes, e a que parou e não terminou não conta). O ano é o de Belém, dado pelo servidor. O **relatório
+anual** passa a trazer o resumo (decisão 12): o total e, só quando nada fica entre 1 e 4 (nem por subtração), os resultados e o prazo; o tempo médio só com 5
+respostas ou mais; a página do relatório anual no site o mostra (o relatório publicado antes continua igual). Só contagens, sem nome. Sem migração.
+**Conferência independente (agente, só leitura) achou 7 defeitos; tratados antes de publicar:** eliminação e relatório contados em dobro; no relatório público
+dava para descobrir um "menos de 5" por subtração (o próprio exemplo de teste vazava); a tela usava o ano do navegador (em 31/12, das 21h às 24h, abriria num ano
+que a API recusa); o canal mudava sozinho depois da rotina de guarda; o pedido encerrado sem resposta aparecia como respondido.
+**Testes locais:** servidor 1729 em duas rodadas e 1729 contra Postgres 18; painel 781 (duas rodadas); site 779 de unidade e os de navegador da Transparência.
+**Na homologação (2026-10-29):** robô `v7.2f-01` 2/2: o robô faz um pedido pelo site; o Presidente abre o Relatório de atendimento, a tela abre no ano de Belém
+com o mesmo total que a API dá, mostra o canal "Formulário do site" e o direito "Acessar os dados", e troca para o ano anterior; o Tesoureiro recebe 403.
+Regressões verdes: `v7.2e-01` 3, `v7.2d-01` 2.
+**Em produção (2026-10-29):** `main` = `340f074`; Deploy API (1729 contra Postgres), Deploy Painel e Deploy Site (926 de navegador) verdes;
+`painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `340f074`; `/api/privacidade/solicitacoes-do-titular/relatorio` no `openapi.json`, 401 sem login.
 
 - [x] **[v5.5a e v5.6b: o formulário do site (fila única, protocolo e prazo) e a Minha conta; v5.7f: a validação de identidade; v7.2e: o pedido pelo painel (Meu perfil > Meus dados pessoais)]** Canal único de solicitação: pelo painel (autenticado) e pelo site (formulário com validação
       de identidade), gerando protocolo com prazo legal acompanhado.
@@ -1456,7 +1471,7 @@ produção.
 - [x] **[v7.2a: a resposta registra o resultado e, se não atendida por inteiro, o fundamento escolhido de uma lista, que a pessoa lê na Minha conta]**
       Limites explicados ao titular quando houver: dado retido por obrigação legal (contábil,
       fiscal) não é apagável, e o sistema responde isso com fundamento, não com silêncio.
-- [ ] Relatório de atendimento de solicitações (quantas, prazo médio, resultado) para a diretoria.
+- [x] **[v7.2f: Privacidade > Relatório de atendimento, e o resumo no relatório anual]** Relatório de atendimento de solicitações (quantas, prazo médio, resultado) para a diretoria.
 
 #### v7.3 — Segurança aplicada à privacidade
 
