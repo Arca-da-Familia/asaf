@@ -278,7 +278,7 @@ test('outra pessoa não baixa o relatório dela e o Tesoureiro não libera', asy
   const token = await entrarComToken(page, 'tesoureiro')
   const r = await page.request.post(
     `${API_HML}/api/privacidade/titulares/entregas/${idAtendimento}`,
-    { headers: { Authorization: token } },
+    { headers: { Authorization: token }, data: { impressao: '0'.repeat(64) } },
   )
   expect(r.status()).toBe(403)
 })

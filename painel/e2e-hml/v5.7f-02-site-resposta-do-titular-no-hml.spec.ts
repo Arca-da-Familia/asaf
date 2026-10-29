@@ -113,7 +113,11 @@ test('preparar: três pedidos sobre dados pessoais do mesmo e-mail (respondido d
   expect(validou.status(), await validou.text()).toBe(200)
   const respondeu = await page.request.post(
     `${API_HML}/api/atendimentos/${respondido.id}/responder`,
-    { headers: cabecalho(), data: { resposta: RESPOSTA } },
+    // v7.2a: a resposta da solicitação do titular registra o resultado
+    {
+      headers: cabecalho(),
+      data: { resposta: RESPOSTA, resultado: 'ATENDIDO' },
+    },
   )
   expect(respondeu.status(), await respondeu.text()).toBe(200)
 
