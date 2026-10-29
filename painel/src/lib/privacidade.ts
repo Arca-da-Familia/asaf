@@ -406,3 +406,43 @@ export const liberarRelatorioAoTitular = (
     `/api/privacidade/titulares/entregas/${idAtendimento}`,
     { method: 'POST', body: JSON.stringify({ impressao }) },
   )
+
+// v7.2d - a eliminação a pedido (só o encarregado): a prévia (o que sai e o que fica, com o fundamento) e a execução com a impressão da prévia conferida
+export type FicaNaEliminacao = {
+  tabela: string
+  registros: number
+  fundamento: string
+  por_que: string
+  nome: string
+}
+
+export type PreviaDaEliminacao = {
+  impressao: string
+  vinculos: string[]
+  cadastro_sai: boolean
+  sai: string[]
+  fica: FicaNaEliminacao[]
+  resultado_sugerido: string
+  fundamento_sugerido: string | null
+  pessoa: { id_pessoa: number; nome_completo: string } | null
+  algum_corte: boolean
+}
+
+export type EliminacaoFeita = {
+  sai: string[]
+  fica: FicaNaEliminacao[]
+  cadastro_saiu: boolean
+  resultado_sugerido: string
+  fundamento_sugerido: string | null
+}
+
+export const obterPreviaDaEliminacao = (idAtendimento: number) =>
+  apiFetch<PreviaDaEliminacao>(
+    `/api/privacidade/titulares/eliminacoes/${idAtendimento}`,
+  )
+
+export const eliminarAPedido = (idAtendimento: number, impressao: string) =>
+  apiFetch<EliminacaoFeita>(
+    `/api/privacidade/titulares/eliminacoes/${idAtendimento}`,
+    { method: 'POST', body: JSON.stringify({ impressao }) },
+  )

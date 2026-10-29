@@ -1320,6 +1320,8 @@ coisas foi feito por mim. Resultado do checklist da seção 4.1:
 > confirmada e o recibo ficam); (F) a conta de acesso ao painel de quem foi desligado perde o e-mail; a foto da Diretoria de quem não tem mais mandato e os
 > documentos anexados ao cadastro são apagados; (G) a execução em dois passos — prévia do que sai e do que fica, com o fundamento de cada coisa que fica, a marca
 > "conferi" e o botão — com o protocolo na Auditoria; a resposta à pessoa continua escrita pelo encarregado, já com o resultado e o fundamento sugeridos.
+>
+> **Decisões do Presidente (2026-10-29, "aprovo" às recomendações A a G, depois de explicadas em linguagem simples).**
 
 ✅ **v7.2a concluída (2026-10-28) — a fila do titular completa.** O formulário do site ganhou os dois direitos que faltavam (saber a consequência de não
 consentir; oposição) e o rótulo da eliminação deixou de oferecer "bloqueio" (decisão 5). O prazo da solicitação do titular não passa de 15 dias, mesmo que a

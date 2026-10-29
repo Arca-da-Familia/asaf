@@ -297,6 +297,42 @@ def liberar_relatorio_ao_titular(id_atendimento: int, dados: ImpressaoConferida,
     return {"id_entrega": entrega.id_entrega, "liberado_em": entrega.liberado_em, "valido_ate": entrega.valido_ate}
 
 
+def _pedido_de_eliminacao(db: Session, id_atendimento: int, usuario: Usuario):
+    """O encarregado decide; no pedido sobre o próprio Presidente, quem responde o pedido (o 1º Vice-Presidente: decisão 10). Ninguém decide sobre os próprios dados."""
+    from app.models.atendimento import Atendimento
+    from app.services import atendimento as servico_atendimento
+    from app.services import entrega_ao_titular
+
+    pedido = db.get(Atendimento, id_atendimento)
+    _exigir_quem_gera_o_relatorio(db, usuario, id_atendimento if pedido else None, pedido.id_pessoa if pedido else None)
+    if pedido is None:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado.")
+    servico_atendimento._exigir_que_nao_seja_sobre_si(db, pedido, usuario)
+    entrega_ao_titular.exigir_que_nao_seja_o_proprio(db, usuario, pedido)
+    return pedido
+
+
+@router.get("/api/privacidade/titulares/eliminacoes/{id_atendimento}", summary="v7.2d - a prévia da eliminação a pedido: o que sai, o que fica (com o "
+            "fundamento) e os vínculos que seguram o cadastro; só o encarregado")
+def previa_da_eliminacao(id_atendimento: int, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+    from app.services import eliminacao_a_pedido
+
+    return eliminacao_a_pedido.previa(db, _pedido_de_eliminacao(db, id_atendimento, usuario))
+
+
+@router.post("/api/privacidade/titulares/eliminacoes/{id_atendimento}", summary="v7.2d - eliminar a pedido o que a prévia conferida diz que sai "
+             "(a impressão vai junto: mudou, 409); só o encarregado")
+def executar_a_eliminacao(id_atendimento: int, dados: ImpressaoConferida, request: Request, db: Session = Depends(get_db),
+                          usuario: Usuario = Depends(get_current_user)):
+    from app.services import eliminacao_a_pedido
+
+    pedido = _pedido_de_eliminacao(db, id_atendimento, usuario)
+    # a Auditoria (o protocolo, o que sai e o que fica, nunca os valores) é gravada pelo serviço ANTES de mexer, e de novo se uma etapa falhar
+    plano = eliminacao_a_pedido.executar(db, pedido, dados.impressao, usuario, request.client.host if request.client else None)
+    return {"sai": plano["sai"], "fica": plano["fica"], "cadastro_saiu": plano["cadastro_sai"], "resultado_sugerido": plano["resultado_sugerido"],
+            "fundamento_sugerido": plano["fundamento_sugerido"]}
+
+
 @router.get("/api/consentimentos/termo-da-tela/{origem}", summary="O termo de consentimento em vigor para a tela de envio (a versão volta no envio)")
 def termo_da_tela(origem: str, _usuario: Usuario = Depends(get_current_user)):
     if origem not in servico_consentimentos.TERMO_DA_ORIGEM:

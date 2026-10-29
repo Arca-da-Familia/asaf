@@ -70,7 +70,7 @@ def _tem_outro_papel_ativo(db: Session, id_pessoa: int) -> bool:
 
 def anonimizar_associado(
     db: Session, associado: Associado, usuario=None, ip_origem: Optional[str] = None, *,
-    dias: Optional[int] = None, agora: Optional[datetime] = None, respeitar_outros_papeis: bool = False,
+    dias: Optional[int] = None, agora: Optional[datetime] = None, respeitar_outros_papeis: bool = False, motivo: Optional[str] = None,
 ) -> bool:
     """Zera os campos pessoais sensíveis em `Pessoa` (e apaga o arquivo da foto e o endereço) - nome_completo e numero_matricula (em
     Associado) NUNCA são tocados aqui, nem nenhum dado financeiro (que fica noutra tabela, ligada só por id_associado). Retorna False
@@ -122,12 +122,13 @@ def anonimizar_associado(
     # o mesmo dado sensível que está sendo apagado continua vivo para sempre.
     registrar_auditoria(
         db, usuario, "pessoas", "ANONIMIZADO", id_registro_afetado=pessoa.id_pessoa,
-        dados_depois={"campos_apagados": CAMPOS_ANONIMIZAVEIS + ["endereco", "motivo_e_documento_das_mudancas_de_situacao"], "id_associado": associado.id_associado},
+        dados_depois={"campos_apagados": CAMPOS_ANONIMIZAVEIS + ["endereco", "motivo_e_documento_das_mudancas_de_situacao"], "id_associado": associado.id_associado,
+                      "motivo": motivo or "prazo de retenção vencido"},
         ip_origem=ip_origem,
     )
     # Nunca listar OS VALORES apagados aqui também - mesmo cuidado do AuditLog acima.
     publicar_evento_linha_do_tempo(
-        db, pessoa.id_pessoa, "situacao", "ANONIMIZADO", "Dado pessoal anonimizado (prazo de retenção vencido)",
+        db, pessoa.id_pessoa, "situacao", "ANONIMIZADO", f"Dado pessoal anonimizado ({motivo or 'prazo de retenção vencido'})",
     )
     return True
 

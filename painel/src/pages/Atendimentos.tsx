@@ -3,6 +3,7 @@ import { Headset } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
+import { EliminacaoAPedido } from '@/components/atendimentos/EliminacaoAPedido'
 import { EntregaDoRelatorio } from '@/components/atendimentos/EntregaDoRelatorio'
 import { VoluntarioDoPedido } from '@/components/atendimentos/VoluntarioDoPedido'
 import { EmptyState } from '@/components/feedback/EmptyState'
@@ -743,6 +744,21 @@ function Detalhe({
             a.id_pessoa !== null &&
             a.id_responsavel === eu?.id_usuario)) && (
           <EntregaDoRelatorio a={a} />
+        )}
+
+      {/* v7.2d: a eliminação a pedido - só o encarregado, no pedido de eliminação em aberto com a identidade validada */}
+      {a.tipo === 'TITULAR_LGPD' &&
+        a.subtipo === 'ELIMINACAO' &&
+        a.identidade_validada &&
+        emAberto &&
+        podeVer('privacidade_gerir') && (
+          <EliminacaoAPedido
+            a={a}
+            aoEliminar={(sugerido, fundamentoSugerido) => {
+              setResultado(sugerido)
+              setFundamento(fundamentoSugerido ?? '')
+            }}
+          />
         )}
 
       {a.tipo === 'VOLUNTARIO' && (
