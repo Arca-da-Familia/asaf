@@ -1333,10 +1333,29 @@ resultado e o fundamento. Regressões verdes: `v5.7f-01` 5, `v5.5a-01` 6, `v5.5a
 verdes; `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `e6bda58`; `asaf.org.br/privacidade/` diz "Versão 2.15" e lista a oposição; o formulário
 `asaf.org.br/privacidade/solicitacao-do-titular/` tem os dois direitos novos. Nenhum pedido foi feito na produção.
 
+✅ **v7.2b concluída (2026-10-29) — o relatório dos dados de uma pessoa.** Em Privacidade > **Dados de uma pessoa**, o encarregado busca pelo nome, CPF ou
+e-mail e gera, tabela por tabela, tudo o que o sistema guarda sobre a pessoa (cadastro, associado, beneficiário, prontuário, consentimentos, inscrições, doações,
+pedidos, campos personalizados…), cada parte com a atividade do inventário: para que serve, a base legal (marcada "proposta" enquanto o encarregado não conferir),
+com quem é compartilhado e por quanto tempo (decisões 1 e 3). Ficam de fora a Auditoria e os segredos (senha, segundo passo, códigos); o dado de outra pessoa só
+entra pelo que é da titular — cada ligação entre tabelas e a pessoa está numa lista revisada e testada. Tabela com mais de 500 registros avisa que foi cortada. Só
+quem tem `privacidade_gerir` gera — ou quem responde a solicitação dela (o 1º Vice, no pedido sobre o Presidente), pelo atalho do próprio pedido; cada leitura
+fica na Auditoria (`CONSULTA_RELATORIO_DO_TITULAR`, sem os valores, com as tabelas que têm dado sensível). Até a v7.2c, o encarregado imprime. Sem migração.
+**Conferência independente (agente, só leitura) achou defeitos reais, tratados antes de publicar** — o mais grave: o hash da senha e o segredo do segundo passo
+de quem usa o painel apareceriam no relatório; também ligações que traziam dado de outra pessoa (conselheiro, sócio proponente, substituto de turno) e tabelas
+onde a pessoa estava só pelo e-mail ou pelo CPF.
+**Testes locais:** servidor 1683 em duas rodadas e 1683 contra Postgres 18; painel 763.
+**Na homologação (2026-10-28):** robô `v7.2b-01` 2/2: o Presidente monta uma beneficiária inventada (termo e atendimento), gera o relatório pela tela e vê o
+cadastro, o consentimento e o prontuário com o relato, cada um com para que serve, base legal e compartilhamento; a Auditoria não aparece; a leitura fica na
+Auditoria sem o nome; o Tesoureiro recebe 403. Regressões verdes: `v7.2a-01` 3, `v7.1a-01` 4, `v7.0c-01` 3.
+**Em produção (2026-10-29):** `main` = `508e460`; Deploy API (1683 contra Postgres) e Deploy Painel (763) verdes; `painel.asaf.org.br/version.json` = `508e460`;
+`/api/privacidade/titulares` e `/api/privacidade/titulares/relatorio` no `openapi.json`; o relatório sem login responde 401. Nenhum relatório foi gerado na
+produção.
+
 - [ ] **[parcial, v5.5a e v5.6b: o site tem o formulário (fila única, protocolo e prazo) e a conta de visitante pede a eliminação com o e-mail provado por código; falta a validação de identidade no formulário público e o canal pelo painel]** Canal único de solicitação: pelo painel (autenticado) e pelo site (formulário com validação
       de identidade), gerando protocolo com prazo legal acompanhado.
 - [ ] **[parcial, v7.1b–d: a revogação do consentimento (apagar a foto; revogar o do atendimento social) e a eliminação do prontuário a pedido já existem; não
-      reconstruir]** Atendimento real de cada direito: confirmação de tratamento, acesso, correção,
+      reconstruir; v7.2b: o relatório de acesso (todos os dados de uma pessoa, com finalidade, base legal, compartilhamento e prazo) existe para o encarregado;
+      falta a entrega pela Minha conta e o arquivo da portabilidade (v7.2c) e a eliminação a pedido (v7.2d)]** Atendimento real de cada direito: confirmação de tratamento, acesso, correção,
       anonimização/eliminação, portabilidade (exportação em formato legível por máquina),
       informação sobre compartilhamento, e revogação de consentimento.
 - [x] **[v7.2a: a resposta registra o resultado e, se não atendida por inteiro, o fundamento escolhido de uma lista, que a pessoa lê na Minha conta]**
