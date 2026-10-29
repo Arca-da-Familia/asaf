@@ -503,3 +503,34 @@ export async function baixarMeuRelatorio(
   )
   entregar(blob, `meus-dados-asaf-${protocolo}.${formato}`, 'baixar')
 }
+
+// v7.2f - o relatório de atendimento das solicitações do titular de um ano (só contagens), para a Diretoria
+export type ContagemDoRelatorio = {
+  codigo: string
+  rotulo?: string
+  texto?: string
+  total: number
+}
+
+export type RelatorioDeAtendimentoDoTitular = {
+  ano: number
+  // o ano de hoje em Belém (o do navegador pode já ter virado)
+  ano_atual: number
+  total: number
+  por_direito: ContagemDoRelatorio[]
+  por_resultado: ContagemDoRelatorio[]
+  por_fundamento: ContagemDoRelatorio[]
+  por_canal: ContagemDoRelatorio[]
+  respondidos: number
+  respondidos_no_prazo: number
+  respondidos_fora_do_prazo: number
+  em_andamento_vencidos: number
+  tempo_medio_de_resposta_dias: number | null
+  relatorios_entregues: number
+  eliminacoes_feitas: number
+}
+
+export const obterRelatorioDeAtendimentoDoTitular = (ano?: number) =>
+  apiFetch<RelatorioDeAtendimentoDoTitular>(
+    `/api/privacidade/solicitacoes-do-titular/relatorio${ano ? `?ano=${ano}` : ''}`,
+  )

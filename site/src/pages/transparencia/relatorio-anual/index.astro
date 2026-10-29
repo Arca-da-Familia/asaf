@@ -237,6 +237,23 @@ const numero = (valor: string | number) =>
               )}
             </p>
 
+            {d.solicitacoes_de_titulares && (
+              <p class="mt-4" data-pedidos-de-titulares>
+                <strong>Pedidos sobre dados pessoais</strong> (Lei Geral de
+                Proteção de Dados) feitos no ano:{' '}
+                {numero(d.solicitacoes_de_titulares.total)}
+                {d.solicitacoes_de_titulares.atendidos !== null &&
+                  `; atendidos: ${numero(d.solicitacoes_de_titulares.atendidos)}; em parte: ${numero(d.solicitacoes_de_titulares.atendidos_em_parte ?? 0)}; não atendidos, com o fundamento: ${numero(d.solicitacoes_de_titulares.nao_atendidos ?? 0)}`}
+                {d.solicitacoes_de_titulares.respondidos_no_prazo !== null &&
+                  `; respondidos no prazo: ${numero(d.solicitacoes_de_titulares.respondidos_no_prazo)}; fora do prazo: ${numero(d.solicitacoes_de_titulares.respondidos_fora_do_prazo ?? 0)}`}
+                {d.solicitacoes_de_titulares.tempo_medio_de_resposta_dias !==
+                  null &&
+                  `; tempo médio de resposta: ${numero(d.solicitacoes_de_titulares.tempo_medio_de_resposta_dias)} dias`}
+                . Com poucos pedidos, só o total (para ninguém ser reconhecido
+                pelos números).
+              </p>
+            )}
+
             <p class="mt-4 text-sm">
               <a
                 href={caminhoDoDocumento({

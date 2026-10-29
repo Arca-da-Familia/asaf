@@ -626,6 +626,13 @@ test.describe('Relatório anual de atividades (v6.3c)', () => {
     await expect(ano.locator('[data-contas-do-relatorio]')).toContainText(
       'resultado R$ 600,00',
     )
+    // v7.2f: os pedidos sobre dados pessoais do ano (totais protegidos)
+    const pedidos = ano.locator('[data-pedidos-de-titulares]')
+    await expect(pedidos).toContainText('Pedidos sobre dados pessoais')
+    await expect(pedidos).toContainText(
+      'feitos no ano: 15; atendidos: 10; em parte: 0; não atendidos, com o fundamento: 5; respondidos no prazo: 15; fora do prazo: 0',
+    )
+    await expect(pedidos).toContainText('tempo médio de resposta: 3,5 dias')
     await ano.getByRole('link', { name: /texto publicado/ }).click()
     await expect(page.locator('[data-documento-em-texto]')).toContainText(
       'Apresentação da diretoria',

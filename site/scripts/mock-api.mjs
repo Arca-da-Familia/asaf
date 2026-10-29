@@ -902,6 +902,16 @@ const relatoriosAnuais = () => [
         resultado: '600.00',
         aprovadas_em_assembleia_em: dataIso(-200),
       },
+      // v7.2f: os pedidos sobre dados pessoais do ano (totais protegidos)
+      solicitacoes_de_titulares: {
+        total: 15,
+        atendidos: 10,
+        atendidos_em_parte: 0,
+        nao_atendidos: 5,
+        respondidos_no_prazo: 15,
+        respondidos_fora_do_prazo: 0,
+        tempo_medio_de_resposta_dias: 3.5,
+      },
     },
   },
 ]

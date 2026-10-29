@@ -91,11 +91,17 @@ describe('Encarregado de dados (v7.0a)', () => {
       'Avisos de privacidade',
       'Consentimentos',
       'Dados de uma pessoa',
+      'Relatório de atendimento',
     ])
     // v7.2b: o relatório dos dados de uma pessoa é só do encarregado
     expect(
       modulo?.itens?.find((i) => i.rotulo === 'Dados de uma pessoa')?.permissao,
     ).toBe('privacidade_gerir')
+    // v7.2f: o relatório de atendimento é da Diretoria (quem vê o módulo)
+    expect(
+      modulo?.itens?.find((i) => i.rotulo === 'Relatório de atendimento')
+        ?.permissao,
+    ).toBe('privacidade')
   })
 
   it('sem mandato de Presidente: mostra o aviso e não deixa gerar; passa no axe', async () => {

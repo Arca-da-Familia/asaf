@@ -2,6 +2,7 @@
 Ver e baixar exigem `privacidade` (a Presidência e os cargos de Presidente e Vice-Presidentes); gerar e registrar a cópia assinada exigem `privacidade_gerir` (só a
 Presidência e o cargo de Presidente). Gerar, registrar a assinatura e baixar a cópia assinada vão para a Auditoria."""
 import unicodedata
+from datetime import datetime
 from typing import Annotated, Optional
 from urllib.parse import quote
 
@@ -295,6 +296,20 @@ def liberar_relatorio_ao_titular(id_atendimento: int, dados: ImpressaoConferida,
                                       "tabelas_com_dado_sensivel": [s["tabela"] for s in relatorio["secoes"] if s["tem_dado_sensivel"]]},
                         ip_origem=request.client.host if request.client else None)
     return {"id_entrega": entrega.id_entrega, "liberado_em": entrega.liberado_em, "valido_ate": entrega.valido_ate}
+
+
+@router.get("/api/privacidade/solicitacoes-do-titular/relatorio", summary="v7.2f - o relatório de atendimento das solicitações do titular de um ano "
+            "(quantas, de que direito, por que canal, resultado, fundamento, prazo e tempo médio); só contagens")
+def relatorio_de_atendimento_do_titular(ano: Optional[int] = None, db: Session = Depends(get_db), _usuario: Usuario = Depends(_pode)):
+    from app.services import relatorio_de_atendimento_do_titular as servico_relatorio
+    from app.services.fuso import para_belem
+    from app.services.relatorio_anual import _instantes_do_ano
+
+    atual = para_belem(datetime.utcnow()).year
+    ano = ano or atual
+    if not 2000 <= ano <= atual:
+        raise HTTPException(status_code=400, detail=f"Escolha um ano entre 2000 e {atual}.")
+    return {"ano": ano, "ano_atual": atual, **servico_relatorio.resumo(db, *_instantes_do_ano(ano))}
 
 
 def _pedido_de_eliminacao(db: Session, id_atendimento: int, usuario: Usuario):

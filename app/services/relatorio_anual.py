@@ -259,7 +259,15 @@ def montar(db: Session, ano: int, apresentacao: str = "") -> dict:
         "associados_no_fim_do_ano": _associados_no_fim_do_ano(db, ano),
         "indicadores": _indicadores(db, ano, projetos),
         "contas": _contas(db, ano),
+        # v7.2f: o resumo dos pedidos sobre dados pessoais (LGPD) do ano - só os totais, protegidos (decisão 12 do Presidente, 2026-10-28)
+        "solicitacoes_de_titulares": _solicitacoes_de_titulares(db, ano),
     }
+
+
+def _solicitacoes_de_titulares(db: Session, ano: int) -> dict:
+    from app.services import relatorio_de_atendimento_do_titular as atendimento_do_titular
+
+    return atendimento_do_titular.para_o_relatorio_anual(atendimento_do_titular.resumo(db, *_instantes_do_ano(ano)))
 
 
 def _data(iso: Optional[str]) -> str:
@@ -302,6 +310,17 @@ def texto(dados: dict) -> str:
             f"  {i['projeto']} - {i['indicador']}: {_numero(i['valor'])} {i['unidade']} ({i['periodo']})" + (f", meta {_numero(i['meta'])}" if i["meta"] else "")
             for i in dados["indicadores"]
         ]
+    s = dados.get("solicitacoes_de_titulares")
+    if s:  # v7.2f (o relatório publicado antes não tem)
+        partes = [f"Pedidos sobre dados pessoais (Lei Geral de Proteção de Dados) feitos no ano: {_numero(s['total'])}"]
+        if s.get("atendidos") is not None:
+            partes.append(f"atendidos: {_numero(s['atendidos'])}; em parte: {_numero(s['atendidos_em_parte'])}; não atendidos, com o fundamento: "
+                          f"{_numero(s['nao_atendidos'])}")
+        if s.get("respondidos_no_prazo") is not None:
+            partes.append(f"respondidos no prazo: {_numero(s['respondidos_no_prazo'])}; fora do prazo: {_numero(s['respondidos_fora_do_prazo'])}")
+        if s.get("tempo_medio_de_resposta_dias") is not None:
+            partes.append(f"tempo médio de resposta: {_numero(s['tempo_medio_de_resposta_dias'])} dias")
+        linhas += ["", ". ".join(partes) + " (a situação de cada pedido é a da data em que este relatório foi montado; com poucos pedidos, só o total)."]
     c = dados["contas"]
     linhas += [""]
     if c:

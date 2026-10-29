@@ -386,6 +386,17 @@ export interface RelatorioAnual {
       resultado: string
       aprovadas_em_assembleia_em: string | null
     } | null
+    /** v7.2f: os pedidos sobre dados pessoais (LGPD) do ano, só os totais protegidos; o relatório publicado antes não tem. */
+    solicitacoes_de_titulares?: {
+      total: number | string
+      /** As partes saem só quando nenhuma delas, nem o que sobra do total, fica entre 1 e 4 (senão `null`: só o total). */
+      atendidos: number | null
+      atendidos_em_parte: number | null
+      nao_atendidos: number | null
+      respondidos_no_prazo: number | null
+      respondidos_fora_do_prazo: number | null
+      tempo_medio_de_resposta_dias: number | null
+    }
   }
 }
 

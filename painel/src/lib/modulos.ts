@@ -40,6 +40,7 @@ import {
   Users,
   Wallet,
   UserSearch,
+  ChartNoAxesColumn,
 } from 'lucide-react'
 
 // Endereço do Directus (CMS do site). Definitivo — a chave do plano gratuito do Directus fica
@@ -203,6 +204,13 @@ export const modulos: Modulo[] = [
         rotulo: 'Dados de uma pessoa',
         icone: UserSearch,
         permissao: 'privacidade_gerir',
+      },
+      // v7.2f: o relatório de atendimento das solicitações do titular, para a Diretoria
+      {
+        rota: '/privacidade/solicitacoes',
+        rotulo: 'Relatório de atendimento',
+        icone: ChartNoAxesColumn,
+        permissao: 'privacidade',
       },
     ],
   },
