@@ -27,7 +27,8 @@ SITUACOES = (NOVO, EM_ATENDIMENTO, RESPONDIDO, ENCERRADO)
 IDENTIDADE_AUTOMATICA_CADASTRO = "AUTOMATICA_CADASTRO"  # o e-mail digitado é o do cadastro de associado daquele CPF
 IDENTIDADE_CODIGO_NO_EMAIL = "CODIGO_NO_EMAIL"  # o pedido foi aberto de dentro da área Minha conta: o e-mail já tinha sido provado por código de uso único
 IDENTIDADE_MANUAL = "MANUAL"  # a equipe conferiu por outro meio e registrou o que conferiu
-IDENTIDADES = (IDENTIDADE_AUTOMATICA_CADASTRO, IDENTIDADE_CODIGO_NO_EMAIL, IDENTIDADE_MANUAL)
+IDENTIDADE_PAINEL = "PAINEL"  # v7.2e: o pedido foi feito de dentro do painel, por quem entrou com senha e segundo passo, sobre o próprio cadastro
+IDENTIDADES = (IDENTIDADE_AUTOMATICA_CADASTRO, IDENTIDADE_CODIGO_NO_EMAIL, IDENTIDADE_MANUAL, IDENTIDADE_PAINEL)
 
 
 class Atendimento(Base):

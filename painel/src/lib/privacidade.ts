@@ -446,3 +446,60 @@ export const eliminarAPedido = (idAtendimento: number, impressao: string) =>
     `/api/privacidade/titulares/eliminacoes/${idAtendimento}`,
     { method: 'POST', body: JSON.stringify({ impressao }) },
   )
+
+// v7.2e - os pedidos sobre os próprios dados feitos de dentro do painel (Meu Perfil): a identidade é a da entrada no painel; a resposta aparece aqui
+export type MeuPedidoDoTitular = {
+  protocolo: string
+  o_que_pediu: string | null
+  situacao: string
+  pedido_em: string | null
+  prazo_em: string | null
+  respondido_em: string | null
+  resposta: string | null
+  encerrado_em: string | null
+  motivo_do_encerramento: string | null
+  resultado: string | null
+  fundamento: string | null
+  relatorio_disponivel_ate: string | null
+}
+
+export type MeusPedidosDoTitular = {
+  aviso: { ponto: string; versao: string; texto: string }
+  email: string | null
+  direitos: { codigo: string; rotulo: string }[]
+  pedidos: MeuPedidoDoTitular[]
+}
+
+export type PedidoFeito = {
+  protocolo: string
+  prazo_dias: number
+  prazo_em: string
+  ja_existia: boolean
+  situacao: string
+  // sem o segundo passo ligado (ou com a senha provisória), a equipe confere a identidade antes de responder
+  identidade_validada: boolean
+}
+
+export const obterMeusPedidosDoTitular = () =>
+  apiFetch<MeusPedidosDoTitular>('/api/meus-pedidos-do-titular')
+
+export const fazerPedidoDoTitular = (dados: {
+  subtipo: string
+  mensagem: string
+  aviso_lido: boolean
+  versao_do_aviso: string
+}) =>
+  apiFetch<PedidoFeito>('/api/meus-pedidos-do-titular', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+
+export async function baixarMeuRelatorio(
+  protocolo: string,
+  formato: 'pdf' | 'json',
+) {
+  const { blob } = await apiFetchBlob(
+    `/api/meus-pedidos-do-titular/${encodeURIComponent(protocolo)}/relatorio?formato=${formato}`,
+  )
+  entregar(blob, `meus-dados-asaf-${protocolo}.${formato}`, 'baixar')
+}

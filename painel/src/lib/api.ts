@@ -6522,7 +6522,7 @@ export type AtendimentoDaFila = {
   exige_identidade_validada: boolean
   identidade_validada: boolean
   identidade_validacao:
-    'AUTOMATICA_CADASTRO' | 'CODIGO_NO_EMAIL' | 'MANUAL' | null
+    'AUTOMATICA_CADASTRO' | 'CODIGO_NO_EMAIL' | 'MANUAL' | 'PAINEL' | null
   identidade_validacao_rotulo: string | null
   identidade_validada_em: string | null
   identidade_nota: string | null
@@ -6533,6 +6533,8 @@ export type AtendimentoDaFila = {
   fundamento?: string | null
   fundamento_texto?: string | null
   por_representante?: boolean
+  // v7.2e: de onde veio o pedido ('site' ou 'painel'): o pedido feito pelo painel é lido e baixado no painel, não na Minha conta
+  origem?: string
 }
 
 // O que as ações (assumir, responder, encerrar, validar a identidade, cadastrar como voluntário) devolvem: o pedido com o CPF inteiro (só na abertura do pedido) e, se a identidade foi

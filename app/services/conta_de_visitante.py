@@ -92,7 +92,8 @@ def _pedidos_do_titular_do_email(db: Session, email: str) -> list[Atendimento]:
     """As solicitações do titular de dados (LGPD) feitas com este e-mail DIGITADO (v5.7f): é por aqui, e só aqui, que a resposta com dado pessoal é entregue."""
     return (
         db.query(Atendimento)
-        .filter(Atendimento.tipo == TITULAR_LGPD, func.lower(Atendimento.email_contato) == email)
+        # v7.2e: o pedido feito de dentro do painel é lido no painel (o e-mail do cadastro pode ser de outra pessoa da família)
+        .filter(Atendimento.tipo == TITULAR_LGPD, func.lower(Atendimento.email_contato) == email, Atendimento.origem != "painel")
         .order_by(Atendimento.criado_em.desc(), Atendimento.id_atendimento.desc())
         .all()
     )
@@ -285,7 +286,8 @@ def pedido_do_titular_do_email(db: Session, email: str, protocolo: str) -> Optio
     """v7.2c - um pedido do titular deste e-mail pelo protocolo (para baixar o relatório liberado); de outro e-mail, None."""
     return (
         db.query(Atendimento)
-        .filter(Atendimento.tipo == TITULAR_LGPD, func.lower(Atendimento.email_contato) == email, Atendimento.protocolo == protocolo)
+        .filter(Atendimento.tipo == TITULAR_LGPD, func.lower(Atendimento.email_contato) == email, Atendimento.protocolo == protocolo,
+                Atendimento.origem != "painel")
         .first()
     )
 
@@ -293,27 +295,30 @@ def pedido_do_titular_do_email(db: Session, email: str, protocolo: str) -> Optio
 def meus_pedidos_do_titular(db: Session, email: str) -> list[dict]:
     """As solicitações do titular de dados feitas com este e-mail e a resposta da equipe (v5.7f). A resposta só aparece quando o pedido foi respondido E a identidade tinha sido validada (o servidor
     já recusa responder sem isso; aqui é a segunda trava). Nunca o CPF nem o texto do pedido."""
+    return [item_do_pedido_do_titular(db, a) for a in _pedidos_do_titular_do_email(db, email)]
+
+
+def item_do_pedido_do_titular(db: Session, a: Atendimento) -> dict:
+    """Um pedido do titular como a própria pessoa o vê (na Minha conta e, desde a v7.2e, no painel): a resposta só depois de validada a identidade; nunca o CPF
+    nem o texto do pedido."""
     from app.services import entrega_ao_titular
 
-    itens = []
-    for a in _pedidos_do_titular_do_email(db, email):
-        # a resposta fica na conta mesmo que o pedido tenha sido encerrado depois de respondido (encerrar é o último passo de quem atende)
-        entregue = a.resposta is not None and a.respondido_em is not None and a.identidade_validada_em is not None
-        sem_resposta_e_encerrado = a.status == ENCERRADO and a.respondido_em is None
-        itens.append({
-            "protocolo": a.protocolo, "o_que_pediu": atendimentos.ROTULOS_DO_SUBTIPO_LGPD.get(a.subtipo or ""), "situacao": RESPONDIDO if a.respondido_em is not None else a.status,
-            "pedido_em": a.criado_em, "prazo_em": a.prazo_em,
-            "respondido_em": a.respondido_em if entregue else None, "resposta": a.resposta if entregue else None,
-            # o pedido encerrado SEM resposta (por exemplo, sem a identidade validada) mostra o motivo, mas só o que foi escrito já sabendo que a pessoa o lê (o de antes da v5.7f era nota interna)
-            "encerrado_em": a.encerrado_em if sem_resposta_e_encerrado else None,
-            "motivo_do_encerramento": a.motivo_encerramento if sem_resposta_e_encerrado and a.motivo_visivel_ao_titular else None,
-            # v7.2a: o resultado e, se o pedido não foi atendido por inteiro, o fundamento (o que a lei manda guardar), com a resposta
-            "resultado": atendimentos.ROTULOS_DO_RESULTADO.get(a.resultado or "") if entregue else None,
-            "fundamento": atendimentos.FUNDAMENTOS.get(a.fundamento or "") if entregue else None,
-            # v7.2c: até quando a pessoa baixa o relatório que o encarregado conferiu e liberou (PDF e arquivo da portabilidade)
-            "relatorio_disponivel_ate": entrega_ao_titular.resumo_para_a_minha_conta(db, a),
-        })
-    return itens
+    # a resposta fica na conta mesmo que o pedido tenha sido encerrado depois de respondido (encerrar é o último passo de quem atende)
+    entregue = a.resposta is not None and a.respondido_em is not None and a.identidade_validada_em is not None
+    sem_resposta_e_encerrado = a.status == ENCERRADO and a.respondido_em is None
+    return {
+        "protocolo": a.protocolo, "o_que_pediu": atendimentos.ROTULOS_DO_SUBTIPO_LGPD.get(a.subtipo or ""), "situacao": RESPONDIDO if a.respondido_em is not None else a.status,
+        "pedido_em": a.criado_em, "prazo_em": a.prazo_em,
+        "respondido_em": a.respondido_em if entregue else None, "resposta": a.resposta if entregue else None,
+        # o pedido encerrado SEM resposta (por exemplo, sem a identidade validada) mostra o motivo, mas só o que foi escrito já sabendo que a pessoa o lê (o de antes da v5.7f era nota interna)
+        "encerrado_em": a.encerrado_em if sem_resposta_e_encerrado else None,
+        "motivo_do_encerramento": a.motivo_encerramento if sem_resposta_e_encerrado and a.motivo_visivel_ao_titular else None,
+        # v7.2a: o resultado e, se o pedido não foi atendido por inteiro, o fundamento (o que a lei manda guardar), com a resposta
+        "resultado": atendimentos.ROTULOS_DO_RESULTADO.get(a.resultado or "") if entregue else None,
+        "fundamento": atendimentos.FUNDAMENTOS.get(a.fundamento or "") if entregue else None,
+        # v7.2c: até quando a pessoa baixa o relatório que o encarregado conferiu e liberou (PDF e arquivo da portabilidade)
+        "relatorio_disponivel_ate": entrega_ao_titular.resumo_para_a_minha_conta(db, a),
+    }
 
 
 def minha_conta(db: Session, sessao: SessaoDeVisitante) -> dict:

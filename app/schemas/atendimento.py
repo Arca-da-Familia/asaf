@@ -138,3 +138,28 @@ class AtendimentoValidarIdentidade(BaseModel):
     nota: str
     # v7.2a: o pedido foi feito por um dos pais ou pelo responsável legal pelo titular (documento do vínculo conferido)
     por_representante: bool = False
+
+
+class PedidoDoTitularPeloPainel(BaseModel):
+    """v7.2e - a solicitação do titular feita de dentro do painel, sobre o próprio cadastro: o direito, a mensagem e o aviso de privacidade lido (a versão)."""
+    subtipo: str
+    mensagem: str
+    aviso_lido: bool = False
+    versao_do_aviso: str
+
+    @field_validator("subtipo")
+    @classmethod
+    def validar_subtipo(cls, v):
+        if v not in SUBTIPOS_DA_SOLICITACAO_DE_TITULAR:
+            raise ValueError("Escolha o que você quer pedir.")
+        return v
+
+    @field_validator("mensagem")
+    @classmethod
+    def validar_mensagem(cls, v):
+        v = v.strip()
+        if len(v) < 10:
+            raise ValueError("Escreva a sua mensagem (pelo menos 10 letras).")
+        if len(v) > 4000:
+            raise ValueError("A mensagem está comprida demais (até 4.000 letras).")
+        return v

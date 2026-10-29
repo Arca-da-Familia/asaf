@@ -18,7 +18,7 @@ from app import textos_de_privacidade
 from app.config_cache import obter_configuracao
 from app.models.associados import Associado
 from app.models.atendimento import (
-    CONTATO, ENCERRADO, EM_ATENDIMENTO, IDENTIDADE_AUTOMATICA_CADASTRO, IDENTIDADE_CODIGO_NO_EMAIL, IDENTIDADE_MANUAL, NOVO, PEDIDO_INFORMACAO, RESPONDIDO, TITULAR_LGPD,
+    CONTATO, ENCERRADO, EM_ATENDIMENTO, IDENTIDADE_AUTOMATICA_CADASTRO, IDENTIDADE_CODIGO_NO_EMAIL, IDENTIDADE_MANUAL, IDENTIDADE_PAINEL, NOVO, PEDIDO_INFORMACAO, RESPONDIDO, TITULAR_LGPD,
     VOLUNTARIO, Atendimento,
 )
 from app.models.core import NivelAcesso, Usuario
@@ -70,6 +70,7 @@ ROTULOS_DA_IDENTIDADE = {
     IDENTIDADE_AUTOMATICA_CADASTRO: "Automática: o e-mail digitado é o do cadastro de associado daquele CPF",
     IDENTIDADE_CODIGO_NO_EMAIL: "Automática: o pedido foi aberto dentro da área Minha conta, com o e-mail confirmado por código",
     IDENTIDADE_MANUAL: "Conferida pela equipe",
+    IDENTIDADE_PAINEL: "Automática: o pedido foi feito de dentro do painel, por quem entrou com senha e segundo passo",
 }
 
 # dias de prazo por tipo, usados se a regra não existir no banco (as regras ficam em Configurações > Regras do sistema e a diretoria muda)
@@ -224,7 +225,7 @@ def _exigir_que_nao_seja_sobre_si(db: Session, a: Atendimento, usuario: Usuario)
 def registrar_pelo_site(
     db: Session, *, tipo: str, subtipo: Optional[str], assunto: Optional[str], mensagem: str, nome_completo: str, email: Optional[str],
     telefone: Optional[str], cpf: Optional[str], versao_do_aviso: str, data_nascimento: Optional[date] = None, agora: Optional[datetime] = None,
-    identidade: Optional[str] = None,
+    identidade: Optional[str] = None, id_pessoa: Optional[int] = None, origem: str = "site",
 ) -> tuple[Atendimento, bool]:
     """Grava o pedido, dá o protocolo, calcula o prazo e avisa quem atende. Devolve (atendimento, novo): o mesmo pedido ainda aberto, mandado de novo em 24 horas
     (duplo clique, ou a pessoa que não viu a confirmação), devolve o mesmo protocolo e `novo=False`, sem avisar ninguém de novo. Na solicitação do titular, `identidade` diz que a identidade
@@ -249,13 +250,14 @@ def registrar_pelo_site(
     atendimento = Atendimento(
         protocolo=f"TMP-{uuid.uuid4().hex[:20]}", tipo=tipo, subtipo=subtipo, assunto=assunto, mensagem=mensagem,
         nome_completo=nome_completo, email_contato=email, telefone_whatsapp=telefone, cpf=_so_digitos(cpf) or None,
-        data_nascimento=datetime.combine(data_nascimento, datetime.min.time()) if data_nascimento else None, id_pessoa=_pessoa_do_remetente(db, cpf, None if tipo == VOLUNTARIO else email), chave_remetente=chave, impressao_do_pedido=impressao, origem="site",
+        data_nascimento=datetime.combine(data_nascimento, datetime.min.time()) if data_nascimento else None, id_pessoa=id_pessoa or _pessoa_do_remetente(db, cpf, None if tipo == VOLUNTARIO else email), chave_remetente=chave, impressao_do_pedido=impressao, origem=origem,
         consentimento_lgpd_em=agora, consentimento_lgpd_versao=versao_do_aviso, status=NOVO, prazo_dias=dias, prazo_em=agora + timedelta(days=dias),
         criado_em=agora,
     )
     atendimento.id_responsavel = responsavel_do_pedido(db, tipo, atendimento.id_pessoa)
     if tipo == TITULAR_LGPD:
-        como = identidade or (IDENTIDADE_AUTOMATICA_CADASTRO if identidade_valida_pelo_cadastro(db, cpf, email) else None)
+        # v7.2e: no pedido feito pelo painel a regra do e-mail do cadastro não vale (a resposta é lida no painel, não pelo código mandado ao e-mail)
+        como = identidade or (IDENTIDADE_AUTOMATICA_CADASTRO if origem != "painel" and identidade_valida_pelo_cadastro(db, cpf, email) else None)
         if como:
             atendimento.identidade_validacao = como
             atendimento.identidade_validada_em = agora
@@ -333,6 +335,7 @@ def serializar(a: Atendimento, agora: Optional[datetime] = None, *, completo: bo
         # v7.2a
         "resultado": a.resultado, "resultado_rotulo": ROTULOS_DO_RESULTADO.get(a.resultado or ""), "fundamento": a.fundamento,
         "fundamento_texto": FUNDAMENTOS.get(a.fundamento or ""), "por_representante": bool(a.por_representante),
+        "origem": a.origem,
     }
     if completo:
         # o CPF inteiro só na abertura do pedido (a solicitação de titular precisa dele para conferir quem pede)
@@ -434,8 +437,18 @@ def assumir(db: Session, a: Atendimento, usuario: Usuario, agora: Optional[datet
     return a
 
 
+ONDE_LER_NO_PAINEL = "no painel da ASAF, em Meu perfil > Meus dados pessoais"
+
+
+def _primeiro_nome(a: Atendimento) -> str:
+    return (a.nome_completo or "").split()[0] if (a.nome_completo or "").split() else "tudo bem"
+
+
 def _texto_do_aviso_de_resposta_do_titular(db: Session, a: Atendimento) -> str:
     """Solicitação do titular: o e-mail NÃO leva a resposta (ela pode ter dado pessoal e o e-mail pode ter sido digitado por outra pessoa): só avisa que ela existe e onde ler."""
+    if a.origem == "painel":
+        return (f"Olá, {_primeiro_nome(a)}.\n\nA Associação Arca da Família (ASAF) respondeu ao seu pedido sobre dados pessoais, protocolo {a.protocolo}.\n\n"
+                f"Por segurança, a resposta não vai neste e-mail: leia {ONDE_LER_NO_PAINEL}.\n\nASAF - Associação Arca da Família\n")
     return (
         f"Olá, {a.nome_completo.split()[0]}.\n\n"
         f"A Associação Arca da Família (ASAF) respondeu ao seu pedido sobre dados pessoais, protocolo {a.protocolo}.\n\n"
@@ -447,6 +460,9 @@ def _texto_do_aviso_de_resposta_do_titular(db: Session, a: Atendimento) -> str:
 
 def _texto_do_aviso_de_encerramento_do_titular(db: Session, a: Atendimento) -> str:
     """Solicitação do titular encerrada (por exemplo, a identidade não pôde ser conferida): o e-mail só avisa; o motivo é lido na área Minha conta, como a resposta."""
+    if a.origem == "painel":
+        return (f"Olá, {_primeiro_nome(a)}.\n\nA Associação Arca da Família (ASAF) encerrou o seu pedido sobre dados pessoais, protocolo {a.protocolo}.\n\n"
+                f"O motivo não vai neste e-mail: leia {ONDE_LER_NO_PAINEL}.\n\nASAF - Associação Arca da Família\n")
     return (
         f"Olá, {a.nome_completo.split()[0]}.\n\n"
         f"A Associação Arca da Família (ASAF) encerrou o seu pedido sobre dados pessoais, protocolo {a.protocolo}.\n\n"
@@ -502,7 +518,7 @@ def responder(db: Session, a: Atendimento, usuario: Usuario, resposta: str, agor
         # v5.7f: dado pessoal só vai para quem provou ser o titular, e só pela área Minha conta (que exige o e-mail do pedido e o código enviado a ele)
         if a.identidade_validada_em is None:
             raise HTTPException(status_code=400, detail="Antes de responder, valide a identidade de quem fez o pedido. Se não for possível validar, encerre o pedido com o motivo.")
-        if not a.email_contato:
+        if not a.email_contato and a.origem != "painel":  # v7.2e: o pedido feito pelo painel é lido no painel
             raise HTTPException(
                 status_code=400,
                 detail="Este pedido não tem e-mail, e a resposta com dado pessoal só é entregue pela área Minha conta, que pede o e-mail. Encerre o pedido com o motivo e peça que a pessoa refaça o pedido com e-mail.",
@@ -588,6 +604,13 @@ def cadastrar_voluntario(db: Session, a: Atendimento, usuario: Usuario) -> Pesso
 
 
 def _texto_do_email_de_recebimento(a: Atendimento) -> str:
+    if a.tipo == TITULAR_LGPD and a.origem == "painel":
+        # v7.2e: o pedido feito pelo painel é lido no painel
+        confere = "" if a.identidade_validada_em is not None else "Antes de responder, a associação confere a sua identidade. "
+        pronta = "A resposta já está pronta" if a.status == RESPONDIDO else (
+            f"Prazo de resposta: {a.prazo_dias} dias (até {a.prazo_em.strftime('%d/%m/%Y')}). {confere}Quando a resposta estiver pronta, avisamos por aqui")
+        return (f"Olá, {_primeiro_nome(a)}.\n\nA Associação Arca da Família (ASAF) recebeu o seu pedido sobre dados pessoais.\n\nProtocolo: {a.protocolo}\n\n"
+                f"{pronta}. Ela não vai por e-mail: leia {ONDE_LER_NO_PAINEL}.\n\nASAF - Associação Arca da Família\n")
     if a.tipo == TITULAR_LGPD and a.status == RESPONDIDO:
         # v7.2a: a confirmação simples respondida na hora (o mesmo e-mail único de recebimento, com o aviso de que a resposta já está pronta)
         return (

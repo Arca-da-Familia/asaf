@@ -12,6 +12,11 @@ import { liberarRelatorioAoTitular } from '@/lib/privacidade'
 // conferir; a liberação é feita na tela do relatório (LiberarRelatorio), com a impressão do que está na tela - o servidor recusa se o relatório mudou.
 export function EntregaDoRelatorio({ a }: { a: AtendimentoAberto }) {
   const liberadoAte = a.relatorio_liberado_ate
+  // v7.2e: o pedido feito pelo painel é baixado no painel
+  const onde =
+    a.origem === 'painel'
+      ? 'no painel (Meu perfil > Meus dados pessoais)'
+      : 'na Minha conta do site (com o código enviado ao e-mail do pedido)'
   return (
     <section
       aria-label="Entregar o relatório pela Minha conta"
@@ -24,16 +29,15 @@ export function EntregaDoRelatorio({ a }: { a: AtendimentoAberto }) {
       {liberadoAte ? (
         <p data-liberado-ate>
           Liberado: a pessoa baixa o relatório (PDF) e o arquivo para levar a
-          outro serviço na Minha conta do site até{' '}
+          outro serviço {onde} até{' '}
           <strong>{formatarData(liberadoAte, { comHora: true })}</strong>.
           Depois disso a cópia é apagada.
         </p>
       ) : (
         <p className="text-muted-foreground">
-          Confira o relatório e libere: por 15 dias a pessoa baixa, na Minha
-          conta do site (com o código enviado ao e-mail do pedido), o PDF e o
-          arquivo para levar a outro serviço. Ela baixa exatamente o que você
-          conferir.
+          Confira o relatório e libere: por 15 dias a pessoa baixa, {onde}, o
+          PDF e o arquivo para levar a outro serviço. Ela baixa exatamente o que
+          você conferir.
         </p>
       )}
       {a.identidade_validacao === 'CODIGO_NO_EMAIL' && (

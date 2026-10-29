@@ -9,6 +9,7 @@ import { PreferenciasDeEmail } from '@/components/comunicacao/PreferenciasDeEmai
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { MeusPedidosDoTitular } from '@/components/privacidade/MeusPedidosDoTitular'
 import { Button } from '@/components/ui/button'
 import {
   ApiError,
@@ -62,7 +63,13 @@ const schemaRegenerar = z.object({
 })
 
 type Aba =
-  'dados' | 'seguranca' | 'sessoes' | 'documentos' | 'linha-do-tempo' | 'emails'
+  | 'dados'
+  | 'seguranca'
+  | 'sessoes'
+  | 'documentos'
+  | 'linha-do-tempo'
+  | 'emails'
+  | 'meus-dados'
 
 function DadosForm({ perfil }: { perfil: Perfil }) {
   const queryClient = useQueryClient()
@@ -181,6 +188,10 @@ export function PerfilPage() {
     { id: 'sessoes', rotulo: 'Sessões ativas' },
     { id: 'documentos', rotulo: 'Meus documentos' },
     { id: 'emails', rotulo: 'E-mails da ASAF' },
+    // v7.2e: os pedidos sobre os próprios dados (LGPD, art. 18) - só para quem tem cadastro de associado ligado à conta
+    ...(me?.id_associado
+      ? [{ id: 'meus-dados' as const, rotulo: 'Meus dados pessoais' }]
+      : []),
   ]
 
   return (
@@ -257,6 +268,7 @@ export function PerfilPage() {
       {aba === 'sessoes' && <SessoesSection />}
       {aba === 'documentos' && <DocumentosSection />}
       {aba === 'emails' && <PreferenciasDeEmail />}
+      {aba === 'meus-dados' && <MeusPedidosDoTitular />}
     </>
   )
 }

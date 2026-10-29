@@ -182,6 +182,12 @@ export function textoDaIdentidade(
         validada: true,
         texto: `Identidade validada automaticamente${quando}: o pedido foi aberto dentro da área Minha conta, com o e-mail confirmado por código.`,
       }
+    // v7.2e: o pedido feito de dentro do painel, por quem entrou com senha e segundo passo, sobre o próprio cadastro
+    case 'PAINEL':
+      return {
+        validada: true,
+        texto: `Identidade validada automaticamente${quando}: o pedido foi feito de dentro do painel, por quem entrou com senha e segundo passo, sobre o próprio cadastro.`,
+      }
     default: {
       const por = a.identidade_validada_por
         ? ` por ${a.identidade_validada_por}`

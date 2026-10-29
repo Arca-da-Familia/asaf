@@ -9,8 +9,8 @@ from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.atendimento import ENCERRADO, IDENTIDADE_AUTOMATICA_CADASTRO, RESPONDIDO, SITUACOES, TIPOS, Atendimento
 from app.models.core import Usuario
-from app.schemas.atendimento import AtendimentoEncerrar, AtendimentoPublicoCriar, AtendimentoResponder, AtendimentoValidarIdentidade
-from app.security import exigir_permissao
+from app.schemas.atendimento import AtendimentoEncerrar, AtendimentoPublicoCriar, AtendimentoResponder, AtendimentoValidarIdentidade, PedidoDoTitularPeloPainel
+from app.security import exigir_permissao, get_current_user
 from app.services import atendimento as servico
 from app.services.protecao_publica import ip_publico as _ip_publico, limitar_taxa_por_ip
 
@@ -64,6 +64,67 @@ def enviar_pedido(dados: AtendimentoPublicoCriar, request: Request, db: Session 
     return {
         "mensagem": "Pedido recebido.", "protocolo": atendimento.protocolo, "prazo_dias": atendimento.prazo_dias, "prazo_em": atendimento.prazo_em,
     }
+
+
+# ------------------------------------------------------------------------------------------------ v7.2e: o pedido sobre os próprios dados, de dentro do painel
+@router.get("/api/meus-pedidos-do-titular", summary="v7.2e - os meus pedidos sobre os meus dados (com a resposta), o aviso de privacidade e os direitos que posso pedir")
+def meus_pedidos_do_titular(db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+    from app.services import pedido_pelo_painel
+
+    pessoa = pedido_pelo_painel.pessoa_da_conta(db, usuario)
+    return {
+        "aviso": pedido_pelo_painel.aviso(), "email": pessoa.email_contato,
+        "direitos": [{"codigo": c, "rotulo": r} for c, r in servico.ROTULOS_DO_SUBTIPO_LGPD.items()],
+        "pedidos": pedido_pelo_painel.meus_pedidos(db, pessoa),
+    }
+
+
+@router.post("/api/meus-pedidos-do-titular", summary="v7.2e - fazer um pedido sobre os meus dados (LGPD, art. 18), com a identidade validada pela entrada no painel")
+def fazer_pedido_do_titular(dados: PedidoDoTitularPeloPainel, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+    from app.services import pedido_pelo_painel
+
+    pessoa = pedido_pelo_painel.pessoa_da_conta(db, usuario)
+    if not dados.aviso_lido:
+        raise HTTPException(status_code=400, detail="Para enviar o pedido é preciso ler o aviso de privacidade.")
+    atendimento, novo = pedido_pelo_painel.registrar(db, usuario, pessoa, subtipo=dados.subtipo, mensagem=dados.mensagem, versao_do_aviso=dados.versao_do_aviso)
+    if novo:
+        registrar_auditoria(db, usuario, "atendimentos", "ATENDIMENTO_PELO_PAINEL", id_registro_afetado=atendimento.id_atendimento,
+                            dados_depois={"subtipo": atendimento.subtipo, "identidade": atendimento.identidade_validacao}, ip_origem=_ip(request))
+        if atendimento.status == RESPONDIDO:
+            registrar_auditoria(db, None, "atendimentos", "ATENDIMENTO_RESPONDIDO", id_registro_afetado=atendimento.id_atendimento,
+                                dados_depois={"como": "automatico", "resultado": atendimento.resultado}, ip_origem=_ip(request))
+        enviado = servico.confirmar_recebimento_por_email(atendimento)
+        if atendimento.status == RESPONDIDO and atendimento.email_contato:
+            atendimento.resposta_enviada_por_email = enviado
+            db.commit()
+    return {"protocolo": atendimento.protocolo, "prazo_dias": atendimento.prazo_dias, "prazo_em": atendimento.prazo_em, "ja_existia": not novo,
+            "situacao": atendimento.status, "identidade_validada": atendimento.identidade_validada_em is not None}
+
+
+@router.get("/api/meus-pedidos-do-titular/{protocolo}/relatorio", summary="v7.2e - baixar pelo painel o relatório dos meus dados liberado pelo encarregado "
+            "(PDF ou o arquivo da portabilidade)")
+def baixar_meu_relatorio(protocolo: str, request: Request, formato: str = "pdf", db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+    from fastapi.responses import Response
+
+    from app.services import entrega_ao_titular, pedido_pelo_painel
+
+    if formato not in entrega_ao_titular.FORMATOS:
+        raise HTTPException(status_code=400, detail="Formato desconhecido.")
+    pessoa = pedido_pelo_painel.pessoa_da_conta(db, usuario)
+    pedido = pedido_pelo_painel.meu_pedido(db, pessoa, protocolo)
+    entrega = entrega_ao_titular.vigente(db, pedido) if pedido is not None and pedido.identidade_validada_em is not None else None
+    if entrega is None:
+        raise HTTPException(status_code=404, detail="Não há relatório disponível para este pedido. Se o prazo de 15 dias acabou, faça um novo pedido.")
+    if formato == "pdf":
+        conteudo, tipo, nome = entrega_ao_titular.pdf(entrega, pedido), "application/pdf", f"meus-dados-asaf-{pedido.protocolo}.pdf"
+    else:
+        conteudo, tipo, nome = entrega_ao_titular.arquivo_de_portabilidade(entrega, pedido), "application/json", f"meus-dados-asaf-{pedido.protocolo}.json"
+    # a leitura do relatório (pode ter dado sensível) fica na Auditoria, como a da Minha conta: classificacao_de_dados.DOWNLOAD_RELATORIO_DO_TITULAR
+    registrar_auditoria(db, usuario, "atendimentos", "DOWNLOAD_RELATORIO_DO_TITULAR", id_registro_afetado=pedido.id_atendimento,
+                        dados_depois={"id_entrega": entrega.id_entrega, "formato": formato, "pelo": "painel"}, ip_origem=_ip(request))
+    return Response(content=conteudo, media_type=tipo, headers={
+        "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store", "Content-Disposition": f'attachment; filename="{nome}"',
+    })
 
 
 # ------------------------------------------------------------------------------------------------ a fila no painel

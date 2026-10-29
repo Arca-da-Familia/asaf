@@ -111,7 +111,7 @@ def liberar(db: Session, a: Atendimento, impressao_conferida: str, agora: Option
         raise HTTPException(status_code=400, detail="O pedido está encerrado: para entregar o relatório, a pessoa faz um novo pedido.")
     if a.identidade_validada_em is None:
         raise HTTPException(status_code=400, detail="Valide antes a identidade de quem pediu: o relatório tem todos os dados da pessoa.")
-    if not a.email_contato:
+    if not a.email_contato and a.origem != "painel":  # v7.2e: o pedido feito pelo painel é baixado no painel
         raise HTTPException(status_code=400, detail="O pedido não tem e-mail: a pessoa não tem como entrar na Minha conta. Entregue o relatório impresso.")
     relatorio = relatorio_do_titular.montar(db, **quem_do_pedido(a))
     if relatorio["impressao"] != impressao_conferida:
@@ -183,7 +183,8 @@ def pdf(entrega: EntregaAoTitular, a: Atendimento) -> bytes:
     paragrafos = [
         "RELATÓRIO DOS SEUS DADOS PESSOAIS NA ASAF",
         f"Titular: {nome}.",
-        f"Pedido: protocolo {a.protocolo}. Relatório conferido e liberado em {dia_e_hora_em_belem(entrega.liberado_em)}; disponível na Minha conta até "
+        f"Pedido: protocolo {a.protocolo}. Relatório conferido e liberado em {dia_e_hora_em_belem(entrega.liberado_em)}; disponível "
+        f"{'no painel (Meu perfil > Meus dados pessoais)' if a.origem == 'painel' else 'na Minha conta do site'} até "
         f"{dia_e_hora_em_belem(entrega.valido_ate)} (horário de Belém).",
         *([] if r.get("pessoa") else ["Este relatório traz o que foi feito com o e-mail do pedido. Se você tem cadastro na associação (associado, voluntário, "
                                       "atendido nos projetos), o encarregado entrega os dados do cadastro depois de conferir a sua identidade."]),

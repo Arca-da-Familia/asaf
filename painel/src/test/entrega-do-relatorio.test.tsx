@@ -43,6 +43,13 @@ function desenhar(no: React.ReactNode) {
 beforeEach(() => vi.resetAllMocks())
 
 describe('Entregar o relatório pela Minha conta: no pedido', () => {
+  it('v7.2e: o pedido feito pelo painel é baixado no painel', () => {
+    desenhar(<EntregaDoRelatorio a={{ ...pedido, origem: 'painel' }} />)
+    expect(screen.getByText(/Confira o relatório e libere/)).toHaveTextContent(
+      'no painel (Meu perfil > Meus dados pessoais)',
+    )
+  })
+
   it('o link leva à conferência do relatório do próprio pedido', () => {
     desenhar(<EntregaDoRelatorio a={pedido} />)
     expect(
@@ -65,6 +72,9 @@ describe('Entregar o relatório pela Minha conta: no pedido', () => {
       '13/11/2026',
     )
     expect(screen.getByText(/provada só pelo código/)).toBeInTheDocument()
+    expect(screen.getByText(/Liberado: a pessoa baixa/)).toHaveTextContent(
+      'na Minha conta do site',
+    )
     expect(
       screen.getByRole('link', {
         name: 'Conferir e liberar de novo (substitui o anterior)',

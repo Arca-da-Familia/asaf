@@ -2051,6 +2051,12 @@ describe('Atendimento: textos da identidade (v5.7f)', () => {
       textoDaIdentidade({ ...base7f, identidade_validacao: 'CODIGO_NO_EMAIL' })
         ?.texto,
     ).toMatch(/Minha conta/)
+    // v7.2e: o pedido feito de dentro do painel
+    expect(
+      textoDaIdentidade({ ...base7f, identidade_validacao: 'PAINEL' })?.texto,
+    ).toMatch(
+      /feito de dentro do painel, por quem entrou com senha e segundo passo/,
+    )
 
     const manual = textoDaIdentidade({
       ...base7f,
