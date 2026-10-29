@@ -229,11 +229,11 @@ test('associada ativa: o cadastro fica pelo vínculo e nada sai; o Tesoureiro n�
   await bloco
     .getByRole('button', { name: 'Ver o que sai e o que fica' })
     .click()
-  await expect(bloco.locator('[data-vinculos]')).toContainText(
-    'está no quadro de associados',
-    {
-      timeout: 30_000,
-    },
+  // v7.2g: a identidade automática (o e-mail e o CPF do cadastro) não tira o cadastro: a prévia diz que ele fica até a equipe reforçar (o reforço e o
+  // vínculo de associada são conferidos no robô v7.2g-01)
+  await expect(bloco.locator('[data-fica]')).toContainText(
+    'O cadastro ligado a este e-mail',
+    { timeout: 30_000 },
   )
   await expect(bloco.locator('[data-sai]')).toContainText(
     'Nada pode sair agora',
