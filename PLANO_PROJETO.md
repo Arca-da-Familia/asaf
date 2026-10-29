@@ -1397,11 +1397,39 @@ Deploy Site verdes; `painel.asaf.org.br/version.json` e `asaf.org.br/version.jso
 `/api/privacidade/titulares/entregas/{id_atendimento}` e `/api/visitante/pedidos/{protocolo}/relatorio` estão no `openapi.json` e respondem 401 sem login/sessão;
 a página `asaf.org.br/minha-conta/` tem o bloco do relatório. Nenhum relatório foi liberado na produção.
 
+✅ **v7.2d concluída (2026-10-29) — a eliminação a pedido.** No pedido de eliminação com a identidade validada, o encarregado (no pedido sobre o próprio
+Presidente, quem o responde) abre "Ver o que sai e o que fica": a prévia é o relatório da pessoa, montado pelo pedido como na entrega, com o destino de cada
+parte — o que **sai** (escolhido no banco só entre as linhas que são dela) e o que **fica**, com o fundamento (financeiro e recibos; atas, votações e mandatos;
+nome e matrícula no livro de associados; a prova dos consentimentos; o termo do voluntário; o registro trabalhista; o vínculo vivo). Depois de marcar "conferi",
+"Eliminar o que pode sair"; o servidor confere que nada mudou nem venceu desde a prévia (409). Decisões A a G (29/10): pedido feito pela Minha conta (só o código
+do e-mail) nunca tira o cadastro; vínculo vivo — associado no quadro, mandato vigente ou futuro, termo de voluntário em vigor, atendimento em projeto, quem
+trabalhou na associação, família de associado, evento que ainda vai acontecer, débito em aberto, desligamento com data futura — segura o cadastro e sai o resto;
+evento que já passou: a pessoa sai e a contagem fica, certificado e crachá perdem arquivo e nome; pedidos antigos pelo site perdem texto e contatos (o pedido de
+eliminação e os de titular já atendidos ficam como prova); intenção de doação vencida sai (a confirmada e a que espera o Pix ficam); proposta de filiação que não
+virou filiação sai; o desligado é anonimizado na hora (ficam nome e matrícula) e perde a conta do painel (e-mail, segundo passo, sessões e chaves), os documentos
+anexados e a foto da Diretoria; quem não é associado perde também o nome. A Auditoria guarda o protocolo, o que sai e o que fica ANTES de mexer, e a etapa que
+falhou, se falhar (cada etapa é gravada; a prévia seguinte mostra o que falta). O resultado e o fundamento sugeridos vão para o formulário de resposta. Sem
+migração. Um teste reprova tabela nova do relatório sem destino decidido.
+**Conferência independente (agente, só leitura, com testes de sondagem) achou 12 defeitos; tratados antes de publicar.** Os mais graves: o ex-funcionário
+perderia nome e CPF (a lei trabalhista manda guardar); pelo e-mail da família sairiam o pedido, a inscrição e a intenção de doação do irmão; o desligamento com
+data futura apagava arquivos e parava no meio; o crachá de evento futuro e documentos genéricos perdiam o arquivo; a prévia não cobria o tempo que passa (um
+mandato que vence); a segunda execução prometia de novo; o resultado sugerido dizia "atendido" com dado restando; falha no meio deixava estado parcial sem
+Auditoria; o pedido sobre o Presidente ficava sem quem decidisse; a proposta de filiação recusada ficava com fundamento falso; o termo do voluntário (prova da Lei
+9.608) perdia a referência; a conta do painel guardava o segundo passo e as sessões.
+**Testes locais:** servidor 1714 em duas rodadas e 1714 contra Postgres 18; painel 775 (duas rodadas).
+**Na homologação (2026-10-29):** robô `v7.2d-01` 2/2: uma pessoa do site com um pedido antigo encerrado pede a eliminação pela Minha conta; o Presidente abre o
+pedido, vê o pedido antigo saindo e "Este pedido de eliminação" ficando, o botão espera o "conferi", elimina, o formulário de resposta já vem com "Atendido em
+parte", o pedido antigo ficou "(apagado a pedido do titular)" sem o e-mail, e a Auditoria tem o protocolo sem o texto; uma associada ativa pede: a prévia diz
+que ela está no quadro de associados, nada pode sair e o botão não age; o Tesoureiro recebe 403 na prévia. Regressões verdes: `v7.2c-01` 3, `v7.2b-01` 2,
+`v7.2a-01` 3, `v5.7f-01` 5, `v5.6b-02` 4, `v7.1d-01` 2.
+**Em produção (2026-10-29):** `main` = `f206d75`; Deploy API (1714 contra Postgres) e Deploy Painel (775) verdes; `painel.asaf.org.br/version.json` =
+`f206d75`; `/api/privacidade/titulares/eliminacoes/{id_atendimento}` no `openapi.json`, respondendo 401 sem login (GET e POST). Nada foi eliminado na produção.
+
 - [ ] **[parcial, v5.5a e v5.6b: o site tem o formulário (fila única, protocolo e prazo) e a conta de visitante pede a eliminação com o e-mail provado por código; falta a validação de identidade no formulário público e o canal pelo painel]** Canal único de solicitação: pelo painel (autenticado) e pelo site (formulário com validação
       de identidade), gerando protocolo com prazo legal acompanhado.
-- [ ] **[parcial, v7.1b–d: a revogação do consentimento (apagar a foto; revogar o do atendimento social) e a eliminação do prontuário a pedido já existem; não
-      reconstruir; v7.2b: o relatório de acesso (todos os dados de uma pessoa, com finalidade, base legal, compartilhamento e prazo) existe para o encarregado;
-      v7.2c: a entrega pela Minha conta (PDF + arquivo da portabilidade, 15 dias) existe; falta a eliminação a pedido (v7.2d)]** Atendimento real de cada direito: confirmação de tratamento, acesso, correção,
+- [x] **[v7.1b–d: revogação do consentimento e eliminação do prontuário; v7.2a: confirmação simples na hora; v7.2b: o relatório de acesso (com finalidade,
+      base legal, compartilhamento e prazo); v7.2c: a entrega pela Minha conta (PDF + arquivo da portabilidade, 15 dias); v7.2d: a eliminação a pedido; a
+      correção é feita no próprio cadastro]** Atendimento real de cada direito: confirmação de tratamento, acesso, correção,
       anonimização/eliminação, portabilidade (exportação em formato legível por máquina),
       informação sobre compartilhamento, e revogação de consentimento.
 - [x] **[v7.2a: a resposta registra o resultado e, se não atendida por inteiro, o fundamento escolhido de uma lista, que a pessoa lê na Minha conta]**
