@@ -1424,8 +1424,29 @@ que ela está no quadro de associados, nada pode sair e o botão não age; o Tes
 `v7.2a-01` 3, `v5.7f-01` 5, `v5.6b-02` 4, `v7.1d-01` 2.
 **Em produção (2026-10-29):** `main` = `f206d75`; Deploy API (1714 contra Postgres) e Deploy Painel (775) verdes; `painel.asaf.org.br/version.json` =
 `f206d75`; `/api/privacidade/titulares/eliminacoes/{id_atendimento}` no `openapi.json`, respondendo 401 sem login (GET e POST). Nada foi eliminado na produção.
+✅ **v7.2e concluída (2026-10-29) — o pedido sobre os próprios dados feito pelo painel.** Em Meu perfil > **Meus dados pessoais** (a aba só aparece para quem
+tem cadastro de associado ligado à conta), a pessoa escolhe o direito, explica, lê o aviso de privacidade e envia; o pedido sai ligado ao cadastro dela e entra na
+mesma fila, com o mesmo prazo, o mesmo responsável (o pedido sobre o Presidente vai para o 1º Vice) e a mesma confirmação simples na hora. A resposta, o
+resultado e o fundamento aparecem ali, e o relatório liberado pelo encarregado (v7.2c) é baixado ali mesmo. A identidade nasce validada só quando a conta tem o
+segundo passo ligado e a senha definitiva; sem isso, a equipe confere à mão (a tela avisa a pessoa). O pedido feito pelo painel não aparece na Minha conta do
+site, e os e-mails só avisam que há novidade e mandam ler no painel. Limite de 5 pedidos por dia por pessoa. O cartão do encarregado diz onde a pessoa baixa.
+Sem migração (a identidade nova "PAINEL" cabe na coluna que já existe).
+**Conferência independente (agente, só leitura) achou 8 defeitos e 3 suspeitas; tratados antes de publicar.** Os mais graves: a identidade "do painel" era
+tratada como forte, mas o servidor não exige o segundo passo do associado comum e quem digitou a senha provisória entraria no lugar dele (e poderia pedir a
+eliminação); a regra "e-mail do cadastro de associado" validava sozinha também no painel; o pedido feito pelo painel podia ser lido e baixado pela Minha conta
+por quem usa o mesmo e-mail (a família); o painel mostrava pedidos feitos pelo site por outra pessoa ligada ao cadastro; o cadastro sem e-mail deixava o pedido
+sem como ser respondido; os textos (e-mails, PDF, cartão do encarregado) diziam "Minha conta" para o pedido do painel; não havia limite de pedidos.
+**Testes locais:** servidor 1723 em duas rodadas e 1723 contra Postgres 18; painel 779 (duas rodadas).
+**Na homologação (2026-10-29):** robô `v7.2e-01` 3/3: a Secretária abre Meus dados pessoais, a tela recusa o envio sem escolher o direito, ela pede o acesso e
+recebe o protocolo, o prazo e o aviso de que a equipe vai conferir a identidade (na homologação o segundo passo está desligado: a entrada não prova a
+identidade, como deve ser); o Presidente acha o pedido, confere a identidade, o cartão diz que a pessoa baixa no painel, ele confere e libera o relatório; a
+Auditoria guarda quem pediu; a Secretária baixa o PDF pelo próprio painel. Regressões verdes: `v7.2d-01` 2, `v7.2c-01` 3, `v7.2a-01` 3, `v5.7f-01` 5,
+`v5.7f-02` 4, `v5.6b-02` 4.
+**Em produção (2026-10-29):** `main` = `2cf9362`; Deploy API (1723 contra Postgres) e Deploy Painel verdes; `painel.asaf.org.br/version.json` = `2cf9362`;
+`/api/meus-pedidos-do-titular` e `/api/meus-pedidos-do-titular/{protocolo}/relatorio` no `openapi.json`, respondendo 401 sem login. Nenhum pedido foi feito na
+produção.
 
-- [ ] **[parcial, v5.5a e v5.6b: o site tem o formulário (fila única, protocolo e prazo) e a conta de visitante pede a eliminação com o e-mail provado por código; falta a validação de identidade no formulário público e o canal pelo painel]** Canal único de solicitação: pelo painel (autenticado) e pelo site (formulário com validação
+- [x] **[v5.5a e v5.6b: o formulário do site (fila única, protocolo e prazo) e a Minha conta; v5.7f: a validação de identidade; v7.2e: o pedido pelo painel (Meu perfil > Meus dados pessoais)]** Canal único de solicitação: pelo painel (autenticado) e pelo site (formulário com validação
       de identidade), gerando protocolo com prazo legal acompanhado.
 - [x] **[v7.1b–d: revogação do consentimento e eliminação do prontuário; v7.2a: confirmação simples na hora; v7.2b: o relatório de acesso (com finalidade,
       base legal, compartilhamento e prazo); v7.2c: a entrega pela Minha conta (PDF + arquivo da portabilidade, 15 dias); v7.2d: a eliminação a pedido; a
