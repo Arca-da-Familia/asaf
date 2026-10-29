@@ -1351,11 +1351,43 @@ Auditoria sem o nome; o Tesoureiro recebe 403. Regressões verdes: `v7.2a-01` 3,
 `/api/privacidade/titulares` e `/api/privacidade/titulares/relatorio` no `openapi.json`; o relatório sem login responde 401. Nenhum relatório foi gerado na
 produção.
 
+✅ **v7.2c concluída (2026-10-29) — a entrega do relatório ao titular pela Minha conta.** No pedido do titular (acesso, portabilidade, confirmação ou
+compartilhamento), com a identidade validada, o encarregado (ou quem responde o pedido em aberto) abre "Conferir e liberar o relatório": o relatório da pessoa,
+montado pelo próprio pedido, e ali marca "conferi" e **libera ESTE** relatório. A liberação leva a impressão do que estava na tela e o servidor recusa (409) se algo
+entrou ou saiu desde a conferência; a cópia fica congelada (nada anotado depois entra). Por **15 dias**, a pessoa entra na Minha conta do site (código mandado ao
+e-mail do pedido) e baixa o **PDF** (o relatório inteiro, com para que serve, base legal, compartilhamento e prazo de cada parte) e o **arquivo para levar a outro
+serviço** (JSON, decisão 11: o que ela forneceu — cadastro, contatos, formulários, pedidos, consentimentos — e o que é dela no financeiro; ficam fora o que a
+equipe registrou, como o prontuário, e os atos de governança, como votos; tudo isso está no PDF). Cada liberação e cada download ficam na Auditoria (sem
+valores). Vencido o prazo, a limpeza da rotina de retenção (a cada 15 minutos) apaga a cópia e ficam só as datas; a anonimização do associado e a eliminação do
+prontuário apagam também a cópia ainda vigente. Nenhum arquivo é guardado no armazenamento (os dois são gerados da cópia na hora do download), e não foi
+preciso permissão nova no Azure. Tabela `entregas_ao_titular` (migração `12f16313d972`), classificada (o conteúdo como sensível, leitura auditada) e no
+inventário (atividade "Pedidos pelo site e direitos do titular", com o prazo de 15 dias). O pedido feito pelo responsável sem ligação ao cadastro não libera (o
+e-mail é de quem pediu); ninguém libera o relatório dos próprios dados (nem pelo CPF ou pelo e-mail, sem ligação ao cadastro).
+**Conferência independente (agente, só leitura) achou 11 defeitos; tratados antes de publicar.** O mais grave: quem "plantasse" o próprio e-mail no cadastro de
+outra pessoa (inscrevendo-se num evento com o CPF dela) e pedisse pela Minha conta receberia o relatório inteiro dela — agora, com a identidade provada só pelo
+código do e-mail, o relatório traz só o que foi feito com aquele e-mail, nunca o cadastro ligado (para o cadastro, a identidade vem do cadastro de associado ou é
+conferida à mão). Também: a cópia não era garantidamente a conferida (agora a impressão e o 409); o e-mail usado pela família trazia pedidos e inscrições do
+irmão (agora a linha que diz ser de outra pessoa do cadastro, ou de outro CPF, não entra — vale também para o relatório da v7.2b); a pré-visualização dizia a quem
+não podia que o pedido existia; a trava "sobre os próprios dados" se contornava sem ligação ao cadastro; texto com cara de data derrubava o PDF; palavra enorme
+saía da página; a cópia sobrevivia à eliminação; o arquivo cortado não avisava; o site dizia só o dia do prazo (agora com a hora); o download não dizia
+"baixando…" nem "baixado" ao leitor de tela.
+**Testes locais:** servidor 1698 em duas rodadas e 1698 contra Postgres 18; painel 771 (duas rodadas); site 779 de unidade e 925 de navegador.
+**Na homologação (2026-10-29):** migração aplicada no banco de TESTE (`Running upgrade b0227d30a6a9 -> 12f16313d972`). Robô `v7.2c-01` 3/3: uma associada
+inventada pede acesso pelo site; o Presidente abre o pedido, segue "Conferir e liberar", o botão espera a marca "conferi", libera e o cartão do pedido mostra até
+quando vale; a liberação está na Auditoria sem o nome; no SITE de homologação ela entra na Minha conta com o código e baixa o PDF (`%PDF`) e o arquivo (com o
+nome e o CPF dela, sem o prontuário); os dois downloads estão na Auditoria; outra pessoa (outro e-mail) recebe 404 no protocolo dela, sem sessão 401, e o
+Tesoureiro recebe 403 ao liberar. Regressões verdes: `v7.2b-01` 2, `v7.2a-01` 3, `v5.7f-01` 5, `v5.7f-02` 4 (o robô passou a mandar o resultado, exigido desde
+a v7.2a), `v5.6b-01` 6, `v5.6b-02` 4, `v7.1d-01` 2.
+**Em produção (2026-10-29):** `main` = `3de6476`; Deploy API (1698 contra Postgres e `Running upgrade b0227d30a6a9 -> 12f16313d972`), Deploy Painel (771) e
+Deploy Site verdes; `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `3de6476`; as rotas novas
+`/api/privacidade/titulares/entregas/{id_atendimento}` e `/api/visitante/pedidos/{protocolo}/relatorio` estão no `openapi.json` e respondem 401 sem login/sessão;
+a página `asaf.org.br/minha-conta/` tem o bloco do relatório. Nenhum relatório foi liberado na produção.
+
 - [ ] **[parcial, v5.5a e v5.6b: o site tem o formulário (fila única, protocolo e prazo) e a conta de visitante pede a eliminação com o e-mail provado por código; falta a validação de identidade no formulário público e o canal pelo painel]** Canal único de solicitação: pelo painel (autenticado) e pelo site (formulário com validação
       de identidade), gerando protocolo com prazo legal acompanhado.
 - [ ] **[parcial, v7.1b–d: a revogação do consentimento (apagar a foto; revogar o do atendimento social) e a eliminação do prontuário a pedido já existem; não
       reconstruir; v7.2b: o relatório de acesso (todos os dados de uma pessoa, com finalidade, base legal, compartilhamento e prazo) existe para o encarregado;
-      falta a entrega pela Minha conta e o arquivo da portabilidade (v7.2c) e a eliminação a pedido (v7.2d)]** Atendimento real de cada direito: confirmação de tratamento, acesso, correção,
+      v7.2c: a entrega pela Minha conta (PDF + arquivo da portabilidade, 15 dias) existe; falta a eliminação a pedido (v7.2d)]** Atendimento real de cada direito: confirmação de tratamento, acesso, correção,
       anonimização/eliminação, portabilidade (exportação em formato legível por máquina),
       informação sobre compartilhamento, e revogação de consentimento.
 - [x] **[v7.2a: a resposta registra o resultado e, se não atendida por inteiro, o fundamento escolhido de uma lista, que a pessoa lê na Minha conta]**
