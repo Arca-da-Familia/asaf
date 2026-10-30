@@ -1217,9 +1217,11 @@ test('fotos do evento: sem a autorização de imagem a foto é recusada (pela te
   await campoDoTermo.fill('987654321')
   const termoInexistente = await enviarFoto()
   expect(termoInexistente.status()).toBe(404)
+  // desde a v7.1 a foto passa pelo registro de consentimento de imagem, que confere o termo primeiro e o chama de "o termo assinado"
   await expect(
     alertas.filter({
-      hasText: 'O documento nº 987654321 (termo de autorização) não existe.',
+      hasText:
+        /O documento nº 987654321 \((o termo assinado|termo de autorização)\) não existe\./,
     }),
   ).toBeVisible()
   // nada disso gravou foto: nem no painel, nem para o público
