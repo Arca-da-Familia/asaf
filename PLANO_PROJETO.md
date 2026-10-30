@@ -1509,8 +1509,8 @@ o vínculo dela (nada foi eliminado). Regressões verdes: `v7.2d-01` 2 (ajustado
 > tratamento acontece fora do Brasil); a estrutura não muda (as cópias nos EUA protegem contra perda de dados). Fica registrado aqui, internamente, o que a
 > pesquisa achou, para reavaliar quando a ANPD reconhecer outras cláusulas ou os provedores passarem a oferecer as brasileiras.
 
-- [ ] Minimização por padrão: cada tela e cada exportação mostram só o necessário; CPF completo
-      exibido apenas para quem tem permissão específica, mascarado para os demais.
+- [x] Minimização por padrão: cada tela e cada exportação mostram só o necessário; CPF completo
+      exibido apenas para quem tem permissão específica, mascarado para os demais. **[v7.3a]**
 - [x] Headers de segurança HTTP (CSP, `X-Content-Type-Options`, `X-Frame-Options`, HSTS) no site
       estático e no painel. **[v5.7: o site; v7.3b: o painel e a API]**
 - [x] Rate limiting nos endpoints públicos (inscrição de evento, contato, filiação) — proteção
@@ -1574,6 +1574,24 @@ CPF gravado no campo do CNPJ; agora **só um CNPJ válido sai** para o Minha Rec
 `v7.0c-01` 3.
 **Em produção (2026-10-30):** `main` = `23ca8f1`; Deploy Painel e Deploy API (1759) verdes; `painel.asaf.org.br/version.json` = `23ca8f1`; a API responde
 e o inventário continua fechado para quem não entrou (401).
+
+✅ **v7.3a concluída (2026-10-30) — o CPF protegido (decisão 1 do Presidente, 29/10).** Em toda lista e ficha o CPF aparece **escondido, num formato
+só** (`***.***.***-NN`; as quatro máscaras diferentes viraram uma): lista e ficha de associados, seletor de associado, propostas de filiação, atendimentos,
+doações e doações do site, fornecedores (quando o campo tem um CPF), "Dados de uma pessoa" e o verificador de documento público. O completo só aparece por
+um clique em **"Mostrar o CPF"**, que fica na **Auditoria** (`CPF_REVELADO`, com quem, de onde e quando; nunca o número), e só para quem tem a permissão nova
+**`ver_cpf_completo`**: o Presidente, os Secretários (1º e 2º) e os Tesoureiros (1º e 2º), cada um dentro do próprio módulo (o Tesoureiro vê o do doador,
+não o do associado). **Quem atende uma solicitação de titular aberta** vê o CPF daquele pedido (conferir a identidade): é assim que o 1º Vice-Presidente,
+que atende o pedido sobre os dados do Presidente (decisão de 28/10), vê aquele CPF e nenhum outro; encerrado o pedido, nem esse. Os Vice-Presidentes e o
+Conselho Fiscal veem sempre escondido. A exportação de associados leva o CPF completo só com a permissão (e a Auditoria registra se levou). A busca por CPF
+continua no servidor. Ficaram com o CPF inteiro, de propósito: o perfil da própria pessoa, o relatório do titular (feito pelo encarregado, para entregar a
+ela) e o recibo de doação. A migração `a73c9f1e5b20` cria a permissão e a dá à Presidência e aos cinco cargos, sem tocar em mais nada.
+**Testes:** servidor 1772 em duas rodadas e 1772 contra Postgres 18; painel 790 em duas rodadas e a montagem.
+**Na homologação (2026-10-30):** a migração rodou no banco de teste; robô `v7.3a-01` 2/2 (o Presidente vê a lista escondida, mostra o CPF da ficha e a
+Auditoria registra `CPF_REVELADO`; o 1º Vice-Presidente vê a ficha escondida e sem o botão). Regressões: `v5.4c-fase1` 24 (associados), `v5.4h-03` 8 e
+`v5.4e-03` 12 (passaram a achar o associado pela busca por CPF, já que a lista não traz mais o número) e `v5.4g-04` 9 (a máscara do verificador mudou para o
+formato único; e o robô esperava um texto antigo do termo de imagem, que desde a v7.1 é "o termo assinado").
+**Em produção (2026-10-30):** `main` = `f42f221`; Deploy API (1772 contra Postgres; migração `12f16313d972 -> a73c9f1e5b20` aplicada) e Deploy Painel
+verdes; `painel.asaf.org.br/version.json` = `f42f221`; a rota `/api/cpf/revelar` está no `openapi.json` e recusa quem não entrou (401).
 
 ##### 🔍 Ponto de Revisão — FASE 7 (2/3, fecha v7.2–v7.3)
 
