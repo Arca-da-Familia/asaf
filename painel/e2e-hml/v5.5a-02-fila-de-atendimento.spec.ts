@@ -312,8 +312,13 @@ test('a solicitação de titular: o CPF só aparece inteiro dentro do pedido, e 
   )
   await expect(c).not.toContainText(CPF_TITULAR)
   await c.getByRole('button', { name: 'Abrir' }).click()
-  // dentro do pedido o CPF vem inteiro (com a pontuação de sempre)
-  await expect(c).toContainText(CPF_TITULAR)
+  // v7.3a: dentro do pedido o CPF vem escondido; o completo só por "Mostrar o CPF" (o Presidente pode; o clique vai para a Auditoria)
+  await expect(c.locator('[data-cpf="escondido"]')).toHaveText(
+    `***.***.***-${CPF_TITULAR.slice(-2)}`,
+  )
+  await expect(c).not.toContainText(CPF_TITULAR)
+  await c.getByRole('button', { name: 'Mostrar o CPF' }).click()
+  await expect(c.locator('[data-cpf="completo"]')).toHaveText(CPF_TITULAR)
   const outros = c.getByRole('region', { name: 'Outros pedidos desta pessoa' })
   await expect(outros).toContainText(protocolos['titular2']!)
   await ver(page, info, 'titular-aberto-com-os-outros-pedidos')
@@ -333,8 +338,14 @@ test('a Auditoria guarda cada ação da fila, e a Auditoria do sistema cresceu e
   const vigia = vigiar(page)
   await entrar(page, 'presidente')
   const total = await totalNaAuditoria(page)
-  // 4 envios pelo site (3 + o segundo do titular) + contato: assumir e responder + pedido: assumir, responder e encerrar = 9
-  expect(total - totalAntes, 'as ações do roteiro na Auditoria').toBe(9)
+  // 4 envios pelo site (3 + o segundo do titular) + contato: assumir e responder + pedido: assumir, responder e encerrar + o "Mostrar o CPF" do
+  // titular (v7.3a: CPF_REVELADO) = 10
+  expect(total - totalAntes, 'as ações do roteiro na Auditoria').toBe(10)
+  await expect(
+    page.getByRole('row').filter({
+      has: page.getByRole('cell', { name: 'CPF_REVELADO', exact: true }),
+    }),
+  ).not.toHaveCount(0)
   await expect(
     page.getByRole('row').filter({
       has: page.getByRole('cell', {
