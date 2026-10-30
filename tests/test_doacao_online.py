@@ -421,7 +421,9 @@ def test_a_lista_filtra_busca_pagina_e_resume(client, auth_headers, db, pix, ema
     por_protocolo = client.get(f"/api/intencoes-doacao/?busca={protocolo}", headers=auth_headers).json()
     assert por_protocolo["total"] == 1 and por_protocolo["itens"][0]["nome_doador"] == nome
     assert client.get(f"/api/intencoes-doacao/?busca={nome.split()[2]}", headers=auth_headers).json()["total"] == 1
-    assert client.get(f"/api/intencoes-doacao/?busca={cpf[:3]}.{cpf[3:6]}", headers=auth_headers).json()["total"] >= 1
+    # v7.3f: o CPF só pelo número inteiro (um pedaço deixava descobrir o número dígito a dígito)
+    assert client.get(f"/api/intencoes-doacao/?busca={cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}", headers=auth_headers).json()["total"] >= 1
+    assert client.get(f"/api/intencoes-doacao/?busca={cpf[:3]}.{cpf[3:6]}", headers=auth_headers).json()["total"] == 0
     pagina = client.get("/api/intencoes-doacao/?por_pagina=2&pagina=1", headers=auth_headers).json()
     assert len(pagina["itens"]) == 2 and pagina["total"] >= 3
     assert client.get("/api/intencoes-doacao/?situacao=inventada", headers=auth_headers).status_code == 400

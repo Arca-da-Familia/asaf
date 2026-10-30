@@ -95,7 +95,13 @@ def registrar_doacao(
     return doacao
 
 
-def gerar_texto_recibo(db: Session, doacao: Doacao) -> str:
+def _documento_escondido(documento: str) -> str:
+    from app.services.cpf_protegido import mascarar
+
+    return mascarar(documento) or documento
+
+
+def gerar_texto_recibo(db: Session, doacao: Doacao, *, cpf_completo: bool = True) -> str:
     nome_instituicao = obter_configuracao(db, "NOME_INSTITUICAO", "ASAF - Associação Arca da Família")
     cnpj = obter_configuracao(db, "CNPJ", "") or "(CNPJ não configurado)"
     rodape = obter_configuracao(db, "TEXTO_PADRAO_DOCUMENTO", "") or ""
@@ -103,7 +109,7 @@ def gerar_texto_recibo(db: Session, doacao: Doacao) -> str:
     from app.services.calendario import dia_local, fuso_da_associacao
 
     dia_do_recibo = dia_local(doacao.data_doacao, fuso_da_associacao(db))
-    doador = "Doador(a) anônimo(a)" if doacao.anonima else f"{doacao.nome_doador}" + (f" (doc. {doacao.documento_doador})" if doacao.documento_doador else "")
+    doador = "Doador(a) anônimo(a)" if doacao.anonima else f"{doacao.nome_doador}" + (f" (doc. {doacao.documento_doador if cpf_completo else _documento_escondido(doacao.documento_doador)})" if doacao.documento_doador else "")
     natureza = "em bens (avaliação registrada)" if doacao.tipo_doacao == "Bens" else "em dinheiro"
     return (
         f"{nome_instituicao} — CNPJ {cnpj}\n"

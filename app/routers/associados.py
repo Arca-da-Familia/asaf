@@ -132,7 +132,10 @@ def _associados_filtrados(db: Session, busca: Optional[str] = None, situacao: Op
         digitos = "".join(c for c in texto if c.isdigit()) if so_numero else ""
         condicoes = [Pessoa.nome_completo.ilike(f"%{texto}%"), Pessoa.email_contato.ilike(f"%{texto}%")]
         if digitos:
-            condicoes.append(Pessoa.cpf.contains(digitos))
+            # v7.3f (achado do Ponto de Revisão da FASE 7, 2/3): o CPF só pelo número INTEIRO - a busca por pedaço deixava descobrir o número dígito a dígito
+            # (testando prefixos e vendo se a pessoa continuava na lista), o que desfazia o CPF escondido
+            if len(digitos) == 11:
+                condicoes.append(Pessoa.cpf == digitos)
             condicoes.append(Pessoa.telefone_whatsapp.contains(digitos))
             matricula = numero_que_cabe_no_banco(texto)
             if matricula is not None:

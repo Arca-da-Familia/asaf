@@ -328,8 +328,9 @@ def filtrar(db: Session, *, situacao: Optional[str] = None, busca: Optional[str]
         condicoes = [
             IntencaoDeDoacao.protocolo.ilike(f"%{texto}%"), IntencaoDeDoacao.nome_doador.ilike(f"%{texto}%"), IntencaoDeDoacao.email_doador.ilike(f"%{texto}%"),
         ]
-        if re.fullmatch(r"[\d\s.\-/]+", texto) and _so_digitos(texto):
-            condicoes.append(IntencaoDeDoacao.documento_doador.contains(_so_digitos(texto)))
+        # v7.3f: o CPF só pelo número inteiro (a busca por pedaço deixava descobrir o número dígito a dígito)
+        if re.fullmatch(r"[\d\s.\-/]+", texto) and len(_so_digitos(texto)) == 11:
+            condicoes.append(IntencaoDeDoacao.documento_doador == _so_digitos(texto))
         consulta = consulta.filter(or_(*condicoes))
     return consulta
 

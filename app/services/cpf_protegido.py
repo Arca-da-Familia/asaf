@@ -45,15 +45,18 @@ def _atendimento(db: Session, usuario: Usuario, id_registro: int) -> tuple[str, 
     if a is None:
         raise HTTPException(status_code=404, detail="Solicitação não encontrada.")
     pela_permissao = usuario_tem_permissao(db, usuario, PERMISSAO) and usuario_tem_permissao(db, usuario, "atendimento")
-    if not pela_permissao and not pode_ver_o_do_pedido(a, usuario):
+    if not pela_permissao and not pode_ver_o_do_pedido(db, a, usuario):
         raise HTTPException(status_code=403, detail="Só quem atende esta solicitação de titular, enquanto ela está aberta, vê o CPF completo dela.")
     return "atendimentos", a.cpf
 
 
-def pode_ver_o_do_pedido(a, usuario: Usuario) -> bool:
+def pode_ver_o_do_pedido(db: Session, a, usuario: Usuario) -> bool:
     from app.models.atendimento import EM_ATENDIMENTO, NOVO, TITULAR_LGPD
+    from app.services.atendimento import designado_para_o_titular
 
-    return a.tipo == TITULAR_LGPD and a.status in (NOVO, EM_ATENDIMENTO) and a.id_responsavel == usuario.id_usuario
+    # v7.3f: e só se for quem o sistema designou para o pedido (ninguém se faz responsável sozinho)
+    return (a.tipo == TITULAR_LGPD and a.status in (NOVO, EM_ATENDIMENTO) and a.id_responsavel == usuario.id_usuario
+            and designado_para_o_titular(db, a, usuario))
 
 
 def _simples(modelo_e_tabela):
@@ -78,11 +81,6 @@ def _proposta():
     return PropostaFiliacao, "propostas_filiacao", "cpf", "associados"
 
 
-def _doacao():
-    from app.models.doacoes import Doacao
-    return Doacao, "doacoes", "documento_doador", "financeiro"
-
-
 def _intencao():
     from app.models.intencoes_de_doacao import IntencaoDeDoacao
     return IntencaoDeDoacao, "intencoes_de_doacao", "documento_doador", "financeiro"
@@ -91,7 +89,6 @@ def _intencao():
 ORIGENS = {
     "associado": _simples(_associado),
     "proposta": _simples(_proposta),
-    "doacao": _simples(_doacao),
     "intencao": _simples(_intencao),
     "atendimento": _atendimento,
 }

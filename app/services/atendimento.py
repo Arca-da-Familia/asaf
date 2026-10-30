@@ -217,13 +217,30 @@ def responsavel_do_pedido(db: Session, tipo: str, id_pessoa: Optional[int]) -> O
     return None
 
 
+def designado_para_o_titular(db: Session, a: Atendimento, usuario: Usuario) -> bool:
+    """v7.3f - quem o sistema designou para esta solicitação do titular: o Presidente (o encarregado) ou, no pedido sobre os dados dele, o 1º Vice-Presidente (o 2º, na
+    falta). Sem ninguém designado (nenhum Vice com acesso à fila), a fila inteira atende, como a v7.2a decidiu."""
+    designado = responsavel_do_pedido(db, a.tipo, a.id_pessoa)
+    return designado is None or designado == usuario.id_usuario
+
+
 def _exigir_que_nao_seja_sobre_si(db: Session, a: Atendimento, usuario: Usuario) -> None:
-    """v7.2a - ninguém atende a solicitação do titular sobre os PRÓPRIOS dados (conflito de interesse; decisão do Presidente, 2026-10-28, para o caso dele)."""
-    if a.tipo != TITULAR_LGPD or a.id_pessoa is None:
+    """v7.2a - ninguém atende a solicitação do titular sobre os PRÓPRIOS dados (conflito de interesse; decisão do Presidente, 2026-10-28, para o caso dele).
+
+    v7.3f (achado do Ponto de Revisão da FASE 7, 2/3) - e só atende a solicitação do titular o encarregado (`privacidade_gerir`) ou quem o sistema designou para ela:
+    antes, qualquer pessoa com acesso à fila podia assumir o pedido e, como responsável, ver o CPF, gerar e liberar o relatório completo da pessoa e executar a
+    eliminação (decisões do Presidente de 2026-10-28: relatório e eliminação pelo encarregado)."""
+    if a.tipo != TITULAR_LGPD:
         return
-    proprio = db.query(Associado.id_associado).filter(Associado.id_usuario == usuario.id_usuario, Associado.id_pessoa == a.id_pessoa).first()
-    if proprio is not None:
-        raise HTTPException(status_code=403, detail="Este pedido é sobre os seus próprios dados: quem atende é outra pessoa da equipe (conflito de interesse).")
+    if a.id_pessoa is not None:
+        proprio = db.query(Associado.id_associado).filter(Associado.id_usuario == usuario.id_usuario, Associado.id_pessoa == a.id_pessoa).first()
+        if proprio is not None:
+            raise HTTPException(status_code=403, detail="Este pedido é sobre os seus próprios dados: quem atende é outra pessoa da equipe (conflito de interesse).")
+    from app.security import usuario_tem_permissao
+
+    if not usuario_tem_permissao(db, usuario, "privacidade_gerir") and not designado_para_o_titular(db, a, usuario):
+        raise HTTPException(status_code=403, detail="A solicitação do titular de dados é atendida pelo encarregado (o Presidente) ou, se for sobre os dados dele, pelo "
+                                                    "Vice-Presidente que o substitui.")
 
 
 def registrar_pelo_site(
@@ -395,7 +412,11 @@ def filtrar(db: Session, *, tipo: Optional[str] = None, situacao: Optional[str] 
         if re.fullmatch(r"[\d\s.\-/()+]+", texto):
             digitos = _so_digitos(texto)
             if digitos:
-                condicoes += [Atendimento.cpf.contains(digitos), Atendimento.telefone_whatsapp.contains(digitos)]
+                # v7.3f (achado do Ponto de Revisão da FASE 7, 2/3): o CPF só pelo número INTEIRO - a busca por pedaço deixava descobrir o número dígito a dígito
+                # (testando prefixos e vendo se a pessoa continuava na lista), o que desfazia o CPF escondido
+                condicoes.append(Atendimento.telefone_whatsapp.contains(digitos))
+                if len(digitos) == 11:
+                    condicoes.append(Atendimento.cpf == digitos)
         consulta = consulta.filter(or_(*condicoes))
     return consulta
 

@@ -315,9 +315,14 @@ def planejar(db: Session, a: Atendimento, agora: Optional[datetime] = None) -> d
 
 
 def previa(db: Session, a: Atendimento) -> dict:
+    from app.services.cpf_protegido import mascarar
+
     p = planejar(db, a)
+    pessoa = p["relatorio"]["pessoa"]
+    # v7.3f: a prévia mostra a pessoa com o CPF escondido (a tela não usa o número; quem precisa, usa "Mostrar o CPF" no pedido)
+    pessoa = {**pessoa, "cpf": mascarar(pessoa.get("cpf"))} if pessoa else pessoa
     return {k: p[k] for k in ("impressao", "vinculos", "cadastro_sai", "sai", "fica", "resultado_sugerido", "fundamento_sugerido")} | {
-        "pessoa": p["relatorio"]["pessoa"], "algum_corte": p["relatorio"]["algum_corte"]}
+        "pessoa": pessoa, "algum_corte": p["relatorio"]["algum_corte"]}
 
 
 # ------------------------------------------------------------------------------------------------ a execução

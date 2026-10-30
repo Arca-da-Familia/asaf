@@ -95,12 +95,14 @@ def test_o_tesoureiro_mostra_o_cpf_do_doador_mas_nao_o_do_associado(client, auth
         id_doacao = d.id_doacao
     lista = client.get("/api/doacoes/", headers=tesoureiro)
     _sem_o_cpf(lista, cpf)
-    assert client.post("/api/cpf/revelar", json={"origem": "doacao", "id": id_doacao}, headers=tesoureiro).json()["cpf"].endswith(cpf[-2:])
+    # o CPF completo do doador o Tesoureiro tem no recibo (v7.3f: a origem "doacao" do "Mostrar o CPF" saiu, nenhuma tela a usava)
+    assert f"(doc. {cpf})" in client.get(f"/api/doacoes/{id_doacao}/recibo", headers=tesoureiro).json()["texto"]
+    assert client.post("/api/cpf/revelar", json={"origem": "doacao", "id": id_doacao}, headers=tesoureiro).status_code == 422
     id_associado, _ = _associado(client)
     assert client.post("/api/cpf/revelar", json={"origem": "associado", "id": id_associado}, headers=tesoureiro).status_code == 403
 
 
-def test_quem_atende_o_pedido_de_titular_aberto_ve_o_cpf_daquele_pedido_e_so_enquanto_aberto(client, db, auth_headers):
+def test_quem_atende_o_pedido_de_titular_aberto_ve_o_cpf_daquele_pedido_e_so_enquanto_aberto(client, db, auth_headers, monkeypatch):
     """O 1º Vice-Presidente atende o pedido sobre os dados do Presidente (decisão de 2026-10-28): vê aquele CPF, nenhum outro."""
     cpf = _cpf_unico()
     r = _enviar(client, "TITULAR_LGPD", cpf=cpf)
@@ -108,6 +110,8 @@ def test_quem_atende_o_pedido_de_titular_aberto_ve_o_cpf_daquele_pedido_e_so_enq
     pedido = db.query(Atendimento).filter(Atendimento.protocolo == r.json()["protocolo"]).one()
     _, vice = _criar_usuario_com_mandato(client, auth_headers, "VICE_PRESIDENTE")
     id_vice = client.get("/auth/me", headers=vice).json()["id_usuario"]
+    # v7.3f: o sistema designou o Vice para este pedido (como faz no pedido sobre os dados do Presidente; `responsavel_do_pedido` tem os próprios testes)
+    monkeypatch.setattr("app.services.atendimento.responsavel_do_pedido", lambda *_: id_vice)
     corpo = {"origem": "atendimento", "id": pedido.id_atendimento}
     assert client.post("/api/cpf/revelar", json=corpo, headers=vice).status_code == 403  # ainda não é o responsável
 
@@ -187,3 +191,91 @@ def test_a_migracao_da_a_permissao_a_presidencia_e_aos_cinco_cargos_e_nada_mais(
     config.set_main_option("script_location", str(Path(__file__).resolve().parent.parent / "alembic"))
     diretorio = ScriptDirectory.from_config(config)
     assert diretorio.get_heads() == ["a73c9f1e5b20"] and diretorio.get_revision("a73c9f1e5b20").down_revision == "12f16313d972"
+
+
+# ------------------------------------------------------------------------------------------------ v7.3f: os achados do Ponto de Revisão da FASE 7 (2/3)
+def test_quem_tem_a_fila_nao_se_faz_responsavel_da_solicitacao_do_titular(client, db, auth_headers):
+    """O ataque achado pelo revisor: alguém da Diretoria (tem a fila de atendimento) manda pelo site um pedido de titular com o CPF de outra pessoa, assume e,
+    como responsável, veria o CPF, geraria o relatório completo e eliminaria o cadastro. Agora só o encarregado ou quem o sistema designou atende."""
+    from tests.test_conselho_fiscal import _criar_associado, _headers
+
+    _, diretor = _criar_associado(db, f"Diretor Fila {uuid.uuid4().hex[:6]}", nome_nivel="Diretoria")
+    id_alvo, cpf = _associado(client)
+    r = _enviar(client, "TITULAR_LGPD", cpf=cpf)
+    pedido = db.query(Atendimento).filter(Atendimento.protocolo == r.json()["protocolo"]).one()
+    negado = client.post(f"/api/atendimentos/{pedido.id_atendimento}/assumir", headers=_headers(diretor))
+    assert negado.status_code == 403 and "encarregado" in negado.json()["detail"]
+    nota = {"nota": "Conferi o documento com foto pessoalmente na sede."}
+    assert client.post(f"/api/atendimentos/{pedido.id_atendimento}/validar-identidade", json=nota, headers=_headers(diretor)).status_code == 403
+    # mesmo se ele aparecer como responsável (dado antigo), não é o designado: nada de CPF, relatório nem eliminação
+    pedido.id_responsavel, pedido.status = diretor.id_usuario, EM_ATENDIMENTO
+    db.commit()
+    corpo = {"origem": "atendimento", "id": pedido.id_atendimento}
+    assert client.post("/api/cpf/revelar", json=corpo, headers=_headers(diretor)).status_code == 403
+    relatorio = client.get("/api/privacidade/titulares/relatorio", params={"id_pessoa": pedido.id_pessoa, "id_atendimento": pedido.id_atendimento},
+                           headers=_headers(diretor))
+    assert relatorio.status_code == 403
+    assert client.get(f"/api/privacidade/titulares/eliminacoes/{pedido.id_atendimento}", headers=_headers(diretor)).status_code == 403
+    # o encarregado (o Presidente, `privacidade_gerir`) assume normalmente
+    assert client.post(f"/api/atendimentos/{pedido.id_atendimento}/assumir", headers=auth_headers).status_code == 200
+    assert id_alvo
+
+
+def test_a_busca_so_acha_pelo_cpf_inteiro(client, db, auth_headers):
+    """O CPF escondido não pode ser descoberto dígito a dígito pela busca: um pedaço do número não acha ninguém."""
+    id_associado, cpf = _associado(client)
+
+    def acha(busca: str) -> bool:
+        corpo = client.get("/api/associados/", params={"busca": busca}, headers=auth_headers).json()
+        return any(a["id_associado"] == id_associado for a in (corpo["itens"] if isinstance(corpo, dict) else corpo))
+
+    assert acha(cpf) and acha(f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}")
+    assert not acha(cpf[:9]) and not acha(cpf[:5]) and not acha(cpf[2:])
+    r = _enviar(client, "TITULAR_LGPD", cpf=cpf)
+    protocolo = r.json()["protocolo"]
+
+    def acha_o_pedido(busca: str) -> bool:
+        corpo = client.get("/api/atendimentos/", params={"busca": busca, "situacao": "abertos"}, headers=auth_headers).json()
+        return any(a["protocolo"] == protocolo for a in corpo["itens"])
+
+    assert acha_o_pedido(cpf) and not acha_o_pedido(cpf[:9])
+
+
+def test_o_recibo_leva_o_cpf_completo_so_com_a_permissao_e_vai_para_a_auditoria(client, db, auth_headers):
+    from app.database import SessaoLocal
+    from app.models.doacoes import Doacao
+    from tests.test_conselho_fiscal import _criar_associado, _headers
+    from tests.test_doacoes import _criar_conta
+
+    conta = _criar_conta(client, auth_headers, "Receita")
+    cpf = _cpf_unico()
+    with SessaoLocal() as s:
+        d = Doacao(anonima=False, nome_doador="Doador Recibo", documento_doador=cpf, tipo_doacao="Monetaria", valor=10, id_conta_contabil=conta)
+        s.add(d)
+        s.commit()
+        id_doacao = d.id_doacao
+    completo = client.get(f"/api/doacoes/{id_doacao}/recibo", headers=auth_headers)
+    assert completo.status_code == 200 and f"(doc. {cpf})" in completo.json()["texto"]
+    _, diretor = _criar_associado(db, f"Diretor Recibo {uuid.uuid4().hex[:6]}", nome_nivel="Diretoria")  # tem `financeiro`, não `ver_cpf_completo`
+    escondido = client.get(f"/api/doacoes/{id_doacao}/recibo", headers=_headers(diretor))
+    assert escondido.status_code == 200 and f"(doc. ***.***.***-{cpf[-2:]})" in escondido.json()["texto"] and cpf not in escondido.json()["texto"]
+    registros = db.query(AuditLog).filter(AuditLog.acao == "RECIBO_DE_DOACAO_GERADO", AuditLog.id_registro_afetado == id_doacao).all()
+    assert len(registros) == 2 and all(cpf not in (r.dados_depois or "") for r in registros)
+
+
+def test_as_listas_de_propostas_e_de_doacoes_do_site_nao_trazem_o_cpf_inteiro(client, db, auth_headers):
+    from app.models.filiacao import PropostaFiliacao
+    from app.models.intencoes_de_doacao import IntencaoDeDoacao
+
+    cpf = _cpf_unico()
+    db.add(PropostaFiliacao(nome_completo=f"Proposta {uuid.uuid4().hex[:6]}", cpf=cpf, status="PENDENTE"))
+    db.commit()
+    lista = client.get("/api/filiacao/propostas", headers=auth_headers)
+    assert lista.status_code == 200 and f"***.***.***-{cpf[-2:]}" in lista.text
+    _sem_o_cpf(lista, cpf)
+    assert db.query(IntencaoDeDoacao).count() >= 0  # a lista de intenções usa o mesmo `mascarar` (tests/test_doacao_online.py cobre o fluxo)
+    intencoes = client.get("/api/intencoes-doacao/", headers=auth_headers)
+    assert intencoes.status_code == 200
+    for item in (intencoes.json().get("itens") if isinstance(intencoes.json(), dict) else intencoes.json()):
+        documento = item.get("documento_doador") or ""
+        assert not (len(documento) == 11 and documento.isdigit()), "CPF inteiro na lista de doações do site"

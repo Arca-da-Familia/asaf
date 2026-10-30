@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models.doacoes import CampanhaArrecadacao, Doacao, RemanejamentoDestinacao
 from app.models.financeiro import CentroDeCusto
 from app.schemas.doacoes import CampanhaArrecadacaoCriar, DoacaoCriar, RemanejamentoDestinacaoCriar
-from app.security import exigir_permissao
+from app.security import exigir_permissao, usuario_tem_permissao
 from app.services import cpf_protegido, doacoes
 
 router = APIRouter()
@@ -113,11 +113,16 @@ def registrar_doacao_endpoint(dados: DoacaoCriar, request: Request, db: Session 
 
 
 @router.get("/api/doacoes/{id_doacao}/recibo", summary="Gerar texto do Recibo de Doação")
-def obter_recibo(id_doacao: int, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+def obter_recibo(id_doacao: int, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
     doacao = db.query(Doacao).filter(Doacao.id_doacao == id_doacao).first()
     if not doacao:
         raise HTTPException(status_code=404, detail="Doação não encontrada.")
-    return {"texto": doacoes.gerar_texto_recibo(db, doacao)}
+    # v7.3f: o recibo leva o CPF completo do doador só para quem tem `ver_cpf_completo` (os Tesoureiros e o Presidente); a geração fica na Auditoria
+    cpf_completo = usuario_tem_permissao(db, usuario, cpf_protegido.PERMISSAO)
+    texto = doacoes.gerar_texto_recibo(db, doacao, cpf_completo=cpf_completo)
+    registrar_auditoria(db, usuario, "doacoes", "RECIBO_DE_DOACAO_GERADO", id_registro_afetado=doacao.id_doacao,
+                        dados_depois={"cpf_completo": cpf_completo}, ip_origem=_ip_origem(request))
+    return {"texto": texto}
 
 
 # ==========================================

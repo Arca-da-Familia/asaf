@@ -177,8 +177,12 @@ def test_validar_a_identidade_exige_a_permissao_da_fila(client, db, auth_headers
     assert client.post(url, json={"nota": "Conferi o documento com foto."}).status_code == 401
     sem_permissao = _usuario(db, "projetos")
     assert client.post(url, json={"nota": "Conferi o documento com foto."}, headers=sem_permissao).status_code == 403
-    com_permissao = _usuario(db, "atendimento")
-    assert client.post(url, json={"nota": "Conferi o documento com foto."}, headers=com_permissao).status_code == 200
+    # v7.3f: a fila sozinha não basta na solicitação do titular - quem atende é o encarregado (`privacidade_gerir`) ou quem o sistema designou
+    so_a_fila = _usuario(db, "atendimento")
+    recusado = client.post(url, json={"nota": "Conferi o documento com foto."}, headers=so_a_fila)
+    assert recusado.status_code == 403 and "encarregado" in recusado.json()["detail"]
+    encarregado = _usuario(db, "atendimento", "privacidade_gerir")
+    assert client.post(url, json={"nota": "Conferi o documento com foto."}, headers=encarregado).status_code == 200
 
 
 def test_pedido_antigo_sem_e_mail_nao_pode_receber_resposta_com_dado_pessoal(client, db, auth_headers):

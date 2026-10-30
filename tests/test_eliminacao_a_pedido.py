@@ -321,7 +321,7 @@ def test_a_falha_no_meio_fica_na_auditoria_e_a_previa_mostra_o_que_falta(client,
     assert _eliminar(client, auth_headers, a).status_code == 200
 
 
-def test_o_pedido_sobre_o_presidente_e_decidido_pelo_vice_e_nunca_por_ele(client, db, auth_headers):
+def test_o_pedido_sobre_o_presidente_e_decidido_pelo_vice_e_nunca_por_ele(client, db, auth_headers, monkeypatch):
     from tests.test_conselho_fiscal import _criar_associado, _headers
 
     presidente, usuario_do_presidente = _criar_associado(db, f"Presidente Eliminacao {uuid.uuid4().hex[:6]}", nome_nivel="Presidente")
@@ -330,6 +330,8 @@ def test_o_pedido_sobre_o_presidente_e_decidido_pelo_vice_e_nunca_por_ele(client
     a = _pedido(db, pessoa)
     a.id_responsavel = vice.id_usuario
     db.commit()
+    # v7.3f: o sistema designou o Vice para este pedido (como faz no pedido sobre os dados do Presidente; `responsavel_do_pedido` tem os próprios testes)
+    monkeypatch.setattr("app.services.atendimento.responsavel_do_pedido", lambda *_: vice.id_usuario)
     r = client.get(f"{URL}/{a.id_atendimento}", headers=_headers(usuario_do_presidente))
     assert r.status_code == 403 and "próprios dados" in r.json()["detail"]
     assert client.get(f"{URL}/{a.id_atendimento}", headers=_headers(vice)).status_code == 200, "quem responde o pedido decide"
@@ -375,3 +377,11 @@ def test_a_identidade_automatica_nao_tira_o_cadastro_ate_a_equipe_reforcar(clien
     de_novo = client.post(f"/api/atendimentos/{a.id_atendimento}/validar-identidade",
                           json={"nota": "Conferi outra vez o documento da pessoa."}, headers=auth_headers)
     assert de_novo.status_code == 400 and "já está validada" in de_novo.json()["detail"], "a conferida pela equipe não se repete"
+
+
+def test_a_previa_mostra_a_pessoa_com_o_cpf_escondido(client, db, auth_headers):
+    """v7.3f (achado do Ponto de Revisão da FASE 7, 2/3): a prévia devolvia o CPF inteiro, que a tela nem usa."""
+    pessoa, _ = _pessoa(db)
+    a = _pedido(db, pessoa)
+    previa = _previa(client, auth_headers, a)
+    assert previa["pessoa"]["cpf"] == f"***.***.***-{pessoa.cpf[-2:]}" and pessoa.cpf not in str(previa)

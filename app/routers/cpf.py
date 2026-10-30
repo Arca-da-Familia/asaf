@@ -14,7 +14,8 @@ router = APIRouter()
 
 
 class PedidoDeCpf(BaseModel):
-    origem: Literal["associado", "proposta", "doacao", "intencao", "atendimento"]
+    # v7.3f: sem "doacao" - nenhuma tela mostra o documento das doações registradas à mão; o Tesoureiro tem o CPF do doador no recibo
+    origem: Literal["associado", "proposta", "intencao", "atendimento"]
     id: int
 
 

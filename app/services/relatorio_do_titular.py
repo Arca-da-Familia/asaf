@@ -304,8 +304,9 @@ def buscar_pessoas(db: Session, busca: str) -> list[dict]:
     condicoes = [Pessoa.nome_completo.ilike(f"%{texto}%"), func.lower(Pessoa.email_contato) == texto.lower()]
     digitos = _so_digitos(texto)
     # só procura pelo CPF quando o texto é um número (um e-mail com números não vira busca de CPF)
-    if "@" not in texto and len(digitos) >= 3 and re.fullmatch(r"[\d\s.\-]+", texto):
-        condicoes.append(Pessoa.cpf.contains(digitos))
+    # v7.3f: o CPF só pelo número inteiro, como em todo o sistema
+    if "@" not in texto and len(digitos) == 11 and re.fullmatch(r"[\d\s.\-]+", texto):
+        condicoes.append(Pessoa.cpf == digitos)
     pessoas = db.query(Pessoa).filter(or_(*condicoes)).order_by(Pessoa.nome_completo).limit(20).all()
     ids = [p.id_pessoa for p in pessoas]
     associados = {i for (i,) in db.query(Associado.id_pessoa).filter(Associado.id_pessoa.in_(ids))} if ids else set()

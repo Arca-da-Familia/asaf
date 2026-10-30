@@ -226,8 +226,11 @@ def _exigir_quem_gera_o_relatorio(db: Session, usuario: Usuario, id_atendimento:
     from app.models.atendimento import EM_ATENDIMENTO, NOVO, TITULAR_LGPD, Atendimento
 
     pedido = db.get(Atendimento, id_atendimento) if id_atendimento else None
+    from app.services.atendimento import designado_para_o_titular
+
+    # v7.3f: o responsável tem de ser quem o sistema designou para o pedido (ninguém se faz responsável sozinho)
     if (pedido is None or pedido.tipo != TITULAR_LGPD or pedido.status not in (NOVO, EM_ATENDIMENTO) or pedido.id_responsavel != usuario.id_usuario
-            or id_pessoa is None or pedido.id_pessoa != id_pessoa):
+            or id_pessoa is None or pedido.id_pessoa != id_pessoa or not designado_para_o_titular(db, pedido, usuario)):
         raise HTTPException(status_code=403, detail="Só o encarregado gera o relatório dos dados de uma pessoa (ou quem responde a solicitação dela).")
 
 

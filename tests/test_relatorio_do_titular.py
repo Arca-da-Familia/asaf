@@ -181,7 +181,7 @@ def test_o_corte_e_avisado_e_ficam_as_mais_novas(client, db, auth_headers, monke
     assert presenca["linhas"][0]["hora_entrada"].startswith("2026-10-03"), "as mais novas primeiro"
 
 
-def test_quem_responde_a_solicitacao_dela_tambem_gera_e_so_dela(client, db, auth_headers):
+def test_quem_responde_a_solicitacao_dela_tambem_gera_e_so_dela(client, db, auth_headers, monkeypatch):
     from datetime import datetime, timedelta
 
     from app.models.atendimento import Atendimento
@@ -198,6 +198,8 @@ def test_quem_responde_a_solicitacao_dela_tambem_gera_e_so_dela(client, db, auth
                          prazo_em=datetime.utcnow() + timedelta(days=15), id_responsavel=vice.id_usuario)
     db.add(pedido)
     db.commit()
+    # v7.3f: o sistema designou o Vice para este pedido (como faz no pedido sobre os dados do Presidente; `responsavel_do_pedido` tem os próprios testes)
+    monkeypatch.setattr("app.services.atendimento.responsavel_do_pedido", lambda *_: vice.id_usuario)
     url = "/api/privacidade/titulares/relatorio"
     assert client.get(url, params={"id_pessoa": p.id_pessoa}, headers=_headers(vice)).status_code == 403, "sem o pedido, não"
     assert client.get(url, params={"id_pessoa": p.id_pessoa, "id_atendimento": pedido.id_atendimento}, headers=_headers(vice)).status_code == 200
