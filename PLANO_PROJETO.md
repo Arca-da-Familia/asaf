@@ -1679,6 +1679,19 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       reais já vividos no projeto (exposição de senha em transcrição, rotacionada imediatamente),
       documentados como precedente.
 
+✅ **v7.4a concluída (2026-10-30) — a prevenção: os achados da primeira análise automática do código (CodeQL).** (1) A busca de e-mail do **verificador
+de documento público** demorava o quadrado do tamanho num texto feito de propósito (milhares de "%" seguidos: 40 mil caracteres levavam 1,7 s, 200 mil
+levariam uns 40 s, travando a API); agora é linear (40 mil em 0,0004 s) e continua achando o e-mail de fora. (2) A **importação em lote** devolvia à tela a
+mensagem interna do erro (do banco, com nomes de tabela e valores); agora mostra uma explicação simples e o detalhe fica no registro privado do servidor.
+(3) As **63 referências às actions** dos fluxos (que podiam ser trocadas por quem controla cada action e rodar outro código com acesso aos segredos e ao
+Azure) ficaram **fixadas no SHA exato da última versão**, com a versão em comentário, e o **Dependabot** passa a atualizá-las toda segunda; um teste
+recusa action sem SHA. Os outros 15 alertas estão só em código de teste (robôs, testes e o roteiro de estados vazios do site); fechá-los no GitHub com o
+motivo foi **barrado pelo sistema de segurança do Claude Code** (escrita em sistema externo) e eles ficam abertos, sem efeito no sistema.
+**Testes:** servidor 1781 em duas rodadas e 1781 contra Postgres 18 (a validação já rodou com as actions fixadas).
+**Na homologação (2026-10-30):** robôs `v5.4c-fase1` 24 (inclui a importação), `v5.4g-02` 7 e `v5.4g-04` 9 (o verificador de documento) e `v7.3b-01` 2.
+**Em produção (2026-10-30):** `main` = `59e5ffc`; Deploy API (1781), Deploy Painel e Deploy Site (928) verdes, já com as actions fixadas;
+`painel.asaf.org.br/version.json` = `59e5ffc`; a análise do código na `main` fechou os alertas reais (sobram os 15 de teste).
+
 #### v7.5 — Cultura e prova
 
 - [ ] Treinamento anual curto e registrado para diretoria, secretaria e voluntários com acesso a
