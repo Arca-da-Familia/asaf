@@ -1548,6 +1548,20 @@ conferido por verificador independente (a primeira redação tinha 3 frases fals
 **Em produção (2026-10-30):** `main` = `88fa94a`; Deploy Site, Deploy Painel e Deploy API (1735) verdes; `painel.asaf.org.br/version.json` = `88fa94a`;
 `asaf.org.br/privacidade/` mostra "Versão 2.17 · em vigor desde 30 de outubro de 2026" e o parágrafo novo da transferência.
 
+✅ **v7.3d concluída (2026-10-30) — os registros públicos das rotinas sem dado pessoal.** O repositório é público e os registros das execuções do GitHub
+Actions ficam abertos por 90 dias; a auditoria de 30/10 viu que, se uma rotina agendada falhasse contra o banco de produção, o erro impresso traria os valores
+da linha (o CPF de um `DETAIL: Key (cpf)=(...)`), e que a publicação da API imprimia o JSON do Container App (com o e-mail de quem o criou). Até aqui nada
+de dado pessoal tinha saído (as rotinas só imprimem contagens). Agora: com `ASAF_REGISTRO_SEGURO=1` (ligado nos fluxos que usam o banco de produção) os
+erros saem só com o tipo e onde aconteceram, sem a mensagem (`app/registro_seguro.py`); a conexão do banco esconde os valores das consultas
+(`hide_parameters`); a senha do banco é mascarada sozinha e decodificada (antes só a URL inteira); a publicação não imprime o JSON (`-o none`); os prints dos
+robôs da homologação ficam 7 dias (eram 30). Os registros antigos (até 90 dias) seguem como estão.
+**Testes:** servidor 1756 em duas rodadas e 1756 contra Postgres 18; os passos dos fluxos são EXECUTADOS no teste com um `az` de mentira (a primeira
+versão do `-o none` saiu com a quebra de linha errada e o teste que só lia o texto não pegou; o teste novo pega).
+**Na homologação (2026-10-30):** a API de teste publicada com a branch e os robôs `v7.3c-01` 2, `v7.2c-01` 3 e `v5.7c-01` 4 verdes. A homologação usa o
+fluxo da `main`, então o `-o none` dela passa a valer na próxima publicação.
+**Em produção (2026-10-30):** `main` = `cf4d77a`; Deploy API verde (1756 contra Postgres); no registro público desse deploy a senha aparece mascarada, o
+passo de publicação não tem mais `createdBy` nem e-mail, e as mensagens da migração já saem no formato do registro seguro; a API responde 200.
+
 ##### 🔍 Ponto de Revisão — FASE 7 (2/3, fecha v7.2–v7.3)
 
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
