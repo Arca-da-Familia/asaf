@@ -1593,12 +1593,61 @@ formato único; e o robô esperava um texto antigo do termo de imagem, que desde
 **Em produção (2026-10-30):** `main` = `f42f221`; Deploy API (1772 contra Postgres; migração `12f16313d972 -> a73c9f1e5b20` aplicada) e Deploy Painel
 verdes; `painel.asaf.org.br/version.json` = `f42f221`; a rota `/api/cpf/revelar` está no `openapi.json` e recusa quem não entrou (401).
 
+✅ **v7.3f concluída (2026-10-30) — os achados do Ponto de Revisão 2/3 corrigidos.** (1) **Grave:** qualquer pessoa com a fila de atendimento (o nível
+Diretoria) podia mandar pelo site um pedido de titular com o CPF de outra pessoa, assumir o pedido e, como responsável, ver o CPF, gerar e liberar o relatório
+completo dela e executar a eliminação. Agora a solicitação do titular só é atendida (assumir, validar a identidade, responder, encerrar, relatório, entrega,
+eliminação, "Mostrar o CPF") pelo **encarregado** (`privacidade_gerir`) ou por **quem o sistema designou** para ela (o Presidente; no pedido sobre os dados
+dele, o 1º Vice-Presidente), como decidido em 28/10. Nada disso tinha acontecido: não há dado real no sistema. (2) A **busca acha pelo CPF só com o número
+inteiro**: por pedaço, dava para descobrir o número dígito a dígito testando prefixos (associados, atendimentos, doações do site, busca do encarregado).
+(3) A prévia da eliminação mostra a pessoa com o CPF escondido. (4) O **recibo de doação** leva o CPF completo só para quem tem `ver_cpf_completo` (para o
+resto da Diretoria, escondido) e a geração vai para a Auditoria (`RECIBO_DE_DOACAO_GERADO`). (5) Saiu a origem "doação" do "Mostrar o CPF", que nenhuma tela
+usava (o Tesoureiro tem o CPF do doador no recibo).
+**Testes:** servidor 1777 em duas rodadas e 1777 contra Postgres 18 (os testes reproduzem o ataque: assumir, validar, CPF, relatório e eliminação recusados a
+quem só tem a fila; a busca por pedaço não acha; o recibo escondido para a Diretoria); painel 790 em duas rodadas e a montagem.
+**Na homologação (2026-10-30):** robôs `v7.2g-01` 2, `v7.2d-01` 2, `v7.2c-01` 3, `v7.3a-01` 2, `v5.5a-02` 7, `v6.2d-01` 2 e `v6.2d-03` 2. Dois robôs
+antigos tinham ficado quebrados pela v7.3a, sem que eu os rodasse naquela versão: o `v5.5a-02` esperava o CPF inteiro dentro do pedido (agora confere o
+escondido, clica "Mostrar o CPF" e conta o `CPF_REVELADO` na Auditoria; e passou a esperar o servidor encerrar antes de recarregar a página, que cancelava o
+pedido) e o `v6.2d-03` tirava o CPF da lista de associados (agora usa "Mostrar o CPF"). O sistema estava certo; os robôs, não.
+**Em produção (2026-10-30):** `main` = `2d70da2`; Deploy API (1777 contra Postgres) e Deploy Painel verdes; `painel.asaf.org.br/version.json` = `2d70da2`;
+a API responde.
+
 ##### 🔍 Ponto de Revisão — FASE 7 (2/3, fecha v7.2–v7.3)
+
+⏳ **Revisão feita em 2026-10-30; falta o OK do Presidente para fechar.**
 
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 
 - Canal de solicitação de titular (v7.2) gera protocolo com prazo legal acompanhado de verdade, não só uma caixa de entrada.
 - CPF é mascarado por padrão em toda tela/exportação (v7.3), visível completo só para quem tem permissão específica — testar com usuário sem essa permissão.
+
+**Revisão feita em 2026-10-30.** Intervalo: `04ffd4e..2d70da2` (v7.2a–g, v7.3a–f). A leitura de código e plano foi feita por um agente SEPARADO, só leitura
+(não ancorado na minha conclusão); o que depende de rodar coisas foi feito por mim. Resultado do checklist da seção 4.1:
+1. **`[x]` implementado e testado — OK**, com uma divergência corrigida na v7.3f: o plano dizia "relatório e eliminação pelo encarregado" e o código deixava
+   qualquer responsável fazer as duas coisas.
+2. **Testes — OK:** servidor 1777 em duas rodadas e contra Postgres 18; painel 790; na homologação, os robôs de cada versão e as regressões (blocos ✅).
+3. **Decisões congeladas — OK:** nenhuma checagem de nível escrita fixa nova (a designação usa o mandato só para dizer a quem o pedido vai); banco e framework
+   os mesmos.
+4. **Segredos — OK:** varredura das 9.792 linhas acrescentadas (chave privada, AKIA, tokens do GitHub, `sk-`, `AccountKey=`, SAS, URL de banco com senha,
+   JWT, atribuição de segredo longo): nenhum achado (só a semente fixa de MFA de um teste e a URL inventada do teste da máscara).
+5. **Auditoria — OK** depois da v7.3f: `CPF_REVELADO` (sem o número), relatório consultado, liberado e baixado, eliminação (gravada antes de mexer) e a
+   incompleta, pedido pelo painel, exportação com `cpf_completo` e, agora, o recibo de doação. A prévia da eliminação passou a esconder o CPF.
+6. **Permissão no servidor — OK** depois da v7.3f (o achado grave acima; e a busca por pedaço do CPF). Os 403 têm teste.
+7. **Escopo — OK:** a v7.3d (registros públicos), a v7.3e (serviços de consulta) e a v7.3f nasceram de achados e estão registradas.
+8. **Plano × código — OK** depois das correções (este bloco e o da v7.3f).
+9. **Suíte completa — OK** (item 2).
+10. **Tela real — OK:** Dados de uma pessoa, Entrega do relatório, Eliminação a pedido, Meus pedidos do titular (Meu perfil), Relatório de atendimento, o
+    inventário com termos e serviços de consulta, e o "Mostrar o CPF" na ficha do associado, nas propostas de filiação, no atendimento e nas doações do site.
+11. **O que a tela oferece para abrir foi aberto — OK:** os robôs baixam o relatório (PDF e arquivo) pelo painel e pela Minha conta, e mostram o CPF.
+12. **No ar — OK:** `main` = `2d70da2`, Deploy API e Deploy Painel verdes, `version.json` = `2d70da2`.
+
+**Específico deste ponto:**
+- **Prazo legal acompanhado de verdade — OK:** o prazo nasce com o pedido (o configurado, no máximo 15 dias), a fila mostra os dias que faltam, "vence logo"
+  e "vencido", a rotina de 15 em 15 minutos avisa no sino uma vez por dia por pedido, e o relatório de atendimento conta o que foi respondido no prazo e fora.
+- **CPF escondido por padrão, completo só com a permissão, testado com quem não a tem — OK:** o Vice-Presidente e o Conselho Fiscal recebem 403 no "Mostrar o
+  CPF"; o Tesoureiro, no do associado; quem só tem a fila, no do pedido de titular; a exportação sem a permissão sai escondida; o robô entra como 1º
+  Vice-Presidente e vê a ficha escondida e sem o botão.
+
+**Pendências que não são de código:** nenhuma nova. Segue a de antes (o nome do encarregado e o ato assinado entram com o cadastro real da Diretoria).
 
 #### v7.4 — Resposta a incidente de segurança
 
