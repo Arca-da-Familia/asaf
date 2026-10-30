@@ -248,6 +248,7 @@ function Cartao({
             {atividade.operadores_detalhe.map((o) => (
               <li key={o.codigo}>
                 <strong>{o.nome}</strong>: {o.o_que_faz}. Onde: {o.onde}.
+                Termos: {o.termos}.
               </li>
             ))}
           </ul>

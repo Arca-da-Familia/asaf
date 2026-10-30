@@ -362,3 +362,12 @@ def test_o_site_editorial_tem_titulares_crianca_e_armazenamento_proprios(db):
     assert any("conta própria do Directus" in a for a in editorial["armazenamento"])
     assert not any("armazenamento privado" in a for a in editorial["armazenamento"]), "a mídia do Directus não fica no armazenamento privado do sistema"
     assert (_RAIZ / ".github" / "workflows" / "deploy-site.yml").exists(), "a montagem do site citada em ROTINAS_DO_GITHUB"
+
+
+def test_cada_prestador_diz_os_termos_de_protecao_de_dados_da_conta():
+    """v7.3c - o documento de proteção de dados que vale para a conta de cada prestador (e o que ele traz sobre as cláusulas-padrão) fica no inventário."""
+    for codigo, operador in inventario.OPERADORES.items():
+        assert len(operador.get("termos", "")) > 40, codigo
+    assert "ANPD" in inventario.OPERADORES["GOOGLE"]["termos"]
+    assert "não traz as cláusulas-padrão da ANPD" in inventario.OPERADORES["AZURE"]["termos"]
+    assert "não traz as cláusulas-padrão da ANPD" in inventario.OPERADORES["GITHUB"]["termos"]

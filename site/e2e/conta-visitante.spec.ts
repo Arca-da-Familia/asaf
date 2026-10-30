@@ -605,12 +605,28 @@ test.describe('dentro da conta', () => {
 })
 
 test.describe('a Política de Privacidade', () => {
+  test('v7.3c (2.17): o que os termos de cada prestador dizem: o Google com as cláusulas da ANPD, a Microsoft sem elas, o GitHub gratuito sem contrato; a cópia nos EUA', async ({
+    page,
+  }) => {
+    await page.goto('/privacidade/')
+    const paragrafo = page.locator('[data-transferencia]')
+    await expect(paragrafo).toContainText(
+      'O do Google inclui, para os dados que saem do Brasil, as cláusulas-padrão contratuais aprovadas pela Autoridade Nacional de Proteção de Dados (ANPD)',
+    )
+    await expect(paragrafo).toContainText(
+      'O GitHub, no plano gratuito que a ASAF usa, não tem contrato de proteção de dados com a ASAF',
+    )
+    await expect(paragrafo).toContainText(
+      'escolheu também guardar uma cópia de segurança nos Estados Unidos',
+    )
+  })
+
   test('v7.2g (2.16): como o pedido é atendido, o relatório para baixar por 15 dias, a eliminação e o total no relatório anual', async ({
     page,
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.16 · em vigor desde 29 de outubro de 2026'),
+      page.getByText('Versão 2.17 · em vigor desde 30 de outubro de 2026'),
     ).toBeVisible()
     const como = page.locator('[data-como-atendemos]')
     await expect(como).toContainText(

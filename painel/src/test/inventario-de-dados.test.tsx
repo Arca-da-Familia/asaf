@@ -23,6 +23,8 @@ const azure: privacidade.OperadorDoInventario = {
   o_que_faz: 'hospeda o banco',
   onde: 'Brasil; cópias nos Estados Unidos',
   fora_do_brasil: true,
+  termos:
+    'Adendo de Proteção de Dados da Microsoft (cláusulas da União Europeia)',
 }
 
 const atividade = (

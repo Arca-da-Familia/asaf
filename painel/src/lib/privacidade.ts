@@ -106,6 +106,8 @@ export type OperadorDoInventario = {
   o_que_faz: string
   onde: string
   fora_do_brasil: boolean
+  // v7.3c: o documento de proteção de dados que vale para a conta da associação
+  termos: string
 }
 
 export type AtividadeDeTratamento = {

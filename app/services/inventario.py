@@ -60,6 +60,11 @@ OPERADORES: dict[str, dict] = {
         "onde": "Brasil (região Brazil South); uma cópia das cópias de segurança do banco (35 dias) e uma réplica dos arquivos privados ficam na região par, "
                 "South Central US (Estados Unidos); as páginas do site e do painel são publicadas por um serviço registrado na região Central US (Estados Unidos)",
         "fora_do_brasil": True,
+        # v7.3c - os termos de proteção de dados que valem para a conta (pesquisados em 2026-10-29; decisão do Presidente de 30/10: nada é pedido às empresas)
+        "termos": "Adendo de Proteção de Dados dos Produtos e Serviços da Microsoft (DPA), versão de 22/05/2026, que vale para a assinatura de ONG pelo "
+                  "Contrato de Cliente da Microsoft (a ASAF é a controladora e a Microsoft a operadora); traz as cláusulas-padrão da União Europeia, que só "
+                  "valem para dados que saem da Europa; não traz as cláusulas-padrão da ANPD; obriga a Microsoft a cumprir as leis de proteção de dados "
+                  "aplicáveis",
     },
     "GITHUB": {
         "nome": "GitHub (Microsoft)",
@@ -68,12 +73,18 @@ OPERADORES: dict[str, dict] = {
                      "publicar uma versão nova do sistema",
         "onde": "servidores do GitHub, fora do Brasil, enquanto a rotina ou a montagem do site roda",
         "fora_do_brasil": True,
+        "termos": "Termos de Serviço e Declaração de Privacidade do GitHub (plano gratuito: o Acordo de Proteção de Dados do GitHub não se aplica e não "
+                  "há contrato de operador; na Declaração o GitHub se apresenta como controlador); a Declaração cita as cláusulas-padrão da União Europeia só "
+                  "para dados que saem da União Europeia, do Reino Unido e da Suíça; não traz as cláusulas-padrão da ANPD",
     },
     "GOOGLE": {
         "nome": "Google (Google Workspace)",
         "o_que_faz": "envia os e-mails do sistema e guarda a caixa de e-mail da associação",
         "onde": "servidores do Google, que podem ficar fora do Brasil",
         "fora_do_brasil": True,
+        "termos": "Adendo de Tratamento de Dados do Google Cloud (que vale para o Google Workspace; a ASAF é a controladora e o Google o operador), "
+                  "versão modificada em 30/10/2026, com as cláusulas-padrão contratuais aprovadas pela ANPD (Resolução CD/ANPD nº 19/2024) incorporadas "
+                  "(Apêndice 3, \"Brazil\"; da Google Cloud Brasil, contratada, para a Google LLC, com a ASAF como controladora)",
     },
 }
 
@@ -462,7 +473,7 @@ def _linha(atividade: dict) -> list[str]:
         f"sim — {atividade['requisito_crianca']}" if atividade["pode_ter_crianca"] else "não", "; ".join(atividade["bases_legais_texto"]),
         "sim" if atividade["base_legal_conferida"] else "não (proposta do sistema)",
         "; ".join(f"{o['nome']}: {o['o_que_faz']}" for o in atividade["operadores_detalhe"]),
-        "; ".join(f"{o['nome']}: {o['onde']}" for o in atividade["operadores_detalhe"] if o["fora_do_brasil"]) or "não",
+        "; ".join(f"{o['nome']}: {o['onde']} (termos: {o['termos']})" for o in atividade["operadores_detalhe"] if o["fora_do_brasil"]) or "não",
         "; ".join(atividade["armazenamento"]), _prazo_em_texto(atividade), atividade["medidas"], atividade["observacoes"] or "",
     ]
 

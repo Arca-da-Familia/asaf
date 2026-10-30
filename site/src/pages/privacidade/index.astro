@@ -102,6 +102,11 @@ const substituto = substitutoDoEncarregado(diretoria)
 // aos 18 anos, o consentimento dado pelo responsável deixa de valer para registros novos (a própria pessoa assina).
 // v2.15 (2026-10-28): v7.2a - o direito de oposição na lista; a solicitação do titular guarda o resultado e o fundamento (também depois dos 5 anos) e a Minha
 // conta os mostra.
+// v2.17 (2026-10-30): v7.3c - o parágrafo `data-transferencia`: os prestadores tratam os dados conforme os próprios termos (os de leis rigorosas como a europeia);
+// a Microsoft e o Google tratam por conta da ASAF pelos contratos de proteção de dados (o do Google com as cláusulas-padrão da ANPD; o da Microsoft sem elas, mas
+// com a obrigação de cumprir as leis aplicáveis); o GitHub gratuito não tem contrato de proteção de dados com a ASAF; a cópia nos EUA é escolha da ASAF (contra
+// perda de dados). Pesquisado nos termos de cada um em 29 e 30/10 e conferido por verificador independente (a 1ª redação tinha 3 frases falsas); nada foi
+// pedido às empresas (decisão do Presidente de 30/10). O parágrafo anterior deixou de dizer que os prestadores "trabalham por conta da ASAF" (o GitHub não).
 // v2.16 (2026-10-29): v7.2g - como o pedido é atendido (v7.2b a v7.2f): os canais (formulário, Minha conta e o painel do associado), a identidade (o código do
 // e-mail só vale para o que foi feito com o e-mail), o relatório dos seus dados para baixar por 15 dias (PDF e arquivo para levar a outro serviço), a
 // eliminação (o que sai, o que fica e por quê) e o total de pedidos no relatório anual; na lista de prazos, a cópia do relatório entregue (15 dias).
@@ -648,9 +653,9 @@ const direitos = [
       </h2>
       <p class="mt-3">
         A ASAF não vende nem aluga dados pessoais. Os dados podem ser tratados
-        por prestadores de infraestrutura que trabalham por conta da ASAF
-        (hospedagem, banco de dados, rotinas agendadas e envio de e-mail) e
-        fornecidos a autoridades quando houver exigência legal.
+        por prestadores de infraestrutura que a ASAF contrata (hospedagem, banco
+        de dados, rotinas agendadas e envio de e-mail) e fornecidos a
+        autoridades quando houver exigência legal.
       </p>
       <p class="mt-3" data-operadores>
         Os prestadores são: a <strong>Microsoft (Azure)</strong>, que hospeda o
@@ -666,6 +671,25 @@ const direitos = [
         sistema e guarda a caixa {ORGANIZACAO.email}, em servidores que podem
         ficar fora do Brasil. Por isso, parte do tratamento dos seus dados
         acontece fora do Brasil.
+      </p>
+      <p class="mt-3" data-transferencia>
+        Esses prestadores atendem o mundo inteiro. A Microsoft e o Google tratam
+        os dados por conta da ASAF, seguindo os contratos de proteção de dados
+        que oferecem a todos os clientes, os mesmos que usam para cumprir leis
+        rigorosas, como a da União Europeia. Esses contratos descrevem as
+        medidas de segurança que eles adotam, como a criptografia e o controle
+        de acesso. O do Google inclui, para os dados que saem do Brasil, as
+        cláusulas-padrão contratuais aprovadas pela Autoridade Nacional de
+        Proteção de Dados (ANPD). O da Microsoft não inclui essas cláusulas, mas
+        a obriga a cumprir as leis de proteção de dados que valem para o serviço
+        que ela presta. O GitHub, no plano gratuito que a ASAF usa, não tem
+        contrato de proteção de dados com a ASAF: valem os Termos de Serviço e a
+        Declaração de Privacidade dele, que falam em medidas de segurança de
+        forma geral. No Azure, a ASAF escolheu a região do Brasil para o
+        sistema, o banco de dados e os arquivos, e escolheu também guardar uma
+        cópia de segurança nos Estados Unidos, para não perder os dados se a
+        região do Brasil falhar. O Google e o GitHub não oferecem à ASAF a opção
+        de guardar os dados no Brasil.
       </p>
     </section>
 
