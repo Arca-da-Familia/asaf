@@ -95,7 +95,7 @@ def test_a_busca_acha_pelo_nome_e_mascara_o_cpf(client, db, auth_headers):
     r = client.get("/api/privacidade/titulares", params={"busca": nome}, headers=auth_headers)
     assert r.status_code == 200
     [achada] = [x for x in r.json() if x["id_pessoa"] == p.id_pessoa]
-    assert achada["cpf_final"].endswith(p.cpf[-2:]) and p.cpf not in str(achada)
+    assert achada["cpf_mascarado"] == f"***.***.***-{p.cpf[-2:]}" and p.cpf not in str(achada)
     assert client.get("/api/privacidade/titulares", params={"busca": "ab"}, headers=auth_headers).status_code == 400
 
 

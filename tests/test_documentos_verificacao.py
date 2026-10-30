@@ -87,7 +87,7 @@ def test_cpf_formatado_e_cpf_valido_sem_pontos_sao_recusados_e_so_a_amostra_masc
     assert not r.ok
     cpfs = [a for a in r.bloqueios if a.codigo == "CPF"]
     assert len(cpfs) == 1  # é o mesmo CPF escrito de duas formas
-    assert cpfs[0].amostra == "111.***.***-35" and cpfs[0].pagina == 1
+    assert cpfs[0].amostra == "***.***.***-35" and cpfs[0].pagina == 1  # v7.3a: o formato único do sistema
     tudo = repr(r.como_dicionario())
     assert "444" not in tudo and "777" not in tudo  # o dado inteiro nunca sai no resultado
 

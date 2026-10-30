@@ -180,7 +180,7 @@ export function DadosDeUmaPessoaPage() {
             <li key={p.id_pessoa} className="flex flex-wrap items-center gap-2">
               <span>
                 {p.nome_completo}
-                {p.cpf_final && ` · CPF ${p.cpf_final}`}
+                {p.cpf_mascarado && ` · CPF ${p.cpf_mascarado}`}
                 {p.associado && ' · associado'}
                 {p.beneficiario && ' · atendido nos projetos'}
               </span>

@@ -43,7 +43,7 @@ from app.schemas.financeiro import (
     TituloCriar, BaixarTitulo, SaidaRegistrar, TransferenciaCriar,
 )
 from app.security import exigir_alguma_permissao, exigir_permissao
-from app.services import armazenamento, auditoria_financeira, conciliacao, contabilidade, contribuicoes, lancamento_tardio, negociacao, pix as pix_service
+from app.services import armazenamento, auditoria_financeira, cpf_protegido, conciliacao, contabilidade, contribuicoes, lancamento_tardio, negociacao, pix as pix_service
 from app.services.busca import numero_que_cabe_no_banco
 from app.services.categoria_associado import recalcular_categoria_associado
 from app.services.formato import reais
@@ -359,7 +359,9 @@ def listar_fornecedores(db: Session = Depends(get_db), _usuario=Depends(_permiss
     fornecedores = db.query(Fornecedor).order_by(Fornecedor.razao_social).all()
     return [
         {
-            "id_fornecedor": f.id_fornecedor, "razao_social": f.razao_social, "cnpj": f.cnpj,
+            "id_fornecedor": f.id_fornecedor, "razao_social": f.razao_social,
+            # v7.3a: o fornecedor pessoa física pode ter o CPF neste campo: ele sai escondido (o CNPJ fica)
+            "cnpj": cpf_protegido.mascarar(f.cnpj),
             "categoria_servico": f.categoria_servico, "telefone": f.telefone,
             "situacao_cadastral": f.situacao_cadastral,
             "data_ultima_validacao_cadastral": f.data_ultima_validacao_cadastral,

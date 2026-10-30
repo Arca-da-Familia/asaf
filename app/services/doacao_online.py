@@ -25,7 +25,7 @@ from app.models.doacoes import CampanhaArrecadacao, Doacao
 from app.models.financeiro import PartidaContabil, PlanoDeContas
 from app.models.intencoes_de_doacao import CONFIRMADA, EXPIRADA, NAO_LOCALIZADA, PENDENTE, IntencaoDeDoacao
 from app.models.pessoas import Pessoa
-from app.services import doacoes, instituicao, notificacoes
+from app.services import cpf_protegido, doacoes, instituicao, notificacoes
 from app.services.contabilidade import DEBITO
 from app.services.formato import reais
 from app.services.notificacoes_painel import notificar, usuarios_com_permissao
@@ -360,7 +360,9 @@ def serializar_lista(db: Session, intencoes: list[IntencaoDeDoacao]) -> list[dic
         campanha = campanhas.get(i.id_campanha)
         doacao = recibos.get(i.id_doacao)
         itens.append({
-            "id_intencao": i.id_intencao, "protocolo": i.protocolo, "nome_doador": i.nome_doador, "email_doador": i.email_doador, "documento_doador": i.documento_doador,
+            "id_intencao": i.id_intencao, "protocolo": i.protocolo, "nome_doador": i.nome_doador, "email_doador": i.email_doador,
+            # v7.3a: o CPF escondido; o completo por "Mostrar o CPF" (Tesoureiros), registrado na Auditoria
+            "documento_doador": cpf_protegido.mascarar(i.documento_doador),
             "valor_informado": i.valor_informado, "id_campanha": i.id_campanha, "campanha_titulo": campanha.titulo if campanha else None,
             "id_centro_custo_sugerido": campanha.id_centro_custo if campanha else None, "status": i.status, "status_rotulo": ROTULOS_DA_SITUACAO.get(i.status, i.status),
             "criado_em": i.criado_em, "expira_em": i.expira_em, "resolvido_em": i.resolvido_em, "id_doacao": i.id_doacao,

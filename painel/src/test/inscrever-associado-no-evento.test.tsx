@@ -27,8 +27,16 @@ function desenhar() {
 beforeEach(() => {
   vi.resetAllMocks()
   vi.mocked(api.listarAssociadosParaSelecao).mockResolvedValue([
-    { id_associado: 11, nome_completo: 'Ana Souza', cpf_final: '34' },
-    { id_associado: 12, nome_completo: 'Bia Lima', cpf_final: '56' },
+    {
+      id_associado: 11,
+      nome_completo: 'Ana Souza',
+      cpf_mascarado: '***.***.***-34',
+    },
+    {
+      id_associado: 12,
+      nome_completo: 'Bia Lima',
+      cpf_mascarado: '***.***.***-56',
+    },
   ])
   vi.mocked(api.inscreverAssociadoNoEvento).mockResolvedValue({
     mensagem: 'Inscrição registrada.',

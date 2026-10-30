@@ -32,7 +32,7 @@ function desenhar(componente: React.ReactNode) {
 const associado = (id: number, nome: string): api.AssociadoListagem => ({
   id_associado: id,
   nome_completo: nome,
-  cpf: '12345678909',
+  cpf_mascarado: '***.***.***-09',
   categoria: 'Efetivo',
   status_arrolamento: 'Ativo - Em Dia',
   email_contato: null,

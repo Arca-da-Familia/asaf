@@ -77,7 +77,11 @@ beforeEach(() => {
     } as api.Fornecedor,
   ])
   vi.mocked(api.listarAssociadosParaSelecao).mockResolvedValue([
-    { id_associado: 12, nome_completo: 'Bia Lima', cpf_final: '56' },
+    {
+      id_associado: 12,
+      nome_completo: 'Bia Lima',
+      cpf_mascarado: '***.***.***-56',
+    },
   ])
   vi.mocked(api.listarCentrosCusto).mockResolvedValue([])
   vi.mocked(api.enviarComprovante).mockImplementation(async (arquivo) => ({

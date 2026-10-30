@@ -71,8 +71,9 @@ def _so_digitos(texto: str) -> str:
 
 
 def mascarar_cpf(texto: str) -> str:
+    # v7.3a: o formato único do sistema (app/services/cpf_protegido.py::mascarar)
     d = _so_digitos(texto)
-    return f"{d[:3]}.***.***-{d[-2:]}" if len(d) == 11 else "***"
+    return f"***.***.***-{d[-2:]}" if len(d) == 11 else "***"
 
 
 def mascarar_email(texto: str) -> str:

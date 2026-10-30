@@ -9,7 +9,7 @@ from app.models.doacoes import CampanhaArrecadacao, Doacao, RemanejamentoDestina
 from app.models.financeiro import CentroDeCusto
 from app.schemas.doacoes import CampanhaArrecadacaoCriar, DoacaoCriar, RemanejamentoDestinacaoCriar
 from app.security import exigir_permissao
-from app.services import doacoes
+from app.services import cpf_protegido, doacoes
 
 router = APIRouter()
 _permissao_financeiro = exigir_permissao("financeiro")
@@ -82,7 +82,8 @@ def listar_doacoes(id_campanha: int = None, db: Session = Depends(get_db), _usua
     return [
         {
             "id_doacao": d.id_doacao, "anonima": d.anonima, "nome_doador": d.nome_doador,
-            "documento_doador": d.documento_doador, "id_associado": d.id_associado,
+            # v7.3a: o CPF do doador escondido (o CNPJ de empresa, que é público, fica); o completo por "Mostrar o CPF" (Tesoureiros)
+            "documento_doador": cpf_protegido.mascarar(d.documento_doador), "id_associado": d.id_associado,
             "tipo_doacao": d.tipo_doacao, "recorrente": d.recorrente, "valor": d.valor,
             "descricao_bem": d.descricao_bem, "id_campanha": d.id_campanha,
             "id_centro_custo_destinacao": d.id_centro_custo_destinacao,

@@ -33,7 +33,7 @@ beforeEach(() => {
     {
       id_pessoa: 9,
       nome_completo: 'Joana da Silva',
-      cpf_final: '***.***.*456-78',
+      cpf_mascarado: '***.***.***-78',
       associado: true,
       beneficiario: false,
     },

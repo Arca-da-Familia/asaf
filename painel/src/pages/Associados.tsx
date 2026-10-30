@@ -32,7 +32,8 @@ const colunas: ColunaTabela<AssociadoListagem>[] = [
       </Link>
     ),
   },
-  { accessorKey: 'cpf', header: 'CPF' },
+  // v7.3a: sempre escondido; o completo só na ficha, por "Mostrar o CPF"
+  { accessorKey: 'cpf_mascarado', header: 'CPF' },
   { accessorKey: 'categoria', header: 'Categoria' },
   { accessorKey: 'status_arrolamento', header: 'Situação' },
   {

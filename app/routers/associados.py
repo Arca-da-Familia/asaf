@@ -28,7 +28,7 @@ from app.schemas.associados import (
     HistoricoCargoEncerrar,
 )
 from app.security import exigir_alguma_permissao, exigir_permissao, get_current_user, hash_senha, usuario_tem_permissao, validar_senha_forte
-from app.services import armazenamento, automaticos_de_associado, carteirinha
+from app.services import armazenamento, automaticos_de_associado, carteirinha, cpf_protegido
 from app.services.categoria_associado import calcular_categoria
 from app.services.busca import numero_que_cabe_no_banco
 from app.services.catalogos import validar_codigo_em_catalogo
@@ -162,7 +162,7 @@ def listar_associados(
         {
             "id_associado": a.id_associado,
             "nome_completo": a.nome_completo,
-            "cpf": a.cpf,
+            "cpf_mascarado": cpf_protegido.mascarar(a.cpf),  # v7.3a: o completo só por "Mostrar o CPF" (app/services/cpf_protegido.py)
             "categoria": a.categoria,
             "status_arrolamento": a.status_arrolamento,
             "email_contato": a.email_contato,
@@ -443,7 +443,7 @@ def resumir_associados(
 
 @router.get("/api/associados/busca-simples", summary="Buscar associados para vincular (seletores)")
 def buscar_associados_simples(excluir: int = None, db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_seletor_de_associado)):
-    # só id, nome e os dois últimos dígitos do CPF: o suficiente para escolher o associado em um título, uma isenção ou uma delegação sem que quem
+    # só id, nome e o CPF escondido (v7.3a: `***.***.***-NN`, o formato único): o suficiente para escolher o associado em um título, uma isenção ou uma delegação sem que quem
     # cuida do financeiro precise da ficha completa (CPF, e-mail, telefone), que continua exigindo a permissão "associados".
     # order_by direto em Associado.nome_completo não funciona - é association_proxy (v1.0), não
     # coluna de verdade; precisa ordenar pela Pessoa via join.
@@ -454,7 +454,7 @@ def buscar_associados_simples(excluir: int = None, db: Session = Depends(get_db)
     return [{
         "id_associado": a.id_associado,
         "nome_completo": a.nome_completo,
-        "cpf_final": a.cpf[-2:] if a.cpf else ""
+        "cpf_mascarado": cpf_protegido.mascarar(a.cpf),
     } for a in associados]
 
 
@@ -479,7 +479,7 @@ def obter_associado(id_associado: int, db: Session = Depends(get_db), _usuario: 
         "id_pessoa": associado.id_pessoa,
         "id_usuario": associado.id_usuario,  # v5.4c: a ficha oferece "redefinir o segundo passo" de quem tem acesso
         "nome_completo": associado.nome_completo,
-        "cpf": associado.cpf,
+        "cpf_mascarado": cpf_protegido.mascarar(associado.cpf),
         "email_contato": associado.email_contato,
         "telefone_whatsapp": associado.telefone_whatsapp,
         "categoria": associado.categoria,

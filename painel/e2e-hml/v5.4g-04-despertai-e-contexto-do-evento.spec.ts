@@ -65,7 +65,8 @@ const DOC_INTERNO = `${PREFIXO_INTERNO} ${S} - relatório do evento interno`
 
 // CPF e e-mail de mentira (o CPF é válido de propósito: o verificador também pega o formatado que não fecha os dígitos, mas este é o pior caso)
 const CPF_DE_MENTIRA = '111.444.777-35'
-const CPF_MASCARADO = '111.***.***-35'
+// v7.3a: o formato único do sistema (app/services/cpf_protegido.py)
+const CPF_MASCARADO = '***.***.***-35'
 const EMAIL_DE_MENTIRA = 'fulana.robo@exemplo.com'
 
 const DESCRICAO_DO_PROJETO =

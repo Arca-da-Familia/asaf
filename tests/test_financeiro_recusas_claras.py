@@ -142,7 +142,7 @@ def test_seletor_de_associado_serve_ao_financeiro_mas_a_ficha_completa_nao(clien
 
     _, headers_tesoureiro = _criar_usuario_com_mandato(client, auth_headers, "TESOUREIRO")
     r = client.get("/api/associados/busca-simples", headers=headers_tesoureiro)
-    assert r.status_code == 200 and r.json() and set(r.json()[0]) == {"id_associado", "nome_completo", "cpf_final"}
+    assert r.status_code == 200 and r.json() and set(r.json()[0]) == {"id_associado", "nome_completo", "cpf_mascarado"}
     assert client.get("/api/associados/", headers=headers_tesoureiro).status_code == 403
 
 

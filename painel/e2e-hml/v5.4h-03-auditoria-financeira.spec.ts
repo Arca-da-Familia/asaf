@@ -122,12 +122,18 @@ test('preparo: o Presidente de teste dá acesso ao 2º e ao 3º conselheiro fisc
   const token = await capturarToken(page)
   await entrar(page, 'presidente')
   await expect.poll(() => token(), { timeout: 15_000 }).not.toBe('')
-  const associados = (await api(page, token, 'GET', '/api/associados/'))
-    .corpo as { id_associado: number; cpf: string | null }[]
   for (const papel of SENHAS_DE_PAPEL) {
-    const a = associados.find(
-      (x) => (x.cpf ?? '').replace(/\D/g, '') === CPF_DIGITOS[papel],
-    )
+    // v7.3a: a lista traz o CPF escondido; a busca pelo CPF continua no servidor
+    const corpo = (
+      await api(
+        page,
+        token,
+        'GET',
+        `/api/associados/?busca=${CPF_DIGITOS[papel]}`,
+      )
+    ).corpo as
+      { id_associado: number }[] | { itens: { id_associado: number }[] }
+    const a = (Array.isArray(corpo) ? corpo : corpo.itens)[0]
     expect(a, `o associado do ${papel} existe na homologação`).toBeTruthy()
     const r = await api(
       page,

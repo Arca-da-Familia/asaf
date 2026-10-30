@@ -140,7 +140,7 @@ def test_anonimizar_em_lote_processa_so_os_vencidos(client, auth_headers):
     assert resposta.json()["total"] >= 1
 
     nomes = {a["id_associado"]: a for a in client.get("/api/associados/busca-simples", headers=cabecalho_admin(client)).json()}
-    assert nomes[ainda_ativo["id_associado"]]["cpf_final"] != ""
+    assert nomes[ainda_ativo["id_associado"]]["cpf_mascarado"]
 
 
 def test_historico_situacao_registra_eventos(client, auth_headers):

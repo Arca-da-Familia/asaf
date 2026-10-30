@@ -5,6 +5,7 @@ import { Link } from 'react-router'
 
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { CpfProtegido } from '@/components/display/CpfProtegido'
 import { Button } from '@/components/ui/button'
 import {
   aprovarPropostaDeFiliacao,
@@ -16,7 +17,7 @@ import {
   type PropostaDeFiliacao,
   type StatusDeProposta,
 } from '@/lib/api'
-import { formatarCpf } from '@/lib/cpf'
+import { PERMISSAO_VER_CPF_COMPLETO } from '@/lib/cpf-protegido'
 import { formatarData } from '@/lib/datas'
 import { useMe } from '@/lib/use-me'
 import { LerAviso } from '@/components/privacidade/LerAviso'
@@ -180,7 +181,15 @@ function Proposta({ proposta }: { proposta: PropostaDeFiliacao }) {
         <div>
           <p className="font-semibold">{proposta.nome_completo}</p>
           <p className="text-sm text-muted-foreground">
-            CPF {formatarCpf(proposta.cpf)}
+            CPF{' '}
+            <CpfProtegido
+              origem="proposta"
+              id={proposta.id_proposta}
+              mascarado={proposta.cpf_mascarado}
+              podeRevelar={
+                !!eu?.permissoes.includes(PERMISSAO_VER_CPF_COMPLETO)
+              }
+            />
             {proposta.email_contato && ` · ${proposta.email_contato}`}
             {proposta.telefone_whatsapp && ` · ${proposta.telefone_whatsapp}`}
           </p>

@@ -36,6 +36,8 @@ import {
 import { LerAviso } from '@/components/privacidade/LerAviso'
 import { useDebounce } from '@/lib/use-debounce'
 import { useMe } from '@/lib/use-me'
+import { CpfProtegido } from '@/components/display/CpfProtegido'
+import { PERMISSAO_VER_CPF_COMPLETO } from '@/lib/cpf-protegido'
 
 const ICONE_DA_SITUACAO: Record<SituacaoDaIntencaoDeDoacao, LucideIcon> = {
   PENDENTE: Clock,
@@ -118,6 +120,8 @@ function ItemDaLista({
   onNaoLocalizada: (botao: HTMLElement) => void
 }) {
   const cpf = cpfParaATela(intencao.documento_doador)
+  const { data: eu } = useMe()
+  const podeVerCpf = !!eu?.permissoes.includes(PERMISSAO_VER_CPF_COMPLETO)
   const confirmada = intencao.status === 'CONFIRMADA'
   const rotuloDeQuem = `${intencao.nome_doador} (protocolo ${intencao.protocolo})`
   const termo = 'text-xs text-muted-foreground'
@@ -151,7 +155,18 @@ function ItemDaLista({
       <dl className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <dt className={termo}>CPF</dt>
-          <dd>{cpf ?? 'não informado'}</dd>
+          <dd>
+            {cpf ? (
+              <CpfProtegido
+                origem="intencao"
+                id={intencao.id_intencao}
+                mascarado={cpf}
+                podeRevelar={podeVerCpf}
+              />
+            ) : (
+              'não informado'
+            )}
+          </dd>
         </div>
         <div>
           <dt className={termo}>Valor informado</dt>

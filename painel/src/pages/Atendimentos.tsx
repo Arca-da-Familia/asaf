@@ -23,7 +23,8 @@ import {
   type AtendimentoCompleto,
   type AtendimentoDaFila,
 } from '@/lib/api'
-import { formatarCpf } from '@/lib/cpf'
+import { PERMISSAO_VER_CPF_COMPLETO } from '@/lib/cpf-protegido'
+import { CpfProtegido } from '@/components/display/CpfProtegido'
 import { useMe } from '@/lib/use-me'
 import {
   avisoDoEncerramentoDoTitular,
@@ -604,7 +605,24 @@ function Detalhe({
           rotulo="Telefone"
           valor={a.telefone_whatsapp ?? 'Não informado'}
         />
-        {a.cpf && <Dado rotulo="CPF" valor={formatarCpf(a.cpf)} />}
+        {a.tem_cpf && (
+          <div>
+            <dt className="text-xs text-muted-foreground">CPF</dt>
+            <dd className="font-medium">
+              <CpfProtegido
+                origem="atendimento"
+                id={a.id_atendimento}
+                mascarado={a.cpf_mascarado}
+                podeRevelar={
+                  podeVer(PERMISSAO_VER_CPF_COMPLETO) ||
+                  (a.exige_identidade_validada &&
+                    emAberto &&
+                    a.id_responsavel === eu?.id_usuario)
+                }
+              />
+            </dd>
+          </div>
+        )}
         <Dado
           rotulo="Prazo de resposta"
           valor={`até ${formatarData(a.prazo_em)} (${a.prazo_dias} dias)`}

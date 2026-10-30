@@ -1730,16 +1730,14 @@ test('Delegação temporária: recusas do formulário, a Presidente delega à Gi
     })
     await entrar(page, 'presidente')
     await expect.poll(() => autorizacao, { timeout: 15_000 }).not.toBe('')
-    const lista = await page.request.get(`${API_HML}/api/associados/`, {
-      headers: { Authorization: autorizacao },
-    })
-    const associados = (await lista.json()) as {
-      id_associado: number
-      cpf: string | null
-    }[]
-    const gisele = associados.find(
-      (a) => (a.cpf ?? '').replace(/\D/g, '') === '22204751405',
+    // v7.3a: a lista traz o CPF escondido; a busca pelo CPF continua no servidor
+    const lista = await page.request.get(
+      `${API_HML}/api/associados/?busca=22204751405`,
+      { headers: { Authorization: autorizacao } },
     )
+    const corpo = (await lista.json()) as
+      { id_associado: number }[] | { itens: { id_associado: number }[] }
+    const gisele = (Array.isArray(corpo) ? corpo : corpo.itens)[0]
     expect(gisele, 'a Gisele existe como associada na homologação').toBeTruthy()
     const concedido = await page.request.post(
       `${API_HML}/api/associados/${gisele!.id_associado}/conceder-acesso`,

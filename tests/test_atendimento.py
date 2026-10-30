@@ -209,7 +209,8 @@ def test_o_remetente_e_ligado_ao_cadastro_pelo_cpf_sem_aparecer_para_quem_esta_d
     r = _enviar(client, "TITULAR_LGPD", cpf=cpf)
     assert r.status_code == 200 and "id_pessoa" not in r.text and "cadastr" not in r.text.lower()
     abrir = client.get(f"/api/atendimentos/{db.query(Atendimento).filter(Atendimento.protocolo == r.json()['protocolo']).one().id_atendimento}", headers=auth_headers).json()
-    assert abrir["id_pessoa"] == pessoa.id_pessoa and abrir["cpf"] == cpf
+    # v7.3a: nem a abertura traz o CPF inteiro (só o escondido); o completo é por "Mostrar o CPF" (tests/test_cpf_protegido.py)
+    assert abrir["id_pessoa"] == pessoa.id_pessoa and "cpf" not in abrir and abrir["cpf_mascarado"] == f"***.***.***-{cpf[-2:]}" and abrir["tem_cpf"]
     # quem não está no cadastro fica sem ligação
     sem = _enviar(client, "TITULAR_LGPD").json()["protocolo"]
     assert db.query(Atendimento).filter(Atendimento.protocolo == sem).one().id_pessoa is None

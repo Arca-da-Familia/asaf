@@ -343,7 +343,7 @@ export const lerAvisoDeUmaVersao = (ponto: string, versao: string) =>
 export type PessoaAchada = {
   id_pessoa: number
   nome_completo: string
-  cpf_final: string | null
+  cpf_mascarado: string | null
   associado: boolean
   beneficiario: boolean
 }

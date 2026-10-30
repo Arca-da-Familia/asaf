@@ -16,7 +16,7 @@ from app.models.pessoas import Papel, Pessoa
 from app.schemas.filiacao import PropostaAprovar, PropostaDoSocio, PropostaFiliacaoCriar, PropostaRecusar
 from app.security import exigir_permissao, get_current_user, usuario_tem_permissao
 from app.services.categoria_associado import ATIVO_EM_DIA, EM_EXPERIENCIA, calcular_categoria
-from app.services import automaticos_de_associado, filiacao_publica, filiacao_socios
+from app.services import automaticos_de_associado, cpf_protegido, filiacao_publica, filiacao_socios
 from app.services.duplicidade import detectar_cadastro_duplicado
 from app.services.protecao_publica import ip_publico as _ip_publico, limitar_taxa_por_ip
 from app.services.linha_do_tempo import publicar_evento_linha_do_tempo
@@ -75,7 +75,7 @@ def listar_propostas(status: str = None, db: Session = Depends(get_db), _usuario
     decisoes = filiacao_socios.decisoes_dos_pedidos(db, [p.id_proposta for p in propostas])
     return [
         {
-            "id_proposta": p.id_proposta, "nome_completo": p.nome_completo, "cpf": p.cpf,
+            "id_proposta": p.id_proposta, "nome_completo": p.nome_completo, "cpf_mascarado": cpf_protegido.mascarar(p.cpf),
             "email_contato": p.email_contato, "telefone_whatsapp": p.telefone_whatsapp,
             "status": p.status, "motivo_recusa": p.motivo_recusa,
             "id_associado_efetivado": p.id_associado_efetivado, "criado_em": p.criado_em,

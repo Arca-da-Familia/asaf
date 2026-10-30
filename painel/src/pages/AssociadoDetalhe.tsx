@@ -9,6 +9,7 @@ import { VinculosDaPessoa } from '@/components/associados/VinculosDaPessoa'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { CpfProtegido } from '@/components/display/CpfProtegido'
 import { Button } from '@/components/ui/button'
 import {
   adicionarDependente,
@@ -27,7 +28,9 @@ import {
   removerDependente,
   urlArquivo,
 } from '@/lib/api'
+import { PERMISSAO_VER_CPF_COMPLETO } from '@/lib/cpf-protegido'
 import { formatarData } from '@/lib/datas'
+import { useMe } from '@/lib/use-me'
 import {
   associadoEditarSchema,
   cargoCriarSchema,
@@ -45,6 +48,8 @@ export function AssociadoDetalhePage() {
   const idAssociado = Number(id)
   const navigate = useNavigate()
   const [aba, setAba] = useState<Aba>('dados')
+  const { data: eu } = useMe()
+  const podeVerCpf = !!eu?.permissoes.includes(PERMISSAO_VER_CPF_COMPLETO)
 
   const { data: associado, isLoading } = useQuery({
     queryKey: ['associado', idAssociado],
@@ -66,7 +71,7 @@ export function AssociadoDetalhePage() {
         titulo={associado?.nome_completo ?? 'Associado'}
         descricao={
           associado
-            ? `Matrícula ${associado.numero_matricula ?? '—'} · CPF ${associado.cpf}`
+            ? `Matrícula ${associado.numero_matricula ?? '—'}`
             : undefined
         }
         trilha={[
@@ -86,6 +91,15 @@ export function AssociadoDetalhePage() {
         <EmptyState titulo="Associado não encontrado" />
       ) : (
         <>
+          <p className="-mt-2 mb-4 text-sm text-muted-foreground">
+            CPF{' '}
+            <CpfProtegido
+              origem="associado"
+              id={associado.id_associado}
+              mascarado={associado.cpf_mascarado}
+              podeRevelar={podeVerCpf}
+            />
+          </p>
           <div className="mb-6 flex flex-wrap gap-2">
             {abas.map((a) => (
               <Button

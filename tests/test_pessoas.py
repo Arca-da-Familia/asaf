@@ -60,7 +60,7 @@ def test_cadastrar_ficha_master_cria_pessoa_e_papel(client, auth_headers):
     busca = client.get("/api/associados/busca-simples", headers=cabecalho_admin(client)).json()
     encontrado = next(a for a in busca if a["id_associado"] == id_associado)
     assert encontrado["nome_completo"] == "Pessoa Via Ficha Master"
-    assert encontrado["cpf_final"] == cpf[-2:]
+    assert encontrado["cpf_mascarado"] == f"***.***.***-{cpf[-2:]}"  # v7.3a: o formato único
 
 
 def test_cpf_duplicado_e_recusado(client, auth_headers):

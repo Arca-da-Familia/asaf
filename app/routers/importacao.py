@@ -13,7 +13,8 @@ from app.models.financeiro import TituloFinanceiro
 from app.models.importacao import LoteImportacao
 from app.models.pessoas import Papel, Pessoa
 from app.schemas.importacao import ImportarLoteRequest, VerificarDuplicidadeRequest
-from app.security import exigir_permissao
+from app.security import exigir_permissao, usuario_tem_permissao
+from app.services import cpf_protegido
 from app.services.duplicidade import verificar_duplicidade
 from app.services.matricula import proximo_numero_matricula
 
@@ -168,12 +169,17 @@ def exportar_associados(colunas: str, request: Request, db: Session = Depends(ge
 
     associados = db.query(Associado).all()
     linhas = [{c: _COLUNAS_EXPORTAVEIS[c](a) for c in colunas_pedidas} for a in associados]
+    # v7.3a: o CPF sai completo só para quem tem `ver_cpf_completo` (Presidente, Secretários, Tesoureiros); para os outros, escondido
+    cpf_completo = "cpf" in colunas_pedidas and usuario_tem_permissao(db, usuario, cpf_protegido.PERMISSAO)
+    if "cpf" in colunas_pedidas and not cpf_completo:
+        for linha in linhas:
+            linha["cpf"] = cpf_protegido.mascarar(linha["cpf"])
 
     # v1.3 - exportação de base de associados é o maior vetor de vazamento numa associação;
     # nunca invisível. Audita quem, quantas linhas e quais campos - não o conteúdo em si (o
     # AuditLog não deveria virar um segundo vazamento do mesmo dado que está protegendo).
     registrar_auditoria(
-        db, usuario, "associados", "EXPORT", dados_depois={"colunas": colunas_pedidas, "total_linhas": len(linhas)},
+        db, usuario, "associados", "EXPORT", dados_depois={"colunas": colunas_pedidas, "total_linhas": len(linhas), "cpf_completo": cpf_completo},
         ip_origem=request.client.host if request.client else None,
     )
     return {"colunas": colunas_pedidas, "linhas": linhas}

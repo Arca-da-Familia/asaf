@@ -37,7 +37,8 @@ export function reais(valor: number): string {
   }).format(valor)
 }
 
-// O CPF inteiro, no formato 000.000.000-00: a tesouraria confere com o extrato do banco. Qualquer outro documento aparece como veio.
+// v7.3a: o CPF chega escondido do servidor (`***.***.***-NN`) e aparece assim; o completo, por "Mostrar o CPF". Um CPF inteiro (que não chega mais) seria
+// formatado como 000.000.000-00; qualquer outro documento aparece como veio.
 export function cpfParaATela(documento: string | null): string | null {
   if (!documento) return null
   return somenteDigitos(documento).length === 11

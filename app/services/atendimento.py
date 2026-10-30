@@ -304,7 +304,9 @@ def _idade(nascimento: Optional[datetime], agora: datetime) -> Optional[int]:
 
 
 def _cpf_mascarado(cpf: Optional[str]) -> Optional[str]:
-    return f"***.***.***-{cpf[-2:]}" if cpf and len(cpf) == 11 else None
+    from app.services.cpf_protegido import mascarar
+
+    return mascarar(cpf)
 
 
 ASSUNTO_DO_PEDIDO_DO_VISITANTE = "Eliminação de dados pela área do visitante"  # app/services/conta_de_visitante.py
@@ -342,8 +344,8 @@ def serializar(a: Atendimento, agora: Optional[datetime] = None, *, completo: bo
         "origem": a.origem,
     }
     if completo:
-        # o CPF inteiro só na abertura do pedido (a solicitação de titular precisa dele para conferir quem pede)
-        dados["cpf"] = a.cpf
+        # v7.3a: o CPF inteiro não vem mais aqui; quem atende o pedido de titular (ou tem `ver_cpf_completo`) o vê por "Mostrar o CPF", registrado na Auditoria
+        dados["tem_cpf"] = bool(a.cpf)
         if db is not None and a.id_pessoa is not None:
             # v7.2a: os atalhos do pedido para a ficha do associado e para o beneficiário (o prontuário e o consentimento ficam lá)
             from app.models.beneficiarios import Beneficiario

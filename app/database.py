@@ -230,16 +230,16 @@ def seed_catalogos():
             # Estatuto: Presidente, 1º/2º Vice-Presidente, 1º/2º Secretário, 1º/2º Tesoureiro e Conselheiro Fiscal. O
             # CÓDIGO nunca muda (o banco e as alçadas o referenciam): "2º Secretário" é o código VICE_SECRETARIO, e assim por
             # diante. A ordem da lista é a ordem em que a Diretoria aparece no site. Cargo fora do Estatuto não existe.
-            ("PRESIDENTE", "Presidente", {"permissoes": ["gerenciar_acesso", "editar_site", "associados", "financeiro", "governanca", "projetos", "auditoria", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias", "comunicar", "privacidade", "privacidade_gerir"]}),
+            ("PRESIDENTE", "Presidente", {"permissoes": ["gerenciar_acesso", "editar_site", "associados", "financeiro", "governanca", "projetos", "auditoria", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias", "comunicar", "privacidade", "privacidade_gerir", "ver_cpf_completo"]}),
             # v7.0a - os Vice-Presidentes substituem o Presidente nas faltas e impedimentos (Estatuto, art. 21, parágrafo único) e o ato designa o 1º (e, na falta
             # dele, o 2º) substituto do encarregado pelo tratamento de dados (Resolução CD/ANPD nº 18/2024, art. 4º): os dois VEEM o módulo (`privacidade`); gerar e
             # registrar o ato (`privacidade_gerir`) é só do Presidente (privilégio mínimo: o Vice não troca o ato que o Presidente assinou).
             ("VICE_PRESIDENTE", "1º Vice-Presidente", {"permissoes": ["associados", "governanca", "privacidade"]}),
             ("VICE_PRESIDENTE_2", "2º Vice-Presidente", {"permissoes": ["associados", "governanca", "privacidade"]}),
-            ("SECRETARIO", "1º Secretário", {"permissoes": ["associados", "governanca", "documentos", "documentos_originais", "aprovar_publicacao", "comunicar"]}),
-            ("VICE_SECRETARIO", "2º Secretário", {"permissoes": ["associados", "documentos", "comunicar"]}),
-            ("TESOUREIRO", "1º Tesoureiro", {"permissoes": ["financeiro", "parcerias"]}),
-            ("VICE_TESOUREIRO", "2º Tesoureiro", {"permissoes": ["financeiro", "parcerias"]}),
+            ("SECRETARIO", "1º Secretário", {"permissoes": ["associados", "governanca", "documentos", "documentos_originais", "aprovar_publicacao", "comunicar", "ver_cpf_completo"]}),
+            ("VICE_SECRETARIO", "2º Secretário", {"permissoes": ["associados", "documentos", "comunicar", "ver_cpf_completo"]}),
+            ("TESOUREIRO", "1º Tesoureiro", {"permissoes": ["financeiro", "parcerias", "ver_cpf_completo"]}),
+            ("VICE_TESOUREIRO", "2º Tesoureiro", {"permissoes": ["financeiro", "parcerias", "ver_cpf_completo"]}),
             ("CONSELHO_FISCAL", "Conselheiro Fiscal", {"permissoes": ["financeiro_auditar", "auditoria"]}),
         ]),
         # v2.1 (Art. 18 do estatuto) - órgãos de direção da ASAF: Diretoria Executiva e Conselho
@@ -440,6 +440,8 @@ def seed_niveis_e_permissoes():
         {"modulo": "governanca", "codigo_permissao": "governanca", "descricao": "Gerenciar assembleias e votações."},
         {"modulo": "projetos", "codigo_permissao": "projetos", "descricao": "Gerenciar projetos e voluntários."},
         {"modulo": "core", "codigo_permissao": "auditoria", "descricao": "Consultar a trilha de auditoria."},
+        # v7.3a (decisão do Presidente, 2026-10-29) - o CPF fica escondido em toda lista e ficha; o completo só por clique, registrado na Auditoria
+        {"modulo": "associados", "codigo_permissao": "ver_cpf_completo", "descricao": "Ver o CPF completo por clique em \"Mostrar o CPF\", registrado na Auditoria (v7.3a - nas listas e fichas o CPF aparece sempre escondido; decisão do Presidente: Presidente, Secretários e Tesoureiros)."},
         {"modulo": "associados", "codigo_permissao": "exportar_dados_pessoais", "descricao": "Exportar dado pessoal de associados em massa (v1.3 - separada de 'associados' de propósito)."},
         {"modulo": "associados", "codigo_permissao": "forcar_cadastro_duplicado", "descricao": "Cadastrar associado mesmo quando o sistema sinaliza um cadastro parecido já existente (v1.8 - separada de 'associados' de propósito, só quem decide sobre duplicidade tem)."},
         {"modulo": "eventos", "codigo_permissao": "gerenciar_checkin_evento", "descricao": "Gerenciar portaria de evento (emitir/revogar token de check-in), configurar elegibilidade e emitir crachás/certificados (v4.8)."},
@@ -461,7 +463,7 @@ def seed_niveis_e_permissoes():
     # Nível -> lista de códigos de permissão que ele recebe por padrão (ajustável depois pela
     # própria tela de administração de acesso, isto aqui é só ponto de partida).
     atribuicoes_padrao = {
-        "Presidente": ["gerenciar_acesso", "editar_site", "associados", "financeiro", "governanca", "projetos", "auditoria", "exportar_dados_pessoais", "forcar_cadastro_duplicado", "gerenciar_checkin_evento", "exportar_presencas_evento", "exportar_inscricoes_evento", "exportar_beneficiarios", "exportar_reservas_espaco", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias", "atendimento", "comunicar", "privacidade", "privacidade_gerir"],
+        "Presidente": ["gerenciar_acesso", "editar_site", "associados", "financeiro", "governanca", "projetos", "auditoria", "exportar_dados_pessoais", "forcar_cadastro_duplicado", "gerenciar_checkin_evento", "exportar_presencas_evento", "exportar_inscricoes_evento", "exportar_beneficiarios", "exportar_reservas_espaco", "documentos", "documentos_originais", "aprovar_publicacao", "parcerias", "atendimento", "comunicar", "privacidade", "privacidade_gerir", "ver_cpf_completo"],
         "Diretoria": ["associados", "financeiro", "governanca", "projetos", "gerenciar_checkin_evento", "documentos", "parcerias", "atendimento"],
         "Conselho Fiscal": ["financeiro_auditar", "auditoria"],  # v5.7e: audita, não opera (antes tinha `financeiro`)
         "Associado": [],

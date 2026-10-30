@@ -941,7 +941,8 @@ export function desfazerLote(idLote: number): Promise<{ mensagem: string }> {
 export type AssociadoListagem = {
   id_associado: number
   nome_completo: string
-  cpf: string
+  // v7.3a: sempre escondido (`***.***.***-NN`); o completo por "Mostrar o CPF" na ficha
+  cpf_mascarado: string | null
   categoria: string | null
   status_arrolamento: string | null
   email_contato: string | null
@@ -997,7 +998,7 @@ export function resumirAssociados(
 export type AssociadoParaSelecao = {
   id_associado: number
   nome_completo: string
-  cpf_final: string
+  cpf_mascarado: string | null
 }
 
 export function listarAssociadosParaSelecao(): Promise<AssociadoParaSelecao[]> {
@@ -1057,7 +1058,7 @@ export type AssociadoDetalhe = {
   id_pessoa: number
   id_usuario: number | null
   nome_completo: string
-  cpf: string
+  cpf_mascarado: string | null
   email_contato: string
   telefone_whatsapp: string
   categoria: string
@@ -5846,7 +5847,7 @@ export type StatusDeProposta =
 export type PropostaDeFiliacao = {
   id_proposta: number
   nome_completo: string
-  cpf: string
+  cpf_mascarado: string | null
   email_contato: string | null
   telefone_whatsapp: string | null
   status: StatusDeProposta
@@ -6540,7 +6541,8 @@ export type AtendimentoDaFila = {
 // O que as ações (assumir, responder, encerrar, validar a identidade, cadastrar como voluntário) devolvem: o pedido com o CPF inteiro (só na abertura do pedido) e, se a identidade foi
 // validada à mão, o e-mail de quem validou.
 export type AtendimentoCompleto = AtendimentoDaFila & {
-  cpf: string | null
+  // v7.3a: o CPF inteiro não vem; quem pode o vê por "Mostrar o CPF"
+  tem_cpf: boolean
   identidade_validada_por?: string | null
   // v7.2a: os atalhos para a ficha do associado e para o beneficiário (prontuário e consentimento)
   id_associado?: number | null

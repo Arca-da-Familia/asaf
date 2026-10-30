@@ -25,7 +25,7 @@ function proposta(
   return {
     id_proposta: 1,
     nome_completo: 'Joana de Teste',
-    cpf: '52998224725',
+    cpf_mascarado: '***.***.***-25',
     email_contato: 'joana@homologacao.example.com',
     telefone_whatsapp: '91988887777',
     status: 'Pendente',

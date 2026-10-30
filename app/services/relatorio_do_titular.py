@@ -296,6 +296,7 @@ def buscar_pessoas(db: Session, busca: str) -> list[dict]:
     from app.models.associados import Associado
     from app.models.beneficiarios import Beneficiario
     from app.models.pessoas import Pessoa
+    from app.services.cpf_protegido import mascarar
 
     texto = " ".join((busca or "").split())
     if len(texto) < 3:
@@ -311,6 +312,6 @@ def buscar_pessoas(db: Session, busca: str) -> list[dict]:
     beneficiarios = {i for (i,) in db.query(Beneficiario.id_pessoa).filter(Beneficiario.id_pessoa.in_(ids))} if ids else set()
     return [{
         "id_pessoa": p.id_pessoa, "nome_completo": p.nome_completo,
-        "cpf_final": f"***.***.*{p.cpf[-5:-2]}-{p.cpf[-2:]}" if p.cpf and len(p.cpf) == 11 else None,
+        "cpf_mascarado": mascarar(p.cpf),  # v7.3a: o formato único
         "associado": p.id_pessoa in associados, "beneficiario": p.id_pessoa in beneficiarios,
     } for p in pessoas]

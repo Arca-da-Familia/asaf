@@ -105,7 +105,7 @@ function pedido(
     identidade_validada_em: null,
     identidade_nota: null,
     id_usuario_validacao: null,
-    cpf: null,
+    tem_cpf: false,
     outros_do_remetente: [],
     ...sobrescrever,
   }
@@ -124,7 +124,7 @@ function pedidoDoTitular(
     assunto: null,
     mensagem: 'Quero saber quais dados a associação guarda sobre mim.',
     nome_completo: 'Titular de Teste',
-    cpf: '52998224725',
+    tem_cpf: true,
     cpf_mascarado: '***.***.***-25',
     exige_identidade_validada: true,
     ...sobrescrever,
@@ -142,7 +142,7 @@ function pedidoDeVoluntario(
     assunto: 'Quero ser voluntário',
     mensagem: 'Quero ajudar nas atividades de sábado.',
     nome_completo: 'Joana Voluntária',
-    cpf: '52998224725',
+    tem_cpf: true,
     cpf_mascarado: '***.***.***-25',
     data_nascimento: '1990-05-10',
     idade: 36,
@@ -668,7 +668,7 @@ describe('Atendimento: abrir um pedido', () => {
     base = [
       pedido(1, {
         mensagem: 'Primeira linha da mensagem.\nSegunda linha da mensagem.',
-        cpf: '52998224725',
+        tem_cpf: true,
         cpf_mascarado: '***.***.***-25',
         id_pessoa: 9,
         consentimento_lgpd_versao: '1',
@@ -698,7 +698,8 @@ describe('Atendimento: abrir um pedido', () => {
     expect(api.abrirAtendimento).toHaveBeenCalledWith(1)
     expect(dentro.getByText('maria@homologacao.example.com')).toBeVisible()
     expect(dentro.getByText('91988887777')).toBeVisible()
-    expect(dentro.getByText('529.982.247-25')).toBeVisible()
+    // v7.3a: o CPF chega escondido; o completo só por "Mostrar o CPF" (componente CpfProtegido)
+    expect(dentro.getByText('***.***.***-25')).toBeVisible()
     expect(dentro.getByText('versão 1')).toBeVisible()
     expect(dentro.getByText(/Esta pessoa já consta no cadastro/)).toBeVisible()
     const outros = dentro.getByRole('region', {
@@ -745,7 +746,8 @@ describe('Atendimento: abrir um pedido', () => {
         subtipo_rotulo:
           'Corrigir dados incompletos, inexatos ou desatualizados',
         assunto: null,
-        cpf: '52998224725',
+        tem_cpf: true,
+        cpf_mascarado: '***.***.***-25',
       }),
     ]
     desenhar()
@@ -1447,7 +1449,11 @@ describe('Atendimento: acessibilidade', () => {
   it('a lista, com um pedido aberto, não tem violação (axe)', async () => {
     const u = userEvent.setup()
     base = [
-      pedido(1, { cpf: '52998224725', id_pessoa: 3 }),
+      pedido(1, {
+        tem_cpf: true,
+        cpf_mascarado: '***.***.***-25',
+        id_pessoa: 3,
+      }),
       pedido(2, { status: 'Encerrado', situacao_do_prazo: 'encerrado' }),
     ]
     const { container } = desenhar('/atendimentos?situacao=todas')
