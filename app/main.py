@@ -134,6 +134,28 @@ async def erro_interno_com_cabecalhos_de_acesso(request: Request, call_next):
         )
 
 
+# v7.3b - cabeçalhos de segurança em toda resposta da API (registrado depois do erro 500, para valer também nele; o CORS fica por fora). A política de
+# conteúdo (CSP) vai só no JSON: a API não serve página (a não ser a documentação em /docs, que carrega o Swagger de fora) e o PDF aberto direto no navegador
+# (o certificado pelo link) não pode ser travado. O HSTS repete o que o Azure já manda nos outros endereços da associação.
+CABECALHOS_DE_SEGURANCA = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+}
+POLITICA_DE_CONTEUDO_DO_JSON = "default-src 'none'; frame-ancestors 'none'"
+
+
+@app.middleware("http")
+async def cabecalhos_de_seguranca(request: Request, call_next):
+    resposta = await call_next(request)
+    for nome, valor in CABECALHOS_DE_SEGURANCA.items():
+        resposta.headers.setdefault(nome, valor)
+    if resposta.headers.get("content-type", "").startswith("application/json"):
+        resposta.headers.setdefault("Content-Security-Policy", POLITICA_DE_CONTEUDO_DO_JSON)
+    return resposta
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origens,

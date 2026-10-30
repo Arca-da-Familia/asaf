@@ -1,15 +1,49 @@
+import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
+
+import {
+  configComCabecalhos,
+  resumosDosScriptsInline,
+} from './scripts/cabecalhos-de-seguranca.mjs'
+
+// v7.3b - depois do build, os cabeçalhos de segurança entram em dist/staticwebapp.config.json (a configuração que o Static Web App lê), com a API deste
+// build (produção ou homologação) e o resumo do script do tema escrito no index.html. As funções e os testes estão em scripts/cabecalhos-de-seguranca.mjs.
+function cabecalhosDeSeguranca(): Plugin {
+  let pasta = 'dist'
+  return {
+    name: 'asaf-cabecalhos-de-seguranca',
+    apply: 'build',
+    configResolved(config) {
+      pasta = config.build.outDir
+    },
+    closeBundle() {
+      const arquivo = `${pasta}/staticwebapp.config.json`
+      const base = JSON.parse(readFileSync(arquivo, 'utf-8')) as object
+      const html = readFileSync(`${pasta}/index.html`, 'utf-8')
+      const config = configComCabecalhos(
+        base,
+        process.env.VITE_API_URL || undefined,
+        resumosDosScriptsInline(html),
+      )
+      writeFileSync(
+        arquivo,
+        `${JSON.stringify(config, null, 2)}
+`,
+      )
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   // Tailwind 4 pelo plugin do Vite (sem PostCSS/autoprefixer: o prefixo é feito pelo próprio
   // Tailwind). Tema e tokens vêm de ../design/ via src/index.css; não existe mais
   // tailwind.config.js. O vitest.config.ts não carrega o plugin (css: false nos testes).
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), cabecalhosDeSeguranca()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
