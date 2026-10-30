@@ -39,9 +39,12 @@ async function entrarComToken(page: Page): Promise<string> {
   return autorizacao
 }
 
-test('a Política de Privacidade 2.16 no site', async ({ page }, info) => {
+// a versão é qualquer uma da 2.16 em diante (a v7.3c publicou a 2.17); os parágrafos da v7.2 continuam conferidos abaixo
+test('a Política de Privacidade (2.16 em diante) no site', async ({
+  page,
+}, info) => {
   await page.goto(`${SITE}/privacidade/`)
-  await expect(page.getByText(/Versão 2\.16 · em vigor desde/)).toBeVisible()
+  await expect(page.getByText(/Versão 2\.\d+ · em vigor desde/)).toBeVisible()
   await expect(page.locator('[data-como-atendemos]')).toContainText(
     'a confirmação pelo e-mail não basta',
   )
