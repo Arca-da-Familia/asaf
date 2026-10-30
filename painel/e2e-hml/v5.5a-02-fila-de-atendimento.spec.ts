@@ -283,7 +283,12 @@ test('o pedido de informação é respondido (com e-mail: o resultado do envio a
   await respondido
     .getByLabel('Motivo do encerramento')
     .fill('Pessoa satisfeita com a resposta.')
+  // espera o servidor responder antes de recarregar (achado na v7.3f: o recarregar logo depois do clique cancelava o pedido de encerrar)
+  const encerrou = page.waitForResponse(
+    (r) => r.url().endsWith('/encerrar') && r.request().method() === 'POST',
+  )
   await respondido.getByRole('button', { name: 'Encerrar atendimento' }).click()
+  expect((await encerrou).status()).toBe(200)
 
   await page.reload()
   await page.getByLabel('Situação', { exact: true }).selectOption('Encerrado')
