@@ -1511,14 +1511,28 @@ o vínculo dela (nada foi eliminado). Regressões verdes: `v7.2d-01` 2 (ajustado
 
 - [ ] Minimização por padrão: cada tela e cada exportação mostram só o necessário; CPF completo
       exibido apenas para quem tem permissão específica, mascarado para os demais.
-- [ ] Headers de segurança HTTP (CSP, `X-Content-Type-Options`, `X-Frame-Options`, HSTS) no site
-      estático e no painel. **[parcial, v5.7: feito no site; o painel e a API não foram tratados neste item]**
+- [x] Headers de segurança HTTP (CSP, `X-Content-Type-Options`, `X-Frame-Options`, HSTS) no site
+      estático e no painel. **[v5.7: o site; v7.3b: o painel e a API]**
 - [x] Rate limiting nos endpoints públicos (inscrição de evento, contato, filiação) — proteção
       contra spam/abuso sem CAPTCHA comercial pago. **[feito antes, na FASE 5, por IP e por hora: inscrição (v4.6), atendimento (v5.5a), filiação (v5.4h), doação (v5.6a) e conta de visitante (v5.6b)]**
 - [ ] Transferência internacional (LGPD, art. 33): o mecanismo (cláusulas-padrão da ANPD ou outro) para cada operador fora do Brasil (Azure, GitHub, Google), como
       a v7.0c deixou registrado no inventário e na Política.
 - [ ] Contratos/termos com operadores (Azure, provedor de e-mail, PSP de pagamento, BSP de
       WhatsApp) registrados no inventário, com a finalidade de cada compartilhamento.
+
+✅ **v7.3b concluída (2026-10-30) — os cabeçalhos de segurança do painel e da API.** O **painel** passa a mandar a política de conteúdo (só ele mesmo e a
+API do seu ambiente; o script do tema liberado pelo resumo sha256, nunca por `unsafe-inline`; fotos e PDFs por `blob:`), quadro proibido, `nosniff`,
+referência só do próprio site e a câmera e as chaves de acesso liberadas só para ele (a portaria lê o QR; o passkey), escritos na montagem em
+`dist/staticwebapp.config.json` (`painel/scripts/cabecalhos-de-seguranca.mjs`). A **API** manda `nosniff`, quadro proibido, sem referência, HSTS e, no JSON,
+a política fechada (a documentação e o PDF aberto direto não são travados). O robô da homologação percorre **todas as 67 telas** do menu escutando os
+avisos de bloqueio do navegador: na primeira rodada achou, em todas, a tentativa de `eval` que o `zod` faz para descobrir se pode compilar; o `zod` passou
+a não tentar (`jitless`, o caminho que a documentação dele indica). A primeira publicação na homologação caiu por indisponibilidade do Azure e foi refeita.
+**Testes locais:** servidor 1734 em duas rodadas e 1734 contra Postgres 18; painel 785 (duas rodadas) e a montagem.
+**Na homologação (2026-10-30):** robô `v7.3b-01` 2/2 (os cabeçalhos do painel e da API de teste; as 67 telas sem nenhum bloqueio). Regressões verdes:
+`v7.2c-01` 3, `v7.2e-01` 3, `v5.7c-01` 4, `v5.6b-01` 6.
+**Em produção (2026-10-30):** `main` = `d8a4bad`; Deploy API (1734 contra Postgres) e Deploy Painel verdes; `painel.asaf.org.br/version.json` = `d8a4bad`;
+`painel.asaf.org.br` manda a política com `https://api.asaf.org.br`, `X-Frame-Options: DENY` e `camera=(self)`; a API manda `nosniff`, `DENY`, HSTS e, no
+JSON, `default-src 'none'; frame-ancestors 'none'`.
 
 ##### 🔍 Ponto de Revisão — FASE 7 (2/3, fecha v7.2–v7.3)
 
