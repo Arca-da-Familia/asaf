@@ -129,3 +129,20 @@ def test_exportar_coluna_desconhecida_e_recusada(client, auth_headers):
 def test_exportar_sem_autenticacao_falha(client):
     resposta = client.get("/api/associados/exportar?colunas=nome_completo")
     assert resposta.status_code == 401
+
+
+def test_erro_interno_numa_linha_nao_vai_para_a_tela(client, auth_headers, monkeypatch):
+    """v7.4a (achado do CodeQL, `py/stack-trace-exposure`): a mensagem interna do erro (do banco, com nome de tabela e valores) fica só no registro do
+    servidor; a tela recebe uma explicação simples."""
+    from app.routers import importacao
+
+    def _quebra(_db):
+        raise RuntimeError('(psycopg.errors.UniqueViolation) duplicate key value violates unique constraint "pessoas_cpf_key" DETAIL: Key (cpf)=(123)')
+
+    monkeypatch.setattr(importacao, "proximo_numero_matricula", _quebra)
+    linhas = [{"nome_completo": "Linha Que Quebra", "cpf": _cpf_unico(), "categoria": "Efetivo", "resolucao": "nova"}]
+    corpo = client.post("/api/associados/importar-lote", headers=auth_headers, json={"linhas": linhas}).json()
+    assert corpo["criados"] == 0 and len(corpo["erros"]) == 1
+    motivo = corpo["erros"][0]["motivo"]
+    assert "Não foi possível cadastrar esta linha" in motivo
+    assert "psycopg" not in motivo and "pessoas_cpf_key" not in motivo and "DETAIL" not in motivo

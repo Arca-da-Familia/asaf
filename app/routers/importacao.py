@@ -1,6 +1,7 @@
 """v1.3 (FASE 1) - Importação/exportação de base existente. O parsing do arquivo (Excel/CSV)
 acontece no navegador (painel) - o arquivo bruto nunca sobe pro servidor; o que chega aqui já é
 JSON estruturado, linha por linha, mapeado e revisado pelo assistente de 4 passos."""
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -19,6 +20,7 @@ from app.services.duplicidade import verificar_duplicidade
 from app.services.matricula import proximo_numero_matricula
 
 router = APIRouter()
+LOG = logging.getLogger(__name__)
 _permissao_associados = exigir_permissao("associados")
 _permissao_exportar = exigir_permissao("exportar_dados_pessoais")
 
@@ -85,8 +87,12 @@ def importar_lote(
                 db.flush()
                 db.add(Papel(id_pessoa=novo.id_pessoa, tipo_papel="associado"))
             criados += 1
-        except Exception as e:
-            erros.append({"indice": i, "motivo": str(e)})
+        except Exception:
+            # v7.4a (achado do CodeQL, `py/stack-trace-exposure`): a mensagem interna do erro (do banco, com nomes de tabela e valores) não vai para a tela; o
+            # detalhe fica no registro do servidor, que é privado
+            LOG.exception("Linha %s da importação em lote não foi cadastrada", i)
+            erros.append({"indice": i, "motivo": "Não foi possível cadastrar esta linha (o CPF ou a matrícula já existem, ou um dado é inválido). "
+                                                 "Confira a linha e envie de novo."})
 
     db.commit()
     registrar_auditoria(

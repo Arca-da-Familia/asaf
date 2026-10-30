@@ -109,7 +109,10 @@ _DOCUMENTO_PESSOAL = re.compile(
 )
 _INTERVALO_DE_ANOS = re.compile(r"(?:19|20)\d{2}\D?(?:19|20)\d{2}")  # "2026-2028" não é número de documento
 _RG_FORMATADO_SOLTO = re.compile(r"(?<![\d./-])\d{1,2}\.\d{3}\.\d{3}-[\dxX](?![\d/-])")
-_EMAIL = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
+# v7.4a (achado da análise automática do código, CodeQL `py/polynomial-redos`): sem o começo marcado, um texto com milhares de "%" seguidos fazia a busca
+# recomeçar em cada posição e varrer até o fim (tempo que cresce com o quadrado do tamanho: um documento feito de propósito travava a API). O e-mail só
+# começa onde o caractere anterior não pode ser parte dele, e cada parte tem tamanho máximo (o da norma do e-mail).
+_EMAIL = re.compile(r"(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]{1,64}@[A-Za-z0-9.\-]{1,253}\.[A-Za-z]{2,24}")
 _CELULAR = re.compile(r"(?<!\d)(?:\+?55[\s.\-]?)?\(?\d{2}\)?[\s.\-]?9\d{4}[\s.\-]?\d{4}(?!\d)")
 _FIXO = re.compile(r"(?<!\d)(?:\+?55[\s.\-]?)?\(?\d{2}\)?[\s.\-]?[2-5]\d{3}[\s.\-]?\d{4}(?!\d)")
 _CEP = re.compile(r"(?<!\d)\d{5}-?\d{3}(?!\d)")

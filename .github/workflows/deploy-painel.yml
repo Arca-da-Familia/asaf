@@ -47,10 +47,10 @@ jobs:
         working-directory: painel
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configura Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: npm
@@ -93,17 +93,17 @@ jobs:
         working-directory: painel
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configura Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: npm
           cache-dependency-path: painel/package-lock.json
 
       - name: Login no Azure via OIDC
-        uses: azure/login@v3
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -126,7 +126,7 @@ jobs:
         run: npm run build
 
       - name: Publica no Static Web App
-        uses: Azure/static-web-apps-deploy@v1
+        uses: Azure/static-web-apps-deploy@4d27395796ac319302594769cfe812bd207490b1 # v1
         with:
           azure_static_web_apps_api_token: ${{ steps.kv.outputs.token }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}

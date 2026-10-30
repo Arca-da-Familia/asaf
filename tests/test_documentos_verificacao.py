@@ -197,3 +197,16 @@ def test_dado_pessoal_em_campo_de_formulario_do_pdf_tambem_e_achado():
     r = v.verificar_versao_publica(buf.getvalue())
     assert not r.ok and "CPF" in codigos(r.bloqueios)
     assert "formulário" in next(a for a in r.bloqueios if a.codigo == "CPF").mensagem
+
+
+def test_texto_feito_para_travar_a_busca_de_e_mail_termina_rapido():
+    """v7.4a (achado do CodeQL, `py/polynomial-redos`): milhares de "%" seguidos faziam a busca de e-mail crescer com o quadrado do tamanho e travar a API."""
+    import time
+
+    inicio = time.perf_counter()
+    bloqueios, _ = v.procurar_dado_pessoal("%" * 200_000 + " fim")
+    assert time.perf_counter() - inicio < 2, "a busca tem de ser linear"
+    assert bloqueios == []
+    # o e-mail de fora continua sendo achado, no meio do texto e logo depois de pontuação
+    achados, _ = v.procurar_dado_pessoal("Fale com fulana.silva@gmail.com (ou: beltrano+asaf@outlook.com.br).")
+    assert [a.codigo for a in achados].count("EMAIL") == 2

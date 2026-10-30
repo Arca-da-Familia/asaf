@@ -1,0 +1,16 @@
+# v7.4a (FASE 7) - as actions dos fluxos ficam fixadas no SHA exato (o rótulo de versão pode ser movido por quem controla a action; o SHA não). O Dependabot
+# abre o pedido de atualização quando sai versão nova, trocando o SHA e o comentário da versão juntos (regra "tudo na última versão"). Os pacotes de Python e
+# de Node seguem a atualização em lotes do PLANO_PROJETO.md ("Atualização contínua"), que passa pela homologação; os alertas de falha conhecida neles já
+# estavam ligados.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "chore(actions)"

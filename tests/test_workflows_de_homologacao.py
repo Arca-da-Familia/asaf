@@ -110,7 +110,7 @@ def test_o_robo_pode_conferir_os_roteiros_de_uma_branch_sem_mudar_quem_entra_no_
     mas baixa os roteiros de `ref` — como o deploy de teste já faz. O nome vai para o `with:` do checkout, nunca para um script."""
     entradas = CODIGO_TESTAR.split("permissions:")[0]
     assert "      ref:" in entradas and "default: main" in entradas
-    assert CODIGO_TESTAR.count("uses: actions/checkout@v7") == 1
+    assert CODIGO_TESTAR.count("uses: actions/checkout@") == 1
     assert CODIGO_TESTAR.count("ref: ${{ inputs.ref }}") == 1
     assert "${{ inputs.ref }}" not in CODIGO_TESTAR.replace("ref: ${{ inputs.ref }}", ""), "o nome da branch nunca é interpolado num script"
 
@@ -157,7 +157,7 @@ def test_da_para_publicar_uma_branch_na_homologacao_antes_da_main():
     (de onde a identidade do Azure é aceita), mas baixa o código da branch pedida em `ref`."""
     entradas = CODIGO.split("permissions:")[0]
     assert "      ref:" in entradas and "default: main" in entradas
-    assert CODIGO.count("uses: actions/checkout@v7") == 5
+    assert CODIGO.count("uses: actions/checkout@") == 5
     assert CODIGO.count("ref: ${{ inputs.ref }}") == 5, "os cinco trabalhos (api, popular, volume, painel, site) baixam o mesmo código"
     # `github.sha` é o da main: a imagem tem que levar o SHA do código de verdade publicado
     assert "github.sha" not in CODIGO
