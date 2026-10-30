@@ -1517,10 +1517,10 @@ o vínculo dela (nada foi eliminado). Regressões verdes: `v7.2d-01` 2 (ajustado
       contra spam/abuso sem CAPTCHA comercial pago. **[feito antes, na FASE 5, por IP e por hora: inscrição (v4.6), atendimento (v5.5a), filiação (v5.4h), doação (v5.6a) e conta de visitante (v5.6b)]**
 - [x] Transferência internacional (LGPD, art. 33): o mecanismo (cláusulas-padrão da ANPD ou outro) para cada operador fora do Brasil (Azure, GitHub, Google), como
       a v7.0c deixou registrado no inventário e na Política. **[v7.3c: o que os termos de cada um dizem, no inventário e na Política 2.17]**
-- [ ] Contratos/termos com operadores (Azure, provedor de e-mail, PSP de pagamento, BSP de
+- [x] Contratos/termos com operadores (Azure, provedor de e-mail, PSP de pagamento, BSP de
       WhatsApp) registrados no inventário, com a finalidade de cada compartilhamento. **[v7.3c: Azure, GitHub e Google (o e-mail é o Google) com os
-      termos; não há PSP (o Pix é estático) nem WhatsApp; faltam os dois serviços de consulta que a API chama, o ViaCEP (recebe só o CEP) e o Minha Receita
-      (recebe só o CNPJ do fornecedor): v7.3e]**
+      termos; não há PSP (o Pix é estático) nem WhatsApp; v7.3e: os dois serviços de consulta que a API chama, o ViaCEP (recebe só o CEP; nenhuma tela o
+      usa hoje) e o Minha Receita (recebe só o CNPJ do fornecedor)]**
 
 ✅ **v7.3b concluída (2026-10-30) — os cabeçalhos de segurança do painel e da API.** O **painel** passa a mandar a política de conteúdo (só ele mesmo e a
 API do seu ambiente; o script do tema liberado pelo resumo sha256, nunca por `unsafe-inline`; fotos e PDFs por `blob:`), quadro proibido, `nosniff`,
@@ -1560,7 +1560,20 @@ versão do `-o none` saiu com a quebra de linha errada e o teste que só lia o t
 **Na homologação (2026-10-30):** a API de teste publicada com a branch e os robôs `v7.3c-01` 2, `v7.2c-01` 3 e `v5.7c-01` 4 verdes. A homologação usa o
 fluxo da `main`, então o `-o none` dela passa a valer na próxima publicação.
 **Em produção (2026-10-30):** `main` = `cf4d77a`; Deploy API verde (1756 contra Postgres); no registro público desse deploy a senha aparece mascarada, o
-passo de publicação não tem mais `createdBy` nem e-mail, e as mensagens da migração já saem no formato do registro seguro; a API responde 200.
+passo de publicação não tem mais `createdBy` nem e-mail, e as mensagens da migração já saem no formato do registro seguro; a API responde 200. Na
+publicação seguinte da homologação (a da v7.3e, já com o fluxo novo) o registro também não tem mais `createdBy`.
+
+✅ **v7.3e concluída (2026-10-30) — os serviços de consulta no inventário.** A API consulta dois serviços públicos e gratuitos, sem contrato com a ASAF:
+o **Minha Receita** (recebe só o CNPJ do fornecedor, quando a tesouraria valida a situação cadastral) e o **ViaCEP** (recebe só o CEP). O inventário (tela e
+planilha) passa a mostrá-los: o Minha Receita na atividade de fornecedores e a lista dos dois, com o que cada um recebe, o uso e o que dizem de si (lido nas
+páginas deles em 30/10, nada foi pedido a eles). O ViaCEP aparece como **sem uso**: a rota existe desde a v1.1, mas nenhuma tela do painel nem do site a
+chama (um teste confere o código das duas pontas e avisa se isso mudar). Achado no caminho: o relatório do titular trata o fornecedor pessoa física pelo
+CPF gravado no campo do CNPJ; agora **só um CNPJ válido sai** para o Minha Receita (o resto fica "Não verificado (não é um CNPJ válido)", sem consulta).
+**Testes:** servidor 1738 em duas rodadas e 1759 contra Postgres 18 (já com a v7.3d); painel 787 em duas rodadas e a montagem.
+**Na homologação (2026-10-30):** robô `v7.3e-01` 1/1 (o Minha Receita na atividade de fornecedores e o ViaCEP marcado sem uso); regressões `v7.3c-01` 2 e
+`v7.0c-01` 3.
+**Em produção (2026-10-30):** `main` = `23ca8f1`; Deploy Painel e Deploy API (1759) verdes; `painel.asaf.org.br/version.json` = `23ca8f1`; a API responde
+e o inventário continua fechado para quem não entrou (401).
 
 ##### 🔍 Ponto de Revisão — FASE 7 (2/3, fecha v7.2–v7.3)
 
