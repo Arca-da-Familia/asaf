@@ -1499,7 +1499,7 @@ o vínculo dela (nada foi eliminado). Regressões verdes: `v7.2d-01` 2 (ajustado
 > filiação), os Tesoureiros (o recibo de doação leva o CPF do doador) e quem atende a solicitação do titular (conferir a identidade); Vice-Presidentes e
 > Conselho Fiscal veem sempre escondido; a busca por CPF continua no servidor. **Decisão 2 (art. 33):** a base é a das cláusulas-padrão de proteção de dados
 > que cada provedor oferece nos termos aceitos ao criar a conta; o documento de cada um (nome, link, data) vai ao inventário e à Política, sem advogado.
-> Partes: v7.3a o CPF; v7.3b os cabeçalhos do painel e da API; v7.3c a transferência internacional e os termos dos operadores (Política 2.17).
+> Partes: v7.3a o CPF; v7.3b os cabeçalhos do painel e da API; v7.3c a transferência internacional e os termos dos operadores (Política 2.17); v7.3d os registros públicos das rotinas sem dado pessoal (achado da auditoria de 30/10: o repositório é público); v7.3e os serviços de consulta (CEP e CNPJ) no inventário.
 >
 > **A pesquisa da decisão 2 (2026-10-29) mostrou que ela só vale para o Google.** O Cloud Data Processing Addendum do Google (08/06/2026, que vale para o
 > Workspace) incorpora as cláusulas-padrão da ANPD (Res. CD/ANPD 19/2024); o Adendo de Proteção de Dados da Microsoft (22/05/2026) e o do GitHub (out/2025)
@@ -1515,10 +1515,12 @@ o vínculo dela (nada foi eliminado). Regressões verdes: `v7.2d-01` 2 (ajustado
       estático e no painel. **[v5.7: o site; v7.3b: o painel e a API]**
 - [x] Rate limiting nos endpoints públicos (inscrição de evento, contato, filiação) — proteção
       contra spam/abuso sem CAPTCHA comercial pago. **[feito antes, na FASE 5, por IP e por hora: inscrição (v4.6), atendimento (v5.5a), filiação (v5.4h), doação (v5.6a) e conta de visitante (v5.6b)]**
-- [ ] Transferência internacional (LGPD, art. 33): o mecanismo (cláusulas-padrão da ANPD ou outro) para cada operador fora do Brasil (Azure, GitHub, Google), como
-      a v7.0c deixou registrado no inventário e na Política.
+- [x] Transferência internacional (LGPD, art. 33): o mecanismo (cláusulas-padrão da ANPD ou outro) para cada operador fora do Brasil (Azure, GitHub, Google), como
+      a v7.0c deixou registrado no inventário e na Política. **[v7.3c: o que os termos de cada um dizem, no inventário e na Política 2.17]**
 - [ ] Contratos/termos com operadores (Azure, provedor de e-mail, PSP de pagamento, BSP de
-      WhatsApp) registrados no inventário, com a finalidade de cada compartilhamento.
+      WhatsApp) registrados no inventário, com a finalidade de cada compartilhamento. **[v7.3c: Azure, GitHub e Google (o e-mail é o Google) com os
+      termos; não há PSP (o Pix é estático) nem WhatsApp; faltam os dois serviços de consulta que a API chama, o ViaCEP (recebe só o CEP) e o Minha Receita
+      (recebe só o CNPJ do fornecedor): v7.3e]**
 
 ✅ **v7.3b concluída (2026-10-30) — os cabeçalhos de segurança do painel e da API.** O **painel** passa a mandar a política de conteúdo (só ele mesmo e a
 API do seu ambiente; o script do tema liberado pelo resumo sha256, nunca por `unsafe-inline`; fotos e PDFs por `blob:`), quadro proibido, `nosniff`,
@@ -1533,6 +1535,18 @@ a não tentar (`jitless`, o caminho que a documentação dele indica). A primeir
 **Em produção (2026-10-30):** `main` = `d8a4bad`; Deploy API (1734 contra Postgres) e Deploy Painel verdes; `painel.asaf.org.br/version.json` = `d8a4bad`;
 `painel.asaf.org.br` manda a política com `https://api.asaf.org.br`, `X-Frame-Options: DENY` e `camera=(self)`; a API manda `nosniff`, `DENY`, HSTS e, no
 JSON, `default-src 'none'; frame-ancestors 'none'`.
+
+✅ **v7.3c concluída (2026-10-30) — o que os termos de cada prestador dizem.** O inventário de dados (tela e planilha) passa a registrar, para cada
+prestador, o documento de proteção de dados que vale para a conta da ASAF: **Microsoft (Azure)**, o Adendo de Proteção de Dados de 22/05/2026, com as
+cláusulas europeias e sem as da ANPD, mas com a obrigação de cumprir as leis aplicáveis; **GitHub**, no plano gratuito, só os Termos de Serviço e a
+Declaração de Privacidade (sem contrato de operador); **Google (Workspace)**, o Adendo de Tratamento de Dados de 30/10/2026, com as cláusulas-padrão da ANPD.
+A **Política de Privacidade 2.17** diz isso em texto simples e diz que a cópia de segurança nos EUA é escolha da ASAF (contra perda de dados); o texto foi
+conferido por verificador independente (a primeira redação tinha 3 frases falsas). **Nada foi pedido às empresas** (decisão do Presidente, 30/10).
+**Testes:** servidor 1735 contra Postgres 18 (validação da branch e Deploy API).
+**Na homologação (2026-10-30):** robô `v7.3c-01` 2/2 (a Política 2.17 no site de teste; o inventário com os termos). Regressões: `v7.0c-01` 3 e `v7.2g-01`
+2 (esse esperava a versão 2.16 escrita fixa; passou a aceitar da 2.16 em diante, os parágrafos da v7.2 continuam conferidos).
+**Em produção (2026-10-30):** `main` = `88fa94a`; Deploy Site, Deploy Painel e Deploy API (1735) verdes; `painel.asaf.org.br/version.json` = `88fa94a`;
+`asaf.org.br/privacidade/` mostra "Versão 2.17 · em vigor desde 30 de outubro de 2026" e o parágrafo novo da transferência.
 
 ##### 🔍 Ponto de Revisão — FASE 7 (2/3, fecha v7.2–v7.3)
 
