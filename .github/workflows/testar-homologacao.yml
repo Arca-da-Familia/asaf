@@ -148,7 +148,7 @@ jobs:
           name: conferencia-homologacao-${{ inputs.roteiro }}
           path: painel/prints-hml
           if-no-files-found: ignore
-          retention-days: 30
+          retention-days: 7
 
       - name: Logout
         if: always()

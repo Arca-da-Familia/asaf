@@ -138,7 +138,7 @@ jobs:
           name: carga-homologacao
           path: resultado-de-carga
           if-no-files-found: ignore
-          retention-days: 30
+          retention-days: 7
 
       - name: Logout
         if: always()

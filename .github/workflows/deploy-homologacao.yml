@@ -94,6 +94,9 @@ jobs:
         run: |
           ADMIN_URL=$(az keyvault secret show --vault-name "$KEY_VAULT" --name DATABASE-URL --query value -o tsv)
           echo "::add-mask::$ADMIN_URL"
+          # v7.3d: a senha do administrador do servidor (o mesmo da produção) também SOZINHA, e como fica depois de decodificada
+          ADMIN_SENHA_BANCO=$(python3 -c "from urllib.parse import urlsplit, unquote; import sys; s = urlsplit(sys.argv[1]).password or ''; print(s); print(unquote(s))" "$ADMIN_URL")
+          while IFS= read -r PARTE; do if [ -n "$PARTE" ]; then echo "::add-mask::$PARTE"; fi; done <<< "$ADMIN_SENHA_BANCO"
           ADMIN_DATABASE_URL="$ADMIN_URL" python scripts/homologacao_banco.py resetar
           # banco novo: o esquema nasce como o do app e é carimbado no head do Alembic (mesmo caminho do CI da produção)
           DATABASE_URL="$HML_DATABASE_URL" RUN_DB_MIGRATION=false JWT_SECRET=so-para-criar-o-esquema \
@@ -177,7 +180,8 @@ jobs:
             --name "$CONTAINER_APP" \
             --resource-group "$RESOURCE_GROUP" \
             --image "$REGISTRY.azurecr.io/$IMAGE_NAME:hml-${CODIGO_SHA}" \
-            --set-env-vars DB_POOL_SIZE=3 DB_MAX_OVERFLOW=1 CONFIAR_NO_PRIMEIRO_IP=1 VISITANTE_CODIGO_NA_RESPOSTA=1 URL_BASE_SITE_PUBLICO=https://hml-site.asaf.org.br
+            --set-env-vars DB_POOL_SIZE=3 DB_MAX_OVERFLOW=1 CONFIAR_NO_PRIMEIRO_IP=1 VISITANTE_CODIGO_NA_RESPOSTA=1 URL_BASE_SITE_PUBLICO=https://hml-site.asaf.org.br \
+            -o none
 
       - name: Espera a API de teste responder
         run: |

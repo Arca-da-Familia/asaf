@@ -45,7 +45,12 @@ jobs:
         run: |
           DB_URL=$(az keyvault secret show --vault-name kv-asaf-arca --name DATABASE-URL --query value -o tsv)
           echo "::add-mask::$DB_URL"
+          # v7.3d: a senha também SOZINHA (e como fica depois de decodificada) - o mascaramento só pega o texto exato, e uma mensagem de erro pode trazer
+          # só a senha. O registro seguro (app/registro_seguro.py) tira a mensagem dos erros: os registros deste repositório são públicos.
+          DB_SENHA=$(python3 -c "from urllib.parse import urlsplit, unquote; import sys; s = urlsplit(sys.argv[1]).password or ''; print(s); print(unquote(s))" "$DB_URL")
+          while IFS= read -r PARTE; do if [ -n "$PARTE" ]; then echo "::add-mask::$PARTE"; fi; done <<< "$DB_SENHA"
           echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
+          echo "ASAF_REGISTRO_SEGURO=1" >> "$GITHUB_ENV"
 
           SMTP_HOST=$(az keyvault secret show --vault-name kv-asaf-arca --name SMTP-HOST --query value -o tsv)
           SMTP_PORTA=$(az keyvault secret show --vault-name kv-asaf-arca --name SMTP-PORTA --query value -o tsv)
