@@ -2,6 +2,7 @@
 "Minha Receita", que reorganiza dado público da Receita Federal sem CAPTCHA) e dados bancários
 versionados com segundo aprovador obrigatório (a alteração de dados bancários de fornecedor é o
 golpe mais comum contra organizações - a defesa é processual, não tecnológica)."""
+import re
 from datetime import datetime
 from typing import Optional
 
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.models.compras import DadosBancariosFornecedor
 from app.models.financeiro import Fornecedor
+from app.validadores import validar_cnpj
 
 _MINHA_RECEITA_URL = "https://minhareceita.org/{cnpj}"
 _TIMEOUT_SEGUNDOS = 8
@@ -20,9 +22,19 @@ def validar_situacao_cadastral(db: Session, fornecedor: Fornecedor) -> str:
     """Sem SLA garantido - NUNCA bloqueia o processo se a API estiver fora: registra "Não
     verificado" e segue com aprovação consciente (achado do usuário: fallback pra API oficial de
     dados abertos de CNPJ fica pra quando esse serviço se mostrar instável em uso real - por ora
-    "Minha Receita" resolve sem custo nem chave de API)."""
+    "Minha Receita" resolve sem custo nem chave de API).
+
+    v7.3e: só um CNPJ válido sai do sistema. O fornecedor pessoa física pode ter o CPF gravado no campo do CNPJ (é assim que o relatório do titular o acha,
+    app/services/relatorio_do_titular.py::_fornecedores); esse CPF nunca vai ao serviço externo - fica "Não verificado" sem consulta."""
+    digitos = re.sub(r"\D", "", fornecedor.cnpj or "")
+    if len(digitos) != 14 or not validar_cnpj(digitos):
+        situacao = "Não verificado (não é um CNPJ válido)"
+        fornecedor.situacao_cadastral = situacao
+        fornecedor.data_ultima_validacao_cadastral = datetime.utcnow()
+        db.commit()
+        return situacao
     try:
-        resposta = httpx2.get(_MINHA_RECEITA_URL.format(cnpj=fornecedor.cnpj), timeout=_TIMEOUT_SEGUNDOS)
+        resposta = httpx2.get(_MINHA_RECEITA_URL.format(cnpj=digitos), timeout=_TIMEOUT_SEGUNDOS)
         resposta.raise_for_status()
         dados = resposta.json()
         situacao = dados.get("descricao_situacao_cadastral") or "Não verificado"

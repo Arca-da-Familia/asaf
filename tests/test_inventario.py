@@ -371,3 +371,21 @@ def test_cada_prestador_diz_os_termos_de_protecao_de_dados_da_conta():
     assert "ANPD" in inventario.OPERADORES["GOOGLE"]["termos"]
     assert "não traz as cláusulas-padrão da ANPD" in inventario.OPERADORES["AZURE"]["termos"]
     assert "não traz as cláusulas-padrão da ANPD" in inventario.OPERADORES["GITHUB"]["termos"]
+
+
+def test_os_servicos_de_consulta_estao_no_inventario(client, db, auth_headers):
+    """v7.3e - o Minha Receita (recebe só o CNPJ do fornecedor) aparece na atividade de fornecedores, na tela e na planilha; o ViaCEP fica listado com o aviso
+    de que nenhuma tela o usa hoje - e isso é conferido no código do painel e do site (se uma tela passar a chamar a consulta de CEP, este teste avisa)."""
+    dados = inventario.listar(db)
+    assert {c["codigo"] for c in dados["consultas"]} == set(inventario.CONSULTAS) == {"MINHA_RECEITA", "VIACEP"}
+    fornecedores = next(a for a in dados["atividades"] if a["codigo"] == "FORNECEDORES")
+    assert [c["codigo"] for c in fornecedores["consultas_detalhe"]] == ["MINHA_RECEITA"]
+    assert all(not a["consultas_detalhe"] for a in dados["atividades"] if a["codigo"] != "FORNECEDORES")
+    assert "nenhuma tela" in inventario.CONSULTAS["VIACEP"]["uso"]
+    chamam_o_cep = [p for pasta in ("painel/src", "site/src") for p in (_RAIZ / pasta).rglob("*") if p.suffix in (".ts", ".tsx", ".astro")
+                    and "/test" not in p.as_posix() and "/api/cep" in p.read_text(encoding="utf-8")]
+    assert chamam_o_cep == []
+    r = client.get("/api/privacidade/inventario-planilha", headers=auth_headers)
+    linhas = list(csv.reader(io.StringIO(r.content.decode("utf-8-sig")), delimiter=";"))
+    linha = next(linha for linha in linhas if linha and linha[0] == "Fornecedores")
+    assert "Minha Receita (minhareceita.org) (serviço de consulta, sem contrato): recebe só o CNPJ do fornecedor" in linha[8]

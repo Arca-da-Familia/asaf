@@ -110,6 +110,16 @@ export type OperadorDoInventario = {
   termos: string
 }
 
+// v7.3e: serviço público de consulta, sem contrato, que recebe só a chave (o CNPJ, o CEP)
+export type ConsultaDoInventario = {
+  codigo: string
+  nome: string
+  o_que_recebe: string
+  o_que_devolve: string
+  termos: string
+  uso: string
+}
+
 export type AtividadeDeTratamento = {
   codigo: string
   nome: string
@@ -118,6 +128,7 @@ export type AtividadeDeTratamento = {
   bases_legais_texto: string[]
   operadores: string[]
   operadores_detalhe: OperadorDoInventario[]
+  consultas_detalhe: ConsultaDoInventario[]
   medidas: string
   observacoes: string
   base_legal_conferida: boolean
@@ -143,6 +154,7 @@ export type Inventario = {
   tabelas_sem_atividade: string[]
   bases_legais: { codigo: string; texto: string }[]
   operadores: OperadorDoInventario[]
+  consultas: ConsultaDoInventario[]
   base_legal_a_conferir: string[]
   pode_gerir: boolean
 }

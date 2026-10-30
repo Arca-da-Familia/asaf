@@ -27,6 +27,24 @@ const azure: privacidade.OperadorDoInventario = {
     'Adendo de Proteção de Dados da Microsoft (cláusulas da União Europeia)',
 }
 
+const minhaReceita: privacidade.ConsultaDoInventario = {
+  codigo: 'MINHA_RECEITA',
+  nome: 'Minha Receita (minhareceita.org)',
+  o_que_recebe: 'só o CNPJ do fornecedor',
+  o_que_devolve: 'a situação cadastral',
+  termos: 'projeto aberto e gratuito, sem termos de uso nem contrato',
+  uso: 'em uso: Financeiro > Fornecedores',
+}
+
+const viaCep: privacidade.ConsultaDoInventario = {
+  codigo: 'VIACEP',
+  nome: 'ViaCEP (viacep.com.br)',
+  o_que_recebe: 'só o CEP',
+  o_que_devolve: 'o endereço do CEP',
+  termos: 'serviço gratuito, sem termos de uso nem contrato',
+  uso: 'nenhuma tela do painel nem do site a usa hoje',
+}
+
 const atividade = (
   extra: Partial<privacidade.AtividadeDeTratamento> = {},
 ): privacidade.AtividadeDeTratamento => ({
@@ -37,6 +55,7 @@ const atividade = (
   bases_legais_texto: ['Art. 11, I — consentimento específico'],
   operadores: ['AZURE'],
   operadores_detalhe: [azure],
+  consultas_detalhe: [],
   medidas: 'Só a equipe do projeto.',
   observacoes: '',
   base_legal_conferida: false,
@@ -68,6 +87,7 @@ const inventario = (
     { codigo: 'ART11_I', texto: 'Art. 11, I — consentimento específico' },
   ],
   operadores: [azure],
+  consultas: [minhaReceita, viaCep],
   base_legal_a_conferir: ['BENEFICIARIOS'],
   pode_gerir: true,
   ...extra,
@@ -113,6 +133,33 @@ describe('Inventário de dados (v7.0c)', () => {
     expect(screen.getByTestId('pendencias-do-inventario')).toHaveTextContent(
       'Dados pessoais fora do inventário: tabela_nova.',
     )
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('v7.3e: mostra o serviço de consulta na atividade e a lista dos serviços com o uso de cada um', async () => {
+    vi.mocked(privacidade.obterInventario).mockResolvedValue(
+      inventario({
+        atividades: [
+          atividade({
+            codigo: 'FORNECEDORES',
+            nome: 'Fornecedores',
+            consultas_detalhe: [minhaReceita],
+          }),
+        ],
+      }),
+    )
+    const { container } = desenhar()
+    const cartao = await screen.findByRole('region', { name: 'Fornecedores' })
+    expect(
+      within(cartao).getByText(/serviço de consulta, sem contrato/),
+    ).toHaveTextContent(
+      /recebe só o CNPJ do fornecedor\. Termos: projeto aberto/,
+    )
+    const lista = screen.getByTestId('servicos-de-consulta')
+    expect(lista).toHaveTextContent(
+      'ViaCEP (viacep.com.br): recebe só o CEP e devolve o endereço do CEP. Uso: nenhuma tela do painel nem do site a usa hoje.',
+    )
+    expect(lista).toHaveTextContent('Uso: em uso: Financeiro > Fornecedores.')
     expect(await axe(container)).toHaveNoViolations()
   })
 

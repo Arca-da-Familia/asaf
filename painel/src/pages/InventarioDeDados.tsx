@@ -251,6 +251,12 @@ function Cartao({
                 Termos: {o.termos}.
               </li>
             ))}
+            {atividade.consultas_detalhe.map((c) => (
+              <li key={c.codigo} data-consulta={c.codigo}>
+                <strong>{c.nome}</strong> (serviço de consulta, sem contrato):
+                recebe {c.o_que_recebe}. Termos: {c.termos}.
+              </li>
+            ))}
           </ul>
         </Secao>
         <Secao titulo="Onde fica guardado">
@@ -430,6 +436,25 @@ export function InventarioDeDadosPage() {
           {data.atividades.map((a) => (
             <Cartao key={a.codigo} atividade={a} inventario={data} />
           ))}
+          <section
+            aria-label="Serviços de consulta"
+            data-testid="servicos-de-consulta"
+            className="rounded-xl border p-4 text-sm"
+          >
+            <h2 className="mb-2 font-semibold">Serviços de consulta</h2>
+            <p className="mb-2 text-muted-foreground">
+              Serviços públicos e gratuitos que o sistema consulta, sem contrato
+              com a associação: recebem só a chave da consulta.
+            </p>
+            <ul className="list-disc pl-5">
+              {data.consultas.map((c) => (
+                <li key={c.codigo}>
+                  <strong>{c.nome}</strong>: recebe {c.o_que_recebe} e devolve{' '}
+                  {c.o_que_devolve}. Uso: {c.uso}. Termos: {c.termos}.
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
       )}
     </>

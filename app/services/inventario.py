@@ -88,6 +88,29 @@ OPERADORES: dict[str, dict] = {
     },
 }
 
+# v7.3e - SERVIÇOS DE CONSULTA: a API pergunta a serviços públicos e gratuitos, sem contrato com a ASAF (não tratam dado por conta dela), e manda só a chave da
+# consulta. O que cada um diz de si foi lido nas páginas deles em 2026-10-30; nada foi pedido a eles.
+CONSULTAS: dict[str, dict] = {
+    "MINHA_RECEITA": {
+        "nome": "Minha Receita (minhareceita.org)",
+        "o_que_recebe": "só o CNPJ do fornecedor, quando a tesouraria pede para validar a situação cadastral (o CNPJ de um microempreendedor individual "
+                        "identifica uma pessoa)",
+        "o_que_devolve": "a situação cadastral na Receita Federal, que fica gravada no fornecedor",
+        "termos": "projeto aberto e gratuito, sem termos de uso nem contrato; a documentação diz que não registra o IP de quem consulta nem dado específico "
+                  "de cada consulta, e que não tem garantia de funcionamento (fora do ar, o sistema registra \"Não verificado\" e segue); não informa onde "
+                  "fica hospedado",
+        "uso": "em uso: Financeiro > Fornecedores, validar a situação cadastral",
+    },
+    "VIACEP": {
+        "nome": "ViaCEP (viacep.com.br)",
+        "o_que_recebe": "só o CEP",
+        "o_que_devolve": "o endereço do CEP, para preencher o formulário",
+        "termos": "serviço gratuito, sem termos de uso nem contrato; a página diz que não distribui nem vende bases de dados e não informa quem o mantém nem "
+                  "onde fica hospedado",
+        "uso": "a API tem a consulta (desde a v1.1), mas nenhuma tela do painel nem do site a usa hoje: nenhum CEP sai do sistema",
+    },
+}
+
 ARMAZENAMENTO_BANCO = (
     "Banco de dados PostgreSQL no Microsoft Azure (Brasil, região Brazil South), com cópias de segurança por 35 dias e uma cópia delas na região South Central US "
     "(Estados Unidos)"
@@ -124,6 +147,7 @@ class Atividade:
     titulares_externos: tuple[str, ...] = ()  # de quem é o dado fora do modelo
     criancas_externas: bool = False  # o dado fora do modelo pode ser de criança (foto de notícia)
     armazenamento_proprio: tuple[str, ...] = ()  # onde fica, quando não é o armazenamento privado do sistema
+    consultas: tuple[str, ...] = ()  # v7.3e: serviços de consulta que recebem uma chave (CNPJ) desta atividade
 
 
 ATIVIDADES: tuple[Atividade, ...] = (
@@ -249,6 +273,7 @@ ATIVIDADES: tuple[Atividade, ...] = (
         ("ART7_V", "ART7_II"), ("AZURE", "GITHUB"),
         ("fornecedores", "dados_bancarios_fornecedor"),
         medidas="Dados bancários novos só valem depois de aprovados por outra pessoa.",
+        consultas=("MINHA_RECEITA",),
     ),
     Atividade(
         "SITE_EDITORIAL", "Notícias e conteúdo do site (Directus)",
@@ -368,6 +393,7 @@ def _detalhar(db: Session, a: Atividade, inventario: list[dict]) -> dict:
         "bases_legais_texto": [BASES_LEGAIS.get(b, f"(código antigo: {b})") for b in campos["bases_legais"]],
         "operadores_detalhe": [{"codigo": o, **OPERADORES[o]} for o in a.operadores],
         "transferencia_internacional": any(OPERADORES[o]["fora_do_brasil"] for o in a.operadores),
+        "consultas_detalhe": [{"codigo": c, **CONSULTAS[c]} for c in a.consultas],
         "requisito_crianca": REQUISITO_CRIANCA if pode_ter_crianca else None,
         "tabelas_externas": list(a.tabelas_externas),
         "tabelas": tabelas,
@@ -394,6 +420,7 @@ def listar(db: Session) -> dict:
         "tabelas_sem_atividade": tabelas_sem_atividade(inventario),
         "bases_legais": [{"codigo": c, "texto": t} for c, t in BASES_LEGAIS.items()],
         "operadores": [{"codigo": c, **d} for c, d in OPERADORES.items()],
+        "consultas": [{"codigo": c, **d} for c, d in CONSULTAS.items()],
         "base_legal_a_conferir": [a["codigo"] for a in atividades if not a["base_legal_conferida"]],
     }
 
@@ -472,7 +499,8 @@ def _linha(atividade: dict) -> list[str]:
         ", ".join(atividade["dados_pessoais"] + atividade["tabelas_externas"]), ", ".join(atividade["dados_sensiveis"]) or "nenhum",
         f"sim — {atividade['requisito_crianca']}" if atividade["pode_ter_crianca"] else "não", "; ".join(atividade["bases_legais_texto"]),
         "sim" if atividade["base_legal_conferida"] else "não (proposta do sistema)",
-        "; ".join(f"{o['nome']}: {o['o_que_faz']}" for o in atividade["operadores_detalhe"]),
+        "; ".join([f"{o['nome']}: {o['o_que_faz']}" for o in atividade["operadores_detalhe"]]
+                  + [f"{c['nome']} (serviço de consulta, sem contrato): recebe {c['o_que_recebe']} (termos: {c['termos']})" for c in atividade["consultas_detalhe"]]),
         "; ".join(f"{o['nome']}: {o['onde']} (termos: {o['termos']})" for o in atividade["operadores_detalhe"] if o["fora_do_brasil"]) or "não",
         "; ".join(atividade["armazenamento"]), _prazo_em_texto(atividade), atividade["medidas"], atividade["observacoes"] or "",
     ]

@@ -2,6 +2,7 @@
 aprovação por alçada → pagamento → conciliação, com "quem solicita nunca aprova a própria
 solicitação" e conflito de interesse checados no endpoint. Dados bancários de fornecedor
 versionados com segundo aprovador. Reembolso de despesa e contas a pagar recorrentes."""
+import re
 from datetime import datetime, timedelta
 
 from tests.test_pessoas import _cpf_unico
@@ -299,6 +300,50 @@ def test_validar_situacao_cadastral_usa_resposta_da_api(client, auth_headers, mo
     r = client.post(f"/api/fornecedores/{fornecedor}/validar-situacao-cadastral", headers=auth_headers)
     assert r.status_code == 200, r.text
     assert r.json()["situacao_cadastral"] == "ATIVA"
+
+
+def test_validar_situacao_cadastral_nunca_manda_cpf_ao_servico_externo(client, auth_headers, monkeypatch):
+    """v7.3e - o fornecedor pessoa física com o CPF no campo do CNPJ (dado antigo) não sai do sistema: fica "Não verificado" sem consulta."""
+    from app.database import SessaoLocal
+    from app.models.financeiro import Fornecedor
+    from app.services import fornecedores
+
+    chamadas = []
+    monkeypatch.setattr(fornecedores.httpx2, "get", lambda url, **kw: chamadas.append(url))
+    cpf = re.sub(r"\D", "", _cpf_unico())
+    with SessaoLocal() as db:
+        f = Fornecedor(razao_social="Pessoa Fisica Fornecedora", cnpj=f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}", categoria_servico="Outros", telefone="1199")
+        db.add(f)
+        db.commit()
+        id_fornecedor = f.id_fornecedor
+
+    r = client.post(f"/api/fornecedores/{id_fornecedor}/validar-situacao-cadastral", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["situacao_cadastral"] == "Não verificado (não é um CNPJ válido)"
+    assert chamadas == []
+
+
+def test_validar_situacao_cadastral_manda_so_os_digitos_do_cnpj(client, auth_headers, monkeypatch):
+    from app.services import fornecedores
+
+    chamadas = []
+
+    class _RespostaFalsa:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"descricao_situacao_cadastral": "ATIVA"}
+
+    def _get(url, **kw):
+        chamadas.append(url)
+        return _RespostaFalsa()
+
+    monkeypatch.setattr(fornecedores.httpx2, "get", _get)
+    fornecedor = _criar_fornecedor(client, auth_headers, "07")
+    r = client.post(f"/api/fornecedores/{fornecedor}/validar-situacao-cadastral", headers=auth_headers)
+    assert r.json()["situacao_cadastral"] == "ATIVA"
+    assert len(chamadas) == 1 and re.fullmatch(r"https://minhareceita\.org/\d{14}", chamadas[0])
 
 
 def test_trilha_de_aprovacao_diz_quem_aprovou_pelo_nome(client, auth_headers):
