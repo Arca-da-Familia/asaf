@@ -1664,7 +1664,9 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > estendido). **Domínio asaf.org.br (zona DNS no Azure):** entrou o **SPF** (`v=spf1 include:_spf.google.com ~all`: só o Google manda e-mail pelo
 > domínio; o sistema manda por `smtp.gmail.com`), entrou o **DMARC em modo observar** (`p=none`, relatórios para asaf@asaf.org.br; passa a recusar o
 > e-mail falso depois de duas semanas sem barrar e-mail legítimo) e a zona passou a ser **assinada (DNSSEC)**; a assinatura só vale para quem acessa
-> depois que o **Presidente** puser o código DS no Registro.br (`62747 13 2 5A3AD2B3…3393`; a conta é dele). O site, o painel e a API seguiram no ar a cada
+> depois que o **Presidente** puser o código DS no Registro.br (`62747 13 2 5A3AD2B3…3393`; a conta é dele). **Ele pôs em 30/10 à noite** (os 4 servidores do
+> Azure ficaram iguais; print conferido); às 20:43 UTC o servidor do .br ainda não publicava o DS: conferir na próxima sessão que o DS saiu e que a
+> validação vale (AD), com o site, o painel e a API abrindo. O site, o painel e a API seguiram no ar a cada
 > passo. O registro **CAA** (quem pode emitir o certificado) **não** foi feito: o Presidente preferiu não mexer no certificado que o plano do Azure já dá.
 > O domínio **arcadafamilia.org** (o do e-mail que administra o servidor) **não** foi tocado: será trocado (última fase). **Registros públicos antigos:**
 > uma análise de 496 registros do Actions não achou senha, chave nem dado de associado (os alarmes eram nomes de variável e valores de teste); o único
@@ -3329,6 +3331,7 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       domínio arcadafamilia.org (hospedado na HostGator, sem DNSSEC nem DMARC), que apareceu nos registros públicos do Actions até a v7.3d. O Presidente
       vai comprar um domínio novo, ligá-lo ao Microsoft Entra ID e passar para a conta nova a administração do Azure e tudo o que está no nome do e-mail
       antigo; depois disso, o domínio antigo sai da administração do servidor. Fica para esta última fase porque depende da compra do domínio.
+      **Atualização (2026-10-30, à noite):** o Presidente informou que o e-mail já foi trocado; falta levar a troca para dentro do Azure.
 
 ##### 🔍 Ponto de Revisão — FASE 20 (3/3 — fim (e revisão final do roteiro de fases), fecha v20.3–v20.4)
 
