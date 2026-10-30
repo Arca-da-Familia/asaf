@@ -1651,6 +1651,27 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 
 #### v7.4 — Resposta a incidente de segurança
 
+> **Decisões do Presidente (2026-10-30).** (1) **Prazo:** comunicar à ANPD e às pessoas atingidas em **3 dias úteis** contados de quando a ASAF sabe que o
+> incidente atingiu dados pessoais (o prazo comum da Resolução CD/ANPD nº 15/2024), mesmo que, como associação pequena, pudesse ter o dobro. A comunicação só
+> é obrigatória quando o incidente pode trazer risco ou dano relevante às pessoas; todo incidente, comunicado ou não, fica no **registro por 5 anos**.
+> (2) **Como avisar as pessoas:** e-mail a cada uma, aviso no painel para quem tem conta e aviso no site quando não der para achar a pessoa. (3) **Ensaio
+> uma vez por ano** (um incidente de mentira, registrado como ensaio, sem avisar ninguém de fora), "como o treino de incêndio das empresas, para a gente não
+> ficar esquecido". (4) Antes da resposta, a **prevenção**: "quanto mais seguro, melhor; nós não pode deixar brechas" (bloco ✅ abaixo). A ANPD está ativa
+> (agência reguladora desde 2026, com processos de sanção abertos; uma das falhas mais punidas é não comunicar incidente): o esforço não é inútil.
+>
+> ✅ **A camada de prevenção (2026-10-30), feita com a autorização dele.** **GitHub:** o aviso de falha conhecida nos pacotes (Dependabot) já estava ligado;
+> passaram a valer a **trava contra senha no código** (varredura de segredos com bloqueio no envio) e a **análise automática do código** (CodeQL, conjunto
+> estendido). **Domínio asaf.org.br (zona DNS no Azure):** entrou o **SPF** (`v=spf1 include:_spf.google.com ~all`: só o Google manda e-mail pelo
+> domínio; o sistema manda por `smtp.gmail.com`), entrou o **DMARC em modo observar** (`p=none`, relatórios para asaf@asaf.org.br; passa a recusar o
+> e-mail falso depois de duas semanas sem barrar e-mail legítimo) e a zona passou a ser **assinada (DNSSEC)**; a assinatura só vale para quem acessa
+> depois que o **Presidente** puser o código DS no Registro.br (`62747 13 2 5A3AD2B3…3393`; a conta é dele). O site, o painel e a API seguiram no ar a cada
+> passo. O registro **CAA** (quem pode emitir o certificado) **não** foi feito: o Presidente preferiu não mexer no certificado que o plano do Azure já dá.
+> O domínio **arcadafamilia.org** (o do e-mail que administra o servidor) **não** foi tocado: será trocado (última fase). **Registros públicos antigos:**
+> uma análise de 496 registros do Actions não achou senha, chave nem dado de associado (os alarmes eram nomes de variável e valores de teste); o único
+> exposto era o e-mail de quem criou o Container App, e o texto desses registros foi **apagado** com o sim do Presidente (a lista das execuções fica): 314 ao
+> todo (303 achados na primeira leitura e 11 que ela não tinha conseguido abrir); a conferência final, feita direto no GitHub e não na cópia local do `gh`,
+> não achou nenhum com o e-mail. As 1.486 cópias locais dos registros (`run-log-*.zip` do `gh` neste computador) também foram apagadas.
+
 - [ ] Plano escrito e ensaiado: detecção → contenção → avaliação de risco aos titulares →
       comunicação à ANPD e aos titulares quando houver risco relevante → registro e lição
       aprendida. Prazo e canal de comunicação definidos **antes** do incidente, não durante.
@@ -3291,6 +3312,10 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       mais simples e provavelmente suficiente, se for a única federação necessária.
 - [ ] Vínculo obrigatório entre a conta federada e uma `Pessoa` existente (por CPF confirmado) —
       identidade externa nunca cria cadastro sozinha.
+- [ ] **Trocar a conta dona do servidor (pedido do Presidente, 2026-10-30).** Hoje a assinatura do Azure e o que foi criado nela pertencem a um e-mail do
+      domínio arcadafamilia.org (hospedado na HostGator, sem DNSSEC nem DMARC), que apareceu nos registros públicos do Actions até a v7.3d. O Presidente
+      vai comprar um domínio novo, ligá-lo ao Microsoft Entra ID e passar para a conta nova a administração do Azure e tudo o que está no nome do e-mail
+      antigo; depois disso, o domínio antigo sai da administração do servidor. Fica para esta última fase porque depende da compra do domínio.
 
 ##### 🔍 Ponto de Revisão — FASE 20 (3/3 — fim (e revisão final do roteiro de fases), fecha v20.3–v20.4)
 
