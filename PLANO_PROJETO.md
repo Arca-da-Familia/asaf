@@ -1461,6 +1461,22 @@ Regressões verdes: `v7.2e-01` 3, `v7.2d-01` 2.
 **Em produção (2026-10-29):** `main` = `340f074`; Deploy API (1729 contra Postgres), Deploy Painel e Deploy Site (926 de navegador) verdes;
 `painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `340f074`; `/api/privacidade/solicitacoes-do-titular/relatorio` no `openapi.json`, 401 sem login.
 
+✅ **v7.2g concluída (2026-10-29) — os textos da v7.2 e o reforço da identidade na eliminação.** A **Política de Privacidade 2.16** diz como o pedido é
+atendido: os canais (o formulário; a Minha conta, que pede a eliminação do que foi feito com o e-mail; o painel do associado), como a identidade é confirmada
+(e que, para eliminar o cadastro, a confirmação pelo e-mail não basta), o relatório para baixar por 15 dias com o arquivo para levar a outro serviço, a
+eliminação (o que fica e por quê, o que acontece com o evento que já passou) e o total de pedidos no relatório anual; na lista de prazos, a cópia do relatório
+entregue (15 dias, fixa). Cada frase foi conferida contra o código por um verificador independente, que achou 5 frases falsas e 4 imprecisas na primeira
+redação (corrigidas). **Correção da v7.2d** que essa conferência revelou: quem soubesse o CPF e o e-mail de um ex-associado conseguiria, pelo formulário, um
+pedido com a identidade "validada" e a eliminação do cadastro dele; agora a identidade automática (o e-mail do cadastro, ou o código do e-mail) só elimina o
+que foi feito com aquele e-mail, e a equipe pode REFORÇAR a identidade por outro meio no próprio pedido (o painel oferece) para tirar o cadastro. No relatório
+anual, o prazo também não se descobre pelos pedidos que faltam responder.
+**Testes locais:** servidor 1731 em duas rodadas e 1731 contra Postgres 18; painel 782 (duas rodadas); site 779 de unidade e 925 de navegador.
+**Na homologação (2026-10-29):** robô `v7.2g-01` 2/2: o site de homologação mostra a Política 2.16 com os parágrafos novos; uma associada pede a eliminação
+pelo site com o CPF e o e-mail do cadastro, a prévia diz que o cadastro ligado ao e-mail não sai, o Presidente reforça a identidade e a prévia passa a mostrar
+o vínculo dela (nada foi eliminado). Regressões verdes: `v7.2d-01` 2 (ajustado à regra nova), `v5.7f-01` 5, `v5.7f-02` 4.
+**Em produção (2026-10-29):** `main` = `9bb3684`; Deploy API (1731 contra Postgres), Deploy Painel e Deploy Site (927 de navegador) verdes;
+`painel.asaf.org.br/version.json` e `asaf.org.br/version.json` = `9bb3684`; `asaf.org.br/privacidade/` diz "Versão 2.16" e tem os quatro parágrafos novos.
+
 - [x] **[v5.5a e v5.6b: o formulário do site (fila única, protocolo e prazo) e a Minha conta; v5.7f: a validação de identidade; v7.2e: o pedido pelo painel (Meu perfil > Meus dados pessoais)]** Canal único de solicitação: pelo painel (autenticado) e pelo site (formulário com validação
       de identidade), gerando protocolo com prazo legal acompanhado.
 - [x] **[v7.1b–d: revogação do consentimento e eliminação do prontuário; v7.2a: confirmação simples na hora; v7.2b: o relatório de acesso (com finalidade,
@@ -1484,6 +1500,13 @@ Regressões verdes: `v7.2e-01` 3, `v7.2d-01` 2.
 > Conselho Fiscal veem sempre escondido; a busca por CPF continua no servidor. **Decisão 2 (art. 33):** a base é a das cláusulas-padrão de proteção de dados
 > que cada provedor oferece nos termos aceitos ao criar a conta; o documento de cada um (nome, link, data) vai ao inventário e à Política, sem advogado.
 > Partes: v7.3a o CPF; v7.3b os cabeçalhos do painel e da API; v7.3c a transferência internacional e os termos dos operadores (Política 2.17).
+>
+> **A pesquisa da decisão 2 (2026-10-29) mostrou que ela só vale para o Google.** O Cloud Data Processing Addendum do Google (08/06/2026, que vale para o
+> Workspace) incorpora as cláusulas-padrão da ANPD (Res. CD/ANPD 19/2024); o Adendo de Proteção de Dados da Microsoft (22/05/2026) e o do GitHub (out/2025)
+> só têm as cláusulas europeias, que a ANPD não reconhece, e a organização do GitHub está no plano gratuito, onde o termo do GitHub nem se aplica. **Decisão do
+> Presidente (2026-10-30, "aprovo"):** a Política diz a verdade (o Google segue as cláusulas da ANPD; a Microsoft e o GitHub, só as europeias; a associação
+> pediu a eles as brasileiras); o Claude redige o pedido formal à Microsoft e ao GitHub e o Presidente o envia em nome da associação; a estrutura não muda
+> agora (as cópias nos EUA protegem contra perda de dados).
 
 - [ ] Minimização por padrão: cada tela e cada exportação mostram só o necessário; CPF completo
       exibido apenas para quem tem permissão específica, mascarado para os demais.
