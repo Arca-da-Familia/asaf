@@ -50,7 +50,6 @@ test('esqueci a minha senha: o código pela tela troca a senha e a pessoa entra 
   ).json()) as Array<{
     id_associado: number
     nome_completo: string
-    cpf: string | null
     tem_acesso: boolean
     id_usuario?: number | null
   }>
@@ -61,7 +60,16 @@ test('esqueci a minha senha: o código pela tela troca a senha e a pessoa entra 
     doRobo,
     'o associado com acesso criado pelo v6.2d-01 (rode-o antes)',
   ).toBeTruthy()
-  cpfDoRobo = (doRobo!.cpf ?? '').replace(/\D/g, '')
+  // v7.3a: a lista traz o CPF escondido; o Presidente o vê inteiro por "Mostrar o CPF" (registrado na Auditoria)
+  const revelado = await page.request.post(`${API_HML}/api/cpf/revelar`, {
+    headers: { Authorization: token() },
+    data: { origem: 'associado', id: doRobo!.id_associado },
+  })
+  expect(revelado.status(), await revelado.text()).toBe(200)
+  cpfDoRobo = ((await revelado.json()) as { cpf: string }).cpf.replace(
+    /\D/g,
+    '',
+  )
   await sair(page)
 
   await page.getByRole('link', { name: 'Esqueci a minha senha' }).click()
