@@ -1504,9 +1504,10 @@ o vínculo dela (nada foi eliminado). Regressões verdes: `v7.2d-01` 2 (ajustado
 > **A pesquisa da decisão 2 (2026-10-29) mostrou que ela só vale para o Google.** O Cloud Data Processing Addendum do Google (08/06/2026, que vale para o
 > Workspace) incorpora as cláusulas-padrão da ANPD (Res. CD/ANPD 19/2024); o Adendo de Proteção de Dados da Microsoft (22/05/2026) e o do GitHub (out/2025)
 > só têm as cláusulas europeias, que a ANPD não reconhece, e a organização do GitHub está no plano gratuito, onde o termo do GitHub nem se aplica. **Decisão do
-> Presidente (2026-10-30, "aprovo"):** a Política diz a verdade (o Google segue as cláusulas da ANPD; a Microsoft e o GitHub, só as europeias; a associação
-> pediu a eles as brasileiras); o Claude redige o pedido formal à Microsoft e ao GitHub e o Presidente o envia em nome da associação; a estrutura não muda
-> agora (as cópias nos EUA protegem contra perda de dados).
+> Presidente (2026-10-30):** NENHUM pedido é feito à Microsoft nem ao GitHub (o rascunho foi cancelado e apagado no mesmo dia, sem ter sido enviado nem
+> guardado); o texto público sobre o assunto não muda (a Política continua dizendo, como já diz, quem são os prestadores, onde ficam os dados e que parte do
+> tratamento acontece fora do Brasil); a estrutura não muda (as cópias nos EUA protegem contra perda de dados). Fica registrado aqui, internamente, o que a
+> pesquisa achou, para reavaliar quando a ANPD reconhecer outras cláusulas ou os provedores passarem a oferecer as brasileiras.
 
 - [ ] Minimização por padrão: cada tela e cada exportação mostram só o necessário; CPF completo
       exibido apenas para quem tem permissão específica, mascarado para os demais.
