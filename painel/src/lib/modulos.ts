@@ -41,6 +41,7 @@ import {
   Wallet,
   UserSearch,
   ChartNoAxesColumn,
+  GraduationCap,
 } from 'lucide-react'
 
 // Endereço do Directus (CMS do site). Definitivo — a chave do plano gratuito do Directus fica
@@ -217,6 +218,13 @@ export const modulos: Modulo[] = [
         rota: '/privacidade/incidentes',
         rotulo: 'Incidentes de segurança',
         icone: ShieldAlert,
+        permissao: 'privacidade',
+      },
+      // v7.5a: quem precisa do treinamento de privacidade e em que pé está
+      {
+        rota: '/privacidade/treinamentos',
+        rotulo: 'Treinamento de privacidade',
+        icone: GraduationCap,
         permissao: 'privacidade',
       },
     ],

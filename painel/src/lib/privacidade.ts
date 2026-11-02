@@ -648,3 +648,50 @@ export const encerrarIncidente = (id: number) =>
   apiFetch<RegistroDeIncidentes>(`/api/privacidade/incidentes/${id}/encerrar`, {
     method: 'POST',
   })
+
+// ---------------------------------------------------------------------------------------------- v7.5a - o treinamento de privacidade
+export type MaterialDePrivacidade = {
+  versao: string
+  titulo: string
+  itens: { titulo: string; texto: string }[]
+}
+
+export type SituacaoDoTreinamento = {
+  precisa: boolean
+  pendente: boolean
+  ultimo_em: string | null
+  valido_ate: string | null
+  fazer_ate: string | null
+  atrasado: boolean
+  intervalo_dias: number | null
+  com_mandato: boolean
+}
+
+export type MeuTreinamento = {
+  material: MaterialDePrivacidade
+  situacao: SituacaoDoTreinamento
+}
+
+export type QuadroDeTreinamentos = {
+  itens: (SituacaoDoTreinamento & {
+    id_usuario: number
+    nome: string
+    nivel: string | null
+  })[]
+  versao_material: string
+  dias_com_mandato: number
+  dias_sem_mandato: number
+  dias_para_fazer: number
+  pode_gerir: boolean
+}
+
+export const obterMeuTreinamento = () =>
+  apiFetch<MeuTreinamento>('/api/meu-treinamento-de-privacidade')
+
+export const concluirMeuTreinamento = () =>
+  apiFetch<MeuTreinamento>('/api/meu-treinamento-de-privacidade', {
+    method: 'POST',
+  })
+
+export const obterQuadroDeTreinamentos = () =>
+  apiFetch<QuadroDeTreinamentos>('/api/privacidade/treinamentos')

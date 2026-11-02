@@ -70,7 +70,8 @@ function PlanoDeResposta({ dias }: { dias: number }) {
       <ol className="list-decimal space-y-1 pl-5">
         <li>
           <strong>Registrar aqui</strong> assim que souber do incidente: o prazo
-          conta do dia em que a associação soube.
+          conta do dia em que a associação soube que dados pessoais foram
+          afetados.
         </li>
         <li>
           <strong>Conter:</strong> parar o problema e limitar o dano (trocar
@@ -82,11 +83,11 @@ function PlanoDeResposta({ dias }: { dias: number }) {
           risco ou dano relevante obriga a comunicar; o resto fica no registro.
         </li>
         <li>
-          <strong>Comunicar em até {dias} dias úteis</strong>, quando houver
-          risco relevante: à ANPD, pelo canal de comunicação de incidentes da
-          ANPD no gov.br; e a cada pessoa atingida, por e-mail, por aviso no
-          painel (quem tem conta) e por aviso no site quando não der para achar
-          a pessoa.
+          <strong>Comunicar em até {dias} dias úteis</strong>, quando o
+          incidente pode trazer risco ou dano relevante: à ANPD, pelo canal de
+          comunicação de incidentes da ANPD no gov.br; e a cada pessoa atingida,
+          por e-mail, por aviso no painel (quem tem conta) e por aviso no site
+          quando não der para achar a pessoa.
         </li>
         <li>
           <strong>Encerrar</strong> com a lição aprendida e a ação corretiva. O

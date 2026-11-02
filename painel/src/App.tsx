@@ -87,6 +87,8 @@ import { ConsentimentosPage } from '@/pages/Consentimentos'
 import { DadosDeUmaPessoaPage } from '@/pages/DadosDeUmaPessoa'
 import { RelatorioDeAtendimentoDoTitularPage } from '@/pages/RelatorioDeAtendimentoDoTitular'
 import { IncidentesDeSegurancaPage } from '@/pages/IncidentesDeSeguranca'
+import { MeuTreinamentoDePrivacidadePage } from '@/pages/MeuTreinamentoDePrivacidade'
+import { QuadroDeTreinamentosPage } from '@/pages/QuadroDeTreinamentos'
 import { MeuAvisoPage } from '@/pages/MeuAviso'
 import { MeusAvisosPage } from '@/pages/MeusAvisos'
 import { PerfilPage } from '@/pages/Perfil'
@@ -221,6 +223,10 @@ function App() {
           <Route index element={<Home />} />
           <Route path="/dev/componentes" element={<DevComponents />} />
           <Route path="/perfil" element={<PerfilPage />} />
+          <Route
+            path="/treinamento-de-privacidade"
+            element={<MeuTreinamentoDePrivacidadePage />}
+          />
           <Route
             path="/minhas-assembleias"
             element={
@@ -470,6 +476,14 @@ function App() {
               element={
                 <ErrorBoundary tituloModulo="Privacidade">
                   <IncidentesDeSegurancaPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="treinamentos"
+              element={
+                <ErrorBoundary tituloModulo="Privacidade">
+                  <QuadroDeTreinamentosPage />
                 </ErrorBoundary>
               }
             />

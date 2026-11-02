@@ -45,6 +45,7 @@ PORTAVEIS = frozenset({
 })
 NAO_PORTAVEIS = frozenset({
     "usuarios",  # a conta de acesso ao painel (registro técnico)
+    "treinamentos_de_privacidade",  # v7.5a: registro da associação sobre o treinamento (não é dado que a pessoa forneceu); aparece no relatório
     "beneficiarios_projeto", "registros_atendimento", "encaminhamentos_rede_externa", "eventos_linha_do_tempo", "registros_presenca", "documentos_emitidos",
     "alocacoes_voluntarios", "registros_horas_voluntariado", "trocas_turno_voluntario", "equipe_projeto", "funcionarios", "papeis", "fotos_da_diretoria",
     "historico_cargos", "mandatos", "mudancas_situacao", "processos_disciplinares", "manifestacoes_diretoria_disciplinar", "propostas_de_socios",

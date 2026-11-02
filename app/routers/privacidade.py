@@ -441,3 +441,31 @@ def encerrar_incidente(id_incidente: int, request: Request, db: Session = Depend
     registrar_auditoria(db, usuario, "incidentes_de_seguranca", "INCIDENTE_ENCERRADO", id_registro_afetado=i.id_incidente, ip_origem=_ip(request),
                         dados_depois={"numero": i.numero, "ensaio": i.ensaio, "risco": i.risco})
     return _com_quem_ve(db, usuario, incidentes.listar(db))
+
+
+# ------------------------------------------------------------------------------------------------ v7.5a - o treinamento de privacidade
+@router.get("/api/meu-treinamento-de-privacidade", summary="v7.5a - o material de privacidade e a situação do treinamento de quem está logado")
+def meu_treinamento(db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+    from app.services import treinamento_de_privacidade as treino
+
+    return {"material": treino.material(), "situacao": treino.situacao(db, usuario)}
+
+
+@router.post("/api/meu-treinamento-de-privacidade", summary="v7.5a - confirmar \"Li e entendi\" (fica registrado com a versão do material)")
+def concluir_meu_treinamento(request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+    from app.services import treinamento_de_privacidade as treino
+
+    if not treino.situacao(db, usuario)["precisa"]:
+        raise HTTPException(status_code=400, detail="Quem só vê os próprios dados não precisa do treinamento.")
+    t = treino.concluir(db, usuario)
+    registrar_auditoria(db, usuario, "treinamentos_de_privacidade", "TREINAMENTO_CONCLUIDO", id_registro_afetado=t.id_treinamento, ip_origem=_ip(request),
+                        dados_depois={"versao_material": t.versao_material})
+    return {"material": treino.material(), "situacao": treino.situacao(db, usuario)}
+
+
+@router.get("/api/privacidade/treinamentos", summary="v7.5a - quem precisa do treinamento de privacidade e em que pé está (fez, pendente, atrasado)")
+def quadro_dos_treinamentos(db: Session = Depends(get_db), usuario: Usuario = Depends(_pode)):
+    from app.services import treinamento_de_privacidade as treino
+
+    return _com_quem_ve(db, usuario, {"itens": treino.quadro(db), "versao_material": treino.VERSAO, "dias_com_mandato": treino.DIAS_COM_MANDATO,
+                                      "dias_sem_mandato": treino.DIAS_SEM_MANDATO, "dias_para_fazer": treino.DIAS_PARA_FAZER})

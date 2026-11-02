@@ -85,6 +85,9 @@ FICAM: dict[str, tuple[str, str]] = {
     "avisos_destinatarios": ("OUTRO", "A prova de que um aviso obrigatório foi entregue (convocação, mudança de regra) fica."),
     "entregas_de_aviso": ("OUTRO", "A prova de que um aviso obrigatório foi entregue (convocação, mudança de regra) fica."),
     "reservas_espaco": ("OUTRO", "O registro de uso do espaço da associação fica."),
+    # v7.5a
+    "treinamentos_de_privacidade": ("OUTRO", "A prova de que a pessoa fez o treinamento de privacidade fica: é a prestação de contas da associação sobre as "
+                                             "medidas que adota (LGPD, art. 6º, X)."),
 }
 
 

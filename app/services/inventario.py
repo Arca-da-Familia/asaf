@@ -259,11 +259,12 @@ ATIVIDADES: tuple[Atividade, ...] = (
         prazos_fixos=("Códigos e sessões vencidos: apagados em até 1 dia (limpeza técnica da rotina de retenção)",),
     ),
     Atividade(
-        "INCIDENTES", "Registro de incidentes de segurança",
+        "INCIDENTES", "Registro de incidentes de segurança e treinamento de privacidade",
         "Registrar os incidentes de segurança que atingem ou podem atingir dado pessoal (e os ensaios anuais), a avaliação do risco, o que foi feito para conter, "
-        "as comunicações à ANPD e às pessoas atingidas e a lição aprendida (LGPD, art. 48; Resolução CD/ANPD nº 15/2024: o registro é guardado por pelo menos 5 anos).",
+        "as comunicações à ANPD e às pessoas atingidas e a lição aprendida (LGPD, art. 48; Resolução CD/ANPD nº 15/2024: o registro é guardado por pelo menos 5 "
+        "anos); e registrar quem fez o treinamento de privacidade, quando e qual versão (v7.5a).",
         ("ART7_II",), ("AZURE", "GITHUB"),
-        ("incidentes_de_seguranca",),
+        ("incidentes_de_seguranca", "treinamentos_de_privacidade"),
         medidas="Só o encarregado registra e completa; a Diretoria do módulo Privacidade lê; não há rota de apagar; a Auditoria guarda quais campos mudaram, não os "
                 "textos.",
         observacoes="Os textos descrevem o incidente e os grupos atingidos, nunca a lista de nomes das pessoas.",

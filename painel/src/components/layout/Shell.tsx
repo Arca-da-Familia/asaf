@@ -33,6 +33,7 @@ import { useVersaoBuild } from '@/lib/versao'
 import { cn } from '@/lib/utils'
 
 import { AvisoDeAmbiente } from './AvisoDeAmbiente'
+import { AvisoDoTreinamento } from './AvisoDoTreinamento'
 import { SinoDeAvisos } from './SinoDeAvisos'
 import { StatusBar } from './StatusBar'
 
@@ -379,6 +380,7 @@ export function Shell() {
         )}
       >
         <AvisoDeAmbiente />
+        <AvisoDoTreinamento />
         <StatusBar
           novaVersaoDisponivel={novaVersaoDisponivel}
           recarregar={recarregar}

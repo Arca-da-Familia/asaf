@@ -46,7 +46,7 @@ LIGACOES_DA_PESSOA = frozenset({
     ('adesoes_peticao', 'id_associado'), ('alocacoes_voluntarios', 'id_pessoa'), ('alocacoes_voluntarios', 'id_associado'),
     ('aprovacoes_compra', 'id_associado_creditado'), ('associados', 'id_pessoa'), ('associados', 'id_usuario'), ('atendimentos', 'id_pessoa'),
     ('atos_do_encarregado', 'id_associado_encarregado'), ('atos_do_encarregado', 'id_associado_substituto'), ('avisos_destinatarios', 'id_associado'),
-    ('avisos_destinatarios', 'id_usuario'), ('beneficiarios', 'id_pessoa'), ('beneficiarios_projeto', 'id_beneficiario'),
+    ('avisos_destinatarios', 'id_usuario'), ('treinamentos_de_privacidade', 'id_usuario'), ('beneficiarios', 'id_pessoa'), ('beneficiarios_projeto', 'id_beneficiario'),
     ('comprovantes_voto_secreto', 'id_associado'), ('consentimentos', 'id_pessoa'), ('contas_a_pagar_recorrentes', 'id_fornecedor'),
     ('cotacoes_compra', 'id_fornecedor'), ('credenciamentos_assembleia', 'id_associado'), ('creditos_associado', 'id_associado'),
     ('dados_bancarios_fornecedor', 'id_fornecedor'), ('declaracoes_conflito_interesse', 'id_associado'), ('declaracoes_conflito_interesse', 'id_fornecedor'),

@@ -195,3 +195,14 @@ class IncidenteDeSeguranca(Base):
     id_usuario_registro = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)  # vazio: registrado pela migração (precedente)
     atualizado_em = Column(DateTime, nullable=True)
     id_usuario_atualizacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
+
+
+# ------------------------------------------------------------------------------------------------ v7.5a - o treinamento de privacidade
+class TreinamentoDePrivacidade(Base):
+    """Quem leu o material de privacidade e confirmou "Li e entendi", quando e qual versão (decisões do Presidente de 2026-11-02: Diretoria Executiva e Conselho
+    Fiscal ao entrar no cargo e a cada 2 anos; os demais com acesso a dado de outras pessoas todo ano; sem bloqueio, só aviso). Nada se apaga: é a prova."""
+    __tablename__ = "treinamentos_de_privacidade"
+    id_treinamento = Column(Integer, primary_key=True, index=True)
+    id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=False, index=True)
+    versao_material = Column(String(20), nullable=False)
+    concluido_em = Column(DateTime, nullable=False, default=datetime.utcnow)
