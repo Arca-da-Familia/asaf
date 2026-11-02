@@ -86,6 +86,7 @@ import { AvisosDePrivacidadePage } from '@/pages/AvisosDePrivacidade'
 import { ConsentimentosPage } from '@/pages/Consentimentos'
 import { DadosDeUmaPessoaPage } from '@/pages/DadosDeUmaPessoa'
 import { RelatorioDeAtendimentoDoTitularPage } from '@/pages/RelatorioDeAtendimentoDoTitular'
+import { IncidentesDeSegurancaPage } from '@/pages/IncidentesDeSeguranca'
 import { MeuAvisoPage } from '@/pages/MeuAviso'
 import { MeusAvisosPage } from '@/pages/MeusAvisos'
 import { PerfilPage } from '@/pages/Perfil'
@@ -461,6 +462,14 @@ function App() {
               element={
                 <ErrorBoundary tituloModulo="Privacidade">
                   <RelatorioDeAtendimentoDoTitularPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="incidentes"
+              element={
+                <ErrorBoundary tituloModulo="Privacidade">
+                  <IncidentesDeSegurancaPage />
                 </ErrorBoundary>
               }
             />

@@ -548,3 +548,103 @@ export const obterRelatorioDeAtendimentoDoTitular = (ano?: number) =>
   apiFetch<RelatorioDeAtendimentoDoTitular>(
     `/api/privacidade/solicitacoes-do-titular/relatorio${ano ? `?ano=${ano}` : ''}`,
   )
+
+// ---------------------------------------------------------------------------------------------- v7.4b - o registro de incidentes de segurança
+export type RiscoDoIncidente = 'A_AVALIAR' | 'RELEVANTE' | 'SEM_RISCO_RELEVANTE'
+export type SituacaoDoPrazoDoIncidente =
+  | 'no_prazo'
+  | 'vence_hoje'
+  | 'vencido'
+  | 'comunicado'
+  | 'sem_obrigacao'
+  | 'ensaio'
+
+export type IncidenteDeSeguranca = {
+  id_incidente: number
+  numero: number
+  ensaio: boolean
+  titulo: string
+  descricao: string
+  ocorrido_em: string | null
+  conhecido_em: string
+  dados_afetados: string | null
+  pessoas_afetadas: string | null
+  quantidade_estimada: number | null
+  contencao: string | null
+  risco: RiscoDoIncidente
+  risco_rotulo: string
+  motivo_do_risco: string | null
+  comunicado_anpd_em: string | null
+  protocolo_anpd: string | null
+  comunicado_pessoas_em: string | null
+  como_pessoas: string | null
+  licao_aprendida: string | null
+  acao_corretiva: string | null
+  situacao: 'ABERTO' | 'ENCERRADO'
+  encerrado_em: string | null
+  registrado_em: string
+  precedente: boolean
+  prazo_para_comunicar: string
+  situacao_do_prazo: SituacaoDoPrazoDoIncidente
+}
+
+export type RegistroDeIncidentes = {
+  itens: IncidenteDeSeguranca[]
+  ensaios: {
+    ultimo_ensaio_em: string | null
+    proximo_ate: string | null
+    pendente: boolean
+  }
+  hoje: string
+  dias_uteis_para_comunicar: number
+  pode_gerir: boolean
+}
+
+export type IncidenteNovo = {
+  titulo: string
+  descricao: string
+  conhecido_em: string
+  ocorrido_em?: string | null
+  ensaio: boolean
+}
+
+export type IncidenteAtualizar = Partial<
+  Pick<
+    IncidenteDeSeguranca,
+    | 'titulo'
+    | 'descricao'
+    | 'ocorrido_em'
+    | 'dados_afetados'
+    | 'pessoas_afetadas'
+    | 'quantidade_estimada'
+    | 'contencao'
+    | 'risco'
+    | 'motivo_do_risco'
+    | 'comunicado_anpd_em'
+    | 'protocolo_anpd'
+    | 'comunicado_pessoas_em'
+    | 'como_pessoas'
+    | 'licao_aprendida'
+    | 'acao_corretiva'
+  >
+>
+
+export const obterIncidentes = () =>
+  apiFetch<RegistroDeIncidentes>('/api/privacidade/incidentes')
+
+export const registrarIncidente = (dados: IncidenteNovo) =>
+  apiFetch<RegistroDeIncidentes>('/api/privacidade/incidentes', {
+    method: 'POST',
+    body: JSON.stringify(dados),
+  })
+
+export const atualizarIncidente = (id: number, dados: IncidenteAtualizar) =>
+  apiFetch<RegistroDeIncidentes>(`/api/privacidade/incidentes/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  })
+
+export const encerrarIncidente = (id: number) =>
+  apiFetch<RegistroDeIncidentes>(`/api/privacidade/incidentes/${id}/encerrar`, {
+    method: 'POST',
+  })

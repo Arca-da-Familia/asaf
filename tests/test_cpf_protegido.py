@@ -190,7 +190,7 @@ def test_a_migracao_da_a_permissao_a_presidencia_e_aos_cinco_cargos_e_nada_mais(
     config = Config()
     config.set_main_option("script_location", str(Path(__file__).resolve().parent.parent / "alembic"))
     diretorio = ScriptDirectory.from_config(config)
-    assert diretorio.get_heads() == ["a73c9f1e5b20"] and diretorio.get_revision("a73c9f1e5b20").down_revision == "12f16313d972"
+    assert len(diretorio.get_heads()) == 1 and diretorio.get_revision("a73c9f1e5b20").down_revision == "12f16313d972"
 
 
 # ------------------------------------------------------------------------------------------------ v7.3f: os achados do Ponto de Revisão da FASE 7 (2/3)

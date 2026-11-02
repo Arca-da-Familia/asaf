@@ -362,3 +362,82 @@ def termo_da_tela(origem: str, _usuario: Usuario = Depends(get_current_user)):
 def pdf_do_termo(termo: str, _usuario: Usuario = Depends(get_current_user)):
     return Response(content=servico_consentimentos.pdf_do_termo(termo), media_type="application/pdf",
                     headers={"Content-Disposition": f'inline; filename="termo-{termo.lower()}.pdf"'})
+
+
+# ------------------------------------------------------------------------------------------------ v7.4b - o registro de incidentes de segurança
+class IncidenteNovo(BaseModel):
+    titulo: str = Field(..., max_length=200)
+    descricao: str = Field(..., max_length=20_000)
+    conhecido_em: datetime
+    ocorrido_em: Optional[datetime] = None
+    ensaio: bool = False
+
+
+class IncidenteAtualizar(BaseModel):
+    titulo: Optional[str] = Field(None, max_length=200)
+    descricao: Optional[str] = Field(None, max_length=20_000)
+    conhecido_em: Optional[datetime] = None
+    ocorrido_em: Optional[datetime] = None
+    dados_afetados: Optional[str] = Field(None, max_length=20_000)
+    pessoas_afetadas: Optional[str] = Field(None, max_length=20_000)
+    quantidade_estimada: Optional[int] = Field(None, ge=0)
+    contencao: Optional[str] = Field(None, max_length=20_000)
+    risco: Optional[str] = None
+    motivo_do_risco: Optional[str] = Field(None, max_length=20_000)
+    comunicado_anpd_em: Optional[datetime] = None
+    protocolo_anpd: Optional[str] = Field(None, max_length=100)
+    comunicado_pessoas_em: Optional[datetime] = None
+    como_pessoas: Optional[str] = Field(None, max_length=20_000)
+    licao_aprendida: Optional[str] = Field(None, max_length=20_000)
+    acao_corretiva: Optional[str] = Field(None, max_length=20_000)
+
+
+def _sem_fuso(valor: Optional[datetime]) -> Optional[datetime]:
+    """O banco guarda UTC sem fuso: a data que chega com fuso é convertida."""
+    if valor is None or valor.tzinfo is None:
+        return valor
+    from datetime import timezone
+
+    return valor.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+@router.get("/api/privacidade/incidentes", summary="v7.4b - o registro de incidentes de segurança (e os ensaios), com o prazo de comunicação de cada um")
+def listar_incidentes(db: Session = Depends(get_db), usuario: Usuario = Depends(_pode)):
+    from app.services import incidentes
+
+    return _com_quem_ve(db, usuario, incidentes.listar(db))
+
+
+@router.post("/api/privacidade/incidentes", summary="v7.4b - registrar um incidente de segurança (ou um ensaio); o prazo de 3 dias úteis conta de quando a associação soube")
+def registrar_incidente(dados: IncidenteNovo, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_gerir)):
+    from app.services import incidentes
+
+    i = incidentes.registrar(db, usuario, titulo=dados.titulo, descricao=dados.descricao, conhecido_em=_sem_fuso(dados.conhecido_em),
+                             ocorrido_em=_sem_fuso(dados.ocorrido_em), ensaio=dados.ensaio)
+    registrar_auditoria(db, usuario, "incidentes_de_seguranca", "INCIDENTE_REGISTRADO", id_registro_afetado=i.id_incidente, ip_origem=_ip(request),
+                        dados_depois={"numero": i.numero, "ensaio": i.ensaio, "conhecido_em": i.conhecido_em.isoformat()})
+    return _com_quem_ve(db, usuario, incidentes.listar(db))
+
+
+@router.put("/api/privacidade/incidentes/{id_incidente}", summary="v7.4b - completar o registro: avaliação do risco, contenção, comunicações e lição aprendida")
+def atualizar_incidente(id_incidente: int, dados: IncidenteAtualizar, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_gerir)):
+    from app.services import incidentes
+
+    mudancas = {k: (_sem_fuso(v) if isinstance(v, datetime) else v) for k, v in dados.model_dump(exclude_unset=True).items()}
+    i = incidentes.atualizar(db, usuario, id_incidente, mudancas)
+    # os textos podem descrever pessoas: a Auditoria guarda QUAIS campos mudaram, o risco e as datas das comunicações
+    registrar_auditoria(db, usuario, "incidentes_de_seguranca", "INCIDENTE_ATUALIZADO", id_registro_afetado=i.id_incidente, ip_origem=_ip(request),
+                        dados_depois={"numero": i.numero, "campos": sorted(mudancas), "risco": i.risco,
+                                      "comunicado_anpd_em": i.comunicado_anpd_em.isoformat() if i.comunicado_anpd_em else None,
+                                      "comunicado_pessoas_em": i.comunicado_pessoas_em.isoformat() if i.comunicado_pessoas_em else None})
+    return _com_quem_ve(db, usuario, incidentes.listar(db))
+
+
+@router.post("/api/privacidade/incidentes/{id_incidente}/encerrar", summary="v7.4b - encerrar o registro (com o risco avaliado, a contenção, as comunicações quando há risco relevante e a lição aprendida)")
+def encerrar_incidente(id_incidente: int, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_gerir)):
+    from app.services import incidentes
+
+    i = incidentes.encerrar(db, usuario, id_incidente)
+    registrar_auditoria(db, usuario, "incidentes_de_seguranca", "INCIDENTE_ENCERRADO", id_registro_afetado=i.id_incidente, ip_origem=_ip(request),
+                        dados_depois={"numero": i.numero, "ensaio": i.ensaio, "risco": i.risco})
+    return _com_quem_ve(db, usuario, incidentes.listar(db))

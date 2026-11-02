@@ -212,6 +212,13 @@ export const modulos: Modulo[] = [
         icone: ChartNoAxesColumn,
         permissao: 'privacidade',
       },
+      // v7.4b: o registro de incidentes de segurança e o plano de resposta (o encarregado registra; quem tem o módulo lê)
+      {
+        rota: '/privacidade/incidentes',
+        rotulo: 'Incidentes de segurança',
+        icone: ShieldAlert,
+        permissao: 'privacidade',
+      },
     ],
   },
   {

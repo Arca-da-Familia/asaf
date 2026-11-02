@@ -154,3 +154,44 @@ class Consentimento(Base):
         Index("uq_consentimento_ativo_por_origem", "origem", "id_origem", unique=True, sqlite_where=text("encerrado_em IS NULL"),
               postgresql_where=text("encerrado_em IS NULL")),
     )
+
+
+# ------------------------------------------------------------------------------------------------ v7.4b - o registro de incidentes de segurança
+A_AVALIAR = "A_AVALIAR"
+RELEVANTE = "RELEVANTE"
+SEM_RISCO_RELEVANTE = "SEM_RISCO_RELEVANTE"
+RISCOS = (A_AVALIAR, RELEVANTE, SEM_RISCO_RELEVANTE)
+ABERTO = "ABERTO"
+ENCERRADO = "ENCERRADO"
+
+
+class IncidenteDeSeguranca(Base):
+    """Todo incidente de segurança que atinge (ou pode atingir) dado pessoal, comunicado ou não, e os ensaios anuais (LGPD art. 48; Resolução CD/ANPD nº 15/2024:
+    comunicar à ANPD e às pessoas atingidas em 3 dias úteis quando houver risco ou dano relevante, e guardar o registro por pelo menos 5 anos). Nada se apaga:
+    o registro encerrado fica, e não há rota de apagar. Ver app/services/incidentes.py."""
+    __tablename__ = "incidentes_de_seguranca"
+    id_incidente = Column(Integer, primary_key=True, index=True)
+    numero = Column(Integer, nullable=False, unique=True)  # "Incidente nº 1"... nunca reaproveitado
+    ensaio = Column(Boolean, nullable=False, default=False)  # o ensaio anual: um incidente de mentira, sem comunicar ninguém de fora
+    titulo = Column(String(200), nullable=False)
+    descricao = Column(Text, nullable=False)
+    ocorrido_em = Column(DateTime, nullable=True)  # quando aconteceu (pode ser desconhecido)
+    conhecido_em = Column(DateTime, nullable=False)  # quando a ASAF soube: daqui conta o prazo de 3 dias úteis
+    dados_afetados = Column(Text, nullable=True)
+    pessoas_afetadas = Column(Text, nullable=True)  # quem foi atingido (grupos, nunca a lista de nomes)
+    quantidade_estimada = Column(Integer, nullable=True)
+    contencao = Column(Text, nullable=True)  # o que foi feito para parar e limitar o dano
+    risco = Column(String(20), nullable=False, default=A_AVALIAR)
+    motivo_do_risco = Column(Text, nullable=True)
+    comunicado_anpd_em = Column(DateTime, nullable=True)
+    protocolo_anpd = Column(String(100), nullable=True)
+    comunicado_pessoas_em = Column(DateTime, nullable=True)
+    como_pessoas = Column(Text, nullable=True)  # por onde as pessoas foram avisadas (e-mail, painel, site)
+    licao_aprendida = Column(Text, nullable=True)
+    acao_corretiva = Column(Text, nullable=True)
+    situacao = Column(String(20), nullable=False, default=ABERTO, index=True)
+    encerrado_em = Column(DateTime, nullable=True)
+    registrado_em = Column(DateTime, nullable=False, default=datetime.utcnow)
+    id_usuario_registro = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)  # vazio: registrado pela migração (precedente)
+    atualizado_em = Column(DateTime, nullable=True)
+    id_usuario_atualizacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)

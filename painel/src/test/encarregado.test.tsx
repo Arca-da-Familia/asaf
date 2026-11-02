@@ -92,6 +92,7 @@ describe('Encarregado de dados (v7.0a)', () => {
       'Consentimentos',
       'Dados de uma pessoa',
       'Relatório de atendimento',
+      'Incidentes de segurança',
     ])
     // v7.2b: o relatório dos dados de uma pessoa é só do encarregado
     expect(
@@ -100,6 +101,11 @@ describe('Encarregado de dados (v7.0a)', () => {
     // v7.2f: o relatório de atendimento é da Diretoria (quem vê o módulo)
     expect(
       modulo?.itens?.find((i) => i.rotulo === 'Relatório de atendimento')
+        ?.permissao,
+    ).toBe('privacidade')
+    // v7.4b: o registro de incidentes é lido por quem vê o módulo (só o encarregado registra; o servidor recusa os outros)
+    expect(
+      modulo?.itens?.find((i) => i.rotulo === 'Incidentes de segurança')
         ?.permissao,
     ).toBe('privacidade')
   })

@@ -186,6 +186,11 @@ CLASSIFICACAO: dict[str, Tabela] = {
     "atos_do_encarregado": Tabela(titulares=(DIRIGENTE,), colunas={
         "nome_encarregado": P, "nome_substituto": P, "assinado_nome_arquivo": P, "assinado_arquivo": P, "texto": P,
     }),
+    # v7.4b: o registro de incidentes descreve o que aconteceu; os textos podem citar pessoas (por isso a Auditoria guarda só os campos que mudaram)
+    "incidentes_de_seguranca": Tabela(colunas={
+        "titulo": P, "descricao": LIVRE, "dados_afetados": LIVRE, "pessoas_afetadas": LIVRE, "contencao": LIVRE, "motivo_do_risco": LIVRE, "como_pessoas": LIVRE,
+        "licao_aprendida": LIVRE, "acao_corretiva": LIVRE, "protocolo_anpd": NP,
+    }),
     "atas": Tabela(colunas={"relato_secretaria": P, "corpo_texto": P, "motivo_retificacao": NP, "arquivo_documento_assinado": P}),
     "ocorrencias_sessao": Tabela(colunas={"descricao": LIVRE}),
     "documentos_institucionais": Tabela(colunas={  # o ORIGINAL pode ter RG/CPF de quem assinou (ata, termo)
