@@ -1675,12 +1675,14 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > todo (303 achados na primeira leitura e 11 que ela não tinha conseguido abrir); a conferência final, feita direto no GitHub e não na cópia local do `gh`,
 > não achou nenhum com o e-mail. As 1.486 cópias locais dos registros (`run-log-*.zip` do `gh` neste computador) também foram apagadas.
 
-- [ ] Plano escrito e ensaiado: detecção → contenção → avaliação de risco aos titulares →
+- [x] Plano escrito e ensaiado: detecção → contenção → avaliação de risco aos titulares →
       comunicação à ANPD e aos titulares quando houver risco relevante → registro e lição
-      aprendida. Prazo e canal de comunicação definidos **antes** do incidente, não durante.
-- [ ] Registro de incidentes (mesmo os sem impacto) com ação corretiva — inclui os incidentes
+      aprendida. Prazo e canal de comunicação definidos **antes** do incidente, não durante. **[v7.4b: o plano na tela, o prazo e o canal decididos
+      em 30/10; o ensaio anual com aviso de vencido, feito pelo robô na homologação; o primeiro ensaio em produção é do Presidente, pela tela]**
+- [x] Registro de incidentes (mesmo os sem impacto) com ação corretiva — inclui os incidentes
       reais já vividos no projeto (exposição de senha em transcrição, rotacionada imediatamente),
-      documentados como precedente.
+      documentados como precedente. **[v7.4b: o registro; o precedente nº 1 (o e-mail nos registros públicos) entrou pela migração; o da senha em
+      transcrição não tem data nem detalhe escritos em lugar nenhum: fica para o Presidente registrar pela tela]**
 
 ✅ **v7.4a concluída (2026-10-30) — a prevenção: os achados da primeira análise automática do código (CodeQL).** (1) A busca de e-mail do **verificador
 de documento público** demorava o quadrado do tamanho num texto feito de propósito (milhares de "%" seguidos: 40 mil caracteres levavam 1,7 s, 200 mil
@@ -1694,6 +1696,31 @@ motivo foi **barrado pelo sistema de segurança do Claude Code** (escrita em sis
 **Na homologação (2026-10-30):** robôs `v5.4c-fase1` 24 (inclui a importação), `v5.4g-02` 7 e `v5.4g-04` 9 (o verificador de documento) e `v7.3b-01` 2.
 **Em produção (2026-10-30):** `main` = `59e5ffc`; Deploy API (1781), Deploy Painel e Deploy Site (928) verdes, já com as actions fixadas;
 `painel.asaf.org.br/version.json` = `59e5ffc`; a análise do código na `main` fechou os alertas reais (sobram os 15 de teste).
+
+✅ **A troca do e-mail que administra o Azure (2026-11-02, pedido do Presidente: "tem que ser agora").** O Presidente criou o domínio nacional
+**arcadafamilia.org.br** e trocou o e-mail da conta do Entra ID (a mesma conta, só o e-mail mudou): a dona da assinatura (Owner) já aparece com o e-mail
+novo. Este computador entrou de novo no Azure com o e-mail novo (pelo login por código: o navegador abria com outra conta). Os **4 avisos do orçamento de
+150 dólares** passaram para o e-mail novo. Conferidos sem achar o antigo: as 21 senhas do cofre, as variáveis da API, da homologação e do Directus e os
+usuários do Directus (o administrador antigo já tinha saído em outubro). O **verificador de documento público** deixou de aceitar o domínio antigo como da
+ASAF (ele não será renovado e pode ser comprado por outra pessoa) e passou a aceitar o novo; o `ARQUITETURA.md` foi atualizado. Testes: 1782 em duas rodadas
+e contra Postgres; na homologação, `v5.4g-02` 7; em produção, `main` = `e9a1d92`, Deploy API verde. O Presidente troca o e-mail nos serviços que só ele acessa
+(GitHub, Registro.br, Google, Microsoft for Nonprofits). O "criado por" dos recursos antigos continua com o e-mail antigo (histórico da Microsoft).
+
+✅ **v7.4b concluída (2026-11-02) — o registro de incidentes de segurança.** **Privacidade > Incidentes de segurança**: o **plano de resposta** na tela
+(registrar, conter, avaliar o risco, comunicar em 3 dias úteis à ANPD pelo canal dela no gov.br e às pessoas por e-mail, painel e site, encerrar com a lição);
+o **prazo de 3 dias úteis** contado do dia em que a associação soube (hora de Belém, de segunda a sexta, sem feriados: fica igual ou mais curto que o da lei),
+com o aviso "vence hoje" e "vencido"; a comunicação só é exigida com **risco relevante**; **encerrar** só com o risco avaliado e justificado, a contenção, as
+comunicações (quando há risco relevante) e a lição aprendida; depois de encerrado nada muda, e **não há rota de apagar** (a lei pede 5 anos); o **ensaio anual**
+(registrado como ensaio, não se comunica à ANPD) com aviso quando passa de um ano; só o encarregado registra e completa, quem tem o módulo lê; a Auditoria
+guarda quais campos mudaram, o risco e as datas, nunca os textos. A tabela entrou na classificação de dados e no inventário (atividade "Registro de
+incidentes de segurança", base: obrigação legal). A migração `b74b2e6c1d40` cria a tabela e registra o **precedente nº 1** (o e-mail nos registros públicos,
+sem risco relevante, encerrado, sem o e-mail no texto).
+**Testes:** servidor 1793 em duas rodadas e 1794 contra Postgres 18; painel 793 em duas rodadas e a montagem.
+**Na homologação (2026-11-02):** a migração rodou no banco de teste; robô `v7.4b-01` 2/2 (o Presidente vê o plano e o precedente nº 1, faz um ensaio,
+tenta encerrar sem completar e é recusado, completa, encerra, o ensaio anual deixa de estar pendente e a Auditoria registra `INCIDENTE_ENCERRADO`; o 1º
+Vice-Presidente lê o registro sem o formulário). Regressões `v7.0c-01` 3 (inventário) e `v7.0a-01` 4 (encarregado).
+**Em produção (2026-11-02):** `main` = `4b56ddd`; Deploy API (1794 contra Postgres; migração `a73c9f1e5b20 -> b74b2e6c1d40` aplicada) e Deploy Painel
+verdes; `painel.asaf.org.br/version.json` = `4b56ddd`; a rota `/api/privacidade/incidentes` está no `openapi.json` e recusa quem não entrou (401).
 
 #### v7.5 — Cultura e prova
 
