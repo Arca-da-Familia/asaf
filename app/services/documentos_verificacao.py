@@ -32,7 +32,9 @@ PARTE_MAXIMA_DE_PAGINAS_SEM_TEXTO = 0.5
 TEXTO_GUARDADO_MAXIMO = 400_000  # caracteres do texto extraído que ficam guardados para busca
 
 # Dados da própria ASAF (site/src/config/organizacao.ts): publicados em todo lugar, não são dado pessoal.
-DOMINIOS_DE_EMAIL_INSTITUCIONAL = ("asaf.org.br", "arcadafamilia.org")
+# 2026-11-02: o domínio internacional arcadafamilia.org foi trocado pelo nacional arcadafamilia.org.br (a conta que administra o Azure passou para ele) e o
+# antigo não será renovado: depois de vencer, qualquer pessoa pode comprá-lo, então um e-mail @arcadafamilia.org deixa de ser "da ASAF".
+DOMINIOS_DE_EMAIL_INSTITUCIONAL = ("asaf.org.br", "arcadafamilia.org.br")
 TELEFONES_INSTITUCIONAIS = ("94984120703",)  # só dígitos, sem 55
 CEP_DA_SEDE = "68515000"
 

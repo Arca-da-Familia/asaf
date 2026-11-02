@@ -210,3 +210,10 @@ def test_texto_feito_para_travar_a_busca_de_e_mail_termina_rapido():
     # o e-mail de fora continua sendo achado, no meio do texto e logo depois de pontuação
     achados, _ = v.procurar_dado_pessoal("Fale com fulana.silva@gmail.com (ou: beltrano+asaf@outlook.com.br).")
     assert [a.codigo for a in achados].count("EMAIL") == 2
+
+
+def test_o_dominio_institucional_e_o_nacional_e_o_antigo_deixa_de_valer():
+    """2026-11-02: arcadafamilia.org (internacional, não será renovado e pode ser comprado por outra pessoa) saiu; arcadafamilia.org.br entrou."""
+    achados, _ = v.procurar_dado_pessoal("Contato: asaf@arcadafamilia.org.br ou asaf@asaf.org.br. Antigo: asaf@arcadafamilia.org.")
+    emails = [a for a in achados if a.codigo == "EMAIL"]
+    assert len(emails) == 1 and "arcadafamilia.org" in emails[0].amostra

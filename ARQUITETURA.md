@@ -82,11 +82,13 @@ Tudo hospedado no Azure, grupo de recursos `Associacao-RG`, região Brazil South
   Directus (`cms.`), zona de DNS no Azure e e-mail no Google Workspace (`asaf@asaf.org.br`). **É
   com ele que toda identidade pública e todo e-mail novo devem sair** (inclusive o autor dos
   commits do repositório, trocado em 2026-10-01).
-- **`arcadafamilia.org`** — domínio internacional, que é o do **tenant Microsoft/Azure**
-  (conta master `asaf@arcadafamilia.org`): serve **só para entrar no Azure**. O plano do usuário é
-  tirá-lo de cena nos próximos tempos por causa do custo. Qualquer endereço `@arcadafamilia.org`
-  que não seja essa conta master **não existe como caixa de e-mail** (foi o caso do
-  `admin@arcadafamilia.org` do Directus, que nunca recebeu nada).
+- **`arcadafamilia.org.br`** — domínio nacional do **tenant Microsoft/Azure** desde 2026-11-02: a conta
+  master passou a ser `asaf@arcadafamilia.org.br` (a mesma conta do Entra ID, com o e-mail trocado; o
+  papel de dona da assinatura a acompanhou) e serve **só para entrar no Azure** e receber os avisos de
+  custo. O domínio internacional **`arcadafamilia.org`** (o anterior, na HostGator) **não será
+  renovado**: depois de vencer, qualquer pessoa pode comprá-lo, então nenhum endereço
+  `@arcadafamilia.org` vale mais como da ASAF (o verificador de documento público já não o aceita).
+  O `createdBy` dos recursos criados antes continua mostrando o e-mail antigo (é só histórico do Azure).
 
 ### Por que Postgres, não SQLite
 
