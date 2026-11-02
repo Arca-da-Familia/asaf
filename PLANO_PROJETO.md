@@ -1665,8 +1665,9 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 > domínio; o sistema manda por `smtp.gmail.com`), entrou o **DMARC em modo observar** (`p=none`, relatórios para asaf@asaf.org.br; passa a recusar o
 > e-mail falso depois de duas semanas sem barrar e-mail legítimo) e a zona passou a ser **assinada (DNSSEC)**; a assinatura só vale para quem acessa
 > depois que o **Presidente** puser o código DS no Registro.br (`62747 13 2 5A3AD2B3…3393`; a conta é dele). **Ele pôs em 30/10 à noite** (os 4 servidores do
-> Azure ficaram iguais; print conferido); às 20:43 UTC o servidor do .br ainda não publicava o DS: conferir na próxima sessão que o DS saiu e que a
-> validação vale (AD), com o site, o painel e a API abrindo. O site, o painel e a API seguiram no ar a cada
+> Azure ficaram iguais; print conferido). **Conferido em 2026-11-02: o .br publicou o DS e o asaf.org.br é validado (AD) pelo Google e pela Cloudflare**;
+> o site, o painel e a API abrem. O painel e a API apontam para nomes da Microsoft (`azurestaticapps.net`, `azurecontainerapps.io`), que não são
+> assinados: a parte que é da ASAF (o apontamento) está assinada, o resto depende da Microsoft. O site, o painel e a API seguiram no ar a cada
 > passo. O registro **CAA** (quem pode emitir o certificado) **não** foi feito: o Presidente preferiu não mexer no certificado que o plano do Azure já dá.
 > O domínio **arcadafamilia.org** (o do e-mail que administra o servidor) **não** foi tocado: será trocado (última fase). **Registros públicos antigos:**
 > uma análise de 496 registros do Actions não achou senha, chave nem dado de associado (os alarmes eram nomes de variável e valores de teste); o único
