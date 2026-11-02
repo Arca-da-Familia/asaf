@@ -1681,8 +1681,9 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       em 30/10; o ensaio anual com aviso de vencido, feito pelo robô na homologação; o primeiro ensaio em produção é do Presidente, pela tela]**
 - [x] Registro de incidentes (mesmo os sem impacto) com ação corretiva — inclui os incidentes
       reais já vividos no projeto (exposição de senha em transcrição, rotacionada imediatamente),
-      documentados como precedente. **[v7.4b: o registro; o precedente nº 1 (o e-mail nos registros públicos) entrou pela migração; o da senha em
-      transcrição não tem data nem detalhe escritos em lugar nenhum: fica para o Presidente registrar pela tela]**
+      documentados como precedente. **[v7.4b: o registro; o precedente nº 1 (o e-mail nos registros públicos) entrou pela migração. A "senha em
+      transcrição" desta frase NÃO foi confirmada: não há registro dela em lugar nenhum e o Presidente não se lembra de vazamento (2026-11-02); não foi
+      registrada (registro de incidente só com fatos); se aparecer informação, entra pela tela]**
 
 ✅ **v7.4a concluída (2026-10-30) — a prevenção: os achados da primeira análise automática do código (CodeQL).** (1) A busca de e-mail do **verificador
 de documento público** demorava o quadrado do tamanho num texto feito de propósito (milhares de "%" seguidos: 40 mil caracteres levavam 1,7 s, 200 mil
