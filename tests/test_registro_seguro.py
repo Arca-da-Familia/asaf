@@ -121,6 +121,7 @@ PASSOS_DO_BANCO_DE_PRODUCAO = [
     ("tarefa-eventos-vagas.yml", "Buscar segredos do Key Vault (DATABASE_URL + SMTP)"),
     ("tarefa-fechamento-eventos.yml", "Buscar DATABASE_URL do Key Vault"),
     ("tarefa-mensal-financeiro.yml", "Buscar DATABASE_URL do Key Vault"),
+    ("revisao-de-desempenho.yml", "Buscar o banco do ambiente no Key Vault"),
 ]
 
 

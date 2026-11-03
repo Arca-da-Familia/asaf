@@ -1,0 +1,101 @@
+name: Revisão de desempenho (gatilhos de escala)
+
+# v8.5 (FASE 8) - a cada 3 meses mede o período (90 dias) do banco, da API e dos arquivos e compara com os GATILHOS DE ESCALA
+# (infra/config/gatilhos-de-escala.env). Se algum for atingido, abre um AVISO no GitHub (issue com o rótulo `revisao-de-desempenho`) dizendo qual e apontando o
+# que fazer (RUNBOOK.md, seção 11). O relatório inteiro fica no resumo da execução.
+#
+# Garantias (tests/test_revisao_de_desempenho.py):
+#   - SÓ LÊ: métricas do Azure e as estatísticas do próprio Postgres, numa sessão só de leitura (scripts/revisao_de_desempenho.py);
+#   - o registro é público: o relatório só traz números e nomes de tabela/índice; o texto das consultas sai sem valor (aspas viram ?), e a senha do banco é
+#     mascarada e o registro seguro está ligado, como nas outras rotinas;
+#   - à mão, o padrão é a HOMOLOGAÇÃO; a rodada agendada é da produção; o aviso só é aberto para a produção.
+on:
+  schedule:
+    - cron: "0 12 15 1,4,7,10 *" # dia 15 de janeiro, abril, julho e outubro, 12:00 UTC (9:00 em Belém)
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        description: "Qual ambiente medir"
+        type: choice
+        options: [homologacao, producao]
+        default: homologacao
+      dias:
+        description: "Quantos dias para trás (1 a 93)"
+        type: string
+        default: "90"
+
+permissions:
+  id-token: write # login OIDC no Azure (sem senha salva)
+  contents: read
+  issues: write # abrir o aviso quando um gatilho for atingido
+
+env:
+  AMBIENTE: ${{ inputs.ambiente || 'producao' }}
+  DIAS: ${{ inputs.dias || '90' }}
+
+jobs:
+  revisar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.15"
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Login no Azure via OIDC
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Buscar o banco do ambiente no Key Vault
+        run: |
+          if [ "${AMBIENTE:-producao}" = "homologacao" ]; then
+            DB_URL=$(az keyvault secret show --vault-name kv-asaf-arca --name HML-DATABASE-URL --query value -o tsv)
+            echo "::add-mask::$DB_URL"
+            case "$DB_URL" in
+              */asaf_hml\?*) ;;
+              *) echo "::error::HML-DATABASE-URL não aponta para o banco asaf_hml: parando."; exit 1 ;;
+            esac
+          else
+            DB_URL=$(az keyvault secret show --vault-name kv-asaf-arca --name DATABASE-URL --query value -o tsv)
+            echo "::add-mask::$DB_URL"
+          fi
+          # a senha também SOZINHA (e como fica depois de decodificada), como nas outras rotinas (v7.3d)
+          DB_SENHA=$(python3 -c "from urllib.parse import urlsplit, unquote; import sys; s = urlsplit(sys.argv[1]).password or ''; print(s); print(unquote(s))" "$DB_URL")
+          while IFS= read -r PARTE; do if [ -n "$PARTE" ]; then echo "::add-mask::$PARTE"; fi; done <<< "$DB_SENHA"
+          echo "DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
+          echo "ASAF_REGISTRO_SEGURO=1" >> "$GITHUB_ENV"
+
+      - name: Medir e comparar com os gatilhos
+        id: revisao
+        run: |
+          PYTHONPATH=. python scripts/revisao_de_desempenho.py --ambiente "$AMBIENTE" --dias "$DIAS" --saida revisao.md
+          cat revisao.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Aviso no GitHub (só na produção e só se um gatilho foi atingido)
+        if: env.AMBIENTE == 'producao' && steps.revisao.outputs.alertas != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROTULO: revisao-de-desempenho
+        run: |
+          gh label create "$ROTULO" --repo "$GITHUB_REPOSITORY" --color FBCA04 --description "A revisão de desempenho achou um gatilho de escala (aviso automático)" 2>/dev/null || true
+          CORPO=$(printf '%s\n\nO que fazer em cada caso: RUNBOOK.md, seção 11. Execução: %s/%s/actions/runs/%s' \
+            "$(cat revisao.md)" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "${{ github.run_id }}")
+          ABERTO=$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$ROTULO" --state open --json number -q '.[0].number // ""')
+          if [ -n "$ABERTO" ]; then
+            gh issue comment "$ABERTO" --repo "$GITHUB_REPOSITORY" --body "$CORPO"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --label "$ROTULO" --title "Revisão de desempenho: um gatilho de escala foi atingido" --body "$CORPO"
+          fi
+
+      - name: Logout
+        if: always()
+        run: az logout || true

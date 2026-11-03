@@ -1,5 +1,5 @@
 """O tamanho do conjunto de conexões do banco vem do ambiente: a API do ambiente de TESTE precisa ficar abaixo do limite do papel de teste
-(5 conexões), e a produção, que não define nada, continua com o padrão. Cada caso roda num processo à parte porque o `engine` nasce
+(5 conexões); a produção define o seu em infra/config/api-producao.env (v8.5, ver tests/test_orcamento_de_conexoes.py). Cada caso roda num processo à parte porque o `engine` nasce
 quando `app.database` é importado."""
 import json
 import os
@@ -26,7 +26,7 @@ def _pool(**variaveis) -> dict:
 
 
 def test_sem_variaveis_o_padrao_do_sqlalchemy_continua_igual():
-    """A produção não define nada: nada muda para ela."""
+    """Sem as variáveis (desenvolvimento, rotinas), nada muda."""
     assert _pool() == {"tamanho": 5, "estouro": 10}
 
 
@@ -53,4 +53,4 @@ def test_o_deploy_de_teste_define_o_pool_pequeno_a_cada_publicacao(arquivo):
     texto = (RAIZ / ".github" / "workflows" / arquivo).read_text(encoding="utf-8")
     assert "DB_POOL_SIZE=3" in texto and "DB_MAX_OVERFLOW=1" in texto
     producao = (RAIZ / ".github" / "workflows" / "deploy-api.yml").read_text(encoding="utf-8")
-    assert "DB_POOL_SIZE" not in producao, "a produção segue com o padrão"
+    assert "DB_POOL_SIZE" not in producao, "o da produção vem só de infra/config/api-producao.env, num lugar só"

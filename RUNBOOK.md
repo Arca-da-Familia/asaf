@@ -85,8 +85,8 @@ se a API passa a usar ele (trocar a senha de conexão `dburl`, seção 7). Faça
 publica o site. Ninguém as digita nem as decora; são sorteadas pelo computador e ficam no cofre. A senha de cada pessoa para entrar no painel **não tem
 troca obrigatória** (troca forçada leva a senha fraca ou anotada em papel); só se troca quando há suspeita de vazamento.
 
-Quando trocar as chaves de máquina: quando alguém com acesso técnico ao Azure sair e na hora em que houver suspeita de vazamento (registre em Privacidade >
-Incidentes); a troca periódica está em decisão do Presidente (2026-11-03).
+Quando trocar as chaves de máquina: **só** quando alguém com acesso técnico ao Azure sair e na hora em que houver suspeita de vazamento (registre em
+Privacidade > Incidentes). **Não há troca periódica** (decisão do Presidente, 2026-11-03).
 
 **Atenção:** as senhas da API ficam **copiadas** dentro do Container App (não são lidas do cofre a cada vez). Trocar uma senha é sempre: (1) gerar a nova,
 (2) gravar no **cofre** (para não se perder), (3) gravar no **Container App** e (4) reiniciar. Faça antes na homologação (`asaf-api-hml`, segredos `HML-*`).
@@ -104,15 +104,15 @@ na mesma hora; a do e-mail (`SMTP-SENHA`/`smtp-senha`) é a senha de app do Goog
 
 **Datas da última troca** (do cofre, conferidas em 2026-11-03; nenhuma tem data de validade):
 
-| Chave (cofre) | Última troca | Próxima (se houver troca periódica) |
-|---|---|---|
-| DATABASE-URL, STORAGE-ACCOUNT-KEY, STORAGE-CONNECTION-STRING, DIRECTUS-KEY, DIRECTUS-ADMIN-PASSWORD, SWA-SITE-DEPLOY-TOKEN, SWA-PAINEL-DEPLOY-TOKEN | 2026-09-10 | 2027-09 |
-| JWT-SECRET | 2026-09-11 | 2027-09 |
-| SMTP-HOST, SMTP-PORTA, SMTP-USUARIO, SMTP-SENHA, SMTP-REMETENTE | 2026-09-17 | 2027-09 |
-| DIRECTUS-SECRET | 2026-10-02 | 2027-10 |
-| DIRECTUS-SITE-TOKEN | 2026-10-03 | 2027-10 |
-| HML-DATABASE-URL, HML-JWT-SECRET, HML-ADMIN-SENHA, SWA-PAINEL-HML-DEPLOY-TOKEN, SWA-SITE-HML-DEPLOY-TOKEN | 2026-10-05 | 2027-10 |
-| HML-USUARIOS | 2026-10-19 | 2027-10 |
+| Chave (cofre) | Última troca |
+|---|---|
+| DATABASE-URL, STORAGE-ACCOUNT-KEY, STORAGE-CONNECTION-STRING, DIRECTUS-KEY, DIRECTUS-ADMIN-PASSWORD, SWA-SITE-DEPLOY-TOKEN, SWA-PAINEL-DEPLOY-TOKEN | 2026-09-10 |
+| JWT-SECRET | 2026-09-11 |
+| SMTP-HOST, SMTP-PORTA, SMTP-USUARIO, SMTP-SENHA, SMTP-REMETENTE | 2026-09-17 |
+| DIRECTUS-SECRET | 2026-10-02 |
+| DIRECTUS-SITE-TOKEN | 2026-10-03 |
+| HML-DATABASE-URL, HML-JWT-SECRET, HML-ADMIN-SENHA, SWA-PAINEL-HML-DEPLOY-TOKEN, SWA-SITE-HML-DEPLOY-TOKEN | 2026-10-05 |
+| HML-USUARIOS | 2026-10-19 |
 
 Para atualizar a tabela: `az keyvault secret list --vault-name kv-asaf-arca --query "[].{nome:name, atualizado:attributes.updated}" -o table`.
 
@@ -145,6 +145,62 @@ Para atualizar a tabela: `az keyvault secret list --vault-name kv-asaf-arca --qu
 | Réplicas da API em dia de evento | a cada 3 horas | sobe o mínimo de cópias da API em dia de evento |
 | Sincronizar site com o sistema | a cada 15 min | republica o site quando o conteúdo muda |
 | Voltar a API a uma versão anterior | só à mão | seção 5 |
+| Revisão de desempenho (gatilhos de escala) | dia 15 de jan., abr., jul. e out., 12:00 | mede 90 dias e abre aviso se um gatilho for atingido (seção 11) |
 
 Uma rotina vermelha não para o sistema: abra a execução, leia o erro e, se não for passageiro (rede, Azure), corrija pelo caminho normal (homologação
 primeiro).
+
+## 11. Quando crescer (gatilhos de escala)
+
+Quando: a rotina **Revisão de desempenho** (a cada 3 meses) abriu um aviso no GitHub (Issues, rótulo `revisao-de-desempenho`), ou vem aí algo bem maior
+que o normal (uma assembleia ou um evento com centenas de pessoas). Os números que disparam o aviso estão em `infra/config/gatilhos-de-escala.env`, cada
+um ao lado do uso real medido quando foi escrito. Para rodar a revisão à mão: **Actions > "Revisão de desempenho" > Run workflow** (o padrão é a
+homologação; escolha `producao` para a de verdade).
+
+**O uso real medido em 2026-11-03 (30 dias de produção):** banco com 8% de CPU em média (95% das horas abaixo de 11%), memória em 55%, 10 conexões em
+média (pico de 33), disco em 13% de 32 GB (4,4 GB, crescendo uns 57 MB por mês), os créditos de CPU sempre cheios; API dormindo quase o tempo todo (0,2
+cópia em média, pico de 2), 7.951 pedidos no mês (pico de 290 numa hora), memória até 292 MB de 1 GB, nenhum reinício; arquivos com menos de 1 MB. O
+teste de carga na homologação (2026-10-08) atendeu **150 inscrições num minuto** com uma cópia e 4 conexões, resposta típica de 0,28 s, sem nenhum erro.
+**Ou seja: hoje há folga grande em tudo; nenhum gatilho está perto.**
+
+### 11.1 O banco ficou pequeno (CPU, memória ou créditos)
+
+Subir o plano do servidor de **B1ms** (1 vCPU, 2 GB) para **B2s** (2 vCPU, 4 GB). Portal > `asaf-pg-server` > Computação + armazenamento, ou:
+
+```bash
+az postgres flexible-server update --resource-group Associacao-RG --name asaf-pg-server --tier Burstable --sku-name Standard_B2s
+```
+
+O banco **reinicia** (alguns minutos fora do ar): faça à noite e avise. Custa mais por mês (confira o preço na tela antes de confirmar e anote na revisão de
+custo, seção 9). Se um dia nem o B2s bastar, o passo seguinte é o plano **Uso Geral** (General Purpose), que também libera o PgBouncer embutido (11.2).
+
+### 11.2 As conexões com o banco chegaram perto do limite
+
+O servidor aceita **50** conexões, **15 reservadas** pelo Azure: sobram **35** para o próprio Azure (cerca de 5), a API de produção, a de teste, o editor
+do site e as rotinas. A conta está em `tests/test_orcamento_de_conexoes.py`, que **recusa** uma configuração que estoure: hoje a API usa 4 conexões fixas +
+1 de estouro por cópia (`infra/config/api-producao.env`), vezes 2 cópias no máximo. O **PgBouncer** (o "porteiro" que divide poucas conexões entre muitos
+pedidos) foi avaliado em 2026-11-03: o Azure **não o oferece no plano Burstable** (recusou ligá-lo neste servidor), e com o orçamento acima ele não faz falta.
+Se o gatilho disparar: (1) veja se alguma rotina ou ferramenta deixou conexões presas (reinicie a API, seção 4); (2) se o uso cresceu de verdade, suba o
+plano (11.1; o limite de conexões sobe junto) e, no plano Uso Geral, ligue o PgBouncer embutido (parâmetro `pgbouncer.enabled`, porta 6432).
+
+### 11.3 O disco do banco ou os arquivos cresceram
+
+Banco: aumente o disco (Portal > `asaf-pg-server` > Computação + armazenamento; **só aumenta, nunca diminui**; sem parar o banco). Antes, confira na
+revisão quais tabelas cresceram ("Maiores tabelas") e se as rotinas de retenção (v7.1) estão rodando. Arquivos: veja o que cresceu no Portal
+(`stasafprivado` > Contêineres) e se a retenção está apagando o que já venceu.
+
+### 11.4 A API ficou pequena (cópias no máximo ou memória)
+
+Aumente o máximo de cópias em `infra/config/api-producao-escala.env` (`MAX_REPLICAS`) pelo caminho normal (branch, homologação, `main`). **Antes**, refaça a
+conta das conexões (11.2): com o conjunto de hoje, 3 cópias **não cabem**, e o teste recusa; diminua o conjunto por cópia ou suba o plano do banco junto.
+Memória perto do limite: aumente `MEMORIA` no mesmo arquivo (com `CPU` na proporção que o Azure aceita: 0,5 CPU com 1 GB, 1 CPU com 2 GB). Para um evento
+grande, o fluxo de dia de evento já acorda a API antes; se a expectativa for **mais de 150 inscrições por minuto**, rode antes o **teste de carga** na
+homologação com o número esperado (Actions > "Testar Carga da Homologação", até 600 pessoas).
+
+### 11.5 Uma consulta ficou lenta (índices)
+
+A revisão lista tabelas grandes lidas por inteiro em vez de pelo índice, índices que nunca são usados e, se o `pg_stat_statements` estiver gravando, as
+consultas mais pesadas. A correção é um índice novo (ou o fim de um inútil) por **migração**, pelo caminho normal, conferindo na homologação. O
+`pg_stat_statements` já vem carregado no servidor, mas **não grava** (`pg_stat_statements.track = none`, o padrão do Azure). Ligá-lo é mudança na
+configuração do servidor da produção (sem reiniciar) e precisa de autorização: `pg_stat_statements.track = top` e `pg_stat_statements.track_utility = off`
+(para não guardar comandos de administração, que podem trazer senha), e depois `CREATE EXTENSION pg_stat_statements` no banco da produção.
