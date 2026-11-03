@@ -75,3 +75,12 @@ def test_voltar_versao_recusa_pedido_malformado(tmp_path, versao, ambiente, acei
         gravado = saida.read_text(encoding="utf-8")
         assert ("CONTAINER_APP=asaf-api\n" in gravado) is (ambiente == "producao")
         assert ("PREFIXO=hml-" in gravado) is (ambiente == "homologacao")
+
+
+def test_mudar_a_configuracao_versionada_publica_a_api():
+    """v8.5: o push na `main` só publica a API quando muda um dos caminhos do gatilho; a configuração versionada tem de estar entre eles (a v8.5 mudou só
+    infra/config/api-producao.env e a publicação não rodou)."""
+    texto = (RAIZ / ".github" / "workflows" / "deploy-api.yml").read_text(encoding="utf-8")
+    gatilho = texto.split("workflow_dispatch")[0]
+    assert '"infra/config/api-producao*.env"' in gatilho and '"infra/aplicar_sondas.py"' in gatilho
+    assert "api-producao.env" in texto and "api-producao-escala.env" in texto

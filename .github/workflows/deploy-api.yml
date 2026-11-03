@@ -10,6 +10,8 @@ on:
       - "requirements-dev.txt"
       - "Dockerfile"
       - "templates/**"
+      - "infra/config/api-producao*.env" # v8.5: a configuração versionada (v8.3) também publica - antes, mudá-la sozinha não chegava à produção
+      - "infra/aplicar_sondas.py"
       - ".github/workflows/deploy-api.yml"
   workflow_dispatch: {}
 
