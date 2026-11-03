@@ -586,6 +586,8 @@ export type IncidenteDeSeguranca = {
   precedente: boolean
   prazo_para_comunicar: string
   situacao_do_prazo: SituacaoDoPrazoDoIncidente
+  // v7.5c: a comunicação feita depois dos 3 dias úteis fica marcada
+  comunicado_fora_do_prazo: boolean
 }
 
 export type RegistroDeIncidentes = {

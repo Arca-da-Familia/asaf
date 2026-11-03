@@ -46,6 +46,7 @@ const incidente = (
   precedente: false,
   prazo_para_comunicar: '2026-11-04',
   situacao_do_prazo: 'no_prazo',
+  comunicado_fora_do_prazo: false,
   ...extra,
 })
 

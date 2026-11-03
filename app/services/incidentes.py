@@ -30,9 +30,10 @@ ROTULOS_DO_RISCO = {
     RELEVANTE: "Risco ou dano relevante: comunicar à ANPD e às pessoas",
     SEM_RISCO_RELEVANTE: "Sem risco relevante: fica só no registro",
 }
-# o que se pode preencher depois de registrar (o número, o tipo e quando foi registrado não mudam)
+# o que se pode preencher depois de registrar (o número, o tipo, quando foi registrado e QUANDO A ASSOCIAÇÃO SOUBE não mudam: v7.5c, achado do Ponto de
+# Revisão 3/3 - o prazo de 3 dias úteis conta dessa data, e mudá-la depois tirava o incidente de "vencido" sem deixar o valor novo na Auditoria)
 CAMPOS_EDITAVEIS = (
-    "titulo", "descricao", "ocorrido_em", "conhecido_em", "dados_afetados", "pessoas_afetadas", "quantidade_estimada", "contencao", "risco", "motivo_do_risco",
+    "titulo", "descricao", "ocorrido_em", "dados_afetados", "pessoas_afetadas", "quantidade_estimada", "contencao", "risco", "motivo_do_risco",
     "comunicado_anpd_em", "protocolo_anpd", "comunicado_pessoas_em", "como_pessoas", "licao_aprendida", "acao_corretiva",
 )
 
@@ -68,6 +69,12 @@ def situacao_do_prazo(i: IncidenteDeSeguranca, hoje: date) -> str:
     return "vencido" if hoje > prazo else "vence_hoje" if hoje == prazo else "no_prazo"
 
 
+def comunicado_fora_do_prazo(i: IncidenteDeSeguranca) -> bool:
+    """v7.5c: a comunicação (à ANPD ou às pessoas) foi feita depois do prazo de 3 dias úteis? Fica marcada, não escondida."""
+    prazo = prazo_para_comunicar(i.conhecido_em)
+    return any(quando is not None and dia_na_sede(quando) > prazo for quando in (i.comunicado_anpd_em, i.comunicado_pessoas_em))
+
+
 def serializar(i: IncidenteDeSeguranca, hoje: date) -> dict:
     return {
         "id_incidente": i.id_incidente, "numero": i.numero, "ensaio": bool(i.ensaio), "titulo": i.titulo, "descricao": i.descricao,
@@ -77,6 +84,7 @@ def serializar(i: IncidenteDeSeguranca, hoje: date) -> dict:
         "comunicado_pessoas_em": i.comunicado_pessoas_em, "como_pessoas": i.como_pessoas, "licao_aprendida": i.licao_aprendida, "acao_corretiva": i.acao_corretiva,
         "situacao": i.situacao, "encerrado_em": i.encerrado_em, "registrado_em": i.registrado_em, "precedente": i.id_usuario_registro is None,
         "prazo_para_comunicar": prazo_para_comunicar(i.conhecido_em).isoformat(), "situacao_do_prazo": situacao_do_prazo(i, hoje),
+        "comunicado_fora_do_prazo": comunicado_fora_do_prazo(i),
     }
 
 
@@ -137,14 +145,20 @@ def _aberto(db: Session, id_incidente: int) -> IncidenteDeSeguranca:
     return i
 
 
-def atualizar(db: Session, usuario: Usuario, id_incidente: int, dados: dict, agora: Optional[datetime] = None) -> IncidenteDeSeguranca:
+def atualizar(db: Session, usuario: Usuario, id_incidente: int, dados: dict, agora: Optional[datetime] = None) -> tuple[IncidenteDeSeguranca, list[str]]:
+    """Devolve o incidente e os campos que MUDARAM de verdade (o painel manda todos; a Auditoria guarda só os que mudaram)."""
     agora = agora or datetime.utcnow()
     i = _aberto(db, id_incidente)
+    if "conhecido_em" in dados and dados["conhecido_em"] != i.conhecido_em:
+        raise HTTPException(status_code=422, detail="A data em que a associação soube não muda depois do registro: o prazo de comunicação conta dela.")
+    mudaram = []
     for campo, valor in dados.items():
         if campo not in CAMPOS_EDITAVEIS:
             continue
         if isinstance(valor, str):
             valor = valor.strip() or None
+        if getattr(i, campo) != valor:
+            mudaram.append(campo)
         setattr(i, campo, valor)
     if i.risco not in RISCOS:
         raise HTTPException(status_code=422, detail="Escolha a avaliação do risco da lista.")
@@ -158,7 +172,7 @@ def atualizar(db: Session, usuario: Usuario, id_incidente: int, dados: dict, ago
         raise HTTPException(status_code=422, detail="Ensaio não se comunica à ANPD: é um incidente de mentira, para treinar.")
     i.atualizado_em, i.id_usuario_atualizacao = agora, usuario.id_usuario
     db.flush()
-    return i
+    return i, sorted(mudaram)
 
 
 def o_que_falta_para_encerrar(i: IncidenteDeSeguranca) -> list[str]:

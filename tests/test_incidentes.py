@@ -123,7 +123,8 @@ def test_o_ensaio_nao_se_comunica_a_anpd_e_conta_para_o_proximo_ensaio(client, d
     fechado = client.post(f"{url}/encerrar", headers=auth_headers)
     assert fechado.status_code == 200, fechado.text
     ensaios = fechado.json()["ensaios"]
-    assert ensaios["pendente"] is False and ensaios["proximo_ate"] == (date.today() + timedelta(days=365)).isoformat() or ensaios["pendente"] is False
+    hoje_belem = incidentes.hoje_na_sede()
+    assert ensaios["pendente"] is False and ensaios["proximo_ate"] == (hoje_belem + timedelta(days=365)).isoformat()
     # um ano e um dia depois, o próximo ensaio está pendente
     assert incidentes.ensaios(db, date.today() + timedelta(days=367))["pendente"] is True
 
@@ -169,3 +170,28 @@ def test_a_migracao_continua_a_cadeia_sem_segunda_cabeca():
     config.set_main_option("script_location", str(Path(__file__).resolve().parent.parent / "alembic"))
     diretorio = ScriptDirectory.from_config(config)
     assert len(diretorio.get_heads()) == 1 and diretorio.get_revision("b74b2e6c1d40").down_revision == "a73c9f1e5b20"
+
+
+# ------------------------------------------------------------------------------------------------ v7.5c: os achados do Ponto de Revisão 3/3
+def test_a_data_em_que_a_associacao_soube_nao_muda_depois_do_registro(client, auth_headers):
+    i = _registrar(client, auth_headers)
+    url = f"{URL}/{i['id_incidente']}"
+    depois = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
+    r = client.put(url, json={"conhecido_em": depois}, headers=auth_headers)
+    assert r.status_code == 422 and "não muda depois do registro" in r.json()["detail"]
+    assert client.put(url, json={"conhecido_em": None}, headers=auth_headers).status_code == 422, "nem vazio (antes dava erro 500)"
+
+
+def test_a_auditoria_guarda_so_os_campos_que_mudaram_de_verdade(client, db, auth_headers):
+    i = _registrar(client, auth_headers)
+    url = f"{URL}/{i['id_incidente']}"
+    tudo_igual = {"titulo": i["titulo"], "descricao": i["descricao"], "contencao": None, "risco": "SEM_RISCO_RELEVANTE", "licao_aprendida": None}
+    assert client.put(url, json=tudo_igual, headers=auth_headers).status_code == 200
+    registro = db.query(AuditLog).filter(AuditLog.acao == "INCIDENTE_ATUALIZADO", AuditLog.id_registro_afetado == i["id_incidente"]).one()
+    assert '"campos": ["risco"]' in registro.dados_depois
+
+
+def test_a_comunicacao_depois_do_prazo_fica_marcada():
+    tarde = _incidente(risco="RELEVANTE", comunicado_anpd_em=datetime(2026, 11, 6, 15), comunicado_pessoas_em=datetime(2026, 11, 3, 15))
+    no_prazo = _incidente(risco="RELEVANTE", comunicado_anpd_em=datetime(2026, 11, 4, 15), comunicado_pessoas_em=datetime(2026, 11, 4, 15))
+    assert incidentes.comunicado_fora_do_prazo(tarde) is True and incidentes.comunicado_fora_do_prazo(no_prazo) is False

@@ -92,3 +92,29 @@ def test_a_migracao_cria_a_tabela_do_modelo():
     config.set_main_option("script_location", str(Path(__file__).resolve().parent.parent / "alembic"))
     diretorio = ScriptDirectory.from_config(config)
     assert len(diretorio.get_heads()) == 1 and diretorio.get_revision("d75b1a9e4c72").down_revision == "c75a8d3f2b61"
+
+
+# ------------------------------------------------------------------------------------------------ v7.5c: os achados do Ponto de Revisão 3/3
+def test_quem_so_le_nao_anota_nem_aprova(client, db, auth_headers):
+    _limpar(db)
+    r = client.post(URL, headers=auth_headers).json()["revisoes"][0]
+    so_ve = _usuario(db, "privacidade")
+    assert client.put(f"{URL}/{r['id_revisao']}", json={"observacoes": "tentativa de quem só lê"}, headers=so_ve).status_code == 403
+    assert client.post(f"{URL}/{r['id_revisao']}/aprovar", headers=so_ve).status_code == 403
+    anotadas = db.query(AuditLog).filter(AuditLog.acao == "REVISAO_DO_PROGRAMA_ANOTADA").count()  # o banco de teste reaproveita o número
+    assert client.put(f"{URL}/{r['id_revisao']}", json={"observacoes": "Anotado pelo encarregado."}, headers=auth_headers).status_code == 200
+    assert db.query(AuditLog).filter(AuditLog.acao == "REVISAO_DO_PROGRAMA_ANOTADA").count() == anotadas + 1
+    _limpar(db)
+
+
+def test_o_retrato_de_outro_ano_nao_vale_e_29_de_fevereiro_funciona(client, db, auth_headers):
+    _limpar(db)
+    r = client.post(URL, headers=auth_headers).json()["revisoes"][0]
+    revisao_db = db.get(RevisaoDoPrograma, r["id_revisao"])
+    revisao_db.montada_em, revisao_db.observacoes = datetime(2020, 12, 30, 12), "Observações de um retrato antigo."
+    db.commit()
+    velho = client.post(f"{URL}/{r['id_revisao']}/aprovar", headers=auth_headers)
+    assert velho.status_code == 409 and "outro ano" in velho.json()["detail"]
+    retrato = revisao.montar_retrato(db, datetime(2028, 2, 29, 12))  # antes, `replace(year=...)` dava erro neste dia
+    assert retrato["periodo"]["de"].startswith("2027-03-01")
+    _limpar(db)

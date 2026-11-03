@@ -47,7 +47,10 @@ const PRAZO: Record<
     classe: 'bg-destructive/15 text-destructive',
   },
   comunicado: {
-    texto: () => 'Comunicado à ANPD e às pessoas',
+    texto: (i) =>
+      i.comunicado_fora_do_prazo
+        ? 'Comunicado à ANPD e às pessoas (fora do prazo)'
+        : 'Comunicado à ANPD e às pessoas',
     classe: 'bg-emerald-600/10 text-emerald-900 dark:text-emerald-200',
   },
   sem_obrigacao: {

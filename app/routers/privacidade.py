@@ -424,10 +424,10 @@ def atualizar_incidente(id_incidente: int, dados: IncidenteAtualizar, request: R
     from app.services import incidentes
 
     mudancas = {k: (_sem_fuso(v) if isinstance(v, datetime) else v) for k, v in dados.model_dump(exclude_unset=True).items()}
-    i = incidentes.atualizar(db, usuario, id_incidente, mudancas)
-    # os textos podem descrever pessoas: a Auditoria guarda QUAIS campos mudaram, o risco e as datas das comunicações
+    i, mudaram = incidentes.atualizar(db, usuario, id_incidente, mudancas)
+    # os textos podem descrever pessoas: a Auditoria guarda QUAIS campos mudaram de verdade (v7.5c), o risco e as datas das comunicações
     registrar_auditoria(db, usuario, "incidentes_de_seguranca", "INCIDENTE_ATUALIZADO", id_registro_afetado=i.id_incidente, ip_origem=_ip(request),
-                        dados_depois={"numero": i.numero, "campos": sorted(mudancas), "risco": i.risco,
+                        dados_depois={"numero": i.numero, "campos": mudaram, "risco": i.risco,
                                       "comunicado_anpd_em": i.comunicado_anpd_em.isoformat() if i.comunicado_anpd_em else None,
                                       "comunicado_pessoas_em": i.comunicado_pessoas_em.isoformat() if i.comunicado_pessoas_em else None})
     return _com_quem_ve(db, usuario, incidentes.listar(db))
@@ -496,8 +496,9 @@ def montar_revisao(request: Request, db: Session = Depends(get_db), usuario: Usu
 def anotar_revisao(id_revisao: int, dados: ObservacoesDaRevisao, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_gerir)):
     from app.services import revisao_do_programa as revisao
 
-    revisao.anotar(db, id_revisao, dados.observacoes)
-    db.commit()
+    r = revisao.anotar(db, id_revisao, dados.observacoes)
+    # v7.5c (achado do Ponto de Revisão 3/3): quem escreveu as observações e quando (o texto fica na revisão)
+    registrar_auditoria(db, usuario, "revisoes_do_programa", "REVISAO_DO_PROGRAMA_ANOTADA", id_registro_afetado=r.id_revisao)
     return _com_quem_ve(db, usuario, revisao.listar(db))
 
 

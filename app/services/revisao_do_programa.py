@@ -6,7 +6,7 @@ os incidentes e os ensaios, os pedidos de titular, o treinamento e o encarregado
 módulo Privacidade lê. Passado janeiro sem a revisão do ano, aparece o aviso."""
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from fastapi import HTTPException
@@ -50,7 +50,7 @@ def montar_retrato(db: Session, agora: Optional[datetime] = None) -> dict:
     from app.services import encarregado, incidentes, inventario, relatorio_de_atendimento_do_titular, retencao, treinamento_de_privacidade
 
     agora = agora or datetime.utcnow()
-    um_ano_antes = agora.replace(year=agora.year - 1)
+    um_ano_antes = agora - timedelta(days=365)  # v7.5c: `replace(year=...)` quebrava em 29 de fevereiro
     inv = inventario.listar(db)
     sit = encarregado.situacao(db, agora)
     quadro = treinamento_de_privacidade.quadro(db, agora)
@@ -85,7 +85,10 @@ def situacao(db: Session, hoje: Optional[date] = None) -> dict:
     hoje = hoje or hoje_na_sede()
     aprovadas = db.query(RevisaoDoPrograma).filter(RevisaoDoPrograma.situacao == REVISAO_APROVADA).order_by(RevisaoDoPrograma.aprovada_em.desc()).all()
     ultima = aprovadas[0].aprovada_em if aprovadas else None
-    pendente = ultima is None or ultima.year < hoje.year
+    from app.services.incidentes import dia_na_sede
+
+    # v7.5c: o ano da aprovação pela hora de Belém (uma aprovação em 31/12 às 22h não conta para o ano seguinte)
+    pendente = ultima is None or dia_na_sede(ultima).year < hoje.year
     return {"ultima_aprovada_em": ultima, "pendente": pendente, "atrasada": pendente and (ultima is None or hoje.month > MES_DA_REVISAO),
             "proxima_em": f"janeiro de {hoje.year + 1 if not pendente else hoje.year}"}
 
@@ -126,9 +129,15 @@ def anotar(db: Session, id_revisao: int, observacoes: Optional[str]) -> RevisaoD
 
 
 def aprovar(db: Session, usuario: Usuario, id_revisao: int, agora: Optional[datetime] = None) -> RevisaoDoPrograma:
+    from app.services.incidentes import dia_na_sede
+
+    agora = agora or datetime.utcnow()
     r = _rascunho(db, id_revisao)
+    # v7.5c: o retrato montado num ano não vale como a revisão do ano seguinte
+    if dia_na_sede(r.montada_em).year != dia_na_sede(agora).year:
+        raise HTTPException(status_code=409, detail="Este retrato é de outro ano: monte o retrato de hoje antes de aprovar.")
     if len((r.observacoes or "").strip()) < 10:
         raise HTTPException(status_code=422, detail="Escreva as observações da revisão (o que está bom e o que melhorar) antes de aprovar.")
-    r.situacao, r.aprovada_em, r.id_usuario_aprovacao = REVISAO_APROVADA, agora or datetime.utcnow(), usuario.id_usuario
+    r.situacao, r.aprovada_em, r.id_usuario_aprovacao = REVISAO_APROVADA, agora, usuario.id_usuario
     db.flush()
     return r
