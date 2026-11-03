@@ -1944,18 +1944,40 @@ teto de US$ 100/mês; próxima revisão em fevereiro de 2027 (o crédito de ONG 
 
 #### v8.5 — Escala e evolução (o que fazer quando crescer)
 
-- [ ] Gatilhos de escala escritos antes de precisar: CPU/conexões do Postgres acima de X por
+- [x] Gatilhos de escala escritos antes de precisar: CPU/conexões do Postgres acima de X por
       período → subir tier (B1ms → B2s → Standard); mais de N usuários simultâneos → aumentar
       réplicas mínimas do Container App; storage acima de Y → revisar política de retenção de
-      arquivo.
-- [ ] `PgBouncer`/pool de conexão avaliado antes de o número de réplicas crescer — Postgres
-      Burstable tem limite baixo de conexões, e esse é o primeiro gargalo real que aparece.
+      arquivo. **[v8.5 (2026-11-03): `infra/config/gatilhos-de-escala.env`, cada número ao lado do uso REAL medido em 30 dias de produção (banco: CPU média
+      8,2%, memória 55%, 9,8 conexões em média e pico de 33, disco 13% de 32 GB, créditos de CPU sempre cheios; API: 0,21 cópia em média, pico de 2, 7.951
+      pedidos no mês, memória até 292 MB, nenhum reinício; arquivos < 1 MB) e do teste de carga de 2026-10-08 (150 inscrições num minuto, p95 0,28 s, uma
+      cópia e 4 conexões). A rotina **Revisão de desempenho** (`revisao-de-desempenho.yml` + `scripts/revisao_de_desempenho.py`, dia 15 de jan./abr./jul./out.)
+      SÓ LÊ (métricas do Azure e estatísticas do Postgres em sessão só de leitura), compara e abre aviso no GitHub se algo passar; o texto das consultas sai
+      sem valor (registro público). O que fazer em cada caso: `RUNBOOK.md` seção 11. Provas: 30 testes (`tests/test_revisao_de_desempenho.py`); rodada na
+      homologação verde (relatório com banco, API, arquivos, maiores tabelas e 15 índices nunca usados); a primeira rodada achou um gatilho FALSO (com máximo
+      de 1 cópia, toda hora em que a API acordou contava como "no máximo") - corrigido para a média da hora, com teste, e a segunda rodada confirmou]**
+- [x] `PgBouncer`/pool de conexão avaliado antes de o número de réplicas crescer — Postgres
+      Burstable tem limite baixo de conexões, e esse é o primeiro gargalo real que aparece. **[v8.5: avaliado. O PgBouncer embutido do Azure NÃO existe no
+      plano Burstable (o servidor recusou `pgbouncer.enabled`). O servidor aceita 50 conexões com 15 reservadas: sobram 35 para o Azure (~5), a API, a
+      homologação, o Directus (até 10) e as rotinas - e o padrão do SQLAlchemy (5 + 10 por cópia, vezes 2 cópias) passava disso; o pico medido já tinha chegado
+      a 33. ACHADO REAL, corrigido: a API de produção passa a 4 + 1 conexões por cópia (`infra/config/api-producao.env`), e `tests/test_orcamento_de_conexoes.py`
+      refaz a conta e recusa qualquer configuração que estoure (3 cópias com o conjunto atual não cabem: provado em teste). Outro achado: mudar só a
+      configuração versionada não disparava a publicação da API (`deploy-api.yml` não olhava `infra/config/`) - corrigido, com teste. Na produção (só
+      leitura): revisão `asaf-api--0000179` saudável com a imagem 871c6b4, `DB_POOL_SIZE=4` e `DB_MAX_OVERFLOW=1`, `/health` ok. Quando o plano do banco subir
+      para Uso Geral, ligar o PgBouncer embutido (seção 11.2 do RUNBOOK)]**
 - [ ] Índices e consultas revisados com dados reais (`pg_stat_statements`) a cada ano — desempenho
-      degrada silenciosamente conforme a base cresce.
-- [ ] Caminho de saída documentado: como levar banco e arquivos para outro provedor se o crédito
+      degrada silenciosamente conforme a base cresce. **[v8.5: a revisão (acima) já lista, a cada 3 meses, tabelas grandes lidas sem índice e índices nunca
+      usados (na homologação, 15 índices pequenos sem uso: só candidatos, revisar depois de um ano de uso real). FALTA a parte das consultas lentas: o
+      `pg_stat_statements` vem carregado no servidor mas NÃO grava (`track = none`, padrão do Azure) e não está instalado no banco. Ligar é mudança na
+      configuração do servidor da PRODUÇÃO (sem reiniciar; `track = top`, `track_utility = off`, e `CREATE EXTENSION`): aguarda autorização. O Claude Code
+      também bloqueou a leitura direta do banco da produção pelo computador (2026-11-03); a leitura de produção fica com a rotina agendada]**
+- [x] Caminho de saída documentado: como levar banco e arquivos para outro provedor se o crédito
       Azure acabar. Dependência de nuvem única sem plano de saída é risco de perpetuidade, e a
       arquitetura (Postgres + contêiner + arquivos em blob) foi escolhida justamente para ser
-      portável.
+      portável. **[v8.5: `SAIDA_DO_AZURE.md` - o que substitui cada parte (conferido no código: a única peça da API presa ao Azure é o módulo de arquivos;
+      a única extensão do banco é `btree_gist`), copiar banco (`pg_dump`/`pg_restore`) e arquivos (`azcopy`), as variáveis da API, o DNSSEC (tirar o DS no
+      Registro.br ANTES de trocar o DNS, senão o domínio cai), a ordem (ensaio com a homologação primeiro; Política de Privacidade e inventário mudam antes;
+      Azure parado 30 dias sem apagar). Lembrete do próprio documento: em outubro o Azure custou R$ 119,38 no mês; pagar provavelmente sai mais barato que
+      mudar]**
 
 ##### 🔍 Ponto de Revisão — FASE 8 (2/2 — fim, fecha v8.4–v8.5)
 
