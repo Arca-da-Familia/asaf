@@ -695,3 +695,83 @@ export const concluirMeuTreinamento = () =>
 
 export const obterQuadroDeTreinamentos = () =>
   apiFetch<QuadroDeTreinamentos>('/api/privacidade/treinamentos')
+
+// ---------------------------------------------------------------------------------------------- v7.5b - a revisão anual do programa de privacidade
+export type RetratoDoPrograma = {
+  periodo: { de: string; ate: string }
+  encarregado: {
+    nome: string | null
+    ato_vigente: number | null
+    avisos: string[]
+  }
+  inventario: {
+    atividades: number
+    base_legal_a_conferir: number
+    tabelas_sem_atividade: string[]
+  }
+  prazos_de_guarda: { rotulo: string; dias: number }[]
+  acessos: { nome: string; nivel: string | null; permissoes: string[] }[]
+  incidentes: {
+    registrados: number
+    com_risco_relevante: number
+    comunicados_a_anpd: number
+    abertos: number
+    ensaios: number
+  }
+  ensaios: {
+    ultimo_ensaio_em: string | null
+    proximo_ate: string | null
+    pendente: boolean
+  }
+  pedidos_de_titular: {
+    total: number
+    respondidos: number
+    respondidos_no_prazo: number
+    em_andamento_vencidos: number
+  }
+  treinamento: {
+    precisam: number
+    feitos: number
+    pendentes: number
+    atrasados: number
+  }
+}
+
+export type RevisaoDoPrograma = {
+  id_revisao: number
+  situacao: 'RASCUNHO' | 'APROVADA'
+  retrato: RetratoDoPrograma
+  observacoes: string | null
+  montada_em: string
+  aprovada_em: string | null
+}
+
+export type RevisoesDoPrograma = {
+  situacao: {
+    ultima_aprovada_em: string | null
+    pendente: boolean
+    atrasada: boolean
+    proxima_em: string
+  }
+  revisoes: RevisaoDoPrograma[]
+  pode_gerir: boolean
+}
+
+export const obterRevisoesDoPrograma = () =>
+  apiFetch<RevisoesDoPrograma>('/api/privacidade/revisao-anual')
+
+export const montarRevisaoDoPrograma = () =>
+  apiFetch<RevisoesDoPrograma>('/api/privacidade/revisao-anual', {
+    method: 'POST',
+  })
+
+export const anotarRevisaoDoPrograma = (id: number, observacoes: string) =>
+  apiFetch<RevisoesDoPrograma>(`/api/privacidade/revisao-anual/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ observacoes }),
+  })
+
+export const aprovarRevisaoDoPrograma = (id: number) =>
+  apiFetch<RevisoesDoPrograma>(`/api/privacidade/revisao-anual/${id}/aprovar`, {
+    method: 'POST',
+  })

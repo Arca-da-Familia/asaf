@@ -94,6 +94,7 @@ describe('Encarregado de dados (v7.0a)', () => {
       'Relatório de atendimento',
       'Incidentes de segurança',
       'Treinamento de privacidade',
+      'Revisão anual',
     ])
     // v7.2b: o relatório dos dados de uma pessoa é só do encarregado
     expect(

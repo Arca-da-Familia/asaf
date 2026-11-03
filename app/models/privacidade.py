@@ -206,3 +206,23 @@ class TreinamentoDePrivacidade(Base):
     id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=False, index=True)
     versao_material = Column(String(20), nullable=False)
     concluido_em = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+# ------------------------------------------------------------------------------------------------ v7.5b - a revisão anual do programa de privacidade
+REVISAO_RASCUNHO = "RASCUNHO"
+REVISAO_APROVADA = "APROVADA"
+
+
+class RevisaoDoPrograma(Base):
+    """A revisão anual do programa de privacidade (decisão do Presidente de 2026-11-02: todo janeiro). O sistema monta o retrato do dia (inventário, prazos de
+    guarda, quem tem acesso a quê, incidentes, pedidos de titular, treinamento, ensaio, encarregado) e GUARDA o retrato como foi montado; o encarregado escreve as
+    observações e aprova. A aprovada não muda nem se apaga."""
+    __tablename__ = "revisoes_do_programa"
+    id_revisao = Column(Integer, primary_key=True, index=True)
+    situacao = Column(String(20), nullable=False, default=REVISAO_RASCUNHO, index=True)
+    retrato = Column(_TipoJson, nullable=False)  # o que o sistema montou, como estava no dia
+    observacoes = Column(Text, nullable=True)
+    montada_em = Column(DateTime, nullable=False, default=datetime.utcnow)
+    id_usuario_montagem = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=False)
+    aprovada_em = Column(DateTime, nullable=True)
+    id_usuario_aprovacao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)

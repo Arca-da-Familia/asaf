@@ -186,6 +186,8 @@ CLASSIFICACAO: dict[str, Tabela] = {
     "atos_do_encarregado": Tabela(titulares=(DIRIGENTE,), colunas={
         "nome_encarregado": P, "nome_substituto": P, "assinado_nome_arquivo": P, "assinado_arquivo": P, "texto": P,
     }),
+    # v7.5b: a revisão anual guarda o retrato do programa, que lista quem tem acesso a quê (nomes de quem está na Diretoria e na equipe)
+    "revisoes_do_programa": Tabela(titulares=(DIRIGENTE,), colunas={"retrato": P, "observacoes": LIVRE}),
     # v7.5a: quem fez o treinamento de privacidade e quando (a pessoa vem pela chave do usuário)
     "treinamentos_de_privacidade": Tabela(colunas={"versao_material": NP, "concluido_em": M}),
     # v7.4b: o registro de incidentes descreve o que aconteceu; os textos podem citar pessoas (por isso a Auditoria guarda só os campos que mudaram)

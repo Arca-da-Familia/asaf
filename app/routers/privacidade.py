@@ -469,3 +469,42 @@ def quadro_dos_treinamentos(db: Session = Depends(get_db), usuario: Usuario = De
 
     return _com_quem_ve(db, usuario, {"itens": treino.quadro(db), "versao_material": treino.VERSAO, "dias_com_mandato": treino.DIAS_COM_MANDATO,
                                       "dias_sem_mandato": treino.DIAS_SEM_MANDATO, "dias_para_fazer": treino.DIAS_PARA_FAZER})
+
+
+# ------------------------------------------------------------------------------------------------ v7.5b - a revisão anual do programa
+class ObservacoesDaRevisao(BaseModel):
+    observacoes: Optional[str] = Field(None, max_length=20_000)
+
+
+@router.get("/api/privacidade/revisao-anual", summary="v7.5b - a revisão anual do programa de privacidade: a deste ano está feita? e as revisões guardadas")
+def revisoes_do_programa(db: Session = Depends(get_db), usuario: Usuario = Depends(_pode)):
+    from app.services import revisao_do_programa as revisao
+
+    return _com_quem_ve(db, usuario, revisao.listar(db))
+
+
+@router.post("/api/privacidade/revisao-anual", summary="v7.5b - montar (ou remontar) o rascunho com o retrato do programa de hoje")
+def montar_revisao(request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_gerir)):
+    from app.services import revisao_do_programa as revisao
+
+    r = revisao.montar(db, usuario)
+    registrar_auditoria(db, usuario, "revisoes_do_programa", "REVISAO_DO_PROGRAMA_MONTADA", id_registro_afetado=r.id_revisao, ip_origem=_ip(request))
+    return _com_quem_ve(db, usuario, revisao.listar(db))
+
+
+@router.put("/api/privacidade/revisao-anual/{id_revisao}", summary="v7.5b - escrever as observações do encarregado no rascunho")
+def anotar_revisao(id_revisao: int, dados: ObservacoesDaRevisao, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_gerir)):
+    from app.services import revisao_do_programa as revisao
+
+    revisao.anotar(db, id_revisao, dados.observacoes)
+    db.commit()
+    return _com_quem_ve(db, usuario, revisao.listar(db))
+
+
+@router.post("/api/privacidade/revisao-anual/{id_revisao}/aprovar", summary="v7.5b - aprovar a revisão (com as observações): fica guardada como está")
+def aprovar_revisao(id_revisao: int, request: Request, db: Session = Depends(get_db), usuario: Usuario = Depends(_pode_gerir)):
+    from app.services import revisao_do_programa as revisao
+
+    r = revisao.aprovar(db, usuario, id_revisao)
+    registrar_auditoria(db, usuario, "revisoes_do_programa", "REVISAO_DO_PROGRAMA_APROVADA", id_registro_afetado=r.id_revisao, ip_origem=_ip(request))
+    return _com_quem_ve(db, usuario, revisao.listar(db))

@@ -89,6 +89,7 @@ import { RelatorioDeAtendimentoDoTitularPage } from '@/pages/RelatorioDeAtendime
 import { IncidentesDeSegurancaPage } from '@/pages/IncidentesDeSeguranca'
 import { MeuTreinamentoDePrivacidadePage } from '@/pages/MeuTreinamentoDePrivacidade'
 import { QuadroDeTreinamentosPage } from '@/pages/QuadroDeTreinamentos'
+import { RevisaoDoProgramaPage } from '@/pages/RevisaoDoPrograma'
 import { MeuAvisoPage } from '@/pages/MeuAviso'
 import { MeusAvisosPage } from '@/pages/MeusAvisos'
 import { PerfilPage } from '@/pages/Perfil'
@@ -484,6 +485,14 @@ function App() {
               element={
                 <ErrorBoundary tituloModulo="Privacidade">
                   <QuadroDeTreinamentosPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="revisao-anual"
+              element={
+                <ErrorBoundary tituloModulo="Privacidade">
+                  <RevisaoDoProgramaPage />
                 </ErrorBoundary>
               }
             />
