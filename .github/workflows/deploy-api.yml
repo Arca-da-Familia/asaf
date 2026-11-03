@@ -105,12 +105,18 @@ jobs:
             --image ${{ env.IMAGE_NAME }}:latest \
             .
 
+      # v8.3: a configuração que não é segredo e o tamanho vêm de infra/config/ (versionados); os segredos continuam no cofre, por referência
       - name: Atualiza o Container App com a nova imagem
         run: |
+          CONFIG="${GITHUB_WORKSPACE:-.}/infra/config"
+          VARIAVEIS=$(grep -Ev '^\s*(#|$)' "$CONFIG/api-producao.env" | tr '\n' ' ')
+          . "$CONFIG/api-producao-escala.env"
           az containerapp update \
             --name ${{ env.CONTAINER_APP }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --image ${{ env.REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --set-env-vars $VARIAVEIS \
+            --max-replicas "$MAX_REPLICAS" --cpu "$CPU" --memory "$MEMORIA" \
             -o none
 
       - name: Logout

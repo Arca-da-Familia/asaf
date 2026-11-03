@@ -1,0 +1,86 @@
+# v8.2 (FASE 8) - VOLTAR A API A UMA VERSÃO ANTERIOR em um comando: recoloca no Container App a imagem que o registro já guarda daquela versão (cada publicação
+# guarda a sua, marcada com o código do commit) e confere que a API voltou a responder. Não mexe no banco: as migrações deste projeto só ACRESCENTAM (tabela,
+# coluna, índice), então o código anterior funciona com o banco mais novo; se um dia uma versão apagar ou renomear algo no banco, voltar a imagem não basta
+# (ver RUNBOOK.md, "Voltar uma versão").
+# Uso: Actions > "Voltar a API a uma versão anterior" > ambiente e o commit (os 7 primeiros caracteres bastam: os que aparecem em painel.asaf.org.br/version.json
+# e no histórico). Testado na homologação antes de existir na produção (PLANO_PROJETO.md, v8.2).
+name: Voltar a API a uma versão anterior
+
+on:
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        description: "Onde voltar a versão"
+        type: choice
+        options: [homologacao, producao]
+        default: homologacao
+      versao:
+        description: "O commit da versão para onde voltar (7 a 40 caracteres, de 0 a 9 e a a f)"
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: reverter-api-${{ inputs.ambiente }}
+  cancel-in-progress: false
+
+env:
+  RESOURCE_GROUP: Associacao-RG
+  REGISTRY: asafregistry
+  IMAGE_NAME: asaf-api
+
+jobs:
+  reverter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confere o pedido
+        env:
+          VERSAO: ${{ inputs.versao }}
+          AMBIENTE: ${{ inputs.ambiente }}
+        run: |
+          case "$VERSAO" in
+            *[!0-9a-f]*|"") echo "::error::A versão tem de ser o código do commit (só 0-9 e a-f)."; exit 1 ;;
+          esac
+          if [ ${#VERSAO} -lt 7 ] || [ ${#VERSAO} -gt 40 ]; then echo "::error::A versão tem de ter de 7 a 40 caracteres."; exit 1; fi
+          if [ "$AMBIENTE" = "producao" ]; then
+            { echo "CONTAINER_APP=asaf-api"; echo "PREFIXO="; echo "API=https://api.asaf.org.br"; } >> "$GITHUB_ENV"
+          else
+            { echo "CONTAINER_APP=asaf-api-hml"; echo "PREFIXO=hml-"; echo "API=https://hml-api.asaf.org.br"; } >> "$GITHUB_ENV"
+          fi
+          echo "VERSAO=$VERSAO" >> "$GITHUB_ENV"
+
+      - name: Login no Azure (OIDC)
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Acha a imagem guardada daquela versão
+        run: |
+          # o commit curto vira o completo pela marca da imagem (cada publicação marca a imagem com o commit inteiro)
+          MARCA=$(az acr repository show-tags --name "$REGISTRY" --repository "$IMAGE_NAME" --orderby time_desc --top 500 -o tsv \
+            | grep -E "^${PREFIXO}${VERSAO}[0-9a-f]*$" | head -1 || true)
+          if [ -z "$MARCA" ]; then echo "::error::Não há imagem guardada da versão $VERSAO para $CONTAINER_APP."; exit 1; fi
+          echo "MARCA=$MARCA" >> "$GITHUB_ENV"
+          echo "Imagem: $IMAGE_NAME:$MARCA"
+
+      - name: Recoloca a imagem no Container App
+        run: |
+          az containerapp update --name "$CONTAINER_APP" --resource-group "$RESOURCE_GROUP" \
+            --image "$REGISTRY.azurecr.io/$IMAGE_NAME:$MARCA" -o none
+
+      - name: Confere que a API voltou a responder
+        run: |
+          for i in $(seq 1 30); do
+            CODIGO=$(curl -s -o /dev/null -w "%{http_code}" --max-time 40 "$API/api/publico/eventos" || true)
+            if [ "$CODIGO" = "200" ]; then echo "A API responde (200) na versão $MARCA."; exit 0; fi
+            sleep 10
+          done
+          echo "::error::A API não respondeu depois de voltar a versão."; exit 1
+
+      - name: Logout
+        if: always()
+        run: az logout || true

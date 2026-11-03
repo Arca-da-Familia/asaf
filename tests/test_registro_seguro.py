@@ -190,7 +190,8 @@ def test_a_publicacao_nao_imprime_o_json_do_container_app(tmp_path, arquivo, pas
     script = re.sub(r"\$\{\{ env\.(\w+) \}\}", r"${\1}", _bloco_run(arquivo, passo)).replace("${{ github.sha }}", "abc123")
     (tmp_path / "passo.sh").write_text("set -e\n" + script, encoding="utf-8", newline="\n")
     caminho = subprocess.run([BASH, "-c", "pwd"], cwd=pasta_bin, capture_output=True, text=True).stdout.strip()
-    env = {**os.environ, "CONTAINER_APP": "api", "RESOURCE_GROUP": "rg", "REGISTRY": "reg", "IMAGE_NAME": "img", "CODIGO_SHA": "abc123"}
+    raiz = subprocess.run([BASH, "-c", "pwd"], cwd=RAIZ, capture_output=True, text=True).stdout.strip()  # v8.3: o passo lê infra/config/ da pasta do projeto
+    env = {**os.environ, "CONTAINER_APP": "api", "RESOURCE_GROUP": "rg", "REGISTRY": "reg", "IMAGE_NAME": "img", "CODIGO_SHA": "abc123", "GITHUB_WORKSPACE": raiz}
     r = subprocess.run([BASH, "-c", f'export PATH="{caminho}:$PATH"; bash passo.sh'], cwd=tmp_path, env=env, capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, r.stderr
     argumentos = (tmp_path / "argumentos.txt").read_text(encoding="utf-8").splitlines()
