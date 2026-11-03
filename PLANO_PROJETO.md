@@ -1938,7 +1938,7 @@ geo-redundante) e os arquivos (lixeira de 25 dias e versões), trocar senhas, o 
 senhas da API ficam **copiadas** no Container App (não são lidas do cofre a cada vez); trocar só no cofre não basta, e o manual diz o passo a passo
 (cofre, Container App, reiniciar). **Recomendação registrada** (não feita agora): passar os segredos do Container App a referências ao cofre, para não
 haver duas cópias. **Rotação:** a tabela das datas da última troca de cada uma das 21 senhas do cofre (as mais antigas são de 10/09/2026; nenhuma tem
-validade); regra: a cada 12 meses, quando alguém com acesso sair e na suspeita de vazamento. **Primeira revisão de custo (2026-11-03):** agosto R$ 23,39;
+validade); são chaves de máquina, que ninguém digita nem decora (a senha das pessoas para entrar no painel não tem troca obrigatória); trocar quando alguém com acesso técnico sair e na suspeita de vazamento; a troca periódica aguarda a decisão do Presidente (2026-11-03). **Primeira revisão de custo (2026-11-03):** agosto R$ 23,39;
 setembro R$ 28,87; outubro R$ 119,38 (Container Apps R$ 79,23, registro de imagens R$ 37,18, DNS R$ 2,76); novembro até o dia 3, R$ 2,65; bem abaixo do
 teto de US$ 100/mês; próxima revisão em fevereiro de 2027 (o crédito de ONG vence em 05/02/2027).
 
