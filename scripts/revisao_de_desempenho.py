@@ -195,11 +195,13 @@ def avaliar(medidas: dict, banco: Optional[dict], g: dict[str, int]) -> list[str
     if disco.get("horas") and disco["pico"] > g["BANCO_DISCO_PERCENTUAL_MAX"]:
         alertas.append(f"Banco: disco em {disco['pico']:.1f}% (gatilho {g['BANCO_DISCO_PERCENTUAL_MAX']}%) -> seção 11.3.")
 
-    copias = [p.get("maximum") for p in medidas["api"].get("Replicas", []) if p.get("maximum") is not None]
+    # a MÉDIA da hora: o pico conta qualquer hora em que a API acordou (com máximo 1, toda hora acordada "bateu no máximo") e a troca de versão sobe uma
+    # cópia a mais por alguns segundos; só a média no máximo mostra uma hora INTEIRA sem folga
+    copias = [p.get("average") for p in medidas["api"].get("Replicas", []) if p.get("average") is not None]
     if copias:
         no_maximo = 100 * sum(1 for c in copias if c >= medidas["api_max_copias"]) / len(copias)
         if no_maximo > g["API_HORAS_NO_MAXIMO_PERCENTUAL_MAX"]:
-            alertas.append(f"API: no máximo de {medidas['api_max_copias']} cópias em {no_maximo:.1f}% das horas -> seção 11.4.")
+            alertas.append(f"API: no máximo de cópias ({medidas['api_max_copias']}) a hora inteira em {no_maximo:.1f}% das horas -> seção 11.4.")
     memoria_api = resumir(medidas["api"].get("WorkingSetBytes", []))
     if memoria_api.get("horas"):
         uso = 100 * memoria_api["pico"] / (medidas["api_memoria_gib"] * GIB)
@@ -254,7 +256,7 @@ def relatorio(medidas: dict, banco: Optional[dict], erro_do_banco: Optional[str]
         _linha("Créditos de CPU", b.get("cpu_credits_remaining", {})),
         f"| Conexões recusadas (soma) | {b.get('connections_failed', {}).get('total', 0):.0f} | | | |",
         "",
-        f"## API ({API[medidas['ambiente']]}: até {medidas['api_max_copias']} cópias de {medidas['api_memoria_gib']:g} GiB)",
+        f"## API ({API[medidas['ambiente']]}: até {medidas['api_max_copias']} cópia(s) de {medidas['api_memoria_gib']:g} GiB)",
         "",
         "| Medida (por hora) | Média | 95% das horas abaixo de | Pico | Mínimo |",
         "|---|---|---|---|---|",

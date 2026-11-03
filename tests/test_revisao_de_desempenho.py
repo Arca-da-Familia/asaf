@@ -49,7 +49,7 @@ def test_o_uso_real_de_hoje_nao_atinge_nenhum_gatilho():
     ({"banco__active_connections": _serie([10] * 719 + [31])}, "pico de 31 conexões"),
     ({"banco__connections_failed": _serie([0] * 719 + [2])}, "2 conexões recusadas"),
     ({"banco__storage_percent": _serie([71] * 720)}, "disco em 71.0%"),
-    ({"api__Replicas": _serie([2] * 100 + [0] * 620)}, "no máximo de 2 cópias"),
+    ({"api__Replicas": _serie([2] * 100 + [0] * 620)}, "no máximo de cópias (2) a hora inteira"),
     ({"api__WorkingSetBytes": _serie([900e6] * 720)}, "memória chegou a 84%"),
     ({"api__RestartCount": _serie([0] * 715 + [1] * 5)}, "5 reinícios"),
     ({"arquivos__UsedCapacity": _serie([60 * 1024 ** 3] * 72)}, "Arquivos: 60.0 GB"),
@@ -169,3 +169,16 @@ def test_a_rotina_e_trimestral_a_mao_comeca_na_homologacao_e_so_avisa_na_produca
     assert "if: env.AMBIENTE == 'producao' && steps.revisao.outputs.alertas != '0'" in texto
     assert "*/asaf_hml\\?*) ;;" in texto, "à mão na homologação, confere que o banco é mesmo o de teste"
     assert "contents: write" not in texto and "pull-requests" not in texto
+
+
+def test_api_que_so_acordou_nao_conta_como_no_maximo():
+    """Achado na primeira rodada na homologação (máximo de 1 cópia): toda hora em que a API acordou tinha pico 1 = o máximo, e o gatilho disparava em 43% das
+    horas. Conta a média da hora: acordar por 10 minutos dá média abaixo de 1."""
+    acordou = [{"average": 0.2, "maximum": 1, "minimum": 0} for _ in range(300)] + [{"average": 0, "maximum": 0, "minimum": 0} for _ in range(400)]
+    medidas = _medidas(api__Replicas=acordou)
+    medidas["api_max_copias"] = 1
+    assert rd.avaliar(medidas, None, G) == []
+    trocando_de_versao = [{"average": 1.01, "maximum": 2, "minimum": 1} for _ in range(10)] + [{"average": 0, "maximum": 0, "minimum": 0}] * 700
+    medidas["api"]["Replicas"] = trocando_de_versao
+    medidas["api_max_copias"] = 2
+    assert rd.avaliar(medidas, None, G) == []
