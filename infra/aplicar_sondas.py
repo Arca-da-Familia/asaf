@@ -24,12 +24,19 @@ SONDAS = [
 ]
 
 
+def _essencial(sondas) -> set:
+    """O que importa de cada sonda, sem a ordem nem os campos que o Azure acrescenta sozinho (ex.: o esquema HTTP): na homologação, a segunda aplicação
+    achava diferença e criaria uma revisão nova a cada publicação."""
+    return {(s.get("type"), (s.get("httpGet") or {}).get("path"), (s.get("httpGet") or {}).get("port"), s.get("initialDelaySeconds"), s.get("periodSeconds"),
+             s.get("timeoutSeconds"), s.get("failureThreshold")) for s in (sondas or [])}
+
+
 def com_as_sondas(template: dict) -> tuple[dict, bool]:
     """O mesmo `template` com as sondas no primeiro contêiner (o da API). Devolve (template, mudou). Tira o sufixo de revisão (reaproveitá-lo daria conflito)."""
     novo = json.loads(json.dumps(template))
     novo.pop("revisionSuffix", None)
     conteiner = novo["containers"][0]
-    mudou = conteiner.get("probes") != SONDAS
+    mudou = _essencial(conteiner.get("probes")) != _essencial(SONDAS)
     conteiner["probes"] = SONDAS
     return novo, mudou
 

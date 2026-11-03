@@ -84,5 +84,8 @@ def test_as_sondas_trocam_so_as_sondas_do_conteiner_da_api():
     assert template["containers"][0]["probes"] is None, "não altera o original"
     _, de_novo = s.com_as_sondas(novo)
     assert de_novo is False, "aplicar duas vezes não muda nada"
+    # como o Azure devolve: em outra ordem e com o esquema HTTP acrescentado - continua igual (não cria revisão nova a cada publicação)
+    devolvido = {"containers": [{"probes": [dict(p, httpGet={**p["httpGet"], "scheme": "HTTP"}) for p in reversed(conteiner["probes"])]}]}
+    assert s.com_as_sondas(devolvido)[1] is False
     assert all(p["httpGet"]["port"] == 8000 for p in conteiner["probes"])
     assert "8000" in (RAIZ / "Dockerfile").read_text(encoding="utf-8")
