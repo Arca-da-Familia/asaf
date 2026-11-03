@@ -1838,10 +1838,17 @@ fazer o primeiro ensaio e a primeira revisão anual pela tela.
       > `deploy-painel.yml` (desde a v0.2.0) e `deploy-site.yml` (v5.0, 2026-10-01) existem e rodam
       > verdes em produção; ambos com portões de qualidade antes do deploy, e o do site confere
       > sozinho que `asaf.org.br/version.json` mostra o commit publicado.
-- [ ] Migração Alembic executada como **passo explícito do pipeline**, antes do deploy da nova
-      imagem, com falha de migração abortando o deploy — hoje a migração é aplicada manualmente.
-- [ ] Deploy com revisão progressiva do Container App (nova revisão recebendo tráfego aos poucos)
-      e **rollback em um comando** documentado e testado ao menos uma vez.
+- [x] Migração Alembic executada como **passo explícito do pipeline**, antes do deploy da nova
+      imagem, com falha de migração abortando o deploy — hoje a migração é aplicada manualmente. **[já era assim: `deploy-api.yml`, passo "Aplicar
+      migrações Alembic em produção", antes de montar a imagem e de atualizar o Container App; se falhar, o fluxo para (conferido em 2026-11-03; as
+      migrações da FASE 7 entraram todas por ele)]**
+- [x] Deploy com revisão progressiva do Container App (nova revisão recebendo tráfego aos poucos)
+      e **rollback em um comando** documentado e testado ao menos uma vez. **[v8.2 (2026-11-03): o rollback em um comando é o fluxo "Voltar a API a uma
+      versão anterior" (`reverter-api.yml`: escolhe o ambiente e o commit, recoloca a imagem guardada daquela versão e confere que a API responde), testado na
+      homologação ida e volta (para a v7.5b e de novo para a atual, as duas verdes) e recusando pedido malformado. A **revisão progressiva** (tráfego aos
+      poucos) **não foi adotada**, decisão técnica registrada: a API roda com uma cópia que dorme sem uso e atende poucas pessoas; dividir o tráfego entre
+      duas versões dobraria o custo enquanto as duas rodam e não acharia mais que a homologação com os robôs, que é o portão antes da produção. Reabrir se
+      o número de usuários simultâneos crescer (v8.5)]**
 - [x] Ambiente de homologação: por custo, um **slot lógico** (banco separado barato + revisão
       própria do Container App), não um ambiente inteiro duplicado — decisão consciente de
       orçamento, registrada. **Feito em 2026-10-05** (`HOMOLOGACAO.md`): banco `asaf_hml` no servidor existente (papel próprio, 5
@@ -1870,15 +1877,26 @@ fazer o primeiro ensaio e a primeira revisão anual pela tela.
       real ("ninguém vai lembrar a sequência em 5 anos") sem adicionar uma ferramenta de IaC
       declarativa nova para manter — decisão registrada e justificada em
       `DECISOES_CONGELADAS.md` seção 5.6.
-- [ ] Configuração de recurso (variáveis de ambiente, escala, probes) hoje só existe no Portal e
+- [x] Configuração de recurso (variáveis de ambiente, escala, probes) hoje só existe no Portal e
       no próprio script de referência — mover para arquivo de configuração versionado (ex.:
       `infra/config/*.env` lido pelo workflow de deploy) fica como melhoria incremental, não como
-      débito bloqueante.
+      débito bloqueante. **[v8.3 (2026-11-03): `infra/config/api-producao.env` (as variáveis que não são segredo) e `api-producao-escala.env` (máximo de
+      cópias, CPU e memória) são aplicados pela publicação a cada versão; os segredos continuam no cofre, por referência (um teste recusa nome de segredo
+      no arquivo); o mínimo de cópias fica de fora de propósito (é do fluxo de dia de evento). Conferido em produção depois da publicação `2a7ae39`: as
+      mesmas 4 variáveis, os 7 segredos intactos, máximo 2, 0,5 CPU, 1 GiB; a API responde. As sondas (probes) entram na v8.4, com o `/health`]**
 - **Quando reabrir Bicep/Terraform**: só se o número de recursos crescer muito (multi-região,
   múltiplos ambientes de homologação automatizados) — ver critério completo em
   `DECISOES_CONGELADAS.md` seção 5.6.
 
 ##### 🔍 Ponto de Revisão — FASE 8 (1/2 — meio, fecha v8.1–v8.3 (majoritariamente já concluídos na v0.0))
+
+✅ **FEITO e FECHADO em 2026-11-03**, com a autorização prévia do Presidente ("concluiu o que falta e fazer a revisão se está tudo funcionando... depois
+seguir aí para a versão 8.4"). O que faltava da v8.2 e da v8.3 foi feito (blocos acima). **Específico deste ponto:** o `infra/provisionar.sh` (cifrado) foi
+aberto só em memória e os **12 recursos que ele cria existem no Azure com os mesmos nomes** (grupo, servidor do banco, registro de imagens, ambiente e as duas
+aplicações de contêiner, armazenamento, cofre, os dois sites estáticos e o domínio); os 10 recursos que existem fora dele estão documentados em outro lugar (os
+da homologação no `HOMOLOGACAO.md`, o armazenamento privado no `infra/armazenamento-privado.sh`) ou são criados pelo próprio Azure (certificados
+gerenciados, espaço de registros do monitoramento). Nada divergiu. Checklist 4.1: suíte 1818 em duas rodadas; nenhuma credencial nos arquivos novos (um
+teste garante); Deploy API verde aplicando a configuração versionada; o rollback testado na homologação.
 
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 
