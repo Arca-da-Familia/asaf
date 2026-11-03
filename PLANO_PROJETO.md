@@ -1904,17 +1904,43 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 
 #### v8.4 — Operação diária
 
-- [ ] Runbook de operação: como ver log, como reiniciar, como restaurar backup, como rotacionar
-      segredo, o que fazer se o site cair — escrito para quem **não** participou da construção.
-- [ ] Monitoramento sintético (ping externo periódico em site, painel e `/health` da API) com
-      alerta — hoje ninguém saberia de uma queda fora do horário sem isso.
-- [ ] Endpoint `/health` de verdade (verifica banco e storage, não devolve 200 fixo) e
+- [x] Runbook de operação: como ver log, como reiniciar, como restaurar backup, como rotacionar
+      segredo, o que fazer se o site cair — escrito para quem **não** participou da construção. **[v8.4b: `RUNBOOK.md`; o teste de verdade (alguém
+      que não construiu segui-lo) é do Ponto de Revisão 2/2]**
+- [x] Monitoramento sintético (ping externo periódico em site, painel e `/health` da API) com
+      alerta — hoje ninguém saberia de uma queda fora do horário sem isso. **[já existia desde a v5.4b (`monitorar-site.yml`, a cada 15 minutos, abre e
+      fecha um aviso no GitHub); a v8.4a acrescentou o `/health`]**
+- [x] Endpoint `/health` de verdade (verifica banco e storage, não devolve 200 fixo) e
       `/health/ready` separado, ligados aos probes do Container App — corrige a causa-raiz do
-      incidente de crash-loop de forma definitiva.
-- [ ] Revisão trimestral de custo com registro no plano (o teto de US$100/mês precisa ser vigiado,
-      não presumido).
-- [ ] Rotação periódica de segredos como prática documentada (já estabelecida como rotina), com
-      data da última rotação registrada por segredo.
+      incidente de crash-loop de forma definitiva. **[v8.4a]**
+- [x] Revisão trimestral de custo com registro no plano (o teto de US$100/mês precisa ser vigiado,
+      não presumido). **[v8.4b: a primeira, abaixo; próxima em fevereiro de 2027]**
+- [x] Rotação periódica de segredos como prática documentada (já estabelecida como rotina), com
+      data da última rotação registrada por segredo. **[v8.4b: `RUNBOOK.md` seção 7, com a tabela das datas]**
+
+✅ **v8.4a concluída (2026-11-03) — o exame de saúde de verdade e as sondas.** A API ganhou `/health/live` (o processo vive; é a sonda de **vida** e de
+**partida**, e de propósito NÃO olha o banco: com o banco fora, reiniciar a API não ajuda e só causaria o ciclo de reinício da FASE 0) e `/health/ready` e
+`/health` (o banco responde `SELECT 1` e o armazenamento grava, lê e apaga uma sonda; 503 dizendo O QUÊ falhou, nunca o erro; o bom resultado do
+armazenamento vale 5 minutos). `infra/aplicar_sondas.py` liga as três sondas no Container App trocando só as sondas, e só quando mudaram (o Azure devolve
+em outra ordem e com campos a mais: a primeira versão criaria uma revisão nova a cada publicação; achado na homologação e corrigido); roda nas publicações
+da produção e da homologação. O monitor externo passou a conferir o `/health`.
+**Testes:** servidor 1824 em duas rodadas e contra Postgres 18 (o vivo não depende do banco; banco fora dá 503 sem o erro; armazenamento fora dá 503; o
+resultado guardado 5 minutos; as sondas trocam só as sondas; o monitor acusa o 503).
+**Na homologação (2026-11-03):** a branch publicada; `/health` respondeu ok para banco e armazenamento; as sondas ligadas, a revisão nova ficou pronta e o
+`/health` continuou ok; a segunda aplicação reconheceu que nada mudou; robôs `v7.5b-01` 2 e `v5.4c-fase1` 24 com as sondas ligadas.
+**Em produção (2026-11-03):** `main` = `20c8720`; Deploy API verde (1824 contra Postgres; "Sondas ligadas em asaf-api"); a revisão `asaf-api--0000178`
+saudável, rodando, com todo o tráfego e com as sondas de partida, vida e prontidão; os 7 segredos intactos; `https://api.asaf.org.br/health` =
+`{"status":"ok","banco":"ok","armazenamento":"ok"}`.
+
+✅ **v8.4b concluída (2026-11-03) — a operação do dia a dia.** **`RUNBOOK.md`**, escrito para quem não construiu o sistema: o que é o quê (endereços e
+recursos), como saber se está no ar, ver os registros, reiniciar, voltar a versão (o fluxo da v8.2), restaurar o banco (servidor novo, 35 dias,
+geo-redundante) e os arquivos (lixeira de 25 dias e versões), trocar senhas, o que fazer se o site cair, o custo e as rotinas. **Achado ao escrever:** as
+senhas da API ficam **copiadas** no Container App (não são lidas do cofre a cada vez); trocar só no cofre não basta, e o manual diz o passo a passo
+(cofre, Container App, reiniciar). **Recomendação registrada** (não feita agora): passar os segredos do Container App a referências ao cofre, para não
+haver duas cópias. **Rotação:** a tabela das datas da última troca de cada uma das 21 senhas do cofre (as mais antigas são de 10/09/2026; nenhuma tem
+validade); regra: a cada 12 meses, quando alguém com acesso sair e na suspeita de vazamento. **Primeira revisão de custo (2026-11-03):** agosto R$ 23,39;
+setembro R$ 28,87; outubro R$ 119,38 (Container Apps R$ 79,23, registro de imagens R$ 37,18, DNS R$ 2,76); novembro até o dia 3, R$ 2,65; bem abaixo do
+teto de US$ 100/mês; próxima revisão em fevereiro de 2027 (o crédito de ONG vence em 05/02/2027).
 
 #### v8.5 — Escala e evolução (o que fazer quando crescer)
 
