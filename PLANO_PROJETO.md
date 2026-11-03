@@ -1964,12 +1964,19 @@ teto de US$ 100/mês; próxima revisão em fevereiro de 2027 (o crédito de ONG 
       configuração versionada não disparava a publicação da API (`deploy-api.yml` não olhava `infra/config/`) - corrigido, com teste. Na produção (só
       leitura): revisão `asaf-api--0000179` saudável com a imagem 871c6b4, `DB_POOL_SIZE=4` e `DB_MAX_OVERFLOW=1`, `/health` ok. Quando o plano do banco subir
       para Uso Geral, ligar o PgBouncer embutido (seção 11.2 do RUNBOOK)]**
-- [ ] Índices e consultas revisados com dados reais (`pg_stat_statements`) a cada ano — desempenho
-      degrada silenciosamente conforme a base cresce. **[v8.5: a revisão (acima) já lista, a cada 3 meses, tabelas grandes lidas sem índice e índices nunca
-      usados (na homologação, 15 índices pequenos sem uso: só candidatos, revisar depois de um ano de uso real). FALTA a parte das consultas lentas: o
-      `pg_stat_statements` vem carregado no servidor mas NÃO grava (`track = none`, padrão do Azure) e não está instalado no banco. Ligar é mudança na
-      configuração do servidor da PRODUÇÃO (sem reiniciar; `track = top`, `track_utility = off`, e `CREATE EXTENSION`): aguarda autorização. O Claude Code
-      também bloqueou a leitura direta do banco da produção pelo computador (2026-11-03); a leitura de produção fica com a rotina agendada]**
+- [x] Índices e consultas revisados com dados reais (`pg_stat_statements`) a cada ano — desempenho
+      degrada silenciosamente conforme a base cresce. **[v8.5: a revisão (acima) lista, a cada 3 meses, tabelas grandes lidas sem índice e índices nunca
+      usados (na homologação, 15 índices pequenos sem uso: só candidatos, revisar depois de um ano de uso real) e as consultas mais pesadas. Gravação das
+      consultas LIGADA com a autorização do Presidente (2026-11-03: "pode fazer, tá autorizado"): no servidor, `pg_stat_statements.track = top`,
+      `track_utility = off` e `azure.extensions = BTREE_GIST,PG_STAT_STATEMENTS` (dinâmicos, sem reiniciar; `/health` ok depois); a extensão entra pela
+      migração `ccf5cbf31408` (bloco com EXCEPTION: quem não pode instalar segue sem ela). Homologação: migração aplicada, revisão verde dizendo "gravação:
+      top; instalado: não" (o papel do banco de teste não instala extensão: o caminho de "não derrubar" provado). Postgres do CI: desce e sobe, 1861 testes.
+      Produção: a 1ª publicação falhou ANTES da migração (o pipeline não alcançou o banco por 2 min; banco vivo, nenhuma conexão recusada, nenhum reinício:
+      falha passageira de rede); a 2ª tentativa aplicou a migração; revisão `asaf-api--0000180` saudável com a imagem 95fc93c, `/health` ok. A confirmação
+      de que a extensão ficou instalada na produção sai na 1ª revisão agendada (15/01/2027): o Claude Code bloqueou disparar a revisão contra a produção e
+      eu não contornei. Custo de crescer (pergunta do Presidente: 50 ou 500 associados usando o dia todo) na seção 11.6 do RUNBOOK, com a tabela oficial
+      de preços do Azure Brasil: ~R$ 330–470/mês com 50, ~R$ 470–1.100 com 500 (o maior degrau é o banco B2s, só se a revisão pedir)]**
+
 - [x] Caminho de saída documentado: como levar banco e arquivos para outro provedor se o crédito
       Azure acabar. Dependência de nuvem única sem plano de saída é risco de perpetuidade, e a
       arquitetura (Postgres + contêiner + arquivos em blob) foi escolhida justamente para ser
