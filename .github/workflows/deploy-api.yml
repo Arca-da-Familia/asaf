@@ -119,6 +119,10 @@ jobs:
             --max-replicas "$MAX_REPLICAS" --cpu "$CPU" --memory "$MEMORIA" \
             -o none
 
+      # v8.4a: as sondas de partida, vida e prontidão (/health/live e /health/ready); só troca as sondas, e só se mudaram
+      - name: Liga as sondas do Container App
+        run: python infra/aplicar_sondas.py "${{ env.RESOURCE_GROUP }}" "${{ env.CONTAINER_APP }}"
+
       - name: Logout
         if: always()
         run: az logout || true

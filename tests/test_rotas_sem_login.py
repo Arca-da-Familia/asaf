@@ -21,6 +21,10 @@ from tests.apoio_auth import cabecalho_admin
 ABERTAS_DE_PROPOSITO = {
     ("GET", "/"),
     ("GET", "/api/cep/{cep}"),
+    # v8.4a: o exame de saúde, para as sondas do Azure e o monitor externo (só diz ok/falha do banco e do armazenamento, nunca dado nem erro)
+    ("GET", "/health"),
+    ("GET", "/health/live"),
+    ("GET", "/health/ready"),
     ("GET", "/api/espacos/{id_espaco}/disponibilidade"),  # agenda do espaço sem dizer quem reservou (testado em test_espacos)
     ("POST", "/api/filiacao/propor"),  # a porta pública da filiação (o formulário do site)
     ("GET", "/api/opcoes/{tipo_lista}"),  # opções de listas (categoria, estado civil...) para os formulários

@@ -183,6 +183,10 @@ jobs:
             --set-env-vars DB_POOL_SIZE=3 DB_MAX_OVERFLOW=1 CONFIAR_NO_PRIMEIRO_IP=1 VISITANTE_CODIGO_NA_RESPOSTA=1 URL_BASE_SITE_PUBLICO=https://hml-site.asaf.org.br \
             -o none
 
+      # v8.4a: as mesmas sondas da produção (o código publicado aqui já tem as rotas /health/*)
+      - name: Liga as sondas da API de TESTE
+        run: python infra/aplicar_sondas.py "$RESOURCE_GROUP" "$CONTAINER_APP"
+
       - name: Espera a API de teste responder
         run: |
           for i in $(seq 1 30); do

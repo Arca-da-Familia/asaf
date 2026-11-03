@@ -60,6 +60,8 @@ jobs:
           conferir "Versão do painel" "$PAINEL_URL/version.json" '"commit"'
           # A API escala a zero: a primeira resposta pode levar ~35 s.
           conferir "API (agenda pública)" "$API_URL/api/publico/eventos" '^\[' 90
+          # v8.4a: o exame de saúde de verdade (o banco responde e o armazenamento grava e lê)
+          conferir "API (exame de saúde: banco e armazenamento)" "$API_URL/health" '"status":"ok"' 90
           {
             echo "problemas<<FIM"
             printf '%s' "$PROBLEMAS"

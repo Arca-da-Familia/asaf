@@ -117,6 +117,7 @@ class _Site(http.server.BaseHTTPRequestHandler):
             "/conteudo.json": '{"impressao":"' + "a" * 64 + '","contagem":{}}',
             "/version.json": '{"commit":"abc1234"}',
             "/api/publico/eventos": "[]",
+            "/health": '{"status":"ok","banco":"ok","armazenamento":"ok"}',  # v8.4a
         }
         corpo = corpos.get(caminho)
         self.send_response(200 if corpo is not None else 404)
@@ -221,3 +222,10 @@ def test_os_vigilantes_olham_so_a_producao_nunca_a_homologacao():
         assert "hml" not in texto and "homolog" not in texto.replace("homologação", "").replace("homologacao", ""), arquivo
         assert "https://asaf.org.br" in texto or "asaf.org.br" in texto, arquivo
     assert "hml-" not in (RAIZ / "site" / "scripts" / "verificar-tamanho.mjs").read_text(encoding="utf-8").lower()
+
+
+def test_o_monitor_avisa_quando_o_exame_de_saude_da_falha(servidor, tmp_path):
+    """v8.4a: a API pode responder a agenda e estar sem banco ou sem armazenamento; o exame de saúde (503) derruba o monitor e diz qual."""
+    _Site.quebrado = {"/health"}
+    codigo, saida_texto, saida = _monitor(tmp_path, servidor)
+    assert codigo == 1 and "FALHOU: API (exame de saúde: banco e armazenamento)" in saida_texto and "503" in saida
