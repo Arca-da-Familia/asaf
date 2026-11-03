@@ -203,4 +203,23 @@ A revisão lista tabelas grandes lidas por inteiro em vez de pelo índice, índi
 consultas mais pesadas. A correção é um índice novo (ou o fim de um inútil) por **migração**, pelo caminho normal, conferindo na homologação. O
 `pg_stat_statements` já vem carregado no servidor, mas **não grava** (`pg_stat_statements.track = none`, o padrão do Azure). Ligá-lo é mudança na
 configuração do servidor da produção (sem reiniciar) e precisa de autorização: `pg_stat_statements.track = top` e `pg_stat_statements.track_utility = off`
-(para não guardar comandos de administração, que podem trazer senha), e depois `CREATE EXTENSION pg_stat_statements` no banco da produção.
+(para não guardar comandos de administração, que podem trazer senha), e depois `CREATE EXTENSION pg_stat_statements` no banco da produção. **Ligado em
+2026-11-03 com a autorização do Presidente** (os três parâmetros mudam sem reiniciar; a extensão entra pela migração `ccf5cbf31408`).
+
+### 11.6 Quanto custa crescer (50 ou 500 associados usando o dia todo)
+
+Pergunta do Presidente (2026-11-03): o medo não é o hoje, é quando muita gente usar o sistema o tempo todo. Conta feita com a **tabela oficial de preços do
+Azure para a região Brasil** (consultada em 2026-11-03), por mês de 30 dias, em dólar (multiplique por uns R$ 5,50):
+
+| Peça | Como cobra | Hoje | 50 associados o dia todo | 500 associados o dia todo |
+|---|---|---|---|---|
+| API | pelo tempo que fica acordada (o Azure dá uma cota grátis por mês) | dorme quase sempre | 1 cópia acordada o dia todo, quase sempre esperando: ~US$ 10 | 1 a 2 cópias trabalhando o dia todo: US$ 34 a 72 |
+| Banco | preço fixo por hora, use ou não | quase não aparece na conta (provavelmente a cota gratuita do 1º ano) | B1ms: ~US$ 26 + disco e cópias, ~US$ 30 | B1ms (~US$ 30) ou, se a revisão pedir, B2s (~US$ 107) |
+| O resto (registro de imagens, DNS, homologação, editor do site) | quase fixo | ~US$ 22 (outubro inteiro: R$ 119) | ~US$ 22 | ~US$ 25 |
+| **Total aproximado** | | **~US$ 22** | **US$ 60 a 85 (R$ 330 a 470)** | **US$ 85 a 200 (R$ 470 a 1.100)** |
+
+O que isso quer dizer: **o custo não cresce na mesma proporção que as pessoas.** Uma cópia da API atendeu 150 inscrições num minuto no teste de carga, e 500
+associados raramente estão todos clicando no mesmo instante; o que custa é a API ficar **acordada** o dia inteiro, e isso acontece já com 50 pessoas. O banco
+é o maior degrau: o B2s só entra se a revisão trimestral mostrar que o B1ms não dá conta (seção 11.1), e ela avisa antes. Até 500 associados com o banco
+B1ms, a conta fica dentro do teto de US$ 100/mês da FASE 8; com o B2s, passa dele, e é decisão da Diretoria. Os pedidos à API (cota grátis de 2 milhões por
+mês, depois US$ 0,40 por milhão) e os arquivos custam centavos nessa escala.

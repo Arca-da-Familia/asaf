@@ -182,3 +182,28 @@ def test_api_que_so_acordou_nao_conta_como_no_maximo():
     medidas["api"]["Replicas"] = trocando_de_versao
     medidas["api_max_copias"] = 2
     assert rd.avaliar(medidas, None, G) == []
+
+
+def test_a_migracao_do_registro_das_consultas_nao_derruba_quem_nao_pode_instalar():
+    """v8.5: a extensão entra por migração (homologação primeiro); o papel do banco de teste não pode criar extensão, e a migração não pode falhar por isso."""
+    import importlib.util
+
+    import sqlalchemy as sa
+    from alembic.config import Config
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    from alembic.script import ScriptDirectory
+
+    caminho = RAIZ / "alembic" / "versions" / "ccf5cbf31408_v8_5_registro_das_consultas.py"
+    especificacao = importlib.util.spec_from_file_location("migracao_consultas", caminho)
+    migracao = importlib.util.module_from_spec(especificacao)
+    especificacao.loader.exec_module(migracao)
+    assert "EXCEPTION WHEN OTHERS" in migracao.CRIAR and "CREATE EXTENSION IF NOT EXISTS pg_stat_statements" in migracao.CRIAR
+    motor = sa.create_engine("sqlite://")
+    with motor.begin() as conexao, Operations.context(MigrationContext.configure(conexao)):
+        migracao.upgrade()  # no SQLite não faz nada
+        migracao.downgrade()
+    config = Config()
+    config.set_main_option("script_location", str(RAIZ / "alembic"))
+    diretorio = ScriptDirectory.from_config(config)
+    assert diretorio.get_heads() == ["ccf5cbf31408"] and diretorio.get_revision("ccf5cbf31408").down_revision == "d75b1a9e4c72"
