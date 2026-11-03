@@ -79,9 +79,14 @@ se a API passa a usar ele (trocar a senha de conexão `dburl`, seção 7). Faça
 **Arquivos:** a conta `stasafprivado` tem **lixeira de 25 dias** e guarda as versões anteriores de cada arquivo. Portal > Contas de armazenamento >
 `stasafprivado` > Contêineres > (o contêiner) > ligue "Mostrar blobs excluídos" > selecione > **Restaurar**.
 
-## 7. Trocar uma senha (rotação)
+## 7. Trocar uma chave do sistema (rotação)
 
-Quando: **a cada 12 meses**, sempre que alguém com acesso sair, e na hora em que houver suspeita de vazamento (registre em Privacidade > Incidentes).
+**Isto NÃO é a senha das pessoas.** As "senhas" do cofre são **chaves de máquina**: a que a API usa para entrar no banco, a do e-mail automático, a que
+publica o site. Ninguém as digita nem as decora; são sorteadas pelo computador e ficam no cofre. A senha de cada pessoa para entrar no painel **não tem
+troca obrigatória** (troca forçada leva a senha fraca ou anotada em papel); só se troca quando há suspeita de vazamento.
+
+Quando trocar as chaves de máquina: quando alguém com acesso técnico ao Azure sair e na hora em que houver suspeita de vazamento (registre em Privacidade >
+Incidentes); a troca periódica está em decisão do Presidente (2026-11-03).
 
 **Atenção:** as senhas da API ficam **copiadas** dentro do Container App (não são lidas do cofre a cada vez). Trocar uma senha é sempre: (1) gerar a nova,
 (2) gravar no **cofre** (para não se perder), (3) gravar no **Container App** e (4) reiniciar. Faça antes na homologação (`asaf-api-hml`, segredos `HML-*`).
@@ -99,7 +104,7 @@ na mesma hora; a do e-mail (`SMTP-SENHA`/`smtp-senha`) é a senha de app do Goog
 
 **Datas da última troca** (do cofre, conferidas em 2026-11-03; nenhuma tem data de validade):
 
-| Senha (cofre) | Última troca | Próxima (12 meses) |
+| Chave (cofre) | Última troca | Próxima (se houver troca periódica) |
 |---|---|---|
 | DATABASE-URL, STORAGE-ACCOUNT-KEY, STORAGE-CONNECTION-STRING, DIRECTUS-KEY, DIRECTUS-ADMIN-PASSWORD, SWA-SITE-DEPLOY-TOKEN, SWA-PAINEL-DEPLOY-TOKEN | 2026-09-10 | 2027-09 |
 | JWT-SECRET | 2026-09-11 | 2027-09 |
