@@ -1725,10 +1725,44 @@ verdes; `painel.asaf.org.br/version.json` = `4b56ddd`; a rota `/api/privacidade/
 
 #### v7.5 — Cultura e prova
 
-- [ ] Treinamento anual curto e registrado para diretoria, secretaria e voluntários com acesso a
-      dado — a maioria dos vazamentos em organização pequena é operacional, não técnica.
-- [ ] Revisão anual do programa (inventário, políticas, retenção, permissões) com relatório à
-      diretoria — privacidade é processo recorrente, não entrega única.
+> **Decisões do Presidente (2026-11-02).** Treinamento: a **Diretoria Executiva e o Conselho Fiscal** (mandato de 4 anos) fazem **ao entrar no cargo**
+> (também quem entra no meio do mandato) e **a cada 2 anos**; quem sai do cargo deixa de precisar ("pelo menos uns 2 anos de diferença... a não ser que
+> eles saiam do cargo"); **os demais com acesso a dado** (voluntários, secretaria) **todo ano**, porque não se sabe quanto tempo ficam; o associado que só
+> vê os próprios dados fica de fora; sem bloqueio, só o aviso no painel; 30 dias para fazer. Revisão do programa: **todo janeiro**, aprovada pelo encarregado.
+
+- [x] Treinamento anual curto e registrado para diretoria, secretaria e voluntários com acesso a
+      dado — a maioria dos vazamentos em organização pequena é operacional, não técnica. **[v7.5a: com o intervalo decidido pelo Presidente]**
+- [x] Revisão anual do programa (inventário, políticas, retenção, permissões) com relatório à
+      diretoria — privacidade é processo recorrente, não entrega única. **[v7.5b]**
+
+✅ **v7.5a concluída (2026-11-03) — o treinamento de privacidade.** Um material de **10 pontos** ("Cuidados com os dados das pessoas na ASAF", versão 1:
+o que é dado pessoal e sensível, usar só o que a tarefa pede, o CPF escondido e o "Mostrar o CPF", nada de listas fora do sistema, senha e segundo passo,
+cuidado com a tela, golpes, crianças e adolescentes, pedido de titular, suspeita de vazamento), **conferido por verificador independente** (achou 3 frases
+falsas ou imprecisas e 3 ajustes, todos corrigidos: o termo de imagem é assinado por um dos pais ou pelo responsável e só é pedido nas fotos de evento,
+parceria e Diretoria; o autenticador não é obrigatório para todos; o prazo de 3 dias conta de quando se sabe que dados pessoais foram afetados, com risco ou
+dano relevante; a mesma correção foi feita no plano de resposta da tela de incidentes). Cada pessoa lê em **Treinamento de privacidade** e confirma "Li e
+entendi" (fica o registro de quem, quando e qual versão, e a Auditoria `TREINAMENTO_CONCLUIDO`); quem está pendente vê um **aviso no alto do painel**
+(sem bloquear); **Privacidade > Treinamento de privacidade** mostra quem fez, quem está pendente e quem está atrasado. Quem precisa: todo usuário com alguma
+permissão (pelo nível ou pelo cargo). A tabela entrou no inventário, na classificação, no relatório do titular (é dado da pessoa), na eliminação a pedido
+(fica: prestação de contas, LGPD art. 6º, X) e fora da portabilidade (não é dado que a pessoa forneceu). Migração `c75a8d3f2b61`. **O texto do material
+aguarda a leitura e a aprovação do Presidente** (ele lê na própria tela).
+**Testes:** servidor 1800 em duas rodadas e contra Postgres 18; painel 797 em duas rodadas e a montagem.
+**Na homologação (2026-11-03):** a migração rodou; robô `v7.5a-01` 2/2 (o 1º Vice-Presidente lê e confirma, o aviso some, o Presidente vê no quadro "Cargo:
+a cada 2 anos"); regressões `v7.4b-01` 2 e `v7.0a-01` 4.
+**Em produção (2026-11-03):** `main` = `fa4b396`; Deploy API (1800 contra Postgres; migração `b74b2e6c1d40 -> c75a8d3f2b61`) e Deploy Painel verdes;
+`painel.asaf.org.br/version.json` = `fa4b396`; `/api/meu-treinamento-de-privacidade` recusa quem não entrou (401).
+
+✅ **v7.5b concluída (2026-11-03) — a revisão anual do programa de privacidade.** **Privacidade > Revisão anual**: o encarregado clica em "Montar o retrato
+de hoje" e o sistema guarda o retrato do programa como estava no dia (o encarregado e o ato; o inventário e o que falta; os prazos de guarda em vigor; **quem
+tem acesso a dado de outras pessoas e por quê**; os incidentes, os ensaios, os pedidos de titular e o treinamento dos últimos 12 meses); ele escreve as
+observações e aprova (sem observações, o sistema recusa); a aprovada não muda; quem tem o módulo Privacidade (a Diretoria) lê. O aviso aparece quando o ano
+passa sem revisão aprovada (todo janeiro). Migração `d75b1a9e4c72`; Auditoria `REVISAO_DO_PROGRAMA_MONTADA` e `_APROVADA`.
+**Testes:** servidor 1804 em duas rodadas e contra Postgres 18; painel 800 em duas rodadas e a montagem.
+**Na homologação (2026-11-03):** a migração rodou; robô `v7.5b-01` 2/2 (o Presidente monta, é recusado sem observações, anota e aprova, a Auditoria registra;
+o 1º Vice-Presidente lê sem montar nem aprovar); regressões `v7.5a-01` 2 e `v7.0c-01` 3.
+**Em produção (2026-11-03):** `main` = `077276f`; Deploy API (1804 contra Postgres; migração `c75a8d3f2b61 -> d75b1a9e4c72`) e Deploy Painel verdes;
+`painel.asaf.org.br/version.json` = `077276f`; `/api/privacidade/revisao-anual` recusa quem não entrou (401). A primeira revisão de verdade é do
+Presidente, pela tela.
 
 ##### 🔍 Ponto de Revisão — FASE 7 (3/3 — fim, fecha v7.4–v7.5)
 
