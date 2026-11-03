@@ -1764,12 +1764,52 @@ o 1º Vice-Presidente lê sem montar nem aprovar); regressões `v7.5a-01` 2 e `v
 `painel.asaf.org.br/version.json` = `077276f`; `/api/privacidade/revisao-anual` recusa quem não entrou (401). A primeira revisão de verdade é do
 Presidente, pela tela.
 
+✅ **v7.5c concluída (2026-11-03) — os achados do Ponto de Revisão 3/3 corrigidos.** (1) A **data em que a associação soube** do incidente não muda mais
+depois do registro (o prazo de 3 dias úteis conta dela; pela API dava para mudá-la e tirar o incidente de "vencido" sem guardar o valor novo). (2) A Auditoria
+de `INCIDENTE_ATUALIZADO` guarda só os campos que **mudaram de verdade** (antes, todos os enviados, e o painel envia sempre todos). (3) A comunicação feita
+depois do prazo aparece como "(fora do prazo)". (4) Na revisão anual: anotar vai para a Auditoria (`REVISAO_DO_PROGRAMA_ANOTADA`); retrato montado em outro
+ano não pode ser aprovado (409, "monte o retrato de hoje"); o ano da aprovação conta pela hora de Belém; montar em 29 de fevereiro não quebra mais. Testes
+fracos reforçados (o do próximo ensaio sempre passava; faltava o 403 de quem só lê ao anotar e aprovar).
+**Testes:** servidor 1809 em duas rodadas e contra Postgres 18; painel 800 em duas rodadas e a montagem.
+**Na homologação (2026-11-03):** robôs `v7.4b-01` 2 e `v7.5b-01` 2.
+**Em produção (2026-11-03):** `main` = `b93b624`; Deploy API (1809) e Deploy Painel verdes; `painel.asaf.org.br/version.json` = `b93b624`; a API responde.
+
 ##### 🔍 Ponto de Revisão — FASE 7 (3/3 — fim, fecha v7.4–v7.5)
+
+⏳ **Revisão feita em 2026-11-03; falta o OK do Presidente para fechar.**
 
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 
 - Plano de resposta a incidente (v7.4) tem prazo e canal definidos por escrito, **antes** de qualquer incidente novo acontecer.
 - Treinamento anual de privacidade (v7.5) tem registro de quem participou, não é evento informal sem prova.
+
+**Revisão feita em 2026-11-03.** Intervalo: `de70a16..b93b624` (v7.4a, v7.4b, a troca do domínio institucional, v7.5a, v7.5b e as correções da v7.5c). A
+leitura de código e plano foi feita por um agente SEPARADO, só leitura; o que depende de rodar coisas foi feito por mim. Resultado do checklist da seção 4.1:
+1. **`[x]` implementado e testado — OK** (os blocos ✅ batem com o código).
+2. **Testes — OK:** servidor 1809 em duas rodadas e contra Postgres 18; painel 800; na homologação, os robôs de cada versão e as regressões.
+3. **Decisões congeladas — OK:** tudo por permissão (`privacidade`, `privacidade_gerir`), nenhuma checagem de nível escrita no código.
+4. **Segredos — OK:** varredura das 3.709 linhas acrescentadas no intervalo: nenhum achado.
+5. **Auditoria — OK** depois da v7.5c (incidente registrado, atualizado com os campos que mudaram, encerrado; treinamento concluído; revisão montada, anotada
+   e aprovada).
+6. **Permissão no servidor — OK** depois da v7.5c (a data do incidente travada; os 403 de quem só lê têm teste).
+7. **Escopo — OK:** a troca do domínio e a v7.5c nasceram de pedidos e achados e estão registradas.
+8. **Plano × código — OK.**
+9. **Suíte completa — OK** (item 2).
+10. **Tela real — OK:** Privacidade > Incidentes de segurança, Treinamento de privacidade, Revisão anual; a tela "Treinamento de privacidade" de cada pessoa
+    e o aviso no alto do painel.
+11. **O que a tela oferece para abrir foi aberto — OK:** os robôs fazem o ensaio, o treinamento e a revisão do começo ao fim.
+12. **No ar — OK:** `main` = `b93b624`.
+
+**Específico deste ponto:**
+- **Prazo e canal escritos antes de qualquer incidente — OK:** decididos pelo Presidente em 30/10 (bloco da v7.4), no plano de resposta da tela de incidentes
+  (3 dias úteis, a ANPD pelo canal dela no gov.br, as pessoas por e-mail, painel e site) e no item 10 do material de treinamento.
+- **Registro de quem fez o treinamento — OK:** a tabela `treinamentos_de_privacidade` (quem, quando, qual versão), a Auditoria `TREINAMENTO_CONCLUIDO` e o
+  quadro em Privacidade; com teste.
+
+**Fica registrado (baixo, sem correção agora):** uma versão nova do material não obriga a reler (só o intervalo); quem já fez o treinamento acha o material
+pela tela própria, sem item no menu; os avisos de ensaio vencido e de revisão atrasada aparecem só nas próprias telas; o retrato da revisão guarda os nomes
+de quem tem acesso (dirigentes) e não entra no relatório do titular. **Pendências do Presidente (não são código):** ler e aprovar o texto do treinamento,
+fazer o primeiro ensaio e a primeira revisão anual pela tela.
 
 ### FASE 8 — Infraestrutura e Deploy (Azure)
 
