@@ -44,8 +44,10 @@ def test_abrir_cria_a_regra_so_para_o_ip_desta_maquina(tmp_path):
     assert r.returncode == 0, r.stderr
     assert az[:4] == ["postgres", "flexible-server", "firewall-rule", "create"]
     assert az[az.index("--start-ip-address") + 1] == "203.0.113.7" and az[az.index("--end-ip-address") + 1] == "203.0.113.7"
-    assert az[az.index("--rule-name") + 1] == "github-123-2-build-and-deploy"
-    assert az[az.index("--name") + 1] == "asaf-pg-server"
+    # os nomes dos parâmetros do az de hoje (a 1ª versão usava --name para o servidor e falhou na produção: "the following arguments are required:
+    # --server-name"); o az falso não reclama, então o teste confere os nomes exatos
+    assert az[az.index("--server-name") + 1] == "asaf-pg-server"
+    assert az[az.index("--name") + 1] == "github-123-2-build-and-deploy" and "--rule-name" not in az
     assert "REGRA_TEMPORARIA_DO_BANCO=github-123-2-build-and-deploy" in gravado
 
 
@@ -72,7 +74,8 @@ def test_fechar_apaga_a_regra(tmp_path):
     r, az, _ = _rodar(tmp_path, FECHAR, {"REGRA_TEMPORARIA_DO_BANCO": "github-123-2-build-and-deploy"})
     assert r.returncode == 0, r.stderr
     assert az[:4] == ["postgres", "flexible-server", "firewall-rule", "delete"]
-    assert az[az.index("--rule-name") + 1] == "github-123-2-build-and-deploy" and "--yes" in az
+    assert az[az.index("--server-name") + 1] == "asaf-pg-server" and "--rule-name" not in az
+    assert az[az.index("--name") + 1] == "github-123-2-build-and-deploy" and "--yes" in az
 
 
 @pytest.mark.skipif(BASH is None, reason="precisa do bash")

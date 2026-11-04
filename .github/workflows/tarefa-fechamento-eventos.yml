@@ -50,7 +50,7 @@ jobs:
           # se não der para abrir, AVISA e segue como antes (a conexão pode passar pela regra dos serviços do Azure): nunca trava a rotina por causa disto
           if [ -z "$IP" ]; then echo "::warning::Não deu para saber o IP desta máquina: segue sem a regra temporária."; exit 0; fi
           NOME="github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
-          if ! az postgres flexible-server firewall-rule create --resource-group Associacao-RG --name asaf-pg-server --rule-name "$NOME" \
+          if ! az postgres flexible-server firewall-rule create --resource-group Associacao-RG --server-name asaf-pg-server --name "$NOME" \
               --start-ip-address "$IP" --end-ip-address "$IP" -o none; then
             echo "::warning::Não deu para criar a regra temporária do banco: segue sem ela."; exit 0
           fi
@@ -79,8 +79,8 @@ jobs:
             github-*) ;;
             *) echo "::error::Recusado: só apago regra temporária (github-*), não '$REGRA_TEMPORARIA_DO_BANCO'."; exit 1 ;;
           esac
-          az postgres flexible-server firewall-rule delete --resource-group Associacao-RG --name asaf-pg-server \
-            --rule-name "$REGRA_TEMPORARIA_DO_BANCO" --yes -o none
+          az postgres flexible-server firewall-rule delete --resource-group Associacao-RG --server-name asaf-pg-server \
+            --name "$REGRA_TEMPORARIA_DO_BANCO" --yes -o none
           echo "Regra temporária $REGRA_TEMPORARIA_DO_BANCO apagada."
 
       - name: Logout
