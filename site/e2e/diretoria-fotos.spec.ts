@@ -84,11 +84,16 @@ test.describe('Diretoria com fotos (v5.7c)', () => {
       'Foto de Maria de Teste da Silva, Presidente',
     )
     await carregada(img)
-    const dados = await img.evaluate((e) => {
+    // v9.2c: a imagem mostrada é a versão leve (WebP); as medidas são as do ARQUIVO (o navegador ajusta o "tamanho natural" ao espaço do cartão
+    // quando a versão é escolhida pela largura, então ele não serve para medir a foto)
+    const dados = await img.evaluate(async (e) => {
       const i = e as HTMLImageElement
+      const arquivo = await createImageBitmap(
+        await (await fetch(i.currentSrc)).blob(),
+      )
       return {
-        naturalWidth: i.naturalWidth,
-        naturalHeight: i.naturalHeight,
+        naturalWidth: arquivo.width,
+        naturalHeight: arquivo.height,
         origem: new URL(i.currentSrc).origin,
         caminho: new URL(i.currentSrc).pathname,
         origemDaPagina: location.origin,
@@ -101,7 +106,14 @@ test.describe('Diretoria com fotos (v5.7c)', () => {
     expect(dados.naturalHeight).toBe(400)
     expect([dados.largura, dados.altura]).toEqual(['300', '400'])
     expect(dados.origem).toBe(dados.origemDaPagina)
-    expect(dados.caminho).toMatch(/^\/midia\/diretoria\/21-[0-9a-f]{12}\.jpg$/)
+    expect(dados.caminho).toMatch(
+      /^\/midia\/diretoria\/21-[0-9a-f]{12}-640\.webp$/,
+    )
+    // o JPEG original continua de reserva, no mesmo endereço de sempre
+    await expect(img).toHaveAttribute(
+      'src',
+      /^\/midia\/diretoria\/21-[0-9a-f]{12}\.jpg$/,
+    )
     // nenhuma foto da Diretoria foi pedida à API, e o HTML nem sabe o endereço dela
     expect(pedidos.filter((u) => u.includes('/diretoria/fotos/'))).toEqual([])
     expect(pedidos.filter((u) => u.startsWith(ORIGEM_DA_API))).toEqual([])
@@ -124,10 +136,13 @@ test.describe('Diretoria com fotos (v5.7c)', () => {
       cartaoDo(page, 'Maria de Teste da Silva').locator('img'),
     ).not.toHaveAttribute('loading', 'lazy')
     await carregada(img)
-    const natural = await img.evaluate((e) => [
-      (e as HTMLImageElement).naturalWidth,
-      (e as HTMLImageElement).naturalHeight,
-    ])
+    // as medidas do arquivo mostrado (a versão leve; ver o teste da Presidente)
+    const natural = await img.evaluate(async (e) => {
+      const arquivo = await createImageBitmap(
+        await (await fetch((e as HTMLImageElement).currentSrc)).blob(),
+      )
+      return [arquivo.width, arquivo.height]
+    })
     expect(natural).toEqual([400, 300])
   })
 
@@ -266,8 +281,11 @@ test.describe('Diretoria com fotos (v5.7c)', () => {
         foto!.sha256,
       )
     }
-    // só nasceram os arquivos das duas fotos (a pessoa sem foto não ganha nenhum)
-    expect(readdirSync('dist/midia/diretoria')).toHaveLength(2)
+    // só nasceram os arquivos das duas fotos (a pessoa sem foto não ganha nenhum): o JPEG e, desde a v9.2c, as duas versões leves de cada uma
+    const arquivos = readdirSync('dist/midia/diretoria')
+    expect(arquivos.filter((a) => a.endsWith('.jpg'))).toHaveLength(2)
+    expect(arquivos.filter((a) => a.endsWith('.webp'))).toHaveLength(4)
+    expect(arquivos).toHaveLength(6)
   })
 
   test('a Política de Privacidade (2.0, que mantém o texto da foto da 1.10) conta o que o sistema faz com a foto, e nunca mais diz "nem foto"', async ({

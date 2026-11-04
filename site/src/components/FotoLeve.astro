@@ -1,0 +1,21 @@
+---
+import type { HTMLAttributes } from 'astro/types'
+
+import { srcsetLeve } from '../lib/fotos-leves'
+
+// v9.2c - uma foto com as versões leves (WebP de até 640 e 1.280 px, src/lib/fotos-leves.ts): o navegador baixa a do tamanho da tela; o JPEG de `src` fica
+// de reserva para navegador antigo. `sizes` diz quanto da tela a foto ocupa (o navegador escolhe a versão por isso); `width` é a largura REAL da foto
+// original (cada versão é anunciada com a largura que tem de fato: foto pequena não vira "640 px"). O resto (alt, altura, classes, data-*) vai para o <img>.
+// O <picture> não ocupa lugar no desenho (`contents`): quem se alinha (num cartão, numa grade) continua sendo a própria imagem.
+interface Props extends HTMLAttributes<'img'> {
+  src: string
+  sizes: string
+  width: number
+}
+const { src, sizes, width, ...resto } = Astro.props
+---
+
+<picture class="contents">
+  <source type="image/webp" srcset={srcsetLeve(src, width)} sizes={sizes} />
+  <img src={src} width={width} decoding="async" {...resto} />
+</picture>

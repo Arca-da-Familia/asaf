@@ -1,4 +1,5 @@
 ---
+import FotoLeve from '../FotoLeve.astro'
 /**
  * Galeria de fotos de evento (v5.5). Cada foto já passou pelas regras do sistema: autorização de imagem confirmada, texto
  * alternativo escrito por quem enviou e imagem regravada sem localização nem dados do aparelho. O build COPIA o arquivo
@@ -36,13 +37,13 @@ const { id, titulo, fotos, titulosDosEventos = {} } = Astro.props
       return (
         <li data-foto>
           <figure>
-            <img
+            <FotoLeve
               src={caminhoDaFotoDoEvento(foto.id_foto)}
+              sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw"
               alt={foto.alt}
               width={foto.largura}
               height={foto.altura}
               loading="lazy"
-              decoding="async"
               class="h-auto w-full rounded-md border"
             />
             {evento && foto.id_evento !== undefined && (

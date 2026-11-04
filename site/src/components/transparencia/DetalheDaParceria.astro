@@ -1,4 +1,5 @@
 ---
+import FotoLeve from '../FotoLeve.astro'
 /**
  * Página de UMA parceria/emenda (v5.4b): valores, parcelas, recebimentos, pagamentos, etapas, prestação de contas e
  * documentos. Peça independente (quem redesenhar a Transparência pode reaproveitá-la).
@@ -308,13 +309,13 @@ const ROTULO_DA_CATEGORIA: Record<string, string> = {
                 {e.fotos.map((foto) => (
                   <li>
                     <figure>
-                      <img
+                      <FotoLeve
                         src={caminhoDaFotoDaEtapa(foto)}
+                        sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw"
                         alt={foto.alt}
                         width={foto.largura}
                         height={foto.altura}
                         loading="lazy"
-                        decoding="async"
                         class="h-auto w-full rounded-md border"
                       />
                     </figure>

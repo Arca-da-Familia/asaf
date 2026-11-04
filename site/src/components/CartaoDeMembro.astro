@@ -1,4 +1,5 @@
 ---
+import FotoLeve from './FotoLeve.astro'
 /**
  * Cartão de quem ocupa um cargo na Diretoria ou no Conselho Fiscal (v5.7c): a FOTO (só de quem autorizou o uso da imagem), o cargo, o nome
  * e o período do mandato. Quem não tem foto mostra um círculo com as iniciais, do mesmo tamanho, para a grade ficar uniforme; o círculo é
@@ -35,13 +36,13 @@ const iniciais = iniciaisDoNome(membro.nome)
   data-destaque={destaque ? '' : undefined}
 >
   {foto ? (
-    <img
+    <FotoLeve
       src={caminhoDaFotoDaDiretoria(foto)}
+      sizes={destaque ? '160px' : '96px'}
       alt={foto.alt}
       width={foto.largura}
       height={foto.altura}
       loading={destaque ? 'eager' : 'lazy'}
-      decoding="async"
       class:list={[
         'shrink-0 rounded-full border object-cover object-top',
         destaque ? 'size-28 sm:size-40' : 'size-20 sm:size-24',

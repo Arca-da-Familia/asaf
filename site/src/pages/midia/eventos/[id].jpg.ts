@@ -1,8 +1,8 @@
 import type { APIRoute } from 'astro'
 
-import { baixarFotoDaTransparencia } from '../../../../scripts/lib/conteudo-publico.mjs'
 import { API_URL } from '../../../config/organizacao'
 import { conteudoPublico } from '../../../lib/dados-publicos'
+import { baixarUmaVez } from '../../../lib/fotos-leves'
 import { fotosDosEventosParaCopiar } from '../../../lib/contexto'
 
 /**
@@ -22,7 +22,7 @@ export async function getStaticPaths() {
 }
 
 export const GET: APIRoute = async ({ props }) => {
-  const bytes = await baixarFotoDaTransparencia(API_URL, props.foto, {
+  const bytes = await baixarUmaVez(API_URL, props.foto, {
     descricao: 'do evento',
   })
   return new Response(new Uint8Array(bytes), {
