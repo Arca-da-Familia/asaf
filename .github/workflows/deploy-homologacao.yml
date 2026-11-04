@@ -104,7 +104,16 @@ jobs:
           DATABASE_URL="$HML_DATABASE_URL" alembic stamp head
 
       - name: Aplicar migrações no banco de TESTE
-        run: DATABASE_URL="$HML_DATABASE_URL" alembic upgrade head
+        # O banco às vezes não aceita a conexão da máquina do GitHub a tempo ("connection timeout": 2 vezes em 03 e 04/11, banco no ar o tempo todo, nenhuma
+        # conexão recusada). Tenta até 3 vezes, 30 s entre elas; se a migração falhar de verdade, para na 3ª (a migração no Postgres é transacional: uma
+        # tentativa que caiu não deixa nada pela metade).
+        run: |
+          for TENTATIVA in 1 2 3; do
+            if DATABASE_URL="$HML_DATABASE_URL" alembic upgrade head; then exit 0; fi
+            echo "::warning::A migração não rodou (tentativa $TENTATIVA de 3)."
+            if [ "$TENTATIVA" -lt 3 ]; then sleep "${ESPERA_ENTRE_TENTATIVAS:-30}"; fi
+          done
+          exit 1
 
       # Correção da troca obrigatória da senha provisória (achado da v6.2d): as contas de teste do cofre têm a senha do cofre, que não é provisória (o robô entra
       # sempre com ela); sem isto o painel mandaria todas para a tela de troca. Só no banco de TESTE; uma versão do código sem o roteiro não faz nada.

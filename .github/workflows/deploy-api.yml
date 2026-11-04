@@ -97,7 +97,16 @@ jobs:
           echo "ASAF_REGISTRO_SEGURO=1" >> "$GITHUB_ENV"
 
       - name: Aplicar migrações Alembic em produção
-        run: alembic upgrade head
+        # O banco às vezes não aceita a conexão da máquina do GitHub a tempo ("connection timeout": 2 vezes em 03 e 04/11, banco no ar o tempo todo, nenhuma
+        # conexão recusada). Tenta até 3 vezes, 30 s entre elas; se a migração falhar de verdade, para na 3ª (a migração no Postgres é transacional: uma
+        # tentativa que caiu não deixa nada pela metade).
+        run: |
+          for TENTATIVA in 1 2 3; do
+            if alembic upgrade head; then exit 0; fi
+            echo "::warning::A migração não rodou (tentativa $TENTATIVA de 3)."
+            if [ "$TENTATIVA" -lt 3 ]; then sleep "${ESPERA_ENTRE_TENTATIVAS:-30}"; fi
+          done
+          exit 1
 
       - name: Build da imagem no ACR (sem precisar de Docker no runner)
         run: |
