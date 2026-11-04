@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 import logging
 import os
+import time
 
 from app.database import preparar_banco, seed_catalogos, seed_niveis_e_permissoes, seed_configuracoes_institucionais, seed_regras_estatutarias, seed_textos_de_privacidade
 from app.services import armazenamento
@@ -148,7 +149,11 @@ POLITICA_DE_CONTEUDO_DO_JSON = "default-src 'none'; frame-ancestors 'none'"
 
 @app.middleware("http")
 async def cabecalhos_de_seguranca(request: Request, call_next):
+    inicio = time.perf_counter()
     resposta = await call_next(request)
+    # v9.2b: quanto o SERVIDOR levou (sem a rede), no cabeçalho padrão Server-Timing: é o que o robô de desempenho (e2e-hml/v9.2b-01) mede contra a meta
+    # de 500 ms; o tempo total visto de fora inclui a viagem até o Brasil, que não é lentidão do sistema
+    resposta.headers.setdefault("Server-Timing", f"app;dur={(time.perf_counter() - inicio) * 1000:.1f}")
     for nome, valor in CABECALHOS_DE_SEGURANCA.items():
         resposta.headers.setdefault(nome, valor)
     if resposta.headers.get("content-type", "").startswith("application/json"):

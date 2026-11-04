@@ -89,3 +89,11 @@ def test_as_sondas_trocam_so_as_sondas_do_conteiner_da_api():
     assert s.com_as_sondas(devolvido)[1] is False
     assert all(p["httpGet"]["port"] == 8000 for p in conteiner["probes"])
     assert "8000" in (RAIZ / "Dockerfile").read_text(encoding="utf-8")
+
+
+def test_toda_resposta_diz_quanto_o_servidor_levou(client):
+    """v9.2b: o cabeçalho Server-Timing (app;dur=<ms>) é o que o robô de desempenho mede: o tempo do servidor, sem a rede."""
+    import re
+
+    r = client.get("/health/live")
+    assert re.fullmatch(r"app;dur=\d+\.\d", r.headers["server-timing"])
