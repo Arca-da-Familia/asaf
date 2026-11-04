@@ -2032,9 +2032,17 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       cinza (token 46,9% → 43%, agora 5,0:1, e o par entrou no teste de contraste), 19 áreas que rolam sem acesso pelo teclado (ganharam nome e Tab) e o
       mapa de ocupação da reserva (grade com 168 paradas de Tab virou tabela acessível; robô v5.4f-02 ajustado e verde). Homologação: 3ª rodada com
       **0 achados** em 88 telas (nem os leves). Produção: painel e site `7151294`]**
-- [ ] Revisão manual do que a ferramenta não pega: navegação só por teclado, leitor de tela nos
+- [x] Revisão manual do que a ferramenta não pega: navegação só por teclado, leitor de tela nos
       fluxos críticos (login, inscrição, doação), ordem de foco, rótulo de formulário, mensagem de
-      erro associada ao campo.
+      erro associada ao campo. **[v9.1c (2026-11-04): virou teste que roda sempre. SITE (`site/e2e/teclado.spec.ts`): os 7 formulários dos fluxos críticos
+      (inscrição em evento, filiação, fale conosco, voluntariado, pedido do titular, pedido de informação, doação com recibo) andados SÓ com Tab do topo da
+      página: todo campo visível alcançado (a armadilha anti-spam fica fora de propósito), na ordem da página, sem tabindex positivo, com contorno de foco
+      em cada um; enviado em branco com Enter, o foco vai ao 1º campo com erro e cada erro está marcado (aria-invalid) e ligado à mensagem visível
+      (aria-describedby) — os 7 já estavam certos. PAINEL: ACHADO E CORRIGIDO nas telas de entrar, esqueci a senha e troca da senha provisória: o erro
+      aparecia no alto e só (campo sem marca, foco no botão); agora `useErroDeFormulario` marca o campo, liga a mensagem e leva o foco (também quando o
+      servidor recusa o código); teste de teclado no CI do painel (ordem do Tab CPF → Senha → Entrar → Esqueci; CPF errado marcado e com foco; a marca some
+      quando o erro é de senha). Homologação: robôs v5.4c-fase0 (entrar e sair) 6/6, v6.2d-03 (esqueci a senha) 2/2, v9.1a-01 0 achados. O que NÃO foi
+      feito: ouvir os fluxos num leitor de tela de verdade (NVDA, TalkBack) com quem usa no dia a dia: entra no teste com gente de verdade da v9.3]**
 - [x] Modo alto contraste e aumento de fonte no site público; respeito a `prefers-reduced-motion`. **[v9.1b (2026-11-04): barra "Preferências
       de leitura" no alto de toda página do site (letra normal, maior 112,5%, muito maior 125%; alto contraste preto/branco/amarelo, tokens em
       `design/tokens.css` com nível AAA 7:1 conferido por teste); arquivo próprio `public/preferencias-de-leitura.js` no <head> (a política de conteúdo não
@@ -2044,8 +2052,16 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       navegador) e Declaração de acessibilidade 1.1, conferidos por verificador independente (2 rodadas: nada falso; 3 frases imprecisas corrigidas, ex.
       "o site não mostra transições" virou "o site não usa animações nem transições; uma regra garante..."). Lighthouse 100 de acessibilidade mantido nas
       16 páginas. Produção: `asaf.org.br` com a barra, Política 2.18 e Declaração 1.1 no ar]**
-- [ ] Linguagem simples nos textos de interface — acessibilidade cognitiva importa tanto quanto a
-      técnica para o público de uma associação comunitária.
+- [x] Linguagem simples nos textos de interface — acessibilidade cognitiva importa tanto quanto a
+      técnica para o público de uma associação comunitária. **[v9.1d (2026-11-04): trava `painel/src/test/linguagem-simples.test.ts` lê o texto que
+      APARECE na tela (entre as marcas do JSX, placeholder, title, rótulos e mensagens de erro) em todas as telas e reprova jargão de informática (token,
+      login/logar, status, ID, download/upload, template, backend, sincronizar...), com teste do próprio teste; exceções com motivo (catálogo de
+      componentes; "Face ID"/"Touch ID"). Achados e trocados: "Todos os status" → "Todas as situações" (5 telas), "E-mail de login" → "E-mail para entrar",
+      "Sessão de login expirada" → "O tempo para entrar acabou", "ID da pessoa"/"ID do usuário" → "Número", "Cole o token" → "Cole o código",
+      "sincronizando" → "enviando" (portaria), "Alterar status" → "Mudar a situação", "o backend recusa" → "o sistema recusa", "cada download" → "cada vez
+      que alguém baixa", "Portaria (check-in sem login)" → "(check-in sem senha)". Robôs que procuravam os textos antigos ajustados e verdes na homologação
+      (v5.4e-02 29/29, v5.4f-03 16/16). Os textos do site já passam por conferência independente de fatos desde a v5.0. Produção: painel e site `129bb1d`,
+      textos novos conferidos no painel publicado]**
 - [x] Declaração de acessibilidade publicada, com canal para relatar barreira encontrada. **[feito antes, na v5.7: publicada em `/acessibilidade/` com a conformidade parcial declarada; a revisão manual continua pendente e é outro item]**
 
 #### v9.2 — Performance
