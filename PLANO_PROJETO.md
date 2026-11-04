@@ -2020,12 +2020,30 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 
 #### v9.1 — Acessibilidade (WCAG 2.2 nível AA como meta)
 
-- [ ] Auditoria automatizada (axe-core) no CI do site e do painel, falhando o build em violação
-      grave — automatizado pega ~40% dos problemas.
+- [x] Auditoria automatizada (axe-core) no CI do site e do painel, falhando o build em violação
+      grave — automatizado pega ~40% dos problemas. **[v9.1a (2026-11-04): SITE: toda página, no computador e no celular, com as regras WCAG 2.2 A/AA
+      (antes 2.1) numa lista única (`site/e2e/regras-do-axe.ts`), qualquer violação reprova a publicação; PROVA de que reprova: uma imagem sem texto
+      alternativo posta de propósito na página de Contato fez o teste falhar ("image-alt, critical") e, desfeita, passar. PAINEL: no CI, o axe num navegador
+      de verdade nas telas sem sessão (`painel/e2e/acessibilidade.spec.ts`), além do jest-axe dos testes de componente (51 arquivos, que não medem
+      contraste); e, com dado de verdade, o robô da homologação `v9.1a-01` entra como Presidente, segue todos os links do painel e passa o axe em 88 telas,
+      no computador e no celular, reprovando em violação grave. A 1ª rodada achou 331 violações de 6 tipos, todas de peças comuns, e todas foram corrigidas:
+      o sino ("Notificações (450 novas)" com "9+" na tela; o axe ainda ignora o que está entre parênteses: virou "Notificações: 9+ novas"), o botão Sair
+      sem nome no celular, verdes e âmbar 600 com 3,2 a 3,8:1 (viraram 700 no claro e 400 no escuro, 40 arquivos), o cinza das etiquetas sobre fundo
+      cinza (token 46,9% → 43%, agora 5,0:1, e o par entrou no teste de contraste), 19 áreas que rolam sem acesso pelo teclado (ganharam nome e Tab) e o
+      mapa de ocupação da reserva (grade com 168 paradas de Tab virou tabela acessível; robô v5.4f-02 ajustado e verde). Homologação: 3ª rodada com
+      **0 achados** em 88 telas (nem os leves). Produção: painel e site `7151294`]**
 - [ ] Revisão manual do que a ferramenta não pega: navegação só por teclado, leitor de tela nos
       fluxos críticos (login, inscrição, doação), ordem de foco, rótulo de formulário, mensagem de
       erro associada ao campo.
-- [ ] Modo alto contraste e aumento de fonte no site público; respeito a `prefers-reduced-motion`.
+- [x] Modo alto contraste e aumento de fonte no site público; respeito a `prefers-reduced-motion`. **[v9.1b (2026-11-04): barra "Preferências
+      de leitura" no alto de toda página do site (letra normal, maior 112,5%, muito maior 125%; alto contraste preto/branco/amarelo, tokens em
+      `design/tokens.css` com nível AAA 7:1 conferido por teste); arquivo próprio `public/preferencias-de-leitura.js` no <head> (a política de conteúdo não
+      aceita script na página), guarda SÓ a escolha no navegador e voltar ao normal apaga; sem JavaScript a barra some. "Menos movimento" em
+      `design/base.css` (site e painel): o teste põe uma transição e uma animação de 2 s e prova que viram ~0. Testes: 11 novos no site (alto contraste +
+      letra muito maior passam no axe em 5 páginas no computador e no celular, sem rolagem para o lado). Textos: Política 2.18 (a escolha guardada no
+      navegador) e Declaração de acessibilidade 1.1, conferidos por verificador independente (2 rodadas: nada falso; 3 frases imprecisas corrigidas, ex.
+      "o site não mostra transições" virou "o site não usa animações nem transições; uma regra garante..."). Lighthouse 100 de acessibilidade mantido nas
+      16 páginas. Produção: `asaf.org.br` com a barra, Política 2.18 e Declaração 1.1 no ar]**
 - [ ] Linguagem simples nos textos de interface — acessibilidade cognitiva importa tanto quanto a
       técnica para o público de uma associação comunitária.
 - [x] Declaração de acessibilidade publicada, com canal para relatar barreira encontrada. **[feito antes, na v5.7: publicada em `/acessibilidade/` com a conformidade parcial declarada; a revisão manual continua pendente e é outro item]**
