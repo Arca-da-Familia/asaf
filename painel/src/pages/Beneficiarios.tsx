@@ -1,3 +1,4 @@
+import type { PaginationState } from '@tanstack/react-table'
 import {
   keepPreviousData,
   useMutation,
@@ -19,7 +20,7 @@ import { Button } from '@/components/ui/button'
 import {
   editarBeneficiario,
   exportarBeneficiarios,
-  listarBeneficiarios,
+  listarBeneficiariosPagina,
   listarProjetos,
   type Beneficiario,
 } from '@/lib/api'
@@ -27,6 +28,9 @@ import { formatarDia } from '@/lib/datas'
 import { useDebounce } from '@/lib/use-debounce'
 import { beneficiarioEditarSchema } from '@/lib/schemas'
 import { useMe } from '@/lib/use-me'
+
+// v9.2c: quantos por página (o servidor pagina: app/paginacao.py)
+const POR_PAGINA = 25
 
 // v4.10 (FASE 4, último) - primeira tela CRUZADA de beneficiários: até aqui só existiam
 // aninhados dentro de um projeto (SecaoBeneficiarios em Projetos.tsx, que continua existindo -
@@ -210,19 +214,38 @@ export function BeneficiariosPage() {
     queryFn: listarProjetos,
   })
 
-  const { data: beneficiarios, isLoading } = useQuery({
-    queryKey: ['beneficiarios', busca, idProjetoFiltro],
+  // v9.2c: a lista vem do servidor de 25 em 25 (a cadastrada por último primeiro), com a busca e o projeto aplicados lá; busca nova volta à 1ª página
+  const [paginacao, setPaginacao] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: POR_PAGINA,
+  })
+  const filtros = `${busca}|${idProjetoFiltro ?? ''}`
+  const [filtrosVistos, setFiltrosVistos] = useState(filtros)
+  if (filtrosVistos !== filtros) {
+    setFiltrosVistos(filtros)
+    setPaginacao((p) => ({ ...p, pageIndex: 0 }))
+  }
+  const { data: pagina, isLoading } = useQuery({
+    queryKey: [
+      'beneficiarios',
+      busca,
+      idProjetoFiltro,
+      paginacao.pageIndex,
+      paginacao.pageSize,
+    ],
     queryFn: () =>
-      listarBeneficiarios({
-        busca: busca || undefined,
-        idProjeto: idProjetoFiltro,
-      }),
+      listarBeneficiariosPagina(
+        { busca: busca || undefined, idProjeto: idProjetoFiltro },
+        paginacao.pageIndex + 1,
+        paginacao.pageSize,
+      ),
     // v7.1c: enquanto a busca nova carrega, a lista anterior fica: sem isso o bloco aberto (consentimento, edição, núcleo) era desmontado e perdia o que
     // estava sendo preenchido (o robô v7.1c-01 pegou: digitar o nome e abrir o bloco antes de a busca responder)
     placeholderData: keepPreviousData,
   })
 
-  const dados = beneficiarios ?? []
+  const dados = pagina?.itens ?? []
+  const total = pagina?.total ?? 0
   const editando = dados.find((b) => b.id_beneficiario === idEditando) ?? null
   const vendoNucleo =
     dados.find((b) => b.id_beneficiario === idVendoNucleo) ?? null
@@ -385,7 +408,17 @@ export function BeneficiariosPage() {
             descricao="Ajuste a busca/filtro, ou cadastre beneficiários a partir de um projeto."
           />
         ) : (
-          <DataTable dados={dados} colunas={colunas} filtroGlobal={false} />
+          <DataTable
+            dados={dados}
+            colunas={colunas}
+            filtroGlobal={false}
+            rotulo="Beneficiários"
+            manualPagination
+            totalRegistros={total}
+            pageCount={Math.max(1, Math.ceil(total / paginacao.pageSize))}
+            onPaginationChange={setPaginacao}
+            tamanhoDePaginaInicial={paginacao.pageSize}
+          />
         )}
       </section>
     </>

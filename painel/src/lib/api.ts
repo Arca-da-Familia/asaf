@@ -215,6 +215,48 @@ export async function apiFetch<T>(
   return (await res.json()) as T
 }
 
+// v9.2c - uma PÁGINA de uma lista que o servidor pagina (app/paginacao.py): os itens e o total, que vem no cabeçalho X-Total-Count. Mesmo caminho do
+// apiFetch (token, renovação da sessão, erro em português); só lê também o cabeçalho.
+export type Pagina<T> = { itens: T[]; total: number }
+
+export async function apiFetchPagina<T>(
+  path: string,
+  alreadyRetried = false,
+): Promise<Pagina<T>> {
+  const headers = new Headers()
+  const token = getAccessToken()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const res = await fetchInstrumentado(`${API_BASE_URL}${path}`, {
+    headers,
+    credentials: 'include',
+  })
+  if (res.status === 401) {
+    if (!alreadyRetried && (await refreshAccessToken())) {
+      return apiFetchPagina<T>(path, true)
+    }
+    clearSession()
+    throw new ApiError(401, 'Sessão expirada. Faça login novamente.')
+  }
+  if (!res.ok) throw await parseError(res)
+  const itens = (await res.json()) as T[]
+  const total = Number(res.headers.get('X-Total-Count'))
+  return {
+    itens,
+    total: Number.isFinite(total) && total >= 0 ? total : itens.length,
+  }
+}
+
+/** `?a=1&pagina=2&por_pagina=25`: os filtros que vierem, mais a página. */
+function comPagina(
+  params: URLSearchParams,
+  pagina: number,
+  porPagina: number,
+): string {
+  params.set('pagina', String(pagina))
+  params.set('por_pagina', String(porPagina))
+  return `?${params.toString()}`
+}
+
 // Download AUTENTICADO de arquivo (v5.4a): o original de um documento (pode ter RG/CPF) não tem link público,
 // só sai com o token do usuário - então não dá para um <a href>; busca com o cabeçalho e devolve o conteúdo.
 export async function apiFetchBlob(
@@ -2608,6 +2650,16 @@ export function listarDoacoes(idCampanha?: number): Promise<Doacao[]> {
   return apiFetch(`/api/doacoes/${query}`)
 }
 
+/** v9.2c: uma página das doações (a mais recente primeiro) e o total. */
+export function listarDoacoesPagina(
+  pagina: number,
+  porPagina: number,
+): Promise<Pagina<Doacao>> {
+  return apiFetchPagina(
+    `/api/doacoes/${comPagina(new URLSearchParams(), pagina, porPagina)}`,
+  )
+}
+
 export function registrarDoacao(dados: {
   anonima: boolean
   nome_doador?: string
@@ -4171,6 +4223,21 @@ export function listarBeneficiarios(
   return apiFetch(`/api/beneficiarios/${query ? `?${query}` : ''}`)
 }
 
+/** v9.2c: uma página dos beneficiários (o cadastrado por último primeiro), com os mesmos filtros, e o total. */
+export function listarBeneficiariosPagina(
+  filtro: { busca?: string; idProjeto?: number },
+  pagina: number,
+  porPagina: number,
+): Promise<Pagina<Beneficiario>> {
+  const params = new URLSearchParams()
+  if (filtro.busca) params.set('busca', filtro.busca)
+  if (filtro.idProjeto != null)
+    params.set('id_projeto', String(filtro.idProjeto))
+  return apiFetchPagina(
+    `/api/beneficiarios/${comPagina(params, pagina, porPagina)}`,
+  )
+}
+
 export function criarBeneficiario(dados: {
   id_pessoa?: number
   nome_completo?: string
@@ -4427,6 +4494,33 @@ export function listarReservasEspaco(
   if (filtro.dataInicio) params.set('data_inicio', filtro.dataInicio)
   if (filtro.dataFim) params.set('data_fim', filtro.dataFim)
   return apiFetch(`/api/reservas-espaco/?${params.toString()}`)
+}
+
+/** v9.2c: uma página das reservas (a mais recente primeiro), com os mesmos filtros, e o total. */
+export function listarReservasEspacoPagina(
+  filtro: {
+    idEspaco?: number
+    idAssociadoSolicitante?: number
+    status?: string
+    dataInicio?: string
+    dataFim?: string
+  },
+  pagina: number,
+  porPagina: number,
+): Promise<Pagina<ReservaEspaco>> {
+  const params = new URLSearchParams()
+  if (filtro.idEspaco != null) params.set('id_espaco', String(filtro.idEspaco))
+  if (filtro.idAssociadoSolicitante != null)
+    params.set(
+      'id_associado_solicitante',
+      String(filtro.idAssociadoSolicitante),
+    )
+  if (filtro.status) params.set('status', filtro.status)
+  if (filtro.dataInicio) params.set('data_inicio', filtro.dataInicio)
+  if (filtro.dataFim) params.set('data_fim', filtro.dataFim)
+  return apiFetchPagina(
+    `/api/reservas-espaco/${comPagina(params, pagina, porPagina)}`,
+  )
 }
 
 export function criarReservaEspaco(dados: {
@@ -6185,6 +6279,22 @@ export function listarDocumentosEmitidos(filtros?: {
   if (filtros?.id_pessoa) params.set('id_pessoa', String(filtros.id_pessoa))
   const query = params.toString()
   return apiFetch(`/api/documentos-emitidos/${query ? `?${query}` : ''}`)
+}
+
+/** v9.2c: uma página dos documentos emitidos (o número mais alto primeiro), com os mesmos filtros, e o total. */
+export function listarDocumentosEmitidosPagina(
+  filtros: { contexto_tipo?: string; id_contexto?: number; id_pessoa?: number },
+  pagina: number,
+  porPagina: number,
+): Promise<Pagina<DocumentoEmitido>> {
+  const params = new URLSearchParams()
+  if (filtros.contexto_tipo) params.set('contexto_tipo', filtros.contexto_tipo)
+  if (filtros.id_contexto)
+    params.set('id_contexto', String(filtros.id_contexto))
+  if (filtros.id_pessoa) params.set('id_pessoa', String(filtros.id_pessoa))
+  return apiFetchPagina(
+    `/api/documentos-emitidos/${comPagina(params, pagina, porPagina)}`,
+  )
 }
 
 // ---------------------------------------------------------------------------

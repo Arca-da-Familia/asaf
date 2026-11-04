@@ -4,7 +4,9 @@ módulo de Projetos), mas o prontuário e o encaminhamento têm uma segunda trav
 lê ou escreve, nunca "quem tem permissão de projetos" de modo geral. Toda consulta ao prontuário
 é auditada (`CONSULTA_PRONTUARIO`), não só a escrita - dado sensível pede rastro de quem LEU,
 não só de quem mudou."""
-from fastapi import APIRouter, Depends, Request
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
@@ -23,6 +25,7 @@ from app.schemas.beneficiarios import (
 )
 from app.security import exigir_permissao
 from app.services import beneficiarios, consentimentos
+from app import paginacao
 
 router = APIRouter()
 _permissao_projetos = exigir_permissao("projetos")
@@ -79,10 +82,12 @@ def criar_beneficiario_endpoint(dados: BeneficiarioCriar, request: Request, db: 
 
 @router.get("/api/beneficiarios/", summary="Listar Beneficiários")
 def listar_beneficiarios_endpoint(
-    busca: str = None, id_projeto: int = None,
+    resposta: Response, busca: str = None, id_projeto: int = None,
+    pagina: Optional[int] = paginacao.PAGINA, por_pagina: int = paginacao.POR_PAGINA,
     db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos),
 ):
-    lista = beneficiarios.listar_beneficiarios(db, busca=busca, id_projeto=id_projeto)
+    # v9.2c: com `pagina`, só aquela página (o total no cabeçalho X-Total-Count; app/paginacao.py)
+    lista = paginacao.aplicar(beneficiarios.consulta_beneficiarios(db, busca=busca, id_projeto=id_projeto), pagina, por_pagina, resposta)
     pessoas = _mapear_pessoas(db, [b.id_pessoa for b in lista])
     vigentes = _consentimentos_vigentes(db, [b.id_beneficiario for b in lista])
     return [_serializar_beneficiario(b, pessoas.get(b.id_pessoa), vigentes.get(b.id_beneficiario)) for b in lista]

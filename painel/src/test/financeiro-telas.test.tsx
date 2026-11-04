@@ -12,7 +12,7 @@ import { DocumentosEmitidosPage } from '@/pages/DocumentosEmitidos'
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   me: vi.fn(),
-  listarDocumentosEmitidos: vi.fn(),
+  listarDocumentosEmitidosPagina: vi.fn(),
   listarEventos: vi.fn(),
   listarSolicitacoesCompra: vi.fn(),
   listarAprovacoesCompra: vi.fn(),
@@ -57,7 +57,11 @@ describe('Documentos emitidos', () => {
         ReturnType<typeof api.listarEventos>
       >[number],
     ])
-    vi.mocked(api.listarDocumentosEmitidos).mockResolvedValue([documento])
+    // v9.2c: a lista vem paginada do servidor (os itens e o total)
+    vi.mocked(api.listarDocumentosEmitidosPagina).mockResolvedValue({
+      itens: [documento],
+      total: 1,
+    })
   })
 
   it('lista número, modelo, pessoa, evento e abre o PDF; passa no axe', async () => {
@@ -81,15 +85,19 @@ describe('Documentos emitidos', () => {
     await screen.findByText(/Nº 12/)
     await u.selectOptions(screen.getByLabelText('Evento'), '5')
     await waitFor(() =>
-      expect(api.listarDocumentosEmitidos).toHaveBeenLastCalledWith({
-        contexto_tipo: 'Evento',
-        id_contexto: 5,
-      }),
+      expect(api.listarDocumentosEmitidosPagina).toHaveBeenLastCalledWith(
+        { contexto_tipo: 'Evento', id_contexto: 5 },
+        1,
+        25,
+      ),
     )
   })
 
   it('sem nada emitido, diz isso', async () => {
-    vi.mocked(api.listarDocumentosEmitidos).mockResolvedValue([])
+    vi.mocked(api.listarDocumentosEmitidosPagina).mockResolvedValue({
+      itens: [],
+      total: 0,
+    })
     desenhar(<DocumentosEmitidosPage />)
     expect(
       await screen.findByText('Nenhum documento emitido'),

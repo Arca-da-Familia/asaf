@@ -1,8 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { z } from 'zod'
 
+import { Paginador } from '@/components/data/Paginador'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -22,7 +28,7 @@ import {
   listarIsencoesTaxaEspaco,
   listarOpcoesCatalogo,
   listarPlanoContas,
-  listarReservasEspaco,
+  listarReservasEspacoPagina,
   marcarNaoCompareceu,
   obterAssociado,
   obterChecklistReserva,
@@ -45,6 +51,9 @@ import {
   retiradaEspacoSchema,
 } from '@/lib/schemas'
 import { useMe } from '@/lib/use-me'
+
+// v9.2c: quantas por página (o servidor pagina: app/paginacao.py)
+const POR_PAGINA_RESERVAS = 20
 
 // v4.3 (FASE 4) - Reserva de espaço: fluxo instantâneo ou aprovação manual (por espaço),
 // conflito de horário reaproveitando o motor de agenda (v4.0) - a garantia real sob concorrência
@@ -345,24 +354,43 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
   const [statusFiltro, setStatusFiltro] = useState('')
   const [dataInicioFiltro, setDataInicioFiltro] = useState('')
   const [dataFimFiltro, setDataFimFiltro] = useState('')
-  const { data: reservas } = useQuery({
+  // v9.2c: as reservas do espaço vêm do servidor de 20 em 20 (a mais recente primeiro); filtro novo volta à 1ª página
+  const [paginaReservas, setPaginaReservas] = useState(1)
+  const filtrosDasReservas = [
+    statusFiltro,
+    dataInicioFiltro,
+    dataFimFiltro,
+  ].join('|')
+  const [filtrosVistos, setFiltrosVistos] = useState(filtrosDasReservas)
+  if (filtrosVistos !== filtrosDasReservas) {
+    setFiltrosVistos(filtrosDasReservas)
+    setPaginaReservas(1)
+  }
+  const { data: paginaDeReservas } = useQuery({
     queryKey: [
       'reservas-espaco',
       espaco.id_espaco,
       statusFiltro,
       dataInicioFiltro,
       dataFimFiltro,
+      paginaReservas,
     ],
     queryFn: () =>
-      listarReservasEspaco({
-        idEspaco: espaco.id_espaco,
-        status: statusFiltro || undefined,
-        dataInicio: dataInicioFiltro
-          ? `${dataInicioFiltro}T00:00:00`
-          : undefined,
-        dataFim: dataFimFiltro ? `${dataFimFiltro}T23:59:59` : undefined,
-      }),
+      listarReservasEspacoPagina(
+        {
+          idEspaco: espaco.id_espaco,
+          status: statusFiltro || undefined,
+          dataInicio: dataInicioFiltro
+            ? `${dataInicioFiltro}T00:00:00`
+            : undefined,
+          dataFim: dataFimFiltro ? `${dataFimFiltro}T23:59:59` : undefined,
+        },
+        paginaReservas,
+        POR_PAGINA_RESERVAS,
+      ),
+    placeholderData: keepPreviousData,
   })
+  const reservas = paginaDeReservas?.itens
   const { data: associados } = useQuery({
     queryKey: ['associados'],
     queryFn: listarAssociados,
@@ -884,6 +912,13 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
           </p>
         )}
       </div>
+      <Paginador
+        rotulo="Páginas das reservas"
+        pagina={paginaReservas}
+        porPagina={POR_PAGINA_RESERVAS}
+        total={paginaDeReservas?.total ?? 0}
+        aoMudar={setPaginaReservas}
+      />
     </div>
   )
 }

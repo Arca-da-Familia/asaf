@@ -2,7 +2,9 @@
 indicadores e agenda/conflito. Gate de permissão único (`exigir_permissao("projetos")`) porque
 FASE 4 é o primeiro consumidor real - quando outra fase (ex.: FASE 14, aula) também consumir,
 a checagem de permissão de escrita passa a ser decidida por quem chama o motor, nunca solta."""
-from fastapi import APIRouter, Depends, Request
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
@@ -23,6 +25,7 @@ from app.schemas.motores import (
 from app.security import exigir_permissao
 from app.services import documentos, indicadores, inscricao, presenca, vagas
 from app.services.eventos import CONTEXTO_EVENTO
+from app import paginacao
 
 router = APIRouter()
 _permissao_projetos = exigir_permissao("projetos")
@@ -180,10 +183,14 @@ def emitir_documento_endpoint(dados: DocumentoEmitir, request: Request, db: Sess
 
 @router.get("/api/documentos-emitidos/", summary="Listar Documentos Emitidos")
 def listar_documentos_emitidos_endpoint(
-    contexto_tipo: str = None, id_contexto: int = None, id_pessoa: int = None,
+    resposta: Response, contexto_tipo: str = None, id_contexto: int = None, id_pessoa: int = None,
+    pagina: Optional[int] = paginacao.PAGINA, por_pagina: int = paginacao.POR_PAGINA,
     db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos),
 ):
-    emitidos = documentos.listar_documentos_emitidos(db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, id_pessoa=id_pessoa)
+    # v9.2c: com `pagina`, só aquela página (o total no cabeçalho X-Total-Count; app/paginacao.py)
+    emitidos = paginacao.aplicar(
+        documentos.consulta_documentos_emitidos(db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, id_pessoa=id_pessoa), pagina, por_pagina, resposta,
+    )
     # a lista é para gente ler: o nome do modelo (Certificado, Crachá), de quem recebeu e do evento, não só números
     modelos = {t.id_template: t.nome for t in db.query(TemplateDocumento).all()}
     ids_pessoas = {d.id_pessoa for d in emitidos if d.id_pessoa is not None}

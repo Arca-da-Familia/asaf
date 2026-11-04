@@ -1,6 +1,8 @@
 """v3.4 (FASE 3) - doações, captação e recibos. Segue o mesmo padrão de autenticação/auditoria de
 todo o financeiro (`exigir_permissao("financeiro")`, `registrar_auditoria` em toda escrita)."""
-from fastapi import APIRouter, Depends, HTTPException, Request
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
@@ -10,6 +12,7 @@ from app.models.financeiro import CentroDeCusto
 from app.schemas.doacoes import CampanhaArrecadacaoCriar, DoacaoCriar, RemanejamentoDestinacaoCriar
 from app.security import exigir_permissao, usuario_tem_permissao
 from app.services import cpf_protegido, doacoes
+from app import paginacao
 
 router = APIRouter()
 _permissao_financeiro = exigir_permissao("financeiro")
@@ -74,11 +77,15 @@ def alternar_campanha(id_campanha: int, ativa: bool, request: Request, db: Sessi
 # DOAÇÕES
 # ==========================================
 @router.get("/api/doacoes/", summary="Listar Doações")
-def listar_doacoes(id_campanha: int = None, db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
+def listar_doacoes(
+    resposta: Response, id_campanha: int = None, pagina: Optional[int] = paginacao.PAGINA, por_pagina: int = paginacao.POR_PAGINA,
+    db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro),
+):
     consulta = db.query(Doacao)
     if id_campanha:
         consulta = consulta.filter(Doacao.id_campanha == id_campanha)
-    doacoes_lista = consulta.order_by(Doacao.data_doacao.desc()).all()
+    # v9.2c: com `pagina`, só aquela página (o total no cabeçalho X-Total-Count; app/paginacao.py)
+    doacoes_lista = paginacao.aplicar(consulta.order_by(Doacao.data_doacao.desc(), Doacao.id_doacao.desc()), pagina, por_pagina, resposta)
     return [
         {
             "id_doacao": d.id_doacao, "anonima": d.anonima, "nome_doador": d.nome_doador,

@@ -4,7 +4,9 @@ disponibilidade pública (`GET /api/espacos/{id}/disponibilidade`) é a ÚNICA r
 autenticação - leitura de horário ocupado pro site institucional, nunca expõe quem reservou."""
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Request
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from app.auditoria import registrar_auditoria
@@ -24,6 +26,7 @@ from app.schemas.espacos import (
 from app.security import exigir_permissao
 from app.services import espacos, ocupacao_espacos, reservas
 from app.services import isencoes_taxa as servico_isencoes_taxa
+from app import paginacao
 
 router = APIRouter()
 _permissao_projetos = exigir_permissao("projetos")
@@ -141,17 +144,16 @@ def criar_reserva_recorrente_endpoint(dados: ReservaRecorrenteCriar, request: Re
 
 @router.get("/api/reservas-espaco/", summary="Listar Reservas")
 def listar_reservas_endpoint(
-    id_espaco: int = None, id_associado_solicitante: int = None, status: str = None,
+    resposta: Response, id_espaco: int = None, id_associado_solicitante: int = None, status: str = None,
     data_inicio: datetime = None, data_fim: datetime = None,
+    pagina: Optional[int] = paginacao.PAGINA, por_pagina: int = paginacao.POR_PAGINA,
     db: Session = Depends(get_db), _usuario=Depends(_permissao_projetos),
 ):
-    return [
-        _serializar_reserva(r)
-        for r in reservas.listar_reservas(
-            db, id_espaco=id_espaco, id_associado_solicitante=id_associado_solicitante,
-            status=status, data_inicio=data_inicio, data_fim=data_fim,
-        )
-    ]
+    # v9.2c: com `pagina`, só aquela página (o total no cabeçalho X-Total-Count; app/paginacao.py)
+    consulta = reservas.consulta_reservas(
+        db, id_espaco=id_espaco, id_associado_solicitante=id_associado_solicitante, status=status, data_inicio=data_inicio, data_fim=data_fim,
+    )
+    return [_serializar_reserva(r) for r in paginacao.aplicar(consulta, pagina, por_pagina, resposta)]
 
 
 @router.get("/api/reservas-espaco/exportar", summary="Exportar reservas (v4.10 - permissão própria, nunca casual)")

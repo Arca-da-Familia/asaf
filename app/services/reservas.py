@@ -257,6 +257,16 @@ def listar_reservas(
     # ou por solicitante, sem status nem período).
     status: Optional[str] = None, data_inicio: Optional[datetime] = None, data_fim: Optional[datetime] = None,
 ) -> list[Reserva]:
+    return consulta_reservas(
+        db, id_espaco=id_espaco, id_associado_solicitante=id_associado_solicitante, status=status, data_inicio=data_inicio, data_fim=data_fim,
+    ).all()
+
+
+def consulta_reservas(
+    db: Session, *, id_espaco: Optional[int] = None, id_associado_solicitante: Optional[int] = None,
+    status: Optional[str] = None, data_inicio: Optional[datetime] = None, data_fim: Optional[datetime] = None,
+):
+    """v9.2c: a consulta (ordenada, mais recente primeiro), para a rota paginar no banco."""
     consulta = db.query(Reserva)
     if id_espaco is not None:
         consulta = consulta.filter(Reserva.id_espaco == id_espaco)
@@ -268,7 +278,7 @@ def listar_reservas(
         consulta = consulta.filter(Reserva.data_hora_inicio >= data_inicio)
     if data_fim is not None:
         consulta = consulta.filter(Reserva.data_hora_inicio <= data_fim)
-    return consulta.order_by(Reserva.data_hora_inicio.desc()).all()
+    return consulta.order_by(Reserva.data_hora_inicio.desc(), Reserva.id_reserva.desc())
 
 
 def atualizar_reserva(

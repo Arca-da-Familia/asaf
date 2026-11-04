@@ -51,12 +51,17 @@ def listar_beneficiarios(
     # quem guarda o nome de verdade) e filtro por projeto (via o vínculo N:N).
     busca: Optional[str] = None, id_projeto: Optional[int] = None,
 ) -> list[Beneficiario]:
+    return consulta_beneficiarios(db, busca=busca, id_projeto=id_projeto).all()
+
+
+def consulta_beneficiarios(db: Session, *, busca: Optional[str] = None, id_projeto: Optional[int] = None):
+    """v9.2c: a consulta (ordenada, mais recente primeiro), para a rota paginar no banco."""
     query = db.query(Beneficiario)
     if id_projeto is not None:
         query = query.join(BeneficiarioProjeto, BeneficiarioProjeto.id_beneficiario == Beneficiario.id_beneficiario).filter(BeneficiarioProjeto.id_projeto == id_projeto)
     if busca:
         query = query.join(Pessoa, Pessoa.id_pessoa == Beneficiario.id_pessoa).filter(Pessoa.nome_completo.ilike(f"%{busca}%"))
-    return query.order_by(Beneficiario.criado_em.desc()).all()
+    return query.order_by(Beneficiario.criado_em.desc(), Beneficiario.id_beneficiario.desc())
 
 
 def atualizar_beneficiario(

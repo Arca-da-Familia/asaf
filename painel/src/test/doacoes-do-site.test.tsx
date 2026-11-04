@@ -2039,7 +2039,7 @@ describe('Tela de Doações: a seção do site no meio do que já existia', () =
     ])
     expect(screen.getByText('Nenhuma doação registrada.')).toBeInTheDocument()
     const doacoesAntes = chamadas.filter(
-      (c) => c.caminho === '/api/doacoes/',
+      (c) => c.caminho.split('?')[0] === '/api/doacoes/',
     ).length
     const campanhasAntes = chamadas.filter(
       (c) => c.caminho === '/api/campanhas-arrecadacao/',
@@ -2055,7 +2055,8 @@ describe('Tela de Doações: a seção do site no meio do que já existia', () =
     ).toBeInTheDocument()
     expect(screen.queryByText('Nenhuma doação registrada.')).toBeNull()
     expect(
-      chamadas.filter((c) => c.caminho === '/api/doacoes/').length,
+      chamadas.filter((c) => c.caminho.split('?')[0] === '/api/doacoes/')
+        .length,
     ).toBeGreaterThan(doacoesAntes)
     expect(
       chamadas.filter((c) => c.caminho === '/api/campanhas-arrecadacao/')

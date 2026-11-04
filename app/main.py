@@ -167,6 +167,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # v9.2c: o total das listas paginadas (app/paginacao.py); sem isto o navegador esconde o cabeçalho do painel, que fica em outro endereço
+    expose_headers=["X-Total-Count"],
 )
 
 

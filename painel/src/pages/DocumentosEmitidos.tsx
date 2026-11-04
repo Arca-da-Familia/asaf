@@ -1,31 +1,44 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { FileCheck } from 'lucide-react'
 import { useState } from 'react'
 
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { listarDocumentosEmitidos, listarEventos, urlArquivo } from '@/lib/api'
+import { Paginador } from '@/components/data/Paginador'
+import {
+  listarDocumentosEmitidosPagina,
+  listarEventos,
+  urlArquivo,
+} from '@/lib/api'
 import { formatarData } from '@/lib/datas'
 
 // v5.4e - os crachás e certificados que o sistema já emitiu (backend v4.0, motor de documento gerado), todos numerados e nunca reaproveitados. A
 // rota existia desde a v4.0 sem tela: o que se emitiu só aparecia na hora, na tela do evento. Aqui é o registro, com filtro por evento, e cada
 // linha abre o PDF.
+const POR_PAGINA = 25
+
 export function DocumentosEmitidosPage() {
   const [idEvento, setIdEvento] = useState('')
+  // v9.2c: de 25 em 25, o número mais alto primeiro (cada participante de cada evento ganha um: a lista cresce com os anos)
+  const [pagina, setPagina] = useState(1)
 
   const { data: eventos } = useQuery({
     queryKey: ['eventos'],
     queryFn: listarEventos,
   })
-  const { data: documentos, isLoading } = useQuery({
-    queryKey: ['documentos-emitidos', idEvento],
+  const { data: paginaAtual, isLoading } = useQuery({
+    queryKey: ['documentos-emitidos', idEvento, pagina],
     queryFn: () =>
-      listarDocumentosEmitidos(
+      listarDocumentosEmitidosPagina(
         idEvento
           ? { contexto_tipo: 'Evento', id_contexto: Number(idEvento) }
           : {},
+        pagina,
+        POR_PAGINA,
       ),
+    placeholderData: keepPreviousData,
   })
+  const documentos = paginaAtual?.itens
 
   return (
     <>
@@ -45,7 +58,10 @@ export function DocumentosEmitidosPage() {
         <select
           id="filtro-evento"
           value={idEvento}
-          onChange={(e) => setIdEvento(e.target.value)}
+          onChange={(e) => {
+            setIdEvento(e.target.value)
+            setPagina(1)
+          }}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         >
           <option value="">Todos os eventos</option>
@@ -103,6 +119,13 @@ export function DocumentosEmitidosPage() {
           </div>
         ))}
       </div>
+      <Paginador
+        rotulo="Páginas dos documentos emitidos"
+        pagina={pagina}
+        porPagina={POR_PAGINA}
+        total={paginaAtual?.total ?? 0}
+        aoMudar={setPagina}
+      />
     </>
   )
 }

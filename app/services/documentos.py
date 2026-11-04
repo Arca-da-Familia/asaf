@@ -131,6 +131,11 @@ def emitir_documento(
 
 
 def listar_documentos_emitidos(db: Session, *, contexto_tipo: Optional[str] = None, id_contexto: Optional[int] = None, id_pessoa: Optional[int] = None) -> list[DocumentoEmitido]:
+    return consulta_documentos_emitidos(db, contexto_tipo=contexto_tipo, id_contexto=id_contexto, id_pessoa=id_pessoa).all()
+
+
+def consulta_documentos_emitidos(db: Session, *, contexto_tipo: Optional[str] = None, id_contexto: Optional[int] = None, id_pessoa: Optional[int] = None):
+    """v9.2c: a consulta (ordenada, mais recente primeiro), para a rota paginar no banco."""
     consulta = db.query(DocumentoEmitido)
     if contexto_tipo is not None:
         consulta = consulta.filter(DocumentoEmitido.contexto_tipo == contexto_tipo)
@@ -138,4 +143,4 @@ def listar_documentos_emitidos(db: Session, *, contexto_tipo: Optional[str] = No
         consulta = consulta.filter(DocumentoEmitido.id_contexto == id_contexto)
     if id_pessoa is not None:
         consulta = consulta.filter(DocumentoEmitido.id_pessoa == id_pessoa)
-    return consulta.order_by(DocumentoEmitido.numero_sequencial.desc()).all()
+    return consulta.order_by(DocumentoEmitido.numero_sequencial.desc())

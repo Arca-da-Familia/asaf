@@ -1,7 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { useState } from 'react'
 import { z } from 'zod'
 
+import { Paginador } from '@/components/data/Paginador'
 import { BotaoRecibo } from '@/components/doacoes/BotaoRecibo'
 import { DoacoesDoSite } from '@/components/doacoes/DoacoesDoSite'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
@@ -12,7 +18,7 @@ import {
   criarCampanhaArrecadacao,
   listarCampanhasArrecadacao,
   listarCentrosCusto,
-  listarDoacoes,
+  listarDoacoesPagina,
   listarPlanoContas,
   registrarDoacao,
 } from '@/lib/api'
@@ -20,6 +26,9 @@ import {
   campanhaArrecadacaoCriarSchema,
   doacaoCriarSchema,
 } from '@/lib/schemas'
+
+// v9.2c: quantas por página (o servidor pagina: app/paginacao.py)
+const POR_PAGINA_DOACOES = 20
 
 // v3.4 (FASE 3 - Financeiro) - doações, captação e recibos. Doação monetária vira título +
 // lançamento contábil de verdade (nunca um número solto) e um recibo numerado, emitido
@@ -320,10 +329,14 @@ export function DoacoesPage() {
     queryKey: ['campanhas-arrecadacao'],
     queryFn: listarCampanhasArrecadacao,
   })
-  const { data: doacoes } = useQuery({
-    queryKey: ['doacoes'],
-    queryFn: () => listarDoacoes(),
+  // v9.2c: as doações vêm do servidor de 20 em 20 (a mais recente primeiro); antes vinham todas, de todos os anos
+  const [paginaDoacoes, setPaginaDoacoes] = useState(1)
+  const { data: paginaDeDoacoes } = useQuery({
+    queryKey: ['doacoes', paginaDoacoes],
+    queryFn: () => listarDoacoesPagina(paginaDoacoes, POR_PAGINA_DOACOES),
+    placeholderData: keepPreviousData,
   })
+  const doacoes = paginaDeDoacoes?.itens
 
   const alternarCampanha = useMutation({
     mutationFn: ({ id, ativa }: { id: number; ativa: boolean }) =>
@@ -469,6 +482,13 @@ export function DoacoesPage() {
             </p>
           )}
         </div>
+        <Paginador
+          rotulo="Páginas das doações"
+          pagina={paginaDoacoes}
+          porPagina={POR_PAGINA_DOACOES}
+          total={paginaDeDoacoes?.total ?? 0}
+          aoMudar={setPaginaDoacoes}
+        />
       </section>
     </>
   )
