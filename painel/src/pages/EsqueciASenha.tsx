@@ -9,6 +9,7 @@ import {
   trocarSenhaComCodigo,
 } from '@/lib/api'
 import { formatarCpf, somenteDigitos, validarCpf } from '@/lib/cpf'
+import { ID_DO_ERRO, useErroDeFormulario } from '@/lib/erro-de-formulario'
 
 // Esqueci a minha senha (pedido do Presidente em 21/10): o CPF pede um código, que vai para o e-mail cadastrado; com ele a pessoa escolhe a senha nova. A resposta ao pedido é a
 // mesma exista ou não uma conta (ninguém descobre quem tem acesso pelo CPF); o código vale 10 minutos e serve uma vez. Trocar aqui encerra as sessões abertas (nenhuma se renova;
@@ -36,7 +37,7 @@ export function EsqueciASenha() {
   const [confirmacao, setConfirmacao] = useState('')
   const [aviso, setAviso] = useState<string | null>(null)
   const [codigoDeTeste, setCodigoDeTeste] = useState<string | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
+  const { erro, setErro, doCampo } = useErroDeFormulario()
   const [carregando, setCarregando] = useState(false)
 
   async function pedir(e: FormEvent) {
@@ -44,7 +45,10 @@ export function EsqueciASenha() {
     setErro(null)
     const cpfLimpo = somenteDigitos(cpf)
     if (!validarCpf(cpfLimpo))
-      return setErro('CPF inválido. Confira os dígitos e tente novamente.')
+      return setErro(
+        'CPF inválido. Confira os dígitos e tente novamente.',
+        'cpf',
+      )
     setCarregando(true)
     try {
       const r = await pedirCodigoDeNovaSenha(cpfLimpo)
@@ -63,10 +67,17 @@ export function EsqueciASenha() {
     e.preventDefault()
     setErro(null)
     if (somenteDigitos(codigo).length !== 6)
-      return setErro('Informe os 6 números do código que chegou por e-mail.')
+      return setErro(
+        'Informe os 6 números do código que chegou por e-mail.',
+        'codigo',
+      )
     if (nova.length < MINIMO)
-      return setErro(`A senha nova deve ter pelo menos ${MINIMO} caracteres.`)
-    if (nova !== confirmacao) return setErro('As senhas novas não conferem.')
+      return setErro(
+        `A senha nova deve ter pelo menos ${MINIMO} caracteres.`,
+        'senha-nova',
+      )
+    if (nova !== confirmacao)
+      return setErro('As senhas novas não conferem.', 'senha-confirmacao')
     setCarregando(true)
     try {
       await trocarSenhaComCodigo({
@@ -76,7 +87,8 @@ export function EsqueciASenha() {
       })
       setEtapa('pronto')
     } catch (err) {
-      setErro(mensagemDeErro(err))
+      // o servidor recusa o código (errado, vencido ou já usado): o foco volta para ele
+      setErro(mensagemDeErro(err), 'codigo')
     } finally {
       setCarregando(false)
     }
@@ -91,6 +103,7 @@ export function EsqueciASenha() {
 
           {erro && (
             <p
+              id={ID_DO_ERRO}
               role="alert"
               className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
             >
@@ -110,6 +123,7 @@ export function EsqueciASenha() {
                 </label>
                 <input
                   id="cpf"
+                  {...doCampo('cpf')}
                   inputMode="numeric"
                   autoComplete="username"
                   value={cpf}
@@ -152,6 +166,7 @@ export function EsqueciASenha() {
                 </label>
                 <input
                   id="codigo"
+                  {...doCampo('codigo')}
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   maxLength={6}
@@ -167,6 +182,7 @@ export function EsqueciASenha() {
                 </label>
                 <input
                   id="senha-nova"
+                  {...doCampo('senha-nova')}
                   type="password"
                   autoComplete="new-password"
                   value={nova}
@@ -183,6 +199,7 @@ export function EsqueciASenha() {
                 </label>
                 <input
                   id="senha-confirmacao"
+                  {...doCampo('senha-confirmacao')}
                   type="password"
                   autoComplete="new-password"
                   value={confirmacao}

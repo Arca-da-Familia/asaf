@@ -17,6 +17,7 @@ import {
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 import { formatarCpf, somenteDigitos, validarCpf } from '@/lib/cpf'
+import { ID_DO_ERRO, useErroDeFormulario } from '@/lib/erro-de-formulario'
 
 function mensagemDeErro(err: unknown): string {
   if (err instanceof ApiError) return err.detail
@@ -36,7 +37,7 @@ export function Login() {
   const [codigoTotp, setCodigoTotp] = useState('')
   const [modoRecuperacao, setModoRecuperacao] = useState(false)
   const [loginTempToken, setLoginTempToken] = useState<string | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
+  const { erro, setErro, doCampo } = useErroDeFormulario()
   const [carregando, setCarregando] = useState(false)
   // Painel é SPA (sem renderização no servidor): dá pra perguntar ao navegador já na criação do
   // estado, sem efeito (a regra react-hooks/set-state-in-effect do React 19 reprova o efeito).
@@ -74,7 +75,7 @@ export function Login() {
 
     const cpfLimpo = somenteDigitos(cpf)
     if (!validarCpf(cpfLimpo)) {
-      setErro('CPF inválido. Confira os dígitos e tente novamente.')
+      setErro('CPF inválido. Confira os dígitos e tente novamente.', 'cpf')
       return
     }
 
@@ -117,7 +118,8 @@ export function Login() {
           })
       aplicarSessao(resposta)
     } catch (err) {
-      setErro(mensagemDeErro(err))
+      // o código do autenticador (ou de recuperação) não foi aceito: o foco volta para ele
+      setErro(mensagemDeErro(err), 'codigo')
     } finally {
       setCarregando(false)
     }
@@ -158,6 +160,7 @@ export function Login() {
 
           {erro && (
             <p
+              id={ID_DO_ERRO}
               role="alert"
               className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
             >
@@ -173,6 +176,7 @@ export function Login() {
                 </label>
                 <input
                   id="cpf"
+                  {...doCampo('cpf')}
                   inputMode="numeric"
                   autoComplete="username"
                   value={cpf}
@@ -187,6 +191,7 @@ export function Login() {
                 </label>
                 <input
                   id="senha"
+                  {...doCampo('senha')}
                   type="password"
                   autoComplete="current-password"
                   value={senha}
@@ -232,6 +237,7 @@ export function Login() {
                 </label>
                 <input
                   id="codigo"
+                  {...doCampo('codigo')}
                   inputMode={modoRecuperacao ? 'text' : 'numeric'}
                   enterKeyHint="done"
                   autoComplete="one-time-code"

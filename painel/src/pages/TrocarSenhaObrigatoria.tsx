@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ApiError, alterarSenha, logout, type Me } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 import { useMe } from '@/lib/use-me'
+import { ID_DO_ERRO, useErroDeFormulario } from '@/lib/erro-de-formulario'
 
 // Achado da v6.2d - a senha que a secretaria dá em "Conceder acesso" é provisória e a tela promete que o associado "será obrigado a trocá-la no primeiro login": até
 // aqui o painel não obrigava. Enquanto `/auth/me` disser `senha_provisoria`, o painel inteiro leva a esta tela (`RequireSenhaDefinitiva` em App.tsx), como faz com o MFA
@@ -31,7 +32,7 @@ export function TrocarSenhaObrigatoria() {
   const [atual, setAtual] = useState('')
   const [nova, setNova] = useState('')
   const [confirmacao, setConfirmacao] = useState('')
-  const [erro, setErro] = useState<string | null>(null)
+  const { erro, setErro, doCampo } = useErroDeFormulario()
   const [carregando, setCarregando] = useState(false)
 
   async function sair() {
@@ -42,12 +43,23 @@ export function TrocarSenhaObrigatoria() {
   async function trocar(e: FormEvent) {
     e.preventDefault()
     setErro(null)
-    if (!atual) return setErro('Informe a senha provisória que você recebeu.')
+    if (!atual)
+      return setErro(
+        'Informe a senha provisória que você recebeu.',
+        'senha-provisoria',
+      )
     if (nova.length < MINIMO)
-      return setErro(`A senha nova deve ter pelo menos ${MINIMO} caracteres.`)
-    if (nova !== confirmacao) return setErro('As senhas novas não conferem.')
+      return setErro(
+        `A senha nova deve ter pelo menos ${MINIMO} caracteres.`,
+        'senha-nova',
+      )
+    if (nova !== confirmacao)
+      return setErro('As senhas novas não conferem.', 'senha-confirmacao')
     if (nova === atual)
-      return setErro('A senha nova precisa ser diferente da provisória.')
+      return setErro(
+        'A senha nova precisa ser diferente da provisória.',
+        'senha-nova',
+      )
     setCarregando(true)
     try {
       await alterarSenha({ senha_atual: atual, senha_nova: nova })
@@ -77,6 +89,7 @@ export function TrocarSenhaObrigatoria() {
 
       {erro && (
         <p
+          id={ID_DO_ERRO}
           role="alert"
           className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
         >
@@ -103,6 +116,7 @@ export function TrocarSenhaObrigatoria() {
           </label>
           <input
             id="senha-provisoria"
+            {...doCampo('senha-provisoria')}
             type="password"
             autoComplete="current-password"
             value={atual}
@@ -116,6 +130,7 @@ export function TrocarSenhaObrigatoria() {
           </label>
           <input
             id="senha-nova"
+            {...doCampo('senha-nova')}
             type="password"
             autoComplete="new-password"
             value={nova}
@@ -129,6 +144,7 @@ export function TrocarSenhaObrigatoria() {
           </label>
           <input
             id="senha-confirmacao"
+            {...doCampo('senha-confirmacao')}
             type="password"
             autoComplete="new-password"
             value={confirmacao}
