@@ -80,6 +80,10 @@ jobs:
       - name: Build de produção
         run: npm run build
 
+      # v9.2a: a primeira tela e cada pedaço do painel dentro do limite de tamanho (scripts/orcamento-de-tamanho.mjs); passou, a publicação não sai
+      - name: Orçamento de tamanho (o que a primeira tela baixa)
+        run: npm run test:tamanho
+
   # Publicação no Static Web App asaf-painel (item 5 da v0.2.0). Só roda em push
   # na main, depois que os portões de qualidade passaram.
   deploy:

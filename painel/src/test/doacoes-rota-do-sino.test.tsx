@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from '@/App'
 import { ThemeProvider } from '@/lib/theme'
@@ -84,6 +84,11 @@ beforeEach(() => {
     }),
   )
 })
+
+// v9.2a: a tela é baixada sob demanda; o teste confere a ROTA, então a tela já vem carregada (montá-la com a máquina ocupada passava dos 5 s de espera)
+beforeAll(async () => {
+  await import('@/pages/Doacoes')
+}, 60_000)
 
 describe('Rota do aviso do sino: /doacoes', () => {
   it('leva à tela de Doações, com a conferência das doações do site', async () => {

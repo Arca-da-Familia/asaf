@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import {
   ArrowLeft,
   CalendarCheck,
@@ -387,7 +387,16 @@ export function Shell() {
           recarregar={recarregar}
         />
         <div className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-          <Outlet />
+          {/* v9.2a: a tela é baixada quando abre; o menu e o alto ficam na tela enquanto isso */}
+          <Suspense
+            fallback={
+              <p role="status" className="text-sm text-muted-foreground">
+                Carregando…
+              </p>
+            }
+          >
+            <Outlet />
+          </Suspense>
         </div>
         <footer className="border-t border-border px-6 py-3 text-xs text-muted-foreground">
           {mensagens.app.nome}

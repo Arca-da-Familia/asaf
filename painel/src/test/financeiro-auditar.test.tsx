@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Outlet, Route, Routes } from 'react-router'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import {
   InicioDoFinanceiro,
@@ -26,6 +26,11 @@ const comPermissoes = (...permissoes: string[]) =>
 const financeiro = modulos.find((m) => m.rota === '/financeiro')!
 const rotulos = (permissoes: string[]) =>
   itensVisiveis(financeiro, permissoes).map((i) => i.rotulo)
+
+// v9.2a: a tela é baixada sob demanda; o teste confere a ROTA, então a tela já vem carregada (montá-la com a máquina ocupada passava dos 5 s de espera)
+beforeAll(async () => {
+  await import('@/pages/FinanceiroInicio')
+}, 60_000)
 
 describe('o menu do Financeiro (v5.7e: o Conselho Fiscal audita, não opera)', () => {
   it('quem só tem `financeiro_auditar` entra no módulo e vê SÓ o que audita', () => {
@@ -122,19 +127,24 @@ describe('as rotas do Financeiro para quem só audita', () => {
     expect(screen.queryByText('Títulos (opera)')).not.toBeInTheDocument()
   })
 
-  it('o Início do Financeiro o leva ao Conselho Fiscal (o retrato do operador não é dele)', () => {
+  it('o Início do Financeiro o leva ao Conselho Fiscal (o retrato do operador não é dele)', async () => {
     comPermissoes('financeiro_auditar')
     renderFinanceiro('/financeiro')
-    expect(screen.getByText('Conselho Fiscal (leitura)')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Conselho Fiscal (leitura)'),
+    ).toBeInTheDocument()
     expect(
       screen.queryByText('Retrato do dia de quem opera'),
     ).not.toBeInTheDocument()
   })
 
-  it('quem opera vê o Início de sempre e a tela de títulos', () => {
+  it('quem opera vê o Início de sempre e a tela de títulos', async () => {
     comPermissoes('financeiro')
     renderFinanceiro('/financeiro')
-    expect(screen.getByText('Retrato do dia de quem opera')).toBeInTheDocument()
+    // v9.2a: a tela é baixada sob demanda: chega um instante depois
+    expect(
+      await screen.findByText('Retrato do dia de quem opera'),
+    ).toBeInTheDocument()
   })
 
   it('quem opera abre títulos', () => {

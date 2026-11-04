@@ -8,6 +8,7 @@
     "dev": "vite",
     "prebuild": "node scripts/gerar-version.js",
     "build": "tsc --noEmit && vite build",
+    "test:tamanho": "node scripts/orcamento-de-tamanho.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
