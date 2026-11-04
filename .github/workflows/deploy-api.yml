@@ -85,6 +85,27 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      # v9.2 (autorizado pelo Presidente em 2026-11-04): o banco aceita os "serviços do Azure", e a máquina do GitHub às vezes sai por um endereço fora dessa
+      # faixa (3 publicações falharam assim em 03 e 04/11). Abre o banco SÓ para o IP desta máquina, durante este trabalho; o passo "Fechar o banco"
+      # apaga a regra no fim, também quando algo falha. O banco continua exigindo senha e conexão cifrada. Teste: tests/test_regra_temporaria_do_banco.py.
+      - name: Abrir o banco só para esta máquina (regra temporária)
+        run: |
+          IP=""
+          for servico in https://api.ipify.org https://ifconfig.me/ip https://icanhazip.com; do
+            IP=$(curl -fsS --max-time 10 "$servico" 2>/dev/null | tr -d '[:space:]') || true
+            if [[ "$IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then break; fi
+            IP=""
+          done
+          # se não der para abrir, AVISA e segue como antes (a conexão pode passar pela regra dos serviços do Azure): nunca trava a rotina por causa disto
+          if [ -z "$IP" ]; then echo "::warning::Não deu para saber o IP desta máquina: segue sem a regra temporária."; exit 0; fi
+          NOME="github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
+          if ! az postgres flexible-server firewall-rule create --resource-group Associacao-RG --name asaf-pg-server --rule-name "$NOME" \
+              --start-ip-address "$IP" --end-ip-address "$IP" -o none; then
+            echo "::warning::Não deu para criar a regra temporária do banco: segue sem ela."; exit 0
+          fi
+          echo "REGRA_TEMPORARIA_DO_BANCO=$NOME" >> "$GITHUB_ENV"
+          echo "Banco aberto só para esta máquina (regra $NOME)."
+
       - name: Buscar DATABASE_URL do Key Vault
         run: |
           DB_URL=$(az keyvault secret show --vault-name kv-asaf-arca --name DATABASE-URL --query value -o tsv)
@@ -133,6 +154,18 @@ jobs:
       # v8.4a: as sondas de partida, vida e prontidão (/health/live e /health/ready); só troca as sondas, e só se mudaram
       - name: Liga as sondas do Container App
         run: python infra/aplicar_sondas.py "${{ env.RESOURCE_GROUP }}" "${{ env.CONTAINER_APP }}"
+
+      - name: Fechar o banco para esta máquina (apaga a regra temporária)
+        if: always()
+        run: |
+          if [ -z "${REGRA_TEMPORARIA_DO_BANCO:-}" ]; then echo "Nenhuma regra temporária para apagar."; exit 0; fi
+          case "$REGRA_TEMPORARIA_DO_BANCO" in
+            github-*) ;;
+            *) echo "::error::Recusado: só apago regra temporária (github-*), não '$REGRA_TEMPORARIA_DO_BANCO'."; exit 1 ;;
+          esac
+          az postgres flexible-server firewall-rule delete --resource-group Associacao-RG --name asaf-pg-server \
+            --rule-name "$REGRA_TEMPORARIA_DO_BANCO" --yes -o none
+          echo "Regra temporária $REGRA_TEMPORARIA_DO_BANCO apagada."
 
       - name: Logout
         if: always()

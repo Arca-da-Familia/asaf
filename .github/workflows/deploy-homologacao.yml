@@ -74,6 +74,27 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      # v9.2 (autorizado pelo Presidente em 2026-11-04): o banco aceita os "serviços do Azure", e a máquina do GitHub às vezes sai por um endereço fora dessa
+      # faixa (3 publicações falharam assim em 03 e 04/11). Abre o banco SÓ para o IP desta máquina, durante este trabalho; o passo "Fechar o banco"
+      # apaga a regra no fim, também quando algo falha. O banco continua exigindo senha e conexão cifrada. Teste: tests/test_regra_temporaria_do_banco.py.
+      - name: Abrir o banco só para esta máquina (regra temporária)
+        run: |
+          IP=""
+          for servico in https://api.ipify.org https://ifconfig.me/ip https://icanhazip.com; do
+            IP=$(curl -fsS --max-time 10 "$servico" 2>/dev/null | tr -d '[:space:]') || true
+            if [[ "$IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then break; fi
+            IP=""
+          done
+          # se não der para abrir, AVISA e segue como antes (a conexão pode passar pela regra dos serviços do Azure): nunca trava a rotina por causa disto
+          if [ -z "$IP" ]; then echo "::warning::Não deu para saber o IP desta máquina: segue sem a regra temporária."; exit 0; fi
+          NOME="github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
+          if ! az postgres flexible-server firewall-rule create --resource-group Associacao-RG --name asaf-pg-server --rule-name "$NOME" \
+              --start-ip-address "$IP" --end-ip-address "$IP" -o none; then
+            echo "::warning::Não deu para criar a regra temporária do banco: segue sem ela."; exit 0
+          fi
+          echo "REGRA_TEMPORARIA_DO_BANCO=$NOME" >> "$GITHUB_ENV"
+          echo "Banco aberto só para esta máquina (regra $NOME)."
+
       - name: Segredos do banco de TESTE (nunca os de produção)
         run: |
           HML_URL=$(az keyvault secret show --vault-name "$KEY_VAULT" --name HML-DATABASE-URL --query value -o tsv)
@@ -206,6 +227,18 @@ jobs:
           done
           echo "::error::A API de teste não respondeu 200."; exit 1
 
+      - name: Fechar o banco para esta máquina (apaga a regra temporária)
+        if: always()
+        run: |
+          if [ -z "${REGRA_TEMPORARIA_DO_BANCO:-}" ]; then echo "Nenhuma regra temporária para apagar."; exit 0; fi
+          case "$REGRA_TEMPORARIA_DO_BANCO" in
+            github-*) ;;
+            *) echo "::error::Recusado: só apago regra temporária (github-*), não '$REGRA_TEMPORARIA_DO_BANCO'."; exit 1 ;;
+          esac
+          az postgres flexible-server firewall-rule delete --resource-group Associacao-RG --name asaf-pg-server \
+            --rule-name "$REGRA_TEMPORARIA_DO_BANCO" --yes -o none
+          echo "Regra temporária $REGRA_TEMPORARIA_DO_BANCO apagada."
+
       - name: Logout
         if: always()
         run: az logout || true
@@ -236,6 +269,27 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      # v9.2 (autorizado pelo Presidente em 2026-11-04): o banco aceita os "serviços do Azure", e a máquina do GitHub às vezes sai por um endereço fora dessa
+      # faixa (3 publicações falharam assim em 03 e 04/11). Abre o banco SÓ para o IP desta máquina, durante este trabalho; o passo "Fechar o banco"
+      # apaga a regra no fim, também quando algo falha. O banco continua exigindo senha e conexão cifrada. Teste: tests/test_regra_temporaria_do_banco.py.
+      - name: Abrir o banco só para esta máquina (regra temporária)
+        run: |
+          IP=""
+          for servico in https://api.ipify.org https://ifconfig.me/ip https://icanhazip.com; do
+            IP=$(curl -fsS --max-time 10 "$servico" 2>/dev/null | tr -d '[:space:]') || true
+            if [[ "$IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then break; fi
+            IP=""
+          done
+          # se não der para abrir, AVISA e segue como antes (a conexão pode passar pela regra dos serviços do Azure): nunca trava a rotina por causa disto
+          if [ -z "$IP" ]; then echo "::warning::Não deu para saber o IP desta máquina: segue sem a regra temporária."; exit 0; fi
+          NOME="github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
+          if ! az postgres flexible-server firewall-rule create --resource-group Associacao-RG --name asaf-pg-server --rule-name "$NOME" \
+              --start-ip-address "$IP" --end-ip-address "$IP" -o none; then
+            echo "::warning::Não deu para criar a regra temporária do banco: segue sem ela."; exit 0
+          fi
+          echo "REGRA_TEMPORARIA_DO_BANCO=$NOME" >> "$GITHUB_ENV"
+          echo "Banco aberto só para esta máquina (regra $NOME)."
+
       # O roteiro só roda em banco SEM usuários e só no `asaf_hml` (confere `current_database()`). As senhas de teste ficam no cofre
       # (HML-ADMIN-SENHA e HML-USUARIOS, criadas por quem administra o Azure): o fluxo só as LÊ — a identidade do GitHub não tem
       # (e não deve ter) permissão de escrever no cofre. Nenhuma senha é impressa.
@@ -259,6 +313,18 @@ jobs:
           # cada senha também é mascarada sozinha (o texto inteiro do JSON não esconde um trecho impresso por engano)
           python -c "import json,sys; [print('::add-mask::' + v) for v in json.loads(sys.argv[1]).values()]" "$USUARIOS"
           DATABASE_URL="$DB_URL" JWT_SECRET="$JWT" HML_ADMIN_SENHA="$ADMIN_SENHA" HML_USUARIOS_JSON="$USUARIOS" python scripts/popular_homologacao.py
+
+      - name: Fechar o banco para esta máquina (apaga a regra temporária)
+        if: always()
+        run: |
+          if [ -z "${REGRA_TEMPORARIA_DO_BANCO:-}" ]; then echo "Nenhuma regra temporária para apagar."; exit 0; fi
+          case "$REGRA_TEMPORARIA_DO_BANCO" in
+            github-*) ;;
+            *) echo "::error::Recusado: só apago regra temporária (github-*), não '$REGRA_TEMPORARIA_DO_BANCO'."; exit 1 ;;
+          esac
+          az postgres flexible-server firewall-rule delete --resource-group Associacao-RG --name asaf-pg-server \
+            --rule-name "$REGRA_TEMPORARIA_DO_BANCO" --yes -o none
+          echo "Regra temporária $REGRA_TEMPORARIA_DO_BANCO apagada."
 
       - name: Logout
         if: always()
@@ -290,6 +356,27 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      # v9.2 (autorizado pelo Presidente em 2026-11-04): o banco aceita os "serviços do Azure", e a máquina do GitHub às vezes sai por um endereço fora dessa
+      # faixa (3 publicações falharam assim em 03 e 04/11). Abre o banco SÓ para o IP desta máquina, durante este trabalho; o passo "Fechar o banco"
+      # apaga a regra no fim, também quando algo falha. O banco continua exigindo senha e conexão cifrada. Teste: tests/test_regra_temporaria_do_banco.py.
+      - name: Abrir o banco só para esta máquina (regra temporária)
+        run: |
+          IP=""
+          for servico in https://api.ipify.org https://ifconfig.me/ip https://icanhazip.com; do
+            IP=$(curl -fsS --max-time 10 "$servico" 2>/dev/null | tr -d '[:space:]') || true
+            if [[ "$IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then break; fi
+            IP=""
+          done
+          # se não der para abrir, AVISA e segue como antes (a conexão pode passar pela regra dos serviços do Azure): nunca trava a rotina por causa disto
+          if [ -z "$IP" ]; then echo "::warning::Não deu para saber o IP desta máquina: segue sem a regra temporária."; exit 0; fi
+          NOME="github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
+          if ! az postgres flexible-server firewall-rule create --resource-group Associacao-RG --name asaf-pg-server --rule-name "$NOME" \
+              --start-ip-address "$IP" --end-ip-address "$IP" -o none; then
+            echo "::warning::Não deu para criar a regra temporária do banco: segue sem ela."; exit 0
+          fi
+          echo "REGRA_TEMPORARIA_DO_BANCO=$NOME" >> "$GITHUB_ENV"
+          echo "Banco aberto só para esta máquina (regra $NOME)."
+
       # Só roda no `asaf_hml` (confere `current_database()` e a URL) e só uma vez por banco (marca o que criou). Não usa nem imprime senha:
       # entra pelo administrador de teste que o roteiro básico criou. Nada de dado inventado chega perto da produção.
       - name: Encher (dados inventados, pelas rotas de verdade)
@@ -306,6 +393,18 @@ jobs:
           JWT=$(az keyvault secret show --vault-name "$KEY_VAULT" --name HML-JWT-SECRET --query value -o tsv)
           echo "::add-mask::$JWT"
           DATABASE_URL="$DB_URL" JWT_SECRET="$JWT" python scripts/povoar_homologacao_volume.py
+
+      - name: Fechar o banco para esta máquina (apaga a regra temporária)
+        if: always()
+        run: |
+          if [ -z "${REGRA_TEMPORARIA_DO_BANCO:-}" ]; then echo "Nenhuma regra temporária para apagar."; exit 0; fi
+          case "$REGRA_TEMPORARIA_DO_BANCO" in
+            github-*) ;;
+            *) echo "::error::Recusado: só apago regra temporária (github-*), não '$REGRA_TEMPORARIA_DO_BANCO'."; exit 1 ;;
+          esac
+          az postgres flexible-server firewall-rule delete --resource-group Associacao-RG --name asaf-pg-server \
+            --rule-name "$REGRA_TEMPORARIA_DO_BANCO" --yes -o none
+          echo "Regra temporária $REGRA_TEMPORARIA_DO_BANCO apagada."
 
       - name: Logout
         if: always()
