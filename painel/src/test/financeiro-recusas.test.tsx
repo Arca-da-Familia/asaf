@@ -28,6 +28,7 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   listarPrestacoesDeContas: vi.fn(),
   obterPadroesSuspeitos: vi.fn(),
   listarTitulos: vi.fn(),
+  resumirTitulos: vi.fn(),
   listarSolicitacoesCompra: vi.fn(),
 }))
 
@@ -203,6 +204,12 @@ describe('Início do Financeiro: o retrato do dia no lugar da página de obra', 
       { id_solicitacao: 1 },
       { id_solicitacao: 2 },
     ] as Awaited<ReturnType<typeof api.listarSolicitacoesCompra>>)
+    // v9.2b: as somas vêm prontas do servidor (o resumo com os mesmos filtros da lista)
+    vi.mocked(api.resumirTitulos).mockImplementation(async (filtros) =>
+      filtros?.tipo_titulo === 'A Receber'
+        ? { total: 1, soma_original: 60, soma_saldo: 60 }
+        : { total: 1, soma_original: 410, soma_saldo: 410 },
+    )
 
     const cliente = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -216,7 +223,28 @@ describe('Início do Financeiro: o retrato do dia no lugar da página de obra', 
     )
     // só as contas ativas somam: 1.500,50 + 500,00
     expect(await screen.findByText(/2\.000,50/)).toBeInTheDocument()
-    expect(screen.getByText('1 título(s) em atraso')).toBeInTheDocument()
+    expect(await screen.findByText('1 título(s) em atraso')).toBeInTheDocument()
+    // o valor aparece no quadro e no item da lista dos próximos vencimentos
+    expect((await screen.findAllByText(/R\$\s*60,00/)).length).toBeGreaterThan(
+      0,
+    )
+    expect((await screen.findAllByText(/R\$\s*410,00/)).length).toBeGreaterThan(
+      0,
+    )
+    // a tela não baixa mais todos os títulos em aberto: só os 5 próximos, por vencimento
+    expect(api.listarTitulos).toHaveBeenCalledWith({
+      status: 'Pendente',
+      data_ate: '2999-12-31',
+      pagina: 1,
+      por_pagina: 5,
+    })
+    const hoje = new Date()
+    const dia = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`
+    expect(api.resumirTitulos).toHaveBeenCalledWith({
+      status: 'Pendente',
+      tipo_titulo: 'A Receber',
+      data_ate: dia,
+    })
     expect(screen.getByText(/A Pagar — Conta de energia/)).toBeInTheDocument()
     expect(
       screen.getByText(/A Receber — Mensalidade atrasada/),

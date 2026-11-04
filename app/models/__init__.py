@@ -244,3 +244,8 @@ __all__ = [
 ]
 from app.models.documentos import DocumentoInstitucional
 from app.models.parcerias import Parceria, ParcelaParceria, EtapaParceria, RelatorioParceria, LancamentoDaParceria, FotoEtapaParceria
+
+# v9.2b - os índices de desempenho, pendurados depois de todos os modelos carregados (ver app/models/indices_de_desempenho.py)
+from app.models.indices_de_desempenho import registrar as _registrar_indices_de_desempenho
+
+_registrar_indices_de_desempenho()

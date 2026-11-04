@@ -492,24 +492,33 @@ def listar_titulos(
         consulta = consulta.offset((pagina - 1) * por_pagina).limit(por_pagina)
     titulos = consulta.all()
 
-    contas = {c.id_conta: c for c in db.query(PlanoDeContas).all()}
-    associados = {a.id_associado: a for a in db.query(Associado).all()}
-    fornecedores = {f.id_fornecedor: f for f in db.query(Fornecedor).all()}
+    # v9.2b: só os nomes que ESTA página mostra, numa consulta cada (antes: todos os associados, contas e fornecedores a cada pedido, e o nome de cada
+    # associado buscado um por um - 2,9 s no p95 na homologação, medido pelo robô v9.2b-01)
+    ids_contas = {t.id_conta_contabil for t in titulos if t.id_conta_contabil}
+    ids_associados = {t.id_associado for t in titulos if t.id_associado}
+    ids_fornecedores = {t.id_fornecedor for t in titulos if t.id_fornecedor}
+    contas = dict(db.query(PlanoDeContas.id_conta, PlanoDeContas.descricao_conta).filter(PlanoDeContas.id_conta.in_(ids_contas)).all()) if ids_contas else {}
+    nomes_associados = dict(
+        db.query(Associado.id_associado, Pessoa.nome_completo).join(Pessoa, Associado.id_pessoa == Pessoa.id_pessoa)
+        .filter(Associado.id_associado.in_(ids_associados)).all()
+    ) if ids_associados else {}
+    nomes_fornecedores = dict(
+        db.query(Fornecedor.id_fornecedor, Fornecedor.razao_social).filter(Fornecedor.id_fornecedor.in_(ids_fornecedores)).all()
+    ) if ids_fornecedores else {}
 
     resultado = []
     for t in titulos:
-        conta = contas.get(t.id_conta_contabil)
         beneficiario = None
-        if t.id_associado and t.id_associado in associados:
-            beneficiario = associados[t.id_associado].nome_completo
-        elif t.id_fornecedor and t.id_fornecedor in fornecedores:
-            beneficiario = fornecedores[t.id_fornecedor].razao_social
+        if t.id_associado and t.id_associado in nomes_associados:
+            beneficiario = nomes_associados[t.id_associado]
+        elif t.id_fornecedor and t.id_fornecedor in nomes_fornecedores:
+            beneficiario = nomes_fornecedores[t.id_fornecedor]
         resultado.append({
             "id_titulo": t.id_titulo,
             "tipo_titulo": t.tipo_titulo,
             "id_associado": t.id_associado,
             "descricao": t.descricao,
-            "conta_contabil": conta.descricao_conta if conta else "",
+            "conta_contabil": contas.get(t.id_conta_contabil, ""),
             "beneficiario": beneficiario or "-",
             "valor_original": t.valor_original,
             "saldo_devedor": t.saldo_devedor,

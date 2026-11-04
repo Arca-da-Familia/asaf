@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link } from 'react-router'
 
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -6,9 +7,16 @@ import {
   listarContasFinanceiras,
   listarSolicitacoesCompra,
   listarTitulos,
+  resumirTitulos,
 } from '@/lib/api'
 import { formatarDia } from '@/lib/datas'
 import { modulos } from '@/lib/modulos'
+
+/** AAAA-MM-DD do dia no aparelho de quem usa. */
+function diaLocal(data: Date): string {
+  const doisDigitos = (n: number) => String(n).padStart(2, '0')
+  return `${data.getFullYear()}-${doisDigitos(data.getMonth() + 1)}-${doisDigitos(data.getDate())}`
+}
 
 function formatarReais(valor: number): string {
   return new Intl.NumberFormat('pt-BR', {
@@ -24,27 +32,47 @@ export function FinanceiroInicioPage() {
     queryKey: ['contas-financeiras'],
     queryFn: listarContasFinanceiras,
   })
-  const { data: titulos, isLoading: carregandoTitulos } = useQuery({
-    queryKey: ['titulos', 'Pendente', ''],
-    queryFn: () => listarTitulos({ status: 'Pendente' }),
+  // v9.2b: as somas vêm prontas do servidor e só os 5 próximos vencimentos vêm inteiros (antes, TODOS os títulos em aberto, para somar aqui: a tela
+  // ficava mais lenta a cada mês). "Hoje" é o dia no aparelho de quem usa (Belém).
+  // calculados uma vez ao abrir a tela (a regra de pureza do React não aceita ler o relógio a cada desenho)
+  const [{ hoje, daqui30 }] = useState(() => ({
+    hoje: diaLocal(new Date()),
+    daqui30: diaLocal(new Date(Date.now() + 30 * 24 * 3600 * 1000)),
+  }))
+  const { data: vencidos, isLoading: carregandoVencidos } = useQuery({
+    queryKey: ['titulos', 'resumo', 'vencidos-a-receber', hoje],
+    queryFn: () =>
+      resumirTitulos({
+        status: 'Pendente',
+        tipo_titulo: 'A Receber',
+        data_ate: hoje,
+      }),
+  })
+  const { data: aPagar, isLoading: carregandoAPagar } = useQuery({
+    queryKey: ['titulos', 'resumo', 'a-pagar-30-dias', daqui30],
+    queryFn: () =>
+      resumirTitulos({
+        status: 'Pendente',
+        tipo_titulo: 'A Pagar',
+        data_ate: daqui30,
+      }),
+  })
+  const { data: proximosVencimentos = [] } = useQuery({
+    queryKey: ['titulos', 'proximos-vencimentos'],
+    // com um período, a lista vem por vencimento (o mais antigo primeiro); o "até" bem longe pega todos os em aberto
+    queryFn: () =>
+      listarTitulos({
+        status: 'Pendente',
+        data_ate: '2999-12-31',
+        pagina: 1,
+        por_pagina: 5,
+      }),
   })
   const { data: compras } = useQuery({
     queryKey: ['solicitacoes-compra', 'Aguardando Aprovação'],
     queryFn: () => listarSolicitacoesCompra('Aguardando Aprovação'),
   })
 
-  const agora = new Date()
-  const em30Dias = new Date(agora.getTime() + 30 * 24 * 3600 * 1000)
-  const abertos = titulos ?? []
-  const vencidosAReceber = abertos.filter(
-    (t) => t.tipo_titulo === 'A Receber' && new Date(t.data_vencimento) < agora,
-  )
-  const aPagarEm30Dias = abertos.filter(
-    (t) =>
-      t.tipo_titulo === 'A Pagar' && new Date(t.data_vencimento) <= em30Dias,
-  )
-  const soma = (lista: { saldo_devedor: number }[]) =>
-    lista.reduce((total, t) => total + t.saldo_devedor, 0)
   const saldo = (contas ?? [])
     .filter((c) => c.ativo)
     .reduce((total, c) => total + c.saldo, 0)
@@ -53,13 +81,6 @@ export function FinanceiroInicioPage() {
     modulos
       .find((m) => m.rota === '/financeiro')
       ?.itens?.filter((i) => i.rota !== '/financeiro') ?? []
-  const proximosVencimentos = [...abertos]
-    .sort(
-      (a, b) =>
-        new Date(a.data_vencimento).getTime() -
-        new Date(b.data_vencimento).getTime(),
-    )
-    .slice(0, 5)
 
   return (
     <>
@@ -90,19 +111,21 @@ export function FinanceiroInicioPage() {
         <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-xs text-muted-foreground">A receber vencido</p>
           <p className="mt-1 text-xl font-semibold text-destructive">
-            {carregandoTitulos ? '…' : formatarReais(soma(vencidosAReceber))}
+            {carregandoVencidos
+              ? '…'
+              : formatarReais(vencidos?.soma_saldo ?? 0)}
           </p>
           <p className="text-xs text-muted-foreground">
-            {vencidosAReceber.length} título(s) em atraso
+            {vencidos?.total ?? 0} título(s) em atraso
           </p>
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-xs text-muted-foreground">A pagar até 30 dias</p>
           <p className="mt-1 text-xl font-semibold">
-            {carregandoTitulos ? '…' : formatarReais(soma(aPagarEm30Dias))}
+            {carregandoAPagar ? '…' : formatarReais(aPagar?.soma_saldo ?? 0)}
           </p>
           <p className="text-xs text-muted-foreground">
-            {aPagarEm30Dias.length} título(s) (inclui os já vencidos)
+            {aPagar?.total ?? 0} título(s) (inclui os já vencidos)
           </p>
         </div>
         <div className="rounded-xl border border-border bg-card p-4">

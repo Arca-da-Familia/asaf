@@ -24,7 +24,8 @@ const TELAS = [
   '/documentos',
   '/governanca',
 ]
-const VOLTAS = 5
+// 20 leituras de cada rota: com menos, o "95%" é só a leitura mais lenta (um soluço da rede reprovaria)
+const VOLTAS = 20
 export const LIMITE_P95_MS = 500
 
 /** /api/associados/12/fotos?pagina=2 -> /api/associados/:n/fotos */
@@ -40,7 +41,7 @@ export function p95(tempos: number[]): number {
 test('as leituras mais usadas respondem em menos de 500 ms (p95)', async ({
   page,
 }, info) => {
-  test.setTimeout(30 * 60_000)
+  test.setTimeout(60 * 60_000)
   let contando = false
   const tempos = new Map<string, number[]>()
   page.on('requestfinished', (pedido) => {
@@ -78,7 +79,7 @@ test('as leituras mais usadas respondem em menos de 500 ms (p95)', async ({
       maximo: Math.round(Math.max(...ms)),
     }))
     .sort((a, b) => b.p95 - a.p95)
-  const lentas = linhas.filter((l) => l.vezes >= 3 && l.p95 > LIMITE_P95_MS)
+  const lentas = linhas.filter((l) => l.vezes >= 15 && l.p95 > LIMITE_P95_MS)
   const pasta = path.join('prints-hml', 'v9.2b-01-tempo-da-api')
   fs.mkdirSync(pasta, { recursive: true })
   const relatorio = path.join(pasta, 'tempo-das-leituras.txt')

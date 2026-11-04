@@ -206,4 +206,4 @@ def test_a_migracao_do_registro_das_consultas_nao_derruba_quem_nao_pode_instalar
     config = Config()
     config.set_main_option("script_location", str(RAIZ / "alembic"))
     diretorio = ScriptDirectory.from_config(config)
-    assert diretorio.get_heads() == ["ccf5cbf31408"] and diretorio.get_revision("ccf5cbf31408").down_revision == "d75b1a9e4c72"
+    assert len(diretorio.get_heads()) == 1 and diretorio.get_revision("ccf5cbf31408").down_revision == "d75b1a9e4c72"

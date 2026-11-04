@@ -8,6 +8,7 @@ from decimal import Decimal
 from typing import Optional, Sequence, Tuple
 
 from fastapi import HTTPException
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.models.financeiro import CentroDeCusto, Exercicio, LancamentoContabil, PartidaContabil, PlanoDeContas
@@ -74,10 +75,14 @@ def saldo_conta(db: Session, id_conta: int) -> Decimal:
     existia desde a v3.0 para o indicador "saldo em contas Ativo" do livro-caixa (ver
     app/routers/financeiro.py::listar_livro_caixa), generalizada aqui pra qualquer conta -
     usada formalmente pela v3.1 em `ContaFinanceira`."""
-    saldo = Decimal("0")
-    for tipo_partida, valor in db.query(PartidaContabil.tipo_partida, PartidaContabil.valor).filter(PartidaContabil.id_conta == id_conta):
-        saldo += valor if tipo_partida == DEBITO else -valor
-    return saldo
+    # v9.2b: a soma é feita pelo banco, numa consulta só (com o índice ix_partidas_contabeis_id_conta); antes, cada partida da conta vinha para o Python, e a
+    # tela de contas financeiras chegou a 0,8 s no p95 na homologação. O resultado é o mesmo, em Decimal.
+    debitos, creditos = db.query(
+        func.coalesce(func.sum(case((PartidaContabil.tipo_partida == DEBITO, PartidaContabil.valor), else_=0)), 0),
+        func.coalesce(func.sum(case((PartidaContabil.tipo_partida != DEBITO, PartidaContabil.valor), else_=0)), 0),
+    ).filter(PartidaContabil.id_conta == id_conta).one()
+    # centavos exatos: no SQLite (testes) a soma volta como número de ponto flutuante; no Postgres já é Decimal
+    return (Decimal(str(debitos)) - Decimal(str(creditos))).quantize(Decimal("0.01"))
 
 
 def criar_lancamento(
