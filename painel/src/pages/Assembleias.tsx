@@ -17,8 +17,8 @@ import { formatarData } from '@/lib/datas'
 const CORES_STATUS: Record<string, string> = {
   Rascunho: 'text-muted-foreground',
   Convocada: 'text-blue-600',
-  'Em andamento': 'text-amber-600',
-  Realizada: 'text-green-600',
+  'Em andamento': 'text-amber-700 dark:text-amber-400',
+  Realizada: 'text-green-700 dark:text-green-400',
   Cancelada: 'text-destructive',
 }
 

@@ -297,15 +297,17 @@ export function ImportarAssociadosPage() {
                       {l.erro ? (
                         <span className="text-destructive">{l.erro}</span>
                       ) : l.duplicidade === 'cpf_exato' ? (
-                        <span className="text-amber-600">
+                        <span className="text-amber-700 dark:text-amber-400">
                           CPF já cadastrado ({l.nomeEncontrado})
                         </span>
                       ) : l.duplicidade === 'nome_e_nascimento' ? (
-                        <span className="text-amber-600">
+                        <span className="text-amber-700 dark:text-amber-400">
                           Possível duplicata: {l.nomeEncontrado}
                         </span>
                       ) : (
-                        <span className="text-emerald-600">OK</span>
+                        <span className="text-emerald-700 dark:text-emerald-400">
+                          OK
+                        </span>
                       )}
                     </td>
                     <td className="p-2">
@@ -378,7 +380,7 @@ export function ImportarAssociadosPage() {
             Lote nº {resultado.id_lote}
           </p>
           {desfeito ? (
-            <p className="mt-2 text-sm text-emerald-600">
+            <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-400">
               Lote desfeito — os associados criados por ele foram removidos.
             </p>
           ) : (

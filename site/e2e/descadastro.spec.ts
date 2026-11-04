@@ -5,6 +5,7 @@ import {
   TOKEN_DE_DESCADASTRO,
   TOKEN_JA_DESCADASTRADO,
 } from '../scripts/mock-api.mjs'
+import { TAGS as TAGS_DO_SITE } from './regras-do-axe'
 
 // v6.2b - a página /descadastrar/: o link do fim dos e-mails que se podem desligar. Ela lê o token no navegador, mostra o tipo de e-mail e se a pessoa recebe (nada
 // que a identifique), e só muda quando a pessoa clica; o mesmo link deixa voltar a receber. Fora do Google e do sitemap. O mock reconhece dois tokens.
@@ -22,7 +23,7 @@ test.describe('a página do link "não quero mais receber"', () => {
       'A convocação de assembleia e a mudança de regra são comunicações obrigatórias',
     )
     const acessibilidade = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .withTags(TAGS_DO_SITE)
       .analyze()
     expect(acessibilidade.violations).toEqual([])
 

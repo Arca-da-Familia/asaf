@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page, type Route } from '@playwright/test'
+import { TAGS as TAGS_DO_SITE } from './regras-do-axe'
 
 // v5.5d — a SITUAÇÃO do evento (Programado, Adiado, Cancelado, Realizado; "remarcado" é programado com a data de antes), no navegador de verdade, contra o build de
 // teste e a API simulada (`scripts/mock-api.mjs`):
@@ -12,7 +13,7 @@ import { expect, test, type Page, type Route } from '@playwright/test'
 
 test.describe.configure({ timeout: 90_000 })
 
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']
+const TAGS = TAGS_DO_SITE
 const MOTIVO_DO_CANCELADO = 'O local ficou indisponível por causa da chuva.'
 const MOTIVO_DO_ADIADO =
   'Estamos aguardando a liberação do espaço pela prefeitura.'
@@ -862,11 +863,11 @@ test.describe('Política de Privacidade (o aviso de mudança de situação do ev
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.17 · em vigor desde 30 de outubro de 2026'),
+      page.getByText('Versão 2.18 · em vigor desde 4 de novembro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.17, em vigor desde 30 de outubro de 2026/,
+        /Esta é a versão 2\.18, em vigor desde 4 de novembro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-inscricao-em-evento]')

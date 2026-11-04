@@ -122,7 +122,7 @@ function SecaoFechamentoMensal() {
             <span>
               {f.competencia} — conta financeira #{f.id_conta_financeira}
             </span>
-            <span className="text-green-600">
+            <span className="text-green-700 dark:text-green-400">
               conferido, divergência {formatarReais(f.divergencia)}
             </span>
           </div>

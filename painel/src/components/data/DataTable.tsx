@@ -65,6 +65,9 @@ type DataTableProps<T extends RowData> = {
   onPaginationChange?: (paginacao: PaginationState) => void
   // Tamanho de página com que a tabela começa (o seletor mostra o mesmo valor que o chamador usa para buscar no servidor).
   tamanhoDePaginaInicial?: number
+  // v9.1a: o nome da área da tabela, que rola para o lado no celular (o leitor de tela anuncia; o teclado alcança). Dê um nome próprio quando houver duas
+  // tabelas na mesma tela.
+  rotulo?: string
 }
 
 // Tabela padrão (v0.2.4) — ordenação, filtro global, paginação (client ou server-side),
@@ -80,6 +83,7 @@ export function DataTable<T extends RowData>({
   totalRegistros,
   onPaginationChange,
   tamanhoDePaginaInicial = 10,
+  rotulo = 'Tabela',
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [filtro, setFiltro] = useState('')
@@ -149,7 +153,12 @@ export function DataTable<T extends RowData>({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div
+        role="region"
+        aria-label={rotulo}
+        tabIndex={0}
+        className="overflow-x-auto rounded-lg border border-border"
+      >
         <table className="w-full text-sm">
           <thead>
             {table.getHeaderGroups().map((hg) => (

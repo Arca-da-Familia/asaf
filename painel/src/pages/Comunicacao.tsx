@@ -107,7 +107,12 @@ export function ComunicacaoPage() {
           descricao="Use “Novo aviso” para publicar no mural de um grupo."
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div
+          role="region"
+          aria-label="Avisos"
+          tabIndex={0}
+          className="overflow-x-auto rounded-xl border border-border"
+        >
           <table className="w-full text-sm">
             <thead className="bg-muted text-left">
               <tr>

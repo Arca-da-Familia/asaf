@@ -355,7 +355,9 @@ function FormularioBaixa({
                 <p className="text-xs text-muted-foreground">Enviando…</p>
               )}
               {form.watch('comprovante') && (
-                <p className="text-xs text-green-600">Comprovante anexado.</p>
+                <p className="text-xs text-green-700 dark:text-green-400">
+                  Comprovante anexado.
+                </p>
               )}
               {erroComprovante && (
                 <p className="text-xs text-destructive">{erroComprovante}</p>
@@ -546,7 +548,7 @@ function PainelCredito({
         {aplicar.isPending ? 'Aplicando…' : 'Aplicar crédito'}
       </Button>
       {aplicar.isSuccess && aplicar.data && (
-        <p className="w-full text-xs text-green-600">
+        <p className="w-full text-xs text-green-700 dark:text-green-400">
           Aplicado {formatarReais(aplicar.data.valor_aplicado)}. Saldo do
           título: {formatarReais(aplicar.data.saldo_devedor_titulo)}. Crédito
           restante: {formatarReais(aplicar.data.saldo_credito_restante)}.
@@ -794,7 +796,7 @@ export function TitulosPage({
                 <span
                   className={
                     t.status === 'Pago'
-                      ? 'text-green-600'
+                      ? 'text-green-700 dark:text-green-400'
                       : 'text-muted-foreground'
                   }
                 >

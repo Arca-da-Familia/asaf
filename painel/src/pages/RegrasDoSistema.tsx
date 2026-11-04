@@ -65,7 +65,10 @@ function RegraLinha({ regra }: { regra: RegraDoSistema }) {
         </p>
       )}
       {salvo && !salvar.isError && (
-        <p role="status" className="mt-1 text-xs text-green-600">
+        <p
+          role="status"
+          className="mt-1 text-xs text-green-700 dark:text-green-400"
+        >
           Salvo.
         </p>
       )}

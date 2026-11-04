@@ -193,7 +193,9 @@ function PainelCotacoesEAprovacao({
         </p>
       )}
       {aprovar.isSuccess && aprovar.data && (
-        <p className="mt-1 text-xs text-green-600">{aprovar.data.mensagem}</p>
+        <p className="mt-1 text-xs text-green-700 dark:text-green-400">
+          {aprovar.data.mensagem}
+        </p>
       )}
 
       {mostrarReprovar && (
@@ -360,7 +362,7 @@ export function ComprasPage() {
                 <span
                   className={
                     s.status === 'Aprovada'
-                      ? 'text-green-600'
+                      ? 'text-green-700 dark:text-green-400'
                       : s.status === 'Reprovada'
                         ? 'text-destructive'
                         : 'text-muted-foreground'

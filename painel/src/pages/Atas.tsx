@@ -9,8 +9,8 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { listarAtas, type AtaListagem } from '@/lib/api'
 
 const CORES_STATUS: Record<string, string> = {
-  Rascunho: 'text-amber-600',
-  Assinada: 'text-green-600',
+  Rascunho: 'text-amber-700 dark:text-amber-400',
+  Assinada: 'text-green-700 dark:text-green-400',
 }
 
 const colunas: ColunaTabela<AtaListagem>[] = [
@@ -53,7 +53,7 @@ const colunas: ColunaTabela<AtaListagem>[] = [
     header: 'Documento oficial',
     cell: ({ row }) =>
       row.original.arquivo_documento_assinado ? (
-        <span className="text-green-600">Anexado</span>
+        <span className="text-green-700 dark:text-green-400">Anexado</span>
       ) : (
         <span className="text-muted-foreground">Não anexado</span>
       ),

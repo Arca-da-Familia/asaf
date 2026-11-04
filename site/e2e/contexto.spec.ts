@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
+import { TAGS as TAGS_DO_SITE } from './regras-do-axe'
 
 // v5.5 — O projeto principal da associação e o contexto do evento. O servidor de teste (scripts/mock-api.mjs) simula:
 //   - o "Projeto Principal de Teste" (id 3, em destaque), com duas edições (eventos 4 e 5), um relatório aprovado em
@@ -574,7 +575,7 @@ test.describe('Acessibilidade e celular das páginas novas', () => {
     '/noticias/noticia-de-teste-ligada-a-emenda/',
     '/transparencia/emendas/1/',
   ]
-  const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']
+  const TAGS = TAGS_DO_SITE
 
   async function auditar(page: Page) {
     const { violations } = await new AxeBuilder({ page })

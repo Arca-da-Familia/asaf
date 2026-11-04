@@ -427,7 +427,7 @@ function Ficha360Tab({ idAssociado }: { idAssociado: number }) {
             className={
               ficha.situacao_financeira.saldo_devedor_total > 0
                 ? 'text-2xl font-bold text-destructive'
-                : 'text-2xl font-bold text-green-600'
+                : 'text-2xl font-bold text-green-700 dark:text-green-400'
             }
           >
             {formatarReais(ficha.situacao_financeira.saldo_devedor_total)}
@@ -446,7 +446,7 @@ function Ficha360Tab({ idAssociado }: { idAssociado: number }) {
               : 'Cadastro em dia'}
           </p>
           {ficha.dados.contato_suspeito && (
-            <p className="text-xs text-amber-600">
+            <p className="text-xs text-amber-700 dark:text-amber-400">
               Contato sinalizado como suspeito
             </p>
           )}

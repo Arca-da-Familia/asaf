@@ -128,7 +128,12 @@ function SecaoBalancete() {
         onAlterarFim={setDataFim}
       />
       <ErroDaConsulta erro={error} />
-      <div className="overflow-x-auto">
+      <div
+        role="region"
+        aria-label="Relatório"
+        tabIndex={0}
+        className="overflow-x-auto"
+      >
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-muted-foreground">
@@ -248,7 +253,9 @@ function SecaoReceitasDespesas() {
                 </span>
                 <span
                   className={
-                    l.tipo === 'Receita' ? 'text-green-600' : 'text-destructive'
+                    l.tipo === 'Receita'
+                      ? 'text-green-700 dark:text-green-400'
+                      : 'text-destructive'
                   }
                 >
                   {formatarReais(l.valor_periodo)}
@@ -280,7 +287,9 @@ function SecaoReceitasDespesas() {
               <span>{l.nome_centro_custo}</span>
               <span
                 className={
-                  l.resultado >= 0 ? 'text-green-600' : 'text-destructive'
+                  l.resultado >= 0
+                    ? 'text-green-700 dark:text-green-400'
+                    : 'text-destructive'
                 }
               >
                 {formatarReais(l.receitas)} − {formatarReais(l.despesas)} ={' '}
@@ -431,7 +440,9 @@ function SecaoPorProjeto() {
             <span>{l.nome_projeto}</span>
             <span
               className={
-                l.resultado >= 0 ? 'text-green-600' : 'text-destructive'
+                l.resultado >= 0
+                  ? 'text-green-700 dark:text-green-400'
+                  : 'text-destructive'
               }
             >
               {formatarReais(l.receitas)} − {formatarReais(l.despesas)} ={' '}

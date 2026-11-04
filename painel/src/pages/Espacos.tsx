@@ -536,7 +536,12 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
         </p>
       )}
       {resultadoExportacao && (
-        <div className="mb-3 overflow-x-auto rounded-md border border-border">
+        <div
+          role="region"
+          aria-label="Reservas"
+          tabIndex={0}
+          className="mb-3 overflow-x-auto rounded-md border border-border"
+        >
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
@@ -688,7 +693,11 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
           {criarRecorrente.data.ocorrencias.map((o) => (
             <p
               key={o.ocorrencia}
-              className={o.sucesso ? 'text-green-600' : 'text-destructive'}
+              className={
+                o.sucesso
+                  ? 'text-green-700 dark:text-green-400'
+                  : 'text-destructive'
+              }
             >
               Semana {o.ocorrencia} ({formatarDataHora(o.data_hora_inicio)}):{' '}
               {o.sucesso ? 'reservada' : o.erro}
@@ -709,7 +718,7 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
               <span
                 className={
                   r.status === 'CONFIRMADA'
-                    ? 'text-green-600'
+                    ? 'text-green-700 dark:text-green-400'
                     : r.status === 'CANCELADA' ||
                         r.status === 'RECUSADA' ||
                         r.status === 'NAO_COMPARECEU'
@@ -1159,8 +1168,13 @@ function LinhaHoraMapaCalor({
   maximo: number
 }) {
   return (
-    <>
-      <div className="flex items-center justify-end pr-2 text-xs text-muted-foreground">
+    // v9.1a: uma LINHA de tabela de verdade (`contents` não muda o desenho da grade); antes eram 168 células soltas, cada uma uma parada do Tab, e o leitor
+    // de tela não achava as linhas (axe: aria-required-parent/children). Quem usa leitor de tela anda pela tabela com os comandos dela.
+    <div role="row" className="contents">
+      <div
+        role="rowheader"
+        className="flex items-center justify-end pr-2 text-xs text-muted-foreground"
+      >
         {String(hora).padStart(2, '0')}h
       </div>
       {DIAS_SEMANA_MAPA_CALOR.map((nomeDia, diaSemana) => {
@@ -1168,16 +1182,15 @@ function LinhaHoraMapaCalor({
         return (
           <div
             key={diaSemana}
-            role="gridcell"
-            tabIndex={0}
+            role="cell"
             title={`${nomeDia} ${String(hora).padStart(2, '0')}h — ${quantidade} reserva(s)`}
             aria-label={`${nomeDia} ${String(hora).padStart(2, '0')}h: ${quantidade} reserva(s)`}
-            className="aspect-square rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+            className="aspect-square rounded-sm"
             style={{ backgroundColor: corCelulaMapaCalor(quantidade, maximo) }}
           />
         )
       })}
-    </>
+    </div>
   )
 }
 
@@ -1252,24 +1265,33 @@ function SecaoMapaCalorOcupacao({ espacos }: { espacos: Espaco[] }) {
           </select>
         </div>
       </div>
-      <div className="overflow-x-auto">
+      <div
+        role="region"
+        aria-label="Ocupação por dia e hora"
+        tabIndex={0}
+        className="overflow-x-auto"
+      >
         <div
           className="inline-grid gap-px"
           style={{
             gridTemplateColumns: '3rem repeat(7, minmax(2.25rem, 1fr))',
           }}
-          role="grid"
+          role="table"
           aria-label="Mapa de calor de ocupação por dia da semana e hora"
         >
-          <div />
-          {DIAS_SEMANA_MAPA_CALOR.map((d) => (
-            <div
-              key={d}
-              className="px-1 pb-1 text-center text-xs font-medium text-muted-foreground"
-            >
-              {d.slice(0, 3)}
-            </div>
-          ))}
+          <div role="row" className="contents">
+            <div role="cell" />
+            {DIAS_SEMANA_MAPA_CALOR.map((d) => (
+              <div
+                key={d}
+                role="columnheader"
+                aria-label={d}
+                className="px-1 pb-1 text-center text-xs font-medium text-muted-foreground"
+              >
+                {d.slice(0, 3)}
+              </div>
+            ))}
+          </div>
           {Array.from({ length: 24 }, (_, hora) => (
             <LinhaHoraMapaCalor
               key={hora}

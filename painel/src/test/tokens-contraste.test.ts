@@ -16,6 +16,8 @@ const css = readFileSync(
   'utf-8',
 )
 const inicioEscuro = css.indexOf('.dark {')
+// v9.1b: o tema de alto contraste do site vem depois do escuro
+const inicioAlto = css.indexOf("[data-contraste='alto'] {")
 
 function lerTokens(bloco: string): Record<string, Hsl> {
   const tokens: Record<string, Hsl> = {}
@@ -29,7 +31,8 @@ function lerTokens(bloco: string): Record<string, Hsl> {
 
 const temas = {
   claro: lerTokens(css.slice(css.indexOf(':root {'), inicioEscuro)),
-  escuro: lerTokens(css.slice(inicioEscuro)),
+  escuro: lerTokens(css.slice(inicioEscuro, inicioAlto)),
+  alto: lerTokens(css.slice(inicioAlto)),
 }
 
 function rgb([h, s, l]: Hsl): [number, number, number] {
@@ -56,8 +59,7 @@ function contraste(a: Hsl, b: Hsl): number {
   return (claro! + 0.05) / (escuro! + 0.05)
 }
 
-// [texto, fundo]: cada par é um uso real do painel/site. `muted-foreground` sobre `muted` NÃO
-// entra (já documentado em design/README.md como proibido para texto pequeno).
+// [texto, fundo]: cada par é um uso real do painel/site. Desde a v9.1a `muted-foreground` sobre `muted` também entra (o painel usa em etiquetas).
 const PARES: Array<[string, string]> = [
   ['foreground', 'background'],
   ['card-foreground', 'card'],
@@ -68,6 +70,7 @@ const PARES: Array<[string, string]> = [
   ['accent-foreground', 'accent'],
   ['muted-foreground', 'background'], // texto auxiliar
   ['muted-foreground', 'card'],
+  ['muted-foreground', 'muted'], // v9.1a: etiqueta cinza sobre o cinza-claro (achado do robô no painel)
   ['destructive-foreground', 'destructive'], // botão destrutivo
   ['destructive', 'background'], // mensagem de erro (text-destructive)
   ['destructive', 'card'],
@@ -77,7 +80,8 @@ const PARES: Array<[string, string]> = [
 ]
 
 describe('contraste dos tokens de design (WCAG AA 4,5:1)', () => {
-  it('o leitor de tokens achou os dois temas completos', () => {
+  it('o leitor de tokens achou os três temas completos', () => {
+    expect(inicioAlto).toBeGreaterThan(inicioEscuro)
     for (const tema of Object.values(temas)) {
       expect(Object.keys(tema).length).toBeGreaterThanOrEqual(25)
       expect(tema.primary).toBeDefined()
@@ -98,7 +102,8 @@ describe('contraste dos tokens de design (WCAG AA 4,5:1)', () => {
         expect(
           c,
           `${texto} sobre ${fundo} no tema ${nomeTema}: ${c.toFixed(2)}:1`,
-        ).toBeGreaterThanOrEqual(4.5)
+          // o alto contraste existe para quem enxerga pouco: exige o nível AAA (7:1), não só o AA
+        ).toBeGreaterThanOrEqual(nomeTema === 'alto' ? 7 : 4.5)
       })
     }
   }

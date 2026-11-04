@@ -300,7 +300,7 @@ function FormularioDoacao({ onCancelar }: { onCancelar: () => void }) {
               </Button>
             </div>
             {numeroRecibo != null && (
-              <p className="text-sm text-green-600 sm:col-span-2">
+              <p className="text-sm text-green-700 dark:text-green-400 sm:col-span-2">
                 Doação registrada — recibo nº {numeroRecibo}.
               </p>
             )}
@@ -376,7 +376,9 @@ export function DoacoesPage() {
                   <p className="font-medium">{c.titulo}</p>
                   <span
                     className={
-                      c.ativa ? 'text-green-600' : 'text-muted-foreground'
+                      c.ativa
+                        ? 'text-green-700 dark:text-green-400'
+                        : 'text-muted-foreground'
                     }
                   >
                     {c.ativa ? 'Ativa' : 'Encerrada'}

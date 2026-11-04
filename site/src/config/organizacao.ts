@@ -70,9 +70,9 @@ export const ORGANIZACAO = {
  * do que estava em vigor em cada época (a mudança fica no Git).
  */
 export const DOCUMENTOS_LEGAIS = {
-  privacidade: { versao: '2.17', vigenteDesde: '2026-10-30' },
+  privacidade: { versao: '2.18', vigenteDesde: '2026-11-04' },
   termos: { versao: '1.1', vigenteDesde: '2026-10-03' },
-  acessibilidade: { versao: '1.0', vigenteDesde: '2026-10-15' },
+  acessibilidade: { versao: '1.1', vigenteDesde: '2026-11-04' },
 } as const
 
 /** "Rua Paulo Afonso, 150 — Bairro da Paz" */

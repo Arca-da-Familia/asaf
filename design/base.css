@@ -20,6 +20,19 @@
     @apply outline-hidden ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 
+  /* Menos movimento (v9.1b): quem pede ao sistema do aparelho para reduzir animações (vertigem, enxaqueca, distração) não vê nada se mexendo: animação e
+     transição viram instantâneas e a rolagem deixa de deslizar. Nada da interface depende da animação para funcionar. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
   /* Compatibilidade com o preflight do Tailwind 3 — o 4 mudou estes padrões e o painel (botões,
      campos, tabelas) foi desenhado com os antigos. Cada regra abaixo foi achada medindo a geometria
      de todos os elementos de 53 telas antes/depois da migração: */

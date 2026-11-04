@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { TAGS as TAGS_DO_SITE } from './regras-do-axe'
 
 // v5.5c — a inscrição em evento pelo site: o formulário na página do evento e as páginas /cancelar-inscricao/ e /confirmar-inscricao/ (os links dos e-mails do
 // sistema), no navegador de verdade, contra o build de teste e a API simulada (`scripts/mock-api.mjs`, que guarda o corpo recebido e responde como a API
@@ -21,7 +22,7 @@ const CPF_A = '390.533.447-05'
 const CPF_B = '111.444.777-35'
 const CPF_C = '529.982.247-25'
 const CPF_JA_INSCRITO = '123.456.780-62'
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']
+const TAGS = TAGS_DO_SITE
 const TEXTO_DO_CONSENTIMENTO =
   'Texto de teste do consentimento da inscrição (versão 3).\nSegunda linha do texto de teste.'
 const AVISO_SEM_VAGAS =

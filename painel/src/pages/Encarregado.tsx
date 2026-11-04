@@ -161,7 +161,12 @@ function AguardandoAssinatura({
         <summary className="cursor-pointer text-sm font-medium">
           Ler o texto do ato
         </summary>
-        <pre className="mt-2 max-h-96 overflow-y-auto whitespace-pre-wrap rounded-md bg-muted p-3 text-xs">
+        <pre
+          role="region"
+          aria-label="Texto do ato"
+          tabIndex={0}
+          className="mt-2 max-h-96 overflow-y-auto whitespace-pre-wrap rounded-md bg-muted p-3 text-xs"
+        >
           {ato.texto}
         </pre>
       </details>
@@ -231,7 +236,12 @@ function Historico({ atos }: { atos: AtoDoEncarregado[] }) {
       className="rounded-xl border border-border bg-card p-6"
     >
       <h2 className="mb-3 font-semibold">Histórico dos atos</h2>
-      <div className="overflow-x-auto">
+      <div
+        role="region"
+        aria-label="Histórico dos atos (tabela)"
+        tabIndex={0}
+        className="overflow-x-auto"
+      >
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs uppercase text-muted-foreground">

@@ -211,7 +211,7 @@ export function CalendarioPage() {
                   item.dias_restantes <= 7
                     ? 'font-medium text-destructive'
                     : item.dias_restantes <= 30
-                      ? 'font-medium text-amber-600'
+                      ? 'font-medium text-amber-700 dark:text-amber-400'
                       : 'text-muted-foreground'
                 }
               >

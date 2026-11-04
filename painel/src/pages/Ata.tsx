@@ -40,8 +40,8 @@ import {
 } from '@/lib/schemas'
 
 const CORES_STATUS_EXECUCAO: Record<string, string> = {
-  Pendente: 'text-amber-600',
-  Concluída: 'text-green-600',
+  Pendente: 'text-amber-700 dark:text-amber-400',
+  Concluída: 'text-green-700 dark:text-green-400',
   Revogada: 'text-destructive',
 }
 
@@ -463,7 +463,13 @@ function BlocoAta({
           Ata{' '}
           {ata.numero_sequencial ? `nº ${ata.numero_sequencial}` : '(rascunho)'}
         </h2>
-        <span className={emRascunho ? 'text-amber-600' : 'text-green-600'}>
+        <span
+          className={
+            emRascunho
+              ? 'text-amber-700 dark:text-amber-400'
+              : 'text-green-700 dark:text-green-400'
+          }
+        >
           {ata.status}
         </span>
       </div>
@@ -486,7 +492,12 @@ function BlocoAta({
         Corpo da ata (gerado do registro da sessão - copie para o documento
         oficial)
       </p>
-      <pre className="mb-4 max-h-96 overflow-y-auto whitespace-pre-wrap rounded-md bg-muted p-3 text-xs">
+      <pre
+        role="region"
+        aria-label="Texto da ata"
+        tabIndex={0}
+        className="mb-4 max-h-96 overflow-y-auto whitespace-pre-wrap rounded-md bg-muted p-3 text-xs"
+      >
         {ata.corpo_texto}
       </pre>
 
@@ -569,7 +580,10 @@ function BlocoAta({
         </div>
       )}
       {relatoSalvo && (
-        <p role="status" className="mt-2 text-sm text-green-600">
+        <p
+          role="status"
+          className="mt-2 text-sm text-green-700 dark:text-green-400"
+        >
           Relato salvo.
         </p>
       )}

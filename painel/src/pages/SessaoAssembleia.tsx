@@ -51,8 +51,8 @@ import {
 const CORES_STATUS_ITEM: Record<string, string> = {
   Aguardando: 'text-muted-foreground',
   'Em discussão': 'text-blue-600',
-  'Em votação': 'text-amber-600',
-  Encerrado: 'text-green-600',
+  'Em votação': 'text-amber-700 dark:text-amber-400',
+  Encerrado: 'text-green-700 dark:text-green-400',
 }
 
 const OPCOES_RESERVADAS = ['Abstenção', 'Branco']
@@ -209,7 +209,9 @@ function BlocoCredenciamento({
             </p>
             <p
               className={`mt-1 text-2xl font-bold ${
-                quorum.quorum_atingido ? 'text-green-600' : 'text-amber-600'
+                quorum.quorum_atingido
+                  ? 'text-green-700 dark:text-green-400'
+                  : 'text-amber-700 dark:text-amber-400'
               }`}
             >
               {quorum.quorum_atingido ? 'Atingido' : 'Não atingido'}
@@ -278,7 +280,7 @@ function BlocoCredenciamento({
       {chamadaPronta && (
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-green-600">
+            <h3 className="mb-2 text-sm font-semibold text-green-700 dark:text-green-400">
               Presentes ({presentes.length})
             </h3>
             <div className="v3-space-y-1">
@@ -573,7 +575,9 @@ function CardVotacao({ votacaoInicial }: { votacaoInicial: Votacao }) {
         </div>
         <span
           className={`shrink-0 text-sm font-medium ${
-            aberta ? 'text-amber-600' : 'text-green-600'
+            aberta
+              ? 'text-amber-700 dark:text-amber-400'
+              : 'text-green-700 dark:text-green-400'
           }`}
         >
           {votacao.status}
@@ -635,7 +639,7 @@ function CardVotacao({ votacaoInicial }: { votacaoInicial: Votacao }) {
             ))}
           <p className="pt-1">
             {votacao.empate ? (
-              <span className="font-medium text-amber-600">
+              <span className="font-medium text-amber-700 dark:text-amber-400">
                 Empate — aguardando resolução.
               </span>
             ) : (

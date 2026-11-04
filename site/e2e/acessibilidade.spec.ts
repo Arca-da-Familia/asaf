@@ -2,10 +2,10 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 
 import { PAGINAS_NAO_INDEXAVEIS, caminhosIndexaveis } from './paginas'
+import { TAGS } from './regras-do-axe'
 
-// Meta de acessibilidade (v5.0): zero violação WCAG 2.1 A/AA em TODA página, em desktop e em
+// Meta de acessibilidade (v5.0; WCAG 2.2 desde a v9.1a): zero violação WCAG A/AA em TODA página, em desktop e em
 // celular. Falhou aqui, o deploy do site não sai — "melhorar depois" nunca acontece.
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']
 
 async function auditar(page: Page) {
   const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze()

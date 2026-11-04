@@ -1,6 +1,7 @@
 ---
 import AvisoDeAmbiente from '../components/AvisoDeAmbiente.astro'
 import Cabecalho from '../components/Cabecalho.astro'
+import PreferenciasDeLeitura from '../components/PreferenciasDeLeitura.astro'
 import Rodape from '../components/Rodape.astro'
 import type { Migalha } from '../config/navegacao'
 import { ORGANIZACAO, SITE_URL } from '../config/organizacao'
@@ -77,6 +78,8 @@ const jsonLdDaOrganizacao = jsonLdOrganizacao(await organizacaoDoSite())
 <!doctype html>
 <html lang="pt-BR">
   <head>
+    <!-- v9.1b: a letra e o contraste escolhidos valem antes de a página aparecer (arquivo próprio: a política de conteúdo não aceita script na página) -->
+    <script is:inline src="/preferencias-de-leitura.js"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{tituloCompleto}</title>
@@ -135,6 +138,7 @@ const jsonLdDaOrganizacao = jsonLdOrganizacao(await organizacaoDoSite())
       Pular para o conteúdo
     </a>
     <AvisoDeAmbiente />
+    <PreferenciasDeLeitura />
     <Cabecalho />
     <main id="conteudo" class="flex-1">
       <slot />

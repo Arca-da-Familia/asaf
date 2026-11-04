@@ -682,7 +682,7 @@ function LinhaDoTempoSection() {
             className={
               ficha.situacao_financeira.saldo_devedor_total > 0
                 ? 'text-2xl font-bold text-destructive'
-                : 'text-2xl font-bold text-green-600'
+                : 'text-2xl font-bold text-green-700 dark:text-green-400'
             }
           >
             {formatarReais(ficha.situacao_financeira.saldo_devedor_total)}

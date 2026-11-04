@@ -60,8 +60,9 @@ export function SinoDeAvisos() {
         variant="ghost"
         size="icon"
         aria-label={
+          // v9.1a: o nome leva o MESMO número que aparece no círculo ("9+"): quem usa comando de voz fala o que vê (antes: "450 novas" com "9+" na tela)
           naoLidas > 0
-            ? `Notificações (${naoLidas} ${naoLidas === 1 ? 'nova' : 'novas'})`
+            ? `Notificações (${naoLidas > 9 ? '9+' : naoLidas} ${naoLidas === 1 ? 'nova' : 'novas'})`
             : 'Notificações'
         }
         aria-expanded={aberto}

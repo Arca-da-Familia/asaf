@@ -323,7 +323,7 @@ function BlocoMandatos() {
               <span
                 className={
                   m.vigente
-                    ? 'font-medium text-green-600'
+                    ? 'font-medium text-green-700 dark:text-green-400'
                     : 'text-muted-foreground'
                 }
               >
@@ -445,7 +445,7 @@ function BlocoMandatosVencendo() {
               className={
                 m.dias_restantes <= 30
                   ? 'font-medium text-destructive'
-                  : 'font-medium text-amber-600'
+                  : 'font-medium text-amber-700 dark:text-amber-400'
               }
             >
               {m.dias_restantes === 0

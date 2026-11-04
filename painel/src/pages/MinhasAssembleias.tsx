@@ -17,8 +17,8 @@ import { formatarData } from '@/lib/datas'
 import { baterPresencaSchema, justificativaCriarSchema } from '@/lib/schemas'
 
 const CORES_PRESENCA: Record<string, string> = {
-  Presente: 'text-green-600',
-  'Falta justificada': 'text-amber-600',
+  Presente: 'text-green-700 dark:text-green-400',
+  'Falta justificada': 'text-amber-700 dark:text-amber-400',
   Falta: 'text-destructive',
   Pendente: 'text-muted-foreground',
 }

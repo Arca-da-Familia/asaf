@@ -102,7 +102,10 @@ function CampoDaInstituicaoLinha({ campo }: { campo: CampoDaInstituicao }) {
         </p>
       )}
       {aviso && !salvar.isError && (
-        <p role="status" className="mt-1 text-xs text-green-600">
+        <p
+          role="status"
+          className="mt-1 text-xs text-green-700 dark:text-green-400"
+        >
           {aviso}
         </p>
       )}

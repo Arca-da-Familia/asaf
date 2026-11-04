@@ -98,7 +98,12 @@ export function AcessoPage() {
           descricao="Crie ao menos um nível e uma permissão para montar a matriz."
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div
+          role="region"
+          aria-label="Quem tem acesso"
+          tabIndex={0}
+          className="overflow-x-auto rounded-lg border border-border"
+        >
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">

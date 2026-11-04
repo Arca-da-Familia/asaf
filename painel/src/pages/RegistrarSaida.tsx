@@ -78,7 +78,9 @@ function Anexo({
       />
       {enviando && <p className="text-xs text-muted-foreground">Enviando…</p>}
       {valor && !enviando && (
-        <p className="text-xs text-green-600">{rotulo}: anexado.</p>
+        <p className="text-xs text-green-700 dark:text-green-400">
+          {rotulo}: anexado.
+        </p>
       )}
       {erroDoEnvio && (
         <p role="alert" className="text-xs text-destructive">

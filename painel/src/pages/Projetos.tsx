@@ -388,7 +388,7 @@ function SecaoCronograma({ idProjeto }: { idProjeto: number }) {
                   item.status === 'Atrasado'
                     ? 'text-destructive'
                     : item.status === 'Concluído'
-                      ? 'text-green-600'
+                      ? 'text-green-700 dark:text-green-400'
                       : 'text-muted-foreground'
                 }
               >
@@ -872,7 +872,11 @@ function SecaoOrcamentoRelatorio({ projeto }: { projeto: Projeto }) {
                 {formatarReais(o.realizado)}
               </p>
               <p
-                className={o.estourado ? 'text-destructive' : 'text-green-600'}
+                className={
+                  o.estourado
+                    ? 'text-destructive'
+                    : 'text-green-700 dark:text-green-400'
+                }
               >
                 {o.estourado ? 'Estourado' : 'Dentro do previsto'}
               </p>

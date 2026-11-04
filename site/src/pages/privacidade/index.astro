@@ -110,6 +110,8 @@ const substituto = substitutoDoEncarregado(diretoria)
 // v2.16 (2026-10-29): v7.2g - como o pedido é atendido (v7.2b a v7.2f): os canais (formulário, Minha conta e o painel do associado), a identidade (o código do
 // e-mail só vale para o que foi feito com o e-mail), o relatório dos seus dados para baixar por 15 dias (PDF e arquivo para levar a outro serviço), a
 // eliminação (o que sai, o que fica e por quê) e o total de pedidos no relatório anual; na lista de prazos, a cópia do relatório entregue (15 dias).
+// v2.18 (2026-11-04): v9.1b - a barra de preferências de leitura (tamanho da letra e alto contraste) guarda só a escolha no navegador (localStorage), sem
+// dado da pessoa; voltar ao normal apaga (public/preferencias-de-leitura.js). "Só a página Minha conta guarda um dado" deixou de ser verdade.
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -271,7 +273,7 @@ const direitos = [
         </li>
         <li data-cookies-e-dados>
           <strong>Cookies e dados no navegador.</strong> Este site não instala
-          cookies. Só a página{' '}
+          cookies. A página{' '}
           <a
             href="/minha-conta/"
             class="font-medium text-primary underline underline-offset-4"
@@ -289,8 +291,13 @@ const direitos = [
           </a>{' '}
           (um endereço separado, para quem já é associado) usa um cookie
           técnico, estritamente necessário, para manter a sua sessão aberta, e
-          guarda no navegador a sua preferência de tema (claro ou escuro). Nada
-          disso é usado para rastrear você.
+          guarda no navegador a sua preferência de tema (claro ou escuro). Se
+          você escolher, na barra do alto da página, um tamanho de letra maior
+          ou o alto contraste, o site guarda no seu navegador só essa escolha
+          (nada que identifique você), para ela valer nas outras páginas e nas
+          próximas visitas, até você voltar ao normal ou apagar os dados do site
+          no navegador; voltar à letra normal e desligar o alto contraste apaga.
+          Nada disso é usado para rastrear você.
         </li>
         <li>
           <strong>Diretoria e Conselho Fiscal.</strong> A página de Diretoria e

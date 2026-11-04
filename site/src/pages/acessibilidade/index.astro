@@ -12,6 +12,7 @@ const ORGANIZACAO = await organizacaoDoSite()
 // celular, a cada mudança de CÓDIGO e sobre o site montado com dados de exemplo — a publicação automática de conteúdo pula esses portões, ver deploy-site.yml; nota de acessibilidade
 // do Lighthouse exigida numa amostra de páginas), o que existe na página (link para pular ao conteúdo, foco visível, idioma) e o que AINDA NÃO foi
 // feito (revisão manual com teclado e leitor de tela, auditoria por pessoas). Versionada em config/organizacao.ts: mudou o texto, aumente a versão e a data lá.
+// v1.1 (2026-11-04): v9.1a/b - WCAG 2.2 no verificador; a barra de preferências de leitura (letra e alto contraste) e o respeito a "menos movimento".
 const migalhas: Migalha[] = [{ rotulo: 'Declaração de acessibilidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.acessibilidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -43,14 +44,14 @@ const classeDoLink = 'font-medium text-primary underline underline-offset-4'
         A {ORGANIZACAO.nome} ({ORGANIZACAO.sigla}) quer que o seu site possa ser
         usado por todas as pessoas, com ou sem deficiência, no computador e no
         celular. A meta é seguir as Diretrizes de Acessibilidade para Conteúdo
-        Web (WCAG), nível AA; hoje as verificações automáticas descritas abaixo
-        cobrem a versão 2.1.
+        Web (WCAG), nível AA; hoje o verificador automático usa as regras da
+        versão 2.2 que podem ser checadas por máquina.
       </p>
       <p class="mt-3">
         <strong>Situação hoje: conformidade parcial.</strong> As verificações
         automáticas não encontram problema no site montado com dados de exemplo,
         mas elas não pegam tudo e a revisão manual ainda não foi feita. Por isso
-        não afirmamos que o site está totalmente de acordo com a WCAG 2.1 AA.
+        não afirmamos que o site está totalmente de acordo com a WCAG 2.2 AA.
       </p>
     </section>
 
@@ -65,7 +66,7 @@ const classeDoLink = 'font-medium text-primary underline underline-offset-4'
           </strong>
           Toda vez que o código do site muda, todas as páginas, montadas com
           dados de exemplo, passam pelo verificador axe-core, com as regras das
-          WCAG 2.1 níveis A e AA e as boas práticas dele (entre elas contraste
+          WCAG 2.2 níveis A e AA e as boas práticas dele (entre elas contraste
           de cores, rótulos de campos, texto alternativo de imagens, idioma da
           página, nomes de botões e links e ordem dos títulos). Isso inclui a
           página de erro e as de cancelar e confirmar inscrição, em largura de
@@ -93,6 +94,23 @@ const classeDoLink = 'font-medium text-primary underline underline-offset-4'
           <strong>Foco visível.</strong> O estilo geral do site define um
           contorno para todo link, botão e campo selecionado pelo teclado; esse
           contorno ainda não foi conferido tela a tela.
+        </li>
+        <li>
+          <strong>Tamanho da letra e alto contraste.</strong> No alto de toda
+          página, a barra de preferências de leitura deixa a letra maior (dois
+          tamanhos acima do normal) e liga o alto contraste (fundo preto, texto
+          branco e destaques em amarelo; alguns selos ficam em azul-claro). A
+          escolha vale nas outras páginas do site e nas próximas visitas, neste
+          navegador, até você voltar ao normal. Algumas páginas, nos dois modos
+          juntos, passam pelo mesmo verificador automático, no computador e no
+          celular. A barra precisa do JavaScript ativado; sem ele, ela não
+          aparece, e o zoom do navegador continua funcionando.
+        </li>
+        <li>
+          <strong>Sem animações.</strong> O site não usa animações nem
+          transições. Se o seu aparelho estiver configurado para reduzir
+          animações, uma regra do estilo garante que nenhuma apareça, mesmo se
+          alguma for incluída no futuro.
         </li>
         <li>
           <strong>Idioma.</strong> Toda página informa que está em português do

@@ -105,7 +105,7 @@ function BlocoOpcoes({ catalogo }: { catalogo: Catalogo }) {
             </p>
           )}
           {!catalogo.editavel_pelo_usuario && (
-            <p className="mt-1 text-xs text-amber-600">
+            <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
               Catálogo de sistema - código fixo, só rótulo/ordem/ativo podem
               mudar.
             </p>

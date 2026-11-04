@@ -24,8 +24,8 @@ import {
 } from '@/lib/schemas'
 
 const CORES_STATUS: Record<string, string> = {
-  PENDENTE: 'text-amber-600',
-  CONFIRMADA: 'text-green-600',
+  PENDENTE: 'text-amber-700 dark:text-amber-400',
+  CONFIRMADA: 'text-green-700 dark:text-green-400',
   RECUSADA: 'text-destructive',
   CANCELADA: 'text-muted-foreground',
 }

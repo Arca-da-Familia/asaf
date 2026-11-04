@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
 // v5.0 — auditoria do site MONTADO, num navegador de verdade, contra o build de teste
-// (`npm run build:teste`): acessibilidade (axe, WCAG 2.1 AA), SEO técnico, links internos e a
+// (`npm run build:teste`): acessibilidade (axe, WCAG 2.2 AA), SEO técnico, links internos e a
 // ilha de eventos em cada estado. Roda em todo PR e push (deploy-site.yml) — é o "meta de
 // acessibilidade auditada no CI" que o plano pede para a v5.0 (antecipa a FASE 9).
 // Portas padrão 4321 (site) e 4322 (API simulada); `PORTA_DO_SITE_DE_TESTE` e `MOCK_API_PORT` trocam as duas quando outra

@@ -34,11 +34,11 @@ import {
 // habilitada a partir do status exato que o backend exige - a tela nunca antecipa uma ação que
 // o backend recusaria, só mostra a próxima etapa válida.
 const CORES_STATUS: Record<string, string> = {
-  Aberto: 'text-amber-600',
+  Aberto: 'text-amber-700 dark:text-amber-400',
   Deliberada: 'text-blue-600',
   'Liquidação concluída': 'text-blue-600',
   'Patrimônio destinado': 'text-blue-600',
-  'Baixa cadastral concluída': 'text-green-600',
+  'Baixa cadastral concluída': 'text-green-700 dark:text-green-400',
   Cancelado: 'text-destructive',
 }
 
@@ -479,7 +479,7 @@ export function ProcessoDissolucaoDetalhePage() {
 
       {processo.status === 'Baixa cadastral concluída' && (
         <section className="mt-4 rounded-xl border border-border bg-card p-6">
-          <h2 className="font-semibold text-green-600">
+          <h2 className="font-semibold text-green-700 dark:text-green-400">
             Roteiro de dissolução concluído
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">

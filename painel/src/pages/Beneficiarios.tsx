@@ -143,7 +143,12 @@ function SecaoExportarBeneficiarios({
         </p>
       )}
       {resultado && (
-        <div className="mt-3 overflow-x-auto rounded-md border border-border">
+        <div
+          role="region"
+          aria-label="Beneficiários"
+          tabIndex={0}
+          className="mt-3 overflow-x-auto rounded-md border border-border"
+        >
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">

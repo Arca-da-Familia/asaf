@@ -4,6 +4,7 @@ import { expect, test, type Page, type Route } from '@playwright/test'
 import { matrizDoCaminho } from '../src/lib/qr-pix'
 import { lerMatriz } from '../tests/ajuda-qr'
 import { caminhosIndexaveis } from './paginas'
+import { TAGS as TAGS_DO_SITE } from './regras-do-axe'
 
 // v5.6a — doar pelo site com Pix estático, no navegador de verdade, contra o build de teste e a API simulada (`scripts/mock-api.mjs`: as três rotas da doação com as frases e
 // os códigos do servidor, o BR Code de verdade, o mesmo pedido devolvendo o mesmo protocolo, 429 e erro de servidor provocados por nome de teste). O que NÃO se pode provocar
@@ -16,7 +17,7 @@ const CAMINHO = '/como-ajudar/doar/'
 const NOME_QUE_ESTOURA_O_LIMITE = 'Teste Limite Por IP'
 const NOME_QUE_DERRUBA_A_API = 'Teste Erro De Servidor'
 const CPF_VALIDO = '390.533.447-05'
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']
+const TAGS = TAGS_DO_SITE
 const CHAVE_PIX = '123e4567-e89b-12d3-a456-426614174000'
 
 const CODIGO_LIVRE =
@@ -332,11 +333,11 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.17 · em vigor desde 30 de outubro de 2026'),
+      page.getByText('Versão 2.18 · em vigor desde 4 de novembro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.17, em vigor desde 30 de outubro de 2026/,
+        /Esta é a versão 2\.18, em vigor desde 4 de novembro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-doacao]')

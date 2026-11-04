@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 import textos from '../src/data/textos-de-privacidade.json' with { type: 'json' }
+import { TAGS as TAGS_DO_SITE } from './regras-do-axe'
 
 // v5.4h — o formulário público do pedido de filiação (`/seja-associado/`), no navegador de verdade, contra o build de teste e a API simulada
 // (`scripts/mock-api.mjs`, que guarda o corpo recebido e responde como a API real: duplicado → 400 com o motivo; erro de servidor → 500).
@@ -103,7 +104,7 @@ test.describe('formulário de filiação', () => {
     expect((await pedidosRecebidos(page)).length).toBe(antes)
     // o estado de erro também passa no axe
     const { violations } = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'])
+      .withTags(TAGS_DO_SITE)
       .analyze()
     expect(violations.map((v) => v.id)).toEqual([])
   })
@@ -235,7 +236,7 @@ test.describe('formulário de filiação', () => {
       page.getByLabel(/autorização expressa e por escrito/),
     ).toBeVisible()
     const { violations } = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'])
+      .withTags(TAGS_DO_SITE)
       .analyze()
     expect(violations.map((v) => v.id)).toEqual([])
   })

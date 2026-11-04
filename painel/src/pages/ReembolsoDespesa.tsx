@@ -193,7 +193,7 @@ export function ReembolsoDespesaPage() {
                     <p className="text-xs text-muted-foreground">Enviando…</p>
                   )}
                   {form.watch('comprovante') && (
-                    <p className="text-xs text-green-600">
+                    <p className="text-xs text-green-700 dark:text-green-400">
                       Comprovante anexado.
                     </p>
                   )}
@@ -227,7 +227,7 @@ export function ReembolsoDespesaPage() {
                 <span
                   className={
                     r.status === 'Aprovado' || r.status === 'Pago'
-                      ? 'text-green-600'
+                      ? 'text-green-700 dark:text-green-400'
                       : r.status === 'Reprovado'
                         ? 'text-destructive'
                         : 'text-muted-foreground'

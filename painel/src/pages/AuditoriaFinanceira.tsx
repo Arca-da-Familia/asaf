@@ -34,8 +34,8 @@ function formatarReais(valor: number): string {
 }
 
 const COR_DA_SITUACAO = {
-  Aprovado: 'text-green-600',
-  Suspenso: 'text-amber-600',
+  Aprovado: 'text-green-700 dark:text-green-400',
+  Suspenso: 'text-amber-700 dark:text-amber-400',
   Pendente: 'text-muted-foreground',
 } as const
 
@@ -634,7 +634,10 @@ export function AuditoriaFinanceiraPage() {
           </div>
         )}
         {resultadoDoLote && (
-          <p role="status" className="mb-3 text-sm text-green-600">
+          <p
+            role="status"
+            className="mb-3 text-sm text-green-700 dark:text-green-400"
+          >
             {resultadoDoLote}
           </p>
         )}

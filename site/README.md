@@ -37,7 +37,7 @@ npm run typecheck      # astro check
 npm test               # unitários (vitest): datas/fuso, SEO/JSON-LD, cliente da API, ilha de eventos, Estatuto, menus
 npm run logos          # regenera logo/ícones a partir de design/logo (ver design/README.md)
 npm run build:teste    # build com a API SIMULADA de pé (obrigatório p/ e2e e Lighthouse)
-npm run test:e2e       # Playwright: axe WCAG 2.1 AA, SEO, links, ilha em cada estado
+npm run test:e2e       # Playwright: axe WCAG 2.2 AA, SEO, links, ilha em cada estado
 npm run test:vazio     # build contra API sem nenhum dado (estado vazio, o da produção no 1º dia) e contra a API ANTIGA (sem o contexto de projeto/evento)
 npm run test:sincronizacao  # igual não reconstrói; diferente e 1º deploy reconstroem
 npm run lighthouse     # Lighthouse CI (precisa de Chrome; localmente: CHROME_PATH=...)

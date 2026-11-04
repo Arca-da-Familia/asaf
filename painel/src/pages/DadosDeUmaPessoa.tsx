@@ -75,7 +75,12 @@ function Secao({ s }: { s: SecaoDoRelatorio }) {
           peça à equipe técnica a lista completa.
         </p>
       )}
-      <div className="mt-2 overflow-x-auto">
+      <div
+        role="region"
+        aria-label="Dados da pessoa"
+        tabIndex={0}
+        className="mt-2 overflow-x-auto"
+      >
         <table className="w-full text-left text-xs">
           <thead>
             <tr className="border-b border-border">

@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
+import { TAGS as TAGS_DO_SITE } from './regras-do-axe'
 
 // v5.5a — os formulários públicos da fila única de atendimento (contato, pedido de informação, solicitação do titular de dados), no navegador de verdade,
 // contra o build de teste e a API simulada (`scripts/mock-api.mjs`, que guarda o corpo recebido e responde como a API real: protocolo em sequência,
@@ -10,7 +11,7 @@ const PORTA_DA_API = process.env.MOCK_API_PORT ?? '4322'
 const NOME_QUE_ESTOURA_O_LIMITE = 'Teste Limite Por IP'
 const NOME_QUE_DERRUBA_A_API = 'Teste Erro De Servidor'
 const CPF_VALIDO = '390.533.447-05'
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']
+const TAGS = TAGS_DO_SITE
 
 type Tipo = 'CONTATO' | 'PEDIDO_INFORMACAO' | 'TITULAR_LGPD' | 'VOLUNTARIO'
 interface Formulario {

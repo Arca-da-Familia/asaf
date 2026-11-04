@@ -241,7 +241,7 @@ function PainelDadosBancarios({ idFornecedor }: { idFornecedor: number }) {
               <span
                 className={
                   h.status === 'Aprovado'
-                    ? 'text-green-600'
+                    ? 'text-green-700 dark:text-green-400'
                     : h.status === 'Rejeitado'
                       ? 'text-destructive'
                       : 'text-muted-foreground'

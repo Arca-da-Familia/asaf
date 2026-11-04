@@ -640,7 +640,12 @@ function ComparacaoEdicoes({ idEvento }: { idEvento: number }) {
   if (!comparacao || comparacao.length === 0) return null
 
   return (
-    <div className="mt-4 overflow-x-auto">
+    <div
+      role="region"
+      aria-label="Inscrições"
+      tabIndex={0}
+      className="mt-4 overflow-x-auto"
+    >
       <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
         Comparação entre edições
       </h4>
@@ -847,7 +852,12 @@ function SecaoInscritos({ evento }: { evento: Evento }) {
         </p>
       )}
       {resultadoExportacao && (
-        <div className="mb-3 overflow-x-auto rounded-md border border-border">
+        <div
+          role="region"
+          aria-label="Tabela do evento"
+          tabIndex={0}
+          className="mb-3 overflow-x-auto rounded-md border border-border"
+        >
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
@@ -1016,7 +1026,7 @@ function SecaoCobranca({ evento }: { evento: Evento }) {
               {configurar.isPending ? 'Salvando…' : 'Salvar cobrança'}
             </Button>
             {configurar.isSuccess && (
-              <p className="w-full text-sm text-emerald-600">
+              <p className="w-full text-sm text-emerald-700 dark:text-emerald-400">
                 Cobrança configurada.
               </p>
             )}
@@ -1270,7 +1280,11 @@ function SecaoCupons({ idEvento }: { idEvento: number }) {
             <div className="flex items-center justify-between">
               <span className="font-medium">{c.codigo}</span>
               <span
-                className={c.ativo ? 'text-green-600' : 'text-muted-foreground'}
+                className={
+                  c.ativo
+                    ? 'text-green-700 dark:text-green-400'
+                    : 'text-muted-foreground'
+                }
               >
                 {c.ativo ? 'Ativo' : 'Inativo'}
               </span>
@@ -1526,7 +1540,7 @@ function SecaoReembolsoEvento({ idEvento }: { idEvento: number }) {
                 {configurar.isPending ? 'Salvando…' : 'Salvar política'}
               </Button>
               {configurar.isSuccess && (
-                <p className="w-full text-sm text-emerald-600">
+                <p className="w-full text-sm text-emerald-700 dark:text-emerald-400">
                   Política de reembolso atualizada.
                 </p>
               )}
@@ -2049,7 +2063,7 @@ function SecaoElegibilidade({ evento }: { evento: Evento }) {
               </div>
               {resultadoCracha && (
                 <p
-                  className={`mt-1 text-xs ${resultadoCracha.ok ? 'text-emerald-600' : 'text-destructive'}`}
+                  className={`mt-1 text-xs ${resultadoCracha.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'}`}
                 >
                   {resultadoCracha.ok && resultadoCracha.caminho ? (
                     <a
@@ -2067,7 +2081,7 @@ function SecaoElegibilidade({ evento }: { evento: Evento }) {
               )}
               {resultadoCertificado && (
                 <p
-                  className={`mt-1 text-xs ${resultadoCertificado.ok ? 'text-emerald-600' : 'text-destructive'}`}
+                  className={`mt-1 text-xs ${resultadoCertificado.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'}`}
                 >
                   {resultadoCertificado.ok && resultadoCertificado.caminho ? (
                     <a
@@ -2170,7 +2184,12 @@ function SecaoExportarPresencas({ idEvento }: { idEvento: number }) {
         </p>
       )}
       {resultado && (
-        <div className="mt-3 overflow-x-auto">
+        <div
+          role="region"
+          aria-label="Lista do evento"
+          tabIndex={0}
+          className="mt-3 overflow-x-auto"
+        >
           <table className="w-full text-left text-sm">
             <thead>
               <tr>
@@ -2248,7 +2267,7 @@ function SecaoPesquisaSatisfacao({ idEvento }: { idEvento: number }) {
         {convidar.isPending ? 'Convidando…' : 'Convidar inscritos'}
       </Button>
       {convidar.isSuccess && (
-        <p className="mt-2 text-sm text-emerald-600">
+        <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-400">
           {convidar.data.mensagem} ({convidar.data.quantidade_convites_novos}{' '}
           novo(s)).
         </p>

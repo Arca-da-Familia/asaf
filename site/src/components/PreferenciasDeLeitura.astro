@@ -1,0 +1,47 @@
+---
+// v9.1b - a barra de PREFERÊNCIAS DE LEITURA, no alto de toda página: tamanho da letra (normal, maior, muito maior) e alto contraste. Quem faz funcionar é
+// /preferencias-de-leitura.js (carregado no <head> pelo Base.astro); sem JavaScript a barra não aparece (global.css), porque os botões não fariam nada. O
+// nome de cada botão começa pelo que está escrito nele ("A+ ..."): quem usa comando de voz fala o que vê.
+const LETRAS = [
+  { valor: 'normal', texto: 'A', nome: 'A letra normal' },
+  { valor: 'maior', texto: 'A+', nome: 'A+ letra maior' },
+  { valor: 'muito-maior', texto: 'A++', nome: 'A++ letra muito maior' },
+]
+---
+
+<section
+  data-preferencias-de-leitura
+  aria-label="Preferências de leitura"
+  class="border-b bg-muted text-sm"
+>
+  <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-end gap-x-4 gap-y-1 px-4 py-1">
+    <div
+      role="group"
+      aria-labelledby="rotulo-tamanho-da-letra"
+      class="flex items-center gap-1"
+    >
+      <span id="rotulo-tamanho-da-letra" class="mr-1">
+        Tamanho da letra:
+      </span>
+      {LETRAS.map((letra) => (
+        <button
+          type="button"
+          data-escolha-letra={letra.valor}
+          aria-pressed={letra.valor === 'normal' ? 'true' : 'false'}
+          aria-label={letra.nome}
+          class="min-h-6 min-w-8 rounded-md border bg-background px-2 font-semibold aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+        >
+          {letra.texto}
+        </button>
+      ))}
+    </div>
+    <button
+      type="button"
+      data-escolha-contraste
+      aria-pressed="false"
+      class="min-h-6 rounded-md border bg-background px-2 font-semibold aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+    >
+      Alto contraste
+    </button>
+  </div>
+</section>

@@ -212,7 +212,9 @@ function SecaoOrcamentos() {
                 </p>
                 <span
                   className={
-                    o.estourado ? 'text-destructive' : 'text-green-600'
+                    o.estourado
+                      ? 'text-destructive'
+                      : 'text-green-700 dark:text-green-400'
                   }
                 >
                   {o.natureza === 'Credora'
@@ -272,7 +274,7 @@ function SecaoFluxoDeCaixa() {
                 ` (inclui ${formatarReais(m.recorrentes_projetadas)} de recorrentes ainda não lançadas)`}
             </p>
             <p
-              className={`font-medium ${m.saldo_final < 0 ? 'text-destructive' : 'text-green-600'}`}
+              className={`font-medium ${m.saldo_final < 0 ? 'text-destructive' : 'text-green-700 dark:text-green-400'}`}
             >
               Saldo projetado: {formatarReais(m.saldo_final)}
             </p>
@@ -438,7 +440,9 @@ function SecaoReservaContingencia() {
                 </p>
                 <span
                   className={
-                    abaixoDoMinimo ? 'text-destructive' : 'text-green-600'
+                    abaixoDoMinimo
+                      ? 'text-destructive'
+                      : 'text-green-700 dark:text-green-400'
                   }
                 >
                   {formatarReais(r.saldo_atual)}

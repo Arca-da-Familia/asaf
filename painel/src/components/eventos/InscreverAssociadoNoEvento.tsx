@@ -84,7 +84,10 @@ export function InscreverAssociadoNoEvento({ idEvento }: { idEvento: number }) {
         </p>
       )}
       {resultado && (
-        <p role="status" className="mt-2 text-xs text-green-600">
+        <p
+          role="status"
+          className="mt-2 text-xs text-green-700 dark:text-green-400"
+        >
           {resultado}
         </p>
       )}

@@ -95,6 +95,8 @@ pointer`/cor do placeholder. Foram achados medindo a posição de TODOS os eleme
 - A paleta padrão do Tailwind 3 (`text-green-600`, `text-amber-600`...) está preservada em
   `theme.css` só para as famílias em uso (verde, âmbar, esmeralda, azul): o Tailwind 4 trocou a
   paleta padrão por outra, mais saturada, e os estados de status mudariam de cor.
-- `--muted-foreground` sobre fundo `--muted` **não** passa em AA para texto pequeno — use sobre
-  `--background` ou `--card`.
+- `--muted-foreground` sobre fundo `--muted` passa em AA desde a v9.1a (o cinza escureceu para 43%: 5,0:1); o teste de contraste confere esse par.
+- Texto colorido de situação (verde, âmbar, esmeralda) usa o tom **700** no claro e o **400** no escuro (`text-green-700 dark:text-green-400`): o 600
+  dava 3,2 a 3,8:1 sobre o branco, abaixo do mínimo (achado pelo robô de acessibilidade do painel, v9.1a).
+- **Alto contraste** (v9.1b): `[data-contraste="alto"]` em `tokens.css` (preto, branco e amarelo, nível AAA 7:1), ligado pela barra de preferências do site.
 - Dark mode: os tokens `.dark` existem (o painel usa). O site, por ora, é só claro.

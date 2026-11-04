@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { TAGS as TAGS_DO_SITE } from './regras-do-axe'
 
 // v5.7c — a página Diretoria mostra NOME e FOTO de quem está na Diretoria Executiva e no Conselho Fiscal ("a pessoa se sente representada quando vê o rosto de quem responde pela
 // instituição"). A foto só existe de quem autorizou o uso da imagem; quem não tem foto aparece com um círculo de iniciais, do mesmo tamanho. No mock (scripts/mock-api.mjs):
@@ -13,7 +14,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 
 const PORTA_DA_API = process.env.MOCK_API_PORT ?? '4322'
 const ORIGEM_DA_API = `http://127.0.0.1:${PORTA_DA_API}`
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']
+const TAGS = TAGS_DO_SITE
 
 const cartaoDo = (page: Page, nome: string) =>
   page.locator('li[data-ocupante]', { hasText: nome })
@@ -274,11 +275,11 @@ test.describe('Diretoria com fotos (v5.7c)', () => {
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.17 · em vigor desde 30 de outubro de 2026'),
+      page.getByText('Versão 2.18 · em vigor desde 4 de novembro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.17, em vigor desde 30 de outubro de 2026/,
+        /Esta é a versão 2\.18, em vigor desde 4 de novembro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-diretoria-foto]')

@@ -690,7 +690,7 @@ export function PlanosContribuicaoPage() {
                 <span
                   className={
                     c.ativo && !c.data_vigencia_fim
-                      ? 'text-green-600'
+                      ? 'text-green-700 dark:text-green-400'
                       : 'text-muted-foreground'
                   }
                 >

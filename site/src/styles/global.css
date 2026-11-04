@@ -15,7 +15,17 @@
   [data-eventos],
   [data-filiacao-form],
   [data-atendimento-form],
-  [data-doacao-vivo] {
+  [data-doacao-vivo],
+  [data-preferencias-de-leitura] {
     display: none;
   }
+}
+
+/* v9.1b - o tamanho da letra escolhido na barra de preferências de leitura (public/preferencias-de-leitura.js). Todo tamanho do site é em rem, então
+   mudar a letra-base aumenta tudo junto, sem quebrar o desenho; as cores do alto contraste estão em design/tokens.css. */
+html[data-letra='maior'] {
+  font-size: 112.5%;
+}
+html[data-letra='muito-maior'] {
+  font-size: 125%;
 }

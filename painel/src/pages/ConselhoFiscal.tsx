@@ -146,8 +146,8 @@ function BlocoRespostas({
         <span
           className={
             questionamento.status === 'Respondido'
-              ? 'text-green-600'
-              : 'text-amber-600'
+              ? 'text-green-700 dark:text-green-400'
+              : 'text-amber-700 dark:text-amber-400'
           }
         >
           {questionamento.status}
@@ -407,7 +407,12 @@ function BlocoCaixa() {
           className={`${classeDoCampo} w-56`}
         />
       </div>
-      <div className="overflow-x-auto">
+      <div
+        role="region"
+        aria-label="Títulos"
+        tabIndex={0}
+        className="overflow-x-auto"
+      >
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-muted-foreground">

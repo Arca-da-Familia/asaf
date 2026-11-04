@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
+import { TAGS as TAGS_DO_SITE } from './regras-do-axe'
 
 // v5.6b — a conta do visitante (/minha-conta/): entrar com o e-mail e um código de uso único (sem senha) e ver as inscrições, os certificados e as doações feitas pelo site,
 // no navegador de verdade, contra o build de teste e a API simulada (`scripts/mock-api.mjs`). Os e-mails de teste mandam no resultado:
@@ -24,7 +25,7 @@ test.beforeEach(() => {
 const CODIGO = '123456'
 const MENSAGEM_DO_CODIGO_INVALIDO =
   'Código inválido ou vencido: confira os números ou peça um novo código.'
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']
+const TAGS = TAGS_DO_SITE
 
 async function semViolacoes(page: Page) {
   const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze()
@@ -626,7 +627,7 @@ test.describe('a Política de Privacidade', () => {
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.17 · em vigor desde 30 de outubro de 2026'),
+      page.getByText('Versão 2.18 · em vigor desde 4 de novembro de 2026'),
     ).toBeVisible()
     const como = page.locator('[data-como-atendemos]')
     await expect(como).toContainText(

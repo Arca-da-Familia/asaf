@@ -19,9 +19,9 @@ import { listarAssociados, type AssociadoListagem } from '@/lib/api'
 // inadimplentes, não tem um gráfico") - primeiro dashboard de um módulo. Usa o mesmo dado já
 // buscado pra listagem (nenhum endpoint novo) - contagem por situação e por categoria.
 const COR_SITUACAO: Record<string, string> = {
-  'Ativo - Em Dia': '#16a34a', // mesmo verde (text-green-600) já usado no resto do painel p/ "em dia"
+  'Ativo - Em Dia': '#16a34a', // mesmo verde (text-green-700 dark:text-green-400) já usado no resto do painel p/ "em dia"
   'Ativo - Inadimplente': 'hsl(var(--destructive))',
-  'Suspenso (Estatuto)': '#d97706', // mesmo âmbar (text-amber-600) já usado p/ estado de alerta
+  'Suspenso (Estatuto)': '#d97706', // mesmo âmbar (text-amber-700 dark:text-amber-400) já usado p/ estado de alerta
   'Em Experiência': '#2563eb',
   Licenciado: '#64748b',
   Desligado: 'hsl(var(--muted-foreground))',
@@ -109,7 +109,9 @@ export function AssociadosGraficosPage() {
               <p className="text-xs font-medium uppercase text-muted-foreground">
                 Ativos em dia
               </p>
-              <p className="mt-1 text-3xl font-bold text-green-600">{emDia}</p>
+              <p className="mt-1 text-3xl font-bold text-green-700 dark:text-green-400">
+                {emDia}
+              </p>
             </div>
             <div className="rounded-xl border border-border bg-card p-6">
               <p className="text-xs font-medium uppercase text-muted-foreground">

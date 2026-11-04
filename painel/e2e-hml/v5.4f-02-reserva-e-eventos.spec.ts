@@ -2087,7 +2087,8 @@ test.describe('A. Reserva de espaço', () => {
     await mapa
       .locator('label:text-is("Espaço") + select')
       .selectOption({ label: nome })
-    const celulas = mapa.getByRole('gridcell')
+    // v9.1a: a grade virou tabela (células "cell"); a do canto, vazia, não tem rótulo
+    const celulas = mapa.locator('[role="cell"][aria-label]')
     const ocupadas = async () =>
       (
         await celulas.evaluateAll((els) =>

@@ -105,7 +105,7 @@ function FormularioCobrancaBloco() {
             {gerar.isPending ? 'Gerando…' : 'Gerar cobrança em bloco'}
           </Button>
           {gerar.isSuccess && gerar.data && (
-            <p className="text-sm text-green-600 sm:col-span-4">
+            <p className="text-sm text-green-700 dark:text-green-400 sm:col-span-4">
               Título-bloco #{gerar.data.id_titulo} gerado (
               {gerar.data.competencia} a {gerar.data.competencia_fim}) —{' '}
               {formatarReais(gerar.data.valor_original)}. Veja em Financeiro ›

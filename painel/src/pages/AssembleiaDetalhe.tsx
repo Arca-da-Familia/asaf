@@ -23,8 +23,8 @@ import { formatarData } from '@/lib/datas'
 import { justificativaManualSchema } from '@/lib/schemas'
 
 const CORES_STATUS_JUSTIFICATIVA: Record<string, string> = {
-  Pendente: 'text-amber-600',
-  Aceita: 'text-green-600',
+  Pendente: 'text-amber-700 dark:text-amber-400',
+  Aceita: 'text-green-700 dark:text-green-400',
   Rejeitada: 'text-destructive',
 }
 

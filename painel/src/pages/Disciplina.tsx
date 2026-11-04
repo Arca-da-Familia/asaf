@@ -37,11 +37,11 @@ import {
 // próprio endpoint já se auto-filtra pelo chamador (`GET /api/processos-disciplinares/`) - nunca
 // duplicado front-end de uma regra que o backend já resolve.
 const CORES_STATUS: Record<string, string> = {
-  Aberto: 'text-amber-600',
+  Aberto: 'text-amber-700 dark:text-amber-400',
   Decidido: 'text-blue-600',
   Arquivado: 'text-muted-foreground',
-  'Aguardando homologação da Assembleia': 'text-amber-600',
-  Homologado: 'text-green-600',
+  'Aguardando homologação da Assembleia': 'text-amber-700 dark:text-amber-400',
+  Homologado: 'text-green-700 dark:text-green-400',
   'Rejeitado pela Assembleia': 'text-destructive',
 }
 
@@ -240,9 +240,13 @@ function BlocoManifestacoes({ idProcesso }: { idProcesso: number }) {
           {resultado.manifestacoes}/{resultado.quorum_minimo} manifestações
           (entre {resultado.diretores_aptos} diretores aptos) ·{' '}
           {resultado.quorum_atingido ? (
-            <span className="font-medium text-green-600">Quórum atingido</span>
+            <span className="font-medium text-green-700 dark:text-green-400">
+              Quórum atingido
+            </span>
           ) : (
-            <span className="font-medium text-amber-600">Quórum pendente</span>
+            <span className="font-medium text-amber-700 dark:text-amber-400">
+              Quórum pendente
+            </span>
           )}
           {resultado.resultado !== null && (
             <>
