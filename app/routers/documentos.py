@@ -56,17 +56,27 @@ def _buscar(db: Session, id_documento: int) -> DocumentoInstitucional:
     return doc
 
 
-def _pode_baixar_original(db: Session, usuario: Usuario, doc: DocumentoInstitucional) -> bool:
+def _pode_baixar_original(db: Session, usuario: Usuario, doc: DocumentoInstitucional, permissoes: Optional[dict] = None) -> bool:
     """Original PÚBLICO: quem gere documentos. Original Interno/Restrito: só `documentos_originais`."""
+    p = permissoes or _permissoes_do_usuario(db, usuario)
     if doc.classificacao == PUBLICA:
-        return usuario_tem_permissao(db, usuario, "documentos") or usuario_tem_permissao(db, usuario, "documentos_originais")
-    return usuario_tem_permissao(db, usuario, "documentos_originais")
+        return p["documentos"] or p["documentos_originais"]
+    return p["documentos_originais"]
 
 
-def _serializar(db: Session, usuario: Usuario, doc: DocumentoInstitucional, *, com_texto_sugerido: bool = True) -> dict:
+def _permissoes_do_usuario(db: Session, usuario: Usuario) -> dict:
+    """v9.2b: as permissões que a ficha de um documento consulta, perguntadas ao banco UMA vez (a lista perguntava ~4 vezes por documento, até 300
+    documentos: 1,07 s no p95 na homologação)."""
+    return {codigo: usuario_tem_permissao(db, usuario, codigo) for codigo in ("documentos", "documentos_originais", "aprovar_publicacao")}
+
+
+def _serializar(
+    db: Session, usuario: Usuario, doc: DocumentoInstitucional, *, com_texto_sugerido: bool = True, permissoes: Optional[dict] = None,
+) -> dict:
+    p = permissoes or _permissoes_do_usuario(db, usuario)
     verificacao = json.loads(doc.verificacao_json) if doc.verificacao_json else None
     pode_aprovar = (
-        doc.situacao == EM_REVISAO and usuario_tem_permissao(db, usuario, "aprovar_publicacao")
+        doc.situacao == EM_REVISAO and p["aprovar_publicacao"]
         and usuario.id_usuario not in (doc.id_usuario_envio_revisao, doc.id_usuario_criacao)
         and not relatorio_anual.escreveu_a_apresentacao(db, usuario, doc)  # v6.3c: quem escreveu a apresentação não aprova
     )
@@ -86,10 +96,10 @@ def _serializar(db: Session, usuario: Usuario, doc: DocumentoInstitucional, *, c
         "motivo_retirada": doc.motivo_retirada, "retirado_em": doc.retirado_em,
         "criado_em": doc.criado_em, "atualizado_em": doc.atualizado_em,
         # o que ESTE usuário pode fazer agora (o painel só mostra o botão certo; o servidor confere de novo)
-        "pode_baixar_original": bool(doc.original_nome) and _pode_baixar_original(db, usuario, doc),
-        "pode_editar": doc.situacao == RASCUNHO and usuario_tem_permissao(db, usuario, "documentos"),
+        "pode_baixar_original": bool(doc.original_nome) and _pode_baixar_original(db, usuario, doc, p),
+        "pode_editar": doc.situacao == RASCUNHO and p["documentos"],
         "pode_aprovar": pode_aprovar,
-        "pode_retirar": doc.situacao == APROVADO and usuario_tem_permissao(db, usuario, "aprovar_publicacao"),
+        "pode_retirar": doc.situacao == APROVADO and p["aprovar_publicacao"],
         # v6.3a: o texto da ata, como ponto de partida da versão para o site (a pessoa retira o dado pessoal; o verificador confere)
         "texto_sugerido": servico.texto_sugerido(db, doc) if com_texto_sugerido else None,
         "so_texto": servico.e_texto_da_ata_no_site(doc),  # a ata vai ao site só em texto: o painel não oferece o PDF
@@ -162,7 +172,8 @@ def listar_documentos(
         consulta.order_by(DocumentoInstitucional.ano.desc().nullslast(), DocumentoInstitucional.id_documento.desc())
         .offset(max(deslocamento, 0)).limit(min(max(limite, 1), 1000)).all()
     )
-    return [_serializar(db, usuario, d, com_texto_sugerido=False) for d in documentos]
+    permissoes = _permissoes_do_usuario(db, usuario)
+    return [_serializar(db, usuario, d, com_texto_sugerido=False, permissoes=permissoes) for d in documentos]
 
 
 @router.post("/api/documentos", summary="Cadastrar um documento (e, se vier, o arquivo ORIGINAL, que fica em armazenamento privado)")
