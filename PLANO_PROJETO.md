@@ -1813,6 +1813,9 @@ fazer o primeiro ensaio e a primeira revisão anual pela tela.
 
 ### FASE 8 — Infraestrutura e Deploy (Azure)
 
+> ✅ **FASE 8 FECHADA em 2026-11-04, com o OK do Presidente** ("pode fechar... fazer um encerramento dessa fase. Eu acredito que está tudo em ordem. E o
+> que não tiver, a gente vai resolvendo no futuro"). Os dois Pontos de Revisão fechados (1/2 em 03/11, 2/2 em 04/11). Tudo em produção (API `95fc93c`).
+
 > ✅ Boa parte desta fase **já foi executada na v0.0** (provisionamento real e CI/CD funcionando).
 > O que segue expande o que ainda falta para transformar "está no ar" em "opera bem por 20 anos".
 
@@ -1987,6 +1990,25 @@ teto de US$ 100/mês; próxima revisão em fevereiro de 2027 (o crédito de ONG 
       mudar]**
 
 ##### 🔍 Ponto de Revisão — FASE 8 (2/2 — fim, fecha v8.4–v8.5)
+
+✅ **FEITO e FECHADO em 2026-11-04, com o OK do Presidente.** Checklist 4.1: (1) cada `[x]` da v8.4 e da v8.5 tem a prova escrita no próprio item; (2) e (9)
+suíte completa 1861 testes em duas rodadas e no Postgres do CI (a migração `ccf5cbf31408` desce e sobe); (3) nenhuma decisão congelada tocada (mesmo banco,
+framework, pacotes; nenhum `requirements`/`package.json`/`Dockerfile` mudou); (4) varredura de credenciais nos 22 arquivos que mudaram desde o Ponto 1/2
+(`dbfceb6..72d646f`): nada; as rotinas novas mascaram a senha e ligam o registro seguro (teste); (5) e (6) nenhuma ação sensível nem permissão nova: o
+`/health` só diz "ok/falha" sem dado e está na lista de rotas sem login (teste), a revisão de desempenho só lê; (7) nada adiantado de outra fase; (8) plano
+em dia; (10) e (11) não se aplicam (operação, sem tela para o usuário; o que é para gente está no `RUNBOOK.md`); (12) `main` = o que está no ar: API
+`asaf-api--0000180` saudável com a imagem 95fc93c, `/health` ok.
+
+**Específicos:** `/health` verifica banco e armazenamento DE VERDADE (grava, lê e apaga uma sonda; 503 dizendo o que falhou; testado) — ✔. Gatilhos de
+escala calibrados com dado real (30 dias de produção + o teste de carga de 08/10, cada número ao lado do medido em `infra/config/gatilhos-de-escala.env`)
+— ✔. **Runbook seguido por quem não construiu: NÃO feito** — o Presidente preferiu fechar a fase assim ("o que não tiver, a gente vai resolvendo no
+futuro"); fica como a primeira coisa a fazer quando houver alguém técnico novo ou num ensaio (ex.: restaurar uma cópia na homologação seguindo a seção 6).
+
+**Fica para o futuro (registrado, sem bloquear):** (a) confirmar na 1ª revisão agendada (15/01/2027) que o `pg_stat_statements` ficou instalado na
+produção (o Claude Code bloqueou disparar a revisão contra a produção); (b) os segredos do Container App são CÓPIAS do cofre, não referências (recomendação
+da v8.4, manual seção 7); (c) a homologação mostrou pico de 33 conexões no mês passado, antes do novo limite da API (4+1 por cópia): a próxima revisão diz
+se baixou; (d) o crédito de ONG vence em 05/02/2027 (custo e plano de saída prontos: `RUNBOOK.md` 9 e 11.6, `SAIDA_DO_AZURE.md`).
+
 
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 
