@@ -78,7 +78,7 @@ describe('O sino do painel', () => {
     })
     desenhar(<SinoDeAvisos />)
     expect(
-      await screen.findByRole('button', { name: 'Notificações (2 novas)' }),
+      await screen.findByRole('button', { name: 'Notificações: 2 novas' }),
     ).toBeInTheDocument()
   })
 
@@ -101,7 +101,7 @@ describe('O sino do painel', () => {
     })
     const { container } = desenhar(<SinoDeAvisos />)
     await u.click(
-      await screen.findByRole('button', { name: 'Notificações (2 novas)' }),
+      await screen.findByRole('button', { name: 'Notificações: 2 novas' }),
     )
     const painel = await screen.findByRole('region', {
       name: 'Avisos do painel',
