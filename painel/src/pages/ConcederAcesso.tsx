@@ -48,11 +48,11 @@ export function ConcederAcessoPage() {
         <section className="rounded-xl border border-border bg-card p-6">
           <p className="mb-4 text-sm">
             Entregue estes dados ao associado. Ele será obrigado a trocar a
-            senha no primeiro login.
+            senha na primeira vez que entrar.
           </p>
           <dl className="mb-6 v3-space-y-2 text-sm">
             <div className="flex gap-2">
-              <dt className="text-muted-foreground">E-mail de login:</dt>
+              <dt className="text-muted-foreground">E-mail para entrar:</dt>
               <dd className="font-mono">{senhaEntregue.email}</dd>
             </div>
             <div className="flex gap-2">
@@ -88,7 +88,9 @@ export function ConcederAcessoPage() {
           {(form) => (
             <>
               <div>
-                <label className="text-sm font-medium">E-mail de login</label>
+                <label className="text-sm font-medium">
+                  E-mail para entrar
+                </label>
                 <input
                   {...form.register('email')}
                   className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"

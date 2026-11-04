@@ -40,7 +40,7 @@ export const mensagens = {
     verificar: 'Verificar',
     verificando: 'Verificando…',
     cpfInvalido: 'CPF inválido. Confira os dígitos e tente novamente.',
-    sessaoExpirada: 'Sessão de login expirada. Volte e tente novamente.',
+    sessaoExpirada: 'O tempo para entrar acabou. Volte e tente de novo.',
     usarRecuperacao: 'Usar código de recuperação',
     usarAutenticador: 'Usar código do autenticador',
   },

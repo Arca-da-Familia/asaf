@@ -99,7 +99,7 @@ export function Login() {
     setErro(null)
 
     if (!loginTempToken) {
-      setErro('Sessão de login expirada. Volte e tente novamente.')
+      setErro('O tempo para entrar acabou. Volte e tente de novo.')
       return
     }
 

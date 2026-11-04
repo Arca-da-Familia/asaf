@@ -310,7 +310,7 @@ function BlocoTitulos() {
             }}
             className={classeDoCampo}
           >
-            <option value="">Todos os status</option>
+            <option value="">Todas as situações</option>
             <option value="Pendente">Pendente</option>
             <option value="Pago">Pago</option>
             <option value="Cancelado">Cancelado</option>

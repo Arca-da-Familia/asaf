@@ -169,8 +169,8 @@ function FaixaStatusFila({
         {sincronizando
           ? 'Sincronizando…'
           : pendentes > 0
-            ? `${pendentes} registro(s) aguardando sincronizar`
-            : 'Tudo sincronizado'}
+            ? `${pendentes} registro(s) esperando para enviar`
+            : 'Tudo enviado'}
       </span>
     </div>
   )
@@ -192,7 +192,7 @@ function CartaoConfirmacao({
       ? 'Sincronizado com o servidor.'
       : item.status === 'erro'
         ? `Recusado pelo servidor: ${item.ultimo_erro ?? 'motivo não informado.'}`
-        : 'Registrado neste aparelho — sincronizando…'
+        : 'Registrado neste aparelho — enviando…'
 
   const valorLido = item.payload.codigo ?? item.payload.token_carteirinha ?? ''
 
@@ -513,7 +513,7 @@ function PortariaGateConteudo({ token }: { token: string }) {
               placeholder={
                 metodo === 'codigo'
                   ? 'EX.: A1B2C3D4'
-                  : 'Cole o token ou use a câmera'
+                  : 'Cole o código ou use a câmera'
               }
               className="h-14 w-full rounded-md border border-input bg-background px-4 text-center text-2xl tracking-widest"
             />
@@ -591,7 +591,7 @@ function PortariaGateConteudo({ token }: { token: string }) {
 
       <p className="text-center text-xs text-muted-foreground">
         Crachás e certificados são gerados pela organização depois que este
-        aparelho sincronizar — nada é gerado aqui.
+        aparelho enviar os registros — nada é gerado aqui.
       </p>
     </main>
   )

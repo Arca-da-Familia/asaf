@@ -701,8 +701,8 @@ function BlocoDocumentoAssinado({
       {ata.arquivo_documento_assinado && (
         <p className="mb-3 text-xs text-muted-foreground">
           O documento tem dados pessoais (RG, CPF): fica em área privada e só
-          baixa quem tem a permissão de originais sigilosos. Cada download fica
-          registrado.
+          baixa quem tem a permissão de originais sigilosos. Cada vez que alguém
+          baixa, fica registrado.
         </p>
       )}
       {erroDoDownload && (

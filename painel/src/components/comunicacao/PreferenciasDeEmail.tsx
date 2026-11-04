@@ -69,8 +69,8 @@ export function PreferenciasDeEmail() {
         </p>
       ) : !data.tem_cadastro ? (
         <p className="text-sm text-muted-foreground">
-          Seu login não está ligado a um cadastro de associado: não há e-mails
-          da ASAF para escolher.
+          A sua conta de acesso não está ligada a um cadastro de associado: não
+          há e-mails da ASAF para escolher.
         </p>
       ) : (
         <>

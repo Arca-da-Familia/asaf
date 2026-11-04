@@ -118,7 +118,10 @@ describe('Títulos: filtros por mês, categoria, texto e paginação', () => {
     const u = userEvent.setup()
     desenhar()
     await screen.findByText(/— Mensalidade 1/)
-    await u.selectOptions(screen.getByDisplayValue('Todos os status'), 'Pago')
+    await u.selectOptions(
+      screen.getByDisplayValue('Todas as situações'),
+      'Pago',
+    )
     await waitFor(() =>
       expect(api.listarTitulos).toHaveBeenLastCalledWith(
         expect.objectContaining({ status: 'Pago', pagina: 1 }),

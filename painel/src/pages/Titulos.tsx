@@ -710,7 +710,7 @@ export function TitulosPage({
               onChange={(e) => mudar({ status: e.target.value })}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm"
             >
-              <option value="">Todos os status</option>
+              <option value="">Todas as situações</option>
               <option value="Pendente">Pendente</option>
               <option value="Pago">Pago</option>
               <option value="Renegociado">Renegociado</option>

@@ -277,8 +277,8 @@ export function DocumentoNovoPage() {
             onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
           />
           <span className="mt-1 block text-muted-foreground">
-            Fica em área privada: ninguém de fora enxerga, e cada download é
-            registrado.
+            Fica em área privada: ninguém de fora enxerga, e cada vez que alguém
+            baixa, isso é registrado.
           </span>
         </label>
 

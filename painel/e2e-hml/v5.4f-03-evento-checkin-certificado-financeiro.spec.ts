@@ -60,7 +60,7 @@ const P_CANCELADA = `Pessoa Cancelada ${RODADA}`
 const CODIGO_CENTRO = `EV-${RODADA}`
 const NOME_CENTRO = `Centro do congresso ${RODADA}`
 const SECAO_INSCRITOS = 'Inscritos no evento (autoatendimento pelo painel)'
-const SECAO_PORTARIA = 'Portaria (check-in sem login)'
+const SECAO_PORTARIA = 'Portaria (check-in sem senha)'
 const SECAO_ELEGIBILIDADE = 'Elegibilidade, crachá e certificado'
 const SECAO_EXPORTAR_PRESENCAS = 'Exportar presença/elegibilidade'
 const cpfDa = (n: number) =>
@@ -1138,7 +1138,7 @@ test.describe('C. Inscritos do evento', () => {
     await linhaDaCancelada.locator('select').selectOption('Cancelado')
     await expect(statusDe(linhaDaCancelada)).toHaveText('Cancelado')
     await expect(linhaDaCancelada.locator('select option')).toHaveText([
-      'Alterar status…',
+      'Mudar a situação…',
       'Pré-inscrito',
     ])
     await inscritos.locator('select').first().selectOption('Cancelado')
@@ -1432,7 +1432,7 @@ test.describe('D. Crachá e portaria', () => {
         0,
       )
       await expect(portaria.getByText('Conectado')).toBeVisible()
-      await expect(portaria.getByText('Tudo sincronizado')).toBeVisible()
+      await expect(portaria.getByText('Tudo enviado')).toBeVisible()
       await ver(portaria, info, 'portaria aberta sem login')
       await inventariarSemTravar(portaria, info, 'portaria')
 
@@ -2179,7 +2179,7 @@ test.describe('H. Exportações', () => {
     await expect(tabela.locator('tbody tr')).toHaveCount(4)
     await expect(tabela.locator('th')).toHaveText([
       'Nome',
-      'Status',
+      'Situação',
       'Inscrito em',
     ])
     const esperado: Record<string, string> = {
@@ -2212,7 +2212,7 @@ test.describe('H. Exportações', () => {
       exact: true,
     })
     const rotulos = [
-      'ID da pessoa',
+      'Número da pessoa',
       'Nome completo',
       'Percentual de presença',
       'Limite mínimo aplicado',

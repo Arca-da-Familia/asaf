@@ -1310,8 +1310,7 @@ export const isencaoTaxaCriarSchema = z
       .max(100, 'Informe um percentual entre 0 e 100.'),
   })
   .refine((v) => v.id_associado != null || v.id_pessoa_manual != null, {
-    message:
-      'Selecione um associado ou informe o ID da pessoa manualmente (avançado).',
+    message: 'Escolha um associado ou informe o número da pessoa (avançado).',
     path: ['id_associado'],
   })
 

@@ -764,7 +764,7 @@ test.describe('A. Quem pode e o que cada tela da receita oferece', () => {
       page.getByRole('button', { name: 'Novo título', exact: true }),
     ).toBeVisible()
     await expect(
-      seletorCom(corpoDaPagina(page), 'Todos os status'),
+      seletorCom(corpoDaPagina(page), 'Todas as situações'),
     ).toBeVisible()
     await expect(
       seletorCom(corpoDaPagina(page), 'Todos os tipos'),
@@ -2377,7 +2377,7 @@ test.describe('C. Títulos, baixa, pagamento a maior, crédito e negociação de
 
     // os filtros da tela de Títulos: Pago x Pendente, A Receber x A Pagar
     await page.goto('/financeiro/titulos?periodo=todos')
-    const porStatus = seletorCom(corpoDaPagina(page), 'Todos os status')
+    const porStatus = seletorCom(corpoDaPagina(page), 'Todas as situações')
     const porTipo = seletorCom(corpoDaPagina(page), 'Todos os tipos')
     await porStatus.selectOption('Pago')
     await expect(cartaoDeTitulo(page, D.t1)).toBeVisible()

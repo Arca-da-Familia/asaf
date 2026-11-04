@@ -455,7 +455,7 @@ export function ProcessoDisciplinarDetalhePage() {
           <h2 className="mb-2 font-semibold">Decidir</h2>
           <p className="mb-2 text-xs text-muted-foreground">
             Só aceito depois que a defesa foi apresentada ou o prazo esgotou
-            (Art. 16), e com o quórum de manifestações atingido - o backend
+            (Art. 16), e com o quórum de manifestações atingido - o sistema
             recusa se algum dos dois não valer ainda.
           </p>
           <FormShell<z.infer<typeof decisaoExecutarSchema>>

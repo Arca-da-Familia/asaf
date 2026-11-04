@@ -494,14 +494,14 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
       <div className="mb-3 flex flex-wrap items-end gap-2">
         <div>
           <label className="mb-1 block text-xs text-muted-foreground">
-            Status
+            Situação
           </label>
           <select
             value={statusFiltro}
             onChange={(e) => setStatusFiltro(e.target.value)}
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           >
-            <option value="">Todos os status</option>
+            <option value="">Todas as situações</option>
             {STATUS_RESERVA.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -548,7 +548,7 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
                 <th className="px-3 py-2 font-medium">Início</th>
                 <th className="px-3 py-2 font-medium">Fim</th>
                 <th className="px-3 py-2 font-medium">Finalidade</th>
-                <th className="px-3 py-2 font-medium">Status</th>
+                <th className="px-3 py-2 font-medium">Situação</th>
               </tr>
             </thead>
             <tbody>
@@ -1034,8 +1034,8 @@ function SecaoIsencoesEspaco({ idEspaco }: { idEspaco: number }) {
       </h3>
       <p className="mb-3 text-xs text-muted-foreground">
         Vale pra qualquer reserva futura desta pessoa neste espaço. Selecione um
-        associado cadastrado ou, se a pessoa não for associada, informe o ID da
-        pessoa manualmente.
+        associado cadastrado ou, se a pessoa não for associada, informe o número
+        da pessoa.
       </p>
       <FormShell<z.infer<typeof isencaoTaxaCriarSchema>>
         schema={isencaoTaxaCriarSchema}
@@ -1070,7 +1070,7 @@ function SecaoIsencoesEspaco({ idEspaco }: { idEspaco: number }) {
                 {...form.register('id_pessoa_manual', {
                   setValueAs: (v) => (v === '' ? undefined : Number(v)),
                 })}
-                placeholder="ou ID da pessoa (avançado)"
+                placeholder="ou número da pessoa (avançado)"
                 className="h-9 w-48 rounded-md border border-input bg-background px-3 text-sm"
               />
             </div>

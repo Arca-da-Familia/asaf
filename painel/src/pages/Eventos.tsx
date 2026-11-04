@@ -766,7 +766,7 @@ function LinhaInscrito({
             }}
             className="h-8 rounded-md border border-input bg-background px-2 text-xs"
           >
-            <option value="">Alterar status…</option>
+            <option value="">Mudar a situação…</option>
             {transicoes.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -836,7 +836,7 @@ function SecaoInscritos({ evento }: { evento: Evento }) {
           onChange={(e) => setStatus(e.target.value)}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         >
-          <option value="">Todos os status</option>
+          <option value="">Todas as situações</option>
           {STATUS_INSCRICAO.map((s) => (
             <option key={s} value={s}>
               {s}
@@ -862,7 +862,7 @@ function SecaoInscritos({ evento }: { evento: Evento }) {
             <thead>
               <tr className="border-b border-border bg-muted/50">
                 <th className="px-3 py-2 font-medium">Nome</th>
-                <th className="px-3 py-2 font-medium">Status</th>
+                <th className="px-3 py-2 font-medium">Situação</th>
                 <th className="px-3 py-2 font-medium">Inscrito em</th>
               </tr>
             </thead>
@@ -1361,7 +1361,7 @@ function SecaoIsencoesEvento({ idEvento }: { idEvento: number }) {
       <p className="mb-3 text-xs text-muted-foreground">
         Vale pra qualquer inscrição futura desta pessoa neste evento. Selecione
         um associado cadastrado ou, se a pessoa não for associada (ex.:
-        palestrante convidado), informe o ID da pessoa manualmente.
+        palestrante convidado), informe o número da pessoa.
       </p>
       <FormShell<z.infer<typeof isencaoTaxaCriarSchema>>
         schema={isencaoTaxaCriarSchema}
@@ -1396,7 +1396,7 @@ function SecaoIsencoesEvento({ idEvento }: { idEvento: number }) {
                 {...form.register('id_pessoa_manual', {
                   setValueAs: (v) => (v === '' ? undefined : Number(v)),
                 })}
-                placeholder="ou ID da pessoa (avançado)"
+                placeholder="ou número da pessoa (avançado)"
                 className="h-9 w-48 rounded-md border border-input bg-background px-3 text-sm"
               />
             </div>
@@ -1624,7 +1624,7 @@ function SecaoFechamentoEvento({ idEvento }: { idEvento: number }) {
 
 // ==========================================
 // PORTARIA (v4.8) - emitir/listar/revogar o link `/portaria/:token` que a organização passa pra
-// quem vai operar o check-in na entrada, sem precisar logar no painel (ver
+// quem vai operar o check-in na entrada, sem precisar entrar no painel (ver
 // painel/src/pages/PortariaGate.tsx). Gate de permissão própria (`gerenciar_checkin_evento`),
 // igual ao resto desta seção - ver app/routers/eventos.py.
 // ==========================================
@@ -1667,12 +1667,12 @@ function SecaoPortaria({ idEvento }: { idEvento: number }) {
   return (
     <div>
       <h3 className="mb-2 text-sm font-semibold">
-        Portaria (check-in sem login)
+        Portaria (check-in sem senha)
       </h3>
       <p className="mb-3 text-sm text-muted-foreground">
         Gere um link pra quem vai operar o check-in na entrada do evento — abre
-        num celular/tablet sem precisar logar no painel, e continua registrando
-        mesmo se a internet do local cair (sincroniza depois).
+        num celular/tablet sem precisar entrar no painel, e continua registrando
+        mesmo se a internet do local cair (envia depois).
       </p>
       <FormShell<z.infer<typeof tokenPortariaCriarSchema>>
         schema={tokenPortariaCriarSchema}
@@ -2116,7 +2116,7 @@ function SecaoElegibilidade({ evento }: { evento: Evento }) {
 // auditada no backend.
 // ==========================================
 const COLUNAS_EXPORTAVEIS_PRESENCA: { chave: string; rotulo: string }[] = [
-  { chave: 'id_pessoa', rotulo: 'ID da pessoa' },
+  { chave: 'id_pessoa', rotulo: 'Número da pessoa' },
   { chave: 'nome_completo', rotulo: 'Nome completo' },
   { chave: 'percentual', rotulo: 'Percentual de presença' },
   { chave: 'limite_aplicado', rotulo: 'Limite mínimo aplicado' },
