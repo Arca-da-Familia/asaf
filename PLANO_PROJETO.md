@@ -2066,16 +2066,34 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 
 #### v9.2 — Performance
 
-- [ ] Metas medidas, não adjetivos: Core Web Vitals (LCP < 2,5s, INP < 200ms, CLS < 0,1) no site
+- [x] Metas medidas, não adjetivos: Core Web Vitals (LCP < 2,5s, INP < 200ms, CLS < 0,1) no site
       público, e tempo de resposta de API abaixo de 500ms no p95 para as rotas de leitura mais
-      usadas.
+      usadas. **[v9.2 (2026-11-04): SITE: o Lighthouse (celular com 4G lenta simulada, 16 páginas, 3 rodadas) agora REPROVA a publicação acima das metas
+      (`site/lighthouserc.json`: LCP ≤ 2,5 s, CLS ≤ 0,1, TBT ≤ 200 ms, o substituto de laboratório do INP); medido: LCP máximo 1,73 s (mediana 0,9 s),
+      CLS máximo 0,054, TBT 0. API: robô da homologação `v9.2b-01` abre as 10 telas do dia a dia 20 vezes e mede o p95 de cada leitura PELO TEMPO DO
+      SERVIDOR (cabeçalho `Server-Timing`, novo em `app/main.py`: a máquina do GitHub fica fora do Brasil e só a rede gastava 300–500 ms em qualquer
+      leitura). A 1ª medição achou 4 leituras lentas e todas foram corrigidas: lista de títulos 3,7 s → 0,13 s (carregava todos os associados e o nome de
+      um em um), documentos 1,07 s → 0,12 s (perguntava as permissões ~4 vezes por documento), contas financeiras 0,8 s → 0,22 s (saldo somado pelo
+      banco, não no Python), e 25 índices que faltavam (`app/models/indices_de_desempenho.py`, migração `63e4f4c4065a`, teste confere modelo = migração).
+      Resultado na homologação: TODAS as leituras com p95 no servidor ≤ 218 ms. Produção: `bc6bf7e`, migração aplicada, `Server-Timing` respondendo]**
 - [ ] Imagens em formato moderno com `srcset` responsivo e carregamento preguiçoso; assets
-      versionados com cache longo.
+      versionados com cache longo. **[em parte (v9.2): os arquivos do site (`/_astro/`) e do painel (`/assets/`) com cache de um ano; as fotos com
+      carregamento preguiçoso e tamanho reservado; as das notícias já em WebP de até 1.280 px. FALTA (v9.2c): as fotos de eventos, Diretoria e parcerias
+      saem em JPEG de até 2.000 px, sem `srcset`]**
 - [ ] Paginação server-side obrigatória em toda listagem (nenhuma tela carrega "todos os
-      associados"), com índice de banco correspondente a cada filtro exposto.
-- [ ] Orçamento de performance no CI (tamanho do bundle do painel) — painel que cresce sem
-      vigilância fica lento em 3 anos, em celular modesto, que é o aparelho real do público.
-- [ ] Otimização para conexão ruim: o público da associação acessa por rede móvel instável.
+      associados"), com índice de banco correspondente a cada filtro exposto. **[em parte (v9.2): os 25 índices dos filtros mais usados (acima); as
+      listas que mais crescem já paginam no servidor (associados, títulos, Auditoria, atendimentos, avisos, livro-caixa, documentos, doações do site,
+      consentimentos, Conselho Fiscal). FALTA (v9.2c): ~20 listas ainda vêm inteiras (eventos, inscrições, presenças, reservas, doações, beneficiários,
+      documentos emitidos, fornecedores, compras, reembolsos, titulares...), com a trava de teste para lista nova sem paginação]**
+- [x] Orçamento de performance no CI (tamanho do bundle do painel) — painel que cresce sem
+      vigilância fica lento em 3 anos, em celular modesto, que é o aparelho real do público. **[v9.2a: o painel saía num arquivo só de 2 MB (516 KB
+      compactados) que a tela de entrar baixava inteiro; agora as 91 telas vêm sob demanda (`src/lib/carregar-tela.ts`, que recarrega uma vez se uma
+      publicação nova trocou os pedaços) e a primeira tela baixa 178 KB. `scripts/orcamento-de-tamanho.mjs` reprova a publicação se a primeira tela
+      passar de 220 KB ou um pedaço de 200 KB (teste prova que reprova). Robô da homologação abriu as 88 telas sob demanda sem nenhum achado do axe]**
+- [x] Otimização para conexão ruim: o público da associação acessa por rede móvel instável. **[v9.2: o que pesa numa rede ruim é baixar: a
+      primeira tela do painel caiu 65% (sob demanda), os pedaços do painel ficam guardados no celular por um ano (`staticwebapp.config.json`; o
+      `index.html` e o `version.json` nunca ficam velhos), o Início do Financeiro deixou de baixar todos os títulos em aberto (pede as somas prontas e só
+      os 5 próximos vencimentos), e o site é medido e travado com 4G lenta simulada. O que ainda pesa: as listas sem paginação (item abaixo)]**
 
 ##### 🔍 Ponto de Revisão — FASE 9 (1/2 — meio, fecha v9.1–v9.2)
 
