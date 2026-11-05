@@ -205,7 +205,8 @@ def listar_solicitacoes(status: str = None, db: Session = Depends(get_db), _usua
     consulta = db.query(SolicitacaoCompra)
     if status:
         consulta = consulta.filter(SolicitacaoCompra.status == status)
-    solicitacoes = consulta.order_by(SolicitacaoCompra.data_solicitacao.desc()).all()
+    # v9.3b: a mais nova primeiro, com desempate pelo número (várias no mesmo dia): a tela divide a lista em páginas e a recém-criada tem de estar na 1ª
+    solicitacoes = consulta.order_by(SolicitacaoCompra.data_solicitacao.desc(), SolicitacaoCompra.id_solicitacao.desc()).all()
     return [
         {
             "id_solicitacao": s.id_solicitacao, "descricao": s.descricao, "justificativa": s.justificativa,

@@ -436,3 +436,14 @@ def test_titulo_do_reembolso_diz_a_quem_pagar_sem_prender_o_titulo_ao_associado(
     titulo = next(t for t in client.get("/api/titulos/", headers=auth_headers).json() if t["id_titulo"] == r.json()["id_titulo_gerado"])
     assert "(a pagar a " in titulo["descricao"]
     assert titulo.get("id_associado") is None  # nunca conta como dívida do associado
+
+
+def test_lista_de_solicitacoes_vem_da_mais_nova_com_desempate_pelo_numero(client, auth_headers):
+    """v9.3b: a tela de Compras divide a lista em páginas; várias solicitações do MESMO dia têm de vir da mais nova para a mais antiga (desempate pelo
+    número), senão a recém-criada pode cair fora da 1ª página."""
+    conta = _criar_conta(client, auth_headers, "4.1.9930", "Despesa")
+    ids = [_criar_solicitacao(client, auth_headers, conta, valor=10 + i) for i in range(4)]
+    r = client.get("/api/solicitacoes-compra/", headers=auth_headers)
+    assert r.status_code == 200
+    da_lista = [s["id_solicitacao"] for s in r.json() if s["id_solicitacao"] in ids]
+    assert da_lista == sorted(ids, reverse=True)

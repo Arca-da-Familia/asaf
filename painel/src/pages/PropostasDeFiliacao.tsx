@@ -3,6 +3,7 @@ import { Inbox } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 
+import { Paginador } from '@/components/data/Paginador'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { CpfProtegido } from '@/components/display/CpfProtegido'
@@ -19,6 +20,7 @@ import {
 } from '@/lib/api'
 import { PERMISSAO_VER_CPF_COMPLETO } from '@/lib/cpf-protegido'
 import { formatarData } from '@/lib/datas'
+import { usePaginaLocal } from '@/lib/pagina-local'
 import { useMe } from '@/lib/use-me'
 import { LerAviso } from '@/components/privacidade/LerAviso'
 
@@ -41,12 +43,16 @@ const campoClasse =
 
 // v1.2 no servidor, caixa de entrada só na v5.4c (achado AO VIVO na homologação, 2026-10-05): propor, conferir, recusar e aprovar
 // filiação eram rotas testadas que nenhuma tela chamava — quem recebe o pedido de uma pessoa não tinha onde atendê-lo.
+const POR_PAGINA_PROPOSTAS = 15
+
 export function PropostasDeFiliacaoPage() {
   const [situacao, setSituacao] = useState('')
   const { data: propostas, isLoading } = useQuery({
     queryKey: ['propostas-filiacao', situacao],
     queryFn: () => listarPropostasDeFiliacao(situacao || undefined),
   })
+  // v9.3b: 15 por página (a lista inteira chegava a 47 alturas de tela num notebook); a mais nova primeiro (ordem do servidor)
+  const paginacao = usePaginaLocal(propostas, POR_PAGINA_PROPOSTAS, situacao)
 
   return (
     <>
@@ -87,11 +93,20 @@ export function PropostasDeFiliacaoPage() {
           descricao="Quando alguém propuser filiação, o pedido aparece nesta lista."
         />
       ) : (
-        <ul className="v3-space-y-4">
-          {propostas.map((p) => (
-            <Proposta key={p.id_proposta} proposta={p} />
-          ))}
-        </ul>
+        <>
+          <ul className="v3-space-y-4">
+            {paginacao.daPagina.map((p) => (
+              <Proposta key={p.id_proposta} proposta={p} />
+            ))}
+          </ul>
+          <Paginador
+            pagina={paginacao.pagina}
+            porPagina={paginacao.porPagina}
+            total={paginacao.total}
+            aoMudar={paginacao.setPagina}
+            rotulo="Páginas das propostas"
+          />
+        </>
       )}
     </>
   )

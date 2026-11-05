@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { formatarData } from '@/lib/datas'
 import { z } from 'zod'
 
+import { Paginador } from '@/components/data/Paginador'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ import {
   registrarCotacaoCompra,
   reprovarSolicitacaoCompra,
 } from '@/lib/api'
+import { usePaginaLocal } from '@/lib/pagina-local'
 import {
   cotacaoCompraCriarSchema,
   reprovarSolicitacaoSchema,
@@ -241,6 +243,8 @@ export function ComprasPage() {
     queryKey: ['solicitacoes-compra'],
     queryFn: () => listarSolicitacoesCompra(),
   })
+  // v9.3b: 10 por página (a lista inteira chegava a 20 alturas de tela num notebook); a mais nova primeiro (ordem do servidor)
+  const paginacao = usePaginaLocal(solicitacoes, 10)
   const { data: contas } = useQuery({
     queryKey: ['plano-contas'],
     queryFn: listarPlanoContas,
@@ -352,7 +356,7 @@ export function ComprasPage() {
         )}
 
         <div className="v3-space-y-2">
-          {(solicitacoes ?? []).map((s) => (
+          {paginacao.daPagina.map((s) => (
             <div
               key={s.id_solicitacao}
               className="rounded-md border border-border p-3 text-sm"
@@ -431,6 +435,13 @@ export function ComprasPage() {
             </p>
           )}
         </div>
+        <Paginador
+          pagina={paginacao.pagina}
+          porPagina={paginacao.porPagina}
+          total={paginacao.total}
+          aoMudar={paginacao.setPagina}
+          rotulo="Páginas das solicitações de compra"
+        />
       </section>
     </>
   )
