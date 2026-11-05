@@ -26,3 +26,22 @@
     font-size: 16px;
   }
 }
+
+/* v9.3a (robô de usabilidade no celular): no celular, a caixinha de marcar (e a bolinha de escolher) passa a 24 px, o mínimo de alvo de toque do critério
+   2.5.8 da WCAG 2.2 (a do navegador tem 13 px, difícil de acertar com o dedo); e todo link ou botão que é uma "caixa" (não o link no meio de um texto)
+   tem pelo menos 24 px de altura. Na camada base: uma classe explícita da tela (ex.: `min-h-0`) ainda manda. */
+@layer base {
+  @media (max-width: 639.98px) {
+    input[type='checkbox'],
+    input[type='radio'] {
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+    a,
+    button,
+    [role='button'],
+    summary {
+      min-height: 1.5rem;
+    }
+  }
+}

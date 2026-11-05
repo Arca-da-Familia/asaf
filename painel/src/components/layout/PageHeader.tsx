@@ -28,7 +28,10 @@ export function PageHeader({
             <span key={item.rotulo} className="flex items-center gap-1">
               {i > 0 && <ChevronRight className="h-4 w-4" />}
               {item.href ? (
-                <Link to={item.href} className="hover:text-foreground">
+                <Link
+                  to={item.href}
+                  className="inline-flex min-h-7 items-center hover:text-foreground"
+                >
                   {item.rotulo}
                 </Link>
               ) : (

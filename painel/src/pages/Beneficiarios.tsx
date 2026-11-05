@@ -151,7 +151,7 @@ function SecaoExportarBeneficiarios({
           role="region"
           aria-label="Beneficiários"
           tabIndex={0}
-          className="mt-3 overflow-x-auto rounded-md border border-border"
+          className="mt-3 relative overflow-x-auto rounded-md border border-border"
         >
           <table className="w-full text-left text-sm">
             <thead>

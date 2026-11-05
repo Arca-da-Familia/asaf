@@ -278,7 +278,7 @@ export function ImportarAssociadosPage() {
             na validação básica. Linhas com possível duplicidade precisam de uma
             decisão antes de continuar.
           </p>
-          <div className="max-h-[28rem] overflow-auto rounded-md border border-border">
+          <div className="relative max-h-[28rem] overflow-auto rounded-md border border-border">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-muted">
                 <tr>

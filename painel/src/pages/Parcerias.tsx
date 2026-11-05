@@ -164,7 +164,7 @@ export function ParceriasPage() {
           role="region"
           aria-label="Parcerias"
           tabIndex={0}
-          className="overflow-x-auto rounded-md border border-border"
+          className="relative overflow-x-auto rounded-md border border-border"
         >
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Parcerias e emendas</caption>

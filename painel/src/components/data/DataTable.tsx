@@ -157,7 +157,7 @@ export function DataTable<T extends RowData>({
         role="region"
         aria-label={rotulo}
         tabIndex={0}
-        className="overflow-x-auto rounded-lg border border-border"
+        className="relative overflow-x-auto rounded-lg border border-border"
       >
         <table className="w-full text-sm">
           <thead>
@@ -185,7 +185,7 @@ export function DataTable<T extends RowData>({
                       <button
                         type="button"
                         onClick={header.column.getToggleSortingHandler()}
-                        className="inline-flex items-center gap-1 hover:text-foreground"
+                        className="inline-flex min-h-7 items-center gap-1 hover:text-foreground"
                       >
                         {flexRender(
                           header.column.columnDef.header,

@@ -60,7 +60,7 @@ export function SecaoParcelas({
           role="region"
           aria-label="Parcelas"
           tabIndex={0}
-          className="overflow-x-auto rounded-md border border-border"
+          className="relative overflow-x-auto rounded-md border border-border"
         >
           <table className="w-full text-left text-sm">
             <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">

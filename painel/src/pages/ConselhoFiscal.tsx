@@ -411,7 +411,7 @@ function BlocoCaixa() {
         role="region"
         aria-label="Títulos"
         tabIndex={0}
-        className="overflow-x-auto"
+        className="relative overflow-x-auto"
       >
         <table className="w-full text-sm">
           <thead>

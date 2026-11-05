@@ -74,7 +74,7 @@ export function SinoDeAvisos() {
         {naoLidas > 0 && (
           <span
             aria-hidden="true"
-            className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-white"
+            className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-xs font-semibold text-white"
           >
             {naoLidas > 9 ? '9+' : naoLidas}
           </span>

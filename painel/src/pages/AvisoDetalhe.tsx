@@ -255,7 +255,7 @@ export function AvisoDetalhePage() {
               role="region"
               aria-label="Quem leu o aviso"
               tabIndex={0}
-              className="overflow-x-auto rounded-xl border border-border"
+              className="relative overflow-x-auto rounded-xl border border-border"
             >
               <table className="w-full text-sm">
                 <thead className="bg-muted text-left">

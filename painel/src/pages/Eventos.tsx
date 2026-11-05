@@ -644,7 +644,7 @@ function ComparacaoEdicoes({ idEvento }: { idEvento: number }) {
       role="region"
       aria-label="Inscrições"
       tabIndex={0}
-      className="mt-4 overflow-x-auto"
+      className="mt-4 relative overflow-x-auto"
     >
       <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
         Comparação entre edições
@@ -856,7 +856,7 @@ function SecaoInscritos({ evento }: { evento: Evento }) {
           role="region"
           aria-label="Tabela do evento"
           tabIndex={0}
-          className="mb-3 overflow-x-auto rounded-md border border-border"
+          className="mb-3 relative overflow-x-auto rounded-md border border-border"
         >
           <table className="w-full text-left text-sm">
             <thead>
@@ -2188,7 +2188,7 @@ function SecaoExportarPresencas({ idEvento }: { idEvento: number }) {
           role="region"
           aria-label="Lista do evento"
           tabIndex={0}
-          className="mt-3 overflow-x-auto"
+          className="mt-3 relative overflow-x-auto"
         >
           <table className="w-full text-left text-sm">
             <thead>

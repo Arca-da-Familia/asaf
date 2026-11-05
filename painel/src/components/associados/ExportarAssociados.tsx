@@ -107,7 +107,7 @@ export function ExportarAssociados() {
                 </strong>{' '}
                 linha(s) prontas.
               </p>
-              <div className="mt-2 max-h-64 overflow-auto rounded-md border border-border">
+              <div className="relative mt-2 max-h-64 overflow-auto rounded-md border border-border">
                 <table className="w-full text-left text-sm">
                   <thead className="sticky top-0 bg-muted">
                     <tr>

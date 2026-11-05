@@ -111,7 +111,7 @@ export function ComunicacaoPage() {
           role="region"
           aria-label="Avisos"
           tabIndex={0}
-          className="overflow-x-auto rounded-xl border border-border"
+          className="relative overflow-x-auto rounded-xl border border-border"
         >
           <table className="w-full text-sm">
             <thead className="bg-muted text-left">
@@ -177,7 +177,7 @@ export function ComunicacaoPage() {
         >
           <button
             type="button"
-            className="underline disabled:opacity-50"
+            className="inline-flex min-h-7 items-center underline disabled:opacity-50"
             disabled={pagina <= 1}
             onClick={() => setPagina((p) => p - 1)}
           >
@@ -188,7 +188,7 @@ export function ComunicacaoPage() {
           </span>
           <button
             type="button"
-            className="underline disabled:opacity-50"
+            className="inline-flex min-h-7 items-center underline disabled:opacity-50"
             disabled={pagina >= totalDePaginas}
             onClick={() => setPagina((p) => p + 1)}
           >

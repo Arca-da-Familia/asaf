@@ -207,7 +207,7 @@ export function DocumentosPage() {
                 role="region"
                 aria-label="Documentos"
                 tabIndex={0}
-                className="overflow-x-auto rounded-md border border-border"
+                className="relative overflow-x-auto rounded-md border border-border"
               >
                 <table className="w-full text-left text-sm">
                   <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">

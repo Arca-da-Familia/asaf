@@ -568,7 +568,7 @@ function SecaoReservas({ espaco }: { espaco: Espaco }) {
           role="region"
           aria-label="Reservas"
           tabIndex={0}
-          className="mb-3 overflow-x-auto rounded-md border border-border"
+          className="mb-3 relative overflow-x-auto rounded-md border border-border"
         >
           <table className="w-full text-left text-sm">
             <thead>
@@ -1304,7 +1304,7 @@ function SecaoMapaCalorOcupacao({ espacos }: { espacos: Espaco[] }) {
         role="region"
         aria-label="Ocupação por dia e hora"
         tabIndex={0}
-        className="overflow-x-auto"
+        className="relative overflow-x-auto"
       >
         <div
           className="inline-grid gap-px"

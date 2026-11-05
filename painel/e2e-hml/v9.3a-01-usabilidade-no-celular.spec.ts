@@ -10,9 +10,10 @@ import { esperarATela, linksInternos, padrao, PULAR } from './varredura'
 // e tira o print de cada tela para ele conferir depois, "celular em primeiro lugar"). Num celular de 360 px (o Android mais comum e o mais estreito que se
 // usa hoje), com toque, o robô entra como Presidente, abre TODAS as telas seguindo os links do painel e mede, em cada uma, o que atrapalha quem usa o telefone:
 //   GRAVE (reprova): a página rola de lado; botão, campo ou link cortado fora da tela (sem rolagem própria para alcançá-lo); campo com letra menor que 16 px
-//   (o iPhone amplia a tela sozinho ao tocar); o título da tela fora da primeira tela; o menu lateral aberto por cima do conteúdo ao chegar.
-//   AVISO (vai para o relatório, sem reprovar): alvo de toque menor que 24 px; letra menor que 12 px; tela com mais de 10 alturas de celular; tabela que
-//   só se lê rolando de lado.
+//   (o iPhone amplia a tela sozinho ao tocar); o título da tela fora da primeira tela; o menu lateral aberto por cima do conteúdo ao chegar; alvo de toque
+//   menor que 24 px (critério 2.5.8 da WCAG 2.2; a caixinha dentro de um rótulo conta pelo rótulo, que também marca; link no meio do texto é exceção);
+//   letra menor que 12 px. (Os dois últimos foram AVISO na 1ª rodada, 05/11: 69 alvos e 124 letras, todos corrigidos; passaram a reprovar.)
+//   AVISO (vai para o relatório, sem reprovar): tela com mais de 10 alturas de celular; tabela que só se lê rolando de lado.
 // Os prints (um por tela, a página inteira) e o relatório ficam na pasta da execução, para o Presidente olhar quando puder.
 test.describe.configure({ mode: 'serial' })
 test.beforeAll(() => exigirHomologacao())
@@ -34,8 +35,8 @@ type Achado = { grave: boolean; tipo: string; detalhe: string }
 /** O que se mede numa tela já aberta (roda dentro do navegador). */
 async function medir(page: Page): Promise<Achado[]> {
   return page.evaluate(
-    ({ altura }) => {
-      const W = window.innerWidth
+    ({ altura, largura }) => {
+      const W = largura
       const achados: { grave: boolean; tipo: string; detalhe: string }[] = []
       const nome = (el: Element) => {
         const rotulo =
@@ -134,9 +135,15 @@ async function medir(page: Page): Promise<Achado[]> {
           camposMiudos.add(`${nome(el)} (${cs.fontSize})`)
         // link no meio de um texto segue o tamanho da letra (exceção do critério 2.5.8)
         const linkNoTexto = el.tagName === 'A' && cs.display === 'inline'
-        if (!linkNoTexto && (r.width < 24 || r.height < 24))
+        // a caixinha (ou a bolinha) dentro de um rótulo: tocar no rótulo também marca, então o alvo é o rótulo inteiro
+        const rotulo =
+          el.tagName === 'INPUT' && ['checkbox', 'radio'].includes(tipo)
+            ? el.closest('label')
+            : null
+        const alvo = rotulo ? rotulo.getBoundingClientRect() : r
+        if (!linkNoTexto && (alvo.width < 24 || alvo.height < 24))
           pequenos.add(
-            `${nome(el)} (${Math.round(r.width)}×${Math.round(r.height)})`,
+            `${nome(el)} (${Math.round(alvo.width)}×${Math.round(alvo.height)})`,
           )
       }
       if (cortados.size)
@@ -153,7 +160,7 @@ async function medir(page: Page): Promise<Achado[]> {
         })
       if (pequenos.size)
         achados.push({
-          grave: false,
+          grave: true,
           tipo: 'alvo de toque menor que 24 px',
           detalhe: `${pequenos.size}: ${[...pequenos].slice(0, 6).join('; ')}`,
         })
@@ -171,7 +178,7 @@ async function medir(page: Page): Promise<Achado[]> {
       }
       if (miuda.size)
         achados.push({
-          grave: false,
+          grave: true,
           tipo: 'letra menor que 12 px',
           detalhe: `${miuda.size}: ${[...miuda].slice(0, 6).join('; ')}`,
         })
@@ -195,7 +202,7 @@ async function medir(page: Page): Promise<Achado[]> {
         })
       return achados
     },
-    { altura: ALTURA },
+    { altura: ALTURA, largura: LARGURA },
   )
 }
 

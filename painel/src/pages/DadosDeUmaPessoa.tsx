@@ -79,7 +79,7 @@ function Secao({ s }: { s: SecaoDoRelatorio }) {
         role="region"
         aria-label="Dados da pessoa"
         tabIndex={0}
-        className="mt-2 overflow-x-auto"
+        className="mt-2 relative overflow-x-auto"
       >
         <table className="w-full text-left text-xs">
           <thead>
