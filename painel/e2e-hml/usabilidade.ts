@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { expect, type Page, type TestInfo } from '@playwright/test'
+import { expect, test, type Page, type TestInfo } from '@playwright/test'
 
 import { entrar } from './apoio'
 import { esperarATela, linksInternos, padrao, PULAR } from './varredura'
