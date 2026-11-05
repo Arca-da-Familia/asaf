@@ -2076,15 +2076,29 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       um em um), documentos 1,07 s → 0,12 s (perguntava as permissões ~4 vezes por documento), contas financeiras 0,8 s → 0,22 s (saldo somado pelo
       banco, não no Python), e 25 índices que faltavam (`app/models/indices_de_desempenho.py`, migração `63e4f4c4065a`, teste confere modelo = migração).
       Resultado na homologação: TODAS as leituras com p95 no servidor ≤ 218 ms. Produção: `bc6bf7e`, migração aplicada, `Server-Timing` respondendo]**
-- [ ] Imagens em formato moderno com `srcset` responsivo e carregamento preguiçoso; assets
-      versionados com cache longo. **[em parte (v9.2): os arquivos do site (`/_astro/`) e do painel (`/assets/`) com cache de um ano; as fotos com
-      carregamento preguiçoso e tamanho reservado; as das notícias já em WebP de até 1.280 px. FALTA (v9.2c): as fotos de eventos, Diretoria e parcerias
-      saem em JPEG de até 2.000 px, sem `srcset`]**
-- [ ] Paginação server-side obrigatória em toda listagem (nenhuma tela carrega "todos os
-      associados"), com índice de banco correspondente a cada filtro exposto. **[em parte (v9.2): os 25 índices dos filtros mais usados (acima); as
-      listas que mais crescem já paginam no servidor (associados, títulos, Auditoria, atendimentos, avisos, livro-caixa, documentos, doações do site,
-      consentimentos, Conselho Fiscal). FALTA (v9.2c): ~20 listas ainda vêm inteiras (eventos, inscrições, presenças, reservas, doações, beneficiários,
-      documentos emitidos, fornecedores, compras, reembolsos, titulares...), com a trava de teste para lista nova sem paginação]**
+- [x] Imagens em formato moderno com `srcset` responsivo e carregamento preguiçoso; assets
+      versionados com cache longo. **[v9.2: os arquivos do site (`/_astro/`) e do painel (`/assets/`) com cache de um ano; as fotos com
+      carregamento preguiçoso e tamanho reservado; as das notícias em WebP de até 1.280 px. v9.2c (2026-11-05): as fotos de eventos, etapas de parceria
+      e Diretoria ganharam duas versões WebP (640 e 1.280 px, `site/src/lib/fotos-leves.ts`), oferecidas por `<picture>` com `srcset` que anuncia a
+      largura REAL de cada versão (foto pequena não finge ter 1.280 px); o JPEG original continua no mesmo endereço, de reserva; o desenho da página não
+      muda (`FotoLeve.astro`). Testes do site (949 + vazio, instituição, sincronização) provam que as versões abrem como WebP, não são maiores que o JPEG
+      e que o celular baixa a de 640. Lighthouse dentro das metas]**
+      **[Homologação: foto da Diretoria em `hml-site` — a versão de 640 abre como `image/webp` com 4.114 bytes, o JPEG original 7.982]**
+      **[Produção: site publicado em `afc3fb9`; ainda sem nenhuma foto publicada (a Diretoria real não foi cadastrada), então as versões leves nascem
+      na primeira publicação com foto]**
+- [x] Paginação server-side obrigatória em toda listagem (nenhuma tela carrega "todos os
+      associados"), com índice de banco correspondente a cada filtro exposto. **[v9.2: os 25 índices dos filtros mais usados (acima); as listas que
+      mais crescem já paginavam (associados, títulos, Auditoria, atendimentos, avisos, livro-caixa, documentos, doações do site, consentimentos,
+      Conselho Fiscal). v9.2c (2026-11-05): passaram a paginar no servidor as 4 que crescem com as pessoas e os anos — doações, beneficiários,
+      documentos emitidos e reservas (`app/paginacao.py`: com `pagina`, só ela e o total no cabeçalho `X-Total-Count`; sem `pagina`, tudo, para os
+      seletores) — com o paginador nas telas. As demais (~20) NÃO paginam, cada uma com o motivo escrito na trava `tests/test_toda_lista_pagina.py`
+      (125 rotas classificadas): inscrições, presenças e titulares só respondem com filtro obrigatório; eventos, projetos, assembleias, compras,
+      reembolsos e afins crescem dezenas por ano e servem de seletor (vigiadas pelo robô de desempenho e pela revisão trimestral); fornecedores,
+      contas e cargos são cadastros pequenos. Rota nova sem paginação e sem motivo REPROVA a suíte. API 1.895 testes ×2, Postgres validado]**
+      **[Homologação: robôs v5.4f-01/02/03, v5.4e-02, v5.4g-04, v5.7c-02 e v9.1a-01 verdes nas telas de reservas, doações, beneficiários e documentos
+      emitidos (dois robôs ajustados: textos da linguagem simples da v9.1d e uma corrida de digitação do próprio robô — nenhum defeito do sistema)]**
+      **[Produção: `version.json` = `afc3fb9`; `openapi.json` mostra `pagina`/`por_pagina` nas 4 rotas; a API expõe `X-Total-Count` ao painel
+      (`access-control-expose-headers`)]**
 - [x] Orçamento de performance no CI (tamanho do bundle do painel) — painel que cresce sem
       vigilância fica lento em 3 anos, em celular modesto, que é o aparelho real do público. **[v9.2a: o painel saía num arquivo só de 2 MB (516 KB
       compactados) que a tela de entrar baixava inteiro; agora as 91 telas vêm sob demanda (`src/lib/carregar-tela.ts`, que recarrega uma vez se uma
@@ -2093,7 +2107,8 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - [x] Otimização para conexão ruim: o público da associação acessa por rede móvel instável. **[v9.2: o que pesa numa rede ruim é baixar: a
       primeira tela do painel caiu 65% (sob demanda), os pedaços do painel ficam guardados no celular por um ano (`staticwebapp.config.json`; o
       `index.html` e o `version.json` nunca ficam velhos), o Início do Financeiro deixou de baixar todos os títulos em aberto (pede as somas prontas e só
-      os 5 próximos vencimentos), e o site é medido e travado com 4G lenta simulada. O que ainda pesa: as listas sem paginação (item abaixo)]**
+      os 5 próximos vencimentos), e o site é medido e travado com 4G lenta simulada. v9.2c: listas que crescem vêm em páginas e as fotos do site em
+      versões leves (itens acima)]**
 
 ##### 🔍 Ponto de Revisão — FASE 9 (1/2 — meio, fecha v9.1–v9.2)
 
