@@ -2158,8 +2158,23 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       https://claude.ai/artifact/HgTnR9dJkVUiFoBp6z6WXS]**
       **[Homologação: v9.3a-01 sem nenhum grave (125 telas), v9.1a-01 (axe) verde, v5.4c-fase1 e v6.1-01 (Configurações) verdes]**
       **[Produção: `version.json` = `5abe0c0`; `/configuracoes/estado_civil` 200; o estilo publicado tem os campos de 16 px e o `break-word`]**
-      **[FALTA (v9.3b, pedido do Presidente em 05/11): telas compridas — também no notebook — com submenus e telas progressivas; tabelas viram cartões
-      empilhados no celular; melhorar o topo; varredura também no notebook (1366 × 768)]**
+      **[v9.3b (2026-11-05) — TELAS MAIS CURTAS, TAMBÉM NO NOTEBOOK (pedido do Presidente: "se é comprido no telefone, no notebook já é grande demais"):
+      a varredura virou peça comum (`e2e-hml/usabilidade.ts`) com dois robôs — `v9.3a-01` celular 360 × 740 e `v9.3b-01` notebook 1366 × 768 (660
+      úteis) — e cada tela registra quantas alturas tem. No celular toda tabela vira cartões empilhados (`lib/tabelas-em-cartoes.ts` copia o título de
+      cada coluna para a célula e escreve as funções de tabela para o leitor de tela; o rótulo fica em cima do valor); o topo mostra o nome numa linha
+      só. Propostas de filiação em páginas de 15, Compras e Campanhas em páginas de 10 (a mais nova primeiro; Compras com desempate pelo número no
+      servidor, com teste); Inventário de dados com as atividades recolhidas (Abrir todas / Recolher todas); Regras do sistema com busca e duas colunas;
+      Alçadas, Centros de custo, Fornecedores, Planos e Consentimentos em duas colunas no computador. No notebook: Propostas 46,9 → 6,2 alturas,
+      Inventário 33,9 → menos de 5, Compras 20,5 → menos de 5, Doações 22,7 → 15,5, Alçadas 12,9 → 7,4, Regras 11,9 → 7,7, Consentimentos 10,1 → 7,0]**
+      **[Homologação: 19 robôs verdes — v9.3a-01 (celular, 125 telas, nenhum grave), v9.3b-01 (notebook, nenhum grave), Inventário (v7.0c-01, v7.3c-01,
+      v7.3e-01), filiação (v5.4h-09, v5.4h-11), sino (v5.5a-02), financeiro (v5.4e-01 a 04, v5.4f-03), v5.7b/d/e-01, v7.1-ponto-01, v7.1b-01, v7.1c-01.
+      O v7.3c-01 caiu uma vez porque procurava a Política 2.17 (já é a 2.18): o robô passou a aceitar qualquer 2.x e ficou verde. Validação em
+      Postgres verde; galeria dos prints atualizada]**
+      **[Produção: Deploy API e Deploy Painel verdes; `version.json` = `22b05c9`; `/privacidade/inventario`, `/financeiro/compras` e `/regras` 200; o
+      painel publicado tem os cartões do celular (`data-em-cartoes` e `attr(data-rotulo)` no estilo)]**
+      **[FALTA (próximas rodadas da v9.3): telas ainda compridas no notebook — Eventos 28,4 alturas, Reserva de espaço 19,8, Plano de contas 16,4,
+      Sessão da assembleia 16,0, Doações 15,5, Projetos 14,9, Relatórios 12,9, Qualidade da base 11,4, Para propor 10,6, Atendimentos 10,4 — uma por
+      vez, com abas/submenus/telas progressivas e os robôs de cada uma reescritos; depois disso a altura no notebook passa a reprovar]**
 - [ ] Ajuda contextual e tour de primeiro acesso por módulo, no lugar de manual em PDF que
       ninguém lê.
 - [ ] Canal de feedback dentro do painel ("achei um problema nesta tela") ligado à fila de
