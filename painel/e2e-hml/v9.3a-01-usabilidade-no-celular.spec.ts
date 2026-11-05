@@ -86,6 +86,8 @@ async function medir(page: Page): Promise<Achado[]> {
             continue
           const pai = el.parentElement
           if (!pai || el.getBoundingClientRect().right <= W + 1) continue
+          // a barra fixa do topo acompanha a largura da página: é empurrada, não empurra
+          if (getComputedStyle(el).position === 'fixed') continue
           const paiCabe =
             pai.getBoundingClientRect().right <= W + 1 ||
             ['auto', 'scroll'].includes(getComputedStyle(pai).overflowX)

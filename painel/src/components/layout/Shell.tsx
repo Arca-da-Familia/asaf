@@ -454,7 +454,7 @@ export function Shell() {
           novaVersaoDisponivel={novaVersaoDisponivel}
           recarregar={recarregar}
         />
-        <div className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
+        <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
           {/* v9.2a: a tela é baixada quando abre; o menu e o alto ficam na tela enquanto isso */}
           <Suspense
             fallback={
