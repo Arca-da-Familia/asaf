@@ -15,6 +15,7 @@ import {
   Moon,
   Search,
   ShieldAlert,
+  SlidersHorizontal,
   Sun,
   UserPlus,
   UserRound,
@@ -25,6 +26,12 @@ import { Button } from '@/components/ui/button'
 import { logout } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 import { useImpersonacao } from '@/lib/impersonacao'
+import {
+  ROTA_CONFIGURACOES,
+  rotaDoCatalogo,
+  rotuloDoGrupo,
+  useCatalogosVisiveis,
+} from '@/lib/catalogos-visiveis'
 import { mensagens } from '@/lib/i18n/pt-BR'
 import { itensVisiveis, modulos } from '@/lib/modulos'
 import { useTheme } from '@/lib/theme'
@@ -85,6 +92,58 @@ function navCls({ isActive }: { isActive: boolean }) {
   )
 }
 
+// v9.3 (achado do Presidente, 05/11) - dentro de Configurações a barra lateral troca para os catálogos, agrupados pelo módulo dono, como o menu de qualquer
+// módulo (regra da v2.5.1d: uma barra só, nunca uma segunda lista de navegação dentro da página). A lista vem da API, então não cabe em `modulos`.
+export function MenuDasConfiguracoes({
+  collapsed,
+  aoNavegar,
+}: {
+  collapsed: boolean
+  aoNavegar: () => void
+}) {
+  const { grupos } = useCatalogosVisiveis()
+  return (
+    <>
+      <Link
+        to="/"
+        onClick={aoNavegar}
+        aria-label={collapsed ? mensagens.navegacao.inicio : undefined}
+        className="mb-2 flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+      >
+        <ArrowLeft className="h-5 w-5 shrink-0" />
+        {!collapsed && <span>{mensagens.navegacao.inicio}</span>}
+      </Link>
+      {!collapsed && (
+        <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Configurações
+        </p>
+      )}
+      {Array.from(grupos.entries()).map(([chaveGrupo, catalogos]) => (
+        <div key={chaveGrupo} className="pt-2">
+          {!collapsed && (
+            <p className="px-3 pb-1 text-xs font-medium text-muted-foreground">
+              {rotuloDoGrupo(chaveGrupo)}
+            </p>
+          )}
+          {catalogos.map((c) => (
+            <NavLink
+              key={c.chave}
+              to={rotaDoCatalogo(c.chave)}
+              className={navCls}
+              onClick={aoNavegar}
+              aria-label={collapsed ? c.nome_exibido : undefined}
+              title={collapsed ? c.nome_exibido : undefined}
+            >
+              <SlidersHorizontal className="h-5 w-5 shrink-0" />
+              {!collapsed && <span>{c.nome_exibido}</span>}
+            </NavLink>
+          ))}
+        </div>
+      ))}
+    </>
+  )
+}
+
 export function Shell() {
   const { signOut } = useAuth()
   const { data } = useMe()
@@ -103,6 +162,10 @@ export function Shell() {
       (location.pathname === m.rota ||
         location.pathname.startsWith(`${m.rota}/`)),
   )
+
+  const emConfiguracoes =
+    location.pathname === ROTA_CONFIGURACOES ||
+    location.pathname.startsWith(`${ROTA_CONFIGURACOES}/`)
 
   const emImpersonacao = !!data?.impersonando
   const alturaTopo = emImpersonacao
@@ -252,6 +315,11 @@ export function Shell() {
                 ),
               )}
             </>
+          ) : emConfiguracoes ? (
+            <MenuDasConfiguracoes
+              collapsed={collapsed}
+              aoNavegar={() => setMobileOpen(false)}
+            />
           ) : (
             <>
               <NavLink

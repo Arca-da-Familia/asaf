@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
+import { Navigate, useParams } from 'react-router'
 import { z } from 'zod'
 
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
@@ -9,11 +10,10 @@ import {
   atualizarOpcaoCatalogo,
   criarOpcaoCatalogo,
   excluirOpcaoCatalogo,
-  listarCatalogos,
   listarOpcoesCatalogo,
   type Catalogo,
 } from '@/lib/api'
-import { useMe } from '@/lib/use-me'
+import { rotaDoCatalogo, useCatalogosVisiveis } from '@/lib/catalogos-visiveis'
 import {
   opcaoCatalogoCriarSchema,
   opcaoCatalogoEditarSchema,
@@ -33,15 +33,6 @@ import {
 // como reforço) pode gerenciar. Por isso esta tela é uma rota GLOBAL (não travada atrás de uma
 // permissão única) - mesmo padrão de Conselho Fiscal/Disciplina/Calendário: cada usuário só vê
 // (e só consegue editar) os catálogos dos módulos que já tem permissão.
-const ROTULO_GRUPO: Record<string, string> = {
-  associados: 'Associados',
-  governanca: 'Governança',
-  financeiro: 'Financeiro',
-  projetos: 'Projetos',
-  auditoria: 'Auditoria',
-  comunicar: 'Comunicação', // v6.1 - o catálogo `categoria_aviso` (categoria do aviso do mural)
-}
-const GRUPO_SISTEMA = '__sistema__'
 
 function BlocoOpcoes({ catalogo }: { catalogo: Catalogo }) {
   const [mostrarForm, setMostrarForm] = useState(false)
@@ -258,40 +249,13 @@ function BlocoOpcoes({ catalogo }: { catalogo: Catalogo }) {
 }
 
 export function ConfiguracoesPage() {
-  const { data: me } = useMe()
-  const temGerenciarAcesso =
-    me?.permissoes.includes('gerenciar_acesso') ?? false
-  const { data: catalogos } = useQuery({
-    queryKey: ['catalogos'],
-    queryFn: listarCatalogos,
-  })
+  // v9.3 (achado do Presidente, 05/11): a lista dos catálogos saiu da página e foi para a barra lateral, como o menu de qualquer módulo (o menu principal
+  // dá lugar a "← Início" + os catálogos, e cada coluna rola sozinha); no celular o conteúdo aparece direto e os catálogos ficam no botão de menu, em vez
+  // de uma lista inteira antes do que se quer editar. Cada catálogo tem o seu endereço (/configuracoes/<chave>).
+  const { chave } = useParams<{ chave?: string }>()
+  const { todos, carregado } = useCatalogosVisiveis()
 
-  const grupos = useMemo(() => {
-    const mapa = new Map<string, Catalogo[]>()
-    for (const c of catalogos ?? []) {
-      const chaveGrupo = c.permissao_gerenciamento ?? GRUPO_SISTEMA
-      const podeVerGrupo =
-        chaveGrupo === GRUPO_SISTEMA
-          ? temGerenciarAcesso
-          : temGerenciarAcesso || (me?.permissoes.includes(chaveGrupo) ?? false)
-      if (!podeVerGrupo) continue
-      if (!mapa.has(chaveGrupo)) mapa.set(chaveGrupo, [])
-      mapa.get(chaveGrupo)!.push(c)
-    }
-    return mapa
-  }, [catalogos, me, temGerenciarAcesso])
-
-  const [catalogoSelecionado, setCatalogoSelecionado] = useState<string | null>(
-    null,
-  )
-
-  const todosCatalogosVisiveis = Array.from(grupos.values()).flat()
-  const chaveAtiva = catalogoSelecionado ?? todosCatalogosVisiveis[0]?.chave
-  const catalogoAtivo = todosCatalogosVisiveis.find(
-    (c) => c.chave === chaveAtiva,
-  )
-
-  if (catalogos && todosCatalogosVisiveis.length === 0) {
+  if (carregado && todos.length === 0) {
     return (
       <>
         <PageHeader
@@ -304,45 +268,29 @@ export function ConfiguracoesPage() {
       </>
     )
   }
+  // sem catálogo no endereço: abre o primeiro (a barra lateral marca qual é)
+  const primeiro = todos[0]
+  if (!chave && primeiro) {
+    return <Navigate to={rotaDoCatalogo(primeiro.chave)} replace />
+  }
+  const catalogoAtivo = todos.find((c) => c.chave === chave)
 
   return (
     <>
       <PageHeader
         titulo="Configurações"
-        descricao="Catálogos usados pelos módulos de negócio - cada um só aparece pra quem tem a permissão do módulo dono."
+        descricao="Catálogos usados pelos módulos de negócio - cada um só aparece pra quem tem a permissão do módulo dono. Escolha o catálogo no menu."
       />
-      <div className="grid gap-6 md:grid-cols-[16rem_1fr]">
-        <nav className="v3-space-y-4">
-          {Array.from(grupos.entries()).map(
-            ([chaveGrupo, catalogosDoGrupo]) => (
-              <div key={chaveGrupo}>
-                <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {chaveGrupo === GRUPO_SISTEMA
-                    ? 'Sistema'
-                    : (ROTULO_GRUPO[chaveGrupo] ?? chaveGrupo)}
-                </p>
-                <div className="v3-space-y-1">
-                  {catalogosDoGrupo.map((c) => (
-                    <button
-                      key={c.chave}
-                      type="button"
-                      onClick={() => setCatalogoSelecionado(c.chave)}
-                      className={`block w-full rounded-md px-2 py-1.5 text-left text-sm ${
-                        c.chave === chaveAtiva
-                          ? 'bg-primary text-primary-foreground'
-                          : 'hover:bg-muted'
-                      }`}
-                    >
-                      {c.nome_exibido}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ),
-          )}
-        </nav>
-        <div>{catalogoAtivo && <BlocoOpcoes catalogo={catalogoAtivo} />}</div>
-      </div>
+      {catalogoAtivo ? (
+        <BlocoOpcoes key={catalogoAtivo.chave} catalogo={catalogoAtivo} />
+      ) : (
+        carregado && (
+          <p className="text-sm text-muted-foreground">
+            Este catálogo não existe ou não está disponível para o seu nível de
+            acesso. Escolha outro no menu.
+          </p>
+        )
+      )}
     </>
   )
 }

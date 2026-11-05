@@ -9,3 +9,20 @@
 
 @source '../index.html';
 @source './**/*.{ts,tsx}';
+
+/* v9.3 (usabilidade no celular): campo com letra menor que 16 px faz o iPhone AMPLIAR a tela sozinho quando a pessoa toca nele, e a tela fica torta até
+   ela desfazer o zoom com os dedos. Os campos do painel usam 14 px (`text-sm`, bom no computador); no celular passam a 16 px. Fora de @layer de propósito:
+   assim vale por cima da classe `text-sm` (que fica na camada de utilitários). Conferido pelo robô e2e-hml/v9.3a-01. */
+@media (max-width: 639.98px) {
+  input:not(
+    [type='checkbox'],
+    [type='radio'],
+    [type='range'],
+    [type='file'],
+    [type='color']
+  ),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

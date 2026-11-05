@@ -122,7 +122,7 @@ test('Configurações: uma opção nova de catálogo (estado civil) aparece no c
   await expect(
     page.getByRole('heading', { name: 'Configurações' }).first(),
   ).toBeVisible()
-  await page.getByRole('button', { name: 'Estado civil', exact: true }).click()
+  await page.getByRole('link', { name: 'Estado civil', exact: true }).click()
   await page.getByRole('button', { name: 'Nova opção' }).click()
   await page.getByPlaceholder('CODIGO_TECNICO').fill(codigo)
   await page.getByPlaceholder('Rótulo exibido').fill(rotulo)
@@ -140,7 +140,7 @@ test('Configurações: uma opção nova de catálogo (estado civil) aparece no c
 
   // desativa: sai do cadastro (e o histórico de quem já usou continua)
   await page.goto('/configuracoes')
-  await page.getByRole('button', { name: 'Estado civil', exact: true }).click()
+  await page.getByRole('link', { name: 'Estado civil', exact: true }).click()
   const linha = page
     .locator('div.rounded-md.justify-between')
     .filter({ hasText: rotulo })

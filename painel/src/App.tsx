@@ -634,7 +634,7 @@ function App() {
               }
             />
             <Route
-              path="/configuracoes"
+              path="/configuracoes/:chave?"
               element={
                 <ErrorBoundary tituloModulo="Configurações">
                   <ConfiguracoesPage />

@@ -5,6 +5,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 
 import { entrar, exigirHomologacao, ver } from './apoio'
+import { esperarATela, linksInternos, padrao, PULAR } from './varredura'
 
 // v9.1a - ACESSIBILIDADE DO PAINEL num navegador de verdade, com o dado da homologação (WCAG 2.2 nível AA como meta). Os testes do painel no CI (jest-axe)
 // rodam num navegador simulado, que NÃO mede contraste de cor nem o que só aparece com dado de verdade; aqui o robô entra como Presidente (quem vê quase tudo),
@@ -16,35 +17,6 @@ test.beforeAll(() => exigirHomologacao())
 export const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
 const GRAVES = new Set(['serious', 'critical'])
 const LIMITE = 220
-// fora da varredura: telas sem sessão (a de entrar tem roteiro próprio), a portaria (link com código de uso único) e o catálogo de componentes de quem desenvolve
-const PULAR = /^\/(login|esqueci-a-senha|trocar-senha|mfa\/|portaria\/|dev\/)/
-
-/** /associados/12/sessao -> /associados/:n/sessao: uma ficha de cada tipo basta. */
-export function padrao(caminho: string): string {
-  return caminho.replace(/\/\d+(?=\/|$)/g, '/:n')
-}
-
-/** Os links internos do painel na tela aberta, sem endereço externo, âncora nem parâmetro. */
-async function linksInternos(page: Page): Promise<string[]> {
-  const hrefs = await page.$$eval('a[href]', (as) =>
-    as.map((a) => a.getAttribute('href') ?? ''),
-  )
-  return [
-    ...new Set(
-      hrefs
-        .filter((h) => h.startsWith('/') && !h.startsWith('//'))
-        .map((h) => h.split(/[?#]/)[0].replace(/\/$/, '') || '/'),
-    ),
-  ]
-}
-
-async function esperarATela(page: Page): Promise<void> {
-  await page.waitForLoadState('networkidle')
-  await expect(
-    page.getByText(/^Carregando/).filter({ visible: true }),
-  ).toHaveCount(0, { timeout: 30_000 })
-}
-
 type Achado = {
   caminho: string
   largura: string

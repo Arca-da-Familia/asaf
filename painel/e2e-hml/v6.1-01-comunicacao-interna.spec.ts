@@ -136,7 +136,7 @@ test('o Secretário (pelo cargo) confere o grupo e publica para o Conselho Fisca
   await page.goto('/configuracoes')
   await expect(page.getByText('Comunicação', { exact: true })).toBeVisible()
   await expect(page.getByText('comunicar', { exact: true })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Categoria de aviso' }).click()
+  await page.getByRole('link', { name: 'Categoria de aviso' }).click()
   await expect(page.getByText('Convocação').first()).toBeVisible()
   await ver(page, info, 'configuracoes-categoria-de-aviso')
   expect(vigia.problemas()).toEqual([])
