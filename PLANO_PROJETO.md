@@ -2112,6 +2112,26 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 
 ##### 🔍 Ponto de Revisão — FASE 9 (1/2 — meio, fecha v9.1–v9.2)
 
+🟡 **Checklist aplicado em 2026-11-05 — aguarda o OK do Presidente para fechar.** Checklist 4.1 sobre o intervalo desde o fechamento da FASE 8
+(`1e88da6..65ce75b`, 22 commits, 159 arquivos): (1) cada `[x]` da v9.1 e da v9.2 tem a prova escrita no próprio item (homologação e produção em linhas
+separadas); (2) e (9) suíte completa da API 1.895 testes em duas rodadas e no Postgres do CI (`validar/v92c-paginacao`), painel 828 + e2e, site 949 e2e +
+Lighthouse; robôs da homologação verdes nas telas que mudaram; (3) nenhuma decisão congelada tocada: mesmo banco, framework e pacotes (nenhum
+`requirements`, `Dockerfile` ou dependência mudou; o `sharp` do site já era declarado); (4) varredura de credenciais nas 7.887 linhas acrescentadas (chave
+privada, AKIA, tokens do GitHub, `sk-`, `AccountKey=`, link assinado, URL de banco com senha, sessão JWT, atribuição de segredo): nada; (5) e (6) nenhuma
+rota nem permissão nova: a paginação e as fotos só leem, as rotas paginadas mantêm a mesma permissão de antes, a exportação continua auditada; as
+preferências de leitura (letra maior, alto contraste) ficam só no aparelho de quem lê; (7) nada adiantado de outra fase; (8) plano em dia; (10) tudo tem
+tela: a barra de preferências de leitura no site e no painel, o paginador nas 4 telas (doações, beneficiários, documentos emitidos, reservas), conferidos
+pelos robôs; (11) o que abre: as fotos leves abertas na homologação (`image/webp`, 4.114 bytes contra 7.982 do JPEG); na produção ainda não há foto
+publicada; (12) `main` = o que está no ar: `version.json` = `afc3fb9` (o commit seguinte só mexe no plano), Deploy API/Painel/Site verdes, `/health` 200.
+Observação: `app/main.py` aparece com 455 linhas mudadas, mas sem contar o fim de linha são só 7 (tempo do servidor e cabeçalho do total).
+
+**Específicos:** **o axe reprova a publicação — PROVADO de propósito nos dois lados:** no site (v9.1, imagem sem texto alternativo na página de Contato)
+e, nesta revisão, no painel: uma imagem sem texto alternativo posta na tela de entrar fez `e2e/acessibilidade.spec.ts` reprovar nas duas larguras
+("image-alt (critical)"); desfeita, os 6 testes passaram; o `deploy-painel.yml` só publica depois desse teste (`deploy` precisa de `quality`, que roda
+`npm run test:e2e`) — ✔. **Desempenho medido com ferramenta real:** site com o Lighthouse (4G lenta simulada, 16 páginas × 3 rodadas, LCP ≤ 2,5 s, CLS ≤ 0,1,
+TBT ≤ 200 ms, reprova a publicação acima disso); API com o tempo do servidor (`Server-Timing`) medido pelo robô `v9.2b-01` em 20 voltas, p95 ≤ 218 ms; o
+tamanho do painel travado no CI — ✔. INP só se mede com gente de verdade usando; no laboratório o substituto é o TBT (registrado na v9.2).
+
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
 
 - Auditoria automatizada de acessibilidade (v9.1) está de fato falhando o build quando encontra violação grave — testar introduzindo uma violação de propósito.
