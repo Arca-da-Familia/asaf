@@ -67,8 +67,10 @@
     main textarea {
       min-width: 0;
     }
+    /* `break-word`, NUNCA `anywhere`: o `anywhere` também encolhe a largura mínima das células e espremia as tabelas até partir cada palavra letra por
+       letra ("Co/nc/ed/er acesso", visto nos prints da 4ª rodada); com `break-word` só quebra a palavra que não cabe, e a tabela rola de lado na caixa dela */
     main {
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
     /* (4) 3ª rodada: item de fileira ou de grade nunca passa da largura disponível nem se recusa a encolher (um rótulo com uma lista de escolha dentro
        crescia até a opção mais comprida; a barra de filtros do Financeiro ia a 501 px) */

@@ -13,6 +13,7 @@ import { esperarATela, linksInternos, padrao, PULAR } from './varredura'
 //   (o iPhone amplia a tela sozinho ao tocar); o título da tela fora da primeira tela; o menu lateral aberto por cima do conteúdo ao chegar; alvo de toque
 //   menor que 24 px (critério 2.5.8 da WCAG 2.2; a caixinha dentro de um rótulo conta pelo rótulo, que também marca; link no meio do texto é exceção);
 //   letra menor que 12 px. (Os dois últimos foram AVISO na 1ª rodada, 05/11: 69 alvos e 124 letras, todos corrigidos; passaram a reprovar.)
+//   Palavra PARTIDA no meio (desenhada em duas linhas, "Co/nc/ed/er"): tabela ou botão espremido fica ilegível sem sair da tela (4ª rodada, 05/11).
 //   AVISO (vai para o relatório, sem reprovar): tela com mais de 10 alturas de celular; tabela que só se lê rolando de lado.
 // Os prints (um por tela, a página inteira) e o relatório ficam na pasta da execução, para o Presidente olhar quando puder.
 test.describe.configure({ mode: 'serial' })
@@ -199,6 +200,41 @@ async function medir(page: Page): Promise<Achado[]> {
           grave: true,
           tipo: 'letra menor que 12 px',
           detalhe: `${miuda.size}: ${[...miuda].slice(0, 6).join('; ')}`,
+        })
+
+      // palavra partida no meio: cada palavra de 4 letras ou mais do conteúdo, desenhada em mais de uma linha (o retângulo dela se divide em alturas diferentes)
+      const partidas = new Set<string>()
+      const andador = document.createTreeWalker(
+        document.querySelector('main') ?? document.body,
+        NodeFilter.SHOW_TEXT,
+      )
+      let vistas = 0
+      for (
+        let n = andador.nextNode();
+        n && vistas < 4000;
+        n = andador.nextNode()
+      ) {
+        const pai = n.parentElement
+        if (!pai || !visivel(pai) || noMenuFechado(pai)) continue
+        const texto = n.textContent ?? ''
+        for (const m of texto.matchAll(/[\p{L}]{4,}/gu)) {
+          vistas++
+          const faixa = document.createRange()
+          faixa.setStart(n, m.index)
+          faixa.setEnd(n, m.index + m[0].length)
+          const linhas = new Set(
+            [...faixa.getClientRects()]
+              .filter((r) => r.width > 0)
+              .map((r) => Math.round(r.top)),
+          )
+          if (linhas.size > 1) partidas.add(`"${m[0]}" em ${nome(pai)}`)
+        }
+      }
+      if (partidas.size)
+        achados.push({
+          grave: true,
+          tipo: 'palavra partida no meio',
+          detalhe: `${partidas.size}: ${[...partidas].slice(0, 6).join('; ')}`,
         })
 
       const telas = doc.scrollHeight / altura
