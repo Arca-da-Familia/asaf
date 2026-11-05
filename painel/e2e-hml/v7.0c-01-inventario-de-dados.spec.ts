@@ -41,6 +41,8 @@ async function abrirInventario(page: Page) {
   await expect(
     page.getByRole('heading', { name: 'Inventário de dados', level: 1 }),
   ).toBeVisible()
+  // v9.3b: as atividades vêm recolhidas (só o nome e os selos); abre todas para conferir o conteúdo
+  await page.getByRole('button', { name: 'Abrir todas' }).click()
 }
 
 test('a Presidente do cargo vê as seções, ajusta uma atividade (versão nova) e exporta', async ({

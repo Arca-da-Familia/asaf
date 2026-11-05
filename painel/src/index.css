@@ -135,14 +135,11 @@
       padding: 0.25rem 0;
       text-align: left;
     }
-    main table[data-em-cartoes] > tbody > tr > [data-rotulo] {
-      display: grid;
-      grid-template-columns: minmax(7rem, 40%) minmax(0, 1fr);
-      gap: 0.75rem;
-      align-items: start;
-    }
+    /* o rótulo pequeno EM CIMA e o valor embaixo, com a largura toda do cartão (lado a lado, o valor ficava com ~140 px e partia palavras como
+       "Encaminhamento", visto na homologação) */
     main table[data-em-cartoes] > tbody > tr > [data-rotulo]::before {
       content: attr(data-rotulo);
+      display: block;
       color: var(--color-muted-foreground);
       font-weight: 500;
       font-size: 0.8125rem;

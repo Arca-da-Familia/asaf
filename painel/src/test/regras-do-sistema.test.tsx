@@ -71,6 +71,22 @@ describe('Regras do sistema', () => {
     expect(await axe(container)).toHaveNoViolations()
   })
 
+  it('v9.3b: procurar pelo nome ou pelo código filtra a lista e diz quantas sobraram', async () => {
+    vi.mocked(api.listarConfiguracoes).mockResolvedValue([
+      configuracao('DIAS_ALERTA_LANCAMENTO_TARDIO', '5'),
+      configuracao('HORA_INICIO_EXPEDIENTE', '7'),
+    ])
+    const usuario = userEvent.setup()
+    desenhar()
+    await screen.findAllByRole('listitem')
+    await usuario.type(screen.getByLabelText('Procurar regra'), 'expediente')
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(
+      screen.getByRole('listitem', { name: 'HORA_INICIO_EXPEDIENTE' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('1 de 2 regras.')
+  })
+
   it('só deixa salvar o que mudou, grava o valor novo e avisa', async () => {
     const u = userEvent.setup()
     vi.mocked(api.listarConfiguracoes).mockResolvedValue([

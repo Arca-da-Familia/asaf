@@ -34,6 +34,8 @@ test('o inventário mostra os termos de cada prestador', async ({
 }, info) => {
   await entrar(page, 'presidente')
   await page.goto('/privacidade/inventario')
+  // v9.3b: as atividades vêm recolhidas (só o nome e os selos); abre todas para conferir o conteúdo
+  await page.getByRole('button', { name: 'Abrir todas' }).click()
   await expect(
     page
       .getByText(/Termos: Adendo de Tratamento de Dados do Google Cloud/)

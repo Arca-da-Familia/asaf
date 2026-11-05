@@ -304,7 +304,7 @@ export function CentrosCustoPage() {
           <FormularioCentroCusto onCancelar={() => setMostrarForm(false)} />
         )}
 
-        <div className="v3-space-y-2">
+        <div className="grid items-start gap-2 lg:grid-cols-2">
           {(centros ?? []).map((c) => (
             <div
               key={c.id_centro_custo}
@@ -386,7 +386,7 @@ export function CentrosCustoPage() {
           />
         )}
 
-        <div className="v3-space-y-2">
+        <div className="grid items-start gap-2 lg:grid-cols-2">
           {(remanejamentos ?? []).map((r) => (
             <div
               key={r.id_remanejamento}

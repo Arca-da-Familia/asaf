@@ -370,7 +370,7 @@ export function FornecedoresPage() {
           </div>
         )}
 
-        <div className="v3-space-y-2">
+        <div className="grid items-start gap-2 lg:grid-cols-2">
           {(fornecedores ?? []).map((f) =>
             editando === f.id_fornecedor ? (
               <FormularioFornecedor

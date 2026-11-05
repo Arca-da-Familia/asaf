@@ -165,7 +165,7 @@ export function ConsentimentosPage() {
           <p className="mb-2 text-xs text-muted-foreground" role="status">
             {data.total} consentimento(s) · página {data.pagina} de {paginas}
           </p>
-          <ul className="v3-space-y-2">
+          <ul className="grid items-start gap-2 lg:grid-cols-2">
             {data.consentimentos.map((c) => (
               <Linha key={c.id_consentimento} c={c} />
             ))}

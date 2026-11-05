@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -200,12 +201,18 @@ function Historico({ codigo }: { codigo: string }) {
   )
 }
 
+// v9.3b (pedido do Presidente, 05/11: telas compridas "tiram o foco dos dados"; o inventário chegava a 34 alturas de tela num notebook): cada atividade
+// vem RECOLHIDA, só com o nome e os selos; um toque abre o resto. "Abrir todas" / "Recolher todas" no alto da lista.
 function Cartao({
   atividade,
   inventario,
+  aberta,
+  aoAlternar,
 }: {
   atividade: AtividadeDeTratamento
   inventario: Inventario
+  aberta: boolean
+  aoAlternar: (aberta: boolean) => void
 }) {
   const [ajustando, setAjustando] = useState(false)
   const [vendoHistorico, setVendoHistorico] = useState(false)
@@ -213,148 +220,163 @@ function Cartao({
     <section
       aria-label={atividade.nome}
       data-atividade={atividade.codigo}
-      className="rounded-xl border border-border bg-card p-6"
+      className="rounded-xl border border-border bg-card"
     >
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <h2 className="font-semibold">{atividade.nome}</h2>
-        {atividade.dados_sensiveis.length > 0 && (
-          <Selo classe="bg-red-100 text-red-900">Dado sensível</Selo>
-        )}
-        {atividade.pode_ter_crianca && (
-          <Selo classe="bg-amber-100 text-amber-900">
-            Pode ter criança ou adolescente
-          </Selo>
-        )}
-        {atividade.base_legal_conferida ? (
-          <Selo classe="bg-green-100 text-green-900">Base legal conferida</Selo>
-        ) : (
-          <Selo classe="bg-muted text-muted-foreground">
-            Base legal: proposta do sistema
-          </Selo>
-        )}
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Secao titulo="Finalidade">{atividade.finalidade}</Secao>
-        <Secao titulo="Titulares">{atividade.titulares.join('; ')}</Secao>
-        <Secao titulo="Base legal">
-          <ul className="list-disc pl-5">
-            {atividade.bases_legais_texto.map((b) => (
-              <li key={b}>{b}</li>
-            ))}
-          </ul>
-        </Secao>
-        <Secao titulo="Com quem se compartilha">
-          <ul className="list-disc pl-5">
-            {atividade.operadores_detalhe.map((o) => (
-              <li key={o.codigo}>
-                <strong>{o.nome}</strong>: {o.o_que_faz}. Onde: {o.onde}.
-                Termos: {o.termos}.
-              </li>
-            ))}
-            {atividade.consultas_detalhe.map((c) => (
-              <li key={c.codigo} data-consulta={c.codigo}>
-                <strong>{c.nome}</strong> (serviço de consulta, sem contrato):
-                recebe {c.o_que_recebe}. Termos: {c.termos}.
-              </li>
-            ))}
-          </ul>
-        </Secao>
-        <Secao titulo="Onde fica guardado">
-          <ul className="list-disc pl-5">
-            {atividade.armazenamento.map((a) => (
-              <li key={a}>{a}</li>
-            ))}
-          </ul>
-        </Secao>
-        <Secao titulo="Período de armazenamento">
-          {atividade.sem_rotina_de_guarda ? (
-            <span data-sem-rotina>
-              Sem rotina automática de eliminação ainda.
-            </span>
-          ) : (
-            <ul className="list-disc pl-5">
-              {atividade.prazos_de_guarda.map((p) => (
-                <li key={p.regra}>
-                  {p.rotulo}: {p.dias} dias
-                </li>
-              ))}
-              {atividade.prazos_fixos.map((p) => (
-                <li key={p}>{p}</li>
-              ))}
-            </ul>
+      <details
+        className="group"
+        open={aberta}
+        onToggle={(e) => aoAlternar(e.currentTarget.open)}
+      >
+        <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 p-4 sm:px-6 [&::-webkit-details-marker]:hidden">
+          <ChevronRight
+            className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
+            aria-hidden="true"
+          />
+          <h2 className="font-semibold">{atividade.nome}</h2>
+          {atividade.dados_sensiveis.length > 0 && (
+            <Selo classe="bg-red-100 text-red-900">Dado sensível</Selo>
           )}
-        </Secao>
-        {atividade.requisito_crianca && (
-          <Secao titulo="Criança e adolescente">
-            {atividade.requisito_crianca}
-          </Secao>
-        )}
-        {atividade.tabelas_externas.length > 0 && (
-          <Secao titulo="Dados fora deste sistema">
-            {atividade.tabelas_externas.join('; ')}
-          </Secao>
-        )}
-        <Secao titulo="Medidas de segurança">{atividade.medidas}</Secao>
-        {atividade.observacoes && (
-          <Secao titulo="Observações">{atividade.observacoes}</Secao>
-        )}
-      </div>
-      <details className="mt-3">
-        <summary className="cursor-pointer text-sm font-medium">
-          Dados pessoais ({atividade.dados_pessoais.length}) e tabelas (
-          {atividade.tabelas.length})
+          {atividade.pode_ter_crianca && (
+            <Selo classe="bg-amber-100 text-amber-900">
+              Pode ter criança ou adolescente
+            </Selo>
+          )}
+          {atividade.base_legal_conferida ? (
+            <Selo classe="bg-green-100 text-green-900">
+              Base legal conferida
+            </Selo>
+          ) : (
+            <Selo classe="bg-muted text-muted-foreground">
+              Base legal: proposta do sistema
+            </Selo>
+          )}
         </summary>
-        {atividade.dados_sensiveis.length > 0 && (
-          <p className="mt-2 text-sm">
-            <strong>Sensíveis:</strong> {atividade.dados_sensiveis.join(', ')}
+        <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Secao titulo="Finalidade">{atividade.finalidade}</Secao>
+            <Secao titulo="Titulares">{atividade.titulares.join('; ')}</Secao>
+            <Secao titulo="Base legal">
+              <ul className="list-disc pl-5">
+                {atividade.bases_legais_texto.map((b) => (
+                  <li key={b}>{b}</li>
+                ))}
+              </ul>
+            </Secao>
+            <Secao titulo="Com quem se compartilha">
+              <ul className="list-disc pl-5">
+                {atividade.operadores_detalhe.map((o) => (
+                  <li key={o.codigo}>
+                    <strong>{o.nome}</strong>: {o.o_que_faz}. Onde: {o.onde}.
+                    Termos: {o.termos}.
+                  </li>
+                ))}
+                {atividade.consultas_detalhe.map((c) => (
+                  <li key={c.codigo} data-consulta={c.codigo}>
+                    <strong>{c.nome}</strong> (serviço de consulta, sem
+                    contrato): recebe {c.o_que_recebe}. Termos: {c.termos}.
+                  </li>
+                ))}
+              </ul>
+            </Secao>
+            <Secao titulo="Onde fica guardado">
+              <ul className="list-disc pl-5">
+                {atividade.armazenamento.map((a) => (
+                  <li key={a}>{a}</li>
+                ))}
+              </ul>
+            </Secao>
+            <Secao titulo="Período de armazenamento">
+              {atividade.sem_rotina_de_guarda ? (
+                <span data-sem-rotina>
+                  Sem rotina automática de eliminação ainda.
+                </span>
+              ) : (
+                <ul className="list-disc pl-5">
+                  {atividade.prazos_de_guarda.map((p) => (
+                    <li key={p.regra}>
+                      {p.rotulo}: {p.dias} dias
+                    </li>
+                  ))}
+                  {atividade.prazos_fixos.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+              )}
+            </Secao>
+            {atividade.requisito_crianca && (
+              <Secao titulo="Criança e adolescente">
+                {atividade.requisito_crianca}
+              </Secao>
+            )}
+            {atividade.tabelas_externas.length > 0 && (
+              <Secao titulo="Dados fora deste sistema">
+                {atividade.tabelas_externas.join('; ')}
+              </Secao>
+            )}
+            <Secao titulo="Medidas de segurança">{atividade.medidas}</Secao>
+            {atividade.observacoes && (
+              <Secao titulo="Observações">{atividade.observacoes}</Secao>
+            )}
+          </div>
+          <details className="mt-3">
+            <summary className="cursor-pointer text-sm font-medium">
+              Dados pessoais ({atividade.dados_pessoais.length}) e tabelas (
+              {atividade.tabelas.length})
+            </summary>
+            {atividade.dados_sensiveis.length > 0 && (
+              <p className="mt-2 text-sm">
+                <strong>Sensíveis:</strong>{' '}
+                {atividade.dados_sensiveis.join(', ')}
+              </p>
+            )}
+            {atividade.texto_livre_que_pode_ter_sensivel.length > 0 && (
+              <p className="mt-2 text-sm">
+                <strong>Texto livre que pode ter dado sensível:</strong>{' '}
+                {atividade.texto_livre_que_pode_ter_sensivel.join(', ')}
+              </p>
+            )}
+            <p className="mt-2 text-xs text-muted-foreground">
+              {atividade.dados_pessoais.join(', ') ||
+                atividade.tabelas_externas.join('; ') ||
+                'só quem registrou'}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Tabelas: {atividade.tabelas.join(', ')}
+            </p>
+          </details>
+          <p className="mt-3 text-xs text-muted-foreground">
+            {atividade.versao === 0 || !atividade.alterado_em
+              ? `Versão ${atividade.versao}${atividade.versao === 0 ? ' (proposta do sistema)' : ''}.`
+              : `Versão ${atividade.versao}, de ${formatarData(atividade.alterado_em, { comHora: true })}.`}
           </p>
-        )}
-        {atividade.texto_livre_que_pode_ter_sensivel.length > 0 && (
-          <p className="mt-2 text-sm">
-            <strong>Texto livre que pode ter dado sensível:</strong>{' '}
-            {atividade.texto_livre_que_pode_ter_sensivel.join(', ')}
-          </p>
-        )}
-        <p className="mt-2 text-xs text-muted-foreground">
-          {atividade.dados_pessoais.join(', ') ||
-            atividade.tabelas_externas.join('; ') ||
-            'só quem registrou'}
-        </p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Tabelas: {atividade.tabelas.join(', ')}
-        </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {inventario.pode_gerir && !ajustando && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setAjustando(true)}
+              >
+                Ajustar
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setVendoHistorico(!vendoHistorico)}
+            >
+              {vendoHistorico ? 'Fechar o histórico' : 'Ver o histórico'}
+            </Button>
+          </div>
+          {vendoHistorico && <Historico codigo={atividade.codigo} />}
+          {ajustando && (
+            <Ajustar
+              atividade={atividade}
+              inventario={inventario}
+              aoFechar={() => setAjustando(false)}
+            />
+          )}
+        </div>
       </details>
-      <p className="mt-3 text-xs text-muted-foreground">
-        {atividade.versao === 0 || !atividade.alterado_em
-          ? `Versão ${atividade.versao}${atividade.versao === 0 ? ' (proposta do sistema)' : ''}.`
-          : `Versão ${atividade.versao}, de ${formatarData(atividade.alterado_em, { comHora: true })}.`}
-      </p>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {inventario.pode_gerir && !ajustando && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setAjustando(true)}
-          >
-            Ajustar
-          </Button>
-        )}
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setVendoHistorico(!vendoHistorico)}
-        >
-          {vendoHistorico ? 'Fechar o histórico' : 'Ver o histórico'}
-        </Button>
-      </div>
-      {vendoHistorico && <Historico codigo={atividade.codigo} />}
-      {ajustando && (
-        <Ajustar
-          atividade={atividade}
-          inventario={inventario}
-          aoFechar={() => setAjustando(false)}
-        />
-      )}
     </section>
   )
 }
@@ -367,6 +389,15 @@ export function InventarioDeDadosPage() {
     queryFn: obterInventario,
   })
   const [erroDoArquivo, setErroDoArquivo] = useState<string | null>(null)
+  const [abertas, setAbertas] = useState<Set<string>>(() => new Set())
+  const alternar = (codigo: string) => (aberta: boolean) =>
+    setAbertas((atual) => {
+      if (atual.has(codigo) === aberta) return atual
+      const nova = new Set(atual)
+      if (aberta) nova.add(codigo)
+      else nova.delete(codigo)
+      return nova
+    })
   const baixar = (formato: 'planilha' | 'pdf') => () => {
     setErroDoArquivo(null)
     baixarInventario(formato).catch((e) =>
@@ -433,8 +464,35 @@ export function InventarioDeDadosPage() {
               {erroDoArquivo}
             </p>
           )}
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm text-muted-foreground">
+              {data.atividades.length} atividades. Toque numa para ver tudo.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                setAbertas(new Set(data.atividades.map((a) => a.codigo)))
+              }
+            >
+              Abrir todas
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setAbertas(new Set())}
+            >
+              Recolher todas
+            </Button>
+          </div>
           {data.atividades.map((a) => (
-            <Cartao key={a.codigo} atividade={a} inventario={data} />
+            <Cartao
+              key={a.codigo}
+              atividade={a}
+              inventario={data}
+              aberta={abertas.has(a.codigo)}
+              aoAlternar={alternar(a.codigo)}
+            />
           ))}
           <section
             aria-label="Serviços de consulta"

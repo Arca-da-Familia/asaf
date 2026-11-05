@@ -90,6 +90,16 @@ export function RegrasDoSistemaPage() {
     queryFn: listarConfiguracoes,
     select: (todas) => todas.filter((c) => c.categoria === 'regras'),
   })
+  // v9.3b (pedido do Presidente, 05/11: telas compridas): procurar pelo nome ou pelo código, e duas colunas no computador (eram 12 alturas de tela)
+  const [busca, setBusca] = useState('')
+  const termo = busca.trim().toLocaleLowerCase('pt-BR')
+  const visiveis = (regras ?? []).filter(
+    (r) =>
+      !termo ||
+      `${r.descricao ?? ''} ${r.chave}`
+        .toLocaleLowerCase('pt-BR')
+        .includes(termo),
+  )
 
   return (
     <>
@@ -109,8 +119,31 @@ export function RegrasDoSistemaPage() {
           Nenhuma regra ajustável encontrada.
         </p>
       )}
-      <ul className="v3-space-y-3" aria-label="Regras ajustáveis">
-        {(regras ?? []).map((regra) => (
+      {(regras ?? []).length > 0 && (
+        <div className="mb-4 max-w-md">
+          <label htmlFor="procurar-regra" className="text-sm font-medium">
+            Procurar regra
+          </label>
+          <input
+            id="procurar-regra"
+            type="search"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Ex.: prazo, estorno, cotação"
+            className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+          />
+          {termo && (
+            <p role="status" className="mt-1 text-xs text-muted-foreground">
+              {visiveis.length} de {(regras ?? []).length} regras.
+            </p>
+          )}
+        </div>
+      )}
+      <ul
+        className="grid items-start gap-3 lg:grid-cols-2"
+        aria-label="Regras ajustáveis"
+      >
+        {visiveis.map((regra) => (
           <RegraLinha key={regra.chave} regra={regra} />
         ))}
       </ul>

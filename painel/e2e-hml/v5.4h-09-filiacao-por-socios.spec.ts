@@ -93,7 +93,8 @@ test('o pedido chega pela rota pública e o sócio é avisado no sino, abre o av
   await entrar(page, 'secretario')
   // o sino mostra que há aviso novo; abrir a lista leva ao pedido
   const sino = page.getByRole('button', {
-    name: /^Notificações \(\d+ novas?\)$/,
+    // v9.1a: o nome do sino leva o mesmo número que aparece no círculo ("9+"), sem parênteses
+    name: /^Notificações: (\d+|9\+) novas?$/,
   })
   await expect(sino).toBeVisible()
   await sino.click()

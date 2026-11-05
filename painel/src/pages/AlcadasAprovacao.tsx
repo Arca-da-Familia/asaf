@@ -261,7 +261,7 @@ export function AlcadasAprovacaoPage() {
         {mostrarAlcada && (
           <FormularioAlcada onCancelar={() => setMostrarAlcada(false)} />
         )}
-        <div className="v3-space-y-2">
+        <div className="grid items-start gap-2 lg:grid-cols-2">
           {(alcadas ?? []).map((a) => (
             <div
               key={a.id_alcada}
@@ -324,7 +324,7 @@ export function AlcadasAprovacaoPage() {
         {mostrarDelegacao && (
           <FormularioDelegacao onCancelar={() => setMostrarDelegacao(false)} />
         )}
-        <div className="v3-space-y-2">
+        <div className="grid items-start gap-2 lg:grid-cols-2">
           {(delegacoes ?? []).map((d) => (
             <div
               key={d.id_delegacao}

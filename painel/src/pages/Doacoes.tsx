@@ -22,6 +22,7 @@ import {
   listarPlanoContas,
   registrarDoacao,
 } from '@/lib/api'
+import { usePaginaLocal } from '@/lib/pagina-local'
 import {
   campanhaArrecadacaoCriarSchema,
   doacaoCriarSchema,
@@ -329,6 +330,8 @@ export function DoacoesPage() {
     queryKey: ['campanhas-arrecadacao'],
     queryFn: listarCampanhasArrecadacao,
   })
+  // v9.3b: as campanhas em páginas de 10 (eram dezenas de cartões acima das doações); a mais nova primeiro (ordem do servidor)
+  const paginaCampanhas = usePaginaLocal(campanhas, 10)
   // v9.2c: as doações vêm do servidor de 20 em 20 (a mais recente primeiro); antes vinham todas, de todos os anos
   const [paginaDoacoes, setPaginaDoacoes] = useState(1)
   const { data: paginaDeDoacoes } = useQuery({
@@ -374,8 +377,8 @@ export function DoacoesPage() {
             onCancelar={() => setMostrarFormCampanha(false)}
           />
         )}
-        <div className="v3-space-y-2">
-          {(campanhas ?? []).map((c) => {
+        <div className="grid items-start gap-2 lg:grid-cols-2">
+          {paginaCampanhas.daPagina.map((c) => {
             const progresso = Math.min(
               100,
               (c.valor_arrecadado / c.meta_valor) * 100,
@@ -431,6 +434,13 @@ export function DoacoesPage() {
             </p>
           )}
         </div>
+        <Paginador
+          pagina={paginaCampanhas.pagina}
+          porPagina={paginaCampanhas.porPagina}
+          total={paginaCampanhas.total}
+          aoMudar={paginaCampanhas.setPagina}
+          rotulo="Páginas das campanhas"
+        />
       </section>
 
       <section className="rounded-xl border border-border bg-card p-6">

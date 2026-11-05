@@ -112,6 +112,26 @@ let ultimoCliente: QueryClient
 beforeEach(() => vi.resetAllMocks())
 
 describe('Inventário de dados (v7.0c)', () => {
+  it('v9.3b: cada atividade vem recolhida (só o nome e os selos); um toque abre, e "Abrir todas" / "Recolher todas" valem para a lista', async () => {
+    vi.mocked(privacidade.obterInventario).mockResolvedValue(inventario())
+    const usuario = userEvent.setup()
+    desenhar()
+    const cartao = await screen.findByRole('region', {
+      name: 'Atendimento social a beneficiários',
+    })
+    const detalhes = cartao.querySelector('details')!
+    expect(detalhes.open).toBe(false)
+    expect(within(cartao).getByText('Dado sensível')).toBeVisible()
+    await usuario.click(
+      within(cartao).getByText('Atendimento social a beneficiários'),
+    )
+    expect(detalhes.open).toBe(true)
+    await usuario.click(screen.getByRole('button', { name: 'Recolher todas' }))
+    expect(detalhes.open).toBe(false)
+    await usuario.click(screen.getByRole('button', { name: 'Abrir todas' }))
+    expect(detalhes.open).toBe(true)
+  })
+
   it('mostra as seções, os selos e o que falta; passa no axe', async () => {
     vi.mocked(privacidade.obterInventario).mockResolvedValue(
       inventario({ tabelas_sem_atividade: ['tabela_nova'] }),

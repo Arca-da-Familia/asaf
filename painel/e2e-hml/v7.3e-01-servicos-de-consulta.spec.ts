@@ -10,6 +10,8 @@ test.setTimeout(300_000)
 test('o inventário mostra os serviços de consulta', async ({ page }, info) => {
   await entrar(page, 'presidente')
   await page.goto('/privacidade/inventario')
+  // v9.3b: as atividades vêm recolhidas (só o nome e os selos); abre todas para conferir o conteúdo
+  await page.getByRole('button', { name: 'Abrir todas' }).click()
   const cartao = page.getByRole('region', { name: 'Fornecedores' })
   await expect(cartao.locator('[data-consulta="MINHA_RECEITA"]')).toContainText(
     'Minha Receita (minhareceita.org) (serviço de consulta, sem contrato): recebe só o CNPJ do fornecedor',
