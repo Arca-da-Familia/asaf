@@ -217,17 +217,22 @@ async function medir(page: Page): Promise<Achado[]> {
         const pai = n.parentElement
         if (!pai || !visivel(pai) || noMenuFechado(pai)) continue
         const texto = n.textContent ?? ''
-        for (const m of texto.matchAll(/[\p{L}]{4,}/gu)) {
+        // só a palavra INTEIRA, feita só de letras (sem a pontuação das pontas); código técnico (SEGUNDA_VIA_DE_CARTEIRINHA), e-mail e lista de campos
+        // não têm onde quebrar e quebram de propósito quando não cabem (5ª rodada, 05/11)
+        for (const m of texto.matchAll(/\S+/gu)) {
+          const nucleo = /^[^\p{L}]*([\p{L}]{4,})[^\p{L}]*$/u.exec(m[0])
+          if (!nucleo) continue
           vistas++
+          const inicio = m.index + m[0].indexOf(nucleo[1])
           const faixa = document.createRange()
-          faixa.setStart(n, m.index)
-          faixa.setEnd(n, m.index + m[0].length)
+          faixa.setStart(n, inicio)
+          faixa.setEnd(n, inicio + nucleo[1].length)
           const linhas = new Set(
             [...faixa.getClientRects()]
               .filter((r) => r.width > 0)
               .map((r) => Math.round(r.top)),
           )
-          if (linhas.size > 1) partidas.add(`"${m[0]}" em ${nome(pai)}`)
+          if (linhas.size > 1) partidas.add(`"${nucleo[1]}" em ${nome(pai)}`)
         }
       }
       if (partidas.size)

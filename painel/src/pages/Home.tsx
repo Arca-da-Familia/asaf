@@ -17,7 +17,7 @@ export function Home() {
   const modulosVisiveis = modulos.filter((m) => moduloVisivel(m, permissoes))
 
   const classeCard =
-    'flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-6 text-center transition-colors hover:border-primary hover:bg-accent'
+    'flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-4 text-center sm:p-6 transition-colors hover:border-primary hover:bg-accent'
 
   return (
     <>

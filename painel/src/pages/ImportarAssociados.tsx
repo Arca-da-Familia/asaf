@@ -184,11 +184,12 @@ export function ImportarAssociadosPage() {
         ]}
       />
 
-      <div className="mb-6 flex gap-2 text-sm">
+      {/* v9.3a: 2 colunas no celular (4 lado a lado partiam as palavras: "Confi/rmar"), 4 no computador */}
+      <div className="mb-6 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
         {PASSOS.map((nome, i) => (
           <div
             key={nome}
-            className={`flex-1 rounded-md border px-3 py-2 text-center ${
+            className={`rounded-md border px-3 py-2 text-center ${
               i === passo
                 ? 'border-primary bg-primary/10 font-semibold'
                 : 'border-border text-muted-foreground'
