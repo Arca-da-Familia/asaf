@@ -15,7 +15,8 @@ test('a Política 2.17 diz o que os termos de cada prestador trazem', async ({
   page,
 }, info) => {
   await page.goto(`${SITE}/privacidade/`)
-  await expect(page.getByText(/Versão 2\.17 · em vigor desde/)).toBeVisible()
+  // a Política seguiu para versões novas (2.18 em 04/11); o que este robô confere é o parágrafo dos prestadores
+  await expect(page.getByText(/Versão 2\.\d+ · em vigor desde/)).toBeVisible()
   const paragrafo = page.locator('[data-transferencia]')
   await expect(paragrafo).toContainText(
     'cláusulas-padrão contratuais aprovadas pela Autoridade Nacional de Proteção de Dados (ANPD)',
