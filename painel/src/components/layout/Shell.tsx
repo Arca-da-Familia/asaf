@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import {
   ArrowLeft,
   CalendarCheck,
@@ -33,6 +33,7 @@ import {
   useCatalogosVisiveis,
 } from '@/lib/catalogos-visiveis'
 import { mensagens } from '@/lib/i18n/pt-BR'
+import { useTabelasEmCartoes } from '@/lib/tabelas-em-cartoes'
 import { itensVisiveis, modulos } from '@/lib/modulos'
 import { useTheme } from '@/lib/theme'
 import { useMe } from '@/lib/use-me'
@@ -168,6 +169,9 @@ export function Shell() {
     location.pathname.startsWith(`${ROTA_CONFIGURACOES}/`)
 
   const emImpersonacao = !!data?.impersonando
+  // v9.3b: no celular as tabelas do conteúdo viram cartões empilhados (lib/tabelas-em-cartoes.ts)
+  const conteudo = useRef<HTMLElement>(null)
+  useTabelasEmCartoes(conteudo)
   const alturaTopo = emImpersonacao
     ? ALTURA_TOPO_IMPERSONANDO
     : ALTURA_TOPO_NORMAL
@@ -187,7 +191,8 @@ export function Shell() {
         )}
       >
         <ImpersonationBar impersonando={data?.impersonando} />
-        <div className="flex h-16 flex-1 items-center gap-2 px-4">
+        {/* v9.3b: no celular, margens mais justas e o nome numa linha só (antes "ASAF ·" e "Painel" em duas linhas num celular de 360 px) */}
+        <div className="flex h-16 flex-1 items-center gap-1 px-2 sm:gap-2 sm:px-4">
           <Button
             variant="ghost"
             size="icon"
@@ -214,7 +219,7 @@ export function Shell() {
 
           <Link
             to="/"
-            className="flex items-center gap-2 text-lg font-bold tracking-tight"
+            className="flex min-w-0 items-center gap-2 whitespace-nowrap text-base font-bold tracking-tight sm:text-lg"
           >
             {/* Logo institucional (v5.0). alt vazio: o nome ao lado já é o texto do link. */}
             <img
@@ -442,6 +447,7 @@ export function Shell() {
 
       {/* Área de conteúdo */}
       <main
+        ref={conteudo}
         className={cn(
           'flex min-h-screen flex-col transition-[padding] duration-200',
           emImpersonacao ? 'pt-[6.5rem]' : 'pt-16',

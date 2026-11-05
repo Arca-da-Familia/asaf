@@ -196,9 +196,11 @@ async function medir(
           tipo: 'campo com letra menor que 16 px (o iPhone amplia a tela ao tocar)',
           detalhe: [...camposMiudos].slice(0, 8).join('; '),
         })
+      // no celular reprova (o dedo); no notebook é aviso: com mouse, o critério 2.5.8 aceita alvo menor com espaço em volta, e quem confere isso é o axe
+      // (robô v9.1a-01, que mede o espaçamento)
       if (pequenos.size)
         achados.push({
-          grave: true,
+          grave: celular,
           tipo: 'alvo de toque menor que 24 px',
           detalhe: `${pequenos.size}: ${[...pequenos].slice(0, 6).join('; ')}`,
         })

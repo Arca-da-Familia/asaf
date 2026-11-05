@@ -81,3 +81,73 @@
     }
   }
 }
+
+/* v9.3b (pedido do Presidente, 05/11): no celular, TABELA VIRA CARTÕES EMPILHADOS. As tabelas marcadas por lib/tabelas-em-cartoes.ts (todas as do
+   conteúdo, menos as com `data-sem-cartao`) passam a mostrar cada linha como um cartão, com o título da coluna antes de cada valor ("Nome  Ana de Teste").
+   Quando a tabela ordena (botões no título), os títulos viram uma fileira de botões "ordenar por" em cima dos cartões; sem botão, o título some (já está
+   em cada cartão). A caixa que rolava de lado deixa de ter borda e rolagem: quem tem borda agora é cada cartão. No computador nada muda. */
+@layer base {
+  @media (max-width: 639.98px) {
+    main div:has(> table[data-em-cartoes]) {
+      overflow: visible;
+      border: 0;
+      border-radius: 0;
+    }
+    main table[data-em-cartoes],
+    main table[data-em-cartoes] > tbody,
+    main table[data-em-cartoes] > tbody > tr,
+    main table[data-em-cartoes] > thead {
+      display: block;
+      width: 100%;
+    }
+    main table[data-em-cartoes] > thead:not(:has(button)) {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    main table[data-em-cartoes] > thead > tr {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem 0.75rem;
+      border: 0;
+      background: transparent;
+      margin-bottom: 0.5rem;
+    }
+    main table[data-em-cartoes] > thead > tr > th {
+      display: block;
+      padding: 0;
+    }
+    main table[data-em-cartoes] > thead > tr > th:empty {
+      display: none;
+    }
+    main table[data-em-cartoes] > tbody > tr {
+      border: 1px solid var(--color-border);
+      border-radius: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    main table[data-em-cartoes] > tbody > tr > td,
+    main table[data-em-cartoes] > tbody > tr > th {
+      display: block;
+      padding: 0.25rem 0;
+      text-align: left;
+    }
+    main table[data-em-cartoes] > tbody > tr > [data-rotulo] {
+      display: grid;
+      grid-template-columns: minmax(6rem, 38%) minmax(0, 1fr);
+      gap: 0.75rem;
+      align-items: start;
+    }
+    main table[data-em-cartoes] > tbody > tr > [data-rotulo]::before {
+      content: attr(data-rotulo);
+      color: var(--color-muted-foreground);
+      font-weight: 500;
+    }
+    main table[data-em-cartoes] > tbody > tr > td:empty {
+      display: none;
+    }
+  }
+}
