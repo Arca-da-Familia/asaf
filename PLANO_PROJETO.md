@@ -2112,7 +2112,7 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 
 ##### 🔍 Ponto de Revisão — FASE 9 (1/2 — meio, fecha v9.1–v9.2)
 
-🟡 **Checklist aplicado em 2026-11-05 — aguarda o OK do Presidente para fechar.** Checklist 4.1 sobre o intervalo desde o fechamento da FASE 8
+✅ **FEITO e FECHADO em 2026-11-05, com o OK do Presidente.** Checklist 4.1 sobre o intervalo desde o fechamento da FASE 8
 (`1e88da6..65ce75b`, 22 commits, 159 arquivos): (1) cada `[x]` da v9.1 e da v9.2 tem a prova escrita no próprio item (homologação e produção em linhas
 separadas); (2) e (9) suíte completa da API 1.895 testes em duas rodadas e no Postgres do CI (`validar/v92c-paginacao`), painel 828 + e2e, site 949 e2e +
 Lighthouse; robôs da homologação verdes nas telas que mudaram; (3) nenhuma decisão congelada tocada: mesmo banco, framework e pacotes (nenhum
@@ -2142,6 +2142,11 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - [ ] Teste com 3–5 pessoas reais (um dirigente, uma pessoa da secretaria, um associado idoso, um
       voluntário jovem) antes de considerar cada módulo pronto. Cinco pessoas encontram a maioria
       dos problemas de usabilidade — é barato e ninguém faz.
+      **[DECISÃO DO PRESIDENTE (2026-11-05): não há como reunir 3–5 pessoas reais agora; a verificação é VIRTUAL — robôs da homologação que simulam
+      o uso (celular em primeiro lugar: telas de telefone, colunas, menus, rolagem) e tiram prints de cada tela para conferência, repetindo até ficar
+      certo. Primeiro achado dele: a tela de Configurações é uma lista inteira, sem as duas colunas que o Financeiro tem (menu à esquerda rolando
+      sozinho, conteúdo à direita), e o menu principal não se esconde. Ele vai olhar os prints mais tarde, aos poucos; o teste com gente de verdade
+      fica para quando houver como]**
 - [ ] Ajuda contextual e tour de primeiro acesso por módulo, no lugar de manual em PDF que
       ninguém lê.
 - [ ] Canal de feedback dentro do painel ("achei um problema nesta tela") ligado à fila de
