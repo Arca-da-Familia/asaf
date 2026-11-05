@@ -78,12 +78,28 @@ async function medir(page: Page): Promise<Achado[]> {
       }
 
       const doc = document.documentElement
-      if (doc.scrollWidth > W + 1)
+      if (doc.scrollWidth > W + 1) {
+        // QUEM estica: o elemento que passa da tela cujo "pai" ainda cabe nela (ou rola sozinho) - aponta a peça a corrigir, não as que só foram empurradas
+        const culpados: string[] = []
+        for (const el of document.body.querySelectorAll('*')) {
+          if (culpados.length >= 4 || noMenuFechado(el) || !visivel(el))
+            continue
+          const pai = el.parentElement
+          if (!pai || el.getBoundingClientRect().right <= W + 1) continue
+          const paiCabe =
+            pai.getBoundingClientRect().right <= W + 1 ||
+            ['auto', 'scroll'].includes(getComputedStyle(pai).overflowX)
+          if (paiCabe && !temRolagemPropria(el))
+            culpados.push(
+              `${nome(el)} [${String(el.getAttribute('class') ?? '').slice(0, 90)}] até ${Math.round(el.getBoundingClientRect().right)} px`,
+            )
+        }
         achados.push({
           grave: true,
           tipo: 'a página rola de lado',
-          detalhe: `${doc.scrollWidth} px de largura numa tela de ${W} px`,
+          detalhe: `${doc.scrollWidth} px de largura numa tela de ${W} px; quem estica: ${culpados.join(' | ') || '(não achado)'}`,
         })
+      }
 
       const aside = document.querySelector('aside')
       if (aside && aside.getBoundingClientRect().right > 0)

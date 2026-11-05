@@ -87,7 +87,7 @@ function BlocoOpcoes({ catalogo }: { catalogo: Catalogo }) {
 
   return (
     <section className="rounded-xl border border-border bg-card p-6">
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="font-semibold">{catalogo.nome_exibido}</h2>
           {catalogo.descricao && (
@@ -152,7 +152,7 @@ function BlocoOpcoes({ catalogo }: { catalogo: Catalogo }) {
         {(opcoes ?? []).map((o) => (
           <div
             key={o.id_opcao}
-            className="flex items-center justify-between rounded-md border border-border p-2 text-sm"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-2 text-sm"
           >
             {editando === o.id_opcao ? (
               <FormShell<z.infer<typeof opcaoCatalogoEditarSchema>>

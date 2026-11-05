@@ -45,3 +45,29 @@
     }
   }
 }
+
+/* v9.3a (2ª rodada do robô de usabilidade no celular, 05/11: 57 telas mais largas que um celular de 360 px): no celular, DENTRO da área de conteúdo,
+   (1) uma fileira (flex) que não cabe quebra a linha em vez de sair da tela - filtros, botões "Editar/Desativar", ações do título; quem precisa de uma
+   linha só declara `flex-nowrap`; (2) lista de escolha e campo nunca passam da largura disponível (a lista de escolha cresce até o nome da opção mais
+   comprida: "Todos os eventosDespertai de Teste (robô v5.4g)…" esticava a página a 713 px); (3) palavra comprida demais (código, e-mail, número) quebra.
+   O topo e o menu lateral ficam de fora (têm o seu próprio desenho). Na camada base: classe explícita da tela ainda manda. */
+@layer base {
+  select,
+  input,
+  textarea {
+    max-width: 100%;
+  }
+  @media (max-width: 639.98px) {
+    main .flex:not(.flex-col, .flex-col-reverse, .flex-nowrap) {
+      flex-wrap: wrap;
+    }
+    main select,
+    main input,
+    main textarea {
+      min-width: 0;
+    }
+    main {
+      overflow-wrap: anywhere;
+    }
+  }
+}
