@@ -2147,6 +2147,19 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       certo. Primeiro achado dele: a tela de Configurações é uma lista inteira, sem as duas colunas que o Financeiro tem (menu à esquerda rolando
       sozinho, conteúdo à direita), e o menu principal não se esconde. Ele vai olhar os prints mais tarde, aos poucos; o teste com gente de verdade
       fica para quando houver como]**
+      **[v9.3a (2026-11-05) — CELULAR: Configurações viraram módulo (os catálogos na barra lateral, como o Financeiro; a página mostra só o catálogo
+      escolhido em `/configuracoes/<chave>`). Robô `e2e-hml/v9.3a-01` (celular de 360 × 740 com toque) abre as 125 telas, tira o print de cada uma e
+      REPROVA: página que rola de lado, peça cortada fora da tela, campo com letra < 16 px (zoom do iPhone), título fora da 1ª tela, menu aberto ao
+      chegar, alvo de toque < 24 px, letra < 12 px e palavra partida no meio. 6 rodadas na homologação, graves 114 → 0: botão quebra o texto no celular,
+      fileira quebra a linha, lista de escolha e campo cabem na largura, toda caixa que rola é `relative` (o texto escondido dos botões "Ver como"
+      esticava Níveis e permissões a 3.614 px; trava `caixa-que-rola-segura-o-conteudo.test.ts`, provada), alvos de 24 px, campos de 16 px, margem de
+      16 px no celular. Um achado só os PRINTS mostraram (o robô não via): `overflow-wrap: anywhere` espremia as tabelas até partir as palavras letra
+      por letra — trocado por `break-word` e o robô passou a reprovar palavra partida. Galeria dos prints para o Presidente:
+      https://claude.ai/artifact/HgTnR9dJkVUiFoBp6z6WXS]**
+      **[Homologação: v9.3a-01 sem nenhum grave (125 telas), v9.1a-01 (axe) verde, v5.4c-fase1 e v6.1-01 (Configurações) verdes]**
+      **[Produção: `version.json` = `5abe0c0`; `/configuracoes/estado_civil` 200; o estilo publicado tem os campos de 16 px e o `break-word`]**
+      **[FALTA (v9.3b, pedido do Presidente em 05/11): telas compridas — também no notebook — com submenus e telas progressivas; tabelas viram cartões
+      empilhados no celular; melhorar o topo; varredura também no notebook (1366 × 768)]**
 - [ ] Ajuda contextual e tour de primeiro acesso por módulo, no lugar de manual em PDF que
       ninguém lê.
 - [ ] Canal de feedback dentro do painel ("achei um problema nesta tela") ligado à fila de
