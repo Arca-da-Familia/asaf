@@ -904,7 +904,7 @@ test.describe('A. Reserva de espaço', () => {
     await motivo.selectOption({ label: 'Voluntário da equipe do evento' })
     await formIsencao.getByRole('button', { name: 'Conceder isenção' }).click()
     await expect(
-      alertasIsencao.filter({ hasText: /Selecione um associado ou informe/ }),
+      alertasIsencao.filter({ hasText: /Escolha um associado ou informe/ }),
     ).toBeVisible()
     const percentual = formIsencao.getByPlaceholder('% isento')
     await percentual.fill('0')
@@ -1933,12 +1933,12 @@ test.describe('A. Reserva de espaço', () => {
     const detalhe2 = await abrirEspaco(page, nome)
     const secao2 = secaoDe(detalhe2, 'Reservas')
     await secao2
-      .locator('label:text-is("Status") + select')
+      .locator('label:text-is("Situação") + select')
       .selectOption('CANCELADA')
     await expect(cartaoDeReserva(secao2, finalidadeCancelada)).toBeVisible()
     await expect(cartaoDeReserva(secao2, finalidade)).toHaveCount(0)
     await ver(page, info, 'filtro de reservas: so as canceladas')
-    await secao2.locator('label:text-is("Status") + select').selectOption('')
+    await secao2.locator('label:text-is("Situação") + select').selectOption('')
     await expect(cartaoDeReserva(secao2, finalidade)).toBeVisible()
 
     // exportação (permissão própria, sempre auditada)

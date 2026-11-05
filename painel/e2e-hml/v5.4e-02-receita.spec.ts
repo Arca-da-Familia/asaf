@@ -1189,7 +1189,13 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
     await cadastrar.click()
     await expect(alerta('No máximo 100%.')).toHaveCount(1)
     await expect(alerta('Máximo 12 meses.')).toHaveCount(1)
-    await form.getByPlaceholder('Meses do bloco (ex.: 6)').fill('1')
+    // depois da recusa o formulário leva o cursor ao primeiro campo com erro (o percentual); só digitar nos meses quando isso já aconteceu, senão o
+    // "1" pode cair no percentual (visto na homologação em 05/11: "1011" no percentual e "13" nos meses)
+    await expect(form.getByPlaceholder('% de desconto')).toBeFocused()
+    const meses = form.getByPlaceholder('Meses do bloco (ex.: 6)')
+    await meses.fill('1')
+    await expect(meses).toHaveValue('1')
+    await expect(form.getByPlaceholder('% de desconto')).toHaveValue('101')
     await cadastrar.click()
     await expect(alerta('Mínimo 2 meses.')).toHaveCount(1)
     await verNaTela(
