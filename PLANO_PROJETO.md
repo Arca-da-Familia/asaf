@@ -2182,7 +2182,13 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       v5.4h-06, v5.5d-01 → publicar → v5.5d-02, v5.5d-04 e v5.5d-05, v7.1b-01 verdes; validação em Postgres verde (94212bd)]**
       **[Produção: Deploy Painel verde; `version.json` = `94212bd`; `/eventos?evento=1&aba=pagamento` 200; a tela publicada tem "Partes do evento",
       "Procurar evento" e "Páginas dos eventos"]**
-      **[FALTA (próximas rodadas da v9.3): telas ainda compridas no notebook — Reserva de espaço 19,8, Plano de contas 16,4,
+      **[v9.3d (2026-11-06) — RESERVA DE ESPAÇO: o mapa de ocupação foi para uma aba própria (`?aba=mapa`); a lista de espaços ganhou busca (nome ou
+      tipo) e páginas de 10, indo à página do espaço recém-cadastrado; cada espaço da lista passou a abrir pelo teclado (antes só pelo mouse).
+      `lib/texto.ts` (busca sem acento) comum a Eventos e Espaços]**
+      **[Homologação: v5.4f-02 (reserva e mapa nas abas), v5.4f-03, v9.3a-01 e v9.3b-01 verdes; validação em Postgres verde (53af5f8)]**
+      **[Produção: Deploy Painel verde; `version.json` = `53af5f8`; `/reserva-espaco?aba=mapa` 200; a tela publicada tem "Mapa de ocupação",
+      "Procurar espaço" e "Páginas dos espaços"]**
+      **[FALTA (próximas rodadas da v9.3): telas ainda compridas no notebook — Plano de contas 16,4,
       Sessão da assembleia 16,0, Doações 15,5, Projetos 14,9, Relatórios 12,9, Qualidade da base 11,4, Para propor 10,6, Atendimentos 10,4 — uma por
       vez, com abas/submenus/telas progressivas e os robôs de cada uma reescritos; depois disso a altura no notebook passa a reprovar]**
 - [ ] Ajuda contextual e tour de primeiro acesso por módulo, no lugar de manual em PDF que
