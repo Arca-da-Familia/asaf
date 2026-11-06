@@ -1204,19 +1204,20 @@ test.describe('D. Crachá e portaria', () => {
     const api = guardarToken(page)
     await entrar(page, 'presidente')
 
+    await page.goto(`/eventos?evento=${idEvento}`)
+    await expect(
+      page.getByRole('heading', { name: TITULO, level: 2 }),
+    ).toBeVisible()
+    // v9.3c: a parte de Elegibilidade só é montada (e só busca os modelos) quando a aba "Presença e certificado" se abre
     const modelosCarregados = page.waitForResponse(
       (r) =>
         r.request().method() === 'GET' &&
         new URL(r.url()).pathname === '/api/templates-documento/',
     )
-    await page.goto(`/eventos?evento=${idEvento}`)
+    const eleg = await secao(page, SECAO_ELEGIBILIDADE)
     const modelos = (await (await modelosCarregados).json()) as {
       codigo: string
     }[]
-    await expect(
-      page.getByRole('heading', { name: TITULO, level: 2 }),
-    ).toBeVisible()
-    const eleg = await secao(page, SECAO_ELEGIBILIDADE)
     await expect(eleg).toBeVisible()
 
     // ---- os dois modelos (o motor só cria; um modelo já existente de outra rodada serve)

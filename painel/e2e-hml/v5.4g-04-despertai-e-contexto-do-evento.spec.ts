@@ -397,16 +397,12 @@ const contextoDoEvento = (page: Page): Locator =>
 const contextoDoProjeto = (page: Page): Locator =>
   page.getByRole('region', { name: 'Contexto do projeto' })
 
-/** Cada bloco do detalhe do evento (Programação, Edições...) é um <div> com um <h3>; devolve o bloco do título. */
+/** Cada bloco do detalhe do evento (Programação, Edições...) é um <div> com um <h3>; devolve o bloco do título: o `div` mais externo que tem só
+ * aquele título (desde a v9.3c as partes ficam dentro do painel de uma aba, que tem vários títulos). */
 const secaoDe = (detalhe: Locator, titulo: string): Locator =>
   detalhe
-    .locator('div')
-    .filter({
-      has: detalhe
-        .page()
-        .getByRole('heading', { name: titulo, level: 3, exact: true }),
-    })
-    .first()
+    .getByRole('heading', { name: titulo, level: 3, exact: true })
+    .locator('xpath=(ancestor::div[count(.//h3)=1])[1]')
 
 async function abrirFormularioDeEvento(page: Page): Promise<Locator> {
   const form = formularioDeEvento(page)
