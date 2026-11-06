@@ -19,6 +19,7 @@ import {
 } from '@/lib/schemas'
 import { formatarDia } from '@/lib/datas'
 import { lerValorEmReais } from '@/lib/valores'
+import { useRotuloDoCatalogo } from '@/lib/rotulo-do-catalogo'
 
 // v3.3 (FASE 3 - Financeiro) - alçada de aprovação (faixa de valor -> cargo(s) autorizados, com
 // ou sem dupla assinatura) e delegação temporária rastreável (ex.: tesoureiro de férias delega
@@ -216,6 +217,7 @@ function FormularioDelegacao({ onCancelar }: { onCancelar: () => void }) {
 }
 
 export function AlcadasAprovacaoPage() {
+  const nomeDoCargo = useRotuloDoCatalogo('titulo_cargo')
   const [mostrarAlcada, setMostrarAlcada] = useState(false)
   const [mostrarDelegacao, setMostrarDelegacao] = useState(false)
   const queryClient = useQueryClient()
@@ -285,7 +287,7 @@ export function AlcadasAprovacaoPage() {
                 </span>
               </div>
               <p className="text-muted-foreground">
-                Cargos: {a.cargos_autorizados.join(', ')}
+                Cargos: {a.cargos_autorizados.map(nomeDoCargo).join(', ')}
                 {a.exige_dupla_assinatura && ' · exige dupla assinatura'}
               </p>
               <div className="mt-2">

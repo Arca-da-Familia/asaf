@@ -115,7 +115,6 @@ test('exportar: só quem tem a permissão própria vê; o CSV baixado traz as co
 test('Configurações: uma opção nova de catálogo (estado civil) aparece no cadastro de associado, e desativada some', async ({
   page,
 }, info) => {
-  const codigo = `ROBO${RODADA}`
   const rotulo = `Estado civil Robô ${RODADA}`
   await entrar(page, 'presidente')
   await page.goto('/configuracoes')
@@ -124,8 +123,8 @@ test('Configurações: uma opção nova de catálogo (estado civil) aparece no c
   ).toBeVisible()
   await page.getByRole('link', { name: 'Estado civil', exact: true }).click()
   await page.getByRole('button', { name: 'Nova opção' }).click()
-  await page.getByPlaceholder('CODIGO_TECNICO').fill(codigo)
-  await page.getByPlaceholder('Rótulo exibido').fill(rotulo)
+  // v9.3g: só o nome; o código interno sai dele (ESTADO_CIVIL_ROBO_<rodada>) e nunca aparece na tela
+  await page.getByLabel('Nome da opção').fill(rotulo)
   await ver(page, info, 'nova opcao de estado civil preenchida')
   await page.getByRole('button', { name: 'Adicionar opção' }).click()
   await expect(page.getByText(rotulo).first()).toBeVisible()

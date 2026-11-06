@@ -423,6 +423,16 @@ export const opcaoCatalogoCriarSchema = z.object({
   rotulo: z.string().min(1, 'Informe o rótulo.'),
 })
 
+// v9.3g (pedido do Presidente, 06/11: nada de nome técnico na tela): quem cria a opção só escreve o nome; o código interno sai do nome
+// (`codigoDoRotulo` em pages/Configuracoes.tsx)
+export const opcaoCatalogoNovaSchema = z.object({
+  rotulo: z
+    .string()
+    .trim()
+    .min(1, 'Informe o nome da opção.')
+    .regex(/[\p{L}\d]/u, 'O nome precisa ter ao menos uma letra ou número.'),
+})
+
 export const opcaoCatalogoEditarSchema = z.object({
   rotulo: z.string().min(1, 'Informe o rótulo.'),
 })

@@ -274,7 +274,8 @@ async function medir(
       for (let n = andador2.nextNode(); n; n = andador2.nextNode()) {
         const pai = n.parentElement
         if (!pai || !visivel(pai) || noMenuFechado(pai)) continue
-        if (pai.closest('code, kbd, pre, [data-tecnico]')) continue
+        if (pai.closest('code, kbd, pre, [data-tecnico], [data-ambiente]'))
+          continue
         for (const m of (n.textContent ?? '').matchAll(/\S+/gu)) {
           const palavra = m[0]
           if (/@|:\/\/|^www\./.test(palavra)) continue

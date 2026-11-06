@@ -1157,7 +1157,7 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
     )
     await expect(formulario()).toHaveCount(0)
     const faixa1 = cartaoDe(page, 'R$ 100,00 até R$ 999,99')
-      .filter({ hasText: 'Cargos: PRESIDENTE' })
+      .filter({ hasText: 'Cargos: Presidente' })
       .first()
     await expect(faixa1.getByText('Ativa', { exact: true })).toBeVisible()
     await expect(faixa1).not.toContainText('dupla assinatura')
@@ -1169,7 +1169,7 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
     await expect(formulario()).toHaveCount(0)
     await expect(
       cartaoDe(page, 'R$ 1.000,00 até R$ 4.999,99')
-        .filter({ hasText: 'Cargos: PRESIDENTE' })
+        .filter({ hasText: 'Cargos: Presidente' })
         .first(),
     ).toBeVisible()
 
@@ -1186,7 +1186,7 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
     await expect(
       cartaoDe(page, 'R$ 5.000,00 até sem teto')
         .filter({
-          hasText: 'Cargos: PRESIDENTE, TESOUREIRO · exige dupla assinatura',
+          hasText: 'Cargos: Presidente, 1º Tesoureiro · exige dupla assinatura',
         })
         .first(),
     ).toBeVisible()

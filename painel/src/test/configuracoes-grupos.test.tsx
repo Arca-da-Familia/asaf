@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MenuDasConfiguracoes } from '@/components/layout/Shell'
 import * as api from '@/lib/api'
 import { useMe } from '@/lib/use-me'
+import { codigoDoRotulo } from '@/lib/texto'
 import { ConfiguracoesPage } from '@/pages/Configuracoes'
 
 // Ponto de Revisão FASE 6 (1/2): o catálogo da categoria do aviso (v6.1) tem o dono `comunicar`, e o grupo dele em Configurações aparece com o nome do
@@ -18,6 +19,7 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   listarCatalogos: vi.fn(),
   listarOpcoesCatalogo: vi.fn(),
+  criarOpcaoCatalogo: vi.fn(),
 }))
 
 const catalogo = (
@@ -168,5 +170,34 @@ describe('Configurações: os catálogos na barra lateral, um catálogo por vez 
       await screen.findByRole('link', { name: 'Tipo do sistema' }),
     ).toBeVisible()
     expect(screen.getByText('Sistema')).toBeVisible()
+  })
+})
+
+describe('Configurações sem nome técnico (v9.3g, pedido do Presidente em 06/11)', () => {
+  it('a opção aparece só pelo nome, sem o código interno', async () => {
+    montar('/configuracoes/estado_civil', ['associados'])
+    expect(await screen.findByText('Casado(a)')).toBeVisible()
+    expect(screen.queryByText('CASADO')).not.toBeInTheDocument()
+  })
+
+  it('opção nova: só o nome; o código sai dele, sem acento nem espaço', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.criarOpcaoCatalogo).mockResolvedValue(
+      {} as Awaited<ReturnType<typeof api.criarOpcaoCatalogo>>,
+    )
+    montar('/configuracoes/estado_civil', ['associados'])
+    await user.click(await screen.findByRole('button', { name: 'Nova opção' }))
+    await user.type(screen.getByLabelText('Nome da opção'), 'Viúvo(a)')
+    await user.click(screen.getByRole('button', { name: 'Adicionar opção' }))
+    expect(api.criarOpcaoCatalogo).toHaveBeenCalledWith('estado_civil', {
+      codigo: 'VIUVO_A',
+      rotulo: 'Viúvo(a)',
+    })
+  })
+
+  it('o código gerado do nome', () => {
+    expect(codigoDoRotulo('União estável')).toBe('UNIAO_ESTAVEL')
+    expect(codigoDoRotulo('  Ação social / Cesta  ')).toBe('ACAO_SOCIAL_CESTA')
+    expect(codigoDoRotulo('???')).toBe('OPCAO')
   })
 })

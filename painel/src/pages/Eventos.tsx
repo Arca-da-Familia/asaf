@@ -17,6 +17,7 @@ import { Paginador } from '@/components/data/Paginador'
 import { Abas } from '@/components/ui/abas'
 import { Button } from '@/components/ui/button'
 import { usePaginaLocal } from '@/lib/pagina-local'
+import { useRotuloDoCatalogo } from '@/lib/rotulo-do-catalogo'
 import { simplificar } from '@/lib/texto'
 import {
   atualizarElegibilidadeConfig,
@@ -487,6 +488,7 @@ function SecaoPerguntas({ idEvento }: { idEvento: number }) {
 // nenhuma cota cadastrada, o limite genérico do evento (campo "Vagas" do formulário de criação)
 // vale pra todo mundo, como já era desde a v4.5 — só que agora com trava real sob concorrência.
 function SecaoCotas({ idEvento }: { idEvento: number }) {
+  const nomeDaCategoria = useRotuloDoCatalogo('categoria_cota_inscricao')
   const queryClient = useQueryClient()
   const { data: categorias } = useQuery({
     queryKey: ['opcoes-catalogo', 'categoria_cota_inscricao'],
@@ -547,7 +549,8 @@ function SecaoCotas({ idEvento }: { idEvento: number }) {
             key={c.id_cota}
             className="rounded-md border border-border p-2 text-sm"
           >
-            {c.categoria} — {c.vagas_ocupadas}/{c.vagas_limite} ocupada(s)
+            {nomeDaCategoria(c.categoria)} — {c.vagas_ocupadas}/{c.vagas_limite}{' '}
+            ocupada(s)
           </div>
         ))}
         {(cotas ?? []).length === 0 && (
@@ -1067,6 +1070,7 @@ function SecaoCobranca({ evento }: { evento: Evento }) {
 }
 
 function SecaoFaixasPreco({ idEvento }: { idEvento: number }) {
+  const nomeDaCategoria = useRotuloDoCatalogo('categoria_cota_inscricao')
   const { data: me } = useMe()
   const podeGerenciar = me?.permissoes.includes('projetos') ?? false
   const queryClient = useQueryClient()
@@ -1166,7 +1170,7 @@ function SecaoFaixasPreco({ idEvento }: { idEvento: number }) {
             key={f.id_faixa}
             className="rounded-md border border-border p-2 text-sm"
           >
-            {f.categoria} — {formatarReais(f.valor)}
+            {nomeDaCategoria(f.categoria)} — {formatarReais(f.valor)}
             {f.data_vigencia_inicio &&
               ` · a partir de ${formatarData(f.data_vigencia_inicio, { comHora: true })}`}
             {f.data_vigencia_fim &&
@@ -2327,6 +2331,7 @@ function DetalheEvento({
   aba: string
   aoMudarDeAba: (aba: string) => void
 }) {
+  const nomeDoTipo = useRotuloDoCatalogo('tipo_evento')
   const { data: me } = useMe()
   const podeEditar = me?.permissoes.includes('projetos') ?? false
   const [editando, setEditando] = useState(false)
@@ -2349,7 +2354,7 @@ function DetalheEvento({
           {formatarData(evento.data_hora_inicio, { comHora: true })}
           {evento.data_hora_fim &&
             ` até ${formatarData(evento.data_hora_fim, { comHora: true })}`}{' '}
-          · {evento.categoria} · {evento.visibilidade} ·{' '}
+          · {nomeDoTipo(evento.categoria)} · {evento.visibilidade} ·{' '}
           {evento.gratuito ? 'Gratuito' : 'Pago'}
           {evento.vagas != null &&
             ` · ${evento.vagas_ocupadas}/${evento.vagas} vaga(s) ocupada(s) (${evento.vagas_livres} livre(s))`}
@@ -2429,6 +2434,7 @@ const ABAS_DO_EVENTO = ['programacao', 'inscritos', 'pagamento', 'presenca']
 const EVENTOS_POR_PAGINA = 10
 
 export function EventosPage() {
+  const nomeDoTipo = useRotuloDoCatalogo('tipo_evento')
   const [mostrarForm, setMostrarForm] = useState(false)
   // `/eventos?evento=12` abre o evento nº 12 (é o endereço que os outros módulos usam para apontar para ele).
   const [parametros, setParametros] = useSearchParams()
@@ -2579,7 +2585,7 @@ export function EventosPage() {
               </div>
               <p className="text-muted-foreground">
                 {formatarData(e.data_hora_inicio, { comHora: true })} ·{' '}
-                {e.categoria}
+                {nomeDoTipo(e.categoria)}
               </p>
             </div>
           ))}

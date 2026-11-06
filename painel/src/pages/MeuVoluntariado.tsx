@@ -22,6 +22,7 @@ import {
   horasVoluntariadoAutoatendimentoSchema,
   trocaTurnoCriarSchema,
 } from '@/lib/schemas'
+import { useRotuloDoCatalogo } from '@/lib/rotulo-do-catalogo'
 
 const CORES_STATUS: Record<string, string> = {
   PENDENTE: 'text-amber-700 dark:text-amber-400',
@@ -151,6 +152,7 @@ function CardAlocacao({ alocacao }: { alocacao: AlocacaoVoluntario }) {
 }
 
 function SecaoVagasAbertas() {
+  const nomeDaHabilidade = useRotuloDoCatalogo('habilidade_voluntario')
   const queryClient = useQueryClient()
   const { data: vagas } = useQuery({
     queryKey: ['vagas-abertas'],
@@ -182,7 +184,11 @@ function SecaoVagasAbertas() {
               </p>
               {v.habilidades_exigidas && (
                 <p className="text-muted-foreground">
-                  Habilidades: {v.habilidades_exigidas}
+                  Habilidades:{' '}
+                  {v.habilidades_exigidas
+                    .split(',')
+                    .map((h) => nomeDaHabilidade(h.trim()))
+                    .join(', ')}
                 </p>
               )}
             </div>

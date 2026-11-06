@@ -78,6 +78,7 @@ import {
 } from '@/lib/schemas'
 import { tratamentoLiberado } from '@/lib/privacidade'
 import { useMe } from '@/lib/use-me'
+import { useRotuloDoCatalogo } from '@/lib/rotulo-do-catalogo'
 
 // v4.1 (FASE 4) - Projeto como entidade única e configurável: tipo/status de catálogo,
 // cronograma com status sempre derivado (nunca escolhido à mão), equipe com papel, orçamento via
@@ -1714,6 +1715,8 @@ function DetalheProjeto({ projeto }: { projeto: Projeto }) {
 }
 
 export function ProjetosPage() {
+  const nomeDaSituacao = useRotuloDoCatalogo('status_projeto')
+  const nomeDoTipo = useRotuloDoCatalogo('tipo_projeto')
   const [mostrarForm, setMostrarForm] = useState(false)
   // `/projetos?projeto=3` abre o projeto nº 3 (é o endereço que os outros módulos usam para apontar para ele).
   const [parametros] = useSearchParams()
@@ -1778,10 +1781,14 @@ export function ProjetosPage() {
                     nº {p.id_projeto}
                   </span>
                 </p>
-                <span className="text-muted-foreground">{p.status}</span>
+                <span className="text-muted-foreground">
+                  {nomeDaSituacao(p.status)}
+                </span>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
-                <span>{p.tipo_projeto ?? p.tipo_foco}</span>
+                <span>
+                  {p.tipo_projeto ? nomeDoTipo(p.tipo_projeto) : p.tipo_foco}
+                </span>
                 <SelosDoProjeto projeto={p} />
               </div>
             </div>

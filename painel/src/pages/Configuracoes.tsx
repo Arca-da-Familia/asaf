@@ -14,8 +14,10 @@ import {
   type Catalogo,
 } from '@/lib/api'
 import { rotaDoCatalogo, useCatalogosVisiveis } from '@/lib/catalogos-visiveis'
+import { codigoDoRotulo } from '@/lib/texto'
 import {
   opcaoCatalogoCriarSchema,
+  opcaoCatalogoNovaSchema,
   opcaoCatalogoEditarSchema,
 } from '@/lib/schemas'
 
@@ -97,8 +99,8 @@ function BlocoOpcoes({ catalogo }: { catalogo: Catalogo }) {
           )}
           {!catalogo.editavel_pelo_usuario && (
             <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
-              Catálogo de sistema - código fixo, só rótulo/ordem/ativo podem
-              mudar.
+              Lista usada pelas regras do sistema: dá para mudar o nome, a ordem
+              e ligar ou desligar cada opção, mas não criar opções novas.
             </p>
           )}
         </div>
@@ -114,27 +116,31 @@ function BlocoOpcoes({ catalogo }: { catalogo: Catalogo }) {
       </div>
 
       {mostrarForm && (
-        <FormShell<z.infer<typeof opcaoCatalogoCriarSchema>>
-          schema={opcaoCatalogoCriarSchema}
-          defaultValues={{ codigo: '', rotulo: '' }}
-          onSubmit={(v) => criar.mutateAsync(v)}
+        <FormShell<z.infer<typeof opcaoCatalogoNovaSchema>>
+          schema={opcaoCatalogoNovaSchema}
+          defaultValues={{ rotulo: '' }}
+          onSubmit={(v) =>
+            criar.mutateAsync({
+              codigo: codigoDoRotulo(v.rotulo),
+              rotulo: v.rotulo,
+            })
+          }
           className="mb-4 grid gap-2 rounded-md border border-border p-3 sm:grid-cols-2"
         >
           {(form) => (
             <>
-              <div>
+              <div className="sm:col-span-2">
+                <label
+                  htmlFor={`nova-opcao-${catalogo.chave}`}
+                  className="text-sm font-medium"
+                >
+                  Nome da opção
+                </label>
                 <input
-                  {...form.register('codigo')}
-                  placeholder="CODIGO_TECNICO"
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm uppercase"
-                />
-                <ErroCampo mensagem={form.formState.errors.codigo?.message} />
-              </div>
-              <div>
-                <input
+                  id={`nova-opcao-${catalogo.chave}`}
                   {...form.register('rotulo')}
-                  placeholder="Rótulo exibido"
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  placeholder="Como aparece nas telas"
+                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 />
                 <ErroCampo mensagem={form.formState.errors.rotulo?.message} />
               </div>
@@ -192,9 +198,6 @@ function BlocoOpcoes({ catalogo }: { catalogo: Catalogo }) {
                     }
                   >
                     {o.rotulo}
-                  </span>
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    {o.codigo}
                   </span>
                 </div>
                 <div className="flex gap-2">

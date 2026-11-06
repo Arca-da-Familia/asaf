@@ -1724,7 +1724,7 @@ test('5. o Presidente aprova a troca do fornecedor 1, rejeita a do 2 e cadastra 
     `${brl(ALCADA_MINIMO)} até ${brl(ALCADA_TETO)}`,
   ).first()
   await expect(minha).toContainText('Ativa')
-  await expect(minha).toContainText('Cargos: PRESIDENTE')
+  await expect(minha).toContainText('Cargos: Presidente')
   await ver(page, info, 'alcada do robo cadastrada e ativa')
 
   // ---- Auditoria dos dados bancários: 2 pedidos, 1 aprovação, 1 rejeição, e nada da tentativa recusada

@@ -2331,7 +2331,7 @@ test.describe('D. Voluntariado vinculado ao projeto', () => {
       })
       const cartaoDaVaga = cartoes(vagas).filter({ hasText: FUNCAO })
       await expect(cartaoDaVaga).toBeVisible()
-      await expect(cartaoDaVaga).toContainText('Habilidades: COZINHA')
+      await expect(cartaoDaVaga).toContainText('Habilidades: Cozinha')
       const [candidatou] = await Promise.all([
         esperarResposta(
           page,
