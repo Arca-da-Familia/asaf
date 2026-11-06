@@ -428,10 +428,10 @@ def seed_niveis_e_permissoes():
         {"nome_nivel": "Documentos - preparo", "descricao": "Cadastra documentos, anexa original e versão pública e envia para revisão. NÃO aprova e NÃO baixa originais sigilosos.", "is_conselho_fiscal": False, "exige_mfa": False},
         {"nome_nivel": "Documentos - originais sigilosos", "descricao": "Vê a lista e baixa o ORIGINAL de documento Interno/Restrito (pode ter RG/CPF). Todo download é auditado.", "is_conselho_fiscal": False, "exige_mfa": True},
         {"nome_nivel": "Publicação - aprovação", "descricao": "Aprova, recusa e retira publicações da transparência. Nunca aprova o que ele mesmo enviou.", "is_conselho_fiscal": False, "exige_mfa": True},
-        {"nome_nivel": "Parcerias e emendas - gestão", "descricao": "Cadastra parcerias, emendas, parcelas, etapas e relatórios (v5.4a).", "is_conselho_fiscal": False, "exige_mfa": False},
+        {"nome_nivel": "Parcerias e emendas - gestão", "descricao": "Cadastra parcerias, emendas, parcelas, etapas e relatórios.", "is_conselho_fiscal": False, "exige_mfa": False},
     ]
     permissoes_padrao = [
-        {"modulo": "core", "codigo_permissao": "editar_site", "descricao": "Abrir o editor do site (Directus) pelo atalho \"Editar o site\" do painel (v5.7g). É só o atalho: o que cada pessoa pode mudar lá é decidido pelo papel dela no próprio Directus."},
+        {"modulo": "core", "codigo_permissao": "editar_site", "descricao": "Abrir o editor do site pelo atalho \"Editar o site\" do painel. É só o atalho: o que cada pessoa pode mudar lá é decidido no próprio editor do site."},
         {"modulo": "core", "codigo_permissao": "gerenciar_acesso", "descricao": "Gerenciar níveis de acesso e permissões."},
         {"modulo": "associados", "codigo_permissao": "associados", "descricao": "Gerenciar cadastro de associados."},
         {"modulo": "financeiro", "codigo_permissao": "financeiro", "descricao": "Gerenciar lançamentos e plano de contas."},
@@ -441,24 +441,24 @@ def seed_niveis_e_permissoes():
         {"modulo": "projetos", "codigo_permissao": "projetos", "descricao": "Gerenciar projetos e voluntários."},
         {"modulo": "core", "codigo_permissao": "auditoria", "descricao": "Consultar a trilha de auditoria."},
         # v7.3a (decisão do Presidente, 2026-10-29) - o CPF fica escondido em toda lista e ficha; o completo só por clique, registrado na Auditoria
-        {"modulo": "associados", "codigo_permissao": "ver_cpf_completo", "descricao": "Ver o CPF completo por clique em \"Mostrar o CPF\", registrado na Auditoria (v7.3a - nas listas e fichas o CPF aparece sempre escondido; decisão do Presidente: Presidente, Secretários e Tesoureiros)."},
-        {"modulo": "associados", "codigo_permissao": "exportar_dados_pessoais", "descricao": "Exportar dado pessoal de associados em massa (v1.3 - separada de 'associados' de propósito)."},
-        {"modulo": "associados", "codigo_permissao": "forcar_cadastro_duplicado", "descricao": "Cadastrar associado mesmo quando o sistema sinaliza um cadastro parecido já existente (v1.8 - separada de 'associados' de propósito, só quem decide sobre duplicidade tem)."},
-        {"modulo": "eventos", "codigo_permissao": "gerenciar_checkin_evento", "descricao": "Gerenciar portaria de evento (emitir/revogar token de check-in), configurar elegibilidade e emitir crachás/certificados (v4.8)."},
-        {"modulo": "eventos", "codigo_permissao": "exportar_presencas_evento", "descricao": "Exportar lista de presenças/elegibilidade de um evento (v4.8 - separada de 'gerenciar_checkin_evento' de propósito, mesmo padrão de 'exportar_dados_pessoais')."},
-        {"modulo": "eventos", "codigo_permissao": "exportar_inscricoes_evento", "descricao": "Exportar lista de inscritos de um evento (v4.10 - separada de 'exportar_presencas_evento' de propósito, cada exportação em massa tem o seu próprio código)."},
-        {"modulo": "projetos", "codigo_permissao": "exportar_beneficiarios", "descricao": "Exportar dado de beneficiário em massa através de projetos (v4.10 - separada de 'projetos' de propósito, mesmo padrão de 'exportar_dados_pessoais')."},
-        {"modulo": "projetos", "codigo_permissao": "exportar_reservas_espaco", "descricao": "Exportar lista de reservas de espaço em massa (v4.10 - separada de 'projetos'/demais exportações de propósito)."},
-        {"modulo": "documentos", "codigo_permissao": "documentos", "descricao": "Cadastrar documentos institucionais, anexar original e versão pública e enviar para revisão (v5.4a)."},
-        {"modulo": "documentos", "codigo_permissao": "documentos_originais", "descricao": "Baixar o ORIGINAL de documento Interno/Restrito, que pode ter RG/CPF (v5.4a - separada de 'documentos' de propósito, mesmo padrão de 'exportar_dados_pessoais')."},
-        {"modulo": "documentos", "codigo_permissao": "aprovar_publicacao", "descricao": "Aprovar, recusar e retirar publicações no site de transparência; nunca o que a própria pessoa enviou (v5.4a)."},
-        {"modulo": "parcerias", "codigo_permissao": "parcerias", "descricao": "Gerenciar parcerias, emendas parlamentares, parcelas, etapas e relatórios (v5.4a)."},
-        {"modulo": "atendimento", "codigo_permissao": "atendimento", "descricao": "Atender a fila única: contato, pedidos de informação, solicitações de titular de dados (LGPD) e voluntariado que chegam pelo site (v5.5a)."},
+        {"modulo": "associados", "codigo_permissao": "ver_cpf_completo", "descricao": "Ver o CPF completo clicando em \"Mostrar o CPF\"; cada clique fica na Auditoria. Nas listas e fichas o CPF aparece sempre escondido (decisão do Presidente: Presidente, Secretários e Tesoureiros)."},
+        {"modulo": "associados", "codigo_permissao": "exportar_dados_pessoais", "descricao": "Exportar dados pessoais de associados em massa (separada do cadastro de associados de propósito)."},
+        {"modulo": "associados", "codigo_permissao": "forcar_cadastro_duplicado", "descricao": "Cadastrar associado mesmo quando o sistema avisa que já existe um cadastro parecido (só quem decide sobre cadastro repetido tem)."},
+        {"modulo": "eventos", "codigo_permissao": "gerenciar_checkin_evento", "descricao": "Cuidar da portaria do evento (criar e cancelar o link de entrada), configurar a regra do certificado e emitir crachás e certificados."},
+        {"modulo": "eventos", "codigo_permissao": "exportar_presencas_evento", "descricao": "Exportar a lista de presenças de um evento e de quem tem direito ao certificado (separada da portaria de propósito)."},
+        {"modulo": "eventos", "codigo_permissao": "exportar_inscricoes_evento", "descricao": "Exportar a lista de inscritos de um evento (cada exportação em massa tem a sua própria permissão)."},
+        {"modulo": "projetos", "codigo_permissao": "exportar_beneficiarios", "descricao": "Exportar dados de beneficiários de projetos em massa (separada da gestão de projetos de propósito)."},
+        {"modulo": "projetos", "codigo_permissao": "exportar_reservas_espaco", "descricao": "Exportar a lista de reservas de espaço em massa (separada das outras exportações de propósito)."},
+        {"modulo": "documentos", "codigo_permissao": "documentos", "descricao": "Cadastrar documentos institucionais, anexar o original e a versão pública e enviar para revisão."},
+        {"modulo": "documentos", "codigo_permissao": "documentos_originais", "descricao": "Baixar o original de documento Interno ou Restrito, que pode ter RG ou CPF (separada de Documentos de propósito)."},
+        {"modulo": "documentos", "codigo_permissao": "aprovar_publicacao", "descricao": "Aprovar, recusar e retirar publicações no site de transparência; nunca o que a própria pessoa enviou."},
+        {"modulo": "parcerias", "codigo_permissao": "parcerias", "descricao": "Gerenciar parcerias, emendas parlamentares, parcelas, etapas e relatórios."},
+        {"modulo": "atendimento", "codigo_permissao": "atendimento", "descricao": "Atender a fila única: contato, pedidos de informação, pedidos de titular de dados (LGPD) e voluntariado que chegam pelo site."},
         # v6.1 (decisão do Presidente, 2026-10-20) - quem publica aviso no mural do painel: o Presidente e os Secretários (pelo cargo); os outros recebem pela tela Níveis e permissões.
-        {"modulo": "comunicacao", "codigo_permissao": "comunicar", "descricao": "Publicar avisos no mural do painel para um grupo calculado, ver quem leu e confirmou, incluir quem entrou no grupo depois e retirar o aviso (v6.1)."},
+        {"modulo": "comunicacao", "codigo_permissao": "comunicar", "descricao": "Publicar avisos no mural do painel para um grupo, ver quem leu e confirmou, incluir quem entrou no grupo depois e retirar o aviso."},
         # v7.0a - o módulo Privacidade (programa de privacidade da LGPD): o encarregado é o Presidente (decisão dele, 2026-10-09) e o substituto, o 1º Vice-Presidente (pelo cargo).
-        {"modulo": "privacidade", "codigo_permissao": "privacidade", "descricao": "Programa de privacidade (LGPD): ver o encarregado, o substituto e o ato de designação (e baixar a cópia assinada) e ver e exportar o inventário de dados (v7.0a/v7.0c)."},
-        {"modulo": "privacidade", "codigo_permissao": "privacidade_gerir", "descricao": "Programa de privacidade (LGPD): gerar o ato de designação do encarregado, registrar a cópia assinada e ajustar o inventário de dados (v7.0a/v7.0c - separada de 'privacidade' de propósito: só o Presidente)."},
+        {"modulo": "privacidade", "codigo_permissao": "privacidade", "descricao": "Programa de privacidade (LGPD): ver o encarregado, o substituto e o ato de designação (e baixar a cópia assinada) e ver e exportar o inventário de dados."},
+        {"modulo": "privacidade", "codigo_permissao": "privacidade_gerir", "descricao": "Programa de privacidade (LGPD): gerar o ato de designação do encarregado, registrar a cópia assinada e ajustar o inventário de dados (só o Presidente)."},
     ]
     # Nível -> lista de códigos de permissão que ele recebe por padrão (ajustável depois pela
     # própria tela de administração de acesso, isto aqui é só ponto de partida).
@@ -533,12 +533,12 @@ def seed_configuracoes_institucionais():
         {"chave": "FUSO_HORARIO", "valor": "America/Sao_Paulo", "tipo": "texto", "categoria": "geral", "descricao": "Fuso horário usado em datas de documento e agendamento."},
         {"chave": "EMAIL_REMETENTE", "valor": "", "tipo": "email", "categoria": "geral", "descricao": "E-mail usado como remetente de notificações do sistema."},
         {"chave": "TEXTO_PADRAO_DOCUMENTO", "valor": "", "tipo": "texto", "categoria": "documentos", "descricao": "Texto padrão (rodapé/aviso legal) incluído nos documentos gerados."},
-        {"chave": "PRAZO_CONVOCACAO_DIAS", "valor": "15", "tipo": "numero", "categoria": "regras", "descricao": "Dias mínimos de antecedência para convocação de assembleia (Art. 8º do estatuto - ver ESTATUTO_ASAF.txt)."},
+        {"chave": "PRAZO_CONVOCACAO_DIAS", "valor": "15", "tipo": "numero", "categoria": "regras", "descricao": "Dias mínimos de antecedência para convocação de assembleia (Art. 8º do Estatuto)."},
         {"chave": "DIAS_TOLERANCIA_INADIMPLENCIA", "valor": "30", "tipo": "numero", "categoria": "regras", "descricao": "Dias de atraso tolerados antes de marcar associado como inadimplente."},
         {"chave": "TETO_ALCADA_FINANCEIRA", "valor": "1000", "tipo": "numero", "categoria": "regras", "descricao": "Valor máximo (R$) que a Diretoria aprova sem submeter à Assembleia."},
         {"chave": "PRAZO_EXPERIENCIA_DIAS", "valor": "90", "tipo": "numero", "categoria": "regras", "descricao": "Dias de experiência de um novo associado antes de virar Ativo pleno (0 = sem período de experiência)."},
         {"chave": "PRAZO_RETENCAO_DESLIGADO_DIAS", "valor": "1825", "tipo": "numero", "categoria": "regras", "descricao": "Dias após o desligamento antes do dado pessoal sensível ser anonimizado (padrão 5 anos - LGPD; ajustar conforme orientação contábil/jurídica real da associação). Nome, matrícula e todo dado financeiro nunca são apagados."},
-        {"chave": "PRAZO_RECADASTRAMENTO_DIAS", "valor": "365", "tipo": "numero", "categoria": "regras", "descricao": "Dias desde a última confirmação de dados cadastrais antes do cadastro ser sinalizado para recadastramento (v1.8)."},
+        {"chave": "PRAZO_RECADASTRAMENTO_DIAS", "valor": "365", "tipo": "numero", "categoria": "regras", "descricao": "Dias desde a última confirmação dos dados cadastrais até o cadastro ser marcado para recadastramento."},
         # v3.2.1 (adaptado) - lembrete automático de mensalidade por e-mail (ver
         # app/services/lembretes.py) - quantos dias antes do vencimento o primeiro lembrete sai
         # (o segundo sempre sai no próprio dia do vencimento, não configurável).
@@ -556,13 +556,13 @@ def seed_configuracoes_institucionais():
         # v3.7 - controles antifraude além do mínimo (ver app/services/antifraude.py) - todos os
         # limiares do relatório de exceção mensal são configuráveis, nunca hardcoded, porque cada
         # associação tem um volume/perfil de operação diferente.
-        {"chave": "HORA_INICIO_EXPEDIENTE", "valor": "7", "tipo": "numero", "categoria": "regras", "descricao": "Hora (0-23, fuso FUSO_HORARIO) a partir da qual um lançamento é considerado dentro do expediente."},
-        {"chave": "HORA_FIM_EXPEDIENTE", "valor": "20", "tipo": "numero", "categoria": "regras", "descricao": "Hora (0-23, fuso FUSO_HORARIO) até a qual um lançamento é considerado dentro do expediente."},
+        {"chave": "HORA_INICIO_EXPEDIENTE", "valor": "7", "tipo": "numero", "categoria": "regras", "descricao": "Hora (0 a 23, no fuso horário da associação) a partir da qual um lançamento é considerado dentro do expediente."},
+        {"chave": "HORA_FIM_EXPEDIENTE", "valor": "20", "tipo": "numero", "categoria": "regras", "descricao": "Hora (0 a 23, no fuso horário da associação) até a qual um lançamento é considerado dentro do expediente."},
         {"chave": "PERCENTUAL_ALERTA_FRACIONAMENTO", "valor": "10", "tipo": "numero", "categoria": "regras", "descricao": "Solicitação de compra com valor a menos deste percentual do teto de uma alçada de aprovação entra no relatório de exceção mensal (possível fracionamento)."},
         {"chave": "VALOR_ALERTA_FORNECEDOR_NOVO", "valor": "1000", "tipo": "numero", "categoria": "regras", "descricao": "Valor (R$) a partir do qual a primeira operação com um fornecedor novo entra no relatório de exceção mensal."},
         {"chave": "QUANTIDADE_ALERTA_ESTORNOS_MESMO_USUARIO", "valor": "3", "tipo": "numero", "categoria": "regras", "descricao": "Quantidade de estornos no mesmo mês pelo mesmo usuário que entra no relatório de exceção mensal."},
         {"chave": "DIAS_ALERTA_TROCA_DADOS_BANCARIOS", "valor": "30", "tipo": "numero", "categoria": "regras", "descricao": "Dias após a aprovação de troca de dados bancários de fornecedor em que um pagamento a ele entra no relatório de exceção mensal."},
-        {"chave": "DIAS_ALERTA_LANCAMENTO_TARDIO", "valor": "5", "tipo": "numero", "categoria": "regras", "descricao": "Dias entre o pagamento de uma saída e o lançamento dela no sistema a partir dos quais o lançamento é tardio: a saída fica marcada no cartão da Auditoria financeira e entra no relatório de exceção mensal do Conselho Fiscal (v5.4h)."},
+        {"chave": "DIAS_ALERTA_LANCAMENTO_TARDIO", "valor": "5", "tipo": "numero", "categoria": "regras", "descricao": "Dias entre o pagamento de uma saída e o lançamento dela no sistema a partir dos quais o lançamento é tardio: a saída fica marcada no cartão da Auditoria financeira e entra no relatório de exceção mensal do Conselho Fiscal."},
         # v5.5a - prazo de resposta de cada tipo de pedido que chega pelo site (fila única de atendimento). O pedido de titular da LGPD é de 15 dias (art. 19, II); o
         # pedido de informação sobre recursos públicos segue de referência a Lei de Acesso à Informação (20 dias, art. 11); a diretoria muda aqui quando quiser.
         {"chave": "PRAZO_DIAS_ATENDIMENTO_CONTATO", "valor": "10", "tipo": "numero", "categoria": "regras", "descricao": "Dias para responder uma mensagem de contato que chega pelo site."},
@@ -603,7 +603,7 @@ def seed_configuracoes_institucionais():
         # que já não existe mais.
         {"chave": "URL_BASE_SITE_PUBLICO", "valor": "", "tipo": "texto", "categoria": "geral", "descricao": "URL base do site institucional (Astro/Directus) - usada para montar o link de autocancelamento enviado por e-mail. Vazio = e-mail orienta contatar a secretaria com o código."},
         # v6.2a - o link "abrir no painel" do e-mail de um aviso, e o ritmo do envio em lotes (a conta Google Workspace envia até 2.000 mensagens por dia: o teto fica abaixo, para sobrar para os automáticos)
-        {"chave": "URL_BASE_PAINEL", "valor": "", "tipo": "texto", "categoria": "geral", "descricao": "Endereço do painel usado nos links dos e-mails (ex.: https://painel.asaf.org.br). Vazio = a variável de ambiente URL_BASE_PAINEL ou o painel de produção."},
+        {"chave": "URL_BASE_PAINEL", "valor": "", "tipo": "texto", "categoria": "geral", "descricao": "Endereço do painel usado nos links dos e-mails (ex.: https://painel.asaf.org.br). Vazio = o endereço do painel de produção."},
         {"chave": "EMAIL_LIMITE_DIARIO", "valor": "1500", "tipo": "numero", "categoria": "regras", "descricao": "Quantos e-mails de aviso podem sair em 24 horas (a conta do Google envia até 2.000 por dia, contando os automáticos: recibos, códigos, lembretes)."},
         {"chave": "EMAIL_LOTE_POR_RODADA", "valor": "100", "tipo": "numero", "categoria": "regras", "descricao": "Quantos e-mails de aviso saem a cada rodada da tarefa periódica (de 15 em 15 minutos)."},
         # v4.7 - vagas/lista de espera: quantas horas quem é promovido da lista de espera tem
@@ -683,7 +683,7 @@ def seed_regras_estatutarias():
             {"parametro": "QUORUM_DISSOLUICAO_APROVACAO", "valor": "2/3", "tipo": "fracao", "artigo_origem": "Art. 31",
              "descricao": "Fração dos presentes exigida para deliberar a dissolução da ASAF."},
             {"parametro": "PRAZO_ATENDIMENTO_PEDIDO_CONVOCACAO_DIAS", "valor": "30", "tipo": "numero", "artigo_origem": "Art. 10, Parágrafo Único",
-             "descricao": "Dias que o Presidente tem para convocar assembleia após pedido formal de associado; findo o prazo, os próprios associados podem convocar (efeito automático - v2.2)."},
+             "descricao": "Dias que o Presidente tem para convocar assembleia após pedido formal de associado; findo o prazo, os próprios associados podem convocar (efeito automático)."},
             {"parametro": "FRACAO_MINIMA_PETICAO_CONVOCACAO", "valor": "1/5", "tipo": "fracao", "artigo_origem": "Art. 8º / Art. 10",
              "descricao": "Fração mínima dos associados ativos com direito de convocar Assembleia Geral por petição (bate com o Art. 60 do Código Civil)."},
             {"parametro": "DURACAO_MANDATO_ANOS", "valor": "4", "tipo": "numero", "artigo_origem": "Art. 25 / Art. 32",
@@ -693,7 +693,7 @@ def seed_regras_estatutarias():
             {"parametro": "LIMITE_MANDATOS_CONSECUTIVOS", "valor": "ilimitado", "tipo": "texto", "artigo_origem": "Art. 32",
              "descricao": "Limite de reeleições consecutivas - o estatuto real não impõe trava nenhuma (\"podendo qualquer dos seus membros serem conduzidos para mandatos subsequentes\")."},
             {"parametro": "PROCURACAO_PERMITIDA", "valor": "nao", "tipo": "booleano", "artigo_origem": "Art. 7º",
-             "descricao": "Se procuração/representação de um associado por outro vale para quórum ou voto. Hoje SEMPRE vedada pelo estatuto vigente - parâmetro existe pra quando uma reforma futura mudar isso (v2.2)."},
+             "descricao": "Se a procuração (um associado representar outro) vale para quórum ou voto. Hoje é sempre vedada pelo Estatuto; a regra existe para quando uma reforma mudar isso."},
             {"parametro": "IDADE_MINIMA_FILIACAO_ANOS", "valor": "18", "tipo": "numero", "artigo_origem": "Art. 12",
              "descricao": "Idade mínima geral para filiação à ASAF."},
             {"parametro": "IDADE_MINIMA_FILIACAO_COM_AUTORIZACAO_ANOS", "valor": "16", "tipo": "numero", "artigo_origem": "Art. 12",
@@ -701,7 +701,7 @@ def seed_regras_estatutarias():
             {"parametro": "QTD_SOCIOS_PROPONENTES_FILIACAO", "valor": "3", "tipo": "numero", "artigo_origem": "Art. 12, Parágrafo Único, VI",
              "descricao": "Quantidade de associados que devem propor por escrito o pedido de adesão de um novo sócio."},
             {"parametro": "QTD_MENSALIDADES_INADIMPLENCIA_EXCLUSAO", "valor": "6", "tipo": "numero", "artigo_origem": "Art. 16, §1º, V",
-             "descricao": "Mensalidades consecutivas em atraso que configuram motivo de abertura de processo disciplinar com possível exclusão (nunca automática - exige processo com ampla defesa, v2.7)."},
+             "descricao": "Mensalidades consecutivas em atraso que configuram motivo de abertura de processo disciplinar com possível exclusão (nunca automática: exige processo com ampla defesa)."},
             # v2.2 - intervalo entre convocações da mesma assembleia (1ª->2ª->3ª chamada),
             # adicionado depois da v2.0 mas seguindo o mesmo seed (idempotente por parâmetro,
             # não por catálogo inteiro - por isso entra aqui mesmo já existindo produção rodando).
@@ -712,7 +712,7 @@ def seed_regras_estatutarias():
             # não mandato estatutário - por isso sem `artigo_origem` (None), diferente de todo
             # outro parâmetro desta lista.
             {"parametro": "REGRA_DESEMPATE", "valor": "NOVA_VOTACAO", "tipo": "texto", "artigo_origem": None,
-             "descricao": "Como resolver empate no resultado de uma votação - sem previsão estatutária. \"NOVA_VOTACAO\" é o único valor que o sistema resolve sozinho hoje; qualquer outro valor fica registrado mas exige resolução manual (POST /api/votacoes/{id}/resolver-empate)."},
+             "descricao": "Como resolver empate no resultado de uma votação (o Estatuto não prevê). \"Nova votação\" é o único valor que o sistema resolve sozinho; com qualquer outro, o empate fica registrado e é resolvido à mão na sessão da assembleia."},
             {"parametro": "PRAZO_RECURSO_IMPUGNACAO_DIAS", "valor": "5", "tipo": "numero", "artigo_origem": None,
              "descricao": "Dias para recorrer de uma impugnação de voto - sem previsão estatutária específica (apoia-se no direito geral de recurso do Art. 13, V)."},
             # v2.7 - SEM base no estatuto: Art. 16 exige "ampla defesa e contraditório" mas não

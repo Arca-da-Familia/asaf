@@ -136,6 +136,18 @@ function ReformarRegra({
   )
 }
 
+// v9.3j (pedido do Presidente, 06/11: nada de nome técnico na tela): o valor guardado como palavra-código aparece por extenso
+const VALOR_LEGIVEL: Record<string, string> = {
+  maioria_simples: 'Maioria simples',
+  NOVA_VOTACAO: 'Nova votação',
+  ilimitado: 'Ilimitado',
+  nao: 'Não',
+  sim: 'Sim',
+}
+function valorLegivel(valor: string): string {
+  return VALOR_LEGIVEL[valor] ?? valor
+}
+
 export function RegrasDoEstatutoPage() {
   const [aberta, setAberta] = useState<{
     parametro: string
@@ -179,7 +191,9 @@ export function RegrasDoEstatutoPage() {
                 {/* v9.3g: a descrição em português no lugar do nome interno (DURACAO_MANDATO_ANOS), que fica em data-parametro */}
                 <p className="font-medium">{r.descricao ?? r.parametro}</p>
                 <p className="mt-0.5">
-                  <span className="font-mono font-semibold">{r.valor}</span>
+                  <span className="font-mono font-semibold">
+                    {valorLegivel(r.valor)}
+                  </span>
                   {r.artigo_origem && (
                     <span className="text-muted-foreground">
                       {' '}
