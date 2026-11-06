@@ -23,7 +23,9 @@ async function abrirRegras(page: Page): Promise<void> {
   await expect(
     page.getByRole('heading', { name: 'Regras do Estatuto', level: 1 }),
   ).toBeVisible()
-  await expect(page.getByText(PARAMETRO, { exact: true })).toBeVisible()
+  // v9.3g: a regra aparece pela descrição; o nome interno fica em data-parametro (e nunca na tela)
+  await expect(cartaoDaRegra(page, PARAMETRO)).toBeVisible()
+  await expect(page.getByText(PARAMETRO, { exact: true })).toHaveCount(0)
 }
 
 /** O cartão da regra (v9.3g: a tela mostra a descrição; o nome do parâmetro fica em data-parametro). */
@@ -77,7 +79,7 @@ test('a lista mostra cada regra com o valor, o artigo de origem e a descrição 
   await entrar(page, 'presidente')
   await abrirRegras(page)
   await expect(
-    page.getByRole('button', { name: /^Reformar / }),
+    page.getByRole('button', { name: /^Reformar: / }),
   ).not.toHaveCount(0)
   const quorum = cartaoDaRegra(page, OUTRO_PARAMETRO)
   await expect(quorum).toContainText('2/3')
