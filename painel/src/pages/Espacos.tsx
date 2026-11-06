@@ -5,12 +5,13 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { z } from 'zod'
 
 import { Paginador } from '@/components/data/Paginador'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { Abas } from '@/components/ui/abas'
 import { Button } from '@/components/ui/button'
 import {
   aprovarReserva,
@@ -50,6 +51,8 @@ import {
   reservaRecorrenteCriarSchema,
   retiradaEspacoSchema,
 } from '@/lib/schemas'
+import { usePaginaLocal } from '@/lib/pagina-local'
+import { simplificar } from '@/lib/texto'
 import { useMe } from '@/lib/use-me'
 
 // v9.2c: quantas por página (o servidor pagina: app/paginacao.py)
@@ -69,7 +72,14 @@ function formatarDataHora(iso: string): string {
   return formatarData(iso, { comHora: true })
 }
 
-function FormularioEspaco({ onCancelar }: { onCancelar: () => void }) {
+function FormularioEspaco({
+  onCancelar,
+  aoCriar,
+}: {
+  onCancelar: () => void
+  /** v9.3d: o número do espaço recém-cadastrado (a lista vai à página onde ele está) */
+  aoCriar?: (idEspaco: number) => void
+}) {
   const queryClient = useQueryClient()
   const { data: tipos } = useQuery({
     queryKey: ['opcoes-catalogo', 'tipo_espaco'],
@@ -85,8 +95,9 @@ function FormularioEspaco({ onCancelar }: { onCancelar: () => void }) {
 
   const criar = useMutation({
     mutationFn: (v: z.infer<typeof espacoCriarSchema>) => criarEspaco(v),
-    onSuccess: () => {
+    onSuccess: (criado) => {
       queryClient.invalidateQueries({ queryKey: ['espacos'] })
+      aoCriar?.(criado.id_espaco)
       onCancelar()
     },
   })
@@ -1380,9 +1391,16 @@ function DetalheEspaco({ espaco }: { espaco: Espaco }) {
   )
 }
 
+const ESPACOS_POR_PAGINA = 10
+
 export function EspacosPage() {
   const [mostrarForm, setMostrarForm] = useState(false)
   const [idSelecionado, setIdSelecionado] = useState<number | null>(null)
+  // v9.3d: a tela tinha 20 alturas de notebook — o mapa de ocupação foi para uma aba própria (no endereço, `?aba=mapa`) e a lista de espaços
+  // ganhou busca e páginas de 10
+  const [parametros, setParametros] = useSearchParams()
+  const aba = parametros.get('aba') === 'mapa' ? 'mapa' : 'espacos'
+  const [busca, setBusca] = useState('')
   const { data: espacos } = useQuery({
     queryKey: ['espacos'],
     queryFn: listarEspacos,
@@ -1390,16 +1408,42 @@ export function EspacosPage() {
 
   const espacoSelecionado =
     (espacos ?? []).find((e) => e.id_espaco === idSelecionado) ?? null
+  const termo = simplificar(busca.trim())
+  const encontrados = termo
+    ? (espacos ?? []).filter(
+        (e) =>
+          simplificar(e.nome).includes(termo) ||
+          simplificar(e.tipo).includes(termo),
+      )
+    : espacos
+  const pagina = usePaginaLocal(encontrados, ESPACOS_POR_PAGINA, termo)
+  // o espaço recém-cadastrado: a lista vai à página onde ele está (ajuste durante a renderização, uma vez)
+  const [mostrar, setMostrar] = useState<number | null>(null)
+  if (mostrar !== null && encontrados) {
+    const posicao = encontrados.findIndex((e) => e.id_espaco === mostrar)
+    if (posicao >= 0) {
+      setMostrar(null)
+      pagina.setPagina(Math.floor(posicao / ESPACOS_POR_PAGINA) + 1)
+    }
+  }
 
-  return (
+  function alternar(id: number) {
+    setIdSelecionado(id === idSelecionado ? null : id)
+  }
+  function mudarDeAba(chave: string) {
+    setParametros(
+      (p) => {
+        if (chave === 'mapa') p.set('aba', 'mapa')
+        else p.delete('aba')
+        return p
+      },
+      { replace: true },
+    )
+  }
+
+  const listaDeEspacos = (
     <>
-      <PageHeader
-        titulo="Reserva de Espaço"
-        descricao="Espaços, bloqueios e reservas — conflito de horário reaproveita o motor de agenda (v4.0), com garantia real no banco em produção."
-        trilha={[{ rotulo: 'Reserva de Espaço' }]}
-      />
-
-      <section className="mb-6 rounded-xl border border-border bg-card p-6">
+      <section className="rounded-xl border border-border bg-card p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-semibold">Espaços</h2>
           <Button
@@ -1411,18 +1455,56 @@ export function EspacosPage() {
           </Button>
         </div>
         {mostrarForm && (
-          <FormularioEspaco onCancelar={() => setMostrarForm(false)} />
+          <FormularioEspaco
+            onCancelar={() => setMostrarForm(false)}
+            aoCriar={(id) => {
+              setBusca('')
+              setMostrar(id)
+            }}
+          />
         )}
-        <div className="v3-space-y-2">
-          {(espacos ?? []).map((e) => (
+        {(espacos ?? []).length > ESPACOS_POR_PAGINA && (
+          <div className="mb-3 max-w-md">
+            <label htmlFor="procurar-espaco" className="text-sm font-medium">
+              Procurar espaço
+            </label>
+            <input
+              id="procurar-espaco"
+              type="search"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Nome ou tipo"
+              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            />
+            {termo && (
+              <p
+                aria-live="polite"
+                className="mt-1 text-xs text-muted-foreground"
+              >
+                {pagina.total}{' '}
+                {pagina.total === 1
+                  ? 'espaço encontrado'
+                  : 'espaços encontrados'}
+                .
+              </p>
+            )}
+          </div>
+        )}
+        <div className="flex flex-col gap-2">
+          {pagina.daPagina.map((e) => (
             <div
               key={e.id_espaco}
+              role="button"
+              tabIndex={0}
+              aria-pressed={e.id_espaco === idSelecionado}
               className="cursor-pointer rounded-md border border-border p-3 text-sm hover:bg-muted/30"
-              onClick={() =>
-                setIdSelecionado(
-                  e.id_espaco === idSelecionado ? null : e.id_espaco,
-                )
-              }
+              onClick={() => alternar(e.id_espaco)}
+              onKeyDown={(ev) => {
+                if (ev.key === 'Enter' || ev.key === ' ') {
+                  ev.preventDefault()
+                  alternar(e.id_espaco)
+                }
+              }}
             >
               <div className="flex items-center justify-between">
                 <p className="font-medium">{e.nome}</p>
@@ -1435,12 +1517,44 @@ export function EspacosPage() {
               Nenhum espaço cadastrado.
             </p>
           )}
+          {termo && pagina.total === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhum espaço com esse nome ou tipo.
+            </p>
+          )}
         </div>
+        <Paginador
+          pagina={pagina.pagina}
+          porPagina={pagina.porPagina}
+          total={pagina.total}
+          aoMudar={pagina.setPagina}
+          rotulo="Páginas dos espaços"
+        />
       </section>
-
-      <SecaoMapaCalorOcupacao espacos={espacos ?? []} />
-
       {espacoSelecionado && <DetalheEspaco espaco={espacoSelecionado} />}
+    </>
+  )
+
+  return (
+    <>
+      <PageHeader
+        titulo="Reserva de Espaço"
+        descricao="Espaços, bloqueios e reservas — conflito de horário reaproveita o motor de agenda (v4.0), com garantia real no banco em produção."
+        trilha={[{ rotulo: 'Reserva de Espaço' }]}
+      />
+      <Abas
+        rotulo="Partes da reserva de espaço"
+        atual={aba}
+        aoMudar={mudarDeAba}
+        abas={[
+          { chave: 'espacos', rotulo: 'Espaços', conteudo: listaDeEspacos },
+          {
+            chave: 'mapa',
+            rotulo: 'Mapa de ocupação',
+            conteudo: <SecaoMapaCalorOcupacao espacos={espacos ?? []} />,
+          },
+        ]}
+      />
     </>
   )
 }

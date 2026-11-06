@@ -17,6 +17,7 @@ import { Paginador } from '@/components/data/Paginador'
 import { Abas } from '@/components/ui/abas'
 import { Button } from '@/components/ui/button'
 import { usePaginaLocal } from '@/lib/pagina-local'
+import { simplificar } from '@/lib/texto'
 import {
   atualizarElegibilidadeConfig,
   atualizarStatusInscricao,
@@ -2426,14 +2427,6 @@ function DetalheEvento({
 
 const ABAS_DO_EVENTO = ['programacao', 'inscritos', 'pagamento', 'presenca']
 const EVENTOS_POR_PAGINA = 10
-
-/** v9.3c: procura pelo título ou pelo número do evento, sem diferença de acento nem de maiúscula. */
-function simplificar(texto: string): string {
-  return texto
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-}
 
 export function EventosPage() {
   const [mostrarForm, setMostrarForm] = useState(false)

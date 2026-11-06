@@ -311,7 +311,13 @@ async function cadastrarEspaco(
 /** Abre os detalhes do espaço (clicando no cartão dele, se ainda não estiver aberto). */
 async function abrirEspaco(page: Page, nome: string): Promise<Locator> {
   const detalhe = detalheDoEspaco(page, nome)
-  if ((await detalhe.count()) === 0) await cartaoDoEspaco(page, nome).click()
+  if ((await detalhe.count()) === 0) {
+    // v9.3d: a lista tem páginas de 10 — procura o espaço pelo nome (a busca só aparece com mais de 10; na homologação, sempre)
+    await expect(page.locator('div.cursor-pointer').first()).toBeVisible()
+    const busca = page.getByLabel('Procurar espaço', { exact: true })
+    if ((await busca.count()) > 0) await busca.fill(nome)
+    await cartaoDoEspaco(page, nome).click()
+  }
   await expect(detalhe).toBeVisible()
   return detalhe
 }
@@ -533,16 +539,24 @@ test.describe('A. Reserva de espaço', () => {
     await expect(
       page.getByRole('heading', { name: 'Espaços', level: 2, exact: true }),
     ).toBeVisible()
+    // v9.3d: o mapa de ocupação fica na sua própria aba
+    await expect(
+      page.getByRole('tab', { name: 'Mapa de ocupação', exact: true }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Novo espaço', exact: true }),
+    ).toBeVisible()
+    await ver(page, info, 'reserva de espaco: tela aberta pelo Inicio')
+    await page
+      .getByRole('tab', { name: 'Mapa de ocupação', exact: true })
+      .click()
     await expect(
       page.getByRole('heading', {
         name: 'Mapa de calor de ocupação',
         level: 2,
       }),
     ).toBeVisible()
-    await expect(
-      page.getByRole('button', { name: 'Novo espaço', exact: true }),
-    ).toBeVisible()
-    await ver(page, info, 'reserva de espaco: tela aberta pelo Inicio')
+    await page.getByRole('tab', { name: 'Espaços', exact: true }).click()
 
     const semRotulo: string[] = []
     const inventario = async (nome: string) => {
@@ -2081,6 +2095,9 @@ test.describe('A. Reserva de espaço', () => {
       finalidade: `Reserva do mapa ${RODADA}`,
     })
 
+    await page
+      .getByRole('tab', { name: 'Mapa de ocupação', exact: true })
+      .click()
     const mapa = page.locator('section').filter({
       has: page.getByRole('heading', { name: 'Mapa de calor de ocupação' }),
     })
