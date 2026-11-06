@@ -623,6 +623,10 @@ export async function procurarEvento(
   page: Page,
   titulo: string,
 ): Promise<void> {
+  // espera a lista chegar (a busca só aparece depois dela)
+  await expect(
+    page.locator('div[role="button"][aria-pressed]').first(),
+  ).toBeVisible()
   const campo = page.getByLabel('Procurar evento', { exact: true })
   if ((await campo.count()) === 0) return
   await campo.fill(titulo)

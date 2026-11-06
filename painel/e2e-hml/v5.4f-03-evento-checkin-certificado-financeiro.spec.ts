@@ -176,7 +176,13 @@ const statusDe = (linha: Locator): Locator =>
 
 /** Abre a tela do evento do roteiro (o endereço `/eventos?evento=N` abre o evento direto). */
 async function abrirEvento(page: Page): Promise<void> {
-  await page.goto(`/eventos?evento=${idEvento}`)
+  // v9.3c: reabrir o evento (como recarregar a tela) fica na aba em que se estava; vindo de outra tela, abre na 1ª
+  const atual = new URL(page.url())
+  const aba =
+    atual.pathname === '/eventos' ? atual.searchParams.get('aba') : null
+  await page.goto(
+    `/eventos?evento=${idEvento}${aba ? `&aba=${encodeURIComponent(aba)}` : ''}`,
+  )
   await expect(
     page.getByRole('heading', { name: TITULO, level: 2 }),
   ).toBeVisible()
