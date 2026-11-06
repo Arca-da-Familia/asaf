@@ -3110,7 +3110,7 @@ test.describe('D. Doações, campanha de arrecadação e recibo', () => {
     await expect(razao).toContainText(
       `Credito ${CONTA_RECEITA} ${reais(VALOR)}`,
     )
-    await expect(razao).toContainText('DOACAO')
+    await expect(razao).toContainText('Doação')
     await verNaTela(
       page,
       info,

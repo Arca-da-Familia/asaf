@@ -1711,7 +1711,7 @@ test('razão: todo lançamento fecha (débitos = créditos); transferência recu
   await expect(cartaoT1).toBeVisible()
   await expect(cartaoT1).toContainText(`#${ids.seqT1} — ${HISTORICO.t1}`)
   await expect(cartaoT1).toContainText('Normal')
-  await expect(cartaoT1).toContainText('TRANSFERENCIA')
+  await expect(cartaoT1).toContainText('Transferência entre contas')
   await expect(cartaoT1).toContainText(`Debito ${DESC_BANCO} ${brl(T1)}`)
   await expect(cartaoT1).toContainText(`Credito ${DESC_CAIXA} ${brl(T1)}`)
   const dia = diaEmBelem(0).br
@@ -1877,7 +1877,7 @@ test('razão: lançamento nunca some, só se estorna (motivo curto é recusado; 
   })
   await expect(cartaoDoEstorno).toHaveCount(1)
   await expect(cartaoDoEstorno).toContainText(`#${seqEstorno} — `)
-  await expect(cartaoDoEstorno).toContainText('ESTORNO')
+  await expect(cartaoDoEstorno).toContainText('Estorno')
   await expect(cartaoDoEstorno).toContainText(`Debito ${DESC_CAIXA} ${brl(T2)}`)
   await expect(cartaoDoEstorno).toContainText(
     `Credito ${DESC_BANCO} ${brl(T2)}`,

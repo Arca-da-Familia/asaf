@@ -17,6 +17,7 @@ import {
   obterRelatorioInadimplencia,
   obterRelatorioPorProjeto,
 } from '@/lib/api'
+import { nomeDoAlerta } from '@/lib/nomes-financeiros'
 
 // v3.6 (FASE 3 - Financeiro) - demonstrativos financeiros (balancete, receitas x despesas por
 // conta/centro de custo, inadimplência, extrato por conta financeira, por projeto) e prestação de
@@ -597,8 +598,11 @@ function SecaoPadroesSuspeitos() {
       <div className="v3-space-y-2">
         {(achados ?? []).map((a, i) => (
           <div key={i} className="rounded-md border border-border p-3 text-sm">
-            <p className="text-xs font-medium text-muted-foreground">
-              {a.tipo}
+            <p
+              data-alerta={a.tipo}
+              className="text-xs font-medium text-muted-foreground"
+            >
+              {nomeDoAlerta(a.tipo)}
             </p>
             <p>{a.descricao}</p>
           </div>
