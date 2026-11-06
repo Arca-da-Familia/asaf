@@ -342,6 +342,13 @@ async function conferirAuditoria(
 }
 
 // ------------------------------------------------------------------------------------------------ o plano de contas
+/** v9.3e: o Plano de Contas mostra uma aba por tipo, em páginas de 20; as contas deste roteiro levam o número da rodada no nome, então a busca
+ * por ele mostra todas elas numa lista só (e a conta criada com a busca em curso continua na lista). */
+async function mostrarAsContasDaRodada(page: Page): Promise<void> {
+  const campo = page.getByLabel('Procurar conta', { exact: true })
+  await expect(campo).toBeVisible()
+  await campo.fill(String(R))
+}
 const cartaoDaConta = (page: Page, codigo: string, descricao: string) =>
   cartoes(page).filter({ hasText: trecho(codigo, descricao) })
 const cartaoPelaDescricao = (page: Page, descricao: string) =>
@@ -607,6 +614,7 @@ test('plano de contas: campos vazios e código repetido são recusados; o grupo 
   )
   await expect(cartoes(page).first()).toBeVisible()
   await ver(page, info, 'plano de contas: lista antes de criar')
+  await mostrarAsContasDaRodada(page)
 
   const formulario = formularioDeConta(page)
   await page.getByRole('button', { name: 'Nova conta', exact: true }).click()
@@ -783,6 +791,7 @@ test('plano de contas: pai circular, código de conta com filhas, editar, exclui
     ['/api/plano-contas/'],
     'Plano de Contas',
   )
+  await mostrarAsContasDaRodada(page)
   const cartaoA = () => cartaoPelaDescricao(page, DESC_A)
   await expect(cartaoA().first()).toBeVisible()
   const formulario = formularioDeConta(page)
@@ -1406,6 +1415,7 @@ test('contas financeiras: só conta Ativo e analítica é oferecida; vazio e con
     ['/api/plano-contas/'],
     'Plano de Contas',
   )
+  await mostrarAsContasDaRodada(page)
   const recusa = await enviar(
     page,
     'DELETE',
@@ -1937,6 +1947,7 @@ test('plano de contas com movimento: excluir é recusado e trocar o tipo não po
     ['/api/plano-contas/'],
     'Plano de Contas',
   )
+  await mostrarAsContasDaRodada(page)
   const movimento =
     'Esta conta já tem movimento no razão contábil e não pode ser excluída.'
   for (const [codigo, descricao] of [
@@ -2314,6 +2325,7 @@ test('orçamento: linhas por conta e centro de custo; o realizado é o que foi l
     ['/api/plano-contas/'],
     'Plano de Contas',
   )
+  await mostrarAsContasDaRodada(page)
   const exclusao = await enviar(
     page,
     'DELETE',

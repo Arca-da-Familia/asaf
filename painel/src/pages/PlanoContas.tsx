@@ -1,9 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { z } from 'zod'
 
+import { Paginador } from '@/components/data/Paginador'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { Abas } from '@/components/ui/abas'
 import { Button } from '@/components/ui/button'
 import {
   atualizarContaContabil,
@@ -13,7 +16,9 @@ import {
   listarPlanoContas,
   type PlanoDeContas,
 } from '@/lib/api'
+import { usePaginaLocal } from '@/lib/pagina-local'
 import { contaContabilCriarSchema } from '@/lib/schemas'
+import { simplificar } from '@/lib/texto'
 
 // v2.5.8 (FASE 2.5 - Painel) - Plano de Contas (backend v3.0, só faltava a tela). `tipo` usa o
 // RÓTULO do catálogo `tipo_conta_contabil` como value do <select> (não o código técnico) -
@@ -126,6 +131,20 @@ function FormularioConta({
   )
 }
 
+// v9.3e: a ordem dos tipos contábeis nas abas (a do catálogo); um tipo novo do catálogo entra no fim
+const ORDEM_DOS_TIPOS = [
+  'Ativo',
+  'Passivo',
+  'Patrimônio Líquido',
+  'Receita',
+  'Despesa',
+]
+const CONTAS_POR_PAGINA = 20
+
+function chaveDoTipo(tipo: string): string {
+  return simplificar(tipo).replace(/\s+/g, '-')
+}
+
 export function PlanoContasPage() {
   const [mostrarForm, setMostrarForm] = useState(false)
   const [editando, setEditando] = useState<number | null>(null)
@@ -137,6 +156,50 @@ export function PlanoContasPage() {
     queryFn: listarPlanoContas,
   })
 
+  // v9.3e (pedido do Presidente, 05/11: tela comprida vira "submenu"): a lista inteira tinha 16 alturas de notebook. Agora uma aba por tipo
+  // contábil (no endereço, `?tipo=receita`), em páginas de 20, e a busca (código ou descrição) procura em todos os tipos de uma vez.
+  const [parametros, setParametros] = useSearchParams()
+  const [busca, setBusca] = useState('')
+  const tipos = [...new Set((contas ?? []).map((c) => c.tipo))].sort(
+    (a, b) =>
+      (ORDEM_DOS_TIPOS.indexOf(a) + 1 || 99) -
+        (ORDEM_DOS_TIPOS.indexOf(b) + 1 || 99) || a.localeCompare(b),
+  )
+  const tipoPedido = parametros.get('tipo') ?? ''
+  const tipoAtual =
+    tipos.find((t) => chaveDoTipo(t) === tipoPedido) ?? tipos[0] ?? ''
+  const termo = simplificar(busca.trim())
+  const visiveis = termo
+    ? (contas ?? []).filter(
+        (c) =>
+          simplificar(c.codigo_contabil).includes(termo) ||
+          simplificar(c.descricao_conta).includes(termo),
+      )
+    : (contas ?? []).filter((c) => c.tipo === tipoAtual)
+  const pagina = usePaginaLocal(
+    contas ? visiveis : undefined,
+    CONTAS_POR_PAGINA,
+    `${tipoAtual}|${termo}`,
+  )
+  // a conta recém-criada: a aba do tipo dela e a página onde ela está (ajuste durante a renderização, uma vez)
+  const [mostrar, setMostrar] = useState<number | null>(null)
+  if (mostrar !== null && contas) {
+    const posicao = visiveis.findIndex((c) => c.id_conta === mostrar)
+    if (posicao >= 0) {
+      setMostrar(null)
+      pagina.setPagina(Math.floor(posicao / CONTAS_POR_PAGINA) + 1)
+    }
+  }
+  function mudarDeTipo(chave: string) {
+    setParametros(
+      (p) => {
+        p.set('tipo', chave)
+        return p
+      },
+      { replace: true },
+    )
+  }
+
   function invalidar() {
     queryClient.invalidateQueries({ queryKey: ['plano-contas'] })
   }
@@ -144,10 +207,20 @@ export function PlanoContasPage() {
   const criar = useMutation({
     mutationFn: (v: z.infer<typeof contaContabilCriarSchema>) =>
       criarContaContabil(v),
-    onSuccess: () => {
+    onSuccess: (criada, dados) => {
       invalidar()
       setMostrarForm(false)
       setErro(null)
+      // a conta nova aparece: se a busca em curso a acha, fica na busca; senão, a aba do tipo dela e a página onde ela está
+      const achadaPelaBusca =
+        termo !== '' &&
+        (simplificar(dados.codigo_contabil).includes(termo) ||
+          simplificar(dados.descricao_conta).includes(termo))
+      if (!achadaPelaBusca) {
+        setBusca('')
+        mudarDeTipo(chaveDoTipo(dados.tipo))
+      }
+      setMostrar(criada.id_conta)
     },
   })
 
@@ -174,6 +247,76 @@ export function PlanoContasPage() {
     },
     onError: (e: Error) => setErro(e.message),
   })
+
+  const listaDeContas = (
+    <div>
+      <div className="flex flex-col gap-2">
+        {pagina.daPagina.map((c) =>
+          editando === c.id_conta ? (
+            <FormularioConta
+              key={c.id_conta}
+              conta={c}
+              contas={contas ?? []}
+              onSalvar={(v) =>
+                editar.mutateAsync({ idConta: c.id_conta, dados: v })
+              }
+              onCancelar={() => setEditando(null)}
+            />
+          ) : (
+            <div
+              key={c.id_conta}
+              className="flex items-center justify-between rounded-md border border-border p-3 text-sm"
+            >
+              <div>
+                <p className="font-medium">
+                  {c.codigo_contabil} — {c.descricao_conta}
+                  {c.sintetica && (
+                    <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                      Sintética
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {c.tipo}
+                  {c.codigo_contabil_pai &&
+                    ` · filha de ${c.codigo_contabil_pai}`}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditando(c.id_conta)}
+                >
+                  Editar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => excluir.mutate(c.id_conta)}
+                  disabled={excluir.isPending}
+                >
+                  Excluir
+                </Button>
+              </div>
+            </div>
+          ),
+        )}
+        {termo && pagina.total === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma conta com esse código ou descrição.
+          </p>
+        )}
+      </div>
+      <Paginador
+        pagina={pagina.pagina}
+        porPagina={pagina.porPagina}
+        total={pagina.total}
+        aoMudar={pagina.setPagina}
+        rotulo="Páginas das contas"
+      />
+    </div>
+  )
 
   return (
     <>
@@ -210,64 +353,50 @@ export function PlanoContasPage() {
 
         {erro && <p className="mb-2 text-sm text-destructive">{erro}</p>}
 
-        <div className="v3-space-y-2">
-          {(contas ?? []).map((c) =>
-            editando === c.id_conta ? (
-              <FormularioConta
-                key={c.id_conta}
-                conta={c}
-                contas={contas ?? []}
-                onSalvar={(v) =>
-                  editar.mutateAsync({ idConta: c.id_conta, dados: v })
-                }
-                onCancelar={() => setEditando(null)}
-              />
-            ) : (
-              <div
-                key={c.id_conta}
-                className="flex items-center justify-between rounded-md border border-border p-3 text-sm"
+        {(contas ?? []).length > 0 && (
+          <div className="mb-3 max-w-md">
+            <label htmlFor="procurar-conta" className="text-sm font-medium">
+              Procurar conta
+            </label>
+            <input
+              id="procurar-conta"
+              type="search"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Código ou descrição, em todos os tipos"
+              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            />
+            {termo && (
+              <p
+                aria-live="polite"
+                className="mt-1 text-xs text-muted-foreground"
               >
-                <div>
-                  <p className="font-medium">
-                    {c.codigo_contabil} — {c.descricao_conta}
-                    {c.sintetica && (
-                      <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                        Sintética
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {c.tipo}
-                    {c.codigo_contabil_pai &&
-                      ` · filha de ${c.codigo_contabil_pai}`}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditando(c.id_conta)}
-                  >
-                    Editar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => excluir.mutate(c.id_conta)}
-                    disabled={excluir.isPending}
-                  >
-                    Excluir
-                  </Button>
-                </div>
-              </div>
-            ),
-          )}
-          {(contas ?? []).length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma conta cadastrada.
-            </p>
-          )}
-        </div>
+                {pagina.total}{' '}
+                {pagina.total === 1 ? 'conta encontrada' : 'contas encontradas'}
+                .
+              </p>
+            )}
+          </div>
+        )}
+
+        {termo ? (
+          listaDeContas
+        ) : tipos.length > 0 ? (
+          <Abas
+            rotulo="Tipos de conta"
+            atual={chaveDoTipo(tipoAtual)}
+            aoMudar={mudarDeTipo}
+            abas={tipos.map((t) => ({
+              chave: chaveDoTipo(t),
+              rotulo: t,
+              conteudo: listaDeContas,
+            }))}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma conta cadastrada.
+          </p>
+        )}
       </section>
     </>
   )
