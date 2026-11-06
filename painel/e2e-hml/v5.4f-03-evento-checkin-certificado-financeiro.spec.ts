@@ -2124,6 +2124,8 @@ test.describe('G. Painel gerencial do evento', () => {
       ocupadas,
       4 + vagasVazadas - (vagaDevolvidaNoCancelamento ? 1 : 0),
     )
+    // a comparação das edições fica na parte "Edições recorrentes", na aba Programação (v9.3c)
+    await abrirAbaDoEvento(page, 'Programação')
     const linhaDoEvento = page.getByRole('row').filter({ hasText: TITULO })
     await expect(linhaDoEvento).toHaveCount(1)
     const celulas = linhaDoEvento.getByRole('cell')

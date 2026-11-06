@@ -2368,7 +2368,7 @@ function DetalheEvento({
             </Button>
           ))}
       </div>
-      {/* v9.3c: as 15 partes do evento em 4 abas (no notebook a tela tinha 28 alturas); a aba fica no endereço (`&aba=cobranca`) */}
+      {/* v9.3c: as 15 partes do evento em 4 abas (no notebook a tela tinha 28 alturas); a aba fica no endereço (`&aba=pagamento`) */}
       <Abas
         rotulo="Partes do evento"
         atual={aba}
@@ -2393,7 +2393,7 @@ function DetalheEvento({
             conteudo: <SecaoInscritos evento={evento} />,
           },
           {
-            chave: 'cobranca',
+            chave: 'pagamento',
             rotulo: 'Cobrança',
             conteudo: (
               <>
@@ -2424,7 +2424,7 @@ function DetalheEvento({
   )
 }
 
-const ABAS_DO_EVENTO = ['programacao', 'inscritos', 'cobranca', 'presenca']
+const ABAS_DO_EVENTO = ['programacao', 'inscritos', 'pagamento', 'presenca']
 const EVENTOS_POR_PAGINA = 10
 
 /** v9.3c: procura pelo título ou pelo número do evento, sem diferença de acento nem de maiúscula. */

@@ -13,7 +13,7 @@ import {
 
 // v9.3c (pedido do Presidente, 05/11: tela comprida vira "submenu"/tela progressiva): a tela de Eventos tinha 28 alturas de notebook. Agora a lista
 // tem busca e páginas de 10, e o evento aberto mostra as 15 partes em 4 abas (Programação, Inscritos, Cobrança, Presença e certificado), com a aba no
-// endereço (`&aba=cobranca`).
+// endereço (`&aba=pagamento`).
 
 vi.mock('@/lib/use-me', () => ({
   useMe: () => ({
