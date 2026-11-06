@@ -263,6 +263,36 @@ async function medir(
           detalhe: `${partidas.size}: ${[...partidas].slice(0, 6).join('; ')}`,
         })
 
+      // nome técnico na tela (pedido do Presidente, 06/11: "a setinha embaixo" — o sublinhado — "dá a entender que aquilo é nome de uma tabela"):
+      // palavra_com_sublinhado (nome de tabela, de campo, de catálogo) e CÓDIGO EM MAIÚSCULAS de 5 letras ou mais (PALESTRA no lugar de Palestra).
+      // Fica de fora o que é técnico de propósito: dentro de <code>/<kbd>, e-mail e endereço da internet.
+      const tecnicos = new Set<string>()
+      const andador2 = document.createTreeWalker(
+        document.querySelector('main') ?? document.body,
+        NodeFilter.SHOW_TEXT,
+      )
+      for (let n = andador2.nextNode(); n; n = andador2.nextNode()) {
+        const pai = n.parentElement
+        if (!pai || !visivel(pai) || noMenuFechado(pai)) continue
+        if (pai.closest('code, kbd, pre, [data-tecnico]')) continue
+        for (const m of (n.textContent ?? '').matchAll(/\S+/gu)) {
+          const palavra = m[0]
+          if (/@|:\/\/|^www\./.test(palavra)) continue
+          const sub = /[\p{L}\d]+(?:_[\p{L}\d]+)+/u.exec(palavra)
+          if (sub) tecnicos.add(sub[0])
+          else {
+            const maiusc = /^[^\p{L}]*(\p{Lu}{5,})[^\p{L}]*$/u.exec(palavra)
+            if (maiusc) tecnicos.add(maiusc[1]!)
+          }
+        }
+      }
+      if (tecnicos.size)
+        achados.push({
+          grave: false,
+          tipo: 'nome técnico na tela',
+          detalhe: `${tecnicos.size}: ${[...tecnicos].slice(0, 40).join(', ')}`,
+        })
+
       const telas = doc.scrollHeight / altura
       if (telas > limiteDeAlturas)
         achados.push({
