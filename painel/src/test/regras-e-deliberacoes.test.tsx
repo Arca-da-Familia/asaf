@@ -123,7 +123,11 @@ describe('Regras do Estatuto', () => {
 
   it('lista cada regra com valor, artigo de origem e descrição, e passa no axe', async () => {
     const { container } = desenhar(<RegrasDoEstatutoPage />)
-    expect(await screen.findByText('QUORUM_1A_CONVOCACAO')).toBeInTheDocument()
+    // v9.3g: a regra aparece pela descrição, nunca pelo nome interno
+    expect(
+      await screen.findByText('Descrição de QUORUM_1A_CONVOCACAO'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('QUORUM_1A_CONVOCACAO')).not.toBeInTheDocument()
     expect(
       screen.getByText('Art. 25 / Art. 32', { exact: false }),
     ).toBeInTheDocument()
@@ -138,7 +142,7 @@ describe('Regras do Estatuto', () => {
     desenhar(<RegrasDoEstatutoPage />)
     await u.click(
       await screen.findByRole('button', {
-        name: 'Histórico de QUORUM_1A_CONVOCACAO',
+        name: 'Histórico: Descrição de QUORUM_1A_CONVOCACAO',
       }),
     )
     const lista = (await screen.findByText('Histórico de vigências'))
@@ -152,7 +156,7 @@ describe('Regras do Estatuto', () => {
     desenhar(<RegrasDoEstatutoPage />)
     await u.click(
       await screen.findByRole('button', {
-        name: 'Reformar QUORUM_1A_CONVOCACAO',
+        name: 'Reformar: Descrição de QUORUM_1A_CONVOCACAO',
       }),
     )
     const campo = screen.getByLabelText('Novo valor')
@@ -179,7 +183,7 @@ describe('Regras do Estatuto', () => {
     desenhar(<RegrasDoEstatutoPage />)
     await u.click(
       await screen.findByRole('button', {
-        name: 'Reformar QUORUM_1A_CONVOCACAO',
+        name: 'Reformar: Descrição de QUORUM_1A_CONVOCACAO',
       }),
     )
     const campo = screen.getByLabelText('Novo valor')
@@ -210,7 +214,7 @@ describe('Regras do Estatuto', () => {
     desenhar(<RegrasDoEstatutoPage />)
     await u.click(
       await screen.findByRole('button', {
-        name: 'Reformar DURACAO_MANDATO_ANOS',
+        name: 'Reformar: Descrição de DURACAO_MANDATO_ANOS',
       }),
     )
     const campo = screen.getByLabelText('Novo valor')

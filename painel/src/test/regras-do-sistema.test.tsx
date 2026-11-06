@@ -46,7 +46,7 @@ beforeEach(() => {
 })
 
 describe('Regras do sistema', () => {
-  it('lista só as configurações da categoria "regras", cada uma com a descrição, o nome técnico e o valor; passa no axe', async () => {
+  it('lista só as configurações da categoria "regras", cada uma com a descrição e o valor, sem o nome técnico (v9.3g); passa no axe', async () => {
     vi.mocked(api.listarConfiguracoes).mockResolvedValue([
       configuracao('DIAS_ALERTA_LANCAMENTO_TARDIO', '5'),
       configuracao('HORA_INICIO_EXPEDIENTE', '7'),
@@ -59,7 +59,9 @@ describe('Regras do sistema', () => {
     const itens = await screen.findAllByRole('listitem')
     expect(itens).toHaveLength(2)
     const tardio = within(
-      screen.getByRole('listitem', { name: 'DIAS_ALERTA_LANCAMENTO_TARDIO' }),
+      screen.getByRole('listitem', {
+        name: 'Descrição de DIAS_ALERTA_LANCAMENTO_TARDIO',
+      }),
     )
     expect(
       tardio.getByText('Descrição de DIAS_ALERTA_LANCAMENTO_TARDIO'),
@@ -68,6 +70,7 @@ describe('Regras do sistema', () => {
       tardio.getByLabelText('Descrição de DIAS_ALERTA_LANCAMENTO_TARDIO'),
     ).toHaveValue(5)
     expect(screen.queryByText(/DATA_MAGNA/)).toBeNull()
+    expect(screen.queryByText('DIAS_ALERTA_LANCAMENTO_TARDIO')).toBeNull()
     expect(await axe(container)).toHaveNoViolations()
   })
 
@@ -82,7 +85,9 @@ describe('Regras do sistema', () => {
     await usuario.type(screen.getByLabelText('Procurar regra'), 'expediente')
     expect(screen.getAllByRole('listitem')).toHaveLength(1)
     expect(
-      screen.getByRole('listitem', { name: 'HORA_INICIO_EXPEDIENTE' }),
+      screen.getByRole('listitem', {
+        name: 'Descrição de HORA_INICIO_EXPEDIENTE',
+      }),
     ).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('1 de 2 regras.')
   })
@@ -99,7 +104,7 @@ describe('Regras do sistema', () => {
     desenhar()
     const item = within(
       await screen.findByRole('listitem', {
-        name: 'DIAS_ALERTA_LANCAMENTO_TARDIO',
+        name: 'Descrição de DIAS_ALERTA_LANCAMENTO_TARDIO',
       }),
     )
     const salvar = item.getByRole('button', { name: 'Salvar' })
@@ -130,7 +135,9 @@ describe('Regras do sistema', () => {
     )
     desenhar()
     const item = within(
-      await screen.findByRole('listitem', { name: 'HORA_INICIO_EXPEDIENTE' }),
+      await screen.findByRole('listitem', {
+        name: 'Descrição de HORA_INICIO_EXPEDIENTE',
+      }),
     )
     const campo = item.getByLabelText('Descrição de HORA_INICIO_EXPEDIENTE')
     await u.clear(campo)

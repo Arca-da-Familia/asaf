@@ -92,7 +92,7 @@ function ReformarRegra({
       className="mt-2 v3-space-y-2 rounded-md border border-border bg-muted/20 p-3"
     >
       <label className="block text-xs font-medium">
-        Novo valor de {regra.parametro}
+        Novo valor
         <input
           value={valor}
           onChange={(e) => setValor(e.target.value)}
@@ -126,7 +126,7 @@ function ReformarRegra({
       <ConfirmDialog
         aberto={confirmando}
         onAbertoChange={setConfirmando}
-        titulo={`Reformar ${regra.parametro}?`}
+        titulo={`Reformar a regra "${regra.descricao ?? regra.parametro}"?`}
         descricao={`De “${regra.valor}” para “${valor.trim()}”. A regra atual deixa de valer agora e a nova passa a valer na hora, para tudo que ainda for apurado (quórum de sessões em andamento, prazos novos). O histórico guarda as duas, e a Auditoria registra quem reformou. Faça isto só com a reforma aprovada em assembleia.`}
         rotuloConfirmar="Reformar regra"
         carregando={reformar.isPending}
@@ -171,13 +171,13 @@ export function RegrasDoEstatutoPage() {
         {(regras ?? []).map((r) => (
           <div
             key={r.id_regra}
+            data-parametro={r.parametro}
             className="rounded-md border border-border bg-card p-3 text-sm"
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <p className="font-mono text-xs text-muted-foreground">
-                  {r.parametro}
-                </p>
+                {/* v9.3g: a descrição em português no lugar do nome interno (DURACAO_MANDATO_ANOS), que fica em data-parametro */}
+                <p className="font-medium">{r.descricao ?? r.parametro}</p>
                 <p className="mt-0.5">
                   <span className="font-mono font-semibold">{r.valor}</span>
                   {r.artigo_origem && (
@@ -187,11 +187,6 @@ export function RegrasDoEstatutoPage() {
                     </span>
                   )}
                 </p>
-                {r.descricao && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {r.descricao}
-                  </p>
-                )}
                 <p className="mt-1 text-xs text-muted-foreground">
                   Vale desde {formatarVigencia(r.vigencia_inicio)}
                 </p>
@@ -200,7 +195,7 @@ export function RegrasDoEstatutoPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  aria-label={`Histórico de ${r.parametro}`}
+                  aria-label={`Histórico: ${r.descricao ?? r.parametro}`}
                   onClick={() =>
                     setAberta((a) =>
                       a?.parametro === r.parametro && a.acao === 'historico'
@@ -214,7 +209,7 @@ export function RegrasDoEstatutoPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  aria-label={`Reformar ${r.parametro}`}
+                  aria-label={`Reformar: ${r.descricao ?? r.parametro}`}
                   onClick={() =>
                     setAberta((a) =>
                       a?.parametro === r.parametro && a.acao === 'reformar'

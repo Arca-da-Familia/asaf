@@ -14,7 +14,8 @@ const CHAVE = 'DIAS_ALERTA_LANCAMENTO_TARDIO'
 const PADRAO = '5'
 const TABELA = 'configuracoes_institucionais'
 
-const linha = (page: Page) => page.getByRole('listitem', { name: CHAVE })
+// v9.3g: a regra aparece pela descrição; o nome interno fica em data-chave
+const linha = (page: Page) => page.locator(`li[data-chave="${CHAVE}"]`)
 const campoDoLimite = (page: Page) =>
   linha(page).getByRole('spinbutton', { name: /lançamento é tardio/ })
 

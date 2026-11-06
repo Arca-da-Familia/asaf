@@ -32,13 +32,13 @@ function RegraLinha({ regra }: { regra: RegraDoSistema }) {
 
   return (
     <li
-      aria-label={regra.chave}
+      aria-label={regra.descricao ?? regra.chave}
+      data-chave={regra.chave}
       className="rounded-md border border-border p-3"
     >
-      <label htmlFor={id} className="text-sm font-medium">
+      <label htmlFor={id} className="mb-2 block text-sm font-medium">
         {regra.descricao ?? regra.chave}
       </label>
-      <p className="mb-2 text-xs text-muted-foreground">{regra.chave}</p>
       <div className="flex flex-wrap items-start gap-2">
         <input
           id={id}

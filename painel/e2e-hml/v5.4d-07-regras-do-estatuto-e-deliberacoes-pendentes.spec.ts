@@ -26,12 +26,9 @@ async function abrirRegras(page: Page): Promise<void> {
   await expect(page.getByText(PARAMETRO, { exact: true })).toBeVisible()
 }
 
-/** O cartão da regra (o `div` que tem o nome do parâmetro). */
+/** O cartão da regra (v9.3g: a tela mostra a descrição; o nome do parâmetro fica em data-parametro). */
 function cartaoDaRegra(page: Page, parametro: string): Locator {
-  return page
-    .locator('div.rounded-md.border')
-    .filter({ has: page.getByText(parametro, { exact: true }) })
-    .first()
+  return page.locator(`div[data-parametro="${parametro}"]`).first()
 }
 
 async function totalNaAuditoria(page: Page, tabela: string): Promise<number> {
@@ -59,7 +56,7 @@ async function reformarPelaTela(
   const novo = cartao.getByLabel('Novo valor')
   // o botão "Reformar" abre e fecha o formulário: só clica se ele ainda não está aberto
   if ((await novo.count()) === 0) {
-    await cartao.getByRole('button', { name: `Reformar ${parametro}` }).click()
+    await cartao.getByRole('button', { name: /^Reformar:/ }).click()
   }
   await novo.fill(valor)
   await cartao.getByRole('button', { name: 'Reformar regra' }).click()
@@ -103,7 +100,7 @@ test('valor que quebraria o sistema é recusado no campo, igual ao que já vale 
 
   // prazo em dias: zero e texto não servem
   const cartao = cartaoDaRegra(page, PARAMETRO)
-  await cartao.getByRole('button', { name: `Reformar ${PARAMETRO}` }).click()
+  await cartao.getByRole('button', { name: /^Reformar:/ }).click()
   const novo = cartao.getByLabel('Novo valor')
   await novo.fill('0')
   await cartao.getByRole('button', { name: 'Reformar regra' }).click()
@@ -126,9 +123,7 @@ test('valor que quebraria o sistema é recusado no campo, igual ao que já vale 
 
   // quórum: fração impossível
   const quorum = cartaoDaRegra(page, OUTRO_PARAMETRO)
-  await quorum
-    .getByRole('button', { name: `Reformar ${OUTRO_PARAMETRO}` })
-    .click()
+  await quorum.getByRole('button', { name: /^Reformar:/ }).click()
   await quorum.getByLabel('Novo valor').fill('2/0')
   await quorum.getByRole('button', { name: 'Reformar regra' }).click()
   await expect(quorum.getByRole('alert')).toContainText('fração como 2/3')
@@ -156,7 +151,7 @@ test('reformar de verdade: pede confirmação, a regra muda, o histórico guarda
   await abrirRegras(page)
 
   const cartao = cartaoDaRegra(page, PARAMETRO)
-  await cartao.getByRole('button', { name: `Reformar ${PARAMETRO}` }).click()
+  await cartao.getByRole('button', { name: /^Reformar:/ }).click()
   await cartao.getByLabel('Novo valor').fill('6')
   await cartao.getByRole('button', { name: 'Reformar regra' }).click()
   const dialogo = page.getByRole('alertdialog')
@@ -174,7 +169,7 @@ test('reformar de verdade: pede confirmação, a regra muda, o histórico guarda
 
   // o histórico guarda as duas vigências
   await cartaoDaRegra(page, PARAMETRO)
-    .getByRole('button', { name: `Histórico de ${PARAMETRO}` })
+    .getByRole('button', { name: /^Histórico:/ })
     .click()
   const historico = cartaoDaRegra(page, PARAMETRO).locator('li')
   await expect(historico.filter({ hasText: '(vigente)' })).toContainText('6')
