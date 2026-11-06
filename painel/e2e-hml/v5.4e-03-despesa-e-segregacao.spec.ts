@@ -264,7 +264,7 @@ function linhasDaAuditoria(
   filtros: { registro?: number; quem?: string } = {},
 ): Locator {
   let linha = page.getByRole('row').filter({
-    has: page.locator(`[data-acao=\"${acao}\"]`),
+    has: page.locator(`[data-acao="${acao}"]`),
   })
   if (filtros.registro !== undefined) {
     linha = linha.filter({

@@ -3,7 +3,6 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import {
   abrirAbaDoEvento,
   API_HML,
-  campo,
   entrar,
   escolherPorTexto,
   exigirHomologacao,

@@ -3,7 +3,6 @@ import { expect, test, type Page } from '@playwright/test'
 import {
   API_HML,
   cadastrarPelaTela,
-  campo,
   cpfValido,
   entrar,
   exigirHomologacao,
@@ -125,7 +124,7 @@ test('licença por saúde pela tela: o histórico mostra o motivo, a Auditoria n
   expect(leituras[0]!.id_usuario).not.toBeNull()
   await abrirAuditoriaNaTela(page, 'mudancas_situacao')
   await expect(
-    page.locator('[data-acao=\"CONSULTA_HISTORICO_SITUACAO\"]').first(),
+    page.locator('[data-acao="CONSULTA_HISTORICO_SITUACAO"]').first(),
   ).toBeVisible()
   await ver(page, info, 'auditoria-leitura-do-historico')
   expect(vigia.problemas()).toEqual([])
@@ -217,7 +216,7 @@ test('encaminhamento ao posto de saúde: a Auditoria esconde a rede e registra q
 
   await abrirAuditoriaNaTela(page, 'encaminhamentos_rede_externa')
   await expect(
-    page.locator('[data-acao=\"CONSULTA_ENCAMINHAMENTOS\"]').first(),
+    page.locator('[data-acao="CONSULTA_ENCAMINHAMENTOS"]').first(),
   ).toBeVisible()
   await ver(page, info, 'auditoria-dos-encaminhamentos')
   expect(vigia.problemas()).toEqual([])

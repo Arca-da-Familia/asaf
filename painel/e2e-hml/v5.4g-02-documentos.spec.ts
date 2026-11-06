@@ -4,7 +4,6 @@ import { expect, test, type Page } from '@playwright/test'
 
 import {
   API_HML,
-  campo,
   entrar,
   exigirHomologacao,
   RODADA,
@@ -516,7 +515,7 @@ test('a Auditoria guarda cada passo (criação, versão recusada e aceita, revis
     await expect(
       page
         .getByRole('row')
-        .filter({ has: page.locator(`[data-acao=\"${acao}\"]`) })
+        .filter({ has: page.locator(`[data-acao="${acao}"]`) })
         .first(),
     ).toBeVisible()
   }

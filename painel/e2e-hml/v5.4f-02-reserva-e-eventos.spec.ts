@@ -10,7 +10,6 @@ import {
   abrirAbaDoEvento,
   API_HML,
   AVISO,
-  campo,
   entrar,
   escolherPorTexto,
   exigirHomologacao,
@@ -119,7 +118,7 @@ function linhaDaAuditoria(
   filtros: { registro?: number; quem?: string } = {},
 ): Locator {
   let linha = page.getByRole('row').filter({
-    has: page.locator(`[data-acao=\"${acao}\"]`),
+    has: page.locator(`[data-acao="${acao}"]`),
   })
   if (filtros.registro !== undefined) {
     linha = linha.filter({

@@ -2,7 +2,6 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 
 import {
   API_HML,
-  campo,
   cpfValido,
   entrar,
   exigirHomologacao,
@@ -401,7 +400,7 @@ test('a Auditoria guardou cada passo: 3 inscrições, 1 cancelamento e 1 confirm
     await expect(
       page
         .getByRole('row')
-        .filter({ has: page.locator(`[data-acao=\"${acao}\"]`) })
+        .filter({ has: page.locator(`[data-acao="${acao}"]`) })
         .first(),
     ).toBeVisible()
   }

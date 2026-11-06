@@ -12,7 +12,6 @@ import {
   procurarEvento,
   API_HML,
   AVISO,
-  campo,
   entrar,
   escolherPorTexto,
   exigirHomologacao,
@@ -172,7 +171,7 @@ async function totalNaAuditoria(page: Page, tabela: Tabela): Promise<number> {
 function linhaDaAuditoria(page: Page, acao: string, registro: number): Locator {
   return page
     .getByRole('row')
-    .filter({ has: page.locator(`[data-acao=\"${acao}\"]`) })
+    .filter({ has: page.locator(`[data-acao="${acao}"]`) })
     .filter({
       has: page.getByRole('cell', { name: String(registro), exact: true }),
     })

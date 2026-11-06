@@ -13,7 +13,6 @@ import {
 
 import {
   API_HML,
-  campo,
   cpfValido,
   entrar,
   escolherPorTexto,
@@ -1946,7 +1945,7 @@ test('8. quem não tem a permissão é barrado na tela e na API (403), e cada a�
       await expect(
         page
           .getByRole('row')
-          .filter({ has: page.locator(`[data-acao=\"${acao}\"]`) })
+          .filter({ has: page.locator(`[data-acao="${acao}"]`) })
           .filter({
             has: page.getByRole('cell', { name: String(id), exact: true }),
           }),

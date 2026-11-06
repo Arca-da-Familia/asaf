@@ -300,7 +300,7 @@ async function abrirAuditoria(page: Page, tabela: string): Promise<void> {
 function linhaDaAuditoria(page: Page, acao: string, registro: number): Locator {
   return page
     .getByRole('row')
-    .filter({ has: page.locator(`[data-acao=\"${acao}\"]`) })
+    .filter({ has: page.locator(`[data-acao="${acao}"]`) })
     .filter({
       has: page.getByRole('cell', { name: String(registro), exact: true }),
     })

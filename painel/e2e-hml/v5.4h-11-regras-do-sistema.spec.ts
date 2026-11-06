@@ -1,14 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import {
-  API_HML,
-  campo,
-  entrar,
-  exigirHomologacao,
-  sair,
-  ver,
-  vigiar,
-} from './apoio'
+import { API_HML, entrar, exigirHomologacao, sair, ver, vigiar } from './apoio'
 
 // v5.4h - Regras do sistema: os limites e prazos que o sistema usa, ajustáveis pela presidência na própria tela (antes só por API). O roteiro prova, pela tela:
 // a lista das regras; o limite do lançamento tardio (padrão 5 dias) muda e continua mudado ao recarregar; o que vale no servidor é o valor novo (a saída

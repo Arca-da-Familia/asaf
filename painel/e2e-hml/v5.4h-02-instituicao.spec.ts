@@ -2,7 +2,6 @@ import { expect, test, type Page } from '@playwright/test'
 
 import {
   API_HML,
-  campo,
   entrar,
   exigirHomologacao,
   RODADA,

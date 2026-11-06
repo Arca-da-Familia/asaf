@@ -333,7 +333,7 @@ test('a Auditoria guarda o registro e a revogação do consentimento, com quem f
     await expect(
       page
         .getByRole('row')
-        .filter({ has: page.locator(`[data-acao=\"${acao}\"]`) })
+        .filter({ has: page.locator(`[data-acao="${acao}"]`) })
         .filter({
           has: page.getByRole('cell', {
             name: String(meu!.id_consentimento),

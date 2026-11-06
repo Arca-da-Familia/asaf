@@ -106,7 +106,7 @@ async function naAuditoria(
   await page.goto(`/auditoria?tabela=${encodeURIComponent(tabela)}`)
   await campo(page, 'O que aconteceu').selectOption(acao)
   let linha = page.getByRole('row').filter({
-    has: page.locator(`[data-acao=\"${acao}\"]`),
+    has: page.locator(`[data-acao="${acao}"]`),
   })
   if (registro !== undefined) {
     linha = linha.filter({
