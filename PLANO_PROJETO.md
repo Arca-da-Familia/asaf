@@ -2188,7 +2188,20 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       **[Homologação: v5.4f-02 (reserva e mapa nas abas), v5.4f-03, v9.3a-01 e v9.3b-01 verdes; validação em Postgres verde (53af5f8)]**
       **[Produção: Deploy Painel verde; `version.json` = `53af5f8`; `/reserva-espaco?aba=mapa` 200; a tela publicada tem "Mapa de ocupação",
       "Procurar espaço" e "Páginas dos espaços"]**
-      **[FALTA (próximas rodadas da v9.3): telas ainda compridas no notebook — Plano de contas 16,4,
+      **[v9.3e (2026-11-06) — PLANO DE CONTAS: uma aba por tipo contábil (`?tipo=receita`), páginas de 20 e a busca (código ou descrição) em
+      todos os tipos; a conta criada aparece na aba e na página dela]**
+      **[v9.3f (2026-11-06) — AUDITORIA EM PORTUGUÊS (pedido do Presidente: o sublinhado "dá a entender que aquilo é nome de uma tabela"): assunto e
+      ação com o nome de verdade — `app/auditoria_rotulos.py` (127 tabelas, 220 ações; a trava `tests/test_auditoria_rotulos.py` lê o código e
+      reprova tabela ou ação nova sem nome); os filtros viram listas em português (`/api/auditoria/tabelas` nova, `/acoes` com rótulo), assunto e
+      ação no endereço; o código fica em `data-acao`/`data-tabela`. A varredura de usabilidade passou a apontar "nome técnico na tela"]**
+      **[Homologação: v9.3a-01, v9.3b-01, v5.4e-01, v5.4e-02, v5.4e-03, v5.4e-04, v5.4c-fase1, v5.4d-05 (depois de o robô do quórum passar a
+      credenciar até 1.000 — a homologação já tem mais de 300 associados), v7.0b-01, v5.4h-09 verdes; Postgres verde (a8a385e)]**
+      **[Produção: o Deploy Painel de 04c6ed2 PAROU no lint dos robôs (aspas escapadas e um import sem uso da troca em massa) — nada do painel foi
+      publicado — enquanto o Deploy API publicou; por uns 20 minutos a tela de Auditoria do painel antigo recebeu o formato novo da lista de ações
+      e falhou. Conserto df16816 (só os robôs), Deploy Painel disparado à mão, verde. `version.json` = `df16816`; a Auditoria publicada tem "O que
+      aconteceu" e `data-acao`, o Plano de Contas tem "Procurar conta" e "Tipos de conta"; `/api/auditoria/tabelas` existe e pede login (401).
+      Regra que fica: resposta da API muda só acrescentando campo, nunca trocando o tipo do que o painel em produção lê]**
+      **[FALTA (próximas rodadas da v9.3): telas ainda compridas no notebook —
       Sessão da assembleia 16,0, Doações 15,5, Projetos 14,9, Relatórios 12,9, Qualidade da base 11,4, Para propor 10,6, Atendimentos 10,4 — uma por
       vez, com abas/submenus/telas progressivas e os robôs de cada uma reescritos; depois disso a altura no notebook passa a reprovar]**
 - [ ] Ajuda contextual e tour de primeiro acesso por módulo, no lugar de manual em PDF que
