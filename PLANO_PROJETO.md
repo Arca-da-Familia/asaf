@@ -2172,7 +2172,17 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       Postgres verde; galeria dos prints atualizada]**
       **[Produção: Deploy API e Deploy Painel verdes; `version.json` = `22b05c9`; `/privacidade/inventario`, `/financeiro/compras` e `/regras` 200; o
       painel publicado tem os cartões do celular (`data-em-cartoes` e `attr(data-rotulo)` no estilo)]**
-      **[FALTA (próximas rodadas da v9.3): telas ainda compridas no notebook — Eventos 28,4 alturas, Reserva de espaço 19,8, Plano de contas 16,4,
+      **[v9.3c (2026-11-06) — EVENTOS: a lista ganhou busca (título ou número, sem ligar para acento) e páginas de 10, indo sozinha à página do
+      evento aberto pelo endereço ou recém-criado; o evento aberto mostra as 15 partes em 4 abas (Programação, Inscritos, Cobrança, Presença e
+      certificado), com a aba no endereço (`&aba=pagamento`) — `components/ui/abas.tsx` (setas do teclado, leitor de tela). O axe do teste novo achou
+      um defeito antigo: a busca e a situação dos inscritos não tinham nome para o leitor de tela (corrigido). No notebook: Eventos 28,4 → 2 alturas.
+      A validação em Postgres pegou um tropeço meu: a chave da aba `'cobranca'` coincidia com a rota `/api/inscricoes/{id}/cobranca` (ainda sem tela) e
+      enganava a trava `test_rotas_com_tela` — a chave virou `pagamento`. Robôs ganharam `abrirAbaDoEvento`/`irParaAParteDoEvento`/`procurarEvento`]**
+      **[Homologação: v9.3a-01, v9.3b-01 (nenhum grave), v5.4f-02, v5.4f-03 (crachá, portaria, certificado e fechamento, nas abas), v5.4g-04,
+      v5.4h-06, v5.5d-01 → publicar → v5.5d-02, v5.5d-04 e v5.5d-05, v7.1b-01 verdes; validação em Postgres verde (94212bd)]**
+      **[Produção: Deploy Painel verde; `version.json` = `94212bd`; `/eventos?evento=1&aba=pagamento` 200; a tela publicada tem "Partes do evento",
+      "Procurar evento" e "Páginas dos eventos"]**
+      **[FALTA (próximas rodadas da v9.3): telas ainda compridas no notebook — Reserva de espaço 19,8, Plano de contas 16,4,
       Sessão da assembleia 16,0, Doações 15,5, Projetos 14,9, Relatórios 12,9, Qualidade da base 11,4, Para propor 10,6, Atendimentos 10,4 — uma por
       vez, com abas/submenus/telas progressivas e os robôs de cada uma reescritos; depois disso a altura no notebook passa a reprovar]**
 - [ ] Ajuda contextual e tour de primeiro acesso por módulo, no lugar de manual em PDF que
