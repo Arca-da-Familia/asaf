@@ -570,7 +570,7 @@ test.describe('assembleia própria: justificativas, chamada, sessão, detalhe e 
   test('sessão: credencia a Presidente, quórum (pela mesa e pela autochamada), pauta, votação, voto, apuração e encerramento', async ({
     page,
   }, info) => {
-    test.setTimeout(420_000)
+    test.setTimeout(900_000)
     const vigia = vigiar(page)
     await entrar(page, 'presidente')
     await page.goto(`${base}/sessao`)

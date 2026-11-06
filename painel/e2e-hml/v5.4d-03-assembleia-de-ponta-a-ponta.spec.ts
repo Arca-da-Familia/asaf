@@ -147,7 +147,7 @@ test('quórum atingido: vota, voto repetido recusado, apura e encerra votação,
   page,
 }, info) => {
   // credenciar um a um até o quórum de 2/3 de toda a base (que cresce a cada rodada) leva minutos
-  test.setTimeout(600_000)
+  test.setTimeout(900_000)
   const vigia = vigiar(page)
   await entrar(page, 'presidente')
   await page.goto(`${base}/sessao`)

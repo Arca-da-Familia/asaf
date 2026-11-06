@@ -364,7 +364,8 @@ export async function escolherPorTexto(
  */
 export async function atingirQuorum(page: Page): Promise<number> {
   const placar = page.getByText(/^\d+ \/ \d+$/).first()
-  for (let i = 0; i < 150; i += 1) {
+  // a homologação ganha associados inventados a cada rodada dos robôs (06/11: 150 já não bastavam para a metade); 1.000 cobre anos de rodadas
+  for (let i = 0; i < 1000; i += 1) {
     const [credenciados, minimo] = (await placar.innerText())
       .split('/')
       .map((n) => Number(n.trim())) as [number, number]
