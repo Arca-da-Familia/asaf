@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
 import {
+  abrirAbaDoEvento,
   API_HML,
   campo,
   entrar,
@@ -77,6 +78,8 @@ async function abrirOsInscritos(page: Page): Promise<Locator> {
     })
     .last()
   await expect(detalhe).toBeVisible()
+  // v9.3c: as partes do evento ficam em abas
+  await abrirAbaDoEvento(detalhe, 'Inscritos')
   const secao = detalhe.locator(
     'xpath=.//h3[starts-with(normalize-space(.), "Inscritos no evento")]/../..',
   )

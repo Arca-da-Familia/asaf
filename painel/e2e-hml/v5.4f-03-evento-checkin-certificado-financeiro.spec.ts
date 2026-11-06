@@ -11,6 +11,7 @@ import {
 } from '@playwright/test'
 
 import {
+  abrirAbaDoEvento,
   API_HML,
   campo,
   cpfValido,
@@ -18,6 +19,7 @@ import {
   escolherPorTexto,
   exigirHomologacao,
   inventariar,
+  irParaAParteDoEvento,
   RODADA,
   sair,
   ver,
@@ -152,8 +154,10 @@ function linhaDaAuditoria(
   return linha.first()
 }
 
-/** A seção da tela do evento pelo título (o `h3` da seção); o container é o `div` mais externo que tem só aquele título. */
-function secao(page: Page, titulo: string): Locator {
+/** A seção da tela do evento pelo título (o `h3` da seção); o container é o `div` mais externo que tem só aquele título. Desde a v9.3c as partes do
+ * evento ficam em abas: antes, abre a aba onde a seção está. */
+async function secao(page: Page, titulo: string): Promise<Locator> {
+  await irParaAParteDoEvento(page, titulo)
   return page
     .getByRole('heading', { name: titulo, level: 3, exact: true })
     .locator('xpath=(ancestor::div[count(.//h3)=1])[1]')
@@ -639,7 +643,7 @@ test.describe('B. Financeiro do evento', () => {
     await page.reload()
     expect(await lerVagas(page)).toBe(1)
     await expect(
-      statusDe(cartaoDe(secao(page, SECAO_INSCRITOS), PRESIDENTE)),
+      statusDe(cartaoDe(await secao(page, SECAO_INSCRITOS), PRESIDENTE)),
     ).toHaveText('Pré-inscrito')
     await ver(page, info, 'inscricao gratuita: 1 vaga ocupada')
 
@@ -682,7 +686,7 @@ test.describe('B. Financeiro do evento', () => {
     const api = guardarToken(page)
     await entrar(page, 'presidente')
     await abrirEvento(page)
-    const cobranca = secao(page, 'Cobrança de inscrição')
+    const cobranca = await secao(page, 'Cobrança de inscrição')
     await expect(cobranca).toContainText('Atualmente: gratuito.')
     await expect(
       cobranca.getByRole('button', {
@@ -895,7 +899,7 @@ test.describe('B. Financeiro do evento', () => {
       await lerVagas(page),
       4 + vagasVazadas,
     )
-    const inscritos = secao(page, SECAO_INSCRITOS)
+    const inscritos = await secao(page, SECAO_INSCRITOS)
     for (const nome of [P_PRESENTE, P_AUSENTE, P_CANCELADA]) {
       await expect(statusDe(cartaoDe(inscritos, nome))).toHaveText(
         'Pré-inscrito',
@@ -950,7 +954,7 @@ test.describe('B. Financeiro do evento', () => {
     const api = guardarToken(page)
     await entrar(page, 'presidente')
     await abrirEvento(page)
-    const cobranca = secao(page, 'Cobrança de inscrição')
+    const cobranca = await secao(page, 'Cobrança de inscrição')
 
     // ---- gratuito: remover a cobrança e voltar a cobrar
     await expect(cobranca).toContainText('Atualmente: pago.')
@@ -1018,7 +1022,10 @@ test.describe('B. Financeiro do evento', () => {
 
     // ---- recusas da tela
     await abrirEvento(page)
-    const reembolso = secao(page, 'Política de reembolso por cancelamento')
+    const reembolso = await secao(
+      page,
+      'Política de reembolso por cancelamento',
+    )
     const salvar = reembolso.getByRole('button', { name: 'Salvar política' })
     const usarPadrao = reembolso.getByLabel('Usar percentual padrão do sistema')
     await expect(usarPadrao).toBeChecked()
@@ -1100,7 +1107,7 @@ test.describe('C. Inscritos do evento', () => {
     const vigia = vigiar(page)
     await entrar(page, 'presidente')
     await abrirEvento(page)
-    const inscritos = secao(page, SECAO_INSCRITOS)
+    const inscritos = await secao(page, SECAO_INSCRITOS)
     const linhas = inscritos.locator('div.rounded-md.border.p-2')
     await expect(linhas).toHaveCount(4)
     for (const nome of [PRESIDENTE, P_PRESENTE, P_AUSENTE, P_CANCELADA]) {
@@ -1127,7 +1134,7 @@ test.describe('C. Inscritos do evento', () => {
     const aba2 = await page.context().newPage()
     const vigia2 = vigiar(aba2)
     await aba2.goto(`/eventos?evento=${idEvento}`)
-    const inscritos2 = secao(aba2, SECAO_INSCRITOS)
+    const inscritos2 = await secao(aba2, SECAO_INSCRITOS)
     await expect(statusDe(cartaoDe(inscritos2, P_CANCELADA))).toHaveText(
       'Pré-inscrito',
     )
@@ -1169,7 +1176,7 @@ test.describe('C. Inscritos do evento', () => {
       )
     }
     await expect(
-      statusDe(cartaoDe(secao(page, SECAO_INSCRITOS), P_CANCELADA)),
+      statusDe(cartaoDe(await secao(page, SECAO_INSCRITOS), P_CANCELADA)),
     ).toHaveText('Cancelado')
     await ver(page, info, 'vagas depois do cancelamento')
 
@@ -1209,7 +1216,7 @@ test.describe('D. Crachá e portaria', () => {
     await expect(
       page.getByRole('heading', { name: TITULO, level: 2 }),
     ).toBeVisible()
-    const eleg = secao(page, SECAO_ELEGIBILIDADE)
+    const eleg = await secao(page, SECAO_ELEGIBILIDADE)
     await expect(eleg).toBeVisible()
 
     // ---- os dois modelos (o motor só cria; um modelo já existente de outra rodada serve)
@@ -1263,6 +1270,8 @@ test.describe('D. Crachá e portaria', () => {
     }
 
     // ---- as pessoas do quadro: quem cancelou não entra; a tela diz que a elegibilidade ainda não pode ser calculada
+    // (v9.3c: se o evento foi reaberto para cadastrar o modelo, ele volta na 1ª aba)
+    await abrirAbaDoEvento(page, 'Presença e certificado')
     const presente = cartaoDe(eleg, P_PRESENTE)
     const ausente = cartaoDe(eleg, P_AUSENTE)
     await expect(presente).toBeVisible()
@@ -1368,7 +1377,7 @@ test.describe('D. Crachá e portaria', () => {
     const tokensAntes = await abrirAuditoria(page, 'tokens_portaria')
     const presencasAntes = await abrirAuditoria(page, 'registros_presenca')
     await abrirEvento(page)
-    const portariaDoEvento = secao(page, SECAO_PORTARIA)
+    const portariaDoEvento = await secao(page, SECAO_PORTARIA)
     await expect(portariaDoEvento).toBeVisible()
     const gerar = portariaDoEvento.getByRole('button', {
       name: 'Gerar link da portaria',
@@ -1558,7 +1567,7 @@ test.describe('D. Crachá e portaria', () => {
 
     // ---- de volta ao painel: a pessoa presente está Presente (estado final), a ausente continua pré-inscrita
     await abrirEvento(page)
-    const inscritos = secao(page, SECAO_INSCRITOS)
+    const inscritos = await secao(page, SECAO_INSCRITOS)
     const presenteNaLista = cartaoDe(inscritos, P_PRESENTE)
     await expect(statusDe(presenteNaLista)).toHaveText('Presente')
     await expect(presenteNaLista).toContainText('(final)')
@@ -1589,7 +1598,7 @@ test.describe('D. Crachá e portaria', () => {
     await entrar(page, 'presidente')
     const revogacoesAntes = await abrirAuditoria(page, 'tokens_portaria')
     await abrirEvento(page)
-    const portariaDoEvento = secao(page, SECAO_PORTARIA)
+    const portariaDoEvento = await secao(page, SECAO_PORTARIA)
     await portariaDoEvento
       .getByPlaceholder('Descrição (ex.: entrada principal)')
       .fill(`Entrada reserva ${RODADA}`)
@@ -1663,7 +1672,7 @@ test.describe('E. Certificado', () => {
     await entrar(page, 'presidente')
     const antesDaConfiguracao = await abrirAuditoria(page, 'eventos')
     await abrirEvento(page)
-    const eleg = secao(page, SECAO_ELEGIBILIDADE)
+    const eleg = await secao(page, SECAO_ELEGIBILIDADE)
     const presente = cartaoDe(eleg, P_PRESENTE)
     const ausente = cartaoDe(eleg, P_AUSENTE)
     const emitir = (cartaoDaPessoa: Locator) =>
@@ -1796,7 +1805,7 @@ test.describe('E. Certificado', () => {
     const aba2 = await page.context().newPage()
     const vigia2 = vigiar(aba2)
     await aba2.goto(`/eventos?evento=${idEvento}`)
-    const ausente2 = cartaoDe(secao(aba2, SECAO_ELEGIBILIDADE), P_AUSENTE)
+    const ausente2 = cartaoDe(await secao(aba2, SECAO_ELEGIBILIDADE), P_AUSENTE)
     await expect(ausente2).toContainText('· elegível')
     await expect(emitir(ausente2)).toBeEnabled()
 
@@ -2082,7 +2091,7 @@ test.describe('G. Painel gerencial do evento', () => {
 
     // ---- o fechamento do evento
     await abrirEvento(page)
-    const fechamento = secao(page, 'Fechamento financeiro')
+    const fechamento = await secao(page, 'Fechamento financeiro')
     await expect(fechamento).toContainText('Nenhum fechamento gerado ainda.')
     await fechamento
       .getByRole('button', { name: 'Gerar fechamento agora' })
@@ -2116,7 +2125,7 @@ test.describe('G. Painel gerencial do evento', () => {
     await expect(celulas.nth(4)).toHaveText(new RegExp(padraoReais(VALOR)))
     await expect(celulas.nth(5)).toHaveText(new RegExp(padraoReais(VALOR)))
     await expect(celulas.nth(6)).toHaveText('—')
-    const inscritos = secao(page, SECAO_INSCRITOS)
+    const inscritos = await secao(page, SECAO_INSCRITOS)
     await expect(statusDe(cartaoDe(inscritos, P_PRESENTE))).toHaveText(
       'Presente',
     )
@@ -2158,7 +2167,7 @@ test.describe('H. Exportações', () => {
     await abrirEvento(page)
 
     // ---- inscrições: a tabela traz as 4 inscrições (a cancelada também), com o status de cada uma
-    const inscritos = secao(page, SECAO_INSCRITOS)
+    const inscritos = await secao(page, SECAO_INSCRITOS)
     const exportando = page.waitForResponse(
       (r) =>
         r.request().method() === 'GET' &&
@@ -2206,7 +2215,7 @@ test.describe('H. Exportações', () => {
     await ver(page, info, 'exportacao das inscricoes: quatro linhas')
 
     // ---- presenças: as colunas escolhidas e as linhas de quem não cancelou
-    const presencas = secao(page, SECAO_EXPORTAR_PRESENCAS)
+    const presencas = await secao(page, SECAO_EXPORTAR_PRESENCAS)
     const botao = presencas.getByRole('button', {
       name: 'Exportar',
       exact: true,
@@ -2306,6 +2315,7 @@ test.describe('H. Exportações', () => {
     await entrar(page, 'cargo_presidente')
     await abrirEvento(page)
     // a seção de cobrança só aparece com "projetos": é o sinal de que a tela já sabe as permissões; só depois a ausência das outras vale
+    await abrirAbaDoEvento(page, 'Cobrança')
     await expect(
       page.getByRole('heading', {
         name: 'Cobrança de inscrição',
@@ -2313,13 +2323,14 @@ test.describe('H. Exportações', () => {
         exact: true,
       }),
     ).toBeVisible()
-    await expect(secao(page, SECAO_INSCRITOS)).toBeVisible()
+    await expect(await secao(page, SECAO_INSCRITOS)).toBeVisible()
     await expect(
-      secao(page, SECAO_INSCRITOS).getByRole('button', {
+      (await secao(page, SECAO_INSCRITOS)).getByRole('button', {
         name: 'Exportar',
         exact: true,
       }),
     ).toHaveCount(0)
+    await abrirAbaDoEvento(page, 'Presença e certificado')
     for (const titulo of [
       SECAO_PORTARIA,
       SECAO_ELEGIBILIDADE,

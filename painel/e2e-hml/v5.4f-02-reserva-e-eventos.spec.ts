@@ -7,6 +7,7 @@ import {
 } from '@playwright/test'
 
 import {
+  abrirAbaDoEvento,
   API_HML,
   AVISO,
   campo,
@@ -2787,6 +2788,7 @@ test.describe('B. Evento', () => {
     await expect(detalhe).toContainText(
       /2\/2 vaga\(s\) ocupada\(s\) \(0 livre\(s\)\)/,
     )
+    await abrirAbaDoEvento(detalhe, 'Inscritos')
     const secao = secaoDe(
       detalhe,
       'Inscritos no evento (autoatendimento pelo painel)',
@@ -2868,6 +2870,7 @@ test.describe('B. Evento', () => {
 
     // cancelar um inscrito pela tela
     const detalheCancelar = await abrirEvento(page, idEvento, titulo)
+    await abrirAbaDoEvento(detalheCancelar, 'Inscritos')
     const secaoCancelar = secaoDe(
       detalheCancelar,
       'Inscritos no evento (autoatendimento pelo painel)',
@@ -2903,6 +2906,7 @@ test.describe('B. Evento', () => {
 
     // a vaga que abriu tem de voltar ao contador e o primeiro da fila (Bruno) tem de avançar; o segundo (Heitor) continua esperando
     const detalheDepois = await abrirEvento(page, idEvento, titulo)
+    await abrirAbaDoEvento(detalheDepois, 'Inscritos')
     const secaoDepois = secaoDe(
       detalheDepois,
       'Inscritos no evento (autoatendimento pelo painel)',

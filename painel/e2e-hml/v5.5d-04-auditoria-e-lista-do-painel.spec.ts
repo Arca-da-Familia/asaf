@@ -1,6 +1,14 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { API_HML, campo, entrar, exigirHomologacao, ver, vigiar } from './apoio'
+import {
+  procurarEvento,
+  API_HML,
+  campo,
+  entrar,
+  exigirHomologacao,
+  ver,
+  vigiar,
+} from './apoio'
 
 // v5.5d - fecha o que o v5.5d-02 deixou: a Auditoria guardou CADA mudança de situação (as seis feitas pelo v5.5d-02: 1 cancelamento, 4 passos do adiamento e da remarcação, 1 "realizado") e a
 // lista de eventos do painel mostra o selo de cada situação. Lê o estado que o v5.5d-02 deixou (os três eventos mais novos de cada prefixo), por isso roda DEPOIS dele e antes de outra
@@ -95,11 +103,13 @@ test('a Auditoria guardou as seis mudanças de situação e a lista do painel mo
     [cancelado, 'Cancelado'],
     [realizado, 'Realizado'],
   ] as const) {
+    await procurarEvento(page, evento.titulo)
     const linha = page
       .locator('div[role="button"]')
       .filter({ hasText: evento.titulo })
     await expect(linha.getByText(selo, { exact: true })).toBeVisible()
   }
+  await procurarEvento(page, remarcado.titulo)
   const linhaDoRemarcado = page
     .locator('div[role="button"]')
     .filter({ hasText: remarcado.titulo })

@@ -577,3 +577,54 @@ export async function consentimentoPelaRota(
   )
   expect(r.status(), await r.text()).toBe(200)
 }
+
+/**
+ * v9.3c: a tela do evento mostra as 15 partes em 4 abas. Antes de procurar uma parte pelo título, o robô abre a aba onde ela fica (se a parte
+ * está na 1ª aba, "Programação", ou não é de evento, não faz nada). `onde` é a página ou o quadro do evento aberto.
+ */
+const ABA_DA_PARTE_DO_EVENTO: readonly [string, string][] = [
+  ['Inscritos no evento', 'Inscritos'],
+  ['Cobrança de inscrição', 'Cobrança'],
+  ['Faixas de preço', 'Cobrança'],
+  ['Cupons de desconto', 'Cobrança'],
+  ['Isenções justificadas de taxa de inscrição', 'Cobrança'],
+  ['Política de reembolso', 'Cobrança'],
+  ['Fechamento financeiro', 'Cobrança'],
+  ['Portaria', 'Presença e certificado'],
+  ['Elegibilidade, crachá', 'Presença e certificado'],
+  ['Exportar presença', 'Presença e certificado'],
+  ['Pesquisa de satisfação', 'Presença e certificado'],
+]
+
+export async function abrirAbaDoEvento(
+  onde: Page | Locator,
+  aba: string,
+): Promise<void> {
+  const botao = onde.getByRole('tab', { name: aba, exact: true })
+  await expect(botao).toBeVisible()
+  if ((await botao.getAttribute('aria-selected')) !== 'true')
+    await botao.click()
+  await expect(botao).toHaveAttribute('aria-selected', 'true')
+}
+
+export async function irParaAParteDoEvento(
+  onde: Page | Locator,
+  tituloDaParte: string,
+): Promise<void> {
+  const aba = ABA_DA_PARTE_DO_EVENTO.find(([inicio]) =>
+    tituloDaParte.startsWith(inicio),
+  )?.[1]
+  if (aba) await abrirAbaDoEvento(onde, aba)
+}
+
+/** v9.3c: a lista de eventos tem páginas de 10; para achar um evento que pode estar noutra página, o robô o procura pelo título (a busca só
+ * aparece quando há mais de 10 eventos — na homologação, sempre). */
+export async function procurarEvento(
+  page: Page,
+  titulo: string,
+): Promise<void> {
+  const campo = page.getByLabel('Procurar evento', { exact: true })
+  if ((await campo.count()) === 0) return
+  await campo.fill(titulo)
+  await expect(page.getByText(/eventos? encontrados?\./)).toBeVisible()
+}

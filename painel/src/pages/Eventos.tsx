@@ -13,7 +13,10 @@ import {
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { InscreverAssociadoNoEvento } from '@/components/eventos/InscreverAssociadoNoEvento'
+import { Paginador } from '@/components/data/Paginador'
+import { Abas } from '@/components/ui/abas'
 import { Button } from '@/components/ui/button'
+import { usePaginaLocal } from '@/lib/pagina-local'
 import {
   atualizarElegibilidadeConfig,
   atualizarStatusInscricao,
@@ -99,7 +102,14 @@ function formatarReais(valor: number): string {
 // `id_edicao_anterior`. Inscrição reaproveita o motor genérico da v4.0 (`/api/inscricoes/`) -
 // autoatendimento do próprio associado (`/api/eventos/{id}/inscricao`) é consumido por outra
 // tela, esta aqui é a visão de gestão.
-function FormularioEvento({ onCancelar }: { onCancelar: () => void }) {
+function FormularioEvento({
+  onCancelar,
+  aoCriar,
+}: {
+  onCancelar: () => void
+  /** v9.3c: o número do evento recém-criado (a lista vai à página onde ele está) */
+  aoCriar?: (idEvento: number) => void
+}) {
   const queryClient = useQueryClient()
   const { data: categorias } = useQuery({
     queryKey: ['opcoes-catalogo', 'tipo_evento'],
@@ -120,8 +130,9 @@ function FormularioEvento({ onCancelar }: { onCancelar: () => void }) {
 
   const criar = useMutation({
     mutationFn: (v: z.infer<typeof eventoCriarSchema>) => criarEvento(v),
-    onSuccess: () => {
+    onSuccess: (criado) => {
       queryClient.invalidateQueries({ queryKey: ['eventos'] })
+      aoCriar?.(criado.id_evento)
       onCancelar()
     },
   })
@@ -829,9 +840,11 @@ function SecaoInscritos({ evento }: { evento: Evento }) {
           value={buscaInput}
           onChange={(e) => setBuscaInput(e.target.value)}
           placeholder="Buscar por nome…"
+          aria-label="Buscar inscrito por nome"
           className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"
         />
         <select
+          aria-label="Situação da inscrição"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
@@ -2304,7 +2317,15 @@ function SecaoPesquisaSatisfacao({ idEvento }: { idEvento: number }) {
   )
 }
 
-function DetalheEvento({ evento }: { evento: Evento }) {
+function DetalheEvento({
+  evento,
+  aba,
+  aoMudarDeAba,
+}: {
+  evento: Evento
+  aba: string
+  aoMudarDeAba: (aba: string) => void
+}) {
   const { data: me } = useMe()
   const podeEditar = me?.permissoes.includes('projetos') ?? false
   const [editando, setEditando] = useState(false)
@@ -2347,34 +2368,84 @@ function DetalheEvento({ evento }: { evento: Evento }) {
             </Button>
           ))}
       </div>
-      <ContextoDoEvento evento={evento} />
-      <SecaoSessoes idEvento={evento.id_evento} />
-      <SecaoCotas idEvento={evento.id_evento} />
-      <SecaoPerguntas idEvento={evento.id_evento} />
-      <SecaoEdicoes evento={evento} />
-      <SecaoInscritos evento={evento} />
-      <SecaoCobranca evento={evento} />
-      <SecaoFaixasPreco idEvento={evento.id_evento} />
-      <SecaoCupons idEvento={evento.id_evento} />
-      <SecaoIsencoesEvento idEvento={evento.id_evento} />
-      <SecaoReembolsoEvento idEvento={evento.id_evento} />
-      <SecaoFechamentoEvento idEvento={evento.id_evento} />
-      <SecaoPortaria idEvento={evento.id_evento} />
-      <SecaoElegibilidade evento={evento} />
-      <SecaoExportarPresencas idEvento={evento.id_evento} />
-      <SecaoPesquisaSatisfacao idEvento={evento.id_evento} />
+      {/* v9.3c: as 15 partes do evento em 4 abas (no notebook a tela tinha 28 alturas); a aba fica no endereço (`&aba=cobranca`) */}
+      <Abas
+        rotulo="Partes do evento"
+        atual={aba}
+        aoMudar={aoMudarDeAba}
+        abas={[
+          {
+            chave: 'programacao',
+            rotulo: 'Programação',
+            conteudo: (
+              <>
+                <ContextoDoEvento evento={evento} />
+                <SecaoSessoes idEvento={evento.id_evento} />
+                <SecaoCotas idEvento={evento.id_evento} />
+                <SecaoPerguntas idEvento={evento.id_evento} />
+                <SecaoEdicoes evento={evento} />
+              </>
+            ),
+          },
+          {
+            chave: 'inscritos',
+            rotulo: 'Inscritos',
+            conteudo: <SecaoInscritos evento={evento} />,
+          },
+          {
+            chave: 'cobranca',
+            rotulo: 'Cobrança',
+            conteudo: (
+              <>
+                <SecaoCobranca evento={evento} />
+                <SecaoFaixasPreco idEvento={evento.id_evento} />
+                <SecaoCupons idEvento={evento.id_evento} />
+                <SecaoIsencoesEvento idEvento={evento.id_evento} />
+                <SecaoReembolsoEvento idEvento={evento.id_evento} />
+                <SecaoFechamentoEvento idEvento={evento.id_evento} />
+              </>
+            ),
+          },
+          {
+            chave: 'presenca',
+            rotulo: 'Presença e certificado',
+            conteudo: (
+              <>
+                <SecaoPortaria idEvento={evento.id_evento} />
+                <SecaoElegibilidade evento={evento} />
+                <SecaoExportarPresencas idEvento={evento.id_evento} />
+                <SecaoPesquisaSatisfacao idEvento={evento.id_evento} />
+              </>
+            ),
+          },
+        ]}
+      />
     </div>
   )
+}
+
+const ABAS_DO_EVENTO = ['programacao', 'inscritos', 'cobranca', 'presenca']
+const EVENTOS_POR_PAGINA = 10
+
+/** v9.3c: procura pelo título ou pelo número do evento, sem diferença de acento nem de maiúscula. */
+function simplificar(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
 }
 
 export function EventosPage() {
   const [mostrarForm, setMostrarForm] = useState(false)
   // `/eventos?evento=12` abre o evento nº 12 (é o endereço que os outros módulos usam para apontar para ele).
-  const [parametros] = useSearchParams()
+  const [parametros, setParametros] = useSearchParams()
   const [idSelecionado, setIdSelecionado] = useState<number | null>(() => {
     const numero = Number(parametros.get('evento'))
     return Number.isInteger(numero) && numero > 0 ? numero : null
   })
+  const abaPedida = parametros.get('aba') ?? ''
+  const aba = ABAS_DO_EVENTO.includes(abaPedida) ? abaPedida : 'programacao'
+  const [busca, setBusca] = useState('')
   const { data: eventos } = useQuery({
     queryKey: ['eventos'],
     queryFn: listarEventos,
@@ -2383,8 +2454,49 @@ export function EventosPage() {
   const eventoSelecionado =
     (eventos ?? []).find((e) => e.id_evento === idSelecionado) ?? null
 
+  // v9.3c: a lista ganhou busca e páginas de 10 (a hml já passa de uma centena de eventos); o mais recente primeiro, como o servidor manda
+  const termo = simplificar(busca.trim())
+  const encontrados = termo
+    ? (eventos ?? []).filter(
+        (e) =>
+          simplificar(e.titulo).includes(termo) ||
+          String(e.id_evento) === termo.replace(/^n[ºo°]?\s*/, ''),
+      )
+    : eventos
+  const paginaEventos = usePaginaLocal(encontrados, EVENTOS_POR_PAGINA, termo)
+  // o evento aberto pelo endereço ou recém-criado: a lista vai à página onde ele está (ajuste durante a renderização, uma vez por evento)
+  const [mostrar, setMostrar] = useState<number | null>(idSelecionado)
+  if (mostrar !== null && encontrados) {
+    const posicao = encontrados.findIndex((e) => e.id_evento === mostrar)
+    if (posicao >= 0) {
+      setMostrar(null)
+      paginaEventos.setPagina(Math.floor(posicao / EVENTOS_POR_PAGINA) + 1)
+    }
+  }
+
   function alternar(id: number) {
-    setIdSelecionado(id === idSelecionado ? null : id)
+    const novo = id === idSelecionado ? null : id
+    setIdSelecionado(novo)
+    // outro evento abre na primeira aba; o endereço acompanha (dá para copiar e mandar)
+    setParametros(
+      (p) => {
+        p.delete('aba')
+        if (novo === null) p.delete('evento')
+        else p.set('evento', String(novo))
+        return p
+      },
+      { replace: true },
+    )
+  }
+  function mudarDeAba(chave: string) {
+    setParametros(
+      (p) => {
+        p.set('aba', chave)
+        if (idSelecionado !== null) p.set('evento', String(idSelecionado))
+        return p
+      },
+      { replace: true },
+    )
   }
   function teclado(e: KeyboardEvent, id: number) {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -2412,10 +2524,43 @@ export function EventosPage() {
           </Button>
         </div>
         {mostrarForm && (
-          <FormularioEvento onCancelar={() => setMostrarForm(false)} />
+          <FormularioEvento
+            onCancelar={() => setMostrarForm(false)}
+            aoCriar={(id) => {
+              setBusca('')
+              setMostrar(id)
+            }}
+          />
         )}
-        <div className="v3-space-y-2">
-          {(eventos ?? []).map((e) => (
+        {(eventos ?? []).length > EVENTOS_POR_PAGINA && (
+          <div className="mb-3 max-w-md">
+            <label htmlFor="procurar-evento" className="text-sm font-medium">
+              Procurar evento
+            </label>
+            <input
+              id="procurar-evento"
+              type="search"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Título ou número"
+              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            />
+            {termo && (
+              <p
+                aria-live="polite"
+                className="mt-1 text-xs text-muted-foreground"
+              >
+                {paginaEventos.total}{' '}
+                {paginaEventos.total === 1
+                  ? 'evento encontrado'
+                  : 'eventos encontrados'}
+                .
+              </p>
+            )}
+          </div>
+        )}
+        <div className="flex flex-col gap-2">
+          {paginaEventos.daPagina.map((e) => (
             <div
               key={e.id_evento}
               role="button"
@@ -2450,13 +2595,27 @@ export function EventosPage() {
               Nenhum evento cadastrado.
             </p>
           )}
+          {termo && paginaEventos.total === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhum evento com esse título ou número.
+            </p>
+          )}
         </div>
+        <Paginador
+          pagina={paginaEventos.pagina}
+          porPagina={paginaEventos.porPagina}
+          total={paginaEventos.total}
+          aoMudar={paginaEventos.setPagina}
+          rotulo="Páginas dos eventos"
+        />
       </section>
 
       {eventoSelecionado && (
         <DetalheEvento
           key={eventoSelecionado.id_evento}
           evento={eventoSelecionado}
+          aba={aba}
+          aoMudarDeAba={mudarDeAba}
         />
       )}
     </>

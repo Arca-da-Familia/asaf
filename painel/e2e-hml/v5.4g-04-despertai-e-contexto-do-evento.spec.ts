@@ -9,6 +9,7 @@ import {
 } from '@playwright/test'
 
 import {
+  procurarEvento,
   API_HML,
   AVISO,
   campo,
@@ -1006,6 +1007,8 @@ test('a nova edição segue no mesmo projeto; dado pessoal no título da nova ed
   await expect(cartoesDasEdicoes.filter({ hasText: EDICAO_2 })).toContainText(
     DIA_2.br,
   )
+  // a lista tem páginas (v9.3c): a 2ª edição é procurada pelo título
+  await procurarEvento(page, EDICAO_2)
   await expect(cartaoDoEvento(page, EDICAO_2)).toHaveCount(1)
   await ver(page, info, 'nova edicao criada na cadeia de edicoes')
 
