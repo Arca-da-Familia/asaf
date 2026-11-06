@@ -20,6 +20,7 @@ from fastapi import HTTPException
 from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session, joinedload
 
+from app.nomes_das_permissoes import nome_da_permissao
 from app.auditoria import registrar_auditoria
 from app.models.associados import Associado
 from app.models.comunicacao import (
@@ -338,8 +339,8 @@ def _lista_em_portugues(itens: list[str]) -> str:
 
 def descrever_publico(db: Session, publico: dict) -> str:
     if publico["tipo"] == PUBLICO_PERMISSAO:
-        permissao = db.query(PermissaoSistema).filter(PermissaoSistema.codigo_permissao == publico["codigo_permissao"]).first()
-        return f"Quem tem a permissão \"{publico['codigo_permissao']}\"" + (f" ({permissao.modulo})" if permissao and permissao.modulo else "")
+        # v9.3g: o nome da permissão em português, nunca o código (`financeiro_auditar`)
+        return f"Quem tem a permissão \"{nome_da_permissao(publico['codigo_permissao'])}\""
     filtros = ""
     if publico["situacoes"]:
         filtros += f" em situação {_lista_em_portugues(publico['situacoes'])}"
@@ -672,7 +673,7 @@ def opcoes_de_publico(db: Session, usuario: Usuario) -> dict:
         "situacoes": list(SITUACOES) if pode_ver_a_situacao(db, usuario) else [],
         "categorias_de_associado": [rotulo for _, rotulo in _rotulos_do_catalogo(db, "categoria_associado")],
         "permissoes": [
-            {"codigo": p.codigo_permissao, "modulo": p.modulo, "descricao": p.descricao}
+            {"codigo": p.codigo_permissao, "nome": nome_da_permissao(p.codigo_permissao), "modulo": p.modulo, "descricao": p.descricao}
             for p in db.query(PermissaoSistema).order_by(PermissaoSistema.modulo, PermissaoSistema.codigo_permissao).all()
         ],
         "projetos": [{"id_projeto": p.id_projeto, "nome": p.nome_projeto} for p in db.query(ProjetoEvento).order_by(ProjetoEvento.nome_projeto).all()],

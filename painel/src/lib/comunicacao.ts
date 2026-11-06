@@ -21,7 +21,13 @@ export type PublicoDoAviso = {
 export type OpcoesDePublico = {
   situacoes: string[]
   categorias_de_associado: string[]
-  permissoes: { codigo: string; modulo: string; descricao: string }[]
+  permissoes: {
+    codigo: string
+    /** v9.3g: o nome em português da permissão */
+    nome?: string
+    modulo: string
+    descricao: string
+  }[]
   projetos: { id_projeto: number; nome: string }[]
   // v6.2a: `obrigatoria` (Convocação e Mudança de regra) deixa a caixa "também por e-mail" marcada por padrão
   categorias_de_aviso: {

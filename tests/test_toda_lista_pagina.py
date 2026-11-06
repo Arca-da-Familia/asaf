@@ -50,7 +50,7 @@ CADASTRO_PEQUENO = (
         "/api/fechamentos-mensais/", "/api/fornecedores/", "/api/funcionarios/", "/api/indicadores/", "/api/mandatos/", "/api/mandatos/conflitos-interesse",
         "/api/mandatos/vencendo", "/api/modelos-de-aviso/", "/api/niveis-acesso/", "/api/orcamentos/", "/api/permissoes/", "/api/plano-contas/",
         "/api/planos-contribuicao/", "/api/templates-documento/", "/api/campanhas-arrecadacao/", "/api/campanhas-desconto-antecipado/",
-        "/api/remanejamentos-destinacao/", "/api/reservas-contingencia/", "/api/prestacoes-de-contas/", "/api/auditoria/acoes", "/api/auditoria/tabelas",
+        "/api/remanejamentos-destinacao/", "/api/reservas-contingencia/", "/api/prestacoes-de-contas/", "/api/auditoria/acoes", "/api/auditoria/tabelas", "/api/permissoes/nomes",
         "/api/avisos/opcoes-de-publico", "/api/parcerias/opcoes", "/api/conselho-fiscal/pareceres", "/api/voluntariado/vagas-abertas",
         "/api/associados/busca-simples", "/api/filiacao/para-propor", "/api/projetos/voluntarios-selecao",
     },

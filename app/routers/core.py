@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from app.auditoria_rotulos import rotulo_da_acao, rotulo_da_tabela
+from app.nomes_das_permissoes import NOME_DA_PERMISSAO, nome_da_permissao
 from app.auditoria import registrar_auditoria
 from app.config_cache import invalidar_cache_configuracao
 from app.database import get_db
@@ -362,11 +363,20 @@ def atualizar_nivel_acesso(
     return {"mensagem": "Nível de acesso atualizado."}
 
 
+@router.get("/api/permissoes/nomes", summary="O nome em português de cada permissão (para mostrar no lugar do código)")
+def nomes_das_permissoes(db: Session = Depends(get_db), _usuario=Depends(get_current_user)):
+    # v9.3g (pedido do Presidente, 06/11): telas que listam permissões (revisão anual do programa de privacidade, avisos) mostram o nome, não o
+    # código; qualquer pessoa logada pode ler (é só o nome de cada permissão, sem dizer quem a tem)
+    codigos = {c for (c,) in db.query(PermissaoSistema.codigo_permissao).all()} | set(NOME_DA_PERMISSAO)
+    return {c: nome_da_permissao(c) for c in sorted(codigos)}
+
+
 @router.get("/api/permissoes/", summary="Listar permissões do sistema")
 def listar_permissoes(db: Session = Depends(get_db), _=Depends(_permissao_gerenciar_acesso)):
     permissoes = db.query(PermissaoSistema).order_by(PermissaoSistema.modulo, PermissaoSistema.codigo_permissao).all()
     return [
-        {"id_permissao": p.id_permissao, "modulo": p.modulo, "codigo_permissao": p.codigo_permissao, "descricao": p.descricao}
+        {"id_permissao": p.id_permissao, "modulo": p.modulo, "codigo_permissao": p.codigo_permissao, "nome": nome_da_permissao(p.codigo_permissao),
+         "descricao": p.descricao}
         for p in permissoes
     ]
 

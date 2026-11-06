@@ -638,6 +638,8 @@ export type PermissaoSistema = {
   id_permissao: number
   modulo: string
   codigo_permissao: string
+  /** v9.3g: o nome curto em português ("Exportar dados pessoais de associados"); a tela mostra este, nunca o código */
+  nome?: string | null
   descricao?: string | null
 }
 
@@ -740,6 +742,11 @@ export function listarAuditoria(
 
 /** v9.3f: opção de filtro da Auditoria — o valor é o código guardado; o rótulo é o nome em português. */
 export type OpcaoDaAuditoria = { valor: string; rotulo: string }
+
+/** v9.3g: o nome em português de cada permissão, pelo código (qualquer pessoa logada lê). */
+export function listarNomesDasPermissoes(): Promise<Record<string, string>> {
+  return apiFetch<Record<string, string>>('/api/permissoes/nomes')
+}
 
 export function listarAcoesAuditoria(): Promise<OpcaoDaAuditoria[]> {
   return apiFetch<OpcaoDaAuditoria[]>('/api/auditoria/acoes')

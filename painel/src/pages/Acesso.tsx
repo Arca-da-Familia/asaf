@@ -114,7 +114,7 @@ export function AcessoPage() {
                     className="px-3 py-2 text-center font-medium"
                     title={p.descricao ?? undefined}
                   >
-                    {p.codigo_permissao}
+                    {p.nome ?? p.codigo_permissao}
                   </th>
                 ))}
                 <th className="px-3 py-2 text-center font-medium">Ver como</th>
@@ -130,7 +130,7 @@ export function AcessoPage() {
                     {nivel.nome_nivel}
                     {nivel.exige_mfa && (
                       <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
-                        MFA
+                        Segundo passo
                       </span>
                     )}
                   </td>
@@ -145,7 +145,7 @@ export function AcessoPage() {
                       >
                         <input
                           type="checkbox"
-                          aria-label={`${permissao.codigo_permissao} — ${nivel.nome_nivel}`}
+                          aria-label={`${permissao.nome ?? permissao.codigo_permissao} — ${nivel.nome_nivel}`}
                           checked={marcado}
                           disabled={atribuir.isPending || remover.isPending}
                           onChange={() => alternar(nivel, permissao, marcado)}

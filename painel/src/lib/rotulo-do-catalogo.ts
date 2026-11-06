@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { listarOpcoesCatalogo } from '@/lib/api'
+import { listarNomesDasPermissoes, listarOpcoesCatalogo } from '@/lib/api'
 
 /** v9.3g: o que fazer com um código que a lista não tem (opção desligada, ou ainda carregando): sem sublinhado e só a 1ª letra maiúscula. */
 export function semCodigo(codigo: string): string {
@@ -27,4 +27,17 @@ export function useRotuloDoCatalogo(
     // algumas telas já guardam o nome (não o código): fica como está
     return /^[A-Z0-9_]+$/.test(codigo) ? semCodigo(codigo) : codigo
   }
+}
+
+/**
+ * v9.3g: o nome em português de cada permissão ("Exportar dados pessoais de associados" no lugar de `exportar_dados_pessoais`), para as telas
+ * que listam permissões sem ser a de Níveis e permissões (a revisão anual do programa de privacidade).
+ */
+export function useNomeDaPermissao(): (codigo: string) => string {
+  const { data: nomes } = useQuery({
+    queryKey: ['permissoes', 'nomes'],
+    queryFn: listarNomesDasPermissoes,
+    staleTime: Infinity,
+  })
+  return (codigo) => nomes?.[codigo] ?? semCodigo(codigo)
 }

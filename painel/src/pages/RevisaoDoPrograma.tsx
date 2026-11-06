@@ -14,6 +14,7 @@ import {
   type RetratoDoPrograma,
   type RevisaoDoPrograma,
 } from '@/lib/privacidade'
+import { useNomeDaPermissao } from '@/lib/rotulo-do-catalogo'
 
 const CHAVE = ['privacidade', 'revisao-anual']
 
@@ -30,6 +31,7 @@ function Numero({ rotulo, valor }: { rotulo: string; valor: number }) {
 }
 
 function Retrato({ r }: { r: RetratoDoPrograma }) {
+  const nomeDaPermissao = useNomeDaPermissao()
   return (
     <div className="space-y-3 text-sm">
       <p className="text-muted-foreground">
@@ -101,7 +103,8 @@ function Retrato({ r }: { r: RetratoDoPrograma }) {
           {r.acessos.map((a) => (
             <li key={a.nome}>
               {a.nome}
-              {a.nivel ? ` (${a.nivel})` : ''}: {a.permissoes.join(', ')}
+              {a.nivel ? ` (${a.nivel})` : ''}:{' '}
+              {a.permissoes.map(nomeDaPermissao).join(', ')}
             </li>
           ))}
         </ul>

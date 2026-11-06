@@ -384,7 +384,7 @@ export function AvisoNovoPage() {
                 <option value="">Escolha…</option>
                 {(opcoes?.permissoes ?? []).map((p) => (
                   <option key={p.codigo} value={p.codigo}>
-                    {p.codigo} — {p.descricao}
+                    {p.nome ?? p.codigo}
                   </option>
                 ))}
               </select>

@@ -1,14 +1,20 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe } from 'jest-axe'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import * as api from '@/lib/api'
 import { ApiError } from '@/lib/api'
 import * as privacidade from '@/lib/privacidade'
 import { RevisaoDoProgramaPage } from '@/pages/RevisaoDoPrograma'
 
+// v9.3g: as permissões aparecem pelo nome em português (o servidor manda o nome de cada código)
+vi.mock('@/lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api')>()),
+  listarNomesDasPermissoes: vi.fn(),
+}))
 vi.mock('@/lib/privacidade', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/privacidade')>()),
   obterRevisoesDoPrograma: vi.fn(),
@@ -90,15 +96,23 @@ beforeEach(() => vi.resetAllMocks())
 
 describe('Revisão anual do programa (v7.5b)', () => {
   it('mostra o retrato e a situação pendente; passa no axe', async () => {
+    vi.mocked(api.listarNomesDasPermissoes).mockResolvedValue({
+      associados: 'Cadastro de associados',
+      privacidade: 'Programa de privacidade (consultar)',
+    })
     vi.mocked(privacidade.obterRevisoesDoPrograma).mockResolvedValue(dados())
     const { container } = desenhar()
     expect(await screen.findByTestId('situacao-da-revisao')).toHaveAttribute(
       'data-pendente',
       'sim',
     )
-    expect(
-      screen.getByRole('region', { name: 'Quem tem acesso a quê' }),
-    ).toHaveTextContent('Bruno Vice (Associado): associados, privacidade')
+    await waitFor(() =>
+      expect(
+        screen.getByRole('region', { name: 'Quem tem acesso a quê' }),
+      ).toHaveTextContent(
+        'Bruno Vice (Associado): Cadastro de associados, Programa de privacidade (consultar)',
+      ),
+    )
     expect(
       screen.getByRole('region', { name: 'Prazos de guarda' }),
     ).toHaveTextContent('Pedidos da fila de atendimento: 1825 dias')
