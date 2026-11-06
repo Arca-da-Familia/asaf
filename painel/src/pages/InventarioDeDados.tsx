@@ -216,6 +216,8 @@ function Cartao({
 }) {
   const [ajustando, setAjustando] = useState(false)
   const [vendoHistorico, setVendoHistorico] = useState(false)
+  // v9.3i: o nome em português que o servidor manda ("CPF (Pessoas)"); sem ele, o nome técnico
+  const nome = (item: string) => atividade.nomes?.[item] ?? item
   return (
     <section
       aria-label={atividade.nome}
@@ -326,22 +328,24 @@ function Cartao({
             {atividade.dados_sensiveis.length > 0 && (
               <p className="mt-2 text-sm">
                 <strong>Sensíveis:</strong>{' '}
-                {atividade.dados_sensiveis.join(', ')}
+                {atividade.dados_sensiveis.map(nome).join(', ')}
               </p>
             )}
             {atividade.texto_livre_que_pode_ter_sensivel.length > 0 && (
               <p className="mt-2 text-sm">
                 <strong>Texto livre que pode ter dado sensível:</strong>{' '}
-                {atividade.texto_livre_que_pode_ter_sensivel.join(', ')}
+                {atividade.texto_livre_que_pode_ter_sensivel
+                  .map(nome)
+                  .join(', ')}
               </p>
             )}
             <p className="mt-2 text-xs text-muted-foreground">
-              {atividade.dados_pessoais.join(', ') ||
+              {atividade.dados_pessoais.map(nome).join(', ') ||
                 atividade.tabelas_externas.join('; ') ||
                 'só quem registrou'}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Tabelas: {atividade.tabelas.join(', ')}
+              Tabelas: {atividade.tabelas.map(nome).join(', ')}
             </p>
           </details>
           <p className="mt-3 text-xs text-muted-foreground">
@@ -438,7 +442,12 @@ export function InventarioDeDadosPage() {
                 {data.tabelas_sem_atividade.length > 0 && (
                   <li>
                     Dados pessoais fora do inventário:{' '}
-                    {data.tabelas_sem_atividade.join(', ')}.
+                    {data.tabelas_sem_atividade
+                      .map(
+                        (t) => data.nomes_das_tabelas_sem_atividade?.[t] ?? t,
+                      )
+                      .join(', ')}
+                    .
                   </li>
                 )}
                 {data.base_legal_a_conferir.length > 0 && (

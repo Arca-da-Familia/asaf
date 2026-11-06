@@ -86,11 +86,13 @@ def _proposta(db: Session, t: Tratamento) -> dict:
     return {
         "descricao": f"{atividade['finalidade']} Titulares: {'; '.join(atividade['titulares'])}. Por que é de alto risco: {t.por_que_alto_risco}",
         "dados": (
-            f"Dados sensíveis: {', '.join(atividade['dados_sensiveis']) or 'nenhum'}. Demais dados pessoais: {', '.join(atividade['dados_pessoais'])}. "
+            # v9.3i: os campos pelo nome em português ("CPF (Pessoas)"), nunca "pessoas.cpf"
+            f"Dados sensíveis: {', '.join(atividade['nomes'].get(d, d) for d in atividade['dados_sensiveis']) or 'nenhum'}. "
+            f"Demais dados pessoais: {', '.join(atividade['nomes'].get(d, d) for d in atividade['dados_pessoais'])}. "
             f"{atividade['requisito_crianca'] or ''}"
         ).strip(),
         "metodologia": (
-            "O relato e o encaminhamento são escritos e lidos no painel só por quem está ATIVO na equipe daquele projeto (a Presidência também precisa estar "
+            "O relato e o encaminhamento são escritos e lidos no painel só por quem está ativo na equipe daquele projeto (a Presidência também precisa estar "
             "na equipe); quem tem a permissão Projetos pode pôr alguém (ou a si) na equipe de um projeto, e isso fica na Auditoria, como cada leitura. O "
             "atendimento só é registrado com o termo de consentimento assinado (pela pessoa atendida ou, se era criança ou adolescente na assinatura, por um "
             "dos pais ou pelo responsável) registrado no sistema, com a versão do termo (a marca antiga do cadastro não vale); revogado, nada novo grava. Onde fica: {' '.join(atividade['armazenamento'])}. Base legal (proposta): {'; '.join(atividade['bases_legais_texto'])}."

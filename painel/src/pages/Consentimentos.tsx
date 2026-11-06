@@ -144,8 +144,9 @@ export function ConsentimentosPage() {
         </div>
       </div>
       <p className="mb-4 text-xs text-muted-foreground">
-        Quem retira a autorização das fotos de atividade tem de ter TODAS as
-        fotos em que aparece apagadas: procure o nome aqui.
+        Quem retira a autorização das fotos de atividade tem de ter{' '}
+        <strong>todas</strong> as fotos em que aparece apagadas: procure o nome
+        aqui.
       </p>
       {isLoading && (
         <p className="text-sm text-muted-foreground">Carregando…</p>

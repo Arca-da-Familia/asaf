@@ -94,7 +94,7 @@ def test_rascunho_montado_aprovar_exige_tudo_e_versoes(client, db, auth_headers)
     assert atendimento["ligado"] and atendimento["liberado"]
     assert atendimento["proposta"] is None, "já há versão aprovada: revisa-se dela, não da proposta do sistema"
     proposta = ripd._proposta(db, ripd.buscar(CODIGO))
-    assert "registros_atendimento.relato" in proposta["dados"] and proposta["parecer_do_encarregado"] == ""
+    assert "Relato (Registros de atendimento)" in proposta["dados"] and proposta["parecer_do_encarregado"] == ""
     assert "melhor interesse" in proposta["dados"]
     vigente_antes = atendimento["aprovado"]["versao"]
     sem_parecer = {**SECOES_COMPLETAS, "parecer_do_encarregado": ""}

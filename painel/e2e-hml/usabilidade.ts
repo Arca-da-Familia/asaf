@@ -278,7 +278,9 @@ async function medir(
           continue
         for (const m of (n.textContent ?? '').matchAll(/\S+/gu)) {
           const palavra = m[0]
-          if (/@|:\/\/|^www\./.test(palavra)) continue
+          // e-mail, endereço, marcador que a pessoa digita ({primeiro_nome}) e sigla conhecida não são nome técnico
+          if (/@|:\/\/|^www\.|[{}]/.test(palavra)) continue
+          if (/^\W*(HTTPS|WCAG)\W*$/.test(palavra)) continue
           const sub = /[\p{L}\d]+(?:_[\p{L}\d]+)+/u.exec(palavra)
           if (sub) tecnicos.add(sub[0])
           else {

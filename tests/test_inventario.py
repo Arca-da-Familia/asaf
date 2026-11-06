@@ -154,7 +154,7 @@ def test_exportar_em_planilha_e_em_pdf_com_auditoria(client, db, auth_headers):
     cabecalho = linhas.index(list(inventario.COLUNAS_DA_PLANILHA))
     assert cabecalho == 3 and len(linhas) == cabecalho + 1 + len(inventario.ATIVIDADES), "controlador, encarregado, linha em branco, colunas, atividades"
     beneficiarios = next(linha for linha in linhas if linha and linha[0] == "Atendimento social a beneficiários")
-    assert "registros_atendimento.relato" in beneficiarios[4] and beneficiarios[5].startswith("sim — Art. 14") and "Sem rotina automática" in beneficiarios[11]
+    assert "Relato (Registros de atendimento)" in beneficiarios[4] and beneficiarios[5].startswith("sim — Art. 14") and "Sem rotina automática" in beneficiarios[11]
     pdf = client.get("/api/privacidade/inventario-pdf", headers=auth_headers)
     assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
     texto = "\n".join(p.extract_text() for p in pypdf.PdfReader(io.BytesIO(pdf.content)).pages)

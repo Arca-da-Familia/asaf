@@ -134,6 +134,8 @@ export type AtividadeDeTratamento = {
   base_legal_conferida: boolean
   transferencia_internacional: boolean
   tabelas: string[]
+  /** v9.3i: o nome em português de cada tabela e campo citado ("CPF (Pessoas)" no lugar de "pessoas.cpf") */
+  nomes?: Record<string, string>
   titulares: string[]
   dados_pessoais: string[]
   dados_sensiveis: string[]
@@ -152,6 +154,7 @@ export type AtividadeDeTratamento = {
 export type Inventario = {
   atividades: AtividadeDeTratamento[]
   tabelas_sem_atividade: string[]
+  nomes_das_tabelas_sem_atividade?: Record<string, string>
   bases_legais: { codigo: string; texto: string }[]
   operadores: OperadorDoInventario[]
   consultas: ConsultaDoInventario[]

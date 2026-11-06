@@ -196,7 +196,7 @@ export function DocumentoNovoPage() {
 
         <fieldset className="space-y-2">
           <legend className="mb-1 text-sm font-medium">
-            Quem pode ler o ORIGINAL?
+            Quem pode ler o original?
           </legend>
           {(tipos?.classificacoes ?? ['Pública', 'Interna', 'Restrita']).map(
             (c) => (

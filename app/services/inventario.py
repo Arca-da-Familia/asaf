@@ -23,6 +23,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import classificacao_de_dados as cl
+from app.inventario_rotulos import rotulo_da_tabela_do_inventario, rotulo_do_dado
 from app.models.core import Usuario
 from app.models.privacidade import VersaoDeAtividadeDeTratamento
 from app.services import encarregado as servico_encarregado
@@ -399,6 +400,9 @@ def _detalhar(db: Session, a: Atividade, inventario: list[dict]) -> dict:
     versao = _vigente(db, a.codigo)
     campos = _vigentes(a, versao)
     pode_ter_crianca = any(linha["pode_ter_crianca"] for linha in das_tabelas) or a.criancas_externas
+    dados_pessoais = sorted({f"{linha['tabela']}.{c}" for linha in das_tabelas for c in linha["colunas_pessoais"]})
+    dados_sensiveis = sorted({f"{linha['tabela']}.{c}" for linha in das_tabelas for c in linha["colunas_sensiveis"]})
+    texto_livre = sorted({f"{linha['tabela']}.{c}" for linha in das_tabelas for c in linha["texto_livre_que_pode_ter_sensivel"]})
     return {
         "codigo": a.codigo, "nome": a.nome, **campos, "operadores": list(a.operadores),
         # código guardado que saiu da lista (renomeado) não derruba o inventário: aparece como "código antigo"
@@ -410,9 +414,11 @@ def _detalhar(db: Session, a: Atividade, inventario: list[dict]) -> dict:
         "tabelas_externas": list(a.tabelas_externas),
         "tabelas": tabelas,
         "titulares": sorted({t for linha in das_tabelas for t in linha["titulares"]} | set(a.titulares_externos)),
-        "dados_pessoais": sorted({f"{linha['tabela']}.{c}" for linha in das_tabelas for c in linha["colunas_pessoais"]}),
-        "dados_sensiveis": sorted({f"{linha['tabela']}.{c}" for linha in das_tabelas for c in linha["colunas_sensiveis"]}),
-        "texto_livre_que_pode_ter_sensivel": sorted({f"{linha['tabela']}.{c}" for linha in das_tabelas for c in linha["texto_livre_que_pode_ter_sensivel"]}),
+        "dados_pessoais": dados_pessoais,
+        # v9.3i: o nome em português de cada tabela e de cada campo citado ("CPF (Pessoas)" no lugar de "pessoas.cpf"); a tela mostra este
+        "nomes": {item: rotulo_do_dado(item) for item in [*tabelas, *dados_pessoais, *dados_sensiveis, *texto_livre]},
+        "dados_sensiveis": dados_sensiveis,
+        "texto_livre_que_pode_ter_sensivel": texto_livre,
         "pode_ter_crianca": pode_ter_crianca,
         "armazenamento": [ARMAZENAMENTO_BANCO] + ([ARMAZENAMENTO_ARQUIVOS] if a.arquivos else []) + list(a.armazenamento_proprio)
         + ([ARMAZENAMENTO_SITE] if a.publicado_no_site else []),
@@ -430,6 +436,7 @@ def listar(db: Session) -> dict:
     return {
         "atividades": atividades,
         "tabelas_sem_atividade": tabelas_sem_atividade(inventario),
+        "nomes_das_tabelas_sem_atividade": {t: rotulo_da_tabela_do_inventario(t) for t in tabelas_sem_atividade(inventario)},
         "bases_legais": [{"codigo": c, "texto": t} for c, t in BASES_LEGAIS.items()],
         "operadores": [{"codigo": c, **d} for c, d in OPERADORES.items()],
         "consultas": [{"codigo": c, **d} for c, d in CONSULTAS.items()],
@@ -508,7 +515,9 @@ def _prazo_em_texto(atividade: dict) -> str:
 def _linha(atividade: dict) -> list[str]:
     return [
         atividade["nome"], atividade["finalidade"], "; ".join(atividade["titulares"]),
-        ", ".join(atividade["dados_pessoais"] + atividade["tabelas_externas"]), ", ".join(atividade["dados_sensiveis"]) or "nenhum",
+        # v9.3i: a planilha e o PDF também com os nomes em português ("Relato (Registros de atendimento)")
+        ", ".join([atividade["nomes"].get(d, d) for d in atividade["dados_pessoais"]] + atividade["tabelas_externas"]),
+        ", ".join(atividade["nomes"].get(d, d) for d in atividade["dados_sensiveis"]) or "nenhum",
         f"sim — {atividade['requisito_crianca']}" if atividade["pode_ter_crianca"] else "não", "; ".join(atividade["bases_legais_texto"]),
         "sim" if atividade["base_legal_conferida"] else "não (proposta do sistema)",
         "; ".join([f"{o['nome']}: {o['o_que_faz']}" for o in atividade["operadores_detalhe"]]
