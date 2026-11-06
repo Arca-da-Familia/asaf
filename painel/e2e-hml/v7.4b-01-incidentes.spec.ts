@@ -69,7 +69,7 @@ test('o Presidente faz o ensaio anual pelo registro de incidentes', async ({
 
   await page.goto('/auditoria')
   await expect(
-    page.getByRole('cell', { name: 'INCIDENTE_ENCERRADO' }).first(),
+    page.locator('[data-acao="INCIDENTE_ENCERRADO"]').first(),
   ).toBeVisible({ timeout: 30_000 })
   await ver(page, info, 'auditoria-do-incidente')
 })

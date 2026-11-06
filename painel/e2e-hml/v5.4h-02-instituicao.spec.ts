@@ -60,7 +60,7 @@ async function totalNaAuditoria(page: Page): Promise<number> {
       r.url().includes('/api/auditoria/?') &&
       r.url().includes(`tabela_afetada=${TABELA}`),
   )
-  await campo(page, 'Tabela').fill(TABELA)
+  await page.goto(`/auditoria?tabela=${encodeURIComponent(TABELA)}`)
   const { total } = (await (await resposta).json()) as { total: number }
   await expect(page.getByText(/^Carregando/)).toHaveCount(0)
   return total
@@ -269,10 +269,7 @@ test('um CNPJ válido grava e as alterações aparecem na Auditoria', async ({
   )
   await expect(
     page.getByRole('row').filter({
-      has: page.getByRole('cell', {
-        name: 'UPDATE_INSTITUICAO',
-        exact: true,
-      }),
+      has: page.locator('[data-acao="UPDATE_INSTITUICAO"]'),
     }),
   ).not.toHaveCount(0)
   await ver(page, info, 'auditoria-da-instituicao')

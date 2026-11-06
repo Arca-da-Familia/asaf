@@ -250,8 +250,8 @@ async function abrirAuditoria(
       r.url().includes(`tabela_afetada=${tabela}`) &&
       (!acao || r.url().includes(`acao=${acao}`)),
   )
-  await campo(page, 'Tabela').fill(tabela)
-  if (acao) await campo(page, 'Ação').selectOption(acao)
+  await page.goto(`/auditoria?tabela=${encodeURIComponent(tabela)}`)
+  if (acao) await campo(page, 'O que aconteceu').selectOption(acao)
   const { total } = (await (await resposta).json()) as { total: number }
   await expect(page.getByText(/^Carregando/)).toHaveCount(0)
   return total
@@ -264,7 +264,7 @@ function linhasDaAuditoria(
   filtros: { registro?: number; quem?: string } = {},
 ): Locator {
   let linha = page.getByRole('row').filter({
-    has: page.getByRole('cell', { name: acao, exact: true }),
+    has: page.locator(`[data-acao=\"${acao}\"]`),
   })
   if (filtros.registro !== undefined) {
     linha = linha.filter({

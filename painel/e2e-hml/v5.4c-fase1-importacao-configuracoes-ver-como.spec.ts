@@ -108,7 +108,7 @@ test('exportar: só quem tem a permissão própria vê; o CSV baixado traz as co
   expect(conteudo).toContain('de Teste')
 
   await page.goto('/auditoria')
-  await expect(page.getByRole('cell', { name: 'EXPORT' }).first()).toBeVisible()
+  await expect(page.locator('[data-acao="EXPORT"]').first()).toBeVisible()
   await ver(page, info, 'auditoria registra a exportacao')
 })
 

@@ -39,7 +39,7 @@ test('o Presidente monta, anota e aprova a revisão', async ({ page }, info) => 
   await ver(page, info, 'revisao-aprovada')
   await page.goto('/auditoria')
   await expect(
-    page.getByRole('cell', { name: 'REVISAO_DO_PROGRAMA_APROVADA' }).first(),
+    page.locator('[data-acao="REVISAO_DO_PROGRAMA_APROVADA"]').first(),
   ).toBeVisible({ timeout: 30_000 })
 })
 

@@ -66,7 +66,7 @@ async function abrirAuditoriaNaTela(page: Page, tabela: string) {
       r.url().includes('/api/auditoria/?') &&
       r.url().includes(`tabela_afetada=${tabela}`),
   )
-  await campo(page, 'Tabela').fill(tabela)
+  await page.goto(`/auditoria?tabela=${encodeURIComponent(tabela)}`)
   await resposta
   await expect(page.getByText(/^Carregando/)).toHaveCount(0)
 }
@@ -125,9 +125,7 @@ test('licença por saúde pela tela: o histórico mostra o motivo, a Auditoria n
   expect(leituras[0]!.id_usuario).not.toBeNull()
   await abrirAuditoriaNaTela(page, 'mudancas_situacao')
   await expect(
-    page
-      .getByRole('cell', { name: 'CONSULTA_HISTORICO_SITUACAO', exact: true })
-      .first(),
+    page.locator('[data-acao=\"CONSULTA_HISTORICO_SITUACAO\"]').first(),
   ).toBeVisible()
   await ver(page, info, 'auditoria-leitura-do-historico')
   expect(vigia.problemas()).toEqual([])
@@ -219,9 +217,7 @@ test('encaminhamento ao posto de saúde: a Auditoria esconde a rede e registra q
 
   await abrirAuditoriaNaTela(page, 'encaminhamentos_rede_externa')
   await expect(
-    page
-      .getByRole('cell', { name: 'CONSULTA_ENCAMINHAMENTOS', exact: true })
-      .first(),
+    page.locator('[data-acao=\"CONSULTA_ENCAMINHAMENTOS\"]').first(),
   ).toBeVisible()
   await ver(page, info, 'auditoria-dos-encaminhamentos')
   expect(vigia.problemas()).toEqual([])

@@ -35,9 +35,9 @@ test('o Presidente vê a lista escondida e mostra o CPF da ficha por clique, que
   await ver(page, info, 'ficha-com-cpf-mostrado')
 
   await page.goto('/auditoria')
-  await expect(
-    page.getByRole('cell', { name: 'CPF_REVELADO' }).first(),
-  ).toBeVisible({ timeout: 30_000 })
+  await expect(page.locator('[data-acao="CPF_REVELADO"]').first()).toBeVisible({
+    timeout: 30_000,
+  })
   await ver(page, info, 'auditoria-com-cpf-revelado')
 })
 

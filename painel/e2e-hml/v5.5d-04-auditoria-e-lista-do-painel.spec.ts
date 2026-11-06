@@ -87,10 +87,10 @@ test('a Auditoria guardou as seis mudanças de situação e a lista do painel mo
   await expect(
     page.getByRole('heading', { name: 'Auditoria', level: 1 }),
   ).toBeVisible()
-  await campo(page, 'Tabela').fill('eventos')
-  await campo(page, 'Ação').selectOption('STATUS_ALTERADO')
+  await page.goto(`/auditoria?tabela=${encodeURIComponent('eventos')}`)
+  await campo(page, 'O que aconteceu').selectOption('STATUS_ALTERADO')
   await expect(
-    page.getByRole('cell', { name: 'STATUS_ALTERADO', exact: true }).first(),
+    page.locator('[data-acao="STATUS_ALTERADO"]').first(),
   ).toBeVisible({ timeout: 30_000 })
   await ver(page, info, 'auditoria-com-as-mudancas-de-situacao')
 

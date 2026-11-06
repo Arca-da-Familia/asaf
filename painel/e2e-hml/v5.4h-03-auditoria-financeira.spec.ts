@@ -106,7 +106,7 @@ async function totalNaAuditoriaDoSistema(page: Page): Promise<number> {
       r.url().includes('/api/auditoria/?') &&
       r.url().includes(`tabela_afetada=${TABELA}`),
   )
-  await campo(page, 'Tabela').fill(TABELA)
+  await page.goto(`/auditoria?tabela=${encodeURIComponent(TABELA)}`)
   const { total } = (await (await resposta).json()) as { total: number }
   await expect(page.getByText(/^Carregando/)).toHaveCount(0)
   return total
@@ -436,10 +436,7 @@ test('quem não é do Financeiro (Secretário) é barrado; a Auditoria do sistem
   ).not.toHaveCount(0)
   await expect(
     page.getByRole('row').filter({
-      has: page.getByRole('cell', {
-        name: 'AUDITORIA_FINANCEIRA_LOTE',
-        exact: true,
-      }),
+      has: page.locator('[data-acao="AUDITORIA_FINANCEIRA_LOTE"]'),
     }),
   ).not.toHaveCount(0)
   await ver(page, info, 'auditoria-do-sistema-da-auditoria-financeira')

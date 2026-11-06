@@ -698,8 +698,12 @@ export type EntradaAuditoria = {
   id_usuario?: number | null
   nome_usuario?: string | null
   tabela_afetada: string
+  /** v9.3f: o nome em português do assunto ("Plano de contas"); o código fica em `tabela_afetada` */
+  rotulo_tabela?: string | null
   id_registro_afetado?: number | null
   acao: string
+  /** v9.3f: o nome em português da ação ("Pagamento de título registrado"); o código fica em `acao` */
+  rotulo_acao?: string | null
   dados_antes?: string | null
   dados_depois?: string | null
   ip_origem?: string | null
@@ -734,8 +738,15 @@ export function listarAuditoria(
   return apiFetch<PaginaAuditoria>(`/api/auditoria/${query ? `?${query}` : ''}`)
 }
 
-export function listarAcoesAuditoria(): Promise<string[]> {
-  return apiFetch<string[]>('/api/auditoria/acoes')
+/** v9.3f: opção de filtro da Auditoria — o valor é o código guardado; o rótulo é o nome em português. */
+export type OpcaoDaAuditoria = { valor: string; rotulo: string }
+
+export function listarAcoesAuditoria(): Promise<OpcaoDaAuditoria[]> {
+  return apiFetch<OpcaoDaAuditoria[]>('/api/auditoria/acoes')
+}
+
+export function listarTabelasAuditoria(): Promise<OpcaoDaAuditoria[]> {
+  return apiFetch<OpcaoDaAuditoria[]>('/api/auditoria/tabelas')
 }
 
 // ---------------------------------------------------------------------------

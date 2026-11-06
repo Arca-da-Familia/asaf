@@ -343,10 +343,10 @@ test('vínculos e cartões da ficha: completude, termo de voluntário (e renova�
   await ver(page, info, 'email suspeito na fila da qualidade da base')
   await page.goto('/auditoria')
   await expect(
-    page.getByRole('cell', { name: 'FUNCIONARIO_CADASTRADO' }).first(),
+    page.locator('[data-acao="FUNCIONARIO_CADASTRADO"]').first(),
   ).toBeVisible()
   await expect(
-    page.getByRole('cell', { name: 'TERMO_REGISTRADO' }).first(),
+    page.locator('[data-acao="TERMO_REGISTRADO"]').first(),
   ).toBeVisible()
   expect(vigia.problemas()).toEqual([])
 })
@@ -385,7 +385,7 @@ test('acesso: só quem gerencia o acesso redefine o segundo passo de outra pesso
   await expect(page.locator(AVISO)).toContainText('MFA do usuário resetado')
   await page.goto('/auditoria')
   await expect(
-    page.getByRole('cell', { name: 'MFA_RESET_POR_TERCEIRO' }).first(),
+    page.locator('[data-acao="MFA_RESET_POR_TERCEIRO"]').first(),
   ).toBeVisible()
   await ver(page, info, 'auditoria registra a redefinicao do segundo passo')
 })
@@ -405,6 +405,6 @@ test('recadastramento: o associado confirma que os dados continuam corretos e a 
   await ver(page, info, 'dados confirmados no meu perfil')
   await page.goto('/auditoria')
   await expect(
-    page.getByRole('cell', { name: 'DADOS_CONFIRMADOS' }).first(),
+    page.locator('[data-acao="DADOS_CONFIRMADOS"]').first(),
   ).toBeVisible()
 })

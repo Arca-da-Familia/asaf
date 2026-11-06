@@ -292,7 +292,7 @@ async function encerrarConflitosDeTeste(page: Page): Promise<number> {
 async function abrirAuditoria(page: Page, tabela: string): Promise<void> {
   await page.goto('/auditoria')
   await expect(page.getByRole('heading', { name: 'Auditoria' })).toBeVisible()
-  await campo(page, 'Tabela').fill(tabela)
+  await page.goto(`/auditoria?tabela=${encodeURIComponent(tabela)}`)
   await expect(page.getByText(/^Carregando/)).toHaveCount(0)
 }
 
@@ -300,7 +300,7 @@ async function abrirAuditoria(page: Page, tabela: string): Promise<void> {
 function linhaDaAuditoria(page: Page, acao: string, registro: number): Locator {
   return page
     .getByRole('row')
-    .filter({ has: page.getByRole('cell', { name: acao, exact: true }) })
+    .filter({ has: page.locator(`[data-acao=\"${acao}\"]`) })
     .filter({
       has: page.getByRole('cell', { name: String(registro), exact: true }),
     })

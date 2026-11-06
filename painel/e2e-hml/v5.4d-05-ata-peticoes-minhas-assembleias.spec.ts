@@ -103,10 +103,10 @@ async function naAuditoria(
   await expect(
     page.getByRole('heading', { name: 'Auditoria' }).first(),
   ).toBeVisible()
-  await campo(page, 'Tabela').fill(tabela)
-  await campo(page, 'Ação').selectOption(acao)
+  await page.goto(`/auditoria?tabela=${encodeURIComponent(tabela)}`)
+  await campo(page, 'O que aconteceu').selectOption(acao)
   let linha = page.getByRole('row').filter({
-    has: page.getByRole('cell', { name: acao, exact: true }),
+    has: page.locator(`[data-acao=\"${acao}\"]`),
   })
   if (registro !== undefined) {
     linha = linha.filter({

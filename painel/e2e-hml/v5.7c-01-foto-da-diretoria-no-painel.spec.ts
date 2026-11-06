@@ -205,10 +205,12 @@ test('trocar a foto substitui a anterior (uma só por pessoa) e fica na Auditori
   await expect(
     page.getByRole('heading', { name: 'Auditoria', level: 1 }),
   ).toBeVisible()
-  await page.getByLabel('Tabela').fill('fotos_da_diretoria')
-  await expect(
-    page.getByRole('cell', { name: 'FOTO_ENVIADA', exact: true }).first(),
-  ).toBeVisible({ timeout: 30_000 })
+  await page.goto(
+    `/auditoria?tabela=${encodeURIComponent('fotos_da_diretoria')}`,
+  )
+  await expect(page.locator('[data-acao="FOTO_ENVIADA"]').first()).toBeVisible({
+    timeout: 30_000,
+  })
   await ver(page, info, 'auditoria-da-foto-da-diretoria')
 })
 

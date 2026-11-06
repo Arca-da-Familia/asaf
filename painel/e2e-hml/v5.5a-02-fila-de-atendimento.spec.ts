@@ -103,7 +103,7 @@ async function totalNaAuditoria(page: Page): Promise<number> {
       r.url().includes('/api/auditoria/?') &&
       r.url().includes('tabela_afetada=atendimentos'),
   )
-  await campo(page, 'Tabela').fill('atendimentos')
+  await page.goto(`/auditoria?tabela=${encodeURIComponent('atendimentos')}`)
   const { total } = (await (await resposta).json()) as { total: number }
   await expect(page.getByText(/^Carregando/)).toHaveCount(0)
   return total
@@ -344,15 +344,12 @@ test('a Auditoria guarda cada ação da fila, e a Auditoria do sistema cresceu e
   expect(total - totalAntes, 'as ações do roteiro na Auditoria').toBe(10)
   await expect(
     page.getByRole('row').filter({
-      has: page.getByRole('cell', { name: 'CPF_REVELADO', exact: true }),
+      has: page.locator('[data-acao="CPF_REVELADO"]'),
     }),
   ).not.toHaveCount(0)
   await expect(
     page.getByRole('row').filter({
-      has: page.getByRole('cell', {
-        name: 'ATENDIMENTO_RESPONDIDO',
-        exact: true,
-      }),
+      has: page.locator('[data-acao="ATENDIMENTO_RESPONDIDO"]'),
     }),
   ).not.toHaveCount(0)
   await ver(page, info, 'auditoria-da-fila')

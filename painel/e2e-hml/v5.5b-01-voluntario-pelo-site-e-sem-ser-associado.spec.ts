@@ -59,7 +59,7 @@ async function totalNaAuditoria(page: Page, tabela: string): Promise<number> {
       r.url().includes('/api/auditoria/?') &&
       r.url().includes(`tabela_afetada=${tabela}`),
   )
-  await campo(page, 'Tabela').fill(tabela)
+  await page.goto(`/auditoria?tabela=${encodeURIComponent(tabela)}`)
   const { total } = (await (await resposta).json()) as { total: number }
   await expect(page.getByText(/^Carregando/)).toHaveCount(0)
   return total

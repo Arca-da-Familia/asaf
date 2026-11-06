@@ -592,7 +592,7 @@ async function totalNaAuditoria(page: Page, tabela: string): Promise<number> {
       r.url().includes('/api/auditoria/?') &&
       r.url().includes(`tabela_afetada=${tabela}`),
   )
-  await campo(page, 'Tabela').fill(tabela)
+  await page.goto(`/auditoria?tabela=${encodeURIComponent(tabela)}`)
   const { total } = (await (await resposta).json()) as { total: number }
   await expect(page.getByText(/^Carregando/)).toHaveCount(0)
   return total
@@ -1946,7 +1946,7 @@ test('8. quem não tem a permissão é barrado na tela e na API (403), e cada a�
       await expect(
         page
           .getByRole('row')
-          .filter({ has: page.getByRole('cell', { name: acao, exact: true }) })
+          .filter({ has: page.locator(`[data-acao=\"${acao}\"]`) })
           .filter({
             has: page.getByRole('cell', { name: String(id), exact: true }),
           }),
@@ -1966,7 +1966,7 @@ test('8. quem não tem a permissão é barrado na tela e na API (403), e cada a�
     page
       .getByRole('row')
       .filter({
-        has: page.getByRole('cell', { name: 'RECUSA_APROVACAO', exact: true }),
+        has: page.locator('[data-acao="RECUSA_APROVACAO"]'),
       })
       .first(),
   ).toBeVisible()

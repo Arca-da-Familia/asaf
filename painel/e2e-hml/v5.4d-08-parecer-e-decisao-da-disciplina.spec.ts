@@ -33,7 +33,7 @@ async function totalNaAuditoria(page: Page, tabela: string): Promise<number> {
       r.url().includes('/api/auditoria/?') &&
       r.url().includes(`tabela_afetada=${tabela}`),
   )
-  await campo(page, 'Tabela').fill(tabela)
+  await page.goto(`/auditoria?tabela=${encodeURIComponent(tabela)}`)
   const { total } = (await (await resposta).json()) as { total: number }
   await expect(page.getByText(/^Carregando/)).toHaveCount(0)
   return total
@@ -108,7 +108,7 @@ test.describe('A. Conselho Fiscal com poder real', () => {
       page
         .getByRole('row')
         .filter({
-          has: page.getByRole('cell', { name: 'CREATE', exact: true }),
+          has: page.locator('[data-acao="CREATE"]'),
         })
         .filter({ hasText: 'Heitor' })
         .first(),
@@ -420,7 +420,7 @@ test.describe('B. Disciplina: decisão e homologação', () => {
       page
         .getByRole('row')
         .filter({
-          has: page.getByRole('cell', { name: 'DECIDIDO', exact: true }),
+          has: page.locator('[data-acao="DECIDIDO"]'),
         })
         .filter({ hasText: String(processoAdvertencia) })
         .first(),

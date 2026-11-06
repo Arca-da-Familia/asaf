@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useSearchParams } from 'react-router'
 import type { PaginationState } from '@tanstack/react-table'
 
 import { DataTable, type ColunaTabela } from '@/components/data/DataTable'
@@ -7,6 +8,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import {
   listarAcoesAuditoria,
   listarAuditoria,
+  listarTabelasAuditoria,
   type EntradaAuditoria,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
@@ -23,16 +25,34 @@ const colunas: ColunaTabela<EntradaAuditoria>[] = [
     cell: ({ row }) =>
       row.original.nome_usuario ?? `#${row.original.id_usuario ?? '—'}`,
   },
-  { accessorKey: 'acao', header: 'Ação' },
-  { accessorKey: 'tabela_afetada', header: 'Tabela' },
+  // v9.3f (pedido do Presidente, 06/11): o nome em português, nunca o código técnico (BAIXA_TITULO, plano_de_contas); o código fica num atributo
+  // (`data-acao`, `data-tabela`) para quem confere de forma automática
+  {
+    accessorKey: 'acao',
+    header: 'O que aconteceu',
+    cell: ({ row }) => (
+      <span data-acao={row.original.acao}>
+        {row.original.rotulo_acao ?? row.original.acao}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'tabela_afetada',
+    header: 'Assunto',
+    cell: ({ row }) => (
+      <span data-tabela={row.original.tabela_afetada}>
+        {row.original.rotulo_tabela ?? row.original.tabela_afetada}
+      </span>
+    ),
+  },
   {
     accessorKey: 'id_registro_afetado',
-    header: 'Registro',
+    header: 'Nº do registro',
     cell: ({ getValue }) => getValue<number | null>() ?? '—',
   },
   {
     accessorKey: 'ip_origem',
-    header: 'IP',
+    header: 'Endereço de rede (IP)',
     cell: ({ getValue }) => getValue<string | null>() ?? '—',
   },
 ]
@@ -42,8 +62,20 @@ const colunas: ColunaTabela<EntradaAuditoria>[] = [
 // ver FASE 7/FASE 3 do plano).
 export function AuditoriaPage() {
   const [filtroUsuario, setFiltroUsuario] = useState('')
-  const [tabela, setTabela] = useState('')
-  const [acao, setAcao] = useState('')
+  // v9.3f: o assunto e a ação podem vir no endereço (`/auditoria?tabela=eventos&acao=STATUS_ALTERADO`), para outra tela apontar direto para eles
+  const [parametros, setParametros] = useSearchParams()
+  const tabela = parametros.get('tabela') ?? ''
+  const acao = parametros.get('acao') ?? ''
+  function filtrar(chave: 'tabela' | 'acao', valor: string) {
+    setParametros(
+      (p) => {
+        if (valor) p.set(chave, valor)
+        else p.delete(chave)
+        return p
+      },
+      { replace: true },
+    )
+  }
   const [desde, setDesde] = useState('')
   const [ate, setAte] = useState('')
   const [paginacao, setPaginacao] = useState<PaginationState>({
@@ -54,6 +86,10 @@ export function AuditoriaPage() {
   const { data: acoesDisponiveis } = useQuery({
     queryKey: ['auditoria', 'acoes'],
     queryFn: listarAcoesAuditoria,
+  })
+  const { data: assuntos } = useQuery({
+    queryKey: ['auditoria', 'tabelas'],
+    queryFn: listarTabelasAuditoria,
   })
 
   const { data, isLoading } = useQuery({
@@ -88,8 +124,11 @@ export function AuditoriaPage() {
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <div>
-          <label className="text-sm font-medium">Número do usuário</label>
+          <label htmlFor="auditoria-usuario" className="text-sm font-medium">
+            Nº do usuário
+          </label>
           <input
+            id="auditoria-usuario"
             inputMode="numeric"
             value={filtroUsuario}
             onChange={(e) =>
@@ -99,32 +138,47 @@ export function AuditoriaPage() {
           />
         </div>
         <div>
-          <label className="text-sm font-medium">Tabela</label>
-          <input
-            value={tabela}
-            onChange={(e) => setTabela(e.target.value)}
-            placeholder="ex.: usuarios"
-            className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-          />
-        </div>
-        <div>
-          <label className="text-sm font-medium">Ação</label>
+          <label htmlFor="auditoria-assunto" className="text-sm font-medium">
+            Assunto
+          </label>
           <select
-            value={acao}
-            onChange={(e) => setAcao(e.target.value)}
+            id="auditoria-assunto"
+            value={tabela}
+            onChange={(e) => filtrar('tabela', e.target.value)}
             className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
           >
-            <option value="">Todas</option>
-            {(acoesDisponiveis ?? []).map((a) => (
-              <option key={a} value={a}>
-                {a}
+            <option value="">Todos</option>
+            {(assuntos ?? []).map((a) => (
+              <option key={a.valor} value={a.valor}>
+                {a.rotulo}
               </option>
             ))}
           </select>
         </div>
         <div>
-          <label className="text-sm font-medium">Desde</label>
+          <label htmlFor="auditoria-acao" className="text-sm font-medium">
+            O que aconteceu
+          </label>
+          <select
+            id="auditoria-acao"
+            value={acao}
+            onChange={(e) => filtrar('acao', e.target.value)}
+            className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="">Tudo</option>
+            {(acoesDisponiveis ?? []).map((a) => (
+              <option key={a.valor} value={a.valor}>
+                {a.rotulo}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="auditoria-desde" className="text-sm font-medium">
+            Desde
+          </label>
           <input
+            id="auditoria-desde"
             type="date"
             value={desde}
             onChange={(e) => setDesde(e.target.value)}
@@ -132,8 +186,11 @@ export function AuditoriaPage() {
           />
         </div>
         <div>
-          <label className="text-sm font-medium">Até</label>
+          <label htmlFor="auditoria-ate" className="text-sm font-medium">
+            Até
+          </label>
           <input
+            id="auditoria-ate"
             type="date"
             value={ate}
             onChange={(e) => setAte(e.target.value)}

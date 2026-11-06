@@ -246,12 +246,14 @@ test('o sócio vê o candidato só com nome e idade, e a Auditoria guarda os doi
   await expect(
     page.getByRole('heading', { name: 'Auditoria', level: 1 }),
   ).toBeVisible()
-  await campo(page, 'Tabela').fill('propostas_filiacao')
+  await page.goto(
+    `/auditoria?tabela=${encodeURIComponent('propostas_filiacao')}`,
+  )
   await expect(
     page
       .getByRole('row')
       .filter({
-        has: page.getByRole('cell', { name: 'PROPOSTA_PUBLICA', exact: true }),
+        has: page.locator('[data-acao="PROPOSTA_PUBLICA"]'),
       })
       .first(),
   ).toBeVisible()

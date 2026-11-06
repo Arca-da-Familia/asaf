@@ -58,7 +58,7 @@ async function totalNaAuditoria(page: Page): Promise<number> {
       r.url().includes('/api/auditoria/?') &&
       r.url().includes(`tabela_afetada=${TABELA}`),
   )
-  await campo(page, 'Tabela').fill(TABELA)
+  await page.goto(`/auditoria?tabela=${encodeURIComponent(TABELA)}`)
   const { total } = (await (await resposta).json()) as { total: number }
   await expect(page.getByText(/^Carregando/)).toHaveCount(0)
   return total
@@ -234,7 +234,7 @@ test('o pedido decidido sai da lista dos sócios e a Auditoria guarda as 4 decis
   expect(total - totalAntes, '3 propostas e 1 recusa de sócios').toBe(4)
   await expect(
     page.getByRole('row').filter({
-      has: page.getByRole('cell', { name: 'PROPOSTA_DO_SOCIO', exact: true }),
+      has: page.locator('[data-acao="PROPOSTA_DO_SOCIO"]'),
     }),
   ).not.toHaveCount(0)
   await ver(page, info, 'auditoria-das-decisoes-dos-socios')

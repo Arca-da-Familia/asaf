@@ -237,7 +237,7 @@ test('cadastro parecido: o Secretário não consegue forçar; o Presidente conse
   // fica na Auditoria que o cadastro duplicado foi forçado, e por quem
   await page.goto('/auditoria')
   await expect(
-    page.getByRole('cell', { name: 'CADASTRO_DUPLICADO_FORCADO' }).first(),
+    page.locator('[data-acao="CADASTRO_DUPLICADO_FORCADO"]').first(),
   ).toBeVisible()
   await ver(page, info, 'auditoria registra o cadastro forcado')
 })

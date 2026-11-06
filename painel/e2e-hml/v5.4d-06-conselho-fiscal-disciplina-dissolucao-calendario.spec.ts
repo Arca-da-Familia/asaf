@@ -58,7 +58,7 @@ async function abrirAuditoria(page: Page, tabela: string): Promise<number> {
       r.url().includes('/api/auditoria/?') &&
       r.url().includes(`tabela_afetada=${tabela}`),
   )
-  await campo(page, 'Tabela').fill(tabela)
+  await page.goto(`/auditoria?tabela=${encodeURIComponent(tabela)}`)
   const { total } = (await (await resposta).json()) as { total: number }
   await expect(page.getByText(/^Carregando/)).toHaveCount(0)
   return total
@@ -71,7 +71,7 @@ function linhaDaAuditoria(
   filtros: { registro?: number; quem?: string } = {},
 ): Locator {
   let linha = page.getByRole('row').filter({
-    has: page.getByRole('cell', { name: acao, exact: true }),
+    has: page.locator(`[data-acao=\"${acao}\"]`),
   })
   if (filtros.registro !== undefined) {
     linha = linha.filter({
@@ -877,7 +877,7 @@ test.describe('B. Disciplina', () => {
       page
         .getByRole('row')
         .filter({
-          has: page.getByRole('cell', { name: 'DECIDIDO', exact: true }),
+          has: page.locator('[data-acao="DECIDIDO"]'),
         })
         .filter({
           has: page.getByRole('cell', { name: String(processo), exact: true }),

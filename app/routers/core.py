@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
+from app.auditoria_rotulos import rotulo_da_acao, rotulo_da_tabela
 from app.auditoria import registrar_auditoria
 from app.config_cache import invalidar_cache_configuracao
 from app.database import get_db
@@ -490,8 +491,10 @@ def listar_auditoria(
                 "id_usuario": e.id_usuario,
                 "nome_usuario": nomes_por_usuario.get(e.id_usuario),
                 "tabela_afetada": e.tabela_afetada,
+                "rotulo_tabela": rotulo_da_tabela(e.tabela_afetada),
                 "id_registro_afetado": e.id_registro_afetado,
                 "acao": e.acao,
+                "rotulo_acao": rotulo_da_acao(e.acao),
                 "dados_antes": e.dados_antes,
                 "dados_depois": e.dados_depois,
                 "ip_origem": e.ip_origem,
@@ -502,10 +505,20 @@ def listar_auditoria(
     }
 
 
-@router.get("/api/auditoria/acoes", summary="Lista de ações distintas já registradas (para o filtro)")
+@router.get("/api/auditoria/acoes", summary="Lista de ações distintas já registradas, com o nome em português (para o filtro)")
 def listar_acoes_auditoria(db: Session = Depends(get_db), _=Depends(_permissao_auditoria)):
-    linhas = db.query(AuditLog.acao).distinct().order_by(AuditLog.acao).all()
-    return [l.acao for l in linhas]
+    # v9.3f: o filtro mostra o nome em português ("Pagamento de título registrado"), nunca o código (BAIXA_TITULO); o valor continua o código
+    linhas = db.query(AuditLog.acao).distinct().all()
+    opcoes = [{"valor": l.acao, "rotulo": rotulo_da_acao(l.acao)} for l in linhas if l.acao]
+    return sorted(opcoes, key=lambda o: (o["rotulo"].lower(), o["valor"]))
+
+
+@router.get("/api/auditoria/tabelas", summary="Lista dos assuntos (tabelas) já registrados, com o nome em português (para o filtro)")
+def listar_tabelas_auditoria(db: Session = Depends(get_db), _=Depends(_permissao_auditoria)):
+    # v9.3f: no lugar de digitar o nome técnico da tabela ("ex.: usuarios"), a tela oferece a lista com o nome em português ("Usuários")
+    linhas = db.query(AuditLog.tabela_afetada).distinct().all()
+    opcoes = [{"valor": l.tabela_afetada, "rotulo": rotulo_da_tabela(l.tabela_afetada)} for l in linhas if l.tabela_afetada]
+    return sorted(opcoes, key=lambda o: (o["rotulo"].lower(), o["valor"]))
 
 
 # ==========================================

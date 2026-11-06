@@ -328,12 +328,12 @@ test('a Auditoria guarda o registro e a revogação do consentimento, com quem f
   expect(meu?.vinculo_responsavel).toBe('mae')
 
   await page.goto('/auditoria')
-  await campo(page, 'Tabela').fill('consentimentos')
+  await page.goto(`/auditoria?tabela=${encodeURIComponent('consentimentos')}`)
   for (const acao of ['CONSENTIMENTO_REGISTRADO', 'CONSENTIMENTO_REVOGADO']) {
     await expect(
       page
         .getByRole('row')
-        .filter({ has: page.getByRole('cell', { name: acao, exact: true }) })
+        .filter({ has: page.locator(`[data-acao=\"${acao}\"]`) })
         .filter({
           has: page.getByRole('cell', {
             name: String(meu!.id_consentimento),

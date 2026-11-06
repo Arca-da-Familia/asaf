@@ -55,7 +55,7 @@ async function totalNaAuditoria(page: Page): Promise<number> {
       r.url().includes('/api/auditoria/?') &&
       r.url().includes(`tabela_afetada=${TABELA}`),
   )
-  await campo(page, 'Tabela').fill(TABELA)
+  await page.goto(`/auditoria?tabela=${encodeURIComponent(TABELA)}`)
   const { total } = (await (await resposta).json()) as { total: number }
   await expect(page.getByText(/^Carregando/)).toHaveCount(0)
   return total
@@ -172,10 +172,7 @@ test('a Auditoria guarda as duas inscrições (a recusa não deixou rastro)', as
   expect(total - totalAntes, 'duas inscrições novas na Auditoria').toBe(2)
   await expect(
     page.getByRole('row').filter({
-      has: page.getByRole('cell', {
-        name: 'INSCRICAO_PELA_SECRETARIA',
-        exact: true,
-      }),
+      has: page.locator('[data-acao="INSCRICAO_PELA_SECRETARIA"]'),
     }),
   ).not.toHaveCount(0)
   await ver(page, info, 'auditoria-das-inscricoes-pela-secretaria')

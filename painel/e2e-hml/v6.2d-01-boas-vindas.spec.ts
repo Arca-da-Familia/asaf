@@ -112,7 +112,7 @@ test('aprovar a filiação registra as boas-vindas na Auditoria', async ({
 
   await page.goto('/auditoria')
   await expect(
-    page.getByRole('cell', { name: 'BOAS_VINDAS_ENVIADAS' }).first(),
+    page.locator('[data-acao="BOAS_VINDAS_ENVIADAS"]').first(),
   ).toBeVisible()
   await ver(page, info, 'auditoria com as boas-vindas')
   expect(vigia.problemas()).toEqual([])
