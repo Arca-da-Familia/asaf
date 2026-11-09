@@ -89,8 +89,11 @@ function emCentavos(texto: string): number {
 /** "Debito R$ 5.000,00 · Credito R$ 5.000,00" (com ou sem o nome da conta no meio) -> ["Debito|500000", "Credito|500000"]. */
 function partidasLidas(texto: string): string[] {
   return [
-    ...texto.matchAll(/(Debito|Credito)\s.*?(-?R\$\s?[\d.]+,\d{2})/g),
-  ].map((m) => `${m[1]}|${emCentavos(m[2] ?? '')}`)
+    ...texto.matchAll(/(D[ée]bito|Cr[ée]dito)\s.*?(-?R\$\s?[\d.]+,\d{2})/g),
+  ].map(
+    (m) =>
+      `${(m[1] ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '')}|${emCentavos(m[2] ?? '')}`,
+  )
 }
 
 // ------------------------------------------------------------------------------------------------------------------------------ datas
@@ -1578,14 +1581,14 @@ test('3. as baixas A, B e C: campos vazios, valor a mais e falta de comprovante 
   const razaoB = cartao(page, doLivro('B').historico)
   await expect(razaoB).toHaveCount(1)
   await expect(razaoB).toContainText(
-    `Debito ${CONTAS.ATV.descricao} ${brl(TITULOS.B.valor)} · Credito ${CONTAS.REC.descricao} ${brl(TITULOS.B.valor)}`,
+    `Débito ${CONTAS.ATV.descricao} ${brl(TITULOS.B.valor)} · Crédito ${CONTAS.REC.descricao} ${brl(TITULOS.B.valor)}`,
   )
   await expect(razaoB).toContainText(
     `Competência: ${dataBr(COMPETENCIA_ANTIGA)}`,
   )
   const razaoC = cartao(page, doLivro('C').historico)
   await expect(razaoC).toContainText(
-    `Debito ${CONTAS.DES.descricao} ${brl(TITULOS.C.valor)} · Credito ${CONTAS.ATV.descricao} ${brl(TITULOS.C.valor)}`,
+    `Débito ${CONTAS.DES.descricao} ${brl(TITULOS.C.valor)} · Crédito ${CONTAS.ATV.descricao} ${brl(TITULOS.C.valor)}`,
   )
   await expect(
     razaoC.getByRole('link', { name: 'Ver comprovante' }),
@@ -2777,7 +2780,7 @@ test('13. Balancete, Receitas x despesas (por conta e por centro de custo), Por 
       movimentos: linhas.flatMap((l) => {
         // a data vem só como dia (competência) ou com a hora (instante do lançamento)
         const m =
-          /^(\d{2}\/\d{2}\/\d{4})(?:,\s*\d{2}:\d{2})? · (Debito|Credito)$/.exec(
+          /^(\d{2}\/\d{2}\/\d{4})(?:,\s*\d{2}:\d{2})? · (D[ée]bito|Cr[ée]dito)$/.exec(
             l.rotulo,
           )
         const v = valoresEmCentavos(l.valor)
@@ -2785,7 +2788,9 @@ test('13. Balancete, Receitas x despesas (por conta e por centro de custo), Por 
           ? [
               {
                 data: m[1] ?? '',
-                tipo: m[2] ?? '',
+                tipo: (m[2] ?? '')
+                  .normalize('NFD')
+                  .replace(/\p{Diacritic}/gu, ''),
                 valor: v[0] ?? 0,
                 saldo: v[1] ?? 0,
               },

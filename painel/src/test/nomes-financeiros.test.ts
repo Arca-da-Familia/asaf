@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { nomeDaOrigem, nomeDoAlerta } from '@/lib/nomes-financeiros'
+import {
+  nomeDaOrigem,
+  nomeDaPartida,
+  nomeDoAlerta,
+} from '@/lib/nomes-financeiros'
 
 // v9.3h (pedido do Presidente, 06/11): o razão e a conferência antifraude mostram o nome em português, nunca o código.
 describe('nomes do financeiro em português', () => {
@@ -19,5 +23,10 @@ describe('nomes do financeiro em português', () => {
   it('código sem nome ainda aparece sem o sublinhado', () => {
     expect(nomeDaOrigem('ORIGEM_NOVA')).toBe('Origem nova')
     expect(nomeDoAlerta('ALERTA_NOVO')).toBe('Alerta novo')
+  })
+
+  it('o lado da partida com acento', () => {
+    expect(nomeDaPartida('Debito')).toBe('Débito')
+    expect(nomeDaPartida('Credito')).toBe('Crédito')
   })
 })

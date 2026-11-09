@@ -22,6 +22,7 @@ import {
   questionamentoCriarSchema,
   respostaQuestionamentoSchema,
 } from '@/lib/schemas'
+import { nomeDaPartida } from '@/lib/nomes-financeiros'
 
 // `valor_original`/`saldo_devedor`/`valor` chegam em reais (não centavos - ver o comentário em
 // lib/api.ts::TituloFinanceiroCF), então formata direto, sem o formatarMoeda(centavos) da datas.ts.
@@ -431,7 +432,10 @@ function BlocoCaixa() {
                 <td className="py-1 pr-2">{l.historico}</td>
                 <td className="py-1 pr-2">
                   {l.partidas
-                    .map((p) => `${p.tipo_partida} ${formatarReais(p.valor)}`)
+                    .map(
+                      (p) =>
+                        `${nomeDaPartida(p.tipo_partida)} ${formatarReais(p.valor)}`,
+                    )
                     .join(' · ')}
                 </td>
                 <td className="py-1 pr-2">

@@ -1790,12 +1790,12 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
     )
     await expect(noRazao).toHaveCount(1)
     await expect(noRazao).toContainText(
-      `Debito ${a.ativo.descricao} ${reais(BLOCO)}`,
+      `Débito ${a.ativo.descricao} ${reais(BLOCO)}`,
     )
     await expect(noRazao).toContainText(
-      `Credito ${a.passivo.descricao} ${reais(BLOCO)}`,
+      `Crédito ${a.passivo.descricao} ${reais(BLOCO)}`,
     )
-    await expect(noRazao).not.toContainText(`Credito ${CONTA_RECEITA}`)
+    await expect(noRazao).not.toContainText(`Crédito ${CONTA_RECEITA}`)
     await verNaTela(
       page,
       info,
@@ -1890,10 +1890,10 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
     )
     await expect(fatia).toHaveCount(1)
     await expect(fatia).toContainText(
-      `Debito ${a.passivo.descricao} ${reais(FATIA)}`,
+      `Débito ${a.passivo.descricao} ${reais(FATIA)}`,
     )
     await expect(fatia).toContainText(
-      `Credito ${CONTA_RECEITA} ${reais(FATIA)}`,
+      `Crédito ${CONTA_RECEITA} ${reais(FATIA)}`,
     )
     await expect(fatia).not.toContainText(a.ativo.descricao)
     await verNaTela(
@@ -2352,12 +2352,12 @@ test.describe('C. Títulos, baixa, pagamento a maior, crédito e negociação de
       `#${lancamento.t1Parcial.numero} — Baixa do título #${id.t1} —`,
     )
     await expect(razaoParcial).toContainText(
-      `Debito ${a.ativo.descricao} ${reais(V.t1Parcial)}`,
+      `Débito ${a.ativo.descricao} ${reais(V.t1Parcial)}`,
     )
     await expect(razaoParcial).toContainText(
-      `Credito ${CONTA_RECEITA} ${reais(V.t1Parcial)}`,
+      `Crédito ${CONTA_RECEITA} ${reais(V.t1Parcial)}`,
     )
-    await expect(razaoParcial).toContainText('BAIXA_TITULO · Pix')
+    await expect(razaoParcial).toContainText('Pagamento de título · Pix')
     await verNaTela(
       page,
       info,
@@ -2369,10 +2369,10 @@ test.describe('C. Títulos, baixa, pagamento a maior, crédito e negociação de
       `#${lancamento.t1Resto.numero} — Baixa do título #${id.t1} —`,
     )
     await expect(razaoResto).toContainText(
-      `Debito ${a.ativo.descricao} ${reais(V.t1Resto)}`,
+      `Débito ${a.ativo.descricao} ${reais(V.t1Resto)}`,
     )
     await expect(razaoResto).toContainText(
-      `Credito ${CONTA_RECEITA} ${reais(V.t1Resto)}`,
+      `Crédito ${CONTA_RECEITA} ${reais(V.t1Resto)}`,
     )
     await verNaTela(
       page,
@@ -2468,11 +2468,11 @@ test.describe('C. Títulos, baixa, pagamento a maior, crédito e negociação de
     )
     await expect(razao).toHaveCount(1)
     await expect(razao).toContainText(
-      `Debito ${a.ativo.descricao} ${reais(V.t2Pago)}`,
+      `Débito ${a.ativo.descricao} ${reais(V.t2Pago)}`,
     )
-    await expect(razao).toContainText(`Credito ${CONTA_RECEITA} ${reais(V.t2)}`)
+    await expect(razao).toContainText(`Crédito ${CONTA_RECEITA} ${reais(V.t2)}`)
     await expect(razao).toContainText(
-      `Credito ${a.passivo.descricao} ${reais(V.t2Excesso)}`,
+      `Crédito ${a.passivo.descricao} ${reais(V.t2Excesso)}`,
     )
     await verNaTela(
       page,
@@ -2536,10 +2536,10 @@ test.describe('C. Títulos, baixa, pagamento a maior, crédito e negociação de
     )
     await expect(aplicacao).toHaveCount(1)
     await expect(aplicacao).toContainText(
-      `Debito ${a.passivo.descricao} ${reais(V.t3)}`,
+      `Débito ${a.passivo.descricao} ${reais(V.t3)}`,
     )
     await expect(aplicacao).toContainText(
-      `Credito ${CONTA_RECEITA} ${reais(V.t3)}`,
+      `Crédito ${CONTA_RECEITA} ${reais(V.t3)}`,
     )
     await expect(aplicacao).not.toContainText(a.ativo.descricao)
     await verNaTela(
@@ -3105,10 +3105,10 @@ test.describe('D. Doações, campanha de arrecadação e recibo', () => {
     )
     await expect(razao).toHaveCount(1)
     await expect(razao).toContainText(
-      `Debito ${a.ativo.descricao} ${reais(VALOR)}`,
+      `Débito ${a.ativo.descricao} ${reais(VALOR)}`,
     )
     await expect(razao).toContainText(
-      `Credito ${CONTA_RECEITA} ${reais(VALOR)}`,
+      `Crédito ${CONTA_RECEITA} ${reais(VALOR)}`,
     )
     await expect(razao).toContainText('Doação')
     await verNaTela(
@@ -3264,7 +3264,7 @@ test.describe('D. Doações, campanha de arrecadação e recibo', () => {
     )
     await expect(razaoAnonima).toHaveCount(1)
     await expect(razaoAnonima).toContainText(
-      `Debito ${a.ativo.descricao} ${reais(VALOR_ANONIMO)}`,
+      `Débito ${a.ativo.descricao} ${reais(VALOR_ANONIMO)}`,
     )
     await verNaTela(
       page,
@@ -3632,10 +3632,10 @@ test.describe('E. Conciliação bancária e fechamento do mês', () => {
     )
     await expect(razao).toHaveCount(1)
     await expect(razao).toContainText(
-      `Debito ${contaDoBanco.descricao} ${reais(CENTAVOS)}`,
+      `Débito ${contaDoBanco.descricao} ${reais(CENTAVOS)}`,
     )
     await expect(razao).toContainText(
-      `Credito ${CONTA_RECEITA} ${reais(CENTAVOS)}`,
+      `Crédito ${CONTA_RECEITA} ${reais(CENTAVOS)}`,
     )
     if (new Date().toISOString().slice(0, 10) !== `${competenciaAtual}-01`) {
       await expect(razao).toContainText(

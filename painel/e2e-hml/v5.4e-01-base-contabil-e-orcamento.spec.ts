@@ -434,15 +434,16 @@ async function lerRazao(page: Page): Promise<{
   )
   const lancamentos = bruto.lista.map((c) => {
     const linhaDasPartidas =
-      c.linhas.find((l) => /^(Debito|Credito) /.test(l)) ?? ''
+      c.linhas.find((l) => /^(D[ée]bito|Cr[ée]dito) /.test(l)) ?? ''
     const partidas = linhaDasPartidas
       .split(' · ')
       .map((parte) =>
-        /^(Debito|Credito) (.+) (-?R\$ [\d.]+,\d{2})$/.exec(parte),
+        /^(D[ée]bito|Cr[ée]dito) (.+) (-?R\$ [\d.]+,\d{2})$/.exec(parte),
       )
       .filter((m): m is RegExpExecArray => m !== null)
       .map((m) => ({
-        tipo: m[1] ?? '',
+        // v9.3k: a tela mostra com acento; o robô compara com o valor do servidor, sem acento
+        tipo: (m[1] ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, ''),
         conta: m[2] ?? '',
         centavos: emCentavos(m[3] ?? ''),
       }))
@@ -1596,9 +1597,9 @@ test('razão: todo lançamento fecha (débitos = créditos); transferência recu
   // a baixa do título aparece como lançamento de partida dobrada: débito na Caixa A, crédito na receita, o mesmo valor
   const baixa = cartaoDoLancamento(page, DESC_TA)
   await expect(baixa).toContainText('Normal')
-  await expect(baixa).toContainText('BAIXA_TITULO · Pix')
-  await expect(baixa).toContainText(`Debito ${DESC_CAIXA} ${brl(BAIXA_A)}`)
-  await expect(baixa).toContainText(`Credito ${DESC_RECEITA} ${brl(BAIXA_A)}`)
+  await expect(baixa).toContainText('Pagamento de título · Pix')
+  await expect(baixa).toContainText(`Débito ${DESC_CAIXA} ${brl(BAIXA_A)}`)
+  await expect(baixa).toContainText(`Crédito ${DESC_RECEITA} ${brl(BAIXA_A)}`)
   await ver(page, info, 'razao: a baixa do titulo em partida dobrada')
 
   // recusas do formulário de transferência
@@ -1712,8 +1713,8 @@ test('razão: todo lançamento fecha (débitos = créditos); transferência recu
   await expect(cartaoT1).toContainText(`#${ids.seqT1} — ${HISTORICO.t1}`)
   await expect(cartaoT1).toContainText('Normal')
   await expect(cartaoT1).toContainText('Transferência entre contas')
-  await expect(cartaoT1).toContainText(`Debito ${DESC_BANCO} ${brl(T1)}`)
-  await expect(cartaoT1).toContainText(`Credito ${DESC_CAIXA} ${brl(T1)}`)
+  await expect(cartaoT1).toContainText(`Débito ${DESC_BANCO} ${brl(T1)}`)
+  await expect(cartaoT1).toContainText(`Crédito ${DESC_CAIXA} ${brl(T1)}`)
   const dia = diaEmBelem(0).br
   if (!(await cartaoT1.innerText()).includes(dia)) {
     registrarAchado(
@@ -1729,7 +1730,7 @@ test('razão: todo lançamento fecha (débitos = créditos); transferência recu
   saldos.A -= T2
   saldos.B += T2
   await expect(cartaoDoLancamento(page, HISTORICO.t2)).toContainText(
-    `Debito ${DESC_BANCO} ${brl(T2)}`,
+    `Débito ${DESC_BANCO} ${brl(T2)}`,
   )
   registrarObservacao(
     `Razão: a transferência de ${brl(T2)} saiu de uma conta com ${brl(saldos.A + T2)} e foi ACEITA (a conta ficou com ${brl(saldos.A)}): o servidor não confere saldo suficiente (financeiro.py::criar_transferencia). Decisão de produto: conta de caixa/banco negativa.`,
@@ -1746,7 +1747,7 @@ test('razão: todo lançamento fecha (débitos = créditos); transferência recu
   saldos.A -= T3
   saldos.C += T3
   await expect(cartaoDoLancamento(page, HISTORICO.t3)).toContainText(
-    `Credito ${DESC_CAIXA} ${brl(T3)}`,
+    `Crédito ${DESC_CAIXA} ${brl(T3)}`,
   )
 
   // transferência entre contas Ativo não muda o "Saldo em caixa (contas Ativo)" (só troca de lugar)
@@ -1878,9 +1879,9 @@ test('razão: lançamento nunca some, só se estorna (motivo curto é recusado; 
   await expect(cartaoDoEstorno).toHaveCount(1)
   await expect(cartaoDoEstorno).toContainText(`#${seqEstorno} — `)
   await expect(cartaoDoEstorno).toContainText('Estorno')
-  await expect(cartaoDoEstorno).toContainText(`Debito ${DESC_CAIXA} ${brl(T2)}`)
+  await expect(cartaoDoEstorno).toContainText(`Débito ${DESC_CAIXA} ${brl(T2)}`)
   await expect(cartaoDoEstorno).toContainText(
-    `Credito ${DESC_BANCO} ${brl(T2)}`,
+    `Crédito ${DESC_BANCO} ${brl(T2)}`,
   )
   await ver(page, info, 'estorno: original marcado e lancamento de estorno')
 
@@ -2439,7 +2440,7 @@ test('orçamento: o realizado acompanha a baixa e o estorno (receita no centro 2
   )
   const cartaoDaBaixa = cartaoDoLancamento(page, DESC_TB)
   await expect(cartaoDaBaixa).toContainText(
-    `Debito ${DESC_CAIXA} ${brl(BAIXA_B)}`,
+    `Débito ${DESC_CAIXA} ${brl(BAIXA_B)}`,
   )
   await cartaoDaBaixa
     .getByRole('button', { name: 'Estornar', exact: true })

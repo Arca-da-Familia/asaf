@@ -1146,18 +1146,18 @@ test('4. o dinheiro vem do livro-caixa: a receita e as duas despesas são lança
   const lancamentos: [Movimento, string, string][] = [
     [
       estado.rec,
-      `Debito Caixa e banco (teste) ${reais(RECEBIDO)}`,
-      `Credito ${CONTA_RECEITA} ${reais(RECEBIDO)}`,
+      `Débito Caixa e banco (teste) ${reais(RECEBIDO)}`,
+      `Crédito ${CONTA_RECEITA} ${reais(RECEBIDO)}`,
     ],
     [
       estado.pagOutro,
-      `Debito ${CONTA_DESPESA} ${reais(PAGO_OUTRO)}`,
-      `Credito Caixa e banco (teste) ${reais(PAGO_OUTRO)}`,
+      `Débito ${CONTA_DESPESA} ${reais(PAGO_OUTRO)}`,
+      `Crédito Caixa e banco (teste) ${reais(PAGO_OUTRO)}`,
     ],
     [
       estado.pagEquipe,
-      `Debito ${CONTA_DESPESA} ${reais(PAGO_EQUIPE)}`,
-      `Credito Caixa e banco (teste) ${reais(PAGO_EQUIPE)}`,
+      `Débito ${CONTA_DESPESA} ${reais(PAGO_EQUIPE)}`,
+      `Crédito Caixa e banco (teste) ${reais(PAGO_EQUIPE)}`,
     ],
   ]
   for (const [m, lado1, lado2] of lancamentos) {

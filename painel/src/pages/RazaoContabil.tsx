@@ -14,7 +14,7 @@ import {
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
 import { estornoCriarSchema, transferenciaCriarSchema } from '@/lib/schemas'
-import { nomeDaOrigem } from '@/lib/nomes-financeiros'
+import { nomeDaOrigem, nomeDaPartida } from '@/lib/nomes-financeiros'
 
 // v2.5.10 (FASE 2.5 - Painel) - Razão Contábil: extrato de lançamentos em partida dobrada e
 // estorno com motivo (backend v3.0, só faltava a tela - fecha o módulo Financeiro). Lançamento é
@@ -310,7 +310,7 @@ export function RazaoContabilPage() {
                 {l.partidas
                   .map(
                     (p) =>
-                      `${p.tipo_partida} ${p.conta_contabil} ${formatarReais(p.valor)}`,
+                      `${nomeDaPartida(p.tipo_partida)} ${p.conta_contabil} ${formatarReais(p.valor)}`,
                   )
                   .join(' · ')}
               </p>

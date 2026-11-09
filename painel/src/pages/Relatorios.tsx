@@ -17,7 +17,7 @@ import {
   obterRelatorioInadimplencia,
   obterRelatorioPorProjeto,
 } from '@/lib/api'
-import { nomeDoAlerta } from '@/lib/nomes-financeiros'
+import { nomeDoAlerta, nomeDaPartida } from '@/lib/nomes-financeiros'
 
 // v3.6 (FASE 3 - Financeiro) - demonstrativos financeiros (balancete, receitas x despesas por
 // conta/centro de custo, inadimplência, extrato por conta financeira, por projeto) e prestação de
@@ -394,7 +394,7 @@ function SecaoExtratoContaFinanceira() {
                 className="flex items-center justify-between text-sm"
               >
                 <span>
-                  {formatarVigencia(m.data)} · {m.tipo_partida}
+                  {formatarVigencia(m.data)} · {nomeDaPartida(m.tipo_partida)}
                 </span>
                 <span>
                   {formatarReais(m.valor)} · saldo {formatarReais(m.saldo_apos)}

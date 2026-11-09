@@ -32,3 +32,10 @@ export function nomeDaOrigem(codigo: string | null | undefined): string {
 export function nomeDoAlerta(codigo: string): string {
   return TIPO_DE_ALERTA[codigo] ?? semCodigo(codigo)
 }
+
+/** v9.3k: o lado da partida com acento ("Débito"/"Crédito"); o servidor guarda sem acento. */
+export function nomeDaPartida(tipo: string): string {
+  if (tipo === 'Debito') return 'Débito'
+  if (tipo === 'Credito') return 'Crédito'
+  return tipo
+}
