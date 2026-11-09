@@ -104,7 +104,7 @@ function BlocoCredenciamento({
     queryKey: ['associados'],
     queryFn: listarAssociados,
   })
-  const { data: credenciados } = useQuery({
+  const { data: credenciados, isFetching: atualizandoCredenciados } = useQuery({
     queryKey: ['credenciamentos', idAssembleia],
     queryFn: () => listarCredenciamentos(idAssembleia),
   })
@@ -427,7 +427,9 @@ function BlocoCredenciamento({
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={registrar.isPending}
+                    // v9.3k (achado do robô com 300 presenças): enquanto a lista não volta atualizada, o botão espera — senão um
+                    // segundo clique rápido cai em quem acabou de ser marcado e o servidor responde "já está credenciado"
+                    disabled={registrar.isPending || atualizandoCredenciados}
                     onClick={() =>
                       registrarPeloBotao({
                         id_associado: h.id_associado,
