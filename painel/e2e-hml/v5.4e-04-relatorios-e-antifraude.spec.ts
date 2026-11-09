@@ -821,14 +821,21 @@ async function conferirPadroesNaTela(
     return
   }
   await expect(cartoes).toHaveCount(lista.length)
+  // v9.3h: o tipo aparece pelo nome em português; o código fica em data-alerta (e nunca na tela)
   const naTela = await cartoes.evaluateAll((els) =>
-    els.map((el) =>
-      Array.from(el.querySelectorAll('p')).map((p) => p.textContent ?? ''),
-    ),
+    els.map((el) => {
+      const paragrafos = Array.from(el.querySelectorAll('p'))
+      return {
+        codigo: paragrafos[0]?.getAttribute('data-alerta') ?? '',
+        nome: paragrafos[0]?.textContent ?? '',
+        descricao: paragrafos[1]?.textContent ?? '',
+      }
+    }),
   )
-  expect(naTela.map((c) => `${c[0]}|${c[1]}`).sort()).toEqual(
+  expect(naTela.map((c) => `${c.codigo}|${c.descricao}`).sort()).toEqual(
     lista.map((a) => `${a.tipo}|${a.descricao}`).sort(),
   )
+  for (const c of naTela) expect(c.nome).not.toContain('_')
 }
 
 const ehDoRobo = (a: Padrao): boolean =>
