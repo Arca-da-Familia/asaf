@@ -201,3 +201,64 @@ describe('Chamada da sessão (achado v5.4d: quem saiu continuava listado como pr
     ).not.toBeInTheDocument()
   })
 })
+
+describe('Chamada com muita gente (v9.3k: a sessão tinha 31 alturas de notebook)', () => {
+  beforeEach(() => {
+    const pessoas = Array.from({ length: 25 }, (_, i) => i + 1)
+    vi.mocked(api.listarAssociados).mockResolvedValue(
+      pessoas.map((i) =>
+        associado(i, i === 17 ? 'Joana Família de Teste' : `Pessoa ${i}`),
+      ),
+    )
+    vi.mocked(api.listarHabilitados).mockResolvedValue(
+      pessoas.map((i) => ({ id_associado: i, habilitado: true })) as Awaited<
+        ReturnType<typeof api.listarHabilitados>
+      >,
+    )
+    // 12 presentes, entrando um por minuto: o último a chegar é o nº 12
+    vi.mocked(api.listarCredenciamentos).mockResolvedValue(
+      pessoas.slice(0, 12).map((i) => ({
+        id_credenciamento: 100 + i,
+        id_associado: i,
+        modalidade: 'Presencial',
+        hora_entrada: `2026-10-06T15:${String(i).padStart(2, '0')}:00`,
+        hora_saida: null,
+      })),
+    )
+  })
+
+  it('presentes e faltantes em páginas de 10; quem chegou por último aparece primeiro', async () => {
+    desenhar()
+    expect(
+      await screen.findByRole('navigation', { name: 'Páginas dos presentes' }),
+    ).toHaveTextContent('Página 1 de 2 · 12 itens')
+    expect(
+      screen.getByRole('navigation', { name: 'Páginas dos faltantes' }),
+    ).toHaveTextContent('Página 1 de 2 · 13 itens')
+    expect(
+      screen.getAllByRole('button', { name: 'Marcar presença' }),
+    ).toHaveLength(10)
+    const primeiroPresente = screen
+      .getAllByRole('button', { name: 'Registrar saída' })[0]!
+      .closest('div')!
+    expect(primeiroPresente).toHaveTextContent('Pessoa 12')
+  })
+
+  it('procurar pelo nome filtra as duas listas, sem ligar para acento', async () => {
+    const user = userEvent.setup()
+    desenhar()
+    await user.type(
+      await screen.findByLabelText('Procurar na chamada'),
+      'familia',
+    )
+    expect(
+      screen.getAllByRole('button', { name: 'Marcar presença' }),
+    ).toHaveLength(1)
+    expect(
+      screen.getByRole('button', { name: 'Marcar presença' }).closest('div'),
+    ).toHaveTextContent('Joana Família de Teste')
+    expect(
+      screen.getByText('Nenhum presente com esse nome.'),
+    ).toBeInTheDocument()
+  })
+})

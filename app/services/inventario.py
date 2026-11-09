@@ -205,7 +205,7 @@ ATIVIDADES: tuple[Atividade, ...] = (
         ("ART11_I", "ART7_I"), ("AZURE",),
         ("beneficiarios", "beneficiarios_projeto", "registros_atendimento", "encaminhamentos_rede_externa"),
         medidas="Prontuário e encaminhamentos só gravam com o termo de consentimento assinado registrado (o da pessoa atendida ou, se era criança ou adolescente "
-                "na assinatura, o de um dos pais ou do responsável; a marca antiga do cadastro não vale); só para a equipe ATIVA do projeto, inclusive para a Presidência; toda leitura vai para a Auditoria; o valor "
+                "na assinatura, o de um dos pais ou do responsável; a marca antiga do cadastro não vale); só para a equipe ativa do projeto, inclusive para a Presidência; toda leitura vai para a Auditoria; o valor "
                 "sensível não fica na Auditoria; exportação com permissão própria.",
         observacoes="Tratamento de alto risco (dado sensível e de criança): o relatório de impacto (RIPD) é a v7.0d.",
     ),
@@ -292,7 +292,7 @@ ATIVIDADES: tuple[Atividade, ...] = (
         "SITE_EDITORIAL", "Notícias e conteúdo do site (Directus)",
         "Manter as contas de quem edita as notícias do site, o registro do que cada um fez e as fotos publicadas nas notícias.",
         ("ART7_IX", "ART7_V"), ("AZURE", "GITHUB", "GOOGLE"),
-        tabelas_externas=("directus_users (nome e e-mail de quem edita)", "directus_activity (IP e navegador de cada ação)", "fotos das notícias (podem ter pessoas)"),
+        tabelas_externas=("usuários do editor do site (nome e e-mail de quem edita)", "histórico do editor do site (IP e navegador de cada ação)", "fotos das notícias (podem ter pessoas)"),
         titulares_externos=("quem edita as notícias do site", cl.FOTOGRAFADO), criancas_externas=True, publicado_no_site=True,
         armazenamento_proprio=("Fotos e arquivos das notícias numa conta própria do Directus no Microsoft Azure (Brasil, região Brazil South)",),
         medidas="O Directus usa o mesmo servidor de banco, mas com usuário e área (schema) próprios, sem acesso aos dados do sistema; perfis de editor com "

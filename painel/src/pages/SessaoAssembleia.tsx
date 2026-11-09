@@ -47,6 +47,9 @@ import {
   votacaoAbrirSchema,
   votoSchema,
 } from '@/lib/schemas'
+import { Paginador } from '@/components/data/Paginador'
+import { usePaginaLocal } from '@/lib/pagina-local'
+import { simplificar } from '@/lib/texto'
 
 const CORES_STATUS_ITEM: Record<string, string> = {
   Aguardando: 'text-muted-foreground',
@@ -56,6 +59,9 @@ const CORES_STATUS_ITEM: Record<string, string> = {
 }
 
 const OPCOES_RESERVADAS = ['Abstenção', 'Branco']
+
+// v9.3k: quantos nomes por página em cada lista da chamada
+const POR_PAGINA_DA_CHAMADA = 10
 
 function BlocoCodigoChamada({ idAssembleia }: { idAssembleia: number }) {
   const [mostrar, setMostrar] = useState(false)
@@ -155,7 +161,10 @@ function BlocoCredenciamento({
     (h) => !idsCredenciados.has(h.id_associado),
   )
   // Presente é quem não registrou saída (o mesmo critério do quórum); quem saiu aparece à parte e pode voltar.
-  const presentes = (credenciados ?? []).filter((c) => !c.hora_saida)
+  // v9.3k: o mais recente primeiro (quem acabou de chegar aparece no alto, na 1ª página)
+  const presentes = (credenciados ?? [])
+    .filter((c) => !c.hora_saida)
+    .sort((a, b) => b.hora_entrada.localeCompare(a.hora_entrada))
   const quemSaiu = (credenciados ?? []).flatMap((c) =>
     c.hora_saida ? [{ ...c, hora_saida: c.hora_saida }] : [],
   )
@@ -163,6 +172,23 @@ function BlocoCredenciamento({
     nomesPorId.get(c.id_associado) ??
     c.nome_completo ??
     `Associado #${c.id_associado}`
+
+  // v9.3k (a sessão tinha 31 alturas de notebook na homologação: a lista inteira de habilitados): busca pelo nome e páginas de 10
+  const [busca, setBusca] = useState('')
+  const termo = simplificar(busca.trim())
+  const acha = (c: { id_associado: number; nome_completo?: string }) =>
+    !termo || simplificar(nomeDe(c)).includes(termo)
+  const paginaPresentes = usePaginaLocal(
+    presentes.filter(acha),
+    POR_PAGINA_DA_CHAMADA,
+    termo,
+  )
+  const paginaFaltantes = usePaginaLocal(
+    faltantes.filter(acha),
+    POR_PAGINA_DA_CHAMADA,
+    termo,
+  )
+  const saidasAchadas = quemSaiu.filter(acha)
 
   return (
     <section className="rounded-xl border border-border bg-card p-6">
@@ -277,6 +303,26 @@ function BlocoCredenciamento({
           Carregando a chamada…
         </p>
       )}
+      {chamadaPronta &&
+        (presentes.length + faltantes.length > POR_PAGINA_DA_CHAMADA ||
+          termo) && (
+          <div className="mt-4 max-w-md">
+            <label
+              htmlFor="procurar-na-chamada"
+              className="text-sm font-medium"
+            >
+              Procurar na chamada
+            </label>
+            <input
+              id="procurar-na-chamada"
+              type="search"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Nome do associado"
+              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            />
+          </div>
+        )}
       {chamadaPronta && (
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
@@ -284,7 +330,7 @@ function BlocoCredenciamento({
               Presentes ({presentes.length})
             </h3>
             <div className="v3-space-y-1">
-              {presentes.map((c) => (
+              {paginaPresentes.daPagina.map((c) => (
                 <div
                   key={c.id_credenciamento}
                   className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
@@ -312,15 +358,27 @@ function BlocoCredenciamento({
                     : 'Ninguém presente no momento.'}
                 </p>
               )}
+              {termo && presentes.length > 0 && paginaPresentes.total === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Nenhum presente com esse nome.
+                </p>
+              )}
             </div>
+            <Paginador
+              pagina={paginaPresentes.pagina}
+              porPagina={paginaPresentes.porPagina}
+              total={paginaPresentes.total}
+              aoMudar={paginaPresentes.setPagina}
+              rotulo="Páginas dos presentes"
+            />
 
-            {quemSaiu.length > 0 && (
+            {saidasAchadas.length > 0 && (
               <>
                 <h3 className="mb-2 mt-4 text-sm font-semibold text-muted-foreground">
                   Saíram ({quemSaiu.length})
                 </h3>
                 <div className="v3-space-y-1">
-                  {quemSaiu.map((c) => (
+                  {saidasAchadas.map((c) => (
                     <div
                       key={c.id_credenciamento}
                       className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
@@ -357,7 +415,7 @@ function BlocoCredenciamento({
               Faltantes até agora ({faltantes.length})
             </h3>
             <div className="v3-space-y-1">
-              {faltantes.map((h) => (
+              {paginaFaltantes.daPagina.map((h) => (
                 <div
                   key={h.id_associado}
                   className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
@@ -386,7 +444,19 @@ function BlocoCredenciamento({
                   Todos os habilitados já foram chamados.
                 </p>
               )}
+              {termo && faltantes.length > 0 && paginaFaltantes.total === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Nenhum faltante com esse nome.
+                </p>
+              )}
             </div>
+            <Paginador
+              pagina={paginaFaltantes.pagina}
+              porPagina={paginaFaltantes.porPagina}
+              total={paginaFaltantes.total}
+              aoMudar={paginaFaltantes.setPagina}
+              rotulo="Páginas dos faltantes"
+            />
           </div>
         </div>
       )}
