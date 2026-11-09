@@ -23,7 +23,8 @@ _TABELAS = ("permissoes_sistema", "niveis_acesso", "perfil_permissao", "catalogo
 # ------------------------------------------------------------------------------------------------ 1. o que o sistema semeia
 def test_a_presidencia_tem_a_permissao_nova_por_padrao_e_ninguem_mais(client, db):
     permissao = db.query(PermissaoSistema).filter(PermissaoSistema.codigo_permissao == "editar_site").one()
-    assert permissao.modulo == "core" and "Directus" in permissao.descricao
+    # v9.3j: a descrição fala do "editor do site" (o nome do produto, Directus, saiu da tela)
+    assert permissao.modulo == "core" and "editor do site" in permissao.descricao
     donos = {
         nome for (nome,) in db.query(NivelAcesso.nome_nivel)
         .join(perfil_permissao, perfil_permissao.c.id_nivel == NivelAcesso.id_nivel)
