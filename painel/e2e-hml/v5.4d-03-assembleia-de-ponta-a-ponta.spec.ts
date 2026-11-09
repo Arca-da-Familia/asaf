@@ -171,6 +171,14 @@ test('quórum atingido: vota, voto repetido recusado, apura e encerra votação,
 
   // quem não está na sala não vota: o Secretário de teste (Daniel) tenta votar sem estar presente e é recusado. O quórum só credenciou
   // os primeiros da lista, então ele pode nunca ter chegado; se já estiver presente, ele sai antes (e volta depois).
+  // v9.3k: a chamada tem páginas de 10; procura-se o nome dele, como a mesa faria
+  const procurar = page.getByLabel('Procurar na chamada', { exact: true })
+  if ((await procurar.count()) > 0) {
+    await procurar.fill('Daniel Ribeiro Costa')
+    await expect(
+      page.getByRole('navigation', { name: 'Páginas dos presentes' }),
+    ).toHaveCount(0)
+  }
   const linhaDoDaniel = page
     .locator('div.rounded-md')
     .filter({ hasText: 'Daniel Ribeiro Costa' })
