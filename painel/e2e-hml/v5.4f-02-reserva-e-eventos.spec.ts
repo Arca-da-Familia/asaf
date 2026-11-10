@@ -80,7 +80,8 @@ test.beforeEach(async ({ page }) => {
       'GET',
       `/api/associados/?situacao=${encodeURIComponent('Ativo - Em Dia')}&pagina=1&por_pagina=25`,
     )
-    const itens = (r.json as { itens: { nome_completo: string }[] }).itens
+    // a lista vem como lista simples, também com `pagina` (o total sai de /api/associados/resumo)
+    const itens = r.json as { nome_completo: string }[]
     for (const a of itens)
       if (emDia.length < 2 && !emDia.includes(a.nome_completo))
         emDia.push(a.nome_completo)
