@@ -44,8 +44,43 @@ test.beforeAll(() => exigirHomologacao())
 
 const PRESIDENTE = 'Marta Souza'
 // Associados de teste com situação "Ativo - Em Dia" que não têm cargo nem são usados nos outros roteiros como parte de um processo.
-const SOLICITANTE = 'Marina Azevedo Lopes'
-const OUTRO_SOLICITANTE = 'Leonardo Batista Reis'
+// v9.3n (achado de 10/11): com o tempo, um associado de teste fica inadimplente na homologação (as mensalidades inventadas vencem) e o sistema
+// recusa a reserva dele, como deve. O robô escolhe, no começo, dois associados do povoamento que estejam EM DIA (perguntando ao próprio sistema)
+const CANDIDATOS_A_SOLICITANTE = [
+  'Marina Azevedo Lopes',
+  'Leonardo Batista Reis',
+  'Karina Duarte Melo',
+  'Nelson Fonseca Prado',
+  'Olívia Campos Vieira',
+]
+let SOLICITANTE = 'Marina Azevedo Lopes'
+let OUTRO_SOLICITANTE = 'Leonardo Batista Reis'
+let solicitantesEscolhidos = false
+
+test.beforeEach(async ({ page }) => {
+  if (solicitantesEscolhidos) return
+  await entrar(page, 'presidente')
+  const emDia: string[] = []
+  for (const nome of CANDIDATOS_A_SOLICITANTE) {
+    const r = await chamarApi(
+      page,
+      'GET',
+      `/api/associados/?busca=${encodeURIComponent(nome)}&situacao=${encodeURIComponent('Ativo - Em Dia')}`,
+    )
+    const lista = r.json as
+      { nome_completo: string }[] | { itens: { nome_completo: string }[] }
+    const itens = Array.isArray(lista) ? lista : lista.itens
+    if (itens.some((a) => a.nome_completo === nome)) emDia.push(nome)
+    if (emDia.length === 2) break
+  }
+  expect(
+    emDia.length,
+    `dois associados de teste em dia para reservar (achados: ${emDia.join(', ') || 'nenhum'})`,
+  ).toBe(2)
+  ;[SOLICITANTE, OUTRO_SOLICITANTE] = [emDia[0]!, emDia[1]!]
+  solicitantesEscolhidos = true
+  await sair(page)
+})
 
 const ERRO_CONFLITO =
   /Conflito de agenda: já existe compromisso para 'Espaco' #\d+ nesse horário/
