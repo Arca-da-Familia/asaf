@@ -3481,6 +3481,14 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         acrescentando colunas que podem ficar vazias (`preview_base_url`, `default_exports_folder`), cada uma com o seu `down`; nenhuma tabela do sistema é
         tocada. O banco tem cópia de segurança de 35 dias, em outra região também. **Falta**: trocar a imagem do contêiner `asaf-directus` e conferir por leitura
         (`ping`, versão, `directus_configurar.py verificar --producao` e a sincronização do site).
+        **2026-11-10: a troca foi BARRADA pelo sistema de segurança do Claude Code ("Production Deploy")** — parado, sem contornar; depende de o Presidente
+        liberar essa ação (ou de a troca ser feita por quem administra o Azure), com o plano acima.
+      - **Achado na conferência do lote 16 (2026-11-10): a consulta de CEP falha na PRODUÇÃO e funciona na homologação** — mesmo código, mesmo ambiente do
+        Azure e os mesmos endereços de saída; a homologação reconstruída da mesma `main` responde 200. O log novo (`5e4a991`) diz `ConnectError`: o servidor
+        de produção não consegue nem abrir a conexão com o ViaCEP (o mais provável é o ViaCEP recusar o endereço de saída que a produção usa). **Impacto hoje:
+        nenhum** — nenhuma tela do painel chama `/api/cep/{cep}` (a trava `test_rotas_com_tela` passa por coincidência: "cep" é nome de campo no painel). Caminho:
+        (a) ligar o preenchimento do endereço pelo CEP no cadastro (comodidade, v9.3), com um segundo serviço de CEP de reserva — o que pede atualizar o inventário
+        de dados e a Política de Privacidade (texto público, conferido por verificador independente); ou (b) tirar a rota. Decidir na próxima rodada.
 - [ ] Fator ônibus tratado como risco de projeto (v12.8): documentação suficiente para outra
       pessoa assumir, e pelo menos uma pessoa da associação treinada na operação básica.
 
