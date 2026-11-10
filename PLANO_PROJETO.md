@@ -3462,6 +3462,25 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         1.62 → **1.63.0**, `react-router` 8.5.0 → **8.5.1** (painel) e `pytest` 9.1.1 → **9.2.0** (correções; o site já estava todo na última estável). Painel 759 e
         servidor 1657 em duas rodadas; regressões da v7.1d verdes na homologação.
       - **Directus 12.4.1 → 12.5.1:** continua adiado com o mesmo motivo (provar numa cópia descartável antes de trocar a imagem de produção e dizer o plano ao Presidente).
+      - **Lote 16 ✅ FEITO, provado na homologação e confirmado em produção (2026-11-10, commit `041ee63`)**: painel — `@hookform/resolvers` 6 → **7.0.5** e
+        `jsdom` 30 → **31.0.0** (versões maiores), `vite` 8.3.7, `vitest` 5.1.0, `tailwindcss` 4.3.5, TanStack Query 5.107.1, Playwright 1.65.0, `eslint` 10.14.0,
+        `typescript-eslint` 8.72.2, `lucide-react` 1.70.0, `user-event` 14.6.9 e outras; site — `astro` 7.4.8, `@lhci/cli` 0.16.0, `jsdom` 31, `vitest` 5.1 e o
+        **`basic-ftp` forçado em 6.2.6** (`overrides` do `site/package.json`: aviso ALTO GHSA-c475-qrg2-pj4r que vinha pelo Lighthouse; nem a última `get-uri`
+        aceita a 6 — o caminho de FTP nunca é usado); servidor — FastAPI 0.162.2, SQLAlchemy 2.1.8, psycopg 3.3.8, Pydantic 2.14.3, python-multipart 0.0.33,
+        azure-storage-blob 12.31.1 e **pypdf 7.0.1** (versão maior: o `add_js` saiu; o teste que monta o PDF perigoso passou a usar `add_open_action(JavaScript)`
+        e a verificação segue barrando o script). As 6 ações do GitHub já estavam na última. **Verificado**: painel 875 e servidor 1913 em duas rodadas; site 779
+        e 949 de 949 no navegador; o teste da consulta de CEP deixou de depender do ViaCEP de verdade (um 503 dele derrubou uma rodada). **Homologação**: v5.4c-fase0,
+        v5.4g-02 (documentos com a verificação do PDF), v5.4e-03, v9.1a-01 (axe) e v5.4g-01 (páginas do site) verdes. **Produção**: Deploy API, Painel e Site
+        verdes; painel e site = `041ee63`; `/health` 200.
+      - **Pendente com motivo (não é silêncio):** o `npm audit` do painel aponta um aviso MODERADO no `minimatch` (GHSA-g3hv-75wg-m249, corrigido na 11.0.1),
+        que só o `eslint` usa (ferramenta de conferência do código, nunca vai para o sistema publicado); o `eslint` 10.14 (o mais novo) ainda exige o `minimatch` 10.
+        Forçar a 11 pode quebrar o `eslint`; reavaliar a cada lote até o `eslint` aceitar a 11.
+      - **Directus 12.4.1 → 12.6.1 (a última estável): provado numa cópia descartável (2026-11-10)** — Directus 12.6.1 em SQLite neste computador:
+        `directus_configurar.py aplicar` criou o modelo do site e a 2ª execução não mudou nada; as permissões com regra não dão para testar sem a licença (o
+        mesmo limite de antes: só na produção). Entre a 12.4.1 e a 12.6.1 há duas migrações do próprio Directus, ambas na tabela `directus_settings` e só
+        acrescentando colunas que podem ficar vazias (`preview_base_url`, `default_exports_folder`), cada uma com o seu `down`; nenhuma tabela do sistema é
+        tocada. O banco tem cópia de segurança de 35 dias, em outra região também. **Falta**: trocar a imagem do contêiner `asaf-directus` e conferir por leitura
+        (`ping`, versão, `directus_configurar.py verificar --producao` e a sincronização do site).
 - [ ] Fator ônibus tratado como risco de projeto (v12.8): documentação suficiente para outra
       pessoa assumir, e pelo menos uma pessoa da associação treinada na operação básica.
 
