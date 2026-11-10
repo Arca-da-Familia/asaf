@@ -633,3 +633,18 @@ export async function procurarEvento(
   await campo.fill(titulo)
   await expect(page.getByText(/eventos? encontrados?\./)).toBeVisible()
 }
+
+/** v9.3n: a lista de projetos tem páginas de 10; o robô procura o projeto (ou os da rodada, pelo número dela) antes de olhar a lista. A busca só
+ * aparece com mais de 10 projetos (na homologação, sempre). Espera a lista chegar antes. */
+export async function procurarProjeto(
+  page: Page,
+  texto: string,
+): Promise<void> {
+  await expect(
+    page.locator('div[role="button"][aria-pressed]').first(),
+  ).toBeVisible()
+  const campo = page.getByLabel('Procurar projeto', { exact: true })
+  if ((await campo.count()) === 0) return
+  await campo.fill(texto)
+  await expect(page.getByText(/projetos? encontrados?\./)).toBeVisible()
+}

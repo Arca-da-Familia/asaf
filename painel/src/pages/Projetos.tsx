@@ -79,6 +79,9 @@ import {
 import { tratamentoLiberado } from '@/lib/privacidade'
 import { useMe } from '@/lib/use-me'
 import { useRotuloDoCatalogo } from '@/lib/rotulo-do-catalogo'
+import { Paginador } from '@/components/data/Paginador'
+import { usePaginaLocal } from '@/lib/pagina-local'
+import { simplificar } from '@/lib/texto'
 
 // v4.1 (FASE 4) - Projeto como entidade única e configurável: tipo/status de catálogo,
 // cronograma com status sempre derivado (nunca escolhido à mão), equipe com papel, orçamento via
@@ -90,7 +93,14 @@ function formatarReais(valor: number): string {
   }).format(valor)
 }
 
-function FormularioProjeto({ onCancelar }: { onCancelar: () => void }) {
+function FormularioProjeto({
+  onCancelar,
+  aoCriar,
+}: {
+  onCancelar: () => void
+  /** v9.3n: o número do projeto recém-criado (a lista vai à página onde ele está) */
+  aoCriar?: (idProjeto: number, nome: string) => void
+}) {
   const queryClient = useQueryClient()
   const { data: tiposProjeto } = useQuery({
     queryKey: ['opcoes-catalogo', 'tipo_projeto'],
@@ -107,8 +117,9 @@ function FormularioProjeto({ onCancelar }: { onCancelar: () => void }) {
 
   const criar = useMutation({
     mutationFn: (v: z.infer<typeof projetoCriarSchema>) => criarProjeto(v),
-    onSuccess: () => {
+    onSuccess: (criado, dados) => {
       queryClient.invalidateQueries({ queryKey: ['projetos'] })
+      aoCriar?.(criado.id_projeto, dados.nome_projeto)
       onCancelar()
     },
   })
@@ -1714,6 +1725,8 @@ function DetalheProjeto({ projeto }: { projeto: Projeto }) {
   )
 }
 
+const PROJETOS_POR_PAGINA = 10
+
 export function ProjetosPage() {
   const nomeDaSituacao = useRotuloDoCatalogo('status_projeto')
   const nomeDoTipo = useRotuloDoCatalogo('tipo_projeto')
@@ -1731,6 +1744,27 @@ export function ProjetosPage() {
 
   const projetoSelecionado =
     (projetos ?? []).find((p) => p.id_projeto === idSelecionado) ?? null
+
+  // v9.3n (a tela tinha 17,5 alturas de notebook na homologação: a lista inteira): busca pelo nome ou número e páginas de 10
+  const [busca, setBusca] = useState('')
+  const termo = simplificar(busca.trim())
+  const encontrados = termo
+    ? (projetos ?? []).filter(
+        (p) =>
+          simplificar(p.nome_projeto).includes(termo) ||
+          String(p.id_projeto) === termo.replace(/^n[ºo°]?\s*/, ''),
+      )
+    : projetos
+  const pagina = usePaginaLocal(encontrados, PROJETOS_POR_PAGINA, termo)
+  // o projeto aberto pelo endereço ou recém-criado: a lista vai à página onde ele está (uma vez por projeto)
+  const [mostrar, setMostrar] = useState<number | null>(idSelecionado)
+  if (mostrar !== null && encontrados) {
+    const posicao = encontrados.findIndex((p) => p.id_projeto === mostrar)
+    if (posicao >= 0) {
+      setMostrar(null)
+      pagina.setPagina(Math.floor(posicao / PROJETOS_POR_PAGINA) + 1)
+    }
+  }
 
   function alternar(id: number) {
     setIdSelecionado(id === idSelecionado ? null : id)
@@ -1761,10 +1795,44 @@ export function ProjetosPage() {
           </Button>
         </div>
         {mostrarForm && (
-          <FormularioProjeto onCancelar={() => setMostrarForm(false)} />
+          <FormularioProjeto
+            onCancelar={() => setMostrarForm(false)}
+            aoCriar={(id, nome) => {
+              // se a busca em curso acha o projeto novo, ela fica; senão, sai (e a lista vai à página dele)
+              if (termo && !simplificar(nome).includes(termo)) setBusca('')
+              setMostrar(id)
+            }}
+          />
         )}
-        <div className="v3-space-y-2">
-          {(projetos ?? []).map((p) => (
+        {(projetos ?? []).length > PROJETOS_POR_PAGINA && (
+          <div className="mb-3 max-w-md">
+            <label htmlFor="procurar-projeto" className="text-sm font-medium">
+              Procurar projeto
+            </label>
+            <input
+              id="procurar-projeto"
+              type="search"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Nome ou número"
+              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            />
+            {termo && (
+              <p
+                aria-live="polite"
+                className="mt-1 text-xs text-muted-foreground"
+              >
+                {pagina.total}{' '}
+                {pagina.total === 1
+                  ? 'projeto encontrado'
+                  : 'projetos encontrados'}
+                .
+              </p>
+            )}
+          </div>
+        )}
+        <div className="flex flex-col gap-2">
+          {pagina.daPagina.map((p) => (
             <div
               key={p.id_projeto}
               role="button"
@@ -1798,7 +1866,19 @@ export function ProjetosPage() {
               Nenhum projeto cadastrado.
             </p>
           )}
+          {termo && pagina.total === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhum projeto com esse nome ou número.
+            </p>
+          )}
         </div>
+        <Paginador
+          pagina={pagina.pagina}
+          porPagina={pagina.porPagina}
+          total={pagina.total}
+          aoMudar={pagina.setPagina}
+          rotulo="Páginas dos projetos"
+        />
       </section>
 
       {projetoSelecionado && (

@@ -9,6 +9,7 @@ import {
 } from '@playwright/test'
 
 import {
+  procurarProjeto,
   procurarEvento,
   API_HML,
   AVISO,
@@ -304,6 +305,8 @@ async function abrirProjetos(page: Page): Promise<void> {
   ).toBeVisible()
   // enquanto a lista carrega a tela já diz "Nenhum projeto cadastrado": só vale quando chega o primeiro projeto
   await expect(itensDaLista(page).first()).toBeVisible()
+  // v9.3n: a lista tem páginas de 10; os projetos deste roteiro levam o número da rodada no nome
+  await procurarProjeto(page, String(RODADA))
 }
 
 /** Abre o projeto pelo endereço `/projetos?projeto=N` (o mesmo que os outros módulos usam para apontar para ele). */

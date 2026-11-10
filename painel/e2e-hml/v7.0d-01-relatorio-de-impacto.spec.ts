@@ -7,6 +7,7 @@ import {
 } from '@playwright/test'
 
 import {
+  procurarProjeto,
   API_HML,
   entrar,
   exigirHomologacao,
@@ -92,6 +93,7 @@ async function abrirRelatorios(page: Page): Promise<Locator> {
 /** O quadro do prontuário do beneficiário no detalhe do projeto (o mesmo caminho do robô v5.4f-01). */
 async function abrirProntuario(page: Page): Promise<Locator> {
   await page.goto('/projetos')
+  await procurarProjeto(page, NOME_DO_PROJETO)
   const item = page
     .locator('div[role="button"][aria-pressed]')
     .filter({ hasText: new RegExp(`^\\s*${NOME_DO_PROJETO}\\s+nº\\s+\\d+`) })

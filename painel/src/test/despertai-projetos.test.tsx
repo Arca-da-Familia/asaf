@@ -527,3 +527,41 @@ describe('detalhe do projeto com permissão', () => {
     ).not.toBeInTheDocument()
   })
 })
+
+describe('lista de projetos com busca e páginas (v9.3n: a tela tinha 17,5 alturas de notebook)', () => {
+  beforeEach(() => {
+    api.listarProjetos.mockResolvedValue(
+      Array.from({ length: 23 }, (_, i) =>
+        projeto({
+          id_projeto: 30 - i,
+          nome_projeto: i === 9 ? 'Ação Família Unida' : `Projeto ${30 - i}`,
+        }),
+      ),
+    )
+  })
+  const itens = () =>
+    screen.getAllByRole('button').filter((b) => b.hasAttribute('aria-pressed'))
+
+  it('mostra 10 por página e procura pelo nome sem ligar para acento', async () => {
+    const user = userEvent.setup()
+    renderizar(<ProjetosPage />, '/projetos')
+    expect(await screen.findByText('Projeto 30')).toBeInTheDocument()
+    expect(itens()).toHaveLength(10)
+    expect(
+      screen.getByRole('navigation', { name: 'Páginas dos projetos' }),
+    ).toHaveTextContent('Página 1 de 3 · 23 itens')
+    await user.type(screen.getByLabelText('Procurar projeto'), 'familia')
+    expect(itens()).toHaveLength(1)
+    expect(screen.getByText('1 projeto encontrado.')).toBeInTheDocument()
+  })
+
+  it('o projeto aberto pelo endereço leva a lista à página dele', async () => {
+    renderizar(<ProjetosPage />, '/projetos?projeto=9')
+    expect(
+      await screen.findByRole('heading', { name: 'Projeto 9', level: 2 }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('navigation', { name: 'Páginas dos projetos' }),
+    ).toHaveTextContent('Página 3 de 3')
+  })
+})

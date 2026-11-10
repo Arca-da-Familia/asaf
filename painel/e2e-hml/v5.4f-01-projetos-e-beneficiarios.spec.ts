@@ -7,6 +7,7 @@ import {
 } from '@playwright/test'
 
 import {
+  procurarProjeto,
   API_HML,
   AVISO,
   campo,
@@ -232,6 +233,8 @@ async function abrirProjetos(page: Page): Promise<void> {
   ).toBeVisible()
   // enquanto a lista carrega a tela já diz "Nenhum projeto cadastrado": só vale quando chega o primeiro projeto
   await expect(itensDaLista(page).first()).toBeVisible()
+  // v9.3n: a lista tem páginas de 10; os projetos deste roteiro levam o número da rodada no nome
+  await procurarProjeto(page, String(RODADA))
 }
 
 /** Abre a lista e o detalhe do projeto (por um endereço novo, então o que se vê veio do servidor). */
@@ -516,12 +519,14 @@ test.describe('A. Projeto', () => {
     await expect(
       page.getByRole('heading', { name: 'Projetos', level: 1 }),
     ).toBeVisible()
+    await procurarProjeto(page, 'Projeto Principal de Teste')
     const principal = itemDoProjeto(page, 'Projeto Principal de Teste')
     await expect(principal).toBeVisible()
     await expect(principal.getByText('Público', { exact: true })).toBeVisible()
     await expect(
       principal.getByText('Em destaque no site', { exact: true }),
     ).toBeVisible()
+    await procurarProjeto(page, 'Projeto Interno de Teste')
     const interno = itemDoProjeto(page, 'Projeto Interno de Teste')
     await expect(interno.getByText('Interno', { exact: true })).toBeVisible()
     await expect(interno.getByText('Em destaque no site')).toHaveCount(0)
@@ -537,6 +542,7 @@ test.describe('A. Projeto', () => {
     await expect(
       detalheDoProjeto(page, 'Projeto Interno de Teste'),
     ).toBeVisible()
+    await procurarProjeto(page, 'Projeto Principal de Teste')
     await principal.click()
     const detalhe = detalheDoProjeto(page, 'Projeto Principal de Teste')
     await expect(detalhe).toBeVisible()

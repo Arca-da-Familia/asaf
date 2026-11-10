@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
 import {
+  procurarProjeto,
   API_HML,
   campo,
   entrar,
@@ -66,6 +67,7 @@ async function abrirBloco(page: Page): Promise<Locator> {
 /** O quadro do prontuário da criança no detalhe do projeto (o mesmo caminho do robô v7.0d-01). */
 async function abrirProntuario(page: Page): Promise<Locator> {
   await page.goto('/projetos')
+  await procurarProjeto(page, PROJETO)
   await page
     .locator('div[role="button"][aria-pressed]')
     .filter({ hasText: new RegExp(`^\\s*${PROJETO}\\s+nº\\s+\\d+`) })

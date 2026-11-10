@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
 import {
+  procurarProjeto,
   API_HML,
   cpfValido,
   entrar,
@@ -241,6 +242,7 @@ test('a voluntária que não é associada é escalada no projeto: aparece na lis
   await expect(
     page.getByRole('heading', { name: 'Projetos', level: 1 }),
   ).toBeVisible()
+  await procurarProjeto(page, NOME_DO_PROJETO)
   await page
     .locator('div[role="button"][aria-pressed]')
     .filter({ hasText: new RegExp(NOME_DO_PROJETO) })

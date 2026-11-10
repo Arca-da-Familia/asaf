@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
 import {
+  procurarProjeto,
   API_HML,
   AVISO,
   entrar,
@@ -51,6 +52,7 @@ async function abrirOBloco(page: Page): Promise<Locator> {
   await expect(
     page.getByRole('heading', { name: 'Projetos', level: 1 }),
   ).toBeVisible()
+  await procurarProjeto(page, NOME_DO_PROJETO)
   const item = itemDoProjeto(page, NOME_DO_PROJETO)
   await expect(item).toBeVisible()
   await item.click()
