@@ -10,6 +10,7 @@ import io
 
 import pytest
 from pypdf import PdfWriter
+from pypdf.actions import JavaScript
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
@@ -181,7 +182,8 @@ def test_pdf_com_senha_e_pdf_com_javascript_sao_recusados():
 
     escritor = PdfWriter()
     escritor.add_blank_page(width=200, height=200)
-    escritor.add_js("app.alert('oi')")
+    # pypdf 7: o `add_js` saiu; a ação de abertura com JavaScript é o jeito novo de montar o mesmo PDF perigoso
+    escritor.add_open_action(JavaScript("app.alert('oi')"))
     saida = io.BytesIO()
     escritor.write(saida)
     assert codigos(v.verificar_versao_publica(saida.getvalue()).bloqueios) == ["PDF_PERIGOSO"]
