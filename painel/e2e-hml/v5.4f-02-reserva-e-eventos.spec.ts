@@ -73,6 +73,18 @@ test.beforeEach(async ({ page }) => {
     if (itens.some((a) => a.nome_completo === nome)) emDia.push(nome)
     if (emDia.length === 2) break
   }
+  // nenhum (ou só um) dos do povoamento em dia: qualquer associado em dia da homologação serve (é tudo inventado)
+  if (emDia.length < 2) {
+    const r = await chamarApi(
+      page,
+      'GET',
+      `/api/associados/?situacao=${encodeURIComponent('Ativo - Em Dia')}&pagina=1&por_pagina=25`,
+    )
+    const itens = (r.json as { itens: { nome_completo: string }[] }).itens
+    for (const a of itens)
+      if (emDia.length < 2 && !emDia.includes(a.nome_completo))
+        emDia.push(a.nome_completo)
+  }
   expect(
     emDia.length,
     `dois associados de teste em dia para reservar (achados: ${emDia.join(', ') || 'nenhum'})`,
