@@ -4,6 +4,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, date, timezone
+import logging
 import os
 import re
 from typing import Optional
@@ -36,6 +37,7 @@ from app.services.duplicidade import detectar_cadastro_duplicado
 from app.services.linha_do_tempo import publicar_evento_linha_do_tempo
 from app.services.matricula import proximo_numero_matricula
 
+LOG = logging.getLogger(__name__)
 router = APIRouter()
 _permissao_associados = exigir_permissao("associados")
 _permissao_seletor_de_associado = exigir_alguma_permissao("associados", "financeiro", "projetos")
@@ -417,7 +419,14 @@ def consultar_cep(cep: str):
         resposta = httpx2.get(f"https://viacep.com.br/ws/{digitos}/json/", timeout=5.0)
         resposta.raise_for_status()
         dados = resposta.json()
-    except httpx2.HTTPError:
+    except httpx2.HTTPError as erro:
+        # 10/11: na produção o ViaCEP passou a falhar (na homologação, com o mesmo código, responde); o log diz o porquê - o tipo do erro e o
+        # código HTTP do ViaCEP, sem o CEP consultado
+        resposta_do_viacep = getattr(erro, "response", None)
+        LOG.warning(
+            "consulta de CEP ao ViaCEP falhou: %s (HTTP %s)",
+            type(erro).__name__, getattr(resposta_do_viacep, "status_code", "-"),
+        )
         raise HTTPException(status_code=503, detail="Serviço de CEP indisponível no momento - preencha manualmente.")
     if dados.get("erro"):
         raise HTTPException(status_code=404, detail="CEP não encontrado.")

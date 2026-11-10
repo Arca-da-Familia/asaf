@@ -129,10 +129,14 @@ def test_consultar_cep_valido(client, monkeypatch):
     assert pedidos == ["https://viacep.com.br/ws/01310100/json/"]
 
 
-def test_cep_com_o_servico_fora_do_ar_responde_503_e_inexistente_404(client, monkeypatch):
+def test_cep_com_o_servico_fora_do_ar_responde_503_e_inexistente_404(client, monkeypatch, caplog):
     import httpx2
     monkeypatch.setattr(httpx2, "get", lambda url, timeout: _RespostaDoViaCep(falha=True))
-    assert client.get("/api/cep/01310100").status_code == 503
+    with caplog.at_level("WARNING"):
+        assert client.get("/api/cep/01310100").status_code == 503
+    # o log diz por que falhou, sem o CEP consultado
+    aviso = next(r.getMessage() for r in caplog.records if "ViaCEP" in r.getMessage())
+    assert "HTTPStatusError" in aviso and "01310100" not in aviso
     monkeypatch.setattr(httpx2, "get", lambda url, timeout: _RespostaDoViaCep({"erro": True}))
     assert client.get("/api/cep/99999999").status_code == 404
 
