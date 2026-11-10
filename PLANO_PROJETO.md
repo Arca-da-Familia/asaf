@@ -2201,9 +2201,26 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       e falhou. Conserto df16816 (só os robôs), Deploy Painel disparado à mão, verde. `version.json` = `df16816`; a Auditoria publicada tem "O que
       aconteceu" e `data-acao`, o Plano de Contas tem "Procurar conta" e "Tipos de conta"; `/api/auditoria/tabelas` existe e pede login (401).
       Regra que fica: resposta da API muda só acrescentando campo, nunca trocando o tipo do que o painel em produção lê]**
-      **[FALTA (próximas rodadas da v9.3): telas ainda compridas no notebook —
-      Sessão da assembleia 16,0, Doações 15,5, Projetos 14,9, Relatórios 12,9, Qualidade da base 11,4, Para propor 10,6, Atendimentos 10,4 — uma por
-      vez, com abas/submenus/telas progressivas e os robôs de cada uma reescritos; depois disso a altura no notebook passa a reprovar]**
+      **[v9.3g a v9.3k (2026-11-06 a 11-09) — SEM NOME TÉCNICO NA TELA (pedido do Presidente, 06/11) e a SESSÃO DA ASSEMBLEIA: (g) Configurações
+      mostram só o nome da opção, e a opção nova pede só o nome (o código sai dele); `lib/rotulo-do-catalogo.ts` troca o código pelo nome em Eventos,
+      Projetos, Meu voluntariado e Alçadas; permissões pelo nome em português (`app/nomes_das_permissoes.py`, `/api/permissoes/nomes`) na matriz de
+      Níveis e permissões, no público do aviso e na revisão anual; regras do sistema e do Estatuto pela descrição; (h) razão contábil e conferência
+      antifraude com a origem e o alerta em português (`lib/nomes-financeiros.ts`); (i) Inventário de dados e Relatório de impacto com os 198 campos
+      e as tabelas em português ("CPF (Pessoas)"), também na planilha e no PDF (`app/inventario_rotulos.py`); (j) a migração `9e3f1a7c5b20` troca 28
+      descrições que tinham "(v5.4a)", "FUSO_HORARIO", "/api/..." — só onde ainda está o texto do seed; valores das regras do Estatuto por extenso;
+      (k) a chamada da sessão com busca pelo nome e páginas de 10 (quem chegou por último no alto) e Débito/Crédito com acento. Travas novas:
+      `test_nomes_das_permissoes.py`, `test_inventario_rotulos.py`, `test_migracao_descricoes_sem_nome_tecnico.py` (o seed não volta a ter nome
+      interno). ACHADO DO ROBÔ com 300 presenças: o placar atualizava antes da lista de faltantes e um segundo clique rápido caía em quem acabara de
+      ser marcado ("já está credenciado") — o botão "Marcar presença" agora espera a lista voltar]**
+      **[Homologação: v5.4c-fase1, v5.4d-03, v5.4d-05, v5.4d-07, v5.4e-01 a 04, v5.4f-01, v5.4g-03, v5.4h-11, v5.7e-01, v6.1-01, v7.0c-01,
+      v7.0d-01, v7.3c-01, v7.5b-01, v9.3a-01 e v9.3b-01 verdes (nenhum grave); duas execuções do GitHub falharam ao NASCER ("workflow file issue",
+      sem nenhum passo) e passaram ao repetir. Suítes 2x verdes (painel 875, API 1912); Postgres verde (4a15d1d)]**
+      **[Produção: Deploy API e Deploy Painel verdes (a API só acrescentou campos e rotas, compatível com o painel anterior); `version.json` =
+      `abc903e`; `/api/permissoes/nomes` existe e pede login (401); o painel publicado tem "Procurar na chamada", "Nome da opção", `data-origem` no
+      razão e os nomes do inventário. A migração das descrições roda no deploy da API (verde); a leitura do banco de produção não é feita (regra)]**
+      **[FALTA (próximas rodadas da v9.3): telas ainda compridas no notebook — Projetos 17,5, Relatórios 16,2, Doações 15,5, Qualidade da base
+      12,1, Para propor 10,6, Atendimentos 10,4 — uma por vez; o formulário de Alçadas ainda pede o código do cargo digitado; depois disso a altura no
+      notebook passa a reprovar]**
 - [ ] Ajuda contextual e tour de primeiro acesso por módulo, no lugar de manual em PDF que
       ninguém lê.
 - [ ] Canal de feedback dentro do painel ("achei um problema nesta tela") ligado à fila de
