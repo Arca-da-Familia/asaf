@@ -2218,7 +2218,14 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       **[Produção: Deploy API e Deploy Painel verdes (a API só acrescentou campos e rotas, compatível com o painel anterior); `version.json` =
       `abc903e`; `/api/permissoes/nomes` existe e pede login (401); o painel publicado tem "Procurar na chamada", "Nome da opção", `data-origem` no
       razão e os nomes do inventário. A migração das descrições roda no deploy da API (verde); a leitura do banco de produção não é feita (regra)]**
-      **[FALTA (próximas rodadas da v9.3): telas ainda compridas no notebook — Projetos 17,5, Relatórios 16,2, Doações 15,5, Qualidade da base
+      **[v9.3n (2026-11-10) — PROJETOS: a lista ganhou busca (nome ou número, sem acento) e páginas de 10, indo à página do projeto aberto pelo
+      endereço ou recém-criado (a busca fica se ela acha o projeto novo). Os robôs procuram o projeto antes de olhar a lista (`procurarProjeto`).
+      ACHADO no caminho: os associados inventados da homologação ficam inadimplentes com o tempo (as mensalidades vencem) e o sistema recusa a reserva
+      deles, como deve; o robô v5.4f-02 passou a escolher solicitantes EM DIA perguntando ao sistema. **Homologação**: v5.4f-01, v5.4f-02, v5.4g-04,
+      v5.4h-04, v5.5b-01, v7.0d-01, v7.1c-01 e v9.3b-01 verdes; painel 877 em duas rodadas. **Produção**: Deploy Painel verde, `version.json` =
+      `36c60cd`, a tela publicada tem "Procurar projeto" e "Páginas dos projetos"]**
+      **[FALTA (próximas rodadas da v9.3): telas ainda compridas no notebook — Relatórios 16,2, Doações 15,5 (abas que deixam tudo carregado e mostram
+      uma parte por vez, para os robôs que esperam todos os relatórios abrirem juntos), Qualidade da base
       12,1, Para propor 10,6, Atendimentos 10,4 — uma por vez; o formulário de Alçadas ainda pede o código do cargo digitado; depois disso a altura no
       notebook passa a reprovar]**
 - [ ] Ajuda contextual e tour de primeiro acesso por módulo, no lugar de manual em PDF que
