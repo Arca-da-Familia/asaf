@@ -102,11 +102,39 @@ def test_completude_do_cadastro(client, auth_headers):
     assert "foto" in corpo["campos_faltando"]
 
 
-def test_consultar_cep_valido(client):
-    resposta = client.get("/api/cep/01310100")
+class _RespostaDoViaCep:
+    """O que o ViaCEP responde; o teste não depende do serviço de verdade estar no ar (11/11: um 503 dele derrubou a suíte)."""
+
+    def __init__(self, dados=None, falha=False):
+        self.dados, self.falha = dados or {}, falha
+
+    def raise_for_status(self):
+        if self.falha:
+            import httpx2
+            raise httpx2.HTTPStatusError("503", request=None, response=None)
+
+    def json(self):
+        return self.dados
+
+
+def test_consultar_cep_valido(client, monkeypatch):
+    import httpx2
+    pedidos = []
+    monkeypatch.setattr(httpx2, "get", lambda url, timeout: pedidos.append(url) or _RespostaDoViaCep(
+        {"logradouro": "Avenida Paulista", "bairro": "Bela Vista", "localidade": "São Paulo", "uf": "SP"}))
+    resposta = client.get("/api/cep/01310-100")
     assert resposta.status_code == 200
     corpo = resposta.json()
-    assert corpo["cidade"] == "São Paulo"
+    assert corpo == {"cep": "01310100", "logradouro": "Avenida Paulista", "bairro": "Bela Vista", "cidade": "São Paulo", "estado": "SP"}
+    assert pedidos == ["https://viacep.com.br/ws/01310100/json/"]
+
+
+def test_cep_com_o_servico_fora_do_ar_responde_503_e_inexistente_404(client, monkeypatch):
+    import httpx2
+    monkeypatch.setattr(httpx2, "get", lambda url, timeout: _RespostaDoViaCep(falha=True))
+    assert client.get("/api/cep/01310100").status_code == 503
+    monkeypatch.setattr(httpx2, "get", lambda url, timeout: _RespostaDoViaCep({"erro": True}))
+    assert client.get("/api/cep/99999999").status_code == 404
 
 
 def test_consultar_cep_formato_invalido(client):
