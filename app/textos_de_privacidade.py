@@ -105,7 +105,7 @@ TEXTOS: tuple[Texto, ...] = (
     # ---------------------------------------------------------------- inscrição em evento: era "consentimento" (configuração editável); a base é a própria inscrição (art. 7º, V)
     Texto("INSCRICAO_EVENTO", "1", date(2026, 9, 18),
           "Ao me inscrever, autorizo o uso dos meus dados pessoais (nome, CPF, e-mail, telefone e respostas deste formulário) para fins de organização deste evento, nos termos da LGPD.",
-          reconstituido=True, observacao="Texto padrão do sistema (configuração TEXTO_CONSENTIMENTO_LGPD_INSCRICAO), que podia ser editado em Regras do sistema.",
+          reconstituido=True, observacao="Texto padrão do sistema para a inscrição em evento, que podia ser editado em Regras do sistema.",
           tipo=CONSENTIMENTO, caixa="Li e aceito."),
     Texto("INSCRICAO_EVENTO", "2", date(2026, 10, 27),
           "Os dados deste formulário (nome, CPF, e-mail, telefone e as respostas; numa inscrição em grupo, também o nome, o CPF e as respostas de cada pessoa que "
@@ -285,7 +285,10 @@ def sincronizar(db) -> list[str]:
 def _versao_do_banco(r, catalogo: Optional[Texto]) -> dict:
     return {
         "versao": r.versao, "vigente_desde": r.vigente_desde.date().isoformat(), "texto": r.texto, "texto_sem_links": sem_links(r.texto), "impressao": r.impressao,
-        "reconstituido": bool(r.reconstituido), "observacao": r.observacao, "registrado_em": r.registrado_em, "tipo": r.tipo, "caixa": r.caixa,
+        # v9.3v: a observação é a nota do SISTEMA sobre a versão (não o texto que a pessoa leu, que é `texto` e nunca muda): vale a redação atual do
+        # catálogo, para a nota antiga com nome técnico (o nome da configuração) não aparecer na tela
+        "reconstituido": bool(r.reconstituido), "observacao": (catalogo.observacao if catalogo is not None and catalogo.observacao else r.observacao),
+        "registrado_em": r.registrado_em, "tipo": r.tipo, "caixa": r.caixa,
         # o catálogo do código diverge do que foi gravado (vale o gravado: é o que foi mostrado)
         "diverge_do_codigo": catalogo is not None and catalogo.impressao != r.impressao,
         "marcada_pela_equipe": bool(catalogo and catalogo.pela_equipe),

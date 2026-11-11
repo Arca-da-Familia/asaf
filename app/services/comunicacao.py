@@ -355,6 +355,16 @@ def descrever_publico(db: Session, publico: dict) -> str:
     return ("Associados" + filtros if filtros else "Todos os associados (menos os desligados)")[:400]
 
 
+def descricao_do_publico(aviso) -> str:
+    """v9.3v (nada de nome técnico na tela): os avisos publicados antes da v9.3g guardaram o CÓDIGO da permissão no texto do público ("quem tem a
+    permissão financeiro_auditar"). O grupo de permissão é descrito de novo pela regra gravada no próprio aviso (`publico`), com o nome em português;
+    os outros grupos ficam como foram gravados (o nome do projeto, por exemplo, é o de quando o aviso saiu)."""
+    publico = aviso.publico if isinstance(aviso.publico, dict) else {}
+    if publico.get("tipo") == PUBLICO_PERMISSAO and publico.get("codigo_permissao"):
+        return f"Quem tem a permissão \"{nome_da_permissao(publico['codigo_permissao'])}\""
+    return aviso.publico_descricao
+
+
 def conferir_publico(db: Session, usuario: Usuario, publico: dict) -> dict:
     """A prévia que a tela mostra antes de publicar: o total, quantos não têm acesso ao painel e quem são."""
     normalizado = normalizar_publico(db, publico, usuario)
@@ -590,7 +600,7 @@ def _resumo(aviso: Aviso, totais: Optional[dict], dia: date, rotulos: dict[str, 
         totais = {"destinatarios": aviso.total_destinatarios, "lidos": aviso.total_lidos, "confirmados": aviso.total_confirmados, "sem_acesso": None}
     return {
         "id_aviso": aviso.id_aviso, "titulo": aviso.titulo, "categoria": aviso.categoria, "categoria_rotulo": rotulos.get(aviso.categoria, aviso.categoria),
-        "exige_confirmacao": aviso.exige_confirmacao, "valido_ate": aviso.valido_ate, "publicado_em": aviso.publicado_em, "publico_descricao": aviso.publico_descricao,
+        "exige_confirmacao": aviso.exige_confirmacao, "valido_ate": aviso.valido_ate, "publicado_em": aviso.publicado_em, "publico_descricao": descricao_do_publico(aviso),
         "autor": nomes(aviso.id_usuario_autor), "situacao": situacao(aviso, dia), "retirado_em": aviso.retirado_em, "motivo_retirada": aviso.motivo_retirada,
         "leitura_apagada_em": aviso.leitura_apagada_em, "totais": totais,
         "por_email": aviso.por_email, "email": email if aviso.por_email else None,

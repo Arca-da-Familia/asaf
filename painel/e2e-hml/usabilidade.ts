@@ -276,6 +276,9 @@ async function medir(
         if (!pai || !visivel(pai) || noMenuFechado(pai)) continue
         if (pai.closest('code, kbd, pre, [data-tecnico], [data-ambiente]'))
           continue
+        // v9.3v: o texto EXATO que a pessoa leu ou assinou (aviso de privacidade, termo): o destaque em maiúsculas é do texto legal ("CRIANÇA OU
+        // ADOLESCENTE:"), não código — ali só a palavra_com_sublinhado conta
+        const textoFiel = pai.closest('[data-texto-fiel]') !== null
         for (const m of (n.textContent ?? '').matchAll(/\S+/gu)) {
           const palavra = m[0]
           // e-mail, endereço, marcador que a pessoa digita ({primeiro_nome}) e sigla conhecida não são nome técnico
@@ -283,7 +286,7 @@ async function medir(
           if (/^\W*(HTTPS|WCAG)\W*$/.test(palavra)) continue
           const sub = /[\p{L}\d]+(?:_[\p{L}\d]+)+/u.exec(palavra)
           if (sub) tecnicos.add(sub[0])
-          else {
+          else if (!textoFiel) {
             const maiusc = /^[^\p{L}]*(\p{Lu}{5,})[^\p{L}]*$/u.exec(palavra)
             if (maiusc) tecnicos.add(maiusc[1]!)
           }
