@@ -540,13 +540,24 @@ async function baixarPelaTela(
 }
 
 // ------------------------------------------------------------------------------------------------ campanha de arrecadação e doação
+/** v9.3o: a tela de Doações tem abas; abre a pedida (espera ela aparecer: logo depois de abrir a tela, as abas ainda estão chegando). */
+async function abrirAbaDasDoacoes(
+  page: Page,
+  aba: 'Campanhas' | 'Doações registradas',
+): Promise<void> {
+  const botao = page.getByRole('tab', { name: aba, exact: true })
+  await expect(botao).toBeVisible()
+  if ((await botao.getAttribute('aria-selected')) !== 'true')
+    await botao.click()
+  await expect(botao).toHaveAttribute('aria-selected', 'true')
+}
+
 async function criarCampanhaDeArrecadacao(
   page: Page,
   d: { titulo: string; metaCentavos: number },
 ): Promise<number> {
-  // v9.3o: as campanhas ficam na aba "Campanhas"
-  const abaCampanhas = page.getByRole('tab', { name: 'Campanhas', exact: true })
-  if ((await abaCampanhas.count()) > 0) await abaCampanhas.click()
+  // v9.3o: as campanhas ficam na aba "Campanhas" (espera a tela trazer as abas antes de clicar)
+  await abrirAbaDasDoacoes(page, 'Campanhas')
   const secao = page.locator('section').filter({
     has: page.getByRole('heading', { name: 'Campanhas de arrecadação' }),
   })
@@ -579,6 +590,8 @@ const formularioDeDoacao = (page: Page) =>
 
 /** Abre o formulário "Registrar doação" do zero (se sobrou um aberto, fecha pelo "Cancelar" dele e abre de novo: a recusa antiga não confunde a nova). */
 async function abrirFormularioDeDoacao(page: Page): Promise<Locator> {
+  // v9.3o: o formulário fica na aba "Doações registradas"
+  await abrirAbaDasDoacoes(page, 'Doações registradas')
   const form = formularioDeDoacao(page)
   if ((await form.count()) > 0) {
     await form.getByRole('button', { name: 'Cancelar', exact: true }).click()
