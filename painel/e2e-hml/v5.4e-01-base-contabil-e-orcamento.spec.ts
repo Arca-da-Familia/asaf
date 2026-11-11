@@ -2573,7 +2573,11 @@ test('fluxo de caixa projetado: saldo inicial = soma das contas financeiras; cad
     ['/api/contas-financeiras/'],
     'Contas Financeiras',
   )
-  // v9.3x: as contas vêm 10 por página: soma página por página
+  // v9.3x: as contas vêm 10 por página: soma página por página. A lista aparece um instante depois da resposta do servidor: espera o primeiro
+  // cartão com saldo antes de ler (sem isso a soma pode sair zero)
+  await expect(
+    cartoes(page).locator('p.font-medium').filter({ hasText: /R\$/ }).first(),
+  ).toBeVisible()
   let somaDasContas = 0
   const paginasDasContas = page.getByRole('navigation', {
     name: 'Páginas das contas financeiras',
