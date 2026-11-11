@@ -2232,9 +2232,16 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       rodaram numa porta livre). **Produção**: o Deploy Painel parou duas vezes porque o servidor de pacotes do Ubuntu ficou fora do alcance do GitHub
       ao instalar o navegador dos testes — a publicação do painel e do site passou a instalá-lo como o robô (sem pacotes do sistema quando dá, e o apt com
       3 tentativas; `cd4317a`); Deploy Painel e Deploy Site verdes; `version.json` = `cd4317a`; a tela publicada tem as abas]**
-      **[FALTA (próximas rodadas da v9.3): telas ainda compridas no notebook — Qualidade da base
-      12,1, Para propor 10,6, Atendimentos 10,4 — uma por vez; o formulário de Alçadas ainda pede o código do cargo digitado; depois disso a altura no
-      notebook passa a reprovar]**
+      **[v9.3p (2026-11-11) — QUALIDADE DA BASE E PEDIDOS DE FILIAÇÃO MAIS CURTOS: a fila de revisão e a lista de pedidos (para propor) ganharam
+      busca pelo nome (sem acento) e páginas de 10, o mais novo primeiro. Robôs procuram a pessoa antes de olhar a lista (`procurarNaFila`,
+      `procurarPedido`). **Homologação**: v5.4c-fase1, v5.4h-09, v5.4h-10 e v9.3b-01 verdes; no notebook as duas telas saíram da lista das compridas
+      (eram 12,1 e 10,6 alturas); painel 880 em duas rodadas. **Produção**: Deploy Painel verde, `version.json` = `cffa9c2`, as telas publicadas têm
+      "Procurar na fila" e "Procurar pedido"]**
+      **[FALTA (próximas rodadas da v9.3): Atendimentos 10 por página (10,4 alturas) e Alçadas com os cargos marcados pelo nome (feitos na branch, na
+      homologação a seguir); a varredura de 11/11 no notebook ainda mostra, acima de 5 alturas: Fornecedores 11,2, Planos de contribuição 10,6, Alçadas
+      10,6, Documentos 10,1, Relatórios 9,4, Avisos de privacidade 9 (com nome técnico), Revisão anual 9, Conselho Fiscal 8,9, Centros de custo 8,9,
+      Reembolso 8, Contas financeiras 7,9 e outras 11 entre 5 e 7 — várias crescem com o dado que os robôs acumulam na homologação; uma por vez; depois
+      disso a altura no notebook passa a reprovar]**
 - [ ] Ajuda contextual e tour de primeiro acesso por módulo, no lugar de manual em PDF que
       ninguém lê.
 - [ ] Canal de feedback dentro do painel ("achei um problema nesta tela") ligado à fila de
