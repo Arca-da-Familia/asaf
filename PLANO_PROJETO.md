@@ -2224,8 +2224,15 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       deles, como deve; o robô v5.4f-02 passou a escolher solicitantes EM DIA perguntando ao sistema. **Homologação**: v5.4f-01, v5.4f-02, v5.4g-04,
       v5.4h-04, v5.5b-01, v7.0d-01, v7.1c-01 e v9.3b-01 verdes; painel 877 em duas rodadas. **Produção**: Deploy Painel verde, `version.json` =
       `36c60cd`, a tela publicada tem "Procurar projeto" e "Páginas dos projetos"]**
-      **[FALTA (próximas rodadas da v9.3): telas ainda compridas no notebook — Relatórios 16,2, Doações 15,5 (abas que deixam tudo carregado e mostram
-      uma parte por vez, para os robôs que esperam todos os relatórios abrirem juntos), Qualidade da base
+      **[v9.3o (2026-11-11) — RELATÓRIOS E DOAÇÕES EM ABAS: um relatório por aba (`?relatorio=inadimplencia`) e as três partes das doações (registradas,
+      pelo site, campanhas; `?aba=site`); o componente de abas ganhou `manterMontado` (cada parte já carrega ao abrir, como antes, e só a escolhida
+      aparece — os robôs que esperam todos os relatórios carregarem juntos seguem valendo); o aviso do sino de doação nova do site abre direto na aba do
+      site. Robôs: `abrirRelatorio` (apoio) e as abas das doações esperadas antes do clique. **Homologação**: v5.4e-02, v5.4e-04, v5.4g-03, v5.4h-08,
+      v5.6a-01, v5.7e-01 e v9.3b-01 verdes; painel 878 em duas rodadas (no computador a porta 5173 estava com outro programa; os testes de navegador
+      rodaram numa porta livre). **Produção**: o Deploy Painel parou duas vezes porque o servidor de pacotes do Ubuntu ficou fora do alcance do GitHub
+      ao instalar o navegador dos testes — a publicação do painel e do site passou a instalá-lo como o robô (sem pacotes do sistema quando dá, e o apt com
+      3 tentativas; `cd4317a`); Deploy Painel e Deploy Site verdes; `version.json` = `cd4317a`; a tela publicada tem as abas]**
+      **[FALTA (próximas rodadas da v9.3): telas ainda compridas no notebook — Qualidade da base
       12,1, Para propor 10,6, Atendimentos 10,4 — uma por vez; o formulário de Alçadas ainda pede o código do cargo digitado; depois disso a altura no
       notebook passa a reprovar]**
 - [ ] Ajuda contextual e tour de primeiro acesso por módulo, no lugar de manual em PDF que
