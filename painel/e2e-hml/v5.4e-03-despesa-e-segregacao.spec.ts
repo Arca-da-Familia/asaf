@@ -20,6 +20,7 @@ import {
   ver,
   vigiar,
   type Papel,
+  procurarFornecedor,
 } from './apoio'
 
 // v5.4e — FASE 3 ao vivo, parte 3: DESPESA COM SEGREGAÇÃO DE FUNÇÕES, pela tela do Financeiro (fornecedores, alçadas de aprovação, compras,
@@ -511,26 +512,44 @@ async function encerrarConflitosDe(page: Page, nomes: RegExp): Promise<number> {
 // Faixas de alçada de lixo (valores acima de R$ 9.000.000,00, que nenhuma compra de teste alcança) e a faixa de R$ 1,00 a R$ 50,00 do
 // roteiro "faixa inativada deixa de valer": nunca podem ficar ATIVAS, senão a recusa "sem alçada" deixa de acontecer nas rodadas seguintes.
 const ALCADAS_DE_TESTE = /R\$\s9\.000\.\d{3},00|R\$\s1,00\saté\sR\$\s50,00/
+// v9.3s: as três faixas "de verdade" que o roteiro cria a cada rodada. As das rodadas anteriores são inativadas antes de criar as novas: senão a
+// homologação acumula três faixas em vigor por rodada (a tela chegou a 10,6 alturas de notebook)
+const ALCADAS_DO_ROTEIRO =
+  /R\$\s100,00\saté\sR\$\s999,99|R\$\s1\.000,00\saté\sR\$\s4\.999,99|R\$\s5\.000,00\saté\ssem\steto/
 
-/** Inativa (pela tela) toda faixa de alçada ATIVA de teste. Devolve quantas. */
-async function inativarAlcadasDeTeste(page: Page): Promise<number> {
+/** Inativa (pela tela) toda faixa ATIVA que casa com o padrão (de início, as de teste). Devolve quantas. v9.3s: as ativas ficam na aba "Em vigor",
+ * 10 por página — percorre as páginas. */
+async function inativarAlcadasDeTeste(
+  page: Page,
+  padrao: RegExp = ALCADAS_DE_TESTE,
+): Promise<number> {
   const carregou = aguardar(page, 'GET', /\/api\/alcadas-aprovacao\/$/)
   await abrirTela(page, '/financeiro/alcadas-aprovacao', 'Alçadas de Aprovação')
   await carregou
-  await page.waitForTimeout(500) // a lista não tem estado "carregando": vazia e carregando se parecem
+  await expect(page.getByRole('tab', { name: /^Em vigor/ })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
   const ativas = () =>
-    cartaoDe(page, ALCADAS_DE_TESTE).filter({
+    cartaoDe(page, padrao).filter({
       has: page.getByText('Ativa', { exact: true }),
     })
+  const proxima = page
+    .getByRole('navigation', { name: 'Páginas das alçadas' })
+    .getByRole('button', { name: 'Próxima página' })
   let inativadas = 0
-  while (inativadas < 12 && (await ativas().count()) > 0) {
-    const antes = await ativas().count()
-    await ativas()
-      .first()
-      .getByRole('button', { name: 'Inativar', exact: true })
-      .click()
-    await expect(ativas()).toHaveCount(antes - 1)
-    inativadas += 1
+  for (let volta = 0; volta < 60; volta += 1) {
+    if ((await ativas().count()) > 0) {
+      // espera ESTA faixa sair da aba (a contagem da página pode não mudar: a lista anda e outra faixa da página seguinte entra no lugar)
+      const alvo = ativas().first()
+      const numero = await alvo.getAttribute('data-alcada')
+      await alvo.getByRole('button', { name: 'Inativar', exact: true }).click()
+      await expect(page.locator(`[data-alcada="${numero}"]`)).toHaveCount(0)
+      inativadas += 1
+      continue
+    }
+    if ((await proxima.count()) === 0 || (await proxima.isDisabled())) break
+    await proxima.click()
   }
   return inativadas
 }
@@ -785,6 +804,9 @@ test('Fornecedores: cadastro com as recusas (vazio, CNPJ curto, só letras, repe
     await expect(edicao).toHaveCount(0)
     await expect(cartaoDe(page, beta)).toContainText(cnpjBeta)
 
+    // v9.3s: a lista tem páginas de 10 (em ordem alfabética): o Alfa pode estar em outra página que a do Beta
+    await procurarFornecedor(page, alfa)
+
     // "Validar situação" (consulta pública do CNPJ): sem internet ou com CNPJ que não existe, o sistema registra "Não verificado" e segue
     await cartaoAlfa.getByRole('button', { name: 'Validar situação' }).click()
     await expect(cartaoAlfa).not.toContainText('nunca validada', {
@@ -903,6 +925,7 @@ test('Fornecedores: cadastro com as recusas (vazio, CNPJ curto, só letras, repe
   await test.step('2. a Presidente (outra pessoa) aprova uma troca e rejeita a outra', async () => {
     await entrarNoFinanceiro(page, 'cargo_presidente')
     await abrirTela(page, '/financeiro/fornecedores', 'Fornecedores')
+    await procurarFornecedor(page, alfa)
     const cartaoAlfa = cartaoDe(page, alfa)
     await cartaoAlfa
       .getByRole('button', { name: 'Dados bancários', exact: true })
@@ -1004,6 +1027,11 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
   const aceitasDeLixo: number[] = []
 
   await entrarNoFinanceiro(page, 'presidente')
+  const velhas = await inativarAlcadasDeTeste(page, ALCADAS_DO_ROTEIRO)
+  info.annotations.push({
+    type: 'limpeza',
+    description: `${velhas} faixa(s) das rodadas anteriores inativada(s) antes de criar as desta rodada`,
+  })
   const antes = await abrirAuditoria(page, 'alcadas_aprovacao')
   await abrirTela(page, '/financeiro/alcadas-aprovacao', 'Alçadas de Aprovação')
 
@@ -1243,20 +1271,28 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
       'id_alcada',
     )
     await expect(formulario()).toHaveCount(0)
+    // v9.3s: em vigor e inativas ficam em abas; a faixa é achada pelo número dela
+    const minha = page.locator(`[data-alcada="${idFaixaMinima}"]`)
+    await expect(minha).toContainText('Ativa')
     await expect(ativas()).toHaveCount(1)
-    const jaInativas = await inativas().count()
     await ver(page, info, 'faixa de R$ 1,00 a R$ 50,00 ativa')
     const inativou = await acionar(
       page,
       'PUT',
       /\/api\/alcadas-aprovacao\/\d+\/ativo$/,
-      ativas().getByRole('button', { name: 'Inativar', exact: true }),
+      minha.getByRole('button', { name: 'Inativar', exact: true }),
     )
     expect(inativou.status()).toBe(200)
+    await expect(page.locator('[data-aviso-alcada]')).toContainText(
+      'Faixa de R$ 1,00 até R$ 50,00 inativada — ela agora está na aba Inativas.',
+    )
+    await expect(minha).toHaveCount(0)
     await expect(ativas()).toHaveCount(0)
-    await expect(inativas()).toHaveCount(jaInativas + 1)
+    await page.getByRole('tab', { name: /^Inativas/ }).click()
+    await expect(minha).toContainText('Inativa')
+    await expect(inativas().first()).toBeVisible()
     await expect(
-      inativas().first().getByRole('button', { name: 'Reativar', exact: true }),
+      minha.getByRole('button', { name: 'Reativar', exact: true }),
     ).toBeVisible()
     await ver(
       page,

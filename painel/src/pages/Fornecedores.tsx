@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { z } from 'zod'
 
+import { Paginador } from '@/components/data/Paginador'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -16,10 +17,12 @@ import {
   validarSituacaoCadastral,
   type Fornecedor,
 } from '@/lib/api'
+import { usePaginaLocal } from '@/lib/pagina-local'
 import {
   dadosBancariosFornecedorCriarSchema,
   fornecedorCriarSchema,
 } from '@/lib/schemas'
+import { simplificar } from '@/lib/texto'
 
 // v2.5.8 (FASE 2.5 - Painel) - Fornecedores (backend v3.0, só faltava a tela). `categoria_servico`
 // é texto livre no backend (não existe catálogo pra isso) - confirmado antes de tentar um
@@ -293,6 +296,8 @@ function PainelDadosBancarios({ idFornecedor }: { idFornecedor: number }) {
   )
 }
 
+const FORNECEDORES_POR_PAGINA = 10
+
 export function FornecedoresPage() {
   const [mostrarForm, setMostrarForm] = useState(false)
   const [editando, setEditando] = useState<number | null>(null)
@@ -311,15 +316,40 @@ export function FornecedoresPage() {
     queryFn: listarFornecedores,
   })
 
+  // v9.3s (a tela tinha 11,2 alturas de notebook na homologação: a lista inteira): busca pela razão social (sem acento) ou pelo CNPJ e páginas de 10
+  const [busca, setBusca] = useState('')
+  const termo = simplificar(busca.trim())
+  const digitos = busca.replace(/\D/g, '')
+  const encontrados = termo
+    ? (fornecedores ?? []).filter(
+        (f) =>
+          simplificar(f.razao_social).includes(termo) ||
+          (digitos.length >= 3 && f.cnpj.replace(/\D/g, '').includes(digitos)),
+      )
+    : fornecedores
+  const pagina = usePaginaLocal(encontrados, FORNECEDORES_POR_PAGINA, termo)
+  // o fornecedor recém-cadastrado: a lista vai à página onde ele está (a lista vem em ordem alfabética)
+  const [mostrar, setMostrar] = useState<number | null>(null)
+  if (mostrar !== null && encontrados) {
+    const posicao = encontrados.findIndex((f) => f.id_fornecedor === mostrar)
+    if (posicao >= 0) {
+      setMostrar(null)
+      pagina.setPagina(Math.floor(posicao / FORNECEDORES_POR_PAGINA) + 1)
+    }
+  }
+
   function invalidar() {
-    queryClient.invalidateQueries({ queryKey: ['fornecedores'] })
+    return queryClient.invalidateQueries({ queryKey: ['fornecedores'] })
   }
 
   const criar = useMutation({
     mutationFn: (v: z.infer<typeof fornecedorCriarSchema>) =>
       criarFornecedor(v),
-    onSuccess: () => {
-      invalidar()
+    onSuccess: async (criado, v) => {
+      // se a busca em curso acha o fornecedor novo, ela fica; senão, sai (e a lista vai à página dele)
+      if (termo && !simplificar(v.razao_social).includes(termo)) setBusca('')
+      await invalidar()
+      setMostrar(criado.id_fornecedor)
       setMostrarForm(false)
     },
   })
@@ -370,8 +400,39 @@ export function FornecedoresPage() {
           </div>
         )}
 
+        {(fornecedores ?? []).length > FORNECEDORES_POR_PAGINA && (
+          <div className="mb-3 max-w-md">
+            <label
+              htmlFor="procurar-fornecedor"
+              className="text-sm font-medium"
+            >
+              Procurar fornecedor
+            </label>
+            <input
+              id="procurar-fornecedor"
+              type="search"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Razão social ou CNPJ"
+              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            />
+            {termo && (
+              <p
+                aria-live="polite"
+                className="mt-1 text-xs text-muted-foreground"
+              >
+                {pagina.total}{' '}
+                {pagina.total === 1
+                  ? 'fornecedor encontrado'
+                  : 'fornecedores encontrados'}
+                .
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="grid items-start gap-2 lg:grid-cols-2">
-          {(fornecedores ?? []).map((f) =>
+          {pagina.daPagina.map((f) =>
             editando === f.id_fornecedor ? (
               <FormularioFornecedor
                 key={f.id_fornecedor}
@@ -443,7 +504,19 @@ export function FornecedoresPage() {
               Nenhum fornecedor cadastrado.
             </p>
           )}
+          {termo && pagina.total === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhum fornecedor com esse nome ou CNPJ.
+            </p>
+          )}
         </div>
+        <Paginador
+          pagina={pagina.pagina}
+          porPagina={pagina.porPagina}
+          total={pagina.total}
+          aoMudar={pagina.setPagina}
+          rotulo="Páginas dos fornecedores"
+        />
       </section>
     </>
   )

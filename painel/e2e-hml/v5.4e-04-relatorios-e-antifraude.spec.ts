@@ -21,6 +21,7 @@ import {
   ver,
   vigiar,
   type Papel,
+  procurarFornecedor,
 } from './apoio'
 
 // v5.4e — FASE 3 ao vivo, parte 4: RELATÓRIOS E PRESTAÇÃO DE CONTAS, CONTROLES ANTIFRAUDE E VALORES CENTAVO A CENTAVO, pela tela do hml-painel.
@@ -495,6 +496,22 @@ async function secao(page: Page, titulo: string): Promise<Locator> {
 /** Cartão de lista (`div.rounded-md.border`) que traz o texto. */
 const cartao = (escopo: Page | Locator, texto: string | RegExp): Locator =>
   escopo.locator('div.rounded-md.border').filter({ hasText: texto })
+
+/** v9.3s: as Alçadas mostram 10 faixas por página (em vigor por valor, inativas a mais recente primeiro): anda pelas páginas da aba aberta até a
+ * faixa aparecer. */
+async function irAteAAlcada(page: Page, faixa: Locator): Promise<void> {
+  await expect(page.getByRole('tab', { name: /^Em vigor/ })).toBeVisible()
+  await expect(page.locator('[data-alcada]').first()).toBeVisible()
+  const proxima = page
+    .getByRole('navigation', { name: 'Páginas das alçadas' })
+    .getByRole('button', { name: 'Próxima página' })
+  for (let volta = 0; volta < 60; volta += 1) {
+    if ((await faixa.count()) > 0) break
+    if ((await proxima.count()) === 0 || (await proxima.isDisabled())) break
+    await proxima.click()
+  }
+  await expect(faixa.first()).toBeVisible()
+}
 
 /** v5.7g: as leituras do Conselho Fiscal (títulos e razão) são paginadas (25 por vez) e têm busca: o roteiro busca pelo texto do que criou e espera a resposta do servidor antes de olhar a tela. */
 async function buscarNoConselho(
@@ -1139,7 +1156,7 @@ test.afterAll(async ({ browser }) => {
       page,
       `${brl(ALCADA_MINIMO)} até ${brl(ALCADA_TETO)}`,
     ).filter({ has: page.getByText('Ativa', { exact: true }) })
-    await expect(minha.first()).toBeVisible()
+    await irAteAAlcada(page, minha) // v9.3s: em vigor tem páginas de 10
     for (let i = 0; i < 5; i += 1) {
       const ativas = await minha.count()
       if (ativas === 0) break
@@ -1616,6 +1633,7 @@ test('4. a tesouraria pede a troca dos dados bancários dos dois fornecedores; a
   ).toBeVisible()
   for (const chave of ['F1', 'F2'] as ChaveFornecedor[]) {
     const f = FORNECEDORES[chave]
+    await procurarFornecedor(page, f.razao) // v9.3s: a lista tem páginas de 10
     const card = cartao(page, f.razao)
     await expect(card).toHaveCount(1)
     await card.getByRole('button', { name: 'Dados bancários' }).click()
@@ -1688,6 +1706,7 @@ test('5. o Presidente aprova a troca do fornecedor 1, rejeita a do 2 e cadastra 
   await expect(
     page.getByRole('heading', { name: 'Fornecedores', level: 1 }),
   ).toBeVisible()
+  await procurarFornecedor(page, FORNECEDORES.F1.razao) // v9.3s: a lista tem páginas de 10
   const c1 = cartao(page, FORNECEDORES.F1.razao)
   await c1.getByRole('button', { name: 'Dados bancários' }).click()
   await expect(c1.getByText('Pendente', { exact: true })).toBeVisible()
@@ -1698,6 +1717,7 @@ test('5. o Presidente aprova a troca do fornecedor 1, rejeita a do 2 e cadastra 
   expect(aprovada.status(), await aprovada.text()).toBe(200)
   await expect(c1.getByText('Aprovado', { exact: true })).toBeVisible()
   await ver(page, info, 'troca do fornecedor 1 aprovada pelo Presidente')
+  await procurarFornecedor(page, FORNECEDORES.F2.razao)
   const c2 = cartao(page, FORNECEDORES.F2.razao)
   await c2.getByRole('button', { name: 'Dados bancários' }).click()
   await expect(c2.getByText('Pendente', { exact: true })).toBeVisible()
@@ -2287,18 +2307,33 @@ test('10. os alertas seguem os dados: o mês é o da gravação (não o da compe
     )
   }
   const alternarAlcada = async (rotulo: 'Inativar' | 'Reativar') => {
-    await page.goto('/financeiro/alcadas-aprovacao')
-    const minha = cartao(
-      page,
-      `${brl(ALCADA_MINIMO)} até ${brl(ALCADA_TETO)}`,
-    ).first()
-    await expect(minha).toBeVisible()
+    // v9.3s: as faixas em vigor e as inativas ficam em abas (10 por página); a do robô é achada pelo número dela
+    await page.goto(
+      rotulo === 'Inativar'
+        ? '/financeiro/alcadas-aprovacao'
+        : '/financeiro/alcadas-aprovacao?alcadas=inativas',
+    )
+    const minha = page.locator(`[data-alcada="${estado.idAlcada}"]`)
+    await irAteAAlcada(page, minha)
     const [resposta] = await Promise.all([
       respostaDe(page, 'PUT', /\/api\/alcadas-aprovacao\/\d+\/ativo$/),
       minha.getByRole('button', { name: rotulo }).click(),
     ])
     expect(resposta.status(), await resposta.text()).toBe(200)
     estado.alcadaAtiva = rotulo === 'Reativar'
+    await expect(page.locator('[data-aviso-alcada]')).toContainText(
+      rotulo === 'Inativar'
+        ? 'inativada — ela agora está na aba Inativas.'
+        : 'reativada — ela voltou para a aba Em vigor.',
+    )
+    // saiu da aba em que estava e aparece na outra com a situação nova
+    await expect(minha).toHaveCount(0)
+    await page
+      .getByRole('tab', {
+        name: rotulo === 'Inativar' ? /^Inativas/ : /^Em vigor/,
+      })
+      .click()
+    await irAteAAlcada(page, minha)
     await expect(minha).toContainText(
       rotulo === 'Inativar' ? 'Inativa' : 'Ativa',
     )
