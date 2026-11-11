@@ -94,12 +94,15 @@ export const obterConsentimentos = (
   origem: OrigemDeConsentimento | '',
   busca = '',
   pagina = 1,
+  // v9.3z: 10 por página (a tela tinha 7 alturas de notebook com 50); o servidor manda 50 se não pedir
+  porPagina = 10,
 ) => {
   const consulta = new URLSearchParams()
   if (situacao) consulta.set('situacao', situacao)
   if (origem) consulta.set('origem', origem)
   if (busca.trim()) consulta.set('busca', busca.trim())
   if (pagina > 1) consulta.set('pagina', String(pagina))
+  consulta.set('por_pagina', String(porPagina))
   const q = consulta.toString()
   return apiFetch<ListaDeConsentimentos>(
     `/api/privacidade/consentimentos${q ? `?${q}` : ''}`,
