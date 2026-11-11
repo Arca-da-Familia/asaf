@@ -136,13 +136,13 @@ describe('Relatórios: a consulta que falha aparece, e não vira "sem movimento"
     vi.mocked(api.obterPadroesSuspeitos).mockResolvedValue([])
   })
 
-  function desenhar() {
+  function desenhar(endereco = '/financeiro/relatorios') {
     const cliente = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     })
     return render(
       <QueryClientProvider client={cliente}>
-        <MemoryRouter>
+        <MemoryRouter initialEntries={[endereco]}>
           <RelatoriosPage />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -159,6 +159,32 @@ describe('Relatórios: a consulta que falha aparece, e não vira "sem movimento"
     ).toBeInTheDocument()
     expect(
       screen.queryByText('Sem movimento no período.'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('v9.3o: um relatório por aba; todos carregam ao abrir e o do endereço aparece', async () => {
+    vi.mocked(api.obterBalancete).mockResolvedValue([])
+    desenhar('/financeiro/relatorios?relatorio=inadimplencia')
+    expect(
+      (await screen.findAllByRole('tab')).map((aba) => aba.textContent),
+    ).toEqual([
+      'Balancete',
+      'Receitas x despesas',
+      'Inadimplência',
+      'Extrato por conta',
+      'Por projeto',
+      'Padrões suspeitos',
+      'Prestação de contas',
+    ])
+    expect(
+      screen.getByRole('tab', { name: 'Inadimplência', selected: true }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Inadimplência' })).toBeVisible()
+    // os outros relatórios já carregaram (ficam montados), só não aparecem
+    expect(api.obterBalancete).toHaveBeenCalled()
+    expect(api.obterPadroesSuspeitos).toHaveBeenCalled()
+    expect(
+      screen.queryByRole('heading', { name: 'Balancete por período' }),
     ).not.toBeInTheDocument()
   })
 

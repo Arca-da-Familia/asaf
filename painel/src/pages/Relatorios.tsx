@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router'
 import { useId, useState } from 'react'
 
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -18,6 +19,7 @@ import {
   obterRelatorioPorProjeto,
 } from '@/lib/api'
 import { nomeDoAlerta, nomeDaPartida } from '@/lib/nomes-financeiros'
+import { Abas } from '@/components/ui/abas'
 
 // v3.6 (FASE 3 - Financeiro) - demonstrativos financeiros (balancete, receitas x despesas por
 // conta/centro de custo, inadimplência, extrato por conta financeira, por projeto) e prestação de
@@ -618,6 +620,17 @@ function SecaoPadroesSuspeitos() {
 }
 
 export function RelatoriosPage() {
+  const [parametros, setParametros] = useSearchParams()
+  const aba = parametros.get('relatorio') ?? 'balancete'
+  function mudarDeAba(chave: string) {
+    setParametros(
+      (p) => {
+        p.set('relatorio', chave)
+        return p
+      },
+      { replace: true },
+    )
+  }
   return (
     <>
       <PageHeader
@@ -628,13 +641,51 @@ export function RelatoriosPage() {
           { rotulo: 'Relatórios' },
         ]}
       />
-      <SecaoBalancete />
-      <SecaoReceitasDespesas />
-      <SecaoInadimplencia />
-      <SecaoExtratoContaFinanceira />
-      <SecaoPorProjeto />
-      <SecaoPadroesSuspeitos />
-      <SecaoPrestacaoDeContas />
+      {/* v9.3o (a tela tinha 16 alturas de notebook): um relatório por aba, com a aba no endereço (`?relatorio=inadimplencia`). As abas ficam todas
+          montadas (cada relatório já carrega ao abrir a tela, como antes) e só a escolhida aparece */}
+      <Abas
+        rotulo="Relatórios"
+        atual={aba}
+        aoMudar={mudarDeAba}
+        manterMontado
+        abas={[
+          {
+            chave: 'balancete',
+            rotulo: 'Balancete',
+            conteudo: <SecaoBalancete />,
+          },
+          {
+            chave: 'receitas-despesas',
+            rotulo: 'Receitas x despesas',
+            conteudo: <SecaoReceitasDespesas />,
+          },
+          {
+            chave: 'inadimplencia',
+            rotulo: 'Inadimplência',
+            conteudo: <SecaoInadimplencia />,
+          },
+          {
+            chave: 'extrato',
+            rotulo: 'Extrato por conta',
+            conteudo: <SecaoExtratoContaFinanceira />,
+          },
+          {
+            chave: 'por-projeto',
+            rotulo: 'Por projeto',
+            conteudo: <SecaoPorProjeto />,
+          },
+          {
+            chave: 'padroes-suspeitos',
+            rotulo: 'Padrões suspeitos',
+            conteudo: <SecaoPadroesSuspeitos />,
+          },
+          {
+            chave: 'prestacao-de-contas',
+            rotulo: 'Prestação de contas',
+            conteudo: <SecaoPrestacaoDeContas />,
+          },
+        ]}
+      />
     </>
   )
 }

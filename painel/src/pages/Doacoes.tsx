@@ -4,6 +4,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router'
 import { useState } from 'react'
 import { z } from 'zod'
 
@@ -27,6 +28,7 @@ import {
   campanhaArrecadacaoCriarSchema,
   doacaoCriarSchema,
 } from '@/lib/schemas'
+import { Abas } from '@/components/ui/abas'
 
 // v9.2c: quantas por página (o servidor pagina: app/paginacao.py)
 const POR_PAGINA_DOACOES = 20
@@ -322,6 +324,17 @@ function FormularioDoacao({ onCancelar }: { onCancelar: () => void }) {
 }
 
 export function DoacoesPage() {
+  const [parametros, setParametros] = useSearchParams()
+  const aba = parametros.get('aba') ?? 'registradas'
+  function mudarDeAba(chave: string) {
+    setParametros(
+      (p) => {
+        p.set('aba', chave)
+        return p
+      },
+      { replace: true },
+    )
+  }
   const [mostrarFormCampanha, setMostrarFormCampanha] = useState(false)
   const [mostrarFormDoacao, setMostrarFormDoacao] = useState(false)
   const queryClient = useQueryClient()
@@ -359,147 +372,173 @@ export function DoacoesPage() {
         ]}
       />
 
-      <DoacoesDoSite />
-
-      <section className="mb-6 rounded-xl border border-border bg-card p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-semibold">Campanhas de arrecadação</h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setMostrarFormCampanha((v) => !v)}
-          >
-            {mostrarFormCampanha ? 'Cancelar' : 'Nova campanha'}
-          </Button>
-        </div>
-        {mostrarFormCampanha && (
-          <FormularioCampanha
-            onCancelar={() => setMostrarFormCampanha(false)}
-          />
-        )}
-        <div className="grid items-start gap-2 lg:grid-cols-2">
-          {paginaCampanhas.daPagina.map((c) => {
-            const progresso = Math.min(
-              100,
-              (c.valor_arrecadado / c.meta_valor) * 100,
-            )
-            return (
-              <div
-                key={c.id_campanha}
-                className="rounded-md border border-border p-3 text-sm"
-              >
-                <div className="flex items-center justify-between">
-                  <p className="font-medium">{c.titulo}</p>
-                  <span
-                    className={
-                      c.ativa
-                        ? 'text-green-700 dark:text-green-400'
-                        : 'text-muted-foreground'
-                    }
-                  >
-                    {c.ativa ? 'Ativa' : 'Encerrada'}
-                  </span>
-                </div>
-                <p className="text-muted-foreground">
-                  {formatarReais(c.valor_arrecadado)} de{' '}
-                  {formatarReais(c.meta_valor)} ({progresso.toFixed(0)}%)
-                </p>
-                <div className="mt-1 h-2 w-full rounded-full bg-muted">
-                  <div
-                    className="h-2 rounded-full bg-primary"
-                    style={{ width: `${progresso}%` }}
-                  />
-                </div>
-                <div className="mt-2">
+      {/* v9.3o (a tela tinha 15,5 alturas de notebook): as três partes em abas, com a aba no endereço (`?aba=site`); todas montadas, uma por vez */}
+      <Abas
+        rotulo="Partes das doações"
+        atual={aba}
+        aoMudar={mudarDeAba}
+        manterMontado
+        abas={[
+          {
+            chave: 'registradas',
+            rotulo: 'Doações registradas',
+            conteudo: (
+              <section className="rounded-xl border border-border bg-card p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="font-semibold">Doações registradas</h2>
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={alternarCampanha.isPending}
-                    onClick={() =>
-                      alternarCampanha.mutate({
-                        id: c.id_campanha,
-                        ativa: !c.ativa,
-                      })
-                    }
+                    onClick={() => setMostrarFormDoacao((v) => !v)}
                   >
-                    {c.ativa ? 'Encerrar' : 'Reativar'}
+                    {mostrarFormDoacao ? 'Cancelar' : 'Registrar doação'}
                   </Button>
                 </div>
-              </div>
-            )
-          })}
-          {(campanhas ?? []).length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma campanha cadastrada.
-            </p>
-          )}
-        </div>
-        <Paginador
-          pagina={paginaCampanhas.pagina}
-          porPagina={paginaCampanhas.porPagina}
-          total={paginaCampanhas.total}
-          aoMudar={paginaCampanhas.setPagina}
-          rotulo="Páginas das campanhas"
-        />
-      </section>
-
-      <section className="rounded-xl border border-border bg-card p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-semibold">Doações registradas</h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setMostrarFormDoacao((v) => !v)}
-          >
-            {mostrarFormDoacao ? 'Cancelar' : 'Registrar doação'}
-          </Button>
-        </div>
-        {mostrarFormDoacao && (
-          <FormularioDoacao onCancelar={() => setMostrarFormDoacao(false)} />
-        )}
-        <div className="v3-space-y-2">
-          {(doacoes ?? []).map((d) => (
-            <div
-              key={d.id_doacao}
-              className="rounded-md border border-border p-3 text-sm"
-            >
-              <div className="flex items-center justify-between">
-                <p className="font-medium">
-                  {d.anonima ? 'Doador anônimo' : d.nome_doador} —{' '}
-                  {formatarReais(d.valor)}
-                </p>
-                {d.numero_recibo && (
-                  <span className="text-muted-foreground">
-                    recibo nº {d.numero_recibo}
-                  </span>
+                {mostrarFormDoacao && (
+                  <FormularioDoacao
+                    onCancelar={() => setMostrarFormDoacao(false)}
+                  />
                 )}
-              </div>
-              <p className="text-muted-foreground">
-                {d.tipo_doacao === 'Bens'
-                  ? `Em bens — ${d.descricao_bem}`
-                  : 'Monetária'}
-                {d.recorrente && ' · recorrente'}
-                {d.data_doacao && ` · ${d.data_doacao}`}
-              </p>
-              <div className="mt-2">
-                <BotaoRecibo idDoacao={d.id_doacao} />
-              </div>
-            </div>
-          ))}
-          {(doacoes ?? []).length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma doação registrada.
-            </p>
-          )}
-        </div>
-        <Paginador
-          rotulo="Páginas das doações"
-          pagina={paginaDoacoes}
-          porPagina={POR_PAGINA_DOACOES}
-          total={paginaDeDoacoes?.total ?? 0}
-          aoMudar={setPaginaDoacoes}
-        />
-      </section>
+                <div className="v3-space-y-2">
+                  {(doacoes ?? []).map((d) => (
+                    <div
+                      key={d.id_doacao}
+                      className="rounded-md border border-border p-3 text-sm"
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium">
+                          {d.anonima ? 'Doador anônimo' : d.nome_doador} —{' '}
+                          {formatarReais(d.valor)}
+                        </p>
+                        {d.numero_recibo && (
+                          <span className="text-muted-foreground">
+                            recibo nº {d.numero_recibo}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-muted-foreground">
+                        {d.tipo_doacao === 'Bens'
+                          ? `Em bens — ${d.descricao_bem}`
+                          : 'Monetária'}
+                        {d.recorrente && ' · recorrente'}
+                        {d.data_doacao && ` · ${d.data_doacao}`}
+                      </p>
+                      <div className="mt-2">
+                        <BotaoRecibo idDoacao={d.id_doacao} />
+                      </div>
+                    </div>
+                  ))}
+                  {(doacoes ?? []).length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhuma doação registrada.
+                    </p>
+                  )}
+                </div>
+                <Paginador
+                  rotulo="Páginas das doações"
+                  pagina={paginaDoacoes}
+                  porPagina={POR_PAGINA_DOACOES}
+                  total={paginaDeDoacoes?.total ?? 0}
+                  aoMudar={setPaginaDoacoes}
+                />
+              </section>
+            ),
+          },
+          {
+            chave: 'site',
+            rotulo: 'Doações pelo site (Pix)',
+            conteudo: <DoacoesDoSite />,
+          },
+          {
+            chave: 'campanhas',
+            rotulo: 'Campanhas',
+            conteudo: (
+              <section className="rounded-xl border border-border bg-card p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="font-semibold">Campanhas de arrecadação</h2>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMostrarFormCampanha((v) => !v)}
+                  >
+                    {mostrarFormCampanha ? 'Cancelar' : 'Nova campanha'}
+                  </Button>
+                </div>
+                {mostrarFormCampanha && (
+                  <FormularioCampanha
+                    onCancelar={() => setMostrarFormCampanha(false)}
+                  />
+                )}
+                <div className="grid items-start gap-2 lg:grid-cols-2">
+                  {paginaCampanhas.daPagina.map((c) => {
+                    const progresso = Math.min(
+                      100,
+                      (c.valor_arrecadado / c.meta_valor) * 100,
+                    )
+                    return (
+                      <div
+                        key={c.id_campanha}
+                        className="rounded-md border border-border p-3 text-sm"
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium">{c.titulo}</p>
+                          <span
+                            className={
+                              c.ativa
+                                ? 'text-green-700 dark:text-green-400'
+                                : 'text-muted-foreground'
+                            }
+                          >
+                            {c.ativa ? 'Ativa' : 'Encerrada'}
+                          </span>
+                        </div>
+                        <p className="text-muted-foreground">
+                          {formatarReais(c.valor_arrecadado)} de{' '}
+                          {formatarReais(c.meta_valor)} ({progresso.toFixed(0)}
+                          %)
+                        </p>
+                        <div className="mt-1 h-2 w-full rounded-full bg-muted">
+                          <div
+                            className="h-2 rounded-full bg-primary"
+                            style={{ width: `${progresso}%` }}
+                          />
+                        </div>
+                        <div className="mt-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={alternarCampanha.isPending}
+                            onClick={() =>
+                              alternarCampanha.mutate({
+                                id: c.id_campanha,
+                                ativa: !c.ativa,
+                              })
+                            }
+                          >
+                            {c.ativa ? 'Encerrar' : 'Reativar'}
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {(campanhas ?? []).length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhuma campanha cadastrada.
+                    </p>
+                  )}
+                </div>
+                <Paginador
+                  pagina={paginaCampanhas.pagina}
+                  porPagina={paginaCampanhas.porPagina}
+                  total={paginaCampanhas.total}
+                  aoMudar={paginaCampanhas.setPagina}
+                  rotulo="Páginas das campanhas"
+                />
+              </section>
+            ),
+          },
+        ]}
+      />
     </>
   )
 }

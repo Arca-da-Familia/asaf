@@ -2026,18 +2026,26 @@ describe('Pix não localizado', () => {
 
 // ----------------------------------------------------------------------------------------------- a tela de Doações inteira
 describe('Tela de Doações: a seção do site no meio do que já existia', () => {
-  it('a seção vem primeiro e a doação confirmada aparece em "Doações registradas" sem recarregar (e as campanhas são conferidas de novo)', async () => {
+  it('a aba do site (aberta pelo endereço) e a doação confirmada aparece em "Doações registradas" sem recarregar (e as campanhas são conferidas de novo)', async () => {
     const usuario = userEvent.setup()
-    renderizar(<DoacoesPage />)
+    // v9.3o: as três partes viraram abas (Doações registradas, Doações pelo site, Campanhas); o aviso do sino abre na do site
+    renderizar(<DoacoesPage />, '/financeiro/doacoes?aba=site')
     await esperarALista()
-    expect(
-      screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent),
-    ).toEqual([
-      'Doações do site (Pix)',
-      'Campanhas de arrecadação',
+    expect(screen.getAllByRole('tab').map((aba) => aba.textContent)).toEqual([
       'Doações registradas',
+      'Doações pelo site (Pix)',
+      'Campanhas',
     ])
-    expect(screen.getByText('Nenhuma doação registrada.')).toBeInTheDocument()
+    expect(
+      screen.getByRole('tab', {
+        name: 'Doações pelo site (Pix)',
+        selected: true,
+      }),
+    ).toBeInTheDocument()
+    // a aba das registradas está montada (já carregou), só escondida
+    expect(
+      screen.getByText('Nenhuma doação registrada.', { ignore: false }),
+    ).not.toBeVisible()
     const doacoesAntes = chamadas.filter(
       (c) => c.caminho.split('?')[0] === '/api/doacoes/',
     ).length
@@ -2050,9 +2058,10 @@ describe('Tela de Doações: a seção do site no meio do que já existia', () =
     await usuario.click(botaoConfirmar(dialogo))
 
     await screen.findByRole('group', { name: 'Resultado da última ação' })
-    expect(
-      await screen.findByText(/Maria Souza — R\$\s*50,00/),
-    ).toBeInTheDocument()
+    await usuario.click(
+      screen.getByRole('tab', { name: 'Doações registradas' }),
+    )
+    expect(await screen.findByText(/Maria Souza — R\$\s*50,00/)).toBeVisible()
     expect(screen.queryByText('Nenhuma doação registrada.')).toBeNull()
     expect(
       chamadas.filter((c) => c.caminho.split('?')[0] === '/api/doacoes/')
@@ -2085,7 +2094,6 @@ describe('Tela de Doações: a seção do site no meio do que já existia', () =
     ]
     const usuario = userEvent.setup()
     renderizar(<DoacoesPage />)
-    await esperarALista()
     const botao = await screen.findByRole('button', { name: 'Ver recibo' })
     await usuario.click(botao)
     expect(await screen.findByText('RECIBO Nº 3 DA ASAF')).toBeInTheDocument()

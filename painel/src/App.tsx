@@ -611,7 +611,8 @@ function App() {
               (guardada pela permissão `financeiro`): sem este atalho o link caía na página inicial. */}
             <Route
               path="/doacoes"
-              element={<Navigate to="/financeiro/doacoes" replace />}
+              // v9.3o: a tela de Doações tem abas; o aviso de doação nova do site abre direto na aba do site
+              element={<Navigate to="/financeiro/doacoes?aba=site" replace />}
             />
             <Route
               path="/instituicao"

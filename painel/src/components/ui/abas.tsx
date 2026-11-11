@@ -18,12 +18,16 @@ export function Abas({
   atual,
   aoMudar,
   rotulo,
+  manterMontado = false,
 }: {
   abas: readonly Aba[]
   atual: string
   aoMudar: (chave: string) => void
   /** nome da fileira para o leitor de tela */
   rotulo: string
+  /** v9.3o: todas as abas ficam montadas (cada uma já carrega o seu dado ao abrir a tela) e só a escolhida aparece — para telas cujas partes
+   * trabalham juntas (os relatórios do Financeiro) */
+  manterMontado?: boolean
 }) {
   const id = useId()
   const fileira = useRef<HTMLDivElement>(null)
@@ -80,15 +84,19 @@ export function Abas({
           )
         })}
       </div>
-      <div
-        role="tabpanel"
-        id={`${id}-painel-${escolhida.chave}`}
-        aria-labelledby={`${id}-aba-${escolhida.chave}`}
-        tabIndex={0}
-        className="flex flex-col gap-6 pt-4"
-      >
-        {escolhida.conteudo}
-      </div>
+      {(manterMontado ? abas : [escolhida]).map((a) => (
+        <div
+          key={a.chave}
+          role="tabpanel"
+          id={`${id}-painel-${a.chave}`}
+          aria-labelledby={`${id}-aba-${a.chave}`}
+          tabIndex={0}
+          hidden={a.chave !== escolhida.chave}
+          className="flex flex-col gap-6 pt-4"
+        >
+          {a.conteudo}
+        </div>
+      ))}
     </div>
   )
 }

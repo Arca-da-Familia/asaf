@@ -648,3 +648,23 @@ export async function procurarProjeto(
   await campo.fill(texto)
   await expect(page.getByText(/projetos? encontrados?\./)).toBeVisible()
 }
+
+/** v9.3o: a tela de Relatórios do Financeiro mostra um relatório por aba (todos carregados; um aparece por vez). Abre a aba do relatório pelo título
+ * do bloco ("Balancete por período" fica na aba "Balancete"). */
+const ABA_DO_RELATORIO: Record<string, string> = {
+  'Balancete por período': 'Balancete',
+  'Receitas x despesas': 'Receitas x despesas',
+  Inadimplência: 'Inadimplência',
+  'Extrato por Conta Financeira': 'Extrato por conta',
+  'Por projeto': 'Por projeto',
+  'Padrões suspeitos (Conselho Fiscal)': 'Padrões suspeitos',
+  'Prestação de contas do exercício': 'Prestação de contas',
+}
+
+export async function abrirRelatorio(
+  page: Page,
+  tituloDoBloco: string,
+): Promise<void> {
+  const aba = ABA_DO_RELATORIO[tituloDoBloco]
+  if (aba) await abrirAbaDoEvento(page, aba)
+}

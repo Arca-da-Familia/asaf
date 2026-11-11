@@ -322,7 +322,8 @@ test('o relatório de exceção do mês (Padrões suspeitos) lista a saída lan�
 }, info) => {
   const vigia = vigiar(page)
   await entrar(page, 'presidente')
-  await page.goto('/financeiro/relatorios')
+  // v9.3o: cada relatório tem a sua aba, aberta pelo endereço
+  await page.goto('/financeiro/relatorios?relatorio=padroes-suspeitos')
   const secao = page.locator('section').filter({
     has: page.getByRole('heading', {
       name: 'Padrões suspeitos (Conselho Fiscal)',

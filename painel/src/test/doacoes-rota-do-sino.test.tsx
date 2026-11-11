@@ -96,18 +96,25 @@ describe('Rota do aviso do sino: /doacoes', () => {
     expect(
       await screen.findByRole('heading', { name: 'Doações do site (Pix)' }),
     ).toBeInTheDocument()
+    // v9.3o: abre direto na aba do site (as outras partes estão nas outras abas)
     expect(
-      screen.getByRole('heading', { name: 'Campanhas de arrecadação' }),
+      screen.getByRole('tab', {
+        name: 'Doações pelo site (Pix)',
+        selected: true,
+      }),
     ).toBeInTheDocument()
     expect(
       await screen.findByText('Nenhuma doação do site esperando conferência.'),
     ).toBeInTheDocument()
   })
 
-  it('o endereço de sempre da tela continua funcionando', async () => {
+  it('o endereço de sempre da tela continua funcionando (abre nas doações registradas)', async () => {
     desenhar('/financeiro/doacoes')
     expect(
-      await screen.findByRole('heading', { name: 'Doações do site (Pix)' }),
+      await screen.findByRole('heading', { name: 'Doações registradas' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('tab', { name: 'Doações registradas', selected: true }),
     ).toBeInTheDocument()
   })
 

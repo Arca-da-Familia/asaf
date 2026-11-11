@@ -1182,8 +1182,8 @@ test('4. o dinheiro vem do livro-caixa: a receita e as duas despesas são lança
     }),
   )
 
-  // Receitas x despesas por centro de custo: soma do livro-caixa DAQUELA parceria
-  await page.goto('/financeiro/relatorios')
+  // Receitas x despesas por centro de custo: soma do livro-caixa DAQUELA parceria (v9.3o: cada relatório tem a sua aba, aberta pelo endereço)
+  await page.goto('/financeiro/relatorios?relatorio=receitas-despesas')
   const secao = page.locator('section').filter({
     has: page.getByRole('heading', { name: 'Receitas x despesas' }),
   })

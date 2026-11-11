@@ -11,6 +11,7 @@ import {
 } from '@playwright/test'
 
 import {
+  abrirRelatorio,
   entrar,
   escolherPorTexto,
   exigirHomologacao,
@@ -484,10 +485,13 @@ function respostaDe(
 }
 
 /** Um bloco da página de Relatórios pelo título (cada bloco é uma <section> com um <h2>). */
-const secao = (page: Page, titulo: string): Locator =>
-  page.locator('section').filter({
+/** O bloco de um relatório pelo título; desde a v9.3o cada relatório fica numa aba: antes, abre a aba dele. */
+async function secao(page: Page, titulo: string): Promise<Locator> {
+  await abrirRelatorio(page, titulo)
+  return page.locator('section').filter({
     has: page.getByRole('heading', { name: titulo, exact: true }),
   })
+}
 /** Cartão de lista (`div.rounded-md.border`) que traz o texto. */
 const cartao = (escopo: Page | Locator, texto: string | RegExp): Locator =>
   escopo.locator('div.rounded-md.border').filter({ hasText: texto })
@@ -793,7 +797,7 @@ async function lerPadroes(
   )
   await page.goto('/financeiro/relatorios')
   const primeira = await inicial
-  const sec = secao(page, 'Padrões suspeitos (Conselho Fiscal)')
+  const sec = await secao(page, 'Padrões suspeitos (Conselho Fiscal)')
   await expect(sec).toBeVisible()
   const mesPadrao = new URL(primeira.url()).searchParams.get('competencia')
   let resposta = primeira
@@ -2374,7 +2378,7 @@ test('11. quem lê os relatórios e os alertas: Presidente, Tesoureiro, 1ª Pres
       const { lista, sec } = await lerPadroes(page, estado.mes)
       for (const titulo of TITULOS_DOS_BLOCOS) {
         await expect(
-          secao(page, titulo),
+          await secao(page, titulo),
           `${papel} vê o bloco ${titulo}`,
         ).toBeVisible()
       }
@@ -2391,9 +2395,12 @@ test('11. quem lê os relatórios e os alertas: Presidente, Tesoureiro, 1ª Pres
       if (papel === 'conselheiro') {
         // v5.7e: quem fiscaliza LÊ a prestação de contas e não gera versão nova (antes, o botão e a rota só pediam `financeiro`, e o roteiro anotava isso como defeito)
         await expect(
-          secao(page, 'Prestação de contas do exercício').getByRole('button', {
-            name: 'Gerar nova versão',
-          }),
+          (await secao(page, 'Prestação de contas do exercício')).getByRole(
+            'button',
+            {
+              name: 'Gerar nova versão',
+            },
+          ),
           'o Conselheiro Fiscal não gera a prestação de contas',
         ).toHaveCount(0)
       }
@@ -2509,7 +2516,7 @@ test('12. o Início do Financeiro e a navegação até Relatórios; o que a pág
     page.getByRole('heading', { name: 'Relatórios', level: 1 }),
   ).toBeVisible()
   for (const titulo of TITULOS_DOS_BLOCOS) {
-    await expect(secao(page, titulo), titulo).toBeVisible()
+    await expect(await secao(page, titulo), titulo).toBeVisible()
   }
   await inventariarSemTravar(page, info, 'relatorios')
   await ver(page, info, 'relatorios: os sete blocos')
@@ -2544,7 +2551,7 @@ test('13. Balancete, Receitas x despesas (por conta e por centro de custo), Por 
   const inicio = await abrirRelatorios(page)
 
   // ---- Inadimplência: cada cartão da tela é o que a API devolveu, e o total é positivo
-  const inad = secao(page, 'Inadimplência')
+  const inad = await secao(page, 'Inadimplência')
   if (inicio.inadimplencia.length === 0) {
     await expect(
       inad.getByText('Nenhum associado inadimplente no momento.'),
@@ -2568,12 +2575,13 @@ test('13. Balancete, Receitas x despesas (por conta e por centro de custo), Por 
   }
   await ver(page, info, 'relatorios: inadimplencia')
 
-  const bal = secao(page, 'Balancete por período')
-  const rd = secao(page, 'Receitas x despesas')
-  const proj = secao(page, 'Por projeto')
+  const bal = await secao(page, 'Balancete por período')
+  const rd = await secao(page, 'Receitas x despesas')
+  const proj = await secao(page, 'Por projeto')
 
   for (const p of PERIODOS) {
-    // ---- balancete
+    // ---- balancete (v9.3o: cada relatório na sua aba)
+    await abrirRelatorio(page, 'Balancete por período')
     await definirPeriodo(page, bal, '/api/relatorios/balancete', p.de, p.ate)
     const esperado = balanceteEsperado(p.de, p.ate)
     await expect
@@ -2597,6 +2605,7 @@ test('13. Balancete, Receitas x despesas (por conta e por centro de custo), Por 
     await ver(page, info, `balancete: ${p.nome}`)
 
     // ---- receitas x despesas, por conta
+    await abrirRelatorio(page, 'Receitas x despesas')
     await definirPeriodo(
       page,
       rd,
@@ -2701,6 +2710,7 @@ test('13. Balancete, Receitas x despesas (por conta e por centro de custo), Por 
     await rd.getByRole('button', { name: 'Ver por conta' }).click()
 
     // ---- por projeto: o centro do robô está ligado a um projeto e aparece com o nome dele
+    await abrirRelatorio(page, 'Por projeto')
     const respProjeto = await definirPeriodo(
       page,
       proj,
@@ -2755,7 +2765,7 @@ test('13. Balancete, Receitas x despesas (por conta e por centro de custo), Por 
   }
 
   // ---- extrato da Conta Financeira do robô: cada movimento, o saldo corrente e o saldo final
-  const ext = secao(page, 'Extrato por Conta Financeira')
+  const ext = await secao(page, 'Extrato por Conta Financeira')
   const seletor = ext.locator('select')
   await expect(
     seletor.locator('option', { hasText: CONTAS.ATV.codigo }),
@@ -2854,7 +2864,7 @@ test('13. Balancete, Receitas x despesas (por conta e por centro de custo), Por 
 
   // ---- período inválido: fim antes do início e data apagada. O servidor recusa; a tela tem de dizer.
   await page.goto('/financeiro/relatorios')
-  const bal2 = secao(page, 'Balancete por período')
+  const bal2 = await secao(page, 'Balancete por período')
   await expect(bal2).toBeVisible()
   const datas = bal2.locator('input[type="date"]')
   const [invertido] = await Promise.all([
@@ -2911,7 +2921,7 @@ test('14. Prestação de contas do exercício: ano inválido é recusado; cada v
   await entrar(page, 'presidente')
   const inicio = await abrirRelatorios(page)
   const ANO = Number(diaEmBelem(0).slice(0, 4))
-  const sec = secao(page, 'Prestação de contas do exercício')
+  const sec = await secao(page, 'Prestação de contas do exercício')
   const ano = sec.locator('input[type="number"]')
   await expect(ano).toHaveValue(String(ANO))
   const maisAntiga = inicio.prestacoes.length
@@ -3056,7 +3066,7 @@ test('14. Prestação de contas do exercício: ano inválido é recusado; cada v
   }
 
   // ---- os totais do texto são os mesmos da tela de Receitas x despesas para o mesmo ano
-  const rd = secao(page, 'Receitas x despesas')
+  const rd = await secao(page, 'Receitas x despesas')
   await definirPeriodo(page, rd, '/api/relatorios/receitas-despesas', de, ate)
   await expect
     .poll(

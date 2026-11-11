@@ -544,6 +544,9 @@ async function criarCampanhaDeArrecadacao(
   page: Page,
   d: { titulo: string; metaCentavos: number },
 ): Promise<number> {
+  // v9.3o: as campanhas ficam na aba "Campanhas"
+  const abaCampanhas = page.getByRole('tab', { name: 'Campanhas', exact: true })
+  if ((await abaCampanhas.count()) > 0) await abaCampanhas.click()
   const secao = page.locator('section').filter({
     has: page.getByRole('heading', { name: 'Campanhas de arrecadação' }),
   })
@@ -770,11 +773,14 @@ test.describe('A. Quem pode e o que cada tela da receita oferece', () => {
       seletorCom(corpoDaPagina(page), 'Todos os tipos'),
     ).toBeVisible()
 
+    // v9.3o: a tela de Doações tem abas (Doações registradas, Doações pelo site, Campanhas)
     await page.goto('/financeiro/doacoes')
-    for (const secao of ['Campanhas de arrecadação', 'Doações registradas']) {
+    for (const [aba, secao, botao] of [
+      ['Doações registradas', 'Doações registradas', 'Registrar doação'],
+      ['Campanhas', 'Campanhas de arrecadação', 'Nova campanha'],
+    ] as const) {
+      await page.getByRole('tab', { name: aba, exact: true }).click()
       await expect(page.getByRole('heading', { name: secao })).toBeVisible()
-    }
-    for (const botao of ['Nova campanha', 'Registrar doação']) {
       await expect(
         page.getByRole('button', { name: botao, exact: true }),
       ).toBeVisible()
@@ -912,7 +918,7 @@ test.describe('A. Quem pode e o que cada tela da receita oferece', () => {
     ).toBeVisible()
     await varrer('receita-negociacao-de-divida')
 
-    await page.goto('/financeiro/doacoes')
+    await page.goto('/financeiro/doacoes?aba=campanhas')
     await page
       .getByRole('button', { name: 'Nova campanha', exact: true })
       .click()
@@ -2873,7 +2879,7 @@ test.describe('D. Doações, campanha de arrecadação e recibo', () => {
     const vigia = vigiar(page)
     await garantirApoio(page)
     await entrarNoFinanceiro(page, 'tesoureiro')
-    await page.goto('/financeiro/doacoes')
+    await page.goto('/financeiro/doacoes?aba=campanhas')
     await expect(
       page.getByRole('heading', { name: 'Doações', level: 1 }),
     ).toBeVisible()
@@ -3317,7 +3323,7 @@ test.describe('D. Doações, campanha de arrecadação e recibo', () => {
         `a data do recibo tem de ser a de hoje em Belém (${diaEmBelem(0).br}); ela vem de data_doacao em UTC (app/services/doacoes.py:104), então depois das 21h sai o dia seguinte`,
       )
       .toContain(`em ${diaEmBelem(0).br}.`)
-    await page.goto('/financeiro/doacoes')
+    await page.goto('/financeiro/doacoes?aba=campanhas')
     const campanha = page.locator('div.rounded-md.border').filter({
       has: page.locator('p.font-medium', { hasText: TITULO_DA_CAMPANHA }),
     })
@@ -3871,7 +3877,7 @@ test.describe('F. Sondagens do caminho mínimo (cada uma independente)', () => {
     test.setTimeout(300_000)
     const vigia = vigiar(page)
     await entrarNoFinanceiro(page, 'tesoureiro')
-    await page.goto('/financeiro/doacoes')
+    await page.goto('/financeiro/doacoes?aba=campanhas')
     const secao = page.locator('section').filter({
       has: page.getByRole('heading', { name: 'Campanhas de arrecadação' }),
     })
