@@ -2942,7 +2942,8 @@ test('14. Prestação de contas do exercício: ano inválido é recusado; cada v
   expect(await abrirAuditoria(page, 'prestacoes_de_contas')).toBe(
     total0('prestacoes_de_contas'),
   )
-  await page.goto('/financeiro/relatorios')
+  // v9.3o: ao recarregar, a tela volta à 1ª aba; o endereço abre a da prestação de contas
+  await page.goto('/financeiro/relatorios?relatorio=prestacao-de-contas')
   await expect(sec).toBeVisible()
 
   // ---- gerar duas versões do exercício do ano corrente
