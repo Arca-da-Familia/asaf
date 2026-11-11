@@ -2,9 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { z } from 'zod'
 
+import { Paginador } from '@/components/data/Paginador'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
+import { usePaginaLocal } from '@/lib/pagina-local'
 import {
   aprovarReembolsoDespesa,
   enviarComprovante,
@@ -41,6 +43,8 @@ export function ReembolsoDespesaPage() {
     queryKey: ['reembolsos-despesa'],
     queryFn: () => listarReembolsosDespesa(),
   })
+  // v9.3y (a tela tinha 8 alturas de notebook na homologação): 10 por página, o mais recente primeiro (como a API devolve)
+  const pagina = usePaginaLocal(reembolsos, 10)
   const { data: associados } = useQuery({
     queryKey: ['associados-selecao'],
     queryFn: listarAssociadosParaSelecao,
@@ -63,6 +67,8 @@ export function ReembolsoDespesaPage() {
     onSuccess: () => {
       invalidar()
       setMostrarForm(false)
+      // o pedido novo é o primeiro da lista
+      pagina.setPagina(1)
     },
   })
   const aprovar = useMutation({
@@ -216,8 +222,8 @@ export function ReembolsoDespesaPage() {
           </FormShell>
         )}
 
-        <div className="v3-space-y-2">
-          {(reembolsos ?? []).map((r) => (
+        <div className="grid items-start gap-2 lg:grid-cols-2">
+          {pagina.daPagina.map((r) => (
             <div
               key={r.id_reembolso}
               className="rounded-md border border-border p-3 text-sm"
@@ -320,6 +326,13 @@ export function ReembolsoDespesaPage() {
             </p>
           )}
         </div>
+        <Paginador
+          pagina={pagina.pagina}
+          porPagina={pagina.porPagina}
+          total={pagina.total}
+          aoMudar={pagina.setPagina}
+          rotulo="Páginas dos reembolsos"
+        />
       </section>
     </>
   )
