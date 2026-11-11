@@ -17,6 +17,7 @@ import {
   vigiar,
   type Papel,
   procurarCentro,
+  procurarContaFinanceira,
 } from './apoio'
 
 // v5.4e — FASE 3 ao vivo, parte 1: BASE CONTÁBIL (exercício, plano de contas, centros de custo, contas financeiras, razão contábil) e
@@ -1405,6 +1406,8 @@ test('contas financeiras: só conta Ativo e analítica é oferecida; vazio e con
   await expect(
     cartaoDaContaFinanceira(COD_APLIC, DESC_APLIC).locator('p.text-xs'),
   ).toHaveText('Conta de Aplicação')
+  // v9.3x: 10 contas por página (por código): a busca pelo começo do código mostra as três desta rodada juntas
+  await procurarContaFinanceira(page, `9.${R}.`)
   for (const [codigo, descricao] of [
     [COD_CAIXA, DESC_CAIXA],
     [COD_BANCO, DESC_BANCO],
