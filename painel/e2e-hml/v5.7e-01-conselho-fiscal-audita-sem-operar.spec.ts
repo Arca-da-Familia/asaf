@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import {
+  abrirRelatorio,
   API_HML,
   entrar,
   exigirHomologacao,
@@ -138,6 +139,8 @@ test('no painel o conselheiro vê só o que audita; o que opera some do menu e �
   await expect(
     page.getByRole('heading', { name: 'Relatórios', level: 1 }),
   ).toBeVisible()
+  // v9.3o: um relatório por aba
+  await abrirRelatorio(page, 'Prestação de contas do exercício')
   await expect(
     page.getByRole('heading', { name: 'Prestação de contas do exercício' }),
   ).toBeVisible()

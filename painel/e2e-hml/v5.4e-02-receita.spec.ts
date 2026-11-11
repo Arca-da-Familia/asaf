@@ -3076,7 +3076,8 @@ test.describe('D. Doações, campanha de arrecadação e recibo', () => {
     await expect(cartao.locator('pre')).toContainText(DOADOR)
     await verNaTela(page, info, 'recibo da doacao aberto', cartao)
 
-    // a campanha mostra o arrecadado ao centavo e o percentual
+    // a campanha mostra o arrecadado ao centavo e o percentual (v9.3o: na aba Campanhas)
+    await page.getByRole('tab', { name: 'Campanhas', exact: true }).click()
     const campanha = page
       .locator('section')
       .filter({
