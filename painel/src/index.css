@@ -58,6 +58,11 @@
   textarea {
     max-width: 100%;
   }
+  /* v9.3z (WCAG 2.5.8, alvo de pelo menos 24 px): a caixinha ou a bolinha dentro de um rótulo é tocada pelo rótulo inteiro — ele tem pelo menos 24 px
+     de altura (no celular a própria caixinha já tem 24 px, regra acima) */
+  label:has(> input:is([type='checkbox'], [type='radio'])) {
+    min-height: 1.5rem;
+  }
   @media (max-width: 639.98px) {
     main .flex:not(.flex-col, .flex-col-reverse, .flex-nowrap) {
       flex-wrap: wrap;

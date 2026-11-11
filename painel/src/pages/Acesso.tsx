@@ -143,13 +143,16 @@ export function AcessoPage() {
                         key={permissao.id_permissao}
                         className="px-3 py-2 text-center"
                       >
-                        <input
-                          type="checkbox"
-                          aria-label={`${permissao.nome ?? permissao.codigo_permissao} — ${nivel.nome_nivel}`}
-                          checked={marcado}
-                          disabled={atribuir.isPending || remover.isPending}
-                          onChange={() => alternar(nivel, permissao, marcado)}
-                        />
+                        {/* v9.3z: a caixinha dentro de uma área de 24 px (WCAG 2.5.8): a matriz tem centenas delas */}
+                        <label className="inline-flex size-6 cursor-pointer items-center justify-center">
+                          <input
+                            type="checkbox"
+                            aria-label={`${permissao.nome ?? permissao.codigo_permissao} — ${nivel.nome_nivel}`}
+                            checked={marcado}
+                            disabled={atribuir.isPending || remover.isPending}
+                            onChange={() => alternar(nivel, permissao, marcado)}
+                          />
+                        </label>
                       </td>
                     )
                   })}
