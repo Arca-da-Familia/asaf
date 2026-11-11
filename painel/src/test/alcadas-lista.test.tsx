@@ -196,6 +196,22 @@ describe('Alçadas: em vigor e inativas em abas', () => {
     ).toBeInTheDocument()
   })
 
+  it('cada delegação diz se ainda vale ou se já terminou (v9.3z)', async () => {
+    vi.mocked(api.listarDelegacoesAprovacao).mockResolvedValue([
+      { ...delegacao(2), data_fim: '2999-01-01T00:00:00' },
+      { ...delegacao(1), data_fim: '2020-01-01T00:00:00' },
+    ])
+    desenhar()
+    expect(
+      await screen.findByText('Férias 2 · vale até 01/01/2999'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Férias 1 · valeu até 01/01/2020'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Vigente')).toBeInTheDocument()
+    expect(screen.getByText('Terminou')).toBeInTheDocument()
+  })
+
   it('as abas e a lista passam no axe', async () => {
     const { container } = desenhar()
     await screen.findByRole('tab', { name: 'Em vigor (3)' })

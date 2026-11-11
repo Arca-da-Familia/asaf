@@ -22,7 +22,7 @@ import {
   alcadaAprovacaoCriarSchema,
   delegacaoAprovacaoCriarSchema,
 } from '@/lib/schemas'
-import { formatarDia } from '@/lib/datas'
+import { formatarDia, paraInstante } from '@/lib/datas'
 import { usePaginaLocal } from '@/lib/pagina-local'
 import { lerValorEmReais } from '@/lib/valores'
 import { useRotuloDoCatalogo } from '@/lib/rotulo-do-catalogo'
@@ -330,6 +330,7 @@ export function AlcadasAprovacaoPage() {
     }
   }
   const paginaDelegacoes = usePaginaLocal(delegacoes, POR_PAGINA)
+  const agora = new Date()
 
   const alternar = useMutation({
     mutationFn: ({ alcada }: { alcada: AlcadaAprovacao }) =>
@@ -479,12 +480,26 @@ export function AlcadasAprovacaoPage() {
               key={d.id_delegacao}
               className="rounded-md border border-border p-3 text-sm"
             >
-              <p className="font-medium">
-                {d.nome_delegante ?? `Associado #${d.id_associado_delegante}`} →{' '}
-                {d.nome_delegado ?? `Associado #${d.id_associado_delegado}`}
-              </p>
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-medium">
+                  {d.nome_delegante ??
+                    `associado nº ${d.id_associado_delegante}`}{' '}
+                  →{' '}
+                  {d.nome_delegado ?? `associado nº ${d.id_associado_delegado}`}
+                </p>
+                {/* v9.3z: a que ainda vale e a que já terminou não se confundem */}
+                {paraInstante(d.data_fim) >= agora ? (
+                  <span className="text-green-700 dark:text-green-400">
+                    Vigente
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Terminou</span>
+                )}
+              </div>
               <p className="text-muted-foreground">
-                {d.motivo} · até {formatarDia(d.data_fim)}
+                {d.motivo} ·{' '}
+                {paraInstante(d.data_fim) >= agora ? 'vale' : 'valeu'} até{' '}
+                {formatarDia(d.data_fim)}
               </p>
             </div>
           ))}
