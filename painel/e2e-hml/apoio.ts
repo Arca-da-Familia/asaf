@@ -668,3 +668,14 @@ export async function abrirRelatorio(
   const aba = ABA_DO_RELATORIO[tituloDoBloco]
   if (aba) await abrirAbaDoEvento(page, aba)
 }
+
+/** v9.3p: a fila de revisão da Qualidade da base tem páginas de 10; o robô procura a pessoa pelo nome antes de olhar a fila (a busca só aparece com
+ * mais de 10 itens; na homologação, sempre). */
+export async function procurarNaFila(page: Page, nome: string): Promise<void> {
+  const campo = page.getByLabel('Procurar na fila', { exact: true })
+  await expect(
+    campo.or(page.getByText('Nada na fila de revisão')).first(),
+  ).toBeVisible()
+  if ((await campo.count()) === 0) return
+  await campo.fill(nome)
+}

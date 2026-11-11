@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import {
+  procurarNaFila,
   AVISO,
   cadastrarPelaTela as cadastrar,
   campo,
@@ -103,6 +104,7 @@ test('qualidade da base: o sistema acha o par; mesclar recusa nome errado e dois
     .click()
   await expect(page.locator(AVISO)).toContainText('candidato(s)')
 
+  await procurarNaFila(page, MESMO_NOME)
   const par = page
     .getByRole('listitem', {
       name: new RegExp(`Possível cadastro duplicado: ${MESMO_NOME}`),
@@ -178,6 +180,7 @@ test('qualidade da base: mescla de verdade (um associado e uma pessoa sem cadast
   await page
     .getByRole('button', { name: 'Procurar cadastros duplicados' })
     .click()
+  await procurarNaFila(page, manter)
   const par = page
     .getByRole('listitem', {
       name: new RegExp(`Possível cadastro duplicado: ${manter}`),
@@ -335,6 +338,7 @@ test('vínculos e cartões da ficha: completude, termo de voluntário (e renova�
   ).toBeVisible()
   await ver(page, info, 'linha do tempo com termo e funcionario')
   await page.goto('/associados/qualidade')
+  await procurarNaFila(page, nome)
   await expect(
     page.getByRole('listitem', {
       name: new RegExp(`E-mail suspeito \\(devolveu\\): ${nome}`),

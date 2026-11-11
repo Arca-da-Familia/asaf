@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 
+import { Paginador } from '@/components/data/Paginador'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -15,6 +16,8 @@ import {
   mesclarPessoas,
   type SinalDeRevisao,
 } from '@/lib/api'
+import { usePaginaLocal } from '@/lib/pagina-local'
+import { simplificar } from '@/lib/texto'
 
 const ROTULO_DO_SINAL: Record<string, string> = {
   duplicidade_nome_nascimento: 'Possível cadastro duplicado',
@@ -28,6 +31,8 @@ const campoClasse =
 // v1.8 no servidor, tela só na v5.4c (achado AO VIVO na homologação, 2026-10-05): o detector de duplicidade, a fila de revisão, a
 // mesclagem, a higienização de telefone e a anonimização em lote eram rotas testadas que nenhuma tela chamava — a base nunca poderia ser
 // limpa por quem cuida dela. Nada aqui acontece sozinho: o sistema só aponta, quem decide é uma pessoa.
+const ITENS_POR_PAGINA = 10
+
 export function QualidadeDaBasePage() {
   const queryClient = useQueryClient()
   const [aviso, setAviso] = useState<string | null>(null)
@@ -38,6 +43,17 @@ export function QualidadeDaBasePage() {
     queryKey: ['fila-revisao'],
     queryFn: listarFilaDeRevisao,
   })
+  // v9.3p (a tela tinha 12 alturas de notebook na homologação): a fila com busca pelo nome e páginas de 10, a mais recente primeiro
+  const [busca, setBusca] = useState('')
+  const termo = simplificar(busca.trim())
+  const achados = termo
+    ? (fila ?? []).filter((item) =>
+        [item.nome_pessoa_a, item.nome_pessoa_b].some(
+          (nome) => nome && simplificar(nome).includes(termo),
+        ),
+      )
+    : fila
+  const pagina = usePaginaLocal(achados, ITENS_POR_PAGINA, termo)
 
   function depois(mensagem: string) {
     setErro(null)
@@ -141,16 +157,60 @@ export function QualidadeDaBasePage() {
             descricao="Use os botões acima para procurar problemas no cadastro."
           />
         ) : (
-          <ul className="v3-space-y-4">
-            {fila.map((item) => (
-              <ItemDaFila
-                key={item.id_fila}
-                item={item}
-                aoConcluir={depois}
-                aoFalhar={falhou}
-              />
-            ))}
-          </ul>
+          <>
+            {fila.length > ITENS_POR_PAGINA && (
+              <div className="mb-4 max-w-md">
+                <label
+                  htmlFor="procurar-na-fila"
+                  className="text-sm font-medium"
+                >
+                  Procurar na fila
+                </label>
+                <input
+                  id="procurar-na-fila"
+                  type="search"
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Nome da pessoa"
+                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                />
+                {termo && (
+                  <p
+                    aria-live="polite"
+                    className="mt-1 text-xs text-muted-foreground"
+                  >
+                    {pagina.total}{' '}
+                    {pagina.total === 1
+                      ? 'item encontrado'
+                      : 'itens encontrados'}
+                    .
+                  </p>
+                )}
+              </div>
+            )}
+            <ul className="flex flex-col gap-4">
+              {pagina.daPagina.map((item) => (
+                <ItemDaFila
+                  key={item.id_fila}
+                  item={item}
+                  aoConcluir={depois}
+                  aoFalhar={falhou}
+                />
+              ))}
+            </ul>
+            {termo && pagina.total === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Ninguém com esse nome na fila.
+              </p>
+            )}
+            <Paginador
+              pagina={pagina.pagina}
+              porPagina={pagina.porPagina}
+              total={pagina.total}
+              aoMudar={pagina.setPagina}
+              rotulo="Páginas da fila"
+            />
+          </>
         )}
       </section>
 
