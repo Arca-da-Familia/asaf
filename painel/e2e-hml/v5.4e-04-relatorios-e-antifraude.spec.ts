@@ -514,7 +514,7 @@ async function irAteAAlcada(page: Page, faixa: Locator): Promise<void> {
   await expect(faixa.first()).toBeVisible()
 }
 
-/** v5.7g: as leituras do Conselho Fiscal (títulos e razão) são paginadas (25 por vez) e têm busca: o roteiro busca pelo texto do que criou e espera a resposta do servidor antes de olhar a tela. */
+/** v5.7g: as leituras do Conselho Fiscal (títulos e razão) são paginadas (10 por vez desde a v9.3z) e têm busca: o roteiro busca pelo texto do que criou e espera a resposta do servidor antes de olhar a tela. */
 async function buscarNoConselho(
   page: Page,
   bloco: Locator,

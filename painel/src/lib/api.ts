@@ -2079,6 +2079,8 @@ export type FiltrosDaLeituraDoConselho = {
   status?: string
   busca?: string
   pagina?: number
+  // v9.3z: quantos por página (o servidor aceita até 200; sem isto, ele manda 25)
+  por_pagina?: number
 }
 
 function consultaDaLeituraDoConselho(f: FiltrosDaLeituraDoConselho): string {
@@ -2086,6 +2088,7 @@ function consultaDaLeituraDoConselho(f: FiltrosDaLeituraDoConselho): string {
   if (f.status) params.set('status', f.status)
   if (f.busca) params.set('busca', f.busca)
   if (f.pagina && f.pagina > 1) params.set('pagina', String(f.pagina))
+  if (f.por_pagina) params.set('por_pagina', String(f.por_pagina))
   const texto = params.toString()
   return texto ? `?${texto}` : ''
 }
@@ -2116,7 +2119,10 @@ export type LancamentoContabilCF = {
 }
 
 export function listarCaixaConselhoFiscal(
-  filtros: Pick<FiltrosDaLeituraDoConselho, 'busca' | 'pagina'> = {},
+  filtros: Pick<
+    FiltrosDaLeituraDoConselho,
+    'busca' | 'pagina' | 'por_pagina'
+  > = {},
 ): Promise<PaginaDoConselhoFiscal<LancamentoContabilCF>> {
   return apiFetch(
     `/api/conselho-fiscal/financeiro/caixa${consultaDaLeituraDoConselho(filtros)}`,

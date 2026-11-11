@@ -201,8 +201,9 @@ function BlocoRespostas({
   )
 }
 
-// v5.7g: a leitura é paginada (25 por vez) e tem busca pelo texto; a busca espera a pessoa parar de digitar antes de ir ao servidor e volta para a primeira página
-const POR_PAGINA_DO_CONSELHO = 25
+// v5.7g: a leitura é paginada e tem busca pelo texto; a busca espera a pessoa parar de digitar antes de ir ao servidor e volta para a primeira página.
+// v9.3z: 10 por vez (eram 25; a tela tinha 8,9 alturas de notebook na homologação)
+const POR_PAGINA_DO_CONSELHO = 10
 const classeDoCampo =
   'h-9 rounded-md border border-input bg-background px-3 text-sm'
 
@@ -274,6 +275,7 @@ function BlocoTitulos() {
         status: status || undefined,
         busca: busca || undefined,
         pagina,
+        por_pagina: POR_PAGINA_DO_CONSELHO,
       }),
     placeholderData: (anterior) => anterior,
   })
@@ -383,7 +385,11 @@ function BlocoCaixa() {
   const { data, isPlaceholderData } = useQuery({
     queryKey: ['cf-caixa', busca, pagina],
     queryFn: () =>
-      listarCaixaConselhoFiscal({ busca: busca || undefined, pagina }),
+      listarCaixaConselhoFiscal({
+        busca: busca || undefined,
+        pagina,
+        por_pagina: POR_PAGINA_DO_CONSELHO,
+      }),
     placeholderData: (anterior) => anterior,
   })
   const lancamentos = data?.itens
