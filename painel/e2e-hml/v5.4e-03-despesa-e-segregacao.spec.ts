@@ -1289,6 +1289,10 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
     await expect(minha).toHaveCount(0)
     await expect(ativas()).toHaveCount(0)
     await page.getByRole('tab', { name: /^Inativas/ }).click()
+    await expect(page.getByRole('tab', { name: /^Inativas/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
     await expect(minha).toContainText('Inativa')
     await expect(inativas().first()).toBeVisible()
     await expect(

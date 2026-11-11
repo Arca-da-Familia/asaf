@@ -2328,11 +2328,12 @@ test('10. os alertas seguem os dados: o mês é o da gravação (não o da compe
     )
     // saiu da aba em que estava e aparece na outra com a situação nova
     await expect(minha).toHaveCount(0)
-    await page
-      .getByRole('tab', {
-        name: rotulo === 'Inativar' ? /^Inativas/ : /^Em vigor/,
-      })
-      .click()
+    const outraAba = page.getByRole('tab', {
+      name: rotulo === 'Inativar' ? /^Inativas/ : /^Em vigor/,
+    })
+    await outraAba.click()
+    // a troca de aba termina um instante depois do clique: antes disso a lista (e os botões de página) ainda é a da aba anterior
+    await expect(outraAba).toHaveAttribute('aria-selected', 'true')
     await irAteAAlcada(page, minha)
     await expect(minha).toContainText(
       rotulo === 'Inativar' ? 'Inativa' : 'Ativa',
