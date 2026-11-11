@@ -24,12 +24,12 @@ test('reabrir pela tela um consentimento antigo mostra o texto daquela versão, 
     .locator('li[data-consentimento]')
     .filter({ hasText: /Termo versão 1 \(hoje vale a 2\)/ })
     .first()
-  // a lista vem do mais novo para o mais antigo, de 50 em 50: passa as páginas até achar a versão 1
+  // a lista vem do mais novo para o mais antigo, de 10 em 10 (v9.3z; eram 50): passa as páginas até achar a versão 1
   await expect(page.locator('li[data-consentimento]').first()).toBeVisible({
     timeout: 30_000,
   })
   const proxima = page.getByRole('button', { name: 'Próxima página' })
-  for (let i = 0; i < 40 && !(await antigo.isVisible()); i++) {
+  for (let i = 0; i < 300 && !(await antigo.isVisible()); i++) {
     if (!(await proxima.isVisible()) || (await proxima.isDisabled())) break
     await proxima.click()
     await expect(page.getByText(/página \d+ de \d+/)).toBeVisible()

@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Annotated, Optional
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
@@ -205,11 +205,12 @@ def ler_texto_de_privacidade(ponto: str, versao: str, db: Session = Depends(get_
 # ------------------------------------------------------------------------------------------------ v7.1b: os consentimentos (a prova) e os termos
 @router.get("/api/privacidade/consentimentos", summary="Os consentimentos registrados (vigentes e encerrados: a prova fica), com o termo, quem, como e quando")
 def listar_consentimentos(request: Request, situacao: Optional[str] = None, origem: Optional[str] = None, busca: Optional[str] = None, pagina: int = 1,
+                          por_pagina: int = Query(servico_consentimentos.POR_PAGINA, ge=1, le=200),
                           db: Session = Depends(get_db), usuario: Usuario = Depends(_pode)):
     from app.auditoria import registrar_auditoria
     from app.classificacao_de_dados import CONSULTA_CONSENTIMENTOS
 
-    resultado = servico_consentimentos.listar(db, situacao=situacao, origem=origem, busca=busca, pagina=pagina)
+    resultado = servico_consentimentos.listar(db, situacao=situacao, origem=origem, busca=busca, pagina=pagina, por_pagina=por_pagina)
     # Ponto de Revisão FASE 7 (1/3): a lista traz nomes de crianças atendidas e dos responsáveis: a leitura fica na Auditoria (os filtros e o total; a busca,
     # que é um nome, não)
     registrar_auditoria(db, usuario, "consentimentos", CONSULTA_CONSENTIMENTOS, ip_origem=request.client.host if request.client else None,

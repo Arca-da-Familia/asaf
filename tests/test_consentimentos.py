@@ -152,6 +152,12 @@ def test_a_lista_e_de_quem_cuida_da_privacidade_e_o_termo_de_quem_esta_logado(cl
     assert achados["total"] == 2 and {c["titular"] for c in achados["consentimentos"]} == {unico}
     assert achados["por_pagina"] == servico.POR_PAGINA and achados["pagina"] == 1
     assert client.get("/api/privacidade/consentimentos", params={"busca": unico, "pagina": 2}, headers=auth_headers).json()["consentimentos"] == []
+    # v9.3z: a tela pede quantos quer por página (10); sem pedir, 50; mais de 200 é recusado
+    um = client.get("/api/privacidade/consentimentos", params={"busca": unico, "por_pagina": 1}, headers=auth_headers).json()
+    assert um["por_pagina"] == 1 and len(um["consentimentos"]) == 1 and um["total"] == 2
+    segunda = client.get("/api/privacidade/consentimentos", params={"busca": unico, "por_pagina": 1, "pagina": 2}, headers=auth_headers).json()
+    assert len(segunda["consentimentos"]) == 1 and segunda["consentimentos"][0]["id_consentimento"] != um["consentimentos"][0]["id_consentimento"]
+    assert client.get("/api/privacidade/consentimentos", params={"por_pagina": 201}, headers=auth_headers).status_code == 422
 
     _, associado = _criar_associado(db, f"Associado Termo {uuid.uuid4().hex[:6]}", nome_nivel="Associado")
     h = _headers(associado)

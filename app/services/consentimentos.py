@@ -184,8 +184,9 @@ def para_o_painel(c: Optional[Consentimento], *, com_quem: bool = True) -> Optio
 POR_PAGINA = 50
 
 
-def listar(db: Session, *, situacao: Optional[str] = None, origem: Optional[str] = None, busca: Optional[str] = None, pagina: int = 1) -> dict:
-    """Para Privacidade > Consentimentos: os vigentes e os encerrados (a prova fica), o mais novo primeiro, de 50 em 50. `busca` procura no nome de quem
+def listar(db: Session, *, situacao: Optional[str] = None, origem: Optional[str] = None, busca: Optional[str] = None, pagina: int = 1,
+           por_pagina: int = POR_PAGINA) -> dict:
+    """Para Privacidade > Consentimentos: os vigentes e os encerrados (a prova fica), o mais novo primeiro, de 50 em 50 (v9.3z: a tela nova pede 10). `busca` procura no nome de quem
     consentiu ou do responsável que consentiu por ela: quem retira a autorização de atividade tem de ter TODAS as fotos em que aparece apagadas, e é por aqui
     que se acham os consentimentos dela."""
     q = db.query(Consentimento)
@@ -201,8 +202,9 @@ def listar(db: Session, *, situacao: Optional[str] = None, origem: Optional[str]
                          func.lower(func.coalesce(Consentimento.nome_responsavel, "")).contains(termo.lower())))
     total = q.count()
     pagina = max(1, pagina)
-    linhas = q.order_by(Consentimento.dado_em.desc(), Consentimento.id_consentimento.desc()).offset((pagina - 1) * POR_PAGINA).limit(POR_PAGINA)
-    return {"consentimentos": [para_o_painel(c) for c in linhas], "total": total, "pagina": pagina, "por_pagina": POR_PAGINA}
+    por_pagina = min(max(1, por_pagina), 200)
+    linhas = q.order_by(Consentimento.dado_em.desc(), Consentimento.id_consentimento.desc()).offset((pagina - 1) * por_pagina).limit(por_pagina)
+    return {"consentimentos": [para_o_painel(c) for c in linhas], "total": total, "pagina": pagina, "por_pagina": por_pagina}
 
 
 def termo_para_a_tela(origem: str) -> dict:
