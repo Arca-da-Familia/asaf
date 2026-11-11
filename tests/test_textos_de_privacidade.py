@@ -160,6 +160,22 @@ def test_reabrir_o_aviso_de_uma_versao_antiga_mostra_o_texto_daquela_epoca(clien
     assert filiacao["bases_legais"][0]["codigo"] == "ART7_V" and filiacao["atividade_nome"] == "Cadastro e vida associativa"
 
 
+def test_a_observacao_da_versao_e_a_do_catalogo_sem_nome_tecnico(client, db, auth_headers):
+    """v9.3v (nada de nome técnico na tela): a observação é a nota do sistema sobre a versão, não o texto que a pessoa leu. A gravada antes dizia o nome da
+    configuração (TEXTO_CONSENTIMENTO_LGPD_INSCRICAO) e o banco não deixa mudar a linha: a tela recebe a redação atual do catálogo."""
+    import re
+
+    tp.sincronizar(db)
+    lista = client.get("/api/privacidade/textos-de-privacidade", headers=auth_headers).json()["pontos"]
+    inscricao = next(p for p in lista if p["codigo"] == "INSCRICAO_EVENTO")
+    v1 = next(v for v in inscricao["versoes"] if v["versao"] == "1")
+    catalogo = next(t for t in tp.TEXTOS if (t.ponto, t.versao) == ("INSCRICAO_EVENTO", "1"))
+    assert v1["observacao"] == catalogo.observacao
+    for ponto in lista:
+        for versao in ponto["versoes"]:
+            assert not re.search(r"\w+_\w+", versao["observacao"] or ""), (ponto["codigo"], versao["versao"], versao["observacao"])
+
+
 def test_o_atendimento_diz_qual_aviso_a_pessoa_leu():
     def ponto(tipo, identidade=None):
         return servico_atendimento.ponto_do_aviso(Atendimento(tipo=tipo, identidade_validacao=identidade))

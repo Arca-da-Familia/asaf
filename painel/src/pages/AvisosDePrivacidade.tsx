@@ -55,7 +55,10 @@ function Ponto({ p }: { p: PontoDeColeta }) {
                   vale o texto gravado abaixo, que é o que foi mostrado.
                 </p>
               )}
-              <p className="mt-2 whitespace-pre-line rounded-md border border-border p-3 text-sm">
+              <p
+                data-texto-fiel
+                className="mt-2 whitespace-pre-line rounded-md border border-border p-3 text-sm"
+              >
                 {v.texto_sem_links}
               </p>
               <p className="mt-1 text-xs">
