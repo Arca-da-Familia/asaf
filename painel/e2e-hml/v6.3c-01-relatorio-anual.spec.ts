@@ -36,7 +36,7 @@ function comToken(page: Page): () => string {
 }
 
 async function blocoDoRelatorio(page: Page, ano: number) {
-  await page.goto('/documentos')
+  await page.goto('/documentos?parte=relatorio') // v9.3u: o relatório anual fica numa aba
   const bloco = page.getByRole('region', {
     name: 'Relatório anual de atividades',
   })
