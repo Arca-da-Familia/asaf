@@ -43,7 +43,9 @@ function Ponto({ p }: { p: PontoDeColeta }) {
       <ul className="mt-2 v3-space-y-2">
         {p.versoes.map((v) => (
           <li key={v.versao}>
-            <details open={v.versao === p.versao_atual}>
+            {/* v9.3z (a tela tinha 9 alturas de notebook: o texto inteiro da versão em vigor de cada formulário aberto): todas as versões
+                fechadas; o título diz qual está em vigor */}
+            <details>
               <summary className="cursor-pointer text-sm font-medium">
                 Versão {v.versao}, desde {formatarDia(v.vigente_desde)}
                 {v.versao === p.versao_atual ? ' (em vigor)' : ''}

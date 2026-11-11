@@ -86,6 +86,11 @@ describe('Avisos de privacidade (v7.1a)', () => {
     expect(
       within(ponto).getByText('Art. 7º, V — execução de contrato'),
     ).toBeInTheDocument()
+    // v9.3z: as versões vêm fechadas (o título diz qual está em vigor); abrir mostra o texto
+    expect(within(ponto).getByText('Texto da versão 3.')).not.toBeVisible()
+    await userEvent.click(
+      within(ponto).getByText(/^Versão 3, desde .*\(em vigor\)/),
+    )
     expect(within(ponto).getByText('Texto da versão 3.')).toBeVisible()
     expect(
       within(ponto).getByText(/Versão 2, desde 08\/10\/2026.*reconstituída/),
