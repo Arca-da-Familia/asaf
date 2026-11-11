@@ -337,7 +337,11 @@ test('o relatório de exceção do mês (Padrões suspeitos) lista a saída lan�
     .locator('div.rounded-md.border')
     .filter({ hasText: DESCRICAO_TARDIA })
   await expect(alerta).toHaveCount(1)
-  await expect(alerta).toContainText('LANCAMENTO_TARDIO')
+  // v9.3h: o tipo do alerta aparece em português; o código fica em data-alerta
+  await expect(alerta).toContainText('Lançamento feito muito depois da data')
+  await expect(alerta.locator('[data-alerta="LANCAMENTO_TARDIO"]')).toHaveCount(
+    1,
+  )
   await expect(alerta).toContainText('20 dia(s) depois do pagamento')
   await expect(
     secao

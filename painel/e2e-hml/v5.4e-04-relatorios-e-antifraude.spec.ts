@@ -2389,6 +2389,8 @@ test('11. quem lê os relatórios e os alertas: Presidente, Tesoureiro, 1ª Pres
           a.id_titulo === estado.idTitulo.C,
       )
       expect(doC, `${papel} recebe o alerta do fornecedor novo`).toHaveLength(1)
+      // v9.3o: o laço acima abriu cada relatório na sua aba; volta à dos padrões suspeitos
+      await abrirRelatorio(page, 'Padrões suspeitos (Conselho Fiscal)')
       await expect(
         sec.getByText(doC[0]?.descricao ?? 'sem alerta', { exact: true }),
       ).toBeVisible()
