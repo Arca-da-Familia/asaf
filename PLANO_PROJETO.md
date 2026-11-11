@@ -2245,10 +2245,23 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       esperavam (nenhum rodou pela metade); corrigido e repetido um por vez. **Homologação**: v5.4e-03, v5.4e-04, v5.5a-02, v5.5b-01, v7.2a-01,
       v7.2e-01 e v9.3b-01 verdes; painel 885 e API 1913 em duas rodadas; Postgres verde. **Produção**: Deploy API e Deploy Painel verdes,
       `version.json` = `dab9254`, a tela publicada tem "Cargos que podem aprovar" e a fila 10 por página; a API responde]**
-      **[FALTA (próximas rodadas da v9.3): a varredura de 11/11 no notebook ainda mostra, acima de 5 alturas: Fornecedores 11,2, Planos de contribuição 10,6, Alçadas
-      10,6, Documentos 10,1, Relatórios 9,4, Avisos de privacidade 9 (com nome técnico), Revisão anual 9, Conselho Fiscal 8,9, Centros de custo 8,9,
-      Reembolso 8, Contas financeiras 7,9 e outras 11 entre 5 e 7 — várias crescem com o dado que os robôs acumulam na homologação; uma por vez; depois
-      disso a altura no notebook passa a reprovar]**
+      **[v9.3s/t/u (2026-11-11) — FORNECEDORES, ALÇADAS, PLANOS E DOCUMENTOS MAIS CURTOS: Fornecedores com busca (razão social sem acento ou CNPJ) e
+      páginas de 10; Alçadas em abas "Em vigor" (por valor) e "Inativas" (a mais recente primeiro), 10 por página, com o aviso de para onde a faixa
+      foi ao inativar/reativar, e as delegações em páginas; Planos de contribuição em abas (Planos, Isenções, Desconto por pagamento antecipado;
+      `?parte=`), cada lista em páginas de 10, o plano novo aparece e a data da campanha como se lê no Brasil (saía crua); Documentos com 5 por tipo e
+      "Ver todos" (com o tipo escolhido, páginas de 10) e as contas do exercício e o relatório anual em abas ao lado da biblioteca (cada tabela com
+      nome próprio para o leitor de tela). O robô das despesas passou a inativar as faixas "de verdade" das rodadas anteriores antes de criar as
+      novas (a homologação acumulava três faixas em vigor por rodada). ACHADO no caminho: o v5.4e-04 clicou em "Próxima página" da aba anterior,
+      que sumiu na troca de aba (a troca termina um instante depois do clique) — os robôs esperam a aba ficar selecionada. **Homologação**:
+      v5.4e-02, v5.4e-03, v5.4e-04 (repetido com o robô corrigido), v5.4c-fase0, v6.3b-01, v6.3c-01 e v9.3b-01 verdes; painel 908 em duas rodadas.
+      **Produção**: Deploy Painel verde, `version.json` = `963fa38`, as quatro telas publicadas têm a busca e as abas]**
+      **[FALTA (próximas rodadas da v9.3): na branch, sem nome técnico (avisos antigos com o código da permissão no público; observação dos avisos
+      de privacidade com o nome da configuração; o destaque em maiúsculas do texto legal deixa de ser acusado), Centros de custo em abas e com os
+      nomes do projeto/evento (no lugar de "Projeto #12") e Contas financeiras com busca — homologação a seguir. Depois: Relatórios 9,4, Revisão anual
+      9, Conselho Fiscal 8,9, Reembolso 8 e outras 11 entre 5 e 7; alvos de toque menores que 24 px (Acesso, Comunicação, Instituição, Mandatos);
+      depois disso a altura no notebook passa a reprovar. Para decidir com o Presidente: o incidente nº 1 (encerrado, registro formal) cita o
+      arquivo do programa "app/registro_seguro.py" na lição aprendida. Dado antigo só da homologação: o relatório de impacto aprovado lá guarda o
+      texto da proposta antiga, com nomes técnicos (a proposta atual não tem; revisão copia o texto anterior)]**
 - [ ] Ajuda contextual e tour de primeiro acesso por módulo, no lugar de manual em PDF que
       ninguém lê.
 - [ ] Canal de feedback dentro do painel ("achei um problema nesta tela") ligado à fila de
