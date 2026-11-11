@@ -1719,13 +1719,14 @@ test('5. o Presidente aprova a troca do fornecedor 1, rejeita a do 2 e cadastra 
   await form.getByRole('button', { name: 'Cadastrar alçada' }).click()
   await expect(
     page.getByRole('alert').filter({
-      hasText: 'Informe ao menos um cargo (códigos separados por vírgula).',
+      hasText: 'Marque ao menos um cargo que pode aprovar.',
     }),
   ).toHaveCount(1)
   await ver(page, info, 'alcada sem cargo: recusada')
   await form.getByPlaceholder('Valor mínimo').fill(decimal(ALCADA_MINIMO))
   await form.getByPlaceholder('Valor máximo').fill(decimal(ALCADA_TETO))
-  await form.getByPlaceholder('Cargos').fill('PRESIDENTE')
+  // v9.3r: o cargo é MARCADO pelo nome (antes digitava-se o código)
+  await form.getByRole('checkbox', { name: 'Presidente', exact: true }).check()
   const [alcada] = await Promise.all([
     respostaDe(page, 'POST', '/api/alcadas-aprovacao/'),
     form.getByRole('button', { name: 'Cadastrar alçada' }).click(),

@@ -86,7 +86,7 @@ describe('campos opcionais em branco não viram 0 nem texto vazio', () => {
 describe('alçada: o teto digitado como se escreve no Brasil', () => {
   const base = {
     valor_minimo: '100',
-    cargos_autorizados: 'PRESIDENTE',
+    cargos_autorizados: ['PRESIDENTE'],
     exige_dupla_assinatura: false,
   }
 

@@ -990,7 +990,10 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
   test.setTimeout(480_000)
   const vigia = vigiar(page)
   const enviadas: string[] = []
+  let autorizacao = '' // v9.3r: para as recusas que só a API ainda recebe (a tela não deixa mais digitar cargo)
   page.on('request', (r) => {
+    const cab = r.headers()['authorization']
+    if (cab && r.url().startsWith(API_HML)) autorizacao = cab
     if (
       r.method() === 'POST' &&
       /\/api\/alcadas-aprovacao\/$/.test(new URL(r.url()).pathname)
@@ -1011,19 +1014,28 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
     }
     await expect(formulario()).toBeVisible()
   }
+  // v9.3r: os cargos são MARCADOS pelo nome (antes digitava-se o código, "TESOUREIRO,PRESIDENTE"); cada caixa fica marcada só se estiver na lista
+  const grupoDeCargos = () =>
+    formulario().getByRole('group', { name: 'Cargos que podem aprovar' })
+  const marcarCargos = async (cargos: string[]) => {
+    const caixas = grupoDeCargos().getByRole('checkbox')
+    await expect(caixas.first()).toBeVisible()
+    for (const caixa of await caixas.all()) {
+      const nome = (await caixa.locator('xpath=..').innerText()).trim()
+      await caixa.setChecked(cargos.includes(nome))
+    }
+  }
   const preencher = async (d: {
     minimo: string
     maximo: string
-    cargos: string
+    cargos: string[]
     dupla?: boolean
   }) => {
     await abrirFormulario()
     const f = formulario()
     await f.getByPlaceholder('Valor mínimo').fill(d.minimo)
     await f.getByPlaceholder('Valor máximo (vazio = sem teto)').fill(d.maximo)
-    await f
-      .getByPlaceholder('Cargos (ex.: TESOUREIRO,PRESIDENTE)')
-      .fill(d.cargos)
+    await marcarCargos(d.cargos)
     await f.getByLabel('Exige dupla assinatura').setChecked(d.dupla ?? false)
   }
   const enviar = async (d: Parameters<typeof preencher>[0]) => {
@@ -1042,15 +1054,15 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
 
   await test.step('recusas que a tela faz antes de ir ao servidor', async () => {
     // tudo vazio: falta o cargo
-    await tentarSemEnviar({ minimo: '0', maximo: '', cargos: '' })
+    await tentarSemEnviar({ minimo: '0', maximo: '', cargos: [] })
     await expect(
       page.getByRole('alert').filter({
-        hasText: 'Informe ao menos um cargo (códigos separados por vírgula).',
+        hasText: 'Marque ao menos um cargo que pode aprovar.',
       }),
     ).toHaveCount(1)
     await ver(page, info, 'alcada sem cargo: recusada na tela')
     // valor mínimo negativo
-    await tentarSemEnviar({ minimo: '-5', maximo: '', cargos: 'presidente' })
+    await tentarSemEnviar({ minimo: '-5', maximo: '', cargos: ['Presidente'] })
     await expect(
       page
         .getByRole('alert')
@@ -1062,27 +1074,44 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
     await ver(page, info, 'alcada com valor minimo negativo: recusada na tela')
   })
 
-  await test.step('recusas do servidor (cargos só com vírgulas) e as tentativas que um sistema atento recusaria', async () => {
-    // a tela deixa passar ",": o servidor recusa e a mensagem aparece no campo dos cargos
-    const virgulas = await enviar({ minimo: '0', maximo: '', cargos: ',' })
-    expect(virgulas.status()).toBe(422)
+  await test.step('recusas do servidor (lista de cargos vazia) e as tentativas que um sistema atento recusaria', async () => {
+    // v9.3r: a tela só oferece os cargos da lista (pelo nome) — não há mais onde digitar um código; quem chamar a API direto com a lista vazia
+    // continua recusado pelo servidor
+    await abrirFormulario()
     await expect(
-      page
-        .getByRole('alert')
-        .filter({ hasText: 'Informe ao menos um cargo autorizado.' }),
-    ).toHaveCount(1)
-    await ver(
-      page,
-      info,
-      'alcada com cargos so de virgula: recusada pelo servidor',
+      grupoDeCargos().getByRole('checkbox', {
+        name: 'Presidente',
+        exact: true,
+      }),
+    ).toBeVisible()
+    await expect(
+      grupoDeCargos().getByRole('checkbox', {
+        name: '1º Tesoureiro',
+        exact: true,
+      }),
+    ).toBeVisible()
+    await expect(formulario().getByText(/[A-Z]+_[A-Z]+/)).toHaveCount(0)
+    const vazia = await page.request.post(`${API_HML}/api/alcadas-aprovacao/`, {
+      headers: { Authorization: autorizacao },
+      data: {
+        valor_minimo: 0,
+        valor_maximo: null,
+        cargos_autorizados: [],
+        exige_dupla_assinatura: false,
+      },
+    })
+    expect(vazia.status()).toBe(422)
+    expect(await vazia.text()).toContain(
+      'Informe ao menos um cargo autorizado.',
     )
+    await ver(page, info, 'alcada: cargos so marcados pelo nome')
 
     // valor máximo MENOR que o mínimo: a faixa nunca valeria para valor nenhum; a tela recusa e nada vai ao servidor
     const antesDaInvertida = enviadas.length
     await tentarSemEnviar({
       minimo: '9000100',
       maximo: '9000050',
-      cargos: 'presidente',
+      cargos: ['Presidente'],
     })
     await expect(
       page
@@ -1100,7 +1129,7 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
     const virgula = await enviar({
       minimo: '9000200',
       maximo: '9999999,99',
-      cargos: 'presidente',
+      cargos: ['Presidente'],
     })
     if (virgula.ok()) {
       aceitasDeLixo.push(await idDe(virgula, 'id_alcada'))
@@ -1117,11 +1146,19 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
     }
 
     // achado provável 3: cargo que não existe no estatuto (erro de digitação) cria uma faixa que ninguém consegue usar
-    const desconhecido = await enviar({
-      minimo: '9000300',
-      maximo: '9000399.99',
-      cargos: 'CARGO_QUE_NAO_EXISTE',
-    })
+    // (pela API: a tela não tem mais onde digitar um cargo fora da lista)
+    const desconhecido = await page.request.post(
+      `${API_HML}/api/alcadas-aprovacao/`,
+      {
+        headers: { Authorization: autorizacao },
+        data: {
+          valor_minimo: 9000300,
+          valor_maximo: 9000399.99,
+          cargos_autorizados: ['CARGO_QUE_NAO_EXISTE'],
+          exige_dupla_assinatura: false,
+        },
+      },
+    )
     if (desconhecido.ok()) {
       aceitasDeLixo.push(await idDe(desconhecido, 'id_alcada'))
     }
@@ -1137,9 +1174,7 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
   await test.step('"Cancelar" fecha sem criar nada', async () => {
     await abrirFormulario()
     const antesDeCancelar = enviadas.length
-    await formulario()
-      .getByPlaceholder('Cargos (ex.: TESOUREIRO,PRESIDENTE)')
-      .fill('presidente')
+    await marcarCargos(['Presidente'])
     await formulario().getByRole('button', { name: 'Cancelar' }).click()
     await expect(formulario()).toHaveCount(0)
     expect(enviadas.length).toBe(antesDeCancelar)
@@ -1152,7 +1187,7 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
   let idFaixaMinima = 0
   await test.step('as faixas de verdade entram na lista com os valores certos', async () => {
     idFaixa1 = await idDe(
-      await enviar({ minimo: '100', maximo: '999.99', cargos: 'presidente' }),
+      await enviar({ minimo: '100', maximo: '999.99', cargos: ['Presidente'] }),
       'id_alcada',
     )
     await expect(formulario()).toHaveCount(0)
@@ -1163,7 +1198,11 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
     await expect(faixa1).not.toContainText('dupla assinatura')
 
     idFaixa2 = await idDe(
-      await enviar({ minimo: '1000', maximo: '4999.99', cargos: 'PRESIDENTE' }),
+      await enviar({
+        minimo: '1000',
+        maximo: '4999.99',
+        cargos: ['Presidente'],
+      }),
       'id_alcada',
     )
     await expect(formulario()).toHaveCount(0)
@@ -1177,7 +1216,7 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
       await enviar({
         minimo: '5000',
         maximo: '',
-        cargos: 'presidente, tesoureiro',
+        cargos: ['Presidente', '1º Tesoureiro'],
         dupla: true,
       }),
       'id_alcada',
@@ -1200,7 +1239,7 @@ test('Alçadas de aprovação: faixas com cargo e dupla assinatura, recusas na t
     const inativas = () =>
       minima().filter({ has: page.getByText('Inativa', { exact: true }) })
     idFaixaMinima = await idDe(
-      await enviar({ minimo: '1', maximo: '50', cargos: 'presidente' }),
+      await enviar({ minimo: '1', maximo: '50', cargos: ['Presidente'] }),
       'id_alcada',
     )
     await expect(formulario()).toHaveCount(0)
@@ -1344,7 +1383,7 @@ test('Compra simples: o Tesoureiro prepara e não aprova a própria, quem não t
     const semCargo = await tentarAprovarCompra(page, cartao)
     expect(semCargo.status()).toBe(403)
     await expect(
-      cartao.getByText(MENSAGEM.semCargo('PRESIDENTE')),
+      cartao.getByText(MENSAGEM.semCargo('Presidente')),
     ).toBeVisible()
     await expect(
       cartao.getByText('Aguardando Aprovação', { exact: true }),
@@ -1530,7 +1569,7 @@ test('Cotações: acima de R$ 1.000,00 a aprovação exige duas cotações (0 e 
     const semCargo = await tentarAprovarCompra(page, cartao)
     expect(semCargo.status()).toBe(403)
     await expect(
-      cartao.getByText(MENSAGEM.semCargo('PRESIDENTE')),
+      cartao.getByText(MENSAGEM.semCargo('Presidente')),
     ).toBeVisible()
     await ver(page, info, 'Tesoureiro sem o cargo da faixa: recusado')
     await sair(page)

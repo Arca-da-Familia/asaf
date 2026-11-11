@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.config_cache import obter_configuracao
 from app.models.associados import Associado
 from app.models.compras import AlcadaAprovacao, AprovacaoCompra, CotacaoCompra, DelegacaoAprovacao, SolicitacaoCompra
+from app.models.core import Catalogo, OpcaoCatalogo
 from app.models.financeiro import CentroDeCusto, TituloFinanceiro
 from app.models.mandatos import DeclaracaoConflitoInteresse
 from app.services.mandatos import mandatos_vigentes_do_associado
@@ -53,6 +54,18 @@ def _associado_do_usuario(db: Session, id_usuario: int) -> Optional[Associado]:
 
 def _cargos_vigentes(db: Session, id_associado: int) -> set[str]:
     return {m.cargo_codigo for m in mandatos_vigentes_do_associado(db, id_associado)}
+
+
+def _nomes_dos_cargos(db: Session, codigos: set[str]) -> str:
+    """v9.3r (nada de nome técnico na tela): os cargos de uma alçada pelo NOME da lista das Configurações ("Presidente, 1º Tesoureiro"), na ordem da
+    lista (a do Estatuto) - antes a recusa mostrava o código ("PRESIDENTE, TESOUREIRO"). Código que a lista não tem fica como está."""
+    opcoes = (
+        db.query(OpcaoCatalogo.codigo, OpcaoCatalogo.rotulo).join(Catalogo, Catalogo.id_catalogo == OpcaoCatalogo.id_catalogo)
+        .filter(Catalogo.chave == "titulo_cargo").order_by(OpcaoCatalogo.ordem, OpcaoCatalogo.id_opcao).all()
+    )
+    nomes = [rotulo or codigo for codigo, rotulo in opcoes if codigo in codigos]
+    conhecidos = {codigo for codigo, _ in opcoes}
+    return ", ".join(nomes + sorted(c for c in codigos if c not in conhecidos))
 
 
 def _tem_conflito_interesse(db: Session, id_associado: Optional[int], id_fornecedor: Optional[int]) -> bool:
@@ -100,7 +113,7 @@ def _pode_aprovar(db: Session, *, id_usuario_aprovador: int, solicitacao: Solici
         if _cargos_vigentes(db, delegacao.id_associado_delegante) & cargos_autorizados:
             return True, None, delegacao.id_delegacao
 
-    return False, f"Aprovador não tem o cargo exigido para esta alçada ({', '.join(sorted(cargos_autorizados))}).", None
+    return False, f"Aprovador não tem o cargo exigido para esta alçada ({_nomes_dos_cargos(db, cargos_autorizados)}).", None
 
 
 def criar_solicitacao(
