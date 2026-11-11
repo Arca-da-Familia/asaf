@@ -215,3 +215,27 @@ describe('Pedidos de filiação (o sócio propõe ou recusa)', () => {
     )
   })
 })
+
+describe('pedidos de filiação com busca e páginas (v9.3p: a tela tinha 10,6 alturas de notebook)', () => {
+  it('10 por página, o mais novo primeiro (como o servidor manda), e a busca pelo nome sem acento', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.listarPedidosParaPropor).mockResolvedValue(
+      Array.from({ length: 14 }, (_, i) =>
+        pedido({
+          id_proposta: 100 + i,
+          nome_completo: i === 12 ? 'João da Conceição' : `Candidato ${i + 1}`,
+        }),
+      ),
+    )
+    desenhar(<FiliacaoParaProporPage />)
+    expect(await screen.findByText('Candidato 1')).toBeInTheDocument()
+    expect(
+      screen.getByRole('navigation', { name: 'Páginas dos pedidos' }),
+    ).toHaveTextContent('Página 1 de 2 · 14 itens')
+    await user.type(screen.getByLabelText('Procurar pedido'), 'conceicao')
+    expect(
+      screen.getByRole('listitem', { name: 'Pedido de João da Conceição' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('1 pedido encontrado.')).toBeInTheDocument()
+  })
+})

@@ -243,3 +243,24 @@ describe('Qualidade da base (v5.4c: a tela que faltava para as rotas da v1.8)', 
     expect(await axe(container)).toHaveNoViolations()
   })
 })
+
+describe('a fila com busca e páginas (v9.3p: a tela tinha 12 alturas de notebook)', () => {
+  it('10 por página e a busca pelo nome de qualquer das duas pessoas, sem acento', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.listarFilaDeRevisao).mockResolvedValue(
+      Array.from({ length: 13 }, (_, i) => ({
+        ...telefone,
+        id_fila: 100 + i,
+        nome_pessoa_a: i === 11 ? 'Conceição Araújo' : `Pessoa ${i + 1}`,
+      })),
+    )
+    desenhar()
+    expect(
+      await screen.findByRole('navigation', { name: 'Páginas da fila' }),
+    ).toHaveTextContent('Página 1 de 2 · 13 itens')
+    expect(screen.getAllByRole('listitem')).toHaveLength(10)
+    await user.type(screen.getByLabelText('Procurar na fila'), 'araujo')
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.getByText('1 item encontrado.')).toBeInTheDocument()
+  })
+})
