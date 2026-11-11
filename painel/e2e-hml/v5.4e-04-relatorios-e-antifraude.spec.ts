@@ -1318,7 +1318,7 @@ test('1. base: o Presidente cria as três contas, a conta financeira e o centro 
   const cartaoCc = cartao(page, CENTRO.codigo)
   await expect(cartaoCc).toContainText(CENTRO.nome)
   await expect(cartaoCc).toContainText('Ativo')
-  await expect(cartaoCc).toContainText('Projeto #')
+  await expect(cartaoCc).toContainText('Projeto: ') // v9.3w: o projeto pelo nome
   await ver(page, info, 'centro de custo criado e ligado ao projeto')
   await page.getByRole('button', { name: 'Novo centro de custo' }).click()
   await preencherCentro()

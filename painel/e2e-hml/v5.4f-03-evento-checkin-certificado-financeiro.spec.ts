@@ -600,7 +600,8 @@ test.describe('B. Financeiro do evento', () => {
       .locator('div.rounded-md.border')
       .filter({ hasText: CODIGO_CENTRO })
     await expect(cartaoDoCentro).toContainText(NOME_CENTRO)
-    await expect(cartaoDoCentro).toContainText(`Evento #${idEvento}`)
+    // v9.3w: o evento pelo título (antes "Evento #5")
+    await expect(cartaoDoCentro).toContainText(`Evento: ${TITULO}`)
     await expect(cartaoDoCentro).toContainText('Ativo')
     await ver(page, info, 'centro de custo do evento criado')
 

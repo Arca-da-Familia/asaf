@@ -665,6 +665,18 @@ export async function procurarFornecedor(
   await expect(page.getByText(/fornecedor(es)? encontrados?\./)).toBeVisible()
 }
 
+/** v9.3w: os Centros de Custo mostram 10 por página com uma busca (que aparece com mais de 10): procura pelo código ou nome antes de olhar a lista.
+ * A lista não tem estado "carregando": espera o primeiro cartão (cada um tem "Inativar" ou "Ativar"). */
+export async function procurarCentro(page: Page, texto: string): Promise<void> {
+  await expect(
+    page.getByRole('button', { name: /^(Inativar|Ativar)$/ }).first(),
+  ).toBeVisible()
+  const campo = page.getByLabel('Procurar centro de custo', { exact: true })
+  if ((await campo.count()) === 0) return
+  await campo.fill(texto)
+  await expect(page.getByText(/centros? encontrados?\./)).toBeVisible()
+}
+
 /** v9.3o: a tela de Relatórios do Financeiro mostra um relatório por aba (todos carregados; um aparece por vez). Abre a aba do relatório pelo título
  * do bloco ("Balancete por período" fica na aba "Balancete"). */
 const ABA_DO_RELATORIO: Record<string, string> = {
