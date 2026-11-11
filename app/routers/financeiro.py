@@ -30,7 +30,9 @@ from sqlalchemy.exc import IntegrityError
 from app.auditoria import registrar_auditoria
 from app.database import get_db
 from app.models.associados import Associado
+from app.models.eventos import Evento
 from app.models.pessoas import Pessoa
+from app.models.projetos import ProjetoEvento
 from app.models.financeiro import (
     CampanhaDescontoAntecipado, CentroDeCusto, ContaFinanceira, CreditoAssociado, Exercicio,
     IsencaoContribuicao, LancamentoContabil, NegociacaoDivida, PartidaContabil, PlanoDeContas,
@@ -240,8 +242,18 @@ def excluir_plano_contas(id_conta: int, request: Request, db: Session = Depends(
 @router.get("/api/centros-custo/", summary="Listar Centros de Custo")
 def listar_centros_custo(db: Session = Depends(get_db), _usuario=Depends(_permissao_financeiro)):
     centros = db.query(CentroDeCusto).order_by(CentroDeCusto.codigo).all()
+    # v9.3w (a tela dizia "Projeto #12" e "Evento #5"): o nome do projeto e o título do evento, para a tela mostrar quem é (campos novos; os números ficam)
+    ids_projetos = {c.id_projeto for c in centros if c.id_projeto is not None}
+    ids_eventos = {c.id_evento for c in centros if c.id_evento is not None}
+    nomes_projetos = dict(
+        db.query(ProjetoEvento.id_projeto, ProjetoEvento.nome_projeto).filter(ProjetoEvento.id_projeto.in_(ids_projetos)).all()
+    ) if ids_projetos else {}
+    titulos_eventos = dict(db.query(Evento.id_evento, Evento.titulo).filter(Evento.id_evento.in_(ids_eventos)).all()) if ids_eventos else {}
     return [
-        {"id_centro_custo": c.id_centro_custo, "codigo": c.codigo, "nome": c.nome, "id_projeto": c.id_projeto, "id_evento": c.id_evento, "ativo": c.ativo, "saldo_restrito": c.saldo_restrito}
+        {
+            "id_centro_custo": c.id_centro_custo, "codigo": c.codigo, "nome": c.nome, "id_projeto": c.id_projeto, "id_evento": c.id_evento, "ativo": c.ativo,
+            "saldo_restrito": c.saldo_restrito, "nome_projeto": nomes_projetos.get(c.id_projeto), "titulo_evento": titulos_eventos.get(c.id_evento),
+        }
         for c in centros
     ]
 

@@ -378,6 +378,30 @@ def test_transferencia_entre_contas_financeiras_move_saldo(client, auth_headers,
     assert total_debito == total_credito == 50.0
 
 
+def test_a_lista_de_centros_traz_o_nome_do_projeto_e_o_titulo_do_evento(client, db, auth_headers):
+    """v9.3w: a tela mostrava "Projeto #12" e "Evento #5"; a lista traz o nome do projeto e o título do evento (campos novos; os números continuam)."""
+    import uuid
+
+    from app.models.eventos import Evento
+    from app.models.projetos import ProjetoEvento
+
+    sufixo = uuid.uuid4().hex[:6]
+    projeto = ProjetoEvento(nome_projeto=f"Projeto Despertai {sufixo}")
+    evento = Evento(titulo=f"Bazar de Natal {sufixo}", categoria="BAZAR", data_hora_inicio=datetime(2026, 12, 20, 15, 0))
+    db.add_all([projeto, evento])
+    db.commit()
+    criados = {}
+    for chave, extra in (("projeto", {"id_projeto": projeto.id_projeto}), ("evento", {"id_evento": evento.id_evento}), ("solto", {})):
+        r = client.post("/api/centros-custo/", json={"codigo": f"CC-{chave}-{sufixo}", "nome": f"Centro {chave} {sufixo}", **extra}, headers=auth_headers)
+        assert r.status_code == 200, r.text
+        criados[chave] = r.json()["id_centro_custo"]
+    lista = {c["id_centro_custo"]: c for c in client.get("/api/centros-custo/", headers=auth_headers).json()}
+    assert lista[criados["projeto"]]["nome_projeto"] == f"Projeto Despertai {sufixo}"
+    assert lista[criados["projeto"]]["id_projeto"] == projeto.id_projeto and lista[criados["projeto"]]["titulo_evento"] is None
+    assert lista[criados["evento"]]["titulo_evento"] == f"Bazar de Natal {sufixo}"
+    assert lista[criados["solto"]]["nome_projeto"] is None and lista[criados["solto"]]["titulo_evento"] is None
+
+
 def test_centro_de_custo_opcional_e_registrado_na_partida(client, auth_headers, exercicio_financeiro_aberto):
     r = client.post("/api/centros-custo/", json={"codigo": "CC-9500", "nome": "Projeto Teste v3.1"}, headers=auth_headers)
     assert r.status_code == 200, r.text

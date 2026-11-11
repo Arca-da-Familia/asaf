@@ -2531,6 +2531,9 @@ export type CentroDeCusto = {
   id_evento: number | null
   ativo: boolean
   saldo_restrito: boolean
+  // v9.3w: o nome do projeto e o título do evento (opcionais: a API anterior não os manda)
+  nome_projeto?: string | null
+  titulo_evento?: string | null
 }
 
 export function listarCentrosCusto(): Promise<CentroDeCusto[]> {

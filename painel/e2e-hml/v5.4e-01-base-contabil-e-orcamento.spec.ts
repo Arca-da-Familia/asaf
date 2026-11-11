@@ -16,6 +16,7 @@ import {
   ver,
   vigiar,
   type Papel,
+  procurarCentro,
 } from './apoio'
 
 // v5.4e — FASE 3 ao vivo, parte 1: BASE CONTÁBIL (exercício, plano de contas, centros de custo, contas financeiras, razão contábil) e
@@ -1074,10 +1075,12 @@ test('centros de custo: campos vazios e código repetido são recusados; criar c
     .waitFor({ state: 'attached', timeout: 10_000 })
     .then(() => true)
     .catch(() => false)
-  let projeto = ''
+  let nomeDoProjeto = ''
   if (temProjeto) {
-    projeto =
+    const projeto =
       (await projetos.locator('option').nth(1).getAttribute('value')) ?? ''
+    nomeDoProjeto =
+      (await projetos.locator('option').nth(1).textContent())?.trim() ?? ''
     await projetos.selectOption(projeto)
   }
   const segundo = await cadastrar(COD_C2, NOME_C2)
@@ -1085,7 +1088,8 @@ test('centros de custo: campos vazios e código repetido são recusados; criar c
   ids.c2 = segundo.corpo.id_centro_custo
   await expect(formulario).toHaveCount(0)
   await expect(cartaoDoCentro(COD_C2, NOME_C2).locator('p.text-xs')).toHaveText(
-    temProjeto ? `Ativo · Projeto #${projeto}` : 'Ativo',
+    // v9.3w: o projeto pelo nome (antes "Projeto #12")
+    temProjeto ? `Ativo · Projeto: ${nomeDoProjeto}` : 'Ativo',
   )
   await ver(page, info, 'segundo centro de custo, com projeto vinculado')
 
@@ -1114,6 +1118,8 @@ test('centros de custo: campos vazios e código repetido são recusados; criar c
   await expect(c2().locator('p.text-xs')).not.toContainText('Inativo')
 
   // destinação restrita: liga, mostra o saldo restrito (zero, sem doação), desliga
+  // v9.3w: 10 centros por página (por código): a busca pelo começo do código mostra os dois desta rodada juntos
+  await procurarCentro(page, `CC${R}-`)
   const c1 = () => cartaoDoCentro(COD_C1, NOME_C1)
   const ligou = await enviar(
     page,
@@ -1133,7 +1139,10 @@ test('centros de custo: campos vazios e código repetido são recusados; criar c
   ).toBeVisible()
   await ver(page, info, 'centro com destinacao restrita: saldo restrito zero')
 
-  // remanejamento: sem saldo restrito na origem, tudo é recusado e nada é gravado
+  // remanejamento: sem saldo restrito na origem, tudo é recusado e nada é gravado (v9.3w: numa aba própria)
+  await page
+    .getByRole('tab', { name: 'Remanejamentos de destinação', exact: true })
+    .click()
   await page
     .getByRole('button', { name: 'Novo remanejamento', exact: true })
     .click()
@@ -1200,6 +1209,7 @@ test('centros de custo: campos vazios e código repetido são recusados; criar c
   await ver(page, info, 'remanejamento acima do saldo restrito: recusado')
   await remanejamento.getByRole('button', { name: 'Cancelar' }).click()
   await expect(remanejamento).toHaveCount(0)
+  await page.getByRole('tab', { name: 'Centros de custo', exact: true }).click()
 
   const desligou = await enviar(
     page,
@@ -3303,7 +3313,7 @@ test('os formulários do módulo abrem, todos os campos têm nome acessível e "
       nome: 'centros-de-custo-novo',
     },
     {
-      rota: '/financeiro/centros-custo',
+      rota: '/financeiro/centros-custo?parte=remanejamentos', // v9.3w: aba própria
       leituras: ['/api/centros-custo/'],
       titulo: 'Centros de Custo',
       abrir: 'Novo remanejamento',
