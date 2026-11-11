@@ -186,7 +186,7 @@ function prepararServidor() {
         return true
       })
       const pagina = filtros.pagina ?? 1
-      const porPagina = filtros.por_pagina ?? 25
+      const porPagina = filtros.por_pagina ?? 10
       return {
         total: filtrados.length,
         pagina,
@@ -344,7 +344,7 @@ describe('Atendimento: o resumo da fila', () => {
 })
 
 describe('Atendimento: a lista', () => {
-  it('por padrão pede só os pedidos abertos, 25 por página, e mostra o total', async () => {
+  it('por padrão pede só os pedidos abertos, 10 por página (v9.3q), e mostra o total', async () => {
     desenhar()
     await screen.findByLabelText('Atendimento ASAF-2026-00001')
     expect(api.listarAtendimentosDaFila).toHaveBeenCalledWith({
@@ -353,7 +353,7 @@ describe('Atendimento: a lista', () => {
       situacao: 'abertos',
       vencidos: undefined,
       pagina: 1,
-      por_pagina: 25,
+      por_pagina: 10,
     })
     expect(screen.getByLabelText('Situação')).toHaveValue('abertos')
     expect(screen.getByText('1 atendimento')).toBeInTheDocument()
@@ -562,7 +562,7 @@ describe('Atendimento: filtros, busca e páginas', () => {
         situacao: 'Encerrado',
         vencidos: true,
         pagina: 1,
-        por_pagina: 25,
+        por_pagina: 10,
       }),
     )
     expect(screen.getByLabelText('Tipo')).toHaveValue('PEDIDO_INFORMACAO')
@@ -573,7 +573,7 @@ describe('Atendimento: filtros, busca e páginas', () => {
 
   it('a busca digitada vai ao servidor (depois de uma pausa) e volta para a primeira página', async () => {
     const u = userEvent.setup()
-    base = Array.from({ length: 60 }, (_, i) => pedido(i + 1))
+    base = Array.from({ length: 24 }, (_, i) => pedido(i + 1))
     desenhar()
     await screen.findByText('Página 1 de 3')
     await u.click(screen.getByRole('button', { name: 'Próxima página' }))
@@ -606,15 +606,15 @@ describe('Atendimento: filtros, busca e páginas', () => {
     )
   })
 
-  it('a lista é paginada de 25 em 25 e os botões pedem a página seguinte e a anterior', async () => {
+  it('a lista é paginada de 10 em 10 (v9.3q) e os botões pedem a página seguinte e a anterior', async () => {
     const u = userEvent.setup()
-    base = Array.from({ length: 60 }, (_, i) => pedido(i + 1))
+    base = Array.from({ length: 24 }, (_, i) => pedido(i + 1))
     desenhar()
     expect(await screen.findByText('Página 1 de 3')).toBeInTheDocument()
-    expect(screen.getByText('60 atendimentos')).toBeInTheDocument()
+    expect(screen.getByText('24 atendimentos')).toBeInTheDocument()
     expect(
       screen.getAllByRole('listitem', { name: /^Atendimento / }),
-    ).toHaveLength(25)
+    ).toHaveLength(10)
     const paginas = within(
       screen.getByRole('navigation', { name: 'Páginas de atendimentos' }),
     )
@@ -625,7 +625,7 @@ describe('Atendimento: filtros, busca e páginas', () => {
     await u.click(paginas.getByRole('button', { name: 'Próxima página' }))
     await waitFor(() =>
       expect(api.listarAtendimentosDaFila).toHaveBeenLastCalledWith(
-        expect.objectContaining({ pagina: 2, por_pagina: 25 }),
+        expect.objectContaining({ pagina: 2, por_pagina: 10 }),
       ),
     )
     expect(await screen.findByText('Página 2 de 3')).toBeInTheDocument()
@@ -640,7 +640,7 @@ describe('Atendimento: filtros, busca e páginas', () => {
 
   it('mudar um filtro volta para a primeira página', async () => {
     const u = userEvent.setup()
-    base = Array.from({ length: 60 }, (_, i) => pedido(i + 1))
+    base = Array.from({ length: 24 }, (_, i) => pedido(i + 1))
     desenhar()
     await screen.findByText('Página 1 de 3')
     await u.click(screen.getByRole('button', { name: 'Próxima página' }))
@@ -1464,7 +1464,7 @@ describe('Atendimento: acessibilidade', () => {
   })
 
   it('o vazio e a lista paginada também passam no axe', async () => {
-    base = Array.from({ length: 30 }, (_, i) => pedido(i + 1))
+    base = Array.from({ length: 12 }, (_, i) => pedido(i + 1))
     const { container } = desenhar()
     await screen.findByText('Página 1 de 2')
     expect(await axe(container)).toHaveNoViolations()

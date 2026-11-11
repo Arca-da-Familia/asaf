@@ -49,7 +49,8 @@ import { LerAviso } from '@/components/privacidade/LerAviso'
 // v5.7f: a solicitação do titular só pode ser respondida depois de validada a identidade de quem pediu (automática, ou conferida pela equipe com o que foi conferido anotado);
 // a resposta não vai por e-mail: a pessoa a lê na área Minha conta do site.
 // v5.5b: o pedido de voluntariado também tem o caminho "cadastrar como voluntário, registrar o termo de adesão, escalar" (VoluntarioDoPedido).
-const POR_PAGINA = 25
+// v9.3q (a tela tinha 10,4 alturas de notebook: 25 cartões altos por página): 10 por página
+const POR_PAGINA = 10
 const classeCampo =
   'h-9 rounded-md border border-input bg-background px-3 text-sm'
 
