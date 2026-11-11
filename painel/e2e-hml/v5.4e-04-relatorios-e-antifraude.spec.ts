@@ -21,6 +21,7 @@ import {
   ver,
   vigiar,
   type Papel,
+  procurarContaFinanceira,
   procurarFornecedor,
 } from './apoio'
 
@@ -2895,6 +2896,7 @@ test('13. Balancete, Receitas x despesas (por conta e por centro de custo), Por 
 
   // ---- o mesmo saldo na tela de Contas Financeiras
   await page.goto('/financeiro/contas-financeiras')
+  await procurarContaFinanceira(page, CONTAS.ATV.codigo) // v9.3x: 10 por página
   const cartaoCf = cartao(page, CONTAS.ATV.codigo)
   await expect(cartaoCf).toBeVisible()
   expect(emCentavos(await cartaoCf.innerText())).toBe(extrato.saldoAtual)

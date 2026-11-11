@@ -22,6 +22,7 @@ import {
   sair,
   ver,
   vigiar,
+  procurarContaFinanceira,
 } from './apoio'
 
 // v5.4e — FASE 3 ao vivo, parte 2: RECEITA, pelas telas do Financeiro do hml-painel: Planos de Contribuição (plano, reajuste, isenção, campanha de
@@ -3674,6 +3675,7 @@ test.describe('E. Conciliação bancária e fechamento do mês', () => {
     )
 
     await page.goto('/financeiro/contas-financeiras')
+    await procurarContaFinanceira(page, contaDoBanco.descricao) // v9.3x: 10 por página
     const saldo = page
       .locator('div.rounded-md.border')
       .filter({ hasText: contaDoBanco.descricao })

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { z } from 'zod'
 
+import { Paginador } from '@/components/data/Paginador'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -11,7 +12,9 @@ import {
   listarOpcoesCatalogo,
   listarPlanoContas,
 } from '@/lib/api'
+import { usePaginaLocal } from '@/lib/pagina-local'
 import { contaFinanceiraCriarSchema } from '@/lib/schemas'
+import { simplificar } from '@/lib/texto'
 
 // v3.1 (FASE 3 - Financeiro) - Contas Financeiras: especialização de PlanoDeContas tipo Ativo
 // (Caixa/Banco). Saldo é SEMPRE calculado pelo backend somando as partidas daquela conta (nunca
@@ -23,7 +26,13 @@ function formatarReais(valor: number): string {
   }).format(valor)
 }
 
-function FormularioContaFinanceira({ onCancelar }: { onCancelar: () => void }) {
+function FormularioContaFinanceira({
+  onCancelar,
+  aoCriar,
+}: {
+  onCancelar: () => void
+  aoCriar?: (idContaFinanceira: number) => void
+}) {
   const queryClient = useQueryClient()
   const { data: contas } = useQuery({
     queryKey: ['plano-contas'],
@@ -42,8 +51,9 @@ function FormularioContaFinanceira({ onCancelar }: { onCancelar: () => void }) {
   const criar = useMutation({
     mutationFn: (v: z.infer<typeof contaFinanceiraCriarSchema>) =>
       criarContaFinanceira(v),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contas-financeiras'] })
+    onSuccess: async (criada) => {
+      await queryClient.invalidateQueries({ queryKey: ['contas-financeiras'] })
+      aoCriar?.(criada.id_conta_financeira)
       onCancelar()
     },
   })
@@ -133,12 +143,49 @@ function FormularioContaFinanceira({ onCancelar }: { onCancelar: () => void }) {
   )
 }
 
+const POR_PAGINA = 10
+
 export function ContasFinanceirasPage() {
   const [mostrarForm, setMostrarForm] = useState(false)
   const { data: contasFinanceiras } = useQuery({
     queryKey: ['contas-financeiras'],
     queryFn: listarContasFinanceiras,
   })
+
+  // v9.3x (a tela tinha 7,9 alturas de notebook na homologação: uma conta embaixo da outra): por código contábil, em duas colunas no notebook,
+  // com busca (código ou nome, sem acento) e páginas de 10; a conta recém-cadastrada aparece (a lista vai à página dela)
+  const [busca, setBusca] = useState('')
+  const termo = simplificar(busca.trim())
+  const ordenadas = [...(contasFinanceiras ?? [])].sort((a, b) =>
+    (a.codigo_contabil ?? '').localeCompare(b.codigo_contabil ?? '', 'pt-BR', {
+      numeric: true,
+    }),
+  )
+  const encontradas = termo
+    ? ordenadas.filter(
+        (cf) =>
+          simplificar(cf.codigo_contabil ?? '').includes(termo) ||
+          simplificar(cf.descricao_conta ?? '').includes(termo),
+      )
+    : ordenadas
+  const pagina = usePaginaLocal(
+    contasFinanceiras ? encontradas : undefined,
+    POR_PAGINA,
+    termo,
+  )
+  const [mostrar, setMostrar] = useState<number | null>(null)
+  if (mostrar !== null && contasFinanceiras) {
+    const posicao = encontradas.findIndex(
+      (cf) => cf.id_conta_financeira === mostrar,
+    )
+    if (posicao >= 0) {
+      setMostrar(null)
+      pagina.setPagina(Math.floor(posicao / POR_PAGINA) + 1)
+    } else if (termo) {
+      // a busca em curso não acha a conta nova: sai, e a lista vai à página dela
+      setBusca('')
+    }
+  }
 
   return (
     <>
@@ -164,14 +211,43 @@ export function ContasFinanceirasPage() {
         </div>
 
         {mostrarForm && (
-          <FormularioContaFinanceira onCancelar={() => setMostrarForm(false)} />
+          <FormularioContaFinanceira
+            onCancelar={() => setMostrarForm(false)}
+            aoCriar={setMostrar}
+          />
         )}
 
-        <div className="v3-space-y-2">
-          {(contasFinanceiras ?? []).map((cf) => (
+        {(contasFinanceiras ?? []).length > POR_PAGINA && (
+          <div className="mb-3 max-w-md">
+            <label htmlFor="procurar-conta" className="text-sm font-medium">
+              Procurar conta financeira
+            </label>
+            <input
+              id="procurar-conta"
+              type="search"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Código ou nome"
+              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            />
+            {termo && (
+              <p
+                aria-live="polite"
+                className="mt-1 text-xs text-muted-foreground"
+              >
+                {pagina.total}{' '}
+                {pagina.total === 1 ? 'conta encontrada' : 'contas encontradas'}
+                .
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="grid items-start gap-2 lg:grid-cols-2">
+          {pagina.daPagina.map((cf) => (
             <div
               key={cf.id_conta_financeira}
-              className="flex items-center justify-between rounded-md border border-border p-3 text-sm"
+              className="flex items-center justify-between gap-2 rounded-md border border-border p-3 text-sm"
             >
               <div>
                 <p className="font-medium">
@@ -192,7 +268,19 @@ export function ContasFinanceirasPage() {
               Nenhuma conta financeira cadastrada.
             </p>
           )}
+          {termo && pagina.total === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma conta com esse código ou nome.
+            </p>
+          )}
         </div>
+        <Paginador
+          pagina={pagina.pagina}
+          porPagina={pagina.porPagina}
+          total={pagina.total}
+          aoMudar={pagina.setPagina}
+          rotulo="Páginas das contas financeiras"
+        />
       </section>
     </>
   )
