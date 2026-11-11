@@ -2237,8 +2237,15 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       `procurarPedido`). **Homologação**: v5.4c-fase1, v5.4h-09, v5.4h-10 e v9.3b-01 verdes; no notebook as duas telas saíram da lista das compridas
       (eram 12,1 e 10,6 alturas); painel 880 em duas rodadas. **Produção**: Deploy Painel verde, `version.json` = `cffa9c2`, as telas publicadas têm
       "Procurar na fila" e "Procurar pedido"]**
-      **[FALTA (próximas rodadas da v9.3): Atendimentos 10 por página (10,4 alturas) e Alçadas com os cargos marcados pelo nome (feitos na branch, na
-      homologação a seguir); a varredura de 11/11 no notebook ainda mostra, acima de 5 alturas: Fornecedores 11,2, Planos de contribuição 10,6, Alçadas
+      **[v9.3q/r (2026-11-11) — ATENDIMENTO MAIS CURTO E ALÇADAS SEM CÓDIGO: a fila de atendimento mostra 10 pedidos por página (eram 25; 10,4 alturas
+      de notebook). No formulário de alçada os cargos que podem aprovar são MARCADOS pelo nome (antes digitava-se "TESOUREIRO,PRESIDENTE"), na ordem do
+      Estatuto, e os valores ganharam título; a recusa de quem aprova sem o cargo diz "(Presidente)", não "(PRESIDENTE)". Robôs marcam as caixas; as
+      recusas de cargo vazio ou inventado vão direto à API (a tela não tem mais onde digitar). ACHADO no caminho: o roteiro que dispara os robôs lia o
+      número da execução junto com o endereço que o GitHub passou a imprimir e disparou todos de uma vez — a fila da homologação cancelou os que
+      esperavam (nenhum rodou pela metade); corrigido e repetido um por vez. **Homologação**: v5.4e-03, v5.4e-04, v5.5a-02, v5.5b-01, v7.2a-01,
+      v7.2e-01 e v9.3b-01 verdes; painel 885 e API 1913 em duas rodadas; Postgres verde. **Produção**: Deploy API e Deploy Painel verdes,
+      `version.json` = `dab9254`, a tela publicada tem "Cargos que podem aprovar" e a fila 10 por página; a API responde]**
+      **[FALTA (próximas rodadas da v9.3): a varredura de 11/11 no notebook ainda mostra, acima de 5 alturas: Fornecedores 11,2, Planos de contribuição 10,6, Alçadas
       10,6, Documentos 10,1, Relatórios 9,4, Avisos de privacidade 9 (com nome técnico), Revisão anual 9, Conselho Fiscal 8,9, Centros de custo 8,9,
       Reembolso 8, Contas financeiras 7,9 e outras 11 entre 5 e 7 — várias crescem com o dado que os robôs acumulam na homologação; uma por vez; depois
       disso a altura no notebook passa a reprovar]**
