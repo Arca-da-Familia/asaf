@@ -21,9 +21,9 @@ vi.mock('@/lib/use-me', () => ({
   useMe: () => ({ data: { permissoes: ['financeiro_auditar'] } }),
 }))
 
-// v5.7g - as duas leituras do Conselho Fiscal (títulos e razão) são paginadas (25 por vez) e têm busca pelo texto. O servidor de mentira abaixo repete o contrato do de verdade:
+// v5.7g - as duas leituras do Conselho Fiscal (títulos e razão) são paginadas (10 por vez desde a v9.3z; eram 25) e têm busca pelo texto. O servidor de mentira abaixo repete o contrato do de verdade:
 // `{ total, pagina, por_pagina, itens }`, com a busca e a situação filtrando no servidor.
-const POR_PAGINA = 25
+const POR_PAGINA = 10
 
 function titulo(n: number, status = 'Pendente'): TituloFinanceiroCF {
   return {
@@ -117,19 +117,19 @@ const blocoDoRazao = () =>
 
 beforeEach(() => {
   vi.resetAllMocks()
-  titulos = Array.from({ length: 60 }, (_, i) => titulo(i + 1))
-  lancamentos = Array.from({ length: 30 }, (_, i) => lancamento(i + 1))
+  titulos = Array.from({ length: 24 }, (_, i) => titulo(i + 1))
+  lancamentos = Array.from({ length: 12 }, (_, i) => lancamento(i + 1))
   prepararServidor()
 })
 
 describe('Conselho Fiscal: títulos paginados', () => {
-  it('mostra 25 por página, o total do servidor e a navegação; só a página pedida vai ao servidor', async () => {
+  it('mostra 10 por página, o total do servidor e a navegação; só a página pedida vai ao servidor', async () => {
     desenhar()
     const bloco = within(blocoDeTitulos())
     expect(await bloco.findByText(/Conta de teste 001/)).toBeVisible()
-    expect(bloco.getByText(/Conta de teste 025/)).toBeVisible()
-    expect(bloco.queryByText(/Conta de teste 026/)).toBeNull()
-    expect(bloco.getByText('60 títulos')).toBeVisible()
+    expect(bloco.getByText(/Conta de teste 010/)).toBeVisible()
+    expect(bloco.queryByText(/Conta de teste 011/)).toBeNull()
+    expect(bloco.getByText('24 títulos')).toBeVisible()
     const nav = bloco.getByRole('navigation', { name: 'Páginas de títulos' })
     expect(within(nav).getByText('Página 1 de 3')).toBeVisible()
     expect(
@@ -139,6 +139,7 @@ describe('Conselho Fiscal: títulos paginados', () => {
       status: undefined,
       busca: undefined,
       pagina: 1,
+      por_pagina: 10,
     })
   })
 
@@ -150,18 +151,18 @@ describe('Conselho Fiscal: títulos paginados', () => {
     const nav = () =>
       bloco.getByRole('navigation', { name: 'Páginas de títulos' })
     await u.click(within(nav()).getByRole('button', { name: 'Próxima página' }))
-    expect(await bloco.findByText(/Conta de teste 026/)).toBeVisible()
+    expect(await bloco.findByText(/Conta de teste 011/)).toBeVisible()
     expect(bloco.queryByText(/Conta de teste 001/)).toBeNull()
     expect(within(nav()).getByText('Página 2 de 3')).toBeVisible()
     await u.click(within(nav()).getByRole('button', { name: 'Próxima página' }))
-    expect(await bloco.findByText(/Conta de teste 060/)).toBeVisible()
+    expect(await bloco.findByText(/Conta de teste 024/)).toBeVisible()
     expect(
       within(nav()).getByRole('button', { name: 'Próxima página' }),
     ).toBeDisabled()
     await u.click(
       within(nav()).getByRole('button', { name: 'Página anterior' }),
     )
-    expect(await bloco.findByText(/Conta de teste 026/)).toBeVisible()
+    expect(await bloco.findByText(/Conta de teste 011/)).toBeVisible()
   })
 
   it('a busca espera parar de digitar, vai ao servidor e volta para a primeira página', async () => {
@@ -174,16 +175,17 @@ describe('Conselho Fiscal: títulos paginados', () => {
         bloco.getByRole('navigation', { name: 'Páginas de títulos' }),
       ).getByRole('button', { name: 'Próxima página' }),
     )
-    await bloco.findByText(/Conta de teste 026/)
-    await u.type(bloco.getByLabelText('Buscar título'), 'teste 047')
+    await bloco.findByText(/Conta de teste 011/)
+    await u.type(bloco.getByLabelText('Buscar título'), 'teste 017')
     await waitFor(() =>
       expect(api.listarTitulosConselhoFiscal).toHaveBeenLastCalledWith({
         status: undefined,
-        busca: 'teste 047',
+        busca: 'teste 017',
         pagina: 1,
+        por_pagina: 10,
       }),
     )
-    expect(await bloco.findByText(/Conta de teste 047/)).toBeVisible()
+    expect(await bloco.findByText(/Conta de teste 017/)).toBeVisible()
     expect(bloco.getByText('1 título')).toBeVisible()
     // um resultado só: não há navegação
     expect(
@@ -193,7 +195,7 @@ describe('Conselho Fiscal: títulos paginados', () => {
 
   it('busca sem resultado diz que nada foi encontrado; mudar a situação volta à primeira página e combina com a busca', async () => {
     const u = userEvent.setup()
-    titulos = Array.from({ length: 60 }, (_, i) =>
+    titulos = Array.from({ length: 24 }, (_, i) =>
       titulo(i + 1, i % 2 === 0 ? 'Pago' : 'Pendente'),
     )
     desenhar()
@@ -204,7 +206,7 @@ describe('Conselho Fiscal: títulos paginados', () => {
         bloco.getByRole('navigation', { name: 'Páginas de títulos' }),
       ).getByRole('button', { name: 'Próxima página' }),
     )
-    await bloco.findByText(/Conta de teste 026/)
+    await bloco.findByText(/Conta de teste 011/)
     await u.selectOptions(
       bloco.getByLabelText('Filtrar títulos por situação'),
       'Pago',
@@ -214,19 +216,20 @@ describe('Conselho Fiscal: títulos paginados', () => {
         status: 'Pago',
         busca: undefined,
         pagina: 1,
+        por_pagina: 10,
       }),
     )
-    expect(await bloco.findByText('30 títulos')).toBeVisible()
+    expect(await bloco.findByText('12 títulos')).toBeVisible()
     await u.type(bloco.getByLabelText('Buscar título'), 'nada-disso')
     expect(await bloco.findByText('Nenhum título encontrado.')).toBeVisible()
   })
 
-  it('com até 25 títulos não há navegação', async () => {
-    titulos = titulos.slice(0, 25)
+  it('com até 10 títulos não há navegação', async () => {
+    titulos = titulos.slice(0, 10)
     desenhar()
     const bloco = within(blocoDeTitulos())
-    expect(await bloco.findByText(/Conta de teste 025/)).toBeVisible()
-    expect(bloco.getByText('25 títulos')).toBeVisible()
+    expect(await bloco.findByText(/Conta de teste 010/)).toBeVisible()
+    expect(bloco.getByText('10 títulos')).toBeVisible()
     expect(
       bloco.queryByRole('navigation', { name: 'Páginas de títulos' }),
     ).toBeNull()
@@ -234,25 +237,26 @@ describe('Conselho Fiscal: títulos paginados', () => {
 })
 
 describe('Conselho Fiscal: razão paginado', () => {
-  it('25 por página, o total, a próxima página e a busca pelo histórico', async () => {
+  it('10 por página, o total, a próxima página e a busca pelo histórico', async () => {
     const u = userEvent.setup()
     desenhar()
     const bloco = within(blocoDoRazao())
     expect(await bloco.findByText('Lançamento de teste 001')).toBeVisible()
-    expect(bloco.queryByText('Lançamento de teste 026')).toBeNull()
-    expect(bloco.getByText('30 lançamentos')).toBeVisible()
+    expect(bloco.queryByText('Lançamento de teste 011')).toBeNull()
+    expect(bloco.getByText('12 lançamentos')).toBeVisible()
     await u.click(
       within(
         bloco.getByRole('navigation', { name: 'Páginas do razão' }),
       ).getByRole('button', { name: 'Próxima página' }),
     )
-    expect(await bloco.findByText('Lançamento de teste 030')).toBeVisible()
+    expect(await bloco.findByText('Lançamento de teste 011')).toBeVisible()
     expect(bloco.queryByText('Lançamento de teste 001')).toBeNull()
     await u.type(bloco.getByLabelText('Buscar lançamento'), 'teste 012')
     await waitFor(() =>
       expect(api.listarCaixaConselhoFiscal).toHaveBeenLastCalledWith({
         busca: 'teste 012',
         pagina: 1,
+        por_pagina: 10,
       }),
     )
     expect(await bloco.findByText('Lançamento de teste 012')).toBeVisible()

@@ -14,7 +14,7 @@ import {
 // v5.7g - as PONTAS do painel e da transparência, provadas na homologação com a API de teste e as telas:
 //  1. "Aplicado por campanha": a página pública de doação mostra, por campanha, o TOTAL já gasto no centro de custo dela (0 sem gasto; vazio, "não acompanhado à parte", sem centro de custo);
 //     a tesouraria registra uma saída pela TELA, com o centro de custo da campanha, e o aplicado passa a ser o valor da saída; nada do centro de custo sai na API pública;
-//  2. a leitura do Conselho Fiscal é paginada: o conselheiro vê 25 por vez, o total do servidor, a próxima página traz outros itens, a busca acha o título e o lançamento criados aqui, o filtro de
+//  2. a leitura do Conselho Fiscal é paginada: o conselheiro vê 10 por vez (v9.3z; eram 25), o total do servidor, a próxima página traz outros itens, a busca acha o título e o lançamento criados aqui, o filtro de
 //     situação combina com a busca, e cada consulta (de cada página) fica na Auditoria sem o texto buscado;
 //  3. o atalho "Editar o site" tem permissão própria (`editar_site`): a Presidência o vê (e a permissão está no cadastro de permissões); o Secretário, que não tem a permissão, não o vê.
 // Fica na homologação, para explorar: o centro de custo, as duas campanhas e a saída do robô.
@@ -199,7 +199,7 @@ test('a tesouraria registra uma saída pela tela com o centro de custo da campan
   expect(vigia.problemas()).toEqual([])
 })
 
-test('Conselho Fiscal: 25 por página, o total do servidor, outra página, busca pelo título e pelo lançamento, situação combinada com a busca, e a Auditoria sem o texto buscado', async ({
+test('Conselho Fiscal: 10 por página (v9.3z; eram 25), o total do servidor, outra página, busca pelo título e pelo lançamento, situação combinada com a busca, e a Auditoria sem o texto buscado', async ({
   page,
 }, info) => {
   const vigia = vigiar(page)
@@ -220,11 +220,11 @@ test('Conselho Fiscal: 25 por página, o total do servidor, outra página, busca
   expect(
     totalDeTitulos,
     'a homologação cheia tem mais de uma página',
-  ).toBeGreaterThan(25)
+  ).toBeGreaterThan(10)
   expect(
     totalDoRazao,
     'a homologação cheia tem mais de uma página',
-  ).toBeGreaterThan(25)
+  ).toBeGreaterThan(10)
 
   await page.goto('/financeiro/conselho-fiscal')
   const titulos = page.locator('section').filter({
@@ -238,13 +238,13 @@ test('Conselho Fiscal: 25 por página, o total do servidor, outra página, busca
   })
   await expect(titulos.getByText(`${totalDeTitulos} títulos`)).toBeVisible()
   await expect(
-    navTitulos.getByText(`Página 1 de ${Math.ceil(totalDeTitulos / 25)}`),
+    navTitulos.getByText(`Página 1 de ${Math.ceil(totalDeTitulos / 10)}`),
   ).toBeVisible()
   await expect(
     navTitulos.getByRole('button', { name: 'Página anterior' }),
   ).toBeDisabled()
   const cartoes = titulos.locator('div.rounded-md.border')
-  await expect(cartoes).toHaveCount(25)
+  await expect(cartoes).toHaveCount(10)
   const primeiroDaPagina1 = await cartoes.first().innerText()
   await ver(page, info, 'conselho-fiscal-pagina-1-dos-titulos')
 
@@ -258,7 +258,7 @@ test('Conselho Fiscal: 25 por página, o total do servidor, outra página, busca
   await navTitulos.getByRole('button', { name: 'Próxima página' }).click()
   await proxima
   await expect(
-    navTitulos.getByText(`Página 2 de ${Math.ceil(totalDeTitulos / 25)}`),
+    navTitulos.getByText(`Página 2 de ${Math.ceil(totalDeTitulos / 10)}`),
   ).toBeVisible()
   await expect
     .poll(async () => cartoes.first().innerText())
@@ -295,10 +295,10 @@ test('Conselho Fiscal: 25 por página, o total do servidor, outra página, busca
   const navRazao = razao.getByRole('navigation', { name: 'Páginas do razão' })
   await expect(razao.getByText(`${totalDoRazao} lançamentos`)).toBeVisible()
   await expect(
-    navRazao.getByText(`Página 1 de ${Math.ceil(totalDoRazao / 25)}`),
+    navRazao.getByText(`Página 1 de ${Math.ceil(totalDoRazao / 10)}`),
   ).toBeVisible()
   const linhas = razao.locator('tbody tr')
-  await expect(linhas).toHaveCount(25)
+  await expect(linhas).toHaveCount(10)
   const buscaRazao = page.waitForResponse(
     (r) =>
       r.url().includes('/api/conselho-fiscal/financeiro/caixa') &&
