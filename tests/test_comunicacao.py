@@ -29,6 +29,7 @@ from app.models.notificacoes_painel import NotificacaoPainel
 from app.models.pessoas import Pessoa
 from app.models.projetos import AlocacaoVoluntario, EquipeProjeto, ProjetoEvento
 from app.security import hash_senha
+from app.nomes_das_permissoes import nome_da_permissao
 from app.services import comunicacao, retencao
 from tests.test_conselho_fiscal import _criar_associado, _headers
 
@@ -169,6 +170,23 @@ def test_o_grupo_por_permissao_e_quem_tem_a_permissao_hoje(client, db, auth_head
     assert all(p["tem_acesso"] for p in previa["pessoas"])
     ruim = client.post("/api/avisos/conferir-publico", json={"publico": {"tipo": "permissao", "codigo_permissao": "nao_existe"}}, headers=auth_headers)
     assert ruim.status_code == 422
+
+
+def test_aviso_antigo_com_o_codigo_da_permissao_no_texto_aparece_com_o_nome_em_portugues(client, db, auth_headers):
+    """v9.3v: os avisos publicados antes da v9.3g guardaram "Quem tem a permissão financeiro_auditar". A lista descreve o público de novo pela regra
+    gravada no aviso, com o nome da permissão em português; o texto gravado não muda."""
+    # `gerenciar_acesso`: quem publica nos testes tem (o grupo não fica vazio)
+    publicado = _publicar(client, auth_headers, {"tipo": "permissao", "codigo_permissao": "gerenciar_acesso"})
+    aviso = db.get(Aviso, publicado["id_aviso"])
+    aviso.publico_descricao = "Quem tem a permissão gerenciar_acesso"  # como saía antes da v9.3g
+    db.commit()
+    lista = client.get("/api/avisos/", params={"busca": aviso.titulo}, headers=auth_headers)
+    assert lista.status_code == 200, lista.text
+    item = next(a for a in lista.json()["itens"] if a["id_aviso"] == aviso.id_aviso)
+    assert item["publico_descricao"] == f'Quem tem a permissão "{nome_da_permissao("gerenciar_acesso")}"'
+    assert "gerenciar_acesso" not in item["publico_descricao"]
+    db.refresh(aviso)
+    assert aviso.publico_descricao == "Quem tem a permissão gerenciar_acesso"
 
 
 def test_publicar_recusa_o_que_tem_de_recusar(client, db, auth_headers):

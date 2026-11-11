@@ -47,7 +47,9 @@ export function TermoDeImagem({
       </p>
       <details>
         <summary className="cursor-pointer text-xs">Ler o termo</summary>
-        <p className="mt-1 whitespace-pre-line text-xs">{termo.texto}</p>
+        <p data-texto-fiel className="mt-1 whitespace-pre-line text-xs">
+          {termo.texto}
+        </p>
       </details>
       <Button
         type="button"

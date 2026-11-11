@@ -41,7 +41,7 @@ def _utc_sem_fuso(momento: datetime) -> datetime:
 def _serializar(a: AvisoAgendado) -> dict:
     return {
         "id_agendado": a.id_agendado, "publicar_em": a.publicar_em, "situacao": a.situacao, "titulo": a.titulo, "categoria": a.categoria, "valido_ate": a.valido_ate,
-        "exige_confirmacao": a.exige_confirmacao, "por_email": a.por_email, "publico_descricao": a.publico_descricao, "total_conferido": a.total_conferido,
+        "exige_confirmacao": a.exige_confirmacao, "por_email": a.por_email, "publico_descricao": comunicacao.descricao_do_publico(a), "total_conferido": a.total_conferido,
         "id_aviso": a.id_aviso, "motivo": a.motivo, "criado_em": a.criado_em,
     }
 

@@ -45,7 +45,10 @@ export function LerAviso({ ponto, versao }: { ponto: string; versao: string }) {
                 {data.versao !== data.versao_atual &&
                   ` · hoje vale a versão ${data.versao_atual}`}
               </p>
-              <p className="mt-2 whitespace-pre-line">{data.texto_sem_links}</p>
+              {/* v9.3v: o texto exato que a pessoa leu (os destaques em maiúsculas são do texto legal, não códigos) */}
+              <p data-texto-fiel className="mt-2 whitespace-pre-line">
+                {data.texto_sem_links}
+              </p>
               {data.caixa === 'Assinatura no termo' ? (
                 <p className="mt-2 text-xs">
                   Dado pela assinatura no termo impresso (da pessoa ou, se é o
