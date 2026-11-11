@@ -1,9 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { z } from 'zod'
 
+import { Paginador } from '@/components/data/Paginador'
 import { ErroCampo, FormShell } from '@/components/forms/FormShell'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { Abas } from '@/components/ui/abas'
 import { Button } from '@/components/ui/button'
 import {
   alternarCampanhaDescontoAntecipado,
@@ -19,6 +22,7 @@ import {
   reajustarPlanoContribuicao,
 } from '@/lib/api'
 import { formatarDia } from '@/lib/datas'
+import { usePaginaLocal } from '@/lib/pagina-local'
 import {
   campanhaDescontoAntecipadoCriarSchema,
   isencaoContribuicaoCriarSchema,
@@ -36,7 +40,13 @@ function formatarReais(valor: number): string {
   }).format(valor)
 }
 
-function FormularioPlano({ onCancelar }: { onCancelar: () => void }) {
+function FormularioPlano({
+  onCancelar,
+  aoCriar,
+}: {
+  onCancelar: () => void
+  aoCriar?: (idPlano: number) => void
+}) {
   const queryClient = useQueryClient()
   const { data: contas } = useQuery({
     queryKey: ['plano-contas'],
@@ -53,8 +63,11 @@ function FormularioPlano({ onCancelar }: { onCancelar: () => void }) {
   const criar = useMutation({
     mutationFn: (v: z.infer<typeof planoContribuicaoCriarSchema>) =>
       criarPlanoContribuicao(v),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['planos-contribuicao'] })
+    onSuccess: async (criado) => {
+      await queryClient.invalidateQueries({
+        queryKey: ['planos-contribuicao'],
+      })
+      aoCriar?.(criado.id_plano)
       onCancelar()
     },
   })
@@ -487,7 +500,28 @@ function FormularioCampanha({ onCancelar }: { onCancelar: () => void }) {
   )
 }
 
+const POR_PAGINA = 10
+// v9.3t (a tela tinha 10,6 alturas de notebook na homologação: as três listas, uma embaixo da outra): uma parte por aba, no endereço (?parte=)
+const PARTES = ['planos', 'isencoes', 'campanhas'] as const
+type Parte = (typeof PARTES)[number]
+
 export function PlanosContribuicaoPage() {
+  const [parametros, setParametros] = useSearchParams()
+  const pedida = parametros.get('parte')
+  const parte: Parte = PARTES.includes(pedida as Parte)
+    ? (pedida as Parte)
+    : 'planos'
+  function irParaParte(chave: string) {
+    setParametros(
+      (atual) => {
+        const novo = new URLSearchParams(atual)
+        if (chave === 'planos') novo.delete('parte')
+        else novo.set('parte', chave)
+        return novo
+      },
+      { replace: true },
+    )
+  }
   const [mostrarFormPlano, setMostrarFormPlano] = useState(false)
   const [mostrarFormIsencao, setMostrarFormIsencao] = useState(false)
   const [mostrarFormCampanha, setMostrarFormCampanha] = useState(false)
@@ -522,6 +556,20 @@ export function PlanosContribuicaoPage() {
     queryFn: listarCampanhasDescontoAntecipado,
   })
 
+  // cada lista em páginas de 10 (os planos por categoria; as isenções e as campanhas, as mais recentes primeiro — como a API devolve)
+  const paginaPlanos = usePaginaLocal(planos, POR_PAGINA)
+  const paginaIsencoes = usePaginaLocal(isencoes, POR_PAGINA)
+  const paginaCampanhas = usePaginaLocal(campanhas, POR_PAGINA)
+  // o plano recém-cadastrado: a lista vai à página onde ele está (a lista vem por categoria)
+  const [mostrarPlano, setMostrarPlano] = useState<number | null>(null)
+  if (mostrarPlano !== null && planos) {
+    const posicao = planos.findIndex((p) => p.id_plano === mostrarPlano)
+    if (posicao >= 0) {
+      setMostrarPlano(null)
+      paginaPlanos.setPagina(Math.floor(posicao / POR_PAGINA) + 1)
+    }
+  }
+
   const alternarCampanha = useMutation({
     mutationFn: ({ id, ativo }: { id: number; ativo: boolean }) =>
       alternarCampanhaDescontoAntecipado(id, ativo),
@@ -542,197 +590,253 @@ export function PlanosContribuicaoPage() {
         ]}
       />
 
-      <section className="mb-6 rounded-xl border border-border bg-card p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-semibold">Planos cadastrados</h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setMostrarFormPlano((v) => !v)}
-          >
-            {mostrarFormPlano ? 'Cancelar' : 'Novo plano'}
-          </Button>
-        </div>
-
-        {mostrarFormPlano && (
-          <FormularioPlano onCancelar={() => setMostrarFormPlano(false)} />
-        )}
-
-        <div className="grid items-start gap-2 lg:grid-cols-2">
-          {(planos ?? []).map((p) => (
-            <div
-              key={p.id_plano}
-              className="rounded-md border border-border p-3 text-sm"
-            >
-              <div className="flex items-center justify-between">
-                <p className="font-medium">
-                  {p.categoria} — {p.descricao}
-                </p>
-                <p className="font-medium">
-                  {p.valor_vigente != null
-                    ? formatarReais(p.valor_vigente)
-                    : 'sem valor vigente'}
-                </p>
-              </div>
-              <p className="text-muted-foreground">
-                {p.periodicidade} · vencimento dia {p.dia_vencimento}
-                {p.cobranca_por_nucleo_familiar && ' · cobrança por família'}
-                {!p.ativo && ' · inativo'}
-              </p>
-              <div className="mt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setReajustando((v) =>
-                      v === p.id_plano ? null : p.id_plano,
-                    )
-                  }
-                >
-                  {reajustando === p.id_plano ? 'Cancelar' : 'Reajustar'}
-                </Button>
-                {reajustando === p.id_plano && (
-                  <FormularioReajuste
-                    idPlano={p.id_plano}
-                    onCancelar={() => setReajustando(null)}
-                  />
-                )}
-              </div>
-            </div>
-          ))}
-          {(planos ?? []).length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Nenhum plano de contribuição cadastrado.
-            </p>
-          )}
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-border bg-card p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-semibold">Isenções</h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setMostrarFormIsencao((v) => !v)}
-          >
-            {mostrarFormIsencao ? 'Cancelar' : 'Nova isenção'}
-          </Button>
-        </div>
-
-        {mostrarFormIsencao && (
-          <FormularioIsencao onCancelar={() => setMostrarFormIsencao(false)} />
-        )}
-
-        <div className="v3-space-y-2">
-          {(isencoes ?? []).map((i) => (
-            <div
-              key={i.id_isencao}
-              className="rounded-md border border-border p-3 text-sm"
-            >
-              <p className="font-medium">
-                {nomeDoAssociado(i.id_associado)} — {i.percentual_desconto}% de
-                desconto
-              </p>
-              <p className="text-muted-foreground">
-                {rotuloDoMotivo(i.motivo)} · desde {formatarDia(i.data_inicio)}
-                {i.data_fim
-                  ? ` até ${formatarDia(i.data_fim)}`
-                  : ' · sem data de fim'}
-              </p>
-            </div>
-          ))}
-          {(isencoes ?? []).length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma isenção cadastrada.
-            </p>
-          )}
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-border bg-card p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="font-semibold">
-              Campanha de Desconto por Pagamento Antecipado
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Bloco de meses (semestral, anual…) pago de uma vez, com desconto —
-              decisão de assembleia, totalmente configurável.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setMostrarFormCampanha((v) => !v)}
-          >
-            {mostrarFormCampanha ? 'Cancelar' : 'Nova vigência'}
-          </Button>
-        </div>
-
-        {mostrarFormCampanha && (
-          <FormularioCampanha
-            onCancelar={() => setMostrarFormCampanha(false)}
-          />
-        )}
-
-        <div className="v3-space-y-2">
-          {(campanhas ?? []).map((c) => (
-            <div
-              key={c.id_campanha}
-              className="rounded-md border border-border p-3 text-sm"
-            >
-              <div className="flex items-center justify-between">
-                <p className="font-medium">
-                  {c.percentual_desconto}% de desconto — bloco de{' '}
-                  {c.quantidade_meses} meses
-                </p>
-                <span
-                  className={
-                    c.ativo && !c.data_vigencia_fim
-                      ? 'text-green-700 dark:text-green-400'
-                      : 'text-muted-foreground'
-                  }
-                >
-                  {!c.data_vigencia_fim
-                    ? c.ativo
-                      ? 'Vigente'
-                      : 'Vigente (inativa)'
-                    : 'Encerrada'}
-                </span>
-              </div>
-              <p className="text-muted-foreground">
-                Meses-gatilho: {c.meses_gatilho.join(', ')} · desde{' '}
-                {c.data_vigencia_inicio}
-                {c.data_vigencia_fim && ` até ${c.data_vigencia_fim}`}
-              </p>
-              {c.motivo && <p className="text-muted-foreground">{c.motivo}</p>}
-              {!c.data_vigencia_fim && (
-                <div className="mt-2">
+      <Abas
+        rotulo="Partes dos planos de contribuição"
+        atual={parte}
+        aoMudar={irParaParte}
+        abas={[
+          {
+            chave: 'planos',
+            rotulo: 'Planos',
+            conteudo: (
+              <section className="rounded-xl border border-border bg-card p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="font-semibold">Planos cadastrados</h2>
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={alternarCampanha.isPending}
-                    onClick={() =>
-                      alternarCampanha.mutate({
-                        id: c.id_campanha,
-                        ativo: !c.ativo,
-                      })
-                    }
+                    onClick={() => setMostrarFormPlano((v) => !v)}
                   >
-                    {c.ativo ? 'Inativar' : 'Reativar'}
+                    {mostrarFormPlano ? 'Cancelar' : 'Novo plano'}
                   </Button>
                 </div>
-              )}
-            </div>
-          ))}
-          {(campanhas ?? []).length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma campanha cadastrada.
-            </p>
-          )}
-        </div>
-      </section>
+
+                {mostrarFormPlano && (
+                  <FormularioPlano
+                    onCancelar={() => setMostrarFormPlano(false)}
+                    aoCriar={setMostrarPlano}
+                  />
+                )}
+
+                <div className="grid items-start gap-2 lg:grid-cols-2">
+                  {paginaPlanos.daPagina.map((p) => (
+                    <div
+                      key={p.id_plano}
+                      className="rounded-md border border-border p-3 text-sm"
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium">
+                          {p.categoria} — {p.descricao}
+                        </p>
+                        <p className="font-medium">
+                          {p.valor_vigente != null
+                            ? formatarReais(p.valor_vigente)
+                            : 'sem valor vigente'}
+                        </p>
+                      </div>
+                      <p className="text-muted-foreground">
+                        {p.periodicidade} · vencimento dia {p.dia_vencimento}
+                        {p.cobranca_por_nucleo_familiar &&
+                          ' · cobrança por família'}
+                        {!p.ativo && ' · inativo'}
+                      </p>
+                      <div className="mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setReajustando((v) =>
+                              v === p.id_plano ? null : p.id_plano,
+                            )
+                          }
+                        >
+                          {reajustando === p.id_plano
+                            ? 'Cancelar'
+                            : 'Reajustar'}
+                        </Button>
+                        {reajustando === p.id_plano && (
+                          <FormularioReajuste
+                            idPlano={p.id_plano}
+                            onCancelar={() => setReajustando(null)}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {(planos ?? []).length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum plano de contribuição cadastrado.
+                    </p>
+                  )}
+                </div>
+                <Paginador
+                  pagina={paginaPlanos.pagina}
+                  porPagina={paginaPlanos.porPagina}
+                  total={paginaPlanos.total}
+                  aoMudar={paginaPlanos.setPagina}
+                  rotulo="Páginas dos planos"
+                />
+              </section>
+            ),
+          },
+          {
+            chave: 'isencoes',
+            rotulo: 'Isenções',
+            conteudo: (
+              <section className="rounded-xl border border-border bg-card p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="font-semibold">Isenções</h2>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMostrarFormIsencao((v) => !v)}
+                  >
+                    {mostrarFormIsencao ? 'Cancelar' : 'Nova isenção'}
+                  </Button>
+                </div>
+
+                {mostrarFormIsencao && (
+                  <FormularioIsencao
+                    onCancelar={() => setMostrarFormIsencao(false)}
+                  />
+                )}
+
+                <div className="v3-space-y-2">
+                  {paginaIsencoes.daPagina.map((i) => (
+                    <div
+                      key={i.id_isencao}
+                      className="rounded-md border border-border p-3 text-sm"
+                    >
+                      <p className="font-medium">
+                        {nomeDoAssociado(i.id_associado)} —{' '}
+                        {i.percentual_desconto}% de desconto
+                      </p>
+                      <p className="text-muted-foreground">
+                        {rotuloDoMotivo(i.motivo)} · desde{' '}
+                        {formatarDia(i.data_inicio)}
+                        {i.data_fim
+                          ? ` até ${formatarDia(i.data_fim)}`
+                          : ' · sem data de fim'}
+                      </p>
+                    </div>
+                  ))}
+                  {(isencoes ?? []).length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhuma isenção cadastrada.
+                    </p>
+                  )}
+                </div>
+                <Paginador
+                  pagina={paginaIsencoes.pagina}
+                  porPagina={paginaIsencoes.porPagina}
+                  total={paginaIsencoes.total}
+                  aoMudar={paginaIsencoes.setPagina}
+                  rotulo="Páginas das isenções"
+                />
+              </section>
+            ),
+          },
+          {
+            chave: 'campanhas',
+            rotulo: 'Desconto por pagamento antecipado',
+            conteudo: (
+              <section className="rounded-xl border border-border bg-card p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h2 className="font-semibold">
+                      Campanha de Desconto por Pagamento Antecipado
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Bloco de meses (semestral, anual…) pago de uma vez, com
+                      desconto — decisão de assembleia, totalmente configurável.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMostrarFormCampanha((v) => !v)}
+                  >
+                    {mostrarFormCampanha ? 'Cancelar' : 'Nova vigência'}
+                  </Button>
+                </div>
+
+                {mostrarFormCampanha && (
+                  <FormularioCampanha
+                    onCancelar={() => setMostrarFormCampanha(false)}
+                  />
+                )}
+
+                <div className="v3-space-y-2">
+                  {paginaCampanhas.daPagina.map((c) => (
+                    <div
+                      key={c.id_campanha}
+                      className="rounded-md border border-border p-3 text-sm"
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium">
+                          {c.percentual_desconto}% de desconto — bloco de{' '}
+                          {c.quantidade_meses} meses
+                        </p>
+                        <span
+                          className={
+                            c.ativo && !c.data_vigencia_fim
+                              ? 'text-green-700 dark:text-green-400'
+                              : 'text-muted-foreground'
+                          }
+                        >
+                          {!c.data_vigencia_fim
+                            ? c.ativo
+                              ? 'Vigente'
+                              : 'Vigente (inativa)'
+                            : 'Encerrada'}
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground">
+                        Meses-gatilho: {c.meses_gatilho.join(', ')} · desde{' '}
+                        {formatarDia(c.data_vigencia_inicio)}
+                        {c.data_vigencia_fim &&
+                          ` até ${formatarDia(c.data_vigencia_fim)}`}
+                      </p>
+                      {c.motivo && (
+                        <p className="text-muted-foreground">{c.motivo}</p>
+                      )}
+                      {!c.data_vigencia_fim && (
+                        <div className="mt-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={alternarCampanha.isPending}
+                            onClick={() =>
+                              alternarCampanha.mutate({
+                                id: c.id_campanha,
+                                ativo: !c.ativo,
+                              })
+                            }
+                          >
+                            {c.ativo ? 'Inativar' : 'Reativar'}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {(campanhas ?? []).length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhuma campanha cadastrada.
+                    </p>
+                  )}
+                </div>
+                <Paginador
+                  pagina={paginaCampanhas.pagina}
+                  porPagina={paginaCampanhas.porPagina}
+                  total={paginaCampanhas.total}
+                  aoMudar={paginaCampanhas.setPagina}
+                  rotulo="Páginas das campanhas"
+                />
+              </section>
+            ),
+          },
+        ]}
+      />
     </>
   )
 }

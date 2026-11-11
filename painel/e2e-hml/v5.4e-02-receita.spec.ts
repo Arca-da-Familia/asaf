@@ -752,15 +752,19 @@ test.describe('A. Quem pode e o que cada tela da receita oferece', () => {
       }
     }
 
+    // v9.3t: uma parte por aba (Planos, Isenções, Desconto por pagamento antecipado)
     await page.goto('/financeiro/planos-contribuicao')
-    for (const secao of [
-      'Planos cadastrados',
-      'Isenções',
-      'Campanha de Desconto por Pagamento Antecipado',
-    ]) {
+    for (const [aba, secao, botao] of [
+      ['Planos', 'Planos cadastrados', 'Novo plano'],
+      ['Isenções', 'Isenções', 'Nova isenção'],
+      [
+        'Desconto por pagamento antecipado',
+        'Campanha de Desconto por Pagamento Antecipado',
+        'Nova vigência',
+      ],
+    ] as const) {
+      await page.getByRole('tab', { name: aba, exact: true }).click()
       await expect(page.getByRole('heading', { name: secao })).toBeVisible()
-    }
-    for (const botao of ['Novo plano', 'Nova isenção', 'Nova vigência']) {
       await expect(
         page.getByRole('button', { name: botao, exact: true }),
       ).toBeVisible()
@@ -879,7 +883,7 @@ test.describe('A. Quem pode e o que cada tela da receita oferece', () => {
       await varrer('receita-planos-reajuste')
     }
 
-    await page.goto('/financeiro/planos-contribuicao')
+    await page.goto('/financeiro/planos-contribuicao?parte=isencoes')
     await page
       .getByRole('button', { name: 'Nova isenção', exact: true })
       .click()
@@ -888,7 +892,7 @@ test.describe('A. Quem pode e o que cada tela da receita oferece', () => {
     ).toBeVisible()
     await varrer('receita-planos-nova-isencao')
 
-    await page.goto('/financeiro/planos-contribuicao')
+    await page.goto('/financeiro/planos-contribuicao?parte=campanhas')
     await page
       .getByRole('button', { name: 'Nova vigência', exact: true })
       .click()
@@ -1176,7 +1180,7 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
     const vigia = vigiar(page)
     const a = exigirApoio()
     await entrarNoFinanceiro(page, 'tesoureiro')
-    await page.goto('/financeiro/planos-contribuicao')
+    await page.goto('/financeiro/planos-contribuicao?parte=campanhas')
     const secao = page.locator('section').filter({
       has: page.getByRole('heading', {
         name: 'Campanha de Desconto por Pagamento Antecipado',
@@ -1315,7 +1319,7 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
     const vigia = vigiar(page)
     const a = exigirApoio()
     await entrarNoFinanceiro(page, 'presidente')
-    await page.goto('/financeiro/planos-contribuicao')
+    await page.goto('/financeiro/planos-contribuicao?parte=isencoes')
     const secao = page.locator('section').filter({
       has: page.getByRole('heading', { name: 'Isenções' }),
     })
@@ -1683,7 +1687,7 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
 
     // recusa 3: campanha inativa (o painel de planos inativa e reativa)
     const cartaoDaCampanha = async () => {
-      await page.goto('/financeiro/planos-contribuicao')
+      await page.goto('/financeiro/planos-contribuicao?parte=campanhas')
       return page
         .locator('div.rounded-md.border')
         .filter({ hasText: MOTIVO_CAMPANHA })
@@ -1991,7 +1995,7 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
     })
 
     // por último (achado provável de apresentação): a isenção mostra o motivo pelo nome, não pelo código técnico
-    await page.goto('/financeiro/planos-contribuicao')
+    await page.goto('/financeiro/planos-contribuicao?parte=isencoes')
     const isencao = page.locator('div.rounded-md.border').filter({
       hasText: new RegExp(`${escapar(a.isento.nome)} — 40% de desconto`),
     })
@@ -4015,7 +4019,7 @@ test.describe('F. Sondagens do caminho mínimo (cada uma independente)', () => {
     const vigia = vigiar(page)
     const a = await garantirApoio(page)
     await entrarNoFinanceiro(page, 'presidente')
-    await page.goto('/financeiro/planos-contribuicao')
+    await page.goto('/financeiro/planos-contribuicao?parte=isencoes')
     const secao = page.locator('section').filter({
       has: page.getByRole('heading', { name: 'Isenções' }),
     })
