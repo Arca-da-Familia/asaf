@@ -177,4 +177,33 @@ describe('Revisão anual do programa (v7.5b)', () => {
       screen.queryByRole('button', { name: 'Salvar e aprovar' }),
     ).toBeNull()
   })
+
+  it('a revisão mais recente fica aberta; as anteriores ficam recolhidas (v9.3y)', async () => {
+    const u = userEvent.setup()
+    const aprovada = (id: number, dia: string) => ({
+      id_revisao: id,
+      situacao: 'APROVADA' as const,
+      retrato,
+      observacoes: `Observação ${id}`,
+      montada_em: `${dia}T12:00:00`,
+      aprovada_em: `${dia}T12:00:00`,
+    })
+    vi.mocked(privacidade.obterRevisoesDoPrograma).mockResolvedValue(
+      dados({
+        pode_gerir: false,
+        revisoes: [
+          aprovada(9, '2026-11-03'),
+          aprovada(8, '2026-01-10'),
+          aprovada(7, '2025-01-12'),
+        ],
+      }),
+    )
+    desenhar()
+    expect(await screen.findByText('Observação 9')).toBeVisible()
+    expect(screen.getByText('Revisões anteriores (2)')).toBeInTheDocument()
+    expect(screen.getByText('Observação 8')).not.toBeVisible()
+    await u.click(screen.getByText('Revisões anteriores (2)'))
+    expect(screen.getByText('Observação 8')).toBeVisible()
+    expect(screen.getByText('Observação 7')).toBeVisible()
+  })
 })

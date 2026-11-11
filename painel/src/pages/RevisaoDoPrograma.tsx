@@ -167,6 +167,41 @@ function Rascunho({ r }: { r: RevisaoDoPrograma }) {
   )
 }
 
+function ItemDaRevisao({
+  r,
+  podeGerir,
+}: {
+  r: RevisaoDoPrograma
+  podeGerir: boolean
+}) {
+  return (
+    <li
+      aria-label={`Revisão de ${formatarData(r.montada_em)}`}
+      data-situacao={r.situacao}
+      className="rounded-xl border border-border p-4"
+    >
+      <h2 className="mb-2 font-semibold">
+        {r.situacao === 'APROVADA'
+          ? `Aprovada em ${formatarData(r.aprovada_em!)}`
+          : 'Rascunho'}{' '}
+        <span className="font-normal text-muted-foreground">
+          (montada em {formatarData(r.montada_em, { comHora: true })})
+        </span>
+      </h2>
+      <Retrato r={r.retrato} />
+      {r.situacao === 'APROVADA' && r.observacoes && (
+        <div className="mt-3 border-t border-border pt-3 text-sm">
+          <p className="text-xs text-muted-foreground">
+            Observações do encarregado
+          </p>
+          <p className="whitespace-pre-wrap">{r.observacoes}</p>
+        </div>
+      )}
+      {r.situacao === 'RASCUNHO' && podeGerir && <Rascunho r={r} />}
+    </li>
+  )
+}
+
 export function RevisaoDoProgramaPage() {
   const cliente = useQueryClient()
   const consulta = useQuery({
@@ -230,38 +265,35 @@ export function RevisaoDoProgramaPage() {
               Nenhuma revisão montada ainda.
             </p>
           ) : (
-            <ul className="space-y-3">
-              {d.revisoes.map((r) => (
-                <li
-                  key={r.id_revisao}
-                  aria-label={`Revisão de ${formatarData(r.montada_em)}`}
-                  data-situacao={r.situacao}
-                  className="rounded-xl border border-border p-4"
-                >
-                  <h2 className="mb-2 font-semibold">
-                    {r.situacao === 'APROVADA'
-                      ? `Aprovada em ${formatarData(r.aprovada_em!)}`
-                      : 'Rascunho'}{' '}
-                    <span className="font-normal text-muted-foreground">
-                      (montada em{' '}
-                      {formatarData(r.montada_em, { comHora: true })})
-                    </span>
-                  </h2>
-                  <Retrato r={r.retrato} />
-                  {r.situacao === 'APROVADA' && r.observacoes && (
-                    <div className="mt-3 border-t border-border pt-3 text-sm">
-                      <p className="text-xs text-muted-foreground">
-                        Observações do encarregado
-                      </p>
-                      <p className="whitespace-pre-wrap">{r.observacoes}</p>
-                    </div>
-                  )}
-                  {r.situacao === 'RASCUNHO' && d.pode_gerir && (
-                    <Rascunho r={r} />
-                  )}
-                </li>
-              ))}
-            </ul>
+            <>
+              {/* v9.3y (a tela tinha 9 alturas de notebook na homologação: todas as revisões abertas, uma embaixo da outra): a mais recente aberta;
+                  as anteriores recolhidas (a API manda da mais nova para a mais antiga) */}
+              <ul className="space-y-3">
+                {d.revisoes.slice(0, 1).map((r) => (
+                  <ItemDaRevisao
+                    key={r.id_revisao}
+                    r={r}
+                    podeGerir={d.pode_gerir}
+                  />
+                ))}
+              </ul>
+              {d.revisoes.length > 1 && (
+                <details className="rounded-xl border border-border p-4">
+                  <summary className="cursor-pointer text-sm font-semibold">
+                    Revisões anteriores ({d.revisoes.length - 1})
+                  </summary>
+                  <ul className="mt-3 space-y-3">
+                    {d.revisoes.slice(1).map((r) => (
+                      <ItemDaRevisao
+                        key={r.id_revisao}
+                        r={r}
+                        podeGerir={d.pode_gerir}
+                      />
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </>
           )}
         </div>
       )}
