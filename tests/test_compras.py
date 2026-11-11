@@ -103,7 +103,8 @@ def test_aprovacao_exige_cargo_da_alcada(client, auth_headers):
     _, headers_sem_cargo = _criar_usuario_com_mandato(client, auth_headers, "VICE_TESOUREIRO")
     r = client.post(f"/api/solicitacoes-compra/{id_solicitacao}/aprovar", headers=headers_sem_cargo)
     assert r.status_code == 403
-    assert "cargo" in r.json()["detail"].lower()
+    # v9.3r: a recusa diz o NOME do cargo, nunca o código
+    assert r.json()["detail"] == "Aprovador não tem o cargo exigido para esta alçada (1º Tesoureiro)."
 
     _, headers_tesoureiro = _criar_usuario_com_mandato(client, auth_headers, "TESOUREIRO")
     r = client.post(f"/api/solicitacoes-compra/{id_solicitacao}/aprovar", headers=headers_tesoureiro)

@@ -12,6 +12,7 @@ import {
   listarAlcadasAprovacao,
   listarAssociadosParaSelecao,
   listarDelegacoesAprovacao,
+  listarOpcoesCatalogo,
 } from '@/lib/api'
 import {
   alcadaAprovacaoCriarSchema,
@@ -33,6 +34,12 @@ function formatarReais(valor: number): string {
 
 function FormularioAlcada({ onCancelar }: { onCancelar: () => void }) {
   const queryClient = useQueryClient()
+  // v9.3r (nada de nome técnico na tela): os cargos vêm da lista das Configurações e a pessoa MARCA quais podem aprovar — antes digitava o
+  // código ("TESOUREIRO,PRESIDENTE"). A ordem guardada é a da lista (a do Estatuto), não a ordem dos cliques.
+  const { data: cargos } = useQuery({
+    queryKey: ['opcoes-catalogo', 'titulo_cargo'],
+    queryFn: () => listarOpcoesCatalogo('titulo_cargo'),
+  })
   const criar = useMutation({
     mutationFn: (v: z.infer<typeof alcadaAprovacaoCriarSchema>) =>
       criarAlcadaAprovacao({
@@ -40,10 +47,7 @@ function FormularioAlcada({ onCancelar }: { onCancelar: () => void }) {
         valor_maximo: v.valor_maximo
           ? Number(lerValorEmReais(String(v.valor_maximo)))
           : null,
-        cargos_autorizados: v.cargos_autorizados
-          .split(',')
-          .map((c) => c.trim().toUpperCase())
-          .filter(Boolean),
+        cargos_autorizados: v.cargos_autorizados,
         exige_dupla_assinatura: v.exige_dupla_assinatura,
       }),
     onSuccess: () => {
@@ -58,7 +62,7 @@ function FormularioAlcada({ onCancelar }: { onCancelar: () => void }) {
       defaultValues={{
         valor_minimo: 0,
         valor_maximo: '',
-        cargos_autorizados: '',
+        cargos_autorizados: [],
         exige_dupla_assinatura: false,
       }}
       onSubmit={(v) => criar.mutateAsync(v)}
@@ -67,7 +71,14 @@ function FormularioAlcada({ onCancelar }: { onCancelar: () => void }) {
       {(form) => (
         <>
           <div>
+            <label
+              htmlFor="alcada-valor-minimo"
+              className="mb-1 block text-sm font-medium"
+            >
+              Valor mínimo (R$)
+            </label>
             <input
+              id="alcada-valor-minimo"
               type="number"
               step="0.01"
               {...form.register('valor_minimo')}
@@ -77,22 +88,57 @@ function FormularioAlcada({ onCancelar }: { onCancelar: () => void }) {
             <ErroCampo mensagem={form.formState.errors.valor_minimo?.message} />
           </div>
           <div>
+            <label
+              htmlFor="alcada-valor-maximo"
+              className="mb-1 block text-sm font-medium"
+            >
+              Valor máximo (R$)
+            </label>
             <input
+              id="alcada-valor-maximo"
               {...form.register('valor_maximo')}
               placeholder="Valor máximo (vazio = sem teto)"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             />
+            <ErroCampo mensagem={form.formState.errors.valor_maximo?.message} />
           </div>
-          <div>
-            <input
-              {...form.register('cargos_autorizados')}
-              placeholder="Cargos (ex.: TESOUREIRO,PRESIDENTE)"
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            />
+          <fieldset className="sm:col-span-3">
+            <legend className="mb-1 text-sm font-medium">
+              Cargos que podem aprovar
+            </legend>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              {(cargos ?? []).map((c) => {
+                const marcados = form.watch('cargos_autorizados')
+                return (
+                  <label
+                    key={c.codigo}
+                    className="flex min-h-9 items-center gap-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={marcados.includes(c.codigo)}
+                      onChange={(e) => {
+                        const escolhidos = new Set(marcados)
+                        if (e.target.checked) escolhidos.add(c.codigo)
+                        else escolhidos.delete(c.codigo)
+                        form.setValue(
+                          'cargos_autorizados',
+                          (cargos ?? [])
+                            .map((o) => o.codigo)
+                            .filter((codigo) => escolhidos.has(codigo)),
+                          { shouldValidate: form.formState.isSubmitted },
+                        )
+                      }}
+                    />
+                    {c.rotulo}
+                  </label>
+                )
+              })}
+            </div>
             <ErroCampo
               mensagem={form.formState.errors.cargos_autorizados?.message}
             />
-          </div>
+          </fieldset>
           <label className="flex items-center gap-2 text-sm sm:col-span-3">
             <input
               type="checkbox"

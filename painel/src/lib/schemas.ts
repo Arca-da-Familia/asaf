@@ -696,9 +696,10 @@ export const alcadaAprovacaoCriarSchema = z
       .number()
       .min(0, 'Valor mínimo não pode ser negativo.'),
     valor_maximo: textoOpcional,
+    // v9.3r: marcados numa lista (antes: códigos digitados e separados por vírgula)
     cargos_autorizados: z
-      .string()
-      .min(1, 'Informe ao menos um cargo (códigos separados por vírgula).'),
+      .array(z.string())
+      .min(1, 'Marque ao menos um cargo que pode aprovar.'),
     exige_dupla_assinatura: z.boolean(),
   })
   .superRefine((d, ctx) => {
