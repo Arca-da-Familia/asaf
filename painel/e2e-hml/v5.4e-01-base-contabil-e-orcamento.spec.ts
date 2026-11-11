@@ -525,6 +525,8 @@ async function conferirSaldos(
     ['/api/contas-financeiras/'],
     'Contas Financeiras',
   )
+  // v9.3x: 10 contas por página: a busca pelo começo do código mostra as três desta rodada juntas
+  await procurarContaFinanceira(page, `9.${R}.`)
   const contas = [
     ['A', COD_CAIXA, DESC_CAIXA],
     ['B', COD_BANCO, DESC_BANCO],
