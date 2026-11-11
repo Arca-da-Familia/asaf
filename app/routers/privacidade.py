@@ -215,7 +215,7 @@ def listar_consentimentos(request: Request, situacao: Optional[str] = None, orig
     # que é um nome, não)
     registrar_auditoria(db, usuario, "consentimentos", CONSULTA_CONSENTIMENTOS, ip_origem=request.client.host if request.client else None,
                         dados_depois={"situacao": situacao, "origem": origem, "com_busca": bool((busca or "").strip()), "pagina": resultado["pagina"],
-                                      "total": resultado["total"]})
+                                      "por_pagina": resultado["por_pagina"], "total": resultado["total"]})
     return {**resultado, "origens": servico_consentimentos.ROTULO_DA_ORIGEM}
 
 

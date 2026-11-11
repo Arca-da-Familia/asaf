@@ -165,15 +165,34 @@ def test_a_observacao_da_versao_e_a_do_catalogo_sem_nome_tecnico(client, db, aut
     configuração (TEXTO_CONSENTIMENTO_LGPD_INSCRICAO) e o banco não deixa mudar a linha: a tela recebe a redação atual do catálogo."""
     import re
 
+    from datetime import datetime
+    from types import SimpleNamespace
+
     tp.sincronizar(db)
     lista = client.get("/api/privacidade/textos-de-privacidade", headers=auth_headers).json()["pontos"]
-    inscricao = next(p for p in lista if p["codigo"] == "INSCRICAO_EVENTO")
-    v1 = next(v for v in inscricao["versoes"] if v["versao"] == "1")
-    catalogo = next(t for t in tp.TEXTOS if (t.ponto, t.versao) == ("INSCRICAO_EVENTO", "1"))
-    assert v1["observacao"] == catalogo.observacao
     for ponto in lista:
         for versao in ponto["versoes"]:
-            assert not re.search(r"\w+_\w+", versao["observacao"] or ""), (ponto["codigo"], versao["versao"], versao["observacao"])
+            assert not re.search(r"[A-Za-z]+_[A-Za-z_]+", versao["observacao"] or ""), (ponto["codigo"], versao["versao"], versao["observacao"])
+
+    # as linhas como estão nos bancos que já existiam (a nota antiga não muda: o banco recusa), direto em _versao_do_banco
+    catalogo = next(t for t in tp.TEXTOS if (t.ponto, t.versao) == ("INSCRICAO_EVENTO", "1"))
+
+    def linha(texto, impressao, observacao):
+        return SimpleNamespace(versao="1", vigente_desde=datetime(2026, 9, 18), texto=texto, impressao=impressao, reconstituido=True,
+                               observacao=observacao, registrado_em=datetime(2026, 10, 27), tipo="consentimento", caixa="Li e aceito.")
+
+    # (a) a versão gravada É a do catálogo, com a nota antiga: vale a nota atual do catálogo
+    padrao = tp._versao_do_banco(linha(catalogo.texto, catalogo.impressao,
+                                       "Texto padrão do sistema (configuração TEXTO_CONSENTIMENTO_LGPD_INSCRICAO), que podia ser editado em Regras do sistema."),
+                                 catalogo)
+    assert padrao["observacao"] == catalogo.observacao and padrao["diverge_do_codigo"] is False
+    # (b) o texto tinha sido editado neste banco (a migração gravou o editado): a nota gravada diz a verdade, só sem o nome técnico; nunca "texto padrão"
+    editado = tp._versao_do_banco(linha("Texto que a Presidência escreveu.", "outra-impressao",
+                                        "Texto editado na configuração TEXTO_CONSENTIMENTO_LGPD_INSCRICAO deste banco (versão 1), gravado ao migrar (v7.1a)."),
+                                  catalogo)
+    assert editado["diverge_do_codigo"] is True
+    assert editado["observacao"] == "Texto editado em Regras do sistema neste banco (versão 1), gravado ao migrar (v7.1a)."
+    assert "padrão" not in editado["observacao"] and "_" not in editado["observacao"]
 
 
 def test_o_atendimento_diz_qual_aviso_a_pessoa_leu():

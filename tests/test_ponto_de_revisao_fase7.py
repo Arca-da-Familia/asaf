@@ -109,6 +109,7 @@ def test_a_leitura_da_lista_e_a_invalidacao_pelo_nascimento_ficam_na_auditoria(c
     assert client.get("/api/privacidade/consentimentos?origem=beneficiario&busca=Joana", headers=auth_headers).status_code == 200
     [leitura] = db.query(AuditLog).filter(AuditLog.id_log > antes, AuditLog.acao == "CONSULTA_CONSENTIMENTOS").all()
     assert '"com_busca": true' in leitura.dados_depois and "Joana" not in leitura.dados_depois, "a busca é um nome: só o fato de ter havido busca"
+    assert '"por_pagina": 50' in leitura.dados_depois, "v9.3z: o tamanho da página (com ele, a página diz quais registros foram vistos)"
 
     id_beneficiario = _criar_beneficiario(client, auth_headers)
     assert client.put(f"/api/beneficiarios/{id_beneficiario}", json={"data_nascimento": "2016-03-01T00:00:00"}, headers=auth_headers).status_code == 200

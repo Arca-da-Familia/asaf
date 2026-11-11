@@ -282,12 +282,35 @@ def sincronizar(db) -> list[str]:
     return divergencias
 
 
+# v9.3v (nada de nome técnico na tela): as notas que o sistema gravou com o nome da configuração antiga, em português. A linha gravada não muda (o banco
+# não deixa); a troca é só no que a tela recebe.
+_NOTAS_COM_NOME_TECNICO = (
+    ("na configuração TEXTO_CONSENTIMENTO_LGPD_INSCRICAO deste banco", "em Regras do sistema neste banco"),
+    ("(configuração TEXTO_CONSENTIMENTO_LGPD_INSCRICAO)", "para a inscrição em evento"),
+)
+
+
+def _nota_sem_nome_tecnico(nota: Optional[str]) -> Optional[str]:
+    if not nota:
+        return nota
+    for antigo, novo in _NOTAS_COM_NOME_TECNICO:
+        nota = nota.replace(antigo, novo)
+    return nota
+
+
+def _observacao(r, catalogo: Optional[Texto]) -> Optional[str]:
+    """A observação é a nota do SISTEMA sobre a versão (não o texto que a pessoa leu, que é `texto` e nunca muda). Vale a redação atual do catálogo SÓ
+    quando a versão gravada é a do catálogo (mesma impressão); se diverge (ex.: o texto da inscrição tinha sido editado neste banco e a migração o gravou),
+    a nota gravada é a que diz a verdade sobre ela — só sem o nome técnico (revisão independente da v9.3v)."""
+    if catalogo is not None and catalogo.impressao == r.impressao and catalogo.observacao:
+        return catalogo.observacao
+    return _nota_sem_nome_tecnico(r.observacao)
+
+
 def _versao_do_banco(r, catalogo: Optional[Texto]) -> dict:
     return {
         "versao": r.versao, "vigente_desde": r.vigente_desde.date().isoformat(), "texto": r.texto, "texto_sem_links": sem_links(r.texto), "impressao": r.impressao,
-        # v9.3v: a observação é a nota do SISTEMA sobre a versão (não o texto que a pessoa leu, que é `texto` e nunca muda): vale a redação atual do
-        # catálogo, para a nota antiga com nome técnico (o nome da configuração) não aparecer na tela
-        "reconstituido": bool(r.reconstituido), "observacao": (catalogo.observacao if catalogo is not None and catalogo.observacao else r.observacao),
+        "reconstituido": bool(r.reconstituido), "observacao": _observacao(r, catalogo),
         "registrado_em": r.registrado_em, "tipo": r.tipo, "caixa": r.caixa,
         # o catálogo do código diverge do que foi gravado (vale o gravado: é o que foi mostrado)
         "diverge_do_codigo": catalogo is not None and catalogo.impressao != r.impressao,
