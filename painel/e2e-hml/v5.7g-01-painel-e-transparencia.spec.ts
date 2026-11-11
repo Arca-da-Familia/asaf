@@ -355,7 +355,8 @@ test('o atalho "Editar o site" tem permissão própria: a Presidência o vê e a
     descricao: string
   }>
   const nova = lista.find((p) => p.codigo_permissao === 'editar_site')
-  expect(nova?.descricao).toContain('Directus')
+  // v9.3j: a descrição da permissão fala do "editor do site" (o nome do programa, Directus, saiu da tela)
+  expect(nova?.descricao).toContain('editor do site')
   const me = await page.request.get(`${API_HML}/auth/me`, {
     headers: cabecalho(),
   })

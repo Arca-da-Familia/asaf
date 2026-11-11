@@ -2573,12 +2573,28 @@ test('fluxo de caixa projetado: saldo inicial = soma das contas financeiras; cad
     ['/api/contas-financeiras/'],
     'Contas Financeiras',
   )
-  const somaDasContas = (
-    await cartoes(page).locator('p.font-medium').allInnerTexts()
-  )
-    .filter((t) => /R\$\s?[\d.]+,\d{2}$/.test(t.replace(/\s/g, ' ').trim()))
-    .map(emCentavos)
-    .reduce((soma, v) => soma + v, 0)
+  // v9.3x: as contas vêm 10 por página: soma página por página
+  let somaDasContas = 0
+  const paginasDasContas = page.getByRole('navigation', {
+    name: 'Páginas das contas financeiras',
+  })
+  const proximaConta = paginasDasContas.getByRole('button', {
+    name: 'Próxima página',
+  })
+  for (let volta = 0; volta < 100; volta += 1) {
+    somaDasContas += (
+      await cartoes(page).locator('p.font-medium').allInnerTexts()
+    )
+      .filter((t) => /R\$\s?[\d.]+,\d{2}$/.test(t.replace(/\s/g, ' ').trim()))
+      .map(emCentavos)
+      .reduce((soma, v) => soma + v, 0)
+    if ((await proximaConta.count()) === 0 || (await proximaConta.isDisabled()))
+      break
+    const indicador = paginasDasContas.getByText(/^Página \d+ de/)
+    const antes = await indicador.innerText()
+    await proximaConta.click()
+    await expect(indicador).not.toHaveText(antes)
+  }
 
   await abrirOrcamento(page)
   const antes = await lerFluxo()
