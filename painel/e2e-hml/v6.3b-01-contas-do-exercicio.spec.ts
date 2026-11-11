@@ -132,7 +132,7 @@ test('o parecer e a aprovação em ata assinada liberam a preparação; o docume
 
   // 2. o Secretário prepara pela tela de Documentos
   await entrar(page, 'secretario')
-  await page.goto('/documentos')
+  await page.goto('/documentos?parte=contas') // v9.3u: as contas do exercício ficam numa aba
   const bloco = page.getByRole('region', {
     name: 'Contas do exercício para o site',
   })
