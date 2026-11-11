@@ -51,7 +51,7 @@ Tudo hospedado no Azure, grupo de recursos `Associacao-RG`, região Brazil South
 >
 > **Licença do Directus (conferido na documentação oficial em 2026-10-01)**: o sistema de licença
 > é da **versão 12**. A instância rodava a 11.17.4, que não tem a aba *Settings → License*, e foi
-> **atualizada em 2026-10-01 para `directus/directus:12.4.1`** (imagem fixada; regra do projeto:
+> **atualizada em 2026-10-01 para `directus/directus:12.4.1`** e em **2026-11-11 para a 12.6.1** (imagem fixada; regra do projeto:
 > tudo na última versão, ver `CLAUDE.md`). Instâncias self-hosted sem licença rodam no plano
 > *core*, **gratuito e sem chave**. O
 > uso comercial gratuito com limites maiores é o **Open Innovation
@@ -61,7 +61,7 @@ Tudo hospedado no Azure, grupo de recursos `Associacao-RG`, região Brazil South
 > produção). Ela entra em *Studio → Settings → License* ou na variável `LICENSE_KEY`. Na migração
 > para a v12, instância acima dos limites do *core* tem 30 dias de carência e depois é bloqueada
 > (a API devolve erro até a licença ser resolvida; os dados ficam salvos). Por isso a chave vale
-> ser pedida **antes** de subir para a v12 (a instância já está na 12.4.1).
+> ser pedida **antes** de subir para a v12 (a instância está na 12.6.1 desde 2026-11-11).
 >
 > **Isolamento do Directus no banco — aplicado em 2026-10-02.** O Directus divide o Postgres
 > `asaf_db` com a API, mas **não** o mesmo usuário nem as mesmas tabelas: conecta como o papel

@@ -3490,6 +3490,13 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         (`ping`, versão, `directus_configurar.py verificar --producao` e a sincronização do site).
         **2026-11-10: a troca foi BARRADA pelo sistema de segurança do Claude Code ("Production Deploy")** — parado, sem contornar; depende de o Presidente
         liberar essa ação (ou de a troca ser feita por quem administra o Azure), com o plano acima.
+        **✅ FEITO em 2026-11-11, a pedido explícito do Presidente ("tente atualizar o directus")**: `az containerapp update` do `asaf-directus` para
+        `directus/directus:12.6.1` (revisão `asaf-directus--0000005`; a antiga ficou servindo até a nova ficar saudável, sem o site cair). O log da nova
+        revisão mostra exatamente as duas migrações esperadas ("Add Preview Base URL", "Add Default Exports Folder") e "Server started". **Conferido por
+        leitura**: `/server/ping` = `pong`; `directus_configurar.py verificar --producao --senha-do-cofre` = "OK: o Directus está conforme o modelo" (com as
+        permissões com regra, que só a produção licenciada tem); a sincronização do site (`sincronizar-site.yml`, disparada à mão) leu o conteúdo pelo token
+        do site e deu o mesmo resumo do publicado (`mudou: false`). `infra/provisionar.exemplo.sh` e `ARQUITETURA.md` com a 12.6.1. **Tudo na última versão
+        estável**; pendente com motivo só o aviso do `minimatch` (acima).
       - **Achado na conferência do lote 16 (2026-11-10): a consulta de CEP falha na PRODUÇÃO e funciona na homologação** — mesmo código, mesmo ambiente do
         Azure e os mesmos endereços de saída; a homologação reconstruída da mesma `main` responde 200. O log novo (`5e4a991`) diz `ConnectError`: o servidor
         de produção não consegue nem abrir a conexão com o ViaCEP (o mais provável é o ViaCEP recusar o endereço de saída que a produção usa). **Impacto hoje:
