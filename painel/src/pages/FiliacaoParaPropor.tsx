@@ -11,6 +11,9 @@ import {
   type PedidoParaPropor,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
+import { Paginador } from '@/components/data/Paginador'
+import { usePaginaLocal } from '@/lib/pagina-local'
+import { simplificar } from '@/lib/texto'
 
 // Pedidos de filiação para o SÓCIO decidir (Estatuto Art. 12, par. único VI: o pedido de adesão tem de ser proposto por 3 sócios). Qualquer sócio
 // ativo e em dia propõe ou recusa (recusar pede o motivo); não há prazo — sem resposta o pedido fica pendente. O sócio vê só o nome e a idade
@@ -124,6 +127,8 @@ function Pedido({ pedido }: { pedido: PedidoParaPropor }) {
   )
 }
 
+const PEDIDOS_POR_PAGINA = 10
+
 export function FiliacaoParaProporPage() {
   const {
     data: pedidos,
@@ -134,6 +139,15 @@ export function FiliacaoParaProporPage() {
     queryFn: listarPedidosParaPropor,
     retry: false,
   })
+  // v9.3p (a tela tinha 10,6 alturas de notebook na homologação): busca pelo nome e páginas de 10
+  const [busca, setBusca] = useState('')
+  const termo = simplificar(busca.trim())
+  const achados = termo
+    ? (pedidos ?? []).filter((p) =>
+        simplificar(p.nome_completo).includes(termo),
+      )
+    : pedidos
+  const pagina = usePaginaLocal(achados, PEDIDOS_POR_PAGINA, termo)
 
   return (
     <>
@@ -158,11 +172,52 @@ export function FiliacaoParaProporPage() {
           descricao="Quando alguém pedir para se associar, você é avisado no sino do topo."
         />
       ) : (
-        <ul className="v3-space-y-4">
-          {pedidos.map((p) => (
-            <Pedido key={p.id_proposta} pedido={p} />
-          ))}
-        </ul>
+        <>
+          {pedidos.length > PEDIDOS_POR_PAGINA && (
+            <div className="mb-4 max-w-md">
+              <label htmlFor="procurar-pedido" className="text-sm font-medium">
+                Procurar pedido
+              </label>
+              <input
+                id="procurar-pedido"
+                type="search"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Nome de quem quer se associar"
+                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              />
+              {termo && (
+                <p
+                  aria-live="polite"
+                  className="mt-1 text-xs text-muted-foreground"
+                >
+                  {pagina.total}{' '}
+                  {pagina.total === 1
+                    ? 'pedido encontrado'
+                    : 'pedidos encontrados'}
+                  .
+                </p>
+              )}
+            </div>
+          )}
+          <ul className="flex flex-col gap-4">
+            {pagina.daPagina.map((p) => (
+              <Pedido key={p.id_proposta} pedido={p} />
+            ))}
+          </ul>
+          {termo && pagina.total === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhum pedido com esse nome.
+            </p>
+          )}
+          <Paginador
+            pagina={pagina.pagina}
+            porPagina={pagina.porPagina}
+            total={pagina.total}
+            aoMudar={pagina.setPagina}
+            rotulo="Páginas dos pedidos"
+          />
+        </>
       )}
     </>
   )

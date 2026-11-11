@@ -393,6 +393,7 @@ export async function socioPropoe(
     page.getByRole('heading', { name: 'Pedidos de filiação', level: 1 }),
   ).toBeVisible()
   for (const nome of candidatos) {
+    await procurarPedido(page, nome)
     const cartao = page.getByRole('listitem', { name: `Pedido de ${nome}` })
     await expect(cartao).toBeVisible()
     await cartao.getByRole('button', { name: `Propor ${nome}` }).click()
@@ -675,6 +676,19 @@ export async function procurarNaFila(page: Page, nome: string): Promise<void> {
   const campo = page.getByLabel('Procurar na fila', { exact: true })
   await expect(
     campo.or(page.getByText('Nada na fila de revisão')).first(),
+  ).toBeVisible()
+  if ((await campo.count()) === 0) return
+  await campo.fill(nome)
+}
+
+/** v9.3p: os pedidos de filiação (para propor) têm páginas de 10; o robô procura o candidato pelo nome (a busca só aparece com mais de 10 pedidos). */
+export async function procurarPedido(page: Page, nome: string): Promise<void> {
+  const campo = page.getByLabel('Procurar pedido', { exact: true })
+  await expect(
+    campo
+      .or(page.getByRole('listitem').first())
+      .or(page.getByText('Nenhum pedido em aberto'))
+      .first(),
   ).toBeVisible()
   if ((await campo.count()) === 0) return
   await campo.fill(nome)

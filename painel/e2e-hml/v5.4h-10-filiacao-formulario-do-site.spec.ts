@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import {
+  procurarPedido,
   API_HML,
   cpfValido,
   entrar,
@@ -227,6 +228,7 @@ test('o sócio vê o candidato só com nome e idade, e a Auditoria guarda os doi
   const vigia = vigiar(page)
   await entrar(page, 'secretario')
   await page.goto('/filiacao/para-propor')
+  await procurarPedido(page, ADULTA.nome)
   const cartao = page.getByRole('listitem', {
     name: `Pedido de ${ADULTA.nome}`,
   })

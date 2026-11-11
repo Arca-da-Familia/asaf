@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import {
+  procurarPedido,
   API_HML,
   cpfValido,
   entrar,
@@ -106,6 +107,7 @@ test('o pedido chega pela rota pública e o sócio é avisado no sino, abre o av
   await expect(
     page.getByRole('heading', { name: 'Pedidos de filiação', level: 1 }),
   ).toBeVisible()
+  await procurarPedido(page, NOME)
   const cartao = cartaoDoPedido(page)
   await expect(cartao).toContainText(`${IDADE} anos`)
   await expect(cartao).toContainText('0 de 3 sócios já propuseram — faltam 3.')
@@ -133,6 +135,7 @@ test('um segundo sócio propõe e um terceiro recusa, com o motivo', async ({
   const vigia = vigiar(page)
   await entrar(page, 'tesoureiro')
   await page.goto('/filiacao/para-propor')
+  await procurarPedido(page, NOME)
   await cartaoDoPedido(page)
     .getByRole('button', { name: `Propor ${NOME}` })
     .click()
@@ -143,6 +146,7 @@ test('um segundo sócio propõe e um terceiro recusa, com o motivo', async ({
 
   await entrar(page, 'vice_presidente_2')
   await page.goto('/filiacao/para-propor')
+  await procurarPedido(page, NOME)
   const cartao = cartaoDoPedido(page)
   await cartao.getByRole('button', { name: `Recusar ${NOME}` }).click()
   const confirmar = cartao.getByRole('button', { name: 'Confirmar recusa' })
@@ -221,6 +225,7 @@ test('o pedido decidido sai da lista dos sócios e a Auditoria guarda as 4 decis
   const vigia = vigiar(page)
   await entrar(page, 'secretario')
   await page.goto('/filiacao/para-propor')
+  await procurarPedido(page, NOME)
   await expect(
     page.getByRole('heading', { name: 'Pedidos de filiação', level: 1 }),
   ).toBeVisible()
