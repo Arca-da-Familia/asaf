@@ -25,13 +25,14 @@ import {
 } from '@/lib/documentos'
 import { usePaginaLocal } from '@/lib/pagina-local'
 import { useMe } from '@/lib/use-me'
+import { porPaginaNaTela } from '@/lib/celular'
 
 const classeCampo =
   'h-9 rounded-md border border-input bg-background px-3 text-sm'
 
 // v9.3u (a tela tinha 10,1 alturas de notebook na homologação): cada tipo mostra os 5 primeiros documentos e "Ver todos"; escolhido um tipo, a lista
 // dele vem em páginas de 10. As contas do exercício e o relatório anual (para quem prepara documentos) ficam em abas ao lado da biblioteca (?parte=).
-const POR_TIPO = 5
+const POR_TIPO = porPaginaNaTela(5, 3) // v9.3z2: 3 por tipo no celular (a tela tinha 10,6 alturas)
 const POR_PAGINA = 10
 const PARTES = ['biblioteca', 'contas', 'relatorio'] as const
 type Parte = (typeof PARTES)[number]

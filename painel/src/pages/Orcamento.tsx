@@ -259,7 +259,8 @@ function SecaoFluxoDeCaixa() {
   return (
     <section className="mb-6 rounded-xl border border-border bg-card p-6">
       <h2 className="mb-4 font-semibold">Fluxo de caixa projetado</h2>
-      <div className="v3-space-y-2">
+      {/* v9.3z2: os meses em grade a partir do tablet (eram uma coluna só: a tela tinha 6,9 alturas de notebook) */}
+      <div className="grid items-start gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {(fluxo?.meses ?? []).map((m) => (
           <div
             key={m.competencia}

@@ -15,6 +15,7 @@ import {
 import { formatarData } from '@/lib/datas'
 import { estornoCriarSchema, transferenciaCriarSchema } from '@/lib/schemas'
 import { nomeDaOrigem, nomeDaPartida } from '@/lib/nomes-financeiros'
+import { porPaginaNaTela } from '@/lib/celular'
 
 // v2.5.10 (FASE 2.5 - Painel) - Razão Contábil: extrato de lançamentos em partida dobrada e
 // estorno com motivo (backend v3.0, só faltava a tela - fecha o módulo Financeiro). Lançamento é
@@ -196,7 +197,8 @@ function FormularioTransferencia({ onCancelar }: { onCancelar: () => void }) {
   )
 }
 
-const LANCAMENTOS_POR_PAGINA = 25
+// v9.3z2: 10 por página no celular (no celular a tela tinha 10,4 alturas)
+const LANCAMENTOS_POR_PAGINA = porPaginaNaTela(25)
 
 export function RazaoContabilPage() {
   const [estornando, setEstornando] = useState<number | null>(null)

@@ -23,6 +23,7 @@ import {
   respostaQuestionamentoSchema,
 } from '@/lib/schemas'
 import { nomeDaPartida } from '@/lib/nomes-financeiros'
+import { porPaginaNaTela } from '@/lib/celular'
 
 // `valor_original`/`saldo_devedor`/`valor` chegam em reais (não centavos - ver o comentário em
 // lib/api.ts::TituloFinanceiroCF), então formata direto, sem o formatarMoeda(centavos) da datas.ts.
@@ -203,7 +204,7 @@ function BlocoRespostas({
 
 // v5.7g: a leitura é paginada e tem busca pelo texto; a busca espera a pessoa parar de digitar antes de ir ao servidor e volta para a primeira página.
 // v9.3z: 10 por vez (eram 25; a tela tinha 8,9 alturas de notebook na homologação)
-const POR_PAGINA_DO_CONSELHO = 10
+const POR_PAGINA_DO_CONSELHO = porPaginaNaTela(10, 5) // v9.3z2: 5 no celular (a tela tinha 10,4 alturas)
 const classeDoCampo =
   'h-9 rounded-md border border-input bg-background px-3 text-sm'
 
