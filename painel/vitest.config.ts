@@ -6,9 +6,19 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
+    alias: [
+      {
+        find: '@',
+        replacement: fileURLToPath(new URL('./src', import.meta.url)),
+      },
+      // v9.4: todo `import 'zod'` passa por src/lib/zod.ts, que liga o modo sem eval antes de qualquer esquema (ver o comentário lá)
+      {
+        find: /^zod$/,
+        replacement: fileURLToPath(
+          new URL('./src/lib/zod.ts', import.meta.url),
+        ),
+      },
+    ],
   },
   test: {
     environment: 'jsdom',
