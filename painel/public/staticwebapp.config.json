@@ -1,20 +1,40 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/assets/*", "/*.{png,ico,webp}", "/version.json"]
+    "exclude": [
+      "/assets/*",
+      "/*.{png,ico,webp}",
+      "/version.json",
+      "/manifest.webmanifest"
+    ]
   },
   "routes": [
     {
       "route": "/assets/*",
-      "headers": { "cache-control": "public, max-age=31536000, immutable" }
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable"
+      }
     },
     {
       "route": "/version.json",
-      "headers": { "cache-control": "no-store" }
+      "headers": {
+        "cache-control": "no-store"
+      }
     },
     {
       "route": "/index.html",
-      "headers": { "cache-control": "no-cache" }
+      "headers": {
+        "cache-control": "no-cache"
+      }
+    },
+    {
+      "route": "/manifest.webmanifest",
+      "headers": {
+        "cache-control": "no-cache"
+      }
     }
-  ]
+  ],
+  "mimeTypes": {
+    ".webmanifest": "application/manifest+json"
+  }
 }
