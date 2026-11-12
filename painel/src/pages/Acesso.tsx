@@ -23,11 +23,100 @@ import { cn } from '@/lib/utils'
 // v0.2.9 — matriz nível × permissão (CRUD da v0.1.5, que até aqui só existia via API/Swagger).
 // Marcar/desmarcar uma célula chama imediatamente o backend (sem botão "salvar" separado) — o
 // mesmo padrão de "ação = efeito imediato" que o resto do painel já usa em toggles simples.
+/** v9.3z2: no celular, as permissões de UM nível por vez (escolhido numa lista), cada uma com o nome e a explicação; a partir do tablet, a matriz. */
+function PermissoesDeUmNivel({
+  niveis,
+  permissoes,
+  escolhido,
+  aoEscolher,
+  ocupado,
+  aoAlternar,
+  aoVerComo,
+}: {
+  niveis: NivelAcesso[]
+  permissoes: PermissaoSistema[]
+  escolhido: number | null
+  aoEscolher: (id: number) => void
+  ocupado: boolean
+  aoAlternar: (
+    nivel: NivelAcesso,
+    permissao: PermissaoSistema,
+    marcado: boolean,
+  ) => void
+  aoVerComo: (nivel: NivelAcesso) => void
+}) {
+  const nivel = niveis.find((n) => n.id_nivel === escolhido) ?? niveis[0]
+  if (!nivel) return null
+  return (
+    <section aria-label="Permissões de um nível" className="sm:hidden">
+      <label htmlFor="nivel-no-celular" className="text-sm font-medium">
+        Nível
+      </label>
+      <select
+        id="nivel-no-celular"
+        value={nivel.id_nivel}
+        onChange={(e) => aoEscolher(Number(e.target.value))}
+        className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3"
+      >
+        {niveis.map((n) => (
+          <option key={n.id_nivel} value={n.id_nivel}>
+            {n.nome_nivel}
+          </option>
+        ))}
+      </select>
+      {nivel.exige_mfa && (
+        <p className="mt-1 text-xs text-primary">Exige o segundo passo</p>
+      )}
+      <ul
+        aria-label={`Permissões de ${nivel.nome_nivel}`}
+        className="mt-3 divide-y divide-border rounded-lg border border-border"
+      >
+        {permissoes.map((p) => {
+          const marcado = nivel.permissoes.includes(p.id_permissao)
+          return (
+            <li key={p.id_permissao}>
+              <label className="flex cursor-pointer items-start gap-3 px-3 py-2">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={marcado}
+                  disabled={ocupado}
+                  onChange={() => aoAlternar(nivel, p, marcado)}
+                />
+                <span>
+                  <span className="block text-sm font-medium">
+                    {p.nome ?? p.codigo_permissao}
+                  </span>
+                  {p.descricao && (
+                    <span className="block text-xs text-muted-foreground">
+                      {p.descricao}
+                    </span>
+                  )}
+                </span>
+              </label>
+            </li>
+          )
+        })}
+      </ul>
+      <Button
+        variant="outline"
+        size="sm"
+        className="mt-3"
+        onClick={() => aoVerComo(nivel)}
+      >
+        <Eye className="h-4 w-4" /> Ver como {nivel.nome_nivel}
+      </Button>
+    </section>
+  )
+}
+
 export function AcessoPage() {
   const queryClient = useQueryClient()
   const { iniciar } = useImpersonacao()
   const [criandoNivel, setCriandoNivel] = useState(false)
   const [criandoPermissao, setCriandoPermissao] = useState(false)
+  // v9.3z2 (no celular a matriz tinha 21,5 alturas de tela: um cartão por nível com todas as caixinhas): no celular, um nível por vez
+  const [nivelNoCelular, setNivelNoCelular] = useState<number | null>(null)
 
   const { data: niveis, isLoading: carregandoNiveis } = useQuery({
     queryKey: ['niveis-acesso'],
@@ -98,81 +187,98 @@ export function AcessoPage() {
           descricao="Crie ao menos um nível e uma permissão para montar a matriz."
         />
       ) : (
-        <div
-          role="region"
-          aria-label="Quem tem acesso"
-          tabIndex={0}
-          className="relative overflow-x-auto rounded-lg border border-border"
-        >
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="px-3 py-2 text-left font-medium">Nível</th>
-                {permissoes.map((p) => (
-                  <th
-                    key={p.id_permissao}
-                    className="px-3 py-2 text-center font-medium"
-                    title={p.descricao ?? undefined}
-                  >
-                    {p.nome ?? p.codigo_permissao}
-                  </th>
-                ))}
-                <th className="px-3 py-2 text-center font-medium">Ver como</th>
-              </tr>
-            </thead>
-            <tbody>
-              {niveis.map((nivel) => (
-                <tr
-                  key={nivel.id_nivel}
-                  className="border-b border-border last:border-0 hover:bg-accent/40"
-                >
-                  <td className="px-3 py-2 font-medium">
-                    {nivel.nome_nivel}
-                    {nivel.exige_mfa && (
-                      <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
-                        Segundo passo
-                      </span>
-                    )}
-                  </td>
-                  {permissoes.map((permissao) => {
-                    const marcado = nivel.permissoes.includes(
-                      permissao.id_permissao,
-                    )
-                    return (
-                      <td
-                        key={permissao.id_permissao}
-                        className="px-3 py-2 text-center"
-                      >
-                        {/* v9.3z: a caixinha dentro de uma área de 24 px (WCAG 2.5.8): a matriz tem centenas delas */}
-                        <label className="inline-flex size-6 cursor-pointer items-center justify-center">
-                          <input
-                            type="checkbox"
-                            aria-label={`${permissao.nome ?? permissao.codigo_permissao} — ${nivel.nome_nivel}`}
-                            checked={marcado}
-                            disabled={atribuir.isPending || remover.isPending}
-                            onChange={() => alternar(nivel, permissao, marcado)}
-                          />
-                        </label>
-                      </td>
-                    )
-                  })}
-                  <td className="px-3 py-2 text-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => iniciar(nivel.id_nivel, nivel.nome_nivel)}
+        <>
+          <PermissoesDeUmNivel
+            niveis={niveis}
+            permissoes={permissoes}
+            escolhido={nivelNoCelular}
+            aoEscolher={setNivelNoCelular}
+            ocupado={atribuir.isPending || remover.isPending}
+            aoAlternar={alternar}
+            aoVerComo={(n) => iniciar(n.id_nivel, n.nome_nivel)}
+          />
+          <div
+            role="region"
+            aria-label="Quem tem acesso"
+            tabIndex={0}
+            className="relative hidden overflow-x-auto rounded-lg border border-border sm:block"
+          >
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="px-3 py-2 text-left font-medium">Nível</th>
+                  {permissoes.map((p) => (
+                    <th
+                      key={p.id_permissao}
+                      className="px-3 py-2 text-center font-medium"
+                      title={p.descricao ?? undefined}
                     >
-                      <Eye className="h-4 w-4" />
-                      <span className="sr-only">
-                        Ver como {nivel.nome_nivel}
-                      </span>
-                    </Button>
-                  </td>
+                      {p.nome ?? p.codigo_permissao}
+                    </th>
+                  ))}
+                  <th className="px-3 py-2 text-center font-medium">
+                    Ver como
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {niveis.map((nivel) => (
+                  <tr
+                    key={nivel.id_nivel}
+                    className="border-b border-border last:border-0 hover:bg-accent/40"
+                  >
+                    <td className="px-3 py-2 font-medium">
+                      {nivel.nome_nivel}
+                      {nivel.exige_mfa && (
+                        <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
+                          Segundo passo
+                        </span>
+                      )}
+                    </td>
+                    {permissoes.map((permissao) => {
+                      const marcado = nivel.permissoes.includes(
+                        permissao.id_permissao,
+                      )
+                      return (
+                        <td
+                          key={permissao.id_permissao}
+                          className="px-3 py-2 text-center"
+                        >
+                          {/* v9.3z: a caixinha dentro de uma área de 24 px (WCAG 2.5.8): a matriz tem centenas delas */}
+                          <label className="inline-flex size-6 cursor-pointer items-center justify-center">
+                            <input
+                              type="checkbox"
+                              aria-label={`${permissao.nome ?? permissao.codigo_permissao} — ${nivel.nome_nivel}`}
+                              checked={marcado}
+                              disabled={atribuir.isPending || remover.isPending}
+                              onChange={() =>
+                                alternar(nivel, permissao, marcado)
+                              }
+                            />
+                          </label>
+                        </td>
+                      )
+                    })}
+                    <td className="px-3 py-2 text-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          iniciar(nivel.id_nivel, nivel.nome_nivel)
+                        }
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span className="sr-only">
+                          Ver como {nivel.nome_nivel}
+                        </span>
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <div className="mt-6 flex flex-wrap gap-3">

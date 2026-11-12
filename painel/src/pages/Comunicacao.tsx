@@ -14,7 +14,8 @@ import {
 import { formatarData } from '@/lib/datas'
 
 // v6.1 - o módulo Comunicação (permissão `comunicar`): os avisos publicados, com os totais de leitura. Cada um abre o relatório de quem leu e confirmou.
-const POR_PAGINA = 25
+// v9.3z2 (no celular a lista tinha 14,8 alturas de tela: 25 avisos viravam 25 cartões de seis linhas): 10 por página
+const POR_PAGINA = 10
 const SITUACOES: SituacaoDoAviso[] = ['No mural', 'Vencido', 'Retirado']
 const classeCampo =
   'h-9 rounded-md border border-input bg-background px-3 text-sm'

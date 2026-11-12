@@ -12,6 +12,7 @@ import {
   type EntradaAuditoria,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
+import { porPaginaNaTela } from '@/lib/celular'
 
 const colunas: ColunaTabela<EntradaAuditoria>[] = [
   {
@@ -78,10 +79,11 @@ export function AuditoriaPage() {
   }
   const [desde, setDesde] = useState('')
   const [ate, setAte] = useState('')
-  const [paginacao, setPaginacao] = useState<PaginationState>({
+  // v9.3z2: 10 por página no celular (25 viravam 13,5 alturas de tela)
+  const [paginacao, setPaginacao] = useState<PaginationState>(() => ({
     pageIndex: 0,
-    pageSize: 25,
-  })
+    pageSize: porPaginaNaTela(25),
+  }))
 
   const { data: acoesDisponiveis } = useQuery({
     queryKey: ['auditoria', 'acoes'],

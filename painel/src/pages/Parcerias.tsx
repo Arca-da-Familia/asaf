@@ -15,6 +15,9 @@ import {
   type FiltrosDeParcerias,
 } from '@/lib/parcerias'
 import { useMe } from '@/lib/use-me'
+import { Paginador } from '@/components/data/Paginador'
+import { porPaginaNaTela } from '@/lib/celular'
+import { usePaginaLocal } from '@/lib/pagina-local'
 
 // v5.4a - lista de parcerias e emendas, da mais nova para a mais antiga. Recebido e pago vêm do livro-caixa.
 export function ParceriasPage() {
@@ -32,6 +35,12 @@ export function ParceriasPage() {
   })
 
   const paraAprovar = (parcerias ?? []).filter((p) => p.pode_aprovar)
+  // v9.3z2 (no celular a lista tinha 14,1 alturas de tela): 10 por página só no celular; no computador a lista inteira, como antes
+  const pagina = usePaginaLocal(
+    parcerias,
+    porPaginaNaTela(Number.MAX_SAFE_INTEGER),
+    JSON.stringify(filtros),
+  )
 
   function mudar(campo: keyof FiltrosDeParcerias, valor: string) {
     setFiltros((f) => ({ ...f, [campo]: valor || undefined }))
@@ -194,7 +203,7 @@ export function ParceriasPage() {
               </tr>
             </thead>
             <tbody>
-              {parcerias.map((p) => (
+              {pagina.daPagina.map((p) => (
                 <tr key={p.id_parceria} className="border-t border-border">
                   <td className="px-3 py-2">
                     <Link
@@ -221,6 +230,13 @@ export function ParceriasPage() {
               ))}
             </tbody>
           </table>
+          <Paginador
+            pagina={pagina.pagina}
+            porPagina={pagina.porPagina}
+            total={pagina.total}
+            aoMudar={pagina.setPagina}
+            rotulo="Páginas das parcerias"
+          />
         </div>
       )}
     </>

@@ -14,6 +14,7 @@ import {
   resumirAssociados,
   type AssociadoListagem,
 } from '@/lib/api'
+import { porPaginaNaTela } from '@/lib/celular'
 
 // v3.0.2 (achado 2026-09-15) - até aqui, /associados só tinha a guarda de permissão (navegação
 // e menu funcionando, nenhum conteúdo). Esta é a primeira tela de negócio de verdade do painel
@@ -77,10 +78,11 @@ export function AssociadosPage() {
   const busca = filtros.get('busca') ?? ''
   const situacao = filtros.get('situacao') ?? ''
   const categoria = filtros.get('categoria') ?? ''
-  const [paginacao, setPaginacao] = useState<PaginationState>({
+  // v9.3z2: 10 por página no celular (25 viravam 14 alturas de tela)
+  const [paginacao, setPaginacao] = useState<PaginationState>(() => ({
     pageIndex: 0,
-    pageSize: POR_PAGINA,
-  })
+    pageSize: porPaginaNaTela(POR_PAGINA),
+  }))
 
   function mudar(novos: Record<string, string>) {
     const proximo = new URLSearchParams(filtros)

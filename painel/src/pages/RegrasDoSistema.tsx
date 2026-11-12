@@ -9,6 +9,9 @@ import {
   type RegraDoSistema,
 } from '@/lib/api'
 import { formatarData } from '@/lib/datas'
+import { Paginador } from '@/components/data/Paginador'
+import { porPaginaNaTela } from '@/lib/celular'
+import { usePaginaLocal } from '@/lib/pagina-local'
 
 function RegraLinha({ regra }: { regra: RegraDoSistema }) {
   const queryClient = useQueryClient()
@@ -100,6 +103,12 @@ export function RegrasDoSistemaPage() {
         .toLocaleLowerCase('pt-BR')
         .includes(termo),
   )
+  // v9.3z2 (no celular a tela tinha 12,5 alturas): 10 por página só no celular; no computador, todas (em duas colunas)
+  const pagina = usePaginaLocal(
+    visiveis,
+    porPaginaNaTela(Number.MAX_SAFE_INTEGER),
+    termo,
+  )
 
   return (
     <>
@@ -143,10 +152,17 @@ export function RegrasDoSistemaPage() {
         className="grid items-start gap-3 lg:grid-cols-2"
         aria-label="Regras ajustáveis"
       >
-        {visiveis.map((regra) => (
+        {pagina.daPagina.map((regra) => (
           <RegraLinha key={regra.chave} regra={regra} />
         ))}
       </ul>
+      <Paginador
+        pagina={pagina.pagina}
+        porPagina={pagina.porPagina}
+        total={pagina.total}
+        aoMudar={pagina.setPagina}
+        rotulo="Páginas das regras"
+      />
     </>
   )
 }

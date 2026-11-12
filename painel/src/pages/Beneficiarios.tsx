@@ -28,6 +28,7 @@ import { formatarDia } from '@/lib/datas'
 import { useDebounce } from '@/lib/use-debounce'
 import { beneficiarioEditarSchema } from '@/lib/schemas'
 import { useMe } from '@/lib/use-me'
+import { porPaginaNaTela } from '@/lib/celular'
 
 // v9.2c: quantos por página (o servidor pagina: app/paginacao.py)
 const POR_PAGINA = 25
@@ -215,10 +216,11 @@ export function BeneficiariosPage() {
   })
 
   // v9.2c: a lista vem do servidor de 25 em 25 (a cadastrada por último primeiro), com a busca e o projeto aplicados lá; busca nova volta à 1ª página
-  const [paginacao, setPaginacao] = useState<PaginationState>({
+  // v9.3z2: 10 por página no celular (25 viravam 11,6 alturas de tela)
+  const [paginacao, setPaginacao] = useState<PaginationState>(() => ({
     pageIndex: 0,
-    pageSize: POR_PAGINA,
-  })
+    pageSize: porPaginaNaTela(POR_PAGINA),
+  }))
   const filtros = `${busca}|${idProjetoFiltro ?? ''}`
   const [filtrosVistos, setFiltrosVistos] = useState(filtros)
   if (filtrosVistos !== filtros) {
