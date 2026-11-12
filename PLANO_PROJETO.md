@@ -2289,9 +2289,12 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       (10 no computador) e os Documentos 3 por tipo (5 no computador); o fluxo de caixa projetado em grade a partir do tablet. Alturas no celular:
       Documentos 10,6 → 7,9, Conselho Fiscal 10,4 → 7,2, Razão 10,4 → 4,8. **Homologação**: v9.3a-01, v5.4e-01, v5.7g-01, v6.3b-01 e v9.3b-01
       verdes; painel 928 em duas rodadas. **Produção**: Deploy Painel verde, `version.json` = `6902c41`, o Orçamento publicado tem a grade]**
-      **[FALTA (próximas rodadas da v9.3): no celular só o Orçamento passa de 10 alturas (12,3: orçamento do ano, fluxo de 12 meses e reserva, um
-      embaixo do outro) e Relatórios (36,4 com o dado dos robôs); no notebook, Relatórios 10,7 e cinco entre 6 e 7; depois disso a altura passa a
-      reprovar. O incidente nº 1
+      **[v9.3z4 (2026-11-12) — ORÇAMENTO NO CELULAR: uma parte por aba (orçamento, fluxo de caixa, reserva; todas carregam ao abrir); a partir do
+      tablet as três juntas, como sempre (os robôs, que acham cada parte pelo título, não mudaram). No celular 12,3 → 11,1 alturas: a aba do
+      orçamento do ano já é comprida com as linhas que os robôs acumulam. **Homologação**: v9.3a-01, v5.4e-01 e v9.3b-01 verdes; painel 930 em duas
+      rodadas. **Produção**: Deploy Painel verde, `version.json` = `f09c4b3`, o Orçamento publicado tem as "Partes do orçamento"]**
+      **[FALTA (próximas rodadas da v9.3): no celular, o orçamento do ano (11,1, linhas dos robôs) e Relatórios (37,3 com o dado dos robôs); no
+      notebook, Relatórios 10,7 e cinco entre 6 e 7; depois disso a altura passa a reprovar. O incidente nº 1
       FICA como está: em 12/11 o Presidente (que não se lembrava e achou que era teste) deixou a decisão comigo — é um fato real (o e-mail da conta
       que administrava o Azure nos registros públicos do GitHub, 30/10, sem dado de associado), o registro de incidente é guardado por pelo menos 5
       anos (Resolução CD/ANPD nº 15/2024) e o registro encerrado não se altera. Dado antigo só da homologação: o relatório de impacto aprovado lá
