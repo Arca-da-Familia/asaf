@@ -2278,7 +2278,7 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       **[FALTA (próximas rodadas da v9.3): no notebook só Relatórios passa de 7 alturas (10,7: o Balancete lista todas as contas, que os robôs
       acumulam na homologação); Orçamento 6,9, Regras 6,8, Saídas 6,4, Propostas 6,2 e Razão 6 entre 5 e 7; dois links com 20 px de altura
       (Início "Todos os meus avisos" e "Abrir o PDF" em Documentos emitidos); nome técnico "OUTRO" num processo disciplinar; depois disso a altura no
-      notebook passa a reprovar. Decidido com o Presidente em 12/11: o incidente nº 1 FICA como está — é um fato real (o e-mail da conta que
+      notebook passa a reprovar. Em 12/11 o Presidente (que não se lembrava e achou que era teste) deixou a decisão comigo: o incidente nº 1 FICA como está — é um fato real (o e-mail da conta que
       administrava o Azure nos registros públicos do GitHub, 30/10, sem dado de associado), não um teste; o registro de incidente é guardado por
       pelo menos 5 anos (Resolução CD/ANPD nº 15/2024) e o registro encerrado não se altera. Dado antigo só da homologação: o relatório de impacto
       aprovado lá guarda o texto da proposta antiga, com nomes técnicos]**
