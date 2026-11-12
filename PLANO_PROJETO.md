@@ -2303,6 +2303,17 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       guarda o texto da proposta antiga, com nomes técnicos]**
 - [ ] Ajuda contextual e tour de primeiro acesso por módulo, no lugar de manual em PDF que
       ninguém lê.
+      **[AJUDA CONTEXTUAL FEITA (2026-11-12) — o tour de primeiro acesso não: "Como usar esta tela" logo abaixo do título (`components/layout/
+      AjudaDaTela.tsx`, no `PageHeader`; na Início, junto ao título), com o texto de 31 telas em `lib/ajuda.ts`: para que a tela serve, os primeiros
+      passos com o nome exato de cada botão e, quando há, a regra que merece atenção. O texto só existe na página depois do clique (fechado, não há
+      nada escondido que confunda quem procura um botão pelo nome — nem os robôs). 7 textos escritos por mim e 24 redigidos por um agente separado com
+      a evidência de cada afirmação no código (arquivo:linha), conferidos por amostra (12 nomes de botão) e corrigidos onde exageravam (o "forçar
+      cadastro parecido" é de quem tem a permissão, não só do Presidente; "Validar situação" consulta os dados públicos da Receita Federal, não a
+      Receita). Um teste reprova texto de ajuda com nome técnico — pegou "OUTRA" em maiúsculas de ênfase. De quebra: "Some efeito na hora" virou
+      "Surte efeito na hora" em Níveis e permissões. O tour que abre sozinho na 1ª visita ficou de fora de propósito: mexeria no que os robôs veem em
+      toda tela. **Homologação**: v9.3a-01, v9.3b-01, v5.4e-03, v5.5a-02, v6.3b-01 (1ª leva) e v9.3a-01, v9.3b-01, v5.4c-fase0, v5.4e-02, v6.1-01 (2ª
+      leva) verdes; painel 934 em duas rodadas. **Produção**: Deploy Painel verde, `version.json` = `8fb9eed` e depois `c06b506`; o painel publicado
+      tem "Como usar esta tela" e os textos novos]**
 - [ ] Canal de feedback dentro do painel ("achei um problema nesta tela") ligado à fila de
       atendimento — o sistema aprende com o uso.
 
