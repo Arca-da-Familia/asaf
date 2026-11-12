@@ -2321,6 +2321,17 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 
 - [ ] Manifesto e service worker no painel: instalável na tela inicial, com cache de casca e
       leitura offline do que faz sentido (carteirinha, próxima escala do voluntário, agenda).
+      **[INSTALÁVEL FEITO (2026-11-12) — o cache de casca e a leitura offline não: `public/manifest.webmanifest` (nome "ASAF · Painel", abrir como
+      aplicativo, a cor da associação, ícones de 192 e 512 px que já existiam), ligado no `index.html` (com as marcas do iPhone) e entregue pelo
+      Static Web App com o tipo `application/manifest+json`, sem guardar versão velha e sem ser trocado pela página (`instalavel.test.ts` confere o
+      tamanho real de cada ícone). Sem service worker: nada do sistema fica guardado no aparelho — guardar dado pessoal para ler sem internet
+      (carteirinha, escala, agenda) é decisão de privacidade, a tratar à parte. ACHADO no caminho: o robô dos cabeçalhos de segurança (v7.3b-01)
+      viu "eval bloqueado" em TODAS as telas — o Vite 8.3.8 do lote 17 passou a rodar o pedaço dos esquemas antes do `zod-sem-eval`; agora todo
+      `import 'zod'` passa por `src/lib/zod.ts` (atalho no vite.config e no vitest.config), que liga o modo sem eval antes de qualquer esquema. E um
+      teste que desenha o aplicativo inteiro ganhou espera maior (passou dos 5 s uma vez com a suíte em paralelo). **Homologação**: v9.3a-01,
+      v7.3b-01 (que tinha falhado), v9.3b-01 e v5.4e-03 verdes; o manifesto da homologação sai com o tipo certo. **Produção**: Deploy Painel verde,
+      `version.json` = `e2b569c`; `manifest.webmanifest` 200, `application/manifest+json`, `no-cache`; no pedaço publicado a configuração sem eval vem
+      antes do primeiro esquema]**
 - [ ] Web Push para lembrete de evento, aviso de mensalidade e convocação de assembleia —
       confirmado (FASE 19) que iOS suporta push em PWA instalado, sem exigir app nativo.
 
@@ -3570,6 +3581,9 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         última estável. **Verificado**: painel 930 e servidor 1916 em duas rodadas; site 779 em duas rodadas, checagem de tipos e montagem de teste; o
         Prettier novo não mudou a formatação de nenhum arquivo. **Produção**: Deploy API, Painel e Site verdes; painel e site `version.json` =
         `0958e9d`; `/health` 200.
+        **LIÇÃO (achada à tarde)**: o caminho curto pulou o robô dos cabeçalhos de segurança, e o Vite 8.3.8 mudou a ordem em que os pedaços do painel
+        rodam — o navegador passou a registrar "eval bloqueado" (o zod funcionava, sem eval). Corrigido na v9.4 (`src/lib/zod.ts`). Daqui em diante,
+        lote que atualiza o Vite ou o zod roda também o v7.3b-01 na homologação antes da main.
       - **Pendente com motivo (não é silêncio):** o `npm audit` do painel aponta um aviso MODERADO no `minimatch` (GHSA-g3hv-75wg-m249, corrigido na 11.0.1),
         que só o `eslint` usa (ferramenta de conferência do código, nunca vai para o sistema publicado); o `eslint` 10.14 (o mais novo) ainda exige o `minimatch` 10.
         Forçar a 11 pode quebrar o `eslint`; reavaliar a cada lote até o `eslint` aceitar a 11.
