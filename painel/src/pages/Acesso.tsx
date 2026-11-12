@@ -176,7 +176,7 @@ export function AcessoPage() {
     <>
       <PageHeader
         titulo="Níveis e permissões"
-        descricao="Marque ou desmarque uma célula para atribuir/remover a permissão do nível. Some efeito na hora — não há botão de salvar."
+        descricao="Marque ou desmarque uma célula para atribuir/remover a permissão do nível. Surte efeito na hora — não há botão de salvar."
       />
 
       {carregando ? (

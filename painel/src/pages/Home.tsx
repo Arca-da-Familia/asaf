@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { MuralDeAvisos } from '@/components/comunicacao/MuralDeAvisos'
 import { moduloVisivel, modulos } from '@/lib/modulos'
 import { useMe } from '@/lib/use-me'
+import { AjudaDaTela } from '@/components/layout/AjudaDaTela'
 
 // v2.5.1b (FASE 2.5 - Painel, achado do usuário 2026-09-15) - "Início" só mostrava sessão e
 // permissão, não servia pra nada. Esta é a página que lança os módulos: um card por módulo que
@@ -22,6 +23,7 @@ export function Home() {
   return (
     <>
       <h1 className="text-2xl font-bold">Início</h1>
+      <AjudaDaTela />
       <p className="mt-2 text-muted-foreground">
         Bem-vindo{data?.nome_completo ? `, ${data.nome_completo}` : ''} ao
         painel da ASAF.
