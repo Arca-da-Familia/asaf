@@ -3552,6 +3552,13 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         e 949 de 949 no navegador; o teste da consulta de CEP deixou de depender do ViaCEP de verdade (um 503 dele derrubou uma rodada). **Homologação**: v5.4c-fase0,
         v5.4g-02 (documentos com a verificação do PDF), v5.4e-03, v9.1a-01 (axe) e v5.4g-01 (páginas do site) verdes. **Produção**: Deploy API, Painel e Site
         verdes; painel e site = `041ee63`; `/health` 200.
+      - **Lote 17 ✅ FEITO e confirmado em produção (2026-11-12, commit `0958e9d`)** — só versões de correção, sem efeito na tela (fluxo curto):
+        painel — `vite` 8.3.8, `react-hook-form` 7.92.0, `@hookform/resolvers` 7.0.6, `lucide-react` 1.72.0, `prettier` 3.10.1, `papaparse` 5.7.1,
+        `user-event` 14.6.10; site — `astro` 7.4.11, `@lhci/cli` 0.16.1, `prettier` 3.10.1, `sanitize-html` 2.18.2; servidor — FastAPI 0.162.5 e
+        psycopg 3.3.9. Conferido antes: Python 3.15.2 (a imagem `python:3.15-slim`), Directus 12.6.1, Postgres 18 e as 7 ações do GitHub já estavam na
+        última estável. **Verificado**: painel 930 e servidor 1916 em duas rodadas; site 779 em duas rodadas, checagem de tipos e montagem de teste; o
+        Prettier novo não mudou a formatação de nenhum arquivo. **Produção**: Deploy API, Painel e Site verdes; painel e site `version.json` =
+        `0958e9d`; `/health` 200.
       - **Pendente com motivo (não é silêncio):** o `npm audit` do painel aponta um aviso MODERADO no `minimatch` (GHSA-g3hv-75wg-m249, corrigido na 11.0.1),
         que só o `eslint` usa (ferramenta de conferência do código, nunca vai para o sistema publicado); o `eslint` 10.14 (o mais novo) ainda exige o `minimatch` 10.
         Forçar a 11 pode quebrar o `eslint`; reavaliar a cada lote até o `eslint` aceitar a 11.
