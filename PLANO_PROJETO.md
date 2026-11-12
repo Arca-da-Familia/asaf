@@ -2275,13 +2275,22 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       etapa até a manhã seguinte e recusavam o cancelamento); disparadas de novo à mão em 12/11: Deploy API e Deploy Painel verdes, `version.json`
       = `f2506f6`, as telas publicadas têm a busca dos centros e das contas, "Revisões anteriores" e as páginas dos reembolsos; a API publicada
       aceita `por_pagina` nos consentimentos e a lista de centros pede login (401)]**
-      **[FALTA (próximas rodadas da v9.3): no notebook só Relatórios passa de 7 alturas (10,7: o Balancete lista todas as contas, que os robôs
-      acumulam na homologação); Orçamento 6,9, Regras 6,8, Saídas 6,4, Propostas 6,2 e Razão 6 entre 5 e 7; dois links com 20 px de altura
-      (Início "Todos os meus avisos" e "Abrir o PDF" em Documentos emitidos); nome técnico "OUTRO" num processo disciplinar; depois disso a altura no
-      notebook passa a reprovar. Em 12/11 o Presidente (que não se lembrava e achou que era teste) deixou a decisão comigo: o incidente nº 1 FICA como está — é um fato real (o e-mail da conta que
-      administrava o Azure nos registros públicos do GitHub, 30/10, sem dado de associado), não um teste; o registro de incidente é guardado por
-      pelo menos 5 anos (Resolução CD/ANPD nº 15/2024) e o registro encerrado não se altera. Dado antigo só da homologação: o relatório de impacto
-      aprovado lá guarda o texto da proposta antiga, com nomes técnicos]**
+      **[v9.3z2 (2026-11-12) — CELULAR PRIMEIRO: no celular o Balancete mostra cada conta em duas linhas (o saldo atual em destaque e o movimento
+      embaixo; eram cartões de cinco linhas) e a tabela fica para telas maiores; Níveis e permissões mostra um nível por vez (escolhido numa lista),
+      cada permissão com o nome e a explicação, e a matriz fica para telas maiores; Comunicação com 10 avisos por página; Associados, Beneficiários e
+      Auditoria com 10 por página no celular e 25 no computador (`lib/celular.ts`, `porPaginaNaTela`); Parcerias e Regras com páginas de 10 só no
+      celular; os links "Todos os meus avisos" e "Abrir o PDF" com alvo de 24 px. "OUTRO" no processo disciplinar é texto do robô ("Fatos do OUTRO
+      processo de teste"), não da tela. Alturas no celular (antes → depois): Relatórios 81 → 35,9 (o resto é dado acumulado pelos robôs), Acesso
+      21,5 → 4,5, Comunicação 14,8 → 6,4, Associados 14,1 → 6,4, Parcerias 14,1 → 7,5, Auditoria 13,5 → 6,3, Regras 12,5 → 3,8, Beneficiários 11,6
+      → 5,3. **Homologação**: v9.3a-01, v5.4e-04, v5.4c-fase1-importacao, v6.1-01, v5.4g-03 e v9.3b-01 verdes; painel 928 em duas rodadas.
+      **Produção**: Deploy Painel verde, `version.json` = `d3056d7`, as telas publicadas têm "Permissões de um nível", "Contas do balancete" e as
+      páginas das parcerias]**
+      **[FALTA (próximas rodadas da v9.3): no celular Orçamento 12,3, Documentos 10,6, Conselho Fiscal 10,4 e Razão 10,4 passam de 10 alturas
+      (Relatórios 35,9 com o dado dos robôs); no notebook, Relatórios 10,7 e cinco entre 6 e 7; depois disso a altura passa a reprovar. O incidente nº 1
+      FICA como está: em 12/11 o Presidente (que não se lembrava e achou que era teste) deixou a decisão comigo — é um fato real (o e-mail da conta
+      que administrava o Azure nos registros públicos do GitHub, 30/10, sem dado de associado), o registro de incidente é guardado por pelo menos 5
+      anos (Resolução CD/ANPD nº 15/2024) e o registro encerrado não se altera. Dado antigo só da homologação: o relatório de impacto aprovado lá
+      guarda o texto da proposta antiga, com nomes técnicos]**
 - [ ] Ajuda contextual e tour de primeiro acesso por módulo, no lugar de manual em PDF que
       ninguém lê.
 - [ ] Canal de feedback dentro do painel ("achei um problema nesta tela") ligado à fila de
