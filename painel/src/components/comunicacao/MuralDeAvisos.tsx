@@ -21,7 +21,10 @@ export function MuralDeAvisos() {
         <h2 id="titulo-do-mural" className="font-semibold">
           Mural de avisos
         </h2>
-        <Link to="/meus-avisos" className="text-sm underline">
+        <Link
+          to="/meus-avisos"
+          className="inline-flex min-h-6 items-center text-sm underline"
+        >
           Todos os meus avisos
         </Link>
       </div>

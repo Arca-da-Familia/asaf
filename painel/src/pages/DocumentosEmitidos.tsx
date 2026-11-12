@@ -103,7 +103,7 @@ export function DocumentosEmitidosPage() {
             </div>
             {d.caminho_arquivo ? (
               <a
-                className="text-primary underline"
+                className="inline-flex min-h-6 items-center text-primary underline"
                 href={urlArquivo(d.caminho_arquivo)}
                 target="_blank"
                 rel="noreferrer"

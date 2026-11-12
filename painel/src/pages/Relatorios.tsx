@@ -120,6 +120,12 @@ function SecaoBalancete() {
     queryKey: ['relatorio-balancete', dataInicio, dataFim],
     queryFn: () => obterBalancete({ dataInicio, dataFim }),
   })
+  const comMovimento = (balancete ?? []).filter(
+    (l) =>
+      l.saldo_atual !== 0 ||
+      l.debitos_periodo !== 0 ||
+      l.creditos_periodo !== 0,
+  )
 
   return (
     <section className="mb-6 rounded-xl border border-border bg-card p-6">
@@ -137,7 +143,31 @@ function SecaoBalancete() {
         tabIndex={0}
         className="relative overflow-x-auto"
       >
-        <table className="w-full text-sm">
+        {/* v9.3z2 (no celular o balancete tinha 81 alturas de tela: cada conta virava um cartão de cinco linhas): no celular, cada conta em duas
+            linhas — o saldo atual em destaque e o movimento embaixo; a partir do tablet, a tabela de sempre */}
+        <ul
+          aria-label="Contas do balancete"
+          className="divide-y divide-border/50 text-sm sm:hidden"
+        >
+          {comMovimento.map((l) => (
+            <li key={l.id_conta} className="py-2">
+              <div className="flex items-start justify-between gap-2">
+                <span>
+                  {l.codigo_contabil} — {l.descricao_conta}
+                </span>
+                <span className="shrink-0 font-semibold tabular-nums">
+                  {formatarReais(l.saldo_atual)}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Anterior {formatarReais(l.saldo_anterior)} · débitos{' '}
+                {formatarReais(l.debitos_periodo)} · créditos{' '}
+                {formatarReais(l.creditos_periodo)}
+              </p>
+            </li>
+          ))}
+        </ul>
+        <table data-sem-cartao className="hidden w-full text-sm sm:table">
           <thead>
             <tr className="border-b border-border text-left text-muted-foreground">
               <th className="py-1 pr-2">Conta</th>
@@ -148,32 +178,25 @@ function SecaoBalancete() {
             </tr>
           </thead>
           <tbody>
-            {(balancete ?? [])
-              .filter(
-                (l) =>
-                  l.saldo_atual !== 0 ||
-                  l.debitos_periodo !== 0 ||
-                  l.creditos_periodo !== 0,
-              )
-              .map((l) => (
-                <tr key={l.id_conta} className="border-b border-border/50">
-                  <td className="py-1 pr-2">
-                    {l.codigo_contabil} — {l.descricao_conta}
-                  </td>
-                  <td className="py-1 pr-2 text-right">
-                    {formatarReais(l.saldo_anterior)}
-                  </td>
-                  <td className="py-1 pr-2 text-right">
-                    {formatarReais(l.debitos_periodo)}
-                  </td>
-                  <td className="py-1 pr-2 text-right">
-                    {formatarReais(l.creditos_periodo)}
-                  </td>
-                  <td className="py-1 text-right font-medium">
-                    {formatarReais(l.saldo_atual)}
-                  </td>
-                </tr>
-              ))}
+            {comMovimento.map((l) => (
+              <tr key={l.id_conta} className="border-b border-border/50">
+                <td className="py-1 pr-2">
+                  {l.codigo_contabil} — {l.descricao_conta}
+                </td>
+                <td className="py-1 pr-2 text-right">
+                  {formatarReais(l.saldo_anterior)}
+                </td>
+                <td className="py-1 pr-2 text-right">
+                  {formatarReais(l.debitos_periodo)}
+                </td>
+                <td className="py-1 pr-2 text-right">
+                  {formatarReais(l.creditos_periodo)}
+                </td>
+                <td className="py-1 text-right font-medium">
+                  {formatarReais(l.saldo_atual)}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
         {!isLoading &&

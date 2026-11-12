@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { axe } from 'jest-axe'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -186,6 +186,41 @@ describe('Relatórios: a consulta que falha aparece, e não vira "sem movimento"
     expect(
       screen.queryByRole('heading', { name: 'Balancete por período' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('v9.3z2: no celular o balancete é uma lista de duas linhas por conta (a tabela fica para telas maiores, sem virar cartões)', async () => {
+    vi.mocked(api.obterBalancete).mockResolvedValue([
+      {
+        id_conta: 1,
+        codigo_contabil: '1.1.1',
+        descricao_conta: 'Caixa',
+        tipo: 'Ativo',
+        saldo_anterior: 100,
+        debitos_periodo: 50,
+        creditos_periodo: 20,
+        saldo_atual: 130,
+      },
+      {
+        id_conta: 2,
+        codigo_contabil: '1.1.2',
+        descricao_conta: 'Conta parada',
+        tipo: 'Ativo',
+        saldo_anterior: 0,
+        debitos_periodo: 0,
+        creditos_periodo: 0,
+        saldo_atual: 0,
+      },
+    ])
+    const { container } = desenhar()
+    const lista = await screen.findByRole('list', {
+      name: 'Contas do balancete',
+    })
+    await waitFor(() => expect(lista).toHaveTextContent('1.1.1 — Caixa'))
+    expect(lista).toHaveTextContent(/R\$\s130,00/)
+    expect(lista).toHaveTextContent(/débitos R\$\s50,00 · créditos R\$\s20,00/)
+    // a conta sem movimento não aparece (nem na lista, nem na tabela)
+    expect(lista).not.toHaveTextContent('Conta parada')
+    expect(container.querySelector('table[data-sem-cartao]')).not.toBeNull()
   })
 
   it('os campos de período têm nome e a página passa no axe', async () => {
