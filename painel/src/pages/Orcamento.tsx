@@ -20,6 +20,8 @@ import {
   orcamentoCriarSchema,
   reservaContingenciaCriarSchema,
 } from '@/lib/schemas'
+import { Abas } from '@/components/ui/abas'
+import { ehCelular } from '@/lib/celular'
 
 // v3.5 (FASE 3 - Financeiro) - orçamento anual (realizado x previsto calculado contra o razão
 // contábil, nunca guardado em coluna própria - ver app/services/orcamento.py::realizado_do_orcamento),
@@ -476,6 +478,10 @@ function SecaoReservaContingencia() {
 }
 
 export function OrcamentoPage() {
+  // v9.3z4 (no celular a tela tinha 12,3 alturas: as três partes uma embaixo da outra): no celular, uma parte por aba (todas carregam ao abrir);
+  // a partir do tablet, as três juntas, como sempre
+  const [celular] = useState(ehCelular)
+  const [parte, setParte] = useState('orcamento')
   return (
     <>
       <PageHeader
@@ -486,9 +492,37 @@ export function OrcamentoPage() {
           { rotulo: 'Orçamento e Fluxo de Caixa' },
         ]}
       />
-      <SecaoOrcamentos />
-      <SecaoFluxoDeCaixa />
-      <SecaoReservaContingencia />
+      {celular ? (
+        <Abas
+          rotulo="Partes do orçamento"
+          atual={parte}
+          aoMudar={setParte}
+          manterMontado
+          abas={[
+            {
+              chave: 'orcamento',
+              rotulo: 'Orçamento',
+              conteudo: <SecaoOrcamentos />,
+            },
+            {
+              chave: 'fluxo',
+              rotulo: 'Fluxo de caixa',
+              conteudo: <SecaoFluxoDeCaixa />,
+            },
+            {
+              chave: 'reserva',
+              rotulo: 'Reserva',
+              conteudo: <SecaoReservaContingencia />,
+            },
+          ]}
+        />
+      ) : (
+        <>
+          <SecaoOrcamentos />
+          <SecaoFluxoDeCaixa />
+          <SecaoReservaContingencia />
+        </>
+      )}
     </>
   )
 }
