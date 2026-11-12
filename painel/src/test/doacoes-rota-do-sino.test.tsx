@@ -6,6 +6,10 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '@/App'
 import { ThemeProvider } from '@/lib/theme'
 
+// estas telas são carregadas sob demanda (o aplicativo inteiro é desenhado): com a suíte toda rodando em paralelo, a máquina carregada passou dos
+// 5 s padrão uma vez (12/11) — espera maior só aqui, não esconde defeito (a tela aparece nas repetições)
+const CARGA_DA_ROTA = { timeout: 20_000 }
+
 // v5.6a - o aviso do sino que o servidor manda a cada doação nova do site leva a "/doacoes". A tela de Doações vive em "/financeiro/doacoes": sem o
 // atalho, esse link caía na página inicial e a tesouraria nunca chegava na conferência.
 
@@ -94,7 +98,11 @@ describe('Rota do aviso do sino: /doacoes', () => {
   it('leva à tela de Doações, com a conferência das doações do site', async () => {
     desenhar('/doacoes')
     expect(
-      await screen.findByRole('heading', { name: 'Doações do site (Pix)' }),
+      await screen.findByRole(
+        'heading',
+        { name: 'Doações do site (Pix)' },
+        CARGA_DA_ROTA,
+      ),
     ).toBeInTheDocument()
     // v9.3o: abre direto na aba do site (as outras partes estão nas outras abas)
     expect(
@@ -104,14 +112,22 @@ describe('Rota do aviso do sino: /doacoes', () => {
       }),
     ).toBeInTheDocument()
     expect(
-      await screen.findByText('Nenhuma doação do site esperando conferência.'),
+      await screen.findByText(
+        'Nenhuma doação do site esperando conferência.',
+        {},
+        CARGA_DA_ROTA,
+      ),
     ).toBeInTheDocument()
   })
 
   it('o endereço de sempre da tela continua funcionando (abre nas doações registradas)', async () => {
     desenhar('/financeiro/doacoes')
     expect(
-      await screen.findByRole('heading', { name: 'Doações registradas' }),
+      await screen.findByRole(
+        'heading',
+        { name: 'Doações registradas' },
+        CARGA_DA_ROTA,
+      ),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('tab', { name: 'Doações registradas', selected: true }),
@@ -122,7 +138,11 @@ describe('Rota do aviso do sino: /doacoes', () => {
     sessao.permissoes = ['documentos']
     desenhar('/doacoes')
     expect(
-      await screen.findByRole('heading', { name: /acesso negado/i }),
+      await screen.findByRole(
+        'heading',
+        { name: /acesso negado/i },
+        CARGA_DA_ROTA,
+      ),
     ).toBeInTheDocument()
     expect(
       screen.queryByRole('heading', { name: 'Doações do site (Pix)' }),
