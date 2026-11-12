@@ -2293,6 +2293,8 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       tablet as três juntas, como sempre (os robôs, que acham cada parte pelo título, não mudaram). No celular 12,3 → 11,1 alturas: a aba do
       orçamento do ano já é comprida com as linhas que os robôs acumulam. **Homologação**: v9.3a-01, v5.4e-01 e v9.3b-01 verdes; painel 930 em duas
       rodadas. **Produção**: Deploy Painel verde, `version.json` = `f09c4b3`, o Orçamento publicado tem as "Partes do orçamento"]**
+      **[Galeria dos prints do celular atualizada em 12/11 (mesmo endereço: https://claude.ai/artifact/HgTnR9dJkVUiFoBp6z6WXS) com a rodada do painel
+      que está no ar: 125 telas, 120 sem nenhum problema medido, nenhum grave; o roteiro que a monta gravava "publicar" no lugar da data (corrigido)]**
       **[FALTA (próximas rodadas da v9.3): no celular, o orçamento do ano (11,1, linhas dos robôs) e Relatórios (37,3 com o dado dos robôs); no
       notebook, Relatórios 10,7 e cinco entre 6 e 7; depois disso a altura passa a reprovar. O incidente nº 1
       FICA como está: em 12/11 o Presidente (que não se lembrava e achou que era teste) deixou a decisão comigo — é um fato real (o e-mail da conta
