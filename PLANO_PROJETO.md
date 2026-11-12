@@ -2255,13 +2255,33 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       que sumiu na troca de aba (a troca termina um instante depois do clique) — os robôs esperam a aba ficar selecionada. **Homologação**:
       v5.4e-02, v5.4e-03, v5.4e-04 (repetido com o robô corrigido), v5.4c-fase0, v6.3b-01, v6.3c-01 e v9.3b-01 verdes; painel 908 em duas rodadas.
       **Produção**: Deploy Painel verde, `version.json` = `963fa38`, as quatro telas publicadas têm a busca e as abas]**
-      **[FALTA (próximas rodadas da v9.3): na branch, sem nome técnico (avisos antigos com o código da permissão no público; observação dos avisos
-      de privacidade com o nome da configuração; o destaque em maiúsculas do texto legal deixa de ser acusado), Centros de custo em abas e com os
-      nomes do projeto/evento (no lugar de "Projeto #12") e Contas financeiras com busca — homologação a seguir. Depois: Relatórios 9,4, Revisão anual
-      9, Conselho Fiscal 8,9, Reembolso 8 e outras 11 entre 5 e 7; alvos de toque menores que 24 px (Acesso, Comunicação, Instituição, Mandatos);
-      depois disso a altura no notebook passa a reprovar. Para decidir com o Presidente: o incidente nº 1 (encerrado, registro formal) cita o
-      arquivo do programa "app/registro_seguro.py" na lição aprendida. Dado antigo só da homologação: o relatório de impacto aprovado lá guarda o
-      texto da proposta antiga, com nomes técnicos (a proposta atual não tem; revisão copia o texto anterior)]**
+      **[v9.3v–z (2026-11-11/12) — SEM NOME TÉCNICO, CENTROS, CONTAS, REVISÃO, REEMBOLSOS, CONSELHO, CONSENTIMENTOS, AVISOS E ALVO DE TOQUE:
+      (v) avisos antigos descrevem o público de permissão pela regra gravada (o texto gravado com `financeiro_auditar` não muda), a observação das
+      versões dos avisos de privacidade sai sem o nome da configuração e o texto legal exato ganha `data-texto-fiel` (o destaque "CRIANÇA OU
+      ADOLESCENTE:" não é código); (w) Centros de custo em abas (centros | remanejamentos), com busca e páginas de 10, o vínculo pelo nome do
+      projeto/evento (a API manda `nome_projeto` e `titulo_evento`, campos novos) e os remanejamentos com os centros pelo nome e a data como se lê no
+      Brasil; (x) Contas financeiras por código contábil, em duas colunas, com busca e páginas de 10; (y) Revisão anual com a mais recente aberta e as
+      anteriores recolhidas, Reembolsos em páginas de 10; (z) rótulo que envolve caixinha com 24 px de altura em todo o painel e a matriz de
+      permissões com área de 24 px (WCAG 2.5.8), Conselho Fiscal com 10 por página (a tela pede o tamanho ao servidor), Consentimentos com 10 por
+      página (a API aceita `por_pagina`, padrão 50, até 200, e a Auditoria da leitura o guarda), Avisos de privacidade com as versões fechadas e as
+      delegações dizendo "Vigente" ou "Terminou". CONFERÊNCIA INDEPENDENTE (agente separado, só leitura) achou 4 pontos, todos corrigidos antes da
+      main: a nota do catálogo valeria também para a versão de texto EDITADO neste banco (diria "texto padrão" — falso na tela que é prova da LGPD:
+      agora só vale para a versão igual à do catálogo, e a gravada sai sem o nome técnico), o teste não provava a mudança, a Auditoria dos
+      consentimentos sem `por_pagina`, e `tests/test_financeiro.py` trocado inteiro para CRLF. ACHADOS DOS ROBÔS (do roteiro, não das telas): o
+      fluxo de caixa somava só a primeira página das contas e lia antes de a lista aparecer; o v5.7g esperava "Directus" na descrição da permissão
+      (o nome saiu da tela na v9.3j). **Homologação**: v5.4e-01 (3ª vez), v5.4e-02, v5.4e-03, v5.4e-04, v5.4f-03, v5.4d-06, v5.4c-fase1-importacao,
+      v5.7e-01, v5.7g-01 (2ª vez), v6.1-01, v7.1-ponto-01, v7.1a-01, v7.1b-01, v7.1c-01, v7.5b-01, v9.3a-01 (celular) e v9.3b-01 verdes; API 1916
+      e painel 921 em duas rodadas; Postgres verde. **Produção**: o GitHub não criou as execuções do envio de 11/11 (ficaram "na fila" sem nenhuma
+      etapa até a manhã seguinte e recusavam o cancelamento); disparadas de novo à mão em 12/11: Deploy API e Deploy Painel verdes, `version.json`
+      = `f2506f6`, as telas publicadas têm a busca dos centros e das contas, "Revisões anteriores" e as páginas dos reembolsos; a API publicada
+      aceita `por_pagina` nos consentimentos e a lista de centros pede login (401)]**
+      **[FALTA (próximas rodadas da v9.3): no notebook só Relatórios passa de 7 alturas (10,7: o Balancete lista todas as contas, que os robôs
+      acumulam na homologação); Orçamento 6,9, Regras 6,8, Saídas 6,4, Propostas 6,2 e Razão 6 entre 5 e 7; dois links com 20 px de altura
+      (Início "Todos os meus avisos" e "Abrir o PDF" em Documentos emitidos); nome técnico "OUTRO" num processo disciplinar; depois disso a altura no
+      notebook passa a reprovar. Decidido com o Presidente em 12/11: o incidente nº 1 FICA como está — é um fato real (o e-mail da conta que
+      administrava o Azure nos registros públicos do GitHub, 30/10, sem dado de associado), não um teste; o registro de incidente é guardado por
+      pelo menos 5 anos (Resolução CD/ANPD nº 15/2024) e o registro encerrado não se altera. Dado antigo só da homologação: o relatório de impacto
+      aprovado lá guarda o texto da proposta antiga, com nomes técnicos]**
 - [ ] Ajuda contextual e tour de primeiro acesso por módulo, no lugar de manual em PDF que
       ninguém lê.
 - [ ] Canal de feedback dentro do painel ("achei um problema nesta tela") ligado à fila de
