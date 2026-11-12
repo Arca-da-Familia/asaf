@@ -2,6 +2,8 @@ import { ChevronRight } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 
+import { AjudaDaTela } from '@/components/layout/AjudaDaTela'
+
 type TrilhaItem = { rotulo: string; href?: string }
 
 type PageHeaderProps = {
@@ -47,6 +49,7 @@ export function PageHeader({
           {descricao && (
             <p className="mt-1 text-muted-foreground">{descricao}</p>
           )}
+          <AjudaDaTela />
         </div>
         {acoes && <div className="flex items-center gap-2">{acoes}</div>}
       </div>
