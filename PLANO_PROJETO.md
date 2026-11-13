@@ -2335,6 +2335,49 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
 - [ ] Web Push para lembrete de evento, aviso de mensalidade e convocação de assembleia —
       confirmado (FASE 19) que iOS suporta push em PWA instalado, sem exigir app nativo.
 
+#### v9.5 — Novo visual do painel (pedido do Presidente, 12/11/2026)
+
+> O Presidente achou as telas "muito simples, sem sal" e o verde sobre a tela muito branca difícil de enxergar, e pediu propostas para escolher:
+> 3 a 5 variações de cada tipo de tela, no claro e no escuro, no celular e no notebook, num artefato onde ele escolhe, comenta e compara
+> (`https://claude.ai/artifact/2mMnMtVtZFHG9nNRzPB94g`; as escolhas ficam no banco do próprio artefato, coleção `escolhas`). Depois da rodada 2 ele
+> definiu a ORDEM (13/11): primeiro a entrada no sistema, depois as telas principais, e só então módulo a módulo — cada módulo tem telas e jeito de
+> trabalhar próprios, nunca misturar módulos numa rodada. Regras dele que valem daqui em diante: o Início não tem coluna à esquerda; a coluna só
+> aparece dentro de um módulo, com os grupos em lista suspensa (abre ao clicar, nunca tudo de uma vez); contraste conferido (mínimo 4,5:1);
+> vermelho só para atraso e erro; toda tela nova passa por ele antes.
+
+- [x] v9.5a — Etapa 1 · a entrada no sistema e as cores e letras novas.
+      **[FEITO (2026-11-13) — cores aprovadas valendo SÓ no painel (`<html data-superficie="painel">`, bloco próprio em `design/tokens.css`; o site
+      não muda): fundo verde-acinzentado claro no lugar do branco, cartões brancos, bordas e campos mais visíveis, a "barra" verde com o ouro marcando
+      o que está aberto, tintas de ouro, azul, verde e vermelho para etiquetas, escuro em verde quase preto; `tokens-contraste.test.ts` confere 36
+      pares novos nos dois modos (o menor par de texto é 5,4:1). Letras Inter (textos) e Plus Jakarta Sans (títulos), guardadas no próprio painel
+      (`@fontsource`, a política de conteúdo só aceita fonte do próprio endereço). `TelaDeEntrada`: "metade verde" no notebook, topo verde e cartão
+      no celular. Entrar: "Mostrar" a senha, a chave de acesso explicada (dispensa senha e código). Código do aplicativo num campo só, com os números
+      grandes, conferido SOZINHO quando os 6 números entram — digitados ou colados com espaço ou traço (pedido dele: "tem que colar e dar certo").
+      Esqueci a senha com os 3 passos do lado direito; troca obrigatória da senha e ligar o código na mesma moldura. O pedido de entrar digitando um
+      número no autenticador (como nas contas da Microsoft) não cabe no aplicativo de código: o caminho rápido do painel é a chave de acesso (digital
+      ou rosto), que já dispensa senha e código]**
+- [x] v9.5b — Etapa 2 · as telas principais (Início, Meu perfil, Meus avisos).
+      **[FEITO (2026-11-13) — Início sem coluna à esquerda: barra verde no alto; a lista dos módulos em duas colunas (ícone na cor da área — pessoas
+      azul, dinheiro ouro, vida da associação verde, administração neutro — nome e uma frase) e, à direita, "Precisa de você" (compras a aprovar,
+      pedidos novos na fila, deliberações por cumprir, contas a receber vencidas, cada item só para quem tem a permissão do módulo), o mural e a
+      agenda; no celular, pendências primeiro, módulos em cartões de 3 em 3 e a barra de baixo (Início, Módulos, Avisos, Meu perfil). Os atalhos
+      pessoais (Meu perfil, Meus avisos, Minhas assembleias, Petições, Pedidos de filiação, Meu voluntariado, Meus processos, Calendário,
+      Configurações) foram para a lista suspensa do botão com o nome da pessoa; a coluna da esquerda só existe dentro de um módulo ou de
+      Configurações. Meu perfil: cada parte numa lista suspensa, em duas colunas, todas começando FECHADAS ("não deixa os dados abertos para
+      qualquer um ver"). Meus avisos: lista e leitura lado a lado no notebook; no celular, o aviso com "Voltar à lista"; a página de cada aviso
+      continua (sino, mural e links). Achados dos robôs na homologação, corrigidos antes da produção: dois títulos "E-mails da ASAF" no perfil; a
+      agenda mostrava o código da categoria (REUNIAO_DIRETORIA) e o mês com 11 px; o link da logo com nome que não continha o texto visível (axe,
+      todas as telas); verde e âmbar de situação com 4,4:1 sobre o fundo novo (tons 800 no claro e 400 no escuro, só no painel). Os robôs de
+      varredura começam também pelas telas pessoais (agora só existem com a lista aberta)]**
+      **Homologação**: v6.2d-03, v6.2d-01, v7.3b-01, v9.3a-01, v9.3b-01 (Etapa 1); v9.3a-01, v9.3b-01, v6.1-01, v5.4d-05, v5.4c-fase1, v6.2b-01,
+      v7.2e-01, v6.2d-03, v7.3b-01 e v9.1a-01 (Etapa 2, os que reprovaram refeitos depois das correções) verdes; painel 1006 testes em duas rodadas
+      a cada versão, 16 de navegador; site 779 testes e montagem sem mudança visível.
+      **Produção**: Deploy Painel e Deploy Site verdes (sem API: nada mudou no servidor); `version.json` do painel e do site = `6b76013`; a página do painel publicada tem `<html data-superficie="painel">`, o estilo publicado tem o bloco do painel e a fonte Inter (`/assets/inter-latin-wght-normal-*.woff2` 200, `font/woff2`); o código publicado tem "Entrar no painel", "Falta só o código", o botão do menu pessoal e a "Navegação principal" do celular, e o pedaço do Início tem "Precisa de você", o mural e a agenda; o site segue sem o atributo do painel (aparência dele inalterada).
+- [ ] Etapa 3 · módulo a módulo: cada módulo numa rodada própria de escolha, com todas as telas dele. As escolhas da rodada 2 estão guardadas
+      no artefato para quando cada módulo chegar: Financeiro (notebook "saldo em destaque e botões de ação", celular "saldo verde e atalhos"),
+      Associados (tabela com abas; cartões no celular), Ficha (cabeçalho, abas e três colunas; abas no alto no celular), Formulário (passo a
+      passo nos dois).
+
 ##### 🔍 Ponto de Revisão — FASE 9 (2/2 — fim, fecha v9.3–v9.4)
 
 Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir especificamente:
