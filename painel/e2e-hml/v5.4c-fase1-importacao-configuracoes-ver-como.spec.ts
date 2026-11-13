@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import { expect, test } from '@playwright/test'
 
 import {
+  abrirMenuPessoal,
   campo,
   cpfValido,
   entrar,
@@ -180,6 +181,7 @@ test('"ver como": o Presidente vê o painel como outro nível (somente leitura) 
   await expect(faixa).toContainText('somente leitura')
   // como "Associado" o menu perde os módulos de gestão (sem recarregar a página: o modo "ver como" vive só na memória dela)
   await expect(page).toHaveURL(/\/$/)
+  await abrirMenuPessoal(page)
   await expect(page.getByRole('link', { name: 'Meu perfil' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Financeiro' })).toHaveCount(0)
   await ver(page, info, 'vendo como Associado: sem os modulos de gestao')

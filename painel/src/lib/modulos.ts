@@ -59,9 +59,16 @@ export type ItemModulo = {
   permissao?: string
 }
 
+// v9.5b - a área do módulo dá a cor do ícone no Início (pessoas = azul, dinheiro = ouro, vida da associação = verde, administração = neutro) e a descrição
+// é a frase curta embaixo do nome (desenho aprovado pelo Presidente, rodada 3)
+export type AreaDoModulo =
+  'pessoas' | 'dinheiro' | 'associacao' | 'administracao'
+
 export type Modulo = {
   rota: string
   rotulo: string
+  area?: AreaDoModulo
+  descricao?: string
   permissao: string
   // v5.4a - outras permissões que TAMBÉM dão acesso ao módulo (ex.: quem só aprova ou só baixa originais
   // enxerga a biblioteca de documentos sem precisar de `documentos`). O backend revalida cada ação.
@@ -103,6 +110,8 @@ export const modulos: Modulo[] = [
   {
     rota: '/associados',
     rotulo: 'Associados',
+    area: 'pessoas',
+    descricao: 'Cadastro, filiação e carteirinha',
     permissao: 'associados',
     icone: Users,
     itens: [
@@ -136,6 +145,8 @@ export const modulos: Modulo[] = [
   {
     rota: '/atendimentos',
     rotulo: 'Atendimento',
+    area: 'pessoas',
+    descricao: 'Pedidos e solicitações na fila',
     permissao: 'atendimento',
     icone: Headset,
   },
@@ -144,6 +155,8 @@ export const modulos: Modulo[] = [
   {
     rota: '/comunicacao',
     rotulo: 'Comunicação',
+    area: 'associacao',
+    descricao: 'Avisos e mural',
     permissao: 'comunicar',
     icone: Megaphone,
     itens: [
@@ -171,6 +184,8 @@ export const modulos: Modulo[] = [
   {
     rota: '/privacidade',
     rotulo: 'Privacidade',
+    area: 'administracao',
+    descricao: 'Dados pessoais e LGPD',
     permissao: 'privacidade',
     icone: LockKeyhole,
     itens: [
@@ -240,6 +255,8 @@ export const modulos: Modulo[] = [
   {
     rota: '/financeiro',
     rotulo: 'Financeiro',
+    area: 'dinheiro',
+    descricao: 'Entradas, saídas e contas',
     permissao: 'financeiro',
     // v5.7e (decisão do Presidente, 2026-10-19): o Conselho Fiscal AUDITA, não opera. `financeiro_auditar` é a permissão SECUNDÁRIA do módulo: abre só Conselho Fiscal,
     // Auditoria financeira e Relatórios (cada item sem `permissao` própria); o resto do módulo pede `financeiro`. O servidor revalida cada ação.
@@ -393,6 +410,8 @@ export const modulos: Modulo[] = [
   {
     rota: '/governanca',
     rotulo: 'Governança',
+    area: 'associacao',
+    descricao: 'Assembleias, atas e mandatos',
     permissao: 'governanca',
     icone: Landmark,
     itens: [
@@ -450,6 +469,8 @@ export const modulos: Modulo[] = [
   {
     rota: '/documentos',
     rotulo: 'Documentos',
+    area: 'associacao',
+    descricao: 'Biblioteca de documentos',
     permissao: 'documentos',
     permissoesAlternativas: ['aprovar_publicacao', 'documentos_originais'],
     icone: FolderOpen,
@@ -474,6 +495,8 @@ export const modulos: Modulo[] = [
   {
     rota: '/parcerias',
     rotulo: 'Parcerias e emendas',
+    area: 'dinheiro',
+    descricao: 'Convênios e emendas',
     permissao: 'parcerias',
     permissoesAlternativas: ['aprovar_publicacao'],
     icone: Handshake,
@@ -495,54 +518,72 @@ export const modulos: Modulo[] = [
   {
     rota: '/projetos',
     rotulo: 'Projetos',
+    area: 'dinheiro',
+    descricao: 'Projetos e as suas equipes',
     permissao: 'projetos',
     icone: FolderKanban,
   },
   {
     rota: '/reserva-espaco',
     rotulo: 'Reserva de Espaço',
+    area: 'associacao',
+    descricao: 'Reservas dos espaços',
     permissao: 'projetos',
     icone: CalendarCheck,
   },
   {
     rota: '/beneficiarios',
     rotulo: 'Beneficiários',
+    area: 'pessoas',
+    descricao: 'Famílias e pessoas atendidas',
     permissao: 'projetos',
     icone: HeartHandshake,
   },
   {
     rota: '/eventos',
     rotulo: 'Eventos',
+    area: 'associacao',
+    descricao: 'Inscrições e vagas',
     permissao: 'projetos',
     icone: PartyPopper,
   },
   {
     rota: '/documentos-emitidos',
     rotulo: 'Documentos emitidos',
+    area: 'associacao',
+    descricao: 'Documentos que a ASAF emitiu',
     permissao: 'projetos',
     icone: FileCheck,
   },
   {
     rota: '/instituicao',
     rotulo: 'Instituição',
+    area: 'administracao',
+    descricao: 'Dados da associação e diretoria',
     permissao: 'gerenciar_acesso',
     icone: Building2,
   },
   {
     rota: '/regras',
     rotulo: 'Regras do sistema',
+    area: 'administracao',
+    descricao: 'Prazos e regras que o sistema segue',
     permissao: 'gerenciar_acesso',
     icone: SlidersHorizontal,
   },
   {
     rota: '/acesso',
     rotulo: 'Níveis e permissões',
+    area: 'administracao',
+    descricao: 'Quem pode fazer o quê',
     permissao: 'gerenciar_acesso',
     icone: ShieldCheck,
   },
   {
     rota: '/auditoria',
     rotulo: 'Auditoria',
+    area: 'administracao',
+    descricao: 'Tudo o que foi feito no sistema',
     permissao: 'auditoria',
     icone: ScrollText,
   },
@@ -553,6 +594,8 @@ export const modulos: Modulo[] = [
   {
     rota: '/editar-site',
     rotulo: 'Editar o site',
+    area: 'administracao',
+    descricao: 'Notícias e páginas do site',
     permissao: 'editar_site',
     icone: Globe,
     externo: URL_DIRECTUS,

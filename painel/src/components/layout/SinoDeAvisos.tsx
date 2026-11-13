@@ -13,7 +13,10 @@ import { formatarData } from '@/lib/datas'
 
 // O sino do topo: os avisos do painel para a própria pessoa (hoje, o chamado da filiação para propor um candidato). A contagem de não lidos
 // aparece no sino e se atualiza sozinha a cada minuto; abrir o aviso o marca como lido e leva à tela dele.
-export function SinoDeAvisos() {
+// v9.5b: na barra verde do alto o sino fica branco e o número em ouro (vermelho só para atraso e erro, decisão do Presidente)
+export function SinoDeAvisos({
+  naBarraVerde = false,
+}: { naBarraVerde?: boolean } = {}) {
   const queryClient = useQueryClient()
   const [aberto, setAberto] = useState(false)
   const raiz = useRef<HTMLDivElement>(null)
@@ -59,6 +62,11 @@ export function SinoDeAvisos() {
       <Button
         variant="ghost"
         size="icon"
+        className={
+          naBarraVerde
+            ? 'text-barra-foreground hover:bg-barra-2 hover:text-barra-foreground'
+            : undefined
+        }
         aria-label={
           // v9.1a: o nome leva o MESMO número que aparece no círculo ("9+"): quem usa comando de voz fala o que vê (antes: "450 novas" com "9+" na tela). Sem
           // parênteses: o axe (e alguns leitores de comando de voz) ignoram o que está entre parênteses
@@ -74,7 +82,7 @@ export function SinoDeAvisos() {
         {naoLidas > 0 && (
           <span
             aria-hidden="true"
-            className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-xs font-semibold text-white"
+            className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-secondary px-1 text-xs font-extrabold text-brand-secondary-foreground"
           >
             {naoLidas > 9 ? '9+' : naoLidas}
           </span>

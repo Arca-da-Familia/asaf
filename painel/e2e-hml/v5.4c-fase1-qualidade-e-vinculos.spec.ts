@@ -400,6 +400,8 @@ test('recadastramento: o associado confirma que os dados continuam corretos e a 
   await entrar(page, 'presidente')
   await page.goto('/perfil')
   await expect(page.getByRole('heading', { name: 'Meu perfil' })).toBeVisible()
+  // v9.5b: no novo visual as partes do perfil começam fechadas (decisão do Presidente): abre "Dados cadastrais"
+  await page.getByRole('button', { name: 'Dados cadastrais' }).click()
   await page
     .getByRole('button', { name: 'Confirmo que meus dados estão corretos' })
     .click()

@@ -1,7 +1,8 @@
 import { startRegistration } from '@simplewebauthn/browser'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
+import { ChevronDown } from 'lucide-react'
 import { z } from 'zod'
 
 import { ConfirmarMeusDados } from '@/components/associados/ConfirmarMeusDados'
@@ -174,102 +175,156 @@ function DadosForm({ perfil }: { perfil: Perfil }) {
 
 export function PerfilPage() {
   const navigate = useNavigate()
-  const [aba, setAba] = useState<Aba>('dados')
   const { data: me } = useMe()
   const { data: perfil, isLoading: perfilCarregando } = useQuery({
     queryKey: ['perfil'],
     queryFn: obterPerfil,
   })
 
-  const abas: { id: Aba; rotulo: string }[] = [
-    { id: 'dados', rotulo: 'Dados cadastrais' },
-    { id: 'linha-do-tempo', rotulo: 'Linha do tempo' },
-    { id: 'seguranca', rotulo: 'Segurança' },
-    { id: 'sessoes', rotulo: 'Sessões ativas' },
-    { id: 'documentos', rotulo: 'Meus documentos' },
-    { id: 'emails', rotulo: 'E-mails da ASAF' },
-    // v7.2e: os pedidos sobre os próprios dados (LGPD, art. 18) - só para quem tem cadastro de associado ligado à conta
-    ...(me?.id_associado
-      ? [{ id: 'meus-dados' as const, rotulo: 'Meus dados pessoais' }]
-      : []),
-  ]
+  // v9.5b - desenho escolhido pelo Presidente (rodada 3, 13/11): cada parte do perfil numa lista suspensa, em duas colunas no notebook. Todas começam FECHADAS:
+  // nas palavras dele, "não deixa aberto os dados para qualquer um ver se abre o notebook; a pessoa seleciona os dados que quer ver". Cada parte só busca os
+  // seus dados quando é aberta (como as antigas abas). Os nomes das partes são os mesmos das abas de antes.
+  const [abertas, setAbertas] = useState<Set<Aba>>(new Set())
+  const alternar = (id: Aba) =>
+    setAbertas((atual) => {
+      const nova = new Set(atual)
+      if (nova.has(id)) nova.delete(id)
+      else nova.add(id)
+      return nova
+    })
+  const parte = (id: Aba, rotulo: string, conteudo: () => ReactNode) => (
+    <ParteDoPerfil
+      key={id}
+      id={id}
+      rotulo={rotulo}
+      aberta={abertas.has(id)}
+      alternar={() => alternar(id)}
+    >
+      {abertas.has(id) ? conteudo() : null}
+    </ParteDoPerfil>
+  )
 
   return (
     <>
       <PageHeader
         titulo="Meu perfil"
-        descricao="Seus dados, segurança da conta e sessões."
+        descricao="Seus dados, segurança da conta e sessões. Abra só a parte que quiser ver."
       />
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        {abas.map((a) => (
-          <Button
-            key={a.id}
-            variant={aba === a.id ? 'default' : 'outline'}
-            onClick={() => setAba(a.id)}
-          >
-            {a.rotulo}
-          </Button>
-        ))}
-      </div>
-
-      {aba === 'dados' && (
-        <section className="rounded-xl border border-border bg-card p-6">
-          <h2 className="mb-4 font-semibold">Dados cadastrais</h2>
-          {perfilCarregando ? (
-            <p className="text-sm text-muted-foreground">Carregando…</p>
-          ) : perfil ? (
-            <>
-              <dl className="mb-6 grid gap-2 text-sm sm:grid-cols-2">
-                <div className="flex gap-2">
-                  <dt className="text-muted-foreground">Nome:</dt>
-                  <dd>{perfil.nome_completo ?? '—'}</dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="text-muted-foreground">CPF:</dt>
-                  <dd>{perfil.cpf ?? '—'}</dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="text-muted-foreground">Categoria:</dt>
-                  <dd>{perfil.categoria ?? '—'}</dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="text-muted-foreground">Situação:</dt>
-                  <dd>{perfil.status_arrolamento ?? '—'}</dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="text-muted-foreground">Admissão:</dt>
-                  <dd>
-                    {perfil.data_admissao
-                      ? formatarData(perfil.data_admissao)
-                      : '—'}
-                  </dd>
-                </div>
-              </dl>
-              <DadosForm perfil={perfil} />
-              <ConfirmarMeusDados />
-            </>
-          ) : (
-            <EmptyState
-              titulo="Sem associado vinculado"
-              descricao="Nenhum cadastro de associado está vinculado a este usuário."
+      <div className="grid gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
+        <div className="flex flex-col gap-3">
+          {parte('dados', 'Dados cadastrais', () => (
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              {perfilCarregando ? (
+                <p className="text-sm text-muted-foreground">Carregando…</p>
+              ) : perfil ? (
+                <>
+                  <dl className="mb-6 grid gap-2 text-sm sm:grid-cols-2">
+                    <div className="flex gap-2">
+                      <dt className="text-muted-foreground">Nome:</dt>
+                      <dd>{perfil.nome_completo ?? '—'}</dd>
+                    </div>
+                    <div className="flex gap-2">
+                      <dt className="text-muted-foreground">CPF:</dt>
+                      <dd>{perfil.cpf ?? '—'}</dd>
+                    </div>
+                    <div className="flex gap-2">
+                      <dt className="text-muted-foreground">Categoria:</dt>
+                      <dd>{perfil.categoria ?? '—'}</dd>
+                    </div>
+                    <div className="flex gap-2">
+                      <dt className="text-muted-foreground">Situação:</dt>
+                      <dd>{perfil.status_arrolamento ?? '—'}</dd>
+                    </div>
+                    <div className="flex gap-2">
+                      <dt className="text-muted-foreground">Admissão:</dt>
+                      <dd>
+                        {perfil.data_admissao
+                          ? formatarData(perfil.data_admissao)
+                          : '—'}
+                      </dd>
+                    </div>
+                  </dl>
+                  <DadosForm perfil={perfil} />
+                  <ConfirmarMeusDados />
+                </>
+              ) : (
+                <EmptyState
+                  titulo="Sem associado vinculado"
+                  descricao="Nenhum cadastro de associado está vinculado a este usuário."
+                />
+              )}
+            </section>
+          ))}
+          {parte('seguranca', 'Segurança', () => (
+            <SegurancaSection
+              mfaAtivado={!!me?.mfa_ativado}
+              onAtivar={() => navigate('/mfa/setup')}
             />
-          )}
-        </section>
-      )}
-
-      {aba === 'linha-do-tempo' && <LinhaDoTempoSection />}
-      {aba === 'seguranca' && (
-        <SegurancaSection
-          mfaAtivado={!!me?.mfa_ativado}
-          onAtivar={() => navigate('/mfa/setup')}
-        />
-      )}
-      {aba === 'sessoes' && <SessoesSection />}
-      {aba === 'documentos' && <DocumentosSection />}
-      {aba === 'emails' && <PreferenciasDeEmail />}
-      {aba === 'meus-dados' && <MeusPedidosDoTitular />}
+          ))}
+          {parte('sessoes', 'Sessões ativas', () => (
+            <SessoesSection />
+          ))}
+        </div>
+        <div className="flex flex-col gap-3">
+          {parte('linha-do-tempo', 'Linha do tempo', () => (
+            <LinhaDoTempoSection />
+          ))}
+          {parte('documentos', 'Meus documentos', () => (
+            <DocumentosSection />
+          ))}
+          {parte('emails', 'E-mails da ASAF', () => (
+            <PreferenciasDeEmail />
+          ))}
+          {/* v7.2e: os pedidos sobre os próprios dados (LGPD, art. 18) - só para quem tem cadastro de associado ligado à conta */}
+          {me?.id_associado
+            ? parte('meus-dados', 'Meus dados pessoais', () => (
+                <MeusPedidosDoTitular />
+              ))
+            : null}
+        </div>
+      </div>
     </>
+  )
+}
+
+/** Uma parte do perfil: o título é o botão que abre e fecha (lista suspensa); o conteúdo só existe aberto. */
+function ParteDoPerfil({
+  id,
+  rotulo,
+  aberta,
+  alternar,
+  children,
+}: {
+  id: string
+  rotulo: string
+  aberta: boolean
+  alternar: () => void
+  children: ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <h2 className="m-0">
+        <button
+          type="button"
+          aria-expanded={aberta}
+          aria-controls={`parte-${id}`}
+          onClick={alternar}
+          className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-border bg-card px-5 text-left text-base font-extrabold shadow-sm hover:bg-accent/40"
+        >
+          <span className="flex-1">{rotulo}</span>
+          <ChevronDown
+            className={`size-5 shrink-0 text-muted-foreground transition-transform ${aberta ? 'rotate-180' : ''}`}
+            aria-hidden="true"
+          />
+        </button>
+      </h2>
+      {aberta && (
+        <div id={`parte-${id}`} className="flex flex-col gap-4">
+          {children}
+        </div>
+      )}
+    </div>
   )
 }
 

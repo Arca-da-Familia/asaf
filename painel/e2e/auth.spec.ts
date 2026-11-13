@@ -62,9 +62,8 @@ test.describe('Login', () => {
     await page.getByRole('button', { name: 'Entrar', exact: true }).click()
 
     await expect(page.getByRole('heading', { name: 'Início' })).toBeVisible()
-    await expect(
-      page.getByText('Maria de Teste', { exact: false }).first(),
-    ).toBeVisible()
+    // v9.5b: o Início cumprimenta a pessoa pelo primeiro nome ("Bom dia, Maria"), e o botão do menu pessoal também o mostra
+    await expect(page.getByRole('heading', { name: /Maria/ })).toBeVisible()
   })
 
   test('login com MFA pede o segundo fator antes de liberar o painel', async ({
@@ -199,6 +198,8 @@ test.describe('Sessão expirada', () => {
     await page.route('**/auth/perfil', (route) => route.fulfill(json({}, 401)))
     await page.route('**/auth/refresh', (route) => route.fulfill(json({}, 401)))
 
+    // v9.5b: "Meu perfil" fica na lista suspensa do botão com o nome da pessoa
+    await page.getByRole('button', { name: /menu pessoal/i }).click()
     await page.getByRole('link', { name: 'Meu perfil' }).click()
 
     await expect(

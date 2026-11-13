@@ -74,6 +74,14 @@ export function exigirHomologacao(): void {
  * Entra pelo caminho de verdade (CPF e senha, na tela). O passo é "boxed": o relatório não mostra o que foi digitado,
  * então a senha de teste nunca aparece nos arquivos de resultado.
  */
+/** v9.5b: os atalhos pessoais (Meu perfil, Meus avisos, Minhas assembleias, Petições...) ficam na lista suspensa do botão com o nome da pessoa, na barra verde
+ * do alto (antes, na coluna da esquerda, que o Presidente tirou do Início e das telas pessoais). Abre a lista se estiver fechada. */
+export async function abrirMenuPessoal(page: Page): Promise<void> {
+  const botao = page.getByRole('button', { name: /menu pessoal/i })
+  if ((await botao.getAttribute('aria-expanded')) !== 'true')
+    await botao.click()
+}
+
 export async function entrar(page: Page, papel: Papel): Promise<void> {
   await test.step(
     `entrar como ${papel}`,

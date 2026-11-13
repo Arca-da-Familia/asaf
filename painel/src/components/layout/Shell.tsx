@@ -1,24 +1,14 @@
 import { Suspense, useRef, useState } from 'react'
 import {
   ArrowLeft,
-  CalendarCheck,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Cog,
-  Handshake,
-  HeartHandshake,
-  House,
   LogOut,
-  Megaphone,
   Menu,
   Moon,
   Search,
-  ShieldAlert,
   SlidersHorizontal,
   Sun,
-  UserPlus,
-  UserRound,
 } from 'lucide-react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
 
@@ -42,6 +32,8 @@ import { cn } from '@/lib/utils'
 
 import { AvisoDeAmbiente } from './AvisoDeAmbiente'
 import { AvisoDoTreinamento } from './AvisoDoTreinamento'
+import { MenuPessoal } from './MenuPessoal'
+import { NavegacaoDoCelular } from './NavegacaoDoCelular'
 import { SinoDeAvisos } from './SinoDeAvisos'
 import { StatusBar } from './StatusBar'
 
@@ -168,6 +160,9 @@ export function Shell() {
     location.pathname === ROTA_CONFIGURACOES ||
     location.pathname.startsWith(`${ROTA_CONFIGURACOES}/`)
 
+  // v9.5b (decisão do Presidente, rodada 2, 13/11): o Início e as telas pessoais não têm coluna à esquerda; ela só aparece dentro de um módulo (ou de
+  // Configurações). Os atalhos pessoais que moravam nela foram para a lista suspensa do botão com o nome da pessoa (MenuPessoal).
+  const temColuna = !!moduloAtivo || emConfiguracoes
   const emImpersonacao = !!data?.impersonando
   // v9.3b: no celular as tabelas do conteúdo viram cartões empilhados (lib/tabelas-em-cartoes.ts)
   const conteudo = useRef<HTMLElement>(null)
@@ -186,68 +181,82 @@ export function Shell() {
       {/* Barra superior: aviso de impersonação (se houver) + identidade, busca, perfil */}
       <header
         className={cn(
-          'fixed inset-x-0 top-0 z-30 flex flex-col border-b border-border bg-card transition-[height] duration-200',
+          'fixed inset-x-0 top-0 z-30 flex flex-col bg-barra text-barra-foreground transition-[height] duration-200',
           alturaTopo,
         )}
       >
         <ImpersonationBar impersonando={data?.impersonando} />
         {/* v9.3b: no celular, margens mais justas e o nome numa linha só (antes "ASAF ·" e "Painel" em duas linhas num celular de 360 px) */}
         <div className="flex h-16 flex-1 items-center gap-1 px-2 sm:gap-2 sm:px-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden"
-            onClick={() => setMobileOpen((v) => !v)}
-            aria-label="Abrir menu"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
+          {temColuna && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-barra-foreground hover:bg-barra-2 hover:text-barra-foreground lg:hidden"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-label="Abrir menu"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          )}
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hidden lg:inline-flex"
-            onClick={() => setCollapsed((v) => !v)}
-            aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
-          >
-            {collapsed ? (
-              <ChevronRight className="h-5 w-5" />
-            ) : (
-              <ChevronLeft className="h-5 w-5" />
-            )}
-          </Button>
+          {temColuna && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hidden text-barra-foreground hover:bg-barra-2 hover:text-barra-foreground lg:inline-flex"
+              onClick={() => setCollapsed((v) => !v)}
+              aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+            >
+              {collapsed ? (
+                <ChevronRight className="h-5 w-5" />
+              ) : (
+                <ChevronLeft className="h-5 w-5" />
+              )}
+            </Button>
+          )}
 
+          {/* v9.5b: a logo e o nome levam ao Início (o nome do link é "Início") */}
           <Link
             to="/"
-            className="flex min-w-0 items-center gap-2 whitespace-nowrap text-base font-bold tracking-tight sm:text-lg"
+            aria-label="Início"
+            className="flex min-w-0 items-center gap-2.5 rounded-xl px-1 whitespace-nowrap"
           >
-            {/* Logo institucional (v5.0). alt vazio: o nome ao lado já é o texto do link. */}
-            <img
-              src="/asaf-logo-160.webp"
-              alt=""
-              width={39}
-              height={32}
-              className="h-8 w-auto"
-            />
-            {mensagens.app.nome}
+            <span className="flex items-center justify-center rounded-lg bg-white p-1">
+              <img
+                src="/asaf-logo-160.webp"
+                alt=""
+                width={39}
+                height={32}
+                className="h-8 w-auto"
+              />
+            </span>
+            <span className="flex flex-col leading-tight">
+              <span className="font-titulo text-lg font-extrabold tracking-wide">
+                ASAF
+              </span>
+              <span className="hidden text-xs text-barra-suave sm:block">
+                Painel da associação
+              </span>
+            </span>
           </Link>
 
           {/* Busca global — placeholder nesta versão (a busca funcional entra em versão futura). */}
           <div className="relative ml-auto hidden md:block">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-barra-suave" />
             <input
               type="search"
               placeholder="Busca global…"
               aria-label="Busca global"
               disabled
-              className="h-9 w-56 rounded-md border border-input bg-muted/40 pl-8 pr-3 text-sm disabled:cursor-not-allowed"
+              className="h-10 w-64 rounded-xl border border-barra-2 bg-barra-2 pl-9 pr-3 text-sm text-barra-foreground placeholder:text-barra-suave disabled:cursor-not-allowed"
             />
           </div>
 
           <Button
             variant="ghost"
             size="icon"
-            className="ml-auto md:ml-0"
+            className="ml-auto text-barra-foreground hover:bg-barra-2 hover:text-barra-foreground md:ml-0"
             onClick={alternar}
             aria-label={ehEscuro ? 'Ativar modo claro' : 'Ativar modo escuro'}
           >
@@ -258,13 +267,16 @@ export function Shell() {
             )}
           </Button>
 
-          <SinoDeAvisos />
+          <SinoDeAvisos naBarraVerde />
 
-          <div className="flex items-center gap-2">
-            <span className="hidden text-sm text-muted-foreground sm:block">
-              {data?.nome_completo ?? data?.email ?? 'Usuário'}
-            </span>
-            <Button variant="outline" size="sm" onClick={sair}>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <MenuPessoal nome={data?.nome_completo ?? data?.email} />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={sair}
+              className="border-barra-suave/60 bg-transparent text-barra-foreground hover:bg-barra-2 hover:text-barra-foreground"
+            >
               <LogOut className="h-4 w-4" />
               {/* v9.1a: no celular a palavra some da tela, mas o leitor de tela continua lendo "Sair" (antes o botão ficava sem nome) */}
               <span className="sr-only sm:not-sr-only">Sair</span>
@@ -273,177 +285,63 @@ export function Shell() {
         </div>
       </header>
 
-      {mobileOpen && (
+      {temColuna && mobileOpen && (
         <div
           className="fixed inset-0 z-30 bg-black/40 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
-      {/* Navegação lateral colapsável (vira gaveta abaixo de 1024px) */}
-      <aside
-        className={cn(
-          'fixed bottom-0 left-0 z-40 flex w-64 flex-col border-r border-border bg-card transition-transform lg:translate-x-0',
-          emImpersonacao ? 'top-[6.5rem]' : 'top-16',
-          mobileOpen ? 'translate-x-0' : '-translate-x-full',
-          collapsed ? 'lg:w-16' : 'lg:w-64',
-        )}
-      >
-        <nav className="flex-1 v3-space-y-1 overflow-y-auto p-3">
-          {moduloAtivo ? (
-            <>
-              <Link
-                to="/"
-                onClick={() => setMobileOpen(false)}
-                className="mb-2 flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              >
-                <ArrowLeft className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>{mensagens.navegacao.inicio}</span>}
-              </Link>
-              {!collapsed && (
-                <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {moduloAtivo.rotulo}
-                </p>
-              )}
-              {itensVisiveis(moduloAtivo, data?.permissoes ?? []).map(
-                (item) => (
-                  <NavLink
-                    key={item.rota}
-                    to={item.rota}
-                    end={item.fim}
-                    className={navCls}
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    <item.icone className="h-5 w-5 shrink-0" />
-                    {!collapsed && <span>{item.rotulo}</span>}
-                  </NavLink>
-                ),
-              )}
-            </>
-          ) : emConfiguracoes ? (
-            <MenuDasConfiguracoes
-              collapsed={collapsed}
-              aoNavegar={() => setMobileOpen(false)}
-            />
-          ) : (
-            <>
-              <NavLink
-                to="/"
-                end
-                className={navCls}
-                onClick={() => setMobileOpen(false)}
-              >
-                <House className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>{mensagens.navegacao.inicio}</span>}
-              </NavLink>
-
-              <NavLink
-                to="/perfil"
-                className={navCls}
-                onClick={() => setMobileOpen(false)}
-              >
-                <UserRound className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>{mensagens.navegacao.meuPerfil}</span>}
-              </NavLink>
-
-              {/* v6.1 - a caixa de entrada: tudo que a pessoa recebeu no mural (qualquer pessoa com acesso recebe aviso, sem permissão de módulo). */}
-              <NavLink
-                to="/meus-avisos"
-                className={navCls}
-                onClick={() => setMobileOpen(false)}
-              >
-                <Megaphone className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>Meus avisos</span>}
-              </NavLink>
-
-              {/* v2.5.3b (achado do usuário 2026-09-15) - "cada membro tem a sua ficha de
-                  chamada": fica junto de Meu Perfil (sobre o próprio associado), não dentro do
-                  módulo Governança (que é sobre conduzir a assembleia de todo mundo). */}
-              <NavLink
-                to="/minhas-assembleias"
-                className={navCls}
-                onClick={() => setMobileOpen(false)}
-              >
-                <CalendarCheck className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>Minhas assembleias</span>}
-              </NavLink>
-
-              {/* Petição de convocação (Art. 8º/10): direito do quadro social, qualquer associado propõe e adere
-                  (o servidor não pede `governanca`), então também vive fora do módulo Governança. */}
-              <NavLink
-                to="/peticoes-de-convocacao"
-                className={navCls}
-                onClick={() => setMobileOpen(false)}
-              >
-                <Handshake className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>Petições de convocação</span>}
-              </NavLink>
-
-              {/* v5.4h - Estatuto Art. 12, par. único VI: o pedido de filiação é proposto por 3 sócios. Qualquer sócio ativo e em dia
-                  propõe ou recusa, então a tela vive fora de qualquer módulo (o servidor decide quem é "apto"). */}
-              <NavLink
-                to="/filiacao/para-propor"
-                className={navCls}
-                onClick={() => setMobileOpen(false)}
-              >
-                <UserPlus className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>Pedidos de filiação</span>}
-              </NavLink>
-
-              {/* v4.4 - mesmo padrão de "Minhas assembleias": autoatendimento do próprio
-                  voluntário (candidatura, escala, troca de turno, horas) - o nível "Voluntário
-                  Externo" não tem NENHUMA permissão de módulo (ver seed_niveis_e_permissoes no
-                  backend), então esta tela vive fora de qualquer módulo, acessível a qualquer
-                  usuário autenticado vinculado a um associado. */}
-              <NavLink
-                to="/meu-voluntariado"
-                className={navCls}
-                onClick={() => setMobileOpen(false)}
-              >
-                <HeartHandshake className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>Meu voluntariado</span>}
-              </NavLink>
-
-              {/* v2.5.6 - mesmo padrão de "Minhas assembleias": é o próprio associado vendo o
-                  próprio processo (defesa, Art. 16), não a Diretoria julgando o de todo mundo -
-                  por isso fora do módulo Governança também. */}
-              <NavLink
-                to="/meus-processos-disciplinares"
-                className={navCls}
-                onClick={() => setMobileOpen(false)}
-              >
-                <ShieldAlert className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>Meus processos disciplinares</span>}
-              </NavLink>
-
-              {/* v2.5.7 - GET /api/calendario/ é liberado a qualquer autenticado no backend
-                  (nunca exigir_permissao) - fora de qualquer módulo de propósito, terceira vez
-                  nesta fase que uma tela evita travar atrás de permissão mais estrita do que o
-                  backend exige. */}
-              <NavLink
-                to="/calendario"
-                className={navCls}
-                onClick={() => setMobileOpen(false)}
-              >
-                <CalendarDays className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>Calendário institucional</span>}
-              </NavLink>
-
-              {/* v2.5.8 - Configurações (decisão registrada desde v2.5.1): cada catálogo só é
-                  gerenciável por quem tem a permissão do módulo dono, não uma permissão única -
-                  por isso é rota global também, a própria tela filtra o que mostra. */}
-              <NavLink
-                to="/configuracoes"
-                className={navCls}
-                onClick={() => setMobileOpen(false)}
-              >
-                <Cog className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>Configurações</span>}
-              </NavLink>
-            </>
+      {/* Navegação lateral colapsável (vira gaveta abaixo de 1024px) - só dentro de um módulo ou de Configurações (v9.5b) */}
+      {temColuna && (
+        <aside
+          className={cn(
+            'fixed bottom-0 left-0 z-40 flex w-64 flex-col border-r border-border bg-card transition-transform lg:translate-x-0',
+            emImpersonacao ? 'top-[6.5rem]' : 'top-16',
+            mobileOpen ? 'translate-x-0' : '-translate-x-full',
+            collapsed ? 'lg:w-16' : 'lg:w-64',
           )}
-        </nav>
-      </aside>
+        >
+          <nav className="flex-1 v3-space-y-1 overflow-y-auto p-3">
+            {moduloAtivo ? (
+              <>
+                <Link
+                  to="/"
+                  onClick={() => setMobileOpen(false)}
+                  className="mb-2 flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                >
+                  <ArrowLeft className="h-5 w-5 shrink-0" />
+                  {!collapsed && <span>{mensagens.navegacao.inicio}</span>}
+                </Link>
+                {!collapsed && (
+                  <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {moduloAtivo.rotulo}
+                  </p>
+                )}
+                {itensVisiveis(moduloAtivo, data?.permissoes ?? []).map(
+                  (item) => (
+                    <NavLink
+                      key={item.rota}
+                      to={item.rota}
+                      end={item.fim}
+                      className={navCls}
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      <item.icone className="h-5 w-5 shrink-0" />
+                      {!collapsed && <span>{item.rotulo}</span>}
+                    </NavLink>
+                  ),
+                )}
+              </>
+            ) : emConfiguracoes ? (
+              <MenuDasConfiguracoes
+                collapsed={collapsed}
+                aoNavegar={() => setMobileOpen(false)}
+              />
+            ) : null}
+          </nav>
+        </aside>
+      )}
 
       {/* Área de conteúdo */}
       <main
@@ -451,7 +349,9 @@ export function Shell() {
         className={cn(
           'flex min-h-screen flex-col transition-[padding] duration-200',
           emImpersonacao ? 'pt-[6.5rem]' : 'pt-16',
-          collapsed ? 'lg:pl-16' : 'lg:pl-64',
+          !temColuna ? '' : collapsed ? 'lg:pl-16' : 'lg:pl-64',
+          // a barra de baixo do celular não cobre o fim da tela
+          'pb-[76px] lg:pb-0',
         )}
       >
         <AvisoDeAmbiente />
@@ -477,6 +377,7 @@ export function Shell() {
           {commitAtual ? ` · build ${commitAtual}` : null}
         </footer>
       </main>
+      <NavegacaoDoCelular />
     </div>
   )
 }

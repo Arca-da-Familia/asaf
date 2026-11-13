@@ -12,6 +12,7 @@ import {
 import {
   atingirQuorum,
   campo,
+  abrirMenuPessoal,
   entrar,
   escolherPorTexto,
   exigirHomologacao,
@@ -435,6 +436,7 @@ test.describe('assembleia própria: justificativas, chamada, sessão, detalhe e 
     await expect(faixa).toContainText('somente leitura')
     await expect(page).toHaveURL(/\/$/)
     // sem recarregar a página: o modo "ver como" vive só na memória dela
+    await abrirMenuPessoal(page)
     await page.getByRole('link', { name: 'Minhas assembleias' }).first().click()
     await expect(page).toHaveURL(/\/minhas-assembleias$/)
     const cartao = cartaoDaAssembleia(page)
@@ -1593,6 +1595,7 @@ test.describe('petições de convocação', () => {
 
     // quem não tem a permissão de governança também propõe e adere (Art. 8º/10): pela rota do quadro social, fora de Governança
     await entrar(page, 'tesoureiro')
+    await abrirMenuPessoal(page)
     await page.getByRole('link', { name: 'Petições de convocação' }).click()
     await expect(page).toHaveURL(/\/peticoes-de-convocacao$/)
     await expect(

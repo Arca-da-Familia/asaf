@@ -118,6 +118,8 @@ test('linha do tempo mostra financeiro, cargos e o histórico unificado', async 
     ),
   )
 
+  // v9.5b: "Meu perfil" fica na lista suspensa do botão com o nome da pessoa
+  await page.getByRole('button', { name: /menu pessoal/i }).click()
   await page.getByRole('link', { name: 'Meu perfil' }).click()
   await page.getByRole('button', { name: 'Linha do tempo' }).click()
 
@@ -149,6 +151,8 @@ test('linha do tempo vazia mostra estado vazio, não erro', async ({ page }) => 
     ),
   )
 
+  // v9.5b: "Meu perfil" fica na lista suspensa do botão com o nome da pessoa
+  await page.getByRole('button', { name: /menu pessoal/i }).click()
   await page.getByRole('link', { name: 'Meu perfil' }).click()
   await page.getByRole('button', { name: 'Linha do tempo' }).click()
 

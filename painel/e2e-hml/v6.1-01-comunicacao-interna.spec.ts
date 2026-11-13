@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import {
   API_HML,
   RODADA,
+  abrirMenuPessoal,
   entrar,
   exigirHomologacao,
   type Papel,
@@ -244,6 +245,7 @@ test('o Conselheiro vê o aviso no sino e no mural, abre e confirma que leu', as
   ).toHaveCount(0)
   await ver(page, info, 'aviso-aberto-e-confirmado')
 
+  await abrirMenuPessoal(page)
   await page
     .getByRole('link', { name: 'Meus avisos', exact: true })
     .first()
@@ -343,6 +345,7 @@ test('o Conselheiro vê o aviso retirado, com o motivo, fora do mural e sem o bo
     page.getByRole('heading', { name: 'Mural de avisos' }),
   ).toBeVisible()
   await expect(page.getByRole('link', { name: TITULO })).toHaveCount(0)
+  await abrirMenuPessoal(page)
   await page
     .getByRole('link', { name: 'Meus avisos', exact: true })
     .first()
