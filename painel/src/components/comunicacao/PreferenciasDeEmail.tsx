@@ -56,7 +56,7 @@ export function PreferenciasDeEmail() {
 
   return (
     <section className="rounded-xl border border-border bg-card p-6">
-      <h2 className="mb-1 font-semibold">E-mails da ASAF</h2>
+      {/* v9.5b: o título "E-mails da ASAF" é o do botão da parte no Meu perfil (a única tela que mostra estas escolhas) */}
       <p className="mb-4 text-sm text-muted-foreground">
         Escolha o que você quer receber por e-mail. No painel, os avisos
         continuam aparecendo no mural e em Meus avisos.

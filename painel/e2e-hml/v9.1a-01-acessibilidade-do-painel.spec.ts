@@ -5,7 +5,13 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 
 import { entrar, exigirHomologacao, ver } from './apoio'
-import { esperarATela, linksInternos, padrao, PULAR } from './varredura'
+import {
+  esperarATela,
+  linksInternos,
+  padrao,
+  PULAR,
+  ROTAS_PESSOAIS,
+} from './varredura'
 
 // v9.1a - ACESSIBILIDADE DO PAINEL num navegador de verdade, com o dado da homologação (WCAG 2.2 nível AA como meta). Os testes do painel no CI (jest-axe)
 // rodam num navegador simulado, que NÃO mede contraste de cor nem o que só aparece com dado de verdade; aqui o robô entra como Presidente (quem vê quase tudo),
@@ -51,7 +57,7 @@ test('todas as telas do painel passam no axe (WCAG 2.2 AA), no computador e no c
   test.setTimeout(60 * 60_000)
   await entrar(page, 'presidente')
   const visitados = new Set<string>()
-  const fila: string[] = ['/']
+  const fila: string[] = ['/', ...ROTAS_PESSOAIS]
   const achados: Achado[] = []
   const naoAbriram: string[] = []
   while (fila.length > 0 && visitados.size < LIMITE) {

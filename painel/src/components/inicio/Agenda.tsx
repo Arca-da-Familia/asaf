@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
-import { listarEventosCalendario } from '@/lib/api'
+import { listarEventosCalendario, listarOpcoesCatalogo } from '@/lib/api'
 import { comoUtc } from '@/lib/datas'
 
 // a data e hora vêm do servidor em UTC sem o fuso escrito (a mesma convenção de formatarData): mostrar no fuso de quem usa
@@ -35,6 +35,15 @@ export function Agenda() {
     queryFn: listarEventosCalendario,
     retry: false,
   })
+  // a categoria vem como código do catálogo (ex.: REUNIAO_DIRETORIA): na tela vai o nome do catálogo, como no Calendário (achado do robô v9.3b-01)
+  const { data: categorias } = useQuery({
+    queryKey: ['opcoes-catalogo', 'categoria_evento_calendario'],
+    queryFn: () => listarOpcoesCatalogo('categoria_evento_calendario'),
+    retry: false,
+  })
+  const nomeDaCategoria = (codigo: string) =>
+    categorias?.find((o) => o.codigo === codigo)?.rotulo ??
+    codigo.charAt(0) + codigo.slice(1).toLowerCase().replace(/_/g, ' ')
   // calculado uma vez ao abrir a tela (a regra de pureza do React não aceita ler o relógio a cada desenho)
   const [agora] = useState(() => new Date())
   const inicioDeHoje = new Date(
@@ -61,7 +70,7 @@ export function Agenda() {
         </h2>
         <Link
           to="/calendario"
-          className="text-sm font-bold text-azul-texto underline-offset-4 hover:underline"
+          className="inline-flex min-h-6 items-center text-sm font-bold text-azul-texto underline-offset-4 hover:underline"
         >
           Ver o calendário
         </Link>
@@ -88,14 +97,14 @@ export function Agenda() {
                   <span className="text-lg leading-none font-extrabold">
                     {String(d.getDate()).padStart(2, '0')}
                   </span>
-                  <span className="text-[11px] font-extrabold uppercase">
+                  <span className="text-xs font-extrabold uppercase">
                     {MESES[d.getMonth()]}
                   </span>
                 </span>
                 <span className="flex min-w-0 flex-col">
                   <span className="text-sm font-bold">{e.titulo}</span>
                   <span className="text-xs text-muted-foreground">
-                    {e.categoria}
+                    {nomeDaCategoria(e.categoria)}
                   </span>
                 </span>
               </li>

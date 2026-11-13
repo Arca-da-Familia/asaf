@@ -13,6 +13,20 @@ export function padrao(caminho: string): string {
 }
 
 /** Os links internos do painel na tela aberta, sem endereço externo, âncora nem parâmetro. */
+/** v9.5b: as telas pessoais (Meu perfil, Meus avisos, Minhas assembleias...) ficam na lista suspensa do botão com o nome da pessoa, que só existe na página
+ * aberta; os robôs que percorrem o painel pelos links começam também por elas (as mesmas do MenuPessoal). */
+export const ROTAS_PESSOAIS = [
+  '/perfil',
+  '/meus-avisos',
+  '/minhas-assembleias',
+  '/peticoes-de-convocacao',
+  '/filiacao/para-propor',
+  '/meu-voluntariado',
+  '/meus-processos-disciplinares',
+  '/calendario',
+  '/configuracoes',
+]
+
 export async function linksInternos(page: Page): Promise<string[]> {
   const hrefs = await page.$$eval('a[href]', (as) =>
     as.map((a) => a.getAttribute('href') ?? ''),

@@ -4,7 +4,13 @@ import path from 'node:path'
 import { expect, test, type Page, type TestInfo } from '@playwright/test'
 
 import { entrar } from './apoio'
-import { esperarATela, linksInternos, padrao, PULAR } from './varredura'
+import {
+  esperarATela,
+  linksInternos,
+  padrao,
+  PULAR,
+  ROTAS_PESSOAIS,
+} from './varredura'
 
 // v9.3a/b - USABILIDADE NO CELULAR E NO NOTEBOOK (a mesma varredura com o aparelho como parâmetro; roteiros v9.3a-01 e v9.3b-01), verificada de forma virtual (decisão do Presidente, 05/11: não há como reunir 3 a 5 pessoas reais; o robô simula o uso
 // e tira o print de cada tela para ele conferir depois, "celular em primeiro lugar"). Num celular de 360 px (o Android mais comum e o mais estreito que se
@@ -359,7 +365,7 @@ export async function varrer(
   fs.mkdirSync(ap.pasta, { recursive: true })
   await entrar(page, 'presidente')
   const visitados = new Set<string>()
-  const fila: string[] = ['/']
+  const fila: string[] = ['/', ...ROTAS_PESSOAIS]
   const relatorio: {
     caminho: string
     print: string
@@ -389,17 +395,31 @@ export async function varrer(
     }
   }
 
-  // o menu do celular abre pelo botão (conferido uma vez, no Início)
+  // v9.5b: no celular, o Início não tem coluna: a barra de baixo fica sempre à vista e os atalhos pessoais abrem pela lista suspensa do botão com o nome;
+  // dentro de um módulo, a coluna do módulo abre pelo botão "Abrir menu" (conferido uma vez cada)
   if (ap.celular) {
     await page.goto('/')
     await esperarATela(page)
+    await expect(
+      page.getByRole('navigation', { name: 'Navegação principal' }),
+    ).toBeVisible()
+    await page.getByRole('button', { name: /menu pessoal/i }).click()
+    await expect(
+      page.getByRole('navigation', { name: 'Menu pessoal' }),
+    ).toBeVisible()
+    await page.screenshot({
+      path: path.join(ap.pasta, '000-menu-pessoal-no-celular.png'),
+      scale: 'css',
+    })
+    await page.goto('/associados')
+    await esperarATela(page)
     const menu = page.locator('aside')
-    await page.getByRole('button', { name: /menu/i }).first().click()
+    await page.getByRole('button', { name: 'Abrir menu' }).click()
     await expect
       .poll(async () => (await menu.boundingBox())?.x ?? -999)
       .toBeGreaterThanOrEqual(0)
     await page.screenshot({
-      path: path.join(ap.pasta, '000-menu-aberto-no-celular.png'),
+      path: path.join(ap.pasta, '000-menu-do-modulo-no-celular.png'),
       scale: 'css',
     })
   }

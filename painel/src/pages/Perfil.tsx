@@ -338,14 +338,14 @@ function SegurancaSection({
   return (
     <div className="v3-space-y-6">
       <section className="rounded-xl border border-border bg-card p-6">
-        <h2 className="mb-4 font-semibold">Troca de senha</h2>
+        <h3 className="mb-4 font-semibold">Troca de senha</h3>
         <SenhaForm />
       </section>
 
       <section className="rounded-xl border border-border bg-card p-6">
-        <h2 className="mb-1 font-semibold">
+        <h3 className="mb-1 font-semibold">
           Autenticação em duas etapas (MFA)
-        </h2>
+        </h3>
         <p className="mb-4 text-sm text-muted-foreground">
           {mfaAtivado
             ? 'O MFA está ativo. Você pode regenerar os códigos de recuperação ou desativá-lo.'
@@ -404,7 +404,7 @@ function PasskeySection() {
 
   return (
     <section className="rounded-xl border border-border bg-card p-6">
-      <h2 className="mb-1 font-semibold">Chaves de acesso (passkey)</h2>
+      <h3 className="mb-1 font-semibold">Chaves de acesso (passkey)</h3>
       <p className="mb-4 text-sm text-muted-foreground">
         Entre neste sistema usando a biometria ou PIN do próprio dispositivo
         (Windows Hello, Face ID/Touch ID), sem digitar senha nem código. A chave
@@ -648,8 +648,7 @@ function SessoesSection() {
 
   return (
     <section className="rounded-xl border border-border bg-card p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-semibold">Sessões ativas</h2>
+      <div className="mb-4 flex items-center justify-end">
         {(sessoes ?? []).filter((s) => !s.is_atual).length > 0 && (
           <Button
             variant="outline"
@@ -732,7 +731,7 @@ function LinhaDoTempoSection() {
     <div className="v3-space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <section className="rounded-xl border border-border bg-card p-6">
-          <h2 className="mb-1 font-semibold">Situação financeira</h2>
+          <h3 className="mb-1 font-semibold">Situação financeira</h3>
           <p
             className={
               ficha.situacao_financeira.saldo_devedor_total > 0
@@ -749,7 +748,7 @@ function LinhaDoTempoSection() {
         </section>
 
         <section className="rounded-xl border border-border bg-card p-6">
-          <h2 className="mb-1 font-semibold">Cargos</h2>
+          <h3 className="mb-1 font-semibold">Cargos</h3>
           {ficha.cargos.length > 0 ? (
             <ul className="v3-space-y-1 text-sm">
               {ficha.cargos.map((c) => (
@@ -779,7 +778,6 @@ function LinhaDoTempoSection() {
       </div>
 
       <section className="rounded-xl border border-border bg-card p-6">
-        <h2 className="mb-4 font-semibold">Linha do tempo</h2>
         {ficha.linha_do_tempo.length > 0 ? (
           <ol className="v3-space-y-4 border-l border-border pl-4">
             {ficha.linha_do_tempo.map((e) => (
@@ -816,7 +814,6 @@ function DocumentosSection() {
 
   return (
     <section className="rounded-xl border border-border bg-card p-6">
-      <h2 className="mb-4 font-semibold">Meus documentos</h2>
       {documentos && documentos.length > 0 ? (
         <ul className="divide-y divide-border">
           {documentos.map((d) => (
