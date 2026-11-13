@@ -174,6 +174,10 @@
     --verde-tinta: 142.1 38.8% 90.4%;
     --verde-texto: 152 68.8% 25.1%;
     --perigo-tinta: 5.7 77.8% 94.7%;
+    /* os tons 700 de verde e âmbar da paleta antiga (situação "em dia"/"pendente" em várias telas) ficavam com 4,4:1 sobre o fundo novo: no painel usam
+       os tons 800 (5,7:1 e 6,5:1). Achado do robô de acessibilidade v9.1a-01 em Governança. */
+    --color-green-700: #166534;
+    --color-amber-700: #92400e;
     --fonte-texto: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
     --fonte-titulo: 'Plus Jakarta Sans Variable', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   }
@@ -215,5 +219,8 @@
     --verde-tinta: 151.8 43.6% 15.3%;
     --verde-texto: 150 59.8% 65.9%;
     --perigo-tinta: 4.5 46.5% 16.9%;
+    /* no escuro, o texto verde/âmbar de situação usa os tons claros (só aparecem como cor de letra no painel) */
+    --color-green-700: #4ade80;
+    --color-amber-700: #fbbf24;
   }
 }

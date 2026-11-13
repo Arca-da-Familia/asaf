@@ -216,10 +216,10 @@ export function Shell() {
             </Button>
           )}
 
-          {/* v9.5b: a logo e o nome levam ao Início (o nome do link é "Início") */}
+          {/* v9.5b: a logo e o nome levam ao Início. O nome do link começa por "Início" e contém o que está escrito na tela (achado do axe: o nome tem de
+              conter o texto visível, para quem usa comando de voz) */}
           <Link
             to="/"
-            aria-label="Início"
             className="flex min-w-0 items-center gap-2.5 rounded-xl px-1 whitespace-nowrap"
           >
             <span className="flex items-center justify-center rounded-lg bg-white p-1">
@@ -231,6 +231,7 @@ export function Shell() {
                 className="h-8 w-auto"
               />
             </span>
+            <span className="sr-only">Início: </span>
             <span className="flex flex-col leading-tight">
               <span className="font-titulo text-lg font-extrabold tracking-wide">
                 ASAF

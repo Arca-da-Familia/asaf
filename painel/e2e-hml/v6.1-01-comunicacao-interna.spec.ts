@@ -223,7 +223,11 @@ test('o Conselheiro vê o aviso no sino e no mural, abre e confirma que leu', as
   await expect(page).toHaveURL(new RegExp(`/meus-avisos/${idDoAviso}$`))
   await expect(page.getByRole('heading', { name: TITULO })).toBeVisible()
   await ver(page, info, 'o-link-do-sino-abre-o-aviso')
-  await page.getByRole('link', { name: 'Início', exact: true }).first().click()
+  // v9.5b: o link da logo, na barra do alto, se chama "Início: ASAF Painel da associação"
+  await page
+    .getByRole('link', { name: /^Início/ })
+    .first()
+    .click()
   await expect(page.getByRole('heading', { name: 'Início' })).toBeVisible()
 
   const noMural = page
