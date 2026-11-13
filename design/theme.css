@@ -24,10 +24,28 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
-  /* Fonte do sistema: sem baixar fonte (desempenho do site e painel instalável). */
-  --font-sans:
-    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    sans-serif;
+  /* Fonte do sistema no site (sem baixar fonte). No painel (v9.5a, novo visual aprovado pelo Presidente) `--fonte-texto` e `--fonte-titulo` vêm de tokens.css
+     (Inter e Plus Jakarta Sans, guardadas no próprio painel); onde não existem (o site), vale a fonte do sistema. `font-titulo` = a letra dos títulos. */
+  --font-sans: var(
+    --fonte-texto,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif
+  );
+  --font-titulo: var(
+    --fonte-titulo,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif
+  );
 
   /* Sombra dos cartões — LIGADA (decisão do usuário, 2026-10-01: "se vai ligar, tem que deixar
      ligada"). Histórico: no Tailwind 3 o nome `card` existia como cor E como sombra neste preset,
@@ -71,6 +89,19 @@
   --color-brand-secondary-foreground: hsl(var(--brand-secondary-foreground));
   --color-brand-tertiary: hsl(var(--brand-tertiary));
   --color-brand-tertiary-foreground: hsl(var(--brand-tertiary-foreground));
+
+  /* Só no painel (v9.5a; os valores estão no bloco [data-superficie='painel'] de tokens.css): a barra verde e as tintas das etiquetas. */
+  --color-barra: hsl(var(--barra));
+  --color-barra-foreground: hsl(var(--barra-foreground));
+  --color-barra-suave: hsl(var(--barra-suave));
+  --color-barra-2: hsl(var(--barra-2));
+  --color-ouro-tinta: hsl(var(--ouro-tinta));
+  --color-ouro-texto: hsl(var(--ouro-texto));
+  --color-azul-tinta: hsl(var(--azul-tinta));
+  --color-azul-texto: hsl(var(--azul-texto));
+  --color-verde-tinta: hsl(var(--verde-tinta));
+  --color-verde-texto: hsl(var(--verde-texto));
+  --color-perigo-tinta: hsl(var(--perigo-tinta));
 }
 
 /*

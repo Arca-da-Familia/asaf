@@ -3,6 +3,11 @@ import { QRCodeSVG } from 'qrcode.react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 
+import {
+  CAMPO_DA_ENTRADA,
+  ROTULO_DA_ENTRADA,
+  TelaDeEntrada,
+} from '@/components/layout/TelaDeEntrada'
 import { Button } from '@/components/ui/button'
 import { ApiError, mfaAtivar, mfaConfirmar, type Me } from '@/lib/api'
 import { somenteDigitos } from '@/lib/cpf'
@@ -66,9 +71,11 @@ export function MfaSetup() {
   }
 
   return (
-    <main className="mx-auto max-w-md px-6 py-10">
-      <h1 className="text-xl font-bold">Ativação obrigatória de MFA</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
+    <TelaDeEntrada>
+      <h1 className="text-[26px] leading-tight font-extrabold">
+        Ativação obrigatória de MFA
+      </h1>
+      <p className="text-[15px] text-muted-foreground">
         Seu nível de acesso exige autenticação em duas etapas. Escaneie o QR
         code com o app autenticador e informe o código gerado.
       </p>
@@ -76,14 +83,14 @@ export function MfaSetup() {
       {erro && (
         <p
           role="alert"
-          className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          className="rounded-xl border border-destructive/40 bg-perigo-tinta px-3.5 py-2.5 text-sm font-semibold text-destructive"
         >
           {erro}
         </p>
       )}
 
       {codigos ? (
-        <section className="mt-6 rounded-xl border border-border bg-card p-6">
+        <section className="rounded-2xl border border-border bg-card p-5">
           <h2 className="font-semibold">Códigos de recuperação</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Guarde estes códigos em local seguro. Eles são mostrados uma única
@@ -101,7 +108,7 @@ export function MfaSetup() {
           </Button>
         </section>
       ) : (
-        <section className="mt-6 rounded-xl border border-border bg-card p-6">
+        <section className="rounded-2xl border border-border bg-card p-5">
           {otpauthUri ? (
             <div className="flex justify-center">
               <QRCodeSVG value={otpauthUri} size={180} />
@@ -112,7 +119,7 @@ export function MfaSetup() {
 
           <form onSubmit={confirmar} className="mt-4 v3-space-y-4">
             <div>
-              <label htmlFor="codigo" className="text-sm font-medium">
+              <label htmlFor="codigo" className={ROTULO_DA_ENTRADA}>
                 Código do autenticador
               </label>
               <input
@@ -124,7 +131,7 @@ export function MfaSetup() {
                 value={codigo}
                 onChange={(e) => setCodigo(somenteDigitos(e.target.value))}
                 placeholder="000000"
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm tracking-widest"
+                className={`${CAMPO_DA_ENTRADA} h-14 text-center text-[24px] font-extrabold tracking-[0.3em]`}
               />
             </div>
             <Button
@@ -137,6 +144,6 @@ export function MfaSetup() {
           </form>
         </section>
       )}
-    </main>
+    </TelaDeEntrada>
   )
 }

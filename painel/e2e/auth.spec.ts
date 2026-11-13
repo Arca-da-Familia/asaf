@@ -100,15 +100,16 @@ test.describe('Login', () => {
     await page.getByRole('button', { name: 'Entrar', exact: true }).click()
 
     await expect(
-      page.getByText('Informe o código do seu autenticador.'),
+      page.getByRole('heading', { name: 'Falta só o código' }),
     ).toBeVisible()
-    await page.getByLabel('Código TOTP').fill('123456')
-    await page.getByRole('button', { name: 'Verificar' }).click()
+    // v9.5a: com os 6 números a tela confere sozinha (não precisa clicar em "Verificar")
+    await page.getByLabel('Código do aplicativo').fill('123456')
 
     await expect(page.getByRole('heading', { name: 'Início' })).toBeVisible()
   })
 
-  test('tecla Enter no código do autenticador envia o formulário sem precisar clicar em Verificar', async ({
+  // v9.5a (pedido do Presidente): o código é conferido sozinho quando os 6 números entram, também colado com espaço, sem Enter nem "Verificar"
+  test('código do autenticador colado com espaço entra sozinho, sem precisar clicar em Verificar', async ({
     page,
   }) => {
     // Achado do usuário (2026-09-14): em alguns navegadores/teclados virtuais, um <input
@@ -144,8 +145,7 @@ test.describe('Login', () => {
     await page.getByLabel('Senha').fill(SENHA_TESTE)
     await page.getByRole('button', { name: 'Entrar', exact: true }).click()
 
-    await page.getByLabel('Código TOTP').fill('123456')
-    await page.getByLabel('Código TOTP').press('Enter')
+    await page.getByLabel('Código do aplicativo').fill('123 456')
 
     await expect(page.getByRole('heading', { name: 'Início' })).toBeVisible()
   })
@@ -202,7 +202,7 @@ test.describe('Sessão expirada', () => {
     await page.getByRole('link', { name: 'Meu perfil' }).click()
 
     await expect(
-      page.getByRole('heading', { name: 'ASAF · Painel' }),
+      page.getByRole('heading', { name: 'Entrar no painel' }),
     ).toBeVisible()
     await expect(page.getByLabel('CPF')).toBeVisible()
   })

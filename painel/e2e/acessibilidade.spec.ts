@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 for (const [caminho, titulo] of [
-  ['/login', 'ASAF · Painel'],
+  ['/login', 'Entrar no painel'],
   ['/esqueci-a-senha', 'Esqueci a minha senha'],
 ] as const) {
   for (const largura of [1280, 375]) {
@@ -44,7 +44,7 @@ test('entrar só com o teclado: a ordem do Tab e o CPF errado marcado, com o foc
 }) => {
   await page.goto('/login')
   await expect(
-    page.getByRole('heading', { name: 'ASAF · Painel' }),
+    page.getByRole('heading', { name: 'Entrar no painel' }),
   ).toBeVisible()
   await page.locator('body').evaluate((b) => (b as HTMLElement).focus())
   await page.keyboard.press('Tab')
@@ -53,6 +53,9 @@ test('entrar só com o teclado: a ordem do Tab e o CPF errado marcado, com o foc
   await page.keyboard.press('Tab')
   await expect(page.getByLabel('Senha')).toBeFocused()
   await page.keyboard.type('qualquer')
+  // v9.5a: o botão "Mostrar" (ver o que foi digitado na senha) vem logo depois do campo
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('button', { name: 'Mostrar' })).toBeFocused()
   await page.keyboard.press('Tab')
   await expect(
     page.getByRole('button', { name: 'Entrar', exact: true }),

@@ -2,6 +2,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router'
 
+import {
+  CAMPO_DA_ENTRADA,
+  ROTULO_DA_ENTRADA,
+  TelaDeEntrada,
+} from '@/components/layout/TelaDeEntrada'
 import { Button } from '@/components/ui/button'
 import { ApiError, alterarSenha, logout, type Me } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
@@ -21,8 +26,7 @@ function mensagemDeErro(err: unknown): string {
   return 'Não foi possível trocar a senha. Tente novamente.'
 }
 
-const classeCampo =
-  'mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm'
+const classeCampo = CAMPO_DA_ENTRADA
 
 export function TrocarSenhaObrigatoria() {
   const queryClient = useQueryClient()
@@ -80,9 +84,11 @@ export function TrocarSenhaObrigatoria() {
   if (eu && !eu.senha_provisoria) return <Navigate to="/" replace />
 
   return (
-    <main className="mx-auto max-w-md px-6 py-10">
-      <h1 className="text-xl font-bold">Troque a sua senha</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
+    <TelaDeEntrada>
+      <h1 className="text-[26px] leading-tight font-extrabold">
+        Troque a sua senha
+      </h1>
+      <p className="text-[15px] text-muted-foreground">
         Você entrou com a senha provisória que a secretaria lhe entregou. Para
         continuar, escolha uma senha só sua (pelo menos {MINIMO} caracteres).
       </p>
@@ -91,16 +97,13 @@ export function TrocarSenhaObrigatoria() {
         <p
           id={ID_DO_ERRO}
           role="alert"
-          className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          className="rounded-xl border border-destructive/40 bg-perigo-tinta px-3.5 py-2.5 text-sm font-semibold text-destructive"
         >
           {erro}
         </p>
       )}
 
-      <form
-        onSubmit={trocar}
-        className="mt-6 v3-space-y-4 rounded-xl border border-border bg-card p-6"
-      >
+      <form onSubmit={trocar} className="flex flex-col gap-4">
         {/* para o gerenciador de senhas ligar a senha nova à conta certa */}
         <input
           type="text"
@@ -111,7 +114,7 @@ export function TrocarSenhaObrigatoria() {
           hidden
         />
         <div>
-          <label htmlFor="senha-provisoria" className="text-sm font-medium">
+          <label htmlFor="senha-provisoria" className={ROTULO_DA_ENTRADA}>
             Senha provisória
           </label>
           <input
@@ -125,7 +128,7 @@ export function TrocarSenhaObrigatoria() {
           />
         </div>
         <div>
-          <label htmlFor="senha-nova" className="text-sm font-medium">
+          <label htmlFor="senha-nova" className={ROTULO_DA_ENTRADA}>
             Senha nova
           </label>
           <input
@@ -139,7 +142,7 @@ export function TrocarSenhaObrigatoria() {
           />
         </div>
         <div>
-          <label htmlFor="senha-confirmacao" className="text-sm font-medium">
+          <label htmlFor="senha-confirmacao" className={ROTULO_DA_ENTRADA}>
             Repita a senha nova
           </label>
           <input
@@ -152,18 +155,22 @@ export function TrocarSenhaObrigatoria() {
             className={classeCampo}
           />
         </div>
-        <Button type="submit" className="w-full" disabled={carregando}>
+        <Button
+          type="submit"
+          className="h-[50px] min-h-[50px] w-full rounded-xl text-base font-bold"
+          disabled={carregando}
+        >
           {carregando ? 'Trocando…' : 'Trocar a senha'}
         </Button>
         <Button
           type="button"
           variant="outline"
-          className="w-full"
+          className="h-12 min-h-12 w-full rounded-xl border-[1.5px] border-input text-[15px] font-bold"
           onClick={sair}
         >
           Sair
         </Button>
       </form>
-    </main>
+    </TelaDeEntrada>
   )
 }

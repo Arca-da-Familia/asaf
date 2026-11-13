@@ -18,11 +18,14 @@ const css = readFileSync(
 const inicioEscuro = css.indexOf('.dark {')
 // v9.1b: o tema de alto contraste do site vem depois do escuro
 const inicioAlto = css.indexOf("[data-contraste='alto'] {")
+// v9.5a: o novo visual do painel (só no painel: <html data-superficie="painel">) vem depois do alto contraste
+const inicioPainel = css.indexOf("[data-superficie='painel'] {")
+const inicioPainelEscuro = css.indexOf("[data-superficie='painel'].dark {")
 
 function lerTokens(bloco: string): Record<string, Hsl> {
   const tokens: Record<string, Hsl> = {}
   for (const m of bloco.matchAll(
-    /--([a-z-]+):\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%/g,
+    /--([a-z0-9-]+):\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%/g,
   )) {
     tokens[m[1]!] = [Number(m[2]), Number(m[3]), Number(m[4])]
   }
@@ -32,8 +35,32 @@ function lerTokens(bloco: string): Record<string, Hsl> {
 const temas = {
   claro: lerTokens(css.slice(css.indexOf(':root {'), inicioEscuro)),
   escuro: lerTokens(css.slice(inicioEscuro, inicioAlto)),
-  alto: lerTokens(css.slice(inicioAlto)),
+  alto: lerTokens(css.slice(inicioAlto, inicioPainel)),
+  painel: lerTokens(css.slice(inicioPainel, inicioPainelEscuro)),
+  'painel escuro': lerTokens(css.slice(inicioPainelEscuro)),
 }
+
+// v9.5a: os usos das cores novas do painel (barra verde, tintas das etiquetas) e as bordas dos campos (3:1, componente de interface)
+const PARES_DO_PAINEL: Array<[string, string, number]> = [
+  ['barra-foreground', 'barra', 4.5],
+  ['barra-suave', 'barra', 4.5],
+  ['barra-foreground', 'barra-2', 4.5],
+  ['barra-suave', 'barra-2', 4.5],
+  ['ouro-texto', 'ouro-tinta', 4.5],
+  ['ouro-texto', 'card', 4.5],
+  ['azul-texto', 'azul-tinta', 4.5],
+  ['azul-texto', 'card', 4.5],
+  ['verde-texto', 'verde-tinta', 4.5],
+  ['verde-texto', 'card', 4.5],
+  ['destructive', 'perigo-tinta', 4.5],
+  ['foreground', 'ouro-tinta', 4.5],
+  ['foreground', 'azul-tinta', 4.5],
+  ['foreground', 'verde-tinta', 4.5],
+  ['foreground', 'perigo-tinta', 4.5],
+  ['muted-foreground', 'accent', 4.5],
+  ['input', 'card', 3],
+  ['input', 'background', 3],
+]
 
 function rgb([h, s, l]: Hsl): [number, number, number] {
   const sat = s / 100
@@ -82,6 +109,8 @@ const PARES: Array<[string, string]> = [
 describe('contraste dos tokens de design (WCAG AA 4,5:1)', () => {
   it('o leitor de tokens achou os três temas completos', () => {
     expect(inicioAlto).toBeGreaterThan(inicioEscuro)
+    expect(inicioPainel).toBeGreaterThan(inicioAlto)
+    expect(inicioPainelEscuro).toBeGreaterThan(inicioPainel)
     for (const tema of Object.values(temas)) {
       expect(Object.keys(tema).length).toBeGreaterThanOrEqual(25)
       expect(tema.primary).toBeDefined()
@@ -104,6 +133,19 @@ describe('contraste dos tokens de design (WCAG AA 4,5:1)', () => {
           `${texto} sobre ${fundo} no tema ${nomeTema}: ${c.toFixed(2)}:1`,
           // o alto contraste existe para quem enxerga pouco: exige o nível AAA (7:1), não só o AA
         ).toBeGreaterThanOrEqual(nomeTema === 'alto' ? 7 : 4.5)
+      })
+    }
+  }
+
+  for (const nomeTema of ['painel', 'painel escuro'] as const) {
+    for (const [texto, fundo, minimo] of PARES_DO_PAINEL) {
+      it(`${nomeTema}: ${texto} sobre ${fundo}`, () => {
+        const tokens = temas[nomeTema]
+        const c = contraste(tokens[texto]!, tokens[fundo]!)
+        expect(
+          c,
+          `${texto} sobre ${fundo} no tema ${nomeTema}: ${c.toFixed(2)}:1`,
+        ).toBeGreaterThanOrEqual(minimo)
       })
     }
   }

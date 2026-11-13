@@ -127,4 +127,93 @@
     --brand-tertiary: 190 100% 70%;
     --brand-tertiary-foreground: 0 0% 0%;
   }
+
+  /* NOVO VISUAL DO PAINEL (v9.5a) — aprovado pelo Presidente no artefato de escolha (rodadas 2 e 3, 13/11/2026). Vale SÓ no painel: o <html> do painel tem
+     data-superficie="painel"; o site não tem esse atributo e continua com as cores de cima (mudar o site é outra decisão dele). O que muda: o fundo deixa de
+     ser branco puro (verde-acinzentado bem claro, #EDF1EC) e só os cartões ficam brancos; bordas e campos mais visíveis (a borda do campo passa de 3:1 com o
+     fundo); o verde forte da ASAF vira a "barra" (menu e faixas) com o ouro marcando o que está aberto; tintas de verde, ouro, azul e vermelho para etiquetas;
+     o escuro passa a ser verde quase preto (#0B1611). Todo par texto/fundo passa de 4,5:1 (conferido em painel/src/test/tokens-contraste.test.ts). Vermelho
+     só para atraso e erro. Letras: Inter nos textos e Plus Jakarta Sans nos títulos, guardadas no próprio painel (@fontsource, sem buscar fora). */
+  [data-superficie='painel'] {
+    --background: 108 15.2% 93.5%;
+    --foreground: 154.3 28% 9.8%;
+    --card: 0 0% 100%;
+    --card-foreground: 154.3 28% 9.8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 154.3 28% 9.8%;
+    --primary: 154.8 60.8% 20%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 105 22.2% 96.5%;
+    --secondary-foreground: 154.3 28% 9.8%;
+    --muted: 105 22.2% 96.5%;
+    --muted-foreground: 144.7 11.3% 29.6%;
+    --accent: 127.5 16% 90.2%;
+    --accent-foreground: 154.3 28% 9.8%;
+    --destructive: 4.2 76.5% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 132 10.6% 81.6%;
+    --input: 140 7.3% 51.4%;
+    --ring: 154.8 60.8% 20%;
+    --radius: 0.75rem;
+    --brand: 154.8 60.8% 20%;
+    --brand-foreground: 0 0% 100%;
+    --brand-secondary: 49.3 75.7% 54.9%;
+    --brand-secondary-foreground: 155 62% 9%;
+    --brand-tertiary: 200 75.8% 64.3%;
+    --brand-tertiary-foreground: 155 62% 9%;
+    /* a barra verde (menu, faixas de boas-vindas, metade verde da entrada) */
+    --barra: 154.8 60.8% 20%;
+    --barra-foreground: 0 0% 100%;
+    --barra-suave: 140 25.7% 86.3%;
+    --barra-2: 155 56.3% 25.1%;
+    /* tintas para etiquetas e cartões de destaque: o texto de cada uma é o "-texto" do mesmo nome */
+    --ouro-tinta: 49.2 86.2% 88.6%;
+    --ouro-texto: 48.2 100% 21%;
+    --azul-tinta: 200 75% 92.2%;
+    --azul-texto: 200.7 85.9% 27.8%;
+    --verde-tinta: 142.1 38.8% 90.4%;
+    --verde-texto: 152 68.8% 25.1%;
+    --perigo-tinta: 5.7 77.8% 94.7%;
+    --fonte-texto: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+    --fonte-titulo: 'Plus Jakarta Sans Variable', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  }
+
+  [data-superficie='painel'].dark {
+    --background: 152.7 33.3% 6.5%;
+    --foreground: 140 21.4% 94.5%;
+    --card: 150 28.6% 11%;
+    --card-foreground: 140 21.4% 94.5%;
+    --popover: 150 28.6% 11%;
+    --popover-foreground: 140 21.4% 94.5%;
+    --primary: 151.3 49.8% 53.1%;
+    --primary-foreground: 152.3 68.4% 7.5%;
+    --secondary: 150 27.8% 14.1%;
+    --secondary-foreground: 140 21.4% 94.5%;
+    --muted: 150 27.8% 14.1%;
+    --muted-foreground: 142.1 13.5% 72.4%;
+    --accent: 143.5 26.4% 17.1%;
+    --accent-foreground: 140 21.4% 94.5%;
+    --destructive: 5.1 100% 79.4%;
+    --destructive-foreground: 152.3 68.4% 7.5%;
+    --border: 144 22.9% 21.4%;
+    --input: 145.2 14.2% 42.9%;
+    --ring: 151.3 49.8% 53.1%;
+    --brand: 151.3 49.8% 53.1%;
+    --brand-foreground: 152.3 68.4% 7.5%;
+    --brand-secondary: 49.3 75.7% 54.9%;
+    --brand-secondary-foreground: 155 62% 9%;
+    --brand-tertiary: 200 75.8% 64.3%;
+    --brand-tertiary-foreground: 155 62% 9%;
+    --barra: 153.3 47.4% 11.2%;
+    --barra-foreground: 135 16.7% 95.3%;
+    --barra-suave: 145.4 17.1% 70.2%;
+    --barra-2: 151.8 41.5% 16.1%;
+    --ouro-tinta: 49.5 52.6% 14.9%;
+    --ouro-texto: 48.1 83% 65.5%;
+    --azul-tinta: 204 60.4% 17.8%;
+    --azul-texto: 199.1 84.3% 75.1%;
+    --verde-tinta: 151.8 43.6% 15.3%;
+    --verde-texto: 150 59.8% 65.9%;
+    --perigo-tinta: 4.5 46.5% 16.9%;
+  }
 }

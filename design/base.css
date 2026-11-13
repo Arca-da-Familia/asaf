@@ -13,6 +13,10 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* v9.5a: no painel, os títulos usam a letra de título do novo visual (Plus Jakarta Sans); o site não tem data-superficie e não muda. */
+  [data-superficie='painel'] :is(h1, h2) {
+    font-family: var(--fonte-titulo);
+  }
   /* Foco visível em todo elemento interativo (navegação por teclado, v0.2.6).
      `outline-hidden` = o antigo `outline-none` do Tailwind 3 (contorno transparente, que ainda
      aparece no modo de alto contraste do Windows); o `outline-none` do 4 apagaria o contorno. */

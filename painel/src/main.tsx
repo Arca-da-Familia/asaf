@@ -4,6 +4,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 
+// v9.5a - as letras do novo visual (Inter nos textos, Plus Jakarta Sans nos títulos), guardadas no próprio painel: a política de conteúdo só aceita fonte do
+// próprio endereço (font-src 'self')
+import '@fontsource-variable/inter'
+import '@fontsource-variable/plus-jakarta-sans'
 import App from './App'
 import { AuthProvider } from './lib/auth-context'
 import { inicializarMonitoramentoGlobal } from './lib/monitoramento'
