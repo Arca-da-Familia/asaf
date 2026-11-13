@@ -216,7 +216,7 @@ export function EsqueciASenha() {
               id="dica-da-senha"
               className="mt-1 text-[12.5px] text-muted-foreground"
             >
-              Pelo menos {MINIMO} letras ou números.
+              Pelo menos {MINIMO} caracteres.
             </p>
           </div>
           <div>
