@@ -1,11 +1,10 @@
 import { Suspense, useRef, useState } from 'react'
 import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
   LogOut,
   Menu,
   Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   Search,
   SlidersHorizontal,
   Sun,
@@ -24,7 +23,13 @@ import {
 } from '@/lib/catalogos-visiveis'
 import { mensagens } from '@/lib/i18n/pt-BR'
 import { useTabelasEmCartoes } from '@/lib/tabelas-em-cartoes'
-import { itensVisiveis, modulos } from '@/lib/modulos'
+import {
+  guardarMenuRecolhido,
+  lerMenuRecolhido,
+  MenuRecolhidoContext,
+  navNaColuna,
+} from '@/lib/menu-do-modulo'
+import { modulos } from '@/lib/modulos'
 import { useTheme } from '@/lib/theme'
 import { useMe } from '@/lib/use-me'
 import { useVersaoBuild } from '@/lib/versao'
@@ -32,6 +37,7 @@ import { cn } from '@/lib/utils'
 
 import { AvisoDeAmbiente } from './AvisoDeAmbiente'
 import { AvisoDoTreinamento } from './AvisoDoTreinamento'
+import { MenuDoModulo, VoltarAoInicio } from './MenuDoModulo'
 import { MenuPessoal } from './MenuPessoal'
 import { NavegacaoDoCelular } from './NavegacaoDoCelular'
 import { SinoDeAvisos } from './SinoDeAvisos'
@@ -76,15 +82,6 @@ function ImpersonationBar({
   )
 }
 
-function navCls({ isActive }: { isActive: boolean }) {
-  return cn(
-    'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-    isActive
-      ? 'bg-primary text-primary-foreground'
-      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-  )
-}
-
 // v9.3 (achado do Presidente, 05/11) - dentro de Configurações a barra lateral troca para os catálogos, agrupados pelo módulo dono, como o menu de qualquer
 // módulo (regra da v2.5.1d: uma barra só, nunca uma segunda lista de navegação dentro da página). A lista vem da API, então não cabe em `modulos`.
 export function MenuDasConfiguracoes({
@@ -97,24 +94,16 @@ export function MenuDasConfiguracoes({
   const { grupos } = useCatalogosVisiveis()
   return (
     <>
-      <Link
-        to="/"
-        onClick={aoNavegar}
-        aria-label={collapsed ? mensagens.navegacao.inicio : undefined}
-        className="mb-2 flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-      >
-        <ArrowLeft className="h-5 w-5 shrink-0" />
-        {!collapsed && <span>{mensagens.navegacao.inicio}</span>}
-      </Link>
+      <VoltarAoInicio recolhido={collapsed} aoNavegar={aoNavegar} />
       {!collapsed && (
-        <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-barra-suave">
           Configurações
         </p>
       )}
       {Array.from(grupos.entries()).map(([chaveGrupo, catalogos]) => (
         <div key={chaveGrupo} className="pt-2">
           {!collapsed && (
-            <p className="px-3 pb-1 text-xs font-medium text-muted-foreground">
+            <p className="px-3 pb-1 text-xs font-medium text-barra-suave">
               {rotuloDoGrupo(chaveGrupo)}
             </p>
           )}
@@ -122,7 +111,9 @@ export function MenuDasConfiguracoes({
             <NavLink
               key={c.chave}
               to={rotaDoCatalogo(c.chave)}
-              className={navCls}
+              className={(estado) =>
+                cn(navNaColuna(estado), collapsed && 'justify-center px-0')
+              }
               onClick={aoNavegar}
               aria-label={collapsed ? c.nome_exibido : undefined}
               title={collapsed ? c.nome_exibido : undefined}
@@ -142,7 +133,14 @@ export function Shell() {
   const { data } = useMe()
   const { ehEscuro, alternar } = useTheme()
   const { commitAtual, novaVersaoDisponivel, recarregar } = useVersaoBuild()
-  const [collapsed, setCollapsed] = useState(false)
+  // v9.5c: a coluna recolhida em ícones fica guardada neste navegador (lib/menu-do-modulo.ts)
+  const [collapsed, setCollapsed] = useState(lerMenuRecolhido)
+  function alternarColuna() {
+    setCollapsed((v) => {
+      guardarMenuRecolhido(!v)
+      return !v
+    })
+  }
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
 
@@ -205,13 +203,22 @@ export function Shell() {
               variant="ghost"
               size="icon"
               className="hidden text-barra-foreground hover:bg-barra-2 hover:text-barra-foreground lg:inline-flex"
-              onClick={() => setCollapsed((v) => !v)}
-              aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+              onClick={alternarColuna}
+              aria-label={
+                collapsed
+                  ? mensagens.navegacao.expandirMenu
+                  : mensagens.navegacao.recolherMenu
+              }
+              title={
+                collapsed
+                  ? mensagens.navegacao.expandirMenu
+                  : mensagens.navegacao.recolherMenu
+              }
             >
               {collapsed ? (
-                <ChevronRight className="h-5 w-5" />
+                <PanelLeftOpen className="h-5 w-5" />
               ) : (
-                <ChevronLeft className="h-5 w-5" />
+                <PanelLeftClose className="h-5 w-5" />
               )}
             </Button>
           )}
@@ -293,54 +300,51 @@ export function Shell() {
         />
       )}
 
-      {/* Navegação lateral colapsável (vira gaveta abaixo de 1024px) - só dentro de um módulo ou de Configurações (v9.5b) */}
+      {/* Navegação lateral (vira gaveta abaixo de 1024px) - só dentro de um módulo ou de Configurações (v9.5b). v9.5c: a coluna é verde, com os grupos do
+          módulo em lista suspensa; no notebook o botão do alto a recolhe em ícones. A gaveta do celular abre sempre inteira (os nomes ajudam no toque). */}
       {temColuna && (
         <aside
           className={cn(
-            'fixed bottom-0 left-0 z-40 flex w-64 flex-col border-r border-border bg-card transition-transform lg:translate-x-0',
+            'fixed bottom-0 left-0 z-40 flex w-64 flex-col bg-barra text-barra-foreground transition-[transform,width] lg:translate-x-0',
             emImpersonacao ? 'top-[6.5rem]' : 'top-16',
             mobileOpen ? 'translate-x-0' : '-translate-x-full',
-            collapsed ? 'lg:w-16' : 'lg:w-64',
+            collapsed ? 'lg:w-[76px]' : 'lg:w-64',
           )}
         >
-          <nav className="flex-1 v3-space-y-1 overflow-y-auto p-3">
-            {moduloAtivo ? (
-              <>
-                <Link
-                  to="/"
-                  onClick={() => setMobileOpen(false)}
-                  className="mb-2 flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                >
-                  <ArrowLeft className="h-5 w-5 shrink-0" />
-                  {!collapsed && <span>{mensagens.navegacao.inicio}</span>}
-                </Link>
-                {!collapsed && (
-                  <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {moduloAtivo.rotulo}
-                  </p>
+          {[false, true].map((recolhido) =>
+            recolhido && !collapsed ? null : (
+              <nav
+                key={String(recolhido)}
+                aria-label={
+                  moduloAtivo
+                    ? `Telas de ${moduloAtivo.rotulo}`
+                    : 'Telas de Configurações'
+                }
+                className={cn(
+                  'flex-1 flex-col gap-0.5 overflow-y-auto p-3',
+                  recolhido
+                    ? 'hidden lg:flex'
+                    : collapsed
+                      ? 'flex lg:hidden'
+                      : 'flex',
                 )}
-                {itensVisiveis(moduloAtivo, data?.permissoes ?? []).map(
-                  (item) => (
-                    <NavLink
-                      key={item.rota}
-                      to={item.rota}
-                      end={item.fim}
-                      className={navCls}
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      <item.icone className="h-5 w-5 shrink-0" />
-                      {!collapsed && <span>{item.rotulo}</span>}
-                    </NavLink>
-                  ),
-                )}
-              </>
-            ) : emConfiguracoes ? (
-              <MenuDasConfiguracoes
-                collapsed={collapsed}
-                aoNavegar={() => setMobileOpen(false)}
-              />
-            ) : null}
-          </nav>
+              >
+                {moduloAtivo ? (
+                  <MenuDoModulo
+                    modulo={moduloAtivo}
+                    permissoes={data?.permissoes ?? []}
+                    recolhido={recolhido}
+                    aoNavegar={() => setMobileOpen(false)}
+                  />
+                ) : emConfiguracoes ? (
+                  <MenuDasConfiguracoes
+                    collapsed={recolhido}
+                    aoNavegar={() => setMobileOpen(false)}
+                  />
+                ) : null}
+              </nav>
+            ),
+          )}
         </aside>
       )}
 
@@ -350,7 +354,7 @@ export function Shell() {
         className={cn(
           'flex min-h-screen flex-col transition-[padding] duration-200',
           emImpersonacao ? 'pt-[6.5rem]' : 'pt-16',
-          !temColuna ? '' : collapsed ? 'lg:pl-16' : 'lg:pl-64',
+          !temColuna ? '' : collapsed ? 'lg:pl-[76px]' : 'lg:pl-64',
           // a barra de baixo do celular não cobre o fim da tela
           'pb-[76px] lg:pb-0',
         )}
@@ -370,7 +374,9 @@ export function Shell() {
               </p>
             }
           >
-            <Outlet />
+            <MenuRecolhidoContext value={temColuna && collapsed}>
+              <Outlet />
+            </MenuRecolhidoContext>
           </Suspense>
         </div>
         <footer className="border-t border-border px-6 py-3 text-xs text-muted-foreground">

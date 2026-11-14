@@ -57,6 +57,9 @@ export type ItemModulo = {
   fim?: boolean // NavLink "end" - só a rota exata fica ativa, não qualquer sub-rota
   // v5.4a - só mostra o item a quem tem esta permissão (ex.: quem só aprova não vê "Novo documento").
   permissao?: string
+  // v9.5c - o grupo do item na coluna do módulo (lista suspensa). Os módulos ganham grupos um a um, na rodada de desenho de cada um; sem grupo, a lista
+  // fica como sempre foi (components/layout/MenuDoModulo.tsx).
+  grupo?: string
 }
 
 // v9.5b - a área do módulo dá a cor do ícone no Início (pessoas = azul, dinheiro = ouro, vida da associação = verde, administração = neutro) e a descrição
@@ -115,29 +118,44 @@ export const modulos: Modulo[] = [
     permissao: 'associados',
     icone: Users,
     itens: [
+      // v9.5c (rodada 4 do desenho): os grupos Cadastro, Filiação e Análises
       {
         rota: '/associados',
-        rotulo: 'Listar associados',
+        rotulo: 'Lista de associados',
         icone: Users,
         fim: true,
-      },
-      { rota: '/associados/novo', rotulo: 'Novo associado', icone: UserPlus },
-      {
-        rota: '/associados/propostas',
-        rotulo: 'Propostas de filiação',
-        icone: Inbox,
+        grupo: 'Cadastro',
       },
       {
-        rota: '/associados/qualidade',
-        rotulo: 'Qualidade da base',
-        icone: ShieldCheck,
+        rota: '/associados/novo',
+        rotulo: 'Novo associado',
+        icone: UserPlus,
+        grupo: 'Cadastro',
       },
       {
         rota: '/associados/importar',
         rotulo: 'Importar em lote',
         icone: FileUp,
+        grupo: 'Cadastro',
       },
-      { rota: '/associados/graficos', rotulo: 'Gráficos', icone: BarChart3 },
+      {
+        rota: '/associados/propostas',
+        rotulo: 'Propostas de filiação',
+        icone: Inbox,
+        grupo: 'Filiação',
+      },
+      {
+        rota: '/associados/qualidade',
+        rotulo: 'Qualidade da base',
+        icone: ShieldCheck,
+        grupo: 'Análises',
+      },
+      {
+        rota: '/associados/graficos',
+        rotulo: 'Gráficos',
+        icone: BarChart3,
+        grupo: 'Análises',
+      },
     ],
   },
   // v5.5a - fila única de atendimento: o que chega pelo formulário do site (contato, pedido de informação sobre recursos públicos, solicitação
