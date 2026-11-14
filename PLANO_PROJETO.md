@@ -2373,6 +2373,35 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       v7.2e-01, v6.2d-03, v7.3b-01 e v9.1a-01 (Etapa 2, os que reprovaram refeitos depois das correções) verdes; painel 1006 testes em duas rodadas
       a cada versão, 16 de navegador; site 779 testes e montagem sem mudança visível.
       **Produção**: Deploy Painel e Deploy Site verdes (sem API: nada mudou no servidor); `version.json` do painel e do site = `6b76013`; a página do painel publicada tem `<html data-superficie="painel">`, o estilo publicado tem o bloco do painel e a fonte Inter (`/assets/inter-latin-wght-normal-*.woff2` 200, `font/woff2`); o código publicado tem "Entrar no painel", "Falta só o código", o botão do menu pessoal e a "Navegação principal" do celular, e o pedaço do Início tem "Precisa de você", o mural e a agenda; o site segue sem o atributo do painel (aparência dele inalterada).
+- [x] v9.5c — Etapa 3 · módulo Associados, parte 1: a casca do módulo, a lista e as abas da ficha.
+      **[FEITO (2026-11-14) — rodadas 4, 5 e 6 do desenho no artefato (as escolhas ficam no banco dele). Coluna do módulo verde, que o Presidente
+      definiu como o PADRÃO de todos os módulos: "Voltar ao Início", o nome do módulo e os grupos em lista suspensa — só o grupo da tela aberta já
+      vem aberto, os outros abrem no clique; o botão do alto recolhe a coluna em ícones (o nome de cada um fica para o leitor de tela e aparece ao
+      parar o mouse) e a escolha fica guardada no navegador; a gaveta do celular abre sempre inteira. Associados com os grupos Cadastro (Lista,
+      Novo, Importar), Filiação (Propostas) e Análises (Qualidade, Gráficos); os outros módulos ganham grupos na rodada de cada um. Lista: situações
+      em abas com a contagem (na ordem do catálogo; escolher uma não zera as outras), situação em cor (vermelho só para inadimplente, que é atraso),
+      iniciais ao lado do nome, "Concedido" em verde. Ficha: abas com o traço ouro (no celular deslizam para o lado) e a situação em cor junto do
+      CPF; com a coluna recolhida, as abas vão para uma coluna à direita com o resumo de cada parte (preenchimento, cargo de agora, quantas pessoas
+      na família, situação), fora do nome do botão. Celular: a barra de baixo continua presa e acima dos botões do aparelho (opção 1 escolhida por
+      ele; o painel já pede ao telefone a faixa dos botões). Achado no caminho: um teste novo com erro de tipo derrubou a 1ª montagem na
+      homologação e a cadeia rodou dois robôs em cima da versão antiga — refeitos todos; o roteiro da cadeia agora para se a publicação falhar]**
+      **Homologação**: robôs v9.3b-01, v9.3a-01, v9.1a-01, v5.4c-fase1, v5.4h-01, v5.4h-09 e v7.3b-01 verdes em `45231da` (`hml-painel`
+      `version.json` = `45231da`); prints da lista e da ficha conferidos; painel 1013 testes em duas rodadas, 16 de navegador;
+      `tests/test_rotas_com_tela.py` verde.
+      **Produção**: Deploy Painel verde (sem API: nada mudou no servidor); `painel.asaf.org.br/version.json` = `45231da`; o código publicado tem a
+      coluna ("Telas de …", a memória do recolher, "Lista de associados") e a ficha ("Nesta ficha", "Partes da ficha", "preenchido").
+- [ ] v9.5d em diante — o resto do módulo Associados, no que o Presidente aprovou (rodadas 4 a 6): Novo associado passo a passo (o passo em texto
+      e barrinha, sem bolinhas; os robôs que cadastram pela tela mudam junto); Dados e foto com a foto e o preenchimento à esquerda; Situação com as
+      ações no alto e o histórico embaixo (no celular, um botão embaixo do outro — nada cortado); Família, cargos e vínculos com a lista e o
+      formulário ao lado; Propostas em três colunas, a lista do meio organizada por etapa e o pedido aberto com abas (Resumo, Quem propõe, Linha
+      do tempo); Qualidade da base passo a passo, campo por campo, com a REGRA nova do servidor: na junção de dois cadastros de associado fica a
+      matrícula mais antiga (pela data de entrada) e o número que fica livre vai para o próximo associado novo (hoje a junção recusa dois
+      associados e a matrícula é sempre o maior número + 1); Importar com a planilha modelo para baixar; Gráficos como painel (filtros, 6 números,
+      gráficos, "Personalizar" guardado por pessoa); a CREDENCIAL: o QR passa a valer SEMPRE (revoga a decisão de 15/10 dos 15 dias, pedido dele em
+      14/11: o cartão impresso não pode vencer) e a página de quem lê mostra a situação de AGORA, em letras grandes embaixo da foto; cada cartão
+      com um código próprio que se revoga ao "emitir outra"; criador de credencial (galeria de modelos e editor de arrastar, celular e impresso);
+      credenciais emitidas com impressão de várias numa segunda aba de pré-visualização, recusando credencial com dado faltando sem justificativa;
+      a Política de Privacidade muda junto (hoje diz que o QR vence).
 - [ ] Etapa 3 · módulo a módulo: cada módulo numa rodada própria de escolha, com todas as telas dele. As escolhas da rodada 2 estão guardadas
       no artefato para quando cada módulo chegar: Financeiro (notebook "saldo em destaque e botões de ação", celular "saldo verde e atalhos"),
       Associados (tabela com abas; cartões no celular), Ficha (cabeçalho, abas e três colunas; abas no alto no celular), Formulário (passo a
