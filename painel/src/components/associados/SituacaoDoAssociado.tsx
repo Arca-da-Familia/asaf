@@ -155,14 +155,15 @@ export function SituacaoDoAssociado({
     <div className="v3-space-y-6">
       <section className="rounded-xl border border-border bg-card p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <h2 className="font-semibold">Situação do associado</h2>
             <p className="mt-1 text-sm">
               Situação atual:{' '}
               <strong data-testid="situacao-atual">{situacao ?? '—'}</strong>
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          {/* v9.5d (desenho aprovado, rodada 4): no celular, um botão embaixo do outro, largos e fáceis de tocar (nunca cortados na borda) */}
+          <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap [&>button]:min-h-11 sm:[&>button]:min-h-0">
             {!desligado && (
               <>
                 <Button

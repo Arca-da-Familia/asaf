@@ -1,3 +1,4 @@
+import { Download } from 'lucide-react'
 import { useState } from 'react'
 
 import {
@@ -11,6 +12,7 @@ import { validarCpf } from '@/lib/cpf'
 import {
   CAMPOS_SISTEMA,
   aplicarMapeamento,
+  planilhaModeloCsv,
   parseArquivoCsv,
   sugerirMapeamento,
   type ChaveCampoSistema,
@@ -44,6 +46,18 @@ export function ImportarAssociadosPage() {
   const [linhasRevisadas, setLinhasRevisadas] = useState<LinhaRevisada[]>([])
   const [resultado, setResultado] = useState<ResultadoImportacao | null>(null)
   const [desfeito, setDesfeito] = useState(false)
+
+  function baixarModelo() {
+    const blob = new Blob([planilhaModeloCsv()], {
+      type: 'text/csv;charset=utf-8',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'planilha-modelo-associados.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   async function aoSelecionarArquivo(e: React.ChangeEvent<HTMLInputElement>) {
     const arquivo = e.target.files?.[0]
@@ -211,6 +225,24 @@ export function ImportarAssociadosPage() {
 
       {passo === 0 && (
         <section className="rounded-xl border border-border bg-card p-6">
+          {/* v9.5d (pedido do Presidente): a planilha modelo, para preencher no formato certo antes de importar */}
+          <div className="mb-5 flex flex-col gap-3 rounded-xl border border-border bg-azul-tinta p-4 sm:flex-row sm:items-center">
+            <div className="flex-1 text-sm">
+              <p className="font-bold text-azul-texto">
+                Comece pela planilha modelo
+              </p>
+              <p className="mt-1 text-foreground">
+                Ela já vem com as colunas que o sistema reconhece: Nome
+                completo, CPF, E-mail, Telefone, Data de nascimento (como
+                22/07/1975) e Categoria (Efetivo, Contribuinte ou Fundador).
+                Preencha uma pessoa por linha e salve como CSV.
+              </p>
+            </div>
+            <Button type="button" variant="outline" onClick={baixarModelo}>
+              <Download className="mr-2 h-4 w-4" />
+              Baixar planilha modelo
+            </Button>
+          </div>
           <p className="mb-4 text-sm text-muted-foreground">
             Selecione um arquivo CSV com a primeira linha contendo os nomes das
             colunas. Exportado do Excel/Google Sheets em "Salvar como &gt; CSV".
