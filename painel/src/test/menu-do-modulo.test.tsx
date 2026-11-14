@@ -43,7 +43,7 @@ describe('coluna do módulo em grupos (v9.5c)', () => {
     // um módulo que ainda não ganhou grupos fica com a lista de sempre
     const semGrupo = modulos.find((m) => m.rota === '/comunicacao')!
     expect(agruparItens(semGrupo.itens!)).toHaveLength(1)
-    expect(agruparItens(semGrupo.itens!)[0].nome).toBe('')
+    expect(agruparItens(semGrupo.itens!)[0]?.nome).toBe('')
   })
 
   it('acha o item da tela aberta, também numa tela de dentro (a ficha é da lista)', () => {

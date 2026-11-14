@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe } from 'jest-axe'
 import { MemoryRouter } from 'react-router'
@@ -55,16 +55,26 @@ describe('Associados: a lista é paginada e filtrada no servidor', () => {
     })
   })
 
-  it('pede a primeira página com 25 por vez, mostra o total do servidor e as opções de situação e categoria com a contagem', async () => {
+  it('pede a primeira página com 25 por vez, mostra o total do servidor, as abas de situação e as opções de categoria com a contagem', async () => {
     desenhar(<AssociadosPage />)
     expect(await screen.findByText('Ana de Teste')).toBeInTheDocument()
     expect(api.listarAssociadosDaPagina).toHaveBeenCalledWith(
       expect.objectContaining({ pagina: 1, por_pagina: 25 }),
     )
     expect(await screen.findByText(/60 registro\(s\)/)).toBeInTheDocument()
-    expect(
-      screen.getByRole('option', { name: 'Ativo - Em Dia (55)' }),
-    ).toBeInTheDocument()
+    // v9.5d: as situações são abas (botões), na ordem do catálogo, com a contagem; "Todas" vem escolhida
+    const abas = within(screen.getByRole('group', { name: 'Situação' }))
+      .getAllByRole('button')
+      .map((b) => b.textContent)
+    expect(abas).toEqual([
+      'Todas · 60',
+      'Ativo - Em Dia · 55',
+      'Licenciado · 5',
+    ])
+    expect(screen.getByRole('button', { name: 'Todas · 60' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
     expect(
       screen.getByRole('option', { name: 'Fundador (10)' }),
     ).toBeInTheDocument()
@@ -91,10 +101,7 @@ describe('Associados: a lista é paginada e filtrada no servidor', () => {
     await screen.findByText('Ana de Teste')
     await u.type(screen.getByLabelText('Filtrar'), 'Carla')
     // sem esperar a pausa da busca
-    await u.selectOptions(
-      screen.getByRole('combobox', { name: /Situação/ }),
-      'Licenciado',
-    )
+    await u.click(screen.getByRole('button', { name: /^Licenciado/ }))
     await waitFor(() =>
       expect(api.listarAssociadosDaPagina).toHaveBeenLastCalledWith(
         expect.objectContaining({ busca: 'Carla', situacao: 'Licenciado' }),
@@ -106,14 +113,19 @@ describe('Associados: a lista é paginada e filtrada no servidor', () => {
     const u = userEvent.setup()
     desenhar(<AssociadosPage />)
     await screen.findByText('Ana de Teste')
-    await u.selectOptions(
-      screen.getByRole('combobox', { name: /Situação/ }),
-      'Licenciado',
-    )
+    await u.click(screen.getByRole('button', { name: /^Licenciado/ }))
     await waitFor(() =>
       expect(api.listarAssociadosDaPagina).toHaveBeenCalledWith(
         expect.objectContaining({ situacao: 'Licenciado', pagina: 1 }),
       ),
+    )
+    // a aba escolhida fica marcada e o total passa a ser o dela; as outras abas continuam com a contagem
+    expect(
+      screen.getByRole('button', { name: 'Licenciado · 5' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(await screen.findByText(/5 registro\(s\)/)).toBeInTheDocument()
+    expect(api.resumirAssociados).not.toHaveBeenCalledWith(
+      expect.objectContaining({ situacao: 'Licenciado' }),
     )
     await u.selectOptions(
       screen.getByRole('combobox', { name: /Categoria/ }),

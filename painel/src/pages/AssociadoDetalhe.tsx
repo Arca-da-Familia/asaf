@@ -3,7 +3,13 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 
+import {
+  AbasADireita,
+  AbasNoAlto,
+  type AbaDaFicha,
+} from '@/components/associados/AbasDaFicha'
 import { CompletudeDoCadastro } from '@/components/associados/CompletudeECategoria'
+import { SituacaoChip } from '@/components/associados/SituacaoChip'
 import { SituacaoDoAssociado } from '@/components/associados/SituacaoDoAssociado'
 import { VinculosDaPessoa } from '@/components/associados/VinculosDaPessoa'
 import { EmptyState } from '@/components/feedback/EmptyState'
@@ -30,6 +36,7 @@ import {
 } from '@/lib/api'
 import { PERMISSAO_VER_CPF_COMPLETO } from '@/lib/cpf-protegido'
 import { formatarData } from '@/lib/datas'
+import { useMenuDoModuloRecolhido } from '@/lib/menu-do-modulo'
 import { useMe } from '@/lib/use-me'
 import {
   associadoEditarSchema,
@@ -37,7 +44,6 @@ import {
   dependenteCriarSchema,
 } from '@/lib/schemas'
 
-type Aba = 'dados' | 'ficha360' | 'cargos' | 'familia' | 'situacao' | 'vinculos'
 type AssociadoEditarForm = z.infer<typeof associadoEditarSchema>
 
 // v2.5.1 (FASE 2.5 - Painel) - completa o módulo Associados: editar dados/foto, gerenciar
@@ -47,7 +53,9 @@ export function AssociadoDetalhePage() {
   const { id } = useParams<{ id: string }>()
   const idAssociado = Number(id)
   const navigate = useNavigate()
-  const [aba, setAba] = useState<Aba>('dados')
+  const [aba, setAba] = useState<AbaDaFicha>('dados')
+  // v9.5d (rodada 5): com o menu do módulo recolhido, as abas vão para uma coluna à direita (só no notebook; no celular ficam no alto)
+  const recolhido = useMenuDoModuloRecolhido()
   const { data: eu } = useMe()
   const podeVerCpf = !!eu?.permissoes.includes(PERMISSAO_VER_CPF_COMPLETO)
 
@@ -55,15 +63,6 @@ export function AssociadoDetalhePage() {
     queryKey: ['associado', idAssociado],
     queryFn: () => obterAssociado(idAssociado),
   })
-
-  const abas: { id: Aba; rotulo: string }[] = [
-    { id: 'dados', rotulo: 'Dados e foto' },
-    { id: 'ficha360', rotulo: 'Ficha 360' },
-    { id: 'cargos', rotulo: 'Cargos' },
-    { id: 'familia', rotulo: 'Família' },
-    { id: 'situacao', rotulo: 'Situação' },
-    { id: 'vinculos', rotulo: 'Vínculos' },
-  ]
 
   return (
     <>
@@ -91,49 +90,68 @@ export function AssociadoDetalhePage() {
         <EmptyState titulo="Associado não encontrado" />
       ) : (
         <>
-          <p className="-mt-2 mb-4 text-sm text-muted-foreground">
-            CPF{' '}
-            <CpfProtegido
-              origem="associado"
-              id={associado.id_associado}
-              mascarado={associado.cpf_mascarado}
-              podeRevelar={podeVerCpf}
-            />
+          <p className="-mt-2 mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+            <span>
+              CPF{' '}
+              <CpfProtegido
+                origem="associado"
+                id={associado.id_associado}
+                mascarado={associado.cpf_mascarado}
+                podeRevelar={podeVerCpf}
+              />
+            </span>
+            <SituacaoChip situacao={associado.status_arrolamento} />
           </p>
-          <div className="mb-6 flex flex-wrap gap-2">
-            {abas.map((a) => (
-              <Button
-                key={a.id}
-                variant={aba === a.id ? 'default' : 'outline'}
-                onClick={() => setAba(a.id)}
-              >
-                {a.rotulo}
-              </Button>
-            ))}
-          </div>
+          <AbasNoAlto
+            aba={aba}
+            aoEscolher={setAba}
+            className={recolhido ? 'lg:hidden' : undefined}
+          />
 
-          {aba === 'dados' && (
-            <DadosEFotoTab idAssociado={idAssociado} associado={associado} />
-          )}
-          {aba === 'ficha360' && <Ficha360Tab idAssociado={idAssociado} />}
-          {aba === 'cargos' && <CargosTab idAssociado={idAssociado} />}
-          {aba === 'familia' && (
-            <FamiliaTab idPessoaTitular={associado.id_pessoa} />
-          )}
-          {aba === 'situacao' && (
-            <SituacaoDoAssociado
-              idAssociado={idAssociado}
-              nome={associado.nome_completo}
-              situacao={associado.status_arrolamento}
-            />
-          )}
-          {aba === 'vinculos' && (
-            <VinculosDaPessoa
-              idPessoa={associado.id_pessoa}
-              idUsuario={associado.id_usuario}
-              nome={associado.nome_completo}
-            />
-          )}
+          <div
+            className={
+              recolhido ? 'lg:flex lg:items-start lg:gap-6' : undefined
+            }
+          >
+            <div className="min-w-0 flex-1">
+              {aba === 'dados' && (
+                <DadosEFotoTab
+                  idAssociado={idAssociado}
+                  associado={associado}
+                />
+              )}
+              {aba === 'ficha360' && <Ficha360Tab idAssociado={idAssociado} />}
+              {aba === 'cargos' && <CargosTab idAssociado={idAssociado} />}
+              {aba === 'familia' && (
+                <FamiliaTab idPessoaTitular={associado.id_pessoa} />
+              )}
+              {aba === 'situacao' && (
+                <SituacaoDoAssociado
+                  idAssociado={idAssociado}
+                  nome={associado.nome_completo}
+                  situacao={associado.status_arrolamento}
+                />
+              )}
+              {aba === 'vinculos' && (
+                <VinculosDaPessoa
+                  idPessoa={associado.id_pessoa}
+                  idUsuario={associado.id_usuario}
+                  nome={associado.nome_completo}
+                />
+              )}
+            </div>
+            {recolhido && (
+              <div className="hidden lg:block">
+                <AbasADireita
+                  aba={aba}
+                  aoEscolher={setAba}
+                  idAssociado={idAssociado}
+                  idPessoa={associado.id_pessoa}
+                  situacao={associado.status_arrolamento}
+                />
+              </div>
+            )}
+          </div>
         </>
       )}
     </>

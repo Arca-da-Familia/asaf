@@ -1,10 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import type { PaginationState } from '@tanstack/react-table'
-import { UserPlus, Users } from 'lucide-react'
+import { Upload, UserPlus, Users } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
 import { ExportarAssociados } from '@/components/associados/ExportarAssociados'
+import {
+  IniciaisDaPessoa,
+  SituacaoChip,
+} from '@/components/associados/SituacaoChip'
 import { DataTable, type ColunaTabela } from '@/components/data/DataTable'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -15,6 +19,7 @@ import {
   type AssociadoListagem,
 } from '@/lib/api'
 import { porPaginaNaTela } from '@/lib/celular'
+import { cn } from '@/lib/utils'
 
 // v3.0.2 (achado 2026-09-15) - até aqui, /associados só tinha a guarda de permissão (navegação
 // e menu funcionando, nenhum conteúdo). Esta é a primeira tela de negócio de verdade do painel
@@ -24,25 +29,43 @@ const colunas: ColunaTabela<AssociadoListagem>[] = [
   {
     accessorKey: 'nome_completo',
     header: 'Nome',
+    // v9.5d (desenho aprovado, rodada 4): as iniciais ao lado do nome
     cell: ({ row }) => (
-      <Link
-        to={`/associados/${row.original.id_associado}`}
-        className="font-medium hover:underline"
-      >
-        {row.original.nome_completo}
-      </Link>
+      <span className="flex items-center gap-3">
+        <IniciaisDaPessoa nome={row.original.nome_completo} />
+        <Link
+          to={`/associados/${row.original.id_associado}`}
+          className="font-semibold hover:underline"
+        >
+          {row.original.nome_completo}
+        </Link>
+      </span>
     ),
   },
   // v7.3a: sempre escondido; o completo só na ficha, por "Mostrar o CPF"
-  { accessorKey: 'cpf_mascarado', header: 'CPF' },
+  {
+    accessorKey: 'cpf_mascarado',
+    header: 'CPF',
+    cell: ({ row }) => (
+      <span className="text-muted-foreground tabular-nums">
+        {row.original.cpf_mascarado}
+      </span>
+    ),
+  },
   { accessorKey: 'categoria', header: 'Categoria' },
-  { accessorKey: 'status_arrolamento', header: 'Situação' },
+  {
+    accessorKey: 'status_arrolamento',
+    header: 'Situação',
+    cell: ({ row }) => (
+      <SituacaoChip situacao={row.original.status_arrolamento} />
+    ),
+  },
   {
     id: 'acesso',
     header: 'Acesso ao painel',
     cell: ({ row }) =>
       row.original.tem_acesso ? (
-        <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
+        <span className="inline-flex rounded-full bg-verde-tinta px-2.5 py-0.5 text-xs font-bold text-verde-texto">
           Concedido
         </span>
       ) : (
@@ -68,8 +91,16 @@ const colunas: ColunaTabela<AssociadoListagem>[] = [
 ]
 
 const POR_PAGINA = 25
-const classeCampo =
-  'h-9 rounded-md border border-input bg-background px-3 text-sm'
+const classeCampo = 'h-10 rounded-lg border border-input bg-card px-3 text-sm'
+// as abas de situação seguem a ordem do catálogo do sistema; situação que não estiver aqui vai para o fim
+const ORDEM_DAS_SITUACOES = [
+  'Ativo - Em Dia',
+  'Ativo - Inadimplente',
+  'Em Experiência',
+  'Suspenso (Estatuto)',
+  'Licenciado',
+  'Desligado',
+]
 
 // A lista é paginada e filtrada no servidor (v5.4h): a busca, a situação e a categoria vão na própria consulta e ficam no endereço (dá para mandar o link
 // de uma lista filtrada); a tabela mostra uma página de cada vez.
@@ -118,6 +149,11 @@ export function AssociadosPage() {
     situacao: situacao || undefined,
     categoria: categoria || undefined,
   }
+  // a contagem das abas de situação: a da busca e da categoria escolhidas, de TODAS as situações (a aba escolhida não zera as outras)
+  const consultaDasAbas = {
+    busca: busca || undefined,
+    categoria: categoria || undefined,
+  }
   const { data: associados, isLoading } = useQuery({
     queryKey: [
       'associados',
@@ -137,14 +173,24 @@ export function AssociadosPage() {
     placeholderData: (anterior) => anterior,
   })
   const { data: resumo } = useQuery({
-    queryKey: ['associados', 'resumo', busca, situacao, categoria],
-    queryFn: () => resumirAssociados(consulta),
+    queryKey: ['associados', 'resumo', busca, categoria],
+    queryFn: () => resumirAssociados(consultaDasAbas),
     placeholderData: (anterior) => anterior,
   })
 
   const dados = associados ?? []
   const semFiltro = !busca && !situacao && !categoria
-  const total = resumo?.total ?? dados.length
+  const porSituacao = resumo?.por_situacao ?? {}
+  const total = resumo
+    ? situacao
+      ? (porSituacao[situacao] ?? 0)
+      : resumo.total
+    : dados.length
+  const abas = [
+    ...ORDEM_DAS_SITUACOES.filter((s) => s in porSituacao),
+    ...Object.keys(porSituacao).filter((s) => !ORDEM_DAS_SITUACOES.includes(s)),
+  ]
+  if (situacao && !abas.includes(situacao)) abas.push(situacao)
 
   return (
     <>
@@ -154,7 +200,10 @@ export function AssociadosPage() {
         acoes={
           <>
             <Button asChild variant="outline">
-              <Link to="/associados/importar">Importar em lote</Link>
+              <Link to="/associados/importar">
+                <Upload className="mr-2 h-4 w-4" />
+                Importar em lote
+              </Link>
             </Button>
             <Button asChild>
               <Link to="/associados/novo">
@@ -168,6 +217,34 @@ export function AssociadosPage() {
 
       <ExportarAssociados />
 
+      {/* v9.5d (desenho aprovado, rodada 4): as situações viram abas com a contagem; a busca e a categoria ficam logo abaixo */}
+      <div
+        role="group"
+        aria-label="Situação"
+        className="relative mb-3 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible"
+      >
+        {['', ...abas].map((nome) => {
+          const ativa = situacao === nome
+          const n = nome ? (porSituacao[nome] ?? 0) : (resumo?.total ?? 0)
+          return (
+            <button
+              key={nome || 'todas'}
+              type="button"
+              aria-pressed={ativa}
+              onClick={() => mudar({ situacao: nome })}
+              className={cn(
+                'flex min-h-10 shrink-0 items-center rounded-full border px-3.5 text-sm whitespace-nowrap transition-colors',
+                ativa
+                  ? 'border-primary bg-primary font-bold text-primary-foreground'
+                  : 'border-border bg-card font-medium text-foreground hover:bg-accent',
+              )}
+            >
+              {nome || 'Todas'} · {n}
+            </button>
+          )
+        })}
+      </div>
+
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <input
           type="search"
@@ -175,28 +252,8 @@ export function AssociadosPage() {
           placeholder="Buscar por nome, CPF, e-mail, telefone ou matrícula"
           value={textoBusca}
           onChange={(e) => setTextoBusca(e.target.value)}
-          className={`${classeCampo} w-80 max-w-full`}
+          className={`${classeCampo} w-96 max-w-full`}
         />
-        <label className="text-sm">
-          <span className="mb-1 block text-xs text-muted-foreground">
-            Situação
-          </span>
-          <select
-            value={situacao}
-            onChange={(e) => mudar({ situacao: e.target.value })}
-            className={classeCampo}
-          >
-            <option value="">Todas</option>
-            {Object.entries(resumo?.por_situacao ?? {}).map(([nome, n]) => (
-              <option key={nome} value={nome}>
-                {nome} ({n})
-              </option>
-            ))}
-            {situacao && !(situacao in (resumo?.por_situacao ?? {})) && (
-              <option value={situacao}>{situacao} (0)</option>
-            )}
-          </select>
-        </label>
         <label className="text-sm">
           <span className="mb-1 block text-xs text-muted-foreground">
             Categoria
