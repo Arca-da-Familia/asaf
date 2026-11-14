@@ -27,22 +27,33 @@ test('importar em lote: CSV com uma linha boa, uma com CPF inválido e uma repet
   page,
 }, info) => {
   const vigia = vigiar(page)
-  const csv = [
-    'Nome,CPF,Email,Telefone,Nascimento,Categoria',
-    `${IMPORTADA_1},${cpf(1)},um.${RODADA}@homologacao.example.com,91911110001,1990-01-01,Efetivo`,
-    `${IMPORTADA_2},${cpf(2)},dois.${RODADA}@homologacao.example.com,91911110002,1991-02-02,Efetivo`,
-    `Linha Com CPF Invalido,123.456.789-00,x@homologacao.example.com,91911110003,1992-03-03,Efetivo`,
-    `${IMPORTADA_1} Repetida,${cpf(1)},tres.${RODADA}@homologacao.example.com,91911110004,1990-01-01,Efetivo`,
-  ].join('\n')
-  fs.mkdirSync('prints-hml/tmp', { recursive: true })
-  const arquivo = `prints-hml/tmp/importacao-${RODADA}.csv`
-  fs.writeFileSync(arquivo, csv, 'utf-8')
-
   await entrar(page, 'presidente')
   await page.goto('/associados/importar')
   await expect(
     page.getByRole('heading', { name: 'Importar associados' }),
   ).toBeVisible()
+
+  // v9.5d (pedido do Presidente): baixa a planilha modelo pela tela e preenche ELA, do jeito do Excel em português (ponto e vírgula, data dia/mês/ano)
+  const baixando = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Baixar planilha modelo' }).click()
+  const baixado = await baixando
+  expect(baixado.suggestedFilename()).toBe('planilha-modelo-associados.csv')
+  const modelo = fs.readFileSync((await baixado.path())!, 'utf-8')
+  expect(modelo.replace(/^\u{FEFF}/u, '').trim()).toBe(
+    'Nome completo;CPF;E-mail;Telefone;Data de nascimento;Categoria',
+  )
+  await ver(page, info, 'importacao: planilha modelo baixada')
+  const csv =
+    modelo +
+    [
+      `${IMPORTADA_1};${cpf(1)};um.${RODADA}@homologacao.example.com;91911110001;01/01/1990;Efetivo`,
+      `${IMPORTADA_2};${cpf(2)};dois.${RODADA}@homologacao.example.com;91911110002;02/02/1991;Efetivo`,
+      `Linha Com CPF Invalido;123.456.789-00;x@homologacao.example.com;91911110003;03/03/1992;Efetivo`,
+      `${IMPORTADA_1} Repetida;${cpf(1)};tres.${RODADA}@homologacao.example.com;91911110004;01/01/1990;Efetivo`,
+    ].join('\r\n')
+  fs.mkdirSync('prints-hml/tmp', { recursive: true })
+  const arquivo = `prints-hml/tmp/importacao-${RODADA}.csv`
+  fs.writeFileSync(arquivo, csv, 'utf-8')
   await page.locator('input[type="file"]').setInputFiles(arquivo)
   await expect(page.getByText(/4 linha\(s\) encontrada\(s\)/)).toBeVisible()
   await ver(page, info, 'importacao: colunas reconhecidas')
