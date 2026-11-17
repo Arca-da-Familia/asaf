@@ -282,9 +282,12 @@ def _escolhas_completas(client, auth_headers, id_fila, **escolhidas):
 
 
 def _plano(db):
+    from uuid import uuid4
+
     from app.models.financeiro import PlanoDeContas, PlanoDeContribuicao
 
-    conta = PlanoDeContas()
+    # conta de receita completa: no Postgres o banco é o mesmo para a suíte inteira, e uma conta sem tipo quebrava o balancete de outros testes
+    conta = PlanoDeContas(codigo_contabil=f"3.9.{uuid4().hex[:10]}", descricao_conta="Mensalidade de teste da junção", tipo="Receita")
     db.add(conta)
     db.flush()
     plano = PlanoDeContribuicao(categoria="Efetivo", descricao="Mensalidade de teste", dia_vencimento=10, id_conta_contabil=conta.id_conta)
