@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ShieldCheck } from 'lucide-react'
-import { useState } from 'react'
+import { Check, Lock, ShieldCheck } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 
 import { Paginador } from '@/components/data/Paginador'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
@@ -9,55 +9,128 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import {
   anonimizarVencidos,
+  compararItemDaFila,
   escanearDuplicidade,
   higienizarContatos,
   ignorarItemDaFila,
   listarFilaDeRevisao,
   mesclarPessoas,
+  type ComparacaoDeDuplicado,
+  type LadoDaComparacao,
   type SinalDeRevisao,
 } from '@/lib/api'
+import { formatarData } from '@/lib/datas'
 import { usePaginaLocal } from '@/lib/pagina-local'
 import { simplificar } from '@/lib/texto'
+import { cn } from '@/lib/utils'
 
 const ROTULO_DO_SINAL: Record<string, string> = {
   duplicidade_nome_nascimento: 'Possível cadastro duplicado',
   contato_telefone_invalido: 'Telefone com formato inválido',
   contato_email_suspeito: 'E-mail suspeito (devolveu)',
 }
+const TIPOS = [
+  { id: '', rotulo: 'Todos' },
+  { id: 'duplicidade_nome_nascimento', rotulo: 'Duplicados' },
+  { id: 'contato_telefone_invalido', rotulo: 'Telefone' },
+  { id: 'contato_email_suspeito', rotulo: 'E-mail' },
+]
+const SITUACOES = [
+  { id: 'pendente', rotulo: 'Pendentes' },
+  { id: 'ignorado', rotulo: 'Ignorados' },
+  { id: 'mesclado', rotulo: 'Juntados' },
+] as const
+type SituacaoDaFila = (typeof SITUACOES)[number]['id']
 
 const campoClasse =
-  'mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm'
-
-// v1.8 no servidor, tela só na v5.4c (achado AO VIVO na homologação, 2026-10-05): o detector de duplicidade, a fila de revisão, a
-// mesclagem, a higienização de telefone e a anonimização em lote eram rotas testadas que nenhuma tela chamava — a base nunca poderia ser
-// limpa por quem cuida dela. Nada aqui acontece sozinho: o sistema só aponta, quem decide é uma pessoa.
+  'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm'
 const ITENS_POR_PAGINA = 10
+
+// v1.8 no servidor, tela só na v5.4c; v9.5f (desenho aprovado pelo Presidente, rodadas 4 e 5): PASSO A PASSO - 1) a fila, com filtro por tipo e
+// situação e busca pelo nome; 2) os dois cadastros lado a lado, campo por campo: o que é igual não pede nada, o que é diferente pede uma escolha, e a
+// matrícula mais antiga fica sempre (cadeado); 3) o resultado, o que acontece e o nome digitado para juntar. Nada acontece sozinho.
+type Passo =
+  | { tipo: 'fila' }
+  | { tipo: 'comparar'; item: SinalDeRevisao }
+  | {
+      tipo: 'confirmar'
+      item: SinalDeRevisao
+      comparacao: ComparacaoDeDuplicado
+      escolhas: Record<string, Escolha>
+    }
+type Escolha = 'mantida' | 'absorvida'
+
+function PassosDaQualidade({
+  atual,
+  aoVoltarAFila,
+  aoVoltarAComparar,
+}: {
+  atual: Passo['tipo']
+  aoVoltarAFila: () => void
+  aoVoltarAComparar?: () => void
+}) {
+  const passos: { id: Passo['tipo']; nome: string; ir?: () => void }[] = [
+    { id: 'fila', nome: 'Escolher na fila', ir: aoVoltarAFila },
+    { id: 'comparar', nome: 'Comparar campo a campo', ir: aoVoltarAComparar },
+    { id: 'confirmar', nome: 'Confirmar' },
+  ]
+  const indice = passos.findIndex((p) => p.id === atual)
+  return (
+    <ol className="mb-5 flex flex-wrap items-center gap-2" aria-label="Passos">
+      {passos.map((p, i) => {
+        const feito = i < indice
+        const conteudo = (
+          <>
+            <span
+              className={cn(
+                'flex h-6 w-6 items-center justify-center rounded-full text-xs font-extrabold',
+                i === indice
+                  ? 'bg-primary-foreground text-primary'
+                  : feito
+                    ? 'bg-verde-texto text-verde-tinta'
+                    : 'bg-muted text-foreground',
+              )}
+            >
+              {feito ? <Check className="h-3.5 w-3.5" /> : i + 1}
+            </span>
+            {p.nome}
+          </>
+        )
+        const classe = cn(
+          'flex min-h-10 items-center gap-2 rounded-full border px-3 text-sm',
+          i === indice
+            ? 'border-primary bg-primary font-extrabold text-primary-foreground'
+            : feito
+              ? 'border-verde-tinta bg-verde-tinta font-bold text-verde-texto'
+              : 'border-input bg-card font-semibold',
+        )
+        return (
+          <li key={p.id} aria-current={i === indice ? 'step' : undefined}>
+            {feito && p.ir ? (
+              <button type="button" className={classe} onClick={p.ir}>
+                {conteudo}
+              </button>
+            ) : (
+              <span className={classe}>{conteudo}</span>
+            )}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
 
 export function QualidadeDaBasePage() {
   const queryClient = useQueryClient()
   const [aviso, setAviso] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [confirmandoAnonimizar, setConfirmandoAnonimizar] = useState(false)
-
-  const { data: fila, isLoading } = useQuery({
-    queryKey: ['fila-revisao'],
-    queryFn: listarFilaDeRevisao,
-  })
-  // v9.3p (a tela tinha 12 alturas de notebook na homologação): a fila com busca pelo nome e páginas de 10, a mais recente primeiro
-  const [busca, setBusca] = useState('')
-  const termo = simplificar(busca.trim())
-  const achados = termo
-    ? (fila ?? []).filter((item) =>
-        [item.nome_pessoa_a, item.nome_pessoa_b].some(
-          (nome) => nome && simplificar(nome).includes(termo),
-        ),
-      )
-    : fila
-  const pagina = usePaginaLocal(achados, ITENS_POR_PAGINA, termo)
+  const [passo, setPasso] = useState<Passo>({ tipo: 'fila' })
 
   function depois(mensagem: string) {
     setErro(null)
     setAviso(mensagem)
+    setPasso({ tipo: 'fila' })
     queryClient.invalidateQueries({ queryKey: ['fila-revisao'] })
     queryClient.invalidateQueries({ queryKey: ['associados'] })
   }
@@ -92,7 +165,7 @@ export function QualidadeDaBasePage() {
     <>
       <PageHeader
         titulo="Qualidade da base"
-        descricao="O sistema aponta o que parece errado no cadastro; quem decide é uma pessoa. Nada é mesclado nem apagado sozinho."
+        descricao="O sistema aponta o que parece errado; quem decide é uma pessoa, campo por campo. Nada é juntado nem apagado sozinho."
         trilha={[
           { rotulo: 'Associados', href: '/associados' },
           { rotulo: 'Qualidade da base' },
@@ -102,7 +175,7 @@ export function QualidadeDaBasePage() {
       {aviso && (
         <p
           role="status"
-          className="mb-4 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm"
+          className="mb-4 rounded-xl border border-primary/30 bg-verde-tinta px-3 py-2 text-sm"
         >
           {aviso}
         </p>
@@ -110,109 +183,85 @@ export function QualidadeDaBasePage() {
       {erro && (
         <p
           role="alert"
-          className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          className="mb-4 rounded-xl border border-destructive/30 bg-perigo-tinta px-3 py-2 text-sm text-destructive"
         >
           {erro}
         </p>
       )}
 
-      <section className="mb-6 rounded-xl border border-border bg-card p-6">
-        <h2 className="font-semibold">Procurar problemas</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Cada busca coloca na fila abaixo o que encontrar; quem já estava na
-          fila não é repetido.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            disabled={duplicidade.isPending}
-            onClick={() => duplicidade.mutate()}
-          >
-            Procurar cadastros duplicados
-          </Button>
-          <Button
-            variant="outline"
-            disabled={telefones.isPending}
-            onClick={() => telefones.mutate()}
-          >
-            Procurar telefones inválidos
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setConfirmandoAnonimizar(true)}
-          >
-            Anonimizar desligados com prazo vencido
-          </Button>
-        </div>
-      </section>
+      {/* as buscas ficam no alto (o Presidente gostou delas assim na rodada 4) */}
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <span className="text-sm font-semibold text-muted-foreground">
+          Procurar de novo:
+        </span>
+        <Button
+          variant="outline"
+          disabled={duplicidade.isPending}
+          onClick={() => duplicidade.mutate()}
+        >
+          Procurar cadastros duplicados
+        </Button>
+        <Button
+          variant="outline"
+          disabled={telefones.isPending}
+          onClick={() => telefones.mutate()}
+        >
+          Procurar telefones inválidos
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => setConfirmandoAnonimizar(true)}
+        >
+          Anonimizar desligados com prazo vencido
+        </Button>
+      </div>
 
-      <section className="rounded-xl border border-border bg-card p-6">
-        <h2 className="mb-4 font-semibold">Fila de revisão</h2>
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Carregando…</p>
-        ) : !fila?.length ? (
-          <EmptyState
-            icone={ShieldCheck}
-            titulo="Nada na fila de revisão"
-            descricao="Use os botões acima para procurar problemas no cadastro."
-          />
-        ) : (
-          <>
-            {fila.length > ITENS_POR_PAGINA && (
-              <div className="mb-4 max-w-md">
-                <label
-                  htmlFor="procurar-na-fila"
-                  className="text-sm font-medium"
-                >
-                  Procurar na fila
-                </label>
-                <input
-                  id="procurar-na-fila"
-                  type="search"
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Nome da pessoa"
-                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                />
-                {termo && (
-                  <p
-                    aria-live="polite"
-                    className="mt-1 text-xs text-muted-foreground"
-                  >
-                    {pagina.total}{' '}
-                    {pagina.total === 1
-                      ? 'item encontrado'
-                      : 'itens encontrados'}
-                    .
-                  </p>
-                )}
-              </div>
-            )}
-            <ul className="flex flex-col gap-4">
-              {pagina.daPagina.map((item) => (
-                <ItemDaFila
-                  key={item.id_fila}
-                  item={item}
-                  aoConcluir={depois}
-                  aoFalhar={falhou}
-                />
-              ))}
-            </ul>
-            {termo && pagina.total === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Ninguém com esse nome na fila.
-              </p>
-            )}
-            <Paginador
-              pagina={pagina.pagina}
-              porPagina={pagina.porPagina}
-              total={pagina.total}
-              aoMudar={pagina.setPagina}
-              rotulo="Páginas da fila"
-            />
-          </>
-        )}
-      </section>
+      <PassosDaQualidade
+        atual={passo.tipo}
+        aoVoltarAFila={() => setPasso({ tipo: 'fila' })}
+        aoVoltarAComparar={
+          passo.tipo === 'confirmar'
+            ? () => setPasso({ tipo: 'comparar', item: passo.item })
+            : undefined
+        }
+      />
+
+      {passo.tipo === 'fila' && (
+        <FilaDeRevisao
+          aoComparar={(item) => {
+            setAviso(null)
+            setErro(null)
+            setPasso({ tipo: 'comparar', item })
+          }}
+          aoConcluir={depois}
+          aoFalhar={falhou}
+        />
+      )}
+      {passo.tipo === 'comparar' && (
+        <Comparacao
+          item={passo.item}
+          aoVoltar={() => setPasso({ tipo: 'fila' })}
+          aoConcluir={depois}
+          aoFalhar={falhou}
+          aoContinuar={(comparacao, escolhas) =>
+            setPasso({
+              tipo: 'confirmar',
+              item: passo.item,
+              comparacao,
+              escolhas,
+            })
+          }
+        />
+      )}
+      {passo.tipo === 'confirmar' && (
+        <Confirmacao
+          comparacao={passo.comparacao}
+          escolhas={passo.escolhas}
+          aoVoltar={() => setPasso({ tipo: 'comparar', item: passo.item })}
+          aoConcluir={depois}
+          aoFalhar={falhou}
+        />
+      )}
 
       <ConfirmDialog
         aberto={confirmandoAnonimizar}
@@ -236,132 +285,706 @@ function quem(
   return `${nome ?? '—'} (${eAssociado ? `associado, matrícula ${matricula ?? '—'}` : 'pessoa sem cadastro de associado'})`
 }
 
+/* ============================== 1) a fila, com filtros ============================== */
+function FilaDeRevisao({
+  aoComparar,
+  aoConcluir,
+  aoFalhar,
+}: {
+  aoComparar: (item: SinalDeRevisao) => void
+  aoConcluir: (mensagem: string) => void
+  aoFalhar: (e: unknown) => void
+}) {
+  const [situacao, setSituacao] = useState<SituacaoDaFila>('pendente')
+  const [tipo, setTipo] = useState('')
+  const [busca, setBusca] = useState('')
+  const { data: fila, isLoading } = useQuery({
+    queryKey: ['fila-revisao', situacao],
+    queryFn: () => listarFilaDeRevisao(situacao),
+  })
+  const termo = simplificar(busca.trim())
+  const doTipo = (fila ?? []).filter((i) => !tipo || i.tipo_sinal === tipo)
+  const achados = termo
+    ? doTipo.filter((item) =>
+        [item.nome_pessoa_a, item.nome_pessoa_b].some(
+          (nome) => nome && simplificar(nome).includes(termo),
+        ),
+      )
+    : doTipo
+  const pagina = usePaginaLocal(achados, ITENS_POR_PAGINA, `${termo}|${tipo}`)
+  const contagem = (id: string) =>
+    (fila ?? []).filter((i) => !id || i.tipo_sinal === id).length
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
+      <h2 className="mb-4 font-semibold">Fila de revisão</h2>
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <div
+          role="group"
+          aria-label="Tipo"
+          className="relative flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible"
+        >
+          {TIPOS.map((t) => (
+            <button
+              key={t.id || 'todos'}
+              type="button"
+              aria-pressed={tipo === t.id}
+              onClick={() => setTipo(t.id)}
+              className={cn(
+                'flex min-h-10 shrink-0 items-center rounded-full border px-3.5 text-sm whitespace-nowrap',
+                tipo === t.id
+                  ? 'border-primary bg-primary font-bold text-primary-foreground'
+                  : 'border-border bg-card font-medium hover:bg-accent',
+              )}
+            >
+              {t.rotulo} · {contagem(t.id)}
+            </button>
+          ))}
+        </div>
+        <label className="text-sm">
+          <span className="mb-1 block text-xs text-muted-foreground">
+            Situação
+          </span>
+          <select
+            value={situacao}
+            onChange={(e) => setSituacao(e.target.value as SituacaoDaFila)}
+            className={cn(campoClasse, 'w-auto')}
+          >
+            {SITUACOES.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.rotulo}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="min-w-56 flex-1 sm:max-w-sm">
+          <label
+            htmlFor="procurar-na-fila"
+            className="text-xs text-muted-foreground"
+          >
+            Procurar na fila
+          </label>
+          <input
+            id="procurar-na-fila"
+            type="search"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Nome da pessoa"
+            className={cn(campoClasse, 'mt-1')}
+          />
+        </div>
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Carregando…</p>
+      ) : !fila?.length ? (
+        <EmptyState
+          icone={ShieldCheck}
+          titulo={
+            situacao === 'pendente'
+              ? 'Nada na fila de revisão'
+              : 'Nada nesta situação'
+          }
+          descricao="Use os botões do alto para procurar problemas no cadastro."
+        />
+      ) : (
+        <>
+          {termo && (
+            <p
+              aria-live="polite"
+              className="mb-2 text-xs text-muted-foreground"
+            >
+              {pagina.total}{' '}
+              {pagina.total === 1 ? 'item encontrado' : 'itens encontrados'}.
+            </p>
+          )}
+          <ul
+            aria-label="Itens da fila"
+            className="divide-y divide-border overflow-hidden rounded-xl border border-border"
+          >
+            {pagina.daPagina.map((item) => (
+              <ItemDaFila
+                key={item.id_fila}
+                item={item}
+                pendente={situacao === 'pendente'}
+                aoComparar={() => aoComparar(item)}
+                aoConcluir={aoConcluir}
+                aoFalhar={aoFalhar}
+              />
+            ))}
+          </ul>
+          {pagina.total === 0 && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Ninguém com esse nome ou desse tipo na fila.
+            </p>
+          )}
+          <Paginador
+            pagina={pagina.pagina}
+            porPagina={pagina.porPagina}
+            total={pagina.total}
+            aoMudar={pagina.setPagina}
+            rotulo="Páginas da fila"
+          />
+        </>
+      )}
+    </section>
+  )
+}
+
 function ItemDaFila({
   item,
+  pendente,
+  aoComparar,
   aoConcluir,
   aoFalhar,
 }: {
   item: SinalDeRevisao
+  pendente: boolean
+  aoComparar: () => void
   aoConcluir: (mensagem: string) => void
   aoFalhar: (e: unknown) => void
 }) {
-  const [mesclando, setMesclando] = useState(false)
-  const [manter, setManter] = useState<'a' | 'b'>('a')
-  const [nomeDeConfirmacao, setNomeDeConfirmacao] = useState('')
   const ehDuplicidade = item.id_pessoa_b !== null
-
-  const a = quem(item.nome_pessoa_a, item.e_associado_a, item.matricula_a)
-  const b = quem(item.nome_pessoa_b, item.e_associado_b, item.matricula_b)
-  const nomeMantido = manter === 'a' ? a : b
-  const nomeAbsorvido = manter === 'a' ? b : a
-
   const ignorar = useMutation({
     mutationFn: () => ignorarItemDaFila(item.id_fila),
     onSuccess: (r) => aoConcluir(r.mensagem),
     onError: aoFalhar,
   })
-  const mesclar = useMutation({
-    mutationFn: () =>
-      mesclarPessoas(manter === 'a' ? item.id_pessoa_a : item.id_pessoa_b!, {
-        id_pessoa_absorvida:
-          manter === 'a' ? item.id_pessoa_b! : item.id_pessoa_a,
-        nome_confirmacao: nomeDeConfirmacao,
-      }),
-    onSuccess: (r) => aoConcluir(r.mensagem),
-    onError: aoFalhar,
-  })
-
+  const rotulo = ROTULO_DO_SINAL[item.tipo_sinal] ?? item.tipo_sinal
   return (
     <li
-      className="rounded-lg border border-border p-4"
-      aria-label={`${ROTULO_DO_SINAL[item.tipo_sinal] ?? item.tipo_sinal}: ${item.nome_pessoa_a ?? ''}`}
+      className="grid gap-2 p-4 sm:grid-cols-[11rem_minmax(0,1fr)_auto] sm:items-center sm:gap-4"
+      aria-label={`${rotulo}: ${item.nome_pessoa_a ?? ''}`}
     >
-      <p className="text-xs font-medium uppercase text-muted-foreground">
-        {ROTULO_DO_SINAL[item.tipo_sinal] ?? item.tipo_sinal}
-      </p>
-      <p className="mt-1 text-sm font-medium">
-        {a}
-        {ehDuplicidade && <span className="font-normal"> e </span>}
-        {ehDuplicidade && b}
-      </p>
-      {item.detalhe && (
-        <p className="text-xs text-muted-foreground">{item.detalhe}</p>
-      )}
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        {ehDuplicidade && (
+      <span
+        className={cn(
+          'self-start rounded-full px-2.5 py-0.5 text-xs font-bold sm:self-center',
+          ehDuplicidade
+            ? 'bg-ouro-tinta text-ouro-texto'
+            : 'bg-azul-tinta text-azul-texto',
+        )}
+      >
+        {rotulo}
+      </span>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold">
+          {quem(item.nome_pessoa_a, item.e_associado_a, item.matricula_a)}
+          {ehDuplicidade && <span className="font-normal"> e </span>}
+          {ehDuplicidade &&
+            quem(item.nome_pessoa_b, item.e_associado_b, item.matricula_b)}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {item.detalhe ? `${item.detalhe} · ` : ''}desde{' '}
+          {formatarData(item.criado_em)}
+        </p>
+      </div>
+      {pendente && (
+        <div className="flex flex-wrap gap-2">
+          {ehDuplicidade && (
+            <Button size="sm" className="min-h-9" onClick={aoComparar}>
+              Comparar
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setMesclando((v) => !v)}
+            className="min-h-9"
+            disabled={ignorar.isPending}
+            onClick={() => ignorar.mutate()}
           >
-            Mesclar os dois cadastros
-          </Button>
-        )}
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={ignorar.isPending}
-          onClick={() => ignorar.mutate()}
-        >
-          {ehDuplicidade
-            ? 'Não é duplicado — ignorar'
-            : 'Já resolvido — ignorar'}
-        </Button>
-      </div>
-
-      {mesclando && ehDuplicidade && (
-        <div className="mt-4 rounded-lg border border-destructive/30 p-4">
-          <fieldset>
-            <legend className="text-sm font-medium">
-              Qual cadastro fica? O outro é absorvido (o histórico dele passa
-              para o que fica).
-            </legend>
-            <label className="mt-2 flex items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name={`manter-${item.id_fila}`}
-                checked={manter === 'a'}
-                onChange={() => setManter('a')}
-              />
-              Manter {a}
-            </label>
-            <label className="mt-1 flex items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name={`manter-${item.id_fila}`}
-                checked={manter === 'b'}
-                onChange={() => setManter('b')}
-              />
-              Manter {b}
-            </label>
-          </fieldset>
-          <p className="mt-3 text-sm">
-            <strong>Irreversível.</strong> {nomeAbsorvido} deixa de existir e
-            tudo dela passa para {nomeMantido}.
-          </p>
-          <label
-            htmlFor={`confirmacao-${item.id_fila}`}
-            className="mt-3 block text-sm font-medium"
-          >
-            Digite o nome de quem será absorvido para confirmar
-          </label>
-          <input
-            id={`confirmacao-${item.id_fila}`}
-            value={nomeDeConfirmacao}
-            onChange={(e) => setNomeDeConfirmacao(e.target.value)}
-            className={campoClasse}
-          />
-          <Button
-            variant="destructive"
-            className="mt-3"
-            disabled={mesclar.isPending || !nomeDeConfirmacao.trim()}
-            onClick={() => mesclar.mutate()}
-          >
-            Mesclar (irreversível)
+            {ehDuplicidade
+              ? 'Não é duplicado — ignorar'
+              : 'Já resolvido — ignorar'}
           </Button>
         </div>
       )}
     </li>
+  )
+}
+
+/* ============================== 2) comparar campo a campo ============================== */
+type Campo = {
+  chave: string
+  rotulo: string
+  valor: (l: LadoDaComparacao) => string | null
+  soComAssociado?: boolean
+}
+const CAMPOS: Campo[] = [
+  {
+    chave: 'nome_completo',
+    rotulo: 'Nome completo',
+    valor: (l) => l.nome_completo,
+  },
+  { chave: 'cpf', rotulo: 'CPF', valor: (l) => l.cpf_mascarado },
+  {
+    chave: 'data_nascimento',
+    rotulo: 'Nascimento',
+    valor: (l) => (l.data_nascimento ? formatarData(l.data_nascimento) : null),
+  },
+  { chave: 'email_contato', rotulo: 'E-mail', valor: (l) => l.email_contato },
+  {
+    chave: 'telefone_whatsapp',
+    rotulo: 'Telefone',
+    valor: (l) => l.telefone_whatsapp,
+  },
+  {
+    chave: 'estado_civil',
+    rotulo: 'Estado civil',
+    valor: (l) => l.estado_civil,
+  },
+  { chave: 'profissao', rotulo: 'Profissão', valor: (l) => l.profissao },
+  {
+    chave: 'naturalidade',
+    rotulo: 'Naturalidade',
+    valor: (l) => l.naturalidade,
+  },
+  {
+    chave: 'foto',
+    rotulo: 'Foto',
+    valor: (l) => (l.tem_foto ? 'Tem foto' : null),
+  },
+  {
+    chave: 'categoria',
+    rotulo: 'Categoria',
+    valor: (l) => l.associado?.categoria ?? null,
+    soComAssociado: true,
+  },
+  {
+    chave: 'endereco',
+    rotulo: 'Endereço',
+    valor: (l) => l.associado?.endereco ?? null,
+    soComAssociado: true,
+  },
+]
+
+type Linha = Campo & {
+  fica: string | null
+  sai: string | null
+  modo: 'igual' | 'so_um' | 'vem_do_juntado' | 'escolher'
+}
+
+function linhasDaComparacao(c: ComparacaoDeDuplicado): Linha[] {
+  const [lFica, lSai] = c.fica === c.a.id_pessoa ? [c.a, c.b] : [c.b, c.a]
+  return CAMPOS.filter(
+    (campo) => !campo.soComAssociado || c.os_dois_sao_associados,
+  ).map((campo) => {
+    const fica = campo.valor(lFica)
+    const sai = campo.valor(lSai)
+    const modo: Linha['modo'] =
+      (fica ?? '') === (sai ?? '')
+        ? 'igual'
+        : !sai
+          ? 'so_um'
+          : !fica && campo.chave !== 'nome_completo'
+            ? 'vem_do_juntado'
+            : 'escolher'
+    return { ...campo, fica, sai, modo }
+  })
+}
+
+function ladosDe(c: ComparacaoDeDuplicado) {
+  return c.fica === c.a.id_pessoa
+    ? { fica: c.a, sai: c.b }
+    : { fica: c.b, sai: c.a }
+}
+
+const mesAno = (iso: string | null) =>
+  iso ? `${iso.slice(5, 7)}/${iso.slice(0, 4)}` : null
+
+function cabecalhoDoLado(l: LadoDaComparacao): string {
+  if (!l.associado) return 'pessoa sem cadastro de associado'
+  const desde = mesAno(l.associado.data_admissao)
+  return `matrícula ${l.associado.numero_matricula ?? '—'}${desde ? ` · desde ${desde}` : ''}`
+}
+
+function Comparacao({
+  item,
+  aoVoltar,
+  aoContinuar,
+  aoConcluir,
+  aoFalhar,
+}: {
+  item: SinalDeRevisao
+  aoVoltar: () => void
+  aoContinuar: (
+    comparacao: ComparacaoDeDuplicado,
+    escolhas: Record<string, Escolha>,
+  ) => void
+  aoConcluir: (mensagem: string) => void
+  aoFalhar: (e: unknown) => void
+}) {
+  const {
+    data: c,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['fila-revisao', 'comparar', item.id_fila],
+    queryFn: () => compararItemDaFila(item.id_fila),
+  })
+  const [escolhas, setEscolhas] = useState<Record<string, Escolha>>({})
+  const ignorar = useMutation({
+    mutationFn: () => ignorarItemDaFila(item.id_fila),
+    onSuccess: (r) => aoConcluir(r.mensagem),
+    onError: aoFalhar,
+  })
+
+  if (isLoading)
+    return <p className="text-sm text-muted-foreground">Carregando…</p>
+  if (!c)
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        {error instanceof Error
+          ? error.message
+          : 'Não foi possível abrir a comparação.'}
+      </p>
+    )
+
+  const { fica, sai } = ladosDe(c)
+  const linhas = linhasDaComparacao(c)
+  const faltam = linhas.filter(
+    (l) => l.modo === 'escolher' && !escolhas[l.chave],
+  )
+  const ambos = c.os_dois_sao_associados
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
+      <h2 className="font-semibold">
+        {fica.nome_completo} × {sai.nome_completo}
+      </h2>
+      {c.detalhe && (
+        <p className="mt-1 text-sm text-muted-foreground">
+          Por que apareceu: {c.detalhe}
+        </p>
+      )}
+
+      <div className="mt-4 overflow-hidden rounded-xl border border-border">
+        <div className="hidden grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)_10rem] gap-3 bg-muted/60 px-4 py-2.5 text-xs font-bold text-muted-foreground sm:grid">
+          <span className="tracking-wide uppercase">Campo</span>
+          <span>
+            <span className="text-foreground">Cadastro que fica</span> ·{' '}
+            {cabecalhoDoLado(fica)}
+          </span>
+          <span>
+            <span className="text-foreground">Cadastro juntado</span> ·{' '}
+            {cabecalhoDoLado(sai)}
+          </span>
+          <span className="tracking-wide uppercase">O que fica</span>
+        </div>
+
+        {/* a matrícula: nunca se escolhe */}
+        <LinhaInformativa
+          rotulo="Matrícula"
+          fica={
+            fica.associado
+              ? `${fica.associado.numero_matricula ?? '—'}${mesAno(fica.associado.data_admissao) ? ` · desde ${mesAno(fica.associado.data_admissao)}` : ''}`
+              : '—'
+          }
+          sai={
+            sai.associado
+              ? `${sai.associado.numero_matricula ?? '—'}${mesAno(sai.associado.data_admissao) ? ` · desde ${mesAno(sai.associado.data_admissao)}` : ''}`
+              : '—'
+          }
+          resultado={
+            <span className="flex items-center gap-1.5 font-bold text-verde-texto">
+              <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+              {ambos
+                ? `Fica a ${fica.associado?.numero_matricula}, a mais antiga`
+                : fica.associado
+                  ? `Fica a ${fica.associado.numero_matricula}`
+                  : 'Nenhum é associado'}
+            </span>
+          }
+        />
+
+        {linhas.map((l) =>
+          l.modo === 'escolher' ? (
+            <div
+              key={l.chave}
+              role="radiogroup"
+              aria-labelledby={`rotulo-escolha-${l.chave}`}
+              className="grid gap-2 border-t border-border px-4 py-3 sm:grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)_10rem] sm:items-center sm:gap-3"
+            >
+              <span
+                id={`rotulo-escolha-${l.chave}`}
+                className="text-sm font-bold"
+              >
+                {l.rotulo}
+              </span>
+              {(['mantida', 'absorvida'] as const).map((lado) => {
+                const valor = lado === 'mantida' ? l.fica : l.sai
+                const marcado = escolhas[l.chave] === lado
+                return (
+                  <label
+                    key={lado}
+                    className={cn(
+                      'flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 text-sm break-words',
+                      marcado
+                        ? 'border-primary bg-verde-tinta font-bold'
+                        : 'border-input bg-card',
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name={`escolha-${l.chave}`}
+                      checked={marcado}
+                      onChange={() =>
+                        setEscolhas((e) => ({ ...e, [l.chave]: lado }))
+                      }
+                      className="h-4 w-4 shrink-0 accent-[hsl(var(--primary))]"
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-xs font-normal text-muted-foreground sm:sr-only">
+                        {lado === 'mantida'
+                          ? 'Do cadastro que fica'
+                          : 'Do cadastro juntado'}
+                      </span>
+                      {valor}
+                    </span>
+                  </label>
+                )
+              })}
+              <span className="text-xs">
+                {escolhas[l.chave] ? (
+                  <span className="font-bold text-verde-texto">Escolhido</span>
+                ) : (
+                  <span className="rounded-full bg-ouro-tinta px-2.5 py-0.5 font-bold text-ouro-texto">
+                    Escolha um
+                  </span>
+                )}
+              </span>
+            </div>
+          ) : (
+            <LinhaInformativa
+              key={l.chave}
+              rotulo={l.rotulo}
+              fica={l.fica ?? '(vazio)'}
+              sai={l.sai ?? '(vazio)'}
+              resultado={
+                <span className="text-muted-foreground">
+                  {l.modo === 'igual'
+                    ? 'Igual'
+                    : l.modo === 'so_um'
+                      ? 'Fica o que tem'
+                      : 'Vem do juntado'}
+                </span>
+              }
+            />
+          ),
+        )}
+
+        {ambos && (
+          <LinhaInformativa
+            rotulo="Situação"
+            fica={fica.associado?.status_arrolamento ?? '—'}
+            sai={sai.associado?.status_arrolamento ?? '—'}
+            resultado={
+              <span className="text-muted-foreground">
+                Calculada de novo depois
+              </span>
+            }
+          />
+        )}
+        <LinhaInformativa
+          rotulo="Mensalidades e histórico"
+          fica={resumoDoHistorico(fica)}
+          sai={resumoDoHistorico(sai)}
+          resultado={
+            <span className="font-bold">Tudo passa para o que fica</span>
+          }
+        />
+      </div>
+
+      <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <p
+          className={cn(
+            'text-sm font-bold sm:mr-auto',
+            faltam.length ? 'text-ouro-texto' : 'text-verde-texto',
+          )}
+          aria-live="polite"
+        >
+          {faltam.length
+            ? `Falta escolher ${faltam.length} ${faltam.length === 1 ? 'campo' : 'campos'} (${faltam.map((f) => f.rotulo.toLowerCase()).join(', ')}).`
+            : 'Tudo escolhido.'}
+        </p>
+        <Button
+          variant="outline"
+          className="min-h-11"
+          disabled={ignorar.isPending}
+          onClick={() => ignorar.mutate()}
+        >
+          Não é a mesma pessoa
+        </Button>
+        <Button variant="outline" className="min-h-11" onClick={aoVoltar}>
+          Voltar à fila
+        </Button>
+        <Button
+          className="min-h-11"
+          disabled={faltam.length > 0}
+          onClick={() => aoContinuar(c, escolhas)}
+        >
+          Continuar
+        </Button>
+      </div>
+    </section>
+  )
+}
+
+function resumoDoHistorico(l: LadoDaComparacao): string {
+  const partes = []
+  if (l.associado)
+    partes.push(
+      `${l.associado.titulos_pagos} pagas · ${l.associado.titulos_em_aberto} em aberto`,
+    )
+  if (l.familiares)
+    partes.push(
+      `${l.familiares} ${l.familiares === 1 ? 'familiar' : 'familiares'}`,
+    )
+  return partes.join(' · ') || '—'
+}
+
+function LinhaInformativa({
+  rotulo,
+  fica,
+  sai,
+  resultado,
+}: {
+  rotulo: string
+  fica: string
+  sai: string
+  resultado: ReactNode
+}) {
+  return (
+    <div className="grid gap-1 border-t border-border px-4 py-3 text-sm first:border-t-0 sm:grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)_10rem] sm:items-center sm:gap-3">
+      <span className="font-bold">{rotulo}</span>
+      <span className="break-words">
+        <span className="text-xs text-muted-foreground sm:sr-only">
+          Que fica:{' '}
+        </span>
+        {fica}
+      </span>
+      <span className="break-words">
+        <span className="text-xs text-muted-foreground sm:sr-only">
+          Juntado:{' '}
+        </span>
+        {sai}
+      </span>
+      <span className="text-xs">{resultado}</span>
+    </div>
+  )
+}
+
+/* ============================== 3) confirmar ============================== */
+function Confirmacao({
+  comparacao: c,
+  escolhas,
+  aoVoltar,
+  aoConcluir,
+  aoFalhar,
+}: {
+  comparacao: ComparacaoDeDuplicado
+  escolhas: Record<string, Escolha>
+  aoVoltar: () => void
+  aoConcluir: (mensagem: string) => void
+  aoFalhar: (e: unknown) => void
+}) {
+  const { fica, sai } = ladosDe(c)
+  const [nome, setNome] = useState('')
+  const linhas = linhasDaComparacao(c)
+  const final = (l: Linha) =>
+    l.modo === 'escolher'
+      ? escolhas[l.chave] === 'absorvida'
+        ? l.sai
+        : l.fica
+      : l.modo === 'vem_do_juntado'
+        ? l.sai
+        : l.fica
+  const juntar = useMutation({
+    mutationFn: () =>
+      mesclarPessoas(fica.id_pessoa, {
+        id_pessoa_absorvida: sai.id_pessoa,
+        nome_confirmacao: nome,
+        escolhas,
+      }),
+    onSuccess: (r) =>
+      aoConcluir(
+        `Cadastros juntados.${r.matricula_liberada ? ` A matrícula nº ${r.matricula_liberada} ficou livre e vai para o próximo associado novo.` : ''}`,
+      ),
+    onError: aoFalhar,
+  })
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div className="rounded-xl border border-border p-4">
+          <h2 className="mb-2 text-sm font-bold tracking-wide text-muted-foreground uppercase">
+            Vai ficar assim
+          </h2>
+          <dl className="grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
+            {fica.associado && (
+              <>
+                <dt className="text-muted-foreground">Matrícula</dt>
+                <dd className="font-bold">{fica.associado.numero_matricula}</dd>
+              </>
+            )}
+            {linhas
+              .filter((l) => final(l))
+              .map((l) => (
+                <div key={l.chave} className="contents">
+                  <dt className="text-muted-foreground">{l.rotulo}</dt>
+                  <dd className="font-bold break-words">{final(l)}</dd>
+                </div>
+              ))}
+          </dl>
+        </div>
+        <div className="rounded-xl bg-ouro-tinta p-4 text-sm">
+          <h2 className="mb-2 font-bold">O que acontece ao juntar</h2>
+          <ul className="flex flex-col gap-1.5">
+            {c.os_dois_sao_associados && (
+              <li>
+                Fica a matrícula mais antiga, a{' '}
+                <strong>nº {fica.associado?.numero_matricula}</strong>. A{' '}
+                <strong>nº {sai.associado?.numero_matricula}</strong> fica livre
+                e vai para o próximo associado novo.
+              </li>
+            )}
+            <li>
+              Tudo do cadastro juntado passa para o que fica: mensalidades e
+              pagamentos, histórico, família e cargos. Nada se perde.
+            </li>
+            <li>
+              Ficam os dados escolhidos no passo 2; os outros são descartados.
+            </li>
+            <li>Não tem volta. A Auditoria registra quem juntou e quando.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="flex-1">
+          <label htmlFor="nome-para-juntar" className="text-sm font-medium">
+            Para confirmar, digite o nome do cadastro que será juntado:{' '}
+            <strong>{sai.nome_completo}</strong>
+          </label>
+          <input
+            id="nome-para-juntar"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            autoComplete="off"
+            className={cn(campoClasse, 'mt-1')}
+          />
+        </div>
+        <Button variant="outline" className="min-h-11" onClick={aoVoltar}>
+          Voltar
+        </Button>
+        <Button
+          variant="destructive"
+          className="min-h-11"
+          disabled={juntar.isPending || !nome.trim()}
+          onClick={() => juntar.mutate()}
+        >
+          {juntar.isPending ? 'Juntando…' : 'Juntar os dois cadastros'}
+        </Button>
+      </div>
+    </section>
   )
 }

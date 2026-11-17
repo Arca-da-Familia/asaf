@@ -25,6 +25,14 @@ const cpf = (k: number) =>
 const MESMO_NOME = `Duplicada Robo ${RODADA} de Teste`
 const NASCIMENTO = '1981-04-04'
 
+/** v9.5f: no passo "Comparar", marca o valor do cadastro que fica em todo campo que ainda pede escolha. */
+async function escolherTudoDoQueFica(page: Page) {
+  for (const grupo of await page.getByRole('radiogroup').all()) {
+    if ((await grupo.getByRole('radio', { checked: true }).count()) === 0)
+      await grupo.getByRole('radio').first().check()
+  }
+}
+
 async function abrirFicha(page: Page, nome: string) {
   await page.goto('/associados')
   await page.getByLabel('Filtrar').fill(nome)
@@ -83,7 +91,7 @@ test('cadastro parecido: o Secretário é barrado e não tem como forçar; o Pre
   expect(vigia.problemas()).toEqual([])
 })
 
-test('qualidade da base: o sistema acha o par; mesclar recusa nome errado e dois associados; ignorar tira da fila', async ({
+test('qualidade da base: o sistema acha o par; comparar campo a campo; juntar recusa nome errado; "não é a mesma pessoa" tira da fila', async ({
   page,
 }, info) => {
   const vigia = vigiar(page)
@@ -108,22 +116,29 @@ test('qualidade da base: o sistema acha o par; mesclar recusa nome errado e dois
   await expect(par).toContainText('associado, matrícula')
   await ver(page, info, 'par duplicado achado, com as matriculas')
 
-  await par.getByRole('button', { name: 'Mesclar os dois cadastros' }).click()
-  const confirmacao = par.getByLabel(
-    'Digite o nome de quem será absorvido para confirmar',
+  // v9.5f: passo 2 - os dois cadastros lado a lado; a matrícula mais antiga fica (cadeado) e o que difere pede escolha
+  await par.getByRole('button', { name: 'Comparar' }).click()
+  await expect(page.getByText(/Fica a \d+, a mais antiga/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Continuar' })).toBeDisabled()
+  await ver(
+    page,
+    info,
+    'comparacao campo a campo, matricula mais antiga com cadeado',
   )
-  // recusa provocada 1: o nome digitado não confere
-  await confirmacao.fill('Fulano de Tal')
-  await par.getByRole('button', { name: 'Mesclar (irreversível)' }).click()
+  await escolherTudoDoQueFica(page)
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  // passo 3 - recusa provocada: o nome digitado não confere
+  await expect(page.getByText('Vai ficar assim')).toBeVisible()
+  await page
+    .getByLabel(/Para confirmar, digite o nome do cadastro que será juntado/)
+    .fill('Fulano de Tal')
+  await page.getByRole('button', { name: 'Juntar os dois cadastros' }).click()
   await expect(page.getByRole('alert')).toContainText('não confere')
-  await ver(page, info, 'mesclar recusado: nome nao confere')
-  // recusa provocada 2: os dois já são associados (o sistema não adivinha qual matrícula prevalece)
-  await confirmacao.fill(MESMO_NOME)
-  await par.getByRole('button', { name: 'Mesclar (irreversível)' }).click()
-  await expect(page.getByRole('alert')).toContainText('já são Associado')
-  await ver(page, info, 'mesclar recusado: os dois ja sao associados')
+  await ver(page, info, 'juntar recusado: nome nao confere')
 
-  await par.getByRole('button', { name: 'Não é duplicado — ignorar' }).click()
+  // "Não é a mesma pessoa" tira da fila (volta ao passo 2 pelo passo do alto)
+  await page.getByRole('button', { name: /Comparar campo a campo/ }).click()
+  await page.getByRole('button', { name: 'Não é a mesma pessoa' }).click()
   await expect(page.locator(AVISO)).toContainText('ignorado')
   await expect(
     page.getByRole('listitem', {
@@ -137,6 +152,84 @@ test('qualidade da base: o sistema acha o par; mesclar recusa nome errado e dois
     .click()
   await expect(page.locator(AVISO)).toContainText('telefone(s)')
   expect(vigia.problemas()).toEqual([])
+})
+
+test('qualidade da base: dois cadastros de ASSOCIADO da mesma pessoa - fica a matrícula mais antiga e o número livre vai para o próximo associado (v9.5f)', async ({
+  page,
+}, info) => {
+  const nome = `Juntar Robo ${RODADA} de Teste`
+  await entrar(page, 'presidente')
+  await cadastrar(page, {
+    nome,
+    cpf: cpf(7),
+    email: `juntar1.${RODADA}@homologacao.example.com`,
+    nascimento: '1977-07-07',
+  })
+  await cadastrar(page, {
+    nome,
+    cpf: cpf(8),
+    email: `juntar2.${RODADA}@homologacao.example.com`,
+    telefone: '91977778888',
+    nascimento: '1977-07-07',
+    forcar: true,
+  })
+  await page.goto('/associados/qualidade')
+  await page
+    .getByRole('button', { name: 'Procurar cadastros duplicados' })
+    .click()
+  await procurarNaFila(page, nome)
+  const par = page
+    .getByRole('listitem', {
+      name: new RegExp(`Possível cadastro duplicado: ${nome}`),
+    })
+    .first()
+  await expect(par).toBeVisible()
+  await par.getByRole('button', { name: 'Comparar' }).click()
+  await expect(page.getByText(/Fica a \d+, a mais antiga/)).toBeVisible()
+  // o telefone difere: fica o do cadastro juntado (o mais novo); o resto, o do que fica
+  await page
+    .getByRole('radiogroup', { name: 'Telefone' })
+    .getByRole('radio', { name: /91977778888/ })
+    .check()
+  await escolherTudoDoQueFica(page)
+  await ver(page, info, 'dois associados: telefone escolhido do juntado')
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect(page.getByText(/fica livre/)).toBeVisible()
+  await page
+    .getByLabel(/Para confirmar, digite o nome do cadastro que será juntado/)
+    .fill(nome)
+  await page.getByRole('button', { name: 'Juntar os dois cadastros' }).click()
+  const aviso = page.locator(AVISO)
+  await expect(aviso).toContainText('ficou livre')
+  const livre = Number(
+    /matrícula nº (\d+) ficou livre/.exec((await aviso.innerText()) ?? '')![1],
+  )
+  await ver(page, info, `juntados: a matricula ${livre} ficou livre`)
+
+  // um só na lista, com o telefone escolhido
+  await page.goto('/associados')
+  await page.getByLabel('Filtrar').fill(nome)
+  await expect(page.getByRole('link', { name: nome })).toHaveCount(1)
+
+  // o próximo associado novo recebe o menor número livre (o liberado, ou um anterior a ele que já estivesse livre)
+  const novo = `Chegando Robo ${RODADA} de Teste`
+  await cadastrar(page, {
+    nome: novo,
+    cpf: cpf(9),
+    email: `chegando.${RODADA}@homologacao.example.com`,
+    telefone: '91966665555',
+  })
+  await abrirFicha(page, novo)
+  const matricula = Number(
+    /Matrícula (\d+)/.exec(
+      (await page
+        .getByText(/^Matrícula \d+/)
+        .first()
+        .innerText()) ?? '',
+    )![1],
+  )
+  expect(matricula).toBeLessThanOrEqual(livre)
+  await ver(page, info, `o proximo associado recebeu a matricula ${matricula}`)
 })
 
 test('qualidade da base: mescla de verdade (um associado e uma pessoa sem cadastro de associado, mesmo nome e nascimento)', async ({
@@ -182,19 +275,17 @@ test('qualidade da base: mescla de verdade (um associado e uma pessoa sem cadast
     .first()
   await expect(par).toBeVisible()
   await expect(par).toContainText('pessoa sem cadastro de associado')
-  await par.getByRole('button', { name: 'Mesclar os dois cadastros' }).click()
-  // mantém o ASSOCIADO (o lado com matrícula) e absorve a pessoa sem cadastro
-  await par.getByLabel(/Manter .*\(associado, matrícula \d+\)/).check()
-  await par
-    .getByLabel('Digite o nome de quem será absorvido para confirmar')
+  // v9.5f: fica o cadastro de ASSOCIADO (o lado com matrícula); a pessoa sem cadastro é juntada a ele
+  await par.getByRole('button', { name: 'Comparar' }).click()
+  await expect(page.getByText(/Fica a \d+/)).toBeVisible()
+  await escolherTudoDoQueFica(page)
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page
+    .getByLabel(/Para confirmar, digite o nome do cadastro que será juntado/)
     .fill(manter)
-  await ver(
-    page,
-    info,
-    'mesclagem pronta: mantem o associado e absorve a pessoa',
-  )
-  await par.getByRole('button', { name: 'Mesclar (irreversível)' }).click()
-  await expect(page.locator(AVISO)).toContainText('mescladas com sucesso')
+  await ver(page, info, 'juncao pronta: fica o associado e a pessoa e juntada')
+  await page.getByRole('button', { name: 'Juntar os dois cadastros' }).click()
+  await expect(page.locator(AVISO)).toContainText('Cadastros juntados')
   await expect(
     page.getByRole('listitem', {
       name: new RegExp(`Possível cadastro duplicado: ${manter}`),

@@ -6058,8 +6058,54 @@ export type SinalDeRevisao = {
   matricula_b: number | null
 }
 
-export function listarFilaDeRevisao(): Promise<SinalDeRevisao[]> {
-  return apiFetch('/api/pessoas/fila-revisao')
+// v9.5f: a situação do item na fila (pendente, ignorado ou mesclado); sem ela, os pendentes
+export function listarFilaDeRevisao(
+  status?: 'pendente' | 'ignorado' | 'mesclado',
+): Promise<SinalDeRevisao[]> {
+  return apiFetch(
+    `/api/pessoas/fila-revisao${status ? `?status=${status}` : ''}`,
+  )
+}
+
+// v9.5f (Qualidade da base passo a passo): os dois cadastros de um possível duplicado, lado a lado, com o CPF escondido
+export type LadoDaComparacao = {
+  id_pessoa: number
+  nome_completo: string | null
+  cpf_mascarado: string | null
+  data_nascimento: string | null
+  email_contato: string | null
+  telefone_whatsapp: string | null
+  estado_civil: string | null
+  profissao: string | null
+  naturalidade: string | null
+  tem_foto: boolean
+  familiares: number
+  associado: {
+    id_associado: number
+    numero_matricula: number | null
+    data_admissao: string | null
+    categoria: string | null
+    status_arrolamento: string | null
+    endereco: string | null
+    titulos_pagos: number
+    titulos_em_aberto: number
+  } | null
+}
+
+export type ComparacaoDeDuplicado = {
+  id_fila: number
+  tipo_sinal: string
+  detalhe: string | null
+  fica: number
+  os_dois_sao_associados: boolean
+  a: LadoDaComparacao
+  b: LadoDaComparacao
+}
+
+export function compararItemDaFila(
+  idFila: number,
+): Promise<ComparacaoDeDuplicado> {
+  return apiFetch(`/api/pessoas/fila-revisao/${idFila}/comparar`)
 }
 
 export function escanearDuplicidade(): Promise<{
@@ -6086,8 +6132,17 @@ export function ignorarItemDaFila(
 
 export function mesclarPessoas(
   idPessoaMantida: number,
-  dados: { id_pessoa_absorvida: number; nome_confirmacao: string },
-): Promise<{ mensagem: string }> {
+  dados: {
+    id_pessoa_absorvida: number
+    nome_confirmacao: string
+    // v9.5f: para cada dado que difere, qual fica ("mantida" = o cadastro que fica; "absorvida" = o juntado)
+    escolhas?: Record<string, 'mantida' | 'absorvida'>
+  },
+): Promise<{
+  mensagem: string
+  matricula_mantida?: number | null
+  matricula_liberada?: number | null
+}> {
   return apiFetch(`/api/pessoas/${idPessoaMantida}/mesclar`, {
     method: 'POST',
     body: JSON.stringify(dados),
