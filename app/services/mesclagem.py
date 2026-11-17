@@ -100,8 +100,6 @@ _DECISAO_DO_REPETIDO = {
     ),
     "propostas_de_socios": ("decisao", None, ("decisao", "observacao"), "respostas diferentes na mesma proposta de filiação"),
 }
-# colunas que têm regra própria (não entram no "completa o que está vazio")
-_COLUNAS_COM_REGRA = {"habilitados_assembleia": ("habilitado", "motivo_inabilitacao", "status_arrolamento_no_momento")}
 
 
 def _vazio(valor) -> bool:
@@ -219,10 +217,19 @@ def assinatura_da_comparacao(db: Session, mantida: Pessoa, absorvida: Pessoa, as
     base = [[chave, None if _vazio(m) else str(m), None if _vazio(a) else str(a)] for chave, m, a, _, _ in _comparaveis(
         db, mantida, absorvida, assoc_m, assoc_a,
     )]
+    from app.models.situacao import MudancaSituacao
+
     base.append(["pessoas", mantida.id_pessoa, absorvida.id_pessoa])
     for lado, associado in (("fica", assoc_m), ("sai", assoc_a)):
-        if associado is not None:
-            base.append([lado, associado.id_associado, associado.status_arrolamento, associado.id_usuario, str(associado.data_admissao)])
+        if associado is None:
+            continue
+        # o que decide a situação e o acesso que a tela mostrou: a situação gravada, a última mudança registrada e o login (ativo? segundo passo?)
+        login = db.query(Usuario).filter(Usuario.id_usuario == associado.id_usuario).first() if associado.id_usuario else None
+        ultima = db.query(func.max(MudancaSituacao.criado_em)).filter(MudancaSituacao.id_associado == associado.id_associado).scalar()
+        base.append([
+            lado, associado.id_associado, associado.status_arrolamento, str(associado.data_admissao), str(ultima), associado.id_usuario,
+            None if login is None else [bool(login.ativo), bool(login.mfa_ativado)],
+        ])
     texto = json.dumps(base, ensure_ascii=False, default=str)
     return hmac.new(security.JWT_SECRET.encode("utf-8"), f"juncao|{texto}".encode("utf-8"), hashlib.sha256).hexdigest()[:32]
 
@@ -271,7 +278,8 @@ def _origem_da_situacao(db: Session, assoc_m: Associado, assoc_a: Associado) -> 
 
 
 _EFEITOS_DO_DESLIGAMENTO = (
-    "como num desligamento, a carteirinha e o acesso ao painel ficam desligados e as cobranças pendentes que vencem depois dele são canceladas"
+    "como num desligamento, a carteirinha deixa de valer, o acesso ao painel é desligado (nunca o de quem está fazendo a junção) e as cobranças "
+    "pendentes que vencem depois dele são canceladas"
 )
 
 
@@ -332,7 +340,10 @@ def _resolver_unicos(db: Session, id_mantido: int, id_absorvido: int, contagens:
                     status_code=409,
                     detail=f"Os dois cadastros têm {descricao}: isso não se junta sozinho. Resolva antes de juntar; nada foi alterado.",
                 )
-            # o mesmo fato duas vezes: fica o do cadastro que fica, completado com o que só o outro tinha (lido, confirmado, observação...)
+            # o mesmo fato duas vezes: fica o do cadastro que fica, completado com as DATAS do que aconteceu que só o outro tinha (lido,
+            # confirmado...) e com a decisão (abaixo). Nada mais vem sozinho - 4ª conferência: copiar qualquer coluna vazia levava o login do
+            # juntado para a linha do aviso que fica (trava de um aviso por login: a junção era recusada) e a saída de um credenciamento para a
+            # entrada de outro (a pessoa sumia do quórum)
             completar = {}
             decisao = _DECISAO_DO_REPETIDO.get(nome)
             if decisao is not None:
@@ -345,19 +356,21 @@ def _resolver_unicos(db: Session, id_mantido: int, id_absorvido: int, contagens:
                             detail=f"Os dois cadastros têm {descricao_decisao}: isso não se junta sozinho. Resolva antes de juntar; nada foi alterado.",
                         )
                     completar.update({c: r._mapping[c] for c in vao_junto})  # só o juntado tinha a decisão: ela vem
-            com_regra = {pk.name, coluna.name, *chaves, *(decisao[2] if decisao else ()), *_COLUNAS_COM_REGRA.get(nome, ())}
+            da_decisao = set(decisao[2]) if decisao else set()
             for c in tabela.columns:
-                if c.name not in com_regra and _vazio(par._mapping[c.name]) and not _vazio(r._mapping[c.name]):
+                if c.name.endswith("_em") and c.name not in da_decisao and par._mapping[c.name] is None and r._mapping[c.name] is not None:
                     completar[c.name] = r._mapping[c.name]
             # na lista de quem pode votar: se um dos dois estava habilitado, a pessoa está (Q1 da reconferência)
             if "habilitado" in tabela.c and r._mapping["habilitado"] and not par._mapping["habilitado"]:
                 completar.update({
                     c: r._mapping[c] for c in ("habilitado", "motivo_inabilitacao", "status_arrolamento_no_momento") if c in tabela.c
                 })
-            if completar:
-                db.execute(tabela.update().where(pk == par._mapping[pk.name]).values(completar))
+            # primeiro o que aponta para a linha repetida passa para a que fica, e a repetida sai; só então a que fica é completada (nenhuma trava
+            # do banco vê as duas ao mesmo tempo com o mesmo valor)
             _repassar_filhos(db, tabela, r._mapping[pk.name], par._mapping[pk.name], contagens)
             db.execute(tabela.delete().where(pk == r._mapping[pk.name]))
+            if completar:
+                db.execute(tabela.update().where(pk == par._mapping[pk.name]).values(completar))
             contagens[f"repetidos_{nome}"] = contagens.get(f"repetidos_{nome}", 0) + 1
 
 
@@ -759,7 +772,8 @@ def mesclar_pessoas(
         if sem_escolha:
             raise HTTPException(status_code=400, detail="O cadastro mudou depois da comparação: compare de novo antes de juntar.")
     if assinatura is not None and not hmac.compare_digest(
-        assinatura, assinatura_da_comparacao(db, mantida, absorvida, associado_mantida, associado_absorvida),
+        # em bytes: texto com acento faria a comparação de texto dar erro (500) em vez de recusar
+        assinatura.encode("utf-8"), assinatura_da_comparacao(db, mantida, absorvida, associado_mantida, associado_absorvida).encode("utf-8"),
     ):
         # 3ª conferência: algum valor mudou depois da comparação (não só quais campos diferem) - o que a tela mostrou não é mais o que seria gravado
         raise HTTPException(status_code=400, detail="O cadastro mudou depois da comparação: compare de novo antes de juntar.")

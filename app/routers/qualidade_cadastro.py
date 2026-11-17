@@ -125,7 +125,9 @@ def comparar_item_fila(id_fila: int, db: Session = Depends(get_db), usuario: Usu
     """v9.5 (Qualidade da base passo a passo, desenho aprovado pelo Presidente): o passo "Comparar" da tela. Diz qual cadastro FICA (o da matrícula
     mais antiga; o de associado, se só um é) e, campo a campo, o que acontece - pela MESMA regra que a junção usa (`classificar_campos`), então o
     "Vai ficar assim" da tela é o que o servidor grava. Também a situação e o acesso ao painel depois de juntar."""
-    from app.services.mesclagem import assinatura_da_comparacao, classificar_campos, escolher_acesso, mais_antigo, situacao_depois
+    from app.services.mesclagem import (
+        DESLIGADO, assinatura_da_comparacao, classificar_campos, escolher_acesso, mais_antigo, situacao_depois, situacao_final,
+    )
 
     item = db.query(FilaRevisaoCadastro).filter(FilaRevisaoCadastro.id_fila == id_fila).first()
     if not item or not item.id_pessoa_b:
@@ -155,9 +157,11 @@ def comparar_item_fila(id_fila: int, db: Session = Depends(get_db), usuario: Usu
         "assinatura": assinatura_da_comparacao(db, p_fica, p_sai, as_fica, as_sai),
     }
     if as_fica and as_sai:
-        _, texto = situacao_depois(db, as_fica, as_sai)
+        origem, texto = situacao_depois(db, as_fica, as_sai)
         resposta["situacao"] = {"fica": as_fica.status_arrolamento, "sai": as_sai.status_arrolamento, "depois": texto}
         fica, sai, texto_acesso = escolher_acesso(db, as_fica, as_sai, usuario.id_usuario)
+        if situacao_final(origem, as_fica, as_sai) == DESLIGADO and fica is not None and fica.id_usuario != usuario.id_usuario and fica.ativo:
+            texto_acesso = "Desligado: a pessoa fica Desligada"  # o que a junção grava (como no desligamento)
 
         def descrever(associado):
             u = db.query(Usuario).filter(Usuario.id_usuario == associado.id_usuario).first() if associado.id_usuario else None
@@ -192,10 +196,10 @@ def mesclar(
     # O item da fila de onde a junção partiu, e o par que virou "a pessoa com ela mesma" (as entradas que apontavam o juntado agora apontam quem
     # fica), saem da fila. O resto continua pendente (3ª conferência: antes, qualquer item da pessoa - um telefone inválido, um outro possível
     # duplicado com uma terceira pessoa - era marcado "juntado" sem ter sido resolvido).
+    # (o item de onde a junção partiu também virou "a pessoa com ela mesma": o número mandado não marca outro item por engano)
     pendentes = db.query(FilaRevisaoCadastro).filter(
         FilaRevisaoCadastro.status == PENDENTE,
-        (FilaRevisaoCadastro.id_fila == (dados.id_fila or -1))
-        | ((FilaRevisaoCadastro.id_pessoa_a == id_pessoa_mantida) & (FilaRevisaoCadastro.id_pessoa_b == id_pessoa_mantida)),
+        FilaRevisaoCadastro.id_pessoa_a == id_pessoa_mantida, FilaRevisaoCadastro.id_pessoa_b == id_pessoa_mantida,
     ).all()
     for item in pendentes:
         item.status = "mesclado"

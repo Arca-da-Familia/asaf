@@ -881,9 +881,13 @@ def test_juncao_que_termina_desligado_faz_o_que_o_desligamento_faz(client, auth_
     db.commit()
     pendente = _titulo(db, novo.id_associado, "Pendente")
     paga_em_parte = _titulo(db, novo.id_associado, "Pendente", saldo="10.00")
+    vencida_antes = _titulo(db, novo.id_associado, "Pendente")
+    db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == vencida_antes).first().data_vencimento = datetime(2026, 10, 10)
+    db.commit()
 
     c = client.get(f"/api/pessoas/fila-revisao/{id_fila}/comparar", headers=auth_headers).json()
     assert c["situacao"]["depois"].startswith("Continua Desligado") and "carteirinha" in c["situacao"]["depois"]
+    assert c["acesso"]["depois"].startswith("Desligado"), "a tela mostra o que a junção grava"
     r = _juntar(client, auth_headers, antigo, novo, id_fila, "Desligado Agora N. da Silva")
     assert r.status_code == 200, r.text
     db.expire_all()
@@ -892,8 +896,30 @@ def test_juncao_que_termina_desligado_faz_o_que_o_desligamento_faz(client, auth_
     papel = db.query(Papel).filter(Papel.id_pessoa == antigo.id_pessoa, Papel.tipo_papel == "associado").one()
     assert papel.ativo is False, "a carteirinha deixa de valer"
     assert db.query(Usuario).filter(Usuario.id_usuario == login.id_usuario).first().ativo is False
-    status = {t.id_titulo: t.status for t in db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo.in_([pendente, paga_em_parte]))}
-    assert status == {pendente: "Cancelado", paga_em_parte: "Pendente"}
+    status = {t.id_titulo: t.status for t in db.query(TituloFinanceiro).filter(
+        TituloFinanceiro.id_titulo.in_([pendente, paga_em_parte, vencida_antes]))}
+    assert status == {pendente: "Cancelado", paga_em_parte: "Pendente", vencida_antes: "Pendente"}, "a dívida de antes do desligamento fica"
+
+
+def test_juncao_que_termina_desligado_nunca_desliga_o_acesso_de_quem_junta(client, db):
+    from datetime import datetime
+
+    from app.models.situacao import DESLIGAMENTO, MudancaSituacao
+    from tests.test_catalogos_permissao import _criar_usuario_com_permissao, _headers
+
+    operador = _criar_usuario_com_permissao(db, "associados")
+    antigo, novo, id_fila = _dois_associados(client, db, "Desligado Operador")
+    antigo.status_arrolamento = "Desligado"
+    antigo.data_desligamento = datetime(2026, 10, 20)
+    db.add(MudancaSituacao(id_associado=antigo.id_associado, tipo=DESLIGAMENTO, data_efetiva=datetime(2026, 10, 20)))
+    novo.id_usuario = operador.id_usuario
+    db.commit()
+    r = _juntar(client, _headers(operador), antigo, novo, id_fila, "Desligado Operador N. da Silva")
+    assert r.status_code == 200, r.text
+    db.expire_all()
+    from app.models.core import Usuario
+
+    assert db.query(Usuario).filter(Usuario.id_usuario == operador.id_usuario).first().ativo is True
 
 
 def test_campos_personalizados_do_juntado_vao_junto_e_valores_diferentes_recusam(client, auth_headers, db):
@@ -1035,8 +1061,8 @@ def test_decisao_do_registro_repetido_nao_se_perde_e_decisoes_diferentes_recusam
     proposta = PropostaFiliacao(nome_completo="Candidato da Junção", cpf="52998224725")
     db.add(proposta)
     db.flush()
-    db.add(PropostaDeSocio(id_proposta=proposta.id_proposta, id_associado=antigo.id_associado, decisao="apoia"))
-    db.add(PropostaDeSocio(id_proposta=proposta.id_proposta, id_associado=novo.id_associado, decisao="nao_apoia"))
+    db.add(PropostaDeSocio(id_proposta=proposta.id_proposta, id_associado=antigo.id_associado, decisao="Propõe"))
+    db.add(PropostaDeSocio(id_proposta=proposta.id_proposta, id_associado=novo.id_associado, decisao="Recusa"))
     db.commit()
     r = _juntar(client, auth_headers, antigo, novo, id_fila, "Proposta Briga N. da Silva")
     assert r.status_code == 409 and "proposta de filiação" in r.json()["detail"]
@@ -1115,3 +1141,110 @@ def test_juntar_so_tira_da_fila_o_item_do_par(client, auth_headers, db):
     assert situacao[id_fila][0] == MESCLADO
     assert situacao[telefone_do_que_fica.id_fila] == (PENDENTE, antigo.id_pessoa)
     assert situacao[telefone_do_juntado.id_fila] == (PENDENTE, antigo.id_pessoa), "continua pendente, agora apontando quem fica"
+
+
+# ---------------------------------------------------------------------------
+# 4ª conferência independente (17/11)
+# ---------------------------------------------------------------------------
+def test_aviso_para_os_dois_com_login_so_no_juntado_nao_trava_a_juncao(client, auth_headers, db):
+    """Regressão achada na conferência: o aviso para "Todos" gravou (aviso, antigo, sem login) e (aviso, novo, login X). Copiar o login do
+    juntado para a linha que fica batia na trava de um aviso por login e a junção era recusada - num caso comum. A linha que fica continua sem
+    login (o "Meus avisos" acha pelo cadastro) e a leitura do juntado não se perde."""
+    from datetime import datetime, timedelta
+
+    from app.models.comunicacao import Aviso, AvisoDestinatario
+    from app.models.core import Usuario
+
+    antigo, novo, id_fila = _dois_associados(client, db, "Aviso Login")
+    login = Usuario(email="aviso.login@x.com", senha_hash="x", ativo=True)
+    db.add(login)
+    db.commit()
+    novo.id_usuario = login.id_usuario
+    aviso = Aviso(
+        titulo="Aviso para todos", texto="Texto", categoria="GERAL", valido_ate=datetime.utcnow() + timedelta(days=5), publico="todos",
+        publico_descricao="Todos", id_usuario_autor=db.query(Usuario).first().id_usuario,
+    )
+    db.add(aviso)
+    db.flush()
+    lido = datetime(2026, 11, 2, 9, 0)
+    db.add(AvisoDestinatario(id_aviso=aviso.id_aviso, id_associado=antigo.id_associado))
+    db.add(AvisoDestinatario(id_aviso=aviso.id_aviso, id_associado=novo.id_associado, id_usuario=login.id_usuario, tinha_acesso=True, lido_em=lido))
+    db.commit()
+    r = _juntar(client, auth_headers, antigo, novo, id_fila, "Aviso Login N. da Silva")
+    assert r.status_code == 200, r.text
+    db.expire_all()
+    linha = db.query(AvisoDestinatario).filter(AvisoDestinatario.id_aviso == aviso.id_aviso).one()
+    assert linha.id_associado == antigo.id_associado and linha.lido_em == lido
+    assert db.query(Associado).filter(Associado.id_associado == antigo.id_associado).first().id_usuario == login.id_usuario
+
+
+def test_credenciamento_repetido_nao_leva_a_saida_de_um_para_a_entrada_do_outro(client, auth_headers, db):
+    """Achado da conferência: quem fica entrou às 10h (ainda presente) e o juntado entrou às 9h e saiu às 9h30 - a saída ia para a linha que fica
+    (saída antes da entrada) e a pessoa sumia do quórum de uma sessão em andamento."""
+    from datetime import datetime, timedelta
+
+    from app.models.governanca import Assembleia
+    from app.models.sessao_assembleia import PRESENCIAL, Credenciamento
+
+    antigo, novo, id_fila = _dois_associados(client, db, "Credencia Dobro")
+    assembleia = Assembleia(tipo="ORDINARIA", pauta="Pauta de teste", data_hora_convocacao=datetime.utcnow() + timedelta(days=1))
+    db.add(assembleia)
+    db.flush()
+    db.add(Credenciamento(id_assembleia=assembleia.id_assembleia, id_associado=antigo.id_associado, modalidade=PRESENCIAL,
+                          hora_entrada=datetime(2026, 11, 17, 13, 0)))
+    db.add(Credenciamento(id_assembleia=assembleia.id_assembleia, id_associado=novo.id_associado, modalidade=PRESENCIAL,
+                          hora_entrada=datetime(2026, 11, 17, 12, 0), hora_saida=datetime(2026, 11, 17, 12, 30)))
+    db.commit()
+    assert _juntar(client, auth_headers, antigo, novo, id_fila, "Credencia Dobro N. da Silva").status_code == 200
+    db.expire_all()
+    linha = db.query(Credenciamento).filter(Credenciamento.id_assembleia == assembleia.id_assembleia).one()
+    assert linha.id_associado == antigo.id_associado
+    assert linha.hora_entrada == datetime(2026, 11, 17, 13, 0) and linha.hora_saida is None, "continua presente"
+
+
+def test_assinatura_pega_o_acesso_mudado_e_nunca_da_erro_500(client, auth_headers, db):
+    """A assinatura cobre também o acesso (o login do juntado desligado depois da comparação muda o que a tela disse) e uma assinatura com
+    acento é recusada como as outras, em vez de erro 500."""
+    from app.models.core import Usuario
+
+    antigo, novo, id_fila = _dois_associados(client, db, "Assinatura Acesso")
+    login = Usuario(email="assinatura.acesso@x.com", senha_hash="x", ativo=True)
+    db.add(login)
+    db.commit()
+    novo.id_usuario = login.id_usuario
+    db.commit()
+    c = client.get(f"/api/pessoas/fila-revisao/{id_fila}/comparar", headers=auth_headers).json()
+    escolhas = {x["chave"]: "mantida" for x in c["campos"] if x["modo"] == "escolher"}
+    nome = "Assinatura Acesso N. da Silva"
+    login.ativo = False
+    db.commit()
+    r = _juntar(client, auth_headers, antigo, novo, id_fila, nome, escolhas=escolhas, assinatura=c["assinatura"])
+    assert r.status_code == 400 and "compare de novo" in r.json()["detail"]
+    r = _juntar(client, auth_headers, antigo, novo, id_fila, nome, escolhas=escolhas, assinatura="ação-forjada")
+    assert r.status_code == 400
+
+
+def test_numero_de_outro_item_da_fila_numa_juncao_sem_associado_nao_marca_esse_item(client, auth_headers, db):
+    """Na junção de duas pessoas sem cadastro de associado o item da fila não é exigido; mandar o número de OUTRO item não pode marcá-lo como
+    juntado (antes, marcava)."""
+    from app.models.qualidade_cadastro import CONTATO_TELEFONE_INVALIDO, PENDENTE, FilaRevisaoCadastro
+
+    titular = db.query(Associado).filter(Associado.id_associado == _criar_associado(client)["id_associado"]).first().id_pessoa
+    nome = "Dependente Repetido Sem Matricula"
+    ids = [
+        client.post(
+            f"/api/pessoas/{titular}/dependentes", headers=auth_headers,
+            json={"nome_completo": nome + sufixo, "data_nascimento": "2015-05-05", "grau_parentesco": "OUTRO"},
+        ).json()["id_pessoa_vinculada"]
+        for sufixo in ("", " Filho")
+    ]
+    outro = FilaRevisaoCadastro(tipo_sinal=CONTATO_TELEFONE_INVALIDO, id_pessoa_a=titular, detalhe="Telefone 789")
+    db.add(outro)
+    db.commit()
+    r = client.post(
+        f"/api/pessoas/{ids[0]}/mesclar", headers=auth_headers,
+        json={"id_pessoa_absorvida": ids[1], "nome_confirmacao": nome + " Filho", "id_fila": outro.id_fila},
+    )
+    assert r.status_code == 200, r.text
+    db.expire_all()
+    assert db.query(FilaRevisaoCadastro).filter(FilaRevisaoCadastro.id_fila == outro.id_fila).first().status == PENDENTE
