@@ -125,7 +125,7 @@ def comparar_item_fila(id_fila: int, db: Session = Depends(get_db), usuario: Usu
     """v9.5 (Qualidade da base passo a passo, desenho aprovado pelo Presidente): o passo "Comparar" da tela. Diz qual cadastro FICA (o da matrícula
     mais antiga; o de associado, se só um é) e, campo a campo, o que acontece - pela MESMA regra que a junção usa (`classificar_campos`), então o
     "Vai ficar assim" da tela é o que o servidor grava. Também a situação e o acesso ao painel depois de juntar."""
-    from app.services.mesclagem import classificar_campos, escolher_acesso, mais_antigo, situacao_depois
+    from app.services.mesclagem import assinatura_da_comparacao, classificar_campos, escolher_acesso, mais_antigo, situacao_depois
 
     item = db.query(FilaRevisaoCadastro).filter(FilaRevisaoCadastro.id_fila == id_fila).first()
     if not item or not item.id_pessoa_b:
@@ -151,6 +151,8 @@ def comparar_item_fila(id_fila: int, db: Session = Depends(get_db), usuario: Usu
         "campos": campos,
         "cpf_diferente": any(c["chave"] == "cpf" and c["modo"] == "escolher" for c in campos),
         "situacao": None, "acesso": None,
+        # a junção confere de novo: se algum valor mudou depois desta comparação, pede para comparar de novo
+        "assinatura": assinatura_da_comparacao(db, p_fica, p_sai, as_fica, as_sai),
     }
     if as_fica and as_sai:
         _, texto = situacao_depois(db, as_fica, as_sai)
@@ -184,15 +186,16 @@ def mesclar(
 ):
     resultado = mesclar_pessoas(
         db, id_pessoa_mantida, dados.id_pessoa_absorvida, dados.nome_confirmacao, usuario=usuario, escolhas=dados.escolhas,
-        id_fila=dados.id_fila,
+        id_fila=dados.id_fila, assinatura=dados.assinatura,
     )
 
-    # Qualquer entrada pendente na fila que envolvia qualquer uma das duas pessoas fica
-    # desatualizada depois da mesclagem - resolve automaticamente, sem deixar pendência morta.
+    # O item da fila de onde a junção partiu, e o par que virou "a pessoa com ela mesma" (as entradas que apontavam o juntado agora apontam quem
+    # fica), saem da fila. O resto continua pendente (3ª conferência: antes, qualquer item da pessoa - um telefone inválido, um outro possível
+    # duplicado com uma terceira pessoa - era marcado "juntado" sem ter sido resolvido).
     pendentes = db.query(FilaRevisaoCadastro).filter(
         FilaRevisaoCadastro.status == PENDENTE,
-        (FilaRevisaoCadastro.id_pessoa_a.in_([id_pessoa_mantida, dados.id_pessoa_absorvida]))
-        | (FilaRevisaoCadastro.id_pessoa_b.in_([id_pessoa_mantida, dados.id_pessoa_absorvida])),
+        (FilaRevisaoCadastro.id_fila == (dados.id_fila or -1))
+        | ((FilaRevisaoCadastro.id_pessoa_a == id_pessoa_mantida) & (FilaRevisaoCadastro.id_pessoa_b == id_pessoa_mantida)),
     ).all()
     for item in pendentes:
         item.status = "mesclado"

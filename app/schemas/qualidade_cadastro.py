@@ -12,6 +12,8 @@ class MesclarPessoasRequest(BaseModel):
     escolhas: Optional[dict[str, Literal["mantida", "absorvida"]]] = None
     # v9.5 (conferência): dois cadastros de ASSOCIADO só se juntam a partir do item pendente da fila de revisão que aponta esse par
     id_fila: Optional[int] = None
+    # v9.5 (3ª conferência): a assinatura que a comparação devolveu - se algum valor mudou depois dela, a junção pede para comparar de novo
+    assinatura: Optional[str] = None
 
 
 class MarcarEmailSuspeitoRequest(BaseModel):

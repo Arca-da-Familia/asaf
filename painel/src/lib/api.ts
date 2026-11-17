@@ -6042,6 +6042,7 @@ export type SinalDeRevisao = {
   id_fila: number
   tipo_sinal:
     | 'duplicidade_nome_nascimento'
+    | 'duplicidade_parecida'
     | 'contato_telefone_invalido'
     | 'contato_email_suspeito'
     | string
@@ -6112,6 +6113,8 @@ export type ComparacaoDeDuplicado = {
   cpf_diferente: boolean
   situacao: { fica: string | null; sai: string | null; depois: string } | null
   acesso: { fica: string; sai: string; depois: string } | null
+  // a junção confere: se algum valor mudou depois da comparação, pede para comparar de novo
+  assinatura: string
 }
 
 export function compararItemDaFila(
@@ -6151,6 +6154,8 @@ export function mesclarPessoas(
     escolhas?: Record<string, 'mantida' | 'absorvida'>
     // v9.5f: dois cadastros de associado só se juntam a partir do item pendente da fila que aponta o par
     id_fila?: number
+    // a assinatura que a comparação devolveu
+    assinatura?: string
   },
 ): Promise<{
   mensagem: string

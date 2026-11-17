@@ -28,12 +28,14 @@ import { cn } from '@/lib/utils'
 
 const ROTULO_DO_SINAL: Record<string, string> = {
   duplicidade_nome_nascimento: 'Possível cadastro duplicado',
+  duplicidade_parecida: 'Possível cadastro duplicado',
   contato_telefone_invalido: 'Telefone com formato inválido',
   contato_email_suspeito: 'E-mail suspeito (devolveu)',
 }
 const TIPOS = [
   { id: '', rotulo: 'Todos' },
-  { id: 'duplicidade_nome_nascimento', rotulo: 'Duplicados' },
+  // os dois sinais de duplicado (nome e nascimento iguais; nomes parecidos com um dado igual) começam com 'duplicidade'
+  { id: 'duplicidade', rotulo: 'Duplicados' },
   { id: 'contato_telefone_invalido', rotulo: 'Telefone' },
   { id: 'contato_email_suspeito', rotulo: 'E-mail' },
 ]
@@ -305,7 +307,7 @@ function FilaDeRevisao({
     queryFn: () => listarFilaDeRevisao(situacao),
   })
   const termo = simplificar(busca.trim())
-  const doTipo = (fila ?? []).filter((i) => !tipo || i.tipo_sinal === tipo)
+  const doTipo = (fila ?? []).filter((i) => i.tipo_sinal.startsWith(tipo))
   const achados = termo
     ? doTipo.filter((item) =>
         [item.nome_pessoa_a, item.nome_pessoa_b].some(
@@ -315,7 +317,7 @@ function FilaDeRevisao({
     : doTipo
   const pagina = usePaginaLocal(achados, ITENS_POR_PAGINA, `${termo}|${tipo}`)
   const contagem = (id: string) =>
-    (fila ?? []).filter((i) => !id || i.tipo_sinal === id).length
+    (fila ?? []).filter((i) => i.tipo_sinal.startsWith(id)).length
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
@@ -879,6 +881,7 @@ function Confirmacao({
         nome_confirmacao: nome,
         escolhas,
         id_fila: c.id_fila,
+        assinatura: c.assinatura,
       }),
     onSuccess: (r) =>
       aoConcluir(

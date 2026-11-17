@@ -8,6 +8,8 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from app.database import Base
 
 DUPLICIDADE_NOME_NASCIMENTO = "duplicidade_nome_nascimento"
+# v9.5 (3ª conferência): nomes parecidos (o mesmo primeiro e último nome) com a mesma data de nascimento, o mesmo telefone ou o mesmo e-mail
+DUPLICIDADE_PARECIDA = "duplicidade_parecida"
 CONTATO_TELEFONE_INVALIDO = "contato_telefone_invalido"
 CONTATO_EMAIL_SUSPEITO = "contato_email_suspeito"
 

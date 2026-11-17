@@ -142,6 +142,7 @@ const comparacao: ComparacaoDeDuplicado = {
     sai: 'Sem acesso',
     depois: 'Fica o acesso do cadastro que fica',
   },
+  assinatura: 'assinatura-da-comparacao',
 }
 
 function desenhar() {
@@ -273,6 +274,36 @@ describe('Qualidade da base (v5.4c: a tela que faltava para as rotas da v1.8)', 
     )
   })
 
+  it('o duplicado de nomes parecidos (3ª conferência) aparece como duplicado, entra no filtro "Duplicados" e pode ser comparado', async () => {
+    const u = userEvent.setup()
+    vi.mocked(api.listarFilaDeRevisao).mockResolvedValue([
+      duplicado,
+      telefone,
+      {
+        ...duplicado,
+        id_fila: 3,
+        tipo_sinal: 'duplicidade_parecida',
+        detalhe: 'Nomes parecidos com o mesmo telefone.',
+        nome_pessoa_a: 'Raimundo Nonato da Silva',
+        nome_pessoa_b: 'Raimundo N. da Silva',
+      },
+    ])
+    desenhar()
+    const tipos = within(await screen.findByRole('group', { name: 'Tipo' }))
+    await u.click(await tipos.findByRole('button', { name: 'Duplicados · 2' }))
+    const item = screen.getByRole('listitem', {
+      name: 'Possível cadastro duplicado: Raimundo Nonato da Silva',
+    })
+    expect(
+      within(item).getByRole('button', { name: 'Comparar' }),
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('list', { name: 'Itens da fila' })).getAllByRole(
+        'listitem',
+      ),
+    ).toHaveLength(2)
+  })
+
   it('passo a passo: comparar campo a campo (a matrícula mais antiga com cadeado), escolher o que difere e juntar digitando o nome', async () => {
     const u = userEvent.setup()
     vi.mocked(api.compararItemDaFila).mockResolvedValue(comparacao)
@@ -328,6 +359,7 @@ describe('Qualidade da base (v5.4c: a tela que faltava para as rotas da v1.8)', 
         nome_confirmacao: 'Maria de Souza',
         escolhas: { nome_completo: 'mantida', telefone_whatsapp: 'absorvida' },
         id_fila: 1,
+        assinatura: 'assinatura-da-comparacao',
       }),
     )
     expect(await screen.findByRole('status')).toHaveTextContent(
