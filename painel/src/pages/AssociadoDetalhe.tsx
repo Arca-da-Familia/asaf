@@ -568,87 +568,103 @@ function CargosTab({ idAssociado }: { idAssociado: number }) {
         </Button>
       </div>
 
-      {mostrarForm && (
-        <div className="mb-6 rounded-lg border border-border p-4">
-          <FormShell<z.infer<typeof cargoCriarSchema>>
-            schema={cargoCriarSchema}
-            defaultValues={{
-              titulo_cargo: '',
-              data_posse: new Date().toISOString().slice(0, 10),
-            }}
-            onSubmit={(v) => criar.mutateAsync(v)}
-          >
-            {(form) => (
-              <div className="flex flex-wrap items-end gap-3">
-                <div>
-                  <label className="text-sm font-medium">Cargo *</label>
-                  <input
-                    {...form.register('titulo_cargo')}
-                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
-                  />
-                  <ErroCampo
-                    mensagem={form.formState.errors.titulo_cargo?.message}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Data de posse *</label>
-                  <input
-                    type="date"
-                    {...form.register('data_posse')}
-                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
-                  />
-                </div>
-                <Button type="submit" disabled={criar.isPending}>
-                  {criar.isPending ? 'Registrando…' : 'Registrar'}
-                </Button>
-              </div>
-            )}
-          </FormShell>
-        </div>
-      )}
-
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando…</p>
-      ) : !cargos?.length ? (
-        <EmptyState titulo="Nenhum cargo registrado ainda" />
-      ) : (
-        <ul className="divide-y divide-border">
-          {cargos.map((c) => (
-            <li
-              key={c.id_historico}
-              className="flex items-center justify-between gap-4 py-3"
+      {/* v9.5f (desenho aprovado, rodada 4): a lista no meio e o formulário ao lado (no celular, o formulário vem antes da lista) */}
+      <div
+        className={
+          mostrarForm
+            ? 'grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]'
+            : undefined
+        }
+      >
+        {mostrarForm && (
+          <div className="rounded-xl border border-border bg-muted/40 p-4 lg:order-last">
+            <h3 className="mb-3 text-sm font-bold">Registrar posse</h3>
+            <FormShell<z.infer<typeof cargoCriarSchema>>
+              schema={cargoCriarSchema}
+              defaultValues={{
+                titulo_cargo: '',
+                data_posse: new Date().toISOString().slice(0, 10),
+              }}
+              onSubmit={(v) => criar.mutateAsync(v)}
             >
-              <div>
-                <p className="text-sm font-medium">{c.titulo_cargo}</p>
-                <p className="text-xs text-muted-foreground">
-                  Posse em {c.data_posse ?? '—'}
-                  {c.data_saida ? ` · saiu em ${c.data_saida}` : ' · vigente'}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                {!c.data_saida && (
+              {(form) => (
+                <div className="grid gap-3">
+                  <div>
+                    <label className="text-sm font-medium">Cargo *</label>
+                    <input
+                      {...form.register('titulo_cargo')}
+                      className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
+                    />
+                    <ErroCampo
+                      mensagem={form.formState.errors.titulo_cargo?.message}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">
+                      Data de posse *
+                    </label>
+                    <input
+                      type="date"
+                      {...form.register('data_posse')}
+                      className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="min-h-11"
+                    disabled={criar.isPending}
+                  >
+                    {criar.isPending ? 'Registrando…' : 'Registrar'}
+                  </Button>
+                </div>
+              )}
+            </FormShell>
+          </div>
+        )}
+
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Carregando…</p>
+        ) : !cargos?.length ? (
+          <EmptyState titulo="Nenhum cargo registrado ainda" />
+        ) : (
+          <ul className="divide-y divide-border">
+            {cargos.map((c) => (
+              <li
+                key={c.id_historico}
+                className="flex items-center justify-between gap-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium">{c.titulo_cargo}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Posse em {c.data_posse ?? '—'}
+                    {c.data_saida ? ` · saiu em ${c.data_saida}` : ' · vigente'}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {!c.data_saida && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => encerrar.mutate(c.id_historico)}
+                      disabled={encerrar.isPending}
+                    >
+                      Encerrar hoje
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => encerrar.mutate(c.id_historico)}
-                    disabled={encerrar.isPending}
+                    onClick={() => remover.mutate(c.id_historico)}
+                    disabled={remover.isPending}
                   >
-                    Encerrar hoje
+                    Remover
                   </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => remover.mutate(c.id_historico)}
-                  disabled={remover.isPending}
-                >
-                  Remover
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   )
 }
@@ -702,118 +718,134 @@ function FamiliaTab({ idPessoaTitular }: { idPessoaTitular: number }) {
         </Button>
       </div>
 
-      {mostrarForm && (
-        <div className="mb-6 rounded-lg border border-border p-4">
-          <FormShell<z.infer<typeof dependenteCriarSchema>>
-            schema={dependenteCriarSchema}
-            defaultValues={{ grau_parentesco: '', nome_completo: '' }}
-            onSubmit={(v) => adicionar.mutateAsync(v)}
-          >
-            {(form) => (
-              <div className="v3-space-y-4">
-                <div>
-                  <label className="text-sm font-medium">
-                    Grau de parentesco *
-                  </label>
-                  <select
-                    {...form.register('grau_parentesco')}
-                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
+      {/* v9.5f (desenho aprovado, rodada 4): a lista no meio e o formulário ao lado (no celular, o formulário vem antes da lista) */}
+      <div
+        className={
+          mostrarForm
+            ? 'grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]'
+            : undefined
+        }
+      >
+        {mostrarForm && (
+          <div className="rounded-xl border border-border bg-muted/40 p-4 lg:order-last">
+            <h3 className="mb-3 text-sm font-bold">Adicionar familiar</h3>
+            <FormShell<z.infer<typeof dependenteCriarSchema>>
+              schema={dependenteCriarSchema}
+              defaultValues={{ grau_parentesco: '', nome_completo: '' }}
+              onSubmit={(v) => adicionar.mutateAsync(v)}
+            >
+              {(form) => (
+                <div className="v3-space-y-4">
+                  <div>
+                    <label className="text-sm font-medium">
+                      Grau de parentesco *
+                    </label>
+                    <select
+                      {...form.register('grau_parentesco')}
+                      className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
+                    >
+                      <option value="">Selecione…</option>
+                      {(graus ?? []).map((o) => (
+                        <option key={o.id_opcao} value={o.codigo}>
+                          {o.rotulo}
+                        </option>
+                      ))}
+                    </select>
+                    <ErroCampo
+                      mensagem={form.formState.errors.grau_parentesco?.message}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">
+                      Já é associado?
+                    </label>
+                    <select
+                      {...form.register('id_pessoa_vinculada')}
+                      className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
+                    >
+                      <option value="">Não - é uma pessoa nova</option>
+                      {(associados ?? []).map((a) => (
+                        <option key={a.id_associado} value={a.id_associado}>
+                          {a.nome_completo}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      O seletor acima lista associados - se for um familiar sem
+                      cadastro (ex.: filho menor), deixe em branco e informe o
+                      nome abaixo.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">
+                      Nome (se pessoa nova)
+                    </label>
+                    <input
+                      {...form.register('nome_completo')}
+                      className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
+                    />
+                    <ErroCampo
+                      mensagem={form.formState.errors.nome_completo?.message}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">
+                      Data de nascimento (se pessoa nova)
+                    </label>
+                    <input
+                      type="date"
+                      {...form.register('data_nascimento')}
+                      className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="min-h-11"
+                    disabled={adicionar.isPending}
                   >
-                    <option value="">Selecione…</option>
-                    {(graus ?? []).map((o) => (
-                      <option key={o.id_opcao} value={o.codigo}>
-                        {o.rotulo}
-                      </option>
-                    ))}
-                  </select>
-                  <ErroCampo
-                    mensagem={form.formState.errors.grau_parentesco?.message}
-                  />
+                    {adicionar.isPending ? 'Adicionando…' : 'Adicionar'}
+                  </Button>
                 </div>
+              )}
+            </FormShell>
+          </div>
+        )}
+
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Carregando…</p>
+        ) : !dependentes?.length ? (
+          <EmptyState titulo="Nenhum vínculo familiar registrado ainda" />
+        ) : (
+          <ul className="divide-y divide-border">
+            {dependentes.map((d) => (
+              <li
+                key={d.id_dependente}
+                className="flex items-center justify-between gap-4 py-3"
+              >
                 <div>
-                  <label className="text-sm font-medium">Já é associado?</label>
-                  <select
-                    {...form.register('id_pessoa_vinculada')}
-                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
-                  >
-                    <option value="">Não - é uma pessoa nova</option>
-                    {(associados ?? []).map((a) => (
-                      <option key={a.id_associado} value={a.id_associado}>
-                        {a.nome_completo}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    O seletor acima lista associados - se for um familiar sem
-                    cadastro (ex.: filho menor), deixe em branco e informe o
-                    nome abaixo.
+                  <p className="text-sm font-medium">
+                    {d.nome_completo ?? '(sem nome)'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {d.grau_parentesco}
+                    {d.e_associado
+                      ? ' · é associado'
+                      : ' · sem cadastro de associado'}
                   </p>
                 </div>
-                <div>
-                  <label className="text-sm font-medium">
-                    Nome (se pessoa nova)
-                  </label>
-                  <input
-                    {...form.register('nome_completo')}
-                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
-                  />
-                  <ErroCampo
-                    mensagem={form.formState.errors.nome_completo?.message}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">
-                    Data de nascimento (se pessoa nova)
-                  </label>
-                  <input
-                    type="date"
-                    {...form.register('data_nascimento')}
-                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
-                  />
-                </div>
-                <Button type="submit" disabled={adicionar.isPending}>
-                  {adicionar.isPending ? 'Adicionando…' : 'Adicionar'}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => remover.mutate(d.id_dependente)}
+                  disabled={remover.isPending}
+                >
+                  Remover
                 </Button>
-              </div>
-            )}
-          </FormShell>
-        </div>
-      )}
-
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando…</p>
-      ) : !dependentes?.length ? (
-        <EmptyState titulo="Nenhum vínculo familiar registrado ainda" />
-      ) : (
-        <ul className="divide-y divide-border">
-          {dependentes.map((d) => (
-            <li
-              key={d.id_dependente}
-              className="flex items-center justify-between gap-4 py-3"
-            >
-              <div>
-                <p className="text-sm font-medium">
-                  {d.nome_completo ?? '(sem nome)'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {d.grau_parentesco}
-                  {d.e_associado
-                    ? ' · é associado'
-                    : ' · sem cadastro de associado'}
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => remover.mutate(d.id_dependente)}
-                disabled={remover.isPending}
-              >
-                Remover
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   )
 }
