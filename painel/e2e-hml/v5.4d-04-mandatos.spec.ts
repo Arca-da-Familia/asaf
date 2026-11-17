@@ -16,6 +16,7 @@ import {
   sair,
   ver,
   vigiar,
+  saudacaoDoInicio,
 } from './apoio'
 
 // v5.4d — FASE 2.5 ao vivo: MANDATOS (Diretoria Executiva, Art. 19, e Conselho Fiscal, Art. 24), pela tela do hml-painel.
@@ -475,7 +476,7 @@ test('quem abre Mandatos: o Secretário (o cargo concede governança) abre e lê
   await sair(page)
 
   await entrar(page, 'tesoureiro')
-  await expect(page.getByText(/Bem-vindo, Fábio Henrique Dias/)).toBeVisible()
+  await expect(saudacaoDoInicio(page, 'Fábio')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Governança' })).toHaveCount(0)
   // a recusa tem que vir do sistema, não só do menu escondido: digitar o endereço também não abre
   await page.goto(MANDATOS)
@@ -708,8 +709,7 @@ test('cargo -> permissão ao vivo: encerrar o mandato do Tesoureiro tira o finan
       cargo: TESOUREIRO.cargo,
       situacao,
     })
-  const boasVindas = (p: Page) =>
-    p.getByText(/Bem-vindo, Fábio Henrique Dias de Teste/)
+  const boasVindas = (p: Page) => saudacaoDoInicio(p, 'Fábio')
   const moduloFinanceiro = (p: Page) =>
     p.getByRole('link', { name: 'Financeiro' })
   const moduloParcerias = (p: Page) =>

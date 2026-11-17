@@ -18,6 +18,7 @@ import {
   type Papel,
   procurarCentro,
   procurarContaFinanceira,
+  saudacaoDoInicio,
 } from './apoio'
 
 // v5.4e — FASE 3 ao vivo, parte 1: BASE CONTÁBIL (exercício, plano de contas, centros de custo, contas financeiras, razão contábil) e
@@ -3251,7 +3252,7 @@ test('quem pode: o Secretário (sem a permissão do financeiro) é barrado em to
   const vigia = vigiar(page)
 
   await entrar(page, 'secretario')
-  await expect(page.getByText(/Bem-vindo, Daniel Ribeiro Costa/)).toBeVisible()
+  await expect(saudacaoDoInicio(page, 'Daniel')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Financeiro' })).toHaveCount(0)
   for (const [indice, tela] of TELAS_DO_FINANCEIRO.entries()) {
     await page.goto(tela.rota)

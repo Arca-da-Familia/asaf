@@ -20,6 +20,7 @@ import {
   ver,
   vigiar,
   registrarConsentimentoDoBeneficiario,
+  saudacaoDoInicio,
 } from './apoio'
 
 // v5.4f — FASE 4 ao vivo, parte 1: PROJETO (criar, editar, publicar no site, em destaque, situação, cronograma, equipe, indicadores, relatório
@@ -415,9 +416,7 @@ test.describe('0. Quem entra em Projetos e Beneficiários', () => {
       if (i > 0) await sair(page)
       await entrar(page, papel)
       // o nome só aparece depois que as permissões chegaram: o menu escondido não pode ser por estar carregando
-      await expect(
-        page.getByText(/Bem-vindo, .+ ao painel da ASAF/),
-      ).toBeVisible()
+      await expect(saudacaoDoInicio(page)).toBeVisible()
       await expect(
         page.getByRole('link', { name: 'Projetos', exact: true }),
       ).toHaveCount(0)
@@ -457,7 +456,7 @@ test.describe('0. Quem entra em Projetos e Beneficiários', () => {
     const vigia = vigiar(page)
     const token = guardarToken(page)
     await entrar(page, 'cargo_presidente')
-    await expect(page.getByText(/Bem-vindo, Ana Lúcia/)).toBeVisible()
+    await expect(saudacaoDoInicio(page, 'Ana')).toBeVisible()
     const modulo = page.getByRole('link', { name: 'Projetos', exact: true })
     await expect(modulo).toBeVisible()
     await expect(

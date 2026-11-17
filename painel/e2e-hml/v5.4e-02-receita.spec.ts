@@ -23,6 +23,7 @@ import {
   ver,
   vigiar,
   procurarContaFinanceira,
+  saudacaoDoInicio,
 } from './apoio'
 
 // v5.4e — FASE 3 ao vivo, parte 2: RECEITA, pelas telas do Financeiro do hml-painel: Planos de Contribuição (plano, reajuste, isenção, campanha de
@@ -709,9 +710,7 @@ test.describe('A. Quem pode e o que cada tela da receita oferece', () => {
   }, info) => {
     const vigia = vigiar(page)
     await entrar(page, 'secretario')
-    await expect(
-      page.getByText(/Bem-vindo, Daniel Ribeiro Costa/),
-    ).toBeVisible()
+    await expect(saudacaoDoInicio(page, 'Daniel')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Financeiro' })).toHaveCount(0)
     for (const tela of TELAS) {
       await page.goto(tela.rota)

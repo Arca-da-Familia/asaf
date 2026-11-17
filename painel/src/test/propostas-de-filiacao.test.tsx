@@ -182,11 +182,14 @@ describe('Propostas de filiação (v5.4c: a caixa de entrada; v9.5g: três colun
     expect(
       aprovada.queryByRole('button', { name: 'Recusar proposta' }),
     ).not.toBeInTheDocument()
+    // a situação de quem já foi decidido aparece uma vez só (na etiqueta), não repetida na linha "Situação"
+    expect(aprovada.getAllByText('Aprovada', { exact: true })).toHaveLength(1)
 
     const recusada = await abrir('Recusada de Teste')
     expect(
       recusada.getByText('Motivo da recusa: Documento ilegível'),
     ).toBeInTheDocument()
+    expect(recusada.getAllByText('Recusada', { exact: true })).toHaveLength(1)
   })
 
   it('lista vazia explica o que esperar', async () => {

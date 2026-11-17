@@ -96,6 +96,17 @@ export async function entrar(page: Page, papel: Papel): Promise<void> {
   )
 }
 
+/** v9.5b: o Início saúda pelo primeiro nome ("Boa tarde, Daniel"); antes dizia "Bem-vindo, <nome completo>". O título continua começando por
+ * "Início" para o leitor de tela. O nome só aparece depois que os dados de quem entrou (com as permissões) chegaram - sem `primeiroNome`, vale
+ * qualquer nome, mas um nome tem de estar lá (o menu escondido nunca pode ser só por estar carregando). */
+export function saudacaoDoInicio(page: Page, primeiroNome?: string): Locator {
+  const nome = primeiroNome ? `, ${primeiroNome}$` : ', \\S+'
+  return page.getByRole('heading', {
+    level: 1,
+    name: new RegExp(`^Início — (Bom dia|Boa tarde|Boa noite)${nome}`),
+  })
+}
+
 export async function sair(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Sair' }).click()
   await expect(page).toHaveURL(/\/login$/)

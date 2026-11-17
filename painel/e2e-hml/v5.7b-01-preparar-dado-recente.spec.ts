@@ -50,7 +50,8 @@ test('as regras de prazo de guarda estão em "Regras do sistema" com o padrão d
     page.getByRole('heading', { name: 'Regras do sistema', level: 1 }),
   ).toBeVisible()
   for (const [chave, padrao] of REGRAS) {
-    const linha = page.getByRole('listitem', { name: chave })
+    // v9.3g: a regra aparece pela descrição; o nome interno fica em data-chave
+    const linha = page.locator(`li[data-chave="${chave}"]`)
     await expect(linha, chave).toBeVisible({ timeout: 30_000 })
     await expect(linha.getByRole('spinbutton'), chave).toHaveValue(padrao)
   }

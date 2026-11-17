@@ -23,6 +23,7 @@ import {
   type Papel,
   procurarContaFinanceira,
   procurarFornecedor,
+  saudacaoDoInicio,
 } from './apoio'
 
 // v5.4e — FASE 3 ao vivo, parte 4: RELATÓRIOS E PRESTAÇÃO DE CONTAS, CONTROLES ANTIFRAUDE E VALORES CENTAVO A CENTAVO, pela tela do hml-painel.
@@ -2262,7 +2263,7 @@ test('9. o Conselheiro Fiscal vê os alertas que as ações do roteiro provocara
 
   // ---- os alertas só existem aqui: o Início do Financeiro não os destaca e o sino de Notificações não abre nada
   await page.goto('/')
-  await expect(page.getByText(/Bem-vindo, /)).toBeVisible()
+  await expect(saudacaoDoInicio(page)).toBeVisible()
   await page.getByRole('button', { name: 'Notificações' }).click()
   await page.waitForTimeout(600)
   const abriu =
@@ -2408,7 +2409,7 @@ test('11. quem lê os relatórios e os alertas: Presidente, Tesoureiro, 1ª Pres
   ]
   for (const [i, { papel, le }] of MATRIZ.entries()) {
     await entrar(page, papel)
-    await expect(page.getByText(/Bem-vindo, /)).toBeVisible()
+    await expect(saudacaoDoInicio(page)).toBeVisible()
     if (le) {
       await expect(
         page.getByRole('link', { name: 'Financeiro' }).first(),

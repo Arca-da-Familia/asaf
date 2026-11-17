@@ -402,9 +402,10 @@ test('o QR da carteirinha novo vale os dias da regra (15) e a regra aparece em R
   await expect(
     page.getByRole('heading', { name: 'Regras do sistema', level: 1 }),
   ).toBeVisible()
-  const linhaDaRegra = page.getByRole('listitem', {
-    name: 'DIAS_VALIDADE_CARTEIRINHA',
-  })
+  // v9.3g: a regra aparece pela descrição; o nome interno fica em data-chave
+  const linhaDaRegra = page.locator(
+    'li[data-chave="DIAS_VALIDADE_CARTEIRINHA"]',
+  )
   await expect(linhaDaRegra).toBeVisible({ timeout: 30_000 })
   await expect(linhaDaRegra.getByRole('spinbutton')).toHaveValue('15')
   await ver(page, info, 'regras-com-a-validade-da-carteirinha')

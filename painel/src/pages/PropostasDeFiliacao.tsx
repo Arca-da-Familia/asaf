@@ -442,9 +442,13 @@ function Proposta({ proposta }: { proposta: PropostaDeFiliacao }) {
           <p className="text-sm text-muted-foreground">
             {`Recebida em ${formatarData(proposta.criado_em)}${typeof proposta.idade === 'number' ? ` · ${proposta.idade} anos` : ''}`}
           </p>
-          <p className="text-sm">
-            Situação: <strong>{proposta.status}</strong>
-          </p>
+          {/* decidida (Aprovada/Recusada): a etiqueta ao lado já diz a situação; repetir a palavra no cartão só confundia */}
+          {etapaDe(proposta) !== 'aprovada' &&
+            etapaDe(proposta) !== 'recusada' && (
+              <p className="text-sm">
+                Situação: <strong>{proposta.status}</strong>
+              </p>
+            )}
         </div>
         <EtapaChip p={proposta} />
       </div>

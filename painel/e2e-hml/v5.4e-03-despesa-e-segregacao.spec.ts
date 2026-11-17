@@ -21,6 +21,7 @@ import {
   vigiar,
   type Papel,
   procurarFornecedor,
+  saudacaoDoInicio,
 } from './apoio'
 
 // v5.4e — FASE 3 ao vivo, parte 3: DESPESA COM SEGREGAÇÃO DE FUNÇÕES, pela tela do Financeiro (fornecedores, alçadas de aprovação, compras,
@@ -2864,7 +2865,7 @@ test('Acesso: quem não tem o financeiro (1º Vice-Presidente) não vê o módul
 }, info) => {
   const vigia = vigiar(page)
   await entrar(page, 'vice_presidente')
-  await expect(page.getByText(new RegExp(`Bem-vindo, ${BRUNO}`))).toBeVisible()
+  await expect(saudacaoDoInicio(page, BRUNO.split(' ')[0])).toBeVisible()
   await expect(
     page.getByRole('link', { name: 'Governança' }).first(),
   ).toBeVisible()
