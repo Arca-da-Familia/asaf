@@ -111,11 +111,16 @@ def primeiro_e_ultimo_nome(nome: str) -> Optional[tuple[str, str]]:
     return (partes[0], partes[-1]) if len(partes) >= 2 else None
 
 
+# mais gente que isto com o mesmo primeiro e último nome E o mesmo dado não é cadastro repetido: é o telefone (ou e-mail) da família, ou dado de
+# teste repetido - apontar todos os pares encheria a fila de falsos duplicados
+LIMITE_DE_PESSOAS_COM_O_MESMO_DADO = 3
+
+
 def _escanear_nomes_parecidos(db: Session) -> int:
     """v9.5 (3ª conferência): a busca só achava nome IDÊNTICO com a mesma data de nascimento - "Raimundo Nonato da Silva" e "Raimundo N. da Silva",
     ou o mesmo nome sem data de nascimento, nunca entravam na fila (e cadastro de associado só se junta a partir dela). Agora também: o mesmo
-    primeiro e último nome com pelo menos um dado pessoal igual (data de nascimento, telefone ou e-mail). O par já apontado (pendente ou julgado
-    "não é a mesma pessoa") não volta."""
+    primeiro e último nome com pelo menos um dado pessoal igual (data de nascimento, telefone ou e-mail), quando esse dado é de no máximo
+    `LIMITE_DE_PESSOAS_COM_O_MESMO_DADO` pessoas com esse nome. O par já apontado (pendente ou julgado "não é a mesma pessoa") não volta."""
     from app.models.qualidade_cadastro import DUPLICIDADE_NOME_NASCIMENTO, DUPLICIDADE_PARECIDA, IGNORADO, PENDENTE, FilaRevisaoCadastro
 
     grupos: dict[tuple, list[Pessoa]] = {}
@@ -131,32 +136,44 @@ def _escanear_nomes_parecidos(db: Session) -> int:
             FilaRevisaoCadastro.status.in_((PENDENTE, IGNORADO)),
         )
     }
+
+    def telefone(p):
+        digitos = somente_digitos(p.telefone_whatsapp or "")
+        return digitos if len(digitos) >= 8 else None
+
+    def email(p):
+        return p.email_contato.strip().lower() if p.email_contato and p.email_contato.strip() else None
+
+    dados = (("a mesma data de nascimento", lambda p: p.data_nascimento), ("o mesmo telefone", telefone), ("o mesmo e-mail", email))
     novos = 0
     for grupo in grupos.values():
-        for i in range(len(grupo)):
-            for j in range(i + 1, len(grupo)):
-                a, b = grupo[i], grupo[j]
-                if a.data_nascimento and a.data_nascimento == b.data_nascimento and normalizar_nome(a.nome_completo) == normalizar_nome(b.nome_completo):
-                    continue  # é o outro sinal (nome e nascimento iguais)
-                sinais = []
-                if a.data_nascimento and a.data_nascimento == b.data_nascimento:
-                    sinais.append("a mesma data de nascimento")
-                tel_a, tel_b = somente_digitos(a.telefone_whatsapp or ""), somente_digitos(b.telefone_whatsapp or "")
-                if len(tel_a) >= 8 and tel_a == tel_b:
-                    sinais.append("o mesmo telefone")
-                if a.email_contato and b.email_contato and a.email_contato.strip().lower() == b.email_contato.strip().lower():
-                    sinais.append("o mesmo e-mail")
-                if not sinais:
+        if len(grupo) < 2:
+            continue
+        pares: dict[tuple, tuple] = {}
+        for rotulo, valor_de in dados:
+            por_valor: dict = {}
+            for p in grupo:
+                valor = valor_de(p)
+                if valor:
+                    por_valor.setdefault(valor, []).append(p)
+            for iguais in por_valor.values():
+                if not 2 <= len(iguais) <= LIMITE_DE_PESSOAS_COM_O_MESMO_DADO:
                     continue
-                id_a, id_b = sorted((a.id_pessoa, b.id_pessoa))
-                if (id_a, id_b) in ja_apontados:
-                    continue
-                ja_apontados.add((id_a, id_b))
-                db.add(FilaRevisaoCadastro(
-                    tipo_sinal=DUPLICIDADE_PARECIDA, id_pessoa_a=id_a, id_pessoa_b=id_b,
-                    detalhe=f"Nomes parecidos ('{a.nome_completo}' e '{b.nome_completo}') com {' e '.join(sinais)}.",
-                ))
-                novos += 1
+                for i in range(len(iguais)):
+                    for j in range(i + 1, len(iguais)):
+                        a, b = sorted((iguais[i], iguais[j]), key=lambda p: p.id_pessoa)
+                        pares.setdefault((a.id_pessoa, b.id_pessoa), (a, b, []))[2].append(rotulo)
+        for (id_a, id_b), (a, b, sinais) in pares.items():
+            if a.data_nascimento and a.data_nascimento == b.data_nascimento and normalizar_nome(a.nome_completo) == normalizar_nome(b.nome_completo):
+                continue  # é o outro sinal (nome e nascimento iguais)
+            if (id_a, id_b) in ja_apontados:
+                continue
+            ja_apontados.add((id_a, id_b))
+            db.add(FilaRevisaoCadastro(
+                tipo_sinal=DUPLICIDADE_PARECIDA, id_pessoa_a=id_a, id_pessoa_b=id_b,
+                detalhe=f"Nomes parecidos ('{a.nome_completo}' e '{b.nome_completo}') com {' e '.join(sinais)}.",
+            ))
+            novos += 1
     return novos
 
 

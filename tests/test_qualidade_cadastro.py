@@ -1079,6 +1079,24 @@ def test_busca_acha_nomes_parecidos_com_um_dado_pessoal_igual(client, auth_heade
     assert r.status_code == 200, r.text
 
 
+def test_telefone_da_familia_nao_enche_a_fila_de_falsos_duplicados(client, auth_headers, db):
+    """Mais de 3 pessoas com o mesmo primeiro e último nome e o mesmo telefone é o telefone da família (ou dado de teste repetido, como os robôs
+    da homologação), não cadastro repetido: nenhum par é apontado por esse dado."""
+    from uuid import uuid4
+
+    from app.models.qualidade_cadastro import DUPLICIDADE_PARECIDA, FilaRevisaoCadastro
+
+    sobrenome = "Familia" + "".join(c for c in uuid4().hex if c.isalpha())[:6].lower()
+    ids = []
+    for meio in ("Antonio", "Bento", "Carlos", "Davi"):
+        criado = _criar_associado(client, nome_completo=f"Jose {meio} {sobrenome}", telefone_whatsapp="91912341234")
+        ids.append(db.query(Associado).filter(Associado.id_associado == criado["id_associado"]).first().id_pessoa)
+    client.post("/api/pessoas/duplicidade/escanear", headers=auth_headers)
+    assert db.query(FilaRevisaoCadastro).filter(
+        FilaRevisaoCadastro.tipo_sinal == DUPLICIDADE_PARECIDA, FilaRevisaoCadastro.id_pessoa_a.in_(ids),
+    ).count() == 0
+
+
 def test_juntar_so_tira_da_fila_o_item_do_par(client, auth_headers, db):
     """Antes, a junção marcava como "juntado" qualquer item pendente da pessoa (um telefone inválido, por exemplo) sem ele ter sido resolvido."""
     from app.models.qualidade_cadastro import CONTATO_TELEFONE_INVALIDO, MESCLADO, PENDENTE, FilaRevisaoCadastro
