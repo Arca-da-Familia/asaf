@@ -81,8 +81,54 @@ beforeEach(() => {
   ])
 })
 
-describe('Propostas de filiação (v5.4c: a caixa de entrada que faltava para as rotas da v1.2)', () => {
+// v9.5g: três colunas - a lista (por etapa) e o pedido aberto ao lado; o toque na lista abre o pedido
+async function abrir(nome: string) {
+  const u = userEvent.setup()
+  const item = await screen.findByRole('listitem', {
+    name: `Pedido de ${nome}`,
+  })
+  await u.click(within(item).getByRole('button'))
+  return within(screen.getByRole('region', { name: `Proposta de ${nome}` }))
+}
+
+describe('Propostas de filiação (v5.4c: a caixa de entrada; v9.5g: três colunas no desenho aprovado)', () => {
+  it('a lista vem organizada por etapa, com a barrinha dos 3 sócios; o 1º pedido já abre ao lado', async () => {
+    vi.mocked(api.listarPropostasDeFiliacao).mockResolvedValue([
+      proposta({ id_proposta: 1, nome_completo: 'Pendente de Teste' }),
+      proposta({
+        id_proposta: 2,
+        nome_completo: 'Faltando de Teste',
+        total_propoem: 1,
+      }),
+      proposta({
+        id_proposta: 3,
+        nome_completo: 'Conferida de Teste',
+        status: 'Em Conferência',
+      }),
+    ])
+    desenhar()
+    const lista = await screen.findByRole('region', {
+      name: 'Lista dos pedidos',
+    })
+    await within(lista).findByText('Pronta para decidir · 1')
+    expect(
+      within(lista)
+        .getAllByRole('heading', { level: 2 })
+        .map((h) => h.textContent),
+    ).toEqual([
+      'Pronta para decidir · 1',
+      'Conferir os dados · 1',
+      'Aguardando sócios · 1',
+    ])
+    expect(within(lista).getByText('1 de 3 sócios')).toBeInTheDocument()
+    // no notebook o primeiro (o mais adiantado) já aparece aberto
+    expect(
+      screen.getByRole('region', { name: 'Proposta de Conferida de Teste' }),
+    ).toBeInTheDocument()
+  })
+
   it('cada situação oferece só os passos que fazem sentido', async () => {
+    const u = userEvent.setup()
     vi.mocked(api.listarPropostasDeFiliacao).mockResolvedValue([
       proposta({ id_proposta: 1, nome_completo: 'Pendente de Teste' }),
       proposta({
@@ -104,11 +150,14 @@ describe('Propostas de filiação (v5.4c: a caixa de entrada que faltava para as
       }),
     ])
     desenhar()
-    const pendente = within(
-      await screen.findByRole('listitem', {
-        name: 'Proposta de Pendente de Teste',
-      }),
-    )
+    await screen.findByRole('listitem', { name: 'Pedido de Pendente de Teste' })
+    // as decididas só aparecem pedindo "Todas"
+    expect(
+      screen.queryByRole('listitem', { name: 'Pedido de Aprovada de Teste' }),
+    ).not.toBeInTheDocument()
+    await u.selectOptions(screen.getByLabelText('Situação da proposta'), '')
+
+    const pendente = await abrir('Pendente de Teste')
     expect(
       pendente.getByRole('button', { name: 'Marcar documentação conferida' }),
     ).toBeInTheDocument()
@@ -116,9 +165,7 @@ describe('Propostas de filiação (v5.4c: a caixa de entrada que faltava para as
       pendente.queryByRole('button', { name: 'Aprovar e efetivar' }),
     ).not.toBeInTheDocument()
 
-    const conferida = within(
-      screen.getByRole('listitem', { name: 'Proposta de Conferida de Teste' }),
-    )
+    const conferida = await abrir('Conferida de Teste')
     expect(
       conferida.getByRole('button', { name: 'Aprovar e efetivar' }),
     ).toBeInTheDocument()
@@ -128,9 +175,7 @@ describe('Propostas de filiação (v5.4c: a caixa de entrada que faltava para as
       }),
     ).not.toBeInTheDocument()
 
-    const aprovada = within(
-      screen.getByRole('listitem', { name: 'Proposta de Aprovada de Teste' }),
-    )
+    const aprovada = await abrir('Aprovada de Teste')
     expect(
       aprovada.getByRole('link', { name: 'Abrir o cadastro do associado' }),
     ).toHaveAttribute('href', '/associados/42')
@@ -138,9 +183,7 @@ describe('Propostas de filiação (v5.4c: a caixa de entrada que faltava para as
       aprovada.queryByRole('button', { name: 'Recusar proposta' }),
     ).not.toBeInTheDocument()
 
-    const recusada = within(
-      screen.getByRole('listitem', { name: 'Proposta de Recusada de Teste' }),
-    )
+    const recusada = await abrir('Recusada de Teste')
     expect(
       recusada.getByText('Motivo da recusa: Documento ilegível'),
     ).toBeInTheDocument()
@@ -222,11 +265,13 @@ describe('Propostas de filiação (v5.4c: a caixa de entrada que faltava para as
     )
   })
 
-  it('aprovar efetiva com a categoria escolhida e mostra a matrícula', async () => {
+  it('aprovar efetiva com a categoria escolhida e mostra a matrícula, mesmo saindo da lista das abertas', async () => {
     const u = userEvent.setup()
-    vi.mocked(api.listarPropostasDeFiliacao).mockResolvedValue([
-      proposta({ status: 'Em Conferência' }),
-    ])
+    vi.mocked(api.listarPropostasDeFiliacao)
+      .mockResolvedValueOnce([proposta({ status: 'Em Conferência' })])
+      .mockResolvedValue([
+        proposta({ status: 'Aprovada', id_associado_efetivado: 42 }),
+      ])
     vi.mocked(api.aprovarPropostaDeFiliacao).mockResolvedValue({
       mensagem: 'Associado efetivado com sucesso.',
       id_associado: 42,
@@ -234,9 +279,8 @@ describe('Propostas de filiação (v5.4c: a caixa de entrada que faltava para as
       status_arrolamento: 'Em Experiência',
     })
     desenhar()
-    await u.click(
-      await screen.findByRole('button', { name: 'Aprovar e efetivar' }),
-    )
+    const pedido = await abrir('Joana de Teste')
+    await u.click(pedido.getByRole('button', { name: 'Aprovar e efetivar' }))
     await u.selectOptions(
       await screen.findByLabelText('Categoria *'),
       'Contribuinte',
@@ -301,7 +345,8 @@ describe('Propostas de filiação (v5.4c: a caixa de entrada que faltava para as
     )
   })
 
-  it('mostra quem propôs e quem recusou (com o motivo) e só libera "Aprovar e efetivar" com os 3 sócios', async () => {
+  it('mostra quem propôs e quem recusou (com o motivo), a linha do tempo, e só libera "Aprovar e efetivar" com os 3 sócios', async () => {
+    const u = userEvent.setup()
     vi.mocked(api.listarPropostasDeFiliacao).mockResolvedValue([
       proposta({
         id_proposta: 1,
@@ -314,21 +359,21 @@ describe('Propostas de filiação (v5.4c: a caixa de entrada que faltava para as
             socio: 'Ana Sócia',
             decisao: 'Propõe',
             observacao: null,
-            em: null,
+            em: '2026-10-06T09:00:00',
           },
           {
             id_associado: 2,
             socio: 'Bruno Sócio',
             decisao: 'Propõe',
             observacao: null,
-            em: null,
+            em: '2026-10-07T09:00:00',
           },
           {
             id_associado: 3,
             socio: 'Carla Sócia',
             decisao: 'Recusa',
             observacao: 'Não conheço a família.',
-            em: null,
+            em: '2026-10-08T09:00:00',
           },
         ],
       }),
@@ -339,12 +384,11 @@ describe('Propostas de filiação (v5.4c: a caixa de entrada que faltava para as
       }),
     ])
     desenhar()
-    const incompleta = within(
-      await screen.findByLabelText('Proposta de Faltam Sócios'),
-    )
+    const incompleta = await abrir('Faltam Sócios')
     expect(
       incompleta.getByText('Sócios que propõem: 2 de 3 — faltam 1.'),
     ).toBeInTheDocument()
+    await u.click(incompleta.getByRole('tab', { name: 'Quem propõe · 2' }))
     const lista = incompleta.getByRole('list', {
       name: 'Sócios sobre o pedido de Faltam Sócios',
     })
@@ -353,13 +397,18 @@ describe('Propostas de filiação (v5.4c: a caixa de entrada que faltava para as
         .getByText(/Carla Sócia/)
         .closest('li'),
     ).toHaveTextContent('Recusa — “Não conheço a família.”')
+    await u.click(incompleta.getByRole('tab', { name: 'Linha do tempo' }))
+    expect(
+      incompleta.getByText('Pedido recebido pelo site'),
+    ).toBeInTheDocument()
+    expect(incompleta.getByText('Carla Sócia não propôs')).toBeInTheDocument()
     expect(
       incompleta.getByRole('button', { name: 'Aprovar e efetivar' }),
     ).toBeDisabled()
     expect(
       incompleta.getByRole('button', { name: 'Aprovar e efetivar' }),
     ).toHaveAttribute('title', expect.stringContaining('até agora 2'))
-    const completa = within(screen.getByLabelText('Proposta de Já Completa'))
+    const completa = await abrir('Já Completa')
     expect(completa.getByText('Sócios que propõem: 3 de 3')).toBeInTheDocument()
     expect(
       completa.getByRole('button', { name: 'Aprovar e efetivar' }),
@@ -387,9 +436,7 @@ describe('Propostas de filiação (v5.4c: a caixa de entrada que faltava para as
       proposta({ id_proposta: 3, nome_completo: 'Pedido Antigo de Teste' }),
     ])
     desenhar()
-    const menor = within(
-      await screen.findByLabelText('Proposta de Menor de Teste'),
-    )
+    const menor = await abrir('Menor de Teste')
     expect(menor.getByText(/17 anos/)).toBeInTheDocument()
     expect(
       menor.getByText(/Aviso de privacidade aceito \(versão 1\)/),
@@ -397,17 +444,15 @@ describe('Propostas de filiação (v5.4c: a caixa de entrada que faltava para as
     expect(
       menor.getByText(/autorização dos pais ou responsáveis/),
     ).toBeInTheDocument()
-    const adulta = within(screen.getByLabelText('Proposta de Adulta de Teste'))
+    const adulta = await abrir('Adulta de Teste')
     expect(adulta.getByText(/34 anos/)).toBeInTheDocument()
     expect(
       adulta.queryByText(/autorização dos pais ou responsáveis/),
     ).toBeNull()
     // pedido feito antes do formulário do site: nada disso aparece (e nada quebra)
-    const antiga = within(
-      screen.getByLabelText('Proposta de Pedido Antigo de Teste'),
-    )
-    expect(antiga.queryByText(/anos/)).toBeNull()
-    expect(antiga.queryByText(/Aviso de privacidade/)).toBeNull()
+    const antiga = await abrir('Pedido Antigo de Teste')
+    expect(antiga.queryByText(/^Recebida em .* · \d+ anos$/)).toBeNull()
+    expect(antiga.queryByText(/Aviso de privacidade aceito/)).toBeNull()
   })
 
   it('não tem violação de acessibilidade (axe)', async () => {

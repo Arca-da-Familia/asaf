@@ -747,6 +747,24 @@ export async function procurarNaFila(page: Page, nome: string): Promise<void> {
   await campo.fill(nome)
 }
 
+/** v9.5g: as Propostas de filiação são em três colunas - a lista (por etapa) e o pedido aberto ao lado. Abre o pedido pelo nome na lista (pedindo
+ * "Todas" quando ele já foi decidido) e devolve o quadro do pedido aberto, onde ficam os dados, as abas e a decisão. */
+export async function abrirProposta(
+  page: Page,
+  nome: string,
+  todas = false,
+): Promise<Locator> {
+  if (todas)
+    await page
+      .getByLabel('Situação da proposta')
+      .selectOption({ label: 'Todas' })
+  const item = page.getByRole('listitem', { name: `Pedido de ${nome}` })
+  await item.getByRole('button').click()
+  const quadro = page.getByRole('region', { name: `Proposta de ${nome}` })
+  await expect(quadro).toBeVisible()
+  return quadro
+}
+
 /** v9.3p: os pedidos de filiação (para propor) têm páginas de 10; o robô procura o candidato pelo nome (a busca só aparece com mais de 10 pedidos). */
 export async function procurarPedido(page: Page, nome: string): Promise<void> {
   const campo = page.getByLabel('Procurar pedido', { exact: true })

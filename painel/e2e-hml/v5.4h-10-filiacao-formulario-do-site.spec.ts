@@ -10,6 +10,7 @@ import {
   sair,
   ver,
   vigiar,
+  abrirProposta,
 } from './apoio'
 import textos from '../../site/src/data/textos-de-privacidade.json' with { type: 'json' }
 
@@ -194,9 +195,7 @@ test('a Diretoria vê os pedidos do site com o que a pessoa declarou; o robô de
     page.getByRole('heading', { name: 'Propostas de filiação' }),
   ).toBeVisible()
 
-  const adulta = page.getByRole('listitem', {
-    name: `Proposta de ${ADULTA.nome}`,
-  })
+  const adulta = await abrirProposta(page, ADULTA.nome)
   await expect(adulta).toContainText(ADULTA.email)
   // a versão em vigor do aviso (v7.1a: o mesmo arquivo do catálogo que o site mostra)
   await expect(adulta).toContainText(
@@ -205,9 +204,7 @@ test('a Diretoria vê os pedidos do site com o que a pessoa declarou; o robô de
   await expect(adulta.getByText(/^Recebida em .* · \d+ anos$/)).toBeVisible()
   await expect(adulta.locator('[data-aviso-de-menor]')).toHaveCount(0)
 
-  const menor = page.getByRole('listitem', {
-    name: `Proposta de ${MENOR.nome}`,
-  })
+  const menor = await abrirProposta(page, MENOR.nome)
   await expect(menor).toContainText('17 anos')
   await expect(menor.locator('[data-aviso-de-menor]')).toContainText(
     'autorização dos pais ou responsáveis',
@@ -216,7 +213,7 @@ test('a Diretoria vê os pedidos do site com o que a pessoa declarou; o robô de
 
   await expect(
     page.getByRole('listitem', {
-      name: `Proposta de Robo do Site ${S} de Teste`,
+      name: `Pedido de Robo do Site ${S} de Teste`,
     }),
   ).toHaveCount(0)
   expect(vigia.problemas()).toEqual([])

@@ -12,6 +12,7 @@ import {
   socioPropoe,
   ver,
   vigiar,
+  abrirProposta,
 } from './apoio'
 
 // v5.4h - Filiação de ponta a ponta com a regra do Estatuto (Art. 12, par. único VI: o pedido de adesão tem de ser PROPOSTO por 3 sócios, e passa pela
@@ -66,8 +67,8 @@ async function totalNaAuditoria(page: Page): Promise<number> {
 
 const cartaoDoPedido = (page: Page) =>
   page.getByRole('listitem', { name: `Pedido de ${NOME}` })
-const cartaoDaDiretoria = (page: Page) =>
-  page.getByRole('listitem', { name: `Proposta de ${NOME}` })
+// v9.5g: o pedido aberto na tela de três colunas das Propostas
+const cartaoDaDiretoria = (page: Page) => abrirProposta(page, NOME)
 
 test('o pedido chega pela rota pública e o sócio é avisado no sino, abre o aviso e propõe', async ({
   page,
@@ -172,8 +173,10 @@ test('a Diretoria vê quem propôs e quem recusou, confere a documentação e n�
   const vigia = vigiar(page)
   await entrar(page, 'presidente')
   await page.goto('/associados/propostas')
-  const cartao = cartaoDaDiretoria(page)
+  const cartao = await cartaoDaDiretoria(page)
   await expect(cartao).toContainText('Sócios que propõem: 2 de 3 — faltam 1.')
+  // quem propôs e por quê fica na aba "Quem propõe"; os dados do candidato, no "Resumo"
+  await cartao.getByRole('tab', { name: /Quem propõe/ }).click()
   const lista = cartao.getByRole('list', {
     name: `Sócios sobre o pedido de ${NOME}`,
   })
@@ -182,6 +185,7 @@ test('a Diretoria vê quem propôs e quem recusou, confere a documentação e n�
     'Recusa — “Não conheço a família do candidato.”',
   )
   // a Diretoria vê os dados do candidato (CPF, e-mail e telefone são dela)
+  await cartao.getByRole('tab', { name: 'Resumo' }).click()
   await expect(cartao).toContainText(EMAIL)
   await cartao
     .getByRole('button', { name: 'Marcar documentação conferida' })
@@ -204,7 +208,7 @@ test('o terceiro sócio propõe e a Diretoria aprova: o associado entra com a ma
 
   await entrar(page, 'presidente')
   await page.goto('/associados/propostas')
-  const cartao = cartaoDaDiretoria(page)
+  const cartao = await cartaoDaDiretoria(page)
   await expect(cartao).toContainText('Sócios que propõem: 3 de 3')
   await cartao.getByRole('button', { name: 'Aprovar e efetivar' }).click()
   await cartao.getByRole('button', { name: 'Efetivar associado' }).click()

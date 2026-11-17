@@ -12,6 +12,7 @@ import {
   socioPropoe,
   ver,
   vigiar,
+  abrirProposta,
 } from './apoio'
 
 // v5.4c — FASE 1 (v1.2) ao vivo: a caixa de propostas de filiação. O formulário público do site (que faz a proposta) só nasce na v5.5; até
@@ -69,16 +70,16 @@ test('as propostas entram pela rota pública e aparecem na caixa; proposta repet
   await expect(
     page.getByRole('heading', { name: 'Propostas de filiação' }),
   ).toBeVisible()
+  // v9.5g: os três pedidos na lista do meio; o de A aberto ao lado
   for (const p of [A, B, C]) {
-    const item = page.getByRole('listitem', {
-      name: `Proposta de ${p.nome_completo}`,
-    })
-    await expect(item.first()).toBeVisible()
+    await expect(
+      page.getByRole('listitem', { name: `Pedido de ${p.nome_completo}` }),
+    ).toBeVisible()
   }
   await expect(
-    page
-      .getByRole('listitem', { name: `Proposta de ${A.nome_completo}` })
-      .getByText('Pendente', { exact: true }),
+    (await abrirProposta(page, A.nome_completo)).getByText('Pendente', {
+      exact: true,
+    }),
   ).toBeVisible()
   await ver(page, info, 'caixa de propostas com tres pendentes')
   expect(vigia.problemas()).toEqual([])
@@ -89,9 +90,7 @@ test('recusar: sem motivo é barrado; com motivo a proposta vira Recusada e o mo
 }, info) => {
   await entrar(page, 'presidente')
   await page.goto('/associados/propostas')
-  const item = page.getByRole('listitem', {
-    name: `Proposta de ${B.nome_completo}`,
-  })
+  const item = await abrirProposta(page, B.nome_completo)
   await item.getByRole('button', { name: 'Recusar proposta' }).click()
   await item.getByRole('button', { name: 'Confirmar recusa' }).click()
   await expect(item.getByRole('alert')).toContainText(
@@ -112,9 +111,7 @@ test('o Estatuto pede 3 sócios propondo: sem eles a Diretoria não aprova; com 
   const vigia = vigiar(page)
   await entrar(page, 'presidente')
   await page.goto('/associados/propostas')
-  const doCandidatoA = page.getByRole('listitem', {
-    name: `Proposta de ${A.nome_completo}`,
-  })
+  const doCandidatoA = await abrirProposta(page, A.nome_completo)
   await expect(doCandidatoA).toContainText('Sócios que propõem: 0 de 3')
   await doCandidatoA
     .getByRole('button', { name: 'Marcar documentação conferida' })
@@ -138,9 +135,7 @@ test('o Estatuto pede 3 sócios propondo: sem eles a Diretoria não aprova; com 
   }
   await entrar(page, 'presidente')
   await page.goto('/associados/propostas')
-  const liberado = page.getByRole('listitem', {
-    name: `Proposta de ${A.nome_completo}`,
-  })
+  const liberado = await abrirProposta(page, A.nome_completo)
   await expect(liberado).toContainText('Sócios que propõem: 3 de 3')
   await expect(
     liberado.getByRole('button', { name: 'Aprovar e efetivar' }),
@@ -154,9 +149,7 @@ test('aprovar: só depois de conferir a documentação; efetiva o associado e ab
 }, info) => {
   await entrar(page, 'presidente')
   await page.goto('/associados/propostas')
-  const item = page.getByRole('listitem', {
-    name: `Proposta de ${A.nome_completo}`,
-  })
+  const item = await abrirProposta(page, A.nome_completo)
   // a documentação já foi conferida e os 3 sócios já propuseram (teste anterior): a aprovação está liberada
   await expect(item.getByText('Em Conferência', { exact: true })).toBeVisible()
   await expect(
@@ -186,9 +179,7 @@ test('cadastro parecido: o Secretário não consegue forçar; o Presidente conse
   // Secretário prepara (confere) e tenta aprovar: o sistema desconfia (mesmo nome e e-mail de quem já é associado)
   await entrar(page, 'secretario')
   await page.goto('/associados/propostas')
-  const comoSecretario = page.getByRole('listitem', {
-    name: `Proposta de ${C.nome_completo}`,
-  })
+  const comoSecretario = await abrirProposta(page, C.nome_completo)
   await comoSecretario
     .getByRole('button', { name: 'Marcar documentação conferida' })
     .click()
@@ -214,9 +205,7 @@ test('cadastro parecido: o Secretário não consegue forçar; o Presidente conse
   // Presidente: mesma proposta, o sistema também desconfia, mas ele pode confirmar que é outra pessoa
   await entrar(page, 'presidente')
   await page.goto('/associados/propostas')
-  const comoPresidente = page.getByRole('listitem', {
-    name: `Proposta de ${C.nome_completo}`,
-  })
+  const comoPresidente = await abrirProposta(page, C.nome_completo)
   await comoPresidente
     .getByRole('button', { name: 'Aprovar e efetivar' })
     .click()
