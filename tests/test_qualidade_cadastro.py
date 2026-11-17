@@ -144,6 +144,107 @@ def test_mesclar_pessoas_preserva_historico_e_apaga_absorvida(client, auth_heade
 
 
 # ---------------------------------------------------------------------------
+# Higienização de contato
+# ---------------------------------------------------------------------------
+def test_higienizar_contatos_marca_telefone_invalido(client, auth_headers, db):
+    associado = _criar_associado(client, telefone_whatsapp="11900000000")
+    id_pessoa = db.query(Associado).filter(Associado.id_associado == associado["id_associado"]).first().id_pessoa
+    pessoa = db.query(Pessoa).filter(Pessoa.id_pessoa == id_pessoa).first()
+    pessoa.telefone_whatsapp = "123"  # inválido, gravado direto no banco (sem passar pelo validador de escrita)
+    db.commit()
+
+    r = client.post("/api/pessoas/higienizar-contatos", headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json()["novos"] >= 1
+
+    db.refresh(pessoa)
+    assert pessoa.contato_suspeito is True
+
+    fila = client.get("/api/pessoas/fila-revisao", headers=auth_headers).json()
+    assert any(i["id_pessoa_a"] == id_pessoa and i["tipo_sinal"] == "contato_telefone_invalido" for i in fila)
+
+
+def test_marcar_email_suspeito_manualmente(client, auth_headers, db):
+    associado = _criar_associado(client)
+    id_pessoa = db.query(Associado).filter(Associado.id_associado == associado["id_associado"]).first().id_pessoa
+
+    r = client.post(
+        f"/api/pessoas/{id_pessoa}/marcar-contato-suspeito", headers=auth_headers,
+        json={"motivo": "E-mail voltou (bounce) - reportado pela secretaria."},
+    )
+    assert r.status_code == 200, r.text
+
+    pessoa = db.query(Pessoa).filter(Pessoa.id_pessoa == id_pessoa).first()
+    assert pessoa.contato_suspeito is True
+
+
+def test_fila_diz_quem_e_associado_e_a_matricula_quando_os_dois_tem_o_mesmo_nome(client, auth_headers, db):
+    """Achado AO VIVO (v5.4c): dois cadastros duplicados costumam ter o MESMO nome; a tela de mesclar só distinguia um do outro se a fila
+    dissesse quem é associado (e a matrícula) e quem é só uma pessoa."""
+    nome = "Mesmo Nome Duas Vezes Qualidade"
+    associado = _criar_associado(client, nome_completo=nome, data_nascimento="1979-03-09")
+    registro = db.query(Associado).filter(Associado.id_associado == associado["id_associado"]).first()
+
+    outro = _criar_associado(client)
+    id_pessoa_titular = db.query(Associado).filter(Associado.id_associado == outro["id_associado"]).first().id_pessoa
+    r = client.post(
+        f"/api/pessoas/{id_pessoa_titular}/dependentes", headers=auth_headers,
+        json={"nome_completo": nome, "data_nascimento": "1979-03-09", "grau_parentesco": "OUTRO"},
+    )
+    id_dependente = r.json()["id_pessoa_vinculada"]
+    client.post("/api/pessoas/duplicidade/escanear", headers=auth_headers)
+
+    fila = client.get("/api/pessoas/fila-revisao", headers=auth_headers).json()
+    par = next(i for i in fila if {i["id_pessoa_a"], i["id_pessoa_b"]} == {registro.id_pessoa, id_dependente})
+    lado_associado, lado_so_pessoa = ("a", "b") if par["id_pessoa_a"] == registro.id_pessoa else ("b", "a")
+    assert par[f"e_associado_{lado_associado}"] is True
+    assert par[f"matricula_{lado_associado}"] == registro.numero_matricula
+    assert par[f"e_associado_{lado_so_pessoa}"] is False
+    assert par[f"matricula_{lado_so_pessoa}"] is None
+
+
+def test_mesclar_funciona_com_chave_estrangeira_ligada_como_no_postgres(client, auth_headers, db):
+    """Achado AO VIVO na homologação (v5.4c, 2026-10-06): a mesclagem apagava a pessoa absorvida enquanto a fila de revisão (de onde ela sempre
+    parte), as inscrições, as presenças, os beneficiários etc. ainda apontavam para ela. No Postgres isso é violação de chave estrangeira
+    (erro 500 na tela: "Failed to fetch"). A suíte agora liga `PRAGMA foreign_keys=ON` no SQLite (tests/conftest.py) para se comportar igual;
+    sem a correção, esta mesclagem pela rota de verdade falha com IntegrityError."""
+    from sqlalchemy import text
+
+    from app.models.qualidade_cadastro import FilaRevisaoCadastro
+
+    nome = "Mesclagem Com Chave Estrangeira"
+    associado = _criar_associado(client, nome_completo=nome, data_nascimento="1971-07-07")
+    mantida = db.query(Associado).filter(Associado.id_associado == associado["id_associado"]).first().id_pessoa
+    outro = _criar_associado(client)
+    titular = db.query(Associado).filter(Associado.id_associado == outro["id_associado"]).first().id_pessoa
+    absorvida = client.post(
+        f"/api/pessoas/{titular}/dependentes", headers=auth_headers,
+        json={"nome_completo": nome, "data_nascimento": "1971-07-07", "grau_parentesco": "OUTRO"},
+    ).json()["id_pessoa_vinculada"]
+    client.post("/api/pessoas/duplicidade/escanear", headers=auth_headers)
+    assert db.query(FilaRevisaoCadastro).filter(FilaRevisaoCadastro.id_pessoa_b.in_([mantida, absorvida])).count() >= 1
+    item = db.query(FilaRevisaoCadastro).filter(
+        FilaRevisaoCadastro.id_pessoa_a.in_([mantida, absorvida]), FilaRevisaoCadastro.id_pessoa_b.in_([mantida, absorvida]),
+    ).one()
+
+    if db.get_bind().dialect.name == "sqlite":  # no Postgres (CI de produção) a chave estrangeira já é conferida de fábrica
+        assert db.execute(text("PRAGMA foreign_keys")).scalar() == 1, "o SQLite da suíte precisa conferir chave estrangeira, como o Postgres"
+    # v9.5 (reconferência, item 8): com cadastro de associado de um dos lados, só a partir do item pendente da fila que aponta o par
+    corpo = {"id_pessoa_absorvida": absorvida, "nome_confirmacao": nome}
+    assert client.post(f"/api/pessoas/{mantida}/mesclar", headers=auth_headers, json=corpo).status_code == 409
+    r = client.post(f"/api/pessoas/{mantida}/mesclar", headers=auth_headers, json={**corpo, "id_fila": item.id_fila})
+    assert r.status_code == 200, r.text
+    resultado = r.json()
+    assert resultado["id_pessoa_mantida"] == mantida
+    assert resultado["contagens"].get("fila_revisao_cadastro", 0) >= 1, "as entradas da fila passam a apontar para a pessoa que fica"
+    db.expire_all()
+    assert db.query(Pessoa).filter(Pessoa.id_pessoa == absorvida).first() is None
+    assert db.query(FilaRevisaoCadastro).filter(
+        (FilaRevisaoCadastro.id_pessoa_a == absorvida) | (FilaRevisaoCadastro.id_pessoa_b == absorvida)
+    ).count() == 0
+
+
+# ---------------------------------------------------------------------------
 # v9.5 (decisão do Presidente, 13/11/2026): dois cadastros de associado da mesma pessoa - fica a matrícula mais antiga e o número
 # que fica livre vai para o próximo associado novo. Com os achados da conferência independente de 17/11 (mensalidade do mesmo mês nos dois,
 # situação, acesso, endereço em branco, foto, CPF que só parece igual, par fora da fila).
@@ -174,6 +275,12 @@ def _juntar(client, auth_headers, antigo, novo, id_fila, nome, **extra):
     )
 
 
+def _escolhas_completas(client, auth_headers, id_fila, **escolhidas):
+    """Como a tela faz: uma escolha para CADA campo que a comparação mostrou como diferente (o que não foi escolhido fica o do cadastro que fica)."""
+    campos = client.get(f"/api/pessoas/fila-revisao/{id_fila}/comparar", headers=auth_headers).json()["campos"]
+    return {**{c["chave"]: "mantida" for c in campos if c["modo"] == "escolher"}, **escolhidas}
+
+
 def _plano(db):
     from app.models.financeiro import PlanoDeContas, PlanoDeContribuicao
 
@@ -186,16 +293,18 @@ def _plano(db):
     return plano.id_plano
 
 
-def _titulo(db, id_associado, status, competencia=None, id_plano=None):
+def _titulo(db, id_associado, status, competencia=None, id_plano=None, competencia_fim=None, saldo=None):
     from datetime import datetime, timedelta
     from decimal import Decimal
 
     from app.models.financeiro import TituloFinanceiro
 
+    if saldo is None:
+        saldo = "0.00" if status == "Pago" else "30.00"
     t = TituloFinanceiro(
         tipo_titulo="Receber", id_associado=id_associado, descricao="Mensalidade de teste", valor_original=Decimal("30.00"),
-        saldo_devedor=Decimal("0.00") if status == "Pago" else Decimal("30.00"), data_vencimento=datetime.utcnow() + timedelta(days=10),
-        status=status, competencia=competencia, id_plano_contribuicao=id_plano,
+        saldo_devedor=Decimal(saldo), data_vencimento=datetime.utcnow() + timedelta(days=10),
+        status=status, competencia=competencia, competencia_fim=competencia_fim, id_plano_contribuicao=id_plano,
     )
     db.add(t)
     db.commit()
@@ -219,7 +328,7 @@ def test_juntar_dois_associados_fica_a_matricula_mais_antiga_e_tudo_passa_para_e
     r = _juntar(
         client, auth_headers, antigo, novo, id_fila, "Raimundo Juntar N. da Silva",
         # o telefone e o endereço do cadastro novo é que estão certos; o nome fica o completo (do antigo)
-        escolhas={"telefone_whatsapp": "absorvida", "endereco": "absorvida", "nome_completo": "mantida"},
+        escolhas=_escolhas_completas(client, auth_headers, id_fila, telefone_whatsapp="absorvida", endereco="absorvida", nome_completo="mantida"),
     )
     assert r.status_code == 200, r.text
     corpo = r.json()
@@ -296,7 +405,7 @@ def test_juntar_com_cpf_escolhido_da_juntada_e_campo_desconhecido(client, auth_h
     cpf_do_novo = db.query(Pessoa).filter(Pessoa.id_pessoa == novo.id_pessoa).first().cpf
     nome = "Cpf Escolhido N. da Silva"
     assert _juntar(client, auth_headers, antigo, novo, id_fila, nome, escolhas={"senha": "absorvida"}).status_code == 400
-    r = _juntar(client, auth_headers, antigo, novo, id_fila, nome, escolhas={"cpf": "absorvida"})
+    r = _juntar(client, auth_headers, antigo, novo, id_fila, nome, escolhas=_escolhas_completas(client, auth_headers, id_fila, cpf="absorvida"))
     assert r.status_code == 200, r.text
     db.expire_all()
     assert db.query(Pessoa).filter(Pessoa.id_pessoa == antigo.id_pessoa).first().cpf == cpf_do_novo
@@ -459,7 +568,9 @@ def test_foto_diferente_pede_escolha_e_a_que_nao_fica_e_apagada(client, auth_hea
     db.commit()
     c = client.get(f"/api/pessoas/fila-revisao/{id_fila}/comparar", headers=auth_headers).json()
     assert next(x for x in c["campos"] if x["chave"] == "foto")["modo"] == "escolher"
-    r = _juntar(client, auth_headers, antigo, novo, id_fila, "Foto Dupla N. da Silva", escolhas={"foto": "absorvida"})
+    r = _juntar(
+        client, auth_headers, antigo, novo, id_fila, "Foto Dupla N. da Silva", escolhas=_escolhas_completas(client, auth_headers, id_fila, foto="absorvida"),
+    )
     assert r.status_code == 200, r.text
     db.expire_all()
     assert db.query(Pessoa).filter(Pessoa.id_pessoa == antigo.id_pessoa).first().foto == "/uploads/fotos/nova.jpg"
@@ -530,3 +641,191 @@ def test_registro_que_nao_se_junta_sozinho_recusa_e_nada_muda(client, auth_heade
     db.expire_all()
     assert db.query(Associado).filter(Associado.id_associado == novo.id_associado).first() is not None
     assert db.query(AvisoDestinatario).filter(AvisoDestinatario.id_aviso == aviso.id_aviso).count() == 2
+
+
+# ---------------------------------------------------------------------------
+# Reconferência independente (17/11): N1-N5, Q1, Q2 e o item 8
+# ---------------------------------------------------------------------------
+def test_escolhas_incompletas_pedem_comparar_de_novo_e_nada_muda(client, auth_headers, db):
+    """N5: a tela manda uma escolha para cada campo que mostrou como diferente. Se chega um campo diferente sem escolha, o cadastro mudou depois
+    da comparação - a junção é recusada em vez de ficar, calada, com o valor de um dos lados."""
+    antigo, novo, id_fila = _dois_associados(client, db, "Escolha Faltando")
+    r = _juntar(client, auth_headers, antigo, novo, id_fila, "Escolha Faltando N. da Silva", escolhas={"nome_completo": "mantida"})
+    assert r.status_code == 400
+    assert "compare de novo" in r.json()["detail"]
+    db.expire_all()
+    assert db.query(Associado).filter(Associado.id_associado == novo.id_associado).first() is not None
+
+
+def test_o_mesmo_aviso_nos_dois_leva_junto_a_entrega_por_email(client, auth_headers, db):
+    """N1: o aviso repetido nos dois sai do juntado, mas a entrega por e-mail que apontava para ele passa para o que fica (antes, a chave
+    estrangeira travava a junção no Postgres). A mesma entrega nos dois (o mesmo canal) fica uma só."""
+    from datetime import datetime, timedelta
+
+    from app.models.comunicacao import Aviso, AvisoDestinatario, EntregaDeAviso
+    from app.models.core import Usuario
+
+    antigo, novo, id_fila = _dois_associados(client, db, "Entrega Junto")
+    autor = db.query(Usuario).first().id_usuario
+    ids = {}
+    for nome in ("so_no_juntado", "nos_dois"):
+        aviso = Aviso(
+            titulo=f"Aviso {nome}", texto="Texto", categoria="GERAL", valido_ate=datetime.utcnow() + timedelta(days=5), publico="todos",
+            publico_descricao="Todos", id_usuario_autor=autor,
+        )
+        db.add(aviso)
+        db.flush()
+        do_antigo = AvisoDestinatario(id_aviso=aviso.id_aviso, id_associado=antigo.id_associado)
+        do_novo = AvisoDestinatario(id_aviso=aviso.id_aviso, id_associado=novo.id_associado)
+        db.add_all([do_antigo, do_novo])
+        db.flush()
+        db.add(EntregaDeAviso(id_destinatario=do_novo.id_destinatario, canal="email", situacao="Enviado"))
+        if nome == "nos_dois":
+            db.add(EntregaDeAviso(id_destinatario=do_antigo.id_destinatario, canal="email", situacao="Enviado"))
+        ids[nome] = (aviso.id_aviso, do_antigo.id_destinatario)
+    db.commit()
+    r = _juntar(client, auth_headers, antigo, novo, id_fila, "Entrega Junto N. da Silva")
+    assert r.status_code == 200, r.text
+    db.expire_all()
+    for nome, (id_aviso, id_destinatario_que_fica) in ids.items():
+        linhas = db.query(AvisoDestinatario).filter(AvisoDestinatario.id_aviso == id_aviso).all()
+        assert [l.id_destinatario for l in linhas] == [id_destinatario_que_fica], nome
+        entregas = db.query(EntregaDeAviso).filter(EntregaDeAviso.id_destinatario == id_destinatario_que_fica).all()
+        assert len(entregas) == 1, f"{nome}: a entrega por e-mail fica uma só, no destinatário que fica"
+
+
+def test_habilitado_em_um_dos_dois_continua_habilitado(client, auth_headers, db):
+    """Q1: na lista de quem pode votar, se um dos dois cadastros estava habilitado, a pessoa está (antes ficava a linha do cadastro que fica,
+    mesmo inabilitada)."""
+    from datetime import datetime, timedelta
+
+    from app.models.governanca import Assembleia, HabilitadoAssembleia
+
+    antigo, novo, id_fila = _dois_associados(client, db, "Habilitado Um")
+    assembleia = Assembleia(tipo="ORDINARIA", pauta="Pauta de teste", data_hora_convocacao=datetime.utcnow() + timedelta(days=20))
+    db.add(assembleia)
+    db.flush()
+    db.add(HabilitadoAssembleia(
+        id_assembleia=assembleia.id_assembleia, id_associado=antigo.id_associado, habilitado=False, motivo_inabilitacao="inadimplente",
+        status_arrolamento_no_momento="Ativo - Inadimplente",
+    ))
+    db.add(HabilitadoAssembleia(
+        id_assembleia=assembleia.id_assembleia, id_associado=novo.id_associado, habilitado=True, status_arrolamento_no_momento="Ativo - Em Dia",
+    ))
+    db.commit()
+    assert _juntar(client, auth_headers, antigo, novo, id_fila, "Habilitado Um N. da Silva").status_code == 200
+    db.expire_all()
+    linha = db.query(HabilitadoAssembleia).filter(HabilitadoAssembleia.id_assembleia == assembleia.id_assembleia).one()
+    assert linha.id_associado == antigo.id_associado
+    assert linha.habilitado is True and linha.motivo_inabilitacao is None
+    assert linha.status_arrolamento_no_momento == "Ativo - Em Dia"
+
+
+def test_licenca_pedida_agora_continua_de_qualquer_lado(client, auth_headers, db):
+    """Q2: a situação que vale é a mais recente. Licença registrada AGORA no cadastro antigo (o que fica) continua; licença recente no cadastro
+    juntado passa para o que fica."""
+    from datetime import datetime, timedelta
+
+    from app.models.situacao import LICENCA, MudancaSituacao
+
+    # 1) a licença é do cadastro que fica
+    antigo, novo, id_fila = _dois_associados(client, db, "Licenca Antigo")
+    antigo.status_arrolamento = "Licenciado"
+    antigo.data_fim_licenca = datetime.utcnow() + timedelta(days=60)
+    novo.status_arrolamento = "Ativo - Em Dia"
+    db.add(MudancaSituacao(id_associado=antigo.id_associado, tipo=LICENCA, data_efetiva=datetime.utcnow()))
+    db.commit()
+    c = client.get(f"/api/pessoas/fila-revisao/{id_fila}/comparar", headers=auth_headers).json()
+    assert c["situacao"]["depois"].startswith("Continua Licenciado")
+    assert _juntar(client, auth_headers, antigo, novo, id_fila, "Licenca Antigo N. da Silva").status_code == 200
+    db.expire_all()
+    assert db.query(Associado).filter(Associado.id_associado == antigo.id_associado).first().status_arrolamento == "Licenciado"
+
+    # 2) a licença é do cadastro juntado
+    antigo, novo, id_fila = _dois_associados(client, db, "Licenca Novo")
+    antigo.status_arrolamento = "Ativo - Em Dia"
+    novo.status_arrolamento = "Licenciado"
+    novo.data_fim_licenca = datetime.utcnow() + timedelta(days=60)
+    db.add(MudancaSituacao(id_associado=novo.id_associado, tipo=LICENCA, data_efetiva=datetime.utcnow()))
+    db.commit()
+    assert _juntar(client, auth_headers, antigo, novo, id_fila, "Licenca Novo N. da Silva").status_code == 200
+    db.expire_all()
+    mantido = db.query(Associado).filter(Associado.id_associado == antigo.id_associado).first()
+    assert mantido.status_arrolamento == "Licenciado" and mantido.data_fim_licenca is not None
+
+
+def test_dois_planos_no_mesmo_mes_so_o_mesmo_plano_e_repeticao(client, auth_headers, db):
+    """N2: mensalidade e fundo (dois planos) no mesmo mês não são cobrança em dobro. O par é o mesmo plano e mês; planos diferentes só quando cada
+    cadastro tem UMA mensalidade naquele mês."""
+    from app.models.financeiro import TituloFinanceiro
+
+    antigo, novo, id_fila = _dois_associados(client, db, "Dois Planos")
+    mensal, fundo, outro_a, outro_b, outro_c = (_plano(db) for _ in range(5))
+    mensal_antigo = _titulo(db, antigo.id_associado, "Pendente", "2026-11", mensal)
+    fundo_antigo = _titulo(db, antigo.id_associado, "Pendente", "2026-11", fundo)
+    mensal_novo = _titulo(db, novo.id_associado, "Pendente", "2026-11", mensal)
+    # dezembro: um título no antigo e dois (de outros planos) no novo - não dá para saber qual é a repetição; nada é cancelado
+    dez = [
+        _titulo(db, antigo.id_associado, "Pendente", "2026-12", outro_a),
+        _titulo(db, novo.id_associado, "Pendente", "2026-12", outro_b),
+        _titulo(db, novo.id_associado, "Pendente", "2026-12", outro_c),
+    ]
+    r = _juntar(client, auth_headers, antigo, novo, id_fila, "Dois Planos N. da Silva")
+    assert r.status_code == 200, r.text
+    assert r.json()["contagens"]["mensalidades_em_dobro_canceladas"] == 1
+    db.expire_all()
+    status = {t.id_titulo: t.status for t in db.query(TituloFinanceiro).filter(
+        TituloFinanceiro.id_titulo.in_([mensal_antigo, fundo_antigo, mensal_novo, *dez]))}
+    assert status[mensal_novo] == "Cancelado"
+    assert status[mensal_antigo] == status[fundo_antigo] == "Pendente", "o fundo do mesmo mês não é repetição da mensalidade"
+    assert all(status[t] == "Pendente" for t in dez)
+
+
+def test_pagamento_antecipado_em_bloco_cobre_cada_mes(client, auth_headers, db):
+    """N3: o bloco pago (setembro a dezembro) cobre novembro - a pendente de novembro do outro cadastro é cancelada. Um bloco ainda PENDENTE
+    nunca é cancelado pela metade: a junção é recusada explicando."""
+    from app.models.financeiro import TituloFinanceiro
+
+    antigo, novo, id_fila = _dois_associados(client, db, "Bloco Pago")
+    plano = _plano(db)
+    bloco = _titulo(db, novo.id_associado, "Pago", "2026-09", plano, competencia_fim="2026-12")
+    novembro = _titulo(db, antigo.id_associado, "Pendente", "2026-11", plano)
+    r = _juntar(client, auth_headers, antigo, novo, id_fila, "Bloco Pago N. da Silva")
+    assert r.status_code == 200, r.text
+    db.expire_all()
+    assert db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == novembro).first().status == "Cancelado"
+    assert db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == bloco).first().status == "Pago"
+
+    antigo, novo, id_fila = _dois_associados(client, db, "Bloco Pendente")
+    plano = _plano(db)
+    bloco = _titulo(db, novo.id_associado, "Pendente", "2026-09", plano, competencia_fim="2026-12")
+    _titulo(db, antigo.id_associado, "Pendente", "2026-11", plano)
+    r = _juntar(client, auth_headers, antigo, novo, id_fila, "Bloco Pendente N. da Silva")
+    assert r.status_code == 409
+    assert "pagamento antecipado" in r.json()["detail"] and "11/2026" in r.json()["detail"]
+    db.expire_all()
+    assert db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == bloco).first().status == "Pendente", "nada mudou"
+
+
+def test_pago_em_parte_e_renegociado_contam_como_dinheiro(client, auth_headers, db):
+    """N4: a mensalidade paga em parte (saldo menor que o valor) é a que fica - a pendente inteira do outro lado é cancelada; renegociada de um
+    lado e paga do outro é pagamento em dobro (recusa)."""
+    from app.models.financeiro import TituloFinanceiro
+
+    antigo, novo, id_fila = _dois_associados(client, db, "Pago Parte")
+    plano = _plano(db)
+    inteira_antigo = _titulo(db, antigo.id_associado, "Pendente", "2026-08", plano)
+    parte_novo = _titulo(db, novo.id_associado, "Pendente", "2026-08", plano, saldo="10.00")
+    assert _juntar(client, auth_headers, antigo, novo, id_fila, "Pago Parte N. da Silva").status_code == 200
+    db.expire_all()
+    assert db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == inteira_antigo).first().status == "Cancelado"
+    ficou = db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == parte_novo).first()
+    assert ficou.status == "Pendente" and ficou.id_associado == antigo.id_associado
+
+    antigo, novo, id_fila = _dois_associados(client, db, "Renegociado Dobro")
+    plano = _plano(db)
+    _titulo(db, antigo.id_associado, "Renegociado", "2026-07", plano)
+    _titulo(db, novo.id_associado, "Pago", "2026-07", plano)
+    r = _juntar(client, auth_headers, antigo, novo, id_fila, "Renegociado Dobro N. da Silva")
+    assert r.status_code == 409
+    assert "07/2026" in r.json()["detail"]

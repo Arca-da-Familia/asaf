@@ -22,7 +22,7 @@ from datetime import date, datetime
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -182,14 +182,37 @@ def _vem_da_absorvida(linha: dict, escolhas: dict) -> bool:
     return False
 
 
-def situacao_depois(assoc_m: Associado, assoc_a: Associado) -> tuple[str, str]:
+def situacao_depois(db: Session, assoc_m: Associado, assoc_a: Associado) -> tuple[str, str]:
     """(de onde vem, explicação) da situação depois de juntar dois cadastros de associado. A matrícula mais antiga sempre fica, mas a situação
-    ATUAL da pessoa vale ("mesmo que a nova esteja atualizada", nas palavras do Presidente): se o cadastro que fica está desligado ou licenciado
-    e o juntado não está desligado, a situação vem do juntado. Suspensão (Estatuto) nunca some numa junção, de qualquer lado."""
-    if SUSPENSO in (assoc_m.status_arrolamento, assoc_a.status_arrolamento):
+    ATUAL da pessoa vale. Suspensão (Estatuto) nunca some numa junção. Entre um cadastro desligado ou licenciado e um ativo, decide o que
+    aconteceu POR ÚLTIMO (a mudança de situação mais recente registrada): uma licença pedida agora no cadastro antigo continua; um cadastro
+    antigo desligado há anos, com o novo ativo, volta ativo. Desligamento ou licença sem registro de quando aconteceu conta como antigo."""
+    from app.models.situacao import MudancaSituacao
+
+    def ultima_mudanca(associado):
+        return db.query(func.max(MudancaSituacao.criado_em)).filter(MudancaSituacao.id_associado == associado.id_associado).scalar()
+
+    def atividade(associado):
+        return ultima_mudanca(associado) or associado.data_admissao or datetime.min
+
+    inativos = (DESLIGADO, LICENCIADO)
+    m, a = assoc_m.status_arrolamento, assoc_a.status_arrolamento
+    if SUSPENSO in (m, a):
         return "suspenso", f"Continua {SUSPENSO}: uma suspensão não some ao juntar"
-    if assoc_m.status_arrolamento in (DESLIGADO, LICENCIADO) and assoc_a.status_arrolamento != DESLIGADO:
-        return "juntado", f"Fica a do cadastro juntado ({assoc_a.status_arrolamento}), recalculada com as mensalidades das duas"
+    if m in inativos and a not in inativos:
+        quando = ultima_mudanca(assoc_m)
+        if quando and quando > atividade(assoc_a):
+            return "mantida", f"Continua {m}: foi a mudança mais recente"
+        return "juntado", f"Fica a do cadastro juntado ({a}), recalculada com as mensalidades das duas"
+    if a in inativos and m not in inativos:
+        quando = ultima_mudanca(assoc_a)
+        if quando and quando > atividade(assoc_m):
+            return "juntado", f"Fica {a}, do cadastro juntado: foi a mudança mais recente"
+        return "recalcular", "Calculada de novo com as mensalidades das duas"
+    if m in inativos and a in inativos:
+        if (ultima_mudanca(assoc_a) or datetime.min) > (ultima_mudanca(assoc_m) or datetime.min):
+            return "juntado", f"Fica {a}, do cadastro juntado: foi a mudança mais recente"
+        return "mantida", f"Continua {m}"
     return "recalcular", "Calculada de novo com as mensalidades das duas"
 
 
@@ -241,62 +264,149 @@ def _resolver_unicos(db: Session, id_mantido: int, id_absorvido: int, contagens:
                 c.name: r._mapping[c.name] for c in tabela.columns
                 if c.name.endswith("_em") and r._mapping[c.name] is not None and par._mapping[c.name] is None
             }
+            # na lista de quem pode votar: se um dos dois estava habilitado, a pessoa está (Q1 da reconferência)
+            if "habilitado" in tabela.c and r._mapping["habilitado"] and not par._mapping["habilitado"]:
+                completar.update({
+                    c: r._mapping[c] for c in ("habilitado", "motivo_inabilitacao", "status_arrolamento_no_momento") if c in tabela.c
+                })
             if completar:
                 db.execute(tabela.update().where(pk == par._mapping[pk.name]).values(completar))
+            _repassar_filhos(db, tabela, r._mapping[pk.name], par._mapping[pk.name], contagens)
             db.execute(tabela.delete().where(pk == r._mapping[pk.name]))
             contagens[f"repetidos_{nome}"] = contagens.get(f"repetidos_{nome}", 0) + 1
 
 
+def _repassar_filhos(db: Session, tabela, id_que_sai, id_que_fica, contagens: dict) -> None:
+    """O que aponta para a linha repetida que vai sair (as entregas por e-mail de um aviso, por exemplo - N1 da reconferência) passa para a
+    linha que fica; o que já existe nela (o mesmo canal) fica uma vez só."""
+    from sqlalchemy import UniqueConstraint
+
+    from app.database import Base
+
+    for filho in Base.metadata.tables.values():
+        for fk in filho.foreign_keys:
+            if fk.column.table is not tabela:
+                continue
+            unicos = [
+                [c.name for c in u.columns if c.name != fk.parent.name]
+                for u in filho.constraints if isinstance(u, UniqueConstraint) and fk.parent.name in [c.name for c in u.columns]
+            ]
+            ja_tem = [r._mapping for r in db.execute(filho.select().where(fk.parent == id_que_fica))]
+            pk_filho = list(filho.primary_key.columns)[0]
+            for r in db.execute(filho.select().where(fk.parent == id_que_sai)).all():
+                repetido = any(all(r._mapping[c] == outro[c] for c in cols) for cols in unicos for outro in ja_tem)
+                if repetido:
+                    db.execute(filho.delete().where(pk_filho == r._mapping[pk_filho.name]))
+                else:
+                    db.execute(filho.update().where(pk_filho == r._mapping[pk_filho.name]).values({fk.parent.name: id_que_fica}))
+                contagens[f"repassados_{filho.name}"] = contagens.get(f"repassados_{filho.name}", 0) + 1
+
+
 def _resolver_mensalidades(db: Session, mantido: Associado, absorvido: Associado, contagens: dict) -> None:
-    """A mesma pessoa não paga o mesmo mês duas vezes (achado da conferência: os dois cadastros recebem a mensalidade todo mês). Por mês
-    (competência), qualquer que seja o plano: uma paga fica e as pendentes daquele mês são canceladas; nenhuma paga, fica a pendente do
-    cadastro que fica e a do juntado é cancelada; as DUAS pagas - pagamento em dobro - a junção é recusada (devolver ou virar crédito é decisão
-    do Financeiro, não daqui). A cancelada sai da trava de um título por plano e mês (fica sem plano, e a descrição diz por quê)."""
+    """A mesma pessoa não paga o mesmo mês duas vezes (os dois cadastros recebem a mensalidade todo mês). Regras (reconferência de 17/11):
+    - o par é a mensalidade do MESMO plano e mês nos dois cadastros; planos diferentes só se cada cadastro tem uma única mensalidade naquele mês
+      (categorias diferentes, a mesma cobrança). Vários planos da mesma categoria (mensalidade e fundo, por exemplo) não são repetição;
+    - o mês de um pagamento antecipado em bloco (competência até competência_fim) conta em cada mês do bloco;
+    - "com dinheiro" = paga, paga em parte (saldo menor que o valor) ou renegociada (a dívida foi para as parcelas);
+    - com dinheiro dos DOIS lados no mesmo par: pagamento em dobro, a junção é recusada (devolver ou virar crédito é decisão do Financeiro);
+    - com dinheiro de um lado: fica ela e a pendente intacta do outro lado é cancelada; sem dinheiro: fica a pendente do cadastro que fica;
+    - um bloco nunca é cancelado pela metade: se o que sobraria é parte de um bloco ainda pendente, a junção é recusada explicando.
+    A cancelada sai da trava de um título por plano e mês (fica sem plano, e a descrição diz por quê)."""
     from app.models.financeiro import TituloFinanceiro
 
-    ativos = ("Pendente", "Pago")
     titulos = db.query(TituloFinanceiro).filter(
         TituloFinanceiro.id_associado.in_([mantido.id_associado, absorvido.id_associado]),
         TituloFinanceiro.competencia.isnot(None),
     ).all()
-    por_mes: dict[str, list] = {}
-    for t in titulos:
-        por_mes.setdefault(t.competencia, []).append(t)
-    em_dobro, canceladas = [], []
-    for mes, lista in sorted(por_mes.items()):
-        vivos = [t for t in lista if t.status in ativos]
-        if {t.id_associado for t in vivos} != {mantido.id_associado, absorvido.id_associado}:
-            continue
-        pagos = [t for t in vivos if t.status == "Pago"]
-        if len(pagos) >= 2:
-            em_dobro.append(f"{mes[5:7]}/{mes[:4]}")
-            continue
-        fica = pagos[0] if pagos else next(t for t in vivos if t.id_associado == mantido.id_associado)
-        for t in vivos:
-            if t is not fica:
-                canceladas.append(t)
+
+    def meses(t):
+        ano, mes = int(t.competencia[:4]), int(t.competencia[5:7])
+        fim = t.competencia_fim or t.competencia
+        lista = []
+        while f"{ano:04d}-{mes:02d}" <= fim and len(lista) < 120:
+            lista.append(f"{ano:04d}-{mes:02d}")
+            ano, mes = (ano + 1, 1) if mes == 12 else (ano, mes + 1)
+        return lista
+
+    def com_dinheiro(t):
+        return t.status in ("Pago", "Renegociado") or (
+            t.status == "Pendente" and t.valor_original is not None and t.saldo_devedor is not None and t.saldo_devedor < t.valor_original
+        )
+
+    def bloco(t):
+        return bool(t.competencia_fim and t.competencia_fim != t.competencia)
+
+    vivos = [t for t in titulos if t.status in ("Pago", "Pendente", "Renegociado")]
+    cobertura: dict[int, dict[str, list]] = {mantido.id_associado: {}, absorvido.id_associado: {}}
+    for t in vivos:
+        for mes in meses(t):
+            cobertura[t.id_associado].setdefault(mes, []).append(t)
+
+    em_dobro, bloco_pela_metade, canceladas = [], [], {}
+    for mes in sorted(set(cobertura[mantido.id_associado]) & set(cobertura[absorvido.id_associado])):
+        lm, la = cobertura[mantido.id_associado][mes], cobertura[absorvido.id_associado][mes]
+        pares = []
+        for plano in {t.id_plano_contribuicao for t in lm} & {t.id_plano_contribuicao for t in la}:
+            pares.append([t for t in lm + la if t.id_plano_contribuicao == plano])
+        if not pares and len(lm) == 1 and len(la) == 1:
+            pares.append(lm + la)
+        for par in pares:
+            par = [t for t in par if t.id_titulo not in canceladas]
+            lados_com_dinheiro = {t.id_associado for t in par if com_dinheiro(t)}
+            rotulo = f"{mes[5:7]}/{mes[:4]}"
+            if len(lados_com_dinheiro) == 2:
+                em_dobro.append(rotulo)
+                continue
+            if lados_com_dinheiro:
+                ficam = [t for t in par if com_dinheiro(t)]
+            else:
+                ficam = [next((t for t in par if t.id_associado == mantido.id_associado), par[0])]
+            for t in par:
+                if t in ficam or com_dinheiro(t):
+                    continue
+                if bloco(t):
+                    bloco_pela_metade.append(rotulo)
+                    continue
+                canceladas[t.id_titulo] = t
     if em_dobro:
         raise HTTPException(
             status_code=409,
-            detail=f"Os dois cadastros pagaram a mensalidade de {', '.join(em_dobro)}. Resolva o pagamento em dobro no Financeiro (devolução ou "
-                   "crédito) antes de juntar; nada foi alterado.",
+            detail=f"Os dois cadastros pagaram (ou renegociaram) a mensalidade de {', '.join(sorted(set(em_dobro)))}. Resolva o pagamento em dobro "
+                   "no Financeiro (devolução ou crédito) antes de juntar; nada foi alterado.",
         )
-    for t in canceladas:
+    if bloco_pela_metade:
+        raise HTTPException(
+            status_code=409,
+            detail=f"A mensalidade de {', '.join(sorted(set(bloco_pela_metade)))} está nos dois cadastros e uma delas faz parte de um pagamento "
+                   "antecipado ainda pendente. Resolva esse bloco no Financeiro antes de juntar; nada foi alterado.",
+        )
+    for t in canceladas.values():
         t.status = "Cancelado"
         t.descricao = f"{t.descricao or 'Mensalidade'} (cancelada: cobrança em dobro do mesmo mês, na junção de cadastros duplicados)"
         t.id_plano_contribuicao = None
     db.flush()
-    # o que sobrou de antigo (cancelado, renegociado) no juntado e esbarra na trava de plano e mês do que fica: sai do plano, como o cancelado
-    mesmo_plano_e_mes = {
-        (t.id_plano_contribuicao, t.competencia) for t in titulos if t.id_associado == mantido.id_associado and t.id_plano_contribuicao is not None
-    }
-    for t in titulos:
-        if t.id_associado == absorvido.id_associado and t.status not in ativos and (t.id_plano_contribuicao, t.competencia) in mesmo_plano_e_mes:
-            t.id_plano_contribuicao = None
+    # o que ainda esbarra na trava de plano e mês (um cancelado ou renegociado antigo de um lado contra um título do outro): o que não está mais
+    # vivo sai do plano; se os dois estão vivos, é repetição que as regras acima não resolveram - recusa
+    restantes = [t for t in titulos if t.id_plano_contribuicao is not None]
+    do_mantido = {(t.id_plano_contribuicao, t.competencia): t for t in restantes if t.id_associado == mantido.id_associado}
+    for t in restantes:
+        if t.id_associado != absorvido.id_associado:
+            continue
+        outro = do_mantido.get((t.id_plano_contribuicao, t.competencia))
+        if outro is None:
+            continue
+        sai = t if t.status == "Cancelado" else outro if outro.status == "Cancelado" else None
+        if sai is None:
+            raise HTTPException(
+                status_code=409,
+                detail=f"A mensalidade de {t.competencia[5:7]}/{t.competencia[:4]} está nos dois cadastros de um jeito que não se junta sozinho. "
+                       "Resolva no Financeiro antes de juntar; nada foi alterado.",
+            )
+        sai.id_plano_contribuicao = None
     db.flush()
     if canceladas:
         contagens["mensalidades_em_dobro_canceladas"] = len(canceladas)
-        contagens["ids_titulos_cancelados"] = [t.id_titulo for t in canceladas]
+        contagens["ids_titulos_cancelados"] = sorted(canceladas)
 
 
 def _repontar_referencias_do_associado(db: Session, id_mantido: int, id_absorvido: int, contagens: dict) -> None:
@@ -344,7 +454,7 @@ def _juntar_associados(
             )
 
     # a situação: suspensão nunca some; cadastro antigo desligado ou licenciado com o juntado ativo -> vale a do juntado (é a atual)
-    origem, _ = situacao_depois(mantido, absorvido)
+    origem, _ = situacao_depois(db, mantido, absorvido)
     if origem == "suspenso":
         mantido.status_arrolamento = SUSPENSO
     elif origem == "juntado":
@@ -397,6 +507,7 @@ def mesclar_pessoas(
                    "mesclagem é irreversível, confirme o nome exato antes de prosseguir.",
         )
 
+    escolhas_dadas = escolhas is not None
     escolhas = dict(escolhas or {})
     desconhecidos = sorted(set(escolhas) - set(CAMPOS_ESCOLHIVEIS))
     if desconhecidos:
@@ -405,8 +516,9 @@ def mesclar_pessoas(
     associado_mantida = db.query(Associado).filter(Associado.id_pessoa == id_pessoa_mantida).first()
     associado_absorvida = db.query(Associado).filter(Associado.id_pessoa == id_pessoa_absorvida).first()
     dois_associados = bool(associado_mantida and associado_absorvida)
-    if dois_associados:
-        # v9.5 (conferência): juntar dois cadastros de ASSOCIADO só a partir de um par que a fila de revisão apontou e que ainda está pendente
+    if associado_mantida or associado_absorvida:
+        # v9.5 (conferência): juntar quando há cadastro de ASSOCIADO (o histórico dele vai junto) só a partir de um par que a fila de revisão
+        # apontou e que ainda está pendente
         from app.models.qualidade_cadastro import PENDENTE, FilaRevisaoCadastro
 
         par = {id_pessoa_mantida, id_pessoa_absorvida}
@@ -414,8 +526,9 @@ def mesclar_pessoas(
         if item is None or item.status != PENDENTE or {item.id_pessoa_a, item.id_pessoa_b} != par:
             raise HTTPException(
                 status_code=409,
-                detail="Dois cadastros de associado só se juntam a partir da fila da Qualidade da base (o par apontado como possível duplicado).",
+                detail="Cadastro de associado só se junta a partir da fila da Qualidade da base (o par apontado como possível duplicado).",
             )
+    if dois_associados:
         if mais_antigo(associado_absorvida) < mais_antigo(associado_mantida):
             desde = _data_de_entrada(associado_absorvida).strftime("%d/%m/%Y") if associado_absorvida.data_admissao else "a data mais antiga"
             raise HTTPException(
@@ -436,6 +549,12 @@ def mesclar_pessoas(
         )
 
     linhas = classificar_campos(db, mantida, absorvida, associado_mantida, associado_absorvida)
+    if escolhas_dadas:
+        # a tela manda as escolhas de tudo o que mostrou como diferente: se agora há um campo diferente sem escolha, o cadastro mudou depois
+        # da comparação (N5 da reconferência) - nada de ficar, calado, com o valor de um dos lados
+        sem_escolha = [l["chave"] for l in linhas if l["modo"] == "escolher" and l["chave"] not in escolhas]
+        if sem_escolha:
+            raise HTTPException(status_code=400, detail="O cadastro mudou depois da comparação: compare de novo antes de juntar.")
     fotos = (mantida.foto, absorvida.foto)
     contagens = {"papeis": 0, "associado": 0, "funcionario": 0, "termos_voluntariado": 0, "eventos_linha_do_tempo": 0, "dependentes": 0}
     trazidos: list[str] = []

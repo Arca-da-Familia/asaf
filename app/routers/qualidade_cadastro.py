@@ -85,6 +85,7 @@ def _lado_da_comparacao(db: Session, pessoa: Pessoa) -> dict:
     from app.models.associados import Endereco
     from app.models.financeiro import TituloFinanceiro
     from app.services import cpf_protegido
+    from app.services.fuso import para_belem
 
     associado = db.query(Associado).filter(Associado.id_pessoa == pessoa.id_pessoa).first()
     lado = {
@@ -107,7 +108,7 @@ def _lado_da_comparacao(db: Session, pessoa: Pessoa) -> dict:
         lado["associado"] = {
             "id_associado": associado.id_associado,
             "numero_matricula": associado.numero_matricula,
-            "data_admissao": associado.data_admissao.date().isoformat() if associado.data_admissao else None,
+            "data_admissao": para_belem(associado.data_admissao).date().isoformat() if associado.data_admissao else None,
             "categoria": associado.categoria,
             "status_arrolamento": associado.status_arrolamento,
             "endereco": ", ".join(p for p in [
@@ -152,7 +153,7 @@ def comparar_item_fila(id_fila: int, db: Session = Depends(get_db), usuario: Usu
         "situacao": None, "acesso": None,
     }
     if as_fica and as_sai:
-        _, texto = situacao_depois(as_fica, as_sai)
+        _, texto = situacao_depois(db, as_fica, as_sai)
         resposta["situacao"] = {"fica": as_fica.status_arrolamento, "sai": as_sai.status_arrolamento, "depois": texto}
         fica, sai, texto_acesso = escolher_acesso(db, as_fica, as_sai, usuario.id_usuario)
 
