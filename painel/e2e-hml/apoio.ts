@@ -157,31 +157,49 @@ export const PEDIDO_PUBLICO = {
   versao_texto_consentimento: textos.FILIACAO.versao,
 }
 
-/** Cadastra um associado pelo formulário (Novo associado); com `forcar`, aperta "cadastrar mesmo assim" depois do aviso de cadastro parecido. */
-export async function cadastrarPelaTela(
+export type DadosDoNovoAssociado = {
+  nome: string
+  cpf: string
+  email: string
+  telefone?: string
+  nascimento?: string
+  numero?: string
+}
+
+/** v9.5e: o Novo associado é em 4 passos (Pessoa, Contato, Endereço, Conferir). Preenche os três primeiros e para no "Conferir", onde está o
+ * botão "Cadastrar associado". Já precisa estar em /associados/novo, no passo 1. */
+export async function preencherNovoAssociado(
   page: Page,
-  d: {
-    nome: string
-    cpf: string
-    email: string
-    telefone?: string
-    nascimento?: string
-    forcar?: boolean
-  },
+  d: DadosDoNovoAssociado,
 ) {
-  await page.goto('/associados/novo')
+  await expect(page.getByText('Passo 1 de 4 · Pessoa')).toBeVisible()
   await campo(page, 'Nome completo *').fill(d.nome)
   await campo(page, 'CPF *').fill(d.cpf)
-  await campo(page, 'E-mail *').fill(d.email)
-  await campo(page, 'Telefone (WhatsApp) *').fill(d.telefone ?? '91911112222')
   await campo(page, 'Categoria *').selectOption({ index: 1 })
   if (d.nascimento) await campo(page, 'Data de nascimento').fill(d.nascimento)
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect(page.getByText('Passo 2 de 4 · Contato')).toBeVisible()
+  await campo(page, 'E-mail *').fill(d.email)
+  await campo(page, 'Telefone (WhatsApp) *').fill(d.telefone ?? '91911112222')
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect(page.getByText('Passo 3 de 4 · Endereço')).toBeVisible()
   await campo(page, 'CEP *').fill('68515000')
   await campo(page, 'Logradouro *').fill('Rua das Flores de Teste')
-  await campo(page, 'Número *').fill('5')
+  await campo(page, 'Número *').fill(d.numero ?? '5')
   await campo(page, 'Bairro *').fill('Bairro de Teste')
   await campo(page, 'Cidade *').fill('Parauapebas')
   await campo(page, 'Estado (UF) *').fill('PA')
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect(page.getByText('Passo 4 de 4 · Conferir')).toBeVisible()
+}
+
+/** Cadastra um associado pelo formulário (Novo associado); com `forcar`, aperta "cadastrar mesmo assim" depois do aviso de cadastro parecido. */
+export async function cadastrarPelaTela(
+  page: Page,
+  d: DadosDoNovoAssociado & { forcar?: boolean },
+) {
+  await page.goto('/associados/novo')
+  await preencherNovoAssociado(page, d)
   await page.getByRole('button', { name: 'Cadastrar associado' }).click()
   if (d.forcar) {
     await expect(page.getByRole('alert').first()).toContainText(

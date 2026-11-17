@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { validarCpf } from '@/lib/cpf'
 import { paraUtcIso } from '@/lib/datas'
 import { lerValorEmReais } from '@/lib/valores'
 
@@ -37,7 +38,12 @@ export const enderecoSchema = z.object({
 // primeira barreira, pra dar erro na hora em vez de esperar o round-trip da API.
 export const associadoMasterSchema = z.object({
   nome_completo: z.string().min(3, 'Informe o nome completo.'),
-  cpf: z.string().min(11, 'CPF deve ter 11 dígitos.').max(14),
+  // v9.5e: no cadastro em passos, o CPF errado é avisado já no 1º passo (antes, só o servidor recusava, ao fim do formulário)
+  cpf: z
+    .string()
+    .min(11, 'CPF deve ter 11 dígitos.')
+    .max(14)
+    .refine(validarCpf, 'CPF inválido: confira os números.'),
   email_contato: z.string().email('E-mail inválido.'),
   telefone_whatsapp: z.string().min(10, 'Informe um telefone válido.'),
   categoria: z.string().min(1, 'Selecione uma categoria.'),

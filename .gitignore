@@ -35,3 +35,6 @@ dist/
 # Claude Code (config local da ferramenta, não é código do projeto)
 .claude/
 *.db-journal
+
+# passagem de bastão: estado do trabalho de cada computador, nunca vai ao repositório (decisão do Presidente, 17/11/2026: evita conflito entre colaboradores)
+HANDOFF.md

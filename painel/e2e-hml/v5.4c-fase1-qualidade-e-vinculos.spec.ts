@@ -12,6 +12,7 @@ import {
   sair,
   ver,
   vigiar,
+  preencherNovoAssociado,
 } from './apoio'
 
 // v5.4c — FASE 1 ao vivo (parte 2): cadastro parecido, Qualidade da base (duplicados, mesclagem, fila), Vínculos (voluntário, funcionário,
@@ -47,20 +48,13 @@ test('cadastro parecido: o Secretário é barrado e não tem como forçar; o Pre
   // o Secretário usa o formulário (a permissão de cadastrar vem do cargo) e o sistema desconfia do mesmo nome e telefone
   await entrar(page, 'secretario')
   await page.goto('/associados/novo')
-  await campo(page, 'Nome completo *').fill(MESMO_NOME)
-  await campo(page, 'CPF *').fill(cpf(2))
-  await campo(page, 'E-mail *').fill(
-    `duplicada2.${RODADA}@homologacao.example.com`,
-  )
-  await campo(page, 'Telefone (WhatsApp) *').fill('91911112222')
-  await campo(page, 'Categoria *').selectOption({ index: 1 })
-  await campo(page, 'Data de nascimento').fill(NASCIMENTO)
-  await campo(page, 'CEP *').fill('68515000')
-  await campo(page, 'Logradouro *').fill('Rua das Flores de Teste')
-  await campo(page, 'Número *').fill('5')
-  await campo(page, 'Bairro *').fill('Bairro de Teste')
-  await campo(page, 'Cidade *').fill('Parauapebas')
-  await campo(page, 'Estado (UF) *').fill('PA')
+  await preencherNovoAssociado(page, {
+    nome: MESMO_NOME,
+    cpf: cpf(2),
+    email: `duplicada2.${RODADA}@homologacao.example.com`,
+    telefone: '91911112222',
+    nascimento: NASCIMENTO,
+  })
   await page.getByRole('button', { name: 'Cadastrar associado' }).click()
   await expect(page.getByRole('alert').first()).toContainText(
     'Já existe um cadastro parecido',

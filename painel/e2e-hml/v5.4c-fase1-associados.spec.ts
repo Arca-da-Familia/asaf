@@ -9,6 +9,7 @@ import {
   RODADA,
   ver,
   vigiar,
+  preencherNovoAssociado,
 } from './apoio'
 
 // v5.4c — FASE 1 e 2.5.1 ao vivo: o ciclo do associado na tela do hml-painel. Cada rodada cadastra uma pessoa NOVA (nome e CPF mudam),
@@ -20,23 +21,24 @@ const NOME = `Pessoa Cadastrada Pelo Robo ${RODADA} de Teste`
 const CPF = cpfValido(300000000 + (RODADA % 600000000))
 const EMAIL = `robo.${RODADA}@homologacao.example.com`
 
+// v9.5e: o cadastro é em 4 passos; o ajudante preenche Pessoa, Contato e Endereço e para no Conferir
 async function preencherCadastro(
   page: import('@playwright/test').Page,
   cpf: string,
   email: string,
 ) {
-  await campo(page, 'Nome completo *').fill(NOME)
-  await campo(page, 'CPF *').fill(cpf)
-  await campo(page, 'E-mail *').fill(email)
-  await campo(page, 'Telefone (WhatsApp) *').fill('91988887777')
-  await campo(page, 'Categoria *').selectOption({ index: 1 })
-  await campo(page, 'CEP *').fill('68515000')
-  await campo(page, 'Logradouro *').fill('Rua das Flores de Teste')
-  await campo(page, 'Número *').fill('77')
-  await campo(page, 'Bairro *').fill('Bairro de Teste')
-  await campo(page, 'Cidade *').fill('Parauapebas')
-  await campo(page, 'Estado (UF) *').fill('PA')
+  await preencherNovoAssociado(page, {
+    nome: NOME,
+    cpf,
+    email,
+    telefone: '91988887777',
+    numero: '77',
+  })
 }
+
+// um erro VISÍVEL na tela (o aviso do campo de um passo escondido também está na página, mas não aparece)
+const erroVisivel = (page: import('@playwright/test').Page) =>
+  page.locator('.text-destructive').filter({ visible: true }).first()
 
 test('a lista mostra os associados de teste e o filtro encontra um deles', async ({
   page,
@@ -89,24 +91,27 @@ test('recusas provocadas: CPF repetido, CPF inválido e campo obrigatório vazio
   await entrar(page, 'presidente')
   await page.goto('/associados/novo')
 
-  // 1) o mesmo CPF de novo: o sistema barra na hora, não depois
+  // 1) o mesmo CPF de novo: o servidor barra ao cadastrar, e o motivo aparece no resumo da parte Pessoa
   await preencherCadastro(page, CPF, `outro.${RODADA}@homologacao.example.com`)
   await page.getByRole('button', { name: 'Cadastrar associado' }).click()
   await expect(page).toHaveURL(/\/associados\/novo$/)
-  await expect(page.locator('.text-destructive').first()).toBeVisible()
+  await expect(erroVisivel(page)).toBeVisible()
   await ver(page, info, 'CPF repetido recusado')
 
-  // 2) CPF com dígito verificador errado
+  // 2) CPF com dígito verificador errado: "Corrigir" volta ao passo da Pessoa, e o próprio passo já recusa
+  await page.getByRole('button', { name: 'Corrigir Pessoa' }).click()
   await campo(page, 'CPF *').fill('123.456.789-00')
-  await page.getByRole('button', { name: 'Cadastrar associado' }).click()
+  await page.getByRole('button', { name: 'Continuar' }).click()
   await expect(page).toHaveURL(/\/associados\/novo$/)
-  await expect(page.locator('.text-destructive').first()).toBeVisible()
+  await expect(page.getByText('Passo 1 de 4 · Pessoa')).toBeVisible()
+  await expect(erroVisivel(page)).toBeVisible()
   await ver(page, info, 'CPF invalido recusado')
 
-  // 3) nome vazio
+  // 3) nome vazio: não passa do passo 1
   await campo(page, 'Nome completo *').fill('')
-  await page.getByRole('button', { name: 'Cadastrar associado' }).click()
+  await page.getByRole('button', { name: 'Continuar' }).click()
   await expect(page).toHaveURL(/\/associados\/novo$/)
+  await expect(page.getByText('Passo 1 de 4 · Pessoa')).toBeVisible()
   await ver(page, info, 'nome vazio recusado')
 })
 
