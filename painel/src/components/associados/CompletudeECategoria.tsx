@@ -17,7 +17,14 @@ const ROTULO_DO_CAMPO: Record<string, string> = {
 
 // v1.1 no servidor, tela só na v5.4c (achado AO VIVO na homologação, 2026-10-05): o percentual de preenchimento do cadastro existia como
 // rota testada e nenhuma tela o mostrava — quem cuida do cadastro não tinha como saber o que falta preencher.
-export function CompletudeDoCadastro({ idAssociado }: { idAssociado: number }) {
+// v9.5f: `compacto` é a versão de dentro da coluna da foto, na ficha (desenho aprovado na rodada 4: foto e preenchimento à esquerda)
+export function CompletudeDoCadastro({
+  idAssociado,
+  compacto = false,
+}: {
+  idAssociado: number
+  compacto?: boolean
+}) {
   const { data, isLoading } = useQuery({
     queryKey: ['completude', idAssociado],
     queryFn: () => obterCompletude(idAssociado),
@@ -25,10 +32,16 @@ export function CompletudeDoCadastro({ idAssociado }: { idAssociado: number }) {
   if (isLoading || !data) return null
   return (
     <section
-      className="rounded-xl border border-border bg-card p-6"
+      className={
+        compacto
+          ? 'w-full text-left'
+          : 'rounded-xl border border-border bg-card p-6'
+      }
       aria-label="Completude do cadastro"
     >
-      <h2 className="font-semibold">Completude do cadastro</h2>
+      <h2 className={compacto ? 'text-sm font-bold' : 'font-semibold'}>
+        Completude do cadastro
+      </h2>
       <p className="mt-1 text-sm">
         <strong data-testid="completude-percentual">{data.percentual}%</strong>{' '}
         preenchido

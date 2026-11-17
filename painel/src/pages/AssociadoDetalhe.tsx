@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ImageUp } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
@@ -37,6 +38,7 @@ import {
 import { PERMISSAO_VER_CPF_COMPLETO } from '@/lib/cpf-protegido'
 import { formatarData } from '@/lib/datas'
 import { useMenuDoModuloRecolhido } from '@/lib/menu-do-modulo'
+import { cn } from '@/lib/utils'
 import { useMe } from '@/lib/use-me'
 import {
   associadoEditarSchema,
@@ -206,42 +208,60 @@ function DadosEFotoTab({
     onError: (err) => setErroFoto((err as Error).message),
   })
 
+  // v9.5f (desenho aprovado pelo Presidente, rodada 4): a foto e o preenchimento numa coluna à esquerda, os campos à direita; no celular, um embaixo do
+  // outro, e o botão de salvar no fim dos campos
   return (
-    <div className="v3-space-y-6">
-      <CompletudeDoCadastro idAssociado={idAssociado} />
-      <section className="rounded-xl border border-border bg-card p-6">
-        <h2 className="mb-4 font-semibold">Foto</h2>
-        <div className="flex items-center gap-4">
-          {associado.foto ? (
-            <img
-              src={urlArquivo(associado.foto)}
-              alt=""
-              className="h-20 w-20 rounded-full object-cover"
-            />
-          ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
-              Sem foto
-            </div>
-          )}
-          <div>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={(e) => {
-                const arquivo = e.target.files?.[0]
-                if (arquivo) enviarFoto.mutate(arquivo)
-              }}
-              disabled={enviarFoto.isPending}
-              className="text-sm"
-            />
-            {erroFoto && (
-              <p className="mt-1 text-sm text-destructive">{erroFoto}</p>
-            )}
+    <div className="grid items-start gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
+      <section className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card p-5 text-center shadow-card">
+        <h2 className="self-start text-sm font-bold">Foto</h2>
+        {associado.foto ? (
+          <img
+            src={urlArquivo(associado.foto)}
+            alt=""
+            className="h-28 w-28 rounded-full object-cover"
+          />
+        ) : (
+          <div className="flex h-28 w-28 items-center justify-center rounded-full bg-muted text-sm text-muted-foreground">
+            Sem foto
           </div>
+        )}
+        <label
+          className={cn(
+            'inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-input bg-card px-4 text-sm font-semibold hover:bg-accent focus-within:ring-2 focus-within:ring-ring',
+            enviarFoto.isPending && 'pointer-events-none opacity-60',
+          )}
+        >
+          <ImageUp className="h-4 w-4" aria-hidden="true" />
+          {enviarFoto.isPending
+            ? 'Enviando…'
+            : associado.foto
+              ? 'Trocar a foto'
+              : 'Enviar uma foto'}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(e) => {
+              const arquivo = e.target.files?.[0]
+              if (arquivo) enviarFoto.mutate(arquivo)
+            }}
+            disabled={enviarFoto.isPending}
+            className="sr-only"
+          />
+        </label>
+        <p className="text-xs text-muted-foreground">
+          JPG, PNG ou WEBP · entra na hora
+        </p>
+        {erroFoto && (
+          <p role="alert" className="text-sm text-destructive">
+            {erroFoto}
+          </p>
+        )}
+        <div className="w-full border-t border-border pt-4">
+          <CompletudeDoCadastro idAssociado={idAssociado} compacto />
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-6">
+      <section className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
         <h2 className="mb-4 font-semibold">Dados cadastrais</h2>
         <FormShell<AssociadoEditarForm>
           schema={associadoEditarSchema}
@@ -270,7 +290,7 @@ function DadosEFotoTab({
                   <label className="text-sm font-medium">Nome completo *</label>
                   <input
                     {...form.register('nome_completo')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   />
                   <ErroCampo
                     mensagem={form.formState.errors.nome_completo?.message}
@@ -280,7 +300,7 @@ function DadosEFotoTab({
                   <label className="text-sm font-medium">E-mail *</label>
                   <input
                     {...form.register('email_contato')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   />
                   <ErroCampo
                     mensagem={form.formState.errors.email_contato?.message}
@@ -292,7 +312,7 @@ function DadosEFotoTab({
                   </label>
                   <input
                     {...form.register('telefone_whatsapp')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   />
                   <ErroCampo
                     mensagem={form.formState.errors.telefone_whatsapp?.message}
@@ -302,7 +322,7 @@ function DadosEFotoTab({
                   <label className="text-sm font-medium">Categoria *</label>
                   <select
                     {...form.register('categoria')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   >
                     {(categorias ?? []).map((o) => (
                       <option key={o.id_opcao} value={o.valor}>
@@ -321,14 +341,14 @@ function DadosEFotoTab({
                   <input
                     type="date"
                     {...form.register('data_nascimento')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   />
                 </div>
                 <div>
                   <label className="text-sm font-medium">Estado civil</label>
                   <select
                     {...form.register('estado_civil')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   >
                     <option value="">Selecione…</option>
                     {(estadosCivis ?? []).map((o) => (
@@ -342,14 +362,14 @@ function DadosEFotoTab({
                   <label className="text-sm font-medium">Profissão</label>
                   <input
                     {...form.register('profissao')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   />
                 </div>
                 <div>
                   <label className="text-sm font-medium">Naturalidade</label>
                   <input
                     {...form.register('naturalidade')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   />
                 </div>
               </div>
@@ -360,7 +380,7 @@ function DadosEFotoTab({
                   <label className="text-sm font-medium">CEP *</label>
                   <input
                     {...form.register('cep')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   />
                   <ErroCampo mensagem={form.formState.errors.cep?.message} />
                 </div>
@@ -368,7 +388,7 @@ function DadosEFotoTab({
                   <label className="text-sm font-medium">Logradouro *</label>
                   <input
                     {...form.register('logradouro')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   />
                   <ErroCampo
                     mensagem={form.formState.errors.logradouro?.message}
@@ -378,7 +398,7 @@ function DadosEFotoTab({
                   <label className="text-sm font-medium">Número *</label>
                   <input
                     {...form.register('numero')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   />
                   <ErroCampo mensagem={form.formState.errors.numero?.message} />
                 </div>
@@ -386,7 +406,7 @@ function DadosEFotoTab({
                   <label className="text-sm font-medium">Bairro *</label>
                   <input
                     {...form.register('bairro')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   />
                   <ErroCampo mensagem={form.formState.errors.bairro?.message} />
                 </div>
@@ -394,7 +414,7 @@ function DadosEFotoTab({
                   <label className="text-sm font-medium">Cidade *</label>
                   <input
                     {...form.register('cidade')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   />
                   <ErroCampo mensagem={form.formState.errors.cidade?.message} />
                 </div>
@@ -403,15 +423,21 @@ function DadosEFotoTab({
                   <input
                     {...form.register('estado')}
                     maxLength={2}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm uppercase"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm uppercase"
                   />
                   <ErroCampo mensagem={form.formState.errors.estado?.message} />
                 </div>
               </div>
 
-              <Button type="submit" disabled={salvar.isPending}>
-                {salvar.isPending ? 'Salvando…' : 'Salvar alterações'}
-              </Button>
+              <div className="flex justify-end pt-1">
+                <Button
+                  type="submit"
+                  className="min-h-11 w-full sm:w-auto"
+                  disabled={salvar.isPending}
+                >
+                  {salvar.isPending ? 'Salvando…' : 'Salvar alterações'}
+                </Button>
+              </div>
             </>
           )}
         </FormShell>
@@ -558,7 +584,7 @@ function CargosTab({ idAssociado }: { idAssociado: number }) {
                   <label className="text-sm font-medium">Cargo *</label>
                   <input
                     {...form.register('titulo_cargo')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   />
                   <ErroCampo
                     mensagem={form.formState.errors.titulo_cargo?.message}
@@ -569,7 +595,7 @@ function CargosTab({ idAssociado }: { idAssociado: number }) {
                   <input
                     type="date"
                     {...form.register('data_posse')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   />
                 </div>
                 <Button type="submit" disabled={criar.isPending}>
@@ -691,7 +717,7 @@ function FamiliaTab({ idPessoaTitular }: { idPessoaTitular: number }) {
                   </label>
                   <select
                     {...form.register('grau_parentesco')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   >
                     <option value="">Selecione…</option>
                     {(graus ?? []).map((o) => (
@@ -708,7 +734,7 @@ function FamiliaTab({ idPessoaTitular }: { idPessoaTitular: number }) {
                   <label className="text-sm font-medium">Já é associado?</label>
                   <select
                     {...form.register('id_pessoa_vinculada')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   >
                     <option value="">Não - é uma pessoa nova</option>
                     {(associados ?? []).map((a) => (
@@ -729,7 +755,7 @@ function FamiliaTab({ idPessoaTitular }: { idPessoaTitular: number }) {
                   </label>
                   <input
                     {...form.register('nome_completo')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   />
                   <ErroCampo
                     mensagem={form.formState.errors.nome_completo?.message}
@@ -742,7 +768,7 @@ function FamiliaTab({ idPessoaTitular }: { idPessoaTitular: number }) {
                   <input
                     type="date"
                     {...form.register('data_nascimento')}
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="mt-1 h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   />
                 </div>
                 <Button type="submit" disabled={adicionar.isPending}>
