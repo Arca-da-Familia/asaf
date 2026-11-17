@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.associados import Associado
+from app.models.associados import Associado, DependenteFamiliar
 from app.models.core import Usuario
 from app.models.pessoas import Pessoa
 from app.models.qualidade_cadastro import PENDENTE, FilaRevisaoCadastro
@@ -79,6 +79,75 @@ def listar_fila_revisao(status: str = PENDENTE, db: Session = Depends(get_db), _
     return resultado
 
 
+def _lado_da_comparacao(db: Session, pessoa: Pessoa) -> dict:
+    """Um lado da comparação de cadastros duplicados: os dados da pessoa (o CPF ESCONDIDO, como em toda lista - v7.3a), o cadastro de associado
+    (matrícula, desde quando, categoria, situação, endereço) e o tamanho do que vem junto (mensalidades, família)."""
+    from app.models.associados import Endereco
+    from app.models.financeiro import TituloFinanceiro
+    from app.services import cpf_protegido
+
+    associado = db.query(Associado).filter(Associado.id_pessoa == pessoa.id_pessoa).first()
+    lado = {
+        "id_pessoa": pessoa.id_pessoa,
+        "nome_completo": pessoa.nome_completo,
+        "cpf_mascarado": cpf_protegido.mascarar(pessoa.cpf),
+        "data_nascimento": pessoa.data_nascimento.date().isoformat() if pessoa.data_nascimento else None,
+        "email_contato": pessoa.email_contato,
+        "telefone_whatsapp": pessoa.telefone_whatsapp,
+        "estado_civil": pessoa.estado_civil,
+        "profissao": pessoa.profissao,
+        "naturalidade": pessoa.naturalidade,
+        "tem_foto": bool(pessoa.foto),
+        "familiares": db.query(DependenteFamiliar).filter(DependenteFamiliar.id_pessoa_titular == pessoa.id_pessoa).count(),
+        "associado": None,
+    }
+    if associado is not None:
+        endereco = db.query(Endereco).filter(Endereco.id_associado == associado.id_associado).first()
+        titulos = db.query(TituloFinanceiro.status).filter(TituloFinanceiro.id_associado == associado.id_associado).all()
+        lado["associado"] = {
+            "id_associado": associado.id_associado,
+            "numero_matricula": associado.numero_matricula,
+            "data_admissao": associado.data_admissao.date().isoformat() if associado.data_admissao else None,
+            "categoria": associado.categoria,
+            "status_arrolamento": associado.status_arrolamento,
+            "endereco": ", ".join(p for p in [
+                endereco.logradouro, endereco.numero, endereco.bairro, endereco.cidade and f"{endereco.cidade}/{endereco.estado or ''}".rstrip("/"),
+            ] if p) if endereco else None,
+            "titulos_pagos": sum(1 for (st,) in titulos if st == "Pago"),
+            "titulos_em_aberto": sum(1 for (st,) in titulos if st == "Pendente"),
+        }
+    return lado
+
+
+@router.get("/api/pessoas/fila-revisao/{id_fila}/comparar", summary="Os dois cadastros de um possível duplicado, lado a lado (CPF escondido)")
+def comparar_item_fila(id_fila: int, db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_associados)):
+    """v9.5 (Qualidade da base passo a passo, desenho aprovado pelo Presidente): o passo "Comparar" da tela. Quando os dois são associados, diz
+    qual cadastro FICA (o da matrícula mais antiga) - a junção recusa o contrário."""
+    from app.services.mesclagem import mais_antigo
+
+    item = db.query(FilaRevisaoCadastro).filter(FilaRevisaoCadastro.id_fila == id_fila).first()
+    if not item or not item.id_pessoa_b:
+        raise HTTPException(status_code=404, detail="Item da fila não encontrado ou não é um possível duplicado.")
+    pessoa_a = db.query(Pessoa).filter(Pessoa.id_pessoa == item.id_pessoa_a).first()
+    pessoa_b = db.query(Pessoa).filter(Pessoa.id_pessoa == item.id_pessoa_b).first()
+    if not pessoa_a or not pessoa_b:
+        raise HTTPException(status_code=404, detail="Um dos dois cadastros não existe mais (já foi juntado?).")
+    a, b = _lado_da_comparacao(db, pessoa_a), _lado_da_comparacao(db, pessoa_b)
+    associado_a = db.query(Associado).filter(Associado.id_pessoa == pessoa_a.id_pessoa).first()
+    associado_b = db.query(Associado).filter(Associado.id_pessoa == pessoa_b.id_pessoa).first()
+    if associado_a and associado_b:
+        fica = pessoa_a.id_pessoa if mais_antigo(associado_a) <= mais_antigo(associado_b) else pessoa_b.id_pessoa
+    elif associado_b and not associado_a:
+        fica = pessoa_b.id_pessoa  # o cadastro de associado sempre fica (a pessoa sem cadastro de associado é que é juntada a ele)
+    else:
+        fica = pessoa_a.id_pessoa
+    return {
+        "id_fila": item.id_fila, "tipo_sinal": item.tipo_sinal, "detalhe": item.detalhe,
+        "fica": fica, "os_dois_sao_associados": bool(associado_a and associado_b),
+        "a": a, "b": b,
+    }
+
+
 @router.post("/api/pessoas/fila-revisao/{id_fila}/ignorar", summary="Marcar item da fila como não sendo um problema real")
 def ignorar_item_fila(id_fila: int, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_associados)):
     item = db.query(FilaRevisaoCadastro).filter(FilaRevisaoCadastro.id_fila == id_fila).first()
@@ -96,7 +165,9 @@ def mesclar(
     id_pessoa_mantida: int, dados: MesclarPessoasRequest,
     db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_associados),
 ):
-    resultado = mesclar_pessoas(db, id_pessoa_mantida, dados.id_pessoa_absorvida, dados.nome_confirmacao, usuario=usuario)
+    resultado = mesclar_pessoas(
+        db, id_pessoa_mantida, dados.id_pessoa_absorvida, dados.nome_confirmacao, usuario=usuario, escolhas=dados.escolhas,
+    )
 
     # Qualquer entrada pendente na fila que envolvia qualquer uma das duas pessoas fica
     # desatualizada depois da mesclagem - resolve automaticamente, sem deixar pendência morta.

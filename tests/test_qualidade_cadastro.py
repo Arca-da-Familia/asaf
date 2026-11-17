@@ -143,17 +143,171 @@ def test_mesclar_pessoas_preserva_historico_e_apaga_absorvida(client, auth_heade
     assert mantida.email_contato == "absorvido@x.com"  # preencheu o campo que estava vazio
 
 
-def test_mesclar_duas_pessoas_ja_associado_bloqueado_de_verdade(client, auth_headers, db):
-    a = _criar_associado(client, nome_completo="Associado Bloqueio Um")
-    b = _criar_associado(client, nome_completo="Associado Bloqueio Dois")
-    id_pessoa_a = db.query(Associado).filter(Associado.id_associado == a["id_associado"]).first().id_pessoa
-    id_pessoa_b = db.query(Associado).filter(Associado.id_associado == b["id_associado"]).first().id_pessoa
+# ---------------------------------------------------------------------------
+# v9.5 (decisão do Presidente, 13/11/2026): dois cadastros de associado da mesma pessoa - fica a matrícula mais antiga e o número
+# que fica livre vai para o próximo associado novo
+# ---------------------------------------------------------------------------
+def _dois_associados(client, db, prefixo):
+    """Dois cadastros de associado (o primeiro mais antigo), com endereço, e-mail e telefone diferentes."""
+    from datetime import datetime
+
+    antigo = _criar_associado(client, nome_completo=f"{prefixo} Nonato da Silva", telefone_whatsapp="91988881234", cidade="Belem", estado="PA")
+    novo = _criar_associado(client, nome_completo=f"{prefixo} N. da Silva", telefone_whatsapp="91991234567", cidade="Ananindeua", estado="PA")
+    a_antigo = db.query(Associado).filter(Associado.id_associado == antigo["id_associado"]).first()
+    a_novo = db.query(Associado).filter(Associado.id_associado == novo["id_associado"]).first()
+    a_antigo.data_admissao = datetime(2019, 3, 1)
+    a_novo.data_admissao = datetime(2025, 8, 1)
+    db.commit()
+    return a_antigo, a_novo
+
+
+def _titulo(db, id_associado, status):
+    from datetime import datetime, timedelta
+    from decimal import Decimal
+
+    from app.models.financeiro import TituloFinanceiro
+
+    t = TituloFinanceiro(
+        tipo_titulo="Receber", id_associado=id_associado, descricao="Mensalidade de teste", valor_original=Decimal("30.00"),
+        saldo_devedor=Decimal("0.00") if status == "Pago" else Decimal("30.00"), data_vencimento=datetime.utcnow() + timedelta(days=10),
+        status=status,
+    )
+    db.add(t)
+    db.commit()
+    return t.id_titulo
+
+
+def test_juntar_dois_associados_fica_a_matricula_mais_antiga_e_tudo_passa_para_ela(client, auth_headers, db):
+    from app.models.associados import Endereco
+    from app.models.core import AuditLog
+    from app.models.financeiro import TituloFinanceiro
+
+    antigo, novo = _dois_associados(client, db, "Raimundo Juntar")
+    id_antigo, id_novo = antigo.id_associado, novo.id_associado
+    matricula_antiga, matricula_nova = antigo.numero_matricula, novo.numero_matricula
+    pessoa_antiga, pessoa_nova = antigo.id_pessoa, novo.id_pessoa
+    titulo_do_novo = _titulo(db, id_novo, "Pago")
+    _titulo(db, id_antigo, "Pago")
 
     r = client.post(
-        f"/api/pessoas/{id_pessoa_a}/mesclar", headers=auth_headers,
-        json={"id_pessoa_absorvida": id_pessoa_b, "nome_confirmacao": "Associado Bloqueio Dois"},
+        f"/api/pessoas/{pessoa_antiga}/mesclar", headers=auth_headers,
+        json={
+            "id_pessoa_absorvida": pessoa_nova, "nome_confirmacao": "Raimundo Juntar N. da Silva",
+            # o telefone e o endereço do cadastro novo é que estão certos; o nome fica o completo (do antigo)
+            "escolhas": {"telefone_whatsapp": "absorvida", "endereco": "absorvida", "nome_completo": "mantida"},
+        },
+    )
+    assert r.status_code == 200, r.text
+    corpo = r.json()
+    assert corpo["matricula_mantida"] == matricula_antiga
+    assert corpo["matricula_liberada"] == matricula_nova
+
+    db.expire_all()
+    assert db.query(Associado).filter(Associado.id_associado == id_novo).first() is None, "o cadastro de associado juntado sai"
+    mantido = db.query(Associado).filter(Associado.id_associado == id_antigo).first()
+    assert mantido.numero_matricula == matricula_antiga
+    assert db.query(TituloFinanceiro).filter(TituloFinanceiro.id_titulo == titulo_do_novo).first().id_associado == id_antigo
+    pessoa = db.query(Pessoa).filter(Pessoa.id_pessoa == pessoa_antiga).first()
+    assert pessoa.nome_completo == "Raimundo Juntar Nonato da Silva"
+    assert pessoa.telefone_whatsapp == "91991234567"
+    enderecos = db.query(Endereco).filter(Endereco.id_associado == id_antigo).all()
+    assert [e.cidade for e in enderecos] == ["Ananindeua"], "fica UM endereço, o escolhido"
+    assert db.query(Pessoa).filter(Pessoa.id_pessoa == pessoa_nova).first() is None
+
+    registro = db.query(AuditLog).filter(AuditLog.acao == "MESCLADO", AuditLog.id_registro_afetado == pessoa_antiga).order_by(AuditLog.id_log.desc()).first()
+    depois = registro.dados_depois if isinstance(registro.dados_depois, dict) else __import__("json").loads(registro.dados_depois)
+    assert depois["matricula_mantida"] == matricula_antiga and depois["matricula_liberada"] == matricula_nova
+    assert "telefone_whatsapp" in depois["campos_da_absorvida"]
+    assert "91991234567" not in str(depois), "a Auditoria guarda QUAIS campos vieram, nunca os valores"
+
+
+def test_juntar_recusa_quando_o_que_fica_e_o_cadastro_mais_novo(client, auth_headers, db):
+    antigo, novo = _dois_associados(client, db, "Joana Ordem")
+    r = client.post(
+        f"/api/pessoas/{novo.id_pessoa}/mesclar", headers=auth_headers,
+        json={"id_pessoa_absorvida": antigo.id_pessoa, "nome_confirmacao": "Joana Ordem Nonato da Silva"},
     )
     assert r.status_code == 409
+    assert f"nº {antigo.numero_matricula}" in r.json()["detail"]
+    db.expire_all()
+    assert db.query(Associado).filter(Associado.id_associado == novo.id_associado).first() is not None, "nada foi alterado"
+
+
+def test_o_numero_que_fica_livre_vai_para_o_proximo_associado_novo(client, auth_headers, db):
+    from app.services.matricula import proximo_numero_matricula
+
+    antigo, novo = _dois_associados(client, db, "Pedro Livre")
+    livre = novo.numero_matricula
+    # o número livre só é o menor se todos os anteriores estiverem em uso: confere o comportamento a partir do estado do banco de teste
+    usados = {n for (n,) in db.query(Associado.numero_matricula).all() if n is not None}
+    r = client.post(
+        f"/api/pessoas/{antigo.id_pessoa}/mesclar", headers=auth_headers,
+        json={"id_pessoa_absorvida": novo.id_pessoa, "nome_confirmacao": "Pedro Livre N. da Silva"},
+    )
+    assert r.status_code == 200, r.text
+    db.expire_all()
+    esperado = min(n for n in range(1, max(usados) + 2) if n not in (usados - {livre}))
+    assert proximo_numero_matricula(db) == esperado
+    assert esperado <= livre, "o número liberado (ou um buraco anterior a ele) é reaproveitado, nunca o maior + 1 por cima de um livre"
+    criado = _criar_associado(client, nome_completo="Pedro Chegando Agora")
+    assert db.query(Associado).filter(Associado.id_associado == criado["id_associado"]).first().numero_matricula == esperado
+
+
+def test_juntar_com_cpf_escolhido_da_juntada_e_campo_desconhecido(client, auth_headers, db):
+    antigo, novo = _dois_associados(client, db, "Cpf Escolhido")
+    cpf_do_novo = db.query(Pessoa).filter(Pessoa.id_pessoa == novo.id_pessoa).first().cpf
+    r_ruim = client.post(
+        f"/api/pessoas/{antigo.id_pessoa}/mesclar", headers=auth_headers,
+        json={"id_pessoa_absorvida": novo.id_pessoa, "nome_confirmacao": "Cpf Escolhido N. da Silva", "escolhas": {"senha": "absorvida"}},
+    )
+    assert r_ruim.status_code == 400
+    r = client.post(
+        f"/api/pessoas/{antigo.id_pessoa}/mesclar", headers=auth_headers,
+        json={"id_pessoa_absorvida": novo.id_pessoa, "nome_confirmacao": "Cpf Escolhido N. da Silva", "escolhas": {"cpf": "absorvida"}},
+    )
+    assert r.status_code == 200, r.text
+    db.expire_all()
+    assert db.query(Pessoa).filter(Pessoa.id_pessoa == antigo.id_pessoa).first().cpf == cpf_do_novo
+
+
+def test_juntar_dois_com_acesso_desliga_o_acesso_do_juntado(client, auth_headers, db):
+    from app.models.core import Usuario
+
+    antigo, novo = _dois_associados(client, db, "Acesso Duplo")
+    for associado, email in ((antigo, "acesso.antigo@x.com"), (novo, "acesso.novo@x.com")):
+        u = Usuario(email=email, senha_hash="x", ativo=True)
+        db.add(u)
+        db.commit()
+        associado.id_usuario = u.id_usuario
+        db.commit()
+    id_usuario_novo = novo.id_usuario
+    r = client.post(
+        f"/api/pessoas/{antigo.id_pessoa}/mesclar", headers=auth_headers,
+        json={"id_pessoa_absorvida": novo.id_pessoa, "nome_confirmacao": "Acesso Duplo N. da Silva"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["contagens"].get("acesso_ao_painel_desligado") == 1
+    db.expire_all()
+    assert db.query(Usuario).filter(Usuario.id_usuario == id_usuario_novo).first().ativo is False
+
+
+def test_comparar_mostra_os_dois_lados_com_o_cpf_escondido_e_quem_fica(client, auth_headers, db):
+    from app.models.qualidade_cadastro import FilaRevisaoCadastro
+
+    antigo, novo = _dois_associados(client, db, "Comparar Lados")
+    _titulo(db, novo.id_associado, "Pendente")
+    item = FilaRevisaoCadastro(tipo_sinal="duplicidade", id_pessoa_a=novo.id_pessoa, id_pessoa_b=antigo.id_pessoa, detalhe="teste")
+    db.add(item)
+    db.commit()
+    r = client.get(f"/api/pessoas/fila-revisao/{item.id_fila}/comparar", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    corpo = r.json()
+    assert corpo["os_dois_sao_associados"] is True
+    assert corpo["fica"] == antigo.id_pessoa, "fica o cadastro da matrícula mais antiga, mesmo estando do lado B"
+    assert corpo["a"]["cpf_mascarado"].startswith("***.***.***-")
+    assert "cpf" not in corpo["a"]
+    assert corpo["a"]["associado"]["titulos_em_aberto"] == 1
+    assert corpo["b"]["associado"]["data_admissao"] == "2019-03-01"
 
 
 # ---------------------------------------------------------------------------
