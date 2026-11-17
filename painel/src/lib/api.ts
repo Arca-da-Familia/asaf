@@ -6092,6 +6092,14 @@ export type LadoDaComparacao = {
   } | null
 }
 
+// v9.5f (conferência): o servidor classifica cada campo pela MESMA regra da junção - a tela só mostra
+export type CampoDaJuncao = {
+  chave: string
+  fica: string | null
+  sai: string | null
+  modo: 'igual' | 'so_um' | 'vem_do_juntado' | 'escolher'
+}
+
 export type ComparacaoDeDuplicado = {
   id_fila: number
   tipo_sinal: string
@@ -6100,6 +6108,10 @@ export type ComparacaoDeDuplicado = {
   os_dois_sao_associados: boolean
   a: LadoDaComparacao
   b: LadoDaComparacao
+  campos: CampoDaJuncao[]
+  cpf_diferente: boolean
+  situacao: { fica: string | null; sai: string | null; depois: string } | null
+  acesso: { fica: string; sai: string; depois: string } | null
 }
 
 export function compararItemDaFila(
@@ -6137,6 +6149,8 @@ export function mesclarPessoas(
     nome_confirmacao: string
     // v9.5f: para cada dado que difere, qual fica ("mantida" = o cadastro que fica; "absorvida" = o juntado)
     escolhas?: Record<string, 'mantida' | 'absorvida'>
+    // v9.5f: dois cadastros de associado só se juntam a partir do item pendente da fila que aponta o par
+    id_fila?: number
   },
 ): Promise<{
   mensagem: string

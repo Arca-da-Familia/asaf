@@ -18,7 +18,7 @@ mensalidades das duas juntas.
 
 **Limite de segurança deliberado**: se as duas pessoas já são `Funcionario` ao mesmo tempo, a mesclagem é RECUSADA - qual vínculo empregatício
 prevalece é decisão que este serviço não tenta adivinhar."""
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from fastapi import HTTPException
@@ -55,7 +55,7 @@ def _repontar_demais_referencias(db: Session, id_pessoa_mantida: int, id_pessoa_
     nova não escapa)."""
     from app.database import Base
 
-    for tabela in Base.metadata.sorted_tables:
+    for tabela in Base.metadata.tables.values():
         for fk in tabela.foreign_keys:
             if fk.column.table.name != "pessoas" or (tabela.name, fk.parent.name) in _TRATADAS_UMA_A_UMA:
                 continue
@@ -67,15 +67,236 @@ def _repontar_demais_referencias(db: Session, id_pessoa_mantida: int, id_pessoa_
 # o que a pessoa pode escolher na tela: os dados da pessoa, a categoria e o endereço do cadastro de associado
 CAMPOS_ESCOLHIVEIS = ["nome_completo", *_CAMPOS_PESSOAIS, "categoria", "endereco"]
 _CAMPOS_UNICOS = {"cpf"}  # dois cadastros não podem ter o mesmo ao mesmo tempo: a absorvida solta o dela antes
+DESLIGADO = "Desligado"
+SUSPENSO = "Suspenso (Estatuto)"
+LICENCIADO = "Licenciado"
+
+# v9.5 (conferência independente, 17/11): registros que só podem existir UMA vez por associado. "manter_um" = é o mesmo fato registrado duas
+# vezes (a mesma pessoa habilitada, credenciada, avisada...): fica o do cadastro que fica, com o que o outro tinha a mais (lido, confirmado...).
+# "recusar" = dois votos ou duas manifestações da mesma pessoa no mesmo assunto: isso não se resolve sozinho.
+_UNICOS_POR_ASSOCIADO = {
+    "habilitados_assembleia": (("id_assembleia",), "manter_um", None),
+    "credenciamentos_assembleia": (("id_assembleia",), "manter_um", None),
+    "justificativas_falta_assembleia": (("id_assembleia",), "manter_um", None),
+    "adesoes_peticao": (("id_peticao",), "manter_um", None),
+    "avisos_destinatarios": (("id_aviso",), "manter_um", None),
+    "propostas_de_socios": (("id_proposta",), "manter_um", None),
+    "votos_abertos": (("id_votacao",), "recusar", "um voto na mesma votação"),
+    "comprovantes_voto_secreto": (("id_votacao",), "recusar", "um voto secreto na mesma votação"),
+    "manifestacoes_diretoria_disciplinar": (("id_processo",), "recusar", "uma manifestação no mesmo processo disciplinar"),
+}
+
+
+def _vazio(valor) -> bool:
+    return valor is None or (isinstance(valor, str) and not valor.strip())
+
+
+def _so_digitos(valor) -> str:
+    return "".join(c for c in str(valor or "") if c.isdigit())
+
+
+def _data_de_entrada(associado: Associado) -> date:
+    """A data de entrada no dia de Belém (a hora não decide quem é mais antigo)."""
+    from app.services.fuso import para_belem
+
+    return para_belem(associado.data_admissao).date() if associado.data_admissao else date.max
 
 
 def mais_antigo(associado: Associado) -> tuple:
-    """A ordem de "quem é mais antigo": data de entrada, depois o número de matrícula (nunca muda o resultado de quem já tinha data)."""
+    """A ordem de "quem é mais antigo": o DIA de entrada, depois o número de matrícula, depois o número interno."""
     return (
-        associado.data_admissao or datetime.max,
+        _data_de_entrada(associado),
         associado.numero_matricula if associado.numero_matricula is not None else 10**9,
         associado.id_associado,
     )
+
+
+def _endereco_de(db: Session, associado: Optional[Associado]):
+    """O endereço com conteúdo (uma linha em branco, que a ficha cria ao salvar sem endereço, conta como sem endereço)."""
+    if associado is None:
+        return None
+    for e in db.query(Endereco).filter(Endereco.id_associado == associado.id_associado).all():
+        if any(not _vazio(getattr(e, c)) for c in ("cep", "logradouro", "numero", "bairro", "cidade", "estado")):
+            return e
+    return None
+
+
+def texto_do_endereco(e) -> Optional[str]:
+    if e is None:
+        return None
+    cidade = "/".join(p for p in [(e.cidade or "").strip(), (e.estado or "").strip()] if p)
+    return ", ".join(p for p in [(e.logradouro or "").strip(), (e.numero or "").strip(), (e.bairro or "").strip(), cidade] if p) or None
+
+
+def classificar_campos(db: Session, mantida: Pessoa, absorvida: Pessoa, assoc_m: Optional[Associado], assoc_a: Optional[Associado]) -> list[dict]:
+    """Uma linha por dado, com o valor de cada lado e o que acontece: "igual", "so_um" (só o que fica tem), "vem_do_juntado" (só o juntado tem:
+    vem dele) ou "escolher" (os dois têm e são diferentes). A MESMA regra vale para a tela (comparar) e para a junção: o que a tela mostra em
+    "Vai ficar assim" é o que o servidor grava. Os valores que vão para a tela já vêm escondidos onde precisa (o CPF) - a comparação usa o real."""
+    from app.services import cpf_protegido
+
+    def linha(chave, real_m, real_a, mostrar=lambda v: v, igual=lambda a, b: a == b):
+        if _vazio(real_m) and _vazio(real_a):
+            modo = "igual"
+        elif _vazio(real_a):
+            modo = "so_um"
+        elif _vazio(real_m):
+            modo = "vem_do_juntado" if chave != "nome_completo" else "escolher"
+        elif igual(real_m, real_a):
+            modo = "igual"
+        else:
+            modo = "escolher"
+        return {
+            "chave": chave,
+            "fica": None if _vazio(real_m) else mostrar(real_m),
+            "sai": None if _vazio(real_a) else mostrar(real_a),
+            "modo": modo,
+        }
+
+    data = lambda v: v.date().isoformat() if isinstance(v, datetime) else (v.isoformat() if v else None)
+    linhas = [
+        linha("nome_completo", mantida.nome_completo, absorvida.nome_completo, igual=lambda a, b: a.strip().lower() == b.strip().lower()),
+        linha("cpf", mantida.cpf, absorvida.cpf, mostrar=cpf_protegido.mascarar, igual=lambda a, b: _so_digitos(a) == _so_digitos(b)),
+        linha("data_nascimento", mantida.data_nascimento, absorvida.data_nascimento, mostrar=data, igual=lambda a, b: data(a) == data(b)),
+        linha("email_contato", mantida.email_contato, absorvida.email_contato, igual=lambda a, b: a.strip().lower() == b.strip().lower()),
+        linha("telefone_whatsapp", mantida.telefone_whatsapp, absorvida.telefone_whatsapp, igual=lambda a, b: _so_digitos(a) == _so_digitos(b)),
+        linha("estado_civil", mantida.estado_civil, absorvida.estado_civil),
+        linha("profissao", mantida.profissao, absorvida.profissao),
+        linha("naturalidade", mantida.naturalidade, absorvida.naturalidade),
+        linha("foto", mantida.foto, absorvida.foto),
+    ]
+    if assoc_m and assoc_a:
+        linhas.append(linha("categoria", assoc_m.categoria, assoc_a.categoria))
+        linhas.append(linha(
+            "endereco", texto_do_endereco(_endereco_de(db, assoc_m)), texto_do_endereco(_endereco_de(db, assoc_a)),
+            igual=lambda a, b: a.strip().lower() == b.strip().lower(),
+        ))
+    return linhas
+
+
+def _vem_da_absorvida(linha: dict, escolhas: dict) -> bool:
+    escolha = escolhas.get(linha["chave"])
+    if linha["modo"] == "escolher":
+        return escolha == "absorvida"
+    if linha["modo"] == "vem_do_juntado":
+        return escolha != "mantida"
+    return False
+
+
+def situacao_depois(assoc_m: Associado, assoc_a: Associado) -> tuple[str, str]:
+    """(de onde vem, explicação) da situação depois de juntar dois cadastros de associado. A matrícula mais antiga sempre fica, mas a situação
+    ATUAL da pessoa vale ("mesmo que a nova esteja atualizada", nas palavras do Presidente): se o cadastro que fica está desligado ou licenciado
+    e o juntado não está desligado, a situação vem do juntado. Suspensão (Estatuto) nunca some numa junção, de qualquer lado."""
+    if SUSPENSO in (assoc_m.status_arrolamento, assoc_a.status_arrolamento):
+        return "suspenso", f"Continua {SUSPENSO}: uma suspensão não some ao juntar"
+    if assoc_m.status_arrolamento in (DESLIGADO, LICENCIADO) and assoc_a.status_arrolamento != DESLIGADO:
+        return "juntado", f"Fica a do cadastro juntado ({assoc_a.status_arrolamento}), recalculada com as mensalidades das duas"
+    return "recalcular", "Calculada de novo com as mensalidades das duas"
+
+
+def escolher_acesso(db: Session, assoc_m: Associado, assoc_a: Associado, id_operador: Optional[int]):
+    """(login que fica, login que é desligado, explicação). Uma pessoa, um acesso: fica o login ATIVO; entre dois ativos, o de quem está
+    operando (nunca se desliga o próprio acesso de quem junta), depois o que tem o segundo passo ligado, depois o do cadastro que fica. Login
+    desligado nunca é herdado."""
+    um = db.query(Usuario).filter(Usuario.id_usuario == assoc_m.id_usuario).first() if assoc_m.id_usuario else None
+    dois = db.query(Usuario).filter(Usuario.id_usuario == assoc_a.id_usuario).first() if assoc_a.id_usuario else None
+    if dois is None:
+        return um, None, "Fica o acesso do cadastro que fica" if um else "Nenhum dos dois tem acesso ao painel"
+    if um is None:
+        if dois.ativo:
+            return dois, None, "Passa para o cadastro que fica o acesso do juntado"
+        return None, None, "O acesso do juntado já estava desligado: não passa"
+    if um.ativo and not dois.ativo:
+        return um, None, "Fica o acesso do cadastro que fica (o do juntado já estava desligado)"
+    if dois.ativo and not um.ativo:
+        return dois, None, "Fica o acesso ativo, que era do juntado (o do cadastro que fica estava desligado)"
+    if not um.ativo and not dois.ativo:
+        return um, None, "Os dois acessos estavam desligados"
+    fica, sai = um, dois
+    if id_operador == dois.id_usuario or (id_operador != um.id_usuario and dois.mfa_ativado and not um.mfa_ativado):
+        fica, sai = dois, um
+    return fica, sai, "As duas tinham acesso: fica um só e o outro é desligado"
+
+
+def _resolver_unicos(db: Session, id_mantido: int, id_absorvido: int, contagens: dict) -> None:
+    from app.database import Base
+
+    for nome, (chaves, regra, descricao) in _UNICOS_POR_ASSOCIADO.items():
+        tabela = Base.metadata.tables.get(nome)
+        if tabela is None:
+            continue
+        coluna = next(fk.parent for fk in tabela.foreign_keys if fk.column.table.name == "associados")
+        pk = list(tabela.primary_key.columns)[0]
+        do_mantido = {tuple(r._mapping[c] for c in chaves): r for r in db.execute(tabela.select().where(coluna == id_mantido))}
+        for r in db.execute(tabela.select().where(coluna == id_absorvido)).all():
+            par = do_mantido.get(tuple(r._mapping[c] for c in chaves))
+            if par is None:
+                continue
+            if regra == "recusar":
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Os dois cadastros têm {descricao}: isso não se junta sozinho. Resolva antes de juntar; nada foi alterado.",
+                )
+            # o mesmo fato duas vezes: fica o do cadastro que fica, com as datas que só o outro tinha (lido, confirmado...)
+            completar = {
+                c.name: r._mapping[c.name] for c in tabela.columns
+                if c.name.endswith("_em") and r._mapping[c.name] is not None and par._mapping[c.name] is None
+            }
+            if completar:
+                db.execute(tabela.update().where(pk == par._mapping[pk.name]).values(completar))
+            db.execute(tabela.delete().where(pk == r._mapping[pk.name]))
+            contagens[f"repetidos_{nome}"] = contagens.get(f"repetidos_{nome}", 0) + 1
+
+
+def _resolver_mensalidades(db: Session, mantido: Associado, absorvido: Associado, contagens: dict) -> None:
+    """A mesma pessoa não paga o mesmo mês duas vezes (achado da conferência: os dois cadastros recebem a mensalidade todo mês). Por mês
+    (competência), qualquer que seja o plano: uma paga fica e as pendentes daquele mês são canceladas; nenhuma paga, fica a pendente do
+    cadastro que fica e a do juntado é cancelada; as DUAS pagas - pagamento em dobro - a junção é recusada (devolver ou virar crédito é decisão
+    do Financeiro, não daqui). A cancelada sai da trava de um título por plano e mês (fica sem plano, e a descrição diz por quê)."""
+    from app.models.financeiro import TituloFinanceiro
+
+    ativos = ("Pendente", "Pago")
+    titulos = db.query(TituloFinanceiro).filter(
+        TituloFinanceiro.id_associado.in_([mantido.id_associado, absorvido.id_associado]),
+        TituloFinanceiro.competencia.isnot(None),
+    ).all()
+    por_mes: dict[str, list] = {}
+    for t in titulos:
+        por_mes.setdefault(t.competencia, []).append(t)
+    em_dobro, canceladas = [], []
+    for mes, lista in sorted(por_mes.items()):
+        vivos = [t for t in lista if t.status in ativos]
+        if {t.id_associado for t in vivos} != {mantido.id_associado, absorvido.id_associado}:
+            continue
+        pagos = [t for t in vivos if t.status == "Pago"]
+        if len(pagos) >= 2:
+            em_dobro.append(f"{mes[5:7]}/{mes[:4]}")
+            continue
+        fica = pagos[0] if pagos else next(t for t in vivos if t.id_associado == mantido.id_associado)
+        for t in vivos:
+            if t is not fica:
+                canceladas.append(t)
+    if em_dobro:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Os dois cadastros pagaram a mensalidade de {', '.join(em_dobro)}. Resolva o pagamento em dobro no Financeiro (devolução ou "
+                   "crédito) antes de juntar; nada foi alterado.",
+        )
+    for t in canceladas:
+        t.status = "Cancelado"
+        t.descricao = f"{t.descricao or 'Mensalidade'} (cancelada: cobrança em dobro do mesmo mês, na junção de cadastros duplicados)"
+        t.id_plano_contribuicao = None
+    db.flush()
+    # o que sobrou de antigo (cancelado, renegociado) no juntado e esbarra na trava de plano e mês do que fica: sai do plano, como o cancelado
+    mesmo_plano_e_mes = {
+        (t.id_plano_contribuicao, t.competencia) for t in titulos if t.id_associado == mantido.id_associado and t.id_plano_contribuicao is not None
+    }
+    for t in titulos:
+        if t.id_associado == absorvido.id_associado and t.status not in ativos and (t.id_plano_contribuicao, t.competencia) in mesmo_plano_e_mes:
+            t.id_plano_contribuicao = None
+    db.flush()
+    if canceladas:
+        contagens["mensalidades_em_dobro_canceladas"] = len(canceladas)
+        contagens["ids_titulos_cancelados"] = [t.id_titulo for t in canceladas]
 
 
 def _repontar_referencias_do_associado(db: Session, id_mantido: int, id_absorvido: int, contagens: dict) -> None:
@@ -83,7 +304,7 @@ def _repontar_referencias_do_associado(db: Session, id_mantido: int, id_absorvid
     escapa). O endereço tem regra própria (um só fica)."""
     from app.database import Base
 
-    for tabela in Base.metadata.sorted_tables:
+    for tabela in Base.metadata.tables.values():
         if tabela.name == "enderecos":
             continue
         for fk in tabela.foreign_keys:
@@ -95,35 +316,57 @@ def _repontar_referencias_do_associado(db: Session, id_mantido: int, id_absorvid
                 contagens[chave] = contagens.get(chave, 0) + resultado.rowcount
 
 
-def _juntar_associados(db: Session, mantido: Associado, absorvido: Associado, escolhas: dict, contagens: dict) -> None:
-    # endereço: fica um só - o escolhido, ou o da mantida (se ela não tiver, o da absorvida)
-    enderecos_mantido = db.query(Endereco).filter(Endereco.id_associado == mantido.id_associado).all()
-    enderecos_absorvido = db.query(Endereco).filter(Endereco.id_associado == absorvido.id_associado).all()
-    usar_o_da_absorvida = enderecos_absorvido and (escolhas.get("endereco") == "absorvida" or not enderecos_mantido)
-    for endereco in enderecos_mantido if usar_o_da_absorvida else enderecos_absorvido:
+def _juntar_associados(
+    db: Session, mantido: Associado, absorvido: Associado, linhas: list[dict], escolhas: dict, contagens: dict, id_operador: Optional[int],
+) -> None:
+    # endereço: fica um só, o que a classificação disser (o em branco não conta como endereço)
+    linha_end = next((l for l in linhas if l["chave"] == "endereco"), None)
+    usar_o_da_absorvida = bool(linha_end and _vem_da_absorvida(linha_end, escolhas))
+    for endereco in db.query(Endereco).filter(
+        Endereco.id_associado == (mantido.id_associado if usar_o_da_absorvida else absorvido.id_associado)
+    ).all():
         db.delete(endereco)
     if usar_o_da_absorvida:
-        for endereco in enderecos_absorvido:
+        for endereco in db.query(Endereco).filter(Endereco.id_associado == absorvido.id_associado).all():
             endereco.id_associado = mantido.id_associado
     db.flush()
 
-    if escolhas.get("categoria") == "absorvida" and absorvido.categoria:
+    linha_cat = next((l for l in linhas if l["chave"] == "categoria"), None)
+    if linha_cat and _vem_da_absorvida(linha_cat, escolhas):
         mantido.categoria = absorvido.categoria
-    if not mantido.observacoes_gerenciais and absorvido.observacoes_gerenciais:
-        mantido.observacoes_gerenciais = absorvido.observacoes_gerenciais
+    # observações: nenhuma se perde - juntam-se as duas
+    if not _vazio(absorvido.observacoes_gerenciais):
+        if _vazio(mantido.observacoes_gerenciais):
+            mantido.observacoes_gerenciais = absorvido.observacoes_gerenciais
+        elif absorvido.observacoes_gerenciais.strip() != mantido.observacoes_gerenciais.strip():
+            mantido.observacoes_gerenciais = (
+                f"{mantido.observacoes_gerenciais}\n— do cadastro juntado (matrícula {absorvido.numero_matricula}): {absorvido.observacoes_gerenciais}"
+            )
 
-    # acesso ao painel: uma pessoa, um acesso
-    if absorvido.id_usuario and not mantido.id_usuario:
-        mantido.id_usuario = absorvido.id_usuario
+    # a situação: suspensão nunca some; cadastro antigo desligado ou licenciado com o juntado ativo -> vale a do juntado (é a atual)
+    origem, _ = situacao_depois(mantido, absorvido)
+    if origem == "suspenso":
+        mantido.status_arrolamento = SUSPENSO
+    elif origem == "juntado":
+        mantido.status_arrolamento = absorvido.status_arrolamento
+        mantido.data_desligamento = absorvido.data_desligamento
+        mantido.data_fim_licenca = absorvido.data_fim_licenca
+        mantido.data_fim_experiencia = absorvido.data_fim_experiencia
+        contagens["situacao_do_juntado"] = 1
+
+    # acesso ao painel: uma pessoa, um acesso (ver escolher_acesso)
+    fica, sai, _ = escolher_acesso(db, mantido, absorvido, id_operador)
+    if sai is not None:
+        sai.ativo = False
+        contagens["acesso_ao_painel_desligado"] = sai.id_usuario
+    if fica is not None and fica.id_usuario != mantido.id_usuario:
         contagens["acesso_ao_painel_passou"] = 1
-    elif absorvido.id_usuario and absorvido.id_usuario != mantido.id_usuario:
-        usuario = db.query(Usuario).filter(Usuario.id_usuario == absorvido.id_usuario).first()
-        if usuario is not None:
-            usuario.ativo = False
-            contagens["acesso_ao_painel_desligado"] = 1
+    mantido.id_usuario = fica.id_usuario if fica is not None else mantido.id_usuario
     absorvido.id_usuario = None
     db.flush()
 
+    _resolver_unicos(db, mantido.id_associado, absorvido.id_associado, contagens)
+    _resolver_mensalidades(db, mantido, absorvido, contagens)
     _repontar_referencias_do_associado(db, mantido.id_associado, absorvido.id_associado, contagens)
     db.delete(absorvido)
     db.flush()
@@ -139,7 +382,7 @@ def _buscar_pessoa_ou_404(db: Session, id_pessoa: int) -> Pessoa:
 
 def mesclar_pessoas(
     db: Session, id_pessoa_mantida: int, id_pessoa_absorvida: int,
-    nome_confirmacao: str, usuario=None, escolhas: Optional[dict] = None,
+    nome_confirmacao: str, usuario=None, escolhas: Optional[dict] = None, id_fila: Optional[int] = None,
 ) -> dict:
     if id_pessoa_mantida == id_pessoa_absorvida:
         raise HTTPException(status_code=400, detail="Não é possível mesclar uma pessoa consigo mesma.")
@@ -161,15 +404,27 @@ def mesclar_pessoas(
 
     associado_mantida = db.query(Associado).filter(Associado.id_pessoa == id_pessoa_mantida).first()
     associado_absorvida = db.query(Associado).filter(Associado.id_pessoa == id_pessoa_absorvida).first()
-    if associado_mantida and associado_absorvida and mais_antigo(associado_absorvida) < mais_antigo(associado_mantida):
-        desde = associado_absorvida.data_admissao.strftime("%d/%m/%Y") if associado_absorvida.data_admissao else "a data mais antiga"
-        raise HTTPException(
-            status_code=409,
-            detail=f"Fica a matrícula mais antiga: a nº {associado_absorvida.numero_matricula} (desde {desde}). "
-                   "Escolha esse cadastro como o que fica e junte o outro a ele.",
-        )
+    dois_associados = bool(associado_mantida and associado_absorvida)
+    if dois_associados:
+        # v9.5 (conferência): juntar dois cadastros de ASSOCIADO só a partir de um par que a fila de revisão apontou e que ainda está pendente
+        from app.models.qualidade_cadastro import PENDENTE, FilaRevisaoCadastro
+
+        par = {id_pessoa_mantida, id_pessoa_absorvida}
+        item = db.query(FilaRevisaoCadastro).filter(FilaRevisaoCadastro.id_fila == id_fila).first() if id_fila else None
+        if item is None or item.status != PENDENTE or {item.id_pessoa_a, item.id_pessoa_b} != par:
+            raise HTTPException(
+                status_code=409,
+                detail="Dois cadastros de associado só se juntam a partir da fila da Qualidade da base (o par apontado como possível duplicado).",
+            )
+        if mais_antigo(associado_absorvida) < mais_antigo(associado_mantida):
+            desde = _data_de_entrada(associado_absorvida).strftime("%d/%m/%Y") if associado_absorvida.data_admissao else "a data mais antiga"
+            raise HTTPException(
+                status_code=409,
+                detail=f"Fica a matrícula mais antiga: a nº {associado_absorvida.numero_matricula} (desde {desde}). "
+                       "Escolha esse cadastro como o que fica e junte o outro a ele.",
+            )
     matricula_mantida = associado_mantida.numero_matricula if associado_mantida else None
-    matricula_liberada = associado_absorvida.numero_matricula if (associado_mantida and associado_absorvida) else None
+    matricula_liberada = associado_absorvida.numero_matricula if dois_associados else None
 
     funcionario_mantida = db.query(Funcionario).filter(Funcionario.id_pessoa == id_pessoa_mantida).first()
     funcionario_absorvida = db.query(Funcionario).filter(Funcionario.id_pessoa == id_pessoa_absorvida).first()
@@ -180,32 +435,80 @@ def mesclar_pessoas(
                    "empregatício deve prevalecer antes de mesclar.",
         )
 
+    linhas = classificar_campos(db, mantida, absorvida, associado_mantida, associado_absorvida)
+    fotos = (mantida.foto, absorvida.foto)
     contagens = {"papeis": 0, "associado": 0, "funcionario": 0, "termos_voluntariado": 0, "eventos_linha_do_tempo": 0, "dependentes": 0}
+    trazidos: list[str] = []
+    try:
+        _juntar_tudo(
+            db, mantida, absorvida, associado_mantida, associado_absorvida, funcionario_mantida, funcionario_absorvida,
+            linhas, escolhas, contagens, trazidos, usuario,
+        )
+        db.commit()
+    except HTTPException:
+        db.rollback()  # recusa no meio (pagamento em dobro, voto repetido): nada foi gravado
+        raise
+    except IntegrityError as erro:
+        # nada foi gravado até aqui (o commit é só neste ponto): desfaz tudo e explica, em vez de devolver erro 500
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="As duas pessoas têm registros que não dá para juntar sozinho (por exemplo, a mesma inscrição, presença ou ficha de "
+                   "beneficiário nas duas). Resolva esse registro manualmente antes de mesclar; nada foi alterado.",
+        ) from erro
 
-    tipos_papel_mantida = {
-        p.tipo_papel for p in db.query(Papel).filter(Papel.id_pessoa == id_pessoa_mantida).all()
-    }
+    # a foto que não ficou é apagada do armazenamento (depois do commit: falha aqui nunca desfaz a junção, só vai para o log)
+    from app.services import armazenamento
+
+    for foto in fotos:
+        if foto and foto != mantida.foto:
+            armazenamento.remover_url(foto)
+
+    registrar_auditoria(
+        db, usuario, "pessoas", "MESCLADO", id_registro_afetado=id_pessoa_mantida,
+        # v7.0b: sem o nome (a pessoa pode ser criança; a Auditoria não tem prazo de guarda): o número basta para saber quem foi absorvido.
+        # v9.5: as matrículas (a que fica e a que ficou livre), QUAIS campos vieram da absorvida (nunca os valores), o login desligado e as
+        # mensalidades em dobro canceladas (pelo número)
+        dados_depois={
+            "id_pessoa_absorvida": id_pessoa_absorvida, "contagens": contagens, "id_fila": id_fila,
+            "matricula_mantida": matricula_mantida, "matricula_liberada": matricula_liberada, "campos_da_absorvida": trazidos,
+        },
+    )
+    if dois_associados:
+        # a situação calculável (em dia, inadimplente, experiência, licença) é recalculada com as mensalidades das duas juntas
+        from app.services.categoria_associado import recalcular_categoria_associado
+
+        recalcular_categoria_associado(db, associado_mantida.id_associado, usuario=usuario)
+    return {"id_pessoa_mantida": id_pessoa_mantida, "contagens": contagens, "matricula_mantida": matricula_mantida, "matricula_liberada": matricula_liberada}
+
+
+def _juntar_tudo(
+    db: Session, mantida: Pessoa, absorvida: Pessoa, associado_mantida, associado_absorvida, funcionario_mantida, funcionario_absorvida,
+    linhas: list[dict], escolhas: dict, contagens: dict, trazidos: list, usuario,
+) -> None:
+    """Todas as mudanças da junção, sem commit: quem chama confirma tudo de uma vez ou desfaz tudo."""
+    id_pessoa_mantida, id_pessoa_absorvida = mantida.id_pessoa, absorvida.id_pessoa
+
+    # papéis: o mesmo papel nos dois fica um só - ATIVO se qualquer um dos dois estava ativo (a carteirinha de quem está ativo continua valendo)
+    papeis_mantida = {p.tipo_papel: p for p in db.query(Papel).filter(Papel.id_pessoa == id_pessoa_mantida).all()}
     for papel in db.query(Papel).filter(Papel.id_pessoa == id_pessoa_absorvida).all():
-        if papel.tipo_papel in tipos_papel_mantida:
-            db.delete(papel)  # mantida já tem o mesmo papel - descarta a duplicata
+        igual = papeis_mantida.get(papel.tipo_papel)
+        if igual is not None:
+            if papel.ativo and not igual.ativo:
+                igual.ativo = True
+            db.delete(papel)
         else:
             papel.id_pessoa = id_pessoa_mantida
             contagens["papeis"] += 1
+    db.flush()
 
     if associado_absorvida and not associado_mantida:
         associado_absorvida.id_pessoa = id_pessoa_mantida
         contagens["associado"] = 1
     elif associado_absorvida and associado_mantida:
-        try:
-            _juntar_associados(db, associado_mantida, associado_absorvida, escolhas, contagens)
-        except IntegrityError as erro:
-            # o mesmo voto, credenciamento ou voto de sócio nos dois cadastros: nada foi gravado (o commit é só no fim)
-            db.rollback()
-            raise HTTPException(
-                status_code=409,
-                detail="Os dois cadastros de associado têm registros que não dá para juntar sozinho (por exemplo, o mesmo voto ou o mesmo "
-                       "credenciamento de assembleia nos dois). Resolva esse registro antes de juntar; nada foi alterado.",
-            ) from erro
+        _juntar_associados(
+            db, associado_mantida, associado_absorvida, linhas, escolhas, contagens, usuario.id_usuario if usuario is not None else None,
+        )
 
     if funcionario_absorvida and not funcionario_mantida:
         funcionario_absorvida.id_pessoa = id_pessoa_mantida
@@ -250,46 +553,26 @@ def mesclar_pessoas(
         dep.id_pessoa_vinculada = novo_vinculada
         contagens["dependentes"] += 1
 
-    # Os dados da pessoa: o que a tela escolheu; sem escolha, fica o da mantida e só o que ela não tem vem da absorvida (nunca sobrescreve
-    # um valor que a mantida já tem sem alguém ter escolhido). Escolher "absorvida" num campo vazio dela não apaga o da mantida.
-    trazidos = []
-    for campo in ["nome_completo", *_CAMPOS_PESSOAIS]:
-        valor = getattr(absorvida, campo)
-        if valor is None or valor == "":
+    # Os dados da pessoa, pela MESMA classificação que a tela mostrou (classificar_campos): o que difere, pela escolha; o que só a absorvida
+    # tem, vem dela; o resto fica como está na mantida.
+    for linha in linhas:
+        campo = linha["chave"]
+        if campo in ("categoria", "endereco") or not _vem_da_absorvida(linha, escolhas):
             continue
-        escolha = escolhas.get(campo)
-        if escolha == "absorvida" or (escolha is None and campo != "nome_completo" and getattr(mantida, campo) is None):
-            if campo in _CAMPOS_UNICOS:
-                setattr(absorvida, campo, None)
-                db.flush()
-            setattr(mantida, campo, valor)
-            trazidos.append(campo)
+        valor = getattr(absorvida, campo)
+        if campo in _CAMPOS_UNICOS:
+            setattr(absorvida, campo, None)
+            db.flush()
+        setattr(mantida, campo, valor)
+        trazidos.append(campo)
+    # habilidades (do voluntariado): ficam as dos dois
+    if not _vazio(absorvida.habilidades):
+        juntas = [h for h in (mantida.habilidades or "").split(",") if h.strip()]
+        for h in absorvida.habilidades.split(","):
+            if h.strip() and h.strip() not in [x.strip() for x in juntas]:
+                juntas.append(h.strip())
+        mantida.habilidades = ",".join(x.strip() for x in juntas)
 
-    try:
-        _repontar_demais_referencias(db, id_pessoa_mantida, id_pessoa_absorvida, contagens)
-        db.delete(absorvida)
-        db.commit()
-    except IntegrityError as erro:
-        # nada foi gravado até aqui (o commit é só neste ponto): desfaz tudo e explica, em vez de devolver erro 500
-        db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="As duas pessoas têm registros que não dá para juntar sozinho (por exemplo, a mesma inscrição, presença ou ficha de "
-                   "beneficiário nas duas). Resolva esse registro manualmente antes de mesclar; nada foi alterado.",
-        ) from erro
-
-    registrar_auditoria(
-        db, usuario, "pessoas", "MESCLADO", id_registro_afetado=id_pessoa_mantida,
-        # v7.0b: sem o nome (a pessoa pode ser criança; a Auditoria não tem prazo de guarda): o número basta para saber quem foi absorvido.
-        # v9.5: as matrículas (a que fica e a que ficou livre) e QUAIS campos vieram da absorvida - os nomes dos campos, nunca os valores
-        dados_depois={
-            "id_pessoa_absorvida": id_pessoa_absorvida, "contagens": contagens,
-            "matricula_mantida": matricula_mantida, "matricula_liberada": matricula_liberada, "campos_da_absorvida": trazidos,
-        },
-    )
-    if associado_mantida and associado_absorvida:
-        # a situação não se escolhe: com as mensalidades das duas juntas, é calculada de novo (só nos estados que o sistema calcula)
-        from app.services.categoria_associado import recalcular_categoria_associado
-
-        recalcular_categoria_associado(db, associado_mantida.id_associado, usuario=usuario)
-    return {"id_pessoa_mantida": id_pessoa_mantida, "contagens": contagens, "matricula_mantida": matricula_mantida, "matricula_liberada": matricula_liberada}
+    _repontar_demais_referencias(db, id_pessoa_mantida, id_pessoa_absorvida, contagens)
+    db.delete(absorvida)
+    db.flush()

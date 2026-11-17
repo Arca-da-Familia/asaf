@@ -10,6 +10,8 @@ class MesclarPessoasRequest(BaseModel):
     # "mantida" (o cadastro que fica) ou "absorvida" (o que é juntado a ele). Sem escolha, vale a regra de sempre: fica o da mantida e só o que
     # ela não tem vem da absorvida. Campos aceitos: os da pessoa, "categoria" e "endereco".
     escolhas: Optional[dict[str, Literal["mantida", "absorvida"]]] = None
+    # v9.5 (conferência): dois cadastros de ASSOCIADO só se juntam a partir do item pendente da fila de revisão que aponta esse par
+    id_fila: Optional[int] = None
 
 
 class MarcarEmailSuspeitoRequest(BaseModel):

@@ -104,6 +104,44 @@ const comparacao: ComparacaoDeDuplicado = {
       titulos_em_aberto: 1,
     },
   },
+  campos: [
+    {
+      chave: 'nome_completo',
+      fica: 'Maria Souza',
+      sai: 'Maria de Souza',
+      modo: 'escolher',
+    },
+    { chave: 'cpf', fica: '***.***.***-45', sai: null, modo: 'so_um' },
+    {
+      chave: 'data_nascimento',
+      fica: '1975-07-22',
+      sai: '1975-07-22',
+      modo: 'igual',
+    },
+    {
+      chave: 'email_contato',
+      fica: 'maria@exemplo.com',
+      sai: 'maria@exemplo.com',
+      modo: 'igual',
+    },
+    {
+      chave: 'telefone_whatsapp',
+      fica: '(91) 98888-1234',
+      sai: '(91) 99123-4567',
+      modo: 'escolher',
+    },
+  ],
+  cpf_diferente: false,
+  situacao: {
+    fica: 'Ativo - Em Dia',
+    sai: 'Em Experiência',
+    depois: 'Calculada de novo com as mensalidades das duas',
+  },
+  acesso: {
+    fica: 'Tem acesso',
+    sai: 'Sem acesso',
+    depois: 'Fica o acesso do cadastro que fica',
+  },
 }
 
 function desenhar() {
@@ -270,6 +308,9 @@ describe('Qualidade da base (v5.4c: a tela que faltava para as rotas da v1.8)', 
     expect(await screen.findByText('Vai ficar assim')).toBeInTheDocument()
     expect(screen.getByText('(91) 99123-4567')).toBeInTheDocument()
     expect(screen.getByText(/fica livre/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Acesso ao painel: Fica o acesso do cadastro que fica/),
+    ).toBeInTheDocument()
     const juntar = screen.getByRole('button', {
       name: 'Juntar os dois cadastros',
     })
@@ -286,22 +327,48 @@ describe('Qualidade da base (v5.4c: a tela que faltava para as rotas da v1.8)', 
         id_pessoa_absorvida: 11,
         nome_confirmacao: 'Maria de Souza',
         escolhas: { nome_completo: 'mantida', telefone_whatsapp: 'absorvida' },
+        id_fila: 1,
       }),
     )
     expect(await screen.findByRole('status')).toHaveTextContent(
-      'A matrícula nº 41 ficou livre e vai para o próximo associado novo.',
+      'A matrícula nº 41 ficou livre: um associado novo pode recebê-la',
     )
+  })
+
+  it('CPFs diferentes (mesmo com o mesmo final escondido) pedem escolha e avisam para conferir se é a mesma pessoa', async () => {
+    const u = userEvent.setup()
+    vi.mocked(api.compararItemDaFila).mockResolvedValue({
+      ...comparacao,
+      cpf_diferente: true,
+      campos: [
+        ...comparacao.campos.filter((c) => c.chave !== 'cpf'),
+        {
+          chave: 'cpf',
+          fica: '***.***.***-99',
+          sai: '***.***.***-99',
+          modo: 'escolher',
+        },
+      ],
+    })
+    desenhar()
+    await u.click(await screen.findByRole('button', { name: 'Comparar' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Os CPFs são diferentes',
+    )
+    expect(
+      within(screen.getByRole('radiogroup', { name: 'CPF' })).getAllByRole(
+        'radio',
+      ),
+    ).toHaveLength(2)
   })
 
   it('a recusa do servidor ao juntar aparece e nada some', async () => {
     const u = userEvent.setup()
     vi.mocked(api.compararItemDaFila).mockResolvedValue({
       ...comparacao,
-      a: {
-        ...comparacao.a,
-        nome_completo: 'Maria de Souza',
-        telefone_whatsapp: '(91) 99123-4567',
-      },
+      campos: comparacao.campos.map((c) =>
+        c.modo === 'escolher' ? { ...c, sai: c.fica, modo: 'igual' } : c,
+      ),
     })
     vi.mocked(api.mesclarPessoas).mockRejectedValue(
       new Error(

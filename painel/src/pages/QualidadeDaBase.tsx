@@ -15,6 +15,8 @@ import {
   ignorarItemDaFila,
   listarFilaDeRevisao,
   mesclarPessoas,
+  urlArquivo,
+  type CampoDaJuncao,
   type ComparacaoDeDuplicado,
   type LadoDaComparacao,
   type SinalDeRevisao,
@@ -503,83 +505,42 @@ function ItemDaFila({
 }
 
 /* ============================== 2) comparar campo a campo ============================== */
-type Campo = {
-  chave: string
-  rotulo: string
-  valor: (l: LadoDaComparacao) => string | null
-  soComAssociado?: boolean
-}
-const CAMPOS: Campo[] = [
-  {
-    chave: 'nome_completo',
-    rotulo: 'Nome completo',
-    valor: (l) => l.nome_completo,
-  },
-  { chave: 'cpf', rotulo: 'CPF', valor: (l) => l.cpf_mascarado },
-  {
-    chave: 'data_nascimento',
-    rotulo: 'Nascimento',
-    valor: (l) => (l.data_nascimento ? formatarData(l.data_nascimento) : null),
-  },
-  { chave: 'email_contato', rotulo: 'E-mail', valor: (l) => l.email_contato },
-  {
-    chave: 'telefone_whatsapp',
-    rotulo: 'Telefone',
-    valor: (l) => l.telefone_whatsapp,
-  },
-  {
-    chave: 'estado_civil',
-    rotulo: 'Estado civil',
-    valor: (l) => l.estado_civil,
-  },
-  { chave: 'profissao', rotulo: 'Profissão', valor: (l) => l.profissao },
-  {
-    chave: 'naturalidade',
-    rotulo: 'Naturalidade',
-    valor: (l) => l.naturalidade,
-  },
-  {
-    chave: 'foto',
-    rotulo: 'Foto',
-    valor: (l) => (l.tem_foto ? 'Tem foto' : null),
-  },
-  {
-    chave: 'categoria',
-    rotulo: 'Categoria',
-    valor: (l) => l.associado?.categoria ?? null,
-    soComAssociado: true,
-  },
-  {
-    chave: 'endereco',
-    rotulo: 'Endereço',
-    valor: (l) => l.associado?.endereco ?? null,
-    soComAssociado: true,
-  },
-]
-
-type Linha = Campo & {
-  fica: string | null
-  sai: string | null
-  modo: 'igual' | 'so_um' | 'vem_do_juntado' | 'escolher'
+const ROTULO_DO_CAMPO: Record<string, string> = {
+  nome_completo: 'Nome completo',
+  cpf: 'CPF',
+  data_nascimento: 'Nascimento',
+  email_contato: 'E-mail',
+  telefone_whatsapp: 'Telefone',
+  estado_civil: 'Estado civil',
+  profissao: 'Profissão',
+  naturalidade: 'Naturalidade',
+  foto: 'Foto',
+  categoria: 'Categoria',
+  endereco: 'Endereço',
 }
 
+// v9.5f (conferência): cada campo já vem classificado pelo servidor, pela mesma regra da junção - o "Vai ficar assim" é o que fica gravado
+type Linha = CampoDaJuncao & { rotulo: string }
 function linhasDaComparacao(c: ComparacaoDeDuplicado): Linha[] {
-  const [lFica, lSai] = c.fica === c.a.id_pessoa ? [c.a, c.b] : [c.b, c.a]
-  return CAMPOS.filter(
-    (campo) => !campo.soComAssociado || c.os_dois_sao_associados,
-  ).map((campo) => {
-    const fica = campo.valor(lFica)
-    const sai = campo.valor(lSai)
-    const modo: Linha['modo'] =
-      (fica ?? '') === (sai ?? '')
-        ? 'igual'
-        : !sai
-          ? 'so_um'
-          : !fica && campo.chave !== 'nome_completo'
-            ? 'vem_do_juntado'
-            : 'escolher'
-    return { ...campo, fica, sai, modo }
-  })
+  return c.campos.map((campo) => ({
+    ...campo,
+    rotulo: ROTULO_DO_CAMPO[campo.chave] ?? campo.chave,
+  }))
+}
+
+// a foto aparece como foto; datas, no jeito brasileiro
+function mostrar(l: Pick<Linha, 'chave'>, valor: string | null): ReactNode {
+  if (!valor) return null
+  if (l.chave === 'foto')
+    return (
+      <img
+        src={urlArquivo(valor)}
+        alt=""
+        className="h-14 w-14 rounded-full object-cover"
+      />
+    )
+  if (l.chave === 'data_nascimento') return formatarData(valor)
+  return valor
 }
 
 function ladosDe(c: ComparacaoDeDuplicado) {
@@ -656,6 +617,15 @@ function Comparacao({
           Por que apareceu: {c.detalhe}
         </p>
       )}
+      {c.cpf_diferente && (
+        <p
+          role="alert"
+          className="mt-3 rounded-xl border border-destructive/30 bg-perigo-tinta px-3 py-2 text-sm font-semibold text-destructive"
+        >
+          Os CPFs são diferentes. Confira se é mesmo a mesma pessoa antes de
+          juntar; se não for, use "Não é a mesma pessoa".
+        </p>
+      )}
 
       <div className="mt-4 overflow-hidden rounded-xl border border-border">
         <div className="hidden grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)_10rem] gap-3 bg-muted/60 px-4 py-2.5 text-xs font-bold text-muted-foreground sm:grid">
@@ -711,7 +681,7 @@ function Comparacao({
                 {l.rotulo}
               </span>
               {(['mantida', 'absorvida'] as const).map((lado) => {
-                const valor = lado === 'mantida' ? l.fica : l.sai
+                const valor = mostrar(l, lado === 'mantida' ? l.fica : l.sai)
                 const marcado = escolhas[l.chave] === lado
                 return (
                   <label
@@ -757,8 +727,8 @@ function Comparacao({
             <LinhaInformativa
               key={l.chave}
               rotulo={l.rotulo}
-              fica={l.fica ?? '(vazio)'}
-              sai={l.sai ?? '(vazio)'}
+              fica={mostrar(l, l.fica) ?? '(vazio)'}
+              sai={mostrar(l, l.sai) ?? '(vazio)'}
               resultado={
                 <span className="text-muted-foreground">
                   {l.modo === 'igual'
@@ -772,16 +742,20 @@ function Comparacao({
           ),
         )}
 
-        {ambos && (
+        {c.situacao && (
           <LinhaInformativa
             rotulo="Situação"
-            fica={fica.associado?.status_arrolamento ?? '—'}
-            sai={sai.associado?.status_arrolamento ?? '—'}
-            resultado={
-              <span className="text-muted-foreground">
-                Calculada de novo depois
-              </span>
-            }
+            fica={c.situacao.fica ?? '—'}
+            sai={c.situacao.sai ?? '—'}
+            resultado={<span className="font-bold">{c.situacao.depois}</span>}
+          />
+        )}
+        {c.acesso && (
+          <LinhaInformativa
+            rotulo="Acesso ao painel"
+            fica={c.acesso.fica}
+            sai={c.acesso.sai}
+            resultado={<span className="font-bold">{c.acesso.depois}</span>}
           />
         )}
         <LinhaInformativa
@@ -849,8 +823,8 @@ function LinhaInformativa({
   resultado,
 }: {
   rotulo: string
-  fica: string
-  sai: string
+  fica: ReactNode
+  sai: ReactNode
   resultado: ReactNode
 }) {
   return (
@@ -904,10 +878,11 @@ function Confirmacao({
         id_pessoa_absorvida: sai.id_pessoa,
         nome_confirmacao: nome,
         escolhas,
+        id_fila: c.id_fila,
       }),
     onSuccess: (r) =>
       aoConcluir(
-        `Cadastros juntados.${r.matricula_liberada ? ` A matrícula nº ${r.matricula_liberada} ficou livre e vai para o próximo associado novo.` : ''}`,
+        `Cadastros juntados.${r.matricula_liberada ? ` A matrícula nº ${r.matricula_liberada} ficou livre: um associado novo pode recebê-la (o sistema dá sempre o menor número livre).` : ''}`,
       ),
     onError: aoFalhar,
   })
@@ -931,7 +906,9 @@ function Confirmacao({
               .map((l) => (
                 <div key={l.chave} className="contents">
                   <dt className="text-muted-foreground">{l.rotulo}</dt>
-                  <dd className="font-bold break-words">{final(l)}</dd>
+                  <dd className="font-bold break-words">
+                    {mostrar(l, final(l))}
+                  </dd>
                 </div>
               ))}
           </dl>
@@ -944,13 +921,17 @@ function Confirmacao({
                 Fica a matrícula mais antiga, a{' '}
                 <strong>nº {fica.associado?.numero_matricula}</strong>. A{' '}
                 <strong>nº {sai.associado?.numero_matricula}</strong> fica livre
-                e vai para o próximo associado novo.
+                (um associado novo pode recebê-la).
               </li>
             )}
             <li>
               Tudo do cadastro juntado passa para o que fica: mensalidades e
-              pagamentos, histórico, família e cargos. Nada se perde.
+              pagamentos, histórico, família, cargos e observações. A
+              mensalidade do mesmo mês cobrada nos dois fica uma só (a paga, ou
+              a do cadastro que fica); paga nos dois, a junção é recusada.
             </li>
+            {c.situacao && <li>Situação: {c.situacao.depois}.</li>}
+            {c.acesso && <li>Acesso ao painel: {c.acesso.depois}.</li>}
             <li>
               Ficam os dados escolhidos no passo 2; os outros são descartados.
             </li>

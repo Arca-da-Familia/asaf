@@ -120,10 +120,11 @@ def _lado_da_comparacao(db: Session, pessoa: Pessoa) -> dict:
 
 
 @router.get("/api/pessoas/fila-revisao/{id_fila}/comparar", summary="Os dois cadastros de um possível duplicado, lado a lado (CPF escondido)")
-def comparar_item_fila(id_fila: int, db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_associados)):
-    """v9.5 (Qualidade da base passo a passo, desenho aprovado pelo Presidente): o passo "Comparar" da tela. Quando os dois são associados, diz
-    qual cadastro FICA (o da matrícula mais antiga) - a junção recusa o contrário."""
-    from app.services.mesclagem import mais_antigo
+def comparar_item_fila(id_fila: int, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_associados)):
+    """v9.5 (Qualidade da base passo a passo, desenho aprovado pelo Presidente): o passo "Comparar" da tela. Diz qual cadastro FICA (o da matrícula
+    mais antiga; o de associado, se só um é) e, campo a campo, o que acontece - pela MESMA regra que a junção usa (`classificar_campos`), então o
+    "Vai ficar assim" da tela é o que o servidor grava. Também a situação e o acesso ao painel depois de juntar."""
+    from app.services.mesclagem import classificar_campos, escolher_acesso, mais_antigo, situacao_depois
 
     item = db.query(FilaRevisaoCadastro).filter(FilaRevisaoCadastro.id_fila == id_fila).first()
     if not item or not item.id_pessoa_b:
@@ -132,20 +133,35 @@ def comparar_item_fila(id_fila: int, db: Session = Depends(get_db), _usuario: Us
     pessoa_b = db.query(Pessoa).filter(Pessoa.id_pessoa == item.id_pessoa_b).first()
     if not pessoa_a or not pessoa_b:
         raise HTTPException(status_code=404, detail="Um dos dois cadastros não existe mais (já foi juntado?).")
-    a, b = _lado_da_comparacao(db, pessoa_a), _lado_da_comparacao(db, pessoa_b)
     associado_a = db.query(Associado).filter(Associado.id_pessoa == pessoa_a.id_pessoa).first()
     associado_b = db.query(Associado).filter(Associado.id_pessoa == pessoa_b.id_pessoa).first()
     if associado_a and associado_b:
-        fica = pessoa_a.id_pessoa if mais_antigo(associado_a) <= mais_antigo(associado_b) else pessoa_b.id_pessoa
-    elif associado_b and not associado_a:
-        fica = pessoa_b.id_pessoa  # o cadastro de associado sempre fica (a pessoa sem cadastro de associado é que é juntada a ele)
+        a_fica = mais_antigo(associado_a) <= mais_antigo(associado_b)
     else:
-        fica = pessoa_a.id_pessoa
-    return {
+        a_fica = not (associado_b and not associado_a)  # o cadastro de associado sempre fica (a pessoa sem cadastro é que é juntada a ele)
+    (p_fica, as_fica), (p_sai, as_sai) = ((pessoa_a, associado_a), (pessoa_b, associado_b)) if a_fica else ((pessoa_b, associado_b), (pessoa_a, associado_a))
+
+    campos = classificar_campos(db, p_fica, p_sai, as_fica, as_sai)
+    resposta = {
         "id_fila": item.id_fila, "tipo_sinal": item.tipo_sinal, "detalhe": item.detalhe,
-        "fica": fica, "os_dois_sao_associados": bool(associado_a and associado_b),
-        "a": a, "b": b,
+        "fica": p_fica.id_pessoa, "os_dois_sao_associados": bool(associado_a and associado_b),
+        "a": _lado_da_comparacao(db, pessoa_a), "b": _lado_da_comparacao(db, pessoa_b),
+        # campo a campo, do ponto de vista de quem fica ("fica" = o cadastro que fica, "sai" = o juntado)
+        "campos": campos,
+        "cpf_diferente": any(c["chave"] == "cpf" and c["modo"] == "escolher" for c in campos),
+        "situacao": None, "acesso": None,
     }
+    if as_fica and as_sai:
+        _, texto = situacao_depois(as_fica, as_sai)
+        resposta["situacao"] = {"fica": as_fica.status_arrolamento, "sai": as_sai.status_arrolamento, "depois": texto}
+        fica, sai, texto_acesso = escolher_acesso(db, as_fica, as_sai, usuario.id_usuario)
+
+        def descrever(associado):
+            u = db.query(Usuario).filter(Usuario.id_usuario == associado.id_usuario).first() if associado.id_usuario else None
+            return "Sem acesso" if u is None else ("Tem acesso" if u.ativo else "Acesso desligado")
+
+        resposta["acesso"] = {"fica": descrever(as_fica), "sai": descrever(as_sai), "depois": texto_acesso}
+    return resposta
 
 
 @router.post("/api/pessoas/fila-revisao/{id_fila}/ignorar", summary="Marcar item da fila como não sendo um problema real")
@@ -167,6 +183,7 @@ def mesclar(
 ):
     resultado = mesclar_pessoas(
         db, id_pessoa_mantida, dados.id_pessoa_absorvida, dados.nome_confirmacao, usuario=usuario, escolhas=dados.escolhas,
+        id_fila=dados.id_fila,
     )
 
     # Qualquer entrada pendente na fila que envolvia qualquer uma das duas pessoas fica

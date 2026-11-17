@@ -133,7 +133,10 @@ test('qualidade da base: o sistema acha o par; comparar campo a campo; juntar re
     .getByLabel(/Para confirmar, digite o nome do cadastro que será juntado/)
     .fill('Fulano de Tal')
   await page.getByRole('button', { name: 'Juntar os dois cadastros' }).click()
-  await expect(page.getByRole('alert')).toContainText('não confere')
+  // (os CPFs dos dois são diferentes: o aviso disso também é um alerta na tela)
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'não confere' }),
+  ).toBeVisible()
   await ver(page, info, 'juntar recusado: nome nao confere')
 
   // "Não é a mesma pessoa" tira da fila (volta ao passo 2 pelo passo do alto)
