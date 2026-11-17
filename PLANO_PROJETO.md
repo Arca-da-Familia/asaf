@@ -2390,6 +2390,21 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       `tests/test_rotas_com_tela.py` verde.
       **Produção**: Deploy Painel verde (sem API: nada mudou no servidor); `painel.asaf.org.br/version.json` = `45231da`; o código publicado tem a
       coluna ("Telas de …", a memória do recolher, "Lista de associados") e a ficha ("Nesta ficha", "Partes da ficha", "preenchido").
+- [x] v9.5d — Importar com a planilha modelo e a Situação no celular.
+      **[FEITO (2026-11-17) — pedido do Presidente na rodada 4 ("tem que ter a opção de baixar a planilha modelo"): o botão "Baixar planilha
+      modelo" no 1º passo da importação entrega só a linha dos nomes das colunas que o assistente reconhece sozinho (Nome completo, CPF, E-mail,
+      Telefone, Data de nascimento, Categoria), separada por ponto e vírgula e com a marca de acentos, que é como o Excel em português abre um CSV
+      direto em colunas; sem linha de exemplo (esquecida, viraria um associado inventado). A data pode vir do jeito brasileiro (22/07/1975) e chega
+      ao servidor no formato dele. Na ficha, os botões da Situação ficam um embaixo do outro no celular, largos (44 px), nunca cortados. Também
+      respondido a ele: a importação serve para quem JÁ é associado (a carga inicial); pessoa nova entra pela filiação (Estatuto, Art. 12); eu não
+      ponho dado pessoal real direto na produção (sem conta, bloqueio do Claude Code, e o dado passaria por fora do que a Política de Privacidade
+      informa)]**
+      **Homologação**: `hml-painel` `version.json` = `4889de4`; robôs `v5.4c-fase1-importacao` (baixa a planilha modelo PELA TELA, confere o
+      arquivo e importa ela preenchida com ponto e vírgula e datas dd/mm/aaaa), `v9.3a-01`, `v9.1a-01`, `v9.3b-01` e `v5.4c-fase1` verdes (o
+      `v9.3b-01` reprovou uma vez só porque a homologação estava "dormindo" depois de 3 dias parada: o painel ficou em "Carregando…" até o
+      servidor de teste acordar; refeito verde). Painel 1017 testes em duas rodadas, 16 de navegador.
+      **Produção**: Deploy Painel verde; `painel.asaf.org.br/version.json` = `4889de4`; o código publicado da importação tem "Baixar planilha
+      modelo" e o da ficha tem os botões largos da Situação.
 - [ ] v9.5d em diante — o resto do módulo Associados, no que o Presidente aprovou (rodadas 4 a 6): Novo associado passo a passo (o passo em texto
       e barrinha, sem bolinhas; os robôs que cadastram pela tela mudam junto); Dados e foto com a foto e o preenchimento à esquerda; Situação com as
       ações no alto e o histórico embaixo (no celular, um botão embaixo do outro — nada cortado); Família, cargos e vínculos com a lista e o
