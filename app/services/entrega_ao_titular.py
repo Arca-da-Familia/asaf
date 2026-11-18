@@ -45,6 +45,7 @@ PORTAVEIS = frozenset({
 })
 NAO_PORTAVEIS = frozenset({
     "usuarios",  # a conta de acesso ao painel (registro técnico)
+    "credenciais",  # v9.5i: a credencial (o código do QR) é emitida pela associação, não é dado que a pessoa forneceu; aparece no relatório
     "treinamentos_de_privacidade",  # v7.5a: registro da associação sobre o treinamento (não é dado que a pessoa forneceu); aparece no relatório
     "beneficiarios_projeto", "registros_atendimento", "encaminhamentos_rede_externa", "eventos_linha_do_tempo", "registros_presenca", "documentos_emitidos",
     "alocacoes_voluntarios", "registros_horas_voluntariado", "trocas_turno_voluntario", "equipe_projeto", "funcionarios", "papeis", "fotos_da_diretoria",

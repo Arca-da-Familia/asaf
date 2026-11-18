@@ -48,7 +48,7 @@ LIGACOES_DA_PESSOA = frozenset({
     ('atos_do_encarregado', 'id_associado_encarregado'), ('atos_do_encarregado', 'id_associado_substituto'), ('avisos_destinatarios', 'id_associado'),
     ('avisos_destinatarios', 'id_usuario'), ('treinamentos_de_privacidade', 'id_usuario'), ('beneficiarios', 'id_pessoa'), ('beneficiarios_projeto', 'id_beneficiario'),
     ('comprovantes_voto_secreto', 'id_associado'), ('consentimentos', 'id_pessoa'), ('contas_a_pagar_recorrentes', 'id_fornecedor'),
-    ('cotacoes_compra', 'id_fornecedor'), ('credenciamentos_assembleia', 'id_associado'), ('creditos_associado', 'id_associado'),
+    ('cotacoes_compra', 'id_fornecedor'), ('credenciais', 'id_associado'), ('credenciamentos_assembleia', 'id_associado'), ('creditos_associado', 'id_associado'),
     ('dados_bancarios_fornecedor', 'id_fornecedor'), ('declaracoes_conflito_interesse', 'id_associado'), ('declaracoes_conflito_interesse', 'id_fornecedor'),
     ('delegacoes_aprovacao', 'id_associado_delegante'), ('delegacoes_aprovacao', 'id_associado_delegado'), ('dependentes_familiares', 'id_pessoa_titular'),
     ('dependentes_familiares', 'id_pessoa_vinculada'), ('doacoes', 'id_associado'), ('documentos_anexos', 'id_associado'),

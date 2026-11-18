@@ -47,6 +47,7 @@ PAPEIS_QUE_ACABAM = ("associado", "participante_externo", "voluntario")
 CADASTRO = frozenset({
     "pessoas", "associados", "enderecos", "usuarios", "valores_campo", "documentos_anexos", "fotos_da_diretoria", "preferencias_de_comunicacao",
     "registros_horas_voluntariado", "trocas_turno_voluntario", "mudancas_situacao", "papeis",
+    "credenciais",  # v9.5i: a credencial sai com o cadastro (a anonimização a apaga; o QR impresso passa a mostrar que não vale)
 })
 # as tabelas em que a eliminação escolhe linha a linha o que sai; o que resta delas fica, pelo motivo ao lado
 RESTA: dict[str, tuple[str, str]] = {
@@ -272,6 +273,7 @@ def planejar(db: Session, a: Atendimento, agora: Optional[datetime] = None) -> d
         if "associados" in tabelas:
             sai.append("o cadastro de associado: CPF, contatos, data de nascimento, foto e endereço (ficam o nome e a matrícula, no livro de associados)")
             sai.append("a conta de acesso ao painel (e-mail, segundo passo, sessões e chaves), a foto da Diretoria e os documentos anexados, se houver")
+            sai.append("a credencial de associado: o QR da carteirinha passa a mostrar que ela não vale")
         else:
             sai.append("o cadastro: nome, CPF, contatos, data de nascimento e foto")
         sai.append("os campos personalizados, as preferências de e-mail e o texto livre das horas de voluntariado, se houver")
