@@ -2447,12 +2447,38 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       **Produção**: `5da9015` (o `4b9915e` com o PLANO da v9.5d juntado; o código é o conferido). Deploy API e Deploy Painel verdes;
       `painel.asaf.org.br/version.json` = `5da9015`; no `openapi.json` da API está `/api/pessoas/fila-revisao/{id_fila}/comparar`, que responde 401
       sem login; `/associados/propostas` responde 200.
-- [ ] Ainda do módulo Associados: Gráficos como painel (filtros, 6 números, gráficos, "Personalizar" guardado por pessoa); a CREDENCIAL: o QR
+- [x] v9.5h — Gráficos dos associados como painel (rodada 5, opção 1 no notebook e no celular).
+      **[FEITO (2026-11-18) — filtros no alto (período de 3 meses a 5 anos, situação, categoria, bairro; no celular recolhidos num botão "Filtros: 12
+      meses" com o Personalizar ao lado), os 6 números (no quadro, em dia, entraram, saíram, idade média, com acesso ao painel) e a grade de gráficos
+      (entradas e saídas por mês, por situação, por categoria em barra dividida, faixa de idade, filiação do pedido à aprovação, tamanho do quadro no
+      fim de cada mês; "Onde moram" e "Tempo de associação" para ligar). Cada gráfico tem "Ver em tabela"; a linha de uma situação ou categoria abre a
+      lista dessas pessoas; a filiação leva às propostas; "Imprimir". O "Personalizar" que ele pediu para melhorar: marca o que aparece e muda a ordem
+      (subir/descer) com o painel mudando na hora, "Guardar para mim", "Usar só desta vez" (vale até sair da tela), "Voltar ao painel padrão" e "Abrir
+      sempre com os filtros de agora". Escolha minha, avisada a ele: fica guardado NESTE navegador, separado por pessoa (como o menu recolhido) — no
+      servidor seria um registro novo ligado a cada pessoa, com o controle de dado pessoal que isso pede; se ele quiser em todo aparelho, muda. O
+      servidor só devolve CONTAGENS (nenhum nome, CPF ou contato; teste prova). Cores conferidas para daltonismo, brilho e contraste no claro e no
+      escuro (conferidor de paleta), a cor da categoria acompanha a categoria (nunca a posição). Achados no caminho: dois testes da suíte (a rota tinha
+      de entrar no registro das que não são lista; um associado de teste com mais de 10 anos de casa caía em 2015, o ano que o teste do relatório
+      anual reserva no banco compartilhado); na homologação, a tabela escondida de cada gráfico esticava a página para o lado (2381 px) e o gráfico
+      deixava algo focável dentro do que o leitor de tela não lê; nos prints, números do eixo cortados, gráfico pela metade (animação), reticências e,
+      no celular, a caixinha do Personalizar separada do nome — todos corrigidos e refeitos]**
+      **Homologação**: três rodadas. 1ª (`0f8be69`): v5.4c-fase1 e v7.3b-01 verdes; v9.5h-01, v9.1a-01, v9.3a-01 e v9.3b-01 reprovaram só nos Gráficos
+      (largura e foco). 2ª (`4fe555d`): os quatro verdes. 3ª (`40aa036`, depois dos prints): v9.5h-01 (números batem com os gráficos — "No quadro" =
+      soma das situações menos Desligado e = o último mês do tamanho do quadro —, filtro muda tudo junto, a situação abre a lista, Personalizar guarda e
+      continua depois de recarregar, padrão volta, celular sem nada passando da largura), v9.1a-01 (axe em todas as telas), v9.3a-01 e v9.3b-01 verdes;
+      prints conferidos no computador e no celular. Servidor 1963 testes em duas rodadas, Postgres verde; painel 1034 em duas rodadas a cada
+      mudança; site 779. Os roteiros atualizados na v9.5g que faltavam (v5.4e-01, v5.4e-03, v5.4e-04, v5.4f-01) também rodaram verdes (18/11).
+      **Produção**: Deploy API, Painel e Site verdes; `painel.asaf.org.br/version.json` e o do site = `40aa036`; no `openapi.json` está
+      `/api/associados/painel-de-graficos`, que responde 401 sem login; o pedaço publicado da tela tem "Personalizar o painel", "Guardar para mim" e
+      "Usar só desta vez".
+- [ ] Ainda do módulo Associados: a CREDENCIAL: o QR
       passa a valer SEMPRE (revoga a decisão de 15/10 dos 15 dias, pedido dele em 14/11: o cartão impresso não pode vencer) e a página de quem lê
       mostra a situação de AGORA, em letras grandes embaixo da foto; cada cartão com um código próprio que se revoga ao "emitir outra"; criador de
       credencial (galeria de modelos e editor de arrastar, celular e impresso); credenciais emitidas com impressão de várias numa segunda aba de
       pré-visualização, recusando credencial com dado faltando sem justificativa; a Política de Privacidade muda junto (hoje diz que o QR vence).
-      Roteiros atualizados na v9.5g que ainda não rodaram na homologação: v5.4e-01, v5.4e-03, v5.4e-04 e v5.4f-01.
+- [ ] Rodada 7 de escolha (módulo Financeiro, 25 telas) publicada no artefato em 2026-11-18, a pedido dele ("um agente para ir fazendo as telas no
+      artefato" enquanto o sistema é construído) — esperando as escolhas dele. O desenho segue a decisão de 08/10 (saída = registro do que já foi
+      pago; dupla assinatura só em Compras e Alçadas); as funções novas estão marcadas NOVIDADE.
 - [ ] Etapa 3 · módulo a módulo: cada módulo numa rodada própria de escolha, com todas as telas dele. As escolhas da rodada 2 estão guardadas
       no artefato para quando cada módulo chegar: Financeiro (notebook "saldo em destaque e botões de ação", celular "saldo verde e atalhos"),
       Associados (tabela com abas; cartões no celular), Ficha (cabeçalho, abas e três colunas; abas no alto no celular), Formulário (passo a
@@ -3707,9 +3733,22 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         **LIÇÃO (achada à tarde)**: o caminho curto pulou o robô dos cabeçalhos de segurança, e o Vite 8.3.8 mudou a ordem em que os pedaços do painel
         rodam — o navegador passou a registrar "eval bloqueado" (o zod funcionava, sem eval). Corrigido na v9.4 (`src/lib/zod.ts`). Daqui em diante,
         lote que atualiza o Vite ou o zod roda também o v7.3b-01 na homologação antes da main.
-      - **Pendente com motivo (não é silêncio):** o `npm audit` do painel aponta um aviso MODERADO no `minimatch` (GHSA-g3hv-75wg-m249, corrigido na 11.0.1),
+      - **Lote 18 ✅ FEITO e confirmado em produção (2026-11-18, commit `0d67503`, junto com a v9.5h em `40aa036`)** — só versões menores e de correção:
+        painel — `recharts` 3.11.0, `lucide-react` 1.75.0, `@tanstack/react-query` 5.108.0, `@hookform/resolvers` 7.0.7, `eslint` 10.15.0,
+        `typescript-eslint` 8.73.0, `vitest` 5.1.1, `jsdom` 31.0.1, `@playwright/test` 1.65.1, `user-event` 14.6.12, `eslint-plugin-react-refresh` 0.5.8;
+        site — `astro` 7.4.12, `@astrojs/sitemap` 3.7.5, `vitest` 5.1.1, `jsdom` 31.0.1, `@playwright/test` 1.65.1; servidor — FastAPI 0.163.2,
+        SQLAlchemy 2.1.9, pypdf 7.1.1, PyOTP 2.12.0, python-multipart 0.0.34, httpx2 2.16.2 (e as dependências indiretas na última). Conferido sob o
+        Node 26: nenhuma versão maior escondida. **Verificado**: servidor 1963 em duas rodadas e Postgres; painel 1034 em duas rodadas, tipos, lint e
+        formato; site 779, checagem de tipos e montagem de teste; na homologação, os robôs da v9.5h e o v7.3b-01 (cabeçalhos de segurança) verdes.
+        **Produção**: Deploy API, Painel e Site verdes; painel e site `version.json` = `40aa036`.
+        **Aviso que apareceu e sumiu no mesmo dia**: de manhã o `npm audit` do painel acusou 12 "altos" pelo `picomatch` 4.0.7 (usado só pelas
+        ferramentas de montagem e teste — vite, vitest, typescript-eslint —, nunca vai para o navegador), sem versão corrigida publicada (a 4.0.7 é a
+        última) e com o "conserto" do npm sendo voltar a versões antigas (proibido pela regra). À tarde o mesmo `npm audit`, com o mesmo `picomatch`
+        4.0.7, deu **zero** problemas: o próprio aviso foi corrigido no cadastro de falhas. Nada a fazer; reconferir no próximo lote.
+      - ~~**Pendente com motivo (não é silêncio):** o `npm audit` do painel aponta um aviso MODERADO no `minimatch` (GHSA-g3hv-75wg-m249, corrigido na 11.0.1),
         que só o `eslint` usa (ferramenta de conferência do código, nunca vai para o sistema publicado); o `eslint` 10.14 (o mais novo) ainda exige o `minimatch` 10.
-        Forçar a 11 pode quebrar o `eslint`; reavaliar a cada lote até o `eslint` aceitar a 11.
+        Forçar a 11 pode quebrar o `eslint`; reavaliar a cada lote até o `eslint` aceitar a 11.~~ **Resolvido no lote 18 (2026-11-18)**: o `eslint` 10.15
+        já usa o `minimatch` 11.0.9; o `npm audit` do painel dá zero.
       - **Directus 12.4.1 → 12.6.1 (a última estável): provado numa cópia descartável (2026-11-10)** — Directus 12.6.1 em SQLite neste computador:
         `directus_configurar.py aplicar` criou o modelo do site e a 2ª execução não mudou nada; as permissões com regra não dão para testar sem a licença (o
         mesmo limite de antes: só na produção). Entre a 12.4.1 e a 12.6.1 há duas migrações do próprio Directus, ambas na tabela `directus_settings` e só
@@ -3724,7 +3763,7 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
         leitura**: `/server/ping` = `pong`; `directus_configurar.py verificar --producao --senha-do-cofre` = "OK: o Directus está conforme o modelo" (com as
         permissões com regra, que só a produção licenciada tem); a sincronização do site (`sincronizar-site.yml`, disparada à mão) leu o conteúdo pelo token
         do site e deu o mesmo resumo do publicado (`mudou: false`). `infra/provisionar.exemplo.sh` e `ARQUITETURA.md` com a 12.6.1. **Tudo na última versão
-        estável**; pendente com motivo só o aviso do `minimatch` (acima).
+        estável**; o aviso do `minimatch` (acima) acabou no lote 18.
       - **Achado na conferência do lote 16 (2026-11-10): a consulta de CEP falha na PRODUÇÃO e funciona na homologação** — mesmo código, mesmo ambiente do
         Azure e os mesmos endereços de saída; a homologação reconstruída da mesma `main` responde 200. O log novo (`5e4a991`) diz `ConnectError`: o servidor
         de produção não consegue nem abrir a conexão com o ViaCEP (o mais provável é o ViaCEP recusar o endereço de saída que a produção usa). **Impacto hoje:
