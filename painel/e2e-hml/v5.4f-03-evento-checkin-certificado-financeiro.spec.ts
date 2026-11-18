@@ -1519,12 +1519,12 @@ test.describe('D. Crachá e portaria', () => {
         'Recusado pelo servidor: Esta inscrição foi cancelada - check-in recusado.',
       )
       await ver(portaria, info, 'portaria: inscricao cancelada recusada')
-      // recusa 3: carteirinha que não vale
+      // recusa 3: carteirinha que não vale (v9.5i: o que não é o QR antigo é lido como o código da credencial nova)
       await agir('checkin', 'token-invalido-do-robo', 'carteirinha')
       await esperar(
         'Check-in',
         'token-invalido-do-robo',
-        'Recusado pelo servidor: Carteirinha inválida ou expirada.',
+        'Recusado pelo servidor: Credencial inválida ou substituída por outra.',
       )
       await ver(portaria, info, 'portaria: carteirinha invalida recusada')
       // recusa 4: saída de quem nunca entrou

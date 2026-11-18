@@ -143,7 +143,10 @@ test('a Política de Privacidade está na versão 2.x (a da rotina de retenção
   await expect(paragrafo).toContainText(
     'algumas horas e pode passar de meio dia',
   )
-  await expect(paragrafo).toContainText('verificação da carteirinha digital')
+  // v9.5i (Política 2.19): a carteirinha virou a credencial, cujo QR não vence e mostra a situação de agora
+  await expect(paragrafo).toContainText(
+    'conferência da credencial de associado',
+  )
   expect(
     texto,
     'a frase antiga (nenhuma foto de dirigente) saiu',
