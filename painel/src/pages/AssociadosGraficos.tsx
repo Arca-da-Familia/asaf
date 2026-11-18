@@ -106,6 +106,9 @@ function mesPorExtenso(mes: string): string {
   const nome = NOMES_DOS_MESES[Number(mes.slice(5, 7)) - 1] ?? ''
   return `${nome} de ${mes.slice(0, 4)}`
 }
+// a largura do eixo dos números acompanha o maior valor (3 algarismos não cabiam em 44 px com a margem negativa)
+const larguraDoEixo = (maior: number) =>
+  Math.max(32, 14 + String(Math.ceil(maior)).length * 8)
 const numero = (n: number) => n.toLocaleString('pt-BR')
 const porcento = (parte: number, total: number) =>
   total > 0 ? `${Math.round((parte / total) * 100)}%` : '—'
@@ -672,7 +675,11 @@ function Grafico({
   }
 
   switch (id) {
-    case 'mes':
+    case 'mes': {
+      const maiorDoMes = Math.max(
+        1,
+        ...dados.por_mes.map((m) => Math.max(m.entraram, m.sairam)),
+      )
       return (
         <Cartao
           titulo={titulo}
@@ -704,7 +711,7 @@ function Grafico({
                   rotulo: mesCurto(m.mes),
                 }))}
                 barGap={2}
-                margin={{ top: 8, right: 8, left: -18, bottom: 0 }}
+                margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
               >
                 <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
                 <XAxis
@@ -719,7 +726,7 @@ function Grafico({
                   allowDecimals={false}
                   tickLine={false}
                   axisLine={false}
-                  width={44}
+                  width={larguraDoEixo(maiorDoMes)}
                   tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                 />
                 <Tooltip
@@ -732,6 +739,7 @@ function Grafico({
                   fill="var(--serie-1)"
                   radius={[4, 4, 0, 0]}
                   maxBarSize={18}
+                  isAnimationActive={false}
                 />
                 <Bar
                   dataKey="sairam"
@@ -739,12 +747,14 @@ function Grafico({
                   fill="var(--serie-2)"
                   radius={[4, 4, 0, 0]}
                   maxBarSize={18}
+                  isAnimationActive={false}
                 />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Cartao>
       )
+    }
     case 'quadro': {
       const serie = dados.quadro_por_mes
       const hoje = serie.at(-1)?.total ?? 0
@@ -752,6 +762,8 @@ function Grafico({
       const minimo = Math.min(...serie.map((m) => m.total))
       const maximo = Math.max(...serie.map((m) => m.total))
       const folga = Math.max(1, Math.ceil((maximo - minimo) * 0.15))
+      // o eixo começa num número redondo abaixo do menor valor e o gráfico escolhe os degraus (antes terminava em 762)
+      const baseDoEixo = Math.max(0, Math.floor((minimo - folga) / 10) * 10)
       return (
         <Cartao
           titulo={titulo}
@@ -776,7 +788,7 @@ function Grafico({
               <AreaChart
                 accessibilityLayer={false}
                 data={serie.map((m) => ({ ...m, rotulo: mesCurto(m.mes) }))}
-                margin={{ top: 12, right: 12, left: -18, bottom: 0 }}
+                margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
               >
                 <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
                 <XAxis
@@ -789,10 +801,10 @@ function Grafico({
                 />
                 <YAxis
                   allowDecimals={false}
-                  domain={[Math.max(0, minimo - folga), maximo + folga]}
+                  domain={[baseDoEixo, 'auto']}
                   tickLine={false}
                   axisLine={false}
-                  width={44}
+                  width={larguraDoEixo(maximo + folga)}
                   tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                 />
                 <Tooltip
@@ -810,6 +822,7 @@ function Grafico({
                   strokeWidth={2}
                   fill="var(--serie-1)"
                   fillOpacity={0.1}
+                  isAnimationActive={false}
                   dot={false}
                   activeDot={{
                     r: 5,
@@ -911,7 +924,7 @@ function Grafico({
                     className="h-3 w-3 shrink-0 rounded-[3px]"
                     style={{ background: c.cor }}
                   />
-                  <span className="min-w-0 flex-1 truncate">{c.nome}</span>
+                  <span className="min-w-0 flex-1 break-words">{c.nome}</span>
                   <strong>{numero(c.total)}</strong>
                   <span className="w-11 text-right text-muted-foreground">
                     {porcento(c.total, total)}
@@ -996,7 +1009,10 @@ function Grafico({
         >
           <ol className="flex flex-col gap-1.5">
             {etapas.map((e) => (
-              <li key={e.nome} className="flex items-center gap-2 text-sm">
+              <li
+                key={e.nome}
+                className="flex flex-nowrap items-center gap-2 text-sm"
+              >
                 <span
                   className={cn(
                     'flex h-7 min-w-10 shrink-0 items-center rounded-[4px] px-2.5 font-extrabold',
@@ -1036,7 +1052,7 @@ function BarrasDeitadas({
           <>
             <span
               className={cn(
-                'w-full min-w-0 truncate sm:shrink-0',
+                'w-full min-w-0 break-words sm:shrink-0',
                 larguraDoNome,
               )}
             >
@@ -1273,7 +1289,7 @@ function Personalizar({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          <label className="flex min-h-11 items-center gap-3 text-sm font-semibold">
+          <label className="flex min-h-11 flex-nowrap items-center gap-3 text-sm font-semibold">
             <input
               type="checkbox"
               className="h-5 w-5 accent-[hsl(var(--primary))]"
@@ -1294,9 +1310,9 @@ function Personalizar({
               return (
                 <li
                   key={g.id}
-                  className="flex items-center gap-2 border-b border-border py-1.5 last:border-0"
+                  className="flex flex-nowrap items-center gap-2 border-b border-border py-1.5 last:border-0"
                 >
-                  <label className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-sm">
+                  <label className="flex min-h-11 min-w-0 flex-1 flex-nowrap items-center gap-3 text-sm">
                     <input
                       type="checkbox"
                       className="h-5 w-5 shrink-0 accent-[hsl(var(--primary))]"
@@ -1346,7 +1362,7 @@ function Personalizar({
             })}
           </ol>
 
-          <label className="mt-4 flex items-start gap-3 rounded-lg bg-muted p-3 text-sm">
+          <label className="mt-4 flex flex-nowrap items-start gap-3 rounded-lg bg-muted p-3 text-sm">
             <input
               type="checkbox"
               className="mt-0.5 h-5 w-5 shrink-0 accent-[hsl(var(--primary))]"
