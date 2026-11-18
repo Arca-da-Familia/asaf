@@ -2405,18 +2405,54 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       servidor de teste acordar; refeito verde). Painel 1017 testes em duas rodadas, 16 de navegador.
       **Produção**: Deploy Painel verde; `painel.asaf.org.br/version.json` = `4889de4`; o código publicado da importação tem "Baixar planilha
       modelo" e o da ficha tem os botões largos da Situação.
-- [ ] v9.5d em diante — o resto do módulo Associados, no que o Presidente aprovou (rodadas 4 a 6): Novo associado passo a passo (o passo em texto
-      e barrinha, sem bolinhas; os robôs que cadastram pela tela mudam junto); Dados e foto com a foto e o preenchimento à esquerda; Situação com as
-      ações no alto e o histórico embaixo (no celular, um botão embaixo do outro — nada cortado); Família, cargos e vínculos com a lista e o
-      formulário ao lado; Propostas em três colunas, a lista do meio organizada por etapa e o pedido aberto com abas (Resumo, Quem propõe, Linha
-      do tempo); Qualidade da base passo a passo, campo por campo, com a REGRA nova do servidor: na junção de dois cadastros de associado fica a
-      matrícula mais antiga (pela data de entrada) e o número que fica livre vai para o próximo associado novo (hoje a junção recusa dois
-      associados e a matrícula é sempre o maior número + 1); Importar com a planilha modelo para baixar; Gráficos como painel (filtros, 6 números,
-      gráficos, "Personalizar" guardado por pessoa); a CREDENCIAL: o QR passa a valer SEMPRE (revoga a decisão de 15/10 dos 15 dias, pedido dele em
-      14/11: o cartão impresso não pode vencer) e a página de quem lê mostra a situação de AGORA, em letras grandes embaixo da foto; cada cartão
-      com um código próprio que se revoga ao "emitir outra"; criador de credencial (galeria de modelos e editor de arrastar, celular e impresso);
-      credenciais emitidas com impressão de várias numa segunda aba de pré-visualização, recusando credencial com dado faltando sem justificativa;
-      a Política de Privacidade muda junto (hoje diz que o QR vence).
+- [x] v9.5e — Novo associado passo a passo e a ficha (Dados e foto; Cargos e Família) no desenho aprovado.
+      **[FEITO (2026-11-17) — rodada 4 do desenho. Novo associado em 4 passos (Pessoa, Contato, Endereço, Conferir), o passo em texto com a
+      barrinha (sem bolinhas); "Continuar" confere só o passo aberto (o CPF errado já é avisado no 1º); no Conferir, o resumo de cada parte com
+      "Corrigir" e o motivo do que o servidor recusar. Ficha: Dados e foto com a foto, o botão de trocar e o preenchimento numa coluna à esquerda e
+      os campos à direita (no celular um embaixo do outro, "Salvar alterações" no fim); Cargos e Família com a lista no meio e o formulário ao lado
+      (no celular, o formulário antes da lista). Os robôs que cadastram pela tela usam o ajudante novo (`cadastrarPelaTela`)]**
+      **Homologação** e **Produção**: as mesmas da v9.5g (as três foram juntas na mesma branch).
+- [x] v9.5f — Qualidade da base passo a passo e a junção de dois cadastros de associado (regra da matrícula do Presidente, 13/11).
+      **[FEITO (2026-11-17) — a regra: na junção de dois cadastros da mesma pessoa fica a matrícula MAIS ANTIGA (pela data de entrada), tudo do
+      juntado passa para ela e o número que fica livre vai para o próximo associado novo (a matrícula nova passa a ser o menor número livre); os
+      números dos outros nunca mudam. A tela em 3 passos: 1) a fila, com filtro por tipo e situação e busca; 2) os dois cadastros lado a lado,
+      campo por campo, a matrícula mais antiga com cadeado e escolha obrigatória só no que difere (o CPF escondido); 3) o resultado, o que vai
+      acontecer e o nome digitado para confirmar. A busca de duplicados também acha nomes PARECIDOS ("Raimundo Nonato da Silva" e "Raimundo N. da
+      Silva") quando têm a mesma data de nascimento, telefone ou e-mail, e só se esse dado for de no máximo 3 pessoas com esse nome (o telefone da
+      família não enche a fila). Quatro conferências independentes da junção, todos os achados corrigidos e com teste: mensalidade do mesmo mês
+      nos dois fica uma só (paga nos dois, bloco antecipado ou planos diferentes sem par claro: recusa explicada, nada alterado); voto ou
+      manifestação repetidos recusam, o resto repetido (habilitado, credenciado, aviso, adesão) fica um só com as datas do outro; suspensão nunca
+      some, e a situação mais recente decide entre licença/desligamento e ativo; junção que termina Desligado faz o que o desligamento faz
+      (carteirinha e acesso desligados — nunca o de quem junta —, cobranças pendentes futuras canceladas); campos personalizados vão junto
+      (valores diferentes recusam); preferência de e-mail fica a mais recente; a comparação leva uma assinatura (HMAC com a chave do servidor,
+      porque os valores incluem o CPF) e qualquer mudança depois dela pede "compare de novo"; a junção só sai do item pendente da fila e só tira
+      da fila o item do par; a Auditoria guarda as matrículas e quais campos vieram, nunca os valores. A 4ª conferência achou uma regressão da 3ª
+      (aviso para todos com login só no juntado: a junção era recusada) — provada pelo teste novo contra o código antigo e corrigida. Achado
+      fora da junção, para a rodada do Financeiro: a geração do mês só pula pagamento antecipado do MESMO plano (mudança de categoria depois de
+      pagar em bloco cobraria de novo); na junção já é recusado]**
+      **Homologação** e **Produção**: as mesmas da v9.5g.
+- [x] v9.5g — Propostas de filiação em três colunas.
+      **[FEITO (2026-11-17) — rodadas 4 e 5 do desenho: a lista organizada por etapa (pronta para decidir, conferir os dados, aguardando sócios,
+      decididas) com busca, filtro e a barrinha dos 3 sócios; o pedido aberto ao lado com abas (Resumo, Quem propõe, Linha do tempo) e a decisão
+      embaixo; "Como funciona" no alto; no celular, a lista e o pedido com "Voltar à lista". Achado na homologação: o pedido decidido mostrava a
+      situação duas vezes ("Situação: Aprovada" e a etiqueta "Aprovada"); agora só a etiqueta, e a linha "Situação" só enquanto não foi decidido.
+      Também achado: 8 roteiros de robô ainda no desenho antigo de telas que já estavam no ar (saudação "Bem-vindo, <nome>" do Início, trocada na
+      v9.5b, e a regra do sistema pelo nome interno, trocada na v9.3g) — atualizados (ajudante `saudacaoDoInicio`, regra por `data-chave`)]**
+      **Homologação** (v9.5e + f + g juntas): 1ª rodada sobre `35c3228` — servidor 1955 testes em duas rodadas, Postgres verde, painel 1024 em
+      duas rodadas; robôs v5.4h-10, v5.7f-01, v7.0b-01, v7.2a-01, v7.2c-01, v7.2d-01, v9.3a-01, v9.3b-01 e v9.1a-01 verdes; v5.4c-fase1 e
+      v5.4h-09 reprovaram pela situação repetida no cartão, v5.4e-02 e v5.7d-01 pelos roteiros antigos. 2ª rodada sobre `4b9915e` (`hml-painel`
+      na build `4b9915e`; painel 1024 em duas rodadas, lint e tipos sem erro): v5.4c-fase1 (inclui a junção de verdade de dois associados e o
+      número livre indo para o próximo), v5.4h-09, v5.4h-10, v5.4e-02, v5.7d-01, v5.7b-01 e v5.4d-04 verdes; print do pedido aprovado conferido
+      ("Aprovada" uma vez, "Associado efetivado com sucesso. Matrícula 645.").
+      **Produção**: `5da9015` (o `4b9915e` com o PLANO da v9.5d juntado; o código é o conferido). Deploy API e Deploy Painel verdes;
+      `painel.asaf.org.br/version.json` = `5da9015`; no `openapi.json` da API está `/api/pessoas/fila-revisao/{id_fila}/comparar`, que responde 401
+      sem login; `/associados/propostas` responde 200.
+- [ ] Ainda do módulo Associados: Gráficos como painel (filtros, 6 números, gráficos, "Personalizar" guardado por pessoa); a CREDENCIAL: o QR
+      passa a valer SEMPRE (revoga a decisão de 15/10 dos 15 dias, pedido dele em 14/11: o cartão impresso não pode vencer) e a página de quem lê
+      mostra a situação de AGORA, em letras grandes embaixo da foto; cada cartão com um código próprio que se revoga ao "emitir outra"; criador de
+      credencial (galeria de modelos e editor de arrastar, celular e impresso); credenciais emitidas com impressão de várias numa segunda aba de
+      pré-visualização, recusando credencial com dado faltando sem justificativa; a Política de Privacidade muda junto (hoje diz que o QR vence).
+      Roteiros atualizados na v9.5g que ainda não rodaram na homologação: v5.4e-01, v5.4e-03, v5.4e-04 e v5.4f-01.
 - [ ] Etapa 3 · módulo a módulo: cada módulo numa rodada própria de escolha, com todas as telas dele. As escolhas da rodada 2 estão guardadas
       no artefato para quando cada módulo chegar: Financeiro (notebook "saldo em destaque e botões de ação", celular "saldo verde e atalhos"),
       Associados (tabela com abas; cartões no celular), Ficha (cabeçalho, abas e três colunas; abas no alto no celular), Formulário (passo a
