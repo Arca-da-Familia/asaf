@@ -127,6 +127,16 @@ def dono_que_vale(db: Session, credencial: Optional[Credencial]) -> Optional[tup
     return associado, pessoa
 
 
+def situacao_de_agora(db: Session, associado: Associado) -> str:
+    """A situação CALCULADA no momento da leitura (a regra do mural de avisos: título vencido além da tolerância, licença e experiência pelas datas), não o
+    rótulo guardado no cadastro - ele só muda quando algo dispara o recálculo e podia mostrar "em dia" a quem já passou da tolerância (achado da
+    conferência independente da Política 2.19). Suspenso e Desligado são decisões (não se calculam) e ficam como estão."""
+    from app.services.categoria_associado import _ESTADOS_CALCULAVEIS, calcular_categoria
+
+    guardada = associado.status_arrolamento or ""
+    return calcular_categoria(db, associado.id_associado) if guardada in _ESTADOS_CALCULAVEIS else guardada
+
+
 def situacao_publica(db: Session, codigo: Optional[str], tem_foto) -> dict:
     """O que a página de quem lê o QR mostra. Nunca CPF, endereço, telefone ou e-mail. Quando não vale, nem o nome nem a foto (e o motivo é o mesmo texto
     para código inexistente, substituído ou de quem saiu: a página não diz qual)."""
@@ -136,7 +146,7 @@ def situacao_publica(db: Session, codigo: Optional[str], tem_foto) -> dict:
         estado, titulo, detalhe = _NAO_VALE
         return {"estado": estado, "titulo": titulo, "detalhe": detalhe, "conferido_em": conferido_em}
     associado, pessoa = dono
-    situacao = associado.status_arrolamento or ""
+    situacao = situacao_de_agora(db, associado)
     estado, titulo, detalhe = _POR_SITUACAO.get(situacao, (PENDENCIA, "Associado", situacao or "Situação não informada"))
     return {
         "estado": estado,

@@ -28,6 +28,7 @@ import {
   useFilaPortaria,
   type ItemFilaPortaria,
   type PayloadAcaoPortaria,
+  soOFimDaCredencial,
 } from '@/lib/portaria-queue'
 
 type AcaoSelecionada = 'checkin' | 'checkout'
@@ -221,19 +222,30 @@ function CartaoConfirmacao({
         {valorLido && ` · ${valorLido}`}
       </p>
       <p className="mt-1">{rotuloStatus}</p>
-      {item.tipo === 'checkin' && item.status !== 'erro' && (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="mt-2"
-          disabled={enviando}
-          onClick={() => onCheckout(item)}
-        >
-          Registrar check-out desta pessoa
-        </Button>
+      {soOFimDaCredencial(item) && (
+        <p className="mt-2 text-muted-foreground">
+          {item.status === 'erro'
+            ? 'Para tentar de novo, leia o QR da credencial de novo.'
+            : item.tipo === 'checkin'
+              ? 'Para registrar a saída, leia o QR da credencial de novo.'
+              : null}
+        </p>
       )}
-      {item.status === 'erro' && (
+      {item.tipo === 'checkin' &&
+        item.status !== 'erro' &&
+        !soOFimDaCredencial(item) && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="mt-2"
+            disabled={enviando}
+            onClick={() => onCheckout(item)}
+          >
+            Registrar check-out desta pessoa
+          </Button>
+        )}
+      {item.status === 'erro' && !soOFimDaCredencial(item) && (
         <Button
           type="button"
           size="sm"

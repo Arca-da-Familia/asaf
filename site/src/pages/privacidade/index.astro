@@ -110,13 +110,17 @@ const substituto = substitutoDoEncarregado(diretoria)
 // v2.16 (2026-10-29): v7.2g - como o pedido é atendido (v7.2b a v7.2f): os canais (formulário, Minha conta e o painel do associado), a identidade (o código do
 // e-mail só vale para o que foi feito com o e-mail), o relatório dos seus dados para baixar por 15 dias (PDF e arquivo para levar a outro serviço), a
 // eliminação (o que sai, o que fica e por quê) e o total de pedidos no relatório anual; na lista de prazos, a cópia do relatório entregue (15 dias).
-// v2.19 (2026-11-18): v9.5i - a CREDENCIAL do associado (decisão do Presidente, 14/11/2026, revoga a de 15/10): o QR não vence e quem o lê vê a situação de
-// AGORA (`app/services/credencial.py`); substituída por outra ou de quem não é mais associado: "não vale", sem foto e sem nome; os QR antigos (JWT) valem
-// só até o prazo da regra (no máximo 20 dias). E o que o painel guarda no navegador, que só dizia o tema: o menu recolhido (v9.5c), os gráficos escolhidos
-// em "Personalizar" com o número do acesso (v9.5h, `painel/src/lib/graficos-personalizados.ts`), o aviso de recarga (`carregar-tela.ts`, sessionStorage)
-// e a fila da portaria (IndexedDB, `portaria-queue.ts`), que depois de enviada guarda só o fim do código da credencial.
 // v2.18 (2026-11-04): v9.1b - a barra de preferências de leitura (tamanho da letra e alto contraste) guarda só a escolha no navegador (localStorage), sem
 // dado da pessoa; voltar ao normal apaga (public/preferencias-de-leitura.js). "Só a página Minha conta guarda um dado" deixou de ser verdade.
+// v2.19 (2026-11-18): v9.5i - a CREDENCIAL do associado (decisão do Presidente, 14/11/2026, revoga a de 15/10): o QR não vence e quem o lê (ou tem o endereço
+// ou uma foto dele) vê a foto, o nome, a matrícula, a categoria e a situação CALCULADA no momento da leitura (`app/services/credencial.py::situacao_de_agora`,
+// a regra do mural; não o rótulo guardado, que só muda quando algo dispara o recálculo); substituída por outra ou de quem não é mais associado: "não vale",
+// sem foto e sem nome, com o mesmo texto para código falso; os QR antigos (JWT) valem só até o prazo da regra (no máximo 20 dias) e nenhum novo é gerado.
+// O item do navegador, que só dizia o tema, foi reordenado (o site, a Minha conta, o painel, a portaria) e completado: o menu recolhido, os gráficos de
+// "Personalizar" com o número do acesso, o aviso de recarga (sessionStorage) e a fila da portaria (IndexedDB: o código inteiro só até ser enviado;
+// enviado ou recusado, só o fim; sai do aparelho depois de 12 horas). A anonimização do desligado também apaga a credencial. A conferência independente
+// de fatos (18/11) achou: a situação era o rótulo guardado (corrigido no código), a fila da portaria nunca saía do aparelho e o recusado ficava com o
+// código inteiro (corrigido no código), a rota antiga do QR distinguia os casos (agora só aceita o QR antigo) e a frase da letra maior estava fora do lugar.
 const migalhas: Migalha[] = [{ rotulo: 'Política de Privacidade' }]
 const { versao, vigenteDesde } = DOCUMENTOS_LEGAIS.privacidade
 const dataExtenso = new Intl.DateTimeFormat('pt-BR', {
@@ -278,7 +282,12 @@ const direitos = [
         </li>
         <li data-cookies-e-dados>
           <strong>Cookies e dados no navegador.</strong> Este site não instala
-          cookies. A página{' '}
+          cookies. Se você escolher, na barra do alto das páginas deste site, um
+          tamanho de letra maior ou o alto contraste, o site guarda no seu
+          navegador só essa escolha (nada que identifique você), para ela valer
+          nas outras páginas e nas próximas visitas, até você voltar ao normal
+          ou apagar os dados do site no navegador; voltar à letra normal e
+          desligar o alto contraste apaga. A página{' '}
           <a
             href="/minha-conta/"
             class="font-medium text-primary underline underline-offset-4"
@@ -296,21 +305,20 @@ const direitos = [
           </a>{' '}
           (um endereço separado, para quem já é associado) usa um cookie
           técnico, estritamente necessário, para manter a sua sessão aberta, e
-          guarda no navegador só o que serve à tela: o tema (claro ou escuro),
-          se a coluna do menu fica recolhida, os gráficos dos associados que a
-          pessoa escolheu ver (e, se ela pedir, os filtros com que eles abrem),
-          guardados com o número do acesso dela para separar uma pessoa da outra
-          no mesmo computador, e um aviso técnico que some sozinho, para
-          recarregar a página uma vez quando sai uma versão nova. No aparelho da
-          portaria de um evento, as entradas e saídas registradas ficam numa
-          fila no navegador até serem enviadas; depois de enviadas, a fila
-          guarda só o fim do código da credencial lida. Se você escolher, na
-          barra do alto da página, um tamanho de letra maior ou o alto
-          contraste, o site guarda no seu navegador só essa escolha (nada que
-          identifique você), para ela valer nas outras páginas e nas próximas
-          visitas, até você voltar ao normal ou apagar os dados do site no
-          navegador; voltar à letra normal e desligar o alto contraste apaga.
-          Nada disso é usado para rastrear você.
+          guarda no navegador só o que serve à tela: o tema (claro, escuro ou o
+          do aparelho), se a coluna do menu fica recolhida, os gráficos dos
+          associados que a pessoa escolheu ver e em que ordem (e, se ela pedir,
+          os filtros com que eles abrem), guardados com o número do acesso dela
+          para separar uma pessoa da outra no mesmo computador, até ela voltar
+          ao painel padrão, e um aviso técnico, apagado quando a página carrega
+          bem ou a aba fecha, para recarregar a página uma vez quando uma parte
+          dela não carrega (por exemplo, logo depois de sair uma versão nova).
+          No aparelho da portaria de um evento, cada entrada e saída registrada
+          fica no navegador, com a hora e o código lido, até ser enviada (assim
+          nada se perde se a internet cair); enviada ou recusada pelo sistema,
+          da credencial de associado fica só o fim do código, e, passadas 12
+          horas, o registro sai do aparelho na próxima vez que a tela da
+          portaria é usada. Nada disso é usado para rastrear você.
         </li>
         <li>
           <strong>Diretoria e Conselho Fiscal.</strong> A página de Diretoria e
@@ -354,17 +362,19 @@ const direitos = [
         se a pessoa voltar a ter mandato, é preciso enviar a foto de novo. A
         foto do cadastro de associado (a da carteirinha) não é usada em nenhuma
         página deste site; para o público ela só aparece na conferência da
-        credencial de associado, para quem lê o QR da credencial (sem precisar
-        de login), junto com o nome, a matrícula, a categoria e a situação de
-        associado de agora (a do momento da leitura, não a do dia em que o
-        cartão foi impresso). O QR da credencial não vence, para poder ir
-        impresso no cartão, mas só mostra esses dados enquanto a credencial
-        vale: quando ela é substituída por outra (se o cartão foi perdido, por
-        exemplo) ou quando a pessoa deixa de ser associada, quem lê o QR vê
-        apenas que a credencial não vale, sem foto e sem nome. O QR não leva
-        CPF, endereço, telefone nem e-mail. Os QR do modelo anterior, que eram
-        gerados de novo a cada poucos dias, continuam valendo só até completar o
-        prazo deles (no máximo 20 dias desde que foram gerados).
+        credencial de associado, que abre para quem lê o QR da credencial ou tem
+        o endereço dele (sem precisar de login), junto com o nome, a matrícula,
+        a categoria e a situação de associado no momento da leitura, não a do
+        dia em que o cartão foi impresso (em dia, em experiência, com
+        mensalidade em atraso, suspenso ou licenciado). O QR da credencial não
+        vence, para poder ir impresso no cartão; por isso, quem tiver o QR, ou
+        uma foto dele, vê esses dados enquanto a credencial valer. Quando ela é
+        substituída por outra (se o cartão foi perdido, por exemplo) ou quando a
+        pessoa deixa de ser associada, quem lê o QR vê apenas que a credencial
+        não vale, sem foto e sem nome. O QR não leva CPF, endereço, telefone nem
+        e-mail. Os QR do modelo anterior, que valiam só por poucos dias,
+        continuam valendo até completar o prazo deles (no máximo 20 dias desde
+        que foram gerados); nenhum novo é gerado.
       </p>
       <p class="mt-3" data-fotos-de-atividades>
         <strong>Fotos das atividades.</strong> As páginas dos eventos, dos
@@ -834,7 +844,8 @@ const direitos = [
           Associado desligado: 5 anos depois do desligamento, apagamos CPF,
           e-mail, telefone, data de nascimento, estado civil, profissão,
           naturalidade, as habilidades cadastradas, a foto (inclusive o
-          arquivo), o endereço e, nas mudanças de situação (licença,
+          arquivo), o endereço, a credencial de associado (o código do QR, que
+          já mostrava que ela não vale) e, nas mudanças de situação (licença,
           desligamento, advertência), o motivo e o documento de referência;
           ficam o nome e a matrícula do livro de associados e o tipo e as datas
           das mudanças de situação. A rotina automática não inclui quem ainda

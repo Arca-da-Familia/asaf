@@ -702,7 +702,7 @@ def gerar_carteirinha(id_associado: int, db: Session = Depends(get_db), usuario:
     c = credenciais.atual(db, associado, usuario.id_usuario)
     db.commit()
     return {
-        "token": c.codigo, "url_verificacao": f"/carteirinha/verificar/{c.codigo}", "codigo": c.codigo,
+        "token": c.codigo, "url_verificacao": f"/api/publico/credencial/{c.codigo}", "codigo": c.codigo,
         "pagina": f"{credenciais.CAMINHO_DA_PAGINA}{c.codigo}",
         "emitida_em": c.emitida_em.isoformat() if c.emitida_em else None,
     }
@@ -728,6 +728,13 @@ def _arquivo_da_foto(pessoa: Pessoa) -> Optional[tuple[str, str]]:
 
 @router.get("/carteirinha/verificar/{token}/foto", summary="Foto da carteirinha digital, só enquanto o QR vale (público)")
 def foto_da_carteirinha(token: str, db: Session = Depends(get_db)):
+    # v9.5i: o código da credencial nova se confere só pela página nova (`/api/publico/credencial/{codigo}`), que responde igual para código que não
+    # existe, substituído ou de quem saiu (achado da conferência independente: esta rota distinguia os casos); esta fica só para o QR ANTIGO (JWT),
+    # até ele vencer
+    from app.services.credencial import parece_credencial
+
+    if parece_credencial(token):
+        raise HTTPException(status_code=404, detail="Não encontrado.")
     payload = carteirinha.decodificar(db, token)
     pessoa = _pessoa_da_carteirinha(db, payload)
     alvo = _arquivo_da_foto(pessoa)
@@ -750,6 +757,13 @@ def verificar_carteirinha(token: str, db: Session = Depends(get_db)):
     só o mínimo pra confirmar identidade visual (nome, foto, categoria, validade). Nunca CPF,
     telefone ou endereço, mesmo que o token seja válido. A foto NÃO é o endereço `/uploads/...` (aberto
     sem login e sem prazo): é uma rota que confere o QR a cada pedido (v5.7d), então a foto some junto com a validade."""
+    # v9.5i: o código da credencial nova se confere só pela página nova (`/api/publico/credencial/{codigo}`), que responde igual para código que não
+    # existe, substituído ou de quem saiu (achado da conferência independente: esta rota distinguia os casos); esta fica só para o QR ANTIGO (JWT),
+    # até ele vencer
+    from app.services.credencial import parece_credencial
+
+    if parece_credencial(token):
+        raise HTTPException(status_code=404, detail="Não encontrado.")
     payload = carteirinha.decodificar(db, token)
     pessoa = _pessoa_da_carteirinha(db, payload)
     associado = db.query(Associado).filter(Associado.id_pessoa == pessoa.id_pessoa).first()

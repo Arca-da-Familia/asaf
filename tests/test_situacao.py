@@ -52,7 +52,7 @@ def test_desligar_invalida_papel_e_bloqueia_carteirinha(client, auth_headers):
     associado = _criar_associado(client)
     carteirinha = client.get(f"/api/associados/{associado['id_associado']}/carteirinha", headers=cabecalho_admin(client)).json()
     ainda_valida = client.get(carteirinha["url_verificacao"])
-    assert ainda_valida.status_code == 200
+    assert ainda_valida.status_code == 200 and ainda_valida.json()["estado"] != "nao_vale"
 
     resposta = client.post(
         f"/api/associados/{associado['id_associado']}/desligar", headers=auth_headers,
@@ -60,8 +60,9 @@ def test_desligar_invalida_papel_e_bloqueia_carteirinha(client, auth_headers):
     )
     assert resposta.status_code == 200, resposta.text
 
-    apos_desligar = client.get(carteirinha["url_verificacao"])
-    assert apos_desligar.status_code == 404
+    # v9.5i: a página de conferência diz que a credencial não vale, sem nome nem foto
+    apos_desligar = client.get(carteirinha["url_verificacao"]).json()
+    assert apos_desligar["estado"] == "nao_vale" and "nome_completo" not in apos_desligar
 
 
 def test_desligar_duas_vezes_falha(client, auth_headers):
@@ -89,7 +90,7 @@ def test_readmissao_reativa_papel_e_zera_data_desligamento(client, auth_headers)
 
     carteirinha = client.get(f"/api/associados/{associado['id_associado']}/carteirinha", headers=cabecalho_admin(client)).json()
     verificacao = client.get(carteirinha["url_verificacao"])
-    assert verificacao.status_code == 200
+    assert verificacao.status_code == 200 and verificacao.json()["estado"] != "nao_vale", "readmitido: o mesmo cartão volta a valer"
 
 
 def test_readmitir_associado_nao_desligado_falha(client, auth_headers):

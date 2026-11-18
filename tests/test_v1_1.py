@@ -150,16 +150,17 @@ def test_carteirinha_gera_e_verifica_sem_expor_cpf(client, auth_headers):
     associado = _criar_associado(client).json()
     carteirinha = client.get(f"/api/associados/{associado['id_associado']}/carteirinha", headers=cabecalho_admin(client)).json()
 
-    verificacao = client.get(carteirinha["url_verificacao"])
+    verificacao = client.get(carteirinha["url_verificacao"])  # v9.5i: a página de conferência da credencial (pública)
     assert verificacao.status_code == 200
     corpo = verificacao.json()
     assert corpo["nome_completo"].startswith("Pessoa Teste v1.1")
-    assert corpo["valido"] is True
+    assert corpo["estado"] != "nao_vale"
     assert "cpf" not in corpo
     assert "telefone_whatsapp" not in corpo
     assert "endereco" not in corpo
 
 
 def test_carteirinha_com_token_adulterado_falha(client):
-    resposta = client.get("/carteirinha/verificar/token-invalido-adulterado")
-    assert resposta.status_code == 400
+    # o QR antigo (JWT) adulterado é recusado; o que tem cara de código de credencial nova não passa pela rota antiga (v9.5i)
+    assert client.get("/carteirinha/verificar/aaa.bbb.ccc").status_code == 400
+    assert client.get("/carteirinha/verificar/token-invalido-adulterado").status_code == 404

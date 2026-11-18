@@ -14,7 +14,7 @@ from tests.test_pessoas import _cpf_unico
 _JPEG = bytes([0xFF, 0xD8, 0xFF, 0xE0]) + b" imagem de teste"
 
 
-def _associado(db, situacao="Ativo - Em Dia", com_login=True, foto=False):
+def _associado(db, situacao="Ativo - Em Dia", com_login=True, foto=False, **campos):
     sufixo = uuid.uuid4().hex[:8]
     pessoa = Pessoa(
         nome_completo=f"Credencial {sufixo} de Teste", cpf=_cpf_unico(), email_contato=f"cred.{sufixo}@teste.local",
@@ -31,7 +31,7 @@ def _associado(db, situacao="Ativo - Em Dia", com_login=True, foto=False):
         db.flush()
     associado = Associado(
         id_pessoa=pessoa.id_pessoa, status_arrolamento=situacao, categoria="Efetivo",
-        id_usuario=usuario.id_usuario if usuario else None, numero_matricula=int(uuid.uuid4().int % 10**8) + 10**8,
+        id_usuario=usuario.id_usuario if usuario else None, numero_matricula=int(uuid.uuid4().int % 10**8) + 10**8, **campos,
     )
     db.add(associado)
     db.commit()
@@ -43,6 +43,18 @@ def _associado(db, situacao="Ativo - Em Dia", com_login=True, foto=False):
         pessoa.foto = f"/uploads/fotos/{nome}"
         db.commit()
     return associado, pessoa, usuario
+
+
+def _mensalidade_vencida(db, associado, dias=60):
+    from datetime import datetime, timedelta
+
+    from app.models.financeiro import TituloFinanceiro
+
+    db.add(TituloFinanceiro(
+        id_associado=associado.id_associado, tipo_titulo="Mensalidade", descricao="teste da credencial", valor_original=50, saldo_devedor=50,
+        status="Pendente", data_vencimento=datetime.utcnow() - timedelta(days=dias),
+    ))
+    db.commit()
 
 
 def _codigo(db, associado):
@@ -77,15 +89,20 @@ def test_quem_nao_e_associado_nao_tem_carteirinha(client, db):
 
 
 def test_quem_le_o_qr_ve_a_situacao_de_agora_sem_dado_de_contato(client, db):
+    from datetime import datetime, timedelta
+
+    daqui_a_um_mes = datetime.utcnow() + timedelta(days=30)
     casos = {
-        "Ativo - Em Dia": ("em_dia", "Associado em dia"),
-        "Em Experiência": ("em_dia", "Associado em experiência"),
-        "Ativo - Inadimplente": ("pendencia", "Associado com pendência"),
-        "Suspenso (Estatuto)": ("pendencia", "Associado suspenso"),
-        "Licenciado": ("pendencia", "Associado licenciado"),
+        "Ativo - Em Dia": ("em_dia", "Associado em dia", {}),
+        "Em Experiência": ("em_dia", "Associado em experiência", {"data_fim_experiencia": daqui_a_um_mes}),
+        "Ativo - Inadimplente": ("pendencia", "Associado com pendência", {}),
+        "Suspenso (Estatuto)": ("pendencia", "Associado suspenso", {}),
+        "Licenciado": ("pendencia", "Associado licenciado", {"data_fim_licenca": daqui_a_um_mes}),
     }
-    for situacao, (estado, titulo) in casos.items():
-        associado, pessoa, _ = _associado(db, situacao)
+    for situacao, (estado, titulo, campos) in casos.items():
+        associado, pessoa, _ = _associado(db, situacao, **campos)
+        if situacao == "Ativo - Inadimplente":
+            _mensalidade_vencida(db, associado)
         codigo = _codigo(db, associado)
         r = client.get(f"/api/publico/credencial/{codigo}")  # sem login
         assert r.status_code == 200
@@ -98,13 +115,24 @@ def test_quem_le_o_qr_ve_a_situacao_de_agora_sem_dado_de_contato(client, db):
         assert pessoa.cpf not in r.text
 
 
-def test_a_situacao_muda_e_o_mesmo_qr_mostra_a_nova(client, db):
+def test_a_situacao_e_calculada_na_hora_e_nao_a_guardada_no_cadastro(client, db):
+    """Achado da conferência independente: o rótulo guardado só muda quando algo dispara o recálculo. A página calcula na hora (a regra do mural):
+    passou da tolerância com mensalidade vencida -> pendência, mesmo com o cadastro ainda dizendo "em dia"; a licença que acabou -> em dia."""
+    from datetime import datetime, timedelta
+
     associado, _, _ = _associado(db)
     codigo = _codigo(db, associado)
     assert client.get(f"/api/publico/credencial/{codigo}").json()["estado"] == "em_dia"
-    associado.status_arrolamento = "Ativo - Inadimplente"
-    db.commit()
-    assert client.get(f"/api/publico/credencial/{codigo}").json()["estado"] == "pendencia"
+    _mensalidade_vencida(db, associado, dias=10)  # dentro da tolerância (30 dias): ainda em dia
+    assert client.get(f"/api/publico/credencial/{codigo}").json()["estado"] == "em_dia"
+    _mensalidade_vencida(db, associado, dias=45)
+    corpo = client.get(f"/api/publico/credencial/{codigo}").json()
+    assert (corpo["estado"], corpo["situacao"]) == ("pendencia", "Ativo - Inadimplente")
+    db.refresh(associado)
+    assert associado.status_arrolamento == "Ativo - Em Dia", "o cadastro não mudou: a página calculou"
+
+    acabou, _, _ = _associado(db, "Licenciado", data_fim_licenca=datetime.utcnow() - timedelta(days=1))
+    assert client.get(f"/api/publico/credencial/{_codigo(db, acabou)}").json()["titulo"] == "Associado em dia"
 
 
 def test_nao_vale_sem_nome_nem_foto_e_com_o_mesmo_texto_nos_tres_casos(client, db):

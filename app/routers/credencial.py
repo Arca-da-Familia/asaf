@@ -47,7 +47,7 @@ def minha_credencial(db: Session = Depends(get_db), usuario: Usuario = Depends(g
         "nome_completo": pessoa.nome_completo if pessoa else None,
         "matricula": associado.numero_matricula,
         "categoria": associado.categoria,
-        "situacao": associado.status_arrolamento,
+        "situacao": credenciais.situacao_de_agora(db, associado),
         "associado_desde": associado.data_admissao.date().isoformat() if associado.data_admissao else None,
         "foto": pessoa.foto if pessoa and _arquivo_da_foto(pessoa) else None,
     }

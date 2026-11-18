@@ -89,9 +89,22 @@ export function ouvirFilaPortaria(fn: Ouvinte): () => void {
   }
 }
 
+// v9.5i (conferência independente da Política 2.19): o que já foi enviado ou recusado não fica no aparelho para sempre - passadas estas horas (o dia do
+// evento), sai da lista e do navegador. O que ainda não foi enviado fica, até ir.
+export const HORAS_NO_APARELHO = 12
+
 export async function listarFilaPortaria(): Promise<ItemFilaPortaria[]> {
   const db = await getDb()
-  return db.getAllFromIndex(LOJA, 'criado_em')
+  const todos = await db.getAllFromIndex(LOJA, 'criado_em')
+  const limite = Date.now() - HORAS_NO_APARELHO * 3_600_000
+  const vivos: ItemFilaPortaria[] = []
+  for (const item of todos) {
+    const terminado = item.status === 'sincronizado' || item.status === 'erro'
+    if (terminado && Date.parse(item.criado_em) < limite)
+      await db.delete(LOJA, item.chave_idempotencia)
+    else vivos.push(item)
+  }
+  return vivos
 }
 
 // Gera a chave de idempotência UMA vez, aqui, no momento em que a ação nasce - nunca é
@@ -123,6 +136,13 @@ export async function enfileirarAcaoPortaria(
   return item
 }
 
+const PREFIXO_DO_CORTE = 'credencial ····'
+
+// o item só tem o fim do código (já enviado ou recusado): para a saída ou para tentar de novo, é preciso ler o QR de novo
+export function soOFimDaCredencial(item: ItemFilaPortaria): boolean {
+  return !!item.payload.token_carteirinha?.startsWith(PREFIXO_DO_CORTE)
+}
+
 // "credencial ····wXyZ": o que fica no aparelho depois de enviado (o QR pode trazer o endereço inteiro da página ou só o código)
 export function mascararCredencial(lido: string): string {
   const codigo =
@@ -132,7 +152,7 @@ export function mascararCredencial(lido: string): string {
       .pop()
       ?.split(/[?#]/)[0]
       ?.replace(/\/+$/, '') ?? ''
-  return `credencial ····${codigo.slice(-4)}`
+  return `${PREFIXO_DO_CORTE}${codigo.slice(-4)}`
 }
 
 function montarPayloadEnvio(item: ItemFilaPortaria): AcaoPortariaPayload {
@@ -180,6 +200,12 @@ async function enviarItem(item: ItemFilaPortaria): Promise<void> {
       // `reenviarItemComErro`, usado pelo botão "Tentar novamente" em PortariaGate.tsx.
       item.status = 'erro'
       item.ultimo_erro = erro.detail
+      // v9.5i: o recusado também guarda só o fim do código da credencial (o inteiro abriria a página de conferência da pessoa); para tentar de
+      // novo, lê-se o QR de novo
+      if (item.payload.token_carteirinha)
+        item.payload.token_carteirinha = mascararCredencial(
+          item.payload.token_carteirinha,
+        )
     } else {
       // `fetch` lançou (sem resposta nenhuma do servidor) - falha de rede, não recusa. Continua
       // pendente pro próximo ciclo; a chave de idempotência garante que reenviar depois nunca

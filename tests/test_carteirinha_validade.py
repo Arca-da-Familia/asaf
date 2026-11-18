@@ -61,8 +61,10 @@ def test_a_carteirinha_nova_e_a_credencial_que_nao_vence(client, auth_headers, d
     associado = _associado_ativo(db)
     token = client.get(f"/api/associados/{associado.id_associado}/carteirinha", headers=auth_headers).json()["token"]
     assert "." not in token and len(token) >= 16
-    r = client.get(f"/carteirinha/verificar/{token}")
-    assert r.status_code == 200 and r.json()["valido"] is True and r.json()["valido_ate"] is None
+    r = client.get(f"/api/publico/credencial/{token}")
+    assert r.status_code == 200 and r.json()["estado"] != "nao_vale" and "valido_ate" not in r.json()
+    # o código novo não passa pela rota do QR antigo (ela distinguiria código falso, substituído e de quem saiu)
+    assert client.get(f"/carteirinha/verificar/{token}").status_code == 404
     # pedir de novo devolve a MESMA credencial (o cartão impresso continua valendo)
     assert client.get(f"/api/associados/{associado.id_associado}/carteirinha", headers=auth_headers).json()["token"] == token
 
@@ -130,7 +132,8 @@ def test_token_sem_data_de_emissao_ou_de_outro_tipo_nao_passa(client, db, regra_
     assert client.get(f"/carteirinha/verificar/{sem_iat}").status_code == 400
     outro_tipo = jwt.encode({"id_pessoa": associado.id_pessoa, "iat": agora, "exp": agora + timedelta(days=5), "type": "acesso"}, JWT_SECRET, algorithm=JWT_ALGORITHM)
     assert client.get(f"/carteirinha/verificar/{outro_tipo}").status_code == 400
-    assert client.get("/carteirinha/verificar/isto-nao-e-um-token").status_code == 400
+    assert client.get("/carteirinha/verificar/isto.nao.e-um-token").status_code == 400
+    assert client.get("/carteirinha/verificar/isto-nao-e-um-token").status_code == 404, "cara de código novo: não é desta rota (v9.5i)"
 
 
 # ------------------------------------------------------------------------------------------------ a foto da carteirinha só enquanto o QR vale
@@ -151,7 +154,7 @@ def _com_foto_no_cadastro(db, associado, conteudo: bytes = _JPEG_DE_TESTE, exten
 def test_a_verificacao_nao_entrega_o_endereco_da_foto_e_a_foto_so_sai_enquanto_o_qr_vale(client, auth_headers, db, regra_padrao):
     associado = _associado_ativo(db)
     nome = _com_foto_no_cadastro(db, associado)
-    token = client.get(f"/api/associados/{associado.id_associado}/carteirinha", headers=auth_headers).json()["token"]
+    token = carteirinha.emitir(db, associado.id_pessoa)  # um QR antigo ainda no prazo (v9.5i: a rota da carteirinha devolve a credencial nova)
 
     r = client.get(f"/carteirinha/verificar/{token}")
     assert r.status_code == 200
@@ -166,12 +169,12 @@ def test_a_verificacao_nao_entrega_o_endereco_da_foto_e_a_foto_so_sai_enquanto_o
     velho = _token_emitido_ha(associado.id_pessoa, dias_atras=30)
     assert client.get(f"/carteirinha/verificar/{velho}").status_code == 400
     assert client.get(f"/carteirinha/verificar/{velho}/foto").status_code == 400
-    assert client.get("/carteirinha/verificar/isto-nao-e-um-token/foto").status_code == 400
+    assert client.get("/carteirinha/verificar/isto.nao.e-um-token/foto").status_code == 400
 
 
 def test_sem_foto_utilizavel_a_verificacao_diz_sem_foto(client, auth_headers, db, regra_padrao):
     sem_foto = _associado_ativo(db)
-    token = client.get(f"/api/associados/{sem_foto.id_associado}/carteirinha", headers=auth_headers).json()["token"]
+    token = carteirinha.emitir(db, sem_foto.id_pessoa)
     from app.models.pessoas import Pessoa
 
     db.query(Pessoa).filter(Pessoa.id_pessoa == sem_foto.id_pessoa).update({"foto": None})
@@ -181,6 +184,6 @@ def test_sem_foto_utilizavel_a_verificacao_diz_sem_foto(client, auth_headers, db
 
     com_pdf = _associado_ativo(db)
     _com_foto_no_cadastro(db, com_pdf, conteudo=b"%PDF-1.4 nao e imagem", extensao=".pdf")
-    token_pdf = client.get(f"/api/associados/{com_pdf.id_associado}/carteirinha", headers=auth_headers).json()["token"]
+    token_pdf = carteirinha.emitir(db, com_pdf.id_pessoa)
     assert client.get(f"/carteirinha/verificar/{token_pdf}").json()["foto"] is None, "só imagem sai por aqui"
     assert client.get(f"/carteirinha/verificar/{token_pdf}/foto").status_code == 404

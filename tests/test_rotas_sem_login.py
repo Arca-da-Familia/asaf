@@ -36,7 +36,7 @@ ABERTAS_DE_PROPOSITO = {
     ("POST", "/auth/senha/trocar-com-codigo"),  # a troca só acontece com o código que foi ao e-mail da conta (testado em test_esqueci_a_senha)
     ("POST", "/auth/webauthn/login/concluir"),
     ("POST", "/auth/webauthn/login/iniciar"),
-    ("GET", "/carteirinha/verificar/{token}"),  # o que a portaria escaneia (só nome, foto e validade)
+    ("GET", "/carteirinha/verificar/{token}"),  # o QR ANTIGO (JWT) até vencer (v9.5i: o código novo vai para /api/publico/credencial)
     ("GET", "/carteirinha/verificar/{token}/foto"),  # a foto do cadastro de quem o QR identifica, só enquanto o QR vale (v5.7d): o QR é a credencial
     ("GET", "/certificado/verificar/{codigo}"),
     ("GET", "/pesquisa-satisfacao/{token}"),  # link recebido por quem participou do evento
@@ -127,8 +127,8 @@ def test_carteirinha_gerada_pelo_dono_continua_verificavel_pela_portaria(client,
     db.add(Papel(id_pessoa=dono.id_pessoa, tipo_papel="associado"))
     db.commit()
     token = client.get(f"/api/associados/{dono.id_associado}/carteirinha", headers=como_dono).json()["token"]
-    r = client.get(f"/carteirinha/verificar/{token}")
-    assert r.status_code == 200 and r.json()["valido"] is True
+    r = client.get(f"/api/publico/credencial/{token}")  # v9.5i: a credencial se confere pela página nova, sem login
+    assert r.status_code == 200 and r.json()["estado"] != "nao_vale"
     assert "cpf" not in r.json()
 
 
