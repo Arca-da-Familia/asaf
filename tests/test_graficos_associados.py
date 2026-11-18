@@ -46,13 +46,14 @@ def _associado(db, categoria, nome, situacao, entrou_ha_dias, idade=None, bairro
 def _quadro_de_teste(db):
     """Cinco cadastros numa categoria nova:
     A em dia, entrou há 2 anos, 40 anos, Marco, com login; B inadimplente, entrou há 60 dias, 20 anos, Pedreira;
-    C desligado há 30 dias (entrou há 3 anos), Marco; D em experiência, entrou hoje, sem nascimento nem endereço; E licenciado há 12 anos, 70 anos, Umarizal."""
+    C desligado há 30 dias (entrou há 3 anos), Marco; D em experiência, entrou hoje, sem nascimento nem endereço; E licenciado, entrou há ~10,7 anos, 70 anos, Umarizal."""
     categoria = _categoria()
     _associado(db, categoria, "Grafico Alfa de Teste", "Ativo - Em Dia", 730, idade=40, bairro="Marco", com_login=True)
     _associado(db, categoria, "Grafico Beta de Teste", "Ativo - Inadimplente", 60, idade=20, bairro="Pedreira")
     _associado(db, categoria, "Grafico Gama de Teste", "Desligado", 1095, idade=55, bairro="Marco", saiu_ha_dias=30)
     _associado(db, categoria, "Grafico Delta de Teste", "Em Experiência", 0)
-    _associado(db, categoria, "Grafico Epsilon de Teste", "Licenciado", 4400, idade=70, bairro="Umarizal")
+    # ~10,7 anos atrás (2016): mais de 10 anos de casa, mas DEPOIS de 2015, o ano que o teste do relatório anual reserva no banco compartilhado
+    _associado(db, categoria, "Grafico Epsilon de Teste", "Licenciado", 3900, idade=70, bairro="Umarizal")
     return categoria
 
 
