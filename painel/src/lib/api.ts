@@ -1041,6 +1041,67 @@ export function listarAssociadosDaPagina(
   return apiFetch(`/api/associados/${consultaDeAssociados(filtros)}`)
 }
 
+// v9.5h: o painel de gráficos do módulo Associados - só contagens (nenhum nome, CPF ou contato), com os filtros de período, situação, categoria e bairro
+export type FiltrosDosGraficos = {
+  meses?: number
+  situacao?: string
+  categoria?: string
+  bairro?: string
+}
+export type ContagemNomeada = { nome: string; total: number }
+export type ContagemPorFaixa = { faixa: string; total: number }
+export type PainelDeGraficosDeAssociados = {
+  periodo: { meses: number; de: string; ate: string }
+  filtros_disponiveis: {
+    situacoes: string[]
+    categorias: string[]
+    bairros: string[]
+  }
+  numeros: {
+    cadastrados: number
+    no_quadro: number
+    desligados: number
+    ativos: number
+    em_dia: number
+    percentual_em_dia: number | null
+    entraram: number
+    sairam: number
+    idade_media: number | null
+    idade_minima: number | null
+    idade_maxima: number | null
+    com_acesso: number
+    percentual_com_acesso: number | null
+  }
+  por_mes: { mes: string; entraram: number; sairam: number }[]
+  quadro_por_mes: { mes: string; total: number }[]
+  por_situacao: ContagemNomeada[]
+  por_categoria: ContagemNomeada[]
+  faixas_de_idade: ContagemPorFaixa[]
+  por_bairro: ContagemNomeada[]
+  tempo_de_associacao: ContagemPorFaixa[]
+  filiacao: {
+    pedidos: number
+    com_os_3_socios: number
+    aprovados: number
+    recusados: number
+    em_andamento: number
+  }
+}
+
+export function obterPainelDeGraficosDeAssociados(
+  filtros: FiltrosDosGraficos,
+): Promise<PainelDeGraficosDeAssociados> {
+  const params = new URLSearchParams()
+  if (filtros.meses) params.set('meses', String(filtros.meses))
+  if (filtros.situacao) params.set('situacao', filtros.situacao)
+  if (filtros.categoria) params.set('categoria', filtros.categoria)
+  if (filtros.bairro) params.set('bairro', filtros.bairro)
+  const query = params.toString()
+  return apiFetch(
+    `/api/associados/painel-de-graficos${query ? `?${query}` : ''}`,
+  )
+}
+
 export type ResumoDeAssociados = {
   total: number
   por_situacao: Record<string, number>

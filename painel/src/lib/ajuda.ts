@@ -43,6 +43,18 @@ export const AJUDA: Record<string, AjudaDaTela> = {
     atencao:
       'Se já existir um cadastro parecido, o sistema recusa; só quem tem a permissão para isso vê "Cadastrar mesmo assim (confirmo que é outra pessoa)".',
   },
+  '/associados/graficos': {
+    paraQue:
+      'O retrato do quadro de associados: quantos são, quantos estão em dia, quem entrou e saiu, a idade, a categoria e a filiação. Só números, sem nome de ninguém.',
+    passos: [
+      'Use "Período", "Situação", "Categoria" e "Bairro" para olhar só uma parte do quadro; todos os números e gráficos mudam juntos.',
+      'Em "Por situação" ou "Por categoria", clique numa linha para abrir a lista dessas pessoas.',
+      '"Ver em tabela" mostra os números de cada gráfico; "Imprimir" leva o painel para o papel.',
+      'Em "Personalizar", marque o que aparece e mude a ordem; "Guardar para mim" deixa assim sempre que você abrir, "Usar só desta vez" vale até sair da tela e "Voltar ao painel padrão" desfaz.',
+    ],
+    atencao:
+      'O que você guarda em "Personalizar" fica só neste navegador: em outro computador ou celular o painel abre no padrão.',
+  },
   '/associados/propostas': {
     paraQue:
       'Os pedidos de quem quer virar associado: conferir a documentação e aprovar ou recusar.',

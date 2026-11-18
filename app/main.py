@@ -12,6 +12,7 @@ import time
 
 from app.database import preparar_banco, seed_catalogos, seed_niveis_e_permissoes, seed_configuracoes_institucionais, seed_regras_estatutarias, seed_textos_de_privacidade
 from app.services import armazenamento
+from app.routers import graficos_associados
 from app.routers import atendimento, notificacoes_painel, instituicao, publico, arquivos, auth, core, associados, financeiro, governanca, projetos, filiacao, importacao, situacao, voluntariado, qualidade_cadastro, estatuto, mandatos, sessao_assembleia, votacao, ata, conselho_fiscal, disciplina, dissolucao, calendario, chamada, compras, doacoes, doacao_online, visitante, orcamento, relatorios, antifraude, motores, beneficiarios, espacos, eventos, portaria, certificados, pesquisa_satisfacao, documentos, parcerias, comunicacao, preferencias_de_comunicacao, esqueci_a_senha, privacidade, cpf, saude
 from app import recusas
 from app.security import decodificar_access_token_silencioso
@@ -177,6 +178,7 @@ app.include_router(core.router)
 app.include_router(instituicao.router)
 app.include_router(notificacoes_painel.router)
 app.include_router(associados.router)
+app.include_router(graficos_associados.router)  # v9.5h: o painel de gráficos do módulo Associados
 app.include_router(financeiro.router)
 app.include_router(governanca.router)
 app.include_router(projetos.router)
