@@ -223,6 +223,12 @@ describe('Gráficos dos associados (v9.5h)', () => {
     const quadro = await screen.findByRole('region', {
       name: 'Tamanho do quadro',
     })
+    // escondida, a tabela não pode ter largura própria (esticava a página para o lado - robô v9.3b-01)
+    const escondida = within(quadro).getByRole('table', {
+      name: 'Tamanho do quadro',
+    })
+    expect(escondida).toHaveClass('sr-only')
+    expect(escondida).not.toHaveClass('w-full')
     await u.click(within(quadro).getByRole('button', { name: 'Ver em tabela' }))
     const tabela = within(quadro).getByRole('table', {
       name: 'Tamanho do quadro',

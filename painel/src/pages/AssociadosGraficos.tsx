@@ -597,7 +597,9 @@ function Cartao({
         </div>
       </div>
       {!emTabela && children}
-      <table className={cn('w-full text-sm', !emTabela && 'sr-only')}>
+      {/* escondida, a tabela é só do leitor de tela: SEM largura inteira (o "w-full" ganhava do "sr-only" e cada tabela invisível esticava a página
+          para o lado - achado do robô v9.3b-01 na homologação) */}
+      <table className={emTabela ? 'w-full text-sm' : 'sr-only'}>
         <caption className="sr-only">{titulo}</caption>
         <thead>
           <tr className="border-b border-border text-left text-muted-foreground">
@@ -691,9 +693,12 @@ function Grafico({
               { nome: 'Saíram', cor: 'var(--serie-2)' },
             ]}
           />
+          {/* o desenho fica fora do leitor de tela (a tabela tem os mesmos números); sem a camada de teclado do gráfico (accessibilityLayer), nada
+              dentro dele recebe foco - achado do robô de acessibilidade v9.1a-01 */}
           <div aria-hidden="true" className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
+                accessibilityLayer={false}
                 data={dados.por_mes.map((m) => ({
                   ...m,
                   rotulo: mesCurto(m.mes),
@@ -769,6 +774,7 @@ function Grafico({
           <div aria-hidden="true" className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
+                accessibilityLayer={false}
                 data={serie.map((m) => ({ ...m, rotulo: mesCurto(m.mes) }))}
                 margin={{ top: 12, right: 12, left: -18, bottom: 0 }}
               >
