@@ -17,6 +17,7 @@ export function padrao(caminho: string): string {
  * aberta; os robôs que percorrem o painel pelos links começam também por elas (as mesmas do MenuPessoal). */
 export const ROTAS_PESSOAIS = [
   '/perfil',
+  '/minha-carteirinha',
   '/meus-avisos',
   '/minhas-assembleias',
   '/peticoes-de-convocacao',

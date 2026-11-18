@@ -433,6 +433,17 @@ const RegrasDoEstatutoPage = lazy(() =>
     default: m.RegrasDoEstatutoPage,
   })),
 )
+// v9.5i: a credencial do associado (Minha carteirinha) e a página pública de quem lê o QR
+const MinhaCarteirinhaPage = lazy(() =>
+  carregarTela(() => import('@/pages/MinhaCarteirinha')).then((m) => ({
+    default: m.MinhaCarteirinhaPage,
+  })),
+)
+const ConferirCredencialPage = lazy(() =>
+  carregarTela(() => import('@/pages/ConferirCredencial')).then((m) => ({
+    default: m.ConferirCredencialPage,
+  })),
+)
 const PortariaGate = lazy(() =>
   carregarTela(() => import('@/pages/PortariaGate')).then((m) => ({
     default: m.PortariaGate,
@@ -554,6 +565,11 @@ function App() {
           {/* v4.8 - tela da portaria (check-in/check-out por token de evento, sem login do painel).
           Fora de RequireAuth/RequireMfa/Shell de propósito - ver PortariaGate.tsx. */}
           <Route path="/portaria/:token" element={<PortariaGate />} />
+          {/* v9.5i - quem lê o QR da credencial vê a situação de agora SEM entrar no painel (fora do RequireAuth de propósito) */}
+          <Route
+            path="/credencial/:codigo"
+            element={<ConferirCredencialPage />}
+          />
           <Route
             path="/trocar-senha"
             element={
@@ -587,6 +603,10 @@ function App() {
             <Route index element={<Home />} />
             <Route path="/dev/componentes" element={<DevComponents />} />
             <Route path="/perfil" element={<PerfilPage />} />
+            <Route
+              path="/minha-carteirinha"
+              element={<MinhaCarteirinhaPage />}
+            />
             <Route
               path="/treinamento-de-privacidade"
               element={<MeuTreinamentoDePrivacidadePage />}

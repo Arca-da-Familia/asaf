@@ -11,6 +11,7 @@ import {
 } from '@/components/associados/AbasDaFicha'
 import { CompletudeDoCadastro } from '@/components/associados/CompletudeECategoria'
 import { SituacaoChip } from '@/components/associados/SituacaoChip'
+import { CredencialDoAssociado } from '@/components/associados/CredencialDoAssociado'
 import { SituacaoDoAssociado } from '@/components/associados/SituacaoDoAssociado'
 import { VinculosDaPessoa } from '@/components/associados/VinculosDaPessoa'
 import { EmptyState } from '@/components/feedback/EmptyState'
@@ -128,11 +129,17 @@ export function AssociadoDetalhePage() {
                 <FamiliaTab idPessoaTitular={associado.id_pessoa} />
               )}
               {aba === 'situacao' && (
-                <SituacaoDoAssociado
-                  idAssociado={idAssociado}
-                  nome={associado.nome_completo}
-                  situacao={associado.status_arrolamento}
-                />
+                <>
+                  <SituacaoDoAssociado
+                    idAssociado={idAssociado}
+                    nome={associado.nome_completo}
+                    situacao={associado.status_arrolamento}
+                  />
+                  <CredencialDoAssociado
+                    idAssociado={idAssociado}
+                    desligado={associado.status_arrolamento === 'Desligado'}
+                  />
+                </>
               )}
               {aba === 'vinculos' && (
                 <VinculosDaPessoa

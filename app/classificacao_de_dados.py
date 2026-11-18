@@ -228,6 +228,9 @@ NAO_PESSOAIS: dict[str, tuple[str, ...]] = {
     "avisos": ("por_email", "publico_descricao", "motivo_retirada", "texto"),
     "avisos_agendados": ("por_email", "publico_descricao", "motivo", "texto"),
     "certidoes_deliberacao": ("texto_gerado",),
+    # v9.5i: o código sorteado do QR (não identifica ninguém sozinho; a página de quem lê só mostra o que a situação de agora permite) e o motivo, de uma
+    # lista fixa ("emitida outra", "juncao de cadastros")
+    "credenciais": ("codigo", "motivo_substituicao"),
     "deliberacoes": ("texto", "observacao_conclusao"),
     "lancamentos_contabeis": ("motivo_estorno", "comprovante"),
     "opcoes_catalogo": ("cor",),

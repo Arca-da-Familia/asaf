@@ -112,6 +112,10 @@ def anonimizar_associado(
     from app.models.preferencias_de_comunicacao import PreferenciaDeComunicacao
 
     db.query(PreferenciaDeComunicacao).filter(PreferenciaDeComunicacao.id_pessoa == pessoa.id_pessoa).delete(synchronize_session=False)
+    # v9.5i: as credenciais (o código do QR) de quem foi anonimizado saem; o QR impresso passa a mostrar "não vale", como para qualquer código que não existe
+    from app.models.credencial import Credencial
+
+    db.query(Credencial).filter(Credencial.id_associado == associado.id_associado).delete(synchronize_session=False)
     # v7.2c: a cópia do relatório entregue pela Minha conta não sobrevive à anonimização
     from app.services import entrega_ao_titular
 

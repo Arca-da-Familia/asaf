@@ -690,6 +690,14 @@ def _juntar_associados(
     _resolver_unicos(db, mantido.id_associado, absorvido.id_associado, contagens)
     _conferir_blocos_e_categoria(db, mantido, absorvido, categorias_antes)
     _resolver_mensalidades(db, mantido, absorvido, contagens)
+    # v9.5i: uma credencial valendo por pessoa. Se o cadastro que fica já tem a dele, a do juntado deixa de valer (o QR dela passa a mostrar "não vale");
+    # se não tem, a do juntado continua valendo e passa para o que fica (o cartão que a pessoa tem na mão não para de funcionar)
+    from app.services.credencial import substituir_na_juncao, valendo
+
+    if valendo(db, mantido.id_associado) is not None:
+        substituidas = substituir_na_juncao(db, absorvido.id_associado)
+        if substituidas:
+            contagens["credenciais_substituidas"] = substituidas
     _repontar_referencias_do_associado(db, mantido.id_associado, absorvido.id_associado, contagens)
     _juntar_valores_de_campo(db, "associado", mantido.id_associado, absorvido.id_associado, contagens)
     if mantido.status_arrolamento == DESLIGADO:

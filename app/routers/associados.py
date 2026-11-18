@@ -691,12 +691,21 @@ async def enviar_foto_associado(id_associado: int, foto: UploadFile = File(...),
 # ==========================================
 # CARTEIRINHA DIGITAL (v1.1) — QR assinado, verificação pública sem dado sensível.
 # ==========================================
-@router.get("/api/associados/{id_associado}/carteirinha", summary="Gerar token da carteirinha digital")
+@router.get("/api/associados/{id_associado}/carteirinha", summary="A credencial (carteirinha) do associado: o código do QR, que vale sempre")
 def gerar_carteirinha(id_associado: int, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
     # v5.4c: antes qualquer pessoa gerava uma carteirinha VÁLIDA (assinada) de qualquer associado, só com o número dele.
+    # v9.5i: devolve o código da CREDENCIAL que vale (nasce na primeira vez), no mesmo formato de antes - quem usava o "token" (a portaria, o
+    # credenciamento) continua funcionando; o QR não vence mais (decisão do Presidente, 14/11/2026)
+    from app.services import credencial as credenciais
+
     associado = _associado_do_proprio_ou_de_quem_tem_permissao(db, usuario, id_associado)
-    token = carteirinha.emitir(db, associado.id_pessoa)
-    return {"token": token, "url_verificacao": f"/carteirinha/verificar/{token}"}
+    c = credenciais.atual(db, associado, usuario.id_usuario)
+    db.commit()
+    return {
+        "token": c.codigo, "url_verificacao": f"/carteirinha/verificar/{c.codigo}", "codigo": c.codigo,
+        "pagina": f"{credenciais.CAMINHO_DA_PAGINA}{c.codigo}",
+        "emitida_em": c.emitida_em.isoformat() if c.emitida_em else None,
+    }
 
 
 def _pessoa_da_carteirinha(db: Session, payload: dict) -> Pessoa:
@@ -745,13 +754,14 @@ def verificar_carteirinha(token: str, db: Session = Depends(get_db)):
     pessoa = _pessoa_da_carteirinha(db, payload)
     associado = db.query(Associado).filter(Associado.id_pessoa == pessoa.id_pessoa).first()
 
-    validade = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
+    # v9.5i: a credencial nova não vence (exp vazio); o QR antigo mostra até quando vale
+    validade = datetime.fromtimestamp(payload["exp"], tz=timezone.utc) if payload.get("exp") is not None else None
     return {
         "nome_completo": pessoa.nome_completo,
         "foto": f"/carteirinha/verificar/{token}/foto" if _arquivo_da_foto(pessoa) else None,
         "categoria": associado.status_arrolamento if associado else None,
-        "valido_ate": validade.isoformat(),
-        "valido": validade > datetime.now(timezone.utc),
+        "valido_ate": validade.isoformat() if validade else None,
+        "valido": validade is None or validade > datetime.now(timezone.utc),
     }
 
 

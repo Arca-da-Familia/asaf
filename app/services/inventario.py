@@ -155,10 +155,11 @@ ATIVIDADES: tuple[Atividade, ...] = (
     Atividade(
         "CADASTRO", "Cadastro e vida associativa",
         "Manter o livro de associados e a ficha de cada um (dados pessoais, contato, endereço, família, documentos, situação, histórico), receber e decidir as "
-        "propostas de filiação e cumprir o Estatuto.",
+        "propostas de filiação, emitir a credencial de associado (o QR que mostra a quem confere a foto, o nome e a situação de agora) e cumprir o Estatuto.",
         ("ART7_V", "ART7_II", "ART7_IX", "ART11_II_D"), ("AZURE", "GITHUB", "GOOGLE"),
         ("pessoas", "papeis", "associados", "enderecos", "dependentes_familiares", "documentos_anexos", "historico_cargos", "mudancas_situacao",
-         "eventos_linha_do_tempo", "fila_revisao_cadastro", "valores_campo", "lotes_importacao", "propostas_filiacao", "propostas_de_socios"),
+         "eventos_linha_do_tempo", "fila_revisao_cadastro", "valores_campo", "lotes_importacao", "propostas_filiacao", "propostas_de_socios",
+         "credenciais"),
         ("associado_desligado", "propostas_de_filiacao"), arquivos=True,
         medidas="Anonimização automática do desligado no prazo; a leitura do histórico de situação (que pode ter motivo de saúde) vai para a Auditoria; "
                 "exportação em massa com permissão própria.",

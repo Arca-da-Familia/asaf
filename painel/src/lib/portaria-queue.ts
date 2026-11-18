@@ -123,6 +123,18 @@ export async function enfileirarAcaoPortaria(
   return item
 }
 
+// "credencial ····wXyZ": o que fica no aparelho depois de enviado (o QR pode trazer o endereço inteiro da página ou só o código)
+export function mascararCredencial(lido: string): string {
+  const codigo =
+    lido
+      .trim()
+      .split('/credencial/')
+      .pop()
+      ?.split(/[?#]/)[0]
+      ?.replace(/\/+$/, '') ?? ''
+  return `credencial ····${codigo.slice(-4)}`
+}
+
 function montarPayloadEnvio(item: ItemFilaPortaria): AcaoPortariaPayload {
   return {
     chave_idempotencia: item.chave_idempotencia,
@@ -147,6 +159,12 @@ async function enviarItem(item: ItemFilaPortaria): Promise<void> {
     }
     item.status = 'sincronizado'
     item.ultimo_erro = undefined
+    // v9.5i: o QR da credencial nova não vence - depois de enviado, o aparelho da portaria não guarda mais o código inteiro (que abriria a página de
+    // conferência daquela pessoa), só o fim dele, para a lista na tela
+    if (item.payload.token_carteirinha)
+      item.payload.token_carteirinha = mascararCredencial(
+        item.payload.token_carteirinha,
+      )
   } catch (erro) {
     item.tentativas += 1
     if (erro instanceof ErroPortaria && erro.status !== STATUS_FALHA_DE_REDE) {

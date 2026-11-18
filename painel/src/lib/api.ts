@@ -1102,6 +1102,58 @@ export function obterPainelDeGraficosDeAssociados(
   )
 }
 
+// v9.5i: a credencial do associado (carteirinha): o QR vale sempre e quem o lê vê a situação de AGORA (decisão do Presidente, 14/11/2026)
+export type MinhaCredencial = {
+  codigo: string
+  pagina: string
+  emitida_em: string | null
+  nome_completo: string | null
+  matricula: number | null
+  categoria: string | null
+  situacao: string | null
+  associado_desde: string | null
+  foto: string | null
+}
+export function obterMinhaCredencial(): Promise<MinhaCredencial> {
+  return apiFetch('/api/minha-credencial')
+}
+export type EstadoDaCredencial = 'em_dia' | 'pendencia' | 'nao_vale'
+export type ConferenciaDeCredencial = {
+  estado: EstadoDaCredencial
+  titulo: string
+  detalhe: string
+  conferido_em: string
+  nome_completo?: string
+  matricula?: number | null
+  categoria?: string | null
+  situacao?: string
+  foto?: string | null
+}
+// a credencial de um associado, vista pela secretaria (na ficha): nasce na primeira vez; "emitir outra" para quem perdeu o cartão
+export type CredencialDoAssociado = {
+  codigo: string
+  pagina: string
+  emitida_em: string | null
+}
+export function obterCredencialDoAssociado(
+  idAssociado: number,
+): Promise<CredencialDoAssociado> {
+  return apiFetch(`/api/associados/${idAssociado}/carteirinha`)
+}
+export function emitirOutraCredencial(
+  idAssociado: number,
+): Promise<CredencialDoAssociado & { mensagem: string }> {
+  return apiFetch(`/api/associados/${idAssociado}/credencial/emitir-outra`, {
+    method: 'POST',
+  })
+}
+// pública: quem lê o QR não precisa entrar no painel
+export function conferirCredencial(
+  codigo: string,
+): Promise<ConferenciaDeCredencial> {
+  return apiFetch(`/api/publico/credencial/${encodeURIComponent(codigo)}`)
+}
+
 export type ResumoDeAssociados = {
   total: number
   por_situacao: Record<string, number>

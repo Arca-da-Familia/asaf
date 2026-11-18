@@ -278,7 +278,10 @@ export function Shell() {
           <SinoDeAvisos naBarraVerde />
 
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <MenuPessoal nome={data?.nome_completo ?? data?.email} />
+            <MenuPessoal
+              nome={data?.nome_completo ?? data?.email}
+              associado={!!data?.id_associado}
+            />
             <Button
               variant="outline"
               size="sm"

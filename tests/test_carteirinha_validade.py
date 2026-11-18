@@ -3,7 +3,10 @@
 A verificação pública devolve nome, foto do cadastro e situação a quem tem o link; antes o link valia 365 dias. O que o servidor garante:
   1. o QR novo vale os dias da regra `DIAS_VALIDADE_CARTEIRINHA` (padrão 15), que a diretoria muda em Configurações > Regras do sistema;
   2. um QR já emitido com validade maior (os de 365 dias) também deixa de valer passados os dias da regra contados da emissão, na verificação pública, no credenciamento de assembleia e na portaria;
-  3. o "válido até" que a verificação mostra é o da regra, não o do token."""
+  3. o "válido até" que a verificação mostra é o da regra, não o do token.
+
+v9.5i (decisão do Presidente, 14/11/2026, revoga a de 15/10): a carteirinha passa a ser a CREDENCIAL com código permanente (tests/test_credencial.py); a regra
+dos dias acima vale só para os QR ANTIGOS (JWT) até vencerem. A rota da carteirinha devolve o código da credencial, que a verificação aceita sem prazo."""
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -53,21 +56,21 @@ def regra_padrao(db):
     _regra(db, antigo)
 
 
-def test_o_qr_novo_vale_os_dias_da_regra_e_nao_365(client, auth_headers, db, regra_padrao):
+def test_a_carteirinha_nova_e_a_credencial_que_nao_vence(client, auth_headers, db, regra_padrao):
+    """v9.5i: a rota devolve o código da credencial (não é mais um JWT de 15 dias) e a verificação diz que vale, sem "válido até"."""
     associado = _associado_ativo(db)
     token = client.get(f"/api/associados/{associado.id_associado}/carteirinha", headers=auth_headers).json()["token"]
-    payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-    assert payload["exp"] - payload["iat"] == 15 * 86400
+    assert "." not in token and len(token) >= 16
     r = client.get(f"/carteirinha/verificar/{token}")
-    assert r.status_code == 200 and r.json()["valido"] is True
-    valido_ate = datetime.fromisoformat(r.json()["valido_ate"])
-    assert abs((valido_ate - datetime.now(timezone.utc)).total_seconds() - 15 * 86400) < 120
+    assert r.status_code == 200 and r.json()["valido"] is True and r.json()["valido_ate"] is None
+    # pedir de novo devolve a MESMA credencial (o cartão impresso continua valendo)
+    assert client.get(f"/api/associados/{associado.id_associado}/carteirinha", headers=auth_headers).json()["token"] == token
 
 
-def test_a_regra_muda_o_prazo_do_qr_novo(client, auth_headers, db, regra_padrao):
+def test_a_regra_muda_o_prazo_do_qr_antigo(client, auth_headers, db, regra_padrao):
     associado = _associado_ativo(db)
     _regra(db, "10")
-    token = client.get(f"/api/associados/{associado.id_associado}/carteirinha", headers=auth_headers).json()["token"]
+    token = carteirinha.emitir(db, associado.id_pessoa)
     payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
     assert payload["exp"] - payload["iat"] == 10 * 86400
     # regra inválida ou zerada volta ao padrão em vez de abrir a mão
@@ -102,7 +105,7 @@ def test_a_regra_tem_teto_de_20_dias_mesmo_que_alguem_grave_mais(client, auth_he
     associado = _associado_ativo(db)
     _regra(db, "365")
     assert carteirinha.dias_de_validade(db) == carteirinha.DIAS_MAXIMO == 20
-    token = client.get(f"/api/associados/{associado.id_associado}/carteirinha", headers=auth_headers).json()["token"]
+    token = carteirinha.emitir(db, associado.id_pessoa)
     carga = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
     assert carga["exp"] - carga["iat"] == 20 * 86400
     # um QR de 25 dias atrás não passa nem com a regra no teto

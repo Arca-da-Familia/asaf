@@ -22,7 +22,7 @@ import { jpegComLocalizacao } from './imagens'
 //     2ª Tesoureira de teste, volta com um mandato novo, como o v5.4d-04 faz com o Tesoureiro).
 //  2. O vencimento natural (que nenhum clique provoca): este roteiro PREPARA uma pessoa nova com um mandato antigo e uma foto; quem a apaga é a rotina do sistema, que o Deploy Homologação roda
 //     contra o banco de teste. O v5.7d-02 confere depois da nova publicação.
-//  3. O QR da carteirinha novo vale os dias da regra (15), e a regra aparece em Regras do sistema.
+//  3. (v9.5i) A carteirinha é a credencial que não vence; a regra dos dias aparece em Regras do sistema como só do QR antigo.
 test.describe.configure({ mode: 'serial' })
 test.beforeAll(() => exigirHomologacao())
 test.setTimeout(300_000)
@@ -348,7 +348,9 @@ test('prepara o vencimento natural: pessoa nova com mandato antigo e uma foto, p
   await ver(page, info, 'pessoa-com-mandato-vencido-e-foto-guardada')
 })
 
-test('o QR da carteirinha novo vale os dias da regra (15) e a regra aparece em Regras do sistema', async ({
+// v9.5i (decisão do Presidente, 14/11/2026, revoga a de 15/10): a carteirinha passa a ser a CREDENCIAL, com QR que vale sempre e mostra a situação de
+// agora; a regra dos dias continua só para o QR antigo, até ele vencer (a descrição na tela diz isso). O robô da credencial é o v9.5i-01.
+test('a carteirinha é a credencial que não vence; a foto só sai pela rota que confere o código; a regra dos dias diz que é só do QR antigo', async ({
   page,
 }, info) => {
   await entrarComoPresidente(page)
@@ -365,39 +367,36 @@ test('o QR da carteirinha novo vale os dias da regra (15) e a regra aparece em R
     { headers: cabecalho() },
   )
   expect(r.status(), await r.text()).toBe(200)
-  const { token } = (await r.json()) as { token: string }
-  const carga = JSON.parse(
-    Buffer.from(token.split('.')[1]!, 'base64url').toString('utf8'),
-  ) as { iat: number; exp: number }
-  expect(carga.exp - carga.iat, 'o QR novo vale 15 dias, não 365').toBe(
-    15 * 86400,
+  const { token, pagina } = (await r.json()) as {
+    token: string
+    pagina: string
+  }
+  expect(token, 'o código da credencial, não um JWT que vence').not.toContain(
+    '.',
   )
-  const verificacao = await page.request.get(
-    `${API_HML}/carteirinha/verificar/${token}`,
+  expect(pagina).toBe(`/credencial/${token}`)
+  const conferencia = await page.request.get(
+    `${API_HML}/api/publico/credencial/${token}`,
   ) // pública: sem login
-  expect(verificacao.status()).toBe(200)
-  const textoDaVerificacao = await verificacao.text()
-  const corpo = JSON.parse(textoDaVerificacao) as {
-    valido: boolean
-    valido_ate: string
+  expect(conferencia.status()).toBe(200)
+  const textoDaConferencia = await conferencia.text()
+  const corpo = JSON.parse(textoDaConferencia) as {
+    estado: string
     foto: string | null
   }
-  expect(corpo.valido).toBe(true)
-  // a foto do cadastro não sai pelo endereço aberto (`/uploads/...`): sai por uma rota que confere o QR a cada pedido
-  expect(textoDaVerificacao).not.toContain('/uploads/')
+  expect(corpo.estado).not.toBe('nao_vale')
+  // a foto do cadastro não sai pelo endereço aberto (`/uploads/...`): sai por uma rota que confere a credencial a cada pedido
+  expect(textoDaConferencia).not.toContain('/uploads/')
   expect(
     corpo.foto === null ||
-      corpo.foto === `/carteirinha/verificar/${token}/foto`,
+      corpo.foto === `/api/publico/credencial/${token}/foto`,
   ).toBe(true)
   if (corpo.foto !== null) {
     const foto = await page.request.get(`${API_HML}${corpo.foto}`)
     expect(foto.status()).toBe(200)
   }
-  const dias = (Date.parse(corpo.valido_ate) - Date.now()) / 86400_000
-  expect(dias).toBeGreaterThan(14.5)
-  expect(dias).toBeLessThanOrEqual(15)
 
-  // a regra está na tela, no padrão de fábrica
+  // a regra dos dias continua na tela, com a descrição de que é só do QR antigo
   await page.goto('/regras')
   await expect(
     page.getByRole('heading', { name: 'Regras do sistema', level: 1 }),
@@ -407,6 +406,7 @@ test('o QR da carteirinha novo vale os dias da regra (15) e a regra aparece em R
     'li[data-chave="DIAS_VALIDADE_CARTEIRINHA"]',
   )
   await expect(linhaDaRegra).toBeVisible({ timeout: 30_000 })
-  await expect(linhaDaRegra.getByRole('spinbutton')).toHaveValue('15')
+  await expect(linhaDaRegra).toContainText('Só para o QR antigo')
+  await expect(linhaDaRegra).toContainText('A credencial nova não vence')
   await ver(page, info, 'regras-com-a-validade-da-carteirinha')
 })

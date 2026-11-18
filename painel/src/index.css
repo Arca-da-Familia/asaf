@@ -163,3 +163,18 @@
     padding: 1rem;
   }
 }
+
+/* v9.5i (Minha carteirinha): ao imprimir, só o cartão (frente e verso) vai para o papel - o menu, a barra do alto e as explicações ficam de fora */
+@media print {
+  body:has([data-impressao='carteirinha']) * {
+    visibility: hidden;
+  }
+  [data-impressao='carteirinha'],
+  [data-impressao='carteirinha'] * {
+    visibility: visible;
+  }
+  [data-impressao='carteirinha'] {
+    position: absolute;
+    inset: 0 auto auto 0;
+  }
+}

@@ -43,6 +43,17 @@ export const AJUDA: Record<string, AjudaDaTela> = {
     atencao:
       'Se já existir um cadastro parecido, o sistema recusa; só quem tem a permissão para isso vê "Cadastrar mesmo assim (confirmo que é outra pessoa)".',
   },
+  '/minha-carteirinha': {
+    paraQue:
+      'A sua credencial de associado: o cartão com a foto, o nome, a matrícula e o QR que mostra a quem confere a sua situação de agora.',
+    passos: [
+      'No celular, mostre a frente e toque em "Mostrar o QR" para quem vai conferir; "Ver a frente" volta.',
+      '"Imprimir a carteirinha" leva o cartão (frente e verso) para o papel; o QR impresso não vence.',
+      'Algum dado errado? Use "Abrir Meu perfil" ou fale com a secretaria.',
+    ],
+    atencao:
+      'Se perder o cartão, peça à secretaria para emitir outro: o QR do antigo deixa de valer na hora.',
+  },
   '/associados/graficos': {
     paraQue:
       'O retrato do quadro de associados: quantos são, quantos estão em dia, quem entrou e saiu, a idade, a categoria e a filiação. Só números, sem nome de ninguém.',

@@ -1,4 +1,7 @@
-"""v5.7d - o QR da carteirinha NÃO vale por tempo indeterminado (decisão do Presidente, 2026-10-15: "não existe isso; pode ser 10 dias, 20 dias").
+"""v9.5i: a credencial NOVA vale sempre (decisão do Presidente, 14/11/2026; ver `app/services/credencial.py`); a regra abaixo vale só para os QR
+ANTIGOS (JWT), até vencerem.
+
+v5.7d - o QR da carteirinha NÃO vale por tempo indeterminado (decisão do Presidente, 2026-10-15: "não existe isso; pode ser 10 dias, 20 dias").
 
 A verificação pública (`GET /carteirinha/verificar/{token}`) devolve o nome, a foto do cadastro e a situação de quem o QR identifica, sem login: quem tem o link vê isso enquanto o token valer. Antes
 o token valia 365 dias. Agora a validade vem de Configurações > Regras do sistema (`DIAS_VALIDADE_CARTEIRINHA`, padrão 15) e é aplicada na EMISSÃO e na LEITURA: um token emitido com validade maior (os
@@ -31,8 +34,22 @@ def emitir(db: Session, id_pessoa: int) -> str:
 
 
 def decodificar(db: Session, token: str) -> dict:
-    """O que `decodificar_token_carteirinha` já confere (assinatura, tipo, `exp`) mais a regra dos dias contados da emissão. O `exp` devolvido é o MENOR entre o do token e o da regra: é o que a
+    """v9.5i: a CREDENCIAL nova (o código sorteado, ou o endereço da página de conferência que o leitor de QR entrega) vale enquanto não for substituída e
+    a pessoa for associada — sem prazo (`exp` None). O QR antigo (JWT) continua passando pela regra dos dias até vencer.
+
+    O que `decodificar_token_carteirinha` já confere (assinatura, tipo, `exp`) mais a regra dos dias contados da emissão. O `exp` devolvido é o MENOR entre o do token e o da regra: é o que a
     verificação pública mostra como "válido até"."""
+    from app.services import credencial as credenciais
+
+    if credenciais.parece_credencial(token):
+        # como no QR antigo: código que não existe ou foi substituído é recusado aqui (400); quem não é mais associado é recusado por quem chama (a
+        # verificação, a portaria e o credenciamento conferem o papel de associado, como sempre fizeram)
+        codigo = credenciais.codigo_lido(token)
+        c = credenciais.por_codigo(db, codigo)
+        associado = credenciais.associado_da_credencial(db, c)
+        if associado is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Credencial inválida ou substituída por outra.")
+        return {"id_pessoa": associado.id_pessoa, "exp": None, "codigo": codigo}
     payload = decodificar_token_carteirinha(token)
     emitida = payload.get("iat")
     if not isinstance(emitida, (int, float)):
