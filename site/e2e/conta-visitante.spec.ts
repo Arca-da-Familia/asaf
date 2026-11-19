@@ -627,7 +627,7 @@ test.describe('a Política de Privacidade', () => {
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.18 · em vigor desde 4 de novembro de 2026'),
+      page.getByText('Versão 2.19 · em vigor desde 19 de novembro de 2026'),
     ).toBeVisible()
     const como = page.locator('[data-como-atendemos]')
     await expect(como).toContainText(

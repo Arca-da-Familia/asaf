@@ -315,7 +315,7 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
       'Certificado e crachá de evento: 10 anos depois da emissão, o arquivo é apagado e o nome sai do registro; a verificação pública pelo código continua dizendo que o documento é válido, sem o nome.',
       'Auditoria do sistema (o registro de quem fez o quê no painel e de cada envio dos formulários): 10 anos depois de cada ação, saem quem fez, o endereço de rede (IP) e os valores registrados; ficam o que aconteceu, onde e quando. Este prazo não fica abaixo de 5 anos.',
       'Doador identificado: 10 anos depois da doação, tiramos o nome, o documento, o e-mail e a ligação com o cadastro de associado; ficam o valor, a data e o destino',
-      'Associado desligado: 5 anos depois do desligamento, apagamos CPF, e-mail, telefone, data de nascimento, estado civil, profissão, naturalidade, as habilidades cadastradas, a foto (inclusive o arquivo), o endereço e, nas mudanças de situação (licença, desligamento, advertência), o motivo e o documento de referência; ficam o nome e a matrícula do livro de associados e o tipo e as datas das mudanças de situação. A rotina automática não inclui quem ainda tem outro papel ativo no cadastro (por exemplo, voluntário: esse papel acaba 5 anos depois do fim do último termo de adesão). Ainda não há prazo automático para os dependentes cadastrados, os documentos anexados, o histórico de cargos, a linha do tempo da pessoa e as observações internas da ficha.',
+      'Associado desligado: 5 anos depois do desligamento, apagamos CPF, e-mail, telefone, data de nascimento, estado civil, profissão, naturalidade, as habilidades cadastradas, a foto (inclusive o arquivo), o endereço, a credencial de associado (o código do QR, que já mostrava que ela não vale) e, nas mudanças de situação (licença, desligamento, advertência), o motivo e o documento de referência; ficam o nome e a matrícula do livro de associados e o tipo e as datas das mudanças de situação. A rotina automática não inclui quem ainda tem outro papel ativo no cadastro (por exemplo, voluntário: esse papel acaba 5 anos depois do fim do último termo de adesão). Ainda não há prazo automático para os dependentes cadastrados, os documentos anexados, o histórico de cargos, a linha do tempo da pessoa e as observações internas da ficha.',
     ])
       await expect(lista).toContainText(trecho)
     await expect(
@@ -333,11 +333,11 @@ test.describe('a Política de Privacidade 2.0 (a doação pelo site)', () => {
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.18 · em vigor desde 4 de novembro de 2026'),
+      page.getByText('Versão 2.19 · em vigor desde 19 de novembro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.18, em vigor desde 4 de novembro de 2026/,
+        /Esta é a versão 2\.19, em vigor desde 19 de novembro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-doacao]')

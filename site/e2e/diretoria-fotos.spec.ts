@@ -293,11 +293,11 @@ test.describe('Diretoria com fotos (v5.7c)', () => {
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.18 · em vigor desde 4 de novembro de 2026'),
+      page.getByText('Versão 2.19 · em vigor desde 19 de novembro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.18, em vigor desde 4 de novembro de 2026/,
+        /Esta é a versão 2\.19, em vigor desde 19 de novembro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-diretoria-foto]')
@@ -331,13 +331,17 @@ test.describe('Diretoria com fotos (v5.7c)', () => {
       'ficam apenas cópias de segurança internas, que não são públicas, por até cerca de 30 dias',
       'duram até 35 dias',
       'é preciso enviar a foto de novo',
-      'não é usada em nenhuma página deste site; para o público ela só aparece na verificação da carteirinha digital',
-      'e só enquanto o QR vale',
-      'Esse QR vale por poucos dias a partir de quando é gerado (hoje, 15 dias; no máximo 20)',
+      // v9.5i (2.19): a carteirinha virou a credencial - o QR não vence, mostra a situação no momento da leitura e, quando não vale, nem foto nem nome
+      'não é usada em nenhuma página deste site; para o público ela só aparece na conferência da credencial de associado',
+      'O QR da credencial não vence',
+      'quem lê o QR vê apenas que a credencial não vale, sem foto e sem nome',
+      'O QR não leva CPF, endereço, telefone nem e-mail',
+      'no máximo 20 dias desde que foram gerados',
     ]) {
       await expect(paragrafo).toContainText(trecho)
     }
     await expect(paragrafo).not.toContainText('15 a 30 minutos')
+    await expect(paragrafo).not.toContainText('hoje, 15 dias')
     await expect(paragrafo).not.toContainText('continua guardada, sem uso')
     await expect(
       paragrafo.getByRole('link', { name: 'Diretoria' }),

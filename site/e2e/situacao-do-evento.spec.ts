@@ -863,11 +863,11 @@ test.describe('Política de Privacidade (o aviso de mudança de situação do ev
   }) => {
     await page.goto('/privacidade/')
     await expect(
-      page.getByText('Versão 2.18 · em vigor desde 4 de novembro de 2026'),
+      page.getByText('Versão 2.19 · em vigor desde 19 de novembro de 2026'),
     ).toBeVisible()
     await expect(
       page.getByText(
-        /Esta é a versão 2\.18, em vigor desde 4 de novembro de 2026/,
+        /Esta é a versão 2\.19, em vigor desde 19 de novembro de 2026/,
       ),
     ).toBeVisible()
     const paragrafo = page.locator('[data-inscricao-em-evento]')
