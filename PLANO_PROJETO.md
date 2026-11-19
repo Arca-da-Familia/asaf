@@ -2499,11 +2499,35 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       navegador e o do estado vazio, que eu não tinha rodado aqui) — atualizados (`cd53fd2`, `24e14e5`; o do estado vazio agora lê a versão da
       configuração) e todos os passos do site rodados aqui antes do 3º envio: Deploy Site verde; `asaf.org.br/version.json` = `24e14e5`;
       `/privacidade/` mostra "Versão 2.19 · em vigor desde 19 de novembro de 2026" e o parágrafo da conferência da credencial (sem "hoje, 15 dias").
-- [ ] Ainda do módulo Associados: as credenciais emitidas (tabela com seleção; imprimir várias numa segunda aba de pré-visualização; recusar
-      credencial com dado faltando sem justificativa) e o criador de credencial (galeria de modelos e editor de arrastar, celular e impresso).
-- [ ] Rodada 7 de escolha (módulo Financeiro, 25 telas) publicada no artefato em 2026-11-18, a pedido dele ("um agente para ir fazendo as telas no
-      artefato" enquanto o sistema é construído) — esperando as escolhas dele. O desenho segue a decisão de 08/10 (saída = registro do que já foi
-      pago; dupla assinatura só em Compras e Alçadas); as funções novas estão marcadas NOVIDADE.
+- [x] v9.5j — As CREDENCIAIS EMITIDAS, no desenho escolhido (rodada 6, opção 1 no notebook e no celular).
+      **[FEITO (2026-11-19) — "Credenciais emitidas" no grupo novo "Credenciais" do menu do módulo Associados: a tabela de todos os associados
+      (desligado fica de fora: não tem credencial valendo), com os filtros e a contagem (Todas, Falta imprimir, Impressas, Emitidas de novo), a busca por nome
+      ou matrícula, a situação de agora, como está a credencial (falta imprimir / impressa em dd/mm/aaaa / emitida de novo) e o que falta no
+      cartão (foto, matrícula). Marcar várias (ou a página toda) e "Imprimir as marcadas (folha A4)" abre a folha numa SEGUNDA ABA, como ele
+      pediu: 10 cartões por folha no tamanho de cartão de banco (85,6 × 54 mm), deitados, com linha de corte, o logo, a foto, o nome, a matrícula,
+      a categoria, "associado desde" e o QR — sem a situação (ela muda; quem lê o QR vê a de agora) e sem CPF, endereço ou telefone. Cartão com
+      foto ou matrícula faltando só sai com justificativa (pelo menos 10 letras), que fica na Auditoria (CREDENCIAL_IMPRESSA); "Imprimir" registra a
+      impressão e abre a janela da impressora (ou "Salvar como PDF"); imprimir de novo é a mesma credencial. "Emitir outra" na linha pede
+      confirmação na própria linha. No celular, a lista em cartões leva à ficha já na aba Situação (`?aba=situacao`), cujo cartão da credencial
+      ganhou "Imprimir esta credencial". Rotas novas (permissão de associados): `GET /api/credenciais`, `GET /api/credenciais/resumo`,
+      `GET /api/credenciais/para-imprimir?ids=` (no máximo 60), `POST /api/credenciais/registrar-impressao`; coluna `impressa_em` (migração
+      `d5f9b2c8e3a1`)]**
+      **Homologação**: `26b4d79` com os 6 robôs verdes (v9.5j-01 novo: a tabela com o associado novo sem foto em "Falta imprimir", marcar e abrir
+      a folha na segunda aba, "Imprimir" travado até a justificativa, o registro e a linha em "Impressas"; no celular a lista sem rolagem lateral
+      e a ficha na aba Situação com "Imprimir esta credencial" e "Emitir outra credencial"; v9.5i-01, v5.4c-fase1, v9.1a-01 acessibilidade,
+      v9.3a-01 celular, v9.3b-01 notebook). Os prints mostraram a mensagem "1 credencial(is) impressa(s)" e a folha A4 na tela como uma faixa curta
+      -> `8be4bb9` (plural por extenso; a folha na tela com a altura de uma página, na impressão sem altura mínima) com v9.5j-01 de novo verde e os
+      prints conferidos. Servidor 1982 testes em três rodadas, Postgres verde; painel 1053 em três rodadas.
+      **Produção**: `8be4bb9` — Deploy API, Deploy Painel e "Push on main" verdes; `painel.asaf.org.br/version.json` = `8be4bb9`; no
+      `openapi.json` estão `/api/credenciais`, `/resumo`, `/para-imprimir` e `/registrar-impressao`; as três de leitura sem login = 401; a
+      tela `/associados/credenciais` responde 200. Só leitura: nenhum dado de teste em produção.
+- [ ] Ainda do módulo Associados: o criador de credencial (galeria de modelos e editor de arrastar, celular e impresso).
+- [ ] Rodadas de escolha feitas por um agente enquanto o sistema é construído (a pedido dele, 18/11): 7 (Financeiro, 25 telas), 7b (Financeiro
+      refeito, 12), 8 (Atendimento, 10) — respondidas em 18 e 19/11; 8b (Atendimento com AUTOATENDIMENTO, 10 telas + a Auditoria financeira como
+      um caminho só) e 9 (Governança, 18 telas) publicadas em 19/11, esperando as escolhas e as decisões dele (desligar pelo botão e o art. 15 do
+      Estatuto, guarda dos dados de quem sai, "Meus dados" na hora, resposta dos pedidos no painel, termo de voluntário no painel, decisões e atas
+      para todo associado, voto e presença pela internet). O desenho segue a decisão de 08/10 (saída = registro do que já foi pago; dupla
+      assinatura só em Compras e Alçadas).
 - [ ] Etapa 3 · módulo a módulo: cada módulo numa rodada própria de escolha, com todas as telas dele. As escolhas da rodada 2 estão guardadas
       no artefato para quando cada módulo chegar: Financeiro (notebook "saldo em destaque e botões de ação", celular "saldo verde e atalhos"),
       Associados (tabela com abas; cartões no celular), Ficha (cabeçalho, abas e três colunas; abas no alto no celular), Formulário (passo a
