@@ -23,7 +23,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 _REGRA = "DIAS_VALIDADE_CARTEIRINHA"
 _TEXTO_ANTIGO = 'Dias que o QR da carteirinha digital vale a partir do momento em que é gerado, de 1 a 20 (a verificação pública, a foto dela, a portaria e o credenciamento deixam de aceitá-lo depois disso).'
-_TEXTO_NOVO = 'Só para o QR antigo da carteirinha (o de antes da credencial, até 18/11/2026): dias que ele ainda vale a partir de quando foi gerado, de 1 a 20. A credencial nova não vence: quem lê o QR dela vê a situação de agora.'
+_TEXTO_NOVO = 'Só para o QR antigo da carteirinha (o de antes da credencial, até 19/11/2026): dias que ele ainda vale a partir de quando foi gerado, de 1 a 20. A credencial nova não vence: quem lê o QR dela vê a situação de agora.'
 
 
 def _trocar_descricao(de: str, para: str) -> None:

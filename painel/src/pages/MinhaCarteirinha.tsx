@@ -172,7 +172,7 @@ export function MinhaCarteirinhaPage() {
 
           <div className="flex w-full flex-col gap-4 lg:w-[400px] print:hidden">
             <section className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-5 shadow-card">
-              <h2 className="text-xs font-extrabold tracking-wide text-muted-foreground uppercase">
+              <h2 className="text-xs font-extrabold tracking-wide [word-spacing:0.2em] text-muted-foreground uppercase">
                 Onde a carteirinha vale
               </h2>
               <ul className="flex flex-col gap-1.5 text-sm">
@@ -181,7 +181,7 @@ export function MinhaCarteirinhaPage() {
                   'No credenciamento das assembleias.',
                   'Para mostrar que é associado: quem lê o QR vê a foto, o nome e a situação de agora.',
                 ].map((t) => (
-                  <li key={t} className="flex gap-2">
+                  <li key={t} className="flex flex-nowrap gap-2">
                     <Check
                       className="mt-0.5 h-4 w-4 shrink-0 text-verde-texto"
                       aria-hidden="true"
