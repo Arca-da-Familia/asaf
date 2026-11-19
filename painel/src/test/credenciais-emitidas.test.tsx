@@ -203,7 +203,7 @@ describe('A folha de impressão, na segunda aba (v9.5j)', () => {
       },
     ])
     vi.mocked(api.registrarImpressao).mockResolvedValue({
-      mensagem: 'Registrado: 2 credencial(is) impressa(s).',
+      mensagem: 'Registrado: 2 credenciais impressas.',
       impressas: 2,
     })
     const { container } = abrirFolha()

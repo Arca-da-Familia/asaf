@@ -104,6 +104,7 @@ def test_dado_faltando_so_se_imprime_com_justificativa_que_fica_na_auditoria(cli
     justificada = {**corpo, "justificativas": {str(sem_foto.id_associado): "A pessoa traz a foto impressa e colamos no cartão."}}
     r = client.post("/api/credenciais/registrar-impressao", json=justificada, headers=auth_headers)
     assert r.status_code == 200, r.text
+    assert r.json()["mensagem"] == "Registrado: 2 credenciais impressas.", "plural escrito por extenso, sem (is)/(s)"
     db.expire_all()
     for associado in (completo, sem_foto):
         assert credenciais.valendo(db, associado.id_associado).impressa_em is not None
@@ -119,7 +120,8 @@ def test_dado_faltando_so_se_imprime_com_justificativa_que_fica_na_auditoria(cli
 def test_imprimir_de_novo_mantem_a_mesma_credencial(client, auth_headers, db):
     associado, _, _ = _associado(db, foto=True)
     for _ in range(2):
-        assert client.post("/api/credenciais/registrar-impressao", json={"ids": [associado.id_associado]}, headers=auth_headers).status_code == 200
+        r = client.post("/api/credenciais/registrar-impressao", json={"ids": [associado.id_associado]}, headers=auth_headers)
+        assert r.status_code == 200 and r.json()["mensagem"] == "Registrado: 1 credencial impressa."
     assert db.query(Credencial).filter(Credencial.id_associado == associado.id_associado).count() == 1
 
 

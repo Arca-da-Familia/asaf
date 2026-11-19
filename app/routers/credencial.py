@@ -271,4 +271,6 @@ def registrar_impressao(dados: RegistroDaImpressao, db: Session = Depends(get_db
             dados_depois={"faltando": falta, "justificativa": (dados.justificativas.get(associado.id_associado) or "").strip() if falta else None},
         )
     db.commit()
-    return {"mensagem": f"Registrado: {len(escolhidos)} credencial(is) impressa(s).", "impressas": len(escolhidos)}
+    n = len(escolhidos)
+    quantas = "1 credencial impressa" if n == 1 else f"{n} credenciais impressas"
+    return {"mensagem": f"Registrado: {quantas}.", "impressas": n}

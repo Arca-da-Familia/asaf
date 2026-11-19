@@ -254,7 +254,7 @@ export function ImprimirCredenciaisPage() {
           <section
             key={i}
             aria-label={`Folha ${i + 1} de ${folhas.length}`}
-            className="folha-de-credenciais grid w-[210mm] grid-cols-[repeat(2,85.6mm)] content-start justify-center gap-x-[6mm] gap-y-[2mm] bg-white px-[10mm] py-[8mm] shadow-card print:break-after-page print:shadow-none"
+            className="folha-de-credenciais grid min-h-[297mm] w-[210mm] grid-cols-[repeat(2,85.6mm)] content-start justify-center gap-x-[6mm] gap-y-[2mm] bg-white px-[10mm] py-[8mm] shadow-card print:min-h-0 print:break-after-page print:shadow-none"
           >
             {folha.map((c) => (
               <Cartao key={c.id_associado} c={c} />
