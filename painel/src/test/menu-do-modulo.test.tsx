@@ -110,6 +110,7 @@ describe('coluna do módulo em grupos (v9.5c)', () => {
       'Importar em lote',
       'Propostas de filiação',
       'Credenciais emitidas',
+      'Criador de credencial',
       'Qualidade da base',
       'Gráficos',
     ])

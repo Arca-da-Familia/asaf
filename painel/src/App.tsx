@@ -439,6 +439,17 @@ const CredenciaisEmitidasPage = lazy(() =>
     default: m.CredenciaisEmitidasPage,
   })),
 )
+// v9.5k: o criador de credencial (a página inicial com os modelos e o editor de arrastar)
+const CriadorDeCredencialPage = lazy(() =>
+  carregarTela(() => import('@/pages/CriadorDeCredencial')).then((m) => ({
+    default: m.CriadorDeCredencialPage,
+  })),
+)
+const EditorDeCredencialPage = lazy(() =>
+  carregarTela(() => import('@/pages/EditorDeCredencial')).then((m) => ({
+    default: m.EditorDeCredencialPage,
+  })),
+)
 const ImprimirCredenciaisPage = lazy(() =>
   carregarTela(() => import('@/pages/ImprimirCredenciais')).then((m) => ({
     default: m.ImprimirCredenciaisPage,
@@ -788,6 +799,22 @@ function App() {
                 element={
                   <ErrorBoundary tituloModulo="Credenciais">
                     <CredenciaisEmitidasPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="credenciais/criador"
+                element={
+                  <ErrorBoundary tituloModulo="Criador de credencial">
+                    <CriadorDeCredencialPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="credenciais/criador/:id"
+                element={
+                  <ErrorBoundary tituloModulo="Criador de credencial">
+                    <EditorDeCredencialPage />
                   </ErrorBoundary>
                 }
               />

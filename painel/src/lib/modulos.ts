@@ -25,6 +25,7 @@ import {
   ListChecks,
   LockKeyhole,
   Megaphone,
+  Palette,
   MessageCircleQuestion,
   PartyPopper,
   Receipt,
@@ -145,11 +146,17 @@ export const modulos: Modulo[] = [
         icone: Inbox,
         grupo: 'Filiação',
       },
-      // v9.5j: o grupo Credenciais (rodada 6); o criador de credencial entra aqui na versão seguinte
+      // v9.5j: o grupo Credenciais (rodada 6); v9.5k: o criador de credencial
       {
         rota: '/associados/credenciais',
         rotulo: 'Credenciais emitidas',
         icone: IdCard,
+        grupo: 'Credenciais',
+      },
+      {
+        rota: '/associados/credenciais/criador',
+        rotulo: 'Criador de credencial',
+        icone: Palette,
         grupo: 'Credenciais',
       },
       {

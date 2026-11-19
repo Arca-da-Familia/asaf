@@ -8,6 +8,7 @@ import {
 } from './consentimento-da-foto'
 
 import { clearSession, getAccessToken, setAccessToken } from './auth'
+import type { Desenho } from './credencial-desenho'
 import { finalizarRequisicao, iniciarRequisicao } from './network-status'
 import { meResponseSchema, perfilResponseSchema } from './schemas'
 
@@ -1113,6 +1114,8 @@ export type MinhaCredencial = {
   situacao: string | null
   associado_desde: string | null
   foto: string | null
+  // v9.5k: o desenho em uso (a impressão e a cor do cabeçalho)
+  desenho?: Desenho
 }
 export function obterMinhaCredencial(): Promise<MinhaCredencial> {
   return apiFetch('/api/minha-credencial')
@@ -1201,6 +1204,73 @@ export function registrarImpressao(
   return apiFetch('/api/credenciais/registrar-impressao', {
     method: 'POST',
     body: JSON.stringify({ ids, justificativas }),
+  })
+}
+
+// v9.5k: o criador de credencial (permissão de associados): o modelo em uso, os guardados e os prontos; guardar, alterar, usar para todos e apagar
+export type ModeloEmUso = {
+  id_modelo: number | null
+  nome: string
+  desenho: Desenho
+  pronto: string | null
+}
+export type ModeloDeCredencial = {
+  id_modelo: number
+  nome: string
+  desenho: Desenho
+  em_uso: boolean
+  usado_desde: string | null
+  atualizado_em: string | null
+}
+export type ModeloPronto = { chave: string; nome: string; desenho: Desenho }
+export type ModelosDeCredencial = {
+  em_uso: ModeloEmUso
+  guardados: ModeloDeCredencial[]
+  prontos: ModeloPronto[]
+  maximo_guardados: number
+}
+export function listarModelosDeCredencial(): Promise<ModelosDeCredencial> {
+  return apiFetch('/api/credenciais/modelos')
+}
+export function obterModeloEmUso(): Promise<ModeloEmUso> {
+  return apiFetch('/api/credenciais/modelo-em-uso')
+}
+export function obterModeloDeCredencial(
+  idModelo: number,
+): Promise<ModeloDeCredencial> {
+  return apiFetch(`/api/credenciais/modelos/${idModelo}`)
+}
+export function guardarModeloDeCredencial(
+  nome: string,
+  desenho: Desenho,
+): Promise<ModeloDeCredencial> {
+  return apiFetch('/api/credenciais/modelos', {
+    method: 'POST',
+    body: JSON.stringify({ nome, desenho }),
+  })
+}
+export function alterarModeloDeCredencial(
+  idModelo: number,
+  nome: string,
+  desenho: Desenho,
+): Promise<ModeloDeCredencial> {
+  return apiFetch(`/api/credenciais/modelos/${idModelo}`, {
+    method: 'PUT',
+    body: JSON.stringify({ nome, desenho }),
+  })
+}
+export function usarModeloDeCredencial(
+  idModelo: number,
+): Promise<{ mensagem: string; em_uso: ModeloEmUso }> {
+  return apiFetch(`/api/credenciais/modelos/${idModelo}/usar`, {
+    method: 'POST',
+  })
+}
+export function apagarModeloDeCredencial(
+  idModelo: number,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/credenciais/modelos/${idModelo}`, {
+    method: 'DELETE',
   })
 }
 

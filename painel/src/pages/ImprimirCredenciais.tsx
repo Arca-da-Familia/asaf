@@ -1,22 +1,25 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Printer, UserRound } from 'lucide-react'
-import { QRCodeSVG } from 'qrcode.react'
+import { Printer } from 'lucide-react'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 
+import { CartaoDesenhado } from '@/components/credencial/CartaoDesenhado'
 import { Button } from '@/components/ui/button'
 import {
   ApiError,
   obterFolhaDeImpressao,
+  obterModeloEmUso,
   registrarImpressao,
   urlArquivo,
   type CartaoParaImprimir,
 } from '@/lib/api'
+import type { Desenho } from '@/lib/credencial-desenho'
 
 // v9.5j - a SEGUNDA ABA da impressão das credenciais (o Presidente, rodada 6: "vai abrir uma outra aba e nesta outra aba vai aparecer... para o pessoal
 // confirmar ou não a impressão... imprime ou salva o PDF"; "não permite imprimir se estiver faltando algum dado, a não ser que justifique"). Folha A4
 // com 10 cartões deitados no tamanho de cartão de banco (85,6 × 54 mm), com linha para cortar. O cartão não leva a situação (ela muda; quem lê o QR
 // vê a de agora) nem CPF, endereço ou telefone. "Imprimir" registra a impressão (e a justificativa, na Auditoria) e abre a impressão do navegador.
+// v9.5k: o cartão segue o desenho do modelo em uso (o criador de credencial).
 
 const POR_FOLHA = 10
 const MINIMO_DA_JUSTIFICATIVA = 10
@@ -27,68 +30,27 @@ function mesEAno(iso: string | null): string | null {
   return mes && ano ? `${mes}/${ano}` : null
 }
 
-function Cartao({ c }: { c: CartaoParaImprimir }) {
-  const desde = mesEAno(c.associado_desde)
+function Cartao({ c, desenho }: { c: CartaoParaImprimir; desenho: Desenho }) {
+  const nome = c.nome_completo ?? 'associado'
   return (
-    <div
-      className="flex h-[54mm] w-[85.6mm] flex-col overflow-hidden border border-dashed border-neutral-400 bg-white text-[#0b1611] [print-color-adjust:exact]"
-      aria-label={`Credencial de ${c.nome_completo ?? 'associado'}`}
-    >
-      <div className="flex h-[10mm] shrink-0 items-center gap-[2mm] bg-[#14532d] px-[3mm] text-white">
-        <span className="flex h-[7mm] w-[8mm] items-center justify-center rounded-[1.2mm] bg-white">
-          <img
-            src="/asaf-logo-160.webp"
-            alt=""
-            className="h-[6mm] w-[6mm] object-contain"
-          />
-        </span>
-        <span className="flex flex-col leading-none">
-          <span className="text-[9pt] font-extrabold">ASAF</span>
-          <span className="text-[6.5pt]">Credencial de associado</span>
-        </span>
-      </div>
-      <div className="flex min-h-0 flex-1 items-center gap-[2.5mm] px-[3mm] py-[2mm]">
-        {c.foto ? (
-          <img
-            src={urlArquivo(c.foto)}
-            alt=""
-            className="h-[26mm] w-[20mm] shrink-0 rounded-[1.5mm] object-cover"
-          />
-        ) : (
-          <span className="flex h-[26mm] w-[20mm] shrink-0 items-center justify-center rounded-[1.5mm] bg-neutral-100">
-            <UserRound
-              className="h-[10mm] w-[10mm] text-neutral-400"
-              aria-hidden="true"
-            />
-          </span>
-        )}
-        <div className="flex min-w-0 flex-1 flex-col gap-[0.8mm] leading-tight">
-          <span className="text-[9pt] font-extrabold break-words">
-            {c.nome_completo ?? 'Sem nome'}
-          </span>
-          <span className="text-[7.5pt]">
-            {c.matricula ? `Matrícula nº ${c.matricula}` : 'Sem matrícula'}
-          </span>
-          {c.categoria && <span className="text-[7.5pt]">{c.categoria}</span>}
-          {desde && (
-            <span className="text-[6.5pt] text-neutral-600">
-              Associado desde {desde}
-            </span>
-          )}
-        </div>
-        <div className="flex shrink-0 flex-col items-center gap-[0.8mm]">
-          <QRCodeSVG
-            value={`${window.location.origin}${c.pagina}`}
-            size={84}
-            level="M"
-            style={{ width: '22mm', height: '22mm' }}
-            aria-hidden="true"
-          />
-          <span className="text-[5.5pt] text-neutral-600">
-            Confira a situação
-          </span>
-        </div>
-      </div>
+    <div className="relative h-[54mm] w-[85.6mm]">
+      <CartaoDesenhado
+        desenho={desenho}
+        rotulo={`Credencial de ${nome}`}
+        dados={{
+          nome: c.nome_completo ?? 'Sem nome',
+          matricula: c.matricula,
+          categoria: c.categoria,
+          desde: mesEAno(c.associado_desde),
+          foto: c.foto ? urlArquivo(c.foto) : null,
+          qr: `${window.location.origin}${c.pagina}`,
+        }}
+      />
+      {/* a linha de corte, por cima da borda do cartão */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 border border-dashed border-neutral-400"
+      />
     </div>
   )
 }
@@ -109,6 +71,14 @@ export function ImprimirCredenciaisPage() {
     enabled: ids.length > 0,
     retry: false,
   })
+  // v9.5k: o desenho do cartão é o do modelo em uso (o criador de credencial); sem nenhum, o servidor manda o pronto "Faixa no alto"
+  const modelo = useQuery({
+    queryKey: ['modelo-de-credencial-em-uso'],
+    queryFn: obterModeloEmUso,
+    enabled: ids.length > 0,
+    retry: false,
+  })
+  const falha = error ?? modelo.error
   const cartoes = data ?? []
   const comFalta = cartoes.filter((c) => c.faltando.length > 0)
   const faltaJustificar = comFalta.filter(
@@ -164,14 +134,14 @@ export function ImprimirCredenciaisPage() {
           <p className="rounded-xl bg-card p-4 text-sm">
             Nenhuma credencial escolhida. Volte à lista e marque quem imprimir.
           </p>
-        ) : isLoading ? (
+        ) : isLoading || modelo.isLoading ? (
           <p className="text-sm text-muted-foreground" role="status">
             Montando a folha…
           </p>
-        ) : error ? (
+        ) : falha ? (
           <p role="alert" className="rounded-xl bg-perigo-tinta p-4 text-sm">
-            {error instanceof ApiError
-              ? error.detail
+            {falha instanceof ApiError
+              ? falha.detail
               : 'Não foi possível montar a folha agora.'}
           </p>
         ) : (
@@ -256,9 +226,14 @@ export function ImprimirCredenciaisPage() {
             aria-label={`Folha ${i + 1} de ${folhas.length}`}
             className="folha-de-credenciais grid min-h-[297mm] w-[210mm] grid-cols-[repeat(2,85.6mm)] content-start justify-center gap-x-[6mm] gap-y-[2mm] bg-white px-[10mm] py-[8mm] shadow-card print:min-h-0 print:break-after-page print:shadow-none"
           >
-            {folha.map((c) => (
-              <Cartao key={c.id_associado} c={c} />
-            ))}
+            {modelo.data &&
+              folha.map((c) => (
+                <Cartao
+                  key={c.id_associado}
+                  c={c}
+                  desenho={modelo.data.desenho}
+                />
+              ))}
           </section>
         ))}
       </div>

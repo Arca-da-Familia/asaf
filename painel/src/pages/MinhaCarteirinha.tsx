@@ -4,6 +4,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
+import { CartaoDesenhado } from '@/components/credencial/CartaoDesenhado'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -13,11 +14,13 @@ import {
   urlArquivo,
   type MinhaCredencial,
 } from '@/lib/api'
+import { corDoCabecalho, letraSobre } from '@/lib/credencial-desenho'
 import { cn } from '@/lib/utils'
 
 // v9.5i - a carteirinha (credencial) de quem está logado, no desenho escolhido pelo Presidente: no notebook, o cartão ao centro com "onde usar" ao lado
 // e o botão de imprimir no canto de baixo, à direita (rodada 5, opção 1 e a observação dele); no celular, frente e verso (rodada 5, opção 3): abre na
 // frente, "Mostrar o QR" vira o cartão. O QR vale SEMPRE e quem o lê vê a situação de AGORA (decisão de 14/11/2026): o cartão impresso não vence.
+// v9.5k: o cabeçalho usa a cor do modelo em uso e "Imprimir a carteirinha" sai no cartão do modelo (o criador de credencial).
 
 function mesEAno(iso: string | null): string | null {
   if (!iso) return null
@@ -34,12 +37,24 @@ function Cartao({
 }) {
   const endereco = `${window.location.origin}${dados.pagina}`
   const desde = mesEAno(dados.associado_desde)
+  // v9.5k: a cor do cabeçalho vem do modelo em uso (o criador de credencial); a letra é a que se lê melhor sobre ela
+  const corDoTopo = dados.desenho ? corDoCabecalho(dados.desenho) : null
   return (
     <div
-      data-impressao="carteirinha"
+      data-impressao={dados.desenho ? undefined : 'carteirinha'}
       className="w-full overflow-hidden rounded-[22px] border border-border bg-card shadow-card print:w-[86mm] print:shadow-none"
     >
-      <div className="flex items-center gap-3 bg-barra px-4 py-3 text-barra-foreground">
+      <div
+        className={cn(
+          'flex items-center gap-3 px-4 py-3',
+          !corDoTopo && 'bg-barra text-barra-foreground',
+        )}
+        style={
+          corDoTopo
+            ? { background: corDoTopo, color: letraSobre(corDoTopo) }
+            : undefined
+        }
+      >
         <span className="flex h-10 w-11 shrink-0 items-center justify-center rounded-lg bg-white">
           <img
             src="/asaf-logo-160.webp"
@@ -49,7 +64,7 @@ function Cartao({
         </span>
         <span className="flex flex-col leading-tight">
           <span className="font-titulo text-lg font-extrabold">ASAF</span>
-          <span className="text-sm text-barra-suave">
+          <span className={cn('text-sm', !corDoTopo && 'text-barra-suave')}>
             Carteirinha de associado
           </span>
         </span>
@@ -159,6 +174,30 @@ export function MinhaCarteirinhaPage() {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-center lg:gap-8">
           <div className="mx-auto flex w-full max-w-[360px] flex-col gap-3 lg:mx-0 lg:w-[360px] lg:shrink-0">
             <Cartao dados={data} lado={lado} />
+            {/* v9.5k: no papel sai o cartão do modelo em uso (85,6 × 54 mm), o mesmo da folha A4 da secretaria */}
+            {data.desenho && (
+              <div
+                data-impressao="carteirinha"
+                className="relative hidden h-[54mm] w-[85.6mm] print:block"
+              >
+                <CartaoDesenhado
+                  desenho={data.desenho}
+                  rotulo="Sua credencial, para imprimir"
+                  dados={{
+                    nome: data.nome_completo ?? 'Sem nome',
+                    matricula: data.matricula,
+                    categoria: data.categoria,
+                    desde: mesEAno(data.associado_desde),
+                    foto: data.foto ? urlArquivo(data.foto) : null,
+                    qr: `${window.location.origin}${data.pagina}`,
+                  }}
+                />
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 border border-dashed border-neutral-400"
+                />
+              </div>
+            )}
             <Button
               type="button"
               variant={lado === 'frente' ? 'default' : 'outline'}

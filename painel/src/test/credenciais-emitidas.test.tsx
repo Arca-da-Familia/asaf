@@ -17,6 +17,7 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   resumirCredenciais: vi.fn(),
   obterFolhaDeImpressao: vi.fn(),
   registrarImpressao: vi.fn(),
+  obterModeloEmUso: vi.fn(),
   emitirOutraCredencial: vi.fn(),
   obterCredencialDoAssociado: vi.fn(),
 }))
@@ -49,9 +50,54 @@ function linha(
 
 const abrir = vi.fn()
 
+// v9.5k: o desenho em uso (um pedaço do pronto "Faixa no alto")
+const DESENHO = {
+  fundo: '#ffffff',
+  partes: [
+    {
+      id: 'faixa',
+      tipo: 'faixa',
+      x: 0,
+      y: 0,
+      largura: 85.6,
+      altura: 10,
+      cor: '#14532d',
+    },
+    { id: 'foto', tipo: 'foto', x: 3, y: 17, largura: 20, altura: 26 },
+    {
+      id: 'nome',
+      tipo: 'nome',
+      x: 25.5,
+      y: 17,
+      largura: 33.5,
+      altura: 10.5,
+      tamanho: 9,
+      negrito: true,
+      cor: '#0b1611',
+    },
+    {
+      id: 'matricula',
+      tipo: 'matricula',
+      x: 25.5,
+      y: 28,
+      largura: 33.5,
+      altura: 3.8,
+      tamanho: 7.5,
+      cor: '#0b1611',
+    },
+    { id: 'qr', tipo: 'qr', x: 61, y: 17, largura: 22, altura: 22 },
+  ],
+} as const
+
 beforeEach(() => {
   vi.resetAllMocks()
   window.open = abrir as unknown as typeof window.open
+  vi.mocked(api.obterModeloEmUso).mockResolvedValue({
+    id_modelo: null,
+    nome: 'Faixa no alto',
+    pronto: 'faixa-no-alto',
+    desenho: structuredClone(DESENHO) as unknown as api.ModeloEmUso['desenho'],
+  })
   vi.mocked(api.resumirCredenciais).mockResolvedValue({
     todas: 3,
     falta_imprimir: 2,

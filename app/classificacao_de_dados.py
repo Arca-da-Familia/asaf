@@ -231,6 +231,8 @@ NAO_PESSOAIS: dict[str, tuple[str, ...]] = {
     # v9.5i: o código sorteado do QR (não identifica ninguém sozinho; a página de quem lê só mostra o que a situação de agora permite) e o motivo, de uma
     # lista fixa ("emitida outra", "juncao de cadastros")
     "credenciais": ("codigo", "motivo_substituicao"),
+    # v9.5k: o nome que a equipe dá ao modelo ("Faixa verde 2027") e o desenho do cartão (lugar, tamanho e cor de cada parte); nenhum dado de pessoa
+    "modelos_credencial": ("nome", "desenho"),
     "deliberacoes": ("texto", "observacao_conclusao"),
     "lancamentos_contabeis": ("motivo_estorno", "comprovante"),
     "opcoes_catalogo": ("cor",),

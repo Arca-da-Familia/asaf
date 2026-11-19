@@ -17,7 +17,7 @@ PAGINADAS_NA_V92C = {"/api/doacoes/", "/api/beneficiarios/", "/api/documentos-em
 NAO_SAO_LISTA = (
     "um objeto, um resumo (contagens e somas), um relatório agregado ou um arquivo para baixar inteiro de propósito (exportar, PDF, planilha)",
     {
-        "/", "/health", "/health/live", "/health/ready", "/auth/me", "/auth/me/ficha-360", "/auth/perfil", "/api/minha-credencial", "/api/credenciais/resumo", "/portaria/evento",
+        "/", "/health", "/health/live", "/health/ready", "/auth/me", "/auth/me/ficha-360", "/auth/perfil", "/api/minha-credencial", "/api/credenciais/resumo", "/api/credenciais/modelo-em-uso", "/portaria/evento",
         "/api/associados/resumo", "/api/associados/painel-de-graficos", "/api/atendimentos/resumo", "/api/titulos/resumo", "/api/intencoes-doacao/resumo",
         "/api/associados/exportar", "/api/beneficiarios/exportar", "/api/inscricoes/exportar", "/api/reservas-espaco/exportar", "/api/configuracoes/exportar",
         "/api/instituicao/", "/api/configuracoes/", "/api/espacos/ocupacao-mapa-calor", "/api/fluxo-de-caixa/",
@@ -45,6 +45,7 @@ DO_PROPRIO_USUARIO = (
 CADASTRO_PEQUENO = (
     "cadastro ou configuração da associação, de algumas dezenas de linhas (contas, cargos, modelos, catálogos, espaços), ou opções de um seletor",
     {
+        "/api/credenciais/modelos",  # v9.5k: no máximo 30 modelos de credencial guardados (o servidor recusa o 31º)
         "/api/alcadas-aprovacao/", "/api/catalogos/", "/api/centros-custo/", "/api/contas-a-pagar-recorrentes/", "/api/contas-financeiras/",
         "/api/delegacoes-aprovacao/", "/api/documentos/tipos", "/api/espacos/", "/api/estatuto/documentos", "/api/estatuto/regras", "/api/exercicios/",
         "/api/fechamentos-mensais/", "/api/fornecedores/", "/api/funcionarios/", "/api/indicadores/", "/api/mandatos/", "/api/mandatos/conflitos-interesse",

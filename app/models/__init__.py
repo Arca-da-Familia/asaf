@@ -244,6 +244,7 @@ __all__ = [
 ]
 from app.models.documentos import DocumentoInstitucional
 from app.models.credencial import Credencial  # v9.5i: a credencial do associado (QR que vale sempre)
+from app.models.modelo_credencial import ModeloCredencial  # v9.5k: o desenho da credencial (o criador de credencial)
 from app.models.parcerias import Parceria, ParcelaParceria, EtapaParceria, RelatorioParceria, LancamentoDaParceria, FotoEtapaParceria
 
 # v9.2b - os índices de desempenho, pendurados depois de todos os modelos carregados (ver app/models/indices_de_desempenho.py)

@@ -66,6 +66,41 @@ export const AJUDA: Record<string, AjudaDaTela> = {
     atencao:
       'Na janela da impressora, deixe a escala em 100% (tamanho real) para os cartões saírem no tamanho de cartão de banco.',
   },
+  '/associados/credenciais/criador': {
+    paraQue:
+      'O desenho da credencial de todos os associados (a folha A4 e a impressão da Minha carteirinha, e a cor do cabeçalho dela no celular).',
+    passos: [
+      'No alto está o modelo em uso agora. "Editar uma cópia" abre o editor com ele, sem mudar nada até você escolher.',
+      'Em "Modelos guardados": "Usar para todos" troca o desenho de todas as credenciais (o QR de cada uma não muda), "Editar" abre o editor e "Apagar" tira da lista.',
+      'Em "Começar de um modelo pronto", escolha faixa no alto, faixa do lado ou foto no centro.',
+    ],
+    atencao:
+      'O modelo em uso não se altera nem se apaga: guarde uma cópia, ajuste e use-a para todos. O anterior fica guardado.',
+  },
+  '/associados/credenciais/criador/novo': {
+    paraQue:
+      'Montar o desenho da credencial: onde fica cada parte (faixa, logo, foto, nome, matrícula, categoria, "associado desde", QR e textos), o tamanho e a cor.',
+    passos: [
+      'Arraste cada parte para onde quiser; o quadradinho no canto da parte escolhida muda o tamanho. As linhas azuis aparecem quando a parte se alinha com o centro, a borda ou outra parte.',
+      'Pelo teclado: escolha a parte e use as setas (Shift move mais). No painel da parte, os números ajustam lugar, tamanho, letra e cor.',
+      '"Cores prontas da faixa" troca a cor das faixas e a letra que fica em cima delas; "Acrescentar parte" põe um texto, uma faixa ou um dado que falta.',
+      '"Guardar" guarda o modelo sem mudar nada nas credenciais; "Guardar e usar para todos" passa a valer para todas (o QR de cada uma não muda).',
+    ],
+    atencao:
+      'O QR precisa de pelo menos 18 mm e nada por cima, e toda letra precisa de contraste com o que fica atrás: enquanto houver aviso, o "Guardar" fica travado.',
+  },
+  '/associados/credenciais/criador/:id': {
+    paraQue:
+      'Montar o desenho da credencial: onde fica cada parte (faixa, logo, foto, nome, matrícula, categoria, "associado desde", QR e textos), o tamanho e a cor.',
+    passos: [
+      'Arraste cada parte para onde quiser; o quadradinho no canto da parte escolhida muda o tamanho. As linhas azuis aparecem quando a parte se alinha com o centro, a borda ou outra parte.',
+      'Pelo teclado: escolha a parte e use as setas (Shift move mais). No painel da parte, os números ajustam lugar, tamanho, letra e cor.',
+      '"Cores prontas da faixa" troca a cor das faixas e a letra que fica em cima delas; "Acrescentar parte" põe um texto, uma faixa ou um dado que falta.',
+      '"Guardar" guarda o modelo sem mudar nada nas credenciais; "Guardar e usar para todos" passa a valer para todas (o QR de cada uma não muda).',
+    ],
+    atencao:
+      'O QR precisa de pelo menos 18 mm e nada por cima, e toda letra precisa de contraste com o que fica atrás: enquanto houver aviso, o "Guardar" fica travado.',
+  },
   '/associados/graficos': {
     paraQue:
       'O retrato do quadro de associados: quantos são, quantos estão em dia, quem entrou e saiu, a idade, a categoria e a filiação. Só números, sem nome de ninguém.',

@@ -6,6 +6,9 @@
 - v9.5j, as CREDENCIAIS EMITIDAS (permissão de associados): a lista com filtros (falta imprimir, impressas, emitidas de novo), as contagens, a
   pré-visualização da impressão (a 2ª aba) e o registro da impressão - credencial com dado faltando (foto, matrícula) só se imprime com justificativa,
   que fica na Auditoria.
+- v9.5k, o CRIADOR DE CREDENCIAL (permissão de associados): os modelos guardados, o em uso e os prontos; guardar, alterar (nunca o em uso),
+  apagar (nunca o em uso) e "usar para todos" (o anterior fica guardado). Toda mudança fica na Auditoria. O desenho em uso vale para a folha A4, para a
+  impressão da Minha carteirinha e para as cores do cabeçalho dela no celular; sem nenhum em uso, vale o pronto "Faixa no alto".
 - `GET /api/publico/credencial/{codigo}` e `.../foto`: a página de quem lê o QR (portaria, outro associado, parceiro), SEM login. Só o mínimo para
   conferir a pessoa: foto, nome, matrícula, categoria e a situação de agora. Nunca CPF, endereço, telefone ou e-mail. Credencial que não vale
   (substituída, de quem saiu, código que não existe): nem nome nem foto, e o mesmo texto nos três casos."""
@@ -27,7 +30,9 @@ from app.security import exigir_permissao, get_current_user
 from app.services import armazenamento
 from app import paginacao
 from app.models.credencial import PERDA_OU_TROCA, Credencial
+from app.models.modelo_credencial import ModeloCredencial
 from app.services import credencial as credenciais
+from app.services import modelo_credencial as modelos
 
 router = APIRouter()
 _permissao_associados = exigir_permissao("associados")
@@ -59,6 +64,8 @@ def minha_credencial(db: Session = Depends(get_db), usuario: Usuario = Depends(g
         "situacao": credenciais.situacao_de_agora(db, associado),
         "associado_desde": associado.data_admissao.date().isoformat() if associado.data_admissao else None,
         "foto": pessoa.foto if pessoa and _arquivo_da_foto(pessoa) else None,
+        # v9.5k: o desenho em uso (a impressão da Minha carteirinha e as cores do cabeçalho no celular)
+        "desenho": _modelo_em_uso(db)["desenho"],
     }
 
 
@@ -274,3 +281,139 @@ def registrar_impressao(dados: RegistroDaImpressao, db: Session = Depends(get_db
     n = len(escolhidos)
     quantas = "1 credencial impressa" if n == 1 else f"{n} credenciais impressas"
     return {"mensagem": f"Registrado: {quantas}.", "impressas": n}
+
+
+# ---------------------------------------------------------------- v9.5k: o criador de credencial ----------------------------------------------------------------
+def _modelo_em_uso(db: Session) -> dict:
+    """O desenho que vale agora: o modelo em uso ou, sem nenhum, o pronto "Faixa no alto"."""
+    m = db.query(ModeloCredencial).filter(ModeloCredencial.em_uso.is_(True)).order_by(ModeloCredencial.usado_desde.desc()).first()
+    if m is None:
+        pronto = modelos.PRONTOS[modelos.PADRAO]
+        return {"id_modelo": None, "nome": pronto["nome"], "desenho": pronto["desenho"], "pronto": modelos.PADRAO}
+    return {"id_modelo": m.id_modelo, "nome": m.nome, "desenho": m.desenho, "pronto": None}
+
+
+def _modelo_saida(m: ModeloCredencial) -> dict:
+    return {
+        "id_modelo": m.id_modelo,
+        "nome": m.nome,
+        "desenho": m.desenho,
+        "em_uso": bool(m.em_uso),
+        "usado_desde": m.usado_desde.isoformat() if m.usado_desde else None,
+        "atualizado_em": m.atualizado_em.isoformat() if m.atualizado_em else None,
+    }
+
+
+def _modelo_ou_404(db: Session, id_modelo: int) -> ModeloCredencial:
+    m = db.query(ModeloCredencial).filter(ModeloCredencial.id_modelo == id_modelo).first()
+    if m is None:
+        raise HTTPException(status_code=404, detail="Modelo não encontrado.")
+    return m
+
+
+class ModeloEntrada(BaseModel):
+    nome: str = Field(min_length=1, max_length=60)
+    desenho: dict
+
+
+def _desenho_conferido(dados: dict) -> dict:
+    try:
+        desenho = modelos.Desenho.model_validate(dados)
+    except modelos.ValidationError as erro:
+        raise HTTPException(status_code=422, detail=" ".join(modelos.erros_de_formato(erro)))
+    achados = modelos.problemas(desenho)
+    if achados:
+        raise HTTPException(status_code=422, detail=" ".join(achados))
+    return desenho.model_dump(exclude_none=True)
+
+
+def _nome_limpo(nome: str) -> str:
+    limpo = " ".join(nome.split())
+    if not limpo:
+        raise HTTPException(status_code=422, detail="Dê um nome ao modelo.")
+    return limpo
+
+
+@router.get("/api/credenciais/modelos", summary="Criador de credencial: o modelo em uso, os guardados e os prontos")
+def listar_modelos(db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_associados)):
+    guardados = db.query(ModeloCredencial).order_by(ModeloCredencial.em_uso.desc(), ModeloCredencial.atualizado_em.desc()).all()
+    return {
+        "em_uso": _modelo_em_uso(db),
+        "guardados": [_modelo_saida(m) for m in guardados],
+        "prontos": [{"chave": chave, "nome": p["nome"], "desenho": p["desenho"]} for chave, p in modelos.PRONTOS.items()],
+        "maximo_guardados": modelos.MAXIMO_DE_MODELOS_GUARDADOS,
+    }
+
+
+@router.get("/api/credenciais/modelo-em-uso", summary="O desenho da credencial que vale agora (a folha A4 de impressão)")
+def modelo_em_uso(db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_associados)):
+    return _modelo_em_uso(db)
+
+
+@router.get("/api/credenciais/modelos/{id_modelo}", summary="Um modelo de credencial guardado (para o editor)")
+def obter_modelo(id_modelo: int, db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_associados)):
+    return _modelo_saida(_modelo_ou_404(db, id_modelo))
+
+
+@router.post("/api/credenciais/modelos", status_code=201, summary="Guarda um modelo de credencial novo (não muda o que está em uso)")
+def criar_modelo(dados: ModeloEntrada, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_associados)):
+    if db.query(ModeloCredencial).count() >= modelos.MAXIMO_DE_MODELOS_GUARDADOS:
+        raise HTTPException(status_code=409, detail=f"Já há {modelos.MAXIMO_DE_MODELOS_GUARDADOS} modelos guardados: apague algum antes.")
+    agora = datetime.utcnow()
+    m = ModeloCredencial(
+        nome=_nome_limpo(dados.nome), desenho=_desenho_conferido(dados.desenho), em_uso=False, criado_em=agora, atualizado_em=agora,
+        id_usuario_criacao=usuario.id_usuario, id_usuario_atualizacao=usuario.id_usuario,
+    )
+    db.add(m)
+    db.flush()
+    registrar_auditoria(db, usuario, "associados", "MODELO_CREDENCIAL_GUARDADO", id_registro_afetado=m.id_modelo, dados_depois={"nome": m.nome})
+    db.commit()
+    db.refresh(m)
+    return _modelo_saida(m)
+
+
+@router.put("/api/credenciais/modelos/{id_modelo}", summary="Altera um modelo guardado (o em uso não se altera: guarde uma cópia)")
+def alterar_modelo(id_modelo: int, dados: ModeloEntrada, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_associados)):
+    m = _modelo_ou_404(db, id_modelo)
+    if m.em_uso:
+        raise HTTPException(status_code=409, detail="O modelo em uso não se altera: guarde como um modelo novo e depois use-o para todos.")
+    nome_antes = m.nome
+    m.nome = _nome_limpo(dados.nome)
+    m.desenho = _desenho_conferido(dados.desenho)
+    m.atualizado_em = datetime.utcnow()
+    m.id_usuario_atualizacao = usuario.id_usuario
+    registrar_auditoria(
+        db, usuario, "associados", "MODELO_CREDENCIAL_ALTERADO", id_registro_afetado=m.id_modelo,
+        dados_antes={"nome": nome_antes}, dados_depois={"nome": m.nome},
+    )
+    db.commit()
+    db.refresh(m)
+    return _modelo_saida(m)
+
+
+@router.post("/api/credenciais/modelos/{id_modelo}/usar", summary="Usar este modelo para todas as credenciais (o anterior fica guardado; o QR de cada uma não muda)")
+def usar_modelo(id_modelo: int, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_associados)):
+    m = _modelo_ou_404(db, id_modelo)
+    _desenho_conferido(m.desenho)
+    anterior = _modelo_em_uso(db)
+    for outro in db.query(ModeloCredencial).filter(ModeloCredencial.em_uso.is_(True), ModeloCredencial.id_modelo != m.id_modelo).all():
+        outro.em_uso = False
+    m.em_uso = True
+    m.usado_desde = datetime.utcnow()
+    registrar_auditoria(
+        db, usuario, "associados", "MODELO_CREDENCIAL_EM_USO", id_registro_afetado=m.id_modelo,
+        dados_antes={"modelo": anterior["nome"]}, dados_depois={"modelo": m.nome},
+    )
+    db.commit()
+    return {"mensagem": f"Pronto: \"{m.nome}\" é o desenho de todas as credenciais. O QR de cada uma continua o mesmo.", "em_uso": _modelo_em_uso(db)}
+
+
+@router.delete("/api/credenciais/modelos/{id_modelo}", summary="Apaga um modelo guardado (nunca o em uso)")
+def apagar_modelo(id_modelo: int, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_associados)):
+    m = _modelo_ou_404(db, id_modelo)
+    if m.em_uso:
+        raise HTTPException(status_code=409, detail="O modelo em uso não se apaga: use outro antes.")
+    registrar_auditoria(db, usuario, "associados", "MODELO_CREDENCIAL_APAGADO", id_registro_afetado=m.id_modelo, dados_antes={"nome": m.nome})
+    db.delete(m)
+    db.commit()
+    return {"mensagem": "Modelo apagado."}
