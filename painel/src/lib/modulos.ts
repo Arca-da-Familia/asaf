@@ -43,6 +43,7 @@ import {
   ChartNoAxesColumn,
   GraduationCap,
   ClipboardCheck,
+  IdCard,
 } from 'lucide-react'
 
 // Endereço do Directus (CMS do site). Definitivo — a chave do plano gratuito do Directus fica
@@ -143,6 +144,13 @@ export const modulos: Modulo[] = [
         rotulo: 'Propostas de filiação',
         icone: Inbox,
         grupo: 'Filiação',
+      },
+      // v9.5j: o grupo Credenciais (rodada 6); o criador de credencial entra aqui na versão seguinte
+      {
+        rota: '/associados/credenciais',
+        rotulo: 'Credenciais emitidas',
+        icone: IdCard,
+        grupo: 'Credenciais',
       },
       {
         rota: '/associados/qualidade',

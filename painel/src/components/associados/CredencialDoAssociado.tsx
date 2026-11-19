@@ -1,12 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
+import { Printer } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
 import {
   ApiError,
   emitirOutraCredencial,
   obterCredencialDoAssociado,
 } from '@/lib/api'
+import { abrirFolhaDeImpressao } from '@/lib/credenciais'
 
 // v9.5i - a credencial (carteirinha) do associado, na ficha (aba Situação): quando foi emitida, a página que o QR abre, e "Emitir outra" para quem perdeu
 // o cartão - a anterior deixa de valer NA HORA (o QR dela passa a mostrar "Esta credencial não vale"). A tela das credenciais emitidas (imprimir várias)
@@ -78,6 +81,14 @@ export function CredencialDoAssociado({
               Abrir a página de conferência
             </a>
           </p>
+          <Button
+            type="button"
+            className="mt-3 mr-2 min-h-11 sm:min-h-9"
+            onClick={() => abrirFolhaDeImpressao([idAssociado])}
+          >
+            <Printer aria-hidden="true" />
+            Imprimir esta credencial
+          </Button>
           {!confirmando ? (
             <Button
               type="button"

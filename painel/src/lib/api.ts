@@ -1147,6 +1147,63 @@ export function emitirOutraCredencial(
     method: 'POST',
   })
 }
+// v9.5j: as credenciais emitidas (permissão de associados): a lista com filtros, as contagens, a folha de impressão (2ª aba) e o registro dela
+export type FiltroDeCredenciais =
+  'todas' | 'falta_imprimir' | 'impressas' | 'emitidas_de_novo'
+export type LinhaDeCredencial = {
+  id_associado: number
+  nome_completo: string | null
+  matricula: number | null
+  situacao: string | null
+  credencial: { emitida_em: string | null; impressa_em: string | null } | null
+  emitida_de_novo: boolean
+  faltando: string[]
+}
+export function listarCredenciais(
+  filtro: FiltroDeCredenciais,
+  busca: string,
+  pagina: number,
+  porPagina: number,
+): Promise<Pagina<LinhaDeCredencial>> {
+  const params = new URLSearchParams({ filtro })
+  if (busca.trim()) params.set('busca', busca.trim())
+  return apiFetchPagina(
+    `/api/credenciais${comPagina(params, pagina, porPagina)}`,
+  )
+}
+export function resumirCredenciais(): Promise<
+  Record<FiltroDeCredenciais, number>
+> {
+  return apiFetch('/api/credenciais/resumo')
+}
+export type CartaoParaImprimir = {
+  id_associado: number
+  nome_completo: string | null
+  matricula: number | null
+  categoria: string | null
+  associado_desde: string | null
+  foto: string | null
+  pagina: string
+  impressa_em: string | null
+  faltando: string[]
+}
+export function obterFolhaDeImpressao(
+  ids: number[],
+): Promise<CartaoParaImprimir[]> {
+  return apiFetch(
+    `/api/credenciais/para-imprimir?ids=${encodeURIComponent(ids.join(','))}`,
+  )
+}
+export function registrarImpressao(
+  ids: number[],
+  justificativas: Record<number, string>,
+): Promise<{ mensagem: string; impressas: number }> {
+  return apiFetch('/api/credenciais/registrar-impressao', {
+    method: 'POST',
+    body: JSON.stringify({ ids, justificativas }),
+  })
+}
+
 // pública: quem lê o QR não precisa entrar no painel
 export function conferirCredencial(
   codigo: string,

@@ -26,3 +26,5 @@ class Credencial(Base):
     id_usuario_emissao = Column(Integer, ForeignKey("usuarios.id_usuario"), nullable=True)
     substituida_em = Column(DateTime, nullable=True)
     motivo_substituicao = Column(String(30), nullable=True)
+    # v9.5j: quando foi impressa pela última vez (a tela de credenciais emitidas: falta imprimir / impressas); cada impressão fica na Auditoria
+    impressa_em = Column(DateTime, nullable=True)

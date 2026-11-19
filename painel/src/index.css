@@ -178,3 +178,14 @@
     inset: 0 auto auto 0;
   }
 }
+
+/* v9.5j: a folha das credenciais é A4 sem a margem do navegador (os 10 cartões e as linhas de corte já têm a margem certa); só ela usa esta página */
+@page credenciais {
+  size: A4;
+  margin: 0;
+}
+@media print {
+  .folha-de-credenciais {
+    page: credenciais;
+  }
+}

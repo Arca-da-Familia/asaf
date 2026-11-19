@@ -433,6 +433,17 @@ const RegrasDoEstatutoPage = lazy(() =>
     default: m.RegrasDoEstatutoPage,
   })),
 )
+// v9.5j: as credenciais emitidas e a folha de impressão (2ª aba)
+const CredenciaisEmitidasPage = lazy(() =>
+  carregarTela(() => import('@/pages/CredenciaisEmitidas')).then((m) => ({
+    default: m.CredenciaisEmitidasPage,
+  })),
+)
+const ImprimirCredenciaisPage = lazy(() =>
+  carregarTela(() => import('@/pages/ImprimirCredenciais')).then((m) => ({
+    default: m.ImprimirCredenciaisPage,
+  })),
+)
 // v9.5i: a credencial do associado (Minha carteirinha) e a página pública de quem lê o QR
 const MinhaCarteirinhaPage = lazy(() =>
   carregarTela(() => import('@/pages/MinhaCarteirinha')).then((m) => ({
@@ -569,6 +580,19 @@ function App() {
           <Route
             path="/credencial/:codigo"
             element={<ConferirCredencialPage />}
+          />
+          {/* v9.5j - a folha de impressão das credenciais abre numa aba própria, sem o menu (é para imprimir); com login e segundo passo */}
+          <Route
+            path="/associados/credenciais/imprimir"
+            element={
+              <RequireAuth>
+                <RequireSenhaDefinitiva>
+                  <RequireMfa>
+                    <ImprimirCredenciaisPage />
+                  </RequireMfa>
+                </RequireSenhaDefinitiva>
+              </RequireAuth>
+            }
           />
           <Route
             path="/trocar-senha"
@@ -756,6 +780,14 @@ function App() {
                 element={
                   <ErrorBoundary tituloModulo="Gráficos">
                     <AssociadosGraficosPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="credenciais"
+                element={
+                  <ErrorBoundary tituloModulo="Credenciais">
+                    <CredenciaisEmitidasPage />
                   </ErrorBoundary>
                 }
               />

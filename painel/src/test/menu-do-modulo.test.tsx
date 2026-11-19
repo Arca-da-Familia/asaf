@@ -38,6 +38,7 @@ describe('coluna do módulo em grupos (v9.5c)', () => {
     expect(agruparItens(associados.itens!).map((g) => g.nome)).toEqual([
       'Cadastro',
       'Filiação',
+      'Credenciais',
       'Análises',
     ])
     // um módulo que ainda não ganhou grupos fica com a lista de sempre
@@ -108,6 +109,7 @@ describe('coluna do módulo em grupos (v9.5c)', () => {
       'Novo associado',
       'Importar em lote',
       'Propostas de filiação',
+      'Credenciais emitidas',
       'Qualidade da base',
       'Gráficos',
     ])

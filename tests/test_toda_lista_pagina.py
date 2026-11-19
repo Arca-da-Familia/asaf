@@ -17,7 +17,7 @@ PAGINADAS_NA_V92C = {"/api/doacoes/", "/api/beneficiarios/", "/api/documentos-em
 NAO_SAO_LISTA = (
     "um objeto, um resumo (contagens e somas), um relatório agregado ou um arquivo para baixar inteiro de propósito (exportar, PDF, planilha)",
     {
-        "/", "/health", "/health/live", "/health/ready", "/auth/me", "/auth/me/ficha-360", "/auth/perfil", "/api/minha-credencial", "/portaria/evento",
+        "/", "/health", "/health/live", "/health/ready", "/auth/me", "/auth/me/ficha-360", "/auth/perfil", "/api/minha-credencial", "/api/credenciais/resumo", "/portaria/evento",
         "/api/associados/resumo", "/api/associados/painel-de-graficos", "/api/atendimentos/resumo", "/api/titulos/resumo", "/api/intencoes-doacao/resumo",
         "/api/associados/exportar", "/api/beneficiarios/exportar", "/api/inscricoes/exportar", "/api/reservas-espaco/exportar", "/api/configuracoes/exportar",
         "/api/instituicao/", "/api/configuracoes/", "/api/espacos/ocupacao-mapa-calor", "/api/fluxo-de-caixa/",
@@ -33,7 +33,7 @@ NAO_SAO_LISTA = (
 )
 FILTRO_OBRIGATORIO = (
     "o filtro é obrigatório (um evento, uma busca): nunca devolve a tabela inteira",
-    {"/api/inscricoes/", "/api/presencas/", "/api/privacidade/titulares"},
+    {"/api/inscricoes/", "/api/presencas/", "/api/privacidade/titulares", "/api/credenciais/para-imprimir"},  # v9.5j: só os escolhidos (até 60)
 )
 DO_PROPRIO_USUARIO = (
     "só o que é da própria pessoa que pediu (e com prazo de guarda, quando há)",

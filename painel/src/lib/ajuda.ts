@@ -54,6 +54,18 @@ export const AJUDA: Record<string, AjudaDaTela> = {
     atencao:
       'Se perder o cartão, peça à secretaria para emitir outro: o QR do antigo deixa de valer na hora.',
   },
+  '/associados/credenciais': {
+    paraQue:
+      'A credencial de cada associado: ver quem falta imprimir, imprimir várias de uma vez numa folha A4 e emitir outra para quem perdeu o cartão.',
+    passos: [
+      'Use "Falta imprimir", "Impressas" ou "Emitidas de novo" para ver só uma parte, e "Procurar" para achar pelo nome ou pela matrícula.',
+      'Marque quem imprimir e clique em "Imprimir as marcadas (folha A4)": a folha abre numa segunda aba; lá, confira e clique em "Imprimir" (ou salve em PDF).',
+      'Cartão com foto ou matrícula faltando só sai com uma justificativa, que fica na Auditoria.',
+      '"Emitir outra" é para quem perdeu o cartão: o QR do antigo deixa de valer na hora.',
+    ],
+    atencao:
+      'Na janela da impressora, deixe a escala em 100% (tamanho real) para os cartões saírem no tamanho de cartão de banco.',
+  },
   '/associados/graficos': {
     paraQue:
       'O retrato do quadro de associados: quantos são, quantos estão em dia, quem entrou e saiu, a idade, a categoria e a filiação. Só números, sem nome de ninguém.',

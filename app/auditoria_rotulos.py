@@ -241,6 +241,7 @@ ROTULO_DA_ACAO: dict[str, str] = {
     "FOTO_APAGADA_AUTOMATICAMENTE": "Foto apagada pelo sistema",
     "FOTO_ATUALIZADA": "Foto trocada",
     "CREDENCIAL_EMITIDA_DE_NOVO": "Credencial emitida de novo (a anterior deixou de valer)",
+    "CREDENCIAL_IMPRESSA": "Credencial impressa",
     "FOTO_ENVIADA": "Foto enviada",
     "FUNCIONARIO_CADASTRADO": "Funcionário cadastrado",
     "GERACAO_COBRANCAS_LOTE": "Cobranças geradas em lote",

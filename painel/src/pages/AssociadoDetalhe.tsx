@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ImageUp } from 'lucide-react'
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { z } from 'zod'
 
 import {
@@ -52,11 +52,27 @@ type AssociadoEditarForm = z.infer<typeof associadoEditarSchema>
 // v2.5.1 (FASE 2.5 - Painel) - completa o módulo Associados: editar dados/foto, gerenciar
 // cargos e vínculos familiares. Antes disso só existia via `/admin/secretaria` (removida em
 // 2026-09-15) - nenhuma dessas ações tinha tela no painel único.
+const ABAS_VALIDAS: AbaDaFicha[] = [
+  'dados',
+  'ficha360',
+  'cargos',
+  'familia',
+  'situacao',
+  'vinculos',
+]
+
 export function AssociadoDetalhePage() {
   const { id } = useParams<{ id: string }>()
   const idAssociado = Number(id)
   const navigate = useNavigate()
-  const [aba, setAba] = useState<AbaDaFicha>('dados')
+  // v9.5j: `?aba=situacao` abre a ficha direto numa aba (a lista de credenciais no celular leva à aba Situação, onde estão Imprimir e Emitir outra)
+  const [parametros] = useSearchParams()
+  const pedida = parametros.get('aba')
+  const [aba, setAba] = useState<AbaDaFicha>(() =>
+    ABAS_VALIDAS.includes(pedida as AbaDaFicha)
+      ? (pedida as AbaDaFicha)
+      : 'dados',
+  )
   // v9.5d (rodada 5): com o menu do módulo recolhido, as abas vão para uma coluna à direita (só no notebook; no celular ficam no alto)
   const recolhido = useMenuDoModuloRecolhido()
   const { data: eu } = useMe()
