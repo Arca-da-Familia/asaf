@@ -7,6 +7,14 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 
 import { criarServidor } from './mock-api.mjs'
 
+// a versão da Política vem do mesmo lugar que a página usa (src/config/organizacao.ts): a conferência não quebra a cada versão nova
+const VERSAO_DA_POLITICA = readFileSync(
+  new URL('../src/config/organizacao.ts', import.meta.url),
+  'utf-8',
+).match(/privacidade:\s*\{\s*versao:\s*'([^']+)'/)?.[1]
+if (!VERSAO_DA_POLITICA)
+  throw new Error('não achei a versão da Política em src/config/organizacao.ts')
+
 const construcao = spawnSync('node', ['scripts/build-teste.mjs', '--vazio'], {
   stdio: 'inherit',
 })
@@ -642,7 +650,7 @@ for (const [rotulo, ler, pasta] of [
   )
   const politica = ler('/privacidade/')
   exigir(
-    politica.includes('Versão 2.18') &&
+    politica.includes(`Versão ${VERSAO_DA_POLITICA}`) &&
       politica.includes('data-doacao') &&
       politica.includes('id="doacao-pelo-site"'),
     `${rotulo}: a Política não é a 2.0 com o parágrafo da doação`,
