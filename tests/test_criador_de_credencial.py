@@ -73,7 +73,9 @@ def test_guardar_alterar_usar_para_todos_e_apagar_fica_na_auditoria(client, auth
     assert client.delete(f"/api/credenciais/modelos/{m['id_modelo']}", headers=auth_headers).status_code == 200
     assert client.get(f"/api/credenciais/modelos/{m['id_modelo']}", headers=auth_headers).status_code == 404
 
-    acoes = [a.acao for a in db.query(AuditLog).filter(AuditLog.acao.like("MODELO_CREDENCIAL_%"), AuditLog.id_registro_afetado == m["id_modelo"]).all()]
+    registros = db.query(AuditLog).filter(AuditLog.acao.like("MODELO_CREDENCIAL_%"), AuditLog.id_registro_afetado == m["id_modelo"]).all()
+    assert {a.tabela_afetada for a in registros} == {"modelos_credencial"}, "o assunto é o modelo, não um associado"
+    acoes = [a.acao for a in registros]
     for acao in ("MODELO_CREDENCIAL_GUARDADO", "MODELO_CREDENCIAL_ALTERADO", "MODELO_CREDENCIAL_EM_USO", "MODELO_CREDENCIAL_APAGADO"):
         assert acao in acoes
     _nenhum_em_uso(db)
@@ -106,6 +108,12 @@ def test_minha_credencial_traz_o_desenho_em_uso(client, db):
         (lambda d: _parte(d, "confira").update(texto="x" * 61), "mais de 60 letras"),
         (lambda d: d["partes"].append({**_parte(d, "foto"), "id": "foto2"}), "aparece mais de uma vez"),
         (lambda d: _parte(d, "matricula").update(largura=1), "pequeno demais (o mínimo é 2,0 mm"),
+        # revisão independente da v9.5k: a quebra de linha no FIM do texto (antes passava, porque a conferência era no texto já aparado) e a tabulação
+        (lambda d: _parte(d, "asaf").update(texto="ASAF\n"), "quebra de linha, tabulação"),
+        (lambda d: _parte(d, "asaf").update(texto="AS\tAF"), "quebra de linha, tabulação"),
+        # letra em cima da foto não se lê; a caixa branca do logo conta como o que fica atrás
+        (lambda d: _parte(d, "matricula").update(x=4, y=20), "está em cima da foto"),
+        (lambda d: _parte(d, "asaf").update(x=3, y=2, largura=8), "contraste"),
     ],
 )
 def test_o_servidor_recusa_o_desenho_que_nao_cumpre_as_regras(client, auth_headers, estragar, motivo):
@@ -114,6 +122,18 @@ def test_o_servidor_recusa_o_desenho_que_nao_cumpre_as_regras(client, auth_heade
     r = client.post("/api/credenciais/modelos", json={"nome": "Estragado", "desenho": desenho}, headers=auth_headers)
     assert r.status_code == 422, r.text
     assert motivo in r.json()["detail"]
+
+
+def test_guarda_o_texto_aparado_e_nenhum_texto_fora_do_texto_livre(client, auth_headers):
+    desenho = _pronto()
+    _parte(desenho, "confira").update(texto="  Confira a situação  ")
+    _parte(desenho, "qr")["texto"] = "x" * 150  # texto numa parte que não é texto livre: não se guarda
+    m = _guardar(client, auth_headers, "Texto aparado", desenho)
+    assert _parte(m["desenho"], "confira")["texto"] == "Confira a situação"
+    assert "texto" not in _parte(m["desenho"], "qr")
+    _parte(desenho, "qr")["texto"] = "x" * 5000
+    assert client.post("/api/credenciais/modelos", json={"nome": "Texto enorme", "desenho": desenho}, headers=auth_headers).status_code == 422
+    assert client.delete(f"/api/credenciais/modelos/{m['id_modelo']}", headers=auth_headers).status_code == 200
 
 
 def test_formato_errado_e_parte_desconhecida_sao_recusados(client, auth_headers):

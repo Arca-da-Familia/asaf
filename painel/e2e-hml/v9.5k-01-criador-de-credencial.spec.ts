@@ -55,9 +55,7 @@ test('começar de um pronto, arrastar, recusar a cor difícil de ler, usar para 
   await apagarModelosDeRobo(page)
   await ver(page, info, 'pagina inicial do criador')
 
-  await page
-    .getByRole('link', { name: 'Começar do modelo Faixa do lado' })
-    .click()
+  await page.getByRole('link', { name: 'Começar deste: Faixa do lado' }).click()
   await expect(
     page.getByRole('heading', { name: 'Modelo novo', level: 1 }),
   ).toBeVisible()
@@ -165,7 +163,7 @@ test('começar de um pronto, arrastar, recusar a cor difícil de ler, usar para 
     ).toBeVisible()
   } else {
     await page
-      .getByRole('link', { name: 'Começar do modelo Faixa no alto' })
+      .getByRole('link', { name: 'Começar deste: Faixa no alto' })
       .click()
     await page.getByLabel('Nome do modelo').fill(PADRAO)
     await page
@@ -194,7 +192,7 @@ test('no celular: a página inicial e o editor cabem na tela', async ({
   await semRolagemLateral(page)
   await ver(page, info, 'celular pagina inicial do criador')
   await page
-    .getByRole('link', { name: 'Começar do modelo Foto no centro' })
+    .getByRole('link', { name: 'Começar deste: Foto no centro' })
     .click()
   await expect(
     page.getByRole('button', { name: /^QR de conferência:/ }),

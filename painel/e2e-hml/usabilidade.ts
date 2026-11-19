@@ -18,7 +18,8 @@ import {
 //   GRAVE (reprova): a página rola de lado; botão, campo ou link cortado fora da tela (sem rolagem própria para alcançá-lo); campo com letra menor que 16 px
 //   (o iPhone amplia a tela sozinho ao tocar); o título da tela fora da primeira tela; o menu lateral aberto por cima do conteúdo ao chegar; alvo de toque
 //   menor que 24 px (critério 2.5.8 da WCAG 2.2; a caixinha dentro de um rótulo conta pelo rótulo, que também marca; link no meio do texto é exceção);
-//   letra menor que 12 px. (Os dois últimos foram AVISO na 1ª rodada, 05/11: 69 alvos e 124 letras, todos corrigidos; passaram a reprovar.)
+//   letra menor que 12 px (fora o desenho do cartão da credencial em escala, v9.5k). (Os dois últimos foram AVISO na 1ª rodada, 05/11: 69 alvos e
+//   124 letras, todos corrigidos; passaram a reprovar.)
 //   Palavra PARTIDA no meio (desenhada em duas linhas, "Co/nc/ed/er"): tabela ou botão espremido fica ilegível sem sair da tela (4ª rodada, 05/11).
 //   AVISO (vai para o relatório, sem reprovar): tela com mais de 10 alturas de celular; tabela que só se lê rolando de lado.
 // Os prints (um por tela, a página inteira) e o relatório ficam na pasta da execução, para o Presidente olhar quando puder.
@@ -214,6 +215,9 @@ async function medir(
       const miuda = new Set<string>()
       for (const el of document.body.querySelectorAll('*')) {
         if (noMenuFechado(el) || !visivel(el)) continue
+        // v9.5k: o DESENHO do cartão da credencial em escala (as prévias e o cartão do editor do criador de credencial): a letra é a do cartão de
+        // verdade, em tamanho de cartão (7 pontos num cartão de 85,6 mm); os textos que se editam ficam no painel ao lado, em letra normal
+        if (el.closest('[data-desenho-em-escala]')) continue
         const temTexto = [...el.childNodes].some(
           (n) =>
             n.nodeType === Node.TEXT_NODE &&

@@ -209,6 +209,8 @@ export function CartaoDesenhado({
   const resto = desenho.partes.filter((p) => p.tipo !== 'faixa')
   return (
     <div
+      // o robô de usabilidade não conta a letra miúda do desenho em escala como letra da tela (é a letra do cartão de verdade)
+      data-desenho-em-escala=""
       aria-label={rotulo}
       role={rotulo ? 'img' : undefined}
       className={className}
@@ -221,7 +223,7 @@ export function CartaoDesenhado({
           overflow: 'hidden',
           background: desenho.fundo,
           color: '#0b1611',
-          fontFamily: 'Inter, system-ui, sans-serif',
+          fontFamily: 'var(--fonte-texto, Inter, system-ui, sans-serif)',
           printColorAdjust: 'exact',
           WebkitPrintColorAdjust: 'exact',
           flexShrink: 0,

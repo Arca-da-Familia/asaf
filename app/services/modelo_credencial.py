@@ -10,7 +10,8 @@ O que todo modelo cumpre (o servidor recusa o que não cumpre, com o motivo em p
   - o QR é quadrado, tem pelo menos 18 mm (abaixo disso a leitura pelo celular falha) e nada além de faixa fica por cima ou por baixo dele;
   - letra entre 5 e 24 pontos; o texto de cada parte tem contraste de pelo menos 4,5 : 1 com TUDO o que fica atrás dele (a faixa ou o fundo
     do cartão), a mesma regra de contraste do painel;
-  - texto livre de até 60 letras, sem quebra de linha.
+  - texto livre de até 60 letras, sem quebra de linha nem tabulação; letra em cima da foto não se lê (recusada); a caixa branca do logo
+    conta como o que fica atrás.
 
 O desenho não guarda dado de pessoa: nome, foto, matrícula, categoria e "associado desde" entram na hora de mostrar. A situação NÃO é parte do
 cartão (ela muda; quem lê o QR vê a de agora), nem CPF, endereço ou telefone."""
@@ -39,6 +40,8 @@ NOME_DA_PARTE = {
 }
 _COR = r"^#[0-9a-fA-F]{6}$"
 _FOLGA = 0.01  # milímetro: arredondamento do arrastar na tela
+# quebra de linha, tabulação, caracteres de controle e a marca invisível de início de texto (o painel confere o mesmo)
+_CONTROLE = re.compile("[\x00-\x1f\x7f\ufeff]")
 
 
 class Parte(BaseModel):
@@ -52,7 +55,7 @@ class Parte(BaseModel):
     negrito: bool = False
     alinhamento: Literal["esquerda", "centro", "direita"] = "esquerda"
     cor: Optional[str] = Field(default=None, pattern=_COR)  # a cor da letra; na faixa, a cor da faixa
-    texto: Optional[str] = None  # só no texto livre
+    texto: Optional[str] = Field(default=None, max_length=200)  # só no texto livre (a regra de 60 letras vem com o motivo, em `problemas`)
     forma: Literal["retangulo", "redonda"] = "retangulo"  # só na foto
 
 
@@ -86,12 +89,18 @@ def _cobre(faixa: Parte, parte: Parte) -> bool:
             and parte.y + parte.altura <= faixa.y + faixa.altura + _FOLGA)
 
 
+BRANCO_DO_LOGO = "#ffffff"  # o logo fica numa caixa branca
+
+
 def cores_atras(desenho: Desenho, parte: Parte) -> list[str]:
-    """As cores que ficam atrás da parte: as faixas que encostam nela e, se nenhuma faixa a cobre inteira, o fundo do cartão."""
+    """As cores que ficam atrás da parte: as faixas que encostam nela, a caixa branca do logo se encostar e, se nenhuma faixa a cobre inteira, o
+    fundo do cartão."""
     faixas = [f for f in desenho.partes if f.tipo == "faixa" and f.cor and _sobrepoe(f, parte)]
     cores = [f.cor for f in faixas]
     if not any(_cobre(f, parte) for f in faixas):
         cores.append(desenho.fundo)
+    if any(o.tipo == "logo" and _sobrepoe(o, parte) for o in desenho.partes):
+        cores.append(BRANCO_DO_LOGO)
     return list(dict.fromkeys(c.lower() for c in cores))
 
 
@@ -135,13 +144,16 @@ def problemas(desenho: Desenho) -> list[str]:
         if p.tipo == "faixa" and not p.cor:
             achados.append("Faixa sem cor.")
         if p.tipo == "texto":
-            texto = (p.texto or "").strip()
-            if not texto:
+            original = p.texto or ""
+            texto = original.strip()
+            if _CONTROLE.search(original):  # confere o que veio, não o que sobra depois de tirar os espaços das pontas
+                achados.append("Texto com quebra de linha, tabulação ou caractere de controle.")
+            elif not texto:
                 achados.append("Texto vazio: escreva ou tire a parte.")
             elif len(texto) > MAXIMO_DE_TEXTO:
                 achados.append(f"Texto com mais de {MAXIMO_DE_TEXTO} letras.")
-            elif re.search(r"[\x00-\x1f\x7f]", texto):
-                achados.append("Texto com quebra de linha ou caractere de controle.")
+        if p.tipo in COM_LETRA and any(o.tipo == "foto" and _sobrepoe(o, p) for o in desenho.partes):
+            achados.append(f"{nome} está em cima da foto: não dá para ler.")
         if p.tipo in COM_LETRA:
             if p.tamanho is None or not (LETRA_MINIMA - _FOLGA <= p.tamanho <= LETRA_MAXIMA + _FOLGA):
                 achados.append(f"{nome}: a letra vai de {_numero(LETRA_MINIMA)} a {_numero(LETRA_MAXIMA)} pontos.")
@@ -156,6 +168,19 @@ def problemas(desenho: Desenho) -> list[str]:
                         )
                         break
     return list(dict.fromkeys(achados))
+
+
+def limpo(desenho: Desenho) -> dict:
+    """O que se guarda: o texto livre sem os espaços das pontas, e nenhum texto nas partes que não são texto livre."""
+    partes = []
+    for p in desenho.partes:
+        dados = p.model_dump(exclude_none=True)
+        if p.tipo == "texto":
+            dados["texto"] = (p.texto or "").strip()
+        else:
+            dados.pop("texto", None)
+        partes.append(dados)
+    return {"fundo": desenho.fundo.lower(), "partes": partes}
 
 
 def ler(dados: dict) -> Desenho:

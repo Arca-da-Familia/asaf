@@ -105,11 +105,11 @@ export function contraste(a: string, b: string): number {
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
 }
 
-/** A letra que se lê melhor sobre uma cor: branca ou quase preta. */
+/** A letra que se lê melhor sobre uma cor: branca ou preta (com essas duas, o contraste é sempre de pelo menos 4,58 : 1). */
 export function letraSobre(fundo: string): string {
-  return contraste('#ffffff', fundo) >= contraste('#0b1611', fundo)
+  return contraste('#ffffff', fundo) >= contraste('#000000', fundo)
     ? '#ffffff'
-    : '#0b1611'
+    : '#000000'
 }
 
 function sobrepoe(a: Parte, b: Parte): boolean {
@@ -130,14 +130,26 @@ function cobre(f: Parte, p: Parte): boolean {
   )
 }
 
-/** As cores que ficam atrás da parte: as faixas que encostam nela e, se nenhuma a cobre inteira, o fundo do cartão. */
+/** As cores que ficam atrás da parte: as faixas que encostam nela, a caixa branca do logo se encostar e, se nenhuma faixa a cobre inteira, o
+ * fundo do cartão. */
 export function coresAtras(d: Desenho, p: Parte): string[] {
   const faixas = d.partes.filter(
     (f) => f.tipo === 'faixa' && f.cor && sobrepoe(f, p),
   )
   const cores = faixas.map((f) => f.cor!.toLowerCase())
   if (!faixas.some((f) => cobre(f, p))) cores.push(d.fundo.toLowerCase())
+  if (d.partes.some((o) => o.tipo === 'logo' && sobrepoe(o, p)))
+    cores.push('#ffffff')
   return [...new Set(cores)]
+}
+
+// quebra de linha, tabulação, caracteres de controle e a marca invisível de início de texto (o servidor confere o mesmo)
+function temControle(texto: string): boolean {
+  for (const c of texto) {
+    const n = c.charCodeAt(0)
+    if (n < 32 || n === 127 || n === 0xfeff) return true
+  }
+  return false
 }
 
 export function numeroBR(v: number, casas = 1): string {
@@ -150,6 +162,11 @@ export type Aviso = { idParte: string | null; texto: string }
 export function avisosDoDesenho(d: Desenho): Aviso[] {
   const avisos: Aviso[] = []
   const conta = (t: TipoDeParte) => d.partes.filter((p) => p.tipo === t).length
+  if (new Set(d.partes.map((p) => p.id)).size !== d.partes.length)
+    avisos.push({
+      idParte: null,
+      texto: 'Duas partes com o mesmo identificador: recarregue o editor.',
+    })
   for (const tipo of OBRIGATORIAS)
     if (conta(tipo) === 0)
       avisos.push({
@@ -199,19 +216,29 @@ export function avisosDoDesenho(d: Desenho): Aviso[] {
             `${outra.tipo === 'texto' ? 'Um texto' : NOME_DA_PARTE[outra.tipo]} está em cima do QR: o celular não lê.`,
           )
     }
+    if (p.tipo === 'faixa' && !p.cor) aviso('Faixa sem cor.')
     if (p.tipo === 'texto') {
-      const t = (p.texto ?? '').trim()
-      if (!t) aviso('Texto vazio: escreva ou tire a parte.')
+      const original = p.texto ?? ''
+      const t = original.trim()
+      if (temControle(original))
+        aviso('Texto com quebra de linha, tabulação ou caractere de controle.')
+      else if (!t) aviso('Texto vazio: escreva ou tire a parte.')
       else if (t.length > MAXIMO_DE_TEXTO)
         aviso(`Texto com mais de ${MAXIMO_DE_TEXTO} letras.`)
     }
+    if (
+      COM_LETRA.has(p.tipo) &&
+      d.partes.some((o) => o.tipo === 'foto' && sobrepoe(o, p))
+    )
+      aviso(`${nome} está em cima da foto: não dá para ler.`)
     if (COM_LETRA.has(p.tipo)) {
       const t = p.tamanho ?? 0
       if (t < LETRA_MINIMA - FOLGA || t > LETRA_MAXIMA + FOLGA)
         aviso(
           `${nome}: a letra vai de ${numeroBR(LETRA_MINIMA)} a ${numeroBR(LETRA_MAXIMA)} pontos.`,
         )
-      if (p.cor) {
+      if (!p.cor) aviso(`${nome}: sem cor de letra.`)
+      else {
         for (const atras of coresAtras(d, p)) {
           const razao = contraste(p.cor, atras)
           if (razao < CONTRASTE_MINIMO) {
@@ -241,8 +268,28 @@ export function idNovo(d: Desenho, tipo: TipoDeParte): string {
   }
 }
 
-/** A parte nova, num lugar e tamanho que cabem no cartão (a pessoa arrasta depois). */
+/** A parte nova, num lugar livre e num tamanho que cabem no cartão (a pessoa arrasta depois). */
+/** O primeiro lugar do cartão onde a parte nova não encosta em nenhuma outra (nem em faixa); sem lugar livre, perto do canto de baixo. */
+function lugarLivre(
+  d: Desenho,
+  largura: number,
+  altura: number,
+): { x: number; y: number } {
+  for (let y = 2; y + altura <= ALTURA_MM - 1; y += 1)
+    for (let x = 2; x + largura <= LARGURA_MM - 1; x += 1) {
+      const caixa: Parte = { id: '', tipo: 'texto', x, y, largura, altura }
+      if (!d.partes.some((o) => sobrepoe(o, caixa))) return { x, y }
+    }
+  return { x: 4, y: Math.max(0, ALTURA_MM - altura - 2) }
+}
+
 export function parteNova(d: Desenho, tipo: TipoDeParte): Parte {
+  const nova = parteNovaNoCanto(d, tipo)
+  if (tipo === 'faixa') return nova
+  return { ...nova, ...lugarLivre(d, nova.largura, nova.altura) }
+}
+
+function parteNovaNoCanto(d: Desenho, tipo: TipoDeParte): Parte {
   const id = idNovo(d, tipo)
   const tinta = '#0b1611'
   const base = { id, tipo, x: 4, y: 40 }

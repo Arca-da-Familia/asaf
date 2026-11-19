@@ -178,7 +178,8 @@ export function MinhaCarteirinhaPage() {
             {data.desenho && (
               <div
                 data-impressao="carteirinha"
-                className="relative hidden h-[54mm] w-[85.6mm] print:block"
+                aria-hidden="true"
+                className="pointer-events-none absolute top-0 -left-[10000px] h-[54mm] w-[85.6mm] print:left-0"
               >
                 <CartaoDesenhado
                   desenho={data.desenho}

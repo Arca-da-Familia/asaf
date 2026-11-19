@@ -76,6 +76,68 @@ describe('Minha carteirinha (v9.5i)', () => {
     expect(await axe(container)).toHaveNoViolations()
   })
 
+  it('v9.5k: com o modelo em uso, o cabeçalho tem a cor dele e o papel leva o cartão do modelo, montado fora da tela (não escondido)', async () => {
+    vi.mocked(api.obterMinhaCredencial).mockResolvedValue({
+      codigo: CODIGO,
+      pagina: `/credencial/${CODIGO}`,
+      emitida_em: '2026-11-18T12:00:00',
+      nome_completo: 'Raimundo Nonato da Silva',
+      matricula: 12,
+      categoria: 'Efetivo',
+      situacao: 'Ativo - Em Dia',
+      associado_desde: '2019-03-01',
+      foto: null,
+      desenho: {
+        fundo: '#ffffff',
+        partes: [
+          {
+            id: 'faixa',
+            tipo: 'faixa',
+            x: 0,
+            y: 0,
+            largura: 85.6,
+            altura: 10,
+            cor: '#0a5a84',
+          },
+          {
+            id: 'nome',
+            tipo: 'nome',
+            x: 25,
+            y: 17,
+            largura: 33,
+            altura: 10,
+            tamanho: 9,
+            cor: '#0b1611',
+          },
+          {
+            id: 'matricula',
+            tipo: 'matricula',
+            x: 25,
+            y: 28,
+            largura: 33,
+            altura: 4,
+            tamanho: 7.5,
+            cor: '#0b1611',
+          },
+          { id: 'qr', tipo: 'qr', x: 61, y: 17, largura: 22, altura: 22 },
+        ],
+      },
+    })
+    const { container } = desenhar(<MinhaCarteirinhaPage />)
+    await screen.findAllByText('Raimundo Nonato da Silva')
+    const papel = container.querySelector<HTMLElement>(
+      '[data-impressao="carteirinha"]',
+    )!
+    // escondido com display:none, a letra do nome comprido não diminuía (tudo media 0) e saía cortada no papel
+    expect(papel.className).not.toMatch(/(^|\s)hidden(\s|$)/)
+    expect(papel).toHaveAttribute('aria-hidden', 'true')
+    expect(papel.textContent).toContain('Matrícula nº 12')
+    expect(
+      screen.getByText('Carteirinha de associado').parentElement!.parentElement,
+    ).toHaveStyle({ background: '#0a5a84', color: '#ffffff' })
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
   it('quem não tem cadastro de associado recebe a explicação', async () => {
     vi.mocked(api.obterMinhaCredencial).mockRejectedValue(
       new ApiError(404, 'sem cadastro'),

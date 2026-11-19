@@ -15,7 +15,13 @@ import {
   type KeyboardEvent,
   type PointerEvent,
 } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router'
 
 import { CartaoDesenhado } from '@/components/credencial/CartaoDesenhado'
 import { EmptyState } from '@/components/feedback/EmptyState'
@@ -84,6 +90,7 @@ type Arrasto = {
   px0: number
   py0: number
   parte0: Parte
+  lembrado: boolean
 }
 
 /** Encosta a parte nas linhas próximas (bordas e centro do cartão, bordas e centro das outras partes). */
@@ -124,6 +131,8 @@ function imantar(
   }
 }
 
+/** O campo de número: enquanto a pessoa digita, o cartão só muda quando o valor cabe no intervalo; ao sair do campo (ou no Enter), o valor é
+ * ajustado ao mínimo ou ao máximo (antes, cada tecla já era ajustada: "15" virava "25"). */
 function Numero({
   rotulo,
   valor,
@@ -140,6 +149,15 @@ function Numero({
   onMudar: (v: number) => void
 }) {
   const id = `campo-${rotulo.replace(/\W+/g, '-').toLowerCase()}`
+  const [texto, setTexto] = useState<string | null>(null)
+  const ler = (t: string) => Number(t.replace(',', '.'))
+  const fechar = () => {
+    if (texto === null) return
+    const v = ler(texto)
+    if (texto.trim() !== '' && Number.isFinite(v))
+      onMudar(arredonda(limitar(v, min, max)))
+    setTexto(null)
+  }
   return (
     <label htmlFor={id} className="flex flex-col gap-1 text-sm font-semibold">
       {rotulo}
@@ -150,10 +168,21 @@ function Numero({
         min={min}
         max={max}
         step={passo}
-        value={arredonda(valor)}
+        value={texto ?? String(arredonda(valor))}
         onChange={(e) => {
-          const v = Number(e.target.value)
-          if (Number.isFinite(v)) onMudar(limitar(v, min, max))
+          setTexto(e.target.value)
+          const v = ler(e.target.value)
+          if (
+            e.target.value.trim() !== '' &&
+            Number.isFinite(v) &&
+            v >= min &&
+            v <= max
+          )
+            onMudar(arredonda(v))
+        }}
+        onBlur={fechar}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') fechar()
         }}
         className="min-h-11 rounded-md border border-input bg-background px-3 text-base sm:min-h-9 sm:text-sm"
       />
@@ -195,11 +224,13 @@ function Amostras({
 }
 
 function Editor({
+  chave,
   idModelo,
   emUso,
   nomeInicial,
   desenhoInicial,
 }: {
+  chave: string
   idModelo: number | null
   emUso: boolean
   nomeInicial: string
@@ -241,16 +272,25 @@ function Editor({
   const podeGuardar =
     avisos.length === 0 && nome.trim().length > 0 && nome.trim().length <= 60
 
-  const lembrar = () =>
+  // um passo do Desfazer; mudanças SEGUIDAS do mesmo campo (digitar, arrastar no seletor de cor, as setas na mesma parte) viram UM passo
+  const ultimoGrupo = useRef<string | null>(null)
+  const lembrar = (grupo?: string) => {
+    if (grupo && ultimoGrupo.current === grupo) return
+    ultimoGrupo.current = grupo ?? null
     setHistorico((h) => [...h.slice(-(MAXIMO_DESFAZER - 1)), desenho])
+  }
   const desfazer = () => {
     const anterior = historico[historico.length - 1]
     if (!anterior) return
     setHistorico((h) => h.slice(0, -1))
     setDesenho(anterior)
   }
-  const mudarParte = (id: string, mudanca: Partial<Parte>, guardar = true) => {
-    if (guardar) lembrar()
+  const mudarParte = (
+    id: string,
+    mudanca: Partial<Parte>,
+    grupo: string | false | undefined = undefined,
+  ) => {
+    if (grupo !== false) lembrar(grupo)
     setDesenho((d) => ({
       ...d,
       partes: d.partes.map((p) => (p.id === id ? { ...p, ...mudanca } : p)),
@@ -284,14 +324,17 @@ function Editor({
     } catch {
       // navegador sem captura: o arrasto segue enquanto o ponteiro estiver em cima
     }
+    e.currentTarget
+      .closest<HTMLElement>('button')
+      ?.focus({ preventScroll: true })
     setEscolhida(p.id)
-    lembrar()
     arrasto.current = {
       id: p.id,
       modo,
       px0: e.clientX,
       py0: e.clientY,
       parte0: p,
+      lembrado: false,
     }
   }
   const mover = (e: PointerEvent<HTMLElement>) => {
@@ -299,6 +342,11 @@ function Editor({
     if (!a) return
     const dx = (e.clientX - a.px0) / mmPx
     const dy = (e.clientY - a.py0) / mmPx
+    if (Math.abs(dx) < 0.05 && Math.abs(dy) < 0.05) return
+    if (!a.lembrado) {
+      lembrar()
+      a.lembrado = true
+    }
     const p0 = a.parte0
     if (a.modo === 'tamanho') {
       mudarParte(a.id, mudarTamanho(p0, p0.largura + dx, p0.altura + dy), false)
@@ -338,10 +386,14 @@ function Editor({
     const d = delta[e.key]
     if (!d) return
     e.preventDefault()
-    mudarParte(p.id, {
-      x: arredonda(limitar(p.x + d[0], 0, LARGURA_MM - p.largura)),
-      y: arredonda(limitar(p.y + d[1], 0, ALTURA_MM - p.altura)),
-    })
+    mudarParte(
+      p.id,
+      {
+        x: arredonda(limitar(p.x + d[0], 0, LARGURA_MM - p.largura)),
+        y: arredonda(limitar(p.y + d[1], 0, ALTURA_MM - p.altura)),
+      },
+      `setas-${p.id}`,
+    )
   }
 
   const acrescentar = () => {
@@ -368,27 +420,39 @@ function Editor({
       const m = podeAlterar
         ? await alterarModeloDeCredencial(idModelo!, nome.trim(), desenho)
         : await guardarModeloDeCredencial(nome.trim(), desenho)
-      const uso = usarParaTodos
-        ? await usarModeloDeCredencial(m.id_modelo)
-        : null
-      return { m, uso }
+      if (!usarParaTodos) return { m, uso: null, erroDoUso: null }
+      try {
+        return {
+          m,
+          uso: await usarModeloDeCredencial(m.id_modelo),
+          erroDoUso: null,
+        }
+      } catch (erro) {
+        // o modelo foi guardado, o "usar" falhou: o editor passa a ser o do modelo guardado (repetir não cria outro)
+        return { m, uso: null, erroDoUso: erro }
+      }
     },
-    onSuccess: ({ m, uso }) => {
+    onSuccess: ({ m, uso, erroDoUso }) => {
+      cliente.setQueryData(['modelo-de-credencial', m.id_modelo], m)
       cliente.invalidateQueries({ queryKey: ['modelos-de-credencial'] })
       cliente.invalidateQueries({ queryKey: ['modelo-de-credencial-em-uso'] })
       setConfirmarUso(false)
       if (uso) {
+        cliente.invalidateQueries({ queryKey: ['modelo-de-credencial'] })
         navegar('/associados/credenciais/criador', {
           state: { aviso: uso.mensagem },
         })
         return
       }
       setAviso(
-        `Guardado: "${m.nome}". Ele só vale para todos quando você escolher "Usar para todos".`,
+        erroDoUso
+          ? `Guardado: "${m.nome}", mas não deu para usar para todos agora: ${erroDoUso instanceof ApiError ? erroDoUso.detail : 'tente de novo.'}`
+          : `Guardado: "${m.nome}". Ele só vale para todos quando você escolher "Usar para todos".`,
       )
       if (!podeAlterar)
         navegar(`/associados/credenciais/criador/${m.id_modelo}`, {
           replace: true,
+          state: { chaveDoEditor: chave },
         })
     },
     onError: (e) =>
@@ -453,7 +517,7 @@ function Editor({
                   type="color"
                   value={desenho.fundo}
                   onChange={(e) => {
-                    lembrar()
+                    lembrar('fundo')
                     setDesenho((d) => ({ ...d, fundo: e.target.value }))
                   }}
                   className="h-11 w-16 cursor-pointer rounded-md border border-input bg-background sm:h-9"
@@ -541,7 +605,7 @@ function Editor({
                   onPointerCancel={soltar}
                   onKeyDown={(e) => teclar(e, p)}
                   className={cn(
-                    'absolute cursor-move touch-none rounded-[2px] outline-offset-0 hover:outline hover:outline-1 hover:outline-azul-texto/70 focus-visible:outline-2 focus-visible:outline-azul-texto',
+                    'absolute min-h-0 min-w-0 cursor-move touch-none rounded-[2px] p-0 outline-offset-0 hover:outline hover:outline-1 hover:outline-azul-texto/70 focus-visible:outline-2 focus-visible:outline-azul-texto',
                     p.id === escolhida &&
                       'outline-2 outline-brand-secondary outline',
                   )}
@@ -655,14 +719,18 @@ function Editor({
                   valor={parte.x}
                   min={0}
                   max={arredonda(LARGURA_MM - parte.largura)}
-                  onMudar={(v) => mudarParte(parte.id, { x: v })}
+                  onMudar={(v) =>
+                    mudarParte(parte.id, { x: v }, `x-${parte.id}`)
+                  }
                 />
                 <Numero
                   rotulo="Do alto (mm)"
                   valor={parte.y}
                   min={0}
                   max={arredonda(ALTURA_MM - parte.altura)}
-                  onMudar={(v) => mudarParte(parte.id, { y: v })}
+                  onMudar={(v) =>
+                    mudarParte(parte.id, { y: v }, `y-${parte.id}`)
+                  }
                 />
                 {parte.tipo === 'qr' ? (
                   <Numero
@@ -673,7 +741,11 @@ function Editor({
                       Math.min(LARGURA_MM - parte.x, ALTURA_MM - parte.y),
                     )}
                     onMudar={(v) =>
-                      mudarParte(parte.id, mudarTamanho(parte, v, v))
+                      mudarParte(
+                        parte.id,
+                        mudarTamanho(parte, v, v),
+                        `lado-${parte.id}`,
+                      )
                     }
                   />
                 ) : (
@@ -687,6 +759,7 @@ function Editor({
                         mudarParte(
                           parte.id,
                           mudarTamanho(parte, v, parte.altura),
+                          `largura-${parte.id}`,
                         )
                       }
                     />
@@ -699,6 +772,7 @@ function Editor({
                         mudarParte(
                           parte.id,
                           mudarTamanho(parte, parte.largura, v),
+                          `altura-${parte.id}`,
                         )
                       }
                     />
@@ -714,7 +788,11 @@ function Editor({
                     maxLength={MAXIMO_DE_TEXTO}
                     value={parte.texto ?? ''}
                     onChange={(e) =>
-                      mudarParte(parte.id, { texto: e.target.value })
+                      mudarParte(
+                        parte.id,
+                        { texto: e.target.value },
+                        `texto-${parte.id}`,
+                      )
                     }
                     className="min-h-11 rounded-md border border-input bg-background px-3 text-base sm:min-h-9 sm:text-sm"
                   />
@@ -728,7 +806,9 @@ function Editor({
                     valor={parte.tamanho ?? 7}
                     min={LETRA_MINIMA}
                     max={LETRA_MAXIMA}
-                    onMudar={(v) => mudarParte(parte.id, { tamanho: v })}
+                    onMudar={(v) =>
+                      mudarParte(parte.id, { tamanho: v }, `letra-${parte.id}`)
+                    }
                   />
                   <label className="flex min-h-11 items-center gap-2 text-sm font-semibold sm:min-h-9">
                     <input
@@ -783,7 +863,11 @@ function Editor({
                         aria-label="Outra cor de letra"
                         value={parte.cor ?? '#0b1611'}
                         onChange={(e) =>
-                          mudarParte(parte.id, { cor: e.target.value })
+                          mudarParte(
+                            parte.id,
+                            { cor: e.target.value },
+                            `cor-${parte.id}`,
+                          )
                         }
                         className="h-11 w-14 cursor-pointer rounded-md border border-input bg-background sm:h-9"
                       />
@@ -799,7 +883,11 @@ function Editor({
                     type="color"
                     value={parte.cor ?? '#14532d'}
                     onChange={(e) =>
-                      mudarParte(parte.id, { cor: e.target.value })
+                      mudarParte(
+                        parte.id,
+                        { cor: e.target.value },
+                        `cor-${parte.id}`,
+                      )
                     }
                     className="h-11 w-16 cursor-pointer rounded-md border border-input bg-background sm:h-9"
                   />
@@ -943,33 +1031,41 @@ function Editor({
 export function EditorDeCredencialPage() {
   const { id = 'novo' } = useParams()
   const [parametros] = useSearchParams()
+  const estado = useLocation().state as { chaveDoEditor?: string } | null
   const de = parametros.get('de') ?? 'faixa-no-alto'
   const numero = /^\d+$/.test(id) ? Number(id) : null
+  const continuando = Boolean(estado?.chaveDoEditor)
   const doGuardado = useQuery({
     queryKey: ['modelo-de-credencial', numero],
     queryFn: () => obterModeloDeCredencial(numero!),
     enabled: numero !== null,
+    refetchOnMount: 'always',
   })
   const lista = useQuery({
     queryKey: ['modelos-de-credencial'],
     queryFn: listarModelosDeCredencial,
     enabled: numero === null,
+    refetchOnMount: 'always',
   })
 
   if (numero !== null) {
-    if (doGuardado.isLoading)
-      return <p className="text-sm text-muted-foreground">Carregando…</p>
-    if (!doGuardado.data)
-      return (
-        <EmptyState
-          titulo="Modelo não encontrado"
-          descricao="Volte ao criador de credencial e escolha outro."
-        />
-      )
     const m = doGuardado.data
+    // abre só com o que o servidor tem agora (a cópia guardada no navegador pode ser de antes de um "Guardar")
+    if (!m || (!continuando && !doGuardado.isFetchedAfterMount)) {
+      if (doGuardado.isError)
+        return (
+          <EmptyState
+            titulo="Modelo não encontrado"
+            descricao="Volte ao criador de credencial e escolha outro."
+          />
+        )
+      return <p className="text-sm text-muted-foreground">Carregando…</p>
+    }
+    const chave = estado?.chaveDoEditor ?? `modelo-${m.id_modelo}`
     return (
       <Editor
-        key={m.id_modelo}
+        key={chave}
+        chave={chave}
         idModelo={m.id_modelo}
         emUso={m.em_uso}
         nomeInicial={m.nome}
@@ -977,7 +1073,7 @@ export function EditorDeCredencialPage() {
       />
     )
   }
-  if (lista.isLoading)
+  if (!lista.isFetchedAfterMount)
     return <p className="text-sm text-muted-foreground">Carregando…</p>
   const guardado = /^\d+$/.test(de)
     ? lista.data?.guardados.find((g) => g.id_modelo === Number(de))
@@ -991,9 +1087,11 @@ export function EditorDeCredencialPage() {
         descricao="Volte ao criador de credencial e escolha de onde começar."
       />
     )
+  const chave = `novo-${de}`
   return (
     <Editor
-      key={`novo-${de}`}
+      key={chave}
+      chave={chave}
       idModelo={null}
       emUso={false}
       nomeInicial={`Cópia de ${base.nome}`.slice(0, 60)}

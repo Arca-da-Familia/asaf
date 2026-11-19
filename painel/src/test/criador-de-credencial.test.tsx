@@ -17,6 +17,7 @@ import {
   EXEMPLO,
   avisosDoDesenho,
   contraste,
+  letraSobre,
   type Desenho,
 } from '@/lib/credencial-desenho'
 import { CriadorDeCredencialPage } from '@/pages/CriadorDeCredencial'
@@ -176,7 +177,7 @@ describe('Criador de credencial: a página inicial (v9.5k)', () => {
       .closest('section')!
     expect(within(guardados).getAllByRole('listitem')).toHaveLength(1)
     expect(
-      screen.getByRole('link', { name: 'Começar do modelo Faixa do lado' }),
+      screen.getByRole('link', { name: 'Começar deste: Faixa do lado' }),
     ).toHaveAttribute(
       'href',
       '/associados/credenciais/criador/novo?de=faixa-do-lado',
@@ -339,6 +340,38 @@ describe('Criador de credencial: o editor (v9.5k)', () => {
       ),
     ).toBeTruthy()
     expect(api.usarModeloDeCredencial).not.toHaveBeenCalled()
+    // o mesmo editor continua (o aviso aparece e o próximo Guardar altera o modelo guardado, não cria outro)
+    expect(
+      await screen.findByText(/Guardado: "Cópia de Faixa no alto"/),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled()
+  })
+
+  it('revisão: o número digitado não é trocado no meio; o clique põe o foco na parte; clique sem arrastar não cria passo de Desfazer', async () => {
+    const u = userEvent.setup()
+    abrirNovo()
+    const qr = await screen.findByRole('button', {
+      name: /^QR de conferência:/,
+    })
+    fireEvent.pointerDown(qr, { pointerId: 1, clientX: 10, clientY: 10 })
+    fireEvent.pointerUp(qr, { pointerId: 1, clientX: 10, clientY: 10 })
+    expect(qr).toHaveFocus()
+    expect(
+      screen.getByRole('heading', { name: 'QR de conferência' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Desfazer' })).toBeDisabled()
+
+    await u.click(screen.getByRole('button', { name: /^Nome:/ }))
+    const largura = screen.getByLabelText('Largura (mm)')
+    await u.clear(largura)
+    await u.type(largura, '15')
+    expect(largura).toHaveValue(15)
+    await u.tab()
+    expect(screen.getByLabelText('Largura (mm)')).toHaveValue(15)
+    // digitar não enche o Desfazer: um passo para o campo todo
+    await u.click(screen.getByRole('button', { name: 'Desfazer' }))
+    expect(screen.getByLabelText('Largura (mm)')).toHaveValue(33.5)
+    expect(screen.getByRole('button', { name: 'Desfazer' })).toBeDisabled()
   })
 
   it('o modelo em uso abre com o aviso e só guarda como modelo novo', async () => {
@@ -408,5 +441,42 @@ describe('O cartão desenhado e as regras (v9.5k)', () => {
         .join(' '),
     ).toMatch(/contraste/)
     expect(Math.round(contraste('#ffffff', '#000000'))).toBe(21)
+  })
+
+  it('revisão: tabulação e quebra no fim recusadas, letra em cima da foto, a caixa branca do logo, faixa sem cor; letra do cabeçalho sempre legível', () => {
+    const tab = copia()
+    tab.partes.find((p) => p.id === 'asaf')!.texto = 'AS\tAF'
+    expect(avisosDoDesenho(tab)[0]!.texto).toMatch(/quebra de linha, tabulação/)
+    const fim = copia()
+    fim.partes.find((p) => p.id === 'asaf')!.texto = 'ASAF\n'
+    expect(avisosDoDesenho(fim)[0]!.texto).toMatch(/quebra de linha, tabulação/)
+    const naFoto = copia()
+    Object.assign(
+      naFoto.partes.find((p) => p.id === 'matricula')!,
+      { x: 4, y: 20 },
+    )
+    expect(
+      avisosDoDesenho(naFoto)
+        .map((a) => a.texto)
+        .join(' '),
+    ).toMatch(/está em cima da foto/)
+    const noLogo = copia()
+    Object.assign(
+      noLogo.partes.find((p) => p.id === 'asaf')!,
+      { x: 3, y: 2, largura: 8 },
+    )
+    expect(
+      avisosDoDesenho(noLogo)
+        .map((a) => a.texto)
+        .join(' '),
+    ).toMatch(/contraste/)
+    const semCor = copia()
+    delete semCor.partes.find((p) => p.id === 'faixa')!.cor
+    expect(avisosDoDesenho(semCor).map((a) => a.texto)).toContain(
+      'Faixa sem cor.',
+    )
+    // a faixa cinza do meio: com preto ou branco o contraste é sempre de pelo menos 4,58 : 1
+    for (const cor of ['#7a7a7a', '#777777', '#808080', '#e3c435', '#14532d'])
+      expect(contraste(letraSobre(cor), cor)).toBeGreaterThanOrEqual(4.5)
   })
 })

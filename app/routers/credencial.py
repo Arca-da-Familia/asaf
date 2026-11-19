@@ -324,7 +324,7 @@ def _desenho_conferido(dados: dict) -> dict:
     achados = modelos.problemas(desenho)
     if achados:
         raise HTTPException(status_code=422, detail=" ".join(achados))
-    return desenho.model_dump(exclude_none=True)
+    return modelos.limpo(desenho)
 
 
 def _nome_limpo(nome: str) -> str:
@@ -366,7 +366,7 @@ def criar_modelo(dados: ModeloEntrada, db: Session = Depends(get_db), usuario: U
     )
     db.add(m)
     db.flush()
-    registrar_auditoria(db, usuario, "associados", "MODELO_CREDENCIAL_GUARDADO", id_registro_afetado=m.id_modelo, dados_depois={"nome": m.nome})
+    registrar_auditoria(db, usuario, "modelos_credencial", "MODELO_CREDENCIAL_GUARDADO", id_registro_afetado=m.id_modelo, dados_depois={"nome": m.nome})
     db.commit()
     db.refresh(m)
     return _modelo_saida(m)
@@ -383,7 +383,7 @@ def alterar_modelo(id_modelo: int, dados: ModeloEntrada, db: Session = Depends(g
     m.atualizado_em = datetime.utcnow()
     m.id_usuario_atualizacao = usuario.id_usuario
     registrar_auditoria(
-        db, usuario, "associados", "MODELO_CREDENCIAL_ALTERADO", id_registro_afetado=m.id_modelo,
+        db, usuario, "modelos_credencial", "MODELO_CREDENCIAL_ALTERADO", id_registro_afetado=m.id_modelo,
         dados_antes={"nome": nome_antes}, dados_depois={"nome": m.nome},
     )
     db.commit()
@@ -396,12 +396,13 @@ def usar_modelo(id_modelo: int, db: Session = Depends(get_db), usuario: Usuario 
     m = _modelo_ou_404(db, id_modelo)
     _desenho_conferido(m.desenho)
     anterior = _modelo_em_uso(db)
-    for outro in db.query(ModeloCredencial).filter(ModeloCredencial.em_uso.is_(True), ModeloCredencial.id_modelo != m.id_modelo).all():
-        outro.em_uso = False
-    m.em_uso = True
-    m.usado_desde = datetime.utcnow()
+    # num comando só, que o banco faz linha a linha com trava: dois "usar" ao mesmo tempo terminam com UM em uso (o último)
+    db.query(ModeloCredencial).update({ModeloCredencial.em_uso: ModeloCredencial.id_modelo == m.id_modelo}, synchronize_session=False)
+    db.query(ModeloCredencial).filter(ModeloCredencial.id_modelo == m.id_modelo).update(
+        {ModeloCredencial.usado_desde: datetime.utcnow()}, synchronize_session=False
+    )
     registrar_auditoria(
-        db, usuario, "associados", "MODELO_CREDENCIAL_EM_USO", id_registro_afetado=m.id_modelo,
+        db, usuario, "modelos_credencial", "MODELO_CREDENCIAL_EM_USO", id_registro_afetado=m.id_modelo,
         dados_antes={"modelo": anterior["nome"]}, dados_depois={"modelo": m.nome},
     )
     db.commit()
@@ -413,7 +414,7 @@ def apagar_modelo(id_modelo: int, db: Session = Depends(get_db), usuario: Usuari
     m = _modelo_ou_404(db, id_modelo)
     if m.em_uso:
         raise HTTPException(status_code=409, detail="O modelo em uso não se apaga: use outro antes.")
-    registrar_auditoria(db, usuario, "associados", "MODELO_CREDENCIAL_APAGADO", id_registro_afetado=m.id_modelo, dados_antes={"nome": m.nome})
+    registrar_auditoria(db, usuario, "modelos_credencial", "MODELO_CREDENCIAL_APAGADO", id_registro_afetado=m.id_modelo, dados_antes={"nome": m.nome})
     db.delete(m)
     db.commit()
     return {"mensagem": "Modelo apagado."}

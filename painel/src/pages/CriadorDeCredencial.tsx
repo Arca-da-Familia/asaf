@@ -63,6 +63,7 @@ function CartaoDeModeloGuardado({
   const recarregar = () => {
     cliente.invalidateQueries({ queryKey: ['modelos-de-credencial'] })
     cliente.invalidateQueries({ queryKey: ['modelo-de-credencial-em-uso'] })
+    cliente.invalidateQueries({ queryKey: ['modelo-de-credencial'] })
   }
   const usar = useMutation({
     mutationFn: () => usarModeloDeCredencial(m.id_modelo),
@@ -297,7 +298,7 @@ export function CriadorDeCredencialPage() {
                     >
                       <Link
                         to={`/associados/credenciais/criador/novo?de=${p.chave}`}
-                        aria-label={`Começar do modelo ${p.nome}`}
+                        aria-label={`Começar deste: ${p.nome}`}
                       >
                         <Pencil aria-hidden="true" />
                         Começar deste

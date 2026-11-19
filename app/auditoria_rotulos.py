@@ -4,6 +4,7 @@
 `tests/test_auditoria_rotulos.py`; enquanto isso, o rótulo de reserva troca o sublinhado por espaço e põe a 1ª letra maiúscula."""
 
 ROTULO_DA_TABELA: dict[str, str] = {
+    "modelos_credencial": "Modelos de credencial",
     "adesoes_peticao": "Adesões a petição de convocação",
     "alcadas_aprovacao": "Alçadas de aprovação",
     "alocacoes_voluntarios": "Alocações de voluntários",
