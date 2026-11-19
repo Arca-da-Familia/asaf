@@ -2471,11 +2471,36 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       **Produção**: Deploy API, Painel e Site verdes; `painel.asaf.org.br/version.json` e o do site = `40aa036`; no `openapi.json` está
       `/api/associados/painel-de-graficos`, que responde 401 sem login; o pedaço publicado da tela tem "Personalizar o painel", "Guardar para mim" e
       "Usar só desta vez".
-- [ ] Ainda do módulo Associados: a CREDENCIAL: o QR
-      passa a valer SEMPRE (revoga a decisão de 15/10 dos 15 dias, pedido dele em 14/11: o cartão impresso não pode vencer) e a página de quem lê
-      mostra a situação de AGORA, em letras grandes embaixo da foto; cada cartão com um código próprio que se revoga ao "emitir outra"; criador de
-      credencial (galeria de modelos e editor de arrastar, celular e impresso); credenciais emitidas com impressão de várias numa segunda aba de
-      pré-visualização, recusando credencial com dado faltando sem justificativa; a Política de Privacidade muda junto (hoje diz que o QR vence).
+- [x] v9.5i — A CREDENCIAL do associado: QR que vale sempre e mostra a situação de agora (decisão do Presidente, 14/11/2026, revoga a de 15/10).
+      **[FEITO (2026-11-19) — cada credencial tem um código sorteado (128 bits, tabela `credenciais`, uma valendo por associado), que vai no QR como o
+      endereço da página de conferência. Quem lê o QR, sem login, vê (rodada 6, opção 3) a foto grande, a situação em letras grandes numa caixa da
+      cor dela — verde "Associado em dia" ou "em experiência", ouro "com pendência" (mensalidade em atraso), "suspenso" ou "licenciado", cinza "Esta
+      credencial não vale" (substituída, de quem saiu ou código que não existe: sem foto, sem nome e o mesmo texto nos três casos) —, o nome, a
+      matrícula e a categoria; nunca CPF, endereço, telefone ou e-mail. A situação é CALCULADA no momento da leitura (a regra do mural de avisos:
+      mensalidade vencida além da tolerância, licença e experiência pelas datas), não o rótulo guardado. "Minha carteirinha" no menu pessoal (rodada
+      5): no notebook o cartão ao centro com onde usar ao lado e "Imprimir a carteirinha" no canto de baixo, à direita; no celular frente e verso
+      ("Mostrar o QR"). Na ficha (aba Situação), o cartão "Credencial" com "Emitir outra credencial" (quem perdeu o cartão: a anterior deixa de valer
+      na hora; fica na Auditoria). A portaria e o credenciamento das assembleias aceitam o código e o endereço lido do QR; o QR antigo (JWT) vale
+      até o prazo da regra (no máximo 20 dias) e nenhum novo é gerado; a rota antiga de verificação só aceita o QR antigo. Junção de cadastros fica
+      com uma credencial; anonimização e eliminação a pedido apagam; relatório do titular mostra (portabilidade não). O aparelho da portaria guarda
+      só o fim do código depois de enviado ou recusado e apaga o que terminou depois de 12 horas. Política de Privacidade 2.19 (em vigor em
+      19/11/2026): a credencial e o que o painel guarda no navegador (o tema, o menu recolhido, os gráficos escolhidos, o aviso de recarga e a fila
+      da portaria). A CONFERÊNCIA INDEPENDENTE DE FATOS da Política achou a situação guardada em vez da de agora, a fila da portaria que nunca saía
+      do aparelho (e o código inteiro no recusado), o botão de saída da portaria que o corte quebrava, a rota antiga que distinguia os casos e frases
+      do texto — tudo corrigido no código e no texto antes de ir ao ar. Achado antigo só registrado: a foto do cadastro também abre, sem login, por
+      `/uploads/fotos/<nome sorteado>` para quem tiver esse endereço (não chega ao público pela conferência)]**
+      **Homologação**: `13a9299` com os 9 robôs verdes (v9.5i-01 novo: Minha carteirinha, a página sem login em dia e "não vale", emitir outra na
+      ficha, celular; v5.7d-01, v5.7c-02, v5.4f-03 portaria, v5.4c-fase1, v9.1a-01 acessibilidade, v9.3a-01 celular, v9.3b-01 notebook, v7.3b-01
+      cabeçalhos); os prints do celular mostraram a lista "Onde a carteirinha vale" quebrada e o título "ONDEA" -> `a8d2a83` com v9.5i-01, v9.3a-01 e
+      v5.7c-02 de novo verdes e os prints conferidos. Servidor 1976 testes em duas rodadas, Postgres verde; painel 1047 em duas rodadas; site 779.
+      **Produção**: `a8d2a83` — Deploy API e Deploy Painel verdes; `painel.asaf.org.br/version.json` = `a8d2a83`; no `openapi.json` estão
+      `/api/minha-credencial`, `/api/publico/credencial/{codigo}` (código inexistente responde `nao_vale`), `/foto` e `.../credencial/emitir-outra`;
+      `/api/minha-credencial` sem login = 401. O Deploy Site reprovou duas vezes nos testes do próprio site, que esperavam a Política 2.18 (os de
+      navegador e o do estado vazio, que eu não tinha rodado aqui) — atualizados (`cd53fd2`, `24e14e5`; o do estado vazio agora lê a versão da
+      configuração) e todos os passos do site rodados aqui antes do 3º envio: Deploy Site verde; `asaf.org.br/version.json` = `24e14e5`;
+      `/privacidade/` mostra "Versão 2.19 · em vigor desde 19 de novembro de 2026" e o parágrafo da conferência da credencial (sem "hoje, 15 dias").
+- [ ] Ainda do módulo Associados: as credenciais emitidas (tabela com seleção; imprimir várias numa segunda aba de pré-visualização; recusar
+      credencial com dado faltando sem justificativa) e o criador de credencial (galeria de modelos e editor de arrastar, celular e impresso).
 - [ ] Rodada 7 de escolha (módulo Financeiro, 25 telas) publicada no artefato em 2026-11-18, a pedido dele ("um agente para ir fazendo as telas no
       artefato" enquanto o sistema é construído) — esperando as escolhas dele. O desenho segue a decisão de 08/10 (saída = registro do que já foi
       pago; dupla assinatura só em Compras e Alçadas); as funções novas estão marcadas NOVIDADE.
