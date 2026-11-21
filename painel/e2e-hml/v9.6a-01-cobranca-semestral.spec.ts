@@ -153,11 +153,9 @@ test('preparo: um associado novo (Efetivo) e a conta de receita a reconhecer (Pa
     .fill(`2.9.${String(RODADA).slice(-8)}`)
   await form.getByPlaceholder('Descrição').fill(CONTA_PASSIVO)
   await escolherPorTexto(
-    form
-      .locator('select')
-      .filter({
-        has: page.locator('option', { hasText: 'Selecione o tipo…' }),
-      }),
+    form.locator('select').filter({
+      has: page.locator('option', { hasText: 'Selecione o tipo…' }),
+    }),
     'Passivo',
   )
   await form.getByRole('button', { name: 'Salvar', exact: true }).click()
@@ -217,21 +215,17 @@ test('plano semestral: sem a conta de receita a reconhecer é recusado na tela; 
   await form.getByPlaceholder('Dia de vencimento').fill('10')
   await form.getByPlaceholder('Valor inicial').fill((VALOR / 100).toFixed(2))
   await escolherPorTexto(
-    form
-      .locator('select')
-      .filter({
-        has: page.locator('option', { hasText: 'Conta contábil (Receita)…' }),
-      }),
+    form.locator('select').filter({
+      has: page.locator('option', { hasText: 'Conta contábil (Receita)…' }),
+    }),
     CONTA_RECEITA,
   )
   // recusa na tela: semestral sem a conta de receita a reconhecer
   await form.getByRole('button', { name: 'Cadastrar', exact: true }).click()
   await expect(
-    form
-      .getByRole('alert')
-      .filter({
-        hasText: 'Selecione a conta de receita a reconhecer (Passivo).',
-      }),
+    form.getByRole('alert').filter({
+      hasText: 'Selecione a conta de receita a reconhecer (Passivo).',
+    }),
   ).toHaveCount(1)
   await ver(
     page,
@@ -275,11 +269,9 @@ test('plano semestral: sem a conta de receita a reconhecer é recusado na tela; 
   await form.getByPlaceholder('Dia de vencimento').fill('10')
   await form.getByPlaceholder('Valor inicial').fill('400.00')
   await escolherPorTexto(
-    form
-      .locator('select')
-      .filter({
-        has: page.locator('option', { hasText: 'Conta contábil (Receita)…' }),
-      }),
+    form.locator('select').filter({
+      has: page.locator('option', { hasText: 'Conta contábil (Receita)…' }),
+    }),
     CONTA_RECEITA,
   )
   await escolherPorTexto(diferida, CONTA_PASSIVO)
