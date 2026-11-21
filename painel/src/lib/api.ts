@@ -4360,7 +4360,8 @@ export type CompraParaAprovar = {
 }
 
 // a chave de cada número do menu (a `pendencia` de um item em lib/modulos.ts)
-export type ChaveDePendencia = 'compras' | 'doacoes' | 'reembolsos' | 'conciliacao'
+export type ChaveDePendencia =
+  'compras' | 'doacoes' | 'reembolsos' | 'conciliacao'
 
 export type PendenciasDoFinanceiro = {
   hoje: string

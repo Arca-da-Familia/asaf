@@ -111,7 +111,9 @@ describe('coluna do módulo em grupos (v9.5c)', () => {
     expect(
       within(menu).queryByRole('link', { name: 'Qualidade da base' }),
     ).not.toBeInTheDocument()
-    await userEvent.click(within(menu).getByRole('button', { name: 'Análises' }))
+    await userEvent.click(
+      within(menu).getByRole('button', { name: 'Análises' }),
+    )
     const lista = within(menu).getByRole('group', { name: 'Análises' })
     expect(
       within(lista).getByRole('link', { name: 'Qualidade da base' }),

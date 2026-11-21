@@ -49,5 +49,8 @@ export function limitesDoMes(mes: string): { inicio: string; fim: string } {
   const ano = Number(mes.slice(0, 4))
   const numero = Number(mes.slice(5, 7))
   const ultimo = new Date(ano, numero, 0).getDate()
-  return { inicio: `${mes}-01`, fim: `${mes}-${String(ultimo).padStart(2, '0')}` }
+  return {
+    inicio: `${mes}-01`,
+    fim: `${mes}-${String(ultimo).padStart(2, '0')}`,
+  }
 }

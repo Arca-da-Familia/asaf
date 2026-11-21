@@ -116,7 +116,9 @@ function ConteudoDoLugar({ lugar }: { lugar: Lugar }) {
           >
             {lugar.titulo}
           </span>
-          <span className={cn('text-xs font-bold sm:sr-only', estado.corDaFrase)}>
+          <span
+            className={cn('text-xs font-bold sm:sr-only', estado.corDaFrase)}
+          >
             {' '}
             {estado.frase}
           </span>
@@ -230,7 +232,9 @@ function CartaoDoSaldo({
   const mostradas = ordenadas.slice(0, 4)
   const resto = ordenadas.length - mostradas.length
   const nomeDoPeriodo =
-    mes.slice(0, 4) === mesAtual.slice(0, 4) ? nomeCurtoDoMes(mes) : nomeDoMes(mes)
+    mes.slice(0, 4) === mesAtual.slice(0, 4)
+      ? nomeCurtoDoMes(mes)
+      : nomeDoMes(mes)
   return (
     <section
       aria-labelledby={id}
@@ -249,7 +253,10 @@ function CartaoDoSaldo({
               const parte =
                 positivo > 0 ? (Math.max(0, c.saldo) / positivo) * 100 : 0
               return (
-                <li key={c.id_conta_financeira} className="flex flex-col gap-1.5">
+                <li
+                  key={c.id_conta_financeira}
+                  className="flex flex-col gap-1.5"
+                >
                   <span className="flex justify-between gap-2 text-[13.5px]">
                     <span className="min-w-0 [overflow-wrap:anywhere]">
                       {nomeDaConta(c)}
@@ -359,7 +366,9 @@ function JanelaDeAprovar({
 
   return (
     <DialogoDeFormulario
-      titulo={pedidos.length === 1 ? 'Compra para aprovar' : 'Compras para aprovar'}
+      titulo={
+        pedidos.length === 1 ? 'Compra para aprovar' : 'Compras para aprovar'
+      }
       descricao={
         <p>
           Confira cada pedido antes de aprovar. A aprovação segue a regra da
@@ -378,7 +387,9 @@ function JanelaDeAprovar({
               key={c.id_solicitacao}
               className="rounded-lg border border-border p-3 text-sm"
             >
-              <p className="font-bold [overflow-wrap:anywhere]">{c.descricao}</p>
+              <p className="font-bold [overflow-wrap:anywhere]">
+                {c.descricao}
+              </p>
               <dl className="mt-1.5 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
                 <dt className="text-muted-foreground">Valor</dt>
                 <dd className="font-semibold tabular-nums">
@@ -426,10 +437,8 @@ function JanelaDeAprovar({
                 </p>
               ) : c.faltam_cotacoes > 0 ? (
                 <p className="mt-2 text-ouro-texto">
-                  Faltam{' '}
-                  {plural(c.faltam_cotacoes, 'cotação', 'cotações')} de
-                  fornecedores diferentes antes de aprovar. Registre em
-                  Compras.
+                  Faltam {plural(c.faltam_cotacoes, 'cotação', 'cotações')} de
+                  fornecedores diferentes antes de aprovar. Registre em Compras.
                 </p>
               ) : (
                 <Button
@@ -607,8 +616,12 @@ export function FinanceiroInicioPage() {
         className="rounded-xl border border-border bg-card px-3 py-2.5 sm:px-[18px]"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="proximos-vencimentos" className="font-titulo text-base font-bold">
-            Próximos vencimentos<span className="hidden sm:inline"> em aberto</span>
+          <h2
+            id="proximos-vencimentos"
+            className="font-titulo text-base font-bold"
+          >
+            Próximos vencimentos
+            <span className="hidden sm:inline"> em aberto</span>
           </h2>
           <Link
             to="/financeiro/titulos"

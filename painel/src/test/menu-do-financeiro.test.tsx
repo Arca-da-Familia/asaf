@@ -82,7 +82,13 @@ describe('menu do Financeiro: os 5 grupos e a Visão geral fixa (v9.6b)', () => 
   it('os grupos escolhidos, na ordem, cada um com o seu ícone; a Visão geral fica fora deles', () => {
     expect(
       agruparItens(financeiro.itens!, financeiro.grupos).map((g) => g.nome),
-    ).toEqual(['Dia a dia', 'Rotina do mês', 'Cadastros', 'Relatórios', 'Controle'])
+    ).toEqual([
+      'Dia a dia',
+      'Rotina do mês',
+      'Cadastros',
+      'Relatórios',
+      'Controle',
+    ])
     expect(
       agruparItens(financeiro.itens!, financeiro.grupos).every((g) => g.icone),
     ).toBe(true)
@@ -120,7 +126,9 @@ describe('menu do Financeiro: os 5 grupos e a Visão geral fixa (v9.6b)', () => 
     expect(
       within(lista).getByRole('link', { name: 'Compras' }),
     ).toHaveAttribute('aria-current', 'page')
-    await userEvent.click(within(menu).getByRole('button', { name: /^Cadastros/ }))
+    await userEvent.click(
+      within(menu).getByRole('button', { name: /^Cadastros/ }),
+    )
     expect(
       within(menu).getByRole('link', { name: 'Fornecedores' }),
     ).toBeVisible()
@@ -155,7 +163,9 @@ describe('menu do Financeiro: os 5 grupos e a Visão geral fixa (v9.6b)', () => 
       within(menu).getByRole('link', { name: 'Reembolsos 1 pendente' }),
     ).toBeInTheDocument()
     // tela sem nada esperando não tem número
-    expect(within(menu).getByRole('link', { name: 'Entradas' })).toBeInTheDocument()
+    expect(
+      within(menu).getByRole('link', { name: 'Entradas' }),
+    ).toBeInTheDocument()
   })
 
   it('quem só audita vê 2 grupos e 3 telas, sem a Visão geral e sem número de pendência', () => {
@@ -174,7 +184,11 @@ describe('menu do Financeiro: os 5 grupos e a Visão geral fixa (v9.6b)', () => 
       within(menu).getByRole('button', { name: /^Relatórios/ }),
     ).toHaveAccessibleName('Relatórios 1 tela')
     const telas = itensVisiveis(financeiro, AUDITA).map((i) => i.rotulo)
-    expect(telas).toEqual(['Relatórios', 'Conselho Fiscal', 'Auditoria financeira'])
+    expect(telas).toEqual([
+      'Relatórios',
+      'Conselho Fiscal',
+      'Auditoria financeira',
+    ])
     expect(within(menu).queryByText(/pendente/)).not.toBeInTheDocument()
   })
 
@@ -262,7 +276,10 @@ describe('"Seus mais usados" no alto do menu (v9.6b)', () => {
   })
 
   it('sem a memória do navegador (bloqueada ou estragada), nada quebra e a lista fica vazia', () => {
-    window.localStorage.setItem(`painel-mais-usados:${ID_USUARIO}`, '{estragado')
+    window.localStorage.setItem(
+      `painel-mais-usados:${ID_USUARIO}`,
+      '{estragado',
+    )
     expect(contarAberturas(ID_USUARIO)).toEqual({})
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('cheio')
@@ -407,10 +424,15 @@ describe('menu recolhido: um ícone por grupo, a lista ao lado (v9.6b)', () => {
   })
 
   it('clicar fora, no botão de fechar ou numa tela fecha a lista; outro grupo troca a lista', async () => {
-    const { menu } = montar({ endereco: '/financeiro/compras', recolhido: true })
+    const { menu } = montar({
+      endereco: '/financeiro/compras',
+      recolhido: true,
+    })
     const cadastros = within(menu).getByRole('button', { name: 'Cadastros' })
     await userEvent.click(cadastros)
-    expect(within(menu).getByRole('group', { name: 'Cadastros' })).toBeInTheDocument()
+    expect(
+      within(menu).getByRole('group', { name: 'Cadastros' }),
+    ).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'fora do menu' }))
     expect(within(menu).queryByRole('group')).not.toBeInTheDocument()
 
@@ -422,10 +444,16 @@ describe('menu recolhido: um ícone por grupo, a lista ao lado (v9.6b)', () => {
     expect(cadastros).toHaveFocus()
 
     await userEvent.click(cadastros)
-    await userEvent.click(within(menu).getByRole('button', { name: 'Controle' }))
-    expect(within(menu).queryByRole('group', { name: 'Cadastros' })).not.toBeInTheDocument()
+    await userEvent.click(
+      within(menu).getByRole('button', { name: 'Controle' }),
+    )
+    expect(
+      within(menu).queryByRole('group', { name: 'Cadastros' }),
+    ).not.toBeInTheDocument()
     const controle = within(menu).getByRole('group', { name: 'Controle' })
-    await userEvent.click(within(controle).getByRole('link', { name: 'Conselho Fiscal' }))
+    await userEvent.click(
+      within(controle).getByRole('link', { name: 'Conselho Fiscal' }),
+    )
     expect(within(menu).queryByRole('group')).not.toBeInTheDocument()
   })
 
@@ -447,7 +475,9 @@ describe('menu recolhido: um ícone por grupo, a lista ao lado (v9.6b)', () => {
       recolhido: true,
       contadores: CONTADORES,
     })
-    await userEvent.click(within(menu).getByRole('button', { name: /^Dia a dia/ }))
+    await userEvent.click(
+      within(menu).getByRole('button', { name: /^Dia a dia/ }),
+    )
     expect(await axe(container)).toHaveNoViolations()
   })
 })
