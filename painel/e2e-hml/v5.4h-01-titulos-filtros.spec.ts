@@ -7,6 +7,7 @@ import {
   RODADA,
   ver,
   vigiar,
+  abrirNoMenuDoModulo,
 } from './apoio'
 
 // v5.4h - Títulos (as entradas e as saídas): filtro por MÊS, entradas e saídas em páginas próprias, categoria, busca por texto e paginação.
@@ -31,11 +32,8 @@ async function irParaAPaginaDoFinanceiro(
   nome: 'Entradas' | 'Saídas',
 ) {
   await page.getByRole('link', { name: 'Financeiro' }).first().click()
-  // o link existe no menu lateral e também no cartão "Telas do módulo": o roteiro usa o do menu
-  await page
-    .getByRole('complementary')
-    .getByRole('link', { name: nome, exact: true })
-    .click()
+  // v9.6b: Entradas e Saídas ficam no grupo "Dia a dia" do menu do módulo
+  await abrirNoMenuDoModulo(page, 'Dia a dia', nome)
 }
 
 async function capturarToken(page: Page): Promise<() => string> {

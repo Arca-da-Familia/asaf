@@ -142,11 +142,9 @@ test('o Tesoureiro de teste enxerga financeiro e parcerias, e documentos lhe é 
   await ver(page, info, 'Tesoureiro em documentos: acesso negado')
 
   await page.goto('/financeiro')
+  // v9.6b: o Início do Financeiro é a Visão geral
   await expect(
-    page
-      .getByRole('heading', { name: 'Início' })
-      .or(page.getByRole('heading', { name: /Financeiro/ }))
-      .first(),
+    page.getByRole('heading', { name: 'Visão geral', level: 1 }),
   ).toBeVisible()
   await ver(page, info, 'Tesoureiro no financeiro')
   expect(vigia.problemas()).toEqual([])

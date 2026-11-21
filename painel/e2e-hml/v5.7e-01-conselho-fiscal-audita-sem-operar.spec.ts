@@ -8,6 +8,9 @@ import {
   type Papel,
   ver,
   vigiar,
+  abrirNoMenuDoModulo,
+  menuDoModulo,
+  telaNoMenuDoModulo,
 } from './apoio'
 
 // v5.7e - O CONSELHO FISCAL AUDITA, NÃO OPERA (decisão do Presidente, 2026-10-19). Provado na homologação, com as pessoas de verdade do teste:
@@ -34,6 +37,8 @@ const NAO_OPERA: Array<[string, string, Record<string, unknown> | undefined]> =
   [
     ['GET', '/api/titulos/', undefined],
     ['GET', '/api/intencoes-doacao/', undefined],
+    // v9.6b: os números de pendência e os lugares da Visão geral são de quem opera
+    ['GET', '/api/financeiro/pendencias', undefined],
     [
       'POST',
       '/plano-contas/',
@@ -51,16 +56,17 @@ const NAO_OPERA: Array<[string, string, Record<string, unknown> | undefined]> =
       { texto: 'resposta da tesouraria' },
     ],
   ]
+// v9.6b: os nomes do menu novo (o do auditor: Relatórios no grupo "Relatórios"; Conselho Fiscal e Auditoria financeira no grupo "Controle")
 const MENU_DO_AUDITOR = [
   'Conselho Fiscal',
   'Auditoria financeira',
   'Relatórios',
 ]
 const MENU_QUE_OPERA = [
-  'Títulos',
+  'Todos os títulos',
   'Registrar saída',
   'Doações',
-  'Gerar Cobranças',
+  'Gerar cobranças',
   'Compras',
 ]
 
@@ -83,12 +89,13 @@ async function abrirOFinanceiro(page: Page) {
   await expect(page).toHaveURL(/\/financeiro/)
 }
 
-// o Início DO MÓDULO é o link "Início" para /financeiro (há também o "← Início" que volta à tela inicial do painel e o "Financeiro" da trilha, que também aponta para /financeiro)
+// o Início DO MÓDULO é a "Visão geral" (v9.6b), fixa no alto do menu (o "Financeiro" da trilha também aponta para /financeiro)
 const inicioDoModulo = (page: Page) =>
-  page.locator('a[href="/financeiro"]', { hasText: /^Início$/ })
+  page.locator('a[href="/financeiro"]', { hasText: /^Visão geral$/ })
 
+// a tela no grupo dela, aberto ou fechado (os "Seus mais usados" repetem telas no alto e não contam)
 const itemDoMenu = (page: Page, rotulo: string) =>
-  page.getByRole('navigation').getByRole('link', { name: rotulo, exact: true })
+  telaNoMenuDoModulo(page, rotulo)
 
 test('o conselheiro tem a permissão que audita e não a que opera', async ({
   page,
@@ -120,14 +127,22 @@ test('no painel o conselheiro vê só o que audita; o que opera some do menu e �
     page.getByRole('heading', { name: /Conselho Fiscal/, level: 1 }),
   ).toBeVisible()
   for (const item of MENU_DO_AUDITOR)
-    await expect(itemDoMenu(page, item), item).toBeVisible()
+    await expect(itemDoMenu(page, item), item).toHaveCount(1)
   for (const item of MENU_QUE_OPERA)
     await expect(itemDoMenu(page, item), item).toHaveCount(0)
+  // v9.6b: só as 3 telas dele, em 2 grupos (Relatórios e Controle)
+  await expect(menuDoModulo(page).locator('[role="group"] a')).toHaveCount(3)
+  await expect(
+    menuDoModulo(page).getByRole('button', { name: /^Relatórios / }),
+  ).toBeVisible()
+  await expect(
+    menuDoModulo(page).getByRole('button', { name: /^Controle / }),
+  ).toBeVisible()
   await expect(inicioDoModulo(page), 'Início do módulo').toHaveCount(0)
   await ver(page, info, 'menu-do-conselheiro-so-o-que-audita')
 
   // a Auditoria financeira abre e lista o mês
-  await itemDoMenu(page, 'Auditoria financeira').click()
+  await abrirNoMenuDoModulo(page, 'Controle', 'Auditoria financeira')
   await expect(
     page.getByRole('heading', { name: 'Auditoria financeira', level: 1 }),
   ).toBeVisible()
@@ -135,7 +150,7 @@ test('no painel o conselheiro vê só o que audita; o que opera some do menu e �
   await ver(page, info, 'auditoria-financeira-do-conselheiro')
 
   // Relatórios abre para ler, sem o botão de gerar a prestação de contas
-  await itemDoMenu(page, 'Relatórios').click()
+  await abrirNoMenuDoModulo(page, 'Relatórios', 'Relatórios')
   await expect(
     page.getByRole('heading', { name: 'Relatórios', level: 1 }),
   ).toBeVisible()
@@ -189,11 +204,8 @@ test('o tesoureiro continua com o módulo inteiro e as mesmas leituras', async (
   const vigia = vigiar(page)
   const cab = await comoPapel(page, 'tesoureiro')
   await abrirOFinanceiro(page)
-  for (const item of [
-    ...MENU_QUE_OPERA.filter((i) => i !== 'Início'),
-    ...MENU_DO_AUDITOR,
-  ])
-    await expect(itemDoMenu(page, item), item).toBeVisible()
+  for (const item of [...MENU_QUE_OPERA, ...MENU_DO_AUDITOR])
+    await expect(itemDoMenu(page, item), item).toHaveCount(1)
   await expect(inicioDoModulo(page)).toBeVisible()
   await ver(page, info, 'menu-do-tesoureiro-inteiro')
   for (const rota of LEITURAS) {

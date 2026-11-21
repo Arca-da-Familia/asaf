@@ -725,8 +725,9 @@ test('cargo -> permissão ao vivo: encerrar o mandato do Tesoureiro tira o finan
     await expect(page.getByRole('link', { name: 'Governança' })).toHaveCount(0)
     await ver(page, info, 'Tesoureiro com o cargo: financeiro e parcerias')
     await page.goto('/financeiro')
+    // v9.6b: o Início do Financeiro é a Visão geral
     await expect(
-      page.getByRole('heading', { name: 'Financeiro' }).first(),
+      page.getByRole('heading', { name: 'Visão geral', level: 1 }),
     ).toBeVisible()
     await ver(page, info, 'Tesoureiro com o cargo abre o financeiro')
     await sair(page)
@@ -902,7 +903,7 @@ test('cargo -> permissão ao vivo: encerrar o mandato do Tesoureiro tira o finan
     await expect(moduloParcerias(page).first()).toBeVisible()
     await page.goto('/financeiro')
     await expect(
-      page.getByRole('heading', { name: 'Financeiro' }).first(),
+      page.getByRole('heading', { name: 'Visão geral', level: 1 }),
     ).toBeVisible()
     await ver(page, info, 'Tesoureiro de volta ao cargo: financeiro de novo')
   })
