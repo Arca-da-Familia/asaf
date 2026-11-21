@@ -2521,13 +2521,53 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       **Produção**: `8be4bb9` — Deploy API, Deploy Painel e "Push on main" verdes; `painel.asaf.org.br/version.json` = `8be4bb9`; no
       `openapi.json` estão `/api/credenciais`, `/resumo`, `/para-imprimir` e `/registrar-impressao`; as três de leitura sem login = 401; a
       tela `/associados/credenciais` responde 200. Só leitura: nenhum dado de teste em produção.
-- [ ] Ainda do módulo Associados: o criador de credencial (galeria de modelos e editor de arrastar, celular e impresso).
-- [ ] Rodadas de escolha feitas por um agente enquanto o sistema é construído (a pedido dele, 18/11): 7 (Financeiro, 25 telas), 7b (Financeiro
-      refeito, 12), 8 (Atendimento, 10) — respondidas em 18 e 19/11; 8b (Atendimento com AUTOATENDIMENTO, 10 telas + a Auditoria financeira como
-      um caminho só) e 9 (Governança, 18 telas) publicadas em 19/11, esperando as escolhas e as decisões dele (desligar pelo botão e o art. 15 do
-      Estatuto, guarda dos dados de quem sai, "Meus dados" na hora, resposta dos pedidos no painel, termo de voluntário no painel, decisões e atas
-      para todo associado, voto e presença pela internet). O desenho segue a decisão de 08/10 (saída = registro do que já foi pago; dupla
-      assinatura só em Compras e Alçadas).
+- [x] v9.5k — O CRIADOR DE CREDENCIAL, no desenho escolhido (rodada 6: a página inicial com os modelos e o editor de arrastar). Fecha o módulo
+      Associados.
+      **[FEITO (2026-11-21) — "Criador de credencial" no grupo Credenciais do menu do módulo Associados. A página inicial mostra o modelo EM USO (o
+      desenho de todas as credenciais), com "Editar uma cópia"; os modelos guardados (até 30), cada um com "Usar para todos", "Editar" e "Apagar"
+      (confirmação na própria linha; o modelo em uso não se apaga nem se altera — edita-se uma cópia); e três prontos para começar (Faixa no alto,
+      que é o cartão da v9.5j e vale enquanto nenhum outro for escolhido; Faixa do lado; Foto no centro). O editor: cada parte (faixa, logo, foto,
+      nome, matrícula, categoria, associado desde, QR, textos) se arrasta com o mouse ou o dedo, muda de tamanho pelo canto, com linhas-guia e ímã;
+      a lista "Partes do cartão", embaixo, escolhe qualquer parte com botões grandes (teclado, leitor de tela e as partes miúdas no celular) e as
+      setas movem (Shift move mais); no painel da parte, os números (com vírgula; as setas somam um passo), a letra, o negrito, o alinhamento, a
+      cor e a foto redonda; cores prontas da faixa e o fundo do cartão; acrescentar e tirar partes; Desfazer. Os avisos travam o Guardar e o
+      servidor confere de novo: nome e QR sempre; QR quadrado de 18 mm ou mais, sem nada por cima além da faixa; tudo dentro do cartão; letra de 5 a
+      24 pontos; contraste de 4,5:1 com o que fica atrás (faixa, fundo, logo); nada escrito sobre a foto; texto de até 60 letras, sem caracteres de
+      controle. O modelo em uso vale para a folha A4 das credenciais emitidas, para a impressão da Minha carteirinha e para a cor do cabeçalho
+      dela no celular. Tabela `modelos_credencial` (migração `e7b3d1a9c5f2`; no máximo um em uso, troca numa só operação), rotas
+      `/api/credenciais/modelos` (listar, abrir, guardar, alterar, usar, apagar) e `/api/credenciais/modelo-em-uso` (permissão de associados), a
+      Minha credencial leva o desenho; Auditoria MODELO_CREDENCIAL_GUARDADO/ALTERADO/EM_USO/APAGADO no assunto "Modelos de credencial". A
+      REVISÃO INDEPENDENTE achou 14 pontos — o grave: depois de guardar, o editor podia reabrir com a cópia antiga e apagar o desenho novo — todos
+      corrigidos. Exceção nova no robô de usabilidade, avisada ao Presidente: a letra menor que 12 px DENTRO do desenho do cartão em escala
+      (`[data-desenho-em-escala]`) não conta como letra da tela (é a letra do cartão de verdade, no tamanho dele)]**
+      **Homologação**: três rodadas. 1ª (`a53f9d6`): v9.5k-01 (novo: a página inicial, começar de "Faixa do lado", faixa azul, setas e arrasto,
+      a letra branca no fundo branco travando o Guardar e o Desfazer, guardar e usar para todos, a folha A4 com o modelo, a Auditoria, a volta ao
+      padrão e o celular), v9.5j-01 e v9.5i-01 verdes; v9.1a-01 (o nome "Começar deste" do leitor de tela diferente do texto) e v9.3a/b-01 (a
+      letra miúda do cartão em escala) reprovaram -> `0e53d69`. 2ª (`a48e241`): v9.5k-01 verde, mas o print mostrou os números com ponto
+      ("31.8"); v9.1a-01 e v9.3a-01 reprovaram pelas partes miúdas do cartão no editor como alvo de toque menor que 24 px -> `866cbb2` (a lista
+      "Partes do cartão"; a parte no cartão só se arrasta). 3ª (`328f256`): v9.5k-01, v9.1a-01, v9.3a-01, v9.3b-01, v9.5j-01 e v9.5i-01 verdes;
+      prints conferidos (a página inicial, o editor com a vírgula e a lista de partes, a folha A4 com o modelo, o celular). Servidor 2008 testes
+      em duas rodadas, Postgres verde; painel 1065 em duas rodadas.
+      **Produção**: `328f256` — Deploy API e Deploy Painel verdes; `painel.asaf.org.br/version.json` = `328f256`; no `openapi.json` estão
+      `/api/credenciais/modelos`, `/modelos/{id_modelo}`, `/modelos/{id_modelo}/usar` e `/api/credenciais/modelo-em-uso`; as duas de leitura sem
+      login = 401; a tela `/associados/credenciais/criador` responde 200. Só leitura: nenhum modelo de teste em produção (sem nenhum guardado,
+      vale o pronto Faixa no alto, o cartão de antes).
+- [x] Rodadas de escolha feitas por um agente enquanto o sistema é construído (a pedido dele, 18/11): 7 (Financeiro, 25 telas), 7b (Financeiro
+      refeito, 12), 8 (Atendimento, 10), 8b (Atendimento com AUTOATENDIMENTO, 10 telas + a Auditoria financeira como um caminho só) e 9
+      (Governança, 18 telas) — TODAS RESPONDIDAS (18 a 21/11; as escolhas ficam no banco do artefato). Na Governança ele recusou a tela de
+      dissolução e explicou que ata e edital são feitos fora do sistema (editor de texto e cartório): o sistema gera as deliberações e o resumo, e
+      o site publica só o resumo final. O desenho segue a decisão de 08/10 (saída = registro do que já foi pago; dupla assinatura só em Compras e
+      Alçadas).
+      **REGRA DO PRESIDENTE (21/11/2026): UM MÓDULO POR VEZ**, no desenho e na construção — "só vamos para o próximo módulo depois que tivermos, de
+      fato e de direito, o módulo atual". Nenhuma rodada de telas de outro módulo enquanto o atual não estiver pronto (construído, homologação
+      verde, produção conferida, bloco aqui no PLANO). Ordem: Associados (fechado com a v9.5k) → **Financeiro** (rodadas 7, 7b e a Auditoria
+      da 8b) → Atendimento (8b) → Governança (9) → demais.
+- [ ] Módulo FINANCEIRO no desenho escolhido (v9.6). Primeira versão: a cobrança respeitar a periodicidade — hoje `gerar_cobrancas` cobra todo
+      plano ativo todo mês (um plano semestral sairia todo mês). Decisões do Presidente (21/11/2026): a associação terá os planos MENSAL e
+      SEMESTRAL; cada associado escolhe o seu (marcado na ficha); o semestral é cobrado em janeiro (jan–jun) e julho (jul–dez), igual para todos,
+      e quem entra no meio paga o resto do semestre; o semestral tem valor próprio cadastrado, mudado só por decisão registrada, como o mensal.
+      Depois, a casca do módulo (o menu de cinco grupos + "mais usados", padrão de todos os módulos, e a Visão geral) e as telas, uma versão por
+      grupo.
 - [ ] Etapa 3 · módulo a módulo: cada módulo numa rodada própria de escolha, com todas as telas dele. As escolhas da rodada 2 estão guardadas
       no artefato para quando cada módulo chegar: Financeiro (notebook "saldo em destaque e botões de ação", celular "saldo verde e atalhos"),
       Associados (tabela com abas; cartões no celular), Ficha (cabeçalho, abas e três colunas; abas no alto no celular), Formulário (passo a
