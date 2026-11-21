@@ -34,8 +34,10 @@ dist/
 
 # Claude Code (config local da ferramenta, não é código do projeto)
 .claude/*
-# o kit de continuidade (memória entre conversas e entre Claude e Codex) vai para o Git: quem quiser usa no próprio computador
+# a porta da bancada da IEADESPA (.claude/continuidade) e o gancho dela (.claude/settings.json) vão para o Git: a bancada
+# em si mora no repositório privado IEADESPA/bancada, baixado em C:\MCP\bancada
 !.claude/continuidade/
+!.claude/settings.json
 *.db-journal
 
 # passagem de bastão: estado do trabalho de cada computador, nunca vai ao repositório (decisão do Presidente, 17/11/2026: evita conflito entre colaboradores)
