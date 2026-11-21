@@ -16,9 +16,10 @@ import {
   useState,
   type FocusEvent,
   type KeyboardEvent,
+  type ReactNode,
 } from 'react'
 import { ArrowLeft, ChevronRight, LayoutList, X } from 'lucide-react'
-import { Link, NavLink, useLocation } from 'react-router'
+import { Link, matchPath, NavLink, useLocation } from 'react-router'
 
 import { mensagens } from '@/lib/i18n/pt-BR'
 import { maisUsados, useAberturas } from '@/lib/mais-usados'
@@ -61,14 +62,14 @@ export function VoltarAoInicio({
   )
 }
 
-// o número do que espera alguém, em ouro (na tela aberta, que já é ouro, as cores se invertem). O leitor de tela ouve "Compras 2 pendentes": quem usa o
-// número põe o nome inteiro no `aria-label` (o nome montado pelos pedaços sairia grudado, "Compras2pendentes").
+// o número do que espera alguém, em ouro (na tela aberta, que já é ouro, as cores se invertem). O leitor de tela ouve "Compras 2 pendentes" pelo
+// `aria-label` do link ou do botão; o número fica FORA dele (ver `ComNumero`).
 function Contador({ n, ativo = false }: { n: number; ativo?: boolean }) {
   return (
     <span
       aria-hidden="true"
       className={cn(
-        'inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] leading-none font-extrabold tabular-nums',
+        'inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-xs leading-none font-extrabold tabular-nums',
         ativo
           ? 'bg-brand-secondary-foreground text-brand-secondary'
           : 'bg-brand-secondary text-brand-secondary-foreground',
@@ -77,6 +78,42 @@ function Contador({ n, ativo = false }: { n: number; ativo?: boolean }) {
       {n}
     </span>
   )
+}
+
+// O número fica por cima do link (ou do botão), do lado de fora dele e sem pegar o clique: assim o nome que o leitor de tela ouve é só o `aria-label`
+// ("Compras 2 pendentes") e o texto visível de dentro ("Compras") está contido nele (o axe confere: label-content-name-mismatch). Com o número dentro, o
+// texto visível sairia grudado ("Compras2") e não bateria com o nome.
+function ComNumero({
+  n,
+  ativo = false,
+  lugar = 'top-1/2 right-2 -translate-y-1/2',
+  className,
+  children,
+}: {
+  n: number
+  ativo?: boolean
+  lugar?: string
+  className?: string
+  children: ReactNode
+}) {
+  if (n <= 0) return <div className={className}>{children}</div>
+  return (
+    <div className={cn('relative', className)}>
+      {children}
+      <span
+        aria-hidden="true"
+        className={cn('pointer-events-none absolute', lugar)}
+      >
+        <Contador n={n} ativo={ativo} />
+      </span>
+    </div>
+  )
+}
+
+// a tela aberta, pela mesma regra do NavLink (com `end`, só o endereço exato; sem, também as telas de dentro)
+function useTelaAberta(item: ItemModulo): boolean {
+  const { pathname } = useLocation()
+  return !!matchPath({ path: item.rota, end: !!item.fim }, pathname)
 }
 
 function ItemDaColuna({
@@ -91,32 +128,73 @@ function ItemDaColuna({
   iconeGrande?: boolean
 }) {
   const n = pendenciasDoItem(item, contadores)
+  const ativo = useTelaAberta(item)
   return (
-    <NavLink
-      to={item.rota}
-      end={item.fim}
-      className={navNaColuna}
-      onClick={aoNavegar}
-      aria-label={nomeComPendencias(item.rotulo, n)}
-    >
-      {({ isActive }) => (
-        <>
-          <item.icone
-            aria-hidden="true"
-            className={cn(
-              'shrink-0',
-              iconeGrande ? 'h-5 w-5' : 'h-[18px] w-[18px]',
-            )}
-          />
-          <span className="min-w-0 flex-1">{item.rotulo}</span>
-          {n > 0 && <Contador n={n} ativo={isActive} />}
-        </>
-      )}
-    </NavLink>
+    <ComNumero n={n} ativo={ativo} lugar="top-1/2 right-3 -translate-y-1/2">
+      <NavLink
+        to={item.rota}
+        end={item.fim}
+        className={(estado) => cn(navNaColuna(estado), n > 0 && 'pr-11')}
+        onClick={aoNavegar}
+        aria-label={nomeComPendencias(item.rotulo, n)}
+      >
+        <item.icone
+          aria-hidden="true"
+          className={cn(
+            'shrink-0',
+            iconeGrande ? 'h-5 w-5' : 'h-[18px] w-[18px]',
+          )}
+        />
+        <span className="min-w-0 flex-1">{item.rotulo}</span>
+      </NavLink>
+    </ComNumero>
   )
 }
 
-// "Seus mais usados · automático": 2 colunas no computador e 4 na gaveta do celular (como os desenhos escolhidos). São atalhos: a tela continua no grupo dela.
+// uma tela na lista que abre ao lado da faixa recolhida
+function ItemDaLista({
+  item,
+  contadores,
+  aoEscolher,
+}: {
+  item: ItemModulo
+  contadores: Record<string, number>
+  aoEscolher: () => void
+}) {
+  const n = pendenciasDoItem(item, contadores)
+  const ativo = useTelaAberta(item)
+  return (
+    <ComNumero n={n} ativo={ativo}>
+      <NavLink
+        to={item.rota}
+        end={item.fim}
+        aria-label={nomeComPendencias(item.rotulo, n)}
+        onClick={aoEscolher}
+        className={({ isActive }) =>
+          cn(
+            'flex min-h-9 items-center gap-2.5 rounded-[9px] px-2 py-1 text-sm',
+            n > 0 && 'pr-10',
+            isActive
+              ? 'bg-brand-secondary font-extrabold text-brand-secondary-foreground'
+              : 'font-medium hover:bg-accent hover:text-accent-foreground',
+          )
+        }
+      >
+        <item.icone
+          aria-hidden="true"
+          className={cn(
+            'h-[17px] w-[17px] shrink-0',
+            !ativo && 'text-muted-foreground',
+          )}
+        />
+        <span className="min-w-0 flex-1">{item.rotulo}</span>
+      </NavLink>
+    </ComNumero>
+  )
+}
+
+// "Seus mais usados · automático": os quadradinhos (o ícone em cima do nome), 2 colunas no computador e 4 na gaveta do celular (como os desenhos
+// escolhidos). São atalhos: a tela continua no grupo dela. Na gaveta estreita, o nome comprido se divide com hífen ("contri-buição"); no computador cabe inteiro.
 function SeusMaisUsados({
   itens,
   aoNavegar,
@@ -127,7 +205,7 @@ function SeusMaisUsados({
   const id = useId()
   return (
     <div className="mb-1.5 border-b border-barra-2 pb-2.5">
-      <p className="flex items-center justify-between gap-2 px-1.5 pb-1.5 text-[11.5px] text-barra-suave">
+      <p className="flex items-center justify-between gap-2 px-1.5 pb-1.5 text-xs text-barra-suave">
         <span id={id} className="font-extrabold tracking-[0.08em] uppercase">
           Seus mais usados
         </span>
@@ -147,13 +225,13 @@ function SeusMaisUsados({
               <Link
                 to={item.rota}
                 onClick={aoNavegar}
-                className="flex h-full min-h-11 flex-col items-center justify-center gap-1 rounded-[10px] bg-barra-2 px-0.5 py-2 text-center text-xs leading-tight font-bold text-barra-foreground hover:ring-1 hover:ring-barra-suave lg:min-h-[46px] lg:flex-row lg:justify-start lg:gap-2 lg:px-2.5 lg:py-1 lg:text-left lg:text-[13px]"
+                className="flex h-full min-h-11 flex-col items-center justify-center gap-1 rounded-[10px] bg-barra-2 px-0.5 py-2 text-center text-xs leading-tight font-bold text-barra-foreground hover:ring-1 hover:ring-barra-suave lg:px-1.5"
               >
                 <item.icone
                   aria-hidden="true"
                   className="h-[19px] w-[19px] shrink-0 text-brand-secondary"
                 />
-                <span className="min-w-0 [overflow-wrap:anywhere]">
+                <span className="min-w-0 hyphens-auto [overflow-wrap:anywhere] lg:hyphens-manual">
                   {item.rotulo}
                 </span>
               </Link>
@@ -172,7 +250,7 @@ function nomeComPendencias(nome: string, n: number): string | undefined {
 
 const botaoDaFaixa = (ativo: boolean) =>
   cn(
-    'relative flex w-[70px] shrink-0 flex-col items-center gap-0.5 self-center rounded-xl px-0.5 py-1.5 text-center text-[11.5px] leading-tight',
+    'relative flex w-[70px] shrink-0 flex-col items-center gap-0.5 self-center rounded-xl px-0 py-1.5 text-center text-xs leading-tight',
     ativo
       ? 'bg-brand-secondary font-extrabold text-brand-secondary-foreground'
       : 'font-semibold text-barra-foreground hover:bg-barra-2',
@@ -212,10 +290,12 @@ function FaixaRecolhida({
       setAberto(null)
       return
     }
-    // a lista abre na altura do botão (medida a partir da coluna, onde ela é posicionada)
-    const pai = botao.offsetParent as HTMLElement | null
+    // a lista abre na altura do botão (medida a partir da coluna, onde ela é posicionada; o botão fica dentro de uma caixa própria, por causa do número)
+    const pai = (botao.closest('aside') ??
+      botao.closest('nav')) as HTMLElement | null
     const deslocamento =
-      botao.getBoundingClientRect().top - (pai?.getBoundingClientRect().top ?? 0)
+      botao.getBoundingClientRect().top -
+      (pai?.getBoundingClientRect().top ?? 0)
     setTopo(Math.max(8, deslocamento))
     setAberto(nome)
   }
@@ -297,27 +377,31 @@ function FaixaRecolhida({
         const IconeDoGrupo = grupo.icone ?? LayoutList
         return (
           <Fragment key={grupo.nome}>
-            <button
-              type="button"
-              ref={(el) => {
-                if (el) botoes.current.set(grupo.nome, el)
-                else botoes.current.delete(grupo.nome)
-              }}
-              aria-expanded={estaAberto}
-              aria-controls={estaAberto ? idDaLista : undefined}
-              aria-label={nomeComPendencias(grupo.nome, n)}
-              onClick={(evento) => alternar(grupo.nome, evento.currentTarget)}
-              onKeyDown={aoTeclar}
-              className={botaoDaFaixa(ativo)}
+            <ComNumero
+              n={n}
+              lugar="-top-0.5 right-0.5 rounded-full border-[1.5px] border-barra"
+              className="self-center"
             >
-              <IconeDoGrupo aria-hidden="true" className="h-[22px] w-[22px]" />
-              <span>{grupo.nome}</span>
-              {n > 0 && (
-                <span className="absolute -top-0.5 right-0.5 rounded-full border-[1.5px] border-barra">
-                  <Contador n={n} />
-                </span>
-              )}
-            </button>
+              <button
+                type="button"
+                ref={(el) => {
+                  if (el) botoes.current.set(grupo.nome, el)
+                  else botoes.current.delete(grupo.nome)
+                }}
+                aria-expanded={estaAberto}
+                aria-controls={estaAberto ? idDaLista : undefined}
+                aria-label={nomeComPendencias(grupo.nome, n)}
+                onClick={(evento) => alternar(grupo.nome, evento.currentTarget)}
+                onKeyDown={aoTeclar}
+                className={botaoDaFaixa(ativo)}
+              >
+                <IconeDoGrupo
+                  aria-hidden="true"
+                  className="h-[22px] w-[22px]"
+                />
+                <span>{grupo.nome}</span>
+              </button>
+            </ComNumero>
             {estaAberto && (
               <div
                 ref={painel}
@@ -343,48 +427,18 @@ function FaixaRecolhida({
                   </button>
                 </div>
                 <ul className="flex flex-col gap-0.5">
-                  {grupo.itens.map((item) => {
-                    const pendentes = pendenciasDoItem(item, contadores)
-                    return (
-                      <li key={item.rota}>
-                        <NavLink
-                          to={item.rota}
-                          end={item.fim}
-                          aria-label={nomeComPendencias(item.rotulo, pendentes)}
-                          onClick={() => {
-                            setAberto(null)
-                            aoNavegar()
-                          }}
-                          className={({ isActive }) =>
-                            cn(
-                              'flex min-h-9 items-center gap-2.5 rounded-[9px] px-2 py-1 text-sm',
-                              isActive
-                                ? 'bg-brand-secondary font-extrabold text-brand-secondary-foreground'
-                                : 'font-medium hover:bg-accent hover:text-accent-foreground',
-                            )
-                          }
-                        >
-                          {({ isActive }) => (
-                            <>
-                              <item.icone
-                                aria-hidden="true"
-                                className={cn(
-                                  'h-[17px] w-[17px] shrink-0',
-                                  !isActive && 'text-muted-foreground',
-                                )}
-                              />
-                              <span className="min-w-0 flex-1">
-                                {item.rotulo}
-                              </span>
-                              {pendentes > 0 && (
-                                <Contador n={pendentes} ativo={isActive} />
-                              )}
-                            </>
-                          )}
-                        </NavLink>
-                      </li>
-                    )
-                  })}
+                  {grupo.itens.map((item) => (
+                    <li key={item.rota}>
+                      <ItemDaLista
+                        item={item}
+                        contadores={contadores}
+                        aoEscolher={() => {
+                          setAberto(null)
+                          aoNavegar()
+                        }}
+                      />
+                    </li>
+                  ))}
                 </ul>
               </div>
             )}
@@ -417,7 +471,8 @@ export function MenuDoModulo({
   const fixos = itensFixos(itens)
   const grupos = agruparItens(itens, modulo.grupos)
   const itemAberto = itemDaRota(itens, pathname)
-  const grupoDaTela = itemAberto && !itemAberto.fixo ? (itemAberto.grupo ?? '') : ''
+  const grupoDaTela =
+    itemAberto && !itemAberto.fixo ? (itemAberto.grupo ?? '') : ''
   const aberturas = useAberturas(menuNovo ? idUsuario : undefined)
   const base = useId()
   // o que a pessoa abriu ou fechou com o clique; o grupo que ela não tocou fica aberto só se for o da tela aberta (ao ir para uma tela de outro grupo, por
@@ -516,37 +571,42 @@ export function MenuDoModulo({
         const IconeDoGrupo = grupo.icone
         return (
           <div key={grupo.nome}>
-            <button
-              type="button"
-              aria-expanded={aberto}
-              aria-controls={idLista}
-              aria-label={`${grupo.nome} ${grupo.itens.length} ${grupo.itens.length === 1 ? 'tela' : 'telas'}`}
-              onClick={() =>
-                setEscolhas((atual) => new Map(atual).set(grupo.nome, !aberto))
-              }
-              className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 text-left text-sm font-bold text-barra-foreground hover:bg-barra-2 lg:min-h-10"
-            >
-              <ChevronRight
-                aria-hidden="true"
-                className={cn(
-                  'h-4 w-4 shrink-0 text-barra-suave transition-transform',
-                  aberto && 'rotate-90',
-                )}
-              />
-              {IconeDoGrupo && (
-                <IconeDoGrupo
+            {/* o número de telas fica por cima do botão, do lado de fora (como o número de pendências, ver `ComNumero`) */}
+            <div className="relative">
+              <button
+                type="button"
+                aria-expanded={aberto}
+                aria-controls={idLista}
+                aria-label={`${grupo.nome} ${grupo.itens.length} ${grupo.itens.length === 1 ? 'tela' : 'telas'}`}
+                onClick={() =>
+                  setEscolhas((atual) =>
+                    new Map(atual).set(grupo.nome, !aberto),
+                  )
+                }
+                className="flex min-h-11 w-full items-center gap-2 rounded-lg py-0 pr-8 pl-2 text-left text-sm font-bold text-barra-foreground hover:bg-barra-2 lg:min-h-10"
+              >
+                <ChevronRight
                   aria-hidden="true"
-                  className="h-[17px] w-[17px] shrink-0 text-barra-suave"
+                  className={cn(
+                    'h-4 w-4 shrink-0 text-barra-suave transition-transform',
+                    aberto && 'rotate-90',
+                  )}
                 />
-              )}
-              <span className="flex-1">{grupo.nome}</span>
+                {IconeDoGrupo && (
+                  <IconeDoGrupo
+                    aria-hidden="true"
+                    className="h-[17px] w-[17px] shrink-0 text-barra-suave"
+                  />
+                )}
+                <span className="flex-1">{grupo.nome}</span>
+              </button>
               <span
                 aria-hidden="true"
-                className="text-xs font-semibold text-barra-suave"
+                className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs font-semibold text-barra-suave"
               >
                 {grupo.itens.length}
               </span>
-            </button>
+            </div>
             <div
               id={idLista}
               hidden={!aberto}
