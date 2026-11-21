@@ -143,7 +143,9 @@ test('começar de um pronto, arrastar, recusar a cor difícil de ler, usar para 
   await folha.close()
 
   // a Auditoria registrou
-  await page.goto('/auditoria?tabela=modelos_credencial&acao=MODELO_CREDENCIAL_EM_USO')
+  await page.goto(
+    '/auditoria?tabela=modelos_credencial&acao=MODELO_CREDENCIAL_EM_USO',
+  )
   await expect(
     page.locator('[data-acao="MODELO_CREDENCIAL_EM_USO"]').first(),
   ).toBeVisible({ timeout: 30_000 })
