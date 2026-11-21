@@ -369,7 +369,9 @@ def seed_catalogos():
         # v3.2 - periodicidade de um `PlanoDeContribuicao` (mensalidade). Catálogo editável -
         # entra "Trimestral"/"Semestral" sem deploy se a diretoria decidir cobrar diferente.
         "periodicidade_contribuicao": ("Periodicidade de contribuição", True, "financeiro", [
-            ("MENSAL", "Mensal"), ("ANUAL", "Anual"),
+            # v9.6a - "Semestral" (decisão do Presidente, 21/11/2026: a associação tem os planos mensal e semestral); banco que já existe
+            # recebe a opção pela migração a9c3e5f7b1d2
+            ("MENSAL", "Mensal"), ("SEMESTRAL", "Semestral"), ("ANUAL", "Anual"),
         ]),
         # v3.2 - motivo de isenção/desconto de contribuição, sempre de catálogo (nunca texto
         # livre solto) - mesmo espírito de `motivo_desligamento`/`motivo_licenca` (v0.3.2).

@@ -198,6 +198,7 @@ ROTULO_DA_ACAO: dict[str, str] = {
     "CONSULTA_HISTORICO_SITUACAO": "Consulta do histórico de situação",
     "CONSULTA_PRONTUARIO": "Consulta de prontuário",
     "CONSULTA_RELATORIO_DO_TITULAR": "Consulta do relatório do titular",
+    "CONTRIBUICAO_ALTERADA": "Forma de pagamento da contribuição alterada",
     "CONVERTIDA_EM_ASSEMBLEIA": "Convertida em assembleia",
     "CONVIDAR": "Convite",
     "CONVOCADA": "Convocação",

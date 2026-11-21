@@ -68,6 +68,8 @@ class PlanoDeContribuicaoCriar(BaseModel):
     cobranca_por_nucleo_familiar: bool = False
     id_conta_contabil: int
     valor_inicial: Decimal
+    # v9.6a - obrigatória (Passivo) quando a periodicidade não é mensal: o título do período entra aqui e vira receita mês a mês
+    id_conta_contabil_receita_diferida: Optional[int] = None
 
     @field_validator("dia_vencimento")
     @classmethod

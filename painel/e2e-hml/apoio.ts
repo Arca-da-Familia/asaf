@@ -788,3 +788,71 @@ export async function procurarPedido(page: Page, nome: string): Promise<void> {
   if ((await campo.count()) === 0) return
   await campo.fill(nome)
 }
+
+/**
+ * v9.6a: o cabeçalho de acesso da sessão de quem está logado (lido de uma chamada que a própria tela faz à API de teste), para as arrumações do
+ * banco de teste que não são o que o robô confere. Abre a tela `rota` e espera a primeira chamada autenticada.
+ */
+export async function autorizacaoDaSessao(
+  page: Page,
+  rota: string,
+): Promise<string> {
+  let autorizacao = ''
+  const ouvir = (r: {
+    headers: () => Record<string, string>
+    url: () => string
+  }) => {
+    const cab = r.headers()['authorization']
+    if (cab && r.url().startsWith(API_HML)) autorizacao = cab
+  }
+  page.on('request', ouvir)
+  await page.goto(rota)
+  await expect.poll(() => autorizacao, { timeout: 30_000 }).not.toBe('')
+  page.off('request', ouvir)
+  return autorizacao
+}
+
+type PlanoNaApi = {
+  id_plano: number
+  categoria: string
+  periodicidade: string
+  ativo: boolean
+}
+
+/**
+ * v9.6a: cada categoria tem UM plano de contribuição ativo por forma de pagamento (o cadastro recusa o segundo; dois ativos deixariam a categoria
+ * sem cobrança). O banco de teste acumula um plano por rodada de robô: antes de cadastrar o da rodada, os ativos da mesma categoria e forma de
+ * pagamento são desativados (nada é apagado; os títulos já gerados continuam). Com `manterOMaisNovo`, fica ativo só o mais novo (o que
+ * outro roteiro deixou). Devolve quantos foram desativados.
+ */
+export async function arrumarPlanosAtivos(
+  page: Page,
+  autorizacao: string,
+  categoria: string,
+  periodicidade: string,
+  { manterOMaisNovo = false }: { manterOMaisNovo?: boolean } = {},
+): Promise<number> {
+  const cab = { headers: { Authorization: autorizacao } }
+  const lista = await page.request.get(
+    `${API_HML}/api/planos-contribuicao/`,
+    cab,
+  )
+  expect(lista.status(), await lista.text()).toBe(200)
+  const iguais = ((await lista.json()) as PlanoNaApi[])
+    .filter(
+      (p) =>
+        p.ativo &&
+        p.categoria === categoria &&
+        p.periodicidade.toLowerCase() === periodicidade.toLowerCase(),
+    )
+    .sort((a, b) => b.id_plano - a.id_plano)
+  const desativar = manterOMaisNovo ? iguais.slice(1) : iguais
+  for (const p of desativar) {
+    const r = await page.request.put(
+      `${API_HML}/api/planos-contribuicao/${p.id_plano}/ativo?ativo=false`,
+      cab,
+    )
+    expect(r.status(), await r.text()).toBe(200)
+  }
+  return desativar.length
+}

@@ -96,7 +96,7 @@ CLASSIFICACAO: dict[str, Tabela] = {
     # a máscara da Auditoria não se liga no cadastro de associado (o que mudou na ficha de um associado é prestação de contas da gestão): risco aceito, PLANO v7.0b
     "associados": Tabela(nao_herda_crianca=True, adolescentes=True, colunas={
         "observacoes_gerenciais": LIVRE, "numero_matricula": P, "categoria": M, "status_arrolamento": M, "data_admissao": M, "data_fim_experiencia": M,
-        "data_fim_licenca": M, "data_desligamento": M,
+        "data_fim_licenca": M, "data_desligamento": M, "periodicidade_contribuicao": M,
     }),
     "papeis": Tabela(colunas={"tipo_papel": M, "ativo": M, "criado_em": NP}),
     "funcionarios": Tabela(nao_herda_crianca=True),

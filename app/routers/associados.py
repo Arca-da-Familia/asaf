@@ -16,12 +16,13 @@ from app.database import get_db
 from app.models.associados import Associado, Endereco, DependenteFamiliar, DocumentoAnexo, HistoricoCargo
 from app.models.core import NivelAcesso, Usuario
 from app.models.pessoas import Papel, Pessoa
-from app.models.financeiro import TituloFinanceiro
+from app.models.financeiro import PlanoDeContribuicao, TituloFinanceiro
 from app.schemas.associados import (
     AssociadoMasterCriar,
     AssociadoAdminUpdate,
     AssociadoPerfilUpdate,
     ConcederAcessoCriar,
+    ContribuicaoDoAssociadoAtualizar,
     DependenteAtualizar,
     DependenteCriar,
     DependentePessoaCriar,
@@ -29,7 +30,7 @@ from app.schemas.associados import (
     HistoricoCargoEncerrar,
 )
 from app.security import exigir_alguma_permissao, exigir_permissao, get_current_user, hash_senha, usuario_tem_permissao, validar_senha_forte
-from app.services import armazenamento, automaticos_de_associado, carteirinha, cpf_protegido
+from app.services import armazenamento, automaticos_de_associado, carteirinha, contribuicoes, cpf_protegido
 from app.services.categoria_associado import calcular_categoria
 from app.services.busca import numero_que_cabe_no_banco
 from app.services.catalogos import validar_codigo_em_catalogo
@@ -41,6 +42,8 @@ LOG = logging.getLogger(__name__)
 router = APIRouter()
 _permissao_associados = exigir_permissao("associados")
 _permissao_seletor_de_associado = exigir_alguma_permissao("associados", "financeiro", "projetos")
+# v9.6a - a forma de pagamento da contribuição: a secretaria marca no cadastro, o Tesoureiro também pode (é dado da cobrança)
+_permissao_contribuicao = exigir_alguma_permissao("associados", "financeiro")
 
 
 def _associado_do_proprio_ou_de_quem_tem_permissao(db: Session, usuario: Usuario, id_associado: int) -> Associado:
@@ -322,6 +325,76 @@ def admin_editar_associado(id_associado: int, dados: AssociadoAdminUpdate, db: S
         dados_depois={"nome_completo": associado.nome_completo, "email_contato": associado.email_contato, "telefone_whatsapp": associado.telefone_whatsapp, "categoria": associado.categoria},
     )
     return {"mensagem": "Ficha master atualizada com sucesso!"}
+
+
+def _opcoes_de_contribuicao(db: Session, associado: Associado) -> list[dict]:
+    """v9.6a - os planos ativos da categoria do associado, um por forma de pagamento (mensal, semestral...), com o valor de hoje."""
+    planos = (
+        db.query(PlanoDeContribuicao)
+        .filter(PlanoDeContribuicao.ativo.is_(True), PlanoDeContribuicao.categoria == associado.categoria)
+        .order_by(PlanoDeContribuicao.id_plano)
+        .all()
+    )
+    opcoes, vistas = [], set()
+    for plano in planos:
+        meses = contribuicoes.meses_da_periodicidade(plano.periodicidade)
+        chave = (plano.periodicidade or "").strip().lower()
+        if meses is None or chave in vistas:
+            continue
+        vistas.add(chave)
+        try:
+            valor = contribuicoes.valor_vigente(db, plano.id_plano, datetime.utcnow())
+        except HTTPException:
+            valor = None
+        opcoes.append({
+            "periodicidade": plano.periodicidade, "id_plano": plano.id_plano, "descricao": plano.descricao, "valor": valor,
+            "meses": meses, "quando_cobra": contribuicoes.quando_cobra(meses), "dia_vencimento": plano.dia_vencimento,
+        })
+    return sorted(opcoes, key=lambda o: o["meses"])
+
+
+@router.get("/api/associados/{id_associado}/contribuicao", summary="Admin - Forma de pagamento da contribuição do associado")
+def ver_contribuicao_do_associado(id_associado: int, db: Session = Depends(get_db), _usuario: Usuario = Depends(_permissao_contribuicao)):
+    """v9.6a - a forma de pagamento que o associado escolheu e as que a categoria dele oferece (decisão do Presidente, 21/11/2026)."""
+    associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
+    if not associado:
+        raise HTTPException(status_code=404, detail="Associado não encontrado.")
+    opcoes = _opcoes_de_contribuicao(db, associado)
+    escolhida = (associado.periodicidade_contribuicao or "Mensal").strip()
+    return {
+        "id_associado": associado.id_associado, "categoria": associado.categoria, "periodicidade": escolhida,
+        "tem_plano": any(o["periodicidade"].strip().lower() == escolhida.lower() for o in opcoes),
+        "opcoes": opcoes,
+    }
+
+
+@router.put("/api/associados/{id_associado}/contribuicao", summary="Admin - Mudar a forma de pagamento da contribuição do associado")
+def mudar_contribuicao_do_associado(
+    id_associado: int, dados: ContribuicaoDoAssociadoAtualizar, db: Session = Depends(get_db),
+    usuario: Usuario = Depends(_permissao_contribuicao),
+):
+    """v9.6a - marca no cadastro a forma de pagamento (mensal ou semestral) que o associado escolheu; só uma que a categoria dele tem plano
+    ativo. Vale a partir da próxima cobrança: o que já foi cobrado não muda, e nenhum mês é cobrado duas vezes (gerar_cobrancas)."""
+    associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
+    if not associado:
+        raise HTTPException(status_code=404, detail="Associado não encontrado.")
+    pedida = (dados.periodicidade or "").strip().lower()
+    opcao = next((o for o in _opcoes_de_contribuicao(db, associado) if o["periodicidade"].strip().lower() == pedida), None)
+    if opcao is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A categoria {associado.categoria} não tem plano {pedida or '(vazio)'} ativo: escolha uma das formas de pagamento oferecidas.",
+        )
+    antes = (associado.periodicidade_contribuicao or "Mensal").strip()
+    if antes.lower() == pedida:
+        return {"mensagem": "Nada mudou: essa já é a forma de pagamento do associado.", "periodicidade": antes}
+    associado.periodicidade_contribuicao = opcao["periodicidade"]
+    db.commit()
+    registrar_auditoria(
+        db, usuario, "associados", "CONTRIBUICAO_ALTERADA", id_registro_afetado=associado.id_associado,
+        dados_antes={"periodicidade_contribuicao": antes}, dados_depois={"periodicidade_contribuicao": opcao["periodicidade"]},
+    )
+    return {"mensagem": f"Forma de pagamento mudada para {opcao['periodicidade'].lower()}.", "periodicidade": opcao["periodicidade"]}
 
 
 @router.put("/api/meu-perfil/{id_associado}", summary="Associado - Autoatendimento")

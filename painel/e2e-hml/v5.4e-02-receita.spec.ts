@@ -11,6 +11,8 @@ import {
 } from '@playwright/test'
 
 import {
+  arrumarPlanosAtivos,
+  autorizacaoDaSessao,
   cadastrarPelaTela,
   campo,
   cpfValido,
@@ -39,8 +41,9 @@ import {
 //  - Só o Tesoureiro, o Presidente e o Conselho Fiscal têm "financeiro". O Tesoureiro NÃO tem "associados": a lista de associados que alimenta os
 //    formulários (GET /api/associados/) exige essa permissão. Por isso os passos que escolhem associado rodam como Presidente, e há um cenário só
 //    para provar o que o Tesoureiro enxerga (cenário A3).
-//  - A geração em lote vale para TODOS os planos ativos e todos os associados elegíveis (não filtra por plano), então cada rodada usa competências
-//    contadas a partir de hoje e um plano com o nome da rodada; todo número conferido é o das linhas do próprio roteiro.
+//  - A geração em lote vale para todos os associados elegíveis (não filtra por plano), então cada rodada usa competências contadas a partir de hoje e
+//    um plano com o nome da rodada; todo número conferido é o das linhas do próprio roteiro. Desde a v9.6a cada associado é cobrado pelo plano ATIVO
+//    da sua categoria e forma de pagamento (um só): o roteiro desativa os "Efetivo mensal" das rodadas anteriores antes de cadastrar o seu.
 //  - Formulários do painel mandam "" ou 0 nos campos opcionais em branco (data de competência da baixa, centro de custo, campanha, prazo, data fim da
 //    isenção). O servidor responde 422 a "" numa data e 500 a 0 numa chave estrangeira. Os cenários A-E preenchem esses campos (caminho completo) para
 //    que a história siga; o bloco F ("sondagens") tenta o caminho mínimo, só com o obrigatório, e reprova se o sistema o recusar.
@@ -1011,6 +1014,13 @@ test.describe('B. Planos, cobranças em lote e em bloco, com desconto por pagame
     const vigia = vigiar(page)
     const a = exigirApoio()
     await entrarNoFinanceiro(page, 'tesoureiro')
+    // v9.6a: um plano ativo por categoria e forma de pagamento - os "Efetivo mensal" das rodadas anteriores são desativados antes do desta
+    await arrumarPlanosAtivos(
+      page,
+      await autorizacaoDaSessao(page, '/financeiro/planos-contribuicao'),
+      'Efetivo',
+      'Mensal',
+    )
     await page.goto('/financeiro/planos-contribuicao')
     await expect(
       page.getByRole('heading', { name: 'Planos de Contribuição', level: 1 }),

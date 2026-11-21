@@ -176,6 +176,12 @@ class PlanoDeContribuicao(Base):
     # (ver app/services/contribuicoes.py::gerar_cobrancas).
     cobranca_por_nucleo_familiar = Column(Boolean, default=False, nullable=False)
     id_conta_contabil = Column(Integer, ForeignKey("plano_de_contas.id_conta"), nullable=False)
+    # v9.6a - plano que cobra vários meses de uma vez (semestral, anual): o título do período inteiro entra nesta conta de PASSIVO (receita a
+    # reconhecer) e vira receita do plano (`id_conta_contabil`) mês a mês - o mesmo caminho do pagamento adiantado em bloco (v3.2.3,
+    # `reconhecer_receita_diferida_do_mes`). Obrigatória quando a periodicidade não é mensal.
+    id_conta_contabil_receita_diferida = Column(
+        Integer, ForeignKey("plano_de_contas.id_conta", name="fk_planos_contribuicao_conta_receita_diferida"), nullable=True,
+    )
     ativo = Column(Boolean, default=True, nullable=False)
 
 

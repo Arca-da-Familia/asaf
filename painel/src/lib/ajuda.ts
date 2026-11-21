@@ -192,14 +192,15 @@ export const AJUDA: Record<string, AjudaDaTela> = {
   },
   '/financeiro/gerar-cobrancas': {
     paraQue:
-      'Gerar de uma vez as mensalidades de um mês, sempre com uma prévia antes de confirmar.',
+      'Gerar de uma vez as contribuições de um mês, sempre com uma prévia antes de confirmar: quem paga mensal é cobrado todo mês; quem paga semestral, em janeiro (janeiro a junho) e em julho (julho a dezembro).',
     passos: [
       'Preencha "Competência (AAAA-MM)", por exemplo 2026-10, e clique em "Ver prévia".',
-      'Confira quantas cobranças serão geradas, o total, as já existentes e os isentos; se estiver certo, clique em "Confirmar geração".',
-      'Para quem paga vários meses adiantado, use "Gerar cobrança em bloco", com o associado, o plano e o mês-gatilho.',
+      'Confira quantas cobranças serão geradas, o total, as já existentes e os isentos; no semestral, a linha mostra o período cobrado. Se estiver certo, clique em "Confirmar geração".',
+      'Se aparecer "Atenção: nem todos foram cobrados", leia o motivo (por exemplo, a categoria não tem o plano semestral) e veja em "Quem ficou sem cobrança".',
+      'Para quem paga vários meses adiantado com desconto, use "Gerar cobrança em bloco", com o associado, o plano e o mês-gatilho.',
     ],
     atencao:
-      'Gerar o mesmo mês de novo não duplica: quem já tem cobrança naquela competência fica de fora.',
+      'Gerar o mesmo mês de novo não duplica: quem já tem cobrança naquela competência fica de fora. Quem passa a semestral no meio do semestre paga só o resto dele.',
   },
   '/financeiro/compras': {
     paraQue:
@@ -377,9 +378,11 @@ export const AJUDA: Record<string, AjudaDaTela> = {
   },
   '/financeiro/planos-contribuicao': {
     paraQue:
-      'As mensalidades por categoria de associado, as isenções e a campanha de desconto para quem paga vários meses de uma vez.',
+      'As contribuições por categoria de associado (mensal e semestral), as isenções e a campanha de desconto para quem paga vários meses de uma vez.',
     passos: [
-      'Na aba "Planos", veja o valor de cada plano; "Reajustar" cria um valor novo a partir de uma data (o anterior fica no histórico).',
+      'Na aba "Planos", veja o valor de cada plano e quando ele é cobrado; "Reajustar" cria um valor novo a partir de uma data (o anterior fica no histórico).',
+      'Plano semestral pede a "Conta de receita a reconhecer (Passivo)": o valor do semestre entra nela e vira receita mês a mês.',
+      'Cada categoria tem um plano ativo por forma de pagamento: para trocar, "Desativar" o atual e cadastrar o novo (nada é apagado).',
       'Na aba "Isenções", registre o desconto de um associado, com o motivo e o período.',
       'Na aba "Desconto por pagamento antecipado", fica a campanha decidida em assembleia.',
     ],

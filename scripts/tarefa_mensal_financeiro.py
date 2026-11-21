@@ -24,6 +24,9 @@ def main() -> int:
         competencia = datetime.utcnow().strftime("%Y-%m")
         resultado_cobranca = contribuicoes.gerar_cobrancas(db, competencia=competencia, confirmar=True, id_usuario=None)
         print(f"[tarefa-mensal] cobrancas geradas: {resultado_cobranca['total_gerados']} (competencia {competencia})")
+        # v9.6a - o que não pôde ser cobrado (categoria sem plano da forma de pagamento escolhida, plano sem a conta de receita a reconhecer...)
+        for aviso in resultado_cobranca.get("avisos", []):
+            print(f"[tarefa-mensal] AVISO: {aviso}")
 
         resultado_contas_a_pagar = contas_a_pagar.gerar_contas_a_pagar(db, competencia=competencia, confirmar=True, id_usuario=None)
         print(f"[tarefa-mensal] contas a pagar recorrentes geradas: {resultado_contas_a_pagar['total_gerados']} (competencia {competencia})")

@@ -3751,6 +3751,9 @@ export type PlanoDeContribuicao = {
   id_conta_contabil: number
   ativo: boolean
   valor_vigente: number | null
+  // v9.6a - plano que não é mensal: a conta de Passivo onde o período entra antes de virar receita mês a mês; e, em palavras, quando cobra
+  id_conta_contabil_receita_diferida: number | null
+  quando_cobra: string | null
 }
 
 export function listarPlanosContribuicao(): Promise<PlanoDeContribuicao[]> {
@@ -3765,10 +3768,56 @@ export function criarPlanoContribuicao(dados: {
   cobranca_por_nucleo_familiar: boolean
   id_conta_contabil: number
   valor_inicial: number
+  id_conta_contabil_receita_diferida?: number
 }): Promise<{ mensagem: string; id_plano: number }> {
   return apiFetch('/api/planos-contribuicao/', {
     method: 'POST',
     body: JSON.stringify(dados),
+  })
+}
+
+// v9.6a - desativar um plano (trocar por outro) sem apagar nada; reativar respeita um plano ativo por categoria e forma de pagamento
+export function alternarPlanoContribuicao(
+  idPlano: number,
+  ativo: boolean,
+): Promise<{ mensagem: string }> {
+  return apiFetch(`/api/planos-contribuicao/${idPlano}/ativo?ativo=${ativo}`, {
+    method: 'PUT',
+  })
+}
+
+// v9.6a - a forma de pagamento da contribuição que o associado escolheu (mensal ou semestral) e as que a categoria dele oferece
+export type OpcaoDeContribuicao = {
+  periodicidade: string
+  id_plano: number
+  descricao: string
+  valor: number | null
+  meses: number
+  quando_cobra: string
+  dia_vencimento: number
+}
+
+export type ContribuicaoDoAssociado = {
+  id_associado: number
+  categoria: string | null
+  periodicidade: string
+  tem_plano: boolean
+  opcoes: OpcaoDeContribuicao[]
+}
+
+export function obterContribuicaoDoAssociado(
+  idAssociado: number,
+): Promise<ContribuicaoDoAssociado> {
+  return apiFetch(`/api/associados/${idAssociado}/contribuicao`)
+}
+
+export function mudarContribuicaoDoAssociado(
+  idAssociado: number,
+  periodicidade: string,
+): Promise<{ mensagem: string; periodicidade: string }> {
+  return apiFetch(`/api/associados/${idAssociado}/contribuicao`, {
+    method: 'PUT',
+    body: JSON.stringify({ periodicidade }),
   })
 }
 
@@ -3829,6 +3878,19 @@ export type PrevisaoCobranca = {
     id_plano: number
     descricao_plano: string
     valor: number
+    // v9.6a - a forma de pagamento, o período cobrado ("03/2027" ou "01/2027 a 06/2027"), quantos meses ele cobre e quantos o período tem
+    periodicidade: string
+    periodo: string
+    meses: number
+    meses_do_periodo: number
+  }[]
+  // v9.6a - o que não pôde ser cobrado (sem nome: quem são vai em `associados_sem_plano`)
+  avisos: string[]
+  associados_sem_plano: {
+    id_associado: number
+    nome: string
+    categoria: string
+    periodicidade: string
   }[]
   // v3.2.3 - reconhecimento de receita diferida desta competência (fatia mensal de título-bloco
   // já pago) - só populado quando `confirmar=true`.

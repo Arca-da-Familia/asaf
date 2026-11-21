@@ -25,6 +25,10 @@ class Associado(Base):
     pessoa = relationship("Pessoa")
 
     categoria = Column(String, default="Efetivo")
+    # v9.6a - a forma de pagamento da contribuição que ESTE associado escolheu (decisão do Presidente, 21/11/2026: cada associado escolhe mensal
+    # ou semestral; o rótulo do catálogo `periodicidade_contribuicao`). A cobrança usa o plano ativo da categoria com essa periodicidade
+    # (app/services/contribuicoes.py::gerar_cobrancas).
+    periodicidade_contribuicao = Column(String, nullable=False, default="Mensal", server_default="Mensal")
     status_arrolamento = Column(String, default="Ativo - Em Dia")
     observacoes_gerenciais = Column(String, nullable=True)
     data_admissao = Column(DateTime, default=datetime.utcnow)

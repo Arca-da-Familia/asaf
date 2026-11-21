@@ -25,6 +25,7 @@ vi.mock('@/lib/api', async (importOriginal) => ({
   listarPlanoContas: vi.fn(),
   criarPlanoContribuicao: vi.fn(),
   alternarCampanhaDescontoAntecipado: vi.fn(),
+  alternarPlanoContribuicao: vi.fn(),
 }))
 
 function plano(id: number, descricao: string): PlanoDeContribuicao {
@@ -38,6 +39,8 @@ function plano(id: number, descricao: string): PlanoDeContribuicao {
     id_conta_contabil: 7,
     ativo: true,
     valor_vigente: 50,
+    id_conta_contabil_receita_diferida: null,
+    quando_cobra: 'todo mês',
   }
 }
 

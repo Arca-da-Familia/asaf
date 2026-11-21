@@ -946,8 +946,33 @@ def listar_planos_contribuicao(db: Session = Depends(get_db), _usuario=Depends(_
             "periodicidade": p.periodicidade, "dia_vencimento": p.dia_vencimento,
             "cobranca_por_nucleo_familiar": p.cobranca_por_nucleo_familiar,
             "id_conta_contabil": p.id_conta_contabil, "ativo": p.ativo, "valor_vigente": valor,
+            # v9.6a - a conta de receita a reconhecer (plano não mensal) e, em palavras, quando o plano é cobrado ("todo mês", "em janeiro e julho")
+            "id_conta_contabil_receita_diferida": p.id_conta_contabil_receita_diferida,
+            "quando_cobra": contribuicoes.quando_cobra(meses) if (meses := contribuicoes.meses_da_periodicidade(p.periodicidade)) else None,
         })
     return resultado
+
+
+def _plano_ativo_igual(db: Session, categoria: str, periodicidade: str, *, exceto: Optional[int] = None) -> Optional[PlanoDeContribuicao]:
+    """v9.6a - o plano ATIVO da mesma categoria e periodicidade (a cobrança usa um só: dois iguais deixariam a categoria sem cobrança)."""
+    consulta = db.query(PlanoDeContribuicao).filter(
+        PlanoDeContribuicao.ativo.is_(True),
+        PlanoDeContribuicao.categoria == categoria,
+        func.lower(PlanoDeContribuicao.periodicidade) == periodicidade.strip().lower(),
+    )
+    if exceto is not None:
+        consulta = consulta.filter(PlanoDeContribuicao.id_plano != exceto)
+    return consulta.first()
+
+
+def _recusar_plano_igual(db: Session, categoria: str, periodicidade: str, *, exceto: Optional[int] = None) -> None:
+    igual = _plano_ativo_igual(db, categoria, periodicidade, exceto=exceto)
+    if igual:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Já existe o plano ativo \"{igual.descricao}\" para a categoria {categoria}, {periodicidade.strip().lower()}. "
+                   "Cada categoria tem um plano ativo por forma de pagamento: para trocar, desative o atual antes.",
+        )
 
 
 @router.post("/api/planos-contribuicao/", summary="Cadastrar Plano de Contribuição")
@@ -956,11 +981,32 @@ def cadastrar_plano_contribuicao(dados: PlanoDeContribuicaoCriar, request: Reque
     if not conta:
         raise HTTPException(status_code=404, detail="Conta contábil não encontrada.")
     contabilidade.exigir_tipo_conta(conta, ["Receita"], "A conta contábil de um plano de contribuição")
+    # v9.6a - a periodicidade tem de ser uma que a cobrança sabe fazer; plano de vários meses (semestral, anual) entra numa conta de PASSIVO de
+    # receita a reconhecer e vira receita mês a mês; e cada categoria tem um só plano ativo por periodicidade (decisão do Presidente, 21/11/2026).
+    meses = contribuicoes.meses_da_periodicidade(dados.periodicidade)
+    if meses is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A periodicidade \"{dados.periodicidade}\" não é cobrada pelo sistema: use Mensal, Bimestral, Trimestral, Semestral ou Anual.",
+        )
+    id_conta_diferida = None
+    if meses > 1:
+        if not dados.id_conta_contabil_receita_diferida:
+            raise HTTPException(
+                status_code=400,
+                detail="Plano que não é mensal precisa da conta de receita a reconhecer (Passivo): o valor do período vira receita mês a mês.",
+            )
+        conta_diferida = db.query(PlanoDeContas).filter(PlanoDeContas.id_conta == dados.id_conta_contabil_receita_diferida).first()
+        if not conta_diferida:
+            raise HTTPException(status_code=404, detail="Conta de receita a reconhecer não encontrada.")
+        contabilidade.exigir_tipo_conta(conta_diferida, ["Passivo"], "A conta de receita a reconhecer de um plano de contribuição")
+        id_conta_diferida = conta_diferida.id_conta
+    _recusar_plano_igual(db, dados.categoria, dados.periodicidade)
 
     novo_plano = PlanoDeContribuicao(
         categoria=dados.categoria, descricao=dados.descricao, periodicidade=dados.periodicidade,
         dia_vencimento=dados.dia_vencimento, cobranca_por_nucleo_familiar=dados.cobranca_por_nucleo_familiar,
-        id_conta_contabil=dados.id_conta_contabil,
+        id_conta_contabil=dados.id_conta_contabil, id_conta_contabil_receita_diferida=id_conta_diferida,
     )
     db.add(novo_plano)
     db.flush()
@@ -971,10 +1017,32 @@ def cadastrar_plano_contribuicao(dados: PlanoDeContribuicaoCriar, request: Reque
     db.commit()
     registrar_auditoria(
         db, usuario, "planos_contribuicao", "CREATE", id_registro_afetado=novo_plano.id_plano,
-        dados_depois={"categoria": novo_plano.categoria, "descricao": novo_plano.descricao, "valor_inicial": str(dados.valor_inicial)},
+        dados_depois={
+            "categoria": novo_plano.categoria, "descricao": novo_plano.descricao, "periodicidade": novo_plano.periodicidade,
+            "valor_inicial": str(dados.valor_inicial),
+        },
         ip_origem=_ip_origem(request),
     )
     return {"mensagem": "Plano de contribuição cadastrado.", "id_plano": novo_plano.id_plano}
+
+
+@router.put("/api/planos-contribuicao/{id_plano}/ativo", summary="Ativar/Desativar Plano de Contribuição")
+def alternar_plano_contribuicao(id_plano: int, ativo: bool, request: Request, db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    """v9.6a - desativar um plano (trocar por outro, deixar de cobrar uma periodicidade) sem apagar nada: os títulos já gerados continuam; só
+    deixa de entrar na cobrança. Reativar respeita a regra de um plano ativo por categoria e periodicidade."""
+    plano = db.query(PlanoDeContribuicao).filter(PlanoDeContribuicao.id_plano == id_plano).first()
+    if not plano:
+        raise HTTPException(status_code=404, detail="Plano de contribuição não encontrado.")
+    if ativo and not plano.ativo:
+        _recusar_plano_igual(db, plano.categoria, plano.periodicidade, exceto=plano.id_plano)
+    dados_antes = {"ativo": plano.ativo}
+    plano.ativo = ativo
+    db.commit()
+    registrar_auditoria(
+        db, usuario, "planos_contribuicao", "UPDATE", id_registro_afetado=plano.id_plano,
+        dados_antes=dados_antes, dados_depois={"ativo": plano.ativo}, ip_origem=_ip_origem(request),
+    )
+    return {"mensagem": "Plano ativado." if ativo else "Plano desativado."}
 
 
 @router.post("/api/planos-contribuicao/{id_plano}/reajustar", summary="Reajustar valor de um Plano de Contribuição")

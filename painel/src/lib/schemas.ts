@@ -554,22 +554,42 @@ export const baixarTituloSchema = z.object({
 // Usado por "Planos de Contribuição" (pages/PlanosContribuicao.tsx, v3.2) - mensalidade por
 // categoria de associado. `valor_inicial` só é usado na criação; reajuste depois é
 // `reajustePlanoContribuicaoSchema`.
-export const planoContribuicaoCriarSchema = z.object({
-  categoria: z.string().min(1, 'Informe a categoria.'),
-  descricao: z.string().min(1, 'Informe a descrição.'),
-  periodicidade: z.string().min(1, 'Selecione a periodicidade.'),
-  dia_vencimento: z.coerce
-    .number()
-    .int()
-    .min(1, 'Dia inválido.')
-    .max(31, 'Dia inválido.'),
-  cobranca_por_nucleo_familiar: z.boolean(),
-  id_conta_contabil: z.coerce
-    .number()
-    .int({ message: 'Selecione a conta contábil (Receita).' })
-    .positive({ message: 'Selecione a conta contábil (Receita).' }),
-  valor_inicial: z.coerce.number().positive('Informe um valor maior que zero.'),
-})
+export const planoContribuicaoCriarSchema = z
+  .object({
+    categoria: z.string().min(1, 'Informe a categoria.'),
+    descricao: z.string().min(1, 'Informe a descrição.'),
+    periodicidade: z.string().min(1, 'Selecione a periodicidade.'),
+    dia_vencimento: z.coerce
+      .number()
+      .int()
+      .min(1, 'Dia inválido.')
+      .max(31, 'Dia inválido.'),
+    cobranca_por_nucleo_familiar: z.boolean(),
+    id_conta_contabil: z.coerce
+      .number()
+      .int({ message: 'Selecione a conta contábil (Receita).' })
+      .positive({ message: 'Selecione a conta contábil (Receita).' }),
+    valor_inicial: z.coerce
+      .number()
+      .positive('Informe um valor maior que zero.'),
+    // v9.6a - plano que não é mensal (semestral, anual): o valor do período entra numa conta de Passivo e vira receita mês a mês
+    id_conta_contabil_receita_diferida: z.coerce.number().int().optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (
+      v.periodicidade.trim().toLowerCase() !== 'mensal' &&
+      !(
+        v.id_conta_contabil_receita_diferida &&
+        v.id_conta_contabil_receita_diferida > 0
+      )
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['id_conta_contabil_receita_diferida'],
+        message: 'Selecione a conta de receita a reconhecer (Passivo).',
+      })
+    }
+  })
 
 // Usado por "Reajustar" (pages/PlanosContribuicao.tsx, v3.2) - o backend recusa vigência igual
 // ou anterior à vigência atual (nunca reabre um período já fechado).

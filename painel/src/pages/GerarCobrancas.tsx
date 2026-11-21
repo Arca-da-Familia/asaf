@@ -118,6 +118,38 @@ function FormularioCobrancaBloco() {
   )
 }
 
+// v9.6a - o que não pôde ser cobrado (categoria sem plano da forma de pagamento escolhida, plano sem a conta de receita a reconhecer, dois
+// planos iguais ativos): nunca some em silêncio. Os nomes de quem ficou sem cobrança vêm numa lista à parte (o aviso não leva nome).
+function AvisosDaCobranca({ resultado }: { resultado: PrevisaoCobranca }) {
+  const avisos = resultado.avisos ?? []
+  const semPlano = resultado.associados_sem_plano ?? []
+  if (avisos.length === 0) return null
+  return (
+    <div className="mb-3 rounded-md border border-amber-600/50 bg-amber-500/10 p-3 text-sm">
+      <p className="font-semibold">Atenção: nem todos foram cobrados</p>
+      <ul className="mt-1 list-disc v3-space-y-1 pl-5">
+        {avisos.map((aviso) => (
+          <li key={aviso}>{aviso}</li>
+        ))}
+      </ul>
+      {semPlano.length > 0 && (
+        <details className="mt-2">
+          <summary className="cursor-pointer">
+            Quem ficou sem cobrança ({semPlano.length})
+          </summary>
+          <ul className="mt-1 pl-5">
+            {semPlano.map((a) => (
+              <li key={a.id_associado}>
+                {a.nome} — {a.categoria}, {a.periodicidade.toLowerCase()}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  )
+}
+
 export function GerarCobrancasPage() {
   const [previa, setPrevia] = useState<PrevisaoCobranca | null>(null)
   const [confirmado, setConfirmado] = useState<PrevisaoCobranca | null>(null)
@@ -145,7 +177,7 @@ export function GerarCobrancasPage() {
     <>
       <PageHeader
         titulo="Gerar Cobranças"
-        descricao="Geração em lote das mensalidades de uma competência, com prévia obrigatória antes de efetivar."
+        descricao="Geração em lote das contribuições de uma competência (o mensal todo mês; o semestral em janeiro e julho), com prévia obrigatória antes de efetivar."
         trilha={[
           { rotulo: 'Financeiro', href: '/financeiro' },
           { rotulo: 'Gerar Cobranças' },
@@ -205,9 +237,10 @@ export function GerarCobrancasPage() {
               </li>
               <li>
                 {previa.total_cobertos_por_bloco} já coberto(s) por título-bloco
-                (pagamento antecipado)
+                (semestre ou pagamento antecipado)
               </li>
             </ul>
+            <AvisosDaCobranca resultado={previa} />
             {previa.detalhes.length > 0 && (
               <div className="mb-3 max-h-64 v3-space-y-1 overflow-y-auto text-sm">
                 {previa.detalhes.map((d, i) => (
@@ -217,6 +250,14 @@ export function GerarCobrancasPage() {
                   >
                     <span>
                       {d.nome} — {d.descricao_plano}
+                      {d.meses_do_periodo > 1 && (
+                        <span className="text-muted-foreground">
+                          {' '}
+                          · {d.periodicidade.toLowerCase()} de {d.periodo}
+                          {d.meses < d.meses_do_periodo &&
+                            ` (proporcional: ${d.meses} de ${d.meses_do_periodo} meses)`}
+                        </span>
+                      )}
                     </span>
                     <span>{formatarReais(d.valor)}</span>
                   </div>
@@ -252,6 +293,9 @@ export function GerarCobrancasPage() {
               Valor total: {formatarReais(confirmado.valor_total)} — veja em
               Financeiro › Títulos.
             </p>
+            <div className="mt-2">
+              <AvisosDaCobranca resultado={confirmado} />
+            </div>
             {confirmado.reconhecimentos_receita_diferida.length > 0 && (
               <p className="mt-1 text-muted-foreground">
                 {confirmado.reconhecimentos_receita_diferida.length}{' '}

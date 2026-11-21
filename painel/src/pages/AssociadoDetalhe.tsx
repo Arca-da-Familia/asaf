@@ -11,6 +11,7 @@ import {
 } from '@/components/associados/AbasDaFicha'
 import { CompletudeDoCadastro } from '@/components/associados/CompletudeECategoria'
 import { SituacaoChip } from '@/components/associados/SituacaoChip'
+import { ContribuicaoDoAssociado } from '@/components/associados/ContribuicaoDoAssociado'
 import { CredencialDoAssociado } from '@/components/associados/CredencialDoAssociado'
 import { SituacaoDoAssociado } from '@/components/associados/SituacaoDoAssociado'
 import { VinculosDaPessoa } from '@/components/associados/VinculosDaPessoa'
@@ -151,6 +152,7 @@ export function AssociadoDetalhePage() {
                     nome={associado.nome_completo}
                     situacao={associado.status_arrolamento}
                   />
+                  <ContribuicaoDoAssociado idAssociado={idAssociado} />
                   <CredencialDoAssociado
                     idAssociado={idAssociado}
                     desligado={associado.status_arrolamento === 'Desligado'}

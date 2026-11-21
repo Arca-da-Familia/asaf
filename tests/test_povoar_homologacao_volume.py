@@ -61,6 +61,9 @@ MOTORISTA = textwrap.dedent(
             "eventos_realizados": contagem("select count(*) from eventos where status = 'Realizado'"),
             "inscricoes": contagem("select count(*) from inscricoes"),
             "reservas": contagem("select count(*) from reservas_espaco"),
+            "semestrais": contagem("select count(*) from associados where periodicidade_contribuicao = 'Semestral'"),
+            "planos_semestrais": contagem("select count(*) from planos_contribuicao where periodicidade = 'Semestral' and ativo"),
+            "titulos_do_semestre": contagem("select count(*) from titulos_financeiros where competencia_fim is not null"),
             "propostas": contagem("select count(*) from propostas_filiacao"),
         }}
         try:
@@ -86,7 +89,7 @@ def execucao(tmp_path_factory):
 
 def test_todas_as_areas_do_volume_passam_sem_falha(execucao):
     assert execucao["resultado"]["falhas"] == [], execucao["resultado"]["falhas"]
-    assert len(execucao["resultado"]["feito"]) == 12
+    assert len(execucao["resultado"]["feito"]) == 13
 
 
 def test_o_que_foi_criado_bate_com_o_prometido(execucao):
@@ -102,6 +105,9 @@ def test_o_que_foi_criado_bate_com_o_prometido(execucao):
     assert r["projetos"] >= 3 + 2 and r["eventos"] >= 3 + 3 + 4 and r["inscricoes"] >= 30
     assert (r["eventos_cancelados"], r["eventos_adiados"], r["eventos_remarcados"], r["eventos_realizados"]) == (1, 1, 1, 1), "um evento de teste em cada situação (v5.5d)"
     assert r["reservas"] == 3
+    # v9.6a - o plano semestral (com a conta de receita a reconhecer) e 6 associados que pagam semestral, cobrados na cobrança do próximo mês
+    assert r["planos_semestrais"] == 1 and r["semestrais"] == 6
+    assert r["titulos_do_semestre"] == 6, "o resto do semestre de cada um, num título só"
     assert r["propostas"] >= 9
 
 

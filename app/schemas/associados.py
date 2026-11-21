@@ -145,3 +145,9 @@ class ConcederAcessoCriar(BaseModel):
     email: EmailStr
     senha_provisoria: str
     id_nivel: Optional[int] = None
+
+
+class ContribuicaoDoAssociadoAtualizar(BaseModel):
+    """v9.6a - a forma de pagamento da contribuição que o associado escolheu (decisão do Presidente, 21/11/2026: cada um escolhe mensal ou
+    semestral). O rótulo da periodicidade de um plano ativo da categoria dele - conferido no servidor."""
+    periodicidade: str

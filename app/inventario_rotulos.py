@@ -168,6 +168,7 @@ ROTULO_DA_COLUNA: dict[str, str] = {
     "original_nome_arquivo": "Nome do arquivo original",
     "papel": "Papel",
     "pena_aplicada": "Pena aplicada",
+    "periodicidade_contribuicao": "Forma de pagamento da contribuição",
     "pessoas_afetadas": "Pessoas afetadas",
     "ponto": "Ponto",
     "por_representante": "Pedido por representante",

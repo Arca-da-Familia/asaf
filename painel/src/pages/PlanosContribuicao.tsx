@@ -10,6 +10,7 @@ import { Abas } from '@/components/ui/abas'
 import { Button } from '@/components/ui/button'
 import {
   alternarCampanhaDescontoAntecipado,
+  alternarPlanoContribuicao,
   criarCampanhaDescontoAntecipado,
   criarIsencaoContribuicao,
   criarPlanoContribuicao,
@@ -59,10 +60,22 @@ function FormularioPlano({
   const contasReceita = (contas ?? []).filter(
     (c) => c.tipo === 'Receita' && !c.sintetica,
   )
+  const contasPassivo = (contas ?? []).filter(
+    (c) => c.tipo === 'Passivo' && !c.sintetica,
+  )
 
   const criar = useMutation({
-    mutationFn: (v: z.infer<typeof planoContribuicaoCriarSchema>) =>
-      criarPlanoContribuicao(v),
+    // v9.6a - a conta de receita a reconhecer só vai quando o plano não é mensal
+    mutationFn: ({
+      id_conta_contabil_receita_diferida,
+      ...v
+    }: z.infer<typeof planoContribuicaoCriarSchema>) =>
+      criarPlanoContribuicao(
+        v.periodicidade.trim().toLowerCase() !== 'mensal' &&
+          id_conta_contabil_receita_diferida
+          ? { ...v, id_conta_contabil_receita_diferida }
+          : v,
+      ),
     onSuccess: async (criado) => {
       await queryClient.invalidateQueries({
         queryKey: ['planos-contribuicao'],
@@ -83,6 +96,7 @@ function FormularioPlano({
         cobranca_por_nucleo_familiar: false,
         id_conta_contabil: 0,
         valor_inicial: 0,
+        id_conta_contabil_receita_diferida: 0,
       }}
       onSubmit={(v) => criar.mutateAsync(v)}
       className="mb-4 grid gap-2 rounded-md border border-border p-3 sm:grid-cols-3"
@@ -108,6 +122,7 @@ function FormularioPlano({
           <div>
             <select
               {...form.register('periodicidade')}
+              aria-label="Periodicidade"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               {(periodicidades ?? []).map((p) => (
@@ -156,6 +171,35 @@ function FormularioPlano({
               mensagem={form.formState.errors.valor_inicial?.message}
             />
           </div>
+          {(form.watch('periodicidade') ?? 'Mensal').trim().toLowerCase() !==
+            'mensal' && (
+            <div className="sm:col-span-3">
+              <select
+                {...form.register('id_conta_contabil_receita_diferida')}
+                aria-label="Conta de receita a reconhecer (Passivo)"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="0">
+                  Conta de receita a reconhecer (Passivo)…
+                </option>
+                {contasPassivo.map((c) => (
+                  <option key={c.id_conta} value={c.id_conta}>
+                    {c.codigo_contabil} — {c.descricao_conta}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                O valor do período é cobrado de uma vez e vira receita mês a
+                mês, a partir desta conta.
+              </p>
+              <ErroCampo
+                mensagem={
+                  form.formState.errors.id_conta_contabil_receita_diferida
+                    ?.message
+                }
+              />
+            </div>
+          )}
           <label className="flex items-center gap-2 text-sm sm:col-span-3">
             <input
               type="checkbox"
@@ -570,6 +614,14 @@ export function PlanosContribuicaoPage() {
     }
   }
 
+  // v9.6a - desativar um plano (trocar por outro) sem apagar nada; reativar respeita um plano ativo por categoria e forma de pagamento
+  const alternarPlano = useMutation({
+    mutationFn: ({ id, ativo }: { id: number; ativo: boolean }) =>
+      alternarPlanoContribuicao(id, ativo),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['planos-contribuicao'] }),
+  })
+
   const alternarCampanha = useMutation({
     mutationFn: ({ id, ativo }: { id: number; ativo: boolean }) =>
       alternarCampanhaDescontoAntecipado(id, ativo),
@@ -583,7 +635,7 @@ export function PlanosContribuicaoPage() {
     <>
       <PageHeader
         titulo="Planos de Contribuição"
-        descricao="Mensalidade por categoria de associado, reajuste versionado e isenções."
+        descricao="Contribuição por categoria de associado (mensal ou semestral), reajuste versionado e isenções."
         trilha={[
           { rotulo: 'Financeiro', href: '/financeiro' },
           { rotulo: 'Planos de Contribuição' },
@@ -635,12 +687,29 @@ export function PlanosContribuicaoPage() {
                         </p>
                       </div>
                       <p className="text-muted-foreground">
-                        {p.periodicidade} · vencimento dia {p.dia_vencimento}
+                        {p.periodicidade}
+                        {p.quando_cobra && p.quando_cobra !== 'todo mês'
+                          ? ` · cobrado ${p.quando_cobra}`
+                          : ''}
+                        {` · vencimento dia ${p.dia_vencimento}`}
                         {p.cobranca_por_nucleo_familiar &&
                           ' · cobrança por família'}
                         {!p.ativo && ' · inativo'}
                       </p>
-                      <div className="mt-2">
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={alternarPlano.isPending}
+                          onClick={() =>
+                            alternarPlano.mutate({
+                              id: p.id_plano,
+                              ativo: !p.ativo,
+                            })
+                          }
+                        >
+                          {p.ativo ? 'Desativar' : 'Reativar'}
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -654,13 +723,19 @@ export function PlanosContribuicaoPage() {
                             ? 'Cancelar'
                             : 'Reajustar'}
                         </Button>
-                        {reajustando === p.id_plano && (
-                          <FormularioReajuste
-                            idPlano={p.id_plano}
-                            onCancelar={() => setReajustando(null)}
-                          />
-                        )}
                       </div>
+                      {reajustando === p.id_plano && (
+                        <FormularioReajuste
+                          idPlano={p.id_plano}
+                          onCancelar={() => setReajustando(null)}
+                        />
+                      )}
+                      {alternarPlano.isError &&
+                        alternarPlano.variables?.id === p.id_plano && (
+                          <p role="alert" className="mt-2 text-destructive">
+                            {(alternarPlano.error as Error).message}
+                          </p>
+                        )}
                     </div>
                   ))}
                   {(planos ?? []).length === 0 && (

@@ -168,12 +168,28 @@ def povoar(client, db, escrever=print) -> dict:
         contas["doacao"] = conta("4.03.01", "Doações (teste)", "Receita")
         contas["despesa"] = conta("5.02.01", "Despesas administrativas (teste)", "Despesa")
         contas["energia"] = conta("5.02.02", "Água e energia (teste)", "Despesa")
-        for categoria, valor in (("Efetivo", 60), ("Contribuinte", 90), ("Fundador", 60)):
-            ok(client.post("/api/planos-contribuicao/", headers=adm, json={
-                "categoria": categoria, "descricao": f"Mensalidade {categoria} (teste)", "periodicidade": "Mensal", "dia_vencimento": 10,
-                "cobranca_por_nucleo_familiar": False, "id_conta_contabil": contas["mensalidade"], "valor_inicial": valor,
-            }))
-        return "contas e 3 planos de contribuição"
+        # v9.6a - a conta de Passivo onde o semestre entra antes de virar receita mês a mês (decisão do Presidente, 21/11/2026: mensal e semestral)
+        contas["a_reconhecer"] = conta("2.01.05", "Contribuições a reconhecer (teste)", "Passivo")
+        # um plano ativo por categoria e forma de pagamento (v9.6a): o que um robô já cadastrou na categoria fica, nada é duplicado
+        ativos = {
+            (p["categoria"], p["periodicidade"].lower()) for p in ok(client.get("/api/planos-contribuicao/", headers=adm)).json() if p["ativo"]
+        }
+        criados = 0
+        for categoria, periodicidade, valor in (
+            ("Efetivo", "Mensal", 60), ("Contribuinte", "Mensal", 90), ("Fundador", "Mensal", 60), ("Efetivo", "Semestral", 330),
+        ):
+            if (categoria, periodicidade.lower()) in ativos:
+                continue
+            corpo = {
+                "categoria": categoria, "descricao": f"{'Mensalidade' if periodicidade == 'Mensal' else 'Semestralidade'} {categoria} (teste)",
+                "periodicidade": periodicidade, "dia_vencimento": 10, "cobranca_por_nucleo_familiar": False,
+                "id_conta_contabil": contas["mensalidade"], "valor_inicial": valor,
+            }
+            if periodicidade != "Mensal":
+                corpo["id_conta_contabil_receita_diferida"] = contas["a_reconhecer"]
+            ok(client.post("/api/planos-contribuicao/", headers=adm, json=corpo))
+            criados += 1
+        return f"contas e {criados} planos de contribuição (mensal e semestral)"
 
     roteiro.area("Contas e planos de contribuição", base_financeira)
 
@@ -222,6 +238,16 @@ def povoar(client, db, escrever=print) -> dict:
         competencia = (hoje.replace(day=1) + timedelta(days=32)).strftime("%Y-%m")
         ok(client.post("/api/contribuicoes/gerar-cobrancas/", headers=adm, json={"competencia": competencia, "confirmar": True}))
         return f"cobrança em lote da competência {competencia}"
+
+    def semestrais():
+        # v9.6a - alguns Efetivo pagam semestral (cobrado em janeiro e julho; quem passa no meio paga o resto do semestre)
+        efetivos = [ids[i] for i in range(20) if CATEGORIAS[i % len(CATEGORIAS)] == "Efetivo"][:6]
+        for id_associado in efetivos:
+            ok(client.put(f"/api/associados/{id_associado}/contribuicao", headers=adm, json={"periodicidade": "Semestral"}))
+        return f"{len(efetivos)} associados Efetivo pagam semestral"
+
+    if len(ids) == 25 and contas.get("a_reconhecer"):
+        roteiro.area("Forma de pagamento: semestral", semestrais)
 
     if contas.get("mensalidade"):
         roteiro.area("Cobrança em lote do próximo mês", cobranca_do_mes)
