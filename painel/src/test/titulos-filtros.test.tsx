@@ -252,7 +252,9 @@ describe('Títulos: o que vem da Visão geral (v9.6b)', () => {
     ).not.toBeInTheDocument()
     expect(await axe(container)).toHaveNoViolations()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Ver o mês atual' }))
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Ver o mês atual' }),
+    )
     expect(screen.getByTestId('endereco')).toHaveTextContent(/^$/)
     await waitFor(() =>
       expect(api.listarTitulos).toHaveBeenLastCalledWith(
@@ -267,7 +269,9 @@ describe('Títulos: o que vem da Visão geral (v9.6b)', () => {
     desenhar(undefined, '/?novo=1')
     expect(await screen.findByPlaceholderText('Descrição')).toBeInTheDocument()
     expect(screen.getByTestId('endereco')).toHaveTextContent('?novo=1')
-    await userEvent.click(screen.getAllByRole('button', { name: 'Cancelar' })[0]!)
+    await userEvent.click(
+      screen.getAllByRole('button', { name: 'Cancelar' })[0]!,
+    )
     expect(screen.queryByPlaceholderText('Descrição')).not.toBeInTheDocument()
     expect(screen.getByTestId('endereco')).toHaveTextContent(/^$/)
   })

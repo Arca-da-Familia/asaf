@@ -202,7 +202,9 @@ describe('Visão geral do Financeiro: o saldo e o mês (v9.6b)', () => {
     expect(await within(saldo).findByText('R$ 1.250,25')).toBeInTheDocument()
     expect(within(saldo).queryByText(/Conta encerrada/)).not.toBeInTheDocument()
     expect(
-      await within(saldo).findByText(/receitas de R\$ 1\.000,00 e despesas de R\$ 350,00/),
+      await within(saldo).findByText(
+        /receitas de R\$ 1\.000,00 e despesas de R\$ 350,00/,
+      ),
     ).toBeInTheDocument()
   })
 
@@ -238,11 +240,12 @@ describe('Visão geral do Financeiro: o saldo e o mês (v9.6b)', () => {
     ])
     montar()
     const saldo = screen.getByRole('region', { name: /Saldo nas contas/ })
-    expect(await within(saldo).findByText('e mais 2 contas ·', { exact: false })).toBeInTheDocument()
-    expect(within(saldo).getByRole('link', { name: 'Ver todas' })).toHaveAttribute(
-      'href',
-      '/financeiro/contas-financeiras',
-    )
+    expect(
+      await within(saldo).findByText('e mais 2 contas ·', { exact: false }),
+    ).toBeInTheDocument()
+    expect(
+      within(saldo).getByRole('link', { name: 'Ver todas' }),
+    ).toHaveAttribute('href', '/financeiro/contas-financeiras')
     expect(within(saldo).getAllByText('Conta B')).not.toHaveLength(0)
     expect(within(saldo).queryAllByText('Conta F')).toHaveLength(0)
   })
@@ -266,10 +269,9 @@ describe('Visão geral do Financeiro: o saldo e o mês (v9.6b)', () => {
       por_pagina: 5,
     })
     expect(screen.getByText('A pagar')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Ver todos os títulos' })).toHaveAttribute(
-      'href',
-      '/financeiro/titulos',
-    )
+    expect(
+      screen.getByRole('link', { name: 'Ver todos os títulos' }),
+    ).toHaveAttribute('href', '/financeiro/titulos')
   })
 })
 
@@ -305,7 +307,9 @@ describe('Visão geral do Financeiro: os lugares que mudam sozinhos (v9.6b)', ()
       true,
       true,
     ])
-    expect(screen.getByText('Conta de energia venceu em 05/11')).toBeInTheDocument()
+    expect(
+      screen.getByText('Conta de energia venceu em 05/11'),
+    ).toBeInTheDocument()
     // cada lugar leva à tela da ação
     expect(
       screen.getByRole('link', { name: /4 mensalidades em atraso/ }),
@@ -314,7 +318,9 @@ describe('Visão geral do Financeiro: os lugares que mudam sozinhos (v9.6b)', ()
       screen.getByRole('link', { name: /Conta de energia venceu/ }),
     ).toHaveAttribute('href', '/financeiro/saidas?vencidos=1')
     expect(
-      screen.getByRole('link', { name: /2 perguntas do Conselho sem resposta/ }),
+      screen.getByRole('link', {
+        name: /2 perguntas do Conselho sem resposta/,
+      }),
     ).toHaveAttribute(
       'href',
       '/financeiro/auditoria-financeira?mes=2026-09&situacao=Suspenso',
@@ -352,9 +358,9 @@ describe('Visão geral do Financeiro: os lugares que mudam sozinhos (v9.6b)', ()
     ).toBeInTheDocument()
     // a legenda explica a cor do atalho só quando há atalho
     expect(
-      within(screen.getByRole('list', { name: 'O que cada cor quer dizer' })).getByText(
-        'Atalho (até você usar mais telas)',
-      ),
+      within(
+        screen.getByRole('list', { name: 'O que cada cor quer dizer' }),
+      ).getByText('Atalho (até você usar mais telas)'),
     ).toBeInTheDocument()
   })
 
@@ -363,7 +369,9 @@ describe('Visão geral do Financeiro: os lugares que mudam sozinhos (v9.6b)', ()
     await waitFor(() => expect(lugares()).toHaveLength(6))
     expect(lugares().every((l) => l.dataset.estado === 'atalho')).toBe(true)
     expect(
-      screen.getByRole('link', { name: /Registrar saída.*Uma despesa já paga/ }),
+      screen.getByRole('link', {
+        name: /Registrar saída.*Uma despesa já paga/,
+      }),
     ).toHaveAttribute('href', '/financeiro/registrar-saida')
   })
 
@@ -447,20 +455,26 @@ describe('Visão geral do Financeiro: a janela de aprovar (v9.6b)', () => {
     expect(within(primeiro).getByText('Pedido 41')).toBeInTheDocument()
     expect(within(primeiro).getByText('R$ 1.250,50')).toBeInTheDocument()
     expect(within(primeiro).getByText('Papelaria Central')).toBeInTheDocument()
-    expect(within(primeiro).getByText(/Ana Souza em 18\/11\/2026/)).toBeInTheDocument()
+    expect(
+      within(primeiro).getByText(/Ana Souza em 18\/11\/2026/),
+    ).toBeInTheDocument()
     expect(
       within(primeiro).getByText(
         'de R$ 1.000,00 a R$ 5.000,00 · Presidente, 1º Tesoureiro · duas assinaturas',
       ),
     ).toBeInTheDocument()
-    expect(within(primeiro).getByText(/Bruno Lima em 19\/11\/2026/)).toBeInTheDocument()
+    expect(
+      within(primeiro).getByText(/Bruno Lima em 19\/11\/2026/),
+    ).toBeInTheDocument()
     // o pedido sem as cotações não tem botão: diz o que falta
     expect(
       within(segundo).queryByRole('button', { name: 'Aprovar este pedido' }),
     ).not.toBeInTheDocument()
     expect(within(segundo).getByText(/Faltam 1 cotação/)).toBeInTheDocument()
     expect(
-      within(segundo).getByText('a partir de R$ 5.000,00 · Presidente · uma assinatura'),
+      within(segundo).getByText(
+        'a partir de R$ 5.000,00 · Presidente · uma assinatura',
+      ),
     ).toBeInTheDocument()
     expect(within(segundo).getByText('Ninguém ainda')).toBeInTheDocument()
 
@@ -480,7 +494,9 @@ describe('Visão geral do Financeiro: a janela de aprovar (v9.6b)', () => {
     )
     expect(await axe(janela)).toHaveNoViolations()
 
-    await userEvent.click(within(janela).getByRole('button', { name: 'Fechar' }))
+    await userEvent.click(
+      within(janela).getByRole('button', { name: 'Fechar' }),
+    )
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 
@@ -497,16 +513,17 @@ describe('Visão geral do Financeiro: a janela de aprovar (v9.6b)', () => {
     await userEvent.click(
       await screen.findByRole('button', { name: /1 compra para aprovar/ }),
     )
-    const janela = screen.getByRole('alertdialog', { name: 'Compra para aprovar' })
+    const janela = screen.getByRole('alertdialog', {
+      name: 'Compra para aprovar',
+    })
     await userEvent.click(
       within(janela).getByRole('button', { name: 'Aprovar este pedido' }),
     )
     expect(await within(janela).findByRole('alert')).toHaveTextContent(
       'Seu cargo não está na alçada deste valor.',
     )
-    expect(within(janela).getByRole('link', { name: 'Abrir Compras' })).toHaveAttribute(
-      'href',
-      '/financeiro/compras',
-    )
+    expect(
+      within(janela).getByRole('link', { name: 'Abrir Compras' }),
+    ).toHaveAttribute('href', '/financeiro/compras')
   })
 })

@@ -26,7 +26,13 @@ test.describe.configure({ mode: 'serial' })
 test.beforeAll(() => exigirHomologacao())
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
-const GRUPOS = ['Dia a dia', 'Rotina do mês', 'Cadastros', 'Relatórios', 'Controle']
+const GRUPOS = [
+  'Dia a dia',
+  'Rotina do mês',
+  'Cadastros',
+  'Relatórios',
+  'Controle',
+]
 // a ordem das cores dos lugares: o que está em atraso vem antes de tudo, depois o que precisa de você, depois os mais usados e os atalhos
 const ORDEM_DOS_ESTADOS = ['atraso', 'pend', 'usado', 'atalho']
 // a tela do menu que mostra cada número de pendência
@@ -49,9 +55,10 @@ async function semRolagemLateral(page: Page, onde: string) {
     pagina: document.documentElement.scrollWidth,
     tela: window.innerWidth,
   }))
-  expect(larguras.pagina, `${onde}: nada passa da largura da tela`).toBeLessThanOrEqual(
-    larguras.tela,
-  )
+  expect(
+    larguras.pagina,
+    `${onde}: nada passa da largura da tela`,
+  ).toBeLessThanOrEqual(larguras.tela)
 }
 
 async function semViolacoesDoAxe(page: Page, onde: string) {
@@ -59,7 +66,9 @@ async function semViolacoesDoAxe(page: Page, onde: string) {
   await page.waitForTimeout(400)
   const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze()
   expect(
-    violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`),
+    violations.map(
+      (v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`,
+    ),
     `${onde}: sem violações do axe (WCAG 2.2 AA)`,
   ).toEqual([])
 }
@@ -67,10 +76,14 @@ async function semViolacoesDoAxe(page: Page, onde: string) {
 const estadosDosLugares = (page: Page) =>
   page
     .locator('li[data-lugar]')
-    .evaluateAll((lis) => lis.map((li) => (li as HTMLElement).dataset.estado ?? ''))
+    .evaluateAll((lis) =>
+      lis.map((li) => (li as HTMLElement).dataset.estado ?? ''),
+    )
 
 const maisUsados = (page: Page) =>
-  menuDoModulo(page).getByRole('list', { name: 'Seus mais usados' }).getByRole('link')
+  menuDoModulo(page)
+    .getByRole('list', { name: 'Seus mais usados' })
+    .getByRole('link')
 
 test('o Tesoureiro: a Visão geral, os números do menu, a janela de aprovar, os mais usados e o menu recolhido', async ({
   page,
@@ -80,17 +93,26 @@ test('o Tesoureiro: a Visão geral, os números do menu, a janela de aprovar, os
   await entrar(page, 'tesoureiro')
   await page.getByRole('link', { name: 'Financeiro' }).first().click()
   await expect(page).toHaveURL(/\/financeiro$/)
-  await expect(page.getByRole('heading', { name: 'Visão geral', level: 1 })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Visão geral', level: 1 }),
+  ).toBeVisible()
   const cab = await autorizacaoDaSessao(page, '/financeiro')
-  const resposta = await page.request.get(`${API_HML}/api/financeiro/pendencias`, {
-    headers: { Authorization: cab },
-  })
+  const resposta = await page.request.get(
+    `${API_HML}/api/financeiro/pendencias`,
+    {
+      headers: { Authorization: cab },
+    },
+  )
   expect(resposta.status(), await resposta.text()).toBe(200)
   const pendencias = (await resposta.json()) as Pendencias
 
   // o saldo nas contas e os lugares (1 a 6), na ordem das cores
-  await expect(page.getByRole('region', { name: 'Saldo nas contas hoje' })).toBeVisible()
-  await expect(page.getByText('Carregando o que precisa de você…')).toHaveCount(0)
+  await expect(
+    page.getByRole('region', { name: 'Saldo nas contas hoje' }),
+  ).toBeVisible()
+  await expect(page.getByText('Carregando o que precisa de você…')).toHaveCount(
+    0,
+  )
   const estados = await estadosDosLugares(page)
   expect(estados.length).toBeGreaterThan(0)
   expect(estados.length).toBeLessThanOrEqual(6)
@@ -131,10 +153,14 @@ test('o Tesoureiro: a Visão geral, os números do menu, a janela de aprovar, os
         'aria-label',
         `${tela} ${n} ${n === 1 ? 'pendente' : 'pendentes'}`,
       )
-      await expect(link.locator('xpath=..'), `${tela}: o número do menu`).toHaveText(
-        `${tela}${n}`,
+      await expect(
+        link.locator('xpath=..'),
+        `${tela}: o número do menu`,
+      ).toHaveText(`${tela}${n}`)
+    } else
+      await expect(link, `${tela}: sem número`).not.toHaveAttribute(
+        'aria-label',
       )
-    } else await expect(link, `${tela}: sem número`).not.toHaveAttribute('aria-label')
   }
   await expect(
     menu.getByText('As telas que você mais abrir aparecem aqui.'),
@@ -146,10 +172,13 @@ test('o Tesoureiro: a Visão geral, os números do menu, a janela de aprovar, os
   if (pendencias.compras_para_aprovar.total > 0) {
     const aprovacoes: string[] = []
     page.on('request', (r) => {
-      if (r.method() === 'POST' && /\/aprovar/.test(r.url())) aprovacoes.push(r.url())
+      if (r.method() === 'POST' && /\/aprovar/.test(r.url()))
+        aprovacoes.push(r.url())
     })
     await page.getByRole('button', { name: /compras? para aprovar/ }).click()
-    const janela = page.getByRole('alertdialog', { name: /Compras? para aprovar/ })
+    const janela = page.getByRole('alertdialog', {
+      name: /Compras? para aprovar/,
+    })
     await expect(janela).toBeVisible()
     await expect(janela.getByText('Regra da alçada').first()).toBeVisible()
     await expect(janela.getByText('Já assinaram').first()).toBeVisible()
@@ -157,7 +186,9 @@ test('o Tesoureiro: a Visão geral, os números do menu, a janela de aprovar, os
     await ver(page, info, 'janela de aprovar com o resumo do pedido')
     await janela.getByRole('button', { name: 'Fechar' }).click()
     await expect(janela).toHaveCount(0)
-    await expect(page.getByRole('button', { name: /compras? para aprovar/ })).toBeFocused()
+    await expect(
+      page.getByRole('button', { name: /compras? para aprovar/ }),
+    ).toBeFocused()
     expect(aprovacoes, 'fechar a janela não aprova nada').toEqual([])
   } else {
     info.annotations.push({
@@ -169,25 +200,40 @@ test('o Tesoureiro: a Visão geral, os números do menu, a janela de aprovar, os
 
   // os mais usados aparecem conforme ele abre as telas (Saídas 2 vezes, Gerar cobranças 1)
   await abrirNoMenuDoModulo(page, 'Dia a dia', 'Saídas')
-  await expect(page.getByRole('heading', { name: 'Saídas', level: 1 })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Saídas', level: 1 }),
+  ).toBeVisible()
   await abrirNoMenuDoModulo(page, 'Rotina do mês', 'Gerar cobranças')
   await expect(page).toHaveURL(/\/financeiro\/gerar-cobrancas$/)
   // a tela chega a abrir (é baixada na hora): só então conta para os mais usados
-  await expect(page.getByRole('heading', { name: 'Gerar Cobranças', level: 1 })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Gerar Cobranças', level: 1 }),
+  ).toBeVisible()
   await abrirNoMenuDoModulo(page, 'Dia a dia', 'Saídas')
-  await expect(page.getByRole('heading', { name: 'Saídas', level: 1 })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Saídas', level: 1 }),
+  ).toBeVisible()
   await menu.getByRole('link', { name: 'Visão geral' }).click()
-  await expect(page.getByRole('heading', { name: 'Visão geral', level: 1 })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Visão geral', level: 1 }),
+  ).toBeVisible()
   await expect(maisUsados(page)).toHaveText(['Saídas', 'Gerar cobranças'])
   // nos lugares, um "mais usado" é sempre uma das telas que ele abriu
   for (const chave of await page
     .locator('li[data-estado="usado"]')
-    .evaluateAll((lis) => lis.map((li) => (li as HTMLElement).dataset.lugar ?? '')))
-    expect(['usado:/financeiro/saidas', 'usado:/financeiro/gerar-cobrancas']).toContain(chave)
+    .evaluateAll((lis) =>
+      lis.map((li) => (li as HTMLElement).dataset.lugar ?? ''),
+    ))
+    expect([
+      'usado:/financeiro/saidas',
+      'usado:/financeiro/gerar-cobrancas',
+    ]).toContain(chave)
   await ver(page, info, 'mais usados no alto do menu')
   // o atalho leva à tela
   await maisUsados(page).first().click()
-  await expect(page.getByRole('heading', { name: 'Saídas', level: 1 })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Saídas', level: 1 }),
+  ).toBeVisible()
 
   // o menu recolhido: um ícone por grupo; a lista do grupo abre ao lado, com o foco na primeira tela; Esc fecha e devolve o foco
   await page.getByRole('button', { name: 'Recolher menu' }).click()
@@ -213,7 +259,9 @@ test('o Tesoureiro: a Visão geral, os números do menu, a janela de aprovar, os
   await expect(page).toHaveURL(/\/financeiro\/fornecedores$/)
   await expect(faixa.getByRole('group')).toHaveCount(0)
   await page.getByRole('button', { name: 'Expandir menu' }).click()
-  await expect(menuDoModulo(page).getByRole('list', { name: 'Seus mais usados' })).toBeVisible()
+  await expect(
+    menuDoModulo(page).getByRole('list', { name: 'Seus mais usados' }),
+  ).toBeVisible()
   expect(vigia.problemas()).toEqual([])
 })
 
@@ -224,12 +272,18 @@ test('o Conselho Fiscal (só audita): cai no Conselho Fiscal, vê 2 grupos e 3 t
   await entrar(page, 'conselheiro')
   await page.getByRole('link', { name: 'Financeiro' }).first().click()
   await expect(page).toHaveURL(/\/financeiro\/conselho-fiscal$/)
-  await expect(page.getByRole('heading', { name: /Conselho Fiscal/, level: 1 })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: /Conselho Fiscal/, level: 1 }),
+  ).toBeVisible()
   const menu = menuDoModulo(page)
   await expect(menu.getByRole('link', { name: 'Visão geral' })).toHaveCount(0)
-  await expect(menu.getByRole('button', { name: /^(Relatórios|Controle) / })).toHaveCount(2)
+  await expect(
+    menu.getByRole('button', { name: /^(Relatórios|Controle) / }),
+  ).toHaveCount(2)
   for (const grupo of ['Dia a dia', 'Rotina do mês', 'Cadastros'])
-    await expect(menu.getByRole('button', { name: new RegExp(`^${grupo}`) })).toHaveCount(0)
+    await expect(
+      menu.getByRole('button', { name: new RegExp(`^${grupo}`) }),
+    ).toHaveCount(0)
   await expect(menu.locator('[role="group"] a')).toHaveCount(3)
   for (const tela of ['Relatórios', 'Conselho Fiscal', 'Auditoria financeira'])
     await expect(telaNoMenuDoModulo(page, tela), tela).toHaveCount(1)
@@ -248,7 +302,9 @@ test('o Conselho Fiscal (só audita): cai no Conselho Fiscal, vê 2 grupos e 3 t
   await page.goto('/financeiro')
   await expect(page).toHaveURL(/\/financeiro\/conselho-fiscal$/)
   await abrirNoMenuDoModulo(page, 'Relatórios', 'Relatórios')
-  await expect(page.getByRole('heading', { name: 'Relatórios', level: 1 })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Relatórios', level: 1 }),
+  ).toBeVisible()
   expect(vigia.problemas()).toEqual([])
 })
 
@@ -266,11 +322,17 @@ test.describe('no celular', () => {
     const vigia = vigiar(page)
     await entrar(page, 'tesoureiro')
     await page.goto('/financeiro')
-    await expect(page.getByRole('heading', { name: 'Visão geral', level: 1 })).toBeVisible()
-    await expect(page.getByText('Carregando o que precisa de você…')).toHaveCount(0)
+    await expect(
+      page.getByRole('heading', { name: 'Visão geral', level: 1 }),
+    ).toBeVisible()
+    await expect(
+      page.getByText('Carregando o que precisa de você…'),
+    ).toHaveCount(0)
     const lugares = page.locator('li[data-lugar]')
     expect(await lugares.count()).toBeLessThanOrEqual(6)
-    expect(await lugares.filter({ visible: true }).count()).toBeLessThanOrEqual(4)
+    expect(await lugares.filter({ visible: true }).count()).toBeLessThanOrEqual(
+      4,
+    )
     // no celular o alto fica só com o mês (os botões ficam nos lugares e no menu)
     await expect(page.getByRole('link', { name: 'Novo título' })).toBeHidden()
     await expect(page.getByRole('group', { name: 'Mês' })).toBeVisible()
@@ -279,12 +341,18 @@ test.describe('no celular', () => {
 
     await page.getByRole('button', { name: 'Abrir menu' }).click()
     const menu = menuDoModulo(page)
-    await expect(menu.getByRole('link', { name: 'Visão geral' })).toBeInViewport()
+    await expect(
+      menu.getByRole('link', { name: 'Visão geral' }),
+    ).toBeInViewport()
     await semRolagemLateral(page, 'gaveta do menu aberta')
     await ver(page, info, 'gaveta do menu no celular')
     await abrirNoMenuDoModulo(page, 'Dia a dia', 'Entradas')
-    await expect(page.getByRole('heading', { name: 'Entradas', level: 1 })).toBeVisible()
-    await expect(menu.getByRole('link', { name: 'Visão geral' })).not.toBeInViewport()
+    await expect(
+      page.getByRole('heading', { name: 'Entradas', level: 1 }),
+    ).toBeVisible()
+    await expect(
+      menu.getByRole('link', { name: 'Visão geral' }),
+    ).not.toBeInViewport()
     await semRolagemLateral(page, 'Entradas no celular')
     expect(vigia.problemas()).toEqual([])
   })
