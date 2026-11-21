@@ -344,6 +344,10 @@ test('ficha do associado: a Contribuição mostra mensal e semestral; mudar para
   await expect(cartao.locator('p[role="status"]')).toHaveText(
     'Forma de pagamento mudada para semestral.',
   )
+  // logo depois de guardar, a tela já marca a forma nova e o botão volta ao normal (o 1º print mostrou "Mensal" marcado e "Salvando…")
+  await expect(cartao.getByRole('radio', { name: /Semestral/ })).toBeChecked()
+  await expect(salvar).toHaveText('Salvar forma de pagamento')
+  await expect(salvar).toBeDisabled()
   await ver(page, info, 'ficha: passou a semestral', { paginaInteira: false })
   await page.reload()
   await expect(

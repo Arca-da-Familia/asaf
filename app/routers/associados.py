@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile, File
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -370,7 +370,7 @@ def ver_contribuicao_do_associado(id_associado: int, db: Session = Depends(get_d
 
 @router.put("/api/associados/{id_associado}/contribuicao", summary="Admin - Mudar a forma de pagamento da contribuição do associado")
 def mudar_contribuicao_do_associado(
-    id_associado: int, dados: ContribuicaoDoAssociadoAtualizar, db: Session = Depends(get_db),
+    id_associado: int, dados: ContribuicaoDoAssociadoAtualizar, request: Request, db: Session = Depends(get_db),
     usuario: Usuario = Depends(_permissao_contribuicao),
 ):
     """v9.6a - marca no cadastro a forma de pagamento (mensal ou semestral) que o associado escolheu; só uma que a categoria dele tem plano
@@ -393,6 +393,7 @@ def mudar_contribuicao_do_associado(
     registrar_auditoria(
         db, usuario, "associados", "CONTRIBUICAO_ALTERADA", id_registro_afetado=associado.id_associado,
         dados_antes={"periodicidade_contribuicao": antes}, dados_depois={"periodicidade_contribuicao": opcao["periodicidade"]},
+        ip_origem=request.client.host if request.client else None,
     )
     return {"mensagem": f"Forma de pagamento mudada para {opcao['periodicidade'].lower()}.", "periodicidade": opcao["periodicidade"]}
 

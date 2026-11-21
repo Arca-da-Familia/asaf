@@ -137,6 +137,7 @@ def test_a_forma_de_pagamento_no_cadastro_do_associado(client, auth_headers, db)
     ).all()
     db.rollback()
     assert len(registros) == 1  # a segunda chamada (nada mudou) não registra
+    assert registros[0].ip_origem  # o endereço de rede de quem mudou fica registrado, como nas demais ações (visto na homologação: faltava)
 
 
 def test_o_semestral_e_cobrado_em_janeiro_e_julho_e_o_mensal_todo_mes(client, auth_headers, db):

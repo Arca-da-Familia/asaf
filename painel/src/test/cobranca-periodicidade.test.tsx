@@ -162,6 +162,11 @@ describe('Contribuição na ficha do associado (v9.6a)', () => {
     expect(salvar).toBeDisabled()
     await u.click(semestral)
     expect(salvar).toBeEnabled()
+    // a releitura depois de guardar fica pendurada (rede lenta): a tela não pode voltar a marcar "Mensal" nem ficar em "Salvando…"
+    // (o print da homologação da v9.6a mostrou isso)
+    vi.mocked(api.obterContribuicaoDoAssociado).mockReturnValue(
+      new Promise(() => {}),
+    )
     await u.click(salvar)
     await waitFor(() =>
       expect(api.mudarContribuicaoDoAssociado).toHaveBeenCalledWith(
@@ -172,6 +177,10 @@ describe('Contribuição na ficha do associado (v9.6a)', () => {
     expect(
       await screen.findByText('Forma de pagamento mudada para semestral.'),
     ).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /Semestral/ })).toBeChecked()
+    expect(
+      screen.getByRole('button', { name: 'Salvar forma de pagamento' }),
+    ).toBeDisabled()
   })
 
   it('a recusa do servidor aparece; forma sem plano e categoria sem plano são explicadas', async () => {

@@ -6,6 +6,7 @@ import {
   ApiError,
   mudarContribuicaoDoAssociado,
   obterContribuicaoDoAssociado,
+  type ContribuicaoDoAssociado as DadosDaContribuicao,
   type OpcaoDeContribuicao,
 } from '@/lib/api'
 
@@ -40,10 +41,16 @@ export function ContribuicaoDoAssociado({
   const salvar = useMutation({
     mutationFn: (periodicidade: string) =>
       mudarContribuicaoDoAssociado(idAssociado, periodicidade),
-    onSuccess: async (r) => {
+    onSuccess: (r) => {
+      // a forma guardada entra já no que a tela mostra (antes, a escolha era limpa e, até a releitura chegar, a tela voltava a marcar a
+      // forma antiga, com o botão em "Salvando…" — visto no print da homologação); a releitura vem depois, sem segurar o botão
+      cliente.setQueryData<DadosDaContribuicao>(
+        ['contribuicao-do-associado', idAssociado],
+        (antes) => antes && { ...antes, periodicidade: r.periodicidade },
+      )
       setAviso(r.mensagem)
       setEscolha(null)
-      await cliente.invalidateQueries({
+      void cliente.invalidateQueries({
         queryKey: ['contribuicao-do-associado', idAssociado],
       })
     },
