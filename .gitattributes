@@ -1,0 +1,4 @@
+# A porta da bancada da IEADESPA: o instalador de dois cliques (.cmd) precisa de CRLF para o cmd.exe; o gancho (.sh),
+# de LF para o bash.
+.claude/continuidade/*.cmd text eol=crlf
+.claude/continuidade/*.sh text eol=lf

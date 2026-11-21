@@ -1,61 +1,33 @@
-# Memória de continuidade (opcional)
+# A porta da bancada da IEADESPA
 
-Para quem usa o Claude Code (ou o Codex) nos projetos da IEADESPA e quer que o trabalho
-continue de onde parou: de uma conversa para outra, de uma conta para outra, do Claude
-para o Codex.
+Esta pasta é a **porta**: o pouco que cada projeto da IEADESPA guarda para chegar à bancada. A bancada em si (o
+instalador, o aviso de início, o servidor de memória, as habilidades, a lista `bancada.json` e as regras globais) mora
+num lugar só: o repositório privado `IEADESPA/bancada`, baixado em `C:\MCP\bancada` em cada computador.
 
-## O que é
+## Num computador novo
 
-- **Servidor de memória** no seu computador: guarda os fatos de cada projeto, um arquivo
-  por repositório, em `C:\MCP\memorias\`. É pessoal: não vai para o Git e não é
-  compartilhado com ninguém.
-- **`HANDOFF.md`** na raiz do repositório: o estado do seu trabalho (o que fez, o que
-  falta, o próximo passo). Também é seu: o `.gitignore` não o deixa ir para o Git.
-- **O repositório continua sendo a memória comum.** Decisão que os outros precisam saber
-  vai para os documentos do projeto, não só para a sua memória.
+1. Programas: Git, Node.js 22 ou mais novo (`winget install OpenJS.NodeJS.LTS`) e o VS Code com o Claude Code, com o
+   login da conta da organização.
+2. Dois cliques em **`INSTALAR.cmd`** (nesta pasta). Ele baixa a bancada em `C:\MCP\bancada` (o login do GitHub abre no
+   navegador: quem faz é a pessoa) e chama o instalador, que **pergunta antes de cada mudança**.
+   - Ou peça ao Claude: ele roda primeiro `INSTALAR.cmd -SoTestar` (só mostra o que faria), mostra a lista e, só com o
+     seu sim, `INSTALAR.cmd -Sim`.
+3. No VS Code: `Ctrl+Shift+P`, "Recarregar Janela".
 
-## Instalar (uns 5 minutos, uma vez por computador)
+Daí em diante, o **aviso de início** roda sozinho no começo de toda conversa, em qualquer pasta: atualiza a bancada,
+mostra a linha "Em uso por" do `HANDOFF.md`, o `git pull` que falta e o que o computador tem de diferente da bancada.
 
-1. **Node.js:** abra o PowerShell e digite `node -v`. Se não aparecer um número de
-   versão, instale com `winget install OpenJS.NodeJS.LTS`, feche e abra o PowerShell.
-2. **Claude Code:** a extensão do VS Code instalada e com login feito.
-3. **Instalador:** no PowerShell, entre nesta pasta (`.claude\continuidade` do
-   repositório) e rode:
+## O que fica no projeto
 
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\instalar-memoria.ps1
-   ```
+| O quê | Onde |
+| --- | --- |
+| A porta | `.claude/continuidade/` (`INSTALAR.cmd`, `porta.sh` e este `LEIA-ME.md`) e o gancho no `.claude/settings.json` |
+| A memória do projeto | `.claude/continuidade/memoria/<repositório>.jsonl` (servidor `memoria-projeto`) |
+| A memória do Claude | `.claude/continuidade/memoria-claude/` (quando o projeto tem) |
+| As regras do projeto | `CLAUDE.md`, `AGENTS.md` (Codex) e `HANDOFF.md` (com a linha "Em uso por") |
 
-4. **Conferir:** no VS Code, `Ctrl+Shift+P` → "Recarregar Janela". Numa conversa nova do
-   Claude, digite `/mcp`: deve aparecer `memoria-projeto` conectado.
+Os detalhes (o que o instalador faz, o Codex e os problemas comuns) estão no `LEIA-ME.md` da bancada, em
+`C:\MCP\bancada\LEIA-ME.md`.
 
-Rodar o instalador de novo não estraga nada.
-
-## O que o instalador faz
-
-- Instala o servidor de memória (`@modelcontextprotocol/server-memory` 2.1.1, licença
-  MIT) em `C:\MCP`, com versão fixa.
-- Copia o programa de partida (`iniciar-memoria.mjs`) para `C:\MCP` e este kit para
-  `C:\MCP\continuidade`. O programa escolhe a memória pela pasta do repositório aberto.
-- Registra o servidor no Claude Code uma vez, para todos os projetos.
-- Se você ainda não tem regras globais (`~/.claude/CLAUDE.md`), instala as da IEADESPA
-  (`regras-globais.md`). Se já tem, não mexe e avisa, para você juntar à mão.
-
-## Codex
-
-Quem usa o Codex acrescenta ao `~/.codex/config.toml`:
-
-```toml
-[mcp_servers.memoria-projeto]
-command = "node"
-args = ['C:\MCP\iniciar-memoria.mjs']
-```
-
-## Problemas
-
-- `C:\MCP\aberturas.log` mostra cada abertura do servidor: data, pasta e arquivo de
-  memória.
-- Se o `/mcp` não mostrar `memoria-projeto`, recarregue a janela do VS Code: o Claude só
-  lê a lista de servidores quando liga.
-
-Versão do kit: 17/11/2026.
+Modelo desta porta: `C:\MCP\bancada\porta\`. Não edite aqui: melhore na bancada (commit e push) e copie para os
+projetos; o aviso de início avisa quando a porta de um projeto fica velha.
