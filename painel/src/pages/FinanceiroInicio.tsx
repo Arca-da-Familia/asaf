@@ -17,6 +17,7 @@ import { DialogoDeFormulario } from '@/components/feedback/DialogoDeFormulario'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import {
+  ApiError,
   aprovarSolicitacaoCompra,
   listarContasFinanceiras,
   listarTitulos,
@@ -350,7 +351,13 @@ function JanelaDeAprovar({
     onError: (erro, id) => {
       setResultados((atual) => ({
         ...atual,
-        [id]: { ok: false, texto: (erro as Error).message },
+        [id]: {
+          ok: false,
+          texto:
+            erro instanceof ApiError
+              ? erro.detail
+              : 'Não foi possível aprovar agora (sem conexão com o servidor). Tente de novo.',
+        },
       }))
       setUltimo(id)
     },

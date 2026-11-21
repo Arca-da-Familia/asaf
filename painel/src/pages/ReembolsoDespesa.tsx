@@ -87,11 +87,11 @@ export function ReembolsoDespesaPage() {
   return (
     <>
       <PageHeader
-        titulo="Reembolso de Despesa"
+        titulo="Reembolsos"
         descricao="Reembolso de voluntário/dirigente — comprovante obrigatório, aprovação e pagamento próprios (nunca informal)."
         trilha={[
           { rotulo: 'Financeiro', href: '/financeiro' },
-          { rotulo: 'Reembolso de Despesa' },
+          { rotulo: 'Reembolsos' },
         ]}
       />
 
