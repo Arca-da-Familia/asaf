@@ -222,3 +222,56 @@ def reprovar_solicitacao(db: Session, *, id_solicitacao: int, motivo: str) -> So
     db.commit()
     db.refresh(solicitacao)
     return solicitacao
+
+
+def solicitacoes_que_aguardam_a_assinatura(db: Session, id_usuario: int) -> list[dict]:
+    """v9.6b - as compras que esperam a assinatura DESTA pessoa (a Visão geral do Financeiro e o número de Compras no menu): aguardando aprovação,
+    a pessoa pode aprovar pela alçada do valor (cargo, delegação, quem pediu não aprova e conflito de interesse: a mesma regra de
+    `aprovar_solicitacao`) e ainda não assinou. Valor sem alçada fica de fora (ninguém aprova). Só lê: aprovar continua sendo `aprovar_solicitacao`,
+    que revalida tudo na hora."""
+    pendentes = (
+        db.query(SolicitacaoCompra)
+        .filter(SolicitacaoCompra.status == "Aguardando Aprovação")
+        .order_by(SolicitacaoCompra.data_solicitacao, SolicitacaoCompra.id_solicitacao)
+        .all()
+    )
+    if not pendentes:
+        return []
+    ids = [s.id_solicitacao for s in pendentes]
+    assinaturas: dict[int, list[AprovacaoCompra]] = {}
+    for aprovacao in (
+        db.query(AprovacaoCompra).filter(AprovacaoCompra.id_solicitacao.in_(ids))
+        .order_by(AprovacaoCompra.data_aprovacao, AprovacaoCompra.id_aprovacao).all()
+    ):
+        assinaturas.setdefault(aprovacao.id_solicitacao, []).append(aprovacao)
+    cotacoes = dict(
+        db.query(CotacaoCompra.id_solicitacao, func.count(distinct(CotacaoCompra.id_fornecedor)))
+        .filter(CotacaoCompra.id_solicitacao.in_(ids)).group_by(CotacaoCompra.id_solicitacao).all()
+    )
+    minimo_para_cotar = _valor_minimo_cotacao(db)
+
+    resultado = []
+    for solicitacao in pendentes:
+        ja_assinaram = assinaturas.get(solicitacao.id_solicitacao, [])
+        if any(a.id_usuario_aprovador == id_usuario for a in ja_assinaram):
+            continue
+        try:
+            alcada = alcada_aplicavel(db, solicitacao.valor_estimado)
+        except HTTPException:
+            continue
+        pode, _motivo, _delegacao = _pode_aprovar(db, id_usuario_aprovador=id_usuario, solicitacao=solicitacao, alcada=alcada)
+        if not pode:
+            continue
+        tem_cotacoes = cotacoes.get(solicitacao.id_solicitacao, 0)
+        faltam_cotacoes = (
+            max(0, _QUANTIDADE_MINIMA_COTACOES - tem_cotacoes) if solicitacao.valor_estimado >= minimo_para_cotar else 0
+        )
+        resultado.append({
+            "solicitacao": solicitacao,
+            "alcada": alcada,
+            "cargos": _nomes_dos_cargos(db, set(alcada.cargos_autorizados.split(","))),
+            "exigidas": 2 if alcada.exige_dupla_assinatura else 1,
+            "assinaturas": ja_assinaram,
+            "faltam_cotacoes": faltam_cotacoes,
+        })
+    return resultado
