@@ -60,6 +60,11 @@ const PARES_DO_PAINEL: Array<[string, string, number]> = [
   ['muted-foreground', 'accent', 4.5],
   ['input', 'card', 3],
   ['input', 'background', 3],
+  // v9.6b: o ícone ouro dos "Seus mais usados" sobre o verde da coluna, o número de pendência e a barra de cada conta no cartão do saldo (3:1, gráfico)
+  ['brand-secondary', 'barra-2', 3],
+  ['brand-secondary', 'barra', 3],
+  // v9.6b: o ícone de cada lugar da Visão geral e a faixa vermelha do que está em atraso
+  ['destructive', 'card', 3],
 ]
 
 function rgb([h, s, l]: Hsl): [number, number, number] {

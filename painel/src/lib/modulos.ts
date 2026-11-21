@@ -4,47 +4,61 @@ import {
   ArrowUpFromLine,
   BarChart3,
   BookOpen,
-  BookText,
+  Briefcase,
   Building2,
   CalendarCheck,
+  CalendarDays,
   CalendarPlus,
   CalendarRange,
+  ChartNoAxesColumn,
+  ClipboardCheck,
+  Coins,
+  CreditCard,
   FileCheck,
   FilePlus,
   FileText,
   FileUp,
-  Inbox,
+  Folder,
   FolderKanban,
   FolderOpen,
   Gavel,
   Globe,
+  GraduationCap,
   Handshake,
   Headset,
+  Heart,
   HeartHandshake,
+  IdCard,
+  Inbox,
   Landmark,
+  LayoutGrid,
+  List,
   ListChecks,
+  ListTree,
+  Lock,
   LockKeyhole,
   Megaphone,
+  MessagesSquare,
   Palette,
-  MessageCircleQuestion,
   PartyPopper,
-  Receipt,
+  ReceiptText,
+  Repeat,
   Scale,
   ScrollText,
-  Signature,
+  Sheet,
+  Shield,
   ShieldAlert,
   ShieldCheck,
+  ShoppingCart,
+  Signature,
   SlidersHorizontal,
-  Truck,
+  Tag,
   UserCheck,
   UserPlus,
   Users,
-  Wallet,
   UserSearch,
-  ChartNoAxesColumn,
-  GraduationCap,
-  ClipboardCheck,
-  IdCard,
+  Vault,
+  Wallet,
 } from 'lucide-react'
 
 // Endereço do Directus (CMS do site). Definitivo — a chave do plano gratuito do Directus fica
@@ -62,7 +76,15 @@ export type ItemModulo = {
   // v9.5c - o grupo do item na coluna do módulo (lista suspensa). Os módulos ganham grupos um a um, na rodada de desenho de cada um; sem grupo, a lista
   // fica como sempre foi (components/layout/MenuDoModulo.tsx).
   grupo?: string
+  // v9.6b - fora dos grupos, sempre no alto da coluna (a "Visão geral" do módulo)
+  fixo?: boolean
+  // v9.6b - a chave do número de pendências mostrado ao lado do nome (os números de cada módulo: lib/pendencias-do-modulo.ts)
+  pendencia?: string
 }
+
+// v9.6b (decisão do Presidente, 19/11: o menu do Financeiro é o PADRÃO de todos os módulos) - os grupos do módulo, na ordem da coluna, cada um com o seu
+// ícone: é o ícone da faixa recolhida, que abre a lista do grupo ao lado.
+export type GrupoDeModulo = { nome: string; icone: LucideIcon }
 
 // v9.5b - a área do módulo dá a cor do ícone no Início (pessoas = azul, dinheiro = ouro, vida da associação = verde, administração = neutro) e a descrição
 // é a frase curta embaixo do nome (desenho aprovado pelo Presidente, rodada 3)
@@ -89,6 +111,8 @@ export type Modulo = {
   // no celular, onde a maioria de quem usa o painel está. Módulo sem `itens` (ainda
   // `<EmConstrucao>`) simplesmente não troca a barra - continua mostrando o menu global.
   itens?: ItemModulo[]
+  // v9.6b - módulo já desenhado com o menu novo (grupos com ícone, "Seus mais usados" no alto, recolhido por grupo). Sem `grupos`, a coluna fica como era.
+  grupos?: GrupoDeModulo[]
 }
 
 // Manifesto único dos módulos do painel (v0.2.3). O shell monta o menu filtrando esta lista
@@ -119,6 +143,13 @@ export const modulos: Modulo[] = [
     descricao: 'Cadastro, filiação e carteirinha',
     permissao: 'associados',
     icone: Users,
+    // v9.6b: o mesmo menu do Financeiro (o padrão de todos os módulos), com os grupos que o Associados já tinha
+    grupos: [
+      { nome: 'Cadastro', icone: Users },
+      { nome: 'Filiação', icone: Inbox },
+      { nome: 'Credenciais', icone: IdCard },
+      { nome: 'Análises', icone: BarChart3 },
+    ],
     itens: [
       // v9.5c (rodada 4 do desenho): os grupos Cadastro, Filiação e Análises
       {
@@ -295,148 +326,185 @@ export const modulos: Modulo[] = [
     // Auditoria financeira e Relatórios (cada item sem `permissao` própria); o resto do módulo pede `financeiro`. O servidor revalida cada ação.
     permissoesAlternativas: ['financeiro_auditar'],
     icone: Wallet,
+    // v9.6b (escolha do Presidente, rodada 7b, `fin-menu-2`: "Os cinco grupos, com os seus mais usados no alto"): a Visão geral fixa no alto e os 5 grupos, na
+    // ordem do dia a dia. Os números ao lado de Compras, Doações, Reembolsos e Conciliação bancária vêm de `GET /api/financeiro/pendencias`.
+    grupos: [
+      { nome: 'Dia a dia', icone: Wallet },
+      { nome: 'Rotina do mês', icone: CalendarDays },
+      { nome: 'Cadastros', icone: Folder },
+      { nome: 'Relatórios', icone: BarChart3 },
+      { nome: 'Controle', icone: Shield },
+    ],
     itens: [
       {
         rota: '/financeiro',
-        rotulo: 'Início',
+        rotulo: 'Visão geral',
         permissao: 'financeiro',
-        icone: Wallet,
+        icone: LayoutGrid,
         fim: true,
-      },
-      {
-        rota: '/financeiro/conselho-fiscal',
-        rotulo: 'Conselho Fiscal',
-        icone: MessageCircleQuestion,
-      },
-      {
-        rota: '/financeiro/titulos',
-        permissao: 'financeiro',
-        rotulo: 'Títulos',
-        icone: Receipt,
+        fixo: true,
       },
       {
         rota: '/financeiro/entradas',
         permissao: 'financeiro',
         rotulo: 'Entradas',
         icone: ArrowDownToLine,
+        grupo: 'Dia a dia',
       },
       {
         rota: '/financeiro/saidas',
         permissao: 'financeiro',
         rotulo: 'Saídas',
         icone: ArrowUpFromLine,
+        grupo: 'Dia a dia',
       },
       {
         rota: '/financeiro/registrar-saida',
         permissao: 'financeiro',
         rotulo: 'Registrar saída',
-        icone: FilePlus,
+        icone: ReceiptText,
+        grupo: 'Dia a dia',
       },
       {
-        rota: '/financeiro/auditoria-financeira',
-        rotulo: 'Auditoria financeira',
-        icone: ListChecks,
-      },
-      {
-        rota: '/financeiro/plano-contas',
+        rota: '/financeiro/titulos',
         permissao: 'financeiro',
-        rotulo: 'Plano de Contas',
-        icone: BookOpen,
-      },
-      {
-        rota: '/financeiro/fornecedores',
-        permissao: 'financeiro',
-        rotulo: 'Fornecedores',
-        icone: Truck,
-      },
-      {
-        rota: '/financeiro/exercicios',
-        permissao: 'financeiro',
-        rotulo: 'Exercícios',
-        icone: CalendarRange,
-      },
-      {
-        rota: '/financeiro/razao-contabil',
-        permissao: 'financeiro',
-        rotulo: 'Razão Contábil',
-        icone: BookText,
-      },
-      {
-        rota: '/financeiro/contas-financeiras',
-        permissao: 'financeiro',
-        rotulo: 'Contas Financeiras',
-        icone: Wallet,
-      },
-      {
-        rota: '/financeiro/centros-custo',
-        permissao: 'financeiro',
-        rotulo: 'Centros de Custo',
-        icone: BookOpen,
-      },
-      {
-        rota: '/financeiro/planos-contribuicao',
-        permissao: 'financeiro',
-        rotulo: 'Planos de Contribuição',
-        icone: Receipt,
-      },
-      {
-        rota: '/financeiro/gerar-cobrancas',
-        permissao: 'financeiro',
-        rotulo: 'Gerar Cobranças',
-        icone: Receipt,
-      },
-      {
-        rota: '/financeiro/conciliacao',
-        permissao: 'financeiro',
-        rotulo: 'Conciliação',
-        icone: BookText,
-      },
-      {
-        rota: '/financeiro/negociacao-divida',
-        permissao: 'financeiro',
-        rotulo: 'Negociação de Dívida',
-        icone: Receipt,
-      },
-      {
-        rota: '/financeiro/compras',
-        permissao: 'financeiro',
-        rotulo: 'Compras',
-        icone: Receipt,
-      },
-      {
-        rota: '/financeiro/reembolso-despesa',
-        permissao: 'financeiro',
-        rotulo: 'Reembolso de Despesa',
-        icone: Receipt,
-      },
-      {
-        rota: '/financeiro/alcadas-aprovacao',
-        permissao: 'financeiro',
-        rotulo: 'Alçadas de Aprovação',
-        icone: BookText,
-      },
-      {
-        rota: '/financeiro/contas-a-pagar-recorrentes',
-        permissao: 'financeiro',
-        rotulo: 'Contas a Pagar Recorrentes',
-        icone: Receipt,
+        rotulo: 'Todos os títulos',
+        icone: List,
+        grupo: 'Dia a dia',
       },
       {
         rota: '/financeiro/doacoes',
         permissao: 'financeiro',
         rotulo: 'Doações',
-        icone: Receipt,
+        icone: Heart,
+        grupo: 'Dia a dia',
+        pendencia: 'doacoes',
       },
       {
-        rota: '/financeiro/orcamento',
+        rota: '/financeiro/compras',
         permissao: 'financeiro',
-        rotulo: 'Orçamento e Fluxo de Caixa',
-        icone: BarChart3,
+        rotulo: 'Compras',
+        icone: ShoppingCart,
+        grupo: 'Dia a dia',
+        pendencia: 'compras',
+      },
+      {
+        rota: '/financeiro/reembolso-despesa',
+        permissao: 'financeiro',
+        rotulo: 'Reembolsos',
+        icone: Coins,
+        grupo: 'Dia a dia',
+        pendencia: 'reembolsos',
+      },
+      {
+        rota: '/financeiro/gerar-cobrancas',
+        permissao: 'financeiro',
+        rotulo: 'Gerar cobranças',
+        icone: Repeat,
+        grupo: 'Rotina do mês',
+      },
+      {
+        rota: '/financeiro/contas-a-pagar-recorrentes',
+        permissao: 'financeiro',
+        rotulo: 'Contas fixas do mês',
+        icone: CalendarDays,
+        grupo: 'Rotina do mês',
+      },
+      {
+        rota: '/financeiro/conciliacao',
+        permissao: 'financeiro',
+        rotulo: 'Conciliação bancária',
+        icone: Landmark,
+        grupo: 'Rotina do mês',
+        pendencia: 'conciliacao',
+      },
+      {
+        rota: '/financeiro/negociacao-divida',
+        permissao: 'financeiro',
+        rotulo: 'Negociação de dívida',
+        icone: MessagesSquare,
+        grupo: 'Rotina do mês',
+      },
+      {
+        rota: '/financeiro/planos-contribuicao',
+        permissao: 'financeiro',
+        rotulo: 'Planos de contribuição',
+        icone: CreditCard,
+        grupo: 'Cadastros',
+      },
+      {
+        rota: '/financeiro/fornecedores',
+        permissao: 'financeiro',
+        rotulo: 'Fornecedores',
+        icone: Briefcase,
+        grupo: 'Cadastros',
+      },
+      {
+        rota: '/financeiro/contas-financeiras',
+        permissao: 'financeiro',
+        rotulo: 'Contas financeiras',
+        icone: Vault,
+        grupo: 'Cadastros',
+      },
+      {
+        rota: '/financeiro/plano-contas',
+        permissao: 'financeiro',
+        rotulo: 'Plano de contas',
+        icone: ListTree,
+        grupo: 'Cadastros',
+      },
+      {
+        rota: '/financeiro/centros-custo',
+        permissao: 'financeiro',
+        rotulo: 'Centros de custo',
+        icone: Tag,
+        grupo: 'Cadastros',
+      },
+      {
+        rota: '/financeiro/exercicios',
+        permissao: 'financeiro',
+        rotulo: 'Exercícios',
+        icone: BookOpen,
+        grupo: 'Cadastros',
       },
       {
         rota: '/financeiro/relatorios',
         rotulo: 'Relatórios',
-        icone: FileText,
+        icone: BarChart3,
+        grupo: 'Relatórios',
+      },
+      {
+        rota: '/financeiro/orcamento',
+        permissao: 'financeiro',
+        rotulo: 'Orçamento e fluxo de caixa',
+        icone: Wallet,
+        grupo: 'Relatórios',
+      },
+      {
+        rota: '/financeiro/razao-contabil',
+        permissao: 'financeiro',
+        rotulo: 'Razão contábil',
+        icone: Sheet,
+        grupo: 'Relatórios',
+      },
+      {
+        rota: '/financeiro/conselho-fiscal',
+        rotulo: 'Conselho Fiscal',
+        icone: Shield,
+        grupo: 'Controle',
+      },
+      {
+        rota: '/financeiro/auditoria-financeira',
+        rotulo: 'Auditoria financeira',
+        icone: FileCheck,
+        grupo: 'Controle',
+      },
+      {
+        rota: '/financeiro/alcadas-aprovacao',
+        permissao: 'financeiro',
+        rotulo: 'Alçadas de aprovação',
+        icone: Lock,
+        grupo: 'Controle',
       },
     ],
   },

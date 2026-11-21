@@ -97,25 +97,25 @@ describe('coluna do módulo em grupos (v9.5c)', () => {
     ).toHaveAttribute('aria-current', 'page')
   })
 
-  it('recolhida, mostra só os ícones, cada um com o nome da tela e a volta ao Início', () => {
+  it('v9.6b: recolhida, mostra a volta ao Início e UM botão por grupo (o nome embaixo do ícone); o grupo abre a lista ao lado', async () => {
     const menu = montar('/associados/qualidade', true)
-    expect(within(menu).queryByRole('button')).not.toBeInTheDocument()
-    const nomes = within(menu)
-      .getAllByRole('link')
-      .map((l) => l.getAttribute('aria-label'))
-    expect(nomes).toEqual([
-      'Início',
-      'Lista de associados',
-      'Novo associado',
-      'Importar em lote',
-      'Propostas de filiação',
-      'Credenciais emitidas',
-      'Criador de credencial',
-      'Qualidade da base',
-      'Gráficos',
-    ])
+    expect(within(menu).getByRole('link', { name: 'Início' })).toHaveAttribute(
+      'href',
+      '/',
+    )
+    const botoes = within(menu)
+      .getAllByRole('button')
+      .map((b) => b.textContent)
+    expect(botoes).toEqual(['Cadastro', 'Filiação', 'Credenciais', 'Análises'])
+    // as telas só aparecem com a lista do grupo aberta
     expect(
-      within(menu).getByRole('link', { name: 'Qualidade da base' }),
+      within(menu).queryByRole('link', { name: 'Qualidade da base' }),
+    ).not.toBeInTheDocument()
+    await userEvent.click(within(menu).getByRole('button', { name: 'Análises' }))
+    const lista = within(menu).getByRole('group', { name: 'Análises' })
+    expect(
+      within(lista).getByRole('link', { name: 'Qualidade da base' }),
     ).toHaveAttribute('aria-current', 'page')
+    expect(within(lista).getByRole('link', { name: 'Gráficos' })).toBeVisible()
   })
 })
