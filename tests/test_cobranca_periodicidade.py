@@ -5,7 +5,7 @@ from app.services import contribuicoes
 from tests.test_contribuicoes import _criar_conta
 from tests.test_situacao import _criar_associado
 
-ANO = "2094"
+ANO = "2084"
 
 
 def _plano(client, auth_headers, *, categoria, periodicidade, valor, conta_receita, conta_diferida=None, descricao=None, esperado=200):
@@ -51,12 +51,12 @@ def _escolher(client, auth_headers, id_associado, periodicidade, esperado=200):
 
 
 def test_periodo_e_quando_cobra():
-    assert contribuicoes.periodo_da_competencia("2094-01", 6) == ("2094-01", "2094-06")
-    assert contribuicoes.periodo_da_competencia("2094-06", 6) == ("2094-01", "2094-06")
-    assert contribuicoes.periodo_da_competencia("2094-07", 6) == ("2094-07", "2094-12")
-    assert contribuicoes.periodo_da_competencia("2094-12", 6) == ("2094-07", "2094-12")
-    assert contribuicoes.periodo_da_competencia("2094-05", 12) == ("2094-01", "2094-12")
-    assert contribuicoes.periodo_da_competencia("2094-05", 1) == ("2094-05", "2094-05")
+    assert contribuicoes.periodo_da_competencia("2084-01", 6) == ("2084-01", "2084-06")
+    assert contribuicoes.periodo_da_competencia("2084-06", 6) == ("2084-01", "2084-06")
+    assert contribuicoes.periodo_da_competencia("2084-07", 6) == ("2084-07", "2084-12")
+    assert contribuicoes.periodo_da_competencia("2084-12", 6) == ("2084-07", "2084-12")
+    assert contribuicoes.periodo_da_competencia("2084-05", 12) == ("2084-01", "2084-12")
+    assert contribuicoes.periodo_da_competencia("2084-05", 1) == ("2084-05", "2084-05")
     assert contribuicoes.quando_cobra(1) == "todo mês"
     assert contribuicoes.quando_cobra(6) == "em janeiro e julho"
     assert contribuicoes.quando_cobra(12) == "em janeiro"
@@ -266,28 +266,28 @@ def test_o_semestre_pago_com_atraso_vira_receita_de_cada_mes(client, auth_header
     associado = _criar_associado(client, categoria=categoria)["id_associado"]
     _escolher(client, auth_headers, associado, "Semestral")
 
-    _gerar(client, auth_headers, "2093-01")  # janeiro: o título do semestre nasce pendente; nada vira receita ainda
+    _gerar(client, auth_headers, "2083-01")  # janeiro: o título do semestre nasce pendente; nada vira receita ainda
     [titulo] = [{"id_titulo": t.id_titulo} for t in _titulos(db, associado)]
-    assert all(x["id_titulo"] != titulo["id_titulo"] for x in _gerar(client, auth_headers, "2093-02")["reconhecimentos_receita_diferida"])
+    assert all(x["id_titulo"] != titulo["id_titulo"] for x in _gerar(client, auth_headers, "2083-02")["reconhecimentos_receita_diferida"])
 
     # pagou em março: janeiro, fevereiro e março viram receita, cada um na sua competência
     r = client.post("/baixar-titulo/", json={
         "id_titulo": titulo["id_titulo"], "valor_pago": 540, "forma_pagamento": "Pix", "id_conta_contabil_contrapartida": caixa,
     }, headers=auth_headers)
     assert r.status_code == 200, r.text
-    marco = [x for x in _gerar(client, auth_headers, "2093-03")["reconhecimentos_receita_diferida"] if x["id_titulo"] == titulo["id_titulo"]]
-    assert [(x["competencia"], x["valor"]) for x in marco] == [("2093-01", 90.0), ("2093-02", 90.0), ("2093-03", 90.0)]
-    assert [x for x in _gerar(client, auth_headers, "2093-03")["reconhecimentos_receita_diferida"] if x["id_titulo"] == titulo["id_titulo"]] == []
+    marco = [x for x in _gerar(client, auth_headers, "2083-03")["reconhecimentos_receita_diferida"] if x["id_titulo"] == titulo["id_titulo"]]
+    assert [(x["competencia"], x["valor"]) for x in marco] == [("2083-01", 90.0), ("2083-02", 90.0), ("2083-03", 90.0)]
+    assert [x for x in _gerar(client, auth_headers, "2083-03")["reconhecimentos_receita_diferida"] if x["id_titulo"] == titulo["id_titulo"]] == []
 
     # o semestre de julho pago só em janeiro do ano seguinte (depois de acabar): os seis meses saem da receita a reconhecer
-    _gerar(client, auth_headers, "2093-07")
-    [julho] = [{"id_titulo": t.id_titulo} for t in _titulos(db, associado) if t.competencia == "2093-07"]
+    _gerar(client, auth_headers, "2083-07")
+    [julho] = [{"id_titulo": t.id_titulo} for t in _titulos(db, associado) if t.competencia == "2083-07"]
     r = client.post("/baixar-titulo/", json={
         "id_titulo": julho["id_titulo"], "valor_pago": 540, "forma_pagamento": "Pix", "id_conta_contabil_contrapartida": caixa,
     }, headers=auth_headers)
     assert r.status_code == 200, r.text
-    janeiro = [x for x in _gerar(client, auth_headers, "2094-01", confirmar=True)["reconhecimentos_receita_diferida"] if x["id_titulo"] == julho["id_titulo"]]
-    assert [x["competencia"] for x in janeiro] == ["2093-07", "2093-08", "2093-09", "2093-10", "2093-11", "2093-12"]
+    janeiro = [x for x in _gerar(client, auth_headers, "2084-01", confirmar=True)["reconhecimentos_receita_diferida"] if x["id_titulo"] == julho["id_titulo"]]
+    assert [x["competencia"] for x in janeiro] == ["2083-07", "2083-08", "2083-09", "2083-10", "2083-11", "2083-12"]
 
     # na mesma rodada, abril a junho do primeiro semestre (pago em março) também viram receita: os dois somam exatamente o valor do título
     for id_titulo in (titulo["id_titulo"], julho["id_titulo"]):
