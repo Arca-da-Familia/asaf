@@ -51,7 +51,12 @@ export function PageHeader({
           )}
           <AjudaDaTela />
         </div>
-        {acoes && <div className="flex items-center gap-2">{acoes}</div>}
+        {/* v9.6b: no celular as ações ocupam a linha toda e quebram a linha (o seletor do mês da Visão geral fica com a largura toda) */}
+        {acoes && (
+          <div className="flex flex-wrap items-center gap-2 max-sm:w-full">
+            {acoes}
+          </div>
+        )}
       </div>
     </header>
   )

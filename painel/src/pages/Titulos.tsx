@@ -570,23 +570,35 @@ function mesAtual(): string {
   return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
 }
 
+/** AAAA-MM-DD de ontem no aparelho de quem usa (Belém): o último dia que já pode estar em atraso. */
+function ontem(): string {
+  const d = new Date(Date.now() - 24 * 3600 * 1000)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 // Títulos = as entradas (a receber) e as saídas (a pagar). A tela filtra por MÊS de vencimento (começa no mês atual), por situação, por
 // categoria (a conta contábil) e por texto, e é paginada. Os filtros ficam no endereço (`?mes=2026-10&status=Pendente&pagina=2`): dá para
-// guardar e mandar o link. Há uma página só das entradas e uma só das saídas (`tipoFixo`).
+// guardar e mandar o link. Há uma página só das entradas e uma só das saídas (`tipoFixo`). v9.6b: a Visão geral abre esta tela com `?vencidos=1` ("Ver
+// quem", "Dar baixa": só o que venceu e não foi pago, de qualquer mês) e com `?novo=1` ("Novo título": o formulário já aberto).
 export function TitulosPage({
   tipoFixo,
 }: {
   tipoFixo?: 'A Receber' | 'A Pagar'
 }) {
   const [filtros, setFiltros] = useSearchParams()
-  const [mostrarForm, setMostrarForm] = useState(false)
+  const [mostrarForm, setMostrarForm] = useState(
+    () => filtros.get('novo') === '1',
+  )
+  // calculado uma vez ao abrir a tela (a regra de pureza do React não aceita ler o relógio a cada desenho)
+  const [ateOntem] = useState(ontem)
   const [baixando, setBaixando] = useState<number | null>(null)
   const [mostrandoPix, setMostrandoPix] = useState<number | null>(null)
   const [mostrandoCredito, setMostrandoCredito] = useState<number | null>(null)
 
-  const todoPeriodo = filtros.get('periodo') === 'todos'
+  const soVencidos = filtros.get('vencidos') === '1'
+  const todoPeriodo = soVencidos || filtros.get('periodo') === 'todos'
   const mes = todoPeriodo ? '' : (filtros.get('mes') ?? mesAtual())
-  const status = filtros.get('status') ?? ''
+  const status = soVencidos ? 'Pendente' : (filtros.get('status') ?? '')
   const tipoTitulo = tipoFixo ?? filtros.get('tipo') ?? ''
   const categoria = filtros.get('categoria') ?? ''
   const busca = filtros.get('busca') ?? ''
@@ -615,11 +627,21 @@ export function TitulosPage({
     status: status || undefined,
     tipo_titulo: tipoTitulo || undefined,
     mes: mes || undefined,
+    data_ate: soVencidos ? ateOntem : undefined,
     id_conta_contabil: categoria ? Number(categoria) : undefined,
     busca: busca || undefined,
   }
   const { data: titulos } = useQuery({
-    queryKey: ['titulos', status, tipoTitulo, mes, categoria, busca, pagina],
+    queryKey: [
+      'titulos',
+      status,
+      tipoTitulo,
+      mes,
+      categoria,
+      busca,
+      pagina,
+      soVencidos,
+    ],
     queryFn: () =>
       listarTitulos({
         ...consulta,
@@ -628,7 +650,16 @@ export function TitulosPage({
       }),
   })
   const { data: resumo } = useQuery({
-    queryKey: ['titulos', 'resumo', status, tipoTitulo, mes, categoria, busca],
+    queryKey: [
+      'titulos',
+      'resumo',
+      status,
+      tipoTitulo,
+      mes,
+      categoria,
+      busca,
+      soVencidos,
+    ],
     queryFn: () => resumirTitulos(consulta),
   })
   const { data: contas } = useQuery({
@@ -672,6 +703,25 @@ export function TitulosPage({
       />
 
       <section className="rounded-xl border border-border bg-card p-6">
+        {soVencidos && (
+          <div
+            role="status"
+            className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-perigo-tinta px-3 py-2 text-sm text-foreground"
+          >
+            <span>
+              Só o que já venceu e não foi pago, de qualquer mês (até{' '}
+              {formatarData(ateOntem)}).
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="min-h-11 sm:min-h-8"
+              onClick={() => mudar({ vencidos: null })}
+            >
+              Ver o mês atual
+            </Button>
+          </div>
+        )}
         <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
           <div className="flex flex-wrap items-end gap-2">
             <div>
@@ -693,20 +743,23 @@ export function TitulosPage({
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50"
               />
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                todoPeriodo
-                  ? mudar({ periodo: null, mes: null })
-                  : mudar({ periodo: 'todos', mes: null })
-              }
-            >
-              {todoPeriodo ? 'Voltar ao mês atual' : 'Todo o período'}
-            </Button>
+            {!soVencidos && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  todoPeriodo
+                    ? mudar({ periodo: null, mes: null })
+                    : mudar({ periodo: 'todos', mes: null })
+                }
+              >
+                {todoPeriodo ? 'Voltar ao mês atual' : 'Todo o período'}
+              </Button>
+            )}
             <select
               aria-label="Situação"
               value={status}
+              disabled={soVencidos}
               onChange={(e) => mudar({ status: e.target.value })}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm"
             >
@@ -761,7 +814,10 @@ export function TitulosPage({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setMostrarForm((v) => !v)}
+              onClick={() => {
+                if (mostrarForm && filtros.has('novo')) mudar({ novo: null })
+                setMostrarForm((v) => !v)
+              }}
             >
               {mostrarForm ? 'Cancelar' : 'Novo título'}
             </Button>
@@ -770,7 +826,10 @@ export function TitulosPage({
 
         {mostrarForm && (
           <FormularioNovoTitulo
-            onCancelar={() => setMostrarForm(false)}
+            onCancelar={() => {
+              if (filtros.has('novo')) mudar({ novo: null })
+              setMostrarForm(false)
+            }}
             tipoPadrao={tipoFixo ?? 'A Pagar'}
           />
         )}
