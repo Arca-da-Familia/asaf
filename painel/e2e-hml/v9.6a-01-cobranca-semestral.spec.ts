@@ -320,7 +320,8 @@ test('ficha do associado: a Contribuição mostra mensal e semestral; mudar para
     `${reais(VALOR)} em janeiro e julho, vencimento dia 10`,
   )
   await expect(cartao).toContainText(
-    /R\$ [\d.]+,\d{2} todo mês, vencimento dia \d+/,
+    // \s: o valor em reais vem com espaço inseparável (U+00A0) entre "R$" e o número; o texto comum o Playwright normaliza, a expressão não
+    /R\$\s[\d.]+,\d{2}\stodo\smês,\svencimento\sdia\s\d+/,
   )
   const salvar = cartao.getByRole('button', {
     name: 'Salvar forma de pagamento',
