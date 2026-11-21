@@ -141,9 +141,13 @@ describe('menu do Financeiro: os 5 grupos e a Visão geral fixa (v9.6b)', () => 
       endereco: '/financeiro/compras',
       contadores: CONTADORES,
     })
-    expect(
-      within(menu).getByRole('link', { name: 'Compras 2 pendentes' }),
-    ).toHaveAttribute('aria-current', 'page')
+    const compras = within(menu).getByRole('link', {
+      name: 'Compras 2 pendentes',
+    })
+    expect(compras).toHaveAttribute('aria-current', 'page')
+    // o número fica FORA do link, por cima dele: o texto visível do link ("Compras") está contido no nome que o leitor de tela ouve (o axe confere)
+    expect(compras).toHaveTextContent(/^Compras$/)
+    expect(compras.parentElement).toHaveTextContent(/^Compras2$/)
     expect(
       within(menu).getByRole('link', { name: 'Doações 3 pendentes' }),
     ).toBeInTheDocument()
