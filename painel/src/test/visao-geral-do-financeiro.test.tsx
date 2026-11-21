@@ -507,7 +507,7 @@ describe('Visão geral do Financeiro: a janela de aprovar (v9.6b)', () => {
       contadores: { compras: 1, doacoes: 0, reembolsos: 0, conciliacao: 0 },
     })
     vi.mocked(api.aprovarSolicitacaoCompra).mockRejectedValue(
-      new Error('Seu cargo não está na alçada deste valor.'),
+      new api.ApiError(400, 'Seu cargo não está na alçada deste valor.'),
     )
     montar()
     await userEvent.click(
@@ -525,5 +525,31 @@ describe('Visão geral do Financeiro: a janela de aprovar (v9.6b)', () => {
     expect(
       within(janela).getByRole('link', { name: 'Abrir Compras' }),
     ).toHaveAttribute('href', '/financeiro/compras')
+  })
+
+  it('sem conexão com o servidor, a janela diz isso em português (nunca a mensagem do navegador)', async () => {
+    vi.mocked(api.obterPendenciasDoFinanceiro).mockResolvedValue({
+      ...semPendencias(),
+      compras_para_aprovar: { total: 1, itens: [compra(41)] },
+      contadores: { compras: 1, doacoes: 0, reembolsos: 0, conciliacao: 0 },
+    })
+    vi.mocked(api.aprovarSolicitacaoCompra).mockRejectedValue(
+      new TypeError('Failed to fetch'),
+    )
+    montar()
+    await userEvent.click(
+      await screen.findByRole('button', { name: /1 compra para aprovar/ }),
+    )
+    const janela = screen.getByRole('alertdialog', {
+      name: 'Compra para aprovar',
+    })
+    await userEvent.click(
+      within(janela).getByRole('button', { name: 'Aprovar este pedido' }),
+    )
+    const alerta = await within(janela).findByRole('alert')
+    expect(alerta).toHaveTextContent(
+      'Não foi possível aprovar agora (sem conexão com o servidor). Tente de novo.',
+    )
+    expect(alerta).not.toHaveTextContent('Failed to fetch')
   })
 })

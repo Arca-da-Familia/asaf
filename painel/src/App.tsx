@@ -1172,7 +1172,7 @@ function App() {
                 <Route
                   path="reembolso-despesa"
                   element={
-                    <ErrorBoundary tituloModulo="Reembolso de Despesa">
+                    <ErrorBoundary tituloModulo="Reembolsos">
                       <ReembolsoDespesaPage />
                     </ErrorBoundary>
                   }
@@ -1188,7 +1188,7 @@ function App() {
                 <Route
                   path="contas-a-pagar-recorrentes"
                   element={
-                    <ErrorBoundary tituloModulo="Contas a Pagar Recorrentes">
+                    <ErrorBoundary tituloModulo="Contas fixas do mês">
                       <ContasAPagarRecorrentesPage />
                     </ErrorBoundary>
                   }
