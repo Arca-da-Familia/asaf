@@ -459,6 +459,9 @@ test('gerar cobranças (prévia): janeiro cobra o semestre inteiro; um mês do m
     'reativado, volta a cobrar',
   ).toHaveCount(1)
 
+  // a Auditoria geral é da Presidência (permissão "auditoria"); o tesoureiro recebe "Acesso negado" — quem confere é o Presidente
+  await sair(page)
+  await entrar(page, 'presidente')
   await page.goto(`/auditoria?tabela=planos_contribuicao`)
   await expect(
     page.getByRole('heading', { name: 'Auditoria', level: 1 }),
