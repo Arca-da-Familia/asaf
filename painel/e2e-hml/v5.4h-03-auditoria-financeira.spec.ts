@@ -11,6 +11,7 @@ import {
   senhaDe,
   ver,
   vigiar,
+  abrirNoMenuDoModulo,
 } from './apoio'
 
 // v5.4h - Auditoria financeira do Conselho Fiscal: os três conselheiros conferem, título a título, as entradas e saídas do mês.
@@ -194,10 +195,9 @@ test('o 1º conselheiro abre a Auditoria financeira pelo menu, vê o resumo do m
   const vigia = vigiar(page)
   await entrar(page, 'conselheiro')
   await page.getByRole('link', { name: 'Financeiro' }).first().click()
-  await page
-    .getByRole('complementary')
-    .getByRole('link', { name: 'Auditoria financeira', exact: true })
-    .click()
+  // quem só audita cai no Conselho Fiscal; v9.6b: a Auditoria financeira fica no grupo "Controle" do menu do módulo
+  await expect(page).toHaveURL(/\/financeiro\/conselho-fiscal$/)
+  await abrirNoMenuDoModulo(page, 'Controle', 'Auditoria financeira')
   await expect(
     page.getByRole('heading', { name: 'Auditoria financeira', level: 1 }),
   ).toBeVisible()

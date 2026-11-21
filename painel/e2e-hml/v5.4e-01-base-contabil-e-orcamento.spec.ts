@@ -19,6 +19,7 @@ import {
   procurarCentro,
   procurarContaFinanceira,
   saudacaoDoInicio,
+  abrirNoMenuDoModulo,
 } from './apoio'
 
 // v5.4e — FASE 3 ao vivo, parte 1: BASE CONTÁBIL (exercício, plano de contas, centros de custo, contas financeiras, razão contábil) e
@@ -3212,35 +3213,47 @@ test('exercício: ano inválido e segundo exercício aberto são recusados; fech
 // =====================================================================================================================================
 // 8. QUEM PODE: o Secretário (sem `financeiro`) é barrado; o Tesoureiro chega a cada tela pelo Início e pelo menu do módulo
 // =====================================================================================================================================
-const TELAS_DO_FINANCEIRO: { rota: string; menu: string; titulo: string }[] = [
+// v9.6b: o menu do módulo em grupos (escolha do Presidente, rodada 7b): cada tela tem o grupo dela e o nome do menu novo
+const TELAS_DO_FINANCEIRO: {
+  rota: string
+  grupo: string
+  menu: string
+  titulo: string
+}[] = [
   {
     rota: '/financeiro/exercicios',
+    grupo: 'Cadastros',
     menu: 'Exercícios',
     titulo: 'Exercícios contábeis',
   },
   {
     rota: '/financeiro/plano-contas',
-    menu: 'Plano de Contas',
+    grupo: 'Cadastros',
+    menu: 'Plano de contas',
     titulo: 'Plano de Contas',
   },
   {
     rota: '/financeiro/centros-custo',
-    menu: 'Centros de Custo',
+    grupo: 'Cadastros',
+    menu: 'Centros de custo',
     titulo: 'Centros de Custo',
   },
   {
     rota: '/financeiro/contas-financeiras',
-    menu: 'Contas Financeiras',
+    grupo: 'Cadastros',
+    menu: 'Contas financeiras',
     titulo: 'Contas Financeiras',
   },
   {
     rota: '/financeiro/razao-contabil',
-    menu: 'Razão Contábil',
+    grupo: 'Relatórios',
+    menu: 'Razão contábil',
     titulo: 'Razão Contábil',
   },
   {
     rota: '/financeiro/orcamento',
-    menu: 'Orçamento e Fluxo de Caixa',
+    grupo: 'Relatórios',
+    menu: 'Orçamento e fluxo de caixa',
     titulo: 'Orçamento e Fluxo de Caixa',
   },
 ]
@@ -3274,14 +3287,12 @@ test('quem pode: o Secretário (sem a permissão do financeiro) é barrado em to
 
   await entrarNoFinanceiro(page)
   await page.getByRole('link', { name: 'Financeiro' }).first().click()
+  // v9.6b: o Início do módulo é a Visão geral
   await expect(
-    page.getByRole('heading', { name: 'Financeiro', level: 1 }),
+    page.getByRole('heading', { name: 'Visão geral', level: 1 }),
   ).toBeVisible()
   for (const tela of TELAS_DO_FINANCEIRO) {
-    await page
-      .getByRole('link', { name: tela.menu, exact: true })
-      .first()
-      .click()
+    await abrirNoMenuDoModulo(page, tela.grupo, tela.menu)
     await expect(page).toHaveURL(new RegExp(`${tela.rota}$`))
     await expect(
       page.getByRole('heading', { name: tela.titulo, level: 1 }),

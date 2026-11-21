@@ -9,6 +9,7 @@ import {
   sair,
   ver,
   vigiar,
+  abrirNoMenuDoModulo,
 } from './apoio'
 
 // v5.4h - Registrar saída: o sistema é só o REGISTRO do que já aconteceu (decisão do Presidente, 2026-10-08): um formulário lança a saída e dá a baixa de uma
@@ -147,10 +148,8 @@ test('o formulário vazio diz o que falta; data no futuro é recusada pelo servi
   await entrar(page, 'tesoureiro')
   // o caminho do dia a dia: Financeiro, Saídas e o botão de registrar
   await page.getByRole('link', { name: 'Financeiro' }).first().click()
-  await page
-    .getByRole('complementary')
-    .getByRole('link', { name: 'Saídas', exact: true })
-    .click()
+  // v9.6b: Saídas fica no grupo "Dia a dia" do menu do módulo
+  await abrirNoMenuDoModulo(page, 'Dia a dia', 'Saídas')
   await page.getByRole('link', { name: 'Registrar saída (já paga)' }).click()
   await expect(
     page.getByRole('heading', { name: 'Registrar saída', level: 1 }),
