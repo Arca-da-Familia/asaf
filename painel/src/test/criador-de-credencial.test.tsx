@@ -353,9 +353,17 @@ describe('Criador de credencial: o editor (v9.5k)', () => {
     const qr = await screen.findByRole('button', {
       name: /^QR de conferência:/,
     })
-    fireEvent.pointerDown(qr, { pointerId: 1, clientX: 10, clientY: 10 })
-    fireEvent.pointerUp(qr, { pointerId: 1, clientX: 10, clientY: 10 })
+    // o clique (sem arrastar) na parte do cartão põe o foco no botão dela, na lista "Partes do cartão": as setas já movem
+    const noCartao = document.querySelector('[data-arrastar="qr"]')!
+    expect(noCartao).toHaveAttribute('aria-hidden', 'true')
+    fireEvent.pointerDown(noCartao, {
+      pointerId: 1,
+      clientX: 10,
+      clientY: 10,
+    })
+    fireEvent.pointerUp(noCartao, { pointerId: 1, clientX: 10, clientY: 10 })
     expect(qr).toHaveFocus()
+    expect(qr).toHaveAttribute('aria-pressed', 'true')
     expect(
       screen.getByRole('heading', { name: 'QR de conferência' }),
     ).toBeInTheDocument()
@@ -365,13 +373,41 @@ describe('Criador de credencial: o editor (v9.5k)', () => {
     const largura = screen.getByLabelText('Largura (mm)')
     await u.clear(largura)
     await u.type(largura, '15')
-    expect(largura).toHaveValue(15)
+    expect(largura).toHaveValue('15')
     await u.tab()
-    expect(screen.getByLabelText('Largura (mm)')).toHaveValue(15)
+    expect(screen.getByLabelText('Largura (mm)')).toHaveValue('15')
     // digitar não enche o Desfazer: um passo para o campo todo
     await u.click(screen.getByRole('button', { name: 'Desfazer' }))
-    expect(screen.getByLabelText('Largura (mm)')).toHaveValue(33.5)
+    // o número aparece com vírgula, no padrão brasileiro (o navegador em inglês mostrava "33.5")
+    expect(screen.getByLabelText('Largura (mm)')).toHaveValue('33,5')
     expect(screen.getByRole('button', { name: 'Desfazer' })).toBeDisabled()
+  })
+
+  it('o campo de número aceita vírgula e as setas somam ou tiram um passo', async () => {
+    const u = userEvent.setup()
+    abrirNovo()
+    await u.click(await screen.findByRole('button', { name: /^Nome:/ }))
+    const largura = screen.getByLabelText('Largura (mm)')
+    await u.clear(largura)
+    await u.type(largura, '40,5')
+    await u.tab()
+    expect(screen.getByLabelText('Largura (mm)')).toHaveValue('40,5')
+    await u.click(screen.getByLabelText('Largura (mm)'))
+    await u.keyboard('{ArrowUp}')
+    expect(screen.getByLabelText('Largura (mm)')).toHaveValue('41')
+    await u.keyboard('{ArrowDown}{ArrowDown}')
+    expect(screen.getByLabelText('Largura (mm)')).toHaveValue('40')
+    // passou do máximo: volta para o limite ao sair do campo
+    await u.clear(screen.getByLabelText('Largura (mm)'))
+    await u.type(screen.getByLabelText('Largura (mm)'), '999')
+    await u.tab()
+    expect(
+      Number(
+        String(
+          (screen.getByLabelText('Largura (mm)') as HTMLInputElement).value,
+        ).replace(',', '.'),
+      ),
+    ).toBeLessThanOrEqual(85.6)
   })
 
   it('o modelo em uso abre com o aviso e só guarda como modelo novo', async () => {

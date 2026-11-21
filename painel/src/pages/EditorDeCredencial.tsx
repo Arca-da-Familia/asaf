@@ -131,8 +131,14 @@ function imantar(
   }
 }
 
+/** O número com vírgula decimal, no padrão brasileiro (o campo `type="number"` mostrava "31.8" no navegador em inglês, visto nos prints da homologação). */
+function comVirgula(v: number): string {
+  return String(arredonda(v)).replace('.', ',')
+}
+
 /** O campo de número: enquanto a pessoa digita, o cartão só muda quando o valor cabe no intervalo; ao sair do campo (ou no Enter), o valor é
- * ajustado ao mínimo ou ao máximo (antes, cada tecla já era ajustada: "15" virava "25"). */
+ * ajustado ao mínimo ou ao máximo (antes, cada tecla já era ajustada: "15" virava "25"). Aceita vírgula ou ponto; as setas para cima e para baixo
+ * somam ou tiram um passo, como no campo de número do navegador. */
 function Numero({
   rotulo,
   valor,
@@ -163,12 +169,10 @@ function Numero({
       {rotulo}
       <input
         id={id}
-        type="number"
+        type="text"
         inputMode="decimal"
-        min={min}
-        max={max}
-        step={passo}
-        value={texto ?? String(arredonda(valor))}
+        autoComplete="off"
+        value={texto ?? comVirgula(valor)}
         onChange={(e) => {
           setTexto(e.target.value)
           const v = ler(e.target.value)
@@ -183,6 +187,16 @@ function Numero({
         onBlur={fechar}
         onKeyDown={(e) => {
           if (e.key === 'Enter') fechar()
+          if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            e.preventDefault()
+            const atual = texto === null ? valor : ler(texto)
+            const base = Number.isFinite(atual) ? atual : valor
+            const v = arredonda(
+              limitar(base + (e.key === 'ArrowUp' ? passo : -passo), min, max),
+            )
+            setTexto(null)
+            onMudar(v)
+          }
         }}
         className="min-h-11 rounded-md border border-input bg-background px-3 text-base sm:min-h-9 sm:text-sm"
       />
@@ -324,9 +338,8 @@ function Editor({
     } catch {
       // navegador sem captura: o arrasto segue enquanto o ponteiro estiver em cima
     }
-    e.currentTarget
-      .closest<HTMLElement>('button')
-      ?.focus({ preventScroll: true })
+    // o foco vai para o botão da parte na lista "Partes do cartão": depois do clique, as setas já movem a parte
+    document.getElementById(`parte-${p.id}`)?.focus({ preventScroll: true })
     setEscolhida(p.id)
     arrasto.current = {
       id: p.id,
@@ -470,6 +483,7 @@ function Editor({
         descricao="Arraste cada parte para onde quiser e mude o tamanho pelo canto. Pelo teclado: escolha a parte e use as setas (Shift move mais)."
         trilha={[
           { rotulo: 'Associados', href: '/associados' },
+          { rotulo: 'Credenciais', href: '/associados/credenciais' },
           {
             rotulo: 'Criador de credencial',
             href: '/associados/credenciais/criador',
@@ -593,19 +607,18 @@ function Editor({
                 ...desenho.partes.filter((p) => p.tipo === 'faixa'),
                 ...desenho.partes.filter((p) => p.tipo !== 'faixa'),
               ].map((p) => (
-                <button
+                // a parte no cartão é só para o mouse e o dedo (arrastar); quem usa teclado ou leitor de tela escolhe pela lista "Partes do cartão",
+                // logo abaixo, de botões grandes — a parte miúda no cartão (3 mm de altura) não chega ao alvo mínimo de 24 px (WCAG 2.5.8)
+                <div
                   key={p.id}
-                  type="button"
-                  aria-label={`${nomeDaParte(p)}: ${numeroBR(p.x)} mm da esquerda, ${numeroBR(p.y)} mm do alto`}
-                  aria-pressed={p.id === escolhida}
-                  onClick={() => setEscolhida(p.id)}
+                  aria-hidden="true"
+                  data-arrastar={p.id}
                   onPointerDown={(e) => comecar(e, p, 'mover')}
                   onPointerMove={mover}
                   onPointerUp={soltar}
                   onPointerCancel={soltar}
-                  onKeyDown={(e) => teclar(e, p)}
                   className={cn(
-                    'absolute min-h-0 min-w-0 cursor-move touch-none rounded-[2px] p-0 outline-offset-0 hover:outline hover:outline-1 hover:outline-azul-texto/70 focus-visible:outline-2 focus-visible:outline-azul-texto',
+                    'absolute cursor-move touch-none rounded-[2px] outline-offset-0 hover:outline hover:outline-1 hover:outline-azul-texto/70',
                     p.id === escolhida &&
                       'outline-2 outline-brand-secondary outline',
                   )}
@@ -626,9 +639,46 @@ function Editor({
                       className="absolute -right-2 -bottom-2 h-4 w-4 cursor-nwse-resize rounded-sm border-2 border-white bg-brand-secondary shadow"
                     />
                   )}
-                </button>
+                </div>
               ))}
             </CartaoDesenhado>
+          </div>
+
+          <div
+            role="group"
+            aria-labelledby="titulo-partes"
+            className="flex flex-col gap-2"
+          >
+            <p id="titulo-partes" className="text-sm font-semibold">
+              Partes do cartão{' '}
+              <span className="font-normal text-muted-foreground">
+                (escolha uma e use as setas para mover)
+              </span>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                ...desenho.partes.filter((p) => p.tipo === 'faixa'),
+                ...desenho.partes.filter((p) => p.tipo !== 'faixa'),
+              ].map((p) => (
+                <button
+                  key={p.id}
+                  id={`parte-${p.id}`}
+                  type="button"
+                  aria-label={`${nomeDaParte(p)}: ${numeroBR(p.x)} mm da esquerda, ${numeroBR(p.y)} mm do alto`}
+                  aria-pressed={p.id === escolhida}
+                  onClick={() => setEscolhida(p.id)}
+                  onKeyDown={(e) => teclar(e, p)}
+                  className={cn(
+                    'inline-flex min-h-11 max-w-full items-center rounded-full border px-3 text-sm font-semibold break-words sm:min-h-9',
+                    p.id === escolhida
+                      ? 'border-brand-secondary bg-brand-secondary text-brand-secondary-foreground'
+                      : 'border-border bg-card hover:bg-muted',
+                  )}
+                >
+                  {nomeDaParte(p)}
+                </button>
+              ))}
+            </div>
           </div>
 
           <section

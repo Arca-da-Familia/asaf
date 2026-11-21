@@ -75,8 +75,8 @@ test('começar de um pronto, arrastar, recusar a cor difícil de ler, usar para 
     }),
   ).toBeVisible()
 
-  // o mouse arrasta "Associado desde" para baixo
-  const desde = page.getByRole('button', { name: /^Associado desde: / })
+  // o mouse arrasta "Associado desde" para baixo, no próprio cartão (a lista "Partes do cartão" é para o teclado e o leitor de tela)
+  const desde = page.locator('[data-arrastar="desde"]')
   const caixa = (await desde.boundingBox())!
   await page.mouse.move(caixa.x + caixa.width / 2, caixa.y + caixa.height / 2)
   await page.mouse.down()

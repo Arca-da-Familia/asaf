@@ -82,7 +82,7 @@ export const AJUDA: Record<string, AjudaDaTela> = {
       'Montar o desenho da credencial: onde fica cada parte (faixa, logo, foto, nome, matrícula, categoria, "associado desde", QR e textos), o tamanho e a cor.',
     passos: [
       'Arraste cada parte para onde quiser; o quadradinho no canto da parte escolhida muda o tamanho. As linhas azuis aparecem quando a parte se alinha com o centro, a borda ou outra parte.',
-      'Pelo teclado: escolha a parte e use as setas (Shift move mais). No painel da parte, os números ajustam lugar, tamanho, letra e cor.',
+      'Pelo teclado ou pelo leitor de tela: escolha a parte na lista "Partes do cartão", embaixo do cartão, e use as setas (Shift move mais). A lista também ajuda a pegar as partes miúdas no celular. No painel da parte, os números ajustam lugar, tamanho, letra e cor.',
       '"Cores prontas da faixa" troca a cor das faixas e a letra que fica em cima delas; "Acrescentar parte" põe um texto, uma faixa ou um dado que falta.',
       '"Guardar" guarda o modelo sem mudar nada nas credenciais; "Guardar e usar para todos" passa a valer para todas (o QR de cada uma não muda).',
     ],
@@ -94,7 +94,7 @@ export const AJUDA: Record<string, AjudaDaTela> = {
       'Montar o desenho da credencial: onde fica cada parte (faixa, logo, foto, nome, matrícula, categoria, "associado desde", QR e textos), o tamanho e a cor.',
     passos: [
       'Arraste cada parte para onde quiser; o quadradinho no canto da parte escolhida muda o tamanho. As linhas azuis aparecem quando a parte se alinha com o centro, a borda ou outra parte.',
-      'Pelo teclado: escolha a parte e use as setas (Shift move mais). No painel da parte, os números ajustam lugar, tamanho, letra e cor.',
+      'Pelo teclado ou pelo leitor de tela: escolha a parte na lista "Partes do cartão", embaixo do cartão, e use as setas (Shift move mais). A lista também ajuda a pegar as partes miúdas no celular. No painel da parte, os números ajustam lugar, tamanho, letra e cor.',
       '"Cores prontas da faixa" troca a cor das faixas e a letra que fica em cima delas; "Acrescentar parte" põe um texto, uma faixa ou um dado que falta.',
       '"Guardar" guarda o modelo sem mudar nada nas credenciais; "Guardar e usar para todos" passa a valer para todas (o QR de cada uma não muda).',
     ],
