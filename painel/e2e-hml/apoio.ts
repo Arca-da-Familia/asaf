@@ -87,6 +87,9 @@ export async function entrar(page: Page, papel: Papel): Promise<void> {
     `entrar como ${papel}`,
     async () => {
       await page.goto('/login')
+      // a homologação dorme sem uso (a API desliga): a 1ª visita do dia fica em "Carregando…" até ela acordar (22/11/2026: passou dos 45 s e
+      // derrubou o 1º robô da rodada). Espera a tela de entrar até 2 minutos; o resto do roteiro segue com o tempo de sempre.
+      await expect(page.getByLabel('CPF')).toBeVisible({ timeout: 120_000 })
       await page.getByLabel('CPF').fill(CPF[papel])
       await page.getByLabel('Senha').fill(senhaDe(papel))
       await page.getByRole('button', { name: 'Entrar', exact: true }).click()
