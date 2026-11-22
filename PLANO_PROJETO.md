@@ -2568,6 +2568,38 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       e quem entra no meio paga o resto do semestre; o semestral tem valor próprio cadastrado, mudado só por decisão registrada, como o mensal.
       Depois, a casca do módulo (o menu de cinco grupos + "mais usados", padrão de todos os módulos, e a Visão geral) e as telas, uma versão por
       grupo.
+- [x] v9.6a — A COBRANÇA RESPEITA A PERIODICIDADE: planos MENSAL e SEMESTRAL, cada associado escolhe o seu (decisões do Presidente de 21/11).
+      **[FEITO (2026-11-21) — Cada categoria tem UM plano ativo por forma de pagamento (o cadastro recusa o segundo com a explicação; para trocar,
+      desativa-se o atual — botões Desativar/Reativar no cartão do plano, auditados). O plano semestral exige a conta de RECEITA A RECONHECER (Passivo):
+      o dinheiro do semestre entra nela e vira receita mês a mês. Na ficha do associado (aba Situação), o cartão "Contribuição" mostra as formas
+      que a categoria dele oferece ("R$ 330,00 em janeiro e julho, vencimento dia 10") e guarda a escolha (Auditoria CONTRIBUICAO_ALTERADA;
+      quem tem permissão de associados ou de financeiro). A cobrança do mês cobra cada associado pelo plano da categoria E da forma dele: o mensal
+      todo mês; o semestral em janeiro (jan–jun) e julho (jul–dez), igual para todos; quem passa a pagar semestral no meio paga só o resto do
+      semestre, a partir do mês em que é cobrado ("proporcional: 3 de 6 meses"), e se já há mês do semestre cobrado, o título para antes dele.
+      Nada sai em dobro: quem tem título do mês ou do semestre não é cobrado de novo. Quando algum associado fica sem cobrança (a forma dele sem
+      plano ativo, dois planos ativos iguais, plano semestral sem a conta), a prévia mostra o aviso "Atenção: nem todos foram cobrados" e a
+      lista de quem ficou de fora (os nomes só na tela, nunca no aviso gravado nem no registro da tarefa mensal). A receita do semestre é
+      reconhecida todo mês pela tarefa mensal, inclusive os meses atrasados quando o pagamento chega depois (nunca passa do valor do título).
+      Colunas `associados.periodicidade_contribuicao` (todos começam "Mensal", que era o que já se cobrava) e
+      `planos_contribuicao.id_conta_contabil_receita_diferida`, opção "Semestral" no catálogo (migração `a9c3e5f7b1d2`); rotas
+      `PUT /api/planos-contribuicao/{id_plano}/ativo` e `GET/PUT /api/associados/{id_associado}/contribuicao`. A homologação ganhou o plano
+      semestral de teste e 6 associados no semestral. Fica para depois (texto, não regra): a mesclagem de cadastros chama o título do semestre
+      de "pagamento antecipado"]**
+      **Homologação**: duas montagens. 1ª (`e5a04fd`): v5.4e-02, v9.1a-01, v9.3a-01 e v7.3b-01 verdes; o robô novo v9.6a-01 (preparo pela
+      tela; o plano semestral recusado sem a conta de receita a reconhecer, aceito com ela, "cobrado em janeiro e julho", o segundo igual
+      recusado pelo servidor, Desativar/Reativar; a ficha com as duas formas, a mudança para semestral, a forma que a categoria não tem
+      recusada, a Auditoria; a prévia da cobrança: janeiro cobra o semestre inteiro, um mês do meio cobra o resto, sem o plano semestral o
+      aviso diz quem ficou de fora) reprovou duas vezes pelo próprio robô (o espaço inseparável do valor em reais; a Auditoria geral conferida
+      pelo tesoureiro, que não tem essa permissão e recebe "Acesso negado", como deve) -> `2b47f2c`, `ae6ee26`, e passou. Os prints mostraram
+      dois defeitos do sistema: depois de guardar a forma de pagamento, a ficha marcava a forma antiga com o botão em "Salvando" até a
+      releitura chegar, e a Auditoria da mudança não tinha o endereço de rede -> `211c696`. 2ª (`211c696`): v9.1a-01 e v9.3a-01 verdes;
+      v9.6a-01 reprovou na 1ª visita do dia (a homologação dorme sem uso e a tela de entrar ficou em "Carregando" mais de 45 s) -> `e4f5dd0`
+      (o robô espera até 2 minutos pela tela de entrar) e passou; prints conferidos (o Semestral marcado na hora, com o botão desligado; a
+      Auditoria de 22/11 16:02 com o endereço de rede; a Auditoria dos planos). Servidor 2018 testes em duas rodadas; painel 1074 em duas.
+      **Produção**: `e4f5dd0` — Deploy API e Deploy Painel verdes; `painel.asaf.org.br/version.json` = `e4f5dd0`; no `openapi.json` estão
+      `GET/PUT /api/associados/{id_associado}/contribuicao` e `PUT /api/planos-contribuicao/{id_plano}/ativo`; a contribuição e a lista de
+      planos sem login = 401. Só leitura: nenhum plano nem associado de teste em produção; todos os associados ficam no "Mensal", como já se
+      cobrava. O plano semestral de verdade ainda não existe em produção: cadastra-se na tela de Planos, com o valor decidido.
 - [ ] Etapa 3 · módulo a módulo: cada módulo numa rodada própria de escolha, com todas as telas dele. As escolhas da rodada 2 estão guardadas
       no artefato para quando cada módulo chegar: Financeiro (notebook "saldo em destaque e botões de ação", celular "saldo verde e atalhos"),
       Associados (tabela com abas; cartões no celular), Ficha (cabeçalho, abas e três colunas; abas no alto no celular), Formulário (passo a
