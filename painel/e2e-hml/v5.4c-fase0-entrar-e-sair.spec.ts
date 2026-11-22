@@ -5,6 +5,7 @@ import {
   exigirHomologacao,
   FAIXA_DE_TESTE,
   sair,
+  saudacaoDoInicio,
   ver,
   vigiar,
 } from './apoio'
@@ -47,7 +48,8 @@ test('o Presidente entra só com CPF e senha (sem segundo passo), vê o início 
   await entrar(page, 'presidente')
   await expect(page).toHaveURL(/\/$/)
   await expect(page.locator(FAIXA_DE_TESTE)).toContainText('AMBIENTE DE TESTE')
-  await expect(page.getByText('Marta Souza de Teste').first()).toBeVisible()
+  // v9.5b: o Início saúda pelo primeiro nome ("Boa tarde, Marta"), não mais pelo nome completo
+  await expect(saudacaoDoInicio(page, 'Marta')).toBeVisible()
   // sem segundo passo: nada de tela de configuração do autenticador
   await expect(page).not.toHaveURL(/mfa/)
   await ver(page, info, 'inicio do Presidente de teste')
