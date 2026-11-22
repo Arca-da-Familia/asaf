@@ -1,6 +1,7 @@
 import {
   expect,
   test,
+  type APIResponse,
   type Locator,
   type Page,
   type Response as Resposta,
@@ -151,7 +152,11 @@ async function acionar(
 }
 
 /** O número que o servidor devolveu ao criar (id_solicitacao, id_cotacao...), conferindo que a criação foi aceita. */
-async function idDe(resposta: Resposta, chave: string): Promise<number> {
+// a resposta de uma tela (Response) ou de uma chamada direta à API de teste (APIResponse): só text(), ok() e status() são usados
+async function idDe(
+  resposta: Resposta | APIResponse,
+  chave: string,
+): Promise<number> {
   const texto = await resposta.text()
   expect(
     resposta.ok(),
