@@ -531,11 +531,16 @@ async function inativarAlcadasDeTeste(
 ): Promise<number> {
   const carregou = aguardar(page, 'GET', /\/api\/alcadas-aprovacao\/$/)
   await abrirTela(page, '/financeiro/alcadas-aprovacao', 'Alçadas de Aprovação')
-  await carregou
-  await expect(page.getByRole('tab', { name: /^Em vigor/ })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  )
+  const lista = (await (await carregou).json()) as { ativo: boolean }[]
+  // a tela antiga não tem "Carregando": até a lista chegar ela mostra "Em vigor (0)". Espera a aba mostrar o número que o servidor devolveu
+  // (em 23/11/2026 o robô contou antes da lista aparecer, achou 0 faixas e reprovou)
+  const emVigorNoServidor = lista.filter((a) => a.ativo).length
+  await expect(
+    page.getByRole('tab', {
+      name: `Em vigor (${emVigorNoServidor})`,
+      exact: true,
+    }),
+  ).toHaveAttribute('aria-selected', 'true')
   const ativas = () =>
     cartaoDe(page, padrao).filter({
       has: page.getByText('Ativa', { exact: true }),
