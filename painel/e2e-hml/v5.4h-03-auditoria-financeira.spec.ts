@@ -426,11 +426,9 @@ test('quem não é do Financeiro (Secretário) é barrado; a Auditoria do sistem
   // decisões: 1ª aprovação, ressalva, reprovação, 2ª aprovação, discordância do 3º, reabertura (6) + 2 lotes = 8
   expect(total - totalAntes, 'oito ações novas na Auditoria').toBe(8)
   await expect(
+    // v9.3f: a Auditoria mostra a ação em português ("Decisão da auditoria financeira") e guarda o código em data-acao
     page.getByRole('row').filter({
-      has: page.getByRole('cell', {
-        name: ROTULO_DA_ENTRADA_NA_AUDITORIA,
-        exact: true,
-      }),
+      has: page.locator(`[data-acao="${ROTULO_DA_ENTRADA_NA_AUDITORIA}"]`),
     }),
   ).not.toHaveCount(0)
   await expect(
