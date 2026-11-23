@@ -20,6 +20,8 @@ test('a tela de entrada mostra a faixa de teste e recusa CPF inválido e senha e
 }, info) => {
   const vigia = vigiar(page)
   await page.goto('/login')
+  // a homologação dorme sem uso e a 1ª visita do dia fica em "Carregando" por mais de 30 s (como em `entrar`, do apoio): espera até 2 minutos
+  await expect(page.getByLabel('CPF')).toBeVisible({ timeout: 120_000 })
   await expect(page.locator(FAIXA_DE_TESTE)).toContainText('AMBIENTE DE TESTE')
   await expect(page).toHaveTitle(/\[TESTE\]/)
   await ver(page, info, 'tela de entrada com a faixa de teste')
