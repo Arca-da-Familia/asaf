@@ -193,8 +193,9 @@ function ItemDaLista({
   )
 }
 
-// "Seus mais usados · automático": os quadradinhos (o ícone em cima do nome), 2 colunas no computador e 4 na gaveta do celular (como os desenhos
-// escolhidos). São atalhos: a tela continua no grupo dela. Na gaveta estreita, o nome comprido se divide com hífen ("contri-buição"); no computador cabe inteiro.
+// "Seus mais usados · automático": os quadradinhos, como os desenhos escolhidos (rodada 7b): no computador, 2 colunas com o ícone AO LADO do nome,
+// em linhas de 46 px; na gaveta do celular, 4 colunas com o ícone em cima do nome (achado da revisão de 23/11/2026: o computador saía com o ícone em cima).
+// São atalhos: a tela continua no grupo dela. Na gaveta estreita, o nome comprido se divide com hífen ("contri-buição"); no computador cabe inteiro.
 function SeusMaisUsados({
   itens,
   aoNavegar,
@@ -225,7 +226,7 @@ function SeusMaisUsados({
               <Link
                 to={item.rota}
                 onClick={aoNavegar}
-                className="flex h-full min-h-11 flex-col items-center justify-center gap-1 rounded-[10px] bg-barra-2 px-0.5 py-2 text-center text-xs leading-tight font-bold text-barra-foreground hover:ring-1 hover:ring-barra-suave lg:px-1.5"
+                className="flex h-full min-h-11 flex-col items-center justify-center gap-1 rounded-[10px] bg-barra-2 px-0.5 py-2 text-center text-xs leading-tight font-bold text-barra-foreground hover:ring-1 hover:ring-barra-suave lg:min-h-[46px] lg:flex-row lg:justify-start lg:gap-2 lg:px-2.5 lg:py-1 lg:text-left lg:text-[13px]"
               >
                 <item.icone
                   aria-hidden="true"

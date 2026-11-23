@@ -17,6 +17,7 @@ from app.models.compras import ReembolsoDespesa
 from app.models.conselho_fiscal import QuestionamentoLancamento
 from app.models.fechamento import FechamentoMensal
 from app.models.financeiro import ContaFinanceira, PlanoDeContas, PlanoDeContribuicao, TituloFinanceiro
+from app.routers import financeiro as financeiro_router
 from app.services import compras as compras_service
 from app.services.lancamento_tardio import hoje_da_associacao
 from tests.test_compras import _criar_alcada, _criar_conta, _criar_fornecedor, _criar_solicitacao, _criar_usuario_com_mandato
@@ -52,8 +53,8 @@ def test_so_quem_opera_le_as_pendencias(client, auth_headers, db):
     assert corpo["hoje"] == hoje_da_associacao(db).isoformat()
 
 
-def test_compras_que_esperam_a_minha_assinatura(client, auth_headers, db):
-    conta = _criar_conta(client, auth_headers, f"4.1.96{uuid.uuid4().int % 100:02d}", "Despesa")
+def test_compras_que_esperam_a_minha_assinatura(client, auth_headers, db, monkeypatch):
+    conta = _criar_conta(client, auth_headers, f"4.1.96.{uuid.uuid4().hex[:8]}", "Despesa")
     fornecedor = _criar_fornecedor(client, auth_headers, "9601")
     # faixa só deste teste, abaixo do valor que exige cotação, com dupla assinatura (1º Tesoureiro e Presidente; cada cargo tem uma vaga só)
     _criar_alcada(client, auth_headers, ["TESOUREIRO", "PRESIDENTE"], valor_minimo=641, valor_maximo=649, dupla=True)
@@ -92,18 +93,20 @@ def test_compras_que_esperam_a_minha_assinatura(client, auth_headers, db):
         assert item["solicitacao"].id_solicitacao not in (pedido, pedido_de_a)
     db.rollback()
 
+    # o resumo da janela "Aprovar": valor, fornecedor, a regra da alçada e quem já assinou. A Visão geral mostra até 20 pedidos, do mais antigo
+    # para o mais novo, e o banco dos testes tem pedidos mais antigos na frente: aqui o limite sobe, para o pedido deste teste estar sempre na lista
+    monkeypatch.setattr(financeiro_router, "_MAXIMO_DE_COMPRAS_NA_VISAO_GERAL", 100_000)
     corpo_b = _pendencias(client, tesoureiro_b)
     itens_b = {i["id_solicitacao"]: i for i in corpo_b["compras_para_aprovar"]["itens"]}
-    # o resumo da janela "Aprovar": valor, fornecedor, a regra da alçada e quem já assinou (a Visão geral mostra até 20 pedidos e o banco dos testes
-    # pode ter pedidos mais antigos na frente; o serviço sem limite é conferido no teste seguinte)
-    if pedido in itens_b:
-        item = itens_b[pedido]
-        assert Decimal(str(item["valor"])) == Decimal("645")
-        assert item["fornecedor"] == "Fornecedor Teste Compras"
-        assert item["alcada"]["exigidas"] == 2
-        assert item["alcada"]["cargos"] == "Presidente, 1º Tesoureiro"
-        assert [a["nome"] for a in item["assinaturas"]] == [nome_de_a]
-        assert item["faltam_cotacoes"] == 0
+    assert pedido in itens_b
+    item = itens_b[pedido]
+    assert Decimal(str(item["valor"])) == Decimal("645")
+    assert item["fornecedor"] == "Fornecedor Teste Compras"
+    assert item["alcada"]["exigidas"] == 2
+    assert item["alcada"]["cargos"] == "Presidente, 1º Tesoureiro"
+    assert [a["nome"] for a in item["assinaturas"]] == [nome_de_a]
+    assert item["faltam_cotacoes"] == 0
+    monkeypatch.undo()
 
     # o B assina: o pedido fica aprovado e sai da lista de todo mundo
     r = client.post(f"/api/solicitacoes-compra/{pedido}/aprovar", headers=tesoureiro_b)
@@ -115,7 +118,7 @@ def test_compras_que_esperam_a_minha_assinatura(client, auth_headers, db):
 
 def test_o_resumo_do_pedido_vem_do_servico_sem_limite(client, auth_headers, db):
     """O serviço (sem o limite de 20 da Visão geral) devolve o pedido com a alçada, as cotações que faltam e quem já assinou."""
-    conta = _criar_conta(client, auth_headers, f"4.1.97{uuid.uuid4().int % 100:02d}", "Despesa")
+    conta = _criar_conta(client, auth_headers, f"4.1.97.{uuid.uuid4().hex[:8]}", "Despesa")
     fornecedor = _criar_fornecedor(client, auth_headers, "9602")
     # valor que exige 2 cotações (o padrão é a partir de R$ 1.000,00): a janela avisa que faltam
     _criar_alcada(client, auth_headers, ["TESOUREIRO"], valor_minimo=1641, valor_maximo=1649)
@@ -139,8 +142,8 @@ def test_mensalidades_e_contas_a_pagar_em_atraso(client, auth_headers, db):
     hoje = hoje_da_associacao(db)
     meia_noite = datetime(hoje.year, hoje.month, hoje.day)
 
-    receita = _criar_conta(client, auth_headers, f"3.1.96{uuid.uuid4().int % 100:02d}", "Receita")
-    despesa = _criar_conta(client, auth_headers, f"4.1.98{uuid.uuid4().int % 100:02d}", "Despesa")
+    receita = _criar_conta(client, auth_headers, f"3.1.96.{uuid.uuid4().hex[:8]}", "Receita")
+    despesa = _criar_conta(client, auth_headers, f"4.1.98.{uuid.uuid4().hex[:8]}", "Despesa")
     fornecedor = _criar_fornecedor(client, auth_headers, "9603")
     associado = _criar_associado(client)["id_associado"]
     # (o que vai direto ao banco vem depois dos pedidos à API: o SQLite dos testes trava com uma escrita aberta)
@@ -188,7 +191,7 @@ def test_reembolsos_perguntas_extrato_e_pix(client, auth_headers, db):
     headers = _usuario(db, "financeiro")
     antes = _pendencias(client, headers)
 
-    despesa = _criar_conta(client, auth_headers, f"4.1.99{uuid.uuid4().int % 100:02d}", "Despesa")
+    despesa = _criar_conta(client, auth_headers, f"4.1.99.{uuid.uuid4().hex[:8]}", "Despesa")
     beneficiario, tesoureiro = _criar_usuario_com_mandato(client, auth_headers, "TESOUREIRO")
     from app.models.associados import Associado
 

@@ -1348,6 +1348,8 @@ def pendencias_do_financeiro(db: Session = Depends(get_db), usuario=Depends(_per
     nomes = {a.id_usuario: a.nome_completo for a in db.query(Associado).filter(Associado.id_usuario.in_(ids_usuarios)).all()} if ids_usuarios else {}
     emails = {u.id_usuario: u.email for u in db.query(Usuario).filter(Usuario.id_usuario.in_(ids_usuarios)).all()} if ids_usuarios else {}
 
+    # a mesma regra da trilha de aprovação em Compras (GET /api/solicitacoes-compra/{id}/aprovacoes): o nome do associado e, sem associado,
+    # o e-mail de acesso; a rota exige `financeiro`, que já vê esse e-mail em Compras (conferido na revisão de 23/11/2026)
     def _nome(id_do_usuario: Optional[int]) -> Optional[str]:
         return (nomes.get(id_do_usuario) or emails.get(id_do_usuario)) if id_do_usuario else None
 

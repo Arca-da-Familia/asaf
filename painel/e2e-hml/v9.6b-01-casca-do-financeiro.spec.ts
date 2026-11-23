@@ -218,6 +218,16 @@ test('o Tesoureiro: a Visão geral, os números do menu, a janela de aprovar, os
     page.getByRole('heading', { name: 'Visão geral', level: 1 }),
   ).toBeVisible()
   await expect(maisUsados(page)).toHaveText(['Saídas', 'Gerar cobranças'])
+  // no computador, como o desenho escolhido: o ícone AO LADO do nome, na mesma linha (na gaveta do celular ele fica em cima)
+  for (const atalho of await maisUsados(page).all()) {
+    const icone = await atalho.locator('svg').boundingBox()
+    const nome = await atalho.locator('span').boundingBox()
+    expect(icone && nome).toBeTruthy()
+    expect(icone!.x + icone!.width).toBeLessThanOrEqual(nome!.x + 1)
+    expect(
+      Math.abs(icone!.y + icone!.height / 2 - (nome!.y + nome!.height / 2)),
+    ).toBeLessThan(6)
+  }
   // nos lugares, um "mais usado" é sempre uma das telas que ele abriu
   for (const chave of await page
     .locator('li[data-estado="usado"]')

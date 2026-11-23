@@ -369,8 +369,6 @@ function JanelaDeAprovar({
       document.getElementById(`${base}-resultado-${ultimo}`)?.focus()
   }, [ultimo, base])
 
-  const primeiroAprovavel = pedidos.find((c) => c.faltam_cotacoes === 0)
-
   return (
     <DialogoDeFormulario
       titulo={
@@ -452,7 +450,6 @@ function JanelaDeAprovar({
                   type="button"
                   className="mt-2 min-h-11 sm:min-h-9"
                   disabled={aprovar.isPending}
-                  autoFocus={c === primeiroAprovavel}
                   onClick={() => aprovar.mutate(c.id_solicitacao)}
                 >
                   {aprovar.isPending && aprovar.variables === c.id_solicitacao

@@ -481,7 +481,9 @@ describe('Visão geral do Financeiro: a janela de aprovar (v9.6b)', () => {
     const botao = within(primeiro).getByRole('button', {
       name: 'Aprovar este pedido',
     })
-    expect(botao).toHaveFocus()
+    // achado da revisão de 23/11/2026: a janela abre com o foco nela mesma, nunca no "Aprovar" (um Enter sem querer assinaria o pedido)
+    expect(janela).toHaveFocus()
+    expect(botao).not.toHaveFocus()
     await userEvent.click(botao)
     expect(api.aprovarSolicitacaoCompra).toHaveBeenCalledTimes(1)
     expect(vi.mocked(api.aprovarSolicitacaoCompra).mock.calls[0]?.[0]).toBe(41)
