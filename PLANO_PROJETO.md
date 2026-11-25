@@ -2600,6 +2600,24 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       `GET/PUT /api/associados/{id_associado}/contribuicao` e `PUT /api/planos-contribuicao/{id_plano}/ativo`; a contribuição e a lista de
       planos sem login = 401. Só leitura: nenhum plano nem associado de teste em produção; todos os associados ficam no "Mensal", como já se
       cobrava. O plano semestral de verdade ainda não existe em produção: cadastra-se na tela de Planos, com o valor decidido.
+- [x] v9.6b — A CASCA DO MÓDULO FINANCEIRO: o menu de cinco grupos com os "mais usados" (o padrão de todos os módulos) e a Visão geral
+      (escolhas da rodada 7b: `fin-menu-2` e `fin-inicio-2`). **[FEITO (2026-11-25) — O menu do módulo tem a Visão geral fixa e 5 grupos
+      (Dia a dia, Rotina do mês, Cadastros, Relatórios, Controle) em lista suspensa, só o grupo da tela aberta aberto, e recolhe em ícones com a
+      lista do grupo ao lado. Números de pendência em Compras, Doações, Reembolsos e Conciliação bancária, de `GET /api/financeiro/pendencias`
+      (só quem tem `financeiro`): as compras contadas são as que esperam a assinatura DA PESSOA, pela mesma regra de aprovar (alçada, cargo,
+      delegação; quem pede não aprova); os reembolsos não contam os que a pessoa pediu nem os que vai receber. Os números se atualizam depois de
+      qualquer ação que deu certo, em qualquer tela. Quem só audita (Conselho Fiscal) recebe 403 na rota e vê só as 3 telas dele. Os "mais
+      usados" ficam só no navegador (por pessoa, 30 dias), com o ícone ao lado do nome no computador. A Visão geral mostra o saldo nas contas
+      e até 6 lugares na ordem das cores (vermelho = em atraso, amarelo = precisa de você, verde = seu mais usado), cada um com o botão da
+      ação; "Aprovar" abre a janela com o resumo do pedido (o foco fica na janela, nunca no botão de aprovar); no celular, 4 lugares.]**
+      **Homologação**: `71bfe02` — v9.6b-01, v5.4c-fase0, v5.4e-03, v5.4h-03, v5.4e-01 e v5.4h-08 verdes (os 3 robôs velhos que tinham
+      reprovado na montagem anterior já estavam corrigidos). Os prints mostraram que, nos mais usados do computador, "Gerar cobranças" deixava
+      o "s" sozinho na outra linha (sobravam 66 px e a palavra mede 67) -> `d953453` (letra de 12 px, ícone de 16 px, margens menores: sobram
+      ~75 px; palavra maior divide com hífen; o robô do celular passou a esperar o saldo, que saíra como "…" no print) e v9.6b-01 verde de novo,
+      prints conferidos ("Gerar cobranças" inteiro; o saldo no celular). Revisor do portão: aprovado para a produção. Servidor 2023 testes em
+      duas rodadas; painel 1123 em duas (e de novo em duas depois de `d953453`).
+      **Produção**: `fc624fc` (a v9.6b `d953453` + a main `8346e05`, só documento) — Deploy API e Deploy Painel verdes;
+      `painel.asaf.org.br/version.json` = `fc624fc`; `GET /api/financeiro/pendencias` está no `openapi.json` e sem login = 401. Só leitura.
 - [ ] Etapa 3 · módulo a módulo: cada módulo numa rodada própria de escolha, com todas as telas dele. As escolhas da rodada 2 estão guardadas
       no artefato para quando cada módulo chegar: Financeiro (notebook "saldo em destaque e botões de ação", celular "saldo verde e atalhos"),
       Associados (tabela com abas; cartões no celular), Ficha (cabeçalho, abas e três colunas; abas no alto no celular), Formulário (passo a

@@ -4337,6 +4337,63 @@ export function fecharMes(dados: {
 }
 
 // ---------------------------------------------------------------------------
+// v9.6b - as pendências do Financeiro: os lugares que mudam sozinhos na Visão geral e os números ao lado das telas no menu do módulo. Só de quem
+// opera (`financeiro`); quem só audita recebe 403 (e nem chega a pedir: a tela dele é o Conselho Fiscal). Só contagens e somas, sem nome de
+// associado. As compras são as que esperam a assinatura de QUEM PEDE (alçada, cargo e delegação); aprovar continua sendo
+// `aprovarSolicitacaoCompra`, que o servidor revalida.
+// ---------------------------------------------------------------------------
+export type CompraParaAprovar = {
+  id_solicitacao: number
+  descricao: string
+  valor: number
+  fornecedor: string | null
+  data_solicitacao: string | null
+  solicitante: string | null
+  alcada: {
+    valor_minimo: number
+    valor_maximo: number | null
+    cargos: string
+    exigidas: number
+  }
+  assinaturas: { nome: string | null; data: string | null }[]
+  faltam_cotacoes: number
+}
+
+// a chave de cada número do menu (a `pendencia` de um item em lib/modulos.ts)
+export type ChaveDePendencia =
+  'compras' | 'doacoes' | 'reembolsos' | 'conciliacao'
+
+export type PendenciasDoFinanceiro = {
+  hoje: string
+  compras_para_aprovar: { total: number; itens: CompraParaAprovar[] }
+  pix_do_site: { a_conferir: number; vencidos: number }
+  mensalidades_em_atraso: { titulos: number; associados: number; soma: number }
+  a_pagar_vencidas: {
+    total: number
+    soma: number
+    mais_antiga: {
+      id_titulo: number
+      descricao: string
+      fornecedor: string | null
+      valor: number
+      vencimento: string
+    } | null
+  }
+  reembolsos_para_decidir: { total: number }
+  perguntas_sem_resposta: {
+    total: number
+    mes_mais_antigo: string | null
+    da_auditoria: boolean
+  }
+  extrato_sem_fechar: { competencia: string; contas: number; nomes: string[] }
+  contadores: Record<ChaveDePendencia, number>
+}
+
+export function obterPendenciasDoFinanceiro(): Promise<PendenciasDoFinanceiro> {
+  return apiFetch('/api/financeiro/pendencias')
+}
+
+// ---------------------------------------------------------------------------
 // v4.1 (FASE 4) - Projeto como entidade única e configurável: cronograma (status sempre
 // derivado, nunca escolhido à mão), equipe com papel, orçamento via centro de custo (reaproveita
 // Orcamento, v3.5) e encerramento formal versionado (mesmo padrão de PrestacaoDeContas, v3.6).

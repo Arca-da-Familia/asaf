@@ -11,6 +11,7 @@ import {
   senhaDe,
   ver,
   vigiar,
+  abrirNoMenuDoModulo,
 } from './apoio'
 
 // v5.4h - Auditoria financeira do Conselho Fiscal: os três conselheiros conferem, título a título, as entradas e saídas do mês.
@@ -194,10 +195,9 @@ test('o 1º conselheiro abre a Auditoria financeira pelo menu, vê o resumo do m
   const vigia = vigiar(page)
   await entrar(page, 'conselheiro')
   await page.getByRole('link', { name: 'Financeiro' }).first().click()
-  await page
-    .getByRole('complementary')
-    .getByRole('link', { name: 'Auditoria financeira', exact: true })
-    .click()
+  // quem só audita cai no Conselho Fiscal; v9.6b: a Auditoria financeira fica no grupo "Controle" do menu do módulo
+  await expect(page).toHaveURL(/\/financeiro\/conselho-fiscal$/)
+  await abrirNoMenuDoModulo(page, 'Controle', 'Auditoria financeira')
   await expect(
     page.getByRole('heading', { name: 'Auditoria financeira', level: 1 }),
   ).toBeVisible()
@@ -426,11 +426,9 @@ test('quem não é do Financeiro (Secretário) é barrado; a Auditoria do sistem
   // decisões: 1ª aprovação, ressalva, reprovação, 2ª aprovação, discordância do 3º, reabertura (6) + 2 lotes = 8
   expect(total - totalAntes, 'oito ações novas na Auditoria').toBe(8)
   await expect(
+    // v9.3f: a Auditoria mostra a ação em português ("Decisão da auditoria financeira") e guarda o código em data-acao
     page.getByRole('row').filter({
-      has: page.getByRole('cell', {
-        name: ROTULO_DA_ENTRADA_NA_AUDITORIA,
-        exact: true,
-      }),
+      has: page.locator(`[data-acao="${ROTULO_DA_ENTRADA_NA_AUDITORIA}"]`),
     }),
   ).not.toHaveCount(0)
   await expect(

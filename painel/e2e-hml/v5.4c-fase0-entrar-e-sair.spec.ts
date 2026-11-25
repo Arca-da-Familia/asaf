@@ -5,6 +5,7 @@ import {
   exigirHomologacao,
   FAIXA_DE_TESTE,
   sair,
+  saudacaoDoInicio,
   ver,
   vigiar,
 } from './apoio'
@@ -19,6 +20,8 @@ test('a tela de entrada mostra a faixa de teste e recusa CPF inválido e senha e
 }, info) => {
   const vigia = vigiar(page)
   await page.goto('/login')
+  // a homologação dorme sem uso e a 1ª visita do dia fica em "Carregando" por mais de 30 s (como em `entrar`, do apoio): espera até 2 minutos
+  await expect(page.getByLabel('CPF')).toBeVisible({ timeout: 120_000 })
   await expect(page.locator(FAIXA_DE_TESTE)).toContainText('AMBIENTE DE TESTE')
   await expect(page).toHaveTitle(/\[TESTE\]/)
   await ver(page, info, 'tela de entrada com a faixa de teste')
@@ -47,7 +50,8 @@ test('o Presidente entra só com CPF e senha (sem segundo passo), vê o início 
   await entrar(page, 'presidente')
   await expect(page).toHaveURL(/\/$/)
   await expect(page.locator(FAIXA_DE_TESTE)).toContainText('AMBIENTE DE TESTE')
-  await expect(page.getByText('Marta Souza de Teste').first()).toBeVisible()
+  // v9.5b: o Início saúda pelo primeiro nome ("Boa tarde, Marta"), não mais pelo nome completo
+  await expect(saudacaoDoInicio(page, 'Marta')).toBeVisible()
   // sem segundo passo: nada de tela de configuração do autenticador
   await expect(page).not.toHaveURL(/mfa/)
   await ver(page, info, 'inicio do Presidente de teste')
@@ -142,11 +146,9 @@ test('o Tesoureiro de teste enxerga financeiro e parcerias, e documentos lhe é 
   await ver(page, info, 'Tesoureiro em documentos: acesso negado')
 
   await page.goto('/financeiro')
+  // v9.6b: o Início do Financeiro é a Visão geral
   await expect(
-    page
-      .getByRole('heading', { name: 'Início' })
-      .or(page.getByRole('heading', { name: /Financeiro/ }))
-      .first(),
+    page.getByRole('heading', { name: 'Visão geral', level: 1 }),
   ).toBeVisible()
   await ver(page, info, 'Tesoureiro no financeiro')
   expect(vigia.problemas()).toEqual([])

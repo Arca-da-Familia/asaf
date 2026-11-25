@@ -23,6 +23,7 @@ import {
 } from '@/lib/catalogos-visiveis'
 import { mensagens } from '@/lib/i18n/pt-BR'
 import { useTabelasEmCartoes } from '@/lib/tabelas-em-cartoes'
+import { useContarAberturaDaTela } from '@/lib/mais-usados'
 import {
   guardarMenuRecolhido,
   lerMenuRecolhido,
@@ -30,6 +31,7 @@ import {
   navNaColuna,
 } from '@/lib/menu-do-modulo'
 import { modulos } from '@/lib/modulos'
+import { usePendenciasDoModulo } from '@/lib/pendencias-do-modulo'
 import { useTheme } from '@/lib/theme'
 import { useMe } from '@/lib/use-me'
 import { useVersaoBuild } from '@/lib/versao'
@@ -161,6 +163,13 @@ export function Shell() {
   // v9.5b (decisão do Presidente, rodada 2, 13/11): o Início e as telas pessoais não têm coluna à esquerda; ela só aparece dentro de um módulo (ou de
   // Configurações). Os atalhos pessoais que moravam nela foram para a lista suspensa do botão com o nome da pessoa (MenuPessoal).
   const temColuna = !!moduloAtivo || emConfiguracoes
+  const permissoes = data?.permissoes ?? []
+  // v9.6b: os números de pendência do menu do módulo (só do Financeiro, por enquanto, e só para quem opera)
+  const contadores = usePendenciasDoModulo(moduloAtivo, permissoes)
+
+  // v9.6b: cada tela aberta de um módulo com o menu novo conta para os "Seus mais usados" desta pessoa (lib/mais-usados.ts)
+  const idUsuario = data?.id_usuario
+  useContarAberturaDaTela(moduloAtivo, permissoes, idUsuario, location.pathname)
   const emImpersonacao = !!data?.impersonando
   // v9.3b: no celular as tabelas do conteúdo viram cartões empilhados (lib/tabelas-em-cartoes.ts)
   const conteudo = useRef<HTMLElement>(null)
@@ -304,11 +313,12 @@ export function Shell() {
       )}
 
       {/* Navegação lateral (vira gaveta abaixo de 1024px) - só dentro de um módulo ou de Configurações (v9.5b). v9.5c: a coluna é verde, com os grupos do
-          módulo em lista suspensa; no notebook o botão do alto a recolhe em ícones. A gaveta do celular abre sempre inteira (os nomes ajudam no toque). */}
+          módulo em lista suspensa; no notebook o botão do alto a recolhe em ícones. A gaveta do celular abre sempre inteira (os nomes ajudam no toque).
+          v9.6b: a gaveta tem 312 px (o desenho escolhido; nunca mais que 85% da tela) e a faixa recolhida usa a largura toda (um botão de 70 px por grupo). */}
       {temColuna && (
         <aside
           className={cn(
-            'fixed bottom-0 left-0 z-40 flex w-64 flex-col bg-barra text-barra-foreground transition-[transform,width] lg:translate-x-0',
+            'fixed bottom-0 left-0 z-40 flex w-78 max-w-[85vw] flex-col bg-barra text-barra-foreground transition-[transform,width] lg:max-w-none lg:translate-x-0',
             emImpersonacao ? 'top-[6.5rem]' : 'top-16',
             mobileOpen ? 'translate-x-0' : '-translate-x-full',
             collapsed ? 'lg:w-[76px]' : 'lg:w-64',
@@ -324,20 +334,22 @@ export function Shell() {
                     : 'Telas de Configurações'
                 }
                 className={cn(
-                  'flex-1 flex-col gap-0.5 overflow-y-auto p-3',
+                  'flex-1 flex-col gap-0.5 overflow-y-auto',
                   recolhido
-                    ? 'hidden lg:flex'
+                    ? 'hidden px-[3px] py-3 lg:flex'
                     : collapsed
-                      ? 'flex lg:hidden'
-                      : 'flex',
+                      ? 'flex p-3 lg:hidden'
+                      : 'flex p-3',
                 )}
               >
                 {moduloAtivo ? (
                   <MenuDoModulo
                     modulo={moduloAtivo}
-                    permissoes={data?.permissoes ?? []}
+                    permissoes={permissoes}
                     recolhido={recolhido}
                     aoNavegar={() => setMobileOpen(false)}
+                    contadores={contadores}
+                    idUsuario={idUsuario}
                   />
                 ) : emConfiguracoes ? (
                   <MenuDasConfiguracoes

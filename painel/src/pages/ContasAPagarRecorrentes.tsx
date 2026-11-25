@@ -91,11 +91,11 @@ export function ContasAPagarRecorrentesPage() {
   return (
     <>
       <PageHeader
-        titulo="Contas a Pagar Recorrentes"
+        titulo="Contas fixas do mês"
         descricao="Aluguel, energia, contador — geração mensal idempotente, mesma lógica de Gerar Cobranças pro lado A Pagar."
         trilha={[
           { rotulo: 'Financeiro', href: '/financeiro' },
-          { rotulo: 'Contas a Pagar Recorrentes' },
+          { rotulo: 'Contas fixas do mês' },
         ]}
       />
 

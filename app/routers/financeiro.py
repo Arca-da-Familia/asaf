@@ -1312,3 +1312,159 @@ async def importar_extrato(arquivo: UploadFile = File(...), db: Session = Depend
     transacoes = conciliacao.parse_extrato(arquivo.filename or "", conteudo)
     return {"transacoes": conciliacao.sugerir_correspondencias(db, transacoes)}
 
+
+
+# ==========================================
+# v9.6b - PENDÊNCIAS DO MÓDULO (a Visão geral e os números do menu)
+# ==========================================
+_MAXIMO_DE_COMPRAS_NA_VISAO_GERAL = 20
+
+
+@router.get("/api/financeiro/pendencias", summary="O que precisa de quem opera o Financeiro hoje: o que está em atraso e o que espera a sua decisão")
+def pendencias_do_financeiro(db: Session = Depends(get_db), usuario=Depends(_permissao_financeiro)):
+    """Um pedido só para a Visão geral do Financeiro (os lugares que mudam sozinhos) e para os números ao lado das telas no menu do módulo. Só de
+    quem opera (`financeiro`): quem só audita (`financeiro_auditar`) recebe 403 e continua indo ao Conselho Fiscal. Só contagens e somas, sem nome
+    de associado; as compras são as que esperam a assinatura DESTA pessoa (alçada, cargo e delegação; nunca as que ela mesma pediu), e aprovar
+    continua passando por `POST /solicitacoes-compra/{id}/aprovar`, que revalida tudo. O "em atraso" é contado no dia de Belém."""
+    from app.models.compras import ReembolsoDespesa
+    from app.models.conselho_fiscal import ABERTO, AuditoriaDeTitulo, QuestionamentoLancamento
+    from app.models.core import Usuario
+    from app.models.fechamento import FechamentoMensal
+    from app.services import compras as compras_service, doacao_online
+
+    hoje = lancamento_tardio.hoje_da_associacao(db)
+    inicio_de_hoje = datetime(hoje.year, hoje.month, hoje.day)
+    id_usuario = usuario.id_usuario
+
+    # compras que esperam a minha assinatura
+    aguardando = compras_service.solicitacoes_que_aguardam_a_assinatura(db, id_usuario)
+    mostradas = aguardando[:_MAXIMO_DE_COMPRAS_NA_VISAO_GERAL]
+    ids_fornecedores = {p["solicitacao"].id_fornecedor for p in mostradas if p["solicitacao"].id_fornecedor}
+    fornecedores = dict(
+        db.query(Fornecedor.id_fornecedor, Fornecedor.razao_social).filter(Fornecedor.id_fornecedor.in_(ids_fornecedores)).all()
+    ) if ids_fornecedores else {}
+    ids_usuarios = {p["solicitacao"].id_usuario_solicitante for p in mostradas if p["solicitacao"].id_usuario_solicitante}
+    ids_usuarios |= {a.id_usuario_aprovador for p in mostradas for a in p["assinaturas"] if a.id_usuario_aprovador}
+    nomes = {a.id_usuario: a.nome_completo for a in db.query(Associado).filter(Associado.id_usuario.in_(ids_usuarios)).all()} if ids_usuarios else {}
+    emails = {u.id_usuario: u.email for u in db.query(Usuario).filter(Usuario.id_usuario.in_(ids_usuarios)).all()} if ids_usuarios else {}
+
+    # a mesma regra da trilha de aprovação em Compras (GET /api/solicitacoes-compra/{id}/aprovacoes): o nome do associado e, sem associado,
+    # o e-mail de acesso; a rota exige `financeiro`, que já vê esse e-mail em Compras (conferido na revisão de 23/11/2026)
+    def _nome(id_do_usuario: Optional[int]) -> Optional[str]:
+        return (nomes.get(id_do_usuario) or emails.get(id_do_usuario)) if id_do_usuario else None
+
+    compras_para_aprovar = {
+        "total": len(aguardando),
+        "itens": [
+            {
+                "id_solicitacao": p["solicitacao"].id_solicitacao, "descricao": p["solicitacao"].descricao, "valor": p["solicitacao"].valor_estimado,
+                "fornecedor": fornecedores.get(p["solicitacao"].id_fornecedor), "data_solicitacao": p["solicitacao"].data_solicitacao,
+                "solicitante": _nome(p["solicitacao"].id_usuario_solicitante),
+                "alcada": {
+                    "valor_minimo": p["alcada"].valor_minimo, "valor_maximo": p["alcada"].valor_maximo, "cargos": p["cargos"], "exigidas": p["exigidas"],
+                },
+                "assinaturas": [{"nome": _nome(a.id_usuario_aprovador), "data": a.data_aprovacao} for a in p["assinaturas"]],
+                "faltam_cotacoes": p["faltam_cotacoes"],
+            }
+            for p in mostradas
+        ],
+    }
+
+    # Pix do site para conferir (os que esperam e os que venceram sem confirmação)
+    resumo_pix = doacao_online.resumo(db)
+    pix_do_site = {"a_conferir": resumo_pix["a_conferir"], "vencidos": resumo_pix["expiradas"]}
+
+    # mensalidades em atraso: só contagens e a soma do que falta pagar, sem nome
+    em_atraso = db.query(
+        func.count(TituloFinanceiro.id_titulo), func.count(func.distinct(TituloFinanceiro.id_associado)),
+        func.coalesce(func.sum(TituloFinanceiro.saldo_devedor), 0),
+    ).filter(
+        TituloFinanceiro.tipo_titulo == "A Receber", TituloFinanceiro.status == "Pendente", TituloFinanceiro.id_plano_contribuicao.isnot(None),
+        TituloFinanceiro.data_vencimento < inicio_de_hoje,
+    ).one()
+    mensalidades_em_atraso = {"titulos": em_atraso[0], "associados": em_atraso[1], "soma": Decimal(em_atraso[2] or 0)}
+
+    # contas a pagar vencidas e a mais antiga delas
+    filtro_a_pagar = (
+        TituloFinanceiro.tipo_titulo == "A Pagar", TituloFinanceiro.status == "Pendente", TituloFinanceiro.data_vencimento < inicio_de_hoje,
+    )
+    total_a_pagar, soma_a_pagar = db.query(
+        func.count(TituloFinanceiro.id_titulo), func.coalesce(func.sum(TituloFinanceiro.saldo_devedor), 0),
+    ).filter(*filtro_a_pagar).one()
+    mais_antiga = (
+        db.query(TituloFinanceiro).filter(*filtro_a_pagar).order_by(TituloFinanceiro.data_vencimento, TituloFinanceiro.id_titulo).first()
+    )
+    a_pagar_vencidas = {
+        "total": total_a_pagar, "soma": Decimal(soma_a_pagar or 0),
+        "mais_antiga": {
+            "id_titulo": mais_antiga.id_titulo, "descricao": mais_antiga.descricao,
+            "fornecedor": (
+                db.query(Fornecedor.razao_social).filter(Fornecedor.id_fornecedor == mais_antiga.id_fornecedor).scalar()
+                if mais_antiga.id_fornecedor else None
+            ),
+            "valor": mais_antiga.saldo_devedor, "vencimento": mais_antiga.data_vencimento.date().isoformat(),
+        } if mais_antiga else None,
+    }
+
+    # reembolsos esperando decisão, tirando os que esta pessoa não pode decidir (pediu ou recebe)
+    meu_associado = db.query(Associado.id_associado).filter(Associado.id_usuario == id_usuario).scalar()
+    reembolsos = db.query(func.count(ReembolsoDespesa.id_reembolso)).filter(
+        ReembolsoDespesa.status == "Solicitado",
+        or_(ReembolsoDespesa.id_usuario_solicitante.is_(None), ReembolsoDespesa.id_usuario_solicitante != id_usuario),
+    )
+    if meu_associado:
+        reembolsos = reembolsos.filter(ReembolsoDespesa.id_associado != meu_associado)
+    reembolsos_para_decidir = {"total": reembolsos.scalar() or 0}
+
+    # perguntas do Conselho Fiscal sem resposta da tesouraria; a mais antiga diz para onde ir (a Auditoria do mês dela ou o Conselho Fiscal)
+    total_perguntas = (
+        db.query(func.count(QuestionamentoLancamento.id_questionamento)).filter(QuestionamentoLancamento.status == ABERTO).scalar() or 0
+    )
+    mes_mais_antigo, da_auditoria = None, False
+    if total_perguntas:
+        mais_antiga_pergunta = (
+            db.query(QuestionamentoLancamento.id_questionamento, TituloFinanceiro.data_vencimento)
+            .join(TituloFinanceiro, TituloFinanceiro.id_titulo == QuestionamentoLancamento.id_titulo)
+            .filter(QuestionamentoLancamento.status == ABERTO)
+            .order_by(QuestionamentoLancamento.criado_em, QuestionamentoLancamento.id_questionamento)
+            .first()
+        )
+        if mais_antiga_pergunta is not None:
+            id_pergunta, vencimento = mais_antiga_pergunta
+            mes_mais_antigo = vencimento.strftime("%Y-%m") if vencimento else None
+            da_auditoria = (
+                db.query(AuditoriaDeTitulo.id_auditoria).filter(AuditoriaDeTitulo.id_questionamento == id_pergunta).first() is not None
+            )
+    perguntas_sem_resposta = {"total": total_perguntas, "mes_mais_antigo": mes_mais_antigo, "da_auditoria": da_auditoria}
+
+    # o extrato do mês passado ainda sem fechar, por conta ativa (a conferência do saldo com o banco, em Conciliação bancária)
+    mes_passado = (hoje.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+    fechadas = {
+        id_conta for (id_conta,) in db.query(FechamentoMensal.id_conta_financeira).filter(FechamentoMensal.competencia == mes_passado).all()
+    }
+    abertas = [
+        nome for id_conta_financeira, nome in (
+            db.query(ContaFinanceira.id_conta_financeira, PlanoDeContas.descricao_conta)
+            .join(PlanoDeContas, PlanoDeContas.id_conta == ContaFinanceira.id_conta)
+            .filter(ContaFinanceira.ativo.is_(True))
+            .order_by(PlanoDeContas.descricao_conta).all()
+        )
+        if id_conta_financeira not in fechadas
+    ]
+    extrato_sem_fechar = {"competencia": mes_passado, "contas": len(abertas), "nomes": abertas}
+
+    return {
+        "hoje": hoje.isoformat(),
+        "compras_para_aprovar": compras_para_aprovar,
+        "pix_do_site": pix_do_site,
+        "mensalidades_em_atraso": mensalidades_em_atraso,
+        "a_pagar_vencidas": a_pagar_vencidas,
+        "reembolsos_para_decidir": reembolsos_para_decidir,
+        "perguntas_sem_resposta": perguntas_sem_resposta,
+        "extrato_sem_fechar": extrato_sem_fechar,
+        # os números ao lado das telas no menu do módulo (a chave é a `pendencia` do item em painel/src/lib/modulos.ts)
+        "contadores": {
+            "compras": compras_para_aprovar["total"], "doacoes": pix_do_site["a_conferir"], "reembolsos": reembolsos_para_decidir["total"],
+            "conciliacao": extrato_sem_fechar["contas"],
+        },
+    }

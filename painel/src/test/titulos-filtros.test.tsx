@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe } from 'jest-axe'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, useLocation } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as api from '@/lib/api'
@@ -22,17 +22,28 @@ function mesAtual() {
   return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}`
 }
 
-function desenhar(tipoFixo?: 'A Receber' | 'A Pagar') {
+function desenhar(tipoFixo?: 'A Receber' | 'A Pagar', endereco = '/') {
   const cliente = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
   return render(
     <QueryClientProvider client={cliente}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[endereco]}>
         <TitulosPage tipoFixo={tipoFixo} />
+        <Endereco />
       </MemoryRouter>
     </QueryClientProvider>,
   )
+}
+
+function Endereco() {
+  const local = useLocation()
+  return <p data-testid="endereco">{local.search}</p>
+}
+
+function ontem() {
+  const d = new Date(Date.now() - 24 * 3600 * 1000)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 const titulo = (id: number) => ({
@@ -209,5 +220,59 @@ describe('Entradas e Saídas: uma página para cada', () => {
     const categoria = screen.getByLabelText('Categoria')
     await waitFor(() => expect(categoria).toHaveTextContent('Despesas gerais'))
     expect(categoria).not.toHaveTextContent('Mensalidades')
+  })
+})
+
+// v9.6b: a Visão geral do Financeiro abre esta tela com `?vencidos=1` ("Ver quem", "Dar baixa") e com `?novo=1` ("Novo título")
+describe('Títulos: o que vem da Visão geral (v9.6b)', () => {
+  it('`?vencidos=1` mostra só o que venceu e não foi pago, de qualquer mês, e dá para voltar ao mês atual', async () => {
+    const { container } = desenhar('A Receber', '/?vencidos=1')
+    expect(await screen.findByText(/— Mensalidade 1/)).toBeInTheDocument()
+    const [dia, mes, ano] = ontem().split('-').reverse()
+    expect(screen.getByRole('status')).toHaveTextContent(
+      `Só o que já venceu e não foi pago, de qualquer mês (até ${dia}/${mes}/${ano}).`,
+    )
+    const consulta = vi.mocked(api.listarTitulos).mock.lastCall?.[0]
+    expect(consulta).toEqual(
+      expect.objectContaining({
+        status: 'Pendente',
+        tipo_titulo: 'A Receber',
+        data_ate: ontem(),
+        pagina: 1,
+      }),
+    )
+    expect(consulta?.mes).toBeUndefined()
+    expect(api.resumirTitulos).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: 'Pendente', data_ate: ontem() }),
+    )
+    // a situação fica presa em "Pendente" e o "Todo o período" sai (o filtro já é de qualquer mês)
+    expect(screen.getByLabelText('Situação')).toBeDisabled()
+    expect(
+      screen.queryByRole('button', { name: 'Todo o período' }),
+    ).not.toBeInTheDocument()
+    expect(await axe(container)).toHaveNoViolations()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Ver o mês atual' }),
+    )
+    expect(screen.getByTestId('endereco')).toHaveTextContent(/^$/)
+    await waitFor(() =>
+      expect(api.listarTitulos).toHaveBeenLastCalledWith(
+        expect.objectContaining({ mes: mesAtual(), data_ate: undefined }),
+      ),
+    )
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Situação')).toBeEnabled()
+  })
+
+  it('`?novo=1` abre com o formulário do novo título; cancelar fecha e tira o `novo` do endereço', async () => {
+    desenhar(undefined, '/?novo=1')
+    expect(await screen.findByPlaceholderText('Descrição')).toBeInTheDocument()
+    expect(screen.getByTestId('endereco')).toHaveTextContent('?novo=1')
+    await userEvent.click(
+      screen.getAllByRole('button', { name: 'Cancelar' })[0]!,
+    )
+    expect(screen.queryByPlaceholderText('Descrição')).not.toBeInTheDocument()
+    expect(screen.getByTestId('endereco')).toHaveTextContent(/^$/)
   })
 })

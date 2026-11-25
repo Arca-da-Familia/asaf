@@ -344,8 +344,10 @@ describe('Criador de credencial: o editor (v9.5k)', () => {
     expect(
       await screen.findByText(/Guardado: "Cópia de Faixa no alto"/),
     ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled()
-  })
+    // o aviso aparece antes da troca de endereço para /criador/9 (o navegar do React Router roda numa transição): com a máquina ocupada, o botão "Guardar" chega um instante depois (22/11/2026)
+    expect(await screen.findByRole('button', { name: 'Guardar' })).toBeEnabled()
+    // digita 23 letras no editor do cartão (cada uma redesenha o desenho inteiro): com a máquina ocupada passou dos 5 s de praxe (22/11/2026)
+  }, 20_000)
 
   it('revisão: o número digitado não é trocado no meio; o clique põe o foco na parte; clique sem arrastar não cria passo de Desfazer', async () => {
     const u = userEvent.setup()

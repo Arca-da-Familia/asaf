@@ -1,6 +1,7 @@
 import {
   expect,
   test,
+  type APIResponse,
   type Locator,
   type Page,
   type Response as Resposta,
@@ -151,7 +152,11 @@ async function acionar(
 }
 
 /** O número que o servidor devolveu ao criar (id_solicitacao, id_cotacao...), conferindo que a criação foi aceita. */
-async function idDe(resposta: Resposta, chave: string): Promise<number> {
+// a resposta de uma tela (Response) ou de uma chamada direta à API de teste (APIResponse): só text(), ok() e status() são usados
+async function idDe(
+  resposta: Resposta | APIResponse,
+  chave: string,
+): Promise<number> {
   const texto = await resposta.text()
   expect(
     resposta.ok(),
@@ -526,11 +531,16 @@ async function inativarAlcadasDeTeste(
 ): Promise<number> {
   const carregou = aguardar(page, 'GET', /\/api\/alcadas-aprovacao\/$/)
   await abrirTela(page, '/financeiro/alcadas-aprovacao', 'Alçadas de Aprovação')
-  await carregou
-  await expect(page.getByRole('tab', { name: /^Em vigor/ })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  )
+  const lista = (await (await carregou).json()) as { ativo: boolean }[]
+  // a tela antiga não tem "Carregando": até a lista chegar ela mostra "Em vigor (0)". Espera a aba mostrar o número que o servidor devolveu
+  // (em 23/11/2026 o robô contou antes da lista aparecer, achou 0 faixas e reprovou)
+  const emVigorNoServidor = lista.filter((a) => a.ativo).length
+  await expect(
+    page.getByRole('tab', {
+      name: `Em vigor (${emVigorNoServidor})`,
+      exact: true,
+    }),
+  ).toHaveAttribute('aria-selected', 'true')
   const ativas = () =>
     cartaoDe(page, padrao).filter({
       has: page.getByText('Ativa', { exact: true }),
@@ -561,7 +571,7 @@ async function inativarContasRecorrentesDeTeste(page: Page): Promise<number> {
   await abrirTela(
     page,
     '/financeiro/contas-a-pagar-recorrentes',
-    'Contas a Pagar Recorrentes',
+    'Contas fixas do mês',
   )
   await carregou
   await page.waitForTimeout(500)
@@ -2227,11 +2237,7 @@ test('Reembolso: comprovante obrigatório, quem lançou não aprova nem reprova 
 
   await test.step('1. Marta registra o reembolso R2 (o beneficiário é o Tesoureiro)', async () => {
     await entrarNoFinanceiro(page, 'presidente')
-    await abrirTela(
-      page,
-      '/financeiro/reembolso-despesa',
-      'Reembolso de Despesa',
-    )
+    await abrirTela(page, '/financeiro/reembolso-despesa', 'Reembolsos')
     idR2 = await solicitar({
       beneficiario: FABIO,
       valor: '45.67',
@@ -2249,11 +2255,7 @@ test('Reembolso: comprovante obrigatório, quem lançou não aprova nem reprova 
 
   await test.step('2. o Tesoureiro: recusas do formulário e do comprovante, dois reembolsos, e a segregação ao aprovar e reprovar o próprio', async () => {
     await entrarNoFinanceiro(page, 'tesoureiro')
-    await abrirTela(
-      page,
-      '/financeiro/reembolso-despesa',
-      'Reembolso de Despesa',
-    )
+    await abrirTela(page, '/financeiro/reembolso-despesa', 'Reembolsos')
     await page.getByRole('button', { name: 'Solicitar reembolso' }).click()
     const form = formularioDe(page, 'Solicitar reembolso')
     await expect(form.getByPlaceholder('Descrição da despesa')).toBeVisible()
@@ -2387,11 +2389,7 @@ test('Reembolso: comprovante obrigatório, quem lançou não aprova nem reprova 
 
   await test.step('3. a Presidente pelo cargo aprova (R1), reprova com motivo (R3), abre o comprovante e confere o título', async () => {
     await entrarNoFinanceiro(page, 'cargo_presidente')
-    await abrirTela(
-      page,
-      '/financeiro/reembolso-despesa',
-      'Reembolso de Despesa',
-    )
+    await abrirTela(page, '/financeiro/reembolso-despesa', 'Reembolsos')
     const cartao = cartaoDe(page, r1)
     await expect(cartao).toBeVisible()
 
@@ -2549,7 +2547,7 @@ test('Contas a pagar recorrentes: cadastro com recusas, prévia e geração do m
     await abrirTela(
       page,
       '/financeiro/contas-a-pagar-recorrentes',
-      'Contas a Pagar Recorrentes',
+      'Contas fixas do mês',
     )
     await page.getByRole('button', { name: 'Nova conta recorrente' }).click()
     const form = formularioDe(page, 'Cadastrar')
@@ -2675,7 +2673,7 @@ test('Contas a pagar recorrentes: cadastro com recusas, prévia e geração do m
     await abrirTela(
       page,
       '/financeiro/contas-a-pagar-recorrentes',
-      'Contas a Pagar Recorrentes',
+      'Contas fixas do mês',
     )
     expect((await verPrevia(competencia)).status()).toBe(200)
     await expect.poll(async () => (await lerPrevia()).quantidade).toBe(0)
@@ -2697,7 +2695,7 @@ test('Contas a pagar recorrentes: cadastro com recusas, prévia e geração do m
     await abrirTela(
       page,
       '/financeiro/contas-a-pagar-recorrentes',
-      'Contas a Pagar Recorrentes',
+      'Contas fixas do mês',
     )
     const previaDoMes13 = await verPrevia('2099-13')
     expect
@@ -2733,7 +2731,7 @@ test('Contas a pagar recorrentes: cadastro com recusas, prévia e geração do m
     await abrirTela(
       page,
       '/financeiro/contas-a-pagar-recorrentes',
-      'Contas a Pagar Recorrentes',
+      'Contas fixas do mês',
     )
     const cartao = cartaoDe(page, descricao)
     await expect(cartao).toBeVisible()
@@ -2803,7 +2801,7 @@ test('Contas a pagar recorrentes: a conta SEM fornecedor (a opção que já vem 
   await abrirTela(
     page,
     '/financeiro/contas-a-pagar-recorrentes',
-    'Contas a Pagar Recorrentes',
+    'Contas fixas do mês',
   )
   await page.getByRole('button', { name: 'Nova conta recorrente' }).click()
   const form = formularioDe(page, 'Cadastrar')
@@ -2962,7 +2960,7 @@ test('Formulários de despesa: cada campo tem nome acessível (inventário de fo
     })
   }
 
-  await abrirTela(page, '/financeiro/reembolso-despesa', 'Reembolso de Despesa')
+  await abrirTela(page, '/financeiro/reembolso-despesa', 'Reembolsos')
   await page.getByRole('button', { name: 'Solicitar reembolso' }).click()
   await expect(page.getByPlaceholder('Descrição da despesa')).toBeVisible()
   await inventario('reembolso-solicitar')
@@ -2978,7 +2976,7 @@ test('Formulários de despesa: cada campo tem nome acessível (inventário de fo
   await abrirTela(
     page,
     '/financeiro/contas-a-pagar-recorrentes',
-    'Contas a Pagar Recorrentes',
+    'Contas fixas do mês',
   )
   await page.getByRole('button', { name: 'Nova conta recorrente' }).click()
   await expect(page.getByPlaceholder('Dia de vencimento')).toBeVisible()

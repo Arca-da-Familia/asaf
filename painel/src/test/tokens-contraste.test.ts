@@ -60,6 +60,12 @@ const PARES_DO_PAINEL: Array<[string, string, number]> = [
   ['muted-foreground', 'accent', 4.5],
   ['input', 'card', 3],
   ['input', 'background', 3],
+  // v9.6b: o ícone ouro dos "Seus mais usados" sobre o verde da coluna, o número de pendência e a barra de cada conta no cartão do saldo (3:1, gráfico)
+  ['brand-secondary', 'barra-2', 3],
+  ['brand-secondary', 'barra', 3],
+  // v9.6b: o ícone de cada lugar da Visão geral, a faixa vermelha do que está em atraso e o TEXTO vermelho do cartão
+  // ("em atraso", o valor vencido): é texto, então 4,5:1 (achado da revisão de 23/11/2026; a lista PARES acima já cobra o mesmo)
+  ['destructive', 'card', 4.5],
 ]
 
 function rgb([h, s, l]: Hsl): [number, number, number] {

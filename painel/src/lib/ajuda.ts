@@ -126,13 +126,15 @@ export const AJUDA: Record<string, AjudaDaTela> = {
       '"Aprovar e efetivar" só é liberado quando há o número de sócios propondo que o Estatuto pede (veja "Sócios que propõem").',
   },
   '/financeiro': {
-    paraQue:
-      'O retrato do dia no Financeiro e o caminho para cada tela do módulo.',
+    paraQue: 'O retrato do dia no Financeiro e o que precisa de você.',
     passos: [
-      'Os quadros do alto mostram o saldo nas contas financeiras, o que está a receber vencido, o que há a pagar em até 30 dias e as compras aguardando aprovação.',
-      '"Próximos vencimentos em aberto" lista os cinco títulos em aberto de vencimento mais antigo.',
-      'Em "Telas do módulo", clique na tela que quer abrir.',
+      'O quadro verde mostra o saldo de cada conta hoje e, embaixo, as receitas e as despesas do mês escolhido nas setas "Mês anterior" e "Próximo mês".',
+      'Os lugares mudam sozinhos: primeiro o que está em atraso (faixa vermelha), depois o que precisa de você (faixa amarela) e, no que sobrar, as telas que você mais abriu nos últimos 30 dias (faixa verde). Clique no lugar para fazer o que ele pede: "Ver quem", "Dar baixa", "Conferir", "Abrir"…',
+      '"Aprovar" abre a janela com cada compra que espera a sua assinatura: confira o valor, o fornecedor, a regra da alçada e quem já assinou, e só então clique em "Aprovar este pedido".',
+      '"Registrar saída" lança uma despesa já paga; "Novo título" abre o formulário de uma conta a pagar ou a receber. "Próximos vencimentos em aberto" mostra o que vence a partir de hoje.',
     ],
+    atencao:
+      'No menu do módulo, "Seus mais usados" e o número ao lado de Compras, Doações, Reembolsos e Conciliação bancária mudam com o uso e com o que está esperando alguém.',
   },
   '/financeiro/titulos': {
     paraQue:

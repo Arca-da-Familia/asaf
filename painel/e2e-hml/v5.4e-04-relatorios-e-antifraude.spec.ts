@@ -24,6 +24,8 @@ import {
   procurarContaFinanceira,
   procurarFornecedor,
   saudacaoDoInicio,
+  abrirNoMenuDoModulo,
+  telaNoMenuDoModulo,
 } from './apoio'
 
 // v5.4e — FASE 3 ao vivo, parte 4: RELATÓRIOS E PRESTAÇÃO DE CONTAS, CONTROLES ANTIFRAUDE E VALORES CENTAVO A CENTAVO, pela tela do hml-painel.
@@ -2492,8 +2494,9 @@ test('12. o Início do Financeiro e a navegação até Relatórios; o que a pág
   await entrar(page, 'tesoureiro')
   await page.getByRole('link', { name: 'Financeiro' }).first().click()
   await expect(page).toHaveURL(/\/financeiro$/)
+  // v9.6b: o Início do módulo é a Visão geral
   await expect(
-    page.getByRole('heading', { name: 'Financeiro', level: 1 }),
+    page.getByRole('heading', { name: 'Visão geral', level: 1 }),
   ).toBeVisible()
   if (await page.getByText(/entra nas fases seguintes do plano/).isVisible()) {
     achar(
@@ -2501,41 +2504,41 @@ test('12. o Início do Financeiro e a navegação até Relatórios; o que a pág
     )
   }
   await ver(page, info, 'inicio do financeiro')
+  // v9.6b: os nomes do menu novo (as telas ficam nos grupos, que abrem no clique: confere que cada uma está no menu)
   for (const item of [
     'Conselho Fiscal',
-    'Títulos',
-    'Plano de Contas',
+    'Todos os títulos',
+    'Plano de contas',
     'Fornecedores',
     'Exercícios',
-    'Razão Contábil',
-    'Contas Financeiras',
-    'Centros de Custo',
-    'Planos de Contribuição',
-    'Gerar Cobranças',
-    'Conciliação',
-    'Negociação de Dívida',
+    'Razão contábil',
+    'Contas financeiras',
+    'Centros de custo',
+    'Planos de contribuição',
+    'Gerar cobranças',
+    'Conciliação bancária',
+    'Negociação de dívida',
     'Compras',
-    'Reembolso de Despesa',
-    'Alçadas de Aprovação',
-    'Contas a Pagar Recorrentes',
+    'Reembolsos',
+    'Alçadas de aprovação',
+    'Contas fixas do mês',
     'Doações',
-    'Orçamento e Fluxo de Caixa',
+    'Orçamento e fluxo de caixa',
     'Relatórios',
   ]) {
-    // o item está no menu lateral (e, agora, também nos atalhos do Início do Financeiro): confere o do menu
     await expect(
-      page
-        .getByRole('navigation')
-        .getByRole('link', { name: item, exact: true }),
+      telaNoMenuDoModulo(page, item),
       `o menu do Financeiro oferece ${item}`,
-    ).toBeVisible()
+    ).toHaveCount(1)
   }
-  // o Início do Financeiro mostra o retrato do dia e os atalhos para as telas do módulo
+  // a Visão geral mostra o saldo nas contas e os lugares que mudam sozinhos (o que precisa de você e os atalhos)
   await expect(
-    page.getByRole('region', { name: 'Resumo do dia' }),
+    page.getByRole('region', { name: 'Saldo nas contas hoje' }),
   ).toBeVisible()
   await expect(
-    page.getByRole('region', { name: 'Telas do módulo' }),
+    page.getByRole('region', {
+      name: 'O que precisa de você e os seus atalhos',
+    }),
   ).toBeVisible()
   const inicial = Promise.all([
     page.waitForResponse(
@@ -2547,10 +2550,7 @@ test('12. o Início do Financeiro e a navegação até Relatórios; o que a pág
       (r) => new URL(r.url()).pathname === ROTA_PADROES && r.status() === 200,
     ),
   ])
-  await page
-    .getByRole('navigation')
-    .getByRole('link', { name: 'Relatórios', exact: true })
-    .click()
+  await abrirNoMenuDoModulo(page, 'Relatórios', 'Relatórios')
   await inicial
   await expect(page).toHaveURL(/\/financeiro\/relatorios$/)
   await expect(

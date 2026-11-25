@@ -82,6 +82,50 @@ export async function abrirMenuPessoal(page: Page): Promise<void> {
     await botao.click()
 }
 
+const comoTextoExato = (texto: string) =>
+  texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** v9.6b: a coluna do módulo ("Telas de Financeiro", "Telas de Associados"...). Com a coluna recolhida no notebook, é a faixa de ícones. */
+export function menuDoModulo(page: Page): Locator {
+  return page.getByRole('navigation', { name: /^Telas de / })
+}
+
+/** v9.6b (o menu novo, padrão dos módulos com grupos): o link de uma tela DENTRO do grupo dela, com o grupo aberto ou fechado. Os "Seus mais usados"
+ * repetem telas no alto e não contam aqui. Para conferir que a tela está (ou não está) no menu, use `toHaveCount(1)` / `toHaveCount(0)`: o grupo fechado
+ * esconde o link. O número de pendência faz parte do texto do link ("Compras" + "2"). */
+export function telaNoMenuDoModulo(page: Page, tela: string): Locator {
+  return menuDoModulo(page)
+    .locator('[role="group"] a')
+    .filter({ hasText: new RegExp(`^${comoTextoExato(tela)}\\d*$`) })
+}
+
+/** v9.6b: abre uma tela pelo menu do módulo, como a pessoa faz: abre o grupo (se estiver fechado) e clica na tela dentro dele. Vale para a coluna aberta e
+ * para a faixa recolhida (a lista abre ao lado). Insiste no botão do grupo até ele ficar aberto: a tela pode mudar enquanto isso (o Início do Financeiro leva
+ * quem só audita ao Conselho Fiscal, e o grupo da tela aberta já vem aberto). */
+export async function abrirNoMenuDoModulo(
+  page: Page,
+  grupo: string,
+  tela: string,
+): Promise<void> {
+  const menu = menuDoModulo(page)
+  const botao = menu.getByRole('button', {
+    name: new RegExp(`^${comoTextoExato(grupo)}( |$)`),
+  })
+  await expect(async () => {
+    if ((await botao.getAttribute('aria-expanded')) !== 'true')
+      await botao.click()
+    await expect(botao).toHaveAttribute('aria-expanded', 'true', {
+      timeout: 1_000,
+    })
+  }).toPass({ timeout: 15_000 })
+  await menu
+    .getByRole('group', { name: grupo, exact: true })
+    .getByRole('link', {
+      name: new RegExp(`^${comoTextoExato(tela)}( \\d+ pendentes?)?$`),
+    })
+    .click()
+}
+
 export async function entrar(page: Page, papel: Papel): Promise<void> {
   await test.step(
     `entrar como ${papel}`,

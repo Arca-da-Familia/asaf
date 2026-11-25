@@ -35,20 +35,21 @@ beforeAll(async () => {
 describe('o menu do Financeiro (v5.7e: o Conselho Fiscal audita, não opera)', () => {
   it('quem só tem `financeiro_auditar` entra no módulo e vê SÓ o que audita', () => {
     expect(moduloVisivel(financeiro, ['financeiro_auditar'])).toBe(true)
+    // v9.6b: na ordem dos grupos do menu novo (Relatórios, depois Controle)
     expect(rotulos(['financeiro_auditar'])).toEqual([
+      'Relatórios',
       'Conselho Fiscal',
       'Auditoria financeira',
-      'Relatórios',
     ])
   })
 
-  it('quem opera (`financeiro`) vê o módulo inteiro, inclusive o Início e o que o auditor vê', () => {
+  it('quem opera (`financeiro`) vê o módulo inteiro, inclusive a Visão geral e o que o auditor vê', () => {
     expect(moduloVisivel(financeiro, ['financeiro'])).toBe(true)
     const todos = rotulos(['financeiro'])
     expect(todos).toHaveLength(financeiro.itens!.length)
     for (const r of [
-      'Início',
-      'Títulos',
+      'Visão geral',
+      'Todos os títulos',
       'Registrar saída',
       'Doações',
       'Conselho Fiscal',
@@ -67,12 +68,13 @@ describe('o menu do Financeiro (v5.7e: o Conselho Fiscal audita, não opera)', (
     for (const operacional of [
       'Registrar saída',
       'Doações',
-      'Gerar Cobranças',
+      'Visão geral',
+      'Gerar cobranças',
       'Compras',
-      'Alçadas de Aprovação',
-      'Conciliação',
-      'Títulos',
-      'Plano de Contas',
+      'Alçadas de aprovação',
+      'Conciliação bancária',
+      'Todos os títulos',
+      'Plano de contas',
     ])
       expect(visiveis).not.toContain(operacional)
   })
