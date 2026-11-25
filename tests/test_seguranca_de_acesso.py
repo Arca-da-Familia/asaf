@@ -1,4 +1,4 @@
-"""v9.6s - segurança de acesso (achados A1 a A4 da revisão de 23/11/2026, provados pelo revisor num banco próprio).
+"""v9.6s - segurança de acesso (achados A1 a A4, A7 e A8 da revisão de 23/11/2026, provados pelo revisor num banco próprio).
 
 A1. Quem só cuida do cadastro (permissão `associados`) concedia acesso escolhendo o nível da conta nova: uma secretaria criava assim uma conta
     de nível Presidente, com a senha que ela mesma escolhia. Agora só quem gerencia os níveis de acesso escolhe o nível; os demais dão o nível
@@ -354,3 +354,49 @@ def test_a4_o_ver_como_nao_tira_a_exigencia_do_nivel_real(client, db):
     token = criar_access_token(db.get(Usuario, id_usuario), id_nivel_impersonado=_id_do_nivel(db, "Associado"))
     r = client.get("/auth/perfil", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 403 and r.json()["detail"] == RECUSA_MFA_PENDENTE
+
+
+# ==========================================================================================================================================
+# A7. As regras do sistema (limites do antifraude, teto da alçada...) eram lidas por qualquer conta com login: quem quer fracionar uma compra
+#     lia o limite antes. Agora só quem as gerencia as lê, como na tela "Regras do sistema".
+# ==========================================================================================================================================
+
+
+def test_a7_as_regras_do_sistema_so_sao_lidas_por_quem_as_gerencia(client, db):
+    secretaria, _ = usuario_com_permissoes(db, "associados", "financeiro")
+    lista = client.get("/api/configuracoes/", headers=secretaria)
+    existe = client.get("/api/configuracoes/TETO_ALCADA_FINANCEIRA", headers=secretaria)
+    nao_existe = client.get("/api/configuracoes/CHAVE_QUE_NAO_EXISTE", headers=secretaria)
+    assert lista.status_code == existe.status_code == nao_existe.status_code == 403
+    assert lista.json() == existe.json() == nao_existe.json()
+
+    quem_gerencia, _ = usuario_com_permissoes(db, "gerenciar_acesso")
+    assert client.get("/api/configuracoes/", headers=quem_gerencia).status_code == 200
+    assert client.get("/api/configuracoes/TETO_ALCADA_FINANCEIRA", headers=quem_gerencia).status_code == 200
+    assert client.get("/api/configuracoes/CHAVE_QUE_NAO_EXISTE", headers=quem_gerencia).status_code == 404
+
+
+# ==========================================================================================================================================
+# A8. A ficha de outra pessoa (completude, categoria, carteirinha): a mesma recusa para o número que existe e o que não existe. Antes, o 404
+#     para o que não existe e o 403 para o que existe contavam a qualquer conta com login quais números de associado existem.
+# ==========================================================================================================================================
+
+
+def test_a8_a_ficha_de_outro_recusa_igual_para_o_numero_que_existe_e_o_que_nao_existe(client, db):
+    id_de_outro, _ = _criar_ficha(client)
+    id_proprio, _ = _criar_ficha(client)
+    sem_permissao, id_usuario = usuario_com_permissoes(db)
+    db.get(Associado, id_proprio).id_usuario = id_usuario
+    db.commit()
+
+    for rota in ("completude", "categoria-calculada", "carteirinha"):
+        existe = client.get(f"/api/associados/{id_de_outro}/{rota}", headers=sem_permissao)
+        nao_existe = client.get(f"/api/associados/987654321/{rota}", headers=sem_permissao)
+        assert existe.status_code == nao_existe.status_code == 403, rota
+        assert existe.json() == nao_existe.json() == {"detail": "Sem permissão para esta ficha."}, rota
+        assert client.get(f"/api/associados/{id_proprio}/{rota}", headers=sem_permissao).status_code == 200, rota
+
+    # quem cuida do cadastro continua sabendo que o número não existe
+    secretaria, _ = usuario_com_permissoes(db, "associados")
+    assert client.get("/api/associados/987654321/completude", headers=secretaria).status_code == 404
+    assert client.get(f"/api/associados/{id_de_outro}/completude", headers=secretaria).status_code == 200

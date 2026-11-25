@@ -783,8 +783,12 @@ def _validar_valor_configuracao(config: ConfiguracaoInstitucional, valor: Option
             raise HTTPException(status_code=422, detail=f"'{config.chave_configuracao}' precisa ser uma data (AAAA-MM-DD).")
 
 
+# v9.6s (achado A7 da revisão de 23/11/2026): as duas leituras eram de qualquer conta com login, e as regras trazem os limites do antifraude e
+# o teto da alçada (quem quer fracionar uma compra lia o limite antes). Agora só quem as gerencia as lê, como a tela "Regras do sistema" e a
+# gravação; a recusa vem antes de procurar a chave (igual para a que existe e a que não existe). O painel só as lê nessa tela; as rotas de
+# cada assunto aplicam as regras no próprio servidor.
 @router.get("/api/configuracoes/", summary="Listar configurações institucionais")
-def listar_configuracoes(db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+def listar_configuracoes(db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_configuracoes)):
     configs = db.query(ConfiguracaoInstitucional).order_by(
         ConfiguracaoInstitucional.categoria, ConfiguracaoInstitucional.chave_configuracao
     ).all()
@@ -903,7 +907,7 @@ def importar_configuracao(
 
 
 @router.get("/api/configuracoes/{chave}", summary="Ler uma configuração institucional")
-def obter_configuracao_por_chave(chave: str, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+def obter_configuracao_por_chave(chave: str, db: Session = Depends(get_db), usuario: Usuario = Depends(_permissao_gerenciar_configuracoes)):
     config = db.query(ConfiguracaoInstitucional).filter(ConfiguracaoInstitucional.chave_configuracao == chave).first()
     if not config:
         raise HTTPException(status_code=404, detail="Configuração não encontrada.")

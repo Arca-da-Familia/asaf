@@ -48,13 +48,19 @@ _permissao_contribuicao = exigir_alguma_permissao("associados", "financeiro")
 
 def _associado_do_proprio_ou_de_quem_tem_permissao(db: Session, usuario: Usuario, id_associado: int) -> Associado:
     """v5.4c (achado AO VIVO ao varrer a API sem login, 2026-10-05): a ficha de um associado só é do próprio dono dela ou de quem tem
-    a permissão `associados`. Rotas antigas do protótipo abriam isso para QUALQUER pessoa na internet, só com o número do associado."""
+    a permissão `associados`. Rotas antigas do protótipo abriam isso para QUALQUER pessoa na internet, só com o número do associado.
+
+    v9.6s (achado A8 da revisão de 23/11/2026): quem não é o dono nem tem a permissão recebe a MESMA recusa para o número que existe e o que
+    não existe; antes, o 404 de um e o 403 do outro contavam a qualquer conta com login quais números de associado existem. Quem cuida do
+    cadastro continua sabendo que o número não existe."""
     associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
-    if not associado:
-        raise HTTPException(status_code=404, detail="Associado não encontrado.")
-    if associado.id_usuario == usuario.id_usuario or usuario_tem_permissao(db, usuario, "associados"):
+    if associado is not None and associado.id_usuario == usuario.id_usuario:
         return associado
-    raise HTTPException(status_code=403, detail="Sem permissão para esta ficha.")
+    if not usuario_tem_permissao(db, usuario, "associados"):
+        raise HTTPException(status_code=403, detail="Sem permissão para esta ficha.")
+    if associado is None:
+        raise HTTPException(status_code=404, detail="Associado não encontrado.")
+    return associado
 
 @router.post("/associados-master/", summary="Cadastrar Ficha Master")
 def cadastrar_ficha_master(
