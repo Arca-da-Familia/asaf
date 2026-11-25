@@ -175,7 +175,7 @@ CLASSIFICACAO: dict[str, Tabela] = {
     # ---------------------------------------------------------------- acesso ao painel e Auditoria
     "usuarios": Tabela(colunas={
         "email": P, "senha_hash": P, "mfa_secret": P, "ativo": P, "data_criacao": NP, "tentativas_falhas": NP, "bloqueado_ate": NP, "mfa_ativado": NP,
-        "senha_provisoria": NP,
+        "senha_provisoria": NP, "mfa_ultimo_passo_totp": NP,
     }),
     "tokens_acesso": Tabela(colunas={"ip_origem": P, "user_agent": P}),
     "audit_log": Tabela(colunas={"ip_origem": P, "dados_antes": LIVRE, "dados_depois": LIVRE}),

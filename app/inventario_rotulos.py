@@ -138,6 +138,7 @@ ROTULO_DA_COLUNA: dict[str, str] = {
     "mensagem": "Mensagem",
     "mfa_ativado": "Segundo passo ligado",
     "mfa_secret": "Chave do segundo passo",
+    "mfa_ultimo_passo_totp": "Último código do segundo passo aceito",
     "motivo": "Motivo",
     "motivo_codigo": "Motivo",
     "motivo_decisao": "Motivo da decisão",
