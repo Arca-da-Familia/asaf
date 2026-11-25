@@ -1,7 +1,8 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe } from 'jest-axe'
+import { criarQueryClient } from '@/lib/query-client'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -140,9 +141,9 @@ function Endereco() {
 }
 
 function montar(endereco = '/financeiro') {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  })
+  // o cliente de verdade do painel (com o MutationCache que pede as pendências de novo depois de cada ação), sem repetir pedido que falha
+  const queryClient = criarQueryClient()
+  queryClient.setDefaultOptions({ queries: { retry: false } })
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[endereco]}>

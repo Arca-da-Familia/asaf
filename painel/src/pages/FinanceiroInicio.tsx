@@ -43,10 +43,7 @@ import {
   nomeDoMes,
 } from '@/lib/meses'
 import { itensVisiveis, modulos } from '@/lib/modulos'
-import {
-  CHAVE_DAS_PENDENCIAS_DO_FINANCEIRO,
-  usePendenciasDoFinanceiro,
-} from '@/lib/pendencias-do-modulo'
+import { usePendenciasDoFinanceiro } from '@/lib/pendencias-do-modulo'
 import { useMe } from '@/lib/use-me'
 import { cn } from '@/lib/utils'
 
@@ -342,9 +339,7 @@ function JanelaDeAprovar({
         [id]: { ok: true, texto: resposta.mensagem },
       }))
       setUltimo(id)
-      void queryClient.invalidateQueries({
-        queryKey: CHAVE_DAS_PENDENCIAS_DO_FINANCEIRO,
-      })
+      // as pendências do menu já são pedidas de novo pelo MutationCache global (lib/query-client.ts)
       void queryClient.invalidateQueries({ queryKey: ['solicitacoes-compra'] })
       void queryClient.invalidateQueries({ queryKey: ['titulos'] })
     },
