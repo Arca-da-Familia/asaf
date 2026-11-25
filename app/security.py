@@ -5,13 +5,16 @@ segurança - merece estar isolado e fácil de auditar sozinho.
 """
 import os
 import secrets
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import bcrypt
 import jwt
+import pyotp
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import or_, update
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -172,6 +175,48 @@ def limpar_tentativas_falhas(db: Session, usuario: Usuario):
     usuario.tentativas_falhas = 0
     usuario.bloqueado_ate = None
     db.commit()
+
+
+# ==========================================
+# CÓDIGO DO APLICATIVO AUTENTICADOR (TOTP) DE USO ÚNICO - v9.6s (achado A2 da revisão de 23/11/2026)
+# O mesmo código de 6 dígitos valia duas vezes na mesma janela: quem o via (ou interceptava) entrava de novo. Guarda-se o número da janela de
+# 30 s do último código aceito por usuário e só se aceita janela MAIOR (RFC 6238, seção 5.2). A tolerância de relógio continua de uma janela
+# para cada lado, como antes.
+# ==========================================
+def _instante_atual() -> float:
+    """O relógio dos códigos (os testes o fixam para não depender da virada da janela de 30 s)."""
+    return time.time()
+
+
+def passo_totp_aceito(segredo: str, codigo: Optional[str], ultimo_passo: Optional[int]) -> Optional[int]:
+    """Devolve a janela em que o código bate (a atual, a anterior ou a seguinte) e que seja MAIOR que a última aceita; senão, None."""
+    if not segredo or not codigo:
+        return None
+    totp = pyotp.TOTP(segredo)
+    atual = int(_instante_atual()) // totp.interval
+    for passo in (atual - 1, atual, atual + 1):
+        if ultimo_passo is not None and passo <= ultimo_passo:
+            continue
+        if pyotp.utils.strings_equal(str(codigo), totp.generate_otp(passo)):
+            return passo
+    return None
+
+
+def registrar_passo_totp(db: Session, usuario: Usuario, passo: int) -> bool:
+    """Grava a janela aceita com uma condição no próprio banco (só se for maior que a gravada): de duas requisições ao mesmo tempo com o
+    mesmo código, só a primeira grava; a outra recebe False e é recusada."""
+    gravou = db.execute(
+        update(Usuario)
+        .where(
+            Usuario.id_usuario == usuario.id_usuario,
+            or_(Usuario.mfa_ultimo_passo_totp.is_(None), Usuario.mfa_ultimo_passo_totp < passo),
+        )
+        .values(mfa_ultimo_passo_totp=passo)
+        .execution_options(synchronize_session=False)
+    ).rowcount
+    db.commit()
+    db.refresh(usuario)
+    return gravou == 1
 
 
 # ==========================================

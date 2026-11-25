@@ -5,7 +5,11 @@ A1. Quem só cuida do cadastro (permissão `associados`) concedia acesso escolhe
     padrão (o que a tela "Conceder acesso" sempre deu) e a recusa é igual para o associado e o nível que existem e os que não existem.
     O mesmo furo existia nas permissões que o CARGO dá pelo mandato (`metadados.permissoes` do catálogo `titulo_cargo`, gerido por
     `governanca`): mudar essa lista agora também é de quem gerencia os níveis de acesso."""
+import time
 import uuid
+
+import pyotp
+import pytest
 
 from app.models.associados import Associado
 from app.models.core import NivelAcesso, Usuario
@@ -93,3 +97,120 @@ def test_a1_quem_cuida_da_governanca_nao_muda_as_permissoes_que_o_cargo_da(clien
     # o resto da opção continua com a governança (rótulo, ordem), e quem gerencia os níveis muda as permissões
     assert client.put(f"/api/opcoes-catalogo/{secretario['id_opcao']}", json={"rotulo": secretario["rotulo"]}, headers=governanca).status_code == 200
     assert client.put(f"/api/opcoes-catalogo/{secretario['id_opcao']}", json={"metadados": antes}, headers=admin).status_code == 200
+
+
+# ==========================================================================================================================================
+# A2. O segundo passo do login (MFA): respeita o bloqueio por tentativas, nunca o limpa numa conta bloqueada e não aceita o mesmo código duas
+#     vezes. O relógio do código é fixado pelo teste (`app.security._instante_atual`): sem isso, um teste que pede dois códigos seguidos
+#     falharia sozinho quando os dois caem em janelas de 30 segundos diferentes.
+# ==========================================================================================================================================
+SENHA_DEFINITIVA = "SenhaDefinitiva2026"
+
+
+@pytest.fixture()
+def relogio(monkeypatch):
+    """Um instante fixo no MEIO de uma janela de 30 s; `avancar(n)` anda n janelas."""
+    import app.security
+
+    estado = {"instante": (time.time() // 30) * 30 + 15}
+    monkeypatch.setattr(app.security, "_instante_atual", lambda: estado["instante"])
+
+    class Relogio:
+        def codigo(self, segredo, janelas=0):
+            return pyotp.TOTP(segredo).at(estado["instante"] + 30 * janelas)
+
+        def avancar(self, janelas=1):
+            estado["instante"] += 30 * janelas
+
+    return Relogio()
+
+
+def _conta_com_mfa(client, db) -> tuple[str, str]:
+    """Uma conta como a da Diretoria: acesso concedido pela secretaria, senha trocada pelo dono, segundo passo cadastrado pelas rotas."""
+    id_associado, cpf = _criar_ficha(client)
+    r = _conceder(client, cabecalho_admin(client), id_associado, f"{cpf}@mfa.example.com")
+    assert r.status_code == 200, r.text
+    token = client.post("/auth/login", json={"cpf": cpf, "senha": "SenhaDaSecretaria99"}).json()["access_token"]
+    dono = {"Authorization": f"Bearer {token}"}
+    assert client.post("/auth/senha/alterar", json={"senha_atual": "SenhaDaSecretaria99", "senha_nova": SENHA_DEFINITIVA}, headers=dono).status_code == 200
+    segredo = pyotp.parse_uri(client.post("/auth/mfa/ativar", headers=dono).json()["otpauth_uri"]).secret
+    assert client.post("/auth/mfa/confirmar", json={"codigo_totp": pyotp.TOTP(segredo).now()}, headers=dono).status_code == 200
+    return cpf, segredo
+
+
+def _passo_1(client, cpf):
+    r = client.post("/auth/login", json={"cpf": cpf, "senha": SENHA_DEFINITIVA})
+    assert r.status_code == 200 and r.json()["requer_mfa"] is True, r.text
+    return r.json()["login_temp_token"]
+
+
+def _passo_2(client, cpf, temp, codigo=None, recuperacao=None):
+    return client.post("/auth/login/mfa", json={"cpf": cpf, "login_temp_token": temp, "codigo_totp": codigo, "codigo_recuperacao": recuperacao})
+
+
+def _errado(certo: str, i: int = 0) -> str:
+    return f"{(int(certo) + 7 + i) % 1000000:06d}"
+
+
+def _usuario_do_cpf(db, cpf) -> Usuario:
+    db.expire_all()
+    return db.query(Usuario).join(Associado, Associado.id_usuario == Usuario.id_usuario).filter(Associado.cpf == cpf).one()
+
+
+def test_a2_o_segundo_passo_respeita_o_bloqueio_e_nao_o_limpa(client, db, relogio):
+    cpf, segredo = _conta_com_mfa(client, db)
+    temp = _passo_1(client, cpf)
+    certo = relogio.codigo(segredo)
+    respostas = [_passo_2(client, cpf, temp, _errado(certo, i)).status_code for i in range(8)]
+    assert respostas[:5] == [401] * 5 and respostas[5:] == [429] * 3, respostas
+
+    no_passo_1 = client.post("/auth/login", json={"cpf": cpf, "senha": SENHA_DEFINITIVA})
+    assert no_passo_1.status_code == 429
+    # o código CERTO, com o token temporário de antes, também recebe a recusa do bloqueio, igual à do 1º passo
+    com_o_certo = _passo_2(client, cpf, temp, certo)
+    assert com_o_certo.status_code == 429 and "access_token" not in com_o_certo.json()
+    assert com_o_certo.json() == no_passo_1.json() and com_o_certo.headers.get("retry-after")
+    assert _passo_2(client, cpf, temp, recuperacao="AAAA-BBBB-CCCC").status_code == 429
+    conta = _usuario_do_cpf(db, cpf)
+    assert conta.bloqueado_ate is not None and conta.tentativas_falhas >= 5, "a conta bloqueada nunca é desbloqueada pelo 2º passo"
+
+
+def test_a2_acertar_a_senha_no_primeiro_passo_nao_zera_os_codigos_errados(client, db, relogio):
+    """Sem isso, quem sabe a senha refazia o 1º passo a cada 4 códigos errados e nunca era bloqueado."""
+    cpf, segredo = _conta_com_mfa(client, db)
+    certo = relogio.codigo(segredo)
+    temp = _passo_1(client, cpf)
+    assert [_passo_2(client, cpf, temp, _errado(certo, i)).status_code for i in range(4)] == [401] * 4
+    temp = _passo_1(client, cpf)  # a senha certa de novo
+    assert _usuario_do_cpf(db, cpf).tentativas_falhas == 4
+    assert _passo_2(client, cpf, temp, _errado(certo, 9)).status_code == 401
+    assert _passo_2(client, cpf, temp, certo).status_code == 429
+
+
+def test_a2_o_mesmo_codigo_nao_vale_duas_vezes(client, db, relogio):
+    cpf, segredo = _conta_com_mfa(client, db)
+    certo = relogio.codigo(segredo)
+    primeiro = _passo_2(client, cpf, _passo_1(client, cpf), certo)
+    assert primeiro.status_code == 200 and primeiro.json()["access_token"], primeiro.text
+
+    de_novo = _passo_2(client, cpf, _passo_1(client, cpf), certo)
+    assert de_novo.status_code == 401 and "access_token" not in de_novo.json()
+    # nem o código da janela anterior (que a tolerância de relógio aceitaria) volta a valer depois de um código mais novo
+    assert _passo_2(client, cpf, _passo_1(client, cpf), relogio.codigo(segredo, janelas=-1)).status_code == 401
+
+    relogio.avancar()
+    seguinte = _passo_2(client, cpf, _passo_1(client, cpf), relogio.codigo(segredo))
+    assert seguinte.status_code == 200, seguinte.text
+    assert _usuario_do_cpf(db, cpf).tentativas_falhas == 0  # o acerto completo (senha e código) zera as tentativas
+
+
+def test_a2_o_codigo_vale_uma_vez_mesmo_em_duas_requisicoes_ao_mesmo_tempo(db):
+    """A marca do último código aceito é gravada com uma condição no próprio banco: das duas gravações do mesmo passo, só a primeira vale."""
+    from app.security import registrar_passo_totp
+
+    _, id_usuario = usuario_com_permissoes(db, mfa_ativado=True)
+    conta = db.get(Usuario, id_usuario)
+    assert registrar_passo_totp(db, conta, 1000) is True
+    assert registrar_passo_totp(db, conta, 1000) is False
+    assert registrar_passo_totp(db, conta, 999) is False
+    assert registrar_passo_totp(db, conta, 1001) is True

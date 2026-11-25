@@ -171,6 +171,9 @@ class Usuario(Base):
     # v0.1 - MFA (TOTP), obrigatório só para níveis administrativos/financeiros (ver plano v0.1.4)
     mfa_secret = Column(String, nullable=True)
     mfa_ativado = Column(Boolean, default=False)
+    # v9.6s (achado A2 da revisão de 23/11/2026) - a janela de 30 s do último código do autenticador aceito no login: o mesmo código (ou um
+    # mais velho) nunca vale de novo (app/security.py::passo_totp_aceito). Vazio enquanto a pessoa não entrou com o segundo passo.
+    mfa_ultimo_passo_totp = Column(Integer, nullable=True)
     # v3.0 (achado 2026-09-15) - True quando a senha foi definida por outra pessoa (secretaria
     # concedendo acesso a um associado, `POST /api/associados/{id}/conceder-acesso`), nunca pelo
     # próprio titular. `POST /auth/login` devolve essa flag pro front-end forçar troca no

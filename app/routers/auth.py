@@ -70,6 +70,8 @@ from app.security import (
     hash_senha,
     limpar_tentativas_falhas,
     nivel_efetivo_id,
+    passo_totp_aceito,
+    registrar_passo_totp,
     registrar_tentativa_falha,
     revogar_codigos_recuperacao,
     revogar_refresh_token,
@@ -128,10 +130,8 @@ def _buscar_usuario_por_cpf(db: Session, cpf: str) -> Usuario:
     return usuario
 
 
-@router.post("/login", response_model=TokenResponse, summary="Login por CPF + senha")
-def login(dados: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
-    usuario = _buscar_usuario_por_cpf(db, dados.cpf)
-
+def _recusar_se_bloqueado(usuario: Usuario) -> None:
+    """A mesma recusa (429) nos três caminhos de entrada: senha, segundo passo e passkey."""
     if usuario_esta_bloqueado(usuario):
         segundos = max(1, int((usuario.bloqueado_ate - datetime.utcnow()).total_seconds()))
         minutos = max(1, (segundos + 59) // 60)
@@ -141,6 +141,13 @@ def login(dados: LoginRequest, request: Request, response: Response, db: Session
             headers={"Retry-After": str(segundos)},
         )
 
+
+@router.post("/login", response_model=TokenResponse, summary="Login por CPF + senha")
+def login(dados: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+    usuario = _buscar_usuario_por_cpf(db, dados.cpf)
+
+    _recusar_se_bloqueado(usuario)
+
     if not usuario.ativo or not verificar_senha(dados.senha, usuario.senha_hash or ""):
         registrar_tentativa_falha(db, usuario)
         registrar_auditoria(
@@ -149,9 +156,9 @@ def login(dados: LoginRequest, request: Request, response: Response, db: Session
         )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="CPF ou senha inválidos.")
 
-    limpar_tentativas_falhas(db, usuario)
-
     if usuario.mfa_ativado:
+        # v9.6s (achado A2): com o segundo passo, a senha certa NÃO zera as tentativas erradas - só o acerto completo (o código, em
+        # /login/mfa). Antes, quem sabia a senha refazia este passo a cada 4 códigos errados e nunca chegava ao bloqueio.
         return TokenResponse(
             access_token="",
             expires_in_minutos=0,
@@ -159,6 +166,7 @@ def login(dados: LoginRequest, request: Request, response: Response, db: Session
             login_temp_token=criar_mfa_pending_token(usuario),
         )
 
+    limpar_tentativas_falhas(db, usuario)
     # NUNCA ecoar o refresh token no corpo (ver DECISOES_CONGELADAS.md seção 4.2) - o header
     # Set-Cookie já carrega, e devolvê-lo aqui também anularia a proteção do HttpOnly contra XSS.
     return _finalizar_login(db, usuario, request, response)
@@ -168,8 +176,11 @@ def login(dados: LoginRequest, request: Request, response: Response, db: Session
 def login_mfa(dados: LoginMFARequest, request: Request, response: Response, db: Session = Depends(get_db)):
     payload = decodificar_mfa_pending_token(dados.login_temp_token)
     usuario = db.query(Usuario).filter(Usuario.id_usuario == payload["id_usuario"]).first()
-    if usuario is None or not usuario.mfa_ativado:
+    if usuario is None or not usuario.ativo or not usuario.mfa_ativado:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="MFA inválido.")
+    # v9.6s (achado A2 da revisão de 23/11/2026): este passo contava o erro mas não olhava o bloqueio, e o acerto zerava o bloqueio. Agora a
+    # conta bloqueada recebe aqui a MESMA recusa do 1º passo, antes de conferir qualquer código, e nunca é desbloqueada por este caminho.
+    _recusar_se_bloqueado(usuario)
 
     if dados.codigo_recuperacao:
         # Código de recuperação substitui o TOTP (v0.2.2d) - é de uso único, queimado no uso.
@@ -177,11 +188,10 @@ def login_mfa(dados: LoginMFARequest, request: Request, response: Response, db: 
             registrar_tentativa_falha(db, usuario)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Código de recuperação inválido.")
     else:
-        if not usuario.mfa_secret or not dados.codigo_totp:
-            registrar_tentativa_falha(db, usuario)
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Código TOTP inválido.")
-        totp = pyotp.TOTP(usuario.mfa_secret)
-        if not totp.verify(dados.codigo_totp, valid_window=1):
+        # v9.6s (achado A2): o código do aplicativo vale UMA vez - só a janela de 30 s maior que a do último código aceito, gravada com uma
+        # condição no banco (duas requisições ao mesmo tempo com o mesmo código: só uma entra).
+        passo = passo_totp_aceito(usuario.mfa_secret, dados.codigo_totp, usuario.mfa_ultimo_passo_totp)
+        if passo is None or not registrar_passo_totp(db, usuario, passo):
             registrar_tentativa_falha(db, usuario)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Código TOTP inválido.")
 
@@ -329,6 +339,7 @@ def mfa_ativar(usuario: Usuario = Depends(get_current_user), db: Session = Depen
     # usuário configurou o app autenticador direito.
     secret = pyotp.random_base32()
     usuario.mfa_secret = secret
+    usuario.mfa_ultimo_passo_totp = None  # v9.6s: a marca do último código aceito é do segredo antigo
     db.commit()
     uri = pyotp.TOTP(secret).provisioning_uri(name=usuario.email, issuer_name="ASAF")
     return MFAAtivarResponse(otpauth_uri=uri)
@@ -752,14 +763,7 @@ def webauthn_login_concluir(dados: WebAuthnLoginConcluirRequest, request: Reques
     usuario = db.query(Usuario).filter(Usuario.id_usuario == credencial.id_usuario).first()
     if usuario is None or not usuario.ativo:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Passkey inválida.")
-    if usuario_esta_bloqueado(usuario):
-        segundos = max(1, int((usuario.bloqueado_ate - datetime.utcnow()).total_seconds()))
-        minutos = max(1, (segundos + 59) // 60)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Muitas tentativas de login. Tente novamente em {minutos} min.",
-            headers={"Retry-After": str(segundos)},
-        )
+    _recusar_se_bloqueado(usuario)
 
     try:
         verificado = webauthn.verify_authentication_response(
