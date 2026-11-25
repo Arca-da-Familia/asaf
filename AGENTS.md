@@ -4,8 +4,9 @@ Antes de mexer em qualquer coisa neste repositório:
 
 1. Leia o `CLAUDE.md` (regras do projeto: homologação antes da produção, produção só se confere por leitura, MFA do painel não se remove,
    tudo na última versão estável).
-2. Leia o `HANDOFF.md`, se existir neste computador (o estado atual do trabalho e o próximo passo exato). Ele é de cada pessoa e não vai para o
-   Git (decisão do Presidente, 17/11/2026), por isso pode não existir aqui.
+2. Leia o `HANDOFF.md` da bancada privada, em `C:\MCP\bancada\projetos\asaf\HANDOFF.md` (o estado atual do trabalho, o próximo passo exato
+   e a linha "Em uso por": uma pessoa por vez). Desde 24/11/2026 o estado do trabalho não vem para este repositório, que é público; o
+   `HANDOFF.md` daqui só aponta para a bancada.
 3. Consulte o servidor MCP `memoria-projeto` (`search_nodes` ou `read_graph`), se estiver configurado neste computador: fatos duráveis do projeto,
    regras de negócio e decisões do Presidente da ASAF. A memória vem da bancada da IEADESPA (repositório privado `IEADESPA/bancada`, em
    `C:\MCP\bancada`): num computador novo, dois cliques em `.claude\continuidade\INSTALAR.cmd` (a porta; detalhes no
