@@ -2568,6 +2568,11 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       desenho novo, a segurança de acesso e o dinheiro corretos. Datas:
       - até 30/11: v9.6s (segurança de acesso) no ar; v9.6c (Relatórios) com as correções do portão.
       - 01–06/12: v9.6d (Títulos); correção dos defeitos de dinheiro já achados (estorno, fechamento do mês, baixa em título cancelado).
+      - 01–06/12 (antes da v9.6d): **v9.6t — cargos** (decisões do Presidente de 25/11/2026): o mandato de QUALQUER cargo (Diretoria Executiva e
+        Conselho Fiscal) só é registrado ou encerrado pelo Presidente ou pelo 1º Secretário em exercício (o 2º só quando substitui o 1º, art. 22;
+        a primeira carga, sem cargo nenhum, por quem cuida dos acessos); a Presidência nunca fica vaga (encerrar o mandato do Presidente exige,
+        no mesmo ato, quem assume: o novo eleito ou um Vice-Presidente interino, art. 21); o segundo passo do login é obrigatório para toda
+        pessoa com cargo ativo (não só pelo nível da conta).
       - 07–13/12: v9.6e (Fornecedores + Registrar saída); v9.6h (Cobranças e planos); **a parte da v9.6m que põe o lançamento no exercício
         pela DATA** (hoje, em janeiro, com 2026 ainda aberto, todo lançamento de 2027 cairia em 2026 — tem de estar certo antes do uso real).
       - 14–20/12: v9.6f (Compras e Alçadas); v9.6g (Reembolsos e Doações); v9.6i (Contas fixas).
