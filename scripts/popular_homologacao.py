@@ -435,9 +435,12 @@ def main() -> int:
     with SessaoLocal() as db:
         _exigir_banco_de_teste(db)
         with TestClient(app) as client:
+            # v9.6s: ANTES de preencher. O servidor passou a cobrar o segundo passo obrigatório do nível em toda rota (achado A4 da revisão de
+            # 23/11/2026), e o administrador de teste é do nível Presidente: com a exigência ainda ligada, nenhuma rota o atenderia. Os níveis já
+            # existem aqui (o servidor os semeia ao subir, dentro do `TestClient`).
+            print(f"  + Segundo passo desligado só no banco de teste: {desligar_segundo_passo_do_ambiente_de_teste(db)} níveis")
             resultado = popular(client, db, admin_senha=os.environ.get("HML_ADMIN_SENHA"),
                                 senhas=json.loads(os.environ.get("HML_USUARIOS_JSON") or "{}"))
-            print(f"  + Segundo passo desligado só no banco de teste: {desligar_segundo_passo_do_ambiente_de_teste(db)} níveis")
     print(f"\nFeito: {len(resultado['feito'])} áreas; falhas: {len(resultado['falhas'])}")
     return 1 if resultado["falhas"] else 0
 

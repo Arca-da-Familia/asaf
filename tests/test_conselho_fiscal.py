@@ -8,6 +8,7 @@ from app.models.core import NivelAcesso, Usuario
 from app.models.financeiro import TituloFinanceiro
 from app.models.pessoas import Pessoa
 from app.security import criar_access_token, hash_senha
+from tests.apoio_auth import com_o_segundo_passo_se_o_nivel_exige
 
 _ISO = "%Y-%m-%dT%H:%M:%S"
 
@@ -23,6 +24,7 @@ def _criar_associado(db, nome, nome_nivel="Associado") -> tuple[Associado, Usuar
     associado = Associado(id_pessoa=pessoa.id_pessoa, id_usuario=usuario.id_usuario)
     db.add(associado)
     db.commit()
+    com_o_segundo_passo_se_o_nivel_exige(db, usuario)  # v9.6s: o nível Presidente, Diretoria... só opera com o segundo passo cadastrado
     db.refresh(associado)
     return associado, usuario
 

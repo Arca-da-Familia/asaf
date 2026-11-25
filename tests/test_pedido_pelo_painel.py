@@ -13,7 +13,8 @@ from app import textos_de_privacidade
 from app.models.atendimento import IDENTIDADE_PAINEL, RESPONDIDO, Atendimento
 from app.models.core import AuditLog, NivelAcesso, Usuario
 from app.models.pessoas import Pessoa
-from app.security import hash_senha
+from app.security import RECUSA_SENHA_PROVISORIA, hash_senha
+from app.services import pedido_pelo_painel
 from tests.test_atendimento import _cpf_valido
 from tests.test_conselho_fiscal import _criar_associado, _headers
 from tests.test_doacao_online import emails  # noqa: F401  (a fixture `emails`)
@@ -117,8 +118,10 @@ def test_sem_o_segundo_passo_ou_com_a_senha_provisoria_a_equipe_confere_a_identi
     _, provisoria = _associada(db)
     provisoria.senha_provisoria = True
     db.commit()
+    # v9.6s (achado A3): com a senha provisória a conta nem chega a pedir (o servidor só a deixa trocar a senha); a regra do serviço continua
     r = _pedir(client, _headers(provisoria))
-    assert r.json()["identidade_validada"] is False
+    assert r.status_code == 403 and r.json()["detail"] == RECUSA_SENHA_PROVISORIA
+    assert pedido_pelo_painel.identidade_forte(provisoria) is False
 
 
 def test_o_pedido_do_painel_nao_aparece_na_minha_conta_e_o_do_site_nao_aparece_no_painel(client, db):

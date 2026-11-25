@@ -29,6 +29,12 @@ MOTORISTA = textwrap.dedent(
     ph = importlib.util.module_from_spec(esp); esp.loader.exec_module(ph)
     saidas = []
     with SessaoLocal() as db, TestClient(app) as client:
+        # a mesma ordem do `main()` do roteiro (v9.6s): o segundo passo é desligado ANTES de preencher, porque o servidor o cobra em toda rota
+        niveis_com_mfa = lambda: db.execute(text("select count(*) from niveis_acesso where exige_mfa = 1")).scalar()
+        presidente_exigia = lambda: db.execute(text("select exige_mfa from niveis_acesso where nome_nivel = 'Presidente'")).scalar()
+        antes, presidente_antes = niveis_com_mfa(), presidente_exigia()
+        ph._nome_do_banco = lambda _db: "asaf_hml"  # o SQLite descartável faz de conta que é o banco de teste
+        afetados = ph.desligar_segundo_passo_do_ambiente_de_teste(db)
         resultado = ph.popular(client, db, admin_senha="Senha-De-Teste-Do-Roteiro-1", escrever=saidas.append,
                                senhas={{"secretario": "Secretaria-Senha-Do-Cofre-77", "tesoureiro": "Tesouraria-Senha-Do-Cofre-88",
                                        "cargo_presidente": "CargoPresidente-Senha-Do-Cofre-11", "vice_presidente": "VicePresidente-Senha-Do-Cofre-22",
@@ -42,11 +48,8 @@ MOTORISTA = textwrap.dedent(
             return {{"status": login.status_code, "requer_mfa": corpo.get("requer_mfa"), "mfa_obrigatorio": eu.get("mfa_obrigatorio"),
                     "mfa_pendente": eu.get("mfa_pendente")}}
 
-        niveis_com_mfa = lambda: db.execute(text("select count(*) from niveis_acesso where exige_mfa = 1")).scalar()
-        antes, entrada_antes = niveis_com_mfa(), entrar()
-        ph._nome_do_banco = lambda _db: "asaf_hml"  # o SQLite descartável faz de conta que é o banco de teste
-        afetados = ph.desligar_segundo_passo_do_ambiente_de_teste(db)
-        mfa = {{"antes": antes, "afetados": afetados, "depois": niveis_com_mfa(), "entrada_antes": entrada_antes, "entrada_depois": entrar()}}
+        mfa = {{"antes": antes, "presidente_antes": presidente_antes, "afetados": afetados, "depois": niveis_com_mfa(),
+                "entrada_depois": entrar()}}
         contagem = lambda sql: db.execute(text(sql)).scalar()
         resumo = {{
             "associados": contagem("select count(*) from associados"),
@@ -107,10 +110,11 @@ def test_o_site_publico_enxerga_o_que_ja_foi_liberado(execucao):
 
 
 def test_segundo_passo_fica_desligado_no_banco_de_teste_e_o_login_entra_so_com_cpf_e_senha(execucao):
-    """Decisão do presidente (2026-10-05): a homologação não tem segundo passo. Antes de desligar, o Presidente de teste ERA obrigado a
-    configurá-lo (prova de que o roteiro mexeu em algo real); depois, entra direto e o sistema não pede mais nada."""
+    """Decisão do presidente (2026-10-05): a homologação não tem segundo passo. Antes de desligar, o nível Presidente ERA obrigado a
+    configurá-lo (prova de que o roteiro mexeu em algo real); depois, o Presidente de teste entra direto e o sistema não pede mais nada.
+    v9.6s: o desligar vem ANTES de preencher (o servidor cobra o segundo passo em toda rota), então a prova do "antes" é o próprio nível."""
     mfa = execucao[0]["mfa"]
-    assert mfa["antes"] > 0 and mfa["entrada_antes"]["mfa_pendente"] is True, mfa
+    assert mfa["antes"] > 0 and mfa["presidente_antes"] == 1, mfa
     assert mfa["afetados"] == mfa["antes"] and mfa["depois"] == 0, mfa
     assert mfa["entrada_depois"] == {"status": 200, "requer_mfa": False, "mfa_obrigatorio": False, "mfa_pendente": False}, mfa
 

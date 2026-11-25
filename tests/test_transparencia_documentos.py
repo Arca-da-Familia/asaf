@@ -6,12 +6,11 @@ sair e a publicação é aprovada pelo Presidente ou pelo Secretário (outra pes
 from datetime import datetime, timedelta
 
 from app.models.associados import Associado
-from app.models.core import AuditLog, Usuario
+from app.models.core import AuditLog
 from app.models.documentos import DocumentoInstitucional
 from app.models.mandatos import Mandato
-from app.security import criar_access_token
 from app.services import documentos_institucionais
-from tests.apoio_auth import cabecalho_admin
+from tests.apoio_auth import cabecalho_admin, entrar_trocando_a_senha_provisoria
 from tests.test_ata import _criar_assembleia_em_andamento, _criar_ata
 from tests.test_documentos_institucionais import _usuario
 from tests.test_situacao import _criar_associado
@@ -46,9 +45,9 @@ def _secretario_com_mandato(client, db) -> tuple[dict, str]:
         data_inicio=datetime.utcnow() - timedelta(days=30), data_fim_previsto=datetime.utcnow() + timedelta(days=700),
     ))
     db.commit()
-    usuario = db.get(Usuario, r.json()["id_usuario"])
-    nome = db.get(Associado, associado["id_associado"]).nome_completo
-    return {"Authorization": f"Bearer {criar_access_token(usuario)}"}, nome
+    ficha = db.get(Associado, associado["id_associado"])
+    # v9.6s: a senha provisória só serve para trocá-la (o servidor recusa o resto), como a pessoa faz no primeiro login
+    return entrar_trocando_a_senha_provisoria(client, ficha.cpf, "Provisoria1"), ficha.nome_completo
 
 
 def _publicar_texto(client, preparador, aprovador, id_documento, texto=TEXTO_LIMPO):

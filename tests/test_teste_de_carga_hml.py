@@ -4,6 +4,7 @@ reprova quando algo está errado. Também prova a trava de segurança: recusa qu
 import asyncio
 import importlib.util
 import json
+import uuid
 from argparse import Namespace
 from pathlib import Path
 
@@ -11,8 +12,6 @@ import httpx2 as httpx
 import pytest
 
 from app.main import app
-from tests import apoio_auth
-from tests.apoio_auth import token_admin
 
 CAMINHO = Path(__file__).resolve().parent.parent / "scripts" / "teste_de_carga_hml.py"
 
@@ -37,14 +36,41 @@ def _rodar(carga, args) -> int:
     return asyncio.run(carga.principal(args, transporte=transporte))
 
 
+SENHA_DO_PRESIDENTE_DE_TESTE = "SenhaDoPresidenteDaCarga2026"  # inventada, só deste teste
+
+
 @pytest.fixture()
-def presidente_de_teste(client, monkeypatch):
-    """O administrador da sessão faz o papel do presidente de teste da homologação (CPF e senha só existem aqui)."""
-    token_admin(client)
-    cpf, senha = apoio_auth._credenciais
+def presidente_de_teste(client, db, monkeypatch):
+    """O presidente de teste da homologação (CPF e senha só existem aqui). Lá nenhum nível exige o segundo passo (decisão do Presidente de
+    05/10/2026, só no banco `asaf_hml`) e o roteiro entra só com CPF e senha; aqui ele é uma conta com as permissões do nível Presidente num
+    nível que, como lá, não exige o segundo passo. v9.6s: o administrador da sessão não faz mais esse papel, porque cadastra o segundo passo
+    (o servidor o cobra, como na produção) e o login dele pede o código do aplicativo autenticador."""
+    from sqlalchemy import select
+
+    from app.models.associados import Associado
+    from app.models.core import NivelAcesso, Usuario, perfil_permissao
+    from app.security import hash_senha
+    from tests.test_conceder_acesso import _criar_ficha
+
+    # a ficha ANTES de abrir a escrita desta sessão: no SQLite da suíte, com a escrita aberta aqui, o servidor não consegue gravar a ficha
+    id_associado, cpf = _criar_ficha(client)
+    presidente = db.query(NivelAcesso).filter(NivelAcesso.nome_nivel == "Presidente").one()
+    nivel = NivelAcesso(nome_nivel=f"presidente_da_hml_{uuid.uuid4().hex[:8]}", descricao="o Presidente da homologação", exige_mfa=False)
+    db.add(nivel)
+    db.flush()
+    permissoes = db.execute(select(perfil_permissao.c.id_permissao).where(perfil_permissao.c.id_nivel == presidente.id_nivel)).scalars().all()
+    for id_permissao in permissoes:
+        db.execute(perfil_permissao.insert().values(id_nivel=nivel.id_nivel, id_permissao=id_permissao))
+    usuario = Usuario(
+        email=f"carga.{uuid.uuid4().hex[:8]}@teste.local", senha_hash=hash_senha(SENHA_DO_PRESIDENTE_DE_TESTE), id_nivel=nivel.id_nivel, ativo=True,
+    )
+    db.add(usuario)
+    db.flush()
+    db.get(Associado, id_associado).id_usuario = usuario.id_usuario
+    db.commit()
     carga = _carregar()
     monkeypatch.setattr(carga, "cpf_do_presidente", lambda: cpf)
-    monkeypatch.setenv("HML_ADMIN_SENHA", senha)
+    monkeypatch.setenv("HML_ADMIN_SENHA", SENHA_DO_PRESIDENTE_DE_TESTE)
     return carga
 
 
@@ -64,7 +90,7 @@ def test_a_multidao_nao_estoura_as_vagas_ninguem_se_perde_e_o_mesmo_ip_e_barrado
     assert relatorio["cliques_duplos_com_duas_inscricoes"] == 0
     assert relatorio["falhas"] == []
     # a senha do presidente nunca vai para o relatório
-    assert apoio_auth._credenciais[1] not in saida.read_text(encoding="utf-8") and apoio_auth._credenciais[1] not in texto
+    assert SENHA_DO_PRESIDENTE_DE_TESTE not in saida.read_text(encoding="utf-8") and SENHA_DO_PRESIDENTE_DE_TESTE not in texto
 
 
 def test_com_menos_gente_que_vagas_sobram_vagas_e_a_pagina_publica_conta_certo(presidente_de_teste, tmp_path):

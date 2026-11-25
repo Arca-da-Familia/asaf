@@ -6,7 +6,7 @@ import re
 from datetime import datetime, timedelta
 
 from tests.test_pessoas import _cpf_unico
-from tests.apoio_auth import cabecalho_admin
+from tests.apoio_auth import cabecalho_admin, entrar_trocando_a_senha_provisoria
 from tests.apoio_cnpj import cnpj_valido
 from tests.apoio_mandatos import liberar_cargo
 
@@ -36,9 +36,7 @@ def _criar_usuario_com_mandato(client, auth_headers, cargo_codigo, orgao_codigo=
     r = client.post(f"/api/associados/{id_associado}/conceder-acesso", json={"email": f"{cpf}@acesso.example.com", "senha_provisoria": senha}, headers=auth_headers)
     assert r.status_code == 200, r.text
 
-    login = client.post("/auth/login", json={"cpf": cpf, "senha": senha})
-    assert login.status_code == 200, login.text
-    headers_proprios = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    headers_proprios = entrar_trocando_a_senha_provisoria(client, cpf, senha)  # v9.6s: a senha provisória só serve para trocá-la
 
     liberar_cargo(client, auth_headers, orgao_codigo, cargo_codigo)
     r = client.post("/api/mandatos/", json={

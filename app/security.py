@@ -427,10 +427,7 @@ def decodificar_access_token_silencioso(token: str) -> Optional[dict]:
     return payload if payload.get("type") == "access" else None
 
 
-def get_current_user(
-    credenciais: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
-    db: Session = Depends(get_db),
-) -> Usuario:
+def _usuario_do_token(credenciais: Optional[HTTPAuthorizationCredentials], db: Session) -> Usuario:
     if credenciais is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Não autenticado.")
     payload = decodificar_access_token(credenciais.credentials)
@@ -440,6 +437,77 @@ def get_current_user(
     # v0.2.9 - atributo só em memória (nunca persistido): se o token carrega o claim do modo
     # "ver como", toda checagem de permissão desta requisição usa este nível, não o real.
     usuario.id_nivel_impersonado = payload.get("id_nivel_impersonado")
+    return usuario
+
+
+# ==========================================
+# PENDÊNCIAS DA CONTA, COBRADAS NO SERVIDOR - v9.6s (achados A3 e A4 da revisão de 23/11/2026)
+# A troca da senha provisória e o segundo passo obrigatório do nível eram cobrados só pela TELA (o painel leva às telas de troca e de cadastro):
+# pela API, a conta com a senha que a secretaria conhece, e a de nível Presidente sem o segundo passo, faziam tudo. Agora TODA rota com login
+# passa por este portão (`get_current_user`, e por ele `exigir_permissao`). Na mesma ordem do painel:
+#   1. senha provisória: só `/auth/me` e a troca da senha (ninguém cadastra o segundo passo com uma senha que outra pessoa conhece);
+#   2. segundo passo obrigatório do nível ainda não cadastrado: só `/auth/me` e o cadastro dele (`/auth/mfa/ativar` e `/auth/mfa/confirmar`).
+# O resto recebe a MESMA recusa 403, antes de qualquer consulta da rota (igual para o registro que existe e o que não existe). Sair
+# (`/auth/logout`) não depende de login. A exigência do segundo passo é a do nível REAL (o "ver como" não a tira), como no `/auth/me`.
+# ==========================================
+RECUSA_SENHA_PROVISORIA = "A sua senha ainda é a provisória, que outra pessoa definiu. Troque a senha para continuar."
+RECUSA_SEGUNDO_PASSO_PENDENTE = "O seu nível de acesso exige a verificação em duas etapas. Cadastre o aplicativo autenticador para continuar."
+
+
+def segundo_passo_obrigatorio(db: Session, usuario: Usuario) -> bool:
+    """O nível REAL da conta exige o segundo passo (MFA)? Mesma regra do `mfa_obrigatorio` do `/auth/me`."""
+    nivel = db.query(NivelAcesso).filter(NivelAcesso.id_nivel == usuario.id_nivel).first()
+    return bool(nivel.exige_mfa) if nivel else False
+
+
+def segundo_passo_pendente(db: Session, usuario: Usuario) -> bool:
+    return segundo_passo_obrigatorio(db, usuario) and not usuario.mfa_ativado
+
+
+def _barrar_pendencias(db: Session, usuario: Usuario, libera_senha_provisoria: bool = False, libera_segundo_passo: bool = False) -> None:
+    if usuario.senha_provisoria:
+        if libera_senha_provisoria:
+            return  # a senha vem primeiro; o segundo passo é cobrado depois que ela for trocada
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=RECUSA_SENHA_PROVISORIA)
+    if not libera_segundo_passo and segundo_passo_pendente(db, usuario):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=RECUSA_SEGUNDO_PASSO_PENDENTE)
+
+
+def get_current_user(
+    credenciais: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
+    db: Session = Depends(get_db),
+) -> Usuario:
+    """O usuário logado SEM pendência na conta: é o que toda rota com login usa (direto ou por `exigir_permissao`)."""
+    usuario = _usuario_do_token(credenciais, db)
+    _barrar_pendencias(db, usuario)
+    return usuario
+
+
+def usuario_mesmo_com_pendencias(
+    credenciais: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
+    db: Session = Depends(get_db),
+) -> Usuario:
+    """Só para `/auth/me`: o painel precisa saber da pendência para levar a pessoa à tela certa."""
+    return _usuario_do_token(credenciais, db)
+
+
+def usuario_trocando_a_senha_provisoria(
+    credenciais: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
+    db: Session = Depends(get_db),
+) -> Usuario:
+    """Só para a troca da própria senha: liberada com a senha provisória (é a saída dela); com o segundo passo pendente, não."""
+    usuario = _usuario_do_token(credenciais, db)
+    _barrar_pendencias(db, usuario, libera_senha_provisoria=True)
+    return usuario
+
+
+def usuario_cadastrando_o_segundo_passo(
+    credenciais: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
+    db: Session = Depends(get_db),
+) -> Usuario:
+    """Só para cadastrar o segundo passo (`/auth/mfa/ativar` e `/auth/mfa/confirmar`), depois de a senha provisória ter sido trocada."""
+    usuario = _usuario_do_token(credenciais, db)
+    _barrar_pendencias(db, usuario, libera_segundo_passo=True)
     return usuario
 
 
@@ -463,6 +531,10 @@ def get_current_user_opcional(
     if usuario is None or not usuario.ativo:
         return None
     usuario.id_nivel_impersonado = payload.get("id_nivel_impersonado")
+    try:
+        _barrar_pendencias(db, usuario)  # v9.6s: com pendência na conta, vale como quem não entrou
+    except HTTPException:
+        return None
     return usuario
 
 

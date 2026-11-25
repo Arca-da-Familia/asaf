@@ -9,7 +9,7 @@ from datetime import date, datetime, timedelta
 from app.models.associados import Associado
 from app.security import decodificar_access_token
 from tests.test_pessoas import _cpf_unico
-from tests.apoio_auth import cabecalho_admin
+from tests.apoio_auth import cabecalho_admin, entrar_trocando_a_senha_provisoria
 
 _ISO = "%Y-%m-%dT%H:%M:%S"
 
@@ -43,9 +43,7 @@ def _conceder_acesso_e_logar(client, auth_headers, id_associado: int, cpf: str) 
         headers=auth_headers,
     )
     assert r.status_code == 200, r.text
-    login = client.post("/auth/login", json={"cpf": cpf, "senha": senha})
-    assert login.status_code == 200, login.text
-    return {"Authorization": f"Bearer {login.json()['access_token']}"}
+    return entrar_trocando_a_senha_provisoria(client, cpf, senha)  # v9.6s: a senha provisória só serve para trocá-la
 
 
 def _criar_termo(client, auth_headers, id_pessoa: int, dias_vigencia: int = 180):

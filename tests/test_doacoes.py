@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timedelta
 
 from tests.test_pessoas import _cpf_unico
-from tests.apoio_auth import cabecalho_admin
+from tests.apoio_auth import cabecalho_admin, entrar_trocando_a_senha_provisoria
 
 
 def _criar_conta(client, auth_headers, tipo):
@@ -137,8 +137,7 @@ def test_destinacao_especifica_bloqueia_gasto_em_outra_finalidade(client, auth_h
     id_associado = client.post("/associados-master/", json=payload, headers=cabecalho_admin(client)).json()["id_associado"]
     senha = "SenhaForteTeste1"
     client.post(f"/api/associados/{id_associado}/conceder-acesso", json={"email": f"{cpf}@acesso.example.com", "senha_provisoria": senha}, headers=auth_headers)
-    login = client.post("/auth/login", json={"cpf": cpf, "senha": senha})
-    headers_presidente = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    headers_presidente = entrar_trocando_a_senha_provisoria(client, cpf, senha)  # v9.6s: a senha provisória só serve para trocá-la
     client.post("/api/mandatos/", json={
         "id_associado": id_associado, "orgao_codigo": "DIRETORIA_EXECUTIVA", "cargo_codigo": "PRESIDENTE",
         "data_inicio": datetime.utcnow().date().isoformat(),

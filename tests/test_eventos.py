@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timedelta
 
 from tests.test_pessoas import _cpf_unico
-from tests.apoio_auth import cabecalho_admin
+from tests.apoio_auth import cabecalho_admin, entrar_trocando_a_senha_provisoria
 
 _ISO = "%Y-%m-%dT%H:%M:%S"
 
@@ -43,9 +43,7 @@ def _criar_associado_com_acesso(client, auth_headers) -> dict:
         headers=auth_headers,
     )
     assert r.status_code == 200, r.text
-    login = client.post("/auth/login", json={"cpf": cpf, "senha": senha})
-    assert login.status_code == 200, login.text
-    return {"Authorization": f"Bearer {login.json()['access_token']}"}
+    return entrar_trocando_a_senha_provisoria(client, cpf, senha)  # v9.6s: a senha provisória só serve para trocá-la
 
 
 def test_criar_evento_valida_categoria_do_catalogo(client, auth_headers):

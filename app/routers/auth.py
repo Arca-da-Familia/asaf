@@ -76,7 +76,11 @@ from app.security import (
     revogar_codigos_recuperacao,
     revogar_refresh_token,
     revogar_tokens_exceto,
+    segundo_passo_obrigatorio,
+    usuario_cadastrando_o_segundo_passo,
     usuario_esta_bloqueado,
+    usuario_mesmo_com_pendencias,
+    usuario_trocando_a_senha_provisoria,
     validar_refresh_token,
     validar_senha_forte,
     verificar_codigo_recuperacao,
@@ -226,7 +230,7 @@ def logout(request: Request, response: Response, dados: Optional[LogoutRequest] 
 
 
 @router.get("/me", response_model=MeResponse, summary="Dados de quem está logado")
-def me(usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+def me(usuario: Usuario = Depends(usuario_mesmo_com_pendencias), db: Session = Depends(get_db)):
     associado = db.query(Associado).filter(Associado.id_usuario == usuario.id_usuario).first()
     nivel_real = db.query(NivelAcesso).filter(NivelAcesso.id_nivel == usuario.id_nivel).first()
 
@@ -254,7 +258,7 @@ def me(usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_d
         from app.services.mandatos import permissoes_por_mandatos_vigentes
 
         codigos_de_permissao |= permissoes_por_mandatos_vigentes(db, associado.id_associado)
-    mfa_obrigatorio = bool(nivel_real.exige_mfa) if nivel_real else False
+    mfa_obrigatorio = segundo_passo_obrigatorio(db, usuario)  # v9.6s: a mesma regra que o servidor cobra em toda rota (nível REAL)
 
     impersonando = None
     if usuario.id_nivel_impersonado and nivel_efetivo and nivel_real:
@@ -325,7 +329,7 @@ def iniciar_impersonacao(
 
 
 @router.post("/mfa/ativar", response_model=MFAAtivarResponse, summary="Inicia a ativação de MFA (TOTP)")
-def mfa_ativar(usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+def mfa_ativar(usuario: Usuario = Depends(usuario_cadastrando_o_segundo_passo), db: Session = Depends(get_db)):
     # Achado (v0.3.3): esta rota sobrescrevia o segredo mesmo com MFA já ativo, derrubando
     # silenciosamente o app autenticador de quem já tinha configurado (foi o que travou a
     # conta de produção). Reativar exige passar por /auth/mfa/reset (outro administrador
@@ -348,7 +352,7 @@ def mfa_ativar(usuario: Usuario = Depends(get_current_user), db: Session = Depen
 @router.post("/mfa/confirmar", response_model=MFAConfirmarResponse, summary="Confirma a ativação de MFA com o 1º código gerado")
 def mfa_confirmar(
     dados: MFAConfirmarRequest,
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(usuario_cadastrando_o_segundo_passo),
     db: Session = Depends(get_db),
 ):
     if not usuario.mfa_secret:
@@ -444,7 +448,9 @@ def _associado_do_usuario(db: Session, usuario: Usuario) -> Associado:
 
 
 @router.post("/senha/alterar", summary="Troca a própria senha (exige a senha atual)")
-def alterar_senha(dados: AlterarSenhaRequest, request: Request, usuario: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+def alterar_senha(
+    dados: AlterarSenhaRequest, request: Request, usuario: Usuario = Depends(usuario_trocando_a_senha_provisoria), db: Session = Depends(get_db),
+):
     if not usuario.senha_hash or not verificar_senha(dados.senha_atual, usuario.senha_hash):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Senha atual incorreta.")
     erro = validar_senha_forte(dados.senha_nova)

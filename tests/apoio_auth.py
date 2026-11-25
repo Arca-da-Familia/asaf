@@ -5,14 +5,31 @@ busca, dependentes, carteirinha, autoatendimento) funcionavam SEM login, e a pr�
 testes que as usam passam o cabeçalho do administrador da sessão: `headers=cabecalho_admin(client)`.
 
 O administrador é criado uma vez por sessão (o `bootstrap-admin` só funciona num banco sem usuário nenhum) e é reaproveitado pelo
-fixture `admin_token` do conftest."""
+fixture `admin_token` do conftest.
+
+v9.6s (achados A3 e A4 da revisão de 23/11/2026): o servidor passou a cobrar o segundo passo obrigatório do nível em toda rota, e o
+administrador é do nível Presidente (que o exige). Por isso ele cadastra o segundo passo UMA vez por sessão, pelas rotas de verdade (como a
+pessoa faz na tela), e a partir daí recebe o token direto (`criar_access_token`), sem passar pelo login a cada teste: o código do aplicativo
+autenticador vale uma vez só (achado A2), então entrar de novo na mesma janela de 30 segundos seria recusado."""
 import uuid
 
+import pyotp
+
 _credenciais: tuple[str, str] | None = None
+_admin: tuple[int, int] | None = None  # (id_usuario, id_nivel) do administrador, depois do segundo passo cadastrado
+
+
+class _UsuarioDoToken:
+    """Só o que `criar_access_token` lê do usuário."""
+
+    def __init__(self, id_usuario: int, id_nivel: int):
+        self.id_usuario, self.id_nivel = id_usuario, id_nivel
 
 
 def token_admin(client) -> str:
-    global _credenciais
+    global _credenciais, _admin
+    from app.security import criar_access_token
+
     if _credenciais is None:
         cpf = str(uuid.uuid4().int)[:11]
         senha = "SenhaForte123456"
@@ -22,11 +39,24 @@ def token_admin(client) -> str:
         )
         assert resposta.status_code == 200, resposta.text
         _credenciais = (cpf, senha)
-    cpf, senha = _credenciais
-    login = client.post("/auth/login", json={"cpf": cpf, "senha": senha})
-    assert login.status_code == 200, login.text
-    assert login.json()["requer_mfa"] is False  # bootstrap-admin não ativa MFA
-    return login.json()["access_token"]
+    if _admin is None:
+        cpf, senha = _credenciais
+        login = client.post("/auth/login", json={"cpf": cpf, "senha": senha})
+        assert login.status_code == 200, login.text
+        assert login.json()["requer_mfa"] is False  # bootstrap-admin não ativa MFA: o Presidente o cadastra agora, como na tela
+        cabecalho = {"Authorization": f"Bearer {login.json()['access_token']}"}
+        eu = client.get("/auth/me", headers=cabecalho).json()
+        assert eu["mfa_pendente"] is True, eu
+        segredo = pyotp.parse_uri(client.post("/auth/mfa/ativar", headers=cabecalho).json()["otpauth_uri"]).secret
+        confirmado = client.post("/auth/mfa/confirmar", json={"codigo_totp": pyotp.TOTP(segredo).now()}, headers=cabecalho)
+        assert confirmado.status_code == 200, confirmado.text
+        from app.database import SessaoLocal
+        from app.models.core import Usuario
+
+        with SessaoLocal() as db:
+            usuario = db.get(Usuario, eu["id_usuario"])
+            _admin = (usuario.id_usuario, usuario.id_nivel)
+    return criar_access_token(_UsuarioDoToken(*_admin))
 
 
 def cabecalho_admin(client) -> dict:
@@ -57,3 +87,30 @@ def usuario_com_permissoes(db, *codigos: str, exige_mfa: bool = False, mfa_ativa
     db.commit()
     db.refresh(usuario)
     return {"Authorization": f"Bearer {criar_access_token(usuario)}"}, usuario.id_usuario
+
+
+SENHA_DEFINITIVA_DOS_TESTES = "SenhaDefinitivaDoTeste2026"
+
+
+def entrar_trocando_a_senha_provisoria(client, cpf: str, senha_provisoria: str) -> dict:
+    """v9.6s (achado A3) - a conta que acabou de ganhar acesso entra com a senha provisória e, como a pessoa faz na tela, troca a senha antes
+    de operar: o servidor recusa todo o resto enquanto ela for a provisória. Devolve o cabeçalho da conta, já com a senha definitiva."""
+    login = client.post("/auth/login", json={"cpf": cpf, "senha": senha_provisoria})
+    assert login.status_code == 200, login.text
+    cabecalho = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    troca = client.post(
+        "/auth/senha/alterar", json={"senha_atual": senha_provisoria, "senha_nova": SENHA_DEFINITIVA_DOS_TESTES}, headers=cabecalho,
+    )
+    assert troca.status_code == 200, troca.text
+    return cabecalho
+
+
+def com_o_segundo_passo_se_o_nivel_exige(db, usuario) -> None:
+    """v9.6s - para os testes que criam direto no banco uma conta de nível que exige o segundo passo (Presidente, Diretoria...): na vida real
+    ela só opera depois de cadastrá-lo (o servidor cobra desde a v9.6s), então a conta do teste nasce com ele cadastrado."""
+    from app.models.core import NivelAcesso
+
+    nivel = db.query(NivelAcesso).filter(NivelAcesso.id_nivel == usuario.id_nivel).first()
+    if nivel is not None and nivel.exige_mfa and not usuario.mfa_ativado:
+        usuario.mfa_ativado, usuario.mfa_secret = True, pyotp.random_base32()
+        db.commit()

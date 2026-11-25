@@ -34,6 +34,9 @@ MOTORISTA = textwrap.dedent(
     pv = carregar("povoar_homologacao_volume", {volume!r})
     saidas = []
     with SessaoLocal() as db, TestClient(app) as client:
+        # a mesma ordem da homologação (v9.6s): o segundo passo é desligado ANTES de preencher, porque o servidor o cobra em toda rota
+        ph._nome_do_banco = lambda _db: "asaf_hml"  # o SQLite descartável faz de conta que é o banco de teste
+        ph.desligar_segundo_passo_do_ambiente_de_teste(db)
         ph.popular(client, db, admin_senha="Senha-De-Teste-Do-Volume-1", escrever=lambda *_: None)
         resultado = pv.povoar(client, db, escrever=saidas.append)
         contagem = lambda sql: db.execute(text(sql)).scalar()

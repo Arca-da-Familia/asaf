@@ -214,3 +214,143 @@ def test_a2_o_codigo_vale_uma_vez_mesmo_em_duas_requisicoes_ao_mesmo_tempo(db):
     assert registrar_passo_totp(db, conta, 1000) is False
     assert registrar_passo_totp(db, conta, 999) is False
     assert registrar_passo_totp(db, conta, 1001) is True
+
+
+# ==========================================================================================================================================
+# A3 e A4. A senha provisória e o segundo passo obrigatório do nível eram cobrados só pela TELA: pela API, a conta com a senha que a secretaria
+#          conhece (e a de nível Presidente sem o segundo passo) fazia tudo. Agora o SERVIDOR cobra: enquanto a senha for a provisória, a conta só
+#          vê quem é (`/auth/me`) e troca a senha; depois, enquanto o segundo passo obrigatório não estiver cadastrado, só vê quem é e o cadastra.
+#          O resto recebe a mesma recusa 403, exista o registro ou não. Sair (`/auth/logout`) não depende de login.
+# ==========================================================================================================================================
+RECUSA_SENHA_PROVISORIA = "A sua senha ainda é a provisória, que outra pessoa definiu. Troque a senha para continuar."
+RECUSA_MFA_PENDENTE = "O seu nível de acesso exige a verificação em duas etapas. Cadastre o aplicativo autenticador para continuar."
+LIBERADAS_COM_A_SENHA_PROVISORIA = {("GET", "/auth/me"), ("POST", "/auth/senha/alterar")}
+LIBERADAS_SEM_O_SEGUNDO_PASSO = {("GET", "/auth/me"), ("POST", "/auth/mfa/ativar"), ("POST", "/auth/mfa/confirmar")}
+
+
+def _entrar(client, cpf, senha):
+    r = client.post("/auth/login", json={"cpf": cpf, "senha": senha})
+    assert r.status_code == 200 and r.json()["access_token"], r.text
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
+def test_a3_e_a4_a_conta_de_nivel_presidente_so_opera_depois_de_trocar_a_senha_e_cadastrar_o_segundo_passo(client, db):
+    """O caminho da prova do revisor: a conta nova de nível Presidente, com a senha que outra pessoa escolheu, abria exercício contábil."""
+    id_associado, cpf = _criar_ficha(client)
+    r = _conceder(client, cabecalho_admin(client), id_associado, f"{cpf}@presidente.example.com", id_nivel=_id_do_nivel(db, "Presidente"))
+    assert r.status_code == 200, r.text
+    conta = _entrar(client, cpf, "SenhaDaSecretaria99")
+    ano = 2040 + int(uuid.uuid4().int % 50)
+
+    eu = client.get("/auth/me", headers=conta).json()
+    assert eu["senha_provisoria"] is True and eu["mfa_pendente"] is True
+    for metodo, rota, corpo in (("POST", "/api/exercicios/", {"ano": ano}), ("GET", "/api/auditoria/?limite=1", None),
+                                ("GET", "/api/niveis-acesso/", None), ("POST", "/auth/mfa/ativar", None)):
+        r = client.request(metodo, rota, json=corpo, headers=conta)
+        assert r.status_code == 403 and r.json()["detail"] == RECUSA_SENHA_PROVISORIA, (rota, r.text)
+
+    trocou = client.post("/auth/senha/alterar", json={"senha_atual": "SenhaDaSecretaria99", "senha_nova": SENHA_DEFINITIVA}, headers=conta)
+    assert trocou.status_code == 200, trocou.text
+    for metodo, rota, corpo in (("POST", "/api/exercicios/", {"ano": ano}), ("GET", "/api/auditoria/?limite=1", None),
+                                ("POST", "/auth/senha/alterar", {"senha_atual": SENHA_DEFINITIVA, "senha_nova": "OutraSenhaBoa2026"})):
+        r = client.request(metodo, rota, json=corpo, headers=conta)
+        assert r.status_code == 403 and r.json()["detail"] == RECUSA_MFA_PENDENTE, (rota, r.text)
+
+    segredo = pyotp.parse_uri(client.post("/auth/mfa/ativar", headers=conta).json()["otpauth_uri"]).secret
+    assert client.post("/auth/mfa/confirmar", json={"codigo_totp": pyotp.TOTP(segredo).now()}, headers=conta).status_code == 200
+    # agora opera como Presidente (só leitura aqui: abrir um exercício depende de não haver outro aberto na suíte)
+    for rota in ("/api/auditoria/?limite=1", "/api/niveis-acesso/"):
+        assert client.get(rota, headers=conta).status_code == 200, rota
+    assert client.get("/auth/me", headers=conta).json()["mfa_pendente"] is False
+
+
+def test_a3_quem_nao_precisa_do_segundo_passo_opera_depois_de_trocar_a_senha(client, db):
+    id_associado, cpf = _criar_ficha(client)
+    assert _conceder(client, cabecalho_admin(client), id_associado, f"{cpf}@associado.example.com").status_code == 200
+    conta = _entrar(client, cpf, "SenhaDaSecretaria99")
+    assert client.get("/auth/perfil", headers=conta).json()["detail"] == RECUSA_SENHA_PROVISORIA
+    trocou = client.post("/auth/senha/alterar", json={"senha_atual": "SenhaDaSecretaria99", "senha_nova": SENHA_DEFINITIVA}, headers=conta)
+    assert trocou.status_code == 200, trocou.text
+    assert client.get("/auth/perfil", headers=conta).status_code == 200  # o mesmo token, já sem a senha provisória
+
+
+# Rotas que não usam o login do painel (o Bearer da pessoa): as públicas de propósito (a lista mantida em test_rotas_sem_login), a renovação
+# da sessão, que lê o cookie do refresh (o access token que ela devolve continua passando por este portão em toda rota), a conta de visitante
+# do site (entra por um código mandado ao e-mail, com sessão própria) e a portaria do evento (o token do evento, sem login de quem opera).
+SEM_O_LOGIN_DO_PAINEL = {
+    ("POST", "/auth/refresh"),
+    ("GET", "/api/visitante/minha-conta"), ("GET", "/api/visitante/pedidos/{protocolo}/relatorio"), ("POST", "/api/visitante/sair"),
+    ("POST", "/api/visitante/pedir-apagamento"),
+    ("GET", "/portaria/evento"), ("POST", "/portaria/checkin"), ("POST", "/portaria/checkout"),
+}
+
+
+def _rotas_que_pedem_login():
+    """Toda rota da API (o mesmo esquema que o painel e a varredura sem login usam), menos as que não dependem do login do painel."""
+    from app.main import app
+    from tests.test_rotas_sem_login import ABERTAS_DE_PROPOSITO, PREFIXOS_PUBLICOS
+
+    for caminho, metodos in app.openapi()["paths"].items():
+        for metodo in metodos:
+            metodo = metodo.upper()
+            if metodo not in ("GET", "POST", "PUT", "PATCH", "DELETE") or caminho.startswith(PREFIXOS_PUBLICOS):
+                continue
+            if (metodo, caminho) in ABERTAS_DE_PROPOSITO or (metodo, caminho) in SEM_O_LOGIN_DO_PAINEL:
+                continue
+            yield metodo, caminho
+
+
+def _varrer(client, cabecalho, liberadas, recusa):
+    import re
+
+    recusadas, fora_da_regra, vistas = 0, [], set()
+    for metodo, caminho in _rotas_que_pedem_login():
+        vistas.add((metodo, caminho))
+        url = re.sub(r"\{[^}]+\}", "987654321", caminho)  # um número que não existe em nenhum lugar
+        r = client.request(metodo, url, json={} if metodo in ("POST", "PUT", "PATCH") else None, headers=cabecalho)
+        if (metodo, caminho) in liberadas:
+            if r.status_code == 403:
+                fora_da_regra.append(f"{metodo} {caminho}: recusada ({r.text[:120]})")
+        elif r.status_code != 403 or r.json().get("detail") != recusa:
+            fora_da_regra.append(f"{metodo} {caminho}: {r.status_code} {r.text[:120]}")
+        else:
+            recusadas += 1
+    assert liberadas <= vistas, liberadas - vistas
+    assert fora_da_regra == [], "\n".join(fora_da_regra)
+    assert recusadas > 400, recusadas  # a API inteira passou pela varredura (são mais de 500 rotas com login)
+
+
+def test_a3_com_a_senha_provisoria_toda_a_api_recusa_igual_menos_ver_quem_e_e_trocar_a_senha(client, db):
+    cabecalho, _ = usuario_com_permissoes(db, nome_nivel="Presidente", mfa_ativado=True, senha_provisoria=True)
+    _varrer(client, cabecalho, LIBERADAS_COM_A_SENHA_PROVISORIA, RECUSA_SENHA_PROVISORIA)
+
+
+def test_a4_sem_o_segundo_passo_obrigatorio_toda_a_api_recusa_igual_menos_ver_quem_e_e_cadastra_lo(client, db):
+    cabecalho, _ = usuario_com_permissoes(db, nome_nivel="Presidente")
+    _varrer(client, cabecalho, LIBERADAS_SEM_O_SEGUNDO_PASSO, RECUSA_MFA_PENDENTE)
+
+
+def test_a4_a_recusa_e_igual_para_o_registro_que_existe_e_o_que_nao_existe(client, db):
+    id_associado, _ = _criar_ficha(client)
+    cabecalho, _ = usuario_com_permissoes(db, "associados", exige_mfa=True)
+    existe = client.get(f"/api/associados/{id_associado}", headers=cabecalho)
+    nao_existe = client.get("/api/associados/987654321", headers=cabecalho)
+    assert existe.status_code == nao_existe.status_code == 403
+    assert existe.json() == nao_existe.json() == {"detail": RECUSA_MFA_PENDENTE}
+
+
+def test_a4_quem_ja_cadastrou_o_segundo_passo_e_quem_nao_precisa_dele_seguem_normalmente(client, db):
+    com_o_segundo_passo, _ = usuario_com_permissoes(db, "associados", exige_mfa=True, mfa_ativado=True)
+    nivel_sem_exigencia, _ = usuario_com_permissoes(db, "associados")
+    for cabecalho in (com_o_segundo_passo, nivel_sem_exigencia):
+        assert client.get("/api/associados/", headers=cabecalho).status_code == 200
+
+
+def test_a4_o_ver_como_nao_tira_a_exigencia_do_nivel_real(client, db):
+    """Quem gerencia os níveis e ainda não cadastrou o segundo passo não escapa dele "vendo como" um nível que não o exige."""
+    from app.security import criar_access_token
+
+    _, id_usuario = usuario_com_permissoes(db, "gerenciar_acesso", exige_mfa=True)
+    token = criar_access_token(db.get(Usuario, id_usuario), id_nivel_impersonado=_id_do_nivel(db, "Associado"))
+    r = client.get("/auth/perfil", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 403 and r.json()["detail"] == RECUSA_MFA_PENDENTE

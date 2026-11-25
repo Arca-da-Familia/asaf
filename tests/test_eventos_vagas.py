@@ -9,7 +9,7 @@ from app.textos_de_privacidade import versao_atual
 from app.database import SessaoLocal
 from app.models.motores import Inscricao
 from tests.test_pessoas import _cpf_unico
-from tests.apoio_auth import cabecalho_admin
+from tests.apoio_auth import cabecalho_admin, entrar_trocando_a_senha_provisoria
 
 _ISO = "%Y-%m-%dT%H:%M:%S"
 
@@ -70,9 +70,7 @@ def _criar_associado_com_acesso(client, auth_headers) -> tuple[dict, int]:
         headers=auth_headers,
     )
     assert r.status_code == 200, r.text
-    login = client.post("/auth/login", json={"cpf": cpf, "senha": senha})
-    assert login.status_code == 200, login.text
-    return {"Authorization": f"Bearer {login.json()['access_token']}"}, id_associado
+    return entrar_trocando_a_senha_provisoria(client, cpf, senha), id_associado  # v9.6s: a senha provisória só serve para trocá-la
 
 
 def test_acima_do_limite_de_vagas_vira_lista_de_espera(client, auth_headers):
