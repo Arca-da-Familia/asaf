@@ -2562,6 +2562,28 @@ Antes de seguir adiante: aplicar o checklist padrão da seção 4.1 e conferir e
       fato e de direito, o módulo atual". Nenhuma rodada de telas de outro módulo enquanto o atual não estiver pronto (construído, homologação
       verde, produção conferida, bloco aqui no PLANO). Ordem: Associados (fechado com a v9.5k) → **Financeiro** (rodadas 7, 7b e a Auditoria
       da 8b) → Atendimento (8b) → Governança (9) → demais.
+- [ ] **ENTRADA EM USO EM 01/01/2027 (plano aprovado pelo Presidente em 25/11/2026; ajustes ao longo dos dias).** Em 01/01 o sistema
+      passa a ser usado de verdade, com o básico pronto; o resto entra com as atualizações dos meses seguintes. O básico: Membros (Associados,
+      pronto desde 21/11), as telas principais e as configurações (funcionam; não estão na fila de redesenho), o Financeiro do dia a dia no
+      desenho novo, a segurança de acesso e o dinheiro corretos. Datas:
+      - até 30/11: v9.6s (segurança de acesso) no ar; v9.6c (Relatórios) com as correções do portão.
+      - 01–06/12: v9.6d (Títulos); correção dos defeitos de dinheiro já achados (estorno, fechamento do mês, baixa em título cancelado).
+      - 07–13/12: v9.6e (Fornecedores + Registrar saída); v9.6h (Cobranças e planos); **a parte da v9.6m que põe o lançamento no exercício
+        pela DATA** (hoje, em janeiro, com 2026 ainda aberto, todo lançamento de 2027 cairia em 2026 — tem de estar certo antes do uso real).
+      - 14–20/12: v9.6f (Compras e Alçadas); v9.6g (Reembolsos e Doações); v9.6i (Contas fixas).
+      - 21–23/12: v9.6j (Conciliação bancária); últimas correções do revisor permanente.
+      - 24–31/12: CONGELADO (só correção) e a preparação da entrada: associados reais, contas da Diretoria com o segundo passo, planos e valores
+        reais, contas do banco e saldo inicial.
+      - 01/01/2027: entra em uso.
+      - janeiro–fevereiro: v9.6k (Negociação), v9.6n (Gerador de relatórios), v9.6o (Orçamento e Razão), v9.6m completa (Fechar o ano), v9.6p
+        (Controle) e v9.6l (Cadastros); depois Atendimento e Governança no desenho novo.
+      - fevereiro–março: o site com desenho novo (funciona hoje; o desenho é melhoria).
+      Revisor permanente (ligado pelo Presidente em 25/11): ~60 partes de ~30 min (`C:\tmp\asaf-revisao\PLANO-DE-REVISAO.md`, fora do
+      repositório); termina por volta de 10–12/12. Antes de 01/01 é obrigatório o que toca dado real: dinheiro, acesso, LGPD, Associados, o site
+      e a infraestrutura; os outros módulos podem terminar em janeiro. Os achados vão para a fila do construtor (corretor); o que BLOQUEIA passa
+      na frente. Condições: a Parte A da rodada 10 respondida até ~03/12 (as versões de 07/12 em diante dependem dela); a cota não parar o
+      serviço mais de 1–2 dias no mês; se o plano apertar, o Presidente decide se em dezembro trabalham 2 construtores (um nas telas, outro só
+      corrigindo, em código separado).
 - [ ] Módulo FINANCEIRO no desenho escolhido (v9.6). Primeira versão: a cobrança respeitar a periodicidade — hoje `gerar_cobrancas` cobra todo
       plano ativo todo mês (um plano semestral sairia todo mês). Decisões do Presidente (21/11/2026): a associação terá os planos MENSAL e
       SEMESTRAL; cada associado escolhe o seu (marcado na ficha); o semestral é cobrado em janeiro (jan–jun) e julho (jul–dez), igual para todos,
