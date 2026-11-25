@@ -181,6 +181,23 @@ def _exigir_permissao_catalogo(db: Session, usuario: Usuario, catalogo: Catalogo
     raise HTTPException(status_code=403, detail=f"Sem permissão para gerenciar o catálogo '{catalogo.nome_exibido}' (exige '{exigido}').")
 
 
+def _permissoes_do_cargo(metadados) -> set[str]:
+    """As permissões que o cargo dá, como `app.services.mandatos.permissoes_por_mandatos_vigentes` as lê (só uma lista conta)."""
+    permissoes = metadados.get("permissoes") if isinstance(metadados, dict) else None
+    return {str(p) for p in permissoes} if isinstance(permissoes, list) else set()
+
+
+def _exigir_gerenciar_acesso_para_mudar_permissoes_do_cargo(db: Session, usuario: Usuario, catalogo: Catalogo, antes, depois) -> None:
+    """v9.6s (mesmo furo do achado A1 da revisão de 23/11/2026): o cargo em mandato vigente DÁ permissão (`metadados.permissoes` do
+    catálogo `titulo_cargo`), e esse catálogo é gerido por quem tem `governanca`. Quem só tinha `governanca` punha `gerenciar_acesso` no
+    próprio cargo e virava dono de todo o sistema. Mudar a lista de permissões de um cargo é de quem gerencia os níveis de acesso; o resto da
+    opção (rótulo, ordem, cor) continua com a governança."""
+    if catalogo.chave != "titulo_cargo" or _permissoes_do_cargo(antes) == _permissoes_do_cargo(depois):
+        return
+    if not usuario_tem_permissao(db, usuario, "gerenciar_acesso"):
+        raise HTTPException(status_code=403, detail="Só quem gerencia os níveis de acesso pode mudar as permissões que um cargo dá.")
+
+
 @router.get("/api/catalogos/", summary="Listar catálogos configuráveis")
 def listar_catalogos(db: Session = Depends(get_db), _usuario: Usuario = Depends(get_current_user)):
     catalogos = db.query(Catalogo).order_by(Catalogo.nome_exibido).all()
@@ -241,6 +258,7 @@ def criar_opcao_catalogo(
     _exigir_permissao_catalogo(db, usuario, catalogo)
     if not catalogo.editavel_pelo_usuario:
         raise HTTPException(status_code=403, detail="Catálogo de sistema — não aceita opção nova por aqui.")
+    _exigir_gerenciar_acesso_para_mudar_permissoes_do_cargo(db, usuario, catalogo, None, dados.metadados)
     if db.query(OpcaoCatalogo).filter(OpcaoCatalogo.id_catalogo == catalogo.id_catalogo, OpcaoCatalogo.codigo == dados.codigo).first():
         raise HTTPException(status_code=400, detail="Já existe uma opção com esse código neste catálogo.")
     nova = OpcaoCatalogo(id_catalogo=catalogo.id_catalogo, **dados.model_dump())
@@ -271,6 +289,8 @@ def atualizar_opcao_catalogo(
     # (Ponto FASE 6 2/2: os metadados também no "antes", para a Auditoria mostrar o que mudou)
     antes = {"rotulo": opcao.rotulo, "ordem": opcao.ordem, "ativo": opcao.ativo, "cor": opcao.cor, "icone": opcao.icone, "metadados": opcao.metadados}
     dados_alterados = dados.model_dump(exclude_unset=True)
+    if catalogo and "metadados" in dados_alterados:
+        _exigir_gerenciar_acesso_para_mudar_permissoes_do_cargo(db, usuario, catalogo, opcao.metadados, dados_alterados["metadados"])
     for campo, valor in dados_alterados.items():
         setattr(opcao, campo, valor)
     db.commit()

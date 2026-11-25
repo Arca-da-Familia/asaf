@@ -188,6 +188,13 @@ def conceder_acesso(id_associado: int, dados: ConcederAcessoCriar, db: Session =
     pra a pessoa; isso aqui fecha esse buraco. A secretaria define uma senha provisória
     (`Usuario.senha_provisoria=True`) que o associado É OBRIGADO a trocar - `POST /auth/login`
     devolve a flag pro front-end forçar a troca antes de deixar usar o resto do sistema."""
+    # v9.6s (achado A1 da revisão de 23/11/2026): quem só cuida do cadastro (`associados`) escolhia o nível da conta nova e criava assim uma
+    # conta de nível Presidente, com a senha que ele mesmo definia. Escolher o nível é de quem gerencia os níveis de acesso; os demais dão o
+    # nível padrão (a tela nunca manda `id_nivel`). A recusa vem ANTES de procurar o associado e o nível: é igual para o que existe e o que não.
+    if dados.id_nivel is not None and not usuario_tem_permissao(db, usuario_secretaria, "gerenciar_acesso"):
+        raise HTTPException(
+            status_code=403, detail="Só quem gerencia os níveis de acesso pode escolher o nível da conta. Sem escolher, a conta nasce no nível Associado.",
+        )
     associado = db.query(Associado).filter(Associado.id_associado == id_associado).first()
     if not associado:
         raise HTTPException(status_code=404, detail="Associado não encontrado.")
