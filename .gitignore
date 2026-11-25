@@ -40,5 +40,6 @@ dist/
 !.claude/settings.json
 *.db-journal
 
-# passagem de bastão: estado do trabalho de cada computador, nunca vai ao repositório (decisão do Presidente, 17/11/2026: evita conflito entre colaboradores)
-HANDOFF.md
+# O estado do trabalho (o HANDOFF completo e as memorias) fica na bancada privada (C:\MCP\bancada\projetos\asaf):
+.claude/continuidade/memoria/
+.claude/continuidade/memoria-claude/
