@@ -226,13 +226,15 @@ function SeusMaisUsados({
               <Link
                 to={item.rota}
                 onClick={aoNavegar}
-                className="flex h-full min-h-11 flex-col items-center justify-center gap-1 rounded-[10px] bg-barra-2 px-0.5 py-2 text-center text-xs leading-tight font-bold text-barra-foreground hover:ring-1 hover:ring-barra-suave lg:min-h-[46px] lg:flex-row lg:justify-start lg:gap-2 lg:px-2.5 lg:py-1 lg:text-left lg:text-[13px]"
+                className="flex h-full min-h-11 flex-col items-center justify-center gap-1 rounded-[10px] bg-barra-2 px-0.5 py-2 text-center text-xs leading-tight font-bold text-barra-foreground hover:ring-1 hover:ring-barra-suave lg:min-h-[46px] lg:flex-row lg:justify-start lg:gap-1.5 lg:px-2 lg:py-1 lg:text-left"
               >
                 <item.icone
                   aria-hidden="true"
-                  className="h-[19px] w-[19px] shrink-0 text-brand-secondary"
+                  className="h-[19px] w-[19px] shrink-0 text-brand-secondary lg:h-4 lg:w-4"
                 />
-                <span className="min-w-0 hyphens-auto [overflow-wrap:anywhere] lg:hyphens-manual">
+                {/* com o ícone ao lado sobram ~75 px: cabem "cobranças", "Conciliação" e "Reembolsos" inteiras (Inter negrito 12 px);
+                    a palavra maior que isso ("Fornecedores") divide com hífen, nunca uma letra sozinha na outra linha */}
+                <span className="min-w-0 hyphens-auto [overflow-wrap:anywhere]">
                   {item.rotulo}
                 </span>
               </Link>

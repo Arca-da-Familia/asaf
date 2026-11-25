@@ -338,6 +338,10 @@ test.describe('no celular', () => {
     await expect(
       page.getByText('Carregando o que precisa de você…'),
     ).toHaveCount(0)
+    // o print só vale com o saldo já chegado (na rodada de 25/11 ele saiu com "…" no lugar do valor)
+    await expect(
+      page.getByRole('region', { name: /^Saldo nas contas/ }),
+    ).not.toContainText('…')
     const lugares = page.locator('li[data-lugar]')
     expect(await lugares.count()).toBeLessThanOrEqual(6)
     expect(await lugares.filter({ visible: true }).count()).toBeLessThanOrEqual(
