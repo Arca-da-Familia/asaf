@@ -78,6 +78,22 @@ def test_o_codigo_troca_a_senha_e_as_sessoes_abertas_caem(client, auth_headers, 
     assert "@" not in (linha.dados_depois or "") and linha.ip_origem
 
 
+def test_o_token_de_antes_da_troca_pelo_codigo_deixa_de_valer(client, auth_headers, db, enviados):
+    """v9.6s (I1 da revisão de portão): além dos refresh, o access token de antes da troca (até 45 minutos de vida) cai junto. Quem conhecia a
+    senha antiga e tinha entrado com ela não segue lendo a conta depois que o dono troca a senha pelo código do e-mail."""
+    cpf, _id_usuario, _email = _conta(client, auth_headers, db)
+    login = client.post("/auth/login", json={"cpf": cpf, "senha": SENHA_PROVISORIA})
+    assert login.status_code == 200, login.text
+    antigo = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    assert client.get("/auth/me", headers=antigo).status_code == 200
+    _pedir(client, cpf)
+    assert _trocar(client, cpf, enviados[-1][1], "MinhaSenhaNova9").status_code == 200
+    r = client.get("/auth/me", headers=antigo)
+    assert (r.status_code, r.json()) == (401, {"detail": "Sessão expirada."})
+    novo = client.post("/auth/login", json={"cpf": cpf, "senha": "MinhaSenhaNova9"})
+    assert client.get("/auth/perfil", headers={"Authorization": f"Bearer {novo.json()['access_token']}"}).status_code == 200
+
+
 def test_cinco_tentativas_e_depois_nem_o_codigo_certo_serve(client, auth_headers, db, enviados):
     cpf, _id, _email = _conta(client, auth_headers, db)
     _pedir(client, cpf)

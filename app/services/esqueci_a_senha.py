@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 from app import security
 from app.auditoria import registrar_auditoria
 from app.models.associados import Associado
-from app.models.core import AuditLog, PermissaoSistema, TokenAcesso, Usuario
+from app.models.core import AuditLog, PermissaoSistema, Usuario
 from app.models.nova_senha import CodigoDeNovaSenha
 from app.services import comunicacao, notificacoes
 from app.services.protecao_publica import limitar_taxa_por_ip
@@ -247,7 +247,8 @@ def trocar_senha(db: Session, *, cpf: str, codigo: str, senha_nova: str, ip: str
     usuario.senha_provisoria = False
     usuario.tentativas_falhas = 0
     usuario.bloqueado_ate = None
-    db.query(TokenAcesso).filter(TokenAcesso.id_usuario == usuario.id_usuario).delete(synchronize_session=False)  # nenhuma sessão se renova
+    # nenhuma sessão se renova (os refresh caem) e nenhum access token de antes da troca vale mais (v9.6s, I1 da revisão de portão)
+    security.encerrar_as_sessoes_de_antes_da_troca_da_senha(db, usuario)
     registrar_auditoria(db, usuario, "usuarios", "SENHA_TROCADA_PELO_CODIGO", id_registro_afetado=usuario.id_usuario, ip_origem=ip)  # o commit único
     return usuario, _email_da_conta(usuario, associado)
 

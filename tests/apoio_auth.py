@@ -16,14 +16,14 @@ import uuid
 import pyotp
 
 _credenciais: tuple[str, str] | None = None
-_admin: tuple[int, int] | None = None  # (id_usuario, id_nivel) do administrador, depois do segundo passo cadastrado
+_admin: tuple[int, int, int] | None = None  # (id_usuario, id_nivel, versao_da_sessao) do administrador, depois do segundo passo cadastrado
 
 
 class _UsuarioDoToken:
     """Só o que `criar_access_token` lê do usuário."""
 
-    def __init__(self, id_usuario: int, id_nivel: int):
-        self.id_usuario, self.id_nivel = id_usuario, id_nivel
+    def __init__(self, id_usuario: int, id_nivel: int, versao_da_sessao: int):
+        self.id_usuario, self.id_nivel, self.versao_da_sessao = id_usuario, id_nivel, versao_da_sessao
 
 
 def token_admin(client) -> str:
@@ -55,7 +55,7 @@ def token_admin(client) -> str:
 
         with SessaoLocal() as db:
             usuario = db.get(Usuario, eu["id_usuario"])
-            _admin = (usuario.id_usuario, usuario.id_nivel)
+            _admin = (usuario.id_usuario, usuario.id_nivel, usuario.versao_da_sessao)  # a senha do administrador nunca muda na suíte
     return criar_access_token(_UsuarioDoToken(*_admin))
 
 
@@ -94,7 +94,8 @@ SENHA_DEFINITIVA_DOS_TESTES = "SenhaDefinitivaDoTeste2026"
 
 def entrar_trocando_a_senha_provisoria(client, cpf: str, senha_provisoria: str) -> dict:
     """v9.6s (achado A3) - a conta que acabou de ganhar acesso entra com a senha provisória e, como a pessoa faz na tela, troca a senha antes
-    de operar: o servidor recusa todo o resto enquanto ela for a provisória. Devolve o cabeçalho da conta, já com a senha definitiva."""
+    de operar: o servidor recusa todo o resto enquanto ela for a provisória. Devolve o cabeçalho da conta, já com a senha definitiva: o token
+    que a própria troca devolve (I1 da revisão de portão: o token de antes da troca deixa de valer)."""
     login = client.post("/auth/login", json={"cpf": cpf, "senha": senha_provisoria})
     assert login.status_code == 200, login.text
     cabecalho = {"Authorization": f"Bearer {login.json()['access_token']}"}
@@ -102,7 +103,7 @@ def entrar_trocando_a_senha_provisoria(client, cpf: str, senha_provisoria: str) 
         "/auth/senha/alterar", json={"senha_atual": senha_provisoria, "senha_nova": SENHA_DEFINITIVA_DOS_TESTES}, headers=cabecalho,
     )
     assert troca.status_code == 200, troca.text
-    return cabecalho
+    return {"Authorization": f"Bearer {troca.json()['access_token']}"}
 
 
 def com_o_segundo_passo_se_o_nivel_exige(db, usuario) -> None:

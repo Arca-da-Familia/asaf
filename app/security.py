@@ -231,6 +231,8 @@ def criar_access_token(usuario: Usuario, id_nivel_impersonado: Optional[int] = N
     payload = {
         "id_usuario": usuario.id_usuario,
         "id_nivel": usuario.id_nivel,
+        # v9.6s (I1): a versão das sessões da conta; a troca da senha a faz subir e o token de versão anterior deixa de valer
+        "versao_da_sessao": usuario.versao_da_sessao or 0,
         "iat": agora,
         "exp": agora + timedelta(minutes=ACCESS_TOKEN_MINUTOS),
         "type": "access",
@@ -391,14 +393,16 @@ def revogar_refresh_token(db: Session, token: str):
     db.commit()
 
 
-def revogar_tokens_exceto(db: Session, usuario: Usuario, token_exceto: Optional[str]):
-    """Revoga todos os refresh tokens do usuário, preservando (opcionalmente) a sessão corrente.
-    Usado na troca de senha: derruba todas as outras sessões, mantém a atual."""
-    query = db.query(TokenAcesso).filter(TokenAcesso.id_usuario == usuario.id_usuario)
-    if token_exceto:
-        query = query.filter(TokenAcesso.token != token_exceto)
-    query.delete()
-    db.commit()
+def encerrar_as_sessoes_de_antes_da_troca_da_senha(db: Session, usuario: Usuario, refresh_que_fica: Optional[str] = None) -> None:
+    """A senha da conta mudou: TODO access token emitido antes deixa de valer (a versão das sessões sobe; achado I1 da revisão de portão da
+    v9.6s) e os refresh tokens são apagados, menos o da sessão de quem trocou (`refresh_que_fica`, o cookie dela), que segue renovando com
+    a versão nova. Não grava: entra na MESMA transação da senha nova, para nenhum refresh, entre uma coisa e outra, emitir um token da
+    versão nova a uma sessão que ia cair."""
+    usuario.versao_da_sessao = Usuario.versao_da_sessao + 1  # no próprio banco: duas trocas ao mesmo tempo sobem as duas
+    refresh = db.query(TokenAcesso).filter(TokenAcesso.id_usuario == usuario.id_usuario)
+    if refresh_que_fica:
+        refresh = refresh.filter(TokenAcesso.token != refresh_que_fica)
+    refresh.delete(synchronize_session=False)
 
 
 def decodificar_access_token(token: str) -> dict:
@@ -434,6 +438,10 @@ def _usuario_do_token(credenciais: Optional[HTTPAuthorizationCredentials], db: S
     usuario = db.query(Usuario).filter(Usuario.id_usuario == payload["id_usuario"]).first()
     if usuario is None or not usuario.ativo:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário inválido ou inativo.")
+    # v9.6s (I1) - a senha mudou depois deste token: ele deixou de valer (o mesmo 401 do token vencido; o painel renova pelo cookie da sessão
+    # de quem trocou, que ficou). Token sem a versão (emitido antes da v9.6s) vale como a primeira.
+    if payload.get("versao_da_sessao", 0) != (usuario.versao_da_sessao or 0):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessão expirada.")
     # v0.2.9 - atributo só em memória (nunca persistido): se o token carrega o claim do modo
     # "ver como", toda checagem de permissão desta requisição usa este nível, não o real.
     usuario.id_nivel_impersonado = payload.get("id_nivel_impersonado")
@@ -524,15 +532,10 @@ def get_current_user_opcional(
     if credenciais is None:
         return None
     try:
-        payload = decodificar_access_token(credenciais.credentials)
-    except HTTPException:
-        return None
-    usuario = db.query(Usuario).filter(Usuario.id_usuario == payload["id_usuario"]).first()
-    if usuario is None or not usuario.ativo:
-        return None
-    usuario.id_nivel_impersonado = payload.get("id_nivel_impersonado")
-    try:
-        _barrar_pendencias(db, usuario)  # v9.6s: com pendência na conta, vale como quem não entrou
+        # v9.6s: as mesmas regras do `get_current_user` (token vencido, conta inativa, token de antes da troca da senha, pendência na conta);
+        # o que lá é recusa, aqui vale como quem não entrou
+        usuario = _usuario_do_token(credenciais, db)
+        _barrar_pendencias(db, usuario)
     except HTTPException:
         return None
     return usuario

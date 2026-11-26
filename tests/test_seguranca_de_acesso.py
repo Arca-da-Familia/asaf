@@ -131,8 +131,11 @@ def _conta_com_mfa(client, db) -> tuple[str, str]:
     r = _conceder(client, cabecalho_admin(client), id_associado, f"{cpf}@mfa.example.com")
     assert r.status_code == 200, r.text
     token = client.post("/auth/login", json={"cpf": cpf, "senha": "SenhaDaSecretaria99"}).json()["access_token"]
-    dono = {"Authorization": f"Bearer {token}"}
-    assert client.post("/auth/senha/alterar", json={"senha_atual": "SenhaDaSecretaria99", "senha_nova": SENHA_DEFINITIVA}, headers=dono).status_code == 200
+    trocou = client.post(
+        "/auth/senha/alterar", json={"senha_atual": "SenhaDaSecretaria99", "senha_nova": SENHA_DEFINITIVA}, headers={"Authorization": f"Bearer {token}"},
+    )
+    assert trocou.status_code == 200, trocou.text
+    dono = {"Authorization": f"Bearer {trocou.json()['access_token']}"}  # o token de antes da troca deixou de valer (I1)
     segredo = pyotp.parse_uri(client.post("/auth/mfa/ativar", headers=dono).json()["otpauth_uri"]).secret
     assert client.post("/auth/mfa/confirmar", json={"codigo_totp": pyotp.TOTP(segredo).now()}, headers=dono).status_code == 200
     return cpf, segredo
@@ -251,6 +254,8 @@ def test_a3_e_a4_a_conta_de_nivel_presidente_so_opera_depois_de_trocar_a_senha_e
 
     trocou = client.post("/auth/senha/alterar", json={"senha_atual": "SenhaDaSecretaria99", "senha_nova": SENHA_DEFINITIVA}, headers=conta)
     assert trocou.status_code == 200, trocou.text
+    assert client.get("/auth/me", headers=conta).status_code == 401  # o token de antes da troca deixou de valer (I1)
+    conta = {"Authorization": f"Bearer {trocou.json()['access_token']}"}  # o que a própria troca devolveu
     for metodo, rota, corpo in (("POST", "/api/exercicios/", {"ano": ano}), ("GET", "/api/auditoria/?limite=1", None),
                                 ("POST", "/auth/senha/alterar", {"senha_atual": SENHA_DEFINITIVA, "senha_nova": "OutraSenhaBoa2026"})):
         r = client.request(metodo, rota, json=corpo, headers=conta)
@@ -271,7 +276,9 @@ def test_a3_quem_nao_precisa_do_segundo_passo_opera_depois_de_trocar_a_senha(cli
     assert client.get("/auth/perfil", headers=conta).json()["detail"] == RECUSA_SENHA_PROVISORIA
     trocou = client.post("/auth/senha/alterar", json={"senha_atual": "SenhaDaSecretaria99", "senha_nova": SENHA_DEFINITIVA}, headers=conta)
     assert trocou.status_code == 200, trocou.text
-    assert client.get("/auth/perfil", headers=conta).status_code == 200  # o mesmo token, já sem a senha provisória
+    # o token que a própria troca devolve, já sem a senha provisória (o de antes da troca deixou de valer: I1)
+    assert client.get("/auth/perfil", headers={"Authorization": f"Bearer {trocou.json()['access_token']}"}).status_code == 200
+    assert client.get("/auth/perfil", headers=conta).status_code == 401
 
 
 # Rotas que não usam o login do painel (o Bearer da pessoa): as públicas de propósito (a lista mantida em test_rotas_sem_login), a renovação
@@ -354,6 +361,102 @@ def test_a4_o_ver_como_nao_tira_a_exigencia_do_nivel_real(client, db):
     token = criar_access_token(db.get(Usuario, id_usuario), id_nivel_impersonado=_id_do_nivel(db, "Associado"))
     r = client.get("/auth/perfil", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 403 and r.json()["detail"] == RECUSA_MFA_PENDENTE
+
+
+# ==========================================================================================================================================
+# I1 (revisão de portão da v9.6s, o resto do A3). O token tirado com a senha provisória continuava valendo até 45 minutos depois de o dono
+#    trocar a senha: quem concedeu o acesso (e por isso conhece a senha provisória) entrava antes da troca, guardava o token e, depois dela, lia
+#    o perfil do dono, começava a cadastrar uma passkey ou cadastrava o próprio aplicativo autenticador na conta (trancando o dono fora).
+#    Agora trocar a senha encerra TODO token anterior da conta. O token que a própria troca devolve, e o que a sessão de quem trocou renova pelo
+#    cookie, continuam valendo: a pessoa não cai fora logo depois de trocar.
+# ==========================================================================================================================================
+SESSAO_EXPIRADA = {"detail": "Sessão expirada."}
+
+
+def _login_com_o_refresh(client, cpf, senha) -> tuple[dict, str]:
+    """O cabeçalho do access token e o refresh, que só vai no cookie HttpOnly (nunca no corpo): o teste o lê do `Set-Cookie`, como o
+    navegador o guardaria."""
+    from app.security import REFRESH_COOKIE_NAME
+
+    r = client.post("/auth/login", json={"cpf": cpf, "senha": senha})
+    assert r.status_code == 200 and r.json()["access_token"], r.text
+    cookie = next(c for c in r.headers.get_list("set-cookie") if c.startswith(f"{REFRESH_COOKIE_NAME}="))
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}, cookie.split(";", 1)[0].split("=", 1)[1]
+
+
+def test_i1_trocar_a_senha_encerra_todo_token_de_antes_da_troca(client, db):
+    from app.models.core import CredencialWebAuthn
+    from app.security import REFRESH_COOKIE_NAME
+
+    secretaria, _ = usuario_com_permissoes(db, "associados")
+    id_associado, cpf = _criar_ficha(client)
+    assert _conceder(client, secretaria, id_associado, f"{cpf}@i1.example.com").status_code == 200
+    # quem concedeu o acesso conhece a senha provisória: entra antes do dono e guarda o token
+    token_da_secretaria, refresh_da_secretaria = _login_com_o_refresh(client, cpf, "SenhaDaSecretaria99")
+    # o dono entra (a sessão dele fica no cookie do refresh, que o navegador manda junto) e troca a senha
+    token_do_dono_antes, refresh_do_dono = _login_com_o_refresh(client, cpf, "SenhaDaSecretaria99")
+    trocou = client.post(
+        "/auth/senha/alterar", json={"senha_atual": "SenhaDaSecretaria99", "senha_nova": SENHA_DEFINITIVA},
+        headers={**token_do_dono_antes, "Cookie": f"{REFRESH_COOKIE_NAME}={refresh_do_dono}"},
+    )
+    assert trocou.status_code == 200, trocou.text
+
+    # todo token de antes da troca (o da secretaria e o do próprio dono) deixa de valer, inclusive nas rotas liberadas com pendência na conta
+    for metodo, rota in (("GET", "/auth/me"), ("GET", "/auth/perfil"), ("GET", "/auth/me/ficha-360"), ("POST", "/auth/webauthn/registrar/iniciar"),
+                         ("POST", "/auth/mfa/ativar"), ("POST", "/auth/mfa/confirmar"), ("POST", "/auth/senha/alterar")):
+        for antigo in (token_da_secretaria, token_do_dono_antes):
+            r = client.request(metodo, rota, json={} if metodo == "POST" else None, headers=antigo)
+            assert (r.status_code, r.json()) == (401, SESSAO_EXPIRADA), (metodo, rota, r.text)
+    conta = _usuario_do_cpf(db, cpf)
+    assert conta.mfa_secret is None and conta.mfa_ativado is False  # ninguém cadastrou um autenticador na conta do dono
+    assert db.query(CredencialWebAuthn).filter(CredencialWebAuthn.id_usuario == conta.id_usuario).count() == 0
+
+    # o token que a própria troca devolve vale: a pessoa segue no painel, já sem a senha provisória
+    novo = {"Authorization": f"Bearer {trocou.json()['access_token']}"}
+    assert client.get("/auth/me", headers=novo).json()["senha_provisoria"] is False
+    assert client.get("/auth/perfil", headers=novo).status_code == 200
+    # a sessão de quem trocou (o refresh do cookie) continua e renova um token que vale (é o caminho das outras abas do painel); a da
+    # secretaria caiu junto com a troca
+    renovado = client.post("/auth/refresh", json={"refresh_token": refresh_do_dono})
+    assert renovado.status_code == 200, renovado.text
+    assert client.get("/auth/perfil", headers={"Authorization": f"Bearer {renovado.json()['access_token']}"}).status_code == 200
+    assert client.post("/auth/refresh", json={"refresh_token": refresh_da_secretaria}).status_code == 401
+
+
+def test_i1_o_token_sem_a_versao_da_sessao_vale_ate_a_senha_mudar(client, db):
+    """O token emitido antes desta versão não traz a versão da sessão e vale como a primeira: ninguém cai fora na subida do sistema, e ele
+    deixa de valer quando a senha mudar."""
+    import jwt
+
+    from app.security import JWT_ALGORITHM, JWT_SECRET, criar_access_token
+
+    cabecalho, id_usuario = usuario_com_permissoes(db, "associados")
+    payload = jwt.decode(criar_access_token(db.get(Usuario, id_usuario)), JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    payload.pop("versao_da_sessao", None)
+    sem_a_versao = {"Authorization": f"Bearer {jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)}"}
+    assert client.get("/api/associados/", headers=sem_a_versao).status_code == 200
+
+    trocou = client.post("/auth/senha/alterar", json={"senha_atual": "SenhaForte123456", "senha_nova": "OutraSenhaBoa2026"}, headers=cabecalho)
+    assert trocou.status_code == 200, trocou.text
+    for antigo in (sem_a_versao, cabecalho):
+        r = client.get("/api/associados/", headers=antigo)
+        assert (r.status_code, r.json()) == (401, SESSAO_EXPIRADA)
+    assert client.get("/api/associados/", headers={"Authorization": f"Bearer {trocou.json()['access_token']}"}).status_code == 200
+
+
+def test_i1_o_login_opcional_tambem_recusa_o_token_de_antes_da_troca(client, db):
+    """Nenhuma rota usa `get_current_user_opcional` hoje; a regra vale nele também, para quem voltar a usá-lo."""
+    from fastapi.security import HTTPAuthorizationCredentials
+
+    from app.security import get_current_user_opcional
+
+    cabecalho, id_usuario = usuario_com_permissoes(db, "associados")
+    credenciais = HTTPAuthorizationCredentials(scheme="Bearer", credentials=cabecalho["Authorization"].removeprefix("Bearer "))
+    assert get_current_user_opcional(credenciais, db).id_usuario == id_usuario
+    trocou = client.post("/auth/senha/alterar", json={"senha_atual": "SenhaForte123456", "senha_nova": "OutraSenhaBoa2026"}, headers=cabecalho)
+    assert trocou.status_code == 200, trocou.text
+    db.expire_all()
+    assert get_current_user_opcional(credenciais, db) is None
 
 
 # ==========================================================================================================================================

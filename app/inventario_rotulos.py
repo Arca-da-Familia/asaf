@@ -222,6 +222,7 @@ ROTULO_DA_COLUNA: dict[str, str] = {
     "valor": "Valor",
     "variaveis_usadas": "Dados usados no documento",
     "versao": "Versão",
+    "versao_da_sessao": "Versão das sessões",
     "versao_material": "Versão do material",
     "vinculo_responsavel": "Vínculo com o responsável",
 }

@@ -120,7 +120,8 @@ def test_o_me_diz_que_a_senha_e_provisoria_ate_ser_trocada_e_a_nova_nao_pode_ser
 
     trocou = client.post("/auth/senha/alterar", json={"senha_atual": "Provisoria1", "senha_nova": "MinhaSenhaNova9"}, headers=cabecalho)
     assert trocou.status_code == 200, trocou.text
-    assert client.get("/auth/me", headers=cabecalho).json()["senha_provisoria"] is False
+    # v9.6s (I1): o token de antes da troca deixou de valer; o que a própria troca devolve segue, já sem a senha provisória
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {trocou.json()['access_token']}"}).json()["senha_provisoria"] is False
 
 
 def test_quem_nao_recebeu_senha_provisoria_nao_e_mandado_para_a_troca(client, auth_headers):

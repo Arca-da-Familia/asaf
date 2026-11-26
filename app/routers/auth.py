@@ -64,6 +64,7 @@ from app.security import (
     criar_webauthn_pending_token,
     decodificar_mfa_pending_token,
     decodificar_webauthn_pending_token,
+    encerrar_as_sessoes_de_antes_da_troca_da_senha,
     exigir_permissao,
     gerar_codigos_recuperacao,
     get_current_user,
@@ -75,7 +76,6 @@ from app.security import (
     registrar_tentativa_falha,
     revogar_codigos_recuperacao,
     revogar_refresh_token,
-    revogar_tokens_exceto,
     segundo_passo_obrigatorio,
     usuario_cadastrando_o_segundo_passo,
     usuario_esta_bloqueado,
@@ -461,11 +461,13 @@ def alterar_senha(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A senha nova precisa ser diferente da atual.")
     usuario.senha_hash = hash_senha(dados.senha_nova)
     usuario.senha_provisoria = False
+    # v9.6s (I1): todo access token de antes da troca deixa de valer (inclusive o que alguém tirou com a senha provisória) e as outras sessões
+    # caem; fica só a sessão corrente (o refresh do cookie), na mesma transação da senha nova.
+    encerrar_as_sessoes_de_antes_da_troca_da_senha(db, usuario, request.cookies.get(REFRESH_COOKIE_NAME))
     db.commit()
-    # Revoga todos os refresh tokens EXCETO o da sessão corrente (identificado pelo cookie).
-    revogar_tokens_exceto(db, usuario, request.cookies.get(REFRESH_COOKIE_NAME))
     registrar_auditoria(db, usuario, "usuarios", "SENHA_ALTERADA", id_registro_afetado=usuario.id_usuario)
-    return {"mensagem": "Senha alterada com sucesso."}
+    # o token desta sessão, já da versão nova: quem trocou a senha segue no painel sem passar pela renovação
+    return {"mensagem": "Senha alterada com sucesso.", "access_token": criar_access_token(usuario), "expires_in_minutos": ACCESS_TOKEN_MINUTOS}
 
 
 @router.get("/perfil", response_model=PerfilResponse, summary="Dados cadastrais do próprio associado")

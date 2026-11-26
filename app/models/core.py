@@ -179,6 +179,10 @@ class Usuario(Base):
     # próprio titular. `POST /auth/login` devolve essa flag pro front-end forçar troca no
     # primeiro acesso - zerada em `POST /auth/senha/alterar`.
     senha_provisoria = Column(Boolean, nullable=False, default=False)
+    # v9.6s (I1 da revisão de portão) - sobe a cada troca de senha e vai dentro do access token (`app/security.py::criar_access_token`): o token
+    # de versão anterior deixa de valer (`_usuario_do_token`). Sem isso, o token tirado antes da troca (inclusive por quem conhecia a senha
+    # provisória) seguia valendo até vencer. Token sem a versão (emitido antes desta versão do sistema) vale como 0.
+    versao_da_sessao = Column(Integer, nullable=False, default=0, server_default="0")
 
 class TokenAcesso(Base):
     __tablename__ = "tokens_acesso"
