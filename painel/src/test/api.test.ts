@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, apiFetch, me } from '@/lib/api'
-import { clearSession, setAccessToken } from '@/lib/auth'
+import { ApiError, alterarSenha, apiFetch, me } from '@/lib/api'
+import { clearSession, getAccessToken, setAccessToken } from '@/lib/auth'
 import { obterEstado } from '@/lib/network-status'
 
 function jsonResponse(
@@ -146,5 +146,38 @@ describe('me() — contrato Zod da resposta de /auth/me', () => {
       ),
     )
     await expect(me()).rejects.toThrow(/não bate com o contrato esperado/)
+  })
+})
+
+// v9.6s (I1 da revisão de portão): trocar a senha encerra todo token de antes da troca, inclusive o desta aba; o servidor devolve o token
+// novo da sessão de quem trocou e o painel passa a usá-lo, sem cair fora nem depender da renovação.
+describe('alterarSenha', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    clearSession()
+  })
+
+  it('guarda o token novo que a troca devolve e o usa no pedido seguinte', async () => {
+    setAccessToken('token-de-antes-da-troca')
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(200, {
+          mensagem: 'Senha alterada com sucesso.',
+          access_token: 'token-da-troca',
+          expires_in_minutos: 45,
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse(200, { ok: true }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await alterarSenha({ senha_atual: 'Provisoria1', senha_nova: 'MinhaNova9' })
+
+    expect(getAccessToken()).toBe('token-da-troca')
+    await apiFetch('/auth/perfil')
+    const cabecalhos = new Headers(
+      (fetchMock.mock.calls[1]?.[1] as RequestInit).headers,
+    )
+    expect(cabecalhos.get('Authorization')).toBe('Bearer token-da-troca')
   })
 })

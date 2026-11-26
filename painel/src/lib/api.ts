@@ -532,14 +532,18 @@ export function trocarSenhaComCodigo(dados: {
   })
 }
 
-export function alterarSenha(dados: {
+// v9.6s (I1 da revisão de portão): a troca encerra todo token de antes dela, inclusive o desta aba. O servidor devolve o token novo da sessão
+// de quem trocou: guardado aqui, a pessoa segue no painel sem cair fora (as outras abas renovam pelo cookie, que a troca não derruba).
+export async function alterarSenha(dados: {
   senha_atual: string
   senha_nova: string
 }): Promise<{ mensagem: string }> {
-  return apiFetch('/auth/senha/alterar', {
-    method: 'POST',
-    body: JSON.stringify(dados),
-  })
+  const resposta = await apiFetch<{ mensagem: string; access_token?: string }>(
+    '/auth/senha/alterar',
+    { method: 'POST', body: JSON.stringify(dados) },
+  )
+  if (resposta.access_token) setAccessToken(resposta.access_token)
+  return { mensagem: resposta.mensagem }
 }
 
 export function listarSessoes(): Promise<Sessao[]> {
